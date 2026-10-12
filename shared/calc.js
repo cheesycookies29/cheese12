@@ -2,8 +2,8 @@
 // browser (DTR display), so this file must stay free of Node/DOM APIs.
 
 export const DEFAULT_SETTINGS = {
-  companyName: 'My Company Inc.',
-  companyAddress: '',
+  companyName: 'Lancaster Technology and Development Corporation',
+  companyAddress: 'Suite 3201, High St., South Corporate Plaza Tower 2, 26th St. cor. 11th Ave., BGC, Taguig City 1634',
   companyTin: '',
   payFrequency: 'semi-monthly', // 'semi-monthly' | 'monthly'
   workDaysPerYear: 261, // 5-day work week; use 313 for a 6-day week

@@ -1,6 +1,6 @@
-# Sapling HR 🌱
+# LTDC HR & Payroll
 
-A simple HR app for Philippine companies that runs on your own computer and opens in your browser. It has three parts:
+A simple HR app for Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/). It has three parts:
 
 - **Employee records**: personal details, employment, pay rate, work schedule, government IDs (TIN, SSS, PhilHealth, Pag-IBIG) and bank details.
 - **Time tracking**: a time clock where employees clock in and out, and an attendance record (DTR) that works out late, undertime and overtime minutes. You can also add paid leave, fix records by hand and approve overtime.
@@ -16,7 +16,7 @@ There is no account system and no cloud. Your data stays on your Mac in `data/db
 3. **Start the app** from Terminal:
 
    ```bash
-   cd path/to/cheese12
+   cd path/to/ltdc-hr
    npm start
    ```
 

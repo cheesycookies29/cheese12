@@ -14,10 +14,11 @@ const db = openDb(DB_FILE);
 const api = createApi(db);
 
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': path.join(ROOT, 'public') };
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.ttf': 'font/ttf' };
 
 function send(res, status, body, type = 'application/json') {
-  res.writeHead(status, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' });
+  const textual = /^text\/|json|javascript|svg/.test(type);
+  res.writeHead(status, { 'Content-Type': textual ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store' });
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
@@ -73,7 +74,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`\n  Sapling HR is running at http://localhost:${PORT}`);
+  console.log(`\n  LTDC HR & Payroll is running at http://localhost:${PORT}`);
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');
 });

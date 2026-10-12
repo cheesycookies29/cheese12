@@ -96,7 +96,7 @@ export async function settingsView(el) {
 
   el.querySelector('#backup').addEventListener('click', async () => {
     const data = await api.get('/api/admin/export');
-    downloadFile(`sapling-hr-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
+    downloadFile(`ltdc-hr-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
   });
 
   el.querySelector('#restore').addEventListener('change', async (e) => {

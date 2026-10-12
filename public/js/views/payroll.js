@@ -86,7 +86,7 @@ export async function payrollRunView(el, { id }) {
         <div class="actions">
           <button class="btn" id="export">Export register</button>
           <a class="btn" href="#/payroll/${run.id}/payslip/all">Print payslips</a>
-          ${draft ? html`<button class="btn" id="recompute">Recompute</button><button class="btn primary" id="finalize">Finalize</button>` : ''}
+          ${draft ? html`<button class="btn" id="recompute">Recompute</button><button class="btn gold" id="finalize">Finalize</button>` : ''}
         </div>
       </header>
       <div class="stats">
@@ -190,7 +190,7 @@ function payslipCard(run, p, settings) {
   return html`
     <article class="payslip">
       <header>
-        <div><h2>${settings.companyName}</h2><p>${settings.companyAddress}</p>${settings.companyTin ? html`<p>TIN ${settings.companyTin}</p>` : ''}</div>
+        <div><img src="/img/logo.png" alt="" /><h2>${settings.companyName}</h2><p>${settings.companyAddress}</p>${settings.companyTin ? html`<p>TIN ${settings.companyTin}</p>` : ''}</div>
         <div class="right"><h3>PAYSLIP</h3><p>${periodLabel(run)}</p><p>Pay date: ${fmtDate(run.payDate)}</p>${run.status === 'draft' ? html`<p class="draft-mark">DRAFT</p>` : ''}</div>
       </header>
       <dl class="slip-info">

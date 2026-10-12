@@ -26,8 +26,6 @@ const hhmm = (mins) => `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
 
 export function demoData() {
   const data = emptyData();
-  data.settings.companyName = 'Demo Company Inc.';
-  data.settings.companyAddress = '123 Ayala Ave., Makati City, Metro Manila';
 
   data.employees = PEOPLE.map(([first, last, middle, position, department, payType, rate, gender, civilStatus], i) => ({
     id: randomUUID(),
