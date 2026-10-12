@@ -1,0 +1,14 @@
+{
+  "name": "sapling-hr",
+  "version": "1.0.0",
+  "description": "A simple, local-only HR app: employee records, time tracking and Philippine payroll.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,79 @@
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { openDb } from './server/db.js';
+import { createApi } from './server/api.js';
+
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '127.0.0.1'; // only reachable from this computer
+const DB_FILE = process.env.DB_FILE || path.join(ROOT, 'data', 'db.json');
+
+const db = openDb(DB_FILE);
+const api = createApi(db);
+
+const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': path.join(ROOT, 'public') };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon' };
+
+function send(res, status, body, type = 'application/json') {
+  res.writeHead(status, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' });
+  res.end(type === 'application/json' ? JSON.stringify(body) : body);
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 50 * 1024 * 1024) reject(Object.assign(new Error('Request too large.'), { status: 413 }));
+    });
+    req.on('end', () => {
+      try {
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+function serveStatic(url, res) {
+  for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
+    if (!url.pathname.startsWith(prefix)) continue;
+    let rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
+    const file = path.join(dir, rel);
+    if (!file.startsWith(dir + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+      return send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || 'application/octet-stream');
+    }
+    if (prefix === '/') return send(res, 200, fs.readFileSync(path.join(dir, 'index.html')), 'text/html');
+    return send(res, 404, 'Not found', 'text/plain');
+  }
+}
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  if (!url.pathname.startsWith('/api/')) return serveStatic(url, res);
+  // Block other websites from calling this local API (DNS rebinding / CSRF).
+  const hostname = (req.headers.host || '').replace(/:\d+$/, '');
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(hostname)) return send(res, 403, { error: 'Forbidden host.' });
+  if (['POST', 'PUT', 'DELETE'].includes(req.method) && !(req.headers['content-type'] || '').startsWith('application/json')) {
+    return send(res, 415, { error: 'Requests must be JSON.' });
+  }
+  try {
+    const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req) : {};
+    send(res, 200, await api(req, url, body));
+  } catch (err) {
+    const status = err.status || 500;
+    if (status === 500) console.error(err);
+    send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message });
+  }
+});
+
+server.listen(PORT, HOST, () => {
+  console.log(`\n  Sapling HR is running at http://localhost:${PORT}`);
+  console.log(`  Data file: ${DB_FILE}`);
+  console.log('  Press Ctrl+C to stop.\n');
+});
