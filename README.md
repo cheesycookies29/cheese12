@@ -39,6 +39,20 @@ To use a different port, run `PORT=8080 npm start`.
 
 ## Run it on Windows
 
+### Easiest: the Windows package (nothing to install)
+
+`LTDC-HR-Windows-x64.zip` contains the app **and its own copy of Node.js**, so there is nothing to install.
+
+1. Right-click the zip → **Properties** → tick **Unblock** if it is shown → **OK**.
+2. Right-click → **Extract All…** and put the `LTDC-HR` folder somewhere permanent, such as **Documents** (not Program Files). Your data is saved inside it.
+3. Double-click **`Start LTDC HR.bat`**. The app opens in your browser at <http://localhost:3000>. Keep the black window open while you use it.
+4. Optional: double-click **`Create desktop shortcut.bat`**.
+
+The folder also has **`Start LTDC HR (office network).bat`** (lets other PCs sign in), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
+To build the package yourself, run `scripts/build-windows.sh` on macOS or Linux. It downloads the official Node.js Windows build, checks it against nodejs.org's checksums, and writes `dist/LTDC-HR-Windows-x64.zip`.
+
+### From the source code
+
 1. **Install Node.js** (one time only): download the **LTS** installer (`.msi`) from <https://nodejs.org> and run it with the default options.
 2. **Unzip** `ltdc-hr.zip`: right-click it → **Extract All…**. Put the folder somewhere permanent, such as **Documents**. Your data is saved inside it.
 3. **Double-click `start-windows.bat`** in the `ltdc-hr` folder. A black window opens and the app opens in your browser at <http://localhost:3000>.
@@ -128,3 +142,4 @@ You can also just copy the `data/` folder.
 - `shared/roles.js` defines the account types and permissions. The server enforces them on every API call (`server/api.js`), and the browser uses them to hide screens and buttons. Passwords and sessions are in `server/auth.js`.
 - `public/` is the single-page app: plain ES modules with no build step.
 - Run the tests with `npm test`.
+- Build the Windows package with `scripts/build-windows.sh` (needs `curl`, `zip`, `unzip`; set `NODE_VERSION` to change the bundled runtime). The launchers, icon and read-me it adds are in `packaging/windows/`.
