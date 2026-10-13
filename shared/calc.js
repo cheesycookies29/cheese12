@@ -1,6 +1,36 @@
 // Time and payroll calculations. Shared by the server (payroll runs) and the
 // browser (DTR display), so this file must stay free of Node/DOM APIs.
 
+// Government rates as of 2025. Editable in Payroll Setup, so a new circular
+// does not need a code change.
+export const DEFAULT_RATES = {
+  // SSS 2025 schedule: 15% of the Monthly Salary Credit (EE 5%, ER 10%), MSC 5,000 to 35,000 in 500 steps.
+  sss: { eeRate: 0.05, erRate: 0.1, minMsc: 5000, maxMsc: 35000, mscStep: 500, ecLow: 10, ecHigh: 30, ecThreshold: 15000 },
+  // PhilHealth 2024-2025: 5% of monthly basic salary (floor 10,000, ceiling 100,000), split equally.
+  philhealth: { rate: 0.05, floor: 10000, ceiling: 100000 },
+  // Pag-IBIG (HDMF) from Feb 2024: fund salary capped at 10,000; EE 1% up to 1,500 then 2%; ER 2%.
+  pagibig: { eeRate: 0.02, eeLowRate: 0.01, lowThreshold: 1500, erRate: 0.02, maxFundSalary: 10000 },
+  // BIR withholding tax tables (TRAIN law, effective Jan 1, 2023): tax = base + (income - over) x rate.
+  tax: {
+    'semi-monthly': [
+      { over: 0, base: 0, rate: 0 },
+      { over: 10417, base: 0, rate: 0.15 },
+      { over: 16667, base: 937.5, rate: 0.2 },
+      { over: 33333, base: 4270.7, rate: 0.25 },
+      { over: 83333, base: 16770.7, rate: 0.3 },
+      { over: 333333, base: 91770.7, rate: 0.35 },
+    ],
+    monthly: [
+      { over: 0, base: 0, rate: 0 },
+      { over: 20833, base: 0, rate: 0.15 },
+      { over: 33333, base: 1875, rate: 0.2 },
+      { over: 66667, base: 8541.8, rate: 0.25 },
+      { over: 166667, base: 33541.8, rate: 0.3 },
+      { over: 666667, base: 183541.8, rate: 0.35 },
+    ],
+  },
+};
+
 export const DEFAULT_SETTINGS = {
   companyName: 'Lancaster Technology and Development Corporation',
   companyAddress: 'Suite 3201, High St., South Corporate Plaza Tower 2, 26th St. cor. 11th Ave., BGC, Taguig City 1634',
@@ -13,6 +43,7 @@ export const DEFAULT_SETTINGS = {
   restDayMultiplier: 1.3,
   schedule: { shiftStart: '09:00', shiftEnd: '18:00', breakMinutes: 60, workDays: [1, 2, 3, 4, 5] },
   contributions: { sss: true, philhealth: true, pagibig: true, withholdingTax: true },
+  rates: DEFAULT_RATES,
 };
 
 export const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -82,8 +113,10 @@ export function ratesFor(employee, settings) {
 
 // Late / undertime / overtime for a single DTR entry.
 export function computeEntry(entry, schedule, settings) {
-  const r = { workedMinutes: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDay: false, leave: false, open: false };
-  if (entry.type === 'leave') return { ...r, leave: true };
+  const r = { workedMinutes: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDay: false, leave: false, paidLeave: false, remote: Boolean(entry.remote), open: false };
+  if (entry.type === 'leave') return { ...r, leave: true, paidLeave: entry.paid !== false };
+  // An approved remote-work day with no clock times counts as a full scheduled day.
+  if (entry.remote && !entry.timeIn) return { ...r, workedMinutes: Math.round(hoursPerDay(schedule) * 60) };
   if (!entry.timeOut) return { ...r, open: true };
 
   const inM = toMinutes(entry.timeIn);
@@ -112,50 +145,30 @@ export function computeEntry(entry, schedule, settings) {
 
 // ---------- Government contributions (employee + employer shares, monthly) ----------
 
-// SSS 2025 schedule: 15% of Monthly Salary Credit (EE 5%, ER 10%), MSC 5,000 to 35,000.
-export function sssContribution(monthlyCompensation) {
+const ratesOf = (settings) => ({ ...DEFAULT_RATES, ...(settings?.rates || {}) });
+
+export function sssContribution(monthlyCompensation, r = DEFAULT_RATES.sss) {
+  const half = r.mscStep / 2;
   let msc;
-  if (monthlyCompensation < 5250) msc = 5000;
-  else if (monthlyCompensation >= 34750) msc = 35000;
-  else msc = 5500 + Math.floor((monthlyCompensation - 5250) / 500) * 500;
-  return { msc, ee: round2(msc * 0.05), er: round2(msc * 0.1), ec: msc < 15000 ? 10 : 30 };
+  if (monthlyCompensation < r.minMsc + half) msc = r.minMsc;
+  else if (monthlyCompensation >= r.maxMsc - half) msc = r.maxMsc;
+  else msc = r.minMsc + r.mscStep * (1 + Math.floor((monthlyCompensation - r.minMsc - half) / r.mscStep));
+  return { msc, ee: round2(msc * r.eeRate), er: round2(msc * r.erRate), ec: msc < r.ecThreshold ? r.ecLow : r.ecHigh };
 }
 
-// PhilHealth 2024-2025: 5% of monthly basic salary (floor 10,000, ceiling 100,000), split equally.
-export function philhealthContribution(monthlyBasic) {
-  const base = Math.min(Math.max(monthlyBasic, 10000), 100000);
-  const half = round2((base * 0.05) / 2);
+export function philhealthContribution(monthlyBasic, r = DEFAULT_RATES.philhealth) {
+  const base = Math.min(Math.max(monthlyBasic, r.floor), r.ceiling);
+  const half = round2((base * r.rate) / 2);
   return { ee: half, er: half };
 }
 
-// Pag-IBIG (HDMF) from Feb 2024: max fund salary 10,000; EE 1% (<= 1,500) or 2%, ER 2%.
-export function pagibigContribution(monthlyBasic) {
-  const base = Math.min(monthlyBasic, 10000);
-  return { ee: round2(base * (monthlyBasic <= 1500 ? 0.01 : 0.02)), er: round2(base * 0.02) };
+export function pagibigContribution(monthlyBasic, r = DEFAULT_RATES.pagibig) {
+  const base = Math.min(monthlyBasic, r.maxFundSalary);
+  return { ee: round2(base * (monthlyBasic <= r.lowThreshold ? r.eeLowRate : r.eeRate)), er: round2(base * r.erRate) };
 }
 
-// BIR withholding tax tables (TRAIN law, effective Jan 1, 2023).
-const TAX_TABLES = {
-  'semi-monthly': [
-    { over: 0, base: 0, rate: 0 },
-    { over: 10417, base: 0, rate: 0.15 },
-    { over: 16667, base: 937.5, rate: 0.2 },
-    { over: 33333, base: 4270.7, rate: 0.25 },
-    { over: 83333, base: 16770.7, rate: 0.3 },
-    { over: 333333, base: 91770.7, rate: 0.35 },
-  ],
-  monthly: [
-    { over: 0, base: 0, rate: 0 },
-    { over: 20833, base: 0, rate: 0.15 },
-    { over: 33333, base: 1875, rate: 0.2 },
-    { over: 66667, base: 8541.8, rate: 0.25 },
-    { over: 166667, base: 33541.8, rate: 0.3 },
-    { over: 666667, base: 183541.8, rate: 0.35 },
-  ],
-};
-
-export function withholdingTax(taxableIncome, frequency) {
-  const table = TAX_TABLES[frequency] || TAX_TABLES['semi-monthly'];
+export function withholdingTax(taxableIncome, frequency, tables = DEFAULT_RATES.tax) {
+  const table = [...(tables[frequency] || tables['semi-monthly'])].sort((a, b) => a.over - b.over);
   if (taxableIncome <= 0) return 0;
   const bracket = [...table].reverse().find((b) => taxableIncome > b.over) || table[0];
   return round2(bracket.base + (taxableIncome - bracket.over) * bracket.rate);
@@ -172,7 +185,7 @@ export function computePayslip({ employee, entries, periodStart, periodEnd, sett
   const inPeriod = entries.filter((e) => e.employeeId === employee.id && e.date >= periodStart && e.date <= periodEnd);
   const byDate = new Map(inPeriod.map((e) => [e.date, e]));
 
-  const att = { scheduledDays: 0, daysPresent: 0, leaveDays: 0, absentDays: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDayMinutes: 0, openEntries: 0, unapprovedOvertimeMinutes: 0 };
+  const att = { scheduledDays: 0, daysPresent: 0, remoteDays: 0, leaveDays: 0, unpaidLeaveDays: 0, absentDays: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDayMinutes: 0, openEntries: 0, unapprovedOvertimeMinutes: 0 };
 
   for (const e of inPeriod) {
     const c = computeEntry(e, schedule, settings);
@@ -194,15 +207,20 @@ export function computePayslip({ employee, entries, periodStart, periodEnd, sett
     att.scheduledDays += 1;
     const e = byDate.get(date);
     if (!e) att.absentDays += 1;
+    else if (e.type === 'leave' && e.paid === false) att.unpaidLeaveDays += 1;
     else if (e.type === 'leave') att.leaveDays += 1;
-    else att.daysPresent += 1;
+    else {
+      att.daysPresent += 1;
+      if (e.remote) att.remoteDays += 1;
+    }
   }
 
   // Monthly-rated employees get a fixed amount per period, less absences.
   // Daily-rated employees (and monthly-rated hires that started mid-period) are paid per day.
   const paidPerDay = employee.payType === 'daily' || hireDate > periodStart;
   const basePay = paidPerDay ? (att.daysPresent + att.leaveDays) * rates.daily : rates.monthly / divisor;
-  const absenceDeduction = paidPerDay ? 0 : att.absentDays * rates.daily;
+  // Unpaid leave (e.g. leave without pay) is deducted like an absence.
+  const absenceDeduction = paidPerDay ? 0 : (att.absentDays + att.unpaidLeaveDays) * rates.daily;
   const tardinessDeduction = ((att.lateMinutes + att.undertimeMinutes) / 60) * rates.hourly;
   const basicPay = Math.max(0, basePay - absenceDeduction - tardinessDeduction);
 
@@ -210,14 +228,16 @@ export function computePayslip({ employee, entries, periodStart, periodEnd, sett
   const restDayPay = (att.restDayMinutes / 60) * rates.hourly * Number(settings.restDayMultiplier || 1.3);
   const otherEarnings = Number(adjustments.otherEarnings) || 0;
   const otherDeductions = Number(adjustments.otherDeductions) || 0;
-  const allowance = (Number(employee.allowance) || 0) / divisor; // de minimis, non-taxable
-
   const grossPay = round2(basicPay + overtimePay + restDayPay + otherEarnings);
+  // No pay in the period (e.g. no attendance yet): nothing to deduct from, no allowance.
+  const noPay = grossPay <= 0;
+  const allowance = noPay ? 0 : (Number(employee.allowance) || 0) / divisor; // de minimis, non-taxable
 
-  const c = settings.contributions;
-  const sss = c.sss ? sssContribution(rates.monthly) : { ee: 0, er: 0, ec: 0 };
-  const ph = c.philhealth ? philhealthContribution(rates.monthly) : { ee: 0, er: 0 };
-  const hdmf = c.pagibig ? pagibigContribution(rates.monthly) : { ee: 0, er: 0 };
+  const c = noPay ? {} : settings.contributions;
+  const gov = ratesOf(settings);
+  const sss = c.sss ? sssContribution(rates.monthly, gov.sss) : { ee: 0, er: 0, ec: 0 };
+  const ph = c.philhealth ? philhealthContribution(rates.monthly, gov.philhealth) : { ee: 0, er: 0 };
+  const hdmf = c.pagibig ? pagibigContribution(rates.monthly, gov.pagibig) : { ee: 0, er: 0 };
   const deductions = {
     sss: round2(sss.ee / divisor),
     philhealth: round2(ph.ee / divisor),
@@ -226,7 +246,7 @@ export function computePayslip({ employee, entries, periodStart, periodEnd, sett
     otherDeductions: round2(otherDeductions),
   };
   const taxableIncome = round2(Math.max(0, grossPay - deductions.sss - deductions.philhealth - deductions.pagibig));
-  if (c.withholdingTax && !employee.minimumWageEarner) deductions.withholdingTax = withholdingTax(taxableIncome, frequency);
+  if (c.withholdingTax && !employee.minimumWageEarner) deductions.withholdingTax = withholdingTax(taxableIncome, frequency, gov.tax);
 
   const totalDeductions = round2(Object.values(deductions).reduce((a, b) => a + b, 0));
 

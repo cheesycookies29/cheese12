@@ -7,7 +7,7 @@ export async function settingsView(el) {
   const checked = (b) => (b ? 'checked' : '');
 
   mount(el, html`
-    <header class="page-head"><div><h1>Settings</h1><p class="muted">Company details, payroll rules and data management.</p></div></header>
+    <header class="page-head"><div><h1>Settings</h1><p class="muted">Company details, default schedule and data management.</p></div></header>
     <form id="settings-form" class="stack" novalidate>
       <section class="card">
         <h2>Company</h2>
@@ -19,24 +19,7 @@ export async function settingsView(el) {
       </section>
       <section class="card">
         <h2>Payroll rules</h2>
-        <div class="grid">
-          <label class="field"><span>Pay frequency</span>
-            <select name="payFrequency"><option value="semi-monthly" ${s.payFrequency === 'semi-monthly' ? 'selected' : ''}>Semi-monthly (15th &amp; end of month)</option><option value="monthly" ${s.payFrequency === 'monthly' ? 'selected' : ''}>Monthly</option></select>
-          </label>
-          <label class="field"><span>Work days per year</span><input type="number" name="workDaysPerYear" value="${s.workDaysPerYear}" min="200" max="366" />
-            <small class="muted">Daily rate = monthly × 12 ÷ this. 261 for 5-day weeks, 313 for 6-day weeks.</small></label>
-          <label class="field"><span>Late grace period (minutes)</span><input type="number" name="gracePeriodMinutes" value="${s.gracePeriodMinutes}" min="0" /></label>
-          <label class="field"><span>Minimum overtime (minutes)</span><input type="number" name="minimumOvertimeMinutes" value="${s.minimumOvertimeMinutes}" min="0" /><small class="muted">Shorter overtime on regular days is ignored.</small></label>
-          <label class="field"><span>Overtime rate</span><input type="number" step="0.01" name="overtimeMultiplier" value="${s.overtimeMultiplier}" /><small class="muted">1.25 = 125% of hourly rate</small></label>
-          <label class="field"><span>Rest day work rate</span><input type="number" step="0.01" name="restDayMultiplier" value="${s.restDayMultiplier}" /><small class="muted">1.30 = 130% of hourly rate</small></label>
-        </div>
-        <h3>Deductions to compute</h3>
-        <div class="checks">
-          <label><input type="checkbox" name="c_sss" ${checked(s.contributions.sss)} /> SSS (2025 table: 5% employee / 10% employer)</label>
-          <label><input type="checkbox" name="c_philhealth" ${checked(s.contributions.philhealth)} /> PhilHealth (5%, shared equally)</label>
-          <label><input type="checkbox" name="c_pagibig" ${checked(s.contributions.pagibig)} /> Pag-IBIG (2%, max ₱200 each)</label>
-          <label><input type="checkbox" name="c_withholdingTax" ${checked(s.contributions.withholdingTax)} /> BIR withholding tax (TRAIN 2023 table)</label>
-        </div>
+        <p class="muted small">Pay frequency, overtime rates, government contribution rates and tax tables are in <a href="#/payroll-setup">Payroll Setup</a>, where HR Managers and Payroll Officers can also adjust them.</p>
       </section>
       <section class="card">
         <h2>Default work schedule</h2>
@@ -73,13 +56,6 @@ export async function settingsView(el) {
       companyName: fd.get('companyName'),
       companyTin: fd.get('companyTin'),
       companyAddress: fd.get('companyAddress'),
-      payFrequency: fd.get('payFrequency'),
-      workDaysPerYear: fd.get('workDaysPerYear'),
-      gracePeriodMinutes: fd.get('gracePeriodMinutes'),
-      minimumOvertimeMinutes: fd.get('minimumOvertimeMinutes'),
-      overtimeMultiplier: fd.get('overtimeMultiplier'),
-      restDayMultiplier: fd.get('restDayMultiplier'),
-      contributions: Object.fromEntries(['sss', 'philhealth', 'pagibig', 'withholdingTax'].map((k) => [k, fd.has(`c_${k}`)])),
       schedule: { shiftStart: fd.get('shiftStart'), shiftEnd: fd.get('shiftEnd'), breakMinutes: fd.get('breakMinutes'), workDays: fd.getAll('workDays').map(Number) },
     };
     try {

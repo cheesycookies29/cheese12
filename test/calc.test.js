@@ -38,7 +38,7 @@ test('computeEntry: late, undertime, overtime', () => {
   const mon = '2026-10-05';
   assert.deepEqual(
     computeEntry({ date: mon, type: 'work', timeIn: '09:15', timeOut: '17:30' }, schedule, settings),
-    { workedMinutes: 435, lateMinutes: 15, undertimeMinutes: 30, overtimeMinutes: 0, restDay: false, leave: false, open: false },
+    { workedMinutes: 435, lateMinutes: 15, undertimeMinutes: 30, overtimeMinutes: 0, restDay: false, leave: false, paidLeave: false, remote: false, open: false },
   );
   const ot = computeEntry({ date: mon, type: 'work', timeIn: '08:55', timeOut: '20:00' }, schedule, settings);
   assert.equal(ot.lateMinutes, 0);
@@ -121,3 +121,44 @@ test('payslip: mid-period hire is paid per day worked', () => {
 function round(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
+
+test('payslip: unpaid leave is deducted, paid leave and remote days are paid', () => {
+  const entries = fullAttendance('2026-10-01', '2026-10-15', {
+    '2026-10-05': { type: 'leave', leaveTypeId: 'lwop', paid: false, timeIn: null, timeOut: null },
+    '2026-10-06': { type: 'leave', leaveTypeId: 'vl', paid: true, timeIn: null, timeOut: null },
+    '2026-10-07': { remote: true, timeIn: null, timeOut: null },
+  });
+  const p = computePayslip({ employee, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  assert.equal(p.attendance.unpaidLeaveDays, 1);
+  assert.equal(p.attendance.leaveDays, 1);
+  assert.equal(p.attendance.remoteDays, 1);
+  assert.equal(p.attendance.absentDays, 0);
+  assert.equal(p.attendance.lateMinutes, 0);
+  assert.equal(p.earnings.basicPay, round(15000 - (30000 * 12) / 261));
+});
+
+test('computeEntry: full remote day without clock times', () => {
+  const c = computeEntry({ date: '2026-10-05', type: 'work', remote: true, timeIn: null, timeOut: null }, schedule, settings);
+  assert.equal(c.open, false);
+  assert.equal(c.workedMinutes, 480);
+  assert.equal(c.lateMinutes, 0);
+});
+
+test('payslip uses adjusted government rates from settings', () => {
+  const custom = structuredClone(settings);
+  custom.rates = structuredClone(settings.rates);
+  custom.rates.philhealth.rate = 0.06;
+  custom.rates.pagibig.maxFundSalary = 5000;
+  const entries = fullAttendance('2026-10-01', '2026-10-15');
+  const p = computePayslip({ employee, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings: custom });
+  assert.equal(p.deductions.philhealth, 450); // 30,000 x 6% / 2 shares / 2 cutoffs
+  assert.equal(p.deductions.pagibig, 50); // 5,000 x 2% / 2 cutoffs
+});
+
+test('payslip: a period with no paid days has no contributions or allowance', () => {
+  const p = computePayslip({ employee, entries: [], periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  assert.equal(p.grossPay, 0);
+  assert.equal(p.totalDeductions, 0);
+  assert.equal(p.allowance, 0);
+  assert.equal(p.netPay, 0);
+});

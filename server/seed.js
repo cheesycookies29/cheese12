@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { emptyData } from './db.js';
 import { eachDate, dayOfWeek } from '../shared/calc.js';
 import { localDate } from './util.js';
+import { workDates } from '../shared/leave.js';
 
 const PEOPLE = [
   ['Maria', 'Santos', 'Reyes', 'HR Manager', 'Human Resources', 'monthly', 55000, 'Female', 'Married'],
@@ -70,7 +71,7 @@ export function demoData() {
       const roll = rand();
       if (roll < 0.03) continue; // absent
       if (roll < 0.06) {
-        data.timeEntries.push({ id: randomUUID(), employeeId: emp.id, date, type: 'leave', timeIn: null, timeOut: null, otApproved: false, notes: 'Vacation leave' });
+        data.timeEntries.push({ id: randomUUID(), employeeId: emp.id, date, type: 'leave', leaveTypeId: 'vl', paid: true, timeIn: null, timeOut: null, otApproved: false, remote: false, notes: 'Vacation leave' });
         continue;
       }
       const late = rand() < 0.15 ? Math.floor(rand() * 40) + 1 : 0;
@@ -90,5 +91,21 @@ export function demoData() {
       });
     }
   }
+
+  // A few requests so the approval screens have something in them.
+  const inDays = (n) => localDate(new Date(Date.now() + n * 86400000));
+  const [, juan, andrea, mark, kristine] = data.employees;
+  const request = (emp, kind, leaveTypeId, start, end, reason, status = 'pending') => ({
+    id: randomUUID(), employeeId: emp.id, kind, leaveTypeId, startDate: start, endDate: end,
+    days: workDates(emp, data.settings, start, end).length, reason, status, filedAt: new Date().toISOString(), filedBy: null,
+    ...(status === 'rejected' ? { decidedAt: new Date().toISOString(), decidedByName: 'Demo HR Manager', decisionNote: 'Quarter-end close; please pick another week.' } : {}),
+  });
+  data.requests.push(
+    request(kristine, 'leave', 'vl', inDays(7), inDays(9), 'Family trip to Cebu'),
+    request(mark, 'remote', null, inDays(2), inDays(2), 'Waiting for a home appliance delivery'),
+    request(juan, 'leave', 'sl', inDays(1), inDays(1), 'Medical check-up'),
+    request(andrea, 'leave', 'vl', inDays(14), inDays(18), 'Out-of-town wedding', 'rejected'),
+  );
+  data.requests = data.requests.filter((r) => r.days > 0);
   return data;
 }

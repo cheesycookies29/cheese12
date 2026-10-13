@@ -1,10 +1,12 @@
 # LTDC HR & Payroll
 
-A simple HR app for Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/). It has four parts:
+A simple HR app for Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/). It has these parts:
 
 - **Employee records**: personal details, employment, pay rate, work schedule, government IDs (TIN, SSS, PhilHealth, Pag-IBIG) and bank details.
 - **Time tracking**: a time clock where employees clock in and out, and an attendance record (DTR) that works out late, undertime and overtime minutes. You can also add paid leave, fix records by hand and approve overtime.
 - **Payroll**: semi-monthly or monthly payroll runs worked out from attendance, with SSS, PhilHealth, Pag-IBIG and BIR withholding tax. It produces a payroll register (CSV) and payslips you can print or save as PDF.
+- **Leave and remote work**: employees file leave or work-from-home requests; HR Managers or Administrators approve them, and approved days go into attendance and payroll automatically. Leave types, yearly credits and balances are managed in **Leave & Requests**.
+- **Payroll Setup**: HR Managers and Payroll Officers adjust pay rules, government contribution rates and BIR tax tables without code changes.
 - **User access**: everyone signs in with their own account, and each account type only sees what it needs (see below).
 
 There is no cloud. Your data stays on your Mac in `data/db.json`.
@@ -52,9 +54,9 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 | Account type | Can do |
 | --- | --- |
 | **Administrator** | Everything, including **Users & Access**, company settings, and backup/restore. |
-| **HR Manager** | Add and edit employees, manage attendance and approve overtime, run the shared time clock. View payroll. |
-| **Payroll Officer** | Create, adjust and finalize payroll. View employees and attendance. |
-| **Employee** | Self-service only: clock in and out, see their own attendance, finalized payslips and profile. |
+| **HR Manager** | Add and edit employees, manage attendance and approve overtime, run the shared time clock, **approve leave and remote-work requests**, manage leave credits, adjust Payroll Setup. View payroll. |
+| **Payroll Officer** | Create, adjust and finalize payroll, adjust Payroll Setup and leave credits. View employees, attendance and requests (cannot approve them). |
+| **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips and profile. |
 
 - Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
@@ -78,30 +80,40 @@ The connection is not encrypted (plain `http`), so only do this on a network you
 
 | Item | Rule |
 | --- | --- |
-| Daily rate (monthly-rated) | monthly salary × 12 ÷ work days per year (261 by default, set in Settings) |
+| Daily rate (monthly-rated) | monthly salary × 12 ÷ work days per year (261 by default, set in Payroll Setup) |
 | Hourly rate | daily rate ÷ scheduled hours per day (shift length minus break) |
 | Basic pay, monthly-rated | half the monthly salary per semi-monthly period, minus absences, late and undertime |
 | Basic pay, daily-rated | (days present + paid leave days) × daily rate, minus late and undertime |
-| Absences | scheduled work days in the period that have no attendance record |
+| Absences | scheduled work days in the period that have no attendance record. Unpaid leave (e.g. Leave Without Pay) is deducted the same way |
+| Paid leave, remote work | counted as paid days. A remote day with no clock times counts as a full scheduled day |
 | Overtime | minutes after the end of the shift × hourly rate × 1.25. It must be **approved** in Attendance and last at least 30 minutes |
 | Rest day work | hours × hourly rate × 1.30 (approved only) |
 | SSS | 2025 schedule: 5% employee and 10% employer share of the Monthly Salary Credit (₱5,000–₱35,000), plus EC |
 | PhilHealth | 5% of monthly basic salary (floor ₱10k, ceiling ₱100k), split 50/50 |
 | Pag-IBIG | 2% employee and 2% employer share, on a fund salary capped at ₱10,000 (max ₱200 each) |
 | Withholding tax | BIR TRAIN table effective 2023, applied to gross pay minus employee contributions. Minimum wage earners are exempt |
-| Allowance | monthly, non-taxable (de minimis), split across pay periods |
+| Allowance | monthly, non-taxable (de minimis), split across pay periods. Not paid, and no contributions deducted, in a period with no pay |
 
 In a semi-monthly payroll, contributions are split equally between the two cutoffs.
 To add bonuses, commissions, holiday pay, loans or cash advances, click **Adjust** on an employee's row in a draft payroll run.
 A draft run can be recomputed after you edit attendance. Once you finalize it, it is locked.
 
-The multipliers, grace period, minimum overtime, pay frequency and which deductions apply are all set in **Settings**.
+Pay frequency, multipliers, grace period, minimum overtime, which deductions apply, the SSS / PhilHealth / Pag-IBIG rates and the tax tables are all set in **Payroll Setup**. It has a **Try it** calculator to check deductions at any salary before saving, and a button to restore the 2025 government rates. Changes apply to new runs and to drafts when recomputed; finalized runs never change.
 
 **Check these rates against the latest SSS, PhilHealth, Pag-IBIG and BIR circulars before you rely on the payroll.** Government rates change.
 
+## Leave and remote work
+
+1. The employee opens **My Requests → File a request**, picks a leave type or **Remote work**, the dates and a reason. Only scheduled work days are counted, and leave with a yearly limit cannot exceed the remaining balance.
+2. HR Managers and Administrators see it under **Leave & Requests** (the menu shows how many are waiting) and approve or reject it with an optional note. Nobody can approve their own request.
+3. Approving writes each day into attendance: as leave (paid or unpaid, per the leave type), or as a remote-work day. The employee can still clock in on a remote day to record actual hours.
+4. An approved request can be cancelled by HR; its days are removed from attendance and the credits come back. Employees can withdraw requests that are still pending.
+
+Default leave types (editable under **Leave & Requests → Leave types**): Vacation 15, Sick 15, Emergency 3, Paternity 7 and Solo Parent 7 days a year; Maternity and Leave Without Pay with no yearly limit. Credits can be changed per employee and year under **Leave balances**, e.g. for carry-over or new hires. Balances count all leave in attendance, including leave HR records directly.
+
 ## Not included (yet)
 
-Holidays and holiday pay rates, night differential, leave balances and approvals, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, and an audit log.
+Holidays and holiday pay rates, night differential, half-day leave, two-level approvals, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, and an audit log.
 
 ## Backups
 

@@ -7,7 +7,9 @@ import { clockView, dtrView } from './views/time.js';
 import { payrollListView, payrollRunView, payslipView } from './views/payroll.js';
 import { settingsView } from './views/settings.js';
 import { usersView } from './views/users.js';
-import { meHomeView, meAttendanceView, mePayslipsView, mePayslipView, meProfileView } from './views/self.js';
+import { meHomeView, meAttendanceView, mePayslipsView, mePayslipView, meProfileView, meRequestsView } from './views/self.js';
+import { payrollSetupView } from './views/payroll-setup.js';
+import { leaveView } from './views/leave.js';
 import { loginView, setupView, forcePasswordView, openChangePassword } from './views/login.js';
 
 // [path, view, permission needed]
@@ -22,10 +24,13 @@ const routes = [
   ['/payroll', payrollListView, 'payroll.view'],
   ['/payroll/:id/payslip/:employeeId', payslipView, 'payroll.view'],
   ['/payroll/:id', payrollRunView, 'payroll.view'],
+  ['/payroll-setup', payrollSetupView, 'payroll.config'],
+  ['/leave', leaveView, 'leave.manage'],
   ['/users', usersView, 'users.manage'],
   ['/settings', settingsView, 'settings.edit'],
   ['/me', meHomeView, 'self'],
   ['/me/attendance', meAttendanceView, 'self'],
+  ['/me/requests', meRequestsView, 'self'],
   ['/me/payslips', mePayslipsView, 'self'],
   ['/me/payslips/:runId', mePayslipView, 'self'],
   ['/me/profile', meProfileView, 'self'],
@@ -40,12 +45,15 @@ const NAV = [
   { href: '/employees', label: 'Employees', permission: 'employees.view' },
   { href: '/clock', label: 'Time Clock', permission: 'clock.kiosk' },
   { href: '/dtr', label: 'Attendance (DTR)', permission: 'attendance.view' },
+  { href: '/leave', label: 'Leave & Requests', permission: 'leave.manage', badge: true },
   { href: '/payroll', label: 'Payroll', permission: 'payroll.view' },
+  { href: '/payroll-setup', label: 'Payroll Setup', permission: 'payroll.config' },
   { href: '/users', label: 'Users & Access', permission: 'users.manage' },
   { href: '/settings', label: 'Settings', permission: 'settings.edit' },
   { heading: 'My account', permission: 'self' },
   { href: '/me', label: 'My Home', permission: 'self' },
   { href: '/me/attendance', label: 'My Attendance', permission: 'self' },
+  { href: '/me/requests', label: 'My Requests', permission: 'self' },
   { href: '/me/payslips', label: 'My Payslips', permission: 'self' },
   { href: '/me/profile', label: 'My Profile', permission: 'self' },
 ];
@@ -67,8 +75,9 @@ const runCleanup = () => {
 
 function renderChrome() {
   mount(document.getElementById('nav'), NAV.filter((n) => allowed(n.permission)).map((n) =>
-    n.heading ? html`<div class="nav-heading">${n.heading}</div>` : html`<a href="#${n.href}" data-href="${n.href}">${n.label}</a>`,
+    n.heading ? html`<div class="nav-heading">${n.heading}</div>` : html`<a href="#${n.href}" data-href="${n.href}">${n.label}${n.badge ? html`<span class="nav-badge" hidden></span>` : ''}</a>`,
   ));
+  refreshBadge();
   const u = ctx.user;
   const initials = u.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   mount(document.getElementById('user-box'), html`
@@ -76,6 +85,15 @@ function renderChrome() {
     <div class="user-actions"><button class="link" id="change-pw">Change password</button><button class="link" id="sign-out">Sign out</button></div>`);
   document.getElementById('change-pw').addEventListener('click', openChangePassword);
   document.getElementById('sign-out').addEventListener('click', signOut);
+}
+
+// Pending-approval count next to "Leave & Requests" for approvers.
+async function refreshBadge() {
+  const el = document.querySelector('#nav .nav-badge');
+  if (!el || !can('leave.approve')) return;
+  const { pending } = await api.get('/api/requests/summary').catch(() => ({ pending: 0 }));
+  el.textContent = pending;
+  el.hidden = !pending;
 }
 
 async function navigate() {
@@ -92,6 +110,7 @@ async function navigate() {
   links.forEach((a) => a.classList.toggle('active', a === best));
 
   runCleanup();
+  refreshBadge();
   const el = document.getElementById('app');
   window.scrollTo(0, 0);
   try {
@@ -120,7 +139,7 @@ async function boot({ fresh = false } = {}) {
   if (!ctx.user) return showAuth(status.setupRequired ? setupView : loginView);
   if (ctx.user.mustChangePassword) return showAuth(forcePasswordView);
 
-  await ctx.refreshSettings();
+  await Promise.all([ctx.refreshSettings(), ctx.refreshLeaveTypes()]);
   document.body.className = '';
   mount(document.getElementById('auth'), '');
   renderChrome();
@@ -136,6 +155,7 @@ async function signOut() {
 }
 
 window.addEventListener('hashchange', navigate);
+window.addEventListener('requests:changed', refreshBadge);
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;

@@ -1,7 +1,8 @@
 // Tiny JSON-file database. All data lives in data/db.json next to the app.
 import fs from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_SETTINGS } from '../shared/calc.js';
+import { DEFAULT_SETTINGS, DEFAULT_RATES } from '../shared/calc.js';
+import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 
 export function emptyData() {
   return {
@@ -11,6 +12,9 @@ export function emptyData() {
     timeEntries: [],
     payrollRuns: [],
     users: [],
+    leaveTypes: structuredClone(DEFAULT_LEAVE_TYPES),
+    leaveCredits: [], // per-employee, per-year overrides of a leave type's annual credits
+    requests: [], // leave and remote-work requests
   };
 }
 
@@ -20,7 +24,11 @@ export function openDb(file) {
   if (fs.existsSync(file)) {
     data = JSON.parse(fs.readFileSync(file, 'utf8'));
     data.settings = mergeSettings(data.settings);
-    data.users ||= []; // files from before user accounts existed
+    // Files from older builds: add collections introduced since.
+    data.users ||= [];
+    data.leaveTypes ||= structuredClone(DEFAULT_LEAVE_TYPES);
+    data.leaveCredits ||= [];
+    data.requests ||= [];
   }
 
   const db = {
@@ -47,5 +55,11 @@ export function mergeSettings(settings = {}) {
     ...settings,
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(settings.schedule || {}) },
     contributions: { ...DEFAULT_SETTINGS.contributions, ...(settings.contributions || {}) },
+    rates: {
+      sss: { ...DEFAULT_RATES.sss, ...(settings.rates?.sss || {}) },
+      philhealth: { ...DEFAULT_RATES.philhealth, ...(settings.rates?.philhealth || {}) },
+      pagibig: { ...DEFAULT_RATES.pagibig, ...(settings.rates?.pagibig || {}) },
+      tax: { ...structuredClone(DEFAULT_RATES.tax), ...(settings.rates?.tax || {}) },
+    },
   };
 }

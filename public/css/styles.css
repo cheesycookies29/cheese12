@@ -288,6 +288,48 @@ body:not(.auth-mode) #auth { display: none; }
 .you { font-weight: 400; font-size: 12px; }
 .card + .card, .card.scroll-x + .card { margin-top: 16px; }
 
+/* Leave & requests, payroll setup */
+.nav-badge { float: right; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--gold-bright); color: var(--maroon-dark); font-size: 12px; font-weight: 700; text-align: center; }
+#nav a.active .nav-badge { background: var(--maroon); color: var(--gold-light); }
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+.tabs a { padding: 10px 16px; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px; }
+.tabs a:hover { color: var(--maroon); }
+.tabs a.active { color: var(--maroon); border-bottom-color: var(--gold-bright); }
+.badge.maroon-soft { background: var(--maroon-soft); color: var(--maroon); }
+.btn.small-btn { padding: 4px 12px; font-size: 13px; }
+.stats .card.attention { border-top-color: var(--maroon); background: var(--gold-soft); }
+.toolbar.pad, .muted.pad { padding: 16px 16px 0; }
+.balances th small { display: block; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.center { text-align: center !important; }
+.cell-btn { background: none; border: 1px solid transparent; border-radius: 8px; padding: 6px 10px; cursor: pointer; font: inherit; color: var(--text); min-width: 72px; }
+.cell-btn:hover { border-color: var(--gold-light); background: var(--gold-soft); }
+.cell-btn strong { font-family: var(--display); font-size: 20px; color: var(--maroon); }
+.cell-btn span { color: var(--muted); margin-left: 2px; }
+.cell-btn small { display: block; color: var(--muted); font-size: 11px; }
+.cell-btn.override { border-color: var(--gold-bright); }
+.cell-btn.low strong { color: var(--danger); }
+.balance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.balance { border: 1px solid var(--border); border-left: 4px solid var(--gold-bright); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.balance strong { font-family: var(--display); font-weight: 800; font-size: 30px; color: var(--maroon); line-height: 1.1; }
+.balance.low { border-left-color: var(--danger); }
+.balance.low strong { color: var(--danger); }
+.balance-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.balance-chips div { background: var(--gold-soft); border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; min-width: 92px; }
+.balance-chips strong { font-family: var(--display); font-weight: 800; font-size: 24px; color: var(--maroon); line-height: 1; }
+.balance-chips span { font-size: 11px; color: var(--muted); }
+.request-preview { margin: -4px 0 0; }
+textarea { resize: vertical; }
+.grid.four { grid-template-columns: repeat(4, 1fr); }
+.input-suffix { display: flex; align-items: center; border: 1px solid #d6cfcc; border-radius: 8px; background: #fff; }
+.input-suffix:focus-within { outline: 3px solid rgba(204, 153, 52, 0.25); border-color: var(--gold); }
+.input-suffix input { border: 0; outline: none !important; min-width: 0; }
+.input-suffix em { font-style: normal; color: var(--muted); padding: 0 10px; white-space: nowrap; font-size: 13px; }
+.input-suffix em.pre { padding: 0 0 0 10px; }
+.edit-table td { padding: 6px; }
+.tax-cols { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.tax-cols h3 { margin-top: 4px; }
+.try { max-width: 560px; }
+
 @media (max-width: 900px) {
   .layout { flex-direction: column; }
   .sidebar { width: auto; height: auto; position: static; }
@@ -298,7 +340,7 @@ body:not(.auth-mode) #auth { display: none; }
   .auth-logo { display: block; }
   #nav { display: flex; flex-wrap: wrap; gap: 4px; }
   main { padding: 20px 16px; }
-  .grid, .cols.wide-left, .clock-cols, .slip-cols { grid-template-columns: 1fr; }
+  .grid, .grid.four, .cols.wide-left, .clock-cols, .slip-cols { grid-template-columns: 1fr; }
   .span-2 { grid-column: auto; }
 }
 

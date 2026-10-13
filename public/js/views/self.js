@@ -1,8 +1,10 @@
-// Employee self-service: own clock, attendance, payslips and profile.
+// Employee self-service: own clock, attendance, requests, payslips and profile.
 import { api } from '../api.js';
-import { ctx } from '../state.js';
+import { ctx, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
-import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS } from '../ui.js';
+import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS, modal, confirmDialog } from '../ui.js';
+import { statusBadge, kindBadge, dateRange } from './leave.js';
+import { workDates } from '/shared/leave.js';
 import { payslipCard } from './payroll.js';
 import { openChangePassword } from './login.js';
 
@@ -33,15 +35,22 @@ export async function meHomeView(el) {
   const period = currentPeriod(today(), ctx.settings.payFrequency);
 
   async function render() {
-    const [all, payslips] = await Promise.all([api.get('/api/me/time-entries'), api.get('/api/me/payslips')]);
+    const [all, payslips, requests, balances] = await Promise.all([
+      api.get('/api/me/time-entries'), api.get('/api/me/payslips'), api.get('/api/me/requests'), api.get('/api/me/leave-balances'),
+    ]);
     const entries = all.filter((e) => e.date >= period.start && e.date <= period.end);
-    const open = all.find((e) => e.type === 'work' && !e.timeOut);
+    const open = all.find((e) => e.type === 'work' && e.timeIn && !e.timeOut);
     const todays = all.find((e) => e.date === today());
+    const remoteToday = todays?.remote && !todays.timeIn;
+    const pending = requests.filter((r) => r.status === 'pending');
+    const upcoming = requests.filter((r) => r.status === 'approved' && r.endDate >= today()).slice(0, 3);
     const latest = payslips[0];
     const status = open
       ? html`${badge('Working', 'green')} since ${open.date === today() ? '' : fmtDate(open.date) + ' '}${fmtTime(open.timeIn)}`
       : todays?.type === 'leave'
-        ? badge('On leave today', 'blue')
+        ? badge(`On ${leaveName(todays)} today`, 'blue')
+        : remoteToday
+          ? html`${badge('Remote work today', 'blue')} Clock in to record your hours, or leave it as a full day.`
         : todays
           ? html`${badge('Done for today', 'gray')} ${fmtTime(todays.timeIn)} – ${fmtTime(todays.timeOut)}`
           : badge('Not clocked in', 'amber');
@@ -56,7 +65,7 @@ export async function meHomeView(el) {
           <div class="clock-date" id="clock-date"></div>
           <div class="clock-status">${status}</div>
           <div class="clock-buttons">
-            <button class="btn primary big" id="btn-in" ${open || todays ? 'disabled' : ''}>Clock in</button>
+            <button class="btn primary big" id="btn-in" ${open || (todays && !remoteToday) ? 'disabled' : ''}>Clock in</button>
             <button class="btn big" id="btn-out" ${open ? '' : 'disabled'}>Clock out</button>
           </div>
         </section>
@@ -66,6 +75,13 @@ export async function meHomeView(el) {
             <p class="muted small">${fmtDate(period.start)} – ${fmtDate(period.end)}</p>
             ${summary(attendanceRows(entries, emp))}
             <a href="#/me/attendance">View my attendance →</a>
+          </section>
+          <section class="card">
+            <h2>Leave &amp; requests</h2>
+            <div class="balance-chips">${balances.filter((b) => b.credits != null).slice(0, 4).map((b) => html`<div><strong>${b.remaining}</strong><span>${b.name}</span></div>`)}</div>
+            ${pending.length ? html`<p>${badge(`${pending.length} pending`, 'amber')} waiting for approval</p>` : ''}
+            ${upcoming.length ? html`<ul class="link-list">${upcoming.map((r) => html`<li>${kindBadge(r)} ${dateRange(r)}</li>`)}</ul>` : ''}
+            <div class="actions"><a class="btn primary" href="#/me/requests?new=1">File a request</a><a class="btn" href="#/me/requests">My requests</a></div>
           </section>
           <section class="card">
             <h2>Latest payslip</h2>
@@ -127,8 +143,10 @@ export async function meAttendanceView(el, _params, query) {
           <tbody>${rows.map(({ entry: e, calc: c }) => html`<tr>
             <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${c.restDay ? html` ${badge('Rest day', 'gray')}` : ''}</td>
             ${c.leave
-              ? html`<td colspan="2">${badge('Paid leave', 'blue')}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
-              : html`<td>${fmtTime(e.timeIn)}</td><td>${c.open ? badge('Open', 'amber') : fmtTime(e.timeOut)}</td>
+              ? html`<td colspan="2">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
+              : e.remote && !e.timeIn
+              ? html`<td colspan="2">${badge('Remote work', 'blue')} <small class="muted">full day</small></td><td class="num">${fmtMinutes(c.workedMinutes)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
+              : html`<td>${fmtTime(e.timeIn)}${e.remote ? html` ${badge('Remote', 'blue')}` : ''}</td><td>${c.open ? badge('Open', 'amber') : fmtTime(e.timeOut)}</td>
                 <td class="num">${fmtMinutes(c.workedMinutes)}</td>
                 <td class="num ${c.lateMinutes ? 'warn' : ''}">${fmtMinutes(c.lateMinutes)}</td>
                 <td class="num ${c.undertimeMinutes ? 'warn' : ''}">${fmtMinutes(c.undertimeMinutes)}</td>
@@ -209,4 +227,106 @@ export async function meProfileView(el) {
     </div>
     <p class="muted small">Need to update your details? Contact HR.</p>`);
   el.querySelector('#change-pw').addEventListener('click', openChangePassword);
+}
+
+export async function meRequestsView(el, _params, query) {
+  const emp = await api.get('/api/me/profile');
+  const year = new Date().getFullYear();
+
+  async function render() {
+    const [requests, balances] = await Promise.all([api.get('/api/me/requests'), api.get(`/api/me/leave-balances?year=${year}`)]);
+    mount(el, html`
+      <header class="page-head">
+        <div><h1>My Requests</h1><p class="muted">File leave or remote work. HR or an administrator approves it, and approved days appear in your attendance.</p></div>
+        <div class="actions"><button class="btn primary" id="new-request">+ File a request</button></div>
+      </header>
+      <section class="card">
+        <h2>Leave balances ${year}</h2>
+        <div class="balance-grid">${balances.map((b) => html`<div class="balance ${b.remaining !== null && b.remaining <= 0 ? 'low' : ''}">
+          <span>${b.name}${b.paid ? '' : html` <small class="muted">(unpaid)</small>`}</span>
+          <strong>${b.remaining ?? '—'}</strong>
+          <small class="muted">${b.credits == null ? 'No set limit' : `of ${b.credits} · ${b.used} used${b.pending ? ` · ${b.pending} pending` : ''}`}</small>
+        </div>`)}</div>
+      </section>
+      <section class="card">
+        <h2>My requests</h2>
+        ${requests.length
+          ? html`<table class="table">
+              <thead><tr><th>Request</th><th>Dates</th><th class="num">Days</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+              <tbody>${requests.map((r) => html`<tr>
+                <td>${kindBadge(r)}</td>
+                <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
+                <td class="num">${r.days}</td>
+                <td class="notes">${r.reason}</td>
+                <td>${statusBadge(r.status)}${r.decidedByName ? html`<small>by ${r.decidedByName}${r.decisionNote ? html`: “${r.decisionNote}”` : ''}</small>` : ''}</td>
+                <td class="row-actions">${r.status === 'pending' ? html`<button class="link danger" data-withdraw="${r.id}">Withdraw</button>` : ''}</td>
+              </tr>`)}</tbody>
+            </table>`
+          : html`<div class="empty"><p>You haven't filed any requests yet.</p></div>`}
+      </section>`);
+
+    el.querySelector('#new-request').addEventListener('click', () => openForm(balances));
+    el.querySelector('tbody')?.addEventListener('click', async (e) => {
+      const id = e.target.dataset.withdraw;
+      if (!id || !(await confirmDialog('Withdraw this request?', { confirmLabel: 'Withdraw' }))) return;
+      await api.post(`/api/me/requests/${id}/cancel`);
+      toast('Request withdrawn.');
+      render();
+    });
+  }
+
+  function openForm(balances) {
+    const types = ctx.leaveTypes.filter((t) => t.active);
+    const tomorrow = today(new Date(Date.now() + 86400000));
+    const { form } = modal({
+      title: 'File a request',
+      submitLabel: 'Submit for approval',
+      body: html`<div class="grid two">
+        <label class="field span-2"><span>Request</span>
+          <select name="what">
+            <optgroup label="Leave">${types.map((t) => html`<option value="leave:${t.id}">${t.name}${t.paid ? '' : ' (unpaid)'}</option>`)}</optgroup>
+            <optgroup label="Work arrangement"><option value="remote">Remote work (work from home)</option></optgroup>
+          </select>
+        </label>
+        <label class="field"><span>From</span><input type="date" name="startDate" value="${tomorrow}" required /></label>
+        <label class="field"><span>To</span><input type="date" name="endDate" value="${tomorrow}" required /></label>
+        <p class="span-2 request-preview muted small"></p>
+        <label class="field span-2"><span>Reason</span><textarea name="reason" rows="3" maxlength="500" placeholder="Optional, but helps your approver"></textarea></label>
+      </div>`,
+      onSubmit: async (f) => {
+        const fd = new FormData(f);
+        const what = fd.get('what');
+        await api.post('/api/me/requests', {
+          kind: what === 'remote' ? 'remote' : 'leave',
+          leaveTypeId: what.startsWith('leave:') ? what.slice(6) : null,
+          startDate: fd.get('startDate'), endDate: fd.get('endDate'), reason: fd.get('reason'),
+        });
+        toast('Request submitted for approval.');
+        render();
+      },
+    });
+    const preview = () => {
+      const fd = new FormData(form);
+      const start = fd.get('startDate');
+      const end = fd.get('endDate');
+      const el2 = form.querySelector('.request-preview');
+      if (!start || !end || end < start) return (el2.textContent = 'Pick a valid date range.');
+      const days = workDates(emp, ctx.settings, start, end).length;
+      const what = fd.get('what');
+      const bal = what.startsWith('leave:') && balances.find((b) => b.leaveTypeId === what.slice(6));
+      el2.textContent = `${days} work day${days === 1 ? '' : 's'} (rest days are not counted)` + (bal && bal.remaining !== null ? ` · ${bal.remaining} day(s) of ${bal.name} left` : '');
+    };
+    form.addEventListener('input', preview);
+    form.addEventListener('change', (e) => {
+      if (e.target.name === 'startDate' && form.endDate.value < e.target.value) form.endDate.value = e.target.value;
+      preview();
+    });
+    preview();
+  }
+
+  await render();
+  if (query.new) {
+    history.replaceState(null, '', '#/me/requests');
+    el.querySelector('#new-request').click();
+  }
 }

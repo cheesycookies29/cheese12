@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { computePayslip, toMinutes } from '../shared/calc.js';
 import { HttpError, localDate, localTime } from './util.js';
 import { demoData } from './seed.js';
+import { registerLeaveRoutes, findLeaveType } from './leave.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, can } from '../shared/roles.js';
 import {
@@ -68,6 +69,9 @@ function validateEntry(input, db, existingId) {
     timeIn: input.timeIn || null,
     timeOut: input.timeOut || null,
     otApproved: Boolean(input.otApproved),
+    remote: input.type !== 'leave' && Boolean(input.remote),
+    leaveTypeId: null,
+    paid: null,
     notes: String(input.notes || '').trim(),
   };
   findEmployee(db, e.employeeId);
@@ -75,6 +79,14 @@ function validateEntry(input, db, existingId) {
   if (e.type === 'leave') {
     e.timeIn = e.timeOut = null;
     e.otApproved = false;
+    // Leave entries without a type (older data) are treated as paid leave.
+    if (input.leaveTypeId) {
+      const type = findLeaveType(db, input.leaveTypeId);
+      Object.assign(e, { leaveTypeId: type.id, paid: type.paid });
+    } else e.paid = true;
+  } else if (e.remote && !e.timeIn) {
+    // A remote-work day without clock times counts as a full scheduled day.
+    if (e.timeOut) throw new HttpError(400, 'Enter a time in, or leave both times blank for a full remote day.');
   } else {
     if (!TIME_RE.test(e.timeIn || '')) throw new HttpError(400, 'Time in must be HH:MM.');
     if (e.timeOut && !TIME_RE.test(e.timeOut)) throw new HttpError(400, 'Time out must be HH:MM.');
@@ -119,6 +131,53 @@ function computeRun(db, run) {
 
 function assertDraft(run) {
   if (run.status !== 'draft') throw new HttpError(400, 'This payroll run is finalized and can no longer be changed.');
+}
+
+function num(value, label, min, max) {
+  const n = Number(value);
+  if (value === '' || value == null || !Number.isFinite(n) || n < min || n > max) throw new HttpError(400, `${label} must be between ${min} and ${max}.`);
+  return n;
+}
+
+function validateTaxTable(rows, label) {
+  if (!Array.isArray(rows) || rows.length < 1 || rows.length > 15) throw new HttpError(400, `${label} tax table needs 1 to 15 brackets.`);
+  const out = rows
+    .map((r, i) => ({
+      over: num(r.over, `${label} bracket ${i + 1} "over"`, 0, 1e9),
+      base: num(r.base, `${label} bracket ${i + 1} base tax`, 0, 1e9),
+      rate: num(r.rate, `${label} bracket ${i + 1} rate`, 0, 1),
+    }))
+    .sort((a, b) => a.over - b.over);
+  if (out[0].over !== 0) throw new HttpError(400, `${label} tax table must start at 0.`);
+  if (new Set(out.map((r) => r.over)).size !== out.length) throw new HttpError(400, `${label} tax table has two brackets with the same starting amount.`);
+  return out;
+}
+
+function validatePayrollConfig(s) {
+  s.payFrequency = s.payFrequency === 'monthly' ? 'monthly' : 'semi-monthly';
+  s.workDaysPerYear = num(s.workDaysPerYear, 'Work days per year', 200, 366);
+  s.gracePeriodMinutes = num(s.gracePeriodMinutes, 'Grace period', 0, 120);
+  s.minimumOvertimeMinutes = num(s.minimumOvertimeMinutes, 'Minimum overtime', 0, 480);
+  s.overtimeMultiplier = num(s.overtimeMultiplier, 'Overtime rate', 1, 5);
+  s.restDayMultiplier = num(s.restDayMultiplier, 'Rest day rate', 1, 5);
+  s.contributions = Object.fromEntries(['sss', 'philhealth', 'pagibig', 'withholdingTax'].map((k) => [k, Boolean(s.contributions[k])]));
+  const { sss, philhealth, pagibig } = s.rates;
+  s.rates.sss = {
+    eeRate: num(sss.eeRate, 'SSS employee rate', 0, 1), erRate: num(sss.erRate, 'SSS employer rate', 0, 1),
+    minMsc: num(sss.minMsc, 'SSS minimum salary credit', 0, 1e7), maxMsc: num(sss.maxMsc, 'SSS maximum salary credit', 0, 1e7),
+    mscStep: num(sss.mscStep, 'SSS salary credit step', 1, 1e6),
+    ecLow: num(sss.ecLow, 'SSS EC (low)', 0, 1e5), ecHigh: num(sss.ecHigh, 'SSS EC (high)', 0, 1e5), ecThreshold: num(sss.ecThreshold, 'SSS EC threshold', 0, 1e7),
+  };
+  if (s.rates.sss.minMsc >= s.rates.sss.maxMsc) throw new HttpError(400, 'SSS minimum salary credit must be below the maximum.');
+  s.rates.philhealth = { rate: num(philhealth.rate, 'PhilHealth rate', 0, 1), floor: num(philhealth.floor, 'PhilHealth floor', 0, 1e7), ceiling: num(philhealth.ceiling, 'PhilHealth ceiling', 0, 1e7) };
+  if (s.rates.philhealth.floor > s.rates.philhealth.ceiling) throw new HttpError(400, 'PhilHealth floor must not exceed the ceiling.');
+  s.rates.pagibig = {
+    eeRate: num(pagibig.eeRate, 'Pag-IBIG employee rate', 0, 1), eeLowRate: num(pagibig.eeLowRate, 'Pag-IBIG low-income rate', 0, 1),
+    lowThreshold: num(pagibig.lowThreshold, 'Pag-IBIG low-income threshold', 0, 1e7), erRate: num(pagibig.erRate, 'Pag-IBIG employer rate', 0, 1),
+    maxFundSalary: num(pagibig.maxFundSalary, 'Pag-IBIG maximum fund salary', 0, 1e7),
+  };
+  s.rates.tax = { 'semi-monthly': validateTaxTable(s.rates.tax['semi-monthly'], 'Semi-monthly'), monthly: validateTaxTable(s.rates.tax.monthly, 'Monthly') };
+  return s;
 }
 
 const USERNAME_RE = /^[a-z0-9._-]{3,32}$/;
@@ -183,9 +242,16 @@ function clock(db, emp, action) {
   if (emp.status !== 'Active') throw new HttpError(400, 'This employee is inactive.');
   const date = localDate();
   const time = localTime();
-  const open = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.type === 'work' && !e.timeOut);
+  const open = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.type === 'work' && e.timeIn && !e.timeOut);
   if (action === 'in') {
     if (open) throw new HttpError(400, `Already clocked in since ${open.date} ${open.timeIn}.`);
+    // An approved remote day can still be clocked, to record actual hours.
+    const remoteDay = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.date === date && e.remote && !e.timeIn);
+    if (remoteDay) {
+      remoteDay.timeIn = time;
+      db.save();
+      return { message: `${emp.firstName} clocked in at ${time} (remote work).`, entry: remoteDay };
+    }
     const entry = { id: randomUUID(), ...validateEntry({ employeeId: emp.id, date, type: 'work', timeIn: time }, db) };
     db.data.timeEntries.push(entry);
     db.save();
@@ -331,21 +397,27 @@ export function createApi(db) {
     return { run: meta, payslip };
   });
 
+  registerLeaveRoutes(route, db, { linkedEmployee });
+
   // ----- Settings -----
   route('GET', '/api/settings', 'auth', () => db.data.settings);
+  // Company details and default schedule (Administrator).
   route('PUT', '/api/settings', 'settings.edit', ({ body }) => {
-    const s = mergeSettings({ ...db.data.settings, ...body });
-    s.payFrequency = s.payFrequency === 'monthly' ? 'monthly' : 'semi-monthly';
-    s.workDaysPerYear = Number(s.workDaysPerYear) || 261;
-    s.gracePeriodMinutes = Math.max(0, Number(s.gracePeriodMinutes) || 0);
-    s.minimumOvertimeMinutes = Math.max(0, Number(s.minimumOvertimeMinutes) || 0);
-    s.overtimeMultiplier = Number(s.overtimeMultiplier) || 1.25;
-    s.restDayMultiplier = Number(s.restDayMultiplier) || 1.3;
-    s.schedule = validateSchedule(s.schedule);
-    s.contributions = Object.fromEntries(Object.entries(s.contributions).map(([k, v]) => [k, Boolean(v)]));
-    db.data.settings = s;
+    const s = db.data.settings;
+    for (const k of ['companyName', 'companyAddress', 'companyTin']) if (k in body) s[k] = String(body[k] || '').trim();
+    if (!s.companyName) throw new HttpError(400, 'Company name is required.');
+    if (body.schedule) s.schedule = validateSchedule(body.schedule);
     db.save();
     return s;
+  });
+
+  // Payroll Setup: pay rules, deductions, government rates and tax tables (HR, Payroll, Administrator).
+  route('PUT', '/api/payroll-config', 'payroll.config', ({ body, user }) => {
+    const s = db.data.settings;
+    const next = mergeSettings({ ...s, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'overtimeMultiplier', 'restDayMultiplier', 'contributions', 'rates']) });
+    db.data.settings = { ...validatePayrollConfig(next), payrollConfigUpdatedAt: new Date().toISOString(), payrollConfigUpdatedBy: user.name };
+    db.save();
+    return db.data.settings;
   });
 
   // ----- Employees -----
@@ -367,6 +439,8 @@ export function createApi(db) {
     findEmployee(db, params.id);
     db.data.employees = db.data.employees.filter((e) => e.id !== params.id);
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.employeeId !== params.id);
+    db.data.requests = db.data.requests.filter((r) => r.employeeId !== params.id);
+    db.data.leaveCredits = db.data.leaveCredits.filter((c) => c.employeeId !== params.id);
     for (const u of db.data.users) if (u.employeeId === params.id) u.employeeId = null;
     db.save();
     return { ok: true };

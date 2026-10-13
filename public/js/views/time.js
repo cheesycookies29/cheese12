@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { ctx, can } from '../state.js';
+import { ctx, can, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
 import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, WEEKDAYS } from '../ui.js';
 
@@ -53,8 +53,8 @@ export async function clockView(el) {
       ? html`<table class="table compact"><thead><tr><th>Employee</th><th>In</th><th>Out</th></tr></thead><tbody>
           ${todays.sort((a, b) => (b.timeIn || '').localeCompare(a.timeIn || '')).map((e) => html`<tr>
             <td>${fullName(byId.get(e.employeeId))}</td>
-            <td>${e.type === 'leave' ? badge('On leave', 'blue') : fmtTime(e.timeIn)}</td>
-            <td>${e.type === 'leave' ? '' : e.timeOut ? fmtTime(e.timeOut) : badge('Working', 'green')}</td></tr>`)}
+            <td>${e.type === 'leave' ? badge(leaveName(e), 'blue') : e.remote && !e.timeIn ? badge('Remote work', 'blue') : fmtTime(e.timeIn)}</td>
+            <td>${e.type === 'leave' || !e.timeIn ? '' : e.timeOut ? fmtTime(e.timeOut) : badge('Working', 'green')}</td></tr>`)}
         </tbody></table>`
       : html`<p class="muted">No one has clocked in yet today.</p>`);
     updateButtons();
@@ -68,14 +68,17 @@ export async function clockView(el) {
       statusEl.textContent = '';
       return;
     }
-    const open = entries.find((e) => e.employeeId === id && e.type === 'work' && !e.timeOut);
-    const done = entries.find((e) => e.employeeId === id && e.date === today() && !open);
+    const open = entries.find((e) => e.employeeId === id && e.type === 'work' && e.timeIn && !e.timeOut);
+    const todays = entries.find((e) => e.employeeId === id && e.date === today());
+    const remoteDay = todays?.remote && !todays.timeIn; // approved remote day: clocking in records hours
+    const done = !open && !remoteDay && todays;
     btnIn.disabled = Boolean(open || done);
     btnOut.disabled = !open;
     statusEl.textContent = open
       ? `Clocked in since ${open.date === today() ? '' : fmtDate(open.date) + ' '}${fmtTime(open.timeIn)}`
       : done
-        ? done.type === 'leave' ? 'On leave today.' : `Done for today (${fmtTime(done.timeIn)} – ${fmtTime(done.timeOut)}).`
+        ? done.type === 'leave' ? `On ${leaveName(done)} today.` : `Done for today (${fmtTime(done.timeIn)} – ${fmtTime(done.timeOut)}).`
+        : remoteDay ? 'Approved for remote work today.'
         : 'Not clocked in.';
   }
 
@@ -99,7 +102,8 @@ export async function clockView(el) {
 // ---------- Attendance / DTR ----------
 
 function entryForm(entry, employees) {
-  const type = entry.type || 'work';
+  const type = entry.type === 'leave' ? `leave:${entry.leaveTypeId || ''}` : entry.remote ? 'remote' : 'work';
+  const leaveTypes = ctx.leaveTypes.filter((t) => t.active || t.id === entry.leaveTypeId);
   return html`
     <div class="grid two">
       <label class="field span-2"><span>Employee</span>
@@ -107,10 +111,15 @@ function entryForm(entry, employees) {
       </label>
       <label class="field"><span>Date</span><input type="date" name="date" value="${entry.date || today()}" required /></label>
       <label class="field"><span>Type</span>
-        <select name="type"><option value="work" ${type === 'work' ? 'selected' : ''}>Work</option><option value="leave" ${type === 'leave' ? 'selected' : ''}>Paid leave</option></select>
+        <select name="type">
+          <option value="work" ${type === 'work' ? 'selected' : ''}>Work (on site)</option>
+          <option value="remote" ${type === 'remote' ? 'selected' : ''}>Remote work</option>
+          <optgroup label="Leave">${leaveTypes.map((t) => html`<option value="leave:${t.id}" ${type === `leave:${t.id}` ? 'selected' : ''}>${t.name}${t.paid ? '' : ' (unpaid)'}</option>`)}
+          ${type === 'leave:' ? html`<option value="leave:" selected>Paid leave (no type)</option>` : ''}</optgroup>
+        </select>
       </label>
       <label class="field work-only"><span>Time in</span><input type="time" name="timeIn" value="${entry.timeIn || ''}" /></label>
-      <label class="field work-only"><span>Time out</span><input type="time" name="timeOut" value="${entry.timeOut || ''}" /><small class="muted">Leave blank if still working.</small></label>
+      <label class="field work-only"><span>Time out</span><input type="time" name="timeOut" value="${entry.timeOut || ''}" /><small class="muted">Leave blank if still working. For a full remote day, leave both times blank.</small></label>
       <label class="field check span-2 work-only"><input type="checkbox" name="otApproved" ${entry.otApproved ? 'checked' : ''} /> <span>Overtime / rest-day work approved</span></label>
       <label class="field span-2"><span>Notes</span><input name="notes" value="${entry.notes || ''}" /></label>
     </div>`;
@@ -125,7 +134,9 @@ function openEntryModal(entry, employees, onSaved) {
       const body = {
         employeeId: entry.employeeId || fd.get('employeeId'),
         date: fd.get('date'),
-        type: fd.get('type'),
+        type: fd.get('type').startsWith('leave:') ? 'leave' : 'work',
+        remote: fd.get('type') === 'remote',
+        leaveTypeId: fd.get('type').startsWith('leave:') ? fd.get('type').slice(6) || null : null,
         timeIn: fd.get('timeIn'),
         timeOut: fd.get('timeOut'),
         otApproved: fd.has('otApproved'),
@@ -138,7 +149,7 @@ function openEntryModal(entry, employees, onSaved) {
     },
   });
   const typeSel = form.querySelector('[name=type]');
-  const sync = () => form.querySelectorAll('.work-only').forEach((n) => (n.hidden = typeSel.value === 'leave'));
+  const sync = () => form.querySelectorAll('.work-only').forEach((n) => (n.hidden = typeSel.value.startsWith('leave:')));
   typeSel.addEventListener('change', sync);
   sync();
 }
@@ -195,8 +206,10 @@ export async function dtrView(el, _params, query) {
             <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${c.restDay ? html` ${badge('Rest day', 'gray')}` : ''}</td>
             <td>${fullName(emp)}</td>
             ${c.leave
-              ? html`<td colspan="2">${badge('Paid leave', 'blue')}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
-              : html`<td>${fmtTime(e.timeIn)}</td>
+              ? html`<td colspan="2">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}${c.paidLeave ? '' : html` <small class="muted">unpaid</small>`}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
+              : e.remote && !e.timeIn
+              ? html`<td colspan="2">${badge('Remote work', 'blue')} <small class="muted">full day</small></td><td class="num">${fmtMinutes(c.workedMinutes)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
+              : html`<td>${fmtTime(e.timeIn)}${e.remote ? html` ${badge('Remote', 'blue')}` : ''}</td>
                 <td>${c.open ? badge('Open', 'amber') : fmtTime(e.timeOut)}</td>
                 <td class="num">${fmtMinutes(c.workedMinutes)}</td>
                 <td class="num ${c.lateMinutes ? 'warn' : ''}">${fmtMinutes(c.lateMinutes)}</td>
@@ -240,7 +253,7 @@ export async function dtrView(el, _params, query) {
   el.querySelector('#export').addEventListener('click', () => {
     const data = [
       ['Date', 'Employee No', 'Employee', 'Type', 'Time In', 'Time Out', 'Worked (min)', 'Late (min)', 'Undertime (min)', 'Overtime (min)', 'OT Approved', 'Notes'],
-      ...rows.map(({ entry: e, emp, calc: c }) => [e.date, emp.employeeNo, fullName(emp), e.type, e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, e.otApproved ? 'Yes' : 'No', e.notes]),
+      ...rows.map(({ entry: e, emp, calc: c }) => [e.date, emp.employeeNo, fullName(emp), e.type === 'leave' ? leaveName(e) : e.remote ? 'Remote work' : 'Work', e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, e.otApproved ? 'Yes' : 'No', e.notes]),
     ];
     downloadFile(`dtr-${state.from}-to-${state.to}.csv`, toCsv(data));
   });

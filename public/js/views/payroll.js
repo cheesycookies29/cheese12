@@ -71,6 +71,10 @@ const REGISTER_COLUMNS = [
 
 export async function payrollRunView(el, { id }) {
   let run = await api.get(`/api/payroll-runs/${id}`);
+  // Pending leave / remote-work requests inside the period change pay once decided.
+  const pendingRequests = can('leave.manage')
+    ? (await api.get('/api/requests?status=pending')).filter((r) => r.startDate <= run.periodEnd && r.endDate >= run.periodStart)
+    : [];
 
   function render() {
     const draft = run.status === 'draft';
@@ -97,11 +101,12 @@ export async function payrollRunView(el, { id }) {
         <div class="card accent"><small>Net pay</small><strong>${money(t.netPay)}</strong></div>
         <div class="card"><small>Employer contributions</small><strong>${money(t.employerContributions)}</strong></div>
       </div>
-      ${draft && (open || absent || pendingOt)
+      ${draft && (open || absent || pendingOt || pendingRequests.length)
         ? html`<div class="notice">
             ${open ? html`<p><strong>${open}</strong> employee(s) have open attendance records (no clock-out). Those days are not paid until fixed in <a href="#/dtr?from=${run.periodStart}&to=${run.periodEnd}">Attendance</a>.</p>` : ''}
             ${absent ? html`<p><strong>${absent}</strong> scheduled work day(s) have no attendance record and were counted as absences.</p>` : ''}
             ${pendingOt ? html`<p><strong>${pendingOt}</strong> employee(s) have overtime awaiting approval; it is not paid until approved.</p>` : ''}
+            ${pendingRequests.length ? html`<p><strong>${pendingRequests.length}</strong> leave or remote-work request(s) in this period are still pending. <a href="#/leave">Review them</a>, then recompute.</p>` : ''}
           </div>`
         : ''}
       <section class="card scroll-x">
@@ -207,7 +212,7 @@ export function payslipCard(run, p, settings) {
           <thead><tr><th>Earnings</th><th class="num">Amount</th></tr></thead>
           <tbody>
             <tr><td>Basic pay</td><td class="num">${amount(p.earnings.basePay)}</td></tr>
-            ${line(`  less absences (${a.absentDays} day/s)`, -p.earnings.absenceDeduction, 'sub')}
+            ${line(`  less absences (${a.absentDays} day/s)${a.unpaidLeaveDays ? ` and unpaid leave (${a.unpaidLeaveDays})` : ''}`, -p.earnings.absenceDeduction, 'sub')}
             ${line(`  less late/undertime (${fmtMinutes(a.lateMinutes + a.undertimeMinutes)})`, -p.earnings.tardinessDeduction, 'sub')}
             ${line(`Overtime (${fmtMinutes(a.overtimeMinutes)})`, p.earnings.overtimePay)}
             ${line(`Rest day work (${fmtMinutes(a.restDayMinutes)})`, p.earnings.restDayPay)}
@@ -229,7 +234,7 @@ export function payslipCard(run, p, settings) {
         </table>
       </div>
       <div class="net"><span>NET PAY</span><strong>${money(p.netPay)}</strong></div>
-      <p class="slip-foot">Days paid: ${a.daysPresent + a.leaveDays} of ${a.scheduledDays} (leave: ${a.leaveDays}) · Taxable income: ${amount(p.taxableIncome)}
+      <p class="slip-foot">Days paid: ${a.daysPresent + a.leaveDays} of ${a.scheduledDays} (paid leave: ${a.leaveDays}${a.remoteDays ? `, remote: ${a.remoteDays}` : ''}) · Taxable income: ${amount(p.taxableIncome)}
         · Employer share: SSS ${amount(p.employerShare.sss + p.employerShare.sssEc)}, PhilHealth ${amount(p.employerShare.philhealth)}, Pag-IBIG ${amount(p.employerShare.pagibig)}
         ${p.employee.bankAccount ? html` · Credited to ${p.employee.bankName} ${p.employee.bankAccount}` : ''}</p>
       ${p.adjustments.remarks ? html`<p class="slip-foot"><strong>Remarks:</strong> ${p.adjustments.remarks}</p>` : ''}

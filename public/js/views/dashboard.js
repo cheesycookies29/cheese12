@@ -1,14 +1,15 @@
 import { api } from '../api.js';
-import { ctx, can } from '../state.js';
+import { ctx, can, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, dayOfWeek } from '/shared/calc.js';
 import { html, mount, money, fmtDate, fmtTime, fullName, badge, today } from '../ui.js';
 
 export async function dashboardView(el) {
   const date = today();
-  const [employees, entries, runs] = await Promise.all([
+  const [employees, entries, runs, requests] = await Promise.all([
     api.get('/api/employees'),
     api.get(`/api/time-entries?from=${date}&to=${date}`),
     api.get('/api/payroll-runs'),
+    can('leave.manage') ? api.get('/api/requests/summary') : { pending: 0 },
   ]);
   const active = employees.filter((e) => e.status === 'Active');
   const entryFor = new Map(entries.map((e) => [e.employeeId, e]));
@@ -19,17 +20,18 @@ export async function dashboardView(el) {
       const entry = entryFor.get(emp.id);
       const scheduled = sched.workDays.includes(dayOfWeek(date));
       let status;
-      if (entry?.type === 'leave') status = badge('On leave', 'blue');
-      else if (entry && !entry.timeOut) status = badge('Working', 'green');
+      if (entry?.type === 'leave') status = badge(leaveName(entry), 'blue');
+      else if (entry?.remote && !entry.timeIn) status = badge('Remote work', 'blue');
+      else if (entry && !entry.timeOut) status = badge(entry.remote ? 'Working remotely' : 'Working', 'green');
       else if (entry) status = badge('Done', 'gray');
       else if (scheduled) status = badge('Not in yet', 'amber');
       else status = badge('Rest day', 'gray');
-      const late = entry && entry.type === 'work' ? Math.max(0, computeEntry({ ...entry, timeOut: entry.timeOut || '23:59' }, sched, ctx.settings).lateMinutes) : 0;
+      const late = entry && entry.type === 'work' && entry.timeIn ? Math.max(0, computeEntry({ ...entry, timeOut: entry.timeOut || '23:59' }, sched, ctx.settings).lateMinutes) : 0;
       return { emp, entry, status, late, scheduled };
     })
     .sort((a, b) => a.emp.lastName.localeCompare(b.emp.lastName));
 
-  const working = rows.filter((r) => r.entry?.type === 'work' && !r.entry.timeOut).length;
+  const working = rows.filter((r) => r.entry?.type === 'work' && r.entry.timeIn && !r.entry.timeOut).length;
   const onLeave = rows.filter((r) => r.entry?.type === 'leave').length;
   const late = rows.filter((r) => r.late > 0).length;
   const notIn = rows.filter((r) => r.scheduled && !r.entry).length;
@@ -55,6 +57,7 @@ export async function dashboardView(el) {
           <a class="card" href="#/dtr"><small>Late today</small><strong>${late}</strong></a>
           <a class="card" href="#/dtr"><small>On leave today</small><strong>${onLeave}</strong></a>
           <a class="card" href="#/dtr"><small>Not in yet</small><strong>${notIn}</strong></a>
+          ${can('leave.manage') ? html`<a class="card ${requests.pending ? 'attention' : ''}" href="#/leave"><small>Pending requests</small><strong>${requests.pending}</strong></a>` : ''}
         </div>
         <div class="cols wide-left">
           <section class="card">
