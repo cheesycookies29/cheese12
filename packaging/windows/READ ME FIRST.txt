@@ -1,0 +1,43 @@
+LTDC HR & PAYROLL - WINDOWS
+===========================
+
+Nothing to install. This folder already contains everything the app needs
+(including its own copy of Node.js in the "runtime" folder).
+
+FIRST TIME
+1. Before unzipping: right-click the .zip file > Properties > tick "Unblock"
+   (if you see it) > OK. This stops Windows from warning on every start.
+2. Right-click the .zip > Extract All... and put the LTDC-HR folder somewhere
+   permanent, such as Documents. Do NOT use Program Files.
+   Your data is saved inside this folder, in "data".
+3. Double-click "Create desktop shortcut.bat" (optional).
+
+EVERY DAY
+- Double-click "Start LTDC HR.bat" (or the desktop shortcut).
+  A black window opens and the app opens in your browser at
+  http://localhost:3000
+- Keep the black window open while you use the app. Close it to stop.
+- If Windows says "Windows protected your PC", click More info > Run anyway.
+
+FIRST START
+- The app asks you to create the Administrator account.
+- To explore, sign in and go to Settings > Load demo data.
+
+OTHER COMPUTERS IN THE OFFICE
+- Double-click "Start LTDC HR (office network).bat" instead. It shows this
+  PC's IP address; others open http://<that IP>:3000 in their browser.
+- If Windows Firewall asks, allow access on Private networks only.
+- The connection is not encrypted, so use this only on a trusted network.
+
+BACKUPS
+- Sign in as Administrator > Settings > Download backup. Or copy the "data"
+  folder while the app is closed.
+
+UPGRADING TO A NEW VERSION
+- Close the app, unzip the new version, and copy your old "data" folder into
+  the new LTDC-HR folder.
+
+LOCKED OUT?
+- Close the app and double-click "Reset a password.bat".
+
+Full documentation: README.md in this folder.
