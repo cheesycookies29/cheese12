@@ -35,6 +35,18 @@ The first time you open the app, it asks you to **create the Administrator accou
 
 To use a different port, run `PORT=8080 npm start`.
 
+## Run it on Windows
+
+1. **Install Node.js** (one time only): download the **LTS** installer (`.msi`) from <https://nodejs.org> and run it with the default options.
+2. **Unzip** `ltdc-hr.zip`: right-click it → **Extract All…**. Put the folder somewhere permanent, such as **Documents**. Your data is saved inside it.
+3. **Double-click `start-windows.bat`** in the `ltdc-hr` folder. A black window opens and the app opens in your browser at <http://localhost:3000>.
+   - If Windows shows "Windows protected your PC", click **More info → Run anyway**.
+4. **Keep the black window open** while you use the app. Close it (or press `Ctrl + C`) to stop.
+
+Everything else (sign-in, accounts, backups) works the same as on a Mac.
+If you prefer the command line, open **PowerShell** in the folder and run `npm start`.
+The PowerShell way to set options is `$env:PORT=8080; npm start`.
+
 ## Accounts and access
 
 | Account type | Can do |
@@ -48,15 +60,17 @@ To use a different port, run `PORT=8080 npm start`.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
 - Anyone can change their password from the bottom of the sidebar. Admins can reset anyone's password or disable an account.
 - After 5 wrong passwords, that username is locked for 5 minutes. People are signed out after 8 idle hours, or when the app is restarted.
-- **Locked out as the only admin?** Stop the app, then run `npm run reset-password -- admin NewPassword123` (use your admin username) and start it again.
+- **Locked out as the only admin?** Stop the app, open Terminal (Mac) or PowerShell (Windows) in the app folder, run `npm run reset-password -- admin NewPassword123` (use your admin username), then start the app again.
 
 ### Letting employees sign in from their own computers
 
-By default only the Mac running the app can open it. To let others on the same office network use it:
+By default only the computer running the app can open it. To let others on the same office network use it:
 
-1. Start the app with `HOST=0.0.0.0 npm start`.
-2. Find the Mac's IP address in **System Settings → Network** (for example `192.168.1.20`).
-3. Others open `http://192.168.1.20:3000` in their browser.
+- **On Windows:** double-click `start-windows-network.bat`. The window shows this PC's IP address (for example `192.168.1.20`).
+  If Windows Firewall asks, allow access on **Private networks** only.
+- **On a Mac:** start the app with `HOST=0.0.0.0 npm start`, and find the IP address in **System Settings → Network**.
+
+Others then open `http://192.168.1.20:3000` (using your IP address) in their browser.
 
 The connection is not encrypted (plain `http`), so only do this on a network you trust.
 

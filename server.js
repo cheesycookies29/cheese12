@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
 import { createApi } from './server/api.js';
 
@@ -77,9 +78,23 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n  Port ${PORT} is already in use. The app may already be running: open http://localhost:${PORT}`);
+    console.error('  Or start it on another port, e.g. PORT=3001 (see README).\n');
+    process.exit(1);
+  }
+  throw err;
+});
+
 server.listen(PORT, HOST, () => {
   console.log(`\n  LTDC HR & Payroll is running at http://localhost:${PORT}`);
-  if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this Mac\'s IP address.');
+  if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');
+  if (process.env.OPEN_BROWSER) {
+    const url = `http://localhost:${PORT}`;
+    const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`;
+    exec(cmd, () => {});
+  }
 });
