@@ -4,23 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LTDC HR &amp; Payroll</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='%2316a34a'/><path d='M16 25V14m0 0c0-4 3-7 7-7 0 4-3 7-7 7zm0 3c0-3-2.5-5.5-5.5-5.5 0 3 2.5 5.5 5.5 5.5z' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/></svg>" />
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="apple-touch-icon" href="/img/icon-192.png" />
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
-<body>
+<body class="booting">
+  <div id="auth"></div>
   <div class="layout">
     <aside class="sidebar">
       <div class="brand"><img src="/img/logo-white.png" alt="Lancaster Technology and Development" /></div>
       <div class="brand-sub"><div><strong>HR &amp; Payroll</strong><small id="company-name"></small></div></div>
-      <nav id="nav">
-        <a href="#/dashboard" data-section="dashboard">Dashboard</a>
-        <a href="#/employees" data-section="employees">Employees</a>
-        <a href="#/clock" data-section="clock">Time Clock</a>
-        <a href="#/dtr" data-section="dtr">Attendance (DTR)</a>
-        <a href="#/payroll" data-section="payroll">Payroll</a>
-        <a href="#/settings" data-section="settings">Settings</a>
-      </nav>
-      <p class="sidebar-foot">Nation building through technology and development.</p>
+      <nav id="nav"></nav>
+      <div class="user-box" id="user-box"></div>
     </aside>
     <main id="app"></main>
   </div>

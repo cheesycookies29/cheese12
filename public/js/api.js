@@ -5,7 +5,11 @@ async function request(method, url, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    // Session expired or signed out elsewhere: send the user back to the login page.
+    if (res.status === 401 && !url.startsWith('/api/auth/')) window.dispatchEvent(new Event('auth:expired'));
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
   return data;
 }
 

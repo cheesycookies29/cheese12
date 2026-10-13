@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { ctx } from '../state.js';
+import { ctx, can } from '../state.js';
 import { currentPeriod } from '/shared/calc.js';
 import { html, mount, money, amount, fmtDate, fmtMinutes, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../ui.js';
 
@@ -12,7 +12,7 @@ export async function payrollListView(el) {
   mount(el, html`
     <header class="page-head">
       <div><h1>Payroll</h1><p class="muted">${ctx.settings.payFrequency === 'monthly' ? 'Monthly' : 'Semi-monthly'} payroll with SSS, PhilHealth, Pag-IBIG and BIR withholding tax.</p></div>
-      <div class="actions"><button class="btn primary" id="new-run">+ New payroll run</button></div>
+      <div class="actions">${can('payroll.edit') ? html`<button class="btn primary" id="new-run">+ New payroll run</button>` : ''}</div>
     </header>
     <section class="card">
       ${runs.length
@@ -32,7 +32,7 @@ export async function payrollListView(el) {
     if (tr) location.hash = tr.dataset.href;
   });
 
-  el.querySelector('#new-run').addEventListener('click', () => {
+  el.querySelector('#new-run')?.addEventListener('click', () => {
     const p = currentPeriod(today(), ctx.settings.payFrequency);
     const { form } = modal({
       title: 'New payroll run',
@@ -74,6 +74,7 @@ export async function payrollRunView(el, { id }) {
 
   function render() {
     const draft = run.status === 'draft';
+    const editable = draft && can('payroll.edit');
     const open = run.payslips.filter((p) => p.attendance.openEntries).length;
     const absent = run.payslips.reduce((a, p) => a + p.attendance.absentDays, 0);
     const pendingOt = run.payslips.filter((p) => p.attendance.unapprovedOvertimeMinutes).length;
@@ -86,7 +87,7 @@ export async function payrollRunView(el, { id }) {
         <div class="actions">
           <button class="btn" id="export">Export register</button>
           <a class="btn" href="#/payroll/${run.id}/payslip/all">Print payslips</a>
-          ${draft ? html`<button class="btn" id="recompute">Recompute</button><button class="btn gold" id="finalize">Finalize</button>` : ''}
+          ${editable ? html`<button class="btn" id="recompute">Recompute</button><button class="btn gold" id="finalize">Finalize</button>` : ''}
         </div>
       </header>
       <div class="stats">
@@ -128,14 +129,14 @@ export async function payrollRunView(el, { id }) {
             <td class="num">${amount(p.deductions.otherDeductions)}</td>
             <td class="num">${amount(p.allowance)}</td>
             <td class="num"><strong>${amount(p.netPay)}</strong></td>
-            <td class="row-actions">${draft ? html`<button class="link" data-adjust="${p.employeeId}">Adjust</button>` : ''}<a class="link" href="#/payroll/${run.id}/payslip/${p.employeeId}">Payslip</a></td>
+            <td class="row-actions">${editable ? html`<button class="link" data-adjust="${p.employeeId}">Adjust</button>` : ''}<a class="link" href="#/payroll/${run.id}/payslip/${p.employeeId}">Payslip</a></td>
           </tr>`)}</tbody>
           <tfoot><tr><td><strong>Total</strong></td><td colspan="7"></td><td class="num"><strong>${amount(t.grossPay)}</strong></td>
             ${['sss', 'philhealth', 'pagibig', 'withholdingTax', 'otherDeductions'].map((k) => html`<td class="num">${amount(run.payslips.reduce((a, p) => a + p.deductions[k], 0))}</td>`)}
             <td class="num">${amount(run.payslips.reduce((a, p) => a + p.allowance, 0))}</td><td class="num"><strong>${amount(t.netPay)}</strong></td><td></td></tr></tfoot>
         </table>
       </section>
-      <div class="danger-zone"><button class="btn danger ghost" id="delete">Delete payroll run</button></div>`);
+      ${can('payroll.edit') ? html`<div class="danger-zone"><button class="btn danger ghost" id="delete">Delete payroll run</button></div>` : ''}`);
     bind();
   }
 
@@ -155,7 +156,7 @@ export async function payrollRunView(el, { id }) {
       toast('Payroll finalized.');
       render();
     });
-    el.querySelector('#delete').addEventListener('click', async () => {
+    el.querySelector('#delete')?.addEventListener('click', async () => {
       if (!(await confirmDialog(`Delete the payroll run for ${periodLabel(run)}? This cannot be undone.`))) return;
       await api.del(`/api/payroll-runs/${id}`);
       toast('Payroll run deleted.');
@@ -184,7 +185,7 @@ export async function payrollRunView(el, { id }) {
   render();
 }
 
-function payslipCard(run, p, settings) {
+export function payslipCard(run, p, settings) {
   const line = (label, value, cls = '') => (value ? html`<tr class="${cls}"><td>${label}</td><td class="num">${amount(value)}</td></tr>` : '');
   const a = p.attendance;
   return html`

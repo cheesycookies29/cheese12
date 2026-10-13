@@ -10,6 +10,7 @@ export function emptyData() {
     employees: [],
     timeEntries: [],
     payrollRuns: [],
+    users: [],
   };
 }
 
@@ -19,6 +20,7 @@ export function openDb(file) {
   if (fs.existsSync(file)) {
     data = JSON.parse(fs.readFileSync(file, 'utf8'));
     data.settings = mergeSettings(data.settings);
+    data.users ||= []; // files from before user accounts existed
   }
 
   const db = {

@@ -114,15 +114,15 @@ export async function settingsView(el) {
   });
 
   el.querySelector('#demo').addEventListener('click', async () => {
-    if (!(await confirmDialog('Replace ALL current data with demo employees and attendance?', { confirmLabel: 'Load demo data' }))) return;
+    if (!(await confirmDialog('Replace ALL current data with demo employees and attendance? This also adds demo sign-in accounts hr.demo, payroll.demo and employee.demo (password: demo1234). Your own account is kept.', { confirmLabel: 'Load demo data' }))) return;
     await api.post('/api/admin/demo');
     await ctx.refreshSettings();
-    toast('Demo data loaded.');
+    toast('Demo data loaded. Demo accounts use the password demo1234.');
     location.hash = '#/dashboard';
   });
 
   el.querySelector('#reset').addEventListener('click', async () => {
-    if (!(await confirmDialog('Permanently erase all employees, attendance, payroll runs and settings?', { confirmLabel: 'Erase everything' }))) return;
+    if (!(await confirmDialog('Permanently erase all employees, attendance, payroll runs and settings? User accounts are kept, except demo accounts.', { confirmLabel: 'Erase everything' }))) return;
     await api.post('/api/admin/reset');
     await ctx.refreshSettings();
     toast('All data erased.');

@@ -8,6 +8,7 @@ import { createApi } from './server/api.js';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1'; // only reachable from this computer
+const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').filter(Boolean);
 const DB_FILE = process.env.DB_FILE || path.join(ROOT, 'data', 'db.json');
 
 const db = openDb(DB_FILE);
@@ -16,9 +17,9 @@ const api = createApi(db);
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': path.join(ROOT, 'public') };
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.ttf': 'font/ttf' };
 
-function send(res, status, body, type = 'application/json') {
+function send(res, status, body, type = 'application/json', headers = {}) {
   const textual = /^text\/|json|javascript|svg/.test(type);
-  res.writeHead(status, { 'Content-Type': textual ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store' });
+  res.writeHead(status, { 'Content-Type': textual ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...headers });
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
@@ -57,15 +58,18 @@ function serveStatic(url, res) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (!url.pathname.startsWith('/api/')) return serveStatic(url, res);
-  // Block other websites from calling this local API (DNS rebinding / CSRF).
+  // Block other websites from calling this API (DNS rebinding / CSRF): only accept
+  // requests addressed to localhost or a plain IP address (e.g. 192.168.1.20 on the office network).
   const hostname = (req.headers.host || '').replace(/:\d+$/, '');
-  if (!['localhost', '127.0.0.1', '[::1]'].includes(hostname)) return send(res, 403, { error: 'Forbidden host.' });
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith('[');
+  if (hostname !== 'localhost' && !isIp && !ALLOWED_HOSTS.includes(hostname)) return send(res, 403, { error: 'Forbidden host.' });
   if (['POST', 'PUT', 'DELETE'].includes(req.method) && !(req.headers['content-type'] || '').startsWith('application/json')) {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
   try {
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req) : {};
-    send(res, 200, await api(req, url, body));
+    const { data, headers } = await api(req, url, body);
+    send(res, 200, data, 'application/json', headers);
   } catch (err) {
     const status = err.status || 500;
     if (status === 500) console.error(err);
@@ -75,6 +79,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`\n  LTDC HR & Payroll is running at http://localhost:${PORT}`);
+  if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this Mac\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');
 });

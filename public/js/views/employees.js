@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { ctx } from '../state.js';
+import { ctx, can } from '../state.js';
 import { html, raw, mount, money, fmtDate, fullName, badge, toast, confirmDialog, downloadFile, toCsv, WEEKDAYS, today } from '../ui.js';
 
 const CSV_COLUMNS = [
@@ -47,7 +47,7 @@ export async function employeeListView(el, _params, query) {
       <div><h1>Employees</h1><p class="muted" id="emp-count"></p></div>
       <div class="actions">
         <button class="btn" id="export">Export CSV</button>
-        <a class="btn primary" href="#/employees/new">+ Add employee</a>
+        ${can('employees.edit') ? html`<a class="btn primary" href="#/employees/new">+ Add employee</a>` : ''}
       </div>
     </header>
     ${employees.length === 0
@@ -209,8 +209,8 @@ export async function employeeProfileView(el, { id }) {
         </div>
       </div>
       <div class="actions">
-        <a class="btn" href="#/dtr?employeeId=${emp.id}">View attendance</a>
-        <a class="btn primary" href="#/employees/${emp.id}/edit">Edit</a>
+        ${can('attendance.view') ? html`<a class="btn" href="#/dtr?employeeId=${emp.id}">View attendance</a>` : ''}
+        ${can('employees.edit') ? html`<a class="btn primary" href="#/employees/${emp.id}/edit">Edit</a>` : ''}
       </div>
     </header>
     <div class="cols">
@@ -247,12 +247,12 @@ export async function employeeProfileView(el, { id }) {
           : html`<p class="muted">No payroll runs include this employee yet.</p>`}
       </section>
     </div>
-    <div class="danger-zone">
+    ${can('employees.edit') ? html`<div class="danger-zone">
       <button class="btn danger ghost" id="delete">Delete employee</button>
       <small class="muted">Tip: set the employee to Inactive instead to keep their records.</small>
-    </div>`);
+    </div>` : ''}`);
 
-  el.querySelector('#delete').addEventListener('click', async () => {
+  el.querySelector('#delete')?.addEventListener('click', async () => {
     if (!(await confirmDialog(`Delete ${fullName(emp)} and all of their attendance records? Payslips in past payroll runs are kept.`))) return;
     await api.del(`/api/employees/${id}`);
     toast('Employee deleted.');

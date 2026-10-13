@@ -1,12 +1,13 @@
 # LTDC HR & Payroll
 
-A simple HR app for Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/). It has three parts:
+A simple HR app for Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/). It has four parts:
 
 - **Employee records**: personal details, employment, pay rate, work schedule, government IDs (TIN, SSS, PhilHealth, Pag-IBIG) and bank details.
 - **Time tracking**: a time clock where employees clock in and out, and an attendance record (DTR) that works out late, undertime and overtime minutes. You can also add paid leave, fix records by hand and approve overtime.
 - **Payroll**: semi-monthly or monthly payroll runs worked out from attendance, with SSS, PhilHealth, Pag-IBIG and BIR withholding tax. It produces a payroll register (CSV) and payslips you can print or save as PDF.
+- **User access**: everyone signs in with their own account, and each account type only sees what it needs (see below).
 
-There is no account system and no cloud. Your data stays on your Mac in `data/db.json`.
+There is no cloud. Your data stays on your Mac in `data/db.json`.
 
 ## Run it on your Mac
 
@@ -25,10 +26,39 @@ There is no account system and no cloud. Your data stays on your Mac in `data/db
 To stop the app, press `Ctrl + C` in the Terminal window. Run `npm start` again whenever you want to use it.
 You don't need to run `npm install`, because the app has no dependencies.
 
-> To try it out, go to **Settings → Load demo data**. This loads 6 sample employees and about six weeks of attendance.
-> When you're ready for real data, use **Settings → Erase all data**.
+The first time you open the app, it asks you to **create the Administrator account**. After that, everyone starts at the sign-in page.
+
+> To try it out, go to **Settings → Load demo data**. This loads 6 sample employees, about six weeks of attendance,
+> and three demo accounts you can sign in with to see each account type: `hr.demo`, `payroll.demo` and `employee.demo`
+> (password `demo1234`). Your own account is kept.
+> When you're ready for real data, use **Settings → Erase all data**. It removes the demo accounts too.
 
 To use a different port, run `PORT=8080 npm start`.
+
+## Accounts and access
+
+| Account type | Can do |
+| --- | --- |
+| **Administrator** | Everything, including **Users & Access**, company settings, and backup/restore. |
+| **HR Manager** | Add and edit employees, manage attendance and approve overtime, run the shared time clock. View payroll. |
+| **Payroll Officer** | Create, adjust and finalize payroll. View employees and attendance. |
+| **Employee** | Self-service only: clock in and out, see their own attendance, finalized payslips and profile. |
+
+- Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
+- **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
+- Anyone can change their password from the bottom of the sidebar. Admins can reset anyone's password or disable an account.
+- After 5 wrong passwords, that username is locked for 5 minutes. People are signed out after 8 idle hours, or when the app is restarted.
+- **Locked out as the only admin?** Stop the app, then run `npm run reset-password -- admin NewPassword123` (use your admin username) and start it again.
+
+### Letting employees sign in from their own computers
+
+By default only the Mac running the app can open it. To let others on the same office network use it:
+
+1. Start the app with `HOST=0.0.0.0 npm start`.
+2. Find the Mac's IP address in **System Settings → Network** (for example `192.168.1.20`).
+3. Others open `http://192.168.1.20:3000` in their browser.
+
+The connection is not encrypted (plain `http`), so only do this on a network you trust.
 
 ## How pay is computed
 
@@ -57,16 +87,18 @@ The multipliers, grace period, minimum overtime, pay frequency and which deducti
 
 ## Not included (yet)
 
-Holidays and holiday pay rates, night differential, leave balances and approvals, 13th month pay, loans with amortization, government remittance reports and BIR 2316, user logins and roles.
+Holidays and holiday pay rates, night differential, leave balances and approvals, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, and an audit log.
 
 ## Backups
 
-Use **Settings → Download backup** to save everything as a single JSON file, and **Restore backup** to load one back.
+Admins can use **Settings → Download backup** to save everything as a single JSON file, and **Restore backup** to load one back.
+The backup includes user accounts (with passwords stored as secure hashes), so keep the file private.
 You can also just copy the `data/` folder.
 
 ## For developers
 
 - `server.js` is a dependency-free Node HTTP server. The JSON API is in `server/api.js` and storage in `server/db.js`.
 - `shared/calc.js` holds all the time and payroll math. Both the server and the browser use it.
+- `shared/roles.js` defines the account types and permissions. The server enforces them on every API call (`server/api.js`), and the browser uses them to hide screens and buttons. Passwords and sessions are in `server/auth.js`.
 - `public/` is the single-page app: plain ES modules with no build step.
-- Run the payroll math tests with `npm test`.
+- Run the tests with `npm test`.

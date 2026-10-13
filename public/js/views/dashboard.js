@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { ctx } from '../state.js';
+import { ctx, can } from '../state.js';
 import { computeEntry, scheduleFor, dayOfWeek } from '/shared/calc.js';
 import { html, mount, money, fmtDate, fmtTime, fullName, badge, today } from '../ui.js';
 
@@ -40,13 +40,13 @@ export async function dashboardView(el) {
   mount(el, html`
     <header class="page-head">
       <div><h1>Dashboard</h1><p class="muted">${new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p></div>
-      <div class="actions"><a class="btn" href="#/clock">Open time clock</a><a class="btn primary" href="#/employees/new">+ Add employee</a></div>
+      <div class="actions">${can('clock.kiosk') ? html`<a class="btn" href="#/clock">Open time clock</a>` : ''}${can('employees.edit') ? html`<a class="btn primary" href="#/employees/new">+ Add employee</a>` : ''}</div>
     </header>
     ${employees.length === 0
       ? html`<section class="card empty welcome">
           <h2>Welcome to <span>LTDC</span> HR &amp; Payroll</h2>
           <p>Start by setting your company details, then add employees. Or load sample data to explore.</p>
-          <div class="actions center"><a class="btn" href="#/settings">Company settings</a><a class="btn primary" href="#/employees/new">Add first employee</a></div>
+          <div class="actions center">${can('settings.edit') ? html`<a class="btn" href="#/settings">Company settings</a>` : ''}${can('employees.edit') ? html`<a class="btn primary" href="#/employees/new">Add first employee</a>` : ''}</div>
         </section>`
       : html`
         <div class="stats">

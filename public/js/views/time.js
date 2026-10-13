@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { ctx } from '../state.js';
+import { ctx, can } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
 import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, WEEKDAYS } from '../ui.js';
 
@@ -153,7 +153,7 @@ export async function dtrView(el, _params, query) {
   mount(el, html`
     <header class="page-head">
       <div><h1>Attendance (DTR)</h1><p class="muted">Daily time records, with late, undertime and overtime computed from each employee's schedule.</p></div>
-      <div class="actions"><button class="btn" id="export">Export CSV</button><button class="btn primary" id="add" ${employees.length ? '' : 'disabled'}>+ Add record</button></div>
+      <div class="actions"><button class="btn" id="export">Export CSV</button>${can('attendance.edit') ? html`<button class="btn primary" id="add" ${employees.length ? '' : 'disabled'}>+ Add record</button>` : ''}</div>
     </header>
     <section class="card">
       <div class="toolbar">
@@ -201,9 +201,9 @@ export async function dtrView(el, _params, query) {
                 <td class="num">${fmtMinutes(c.workedMinutes)}</td>
                 <td class="num ${c.lateMinutes ? 'warn' : ''}">${fmtMinutes(c.lateMinutes)}</td>
                 <td class="num ${c.undertimeMinutes ? 'warn' : ''}">${fmtMinutes(c.undertimeMinutes)}</td>
-                <td class="num">${c.overtimeMinutes ? html`${fmtMinutes(c.overtimeMinutes)} ${e.otApproved ? badge('Approved', 'green') : html`<button class="link" data-approve="${e.id}">Approve</button>`}` : '—'}</td>`}
+                <td class="num">${c.overtimeMinutes ? html`${fmtMinutes(c.overtimeMinutes)} ${e.otApproved ? badge('Approved', 'green') : can('attendance.edit') ? html`<button class="link" data-approve="${e.id}">Approve</button>` : badge('Pending', 'amber')}` : '—'}</td>`}
             <td class="notes">${e.notes}</td>
-            <td class="row-actions"><button class="link" data-edit="${e.id}">Edit</button><button class="link danger" data-delete="${e.id}">Delete</button></td>
+            <td class="row-actions">${can('attendance.edit') ? html`<button class="link" data-edit="${e.id}">Edit</button><button class="link danger" data-delete="${e.id}">Delete</button>` : ''}</td>
           </tr>`)}</tbody>
         </table>`
       : html`<div class="empty"><p>No attendance records in this range.</p></div>`);
@@ -217,7 +217,7 @@ export async function dtrView(el, _params, query) {
   };
   ['#f-emp', '#f-from', '#f-to'].forEach((s) => el.querySelector(s).addEventListener('change', onFilter));
 
-  el.querySelector('#add').addEventListener('click', () =>
+  el.querySelector('#add')?.addEventListener('click', () =>
     openEntryModal({ employeeId: state.employeeId || employees.find((e) => e.status === 'Active')?.id }, employees.filter((e) => e.status === 'Active'), load),
   );
 
