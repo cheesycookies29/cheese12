@@ -32,7 +32,7 @@ A module the user's account cannot use shows **No access**.
 - **CSV export** on every list: assets, inventory, stock movements, allocations, the activity log, each asset's history, and an employee's own equipment.
 - Employees see their own equipment under **My Assets**; HR sees each employee's equipment on their profile (useful when someone leaves).
 
-All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [AWS Lightsail](deploy/aws/LIGHTSAIL.md) or [Amazon EC2](deploy/aws/EC2.md).
+All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting LTDC ERP online with Amazon EC2](deploy/aws/EC2.md).
 
 ## Run it on your Mac
 
@@ -155,7 +155,7 @@ Holidays and holiday pay rates, night differential, half-day leave, two-level ap
 
 ## Put it online (cloud)
 
-To use it 24/7 from any browser over HTTPS, follow [deploy/aws/LIGHTSAIL.md](deploy/aws/LIGHTSAIL.md) (or [deploy/aws/EC2.md](deploy/aws/EC2.md) to use Amazon EC2, e.g. with AWS credits). It sets up an Ubuntu server with Caddy for HTTPS, automatic restarts and nightly data backups. Two settings matter online: `COOKIE_SECURE=1` (login cookie sent over HTTPS only) and `ALLOWED_HOSTS=<your address>`. To create the first Administrator from the server instead of the first-run page, stop the app and run `npm run create-admin -- <username> "<Full Name>"`; it prints a temporary password.
+To use it 24/7 from any browser over HTTPS, follow [deploy/aws/EC2.md](deploy/aws/EC2.md). It sets up an Amazon EC2 Ubuntu server with Caddy for HTTPS, automatic restarts and nightly data backups. Two settings matter online: `COOKIE_SECURE=1` (login cookie sent over HTTPS only) and `ALLOWED_HOSTS=<your address>`. To create the first Administrator from the server instead of the first-run page, stop the app and run `npm run create-admin -- <username> "<Full Name>"`; it prints a temporary password.
 
 ## Backups
 
