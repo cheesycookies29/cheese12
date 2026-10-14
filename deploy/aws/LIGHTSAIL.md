@@ -2,6 +2,8 @@
 
 This guide puts LTDC ERP on a small cloud server so staff can use it 24/7 from any browser at an address like **https://erp.lancastertechdev.com**.
 
+Using Amazon EC2 instead (for example, to spend AWS credits)? Do Part 1 from [EC2.md](EC2.md), then continue here from Part 2.
+
 It takes about an hour. You need:
 
 - an AWS account (a payment card is required);
@@ -154,7 +156,7 @@ scp -i ~/Downloads/LightsailDefaultKey-ap-southeast-1.pem ~/path/to/ltdc-erp/dat
 18. **Start the app as a service.** It starts automatically at boot and restarts if it stops.
 
     ```bash
-    sudo cp /opt/ltdc-erp/deploy/lightsail/ltdc-erp.service /etc/systemd/system/
+    sudo cp /opt/ltdc-erp/deploy/aws/ltdc-erp.service /etc/systemd/system/
     sudo sed -i "s/erp.example.com/$DOMAIN/" /etc/systemd/system/ltdc-erp.service
     sudo systemctl daemon-reload
     sudo systemctl enable ltdc-erp && sudo systemctl restart ltdc-erp
@@ -166,7 +168,7 @@ scp -i ~/Downloads/LightsailDefaultKey-ap-southeast-1.pem ~/path/to/ltdc-erp/dat
 19. **Turn on HTTPS.** Caddy gets the certificate on its own within a few seconds.
 
     ```bash
-    sudo cp /opt/ltdc-erp/deploy/lightsail/Caddyfile /etc/caddy/Caddyfile
+    sudo cp /opt/ltdc-erp/deploy/aws/Caddyfile /etc/caddy/Caddyfile
     sudo sed -i "s/erp.example.com/$DOMAIN/" /etc/caddy/Caddyfile
     sudo systemctl reload caddy
     ```
@@ -174,7 +176,7 @@ scp -i ~/Downloads/LightsailDefaultKey-ap-southeast-1.pem ~/path/to/ltdc-erp/dat
 20. **Turn on nightly data backups.** A copy of the data file is saved each night in `data/backups` and kept for 30 days.
 
     ```bash
-    sudo cp /opt/ltdc-erp/deploy/lightsail/ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
+    sudo cp /opt/ltdc-erp/deploy/aws/ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
     ```
 
 ---
