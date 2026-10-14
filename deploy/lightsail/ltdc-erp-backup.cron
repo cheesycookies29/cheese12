@@ -1,0 +1,3 @@
+# Nightly copy of the LTDC ERP data file at 2:15 AM Philippine time (18:15 UTC);
+# copies older than 30 days are deleted. Install: sudo cp ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
+15 18 * * * ltdc cp /opt/ltdc-erp/data/db.json /opt/ltdc-erp/data/backups/db-$(date +\%F).json && find /opt/ltdc-erp/data/backups -name 'db-*.json' -mtime +30 -delete

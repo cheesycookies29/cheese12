@@ -1,0 +1,25 @@
+# systemd service for LTDC ERP: starts at boot and restarts if it stops.
+# Install: sudo cp ltdc-erp.service /etc/systemd/system/ && sudo systemctl enable --now ltdc-erp
+[Unit]
+Description=LTDC ERP
+After=network.target
+
+[Service]
+User=ltdc
+Group=ltdc
+WorkingDirectory=/opt/ltdc-erp
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+# Listen only on this server; Caddy forwards HTTPS traffic to it.
+Environment=NODE_ENV=production HOST=127.0.0.1 PORT=3000 COOKIE_SECURE=1
+Environment=ALLOWED_HOSTS=erp.example.com
+# The app may only write to its data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/ltdc-erp/data
+
+[Install]
+WantedBy=multi-user.target

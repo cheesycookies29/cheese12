@@ -32,7 +32,7 @@ A module the user's account cannot use shows **No access**.
 - **CSV export** on every list: assets, inventory, stock movements, allocations, the activity log, each asset's history, and an employee's own equipment.
 - Employees see their own equipment under **My Assets**; HR sees each employee's equipment on their profile (useful when someone leaves).
 
-There is no cloud. All modules share one data file on your computer, `data/db.json`.
+All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting LTDC ERP online with AWS Lightsail](deploy/lightsail/GUIDE.md).
 
 ## Run it on your Mac
 
@@ -152,6 +152,10 @@ Default leave types (editable under **Leave & Requests → Leave types**): Vacat
 ## Not included (yet)
 
 Holidays and holiday pay rates, night differential, half-day leave, two-level approvals, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, and an audit log.
+
+## Put it online (cloud)
+
+To use it 24/7 from any browser over HTTPS, follow [deploy/lightsail/GUIDE.md](deploy/lightsail/GUIDE.md). It sets up an AWS Lightsail server with Caddy for HTTPS, automatic restarts and nightly data backups. Two settings matter online: `COOKIE_SECURE=1` (login cookie sent over HTTPS only) and `ALLOWED_HOSTS=<your address>`. To create the first Administrator from the server instead of the first-run page, stop the app and run `npm run create-admin -- <username> "<Full Name>"`; it prints a temporary password.
 
 ## Backups
 

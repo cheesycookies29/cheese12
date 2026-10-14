@@ -64,10 +64,14 @@ export function createSessions() {
   };
 }
 
+// COOKIE_SECURE=1 when the app is served over HTTPS (e.g. in the cloud behind Caddy),
+// so browsers never send the session cookie over plain HTTP.
+const SECURE = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
+
 export function sessionCookie(token) {
-  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}`;
+  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}${SECURE}`;
 }
-export const clearedCookie = `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
+export const clearedCookie = `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${SECURE}`;
 
 // Lock a username for 5 minutes after 5 wrong passwords in a row.
 export function createThrottle({ max = 5, lockMs = 5 * 60 * 1000 } = {}) {
