@@ -88,7 +88,7 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`\n  LTDC HR & Payroll is running at http://localhost:${PORT}`);
+  console.log(`\n  LTDC ERP is running at http://localhost:${PORT}`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');

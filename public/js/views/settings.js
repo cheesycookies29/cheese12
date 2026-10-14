@@ -90,7 +90,7 @@ export async function settingsView(el) {
   });
 
   el.querySelector('#demo').addEventListener('click', async () => {
-    if (!(await confirmDialog('Replace ALL current data with demo employees and attendance? This also adds demo sign-in accounts hr.demo, payroll.demo and employee.demo (password: demo1234). Your own account is kept.', { confirmLabel: 'Load demo data' }))) return;
+    if (!(await confirmDialog('Replace ALL current data with demo employees and attendance? This also adds demo sign-in accounts hr.demo, payroll.demo, it.demo and employee.demo (password: demo1234). Your own account is kept.', { confirmLabel: 'Load demo data' }))) return;
     await api.post('/api/admin/demo');
     await ctx.refreshSettings();
     toast('Demo data loaded. Demo accounts use the password demo1234.');

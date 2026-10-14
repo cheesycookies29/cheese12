@@ -1,7 +1,7 @@
 {
-  "name": "ltdc-hr",
+  "name": "ltdc-erp",
   "version": "1.0.0",
-  "description": "A simple, local-only HR app: employee records, time tracking and Philippine payroll.",
+  "description": "LTDC ERP: HR & Payroll and IT Asset Management, self-hosted.",
   "type": "module",
   "private": true,
   "scripts": {

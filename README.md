@@ -1,6 +1,18 @@
-# LTDC HR & Payroll
+# LTDC ERP
 
-A simple HR app for Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/). It has these parts:
+The unified enterprise system of Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/).
+
+After signing in, everyone lands on the **module launcher** and picks a module. Two modules are live:
+
+| Module | For |
+| --- | --- |
+| **HR & Payroll** | Employee records, time and attendance, leave and remote work, Philippine payroll |
+| **IT Asset Management** | IT equipment and consumable stock: who or where it is allocated to, warranty, history, CSV exports |
+
+Finance & Accounting, Procurement, Project Management, Sales & CRM, IT Service Desk and Document Management appear on the launcher greyed out as **coming soon**.
+A module the user's account cannot use shows **No access**.
+
+### HR & Payroll
 
 - **Employee records**: personal details, employment, pay rate, work schedule, government IDs (TIN, SSS, PhilHealth, Pag-IBIG) and bank details.
 - **Time tracking**: a time clock where employees clock in and out, and an attendance record (DTR) that works out late, undertime and overtime minutes. You can also add paid leave, fix records by hand and approve overtime.
@@ -9,7 +21,18 @@ A simple HR app for Lancaster Technology and Development Corporation (LTDC). It 
 - **Payroll Setup**: HR Managers and Payroll Officers adjust pay rules, government contribution rates and BIR tax tables without code changes.
 - **User access**: everyone signs in with their own account, and each account type only sees what it needs (see below).
 
-There is no cloud. Your data stays on your Mac in `data/db.json`.
+### IT Asset Management
+
+- **Assets**: register each piece of equipment (laptop, monitor, phone, printer, server…) with an asset tag (`LTDC-IT-0001`, automatic), serial number, specifications, purchase cost, supplier, warranty end date, condition and storage location.
+- **Allocation**: assign an asset to an **employee** (picked from the HR employee list), a **department** or a **location**, with an optional return date. Transfer it to someone else, take it back (to stock or to repair), or mark it retired or lost. Every step is kept in the asset's history.
+- **Inventory**: consumables and spare parts (cables, mice, toner, RAM…) with on-hand quantity and reorder level. **Receive** stock, **issue** it to an employee, department or location, or record a **count**. Items at or below the reorder level are flagged.
+- **Allocations**: one view of everything each person, department and location holds.
+- **Overview**: totals, assets by category, low stock, warranties ending within 60 days and overdue returns.
+- **Activity log**: every registration, assignment, return, status change and stock movement, by date.
+- **CSV export** on every list: assets, inventory, stock movements, allocations, the activity log, each asset's history, and an employee's own equipment.
+- Employees see their own equipment under **My Assets**; HR sees each employee's equipment on their profile (useful when someone leaves).
+
+There is no cloud. All modules share one data file on your computer, `data/db.json`.
 
 ## Run it on your Mac
 
@@ -31,7 +54,7 @@ You don't need to run `npm install`, because the app has no dependencies.
 The first time you open the app, it asks you to **create the Administrator account**. After that, everyone starts at the sign-in page.
 
 > To try it out, go to **Settings → Load demo data**. This loads 6 sample employees, about six weeks of attendance,
-> and three demo accounts you can sign in with to see each account type: `hr.demo`, `payroll.demo` and `employee.demo`
+> 16 IT assets and 7 inventory items, and demo accounts you can sign in with to see each account type: `hr.demo`, `payroll.demo`, `it.demo` and `employee.demo`
 > (password `demo1234`). Your own account is kept.
 > When you're ready for real data, use **Settings → Erase all data**. It removes the demo accounts too.
 
@@ -41,15 +64,15 @@ To use a different port, run `PORT=8080 npm start`.
 
 ### Easiest: the Windows package (nothing to install)
 
-`LTDC-HR-Windows-x64.zip` contains the app **and its own copy of Node.js**, so there is nothing to install.
+`LTDC-ERP-Windows-x64.zip` contains the app **and its own copy of Node.js**, so there is nothing to install.
 
 1. Right-click the zip → **Properties** → tick **Unblock** if it is shown → **OK**.
-2. Right-click → **Extract All…** and put the `LTDC-HR` folder somewhere permanent, such as **Documents** (not Program Files). Your data is saved inside it.
-3. Double-click **`Start LTDC HR.bat`**. The app opens in your browser at <http://localhost:3000>. Keep the black window open while you use it.
+2. Right-click → **Extract All…** and put the `LTDC-ERP` folder somewhere permanent, such as **Documents** (not Program Files). Your data is saved inside it.
+3. Double-click **`Start LTDC ERP.bat`**. The app opens in your browser at <http://localhost:3000>. Keep the black window open while you use it.
 4. Optional: double-click **`Create desktop shortcut.bat`**.
 
-The folder also has **`Start LTDC HR (office network).bat`** (lets other PCs sign in), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
-To build the package yourself, run `scripts/build-windows.sh` on macOS or Linux. It downloads the official Node.js Windows build, checks it against nodejs.org's checksums, and writes `dist/LTDC-HR-Windows-x64.zip`.
+The folder also has **`Start LTDC ERP (office network).bat`** (lets other PCs sign in), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
+To build the package yourself, run `scripts/build-windows.sh` on macOS or Linux. It downloads the official Node.js Windows build, checks it against nodejs.org's checksums, and writes `dist/LTDC-ERP-Windows-x64.zip`.
 
 ### From the source code
 
@@ -68,9 +91,10 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 | Account type | Can do |
 | --- | --- |
 | **Administrator** | Everything, including **Users & Access**, company settings, and backup/restore. |
-| **HR Manager** | Add and edit employees, manage attendance and approve overtime, run the shared time clock, **approve leave and remote-work requests**, manage leave credits, adjust Payroll Setup. View payroll. |
+| **HR Manager** | Add and edit employees, manage attendance and approve overtime, run the shared time clock, **approve leave and remote-work requests**, manage leave credits, adjust Payroll Setup. View payroll and IT assets. |
+| **IT Asset Manager** | IT Asset Management: register, assign, transfer, return and retire assets; receive, issue and count stock; export. No access to HR records. |
 | **Payroll Officer** | Create, adjust and finalize payroll, adjust Payroll Setup and leave credits. View employees, attendance and requests (cannot approve them). |
-| **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips and profile. |
+| **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips, profile and assigned equipment. |
 
 - Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
@@ -138,6 +162,8 @@ You can also just copy the `data/` folder.
 ## For developers
 
 - `server.js` is a dependency-free Node HTTP server. The JSON API is in `server/api.js` and storage in `server/db.js`.
+- `server/leave.js` and `server/assets.js` hold the leave/request and IT asset routes; `shared/assets.js` the asset statuses and categories.
+- `public/js/modules.js` lists the ERP modules shown on the launcher (`public/js/views/launcher.js`). To add a module: add its routes and menu in `public/js/app.js`, set it to `live`, and give it a home in `moduleHome()`.
 - `shared/calc.js` holds all the time and payroll math. Both the server and the browser use it.
 - `shared/roles.js` defines the account types and permissions. The server enforces them on every API call (`server/api.js`), and the browser uses them to hide screens and buttons. Passwords and sessions are in `server/auth.js`.
 - `public/` is the single-page app: plain ES modules with no build step.

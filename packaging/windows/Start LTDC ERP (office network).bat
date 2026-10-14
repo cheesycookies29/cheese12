@@ -1,9 +1,9 @@
 @echo off
-title LTDC HR ^& Payroll (office network)
+title LTDC ERP (office network)
 cd /d "%~dp0"
 if not exist "%~dp0runtime\node.exe" (
   echo.
-  echo   The runtime folder is missing. Unzip the whole LTDC-HR folder again, then run this file.
+  echo   The runtime folder is missing. Unzip the whole LTDC-ERP folder again, then run this file.
   echo.
   pause
   exit /b 1

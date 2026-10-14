@@ -8,8 +8,9 @@ function authScreen(el, card) {
       <section class="auth-hero">
         <img src="/img/logo-white.png" alt="Lancaster Technology and Development" />
         <div>
-          <h1>Let's take <span>HR</span> further</h1>
-          <p>Employee records, time tracking and payroll, in one place.</p>
+          <p class="auth-kicker">LTDC Enterprise Resource Planning</p>
+          <h1>Let's take <span>I.T.</span> further</h1>
+          <p>One sign-in for HR &amp; Payroll, IT assets and the modules to come.</p>
         </div>
         <small>Nation building through technology and development.</small>
       </section>
@@ -73,7 +74,7 @@ export function setupView(el, { onSignedIn }) {
     <form class="auth-card" novalidate>
       <img class="auth-logo" src="/img/logo.png" alt="Lancaster Technology and Development" />
       <h2>Welcome! Let's get set up</h2>
-      <p class="muted">Create the first <strong>Administrator</strong> account. You can add HR, payroll and employee accounts after signing in.</p>
+      <p class="muted">Create the first <strong>Administrator</strong> account. You can add HR, payroll, IT and employee accounts after signing in.</p>
       <label class="field"><span>Your full name</span><input name="name" autocomplete="name" required /></label>
       <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. admin" required /></label>
       ${passwordField('Password (at least 8 characters)', 'password', 'new-password')}

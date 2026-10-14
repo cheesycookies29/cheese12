@@ -1,5 +1,5 @@
 @echo off
-title LTDC HR ^& Payroll
+title LTDC ERP
 cd /d "%~dp0"
 
 where node >nul 2>nul

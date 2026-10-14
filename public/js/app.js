@@ -11,61 +11,103 @@ import { meHomeView, meAttendanceView, mePayslipsView, mePayslipView, meProfileV
 import { payrollSetupView } from './views/payroll-setup.js';
 import { leaveView } from './views/leave.js';
 import { loginView, setupView, forcePasswordView, openChangePassword } from './views/login.js';
+import { launcherView } from './views/launcher.js';
+import { assetsDashboardView, assetListView, assetFormView, assetDetailView } from './views/assets.js';
+import { inventoryView, inventoryItemView } from './views/inventory.js';
+import { allocationsView, activityView, myAssetsView } from './views/allocations.js';
 
-// [path, view, permission needed]
+// [path, view, permission needed, module]
 const routes = [
-  ['/dashboard', dashboardView, 'dashboard'],
-  ['/employees', employeeListView, 'employees.view'],
-  ['/employees/new', employeeFormView, 'employees.edit'],
-  ['/employees/:id/edit', employeeFormView, 'employees.edit'],
-  ['/employees/:id', employeeProfileView, 'employees.view'],
-  ['/clock', clockView, 'clock.kiosk'],
-  ['/dtr', dtrView, 'attendance.view'],
-  ['/payroll', payrollListView, 'payroll.view'],
-  ['/payroll/:id/payslip/:employeeId', payslipView, 'payroll.view'],
-  ['/payroll/:id', payrollRunView, 'payroll.view'],
-  ['/payroll-setup', payrollSetupView, 'payroll.config'],
-  ['/leave', leaveView, 'leave.manage'],
-  ['/users', usersView, 'users.manage'],
-  ['/settings', settingsView, 'settings.edit'],
-  ['/me', meHomeView, 'self'],
-  ['/me/attendance', meAttendanceView, 'self'],
-  ['/me/requests', meRequestsView, 'self'],
-  ['/me/payslips', mePayslipsView, 'self'],
-  ['/me/payslips/:runId', mePayslipView, 'self'],
-  ['/me/profile', meProfileView, 'self'],
-].map(([pattern, view, permission]) => {
+  ['/launcher', launcherView, 'auth', null],
+  // HR & Payroll
+  ['/dashboard', dashboardView, 'dashboard', 'hr'],
+  ['/employees', employeeListView, 'employees.view', 'hr'],
+  ['/employees/new', employeeFormView, 'employees.edit', 'hr'],
+  ['/employees/:id/edit', employeeFormView, 'employees.edit', 'hr'],
+  ['/employees/:id', employeeProfileView, 'employees.view', 'hr'],
+  ['/clock', clockView, 'clock.kiosk', 'hr'],
+  ['/dtr', dtrView, 'attendance.view', 'hr'],
+  ['/payroll', payrollListView, 'payroll.view', 'hr'],
+  ['/payroll/:id/payslip/:employeeId', payslipView, 'payroll.view', 'hr'],
+  ['/payroll/:id', payrollRunView, 'payroll.view', 'hr'],
+  ['/payroll-setup', payrollSetupView, 'payroll.config', 'hr'],
+  ['/leave', leaveView, 'leave.manage', 'hr'],
+  ['/me', meHomeView, 'self', 'hr'],
+  ['/me/attendance', meAttendanceView, 'self', 'hr'],
+  ['/me/requests', meRequestsView, 'self', 'hr'],
+  ['/me/payslips', mePayslipsView, 'self', 'hr'],
+  ['/me/payslips/:runId', mePayslipView, 'self', 'hr'],
+  ['/me/profile', meProfileView, 'self', 'hr'],
+  // IT Asset Management
+  ['/assets', assetsDashboardView, 'assets.view', 'assets'],
+  ['/assets/list', assetListView, 'assets.view', 'assets'],
+  ['/assets/new', assetFormView, 'assets.edit', 'assets'],
+  ['/assets/item/:id/edit', assetFormView, 'assets.edit', 'assets'],
+  ['/assets/item/:id', assetDetailView, 'assets.view', 'assets'],
+  ['/assets/inventory', inventoryView, 'assets.view', 'assets'],
+  ['/assets/inventory/:id', inventoryItemView, 'assets.view', 'assets'],
+  ['/assets/allocations', allocationsView, 'assets.view', 'assets'],
+  ['/assets/activity', activityView, 'assets.view', 'assets'],
+  ['/assets/mine', myAssetsView, 'self', 'assets'],
+  // System (shown inside whichever module is open)
+  ['/users', usersView, 'users.manage', 'system'],
+  ['/settings', settingsView, 'settings.edit', 'system'],
+].map(([pattern, view, permission, module]) => {
   const keys = [];
   const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-  return { re, keys, view, permission };
+  return { re, keys, view, permission, module };
 });
 
-const NAV = [
-  { href: '/dashboard', label: 'Dashboard', permission: 'dashboard' },
-  { href: '/employees', label: 'Employees', permission: 'employees.view' },
-  { href: '/clock', label: 'Time Clock', permission: 'clock.kiosk' },
-  { href: '/dtr', label: 'Attendance (DTR)', permission: 'attendance.view' },
-  { href: '/leave', label: 'Leave & Requests', permission: 'leave.manage', badge: true },
-  { href: '/payroll', label: 'Payroll', permission: 'payroll.view' },
-  { href: '/payroll-setup', label: 'Payroll Setup', permission: 'payroll.config' },
-  { href: '/users', label: 'Users & Access', permission: 'users.manage' },
-  { href: '/settings', label: 'Settings', permission: 'settings.edit' },
-  { heading: 'My account', permission: 'self' },
-  { href: '/me', label: 'My Home', permission: 'self' },
-  { href: '/me/attendance', label: 'My Attendance', permission: 'self' },
-  { href: '/me/requests', label: 'My Requests', permission: 'self' },
-  { href: '/me/payslips', label: 'My Payslips', permission: 'self' },
-  { href: '/me/profile', label: 'My Profile', permission: 'self' },
-];
+// Sidebar menus per module. `also` lists other paths that light up the same item.
+const NAV = {
+  hr: [
+    { href: '/dashboard', label: 'Dashboard', permission: 'dashboard' },
+    { href: '/employees', label: 'Employees', permission: 'employees.view' },
+    { href: '/clock', label: 'Time Clock', permission: 'clock.kiosk' },
+    { href: '/dtr', label: 'Attendance (DTR)', permission: 'attendance.view' },
+    { href: '/leave', label: 'Leave & Requests', permission: 'leave.manage', badge: true },
+    { href: '/payroll', label: 'Payroll', permission: 'payroll.view' },
+    { href: '/payroll-setup', label: 'Payroll Setup', permission: 'payroll.config' },
+    { heading: 'My account', permission: 'self' },
+    { href: '/me', label: 'My Home', permission: 'self' },
+    { href: '/me/attendance', label: 'My Attendance', permission: 'self' },
+    { href: '/me/requests', label: 'My Requests', permission: 'self' },
+    { href: '/me/payslips', label: 'My Payslips', permission: 'self' },
+    { href: '/me/profile', label: 'My Profile', permission: 'self' },
+  ],
+  assets: [
+    { href: '/assets', label: 'Overview', permission: 'assets.view', exact: true },
+    { href: '/assets/list', label: 'Assets', permission: 'assets.view', also: ['/assets/item', '/assets/new'] },
+    { href: '/assets/inventory', label: 'Inventory', permission: 'assets.view' },
+    { href: '/assets/allocations', label: 'Allocations', permission: 'assets.view' },
+    { href: '/assets/activity', label: 'Activity log', permission: 'assets.view' },
+    { heading: 'My account', permission: 'self' },
+    { href: '/assets/mine', label: 'My Assets', permission: 'self' },
+  ],
+  system: [
+    { heading: 'System', permission: 'users.manage' },
+    { href: '/users', label: 'Users & Access', permission: 'users.manage' },
+    { href: '/settings', label: 'Settings', permission: 'settings.edit' },
+  ],
+};
 
 // Self-service pages need a linked employee record. Staff accounts without one
 // don't see them; employee accounts always do (and are told to ask for a link).
 function allowed(permission) {
-  if (permission === 'self') return can('self') && (Boolean(ctx.user.employeeId) || !can('dashboard'));
+  if (permission === 'auth') return true;
+  if (permission === 'self') return can('self') && (Boolean(ctx.user.employeeId) || ctx.user.role === 'employee');
   return can(permission);
 }
 
-const homeRoute = () => (can('dashboard') ? '/dashboard' : '/me');
+// Where each module opens for this user; null = no access.
+function moduleHome(id) {
+  if (id === 'hr') return can('dashboard') ? '/dashboard' : allowed('self') ? '/me' : null;
+  if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
+  return null;
+}
+
+const homeRoute = () => '/launcher';
+const MODULE_NAMES = { hr: 'HR & Payroll', assets: 'IT Asset Management' };
 
 let cleanup = null;
 const runCleanup = () => {
@@ -73,11 +115,20 @@ const runCleanup = () => {
   cleanup = null;
 };
 
-function renderChrome() {
-  mount(document.getElementById('nav'), NAV.filter((n) => allowed(n.permission)).map((n) =>
-    n.heading ? html`<div class="nav-heading">${n.heading}</div>` : html`<a href="#${n.href}" data-href="${n.href}">${n.label}${n.badge ? html`<span class="nav-badge" hidden></span>` : ''}</a>`,
-  ));
+function renderNav(module) {
+  if (module === ctx.module && document.querySelector('#nav a')) return;
+  ctx.module = module;
+  document.getElementById('module-name').textContent = MODULE_NAMES[module] || '';
+  const items = [...(NAV[module] || []), ...NAV.system].filter((n) => allowed(n.permission));
+  mount(document.getElementById('nav'), html`
+    <a href="#/launcher" class="nav-switch">← All modules</a>
+    ${items.map((n) =>
+      n.heading ? html`<div class="nav-heading">${n.heading}</div>` : html`<a href="#${n.href}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${n.label}${n.badge ? html`<span class="nav-badge" hidden></span>` : ''}</a>`,
+    )}`);
   refreshBadge();
+}
+
+function renderUserBox() {
   const u = ctx.user;
   const initials = u.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   mount(document.getElementById('user-box'), html`
@@ -104,9 +155,16 @@ async function navigate() {
   if (!match || !allowed(match.permission)) return (location.hash = `#${homeRoute()}`);
 
   const params = Object.fromEntries(match.keys.map((k, i) => [k, decodeURIComponent(path.match(match.re)[i + 1])]));
+  // The launcher has no sidebar; system pages keep the menu of the module they were opened from.
+  document.body.classList.toggle('launcher-mode', !match.module);
+  if (match.module) renderNav(match.module === 'system' ? ctx.module || (moduleHome('hr') ? 'hr' : 'assets') : match.module);
   // Highlight the most specific nav link that contains the current path.
-  const links = [...document.querySelectorAll('#nav a')];
-  const best = links.filter((a) => path === a.dataset.href || path.startsWith(a.dataset.href + '/')).sort((a, b) => b.dataset.href.length - a.dataset.href.length)[0];
+  const links = [...document.querySelectorAll('#nav a[data-href]')];
+  const hits = (a) => {
+    const prefixes = [a.dataset.href, ...a.dataset.also.split(' ').filter(Boolean)];
+    return prefixes.some((p) => path === p || (!a.hasAttribute('data-exact') && path.startsWith(p + '/')));
+  };
+  const best = links.filter(hits).sort((a, b) => b.dataset.href.length - a.dataset.href.length)[0];
   links.forEach((a) => a.classList.toggle('active', a === best));
 
   runCleanup();
@@ -142,7 +200,8 @@ async function boot({ fresh = false } = {}) {
   await Promise.all([ctx.refreshSettings(), ctx.refreshLeaveTypes()]);
   document.body.className = '';
   mount(document.getElementById('auth'), '');
-  renderChrome();
+  ctx.module = null;
+  renderUserBox();
   if (fresh || !location.hash || location.hash === '#/') location.hash = `#${homeRoute()}`;
   navigate();
 }
@@ -153,6 +212,9 @@ async function signOut() {
   history.replaceState(null, '', location.pathname);
   boot();
 }
+ctx.signOut = signOut;
+ctx.moduleHome = moduleHome;
+ctx.changePassword = openChangePassword;
 
 window.addEventListener('hashchange', navigate);
 window.addEventListener('requests:changed', refreshBadge);

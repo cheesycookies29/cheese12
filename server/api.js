@@ -3,6 +3,7 @@ import { computePayslip, toMinutes } from '../shared/calc.js';
 import { HttpError, localDate, localTime } from './util.js';
 import { demoData } from './seed.js';
 import { registerLeaveRoutes, findLeaveType } from './leave.js';
+import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, can } from '../shared/roles.js';
 import {
@@ -218,7 +219,7 @@ function replaceData(db, next) {
 }
 
 const DEMO_PASSWORD = 'demo1234';
-const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['employee.demo', 'employee', null]];
+const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['employee.demo', 'employee', null]];
 
 function demoAccounts(db, employees) {
   const taken = new Set(db.data.users.map((u) => u.username));
@@ -398,6 +399,7 @@ export function createApi(db) {
   });
 
   registerLeaveRoutes(route, db, { linkedEmployee });
+  registerAssetRoutes(route, db, { linkedEmployee });
 
   // ----- Settings -----
   route('GET', '/api/settings', 'auth', () => db.data.settings);

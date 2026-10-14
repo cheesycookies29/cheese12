@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds dist/LTDC-HR-Windows-x64.zip: the app plus a portable Node.js runtime,
+# Builds dist/LTDC-ERP-Windows-x64.zip: the app plus a portable Node.js runtime,
 # so it runs on Windows by double-clicking, with nothing to install.
 # Usage: scripts/build-windows.sh            (uses NODE_VERSION below)
 #        NODE_VERSION=v22.23.3 scripts/build-windows.sh
@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/dist"
 CACHE="$OUT/cache"
 WORK="$OUT/work"
-PKG="$WORK/LTDC-HR"
+PKG="$WORK/LTDC-ERP"
 NODE_ZIP="node-$NODE_VERSION-win-x64.zip"
 
 mkdir -p "$CACHE"
@@ -32,13 +32,13 @@ rm -f "$PKG/scripts/build-windows.sh"
 # 3. Windows launchers, icon and read-me.
 cp "$ROOT"/packaging/windows/* "$PKG/"
 {
-  echo "LTDC HR & Payroll - Windows x64"
+  echo "LTDC ERP - Windows x64"
   echo "App version: $(git -C "$ROOT" rev-parse --short HEAD) ($(git -C "$ROOT" log -1 --format=%cd --date=short))"
   echo "Node.js runtime: $NODE_VERSION (official build from nodejs.org, checksum verified)"
   echo "Built: $(date -u +%Y-%m-%dT%H:%MZ)"
 } | sed 's/$/\r/' > "$PKG/VERSION.txt"
 
 # 4. Zip it.
-rm -f "$OUT/LTDC-HR-Windows-x64.zip"
-(cd "$WORK" && zip -q -r -9 -X "$OUT/LTDC-HR-Windows-x64.zip" LTDC-HR)
-echo "Built $OUT/LTDC-HR-Windows-x64.zip ($(du -h "$OUT/LTDC-HR-Windows-x64.zip" | cut -f1))"
+rm -f "$OUT/LTDC-ERP-Windows-x64.zip"
+(cd "$WORK" && zip -q -r -9 -X "$OUT/LTDC-ERP-Windows-x64.zip" LTDC-ERP)
+echo "Built $OUT/LTDC-ERP-Windows-x64.zip ($(du -h "$OUT/LTDC-ERP-Windows-x64.zip" | cut -f1))"

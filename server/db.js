@@ -15,6 +15,10 @@ export function emptyData() {
     leaveTypes: structuredClone(DEFAULT_LEAVE_TYPES),
     leaveCredits: [], // per-employee, per-year overrides of a leave type's annual credits
     requests: [], // leave and remote-work requests
+    assets: [], // IT assets tracked individually
+    assetHistory: [], // assignment / status log per asset
+    inventoryItems: [], // consumable stock
+    stockMovements: [], // stock in / issued / count adjustments
   };
 }
 
@@ -29,6 +33,10 @@ export function openDb(file) {
     data.leaveTypes ||= structuredClone(DEFAULT_LEAVE_TYPES);
     data.leaveCredits ||= [];
     data.requests ||= [];
+    data.assets ||= [];
+    data.assetHistory ||= [];
+    data.inventoryItems ||= [];
+    data.stockMovements ||= [];
   }
 
   const db = {

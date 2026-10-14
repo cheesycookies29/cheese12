@@ -1,5 +1,5 @@
 @echo off
-title LTDC HR ^& Payroll (office network)
+title LTDC ERP (office network)
 cd /d "%~dp0"
 
 where node >nul 2>nul

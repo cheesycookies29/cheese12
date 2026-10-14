@@ -195,7 +195,10 @@ function info(label, value) {
 }
 
 export async function employeeProfileView(el, { id }) {
-  const [emp, runs] = await Promise.all([api.get(`/api/employees/${id}`), api.get('/api/payroll-runs')]);
+  const [emp, runs, assets] = await Promise.all([
+    api.get(`/api/employees/${id}`), api.get('/api/payroll-runs'), can('assets.view') ? api.get('/api/assets') : null,
+  ]);
+  const held = (assets || []).filter((a) => a.status === 'assigned' && a.assignedTo?.type === 'employee' && a.assignedTo.id === id);
   const sched = { ...ctx.settings.schedule, ...(emp.schedule || {}) };
   const relevantRuns = runs.filter((r) => r.employeeIds.includes(id)).slice(0, 6);
 
@@ -246,6 +249,13 @@ export async function employeeProfileView(el, { id }) {
           ? html`<ul class="link-list">${relevantRuns.map((r) => html`<li><a href="#/payroll/${r.id}/payslip/${emp.id}">${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}</a> ${r.status === 'draft' ? badge('Draft', 'amber') : ''}</li>`)}</ul>`
           : html`<p class="muted">No payroll runs include this employee yet.</p>`}
       </section>
+      ${assets ? html`<section class="card">
+        <h2>IT equipment</h2>
+        ${held.length
+          ? html`<ul class="link-list">${held.map((a) => html`<li><a class="mono" href="#/assets/item/${a.id}">${a.assetTag}</a> ${a.name} <small class="muted">since ${fmtDate(a.assignedAt?.slice(0, 10))}</small></li>`)}</ul>
+            ${emp.status === 'Inactive' ? html`<p class="notice small">This employee is inactive but still holds ${held.length} asset${held.length === 1 ? '' : 's'}. Ask IT to collect them.</p>` : ''}`
+          : html`<p class="muted">No IT assets assigned.</p>`}
+      </section>` : ''}
     </div>
     ${can('employees.edit') ? html`<div class="danger-zone">
       <button class="btn danger ghost" id="delete">Delete employee</button>
