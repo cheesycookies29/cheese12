@@ -5,7 +5,7 @@ This guide puts LTDC ERP on a small cloud server so staff can use it 24/7 from a
 It takes about an hour. You need:
 
 - an AWS account (a payment card is required);
-- access to the DNS settings of `lancastertechdev.com` (wherever the domain is managed);
+- access to the DNS settings of `lancastertechdev.com` (wherever the domain is managed), or a free DuckDNS address (see Part 2);
 - your Mac, with `ltdc-erp.zip` (the app's source package) in your Downloads folder.
 
 Throughout this guide, replace **`erp.lancastertechdev.com`** with the address you choose and **`203.0.113.10`** with your server's static IP address.
@@ -61,6 +61,15 @@ Staff browser ──HTTPS──▶ Caddy (port 443, automatic certificate) ─�
    | A | `erp` | `203.0.113.10` (your static IP) |
 
    If you use Cloudflare, set the record to **DNS only** (grey cloud), at least for the first setup.
+
+   **No access to the domain's DNS?** Ask whoever manages the lancastertechdev.com website to add the record above. It costs nothing and doesn't affect the website. Until then, use a free DuckDNS address:
+
+   1. Go to <https://www.duckdns.org> and sign in with Google or GitHub.
+   2. Under **sub domain**, enter a name (e.g. `ltdc-erp`) and click **add domain**.
+   3. In the **current ip** box next to it, enter your static IP and click **update ip**. A static IP never changes, so nothing else is needed.
+   4. Use `ltdc-erp.duckdns.org` wherever this guide says `erp.lancastertechdev.com`.
+
+   To move to your own address later, add the DNS record above, then repeat steps 13, 18 and 19 with the new address.
 
 10. On your Mac, wait until this prints your static IP. It usually takes a few minutes and can take up to an hour.
 
@@ -148,7 +157,7 @@ scp -i ~/Downloads/LightsailDefaultKey-ap-southeast-1.pem ~/path/to/ltdc-erp/dat
     sudo cp /opt/ltdc-erp/deploy/lightsail/ltdc-erp.service /etc/systemd/system/
     sudo sed -i "s/erp.example.com/$DOMAIN/" /etc/systemd/system/ltdc-erp.service
     sudo systemctl daemon-reload
-    sudo systemctl enable --now ltdc-erp
+    sudo systemctl enable ltdc-erp && sudo systemctl restart ltdc-erp
     systemctl status ltdc-erp --no-pager
     ```
 
