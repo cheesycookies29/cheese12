@@ -230,15 +230,30 @@ sudo chown ltdc:ltdc /opt/ltdc-erp/data/db.json
 sudo systemctl start ltdc-erp
 ```
 
-**Installing a new version of the app.**
+**Installing a new version of the app.** Your data is kept, and a copy of it is saved first.
 
-1. Copy the new `ltdc-erp.zip` to the server, as in step 11.
-2. Connect as in step 12 and run the commands below. Your `data` folder is kept.
+1. On your Mac, put the new `ltdc-erp.zip` in Downloads and upload it, as in step 11:
+
+   ```bash
+   scp -i ~/Downloads/ltdc-erp.pem ~/Downloads/ltdc-erp.zip ubuntu@203.0.113.10:~
+   ```
+
+2. Connect as in step 12 and run:
+
+   ```bash
+   sudo bash /opt/ltdc-erp/deploy/aws/update.sh ~/ltdc-erp.zip
+   ```
+
+   It ends with "LTDC ERP updated to version … and running". If something goes wrong, it shows the error log instead. Your data stays as it was, and the copy saved before the update is in `/opt/ltdc-erp/data/backups`.
+
+3. Refresh the browser. Staff may need to sign in again.
+
+If the server says `update.sh` is not found, the version installed there is older than the update script. Run these commands once instead; after that, step 2 works:
 
 ```bash
 sudo systemctl stop ltdc-erp
 cd /tmp && rm -rf ltdc-erp && unzip -q ~/ltdc-erp.zip
-sudo rsync -a --delete --exclude data/ /tmp/ltdc-erp/ /opt/ltdc-erp/
+sudo rsync -a --delete --exclude /data/ /tmp/ltdc-erp/ /opt/ltdc-erp/
 sudo chown -R ltdc:ltdc /opt/ltdc-erp
 sudo systemctl start ltdc-erp
 ```
