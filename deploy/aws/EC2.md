@@ -231,29 +231,7 @@ sudo chown ltdc:ltdc /opt/ltdc-erp/data/db.json
 sudo systemctl start ltdc-erp
 ```
 
-**Automatic updates (recommended).** The server can install new versions by itself. Every 5 minutes it checks the GitHub repository for a new version. When there is one, it runs the app's automated tests on the server, and installs the version only if they pass. A data backup is taken first, as with a manual update. Set it up once:
-
-1. Connect as in step 12. Make sure the server has a version that includes the setup script (any `ltdc-erp.zip` from October 15, 2026 or later; install it with the manual steps below if needed). Then run:
-
-   ```bash
-   sudo bash /opt/ltdc-erp/deploy/aws/setup-auto-update.sh
-   ```
-
-2. The first time, it prints a key starting with `ssh-ed25519` and a link. This is a read-only *deploy key*: it lets the server download the code and nothing else.
-   1. Open the link: GitHub → the `cheese12` repository → **Settings → Deploy keys → Add deploy key**.
-   2. Paste the key.
-   3. Leave **Allow write access** unticked, and click **Add key**.
-3. Run the same command again. It ends with "Automatic updates are ON".
-
-From then on, new versions pushed to GitHub go live within about 5 minutes. To see what the updater did:
-
-```bash
-sudo journalctl -u ltdc-erp-update -n 30 --no-pager
-```
-
-To turn it off: `sudo systemctl disable --now ltdc-erp-update.timer`. A version whose tests fail is never installed; the log says so, and the server keeps running the current version.
-
-**Installing a new version by hand.** Use this if automatic updates are off. Your data is kept, and a copy of it is saved first.
+**Installing a new version by hand.** Only needed if automatic deployment (below) is not set up. Your data is kept, and a copy of it is saved first.
 
 1. On your Mac, put the new `ltdc-erp.zip` in Downloads and upload it, as in step 11:
 
@@ -271,7 +249,7 @@ To turn it off: `sudo systemctl disable --now ltdc-erp-update.timer`. A version 
 
 3. Refresh the browser. Staff may need to sign in again.
 
-**Servers set up before October 15, 2026:** run this once so times and dates are in Philippine time and the nightly backup runs at 2:15 AM:
+**Servers set up before October 15, 2026, without automatic deployment:** run this once so times and dates are in Philippine time and the nightly backup runs at 2:15 AM:
 
 ```bash
 sudo timedatectl set-timezone Asia/Manila
@@ -301,6 +279,53 @@ sudo systemctl start ltdc-erp
 
 **Connecting from a different network.** SSH only accepts your IP from step 2. If `ssh` times out after you change networks, go to **EC2 → Instances → ltdc-erp → Security → Security groups → Edit inbound rules** and set the SSH rule's source to **My IP** again. Staff using the website are not affected.
 
+## Automatic deployment from GitHub (no terminal)
+
+Set this up once, after the first installation (Parts 1–5). From then on, every new version pushed to the GitHub repository is installed on the server automatically. It all happens in your browser, in the AWS console and on GitHub.
+
+**How it works.** GitHub runs the app's automated tests on each new version. If they pass, it asks AWS Systems Manager to run the install command on your server. The server downloads that exact version, saves a backup of the data, installs it and checks that it starts. If the tests fail, nothing is sent to the server. No SSH keys or AWS passwords are stored anywhere. GitHub gets a short-lived permission that can only send commands to this one server.
+
+### A. AWS: create the permissions (CloudFormation)
+
+1. In the EC2 console, open **Instances**, select `ltdc-erp` and copy its **Instance ID** (it starts with `i-`).
+2. Have the file `github-deploy.yaml` on your Mac. It's in the `deploy/aws` folder of `ltdc-erp.zip`, or download it from the repository on GitHub.
+3. Open **CloudFormation**, with the region still **Asia Pacific (Singapore)**. Click **Create stack → With new resources (standard)**.
+4. Choose **Upload a template file**, select `github-deploy.yaml` and click **Next**.
+5. Fill in the stack details:
+   - **Stack name:** `ltdc-erp-deploy`;
+   - **InstanceId:** pick your server from the list;
+   - leave the other two fields as they are.
+
+   Click **Next**, then **Next** again.
+6. At the bottom, tick **"I acknowledge that AWS CloudFormation might create IAM resources with custom names"** and click **Submit**.
+7. Wait about a minute until the status is **CREATE_COMPLETE**. Then open the **Outputs** tab and keep it open; you need these values in part B.
+8. Back in **EC2 → Instances**, select `ltdc-erp`. Choose **Actions → Security → Modify IAM role**, pick **ltdc-erp-server** and click **Update IAM role**.
+9. Open **Systems Manager → Fleet Manager**. Within about 10 minutes your server appears with **Ping status: Online**. If it doesn't after 15 minutes, restart the server once: **EC2 → Instances → Instance state → Reboot instance**. The website is down for about a minute.
+
+### B. GitHub: tell the workflow where to deploy
+
+1. Open the repository on GitHub. Go to **Settings → Secrets and variables → Actions**, then the **Variables** tab.
+2. Click **New repository variable** three times, copying the values from the CloudFormation **Outputs** tab:
+
+   | Name | Value |
+   |---|---|
+   | `AWS_ROLE_ARN` | the **AwsRoleArn** output (starts with `arn:aws:iam::`) |
+   | `EC2_INSTANCE_ID` | the **Ec2InstanceId** output (starts with `i-`) |
+   | `AWS_REGION` | `ap-southeast-1` |
+
+### C. Try it
+
+1. On GitHub, open the **Actions** tab, then **Deploy to EC2** on the left.
+2. Click **Run workflow**, keep the branch shown, and click the green **Run workflow** button.
+3. After about two minutes the run shows a green tick, and its summary reads **"Deployed … to the LTDC ERP server"**. Refresh the website.
+
+**From then on:**
+- **New versions deploy by themselves** within a few minutes of being pushed to GitHub.
+- **History:** the **Actions** tab shows every deployment. A red cross means it didn't install. Click the run and the **deploy** step to see why. The server keeps running the previous version.
+- **Deploy again or roll back:** open an earlier run and click **Re-run all jobs** to reinstall that version.
+- **Pause deployments:** **Actions → Deploy to EC2 → ⋯ → Disable workflow**.
+- **Settings it keeps for you:** each deployment also makes sure the server is on Philippine time and that the nightly backup is installed.
+
 ## Troubleshooting
 
 | What you see | What to do |
@@ -311,6 +336,9 @@ sudo systemctl start ltdc-erp
 | Signing in does nothing / you're signed out immediately | Open the site with `https://`, not `http://`. The login cookie is HTTPS-only. |
 | "502 Bad Gateway" | The app isn't running. Check it with `sudo journalctl -u ltdc-erp -n 50 --no-pager`. |
 | `ssh` times out | Your IP changed. See "Connecting from a different network" above. |
+| Deployment fails with "not managed" or "InvalidInstanceId" | The server isn't connected to Systems Manager yet. Check part A, steps 8–9 of "Automatic deployment from GitHub". |
+| Deployment fails with "not installed on this server yet" | Finish the first installation (Parts 1–5), then click **Re-run all jobs**. |
+| Deploy step is skipped and says it's not set up | The three repository variables in part B are missing or misspelled. |
 
 ## When the credits run out
 
@@ -319,7 +347,8 @@ The server keeps running and AWS starts charging your card at the rates above. Y
 1. download a final backup from **Settings → Download backup**;
 2. **terminate** the instance;
 3. **release** the Elastic IP;
-4. delete the snapshots and the Lifecycle Manager policy.
+4. delete the snapshots and the Lifecycle Manager policy;
+5. delete the `ltdc-erp-deploy` CloudFormation stack.
 
 An Elastic IP that isn't released keeps costing money even when nothing is using it.
 

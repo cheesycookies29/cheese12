@@ -1,0 +1,86 @@
+# Tests every push, then installs it on the LTDC ERP server on Amazon EC2
+# through AWS Systems Manager (no SSH, no terminal). One-time setup is in
+# deploy/aws/EC2.md, "Automatic deployment from GitHub".
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [claude/busy-curie-hfpbg0]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  deploy:
+    needs: test
+    if: vars.EC2_INSTANCE_ID != '' && vars.AWS_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+
+      - name: Install the new version on the server
+        env:
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          # Read-only token for this repository; it expires when this job ends.
+          TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          # Runs on the server as root (POSIX sh): download this exact commit and install it.
+          read -r -d '' SCRIPT <<'SH' || true
+          set -eu
+          DIR="$(mktemp -d)"
+          trap 'rm -rf "$DIR"' EXIT
+          curl -fsSL -H "Authorization: Bearer __TOKEN__" -H "Accept: application/vnd.github+json" -o "$DIR/src.tar.gz" "https://api.github.com/repos/__REPO__/tarball/__SHA__"
+          mkdir "$DIR/ltdc-erp"
+          tar xzf "$DIR/src.tar.gz" -C "$DIR/ltdc-erp" --strip-components=1
+          bash "$DIR/ltdc-erp/deploy/aws/remote-deploy.sh" "$DIR/ltdc-erp" "__SHA__"
+          SH
+          SCRIPT="${SCRIPT//__TOKEN__/$TOKEN}"
+          SCRIPT="${SCRIPT//__REPO__/$REPO}"
+          SCRIPT="${SCRIPT//__SHA__/$SHA}"
+          PARAMS="$(jq -n --arg s "$SCRIPT" '{commands: [$s], executionTimeout: ["600"]}')"
+
+          CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
+            --comment "LTDC ERP deploy ${SHA:0:7}" --parameters "$PARAMS" --query Command.CommandId --output text)"
+          echo "Sent to $INSTANCE_ID (command $CMD_ID). Waiting for the server…"
+
+          STATUS=Pending
+          for _ in $(seq 1 120); do
+            sleep 5
+            STATUS="$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)"
+            case "$STATUS" in Pending|InProgress|Delayed) ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --query StandardOutputContent --output text || true
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --query StandardErrorContent --output text >&2 || true
+          if [ "$STATUS" != Success ]; then
+            echo "::error::Deployment did not finish (status: $STATUS). The server keeps running the previous version unless the log above says otherwise."
+            exit 1
+          fi
+          echo "### Deployed ${SHA:0:7} to the LTDC ERP server" >> "$GITHUB_STEP_SUMMARY"
+
+  not-configured:
+    needs: test
+    if: vars.EC2_INSTANCE_ID == '' || vars.AWS_ROLE_ARN == ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::notice::Tests passed. Automatic deployment is not set up yet (see deploy/aws/EC2.md, Automatic deployment from GitHub)."
