@@ -4,21 +4,20 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { DEVLOG, DEVLOG_MODULES, CHANGE_TYPES, APP_VERSION } from '../shared/devlog.js';
+import { DEVLOG, DEVLOG_MODULES, CHANGE_TYPES, APP_VERSION, compareVersions } from '../shared/devlog.js';
 import { openDb } from '../server/db.js';
 import { createApi } from '../server/api.js';
 
-const semver = (v) => v.split('.').map(Number);
-const newer = (a, b) => { const [x, y] = [semver(a), semver(b)]; return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; };
-
 test('dev log entries are well-formed, newest first, and match package.json', () => {
+  assert.equal(DEVLOG.at(-1).version, '0.0.1-alpha', 'the log starts at the first alpha build');
   const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(pkg.version, APP_VERSION, 'Add a dev log entry for the new version (or bump package.json to match).');
   assert.equal(new Set(DEVLOG.map((r) => r.version)).size, DEVLOG.length, 'versions are unique');
   DEVLOG.forEach((r, i) => {
-    assert.match(r.version, /^\d+\.\d+\.\d+$/);
+    assert.match(r.version, /^\d+\.\d+\.\d+(-(alpha|beta|rc))?$/);
     assert.match(r.date, /^\d{4}-\d{2}-\d{2}$/);
-    assert.ok(r.title && r.summary && r.changes.length, `${r.version} has a title, summary and changes`);
+    assert.ok(r.title && r.notes && r.changes.length, `${r.version} has a title, notes and changes`);
+    assert.ok(!r.known || (Array.isArray(r.known) && r.known.every((k) => typeof k === 'string' && k)), `${r.version}: known is a list of strings`);
     for (const m of r.modules) assert.ok(DEVLOG_MODULES[m], `${r.version}: unknown module ${m}`);
     for (const [type, module, text] of r.changes) {
       assert.ok(CHANGE_TYPES[type], `${r.version}: unknown change type ${type}`);
@@ -26,7 +25,7 @@ test('dev log entries are well-formed, newest first, and match package.json', ()
       assert.ok(text.length > 10);
     }
     if (i > 0) {
-      assert.ok(newer(DEVLOG[i - 1].version, r.version) > 0, `${DEVLOG[i - 1].version} should be newer than ${r.version}`);
+      assert.ok(compareVersions(DEVLOG[i - 1].version, r.version) > 0, `${DEVLOG[i - 1].version} should be newer than ${r.version}`);
       assert.ok(DEVLOG[i - 1].date >= r.date, `${DEVLOG[i - 1].version} should not be dated before ${r.version}`);
     }
   });

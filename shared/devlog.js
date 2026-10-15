@@ -1,8 +1,12 @@
-// Dev log: what changed in each release, newest first. Shown to administrators
-// on the Dev log page. Add an entry at the top for every change that ships, and
-// keep package.json "version" equal to the newest entry (a test checks this).
+// Dev log: one entry per build, newest first, written the way we'd explain it
+// to a colleague. Shown to administrators on the Dev log page.
 //
-// modules: hr | assets | system | deploy      change types: new | improved | fixed
+// When something ships: add an entry at the top and set package.json "version"
+// to the same value (a test checks both).
+//   version  semver with a stage, e.g. '0.2.4-alpha'
+//   modules  hr | assets | system | deploy
+//   changes  [type, module, text], type is new | improved | fixed
+//   known    issues we know about in this build (optional)
 
 export const DEVLOG_MODULES = {
   hr: 'HR & Payroll',
@@ -15,129 +19,164 @@ export const CHANGE_TYPES = { new: 'New', improved: 'Improved', fixed: 'Fixed' }
 
 export const DEVLOG = [
   {
-    version: '2.4.0',
+    version: '0.2.3-alpha',
     date: '2026-10-15',
-    title: 'Dev log',
+    title: 'Dev log, take two',
     modules: ['system'],
-    summary: 'Administrators can see what changed in each release and which version the server is running.',
+    notes: 'The first version of this page read like a press release, and the version numbers made the system look further along than it is. We started over from 0.0.1, since we are still in alpha, and rewrote every entry the way we would explain it to a colleague.',
     changes: [
-      ['new', 'system', 'Dev log page (System › Dev log): every release with its date, the modules it touched, and what was new, improved or fixed. Filter by module or search.'],
-      ['new', 'system', 'Installed version panel: version number, the exact build (commit), when it was installed and how long the app has been running.'],
-      ['new', 'system', 'A count next to Dev log in the menu and on the launcher shows releases you haven’t read yet.'],
+      ['improved', 'system', 'Builds are numbered from 0.0.1-alpha. The old 1.x and 2.x numbers were never meaningful.'],
+      ['improved', 'system', 'Each entry now says what we did and why, not just what changed, plus known issues where there are any.'],
     ],
   },
   {
-    version: '2.3.0',
+    version: '0.2.2-alpha',
     date: '2026-10-15',
-    title: 'Automatic deployment from GitHub',
+    title: 'Keeping a dev log',
+    modules: ['system'],
+    notes: 'Updates now go out automatically, so it is easy to lose track of what changed and when. This page is that record. The top panel also shows which build the server is actually running, so you can confirm a deploy landed without opening GitHub.',
+    changes: [
+      ['new', 'system', 'Dev log under System, for administrators only. You can filter it by module or search it.'],
+      ['new', 'system', 'Installed-version panel: build number, exact commit, when it was installed and how long it has been up.'],
+      ['new', 'system', 'An unread count on the menu item and on the launcher.'],
+    ],
+    known: ['The unread count is kept in your browser, so on a different computer everything shows as unread again.'],
+  },
+  {
+    version: '0.2.1-alpha',
+    date: '2026-10-15',
+    title: 'Deploys without the terminal',
     modules: ['deploy'],
-    summary: 'New versions are tested and installed on the EC2 server automatically, without using a terminal.',
+    notes: 'Uploading a zip and SSHing into the server for every update got old fast. Now GitHub runs the tests on each push and, if they pass, asks AWS Systems Manager to install the build. There are no SSH keys or AWS passwords sitting in GitHub. The first run skipped the deploy without saying why, which cost us some head-scratching, so now it tells you exactly which setting is missing.',
     changes: [
-      ['new', 'deploy', 'The “Deploy to EC2” GitHub workflow tests every new version and installs it on the server through AWS Systems Manager. No SSH keys or AWS passwords are stored.'],
-      ['new', 'deploy', 'One-click AWS setup: a CloudFormation template creates the permissions the deployment needs.'],
-      ['new', 'deploy', 'Each deployment keeps the server on Philippine time and the nightly backup installed.'],
-      ['improved', 'deploy', 'Deployment settings can be saved as GitHub variables or secrets, and a missing or mistyped setting is named in the run summary instead of the deploy being silently skipped.'],
+      ['new', 'deploy', '"Deploy to EC2" GitHub workflow: test, then install on the server, with a backup taken first.'],
+      ['new', 'deploy', 'A CloudFormation template creates the AWS permissions in one go, instead of clicking through IAM by hand.'],
+      ['new', 'deploy', 'Every deploy also makes sure the server is on Philippine time and the nightly backup is in place.'],
+      ['fixed', 'deploy', 'Deploys were silently skipped when the settings were missing or saved somewhere unexpected. Settings now work from Variables or Secrets, and anything missing is named in the run.'],
     ],
+    known: ['GitHub shows a warning that one of the AWS add-ons it uses runs on an older Node.js. Nothing is affected; we will bump it when we are next in there.'],
   },
   {
-    version: '2.2.0',
+    version: '0.2.0-alpha',
     date: '2026-10-15',
-    title: 'Equipment problem reports',
+    title: 'Problem reports',
     modules: ['assets', 'deploy'],
-    summary: 'Employees can report malfunctioning, damaged or lost equipment; administrators and IT follow each report through to resolution.',
+    notes: 'Until now, if a laptop broke, someone had to message IT and hope it did not get buried. Employees can now report it from My Assets, and IT and admins get a proper queue. It is mainly built for laptops, but it works for anything assigned to a person. We also found the cloud server was running on UTC, eight hours behind, which would have messed up clock-ins, so we fixed that too.',
     changes: [
-      ['new', 'assets', 'Report a problem from My Assets: what’s wrong (malfunction, physical damage, lost or stolen), whether the employee can still work, when it was noticed and a description.'],
-      ['new', 'assets', 'Problem reports page for administrators and IT, with a count of new reports in the menu, filters, search and CSV export.'],
-      ['new', 'assets', 'Report status (New, Being checked, Resolved, Closed) and notes from IT, which the employee sees in My Assets.'],
-      ['improved', 'assets', 'Open reports appear on the IT overview, on the asset’s page and in its history, and on the module launcher.'],
-      ['fixed', 'assets', 'History entries recorded in the same instant are now always listed newest first.'],
-      ['improved', 'deploy', 'The EC2 guide sets the server to Philippine time, so clock-ins, attendance and report dates are correct.'],
+      ['new', 'assets', '"Report a problem" on each item in My Assets: what is wrong, whether you can still work, when you noticed it and a description.'],
+      ['new', 'assets', 'Problem reports page for IT and admins, with a count of new ones in the menu, filters and CSV export. HR can look but not change anything.'],
+      ['new', 'assets', 'Reports move from New to Being checked to Resolved or Closed, and IT can leave notes the employee sees in My Assets.'],
+      ['improved', 'assets', 'Open reports show on the IT overview, on the asset page and history, and on the launcher.'],
+      ['fixed', 'assets', 'Two history entries saved in the same millisecond could show in the wrong order. They are now always newest first.'],
+      ['fixed', 'deploy', 'The server clock is set to Asia/Manila, so attendance and report dates are no longer 8 hours off.'],
     ],
+    known: ['No photo attachments on reports yet.', 'IT is not emailed when a report comes in; they see it in the app.'],
   },
   {
-    version: '2.1.0',
+    version: '0.1.2-alpha',
     date: '2026-10-14',
-    title: 'Running in the cloud',
+    title: 'Moving to the cloud',
     modules: ['deploy', 'system'],
-    summary: 'LTDC ERP can run on an Amazon EC2 server over HTTPS, reachable 24/7 from any browser.',
+    notes: 'Running on one laptop meant nobody could clock in when that laptop was off. We wrote up a full EC2 setup with HTTPS, backups and snapshots. It started as a Lightsail guide, but we switched to EC2 to use the AWS credits. Updates went from "copy a folder by hand" to one command.',
     changes: [
-      ['new', 'deploy', 'Step-by-step Amazon EC2 guide: server, web address (including a free DuckDNS option), HTTPS with automatic certificates, daily snapshots and nightly data backups.'],
-      ['new', 'deploy', 'One-command updates on the server that keep the data and back it up first.'],
-      ['new', 'system', 'HTTPS-only sign-in cookie for online use, and a command to create the first Administrator before the site goes public.'],
+      ['new', 'deploy', 'EC2 setup guide covering the server, web address (with a free DuckDNS fallback), automatic HTTPS, daily snapshots and nightly data backups.'],
+      ['new', 'deploy', 'One-command update script that backs up the data before touching anything.'],
+      ['new', 'system', 'The sign-in cookie can be locked to HTTPS for online use, and the first admin can be created from the server before the site goes public.'],
     ],
+    known: ['Updating still needs a terminal (fixed in 0.2.1).'],
   },
   {
-    version: '2.0.1',
+    version: '0.1.1-alpha',
     date: '2026-10-14',
     title: 'Launcher redesign',
     modules: ['system'],
-    summary: 'The module launcher now follows the lancastertechdev.com look.',
+    notes: 'The first launcher had a dark, industrial look that did not feel like Lancaster. We redid it to match lancastertechdev.com: white, maroon and gold, and simpler.',
     changes: [
-      ['improved', 'system', 'White Lancaster-style launcher: greeting, module cards with live figures, “Coming soon” modules and an administration band for admins.'],
+      ['improved', 'system', 'New launcher with a greeting, module cards showing live numbers, the coming-soon modules and an admin band.'],
     ],
   },
   {
-    version: '2.0.0',
+    version: '0.1.0-alpha',
     date: '2026-10-14',
-    title: 'LTDC ERP and IT Asset Management',
+    title: 'From HR app to ERP',
     modules: ['system', 'assets'],
-    summary: 'The HR system became LTDC ERP, one system with several modules, and gained an IT Asset Management module.',
+    notes: 'The biggest change so far. The HR app became one module of LTDC ERP, and IT gets its own module to track who has which laptop, what is in the store room, and when warranties run out. The launcher already has spots for the modules we will build next, greyed out for now.',
     changes: [
-      ['new', 'system', 'Module launcher after sign-in. Future modules (Finance, Procurement, Projects, CRM, Service Desk, Documents) are shown as coming soon.'],
-      ['new', 'assets', 'Asset register with tags, serial numbers, specs, purchase and warranty details, and full history.'],
-      ['new', 'assets', 'Assign, transfer and return equipment to employees, departments or locations; mark items in repair, retired or lost.'],
-      ['new', 'assets', 'Consumable inventory with stock in, issue and count adjustments, and low-stock alerts.'],
-      ['new', 'assets', 'Allocations by holder, activity log, My Assets for employees, and CSV export on every list.'],
-      ['new', 'system', 'IT Asset Manager account type; HR can view assets, and employee profiles show their IT equipment.'],
+      ['new', 'system', 'Module launcher after sign-in. Finance, Procurement, Projects, CRM, Service Desk and Documents are listed as coming soon.'],
+      ['new', 'assets', 'Asset register with tags, serial numbers, specs, purchase and warranty details, and a full history per item.'],
+      ['new', 'assets', 'Assign, transfer and return equipment to a person, a department or a location. Items can be marked in repair, retired or lost.'],
+      ['new', 'assets', 'Inventory for consumables like cables, ink and RAM, with stock in, issue and counts, and a heads-up when stock runs low.'],
+      ['new', 'assets', 'Allocations view, activity log, My Assets for employees, and a CSV export on every list.'],
+      ['new', 'system', 'New IT Asset Manager account type. HR can view assets, and employee profiles list their equipment, which helps when someone resigns.'],
     ],
   },
   {
-    version: '1.3.0',
+    version: '0.0.5-alpha',
     date: '2026-10-13',
-    title: 'Payroll Setup, leave and requests',
+    title: 'Payroll setup, leave and requests',
     modules: ['hr'],
-    summary: 'HR and Payroll can adjust payroll rules and leave; employees file leave and remote-work requests online.',
+    notes: 'Contribution rates and tax tables were hard-coded. That works until the government changes them, which it does. HR and Payroll can now edit them. We also added leave, and moved leave and work-from-home requests out of chat threads into the system.',
     changes: [
-      ['new', 'hr', 'Payroll Setup for HR Managers and Payroll Officers: pay frequency, overtime rates, SSS, PhilHealth and Pag-IBIG rates and tax tables.'],
-      ['new', 'hr', 'Leave management: leave types, yearly credits, per-employee adjustments and balances.'],
-      ['new', 'hr', 'Leave and remote-work requests filed by employees and approved by the HR Manager or an Administrator; approvals update attendance.'],
+      ['new', 'hr', 'Payroll Setup: pay frequency, overtime rates, and SSS, PhilHealth and Pag-IBIG rates and tax tables, all editable.'],
+      ['new', 'hr', 'Leave types, yearly credits, per-person adjustments and running balances.'],
+      ['new', 'hr', 'Employees file leave or remote-work requests. The HR Manager or an admin approves them, and approved days go straight into attendance.'],
     ],
+    known: ['Approval is one step. Either the HR Manager or an admin can approve; a two-level option is still on the list.'],
   },
   {
-    version: '1.2.0',
+    version: '0.0.4-alpha',
     date: '2026-10-13',
-    title: 'Windows support',
+    title: 'Windows build',
     modules: ['deploy'],
-    summary: 'The app runs on Windows by double-clicking, with nothing to install.',
+    notes: 'Most of the office is on Windows. We bundled Node.js into the package so nobody has to install anything: unzip it and double-click.',
     changes: [
-      ['new', 'deploy', 'Portable Windows package with its own copy of Node.js, double-click launchers, a desktop shortcut and an office-network mode.'],
+      ['new', 'deploy', 'Portable Windows package with double-click launchers, an optional desktop shortcut, and an office-network mode so other PCs can connect.'],
     ],
+    known: ['The .bat launchers were built on a Mac and have not been tried on a real Windows PC yet.'],
   },
   {
-    version: '1.1.0',
+    version: '0.0.3-alpha',
     date: '2026-10-13',
-    title: 'User access',
+    title: 'Sign-in and roles',
     modules: ['system', 'hr'],
-    summary: 'A sign-in page and account types control who can see and change what.',
+    notes: 'Up to here anyone who opened the page could see everyone\'s salary. Now there is a login, and each account type only sees what it needs to.',
     changes: [
-      ['new', 'system', 'Sign-in page and first-run Administrator setup; account types Administrator, HR Manager, Payroll Officer and Employee.'],
-      ['new', 'system', 'Users & Access page, password changes, and a 5-minute lock after repeated wrong passwords.'],
-      ['new', 'hr', 'Employee self-service: clock in and out, own attendance, payslips and profile.'],
+      ['new', 'system', 'Sign-in page and first-run admin setup, with Administrator, HR Manager, Payroll Officer and Employee accounts.'],
+      ['new', 'system', 'Users & Access page, password changes, and a 5-minute lockout after five wrong passwords.'],
+      ['new', 'hr', 'Self-service for employees: clock in and out, and see their own attendance, payslips and profile.'],
+    ],
+    known: ['There is no "forgot password" email yet. An admin resets passwords.'],
+  },
+  {
+    version: '0.0.2-alpha',
+    date: '2026-10-12',
+    title: 'Making it look like Lancaster',
+    modules: ['system'],
+    notes: 'The first build worked but looked generic. We reskinned it to match lancastertechdev.com: the maroon and gold, Big Shoulders headings and the logo.',
+    changes: [
+      ['improved', 'system', 'New look and feel across every screen, following the company website.'],
     ],
   },
   {
-    version: '1.0.0',
+    version: '0.0.1-alpha',
     date: '2026-10-12',
-    title: 'First release: HR & Payroll',
-    modules: ['hr', 'system'],
-    summary: 'Employee records, time tracking and Philippine payroll, in the LTDC design.',
+    title: 'First build',
+    modules: ['hr'],
+    notes: 'Where it all started: a small HR app in the spirit of Sprout, running on one MacBook. Employee records, a time clock and Philippine payroll. Rough around the edges, but it gets from a time record to a payslip.',
     changes: [
-      ['new', 'hr', 'Employee records with government IDs, pay rates and work schedules.'],
-      ['new', 'hr', 'Time clock and daily time records (DTR) with late, undertime and overtime.'],
-      ['new', 'hr', 'Payroll runs with SSS, PhilHealth, Pag-IBIG and withholding tax, plus printable payslips.'],
-      ['improved', 'system', 'Look and feel follow the lancastertechdev.com design language.'],
+      ['new', 'hr', 'Employee records with SSS, PhilHealth, Pag-IBIG and TIN numbers, pay rates and schedules.'],
+      ['new', 'hr', 'Time clock and daily time records, with late, undertime and overtime worked out automatically.'],
+      ['new', 'hr', 'Payroll runs with SSS, PhilHealth, Pag-IBIG and withholding tax, and printable payslips.'],
     ],
+    known: ['Not handled yet: holiday pay, night differential, 13th month pay, loans and BIR 2316.'],
   },
 ];
 
 export const APP_VERSION = DEVLOG[0].version;
+
+// Compare 'x.y.z' or 'x.y.z-stage' versions by their numbers.
+export function compareVersions(a, b) {
+  const nums = (v) => v.split('-')[0].split('.').map(Number);
+  const [x, y] = [nums(a), nums(b)];
+  return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+}

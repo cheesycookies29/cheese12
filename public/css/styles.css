@@ -527,4 +527,9 @@ h2.spaced { margin-top: 22px; }
   .rel-flags { margin-top: 0; }
   .changes li { grid-template-columns: 1fr; gap: 4px; }
 }
+.stage { display: inline-block; vertical-align: middle; margin-left: 4px; padding: 2px 7px; border-radius: 4px; background: var(--gold-soft); border: 1px solid var(--gold-light); color: #8a5d0c; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.rel-notes { margin: 0 0 12px; line-height: 1.6; }
+.known { margin-top: 14px; padding: 10px 14px; background: #faf8f7; border-radius: 8px; border: 1px dashed #ded6d3; }
+.known h3 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+.known ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); }
 
