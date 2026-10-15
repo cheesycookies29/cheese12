@@ -166,7 +166,7 @@ You can also just copy the `data/` folder.
 
 ## For developers
 
-- **Dev log:** every change that ships gets an entry at the top of `shared/devlog.js` (version such as `0.2.3-alpha`, date, modules, a short note in plain words, what was new, improved or fixed, and known issues), and `package.json` "version" must match it; `npm test` checks both. Administrators read it under **System → Dev log**, together with the installed build (`build.json`, written by the installers).
+- **Dev log:** written by one developer, in the first person. Each build's entry goes at the top of `shared/devlog.js` (version such as `0.2.4-alpha`, date, a short note, the changes, known issues) and `package.json` "version" must match; `npm test` checks both. A server copies each build's entry into its database the first time it runs that build (`server/devlog.js`); after that, administrators edit, add or delete entries and set the author name under **System → Dev log**, and those edits survive updates, demo data and "erase all data". The installed build comes from `build.json`, written by the installers.
 
 - `server.js` is a dependency-free Node HTTP server. The JSON API is in `server/api.js` and storage in `server/db.js`.
 - `server/leave.js` and `server/assets.js` hold the leave/request and IT asset routes; `shared/assets.js` the asset statuses and categories.

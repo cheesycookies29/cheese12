@@ -20,6 +20,7 @@ export function emptyData() {
     inventoryItems: [], // consumable stock
     stockMovements: [], // stock in / issued / count adjustments
     issueReports: [], // employees' problem reports on assigned equipment
+    devlog: { author: null, entries: [], imported: [] }, // release notes, editable by admins (server/devlog.js)
   };
 }
 

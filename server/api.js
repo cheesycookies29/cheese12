@@ -12,6 +12,7 @@ import {
 } from './auth.js';
 import { APP_VERSION } from '../shared/devlog.js';
 import { buildInfo } from './build.js';
+import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -214,7 +215,10 @@ function findUser(db, id) {
 
 // Replace all data, then unlink accounts whose employee record no longer exists.
 function replaceData(db, next) {
-  db.replace(next);
+  // The dev log is about the software, not company data: keep it unless a backup brings its own
+  // (demo data and "erase all data" start from an empty template and must not wipe it).
+  db.replace({ ...next, devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog });
+  syncDevlog(db);
   const ids = new Set(db.data.employees.map((e) => e.id));
   for (const u of db.data.users) if (u.employeeId && !ids.has(u.employeeId)) u.employeeId = null;
   db.save();
@@ -271,6 +275,7 @@ function clock(db, emp, action) {
 }
 
 export function createApi(db) {
+  if (syncDevlog(db)) db.save();
   const routes = [];
   const sessions = createSessions();
   const throttle = createThrottle();
@@ -558,6 +563,7 @@ export function createApi(db) {
     db.save();
     return { ok: true, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
   });
+  registerDevlogRoutes(route, db);
   route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });

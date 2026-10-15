@@ -532,4 +532,17 @@ h2.spaced { margin-top: 22px; }
 .known { margin-top: 14px; padding: 10px 14px; background: #faf8f7; border-radius: 8px; border: 1px dashed #ded6d3; }
 .known h3 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-family: 'DM Sans', sans-serif; }
 .known ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); }
+.byline { margin: 6px 0 0; font-size: 14px; }
+.rel-author { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.rel-author span { font-size: 12px; font-style: italic; }
+.rel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.rel-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.change-rows { display: grid; gap: 8px; margin-bottom: 8px; }
+.change-row { display: grid; grid-template-columns: 120px 190px 1fr 36px; gap: 8px; align-items: center; }
+@media (max-width: 760px) { .change-row { grid-template-columns: 1fr 1fr 36px; } .change-row input { grid-column: 1 / 3; grid-row: 2; } .rel-head { flex-direction: column; } }
 
+#add-change { align-self: flex-start; }
+@media (max-width: 760px) {
+  .modal .grid.two { grid-template-columns: 1fr; }
+  .modal .grid.two > * { grid-column: 1 / -1; }
+}

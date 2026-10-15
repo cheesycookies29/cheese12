@@ -48,6 +48,7 @@ export const PERMISSION_LABELS = [
   ['data.manage', 'Backup, restore and erase data'],
   ['users.manage', 'Manage user accounts'],
   ['devlog.view', 'Dev log: release notes and installed version'],
+  ['devlog.edit', 'Write and edit dev log entries'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
 ];
 

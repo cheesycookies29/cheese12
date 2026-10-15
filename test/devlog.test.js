@@ -31,8 +31,9 @@ test('dev log entries are well-formed, newest first, and match package.json', ()
   });
 });
 
-test('only administrators can read the installed version', async () => {
-  const db = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ltdc-devlog-')), 'db.json'));
+function setup() {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ltdc-devlog-')), 'db.json');
+  const db = openDb(file);
   const handle = createApi(db);
   const client = () => {
     let cookie = '';
@@ -42,6 +43,11 @@ test('only administrators can read the installed version', async () => {
       return res.data;
     };
   };
+  return { file, db, client };
+}
+
+test('only administrators can read the installed version', async () => {
+  const { client } = setup();
   const admin = client();
   await admin('POST', '/api/auth/setup', { name: 'Admin', username: 'admin', password: 'secret123' });
   const about = await admin('GET', '/api/system/about');
@@ -51,4 +57,53 @@ test('only administrators can read the installed version', async () => {
   const it = client();
   await it('POST', '/api/auth/login', { username: 'itstaff', password: 'secret123' });
   await assert.rejects(it('GET', '/api/system/about'), /does not have access/);
+});
+
+test('dev log: built-in entries are imported once; admins edit, add and delete; one author', async () => {
+  const { file, db, client } = setup();
+  const admin = client();
+  await admin('POST', '/api/auth/setup', { name: 'Ian Roca', username: 'admin', password: 'secret123' });
+  let log = await admin('GET', '/api/devlog');
+  assert.equal(log.entries.length, DEVLOG.length);
+  assert.equal(log.entries[0].version, APP_VERSION);
+  assert.equal(log.author, 'Ian Roca', 'defaults to the first administrator');
+
+  const first = log.entries.find((e) => e.version === '0.0.1-alpha');
+  log = await admin('PUT', `/api/devlog/${first.id}`, { ...first, title: 'Day one', changes: [['new', 'hr', 'Employee records and payroll.'], ['improved', 'system', 'Logo.']] });
+  const edited = log.entries.find((e) => e.id === first.id);
+  assert.equal(edited.title, 'Day one');
+  assert.deepEqual(edited.modules, ['hr', 'system'], 'modules follow the changes');
+  assert.ok(edited.updatedAt);
+
+  const body = { version: 'v0.9.0-beta', date: '2026-11-01', title: 'Beta', notes: 'Getting ready.', changes: [['fixed', 'assets', 'A fix.']], known: 'One thing\n\nAnother' };
+  log = await admin('POST', '/api/devlog', body);
+  assert.equal(log.entries[0].version, '0.9.0-beta', 'sorted newest first, leading v dropped');
+  assert.deepEqual(log.entries[0].known, ['One thing', 'Another']);
+  await assert.rejects(admin('POST', '/api/devlog', body), /already an entry/);
+  await assert.rejects(admin('POST', '/api/devlog', { ...body, version: '1.0' }), /Version must look like/);
+  await assert.rejects(admin('POST', '/api/devlog', { ...body, version: '1.0.0', changes: [] }), /at least one change/);
+  await assert.rejects(admin('POST', '/api/devlog', { ...body, version: '1.0.0', changes: [['new', 'nope', 'x y z']] }), /needs a module/);
+
+  const second = log.entries.find((e) => e.version === '0.0.2-alpha');
+  log = await admin('DELETE', `/api/devlog/${second.id}`);
+  assert.ok(!log.entries.some((e) => e.version === '0.0.2-alpha'));
+  log = await admin('PUT', '/api/devlog-author', { name: '  Ian R.  ' });
+  assert.equal(log.author, 'Ian R.');
+
+  // Restart and a demo-data load keep the edits, and a deleted built-in entry stays deleted.
+  await admin('POST', '/api/admin/demo');
+  const reopened = openDb(file);
+  createApi(reopened);
+  const entries = reopened.data.devlog.entries;
+  assert.equal(entries.find((e) => e.id === first.id).title, 'Day one');
+  assert.ok(entries.some((e) => e.version === '0.9.0-beta'));
+  assert.ok(!entries.some((e) => e.version === '0.0.2-alpha'));
+  assert.equal(reopened.data.devlog.author, 'Ian R.');
+  assert.ok(db.data.devlog.entries.length > 0);
+
+  await admin('POST', '/api/users', { name: 'IT', username: 'itstaff', role: 'it', password: 'secret123', mustChangePassword: false });
+  const it = client();
+  await it('POST', '/api/auth/login', { username: 'itstaff', password: 'secret123' });
+  await assert.rejects(it('GET', '/api/devlog'), /does not have access/);
+  await assert.rejects(it('POST', '/api/devlog', body), /does not have access/);
 });

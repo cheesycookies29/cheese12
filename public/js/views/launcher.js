@@ -38,7 +38,7 @@ async function moduleStats() {
 
 export async function launcherView(el) {
   const u = ctx.user;
-  const stats = await moduleStats();
+  const [stats, devlogNew] = await Promise.all([moduleStats(), can('devlog.view') ? unseenCount().catch(() => 0) : 0]);
   const live = MODULES.filter((m) => m.status === 'live');
   const soon = MODULES.filter((m) => m.status !== 'live');
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -100,7 +100,7 @@ export async function launcherView(el) {
               <h2>System Administration</h2>
               <p>Manage user accounts and access, company details and data backups for all modules, and see what changed in each release.</p>
             </div>
-            <div class="lc-band-actions"><a class="lc-band-btn" href="#/users">Users &amp; Access</a><a class="lc-band-btn" href="#/settings">Settings &amp; Backups</a>${can('devlog.view') ? html`<a class="lc-band-btn" href="#/devlog">Dev log${unseenCount() ? html`<span class="lc-band-count">${unseenCount()} new</span>` : ''}</a>` : ''}</div>
+            <div class="lc-band-actions"><a class="lc-band-btn" href="#/users">Users &amp; Access</a><a class="lc-band-btn" href="#/settings">Settings &amp; Backups</a>${can('devlog.view') ? html`<a class="lc-band-btn" href="#/devlog">Dev log${devlogNew ? html`<span class="lc-band-count">${devlogNew} new</span>` : ''}</a>` : ''}</div>
           </section>`
         : ''}
 
