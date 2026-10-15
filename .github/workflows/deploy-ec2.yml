@@ -28,18 +28,53 @@ jobs:
 
   deploy:
     needs: test
-    if: vars.EC2_INSTANCE_ID != '' && vars.AWS_ROLE_ARN != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # Settings may be saved as repository Variables or as Secrets; either works.
+      - name: Check deployment settings
+        id: cfg
+        env:
+          ROLE: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          INSTANCE: ${{ vars.EC2_INSTANCE_ID || secrets.EC2_INSTANCE_ID }}
+          REGION: ${{ vars.AWS_REGION || secrets.AWS_REGION || 'ap-southeast-1' }}
+        run: |
+          trim() { printf '%s' "$1" | tr -d '[:space:]'; }
+          ROLE="$(trim "$ROLE")"; INSTANCE="$(trim "$INSTANCE")"; REGION="$(trim "$REGION")"
+          missing=""
+          [ -n "$ROLE" ] || missing="$missing AWS_ROLE_ARN"
+          [ -n "$INSTANCE" ] || missing="$missing EC2_INSTANCE_ID"
+          if [ -n "$missing" ]; then
+            msg="Not deployed: GitHub cannot see${missing}. Add each in this repository under Settings > Secrets and variables > Actions (Variables tab, or Secrets tab), with exactly that name. Values saved under an Environment are not used."
+            echo "::warning::$msg"
+            echo "### Tests passed, but nothing was deployed" >> "$GITHUB_STEP_SUMMARY"
+            echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! [[ "$ROLE" =~ ^arn:aws:iam::[0-9]{12}:role/.+ ]]; then
+            echo "::error::AWS_ROLE_ARN should look like arn:aws:iam::123456789012:role/ltdc-erp-github-deploy (copy AwsRoleArn from the CloudFormation Outputs tab)."; exit 1
+          fi
+          if ! [[ "$INSTANCE" =~ ^i-[0-9a-f]{8,17}$ ]]; then
+            echo "::error::EC2_INSTANCE_ID should look like i-0123456789abcdef0 (copy Ec2InstanceId from the CloudFormation Outputs tab)."; exit 1
+          fi
+          if ! [[ "$REGION" =~ ^[a-z]{2}(-[a-z]+)+-[0-9]$ ]]; then
+            echo "::error::AWS_REGION should look like ap-southeast-1."; exit 1
+          fi
+          { echo "DEPLOY_ROLE=$ROLE"; echo "DEPLOY_INSTANCE=$INSTANCE"; echo "DEPLOY_REGION=$REGION"; } >> "$GITHUB_ENV"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+          echo "Deploying to $INSTANCE in $REGION."
+
       - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.cfg.outputs.configured == 'true'
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+          role-to-assume: ${{ env.DEPLOY_ROLE }}
+          aws-region: ${{ env.DEPLOY_REGION }}
 
       - name: Install the new version on the server
+        if: steps.cfg.outputs.configured == 'true'
         env:
-          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          INSTANCE_ID: ${{ env.DEPLOY_INSTANCE }}
           # Read-only token for this repository; it expires when this job ends.
           TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -77,10 +112,3 @@ jobs:
             exit 1
           fi
           echo "### Deployed ${SHA:0:7} to the LTDC ERP server" >> "$GITHUB_STEP_SUMMARY"
-
-  not-configured:
-    needs: test
-    if: vars.EC2_INSTANCE_ID == '' || vars.AWS_ROLE_ARN == ''
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "::notice::Tests passed. Automatic deployment is not set up yet (see deploy/aws/EC2.md, Automatic deployment from GitHub)."

@@ -305,7 +305,7 @@ Set this up once, after the first installation (Parts 1–5). From then on, ever
 ### B. GitHub: tell the workflow where to deploy
 
 1. Open the repository on GitHub. Go to **Settings → Secrets and variables → Actions**, then the **Variables** tab.
-2. Click **New repository variable** three times, copying the values from the CloudFormation **Outputs** tab:
+2. Click **New repository variable** three times, copying the values from the CloudFormation **Outputs** tab. The **Secrets** tab works too, but don't use **Environments**:
 
    | Name | Value |
    |---|---|
@@ -338,7 +338,8 @@ Set this up once, after the first installation (Parts 1–5). From then on, ever
 | `ssh` times out | Your IP changed. See "Connecting from a different network" above. |
 | Deployment fails with "not managed" or "InvalidInstanceId" | The server isn't connected to Systems Manager yet. Check part A, steps 8–9 of "Automatic deployment from GitHub". |
 | Deployment fails with "not installed on this server yet" | Finish the first installation (Parts 1–5), then click **Re-run all jobs**. |
-| Deploy step is skipped and says it's not set up | The three repository variables in part B are missing or misspelled. |
+| Run is green but the summary says "nothing was deployed" | GitHub can't see the setting(s) named in the message. Check part B: repository level, exact names, no Environment. |
+| "AWS_ROLE_ARN should look like…" or "EC2_INSTANCE_ID should look like…" | A value was pasted incompletely. Copy it again from the CloudFormation **Outputs** tab. |
 
 ## When the credits run out
 
