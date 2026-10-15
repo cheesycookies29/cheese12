@@ -156,7 +156,7 @@ Holidays and holiday pay rates, night differential, half-day leave, two-level ap
 
 ## Put it online (cloud)
 
-To use it 24/7 from any browser over HTTPS, follow [deploy/aws/EC2.md](deploy/aws/EC2.md). It sets up an Amazon EC2 Ubuntu server with Caddy for HTTPS, automatic restarts and nightly data backups. Two settings matter online: `COOKIE_SECURE=1` (login cookie sent over HTTPS only) and `ALLOWED_HOSTS=<your address>`. To create the first Administrator from the server instead of the first-run page, stop the app and run `npm run create-admin -- <username> "<Full Name>"`; it prints a temporary password.
+To use it 24/7 from any browser over HTTPS, follow [deploy/aws/EC2.md](deploy/aws/EC2.md). It sets up an Amazon EC2 Ubuntu server with Caddy for HTTPS, automatic restarts, nightly data backups and optional automatic updates from GitHub (`deploy/aws/setup-auto-update.sh`: new versions are tested on the server and installed only if the tests pass). Two settings matter online: `COOKIE_SECURE=1` (login cookie sent over HTTPS only) and `ALLOWED_HOSTS=<your address>`. To create the first Administrator from the server instead of the first-run page, stop the app and run `npm run create-admin -- <username> "<Full Name>"`; it prints a temporary password.
 
 ## Backups
 

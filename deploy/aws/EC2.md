@@ -231,7 +231,29 @@ sudo chown ltdc:ltdc /opt/ltdc-erp/data/db.json
 sudo systemctl start ltdc-erp
 ```
 
-**Installing a new version of the app.** Your data is kept, and a copy of it is saved first.
+**Automatic updates (recommended).** The server can install new versions by itself. Every 5 minutes it checks the GitHub repository for a new version. When there is one, it runs the app's automated tests on the server, and installs the version only if they pass. A data backup is taken first, as with a manual update. Set it up once:
+
+1. Connect as in step 12. Make sure the server has a version that includes the setup script (any `ltdc-erp.zip` from October 15, 2026 or later; install it with the manual steps below if needed). Then run:
+
+   ```bash
+   sudo bash /opt/ltdc-erp/deploy/aws/setup-auto-update.sh
+   ```
+
+2. The first time, it prints a key starting with `ssh-ed25519` and a link. This is a read-only *deploy key*: it lets the server download the code and nothing else.
+   1. Open the link: GitHub → the `cheese12` repository → **Settings → Deploy keys → Add deploy key**.
+   2. Paste the key.
+   3. Leave **Allow write access** unticked, and click **Add key**.
+3. Run the same command again. It ends with "Automatic updates are ON".
+
+From then on, new versions pushed to GitHub go live within about 5 minutes. To see what the updater did:
+
+```bash
+sudo journalctl -u ltdc-erp-update -n 30 --no-pager
+```
+
+To turn it off: `sudo systemctl disable --now ltdc-erp-update.timer`. A version whose tests fail is never installed; the log says so, and the server keeps running the current version.
+
+**Installing a new version by hand.** Use this if automatic updates are off. Your data is kept, and a copy of it is saved first.
 
 1. On your Mac, put the new `ltdc-erp.zip` in Downloads and upload it, as in step 11:
 
