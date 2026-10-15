@@ -498,3 +498,33 @@ h2.spaced { margin-top: 22px; }
 .my-report header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .my-report .report-text { color: var(--muted); }
 
+/* ===== Dev log ===== */
+.info-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.big-version { font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 26px; color: var(--maroon); }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-filter { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid #d6cfcc; background: #fff; color: var(--text); cursor: pointer; }
+.chip-filter em { font-style: normal; color: var(--muted); margin-left: 4px; }
+.chip-filter.active { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+.chip-filter.active em { color: var(--gold-light); }
+.releases { display: grid; gap: 16px; margin-top: 16px; }
+.release { display: grid; grid-template-columns: 170px 1fr; gap: 24px; background: #fff; border: 1px solid #e7e1df; border-radius: 10px; padding: 22px 24px; }
+.release.unseen { border-left: 4px solid var(--gold-bright); }
+.release aside { border-right: 1px solid #efebe9; padding-right: 16px; }
+.rel-version { font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 30px; line-height: 1; color: var(--maroon); margin: 0 0 6px; }
+.release time { color: var(--muted); font-size: 13px; }
+.rel-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rel-body h2 { margin: 0 0 4px; }
+.rel-body > p { margin: 0 0 10px; }
+.rel-modules { display: flex; flex-wrap: wrap; gap: 6px; }
+.changes { list-style: none; margin: 12px 0 0; padding: 0; }
+.changes li { display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: baseline; padding: 8px 0; border-top: 1px solid #f2eeec; }
+.changes .badge { justify-self: start; }
+.lc-band-count { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--maroon); color: var(--gold-light); font-size: 12px; }
+@media (max-width: 760px) {
+  .info-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .release { grid-template-columns: 1fr; gap: 10px; padding: 18px 16px; }
+  .release aside { border-right: 0; padding-right: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .rel-flags { margin-top: 0; }
+  .changes li { grid-template-columns: 1fr; gap: 4px; }
+}
+

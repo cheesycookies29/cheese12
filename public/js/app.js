@@ -16,6 +16,7 @@ import { assetsDashboardView, assetListView, assetFormView, assetDetailView } fr
 import { inventoryView, inventoryItemView } from './views/inventory.js';
 import { allocationsView, activityView, myAssetsView } from './views/allocations.js';
 import { reportsView, reportDetailView } from './views/reports.js';
+import { devlogView, unseenCount } from './views/devlog.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -55,6 +56,7 @@ const routes = [
   // System (shown inside whichever module is open)
   ['/users', usersView, 'users.manage', 'system'],
   ['/settings', settingsView, 'settings.edit', 'system'],
+  ['/devlog', devlogView, 'devlog.view', 'system'],
 ].map(([pattern, view, permission, module]) => {
   const keys = [];
   const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
@@ -92,6 +94,7 @@ const NAV = {
     { heading: 'System', permission: 'users.manage' },
     { href: '/users', label: 'Users & Access', permission: 'users.manage' },
     { href: '/settings', label: 'Settings', permission: 'settings.edit' },
+    { href: '/devlog', label: 'Dev log', permission: 'devlog.view', badge: 'devlog' },
   ],
 };
 
@@ -142,10 +145,11 @@ function renderUserBox() {
   document.getElementById('sign-out').addEventListener('click', signOut);
 }
 
-// Counts next to menu items: pending leave approvals, and new equipment problem reports.
+// Counts next to menu items: pending leave approvals, new equipment problem reports, unread dev log releases.
 const BADGES = {
   requests: () => (can('leave.approve') ? api.get('/api/requests/summary').then((r) => r.pending) : 0),
   reports: () => api.get('/api/asset-reports/summary').then((r) => r.new),
+  devlog: () => unseenCount(),
 };
 async function refreshBadge() {
   for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
@@ -227,6 +231,7 @@ ctx.changePassword = openChangePassword;
 window.addEventListener('hashchange', navigate);
 window.addEventListener('requests:changed', refreshBadge);
 window.addEventListener('reports:changed', refreshBadge);
+window.addEventListener('devlog:seen', refreshBadge);
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;

@@ -166,6 +166,8 @@ You can also just copy the `data/` folder.
 
 ## For developers
 
+- **Dev log:** every change that ships gets an entry at the top of `shared/devlog.js` (version, date, modules, what was new, improved or fixed), and `package.json` "version" must match it; `npm test` checks both. Administrators read it under **System → Dev log**, together with the installed build (`build.json`, written by the installers).
+
 - `server.js` is a dependency-free Node HTTP server. The JSON API is in `server/api.js` and storage in `server/db.js`.
 - `server/leave.js` and `server/assets.js` hold the leave/request and IT asset routes; `shared/assets.js` the asset statuses and categories.
 - `public/js/modules.js` lists the ERP modules shown on the launcher (`public/js/views/launcher.js`). To add a module: add its routes and menu in `public/js/app.js`, set it to `live`, and give it a home in `moduleHome()`.

@@ -10,6 +10,8 @@ import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
   sessionCookie, clearedCookie, SESSION_COOKIE,
 } from './auth.js';
+import { APP_VERSION } from '../shared/devlog.js';
+import { buildInfo } from './build.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -556,6 +558,7 @@ export function createApi(db) {
     db.save();
     return { ok: true, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
   });
+  route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });
     return { ok: true };

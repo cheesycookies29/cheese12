@@ -17,7 +17,7 @@ if [ -d "$SOURCE" ]; then
 elif [ -f "$SOURCE" ]; then
   unzip -q "$SOURCE" -d "$TMP"
   SRC="$TMP/ltdc-erp"
-  VERSION="$(unzip -z "$SOURCE" | tail -n +2 | cut -c1-7)"
+  VERSION="$(unzip -z "$SOURCE" | tail -n +2 | head -n 1)"
 else
   echo "Usage: sudo bash $0 ~/ltdc-erp.zip  (file not found: ${SOURCE:-none given})"
   exit 1
@@ -30,6 +30,7 @@ mkdir -p "$APP/data/backups"
 
 systemctl stop ltdc-erp
 rsync -a --delete --exclude /data/ "$SRC/" "$APP/"
+printf '{"commit":"%s","installedAt":"%s","channel":"server"}\n' "$VERSION" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$APP/build.json"
 chown -R ltdc:ltdc "$APP"
 systemctl start ltdc-erp
 

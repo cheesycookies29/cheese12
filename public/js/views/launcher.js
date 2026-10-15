@@ -3,6 +3,7 @@
 import { api } from '../api.js';
 import { ctx, can, roleLabel } from '../state.js';
 import { MODULES, ICONS } from '../modules.js';
+import { unseenCount } from './devlog.js';
 import { html, raw, mount } from '../ui.js';
 
 const icon = (name) => raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`);
@@ -97,9 +98,9 @@ export async function launcherView(el) {
         ? html`<section class="lc-band">
             <div>
               <h2>System Administration</h2>
-              <p>Manage user accounts and access, company details and data backups for all modules.</p>
+              <p>Manage user accounts and access, company details and data backups for all modules, and see what changed in each release.</p>
             </div>
-            <div class="lc-band-actions"><a class="lc-band-btn" href="#/users">Users &amp; Access</a><a class="lc-band-btn" href="#/settings">Settings &amp; Backups</a></div>
+            <div class="lc-band-actions"><a class="lc-band-btn" href="#/users">Users &amp; Access</a><a class="lc-band-btn" href="#/settings">Settings &amp; Backups</a>${can('devlog.view') ? html`<a class="lc-band-btn" href="#/devlog">Dev log${unseenCount() ? html`<span class="lc-band-count">${unseenCount()} new</span>` : ''}</a>` : ''}</div>
           </section>`
         : ''}
 

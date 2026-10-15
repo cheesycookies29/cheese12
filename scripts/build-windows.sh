@@ -38,6 +38,8 @@ cp "$ROOT"/packaging/windows/* "$PKG/"
   echo "Built: $(date -u +%Y-%m-%dT%H:%MZ)"
 } | sed 's/$/\r/' > "$PKG/VERSION.txt"
 
+printf '{"commit":"%s","installedAt":"%s","channel":"windows"}\n' "$(git -C "$ROOT" rev-parse HEAD)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$PKG/build.json"
+
 # 4. Zip it.
 rm -f "$OUT/LTDC-ERP-Windows-x64.zip"
 (cd "$WORK" && zip -q -r -9 -X "$OUT/LTDC-ERP-Windows-x64.zip" LTDC-ERP)
