@@ -19,6 +19,7 @@ export function emptyData() {
     assetHistory: [], // assignment / status log per asset
     inventoryItems: [], // consumable stock
     stockMovements: [], // stock in / issued / count adjustments
+    issueReports: [], // employees' problem reports on assigned equipment
   };
 }
 
@@ -37,6 +38,7 @@ export function openDb(file) {
     data.assetHistory ||= [];
     data.inventoryItems ||= [];
     data.stockMovements ||= [];
+    data.issueReports ||= [];
   }
 
   const db = {

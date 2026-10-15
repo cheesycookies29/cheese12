@@ -19,12 +19,12 @@ export const ROLES = {
   },
   it: {
     label: 'IT Asset Manager',
-    description: 'Manages IT assets and consumable inventory: registers, assigns, returns and retires equipment; receives and issues stock.',
+    description: 'Manages IT assets and consumable inventory: registers, assigns, returns and retires equipment; receives and issues stock; handles equipment problem reports from employees.',
     permissions: ['assets.view', 'assets.edit', 'self'],
   },
   employee: {
     label: 'Employee',
-    description: 'Self-service only: clock in and out, file leave and remote-work requests, see own attendance, payslips, profile and assigned IT equipment.',
+    description: 'Self-service only: clock in and out, file leave and remote-work requests, see own attendance, payslips, profile and assigned IT equipment; report malfunctioning or damaged equipment.',
     permissions: ['self'],
   },
 };
@@ -42,12 +42,12 @@ export const PERMISSION_LABELS = [
   ['payroll.config', 'Payroll setup: pay rules, government rates, tax tables'],
   ['leave.manage', 'Leave types, credits and balances; view all requests'],
   ['leave.approve', 'Approve or reject leave and remote-work requests'],
-  ['assets.view', 'View IT assets, inventory and allocations'],
-  ['assets.edit', 'Register, assign and return assets; receive and issue stock'],
+  ['assets.view', 'View IT assets, inventory, allocations and problem reports'],
+  ['assets.edit', 'Register, assign and return assets; receive and issue stock; respond to problem reports'],
   ['settings.edit', 'Company details and default schedule'],
   ['data.manage', 'Backup, restore and erase data'],
   ['users.manage', 'Manage user accounts'],
-  ['self', 'Own attendance, payslips, profile, requests and assigned equipment'],
+  ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
 ];
 
 export function can(role, permission) {

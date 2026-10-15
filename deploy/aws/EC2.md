@@ -126,9 +126,10 @@ Check current prices with the [AWS Pricing Calculator](https://calculator.aws/).
 
     The prompt changes to `ubuntu@ip-…`. Run each block below there, one at a time.
 
-13. **Update the server and install Node.js 22.**
+13. **Set the server to Philippine time and install Node.js 22.** The time zone matters: the time clock, attendance and report dates use the server's clock, which starts on UTC (8 hours behind).
 
     ```bash
+    sudo timedatectl set-timezone Asia/Manila
     sudo apt update && sudo apt -y upgrade
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
     sudo apt install -y nodejs unzip rsync
@@ -247,6 +248,14 @@ sudo systemctl start ltdc-erp
    It ends with "LTDC ERP updated to version … and running". If something goes wrong, it shows the error log instead. Your data stays as it was, and the copy saved before the update is in `/opt/ltdc-erp/data/backups`.
 
 3. Refresh the browser. Staff may need to sign in again.
+
+**Servers set up before October 15, 2026:** run this once so times and dates are in Philippine time and the nightly backup runs at 2:15 AM:
+
+```bash
+sudo timedatectl set-timezone Asia/Manila
+sudo cp /opt/ltdc-erp/deploy/aws/ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
+sudo systemctl restart ltdc-erp
+```
 
 If the server says `update.sh` is not found, the version installed there is older than the update script. Run these commands once instead; after that, step 2 works:
 

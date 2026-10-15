@@ -154,6 +154,27 @@ function seedAssets(data) {
     if (status) log(daysAgo(10), 'status', `Status set to ${status === 'retired' ? 'Retired' : 'In repair'}`);
   });
 
+  // Two problem reports from employees: one IT is already checking, one still new.
+  const reports = [
+    [3, 'malfunction', 'limited', 'Battery drains from full to empty in about an hour, so I have to stay plugged in all day.', 6, 'in_progress',
+      [[5, 'Demo IT Asset Manager', 'in_progress', 'Battery health is at 41%. Replacement battery ordered; we will swap it when it arrives.']]],
+    [2, 'damage', 'cannot_work', 'The laptop fell off my desk. The screen has a crack across the middle and the left hinge is loose.', 1, 'open', []],
+  ];
+  reports.forEach(([i, type, impact, description, age, status, updates], n) => {
+    const asset = data.assets[i];
+    const by = asset.assignedTo;
+    const reportedAt = daysAgo(age);
+    data.issueReports.push({
+      id: randomUUID(), number: `IR-${String(n + 1).padStart(4, '0')}`, assetId: asset.id, assetTag: asset.assetTag, assetName: asset.name,
+      category: asset.category, serialNumber: asset.serialNumber, type, impact, description, noticedOn: dateAgo(age), status,
+      reportedBy: { userId: null, employeeId: by.id, name: by.name, employeeNo: by.employeeNo, department: by.department },
+      reportedAt, updatedAt: updates.length ? daysAgo(updates.at(-1)[0]) : reportedAt, closedAt: null,
+      updates: updates.map(([d, who, st, note]) => ({ at: daysAgo(d), by: who, status: st, note })),
+    });
+    data.assetHistory.push({ id: randomUUID(), assetId: asset.id, assetTag: asset.assetTag, assetName: asset.name, action: 'issue',
+      detail: `${type === 'damage' ? 'Physical damage' : 'Malfunction'} reported by ${by.name} (IR-${String(n + 1).padStart(4, '0')})`, at: reportedAt, by: by.name, notes: description.slice(0, 200) });
+  });
+
   const items = [
     ['USB-C to HDMI adapter', 'Cables & adapters', 'pcs', 30, 10, 650],
     ['Cat6 patch cable, 2 m', 'Cables & adapters', 'pcs', 60, 20, 120],

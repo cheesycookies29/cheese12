@@ -1,11 +1,15 @@
 // IT Asset Management: overview, asset register, asset form and asset detail.
 import { api } from '../api.js';
 import { can } from '../state.js';
-import { ASSET_STATUS, ASSET_CONDITIONS, ASSET_CATEGORIES, ASSIGNEE_TYPES } from '/shared/assets.js';
+import { ASSET_STATUS, ASSET_CONDITIONS, ASSET_CATEGORIES, ASSIGNEE_TYPES, ISSUE_TYPES, ISSUE_IMPACT, ISSUE_STATUS, ACTIVE_ISSUE } from '/shared/assets.js';
 import { html, mount, money, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, addDays } from '../ui.js';
 
 const STATUS_BADGE = { in_stock: 'green', assigned: 'blue', in_repair: 'amber', retired: 'gray', lost: 'gray' };
 export const statusBadge = (s) => badge(ASSET_STATUS[s] || s, STATUS_BADGE[s]);
+const ISSUE_BADGE = { open: 'maroon', in_progress: 'amber', resolved: 'green', closed: 'gray' };
+const IMPACT_BADGE = { cannot_work: 'maroon-soft', limited: 'amber', minor: 'gray' };
+export const issueStatusBadge = (s) => badge(ISSUE_STATUS[s] || s, ISSUE_BADGE[s]);
+export const impactBadge = (i) => badge(ISSUE_IMPACT[i] || i, IMPACT_BADGE[i]);
 export const holderLabel = (h) => (h ? html`${h.name}<small>${ASSIGNEE_TYPES[h.type]}${h.employeeNo ? ` · ${h.employeeNo}` : ''}${h.department ? ` · ${h.department}` : ''}</small>` : html`<span class="muted">—</span>`);
 const WARRANTY_SOON_DAYS = 60;
 
@@ -35,7 +39,9 @@ export const exportAssets = (list, name = 'it-assets') => downloadFile(`${name}-
 // ---------- Overview ----------
 
 export async function assetsDashboardView(el) {
-  const [assets, items, history] = await Promise.all([api.get('/api/assets'), api.get('/api/inventory'), api.get('/api/asset-history')]);
+  const [assets, items, history, reports] = await Promise.all([api.get('/api/assets'), api.get('/api/inventory'), api.get('/api/asset-history'), api.get('/api/asset-reports')]);
+  const openReports = reports.filter((r) => ACTIVE_ISSUE.includes(r.status));
+  const newReports = openReports.filter((r) => r.status === 'open');
   const active = assets.filter((a) => !['retired', 'lost'].includes(a.status));
   const count = (s) => assets.filter((a) => a.status === s).length;
   const value = active.reduce((sum, a) => sum + (a.purchaseCost || 0), 0);
@@ -56,6 +62,7 @@ export async function assetsDashboardView(el) {
       <a class="card" href="#/assets/list?status=assigned"><small>Assigned</small><strong>${count('assigned')}</strong></a>
       <a class="card" href="#/assets/list?status=in_stock"><small>Available in stock</small><strong>${count('in_stock')}</strong></a>
       <a class="card" href="#/assets/list?status=in_repair"><small>In repair</small><strong>${count('in_repair')}</strong></a>
+      <a class="card ${newReports.length ? 'attention' : ''}" href="#/assets/reports"><small>Open problem reports</small><strong>${openReports.length}</strong></a>
       <a class="card ${low.length ? 'attention' : ''}" href="#/assets/inventory?low=1"><small>Low-stock items</small><strong>${low.length}</strong></a>
       <div class="card accent wide-figure"><small>Asset value (cost)</small><strong>${money(value)}</strong></div>
     </div>
@@ -72,7 +79,8 @@ export async function assetsDashboardView(el) {
       </section>
       <section class="card">
         <h2>Needs attention</h2>
-        ${!expiring.length && !low.length && !overdue.length ? html`<p class="muted">Nothing needs attention right now.</p>` : ''}
+        ${!expiring.length && !low.length && !overdue.length && !openReports.length ? html`<p class="muted">Nothing needs attention right now.</p>` : ''}
+        ${openReports.length ? html`<h3>Problem reports</h3><ul class="link-list">${openReports.map((r) => html`<li><a href="#/assets/reports/${r.id}">${r.number}</a> ${ISSUE_TYPES[r.type]}: ${r.assetName}<small class="muted"> · ${r.reportedBy.name} · ${r.status === 'open' ? 'new' : 'being checked'}</small></li>`)}</ul>` : ''}
         ${overdue.length ? html`<h3>Overdue returns</h3><ul class="link-list">${overdue.map((a) => html`<li><a href="#/assets/item/${a.id}">${a.assetTag}</a> ${a.name}<small class="muted"> · ${a.assignedTo.name}, due ${fmtDate(a.expectedReturn)}</small></li>`)}</ul>` : ''}
         ${low.length ? html`<h3>Low stock</h3><ul class="link-list">${low.map((i) => html`<li><a href="#/assets/inventory/${i.id}">${i.name}</a> <small class="muted">· ${i.quantity} ${i.unit} left, reorder at ${i.reorderLevel}</small></li>`)}</ul>` : ''}
         ${expiring.length ? html`<h3>Warranty ending within ${WARRANTY_SOON_DAYS} days</h3><ul class="link-list">${expiring.map((a) => html`<li><a href="#/assets/item/${a.id}">${a.assetTag}</a> ${a.name}<small class="muted"> · ${fmtDate(a.warrantyEnd)}</small></li>`)}</ul>` : ''}
@@ -307,7 +315,7 @@ function openStatus(asset, onDone) {
 
 // ---------- Detail ----------
 
-const ACTION_LABEL = { created: 'Registered', edited: 'Edited', assigned: 'Assigned', transferred: 'Transferred', returned: 'Returned', status: 'Status change' };
+const ACTION_LABEL = { created: 'Registered', edited: 'Edited', assigned: 'Assigned', transferred: 'Transferred', returned: 'Returned', status: 'Status change', issue: 'Problem report' };
 
 export async function assetDetailView(el, { id }) {
   const a = await api.get(`/api/assets/${id}`);
@@ -346,6 +354,14 @@ export async function assetDetailView(el, { id }) {
         ${info('Warranty ends', a.warrantyEnd ? html`${fmtDate(a.warrantyEnd)}${w === 'expired' ? html` ${badge('Expired', 'gray')}` : w === 'soon' ? html` ${badge('Expiring soon', 'amber')}` : ''}` : '')}
       </dl></section>
     </div>
+    ${a.reports.length
+      ? html`<section class="card">
+          <h2>Problem reports</h2>
+          <table class="table compact"><thead><tr><th>No.</th><th>Reported</th><th>By</th><th>Problem</th><th>Status</th></tr></thead>
+            <tbody>${a.reports.map((r) => html`<tr><td><a class="mono" href="#/assets/reports/${r.id}">${r.number}</a></td><td>${fmtDate(r.reportedAt.slice(0, 10))}</td>
+              <td>${r.reportedBy.name}</td><td>${ISSUE_TYPES[r.type]}<small class="clip">${r.description}</small></td><td>${issueStatusBadge(r.status)}</td></tr>`)}</tbody></table>
+        </section>`
+      : ''}
     <section class="card">
       <div class="card-head"><h2>History</h2><button class="btn small-btn" id="export-history">Export CSV</button></div>
       <ul class="timeline">${a.history.map((h) => html`<li class="ev-${h.action}">

@@ -1,8 +1,9 @@
 // Allocations by holder, the combined activity log, and the employee's own equipment.
 import { api } from '../api.js';
-import { ASSIGNEE_TYPES, ASSET_STATUS } from '/shared/assets.js';
+import { ASSIGNEE_TYPES, ASSET_STATUS, ISSUE_TYPES, ISSUE_STATUS, ACTIVE_ISSUE } from '/shared/assets.js';
 import { html, mount, fmtDate, badge, downloadFile, toCsv, today, addDays } from '../ui.js';
-import { statusBadge } from './assets.js';
+import { statusBadge, issueStatusBadge } from './assets.js';
+import { openReportProblem, reportTimeline } from './reports.js';
 
 const when = (iso) => new Date(iso).toLocaleString('en-PH', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const holderKey = (h) => `${h.type}:${h.id || h.name.toLowerCase()}`;
@@ -78,7 +79,7 @@ export async function allocationsView(el) {
 
 // ---------- Activity log ----------
 
-const ASSET_EVENT = { created: 'Registered', edited: 'Edited', assigned: 'Assigned', transferred: 'Transferred', returned: 'Returned', status: 'Status change' };
+const ASSET_EVENT = { created: 'Registered', edited: 'Edited', assigned: 'Assigned', transferred: 'Transferred', returned: 'Returned', status: 'Status change', issue: 'Problem report' };
 const STOCK_EVENT = { in: 'Stock received', out: 'Stock issued', adjust: 'Stock count' };
 
 export async function activityView(el) {
@@ -111,7 +112,7 @@ export async function activityView(el) {
 
   mount(el, html`
     <header class="page-head">
-      <div><h1>Activity log</h1><p class="muted">Every registration, assignment, return, status change and stock movement.</p></div>
+      <div><h1>Activity log</h1><p class="muted">Every registration, assignment, return, status change, problem report and stock movement.</p></div>
       <div class="actions"><button class="btn" id="export">Export CSV</button></div>
     </header>
     <section class="card scroll-x">
@@ -131,25 +132,43 @@ export async function activityView(el) {
 // ---------- My assets (self-service) ----------
 
 export async function myAssetsView(el) {
-  const { assets, issued } = await api.get('/api/me/assets');
+  const { assets, issued, reports } = await api.get('/api/me/assets');
+  const activeFor = (a) => reports.find((r) => r.assetId === a.id && ACTIVE_ISSUE.includes(r.status));
+  const reload = () => myAssetsView(el);
   mount(el, html`
     <header class="page-head">
-      <div><h1>My Assets</h1><p class="muted">Company equipment assigned to you. Tell IT right away if something is lost, damaged or no longer needed.</p></div>
+      <div><h1>My Assets</h1><p class="muted">Company equipment assigned to you. If something stops working, gets damaged or goes missing, report it here so IT can check it.</p></div>
       <div class="actions"><button class="btn" id="export">Export CSV</button></div>
     </header>
     ${assets.length
-      ? html`<div class="asset-cards">${assets.map((a) => html`<article class="card asset-card">
-          <p class="tag-line mono">${a.assetTag}</p><h2>${a.name}</h2>
-          <p class="muted">${a.category}${a.serialNumber ? ` · S/N ${a.serialNumber}` : ''}</p>
-          <dl class="info-grid">
-            <div class="info"><dt>Since</dt><dd>${fmtDate(a.assignedAt?.slice(0, 10))}</dd></div>
-            <div class="info"><dt>Return by</dt><dd>${a.expectedReturn ? fmtDate(a.expectedReturn) : 'No end date'}</dd></div>
-            <div class="info"><dt>Condition</dt><dd>${a.condition}</dd></div>
-            <div class="info"><dt>Status</dt><dd>${statusBadge(a.status)}</dd></div>
-          </dl>
-          ${a.specs ? html`<p class="small muted">${a.specs}</p>` : ''}
-        </article>`)}</div>`
+      ? html`<div class="asset-cards">${assets.map((a) => {
+          const open = activeFor(a);
+          return html`<article class="card asset-card">
+            <p class="tag-line mono">${a.assetTag}</p><h2>${a.name}</h2>
+            <p class="muted">${a.category}${a.serialNumber ? ` · S/N ${a.serialNumber}` : ''}</p>
+            <dl class="info-grid">
+              <div class="info"><dt>Since</dt><dd>${fmtDate(a.assignedAt?.slice(0, 10))}</dd></div>
+              <div class="info"><dt>Return by</dt><dd>${a.expectedReturn ? fmtDate(a.expectedReturn) : 'No end date'}</dd></div>
+              <div class="info"><dt>Condition</dt><dd>${a.condition}</dd></div>
+              <div class="info"><dt>Status</dt><dd>${statusBadge(a.status)}</dd></div>
+            </dl>
+            ${a.specs ? html`<p class="small muted">${a.specs}</p>` : ''}
+            <footer class="asset-card-foot">${open
+              ? html`<button type="button" class="link report-flag" data-scroll="report-${open.id}">${issueStatusBadge(open.status)} Problem reported · ${open.number}</button>`
+              : html`<button class="btn small-btn" data-report="${a.id}">Report a problem</button>`}</footer>
+          </article>`;
+        })}</div>`
       : html`<section class="card empty"><p>No equipment is assigned to you.</p></section>`}
+    <section class="card">
+      <h2>My problem reports</h2>
+      ${reports.length
+        ? html`<div class="my-reports">${reports.map((r) => html`<article class="my-report" id="report-${r.id}">
+            <header><div><strong>${r.number}</strong> · ${ISSUE_TYPES[r.type]} · <span class="mono">${r.assetTag}</span> ${r.assetName}</div>${issueStatusBadge(r.status)}</header>
+            <p class="report-text">${r.description}</p>
+            ${reportTimeline(r)}
+          </article>`)}</div>`
+        : html`<p class="muted">You haven't reported any problems.</p>`}
+    </section>
     <section class="card">
       <h2>Supplies issued to you</h2>
       ${issued.length
@@ -157,11 +176,15 @@ export async function myAssetsView(el) {
             <tbody>${issued.map((m) => html`<tr><td>${fmtDate(m.at.slice(0, 10))}</td><td>${m.itemName}</td><td class="num">${-m.quantity} ${m.unit}</td><td>${m.reference}</td></tr>`)}</tbody></table>`
         : html`<p class="muted">None yet.</p>`}
     </section>`);
+  // Hash links would trigger the router, so jump to the report by script.
+  el.querySelectorAll('[data-scroll]').forEach((b) => b.addEventListener('click', () => document.getElementById(b.dataset.scroll)?.scrollIntoView({ behavior: 'smooth', block: 'start' })));
+  el.querySelectorAll('[data-report]').forEach((b) => b.addEventListener('click', () => openReportProblem(assets.find((a) => a.id === b.dataset.report), reload)));
   el.querySelector('#export').addEventListener('click', () => {
     downloadFile(`my-assets-${today()}.csv`, toCsv([
       ['Kind', 'Tag / SKU', 'Item', 'Category', 'Serial Number', 'Quantity', 'Since / Date', 'Status'],
       ...assets.map((a) => ['Asset', a.assetTag, a.name, a.category, a.serialNumber, 1, a.assignedAt?.slice(0, 10) || '', ASSET_STATUS[a.status]]),
       ...issued.map((m) => ['Consumable', m.sku, m.itemName, '', '', -m.quantity, m.at.slice(0, 10), 'Issued']),
+      ...reports.map((r) => ['Problem report', r.number, `${r.assetTag} ${r.assetName}`, ISSUE_TYPES[r.type], r.serialNumber, '', r.reportedAt.slice(0, 10), ISSUE_STATUS[r.status]]),
     ]));
   });
 }

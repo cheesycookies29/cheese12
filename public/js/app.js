@@ -15,6 +15,7 @@ import { launcherView } from './views/launcher.js';
 import { assetsDashboardView, assetListView, assetFormView, assetDetailView } from './views/assets.js';
 import { inventoryView, inventoryItemView } from './views/inventory.js';
 import { allocationsView, activityView, myAssetsView } from './views/allocations.js';
+import { reportsView, reportDetailView } from './views/reports.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -48,6 +49,8 @@ const routes = [
   ['/assets/inventory/:id', inventoryItemView, 'assets.view', 'assets'],
   ['/assets/allocations', allocationsView, 'assets.view', 'assets'],
   ['/assets/activity', activityView, 'assets.view', 'assets'],
+  ['/assets/reports', reportsView, 'assets.view', 'assets'],
+  ['/assets/reports/:id', reportDetailView, 'assets.view', 'assets'],
   ['/assets/mine', myAssetsView, 'self', 'assets'],
   // System (shown inside whichever module is open)
   ['/users', usersView, 'users.manage', 'system'],
@@ -65,7 +68,7 @@ const NAV = {
     { href: '/employees', label: 'Employees', permission: 'employees.view' },
     { href: '/clock', label: 'Time Clock', permission: 'clock.kiosk' },
     { href: '/dtr', label: 'Attendance (DTR)', permission: 'attendance.view' },
-    { href: '/leave', label: 'Leave & Requests', permission: 'leave.manage', badge: true },
+    { href: '/leave', label: 'Leave & Requests', permission: 'leave.manage', badge: 'requests' },
     { href: '/payroll', label: 'Payroll', permission: 'payroll.view' },
     { href: '/payroll-setup', label: 'Payroll Setup', permission: 'payroll.config' },
     { heading: 'My account', permission: 'self' },
@@ -79,6 +82,7 @@ const NAV = {
     { href: '/assets', label: 'Overview', permission: 'assets.view', exact: true },
     { href: '/assets/list', label: 'Assets', permission: 'assets.view', also: ['/assets/item', '/assets/new'] },
     { href: '/assets/inventory', label: 'Inventory', permission: 'assets.view' },
+    { href: '/assets/reports', label: 'Problem reports', permission: 'assets.view', badge: 'reports' },
     { href: '/assets/allocations', label: 'Allocations', permission: 'assets.view' },
     { href: '/assets/activity', label: 'Activity log', permission: 'assets.view' },
     { heading: 'My account', permission: 'self' },
@@ -123,7 +127,7 @@ function renderNav(module) {
   mount(document.getElementById('nav'), html`
     <a href="#/launcher" class="nav-switch">← All modules</a>
     ${items.map((n) =>
-      n.heading ? html`<div class="nav-heading">${n.heading}</div>` : html`<a href="#${n.href}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${n.label}${n.badge ? html`<span class="nav-badge" hidden></span>` : ''}</a>`,
+      n.heading ? html`<div class="nav-heading">${n.heading}</div>` : html`<a href="#${n.href}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${n.label}${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
     )}`);
   refreshBadge();
 }
@@ -138,13 +142,17 @@ function renderUserBox() {
   document.getElementById('sign-out').addEventListener('click', signOut);
 }
 
-// Pending-approval count next to "Leave & Requests" for approvers.
+// Counts next to menu items: pending leave approvals, and new equipment problem reports.
+const BADGES = {
+  requests: () => (can('leave.approve') ? api.get('/api/requests/summary').then((r) => r.pending) : 0),
+  reports: () => api.get('/api/asset-reports/summary').then((r) => r.new),
+};
 async function refreshBadge() {
-  const el = document.querySelector('#nav .nav-badge');
-  if (!el || !can('leave.approve')) return;
-  const { pending } = await api.get('/api/requests/summary').catch(() => ({ pending: 0 }));
-  el.textContent = pending;
-  el.hidden = !pending;
+  for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
+    const n = await Promise.resolve(BADGES[el.dataset.badge]?.()).catch(() => 0);
+    el.textContent = n || '';
+    el.hidden = !n;
+  }
 }
 
 async function navigate() {
@@ -218,6 +226,7 @@ ctx.changePassword = openChangePassword;
 
 window.addEventListener('hashchange', navigate);
 window.addEventListener('requests:changed', refreshBadge);
+window.addEventListener('reports:changed', refreshBadge);
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;

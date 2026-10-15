@@ -31,6 +31,7 @@ A module the user's account cannot use shows **No access**.
 - **Activity log**: every registration, assignment, return, status change and stock movement, by date.
 - **CSV export** on every list: assets, inventory, stock movements, allocations, the activity log, each asset's history, and an employee's own equipment.
 - Employees see their own equipment under **My Assets**; HR sees each employee's equipment on their profile (useful when someone leaves).
+- **Problem reports**: from **My Assets**, employees report a laptop or other assigned equipment that is malfunctioning, damaged or lost (what's wrong, whether they can still work, a description). Administrators and IT see new reports under **Problem reports** (with a count in the menu), mark them *Being checked*, *Resolved* or *Closed*, and leave notes the employee reads in My Assets. Reports appear on the asset's page and in its history, and export to CSV. HR can view them; only Administrators and IT can respond.
 
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting LTDC ERP online with Amazon EC2](deploy/aws/EC2.md).
 

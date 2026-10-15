@@ -291,6 +291,7 @@ body:not(.auth-mode) #auth { display: none; }
 .role-hint { margin: -6px 0 0; }
 .you { font-weight: 400; font-size: 12px; }
 .card + .card, .card.scroll-x + .card { margin-top: 16px; }
+.cols > .card + .card, .asset-cards > .card + .card { margin-top: 0; }
 
 /* Leave & requests, payroll setup */
 .nav-badge { float: right; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--gold-bright); color: var(--maroon-dark); font-size: 12px; font-weight: 700; text-align: center; }
@@ -413,6 +414,10 @@ a.lc-card:hover .lc-open { background: var(--maroon); color: #fff; }
 .timeline li.ev-assigned::before, .timeline li.ev-transferred::before { background: var(--maroon); border-color: var(--maroon); }
 .timeline li.ev-returned::before { background: var(--success); border-color: var(--success); }
 .timeline li.ev-status::before { background: var(--gold-light); }
+.timeline li.ev-issue::before, .timeline li.ev-open::before { background: var(--maroon-soft); border-color: var(--maroon); }
+.timeline li.ev-in_progress::before { background: var(--gold-bright); border-color: var(--gold); }
+.timeline li.ev-resolved::before { background: var(--success); border-color: var(--success); }
+.timeline li.ev-closed::before { background: #bdb5b2; border-color: #bdb5b2; }
 .timeline time { color: var(--muted); font-size: 13px; }
 .timeline span { display: block; color: var(--muted); font-size: 13px; }
 .timeline em { display: block; font-size: 13px; color: var(--text); }
@@ -481,3 +486,15 @@ a.lc-card:hover .lc-open { background: var(--maroon); color: #fff; }
   .payslip:last-child { page-break-after: auto; }
   .net, .payslip header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ===== Problem reports ===== */
+.report-text { white-space: pre-wrap; margin: 0 0 14px; line-height: 1.55; }
+.table td small.clip { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+h2.spaced { margin-top: 22px; }
+.asset-card-foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #efebe9; }
+.report-flag { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--maroon); }
+.my-reports { display: grid; gap: 14px; }
+.my-report { border: 1px solid #e7e1df; border-left: 4px solid var(--gold-bright); border-radius: 8px; padding: 14px 16px; scroll-margin-top: 20px; }
+.my-report header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.my-report .report-text { color: var(--muted); }
+

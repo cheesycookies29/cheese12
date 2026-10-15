@@ -15,12 +15,13 @@ function greeting() {
 // A few live figures per module, only from data this user may see.
 async function moduleStats() {
   const get = (url) => api.get(url).catch(() => null);
-  const [employees, requests, assets, inventory, mine] = await Promise.all([
+  const [employees, requests, assets, inventory, mine, reports] = await Promise.all([
     can('employees.view') ? get('/api/employees') : null,
     can('leave.manage') ? get('/api/requests/summary') : null,
     can('assets.view') ? get('/api/assets') : null,
     can('assets.view') ? get('/api/inventory') : null,
     !can('assets.view') && ctx.user.employeeId ? get('/api/me/assets') : null,
+    can('assets.view') ? get('/api/asset-reports/summary') : null,
   ]);
   const hr = [];
   if (employees) hr.push(`${employees.filter((e) => e.status === 'Active').length} active employees`);
@@ -29,6 +30,7 @@ async function moduleStats() {
   if (assets) assetsOut.push(`${assets.filter((a) => a.status !== 'retired' && a.status !== 'lost').length} assets`, `${assets.filter((a) => a.status === 'assigned').length} assigned`);
   const low = inventory?.filter((i) => i.quantity <= i.reorderLevel).length;
   if (low) assetsOut.push(`${low} low stock`);
+  if (reports?.active) assetsOut.push(`${reports.active} open problem report${reports.active === 1 ? '' : 's'}`);
   if (mine) assetsOut.push(`${mine.assets.length} item${mine.assets.length === 1 ? '' : 's'} assigned to you`);
   return { hr, assets: assetsOut };
 }

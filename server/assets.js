@@ -2,8 +2,8 @@
 // inventory with stock movements. Assets and stock are allocated to employees
 // (from the HR module), departments or locations.
 import { randomUUID } from 'node:crypto';
-import { HttpError } from './util.js';
-import { ASSET_STATUS, ASSET_CONDITIONS } from '../shared/assets.js';
+import { HttpError, localDate } from './util.js';
+import { ASSET_STATUS, ASSET_CONDITIONS, ISSUE_TYPES, ISSUE_IMPACT, ISSUE_STATUS, ACTIVE_ISSUE } from '../shared/assets.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
@@ -107,7 +107,15 @@ export function registerAssetRoutes(route, db, { linkedEmployee }) {
       action, detail, at: new Date().toISOString(), by: user.name, ...extra,
     });
   };
-  const historyOf = (id) => db.data.assetHistory.filter((h) => h.assetId === id).sort((a, b) => b.at.localeCompare(a.at));
+  const historyOf = (id) => db.data.assetHistory.filter((h) => h.assetId === id).reverse().sort((a, b) => b.at.localeCompare(a.at));
+  // Lists are reversed before sorting so entries with the same timestamp stay newest first.
+  const newestFirst = (a, b) => b.reportedAt.localeCompare(a.reportedAt);
+  const reportsOf = (id) => db.data.issueReports.filter((r) => r.assetId === id).reverse().sort(newestFirst);
+  const findReport = (id) => {
+    const r = db.data.issueReports.find((x) => x.id === id);
+    if (!r) throw new HttpError(404, 'Report not found.');
+    return r;
+  };
 
   function move(item, user, type, delta, extra = {}) {
     item.quantity += delta;
@@ -140,7 +148,7 @@ export function registerAssetRoutes(route, db, { linkedEmployee }) {
 
   // ----- Assets -----
   route('GET', '/api/assets', 'assets.view', () => db.data.assets);
-  route('GET', '/api/assets/:id', 'assets.view', ({ params }) => ({ ...findAsset(db, params.id), history: historyOf(params.id) }));
+  route('GET', '/api/assets/:id', 'assets.view', ({ params }) => ({ ...findAsset(db, params.id), history: historyOf(params.id), reports: reportsOf(params.id) }));
   route('POST', '/api/assets', 'assets.edit', ({ body, user }) => {
     const asset = { id: randomUUID(), ...validateAsset(body, db), status: 'in_stock', assignedTo: null, assignedAt: null, expectedReturn: null, createdAt: new Date().toISOString() };
     db.data.assets.push(asset);
@@ -218,7 +226,7 @@ export function registerAssetRoutes(route, db, { linkedEmployee }) {
   route('GET', '/api/asset-history', 'assets.view', ({ query }) =>
     db.data.assetHistory
       .filter((h) => (!query.from || h.at.slice(0, 10) >= query.from) && (!query.to || h.at.slice(0, 10) <= query.to))
-      .sort((a, b) => b.at.localeCompare(a.at)),
+      .reverse().sort((a, b) => b.at.localeCompare(a.at)),
   );
 
   // ----- Consumable inventory -----
@@ -275,15 +283,70 @@ export function registerAssetRoutes(route, db, { linkedEmployee }) {
   route('GET', '/api/stock-movements', 'assets.view', ({ query }) =>
     db.data.stockMovements
       .filter((m) => (!query.itemId || m.itemId === query.itemId) && (!query.from || m.at.slice(0, 10) >= query.from) && (!query.to || m.at.slice(0, 10) <= query.to))
-      .sort((a, b) => b.at.localeCompare(a.at)),
+      .reverse().sort((a, b) => b.at.localeCompare(a.at)),
   );
+
+  // ----- Issue reports (malfunction, damage, loss) -----
+  route('GET', '/api/asset-reports', 'assets.view', () => [...db.data.issueReports].reverse().sort(newestFirst));
+  route('GET', '/api/asset-reports/summary', 'assets.view', () => ({
+    new: db.data.issueReports.filter((r) => r.status === 'open').length,
+    active: db.data.issueReports.filter((r) => ACTIVE_ISSUE.includes(r.status)).length,
+  }));
+  route('GET', '/api/asset-reports/:id', 'assets.view', ({ params }) => {
+    const r = findReport(params.id);
+    return { ...r, asset: db.data.assets.find((a) => a.id === r.assetId) || null };
+  });
+  // IT's response: a new status and/or a note the reporter can read.
+  route('POST', '/api/asset-reports/:id/update', 'assets.edit', ({ params, body, user }) => {
+    const r = findReport(params.id);
+    const status = body.status || r.status;
+    if (!ISSUE_STATUS[status]) throw new HttpError(400, 'Pick a valid status.');
+    const note = str(body.note, 1000);
+    if (status === r.status && !note) throw new HttpError(400, 'Change the status or write a note.');
+    const at = new Date().toISOString();
+    r.updates.push({ at, by: user.name, status: status === r.status ? null : status, note });
+    if (status !== r.status) {
+      r.status = status;
+      r.closedAt = ACTIVE_ISSUE.includes(status) ? null : at;
+      const asset = db.data.assets.find((a) => a.id === r.assetId);
+      if (asset) log(asset, user, 'issue', `Report ${r.number} marked ${ISSUE_STATUS[status].toLowerCase()}`, { notes: note });
+    }
+    r.updatedAt = at;
+    db.save();
+    return { ...r, asset: db.data.assets.find((a) => a.id === r.assetId) || null };
+  });
 
   // ----- Employee self-service -----
   route('GET', '/api/me/assets', 'self', ({ user }) => {
     const emp = linkedEmployee(user);
     return {
       assets: db.data.assets.filter((a) => a.assignedTo?.type === 'employee' && a.assignedTo.id === emp.id),
-      issued: db.data.stockMovements.filter((m) => m.type === 'out' && m.issuedTo?.type === 'employee' && m.issuedTo.id === emp.id).sort((a, b) => b.at.localeCompare(a.at)),
+      issued: db.data.stockMovements.filter((m) => m.type === 'out' && m.issuedTo?.type === 'employee' && m.issuedTo.id === emp.id).reverse().sort((a, b) => b.at.localeCompare(a.at)),
+      reports: db.data.issueReports.filter((r) => r.reportedBy.employeeId === emp.id).reverse().sort(newestFirst),
     };
+  });
+  route('POST', '/api/me/asset-reports', 'self', ({ body, user }) => {
+    const emp = linkedEmployee(user);
+    const asset = db.data.assets.find((a) => a.id === body.assetId && a.assignedTo?.type === 'employee' && a.assignedTo.id === emp.id);
+    if (!asset) throw new HttpError(400, 'You can only report equipment that is assigned to you.');
+    if (!ISSUE_TYPES[body.type]) throw new HttpError(400, 'Choose what is wrong.');
+    if (!ISSUE_IMPACT[body.impact]) throw new HttpError(400, 'Tell IT whether you can still work on it.');
+    const description = str(body.description, 2000);
+    if (!description) throw new HttpError(400, 'Describe the problem.');
+    const noticedOn = optDate(body.noticedOn, 'Date noticed') || localDate();
+    const open = db.data.issueReports.find((r) => r.assetId === asset.id && ACTIVE_ISSUE.includes(r.status));
+    if (open) throw new HttpError(400, `${asset.assetTag} already has an open report (${open.number}). IT will update you there.`);
+    const now = new Date().toISOString();
+    const report = {
+      id: randomUUID(), number: nextCode(db.data.issueReports.map((r) => r.number), 'IR-'),
+      assetId: asset.id, assetTag: asset.assetTag, assetName: asset.name, category: asset.category, serialNumber: asset.serialNumber,
+      type: body.type, impact: body.impact, description, noticedOn, status: 'open',
+      reportedBy: { userId: user.id, employeeId: emp.id, name: `${emp.firstName} ${emp.lastName}`, employeeNo: emp.employeeNo, department: emp.department || '' },
+      reportedAt: now, updatedAt: now, closedAt: null, updates: [],
+    };
+    db.data.issueReports.push(report);
+    log(asset, user, 'issue', `${ISSUE_TYPES[report.type]} reported by ${report.reportedBy.name} (${report.number})`, { notes: description.slice(0, 200) });
+    db.save();
+    return report;
   });
 }
