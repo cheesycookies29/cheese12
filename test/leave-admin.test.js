@@ -62,7 +62,8 @@ test('adjustments add or take away days with a reason', async () => {
   await assert.rejects(admin('POST', `/api/employees/${emp.id}/leave-adjustments`, { leaveTypeId: vl.id, year: YEAR, days: 0.3, reason: 'x' }), /half days/);
   const lwop = db.data.leaveTypes.find((t) => t.code === 'LWOP');
   await assert.rejects(admin('POST', `/api/employees/${emp.id}/leave-adjustments`, { leaveTypeId: lwop.id, year: YEAR, days: 1, reason: 'x' }), /no day limit/);
-  data = await admin('DELETE', `/api/employees/${emp.id}/leave-adjustments/${data.adjustments[0].id}`);
+  assert.equal(data.adjustments[0].days, -1, 'newest first');
+  data = await admin('DELETE', `/api/employees/${emp.id}/leave-adjustments/${data.adjustments.find((a) => a.days === -1).id}`);
   assert.equal(bal(data, 'VL').remaining, 17.5);
 });
 

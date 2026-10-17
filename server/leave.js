@@ -241,7 +241,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
     employee: { id: emp.id, name: `${emp.firstName} ${emp.lastName}`, employeeNo: emp.employeeNo, department: emp.department || '', status: emp.status, hireDate: emp.hireDate || null },
     year,
     balances: leaveBalances(db, emp.id, year),
-    adjustments: db.data.leaveAdjustments.filter((a) => a.employeeId === emp.id && a.year === year).sort((a, b) => b.at.localeCompare(a.at))
+    // Reversed first so adjustments saved in the same instant stay newest first.
+    adjustments: db.data.leaveAdjustments.filter((a) => a.employeeId === emp.id && a.year === year).reverse().sort((a, b) => b.at.localeCompare(a.at))
       .map((a) => ({ ...a, typeName: typeName(a.leaveTypeId) })),
     leaveDays: db.data.timeEntries.filter((e) => e.employeeId === emp.id && e.type === 'leave' && e.date.startsWith(String(year))).sort((a, b) => b.date.localeCompare(a.date))
       .map((e) => ({ id: e.id, date: e.date, leaveTypeId: e.leaveTypeId, typeName: typeName(e.leaveTypeId), paid: e.paid !== false, notes: e.notes || '',
