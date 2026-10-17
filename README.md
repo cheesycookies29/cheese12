@@ -150,6 +150,8 @@ Pay frequency, multipliers, grace period, minimum overtime, which deductions app
 
 Default leave types (editable under **Leave & Requests → Leave types**): Vacation 15, Sick 15, Emergency 3, Paternity 7 and Solo Parent 7 days a year; Maternity and Leave Without Pay with no yearly limit. Credits can be changed per employee and year under **Leave balances**, e.g. for carry-over or new hires. Balances count all leave in attendance, including leave HR records directly.
 
+Administrators can manage one person's leave under **Leave & Requests → Employee leave** (or **Manage leave** on the employee's profile): switch leave types on or off for that employee (a type can also be set to *only employees you add*), set their yearly credits, add or take away days with a reason (carry-over, offsets, corrections), and record or remove leave taken outside the system. Employees only see and file the leave types they get.
+
 ## Not included (yet)
 
 Holidays and holiday pay rates, night differential, half-day leave, two-level approvals, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, and an audit log.

@@ -25,6 +25,8 @@ function validateLeaveType(input, db, existingId) {
     paid: input.paid !== false,
     annualCredits: input.annualCredits === '' || input.annualCredits == null ? null : Number(input.annualCredits),
     active: input.active !== false,
+    // 'all' = every employee unless an admin removes it for someone; 'selected' = only employees an admin adds.
+    appliesTo: input.appliesTo === 'selected' ? 'selected' : 'all',
   };
   if (!/^[A-Z0-9]{1,8}$/.test(t.code)) throw new HttpError(400, 'Code must be 1–8 letters or digits.');
   if (!t.name) throw new HttpError(400, 'Name is required.');
@@ -33,20 +35,29 @@ function validateLeaveType(input, db, existingId) {
   return t;
 }
 
-// Credits, used and pending days per leave type for one employee and calendar year.
+// Whether an employee gets a leave type: an admin's choice for that person, else the type's default.
+export function offeredTo(db, employeeId, type) {
+  const access = db.data.leaveAccess.find((a) => a.employeeId === employeeId && a.leaveTypeId === type.id);
+  return access ? access.offered : type.appliesTo !== 'selected';
+}
+
+// Credits, adjustments, used and pending days per leave type for one employee and calendar year.
 // Used days are counted from leave entries in the DTR, so leave recorded by HR counts too.
 export function leaveBalances(db, employeeId, year) {
   const y = String(year);
   return db.data.leaveTypes.map((t) => {
     const override = db.data.leaveCredits.find((c) => c.employeeId === employeeId && c.year === Number(year) && c.leaveTypeId === t.id);
     const credits = override ? override.credits : t.annualCredits;
+    const adjusted = db.data.leaveAdjustments
+      .filter((a) => a.employeeId === employeeId && a.year === Number(year) && a.leaveTypeId === t.id)
+      .reduce((sum, a) => sum + a.days, 0);
     const used = db.data.timeEntries.filter((e) => e.employeeId === employeeId && e.type === 'leave' && e.leaveTypeId === t.id && e.date.startsWith(y)).length;
     const pending = db.data.requests
       .filter((r) => r.employeeId === employeeId && r.status === 'pending' && r.kind === 'leave' && r.leaveTypeId === t.id && r.startDate.startsWith(y))
       .reduce((a, r) => a + r.days, 0);
     return {
-      leaveTypeId: t.id, code: t.code, name: t.name, paid: t.paid, active: t.active,
-      credits, overridden: Boolean(override), used, pending, remaining: credits == null ? null : credits - used - pending,
+      leaveTypeId: t.id, code: t.code, name: t.name, paid: t.paid, active: t.active, offered: offeredTo(db, employeeId, t),
+      credits, overridden: Boolean(override), adjusted, used, pending, remaining: credits == null ? null : credits + adjusted - used - pending,
     };
   });
 }
@@ -80,6 +91,7 @@ function buildRequest(db, employee, user, body) {
   if (kind === 'leave') {
     const type = findLeaveType(db, body.leaveTypeId);
     if (!type.active) throw new HttpError(400, `${type.name} is no longer offered.`);
+    if (!offeredTo(db, employee.id, type)) throw new HttpError(400, `${type.name} is not available to you. Ask HR if you think it should be.`);
     leaveTypeId = type.id;
     const bal = leaveBalances(db, employee.id, startDate.slice(0, 4)).find((b) => b.leaveTypeId === type.id);
     if (bal.remaining !== null && dates.length > bal.remaining) {
@@ -182,6 +194,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
     if (used) throw new HttpError(400, `${type.name} has been used. Mark it inactive instead of deleting it.`);
     db.data.leaveTypes = db.data.leaveTypes.filter((t) => t.id !== type.id);
     db.data.leaveCredits = db.data.leaveCredits.filter((c) => c.leaveTypeId !== type.id);
+    db.data.leaveAccess = db.data.leaveAccess.filter((a) => a.leaveTypeId !== type.id);
+    db.data.leaveAdjustments = db.data.leaveAdjustments.filter((a) => a.leaveTypeId !== type.id);
     db.save();
     return { ok: true };
   });
@@ -207,6 +221,111 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
     }
     db.save();
     return leaveBalances(db, body.employeeId, year);
+  });
+
+  // ----- One employee's leave, adjusted by an administrator -----
+  const employeeOf = (id) => {
+    const emp = db.data.employees.find((e) => e.id === id);
+    if (!emp) throw new HttpError(404, 'Employee not found.');
+    return emp;
+  };
+  const yearOf = (v) => {
+    const year = Number(v);
+    if (!(year >= 2000 && year <= 2100)) throw new HttpError(400, 'Pick a valid year.');
+    return year;
+  };
+  const typeName = (id) => db.data.leaveTypes.find((t) => t.id === id)?.name || '(deleted leave type)';
+  // Pay periods already finalized, so a change on those dates won't reach payslips already issued.
+  const finalizedOn = (dates) => db.data.payrollRuns.filter((r) => r.status === 'finalized' && dates.some((d) => d >= r.periodStart && d <= r.periodEnd));
+  const employeeLeave = (emp, year) => ({
+    employee: { id: emp.id, name: `${emp.firstName} ${emp.lastName}`, employeeNo: emp.employeeNo, department: emp.department || '', status: emp.status, hireDate: emp.hireDate || null },
+    year,
+    balances: leaveBalances(db, emp.id, year),
+    adjustments: db.data.leaveAdjustments.filter((a) => a.employeeId === emp.id && a.year === year).sort((a, b) => b.at.localeCompare(a.at))
+      .map((a) => ({ ...a, typeName: typeName(a.leaveTypeId) })),
+    leaveDays: db.data.timeEntries.filter((e) => e.employeeId === emp.id && e.type === 'leave' && e.date.startsWith(String(year))).sort((a, b) => b.date.localeCompare(a.date))
+      .map((e) => ({ id: e.id, date: e.date, leaveTypeId: e.leaveTypeId, typeName: typeName(e.leaveTypeId), paid: e.paid !== false, notes: e.notes || '',
+        source: e.requestId ? 'request' : e.manualLeave ? 'admin' : 'attendance', requestId: e.requestId || null })),
+  });
+
+  route('GET', '/api/employees/:id/leave', 'leave.adjust', ({ params, query }) =>
+    employeeLeave(employeeOf(params.id), yearOf(query.year || new Date().getFullYear())));
+
+  // Give or take away a leave type for one employee; offered = null goes back to the type's default.
+  route('PUT', '/api/employees/:id/leave-access', 'leave.adjust', ({ params, body, user }) => {
+    const emp = employeeOf(params.id);
+    const type = findLeaveType(db, body.leaveTypeId);
+    db.data.leaveAccess = db.data.leaveAccess.filter((a) => !(a.employeeId === emp.id && a.leaveTypeId === type.id));
+    if (body.offered === true || body.offered === false) {
+      db.data.leaveAccess.push({ employeeId: emp.id, leaveTypeId: type.id, offered: body.offered, updatedAt: new Date().toISOString(), updatedBy: user.name });
+    }
+    db.save();
+    return employeeLeave(emp, yearOf(body.year || new Date().getFullYear()));
+  });
+
+  // Add or take away days, with a reason (carry-over, correction, offset…).
+  route('POST', '/api/employees/:id/leave-adjustments', 'leave.adjust', ({ params, body, user }) => {
+    const emp = employeeOf(params.id);
+    const type = findLeaveType(db, body.leaveTypeId);
+    const year = yearOf(body.year);
+    const days = Number(body.days);
+    if (!days || Math.abs(days) > 366 || Math.round(days * 2) !== days * 2) throw new HttpError(400, 'Enter the number of days to add or take away, in half days (e.g. 2, -1 or 0.5).');
+    const reason = String(body.reason || '').trim().slice(0, 300);
+    if (!reason) throw new HttpError(400, 'Say why, e.g. "carry-over from last year" or "correction".');
+    const bal = leaveBalances(db, emp.id, year).find((b) => b.leaveTypeId === type.id);
+    if (bal.credits == null) throw new HttpError(400, `${type.name} has no day limit, so there is no balance to adjust. Set credits for this employee first if you want to track it.`);
+    db.data.leaveAdjustments.push({ id: randomUUID(), employeeId: emp.id, leaveTypeId: type.id, year, days, reason, at: new Date().toISOString(), by: user.name });
+    db.save();
+    return employeeLeave(emp, year);
+  });
+  route('DELETE', '/api/employees/:id/leave-adjustments/:adjId', 'leave.adjust', ({ params }) => {
+    const emp = employeeOf(params.id);
+    const adj = db.data.leaveAdjustments.find((a) => a.id === params.adjId && a.employeeId === emp.id);
+    if (!adj) throw new HttpError(404, 'Adjustment not found.');
+    db.data.leaveAdjustments = db.data.leaveAdjustments.filter((a) => a.id !== adj.id);
+    db.save();
+    return employeeLeave(emp, adj.year);
+  });
+
+  // Record leave the employee took (e.g. filed on paper): one DTR leave entry per scheduled work day.
+  route('POST', '/api/employees/:id/leave-days', 'leave.adjust', ({ params, body, user }) => {
+    const emp = employeeOf(params.id);
+    const type = findLeaveType(db, body.leaveTypeId);
+    const { startDate, endDate } = body;
+    if (!DATE_RE.test(startDate || '') || !DATE_RE.test(endDate || '')) throw new HttpError(400, 'Pick a start and end date.');
+    if (endDate < startDate) throw new HttpError(400, 'The end date must be on or after the start date.');
+    if (startDate.slice(0, 4) !== endDate.slice(0, 4)) throw new HttpError(400, 'Record leave one calendar year at a time.');
+    const dates = workDates(emp, db.data.settings, startDate, endDate);
+    if (!dates.length) throw new HttpError(400, 'There are no scheduled work days in that range.');
+    if (dates.length > MAX_REQUEST_DAYS) throw new HttpError(400, `At most ${MAX_REQUEST_DAYS} work days at a time.`);
+    const taken = db.data.timeEntries.filter((e) => e.employeeId === emp.id && dates.includes(e.date));
+    if (taken.length) throw new HttpError(400, `Attendance is already recorded on ${taken.map((e) => e.date).sort().join(', ')}. Edit or remove those days in the DTR first.`);
+    const year = Number(startDate.slice(0, 4));
+    const bal = leaveBalances(db, emp.id, year).find((b) => b.leaveTypeId === type.id);
+    if (bal.remaining !== null && dates.length > bal.remaining && !body.allowOverdraw) {
+      throw new HttpError(400, `That is ${dates.length} day(s) but only ${Math.max(0, bal.remaining)} ${type.name} day(s) are left. Tick "Allow going over the balance" to record it anyway.`);
+    }
+    const note = String(body.note || '').trim().slice(0, 200);
+    for (const date of dates) {
+      db.data.timeEntries.push({
+        id: randomUUID(), employeeId: emp.id, date, type: 'leave', leaveTypeId: type.id, paid: type.paid,
+        timeIn: null, timeOut: null, otApproved: false, remote: false, manualLeave: true,
+        notes: `${type.name} (recorded by ${user.name})${note ? `: ${note}` : ''}`,
+      });
+    }
+    db.save();
+    const runs = finalizedOn(dates);
+    return { ...employeeLeave(emp, year), recorded: dates.length, warning: runs.length ? `Payroll for ${runs.map((r) => `${r.periodStart} to ${r.periodEnd}`).join(', ')} is already finalized, so those payslips are unchanged.` : null };
+  });
+  route('DELETE', '/api/employees/:id/leave-days/:entryId', 'leave.adjust', ({ params }) => {
+    const emp = employeeOf(params.id);
+    const entry = db.data.timeEntries.find((e) => e.id === params.entryId && e.employeeId === emp.id && e.type === 'leave');
+    if (!entry) throw new HttpError(404, 'Leave day not found.');
+    if (entry.requestId) throw new HttpError(400, 'This day comes from an approved request. Cancel the request under Requests instead, so the employee sees it.');
+    db.data.timeEntries = db.data.timeEntries.filter((e) => e.id !== entry.id);
+    db.save();
+    const runs = finalizedOn([entry.date]);
+    return { ...employeeLeave(emp, Number(entry.date.slice(0, 4))), warning: runs.length ? 'Payroll for that date is already finalized, so the payslip is unchanged.' : null };
   });
 
   // ----- Requests (HR / payroll view, HR / admin decide) -----
@@ -259,6 +378,6 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
   });
   route('GET', '/api/me/leave-balances', 'self', ({ user, query }) => {
     const emp = linkedEmployee(user);
-    return leaveBalances(db, emp.id, Number(query.year) || new Date().getFullYear()).filter((b) => b.active);
+    return leaveBalances(db, emp.id, Number(query.year) || new Date().getFullYear()).filter((b) => b.active && b.offered);
   });
 }

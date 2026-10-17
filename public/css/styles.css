@@ -303,7 +303,8 @@ body:not(.auth-mode) #auth { display: none; }
 .badge.maroon-soft { background: var(--maroon-soft); color: var(--maroon); }
 .btn.small-btn { padding: 4px 12px; font-size: 13px; }
 .stats .card.attention { border-top-color: var(--maroon); background: var(--gold-soft); }
-.toolbar.pad, .muted.pad { padding: 16px 16px 0; }
+.toolbar.pad, .muted.pad, h2.pad { padding: 16px 16px 0; }
+.muted.small.pad:last-child { padding-bottom: 16px; }
 .balances th small { display: block; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
 .center { text-align: center !important; }
 .cell-btn { background: none; border: 1px solid transparent; border-radius: 8px; padding: 6px 10px; cursor: pointer; font: inherit; color: var(--text); min-width: 72px; }
@@ -546,3 +547,16 @@ h2.spaced { margin-top: 22px; }
   .modal .grid.two { grid-template-columns: 1fr; }
   .modal .grid.two > * { grid-column: 1 / -1; }
 }
+
+/* ===== Employee leave ===== */
+.toolbar .spacer { flex: 1; }
+.emp-leave tr.not-offered td { background: #faf9f8; }
+.emp-leave tr.not-offered strong { color: var(--muted); }
+.emp-leave .negative, .table .negative { color: var(--maroon); }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; }
+.switch input { appearance: none; width: 36px; height: 20px; border-radius: 999px; background: #d6cfcc; position: relative; cursor: pointer; transition: background 0.15s; margin: 0; }
+.switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.switch input:checked { background: var(--maroon); }
+.switch input:checked::after { left: 18px; }
+.switch input:focus-visible { outline: 3px solid rgba(204, 153, 52, 0.4); outline-offset: 2px; }
+

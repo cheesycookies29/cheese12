@@ -42,6 +42,7 @@ export const PERMISSION_LABELS = [
   ['payroll.config', 'Payroll setup: pay rules, government rates, tax tables'],
   ['leave.manage', 'Leave types, credits and balances; view all requests'],
   ['leave.approve', 'Approve or reject leave and remote-work requests'],
+  ['leave.adjust', "Change one employee's leave: types offered, credits, adjustments, recorded days"],
   ['assets.view', 'View IT assets, inventory, allocations and problem reports'],
   ['assets.edit', 'Register, assign and return assets; receive and issue stock; respond to problem reports'],
   ['settings.edit', 'Company details and default schedule'],

@@ -245,7 +245,7 @@ export async function meRequestsView(el, _params, query) {
         <div class="balance-grid">${balances.map((b) => html`<div class="balance ${b.remaining !== null && b.remaining <= 0 ? 'low' : ''}">
           <span>${b.name}${b.paid ? '' : html` <small class="muted">(unpaid)</small>`}</span>
           <strong>${b.remaining ?? '—'}</strong>
-          <small class="muted">${b.credits == null ? 'No set limit' : `of ${b.credits} · ${b.used} used${b.pending ? ` · ${b.pending} pending` : ''}`}</small>
+          <small class="muted">${b.credits == null ? 'No set limit' : `of ${b.credits + (b.adjusted || 0)} · ${b.used} used${b.pending ? ` · ${b.pending} pending` : ''}`}</small>
         </div>`)}</div>
       </section>
       <section class="card">
@@ -276,7 +276,9 @@ export async function meRequestsView(el, _params, query) {
   }
 
   function openForm(balances) {
-    const types = ctx.leaveTypes.filter((t) => t.active);
+    // Only the leave types this employee gets (the server sends balances for those).
+    const offered = new Set(balances.map((b) => b.leaveTypeId));
+    const types = ctx.leaveTypes.filter((t) => t.active && offered.has(t.id));
     const tomorrow = today(new Date(Date.now() + 86400000));
     const { form } = modal({
       title: 'File a request',

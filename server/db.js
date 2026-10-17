@@ -14,6 +14,8 @@ export function emptyData() {
     users: [],
     leaveTypes: structuredClone(DEFAULT_LEAVE_TYPES),
     leaveCredits: [], // per-employee, per-year overrides of a leave type's annual credits
+    leaveAccess: [], // per-employee: leave types given or taken away by an administrator
+    leaveAdjustments: [], // per-employee, per-year +/- days with a reason
     requests: [], // leave and remote-work requests
     assets: [], // IT assets tracked individually
     assetHistory: [], // assignment / status log per asset
@@ -34,6 +36,8 @@ export function openDb(file) {
     data.users ||= [];
     data.leaveTypes ||= structuredClone(DEFAULT_LEAVE_TYPES);
     data.leaveCredits ||= [];
+    data.leaveAccess ||= [];
+    data.leaveAdjustments ||= [];
     data.requests ||= [];
     data.assets ||= [];
     data.assetHistory ||= [];

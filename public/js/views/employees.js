@@ -213,6 +213,7 @@ export async function employeeProfileView(el, { id }) {
       </div>
       <div class="actions">
         ${can('attendance.view') ? html`<a class="btn" href="#/dtr?employeeId=${emp.id}">View attendance</a>` : ''}
+        ${can('leave.adjust') ? html`<a class="btn" href="#/leave?tab=employee&employee=${emp.id}">Manage leave</a>` : ''}
         ${can('employees.edit') ? html`<a class="btn primary" href="#/employees/${emp.id}/edit">Edit</a>` : ''}
       </div>
     </header>

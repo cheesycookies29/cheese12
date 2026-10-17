@@ -24,6 +24,23 @@ export const CHANGE_TYPES = { new: 'New', improved: 'Improved', fixed: 'Fixed' }
 
 export const DEVLOG = [
   {
+    version: '0.2.5-alpha',
+    date: '2026-10-17',
+    title: 'Managing one person\'s leave',
+    modules: ['hr'],
+    notes: 'Leave was all-or-nothing: every leave type applied to everyone, and the only per-person tweak was a credit total in the balances grid. Real life is messier. Not everyone qualifies for maternity or solo parent leave, some people get leave nobody else does, and paper-filed leave and carry-overs had no proper home. So I added an Employee leave tab where an admin can handle all of that for one person, with a reason on record for every adjustment.',
+    changes: [
+      ['new', 'hr', 'Employee leave tab (Leave & Requests, administrators only): pick an employee and a year to see every leave type with credits, adjustments, used, pending and remaining.'],
+      ['new', 'hr', 'Switch a leave type on or off for one employee. They can only file, and only see balances for, the types they get.'],
+      ['new', 'hr', 'Leave types can be for everyone or only for employees you add. Good for things like study leave.'],
+      ['new', 'hr', 'Adjust a balance up or down in half days with a reason (carry-over, offsets, corrections). Every adjustment is listed with who made it and can be removed.'],
+      ['new', 'hr', 'Record leave directly for leave taken outside the system. It goes into the DTR one day per scheduled work day, and you can remove it again.'],
+      ['improved', 'hr', '"Manage leave" button on the employee profile, and "n/a" in the balances grid for types someone doesn\'t get.'],
+      ['improved', 'hr', 'Balance totals now include adjustments, so a +2 carry-over shows as 15 of 17 instead of 15 of 15.'],
+    ],
+    known: ['Recording leave in a pay period that is already finalized does not change payslips already issued. The page warns you when that happens.', 'Only Administrators can use Employee leave for now; HR Managers keep the balances grid.'],
+  },
+  {
     version: '0.2.4-alpha',
     date: '2026-10-15',
     title: 'An editable dev log',

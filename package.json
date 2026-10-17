@@ -1,6 +1,6 @@
 {
   "name": "ltdc-erp",
-  "version": "0.2.4-alpha",
+  "version": "0.2.5-alpha",
   "description": "LTDC ERP: HR & Payroll and IT Asset Management, self-hosted.",
   "type": "module",
   "private": true,

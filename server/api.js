@@ -450,6 +450,8 @@ export function createApi(db) {
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.employeeId !== params.id);
     db.data.requests = db.data.requests.filter((r) => r.employeeId !== params.id);
     db.data.leaveCredits = db.data.leaveCredits.filter((c) => c.employeeId !== params.id);
+    db.data.leaveAccess = db.data.leaveAccess.filter((a) => a.employeeId !== params.id);
+    db.data.leaveAdjustments = db.data.leaveAdjustments.filter((a) => a.employeeId !== params.id);
     for (const u of db.data.users) if (u.employeeId === params.id) u.employeeId = null;
     db.save();
     return { ok: true };

@@ -2,6 +2,7 @@
 import { eachDate, dayOfWeek, scheduleFor } from './calc.js';
 
 // annualCredits: days granted per calendar year; null = not tracked (no balance limit).
+// appliesTo (optional): 'all' (default) or 'selected' = only employees an administrator adds.
 export const DEFAULT_LEAVE_TYPES = [
   { id: 'vl', code: 'VL', name: 'Vacation Leave', paid: true, annualCredits: 15, active: true },
   { id: 'sl', code: 'SL', name: 'Sick Leave', paid: true, annualCredits: 15, active: true },
