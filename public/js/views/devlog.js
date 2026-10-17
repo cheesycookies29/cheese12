@@ -156,7 +156,7 @@ export async function devlogView(el) {
       : html`<div class="card empty"><p>${entries.length ? 'Nothing matches.' : 'No entries yet.'}</p></div>`);
   }
 
-  mount(el, html`
+  mount(el, html`<div class="devlog-page">
     <header class="page-head">
       <div><h1>Dev log</h1><p class="muted">My notes on every build of LTDC ERP, newest first: <span id="count"></span>. Still in alpha, so expect rough edges.</p>
         <p class="byline" id="byline"></p></div>
@@ -180,13 +180,16 @@ export async function devlogView(el) {
         <input type="search" id="q" placeholder="Search the log…" />
       </div>
     </section>
-    <div id="releases" class="releases"></div>`);
+    <div id="releases" class="releases"></div>
+  </div>`);
+  // Listen on this page's own root, not on the shared app container.
+  const root = el.querySelector('.devlog-page');
 
   render();
   el.querySelectorAll('[data-module-filter]').forEach((b) => b.addEventListener('click', () => ((state.module = b.dataset.moduleFilter), render())));
   el.querySelector('#q').addEventListener('input', (e) => ((state.q = e.target.value), render()));
   el.querySelector('#new-entry')?.addEventListener('click', () => openEditor(null, entries, update));
-  el.addEventListener('click', async (ev) => {
+  root.addEventListener('click', async (ev) => {
     if (ev.target.closest('#edit-author')) return openAuthor(author, update);
     const editId = ev.target.closest('[data-edit]')?.dataset.edit;
     if (editId) return openEditor(entries.find((x) => x.id === editId), entries, update);

@@ -24,6 +24,17 @@ export const CHANGE_TYPES = { new: 'New', improved: 'Improved', fixed: 'Fixed' }
 
 export const DEVLOG = [
   {
+    version: '0.2.6-alpha',
+    date: '2026-10-17',
+    title: 'Stray dev log windows',
+    modules: ['system'],
+    notes: 'After opening the Dev log, clicking Edit on a user (or anything else with an Edit button) also popped up a "New dev log entry" window, and one more for every time I had visited the Dev log. The Dev log page was listening for clicks on the area every page shares and never let go. It now only listens on its own page, and each page gets a fresh area when you navigate, so no page can leave something like this behind again.',
+    changes: [
+      ['fixed', 'system', 'Editing a user, a leave type or an attendance record no longer opens dev log windows on top.'],
+      ['improved', 'system', 'Every page starts with a clean slate when you navigate, so leftovers from one page can\'t affect the next.'],
+    ],
+  },
+  {
     version: '0.2.5-alpha',
     date: '2026-10-17',
     title: 'Managing one person\'s leave',

@@ -181,7 +181,10 @@ async function navigate() {
 
   runCleanup();
   refreshBadge();
-  const el = document.getElementById('app');
+  // A fresh container per page, so listeners a view attached to it can't fire on the next page.
+  const old = document.getElementById('app');
+  const el = old.cloneNode(false);
+  old.replaceWith(el);
   window.scrollTo(0, 0);
   try {
     cleanup = await match.view(el, params, query);
