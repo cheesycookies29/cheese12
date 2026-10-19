@@ -290,8 +290,8 @@ body:not(.auth-mode) #auth { display: none; }
 .stack.tight { gap: 12px; margin: 0; }
 .role-hint { margin: -6px 0 0; }
 .you { font-weight: 400; font-size: 12px; }
-.card + .card, .card.scroll-x + .card { margin-top: 16px; }
-.cols > .card + .card, .asset-cards > .card + .card { margin-top: 0; }
+.card + .card, .card.scroll-x + .card, .cols + .card, .cols + .cols, .card + .cols { margin-top: 16px; }
+.cols > .card + .card, .asset-cards > .card + .card, .stats > .card + .card, .grid > .card + .card, .holders > .card + .card { margin-top: 0; }
 
 /* Leave & requests, payroll setup */
 .nav-badge { float: right; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--gold-bright); color: var(--maroon-dark); font-size: 12px; font-weight: 700; text-align: center; }
@@ -456,15 +456,9 @@ a.lc-card:hover .lc-open { background: var(--maroon); color: #fff; }
 .link:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
 
 @media (max-width: 900px) {
-  .layout { flex-direction: column; }
-  .sidebar { width: auto; height: auto; position: static; }
-  .brand img { max-width: 160px; }
-  .user-box { margin-top: 12px; }
   .auth-screen { grid-template-columns: 1fr; }
   .auth-hero { display: none; }
   .auth-logo { display: block; }
-  #nav { display: flex; flex-wrap: wrap; gap: 4px; }
-  main { padding: 20px 16px; }
   .grid, .grid.four, .cols.wide-left, .clock-cols, .slip-cols, .holders { grid-template-columns: 1fr; }
   .lc-header { flex-wrap: wrap; padding: 14px 16px; }
   .lc-header img { height: 36px; }
@@ -559,4 +553,107 @@ h2.spaced { margin-top: 22px; }
 .switch input:checked { background: var(--maroon); }
 .switch input:checked::after { left: 18px; }
 .switch input:focus-visible { outline: 3px solid rgba(204, 153, 52, 0.4); outline-offset: 2px; }
+
+/* ===== Phones and small tablets ===== */
+.topbar, .nav-scrim { display: none; }
+
+@media (max-width: 900px) {
+  .layout { display: block; }
+  /* Slim top bar with a menu button; the sidebar becomes a slide-in drawer. */
+  .topbar {
+    display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 40; height: 56px; padding: 0 12px 0 6px;
+    background: linear-gradient(90deg, var(--maroon), var(--maroon-dark)); color: #fff; box-shadow: 0 2px 10px rgba(61, 0, 12, 0.25);
+  }
+  body.launcher-mode .topbar { display: none; }
+  .topbar-brand img { display: block; height: 30px; width: auto; }
+  .topbar-module { margin-left: auto; font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .menu-btn { position: relative; width: 44px; height: 44px; border: 0; background: none; border-radius: 10px; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; }
+  .menu-btn:focus-visible { outline: 2px solid var(--gold-light); }
+  .menu-icon, .menu-icon::before, .menu-icon::after { display: block; width: 20px; height: 2px; border-radius: 2px; background: #fff; transition: transform 0.2s, opacity 0.2s; }
+  .menu-icon { position: relative; }
+  .menu-icon::before, .menu-icon::after { content: ''; position: absolute; left: 0; }
+  .menu-icon::before { top: -6px; }
+  .menu-icon::after { top: 6px; }
+  body.nav-open .menu-icon { background: transparent; }
+  body.nav-open .menu-icon::before { transform: translateY(6px) rotate(45deg); }
+  body.nav-open .menu-icon::after { transform: translateY(-6px) rotate(-45deg); }
+  .menu-dot { position: absolute; top: 9px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold-bright); border: 2px solid var(--maroon); }
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60; width: min(84vw, 300px); height: auto;
+    transform: translateX(-102%); transition: transform 0.22s ease, visibility 0.22s; visibility: hidden;
+  }
+  body.nav-open .sidebar { transform: none; visibility: visible; box-shadow: 8px 0 30px rgba(61, 0, 12, 0.35); }
+  body.nav-open { overflow: hidden; }
+  .nav-scrim { display: block; position: fixed; inset: 0; z-index: 55; background: rgba(61, 0, 12, 0.45); }
+  .nav-scrim[hidden] { display: none; }
+  #nav a { padding: 12px 16px; }
+
+  main { padding: 18px 16px 48px; }
+  h1 { font-size: 30px; }
+  .card { padding: 16px; }
+  .page-head { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 16px; }
+  .page-head .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .page-head .actions .btn { flex: 1 1 auto; justify-content: center; }
+  .btn { min-height: 40px; }
+
+  /* Two even columns of figures */
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stats .card { padding: 12px 14px; }
+  .stats strong { font-size: 26px; }
+
+  /* Filters take the full width, one per line */
+  .toolbar { gap: 8px; }
+  .toolbar > input, .toolbar > select, .toolbar > label.inline, .toolbar > .filter-chips { flex: 1 1 100%; max-width: none; }
+  .toolbar input[type='search'] { max-width: none; }
+  .toolbar > label.inline { display: flex; align-items: center; gap: 8px; }
+  .toolbar > label.inline > input, .toolbar > label.inline > select { flex: 1; width: auto; }
+  .toolbar > .btn { flex: 1 1 auto; justify-content: center; }
+  .toolbar .spacer { display: none; }
+
+  /* Tabs scroll sideways instead of wrapping */
+  .tabs { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs a { white-space: nowrap; padding: 10px 12px; flex-shrink: 0; }
+
+  /* Pop-ups open as a bottom sheet */
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal, .modal.wide { max-width: none; border-radius: 16px 16px 0 0; max-height: 92vh; display: flex; flex-direction: column; }
+  .modal-body { overflow-y: auto; padding: 18px; }
+  .modal header { padding: 14px 18px; }
+  .modal footer { padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); }
+  .modal footer .btn { flex: 1; justify-content: center; }
+
+  #toast { left: 16px; right: 16px; bottom: 16px; transform: translateY(20px); text-align: center; border-radius: 12px; }
+  #toast.show { transform: none; }
+}
+
+@media (max-width: 760px) {
+  /* Tables become a list of rows, each a small card of "Label: value" lines. */
+  .scroll-x { overflow-x: visible; }
+  .card.scroll-x { padding: 0 16px 6px; }
+  .card.scroll-x .toolbar.pad, .card.scroll-x .muted.pad, .card.scroll-x h2.pad { padding-left: 0; padding-right: 0; }
+  .scroll-x:has(.table:not(.stackable)) { overflow-x: auto; }
+  .table.stackable thead { display: none; }
+  .table.stackable, .table.stackable tbody, .table.stackable tfoot, .table.stackable tr { display: block; width: 100%; }
+  .table.stackable tr { padding: 12px 2px; border-bottom: 1px solid var(--border); }
+  .table.stackable tbody tr:hover { background: none; }
+  .table.stackable td { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 4px 0; border: 0; text-align: right; min-height: 0; }
+  .table.stackable td::before { content: attr(data-label); flex-shrink: 0; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+  .table.stackable td:not([data-label])::before { content: none; }
+  .table.stackable td:first-child { display: block; text-align: left; font-size: 16px; padding-bottom: 6px; }
+  .table.stackable td:first-child::before { content: none; }
+  .table.stackable td:empty { display: none; }
+  .table.stackable td.row-actions, .table.stackable td:last-child:not([data-label]) { justify-content: flex-end; flex-wrap: wrap; gap: 10px; padding-top: 8px; }
+  .table.stackable td.row-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .table.stackable td small { display: block; }
+  .table.stackable .cell-v { text-align: right; min-width: 0; }
+  .table.stackable td:first-child .cell-v { text-align: left; }
+  .table.stackable td.is-empty { display: none; }
+  .table.stackable td.num, .table.stackable td.center { text-align: right; }
+  .table.stackable tfoot tr { background: var(--maroon-soft); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+  .table.stackable tfoot td { background: none; border: 0; }
+  .table.clickable.stackable tbody tr { cursor: pointer; }
+  /* Grids that need their columns keep scrolling sideways, with the first column pinned. */
+  .table.balances th:first-child, .table.balances td:first-child, .table.matrix th:first-child, .table.matrix td:first-child { position: sticky; left: 0; background: #fff; z-index: 1; }
+}
 

@@ -126,6 +126,7 @@ function renderNav(module) {
   if (module === ctx.module && document.querySelector('#nav a')) return;
   ctx.module = module;
   document.getElementById('module-name').textContent = MODULE_NAMES[module] || '';
+  document.getElementById('topbar-module').textContent = MODULE_NAMES[module] || '';
   const items = [...(NAV[module] || []), ...NAV.system].filter((n) => allowed(n.permission));
   mount(document.getElementById('nav'), html`
     <a href="#/launcher" class="nav-switch">← All modules</a>
@@ -157,10 +158,35 @@ async function refreshBadge() {
     el.textContent = n || '';
     el.hidden = !n;
   }
+  // On phones the menu is folded away; a dot on the menu button says something is waiting.
+  document.querySelector('#menu-btn .menu-dot').hidden = !document.querySelector('#nav .nav-badge:not([hidden])');
 }
+
+// ----- Phone menu: the sidebar slides in as a drawer -----
+const menuBtn = document.getElementById('menu-btn');
+const scrim = document.getElementById('nav-scrim');
+function setMenu(open) {
+  document.body.classList.toggle('nav-open', open);
+  menuBtn.setAttribute('aria-expanded', String(open));
+  menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  scrim.hidden = !open;
+  if (open) document.querySelector('#nav a.active, #nav a')?.focus({ preventScroll: true });
+}
+menuBtn.addEventListener('click', () => setMenu(!document.body.classList.contains('nav-open')));
+scrim.addEventListener('click', () => setMenu(false));
+document.getElementById('sidebar').addEventListener('click', (e) => {
+  if (e.target.closest('a[href], #sign-out')) setMenu(false);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.body.classList.contains('nav-open')) {
+    setMenu(false);
+    menuBtn.focus();
+  }
+});
 
 async function navigate() {
   if (!ctx.user || ctx.user.mustChangePassword) return;
+  setMenu(false);
   const path = location.hash.replace(/^#/, '').split('?')[0] || homeRoute();
   const query = Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] || ''));
   const match = routes.find((r) => r.re.test(path));

@@ -11,7 +11,15 @@
 <body class="booting">
   <div id="auth"></div>
   <div class="layout">
-    <aside class="sidebar">
+    <header class="topbar">
+      <button type="button" class="menu-btn" id="menu-btn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+        <span class="menu-icon" aria-hidden="true"></span><span class="menu-dot" hidden></span>
+      </button>
+      <a class="topbar-brand" href="#/launcher"><img src="/img/logo-white.png" alt="Lancaster Technology and Development" /></a>
+      <span class="topbar-module" id="topbar-module"></span>
+    </header>
+    <div class="nav-scrim" id="nav-scrim" hidden></div>
+    <aside class="sidebar" id="sidebar">
       <div class="brand"><img src="/img/logo-white.png" alt="Lancaster Technology and Development" /></div>
       <div class="brand-sub"><div><span class="erp-mark">LTDC ERP</span><strong id="module-name"></strong><small id="company-name"></small></div></div>
       <nav id="nav"></nav>

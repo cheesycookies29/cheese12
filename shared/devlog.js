@@ -24,6 +24,20 @@ export const CHANGE_TYPES = { new: 'New', improved: 'Improved', fixed: 'Fixed' }
 
 export const DEVLOG = [
   {
+    version: '0.2.7-alpha',
+    date: '2026-10-19',
+    title: 'A proper phone layout',
+    modules: ['system'],
+    notes: 'On a phone the app was usable but rough. The whole menu sat on top of every page, so you scrolled past a wall of links before seeing anything, and wide tables like Employees and Attendance ran off the right edge. I gave phones their own layout: a slim top bar with the menu tucked into a drawer, and tables that turn into tidy cards, one per row, with labels.',
+    changes: [
+      ['improved', 'system', 'Slim top bar on phones with the logo, the module you are in and a menu button. The menu slides in from the left and closes when you pick a page, tap outside it or press Escape. A dot on the button means something is waiting, like pending requests.'],
+      ['improved', 'system', 'Tables on phones show each row as a card of labelled lines instead of a squeezed grid, with empty fields left out. Grids that need columns, like leave balances and the access matrix, still scroll sideways.'],
+      ['improved', 'system', 'Pop-up forms open as a bottom sheet with full-width buttons, tabs scroll sideways instead of wrapping, figures sit in two even columns, and filters and page buttons use the full width.'],
+      ['fixed', 'system', 'Stat cards were slightly staggered (the first one sat higher than the rest), on desktop too, and the last card on an asset page touched the one above it.'],
+    ],
+    known: ['The payroll register gets long on a phone, one card per employee with every column. It works, but running payroll is still easier on a computer.'],
+  },
+  {
     version: '0.2.6-alpha',
     date: '2026-10-17',
     title: 'Stray dev log windows',

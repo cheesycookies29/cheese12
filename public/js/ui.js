@@ -29,6 +29,33 @@ export function html(strings, ...values) {
 
 export function mount(el, content) {
   el.innerHTML = render(content);
+  labelTables(el);
+}
+
+// Copy each column heading onto its cells (data-label), so on phones a table row
+// can be shown as a card of "Label: value" lines. Grids that need columns opt out
+// with .no-stack (and a few known grid tables below).
+const KEEP_AS_GRID = '.no-stack, .balances, .matrix, .edit-table, .try';
+export function labelTables(root) {
+  const tables = root.matches?.('table.table') ? [root] : root.querySelectorAll('table.table');
+  for (const table of tables) {
+    if (table.matches(KEEP_AS_GRID)) continue;
+    table.classList.add('stackable');
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    for (const row of table.querySelectorAll('tbody tr, tfoot tr')) {
+      let col = 0;
+      for (const cell of row.children) {
+        const label = heads[col] || '';
+        col += Number(cell.getAttribute('colspan')) || 1;
+        if (!label || cell.hasAttribute('data-label')) continue;
+        cell.setAttribute('data-label', label);
+        // Keep the value together (e.g. an amount and its "/month") on the right of its label.
+        if (cell.childNodes.length > 1) cell.innerHTML = `<span class="cell-v">${cell.innerHTML}</span>`;
+        // Blank cells ("—") are hidden on phones to keep each card short.
+        if (/^[—–-]?$/.test(cell.textContent.trim()) && !cell.querySelector('button, input, select, a')) cell.classList.add('is-empty');
+      }
+    }
+  }
 }
 
 const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
@@ -89,6 +116,7 @@ export function modal({ title, body, submitLabel = 'Save', onSubmit, wide = fals
       </footer>
     </form>`);
   document.body.appendChild(backdrop);
+  labelTables(backdrop);
   const form = backdrop.querySelector('form');
   const errorEl = backdrop.querySelector('.form-error');
   const close = () => backdrop.remove();
