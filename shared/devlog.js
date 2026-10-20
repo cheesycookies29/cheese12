@@ -26,6 +26,26 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.3.0-alpha',
+    date: '2026-10-20',
+    title: 'Feedback, leave eligibility and medical certificates',
+    modules: ['hr', 'system'],
+    notes: 'Added a feedback channel from all users to administrators, restricted gender-specific leave types, and introduced medical certificate attachments for extended sick leave.',
+    changes: [
+      ['new', 'system', 'Send feedback page for every user (bug, suggestion, question, compliment or other; system area; subject and details), listing the user\'s own submissions with status and administrator replies.'],
+      ['new', 'system', 'Feedback inbox for administrators: filters by status, type and area, search, CSV export, per-item status (New, Under review, Planned, Resolved, Closed), replies visible to the sender, and deletion. New items are counted on the menu and launcher.'],
+      ['new', 'hr', 'Leave types can be limited by gender, based on the gender on the employee record. Maternity Leave is limited to female employees and Paternity Leave to male employees.'],
+      ['new', 'hr', 'Leave types can require a medical certificate above a number of work days. Sick Leave requires one for requests longer than 3 days.'],
+      ['new', 'hr', 'Employees attach the certificate (PDF or photo, up to 5 MB) when filing, or attach or replace it while the request is pending. HR opens it from the request list and the approval dialog.'],
+      ['fixed', 'hr', 'Maternity Leave and Paternity Leave were offered to all employees regardless of gender. Filing, approval, manual recording and per-employee access now enforce the limit.'],
+    ],
+    known: [
+      'Attachments are stored in the data/attachments folder and are not included in the backup file downloaded from Settings.',
+      'An approved sick leave request filed before this build is not checked for a certificate retroactively.',
+      'Employees with no gender on record cannot file gender-limited leave until HR updates the record.',
+    ],
+  },
+  {
     version: '0.2.8-alpha',
     date: '2026-10-20',
     title: 'Dev log redesign',

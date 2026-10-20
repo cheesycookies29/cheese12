@@ -19,7 +19,7 @@ function client() {
 }
 const admin = client();
 await admin('POST', '/api/auth/setup', { name: 'Admin', username: 'admin', password: 'secret123' });
-const emp = await admin('POST', '/api/employees', { employeeNo: 'E-1', firstName: 'Ana', lastName: 'Cruz', hireDate: '2024-01-01', payType: 'monthly', rate: 30000 });
+const emp = await admin('POST', '/api/employees', { employeeNo: 'E-1', firstName: 'Ana', lastName: 'Cruz', gender: 'Female', hireDate: '2024-01-01', payType: 'monthly', rate: 30000 });
 await admin('POST', '/api/users', { name: 'Ana', username: 'ana', role: 'employee', employeeId: emp.id, password: 'secret123', mustChangePassword: false });
 await admin('POST', '/api/users', { name: 'HR', username: 'hrboss', role: 'hr', password: 'secret123', mustChangePassword: false });
 const ana = client();

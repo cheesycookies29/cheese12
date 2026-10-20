@@ -39,7 +39,7 @@ export async function settingsView(el) {
 
     <section class="card">
       <h2>Data</h2>
-      <p class="muted small">Everything is stored on this computer in <code>data/db.json</code> inside the app folder. Download a backup regularly.</p>
+      <p class="muted small">Everything is stored on this computer in <code>data/db.json</code> inside the app folder. Download a backup regularly. Medical certificates attached to leave requests are kept as files in <code>data/attachments</code> and are not in the backup file; copy that folder too.</p>
       <div class="actions">
         <button class="btn" id="backup">Download backup</button>
         <label class="btn">Restore backup… <input type="file" id="restore" accept="application/json,.json" hidden /></label>

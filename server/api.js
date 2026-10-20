@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { computePayslip, toMinutes } from '../shared/calc.js';
 import { HttpError, localDate, localTime } from './util.js';
 import { demoData } from './seed.js';
-import { registerLeaveRoutes, findLeaveType } from './leave.js';
+import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
+import { createAttachments } from './attachments.js';
+import { registerFeedbackRoutes } from './feedback.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, can } from '../shared/roles.js';
@@ -215,10 +218,15 @@ function findUser(db, id) {
 
 // Replace all data, then unlink accounts whose employee record no longer exists.
 function replaceData(db, next) {
-  // The dev log is about the software, not company data: keep it unless a backup brings its own
-  // (demo data and "erase all data" start from an empty template and must not wipe it).
-  db.replace({ ...next, devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog });
+  // The dev log and user feedback are about the software, not company data: keep them unless a backup
+  // brings its own (demo data and "erase all data" start from an empty template and must not wipe them).
+  db.replace({
+    ...next,
+    devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog,
+    feedback: Array.isArray(next.feedback) && next.feedback.length ? next.feedback : db.data.feedback,
+  });
   syncDevlog(db);
+  migrateLeaveTypes(db);
   const ids = new Set(db.data.employees.map((e) => e.id));
   for (const u of db.data.users) if (u.employeeId && !ids.has(u.employeeId)) u.employeeId = null;
   db.save();
@@ -275,7 +283,9 @@ function clock(db, emp, action) {
 }
 
 export function createApi(db) {
-  if (syncDevlog(db)) db.save();
+  const files = createAttachments(path.join(db.dir, 'attachments'));
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db)];
+  if (migrated.some(Boolean)) db.save();
   const routes = [];
   const sessions = createSessions();
   const throttle = createThrottle();
@@ -405,7 +415,7 @@ export function createApi(db) {
     return { run: meta, payslip };
   });
 
-  registerLeaveRoutes(route, db, { linkedEmployee });
+  registerLeaveRoutes(route, db, { linkedEmployee, files });
   registerAssetRoutes(route, db, { linkedEmployee });
 
   // ----- Settings -----
@@ -448,6 +458,7 @@ export function createApi(db) {
     findEmployee(db, params.id);
     db.data.employees = db.data.employees.filter((e) => e.id !== params.id);
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.employeeId !== params.id);
+    for (const r of db.data.requests) if (r.employeeId === params.id) files.remove(r.attachment);
     db.data.requests = db.data.requests.filter((r) => r.employeeId !== params.id);
     db.data.leaveCredits = db.data.leaveCredits.filter((c) => c.employeeId !== params.id);
     db.data.leaveAccess = db.data.leaveAccess.filter((a) => a.employeeId !== params.id);
@@ -566,6 +577,7 @@ export function createApi(db) {
     return { ok: true, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
   });
   registerDevlogRoutes(route, db);
+  registerFeedbackRoutes(route, db);
   route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });

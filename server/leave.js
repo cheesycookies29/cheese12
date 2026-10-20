@@ -1,7 +1,8 @@
 // Leave types, leave credits and balances, and leave / remote-work requests with approval.
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate } from './util.js';
-import { workDates } from '../shared/leave.js';
+import { workDates, genderAllows, needsCertificate, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
+import { parseUpload } from './attachments.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_REQUEST_DAYS = 180;
@@ -10,6 +11,31 @@ export function findLeaveType(db, id) {
   const type = db.data.leaveTypes.find((t) => t.id === id);
   if (!type) throw new HttpError(404, 'Leave type not found.');
   return type;
+}
+
+// Leave types saved by older builds lack the gender and certificate rules: take them
+// from the built-in defaults (Maternity: women, Paternity: men, Sick Leave: over 3 days).
+export function migrateLeaveTypes(db) {
+  let changed = false;
+  for (const t of db.data.leaveTypes) {
+    const builtIn = DEFAULT_LEAVE_TYPES.find((d) => d.id === t.id);
+    for (const k of ['gender', 'certificateAfterDays']) {
+      if (!(k in t)) {
+        t[k] = builtIn ? builtIn[k] : null;
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
+const firstName = (emp) => emp?.firstName || 'this employee';
+// Why an employee can't have a gender-limited leave type, or null if they can.
+export function genderBlock(type, emp, { self = false } = {}) {
+  if (genderAllows(type, emp)) return null;
+  const rule = `${type.name} is for ${type.gender.toLowerCase()} employees only`;
+  if (!emp?.gender) return self ? `${rule}, and your record has no gender. Ask HR to update your profile.` : `${rule}. Set the gender on ${firstName(emp)}'s employee record first.`;
+  return self ? `${rule}.` : `${rule}; ${firstName(emp)}'s record says ${emp.gender}.`;
 }
 
 function findRequest(db, id) {
@@ -27,16 +53,23 @@ function validateLeaveType(input, db, existingId) {
     active: input.active !== false,
     // 'all' = every employee unless an admin removes it for someone; 'selected' = only employees an admin adds.
     appliesTo: input.appliesTo === 'selected' ? 'selected' : 'all',
+    gender: LEAVE_GENDERS[input.gender] ? input.gender : null,
+    certificateAfterDays: input.certificateAfterDays === '' || input.certificateAfterDays == null ? null : Number(input.certificateAfterDays),
   };
   if (!/^[A-Z0-9]{1,8}$/.test(t.code)) throw new HttpError(400, 'Code must be 1–8 letters or digits.');
   if (!t.name) throw new HttpError(400, 'Name is required.');
   if (t.annualCredits !== null && !(t.annualCredits >= 0 && t.annualCredits <= 366)) throw new HttpError(400, 'Annual credits must be between 0 and 366, or blank for no limit.');
+  if (t.certificateAfterDays !== null && !(Number.isInteger(t.certificateAfterDays) && t.certificateAfterDays >= 0 && t.certificateAfterDays <= 365)) {
+    throw new HttpError(400, 'Medical certificate: enter a whole number of days (0 = always required), or leave it blank.');
+  }
   if (db.data.leaveTypes.some((x) => x.code === t.code && x.id !== existingId)) throw new HttpError(400, `Code ${t.code} is already used.`);
   return t;
 }
 
-// Whether an employee gets a leave type: an admin's choice for that person, else the type's default.
+// Whether an employee gets a leave type: never if the type is limited to another gender;
+// otherwise an admin's choice for that person, else the type's default.
 export function offeredTo(db, employeeId, type) {
+  if (!genderAllows(type, db.data.employees.find((e) => e.id === employeeId))) return false;
   const access = db.data.leaveAccess.find((a) => a.employeeId === employeeId && a.leaveTypeId === type.id);
   return access ? access.offered : type.appliesTo !== 'selected';
 }
@@ -45,6 +78,7 @@ export function offeredTo(db, employeeId, type) {
 // Used days are counted from leave entries in the DTR, so leave recorded by HR counts too.
 export function leaveBalances(db, employeeId, year) {
   const y = String(year);
+  const emp = db.data.employees.find((e) => e.id === employeeId);
   return db.data.leaveTypes.map((t) => {
     const override = db.data.leaveCredits.find((c) => c.employeeId === employeeId && c.year === Number(year) && c.leaveTypeId === t.id);
     const credits = override ? override.credits : t.annualCredits;
@@ -57,6 +91,7 @@ export function leaveBalances(db, employeeId, year) {
       .reduce((a, r) => a + r.days, 0);
     return {
       leaveTypeId: t.id, code: t.code, name: t.name, paid: t.paid, active: t.active, offered: offeredTo(db, employeeId, t),
+      gender: t.gender || null, eligible: genderAllows(t, emp), certificateAfterDays: t.certificateAfterDays ?? null,
       credits, overridden: Boolean(override), adjusted, used, pending, remaining: credits == null ? null : credits + adjusted - used - pending,
     };
   });
@@ -70,6 +105,7 @@ function withEmployee(db, req) {
     employeeName: emp ? `${emp.lastName}, ${emp.firstName}` : '(deleted employee)',
     employeeNo: emp?.employeeNo || '',
     typeName: req.kind === 'remote' ? 'Remote work' : type?.name || 'Leave',
+    certificateRequired: req.kind === 'leave' && needsCertificate(type, req.days),
   };
 }
 
@@ -77,7 +113,7 @@ function overlaps(a, b) {
   return a.startDate <= b.endDate && b.startDate <= a.endDate;
 }
 
-function buildRequest(db, employee, user, body) {
+function buildRequest(db, employee, user, body, upload) {
   const kind = body.kind === 'remote' ? 'remote' : 'leave';
   const { startDate, endDate } = body;
   if (!DATE_RE.test(startDate || '') || !DATE_RE.test(endDate || '')) throw new HttpError(400, 'Pick a start and end date.');
@@ -91,11 +127,16 @@ function buildRequest(db, employee, user, body) {
   if (kind === 'leave') {
     const type = findLeaveType(db, body.leaveTypeId);
     if (!type.active) throw new HttpError(400, `${type.name} is no longer offered.`);
+    const block = genderBlock(type, employee, { self: true });
+    if (block) throw new HttpError(400, block);
     if (!offeredTo(db, employee.id, type)) throw new HttpError(400, `${type.name} is not available to you. Ask HR if you think it should be.`);
     leaveTypeId = type.id;
     const bal = leaveBalances(db, employee.id, startDate.slice(0, 4)).find((b) => b.leaveTypeId === type.id);
     if (bal.remaining !== null && dates.length > bal.remaining) {
       throw new HttpError(400, `Not enough ${type.name} credits: ${Math.max(0, bal.remaining)} day(s) left, ${dates.length} requested.`);
+    }
+    if (needsCertificate(type, dates.length) && !upload) {
+      throw new HttpError(400, `${type.name} of more than ${type.certificateAfterDays} day${type.certificateAfterDays === 1 ? '' : 's'} needs a medical certificate. This request is ${dates.length} work days; attach the certificate (PDF or photo) and submit again.`);
     }
   }
   const clash = db.data.requests.find((r) => r.employeeId === employee.id && ['pending', 'approved'].includes(r.status) && overlaps(r, { startDate, endDate }));
@@ -125,6 +166,11 @@ function approve(db, req, user, note) {
       throw new HttpError(400, `Attendance is already recorded on ${existing.map((e) => e.date).sort().join(', ')}. Edit or remove those records first.`);
     }
     const type = findLeaveType(db, req.leaveTypeId);
+    const block = genderBlock(type, employee);
+    if (block) throw new HttpError(400, `Cannot approve: ${block}`);
+    if (needsCertificate(type, req.days) && !req.attachment) {
+      throw new HttpError(400, `Cannot approve yet: ${type.name} of more than ${type.certificateAfterDays} days needs a medical certificate, and none is attached. The employee can attach it under My Requests.`);
+    }
     const bal = leaveBalances(db, employee.id, req.startDate.slice(0, 4)).find((b) => b.leaveTypeId === type.id);
     if (bal.remaining !== null && bal.remaining < 0) throw new HttpError(400, `Not enough ${type.name} credits left to approve this request.`);
     for (const date of dates) {
@@ -168,7 +214,7 @@ function cancel(db, req, user, note) {
   if (note) req.decisionNote = String(note).trim().slice(0, 500);
 }
 
-export function registerLeaveRoutes(route, db, { linkedEmployee }) {
+export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
   // Pending first, then newest filed first.
   const sortRequests = (list) => list.sort((a, b) => (b.status === 'pending') - (a.status === 'pending') || b.filedAt.localeCompare(a.filedAt));
 
@@ -238,7 +284,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
   // Pay periods already finalized, so a change on those dates won't reach payslips already issued.
   const finalizedOn = (dates) => db.data.payrollRuns.filter((r) => r.status === 'finalized' && dates.some((d) => d >= r.periodStart && d <= r.periodEnd));
   const employeeLeave = (emp, year) => ({
-    employee: { id: emp.id, name: `${emp.firstName} ${emp.lastName}`, employeeNo: emp.employeeNo, department: emp.department || '', status: emp.status, hireDate: emp.hireDate || null },
+    employee: { id: emp.id, name: `${emp.firstName} ${emp.lastName}`, employeeNo: emp.employeeNo, department: emp.department || '', status: emp.status, hireDate: emp.hireDate || null, gender: emp.gender || '' },
     year,
     balances: leaveBalances(db, emp.id, year),
     // Reversed first so adjustments saved in the same instant stay newest first.
@@ -256,6 +302,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
   route('PUT', '/api/employees/:id/leave-access', 'leave.adjust', ({ params, body, user }) => {
     const emp = employeeOf(params.id);
     const type = findLeaveType(db, body.leaveTypeId);
+    const block = body.offered === true && genderBlock(type, emp);
+    if (block) throw new HttpError(400, block);
     db.data.leaveAccess = db.data.leaveAccess.filter((a) => !(a.employeeId === emp.id && a.leaveTypeId === type.id));
     if (body.offered === true || body.offered === false) {
       db.data.leaveAccess.push({ employeeId: emp.id, leaveTypeId: type.id, offered: body.offered, updatedAt: new Date().toISOString(), updatedBy: user.name });
@@ -292,6 +340,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
   route('POST', '/api/employees/:id/leave-days', 'leave.adjust', ({ params, body, user }) => {
     const emp = employeeOf(params.id);
     const type = findLeaveType(db, body.leaveTypeId);
+    const block = genderBlock(type, emp);
+    if (block) throw new HttpError(400, block);
     const { startDate, endDate } = body;
     if (!DATE_RE.test(startDate || '') || !DATE_RE.test(endDate || '')) throw new HttpError(400, 'Pick a start and end date.');
     if (endDate < startDate) throw new HttpError(400, 'The end date must be on or after the start date.');
@@ -334,6 +384,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
     sortRequests(db.data.requests.filter((r) => !query.status || r.status === query.status).map((r) => withEmployee(db, r))),
   );
   route('GET', '/api/requests/summary', 'leave.manage', () => ({ pending: db.data.requests.filter((r) => r.status === 'pending').length }));
+  route('GET', '/api/requests/:id/attachment', 'leave.manage', ({ params }) => files.read(findRequest(db, params.id).attachment));
   route('POST', '/api/requests/:id/approve', 'leave.approve', ({ params, body, user }) => {
     const req = findRequest(db, params.id);
     approve(db, req, user, body.note);
@@ -363,7 +414,9 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
   route('POST', '/api/me/requests', 'self', ({ user, body }) => {
     const emp = linkedEmployee(user);
     if (emp.status !== 'Active') throw new HttpError(400, 'Inactive employees cannot file requests.');
-    const req = buildRequest(db, emp, user, body);
+    const upload = body.kind !== 'remote' && body.attachment ? parseUpload(body.attachment) : null;
+    const req = buildRequest(db, emp, user, body, upload);
+    if (upload) req.attachment = files.save(upload);
     db.data.requests.push(req);
     db.save();
     return withEmployee(db, req);
@@ -375,6 +428,25 @@ export function registerLeaveRoutes(route, db, { linkedEmployee }) {
     if (req.status !== 'pending') throw new HttpError(400, 'Only pending requests can be withdrawn. Ask HR to cancel an approved one.');
     cancel(db, req, user);
     db.save();
+    return withEmployee(db, req);
+  });
+  const ownRequest = (user, id) => {
+    const emp = linkedEmployee(user);
+    const req = findRequest(db, id);
+    if (req.employeeId !== emp.id) throw new HttpError(404, 'Request not found.');
+    return req;
+  };
+  route('GET', '/api/me/requests/:id/attachment', 'self', ({ user, params }) => files.read(ownRequest(user, params.id).attachment));
+  // Attach or replace the medical certificate on a pending leave request.
+  route('PUT', '/api/me/requests/:id/attachment', 'self', ({ user, params, body }) => {
+    const req = ownRequest(user, params.id);
+    if (req.kind !== 'leave') throw new HttpError(400, 'Files can only be attached to leave requests.');
+    if (req.status !== 'pending') throw new HttpError(400, 'The certificate can only be changed while the request is pending.');
+    const upload = parseUpload(body.attachment);
+    const old = req.attachment;
+    req.attachment = files.save(upload);
+    db.save();
+    files.remove(old);
     return withEmployee(db, req);
   });
   route('GET', '/api/me/leave-balances', 'self', ({ user, query }) => {

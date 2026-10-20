@@ -588,8 +588,8 @@ h2.spaced { margin-top: 22px; }
 
 #add-change { align-self: flex-start; }
 @media (max-width: 760px) {
-  .modal .grid.two { grid-template-columns: 1fr; }
-  .modal .grid.two > * { grid-column: 1 / -1; }
+  .grid.two { grid-template-columns: 1fr; }
+  .grid.two > * { grid-column: 1 / -1; }
 }
 
 /* ===== Employee leave ===== */
@@ -603,6 +603,25 @@ h2.spaced { margin-top: 22px; }
 .switch input:checked { background: var(--maroon); }
 .switch input:checked::after { left: 18px; }
 .switch input:focus-visible { outline: 3px solid rgba(204, 153, 52, 0.4); outline-offset: 2px; }
+
+/* ===== Feedback and attachments ===== */
+.seg.wrap { flex-wrap: wrap; width: auto; }
+.seg.wrap label { border-left: 0; border-right: 1px solid #d6cfcc; white-space: nowrap; flex: 1 1 auto; justify-content: center; }
+.seg.wrap input { width: auto; flex: none; margin: 0; }
+.seg.wrap label:last-child { border-right: 0; }
+.table tr.unread td:first-child { box-shadow: inset 3px 0 0 var(--gold-bright); }
+.table tr.unread strong { color: var(--maroon); }
+.fb-mine { display: grid; gap: 10px; }
+.fb-item { border: 1px solid #e7e1df; border-radius: 8px; padding: 10px 14px; }
+.fb-item > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.fb-item > summary small { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fb-item .report-text { margin: 10px 0; }
+.att-preview { display: block; width: 100%; height: min(70vh, 720px); border: 1px solid var(--border); border-radius: 8px; background: #f6f4f3; object-fit: contain; }
+img.att-preview { height: auto; max-height: 70vh; }
+.cert-link { display: block; padding: 0; margin-top: 4px; font-size: 13px; text-align: left; }
+.cert-field.required > span { color: var(--maroon); font-weight: 700; }
+.cert-field input[type=file] { padding: 8px; border: 1px dashed #cfc6c3; border-radius: 8px; background: #faf8f7; }
+.cert-field.required input[type=file] { border-color: var(--gold-bright); background: var(--gold-soft); }
 
 /* ===== Phones and small tablets ===== */
 .topbar, .nav-scrim { display: none; }

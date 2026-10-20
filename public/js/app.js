@@ -17,6 +17,7 @@ import { inventoryView, inventoryItemView } from './views/inventory.js';
 import { allocationsView, activityView, myAssetsView } from './views/allocations.js';
 import { reportsView, reportDetailView } from './views/reports.js';
 import { devlogView, unseenCount } from './views/devlog.js';
+import { feedbackView, feedbackInboxView, feedbackDetailView } from './views/feedback.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -57,6 +58,9 @@ const routes = [
   ['/users', usersView, 'users.manage', 'system'],
   ['/settings', settingsView, 'settings.edit', 'system'],
   ['/devlog', devlogView, 'devlog.view', 'system'],
+  ['/feedback', feedbackView, 'auth', 'system'],
+  ['/feedback/inbox', feedbackInboxView, 'feedback.view', 'system'],
+  ['/feedback/inbox/:id', feedbackDetailView, 'feedback.view', 'system'],
 ].map(([pattern, view, permission, module]) => {
   const keys = [];
   const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
@@ -95,6 +99,9 @@ const NAV = {
     { href: '/users', label: 'Users & Access', permission: 'users.manage' },
     { href: '/settings', label: 'Settings', permission: 'settings.edit' },
     { href: '/devlog', label: 'Dev log', permission: 'devlog.view', badge: 'devlog' },
+    { href: '/feedback/inbox', label: 'Feedback inbox', permission: 'feedback.view', badge: 'feedback' },
+    { heading: 'Help', permission: 'auth' },
+    { href: '/feedback', label: 'Send feedback', permission: 'auth', exact: true },
   ],
 };
 
@@ -146,11 +153,12 @@ function renderUserBox() {
   document.getElementById('sign-out').addEventListener('click', signOut);
 }
 
-// Counts next to menu items: pending leave approvals, new equipment problem reports, unread dev log releases.
+// Counts next to menu items: pending leave approvals, new equipment problem reports, unread dev log releases, new feedback.
 const BADGES = {
   requests: () => (can('leave.approve') ? api.get('/api/requests/summary').then((r) => r.pending) : 0),
   reports: () => api.get('/api/asset-reports/summary').then((r) => r.new),
   devlog: () => unseenCount(),
+  feedback: () => api.get('/api/feedback/summary').then((r) => r.new),
 };
 async function refreshBadge() {
   for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
@@ -261,6 +269,7 @@ window.addEventListener('hashchange', navigate);
 window.addEventListener('requests:changed', refreshBadge);
 window.addEventListener('reports:changed', refreshBadge);
 window.addEventListener('devlog:seen', refreshBadge);
+window.addEventListener('feedback:changed', refreshBadge);
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;

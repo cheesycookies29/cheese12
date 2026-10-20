@@ -23,6 +23,7 @@ export function emptyData() {
     stockMovements: [], // stock in / issued / count adjustments
     issueReports: [], // employees' problem reports on assigned equipment
     devlog: { author: null, entries: [], imported: [] }, // release notes, editable by admins (server/devlog.js)
+    feedback: [], // feedback from any signed-in user, read by administrators
   };
 }
 
@@ -44,9 +45,12 @@ export function openDb(file) {
     data.inventoryItems ||= [];
     data.stockMovements ||= [];
     data.issueReports ||= [];
+    data.feedback ||= [];
   }
 
   const db = {
+    // Folder holding the data file; uploaded files are kept under it.
+    dir: path.dirname(file),
     get data() {
       return data;
     },

@@ -1,3 +1,5 @@
 # Nightly copy of the LTDC ERP data file at 2:15 AM server time (set to Asia/Manila in the guide);
-# copies older than 30 days are deleted. Install: sudo cp ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
+# copies older than 30 days are deleted. At 2:20 AM, attached files (medical certificates) are
+# mirrored to backups/attachments. Install: sudo cp ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
 15 2 * * * ltdc cp /opt/ltdc-erp/data/db.json /opt/ltdc-erp/data/backups/db-$(date +\%F).json && find /opt/ltdc-erp/data/backups -name 'db-*.json' -mtime +30 -delete
+20 2 * * * ltdc mkdir -p /opt/ltdc-erp/data/attachments /opt/ltdc-erp/data/backups/attachments && rsync -a /opt/ltdc-erp/data/attachments/ /opt/ltdc-erp/data/backups/attachments/

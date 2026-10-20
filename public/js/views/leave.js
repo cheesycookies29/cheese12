@@ -1,12 +1,17 @@
 // Leave & Requests: approvals, leave balances and credits, leave types.
 import { api } from '../api.js';
 import { ctx, can } from '../state.js';
-import { REQUEST_STATUS } from '/shared/leave.js';
+import { REQUEST_STATUS, LEAVE_GENDERS } from '/shared/leave.js';
 import { html, mount, fmtDate, badge, toast, modal, confirmDialog, today } from '../ui.js';
+import { viewAttachment } from '../attachments.js';
 
 const STATUS_BADGE = { pending: 'amber', approved: 'green', rejected: 'gray', cancelled: 'gray' };
 export const statusBadge = (s) => badge(REQUEST_STATUS[s] || s, STATUS_BADGE[s]);
 export const kindBadge = (r) => (r.kind === 'remote' ? badge('Remote work', 'blue') : badge(r.typeName, 'maroon-soft'));
+// Medical certificate on a request: a link to open it, or a warning if one is required and missing.
+export const certificateCell = (r, url) => r.attachment
+  ? html`<button type="button" class="link cert-link" data-cert="${r.id}" data-cert-url="${url}">📎 Medical certificate</button>`
+  : r.certificateRequired && ['pending', 'approved'].includes(r.status) ? html`<small>${badge('Certificate missing', 'amber')}</small>` : '';
 export const dateRange = (r) => (r.startDate === r.endDate ? fmtDate(r.startDate) : `${fmtDate(r.startDate, { month: 'short', day: 'numeric' })} – ${fmtDate(r.endDate)}`);
 
 const TABS = [
@@ -52,7 +57,7 @@ async function requestsTab(el, query) {
               <thead><tr><th>Employee</th><th>Request</th><th>Dates</th><th class="num">Days</th><th>Reason</th><th>Status</th><th></th></tr></thead>
               <tbody>${list.map((r) => html`<tr>
                 <td><strong>${r.employeeName}</strong><small>${r.employeeNo}</small></td>
-                <td>${kindBadge(r)}</td>
+                <td>${kindBadge(r)}${certificateCell(r, `/api/requests/${r.id}/attachment`)}</td>
                 <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
                 <td class="num">${r.days}</td>
                 <td class="notes">${r.reason}</td>
@@ -73,6 +78,8 @@ async function requestsTab(el, query) {
     });
     el.querySelector('tbody')?.addEventListener('click', (e) => {
       const t = e.target;
+      const cert = t.closest('[data-cert-url]');
+      if (cert) return viewAttachment(cert.dataset.certUrl).catch((err) => toast(err.message, 'error'));
       const r = list.find((x) => x.id === (t.dataset.approve || t.dataset.reject || t.dataset.cancel));
       if (!r) return;
       const action = t.dataset.approve ? 'approve' : t.dataset.reject ? 'reject' : 'cancel';
@@ -82,6 +89,7 @@ async function requestsTab(el, query) {
         submitLabel: { approve: 'Approve', reject: 'Reject', cancel: 'Cancel request' }[action],
         body: html`<p><strong>${what}</strong></p>
           ${r.reason ? html`<p class="muted">“${r.reason}”</p>` : ''}
+          ${r.attachment ? html`<p><button type="button" class="link" data-open-cert>📎 Open the medical certificate</button></p>` : r.certificateRequired && action === 'approve' ? html`<div class="notice"><p>No medical certificate is attached. This request can't be approved until the employee attaches one under My Requests.</p></div>` : ''}
           <p class="muted small">${{
             approve: r.kind === 'remote' ? 'Each work day in the range is marked as remote work in the DTR and counts as a full day.' : 'Each work day in the range is recorded as leave in the DTR and deducted from the balance.',
             reject: 'The employee will see the rejection and your note.',
@@ -96,6 +104,7 @@ async function requestsTab(el, query) {
         },
       });
       if (action !== 'approve') form.querySelector('[type=submit]').classList.add('danger');
+      form.querySelector('[data-open-cert]')?.addEventListener('click', () => viewAttachment(`/api/requests/${r.id}/attachment`).catch((err) => toast(err.message, 'error')));
     });
   }
   await load();
@@ -255,10 +264,17 @@ async function employeeLeaveTab(el, query) {
             const type = ctx.leaveTypes.find((t) => t.id === b.leaveTypeId) || {};
             const byDefault = type.appliesTo !== 'selected';
             const custom = b.offered !== byDefault;
+            if (b.eligible === false) {
+              return html`<tr class="not-offered">
+                <td><strong>${b.name}</strong><small>${b.code} · ${b.paid ? 'paid' : 'unpaid'}${b.active ? '' : ' · inactive'}</small></td>
+                <td><label class="switch"><input type="checkbox" disabled /><span>No</span></label><small>${LEAVE_GENDERS[b.gender]}</small></td>
+                <td colspan="6" class="muted small">${LEAVE_GENDERS[b.gender]}; ${e.gender ? `${e.name.split(' ')[0]}'s record says ${e.gender}` : html`no gender on ${e.name.split(' ')[0]}'s record. <a href="#/employees/${e.id}/edit">Set it</a>`}${b.used ? ` · ${b.used} day(s) already recorded this year` : ''}</td>
+              </tr>`;
+            }
             return html`<tr class="${b.offered ? '' : 'not-offered'}">
               <td><strong>${b.name}</strong><small>${b.code} · ${b.paid ? 'paid' : 'unpaid'}${b.active ? '' : ' · inactive'}</small></td>
               <td><label class="switch"><input type="checkbox" data-access="${b.leaveTypeId}" ${b.offered ? 'checked' : ''} /><span>${b.offered ? 'Yes' : 'No'}</span></label>
-                <small>${custom ? html`set for ${e.name.split(' ')[0]} · <button type="button" class="link" data-reset="${b.leaveTypeId}">use default</button>` : byDefault ? 'everyone gets it' : 'selected employees only'}</small></td>
+                <small>${custom ? html`set for ${e.name.split(' ')[0]} · <button type="button" class="link" data-reset="${b.leaveTypeId}">use default</button>` : byDefault ? (b.gender ? LEAVE_GENDERS[b.gender].toLowerCase() : 'everyone gets it') : 'selected employees only'}</small></td>
               ${b.offered
                 ? html`<td class="num"><button type="button" class="link" data-credits="${b.leaveTypeId}" title="Change credits">${b.credits ?? 'No limit'}</button>${b.overridden ? html`<small>custom</small>` : ''}</td>
                   <td class="num">${b.adjusted ? signed(b.adjusted) : html`<span class="muted">—</span>`}</td>
@@ -365,6 +381,14 @@ function typeForm(t = {}) {
         <option value="all" ${t.appliesTo !== 'selected' ? 'selected' : ''}>Every employee (you can remove it for someone)</option>
         <option value="selected" ${t.appliesTo === 'selected' ? 'selected' : ''}>Only employees you add, under Employee leave</option>
       </select></label>
+    <label class="field"><span>Limited to</span>
+      <select name="gender">
+        <option value="" ${t.gender ? '' : 'selected'}>Any gender</option>
+        ${Object.entries(LEAVE_GENDERS).map(([k, v]) => html`<option value="${k}" ${t.gender === k ? 'selected' : ''}>${v}</option>`)}
+      </select><small class="muted">Uses the gender on the employee record, e.g. maternity or paternity leave.</small></label>
+    <label class="field"><span>Medical certificate needed when longer than (days)</span>
+      <input type="number" name="certificateAfterDays" min="0" max="365" step="1" value="${t.certificateAfterDays ?? ''}" placeholder="Never" />
+      <small class="muted">Blank = never. 3 = required for 4 or more work days; 0 = always.</small></label>
     <label class="field check span-2"><input type="checkbox" name="active" ${t.active === false ? '' : 'checked'} /> <span>Active (employees can file it)</span></label>
   </div>`;
 }
@@ -377,12 +401,13 @@ async function typesTab(el) {
       <section class="card">
         <div class="toolbar"><button class="btn primary" id="add-type">+ Add leave type</button></div>
         <table class="table">
-          <thead><tr><th>Code</th><th>Name</th><th>Pay</th><th class="num">Annual credits</th><th>Who gets it</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Code</th><th>Name</th><th>Pay</th><th class="num">Annual credits</th><th>Who gets it</th><th>Rules</th><th>Status</th><th></th></tr></thead>
           <tbody>${types.map((t) => html`<tr>
             <td><strong>${t.code}</strong></td><td>${t.name}</td>
             <td>${t.paid ? badge('Paid', 'green') : badge('Unpaid', 'gray')}</td>
             <td class="num">${t.annualCredits ?? 'No limit'}</td>
-            <td>${t.appliesTo === 'selected' ? badge('Selected employees', 'blue') : 'Everyone'}</td>
+            <td>${t.appliesTo === 'selected' ? badge('Selected employees', 'blue') : 'Everyone'}${t.gender ? html`<small>${LEAVE_GENDERS[t.gender]}</small>` : ''}</td>
+            <td>${t.certificateAfterDays != null ? html`<span class="small">Medical certificate ${t.certificateAfterDays === 0 ? 'always' : `over ${t.certificateAfterDays} day${t.certificateAfterDays === 1 ? '' : 's'}`}</span>` : html`<span class="muted">—</span>`}</td>
             <td>${t.active ? badge('Active', 'green') : badge('Inactive', 'gray')}</td>
             <td class="row-actions"><button class="link" data-edit="${t.id}">Edit</button><button class="link danger" data-delete="${t.id}">Delete</button></td>
           </tr>`)}</tbody>
@@ -392,7 +417,10 @@ async function typesTab(el) {
 
     const read = (f) => {
       const fd = new FormData(f);
-      return { code: fd.get('code'), name: fd.get('name'), annualCredits: fd.get('annualCredits'), paid: fd.has('paid'), active: fd.has('active'), appliesTo: fd.get('appliesTo') };
+      return {
+        code: fd.get('code'), name: fd.get('name'), annualCredits: fd.get('annualCredits'), paid: fd.has('paid'), active: fd.has('active'),
+        appliesTo: fd.get('appliesTo'), gender: fd.get('gender'), certificateAfterDays: fd.get('certificateAfterDays'),
+      };
     };
     el.querySelector('#add-type').addEventListener('click', () =>
       modal({ title: 'Add leave type', body: typeForm(), submitLabel: 'Add', onSubmit: async (f) => { await api.post('/api/leave-types', read(f)); toast('Leave type added.'); load(); } }),

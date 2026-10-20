@@ -38,7 +38,11 @@ async function moduleStats() {
 
 export async function launcherView(el) {
   const u = ctx.user;
-  const [stats, devlogNew] = await Promise.all([moduleStats(), can('devlog.view') ? unseenCount().catch(() => 0) : 0]);
+  const [stats, devlogNew, feedbackNew] = await Promise.all([
+    moduleStats(),
+    can('devlog.view') ? unseenCount().catch(() => 0) : 0,
+    can('feedback.view') ? api.get('/api/feedback/summary').then((r) => r.new).catch(() => 0) : 0,
+  ]);
   const live = MODULES.filter((m) => m.status === 'live');
   const soon = MODULES.filter((m) => m.status !== 'live');
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -68,6 +72,7 @@ export async function launcherView(el) {
         <img src="/img/logo.png" alt="Lancaster Technology and Development" />
         <div class="lc-user">
           <div><strong>${u.name}</strong><small>${roleLabel(u.role)}</small></div>
+          <a class="link" href="#/feedback">Send feedback</a>
           <button class="link" id="lc-pw">Change password</button>
           <button class="btn small-btn" id="lc-out">Sign out</button>
         </div>
@@ -98,9 +103,9 @@ export async function launcherView(el) {
         ? html`<section class="lc-band">
             <div>
               <h2>System Administration</h2>
-              <p>Manage user accounts and access, company details and data backups for all modules, and see what changed in each release.</p>
+              <p>Manage user accounts and access, company details and data backups for all modules, see what changed in each release, and read feedback from users.</p>
             </div>
-            <div class="lc-band-actions"><a class="lc-band-btn" href="#/users">Users &amp; Access</a><a class="lc-band-btn" href="#/settings">Settings &amp; Backups</a>${can('devlog.view') ? html`<a class="lc-band-btn" href="#/devlog">Dev log${devlogNew ? html`<span class="lc-band-count">${devlogNew} new</span>` : ''}</a>` : ''}</div>
+            <div class="lc-band-actions"><a class="lc-band-btn" href="#/users">Users &amp; Access</a><a class="lc-band-btn" href="#/settings">Settings &amp; Backups</a>${can('devlog.view') ? html`<a class="lc-band-btn" href="#/devlog">Dev log${devlogNew ? html`<span class="lc-band-count">${devlogNew} new</span>` : ''}</a>` : ''}${can('feedback.view') ? html`<a class="lc-band-btn" href="#/feedback/inbox">Feedback${feedbackNew ? html`<span class="lc-band-count">${feedbackNew} new</span>` : ''}</a>` : ''}</div>
           </section>`
         : ''}
 

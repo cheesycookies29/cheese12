@@ -50,6 +50,8 @@ export const PERMISSION_LABELS = [
   ['users.manage', 'Manage user accounts'],
   ['devlog.view', 'Dev log: release notes and installed version'],
   ['devlog.edit', 'Write and edit dev log entries'],
+  ['feedback.view', 'Read feedback sent by users'],
+  ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
 ];
 
