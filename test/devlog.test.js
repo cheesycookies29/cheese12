@@ -107,3 +107,22 @@ test('dev log: built-in entries are imported once; admins edit, add and delete; 
   await assert.rejects(it('GET', '/api/devlog'), /does not have access/);
   await assert.rejects(it('POST', '/api/devlog', body), /does not have access/);
 });
+
+test('unedited built-in entries follow revised wording; edited ones are kept', async () => {
+  const { file, db, client } = setup();
+  const admin = client();
+  await admin('POST', '/api/auth/setup', { name: 'Admin', username: 'admin', password: 'secret123' });
+  const { entries } = await admin('GET', '/api/devlog');
+  const [a, b] = [entries.find((e) => e.version === '0.0.1-alpha'), entries.find((e) => e.version === '0.0.2-alpha')];
+  // Simulate wording from an older build on one entry and an admin edit on another.
+  db.data.devlog.entries.find((e) => e.id === a.id).title = 'Old wording';
+  db.save();
+  await admin('PUT', `/api/devlog/${b.id}`, { ...b, title: 'Edited by admin' });
+
+  const reopened = openDb(file);
+  createApi(reopened);
+  const after = reopened.data.devlog.entries;
+  assert.equal(after.find((e) => e.id === a.id).title, DEVLOG.at(-1).title);
+  assert.equal(after.find((e) => e.id === b.id).title, 'Edited by admin');
+  assert.equal(after.length, DEVLOG.length);
+});

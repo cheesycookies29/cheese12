@@ -1,17 +1,16 @@
-// Dev log: one entry per build, newest first, written by the developer in the
-// first person, the way I'd explain it to a colleague.
+// Dev log: the changelog, one entry per build, newest first. Written by a single
+// maintainer in a formal, concise register (Keep a Changelog conventions).
 //
-// These are the built-in entries. Each one is copied into the database the first
-// time a server runs that build (server/devlog.js); from then on administrators
-// can edit or delete it on the Dev log page, and changing it here does not
-// overwrite their edits.
+// These are the built-in entries. The server copies each one into its database
+// (server/devlog.js) and keeps it in step with this file until an administrator
+// edits it on the Dev log page; edited or deleted entries are left alone.
 //
 // When something ships: add an entry at the top and set package.json "version"
 // to the same value (a test checks both).
-//   version  semver with a stage, e.g. '0.2.4-alpha'
+//   version  semver with a stage, e.g. '0.2.8-alpha'
 //   modules  hr | assets | system | deploy
-//   changes  [type, module, text], type is new | improved | fixed
-//   known    issues I know about in this build (optional)
+//   changes  [type, module, text], type is new (Added) | improved (Changed) | fixed (Fixed)
+//   known    known issues in this build (optional)
 
 export const DEVLOG_MODULES = {
   hr: 'HR & Payroll',
@@ -20,155 +19,171 @@ export const DEVLOG_MODULES = {
   deploy: 'Deployment & hosting',
 };
 
-export const CHANGE_TYPES = { new: 'New', improved: 'Improved', fixed: 'Fixed' };
+// Short module keys shown as scopes, e.g. "Fixed  system  …".
+export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', system: 'system', deploy: 'deploy' };
+
+export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' };
 
 export const DEVLOG = [
   {
+    version: '0.2.8-alpha',
+    date: '2026-10-20',
+    title: 'Dev log redesign',
+    modules: ['system'],
+    notes: 'Reworked the Dev log into a compact changelog view and rewrote all entries in a formal register.',
+    changes: [
+      ['improved', 'system', 'Compact changelog layout: monospace version and ISO date per release, Added / Changed / Fixed labels with module scopes, and a one-line build information bar.'],
+      ['new', 'system', 'Collapsible releases. The three most recent are expanded; older releases show a change summary and expand on demand.'],
+      ['new', 'system', 'Filter by change type in addition to module and free-text search.'],
+      ['new', 'system', 'Export of the full log as CHANGELOG.md.'],
+      ['improved', 'system', 'Built-in entries that have not been edited by an administrator are now updated in place when a newer build revises their wording.'],
+    ],
+  },
+  {
     version: '0.2.7-alpha',
     date: '2026-10-19',
-    title: 'A proper phone layout',
+    title: 'Mobile layout',
     modules: ['system'],
-    notes: 'On a phone the app was usable but rough. The whole menu sat on top of every page, so you scrolled past a wall of links before seeing anything, and wide tables like Employees and Attendance ran off the right edge. I gave phones their own layout: a slim top bar with the menu tucked into a drawer, and tables that turn into tidy cards, one per row, with labels.',
+    notes: 'Introduced a dedicated phone layout. The sidebar no longer occupies the top of every page, and wide tables no longer overflow the screen.',
     changes: [
-      ['improved', 'system', 'Slim top bar on phones with the logo, the module you are in and a menu button. The menu slides in from the left and closes when you pick a page, tap outside it or press Escape. A dot on the button means something is waiting, like pending requests.'],
-      ['improved', 'system', 'Tables on phones show each row as a card of labelled lines instead of a squeezed grid, with empty fields left out. Grids that need columns, like leave balances and the access matrix, still scroll sideways.'],
-      ['improved', 'system', 'Pop-up forms open as a bottom sheet with full-width buttons, tabs scroll sideways instead of wrapping, figures sit in two even columns, and filters and page buttons use the full width.'],
-      ['fixed', 'system', 'Stat cards were slightly staggered (the first one sat higher than the rest), on desktop too, and the last card on an asset page touched the one above it.'],
+      ['improved', 'system', 'Phone top bar with logo, current module and menu button; the sidebar opens as a drawer and closes on navigation, scrim tap or Escape. A dot on the button indicates pending menu badges.'],
+      ['improved', 'system', 'Tables render as one labelled card per row below 760 px, with empty fields omitted. Grid tables (leave balances, access matrix, tax editor) keep horizontal scrolling with a pinned first column.'],
+      ['improved', 'system', 'Bottom-sheet modals, horizontally scrolling tabs, two-column stat grid, and full-width filters and page actions.'],
+      ['fixed', 'system', 'Stat cards were vertically staggered on all screen sizes; card groups on asset pages had no spacing.'],
     ],
-    known: ['The payroll register gets long on a phone, one card per employee with every column. It works, but running payroll is still easier on a computer.'],
+    known: ['The payroll register is long on phones (one card per employee, all columns). Payroll runs are better handled on a desktop.'],
   },
   {
     version: '0.2.6-alpha',
     date: '2026-10-17',
-    title: 'Stray dev log windows',
+    title: 'Stray dev log dialogs',
     modules: ['system'],
-    notes: 'After opening the Dev log, clicking Edit on a user (or anything else with an Edit button) also popped up a "New dev log entry" window, and one more for every time I had visited the Dev log. The Dev log page was listening for clicks on the area every page shares and never let go. It now only listens on its own page, and each page gets a fresh area when you navigate, so no page can leave something like this behind again.',
+    notes: 'Fixed dev log dialogs opening on unrelated pages after the Dev log had been visited.',
     changes: [
-      ['fixed', 'system', 'Editing a user, a leave type or an attendance record no longer opens dev log windows on top.'],
-      ['improved', 'system', 'Every page starts with a clean slate when you navigate, so leftovers from one page can\'t affect the next.'],
+      ['fixed', 'system', 'Edit and Delete actions on users, leave types and attendance records no longer open dev log dialogs. The Dev log click handler was bound to the shared page container and never released.'],
+      ['improved', 'system', 'Each route now renders into a fresh container, so a view cannot leave event listeners behind for the next one.'],
     ],
   },
   {
     version: '0.2.5-alpha',
     date: '2026-10-17',
-    title: 'Managing one person\'s leave',
+    title: 'Per-employee leave management',
     modules: ['hr'],
-    notes: 'Leave was all-or-nothing: every leave type applied to everyone, and the only per-person tweak was a credit total in the balances grid. Real life is messier. Not everyone qualifies for maternity or solo parent leave, some people get leave nobody else does, and paper-filed leave and carry-overs had no proper home. So I added an Employee leave tab where an admin can handle all of that for one person, with a reason on record for every adjustment.',
+    notes: 'Added administrator tools to manage leave for an individual employee: leave types offered, credits, adjustments and directly recorded leave days.',
     changes: [
-      ['new', 'hr', 'Employee leave tab (Leave & Requests, administrators only): pick an employee and a year to see every leave type with credits, adjustments, used, pending and remaining.'],
-      ['new', 'hr', 'Switch a leave type on or off for one employee. They can only file, and only see balances for, the types they get.'],
-      ['new', 'hr', 'Leave types can be for everyone or only for employees you add. Good for things like study leave.'],
-      ['new', 'hr', 'Adjust a balance up or down in half days with a reason (carry-over, offsets, corrections). Every adjustment is listed with who made it and can be removed.'],
-      ['new', 'hr', 'Record leave directly for leave taken outside the system. It goes into the DTR one day per scheduled work day, and you can remove it again.'],
-      ['improved', 'hr', '"Manage leave" button on the employee profile, and "n/a" in the balances grid for types someone doesn\'t get.'],
-      ['improved', 'hr', 'Balance totals now include adjustments, so a +2 carry-over shows as 15 of 17 instead of 15 of 15.'],
+      ['new', 'hr', 'Employee leave tab (Leave & Requests, administrators only), also reachable from the employee profile, showing credits, adjustments, used, pending and remaining per leave type.'],
+      ['new', 'hr', 'Per-employee toggle for each leave type. Employees can only view and file the types they are offered.'],
+      ['new', 'hr', 'Leave type scope: every employee, or only employees added by an administrator.'],
+      ['new', 'hr', 'Balance adjustments in half-day steps with a mandatory reason; each adjustment is recorded with its author and can be removed.'],
+      ['new', 'hr', 'Direct recording of leave days into the DTR (one per scheduled work day), with removal for days not tied to a request.'],
+      ['improved', 'hr', 'Balance totals include adjustments; the balances grid shows "n/a" for types not offered to an employee.'],
+      ['fixed', 'hr', 'Adjustments saved in the same millisecond could be listed out of order.'],
     ],
-    known: ['Recording leave in a pay period that is already finalized does not change payslips already issued. The page warns you when that happens.', 'Only Administrators can use Employee leave for now; HR Managers keep the balances grid.'],
+    known: ['Leave recorded in an already finalized pay period does not change issued payslips; the page displays a warning.', 'Employee leave is restricted to Administrators; HR Managers retain the balances grid.'],
   },
   {
     version: '0.2.4-alpha',
     date: '2026-10-15',
-    title: 'An editable dev log',
+    title: 'Editable dev log',
     modules: ['system'],
-    notes: 'Until now every note was baked into the code, so fixing a typo meant shipping a build. The log now lives in the database: as an admin I can write a new entry, edit any old one or delete it, right on this page. I also made it clear it is one person writing all of this. It is just me for now, so every entry is in my own voice under one name.',
+    notes: 'Moved dev log entries into the database so that administrators can maintain them from the application.',
     changes: [
-      ['new', 'system', 'New entry, Edit and Delete on the Dev log page for administrators: version, date, title, a short note, the list of changes and known issues.'],
-      ['new', 'system', 'The whole log shows one author. It defaults to the first administrator\'s name and can be changed on the page.'],
-      ['improved', 'system', 'Each new build still adds its own entry automatically, but edits and deletions made on the page are kept across updates.'],
-      ['improved', 'system', 'All entries rewritten in the first person.'],
+      ['new', 'system', 'Create, edit and delete entries on the Dev log page (administrators): version, date, title, summary, changes and known issues.'],
+      ['new', 'system', 'Single author name for the whole log, defaulting to the first administrator and editable on the page.'],
+      ['improved', 'system', 'Each build adds its own entry automatically; administrator edits and deletions persist across updates, demo data loads and data resets.'],
     ],
-    known: ['Edits are not versioned. If you change an entry, the old wording is gone, except in data backups.'],
+    known: ['Entry edits are not versioned; previous wording is only retained in data backups.'],
   },
   {
     version: '0.2.3-alpha',
     date: '2026-10-15',
-    title: 'Dev log, take two',
+    title: 'Version renumbering',
     modules: ['system'],
-    notes: 'The first version of this page read like a press release, and the version numbers made the system look further along than it is. I started over from 0.0.1, since this is still alpha, and rewrote every entry the way I would explain it to a colleague.',
+    notes: 'Renumbered all builds as alpha releases starting from 0.0.1-alpha and rewrote the release notes.',
     changes: [
-      ['improved', 'system', 'Builds are numbered from 0.0.1-alpha. The old 1.x and 2.x numbers were never meaningful.'],
-      ['improved', 'system', 'Each entry now says what I did and why, not just what changed, plus known issues where there are any.'],
+      ['improved', 'system', 'Builds are numbered from 0.0.1-alpha; the earlier 1.x and 2.x numbers are retired.'],
+      ['improved', 'system', 'Entries include a summary and, where applicable, known issues.'],
     ],
   },
   {
     version: '0.2.2-alpha',
     date: '2026-10-15',
-    title: 'Keeping a dev log',
+    title: 'Dev log',
     modules: ['system'],
-    notes: 'Updates now go out automatically, so it is easy to lose track of what changed and when. This page is that record. The top panel also shows which build the server is actually running, so you can confirm a deploy landed without opening GitHub.',
+    notes: 'Added a release log for administrators, together with the identity of the build running on the server.',
     changes: [
-      ['new', 'system', 'Dev log under System, for administrators only. You can filter it by module or search it.'],
-      ['new', 'system', 'Installed-version panel: build number, exact commit, when it was installed and how long it has been up.'],
-      ['new', 'system', 'An unread count on the menu item and on the launcher.'],
+      ['new', 'system', 'Dev log page under System, restricted to administrators, with module filter and search.'],
+      ['new', 'system', 'Installed version panel: version, commit, install time and uptime.'],
+      ['new', 'system', 'Unread release count on the menu item and on the launcher.'],
     ],
-    known: ['The unread count is kept in your browser, so on a different computer everything shows as unread again.'],
+    known: ['The unread state is stored per browser.'],
   },
   {
     version: '0.2.1-alpha',
     date: '2026-10-15',
-    title: 'Deploys without the terminal',
+    title: 'Automated deployment',
     modules: ['deploy'],
-    notes: 'Uploading a zip and SSHing into the server for every update got old fast. Now GitHub runs the tests on each push and, if they pass, asks AWS Systems Manager to install the build. There are no SSH keys or AWS passwords sitting in GitHub. The first run skipped the deploy without saying why, which cost me some head-scratching, so now it tells you exactly which setting is missing.',
+    notes: 'Added continuous deployment from GitHub to the EC2 server through AWS Systems Manager, without SSH keys or stored AWS credentials.',
     changes: [
-      ['new', 'deploy', '"Deploy to EC2" GitHub workflow: test, then install on the server, with a backup taken first.'],
-      ['new', 'deploy', 'A CloudFormation template creates the AWS permissions in one go, instead of clicking through IAM by hand.'],
-      ['new', 'deploy', 'Every deploy also makes sure the server is on Philippine time and the nightly backup is in place.'],
-      ['fixed', 'deploy', 'Deploys were silently skipped when the settings were missing or saved somewhere unexpected. Settings now work from Variables or Secrets, and anything missing is named in the run.'],
+      ['new', 'deploy', '"Deploy to EC2" workflow: runs the test suite, then installs the build on the server after taking a data backup.'],
+      ['new', 'deploy', 'CloudFormation template that provisions the required IAM role, instance profile and GitHub OIDC provider.'],
+      ['new', 'deploy', 'Each deployment enforces the Asia/Manila time zone and installs the nightly backup job.'],
+      ['fixed', 'deploy', 'The deploy job was skipped without explanation when settings were missing. Settings are read from repository variables or secrets, validated, and missing values are reported in the run summary.'],
     ],
-    known: ['GitHub shows a warning that one of the AWS add-ons it uses runs on an older Node.js. Nothing is affected; I will bump it when I am next in there.'],
+    known: ['GitHub reports a Node.js 20 deprecation warning for aws-actions/configure-aws-credentials; it has no functional impact.'],
   },
   {
     version: '0.2.0-alpha',
     date: '2026-10-15',
-    title: 'Problem reports',
+    title: 'Equipment problem reports',
     modules: ['assets', 'deploy'],
-    notes: 'Until now, if a laptop broke, someone had to message IT and hope it did not get buried. Employees can now report it from My Assets, and IT and admins get a proper queue. It is mainly built for laptops, but it works for anything assigned to a person. I also found the cloud server was running on UTC, eight hours behind, which would have messed up clock-ins, so I fixed that too.',
+    notes: 'Added problem reporting for assigned equipment, with a review queue for IT and administrators.',
     changes: [
-      ['new', 'assets', '"Report a problem" on each item in My Assets: what is wrong, whether you can still work, when you noticed it and a description.'],
-      ['new', 'assets', 'Problem reports page for IT and admins, with a count of new ones in the menu, filters and CSV export. HR can look but not change anything.'],
-      ['new', 'assets', 'Reports move from New to Being checked to Resolved or Closed, and IT can leave notes the employee sees in My Assets.'],
-      ['improved', 'assets', 'Open reports show on the IT overview, on the asset page and history, and on the launcher.'],
-      ['fixed', 'assets', 'Two history entries saved in the same millisecond could show in the wrong order. They are now always newest first.'],
-      ['fixed', 'deploy', 'The server clock is set to Asia/Manila, so attendance and report dates are no longer 8 hours off.'],
+      ['new', 'assets', 'Report a problem from My Assets: type (malfunction, physical damage, lost or stolen, other), work impact, date noticed and description.'],
+      ['new', 'assets', 'Problem reports page for IT and administrators with new-report badge, filters and CSV export; read-only for HR.'],
+      ['new', 'assets', 'Report workflow (New, Being checked, Resolved, Closed) with notes visible to the reporting employee.'],
+      ['improved', 'assets', 'Open reports are shown on the IT overview, the asset page and history, and the launcher.'],
+      ['fixed', 'assets', 'History entries with identical timestamps could be listed out of order.'],
+      ['fixed', 'deploy', 'Server time zone set to Asia/Manila; attendance and report dates were 8 hours behind.'],
     ],
-    known: ['No photo attachments on reports yet.', 'IT is not emailed when a report comes in; they see it in the app.'],
+    known: ['Reports do not support photo attachments.', 'No email notification is sent for new reports.'],
   },
   {
     version: '0.1.2-alpha',
     date: '2026-10-14',
-    title: 'Moving to the cloud',
+    title: 'Cloud hosting',
     modules: ['deploy', 'system'],
-    notes: 'Running on one laptop meant nobody could clock in when that laptop was off. I wrote up a full EC2 setup with HTTPS, backups and snapshots. It started as a Lightsail guide, but I switched to EC2 to use the AWS credits. Updates went from "copy a folder by hand" to one command.',
+    notes: 'Added documentation and tooling to run the ERP on Amazon EC2 over HTTPS.',
     changes: [
-      ['new', 'deploy', 'EC2 setup guide covering the server, web address (with a free DuckDNS fallback), automatic HTTPS, daily snapshots and nightly data backups.'],
-      ['new', 'deploy', 'One-command update script that backs up the data before touching anything.'],
-      ['new', 'system', 'The sign-in cookie can be locked to HTTPS for online use, and the first admin can be created from the server before the site goes public.'],
+      ['new', 'deploy', 'EC2 deployment guide: instance, DNS (with a DuckDNS fallback), automatic HTTPS via Caddy, daily snapshots and nightly data backups.'],
+      ['new', 'deploy', 'Update script that backs up the data file before installing a new build.'],
+      ['new', 'system', 'COOKIE_SECURE option for HTTPS-only session cookies, and a command to create the first administrator from the server.'],
     ],
-    known: ['Updating still needs a terminal (fixed in 0.2.1).'],
+    known: ['Updates require terminal access (resolved in 0.2.1-alpha).'],
   },
   {
     version: '0.1.1-alpha',
     date: '2026-10-14',
     title: 'Launcher redesign',
     modules: ['system'],
-    notes: 'The first launcher had a dark, industrial look that did not feel like Lancaster. I redid it to match lancastertechdev.com: white, maroon and gold, and simpler.',
+    notes: 'Restyled the module launcher to match lancastertechdev.com.',
     changes: [
-      ['improved', 'system', 'New launcher with a greeting, module cards showing live numbers, the coming-soon modules and an admin band.'],
+      ['improved', 'system', 'Launcher with greeting, module cards with live figures, upcoming modules and an administration band.'],
     ],
   },
   {
     version: '0.1.0-alpha',
     date: '2026-10-14',
-    title: 'From HR app to ERP',
+    title: 'LTDC ERP and IT Asset Management',
     modules: ['system', 'assets'],
-    notes: 'The biggest change so far. The HR app became one module of LTDC ERP, and IT gets its own module to track who has which laptop, what is in the store room, and when warranties run out. The launcher already has spots for the modules I will build next, greyed out for now.',
+    notes: 'Restructured the HR application as a module of LTDC ERP and added the IT Asset Management module.',
     changes: [
-      ['new', 'system', 'Module launcher after sign-in. Finance, Procurement, Projects, CRM, Service Desk and Documents are listed as coming soon.'],
-      ['new', 'assets', 'Asset register with tags, serial numbers, specs, purchase and warranty details, and a full history per item.'],
-      ['new', 'assets', 'Assign, transfer and return equipment to a person, a department or a location. Items can be marked in repair, retired or lost.'],
-      ['new', 'assets', 'Inventory for consumables like cables, ink and RAM, with stock in, issue and counts, and a heads-up when stock runs low.'],
-      ['new', 'assets', 'Allocations view, activity log, My Assets for employees, and a CSV export on every list.'],
-      ['new', 'system', 'New IT Asset Manager account type. HR can view assets, and employee profiles list their equipment, which helps when someone resigns.'],
+      ['new', 'system', 'Module launcher after sign-in; Finance, Procurement, Projects, CRM, Service Desk and Documents listed as upcoming.'],
+      ['new', 'assets', 'Asset register with tags, serial numbers, specifications, purchase and warranty data, and per-asset history.'],
+      ['new', 'assets', 'Assignment, transfer and return to employees, departments or locations; in repair, retired and lost statuses.'],
+      ['new', 'assets', 'Consumable inventory with stock receipts, issues, count adjustments and low-stock alerts.'],
+      ['new', 'assets', 'Allocations view, activity log, My Assets for employees, and CSV export on all lists.'],
+      ['new', 'system', 'IT Asset Manager role; asset visibility for HR and equipment listing on employee profiles.'],
     ],
   },
   {
@@ -176,60 +191,60 @@ export const DEVLOG = [
     date: '2026-10-13',
     title: 'Payroll setup, leave and requests',
     modules: ['hr'],
-    notes: 'Contribution rates and tax tables were hard-coded. That works until the government changes them, which it does. HR and Payroll can now edit them. I also added leave, and moved leave and work-from-home requests out of chat threads into the system.',
+    notes: 'Made payroll parameters configurable and added leave management with employee requests.',
     changes: [
-      ['new', 'hr', 'Payroll Setup: pay frequency, overtime rates, and SSS, PhilHealth and Pag-IBIG rates and tax tables, all editable.'],
-      ['new', 'hr', 'Leave types, yearly credits, per-person adjustments and running balances.'],
-      ['new', 'hr', 'Employees file leave or remote-work requests. The HR Manager or an admin approves them, and approved days go straight into attendance.'],
+      ['new', 'hr', 'Payroll Setup: pay frequency, overtime rates, SSS, PhilHealth and Pag-IBIG rates, and tax tables.'],
+      ['new', 'hr', 'Leave types, annual credits, per-employee overrides and balances.'],
+      ['new', 'hr', 'Leave and remote-work requests approved by the HR Manager or an Administrator; approved days are written to the DTR.'],
     ],
-    known: ['Approval is one step. Either the HR Manager or an admin can approve; a two-level option is still on the list.'],
+    known: ['Approval is single-level.'],
   },
   {
     version: '0.0.4-alpha',
     date: '2026-10-13',
-    title: 'Windows build',
+    title: 'Windows package',
     modules: ['deploy'],
-    notes: 'Most of the office is on Windows. I bundled Node.js into the package so nobody has to install anything: unzip it and double-click.',
+    notes: 'Added a portable Windows build that requires no installation.',
     changes: [
-      ['new', 'deploy', 'Portable Windows package with double-click launchers, an optional desktop shortcut, and an office-network mode so other PCs can connect.'],
+      ['new', 'deploy', 'Windows package with bundled Node.js runtime, launchers, optional desktop shortcut and an office-network mode.'],
     ],
-    known: ['The .bat launchers were built on a Mac and have not been tried on a real Windows PC yet.'],
+    known: ['The .bat launchers have not been verified on a physical Windows machine.'],
   },
   {
     version: '0.0.3-alpha',
     date: '2026-10-13',
-    title: 'Sign-in and roles',
+    title: 'Authentication and roles',
     modules: ['system', 'hr'],
-    notes: 'Up to here anyone who opened the page could see everyone\'s salary. Now there is a login, and each account type only sees what it needs to.',
+    notes: 'Added sign-in and role-based access control.',
     changes: [
-      ['new', 'system', 'Sign-in page and first-run admin setup, with Administrator, HR Manager, Payroll Officer and Employee accounts.'],
-      ['new', 'system', 'Users & Access page, password changes, and a 5-minute lockout after five wrong passwords.'],
-      ['new', 'hr', 'Self-service for employees: clock in and out, and see their own attendance, payslips and profile.'],
+      ['new', 'system', 'Sign-in page and first-run administrator setup; Administrator, HR Manager, Payroll Officer and Employee roles.'],
+      ['new', 'system', 'Users & Access page, password changes, and a 5-minute lockout after five failed sign-ins.'],
+      ['new', 'hr', 'Employee self-service: clock in and out, own attendance, payslips and profile.'],
     ],
-    known: ['There is no "forgot password" email yet. An admin resets passwords.'],
+    known: ['No self-service password reset; administrators reset passwords.'],
   },
   {
     version: '0.0.2-alpha',
     date: '2026-10-12',
-    title: 'Making it look like Lancaster',
+    title: 'Lancaster design system',
     modules: ['system'],
-    notes: 'The first build worked but looked generic. I reskinned it to match lancastertechdev.com: the maroon and gold, Big Shoulders headings and the logo.',
+    notes: 'Applied the lancastertechdev.com visual identity across the application.',
     changes: [
-      ['improved', 'system', 'New look and feel across every screen, following the company website.'],
+      ['improved', 'system', 'Maroon and gold palette, Big Shoulders headings and company logo on all screens.'],
     ],
   },
   {
     version: '0.0.1-alpha',
     date: '2026-10-12',
-    title: 'First build',
+    title: 'Initial build',
     modules: ['hr'],
-    notes: 'Where it all started: a small HR app in the spirit of Sprout, running on one MacBook. Employee records, a time clock and Philippine payroll. Rough around the edges, but it gets from a time record to a payslip.',
+    notes: 'Initial HR application with employee records, time tracking and Philippine payroll.',
     changes: [
       ['new', 'hr', 'Employee records with SSS, PhilHealth, Pag-IBIG and TIN numbers, pay rates and schedules.'],
-      ['new', 'hr', 'Time clock and daily time records, with late, undertime and overtime worked out automatically.'],
-      ['new', 'hr', 'Payroll runs with SSS, PhilHealth, Pag-IBIG and withholding tax, and printable payslips.'],
+      ['new', 'hr', 'Time clock and daily time records with late, undertime and overtime computation.'],
+      ['new', 'hr', 'Payroll runs with SSS, PhilHealth, Pag-IBIG and withholding tax deductions, and printable payslips.'],
     ],
-    known: ['Not handled yet: holiday pay, night differential, 13th month pay, loans and BIR 2316.'],
+    known: ['Not supported: holiday pay, night differential, 13th month pay, loans, BIR 2316.'],
   },
 ];
 

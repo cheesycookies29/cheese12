@@ -1,7 +1,8 @@
 // Dev log storage. Entries live in the database so administrators can edit
 // them. Each build's own entry (shared/devlog.js) is imported once, the first
-// time the server runs that build; after that the database copy is what counts,
-// so edits and deletions are kept across updates.
+// time the server runs that build. Built-in entries nobody has edited follow
+// later wording changes in shared/devlog.js; edited and deleted entries are left
+// as the administrator left them.
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { DEVLOG, DEVLOG_MODULES, CHANGE_TYPES, compareVersions } from '../shared/devlog.js';
@@ -11,7 +12,12 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const newestFirst = (a, b) => compareVersions(b.version, a.version) || b.date.localeCompare(a.date);
 
-// Adds any built-in entries this database hasn't seen yet. Returns true if it changed anything.
+const CONTENT = ['date', 'title', 'notes', 'changes', 'known', 'modules'];
+const field = (e, k) => structuredClone(e[k] ?? (k === 'known' ? [] : null));
+const sameContent = (a, b) => CONTENT.every((k) => JSON.stringify(field(a, k)) === JSON.stringify(field(b, k)));
+
+// Adds built-in entries this database hasn't seen yet and refreshes unedited ones.
+// Returns true if it changed anything.
 export function syncDevlog(db) {
   const data = db.data;
   data.devlog ||= {};
@@ -21,7 +27,14 @@ export function syncDevlog(db) {
   log.author ??= null;
   let changed = false;
   for (const e of DEVLOG) {
-    if (log.imported.includes(e.version)) continue;
+    if (log.imported.includes(e.version)) {
+      const stored = log.entries.find((x) => x.version === e.version && x.source === 'release' && !x.updatedAt);
+      if (stored && !sameContent(stored, e)) {
+        for (const k of CONTENT) stored[k] = field(e, k);
+        changed = true;
+      }
+      continue;
+    }
     log.imported.push(e.version);
     if (!log.entries.some((x) => x.version === e.version)) {
       log.entries.push({ id: randomUUID(), ...structuredClone(e), source: 'release', createdAt: new Date().toISOString(), updatedAt: null });
@@ -52,7 +65,7 @@ function validateEntry(input, log, existingId) {
   if (!e.notes) throw new HttpError(400, 'Write a short note about the build.');
   if (!e.changes.length) throw new HttpError(400, 'Add at least one change.');
   for (const [type, module] of e.changes) {
-    if (!CHANGE_TYPES[type]) throw new HttpError(400, 'Each change needs a type: New, Improved or Fixed.');
+    if (!CHANGE_TYPES[type]) throw new HttpError(400, 'Each change needs a type: Added, Changed or Fixed.');
     if (!DEVLOG_MODULES[module]) throw new HttpError(400, 'Each change needs a module.');
   }
   // Modules are whatever the changes touch, in the usual order.
