@@ -611,17 +611,72 @@ h2.spaced { margin-top: 22px; }
 .seg.wrap label:last-child { border-right: 0; }
 .table tr.unread td:first-child { box-shadow: inset 3px 0 0 var(--gold-bright); }
 .table tr.unread strong { color: var(--maroon); }
-.fb-mine { display: grid; gap: 10px; }
-.fb-item { border: 1px solid #e7e1df; border-radius: 8px; padding: 10px 14px; }
-.fb-item > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-.fb-item > summary small { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.fb-item .report-text { margin: 10px 0; }
+/* Feedback list rows (own submissions, and the inbox on phones) */
+.fb-list { display: grid; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.fb-row { display: grid; gap: 4px; width: 100%; text-align: left; font: inherit; color: var(--text); background: #fff; border: 0; border-top: 1px solid #efebe9; padding: 14px 16px; cursor: pointer; }
+.fb-row:first-child { border-top: 0; }
+@media (hover: hover) { .fb-row:hover { background: #faf8f7; } }
+.fb-row:active { background: #f6f2f0; }
+.fb-card .card-head { margin-bottom: 14px; }
+.fb-card .fb-list { margin: 0 -22px -22px; border-width: 1px 0 0; border-radius: 0 0 var(--radius) var(--radius); }
+.fb-card .fb-row { padding: 14px 22px; }
+.fb-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0 0; }
+.fb-row:focus-visible { outline: 2px solid var(--gold-bright); outline-offset: -2px; }
+.fb-row.unread { box-shadow: inset 3px 0 0 var(--gold-bright); }
+.fb-row-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.fb-row-top .mono { color: var(--maroon); font-weight: 700; letter-spacing: 0.02em; }
+.fb-row-subject { font-size: 15px; line-height: 1.35; }
+.fb-row-excerpt, .fb-row-from { font-size: 13px; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fb-row-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.fb-row-tags small { color: var(--muted); font-size: 12px; }
+.fb-cards { display: none; }
+/* Details and history */
+.fb-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 16px; margin: 0; }
+.fb-meta div { min-width: 0; }
+.fb-meta dt { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.fb-meta dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.fb-meta dd small { display: block; color: var(--muted); font-size: 12px; }
+.fb-message { margin: 0; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; }
+.fb-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid #efebe9; }
+.fb-section h3 { margin: 0 0 10px; font-size: 14px; }
+.fb-history { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid #ece4d6; display: grid; gap: 14px; }
+.fb-history li { position: relative; font-size: 14px; }
+.fb-history li::before { content: ''; position: absolute; left: -25px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: #fff; border: 2px solid var(--gold); }
+.fb-history li.ev-sent::before { border-color: var(--maroon); }
+.fb-history li.ev-resolved::before, .fb-history li.ev-closed::before { background: var(--success); border-color: var(--success); }
+.fb-history li.ev-note::before { background: var(--gold-bright); }
+.fb-ev-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; }
+.fb-ev-head time { font-size: 12px; color: var(--muted); }
+.fb-history li > span { display: block; font-size: 13px; color: var(--muted); }
+.fb-history blockquote { margin: 8px 0 0; padding: 10px 12px; background: #faf8f7; border-left: 3px solid var(--gold-light); border-radius: 0 6px 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* New feedback form */
+.fb-modal .modal-body { display: grid; gap: 16px; }
+.fb-types { border: 0; margin: 0; padding: 0; min-width: 0; }
+.fb-types legend { padding: 0; margin-bottom: 6px; font-weight: 500; }
+.fb-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fb-type { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid #ddd5d2; border-radius: 8px; cursor: pointer; background: #fff; }
+.fb-type input { width: auto; flex: none; margin: 2px 0 0; accent-color: var(--maroon); }
+.fb-type span { display: grid; gap: 2px; min-width: 0; }
+.fb-type strong { font-size: 14px; }
+.fb-type small { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.fb-type:has(input:checked) { border-color: var(--maroon); background: var(--maroon-soft); box-shadow: 0 0 0 1px var(--maroon) inset; }
+.fb-type:has(input:focus-visible) { outline: 2px solid var(--gold-bright); outline-offset: 1px; }
+.field-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fb-privacy { margin: 0; }
+.modal-title { min-width: 0; }
+.modal-title p { margin: 3px 0 0; font-size: 13px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+.fb-type:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* Keep notices clear of an open window's buttons. */
+body:has(.modal-backdrop) #toast { bottom: auto; top: 16px; }
 .att-preview { display: block; width: 100%; height: min(70vh, 720px); border: 1px solid var(--border); border-radius: 8px; background: #f6f4f3; object-fit: contain; }
 img.att-preview { height: auto; max-height: 70vh; }
 .cert-link { display: block; padding: 0; margin-top: 4px; font-size: 13px; text-align: left; }
 .cert-field.required > span { color: var(--maroon); font-weight: 700; }
 .cert-field input[type=file] { padding: 8px; border: 1px dashed #cfc6c3; border-radius: 8px; background: #faf8f7; }
 .cert-field.required input[type=file] { border-color: var(--gold-bright); background: var(--gold-soft); }
+
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .modal { animation: none !important; } }
 
 /* ===== Phones and small tablets ===== */
 .topbar, .nav-scrim { display: none; }
@@ -691,6 +746,25 @@ img.att-preview { height: auto; max-height: 70vh; }
   .modal header { padding: 14px 18px; }
   .modal footer { padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); }
   .modal footer .btn { flex: 1; justify-content: center; }
+  .modal { position: relative; animation: sheet-up 0.22s ease-out; box-shadow: 0 -12px 40px rgba(61, 0, 12, 0.25); }
+  .modal::before { content: ''; position: absolute; top: 7px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 4px; background: #d9d1ce; }
+  .modal header { flex: none; padding: 20px 16px 12px 20px; border-bottom-width: 2px; align-items: flex-start; }
+  .modal header h2 { font-size: 18px; line-height: 1.15; }
+  .modal header .icon-btn { width: 36px; height: 36px; flex: none; border-radius: 50%; background: #f3efed; font-size: 22px; line-height: 1; }
+  .modal-body { flex: 1 1 auto; padding: 18px 20px; overscroll-behavior: contain; }
+  .modal .form-error { margin: 0 20px 10px; }
+  .modal footer { flex: none; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .modal footer .btn { min-height: 46px; }
+  .fb-type { padding: 10px; }
+  .fb-meta { grid-template-columns: 1fr 1fr; }
+  .fb-table { display: none; }
+  .fb-cards { display: grid; margin: 0 -16px -6px; border-radius: 0 0 var(--radius) var(--radius); border-width: 1px 0 0; }
+  .fb-card .fb-list { margin: 0 -16px -16px; }
+  .fb-card .fb-row, .fb-cards .fb-row { padding: 14px 16px; }
+  .fb-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fb-filters input[type='search'] { grid-column: 1 / -1; }
+  .fb-filters #shown { align-self: center; justify-self: end; }
+  .fb-page .page-head .actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
 
   #toast { left: 16px; right: 16px; bottom: 16px; transform: translateY(20px); text-align: center; border-radius: 12px; }
   #toast.show { transform: none; }

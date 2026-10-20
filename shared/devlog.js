@@ -26,6 +26,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.3.1-alpha',
+    date: '2026-10-20',
+    title: 'Feedback dialogs and phone sheets',
+    modules: ['system'],
+    notes: 'Moved feedback entry, viewing and responses into dialogs, and refined dialog presentation on phones.',
+    changes: [
+      ['improved', 'system', 'Feedback page lists submissions as compact rows; New feedback opens a dialog with described type options, module, subject and a character count; selecting a submission opens it with its message and history.'],
+      ['improved', 'system', 'Feedback inbox: administrators respond through a Respond dialog (status and response); deletion uses a titled confirmation. On phones the inbox is shown as a list of cards with two-column filters.'],
+      ['improved', 'system', 'Dialogs on phones open as bottom sheets with a grab handle, a fixed header and footer, a subtitle line and larger buttons; notifications move to the top while a dialog is open.'],
+    ],
+  },
+  {
     version: '0.3.0-alpha',
     date: '2026-10-20',
     title: 'Feedback, leave eligibility and medical certificates',

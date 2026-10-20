@@ -102,17 +102,18 @@ export function toast(message, type = 'ok') {
 }
 
 // Opens a modal containing a form. `onSubmit(formData)` may throw to keep it open.
-export function modal({ title, body, submitLabel = 'Save', onSubmit, wide = false }) {
+// subtitle: a line under the title; submitLabel null = a read-only window with only a close button.
+export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancelLabel = 'Cancel', onSubmit, wide = false, className = '' }) {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.innerHTML = render(html`
-    <form class="modal ${wide ? 'wide' : ''}" novalidate>
-      <header><h2>${title}</h2><button type="button" class="icon-btn" data-close aria-label="Close">×</button></header>
+    <form class="modal ${wide ? 'wide' : ''} ${className}" novalidate role="dialog" aria-modal="true" aria-label="${title}">
+      <header><div class="modal-title"><h2>${title}</h2>${subtitle ? html`<p>${subtitle}</p>` : ''}</div><button type="button" class="icon-btn" data-close aria-label="Close">×</button></header>
       <div class="modal-body">${body}</div>
       <p class="form-error" hidden></p>
       <footer>
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn primary">${submitLabel}</button>
+        <button type="button" class="btn" data-close>${submitLabel === null && cancelLabel === 'Cancel' ? 'Close' : cancelLabel}</button>
+        ${submitLabel === null ? '' : html`<button type="submit" class="btn primary">${submitLabel}</button>`}
       </footer>
     </form>`);
   document.body.appendChild(backdrop);
@@ -125,6 +126,7 @@ export function modal({ title, body, submitLabel = 'Save', onSubmit, wide = fals
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = form.querySelector('[type=submit]');
+    if (!btn) return;
     btn.disabled = true;
     try {
       await onSubmit(form);
@@ -140,11 +142,11 @@ export function modal({ title, body, submitLabel = 'Save', onSubmit, wide = fals
   return { form, close };
 }
 
-export function confirmDialog(message, { confirmLabel = 'Delete', danger = true } = {}) {
+export function confirmDialog(message, { confirmLabel = 'Delete', danger = true, title = 'Please confirm' } = {}) {
   return new Promise((resolve) => {
     let confirmed = false;
     const { form } = modal({
-      title: 'Please confirm',
+      title,
       body: html`<p>${message}</p>`,
       submitLabel: confirmLabel,
       onSubmit: () => {
