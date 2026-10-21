@@ -2,6 +2,8 @@ import { api } from '../api.js';
 import { ctx, can, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
 import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, WEEKDAYS } from '../ui.js';
+import { readClockLocation, LOCATION_NOTICE, locationPill, openLocation } from '../geo.js';
+import { LOCATION_STATUS, fmtDistance } from '/shared/geo.js';
 
 // ---------- Time clock (kiosk) ----------
 
@@ -23,7 +25,8 @@ export async function clockView(el) {
             <div class="clock-buttons">
               <button class="btn primary big" id="btn-in" disabled>Clock in</button>
               <button class="btn big" id="btn-out" disabled>Clock out</button>
-            </div>`
+            </div>
+            <p class="geo-notice">${LOCATION_NOTICE}</p>`
           : html`<p class="muted">Add employees first to use the time clock.</p>`}
       </section>
       <section class="card">
@@ -42,7 +45,12 @@ export async function clockView(el) {
   if (!employees.length) return () => clearInterval(timer);
 
   let entries = [];
+  const seeLocation = can('attendance.location');
   const select = el.querySelector('#clock-emp');
+  el.querySelector('#today-list').addEventListener('click', (ev) => {
+    const e = entries.find((x) => x.id === ev.target.closest('[data-geo]')?.dataset.geo);
+    if (e) openLocation(e.clockInLocation, { name: fullName(byId.get(e.employeeId)), date: fmtDate(e.date), timeIn: fmtTime(e.timeIn), remote: e.remote });
+  });
   const btnIn = el.querySelector('#btn-in');
   const btnOut = el.querySelector('#btn-out');
 
@@ -50,11 +58,12 @@ export async function clockView(el) {
     entries = await api.get('/api/time-entries');
     const todays = entries.filter((e) => e.date === today() && byId.has(e.employeeId));
     mount(el.querySelector('#today-list'), todays.length
-      ? html`<table class="table compact"><thead><tr><th>Employee</th><th>In</th><th>Out</th></tr></thead><tbody>
+      ? html`<table class="table compact"><thead><tr><th>Employee</th><th>In</th><th>Out</th>${seeLocation ? html`<th>Location</th>` : ''}</tr></thead><tbody>
           ${todays.sort((a, b) => (b.timeIn || '').localeCompare(a.timeIn || '')).map((e) => html`<tr>
             <td>${fullName(byId.get(e.employeeId))}</td>
             <td>${e.type === 'leave' ? badge(leaveName(e), 'blue') : e.remote && !e.timeIn ? badge('Remote work', 'blue') : fmtTime(e.timeIn)}</td>
-            <td>${e.type === 'leave' || !e.timeIn ? '' : e.timeOut ? fmtTime(e.timeOut) : badge('Working', 'green')}</td></tr>`)}
+            <td>${e.type === 'leave' || !e.timeIn ? '' : e.timeOut ? fmtTime(e.timeOut) : badge('Working', 'green')}</td>
+            ${seeLocation ? html`<td>${e.clockInLocation ? html`<button type="button" class="link geo-link" data-geo="${e.id}">${locationPill(e.clockInLocation, { remote: e.remote })}</button>` : ''}</td>` : ''}</tr>`)}
         </tbody></table>`
       : html`<p class="muted">No one has clocked in yet today.</p>`);
     updateButtons();
@@ -83,13 +92,19 @@ export async function clockView(el) {
   }
 
   async function clock(action) {
+    const btn = action === 'in' ? btnIn : btnOut;
+    const label = btn.textContent;
+    btn.disabled = true;
     try {
-      const res = await api.post('/api/clock', { employeeId: select.value, action });
-      toast(res.message);
-      await refresh();
+      if (action === 'in') btn.textContent = 'Getting location…';
+      const where = action === 'in' ? await readClockLocation() : {};
+      const res = await api.post('/api/clock', { employeeId: select.value, action, ...where });
+      toast(res.message + (where.locationError ? ' Location could not be read on this device; recorded without it.' : ''));
     } catch (err) {
       toast(err.message, 'error');
     }
+    btn.textContent = label;
+    await refresh();
   }
 
   select.addEventListener('change', updateButtons);
@@ -159,6 +174,7 @@ export async function dtrView(el, _params, query) {
   const byId = new Map(employees.map((e) => [e.id, e]));
   const period = currentPeriod(today(), ctx.settings.payFrequency);
   const state = { employeeId: query.employeeId || '', from: query.from || period.start, to: query.to || period.end };
+  const seeLocation = can('attendance.location');
   let rows = [];
 
   mount(el, html`
@@ -201,7 +217,7 @@ export async function dtrView(el, _params, query) {
 
     mount(el.querySelector('#dtr-table'), rows.length
       ? html`<table class="table">
-          <thead><tr><th>Date</th><th>Employee</th><th>In</th><th>Out</th><th class="num">Worked</th><th class="num">Late</th><th class="num">Undertime</th><th class="num">Overtime</th><th>Notes</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Employee</th><th>In</th><th>Out</th><th class="num">Worked</th><th class="num">Late</th><th class="num">Undertime</th><th class="num">Overtime</th>${seeLocation ? html`<th>Clock-in location</th>` : ''}<th>Notes</th><th></th></tr></thead>
           <tbody>${rows.map(({ entry: e, emp, calc: c }) => html`<tr>
             <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${c.restDay ? html` ${badge('Rest day', 'gray')}` : ''}</td>
             <td>${fullName(emp)}</td>
@@ -215,6 +231,7 @@ export async function dtrView(el, _params, query) {
                 <td class="num ${c.lateMinutes ? 'warn' : ''}">${fmtMinutes(c.lateMinutes)}</td>
                 <td class="num ${c.undertimeMinutes ? 'warn' : ''}">${fmtMinutes(c.undertimeMinutes)}</td>
                 <td class="num">${c.overtimeMinutes ? html`${fmtMinutes(c.overtimeMinutes)} ${e.otApproved ? badge('Approved', 'green') : can('attendance.edit') ? html`<button class="link" data-approve="${e.id}">Approve</button>` : badge('Pending', 'amber')}` : '—'}</td>`}
+            ${seeLocation ? html`<td>${e.clockInLocation ? html`<button type="button" class="link geo-link" data-geo="${e.id}">${locationPill(e.clockInLocation, { remote: e.remote })}</button>` : html`<span class="muted small">${e.timeIn ? 'Entered in DTR' : '—'}</span>`}</td>` : ''}
             <td class="notes">${e.notes}</td>
             <td class="row-actions">${can('attendance.edit') ? html`<button class="link" data-edit="${e.id}">Edit</button><button class="link danger" data-delete="${e.id}">Delete</button>` : ''}</td>
           </tr>`)}</tbody>
@@ -237,6 +254,11 @@ export async function dtrView(el, _params, query) {
   el.querySelector('#dtr-table').addEventListener('click', async (ev) => {
     const t = ev.target;
     const find = (id) => rows.find((r) => r.entry.id === id).entry;
+    const geo = t.closest('[data-geo]')?.dataset.geo;
+    if (geo) {
+      const { entry: e, emp } = rows.find((r) => r.entry.id === geo);
+      return openLocation(e.clockInLocation, { name: fullName(emp), date: fmtDate(e.date), timeIn: fmtTime(e.timeIn), remote: e.remote });
+    }
     if (t.dataset.edit) openEntryModal(find(t.dataset.edit), employees, load);
     if (t.dataset.approve) {
       await api.put(`/api/time-entries/${t.dataset.approve}`, { ...find(t.dataset.approve), otApproved: true });
@@ -252,8 +274,14 @@ export async function dtrView(el, _params, query) {
 
   el.querySelector('#export').addEventListener('click', () => {
     const data = [
-      ['Date', 'Employee No', 'Employee', 'Type', 'Time In', 'Time Out', 'Worked (min)', 'Late (min)', 'Undertime (min)', 'Overtime (min)', 'OT Approved', 'Notes'],
-      ...rows.map(({ entry: e, emp, calc: c }) => [e.date, emp.employeeNo, fullName(emp), e.type === 'leave' ? leaveName(e) : e.remote ? 'Remote work' : 'Work', e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, e.otApproved ? 'Yes' : 'No', e.notes]),
+      ['Date', 'Employee No', 'Employee', 'Type', 'Time In', 'Time Out', 'Worked (min)', 'Late (min)', 'Undertime (min)', 'Overtime (min)', 'OT Approved',
+        ...(seeLocation ? ['Clock-in Location', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from Office (m)'] : []), 'Notes'],
+      ...rows.map(({ entry: e, emp, calc: c }) => {
+        const g = e.clockInLocation;
+        const where = !g ? '' : g.status !== 'ok' ? LOCATION_STATUS[g.status] : g.inside == null ? 'Recorded' : g.inside ? 'Within office radius' : e.remote ? 'Remote day' : `Outside office (${fmtDistance(g.distance)})`;
+        return [e.date, emp.employeeNo, fullName(emp), e.type === 'leave' ? leaveName(e) : e.remote ? 'Remote work' : 'Work', e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, e.otApproved ? 'Yes' : 'No',
+          ...(seeLocation ? [where, g?.lat ?? '', g?.lng ?? '', g?.accuracy ?? '', g?.distance ?? ''] : []), e.notes];
+      }),
     ];
     downloadFile(`dtr-${state.from}-to-${state.to}.csv`, toCsv(data));
   });

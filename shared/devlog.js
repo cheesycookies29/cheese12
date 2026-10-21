@@ -26,6 +26,25 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.4.0-alpha',
+    date: '2026-10-21',
+    title: 'Clock-in geotagging',
+    modules: ['hr', 'system'],
+    notes: 'Added recording of the device location at clock-in, checked against an office location, with access limited to HR Managers and Administrators.',
+    changes: [
+      ['new', 'hr', 'Clocking in from My Home or the Time Clock records the device location (coordinates and accuracy) with the time record. Clocking out does not record a location. Employees are informed on the clock screen.'],
+      ['new', 'hr', 'Office location with a radius (default 150 m). Clock-ins are marked within the office, outside the office, or remote day; outside clock-ins are flagged, never blocked. If the location is unavailable or permission is denied, the clock-in is recorded and marked "No location".'],
+      ['new', 'hr', 'Clock-in locations page: filters by employee, dates and flag, summary counts, map view with links to Google Maps and OpenStreetMap, CSV export, and the office location settings.'],
+      ['new', 'hr', 'Attendance (DTR) shows the clock-in location for each record, opens the map, and includes location columns in the CSV export.'],
+      ['new', 'system', 'New permission "Clock-in locations", granted to HR Managers and Administrators only. Locations are removed from attendance data sent to every other account, including the employee.'],
+      ['new', 'system', 'Locations are deleted automatically after the retention period (default 365 days); the attendance record is kept.'],
+    ],
+    known: [
+      'Browsers provide location only on secure (https) addresses or localhost. On the Windows version opened from other computers by IP address, clock-ins are recorded with "No location".',
+      'Laptop locations from Wi-Fi can be off by several hundred metres, and locations can be spoofed with developer tools.',
+    ],
+  },
+  {
     version: '0.3.1-alpha',
     date: '2026-10-20',
     title: 'Feedback dialogs and phone sheets',

@@ -6,6 +6,7 @@ import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, 
 import { statusBadge, kindBadge, dateRange, certificateCell } from './leave.js';
 import { workDates, needsCertificate } from '/shared/leave.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
+import { readClockLocation, LOCATION_NOTICE } from '../geo.js';
 import { payslipCard } from './payroll.js';
 import { openChangePassword } from './login.js';
 
@@ -69,6 +70,7 @@ export async function meHomeView(el) {
             <button class="btn primary big" id="btn-in" ${open || (todays && !remoteToday) ? 'disabled' : ''}>Clock in</button>
             <button class="btn big" id="btn-out" ${open ? '' : 'disabled'}>Clock out</button>
           </div>
+          <p class="geo-notice">${LOCATION_NOTICE}</p>
         </section>
         <div class="stack">
           <section class="card">
@@ -96,12 +98,19 @@ export async function meHomeView(el) {
       </div>`);
 
     const clock = async (action) => {
+      const btn = el.querySelector(action === 'in' ? '#btn-in' : '#btn-out');
+      const label = btn.textContent;
+      btn.disabled = true;
       try {
-        const res = await api.post('/api/me/clock', { action });
-        toast(res.message.replace(emp.firstName, 'You'));
+        if (action === 'in') btn.textContent = 'Getting location…';
+        const where = action === 'in' ? await readClockLocation() : {};
+        const res = await api.post('/api/me/clock', { action, ...where });
+        toast(res.message.replace(emp.firstName, 'You') + (where.locationError ? ' Your location could not be read, so it was recorded without one.' : ''));
         render();
       } catch (err) {
         toast(err.message, 'error');
+        btn.textContent = label;
+        btn.disabled = false;
       }
     };
     el.querySelector('#btn-in').addEventListener('click', () => clock('in'));

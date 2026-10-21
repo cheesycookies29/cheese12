@@ -6,6 +6,7 @@ import { demoData } from './seed.js';
 import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
 import { createAttachments } from './attachments.js';
 import { registerFeedbackRoutes } from './feedback.js';
+import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, can } from '../shared/roles.js';
@@ -252,8 +253,8 @@ function demoAccounts(db, employees) {
   }));
 }
 
-// Clock in / out for the current date and time.
-function clock(db, emp, action) {
+// Clock in / out for the current date and time. Clocking in also records where (see server/geo.js).
+function clock(db, emp, action, body = {}, source = 'self') {
   if (emp.status !== 'Active') throw new HttpError(400, 'This employee is inactive.');
   const date = localDate();
   const time = localTime();
@@ -264,10 +265,11 @@ function clock(db, emp, action) {
     const remoteDay = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.date === date && e.remote && !e.timeIn);
     if (remoteDay) {
       remoteDay.timeIn = time;
+      remoteDay.clockInLocation = clockInLocation(db.data.settings, body, source);
       db.save();
       return { message: `${emp.firstName} clocked in at ${time} (remote work).`, entry: remoteDay };
     }
-    const entry = { id: randomUUID(), ...validateEntry({ employeeId: emp.id, date, type: 'work', timeIn: time }, db) };
+    const entry = { id: randomUUID(), ...validateEntry({ employeeId: emp.id, date, type: 'work', timeIn: time }, db), clockInLocation: clockInLocation(db.data.settings, body, source) };
     db.data.timeEntries.push(entry);
     db.save();
     return { message: `${emp.firstName} clocked in at ${time}.`, entry };
@@ -284,8 +286,10 @@ function clock(db, emp, action) {
 
 export function createApi(db) {
   const files = createAttachments(path.join(db.dir, 'attachments'));
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db)];
   if (migrated.some(Boolean)) db.save();
+  // Clock-in locations past the retention period are removed while the server runs, too.
+  setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
   const routes = [];
   const sessions = createSessions();
   const throttle = createThrottle();
@@ -396,9 +400,13 @@ export function createApi(db) {
     const emp = linkedEmployee(user);
     return db.data.timeEntries
       .filter((e) => e.employeeId === emp.id && (!query.from || e.date >= query.from) && (!query.to || e.date <= query.to))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((e) => forViewer(user, e));
   });
-  route('POST', '/api/me/clock', 'self', ({ user, body }) => clock(db, linkedEmployee(user), body.action));
+  route('POST', '/api/me/clock', 'self', ({ user, body }) => {
+    const res = clock(db, linkedEmployee(user), body.action, body, 'self');
+    return { ...res, entry: forViewer(user, res.entry) };
+  });
   route('GET', '/api/me/payslips', 'self', ({ user }) => {
     const emp = linkedEmployee(user);
     return db.data.payrollRuns
@@ -469,24 +477,26 @@ export function createApi(db) {
   });
 
   // ----- Time entries -----
-  route('GET', '/api/time-entries', 'attendance.view', ({ query }) => {
+  route('GET', '/api/time-entries', 'attendance.view', ({ query, user }) => {
     const { employeeId, from, to } = query;
     return db.data.timeEntries
       .filter((e) => (!employeeId || e.employeeId === employeeId) && (!from || e.date >= from) && (!to || e.date <= to))
-      .sort((a, b) => b.date.localeCompare(a.date) || (a.timeIn || '').localeCompare(b.timeIn || ''));
+      .sort((a, b) => b.date.localeCompare(a.date) || (a.timeIn || '').localeCompare(b.timeIn || ''))
+      .map((e) => forViewer(user, e));
   });
-  route('POST', '/api/time-entries', 'attendance.edit', ({ body }) => {
+  route('POST', '/api/time-entries', 'attendance.edit', ({ body, user }) => {
     const entry = { id: randomUUID(), ...validateEntry(body, db) };
     db.data.timeEntries.push(entry);
     db.save();
-    return entry;
+    return forViewer(user, entry);
   });
-  route('PUT', '/api/time-entries/:id', 'attendance.edit', ({ params, body }) => {
+  // Editing a record keeps the location recorded when the employee clocked in.
+  route('PUT', '/api/time-entries/:id', 'attendance.edit', ({ params, body, user }) => {
     const entry = db.data.timeEntries.find((e) => e.id === params.id);
     if (!entry) throw new HttpError(404, 'Time entry not found.');
     Object.assign(entry, validateEntry(body, db, entry.id));
     db.save();
-    return entry;
+    return forViewer(user, entry);
   });
   route('DELETE', '/api/time-entries/:id', 'attendance.edit', ({ params }) => {
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.id !== params.id);
@@ -494,7 +504,11 @@ export function createApi(db) {
     return { ok: true };
   });
 
-  route('POST', '/api/clock', 'clock.kiosk', ({ body }) => clock(db, findEmployee(db, body.employeeId), body.action));
+  route('POST', '/api/clock', 'clock.kiosk', ({ body, user }) => {
+    const res = clock(db, findEmployee(db, body.employeeId), body.action, body, 'kiosk');
+    return { ...res, entry: forViewer(user, res.entry) };
+  });
+  registerGeoRoutes(route, db);
 
   // ----- Payroll -----
   route('GET', '/api/payroll-runs', 'payroll.view', () =>

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_SETTINGS, DEFAULT_RATES } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
+import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
 
 export function emptyData() {
   return {
@@ -74,6 +75,7 @@ export function mergeSettings(settings = {}) {
     ...settings,
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(settings.schedule || {}) },
     contributions: { ...DEFAULT_SETTINGS.contributions, ...(settings.contributions || {}) },
+    location: { ...DEFAULT_LOCATION_SETTINGS, ...(settings.location || {}) },
     rates: {
       sss: { ...DEFAULT_RATES.sss, ...(settings.rates?.sss || {}) },
       philhealth: { ...DEFAULT_RATES.philhealth, ...(settings.rates?.philhealth || {}) },

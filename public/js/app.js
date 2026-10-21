@@ -18,6 +18,7 @@ import { allocationsView, activityView, myAssetsView } from './views/allocations
 import { reportsView, reportDetailView } from './views/reports.js';
 import { devlogView, unseenCount } from './views/devlog.js';
 import { feedbackView, feedbackInboxView, feedbackDetailView } from './views/feedback.js';
+import { clockLocationsView } from './views/locations.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -30,6 +31,7 @@ const routes = [
   ['/employees/:id', employeeProfileView, 'employees.view', 'hr'],
   ['/clock', clockView, 'clock.kiosk', 'hr'],
   ['/dtr', dtrView, 'attendance.view', 'hr'],
+  ['/clock-locations', clockLocationsView, 'attendance.location', 'hr'],
   ['/payroll', payrollListView, 'payroll.view', 'hr'],
   ['/payroll/:id/payslip/:employeeId', payslipView, 'payroll.view', 'hr'],
   ['/payroll/:id', payrollRunView, 'payroll.view', 'hr'],
@@ -74,6 +76,7 @@ const NAV = {
     { href: '/employees', label: 'Employees', permission: 'employees.view' },
     { href: '/clock', label: 'Time Clock', permission: 'clock.kiosk' },
     { href: '/dtr', label: 'Attendance (DTR)', permission: 'attendance.view' },
+    { href: '/clock-locations', label: 'Clock-in locations', permission: 'attendance.location' },
     { href: '/leave', label: 'Leave & Requests', permission: 'leave.manage', badge: 'requests' },
     { href: '/payroll', label: 'Payroll', permission: 'payroll.view' },
     { href: '/payroll-setup', label: 'Payroll Setup', permission: 'payroll.config' },

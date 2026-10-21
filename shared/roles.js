@@ -10,7 +10,7 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     description: 'Manages employees, attendance, leave and the time clock; approves leave and remote work; adjusts payroll setup. Can view payroll and IT assets.',
-    permissions: ['dashboard', 'employees.view', 'employees.edit', 'attendance.view', 'attendance.edit', 'clock.kiosk', 'payroll.view', 'payroll.config', 'leave.manage', 'leave.approve', 'assets.view', 'self'],
+    permissions: ['dashboard', 'employees.view', 'employees.edit', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.config', 'leave.manage', 'leave.approve', 'assets.view', 'self'],
   },
   payroll: {
     label: 'Payroll Officer',
@@ -36,6 +36,7 @@ export const PERMISSION_LABELS = [
   ['employees.edit', 'Add and edit employees'],
   ['attendance.view', 'View attendance (DTR)'],
   ['attendance.edit', 'Edit attendance and approve overtime'],
+  ['attendance.location', 'Clock-in locations (geotagging) and the office location'],
   ['clock.kiosk', 'Shared time clock'],
   ['payroll.view', 'View payroll runs and payslips'],
   ['payroll.edit', 'Create, adjust and finalize payroll'],
