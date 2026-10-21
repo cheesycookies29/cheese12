@@ -101,3 +101,26 @@ test('locations older than the retention period are removed', async () => {
   assert.ok(after && !('clockInLocation' in after), 'the record stays, the location goes');
   assert.ok(reopened.data.timeEntries.find((e) => e.employeeId === ana.id).clockInLocation);
 });
+
+test('existing data moves to 312 work days per year once; later changes are kept', async () => {
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ltdc-wdpy-')), 'db.json');
+  const old = openDb(f);
+  old.data.settings.workDaysPerYear = 261;
+  delete old.data.settings.appliedUpdates;
+  old.save();
+  const a = openDb(f);
+  createApi(a);
+  assert.equal(a.data.settings.workDaysPerYear, 312);
+  a.data.settings.workDaysPerYear = 300; // changed later in Payroll Setup
+  a.save();
+  const b = openDb(f);
+  createApi(b);
+  assert.equal(b.data.settings.workDaysPerYear, 300);
+});
+
+test('the flexible-time flag is saved on the employee record', async () => {
+  const e = await admin('GET', `/api/employees/${ana.id}`);
+  const saved = await admin('PUT', `/api/employees/${ana.id}`, { ...e, flexTime: true });
+  assert.equal(saved.flexTime, true);
+  assert.equal((await admin('PUT', `/api/employees/${ana.id}`, { ...e, flexTime: false })).flexTime, false);
+});

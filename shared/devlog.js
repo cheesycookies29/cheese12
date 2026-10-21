@@ -26,6 +26,22 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.4.1-alpha',
+    date: '2026-10-21',
+    title: 'Flexible time and 312 work days per year',
+    modules: ['hr'],
+    notes: 'Added a flexible-time (FLEX) designation that exempts an employee\'s clock times from payroll deductions, and set the work days per year to 312.',
+    changes: [
+      ['new', 'hr', 'Employee records have a Flexible time (FLEX) option. For FLEX employees, late arrival and undertime are not computed or deducted; overtime is time worked beyond the scheduled daily hours regardless of start time and still requires approval. Absences and unpaid leave are deducted as before.'],
+      ['new', 'hr', 'FLEX is shown on the employee list, the employee profile, the Attendance (DTR) and the payslip.'],
+      ['improved', 'hr', 'Work days per year changed from 261 to 312 (6 days x 52 weeks), applied once to existing data. Daily rate = monthly salary x 12 / 312. The value remains editable in Payroll Setup.'],
+      ['fixed', 'hr', 'A monthly-rated employee with no day worked or on paid leave in a period could receive a remainder of basic pay when the work-days factor is higher than the scheduled days; the full basic pay is now deducted.'],
+    ],
+    known: [
+      'Finalized payroll runs keep the figures they were finalized with; draft runs pick up the new daily rate and FLEX rules when recalculated.',
+    ],
+  },
+  {
     version: '0.4.0-alpha',
     date: '2026-10-21',
     title: 'Clock-in geotagging',

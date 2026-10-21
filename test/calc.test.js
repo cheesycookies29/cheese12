@@ -92,7 +92,7 @@ test('payslip: absences, tardiness and approved overtime', () => {
     '2026-10-07': { timeOut: '20:00' }, // not approved
   }).filter((e) => e.date !== '2026-10-08');
   const p = computePayslip({ employee, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
-  const daily = (30000 * 12) / 261;
+  const daily = (30000 * 12) / 312;
   const hourly = daily / 8;
   assert.equal(p.attendance.absentDays, 1);
   assert.equal(p.attendance.lateMinutes, 30);
@@ -115,7 +115,7 @@ test('payslip: mid-period hire is paid per day worked', () => {
   const entries = fullAttendance('2026-10-12', '2026-10-15');
   const p = computePayslip({ employee: hire, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
   assert.equal(p.attendance.scheduledDays, 4);
-  assert.equal(p.earnings.basicPay, round(((30000 * 12) / 261) * 4));
+  assert.equal(p.earnings.basicPay, round(((30000 * 12) / 312) * 4));
 });
 
 function round(n) {
@@ -134,7 +134,7 @@ test('payslip: unpaid leave is deducted, paid leave and remote days are paid', (
   assert.equal(p.attendance.remoteDays, 1);
   assert.equal(p.attendance.absentDays, 0);
   assert.equal(p.attendance.lateMinutes, 0);
-  assert.equal(p.earnings.basicPay, round(15000 - (30000 * 12) / 261));
+  assert.equal(p.earnings.basicPay, round(15000 - (30000 * 12) / 312));
 });
 
 test('computeEntry: full remote day without clock times', () => {
@@ -161,4 +161,47 @@ test('payslip: a period with no paid days has no contributions or allowance', ()
   assert.equal(p.totalDeductions, 0);
   assert.equal(p.allowance, 0);
   assert.equal(p.netPay, 0);
+});
+
+test('work days per year is 312 by default', () => {
+  assert.equal(DEFAULT_SETTINGS.workDaysPerYear, 312);
+});
+
+test('flexible time: no late or undertime, overtime is time beyond the daily hours', () => {
+  const flexSchedule = { ...schedule, flex: true };
+  // Late start and early finish, a full 8 hours: nothing to deduct.
+  const late = computeEntry({ date: '2026-10-05', type: 'work', timeIn: '11:00', timeOut: '20:00' }, flexSchedule, settings);
+  assert.deepEqual([late.lateMinutes, late.undertimeMinutes, late.overtimeMinutes, late.workedMinutes], [0, 0, 0, 480]);
+  // A short day is not undertime either.
+  const short = computeEntry({ date: '2026-10-05', type: 'work', timeIn: '10:00', timeOut: '13:00' }, flexSchedule, settings);
+  assert.deepEqual([short.lateMinutes, short.undertimeMinutes], [0, 0]);
+  // 10 hours worked whenever they start: 2 hours over.
+  const long = computeEntry({ date: '2026-10-05', type: 'work', timeIn: '06:00', timeOut: '17:00' }, flexSchedule, settings);
+  assert.equal(long.overtimeMinutes, 120);
+  // The same day on a fixed schedule would be 3 hours late.
+  assert.equal(computeEntry({ date: '2026-10-05', type: 'work', timeIn: '12:00', timeOut: '18:00' }, schedule, settings).lateMinutes, 180);
+});
+
+test('payslip: flexible-time employees have no tardiness deduction; absences still count', () => {
+  const flex = { ...employee, flexTime: true };
+  const entries = fullAttendance('2026-10-01', '2026-10-15', {
+    '2026-10-05': { timeIn: '11:30', timeOut: '16:00' },
+    '2026-10-06': { timeIn: '13:00' },
+  }).filter((e) => e.date !== '2026-10-08');
+  const p = computePayslip({ employee: flex, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  const fixed = computePayslip({ employee, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  assert.equal(p.attendance.flex, true);
+  assert.equal(p.attendance.lateMinutes + p.attendance.undertimeMinutes, 0);
+  assert.equal(p.earnings.tardinessDeduction, 0);
+  assert.ok(fixed.earnings.tardinessDeduction > 0, 'the same records on a fixed schedule are deducted');
+  assert.equal(p.attendance.absentDays, 1);
+  assert.equal(p.earnings.basicPay, round(15000 - (30000 * 12) / 312));
+});
+
+test('payslip: a monthly-rated employee absent the whole period is not paid a remainder', () => {
+  // 11 work days x (30,000 x 12 / 312) is less than half a month's salary.
+  const p = computePayslip({ employee, entries: [], periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  assert.equal(p.attendance.absentDays, 11);
+  assert.equal(p.earnings.absenceDeduction, 15000, 'the payslip lines add up');
+  assert.equal(p.earnings.basicPay, 0);
 });

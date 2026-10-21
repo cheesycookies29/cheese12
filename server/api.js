@@ -24,7 +24,7 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const EMPLOYEE_FIELDS = [
   'employeeNo', 'firstName', 'middleName', 'lastName', 'email', 'phone', 'birthDate', 'gender', 'civilStatus',
   'address', 'position', 'department', 'employmentStatus', 'hireDate', 'status', 'payType', 'rate', 'allowance',
-  'minimumWageEarner', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
+  'minimumWageEarner', 'flexTime', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
   'emergencyContactName', 'emergencyContactPhone', 'schedule',
 ];
 
@@ -56,6 +56,7 @@ function validateEmployee(input, db, existingId) {
   if (!(e.rate > 0)) throw new HttpError(400, 'Rate must be greater than zero.');
   e.allowance = Math.max(0, Number(e.allowance) || 0);
   e.minimumWageEarner = Boolean(e.minimumWageEarner);
+  e.flexTime = Boolean(e.flexTime);
   e.status = e.status === 'Inactive' ? 'Inactive' : 'Active';
   e.schedule = validateSchedule(e.schedule || db.data.settings.schedule);
   const dup = db.data.employees.find((x) => x.employeeNo.toLowerCase() === e.employeeNo.toLowerCase() && x.id !== existingId);
@@ -217,6 +218,24 @@ function findUser(db, id) {
   return user;
 }
 
+// One-time changes to company settings that a release brings. Each runs once per database;
+// afterwards the setting can be changed in Payroll Setup as usual.
+const POLICY_UPDATES = [
+  ['work-days-312', (s) => (s.workDaysPerYear = 312)],
+];
+function applyPolicyUpdates(db) {
+  const s = db.data.settings;
+  s.appliedUpdates ||= [];
+  let changed = false;
+  for (const [id, apply] of POLICY_UPDATES) {
+    if (s.appliedUpdates.includes(id)) continue;
+    apply(s);
+    s.appliedUpdates.push(id);
+    changed = true;
+  }
+  return changed;
+}
+
 // Replace all data, then unlink accounts whose employee record no longer exists.
 function replaceData(db, next) {
   // The dev log and user feedback are about the software, not company data: keep them unless a backup
@@ -286,7 +305,7 @@ function clock(db, emp, action, body = {}, source = 'self') {
 
 export function createApi(db) {
   const files = createAttachments(path.join(db.dir, 'attachments'));
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();

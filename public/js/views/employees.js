@@ -30,7 +30,7 @@ export async function employeeListView(el, _params, query) {
           <thead><tr><th>Employee</th><th>Position</th><th>Department</th><th>Status</th><th>Hired</th><th class="num">Rate</th></tr></thead>
           <tbody>${list.map((e) => html`
             <tr data-href="#/employees/${e.id}">
-              <td><div class="person"><span class="avatar">${e.firstName[0]}${e.lastName[0]}</span><div><strong>${e.lastName}, ${e.firstName}</strong><small>${e.employeeNo}</small></div></div></td>
+              <td><div class="person"><span class="avatar">${e.firstName[0]}${e.lastName[0]}</span><div><strong>${e.lastName}, ${e.firstName}</strong><small>${e.employeeNo}${e.flexTime ? html` · <span class="flex-tag">FLEX</span>` : ''}</small></div></div></td>
               <td>${e.position}</td>
               <td>${e.department}</td>
               <td>${badge(e.employmentStatus || '—')} ${e.status === 'Inactive' ? badge('Inactive', 'gray') : ''}</td>
@@ -139,6 +139,7 @@ export async function employeeFormView(el, { id }) {
           ${field('Rate (₱)', 'rate', emp.rate, { type: 'number', required: true, attrs: 'min="0" step="0.01"', hint: 'Monthly salary or daily rate, depending on pay type.' })}
           ${field('Monthly allowance (₱)', 'allowance', emp.allowance, { type: 'number', attrs: 'min="0" step="0.01"', hint: 'Non-taxable (de minimis). Split across pay periods.' })}
           <label class="field check span-3"><input type="checkbox" name="minimumWageEarner" ${emp.minimumWageEarner ? 'checked' : ''} /> <span>Minimum wage earner (exempt from withholding tax)</span></label>
+          <label class="field check span-3"><input type="checkbox" name="flexTime" ${emp.flexTime ? 'checked' : ''} /> <span>Flexible time (FLEX): clock-in and clock-out times do not affect pay. No late or undertime deductions; absences and approved overtime still count.</span></label>
         </div>
       </section>
       <section class="card">
@@ -174,8 +175,9 @@ export async function employeeFormView(el, { id }) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
-    const body = Object.fromEntries([...fd.entries()].filter(([k]) => !['workDays', 'shiftStart', 'shiftEnd', 'breakMinutes', 'minimumWageEarner'].includes(k)));
+    const body = Object.fromEntries([...fd.entries()].filter(([k]) => !['workDays', 'shiftStart', 'shiftEnd', 'breakMinutes', 'minimumWageEarner', 'flexTime'].includes(k)));
     body.minimumWageEarner = fd.has('minimumWageEarner');
+    body.flexTime = fd.has('flexTime');
     body.schedule = { shiftStart: fd.get('shiftStart'), shiftEnd: fd.get('shiftEnd'), breakMinutes: fd.get('breakMinutes'), workDays: fd.getAll('workDays').map(Number) };
     try {
       const saved = isNew ? await api.post('/api/employees', body) : await api.put(`/api/employees/${id}`, body);
@@ -235,6 +237,7 @@ export async function employeeProfileView(el, { id }) {
           ${info('Allowance', `${money(emp.allowance)} / month`)}
           ${info('Tax', emp.minimumWageEarner ? 'Minimum wage earner (exempt)' : 'Regular withholding')}
           ${info('Schedule', `${sched.shiftStart}–${sched.shiftEnd}, ${sched.workDays.map((d) => WEEKDAYS[d]).join(', ')}`)}
+          ${info('Time', emp.flexTime ? html`${badge('FLEX', 'blue')} Flexible time: no late or undertime deductions` : 'Fixed schedule')}
         </dl>
       </section>
       <section class="card">

@@ -213,7 +213,7 @@ export function payslipCard(run, p, settings) {
           <tbody>
             <tr><td>Basic pay</td><td class="num">${amount(p.earnings.basePay)}</td></tr>
             ${line(`  less absences (${a.absentDays} day/s)${a.unpaidLeaveDays ? ` and unpaid leave (${a.unpaidLeaveDays})` : ''}`, -p.earnings.absenceDeduction, 'sub')}
-            ${line(`  less late/undertime (${fmtMinutes(a.lateMinutes + a.undertimeMinutes)})`, -p.earnings.tardinessDeduction, 'sub')}
+            ${a.flex ? html`<tr class="sub"><td>  Flexible time: no late/undertime deduction</td><td class="num">—</td></tr>` : line(`  less late/undertime (${fmtMinutes(a.lateMinutes + a.undertimeMinutes)})`, -p.earnings.tardinessDeduction, 'sub')}
             ${line(`Overtime (${fmtMinutes(a.overtimeMinutes)})`, p.earnings.overtimePay)}
             ${line(`Rest day work (${fmtMinutes(a.restDayMinutes)})`, p.earnings.restDayPay)}
             ${line('Other earnings', p.earnings.otherEarnings)}

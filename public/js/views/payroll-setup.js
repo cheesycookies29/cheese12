@@ -40,7 +40,7 @@ export async function payrollSetupView(el) {
           <label class="field"><span>Pay frequency</span>
             <select name="payFrequency"><option value="semi-monthly" ${s.payFrequency === 'semi-monthly' ? 'selected' : ''}>Semi-monthly (15th and end of month)</option><option value="monthly" ${s.payFrequency === 'monthly' ? 'selected' : ''}>Monthly</option></select>
           </label>
-          ${numField('Work days per year', 'workDaysPerYear', s.workDaysPerYear, { step: 1, hint: 'Daily rate = monthly × 12 ÷ this. 261 for 5-day weeks, 313 for 6-day weeks.' })}
+          ${numField('Work days per year', 'workDaysPerYear', s.workDaysPerYear, { step: 1, hint: 'Daily rate = monthly × 12 ÷ this. Company policy: 312 (6 days × 52 weeks). 261 would suit a 5-day week.' })}
           ${numField('Late grace period', 'gracePeriodMinutes', s.gracePeriodMinutes, { step: 1, suffix: 'min' })}
           ${numField('Minimum overtime', 'minimumOvertimeMinutes', s.minimumOvertimeMinutes, { step: 1, suffix: 'min', hint: 'Shorter overtime on regular days is ignored.' })}
           ${numField('Overtime rate', 'overtimeMultiplier', s.overtimeMultiplier, { step: 0.01, suffix: '× hourly', hint: '1.25 = 125% of the hourly rate' })}

@@ -220,7 +220,7 @@ export async function dtrView(el, _params, query) {
           <thead><tr><th>Date</th><th>Employee</th><th>In</th><th>Out</th><th class="num">Worked</th><th class="num">Late</th><th class="num">Undertime</th><th class="num">Overtime</th>${seeLocation ? html`<th>Clock-in location</th>` : ''}<th>Notes</th><th></th></tr></thead>
           <tbody>${rows.map(({ entry: e, emp, calc: c }) => html`<tr>
             <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${c.restDay ? html` ${badge('Rest day', 'gray')}` : ''}</td>
-            <td>${fullName(emp)}</td>
+            <td>${fullName(emp)}${emp.flexTime ? html` <span class="flex-tag" title="Flexible time: no late or undertime">FLEX</span>` : ''}</td>
             ${c.leave
               ? html`<td colspan="2">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}${c.paidLeave ? '' : html` <small class="muted">unpaid</small>`}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
               : e.remote && !e.timeIn

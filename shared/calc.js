@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS = {
   companyTin: '',
   assetTagPrefix: 'LTDC-IT-',
   payFrequency: 'semi-monthly', // 'semi-monthly' | 'monthly'
-  workDaysPerYear: 261, // 5-day work week; use 313 for a 6-day week
+  workDaysPerYear: 312, // company policy: 6 days x 52 weeks (261 for a 5-day week)
   gracePeriodMinutes: 0,
   minimumOvertimeMinutes: 30, // shorter overtime on regular days is ignored
   overtimeMultiplier: 1.25,
@@ -92,8 +92,9 @@ export function currentPeriod(today, frequency) {
 
 // ---------- Schedules & rates ----------
 
+// flex: the employee is on flexible time (FLEX), so start and end times don't affect pay.
 export function scheduleFor(employee, settings) {
-  return { ...settings.schedule, ...(employee.schedule || {}) };
+  return { ...settings.schedule, ...(employee.schedule || {}), flex: Boolean(employee.flexTime) };
 }
 
 export function hoursPerDay(schedule) {
@@ -106,13 +107,14 @@ export function hoursPerDay(schedule) {
 export function ratesFor(employee, settings) {
   const schedule = scheduleFor(employee, settings);
   const rate = Number(employee.rate) || 0;
-  const factor = Number(settings.workDaysPerYear) || 261;
+  const factor = Number(settings.workDaysPerYear) || 312;
   const daily = employee.payType === 'daily' ? rate : (rate * 12) / factor;
   const monthly = employee.payType === 'daily' ? (rate * factor) / 12 : rate;
   return { monthly, daily, hourly: daily / hoursPerDay(schedule) };
 }
 
-// Late / undertime / overtime for a single DTR entry.
+// Late / undertime / overtime for a single DTR entry. On flexible time there is no late or
+// undertime, and overtime is time worked beyond the scheduled daily hours, whenever it starts.
 export function computeEntry(entry, schedule, settings) {
   const r = { workedMinutes: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDay: false, leave: false, paidLeave: false, remote: Boolean(entry.remote), open: false };
   if (entry.type === 'leave') return { ...r, leave: true, paidLeave: entry.paid !== false };
@@ -133,6 +135,12 @@ export function computeEntry(entry, schedule, settings) {
     return r;
   }
 
+  const minOvertime = Number(settings.minimumOvertimeMinutes) || 0;
+  if (schedule.flex) {
+    const overtime = Math.max(0, r.workedMinutes - Math.round(hoursPerDay(schedule) * 60));
+    r.overtimeMinutes = overtime >= minOvertime ? overtime : 0;
+    return r;
+  }
   const start = toMinutes(schedule.shiftStart);
   let end = toMinutes(schedule.shiftEnd);
   if (end <= start) end += 1440;
@@ -140,7 +148,7 @@ export function computeEntry(entry, schedule, settings) {
   r.lateMinutes = late > (Number(settings.gracePeriodMinutes) || 0) ? late : 0;
   r.undertimeMinutes = Math.max(0, end - outM);
   const overtime = Math.max(0, outM - Math.max(end, inM));
-  r.overtimeMinutes = overtime >= (Number(settings.minimumOvertimeMinutes) || 0) ? overtime : 0;
+  r.overtimeMinutes = overtime >= minOvertime ? overtime : 0;
   return r;
 }
 
@@ -186,7 +194,7 @@ export function computePayslip({ employee, entries, periodStart, periodEnd, sett
   const inPeriod = entries.filter((e) => e.employeeId === employee.id && e.date >= periodStart && e.date <= periodEnd);
   const byDate = new Map(inPeriod.map((e) => [e.date, e]));
 
-  const att = { scheduledDays: 0, daysPresent: 0, remoteDays: 0, leaveDays: 0, unpaidLeaveDays: 0, absentDays: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDayMinutes: 0, openEntries: 0, unapprovedOvertimeMinutes: 0 };
+  const att = { flex: schedule.flex, scheduledDays: 0, daysPresent: 0, remoteDays: 0, leaveDays: 0, unpaidLeaveDays: 0, absentDays: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDayMinutes: 0, openEntries: 0, unapprovedOvertimeMinutes: 0 };
 
   for (const e of inPeriod) {
     const c = computeEntry(e, schedule, settings);
@@ -220,8 +228,11 @@ export function computePayslip({ employee, entries, periodStart, periodEnd, sett
   // Daily-rated employees (and monthly-rated hires that started mid-period) are paid per day.
   const paidPerDay = employee.payType === 'daily' || hireDate > periodStart;
   const basePay = paidPerDay ? (att.daysPresent + att.leaveDays) * rates.daily : rates.monthly / divisor;
-  // Unpaid leave (e.g. leave without pay) is deducted like an absence.
-  const absenceDeduction = paidPerDay ? 0 : (att.absentDays + att.unpaidLeaveDays) * rates.daily;
+  // Unpaid leave (e.g. leave without pay) is deducted like an absence. With no day worked or on
+  // paid leave, the whole base is deducted, even when the work-days factor would leave a remainder
+  // (e.g. 312 days a year with a Monday-to-Friday schedule).
+  const paidDays = att.daysPresent + att.leaveDays;
+  const absenceDeduction = paidPerDay ? 0 : paidDays ? Math.min(basePay, (att.absentDays + att.unpaidLeaveDays) * rates.daily) : basePay;
   const tardinessDeduction = ((att.lateMinutes + att.undertimeMinutes) / 60) * rates.hourly;
   const basicPay = Math.max(0, basePay - absenceDeduction - tardinessDeduction);
 
