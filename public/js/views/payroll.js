@@ -190,54 +190,142 @@ export async function payrollRunView(el, { id }) {
   render();
 }
 
+// Amount in words for the payslip, e.g. 20782.48 -> "Twenty thousand seven hundred eighty-two pesos and 48/100".
+const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+function under1000(n) {
+  const h = Math.floor(n / 100);
+  const r = n % 100;
+  const rest = r < 20 ? ONES[r] : TENS[Math.floor(r / 10)] + (r % 10 ? `-${ONES[r % 10]}` : '');
+  return [h ? `${ONES[h]} hundred` : '', rest].filter(Boolean).join(' ');
+}
+export function pesosInWords(value) {
+  const cents = Math.round(Math.abs(value) * 100);
+  let whole = Math.floor(cents / 100);
+  const parts = [];
+  for (const unit of ['', 'thousand', 'million', 'billion']) {
+    const chunk = whole % 1000;
+    if (chunk) parts.unshift(`${under1000(chunk)}${unit ? ` ${unit}` : ''}`);
+    whole = Math.floor(whole / 1000);
+    if (!whole) break;
+  }
+  const words = parts.join(' ') || 'zero';
+  return `${words[0].toUpperCase()}${words.slice(1)} peso${Math.floor(cents / 100) === 1 ? '' : 's'} and ${String(cents % 100).padStart(2, '0')}/100`;
+}
+
+// Reference printed on the payslip: period start and employee number, e.g. PS-20261001-EMP-0002.
+const slipNumber = (run, p) => `PS-${run.periodStart.replaceAll('-', '')}-${p.employee.employeeNo}`;
+
 export function payslipCard(run, p, settings) {
-  const line = (label, value, cls = '') => (value ? html`<tr class="${cls}"><td>${label}</td><td class="num">${amount(value)}</td></tr>` : '');
   const a = p.attendance;
+  // Amounts taken off are shown in parentheses, as on a statement.
+  const row = (label, value, { sub = false, note = '' } = {}) => html`<tr class="${sub ? 'sub' : ''}"><td>${label}${note ? html`<small>${note}</small>` : ''}</td><td class="num">${value < 0 ? `(${amount(-value)})` : amount(value)}</td></tr>`;
+  const optional = (label, value, opts) => (value ? row(label, value, opts) : '');
+  const field = (label, value) => html`<div><dt>${label}</dt><dd>${value || '—'}</dd></div>`;
+  const employerTotal = p.employerShare.sss + p.employerShare.sssEc + p.employerShare.philhealth + p.employerShare.pagibig;
   return html`
-    <article class="payslip">
-      <header>
-        <div><img src="/img/logo.png" alt="" /><h2>${settings.companyName}</h2><p>${settings.companyAddress}</p>${settings.companyTin ? html`<p>TIN ${settings.companyTin}</p>` : ''}</div>
-        <div class="right"><h3>PAYSLIP</h3><p>${periodLabel(run)}</p><p>Pay date: ${fmtDate(run.payDate)}</p>${run.status === 'draft' ? html`<p class="draft-mark">DRAFT</p>` : ''}</div>
+    <article class="payslip ${run.status === 'draft' ? 'is-draft' : ''}">
+      ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true">DRAFT</div>` : ''}
+      <header class="ps-head">
+        <div class="ps-company">
+          <img src="/img/logo.png" alt="" />
+          <div><strong>${settings.companyName}</strong><span>${settings.companyAddress}</span>${settings.companyTin ? html`<span>TIN ${settings.companyTin}</span>` : ''}</div>
+        </div>
+        <div class="ps-title">
+          <h2>Payslip</h2>
+          <p class="ps-ref">${slipNumber(run, p)}</p>
+          <p class="ps-conf">Private and confidential</p>
+        </div>
       </header>
-      <dl class="slip-info">
-        <div><dt>Employee</dt><dd>${p.employee.name}</dd></div>
-        <div><dt>Employee no.</dt><dd>${p.employee.employeeNo}</dd></div>
-        <div><dt>Position</dt><dd>${p.employee.position || '—'}</dd></div>
-        <div><dt>Department</dt><dd>${p.employee.department || '—'}</dd></div>
-        <div><dt>Rate</dt><dd>${money(p.employee.rate)} / ${p.employee.payType === 'daily' ? 'day' : 'month'}</dd></div>
-        <div><dt>TIN</dt><dd>${p.employee.tin || '—'}</dd></div>
+
+      <dl class="ps-meta">
+        <div><dt>Pay period</dt><dd>${periodLabel(run)}</dd></div>
+        <div><dt>Pay date</dt><dd>${fmtDate(run.payDate)}</dd></div>
+        <div><dt>Pay frequency</dt><dd>${run.payFrequency === 'monthly' ? 'Monthly' : 'Semi-monthly'}</dd></div>
+        <div><dt>Status</dt><dd>${run.status === 'draft' ? 'Draft, not final' : 'Final'}</dd></div>
       </dl>
-      <div class="slip-cols">
-        <table>
-          <thead><tr><th>Earnings</th><th class="num">Amount</th></tr></thead>
+
+      <section class="ps-block">
+        <h3>Employee information</h3>
+        <dl class="ps-fields">
+          ${field('Employee name', p.employee.name)}${field('Employee no.', p.employee.employeeNo)}
+          ${field('Position', p.employee.position)}${field('Department', p.employee.department)}
+          ${field('Rate', `${money(p.employee.rate)} per ${p.employee.payType === 'daily' ? 'day' : 'month'}${a.flex ? ' · Flexible time' : ''}`)}${field('TIN', p.employee.tin)}
+          ${field('SSS no.', p.employee.sssNo)}${field('PhilHealth no.', p.employee.philhealthNo)}
+          ${field('Pag-IBIG no.', p.employee.pagibigNo)}${field('Paid to', p.employee.bankAccount ? `${p.employee.bankName} ${p.employee.bankAccount}` : 'Cash / cheque')}
+        </dl>
+      </section>
+
+      <div class="ps-ledger">
+        <table class="ps-table">
+          <thead><tr><th>Earnings</th><th class="num">Amount (PHP)</th></tr></thead>
           <tbody>
-            <tr><td>Basic pay</td><td class="num">${amount(p.earnings.basePay)}</td></tr>
-            ${line(`  less absences (${a.absentDays} day/s)${a.unpaidLeaveDays ? ` and unpaid leave (${a.unpaidLeaveDays})` : ''}`, -p.earnings.absenceDeduction, 'sub')}
-            ${a.flex ? html`<tr class="sub"><td>  Flexible time: no late/undertime deduction</td><td class="num">—</td></tr>` : line(`  less late/undertime (${fmtMinutes(a.lateMinutes + a.undertimeMinutes)})`, -p.earnings.tardinessDeduction, 'sub')}
-            ${line(`Overtime (${fmtMinutes(a.overtimeMinutes)})`, p.earnings.overtimePay)}
-            ${line(`Rest day work (${fmtMinutes(a.restDayMinutes)})`, p.earnings.restDayPay)}
-            ${line('Other earnings', p.earnings.otherEarnings)}
+            ${row('Basic pay', p.earnings.basePay, { note: p.employee.payType === 'daily' ? `${a.daysPresent + a.leaveDays} day/s` : '' })}
+            ${optional('Less: absences', -p.earnings.absenceDeduction, { sub: true, note: `${a.absentDays} day/s${a.unpaidLeaveDays ? `, unpaid leave ${a.unpaidLeaveDays}` : ''}` })}
+            ${a.flex ? '' : optional('Less: late and undertime', -p.earnings.tardinessDeduction, { sub: true, note: fmtMinutes(a.lateMinutes + a.undertimeMinutes) })}
+            ${optional('Overtime', p.earnings.overtimePay, { note: fmtMinutes(a.overtimeMinutes) })}
+            ${optional('Rest day work', p.earnings.restDayPay, { note: fmtMinutes(a.restDayMinutes) })}
+            ${optional('Other earnings', p.earnings.otherEarnings)}
           </tbody>
-          <tfoot><tr><td>Gross pay</td><td class="num">${amount(p.grossPay)}</td></tr>
-          ${p.allowance ? html`<tr><td>Allowance (non-taxable)</td><td class="num">${amount(p.allowance)}</td></tr>` : ''}</tfoot>
+          <tfoot><tr><td>Gross pay</td><td class="num">${amount(p.grossPay)}</td></tr></tfoot>
         </table>
-        <table>
-          <thead><tr><th>Deductions</th><th class="num">Amount</th></tr></thead>
+        <table class="ps-table">
+          <thead><tr><th>Deductions</th><th class="num">Amount (PHP)</th></tr></thead>
           <tbody>
-            <tr><td>SSS</td><td class="num">${amount(p.deductions.sss)}</td></tr>
-            <tr><td>PhilHealth</td><td class="num">${amount(p.deductions.philhealth)}</td></tr>
-            <tr><td>Pag-IBIG</td><td class="num">${amount(p.deductions.pagibig)}</td></tr>
-            <tr><td>Withholding tax</td><td class="num">${amount(p.deductions.withholdingTax)}</td></tr>
-            ${line('Other deductions', p.deductions.otherDeductions)}
+            ${row('SSS contribution', p.deductions.sss)}
+            ${row('PhilHealth contribution', p.deductions.philhealth)}
+            ${row('Pag-IBIG contribution', p.deductions.pagibig)}
+            ${row('Withholding tax', p.deductions.withholdingTax, { note: p.deductions.withholdingTax ? '' : 'exempt / below threshold' })}
+            ${optional('Other deductions', p.deductions.otherDeductions)}
           </tbody>
           <tfoot><tr><td>Total deductions</td><td class="num">${amount(p.totalDeductions)}</td></tr></tfoot>
         </table>
       </div>
-      <div class="net"><span>NET PAY</span><strong>${money(p.netPay)}</strong></div>
-      <p class="slip-foot">Days paid: ${a.daysPresent + a.leaveDays} of ${a.scheduledDays} (paid leave: ${a.leaveDays}${a.remoteDays ? `, remote: ${a.remoteDays}` : ''}) · Taxable income: ${amount(p.taxableIncome)}
-        · Employer share: SSS ${amount(p.employerShare.sss + p.employerShare.sssEc)}, PhilHealth ${amount(p.employerShare.philhealth)}, Pag-IBIG ${amount(p.employerShare.pagibig)}
-        ${p.employee.bankAccount ? html` · Credited to ${p.employee.bankName} ${p.employee.bankAccount}` : ''}</p>
-      ${p.adjustments.remarks ? html`<p class="slip-foot"><strong>Remarks:</strong> ${p.adjustments.remarks}</p>` : ''}
+
+      <section class="ps-summary">
+        <dl>
+          <div><dt>Gross pay</dt><dd>${amount(p.grossPay)}</dd></div>
+          <div><dt>Less: total deductions</dt><dd>(${amount(p.totalDeductions)})</dd></div>
+          ${p.allowance ? html`<div><dt>Add: allowance (non-taxable)</dt><dd>${amount(p.allowance)}</dd></div>` : ''}
+          <div><dt>Taxable income</dt><dd>${amount(p.taxableIncome)}</dd></div>
+        </dl>
+        <div class="ps-net">
+          <span>Net pay</span>
+          <strong>${money(p.netPay)}</strong>
+          <em>${pesosInWords(p.netPay)}</em>
+        </div>
+      </section>
+
+      <div class="ps-ledger ps-small">
+        <table class="ps-table">
+          <thead><tr><th>Attendance</th><th class="num">Count</th></tr></thead>
+          <tbody>
+            <tr><td>Scheduled work days</td><td class="num">${a.scheduledDays}</td></tr>
+            <tr><td>Days present${a.remoteDays ? html`<small>incl. ${a.remoteDays} remote</small>` : ''}</td><td class="num">${a.daysPresent}</td></tr>
+            <tr><td>Paid leave</td><td class="num">${a.leaveDays}</td></tr>
+            <tr><td>Absences / unpaid leave</td><td class="num">${a.absentDays + a.unpaidLeaveDays}</td></tr>
+            <tr><td>Late and undertime</td><td class="num">${a.flex ? 'Not applicable' : fmtMinutes(a.lateMinutes + a.undertimeMinutes) || '—'}</td></tr>
+            <tr><td>Approved overtime</td><td class="num">${fmtMinutes(a.overtimeMinutes + a.restDayMinutes) || '—'}</td></tr>
+          </tbody>
+        </table>
+        <table class="ps-table">
+          <thead><tr><th>Employer contributions</th><th class="num">Amount (PHP)</th></tr></thead>
+          <tbody>
+            <tr><td>SSS<small>incl. EC ${amount(p.employerShare.sssEc)}</small></td><td class="num">${amount(p.employerShare.sss + p.employerShare.sssEc)}</td></tr>
+            <tr><td>PhilHealth</td><td class="num">${amount(p.employerShare.philhealth)}</td></tr>
+            <tr><td>Pag-IBIG</td><td class="num">${amount(p.employerShare.pagibig)}</td></tr>
+          </tbody>
+          <tfoot><tr><td>Total employer share</td><td class="num">${amount(employerTotal)}</td></tr></tfoot>
+        </table>
+      </div>
+
+      ${p.adjustments.remarks ? html`<section class="ps-remarks"><h3>Remarks</h3><p>${p.adjustments.remarks}</p></section>` : ''}
+
+      <footer class="ps-foot">
+        <div class="ps-sign"><span></span>Received by (signature over printed name)</div>
+        <div class="ps-sign"><span></span>Date received</div>
+        <p>This payslip is system-generated by ${settings.companyName} and is valid without a signature. Employer contributions are shown for information and are not deducted from pay. Report discrepancies to HR within 5 working days of the pay date.</p>
+      </footer>
     </article>`;
 }
 

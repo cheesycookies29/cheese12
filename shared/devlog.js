@@ -26,6 +26,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.4.2-alpha',
+    date: '2026-10-24',
+    title: 'Payslip redesign',
+    modules: ['hr'],
+    notes: 'Redesigned the payslip as a formal pay statement for screen, print and PDF.',
+    changes: [
+      ['improved', 'hr', 'Letterhead with company details, payslip reference number (PS-period-employee no.) and a confidentiality mark; pay period, pay date, frequency and status in a header row.'],
+      ['improved', 'hr', 'Employee information block including government ID numbers and the account pay is credited to; ruled Earnings and Deductions tables with amounts taken off shown in parentheses.'],
+      ['new', 'hr', 'Pay summary with net pay in figures and in words; attendance and employer contribution tables; acknowledgement lines for the employee\'s signature and date; standard footer note.'],
+      ['improved', 'hr', 'Draft payslips carry a DRAFT watermark. Printing or saving as PDF produces one A4 page per payslip.'],
+    ],
+  },
+  {
     version: '0.4.1-alpha',
     date: '2026-10-21',
     title: 'Flexible time and 312 work days per year',
