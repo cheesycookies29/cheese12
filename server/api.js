@@ -11,7 +11,7 @@ import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './h
 import { createSecrets } from './secrets.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
-import { ROLES, can } from '../shared/roles.js';
+import { ROLES, userCan } from '../shared/roles.js';
 import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
   sessionCookie, clearedCookie, SESSION_COOKIE,
@@ -635,7 +635,7 @@ export function createApi(db) {
       if (r.permission !== 'public') {
         if (!user) throw new HttpError(401, 'Please sign in.');
         if (user.mustChangePassword && !r.duringPasswordChange) throw new HttpError(403, 'Please change your password first.');
-        if (r.permission !== 'auth' && !can(user.role, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
+        if (r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
       }
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token });

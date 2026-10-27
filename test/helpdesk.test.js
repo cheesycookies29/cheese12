@@ -77,6 +77,33 @@ test('agents reply, add internal notes, assign and change status', async () => {
   await assert.rejects(agent('DELETE', `/api/helpdesk/tickets/${t.id}`), /does not have access/);
 });
 
+test('administrators choose which accounts are helpdesk agents', async () => {
+  const id = (username) => users.find((u) => u.username === username).id;
+  const access = async () => Object.fromEntries((await admin('GET', '/api/helpdesk/agent-access')).map((u) => [u.username, u]));
+  await assert.rejects(it('GET', '/api/helpdesk/agent-access'), /does not have access/, 'agents cannot change who is an agent');
+  let list = await access();
+  assert.deepEqual([list.admin.agent, list.itguy.agent, list.agent1.agent, list.pay.agent], [true, true, true, false]);
+  assert.equal(list.admin.locked, true);
+
+  // Grant a payroll officer, remove the IT account.
+  await admin('PUT', `/api/helpdesk/agent-access/${id('pay')}`, { access: true });
+  list = Object.fromEntries((await admin('PUT', `/api/helpdesk/agent-access/${id('itguy')}`, { access: false })).map((u) => [u.username, u]));
+  assert.deepEqual([list.pay.agent, list.pay.override, list.itguy.agent, list.itguy.byRole], [true, true, false, true]);
+  assert.ok(Array.isArray(await payroll('GET', '/api/helpdesk/tickets')), 'the granted account works tickets');
+  await assert.rejects(it('GET', '/api/helpdesk/tickets'), /does not have access/, 'the removed account no longer can');
+  const agentIds = (await admin('GET', '/api/helpdesk/agents')).map((u) => u.id);
+  assert.ok(agentIds.includes(id('pay')) && !agentIds.includes(id('itguy')));
+  // The browser gets the override with the account, so menus follow it.
+  assert.equal((await payroll('GET', '/api/auth/status')).user.helpdeskAgent, true);
+  await assert.rejects(admin('PUT', `/api/helpdesk/agent-access/${id('admin')}`, { access: false }), /always have helpdesk access/);
+
+  // Back to the account type: choosing the default clears the override.
+  await admin('PUT', `/api/helpdesk/agent-access/${id('itguy')}`, { access: true });
+  await admin('PUT', `/api/helpdesk/agent-access/${id('pay')}`, { access: null });
+  list = await access();
+  assert.deepEqual([list.itguy.override, list.itguy.agent, list.pay.override, list.pay.agent], [null, true, null, false]);
+});
+
 test('resolved tickets close automatically after the set days', async () => {
   const t = db.data.tickets[0];
   t.resolvedAt = new Date(Date.now() - 8 * 86400000).toISOString();

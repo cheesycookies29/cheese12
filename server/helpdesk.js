@@ -3,7 +3,7 @@
 // notes; replies can go out by email over SMTP and come back threaded on the ticket.
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
-import { can } from '../shared/roles.js';
+import { ROLES, can, userCan } from '../shared/roles.js';
 import {
   TICKET_STATUS, TICKET_PRIORITY, UNRESOLVED_TICKET, DEFAULT_CATEGORIES, DEFAULT_SLA, ticketRef, REF_RE, slaDue, slaState,
 } from '../shared/helpdesk.js';
@@ -57,7 +57,7 @@ export function migrateHelpdesk(db) {
   return changed;
 }
 
-const isAgent = (user) => Boolean(user) && can(user.role, 'helpdesk.agent');
+const isAgent = (user) => userCan(user, 'helpdesk.agent');
 
 export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee }) {
   const hd = () => db.data.helpdesk;
@@ -74,7 +74,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     const emp = db.data.employees.find((e) => e.email && e.email.toLowerCase() === email);
     return emp ? db.data.users.find((u) => u.employeeId === emp.id && u.active) || null : null;
   };
-  const agents = () => db.data.users.filter((u) => u.active && can(u.role, 'helpdesk.agent'));
+  const agents = () => db.data.users.filter((u) => u.active && isAgent(u));
   const requesterOf = (user) => ({ userId: user.id, name: user.name, email: employeeEmail(user) });
   const ownsTicket = (user, t) => t.requester.userId === user.id || (employeeEmail(user) && t.requester.email === employeeEmail(user));
 
@@ -501,6 +501,33 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     return { ok: true };
   });
   route('GET', '/api/helpdesk/canned', 'helpdesk.agent', () => hd().canned);
+
+  // ===== Routes: who is an agent (administrators) =====
+  // Each account follows its account type unless an administrator grants or removes agent access.
+  const agentAccess = () => db.data.users
+    .filter((u) => u.active)
+    .map((u) => ({
+      id: u.id, name: u.name, username: u.username, role: u.role, roleLabel: ROLES[u.role]?.label || u.role,
+      byRole: can(u.role, 'helpdesk.agent'), override: typeof u.helpdeskAgent === 'boolean' ? u.helpdeskAgent : null,
+      agent: isAgent(u), locked: u.role === 'admin',
+      assignedOpen: tickets().filter((t) => t.assigneeId === u.id && UNRESOLVED_TICKET.includes(t.status)).length,
+    }))
+    .sort((a, b) => b.agent - a.agent || a.name.localeCompare(b.name));
+  route('GET', '/api/helpdesk/agent-access', 'helpdesk.manage', agentAccess);
+  // access: true = agent, false = not an agent, null = follow the account type.
+  route('PUT', '/api/helpdesk/agent-access/:userId', 'helpdesk.manage', ({ params, body }) => {
+    const u = db.data.users.find((x) => x.id === params.userId && x.active);
+    if (!u) throw new HttpError(404, 'User not found.');
+    if (u.role === 'admin') throw new HttpError(400, 'Administrators always have helpdesk access.');
+    if (body.access === true || body.access === false) {
+      // Store only a real difference from the account type, so a later change of type applies.
+      if (body.access === can(u.role, 'helpdesk.agent')) delete u.helpdeskAgent;
+      else u.helpdeskAgent = body.access;
+    } else if (body.access === null) delete u.helpdeskAgent;
+    else throw new HttpError(400, 'Choose whether this account is a helpdesk agent.');
+    db.save();
+    return agentAccess();
+  });
 
   // ===== Routes: settings (administrators) =====
   const publicSettings = () => {

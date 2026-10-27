@@ -432,8 +432,9 @@ const PRESETS = {
 };
 
 export async function helpdeskSettingsView(el) {
-  let s = await api.get('/api/helpdesk/settings');
-  const tab = { current: 'mailbox' };
+  let [s, access] = await Promise.all([api.get('/api/helpdesk/settings'), api.get('/api/helpdesk/agent-access')]);
+  const asked = new URLSearchParams(location.hash.split('?')[1] || '').get('tab');
+  const tab = { current: ['mailbox', 'outgoing', 'general', 'agents'].includes(asked) ? asked : 'mailbox' };
 
   const secField = (name, value) => html`<select name="${name}"><option value="tls" ${value === 'tls' ? 'selected' : ''}>SSL/TLS</option><option value="starttls" ${value === 'starttls' ? 'selected' : ''}>STARTTLS</option><option value="none" ${value === 'none' ? 'selected' : ''}>None (not recommended)</option></select>`;
   const pw = (cfg, name = 'password') => html`<input type="password" name="${name}" autocomplete="new-password" placeholder="${cfg.hasPassword ? '•••••••• saved (leave blank to keep)' : 'Mailbox or app password'}" />`;
@@ -522,12 +523,37 @@ export async function helpdeskSettingsView(el) {
       </section>`;
   }
 
+  // Which accounts work tickets: account-type default, or granted / removed here.
+  function agentsTab() {
+    const agents = access.filter((u) => u.agent).length;
+    const source = (u) => (u.locked ? 'Administrator: always' : u.override === null ? `By account type (${u.roleLabel})` : u.override ? 'Added here' : 'Removed here');
+    return html`<section class="card scroll-x">
+      <div class="card-head pad"><h2>Helpdesk agents</h2><span class="muted small">${plural(agents, 'agent')} of ${plural(access.length, 'active account')}</span></div>
+      <p class="muted pad">Agents see every ticket, reply, add internal notes and can be assigned tickets. Everyone else uses <strong>My tickets</strong> only. Administrators, IT Asset Managers and Helpdesk Agents are agents by default; turn access on or off for any other account here. Changes apply the next time that person opens or reloads the app.</p>
+      <table class="table agent-table">
+        <thead><tr><th>Account</th><th>Account type</th><th>Agent access</th><th>Set by</th><th class="num">Open tickets assigned</th></tr></thead>
+        <tbody>${access.map((u) => html`<tr class="${u.agent ? '' : 'not-offered'}">
+          <td><strong>${u.name}</strong><small>${u.username}</small></td>
+          <td>${u.roleLabel}</td>
+          <td><label class="switch"><input type="checkbox" data-agent="${u.id}" ${u.agent ? 'checked' : ''} ${u.locked ? 'disabled' : ''} /><span>${u.agent ? 'Agent' : 'No'}</span></label></td>
+          <td>${source(u)}${u.override !== null && !u.locked ? html` · <button type="button" class="link" data-agent-default="${u.id}">use default</button>` : ''}</td>
+          <td class="num">${u.assignedOpen || html`<span class="muted">—</span>`}</td></tr>`)}</tbody>
+      </table>
+      <p class="muted small pad">To give someone agent access only, create their account with the <em>Helpdesk Agent</em> type under Users &amp; Access, or turn it on here for an existing account.</p>
+    </section>`;
+  }
+
   function render() {
     mount(el, html`
-      <header class="page-head"><div><h1>Service desk settings</h1><p class="muted">Where the helpdesk receives email, how it replies, and how tickets are handled.</p></div></header>
-      <nav class="tabs">${[['mailbox', 'Receiving email'], ['outgoing', 'Sending email'], ['general', 'Tickets & replies']].map(([k, v]) => html`<a href="#/helpdesk/settings" data-tab="${k}" class="${k === tab.current ? 'active' : ''}">${v}</a>`)}</nav>
-      <div id="tab">${tab.current === 'mailbox' ? mailboxTab() : tab.current === 'outgoing' ? outgoingTab() : generalTab()}</div>`);
-    el.querySelectorAll('[data-tab]').forEach((a) => a.addEventListener('click', (e) => (e.preventDefault(), (tab.current = a.dataset.tab), render())));
+      <header class="page-head"><div><h1>Service desk settings</h1><p class="muted">Where the helpdesk receives email, how it replies, how tickets are handled, and who works them.</p></div></header>
+      <nav class="tabs">${[['mailbox', 'Receiving email'], ['outgoing', 'Sending email'], ['general', 'Tickets & replies'], ['agents', 'Agents']].map(([k, v]) => html`<a href="#/helpdesk/settings?tab=${k}" data-tab="${k}" class="${k === tab.current ? 'active' : ''}">${v}</a>`)}</nav>
+      <div id="tab">${{ mailbox: mailboxTab, outgoing: outgoingTab, general: generalTab, agents: agentsTab }[tab.current]()}</div>`);
+    el.querySelectorAll('[data-tab]').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault();
+      tab.current = a.dataset.tab;
+      history.replaceState(null, '', `#/helpdesk/settings?tab=${tab.current}`);
+      render();
+    }));
     wire();
   }
 
@@ -596,6 +622,23 @@ export async function helpdeskSettingsView(el) {
         body: html`<label class="field"><span>Send to</span><input name="to" type="email" required placeholder="you@company.com" /></label><p class="muted small">Uses the saved settings. Save any changes first.</p>`,
         onSubmit: async (f) => toast((await api.post('/api/helpdesk/settings/outgoing/test', { to: new FormData(f).get('to') })).message),
       }));
+    }
+    const agentTable = el.querySelector('.agent-table');
+    if (agentTable) {
+      const set = async (id, value) => {
+        const u = access.find((x) => x.id === id);
+        if (value === false && u.assignedOpen && !(await confirmDialog(`${u.name} has ${plural(u.assignedOpen, 'open ticket')} assigned. They stay assigned until you reassign them, but ${u.name.split(' ')[0]} will no longer see the queue.`, { title: 'Remove agent access', confirmLabel: 'Remove access' }))) return render();
+        try {
+          access = await api.put(`/api/helpdesk/agent-access/${id}`, { access: value });
+          toast(value === null ? `${u.name} follows the account type again.` : value ? `${u.name} is now a helpdesk agent.` : `${u.name} is no longer a helpdesk agent.`);
+          changed();
+        } catch (err) {
+          toast(err.message, 'error');
+        }
+        render();
+      };
+      agentTable.addEventListener('change', (e) => e.target.dataset.agent && set(e.target.dataset.agent, e.target.checked));
+      agentTable.addEventListener('click', (e) => e.target.dataset.agentDefault && set(e.target.dataset.agentDefault, null));
     }
     const gen = el.querySelector('#general');
     if (gen) {

@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { can as roleCan, ROLES } from '/shared/roles.js';
+import { userCan, ROLES } from '/shared/roles.js';
 
 // App-wide state shared between views.
 export const ctx = {
@@ -15,7 +15,7 @@ export const ctx = {
   },
 };
 
-export const can = (permission) => Boolean(ctx.user) && roleCan(ctx.user.role, permission);
+export const can = (permission) => userCan(ctx.user, permission);
 export const roleLabel = (role) => ROLES[role]?.label || role;
 
 // Label for a leave entry, e.g. "Vacation Leave" or "Leave without pay".

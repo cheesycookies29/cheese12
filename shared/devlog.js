@@ -26,6 +26,21 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.5.1-alpha',
+    date: '2026-10-27',
+    title: 'Helpdesk agent access per account',
+    modules: ['system'],
+    notes: 'Administrators can now decide which accounts are helpdesk agents, independently of the account type.',
+    changes: [
+      ['new', 'system', 'Service desk settings > Agents: every active account with its agent access, how it was set (account type, added, removed) and its open assigned tickets. Turn agent access on or off per account, or return it to the account-type default.'],
+      ['improved', 'system', 'The override is enforced by the server for all service desk routes and assignment, and follows the account to the browser, so menus and the launcher match.'],
+      ['improved', 'system', 'Users & Access shows when an account\'s helpdesk access differs from its account type.'],
+    ],
+    known: [
+      'Administrators always keep agent access. Tickets assigned to someone whose access is removed stay assigned until reassigned.',
+    ],
+  },
+  {
     version: '0.5.0-alpha',
     date: '2026-10-27',
     title: 'IT Service Desk',

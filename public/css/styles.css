@@ -332,7 +332,8 @@ body:not(.auth-mode) #auth { display: none; }
 .badge.maroon-soft { background: var(--maroon-soft); color: var(--maroon); }
 .btn.small-btn { padding: 4px 12px; font-size: 13px; }
 .stats .card.attention { border-top-color: var(--maroon); background: var(--gold-soft); }
-.toolbar.pad, .muted.pad, h2.pad { padding: 16px 16px 0; }
+.toolbar.pad, .muted.pad, h2.pad, .card-head.pad { padding: 16px 16px 0; }
+.card-head.pad { padding-top: 20px; }
 .muted.small.pad:last-child { padding-bottom: 16px; }
 .balances th small { display: block; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
 .center { text-align: center !important; }

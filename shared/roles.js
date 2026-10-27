@@ -67,3 +67,14 @@ export function can(role, permission) {
   const perms = ROLES[role]?.permissions || [];
   return perms.includes('*') || perms.includes(permission);
 }
+
+// Permissions an administrator can grant or remove per account, on top of the account type.
+// user.helpdeskAgent: true (granted), false (removed) or absent (follow the account type).
+// Administrators always keep everything.
+export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent' };
+export function userCan(user, permission) {
+  if (!user) return false;
+  const field = PER_USER[permission];
+  if (field && user.role !== 'admin' && typeof user[field] === 'boolean') return user[field];
+  return can(user.role, permission);
+}

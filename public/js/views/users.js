@@ -3,7 +3,7 @@ import { ctx, roleLabel } from '../state.js';
 import { ROLES, PERMISSION_LABELS, can as roleCan } from '/shared/roles.js';
 import { html, mount, badge, toast, modal, confirmDialog } from '../ui.js';
 
-const ROLE_BADGE = { admin: 'maroon', hr: 'blue', payroll: 'amber', employee: 'gray' };
+const ROLE_BADGE = { admin: 'maroon', hr: 'blue', payroll: 'amber', it: 'green', support: 'maroon-soft', employee: 'gray' };
 
 function fmtWhen(iso) {
   if (!iso) return 'Never';
@@ -65,7 +65,7 @@ export async function usersView(el) {
           return html`<tr>
             <td><div class="person"><span class="avatar">${u.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
               <div><strong>${u.name}${u.id === ctx.user.id ? html` <span class="muted you">(you)</span>` : ''}</strong><small>${u.username}</small></div></div></td>
-            <td>${badge(roleLabel(u.role), ROLE_BADGE[u.role])}</td>
+            <td>${badge(roleLabel(u.role), ROLE_BADGE[u.role])}${u.role !== 'admin' && typeof u.helpdeskAgent === 'boolean' ? html`<small><a href="#/helpdesk/settings?tab=agents">${u.helpdeskAgent ? '+ Helpdesk agent' : 'Helpdesk agent access removed'}</a></small>` : ''}</td>
             <td>${emp ? html`<a href="#/employees/${emp.id}">${emp.firstName} ${emp.lastName}</a>` : html`<span class="muted">—</span>`}</td>
             <td>${u.active ? badge('Active', 'green') : badge('Disabled', 'gray')} ${u.mustChangePassword ? badge('Temp. password', 'amber') : ''} ${u.demo ? badge('Demo', 'gray') : ''}</td>
             <td>${fmtWhen(u.lastLoginAt)}</td>
