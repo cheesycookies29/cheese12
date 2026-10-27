@@ -16,13 +16,15 @@ function greeting() {
 // A few live figures per module, only from data this user may see.
 async function moduleStats() {
   const get = (url) => api.get(url).catch(() => null);
-  const [employees, requests, assets, inventory, mine, reports] = await Promise.all([
+  const [employees, requests, assets, inventory, mine, reports, desk, myTickets] = await Promise.all([
     can('employees.view') ? get('/api/employees') : null,
     can('leave.manage') ? get('/api/requests/summary') : null,
     can('assets.view') ? get('/api/assets') : null,
     can('assets.view') ? get('/api/inventory') : null,
     !can('assets.view') && ctx.user.employeeId ? get('/api/me/assets') : null,
     can('assets.view') ? get('/api/asset-reports/summary') : null,
+    can('helpdesk.agent') ? get('/api/helpdesk/summary') : null,
+    can('helpdesk.agent') ? null : get('/api/helpdesk/mine'),
   ]);
   const hr = [];
   if (employees) hr.push(`${employees.filter((e) => e.status === 'Active').length} active employees`);
@@ -33,7 +35,11 @@ async function moduleStats() {
   if (low) assetsOut.push(`${low} low stock`);
   if (reports?.active) assetsOut.push(`${reports.active} open problem report${reports.active === 1 ? '' : 's'}`);
   if (mine) assetsOut.push(`${mine.assets.length} item${mine.assets.length === 1 ? '' : 's'} assigned to you`);
-  return { hr, assets: assetsOut };
+  const helpdesk = [];
+  if (desk) helpdesk.push(`${desk.open} open ticket${desk.open === 1 ? '' : 's'}`, ...(desk.awaiting ? [`${desk.awaiting} awaiting reply`] : []), ...(desk.overdue ? [`${desk.overdue} overdue`] : []));
+  const myOpen = myTickets?.filter((t) => !['resolved', 'closed'].includes(t.status)).length;
+  if (myOpen) helpdesk.push(`${myOpen} open ticket${myOpen === 1 ? '' : 's'} of yours`);
+  return { hr, assets: assetsOut, helpdesk };
 }
 
 export async function launcherView(el) {

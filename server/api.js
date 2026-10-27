@@ -7,6 +7,8 @@ import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.j
 import { createAttachments } from './attachments.js';
 import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
+import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
+import { createSecrets } from './secrets.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, can } from '../shared/roles.js';
@@ -244,6 +246,8 @@ function replaceData(db, next) {
     ...next,
     devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog,
     feedback: Array.isArray(next.feedback) && next.feedback.length ? next.feedback : db.data.feedback,
+    // The service desk's mail setup and settings are kept; its tickets are company data.
+    helpdesk: keepHelpdeskConfig(db.data.helpdesk, next.helpdesk),
   });
   syncDevlog(db);
   migrateLeaveTypes(db);
@@ -305,7 +309,8 @@ function clock(db, emp, action, body = {}, source = 'self') {
 
 export function createApi(db) {
   const files = createAttachments(path.join(db.dir, 'attachments'));
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db)];
+  const secrets = createSecrets(db.dir);
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
@@ -611,14 +616,15 @@ export function createApi(db) {
   });
   registerDevlogRoutes(route, db);
   registerFeedbackRoutes(route, db);
+  const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });
     return { ok: true };
   });
 
-  // Returns { data, headers }.
-  return async function handle(req, url, body) {
+  // Returns { data, headers }. handle.helpdesk exposes the mail poller (used by tests).
+  async function handle(req, url, body) {
     const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
     const session = sessions.get(token);
     const user = session && users().find((u) => u.id === session.userId && u.active);
@@ -636,5 +642,7 @@ export function createApi(db) {
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }
     throw new HttpError(404, 'Not found.');
-  };
+  }
+  handle.helpdesk = helpdesk;
+  return handle;
 }

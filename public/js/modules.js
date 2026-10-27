@@ -13,8 +13,8 @@ export const MODULES = [
     description: 'Projects, milestones, resource allocation and timesheets.' },
   { id: 'crm', code: 'MOD-06', name: 'Sales & CRM', icon: 'handshake', status: 'soon',
     description: 'Clients, opportunities, bids and contracts.' },
-  { id: 'helpdesk', code: 'MOD-07', name: 'IT Service Desk', icon: 'headset', status: 'soon',
-    description: 'Support tickets, service levels and a knowledge base.' },
+  { id: 'helpdesk', code: 'MOD-07', name: 'IT Service Desk', icon: 'headset', status: 'live',
+    description: 'Support tickets from the portal and by email, assignment, internal notes and service levels.' },
   { id: 'documents', code: 'MOD-08', name: 'Document Management', icon: 'folder', status: 'soon',
     description: 'Contracts, compliance files, templates and approvals.' },
 ];

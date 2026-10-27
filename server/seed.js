@@ -4,6 +4,7 @@ import { emptyData } from './db.js';
 import { eachDate, dayOfWeek } from '../shared/calc.js';
 import { localDate } from './util.js';
 import { workDates } from '../shared/leave.js';
+import { ticketRef, slaDue } from '../shared/helpdesk.js';
 
 const PEOPLE = [
   ['Maria', 'Santos', 'Reyes', 'HR Manager', 'Human Resources', 'monthly', 55000, 'Female', 'Married'],
@@ -108,7 +109,47 @@ export function demoData() {
   );
   data.requests = data.requests.filter((r) => r.days > 0);
   seedAssets(data);
+  seedTickets(data);
   return data;
+}
+
+// A few service desk tickets in different states, from the demo employees.
+function seedTickets(data) {
+  const [, juan, andrea, mark, kristine] = data.employees;
+  const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
+  const person = (e) => ({ userId: null, name: `${e.firstName} ${e.lastName}`, email: e.email });
+  const it = { userId: null, name: 'Demo IT Asset Manager', email: null, role: 'agent' };
+  const msg = (author, body, at, kind = 'reply') => ({ id: randomUUID(), kind, author, body, at, via: 'web', attachments: [] });
+  const make = (n, e, subject, category, priority, status, createdHoursAgo, channel, messages) => {
+    const createdAt = ago(createdHoursAgo);
+    const firstAgent = messages.find((m) => m.author.role === 'agent' && m.kind === 'reply');
+    return {
+      id: randomUUID(), number: n, ref: ticketRef(n), subject, status, priority, category, channel,
+      requester: person(e), assigneeId: null, assetId: null, ccs: [], createdAt, updatedAt: messages.at(-1).at,
+      firstResponseAt: firstAgent?.at || null, resolvedAt: status === 'resolved' ? messages.at(-1).at : null, closedAt: null,
+      ...slaDue(createdAt, priority), messages, emailIds: [],
+    };
+  };
+  const r = (e) => ({ ...person(e), role: 'requester' });
+  data.tickets = [
+    make(1, kristine, 'Outlook keeps asking for my password', 'Email', 'normal', 'resolved', 52, 'email', [
+      msg(r(kristine), 'Since this morning Outlook asks for my password every few minutes, even after I enter it.', ago(52)),
+      msg(it, 'Your password expired over the weekend. I have reset it; please sign in with the temporary password I sent by SMS and set a new one.', ago(49)),
+      msg(r(kristine), 'That fixed it, thank you!', ago(47)),
+    ]),
+    make(2, mark, 'Request: second monitor for sales desk', 'Hardware', 'low', 'pending', 30, 'portal', [
+      msg(r(mark), 'Could I get a second monitor? I work with the price list and CRM side by side all day.', ago(30)),
+      msg(it, 'We have a 24" monitor in stock. Is tomorrow 10 am a good time to set it up?', ago(26)),
+      msg(it, 'Asset LTDC-IT-0006 can be used.', ago(26), 'note'),
+    ]),
+    make(3, juan, 'Laptop battery drains very fast', 'Hardware', 'normal', 'open', 5, 'portal', [
+      msg(r(juan), 'My laptop goes from 100% to 20% in about an hour, even with only the browser open.', ago(5)),
+    ]),
+    make(4, andrea, 'Cannot open the Finance shared drive', 'Account and access', 'high', 'new', 2, 'email', [
+      msg(r(andrea), 'I get "Access denied" when I open \\\\fileserver\\finance since this morning. I need it for the month-end close.', ago(2)),
+    ]),
+  ];
+  data.helpdesk.seq = data.tickets.length;
 }
 
 // IT assets and consumables, allocated to the demo employees, a department and a location.

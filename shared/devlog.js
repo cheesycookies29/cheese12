@@ -26,6 +26,27 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.5.0-alpha',
+    date: '2026-10-27',
+    title: 'IT Service Desk',
+    modules: ['system', 'assets'],
+    notes: 'Released the IT Service Desk module: tickets from the portal, by email and from agents, with a configurable receiving address.',
+    changes: [
+      ['new', 'system', 'IT Service Desk module on the launcher. Ticket numbers (HD-000001), categories, priorities, statuses, assignment, linked IT assets, and first-response and resolution SLA targets with overdue flags.'],
+      ['new', 'system', 'My tickets portal for every user: open tickets with attachments and equipment, follow replies, reply, and mark a ticket solved.'],
+      ['new', 'system', 'Agent workspace: queue with views, filters and search; public replies and internal notes; saved replies; status selection after replying; collision notice when another agent is viewing; logging tickets on behalf of a user.'],
+      ['new', 'system', 'Configurable receiving email: helpdesk address and IMAP mailbox (presets for Gmail, Microsoft 365 and Zoho), connection test, manual and scheduled checks, sender restrictions, and threading of replies by ticket number and message references.'],
+      ['new', 'system', 'Outgoing email over SMTP for agent replies and acknowledgements, with a test send. Loop protection for automatic mail and the desk\'s own address; duplicate messages are imported once.'],
+      ['new', 'system', 'Helpdesk Agent account type and two permissions: work tickets, and manage service desk settings (Administrators). IT Asset Managers are agents.'],
+      ['new', 'system', 'Mailbox passwords are encrypted at rest with a key stored beside the data file and are excluded from the browser and backups.'],
+    ],
+    known: [
+      'Mailboxes that require OAuth sign-in only (most Microsoft 365 tenants) are not supported yet; use a mailbox that allows IMAP with an app password.',
+      'Only PDF and image attachments are imported from email; other file types are listed on the ticket as not imported.',
+      'Mail is checked every few minutes (configurable from 1 minute); there is no push notification from the mail server.',
+    ],
+  },
+  {
     version: '0.4.2-alpha',
     date: '2026-10-24',
     title: 'Payslip redesign',

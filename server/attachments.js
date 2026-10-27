@@ -21,13 +21,17 @@ function sniff(buf) {
 // { name, data: base64 } from the browser -> { name, type, buffer }, or a 400 explaining what's wrong.
 export function parseUpload(input) {
   if (!input || typeof input.data !== 'string') throw new HttpError(400, 'The attached file could not be read. Please choose it again.');
-  const buffer = Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64');
+  return uploadFromBuffer(input.name, Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64'));
+}
+
+// A file from any source (e.g. an email attachment) -> { name, type, buffer }, checked the same way.
+export function uploadFromBuffer(name, buffer) {
   if (!buffer.length) throw new HttpError(400, 'The attached file is empty.');
   if (buffer.length > MAX_ATTACHMENT_BYTES) throw new HttpError(400, `The file is too large (${(buffer.length / 1048576).toFixed(1)} MB). The limit is ${MAX_ATTACHMENT_BYTES / 1048576} MB.`);
   const type = sniff(buffer);
   if (!ATTACHMENT_TYPES[type]) throw new HttpError(400, 'Attach a PDF or a photo (JPEG, PNG or WebP).');
-  const name = String(input.name || 'attachment').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 120) || 'attachment';
-  return { name, type, buffer };
+  const safeName = String(name || 'attachment').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 120) || 'attachment';
+  return { name: safeName, type, buffer };
 }
 
 export function createAttachments(dir) {

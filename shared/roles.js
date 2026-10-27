@@ -19,8 +19,13 @@ export const ROLES = {
   },
   it: {
     label: 'IT Asset Manager',
-    description: 'Manages IT assets and consumable inventory: registers, assigns, returns and retires equipment; receives and issues stock; handles equipment problem reports from employees.',
-    permissions: ['assets.view', 'assets.edit', 'self'],
+    description: 'Manages IT assets and consumable inventory: registers, assigns, returns and retires equipment; receives and issues stock; handles equipment problem reports and IT Service Desk tickets.',
+    permissions: ['assets.view', 'assets.edit', 'helpdesk.agent', 'self'],
+  },
+  support: {
+    label: 'Helpdesk Agent',
+    description: 'Works IT Service Desk tickets: replies, internal notes, assignment and status. Can view IT assets to see what a user has.',
+    permissions: ['helpdesk.agent', 'assets.view', 'self'],
   },
   employee: {
     label: 'Employee',
@@ -51,6 +56,8 @@ export const PERMISSION_LABELS = [
   ['users.manage', 'Manage user accounts'],
   ['devlog.view', 'Dev log: release notes and installed version'],
   ['devlog.edit', 'Write and edit dev log entries'],
+  ['helpdesk.agent', 'Service desk: work all tickets (reply, notes, assign, status)'],
+  ['helpdesk.manage', 'Service desk settings: receiving email address and mailbox, outgoing mail, categories, SLA, saved replies'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],

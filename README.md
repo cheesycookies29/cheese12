@@ -33,6 +33,18 @@ A module the user's account cannot use shows **No access**.
 - Employees see their own equipment under **My Assets**; HR sees each employee's equipment on their profile (useful when someone leaves).
 - **Problem reports**: from **My Assets**, employees report a laptop or other assigned equipment that is malfunctioning, damaged or lost (what's wrong, whether they can still work, a description). Administrators and IT see new reports under **Problem reports** (with a count in the menu), mark them *Being checked*, *Resolved* or *Closed*, and leave notes the employee reads in My Assets. Reports appear on the asset's page and in its history, and export to CSV. HR can view them; only Administrators and IT can respond.
 
+### IT Service Desk
+
+- **Tickets** from three places: the **My tickets** portal (every signed-in user, from any module's menu), **email** to the helpdesk address, and agents logging a call or walk-in on someone's behalf. Each ticket gets a number (`HD-000123`), category, priority, status (*New, Open, Waiting on requester, On hold, Resolved, Closed*), an assignee and, optionally, the IT asset it is about.
+- **Agents** (Administrators, IT Asset Managers and the new *Helpdesk Agent* account type) work a queue with views (Open, Mine, Unassigned, Overdue, Resolved), filters and search. On a ticket they **reply** to the requester or add an **internal note** the requester never sees, insert **saved replies**, attach files, and set the next status. A notice shows when another agent has the same ticket open.
+- **Service levels**: first-response and resolution targets per priority (hours, editable). Tickets show when they are due and turn red when overdue; the overview counts tickets awaiting a reply, unassigned, assigned to you and overdue.
+- **Requesters** follow their tickets, reply, add screenshots, and mark a ticket solved. A reply reopens a resolved ticket; resolved tickets close automatically after 7 days (editable).
+- **Email**, under **IT Service Desk → Service desk settings** (Administrators):
+  - *Receiving email*: set the **helpdesk email address** and the mailbox it is read from (IMAP server, port, security, sign-in, app password, folder, how often to check). Presets fill in Gmail / Google Workspace, Microsoft 365 and Zoho. **Test connection** checks the sign-in; **Check mail now** imports at once. New emails become tickets; replies (ticket number in the subject, or a reply to the desk's email) are added to the right ticket, with the quoted history cut off. Out-of-office replies, bounces, mailing lists and the desk's own mail are ignored, each message is imported once, and you can accept email from anyone, only listed domains, or only employees. PDF and image attachments are kept; other files are listed as not imported.
+  - *Sending email*: the SMTP server (or the same sign-in as the mailbox). Agents' replies and an acknowledgement for new emailed tickets go out from the helpdesk address, threaded so the requester's email program groups them. Without it, replies show only in the portal.
+  - Mailbox passwords are stored encrypted with a key in `data/secret.key`; they are never sent back to the browser or included in a downloaded backup.
+  - Gmail and Google Workspace need an **app password** (2-Step Verification on). Microsoft 365 has switched off password sign-in for IMAP and SMTP in most organisations, so it works only where an administrator allows it for that mailbox.
+
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting LTDC ERP online with Amazon EC2](deploy/aws/EC2.md).
 
 ## Run it on your Mac
@@ -164,7 +176,7 @@ To use it 24/7 from any browser over HTTPS, follow [deploy/aws/EC2.md](deploy/aw
 
 Admins can use **Settings → Download backup** to save everything as a single JSON file, and **Restore backup** to load one back.
 The backup includes user accounts (with passwords stored as secure hashes), so keep the file private.
-You can also just copy the `data/` folder.
+You can also just copy the `data/` folder. It also holds `attachments/` (medical certificates, ticket files) and `secret.key`, which unlocks the saved mailbox passwords; without it, re-enter them under Service desk settings.
 
 ## For developers
 

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { DEFAULT_SETTINGS, DEFAULT_RATES } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
+import { emptyHelpdesk } from './helpdesk.js';
 
 export function emptyData() {
   return {
@@ -25,6 +26,8 @@ export function emptyData() {
     issueReports: [], // employees' problem reports on assigned equipment
     devlog: { author: null, entries: [], imported: [] }, // release notes, editable by admins (server/devlog.js)
     feedback: [], // feedback from any signed-in user, read by administrators
+    tickets: [], // IT Service Desk tickets (server/helpdesk.js)
+    helpdesk: emptyHelpdesk(), // service desk settings: mailbox, outgoing mail, categories, SLA, saved replies
   };
 }
 
@@ -47,6 +50,7 @@ export function openDb(file) {
     data.stockMovements ||= [];
     data.issueReports ||= [];
     data.feedback ||= [];
+    data.tickets ||= [];
   }
 
   const db = {

@@ -19,6 +19,7 @@ import { reportsView, reportDetailView } from './views/reports.js';
 import { devlogView, unseenCount } from './views/devlog.js';
 import { feedbackView, feedbackInboxView, feedbackDetailView } from './views/feedback.js';
 import { clockLocationsView } from './views/locations.js';
+import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -56,6 +57,14 @@ const routes = [
   ['/assets/reports', reportsView, 'assets.view', 'assets'],
   ['/assets/reports/:id', reportDetailView, 'assets.view', 'assets'],
   ['/assets/mine', myAssetsView, 'self', 'assets'],
+  // IT Service Desk
+  ['/helpdesk', helpdeskHomeView, 'helpdesk.agent', 'helpdesk'],
+  ['/helpdesk/tickets', ticketQueueView, 'helpdesk.agent', 'helpdesk'],
+  ['/helpdesk/new', newTicketView, 'helpdesk.agent', 'helpdesk'],
+  ['/helpdesk/tickets/:id', ticketView, 'helpdesk.agent', 'helpdesk'],
+  ['/helpdesk/mine', myTicketsView, 'auth', 'helpdesk'],
+  ['/helpdesk/mine/:id', myTicketView, 'auth', 'helpdesk'],
+  ['/helpdesk/settings', helpdeskSettingsView, 'helpdesk.manage', 'helpdesk'],
   // System (shown inside whichever module is open)
   ['/users', usersView, 'users.manage', 'system'],
   ['/settings', settingsView, 'settings.edit', 'system'],
@@ -97,6 +106,14 @@ const NAV = {
     { heading: 'My account', permission: 'self' },
     { href: '/assets/mine', label: 'My Assets', permission: 'self' },
   ],
+  helpdesk: [
+    { href: '/helpdesk', label: 'Overview', permission: 'helpdesk.agent', exact: true },
+    { href: '/helpdesk/tickets', label: 'Tickets', permission: 'helpdesk.agent', badge: 'helpdesk' },
+    { href: '/helpdesk/new', label: 'Log a ticket', permission: 'helpdesk.agent' },
+    { href: '/helpdesk/settings', label: 'Service desk settings', permission: 'helpdesk.manage' },
+    { heading: 'My account', permission: 'auth' },
+    { href: '/helpdesk/mine', label: 'My tickets', permission: 'auth' },
+  ],
   system: [
     { heading: 'System', permission: 'users.manage' },
     { href: '/users', label: 'Users & Access', permission: 'users.manage' },
@@ -120,11 +137,12 @@ function allowed(permission) {
 function moduleHome(id) {
   if (id === 'hr') return can('dashboard') ? '/dashboard' : allowed('self') ? '/me' : null;
   if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
+  if (id === 'helpdesk') return can('helpdesk.agent') ? '/helpdesk' : '/helpdesk/mine';
   return null;
 }
 
 const homeRoute = () => '/launcher';
-const MODULE_NAMES = { hr: 'HR & Payroll', assets: 'IT Asset Management' };
+const MODULE_NAMES = { hr: 'HR & Payroll', assets: 'IT Asset Management', helpdesk: 'IT Service Desk' };
 
 let cleanup = null;
 const runCleanup = () => {
@@ -162,6 +180,7 @@ const BADGES = {
   reports: () => api.get('/api/asset-reports/summary').then((r) => r.new),
   devlog: () => unseenCount(),
   feedback: () => api.get('/api/feedback/summary').then((r) => r.new),
+  helpdesk: () => api.get('/api/helpdesk/summary').then((r) => r.awaiting),
 };
 async function refreshBadge() {
   for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
@@ -273,6 +292,7 @@ window.addEventListener('requests:changed', refreshBadge);
 window.addEventListener('reports:changed', refreshBadge);
 window.addEventListener('devlog:seen', refreshBadge);
 window.addEventListener('feedback:changed', refreshBadge);
+window.addEventListener('helpdesk:changed', refreshBadge);
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;
