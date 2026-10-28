@@ -23,7 +23,8 @@ EVERY DAY
 FIRST START
 - The app asks you to create the Administrator account. After signing in,
   everyone lands on the module launcher and picks HR & Payroll or IT Assets.
-- To explore, sign in and go to Settings > Load demo data.
+- To explore, sign in and go to Settings > Demo data > Add demo data. It is
+  added next to your own data and can be removed again with one click.
 
 OTHER COMPUTERS IN THE OFFICE
 - Double-click "Start LTDC ERP (office network).bat" instead. It shows this

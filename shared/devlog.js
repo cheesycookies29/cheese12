@@ -26,6 +26,23 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.5.2-alpha',
+    date: '2026-10-28',
+    title: 'Demo data added next to real data',
+    modules: ['system'],
+    notes: 'Changed demo data from replacing all data to adding a tagged sample set that can be removed again.',
+    changes: [
+      ['improved', 'system', 'Settings > Demo data > Add demo data adds sample employees, attendance, leave requests, IT assets, stock, problem reports and helpdesk tickets next to existing records. Company settings, users and real records are not changed.'],
+      ['improved', 'system', 'Demo records use their own numbers (DEMO-0001 employees, DEMO-IT-0001 assets, DEMO-SKU-0001 stock items) and continue after existing problem report and ticket numbers, so nothing clashes.'],
+      ['new', 'system', 'Remove demo data: deletes every demo record, the records attached to demo employees and assets, tickets and feedback from demo accounts, and the demo sign-in accounts. Real equipment lent to a demo employee returns to stock; draft payroll runs drop demo payslips; finalized runs are not changed.'],
+      ['improved', 'system', 'Adding demo data again refreshes the demo set instead of duplicating it. The Settings page shows whether demo data is loaded and how much.'],
+    ],
+    known: [
+      'Demo data loaded with an earlier build is not tagged, so Remove demo data does not recognise it (the demo sign-in accounts are still removed). Erase or edit those records manually.',
+      'Demo employees are included in new payroll runs while demo data is loaded.',
+    ],
+  },
+  {
     version: '0.5.1-alpha',
     date: '2026-10-27',
     title: 'Helpdesk agent access per account',

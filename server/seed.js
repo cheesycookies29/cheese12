@@ -26,12 +26,19 @@ function rng(seed) {
 const pad = (n) => String(n).padStart(2, '0');
 const hhmm = (mins) => `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
 
-export function demoData() {
+const code = (prefix, n) => `${prefix}${String(n).padStart(4, '0')}`;
+
+// Number formats for the demo records. The defaults suit an empty system; when demo data is
+// added next to real data (server/demo.js), DEMO- prefixes and later numbers avoid clashes.
+const DEFAULT_CODES = { employeePrefix: 'EMP-', assetPrefix: 'LTDC-IT-', skuPrefix: 'SKU-', serialPrefix: '', firstReport: 1, firstTicket: 1 };
+
+export function demoData(codes = {}) {
+  const c = { ...DEFAULT_CODES, ...codes };
   const data = emptyData();
 
   data.employees = PEOPLE.map(([first, last, middle, position, department, payType, rate, gender, civilStatus], i) => ({
     id: randomUUID(),
-    employeeNo: `EMP-${String(i + 1).padStart(4, '0')}`,
+    employeeNo: code(c.employeePrefix, i + 1),
     firstName: first,
     middleName: middle,
     lastName: last,
@@ -108,13 +115,13 @@ export function demoData() {
     request(andrea, 'leave', 'vl', inDays(14), inDays(18), 'Out-of-town wedding', 'rejected'),
   );
   data.requests = data.requests.filter((r) => r.days > 0);
-  seedAssets(data);
-  seedTickets(data);
+  seedAssets(data, c);
+  seedTickets(data, c);
   return data;
 }
 
 // A few service desk tickets in different states, from the demo employees.
-function seedTickets(data) {
+function seedTickets(data, c) {
   const [, juan, andrea, mark, kristine] = data.employees;
   const ago = (h) => new Date(Date.now() - h * 3600000).toISOString();
   const person = (e) => ({ userId: null, name: `${e.firstName} ${e.lastName}`, email: e.email });
@@ -132,28 +139,28 @@ function seedTickets(data) {
   };
   const r = (e) => ({ ...person(e), role: 'requester' });
   data.tickets = [
-    make(1, kristine, 'Outlook keeps asking for my password', 'Email', 'normal', 'resolved', 52, 'email', [
+    make(c.firstTicket + 0, kristine, 'Outlook keeps asking for my password', 'Email', 'normal', 'resolved', 52, 'email', [
       msg(r(kristine), 'Since this morning Outlook asks for my password every few minutes, even after I enter it.', ago(52)),
       msg(it, 'Your password expired over the weekend. I have reset it; please sign in with the temporary password I sent by SMS and set a new one.', ago(49)),
       msg(r(kristine), 'That fixed it, thank you!', ago(47)),
     ]),
-    make(2, mark, 'Request: second monitor for sales desk', 'Hardware', 'low', 'pending', 30, 'portal', [
+    make(c.firstTicket + 1, mark, 'Request: second monitor for sales desk', 'Hardware', 'low', 'pending', 30, 'portal', [
       msg(r(mark), 'Could I get a second monitor? I work with the price list and CRM side by side all day.', ago(30)),
       msg(it, 'We have a 24" monitor in stock. Is tomorrow 10 am a good time to set it up?', ago(26)),
-      msg(it, 'Asset LTDC-IT-0006 can be used.', ago(26), 'note'),
+      msg(it, `Asset ${code(c.assetPrefix, 9)} (27" monitor in stock) can be used.`, ago(26), 'note'),
     ]),
-    make(3, juan, 'Laptop battery drains very fast', 'Hardware', 'normal', 'open', 5, 'portal', [
+    make(c.firstTicket + 2, juan, 'Laptop battery drains very fast', 'Hardware', 'normal', 'open', 5, 'portal', [
       msg(r(juan), 'My laptop goes from 100% to 20% in about an hour, even with only the browser open.', ago(5)),
     ]),
-    make(4, andrea, 'Cannot open the Finance shared drive', 'Account and access', 'high', 'new', 2, 'email', [
+    make(c.firstTicket + 3, andrea, 'Cannot open the Finance shared drive', 'Account and access', 'high', 'new', 2, 'email', [
       msg(r(andrea), 'I get "Access denied" when I open \\\\fileserver\\finance since this morning. I need it for the month-end close.', ago(2)),
     ]),
   ];
-  data.helpdesk.seq = data.tickets.length;
+  data.helpdesk.seq = c.firstTicket + data.tickets.length - 1;
 }
 
 // IT assets and consumables, allocated to the demo employees, a department and a location.
-function seedAssets(data) {
+function seedAssets(data, c) {
   const now = Date.now();
   const daysAgo = (n) => new Date(now - n * 86400000).toISOString();
   const dateAgo = (n) => daysAgo(n).slice(0, 10);
@@ -179,8 +186,8 @@ function seedAssets(data) {
   ];
   rows.forEach(([category, brand, model, specs, cost, age, warrantyDays, assignedTo, status], i) => {
     const asset = {
-      id: randomUUID(), assetTag: `LTDC-IT-${String(i + 1).padStart(4, '0')}`, name: `${brand} ${model}`, category, brand, model,
-      serialNumber: `${brand.slice(0, 2).toUpperCase()}${(9137 + i * 7919).toString(36).toUpperCase()}${i}`, specs,
+      id: randomUUID(), assetTag: code(c.assetPrefix, i + 1), name: `${brand} ${model}`, category, brand, model,
+      serialNumber: `${c.serialPrefix}${brand.slice(0, 2).toUpperCase()}${(9137 + i * 7919).toString(36).toUpperCase()}${i}`, specs,
       purchaseDate: dateAgo(age), purchaseCost: cost, supplier: i % 2 ? 'PC Express' : 'Silicon Valley Computer Group',
       warrantyEnd: dateAgo(-warrantyDays), condition: status === 'in_repair' ? 'Damaged' : age > 600 ? 'Fair' : 'Good',
       location: assignedTo?.type === 'location' ? assignedTo.name : 'IT Store Room', notes: '',
@@ -203,17 +210,18 @@ function seedAssets(data) {
   ];
   reports.forEach(([i, type, impact, description, age, status, updates], n) => {
     const asset = data.assets[i];
+    const number = code('IR-', c.firstReport + n);
     const by = asset.assignedTo;
     const reportedAt = daysAgo(age);
     data.issueReports.push({
-      id: randomUUID(), number: `IR-${String(n + 1).padStart(4, '0')}`, assetId: asset.id, assetTag: asset.assetTag, assetName: asset.name,
+      id: randomUUID(), number, assetId: asset.id, assetTag: asset.assetTag, assetName: asset.name,
       category: asset.category, serialNumber: asset.serialNumber, type, impact, description, noticedOn: dateAgo(age), status,
       reportedBy: { userId: null, employeeId: by.id, name: by.name, employeeNo: by.employeeNo, department: by.department },
       reportedAt, updatedAt: updates.length ? daysAgo(updates.at(-1)[0]) : reportedAt, closedAt: null,
       updates: updates.map(([d, who, st, note]) => ({ at: daysAgo(d), by: who, status: st, note })),
     });
     data.assetHistory.push({ id: randomUUID(), assetId: asset.id, assetTag: asset.assetTag, assetName: asset.name, action: 'issue',
-      detail: `${type === 'damage' ? 'Physical damage' : 'Malfunction'} reported by ${by.name} (IR-${String(n + 1).padStart(4, '0')})`, at: reportedAt, by: by.name, notes: description.slice(0, 200) });
+      detail: `${type === 'damage' ? 'Physical damage' : 'Malfunction'} reported by ${by.name} (${number})`, at: reportedAt, by: by.name, notes: description.slice(0, 200) });
   });
 
   const items = [
@@ -227,7 +235,7 @@ function seedAssets(data) {
   ];
   items.forEach(([name, category, unit, opening, reorderLevel, unitCost], i) => {
     const item = {
-      id: randomUUID(), sku: `SKU-${String(i + 1).padStart(4, '0')}`, name, category, unit, reorderLevel, location: 'IT Store Room',
+      id: randomUUID(), sku: code(c.skuPrefix, i + 1), name, category, unit, reorderLevel, location: 'IT Store Room',
       unitCost, supplier: 'PC Express', notes: '', quantity: 0, createdAt: daysAgo(90),
     };
     data.inventoryItems.push(item);

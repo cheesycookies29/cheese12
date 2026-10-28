@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { computePayslip, toMinutes } from '../shared/calc.js';
 import { HttpError, localDate, localTime } from './util.js';
-import { demoData } from './seed.js';
 import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
 import { createAttachments } from './attachments.js';
 import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
 import { createSecrets } from './secrets.js';
+import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, userCan } from '../shared/roles.js';
@@ -607,12 +607,17 @@ export function createApi(db) {
     replaceData(db, { ...body, users: Array.isArray(body.users) && body.users.length ? body.users : users() });
     return { ok: true };
   });
+  // Demo data is added next to the real data (server/demo.js); loading again refreshes it.
+  route('GET', '/api/admin/demo', 'data.manage', () => ({ loaded: hasDemo(db), counts: demoCounts(db) }));
   route('POST', '/api/admin/demo', 'data.manage', () => {
-    const data = demoData();
-    replaceData(db, { ...data, users: users().filter((u) => !u.demo) });
-    db.data.users.push(...demoAccounts(db, data.employees));
+    const counts = addDemo(db, { summarize, demoAccounts });
     db.save();
-    return { ok: true, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
+    return { ok: true, counts, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
+  });
+  route('DELETE', '/api/admin/demo', 'data.manage', () => {
+    const removed = removeDemo(db, { summarize });
+    db.save();
+    return { ok: true, removed };
   });
   registerDevlogRoutes(route, db);
   registerFeedbackRoutes(route, db);

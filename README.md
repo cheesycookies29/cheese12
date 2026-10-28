@@ -66,10 +66,12 @@ You don't need to run `npm install`, because the app has no dependencies.
 
 The first time you open the app, it asks you to **create the Administrator account**. After that, everyone starts at the sign-in page.
 
-> To try it out, go to **Settings → Load demo data**. This loads 6 sample employees, about six weeks of attendance,
-> 16 IT assets and 7 inventory items, and demo accounts you can sign in with to see each account type: `hr.demo`, `payroll.demo`, `it.demo` and `employee.demo`
-> (password `demo1234`). Your own account is kept.
-> When you're ready for real data, use **Settings → Erase all data**. It removes the demo accounts too.
+> To try it out, go to **Settings → Demo data → Add demo data**. This adds 6 sample employees with about six weeks of attendance,
+> 16 IT assets, 7 inventory items and 4 helpdesk tickets **next to your own data** (demo records are numbered `DEMO-0001`, `DEMO-IT-0001`…,
+> and nothing you entered is changed), plus demo accounts you can sign in with to see each account type: `hr.demo`, `payroll.demo`, `it.demo` and `employee.demo`
+> (password `demo1234`). Adding it again refreshes the demo set instead of doubling it.
+> **Remove demo data** takes out every demo record, what was attached to demo employees and assets, and the demo accounts, and leaves your own records as they were
+> (real equipment lent to a demo employee goes back to stock; finalized payroll runs are not changed).
 
 To use a different port, run `PORT=8080 npm start`.
 

@@ -3,7 +3,7 @@ import { ctx } from '../state.js';
 import { html, mount, toast, confirmDialog, downloadFile, today, WEEKDAYS } from '../ui.js';
 
 export async function settingsView(el) {
-  const s = await api.get('/api/settings');
+  const [s, demo] = await Promise.all([api.get('/api/settings'), api.get('/api/admin/demo')]);
   const checked = (b) => (b ? 'checked' : '');
 
   mount(el, html`
@@ -43,8 +43,17 @@ export async function settingsView(el) {
       <div class="actions">
         <button class="btn" id="backup">Download backup</button>
         <label class="btn">Restore backup… <input type="file" id="restore" accept="application/json,.json" hidden /></label>
-        <button class="btn" id="demo">Load demo data</button>
         <button class="btn danger ghost" id="reset">Erase all data</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Demo data</h2>${demo.loaded ? html`<span class="badge amber">Loaded</span>` : ''}</div>
+      <p class="muted">Adds sample employees with attendance, leave requests, IT assets, stock and helpdesk tickets <strong>next to your own data</strong>, so you can try features safely. Demo records are numbered DEMO-0001, DEMO-IT-0001 and so on, and nothing you entered is changed. Demo sign-in accounts hr.demo, payroll.demo, it.demo and employee.demo use the password <code>demo1234</code>.</p>
+      ${demo.loaded ? html`<p class="small">Loaded now: ${demo.counts.employees} demo employees, ${demo.counts.assets} assets, ${demo.counts.inventoryItems} stock items, ${demo.counts.tickets} tickets. Demo employees are included in new payroll runs until you remove them.</p>` : ''}
+      <div class="actions">
+        <button class="btn" id="demo">${demo.loaded ? 'Reload demo data' : 'Add demo data'}</button>
+        ${demo.loaded ? html`<button class="btn danger ghost" id="remove-demo">Remove demo data</button>` : ''}
       </div>
     </section>`);
 
@@ -90,11 +99,19 @@ export async function settingsView(el) {
   });
 
   el.querySelector('#demo').addEventListener('click', async () => {
-    if (!(await confirmDialog('Replace ALL current data with demo employees and attendance? This also adds demo sign-in accounts hr.demo, payroll.demo, it.demo and employee.demo (password: demo1234). Your own account is kept.', { confirmLabel: 'Load demo data' }))) return;
-    await api.post('/api/admin/demo');
-    await ctx.refreshSettings();
-    toast('Demo data loaded. Demo accounts use the password demo1234.');
-    location.hash = '#/dashboard';
+    const message = demo.loaded
+      ? 'The current demo records are replaced with a fresh set (changes made to demo records are lost). Your own data is not touched.'
+      : 'Sample employees, attendance, leave requests, IT assets, stock and helpdesk tickets are added next to your data, plus four demo sign-in accounts (password demo1234). Your own data is not changed, and you can remove the demo records at any time.';
+    if (!(await confirmDialog(message, { title: demo.loaded ? 'Reload demo data' : 'Add demo data', confirmLabel: demo.loaded ? 'Reload demo data' : 'Add demo data', danger: false }))) return;
+    const res = await api.post('/api/admin/demo');
+    toast(`Demo data added: ${res.counts.employees} employees, ${res.counts.assets} assets, ${res.counts.tickets} tickets. Demo accounts use the password demo1234.`);
+    settingsView(el);
+  });
+  el.querySelector('#remove-demo')?.addEventListener('click', async () => {
+    if (!(await confirmDialog('All demo employees (with their attendance, leave and payslips in draft runs), demo assets, stock, problem reports and tickets, and the demo sign-in accounts are removed. Your own records stay; real equipment lent to a demo employee goes back to stock. Finalized payroll runs are not changed.', { title: 'Remove demo data', confirmLabel: 'Remove demo data' }))) return;
+    const res = await api.del('/api/admin/demo');
+    toast(`Demo data removed: ${res.removed.employees} employees, ${res.removed.assets} assets, ${res.removed.tickets} tickets, ${res.removed.accounts} accounts.`);
+    settingsView(el);
   });
 
   el.querySelector('#reset').addEventListener('click', async () => {
