@@ -81,8 +81,20 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+function openBrowser(url) {
+  const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`;
+  exec(cmd, () => {});
+}
+
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
+    // Double-clicked the launcher while the LMS is already running: just show it again.
+    if (process.env.OPEN_BROWSER) {
+      console.log(`\n  LTDC LMS is already running. Opening http://localhost:${PORT}/admin in your browser.`);
+      console.log('  You can close this window; the LMS keeps running in its first window.\n');
+      openBrowser(`http://localhost:${PORT}/admin`);
+      return setTimeout(() => process.exit(0), 1500);
+    }
     console.error(`\n  Port ${PORT} is already in use. The LMS may already be running: open http://localhost:${PORT}`);
     console.error('  Or start it on another port, e.g. PORT=3101 npm start\n');
     process.exit(1);
@@ -97,9 +109,5 @@ server.listen(PORT, HOST, () => {
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');
-  if (process.env.OPEN_BROWSER) {
-    const url = `http://localhost:${PORT}/admin`;
-    const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`;
-    exec(cmd, () => {});
-  }
+  if (process.env.OPEN_BROWSER) openBrowser(`http://localhost:${PORT}/admin`);
 });
