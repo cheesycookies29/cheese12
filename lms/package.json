@@ -1,0 +1,16 @@
+{
+  "name": "ltdc-lms",
+  "version": "0.1.0-alpha",
+  "description": "LTDC LMS: learning management with enrollment, a student/teacher portal and an admin panel. Self-hosted, sibling of LTDC ERP.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "reset-password": "node scripts/reset-password.js",
+    "create-admin": "node scripts/create-admin.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -47,6 +47,9 @@ A module the user's account cannot use shows **No access**.
 
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting LTDC ERP online with Amazon EC2](deploy/aws/EC2.md).
 
+> **Sibling project: LTDC LMS.** The learning management system (enrollment, classes, assignments, grades, with its own admin panel) lives in [`lms/`](lms/README.md).
+> It is a separate app with its own data file: `cd lms && npm start`, then open <http://localhost:3100/admin>. It runs on port 3100, so it can run next to the ERP.
+
 ## Run it on your Mac
 
 1. **Install Node.js** (one time only). Download the LTS installer from <https://nodejs.org> and run it.

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LTDC LMS · Admin panel</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="apple-touch-icon" href="/img/icon-192.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body class="booting admin-panel">
+  <div id="auth"></div>
+  <div class="layout">
+    <header class="topbar">
+      <button type="button" class="menu-btn" id="menu-btn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+        <span class="menu-icon" aria-hidden="true"></span><span class="menu-dot" hidden></span>
+      </button>
+      <a class="topbar-brand" href="#/"><img src="/img/logo-white.png" alt="Lancaster Technology and Development" /></a>
+      <span class="topbar-module" id="topbar-module"></span>
+    </header>
+    <div class="nav-scrim" id="nav-scrim" hidden></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><img src="/img/logo-white.png" alt="Lancaster Technology and Development" /></div>
+      <div class="brand-sub"><div><span class="app-mark">LTDC LMS</span><strong id="module-name"></strong><small id="school-name"></small></div></div>
+      <nav id="nav"></nav>
+      <div class="user-box" id="user-box"></div>
+    </aside>
+    <main id="app"></main>
+  </div>
+  <div id="toast"></div>
+  <script type="module" src="/js/admin/app.js"></script>
+</body>
+</html>
