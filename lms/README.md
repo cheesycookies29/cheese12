@@ -22,7 +22,12 @@ You need Node.js 18 or newer (the same one the ERP uses). If you don't have it, 
 Open the `lms` folder and double-click:
 
 - **Windows:** `Start LMS (Windows).bat`. If Windows shows "Windows protected your PC", click **More info → Run anyway**.
-- **Mac:** `Start LMS (Mac).command`. If macOS says it is from an unidentified developer, right-click it → **Open** → **Open** (only the first time).
+- **Mac:** `Start LMS (Mac).command`. If macOS says it **could not verify** the file (it does this for files downloaded in a browser, e.g. GitHub's *Download ZIP*), allow it once:
+  1. Click **Done** on the warning (not *Move to Trash*).
+  2. Open **System Settings → Privacy & Security**, scroll down to **Security**, and click **Open Anyway** next to *"Start LMS (Mac).command" was blocked*. The button shows for about an hour after the blocked attempt.
+  3. Enter your Mac password and click **Open Anyway**.
+
+  After that it opens with a double-click. Getting the code with **GitHub Desktop** (cloning) instead of *Download ZIP* avoids the warning altogether.
 
 A small window opens and your browser opens the admin panel at <http://localhost:3100/admin>. **Keep that window open** while you use the LMS; close it to stop the LMS.
 Double-clicking again while it is running just opens the browser again.
