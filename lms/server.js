@@ -22,7 +22,7 @@ const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options
 
 function send(res, status, body, type = 'application/json', headers = {}) {
   const textual = /^text\/|json|javascript|svg/.test(type);
-  res.writeHead(status, { 'Content-Type': textual ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...SECURITY_HEADERS, ...headers });
+  res.writeHead(status, { 'Content-Type': textual && !headers['Content-Disposition'] ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...SECURITY_HEADERS, ...headers });
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
@@ -72,8 +72,9 @@ const server = http.createServer(async (req, res) => {
   }
   try {
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req) : {};
-    const { data, headers } = await api(req, url, body);
-    send(res, 200, data, 'application/json', headers);
+    const out = await api(req, url, body);
+    if (out.raw) return send(res, 200, out.raw, out.type, out.headers);
+    send(res, 200, out.data, 'application/json', out.headers);
   } catch (err) {
     const status = err.status || 500;
     if (status === 500) console.error(err);

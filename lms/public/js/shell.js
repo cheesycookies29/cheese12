@@ -1,25 +1,58 @@
-// The app frame shared by the admin panel and the learning portal: sign-in screens,
-// sidebar menu (a drawer on phones), hash router, and the signed-in user box.
+// The app frame shared by the admin panel and the learning portal: branding, sign-in
+// screens, top bar with the user menu, icon sidebar (a drawer on phones), hash router.
 import { api } from './api.js';
-import { html, mount, modal, toast, initials, formData } from './ui.js';
+import { html, mount, modal, toast, initials, formData, raw } from './ui.js';
+import { icon, iconSvg } from './icons.js';
 import { roleLabel } from '/shared/roles.js';
 
 // App-wide state for the current page set (one per app, since each is its own page).
 export const ctx = { user: null, info: null };
 
+// ----- Branding and dark mode -----
+export function applyBranding(b = {}) {
+  const root = document.documentElement.style;
+  if (b.brand) root.setProperty('--brand', b.brand);
+  if (b.accent) root.setProperty('--accent', b.accent);
+  const meta = document.querySelector('meta[name=theme-color]') || document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'theme-color' }));
+  meta.content = b.brand || '#5d0013';
+  document.title = `${b.schoolName || 'LMS'}${document.body.classList.contains('admin-panel') ? ' · Admin panel' : ' · LMS'}`;
+}
+export const logoSrc = (b = ctx.info?.branding, onDark = false) => b?.logo || (onDark ? '/img/logo-white.png' : '/img/logo.png');
+
+const isDark = () => document.documentElement.dataset.theme === 'dark';
+function setTheme(dark) {
+  if (dark) document.documentElement.dataset.theme = 'dark';
+  else delete document.documentElement.dataset.theme;
+  try {
+    localStorage.setItem('lms-theme', dark ? 'dark' : 'light');
+  } catch {}
+  renderThemeButton();
+}
+function renderThemeButton() {
+  const btn = document.getElementById('theme-btn');
+  btn.innerHTML = iconSvg(isDark() ? 'sun' : 'moon');
+  btn.title = isDark() ? 'Light mode' : 'Dark mode';
+  const logo = document.getElementById('brand-logo');
+  if (logo && ctx.info) logo.src = logoSrc(ctx.info.branding, isDark());
+}
+
 // ----- Sign-in screens -----
+const PORTAL_POINTS = [['cap', 'Enroll in classes and follow requests'], ['book', 'Lessons, files and announcements'], ['quiz', 'Quizzes and exams with instant results'], ['chart', 'Grades, attendance and your schedule']];
+const ADMIN_POINTS = [['clipboard', 'Enrollment requests, waitlists, applicants'], ['layers', 'Courses, terms and sections'], ['toggles', 'Modules for students and teachers'], ['settings', 'Branding, grading and school settings']];
+
 export function authScreen(el, { admin = false } = {}, card) {
+  const b = ctx.info?.branding || {};
   mount(el, html`
     <div class="auth-screen">
-      <section class="auth-hero ${admin ? 'admin' : ''}">
-        <img src="/img/logo-white.png" alt="Lancaster Technology and Development" />
-        <div>
-          <p class="auth-kicker">${admin ? 'LTDC LMS · Admin panel' : 'LTDC Learning Management System'}</p>
-          ${admin
-            ? html`<h1>Run the <span>school</span> side</h1><p>Enrollment, courses, sections, accounts and which modules students and teachers get.</p>`
-            : html`<h1>Let's take <span>learning</span> further</h1><p>Enroll in classes, follow lessons, hand in work and see your grades, all in one place.</p>`}
+      <section class="auth-hero">
+        <div class="seal"><img src="${logoSrc(b)}" alt="" /><div><strong>${b.schoolName || ''}</strong><small>${admin ? 'Admin panel' : 'Learning Management System'}</small></div></div>
+        <div style="position:relative;z-index:1">
+          <p class="auth-kicker">${b.termName || (admin ? 'Administration' : 'Welcome')}</p>
+          <h1>${admin ? 'Run the school side.' : b.tagline || 'Learning, all in one place.'}</h1>
+          <p>${admin ? 'Enrollment, the catalog, accounts, and what students and teachers can use.' : 'Your classes, lessons, quizzes, grades and attendance, for students and teachers.'}</p>
+          <ul class="auth-points">${(admin ? ADMIN_POINTS : PORTAL_POINTS).map(([i, t]) => html`<li>${icon(i, 30)} ${t}</li>`)}</ul>
         </div>
-        <small>Nation building through technology and development.</small>
+        <small>${b.schoolName ? `© ${new Date().getFullYear()} ${b.schoolName}` : ''}</small>
       </section>
       <section class="auth-panel">${card}</section>
     </div>`);
@@ -34,6 +67,8 @@ export function authScreen(el, { admin = false } = {}, card) {
   );
   return form;
 }
+
+export const authLogo = () => html`<img class="auth-logo" src="${logoSrc()}" alt="" />`;
 
 export const passwordField = (label, name, autocomplete) => html`
   <label class="field"><span>${label}</span>
@@ -60,7 +95,7 @@ export function onFormSubmit(form, handler) {
 export function forcePasswordView(el, { admin, authBase, onDone, onSignOut }) {
   const form = authScreen(el, { admin }, html`
     <form class="auth-card" novalidate>
-      <img class="auth-logo" src="/img/logo.png" alt="Lancaster Technology and Development" />
+      ${authLogo()}
       <h2>Choose a new password</h2>
       <p class="muted">Hi ${ctx.user.name}. Your password was set by someone else, so please replace it before continuing.</p>
       ${passwordField('Current (temporary) password', 'currentPassword', 'current-password')}
@@ -99,14 +134,10 @@ export function openChangePassword(authBase) {
 
 // ----- The app -----
 // config:
-//   side: 'admin' | 'portal'
-//   authBase: '/api/admin/auth' | '/api/auth'
-//   appName: shown under the logo
+//   side: 'admin' | 'portal'; authBase: '/api/admin/auth' | '/api/auth'
 //   routes: [[pattern, view, allowed(user, info) => bool]]
-//   nav(): [{ href, label, heading, badge, exact, also }]
-//   home(): default path
-//   signedOutView(el, { status, boot }): renders sign-in / setup screens
-//   badges: { name: () => Promise<number> }
+//   nav(): [{ href, label, icon, heading, badge, exact, also, external }]
+//   home(): default path; signedOutView(el, { status, boot }); badges: { name: () => Promise<number> }
 export function startApp(config) {
   const routes = config.routes.map(([pattern, view, allowed = () => true]) => {
     const keys = [];
@@ -118,29 +149,60 @@ export function startApp(config) {
     if (typeof cleanup === 'function') cleanup();
     cleanup = null;
   };
+  const menuBtn = document.getElementById('menu-btn');
+  menuBtn.innerHTML = iconSvg('menu', 20);
+
+  function renderTop() {
+    const b = ctx.info.branding;
+    applyBranding(b);
+    document.getElementById('school-name').textContent = b.schoolName;
+    mount(document.getElementById('brand-sub'), html`${config.side === 'admin' ? html`Admin panel <span class="side-chip">ADMIN</span>` : 'Learning Management System'}${b.termName ? ` · ${b.termName}` : ''}`);
+    renderThemeButton();
+  }
 
   function renderNav() {
-    document.getElementById('module-name').innerHTML = '';
-    mount(document.getElementById('module-name'), html`${config.appName}${config.side === 'admin' ? html`<span class="side-tag">ADMIN</span>` : ''}`);
-    document.getElementById('topbar-module').textContent = config.appName;
-    document.getElementById('school-name').textContent = ctx.info?.schoolName || '';
     const items = config.nav();
     mount(document.getElementById('nav'), html`${items.map((n) =>
       n.heading
         ? html`<div class="nav-heading">${n.heading}</div>`
         : n.external
-        ? html`<a href="${n.href}" target="_blank" rel="noopener">${n.label}</a>`
-        : html`<a href="#${n.href}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${n.label}${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
+          ? html`<a href="${n.href}" target="_blank" rel="noopener" title="${n.label}">${icon(n.icon || 'external')}<span class="label">${n.label}</span></a>`
+          : html`<a href="#${n.href}" title="${n.label}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${icon(n.icon || 'file')}<span class="label">${n.label}</span>${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
     )}`);
+    document.getElementById('side-foot').textContent = `LTDC LMS · ${ctx.info.branding.schoolName}`;
   }
 
   function renderUserBox() {
     const u = ctx.user;
-    mount(document.getElementById('user-box'), html`
-      <div class="user-id"><span class="avatar">${initials(u.name)}</span><div><strong>${u.name}</strong><small>${roleLabel(u.role)} · ${u.username}</small></div></div>
-      <div class="user-actions"><button class="link" id="change-pw">Change password</button><button class="link" id="sign-out">Sign out</button></div>`);
-    document.getElementById('change-pw').addEventListener('click', () => openChangePassword(config.authBase));
-    document.getElementById('sign-out').addEventListener('click', signOut);
+    const box = document.getElementById('user-box');
+    mount(box, html`
+      <button type="button" class="user-btn" id="user-btn" aria-haspopup="menu" aria-expanded="false">
+        <span class="avatar">${initials(u.name)}</span>
+        <span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}</small></span>
+        ${icon('chevronDown', 16)}
+      </button>
+      <div class="menu-pop" id="user-pop" role="menu" hidden>
+        <div class="who"><strong>${u.name}</strong><small>${u.username}${u.email ? ` · ${u.email}` : ''}</small><small>${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</small></div>
+        <button type="button" id="change-pw">${icon('key')} Change password</button>
+        <button type="button" id="sign-out">${icon('logout')} Sign out</button>
+      </div>`);
+    const pop = box.querySelector('#user-pop');
+    const btn = box.querySelector('#user-btn');
+    const close = () => {
+      pop.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+    };
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pop.hidden = !pop.hidden;
+      btn.setAttribute('aria-expanded', String(!pop.hidden));
+    });
+    document.addEventListener('click', (e) => !box.contains(e.target) && close());
+    box.querySelector('#change-pw').addEventListener('click', () => {
+      close();
+      openChangePassword(config.authBase);
+    });
+    box.querySelector('#sign-out').addEventListener('click', signOut);
   }
 
   async function refreshBadges() {
@@ -149,30 +211,34 @@ export function startApp(config) {
       el.textContent = n || '';
       el.hidden = !n;
     }
-    document.querySelector('#menu-btn .menu-dot').hidden = !document.querySelector('#nav .nav-badge:not([hidden])');
   }
 
-  // Phone menu: the sidebar slides in as a drawer.
-  const menuBtn = document.getElementById('menu-btn');
+  // Menu button: folds the sidebar to icons on wide screens, opens it as a drawer on phones.
   const scrim = document.getElementById('nav-scrim');
-  function setMenu(open) {
+  const phone = () => matchMedia('(max-width: 960px)').matches;
+  function setDrawer(open) {
     document.body.classList.toggle('nav-open', open);
     menuBtn.setAttribute('aria-expanded', String(open));
-    menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     scrim.hidden = !open;
   }
-  menuBtn.addEventListener('click', () => setMenu(!document.body.classList.contains('nav-open')));
-  scrim.addEventListener('click', () => setMenu(false));
-  document.getElementById('sidebar').addEventListener('click', (e) => {
-    if (e.target.closest('a[href], #sign-out')) setMenu(false);
+  try {
+    if (localStorage.getItem('lms-nav') === 'mini') document.body.classList.add('nav-mini');
+  } catch {}
+  menuBtn.addEventListener('click', () => {
+    if (phone()) return setDrawer(!document.body.classList.contains('nav-open'));
+    const mini = document.body.classList.toggle('nav-mini');
+    try {
+      localStorage.setItem('lms-nav', mini ? 'mini' : 'full');
+    } catch {}
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.body.classList.contains('nav-open')) setMenu(false);
-  });
+  scrim.addEventListener('click', () => setDrawer(false));
+  document.getElementById('sidebar').addEventListener('click', (e) => e.target.closest('a[href]') && setDrawer(false));
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && setDrawer(false));
+  document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
 
   async function navigate() {
     if (!ctx.user || ctx.user.mustChangePassword) return;
-    setMenu(false);
+    setDrawer(false);
     const path = location.hash.replace(/^#/, '').split('?')[0] || config.home();
     const query = Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] || ''));
     const match = routes.find((r) => r.re.test(path));
@@ -193,7 +259,7 @@ export function startApp(config) {
     try {
       cleanup = await match.view(el, params, query);
     } catch (err) {
-      mount(el, html`<div class="empty"><h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the terminal window.</p></div>`);
+      mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
     }
   }
 
@@ -212,10 +278,11 @@ export function startApp(config) {
     } catch {
       document.body.classList.add('auth-mode');
       document.body.classList.remove('booting');
-      return mount(document.getElementById('auth'), html`<div class="empty"><h2>Cannot reach the server</h2><p>Start it with <code>npm start</code>, then reload this page.</p></div>`);
+      return mount(document.getElementById('auth'), html`<div class="empty"><h2>Cannot reach the server</h2><p>Start the LMS (double-click “Start LMS”, or <code>npm start</code>), then reload this page.</p></div>`);
     }
     ctx.info = status;
     ctx.user = status.user;
+    applyBranding(status.branding);
     if (!ctx.user) return showAuth((el) => config.signedOutView(el, { status, boot: () => boot({ fresh: true }) }));
     if (ctx.user.mustChangePassword) {
       return showAuth((el) => forcePasswordView(el, { admin: config.side === 'admin', authBase: config.authBase, onDone: () => boot({ fresh: true }), onSignOut: signOut }));
@@ -223,6 +290,7 @@ export function startApp(config) {
     await config.onSignedIn?.();
     document.body.classList.remove('auth-mode', 'booting');
     mount(document.getElementById('auth'), '');
+    renderTop();
     renderNav();
     renderUserBox();
     if (fresh || !location.hash || location.hash === '#/') location.hash = `#${config.home()}`;
@@ -237,10 +305,6 @@ export function startApp(config) {
   }
 
   ctx.refreshBadges = refreshBadges;
-  ctx.refreshNav = () => {
-    renderNav();
-    navigate();
-  };
   ctx.reload = () => boot();
   window.addEventListener('hashchange', navigate);
   window.addEventListener('badges:changed', refreshBadges);
@@ -253,11 +317,19 @@ export function startApp(config) {
   boot();
 }
 
-// A page header with a title, an optional line under it and actions on the right.
-export const pageHead = (title, sub = '', actions = '', back = '') => html`
+// Page header: breadcrumbs (when `back` is given), title, a line under it, actions on the right.
+// back: [href, label] or a list of them.
+export const pageHead = (title, sub = '', actions = '', back = '') => {
+  const trail = !back ? [] : Array.isArray(back[0]) ? back : [back];
+  return html`
   <div class="page-head">
-    <div>${back ? html`<a class="back" href="#${back[0]}">← ${back[1]}</a>` : ''}<h1>${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}</div>
+    <div>
+      ${trail.length ? html`<nav class="crumbs" aria-label="Breadcrumb">${trail.map(([href, label]) => html`<a href="#${href}">${label}</a>${icon('chevronRight', 14)}`)}<span class="cur">${typeof title === 'string' ? title : ''}</span></nav>` : ''}
+      <h1>${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}
+    </div>
     ${actions ? html`<div class="actions">${actions}</div>` : ''}
   </div>`;
+};
 
 export const badgesChanged = () => window.dispatchEvent(new Event('badges:changed'));
+export { raw };

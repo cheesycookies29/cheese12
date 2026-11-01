@@ -28,16 +28,34 @@ export const MODULES = [
     teacher: 'Post announcements to a class.',
   },
   {
+    id: 'resources',
+    label: 'Resources',
+    student: 'Open and download files and links shared in their classes.',
+    teacher: 'Upload files (PDF, slides, video, images…) and share links with a class.',
+  },
+  {
     id: 'assignments',
-    label: 'Assignments',
-    student: 'Submit work before the due date and read the teacher’s score and feedback.',
-    teacher: 'Create assignments, review submissions, score them and give feedback.',
+    label: 'Activities & quizzes',
+    student: 'Hand in work, take quizzes and exams (with time limits), and read scores and feedback.',
+    teacher: 'Create tasks, quizzes and exams, score work and essays, and see how each question went.',
+  },
+  {
+    id: 'attendance',
+    label: 'Attendance',
+    student: 'See their own attendance in each class.',
+    teacher: 'Take attendance (present, late, absent, excused) and export it.',
   },
   {
     id: 'grades',
     label: 'Grades',
     student: 'See assignment scores and final grades.',
     teacher: 'Use the gradebook and post final grades.',
+  },
+  {
+    id: 'news',
+    label: 'News & events',
+    student: 'Read school news (react and comment) and see upcoming events.',
+    teacher: 'Read school news (react and comment) and see upcoming events.',
   },
 ];
 

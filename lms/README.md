@@ -47,8 +47,8 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 
 | Where | Username | Password | What to try |
 | --- | --- | --- | --- |
-| Learning portal | `student.demo` | `demo1234` | Enrollment: one section is full (join its waitlist), one needs the key `DB2026`, one is blocked by a prerequisite |
-| Learning portal | `teacher.demo` | `demo1234` | IT201 A: lessons, assignments to grade, gradebook, class list |
+| Learning portal | `student.demo` | `demo1234` | Home To-do; take *Quiz 1* in IT201 A (timed, 2 attempts); resources with a PDF preview; attendance; news. Enrollment: one section is full (join its waitlist), one needs the key `DB2026`, one is blocked by a prerequisite |
+| Learning portal | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
 | Admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
 
 Demo records are added **next to your own data** and **Remove demo data** takes them out again without changing your records. If you already have a current term, it stays current and the demo term is listed beside it.
@@ -67,10 +67,12 @@ Other settings: `PORT=3101 npm start` (another port), `HOST=0.0.0.0 npm start` (
 | **Courses** | The catalog: code, title, units, description, prerequisites, programs |
 | **Terms** | Class dates, the enrollment window, the drop deadline, and which term is current |
 | **Programs** | e.g. BS Information Technology |
+| **News & events** | School-wide posts (pin, turn comments off, remove comments) and events, shown on everyone's home page |
 | **Modules** | Turn each portal module on or off, separately for **students** and **teachers** |
-| **Settings** | School name, passing grade, enrollment rules, student applications |
+| **Activity types & grading** | Types teachers pick for each activity (Assignment, Short Quiz, Long Quiz, Examination… add your own) and how much each counts in the running grade |
+| **Settings & branding** | School name, passing grade, enrollment rules, student applications; the school's **colour** (presets or its own) and **logo**, and the sign-in headline |
 | **Admins & registrars** | Admin-panel accounts |
-| **Demo data & backup** | Add or remove demo data; download or restore a backup |
+| **Demo data & backup** | Add or remove demo data; download or restore a backup. The backup file holds the records; uploaded files are in `data/files/`, so to keep everything, copy the whole `data` folder |
 
 ### Modules for students and teachers
 
@@ -80,8 +82,11 @@ Other settings: `PORT=3101 npm start` (another port), `HOST=0.0.0.0 npm start` (
 | Class schedule | Weekly timetable | Teaching timetable |
 | Lessons & materials | Read lessons, open materials | Write lessons, publish or hide them |
 | Announcements | Read | Post |
-| Assignments | Hand in work, read feedback | Create, review, score, give feedback |
-| Grades | Scores and final grades | Gradebook, post final grades |
+| Resources | Open and download files and links, with a preview (PDF, images, video, YouTube) | Upload files (up to 10 MB each, drag and drop) and add links; hide or show them |
+| Activities & quizzes | Hand in work (text, a file, a link); take quizzes and exams with a timer; see scores, feedback and (when released) the answers | Create assignments, quizzes and exams; grade one student after another; score essays; results per question |
+| Attendance | Their attendance and rate per class | Take attendance (present, late, absent, excused), monthly grid, CSV export |
+| Grades | Running grade, scores and final grades | Gradebook (weighted by activity type), CSV export, post final grades |
+| News & events | Read school news, react and comment; upcoming events | The same |
 
 A module that is off disappears from that account type's menu, **and the server refuses it** (it is not only hidden). Turning a module off never deletes anything.
 For example, switch *Enrollment* off for students outside enrollment season so only the registrar can add or drop classes.
@@ -123,6 +128,21 @@ The catalog shows, for every section, whether the student can take it and **why 
 
 **Student applications** (Settings → Student applications): when on, the portal's sign-in page shows *Apply as a student*. Applicants choose a username and password, appear under **Applicants**, and can sign in once admitted.
 
+## Quizzes and exams
+
+- **Question types:** one answer, several answers (partial credit: each right pick adds, each wrong pick takes away), true or false, short answer (several accepted answers; capitals and spaces ignored) and essay (scored by the teacher).
+- **Settings per quiz:** opening and closing time, time limit, number of attempts (the highest score counts), shuffled question order, and when students see the correct answers (right after submitting, after the quiz closes, or never).
+- **Fair timing:** the server sets each attempt's deadline when it starts (the time limit, or the closing time if sooner) and refuses answers after it. Answers save as the student goes; when time runs out the quiz submits itself, even if the student closed the page. Students never receive the answer key before results are released.
+- **Results:** average, highest and lowest; each student's best attempt; how each question went (questions most of the class missed are shown in red); essays waiting to be scored.
+
+## Grading
+
+Each activity has a type with a weight (Settings: **Activity types & grading**). The running grade combines each type's percentage by its weight, leaving out types with no scored work yet. Example with assignments 30%, quizzes 20%, exams 50%: a student with 80% on assignments and 90% on quizzes and no exam yet has (80×30 + 90×20) ÷ 50 = 84%. Set every weight to 0 to count every point the same. Teachers post final grades (they can fill them from the running grade); a final grade at or above the passing grade completes the class and counts for prerequisites.
+
+## Look and feel
+
+The layout follows the school's current LMS (top bar with the seal and the current term, a sidebar with icons, breadcrumbs, a class header with the teacher, tabs for each part of a class) with one brand colour throughout, chosen under **Settings & branding**, and the school's own logo. Everyone can switch to **dark mode** (moon button; remembered per browser), and the sidebar folds to icons. On phones the sidebar becomes a drawer and tables become cards. A comparison with the current LMS and other open-source LMSes is in [docs/BENCHMARK.md](docs/BENCHMARK.md).
+
 ## For developers
 
 ```
@@ -131,20 +151,26 @@ lms/
   server/api.js          router, the two sign-ins, applications, demo data and backups
   server/enrollment.js   the enrollment rules (evaluate, enroll, waitlist, drop) and their routes
   server/admin.js        admin panel: accounts, applicants, catalog, sections, modules, settings, dashboard
-  server/classroom.js    portal: classes, lessons, announcements, assignments, grades, schedule
+  server/classroom.js    portal: classes, lessons, announcements, activities, grades, schedule, home
+  server/quiz.js         quiz questions, attempts, deadlines, automatic grading, results
+  server/attendance.js   attendance per class and date
+  server/files.js        uploaded files (data/files/) and class resources
+  server/news.js         school news (reactions, comments) and events
   server/db.js           JSON-file storage (and an in-memory one for tests)
   server/demo.js         demo data
   shared/roles.js        account types and permissions (server and browser)
   shared/modules.js      the switchable portal modules (server and browser)
   shared/schedule.js     meeting times and clash checks (server and browser)
+  shared/themes.js       brand colour presets
   public/                portal (index.html, js/portal) and admin panel (admin/index.html, js/admin)
-  public/js/shell.js     sign-in screens, menu, router shared by both apps
+  public/js/shell.js     branding, dark mode, sign-in screens, top bar, sidebar, router (both apps)
+  public/js/icons.js     the icon set
   test/                  node:test suites
 ```
 
 - Run the tests with `npm test` (from `lms/`, or from the repository root, which runs the ERP's and the LMS's tests together).
 - Every route states who may call it (`'student'`, `'teacher'`, `'portal'`, `'admin:<permission>'`) and, for portal routes, which module it belongs to. The router in `server/api.js` enforces both.
-- Styles and UI helpers were copied from the ERP (`public/css/styles.css`, `public/js/ui.js`) so the two look like one family; the LMS's own styles are at the end of the stylesheet.
+- `public/css/styles.css` is built on colour tokens: `--brand` and `--accent` come from the branding settings and every shade is mixed from them, with a dark set under `[data-theme=dark]`.
 
 ### Ideas this borrows from
 
@@ -155,7 +181,7 @@ lms/
 
 ### Not included (yet)
 
-Quizzes, file uploads for assignments, attendance, certificates, a term-end "close term" step, class-wide email notifications, an audit log, and SSO with the ERP.
+Guardian accounts, messages/chat, single sign-on (Keycloak/OIDC), question banks, copying lessons and activities between sections, certificates, a term-end "close term" step, email notifications and an audit log. See the roadmap in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Moving to AWS later
 
@@ -172,5 +198,5 @@ When one server is no longer enough:
 | --- | --- |
 | `data/db.json` | Amazon RDS (PostgreSQL): one table per collection in `server/db.js`; every record already has an `id` |
 | Sessions in memory | ElastiCache (Redis) or DynamoDB, behind `createSessions()` in `server/auth.js` |
-| Links to materials | Amazon S3 for uploaded files, when uploads are added |
+| Uploaded files in `data/files/` | Amazon S3, behind `createFileStore()` in `server/files.js` |
 | One EC2 instance | Several behind an Application Load Balancer once sessions and data are shared |

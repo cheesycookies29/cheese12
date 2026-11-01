@@ -35,7 +35,7 @@ export function mount(el, content) {
 // Copy each column heading onto its cells (data-label), so on phones a table row
 // can be shown as a card of "Label: value" lines. Grids that need columns opt out
 // with .no-stack (and a few known grid tables below).
-const KEEP_AS_GRID = '.no-stack, .balances, .matrix, .edit-table, .try';
+const KEEP_AS_GRID = '.no-stack, .matrix, .att-table, .gradebook';
 export function labelTables(root) {
   const tables = root.matches?.('table.table') ? [root] : root.querySelectorAll('table.table');
   for (const table of tables) {
@@ -187,3 +187,37 @@ export const statusBadge = (status, label = status) => badge(label.charAt(0).toU
 export const formData = (form) => Object.fromEntries(new FormData(form));
 export const option = (value, label, selected) => html`<option value="${value}" ${selected ? 'selected' : ''}>${label}</option>`;
 export const empty = (title, text = '') => html`<div class="card empty"><h2>${title}</h2>${text ? html`<p>${text}</p>` : ''}</div>`;
+
+// "48.5 KB" instead of 49672.
+export function fmtSize(bytes) {
+  if (bytes == null) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// Reads a picked file for upload: { name, type, data (base64) }.
+export const MAX_UPLOAD = 10 * 1024 * 1024;
+export function readFile(file) {
+  return new Promise((resolve, reject) => {
+    if (file.size > MAX_UPLOAD) return reject(new Error(`${file.name} is larger than 10 MB.`));
+    const r = new FileReader();
+    r.onload = () => resolve({ name: file.name, type: file.type, data: String(r.result).split(',')[1] || '' });
+    r.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    r.readAsDataURL(file);
+  });
+}
+
+// "Due in 3 days", "Due today 11:59 PM", "2 days overdue" for a local 'YYYY-MM-DDTHH:MM'.
+export function dueText(dueAt, verb = 'Due') {
+  if (!dueAt) return 'No due date';
+  const now = new Date();
+  const due = new Date(`${dueAt}:00`);
+  const days = Math.round((new Date(due.getFullYear(), due.getMonth(), due.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  const time = due.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+  if (due < now) return days === 0 ? `${verb} today ${time} (passed)` : `${-days} day${days === -1 ? '' : 's'} overdue`;
+  if (days === 0) return `${verb} today ${time}`;
+  if (days === 1) return `${verb} tomorrow ${time}`;
+  if (days < 7) return `${verb} ${due.toLocaleDateString('en-PH', { weekday: 'long' })} ${time}`;
+  return `${verb} ${fmtDateTime(dueAt)}`;
+}

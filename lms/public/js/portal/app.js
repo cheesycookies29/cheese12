@@ -3,13 +3,15 @@
 import { api } from '../api.js';
 import { html, option } from '../ui.js';
 import { has } from './common.js';
-import { ctx, startApp, authScreen, passwordField, onFormSubmit } from '../shell.js';
+import { ctx, startApp, authScreen, passwordField, onFormSubmit, authLogo } from '../shell.js';
 import { homeView } from './views/home.js';
 import { catalogView, myEnrollmentView } from './views/enroll.js';
 import { classesView, classView } from './views/classes.js';
 import { assignmentView } from './views/assignment.js';
 import { scheduleView } from './views/schedule.js';
 import { gradesView } from './views/grades.js';
+import { quizView, quizResultsView, attemptGradeView, quizEditView } from './views/quiz.js';
+import { newsView } from './views/news.js';
 
 const student = (u) => u.role === 'student';
 const mod = (m, extra = () => true) => (u, info) => info.modules.includes(m) && extra(u);
@@ -22,6 +24,12 @@ const routes = [
   ['/classes/:id', classView],
   ['/classes/:id/:tab', classView],
   ['/assignments/:id', assignmentView, mod('assignments')],
+  ['/quizzes/new', (el, p, q) => quizEditView(el, { classId: q.class }), mod('assignments', (u) => u.role === 'teacher')],
+  ['/quizzes/:id/edit', (el, p) => quizEditView(el, { id: p.id }), mod('assignments', (u) => u.role === 'teacher')],
+  ['/quizzes/:id', quizView, mod('assignments')],
+  ['/quizzes/:id/results', quizResultsView, mod('assignments', (u) => u.role === 'teacher')],
+  ['/attempts/:id', attemptGradeView, mod('assignments', (u) => u.role === 'teacher')],
+  ['/news', newsView, mod('news')],
   ['/schedule', scheduleView, mod('schedule')],
   ['/grades', gradesView, mod('grades', student)],
 ];
@@ -29,18 +37,19 @@ const routes = [
 function nav() {
   const isStudent = ctx.user.role === 'student';
   return [
-    { href: '/home', label: 'Home' },
-    isStudent && has('enrollment') && { href: '/enroll', label: 'Enrollment', also: ['/enroll/mine'] },
-    { href: '/classes', label: isStudent ? 'My classes' : 'My sections', also: ['/assignments'] },
-    has('schedule') && { href: '/schedule', label: 'Schedule' },
-    isStudent && has('grades') && { href: '/grades', label: 'Grades' },
+    { href: '/home', label: 'Home', icon: 'home' },
+    { href: '/classes', label: isStudent ? 'My classes' : 'My sections', icon: 'book', also: ['/assignments', '/quizzes', '/attempts'] },
+    isStudent && has('enrollment') && { href: '/enroll', label: 'Enrollment', icon: 'clipboard', also: ['/enroll/mine'] },
+    has('schedule') && { href: '/schedule', label: 'Schedule', icon: 'calendar' },
+    isStudent && has('grades') && { href: '/grades', label: 'Grades', icon: 'chart' },
+    has('news') && { href: '/news', label: 'News & events', icon: 'megaphone' },
   ].filter(Boolean);
 }
 
 function applyView(el, { status, back }) {
   const form = authScreen(el, {}, html`
     <form class="auth-card" novalidate>
-      <img class="auth-logo" src="/img/logo.png" alt="Lancaster Technology and Development" />
+      ${authLogo()}
       <h2>Apply as a student</h2>
       <p class="muted">${status.schoolName}. The registrar reviews your application; you can sign in once you are admitted.</p>
       <label class="field"><span>Full name</span><input name="name" autocomplete="name" required /></label>
@@ -71,7 +80,7 @@ function signedOutView(el, { status, boot }) {
   }
   const form = authScreen(el, {}, html`
     <form class="auth-card" novalidate>
-      <img class="auth-logo" src="/img/logo.png" alt="Lancaster Technology and Development" />
+      ${authLogo()}
       <h2>Sign in</h2>
       <p class="muted">${status.schoolName} learning portal, for students and teachers.</p>
       <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>

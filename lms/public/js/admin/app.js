@@ -1,7 +1,7 @@
 // Admin panel (/admin): Administrators and Registrars.
 import { api } from '../api.js';
 import { html, toast } from '../ui.js';
-import { ctx, startApp, authScreen, passwordField, onFormSubmit } from '../shell.js';
+import { ctx, startApp, authScreen, passwordField, onFormSubmit, authLogo } from '../shell.js';
 import { can } from '/shared/roles.js';
 import { dashboardView } from './views/dashboard.js';
 import { enrollmentQueueView } from './views/enrollment.js';
@@ -9,7 +9,8 @@ import { peopleView, personView } from './views/people.js';
 import { coursesView, programsView, termsView } from './views/catalog.js';
 import { sectionsView, sectionView } from './views/sections.js';
 import { modulesView } from './views/modules.js';
-import { settingsView, dataView } from './views/settings.js';
+import { settingsView, dataView, gradingView } from './views/settings.js';
+import { newsAdminView } from './views/news.js';
 
 const p = (permission) => (user) => can(user.role, permission);
 
@@ -28,30 +29,35 @@ const routes = [
   ['/programs', programsView, p('dashboard')],
   ['/modules', modulesView, p('dashboard')],
   ['/settings', settingsView, p('dashboard')],
+  ['/grading', gradingView, p('dashboard')],
+  ['/news', newsAdminView, p('news.manage')],
   ['/data', dataView, p('data.manage')],
 ];
 
 function nav() {
   const c = (perm) => can(ctx.user.role, perm);
   return [
-    { href: '/dashboard', label: 'Dashboard' },
+    { href: '/dashboard', label: 'Dashboard', icon: 'home' },
     { heading: 'Enrollment' },
-    c('enrollment.manage') && { href: '/enrollment', label: 'Enrollment requests', badge: 'enrollment' },
-    c('students.manage') && { href: '/applicants', label: 'Applicants', badge: 'applicants' },
-    c('students.manage') && { href: '/students', label: 'Students', also: ['/people'] },
-    c('teachers.view') && { href: '/teachers', label: 'Teachers' },
+    c('enrollment.manage') && { href: '/enrollment', label: 'Enrollment requests', icon: 'clipboard', badge: 'enrollment' },
+    c('students.manage') && { href: '/applicants', label: 'Applicants', icon: 'userPlus', badge: 'applicants' },
+    c('students.manage') && { href: '/students', label: 'Students', icon: 'cap', also: ['/people'] },
+    c('teachers.view') && { href: '/teachers', label: 'Teachers', icon: 'users' },
     { heading: 'Catalog' },
-    { href: '/sections', label: 'Sections' },
-    { href: '/courses', label: 'Courses' },
-    { href: '/terms', label: 'Terms' },
-    { href: '/programs', label: 'Programs' },
+    { href: '/sections', label: 'Sections', icon: 'layers' },
+    { href: '/courses', label: 'Courses', icon: 'book' },
+    { href: '/terms', label: 'Terms', icon: 'calendar' },
+    { href: '/programs', label: 'Programs', icon: 'folder' },
+    { heading: 'Communication' },
+    c('news.manage') && { href: '/news', label: 'News & events', icon: 'megaphone' },
     { heading: 'Configuration' },
-    { href: '/modules', label: 'Modules' },
-    { href: '/settings', label: 'Settings' },
-    c('admins.manage') && { href: '/staff', label: 'Admins & registrars' },
-    c('data.manage') && { href: '/data', label: 'Demo data & backup' },
+    { href: '/modules', label: 'Modules', icon: 'toggles' },
+    { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
+    { href: '/settings', label: 'Settings & branding', icon: 'settings' },
+    c('admins.manage') && { href: '/staff', label: 'Admins & registrars', icon: 'shield' },
+    c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
-    { href: '/', label: 'Open the learning portal ↗', external: true },
+    { href: '/', label: 'Open the learning portal', icon: 'external', external: true },
   ].filter(Boolean);
 }
 
@@ -59,7 +65,7 @@ function signedOutView(el, { status, boot }) {
   if (status.setupRequired) {
     const form = authScreen(el, { admin: true }, html`
       <form class="auth-card" novalidate>
-        <img class="auth-logo" src="/img/logo.png" alt="Lancaster Technology and Development" />
+        ${authLogo()}
         <h2>Welcome! Let's set up the LMS</h2>
         <p class="muted">Create the first <strong>Administrator</strong>. You can add registrars, teachers and students after signing in.</p>
         <label class="field"><span>School name</span><input name="schoolName" value="${status.schoolName}" required /></label>
@@ -79,7 +85,7 @@ function signedOutView(el, { status, boot }) {
   }
   const form = authScreen(el, { admin: true }, html`
     <form class="auth-card" novalidate>
-      <img class="auth-logo" src="/img/logo.png" alt="Lancaster Technology and Development" />
+      ${authLogo()}
       <h2>Admin panel</h2>
       <p class="muted">${status.schoolName}: for administrators and registrars.</p>
       <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>

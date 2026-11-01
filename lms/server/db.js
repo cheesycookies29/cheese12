@@ -18,7 +18,22 @@ export const DEFAULT_SETTINGS = {
   registration: {
     open: false, // the portal shows "Apply as a student"; applicants wait for approval
   },
+  branding: {
+    theme: 'maroon', // a preset from shared/themes.js, or 'custom'
+    color: '', // the brand colour when theme is 'custom' (#rrggbb)
+    logo: '', // a small image as a data: URL; empty = the LTDC logo
+    tagline: '',
+  },
 };
+
+// Activity types and their share of the running grade (weights are percentages;
+// all 0 = every point counts the same).
+export const DEFAULT_ACTIVITY_TYPES = [
+  { id: 'task', name: 'Assignment', weight: 30, active: true },
+  { id: 'short-quiz', name: 'Short Quiz', weight: 20, active: true },
+  { id: 'long-quiz', name: 'Long Quiz', weight: 20, active: true },
+  { id: 'exam', name: 'Examination', weight: 30, active: true },
+];
 
 export function emptyData() {
   return {
@@ -33,8 +48,15 @@ export function emptyData() {
     enrollments: [], // a student in a section: pending / enrolled / waitlisted / dropped / rejected / completed
     lessons: [],
     announcements: [],
-    assignments: [],
-    submissions: [],
+    assignments: [], // tasks (hand in work) and quizzes (questions, auto-graded)
+    submissions: [], // work handed in for tasks
+    attempts: [], // quiz attempts
+    activityTypes: structuredClone(DEFAULT_ACTIVITY_TYPES),
+    attendance: [], // one record per section per date: { records: { studentId: present|late|absent|excused } }
+    files: [], // uploaded files' details; the bytes are in data/files/<id>
+    resources: [], // class resources: a file or a link
+    news: [], // school news posts, with reactions and comments
+    events: [], // school events
     counters: { studentNo: {} }, // last student number issued per year
   };
 }
@@ -45,6 +67,7 @@ export function mergeSettings(s = {}) {
     ...s,
     enrollment: { ...DEFAULT_SETTINGS.enrollment, ...(s.enrollment || {}) },
     registration: { ...DEFAULT_SETTINGS.registration, ...(s.registration || {}) },
+    branding: { ...DEFAULT_SETTINGS.branding, ...(s.branding || {}) },
   };
 }
 
@@ -55,6 +78,12 @@ function normalize(data) {
   out.settings = mergeSettings(data.settings);
   out.modules = { ...defaultModuleConfig(), ...(data.modules || {}) };
   out.counters = { studentNo: {}, ...(data.counters || {}) };
+  if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
+  // Assignments from before quizzes and activity types: tasks of the default type.
+  for (const a of out.assignments) {
+    a.kind ||= 'task';
+    if (!a.typeId) a.typeId = (out.activityTypes.find((t) => t.id === (a.kind === 'quiz' ? 'short-quiz' : 'task')) || out.activityTypes[0])?.id || '';
+  }
   return out;
 }
 

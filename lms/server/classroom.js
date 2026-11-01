@@ -6,12 +6,16 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, DATETIME_RE, text } from './util.js';
 import { findById, sectionView, enrollmentView, STATUS_LABELS } from './enrollment.js';
 import { moduleOn } from '../shared/modules.js';
+import { validateQuestions, quizPoints, scoreAttempt, bestAttempt, registerQuizRoutes } from './quiz.js';
+import { registerResourceRoutes, fileInfo } from './files.js';
+import { registerAttendanceRoutes } from './attendance.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
 };
 const IN_CLASS = ['enrolled', 'completed'];
 const round1 = (n) => Math.round(n * 10) / 10;
+const SHOW_RESULTS = ['immediately', 'after_close', 'never'];
 
 export function registerClassroomRoutes(route, ctx) {
   const { db, nowLocal } = ctx;
@@ -53,7 +57,7 @@ export function registerClassroomRoutes(route, ctx) {
     const on = (m) => moduleOn(d.modules, m, user.role);
     const classes = myClasses(user, termId).map((s) => sectionView(d, s));
     const ids = new Set(classes.map((c) => c.id));
-    const out = { term: findById(d.terms, termId) || null, classes, announcements: [], due: [], toGrade: [], requests: [] };
+    const out = { term: findById(d.terms, termId) || null, classes, announcements: [], due: [], upcoming: [], toGrade: [], requests: [], progress: {} };
     if (on('announcements')) {
       out.announcements = d.announcements.filter((a) => ids.has(a.sectionId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5)
         .map((a) => ({ ...a, class: classes.find((c) => c.id === a.sectionId) }));
@@ -61,17 +65,33 @@ export function registerClassroomRoutes(route, ctx) {
     if (on('assignments')) {
       const live = d.assignments.filter((a) => ids.has(a.sectionId) && a.published);
       if (user.role === 'student') {
+        // To do: open work not handed in yet, soonest first, and anything overdue that still accepts work.
         out.due = live
-          .filter((a) => !d.submissions.some((s) => s.assignmentId === a.id && s.studentId === user.id))
-          .filter((a) => !a.dueAt || a.dueAt >= nowLocal() || a.allowLate)
+          .filter((a) => isOpen(a) && !resultFor(a, user.id).submitted)
           .sort((a, b) => (a.dueAt || '9').localeCompare(b.dueAt || '9'))
-          .slice(0, 6)
-          .map((a) => ({ ...a, class: classes.find((c) => c.id === a.sectionId) }));
+          .slice(0, 8)
+          .map((a) => ({ ...listView(a), overdue: Boolean(a.dueAt && nowLocal() > a.dueAt), class: classes.find((c) => c.id === a.sectionId) }));
+        out.upcoming = live
+          .filter((a) => a.opensAt && nowLocal() < a.opensAt)
+          .sort((a, b) => a.opensAt.localeCompare(b.opensAt))
+          .slice(0, 4)
+          .map((a) => ({ ...listView(a), class: classes.find((c) => c.id === a.sectionId) }));
+        out.progress = Object.fromEntries(classes.map((c) => {
+          const st = standing(c.id, user.id);
+          return [c.id, { done: st.done, total: st.total, percent: st.percent }];
+        }));
       } else {
         out.toGrade = live
-          .map((a) => ({ ...a, class: classes.find((c) => c.id === a.sectionId), waiting: d.submissions.filter((s) => s.assignmentId === a.id && s.score == null).length }))
+          .map((a) => {
+            const waiting = studentsOf(a.sectionId).filter((e) => resultFor(a, e.studentId).toGrade).length;
+            return { ...listView(a), class: classes.find((c) => c.id === a.sectionId), waiting };
+          })
           .filter((a) => a.waiting);
       }
+    }
+    if (on('news')) {
+      out.events = ctx.upcomingEvents().slice(0, 4);
+      out.news = d.news.slice().sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 3).map(({ reactions, comments, ...n }) => ({ ...n, comments: comments?.length || 0 }));
     }
     if (user.role === 'student' && on('enrollment')) {
       out.requests = d.enrollments.filter((e) => e.studentId === user.id && ['pending', 'waitlisted'].includes(e.status)).map((e) => enrollmentView(d, e));
@@ -170,36 +190,76 @@ export function registerClassroomRoutes(route, ctx) {
   }, { module: 'announcements' });
 
   // ----- Assignments and submissions -----
+  // Tasks (hand in work) and quizzes (questions answered in the portal, graded automatically).
   const assignmentFields = (b) => {
+    const kind = b.kind === 'quiz' ? 'quiz' : 'task';
+    const types = data().activityTypes.filter((t) => t.active !== false);
     const x = {
+      kind,
+      typeId: types.some((t) => t.id === b.typeId) ? b.typeId : (types.find((t) => t.id === (kind === 'quiz' ? 'short-quiz' : 'task')) || types[0])?.id || '',
       title: text(b.title, 200),
       instructions: text(b.instructions, 20000),
+      opensAt: b.opensAt ? String(b.opensAt).slice(0, 16) : '',
       dueAt: b.dueAt ? String(b.dueAt).slice(0, 16) : '',
       points: Number(b.points),
-      allowLate: Boolean(b.allowLate),
+      allowLate: kind === 'task' && Boolean(b.allowLate),
       published: Boolean(b.published),
     };
-    if (!x.title) fail('Assignment title is required.');
-    if (x.dueAt && !DATETIME_RE.test(x.dueAt)) fail('Due date must be a date and time.');
-    if (!(x.points > 0 && x.points <= 1000)) fail('Points must be between 1 and 1000.');
+    if (!x.title) fail('Title is required.');
+    if (x.opensAt && !DATETIME_RE.test(x.opensAt)) fail('Opening time must be a date and time.');
+    if (x.dueAt && !DATETIME_RE.test(x.dueAt)) fail(`${kind === 'quiz' ? 'Closing' : 'Due'} time must be a date and time.`);
+    if (x.opensAt && x.dueAt && x.dueAt <= x.opensAt) fail('It must close after it opens.');
+    if (kind === 'quiz') {
+      const q = b.quiz || {};
+      x.quiz = {
+        timeLimit: Math.max(0, Math.min(600, Math.floor(Number(q.timeLimit) || 0))), // minutes; 0 = none
+        attempts: Math.max(0, Math.min(20, Math.floor(Number(q.attempts ?? 1)))), // 0 = unlimited
+        shuffle: Boolean(q.shuffle),
+        showResults: SHOW_RESULTS.includes(q.showResults) ? q.showResults : 'after_close',
+      };
+      x.questions = validateQuestions(b.questions);
+      x.points = quizPoints(x.questions);
+    } else if (!(x.points > 0 && x.points <= 1000)) fail('Points must be between 1 and 1000.');
     return x;
   };
+  const isOpen = (x) => {
+    const now = nowLocal();
+    if (!x.published || (x.opensAt && now < x.opensAt)) return false;
+    return !x.dueAt || now <= x.dueAt || (x.kind !== 'quiz' && x.allowLate);
+  };
+  // Without the questions (and their answer key), for lists.
+  const listView = ({ questions, ...x }) => ({ ...x, kind: x.kind || 'task', questionCount: questions?.length || 0 });
+
+  // One student's result on one activity: the scored submission, or the best quiz attempt.
+  function resultFor(x, studentId) {
+    if (x.kind === 'quiz') {
+      const list = data().attempts.filter((t) => t.assignmentId === x.id && t.studentId === studentId);
+      const best = bestAttempt(list);
+      return { submitted: Boolean(best), attempts: list.filter((t) => t.submittedAt).length, inProgress: list.some((t) => !t.submittedAt), score: best && !best.needsGrading ? best.score : null, toGrade: Boolean(best?.needsGrading), late: false };
+    }
+    const sub = data().submissions.find((y) => y.assignmentId === x.id && y.studentId === studentId);
+    return { submitted: Boolean(sub), score: sub?.score ?? null, toGrade: Boolean(sub && sub.score == null), late: Boolean(sub?.late), submittedAt: sub?.submittedAt };
+  }
+
   const findAssignment = (id) => findById(data().assignments, id) || fail('Assignment not found.', 404);
   const submissionView = (s) => {
     const st = findById(data().users, s.studentId);
-    return { ...s, student: st ? { id: st.id, name: st.name, studentNo: st.studentNo || '' } : null };
+    return { ...s, file: fileInfo(data().files.find((f) => f.id === s.fileId)), student: st ? { id: st.id, name: st.name, studentNo: st.studentNo || '' } : null };
   };
 
   route('GET', '/api/classes/:id/assignments', 'portal', ({ user, params }) => {
     const a = access(user, params.id);
     const list = data().assignments.filter((x) => x.sectionId === a.section.id && (a.teacher || x.published));
     const total = studentsOf(a.section.id).length;
+    const roster = studentsOf(a.section.id);
     return list
       .map((x) => {
-        const subs = data().submissions.filter((s) => s.assignmentId === x.id);
-        if (a.teacher) return { ...x, submitted: subs.length, graded: subs.filter((s) => s.score != null).length, students: total };
-        const mine = subs.find((s) => s.studentId === user.id);
-        return { ...x, mine: mine ? { submittedAt: mine.submittedAt, late: mine.late, score: mine.score, gradedAt: mine.gradedAt } : null };
+        if (a.teacher) {
+          const results = roster.map((e) => resultFor(x, e.studentId));
+          return { ...listView(x), open: isOpen(x), submitted: results.filter((r) => r.submitted).length, graded: results.filter((r) => r.score != null).length, toGrade: results.filter((r) => r.toGrade).length, students: total };
+        }
+        const r = resultFor(x, user.id);
+        return { ...listView(x), open: isOpen(x), mine: r.submitted || r.inProgress ? r : null };
       })
       .sort((x, y) => (x.dueAt || '9').localeCompare(y.dueAt || '9') || x.createdAt.localeCompare(y.createdAt));
   }, { module: 'assignments' });
@@ -222,15 +282,18 @@ export function registerClassroomRoutes(route, ctx) {
       const missing = studentsOf(x.sectionId).filter((e) => !submitted.has(e.studentId)).map((e) => findById(data().users, e.studentId)).filter(Boolean).map((u) => ({ id: u.id, name: u.name, studentNo: u.studentNo || '' }));
       return { ...x, class: sectionView(data(), a.section), submissions: subs.map(submissionView).sort((p, q) => p.student.name.localeCompare(q.student.name)), missing };
     }
-    return { ...x, class: sectionView(data(), a.section), mine: subs.find((s) => s.studentId === user.id) || null, closed: Boolean(x.dueAt && nowLocal() > x.dueAt && !x.allowLate) };
+    const mine = subs.find((s) => s.studentId === user.id);
+    return { ...listView(x), class: sectionView(data(), a.section), mine: mine ? submissionView(mine) : null, closed: !isOpen(x), notOpenYet: Boolean(x.opensAt && nowLocal() < x.opensAt) };
   }, { module: 'assignments' });
 
   route('PUT', '/api/assignments/:id', 'teacher', ({ user, params, body }) => {
     const x = findAssignment(params.id);
     teacherOnly(access(user, x.sectionId));
-    const next = assignmentFields(body);
-    if (next.points < x.points && data().submissions.some((s) => s.assignmentId === x.id && s.score > next.points)) fail('Some scores are higher than the new points. Change those scores first.');
+    const next = assignmentFields({ ...body, kind: x.kind || 'task' }); // a task stays a task, a quiz a quiz
+    if (next.kind === 'task' && next.points < x.points && data().submissions.some((s) => s.assignmentId === x.id && s.score > next.points)) fail('Some scores are higher than the new points. Change those scores first.');
     Object.assign(x, next, { updatedAt: iso() });
+    // Questions may have changed: rescore every attempt (answers to removed questions are ignored).
+    if (x.kind === 'quiz') for (const t of data().attempts.filter((t) => t.assignmentId === x.id)) scoreAttempt(x, t);
     save();
     return x;
   }, { module: 'assignments' });
@@ -240,6 +303,7 @@ export function registerClassroomRoutes(route, ctx) {
     teacherOnly(access(user, x.sectionId));
     data().assignments.splice(data().assignments.indexOf(x), 1);
     data().submissions = data().submissions.filter((s) => s.assignmentId !== x.id);
+    data().attempts = data().attempts.filter((t) => t.assignmentId !== x.id);
     save();
     return { ok: true };
   }, { module: 'assignments' });
@@ -248,22 +312,32 @@ export function registerClassroomRoutes(route, ctx) {
     const x = findAssignment(params.id);
     const a = access(user, x.sectionId);
     if (!x.published) fail('Assignment not found.', 404);
+    if (x.kind === 'quiz') fail('Quizzes are answered from the quiz page.');
     if (a.enrollment.status !== 'enrolled') fail('This class has ended; submissions are closed.');
+    if (x.opensAt && nowLocal() < x.opensAt) fail('This activity has not opened yet.');
     const late = Boolean(x.dueAt && nowLocal() > x.dueAt);
     if (late && !x.allowLate) fail('The due date has passed and this assignment does not accept late work.');
     const content = text(body.text, 50000);
     const link = text(body.link, 500);
-    if (!content && !link) fail('Write your answer or add a link to your work.');
+    const previous = data().submissions.find((y) => y.assignmentId === x.id && y.studentId === user.id);
+    if (previous?.score != null) fail('This work has been scored already. Ask your teacher if you need to resubmit.');
+    let fileId = body.keepFile && previous?.fileId ? previous.fileId : null;
+    if (body.file) {
+      const f = ctx.files.save(body.file, { sectionId: x.sectionId, owner: user });
+      f.private = true; // only the student and the teacher can open it
+      if (previous?.fileId && previous.fileId !== f.id) ctx.files.remove(previous.fileId);
+      fileId = f.id;
+    } else if (previous?.fileId && !fileId) ctx.files.remove(previous.fileId);
+    if (!content && !link && !fileId) fail('Write your answer, attach a file or add a link to your work.');
     if (link && !/^https?:\/\//i.test(link)) fail('Links must start with http:// or https://');
-    let s = data().submissions.find((y) => y.assignmentId === x.id && y.studentId === user.id);
-    if (s?.score != null) fail('This work has been scored already. Ask your teacher if you need to resubmit.');
+    let s = previous;
     if (!s) {
       s = { id: randomUUID(), assignmentId: x.id, studentId: user.id, score: null, feedback: '', gradedAt: null, attempts: 0 };
       data().submissions.push(s);
     }
-    Object.assign(s, { text: content, link, submittedAt: iso(), late, attempts: (s.attempts || 0) + 1 });
+    Object.assign(s, { text: content, link, fileId, submittedAt: iso(), late, attempts: (s.attempts || 0) + 1 });
     save();
-    return s;
+    return { ...s, file: fileInfo(data().files.find((f) => f.id === s.fileId)) };
   }, { module: 'assignments' });
 
   route('POST', '/api/submissions/:id/grade', 'teacher', ({ user, params, body }) => {
@@ -282,31 +356,52 @@ export function registerClassroomRoutes(route, ctx) {
   }, { module: 'assignments' });
 
   // ----- Grades -----
-  // A student's running percentage from scored assignments (unscored work is left out).
+  // A student's running grade from scored work (unscored work is left out).
+  // When activity types have weights, each type's percentage counts by its weight
+  // (spread over the types that have scored work so far); otherwise every point counts the same.
   function standing(sectionId, studentId) {
     const items = data().assignments.filter((x) => x.sectionId === sectionId && x.published);
+    const types = data().activityTypes;
+    const weighted = types.some((t) => Number(t.weight) > 0);
     let earned = 0;
     let possible = 0;
+    const byType = {};
     const scores = {};
     for (const x of items) {
-      const s = data().submissions.find((y) => y.assignmentId === x.id && y.studentId === studentId);
-      scores[x.id] = s ? { score: s.score, submitted: true, late: s.late } : { score: null, submitted: false };
-      if (s?.score != null) {
-        earned += s.score;
-        possible += x.points;
-      }
+      const r = resultFor(x, studentId);
+      scores[x.id] = r;
+      if (r.score == null) continue;
+      earned += r.score;
+      possible += x.points;
+      const t = types.find((y) => y.id === x.typeId) ? x.typeId : types[0]?.id;
+      byType[t] ||= { earned: 0, possible: 0 };
+      byType[t].earned += r.score;
+      byType[t].possible += x.points;
     }
-    return { scores, earned, possible, percent: possible ? round1((earned / possible) * 100) : null };
+    let percent = possible ? (earned / possible) * 100 : null;
+    if (weighted && possible) {
+      let sum = 0;
+      let weights = 0;
+      for (const [id, v] of Object.entries(byType)) {
+        const w = Number(types.find((t) => t.id === id)?.weight) || 0;
+        if (!w || !v.possible) continue;
+        sum += (v.earned / v.possible) * w;
+        weights += w;
+      }
+      percent = weights ? sum / weights * 100 : percent;
+    }
+    const done = items.filter((x) => scores[x.id].submitted).length;
+    return { scores, earned: round1(earned), possible, percent: percent == null ? null : round1(percent), weighted, done, total: items.length };
   }
 
   route('GET', '/api/classes/:id/gradebook', 'teacher', ({ user, params }) => {
     const a = access(user, params.id);
-    const assignments = data().assignments.filter((x) => x.sectionId === a.section.id && x.published).map((x) => ({ id: x.id, title: x.title, points: x.points, dueAt: x.dueAt }));
+    const assignments = data().assignments.filter((x) => x.sectionId === a.section.id && x.published).map((x) => ({ id: x.id, title: x.title, points: x.points, dueAt: x.dueAt, kind: x.kind || 'task', typeId: x.typeId }));
     const rows = studentsOf(a.section.id).map((e) => {
       const st = findById(data().users, e.studentId);
       return { enrollmentId: e.id, status: e.status, finalGrade: e.finalGrade, passed: e.passed, student: { id: st?.id, name: st?.name || '?', studentNo: st?.studentNo || '' }, ...standing(a.section.id, e.studentId) };
     }).sort((x, y) => x.student.name.localeCompare(y.student.name));
-    return { class: sectionView(data(), a.section), assignments, rows, passingGrade: data().settings.passingGrade };
+    return { class: sectionView(data(), a.section), assignments, rows, passingGrade: data().settings.passingGrade, types: data().activityTypes };
   }, { module: 'grades' });
 
   route('PUT', '/api/classes/:id/final-grades', 'teacher', ({ user, params, body }) => {
@@ -345,6 +440,12 @@ export function registerClassroomRoutes(route, ctx) {
       .filter((g) => g.class)
       .sort((a, b) => a.class.term.name.localeCompare(b.class.term.name) || a.class.course.code.localeCompare(b.class.course.code));
   }, { module: 'grades' });
+
+  registerQuizRoutes(route, ctx, { access, findAssignment, isOpen });
+  registerResourceRoutes(route, ctx, { access, files: ctx.files });
+  registerAttendanceRoutes(route, ctx, { access, studentsOf });
+
+  route('GET', '/api/activity-types', 'portal', () => data().activityTypes);
 
   // ----- Schedule -----
   route('GET', '/api/schedule', 'portal', ({ user, query }) => {

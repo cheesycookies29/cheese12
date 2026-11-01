@@ -6,14 +6,15 @@ import { addDays } from './util.js';
 import { findById } from './enrollment.js';
 
 export const DEMO_PASSWORD = 'demo1234';
-const COLLECTIONS = ['programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'users'];
+const COLLECTIONS = ['programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users'];
 
 export function demoStatus(data) {
   const counts = Object.fromEntries(COLLECTIONS.map((k) => [k, data[k].filter((x) => x.demo).length]));
   return { loaded: counts.users > 0 || counts.courses > 0, counts, accounts: data.users.filter((u) => u.demo && u.status === 'active' && u.role !== 'student').map((u) => u.username).concat(data.users.some((u) => u.username === 'student.demo') ? ['student.demo'] : []) };
 }
 
-export function removeDemo(data) {
+// files: the file store, so uploaded files in demo sections are deleted too.
+export function removeDemo(data, files = null) {
   const ids = (k) => new Set(data[k].filter((x) => x.demo).map((x) => x.id));
   const users = ids('users');
   const sections = ids('sections');
@@ -23,7 +24,16 @@ export function removeDemo(data) {
   const terms = ids('terms');
   data.enrollments = data.enrollments.filter((e) => !e.demo && !users.has(e.studentId) && !sections.has(e.sectionId));
   data.submissions = data.submissions.filter((s) => !s.demo && !users.has(s.studentId) && !assignments.has(s.assignmentId));
-  for (const k of ['lessons', 'announcements', 'assignments']) data[k] = data[k].filter((x) => !x.demo && !sections.has(x.sectionId));
+  data.attempts = data.attempts.filter((s) => !s.demo && !users.has(s.studentId) && !assignments.has(s.assignmentId));
+  for (const k of ['lessons', 'announcements', 'assignments', 'resources', 'attendance']) data[k] = data[k].filter((x) => !x.demo && !sections.has(x.sectionId));
+  for (const r of data.attendance) for (const id of Object.keys(r.records)) if (users.has(id)) delete r.records[id];
+  for (const f of data.files.filter((x) => sections.has(x.sectionId) || users.has(x.ownerId))) (files ? files.remove(f.id) : (data.files = data.files.filter((x) => x.id !== f.id)));
+  data.news = data.news.filter((n) => !n.demo);
+  data.events = data.events.filter((e) => !e.demo);
+  for (const n of data.news) {
+    n.comments = (n.comments || []).filter((c) => !users.has(c.userId));
+    for (const k of Object.keys(n.reactions || {})) n.reactions[k] = n.reactions[k].filter((id) => !users.has(id));
+  }
   data.sections = data.sections.filter((s) => !s.demo);
   // Real sections taught by a demo teacher lose their teacher; real courses lose demo prerequisites.
   for (const s of data.sections) if (users.has(s.teacherId)) s.teacherId = null;
@@ -33,8 +43,8 @@ export function removeDemo(data) {
   if (terms.has(data.settings.currentTermId)) data.settings.currentTermId = data.terms.at(-1)?.id || null;
 }
 
-export function addDemo(data, today) {
-  removeDemo(data); // adding again refreshes the set instead of doubling it
+export function addDemo(data, today, files = null) {
+  removeDemo(data, files); // adding again refreshes the set instead of doubling it
   const now = new Date().toISOString();
   const add = (k, rec) => {
     const r = { id: randomUUID(), demo: true, createdAt: now, ...rec };
@@ -157,6 +167,7 @@ export function addDemo(data, today) {
 
   // Class content for IT201 A (Maria Santos)
   const sec = cur.IT201A;
+  const taskType = (data.activityTypes.find((t) => t.id === 'task') || data.activityTypes[0])?.id || '';
   [
     ['Week 1: Classes and objects', 'We model real things as objects: a class describes them, an object is one of them.\n\nRead the notes, then try the exercises at the end before Wednesday.', 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes'],
     ['Week 2: Collections', 'Arrays, maps and sets: when to use which, and how to loop over them.', ''],
@@ -164,9 +175,9 @@ export function addDemo(data, today) {
   ].forEach(([title, body, link], i) => add('lessons', { sectionId: sec.id, title, body, link, order: i + 1, published: i < 2 }));
   add('announcements', { sectionId: sec.id, title: 'Welcome to Programming 2', body: 'Bring a laptop to every lab session. Office hours: Tuesdays 3–5 PM, Faculty Room 2.', authorId: T.maria.id, authorName: T.maria.name, createdAt: addDays(today, -3) + 'T08:00:00.000Z' });
   add('announcements', { sectionId: sec.id, title: 'Lab 1 moved to Room 204', body: 'Only for this Wednesday.', authorId: T.maria.id, authorName: T.maria.name, createdAt: addDays(today, -1) + 'T08:00:00.000Z' });
-  const a1 = add('assignments', { sectionId: sec.id, title: 'Exercise 1: A BankAccount class', instructions: 'Write a BankAccount class with deposit, withdraw and balance. Withdrawals may not go below zero.', dueAt: `${addDays(today, -1)}T23:59`, points: 20, allowLate: true, published: true });
-  const a2 = add('assignments', { sectionId: sec.id, title: 'Exercise 2: Word counter', instructions: 'Read a paragraph and print each word with how many times it appears, most frequent first.', dueAt: `${addDays(today, 6)}T23:59`, points: 30, allowLate: false, published: true });
-  add('assignments', { sectionId: sec.id, title: 'Project proposal', instructions: 'One page: the problem, who it is for, and what your program will do.', dueAt: `${addDays(today, 20)}T23:59`, points: 50, allowLate: false, published: false });
+  const a1 = add('assignments', { sectionId: sec.id, kind: 'task', typeId: taskType, title: 'Exercise 1: A BankAccount class', instructions: 'Write a BankAccount class with deposit, withdraw and balance. Withdrawals may not go below zero.', dueAt: `${addDays(today, -1)}T23:59`, points: 20, allowLate: true, published: true });
+  const a2 = add('assignments', { sectionId: sec.id, kind: 'task', typeId: taskType, title: 'Exercise 2: Word counter', instructions: 'Read a paragraph and print each word with how many times it appears, most frequent first.', dueAt: `${addDays(today, 6)}T23:59`, points: 30, allowLate: false, published: true });
+  add('assignments', { sectionId: sec.id, kind: 'task', typeId: taskType, title: 'Project proposal', instructions: 'One page: the problem, who it is for, and what your program will do.', dueAt: `${addDays(today, 20)}T23:59`, points: 50, allowLate: false, published: false });
   const submit = (st, x, extra) => add('submissions', { assignmentId: x.id, studentId: st.id, text: 'class BankAccount { … }', link: '', submittedAt: at(), late: false, score: null, feedback: '', gradedAt: null, attempts: 1, ...extra });
   submit(S.carlo, a1, { score: 18, feedback: 'Good work. Check the withdraw rule for exactly zero.', gradedAt: now, gradedBy: T.maria.name });
   submit(S.bea, a1, { score: 20, feedback: 'Excellent.', gradedAt: now, gradedBy: T.maria.name });
@@ -174,5 +185,102 @@ export function addDemo(data, today) {
   submit(S.angela, a1, { late: true });
   submit(S.bea, a2, { text: 'Uses a Map and sorts by count.' });
 
+
+  // Quiz (open now, results right away) and an exam that opens later
+  const Q = (type, prompt, points, extra) => ({ id: randomUUID(), type, prompt, points, ...extra });
+  const opt = (text, correct = false) => ({ id: randomUUID(), text, correct });
+  const quiz1 = add('assignments', {
+    sectionId: sec.id, kind: 'quiz', typeId: data.activityTypes.some((t) => t.id === 'short-quiz') ? 'short-quiz' : data.activityTypes[0]?.id,
+    title: 'Quiz 1: Classes and objects', instructions: 'Ten minutes, two attempts. Your best score counts.', opensAt: `${addDays(today, -2)}T08:00`, dueAt: `${addDays(today, 5)}T23:59`,
+    published: true, allowLate: false, quiz: { timeLimit: 10, attempts: 2, shuffle: false, showResults: 'immediately' },
+    questions: [
+      Q('single', 'Which keyword creates a new object from a class?', 1, { options: [opt('class'), opt('new', true), opt('this'), opt('extends')] }),
+      Q('multiple', 'Which of these are usually part of a class?', 2, { options: [opt('Fields', true), opt('Methods', true), opt('A constructor', true), opt('A database')] }),
+      Q('truefalse', 'Two objects of the same class always hold the same values.', 1, { answer: false }),
+      Q('short', 'What is the name for a function that belongs to a class?', 1, { answers: ['method', 'a method'] }),
+      Q('essay', 'In two or three sentences, explain the difference between a class and an object.', 5, {}),
+    ],
+  });
+  quiz1.points = quiz1.questions.reduce((n, q) => n + q.points, 0);
+  const exam = add('assignments', {
+    sectionId: sec.id, kind: 'quiz', typeId: data.activityTypes.some((t) => t.id === 'exam') ? 'exam' : data.activityTypes[0]?.id,
+    title: 'Midterm examination', instructions: 'One attempt, 60 minutes. Answers are shown after the exam closes.', opensAt: `${addDays(today, 14)}T08:00`, dueAt: `${addDays(today, 14)}T17:00`,
+    published: true, allowLate: false, quiz: { timeLimit: 60, attempts: 1, shuffle: true, showResults: 'after_close' },
+    questions: [Q('single', 'A class is a…', 2, { options: [opt('blueprint for objects', true), opt('kind of loop'), opt('database table')] }), Q('essay', 'Describe encapsulation with an example.', 10, {})],
+  });
+  exam.points = exam.questions.reduce((n, q) => n + q.points, 0);
+  const attempt = (st, answers, manual = {}) => {
+    const when = at();
+    const a = add('attempts', { assignmentId: quiz1.id, studentId: st.id, startedAt: when, deadline: when, submittedAt: when, answers, manualScores: manual, feedback: {}, order: null });
+    let score = 0;
+    a.itemScores = {};
+    for (const q of quiz1.questions) {
+      const v = manual[q.id] ?? (q.type === 'essay' ? null : q.type === 'single' ? (q.options.find((o) => o.id === answers[q.id])?.correct ? q.points : 0)
+        : q.type === 'multiple' ? Math.max(0, (q.options.filter((o) => o.correct && answers[q.id]?.includes(o.id)).length - q.options.filter((o) => !o.correct && answers[q.id]?.includes(o.id)).length) / q.options.filter((o) => o.correct).length) * q.points
+          : q.type === 'truefalse' ? (answers[q.id] === q.answer ? q.points : 0) : q.answers.includes(String(answers[q.id]).toLowerCase()) ? q.points : 0);
+      a.itemScores[q.id] = v;
+      if (v != null) score += v;
+    }
+    a.score = Math.round(score * 100) / 100;
+    a.needsGrading = Object.values(a.itemScores).filter((v) => v == null).length;
+    a.status = a.needsGrading ? 'submitted' : 'graded';
+    return a;
+  };
+  const [q1, q2, q3, q4, q5] = quiz1.questions;
+  const right = { [q1.id]: q1.options[1].id, [q2.id]: q2.options.slice(0, 3).map((o) => o.id), [q3.id]: false, [q4.id]: 'method' };
+  attempt(S.bea, { ...right, [q5.id]: 'A class describes the shape; an object is one thing made from it, with its own values.' }, { [q5.id]: 5 });
+  attempt(S.paolo, { ...right, [q2.id]: [q2.options[0].id], [q5.id]: 'An object is made from a class.' });
+  attempt(S.angela, { [q1.id]: q1.options[0].id, [q3.id]: true, [q4.id]: 'function', [q5.id]: 'Not sure.' });
+
+  // Attendance for the class days before today
+  const recent = [];
+  for (let i = 1; recent.length < 4 && i < 30; i++) {
+    const d = addDays(today, -i);
+    if (sec.meetings.some((m) => m.day === new Date(`${d}T00:00:00`).getDay())) recent.unshift(d);
+  }
+  const roster = [S.carlo, S.bea, S.paolo, S.angela, S.miguel];
+  recent.forEach((date, i) => add('attendance', {
+    sectionId: sec.id, date, takenBy: T.maria.name, updatedAt: now,
+    records: Object.fromEntries(roster.map((st, j) => [st.id, (i + j) % 7 === 3 ? 'absent' : (i + j) % 5 === 2 ? 'late' : (i * j) % 9 === 4 ? 'excused' : 'present'])),
+  }));
+
+  // Resources: a small PDF (when the file store is available) and links
+  let order = 0;
+  if (files) {
+    const f = files.save({ name: 'IT201 course outline.pdf', type: 'application/pdf', data: demoPdf('IT201 Computer Programming 2 - Course outline').toString('base64') }, { sectionId: sec.id, owner: T.maria });
+    add('resources', { sectionId: sec.id, kind: 'file', fileId: f.id, category: 'pdf', title: 'Course outline', description: 'Topics week by week, grading and class rules.', published: true, order: ++order, createdBy: T.maria.name });
+  }
+  add('resources', { sectionId: sec.id, kind: 'link', url: 'https://www.youtube.com/watch?v=pTB0EiLXUC8', category: 'video', title: 'Video: object-oriented programming in 7 minutes', description: '', published: true, order: ++order, createdBy: T.maria.name });
+  add('resources', { sectionId: sec.id, kind: 'link', url: 'https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Objects', category: 'link', title: 'MDN: JavaScript objects', description: 'Reading for week 1.', published: true, order: ++order, createdBy: T.maria.name });
+
+  // School news and events
+  add('news', { title: 'Enrollment for the current term is open', body: 'Request your sections under Enrollment in the learning portal. Requests are reviewed by the registrar within two working days.\n\nFull sections take a waitlist: you move up automatically when a seat frees up.', authorId: null, authorName: 'Office of the Registrar', pinned: true, commentsOff: false, createdAt: `${addDays(today, -6)}T09:00:00.000Z`, reactions: { like: [S.bea.id, S.paolo.id], celebrate: [S.carlo.id] }, comments: [{ id: randomUUID(), userId: S.paolo.id, name: S.paolo.name, role: 'student', body: 'Is IT210 opening another section?', createdAt: `${addDays(today, -5)}T10:00:00.000Z` }] });
+  add('news', { title: 'Library hours extended during exams', body: 'The library is open until 9 PM on weekdays for the next three weeks.', authorId: null, authorName: 'Rosa Villanueva', pinned: false, commentsOff: true, createdAt: `${addDays(today, -2)}T09:00:00.000Z`, reactions: { love: [S.angela.id] }, comments: [] });
+  add('events', { title: 'University intramurals', description: 'Opening parade and games across campus. Classes are suspended in the afternoon.', location: 'Main grounds', startDate: addDays(today, 9), endDate: addDays(today, 11), startTime: '08:00', endTime: '17:00', createdBy: 'Demo data' });
+  add('events', { title: 'Midterm examinations week', description: '', location: '', startDate: addDays(today, 14), endDate: addDays(today, 18), startTime: '', endTime: '', createdBy: 'Demo data' });
+
   return demoStatus(data);
+}
+
+// A one-page PDF with a line of text, for the demo resource preview.
+function demoPdf(title) {
+  const esc = title.replace(/[()\\]/g, '');
+  const stream = `BT /F1 20 Tf 60 760 Td (${esc}) Tj 0 -36 Td /F1 12 Tf (Week 1: classes and objects) Tj 0 -18 Td (Week 2: collections) Tj 0 -18 Td (Week 3: files) Tj 0 -18 Td (Grading: assignments 30%, quizzes 40%, exam 30%) Tj ET`;
+  const objs = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets = [];
+  objs.forEach((o, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((n) => `${String(n).padStart(10, '0')} 00000 n \n`).join('')}`;
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(out, 'latin1');
 }

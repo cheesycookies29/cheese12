@@ -7,6 +7,7 @@ import { can, ROLES, ADMIN_ROLES } from '../shared/roles.js';
 import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
 import { mergeSettings } from './db.js';
+import { THEMES, HEX_RE } from '../shared/themes.js';
 import {
   findById, sectionView, enrollmentView, seatsTaken, promoteWaitlist, changeStatus, HOLDS_PLACE, termOpen,
 } from './enrollment.js';
@@ -443,7 +444,11 @@ export function registerAdminRoutes(route, ctx) {
     const s = found(data().sections, params.id, 'Section');
     if (data().enrollments.some((e) => e.sectionId === s.id)) fail('This section has enrollment records. Cancel it instead.');
     data().sections.splice(data().sections.indexOf(s), 1);
-    for (const key of ['lessons', 'announcements', 'assignments']) data()[key] = data()[key].filter((x) => x.sectionId !== s.id);
+    const gone = new Set(data().assignments.filter((x) => x.sectionId === s.id).map((x) => x.id));
+    for (const key of ['lessons', 'announcements', 'assignments', 'resources', 'attendance']) data()[key] = data()[key].filter((x) => x.sectionId !== s.id);
+    data().attempts = data().attempts.filter((x) => !gone.has(x.assignmentId));
+    data().submissions = data().submissions.filter((x) => !gone.has(x.assignmentId));
+    for (const f of data().files.filter((x) => x.sectionId === s.id)) ctx.files.remove(f.id);
     save();
     return { ok: true };
   });
@@ -459,6 +464,32 @@ export function registerAdminRoutes(route, ctx) {
     data().modules = next;
     save();
     return { modules: MODULES, config: next };
+  });
+
+  // ----- Activity types and grade weights -----
+  route('GET', '/api/admin/activity-types', 'admin', () => data().activityTypes.map((t) => ({ ...t, used: data().assignments.filter((x) => x.typeId === t.id).length })));
+  route('PUT', '/api/admin/activity-types', 'admin:settings.edit', ({ body }) => {
+    const list = Array.isArray(body.types) ? body.types : fail('Send the list of activity types.');
+    const seen = new Set();
+    const next = list.map((t) => {
+      const name = text(t.name, 60);
+      if (!name) fail('Every activity type needs a name.');
+      const id = t.id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || randomUUID();
+      if (seen.has(id)) fail(`Two activity types are called ${name}.`);
+      seen.add(id);
+      const weight = Number(t.weight) || 0;
+      if (weight < 0 || weight > 100) fail('Weights must be between 0 and 100.');
+      return { id, name, weight, active: t.active !== false };
+    });
+    if (!next.length) fail('Keep at least one activity type.');
+    const total = next.reduce((n, t) => n + t.weight, 0);
+    if (total && Math.round(total) !== 100) fail(`The weights add up to ${total}%. Make them add up to 100%, or set them all to 0 to count every point the same.`);
+    for (const t of data().activityTypes) {
+      if (!seen.has(t.id) && data().assignments.some((x) => x.typeId === t.id)) fail(`${t.name} is used by activities. Switch it off instead of removing it.`);
+    }
+    data().activityTypes = next;
+    save();
+    return next;
   });
 
   // ----- Settings -----
@@ -485,6 +516,15 @@ export function registerAdminRoutes(route, ctx) {
       };
     }
     if (body.registration) s.registration = { open: Boolean(body.registration.open) };
+    if (body.branding) {
+      const b = body.branding;
+      const theme = b.theme === 'custom' || THEMES[b.theme] ? b.theme : s.branding.theme;
+      if (theme === 'custom' && !HEX_RE.test(b.color || '')) fail('Pick a colour for the custom theme.');
+      const logo = b.logo === undefined ? s.branding.logo : String(b.logo || '');
+      if (logo && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(logo)) fail('The logo must be a PNG, JPEG or WebP picture.');
+      if (logo.length > 400 * 1024) fail('The logo is too large; use a picture under 300 KB.');
+      s.branding = { theme, color: theme === 'custom' ? b.color : '', logo, tagline: text(b.tagline ?? s.branding.tagline, 160) };
+    }
     data().settings = s;
     save();
     return s;

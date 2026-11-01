@@ -20,6 +20,9 @@ import { registerAdminRoutes, validateUserFields } from './admin.js';
 import { registerClassroomRoutes } from './classroom.js';
 import { addDemo, removeDemo, demoStatus } from './demo.js';
 import { emptyData } from './db.js';
+import { createFileStore } from './files.js';
+import { registerNewsRoutes } from './news.js';
+import { themeColors } from '../shared/themes.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -40,6 +43,8 @@ export function createApi(db, { clock = () => new Date() } = {}) {
 
   const ctx = {
     db,
+    files: createFileStore(db),
+    now: () => clock(),
     today: () => localDate(clock()),
     nowLocal: () => localDateTime(clock()),
     signOutEverywhere(userId) {
@@ -86,8 +91,15 @@ export function createApi(db, { clock = () => new Date() } = {}) {
   }
 
   const setupRequired = () => !users().some((u) => u.role === 'admin');
+  // School name, colours and logo, for every page including the sign-in screens.
+  const branding = () => {
+    const b = db.data.settings.branding;
+    const term = db.data.terms.find((t) => t.id === db.data.settings.currentTermId);
+    return { schoolName: db.data.settings.schoolName, ...themeColors(b), theme: b.theme, logo: b.logo, tagline: b.tagline, termName: term?.name || '' };
+  };
   const portalInfo = (user) => ({
     schoolName: db.data.settings.schoolName,
+    branding: branding(),
     setupRequired: setupRequired(),
     registrationOpen: db.data.settings.registration.open,
     user: publicUser(user),
@@ -135,6 +147,7 @@ export function createApi(db, { clock = () => new Date() } = {}) {
   route('GET', '/api/admin/auth/status', 'public', ({ adminUser }) => ({
     setupRequired: setupRequired(),
     schoolName: db.data.settings.schoolName,
+    branding: branding(),
     user: publicUser(adminUser),
   }));
   route('POST', '/api/admin/auth/setup', 'public', ({ body }) => {
@@ -163,17 +176,18 @@ export function createApi(db, { clock = () => new Date() } = {}) {
   });
   route('GET', '/api/admin/demo', 'admin:data.manage', () => demoStatus(db.data));
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
-    addDemo(db.data, ctx.today());
+    addDemo(db.data, ctx.today(), ctx.files);
     db.save();
     return demoStatus(db.data);
   });
   route('DELETE', '/api/admin/demo', 'admin:data.manage', () => {
     for (const u of users().filter((x) => x.demo)) ctx.signOutEverywhere(u.id);
-    removeDemo(db.data);
+    removeDemo(db.data, ctx.files);
     db.save();
     return demoStatus(db.data);
   });
 
+  ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
   registerAdminRoutes(route, ctx);
   registerEnrollmentRoutes(route, ctx);
   registerClassroomRoutes(route, ctx);
@@ -215,6 +229,7 @@ export function createApi(db, { clock = () => new Date() } = {}) {
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, portalToken, adminToken });
+      if (result?.raw) return result; // a file
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }
     fail('Not found.', 404);
