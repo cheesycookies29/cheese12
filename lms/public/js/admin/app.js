@@ -11,6 +11,7 @@ import { sectionsView, sectionView } from './views/sections.js';
 import { modulesView } from './views/modules.js';
 import { settingsView, dataView, gradingView } from './views/settings.js';
 import { newsAdminView } from './views/news.js';
+import { systemsView } from './views/systems.js';
 
 const p = (permission) => (user) => can(user.role, permission);
 
@@ -31,6 +32,7 @@ const routes = [
   ['/settings', settingsView, p('dashboard')],
   ['/grading', gradingView, p('dashboard')],
   ['/news', newsAdminView, p('news.manage')],
+  ['/systems', systemsView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
 ];
 
@@ -54,10 +56,11 @@ function nav() {
     { href: '/modules', label: 'Modules', icon: 'toggles' },
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
+    { href: '/systems', label: 'Portal & systems', icon: 'grid' },
     c('admins.manage') && { href: '/staff', label: 'Admins & registrars', icon: 'shield' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
-    { href: '/', label: 'Open the learning portal', icon: 'external', external: true },
+    { href: '/', label: 'University Portal', icon: 'grid', external: true },
   ].filter(Boolean);
 }
 

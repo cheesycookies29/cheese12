@@ -12,8 +12,7 @@ export function setup({ today = TODAY } = {}) {
     const call = async (method, path, body = {}) => {
       const cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
       const { data, headers } = await api({ method, headers: { cookie } }, new URL(`http://localhost${path}`), body);
-      const set = headers['Set-Cookie'];
-      if (set) {
+      for (const set of [headers['Set-Cookie'] || []].flat()) {
         const [pair] = set.split(';');
         const [k, v] = pair.split('=');
         if (v) jar[k] = v;

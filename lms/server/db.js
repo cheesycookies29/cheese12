@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { defaultModuleConfig } from '../shared/modules.js';
+import { defaultSystemSettings } from '../shared/systems.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS = {
     logo: '', // a small image as a data: URL; empty = the LTDC logo
     tagline: '',
   },
+  systems: defaultSystemSettings(), // other systems on the University Portal: { status: soon | live | hidden, url }
 };
 
 // Activity types and their share of the running grade (weights are percentages;
@@ -68,6 +70,7 @@ export function mergeSettings(s = {}) {
     enrollment: { ...DEFAULT_SETTINGS.enrollment, ...(s.enrollment || {}) },
     registration: { ...DEFAULT_SETTINGS.registration, ...(s.registration || {}) },
     branding: { ...DEFAULT_SETTINGS.branding, ...(s.branding || {}) },
+    systems: Object.fromEntries(Object.entries(defaultSystemSettings()).map(([id, v]) => [id, { ...v, ...(s.systems?.[id] || {}) }])),
   };
 }
 

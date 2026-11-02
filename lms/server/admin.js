@@ -8,6 +8,7 @@ import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
 import { mergeSettings } from './db.js';
 import { THEMES, HEX_RE } from '../shared/themes.js';
+import { SYSTEMS, SYSTEM_STATUS } from '../shared/systems.js';
 import {
   findById, sectionView, enrollmentView, seatsTaken, promoteWaitlist, changeStatus, HOLDS_PLACE, termOpen,
 } from './enrollment.js';
@@ -490,6 +491,23 @@ export function registerAdminRoutes(route, ctx) {
     data().activityTypes = next;
     save();
     return next;
+  });
+
+  // ----- Systems on the University Portal -----
+  route('GET', '/api/admin/systems', 'admin', () => ({ systems: SYSTEMS, settings: data().settings.systems }));
+  route('PUT', '/api/admin/systems', 'admin:settings.edit', ({ body }) => {
+    const next = {};
+    for (const s of SYSTEMS.filter((x) => !x.builtIn)) {
+      const v = body.settings?.[s.id] || {};
+      const status = SYSTEM_STATUS.includes(v.status) ? v.status : 'soon';
+      const url = text(v.url, 500);
+      if (url && !/^(https?:\/\/|\/)/i.test(url)) fail(`${s.name}: the address must start with https://, http:// or /.`);
+      if (status === 'live' && !url) fail(`${s.name}: give the address it runs at before switching it on.`);
+      next[s.id] = { status, url };
+    }
+    data().settings.systems = next;
+    save();
+    return { systems: SYSTEMS, settings: next };
   });
 
   // ----- Settings -----

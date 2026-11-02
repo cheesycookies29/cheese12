@@ -46,7 +46,10 @@ function readBody(req) {
 
 function serveStatic(url, res) {
   // The admin panel is its own single-page app at /admin.
+  // Three single-page apps: the University Portal (/), the LMS (/lms/) and the LMS admin panel (/admin).
   if (url.pathname === '/admin' || url.pathname === '/admin/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'admin', 'index.html')), 'text/html');
+  if (url.pathname === '/lms') return send(res, 302, '', 'text/plain', { Location: '/lms/' });
+  if (url.pathname === '/lms/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'lms', 'index.html')), 'text/html');
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;
     const rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
@@ -91,9 +94,9 @@ server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     // Double-clicked the launcher while the LMS is already running: just show it again.
     if (process.env.OPEN_BROWSER) {
-      console.log(`\n  LTDC LMS is already running. Opening http://localhost:${PORT}/admin in your browser.`);
+      console.log(`\n  LTDC LMS is already running. Opening http://localhost:${PORT} in your browser.`);
       console.log('  You can close this window; the LMS keeps running in its first window.\n');
-      openBrowser(`http://localhost:${PORT}/admin`);
+      openBrowser(`http://localhost:${PORT}/`);
       return setTimeout(() => process.exit(0), 1500);
     }
     console.error(`\n  Port ${PORT} is already in use. The LMS may already be running: open http://localhost:${PORT}`);
@@ -105,10 +108,10 @@ server.on('error', (err) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`\n  LTDC LMS is running.`);
-  console.log(`  Learning portal (students, teachers): http://localhost:${PORT}`);
-  console.log(`  Admin panel (administrators, registrars): http://localhost:${PORT}/admin`);
+  console.log(`  University Portal (everyone signs in here): http://localhost:${PORT}`);
+  console.log(`  LMS: http://localhost:${PORT}/lms/   ·   LMS admin panel: http://localhost:${PORT}/admin`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');
-  if (process.env.OPEN_BROWSER) openBrowser(`http://localhost:${PORT}/admin`);
+  if (process.env.OPEN_BROWSER) openBrowser(`http://localhost:${PORT}/`);
 });

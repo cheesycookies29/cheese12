@@ -4,14 +4,17 @@ The learning management system of Lancaster Technology and Development Corporati
 It is built the same way as the ERP: one Node.js program with **no dependencies**, a browser app with no build step, and all data in one file, `data/db.json`.
 It runs on your own computer for now. It is set up so it can move to AWS later (see [Moving to AWS](#moving-to-aws-later)).
 
-It has two separate sides, each with its **own sign-in**:
+Everyone starts at the **University Portal**, the school's single front door to its four systems:
 
-| Side | Address | Who signs in |
-| --- | --- | --- |
-| **Learning portal** | <http://localhost:3100> | Students and teachers |
-| **Admin panel** | <http://localhost:3100/admin> | Administrators and registrars |
+| Address | What it is |
+| --- | --- |
+| <http://localhost:3100> | **University Portal**: one sign-in for students, faculty and staff, then a tile for each system they may use (HRIS, FMIS, UIS, LMS), with school announcements and events |
+| <http://localhost:3100/lms/> | **LMS** for students and teachers |
+| <http://localhost:3100/admin> | **LMS admin panel** for administrators and registrars (it also keeps its own sign-in page) |
 
-An account can only sign in on its own side. Signing in to one side does not sign you in to the other.
+The LMS is live. **HRIS**, **FMIS** and **UIS** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → Portal & systems** with the address each one runs at. Students do not see the HRIS tile.
+
+Signing in at the portal opens the right side for the account (students and teachers: the LMS; administrators and registrars: the admin panel), so opening the LMS from its tile needs no second sign-in. Every page has an **All systems** button back to the portal, and **Sign out** anywhere signs out of everything.
 
 ## Run it
 
@@ -29,7 +32,7 @@ Open the `lms` folder and double-click:
 
   After that it opens with a double-click. Getting the code with **GitHub Desktop** (cloning) instead of *Download ZIP* avoids the warning altogether.
 
-A small window opens and your browser opens the admin panel at <http://localhost:3100/admin>. **Keep that window open** while you use the LMS; close it to stop the LMS.
+A small window opens and your browser opens the University Portal at <http://localhost:3100>. **Keep that window open** while you use the LMS; close it to stop the LMS.
 Double-clicking again while it is running just opens the browser again.
 
 ### From the terminal
@@ -39,7 +42,7 @@ cd lms
 npm start
 ```
 
-Open **<http://localhost:3100/admin>**. The first time, it asks you to create the **Administrator** account and name the school.
+Open **<http://localhost:3100>**. The first time, it points you to the admin panel to create the **Administrator** account and name the school.
 
 The ERP runs on port 3000 and the LMS on port 3100, so both can run at the same time. Their sign-in cookies have different names, so signing in to one does not sign you out of the other.
 
@@ -47,9 +50,9 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 
 | Where | Username | Password | What to try |
 | --- | --- | --- | --- |
-| Learning portal | `student.demo` | `demo1234` | Home To-do; take *Quiz 1* in IT201 A (timed, 2 attempts); resources with a PDF preview; attendance; news. Enrollment: one section is full (join its waitlist), one needs the key `DB2026`, one is blocked by a prerequisite |
-| Learning portal | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
-| Admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
+| University Portal | `student.demo` | `demo1234` | Home To-do; take *Quiz 1* in IT201 A (timed, 2 attempts); resources with a PDF preview; attendance; news. Enrollment: one section is full (join its waitlist), one needs the key `DB2026`, one is blocked by a prerequisite |
+| University Portal | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
+| University Portal or admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
 
 Demo records are added **next to your own data** and **Remove demo data** takes them out again without changing your records. If you already have a current term, it stays current and the demo term is listed beside it.
 
@@ -147,7 +150,7 @@ The layout follows the school's current LMS (top bar with the seal and the curre
 
 ```
 lms/
-  server.js              HTTP server: static files, /admin, /api, /healthz
+  server.js              HTTP server: the portal (/), the LMS (/lms/), the admin panel (/admin), /api, /healthz
   server/api.js          router, the two sign-ins, applications, demo data and backups
   server/enrollment.js   the enrollment rules (evaluate, enroll, waitlist, drop) and their routes
   server/admin.js        admin panel: accounts, applicants, catalog, sections, modules, settings, dashboard
@@ -162,7 +165,8 @@ lms/
   shared/modules.js      the switchable portal modules (server and browser)
   shared/schedule.js     meeting times and clash checks (server and browser)
   shared/themes.js       brand colour presets
-  public/                portal (index.html, js/portal) and admin panel (admin/index.html, js/admin)
+  shared/systems.js      the systems on the University Portal (HRIS, FMIS, UIS, LMS) and who sees each
+  public/                University Portal (index.html, js/hub), LMS (lms/index.html, js/portal), admin panel (admin/index.html, js/admin)
   public/js/shell.js     branding, dark mode, sign-in screens, top bar, sidebar, router (both apps)
   public/js/icons.js     the icon set
   test/                  node:test suites

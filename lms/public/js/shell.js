@@ -19,8 +19,8 @@ export function applyBranding(b = {}) {
 }
 export const logoSrc = (b = ctx.info?.branding, onDark = false) => b?.logo || (onDark ? '/img/logo-white.png' : '/img/logo.png');
 
-const isDark = () => document.documentElement.dataset.theme === 'dark';
-function setTheme(dark) {
+export const isDark = () => document.documentElement.dataset.theme === 'dark';
+export function setTheme(dark) {
   if (dark) document.documentElement.dataset.theme = 'dark';
   else delete document.documentElement.dataset.theme;
   try {
@@ -28,7 +28,7 @@ function setTheme(dark) {
   } catch {}
   renderThemeButton();
 }
-function renderThemeButton() {
+export function renderThemeButton() {
   const btn = document.getElementById('theme-btn');
   btn.innerHTML = iconSvg(isDark() ? 'sun' : 'moon');
   btn.title = isDark() ? 'Light mode' : 'Dark mode';
@@ -235,6 +235,8 @@ export function startApp(config) {
   document.getElementById('sidebar').addEventListener('click', (e) => e.target.closest('a[href]') && setDrawer(false));
   document.addEventListener('keydown', (e) => e.key === 'Escape' && setDrawer(false));
   document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
+  // Back to the University Portal, where the other systems are.
+  document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" href="/" title="All systems (University Portal)" aria-label="All systems">${iconSvg('grid')}</a>`);
 
   async function navigate() {
     if (!ctx.user || ctx.user.mustChangePassword) return;
@@ -297,11 +299,11 @@ export function startApp(config) {
     navigate();
   }
 
+  // Signing out ends every session (portal and admin) and returns to the University Portal.
   async function signOut() {
-    await api.post(`${config.authBase}/logout`).catch(() => {});
+    await api.post('/api/hub/logout').catch(() => {});
     ctx.user = null;
-    history.replaceState(null, '', location.pathname);
-    boot();
+    location.href = '/';
   }
 
   ctx.refreshBadges = refreshBadges;

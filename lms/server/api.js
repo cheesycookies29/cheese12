@@ -23,6 +23,7 @@ import { emptyData } from './db.js';
 import { createFileStore } from './files.js';
 import { registerNewsRoutes } from './news.js';
 import { themeColors } from '../shared/themes.js';
+import { SYSTEMS } from '../shared/systems.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -141,6 +142,48 @@ export function createApi(db, { clock = () => new Date() } = {}) {
     users().push(user);
     db.save();
     return { ok: true };
+  });
+
+  // ----- University Portal (/): one sign-in for every system -----
+  // The account type decides which session is opened: students and teachers get the
+  // portal (LMS) session, administrators and registrars the admin-panel session.
+  const portalSystems = (user, side) => SYSTEMS
+    .map((s) => {
+      const cfg = s.builtIn ? { status: 'live', url: '' } : db.data.settings.systems[s.id] || { status: 'soon', url: '' };
+      return { ...s, status: cfg.status, url: s.builtIn ? (side === 'admin' ? '/admin' : '/lms/') : cfg.url, external: !s.builtIn };
+    })
+    .filter((s) => s.status !== 'hidden' && (!user || s.audience.includes(user.role)))
+    .map(({ audience, ...s }) => (user ? s : { ...s, url: '' }));
+  route('GET', '/api/hub/status', 'public', ({ portalUser, adminUser }) => {
+    const user = portalUser || adminUser;
+    const side = portalUser ? 'portal' : adminUser ? 'admin' : null;
+    return {
+      branding: branding(),
+      setupRequired: setupRequired(),
+      registrationOpen: db.data.settings.registration.open,
+      user: publicUser(user),
+      side,
+      authBase: side === 'admin' ? '/api/admin/auth' : '/api/auth',
+      systems: portalSystems(user, side),
+    };
+  });
+  route('POST', '/api/hub/login', 'public', ({ body }) => {
+    const found = users().find((u) => u.username === String(body.username || '').trim().toLowerCase());
+    return signIn(ROLES[found?.role]?.side || 'portal', body);
+  });
+  route('POST', '/api/hub/logout', 'public', ({ portalToken, adminToken }) => {
+    sides.portal.destroy(portalToken);
+    sides.admin.destroy(adminToken);
+    return { data: { ok: true }, headers: { 'Set-Cookie': [clearedCookie(PORTAL_COOKIE), clearedCookie(ADMIN_COOKIE)] } };
+  });
+  // School news and upcoming events for the portal home (when News & events is on for the account type).
+  route('GET', '/api/hub/feed', 'public', ({ portalUser, adminUser }) => {
+    const user = portalUser || adminUser;
+    if (!user) fail('Please sign in.', 401);
+    if (portalUser && !moduleOn(db.data.modules, 'news', user.role)) return { news: [], events: [] };
+    const news = db.data.news.slice().sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 4)
+      .map(({ reactions, comments, ...n }) => ({ ...n, body: n.body.slice(0, 280), comments: comments?.length || 0 }));
+    return { news, events: ctx.upcomingEvents().slice(0, 5) };
   });
 
   // ----- Admin panel: sign-in -----
