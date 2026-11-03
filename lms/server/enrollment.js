@@ -14,6 +14,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { meetingsClash, formatMeetings } from '../shared/schedule.js';
+import { sectionCampus, campusName } from './campus.js';
 
 export const STATUS_LABELS = {
   pending: 'Pending approval',
@@ -62,6 +63,10 @@ export function evaluate(data, { student, section, today, key, asAdmin = false, 
   const term = findById(data.terms, section.termId);
   if (!course || !term) fail('This section is missing its course or term.');
   if (section.status === 'cancelled') fail('This section has been cancelled.');
+  // Each campus enrolls its own students (the registrar may override for a cross-campus enrollee).
+  if (section.campusId && !(student.campusIds || []).includes(section.campusId) && !(asAdmin && force)) {
+    fail(`This section is at ${campusName(data, section.campusId) || 'another campus'}; ${student.name} studies at ${campusName(data, student.campusIds?.[0]) || 'another campus'}.`);
+  }
 
   if (!asAdmin) {
     if (section.status === 'closed') fail('This section is closed for enrollment.');
@@ -227,7 +232,7 @@ export function registerEnrollmentRoutes(route, ctx) {
     if (!term) return { term: null, sections: [], rules: data().settings.enrollment };
     const t = today();
     const sections = data().sections
-      .filter((s) => s.termId === term.id && s.status !== 'cancelled')
+      .filter((s) => s.termId === term.id && s.status !== 'cancelled' && (user.campusIds || []).includes(s.campusId))
       .map((s) => {
         const view = sectionView(data(), s);
         const mine = data().enrollments.find((e) => e.studentId === user.id && e.sectionId === s.id && e.status !== 'dropped' && e.status !== 'rejected');
@@ -276,9 +281,18 @@ export function registerEnrollmentRoutes(route, ctx) {
   }, { module: 'enrollment' });
 
   // ----- Registrar (admin panel) -----
-  route('GET', '/api/admin/enrollments', 'admin:enrollment.manage', ({ query }) => {
+  // Registrars work on the campus they have switched to.
+  const atCampus = (campusId) => (e) => sectionCampus(data(), e.sectionId) === campusId;
+  const findHere = (id, campusId) => {
+    const e = findEnrollment(id);
+    if (!atCampus(campusId)(e)) fail('This enrollment belongs to another campus. Switch to it first.', 404);
+    return e;
+  };
+
+  route('GET', '/api/admin/enrollments', 'admin:enrollment.manage', ({ query, campusId }) => {
     const q = String(query.q || '').toLowerCase();
     return data().enrollments
+      .filter(atCampus(campusId))
       .filter((e) => (!query.termId || e.termId === query.termId)
         && (!query.status || e.status === query.status)
         && (!query.sectionId || e.sectionId === query.sectionId)
@@ -290,26 +304,28 @@ export function registerEnrollmentRoutes(route, ctx) {
         : b.updatedAt.localeCompare(a.updatedAt)));
   });
 
-  route('GET', '/api/admin/enrollments/summary', 'admin:enrollment.manage', () => {
+  route('GET', '/api/admin/enrollments/summary', 'admin:enrollment.manage', ({ campusId }) => {
     const termId = data().settings.currentTermId;
-    const inTerm = data().enrollments.filter((e) => !termId || e.termId === termId);
+    const here = data().enrollments.filter(atCampus(campusId));
+    const inTerm = here.filter((e) => !termId || e.termId === termId);
     return {
-      pending: data().enrollments.filter((e) => e.status === 'pending').length,
+      pending: here.filter((e) => e.status === 'pending').length,
       waitlisted: inTerm.filter((e) => e.status === 'waitlisted').length,
-      applicants: data().users.filter((u) => u.role === 'student' && u.status === 'pending').length,
+      applicants: data().users.filter((u) => u.role === 'student' && u.status === 'pending' && (u.campusIds || []).includes(campusId)).length,
     };
   });
 
-  route('POST', '/api/admin/enrollments', 'admin:enrollment.manage', ({ user, body }) => {
+  route('POST', '/api/admin/enrollments', 'admin:enrollment.manage', ({ user, body, campusId }) => {
     const student = findById(data().users, body.studentId);
     const section = findById(data().sections, body.sectionId);
+    if (section && section.campusId !== campusId) fail('That section belongs to another campus. Switch to it first.');
     const e = enroll(data(), { student, section, today: today(), asAdmin: true, force: Boolean(body.force), note: String(body.note || '').trim() }, user);
     db.save();
     return enrollmentView(data(), e);
   });
 
-  route('POST', '/api/admin/enrollments/:id/approve', 'admin:enrollment.manage', ({ user, params, body }) => {
-    const e = findEnrollment(params.id);
+  route('POST', '/api/admin/enrollments/:id/approve', 'admin:enrollment.manage', ({ user, params, body, campusId }) => {
+    const e = findHere(params.id, campusId);
     if (e.status === 'waitlisted') {
       if (!body.force) fail('This request is on the waitlist because the section is full. Choose "Enroll over capacity" to add it anyway.');
       changeStatus(data(), e, 'enrolled', user, String(body.note || '').trim() || 'Enrolled over capacity by the registrar.');
@@ -320,16 +336,16 @@ export function registerEnrollmentRoutes(route, ctx) {
     return enrollmentView(data(), e);
   });
 
-  route('POST', '/api/admin/enrollments/:id/reject', 'admin:enrollment.manage', ({ user, params, body }) => {
-    const e = findEnrollment(params.id);
+  route('POST', '/api/admin/enrollments/:id/reject', 'admin:enrollment.manage', ({ user, params, body, campusId }) => {
+    const e = findHere(params.id, campusId);
     if (!['pending', 'waitlisted'].includes(e.status)) fail('Only pending or waitlisted requests can be rejected. Drop an enrolled student instead.');
     changeStatus(data(), e, 'rejected', user, String(body.note || '').trim());
     db.save();
     return enrollmentView(data(), e);
   });
 
-  route('POST', '/api/admin/enrollments/:id/drop', 'admin:enrollment.manage', ({ user, params, body }) => {
-    const e = findEnrollment(params.id);
+  route('POST', '/api/admin/enrollments/:id/drop', 'admin:enrollment.manage', ({ user, params, body, campusId }) => {
+    const e = findHere(params.id, campusId);
     if (!HOLDS_PLACE.includes(e.status)) fail('Only active enrollments can be dropped.');
     changeStatus(data(), e, 'dropped', user, String(body.note || '').trim() || 'Dropped by the registrar.');
     db.save();

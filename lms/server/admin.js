@@ -9,6 +9,7 @@ import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/sch
 import { mergeSettings } from './db.js';
 import { THEMES, HEX_RE } from '../shared/themes.js';
 import { SYSTEMS, SYSTEM_STATUS } from '../shared/systems.js';
+import { campusesFor, inCampus, canReach, campusIdsFrom, campusName } from './campus.js';
 import {
   findById, sectionView, enrollmentView, seatsTaken, promoteWaitlist, changeStatus, HOLDS_PLACE, termOpen,
 } from './enrollment.js';
@@ -95,17 +96,21 @@ export function registerAdminRoutes(route, ctx) {
   const activeAdmins = () => data().users.filter((u) => u.role === 'admin' && u.status === 'active');
 
   // ----- Dashboard -----
-  route('GET', '/api/admin/dashboard', 'admin:dashboard', () => {
+  route('GET', '/api/admin/dashboard', 'admin:dashboard', ({ campusId }) => {
     const d = data();
     const term = findById(d.terms, d.settings.currentTermId);
-    const sections = d.sections.filter((s) => term && s.termId === term.id && s.status !== 'cancelled');
-    const inTerm = d.enrollments.filter((e) => term && e.termId === term.id);
+    const here = new Set(d.sections.filter((s) => s.campusId === campusId).map((s) => s.id));
+    const sections = d.sections.filter((s) => here.has(s.id) && term && s.termId === term.id && s.status !== 'cancelled');
+    const campusEnrollments = d.enrollments.filter((e) => here.has(e.sectionId));
+    const inTerm = campusEnrollments.filter((e) => term && e.termId === term.id);
+    const people = d.users.filter((u) => (u.campusIds || []).includes(campusId));
     const count = (status) => inTerm.filter((e) => e.status === status).length;
     return {
       term: term ? { ...term, open: termOpen(term, today()) } : null,
-      students: d.users.filter((u) => u.role === 'student' && u.status === 'active').length,
-      applicants: d.users.filter((u) => u.role === 'student' && u.status === 'pending').length,
-      teachers: d.users.filter((u) => u.role === 'teacher' && u.status === 'active').length,
+      campus: campusName(d, campusId),
+      students: people.filter((u) => u.role === 'student' && u.status === 'active').length,
+      applicants: people.filter((u) => u.role === 'student' && u.status === 'pending').length,
+      teachers: people.filter((u) => u.role === 'teacher' && u.status === 'active').length,
       courses: d.courses.filter((c) => c.status !== 'retired').length,
       sections: sections.length,
       enrolled: count('enrolled'),
@@ -116,7 +121,7 @@ export function registerAdminRoutes(route, ctx) {
         .map((s) => sectionView(d, s))
         .sort((a, b) => b.taken / b.capacity - a.taken / a.capacity)
         .slice(0, 6),
-      recent: d.enrollments
+      recent: campusEnrollments
         .slice()
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 8)
@@ -126,23 +131,25 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // ----- Accounts -----
-  route('GET', '/api/admin/users', 'admin', ({ user, query }) => {
+  const withCampuses = (u) => ({ ...publicUser(u), campusNames: u.role === 'admin' ? ['All campuses'] : (u.campusIds || []).map((id) => campusName(data(), id)).filter(Boolean) });
+
+  route('GET', '/api/admin/users', 'admin', ({ user, query, campusId }) => {
     const role = query.role;
     if (role === 'student') need(user, 'students.manage');
     else if (role === 'teacher') need(user, 'teachers.view');
     else need(user, 'admins.manage');
     const roles = role === 'staff' || !role ? ADMIN_ROLES : [role];
     return data().users
-      .filter((u) => roles.includes(u.role) && (!query.status || u.status === query.status))
+      .filter((u) => roles.includes(u.role) && (!query.status || u.status === query.status) && (u.role === 'admin' || inCampus(u, campusId)))
       .map((u) => {
-        const out = publicUser(u);
+        const out = withCampuses(u);
         if (u.role === 'student') {
           out.program = findById(data().programs, u.programId)?.code || '';
           out.currentUnits = data().enrollments
             .filter((e) => e.studentId === u.id && e.termId === data().settings.currentTermId && e.status === 'enrolled')
             .reduce((s, e) => s + (findById(data().courses, e.courseId)?.units || 0), 0);
         }
-        if (u.role === 'teacher') out.sections = data().sections.filter((s) => s.teacherId === u.id && s.termId === data().settings.currentTermId && s.status !== 'cancelled').length;
+        if (u.role === 'teacher') out.sections = data().sections.filter((s) => s.teacherId === u.id && s.campusId === campusId && s.termId === data().settings.currentTermId && s.status !== 'cancelled').length;
         return out;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -151,7 +158,8 @@ export function registerAdminRoutes(route, ctx) {
   route('GET', '/api/admin/users/:id', 'admin', ({ user, params }) => {
     const u = found(data().users, params.id, 'Account');
     need(user, u.role === 'teacher' ? 'teachers.view' : MANAGES[u.role]);
-    const out = publicUser(u);
+    if (!canReach(data(), user, u)) fail('Account not found.', 404);
+    const out = withCampuses(u);
     if (u.role === 'student') {
       out.program = findById(data().programs, u.programId) || null;
       out.enrollments = data().enrollments.filter((e) => e.studentId === u.id).map((e) => enrollmentView(data(), e)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -160,9 +168,10 @@ export function registerAdminRoutes(route, ctx) {
     return out;
   });
 
-  route('POST', '/api/admin/users', 'admin', ({ user, body }) => {
+  route('POST', '/api/admin/users', 'admin', ({ user, body, campusId }) => {
     need(user, MANAGES[body.role] || 'admins.manage');
     const fields = validateUserFields(body, data());
+    fields.campusIds = campusIdsFrom(data(), user, fields.role, body.campusIds, campusId);
     validatePassword(body.password);
     const u = {
       id: randomUUID(),
@@ -181,7 +190,18 @@ export function registerAdminRoutes(route, ctx) {
   route('PUT', '/api/admin/users/:id', 'admin', ({ user, params, body }) => {
     const u = found(data().users, params.id, 'Account');
     need(user, MANAGES[u.role]);
+    if (!canReach(data(), user, u)) fail('Account not found.', 404);
     const fields = validateUserFields(body, data(), u);
+    if ('campusIds' in body && u.role !== 'admin') {
+      // Campuses outside the caller's reach stay as they are.
+      const mine = new Set(campusesFor(data(), user).map((c) => c.id));
+      const kept = (u.campusIds || []).filter((id) => !mine.has(id));
+      const chosen = campusIdsFrom(data(), user, u.role, [...(Array.isArray(body.campusIds) ? body.campusIds : [body.campusIds]).filter((id) => mine.has(id)), ...kept], null);
+      if (u.role === 'student' && chosen[0] !== u.campusIds?.[0] && data().enrollments.some((e) => e.studentId === u.id && HOLDS_PLACE.includes(e.status))) {
+        fail('Drop this student from their current classes before moving them to another campus.');
+      }
+      fields.campusIds = chosen;
+    }
     if ('status' in body && ['active', 'disabled'].includes(body.status) && u.status !== 'pending' && u.status !== 'rejected') {
       if (u.id === user.id && body.status === 'disabled') fail('You cannot disable your own account.');
       if (u.role === 'admin' && body.status === 'disabled' && activeAdmins().length <= 1 && u.status === 'active') fail('Keep at least one active administrator.');
@@ -197,6 +217,7 @@ export function registerAdminRoutes(route, ctx) {
   route('POST', '/api/admin/users/:id/reset-password', 'admin', ({ user, params, body }) => {
     const u = found(data().users, params.id, 'Account');
     need(user, MANAGES[u.role]);
+    if (!canReach(data(), user, u)) fail('Account not found.', 404);
     validatePassword(body.password);
     u.passwordHash = hashPassword(body.password);
     u.mustChangePassword = true;
@@ -208,6 +229,7 @@ export function registerAdminRoutes(route, ctx) {
   route('DELETE', '/api/admin/users/:id', 'admin', ({ user, params }) => {
     const u = found(data().users, params.id, 'Account');
     need(user, MANAGES[u.role]);
+    if (!canReach(data(), user, u)) fail('Account not found.', 404);
     if (u.id === user.id) fail('You cannot delete your own account.');
     if (u.role === 'admin' && u.status === 'active' && activeAdmins().length <= 1) fail('Keep at least one active administrator.');
     if (data().enrollments.some((e) => e.studentId === u.id)) fail('This student has enrollment records. Disable the account instead.');
@@ -219,8 +241,9 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // Applicants (students who applied from the portal).
-  route('POST', '/api/admin/users/:id/approve', 'admin:students.manage', ({ params, body }) => {
+  route('POST', '/api/admin/users/:id/approve', 'admin:students.manage', ({ user, params, body }) => {
     const u = found(data().users, params.id, 'Applicant');
+    if (!canReach(data(), user, u)) fail('Applicant not found.', 404);
     if (u.role !== 'student' || u.status !== 'pending') fail('Only pending applicants can be admitted.');
     if (body.programId !== undefined) {
       if (body.programId && !findById(data().programs, body.programId)) fail('Program not found.');
@@ -233,8 +256,9 @@ export function registerAdminRoutes(route, ctx) {
     return publicUser(u);
   });
 
-  route('POST', '/api/admin/users/:id/reject', 'admin:students.manage', ({ params, body }) => {
+  route('POST', '/api/admin/users/:id/reject', 'admin:students.manage', ({ user, params, body }) => {
     const u = found(data().users, params.id, 'Applicant');
+    if (!canReach(data(), user, u)) fail('Applicant not found.', 404);
     if (u.role !== 'student' || u.status !== 'pending') fail('Only pending applicants can be declined.');
     u.status = 'rejected';
     u.decisionNote = text(body.note, 500);
@@ -243,8 +267,8 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // ----- Programs -----
-  route('GET', '/api/admin/programs', 'admin', () =>
-    data().programs.map((p) => ({ ...p, students: data().users.filter((u) => u.programId === p.id && u.status === 'active').length })));
+  route('GET', '/api/admin/programs', 'admin', ({ campusId }) =>
+    data().programs.map((p) => ({ ...p, students: data().users.filter((u) => u.programId === p.id && u.status === 'active' && inCampus(u, campusId)).length })));
 
   const validateProgram = (b, existing) => {
     const p = { code: text(b.code, 20).toUpperCase(), name: text(b.name, 160), description: text(b.description, 1000) };
@@ -273,12 +297,12 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // ----- Terms -----
-  route('GET', '/api/admin/terms', 'admin', () =>
+  route('GET', '/api/admin/terms', 'admin', ({ campusId }) =>
     data().terms.map((t) => ({
       ...t,
       open: termOpen(t, today()),
       current: t.id === data().settings.currentTermId,
-      sections: data().sections.filter((s) => s.termId === t.id && s.status !== 'cancelled').length,
+      sections: data().sections.filter((s) => s.termId === t.id && s.campusId === campusId && s.status !== 'cancelled').length,
     })));
 
   const validateTerm = (b) => {
@@ -324,11 +348,11 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // ----- Courses (the catalog) -----
-  route('GET', '/api/admin/courses', 'admin', () =>
+  route('GET', '/api/admin/courses', 'admin', ({ campusId }) =>
     data().courses.map((c) => ({
       ...c,
       prerequisiteCodes: (c.prerequisites || []).map((id) => findById(data().courses, id)?.code).filter(Boolean),
-      sections: data().sections.filter((s) => s.courseId === c.id && s.termId === data().settings.currentTermId && s.status !== 'cancelled').length,
+      sections: data().sections.filter((s) => s.courseId === c.id && s.campusId === campusId && s.termId === data().settings.currentTermId && s.status !== 'cancelled').length,
     })).sort((a, b) => a.code.localeCompare(b.code)));
 
   const validateCourse = (b, existing) => {
@@ -370,21 +394,27 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // ----- Sections (a course offered in a term) -----
-  const adminSection = (s) => ({ ...sectionView(data(), s), enrollmentKey: s.enrollmentKey || '', courseId: s.courseId, termId: s.termId, teacherId: s.teacherId });
+  const adminSection = (s) => ({ ...sectionView(data(), s), enrollmentKey: s.enrollmentKey || '', courseId: s.courseId, termId: s.termId, teacherId: s.teacherId, campusId: s.campusId, campusName: campusName(data(), s.campusId) });
+  const sectionHere = (id, campusId) => {
+    const s = found(data().sections, id, 'Section');
+    if (s.campusId !== campusId) fail(`This section is at ${campusName(data(), s.campusId)}. Switch to that campus first.`, 404);
+    return s;
+  };
 
-  route('GET', '/api/admin/sections', 'admin', ({ query }) =>
+  route('GET', '/api/admin/sections', 'admin', ({ query, campusId }) =>
     data().sections
+      .filter((s) => s.campusId === campusId)
       .filter((s) => (!query.termId || s.termId === query.termId) && (!query.teacherId || s.teacherId === query.teacherId) && (!query.courseId || s.courseId === query.courseId))
       .map(adminSection)
       .sort((a, b) => a.course.code.localeCompare(b.course.code) || a.name.localeCompare(b.name)));
 
-  route('GET', '/api/admin/sections/:id', 'admin', ({ params }) => {
-    const s = found(data().sections, params.id, 'Section');
+  route('GET', '/api/admin/sections/:id', 'admin', ({ params, campusId }) => {
+    const s = sectionHere(params.id, campusId);
     const roster = data().enrollments.filter((e) => e.sectionId === s.id).map((e) => enrollmentView(data(), e));
     return { ...adminSection(s), roster };
   });
 
-  const validateSection = (b, existing) => {
+  const validateSection = (b, existing, campusId) => {
     const s = {
       courseId: b.courseId,
       termId: b.termId,
@@ -403,12 +433,13 @@ export function registerAdminRoutes(route, ctx) {
     if (s.teacherId) {
       const t = findById(data().users, s.teacherId);
       if (!t || t.role !== 'teacher') fail('Pick a teacher account.');
+      if (!inCampus(t, campusId)) fail(`${t.name} does not teach at ${campusName(data(), campusId)}. Add the campus to their account first.`);
       if (s.status !== 'cancelled') {
         const clash = data().sections.find((o) => o.id !== existing?.id && o.teacherId === s.teacherId && o.termId === s.termId && o.status !== 'cancelled' && meetingsClash(o.meetings, s.meetings));
         if (clash) fail(`${t.name} already teaches ${findById(data().courses, clash.courseId)?.code} ${clash.name} at that time (${formatMeetings(clash.meetings)}).`);
       }
     }
-    if (data().sections.some((o) => o.id !== existing?.id && o.courseId === s.courseId && o.termId === s.termId && o.name === s.name)) {
+    if (data().sections.some((o) => o.id !== existing?.id && o.campusId === campusId && o.courseId === s.courseId && o.termId === s.termId && o.name === s.name)) {
       fail(`${course.code} already has a section ${s.name} this term.`);
     }
     if (existing && (existing.courseId !== s.courseId || existing.termId !== s.termId) && data().enrollments.some((e) => e.sectionId === existing.id)) {
@@ -417,16 +448,16 @@ export function registerAdminRoutes(route, ctx) {
     return s;
   };
 
-  route('POST', '/api/admin/sections', 'admin:catalog.manage', ({ body }) => {
-    const s = { id: randomUUID(), ...validateSection(body), createdAt: now() };
+  route('POST', '/api/admin/sections', 'admin:catalog.manage', ({ body, campusId }) => {
+    const s = { id: randomUUID(), ...validateSection(body, null, campusId), campusId, createdAt: now() };
     data().sections.push(s);
     save();
     return adminSection(s);
   });
 
-  route('PUT', '/api/admin/sections/:id', 'admin:catalog.manage', ({ user, params, body }) => {
-    const s = found(data().sections, params.id, 'Section');
-    const next = validateSection(body, s);
+  route('PUT', '/api/admin/sections/:id', 'admin:catalog.manage', ({ user, params, body, campusId }) => {
+    const s = sectionHere(params.id, campusId);
+    const next = validateSection(body, s, campusId);
     if (next.capacity < seatsTaken(data(), s.id) && next.status !== 'cancelled') {
       fail(`${seatsTaken(data(), s.id)} students already hold seats. Capacity cannot go below that; drop students first.`);
     }
@@ -441,8 +472,8 @@ export function registerAdminRoutes(route, ctx) {
     return adminSection(s);
   });
 
-  route('DELETE', '/api/admin/sections/:id', 'admin:catalog.manage', ({ params }) => {
-    const s = found(data().sections, params.id, 'Section');
+  route('DELETE', '/api/admin/sections/:id', 'admin:catalog.manage', ({ params, campusId }) => {
+    const s = sectionHere(params.id, campusId);
     if (data().enrollments.some((e) => e.sectionId === s.id)) fail('This section has enrollment records. Cancel it instead.');
     data().sections.splice(data().sections.indexOf(s), 1);
     const gone = new Set(data().assignments.filter((x) => x.sectionId === s.id).map((x) => x.id));
@@ -450,6 +481,42 @@ export function registerAdminRoutes(route, ctx) {
     data().attempts = data().attempts.filter((x) => !gone.has(x.assignmentId));
     data().submissions = data().submissions.filter((x) => !gone.has(x.assignmentId));
     for (const f of data().files.filter((x) => x.sectionId === s.id)) ctx.files.remove(f.id);
+    save();
+    return { ok: true };
+  });
+
+  // ----- Campuses -----
+  route('GET', '/api/admin/campuses', 'admin', ({ user }) => campusesFor(data(), user).map((c) => ({
+    ...c,
+    students: data().users.filter((u) => u.role === 'student' && u.status === 'active' && inCampus(u, c.id)).length,
+    teachers: data().users.filter((u) => u.role === 'teacher' && u.status === 'active' && inCampus(u, c.id)).length,
+    sections: data().sections.filter((s) => s.campusId === c.id && s.termId === data().settings.currentTermId && s.status !== 'cancelled').length,
+  })));
+  const campusFields = (b, existing) => {
+    const c = { name: text(b.name, 80), code: text(b.code, 12).toUpperCase(), address: text(b.address, 300) };
+    if (!c.name) fail('Give the campus a name.');
+    if (data().campuses.some((x) => x.id !== existing?.id && x.name.toLowerCase() === c.name.toLowerCase())) fail(`There is already a campus called ${c.name}.`);
+    if (c.code && data().campuses.some((x) => x.id !== existing?.id && x.code === c.code)) fail(`The code ${c.code} is already used.`);
+    return c;
+  };
+  route('POST', '/api/admin/campuses', 'admin:campuses.manage', ({ body }) => {
+    const c = { id: randomUUID(), ...campusFields(body), createdAt: now() };
+    data().campuses.push(c);
+    save();
+    return c;
+  });
+  route('PUT', '/api/admin/campuses/:id', 'admin:campuses.manage', ({ params, body }) => {
+    const c = found(data().campuses, params.id, 'Campus');
+    Object.assign(c, campusFields(body, c), { updatedAt: now() });
+    save();
+    return c;
+  });
+  route('DELETE', '/api/admin/campuses/:id', 'admin:campuses.manage', ({ params }) => {
+    const c = found(data().campuses, params.id, 'Campus');
+    if (data().campuses.length === 1) fail('The school needs at least one campus.');
+    if (data().sections.some((s) => s.campusId === c.id) || data().users.some((u) => (u.campusIds || []).includes(c.id))) fail('This campus has people or sections. Move them first.');
+    data().campuses.splice(data().campuses.indexOf(c), 1);
+    for (const k of ['news', 'events']) data()[k] = data()[k].filter((x) => x.campusId !== c.id);
     save();
     return { ok: true };
   });

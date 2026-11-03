@@ -68,6 +68,35 @@ export function authScreen(el, { admin = false } = {}, card) {
   return form;
 }
 
+// "Switch campus" in the user menu, for accounts that work at more than one campus.
+export function campusMenu(info) {
+  if (!(info?.campuses?.length > 1)) return '';
+  return html`<div class="menu-sep"></div><div class="menu-label">Switch campus</div>
+    ${info.campuses.map((c) => html`<button type="button" role="menuitemradio" aria-checked="${c.id === info.activeCampusId}" class="${c.id === info.activeCampusId ? 'on' : ''}" data-campus="${c.id}">${icon('building')} <span class="grow">${c.name}</span>${c.id === info.activeCampusId ? icon('check') : ''}</button>`)}`;
+}
+export function wireCampusMenu(root, authBase) {
+  root.querySelectorAll('[data-campus]').forEach((b) => b.addEventListener('click', async () => {
+    if (b.classList.contains('on')) return;
+    try {
+      const r = await api.post(`${authBase}/campus`, { campusId: b.dataset.campus });
+      try {
+        sessionStorage.setItem('lms-campus-toast', `Switched to ${r.campusName}.`);
+      } catch {}
+      location.reload(); // every list follows the campus
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }));
+}
+// After a switch, say so once the page has reloaded.
+try {
+  const msg = sessionStorage.getItem('lms-campus-toast');
+  if (msg) {
+    sessionStorage.removeItem('lms-campus-toast');
+    setTimeout(() => toast(msg), 300);
+  }
+} catch {}
+
 export const authLogo = () => html`<img class="auth-logo" src="${logoSrc()}" alt="" />`;
 
 export const passwordField = (label, name, autocomplete) => html`
@@ -156,7 +185,7 @@ export function startApp(config) {
     const b = ctx.info.branding;
     applyBranding(b);
     document.getElementById('school-name').textContent = b.schoolName;
-    mount(document.getElementById('brand-sub'), html`${config.side === 'admin' ? html`Admin panel <span class="side-chip">ADMIN</span>` : 'Learning Management System'}${b.termName ? ` · ${b.termName}` : ''}`);
+    mount(document.getElementById('brand-sub'), html`${config.side === 'admin' ? html`Admin panel <span class="side-chip">ADMIN</span>` : 'Learning Management System'}${ctx.info.campusName ? html` · <strong class="campus-name">${ctx.info.campusName}</strong>` : ''}${b.termName ? ` · ${b.termName}` : ''}`);
     renderThemeButton();
   }
 
@@ -178,14 +207,16 @@ export function startApp(config) {
     mount(box, html`
       <button type="button" class="user-btn" id="user-btn" aria-haspopup="menu" aria-expanded="false">
         <span class="avatar">${initials(u.name)}</span>
-        <span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}</small></span>
+        <span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}${ctx.info.campusName ? ` · ${ctx.info.campusName}` : ''}</small></span>
         ${icon('chevronDown', 16)}
       </button>
       <div class="menu-pop" id="user-pop" role="menu" hidden>
         <div class="who"><strong>${u.name}</strong><small>${u.username}${u.email ? ` · ${u.email}` : ''}</small><small>${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</small></div>
         <button type="button" id="change-pw">${icon('key')} Change password</button>
         <button type="button" id="sign-out">${icon('logout')} Sign out</button>
+        ${campusMenu(ctx.info)}
       </div>`);
+    wireCampusMenu(box, config.authBase);
     const pop = box.querySelector('#user-pop');
     const btn = box.querySelector('#user-btn');
     const close = () => {

@@ -114,6 +114,12 @@ body:not(.auth-mode) #auth { display: none; }
 .menu-pop button:hover, .menu-pop a:hover { background: var(--surface-2); text-decoration: none; }
 .menu-pop .who { padding: 8px 10px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .menu-pop .who small { color: var(--muted); display: block; }
+.menu-sep { height: 1px; background: var(--border); margin: 6px 0; }
+.menu-label { padding: 6px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.menu-pop button .grow { flex: 1; }
+.menu-pop button.on { background: var(--brand-soft); color: var(--brand-text); font-weight: 600; }
+.menu-pop { max-height: calc(100vh - var(--topbar) - 16px); overflow-y: auto; }
+.topbar .brand small .campus-name, .campus-name { display: inline; font-size: inherit; font-weight: 600; color: var(--text-2); }
 
 .layout { display: flex; min-height: calc(100vh - var(--topbar)); }
 .sidebar { width: var(--sidebar); flex: none; position: sticky; top: var(--topbar); height: calc(100vh - var(--topbar)); overflow-y: auto; background: var(--surface); border-right: 1px solid var(--border); padding: 12px 10px; display: flex; flex-direction: column; }
@@ -477,6 +483,8 @@ section.hub-wrap { margin-top: 28px; }
 .hub-hero p { margin: 0; opacity: 0.9; font-size: 15px; max-width: 640px; }
 .hub-kicker { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85 !important; }
 .hub-role { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); font-size: 13px; font-weight: 600; }
+.hub-role + .hub-role { margin-left: 8px; }
+.hub-switch { color: #fff; text-decoration: underline; padding: 0; font-weight: 600; }
 .hub-soon-tag { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); font-size: 11px; font-weight: 600; }
 .sys-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .sys-card { display: flex; flex-direction: column; gap: 6px; padding: 20px; min-height: 240px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; color: var(--text); box-shadow: var(--shadow); position: relative; overflow: hidden; transition: transform 0.14s, box-shadow 0.14s, border-color 0.14s; }

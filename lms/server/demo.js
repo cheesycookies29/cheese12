@@ -8,7 +8,7 @@ import { scoreAttempt, quizPoints } from './quiz.js';
 import { meetingsClash } from '../shared/schedule.js';
 
 export const DEMO_PASSWORD = 'demo1234';
-const COLLECTIONS = ['programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users'];
+const COLLECTIONS = ['campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users'];
 
 export function demoStatus(data) {
   const counts = Object.fromEntries(COLLECTIONS.map((k) => [k, data[k].filter((x) => x.demo).length]));
@@ -37,6 +37,17 @@ export function removeDemo(data, files = null) {
     for (const k of Object.keys(n.reactions || {})) n.reactions[k] = n.reactions[k].filter((id) => !users.has(id));
   }
   data.sections = data.sections.filter((s) => !s.demo);
+  // Real records placed in a demo campus move to the first real campus.
+  const campuses = ids('campuses');
+  const home = data.campuses.find((c) => !c.demo)?.id;
+  for (const s of data.sections) if (campuses.has(s.campusId)) s.campusId = home;
+  for (const k of ['news', 'events']) for (const x of data[k]) if (campuses.has(x.campusId)) x.campusId = home;
+  for (const u of data.users) {
+    if (!u.campusIds) continue;
+    u.campusIds = u.campusIds.filter((id) => !campuses.has(id));
+    if (u.role !== 'admin' && !u.campusIds.length && home) u.campusIds = [home];
+  }
+  data.campuses = data.campuses.filter((c) => !c.demo);
   // Real sections taught by a demo teacher lose their teacher; real courses lose demo prerequisites.
   for (const s of data.sections) if (users.has(s.teacherId)) s.teacherId = null;
   for (const c of data.courses) if (c.prerequisites) c.prerequisites = c.prerequisites.filter((id) => !courses.has(id));
@@ -64,6 +75,13 @@ export function addDemo(data, today, files = null) {
   const rand = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
   const pick = (list) => list[Math.floor(rand() * list.length)];
   const typeId = (id) => (data.activityTypes.find((t) => t.id === id) || data.activityTypes[0])?.id || '';
+
+  // ----- Campuses: the full demo school is at the first campus; three smaller ones beside it -----
+  const main = data.campuses[0];
+  const [sipocot, pasacao, calabanga] = [['Sipocot Campus', 'SIP'], ['Pasacao Campus', 'PAS'], ['Calabanga Campus', 'CAL']].map(([name, code]) => add('campuses', {
+    name: data.campuses.some((c) => c.name === name) ? `${name} (demo)` : name,
+    code: data.campuses.some((c) => c.code === code) ? `${code}D` : code, address: 'Camarines Sur',
+  }));
 
   // ----- Programs -----
   const P = {};
@@ -116,11 +134,11 @@ export function addDemo(data, today, files = null) {
   // ----- People -----
   const person = (role, username, name, extra = {}) => add('users', {
     role, username: taken('username', username) ? `${username}2` : username, name, email: `${username}@example.edu`,
-    status: 'active', mustChangePassword: false, passwordHash: hash, lastLoginAt: new Date(Date.now() - rand() * 6 * 86400000).toISOString(), ...extra,
+    status: 'active', mustChangePassword: false, passwordHash: hash, lastLoginAt: new Date(Date.now() - rand() * 6 * 86400000).toISOString(), campusIds: [main.id], ...extra,
   });
-  person('registrar', 'registrar.demo', 'Rosa Villanueva');
+  person('registrar', 'registrar.demo', 'Rosa Villanueva', { campusIds: [main.id, sipocot.id] }); // works at two campuses
   const T = {
-    maria: person('teacher', 'teacher.demo', 'Maria Santos', { department: 'College of Computing', employeeNo: 'T-1001' }),
+    maria: person('teacher', 'teacher.demo', 'Maria Santos', { department: 'College of Computing', employeeNo: 'T-1001', campusIds: [main.id, sipocot.id] }), // also teaches at Sipocot
     juan: person('teacher', 'jdelacruz.demo', 'Juan Dela Cruz', { department: 'College of Computing', employeeNo: 'T-1002' }),
     ana: person('teacher', 'aramos.demo', 'Ana Ramos', { department: 'General Education', employeeNo: 'T-1003' }),
     leo: person('teacher', 'lmercado.demo', 'Leo Mercado', { department: 'College of Computing', employeeNo: 'T-1004' }),
@@ -172,7 +190,7 @@ export function addDemo(data, today, files = null) {
   const MW = (s, e) => M([1, 3], s, e);
   const TT = (s, e) => M([2, 4], s, e);
   const section = (code, name, termRec, teacher, meetings, capacity, extra = {}) =>
-    add('sections', { courseId: C[code].id, termId: termRec.id, name, teacherId: teacher?.id || null, meetings, capacity, room: extra.room || `Room ${100 + data.sections.length}`, status: 'open', enrollmentKey: '', ...extra });
+    add('sections', { courseId: C[code].id, termId: termRec.id, campusId: main.id, name, teacherId: teacher?.id || null, meetings, capacity, room: extra.room || `Room ${100 + data.sections.length}`, status: 'open', enrollmentKey: '', ...extra });
   const old = {
     IT101: section('IT101', 'A', past, T.juan, MW('08:00', '09:30'), 40),
     IT102: section('IT102', 'A', past, T.maria, TT('08:00', '09:30'), 40),
@@ -293,6 +311,40 @@ export function addDemo(data, today, files = null) {
   }
   for (const st of late.slice(1, 3)) enroll(st, cur.IT210A, 'waitlisted');
 
+  // ----- The three smaller campuses: same courses, their own teachers, students and classes -----
+  const MINI = [
+    [sipocot, [['Elena Bonifacio', 'ebonifacio'], ['Rico Abad', 'rabad']], ['AGRI101', 'ED101'], ['BSA', 'BSED']],
+    [pasacao, [['Teresa Llamas', 'tllamas'], ['Dennis Ortiz', 'dortiz']], ['BA101', 'IT101'], ['BSBA', 'BSIT']],
+    [calabanga, [['Gloria Pineda', 'gpineda'], ['Arnel Cruzado', 'acruzado']], ['AGRI101', 'BA101'], ['BSA', 'BSBA']],
+  ];
+  const miniSections = [];
+  MINI.forEach(([campus, teachers, programCourses, programs], ci) => {
+    const [ta, tb] = teachers.map(([name, user], i) => person('teacher', `${user}.demo`, name, { department: i ? 'General Education' : 'Faculty', employeeNo: `T-${2001 + ci * 10 + i}`, campusIds: [campus.id] }));
+    const place = { campusId: campus.id };
+    const secs = {
+      GE101: section('GE101', 'A', term, ta, MW('08:00', '09:30'), 40, place),
+      GE102: section('GE102', 'A', term, ta, TT('08:00', '09:30'), 40, place),
+      NSTP1: section('NSTP1', 'A', term, tb, M([6], '08:00', '10:00'), 50, { ...place, room: 'Covered Court' }),
+      PE101: section('PE101', 'A', term, tb, M([6], '10:00', '12:00'), 50, { ...place, room: 'Gym' }),
+      [programCourses[0]]: section(programCourses[0], 'A', term, tb, MW('10:00', '11:30'), 35, place),
+      [programCourses[1]]: section(programCourses[1], 'A', term, ta, TT('10:00', '11:30'), 35, place),
+    };
+    miniSections.push(...Object.values(secs));
+    for (let i = 0; i < 12; i++, k++) {
+      const program = programs[i % 2];
+      const first = FIRST[k % FIRST.length];
+      const last = LAST[(k * 7 + Math.floor(k / FIRST.length)) % LAST.length];
+      const username = `${first.split(' ')[0]}.${last.replace(/\s+/g, '')}`.toLowerCase();
+      const st = student(taken('username', username) ? `${username}${k}` : username, `${first} ${last}`, program, 1, { campusIds: [campus.id] });
+      const mine = ['GE101', 'GE102', 'NSTP1', 'PE101', programCourses[programs.indexOf(program)]];
+      for (const code of mine) enroll(st, secs[code], rand() < 0.1 ? 'pending' : 'enrolled');
+    }
+  });
+  // Maria Santos also teaches a Friday class at Sipocot (she switches campus to see it).
+  const mariaSipocot = section('IT101', 'S1', term, T.maria, M([5], '13:00', '16:00'), 30, { campusId: sipocot.id, room: 'Sipocot Lab' });
+  miniSections.push(mariaSipocot);
+  for (const st of data.users.filter((u) => u.demo && u.role === 'student' && u.status === 'active' && u.campusIds[0] === sipocot.id).slice(0, 8)) enroll(st, mariaSipocot, 'enrolled');
+
   // ----- Class content -----
   const Q = (type, prompt, points, extra) => ({ id: randomUUID(), type, prompt, points, ...extra });
   const opt = (text, correct = false) => ({ id: randomUUID(), text, correct });
@@ -411,7 +463,7 @@ export function addDemo(data, today, files = null) {
     }
     return out;
   };
-  for (const s of Object.values(cur)) {
+  for (const s of [...Object.values(cur), ...miniSections]) {
     const students = inClass(s);
     const t = teacherOf(s);
     const c = findById(data.courses, s.courseId);
@@ -486,20 +538,26 @@ export function addDemo(data, today, files = null) {
   const everyone = [...Object.values(S), ...crowd];
   const some = (share) => everyone.filter(() => rand() < share).map((u) => u.id);
   const comment = (u, body, daysAgo) => ({ id: randomUUID(), userId: u.id, name: u.name, role: u.role, body, createdAt: `${addDays(today, -daysAgo)}T10:00:00.000Z` });
-  add('news', { title: 'Enrollment for the current term is open', body: 'Request your sections under Enrollment in the learning portal. Requests are reviewed by the registrar within two working days.\n\nFull sections take a waitlist: you move up automatically when a seat frees up.', authorId: null, authorName: 'Office of the Registrar', pinned: true, commentsOff: false, createdAt: `${addDays(today, -30)}T09:00:00.000Z`, reactions: { like: some(0.4), celebrate: [S.carlo.id, ...some(0.1)] }, comments: [comment(S.paolo, 'Is IT210 opening another section?', 28), comment(T.maria, 'We are asking the registrar. Join the waitlist for now.', 27)] });
-  add('news', { title: 'Midterm examinations schedule', body: 'Midterm examinations run for one week, starting in two weeks. Check each class for the exact time and room. Bring your school ID and a blue or black pen.', authorId: null, authorName: 'Office of the Registrar', pinned: false, commentsOff: false, createdAt: `${addDays(today, -3)}T09:00:00.000Z`, reactions: { like: some(0.3) }, comments: [comment(crowd[2], 'Will there be a make-up exam schedule?', 2)] });
-  add('news', { title: 'Library hours extended during exams', body: 'The library is open until 9 PM on weekdays for the next three weeks.', authorId: null, authorName: 'Rosa Villanueva', pinned: false, commentsOff: true, createdAt: `${addDays(today, -2)}T09:00:00.000Z`, reactions: { love: [S.angela.id, ...some(0.15)] }, comments: [] });
-  add('news', { title: 'Scholarship applications now open', body: 'Students with a general weighted average of 85 or higher may apply for the academic scholarship. Forms are at the Office of Student Affairs until the end of the month.', authorId: null, authorName: 'Office of Student Affairs', pinned: false, commentsOff: false, createdAt: `${addDays(today, -9)}T09:00:00.000Z`, reactions: { like: some(0.25), celebrate: some(0.1) }, comments: [comment(crowd[7], 'Does it cover second-years?', 8), comment(crowd[11], 'Thank you for this!', 8)] });
-  add('news', { title: 'Agriculture students win regional quiz bee', body: 'Congratulations to our BS Agriculture team for winning first place in the regional agriculture quiz bee! Thank you to their coach, Prof. Ramon Villareal.', authorId: null, authorName: 'Public Information Office', pinned: false, commentsOff: false, createdAt: `${addDays(today, -12)}T09:00:00.000Z`, reactions: { celebrate: some(0.35), love: some(0.15) }, comments: [comment(T.ramon, 'Proud of you all!', 11)] });
-  add('news', { title: 'New computer laboratory opens', body: 'Lab 5, with 40 new computers, is open for classes and for students from 7 AM to 7 PM.', authorId: null, authorName: 'College of Computing', pinned: false, commentsOff: false, createdAt: `${addDays(today, -18)}T09:00:00.000Z`, reactions: { like: some(0.3) }, comments: [] });
-  for (const [title, description, location, start, end, from, to] of [
-    ['Last day to request sections', 'Enrollment requests close at the end of the day.', 'Learning portal', 20, 20, '', ''],
-    ['University intramurals', 'Opening parade and games across campus. Classes are suspended in the afternoon.', 'Main grounds', 9, 11, '08:00', '17:00'],
-    ['Midterm examinations week', '', '', 14, 18, '', ''],
-    ['Career fair', 'Meet employers and partner companies. Bring copies of your résumé.', 'Gymnasium', 26, 26, '09:00', '16:00'],
-    ['Foundation Day', 'Mass, program and alumni homecoming.', 'University grounds', 40, 40, '07:00', '21:00'],
-    ['Final examinations week', '', '', 92, 96, '', ''],
-  ]) add('events', { title, description, location, startDate: addDays(today, start), endDate: addDays(today, end), startTime: from, endTime: to, createdBy: 'Demo data' });
+  add('news', { campusId: null, title: 'Enrollment for the current term is open', body: 'Request your sections under Enrollment in the learning portal. Requests are reviewed by the registrar within two working days.\n\nFull sections take a waitlist: you move up automatically when a seat frees up.', authorId: null, authorName: 'Office of the Registrar', pinned: true, commentsOff: false, createdAt: `${addDays(today, -30)}T09:00:00.000Z`, reactions: { like: some(0.4), celebrate: [S.carlo.id, ...some(0.1)] }, comments: [comment(S.paolo, 'Is IT210 opening another section?', 28), comment(T.maria, 'We are asking the registrar. Join the waitlist for now.', 27)] });
+  add('news', { campusId: null, title: 'Midterm examinations schedule', body: 'Midterm examinations run for one week, starting in two weeks. Check each class for the exact time and room. Bring your school ID and a blue or black pen.', authorId: null, authorName: 'Office of the Registrar', pinned: false, commentsOff: false, createdAt: `${addDays(today, -3)}T09:00:00.000Z`, reactions: { like: some(0.3) }, comments: [comment(crowd[2], 'Will there be a make-up exam schedule?', 2)] });
+  add('news', { campusId: main.id, title: 'Library hours extended during exams', body: 'The library is open until 9 PM on weekdays for the next three weeks.', authorId: null, authorName: 'Rosa Villanueva', pinned: false, commentsOff: true, createdAt: `${addDays(today, -2)}T09:00:00.000Z`, reactions: { love: [S.angela.id, ...some(0.15)] }, comments: [] });
+  add('news', { campusId: null, title: 'Scholarship applications now open', body: 'Students with a general weighted average of 85 or higher may apply for the academic scholarship. Forms are at the Office of Student Affairs until the end of the month.', authorId: null, authorName: 'Office of Student Affairs', pinned: false, commentsOff: false, createdAt: `${addDays(today, -9)}T09:00:00.000Z`, reactions: { like: some(0.25), celebrate: some(0.1) }, comments: [comment(crowd[7], 'Does it cover second-years?', 8), comment(crowd[11], 'Thank you for this!', 8)] });
+  add('news', { campusId: main.id, title: 'Agriculture students win regional quiz bee', body: 'Congratulations to our BS Agriculture team for winning first place in the regional agriculture quiz bee! Thank you to their coach, Prof. Ramon Villareal.', authorId: null, authorName: 'Public Information Office', pinned: false, commentsOff: false, createdAt: `${addDays(today, -12)}T09:00:00.000Z`, reactions: { celebrate: some(0.35), love: some(0.15) }, comments: [comment(T.ramon, 'Proud of you all!', 11)] });
+  add('news', { campusId: main.id, title: 'New computer laboratory opens', body: 'Lab 5, with 40 new computers, is open for classes and for students from 7 AM to 7 PM.', authorId: null, authorName: 'College of Computing', pinned: false, commentsOff: false, createdAt: `${addDays(today, -18)}T09:00:00.000Z`, reactions: { like: some(0.3) }, comments: [] });
+  for (const [campus, title] of [[sipocot, 'Welcome to Sipocot Campus'], [pasacao, 'Pasacao Campus coastal clean-up this Saturday'], [calabanga, 'Calabanga Campus farm visit for first-years']]) {
+    add('news', { campusId: campus.id, title, body: 'Details from the campus administrator. See you there!', authorId: null, authorName: `${campus.name} Office`, pinned: false, commentsOff: false, createdAt: `${addDays(today, -4)}T09:00:00.000Z`, reactions: { like: [] }, comments: [] });
+  }
+  for (const [campus, title, description, location, start, end, from, to] of [
+    [null, 'Last day to request sections', 'Enrollment requests close at the end of the day.', 'Learning portal', 20, 20, '', ''],
+    [null, 'University intramurals', 'Opening parade and games across campus. Classes are suspended in the afternoon.', 'Main grounds', 9, 11, '08:00', '17:00'],
+    [null, 'Midterm examinations week', '', '', 14, 18, '', ''],
+    [main, 'Career fair', 'Meet employers and partner companies. Bring copies of your résumé.', 'Gymnasium', 26, 26, '09:00', '16:00'],
+    [null, 'Foundation Day', 'Mass, program and alumni homecoming.', 'University grounds', 40, 40, '07:00', '21:00'],
+    [null, 'Final examinations week', '', '', 92, 96, '', ''],
+    [sipocot, 'Sipocot Campus clean-up drive', 'Bring gloves and a water bottle.', 'Sipocot Campus grounds', 6, 6, '07:00', '10:00'],
+    [pasacao, 'Pasacao Campus coastal clean-up', '', 'Pasacao beach', 5, 5, '06:00', '09:00'],
+    [calabanga, 'Farm visit for first-years', 'Buses leave at 7:00 AM.', 'Calabanga demo farm', 8, 8, '07:00', '15:00'],
+  ]) add('events', { campusId: campus?.id ?? null, title, description, location, startDate: addDays(today, start), endDate: addDays(today, end), startTime: from, endTime: to, createdBy: 'Demo data' });
 
   return demoStatus(data);
 }

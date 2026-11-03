@@ -12,7 +12,7 @@ const REACTIONS = [['like', 'thumb', 'Like'], ['love', 'heart', 'Love'], ['celeb
 export function postCard(n, { admin = false } = {}) {
   return html`<article class="post" data-post="${n.id}">
     <header><div class="author"><span class="avatar">${initials(n.authorName)}</span><div><strong>${n.authorName}</strong><span class="by">${timeAgo(n.createdAt)}${n.updatedAt ? ' · edited' : ''}</span></div></div>
-      ${n.pinned ? html`<span class="badge brand">${icon('pin', 13)} Pinned</span>` : ''}
+      <span class="actions">${n.campusName ? html`<span class="badge gray">${icon('building', 13)} ${n.campusName}</span>` : ''}${n.pinned ? html`<span class="badge brand">${icon('pin', 13)} Pinned</span>` : ''}</span>
       ${admin ? html`<span class="actions"><button class="icon-btn" data-edit="${n.id}" aria-label="Edit">${icon('edit', 16)}</button><button class="icon-btn danger" data-del="${n.id}" aria-label="Delete">${icon('trash', 16)}</button></span>` : ''}</header>
     <h3 style="margin:4px 0 8px">${n.title}</h3>
     ${n.body ? html`<p class="pre">${richText(n.body)}</p>` : ''}

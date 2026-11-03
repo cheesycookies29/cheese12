@@ -3,6 +3,7 @@
 // database later (e.g. Amazon RDS for PostgreSQL) is one table per collection.
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { defaultModuleConfig } from '../shared/modules.js';
 import { defaultSystemSettings } from '../shared/systems.js';
 
@@ -42,6 +43,7 @@ export function emptyData() {
     version: 1,
     settings: structuredClone(DEFAULT_SETTINGS),
     modules: defaultModuleConfig(), // which portal modules students and teachers get
+    campuses: [], // the school's sites; each has its own people, sections, news and events (server/campus.js)
     users: [], // admins, registrars, teachers, students (and student applicants)
     programs: [], // e.g. BS Information Technology
     terms: [], // e.g. 1st Semester 2026–2027, with an enrollment window
@@ -82,6 +84,7 @@ function normalize(data) {
   out.modules = { ...defaultModuleConfig(), ...(data.modules || {}) };
   out.counters = { studentNo: {}, ...(data.counters || {}) };
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
+  ensureCampuses(out);
   // Assignments from before quizzes and activity types: tasks of the default type.
   for (const a of out.assignments) {
     a.kind ||= 'task';
@@ -90,9 +93,20 @@ function normalize(data) {
   return out;
 }
 
+// Every school has at least one campus. Data from before campuses (or a new, empty
+// school) gets a "Main Campus", and records without a campus are placed in it.
+export function ensureCampuses(data) {
+  if (!data.campuses.length) data.campuses.push({ id: randomUUID(), name: 'Main Campus', code: 'MAIN', address: '', createdAt: new Date().toISOString() });
+  const first = data.campuses[0].id;
+  for (const s of data.sections) s.campusId ||= first;
+  for (const u of data.users) if (u.role !== 'admin' && !(u.campusIds?.length)) u.campusIds = [first];
+  for (const k of ['news', 'events']) for (const x of data[k]) if (x.campusId === undefined) x.campusId = null; // null: every campus
+  return data;
+}
+
 export function openDb(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  let data = fs.existsSync(file) ? normalize(JSON.parse(fs.readFileSync(file, 'utf8'))) : emptyData();
+  let data = normalize(fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : emptyData());
 
   const db = {
     dir: path.dirname(file),

@@ -9,7 +9,7 @@ export async function dashboardView(el) {
   const stat = (label, value, href, accent = false) => html`<a class="card ${accent ? 'accent' : ''}" href="#${href}"><small>${label}</small><strong>${value}</strong></a>`;
   mount(el, html`
     ${pageHead('Dashboard', t
-      ? html`<strong>${t.name}</strong> · enrollment ${t.open ? 'open' : 'closed'} (${fmtDate(t.enrollStart)} – ${fmtDate(t.enrollEnd)}) · classes ${fmtDate(t.startDate)} – ${fmtDate(t.endDate)}`
+      ? html`<strong>${d.campus}</strong> · ${t.name} · enrollment ${t.open ? 'open' : 'closed'} (${fmtDate(t.enrollStart)} – ${fmtDate(t.enrollEnd)}) · classes ${fmtDate(t.startDate)} – ${fmtDate(t.endDate)}`
       : 'No current term yet.')}
     ${!t ? html`<div class="notice"><p><strong>Getting started:</strong> add a <a href="#/terms">term</a>, <a href="#/courses">courses</a> and <a href="#/sections">sections</a>, then <a href="#/students">students</a> and <a href="#/teachers">teachers</a>. To look around first, load <a href="#/data">demo data</a>.</p></div>` : ''}
     <div class="stats">

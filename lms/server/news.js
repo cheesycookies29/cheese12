@@ -1,8 +1,10 @@
 // School news (with reactions and comments) and events. Admins and registrars post
 // from the admin panel; students and teachers read, react and comment in the portal.
+// Each post or event is for one campus, or for every campus (campusId null).
 import { randomUUID } from 'node:crypto';
 import { HttpError, DATE_RE, text } from './util.js';
 import { TIME_RE } from '../shared/schedule.js';
+import { campusName } from './campus.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -22,15 +24,22 @@ export function registerNewsRoutes(route, ctx) {
     mine: user ? REACTIONS.filter((r) => n.reactions?.[r]?.includes(user.id)) : [],
     comments: (n.comments || []).map((c) => ({ ...c, own: user ? c.userId === user.id : false })),
   });
-  const sorted = (user) => data().news.slice().sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).map((n) => postView(n, user));
-  const upcoming = () => data().events.filter((e) => (e.endDate || e.startDate) >= today()).sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.startTime || '').localeCompare(b.startTime || ''));
+  const here = (campusId) => (x) => x.campusId == null || x.campusId === campusId;
+  const withCampus = (x) => ({ ...x, campusName: x.campusId ? campusName(data(), x.campusId) : 'All campuses' });
+  const sorted = (user, campusId) => data().news.filter(here(campusId)).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).map((n) => withCampus(postView(n, user)));
+  const upcoming = (campusId) => data().events.filter(here(campusId)).filter((e) => (e.endDate || e.startDate) >= today()).sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.startTime || '').localeCompare(b.startTime || '')).map(withCampus);
+  const findHere = (id, campusId) => {
+    const n = findPost(id);
+    if (!here(campusId)(n)) fail('Post not found.', 404);
+    return n;
+  };
 
   // ----- Portal -----
-  route('GET', '/api/news', 'portal', ({ user, query }) => sorted(user).slice(0, Math.min(100, Number(query.limit) || 30)), { module: 'news' });
-  route('GET', '/api/events', 'portal', ({ query }) => (query.all === '1' ? data().events.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)) : upcoming()), { module: 'news' });
+  route('GET', '/api/news', 'portal', ({ user, query, campusId }) => sorted(user, campusId).slice(0, Math.min(100, Number(query.limit) || 30)), { module: 'news' });
+  route('GET', '/api/events', 'portal', ({ query, campusId }) => (query.all === '1' ? data().events.filter(here(campusId)).sort((a, b) => b.startDate.localeCompare(a.startDate)).map(withCampus) : upcoming(campusId)), { module: 'news' });
 
-  route('POST', '/api/news/:id/react', 'portal', ({ user, params, body }) => {
-    const n = findPost(params.id);
+  route('POST', '/api/news/:id/react', 'portal', ({ user, params, body, campusId }) => {
+    const n = findHere(params.id, campusId);
     if (!REACTIONS.includes(body.reaction)) fail('Unknown reaction.');
     n.reactions ||= {};
     const list = (n.reactions[body.reaction] ||= []);
@@ -41,8 +50,8 @@ export function registerNewsRoutes(route, ctx) {
     return postView(n, user);
   }, { module: 'news' });
 
-  route('POST', '/api/news/:id/comments', 'portal', ({ user, params, body }) => {
-    const n = findPost(params.id);
+  route('POST', '/api/news/:id/comments', 'portal', ({ user, params, body, campusId }) => {
+    const n = findHere(params.id, campusId);
     if (n.commentsOff) fail('Comments are turned off for this post.');
     const c = { id: randomUUID(), userId: user.id, name: user.name, role: user.role, body: text(body.body, 2000), createdAt: iso() };
     if (!c.body) fail('Write a comment.');
@@ -61,32 +70,38 @@ export function registerNewsRoutes(route, ctx) {
   }, { module: 'news' });
 
   // ----- Admin panel -----
+  // Registrars post for their campus; only administrators post to every campus.
+  const campusFor = (b, user, campusId) => (b.allCampuses && user.role === 'admin' ? null : campusId);
+  const editable = (x, user, campusId) => {
+    if (x.campusId == null ? user.role !== 'admin' : x.campusId !== campusId) fail(x.campusId == null ? 'Only administrators can change posts for every campus.' : 'This belongs to another campus. Switch to it first.', 403);
+    return x;
+  };
   const postFields = (b) => {
     const p = { title: text(b.title, 200), body: text(b.body, 20000), pinned: Boolean(b.pinned), commentsOff: Boolean(b.commentsOff) };
     if (!p.title) fail('Give the post a title.');
     return p;
   };
-  route('GET', '/api/admin/news', 'admin:news.manage', ({ user }) => sorted(null).map((n) => ({ ...n, own: n.authorId === user.id })));
-  route('POST', '/api/admin/news', 'admin:news.manage', ({ user, body }) => {
-    const n = { id: randomUUID(), ...postFields(body), authorId: user.id, authorName: user.name, createdAt: iso(), reactions: {}, comments: [] };
+  route('GET', '/api/admin/news', 'admin:news.manage', ({ user, campusId }) => sorted(null, campusId).map((n) => ({ ...n, own: n.authorId === user.id })));
+  route('POST', '/api/admin/news', 'admin:news.manage', ({ user, body, campusId }) => {
+    const n = { id: randomUUID(), ...postFields(body), campusId: campusFor(body, user, campusId), authorId: user.id, authorName: user.name, createdAt: iso(), reactions: {}, comments: [] };
     data().news.push(n);
     save();
     return n;
   });
-  route('PUT', '/api/admin/news/:id', 'admin:news.manage', ({ params, body }) => {
-    const n = findPost(params.id);
-    Object.assign(n, postFields(body), { updatedAt: iso() });
+  route('PUT', '/api/admin/news/:id', 'admin:news.manage', ({ user, params, body, campusId }) => {
+    const n = editable(findPost(params.id), user, campusId);
+    Object.assign(n, postFields(body), { campusId: campusFor(body, user, campusId), updatedAt: iso() });
     save();
     return n;
   });
-  route('DELETE', '/api/admin/news/:id', 'admin:news.manage', ({ params }) => {
-    const n = findPost(params.id);
+  route('DELETE', '/api/admin/news/:id', 'admin:news.manage', ({ user, params, campusId }) => {
+    const n = editable(findPost(params.id), user, campusId);
     data().news.splice(data().news.indexOf(n), 1);
     save();
     return { ok: true };
   });
-  route('DELETE', '/api/admin/news/:id/comments/:cid', 'admin:news.manage', ({ params }) => {
-    const n = findPost(params.id);
+  route('DELETE', '/api/admin/news/:id/comments/:cid', 'admin:news.manage', ({ params, campusId }) => {
+    const n = findHere(params.id, campusId);
     n.comments = (n.comments || []).filter((c) => c.id !== params.cid);
     save();
     return { ok: true };
@@ -103,20 +118,21 @@ export function registerNewsRoutes(route, ctx) {
     for (const t of [e.startTime, e.endTime]) if (t && !TIME_RE.test(t)) fail('Times must be HH:MM.');
     return e;
   };
-  route('GET', '/api/admin/events', 'admin:news.manage', () => data().events.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)));
-  route('POST', '/api/admin/events', 'admin:news.manage', ({ user, body }) => {
-    const e = { id: randomUUID(), ...eventFields(body), createdBy: user.name, createdAt: iso() };
+  route('GET', '/api/admin/events', 'admin:news.manage', ({ campusId }) => data().events.filter(here(campusId)).sort((a, b) => b.startDate.localeCompare(a.startDate)).map(withCampus));
+  route('POST', '/api/admin/events', 'admin:news.manage', ({ user, body, campusId }) => {
+    const e = { id: randomUUID(), ...eventFields(body), campusId: campusFor(body, user, campusId), createdBy: user.name, createdAt: iso() };
     data().events.push(e);
     save();
     return e;
   });
-  route('PUT', '/api/admin/events/:id', 'admin:news.manage', ({ params, body }) => {
-    const e = data().events.find((x) => x.id === params.id) || fail('Event not found.', 404);
-    Object.assign(e, eventFields(body));
+  route('PUT', '/api/admin/events/:id', 'admin:news.manage', ({ user, params, body, campusId }) => {
+    const e = editable(data().events.find((x) => x.id === params.id) || fail('Event not found.', 404), user, campusId);
+    Object.assign(e, eventFields(body), { campusId: campusFor(body, user, campusId) });
     save();
     return e;
   });
-  route('DELETE', '/api/admin/events/:id', 'admin:news.manage', ({ params }) => {
+  route('DELETE', '/api/admin/events/:id', 'admin:news.manage', ({ user, params, campusId }) => {
+    editable(data().events.find((x) => x.id === params.id) || fail('Event not found.', 404), user, campusId);
     data().events = data().events.filter((x) => x.id !== params.id);
     save();
     return { ok: true };

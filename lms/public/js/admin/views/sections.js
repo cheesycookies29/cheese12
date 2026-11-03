@@ -63,7 +63,7 @@ export async function sectionsView(el, params, query) {
   const termId = query.termId || currentTermId(terms);
   const sections = termId ? await api.get(`/api/admin/sections?termId=${termId}`) : [];
   mount(el, html`
-    ${pageHead('Sections', 'Courses offered this term: teacher, schedule, seats and waitlist.', mayEdit() && terms.length && courses.length ? html`<button class="btn primary" id="add">+ Add section</button>` : '')}
+    ${pageHead('Sections', `Courses offered at ${ctx.info.campusName || 'this campus'}: teacher, schedule, seats and waitlist.`, mayEdit() && terms.length && courses.length ? html`<button class="btn primary" id="add">+ Add section</button>` : '')}
     ${!terms.length || !courses.length ? html`<div class="notice"><p>Add a <a href="#/terms">term</a> and some <a href="#/courses">courses</a> first.</p></div>` : ''}
     <div class="toolbar">${terms.length ? termSelect(terms, termId) : ''}<input type="search" placeholder="Search course, teacher or room" /><span class="spacer"></span><span class="muted" id="shown">${sections.length} shown</span></div>
     ${sections.length ? html`<div class="card scroll-x"><table class="table clickable">

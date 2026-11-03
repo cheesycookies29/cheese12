@@ -14,6 +14,15 @@ Everyone starts at the **University Portal**, the school's single front door to 
 
 The LMS is live. **HRIS**, **FMIS** and **UIS** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → Portal & systems** with the address each one runs at. Students do not see the HRIS tile.
 
+### Campuses
+
+A school can have several campuses (e.g. Pili, Sipocot, Pasacao, Calabanga). Every campus has the **same features**, catalog (programs and courses), terms, modules, grading and branding; each has **its own** students, teachers, registrars, sections (with their enrollments and class content), news and events.
+
+- **Switch campus** from your name at the top right (as in the current LMS). The choice is remembered; every list follows it: dashboard, students, teachers, sections, enrollment requests, news and events. The current campus shows in the top bar.
+- **Administrators** reach every campus. **Registrars** and **teachers** work at the campuses ticked on their account (a teacher at two campuses switches to see each one's classes). **Students** belong to one campus, see only its sections and cannot request another campus's (the registrar can override for a cross-campus enrollee).
+- **Admin panel → Campuses** adds, renames and removes campuses. News and events are for one campus, or (administrators only) for every campus.
+- Data from before campuses moves into a "Main Campus" automatically; rename it under Campuses. The first-run setup asks for the campus name.
+
 Signing in at the portal opens the right side for the account (students and teachers: the LMS; administrators and registrars: the admin panel), so opening the LMS from its tile needs no second sign-in. Every page has an **All systems** button back to the portal, and **Sign out** anywhere signs out of everything.
 
 ## Run it
@@ -54,7 +63,7 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 | University Portal | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
 | University Portal or admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
 
-The demo school has 5 programs (IT, Computer Science, Business, Agriculture, Education), 8 teachers, about 60 students with past grades, 5 applicants, 21 courses and 25 sections this term. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`. It's the same school every time it is added.
+The demo school has 5 programs (IT, Computer Science, Business, Agriculture, Education), 8 teachers, about 60 students with past grades, 5 applicants, 21 courses and 25 sections this term. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus.
 
 Demo records are added **next to your own data** and **Remove demo data** takes them out again without changing your records. If you already have a current term, it stays current and the demo term is listed beside it.
 
@@ -162,6 +171,7 @@ lms/
   server/files.js        uploaded files (data/files/) and class resources
   server/news.js         school news (reactions, comments) and events
   server/db.js           JSON-file storage (and an in-memory one for tests)
+  server/campus.js       campuses: who can reach which campus, the active campus
   server/demo.js         demo data
   shared/roles.js        account types and permissions (server and browser)
   shared/modules.js      the switchable portal modules (server and browser)

@@ -12,6 +12,7 @@ import { modulesView } from './views/modules.js';
 import { settingsView, dataView, gradingView } from './views/settings.js';
 import { newsAdminView } from './views/news.js';
 import { systemsView } from './views/systems.js';
+import { campusesView } from './views/campuses.js';
 
 const p = (permission) => (user) => can(user.role, permission);
 
@@ -33,6 +34,7 @@ const routes = [
   ['/grading', gradingView, p('dashboard')],
   ['/news', newsAdminView, p('news.manage')],
   ['/systems', systemsView, p('dashboard')],
+  ['/campuses', campusesView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
 ];
 
@@ -53,6 +55,7 @@ function nav() {
     { heading: 'Communication' },
     c('news.manage') && { href: '/news', label: 'News & events', icon: 'megaphone' },
     { heading: 'Configuration' },
+    { href: '/campuses', label: 'Campuses', icon: 'building' },
     { href: '/modules', label: 'Modules', icon: 'toggles' },
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
@@ -73,6 +76,7 @@ function signedOutView(el, { status, boot }) {
         <p class="muted">Create the first <strong>Administrator</strong>. You can add registrars, teachers and students after signing in.</p>
         ${status.setupCodeRequired ? html`<label class="field"><span>Setup code</span><input name="setupCode" autocomplete="off" required /><span class="hint">The code chosen when this server was created.</span></label>` : ''}
         <label class="field"><span>School name</span><input name="schoolName" value="${status.schoolName}" required /></label>
+        <label class="field"><span>Campus name</span><input name="campusName" value="Main Campus" required /><span class="hint">Add more campuses later under Campuses.</span></label>
         <label class="field"><span>Your full name</span><input name="name" autocomplete="name" required /></label>
         <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. admin" required /></label>
         ${passwordField('Password (at least 8 characters)', 'password', 'new-password')}

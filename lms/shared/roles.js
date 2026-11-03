@@ -15,7 +15,7 @@ export const ROLES = {
   registrar: {
     label: 'Registrar',
     side: 'admin',
-    description: 'Runs enrollment: applicants, student records, the course catalog, terms, sections and enrollment requests.',
+    description: 'Runs enrollment at their campuses: applicants, student records, the course catalog, terms, sections and enrollment requests.',
     permissions: ['dashboard', 'enrollment.manage', 'students.manage', 'catalog.manage', 'teachers.view', 'news.manage'],
   },
   teacher: {
@@ -42,6 +42,7 @@ export const PERMISSION_LABELS = [
   ['teachers.view', 'View teacher accounts'],
   ['teachers.manage', 'Add and edit teacher accounts'],
   ['catalog.manage', 'Programs, courses, terms and sections'],
+  ['campuses.manage', 'Add, rename and remove campuses'],
   ['modules.config', 'Turn modules on or off for students and teachers'],
   ['news.manage', 'Post school news and events; remove comments'],
   ['settings.edit', 'School details, branding, enrollment rules, activity types and grade weights'],

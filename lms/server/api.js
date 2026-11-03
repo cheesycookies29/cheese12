@@ -24,6 +24,7 @@ import { createFileStore } from './files.js';
 import { registerNewsRoutes } from './news.js';
 import { themeColors } from '../shared/themes.js';
 import { SYSTEMS } from '../shared/systems.js';
+import { campusesFor, activeCampusId, campusName } from './campus.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -105,7 +106,21 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const term = db.data.terms.find((t) => t.id === db.data.settings.currentTermId);
     return { schoolName: db.data.settings.schoolName, ...themeColors(b), theme: b.theme, logo: b.logo, tagline: b.tagline, termName: term?.name || '' };
   };
+  // The campuses an account can switch between, and the one it is looking at.
+  const campusInfo = (user) => {
+    const list = campusesFor(db.data, user).map((c) => ({ id: c.id, name: c.name, code: c.code }));
+    const active = user ? activeCampusId(db.data, user) : null;
+    return { campuses: list, activeCampusId: active, campusName: campusName(db.data, active) };
+  };
+  function switchCampus(user, body) {
+    const id = String(body.campusId || '');
+    if (!campusesFor(db.data, user).some((c) => c.id === id)) fail('You do not have access to that campus.', 403);
+    user.activeCampusId = id;
+    db.save();
+    return campusInfo(user);
+  }
   const portalInfo = (user) => ({
+    ...campusInfo(user),
     schoolName: db.data.settings.schoolName,
     branding: branding(),
     setupRequired: setupRequired(),
@@ -124,6 +139,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(PORTAL_COOKIE) } };
   });
   route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true });
+  route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body));
+  route('POST', '/api/admin/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body));
+  route('GET', '/api/auth/campuses', 'public', () => (db.data.settings.registration.open ? db.data.campuses.map((c) => ({ id: c.id, name: c.name })) : []));
 
   route('GET', '/api/auth/programs', 'public', () => {
     if (!db.data.settings.registration.open) return [];
@@ -135,6 +153,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     throttle.fail('apply'); // a 5-minute pause after every 5 applications slows down scripted sign-ups
     const fields = validateUserFields({ ...body, role: 'student', studentNo: '' }, db.data);
     if (!fields.email) fail('Email is required so the registrar can contact you.');
+    const campus = db.data.campuses.find((c) => c.id === body.campusId) || (db.data.campuses.length === 1 ? db.data.campuses[0] : null);
+    if (!campus) fail('Pick the campus you are applying to.');
+    fields.campusIds = [campus.id];
     validatePassword(body.password);
     const user = {
       id: randomUUID(),
@@ -172,6 +193,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       side,
       authBase: side === 'admin' ? '/api/admin/auth' : '/api/auth',
       systems: portalSystems(user, side),
+      ...campusInfo(user),
     };
   });
   route('POST', '/api/hub/login', 'public', ({ body }) => {
@@ -188,9 +210,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const user = portalUser || adminUser;
     if (!user) fail('Please sign in.', 401);
     if (portalUser && !moduleOn(db.data.modules, 'news', user.role)) return { news: [], events: [] };
-    const news = db.data.news.slice().sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 4)
+    const campusId = activeCampusId(db.data, user);
+    const here = (x) => x.campusId == null || x.campusId === campusId;
+    const news = db.data.news.filter(here).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 4)
       .map(({ reactions, comments, ...n }) => ({ ...n, body: n.body.slice(0, 280), comments: comments?.length || 0 }));
-    return { news, events: ctx.upcomingEvents().slice(0, 5) };
+    return { news, events: ctx.upcomingEvents(campusId).slice(0, 5) };
   });
 
   // ----- Admin panel: sign-in -----
@@ -200,6 +224,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     schoolName: db.data.settings.schoolName,
     branding: branding(),
     user: publicUser(adminUser),
+    ...campusInfo(adminUser),
   }));
   route('POST', '/api/admin/auth/setup', 'public', ({ body }) => {
     if (!setupRequired()) fail('Setup is already complete. Please sign in.');
@@ -214,6 +239,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     validatePassword(body.password);
     users().push({ id: randomUUID(), ...fields, status: 'active', mustChangePassword: false, passwordHash: hashPassword(body.password), createdAt: new Date().toISOString() });
     if (body.schoolName) db.data.settings.schoolName = text(body.schoolName, 120);
+    if (text(body.campusName, 80)) {
+      db.data.campuses[0].name = text(body.campusName, 80);
+      db.data.campuses[0].code = db.data.campuses[0].name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MAIN';
+    }
     db.save();
     return signIn('admin', body);
   });
@@ -286,7 +315,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       }
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, portalToken, adminToken });
+      const campusId = user ? activeCampusId(db.data, user) : null;
+      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, portalToken, adminToken, campusId });
       if (result?.raw) return result; // a file
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }

@@ -2,7 +2,7 @@
 // (HRIS, FMIS, UIS, LMS). Systems that are not built yet show greyed out as "Coming soon".
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
-import { ctx, applyBranding, logoSrc, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton } from '../shell.js';
+import { ctx, applyBranding, logoSrc, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon } from '../icons.js';
 import { roleLabel } from '/shared/roles.js';
 
@@ -81,6 +81,7 @@ function applyView(status) {
       <p class="muted">The registrar reviews your application; you can sign in once you are admitted.</p>
       <label class="field"><span>Full name</span><input name="name" autocomplete="name" required /></label>
       <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required /></label>
+      <label class="field" id="campus-field" hidden><span>Campus</span><select name="campusId" id="campuses"></select></label>
       <label class="field"><span>Program</span><select name="programId" id="programs">${option('', 'Undecided')}</select></label>
       <label class="field"><span>Year level</span><select name="yearLevel">${[1, 2, 3, 4, 5].map((y) => option(y, `Year ${y}`))}</select></label>
       <label class="field"><span>Choose a username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
@@ -92,6 +93,11 @@ function applyView(status) {
     </form>`, status.systems);
   api.get('/api/auth/programs').then((programs) => {
     form.querySelector('#programs').insertAdjacentHTML('beforeend', programs.map((p) => `<option value="${p.id}">${p.code} · ${p.name.replace(/</g, '&lt;')}</option>`).join(''));
+  });
+  api.get('/api/auth/campuses').then((campuses) => {
+    if (campuses.length < 2) return;
+    form.querySelector('#campus-field').hidden = false;
+    form.querySelector('#campuses').innerHTML = `<option value="">Choose a campus…</option>${campuses.map((c) => `<option value="${c.id}">${c.name.replace(/</g, '&lt;')}</option>`).join('')}`;
   });
   form.querySelector('#back').addEventListener('click', back);
   onFormSubmit(form, async (v) => {
@@ -107,13 +113,15 @@ function userMenu(status) {
   const box = document.getElementById('user-box');
   mount(box, html`
     <button type="button" class="user-btn" id="user-btn" aria-haspopup="menu" aria-expanded="false">
-      <span class="avatar">${initials(u.name)}</span><span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}</small></span>${icon('chevronDown', 16)}
+      <span class="avatar">${initials(u.name)}</span><span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}${status.campusName ? ` · ${status.campusName}` : ''}</small></span>${icon('chevronDown', 16)}
     </button>
     <div class="menu-pop" id="user-pop" role="menu" hidden>
       <div class="who"><strong>${u.name}</strong><small>${u.username}${u.email ? ` · ${u.email}` : ''}</small><small>${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</small></div>
       <button type="button" id="change-pw">${icon('key')} Change password</button>
       <button type="button" id="sign-out">${icon('logout')} Sign out</button>
+      ${campusMenu(status)}
     </div>`);
+  wireCampusMenu(box, status.authBase);
   const pop = box.querySelector('#user-pop');
   box.querySelector('#user-btn').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -158,6 +166,7 @@ async function homeView(status) {
       <h1>${hello}, ${u.name.split(' ')[0]}</h1>
       <p>Welcome to the ${status.branding.schoolName} University Portal. You are signed in to every system below.</p>
       <span class="hub-role">${icon('user', 14)} ${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</span>
+      ${status.campusName ? html`<span class="hub-role">${icon('building', 14)} ${status.campusName}${status.campuses.length > 1 ? html` · <button type="button" class="link hub-switch" id="hub-switch">switch</button>` : ''}</span>` : ''}
     </div></section>
     <section class="hub-wrap">
       <div class="card-head"><h2>${icon('grid')} Your systems</h2><span class="muted small">${live} of ${systems.length} available</span></div>
@@ -165,6 +174,10 @@ async function homeView(status) {
     </section>
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span>University Portal · HRIS · FMIS · UIS · LMS</span></div></footer>`);
+  appEl.querySelector('#hub-switch')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('user-pop').hidden = false;
+  });
   const feed = await api.get('/api/hub/feed').catch(() => ({ news: [], events: [] }));
   if (!feed.news.length && !feed.events.length) return appEl.querySelector('#feed').remove();
   mount(appEl.querySelector('#feed'), html`
@@ -202,7 +215,7 @@ async function boot() {
   document.body.classList.remove('auth-mode', 'booting');
   mount(authEl, '');
   document.getElementById('school-name').textContent = status.branding.schoolName;
-  mount(document.getElementById('brand-sub'), html`University Portal${status.branding.termName ? ` · ${status.branding.termName}` : ''}`);
+  mount(document.getElementById('brand-sub'), html`University Portal${status.campusName ? html` · <strong class="campus-name">${status.campusName}</strong>` : ''}${status.branding.termName ? ` · ${status.branding.termName}` : ''}`);
   renderThemeButton();
   userMenu(status);
   homeView(status);

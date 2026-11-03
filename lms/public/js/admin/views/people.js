@@ -13,6 +13,18 @@ const KINDS = {
   staff: { title: 'Admins & registrars', role: 'registrar', url: '/api/admin/users?role=staff', manage: 'admins.manage', sub: 'These accounts sign in here, on the admin panel.' },
 };
 
+// Campus choice: students belong to one campus; teachers and registrars may work at several.
+// Only shown when the caller can reach more than one campus.
+function campusFields(r, user) {
+  const list = ctx.info.campuses || [];
+  if (list.length < 2 || r === 'admin') return '';
+  const current = user?.campusIds?.length ? user.campusIds : [ctx.info.activeCampusId];
+  if (r === 'student') return html`<label class="field"><span>Campus</span><select name="campusIds">${list.map((c) => option(c.id, c.name, c.id === current[0]))}</select></label>`;
+  return html`<fieldset class="field span-3" style="border:0;padding:0;margin:0"><span>Works at</span>
+    <div class="days">${list.map((c) => html`<label><input type="checkbox" name="campusIds" value="${c.id}" ${current.includes(c.id) ? 'checked' : ''} /> ${c.name}</label>`)}</div>
+    <span class="hint">Administrators always reach every campus.</span></fieldset>`;
+}
+
 export function userDialog({ user = null, role, programs = [] }, onDone) {
   const r = user?.role || role;
   const staff = ROLES[r]?.side === 'admin';
@@ -31,6 +43,7 @@ export function userDialog({ user = null, role, programs = [] }, onDone) {
       ${r === 'teacher' ? html`
         <label class="field span-2"><span>Department</span><input name="department" value="${user?.department || ''}" /></label>
         <label class="field"><span>Employee number</span><input name="employeeNo" value="${user?.employeeNo || ''}" /></label>` : ''}
+      ${campusFields(r, user)}
       ${user
         ? (user.status === 'active' || user.status === 'disabled') && html`<label class="field"><span>Status</span><select name="status">${option('active', 'Active', user.status === 'active')}${option('disabled', 'Disabled (cannot sign in)', user.status === 'disabled')}</select></label>`
         : html`<label class="field"><span>Temporary password<em>*</em></span><input name="password" minlength="8" required /><span class="hint">At least 8 characters. Give it to the person.</span></label>
@@ -39,6 +52,9 @@ export function userDialog({ user = null, role, programs = [] }, onDone) {
     async onSubmit(form) {
       const v = formData(form);
       const body = { ...v, role: v.role || r, mustChangePassword: Boolean(v.mustChangePassword) };
+      const picked = form.querySelectorAll('[name=campusIds]');
+      if (picked.length) body.campusIds = [...picked].filter((i) => i.tagName === 'SELECT' || i.checked).map((i) => i.value);
+      else delete body.campusIds;
       const saved = user ? await api.put(`/api/admin/users/${user.id}`, body) : await api.post('/api/admin/users', body);
       toast(user ? 'Saved.' : `${saved.name} added${saved.studentNo ? ` as ${saved.studentNo}` : ''}.`);
       onDone(saved);
@@ -138,6 +154,7 @@ export async function personView(el, { id }) {
     <section class="card"><dl class="info-grid">
       ${u.role === 'student' ? html`${info('Student number', html`<span class="mono">${u.studentNo}</span>`)}${info('Program', u.program ? `${u.program.code} · ${u.program.name}` : '')}${info('Year level', `Year ${u.yearLevel || 1}`)}` : ''}
       ${u.role === 'teacher' ? html`${info('Department', u.department)}${info('Employee number', u.employeeNo)}` : ''}
+      ${info('Campus', (u.campusNames || []).join(', '))}
       ${info('Email', u.email)}
       ${info('Last sign-in', u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'Never')}
       ${info('Account created', fmtDate(u.createdAt.slice(0, 10)))}

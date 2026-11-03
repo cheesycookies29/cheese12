@@ -42,20 +42,22 @@ export function registerClassroomRoutes(route, ctx) {
   const studentsOf = (sectionId, statuses = IN_CLASS) =>
     data().enrollments.filter((e) => e.sectionId === sectionId && statuses.includes(e.status));
 
-  function myClasses(user, termId) {
+  // A teacher sees the sections they teach at the campus they have switched to;
+  // a student sees their own classes (all at their one campus).
+  function myClasses(user, termId, campusId) {
     const d = data();
     const sections = user.role === 'teacher'
-      ? d.sections.filter((s) => s.teacherId === user.id && s.status !== 'cancelled')
+      ? d.sections.filter((s) => s.teacherId === user.id && s.status !== 'cancelled' && (!campusId || s.campusId === campusId))
       : d.enrollments.filter((e) => e.studentId === user.id && IN_CLASS.includes(e.status)).map((e) => findById(d.sections, e.sectionId)).filter(Boolean);
     return sections.filter((s) => !termId || s.termId === termId);
   }
 
   // ----- Home and classes -----
-  route('GET', '/api/home', 'portal', ({ user }) => {
+  route('GET', '/api/home', 'portal', ({ user, campusId }) => {
     const d = data();
     const termId = d.settings.currentTermId;
     const on = (m) => moduleOn(d.modules, m, user.role);
-    const classes = myClasses(user, termId).map((s) => sectionView(d, s));
+    const classes = myClasses(user, termId, campusId).map((s) => sectionView(d, s));
     const ids = new Set(classes.map((c) => c.id));
     const out = { term: findById(d.terms, termId) || null, classes, announcements: [], due: [], upcoming: [], toGrade: [], requests: [], progress: {} };
     if (on('announcements')) {
@@ -90,8 +92,8 @@ export function registerClassroomRoutes(route, ctx) {
       }
     }
     if (on('news')) {
-      out.events = ctx.upcomingEvents().slice(0, 4);
-      out.news = d.news.slice().sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 3).map(({ reactions, comments, ...n }) => ({ ...n, comments: comments?.length || 0 }));
+      out.events = ctx.upcomingEvents(campusId).slice(0, 4);
+      out.news = d.news.filter((n) => n.campusId == null || n.campusId === campusId).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 3).map(({ reactions, comments, ...n }) => ({ ...n, comments: comments?.length || 0 }));
     }
     if (user.role === 'student' && on('enrollment')) {
       out.requests = d.enrollments.filter((e) => e.studentId === user.id && ['pending', 'waitlisted'].includes(e.status)).map((e) => enrollmentView(d, e));
@@ -99,9 +101,9 @@ export function registerClassroomRoutes(route, ctx) {
     return out;
   });
 
-  route('GET', '/api/classes', 'portal', ({ user, query }) => {
+  route('GET', '/api/classes', 'portal', ({ user, query, campusId }) => {
     const all = query.termId === 'all';
-    return myClasses(user, all ? null : query.termId || data().settings.currentTermId)
+    return myClasses(user, all ? null : query.termId || data().settings.currentTermId, campusId)
       .map((s) => ({ ...sectionView(data(), s), students: studentsOf(s.id).length }))
       .sort((a, b) => a.course.code.localeCompare(b.course.code));
   });
@@ -448,10 +450,10 @@ export function registerClassroomRoutes(route, ctx) {
   route('GET', '/api/activity-types', 'portal', () => data().activityTypes);
 
   // ----- Schedule -----
-  route('GET', '/api/schedule', 'portal', ({ user, query }) => {
+  route('GET', '/api/schedule', 'portal', ({ user, query, campusId }) => {
     const d = data();
     const termId = query.termId || d.settings.currentTermId;
-    if (user.role === 'teacher') return { termId, terms: d.terms, classes: myClasses(user, termId).map((s) => ({ ...sectionView(d, s), status: 'teaching' })) };
+    if (user.role === 'teacher') return { termId, terms: d.terms, classes: myClasses(user, termId, campusId).map((s) => ({ ...sectionView(d, s), status: 'teaching' })) };
     const classes = d.enrollments
       .filter((e) => e.studentId === user.id && e.termId === termId && ['enrolled', 'pending', 'completed'].includes(e.status))
       .map((e) => ({ ...sectionView(d, findById(d.sections, e.sectionId)), status: e.status }));
