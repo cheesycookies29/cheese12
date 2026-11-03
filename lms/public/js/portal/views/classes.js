@@ -323,6 +323,8 @@ async function attendance(el, c, state = {}) {
   const month = state.month || today().slice(0, 7);
   const date = state.date || today();
   const sheet = await api.get(`/api/classes/${c.id}/attendance?month=${month}`);
+  // Early in a month the grid would be empty: show the latest month that has attendance instead.
+  if (!state.month && !sheet.days.length && sheet.lastDate && !sheet.lastDate.startsWith(month)) return attendance(el, c, { ...state, month: sheet.lastDate.slice(0, 7) });
   const dayRec = sheet.days.find((d) => d.date === date)?.records || (date.startsWith(month) ? null : (await api.get(`/api/classes/${c.id}/attendance?month=${date.slice(0, 7)}`)).days.find((d) => d.date === date)?.records) || {};
   const [y, m] = month.split('-').map(Number);
   const days = sheet.days.map((d) => d.date);

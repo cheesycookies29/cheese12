@@ -31,7 +31,8 @@ export function registerAttendanceRoutes(route, ctx, { access, studentsOf }) {
       .map((u) => ({ id: u.id, name: u.name, studentNo: u.studentNo || '', summary: attendanceSummary(all, u.id) }))
       .sort((x, y) => x.name.localeCompare(y.name));
     const days = all.filter((r) => r.date.startsWith(month)).sort((x, y) => x.date.localeCompare(y.date)).map((r) => ({ date: r.date, records: r.records, takenBy: r.takenBy }));
-    return { month, today: today(), students, days, sessions: all.length };
+    const lastDate = all.reduce((m, r) => (r.date > m ? r.date : m), '');
+    return { month, today: today(), students, days, sessions: all.length, lastDate };
   }, { module: 'attendance' });
 
   route('PUT', '/api/classes/:id/attendance/:date', 'teacher', ({ user, params, body }) => {
