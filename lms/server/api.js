@@ -7,7 +7,7 @@
 //   'admin' | 'admin:<permission>'    signed in to the admin panel (optionally with that permission)
 // Portal routes may also name a module; the call is refused when an administrator
 // has switched that module off for the caller's account type.
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { HttpError, localDate, localDateTime, text } from './util.js';
 import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
@@ -30,7 +30,14 @@ const fail = (msg, status = 400) => {
 };
 
 // options.clock: () => Date, so tests can pin "today".
-export function createApi(db, { clock = () => new Date() } = {}) {
+// options.setupCode (or the SETUP_CODE environment variable): when set, creating the first
+// administrator also needs this code, so nobody else can claim a new server on the internet.
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '' } = {}) {
+  const sameCode = (given) => {
+    const a = createHash('sha256').update(String(given ?? '')).digest();
+    const b = createHash('sha256').update(setupCode).digest();
+    return timingSafeEqual(a, b);
+  };
   const routes = [];
   const sides = { portal: createSessions(), admin: createSessions() };
   const throttle = createThrottle();
@@ -189,12 +196,20 @@ export function createApi(db, { clock = () => new Date() } = {}) {
   // ----- Admin panel: sign-in -----
   route('GET', '/api/admin/auth/status', 'public', ({ adminUser }) => ({
     setupRequired: setupRequired(),
+    setupCodeRequired: setupRequired() && Boolean(setupCode),
     schoolName: db.data.settings.schoolName,
     branding: branding(),
     user: publicUser(adminUser),
   }));
   route('POST', '/api/admin/auth/setup', 'public', ({ body }) => {
     if (!setupRequired()) fail('Setup is already complete. Please sign in.');
+    if (setupCode) {
+      throttle.check('setup');
+      if (!sameCode(body.setupCode)) {
+        throttle.fail('setup');
+        fail('That setup code is not correct. It is the one chosen when the server was created.', 403);
+      }
+    }
     const fields = validateUserFields({ ...body, role: 'admin' }, db.data);
     validatePassword(body.password);
     users().push({ id: randomUUID(), ...fields, status: 'active', mustChangePassword: false, passwordHash: hashPassword(body.password), createdAt: new Date().toISOString() });

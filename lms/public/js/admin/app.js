@@ -71,6 +71,7 @@ function signedOutView(el, { status, boot }) {
         ${authLogo()}
         <h2>Welcome! Let's set up the LMS</h2>
         <p class="muted">Create the first <strong>Administrator</strong>. You can add registrars, teachers and students after signing in.</p>
+        ${status.setupCodeRequired ? html`<label class="field"><span>Setup code</span><input name="setupCode" autocomplete="off" required /><span class="hint">The code chosen when this server was created.</span></label>` : ''}
         <label class="field"><span>School name</span><input name="schoolName" value="${status.schoolName}" required /></label>
         <label class="field"><span>Your full name</span><input name="name" autocomplete="name" required /></label>
         <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="e.g. admin" required /></label>

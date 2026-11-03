@@ -2,7 +2,7 @@
 
 The learning management system of Lancaster Technology and Development Corporation (LTDC), a sibling of [LTDC ERP](../README.md).
 It is built the same way as the ERP: one Node.js program with **no dependencies**, a browser app with no build step, and all data in one file, `data/db.json`.
-It runs on your own computer for now. It is set up so it can move to AWS later (see [Moving to AWS](#moving-to-aws-later)).
+It runs on your own computer for now. It is set up so it can move to AWS later (see [Putting it online](#putting-it-online-aws)).
 
 Everyone starts at the **University Portal**, the school's single front door to its four systems:
 
@@ -187,14 +187,11 @@ lms/
 
 Guardian accounts, messages/chat, single sign-on (Keycloak/OIDC), question banks, copying lessons and activities between sections, certificates, a term-end "close term" step, email notifications and an audit log. See the roadmap in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
-## Moving to AWS later
+## Putting it online (AWS)
 
-It already follows the ERP's cloud setup, so the ERP's [EC2 guide](../deploy/aws/EC2.md) applies almost as is (service name `ltdc-lms`, port 3100, start command `node server.js` in `lms/`):
+Follow **[deploy/aws/EC2.md](deploy/aws/EC2.md)**: one CloudFormation template (`deploy/aws/lms-ec2.yaml`) builds an EC2 server in a few clicks, with HTTPS at a DuckDNS address, a fixed IP, nightly backups, daily disk snapshots, security updates and automatic updates from this branch (installed only if the tests pass on the server, rolled back if they don't start). A **setup code** chosen in the template protects the first administrator account.
 
-- `COOKIE_SECURE=1` (sign-in cookies over HTTPS only), `ALLOWED_HOSTS=lms.example.com` (the address it is served at), `HOST`, `PORT`, `DB_FILE`.
-- `GET /healthz` answers `{ "ok": true }` for a load balancer or uptime check.
-- `npm run create-admin -- <username> "<Full Name>"` creates the first administrator from the server, before the site is reachable.
-- Serve `/admin` from the same address, or put it behind an extra restriction (e.g. an office IP allow-list on the load balancer path `/admin*` and `/api/admin/*`).
+The app reads these settings (all set by the template): `COOKIE_SECURE=1`, `ALLOWED_HOSTS` (the site's address), `HOST`, `PORT`, `DB_FILE`, `SETUP_CODE`. `GET /healthz` answers `{ "ok": true }`.
 
 When one server is no longer enough:
 

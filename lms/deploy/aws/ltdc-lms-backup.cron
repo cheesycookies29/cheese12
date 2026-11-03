@@ -1,0 +1,4 @@
+# Nightly copy of the LMS data at 2:15 AM Philippine time; uploaded files mirrored at 2:20 AM.
+# Copies older than 30 days are deleted. Daily disk snapshots (7 kept) are taken by AWS as well.
+15 2 * * * ltdc-lms cp /opt/ltdc-lms/data/db.json /opt/ltdc-lms/data/backups/db-$(date +\%F).json && find /opt/ltdc-lms/data/backups -name 'db-*.json' -mtime +30 -delete
+20 2 * * * ltdc-lms mkdir -p /opt/ltdc-lms/data/files /opt/ltdc-lms/data/backups/files && rsync -a /opt/ltdc-lms/data/files/ /opt/ltdc-lms/data/backups/files/

@@ -75,3 +75,16 @@ test('portal feed follows the News & events module', async () => {
   assert.deepEqual((await s1.get('/api/hub/feed')).news, []);
   assert.equal((await admin.get('/api/hub/feed')).news.length, 1, 'administrators always see it');
 });
+
+test('a setup code protects the first administrator on a new server', async () => {
+  const { memoryDb } = await import('../server/db.js');
+  const { createApi } = await import('../server/api.js');
+  const api = createApi(memoryDb(), { setupCode: 'orange-river-42' });
+  const call = (method, path, body = {}) => api({ method, headers: {} }, new URL(`http://localhost${path}`), body);
+  assert.equal((await call('GET', '/api/admin/auth/status')).data.setupCodeRequired, true);
+  const form = { name: 'A', username: 'admin', password: 'password123' };
+  await assert.rejects(call('POST', '/api/admin/auth/setup', form), /setup code is not correct/);
+  await assert.rejects(call('POST', '/api/admin/auth/setup', { ...form, setupCode: 'wrong' }), /setup code is not correct/);
+  await call('POST', '/api/admin/auth/setup', { ...form, setupCode: 'orange-river-42' });
+  assert.equal((await call('GET', '/api/admin/auth/status')).data.setupCodeRequired, false);
+});

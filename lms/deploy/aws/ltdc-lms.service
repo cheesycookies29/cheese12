@@ -1,0 +1,23 @@
+# LTDC LMS: starts at boot and restarts if it stops. Settings: /etc/ltdc-lms/app.env
+[Unit]
+Description=LTDC University Portal and LMS
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ltdc-lms
+Group=ltdc-lms
+WorkingDirectory=/opt/ltdc-lms
+EnvironmentFile=/etc/ltdc-lms/app.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+# The app may only write to its data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/ltdc-lms/data
+
+[Install]
+WantedBy=multi-user.target
