@@ -1,7 +1,7 @@
 // IT Service Desk. Tickets come from the portal (any signed-in user), from agents, and
 // from a mailbox the helpdesk reads over IMAP. Agents reply publicly or add internal
 // notes; replies can go out by email over SMTP and come back threaded on the ticket.
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { HttpError } from './util.js';
 import { ROLES, can, userCan } from '../shared/roles.js';
 import {
@@ -22,6 +22,12 @@ const POLL_BATCH = 25;
 const NEW_TICKETS_PER_SENDER_PER_HOUR = 20;
 const VIEWER_WINDOW_MS = 60000;
 const MAX_EMAIL_BYTES = 25 * 1024 * 1024;
+// The public form (anyone, no account): limits per visitor address and per email address.
+const PUBLIC_PER_IP_PER_HOUR = 5;
+const PUBLIC_PER_EMAIL_PER_DAY = 10;
+const PUBLIC_REPLIES_PER_IP_PER_HOUR = 30;
+const PUBLIC_MIN_FILL_MS = 2500;
+const PUBLIC_MAX_FILES = 3;
 
 export function emptyHelpdesk() {
   return {
@@ -38,6 +44,12 @@ export function emptyHelpdesk() {
     outgoing: { enabled: false, host: '', port: 587, security: 'starttls', user: '', passwordSealed: null, sameLogin: true },
     mailState: { lastPollAt: null, lastOkAt: null, lastError: null, lastImported: 0, totalImported: 0, lastSkipped: [] },
     seenMessageIds: [],
+    // The public link (/support) where anyone, inside or outside the company, can send a complaint or request.
+    publicForm: {
+      enabled: false, title: 'Contact our service desk',
+      intro: 'Tell us about a problem, a complaint or a request. We will reply by email, and you can follow your request with the link we give you.',
+      categories: ['Customer complaint', 'Other'], defaultPriority: 'normal', requirePhone: false, allowFiles: true,
+    },
   };
 }
 
@@ -54,6 +66,12 @@ export function migrateHelpdesk(db) {
   if (!db.data.helpdesk) (db.data.helpdesk = emptyHelpdesk()), (changed = true);
   else for (const [k, v] of Object.entries(emptyHelpdesk())) if (!(k in db.data.helpdesk)) (db.data.helpdesk[k] = v), (changed = true);
   if (!Array.isArray(db.data.tickets)) (db.data.tickets = []), (changed = true);
+  // The public form's default category, for helpdesks set up before it existed.
+  const cats = db.data.helpdesk.categories;
+  if (db.data.helpdesk.publicForm.categories.includes('Customer complaint') && !cats.includes('Customer complaint')) {
+    cats.splice(Math.max(0, cats.length - 1), 0, 'Customer complaint');
+    changed = true;
+  }
   return changed;
 }
 
@@ -110,7 +128,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     const s = summary(t);
     const visible = (m) => !forRequester || m.kind === 'reply' || (m.kind === 'event' && m.public);
     const messages = t.messages.filter(visible).map(({ emailMessageId, email, ...m }) => (forRequester ? m : { ...m, email }));
-    return { ...s, ccs: forRequester ? [] : t.ccs, messages };
+    return { ...s, ccs: forRequester ? [] : t.ccs, messages, ...(forRequester ? {} : { publicUrl: t.publicUrl || null }) };
   };
 
   // ----- Creating and updating -----
@@ -185,7 +203,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     const refs = t.emailIds.slice(-10);
     const raw = composeMessage({
       from, to: [{ name: t.requester.name, email: t.requester.email }], subject: `${subjectPrefix}[${t.ref}] ${t.subject}`,
-      text: `${REPLY_MARKER}\n\n${text}\n\n--\n${from.name}\nTicket ${t.ref}: ${t.subject}`, messageId, inReplyTo: refs.at(-1), references: refs, auto,
+      text: `${REPLY_MARKER}\n\n${text}\n\n--\n${from.name}\nTicket ${t.ref}: ${t.subject}${t.publicUrl ? `\nFollow your request: ${t.publicUrl}` : ''}`, messageId, inReplyTo: refs.at(-1), references: refs, auto,
     });
     try {
       await sendMail(smtpOptions(), { from: from.email, to: [t.requester.email, ...t.ccs].slice(0, 10), raw });
@@ -374,6 +392,101 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     return files.read(msg.attachments.find((a) => a.id === params.fileId));
   });
 
+  // ===== Routes: the public form (no account) =====
+  // Visitors are identified only by a long random tracking token, and limited per address.
+  const hits = new Map(); // key -> timestamps
+  const limited = (key, max, windowMs) => {
+    const cutoff = Date.now() - windowMs;
+    const list = (hits.get(key) || []).filter((t) => t > cutoff);
+    if (list.length >= max) return true;
+    list.push(Date.now());
+    hits.set(key, list);
+    return false;
+  };
+  const form = () => hd().publicForm;
+  const companyName = () => db.data.settings.companyName;
+  const byToken = (token) => {
+    const t = typeof token === 'string' && token.length >= 20 && tickets().find((x) => x.publicToken === token);
+    if (!t) throw new HttpError(404, 'This tracking link is not valid. Check that you copied the whole link.');
+    return t;
+  };
+  // What a visitor may see: replies and status changes, never notes or internal history.
+  const publicView = (t) => ({
+    ref: t.ref, subject: t.subject, status: t.status, category: t.category, createdAt: t.createdAt, updatedAt: t.updatedAt,
+    requesterName: t.requester.name, companyName: companyName(), canReply: t.status !== 'closed', allowFiles: form().allowFiles,
+    messages: t.messages.filter((m) => m.kind === 'reply' || (m.kind === 'event' && m.public)).map((m) => ({
+      id: m.id, kind: m.kind, at: m.at, body: m.body,
+      author: m.kind === 'event' ? null : m.author.role === 'agent' ? `${m.author.name.split(' ')[0]} (${hd().mailbox.displayName || 'Service desk'})` : m.author.name,
+      fromRequester: m.author.role === 'requester', attachments: (m.attachments || []).map((a) => ({ id: a.id, name: a.name, size: a.size })),
+    })),
+  });
+  const visitorText = (v, max, label, min = 1) => {
+    const text = str(v, max);
+    if (text.length < min) throw new HttpError(400, label);
+    return text;
+  };
+
+  route('GET', '/api/public/helpdesk', 'public', () => {
+    const f = form();
+    if (!f.enabled) return { enabled: false, companyName: companyName() };
+    return { enabled: true, companyName: companyName(), title: f.title, intro: f.intro, categories: f.categories, requirePhone: f.requirePhone, allowFiles: f.allowFiles, maxFiles: PUBLIC_MAX_FILES };
+  });
+  route('POST', '/api/public/helpdesk/tickets', 'public', async ({ body, ip, origin }) => {
+    const f = form();
+    if (!f.enabled) throw new HttpError(403, 'This form is not accepting requests at the moment.');
+    // A hidden field people never see; automated spam fills it in. Answer as if it worked.
+    if (str(body.website, 200)) return { ok: true, ref: null, trackUrl: null };
+    if (!(Number(body.elapsedMs) >= PUBLIC_MIN_FILL_MS)) throw new HttpError(400, 'Please review your message, then submit it again.');
+    const name = visitorText(body.name, 120, 'Enter your name.');
+    const email = str(body.email, 200).toLowerCase();
+    if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Enter a valid email address so we can reply to you.');
+    const phone = str(body.phone, 40);
+    if (f.requirePhone && phone.replace(/\D/g, '').length < 7) throw new HttpError(400, 'Enter a phone number we can call you on.');
+    if (phone && !/^[0-9+()\-.\s]{7,40}$/.test(phone)) throw new HttpError(400, 'Enter the phone number using digits only (spaces, +, - and brackets are fine).');
+    const organization = str(body.organization, 120);
+    const category = f.categories.includes(body.category) ? body.category : null;
+    if (!category) throw new HttpError(400, 'Choose what your message is about.');
+    const subject = visitorText(body.subject, 200, 'Add a short subject.');
+    const message = visitorText(body.message, 5000, 'Describe the issue in a sentence or two.', 10);
+    if (limited(`ip:${ip}`, PUBLIC_PER_IP_PER_HOUR, 3600000) || limited(`email:${email}`, PUBLIC_PER_EMAIL_PER_DAY, 86400000)) {
+      throw new HttpError(429, 'We have received several requests from you recently. Please wait a while, or reply on the tracking link of an earlier request.');
+    }
+    const list = f.allowFiles && Array.isArray(body.attachments) ? body.attachments.slice(0, PUBLIC_MAX_FILES) : [];
+    const { saved } = saveFiles(list);
+    // Someone from the company is matched to their account, so the ticket also shows in their My tickets.
+    const known = userByEmail(email);
+    const requester = { userId: known?.id || null, name, email, phone: phone || null, organization: organization || null, external: !known };
+    const t = newTicket({ subject, body: message, requester, channel: 'web', priority: f.defaultPriority, category, attachments: saved });
+    t.publicToken = randomBytes(24).toString('base64url');
+    t.publicUrl = `${origin}/support/t/${t.publicToken}`;
+    if (hd().autoAcknowledge) {
+      const text = hd().ackTemplate.replaceAll('{name}', name.split(' ')[0]).replaceAll('{ref}', t.ref).replaceAll('{subject}', t.subject);
+      const sent = await emailRequester(t, text, { auto: true, subjectPrefix: '' });
+      if (sent.status !== 'not_sent') event(t, null, sent.status === 'sent' ? 'Acknowledgement emailed to the requester' : `Acknowledgement email failed: ${sent.reason}`);
+    }
+    db.save();
+    return { ok: true, ref: t.ref, token: t.publicToken, trackUrl: t.publicUrl, emailed: t.messages.some((m) => m.kind === 'event' && /Acknowledgement emailed/.test(m.body)) };
+  });
+  route('GET', '/api/public/helpdesk/track/:token', 'public', ({ params }) => publicView(byToken(params.token)));
+  route('POST', '/api/public/helpdesk/track/:token/messages', 'public', ({ params, body, ip }) => {
+    const t = byToken(params.token);
+    if (t.status === 'closed') throw new HttpError(400, 'This request is closed. Please send a new request and mention its number.');
+    const text = visitorText(body.message, 5000, 'Write your message.');
+    if (limited(`reply:${ip}`, PUBLIC_REPLIES_PER_IP_PER_HOUR, 3600000)) throw new HttpError(429, 'Too many messages in a short time. Please wait a while.');
+    const { saved } = saveFiles(form().allowFiles && Array.isArray(body.attachments) ? body.attachments.slice(0, PUBLIC_MAX_FILES) : []);
+    t.messages.push({ id: randomUUID(), kind: 'reply', author: { userId: t.requester.userId, name: t.requester.name, email: t.requester.email, role: 'requester' }, body: text, at: now(), via: 'web', attachments: saved });
+    if (['pending', 'resolved'].includes(t.status)) setStatus(t, 'open', null);
+    t.updatedAt = now();
+    db.save();
+    return publicView(t);
+  });
+  route('GET', '/api/public/helpdesk/track/:token/files/:fileId', 'public', ({ params }) => {
+    const t = byToken(params.token);
+    const m = t.messages.find((x) => (x.kind === 'reply') && x.attachments?.some((a) => a.id === params.fileId));
+    if (!m) throw new HttpError(404, 'File not found.');
+    return files.read(m.attachments.find((a) => a.id === params.fileId));
+  });
+
   // ===== Routes: agents =====
   route('GET', '/api/helpdesk/summary', 'helpdesk.agent', ({ user }) => {
     const open = tickets().filter((t) => UNRESOLVED_TICKET.includes(t.status));
@@ -535,6 +648,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     return {
       mailbox: strip(hd().mailbox), outgoing: strip(hd().outgoing), mailState: hd().mailState,
       categories: hd().categories, sla: hd().sla, canned: hd().canned, autoCloseDays: hd().autoCloseDays, autoAcknowledge: hd().autoAcknowledge, ackTemplate: hd().ackTemplate,
+      publicForm: hd().publicForm,
     };
   };
   const port = (v, label) => {
@@ -633,6 +747,24 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       autoAcknowledge: Boolean(body.autoAcknowledge), ackTemplate: template || emptyHelpdesk().ackTemplate,
     });
     if (!cats.includes(hd().mailbox.defaultCategory)) hd().mailbox.defaultCategory = cats.at(-1);
+    hd().publicForm.categories = hd().publicForm.categories.filter((c) => cats.includes(c));
+    if (!hd().publicForm.categories.length) hd().publicForm.categories = [cats.at(-1)];
+    db.save();
+    return publicSettings();
+  });
+  // The public form: on or off, its wording, and which categories visitors can choose.
+  route('PUT', '/api/helpdesk/settings/public-form', 'helpdesk.manage', ({ body }) => {
+    const categories = (Array.isArray(body.categories) ? body.categories : []).filter((c) => hd().categories.includes(c));
+    if (!categories.length) throw new HttpError(400, 'Choose at least one category visitors can pick.');
+    hd().publicForm = {
+      enabled: Boolean(body.enabled),
+      title: str(body.title, 100) || emptyHelpdesk().publicForm.title,
+      intro: str(body.intro, 1000),
+      categories,
+      defaultPriority: TICKET_PRIORITY[body.defaultPriority] ? body.defaultPriority : 'normal',
+      requirePhone: Boolean(body.requirePhone),
+      allowFiles: body.allowFiles !== false,
+    };
     db.save();
     return publicSettings();
   });

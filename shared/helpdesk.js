@@ -15,7 +15,7 @@ export const UNRESOLVED_TICKET = ['new', 'open', 'pending', 'on_hold'];
 
 export const TICKET_PRIORITY = { low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent' };
 
-export const TICKET_CHANNEL = { portal: 'Portal', email: 'Email', agent: 'Agent' };
+export const TICKET_CHANNEL = { portal: 'Portal', email: 'Email', agent: 'Agent', web: 'Web form' };
 
 export const DEFAULT_CATEGORIES = [
   'Hardware',
@@ -24,6 +24,7 @@ export const DEFAULT_CATEGORIES = [
   'Network and internet',
   'Email',
   'Printer and peripherals',
+  'Customer complaint',
   'Other',
 ];
 

@@ -216,7 +216,8 @@ export async function ticketView(el, { id }) {
             <dl class="hd-dl">
               <div><dt>First response</dt><dd>${t.firstResponseAt ? html`${when(t.firstResponseAt)} ${new Date(t.firstResponseAt) <= new Date(t.firstResponseDue) ? badge('Met', 'green') : badge('Late', 'amber')}` : html`due ${when(t.firstResponseDue)} ${slaCell(t)}`}</dd></div>
               <div><dt>Resolution</dt><dd>${t.resolvedAt ? when(t.resolvedAt) : `due ${when(t.resolutionDue)}`}</dd></div>
-              <div><dt>Requester</dt><dd>${t.requester.name}<small>${t.requester.email || 'No email on file'}</small></dd></div>
+              <div><dt>Requester</dt><dd>${t.requester.name}${t.requester.external ? html` ${badge('Outside the company', 'gray')}` : ''}<small>${t.requester.email || 'No email on file'}</small>${t.requester.phone ? html`<small>${t.requester.phone}</small>` : ''}${t.requester.organization ? html`<small>${t.requester.organization}</small>` : ''}</dd></div>
+              ${t.publicUrl ? html`<div><dt>Requester's tracking link</dt><dd><button type="button" class="link" id="copy-track">Copy link</button><small>Opens this ticket for the requester without signing in. Share only with them.</small></dd></div>` : ''}
               ${t.ccs.length ? html`<div><dt>Copied</dt><dd>${t.ccs.join(', ')}</dd></div>` : ''}
             </dl>
           </section>
@@ -260,6 +261,14 @@ export async function ticketView(el, { id }) {
       } catch (err) {
         toast(err.message, 'error');
         render();
+      }
+    });
+    el.querySelector('#copy-track')?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(t.publicUrl);
+        toast('Tracking link copied.');
+      } catch {
+        toast(t.publicUrl);
       }
     });
     el.querySelector('#delete')?.addEventListener('click', async () => {
@@ -434,7 +443,7 @@ const PRESETS = {
 export async function helpdeskSettingsView(el) {
   let [s, access] = await Promise.all([api.get('/api/helpdesk/settings'), api.get('/api/helpdesk/agent-access')]);
   const asked = new URLSearchParams(location.hash.split('?')[1] || '').get('tab');
-  const tab = { current: ['mailbox', 'outgoing', 'general', 'agents'].includes(asked) ? asked : 'mailbox' };
+  const tab = { current: ['mailbox', 'outgoing', 'general', 'public', 'agents'].includes(asked) ? asked : 'mailbox' };
 
   const secField = (name, value) => html`<select name="${name}"><option value="tls" ${value === 'tls' ? 'selected' : ''}>SSL/TLS</option><option value="starttls" ${value === 'starttls' ? 'selected' : ''}>STARTTLS</option><option value="none" ${value === 'none' ? 'selected' : ''}>None (not recommended)</option></select>`;
   const pw = (cfg, name = 'password') => html`<input type="password" name="${name}" autocomplete="new-password" placeholder="${cfg.hasPassword ? '•••••••• saved (leave blank to keep)' : 'Mailbox or app password'}" />`;
@@ -524,6 +533,40 @@ export async function helpdeskSettingsView(el) {
   }
 
   // Which accounts work tickets: account-type default, or granted / removed here.
+  // The public link where anyone can send a complaint or request without an account.
+  const formUrl = `${location.origin}/support`;
+  function publicTab() {
+    const f = s.publicForm;
+    const local = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+    return html`<section class="card">
+      <div class="card-head"><h2>Public complaint and request form</h2>${f.enabled ? badge('Accepting', 'green') : badge('Off', 'gray')}</div>
+      <p class="muted">A page anyone can open without an account, inside or outside the company, to send a complaint or request. Each one becomes a ticket on the <strong>Web form</strong> channel. The sender gets a reference number and a private link to follow the ticket and reply; if outgoing email is set up, replies are also emailed to them.</p>
+      <div class="field"><span>Link to share</span>
+        <div class="pf-link"><input readonly value="${formUrl}" id="pf-url" aria-label="Public form link" /><button type="button" class="btn small-btn" id="pf-copy">Copy link</button><a class="btn small-btn" href="${formUrl}" target="_blank" rel="noopener">Open form</a></div>
+        ${local ? html`<small class="hd-error">You are using the app at ${location.host}. People outside this computer can't open that address: share the link from the online address (for example your EC2 https address) instead.</small>` : html`<small class="muted">Put it on your website, email signature, receipts or a QR code.</small>`}
+      </div>
+      <form id="public-form" class="grid two" novalidate>
+        <label class="field check span-2"><input type="checkbox" name="enabled" ${f.enabled ? 'checked' : ''} /> <span>Accept requests from this link</span></label>
+        <label class="field span-2"><span>Page title</span><input name="title" value="${f.title}" maxlength="100" /></label>
+        <label class="field span-2"><span>Introduction</span><textarea name="intro" rows="3" maxlength="1000">${f.intro}</textarea></label>
+        <div class="field span-2"><span>Categories visitors can choose</span>
+          <div class="pf-cats">${s.categories.map((c) => html`<label class="check"><input type="checkbox" name="categories" value="${c}" ${f.categories.includes(c) ? 'checked' : ''} /> ${c}</label>`)}</div>
+          <small class="muted">Add categories (e.g. Billing, Delivery, Product quality) under Tickets &amp; replies.</small></div>
+        <label class="field"><span>Priority for these tickets</span><select name="defaultPriority">${Object.entries(TICKET_PRIORITY).map(([k, v]) => html`<option value="${k}" ${k === f.defaultPriority ? 'selected' : ''}>${v}</option>`)}</select></label>
+        <div class="field"><span>Options</span>
+          <label class="check"><input type="checkbox" name="requirePhone" ${f.requirePhone ? 'checked' : ''} /> Phone number is required</label>
+          <label class="check"><input type="checkbox" name="allowFiles" ${f.allowFiles ? 'checked' : ''} /> Visitors can attach photos or PDFs (up to 3)</label></div>
+        <p class="form-error span-2" hidden></p>
+        <div class="actions span-2"><button class="btn primary" type="submit">Save</button></div>
+      </form>
+    </section>
+    <section class="card"><h2>Button for your website</h2>
+      <p class="muted small">Paste this into a web page to add a "Contact us" button that opens the form.</p>
+      <textarea class="pf-snippet" rows="3" readonly>&lt;a href="${formUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#5d0013;color:#fff;font:600 15px sans-serif;text-decoration:none"&gt;Send us a request&lt;/a&gt;</textarea>
+      <p class="muted small">Spam protection: a hidden trap field, a minimum time to fill the form, and limits of ${5} requests per visitor per hour and ${10} per email address per day.</p>
+    </section>`;
+  }
+
   function agentsTab() {
     const agents = access.filter((u) => u.agent).length;
     const source = (u) => (u.locked ? 'Administrator: always' : u.override === null ? `By account type (${u.roleLabel})` : u.override ? 'Added here' : 'Removed here');
@@ -546,8 +589,8 @@ export async function helpdeskSettingsView(el) {
   function render() {
     mount(el, html`
       <header class="page-head"><div><h1>Service desk settings</h1><p class="muted">Where the helpdesk receives email, how it replies, how tickets are handled, and who works them.</p></div></header>
-      <nav class="tabs">${[['mailbox', 'Receiving email'], ['outgoing', 'Sending email'], ['general', 'Tickets & replies'], ['agents', 'Agents']].map(([k, v]) => html`<a href="#/helpdesk/settings?tab=${k}" data-tab="${k}" class="${k === tab.current ? 'active' : ''}">${v}</a>`)}</nav>
-      <div id="tab">${{ mailbox: mailboxTab, outgoing: outgoingTab, general: generalTab, agents: agentsTab }[tab.current]()}</div>`);
+      <nav class="tabs">${[['mailbox', 'Receiving email'], ['outgoing', 'Sending email'], ['general', 'Tickets & replies'], ['public', 'Public form'], ['agents', 'Agents']].map(([k, v]) => html`<a href="#/helpdesk/settings?tab=${k}" data-tab="${k}" class="${k === tab.current ? 'active' : ''}">${v}</a>`)}</nav>
+      <div id="tab">${{ mailbox: mailboxTab, outgoing: outgoingTab, general: generalTab, public: publicTab, agents: agentsTab }[tab.current]()}</div>`);
     el.querySelectorAll('[data-tab]').forEach((a) => a.addEventListener('click', (e) => {
       e.preventDefault();
       tab.current = a.dataset.tab;
@@ -622,6 +665,25 @@ export async function helpdeskSettingsView(el) {
         body: html`<label class="field"><span>Send to</span><input name="to" type="email" required placeholder="you@company.com" /></label><p class="muted small">Uses the saved settings. Save any changes first.</p>`,
         onSubmit: async (f) => toast((await api.post('/api/helpdesk/settings/outgoing/test', { to: new FormData(f).get('to') })).message),
       }));
+    }
+    const pf = el.querySelector('#public-form');
+    if (pf) {
+      // f.elements: a form's own .title property would shadow the "title" field.
+      saveForm(pf, '/api/helpdesk/settings/public-form', (f) => {
+        const x = f.elements;
+        return {
+          enabled: x.enabled.checked, title: x.title.value, intro: x.intro.value, defaultPriority: x.defaultPriority.value,
+          categories: [...f.querySelectorAll('[name=categories]:checked')].map((c) => c.value), requirePhone: x.requirePhone.checked, allowFiles: x.allowFiles.checked,
+        };
+      });
+      el.querySelector('#pf-copy').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(formUrl);
+          toast('Link copied.');
+        } catch {
+          el.querySelector('#pf-url').select();
+        }
+      });
     }
     const agentTable = el.querySelector('.agent-table');
     if (agentTable) {

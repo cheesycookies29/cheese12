@@ -51,7 +51,9 @@ function serveStatic(url, res) {
     if (fs.existsSync(file) && fs.statSync(file).isFile()) {
       return send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || 'application/octet-stream');
     }
-    if (prefix === '/') return send(res, 200, fs.readFileSync(path.join(dir, 'index.html')), 'text/html');
+    // /support and /support/t/<token> are the public helpdesk form; everything else is the app.
+    const page = url.pathname === '/support' || url.pathname.startsWith('/support/') ? 'support.html' : 'index.html';
+    if (prefix === '/') return send(res, 200, fs.readFileSync(path.join(dir, page)), 'text/html');
     return send(res, 404, 'Not found', 'text/plain');
   }
 }

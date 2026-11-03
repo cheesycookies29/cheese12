@@ -220,6 +220,22 @@ function findUser(db, id) {
   return user;
 }
 
+// The visitor's address. Behind the local HTTPS proxy (Caddy) it comes from X-Forwarded-For;
+// that header is trusted only from this machine, so it can't be faked from outside.
+function clientIp(req) {
+  const remote = req.socket?.remoteAddress || '';
+  const forwarded = req.headers?.['x-forwarded-for'];
+  if (forwarded && /^(127\.|::1$|::ffff:127\.)/.test(remote)) return String(forwarded).split(',')[0].trim();
+  return remote || 'local';
+}
+
+// The address people use to reach the app, e.g. https://erp.company.com, for links in emails.
+function publicOrigin(req) {
+  const local = /^(127\.|::1$|::ffff:127\.)/.test(req.socket?.remoteAddress || '');
+  const proto = local && req.headers?.['x-forwarded-proto'] === 'https' ? 'https' : req.socket?.encrypted ? 'https' : 'http';
+  return `${proto}://${req.headers?.host || 'localhost'}`;
+}
+
 // One-time changes to company settings that a release brings. Each runs once per database;
 // afterwards the setting can be changed in Payroll Setup as usual.
 const POLICY_UPDATES = [
@@ -643,7 +659,7 @@ export function createApi(db) {
         if (r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
       }
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token });
+      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip: clientIp(req), origin: publicOrigin(req) });
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }
     throw new HttpError(404, 'Not found.');

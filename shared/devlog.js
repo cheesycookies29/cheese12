@@ -26,6 +26,24 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.6.0-alpha',
+    date: '2026-11-03',
+    title: 'Public complaint and request form',
+    modules: ['system'],
+    notes: 'Added a public link for the IT Service Desk where anyone, inside or outside the organization, can submit a complaint or request without an account.',
+    changes: [
+      ['new', 'system', 'Public page at /support: name, email, optional phone and organization, category, subject, details and up to 3 attachments. Submissions become tickets on the new Web form channel.'],
+      ['new', 'system', 'Private tracking link per submission (/support/t/...): the sender sees status changes and replies, never internal notes, and can reply; a reply reopens a resolved ticket. The confirmation and every agent reply email include the link.'],
+      ['new', 'system', 'Service desk settings > Public form: turn the form on or off, copy the link, set the title, introduction, visitor categories, priority, phone requirement and attachments, and copy a website button snippet. New default category: Customer complaint.'],
+      ['new', 'system', 'Spam and abuse protection: hidden trap field, minimum fill time, 5 submissions per visitor address per hour, 10 per email address per day, 30 replies per address per hour. The visitor address is taken from the HTTPS proxy only when the request comes through it.'],
+      ['improved', 'system', 'Tickets show whether the requester is outside the company, with their phone and organization, and agents can copy the requester\'s tracking link. Submissions from an employee\'s email are matched to their account and appear in My tickets.'],
+    ],
+    known: [
+      'There is no CAPTCHA; if automated spam gets through the current protection, a CAPTCHA can be added.',
+      'Anyone holding a tracking link can read and reply to that one ticket, so it should be shared only with the requester.',
+    ],
+  },
+  {
     version: '0.5.2-alpha',
     date: '2026-10-28',
     title: 'Demo data added next to real data',
