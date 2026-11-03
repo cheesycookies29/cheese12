@@ -15,7 +15,8 @@ export function applyBranding(b = {}) {
   if (b.accent) root.setProperty('--accent', b.accent);
   const meta = document.querySelector('meta[name=theme-color]') || document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'theme-color' }));
   meta.content = b.brand || '#5d0013';
-  document.title = `${b.schoolName || 'LMS'}${document.body.classList.contains('admin-panel') ? ' · Admin panel' : ' · LMS'}`;
+  const app = document.body.dataset.app || (document.body.classList.contains('admin-panel') ? 'Admin panel' : 'LMS');
+  document.title = `${b.schoolName || 'LMS'} · ${app}`;
 }
 export const logoSrc = (b = ctx.info?.branding, onDark = false) => b?.logo || (onDark ? '/img/logo-white.png' : '/img/logo.png');
 
@@ -163,7 +164,9 @@ export function openChangePassword(authBase) {
 
 // ----- The app -----
 // config:
-//   side: 'admin' | 'portal'; authBase: '/api/admin/auth' | '/api/auth'
+//   side: 'admin' | 'portal' | 'hris'; authBase: '/api/admin/auth' | '/api/auth' | '/api/hris/auth'
+//   appName: the line under the school name; short: the app's short name (sidebar footer)
+//   passwordView(el): replaces the built-in "choose a new password" screen
 //   routes: [[pattern, view, allowed(user, info) => bool]]
 //   nav(): [{ href, label, icon, heading, badge, exact, also, external }]
 //   home(): default path; signedOutView(el, { status, boot }); badges: { name: () => Promise<number> }
@@ -185,7 +188,7 @@ export function startApp(config) {
     const b = ctx.info.branding;
     applyBranding(b);
     document.getElementById('school-name').textContent = b.schoolName;
-    mount(document.getElementById('brand-sub'), html`${config.side === 'admin' ? html`Admin panel <span class="side-chip">ADMIN</span>` : 'Learning Management System'}${ctx.info.campusName ? html` · <strong class="campus-name">${ctx.info.campusName}</strong>` : ''}${b.termName ? ` · ${b.termName}` : ''}`);
+    mount(document.getElementById('brand-sub'), html`${config.side === 'admin' ? html`Admin panel <span class="side-chip">ADMIN</span>` : config.appName || 'Learning Management System'}${ctx.info.campusName ? html` · <strong class="campus-name">${ctx.info.campusName}</strong>` : ''}${b.termName ? ` · ${b.termName}` : ''}`);
     renderThemeButton();
   }
 
@@ -198,7 +201,7 @@ export function startApp(config) {
           ? html`<a href="${n.href}" target="_blank" rel="noopener" title="${n.label}">${icon(n.icon || 'external')}<span class="label">${n.label}</span></a>`
           : html`<a href="#${n.href}" title="${n.label}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${icon(n.icon || 'file')}<span class="label">${n.label}</span>${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
     )}`);
-    document.getElementById('side-foot').textContent = `LTDC LMS · ${ctx.info.branding.schoolName}`;
+    document.getElementById('side-foot').textContent = `LTDC ${config.short || 'LMS'} · ${ctx.info.branding.schoolName}`;
   }
 
   function renderUserBox() {
@@ -317,6 +320,7 @@ export function startApp(config) {
     ctx.user = status.user;
     applyBranding(status.branding);
     if (!ctx.user) return showAuth((el) => config.signedOutView(el, { status, boot: () => boot({ fresh: true }) }));
+    if (ctx.user.mustChangePassword && config.passwordView) return showAuth(config.passwordView);
     if (ctx.user.mustChangePassword) {
       return showAuth((el) => forcePasswordView(el, { admin: config.side === 'admin', authBase: config.authBase, onDone: () => boot({ fresh: true }), onSignOut: signOut }));
     }
@@ -357,7 +361,7 @@ export const pageHead = (title, sub = '', actions = '', back = '') => {
   return html`
   <div class="page-head">
     <div>
-      ${trail.length ? html`<nav class="crumbs" aria-label="Breadcrumb">${trail.map(([href, label]) => html`<a href="#${href}">${label}</a>${icon('chevronRight', 14)}`)}<span class="cur">${typeof title === 'string' ? title : ''}</span></nav>` : ''}
+      ${trail.length ? html`<nav class="crumbs" aria-label="Breadcrumb">${trail.map(([href, label]) => html`<a href="#${href}">${label}</a>${icon('chevronRight', 14)}`)}<span class="cur">${typeof title === 'string' ? title : raw(String(title).replace(/<[^>]+>/g, '').trim())}</span></nav>` : ''}
       <h1>${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}
     </div>
     ${actions ? html`<div class="actions">${actions}</div>` : ''}

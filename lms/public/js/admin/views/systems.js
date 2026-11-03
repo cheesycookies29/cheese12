@@ -20,7 +20,9 @@ export async function systemsView(el) {
         <p class="muted" style="margin:-4px 0 12px">${s.description}</p>
         <p class="hint" style="margin-bottom:12px">Shown to: ${s.audience.map((r) => roleLabel(r)).join(', ')}.</p>
         ${s.builtIn
-          ? html`<p class="small">Students and teachers open the learning portal (<code>/lms/</code>); administrators and registrars open this admin panel.</p>`
+          ? html`<p class="small">${s.id === 'lms'
+            ? html`Students and teachers open the learning portal (<code>/lms/</code>); administrators and registrars open this admin panel.`
+            : html`Runs at <code>${s.path}</code>. HR managers and payroll officers get its HR screens; anyone with an employee record (teachers, registrars, staff) gets self-service. Accounts for HR, payroll and staff are made in the HRIS, on an employee's record.`}</p>`
           : html`<div class="grid">
               <label class="field"><span>Status</span><select name="${s.id}-status" ${editable ? '' : 'disabled'}>${STATUS.map(([k, l]) => html`<option value="${k}" ${settings[s.id]?.status === k ? 'selected' : ''}>${l}</option>`)}</select></label>
               <label class="field span-2"><span>Address</span><input name="${s.id}-url" value="${settings[s.id]?.url || ''}" placeholder="https://${s.id}.example.edu or /${s.id}/" ${editable ? '' : 'disabled'} /><span class="hint">Where the system runs. Until single sign-on is connected, people sign in to it separately.</span></label>

@@ -11,8 +11,9 @@ Everyone starts at the **University Portal**, the school's single front door to 
 | <http://localhost:3100> | **University Portal**: one sign-in for students, faculty and staff, then a tile for each system they may use (HRIS, FMIS, UIS, LMS), with school announcements and events |
 | <http://localhost:3100/lms/> | **LMS** for students and teachers |
 | <http://localhost:3100/admin> | **LMS admin panel** for administrators and registrars (it also keeps its own sign-in page) |
+| <http://localhost:3100/hris/> | **HRIS** for every employee (self-service) and for HR and payroll staff |
 
-The LMS is live. **HRIS**, **FMIS** and **UIS** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → Portal & systems** with the address each one runs at. Students do not see the HRIS tile.
+The **LMS** and the **HRIS** are live. **FMIS** and **UIS** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → Portal & systems** with the address each one runs at. Students do not see the HRIS tile.
 
 ### Campuses
 
@@ -23,7 +24,7 @@ A school can have several campuses (e.g. Pili, Sipocot, Pasacao, Calabanga). Eve
 - **Admin panel → Campuses** adds, renames and removes campuses. News and events are for one campus, or (administrators only) for every campus.
 - Data from before campuses moves into a "Main Campus" automatically; rename it under Campuses. The first-run setup asks for the campus name.
 
-Signing in at the portal opens the right side for the account (students and teachers: the LMS; administrators and registrars: the admin panel), so opening the LMS from its tile needs no second sign-in. Every page has an **All systems** button back to the portal, and **Sign out** anywhere signs out of everything.
+Signing in at the portal opens the right side for the account (students and teachers: the LMS; administrators and registrars: the admin panel; HR and staff accounts: the HRIS), so opening a system from its tile needs no second sign-in. Every page has an **All systems** button back to the portal, and **Sign out** anywhere signs out of everything.
 
 ## Run it
 
@@ -62,8 +63,12 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 | University Portal | `student.demo` | `demo1234` | Home To-do; take *Quiz 1* in IT201 A (timed, 2 attempts); resources with a PDF preview; attendance; news. Enrollment: one section is full (join its waitlist), one needs the key `DB2026`, one is blocked by a prerequisite |
 | University Portal | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
 | University Portal or admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
+| University Portal → HRIS | `hr.demo` | `demo1234` | HR dashboard; approve the pending leave (one sick leave has a medical certificate attached); employee records and sign-in accounts; attendance; switch to Sipocot campus |
+| University Portal → HRIS | `payroll.demo` | `demo1234` | Two finalized payroll runs with printable payslips; payroll setup (rates and tax tables with a "try it" calculator) |
+| University Portal → HRIS | `staff.demo` | `demo1234` | A librarian's self-service: clock in, file leave, payslips. `teacher.demo` has the same in the HRIS tile |
 
 The demo school has 5 programs (IT, Computer Science, Business, Agriculture, Education), 8 teachers, about 60 students with past grades, 5 applicants, 21 courses and 25 sections this term. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus.
+For the HRIS, every demo teacher and the registrar have an employee record linked to their account, with non-teaching staff beside them (guidance, nurse, ICT, guards, utility), six weeks of attendance, leave requests in every state and two finalized payroll runs.
 
 Demo records are added **next to your own data** and **Remove demo data** takes them out again without changing your records. If you already have a current term, it stays current and the demo term is listed beside it.
 
@@ -116,6 +121,41 @@ For example, switch *Enrollment* off for students outside enrollment season so o
 
 Passwords and sign-in work as in the ERP: temporary passwords must be changed at first sign-in, 5 wrong passwords lock the username for 5 minutes, and people are signed out after 8 idle hours or when the app restarts.
 Locked-out administrator? Stop the app and run `npm run reset-password -- <username> <new-password>`.
+
+## HRIS
+
+The Human Resource Information System, built from the [Lancaster ERP's HR & Payroll](../README.md) module: the same time, leave, pay, contribution and tax rules (`shared/calc.js` and `shared/leave.js` are the ERP's files; a test checks the two stay identical), reworked for a school with campuses.
+
+**Everyone with an employee record** (teachers, registrars, staff) gets **self-service** in the HRIS with the sign-in they already have:
+
+- **My day**: a time clock (clock in and out), today's status and this pay period's hours, late, undertime and overtime.
+- **My attendance**: the daily time record (DTR).
+- **Leave & requests**: balances per leave type; file leave or remote work (with a medical certificate for sick leave of more than 3 days); withdraw a pending request.
+- **My payslips**: finalized payslips, printable or saved as PDF. **My profile**.
+
+**HR screens**, for HR managers, payroll officers and administrators, always for the campus they are looking at:
+
+| Screen | What it does |
+| --- | --- |
+| HR dashboard | Headcount (teaching and non-teaching), who is in today and who has no record yet, requests to review, leave in the next two weeks, departments, employment status, birthdays, the latest payroll |
+| Employees | Records (personal, employment, pay, schedule, government IDs, bank), CSV export, and the **sign-in account**: link a teacher's or registrar's LMS account, or create an HRIS account (Staff, HR Manager, Payroll Officer); reset its password or disable it |
+| Attendance (DTR) | Every record with late, undertime and overtime; add or correct records; approve overtime; CSV export |
+| Leave & approvals | Approve, reject or cancel requests (approval writes the days into the DTR; HR cannot approve their own); leave balances per person; one employee's leave (credits, access to a leave type, adjustments with a reason, leave recorded on paper); leave types (gender rules, medical certificate rules) |
+| Payroll | A run per pay period and campus (semi-monthly or monthly): the payroll register, adjustments (other earnings and deductions), recompute, finalize; payslips with SSS, PhilHealth, Pag-IBIG and BIR withholding tax; register export |
+| Payroll setup | Pay rules, which deductions to compute, government rates and tax tables, with a calculator to try them |
+| HR settings | The employer's address and TIN on payslips, and the default work schedule |
+
+### HRIS account types
+
+| Account type | Signs in on | Can do in the HRIS |
+| --- | --- | --- |
+| **HR Manager** | University Portal | Employees and their accounts, attendance, leave approvals and credits, view payroll, HR settings |
+| **Payroll Officer** | University Portal | Payroll runs and payroll setup; views employees, attendance and leave |
+| **Staff** | University Portal | Self-service only (a non-teaching employee) |
+| Administrator | (any) | Everything, at every campus |
+| Teacher, Registrar | (their own) | Self-service, once HR links their account to their employee record |
+
+The first HR manager is made by an administrator: open the HRIS from the portal, add the HR manager's employee record, then **Sign-in account → Create an HRIS account** with the type *HR Manager*. HR accounts work at the campus of their record; an administrator can add campuses to them in the LMS admin panel. Students have no HRIS.
 
 ## How enrollment works
 
@@ -173,19 +213,25 @@ lms/
   server/db.js           JSON-file storage (and an in-memory one for tests)
   server/campus.js       campuses: who can reach which campus, the active campus
   server/demo.js         demo data
+  server/hris.js         HRIS: employees and their accounts, DTR and time clock, payroll, dashboard, self-service
+  server/hris-leave.js   HRIS: leave types, credits, balances, requests and approval (from the ERP)
+  server/hris-demo.js    HRIS demo data
+  shared/calc.js         time and payroll rules (the ERP's file): DTR, payslips, SSS, PhilHealth, Pag-IBIG, tax
+  shared/leave.js        leave rules (the ERP's file)
   shared/roles.js        account types and permissions (server and browser)
   shared/modules.js      the switchable portal modules (server and browser)
   shared/schedule.js     meeting times and clash checks (server and browser)
   shared/themes.js       brand colour presets
   shared/systems.js      the systems on the University Portal (HRIS, FMIS, UIS, LMS) and who sees each
-  public/                University Portal (index.html, js/hub), LMS (lms/index.html, js/portal), admin panel (admin/index.html, js/admin)
-  public/js/shell.js     branding, dark mode, sign-in screens, top bar, sidebar, router (both apps)
+  public/                University Portal (index.html, js/hub), LMS (lms/index.html, js/portal), admin panel (admin/index.html, js/admin), HRIS (hris/index.html, js/hris, css/hris.css)
+  public/js/shell.js     branding, dark mode, sign-in screens, top bar, sidebar, router (all the apps)
   public/js/icons.js     the icon set
   test/                  node:test suites
 ```
 
 - Run the tests with `npm test` (from `lms/`, or from the repository root, which runs the ERP's and the LMS's tests together).
-- Every route states who may call it (`'student'`, `'teacher'`, `'portal'`, `'admin:<permission>'`) and, for portal routes, which module it belongs to. The router in `server/api.js` enforces both.
+- Every route states who may call it (`'student'`, `'teacher'`, `'portal'`, `'admin:<permission>'`, `'hris:<permission>'`) and, for portal routes, which module it belongs to. The router in `server/api.js` enforces both.
+- Three session cookies: the portal's (students, teachers), the admin panel's (administrators, registrars) and the HRIS's (HR and staff accounts). HRIS routes accept whichever of them the browser has; signing in on the University Portal ends the others, so a browser is one person at a time.
 - `public/css/styles.css` is built on colour tokens: `--brand` and `--accent` come from the branding settings and every shade is mixed from them, with a dark set under `[data-theme=dark]`.
 
 ### Ideas this borrows from
@@ -197,7 +243,7 @@ lms/
 
 ### Not included (yet)
 
-Guardian accounts, messages/chat, single sign-on (Keycloak/OIDC), question banks, copying lessons and activities between sections, certificates, a term-end "close term" step, email notifications and an audit log. See the roadmap in [docs/BENCHMARK.md](docs/BENCHMARK.md).
+In the HRIS: a shared clock-in kiosk, clock-in location (both in the ERP), holidays and holiday pay, 13th-month pay, loans, and DepEd/CHED leave rules for teachers (proportional vacation pay). Elsewhere: guardian accounts, messages/chat, single sign-on (Keycloak/OIDC), question banks, copying lessons and activities between sections, certificates, a term-end "close term" step, email notifications and an audit log. See the roadmap in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Putting it online (AWS)
 

@@ -59,6 +59,25 @@ export function labelTables(root) {
 }
 
 
+// Pesos and plain amounts (payroll), minutes as "1h 05m", "HH:MM" as "8:05 AM".
+const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+const num = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const money = (n) => peso.format(Number(n) || 0);
+export const amount = (n) => num.format(Number(n) || 0);
+export function fmtMinutes(mins) {
+  if (!mins) return '—';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+}
+export function fmtTime(hhmm) {
+  if (!hhmm) return '';
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+export const fullName = (e) => `${e.firstName} ${e.lastName}`;
+export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 export function fmtDate(ymd, opts = { month: 'short', day: 'numeric', year: 'numeric' }) {
   if (!ymd) return '';
   const [y, m, d] = ymd.split('-').map(Number);

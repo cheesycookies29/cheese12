@@ -1,9 +1,13 @@
 // Account types. Shared by the server (enforcement) and the browser (hiding screens).
 //
-// Two separate sign-ins:
-//  - the admin panel (/admin) for Administrators and Registrars,
-//  - the learning portal (/) for Teachers and Students.
-// An account can only sign in to the side its type belongs to.
+// Everyone signs in once on the University Portal (/). Each account type has a "side",
+// which decides the session it gets:
+//  - admin:  the LMS admin panel (/admin): Administrators and Registrars,
+//  - portal: the learning portal (/lms/): Teachers and Students,
+//  - hris:   HR and staff accounts, who only use the HRIS (/hris/).
+// The HRIS accepts any employee's session (a teacher or registrar linked to an employee
+// record uses its self-service); the hris.* / employees.* / payroll.* permissions below
+// open its HR screens.
 
 export const ROLES = {
   admin: {
@@ -30,10 +34,29 @@ export const ROLES = {
     description: 'Enrolls in sections and takes classes (as switched on under Modules).',
     permissions: [],
   },
+  hr: {
+    label: 'HR Manager',
+    side: 'hris',
+    description: 'Runs the HRIS at their campuses: employee records and sign-in accounts, attendance, leave approvals and credits.',
+    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'hris.settings'],
+  },
+  payroll: {
+    label: 'Payroll Officer',
+    side: 'hris',
+    description: 'Prepares payroll at their campuses: payroll runs, payslips and payroll setup; views employees, attendance and leave.',
+    permissions: ['hris.dashboard', 'employees.view', 'attendance.view', 'leave.manage', 'payroll.view', 'payroll.edit', 'payroll.config'],
+  },
+  staff: {
+    label: 'Staff',
+    side: 'hris',
+    description: 'A non-teaching employee: HRIS self-service (time clock, attendance, leave requests, payslips, profile).',
+    permissions: [],
+  },
 };
 
 export const ADMIN_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'admin');
 export const PORTAL_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'portal');
+export const HRIS_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'hris');
 
 export const PERMISSION_LABELS = [
   ['dashboard', 'Admin dashboard'],
@@ -48,6 +71,22 @@ export const PERMISSION_LABELS = [
   ['settings.edit', 'School details, branding, enrollment rules, activity types and grade weights'],
   ['admins.manage', 'Administrator and registrar accounts'],
   ['data.manage', 'Demo data and backups'],
+];
+
+export const HRIS_PERMISSION_LABELS = [
+  ['hris.dashboard', 'HR dashboard'],
+  ['employees.view', 'View employee records'],
+  ['employees.edit', 'Add and edit employee records'],
+  ['hris.accounts', 'Sign-in accounts for employees (HR, payroll and staff)'],
+  ['attendance.view', 'View attendance (DTR)'],
+  ['attendance.edit', 'Correct attendance and approve overtime'],
+  ['leave.manage', 'View leave requests and balances; leave types'],
+  ['leave.approve', 'Approve, reject and cancel requests'],
+  ['leave.adjust', 'Change one employee’s leave credits, access and days'],
+  ['payroll.view', 'View payroll runs and payslips'],
+  ['payroll.edit', 'Create, adjust and finalize payroll runs'],
+  ['payroll.config', 'Payroll setup: pay rules, contributions, tax tables'],
+  ['hris.settings', 'Employer details and the default work schedule'],
 ];
 
 export function can(role, permission) {

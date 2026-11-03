@@ -6,6 +6,10 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { defaultModuleConfig } from '../shared/modules.js';
 import { defaultSystemSettings } from '../shared/systems.js';
+import { DEFAULT_SETTINGS as HR_DEFAULTS } from '../shared/calc.js';
+import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
+import { mergeHrSettings } from './hris.js';
+import { migrateLeaveTypes } from './hris-leave.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -62,6 +66,16 @@ export function emptyData() {
     news: [], // school news posts, with reactions and comments
     events: [], // school events
     counters: { studentNo: {} }, // last student number issued per year
+    // ----- HRIS (server/hris.js) -----
+    hrSettings: structuredClone(HR_DEFAULTS), // pay rules, contributions, tax tables, default schedule
+    employees: [], // employee records, each at a campus; an account links to one with user.employeeId
+    timeEntries: [], // the DTR: one record per employee per date (work, remote or leave)
+    payrollRuns: [], // per campus and pay period, with computed payslips
+    leaveTypes: structuredClone(DEFAULT_LEAVE_TYPES),
+    leaveCredits: [], // per-employee credits for a year, replacing the leave type's default
+    leaveAccess: [], // a leave type given to, or taken from, one employee
+    leaveAdjustments: [], // days added or taken away, with a reason
+    requests: [], // leave and remote-work requests
   };
 }
 
@@ -84,6 +98,9 @@ function normalize(data) {
   out.modules = { ...defaultModuleConfig(), ...(data.modules || {}) };
   out.counters = { studentNo: {}, ...(data.counters || {}) };
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
+  out.hrSettings = mergeHrSettings(data.hrSettings);
+  if (!Array.isArray(data.leaveTypes)) out.leaveTypes = structuredClone(DEFAULT_LEAVE_TYPES);
+  migrateLeaveTypes(out);
   ensureCampuses(out);
   // Assignments from before quizzes and activity types: tasks of the default type.
   for (const a of out.assignments) {
@@ -99,6 +116,7 @@ export function ensureCampuses(data) {
   if (!data.campuses.length) data.campuses.push({ id: randomUUID(), name: 'Main Campus', code: 'MAIN', address: '', createdAt: new Date().toISOString() });
   const first = data.campuses[0].id;
   for (const s of data.sections) s.campusId ||= first;
+  for (const k of ['employees', 'payrollRuns']) for (const x of data[k] || []) x.campusId ||= first;
   for (const u of data.users) if (u.role !== 'admin' && !(u.campusIds?.length)) u.campusIds = [first];
   for (const k of ['news', 'events']) for (const x of data[k]) if (x.campusId === undefined) x.campusId = null; // null: every campus
   return data;

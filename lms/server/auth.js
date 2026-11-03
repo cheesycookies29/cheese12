@@ -37,6 +37,7 @@ export function parseCookies(header = '') {
 // from the ERP's (ltdc_sid) for both apps to run side by side on localhost.
 export const PORTAL_COOKIE = 'ltdc_lms_sid';
 export const ADMIN_COOKIE = 'ltdc_lms_admin';
+export const HRIS_COOKIE = 'ltdc_hris_sid';
 const SESSION_TTL = 8 * 60 * 60 * 1000; // signed out after 8 idle hours
 
 // Sessions live in memory: restarting the app signs everyone out.

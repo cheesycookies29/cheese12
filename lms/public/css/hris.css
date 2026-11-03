@@ -1,0 +1,184 @@
+/* HRIS screens: payslips, time clock, leave balances, payroll register.
+   Ported from the Lancaster ERP's HR & Payroll styles, on the portal's colour tokens
+   (so the school's theme and dark mode apply). */
+
+.person { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.person strong { display: block; }
+.person small { display: block; color: var(--muted); font-size: 12px; }
+.person .avatar { flex: none; }
+.person.big .avatar { width: 60px; height: 60px; font-size: 21px; border: 3px solid var(--accent-soft); }
+.person.big h1 { margin: 0; }
+.person.big p { margin: 4px 0 0; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.flex-tag { display: inline-block; padding: 0 6px; border-radius: 4px; background: var(--info-soft); color: var(--info); font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; line-height: 17px; vertical-align: middle; }
+.link-list { list-style: none; padding: 0; margin: 0; }
+.link-list li { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.link-list li:last-child { border-bottom: 0; }
+.danger-zone { margin-top: 28px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.table td small, .table th small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+.table .warn { color: var(--warn); font-weight: 600; }
+.table .negative, .negative { color: var(--danger); }
+.table.compact td, .table.compact th { padding: 8px 10px; }
+.table.register { font-size: 13px; }
+.table.register th, .table.register td { padding: 10px 8px; white-space: nowrap; }
+.table .center { text-align: center; }
+.grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.toolbar .spacer { flex: 1; }
+.toolbar label.inline { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-2); }
+.notice.stack-notice { display: block; }
+.notice.stack-notice p + p { margin-top: 8px; }
+.hint-line { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
+
+/* Time clock */
+.clock-card { text-align: center; display: flex; flex-direction: column; gap: 14px; justify-content: center; border-top: 4px solid var(--accent); }
+.clock-time { font-weight: 800; font-size: clamp(44px, 9vw, 68px); line-height: 1; color: var(--brand-text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.clock-date { color: var(--muted); margin-top: -4px; }
+.clock-status { min-height: 22px; color: var(--muted); }
+.clock-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.clock-buttons .btn { min-width: 140px; }
+
+/* Leave balances */
+.balance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.balance { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); }
+.balance strong { font-weight: 800; font-size: 28px; color: var(--brand-text); line-height: 1.1; }
+.balance.low { border-left-color: var(--danger); }
+.balance.low strong { color: var(--danger); }
+.balance-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.balance-chips div { background: var(--accent-soft); border-radius: var(--radius-sm); padding: 8px 12px; display: flex; flex-direction: column; min-width: 92px; }
+.balance-chips strong { font-weight: 800; font-size: 22px; color: var(--brand-text); line-height: 1.1; }
+.balance-chips span { font-size: 11.5px; color: var(--muted); }
+.balances th small { display: block; font-weight: 500; color: var(--muted); }
+.cell-btn { background: none; border: 1px solid transparent; border-radius: var(--radius-sm); padding: 6px 10px; cursor: pointer; font: inherit; color: var(--text); min-width: 72px; }
+.cell-btn:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.cell-btn strong { font-size: 18px; color: var(--brand-text); }
+.cell-btn span { color: var(--muted); margin-left: 2px; }
+.cell-btn small { display: block; color: var(--muted); font-size: 11px; }
+.cell-btn.override { border-color: var(--accent); }
+.cell-btn.low strong { color: var(--danger); }
+.emp-leave tr.not-offered td { background: var(--surface-2); }
+.emp-leave tr.not-offered strong { color: var(--muted); }
+.latest-run { display: flex; flex-direction: column; gap: 4px; color: var(--text); }
+.latest-run:hover { text-decoration: none; }
+.latest-run strong { font-weight: 800; font-size: 30px; color: var(--brand-text); }
+.att-preview { display: block; width: 100%; height: min(70vh, 720px); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); object-fit: contain; }
+img.att-preview { height: auto; max-height: 70vh; }
+
+/* Payroll setup */
+.input-suffix { display: flex; align-items: center; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); }
+.input-suffix:focus-within { outline: 3px solid color-mix(in srgb, var(--brand) 25%, transparent); border-color: var(--brand); }
+.input-suffix input { border: 0 !important; outline: none !important; box-shadow: none !important; min-width: 0; flex: 1; background: transparent; }
+.input-suffix em { font-style: normal; color: var(--muted); padding: 0 10px; white-space: nowrap; font-size: 13px; }
+.input-suffix em.pre { padding: 0 0 0 10px; }
+.edit-table td { padding: 6px; }
+.tax-cols { align-items: start; }
+
+/* Dashboard */
+.stats .card > span.muted { display: block; margin-top: 4px; }
+.bar-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.bar-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; font-size: 13px; }
+.bar-list .bar { grid-column: 1 / -1; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.bar-list .bar span { display: block; height: 100%; background: var(--brand); border-radius: 999px; }
+.today-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.today-strip div { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+.today-strip small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; }
+.today-strip strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+
+/* Payslip: a white paper document in both themes */
+.payslips { display: flex; flex-direction: column; gap: 24px; }
+.payslip { --ps-ink: #1f1a1a; --ps-rule: #d9d2cf; --ps-soft: #f7f4f2; position: relative; overflow: hidden; background: #fff; color: var(--ps-ink); border: 1px solid var(--border); border-top: 6px solid var(--brand); border-radius: var(--radius); padding: 30px 34px 26px; max-width: 920px; width: 100%; margin: 0 auto; box-shadow: var(--shadow); font-size: 13.5px; }
+.payslip h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand); margin: 0 0 8px; }
+.payslip > :not(.ps-watermark) { position: relative; z-index: 1; }
+.ps-watermark { z-index: 0; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; font-weight: 800; font-size: 150px; letter-spacing: 0.1em; color: rgba(93, 0, 19, 0.06); transform: rotate(-24deg); }
+.ps-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--ps-ink); margin-bottom: 0; }
+.ps-company { display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+.ps-company img { height: 46px; width: auto; flex: none; }
+.ps-company > div { display: grid; gap: 2px; padding-left: 14px; border-left: 1px solid var(--ps-rule); min-width: 0; }
+.ps-company strong { font-size: 14px; letter-spacing: 0.02em; text-transform: uppercase; }
+.ps-company span { font-size: 11.5px; color: #5f5857; max-width: 380px; }
+.ps-title { text-align: right; flex: none; }
+.ps-title h2 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand); line-height: 1; }
+.ps-ref { margin: 8px 0 0; font-family: ui-monospace, Consolas, monospace; font-size: 12px; letter-spacing: 0.04em; }
+.ps-conf { margin: 4px 0 0; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+.ps-meta { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 0 22px; border-bottom: 1px solid var(--ps-rule); }
+.ps-meta div { padding: 10px 12px; border-left: 1px solid var(--ps-rule); }
+.ps-meta div:first-child { border-left: 0; padding-left: 0; }
+.ps-meta dt, .ps-fields dt, .ps-summary dt { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #7a7271; }
+.ps-meta dd { margin: 2px 0 0; font-weight: 600; }
+.ps-block { margin-bottom: 22px; }
+.ps-fields { display: grid; grid-template-columns: 1fr 1fr; margin: 0; border: 1px solid var(--ps-rule); }
+.ps-fields div { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: baseline; padding: 7px 12px; border-top: 1px solid var(--ps-rule); }
+.ps-fields div:nth-child(-n+2) { border-top: 0; }
+.ps-fields div:nth-child(even) { border-left: 1px solid var(--ps-rule); }
+.ps-fields dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ps-ledger { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 22px; align-items: start; }
+.ps-table { width: 100%; border-collapse: collapse; border: 1px solid var(--ps-rule); }
+.ps-table th { text-align: left; padding: 8px 12px; background: var(--ps-soft); border-bottom: 1px solid var(--ps-ink); font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ps-ink); }
+.ps-table td { padding: 7px 12px; border-top: 1px solid #eee8e6; vertical-align: baseline; }
+.ps-table tbody tr:first-child td { border-top: 0; }
+.ps-table td small { display: block; font-size: 11px; color: #7a7271; }
+.ps-table tr.sub td:first-child { padding-left: 24px; color: #5f5857; }
+.ps-table tr.sub td.num { color: #5f5857; }
+.ps-table .num { text-align: right; white-space: nowrap; }
+.ps-table tfoot td { font-weight: 700; border-top: 1px solid var(--ps-ink); background: var(--ps-soft); }
+.ps-small .ps-table td { padding: 5px 12px; font-size: 12.5px; }
+.ps-summary { display: grid; grid-template-columns: 1fr 1.1fr; border: 1px solid var(--ps-ink); margin-bottom: 22px; }
+.ps-summary dl { margin: 0; padding: 12px 16px; display: grid; gap: 6px; align-content: center; }
+.ps-summary dl div { display: flex; justify-content: space-between; gap: 12px; }
+.ps-summary dd { margin: 0; font-weight: 600; }
+.ps-net { display: grid; align-content: center; gap: 2px; padding: 14px 18px; background: var(--brand); color: #fff; text-align: right; }
+.ps-net span { font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--accent) 55%, #fff); }
+.ps-net strong { font-weight: 800; font-size: 32px; line-height: 1.05; }
+.ps-net em { font-style: normal; font-size: 11.5px; color: #f1dfe3; }
+.ps-remarks { margin-bottom: 22px; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--ps-soft); }
+.ps-remarks p { margin: 0; white-space: pre-wrap; }
+.ps-foot { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px 40px; padding-top: 30px; }
+.ps-sign { display: grid; gap: 4px; font-size: 11px; color: #5f5857; }
+.ps-sign span { display: block; height: 26px; border-bottom: 1px solid var(--ps-ink); }
+.ps-foot p { grid-column: 1 / -1; margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--ps-rule); font-size: 10.5px; color: #7a7271; text-align: center; }
+
+@media (max-width: 960px) {
+  .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .payslip { padding: 22px 16px 18px; font-size: 13px; }
+  .ps-head { flex-direction: column; gap: 14px; }
+  .ps-title { text-align: left; }
+  .ps-title h2 { font-size: 22px; }
+  .ps-company { flex-direction: column; gap: 10px; }
+  .ps-company img { height: 36px; }
+  .ps-company > div { border-left: 0; padding-left: 0; }
+  .ps-meta { grid-template-columns: 1fr 1fr; }
+  .ps-meta div { border-left: 0; padding-left: 0; }
+  .ps-fields { grid-template-columns: 1fr; }
+  .ps-fields div { grid-template-columns: 110px 1fr; border-left: 0 !important; }
+  .ps-fields div:nth-child(2) { border-top: 1px solid var(--ps-rule); }
+  .ps-ledger, .ps-summary, .ps-foot { grid-template-columns: 1fr; }
+  .ps-net { text-align: left; }
+  .ps-watermark { font-size: 80px; }
+  .grid.four { grid-template-columns: 1fr; }
+}
+
+/* Printed payslips: one per A4 sheet, the app frame hidden. */
+@media print {
+  .topbar, .sidebar, .nav-scrim, .no-print, #toast { display: none !important; }
+  body, .layout, main#app { background: #fff !important; padding: 0 !important; margin: 0 !important; display: block !important; }
+  .payslips { gap: 0; }
+  .payslip { box-shadow: none; border-left: 0; border-right: 0; border-bottom: 0; border-radius: 0; padding: 14px 0 0; max-width: none; font-size: 10.5px; line-height: 1.35; break-after: page; break-inside: avoid; }
+  .payslip:last-child { break-after: auto; }
+  .payslip, .ps-net, .ps-table th, .ps-table tfoot td, .ps-remarks { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ps-head { flex-direction: row; gap: 18px; padding-bottom: 12px; }
+  .ps-title { text-align: right; }
+  .ps-company { flex-direction: row; }
+  .ps-company > div { border-left: 1px solid var(--ps-rule); padding-left: 14px; }
+  .ps-meta { grid-template-columns: repeat(4, 1fr); margin-bottom: 12px; }
+  .ps-fields { grid-template-columns: 1fr 1fr; }
+  .ps-fields div:nth-child(even) { border-left: 1px solid var(--ps-rule) !important; }
+  .ps-ledger { grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+  .ps-summary { grid-template-columns: 1fr 1.1fr; margin-bottom: 12px; }
+  .ps-net { text-align: right; padding: 10px 14px; }
+  .ps-net strong { font-size: 26px; }
+  .ps-table th { padding: 5px 10px; font-size: 9px; }
+  .ps-table td, .ps-small .ps-table td { padding: 4px 10px; font-size: 10.5px; }
+  .ps-block, .ps-remarks { margin-bottom: 12px; }
+  .ps-foot { padding-top: 14px; }
+  .ps-watermark { font-size: 130px; }
+}

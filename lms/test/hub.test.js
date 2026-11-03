@@ -44,13 +44,16 @@ test('admins switch a system live with its address, or hide it', async () => {
   const env = setup();
   const { admin, login } = await seed(env);
   const { settings } = await admin.get('/api/admin/systems');
-  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, hris: { status: 'live', url: '' } } }), /give the address/);
-  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, hris: { status: 'live', url: 'javascript:alert(1)' } } }), /must start with/);
-  await admin.put('/api/admin/systems', { settings: { ...settings, hris: { status: 'live', url: 'http://localhost:3000' }, fmis: { status: 'hidden', url: '' } } });
+  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, fmis: { status: 'live', url: '' } } }), /give the address/);
+  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, fmis: { status: 'live', url: 'javascript:alert(1)' } } }), /must start with/);
+  await admin.put('/api/admin/systems', { settings: { ...settings, fmis: { status: 'live', url: 'http://localhost:3000' }, uis: { status: 'hidden', url: '' } } });
   const t = await (await login('teach1')).get('/api/hub/status');
+  const fmis = t.systems.find((x) => x.id === 'fmis');
+  assert.deepEqual([fmis.status, fmis.url, fmis.external], ['live', 'http://localhost:3000', true]);
+  // The HRIS is built in: always live, at /hris/.
   const hris = t.systems.find((x) => x.id === 'hris');
-  assert.deepEqual([hris.status, hris.url, hris.external], ['live', 'http://localhost:3000', true]);
-  assert.equal(t.systems.some((x) => x.id === 'fmis'), false);
+  assert.deepEqual([hris.status, hris.url, hris.external], ['live', '/hris/', false]);
+  assert.equal(t.systems.some((x) => x.id === 'uis'), false);
 });
 
 test('signing out of the portal signs out of every side', async () => {

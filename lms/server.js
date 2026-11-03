@@ -46,10 +46,12 @@ function readBody(req) {
 
 function serveStatic(url, res) {
   // The admin panel is its own single-page app at /admin.
-  // Three single-page apps: the University Portal (/), the LMS (/lms/) and the LMS admin panel (/admin).
+  // Four single-page apps: the University Portal (/), the LMS (/lms/), the LMS admin panel (/admin) and the HRIS (/hris/).
   if (url.pathname === '/admin' || url.pathname === '/admin/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'admin', 'index.html')), 'text/html');
   if (url.pathname === '/lms') return send(res, 302, '', 'text/plain', { Location: '/lms/' });
   if (url.pathname === '/lms/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'lms', 'index.html')), 'text/html');
+  if (url.pathname === '/hris') return send(res, 302, '', 'text/plain', { Location: '/hris/' });
+  if (url.pathname === '/hris/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'hris', 'index.html')), 'text/html');
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;
     const rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
@@ -109,7 +111,7 @@ server.on('error', (err) => {
 server.listen(PORT, HOST, () => {
   console.log(`\n  LTDC LMS is running.`);
   console.log(`  University Portal (everyone signs in here): http://localhost:${PORT}`);
-  console.log(`  LMS: http://localhost:${PORT}/lms/   ·   LMS admin panel: http://localhost:${PORT}/admin`);
+  console.log(`  LMS: http://localhost:${PORT}/lms/   ·   LMS admin panel: http://localhost:${PORT}/admin   ·   HRIS: http://localhost:${PORT}/hris/`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');

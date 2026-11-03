@@ -6,9 +6,10 @@ import { addDays } from './util.js';
 import { findById } from './enrollment.js';
 import { scoreAttempt, quizPoints } from './quiz.js';
 import { meetingsClash } from '../shared/schedule.js';
+import { addHrisDemo, removeHrisDemo } from './hris-demo.js';
 
 export const DEMO_PASSWORD = 'demo1234';
-const COLLECTIONS = ['campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users'];
+const COLLECTIONS = ['campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users', 'employees', 'timeEntries', 'requests', 'payrollRuns'];
 
 export function demoStatus(data) {
   const counts = Object.fromEntries(COLLECTIONS.map((k) => [k, data[k].filter((x) => x.demo).length]));
@@ -17,6 +18,7 @@ export function demoStatus(data) {
 
 // files: the file store, so uploaded files in demo sections are deleted too.
 export function removeDemo(data, files = null) {
+  removeHrisDemo(data, files);
   const ids = (k) => new Set(data[k].filter((x) => x.demo).map((x) => x.id));
   const users = ids('users');
   const sections = ids('sections');
@@ -42,6 +44,7 @@ export function removeDemo(data, files = null) {
   const home = data.campuses.find((c) => !c.demo)?.id;
   for (const s of data.sections) if (campuses.has(s.campusId)) s.campusId = home;
   for (const k of ['news', 'events']) for (const x of data[k]) if (campuses.has(x.campusId)) x.campusId = home;
+  for (const k of ['employees', 'payrollRuns']) for (const x of data[k]) if (campuses.has(x.campusId)) x.campusId = home;
   for (const u of data.users) {
     if (!u.campusIds) continue;
     u.campusIds = u.campusIds.filter((id) => !campuses.has(id));
@@ -558,6 +561,10 @@ export function addDemo(data, today, files = null) {
     [pasacao, 'Pasacao Campus coastal clean-up', '', 'Pasacao beach', 5, 5, '06:00', '09:00'],
     [calabanga, 'Farm visit for first-years', 'Buses leave at 7:00 AM.', 'Calabanga demo farm', 8, 8, '07:00', '15:00'],
   ]) add('events', { campusId: campus?.id ?? null, title, description, location, startDate: addDays(today, start), endDate: addDays(today, end), startTime: from, endTime: to, createdBy: 'Demo data' });
+
+  // ----- HRIS: employee records for these people, HR/payroll/staff sign-ins, attendance, leave, payroll -----
+  const userByName = (username) => data.users.find((u) => u.demo && (u.username === username || u.username === `${username}2`));
+  addHrisDemo(data, today, { campuses: { main, sipocot, pasacao, calabanga }, userByName, person, rand, files, demoPdf });
 
   return demoStatus(data);
 }

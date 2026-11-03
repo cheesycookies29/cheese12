@@ -4,9 +4,10 @@ import { memoryDb } from '../server/db.js';
 
 export const TODAY = '2026-08-10';
 
-export function setup({ today = TODAY } = {}) {
+// clock: () => Date, to move time (e.g. clock in, then out); otherwise 10:00 on `today`.
+export function setup({ today = TODAY, clock = null } = {}) {
   const db = memoryDb();
-  const api = createApi(db, { clock: () => new Date(`${today}T10:00:00`) });
+  const api = createApi(db, { clock: clock || (() => new Date(`${today}T10:00:00`)) });
   const client = () => {
     const jar = {};
     const call = async (method, path, body = {}) => {

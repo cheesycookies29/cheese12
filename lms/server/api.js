@@ -1,17 +1,19 @@
-// JSON API. Two sides with separate sign-ins and separate session cookies:
-//   /api/admin/...  the admin panel (Administrators, Registrars)
+// JSON API. Three sides, each with its own session cookie (see shared/roles.js):
+//   /api/admin/...  the LMS admin panel (Administrators, Registrars)
 //   /api/...        the learning portal (Teachers, Students)
+//   /api/hris/...   the HRIS: HR and staff accounts, and any employee's session
 // A route's access is one of:
 //   'public'                      anyone
 //   'portal' | 'teacher' | 'student'  signed in to the portal (optionally that type only)
 //   'admin' | 'admin:<permission>'    signed in to the admin panel (optionally with that permission)
+//   'hris' | 'hris:<permission>'      any signed-in employee (not students), optionally with that permission
 // Portal routes may also name a module; the call is refused when an administrator
 // has switched that module off for the caller's account type.
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { HttpError, localDate, localDateTime, text } from './util.js';
 import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
-  sessionCookie, clearedCookie, PORTAL_COOKIE, ADMIN_COOKIE,
+  sessionCookie, clearedCookie, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
 import { ROLES, can } from '../shared/roles.js';
 import { MODULES, moduleOn, enabledModules } from '../shared/modules.js';
@@ -25,6 +27,10 @@ import { registerNewsRoutes } from './news.js';
 import { themeColors } from '../shared/themes.js';
 import { SYSTEMS } from '../shared/systems.js';
 import { campusesFor, activeCampusId, campusName } from './campus.js';
+import { registerHrisRoutes } from './hris.js';
+import { HRIS_PERMISSION_LABELS } from '../shared/roles.js';
+
+const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -40,7 +46,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     return timingSafeEqual(a, b);
   };
   const routes = [];
-  const sides = { portal: createSessions(), admin: createSessions() };
+  const sides = { portal: createSessions(), admin: createSessions(), hris: createSessions() };
   const throttle = createThrottle();
   const users = () => db.data.users;
 
@@ -57,8 +63,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     today: () => localDate(clock()),
     nowLocal: () => localDateTime(clock()),
     signOutEverywhere(userId) {
-      sides.portal.destroyForUser(userId);
-      sides.admin.destroyForUser(userId);
+      for (const side of Object.values(sides)) side.destroyForUser(userId);
     },
   };
 
@@ -74,17 +79,18 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     }
     throttle.reset(key);
     if (ROLES[user.role]?.side !== side) {
-      fail(side === 'admin'
-        ? 'Teachers and students sign in on the learning portal, not the admin panel.'
-        : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
+      fail(ROLES[user.role]?.side === 'hris'
+        ? 'HR and staff accounts sign in on the University Portal (the home page) and open the HRIS.'
+        : side === 'admin'
+          ? 'Teachers and students sign in on the learning portal, not the admin panel.'
+          : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
     }
     if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
     if (user.status === 'rejected') fail('Your application was not accepted. Contact the registrar for details.', 403);
     if (user.status !== 'active') fail('This account is disabled. Contact the registrar.', 403);
     user.lastLoginAt = new Date().toISOString();
     db.save();
-    const cookie = side === 'admin' ? ADMIN_COOKIE : PORTAL_COOKIE;
-    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(cookie, sides[side].create(user.id)) } };
+    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id)) } };
   }
 
   function changePassword(side, { user, token, body }) {
@@ -93,8 +99,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (body.newPassword === body.currentPassword) fail('Choose a password different from the current one.');
     user.passwordHash = hashPassword(body.newPassword);
     user.mustChangePassword = false;
-    sides.portal.destroyForUser(user.id, side === 'portal' ? token : undefined);
-    sides.admin.destroyForUser(user.id, side === 'admin' ? token : undefined);
+    for (const [name, sessions] of Object.entries(sides)) sessions.destroyForUser(user.id, name === side ? token : undefined);
     db.save();
     return { user: publicUser(user) };
   }
@@ -178,36 +183,41 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const portalSystems = (user, side) => SYSTEMS
     .map((s) => {
       const cfg = s.builtIn ? { status: 'live', url: '' } : db.data.settings.systems[s.id] || { status: 'soon', url: '' };
-      return { ...s, status: cfg.status, url: s.builtIn ? (side === 'admin' ? '/admin' : '/lms/') : cfg.url, external: !s.builtIn };
+      return { ...s, status: cfg.status, url: s.builtIn ? (s.id === 'lms' && side === 'admin' ? '/admin' : s.path) : cfg.url, external: !s.builtIn };
     })
     .filter((s) => s.status !== 'hidden' && (!user || s.audience.includes(user.role)))
     .map(({ audience, ...s }) => (user ? s : { ...s, url: '' }));
-  route('GET', '/api/hub/status', 'public', ({ portalUser, adminUser }) => {
-    const user = portalUser || adminUser;
-    const side = portalUser ? 'portal' : adminUser ? 'admin' : null;
+  const AUTH_BASE = { portal: '/api/auth', admin: '/api/admin/auth', hris: '/api/hris/auth' };
+  route('GET', '/api/hub/status', 'public', ({ portalUser, adminUser, hrisUser }) => {
+    const user = portalUser || adminUser || hrisUser;
+    const side = user ? ROLES[user.role].side : null;
     return {
       branding: branding(),
       setupRequired: setupRequired(),
       registrationOpen: db.data.settings.registration.open,
       user: publicUser(user),
       side,
-      authBase: side === 'admin' ? '/api/admin/auth' : '/api/auth',
+      authBase: AUTH_BASE[side] || '/api/auth',
       systems: portalSystems(user, side),
       ...campusInfo(user),
     };
   });
-  route('POST', '/api/hub/login', 'public', ({ body }) => {
+  // One person per browser: signing in here ends any other session this browser had.
+  route('POST', '/api/hub/login', 'public', ({ body, tokens }) => {
     const found = users().find((u) => u.username === String(body.username || '').trim().toLowerCase());
-    return signIn(ROLES[found?.role]?.side || 'portal', body);
+    const side = ROLES[found?.role]?.side || 'portal';
+    const out = signIn(side, body);
+    for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
+    out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
+    return out;
   });
-  route('POST', '/api/hub/logout', 'public', ({ portalToken, adminToken }) => {
-    sides.portal.destroy(portalToken);
-    sides.admin.destroy(adminToken);
-    return { data: { ok: true }, headers: { 'Set-Cookie': [clearedCookie(PORTAL_COOKIE), clearedCookie(ADMIN_COOKIE)] } };
+  route('POST', '/api/hub/logout', 'public', ({ tokens }) => {
+    for (const [name, sessions] of Object.entries(sides)) sessions.destroy(tokens[name]);
+    return { data: { ok: true }, headers: { 'Set-Cookie': Object.values(COOKIES).map(clearedCookie) } };
   });
   // School news and upcoming events for the portal home (when News & events is on for the account type).
-  route('GET', '/api/hub/feed', 'public', ({ portalUser, adminUser }) => {
-    const user = portalUser || adminUser;
+  route('GET', '/api/hub/feed', 'public', ({ portalUser, adminUser, hrisUser }) => {
+    const user = portalUser || adminUser || hrisUser;
     if (!user) fail('Please sign in.', 401);
     if (portalUser && !moduleOn(db.data.modules, 'news', user.role)) return { news: [], events: [] };
     const campusId = activeCampusId(db.data, user);
@@ -274,6 +284,29 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     return demoStatus(db.data);
   });
 
+  // ----- HRIS (/hris/): sign-in status for any employee -----
+  // Teachers and registrars use their own session (portal or admin); HR and staff
+  // accounts have the HRIS session. Students have no HRIS.
+  const hrisStatus = (user) => {
+    const allowed = Boolean(user) && user.role !== 'student';
+    return {
+      ...campusInfo(allowed ? user : null),
+      branding: branding(),
+      setupRequired: setupRequired(),
+      user: allowed ? publicUser(user) : null,
+      deniedUser: user && !allowed ? { name: user.name, role: user.role } : null, // a student: the HRIS says it is for employees
+      allowed,
+      side: allowed ? ROLES[user.role].side : null,
+      authBase: '/api/hris/auth',
+      permissions: allowed ? HRIS_PERMISSION_LABELS.map(([p]) => p).filter((p) => can(user.role, p)) : [],
+      employee: allowed ? hris.employeeSummary(user) : null,
+    };
+  };
+  route('GET', '/api/hris/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => hrisStatus(hrisUser || adminUser || portalUser));
+  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
+  route('POST', '/api/hris/auth/campus', 'hris', ({ user, body }) => switchCampus(user, body));
+  const hris = registerHrisRoutes(route, ctx);
+
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
   registerAdminRoutes(route, ctx);
   registerEnrollmentRoutes(route, ctx);
@@ -291,8 +324,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
     const portalToken = cookies[PORTAL_COOKIE];
     const adminToken = cookies[ADMIN_COOKIE];
+    const hrisToken = cookies[HRIS_COOKIE];
     const portalUser = resolve('portal', portalToken);
     const adminUser = resolve('admin', adminToken);
+    const hrisUser = resolve('hris', hrisToken);
+    const tokens = { portal: portalToken, admin: adminToken, hris: hrisToken };
 
     for (const r of routes) {
       if (r.method !== req.method) continue;
@@ -300,7 +336,14 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       if (!m) continue;
       let user = null;
       let token = null;
-      if (r.access.startsWith('admin')) {
+      if (r.access === 'hris' || r.access.startsWith('hris:')) {
+        // Whoever is signed in on this browser: an HR/staff account, else an admin-panel or portal account.
+        [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
+        if (!user) fail('Please sign in.', 401);
+        if (user.role === 'student') fail('The HRIS is for school employees.', 403);
+        const permission = r.access.split(':')[1];
+        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+      } else if (r.access.startsWith('admin')) {
         user = adminUser;
         token = adminToken;
         if (!user) fail('Please sign in to the admin panel.', 401);
@@ -316,7 +359,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       const campusId = user ? activeCampusId(db.data, user) : null;
-      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, portalToken, adminToken, campusId });
+      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId });
       if (result?.raw) return result; // a file
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }
