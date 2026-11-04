@@ -9,7 +9,7 @@ import { emptyHelpdesk } from './helpdesk.js';
 export function emptyData() {
   return {
     version: 1,
-    settings: structuredClone(DEFAULT_SETTINGS),
+    settings: mergeSettings(),
     employees: [],
     timeEntries: [],
     payrollRuns: [],

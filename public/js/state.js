@@ -11,7 +11,8 @@ export const ctx = {
   },
   async refreshSettings() {
     ctx.settings = await api.get('/api/settings');
-    document.getElementById('company-name').textContent = ctx.settings.companyName;
+    const foot = document.getElementById('side-foot');
+    if (foot) foot.textContent = `CORE · ERP by Lancaster · ${ctx.settings.companyName}`;
   },
 };
 

@@ -1,5 +1,5 @@
 @echo off
-title LTDC ERP (office network)
+title CORE ERP (office network)
 cd /d "%~dp0"
 
 where node >nul 2>nul

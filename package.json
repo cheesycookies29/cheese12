@@ -1,7 +1,7 @@
 {
   "name": "ltdc-erp",
-  "version": "0.6.0-alpha",
-  "description": "LTDC ERP: HR & Payroll and IT Asset Management, self-hosted.",
+  "version": "0.7.0-alpha",
+  "description": "CORE · ERP by Lancaster: HR & Payroll, IT Asset Management and IT Service Desk, self-hosted.",
   "type": "module",
   "private": true,
   "scripts": {

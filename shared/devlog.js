@@ -26,6 +26,24 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.7.0-alpha',
+    date: '2026-11-04',
+    title: 'Rebrand to CORE · ERP by Lancaster',
+    modules: ['system', 'hr', 'assets', 'deploy'],
+    notes: 'The ERP is now CORE · ERP by Lancaster, with a new mark and a cleaner interface that shares the design language of the Lancaster LMS. Features and data are unchanged.',
+    changes: [
+      ['new', 'system', 'CORE identity: the interlocking octagonal mark (gold on maroon) as the app icon, favicon, top bar logo and sign-in seal. The Lancaster company logo stays on payslips and the public support page.'],
+      ['new', 'system', 'App shell from the LMS design system: white top bar with the CORE wordmark and the open module, a module switcher (grid button), a user menu (send feedback, change password, sign out) and an icon sidebar that folds to icons on wide screens and opens as a drawer on phones.'],
+      ['new', 'system', 'Dark mode for every screen, from the moon button in the top bar; the choice is kept per browser and follows the device setting until changed. Payslips stay on white paper in both themes.'],
+      ['improved', 'system', 'CORE home page in place of the module launcher: greeting, module cards with live figures, administration shortcuts with counts, and the roadmap.'],
+      ['improved', 'system', 'Sign-in, first-time setup and password screens redesigned to match the LMS, with the CORE brand on phones where the side panel is hidden.'],
+      ['improved', 'system', 'One set of colour tokens (brand, accent, surfaces, borders, text) for all modules; cards, tables, forms, badges and modals follow the LMS sizes and spacing, and the DM Sans typeface throughout.'],
+      ['improved', 'system', 'Public support page (/support) restyled with a white header and dark mode.'],
+      ['improved', 'deploy', 'Windows package renamed: CORE-ERP-Windows-x64.zip with Start CORE ERP.bat. To upgrade from an LTDC-ERP folder, copy its data folder into the new one. Server service names and paths are unchanged, so automatic deployment continues as before.'],
+      ['fixed', 'hr', 'Clock-in locations no longer fails on a brand-new installation before the server is restarted (the location settings were missing from a new database).'],
+    ],
+  },
+  {
     version: '0.6.0-alpha',
     date: '2026-11-03',
     title: 'Public complaint and request form',

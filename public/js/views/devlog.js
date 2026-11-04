@@ -120,7 +120,7 @@ function openAuthor(current, onSaved) {
 // ---------- CHANGELOG.md ----------
 
 function toMarkdown(entries, author) {
-  const out = ['# Changelog', '', `All notable changes to LTDC ERP, newest first. Maintainer: ${author}.`, ''];
+  const out = ['# Changelog', '', `All notable changes to CORE · ERP by Lancaster, newest first. Maintainer: ${author}.`, ''];
   for (const r of entries) {
     out.push(`## [${r.version}] - ${r.date}`, '', `**${r.title}.** ${r.notes}`, '');
     for (const t of TYPE_ORDER) {

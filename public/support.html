@@ -6,11 +6,15 @@
   <meta name="robots" content="noindex" />
   <title>Contact the service desk</title>
   <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <meta name="theme-color" content="#5d0013" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <script>
+    try { var t = localStorage.getItem('core-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
 </head>
 <body class="support-page">
   <header class="sp-head">
-    <div class="sp-head-inner"><img src="/img/logo-white.png" alt="" /><span id="sp-company"></span></div>
+    <div class="sp-head-inner"><img class="on-light" src="/img/logo.png" alt="" /><img class="on-dark" src="/img/logo-white.png" alt="" /><span class="sp-divider" aria-hidden="true"></span><span class="sp-title"><strong>Service desk</strong><small id="sp-company"></small></span></div>
   </header>
   <main class="sp-main" id="sp"></main>
   <footer class="sp-foot" id="sp-foot"></footer>

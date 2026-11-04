@@ -1,15 +1,16 @@
-# LTDC ERP
+# CORE · ERP by Lancaster
 
-The unified enterprise system of Lancaster Technology and Development Corporation (LTDC). It runs on your own computer, opens in your browser, and follows the look of [lancastertechdev.com](https://lancastertechdev.com/).
+**CORE** is the enterprise resource planning system of Lancaster Technology and Development Corporation (LTDC). It runs on your own computer or a small cloud server and opens in your browser. Its design language is shared with the Lancaster LMS: a white top bar, an icon sidebar that folds to icons, cards on a light grey canvas, one brand colour throughout, and a **dark mode** (the moon button, remembered per browser).
 
-After signing in, everyone lands on the **module launcher** and picks a module. Two modules are live:
+After signing in, everyone lands on the **CORE home page** and picks a module; the grid button in the top bar switches modules from anywhere. Three modules are live:
 
 | Module | For |
 | --- | --- |
 | **HR & Payroll** | Employee records, time and attendance, leave and remote work, Philippine payroll |
 | **IT Asset Management** | IT equipment and consumable stock: who or where it is allocated to, warranty, history, CSV exports |
+| **IT Service Desk** | Support tickets from the portal, email and a public form, with assignment, internal notes and service levels |
 
-Finance & Accounting, Procurement, Project Management, Sales & CRM, IT Service Desk and Document Management appear on the launcher greyed out as **coming soon**.
+Finance & Accounting, Procurement, Project Management, Sales & CRM and Document Management are listed under **On the roadmap**.
 A module the user's account cannot use shows **No access**.
 
 ### HR & Payroll
@@ -46,7 +47,7 @@ A module the user's account cannot use shows **No access**.
   - Mailbox passwords are stored encrypted with a key in `data/secret.key`; they are never sent back to the browser or included in a downloaded backup.
   - Gmail and Google Workspace need an **app password** (2-Step Verification on). Microsoft 365 has switched off password sign-in for IMAP and SMTP in most organisations, so it works only where an administrator allows it for that mailbox.
 
-All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting LTDC ERP online with Amazon EC2](deploy/aws/EC2.md).
+All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting CORE online with Amazon EC2](deploy/aws/EC2.md).
 
 ## Run it on your Mac
 
@@ -80,15 +81,15 @@ To use a different port, run `PORT=8080 npm start`.
 
 ### Easiest: the Windows package (nothing to install)
 
-`LTDC-ERP-Windows-x64.zip` contains the app **and its own copy of Node.js**, so there is nothing to install.
+`CORE-ERP-Windows-x64.zip` contains the app **and its own copy of Node.js**, so there is nothing to install.
 
 1. Right-click the zip → **Properties** → tick **Unblock** if it is shown → **OK**.
-2. Right-click → **Extract All…** and put the `LTDC-ERP` folder somewhere permanent, such as **Documents** (not Program Files). Your data is saved inside it.
-3. Double-click **`Start LTDC ERP.bat`**. The app opens in your browser at <http://localhost:3000>. Keep the black window open while you use it.
+2. Right-click → **Extract All…** and put the `CORE-ERP` folder somewhere permanent, such as **Documents** (not Program Files). Your data is saved inside it.
+3. Double-click **`Start CORE ERP.bat`**. The app opens in your browser at <http://localhost:3000>. Keep the black window open while you use it.
 4. Optional: double-click **`Create desktop shortcut.bat`**.
 
-The folder also has **`Start LTDC ERP (office network).bat`** (lets other PCs sign in), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
-To build the package yourself, run `scripts/build-windows.sh` on macOS or Linux. It downloads the official Node.js Windows build, checks it against nodejs.org's checksums, and writes `dist/LTDC-ERP-Windows-x64.zip`.
+The folder also has **`Start CORE ERP (office network).bat`** (lets other PCs sign in), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
+To build the package yourself, run `scripts/build-windows.sh` on macOS or Linux. It downloads the official Node.js Windows build, checks it against nodejs.org's checksums, and writes `dist/CORE-ERP-Windows-x64.zip`.
 
 ### From the source code
 
@@ -187,7 +188,8 @@ You can also just copy the `data/` folder. It also holds `attachments/` (medical
 
 - `server.js` is a dependency-free Node HTTP server. The JSON API is in `server/api.js` and storage in `server/db.js`.
 - `server/leave.js` and `server/assets.js` hold the leave/request and IT asset routes; `shared/assets.js` the asset statuses and categories.
-- `public/js/modules.js` lists the ERP modules shown on the launcher (`public/js/views/launcher.js`). To add a module: add its routes and menu in `public/js/app.js`, set it to `live`, and give it a home in `moduleHome()`.
+- `public/js/modules.js` lists the modules shown on the CORE home page (`public/js/views/launcher.js`) and in the module switcher. To add a module: add its routes and menu in `public/js/app.js` (each menu item names an icon from `public/js/icons.js`), set it to `live`, and give it a home in `moduleHome()`.
+- **Design:** `public/css/styles.css` follows the Lancaster LMS design system. Colours are tokens on `:root` (`--brand`, `--accent`, `--surface`, `--border`, `--text`, `--muted`…) with dark-mode values under `[data-theme='dark']`; use the tokens, not fixed colours, so every screen follows the theme. The older names (`--maroon`, `--gold`…) are mapped onto them. The CORE mark is `public/img/core-mark.svg` (gold), `core-mark-brand.svg` (maroon) and `core-app-icon.svg` (app tile). Payslips stay on white paper in both themes.
 - `shared/calc.js` holds all the time and payroll math. Both the server and the browser use it.
 - `shared/roles.js` defines the account types and permissions. The server enforces them on every API call (`server/api.js`), and the browser uses them to hide screens and buttons. Passwords and sessions are in `server/auth.js`.
 - `public/` is the single-page app: plain ES modules with no build step.

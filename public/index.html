@@ -3,29 +3,36 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LTDC ERP</title>
+  <meta name="theme-color" content="#5d0013" />
+  <title>CORE · ERP by Lancaster</title>
+  <link rel="icon" type="image/svg+xml" href="/img/core-app-icon.svg" />
   <link rel="icon" type="image/png" href="/img/favicon.png" />
   <link rel="apple-touch-icon" href="/img/icon-192.png" />
   <link rel="stylesheet" href="/css/styles.css" />
+  <script>
+    // Dark or light, chosen per browser (the moon button), before the page paints.
+    try { var t = localStorage.getItem('core-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
 </head>
 <body class="booting">
   <div id="auth"></div>
-  <div class="layout">
+  <div class="app">
     <header class="topbar">
-      <button type="button" class="menu-btn" id="menu-btn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
-        <span class="menu-icon" aria-hidden="true"></span><span class="menu-dot" hidden></span>
-      </button>
-      <a class="topbar-brand" href="#/launcher"><img src="/img/logo-white.png" alt="Lancaster Technology and Development" /></a>
-      <span class="topbar-module" id="topbar-module"></span>
+      <button type="button" class="icon-btn" id="menu-btn" aria-label="Menu" aria-controls="sidebar" aria-expanded="false"></button>
+      <a class="brand" href="#/launcher" aria-label="CORE home">
+        <img class="core-mark on-light" src="/img/core-mark-brand.svg" alt="" /><img class="core-mark on-dark" src="/img/core-mark.svg" alt="" />
+        <span><span class="core-word"><strong>CORE</strong><em>ERP by Lancaster</em></span><small id="brand-sub"></small></span>
+      </a>
+      <span class="topbar-spacer"></span>
+      <div class="mod-switch" id="mod-switch"></div>
+      <button type="button" class="round-btn" id="theme-btn" aria-label="Dark mode"></button>
+      <div class="user-menu" id="user-box"></div>
     </header>
-    <div class="nav-scrim" id="nav-scrim" hidden></div>
-    <aside class="sidebar" id="sidebar">
-      <div class="brand"><img src="/img/logo-white.png" alt="Lancaster Technology and Development" /></div>
-      <div class="brand-sub"><div><span class="erp-mark">LTDC ERP</span><strong id="module-name"></strong><small id="company-name"></small></div></div>
-      <nav id="nav"></nav>
-      <div class="user-box" id="user-box"></div>
-    </aside>
-    <main id="app"></main>
+    <div class="layout">
+      <aside class="sidebar" id="sidebar"><nav id="nav"></nav><div class="side-foot" id="side-foot"></div></aside>
+      <div class="nav-scrim" id="nav-scrim" hidden></div>
+      <main id="app"></main>
+    </div>
   </div>
   <div id="toast"></div>
   <script type="module" src="/js/app.js"></script>

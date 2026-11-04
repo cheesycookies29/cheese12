@@ -16,7 +16,7 @@ const files = async (input) => Promise.all([...(input?.files || [])].slice(0, 3)
 
 function setCompany(name) {
   document.getElementById('sp-company').textContent = name || '';
-  mount(document.getElementById('sp-foot'), html`<p>${name} · Service desk</p>`);
+  mount(document.getElementById('sp-foot'), html`<p>${name} · Service desk · Powered by CORE · ERP by Lancaster</p>`);
 }
 
 async function showForm() {

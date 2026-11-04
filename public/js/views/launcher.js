@@ -1,12 +1,11 @@
-// ERP launcher: the first page after sign-in. Users pick a module; modules on
-// the roadmap are listed but disabled. Styled after lancastertechdev.com.
+// CORE home: the first page after sign-in. A greeting, the modules this account can open
+// (with a few live figures), the roadmap, and administration shortcuts.
 import { api } from '../api.js';
 import { ctx, can, roleLabel } from '../state.js';
-import { MODULES, ICONS } from '../modules.js';
+import { MODULES } from '../modules.js';
 import { unseenCount } from './devlog.js';
-import { html, raw, mount } from '../ui.js';
-
-const icon = (name) => raw(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`);
+import { html, mount } from '../ui.js';
+import { icon } from '../icons.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -51,77 +50,66 @@ export async function launcherView(el) {
   ]);
   const live = MODULES.filter((m) => m.status === 'live');
   const soon = MODULES.filter((m) => m.status !== 'live');
+  const open = live.filter((m) => ctx.moduleHome(m.id)).length;
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   const card = (m) => {
     const home = ctx.moduleHome(m.id);
     const figures = stats[m.id] || [];
+    const top = html`<span class="sys-top"><span class="sys-ic">${icon(m.glyph, 26)}</span><span class="sys-code">${m.code}</span></span>`;
     return home
-      ? html`<a class="lc-card" href="#${home}" data-module="${m.id}">
-          <div class="lc-card-icon">${icon(m.icon)}</div>
-          <h3>${m.name}</h3>
+      ? html`<a class="sys-card" href="#${home}" data-module="${m.id}">
+          ${top}
+          <strong class="sys-name" style="font-size:20px">${m.name}</strong>
           <p>${m.description}</p>
-          ${figures.length ? html`<ul class="lc-figures">${figures.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
-          <span class="lc-open">Open module <span aria-hidden="true">↗</span></span>
+          ${figures.length ? html`<ul class="sys-figs">${figures.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
+          <span class="sys-open">Open ${m.name} ${icon('chevronRight', 16)}</span>
         </a>`
-      : html`<div class="lc-card locked" data-module="${m.id}" aria-disabled="true">
-          <div class="lc-card-icon">${icon(m.icon)}</div>
-          <h3>${m.name}</h3>
+      : html`<div class="sys-card locked" data-module="${m.id}" aria-disabled="true">
+          ${top}
+          <strong class="sys-name" style="font-size:20px">${m.name}</strong>
           <p>${m.description}</p>
-          <span class="lc-note">Your account does not have access. Contact your administrator.</span>
+          <span class="sys-open">${icon('lock', 14)} No access · ask your administrator</span>
         </div>`;
   };
 
+  const admin = [
+    can('users.manage') && ['/users', 'shield', 'Users & Access', 'Accounts, roles and agents'],
+    can('settings.edit') && ['/settings', 'toggles', 'Settings & Backups', 'Company details and data'],
+    can('devlog.view') && ['/devlog', 'code', 'Dev log', 'What changed in each release', devlogNew],
+    can('feedback.view') && ['/feedback/inbox', 'message', 'Feedback inbox', 'What users are telling you', feedbackNew],
+  ].filter(Boolean);
+
   mount(el, html`
-    <div class="lc">
-      <header class="lc-header">
-        <img src="/img/logo.png" alt="Lancaster Technology and Development" />
-        <div class="lc-user">
-          <div><strong>${u.name}</strong><small>${roleLabel(u.role)}</small></div>
-          <a class="link" href="#/feedback">Send feedback</a>
-          <button class="link" id="lc-pw">Change password</button>
-          <button class="btn small-btn" id="lc-out">Sign out</button>
-        </div>
-      </header>
+    <section class="hub-hero">
+      <img class="hero-mark" src="/img/core-mark.svg" alt="" />
+      <div class="hub-wrap">
+        <p class="hub-kicker">${today}</p>
+        <h1>${greeting()}, ${u.name.split(' ')[0]}</h1>
+        <p>Welcome to CORE, the ERP of ${ctx.settings.companyName}. Choose a module to continue.</p>
+        <span class="hub-role">${icon('user', 14)} ${roleLabel(u.role)}</span>
+      </div>
+    </section>
 
-      <section class="lc-hero">
-        <p class="lc-date">${today}</p>
-        <h1>${greeting()}, <span>${u.name.split(' ')[0]}</span></h1>
-        <p class="lc-lead">Welcome to the LTDC Enterprise Resource Planning system. Choose a module to continue.</p>
-      </section>
+    <section class="hub-wrap">
+      <div class="card-head"><h2>${icon('grid')} Your modules</h2><span class="muted small">${open} of ${live.length} available to you</span></div>
+      <div class="sys-grid three">${live.map(card)}</div>
+    </section>
 
-      <section class="lc-section">
-        <h2 class="lc-title"><span>Your</span> Modules</h2>
-        <div class="lc-grid">${live.map(card)}</div>
-      </section>
+    ${admin.length
+      ? html`<section class="hub-wrap">
+          <div class="card-head"><h2>${icon('settings')} Administration</h2><span class="muted small">Applies to every module</span></div>
+          <div class="admin-tiles">${admin.map(([href, ic, title, sub, count]) => html`<a class="admin-tile" href="#${href}"><span class="ic-box">${icon(ic, 20)}</span><span class="grow"><strong>${title}</strong><small>${sub}</small></span>${count ? html`<span class="count">${count} new</span>` : icon('chevronRight', 16)}</a>`)}</div>
+        </section>`
+      : ''}
 
-      <section class="lc-section">
-        <h2 class="lc-title small"><span>Coming</span> Soon</h2>
-        <div class="lc-grid soon">${soon.map((m) => html`<div class="lc-card soon" aria-disabled="true">
-          <div class="lc-card-icon">${icon(m.icon)}</div>
-          <h3>${m.name}</h3>
-          <p>${m.description}</p>
-          <span class="lc-pill">In development</span>
-        </div>`)}</div>
-      </section>
+    <section class="hub-wrap">
+      <div class="card-head"><h2>${icon('layers')} On the roadmap</h2><span class="muted small">In development</span></div>
+      <div class="soon-grid">${soon.map((m) => html`<div class="soon-item">${icon(m.glyph, 20)}<span><strong>${m.name}</strong><small>${m.description}</small></span></div>`)}</div>
+    </section>
 
-      ${can('users.manage')
-        ? html`<section class="lc-band">
-            <div>
-              <h2>System Administration</h2>
-              <p>Manage user accounts and access, company details and data backups for all modules, see what changed in each release, and read feedback from users.</p>
-            </div>
-            <div class="lc-band-actions"><a class="lc-band-btn" href="#/users">Users &amp; Access</a><a class="lc-band-btn" href="#/settings">Settings &amp; Backups</a>${can('devlog.view') ? html`<a class="lc-band-btn" href="#/devlog">Dev log${devlogNew ? html`<span class="lc-band-count">${devlogNew} new</span>` : ''}</a>` : ''}${can('feedback.view') ? html`<a class="lc-band-btn" href="#/feedback/inbox">Feedback${feedbackNew ? html`<span class="lc-band-count">${feedbackNew} new</span>` : ''}</a>` : ''}</div>
-          </section>`
-        : ''}
-
-      <footer class="lc-footer">
-        <img src="/img/logo-white.png" alt="" />
-        <span>${ctx.settings.companyName}</span>
-        <span class="lc-footer-tag">Nation building through technology and development</span>
-      </footer>
-    </div>`);
-
-  el.querySelector('#lc-out').addEventListener('click', () => ctx.signOut());
-  el.querySelector('#lc-pw').addEventListener('click', () => ctx.changePassword());
+    <footer class="hub-foot"><div class="hub-wrap">
+      <span class="core-foot"><img src="/img/core-mark-brand.svg" alt="" /> CORE · ERP by Lancaster</span>
+      <span>© ${new Date().getFullYear()} ${ctx.settings.companyName}</span>
+    </div></footer>`);
 }

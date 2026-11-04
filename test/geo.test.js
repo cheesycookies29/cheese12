@@ -124,3 +124,9 @@ test('the flexible-time flag is saved on the employee record', async () => {
   assert.equal(saved.flexTime, true);
   assert.equal((await admin('PUT', `/api/employees/${ana.id}`, { ...e, flexTime: false })).flexTime, false);
 });
+
+test('a brand-new database has the clock-in location settings', () => {
+  const fresh = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'geo-fresh-')), 'db.json'));
+  assert.equal(fresh.data.settings.location.retentionDays, 365);
+  assert.equal(fresh.data.settings.location.officeLat, null);
+});
