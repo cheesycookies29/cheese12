@@ -42,7 +42,20 @@ function readBody(req) {
   });
 }
 
+// Unlisted pages (public/private/<slug>.html) are served at /<slug>, linked from nowhere and
+// kept out of search engines. Only slugs that look like core-rd-<random> are matched.
+const NO_INDEX = { 'X-Robots-Tag': 'noindex, nofollow, noarchive', 'Referrer-Policy': 'no-referrer' };
+function servePrivate(url, res) {
+  const slug = url.pathname.match(/^\/(core-rd-[a-z0-9]{8,})\/?$/)?.[1];
+  const file = slug && path.join(ROOT, 'public', 'private', `${slug}.html`);
+  if (!file || !fs.existsSync(file)) return false;
+  send(res, 200, fs.readFileSync(file), 'text/html', NO_INDEX);
+  return true;
+}
+
 function serveStatic(url, res) {
+  if (url.pathname.startsWith('/private/')) return send(res, 404, 'Not found', 'text/plain');
+  if (servePrivate(url, res)) return;
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;
     let rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
