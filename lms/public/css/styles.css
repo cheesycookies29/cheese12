@@ -98,7 +98,7 @@ body:not(.auth-mode) #auth { display: none; }
 .topbar .brand small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; vertical-align: 2px; }
 .topbar-spacer { flex: 1; }
-.round-btn { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); display: inline-grid; place-items: center; cursor: pointer; position: relative; }
+.round-btn { width: 38px; height: 38px; flex: none; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); display: inline-grid; place-items: center; cursor: pointer; position: relative; }
 .round-btn:hover { background: var(--surface-2); }
 .round-btn .dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); border: 2px solid var(--surface); }
 
@@ -147,14 +147,14 @@ main { flex: 1; min-width: 0; padding: 20px 28px 56px; max-width: 1360px; }
 .actions.end { justify-content: flex-end; }
 .stack { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
 .stack.tight { gap: 12px; margin: 0; }
-.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
-.cols.wide-left { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; align-items: start; }
+.cols.wide-left { grid-template-columns: minmax(0, 2fr) minmax(min(280px, 100%), 1fr); }
 .card + .card, .card.scroll-x + .card, .cols + .card, .cols + .cols, .card + .cols { margin-top: 16px; }
 .cols > .card + .card, .stats > .card + .card, .tiles > * + *, .stack > .card + .card { margin-top: 0; }
 
 /* ===== Surfaces ===== */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
-.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .card-head h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
 .card-head a { font-size: 13px; font-weight: 500; }
 .card.empty, .empty { text-align: center; padding: 36px 20px; color: var(--muted); }
@@ -287,7 +287,7 @@ label.inline { display: flex; align-items: center; gap: 8px; color: var(--muted)
 .class-head .teacher strong { display: block; font-size: 15px; }
 
 /* ===== Tiles, lists ===== */
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
 .tile { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); box-shadow: var(--shadow); position: relative; overflow: hidden; transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s; }
 .tile::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--brand); opacity: 0.85; }
 a.tile:hover { text-decoration: none; border-color: var(--brand-line); box-shadow: var(--shadow-lg); transform: translateY(-1px); }
@@ -319,7 +319,8 @@ a.list-item:hover strong { color: var(--brand-text); }
 
 .posts { display: flex; flex-direction: column; gap: 12px; }
 .post { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
-.post header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.post header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.post header .author { flex: 1 1 180px; min-width: 0; }
 .post h3 { margin: 0; text-transform: none; font-size: 17px; letter-spacing: 0; color: var(--text); display: flex; align-items: center; gap: 8px; }
 .post .by { font-size: 12px; color: var(--muted); }
 .post.draft { background: var(--surface-2); border-style: dashed; }
@@ -345,7 +346,7 @@ a.list-item:hover strong { color: var(--brand-text); }
 .res-item.sel { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent); }
 .res-item .grow { flex: 1; min-width: 0; }
 .res-item strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.res-item small { color: var(--muted); }
+.res-item small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview { position: sticky; top: calc(var(--topbar) + 16px); min-height: 320px; }
 .preview iframe, .preview video, .preview img { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .preview iframe { height: 60vh; }
@@ -418,7 +419,8 @@ a.list-item:hover strong { color: var(--brand-text); }
 .swatch i { width: 44px; height: 44px; border-radius: 50%; display: block; border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--border); }
 .swatch:has(input:checked) { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); }
 .swatch input[type='radio'] { position: absolute; opacity: 0; }
-.logo-box { display: flex; align-items: center; gap: 16px; }
+.logo-box { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.logo-box > div { min-width: 0; flex: 1 1 180px; }
 .logo-box img { height: 64px; max-width: 200px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px; background: #fff; }
 
 /* Enrollment history */
@@ -429,6 +431,10 @@ a.list-item:hover strong { color: var(--brand-text); }
 .grade-input { width: 84px; text-align: right; }
 .score-cell { text-align: center !important; font-variant-numeric: tabular-nums; }
 .gradebook th.score-cell { white-space: normal; min-width: 92px; }
+.gradebook th:first-child, .gradebook td:first-child, .att-table th:first-child, .att-table td:first-child, .register th:first-child, .register td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); min-width: 140px; border-right: 1px solid var(--border); }
+/* A scrolling card holding one of those tables has no side padding, so nothing shows beside the pinned column. */
+.card.scroll-x:has(> .gradebook, > .register) { padding-left: 0; padding-right: 0; }
+.gradebook thead th:first-child, .att-table thead th:first-child, .register thead th:first-child { background: var(--surface-2); }
 
 /* ===== Modal & toast ===== */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: flex; align-items: flex-start; justify-content: center; padding: 7vh 16px; z-index: 80; overflow-y: auto; }
@@ -507,6 +513,15 @@ a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shado
 #feed { margin-bottom: 32px; }
 body.hub .topbar { padding-left: 24px; }
 
+/* Sideways-scrolling areas (wide tables, tabs, the timetable) fade out at an edge that has more. */
+[data-more='right'] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+[data-more='left'] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+[data-more='both'] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+
+/* Where the first column stays pinned (names, hours), only the right edge fades. */
+.scroll-x:has(.gradebook, .att-table, .register, .timetable)[data-more='left'] { -webkit-mask-image: none; mask-image: none; }
+.scroll-x:has(.gradebook, .att-table, .register, .timetable)[data-more='both'] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+
 /* ===== Phones and tablets ===== */
 .nav-scrim { display: none; }
 @media (max-width: 960px) {
@@ -524,10 +539,10 @@ body.hub .topbar { padding-left: 24px; }
   .card { padding: 16px; }
   .page-head { flex-direction: column; align-items: stretch; gap: 12px; }
   .page-head .actions .btn { flex: 1 1 auto; }
-  .cols.wide-left, .res-layout, .quiz-layout, .class-head { grid-template-columns: 1fr; }
+  .cols.wide-left, .res-layout, .quiz-layout, .class-head { grid-template-columns: minmax(0, 1fr); }
   .class-head .teacher { border-left: 0; border-top: 1px solid var(--border); }
   .quiz-side, .preview { position: static; }
-  .grid, .grid.two { grid-template-columns: 1fr; }
+  .grid, .grid.two { grid-template-columns: minmax(0, 1fr); }
   .span-2, .span-3 { grid-column: auto; }
   .sys-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hub-wrap { padding: 0 16px; }
@@ -548,6 +563,19 @@ body.hub .topbar { padding-left: 24px; }
   .modal footer .btn { flex: 1; }
   #toast { left: 16px; right: 16px; transform: translateY(20px); text-align: center; max-width: none; }
   #toast.show { transform: none; }
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea { font-size: 16px; }
+}
+/* Touch screens: tap targets of at least 36 px (text links in tables become buttons on phones). */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea { font-size: 16px; }
+  .btn.sm { min-height: 36px; padding: 6px 12px; }
+  .icon-btn { min-width: 36px; min-height: 36px; }
+  .chip { min-height: 36px; padding: 7px 14px; }
+  .react { min-height: 34px; padding: 6px 12px; }
+  .seg label { padding: 9px 12px; }
+  button.link { min-height: 32px; min-width: 32px; padding: 4px 6px; display: inline-flex; align-items: center; justify-content: center; }
+  input[type='color'] { min-height: 36px; }
+  .crumbs a { padding: 6px 0; }
 }
 @media (max-width: 760px) {
   .topbar .brand small { display: none; }
@@ -569,7 +597,31 @@ body.hub .topbar { padding-left: 24px; }
   .table.stackable .cell-v { text-align: right; min-width: 0; }
   .table.stackable td:first-child .cell-v { text-align: left; }
   .scroll-x.tt-wrap { overflow-x: auto; }
-  .timetable { grid-template-columns: 44px repeat(var(--days), minmax(96px, 1fr)); }
+  /* The week scrolls sideways (all its days, not just those that fit), with the hours kept in view. */
+  .timetable { grid-template-columns: 44px repeat(var(--days), minmax(96px, 1fr)); min-width: calc(44px + var(--days) * 96px); overflow: visible; }
+  .timetable > .tt-head:first-child, .tt-hours { position: sticky; left: 0; z-index: 2; background: var(--surface); }
+  .tt-hours { box-shadow: 0 -10px 0 var(--surface), 0 12px 0 var(--surface), 1px 0 0 var(--border); }
+  /* The top bar: the logo's mark only, so the school name has room. */
+  .topbar .brand img { width: 34px; max-width: 34px; object-fit: cover; object-position: left center; }
+  .table.stackable td.row-actions .link { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; min-height: 36px; justify-content: center; }
+  .table.stackable td.row-actions .link.danger { border-color: color-mix(in srgb, var(--danger) 35%, var(--surface)); }
+  /* Modules: each module a card with its two switches and what they do. */
+  .table.stackable .module-row td:not(:first-child) { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: start; text-align: left; gap: 4px 12px; padding: 8px 0; }
+  .table.stackable .module-row td::before { grid-row: span 2; }
+  .table.stackable .module-row .desc { grid-column: 2; max-width: none; margin-top: 0; }
+  /* Taking attendance: each student on a row of four big buttons. */
+  .att-take thead { display: none; }
+  .att-take, .att-take tbody, .att-take tr, .att-take td { display: block; width: 100%; }
+  .att-take tr { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .att-take td { border: 0; padding: 3px 0; }
+  .att-take td:first-child small, .att-take td:last-child small { display: inline; margin-left: 6px; }
+  .att-take td:last-child { font-size: 13px; color: var(--muted); }
+  .att-take .seg { display: flex; width: 100%; }
+  .att-take .seg label { flex: 1 1 0; justify-content: center; padding: 10px 2px; }
+  .scroll-x:has(.att-take) { overflow-x: visible; }
+  .list-item > .badge { margin-left: 48px; }
+  .list-item:has(> .badge) { flex-wrap: wrap; }
+  .list-item:has(> .badge) > .grow { flex-basis: calc(100% - 48px); }
   .tiles { grid-template-columns: 1fr; }
   .sys-grid { grid-template-columns: 1fr; }
   .sys-card { min-height: 0; }

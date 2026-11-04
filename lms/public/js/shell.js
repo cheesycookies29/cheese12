@@ -228,6 +228,7 @@ export function startApp(config) {
     };
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      setDrawer(false); // on phones the menu drawer would cover it
       pop.hidden = !pop.hidden;
       btn.setAttribute('aria-expanded', String(!pop.hidden));
     });
@@ -361,7 +362,7 @@ export const pageHead = (title, sub = '', actions = '', back = '') => {
   return html`
   <div class="page-head">
     <div>
-      ${trail.length ? html`<nav class="crumbs" aria-label="Breadcrumb">${trail.map(([href, label]) => html`<a href="#${href}">${label}</a>${icon('chevronRight', 14)}`)}<span class="cur">${typeof title === 'string' ? title : raw(String(title).replace(/<[^>]+>/g, '').trim())}</span></nav>` : ''}
+      ${trail.length ? html`<nav class="crumbs" aria-label="Breadcrumb">${trail.map(([href, label]) => html`<a href="#${href}">${label}</a>${icon('chevronRight', 14)}`)}<span class="cur">${typeof title === 'string' ? title : raw(String(title).replace(/<span class="badge[^"]*">[\s\S]*?<\/span>/g, '').replace(/<[^>]+>/g, '').trim())}</span></nav>` : ''}
       <h1>${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}
     </div>
     ${actions ? html`<div class="actions">${actions}</div>` : ''}

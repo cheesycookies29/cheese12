@@ -2,6 +2,7 @@
 // From the Lancaster ERP (public/js/views/payroll-setup.js there).
 import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
+import { icon } from '../../icons.js';
 import { DEFAULT_RATES, sssContribution, philhealthContribution, pagibigContribution, withholdingTax, round2 } from '/shared/calc.js';
 import { html, mount, toast, amount, confirmDialog } from '../../ui.js';
 import { hr } from '../state.js';
@@ -18,7 +19,7 @@ function taxRows(rows, freq) {
     <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="over" data-row="${i}" value="${r.over}" /></div></td>
     <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="base" data-row="${i}" value="${r.base}" /></div></td>
     <td><div class="input-suffix"><input type="number" step="any" min="0" max="100" data-tax="${freq}" data-col="rate" data-row="${i}" value="${pct(r.rate)}" /><em>%</em></div></td>
-    <td class="row-actions">${rows.length > 1 ? html`<button type="button" class="link danger" data-remove-row="${freq}:${i}">Remove</button>` : ''}</td>
+    <td class="row-actions">${rows.length > 1 ? html`<button type="button" class="icon-btn danger" data-remove-row="${freq}:${i}" aria-label="Remove bracket" title="Remove bracket">${icon('trash', 16)}</button>` : ''}</td>
   </tr>`)}`;
 }
 
@@ -60,7 +61,7 @@ export async function payrollSetupView(el) {
         <div class="cols tax-cols">
           ${['semi-monthly', 'monthly'].map((freq) => html`<div>
             <h3>${freq === 'monthly' ? 'Monthly' : 'Semi-monthly'}</h3>
-            <table class="table compact edit-table"><thead><tr><th>Over</th><th>Base tax</th><th>Rate</th><th></th></tr></thead><tbody id="tax-${freq}"></tbody></table>
+            <table class="table compact edit-table no-stack"><thead><tr><th>Over (₱)</th><th>Base tax (₱)</th><th>Rate (%)</th><th></th></tr></thead><tbody id="tax-${freq}"></tbody></table>
             <button type="button" class="link" data-add-row="${freq}">+ Add bracket</button>
           </div>`)}
         </div>
@@ -175,8 +176,8 @@ export async function payrollSetupView(el) {
   form.addEventListener('change', renderTry);
 
   form.addEventListener('click', (e) => {
-    const add = e.target.dataset.addRow;
-    const remove = e.target.dataset.removeRow;
+    const add = e.target.closest('[data-add-row]')?.dataset.addRow;
+    const remove = e.target.closest('[data-remove-row]')?.dataset.removeRow;
     if (!add && !remove) return;
     collect();
     if (add) {

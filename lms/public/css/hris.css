@@ -24,6 +24,8 @@
 .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .toolbar .spacer { flex: 1; }
 .toolbar label.inline { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-2); }
+.toolbar label.inline { min-width: 0; max-width: 100%; }
+.toolbar label.inline > select, .toolbar label.inline > input { min-width: 0; flex: 1 1 auto; }
 .notice.stack-notice { display: block; }
 .notice.stack-notice p + p { margin-top: 8px; }
 .hint-line { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
@@ -69,6 +71,12 @@ img.att-preview { height: auto; max-height: 70vh; }
 .input-suffix em { font-style: normal; color: var(--muted); padding: 0 10px; white-space: nowrap; font-size: 13px; }
 .input-suffix em.pre { padding: 0 0 0 10px; }
 .edit-table td { padding: 6px; }
+/* Tax tables: three amount columns that shrink to fit a phone. */
+.edit-table { table-layout: fixed; }
+.edit-table th:last-child, .edit-table td:last-child { width: 48px; }
+.edit-table .input-suffix input { width: 100%; padding-left: 6px; padding-right: 2px; }
+.edit-table .input-suffix em { padding: 0 6px; }
+.edit-table .input-suffix em.pre { padding: 0 0 0 6px; }
 .tax-cols { align-items: start; }
 
 /* Dashboard */
@@ -137,6 +145,16 @@ img.att-preview { height: auto; max-height: 70vh; }
 
 @media (max-width: 960px) {
   .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .toolbar label.inline { display: flex; width: 100%; }
+  .edit-table td { padding: 4px 3px; }
+  .edit-table th { padding: 8px 3px; }
+  .edit-table .input-suffix em.pre { display: none; }
+}
+@media (max-width: 400px) {
+  .edit-table .input-suffix em { display: none; }
+  .person.big { align-items: flex-start; }
 }
 @media (max-width: 700px) {
   .payslip { padding: 22px 16px 18px; font-size: 13px; }

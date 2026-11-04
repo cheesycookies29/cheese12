@@ -13,7 +13,7 @@ export async function modulesView(el) {
   mount(el, html`
     ${pageHead('Modules', 'Choose what students and teachers get in the learning portal. A module that is off disappears from their menu and the server refuses it.')}
     ${!editable ? html`<div class="notice"><p>Only administrators can change these.</p></div>` : ''}
-    <div class="card scroll-x"><table class="table no-stack">
+    <div class="card scroll-x"><table class="table">
       <thead><tr><th>Module</th><th>Students</th><th>Teachers</th></tr></thead>
       <tbody>${modules.map((m) => html`<tr class="module-row">
         <td><strong>${m.label}</strong></td>

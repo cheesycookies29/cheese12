@@ -336,7 +336,7 @@ async function attendance(el, c, state = {}) {
     <section class="card">
       <div class="card-head"><h2>${icon('check')} Take attendance</h2>
         <div class="actions"><input type="date" id="date" value="${date}" max="${sheet.today}" style="width:auto" /><button class="btn sm" id="all-present">Mark everyone present</button></div></div>
-      ${sheet.students.length ? html`<form id="take"><div class="scroll-x"><table class="table no-stack">
+      ${sheet.students.length ? html`<form id="take"><div class="scroll-x"><table class="table no-stack att-take">
         <thead><tr><th>Student</th><th>Status</th><th>Overall</th></tr></thead>
         <tbody>${sheet.students.map((s) => html`<tr><td><strong>${s.name}</strong><small>${s.studentNo}</small></td>
           <td><div class="seg">${STATUSES.map(([k, , label]) => html`<label class="${k}"><input type="radio" name="${s.id}" value="${k}" ${dayRec[s.id] === k ? 'checked' : ''} />${label}</label>`)}</div></td>

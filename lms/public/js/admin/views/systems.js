@@ -15,7 +15,7 @@ export async function systemsView(el) {
     ${pageHead('Portal & systems', html`Everyone signs in once at the <a href="/" target="_blank" rel="noopener">University Portal</a> and sees a tile for each system they may use.`)}
     <form id="systems" class="stack">
       ${systems.map((s) => html`<section class="card">
-        <div class="card-head"><h2><span class="item-ic">${icon(s.icon)}</span> ${s.name} <span class="muted" style="font-weight:500">${s.title}</span></h2>
+        <div class="card-head"><h2><span class="item-ic">${icon(s.icon)}</span><span>${s.name}<small class="muted" style="display:block;font-size:13px;font-weight:500">${s.title}</small></span></h2>
           ${s.builtIn ? html`<span class="badge green">Live · built in</span>` : ''}</div>
         <p class="muted" style="margin:-4px 0 12px">${s.description}</p>
         <p class="hint" style="margin-bottom:12px">Shown to: ${s.audience.map((r) => roleLabel(r)).join(', ')}.</p>

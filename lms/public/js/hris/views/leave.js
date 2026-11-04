@@ -130,7 +130,7 @@ async function balancesTab(el, query) {
         </div>
         ${rows.length
           ? html`<table class="table balances">
-              <thead><tr><th>Employee</th>${types.map((t) => html`<th class="center" title="${t.name}">${t.code}<small>${t.annualCredits ?? '—'} / yr</small></th>`)}</tr></thead>
+              <thead><tr><th>Employee</th>${types.map((t) => html`<th class="center" title="${t.name}" data-label="${t.name}">${t.code}<small>${t.annualCredits ?? '—'} / yr</small></th>`)}</tr></thead>
               <tbody>${rows.map((r) => html`<tr>
                 <td><strong>${r.name}</strong><small>${r.employeeNo}</small></td>
                 ${types.map((t) => {
@@ -270,7 +270,7 @@ async function employeeLeaveTab(el, query) {
               return html`<tr class="not-offered">
                 <td><strong>${b.name}</strong><small>${b.code} · ${b.paid ? 'paid' : 'unpaid'}${b.active ? '' : ' · inactive'}</small></td>
                 <td><label class="switch"><input type="checkbox" disabled /><span class="track"></span><span>No</span></label><small>${LEAVE_GENDERS[b.gender]}</small></td>
-                <td colspan="6" class="muted small">${LEAVE_GENDERS[b.gender]}; ${e.gender ? `${e.name.split(' ')[0]}'s record says ${e.gender}` : html`no gender on ${e.name.split(' ')[0]}'s record. <a href="#/employees/${e.id}/edit">Set it</a>`}${b.used ? ` · ${b.used} day(s) already recorded this year` : ''}</td>
+                <td colspan="6" class="muted small" data-label="Details">${LEAVE_GENDERS[b.gender]}; ${e.gender ? `${e.name.split(' ')[0]}'s record says ${e.gender}` : html`no gender on ${e.name.split(' ')[0]}'s record. <a href="#/employees/${e.id}/edit">Set it</a>`}${b.used ? ` · ${b.used} day(s) already recorded this year` : ''}</td>
               </tr>`;
             }
             return html`<tr class="${b.offered ? '' : 'not-offered'}">
@@ -283,7 +283,7 @@ async function employeeLeaveTab(el, query) {
                   <td class="num">${b.used}</td><td class="num">${b.pending || html`<span class="muted">—</span>`}</td>
                   <td class="num"><strong class="${b.remaining !== null && b.remaining < 0 ? 'negative' : ''}">${b.remaining ?? '∞'}</strong></td>
                   <td class="row-actions">${b.credits != null ? html`<button class="link" data-adjust="${b.leaveTypeId}">Adjust</button>` : ''}${b.active ? html`<button class="link" data-record="${b.leaveTypeId}">Record</button>` : ''}</td>`
-                : html`<td colspan="6" class="muted small">Not offered to ${e.name.split(' ')[0]}${b.used ? ` · ${b.used} day(s) already recorded this year` : ''}</td>`}
+                : html`<td colspan="6" class="muted small" data-label="Details">Not offered to ${e.name.split(' ')[0]}${b.used ? ` · ${b.used} day(s) already recorded this year` : ''}</td>`}
             </tr>`;
           })}</tbody>
         </table>
@@ -294,19 +294,19 @@ async function employeeLeaveTab(el, query) {
         <section class="card">
           <h2>Adjustments in ${state.year}</h2>
           ${data.adjustments.length
-            ? html`<table class="table compact"><thead><tr><th>Date</th><th>Leave</th><th class="num">Days</th><th>Reason</th><th></th></tr></thead>
+            ? html`<div class="scroll-x"><table class="table compact"><thead><tr><th>Date</th><th>Leave</th><th class="num">Days</th><th>Reason</th><th></th></tr></thead>
                 <tbody>${data.adjustments.map((a) => html`<tr><td>${fmtDate(a.at.slice(0, 10))}<small>by ${a.by}</small></td><td>${a.typeName}</td>
                   <td class="num"><strong class="${a.days < 0 ? 'negative' : ''}">${signed(a.days)}</strong></td><td>${a.reason}</td>
-                  <td class="row-actions"><button class="link danger" data-del-adj="${a.id}">Remove</button></td></tr>`)}</tbody></table>`
+                  <td class="row-actions"><button class="link danger" data-del-adj="${a.id}">Remove</button></td></tr>`)}</tbody></table></div>`
             : html`<p class="muted">No adjustments. Use <strong>Adjust balance</strong> for carry-over, offsets or corrections.</p>`}
         </section>
         <section class="card">
           <h2>Leave taken in ${state.year}</h2>
           ${data.leaveDays.length
-            ? html`<table class="table compact"><thead><tr><th>Date</th><th>Leave</th><th>From</th><th></th></tr></thead>
+            ? html`<div class="scroll-x"><table class="table compact"><thead><tr><th>Date</th><th>Leave</th><th>From</th><th></th></tr></thead>
                 <tbody>${data.leaveDays.map((d) => html`<tr><td>${fmtDate(d.date)}</td><td>${d.typeName}${d.paid ? '' : html` <small>unpaid</small>`}</td>
                   <td>${badge(...SOURCE[d.source])}</td>
-                  <td class="row-actions">${d.source === 'request' ? html`<a class="link" href="#/leave?tab=requests&status=approved">Cancel via request</a>` : html`<button class="link danger" data-del-day="${d.id}">Remove</button>`}</td></tr>`)}</tbody></table>`
+                  <td class="row-actions">${d.source === 'request' ? html`<a class="link" href="#/leave?tab=requests&status=approved">Cancel via request</a>` : html`<button class="link danger" data-del-day="${d.id}">Remove</button>`}</td></tr>`)}</tbody></table></div>`
             : html`<p class="muted">No leave recorded this year.</p>`}
         </section>
       </div>`);
@@ -402,7 +402,7 @@ async function typesTab(el) {
     mount(el, html`
       <section class="card">
         <div class="toolbar"><span class="muted small">Leave types are the same at every campus.</span><span class="spacer"></span><button class="btn primary" id="add-type">${icon('plus', 16)} Add leave type</button></div>
-        <table class="table">
+        <div class="scroll-x"><table class="table">
           <thead><tr><th>Code</th><th>Name</th><th>Pay</th><th class="num">Annual credits</th><th>Who gets it</th><th>Rules</th><th>Status</th><th></th></tr></thead>
           <tbody>${types.map((t) => html`<tr>
             <td><strong>${t.code}</strong></td><td>${t.name}</td>
@@ -413,7 +413,7 @@ async function typesTab(el) {
             <td>${t.active ? badge('Active', 'green') : badge('Inactive', 'gray')}</td>
             <td class="row-actions"><button class="link" data-edit="${t.id}">Edit</button><button class="link danger" data-delete="${t.id}">Delete</button></td>
           </tr>`)}</tbody>
-        </table>
+        </table></div>
         <p class="muted small">Defaults follow common Philippine practice (Service Incentive Leave is at least 5 days under the Labor Code; maternity, paternity and solo parent leave follow RA 11210, RA 8187 and RA 11861). Adjust to school policy (for example, teachers' proportional vacation pay under DepEd and CHED rules).</p>
       </section>`);
 

@@ -35,8 +35,8 @@ function summary(rows) {
 
 // One DTR row (shared with the HR attendance screen).
 export function dtrCells(e, c, { overtimeAction = null } = {}) {
-  if (c.leave) return html`<td colspan="2">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}${c.paidLeave ? '' : html` <small>unpaid</small>`}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`;
-  if (e.remote && !e.timeIn) return html`<td colspan="2">${badge('Remote work', 'blue')} <small>full day</small></td><td class="num">${fmtMinutes(c.workedMinutes)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`;
+  if (c.leave) return html`<td colspan="2" data-label="Day">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}${c.paidLeave ? '' : html` <small>unpaid</small>`}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`;
+  if (e.remote && !e.timeIn) return html`<td colspan="2" data-label="Day">${badge('Remote work', 'blue')} <small>full day</small></td><td class="num">${fmtMinutes(c.workedMinutes)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`;
   return html`<td>${fmtTime(e.timeIn)}${e.remote ? html` ${badge('Remote', 'blue')}` : ''}</td>
     <td>${c.open ? badge('Open', 'amber') : fmtTime(e.timeOut)}</td>
     <td class="num">${fmtMinutes(c.workedMinutes)}</td>

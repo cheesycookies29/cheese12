@@ -30,6 +30,36 @@ export function html(strings, ...values) {
 export function mount(el, content) {
   el.innerHTML = render(content);
   labelTables(el);
+  watchScrollers(el);
+}
+
+// Areas that scroll sideways (wide tables, tabs, the timetable) get data-more = left, right
+// or both, so the CSS can fade the edge where there is more to see. Tabs also scroll their
+// active tab into view.
+function updateScroller(s) {
+  const max = s.scrollWidth - s.clientWidth;
+  const left = s.scrollLeft > 2;
+  const right = s.scrollLeft < max - 2;
+  const more = max > 2 ? (left && right ? 'both' : left ? 'left' : right ? 'right' : '') : '';
+  if (s.dataset.more !== more) s.dataset.more = more;
+}
+export function watchScrollers(root) {
+  const list = [...root.querySelectorAll('.scroll-x, .tabs')];
+  const own = root.closest?.('.scroll-x, .tabs');
+  if (own) list.push(own);
+  for (const s of list) {
+    if (!s.dataset.watched) {
+      s.dataset.watched = '1';
+      s.addEventListener('scroll', () => updateScroller(s), { passive: true });
+      const active = s.matches('.tabs') && s.querySelector('.active');
+      if (active && active.offsetLeft + active.offsetWidth > s.clientWidth) s.scrollLeft = active.offsetLeft - 16;
+    }
+    updateScroller(s);
+  }
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => document.querySelectorAll('[data-watched]').forEach(updateScroller));
+  window.addEventListener('load', () => document.querySelectorAll('[data-watched]').forEach(updateScroller));
 }
 
 // Copy each column heading onto its cells (data-label), so on phones a table row
@@ -41,7 +71,8 @@ export function labelTables(root) {
   for (const table of tables) {
     if (table.matches(KEEP_AS_GRID)) continue;
     table.classList.add('stackable');
-    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    // A heading can give a fuller label for phones with data-label (e.g. a leave type's name for "VL").
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.dataset.label || th.textContent.trim());
     for (const row of table.querySelectorAll('tbody tr, tfoot tr')) {
       let col = 0;
       for (const cell of row.children) {
@@ -138,6 +169,7 @@ export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancel
     </form>`);
   document.body.appendChild(backdrop);
   labelTables(backdrop);
+  watchScrollers(backdrop);
   const form = backdrop.querySelector('form');
   const errorEl = backdrop.querySelector('.form-error');
   const close = () => backdrop.remove();

@@ -167,7 +167,7 @@ export async function gradingView(el) {
     const total = rows.reduce((n, t) => n + (Number(t.weight) || 0), 0);
     mount(el, html`
       ${pageHead('Activity types & grading', 'Teachers pick a type for each assignment, quiz or exam. Weights decide how much each type counts in the running grade.')}
-      <section class="card scroll-x"><table class="table no-stack">
+      <section class="card scroll-x"><table class="table">
         <thead><tr><th>Activity type</th><th>Weight %</th><th>Used by</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows.map((t, i) => html`<tr data-i="${i}">
           <td><input data-f="name" value="${t.name}" ${editable ? '' : 'disabled'} /></td>
