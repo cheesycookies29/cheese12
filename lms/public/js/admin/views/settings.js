@@ -113,11 +113,11 @@ export async function dataView(el) {
     ${pageHead('Demo data & backup')}
     <section class="card"><h2>Demo data</h2>
       <p>Adds a sample school <strong>next to your own data</strong>: 5 programs (IT, Computer Science, Business, Agriculture, Education), a finished term with grades
-        and a current term with enrollment open, 21 courses with prerequisites, 25 sections this term (one full with a waitlist, one with an enrollment key), 8 teachers,
-        about 60 students and 5 applicants. Every class has lessons, announcements, a course outline, graded work, a quiz most students have taken, and attendance;
-        plus school news and events.</p>
+        and a current term with enrollment open, 21 courses with prerequisites, about 40 sections this term (one full with a waitlist, one with an enrollment key), 18 teachers,
+        about 190 students across four campuses, 11 applicants and about 40 parents and guardians: some 260 accounts. Every class has lessons, announcements,
+        a course outline, graded work, a quiz most students have taken, and attendance; plus school news and events, and HRIS records, attendance and payroll.</p>
       <p>Sign in at the University Portal as <code>student.demo</code> (Carlo Reyes) or <code>teacher.demo</code> (Maria Santos), or as <code>registrar.demo</code>. Password <code>demo1234</code>.
-        Other teachers: <code>lmercado.demo</code>, <code>gaquino.demo</code>, <code>rvillareal.demo</code>, <code>lgonzales.demo</code>, <code>mtorres.demo</code>, <code>jdelacruz.demo</code>, <code>aramos.demo</code>.
+        Other teachers: <code>lmercado.demo</code>, <code>gaquino.demo</code>, <code>rvillareal.demo</code>, <code>lgonzales.demo</code>, <code>mtorres.demo</code>, <code>jdelacruz.demo</code>, <code>aramos.demo</code>, <code>psison.demo</code>, <code>rmanalastas.demo</code>, <code>jcabrera.demo</code>, <code>vbayani.demo</code>. Parents: <code>parent.demo</code>, <code>father.demo</code> and the accounts under Parents & guardians.
         Your own current term stays current; if you have none, the demo term becomes current.</p>
       ${demo.loaded ? html`<p><strong>Demo data is loaded:</strong> ${demo.counts.users} accounts, ${demo.counts.courses} courses, ${demo.counts.sections} sections, ${demo.counts.enrollments} enrollments.</p>` : ''}
       <div class="actions"><button class="btn primary" id="add-demo">${demo.loaded ? 'Refresh demo data' : 'Add demo data'}</button>

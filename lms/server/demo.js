@@ -150,6 +150,10 @@ export function addDemo(data, today, files = null) {
     ramon: person('teacher', 'rvillareal.demo', 'Ramon Villareal', { department: 'College of Agriculture', employeeNo: 'T-1006' }),
     liza: person('teacher', 'lgonzales.demo', 'Liza Gonzales', { department: 'College of Business', employeeNo: 'T-1007' }),
     mark: person('teacher', 'mtorres.demo', 'Mark Torres', { department: 'College of Education', employeeNo: 'T-1008' }),
+    paulo: person('teacher', 'psison.demo', 'Paulo Sison', { department: 'College of Computing', employeeNo: 'T-1009' }),
+    rhea: person('teacher', 'rmanalastas.demo', 'Rhea Manalastas', { department: 'General Education', employeeNo: 'T-1010' }),
+    josephine: person('teacher', 'jcabrera.demo', 'Josephine Cabrera', { department: 'College of Business', employeeNo: 'T-1011' }),
+    victor: person('teacher', 'vbayani.demo', 'Victor Bayani', { department: 'College of Agriculture', employeeNo: 'T-1012' }),
   };
   let n = 0;
   const student = (username, name, program, yearLevel, extra = {}) =>
@@ -169,7 +173,7 @@ export function addDemo(data, today, files = null) {
   // Everyone else: names from common Filipino first and last names, spread across programs and years
   const FIRST = ['Andrea', 'Joshua', 'Camille', 'Mark Anthony', 'Patricia', 'John Paul', 'Kristine', 'Christian', 'Nicole', 'Jerome', 'Danica', 'Renz', 'Shaira', 'Vincent', 'Aileen', 'Gabriel', 'Erika', 'Jericho', 'Hannah', 'Kyle', 'Mae', 'Adrian', 'Princess', 'Bryan', 'Joanna', 'Ralph', 'Clarisse', 'Elijah', 'Faith', 'Nathaniel', 'Lovely', 'Ivan', 'Rica', 'Daniel', 'Joy', 'Paulo'];
   const LAST = ['Dizon', 'Castillo', 'Ramirez', 'Flores', 'Villanueva', 'Pascual', 'Soriano', 'Manalo', 'Lopez', 'Gonzaga', 'Salazar', 'Ocampo', 'Rivera', 'Tolentino', 'Navarro', 'Mercado', 'Domingo', 'Del Rosario', 'Bernardo', 'Mendoza', 'Fernandez', 'Panganiban', 'Santiago', 'Valdez', 'Aguilar', 'Bautista', 'Cortez', 'De Guzman', 'Esguerra', 'Francisco', 'Gutierrez', 'Ilagan', 'Javier', 'Lacson', 'Magbanua', 'Natividad'];
-  const PLAN = [['BSIT', 1, 8], ['BSIT', 2, 6], ['BSCS', 1, 5], ['BSCS', 2, 4], ['BSBA', 1, 6], ['BSBA', 2, 5], ['BSA', 1, 6], ['BSA', 2, 5], ['BSED', 1, 5], ['BSED', 2, 4]];
+  const PLAN = [['BSIT', 1, 18], ['BSIT', 2, 14], ['BSCS', 1, 11], ['BSCS', 2, 9], ['BSBA', 1, 14], ['BSBA', 2, 11], ['BSA', 1, 13], ['BSA', 2, 11], ['BSED', 1, 12], ['BSED', 2, 10]];
   const crowd = [];
   let k = 0;
   for (const [program, year, count] of PLAN) {
@@ -231,6 +235,24 @@ export function addDemo(data, today, files = null) {
     BA201A: section('BA201', 'A', term, T.liza, MW('13:00', '14:30'), 35),
     ED101A: section('ED101', 'A', term, T.mark, MW('07:30', '09:00'), 35),
     ED102A: section('ED102', 'A', term, T.mark, TT('10:30', '12:00'), 35),
+    // More sections for the bigger first- and second-year classes
+    IT101C: section('IT101', 'C', term, T.paulo, MW('13:00', '14:30'), 35, { room: 'Lab 6' }),
+    IT102C: section('IT102', 'C', term, T.paulo, TT('13:00', '14:30'), 35, { room: 'Lab 6' }),
+    IT201C: section('IT201', 'C', term, T.paulo, MW('10:30', '12:00'), 30, { room: 'Lab 6' }),
+    CS201B: section('CS201', 'B', term, T.paulo, TT('15:00', '16:30'), 30),
+    GE101D: section('GE101', 'D', term, T.rhea, MW('07:30', '09:00'), 40),
+    GE102C: section('GE102', 'C', term, T.rhea, TT('07:30', '09:00'), 50),
+    GE103B: section('GE103', 'B', term, T.rhea, MW('10:30', '12:00'), 40),
+    GE104B: section('GE104', 'B', term, T.rhea, TT('10:30', '12:00'), 40),
+    NSTP1B: section('NSTP1', 'B', term, T.rhea, M([6], '08:00', '10:00'), 60, { room: 'Covered Court' }),
+    PE101C: section('PE101', 'C', term, T.rhea, M([6], '15:00', '17:00'), 50, { room: 'Gym' }),
+    BA101B: section('BA101', 'B', term, T.josephine, TT('13:00', '14:30'), 40),
+    BA102B: section('BA102', 'B', term, T.josephine, MW('15:00', '16:30'), 40),
+    BA201B: section('BA201', 'B', term, T.josephine, TT('15:00', '16:30'), 35),
+    AGRI101B: section('AGRI101', 'B', term, T.victor, TT('09:00', '10:30'), 35, { room: 'Agri Bldg 1' }),
+    AGRI102B: section('AGRI102', 'B', term, T.victor, MW('09:00', '10:30'), 35, { room: 'Agri Bldg 2' }),
+    ED101B: section('ED101', 'B', term, T.victor, TT('13:00', '14:30'), 35),
+    ED102B: section('ED102', 'B', term, T.victor, MW('13:00', '14:30'), 35),
   };
 
   // ----- Enrollments -----
@@ -334,7 +356,7 @@ export function addDemo(data, today, files = null) {
       [programCourses[1]]: section(programCourses[1], 'A', term, ta, TT('10:00', '11:30'), 35, place),
     };
     miniSections.push(...Object.values(secs));
-    for (let i = 0; i < 12; i++, k++) {
+    for (let i = 0; i < 20; i++, k++) {
       const program = programs[i % 2];
       const first = FIRST[k % FIRST.length];
       const last = LAST[(k * 7 + Math.floor(k / FIRST.length)) % LAST.length];
@@ -343,6 +365,22 @@ export function addDemo(data, today, files = null) {
       const mine = ['GE101', 'GE102', 'NSTP1', 'PE101', programCourses[programs.indexOf(program)]];
       for (const code of mine) enroll(st, secs[code], rand() < 0.1 ? 'pending' : 'enrolled');
     }
+  });
+  // More applicants waiting for the registrar (named after everyone else, so no name repeats)
+  ['BSIT', 'BSA', 'BSED', 'BSBA', 'BSCS', 'BSIT'].forEach((program, i) => {
+    let first;
+    let last;
+    let n = 0;
+    do {
+      first = FIRST[(k + i * 5 + n) % FIRST.length];
+      last = LAST[(k * 7 + i * 11 + 3 + n * 5) % LAST.length];
+      n += 1;
+    } while (taken('name', `${first} ${last}`));
+    const username = `${first.split(' ')[0]}.${last.replace(/\s+/g, '')}.applicant`.toLowerCase();
+    student(taken('username', username) ? `${username}${i}` : username, `${first} ${last}`, program, 1, {
+      status: 'pending', studentNo: '', appliedAt: new Date(Date.now() - rand() * 6 * 86400000).toISOString(),
+      applicationNote: ['Senior high graduate (ABM).', 'Second courser.', '', 'Working student; prefers afternoon classes.', 'Transferee from a private college.', ''][i],
+    });
   });
   // Maria Santos also teaches a Friday class at Sipocot (she switches campus to see it).
   const mariaSipocot = section('IT101', 'S1', term, T.maria, M([5], '13:00', '16:00'), 30, { campusId: sipocot.id, room: 'Sipocot Lab' });
@@ -570,6 +608,34 @@ export function addDemo(data, today, files = null) {
   add('guardianLinks', { guardianId: mother.id, studentId: S.carlo.id, relationship: 'Mother', views: allViews, status: 'active', createdBy: 'Rosa Villanueva', lastViewedAt: `${addDays(today, -1)}T11:20:00.000Z` });
   add('guardianLinks', { guardianId: mother.id, studentId: S.kevin.id, relationship: 'Aunt / Uncle', views: { ...allViews, enrollment: false, schedule: false }, status: 'active', createdBy: 'Rosa Villanueva' });
   add('guardianLinks', { guardianId: father.id, studentId: S.carlo.id, relationship: 'Father', views: { ...allViews, activities: false }, status: 'active', createdBy: 'Rosa Villanueva' });
+  // About one student in five has a parent or guardian account, with different sharing.
+  const MOMS = ['Maricel', 'Rowena', 'Jocelyn', 'Leonora', 'Cristina', 'Gemma', 'Rosalie', 'Evelyn', 'Marissa', 'Imelda', 'Teresita', 'Divina'];
+  const DADS = ['Rolando', 'Edgardo', 'Ramil', 'Danilo', 'Arnel', 'Rodel', 'Wilfredo', 'Nestor', 'Romeo', 'Joel', 'Alfredo', 'Renato'];
+  const RELS = ['Mother', 'Father', 'Mother', 'Father', 'Guardian', 'Grandparent'];
+  const SHARES = [allViews, allViews, allViews, { grades: true, attendance: true }, allViews, { grades: true, attendance: true, activities: true }, { enrollment: true, grades: true }];
+  const surname = (name) => {
+    const first = FIRST.filter((f) => name.startsWith(`${f} `)).sort((x, y) => y.length - x.length)[0];
+    return first ? name.slice(first.length + 1) : name.split(' ').slice(1).join(' ');
+  };
+  const named = new Set(Object.values(S).map((x) => x.id));
+  const families = data.users.filter((u) => u.demo && u.role === 'student' && u.status === 'active' && !named.has(u.id)).filter((_, i) => i % 5 === 2);
+  families.forEach((st, i) => {
+    const rel = RELS[i % RELS.length];
+    const given = (rel === 'Father' || (rel === 'Grandparent' && i % 2) ? DADS : MOMS)[Math.floor(i / RELS.length + i) % 12];
+    let name = `${given} ${surname(st.name)}`;
+    if (data.users.some((u) => u.name === name)) name = `${given} ${'ABCDEFGHJKLM'[i % 12]}. ${surname(st.name)}`;
+    const base = `p.${st.username.replace(/\.demo$/, '')}`.slice(0, 36);
+    const g = person('guardian', taken('username', base) ? `${base}${i}` : base, name, {
+      phone: `09${String(170000000 + i * 7919).padStart(9, '0')}`, campusIds: [st.campusIds[0]],
+      email: `${name.replace(/[^A-Za-z ]/g, '').trim().replace(/\s+/g, '.')}@example.com`.toLowerCase(),
+      lastLoginAt: rand() < 0.7 ? new Date(Date.now() - rand() * 9 * 86400000).toISOString() : undefined,
+    });
+    add('guardianLinks', {
+      guardianId: g.id, studentId: st.id, relationship: rel, views: { ...Object.fromEntries(Object.keys(allViews).map((v) => [v, false])), ...SHARES[i % SHARES.length] },
+      status: i % 17 === 9 ? 'paused' : 'active', createdBy: 'Rosa Villanueva',
+      lastViewedAt: g.lastLoginAt ? g.lastLoginAt : null,
+    });
+  });
 
   // ----- HRIS: employee records for these people, HR/payroll/staff sign-ins, attendance, leave, payroll -----
   const userByName = (username) => data.users.find((u) => u.demo && (u.username === username || u.username === `${username}2`));
