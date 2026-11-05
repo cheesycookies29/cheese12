@@ -19,7 +19,7 @@ export async function dashboardView(el) {
       ${can('leave.manage') ? html`<a class="card ${d.pendingRequests ? 'accent' : ''}" href="#/leave"><small>Requests to review</small><strong>${d.pendingRequests}</strong><span class="muted small">leave and remote work</span></a>` : ''}
       ${d.latestRun ? html`<a class="card" href="#/payroll/${d.latestRun.id}"><small>Latest payroll · ${d.latestRun.status}</small><strong>${money(d.latestRun.totals.netPay)}</strong><span class="muted small">net pay, ${fmtDate(d.latestRun.periodStart, { month: 'short', day: 'numeric' })} – ${fmtDate(d.latestRun.periodEnd)}</span></a>` : ''}
     </div>
-    ${d.unlinked && can('hris.accounts') ? html`<div class="notice info">${icon('key')}<p><strong>${d.unlinked} active employee${d.unlinked === 1 ? ' has' : 's have'} no sign-in account</strong>, so no self-service yet. Open a record under <a href="#/employees">Employees</a> to link their ATLAS Learn account or create an ATLAS People account.</p></div>` : ''}
+    ${d.unlinked && can('hris.accounts') ? html`<div class="notice info">${icon('key')}<p><strong>${d.unlinked} active employee${d.unlinked === 1 ? ' has' : 's have'} no sign-in account</strong>, so no self-service yet. Open a record under <a href="#/employees">Employees</a> to link their Learn account or create a sign-in account.</p></div>` : ''}
     <div class="cols">
       <section class="card">
         <div class="card-head"><h2>${icon('clock')} Today</h2><a href="#/dtr?from=${d.date}&to=${d.date}">Attendance ${icon('chevronRight', 14)}</a></div>

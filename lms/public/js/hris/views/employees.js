@@ -56,7 +56,7 @@ export async function employeeListView(el, _params, query) {
       <button class="btn" id="export">${icon('download', 16)} Export CSV</button>
       ${can('employees.edit') ? html`<a class="btn primary" href="#/employees/new">${icon('userPlus', 16)} Add employee</a>` : ''}`)}
     ${employees.length === 0
-      ? html`<div class="card empty">${icon('users', 40)}<h2>No employees at this campus yet</h2><p>Add the first employee record. Teachers and registrars can be linked to their ATLAS Learn account, so they use the same sign-in.</p></div>`
+      ? html`<div class="card empty">${icon('users', 40)}<h2>No employees at this campus yet</h2><p>Add the first employee record. Teachers and registrars can be linked to their Learn account, so they use the same sign-in.</p></div>`
       : html`<div class="card">
           <div class="toolbar">
             <input type="search" id="q" placeholder="Search name, number, position…" value="${state.q}" />
@@ -112,7 +112,7 @@ export async function employeeFormView(el, { id }) {
     <form id="emp-form" class="stack" novalidate>
       ${isNew && linkable.length ? html`<section class="card">
         <h2>${icon('link')} Already has an account?</h2>
-        <p class="muted small">Teachers and registrars already sign in to ATLAS Learn. Pick their account to fill in what it knows and link it, so they use the same sign-in for ATLAS People.</p>
+        <p class="muted small">Teachers and registrars already sign in to Learn. Pick their account to fill in what it knows and link it, so they use the same sign-in here.</p>
         <label class="field"><span>Link to an account</span><select name="linkUserId"><option value="">No, or add the account later</option>${linkable.map((u) => html`<option value="${u.id}">${u.name} · ${u.roleLabel} · ${u.username}</option>`)}</select></label>
       </section>` : ''}
       <section class="card">
@@ -232,8 +232,8 @@ function accountCard(emp) {
     return html`<section class="card">
       <h2>${icon('key')} Sign-in account</h2>
       <p class="muted">${emp.firstName} has no account linked, so no self-service (time clock, leave requests, payslips) yet.</p>
-      ${manage ? html`<div class="actions"><button class="btn primary" id="acct-create">${icon('userPlus', 16)} Create an ATLAS People account</button><button class="btn" id="acct-link">${icon('link', 16)} Link an existing account</button></div>
-        <p class="hint-line">Teachers and registrars: link their ATLAS Learn account. Non-teaching staff: create an ATLAS People account.</p>` : ''}
+      ${manage ? html`<div class="actions"><button class="btn primary" id="acct-create">${icon('userPlus', 16)} Create a sign-in account</button><button class="btn" id="acct-link">${icon('link', 16)} Link an existing account</button></div>
+        <p class="hint-line">Teachers and registrars: link their Learn account. Non-teaching staff: create a sign-in account.</p>` : ''}
     </section>`;
   }
   return html`<section class="card">
@@ -242,7 +242,7 @@ function accountCard(emp) {
       ${info('Username', a.username)}${info('Account type', a.roleLabel)}
       ${info('Status', a.status === 'active' ? badge('Active', 'green') : badge('Disabled', 'gray'))}${info('Last sign-in', a.lastLoginAt ? timeAgo(a.lastLoginAt) : 'Never')}
     </dl>
-    <p class="hint-line">${a.hrisOnly ? 'An ATLAS People account: signs in on the ATLAS home page and uses ATLAS People.' : `Their ${a.roleLabel.toLowerCase()} account for ATLAS Learn; the same sign-in opens ATLAS People self-service. Password and status are managed in the ATLAS Learn admin panel.`}</p>
+    <p class="hint-line">${a.hrisOnly ? 'A staff account: signs in on the ATLAS home page and opens People.' : `Their ${a.roleLabel.toLowerCase()} account in Learn; the same sign-in opens self-service here. Password and status are managed in the Learn admin panel.`}</p>
     ${manage ? html`<div class="actions" style="margin-top:12px">
       ${a.hrisOnly ? html`<button class="btn" id="acct-edit">${icon('settings', 16)} Change type or status</button><button class="btn" id="acct-reset">${icon('key', 16)} Reset password</button>` : ''}
       <button class="btn danger ghost" id="acct-unlink">Unlink</button>
@@ -260,7 +260,7 @@ function wireAccount(el, emp, reload) {
   el.querySelector('#acct-create')?.addEventListener('click', () => {
     const suggested = `${emp.firstName}.${emp.lastName}`.toLowerCase().replace(/[^a-z0-9.]/g, '');
     modal({
-      title: `ATLAS People account for ${fullName(emp)}`,
+      title: `Sign-in account for ${fullName(emp)}`,
       submitLabel: 'Create account',
       body: html`<div class="stack tight">
         <label class="field"><span>Account type</span><select name="role">${ACCOUNT_TYPES.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select></label>
@@ -280,7 +280,7 @@ function wireAccount(el, emp, reload) {
       submitLabel: 'Link',
       body: list.length
         ? html`<label class="field"><span>Account at ${ctx.info.campusName}</span><select name="userId">${list.map((u) => html`<option value="${u.id}" ${u.name.toLowerCase() === `${emp.firstName} ${emp.lastName}`.toLowerCase() ? 'selected' : ''}>${u.name} · ${u.roleLabel} · ${u.username}</option>`)}</select></label>`
-        : html`<p class="muted">Every teacher, registrar and ATLAS People account at this campus is already linked to an employee record.</p>`,
+        : html`<p class="muted">Every teacher, registrar and staff account at this campus is already linked to an employee record.</p>`,
       async onSubmit(form) {
         if (!list.length) return;
         await api.post(`/api/hris/employees/${emp.id}/account`, formData(form));
@@ -309,7 +309,7 @@ function wireAccount(el, emp, reload) {
     },
   }));
   el.querySelector('#acct-unlink')?.addEventListener('click', async () => {
-    if (!(await confirmDialog(`Unlink ${emp.account.username} from ${fullName(emp)}? The account stays, but loses ATLAS People self-service until it is linked again.`, { confirmLabel: 'Unlink' }))) return;
+    if (!(await confirmDialog(`Unlink ${emp.account.username} from ${fullName(emp)}? The account stays, but loses self-service until it is linked again.`, { confirmLabel: 'Unlink' }))) return;
     await api.del(`/api/hris/employees/${emp.id}/account`);
     done('Account unlinked.')();
   });

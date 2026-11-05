@@ -11,7 +11,7 @@ export async function modulesView(el) {
   const { modules, config } = await api.get('/api/admin/modules');
   const editable = can(ctx.user.role, 'modules.config');
   mount(el, html`
-    ${pageHead('Modules', 'Choose what students, teachers and parents & guardians get in the learning portal. A module that is off disappears from their menu and the server refuses it.')}
+    ${pageHead('Modules', 'Choose what students, teachers and parents & guardians get in Learn. A module that is off disappears from their menu and the server refuses it.')}
     ${!editable ? html`<div class="notice"><p>Only administrators can change these.</p></div>` : ''}
     <div class="card scroll-x"><table class="table">
       <thead><tr><th>Module</th><th>Students</th><th>Teachers</th><th>Parents &amp; guardians</th></tr></thead>

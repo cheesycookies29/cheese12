@@ -40,7 +40,7 @@ test('admin panel and portal have separate sign-ins', async () => {
   const { admin, login } = await seed(env);
   // Admins cannot sign in to the portal; students cannot sign in to the admin panel.
   await assert.rejects(env.client().post('/api/auth/login', { username: 'admin', password: 'password123' }), /sign in on the admin panel/);
-  await assert.rejects(env.client().post('/api/admin/auth/login', { username: 'stud1', password: 'password123' }), /learning portal/);
+  await assert.rejects(env.client().post('/api/admin/auth/login', { username: 'stud1', password: 'password123' }), /ATLAS home page/);
   // The admin's session is not a portal session, and a student's is not an admin session.
   await assert.rejects(admin.get('/api/classes'), /Please sign in/);
   const s1 = await login('stud1');

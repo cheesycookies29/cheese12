@@ -451,35 +451,35 @@ a.list-item:hover strong { color: var(--brand-text); }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 #toast.error { background: var(--danger); color: #fff; }
 
-/* ===== ATLAS lockup and wordmark ===== */
-.atlas-lockup { display: inline-flex; align-items: center; gap: 14px; color: var(--text); line-height: 1; }
-.atlas-lockup img { height: 52px; width: auto; flex: none; }
-.atlas-lockup .dk { display: none; }
-:root[data-theme='dark'] .atlas-lockup .lt { display: none; }
-:root[data-theme='dark'] .atlas-lockup .dk { display: block; }
-.al-rule { width: 2px; align-self: stretch; margin: 2px 0; border-radius: 2px; background: linear-gradient(180deg, #e8b23a, #c28618); }
-.al-text { display: flex; flex-direction: column; gap: 3px; }
-.al-text small { font-size: 9px; font-weight: 700; letter-spacing: 0.55em; color: var(--muted); }
-.al-text strong { font-size: 30px; font-weight: 800; letter-spacing: 0.04em; color: var(--text); }
-.al-text em { font-style: normal; font-size: 7px; font-weight: 600; letter-spacing: 0.3em; line-height: 1.5; color: var(--muted); }
-.atlas-lockup.on-dark, .atlas-lockup.on-dark .al-text strong { color: #fff; }
-.atlas-lockup.on-dark .al-text small, .atlas-lockup.on-dark .al-text em { color: #f1dfe3; }
-.atlas-lockup.sm img { height: 42px; }
-.atlas-lockup.sm .al-text strong { font-size: 24px; }
-.atlas-lockup.sm .al-text em { display: none; }
-.atlas-lockup.md img { height: 60px; }
-.atlas-lockup.md .al-text strong { font-size: 34px; }
-.atlas-lockup.md .al-text em { font-size: 8px; }
-.atlas-word { font-weight: 800; letter-spacing: 0.08em; }
-.atlas-product { font-weight: 600; }
-.sys-name .atlas-word { font-size: 13px; letter-spacing: 0.22em; display: block; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
-.sys-short { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0.04em; }
+/* ===== ATLAS identity: quiet, as in CORE ===== */
+/* Top bar: the mark, ATLAS, then the open product (or the byline on the home page). */
+.topbar .brand img#brand-logo { height: 34px; width: auto; max-width: 48px; }
+.atlas-word { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.topbar .brand .atlas-word strong { font-size: 17px; font-weight: 800; letter-spacing: 0.14em; color: var(--brand-text); overflow: visible; }
+.topbar .brand .atlas-word em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The mark in light and dark versions. */
+.mark-dk { display: none; }
+:root[data-theme='dark'] .mark-lt { display: none; }
+:root[data-theme='dark'] .mark-dk { display: inline-block; }
+/* Above the sign-in form on phones and tablets, where the burgundy panel is hidden. */
+.auth-brand { display: none; text-align: center; margin: -4px 0 2px; }
+.auth-brand img { height: 52px; width: auto; margin: 0 auto 6px; }
+.auth-brand strong { display: block; font-size: 22px; letter-spacing: 0.18em; font-weight: 800; color: var(--brand-text); }
+.auth-brand small { color: var(--muted); font-size: 12px; }
+.atlas-foot { display: inline-flex; align-items: center; gap: 8px; }
+.atlas-foot img { height: 16px; width: auto; }
 
 /* ===== Sign-in ===== */
 .auth-screen { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100vh; background: var(--bg); }
 .auth-hero { position: relative; overflow: hidden; color: #fff; padding: 48px 56px; display: flex; flex-direction: column; justify-content: space-between; gap: 24px;
   background: radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 40%), linear-gradient(150deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 60%, #000) 100%); }
-.auth-hero::after { content: ''; position: absolute; right: -140px; bottom: -140px; width: 460px; height: 460px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 0 0 50px rgba(255, 255, 255, 0.04), 0 0 0 110px rgba(255, 255, 255, 0.03); }
+.auth-hero .hero-mark { position: absolute; right: -110px; bottom: -70px; width: 460px; height: auto; opacity: 0.07; pointer-events: none; }
+.auth-hero .seal { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+.auth-hero .seal img { height: 50px; width: auto; }
+.auth-hero .seal strong { display: block; font-size: 22px; letter-spacing: 0.18em; font-weight: 800; line-height: 1.1; }
+.auth-hero .seal small { opacity: 0.8; font-size: 12px; }
+.auth-hero .hero-foot { display: flex; align-items: center; gap: 8px; }
+.auth-hero .hero-foot img { height: 22px; width: auto; max-width: 80px; object-fit: contain; background: rgba(255, 255, 255, 0.92); border-radius: 4px; padding: 2px; }
 .hero-brand { position: relative; z-index: 1; }
 .hero-school { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; }
 .hero-school img { height: 48px; width: auto; max-width: 140px; object-fit: contain; background: rgba(255, 255, 255, 0.95); border-radius: 10px; padding: 5px; }
@@ -497,7 +497,6 @@ a.list-item:hover strong { color: var(--brand-text); }
 .auth-card h2 { font-size: 24px; margin: 0; }
 .auth-card > p { margin: -6px 0 4px; }
 .auth-logo { display: none; height: 56px; width: auto; max-width: 200px; object-fit: contain; align-self: center; }
-span.auth-logo { height: auto; max-width: none; }
 .auth-foot { text-align: center; font-size: 12px; color: var(--muted); margin: 0; }
 .auth-switch { text-align: center; font-size: 13px; margin: 0; }
 .pw-wrap { position: relative; }
@@ -511,7 +510,8 @@ span.auth-logo { height: auto; max-width: none; }
 section.hub-wrap { margin-top: 28px; }
 .hub-hero { color: #fff; padding: 40px 0 46px; position: relative; overflow: hidden;
   background: radial-gradient(circle at 85% 20%, color-mix(in srgb, var(--accent) 35%, transparent), transparent 35%), linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 62%, #000) 100%); }
-.hub-hero::after { content: ''; position: absolute; right: -90px; top: -120px; width: 380px; height: 380px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 0 0 46px rgba(255, 255, 255, 0.04); }
+.hub-hero .hub-wrap { position: relative; z-index: 1; }
+.hub-hero .hero-mark { position: absolute; right: 6%; top: 50%; transform: translateY(-50%); width: 230px; height: auto; opacity: 0.12; z-index: 0; pointer-events: none; }
 .hub-hero h1 { color: #fff; font-size: 34px; margin: 4px 0 8px; }
 .hub-hero p { margin: 0; opacity: 0.9; font-size: 15px; max-width: 640px; }
 .hub-kicker { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85 !important; }
@@ -525,8 +525,9 @@ section.hub-wrap { margin-top: 28px; }
 a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--brand-line); }
 .sys-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
 .sys-ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); }
-.sys-name { font-size: 26px; font-weight: 800; letter-spacing: 0.01em; color: var(--brand-text); line-height: 1.1; }
-.sys-title { font-size: 14px; line-height: 1.3; }
+.sys-name { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.sys-code { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); }
+.sys-title { font-size: 13px; line-height: 1.3; font-weight: 600; color: var(--text-2); }
 .sys-card p { margin: 2px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .sys-open { margin-top: auto; padding-top: 12px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--brand-text); }
 .sys-card.soon { background: var(--surface-2); box-shadow: none; cursor: not-allowed; }
@@ -598,7 +599,7 @@ body.hub .topbar { padding-left: 24px; }
   .stats strong { font-size: 22px; }
   .auth-screen { grid-template-columns: 1fr; }
   .auth-hero { display: none; }
-  .auth-logo { display: block; }
+  .auth-brand { display: block; }
   .toolbar > input, .toolbar > select, .toolbar > label.inline { flex: 1 1 100%; max-width: none; }
   .toolbar input[type='search'] { max-width: none; }
   .toolbar label.inline > input[type='checkbox'] { flex: none; }
@@ -625,7 +626,9 @@ body.hub .topbar { padding-left: 24px; }
 }
 @media (max-width: 760px) {
   .topbar .brand small { display: none; }
-  body:not(.hub) .topbar .brand .atlas-word { display: none; }
+  .topbar .brand .atlas-word strong { font-size: 15px; letter-spacing: 0.1em; }
+  .topbar .brand .atlas-word em { display: none; }
+  .hub-hero .hero-mark { display: none; }
   /* Tables become a list of small cards of "Label: value" lines. */
   .scroll-x:has(.table.stackable) { overflow-x: visible; }
   .card.scroll-x:has(.table.stackable) { padding: 0 16px 6px; }

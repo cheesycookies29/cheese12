@@ -82,9 +82,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     throttle.reset(key);
     if (ROLES[user.role]?.side !== side) {
       fail(ROLES[user.role]?.side === 'hris'
-        ? 'HR and staff accounts sign in on the ATLAS home page and open ATLAS People.'
+        ? 'HR and staff accounts sign in on the ATLAS home page and open People.'
         : side === 'admin'
-          ? 'Teachers and students sign in on the learning portal, not the admin panel.'
+          ? 'Teachers and students sign in on the ATLAS home page, not the admin panel.'
           : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
     }
     if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
@@ -343,7 +343,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         // Whoever is signed in on this browser: an HR/staff account, else an admin-panel or portal account.
         [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
         if (!user) fail('Please sign in.', 401);
-        if (user.role === 'student') fail('ATLAS People is for school employees.', 403);
+        if (user.role === 'student') fail('People is for school employees.', 403);
         const permission = r.access.split(':')[1];
         if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
       } else if (r.access.startsWith('admin')) {
@@ -358,7 +358,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         if (!user) fail('Please sign in.', 401);
         if (['teacher', 'student', 'guardian'].includes(r.access) && user.role !== r.access) fail(r.access === 'guardian' ? 'Only parents and guardians can do this.' : `Only ${r.access}s can do this.`, 403);
         // Parents & guardians see the school through their linked students only.
-        if (user.role === 'guardian' && r.access === 'portal' && !r.guardians) fail('This part of ATLAS Learn is for students and teachers.', 403);
+        if (user.role === 'guardian' && r.access === 'portal' && !r.guardians) fail('This part of Learn is for students and teachers.', 403);
         if (r.module && !moduleOn(db.data.modules, r.module, user.role)) fail(`${MODULE_NAMES[r.module]} is switched off for ${user.role}s.`, 403);
       }
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);

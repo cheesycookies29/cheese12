@@ -25,9 +25,19 @@ The SVGs are drawn by `scripts/brand-mark.py` (`python3 scripts/brand-mark.py pu
 | --- | --- | --- | --- |
 | <img src="brand/atlas-logo-horizontal.png" width="200" /> | <img src="brand/atlas-logo-horizontal-on-dark.png" width="200" /> | <img src="brand/atlas-logo-stacked.png" width="120" /> | <img src="brand/atlas-logo-white.png" width="200" /> |
 
-- **Horizontal:** mark, a thin gold rule, then *LANCASTER* (small, widely spaced), **ATLAS** (bold), *UNIFIED EDUCATION MANAGEMENT PLATFORM* (small, spaced). The apps draw it in HTML (`atlasLockup()` in `public/js/shell.js`), so it stays sharp and follows dark mode.
+- **Horizontal:** mark, a thin gold rule, then *LANCASTER* (small, widely spaced), **ATLAS** (bold), *UNIFIED EDUCATION MANAGEMENT PLATFORM* (small, spaced).
 - **Stacked:** the mark above the words, for square spaces.
+- The full lockups are for documents, slides, signage and the website. The apps use the quieter wordmark below.
 - Keep clear space around the lockup of at least the height of the letter A in ATLAS. Do not stretch, recolour, outline or add effects to the mark.
+
+## In the apps: quiet, as in CORE
+
+The apps follow the Lancaster ERP, CORE: the brand is present but never repeated.
+
+- **One wordmark per screen.** The top bar shows the mark, **ATLAS** (bold, widely spaced) and, in small grey type, the open product (*Learn*, *People*) or, on the home page, the byline *Education platform by Lancaster*. On phones only **ATLAS** shows. `atlasWord()` in `public/js/shell.js` draws it.
+- **Sign-in panel:** the mark with **ATLAS** and the byline at the top, a short kicker (*Unified education management*, *Learn · Admin panel*), the headline, and what the system covers. The mark sits large and faint (7%) in the corner. On phones the panel is hidden and the mark, **ATLAS** and the byline sit above the form.
+- **Product names stand alone inside ATLAS:** cards, lists and messages say **Learn**, **People**, **Academic**, never "ATLAS Learn" again and again. The full name (**ATLAS Learn**) is for browser tab titles, documents and anything read outside the app.
+- The home page names ATLAS once, in the welcome line. The sidebar footer reads *ATLAS · Education platform by Lancaster*.
 
 ## Colours
 
@@ -42,7 +52,7 @@ The palette lives in `shared/brand.js`; the CSS tokens (`--brand`, `--accent`, `
 
 ## Type
 
-**DM Sans** (bundled in `public/fonts/`): Bold for *ATLAS* and headings, Medium for labels, Regular for text. Product names in running text are written **ATLAS Learn**, never "Atlas" or "A.T.L.A.S.".
+**DM Sans** (bundled in `public/fonts/`): Bold for *ATLAS* and headings, Medium for labels, Regular for text. Outside the apps, product names are written **ATLAS Learn**; inside them, just **Learn**. Never "Atlas" or "A.T.L.A.S.".
 
 ## Product names
 
@@ -57,7 +67,7 @@ The palette lives in `shared/brand.js`; the CSS tokens (`--brand`, `--accent`, `
 
 ## The school's own logo
 
-A school can upload its logo or seal (**Settings & branding**). It shows on the sign-in pages next to the ATLAS lockup and at the top of payslips, where the school is the employer. The top bar, browser tab and app icon always show the ATLAS mark.
+A school can upload its logo or seal (**Settings & branding**). It shows small at the foot of the sign-in panel and at the top of payslips, where the school is the employer. The top bar, browser tab and app icon always show the ATLAS mark.
 
 ## Unchanged on purpose
 

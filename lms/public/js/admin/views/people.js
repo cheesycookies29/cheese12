@@ -8,9 +8,9 @@ import { enrollmentActions, wireEnrollmentActions, showHistory, addEnrollmentDia
 import { studentGuardiansCard } from './guardians.js';
 
 const KINDS = {
-  student: { title: 'Students', role: 'student', url: '/api/admin/users?role=student', manage: 'students.manage', sub: 'Student accounts sign in on the learning portal.' },
-  applicant: { title: 'Applicants', role: 'student', url: '/api/admin/users?role=student&status=pending', manage: 'students.manage', sub: 'People who applied from the learning portal. Admitting gives them a student number and lets them sign in.' },
-  teacher: { title: 'Teachers', role: 'teacher', url: '/api/admin/users?role=teacher', manage: 'teachers.manage', sub: 'Teacher accounts sign in on the learning portal and see the sections assigned to them.' },
+  student: { title: 'Students', role: 'student', url: '/api/admin/users?role=student', manage: 'students.manage', sub: 'Student accounts sign in on the ATLAS home page.' },
+  applicant: { title: 'Applicants', role: 'student', url: '/api/admin/users?role=student&status=pending', manage: 'students.manage', sub: 'People who applied from the sign-in page. Admitting gives them a student number and lets them sign in.' },
+  teacher: { title: 'Teachers', role: 'teacher', url: '/api/admin/users?role=teacher', manage: 'teachers.manage', sub: 'Teacher accounts sign in on the ATLAS home page and see the sections assigned to them.' },
   staff: { title: 'Admins & registrars', role: 'registrar', url: '/api/admin/users?role=staff', manage: 'admins.manage', sub: 'These accounts sign in here, on the admin panel.' },
 };
 
@@ -100,7 +100,7 @@ export async function peopleView(el, { kind }) {
     ${rows.length ? html`
       <div class="toolbar"><input type="search" placeholder="Search" /><span class="spacer"></span><span class="muted" id="shown">${rows.length} shown</span></div>
       <div class="card scroll-x"><table class="table ${kind === 'student' || kind === 'teacher' ? 'clickable' : ''}">${columns[kind]()}</table></div>`
-      : empty(kind === 'applicant' ? 'No applications waiting' : `No ${k.title.toLowerCase()} yet`, kind === 'applicant' ? 'New applications from the learning portal appear here.' : '')}`);
+      : empty(kind === 'applicant' ? 'No applications waiting' : `No ${k.title.toLowerCase()} yet`, kind === 'applicant' ? 'New applications from the sign-in page appear here.' : '')}`);
 
   const redraw = () => peopleView(el, { kind });
   filterRows(el);
@@ -117,7 +117,7 @@ export async function peopleView(el, { kind }) {
     const u = rows.find((x) => x.id === b.dataset.admit);
     modal({
       title: `Admit ${u.name}`,
-      body: html`<label class="field"><span>Program</span><select name="programId">${option('', 'None')}${programs.map((p) => option(p.id, `${p.code} · ${p.name}`, p.id === u.programId))}</select></label><p class="hint">They get a student number and can sign in to the learning portal right away.</p>`,
+      body: html`<label class="field"><span>Program</span><select name="programId">${option('', 'None')}${programs.map((p) => option(p.id, `${p.code} · ${p.name}`, p.id === u.programId))}</select></label><p class="hint">They get a student number and can sign in right away.</p>`,
       submitLabel: 'Admit',
       async onSubmit(form) {
         const s = await api.post(`/api/admin/users/${u.id}/approve`, formData(form));

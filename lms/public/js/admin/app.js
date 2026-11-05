@@ -63,7 +63,7 @@ function nav() {
     { href: '/modules', label: 'Modules', icon: 'toggles' },
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
-    { href: '/systems', label: 'ATLAS home & systems', icon: 'grid' },
+    { href: '/systems', label: 'Home page & systems', icon: 'grid' },
     c('admins.manage') && { href: '/staff', label: 'Admins & registrars', icon: 'shield' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
@@ -104,7 +104,7 @@ function signedOutView(el, { status, boot }) {
       ${passwordField('Password', 'password', 'current-password')}
       <p class="form-error" hidden></p>
       <button class="btn primary block" type="submit">Sign in</button>
-      <p class="auth-switch">Teacher or student? <a href="/">Go to the learning portal</a></p>
+      <p class="auth-switch">Teacher, student or parent? <a href="/">Sign in on the ATLAS home page</a></p>
     </form>`);
   onFormSubmit(form, async ({ username, password }) => {
     if (!username || !password) throw new Error('Enter your username and password.');

@@ -385,7 +385,7 @@ export function registerHrisRoutes(route, ctx) {
   route('PUT', '/api/hris/employees/:id/account', 'hris:hris.accounts', ({ params, body, user, campusId }) => {
     const emp = employeeIn(campusId, params.id);
     const u = data().users.find((x) => x.employeeId === emp.id) || fail('This employee has no account.', 404);
-    if (!HRIS_ROLES.includes(u.role)) fail(`${u.name} signs in with their ${ROLES[u.role].label.toLowerCase()} account; change it in the ATLAS Learn admin panel.`);
+    if (!HRIS_ROLES.includes(u.role)) fail(`${u.name} signs in with their ${ROLES[u.role].label.toLowerCase()} account; change it in the Learn admin panel.`);
     if (body.role && body.role !== u.role) {
       if (!HRIS_ROLES.includes(body.role)) fail('Pick Staff, HR Manager or Payroll Officer.');
       if (u.id === user.id) fail('You cannot change your own account type.');

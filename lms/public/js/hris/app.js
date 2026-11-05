@@ -67,7 +67,7 @@ const home = () => (can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' 
 // Students have no HRIS: say so instead.
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
-    return authScreen(el, {}, html`<div class="auth-card">${authLogo()}<h2>ATLAS People is for school employees</h2>
+    return authScreen(el, {}, html`<div class="auth-card">${authLogo()}<h2>People is for school employees</h2>
       <p class="muted">You are signed in as ${status.deniedUser.name}, a student account. Your systems are on the ATLAS home page.</p>
       <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
   }

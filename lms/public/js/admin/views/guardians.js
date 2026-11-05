@@ -97,7 +97,7 @@ async function removeLink(link, names, onDone) {
 export async function guardiansView(el) {
   const list = await api.get('/api/admin/guardians');
   mount(el, html`
-    ${pageHead('Parents & guardians', 'Accounts for parents and guardians, the students each one follows, and what each can see. They sign in on the ATLAS home page and open ATLAS Learn.', html`<button class="btn primary" id="add">${icon('userPlus', 16)} Add parent or guardian</button>`)}
+    ${pageHead('Parents & guardians', 'Accounts for parents and guardians, the students each one follows, and what each can see. They sign in on the ATLAS home page and open Learn.', html`<button class="btn primary" id="add">${icon('userPlus', 16)} Add parent or guardian</button>`)}
     ${list.length ? html`<input type="search" placeholder="Search name, username or student" style="margin-bottom:12px" />
       <div class="card scroll-x"><table class="table clickable">
       <thead><tr><th>Parent or guardian</th><th>Students</th><th>Contact</th><th>Status</th><th>Last sign-in</th></tr></thead>

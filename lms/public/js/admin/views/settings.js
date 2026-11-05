@@ -51,12 +51,12 @@ export async function settingsView(el) {
           <div class="field span-2"><span>School logo or seal</span>
             <div class="logo-box"><img id="logo-preview" src="${logoSrc(s.branding)}" alt="" />
               <div class="stack tight"><label class="btn sm">${icon('upload', 15)} Upload logo<input type="file" id="logo" accept="image/png,image/jpeg,image/webp" hidden ${dis} /></label>
-                ${s.branding.logo ? html`<button type="button" class="link" id="logo-reset">Remove the school logo</button>` : ''}<span class="hint">Shown on the sign-in pages and on payslips, next to the ATLAS mark. A square seal or a wide logo both work.</span></div></div></div>
+                ${s.branding.logo ? html`<button type="button" class="link" id="logo-reset">Remove the school logo</button>` : ''}<span class="hint">Shown on the sign-in pages and on payslips. A square seal or a wide logo both work.</span></div></div></div>
           <label class="field"><span>Sign-in headline</span><input name="tagline" value="${s.branding.tagline}" placeholder="Learning, all in one place." maxlength="160" ${dis} /></label>
         </div>
       </section>
       <section class="card"><h2>Student applications</h2>
-        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the learning portal.</strong> The sign-in page shows "Apply as a student". Applicants appear under Applicants and can sign in once admitted.</span></label>
+        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The sign-in page shows "Apply as a student". Applicants appear under Applicants and can sign in once admitted.</span></label>
       </section>
       ${editable ? html`<div class="actions end"><button class="btn primary" type="submit">Save settings</button></div>` : ''}
     </form>`);
@@ -114,7 +114,7 @@ export async function dataView(el) {
       <p>Adds a sample school <strong>next to your own data</strong>: 5 programs (IT, Computer Science, Business, Agriculture, Education), a finished term with grades
         and a current term with enrollment open, 21 courses with prerequisites, about 40 sections this term (one full with a waitlist, one with an enrollment key), 18 teachers,
         about 190 students across four campuses, 11 applicants and about 40 parents and guardians: some 260 accounts. Every class has lessons, announcements,
-        a course outline, graded work, a quiz most students have taken, and attendance; plus school news and events, and ATLAS People records, attendance and payroll.</p>
+        a course outline, graded work, a quiz most students have taken, and attendance; plus school news and events, and People records, attendance and payroll.</p>
       <p>Sign in on the ATLAS home page as <code>student.demo</code> (Carlo Reyes) or <code>teacher.demo</code> (Maria Santos), or as <code>registrar.demo</code>. Password <code>demo1234</code>.
         Other teachers: <code>lmercado.demo</code>, <code>gaquino.demo</code>, <code>rvillareal.demo</code>, <code>lgonzales.demo</code>, <code>mtorres.demo</code>, <code>jdelacruz.demo</code>, <code>aramos.demo</code>, <code>psison.demo</code>, <code>rmanalastas.demo</code>, <code>jcabrera.demo</code>, <code>vbayani.demo</code>. Parents: <code>parent.demo</code>, <code>father.demo</code> and the accounts under Parents & guardians.
         Your own current term stays current; if you have none, the demo term becomes current.</p>
