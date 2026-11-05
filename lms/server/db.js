@@ -66,6 +66,7 @@ export function emptyData() {
     news: [], // school news posts, with reactions and comments
     events: [], // school events
     counters: { studentNo: {} }, // last student number issued per year
+    guardianLinks: [], // a parent or guardian account linked to a student, with what it may see (server/guardian.js)
     // ----- HRIS (server/hris.js) -----
     hrSettings: structuredClone(HR_DEFAULTS), // pay rules, contributions, tax tables, default schedule
     employees: [], // employee records, each at a campus; an account links to one with user.employeeId

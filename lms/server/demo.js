@@ -9,7 +9,7 @@ import { meetingsClash } from '../shared/schedule.js';
 import { addHrisDemo, removeHrisDemo } from './hris-demo.js';
 
 export const DEMO_PASSWORD = 'demo1234';
-const COLLECTIONS = ['campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users', 'employees', 'timeEntries', 'requests', 'payrollRuns'];
+const COLLECTIONS = ['guardianLinks', 'campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users', 'employees', 'timeEntries', 'requests', 'payrollRuns'];
 
 export function demoStatus(data) {
   const counts = Object.fromEntries(COLLECTIONS.map((k) => [k, data[k].filter((x) => x.demo).length]));
@@ -27,6 +27,7 @@ export function removeDemo(data, files = null) {
   const programs = ids('programs');
   const terms = ids('terms');
   data.enrollments = data.enrollments.filter((e) => !e.demo && !users.has(e.studentId) && !sections.has(e.sectionId));
+  data.guardianLinks = data.guardianLinks.filter((l) => !l.demo && !users.has(l.guardianId) && !users.has(l.studentId));
   data.submissions = data.submissions.filter((s) => !s.demo && !users.has(s.studentId) && !assignments.has(s.assignmentId));
   data.attempts = data.attempts.filter((s) => !s.demo && !users.has(s.studentId) && !assignments.has(s.assignmentId));
   for (const k of ['lessons', 'announcements', 'assignments', 'resources', 'attendance']) data[k] = data[k].filter((x) => !x.demo && !sections.has(x.sectionId));
@@ -561,6 +562,14 @@ export function addDemo(data, today, files = null) {
     [pasacao, 'Pasacao Campus coastal clean-up', '', 'Pasacao beach', 5, 5, '06:00', '09:00'],
     [calabanga, 'Farm visit for first-years', 'Buses leave at 7:00 AM.', 'Calabanga demo farm', 8, 8, '07:00', '15:00'],
   ]) add('events', { campusId: campus?.id ?? null, title, description, location, startDate: addDays(today, start), endDate: addDays(today, end), startTime: from, endTime: to, createdBy: 'Demo data' });
+
+  // ----- Parents & guardians: Carlo's mother (who is also Kevin's guardian, with fewer views) and father -----
+  const allViews = { enrollment: true, schedule: true, grades: true, attendance: true, activities: true };
+  const mother = person('guardian', 'parent.demo', 'Lorna Reyes', { phone: '0917 555 0142', email: 'lorna.reyes@example.com' });
+  const father = person('guardian', 'father.demo', 'Roberto Reyes', { phone: '0918 555 0199', email: 'roberto.reyes@example.com' });
+  add('guardianLinks', { guardianId: mother.id, studentId: S.carlo.id, relationship: 'Mother', views: allViews, status: 'active', createdBy: 'Rosa Villanueva', lastViewedAt: `${addDays(today, -1)}T11:20:00.000Z` });
+  add('guardianLinks', { guardianId: mother.id, studentId: S.kevin.id, relationship: 'Aunt / Uncle', views: { ...allViews, enrollment: false, schedule: false }, status: 'active', createdBy: 'Rosa Villanueva' });
+  add('guardianLinks', { guardianId: father.id, studentId: S.carlo.id, relationship: 'Father', views: { ...allViews, activities: false }, status: 'active', createdBy: 'Rosa Villanueva' });
 
   // ----- HRIS: employee records for these people, HR/payroll/staff sign-ins, attendance, leave, payroll -----
   const userByName = (username) => data.users.find((u) => u.demo && (u.username === username || u.username === `${username}2`));

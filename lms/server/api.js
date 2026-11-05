@@ -4,7 +4,8 @@
 //   /api/hris/...   the HRIS: HR and staff accounts, and any employee's session
 // A route's access is one of:
 //   'public'                      anyone
-//   'portal' | 'teacher' | 'student'  signed in to the portal (optionally that type only)
+//   'portal' | 'teacher' | 'student' | 'guardian'  signed in to the portal (optionally that type only;
+//                                    parents & guardians reach only 'guardian' routes and those marked guardians: true)
 //   'admin' | 'admin:<permission>'    signed in to the admin panel (optionally with that permission)
 //   'hris' | 'hris:<permission>'      any signed-in employee (not students), optionally with that permission
 // Portal routes may also name a module; the call is refused when an administrator
@@ -28,6 +29,7 @@ import { themeColors } from '../shared/themes.js';
 import { SYSTEMS } from '../shared/systems.js';
 import { campusesFor, activeCampusId, campusName } from './campus.js';
 import { registerHrisRoutes } from './hris.js';
+import { registerGuardianRoutes, guardianChildren } from './guardian.js';
 import { HRIS_PERMISSION_LABELS } from '../shared/roles.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
@@ -50,10 +52,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const throttle = createThrottle();
   const users = () => db.data.users;
 
-  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false } = {}) => {
+  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false } = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, re, keys, access, handler, module, duringPasswordChange });
+    routes.push({ method, re, keys, access, handler, module, duringPasswordChange, guardians });
   };
 
   const ctx = {
@@ -132,6 +134,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     registrationOpen: db.data.settings.registration.open,
     user: publicUser(user),
     modules: user ? enabledModules(db.data.modules, user.role) : [],
+    children: user?.role === 'guardian' ? guardianChildren(db.data, user.id).map(({ link, student }) => ({ id: student.id, name: student.name, relationship: link.relationship })) : undefined,
     currentTermId: db.data.settings.currentTermId,
     passingGrade: db.data.settings.passingGrade,
   });
@@ -143,8 +146,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     sides.portal.destroy(portalToken);
     return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(PORTAL_COOKIE) } };
   });
-  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true });
-  route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body));
+  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, guardians: true });
+  route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body), { guardians: true });
   route('POST', '/api/admin/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body));
   route('GET', '/api/auth/campuses', 'public', () => (db.data.settings.registration.open ? db.data.campuses.map((c) => ({ id: c.id, name: c.name })) : []));
 
@@ -310,7 +313,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
   registerAdminRoutes(route, ctx);
   registerEnrollmentRoutes(route, ctx);
-  registerClassroomRoutes(route, ctx);
+  registerGuardianRoutes(route, ctx, registerClassroomRoutes(route, ctx));
 
   // ----- Request handling -----
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
@@ -353,7 +356,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         user = portalUser;
         token = portalToken;
         if (!user) fail('Please sign in.', 401);
-        if ((r.access === 'teacher' || r.access === 'student') && user.role !== r.access) fail(`Only ${r.access}s can do this.`, 403);
+        if (['teacher', 'student', 'guardian'].includes(r.access) && user.role !== r.access) fail(r.access === 'guardian' ? 'Only parents and guardians can do this.' : `Only ${r.access}s can do this.`, 403);
+        // Parents & guardians see the school through their linked students only.
+        if (user.role === 'guardian' && r.access === 'portal' && !r.guardians) fail('This part of the LMS is for students and teachers.', 403);
         if (r.module && !moduleOn(db.data.modules, r.module, user.role)) fail(`${MODULE_NAMES[r.module]} is switched off for ${user.role}s.`, 403);
       }
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);

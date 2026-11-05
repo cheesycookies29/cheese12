@@ -65,6 +65,7 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 | University Portal or admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
 | University Portal → HRIS | `hr.demo` | `demo1234` | HR dashboard; approve the pending leave (one sick leave has a medical certificate attached); employee records and sign-in accounts; attendance; switch to Sipocot campus |
 | University Portal → HRIS | `payroll.demo` | `demo1234` | Two finalized payroll runs with printable payslips; payroll setup (rates and tax tables with a "try it" calculator) |
+| University Portal → LMS | `parent.demo` | `demo1234` | A mother (Lorna Reyes) following Carlo Reyes (everything shared) and her nephew Kevin Navarro (grades, attendance and activities only). `father.demo` is Carlo's father, without activities |
 | University Portal → HRIS | `staff.demo` | `demo1234` | A librarian's self-service: clock in, file leave, payslips. `teacher.demo` has the same in the HRIS tile |
 
 The demo school has 5 programs (IT, Computer Science, Business, Agriculture, Education), 8 teachers, about 60 students with past grades, 5 applicants, 21 courses and 25 sections this term. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus.
@@ -93,19 +94,19 @@ Other settings: `PORT=3101 npm start` (another port), `HOST=0.0.0.0 npm start` (
 | **Admins & registrars** | Admin-panel accounts |
 | **Demo data & backup** | Add or remove demo data; download or restore a backup. The backup file holds the records; uploaded files are in `data/files/`, so to keep everything, copy the whole `data` folder |
 
-### Modules for students and teachers
+### Modules for students, teachers and parents & guardians
 
-| Module | Students | Teachers |
-| --- | --- | --- |
-| Enrollment | Browse sections, enroll, join waitlists, drop | Class list and waitlist |
-| Class schedule | Weekly timetable | Teaching timetable |
-| Lessons & materials | Read lessons, open materials | Write lessons, publish or hide them |
-| Announcements | Read | Post |
-| Resources | Open and download files and links, with a preview (PDF, images, video, YouTube) | Upload files (up to 10 MB each, drag and drop) and add links; hide or show them |
-| Activities & quizzes | Hand in work (text, a file, a link); take quizzes and exams with a timer; see scores, feedback and (when released) the answers | Create assignments, quizzes and exams; grade one student after another; score essays; results per question |
-| Attendance | Their attendance and rate per class | Take attendance (present, late, absent, excused), monthly grid, CSV export |
-| Grades | Running grade, scores and final grades | Gradebook (weighted by activity type), CSV export, post final grades |
-| News & events | Read school news, react and comment; upcoming events | The same |
+| Module | Students | Teachers | Parents & guardians |
+| --- | --- | --- | --- |
+| Enrollment | Browse sections, enroll, join waitlists, drop | Class list and waitlist | Their student's requests, enrolled classes and units |
+| Class schedule | Weekly timetable | Teaching timetable | Their student's timetable |
+| Lessons & materials | Read lessons, open materials | Write lessons, publish or hide them | Not offered |
+| Announcements | Read | Post | Not offered |
+| Resources | Open and download files and links, with a preview (PDF, images, video, YouTube) | Upload files (up to 10 MB each, drag and drop) and add links; hide or show them | Not offered |
+| Activities & quizzes | Hand in work (text, a file, a link); take quizzes and exams with a timer; see scores, feedback and (when released) the answers | Create assignments, quizzes and exams; grade one student after another; score essays; results per question | What is due, handed in, missing or past due, and scores (never the questions or answers) |
+| Attendance | Their attendance and rate per class | Take attendance (present, late, absent, excused), monthly grid, CSV export | Rate per class and each late, absent or excused day |
+| Grades | Running grade, scores and final grades | Gradebook (weighted by activity type), CSV export, post final grades | Running grade per class, final grades, past terms |
+| News & events | Read school news, react and comment; upcoming events | The same | The same |
 
 A module that is off disappears from that account type's menu, **and the server refuses it** (it is not only hidden). Turning a module off never deletes anything.
 For example, switch *Enrollment* off for students outside enrollment season so only the registrar can add or drop classes.
@@ -117,10 +118,23 @@ For example, switch *Enrollment* off for students outside enrollment season so o
 | **Administrator** | Admin panel | Everything, including modules, settings, admin accounts, demo data and backups |
 | **Registrar** | Admin panel | Enrollment requests, applicants, students, the catalog (courses, sections, terms, programs); can view teachers |
 | **Teacher** | Portal | The sections assigned to them, as far as the modules allow |
-| **Student** | Portal | Enrollment and their classes, as far as the modules allow |
+| **Student** | Portal | Enrollment and their classes, as far as the modules allow; sees which parents and guardians are linked to them |
+| **Parent / Guardian** | Portal | Follows the students linked to them, read-only, as far as each link and the modules allow (see [Parents & guardians](#parents--guardians)) |
 
 Passwords and sign-in work as in the ERP: temporary passwords must be changed at first sign-in, 5 wrong passwords lock the username for 5 minutes, and people are signed out after 8 idle hours or when the app restarts.
 Locked-out administrator? Stop the app and run `npm run reset-password -- <username> <new-password>`.
+
+## Parents & guardians
+
+Parents and guardians get their own account type and their own section of the LMS. They sign in on the University Portal and open the LMS, where they see **only the students linked to them** and **only what each link shares**. They can look; they cannot change anything.
+
+- **Your students** (their home): a card per student with this term at a glance (running grade, attendance rate, enrolled units, activities due) and what is worth a look: a pending enrollment request, absences, a class below the passing grade, work not handed in after the due date.
+- **A student's page**, with a tab for each shared view and a term picker: **Enrollment** (requests and their status, waitlist position, units), **Class schedule** (the week's timetable), **Grades** (running grade per class, final grades, past terms), **Attendance** (rate per class and each late, absent or excused day), **Activities & quizzes** (due, handed in, late, missing, scores; never the questions or answers).
+- **News & events**, like students and teachers. Nothing else in the LMS is open to them; the server refuses it.
+
+**Who decides what they see.** Registrars and administrators (*Admin panel → Parents & guardians*, or the student's record) make guardian accounts and link them to students. Each link has a relationship (Mother, Father, Guardian, Grandparent…) and its own views, ticked one by one: a student's grades and attendance can be shared without their enrollment, for example. A link can be paused or removed. On top of that, *Modules* has a **Parents & guardians** column: a view switched off there is off for every guardian. One guardian can follow several students (siblings), and a student can have several guardians.
+
+**Students know.** A student's *Parents & guardians* page lists everyone linked to their records, what each can see, and when they last looked. Guardians belong to the campuses of their students, so registrars manage the ones at their own campuses.
 
 ## HRIS
 
@@ -216,6 +230,8 @@ lms/
   server/hris.js         HRIS: employees and their accounts, DTR and time clock, payroll, dashboard, self-service
   server/hris-leave.js   HRIS: leave types, credits, balances, requests and approval (from the ERP)
   server/hris-demo.js    HRIS demo data
+  server/guardian.js     parents & guardians: links, what each can see, their pages and the registrar's
+  shared/guardians.js    the views a link can share, and relationships
   shared/calc.js         time and payroll rules (the ERP's file): DTR, payslips, SSS, PhilHealth, Pag-IBIG, tax
   shared/leave.js        leave rules (the ERP's file)
   shared/roles.js        account types and permissions (server and browser)
@@ -230,7 +246,7 @@ lms/
 ```
 
 - Run the tests with `npm test` (from `lms/`, or from the repository root, which runs the ERP's and the LMS's tests together).
-- Every route states who may call it (`'student'`, `'teacher'`, `'portal'`, `'admin:<permission>'`, `'hris:<permission>'`) and, for portal routes, which module it belongs to. The router in `server/api.js` enforces both.
+- Every route states who may call it (`'student'`, `'teacher'`, `'guardian'`, `'portal'`, `'admin:<permission>'`, `'hris:<permission>'`) and, for portal routes, which module it belongs to. The router in `server/api.js` enforces both.
 - Three session cookies: the portal's (students, teachers), the admin panel's (administrators, registrars) and the HRIS's (HR and staff accounts). HRIS routes accept whichever of them the browser has; signing in on the University Portal ends the others, so a browser is one person at a time.
 - `public/css/styles.css` is built on colour tokens: `--brand` and `--accent` come from the branding settings and every shade is mixed from them, with a dark set under `[data-theme=dark]`.
 
@@ -243,7 +259,7 @@ lms/
 
 ### Not included (yet)
 
-In the HRIS: a shared clock-in kiosk, clock-in location (both in the ERP), holidays and holiday pay, 13th-month pay, loans, and DepEd/CHED leave rules for teachers (proportional vacation pay). Elsewhere: guardian accounts, messages/chat, single sign-on (Keycloak/OIDC), question banks, copying lessons and activities between sections, certificates, a term-end "close term" step, email notifications and an audit log. See the roadmap in [docs/BENCHMARK.md](docs/BENCHMARK.md).
+In the HRIS: a shared clock-in kiosk, clock-in location (both in the ERP), holidays and holiday pay, 13th-month pay, loans, and DepEd/CHED leave rules for teachers (proportional vacation pay). Elsewhere: parents signing up on their own (an invitation code from the student), messages/chat, single sign-on (Keycloak/OIDC), question banks, copying lessons and activities between sections, certificates, a term-end "close term" step, email notifications and an audit log. See the roadmap in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Putting it online (AWS)
 

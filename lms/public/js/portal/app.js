@@ -1,5 +1,6 @@
-// Learning portal (/lms/): Teachers and Students. What each sees depends on the
-// modules an administrator has switched on for their account type.
+// Learning portal (/lms/): Teachers, Students, and Parents & guardians. What each sees
+// depends on the modules an administrator has switched on for their account type;
+// guardians see only the students linked to them (views/guardian.js).
 import { has } from './common.js';
 import { ctx, startApp } from '../shell.js';
 import { homeView } from './views/home.js';
@@ -10,30 +11,46 @@ import { scheduleView } from './views/schedule.js';
 import { gradesView } from './views/grades.js';
 import { quizView, quizResultsView, attemptGradeView, quizEditView } from './views/quiz.js';
 import { newsView } from './views/news.js';
+import { guardianHomeView, childView, myGuardiansView } from './views/guardian.js';
 
 const student = (u) => u.role === 'student';
+const guardian = (u) => u.role === 'guardian';
+const learner = (u) => !guardian(u);
 const mod = (m, extra = () => true) => (u, info) => info.modules.includes(m) && extra(u);
 
 const routes = [
-  ['/home', homeView],
+  ['/home', (el, p, q) => (guardian(ctx.user) ? guardianHomeView(el, p, q) : homeView(el, p, q))],
+  ['/children/:id', childView, guardian],
+  ['/children/:id/:tab', childView, guardian],
+  ['/guardians', myGuardiansView, student],
   ['/enroll', catalogView, mod('enrollment', student)],
   ['/enroll/mine', myEnrollmentView, mod('enrollment', student)],
-  ['/classes', classesView],
-  ['/classes/:id', classView],
-  ['/classes/:id/:tab', classView],
-  ['/assignments/:id', assignmentView, mod('assignments')],
+  ['/classes', classesView, learner],
+  ['/classes/:id', classView, learner],
+  ['/classes/:id/:tab', classView, learner],
+  ['/assignments/:id', assignmentView, mod('assignments', learner)],
   ['/quizzes/new', (el, p, q) => quizEditView(el, { classId: q.class }), mod('assignments', (u) => u.role === 'teacher')],
   ['/quizzes/:id/edit', (el, p) => quizEditView(el, { id: p.id }), mod('assignments', (u) => u.role === 'teacher')],
-  ['/quizzes/:id', quizView, mod('assignments')],
+  ['/quizzes/:id', quizView, mod('assignments', learner)],
   ['/quizzes/:id/results', quizResultsView, mod('assignments', (u) => u.role === 'teacher')],
   ['/attempts/:id', attemptGradeView, mod('assignments', (u) => u.role === 'teacher')],
   ['/news', newsView, mod('news')],
-  ['/schedule', scheduleView, mod('schedule')],
+  ['/schedule', scheduleView, mod('schedule', learner)],
   ['/grades', gradesView, mod('grades', student)],
 ];
 
 function nav() {
   const isStudent = ctx.user.role === 'student';
+  if (guardian(ctx.user)) {
+    const kids = ctx.info.children || [];
+    return [
+      { href: '/home', label: 'Your students', icon: 'home', exact: true },
+      kids.length && { heading: 'Students' },
+      ...kids.map((c) => ({ href: `/children/${c.id}`, label: c.name, icon: 'user' })),
+      has('news') && { heading: 'School' },
+      has('news') && { href: '/news', label: 'News & events', icon: 'megaphone' },
+    ].filter(Boolean);
+  }
   return [
     { href: '/home', label: 'Home', icon: 'home' },
     { href: '/classes', label: isStudent ? 'My classes' : 'My sections', icon: 'book', also: ['/assignments', '/quizzes', '/attempts'] },
@@ -41,6 +58,7 @@ function nav() {
     has('schedule') && { href: '/schedule', label: 'Schedule', icon: 'calendar' },
     isStudent && has('grades') && { href: '/grades', label: 'Grades', icon: 'chart' },
     has('news') && { href: '/news', label: 'News & events', icon: 'megaphone' },
+    isStudent && { href: '/guardians', label: 'Parents & guardians', icon: 'users' },
   ].filter(Boolean);
 }
 

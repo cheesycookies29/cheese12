@@ -13,6 +13,7 @@ import { settingsView, dataView, gradingView } from './views/settings.js';
 import { newsAdminView } from './views/news.js';
 import { systemsView } from './views/systems.js';
 import { campusesView } from './views/campuses.js';
+import { guardiansView, guardianView } from './views/guardians.js';
 
 const p = (permission) => (user) => can(user.role, permission);
 
@@ -23,6 +24,8 @@ const routes = [
   ['/applicants', (el, params, q) => peopleView(el, { kind: 'applicant' }, q), p('students.manage')],
   ['/teachers', (el, params, q) => peopleView(el, { kind: 'teacher' }, q), p('teachers.view')],
   ['/staff', (el, params, q) => peopleView(el, { kind: 'staff' }, q), p('admins.manage')],
+  ['/guardians', guardiansView, p('guardians.manage')],
+  ['/guardians/:id', guardianView, p('guardians.manage')],
   ['/people/:id', personView, (u) => can(u.role, 'students.manage') || can(u.role, 'teachers.view')],
   ['/courses', coursesView, p('dashboard')],
   ['/sections', sectionsView, p('dashboard')],
@@ -46,6 +49,7 @@ function nav() {
     c('enrollment.manage') && { href: '/enrollment', label: 'Enrollment requests', icon: 'clipboard', badge: 'enrollment' },
     c('students.manage') && { href: '/applicants', label: 'Applicants', icon: 'userPlus', badge: 'applicants' },
     c('students.manage') && { href: '/students', label: 'Students', icon: 'cap', also: ['/people'] },
+    c('guardians.manage') && { href: '/guardians', label: 'Parents & guardians', icon: 'user' },
     c('teachers.view') && { href: '/teachers', label: 'Teachers', icon: 'users' },
     { heading: 'Catalog' },
     { href: '/sections', label: 'Sections', icon: 'layers' },

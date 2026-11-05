@@ -35,8 +35,8 @@ export function registerNewsRoutes(route, ctx) {
   };
 
   // ----- Portal -----
-  route('GET', '/api/news', 'portal', ({ user, query, campusId }) => sorted(user, campusId).slice(0, Math.min(100, Number(query.limit) || 30)), { module: 'news' });
-  route('GET', '/api/events', 'portal', ({ query, campusId }) => (query.all === '1' ? data().events.filter(here(campusId)).sort((a, b) => b.startDate.localeCompare(a.startDate)).map(withCampus) : upcoming(campusId)), { module: 'news' });
+  route('GET', '/api/news', 'portal', ({ user, query, campusId }) => sorted(user, campusId).slice(0, Math.min(100, Number(query.limit) || 30)), { module: 'news', guardians: true });
+  route('GET', '/api/events', 'portal', ({ query, campusId }) => (query.all === '1' ? data().events.filter(here(campusId)).sort((a, b) => b.startDate.localeCompare(a.startDate)).map(withCampus) : upcoming(campusId)), { module: 'news', guardians: true });
 
   route('POST', '/api/news/:id/react', 'portal', ({ user, params, body, campusId }) => {
     const n = findHere(params.id, campusId);
@@ -48,7 +48,7 @@ export function registerNewsRoutes(route, ctx) {
     else list.push(user.id);
     save();
     return postView(n, user);
-  }, { module: 'news' });
+  }, { module: 'news', guardians: true });
 
   route('POST', '/api/news/:id/comments', 'portal', ({ user, params, body, campusId }) => {
     const n = findHere(params.id, campusId);
@@ -58,7 +58,7 @@ export function registerNewsRoutes(route, ctx) {
     (n.comments ||= []).push(c);
     save();
     return postView(n, user);
-  }, { module: 'news' });
+  }, { module: 'news', guardians: true });
 
   route('DELETE', '/api/news/:id/comments/:cid', 'portal', ({ user, params }) => {
     const n = findPost(params.id);
@@ -67,7 +67,7 @@ export function registerNewsRoutes(route, ctx) {
     n.comments.splice(n.comments.indexOf(c), 1);
     save();
     return postView(n, user);
-  }, { module: 'news' });
+  }, { module: 'news', guardians: true });
 
   // ----- Admin panel -----
   // Registrars post for their campus; only administrators post to every campus.

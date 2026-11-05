@@ -5,6 +5,7 @@ import { pageHead, badgesChanged, ctx } from '../../shell.js';
 import { can, ROLES, roleLabel } from '/shared/roles.js';
 import { lookups, filterRows, sectionTitle } from '../common.js';
 import { enrollmentActions, wireEnrollmentActions, showHistory, addEnrollmentDialog } from './enrollment.js';
+import { studentGuardiansCard } from './guardians.js';
 
 const KINDS = {
   student: { title: 'Students', role: 'student', url: '/api/admin/users?role=student', manage: 'students.manage', sub: 'Student accounts sign in on the learning portal.' },
@@ -43,7 +44,7 @@ export function userDialog({ user = null, role, programs = [] }, onDone) {
       ${r === 'teacher' ? html`
         <label class="field span-2"><span>Department</span><input name="department" value="${user?.department || ''}" /></label>
         <label class="field"><span>Employee number</span><input name="employeeNo" value="${user?.employeeNo || ''}" /></label>` : ''}
-      ${campusFields(r, user)}
+      ${r === 'guardian' ? html`<label class="field"><span>Mobile number</span><input type="tel" name="phone" value="${user?.phone || ''}" /></label>` : campusFields(r, user)}
       ${user
         ? (user.status === 'active' || user.status === 'disabled') && html`<label class="field"><span>Status</span><select name="status">${option('active', 'Active', user.status === 'active')}${option('disabled', 'Disabled (cannot sign in)', user.status === 'disabled')}</select></label>`
         : html`<label class="field"><span>Temporary password<em>*</em></span><input name="password" minlength="8" required /><span class="hint">At least 8 characters. Give it to the person.</span></label>
@@ -62,7 +63,7 @@ export function userDialog({ user = null, role, programs = [] }, onDone) {
   });
 }
 
-function resetPasswordDialog(user) {
+export function resetPasswordDialog(user) {
   modal({
     title: `Reset ${user.name}'s password`,
     body: html`<label class="field"><span>New temporary password</span><input name="password" minlength="8" required /></label><p class="hint">They will be signed out and asked to choose their own password at their next sign-in.</p>`,
@@ -167,7 +168,8 @@ export async function personView(el, { id }) {
           <td>${statusBadge(e.status, e.statusLabel)}${e.position ? html`<small>#${e.position} in line</small>` : ''}</td>
           <td>${e.finalGrade != null ? html`<strong>${e.finalGrade}</strong> ${e.passed ? statusBadge('enrolled', 'Passed') : statusBadge('rejected', 'Failed')}` : '—'}</td>
           <td class="row-actions">${can(ctx.user.role, 'enrollment.manage') ? enrollmentActions(e) : ''}<button class="btn" data-history="${e.id}">History</button></td></tr>`)}</tbody>
-      </table>` : html`<p class="muted" style="padding:18px">No enrollments yet.</p>`}</div>` : ''}
+      </table>` : html`<p class="muted" style="padding:18px">No enrollments yet.</p>`}</div>
+      ${can(ctx.user.role, 'guardians.manage') && u.status !== 'pending' ? html`<div id="guardians-box"></div>` : ''}` : ''}
     ${u.role === 'teacher' ? html`
       <h3>Sections</h3>
       <div class="card scroll-x">${u.sections.length ? html`<table class="table clickable">
@@ -176,6 +178,8 @@ export async function personView(el, { id }) {
       </table>` : html`<p class="muted" style="padding:18px">No sections assigned. Assign one under <a href="#/sections">Sections</a>.</p>`}</div>` : ''}`);
 
   const redraw = () => personView(el, { id });
+  const gBox = el.querySelector('#guardians-box');
+  if (gBox) studentGuardiansCard(gBox, u);
   wireEnrollmentActions(el, enrollments, redraw);
   el.querySelectorAll('[data-history]').forEach((b) => b.addEventListener('click', () => showHistory(enrollments.find((e) => e.id === b.dataset.history))));
   el.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', () => (location.hash = `#${tr.dataset.href}`)));

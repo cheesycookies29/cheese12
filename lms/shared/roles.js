@@ -3,7 +3,8 @@
 // Everyone signs in once on the University Portal (/). Each account type has a "side",
 // which decides the session it gets:
 //  - admin:  the LMS admin panel (/admin): Administrators and Registrars,
-//  - portal: the learning portal (/lms/): Teachers and Students,
+//  - portal: the learning portal (/lms/): Teachers, Students, and Parents & guardians
+//            (who see only the students linked to them, as far as each link allows),
 //  - hris:   HR and staff accounts, who only use the HRIS (/hris/).
 // The HRIS accepts any employee's session (a teacher or registrar linked to an employee
 // record uses its self-service); the hris.* / employees.* / payroll.* permissions below
@@ -20,7 +21,7 @@ export const ROLES = {
     label: 'Registrar',
     side: 'admin',
     description: 'Runs enrollment at their campuses: applicants, student records, the course catalog, terms, sections and enrollment requests.',
-    permissions: ['dashboard', 'enrollment.manage', 'students.manage', 'catalog.manage', 'teachers.view', 'news.manage'],
+    permissions: ['dashboard', 'enrollment.manage', 'students.manage', 'guardians.manage', 'catalog.manage', 'teachers.view', 'news.manage'],
   },
   teacher: {
     label: 'Teacher',
@@ -32,6 +33,12 @@ export const ROLES = {
     label: 'Student',
     side: 'portal',
     description: 'Enrolls in sections and takes classes (as switched on under Modules).',
+    permissions: [],
+  },
+  guardian: {
+    label: 'Parent / Guardian',
+    side: 'portal',
+    description: 'Follows the students linked to them: enrollment, schedule, grades, attendance and activities, as far as each link and the Modules allow. Read-only.',
     permissions: [],
   },
   hr: {
@@ -62,6 +69,7 @@ export const PERMISSION_LABELS = [
   ['dashboard', 'Admin dashboard'],
   ['enrollment.manage', 'Approve, reject, add and drop enrollments'],
   ['students.manage', 'Student accounts and applicants'],
+  ['guardians.manage', 'Parent and guardian accounts, and what each may see'],
   ['teachers.view', 'View teacher accounts'],
   ['teachers.manage', 'Add and edit teacher accounts'],
   ['catalog.manage', 'Programs, courses, terms and sections'],

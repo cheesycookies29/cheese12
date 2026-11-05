@@ -459,4 +459,7 @@ export function registerClassroomRoutes(route, ctx) {
       .map((e) => ({ ...sectionView(d, findById(d.sections, e.sectionId)), status: e.status }));
     return { termId, terms: d.terms, classes };
   }, { module: 'schedule' });
+
+  // For the parents & guardians views (server/guardian.js).
+  return { standing, resultFor, isOpen };
 }

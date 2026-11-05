@@ -1,4 +1,4 @@
-// Turn learning-portal modules on or off for students and for teachers.
+// Turn learning-portal modules on or off for students, teachers and parents & guardians.
 import { api } from '../../api.js';
 import { html, mount, toast } from '../../ui.js';
 import { pageHead, ctx } from '../../shell.js';
@@ -11,17 +11,18 @@ export async function modulesView(el) {
   const { modules, config } = await api.get('/api/admin/modules');
   const editable = can(ctx.user.role, 'modules.config');
   mount(el, html`
-    ${pageHead('Modules', 'Choose what students and teachers get in the learning portal. A module that is off disappears from their menu and the server refuses it.')}
+    ${pageHead('Modules', 'Choose what students, teachers and parents & guardians get in the learning portal. A module that is off disappears from their menu and the server refuses it.')}
     ${!editable ? html`<div class="notice"><p>Only administrators can change these.</p></div>` : ''}
     <div class="card scroll-x"><table class="table">
-      <thead><tr><th>Module</th><th>Students</th><th>Teachers</th></tr></thead>
+      <thead><tr><th>Module</th><th>Students</th><th>Teachers</th><th>Parents &amp; guardians</th></tr></thead>
       <tbody>${modules.map((m) => html`<tr class="module-row">
         <td><strong>${m.label}</strong></td>
         <td>${toggle(m.id, 'student', config[m.id]?.student !== false, !editable)}<div class="desc">${m.student}</div></td>
         <td>${toggle(m.id, 'teacher', config[m.id]?.teacher !== false, !editable)}<div class="desc">${m.teacher}</div></td>
+        <td>${m.guardian ? html`${toggle(m.id, 'guardian', config[m.id]?.guardian !== false, !editable)}<div class="desc">${m.guardian}</div>` : html`<span class="muted small">Not offered to parents</span>`}</td>
       </tr>`)}</tbody>
     </table></div>
-    <p class="hint">Changes apply the next time a student or teacher opens a page. Turning a module off never deletes anything; turning it back on shows everything again.</p>
+    <p class="hint">Parents and guardians also only see what each link to a student allows (under Parents & guardians). Changes apply the next time someone opens a page. Turning a module off never deletes anything; turning it back on shows everything again.</p>
     <p class="hint">Tip: switch <strong>Enrollment</strong> off for students outside enrollment season so only the registrar can add or drop classes.</p>`);
 
   el.querySelectorAll('input[data-module]').forEach((input) => input.addEventListener('change', async () => {
@@ -32,7 +33,7 @@ export async function modulesView(el) {
       Object.assign(config, saved.config);
       input.parentElement.querySelector('.state').textContent = input.checked ? 'On' : 'Off';
       const m = modules.find((x) => x.id === input.dataset.module);
-      toast(`${m.label} is now ${input.checked ? 'on' : 'off'} for ${input.dataset.role}s.`);
+      toast(`${m.label} is now ${input.checked ? 'on' : 'off'} for ${input.dataset.role === 'guardian' ? 'parents & guardians' : `${input.dataset.role}s`}.`);
     } catch (err) {
       input.checked = !input.checked;
       toast(err.message, 'error');

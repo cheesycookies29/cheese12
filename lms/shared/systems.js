@@ -20,7 +20,7 @@ export const SYSTEMS = [
     title: 'Financial Management Information System',
     description: 'Budget, assessments and collections, disbursements, accounting and financial reports.',
     icon: 'wallet',
-    audience: ['student', 'teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff'],
+    audience: ['student', 'guardian', 'teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff'],
   },
   {
     id: 'uis',
@@ -28,7 +28,7 @@ export const SYSTEMS = [
     title: 'University Information System',
     description: 'Admissions, student records, registration, grades and registrar services.',
     icon: 'cap',
-    audience: ['student', 'teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff'],
+    audience: ['student', 'guardian', 'teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff'],
   },
   {
     id: 'lms',
@@ -36,7 +36,7 @@ export const SYSTEMS = [
     title: 'Learning Management System',
     description: 'Classes, lessons and resources, quizzes and exams, attendance, grades and enrollment.',
     icon: 'book',
-    audience: ['student', 'teacher', 'registrar', 'admin'],
+    audience: ['student', 'guardian', 'teacher', 'registrar', 'admin'],
     builtIn: true,
     path: '/lms/', // administrators and registrars open the LMS admin panel (/admin) instead
   },

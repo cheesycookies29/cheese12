@@ -513,6 +513,25 @@ a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shado
 #feed { margin-bottom: 32px; }
 body.hub .topbar { padding-left: 24px; }
 
+/* Parents & guardians */
+.guardian-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; align-items: start; }
+.child-card { display: flex; flex-direction: column; gap: 14px; }
+.guardian-cards > .card + .card { margin-top: 0; }
+.child-card .stats.small { margin-bottom: 0; }
+.stats.small > div > span.muted { display: block; margin-top: 2px; }
+.child-head { display: flex; align-items: center; gap: 14px; }
+.child-head .grow { flex: 1; min-width: 0; }
+.child-head h2 { margin: 0; }
+.child-head p { margin: 2px 0 0; }
+.child-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 12px; }
+.chip.static { cursor: default; font-size: 12px; padding: 3px 10px; background: var(--surface-2); }
+.chip.static:hover { background: var(--surface-2); }
+.view-checks { display: grid; gap: 8px; }
+.view-checks label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+.view-checks label:has(input:checked) { border-color: var(--brand-line); background: var(--brand-softer); }
+.view-checks input { margin-top: 3px; }
+.view-checks small { display: block; color: var(--muted); }
+
 /* Sideways-scrolling areas (wide tables, tabs, the timetable) fade out at an edge that has more. */
 [data-more='right'] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
 [data-more='left'] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
@@ -620,6 +639,8 @@ body.hub .topbar { padding-left: 24px; }
   .att-take .seg label { flex: 1 1 0; justify-content: center; padding: 10px 2px; }
   .scroll-x:has(.att-take) { overflow-x: visible; }
   .list-item > .badge { margin-left: 48px; }
+  .child-head .badge { align-self: flex-start; }
+  .child-foot .btn { flex: 1 1 auto; }
   .list-item:has(> .badge) { flex-wrap: wrap; }
   .list-item:has(> .badge) > .grow { flex-basis: calc(100% - 48px); }
   .tiles { grid-template-columns: 1fr; }

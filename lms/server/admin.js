@@ -24,7 +24,7 @@ const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Which permission manages accounts of each type.
-const MANAGES = { student: 'students.manage', teacher: 'teachers.manage', registrar: 'admins.manage', admin: 'admins.manage' };
+const MANAGES = { student: 'students.manage', teacher: 'teachers.manage', guardian: 'guardians.manage', registrar: 'admins.manage', admin: 'admins.manage' };
 
 export function nextStudentNo(data, year = new Date().getFullYear()) {
   const used = new Set(data.users.map((u) => u.studentNo).filter(Boolean));
@@ -58,6 +58,10 @@ export function validateUserFields(input, data, existing) {
   if (role === 'teacher') {
     u.department = text(input.department, 120);
     u.employeeNo = text(input.employeeNo, 30);
+  }
+  if (role === 'guardian') {
+    u.phone = text(input.phone, 40);
+    if (u.phone && !/^[0-9+()\-\s]{7,40}$/.test(u.phone)) fail('That phone number does not look right.');
   }
   return { role, ...u };
 }
@@ -137,6 +141,7 @@ export function registerAdminRoutes(route, ctx) {
     const role = query.role;
     if (role === 'student') need(user, 'students.manage');
     else if (role === 'teacher') need(user, 'teachers.view');
+    else if (role === 'guardian') need(user, 'guardians.manage');
     else need(user, 'admins.manage');
     const roles = role === 'staff' || !role ? ADMIN_ROLES : [role];
     return data().users
@@ -235,6 +240,7 @@ export function registerAdminRoutes(route, ctx) {
     if (data().enrollments.some((e) => e.studentId === u.id)) fail('This student has enrollment records. Disable the account instead.');
     if (data().sections.some((s) => s.teacherId === u.id)) fail('This teacher is assigned to sections. Reassign them or disable the account instead.');
     data().users.splice(data().users.indexOf(u), 1);
+    data().guardianLinks = data().guardianLinks.filter((l) => l.guardianId !== u.id && l.studentId !== u.id);
     ctx.signOutEverywhere(u.id);
     save();
     return { ok: true };
@@ -521,13 +527,13 @@ export function registerAdminRoutes(route, ctx) {
     return { ok: true };
   });
 
-  // ----- Modules for students and teachers -----
+  // ----- Modules for students, teachers and parents & guardians -----
   route('GET', '/api/admin/modules', 'admin', () => ({ modules: MODULES, config: data().modules }));
   route('PUT', '/api/admin/modules', 'admin:modules.config', ({ body }) => {
     const next = {};
     for (const m of MODULES) {
       const v = body.config?.[m.id] || {};
-      next[m.id] = { student: Boolean(v.student), teacher: Boolean(v.teacher) };
+      next[m.id] = { student: Boolean(v.student), teacher: Boolean(v.teacher), ...(m.guardian ? { guardian: v.guardian === undefined ? true : Boolean(v.guardian) } : {}) }; // missing (older saves): on
     }
     data().modules = next;
     save();
