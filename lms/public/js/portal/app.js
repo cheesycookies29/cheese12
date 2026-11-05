@@ -70,7 +70,7 @@ function signedOutView() {
 startApp({
   side: 'portal',
   authBase: '/api/auth',
-  appName: 'Learning Management System',
+  product: 'Learn',
   routes,
   nav,
   home: () => '/home',

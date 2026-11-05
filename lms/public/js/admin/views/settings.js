@@ -28,7 +28,7 @@ export async function settingsView(el) {
   const editable = can(ctx.user.role, 'settings.edit');
   const dis = editable ? '' : 'disabled';
   mount(el, html`
-    ${pageHead('Settings & branding', 'School details, how the LMS looks, and the rules every enrollment request is checked against.')}
+    ${pageHead('Settings & branding', 'School details, how ATLAS looks, and the rules every enrollment request is checked against.')}
     ${!editable ? html`<div class="notice"><p>Only administrators can change these.</p></div>` : ''}
     <form id="settings" class="stack">
       <section class="card"><h2>School</h2><div class="grid">
@@ -48,10 +48,10 @@ export async function settingsView(el) {
         <div class="swatches">${Object.entries(THEMES).map(([k, t]) => html`<label class="swatch"><input type="radio" name="theme" value="${k}" ${s.branding.theme === k ? 'checked' : ''} ${dis} /><i style="background:linear-gradient(135deg, ${t.brand} 60%, ${t.accent} 60%)"></i>${t.label}</label>`)}
           <label class="swatch"><input type="radio" name="theme" value="custom" ${s.branding.theme === 'custom' ? 'checked' : ''} ${dis} /><i style="background:${s.branding.color || '#888'}" id="custom-dot"></i>School colour <input type="color" name="color" value="${s.branding.color || '#166534'}" ${dis} style="width:56px;height:28px" /></label></div>
         <div class="grid" style="margin-top:16px">
-          <div class="field span-2"><span>Logo or seal</span>
+          <div class="field span-2"><span>School logo or seal</span>
             <div class="logo-box"><img id="logo-preview" src="${logoSrc(s.branding)}" alt="" />
               <div class="stack tight"><label class="btn sm">${icon('upload', 15)} Upload logo<input type="file" id="logo" accept="image/png,image/jpeg,image/webp" hidden ${dis} /></label>
-                ${s.branding.logo ? html`<button type="button" class="link" id="logo-reset">Use the default logo</button>` : ''}<span class="hint">Shown in the top bar and on the sign-in pages. A square seal or a wide logo both work.</span></div></div></div>
+                ${s.branding.logo ? html`<button type="button" class="link" id="logo-reset">Remove the school logo</button>` : ''}<span class="hint">Shown on the sign-in pages and on payslips, next to the ATLAS mark. A square seal or a wide logo both work.</span></div></div></div>
           <label class="field"><span>Sign-in headline</span><input name="tagline" value="${s.branding.tagline}" placeholder="Learning, all in one place." maxlength="160" ${dis} /></label>
         </div>
       </section>
@@ -98,9 +98,7 @@ export async function settingsView(el) {
       });
       ctx.info.branding = { ...ctx.info.branding, schoolName: v.schoolName, ...themeColors({ theme: v.theme, color: v.color }), logo, tagline: v.tagline };
       applyBranding(ctx.info.branding);
-      document.getElementById('brand-logo').src = logoSrc(ctx.info.branding, document.documentElement.dataset.theme === 'dark');
       toast('Settings saved.');
-      document.getElementById('school-name').textContent = v.schoolName;
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -115,8 +113,8 @@ export async function dataView(el) {
       <p>Adds a sample school <strong>next to your own data</strong>: 5 programs (IT, Computer Science, Business, Agriculture, Education), a finished term with grades
         and a current term with enrollment open, 21 courses with prerequisites, about 40 sections this term (one full with a waitlist, one with an enrollment key), 18 teachers,
         about 190 students across four campuses, 11 applicants and about 40 parents and guardians: some 260 accounts. Every class has lessons, announcements,
-        a course outline, graded work, a quiz most students have taken, and attendance; plus school news and events, and HRIS records, attendance and payroll.</p>
-      <p>Sign in at the University Portal as <code>student.demo</code> (Carlo Reyes) or <code>teacher.demo</code> (Maria Santos), or as <code>registrar.demo</code>. Password <code>demo1234</code>.
+        a course outline, graded work, a quiz most students have taken, and attendance; plus school news and events, and ATLAS People records, attendance and payroll.</p>
+      <p>Sign in on the ATLAS home page as <code>student.demo</code> (Carlo Reyes) or <code>teacher.demo</code> (Maria Santos), or as <code>registrar.demo</code>. Password <code>demo1234</code>.
         Other teachers: <code>lmercado.demo</code>, <code>gaquino.demo</code>, <code>rvillareal.demo</code>, <code>lgonzales.demo</code>, <code>mtorres.demo</code>, <code>jdelacruz.demo</code>, <code>aramos.demo</code>, <code>psison.demo</code>, <code>rmanalastas.demo</code>, <code>jcabrera.demo</code>, <code>vbayani.demo</code>. Parents: <code>parent.demo</code>, <code>father.demo</code> and the accounts under Parents & guardians.
         Your own current term stays current; if you have none, the demo term becomes current.</p>
       ${demo.loaded ? html`<p><strong>Demo data is loaded:</strong> ${demo.counts.users} accounts, ${demo.counts.courses} courses, ${demo.counts.sections} sections, ${demo.counts.enrollments} enrollments.</p>` : ''}
@@ -141,7 +139,7 @@ export async function dataView(el) {
   });
   el.querySelector('#backup').addEventListener('click', async () => {
     const data = await api.get('/api/admin/backup');
-    downloadFile(`ltdc-lms-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
+    downloadFile(`atlas-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
   });
   el.querySelector('#restore').addEventListener('change', async (e) => {
     const file = e.target.files[0];

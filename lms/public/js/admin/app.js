@@ -63,11 +63,11 @@ function nav() {
     { href: '/modules', label: 'Modules', icon: 'toggles' },
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
-    { href: '/systems', label: 'Portal & systems', icon: 'grid' },
+    { href: '/systems', label: 'ATLAS home & systems', icon: 'grid' },
     c('admins.manage') && { href: '/staff', label: 'Admins & registrars', icon: 'shield' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
-    { href: '/', label: 'University Portal', icon: 'grid', external: true },
+    { href: '/', label: 'ATLAS home', icon: 'grid', external: true },
   ].filter(Boolean);
 }
 
@@ -76,7 +76,7 @@ function signedOutView(el, { status, boot }) {
     const form = authScreen(el, { admin: true }, html`
       <form class="auth-card" novalidate>
         ${authLogo()}
-        <h2>Welcome! Let's set up the LMS</h2>
+        <h2>Welcome! Let's set up ATLAS</h2>
         <p class="muted">Create the first <strong>Administrator</strong>. You can add registrars, teachers and students after signing in.</p>
         ${status.setupCodeRequired ? html`<label class="field"><span>Setup code</span><input name="setupCode" autocomplete="off" required /><span class="hint">The code chosen when this server was created.</span></label>` : ''}
         <label class="field"><span>School name</span><input name="schoolName" value="${status.schoolName}" required /></label>
@@ -116,7 +116,7 @@ function signedOutView(el, { status, boot }) {
 startApp({
   side: 'admin',
   authBase: '/api/admin/auth',
-  appName: 'Admin panel',
+  product: 'Learn',
   routes,
   nav,
   home: () => '/dashboard',

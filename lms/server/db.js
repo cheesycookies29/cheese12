@@ -27,10 +27,10 @@ export const DEFAULT_SETTINGS = {
   branding: {
     theme: 'maroon', // a preset from shared/themes.js, or 'custom'
     color: '', // the brand colour when theme is 'custom' (#rrggbb)
-    logo: '', // a small image as a data: URL; empty = the LTDC logo
+    logo: '', // a small image as a data: URL; empty = the ATLAS mark
     tagline: '',
   },
-  systems: defaultSystemSettings(), // other systems on the University Portal: { status: soon | live | hidden, url }
+  systems: defaultSystemSettings(), // other systems on the ATLAS home page: { status: soon | live | hidden, url }
 };
 
 // Activity types and their share of the running grade (weights are percentages;

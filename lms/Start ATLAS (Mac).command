@@ -1,6 +1,6 @@
 #!/bin/bash
-# Double-click in Finder to start LTDC LMS. Keep the window open while you use it;
-# close it (or press Ctrl+C) to stop the LMS.
+# Double-click in Finder to start Lancaster ATLAS. Keep the window open while you use it;
+# close it (or press Ctrl+C) to stop ATLAS.
 cd "$(dirname "$0")" || exit 1
 # Finder does not always pass on the PATH where Node.js is installed.
 export PATH="/usr/local/bin:/opt/homebrew/bin:$HOME/.volta/bin:$PATH"
@@ -16,8 +16,8 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 echo
-echo "  Starting LTDC LMS. Your browser will open in a moment."
-echo "  Keep this window open while you use the LMS. Close it to stop the LMS."
+echo "  Starting Lancaster ATLAS. Your browser will open in a moment."
+echo "  Keep this window open while you use ATLAS. Close it to stop ATLAS."
 OPEN_BROWSER=1 node server.js
 echo
-read -r -p "  The LMS has stopped. Press Return to close this window."
+read -r -p "  ATLAS has stopped. Press Return to close this window."

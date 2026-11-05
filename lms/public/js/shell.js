@@ -1,4 +1,4 @@
-// The app frame shared by the admin panel and the learning portal: branding, sign-in
+// The Lancaster ATLAS app frame, shared by ATLAS Learn (portal and admin panel) and ATLAS People: branding, sign-in
 // screens, top bar with the user menu, icon sidebar (a drawer on phones), hash router.
 import { api } from './api.js';
 import { html, mount, modal, toast, initials, formData, raw } from './ui.js';
@@ -15,10 +15,22 @@ export function applyBranding(b = {}) {
   if (b.accent) root.setProperty('--accent', b.accent);
   const meta = document.querySelector('meta[name=theme-color]') || document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'theme-color' }));
   meta.content = b.brand || '#5d0013';
-  const app = document.body.dataset.app || (document.body.classList.contains('admin-panel') ? 'Admin panel' : 'LMS');
-  document.title = `${b.schoolName || 'LMS'} · ${app}`;
+  const app = document.body.dataset.app || 'ATLAS';
+  document.title = b.schoolName ? `${app} · ${b.schoolName}` : app;
 }
-export const logoSrc = (b = ctx.info?.branding, onDark = false) => b?.logo || (onDark ? '/img/logo-white.png' : '/img/logo.png');
+
+// ----- Lancaster ATLAS identity (docs/BRAND.md) -----
+// The mark: the light version (grey ribbon, charcoal pages) or the one for dark backgrounds.
+export const markSrc = (onDark = false) => `/img/brand/atlas-mark${onDark ? '-dark' : ''}.svg`;
+// The school's own logo when an administrator uploaded one, else the ATLAS mark.
+export const logoSrc = (b = ctx.info?.branding, onDark = false) => b?.logo || markSrc(onDark);
+// "ATLAS Learn": the platform name and, optionally, the system.
+export const atlasWord = (productName = '') => html`<span class="atlas-word">ATLAS</span>${productName ? html` <span class="atlas-product">${productName}</span>` : ''}`;
+// The lockup: mark, gold rule, LANCASTER / ATLAS / UNIFIED EDUCATION MANAGEMENT PLATFORM.
+// dark: on a burgundy or dark background; otherwise it follows light and dark mode.
+export const atlasLockup = ({ dark = false, size = '' } = {}) => html`<span class="atlas-lockup ${dark ? 'on-dark' : ''} ${size}" role="img" aria-label="Lancaster ATLAS, Unified Education Management Platform">
+  ${dark ? html`<img src="${markSrc(true)}" alt="" />` : html`<img class="lt" src="${markSrc(false)}" alt="" /><img class="dk" src="${markSrc(true)}" alt="" />`}
+  <span class="al-rule"></span><span class="al-text"><small>LANCASTER</small><strong>ATLAS</strong><em>UNIFIED EDUCATION<br />MANAGEMENT PLATFORM</em></span></span>`;
 
 export const isDark = () => document.documentElement.dataset.theme === 'dark';
 export function setTheme(dark) {
@@ -34,27 +46,35 @@ export function renderThemeButton() {
   btn.innerHTML = iconSvg(isDark() ? 'sun' : 'moon');
   btn.title = isDark() ? 'Light mode' : 'Dark mode';
   const logo = document.getElementById('brand-logo');
-  if (logo && ctx.info) logo.src = logoSrc(ctx.info.branding, isDark());
+  if (logo) logo.src = markSrc(isDark());
 }
 
 // ----- Sign-in screens -----
 const PORTAL_POINTS = [['cap', 'Enroll in classes and follow requests'], ['book', 'Lessons, files and announcements'], ['quiz', 'Quizzes and exams with instant results'], ['chart', 'Grades, attendance and your schedule']];
 const ADMIN_POINTS = [['clipboard', 'Enrollment requests, waitlists, applicants'], ['layers', 'Courses, terms and sections'], ['toggles', 'Modules for students and teachers'], ['settings', 'Branding, grading and school settings']];
 
+// The burgundy panel beside every sign-in form: the ATLAS lockup, the school, what this system is for.
+export function authHero({ system = '', title, text, points = [] }) {
+  const b = ctx.info?.branding || {};
+  return html`<section class="auth-hero">
+    <div class="hero-brand">${atlasLockup({ dark: true, size: 'md' })}</div>
+    <div style="position:relative;z-index:1">
+      <div class="hero-school">${b.logo ? html`<img src="${b.logo}" alt="" />` : ''}<span><strong>${b.schoolName || ''}</strong><small>${[system, b.termName].filter(Boolean).join(' · ')}</small></span></div>
+      <h1>${title}</h1>
+      <p>${text}</p>
+      ${points.length ? html`<ul class="auth-points">${points.map(([i, t]) => html`<li>${icon(i, 30)} ${t}</li>`)}</ul>` : ''}
+    </div>
+    <small>${b.schoolName ? `© ${new Date().getFullYear()} ${b.schoolName} · ` : ''}Lancaster ATLAS</small>
+  </section>`;
+}
+
 export function authScreen(el, { admin = false } = {}, card) {
   const b = ctx.info?.branding || {};
   mount(el, html`
     <div class="auth-screen">
-      <section class="auth-hero">
-        <div class="seal"><img src="${logoSrc(b)}" alt="" /><div><strong>${b.schoolName || ''}</strong><small>${admin ? 'Admin panel' : 'Learning Management System'}</small></div></div>
-        <div style="position:relative;z-index:1">
-          <p class="auth-kicker">${b.termName || (admin ? 'Administration' : 'Welcome')}</p>
-          <h1>${admin ? 'Run the school side.' : b.tagline || 'Learning, all in one place.'}</h1>
-          <p>${admin ? 'Enrollment, the catalog, accounts, and what students and teachers can use.' : 'Your classes, lessons, quizzes, grades and attendance, for students and teachers.'}</p>
-          <ul class="auth-points">${(admin ? ADMIN_POINTS : PORTAL_POINTS).map(([i, t]) => html`<li>${icon(i, 30)} ${t}</li>`)}</ul>
-        </div>
-        <small>${b.schoolName ? `© ${new Date().getFullYear()} ${b.schoolName}` : ''}</small>
-      </section>
+      ${authHero(admin
+        ? { system: 'ATLAS Learn · Admin panel', title: 'Run the school side.', text: 'Enrollment, the catalog, accounts, and what students, teachers and parents can use.', points: ADMIN_POINTS }
+        : { system: 'ATLAS Learn', title: b.tagline || 'Learning, all in one place.', text: 'Classes, lessons, quizzes, grades and attendance, for students, teachers and parents.', points: PORTAL_POINTS })}
       <section class="auth-panel">${card}</section>
     </div>`);
   const form = el.querySelector('form');
@@ -98,7 +118,8 @@ try {
   }
 } catch {}
 
-export const authLogo = () => html`<img class="auth-logo" src="${logoSrc()}" alt="" />`;
+// On the sign-in card (phones, where the burgundy panel is hidden): the school's logo, else the ATLAS lockup.
+export const authLogo = () => (ctx.info?.branding?.logo ? html`<img class="auth-logo" src="${ctx.info.branding.logo}" alt="" />` : html`<span class="auth-logo">${atlasLockup({ size: 'sm' })}</span>`);
 
 export const passwordField = (label, name, autocomplete) => html`
   <label class="field"><span>${label}</span>
@@ -165,7 +186,7 @@ export function openChangePassword(authBase) {
 // ----- The app -----
 // config:
 //   side: 'admin' | 'portal' | 'hris'; authBase: '/api/admin/auth' | '/api/auth' | '/api/hris/auth'
-//   appName: the line under the school name; short: the app's short name (sidebar footer)
+//   product: the ATLAS system shown in the top bar ('Learn', 'People')
 //   passwordView(el): replaces the built-in "choose a new password" screen
 //   routes: [[pattern, view, allowed(user, info) => bool]]
 //   nav(): [{ href, label, icon, heading, badge, exact, also, external }]
@@ -187,8 +208,8 @@ export function startApp(config) {
   function renderTop() {
     const b = ctx.info.branding;
     applyBranding(b);
-    document.getElementById('school-name').textContent = b.schoolName;
-    mount(document.getElementById('brand-sub'), html`${config.side === 'admin' ? html`Admin panel <span class="side-chip">ADMIN</span>` : config.appName || 'Learning Management System'}${ctx.info.campusName ? html` · <strong class="campus-name">${ctx.info.campusName}</strong>` : ''}${b.termName ? ` · ${b.termName}` : ''}`);
+    mount(document.getElementById('school-name'), html`${atlasWord(config.product || 'Learn')}${config.side === 'admin' ? html` <span class="side-chip">ADMIN</span>` : ''}`);
+    mount(document.getElementById('brand-sub'), html`${b.schoolName}${ctx.info.campusName ? html` · <strong class="campus-name">${ctx.info.campusName}</strong>` : ''}${b.termName ? ` · ${b.termName}` : ''}`);
     renderThemeButton();
   }
 
@@ -201,7 +222,7 @@ export function startApp(config) {
           ? html`<a href="${n.href}" target="_blank" rel="noopener" title="${n.label}">${icon(n.icon || 'external')}<span class="label">${n.label}</span></a>`
           : html`<a href="#${n.href}" title="${n.label}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${icon(n.icon || 'file')}<span class="label">${n.label}</span>${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
     )}`);
-    document.getElementById('side-foot').textContent = `LTDC ${config.short || 'LMS'} · ${ctx.info.branding.schoolName}`;
+    document.getElementById('side-foot').textContent = `Lancaster ATLAS · ${ctx.info.branding.schoolName}`;
   }
 
   function renderUserBox() {
@@ -271,7 +292,7 @@ export function startApp(config) {
   document.addEventListener('keydown', (e) => e.key === 'Escape' && setDrawer(false));
   document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
   // Back to the University Portal, where the other systems are.
-  document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" href="/" title="All systems (University Portal)" aria-label="All systems">${iconSvg('grid')}</a>`);
+  document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" href="/" title="All systems (ATLAS home)" aria-label="All systems">${iconSvg('grid')}</a>`);
 
   async function navigate() {
     if (!ctx.user || ctx.user.mustChangePassword) return;
@@ -315,7 +336,7 @@ export function startApp(config) {
     } catch {
       document.body.classList.add('auth-mode');
       document.body.classList.remove('booting');
-      return mount(document.getElementById('auth'), html`<div class="empty"><h2>Cannot reach the server</h2><p>Start the LMS (double-click “Start LMS”, or <code>npm start</code>), then reload this page.</p></div>`);
+      return mount(document.getElementById('auth'), html`<div class="empty"><h2>Cannot reach the server</h2><p>Start ATLAS (double-click “Start ATLAS”, or <code>npm start</code>), then reload this page.</p></div>`);
     }
     ctx.info = status;
     ctx.user = status.user;

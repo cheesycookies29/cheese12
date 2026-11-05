@@ -14,7 +14,7 @@ export async function hrSettingsView(el) {
       <section class="card">
         <h2>Employer on payslips</h2>
         <div class="grid">
-          <label class="field"><span>Employer name</span><input value="${s.employerName}" disabled /><span class="hint">The school name, set by an administrator in the LMS admin panel.</span></label>
+          <label class="field"><span>Employer name</span><input value="${s.employerName}" disabled /><span class="hint">The school name, set by an administrator in the ATLAS Learn admin panel.</span></label>
           <label class="field span-2"><span>Address</span><input name="employerAddress" value="${s.employerAddress}" maxlength="300" placeholder="e.g. San Jose, Pili, Camarines Sur 4418" /></label>
           <label class="field"><span>Employer TIN</span><input name="employerTin" value="${s.employerTin}" maxlength="40" /></label>
         </div>

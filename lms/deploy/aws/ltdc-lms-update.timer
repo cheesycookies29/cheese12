@@ -1,5 +1,5 @@
 [Unit]
-Description=Check GitHub for a new LTDC LMS version every 10 minutes
+Description=Check GitHub for a new Lancaster ATLAS version every 10 minutes
 
 [Timer]
 OnBootSec=5min

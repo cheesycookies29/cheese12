@@ -96,12 +96,12 @@ server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     // Double-clicked the launcher while the LMS is already running: just show it again.
     if (process.env.OPEN_BROWSER) {
-      console.log(`\n  LTDC LMS is already running. Opening http://localhost:${PORT} in your browser.`);
-      console.log('  You can close this window; the LMS keeps running in its first window.\n');
+      console.log(`\n  Lancaster ATLAS is already running. Opening http://localhost:${PORT} in your browser.`);
+      console.log('  You can close this window; ATLAS keeps running in its first window.\n');
       openBrowser(`http://localhost:${PORT}/`);
       return setTimeout(() => process.exit(0), 1500);
     }
-    console.error(`\n  Port ${PORT} is already in use. The LMS may already be running: open http://localhost:${PORT}`);
+    console.error(`\n  Port ${PORT} is already in use. ATLAS may already be running: open http://localhost:${PORT}`);
     console.error('  Or start it on another port, e.g. PORT=3101 npm start\n');
     process.exit(1);
   }
@@ -109,9 +109,9 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`\n  LTDC LMS is running.`);
-  console.log(`  University Portal (everyone signs in here): http://localhost:${PORT}`);
-  console.log(`  LMS: http://localhost:${PORT}/lms/   ·   LMS admin panel: http://localhost:${PORT}/admin   ·   HRIS: http://localhost:${PORT}/hris/`);
+  console.log(`\n  Lancaster ATLAS is running.`);
+  console.log(`  ATLAS home (everyone signs in here): http://localhost:${PORT}`);
+  console.log(`  ATLAS Learn: http://localhost:${PORT}/lms/   ·   Learn admin panel: http://localhost:${PORT}/admin   ·   ATLAS People: http://localhost:${PORT}/hris/`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  LTDC University Portal and LMS on one Amazon EC2 server (Ubuntu 24.04) with HTTPS
+  Lancaster ATLAS (home page, ATLAS Learn, ATLAS People) on one Amazon EC2 server (Ubuntu 24.04) with HTTPS
   at a DuckDNS address, a fixed public IP, daily disk snapshots, nightly data backups
   and automatic updates from GitHub. No SSH: use Session Manager for console access.
 
@@ -187,7 +187,7 @@ Resources:
 
 Outputs:
   WebsiteUrl:
-    Description: The University Portal (it can take 5-10 minutes after the stack finishes to answer with HTTPS)
+    Description: The ATLAS home page (it can take 5-10 minutes after the stack finishes to answer with HTTPS)
     Value: !Sub https://${DuckDnsSubdomain}.duckdns.org
   AdminPanelUrl:
     Description: First-time setup (needs the setup code) and the LMS admin panel

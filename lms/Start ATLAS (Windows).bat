@@ -1,5 +1,5 @@
 @echo off
-title LTDC LMS
+title Lancaster ATLAS
 cd /d "%~dp0"
 
 where node >nul 2>nul
@@ -13,11 +13,11 @@ if errorlevel 1 (
 )
 
 echo.
-echo   Starting LTDC LMS. Your browser will open in a moment.
-echo   Keep this window open while you use the LMS. Close it to stop the LMS.
-rem Opens the admin panel in your browser once the LMS has started.
+echo   Starting Lancaster ATLAS. Your browser will open in a moment.
+echo   Keep this window open while you use ATLAS. Close it to stop ATLAS.
+rem Opens the admin panel in your browser once ATLAS has started.
 set OPEN_BROWSER=1
 node server.js
 echo.
-echo   The LMS has stopped. You can close this window.
+echo   ATLAS has stopped. You can close this window.
 pause

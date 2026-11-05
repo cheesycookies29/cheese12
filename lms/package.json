@@ -1,7 +1,7 @@
 {
   "name": "ltdc-lms",
-  "version": "0.6.0-alpha",
-  "description": "LTDC LMS: learning management with enrollment, a student/teacher portal and an admin panel. Self-hosted, sibling of LTDC ERP.",
+  "version": "0.7.0-alpha",
+  "description": "Lancaster ATLAS, the Unified Education Management Platform: the ATLAS home page, ATLAS Learn (LMS) and ATLAS People (HRIS). Self-hosted, sibling of the Lancaster ERP (CORE).",
   "type": "module",
   "private": true,
   "scripts": {

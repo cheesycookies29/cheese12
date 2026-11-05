@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the latest version of the LTDC LMS from GitHub, if there is a new one.
+# Install the latest version of Lancaster ATLAS from GitHub, if there is a new one.
 # Installed on the server as /usr/local/sbin/ltdc-lms-update; run every 10 minutes by
 # ltdc-lms-update.timer when automatic updates are on.
 #
@@ -54,7 +54,7 @@ systemctl start ltdc-lms 9>&-
 
 for _ in $(seq 1 20); do
   if curl -fs -o /dev/null http://127.0.0.1:3100/healthz; then
-    echo "LTDC LMS ${LATEST:0:7} is running."
+    echo "Lancaster ATLAS ${LATEST:0:7} is running."
     exit 0
   fi
   sleep 1

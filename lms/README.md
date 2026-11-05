@@ -1,19 +1,33 @@
-# LTDC LMS
+# Lancaster ATLAS
 
-The learning management system of Lancaster Technology and Development Corporation (LTDC), a sibling of [LTDC ERP](../README.md).
-It is built the same way as the ERP: one Node.js program with **no dependencies**, a browser app with no build step, and all data in one file, `data/db.json`.
-It runs on your own computer for now. It is set up so it can move to AWS later (see [Putting it online](#putting-it-online-aws)).
+<img src="docs/brand/atlas-logo-horizontal.png" alt="Lancaster ATLAS, Unified Education Management Platform" width="360" />
 
-Everyone starts at the **University Portal**, the school's single front door to its four systems:
+**Lancaster ATLAS** is the Unified Education Management Platform of Lancaster Technology and Development Corporation (LTDC), the school-side sibling of the Lancaster ERP, [CORE](../README.md).
+It is built the same way as CORE: one Node.js program with **no dependencies**, a browser app with no build step, and all data in one file, `data/db.json`.
+It runs on your own computer, or online on Amazon EC2 (see [Putting it online](#putting-it-online-aws)). The brand (mark, colours, product names) is described in [docs/BRAND.md](docs/BRAND.md).
+
+ATLAS is a family of products behind one sign-in:
+
+| Product | What it is | Status |
+| --- | --- | --- |
+| **ATLAS Learn** (LMS) | Classes, lessons, quizzes, attendance, grades and enrollment, with its admin panel | Live |
+| **ATLAS People** (HRIS) | Employee records, time clock, leave, payroll and payslips; self-service for every employee | Live |
+| **ATLAS Academic** (UIS) | Admissions, student records, registrar services | Coming soon |
+| **ATLAS Finance** (FMIS) | Budget, assessments and collections, accounting | Coming soon |
+| **ATLAS Facilities** | Rooms and venues, bookings, maintenance, property | Coming soon |
+
+Everyone starts at the **ATLAS home page**, the school's single front door to these systems:
 
 | Address | What it is |
 | --- | --- |
-| <http://localhost:3100> | **University Portal**: one sign-in for students, faculty and staff, then a tile for each system they may use (HRIS, FMIS, UIS, LMS), with school announcements and events |
-| <http://localhost:3100/lms/> | **LMS** for students and teachers |
-| <http://localhost:3100/admin> | **LMS admin panel** for administrators and registrars (it also keeps its own sign-in page) |
-| <http://localhost:3100/hris/> | **HRIS** for every employee (self-service) and for HR and payroll staff |
+| <http://localhost:3100> | **ATLAS home**: one sign-in for students, parents, faculty and staff, then a tile for each system they may use, with school announcements and events |
+| <http://localhost:3100/lms/> | **ATLAS Learn** for students, teachers and parents |
+| <http://localhost:3100/admin> | **ATLAS Learn admin panel** for administrators and registrars (it also keeps its own sign-in page) |
+| <http://localhost:3100/hris/> | **ATLAS People** for every employee (self-service) and for HR and payroll staff |
 
-The **LMS** and the **HRIS** are live. **FMIS** and **UIS** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → Portal & systems** with the address each one runs at. Students do not see the HRIS tile.
+**ATLAS Learn** and **ATLAS People** are live. **Academic**, **Finance** and **Facilities** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → ATLAS home & systems** with the address each one runs at. Students do not see the ATLAS People tile.
+
+The web addresses (`/lms/`, `/hris/`), the `lms` folder, the server's service names (`ltdc-lms`) and the sign-in cookies keep their old names, so existing installs, bookmarks and servers keep working after the rename.
 
 ### Campuses
 
@@ -24,7 +38,7 @@ A school can have several campuses (e.g. Pili, Sipocot, Pasacao, Calabanga). Eve
 - **Admin panel → Campuses** adds, renames and removes campuses. News and events are for one campus, or (administrators only) for every campus.
 - Data from before campuses moves into a "Main Campus" automatically; rename it under Campuses. The first-run setup asks for the campus name.
 
-Signing in at the portal opens the right side for the account (students and teachers: the LMS; administrators and registrars: the admin panel; HR and staff accounts: the HRIS), so opening a system from its tile needs no second sign-in. Every page has an **All systems** button back to the portal, and **Sign out** anywhere signs out of everything.
+Signing in on the ATLAS home page opens the right side for the account (students, teachers and parents: ATLAS Learn; administrators and registrars: the admin panel; HR and staff accounts: ATLAS People), so opening a system from its tile needs no second sign-in. Every page has an **All systems** button back to the ATLAS home page, and **Sign out** anywhere signs out of everything.
 
 ## Run it
 
@@ -34,15 +48,15 @@ You need Node.js 18 or newer (the same one the ERP uses). If you don't have it, 
 
 Open the `lms` folder and double-click:
 
-- **Windows:** `Start LMS (Windows).bat`. If Windows shows "Windows protected your PC", click **More info → Run anyway**.
-- **Mac:** `Start LMS (Mac).command`. If macOS says it **could not verify** the file (it does this for files downloaded in a browser, e.g. GitHub's *Download ZIP*), allow it once:
+- **Windows:** `Start ATLAS (Windows).bat`. If Windows shows "Windows protected your PC", click **More info → Run anyway**.
+- **Mac:** `Start ATLAS (Mac).command`. If macOS says it **could not verify** the file (it does this for files downloaded in a browser, e.g. GitHub's *Download ZIP*), allow it once:
   1. Click **Done** on the warning (not *Move to Trash*).
-  2. Open **System Settings → Privacy & Security**, scroll down to **Security**, and click **Open Anyway** next to *"Start LMS (Mac).command" was blocked*. The button shows for about an hour after the blocked attempt.
+  2. Open **System Settings → Privacy & Security**, scroll down to **Security**, and click **Open Anyway** next to *"Start ATLAS (Mac).command" was blocked*. The button shows for about an hour after the blocked attempt.
   3. Enter your Mac password and click **Open Anyway**.
 
   After that it opens with a double-click. Getting the code with **GitHub Desktop** (cloning) instead of *Download ZIP* avoids the warning altogether.
 
-A small window opens and your browser opens the University Portal at <http://localhost:3100>. **Keep that window open** while you use the LMS; close it to stop the LMS.
+A small window opens and your browser opens the ATLAS home page at <http://localhost:3100>. **Keep that window open** while you use ATLAS; close it to stop it.
 Double-clicking again while it is running just opens the browser again.
 
 ### From the terminal
@@ -60,13 +74,13 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 
 | Where | Username | Password | What to try |
 | --- | --- | --- | --- |
-| University Portal | `student.demo` | `demo1234` | Home To-do; take *Quiz 1* in IT201 A (timed, 2 attempts); resources with a PDF preview; attendance; news. Enrollment: one section is full (join its waitlist), one needs the key `DB2026`, one is blocked by a prerequisite |
-| University Portal | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
-| University Portal or admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
-| University Portal → HRIS | `hr.demo` | `demo1234` | HR dashboard; approve the pending leave (one sick leave has a medical certificate attached); employee records and sign-in accounts; attendance; switch to Sipocot campus |
-| University Portal → HRIS | `payroll.demo` | `demo1234` | Two finalized payroll runs with printable payslips; payroll setup (rates and tax tables with a "try it" calculator) |
-| University Portal → LMS | `parent.demo` | `demo1234` | A mother (Lorna Reyes) following Carlo Reyes (everything shared) and her nephew Kevin Navarro (grades, attendance and activities only). `father.demo` is Carlo's father, without activities |
-| University Portal → HRIS | `staff.demo` | `demo1234` | A librarian's self-service: clock in, file leave, payslips. `teacher.demo` has the same in the HRIS tile |
+| ATLAS home | `student.demo` | `demo1234` | Home To-do; take *Quiz 1* in IT201 A (timed, 2 attempts); resources with a PDF preview; attendance; news. Enrollment: one section is full (join its waitlist), one needs the key `DB2026`, one is blocked by a prerequisite |
+| ATLAS home | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
+| ATLAS home or admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
+| ATLAS home → People | `hr.demo` | `demo1234` | HR dashboard; approve the pending leave (one sick leave has a medical certificate attached); employee records and sign-in accounts; attendance; switch to Sipocot campus |
+| ATLAS home → People | `payroll.demo` | `demo1234` | Two finalized payroll runs with printable payslips; payroll setup (rates and tax tables with a "try it" calculator) |
+| ATLAS home → Learn | `parent.demo` | `demo1234` | A mother (Lorna Reyes) following Carlo Reyes (everything shared) and her nephew Kevin Navarro (grades, attendance and activities only). `father.demo` is Carlo's father, without activities |
+| ATLAS home → People | `staff.demo` | `demo1234` | A librarian's self-service: clock in, file leave, payslips. `teacher.demo` has the same in the HRIS tile |
 
 The demo school has about 260 accounts: 5 programs (IT, Computer Science, Business, Agriculture, Education), 18 teachers, about 190 students with past grades (130 at the main campus), 11 applicants, about 40 parents and guardians (each sharing something different; one is paused), and HR, payroll and staff sign-ins. There are 21 courses and about 40 sections this term at the main campus. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`, `psison.demo` (Computing), `rmanalastas.demo` (General Education), `jcabrera.demo` (Business), `vbayani.demo` (Agriculture and Education). Parent accounts are named after their student, e.g. `p.camille.navarro`; the full list is under *Admin panel → Parents & guardians*. Every demo account uses the password `demo1234`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus.
 For the HRIS, every demo teacher and the registrar have an employee record linked to their account, with non-teaching staff beside them (guidance, nurse, ICT, guards, utility), six weeks of attendance, leave requests in every state and two finalized payroll runs.
@@ -126,7 +140,7 @@ Locked-out administrator? Stop the app and run `npm run reset-password -- <usern
 
 ## Parents & guardians
 
-Parents and guardians get their own account type and their own section of the LMS. They sign in on the University Portal and open the LMS, where they see **only the students linked to them** and **only what each link shares**. They can look; they cannot change anything.
+Parents and guardians get their own account type and their own section of the LMS. They sign in on the ATLAS home page and open ATLAS Learn, where they see **only the students linked to them** and **only what each link shares**. They can look; they cannot change anything.
 
 - **Your students** (their home): a card per student with this term at a glance (running grade, attendance rate, enrolled units, activities due) and what is worth a look: a pending enrollment request, absences, a class below the passing grade, work not handed in after the due date.
 - **A student's page**, with a tab for each shared view and a term picker: **Enrollment** (requests and their status, waitlist position, units), **Class schedule** (the week's timetable), **Grades** (running grade per class, final grades, past terms), **Attendance** (rate per class and each late, absent or excused day), **Activities & quizzes** (due, handed in, late, missing, scores; never the questions or answers).
@@ -163,9 +177,9 @@ The Human Resource Information System, built from the [Lancaster ERP's HR & Payr
 
 | Account type | Signs in on | Can do in the HRIS |
 | --- | --- | --- |
-| **HR Manager** | University Portal | Employees and their accounts, attendance, leave approvals and credits, view payroll, HR settings |
-| **Payroll Officer** | University Portal | Payroll runs and payroll setup; views employees, attendance and leave |
-| **Staff** | University Portal | Self-service only (a non-teaching employee) |
+| **HR Manager** | ATLAS home | Employees and their accounts, attendance, leave approvals and credits, view payroll, HR settings |
+| **Payroll Officer** | ATLAS home | Payroll runs and payroll setup; views employees, attendance and leave |
+| **Staff** | ATLAS home | Self-service only (a non-teaching employee) |
 | Administrator | (any) | Everything, at every campus |
 | Teacher, Registrar | (their own) | Self-service, once HR links their account to their employee record |
 
@@ -238,16 +252,20 @@ lms/
   shared/modules.js      the switchable portal modules (server and browser)
   shared/schedule.js     meeting times and clash checks (server and browser)
   shared/themes.js       brand colour presets
-  shared/systems.js      the systems on the University Portal (HRIS, FMIS, UIS, LMS) and who sees each
-  public/                University Portal (index.html, js/hub), LMS (lms/index.html, js/portal), admin panel (admin/index.html, js/admin), HRIS (hris/index.html, js/hris, css/hris.css)
+  shared/brand.js        the ATLAS name, tagline and palette
+  shared/systems.js      the ATLAS products on the home page (Learn, People, Academic, Finance, Facilities) and who sees each
+  public/                ATLAS home (index.html, js/hub), ATLAS Learn (lms/index.html, js/portal), admin panel (admin/index.html, js/admin), ATLAS People (hris/index.html, js/hris, css/hris.css)
   public/js/shell.js     branding, dark mode, sign-in screens, top bar, sidebar, router (all the apps)
   public/js/icons.js     the icon set
+  public/img/brand/      the ATLAS mark (light, dark, white, black) and app icon, as SVG
+  scripts/brand-mark.py  draws the ATLAS mark SVGs (python3 scripts/brand-mark.py public/img/brand)
+  docs/BRAND.md          brand guide; docs/brand/ has PNG lockups
   test/                  node:test suites
 ```
 
 - Run the tests with `npm test` (from `lms/`, or from the repository root, which runs the ERP's and the LMS's tests together).
 - Every route states who may call it (`'student'`, `'teacher'`, `'guardian'`, `'portal'`, `'admin:<permission>'`, `'hris:<permission>'`) and, for portal routes, which module it belongs to. The router in `server/api.js` enforces both.
-- Three session cookies: the portal's (students, teachers), the admin panel's (administrators, registrars) and the HRIS's (HR and staff accounts). HRIS routes accept whichever of them the browser has; signing in on the University Portal ends the others, so a browser is one person at a time.
+- Three session cookies: the portal's (students, teachers, parents), the admin panel's (administrators, registrars) and ATLAS People's (HR and staff accounts). ATLAS People routes accept whichever of them the browser has; signing in on the University Portal ends the others, so a browser is one person at a time.
 - `public/css/styles.css` is built on colour tokens: `--brand` and `--accent` come from the branding settings and every shade is mixed from them, with a dark set under `[data-theme=dark]`.
 
 ### Ideas this borrows from

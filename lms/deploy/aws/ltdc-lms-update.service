@@ -1,5 +1,5 @@
 [Unit]
-Description=Install the latest LTDC LMS version from GitHub (if its tests pass)
+Description=Install the latest Lancaster ATLAS version from GitHub (if its tests pass)
 After=network-online.target
 Wants=network-online.target
 

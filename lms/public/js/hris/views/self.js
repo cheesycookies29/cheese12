@@ -376,7 +376,7 @@ export async function meRequestsView(el, _params, query) {
 // Signed in, but no employee record is linked to this account (yet).
 export async function notLinkedView(el) {
   mount(el, html`
-    ${pageHead('Welcome to the HRIS', ctx.info.campusName ? `${ctx.info.campusName}` : '')}
+    ${pageHead('Welcome to ATLAS People', ctx.info.campusName ? `${ctx.info.campusName}` : '')}
     <section class="card empty">${icon('user', 40)}
       <h2>Your account is not linked to an employee record yet</h2>
       <p>Self-service (time clock, attendance, leave requests and payslips) opens once HR links your sign-in to your employee record.</p>

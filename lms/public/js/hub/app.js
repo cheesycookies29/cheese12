@@ -1,8 +1,9 @@
-// University Portal (/): one sign-in, then a tile for each of the school's systems
-// (HRIS, FMIS, UIS, LMS). Systems that are not built yet show greyed out as "Coming soon".
+// ATLAS home (/): one sign-in to Lancaster ATLAS, then a tile for each system the account
+// may use (ATLAS Academic, Learn, People, Finance, Facilities). Systems that are not built
+// yet show greyed out as "Coming soon".
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
-import { ctx, applyBranding, logoSrc, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
+import { ctx, applyBranding, authHero, authLogo, atlasWord, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon } from '../icons.js';
 import { roleLabel } from '/shared/roles.js';
 
@@ -24,16 +25,12 @@ function hubScreen(card, systems) {
   const b = ctx.info.branding;
   mount(authEl, html`
     <div class="auth-screen">
-      <section class="auth-hero">
-        <div class="seal"><img src="${logoSrc(b)}" alt="" /><div><strong>${b.schoolName}</strong><small>University Portal</small></div></div>
-        <div style="position:relative;z-index:1">
-          <p class="auth-kicker">${b.termName || 'Welcome'}</p>
-          <h1>${b.tagline || 'One account for every school system.'}</h1>
-          <p>Sign in once to reach the systems your account can use.</p>
-          <ul class="auth-points">${systems.map((s) => html`<li>${icon(s.icon, 30)} <span><strong>${s.name}</strong> · ${s.title}${s.status !== 'live' ? html` <span class="hub-soon-tag">Coming soon</span>` : ''}</span></li>`)}</ul>
-        </div>
-        <small>© ${new Date().getFullYear()} ${b.schoolName}</small>
-      </section>
+      ${authHero({
+        system: 'ATLAS',
+        title: b.tagline || 'One sign-in for every school system.',
+        text: 'Lancaster ATLAS brings the school’s systems together. Sign in once to reach the ones your account can use.',
+        points: systems.map((s) => [s.icon, html`<span><strong>${s.name}</strong> · ${s.title}${s.status !== 'live' ? html` <span class="hub-soon-tag">Coming soon</span>` : ''}</span>`]),
+      })}
       <section class="auth-panel">${card}</section>
     </div>`);
   authEl.querySelectorAll('[data-toggle-pw]').forEach((btn) => btn.addEventListener('click', () => {
@@ -46,7 +43,7 @@ function hubScreen(card, systems) {
   return form;
 }
 
-const cardLogo = () => html`<img class="auth-logo" src="${logoSrc()}" alt="" />`;
+const cardLogo = authLogo;
 
 function signInView(status) {
   if (status.setupRequired) {
@@ -56,7 +53,7 @@ function signInView(status) {
     <form class="auth-card" novalidate>
       ${cardLogo()}
       <h2>Sign in</h2>
-      <p class="muted">${status.branding.schoolName} University Portal: students, faculty and staff.</p>
+      <p class="muted">Lancaster ATLAS at ${status.branding.schoolName}: for students, parents, faculty and staff.</p>
       <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}
       <p class="form-error" hidden></p>
@@ -142,11 +139,11 @@ const dateBox = (ymd) => {
 
 function systemCard(s, side) {
   const live = s.status === 'live' && s.url;
-  const openLabel = s.id === 'lms' && side === 'admin' ? 'Open the LMS admin panel' : `Open ${s.name}`;
+  const openLabel = s.id === 'lms' && side === 'admin' ? 'Open the ATLAS Learn admin panel' : `Open ${s.name}`;
   const body = html`
     <span class="sys-top"><span class="sys-ic">${icon(s.icon, 26)}</span>${live ? html`<span class="badge green">Available</span>` : html`<span class="badge gray">${icon('lock', 12)} Coming soon</span>`}</span>
-    <span class="sys-name">${s.name}</span>
-    <strong class="sys-title">${s.title}</strong>
+    <span class="sys-name">${atlasWord(s.product)}</span>
+    <strong class="sys-title">${s.title} ${s.short ? html`<span class="sys-short">${s.short}</span>` : ''}</strong>
     <p>${s.description}</p>
     <span class="sys-open">${live ? html`${openLabel} ${icon(s.external ? 'external' : 'chevronRight', 16)}` : 'Not available yet'}</span>`;
   return live
@@ -164,7 +161,7 @@ async function homeView(status) {
     <section class="hub-hero"><div class="hub-wrap">
       <p class="hub-kicker">${new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${status.branding.termName ? ` · ${status.branding.termName}` : ''}</p>
       <h1>${hello}, ${u.name.split(' ')[0]}</h1>
-      <p>Welcome to the ${status.branding.schoolName} University Portal. You are signed in to every system below.</p>
+      <p>Welcome to Lancaster ATLAS at ${status.branding.schoolName}. You are signed in to every system below.</p>
       <span class="hub-role">${icon('user', 14)} ${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</span>
       ${status.campusName ? html`<span class="hub-role">${icon('building', 14)} ${status.campusName}${status.campuses.length > 1 ? html` · <button type="button" class="link hub-switch" id="hub-switch">switch</button>` : ''}</span>` : ''}
     </div></section>
@@ -173,7 +170,7 @@ async function homeView(status) {
       <div class="sys-grid">${systems.map((s) => systemCard(s, status.side))}</div>
     </section>
     <section class="hub-wrap cols wide-left" id="feed"></section>
-    <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span>University Portal · HRIS · FMIS · UIS · LMS</span></div></footer>`);
+    <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span>Lancaster ATLAS · Unified Education Management Platform</span></div></footer>`);
   appEl.querySelector('#hub-switch')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('user-pop').hidden = false;
@@ -200,12 +197,12 @@ async function boot() {
   try {
     status = await api.get('/api/hub/status');
   } catch {
-    return showAuth((el) => mount(el, html`<div class="empty"><h2>Cannot reach the server</h2><p>Start it (double-click “Start LMS”, or <code>npm start</code>), then reload this page.</p></div>`));
+    return showAuth((el) => mount(el, html`<div class="empty"><h2>Cannot reach the server</h2><p>Start it (double-click “Start ATLAS”, or <code>npm start</code>), then reload this page.</p></div>`));
   }
   ctx.info = status;
   ctx.user = status.user;
   applyBranding(status.branding);
-  document.title = `${status.branding.schoolName} · University Portal`;
+  document.title = `ATLAS · ${status.branding.schoolName}`;
   if (!status.user) return showAuth(() => signInView(status));
   if (status.user.mustChangePassword) {
     return showAuth((el) => forcePasswordView(el, { admin: status.side === 'admin', authBase: status.authBase, onDone: boot, onSignOut: signOut }));
@@ -214,8 +211,8 @@ async function boot() {
   if (next && NEXT_OK[status.side]?.includes(next)) return location.replace(next);
   document.body.classList.remove('auth-mode', 'booting');
   mount(authEl, '');
-  document.getElementById('school-name').textContent = status.branding.schoolName;
-  mount(document.getElementById('brand-sub'), html`University Portal${status.campusName ? html` · <strong class="campus-name">${status.campusName}</strong>` : ''}${status.branding.termName ? ` · ${status.branding.termName}` : ''}`);
+  mount(document.getElementById('school-name'), html`<span class="atlas-word">LANCASTER ATLAS</span>`);
+  mount(document.getElementById('brand-sub'), html`${status.branding.schoolName}${status.campusName ? html` · <strong class="campus-name">${status.campusName}</strong>` : ''}${status.branding.termName ? ` · ${status.branding.termName}` : ''}`);
   renderThemeButton();
   userMenu(status);
   homeView(status);

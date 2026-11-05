@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# First-boot setup of the LTDC LMS server (Ubuntu 24.04), run as root by the EC2
+# First-boot setup of the Lancaster ATLAS server (Ubuntu 24.04), run as root by the EC2
 # user data in lms-ec2.yaml. Safe to run again: it only brings the server in line.
 #
 #   Visitors ──HTTPS──▶ Caddy (80/443, automatic certificate) ──▶ LMS (127.0.0.1:3100)
@@ -84,4 +84,4 @@ else
   systemctl disable --now ltdc-lms-update.timer 2>/dev/null || true
   echo "Automatic updates are off. Install one by hand: sudo /usr/local/sbin/ltdc-lms-update"
 fi
-echo "LTDC LMS is set up: https://$LMS_DOMAIN"
+echo "Lancaster ATLAS is set up: https://$LMS_DOMAIN"

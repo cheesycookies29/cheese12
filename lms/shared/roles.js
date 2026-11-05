@@ -44,7 +44,7 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     side: 'hris',
-    description: 'Runs the HRIS at their campuses: employee records and sign-in accounts, attendance, leave approvals and credits.',
+    description: 'Runs ATLAS People at their campuses: employee records and sign-in accounts, attendance, leave approvals and credits.',
     permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'hris.settings'],
   },
   payroll: {
@@ -56,7 +56,7 @@ export const ROLES = {
   staff: {
     label: 'Staff',
     side: 'hris',
-    description: 'A non-teaching employee: HRIS self-service (time clock, attendance, leave requests, payslips, profile).',
+    description: 'A non-teaching employee: ATLAS People self-service (time clock, attendance, leave requests, payslips, profile).',
     permissions: [],
   },
 };

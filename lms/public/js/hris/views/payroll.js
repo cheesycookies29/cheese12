@@ -1,7 +1,7 @@
 // Payroll runs, the payroll register and payslips. From the Lancaster ERP
 // (public/js/views/payroll.js there); runs are per campus.
 import { api } from '../../api.js';
-import { ctx, pageHead, logoSrc } from '../../shell.js';
+import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { currentPeriod } from '/shared/calc.js';
 import { html, mount, money, amount, fmtDate, fmtMinutes, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../../ui.js';
@@ -223,7 +223,7 @@ export function payslipCard(run, p, settings) {
       ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true">DRAFT</div>` : ''}
       <header class="ps-head">
         <div class="ps-company">
-          <img src="${logoSrc(ctx.info.branding)}" alt="" />
+          ${ctx.info.branding?.logo ? html`<img src="${ctx.info.branding.logo}" alt="" />` : ''}
           <div><strong>${settings.employerName}</strong>${run.campusName || ctx.info.campusName ? html`<span>${run.campusName || ctx.info.campusName}</span>` : ''}${settings.employerAddress ? html`<span>${settings.employerAddress}</span>` : ''}${settings.employerTin ? html`<span>TIN ${settings.employerTin}</span>` : ''}</div>
         </div>
         <div class="ps-title">

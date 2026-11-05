@@ -1,11 +1,13 @@
-# Putting the University Portal and LMS online with Amazon EC2
+# Putting Lancaster ATLAS online with Amazon EC2
 
-This puts the University Portal and the LMS on an Amazon EC2 server, at an address like **https://cbsua-portal.duckdns.org**, with HTTPS. Everything is done in the AWS website; no terminal and no key files.
+This puts Lancaster ATLAS (the ATLAS home page, ATLAS Learn and ATLAS People) on an Amazon EC2 server, at an address like **https://cbsua-portal.duckdns.org**, with HTTPS. Everything is done in the AWS website; no terminal and no key files.
+
+The server's own names (the `ltdc-lms` service, `/opt/ltdc-lms`, `/etc/ltdc-lms`, the template `lms-ec2.yaml`) keep their names from before the ATLAS rename, so a server that is already running updates in place.
 
 One template file (`lms-ec2.yaml`) builds the whole server:
 
 ```
-Visitors ──HTTPS──▶ Caddy (automatic certificate) ──▶ University Portal + LMS (port 3100, this server only)
+Visitors ──HTTPS──▶ Caddy (automatic certificate) ──▶ Lancaster ATLAS (port 3100, this server only)
                                                         └── /opt/ltdc-lms/data   (records and uploaded files)
 ```
 
@@ -69,7 +71,7 @@ Open this link and save the file (right-click → **Save Link As…**, or **File
 
 ## Step 4: Wait for the server to finish setting itself up
 
-After the stack is complete, the server installs its software and the LMS, and gets its HTTPS certificate. **This takes about 5–10 minutes.** Then open the **WebsiteUrl** (e.g. https://cbsua-portal.duckdns.org). You should see the University Portal with the note *Not set up yet*.
+After the stack is complete, the server installs its software and ATLAS, and gets its HTTPS certificate. **This takes about 5–10 minutes.** Then open the **WebsiteUrl** (e.g. https://cbsua-portal.duckdns.org). You should see the University Portal with the note *Not set up yet*.
 
 If it doesn't answer after 15 minutes, see [If something goes wrong](#if-something-goes-wrong).
 
@@ -97,8 +99,8 @@ To see which version is installed, open a console (below) and run `cat /opt/ltdc
 | What | Command |
 |---|---|
 | First-boot setup log | `sudo tail -n 60 /var/log/ltdc-lms-setup.log` |
-| Is the LMS running? | `systemctl status ltdc-lms` |
-| LMS log | `sudo journalctl -u ltdc-lms -n 50` |
+| Is ATLAS running? | `systemctl status ltdc-lms` |
+| ATLAS log | `sudo journalctl -u ltdc-lms -n 50` |
 | HTTPS / certificate log | `sudo journalctl -u caddy -n 50` |
 | Install the latest version now | `sudo ltdc-lms-update` |
 | Turn automatic updates off / on | `sudo systemctl disable --now ltdc-lms-update.timer` / `sudo systemctl enable --now ltdc-lms-update.timer` |

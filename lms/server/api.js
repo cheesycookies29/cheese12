@@ -82,7 +82,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     throttle.reset(key);
     if (ROLES[user.role]?.side !== side) {
       fail(ROLES[user.role]?.side === 'hris'
-        ? 'HR and staff accounts sign in on the University Portal (the home page) and open the HRIS.'
+        ? 'HR and staff accounts sign in on the ATLAS home page and open ATLAS People.'
         : side === 'admin'
           ? 'Teachers and students sign in on the learning portal, not the admin panel.'
           : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
@@ -269,7 +269,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Data: backups and demo data -----
   route('GET', '/api/admin/backup', 'admin:data.manage', () => db.data);
   route('POST', '/api/admin/restore', 'admin:data.manage', ({ body }) => {
-    if (!Array.isArray(body.users) || !Array.isArray(body.enrollments)) fail('That file is not an LTDC LMS backup.');
+    if (!Array.isArray(body.users) || !Array.isArray(body.enrollments)) fail('That file is not an ATLAS backup.');
     if (!body.users.some((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash)) fail('The backup has no active administrator, so nobody could sign in.');
     db.replace({ ...emptyData(), ...body });
     return { ok: true };
@@ -297,7 +297,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       branding: branding(),
       setupRequired: setupRequired(),
       user: allowed ? publicUser(user) : null,
-      deniedUser: user && !allowed ? { name: user.name, role: user.role } : null, // a student: the HRIS says it is for employees
+      deniedUser: user && !allowed ? { name: user.name, role: user.role } : null, // a student: ATLAS People says it is for employees
       allowed,
       side: allowed ? ROLES[user.role].side : null,
       authBase: '/api/hris/auth',
@@ -343,7 +343,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         // Whoever is signed in on this browser: an HR/staff account, else an admin-panel or portal account.
         [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
         if (!user) fail('Please sign in.', 401);
-        if (user.role === 'student') fail('The HRIS is for school employees.', 403);
+        if (user.role === 'student') fail('ATLAS People is for school employees.', 403);
         const permission = r.access.split(':')[1];
         if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
       } else if (r.access.startsWith('admin')) {
@@ -358,7 +358,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         if (!user) fail('Please sign in.', 401);
         if (['teacher', 'student', 'guardian'].includes(r.access) && user.role !== r.access) fail(r.access === 'guardian' ? 'Only parents and guardians can do this.' : `Only ${r.access}s can do this.`, 403);
         // Parents & guardians see the school through their linked students only.
-        if (user.role === 'guardian' && r.access === 'portal' && !r.guardians) fail('This part of the LMS is for students and teachers.', 403);
+        if (user.role === 'guardian' && r.access === 'portal' && !r.guardians) fail('This part of ATLAS Learn is for students and teachers.', 403);
         if (r.module && !moduleOn(db.data.modules, r.module, user.role)) fail(`${MODULE_NAMES[r.module]} is switched off for ${user.role}s.`, 403);
       }
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);

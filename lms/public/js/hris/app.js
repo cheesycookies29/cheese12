@@ -1,4 +1,4 @@
-// HRIS (/hris/): employee self-service for everyone with an employee record, and the
+// ATLAS People, the HRIS (/hris/): employee self-service for everyone with an employee record, and the
 // HR screens (employees, attendance, leave, payroll) for HR managers, payroll officers
 // and administrators. Screens and rules come from the Lancaster ERP's HR & Payroll module.
 import { startApp, authScreen, authLogo } from '../shell.js';
@@ -42,7 +42,7 @@ const routes = [
 function nav() {
   const hrScreens = ['hris.dashboard', 'employees.view', 'attendance.view', 'leave.manage', 'payroll.view'].some(can);
   return [
-    isEmployee() && { heading: 'My HRIS' },
+    isEmployee() && { heading: 'Me' },
     isEmployee() && { href: '/me', label: 'My day', icon: 'clock', exact: true },
     isEmployee() && { href: '/me/attendance', label: 'My attendance', icon: 'calendar' },
     isEmployee() && { href: '/me/requests', label: 'Leave & requests', icon: 'inbox' },
@@ -67,9 +67,9 @@ const home = () => (can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' 
 // Students have no HRIS: say so instead.
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
-    return authScreen(el, {}, html`<div class="auth-card">${authLogo()}<h2>The HRIS is for school employees</h2>
-      <p class="muted">You are signed in as ${status.deniedUser.name}, a student account. Your systems are on the University Portal.</p>
-      <a class="btn primary block" href="/">Back to the University Portal</a></div>`);
+    return authScreen(el, {}, html`<div class="auth-card">${authLogo()}<h2>ATLAS People is for school employees</h2>
+      <p class="muted">You are signed in as ${status.deniedUser.name}, a student account. Your systems are on the ATLAS home page.</p>
+      <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
   }
   location.replace(`/?next=${encodeURIComponent('/hris/')}`);
 }
@@ -77,8 +77,7 @@ function signedOutView(el, { status }) {
 startApp({
   side: 'hris',
   authBase: '/api/hris/auth',
-  appName: 'Human Resource Information System',
-  short: 'HRIS',
+  product: 'People',
   routes,
   nav,
   home,

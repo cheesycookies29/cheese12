@@ -1,7 +1,7 @@
 // Brand colour presets for Settings → Branding. `brand` is the main colour;
 // lighter and darker shades are mixed from it in CSS (color-mix), so a custom colour works too.
 export const THEMES = {
-  maroon: { label: 'LTDC Maroon', brand: '#5d0013', accent: '#c28618' },
+  maroon: { label: 'ATLAS Burgundy', brand: '#5d0013', accent: '#c28618' },
   green: { label: 'Agriculture Green', brand: '#166534', accent: '#ca8a04' },
   forest: { label: 'Forest', brand: '#14532d', accent: '#65a30d' },
   blue: { label: 'Royal Blue', brand: '#1d4ed8', accent: '#f59e0b' },

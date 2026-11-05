@@ -1,6 +1,6 @@
-# LTDC LMS: starts at boot and restarts if it stops. Settings: /etc/ltdc-lms/app.env
+# Lancaster ATLAS: starts at boot and restarts if it stops. Settings: /etc/ltdc-lms/app.env
 [Unit]
-Description=LTDC University Portal and LMS
+Description=Lancaster ATLAS (home page, ATLAS Learn, ATLAS People)
 After=network-online.target
 Wants=network-online.target
 
