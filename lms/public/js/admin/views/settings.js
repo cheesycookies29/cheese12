@@ -99,6 +99,7 @@ export async function settingsView(el) {
       ctx.info.branding = { ...ctx.info.branding, schoolName: v.schoolName, ...themeColors({ theme: v.theme, color: v.color }), logo, tagline: v.tagline };
       applyBranding(ctx.info.branding);
       toast('Settings saved.');
+      settingsView(el); // shows "Remove the school logo" after an upload
     } catch (err) {
       toast(err.message, 'error');
     }

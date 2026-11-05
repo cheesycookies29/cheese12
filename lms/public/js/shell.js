@@ -297,6 +297,7 @@ export function startApp(config) {
   async function navigate() {
     if (!ctx.user || ctx.user.mustChangePassword) return;
     setDrawer(false);
+    document.querySelectorAll('.modal-backdrop').forEach((m) => m.remove()); // a dialog belongs to the page it was opened on
     const path = location.hash.replace(/^#/, '').split('?')[0] || config.home();
     const query = Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] || ''));
     const match = routes.find((r) => r.re.test(path));

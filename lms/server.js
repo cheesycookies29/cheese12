@@ -44,21 +44,36 @@ function readBody(req) {
   });
 }
 
-function serveStatic(url, res) {
-  // The admin panel is its own single-page app at /admin.
-  // Four single-page apps: the University Portal (/), the LMS (/lms/), the LMS admin panel (/admin) and the HRIS (/hris/).
-  if (url.pathname === '/admin' || url.pathname === '/admin/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'admin', 'index.html')), 'text/html');
+// Static files: the browser keeps a copy and asks "changed?" each time (ETag → 304 Not Modified),
+// so a new version shows at once but unchanged files are not downloaded again. Fonts never change
+// and images rarely do, so those are kept for a while without asking.
+function sendFile(req, res, file) {
+  const stat = fs.statSync(file);
+  const ext = path.extname(file);
+  const etag = `"${stat.size.toString(36)}-${Math.floor(stat.mtimeMs).toString(36)}"`;
+  const cache = ext === '.ttf' ? 'public, max-age=2592000' : ['.png', '.svg', '.ico'].includes(ext) ? 'public, max-age=86400' : 'no-cache';
+  const headers = { ETag: etag, 'Cache-Control': cache };
+  if (req.headers['if-none-match'] === etag) {
+    res.writeHead(304, { ...headers, ...SECURITY_HEADERS });
+    return res.end();
+  }
+  return send(res, 200, fs.readFileSync(file), TYPES[ext] || 'application/octet-stream', headers);
+}
+
+function serveStatic(req, url, res) {
+  // Four single-page apps: the ATLAS home page (/), ATLAS Learn (/lms/), its admin panel (/admin) and ATLAS People (/hris/).
+  if (url.pathname === '/admin' || url.pathname === '/admin/') return sendFile(req, res, path.join(PUBLIC, 'admin', 'index.html'));
   if (url.pathname === '/lms') return send(res, 302, '', 'text/plain', { Location: '/lms/' });
-  if (url.pathname === '/lms/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'lms', 'index.html')), 'text/html');
+  if (url.pathname === '/lms/') return sendFile(req, res, path.join(PUBLIC, 'lms', 'index.html'));
   if (url.pathname === '/hris') return send(res, 302, '', 'text/plain', { Location: '/hris/' });
-  if (url.pathname === '/hris/') return send(res, 200, fs.readFileSync(path.join(PUBLIC, 'hris', 'index.html')), 'text/html');
+  if (url.pathname === '/hris/') return sendFile(req, res, path.join(PUBLIC, 'hris', 'index.html'));
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;
     const rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
     const file = path.join(dir, rel);
     if (!file.startsWith(dir + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');
-    if (fs.existsSync(file) && fs.statSync(file).isFile()) return send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || 'application/octet-stream');
-    if (prefix === '/' && !path.extname(rel)) return send(res, 200, fs.readFileSync(path.join(dir, 'index.html')), 'text/html');
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) return sendFile(req, res, file);
+    if (prefix === '/' && !path.extname(rel)) return sendFile(req, res, path.join(dir, 'index.html'));
     return send(res, 404, 'Not found', 'text/plain');
   }
 }
@@ -66,7 +81,7 @@ function serveStatic(url, res) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   if (url.pathname === '/healthz') return send(res, 200, { ok: true }); // for a load balancer health check later
-  if (!url.pathname.startsWith('/api/')) return serveStatic(url, res);
+  if (!url.pathname.startsWith('/api/')) return serveStatic(req, url, res);
   // Block other websites from calling this API (DNS rebinding / CSRF): only accept
   // requests addressed to localhost, a plain IP address, or a name in ALLOWED_HOSTS.
   const hostname = (req.headers.host || '').replace(/:\d+$/, '');

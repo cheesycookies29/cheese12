@@ -7,7 +7,8 @@ async function request(method, url, body) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     // Session expired or signed out elsewhere: send the user back to the login page.
-    if (res.status === 401 && !url.includes('/auth/')) window.dispatchEvent(new Event('auth:expired'));
+    // A refused sign-in (wrong password) is not an expired session: let the form show the message.
+    if (res.status === 401 && !url.includes('/auth/') && !url.endsWith('/login')) window.dispatchEvent(new Event('auth:expired'));
     throw new Error(data.error || `Request failed (${res.status})`);
   }
   return data;
