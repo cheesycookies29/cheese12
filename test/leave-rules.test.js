@@ -60,7 +60,7 @@ test('maternity leave is offered to women only and paternity leave to men only',
   await admin('PUT', `/api/employees/${jose.id}`, { ...(await admin('GET', `/api/employees/${jose.id}`)), gender: 'Female' });
   await assert.rejects(admin('POST', `/api/requests/${filed.id}/approve`), /Cannot approve: Paternity Leave/);
   await admin('PUT', `/api/employees/${jose.id}`, { ...(await admin('GET', `/api/employees/${jose.id}`)), gender: 'Male' });
-  await admin('POST', `/api/requests/${filed.id}/reject`);
+  await admin('POST', `/api/requests/${filed.id}/reject`, { note: 'Not eligible for paternity leave' });
 });
 
 test('the gender limit is a leave type setting', async () => {

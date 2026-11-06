@@ -8,6 +8,7 @@ import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
+import { migrateApprovals, isApprover } from './approvals.js';
 import { createSecrets } from './secrets.js';
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
@@ -28,8 +29,7 @@ const EMPLOYEE_FIELDS = [
   'employeeNo', 'firstName', 'middleName', 'lastName', 'email', 'phone', 'birthDate', 'gender', 'civilStatus',
   'address', 'position', 'department', 'employmentStatus', 'hireDate', 'status', 'payType', 'rate', 'allowance',
   'minimumWageEarner', 'flexTime', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
-  'emergencyContactName', 'emergencyContactPhone', 'schedule',
-];
+  'emergencyContactName', 'emergencyContactPhone', 'schedule', 'supervisorId'];
 
 function pick(obj, keys) {
   return Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
@@ -64,6 +64,16 @@ function validateEmployee(input, db, existingId) {
   e.schedule = validateSchedule(e.schedule || db.data.settings.schedule);
   const dup = db.data.employees.find((x) => x.employeeNo.toLowerCase() === e.employeeNo.toLowerCase() && x.id !== existingId);
   if (dup) throw new HttpError(400, `Employee number ${e.employeeNo} is already used.`);
+  // Immediate supervisor: the first approver of this employee's requests. No loops (A → B → A).
+  e.supervisorId = e.supervisorId || null;
+  if (e.supervisorId) {
+    if (e.supervisorId === existingId) throw new HttpError(400, 'An employee cannot be their own supervisor.');
+    const byId = new Map(db.data.employees.map((x) => [x.id, x]));
+    if (!byId.has(e.supervisorId)) throw new HttpError(400, 'Pick the immediate supervisor from the employee list.');
+    for (let at = byId.get(e.supervisorId), hops = 0; at && hops < 50; at = byId.get(at.supervisorId), hops++) {
+      if (existingId && at.id === existingId) throw new HttpError(400, `That would make a loop: ${at.firstName} ${at.lastName} already reports, directly or not, to this employee.`);
+    }
+  }
   return e;
 }
 
@@ -282,12 +292,15 @@ const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'p
 function demoAccounts(db, employees) {
   const taken = new Set(db.data.users.map((u) => u.username));
   const juan = employees.find((e) => e.firstName === 'Juan') || employees[0];
+  const maria = employees.find((e) => e.firstName === 'Maria');
+  const linked = new Set(db.data.users.map((u) => u.employeeId).filter(Boolean));
   return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => ({
     id: randomUUID(),
     username,
     name: name || `${juan.firstName} ${juan.lastName}`,
     role,
-    employeeId: role === 'employee' ? juan.id : null,
+    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager.
+    employeeId: role === 'employee' ? juan.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null,
     active: true,
     mustChangePassword: false,
     demo: true,
@@ -304,14 +317,17 @@ function clock(db, emp, action, body = {}, source = 'self') {
   const open = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.type === 'work' && e.timeIn && !e.timeOut);
   if (action === 'in') {
     if (open) throw new HttpError(400, `Already clocked in since ${open.date} ${open.timeIn}.`);
-    // An approved remote day can still be clocked, to record actual hours.
-    const remoteDay = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.date === date && e.remote && !e.timeIn);
-    if (remoteDay) {
-      remoteDay.timeIn = time;
-      remoteDay.clockInLocation = clockInLocation(db.data.settings, body, source);
+    // An approved remote or official-business day, or a half-day leave, is clocked on its own entry.
+    const planned = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.date === date && e.type === 'work' && !e.timeIn && (e.remote || e.halfLeave));
+    if (planned) {
+      planned.timeIn = time;
+      planned.clockInLocation = clockInLocation(db.data.settings, body, source);
       db.save();
-      return { message: `${emp.firstName} clocked in at ${time} (remote work).`, entry: remoteDay };
+      const why = planned.officialBusiness ? 'official business' : planned.remote ? 'remote work' : 'half-day leave';
+      return { message: `${emp.firstName} clocked in at ${time} (${why}).`, entry: planned };
     }
+    const onLeave = db.data.timeEntries.find((e) => e.employeeId === emp.id && e.date === date && e.type === 'leave');
+    if (onLeave) throw new HttpError(400, `${emp.firstName} is on approved leave today.`);
     const entry = { id: randomUUID(), ...validateEntry({ employeeId: emp.id, date, type: 'work', timeIn: time }, db), clockInLocation: clockInLocation(db.data.settings, body, source) };
     db.data.timeEntries.push(entry);
     db.save();
@@ -330,7 +346,7 @@ function clock(db, emp, action, body = {}, source = 'self') {
 export function createApi(db) {
   const files = createAttachments(path.join(db.dir, 'attachments'));
   const secrets = createSecrets(db.dir);
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
@@ -359,7 +375,7 @@ export function createApi(db) {
   }
 
   // ----- Sign in -----
-  route('GET', '/api/auth/status', 'public', ({ user }) => ({ setupRequired: users().length === 0, user: publicUser(user) }));
+  route('GET', '/api/auth/status', 'public', ({ user }) => ({ setupRequired: users().length === 0, user: user ? { ...publicUser(user), isApprover: isApprover(db, user) } : null }));
   route('POST', '/api/auth/setup', 'public', ({ body }) => {
     if (users().length) throw new HttpError(400, 'Setup is already complete. Please sign in.');
     const user = { id: randomUUID(), ...validateUser({ ...body, role: 'admin', active: true }, db), mustChangePassword: false };
@@ -509,6 +525,7 @@ export function createApi(db) {
   route('DELETE', '/api/employees/:id', 'employees.edit', ({ params }) => {
     findEmployee(db, params.id);
     db.data.employees = db.data.employees.filter((e) => e.id !== params.id);
+    for (const e of db.data.employees) if (e.supervisorId === params.id) e.supervisorId = null;
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.employeeId !== params.id);
     for (const r of db.data.requests) if (r.employeeId === params.id) files.remove(r.attachment);
     db.data.requests = db.data.requests.filter((r) => r.employeeId !== params.id);

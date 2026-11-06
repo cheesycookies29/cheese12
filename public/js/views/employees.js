@@ -98,6 +98,7 @@ export async function employeeFormView(el, { id }) {
   const emp = isNew
     ? { employeeNo: await nextEmployeeNo(), status: 'Active', employmentStatus: 'Probationary', payType: 'monthly', hireDate: today(), allowance: 0, schedule: s.schedule }
     : await api.get(`/api/employees/${id}`);
+  const others = (await api.get('/api/employees')).filter((e) => e.id !== id && e.status !== 'Inactive').sort((a, b) => a.lastName.localeCompare(b.lastName));
   const sched = { ...s.schedule, ...(emp.schedule || {}) };
 
   mount(el, html`
@@ -127,6 +128,7 @@ export async function employeeFormView(el, { id }) {
           ${field('Employee no.', 'employeeNo', emp.employeeNo, { required: true })}
           ${field('Position', 'position', emp.position)}
           ${field('Department', 'department', emp.department)}
+          ${field('Immediate supervisor', 'supervisorId', emp.supervisorId, { options: [['', 'None'], ...others.map((e) => [e.id, `${e.lastName}, ${e.firstName}${e.position ? ` · ${e.position}` : ''}`])], hint: 'First approver of their leave, work-from-home and official-business requests.' })}
           ${field('Employment status', 'employmentStatus', emp.employmentStatus, { options: ['Probationary', 'Regular', 'Contractual', 'Project-based', 'Part-time'] })}
           ${field('Date hired', 'hireDate', emp.hireDate, { type: 'date', required: true })}
           ${field('Record status', 'status', emp.status, { options: ['Active', 'Inactive'], hint: 'Inactive employees are excluded from new payroll runs.' })}
@@ -197,9 +199,11 @@ function info(label, value) {
 }
 
 export async function employeeProfileView(el, { id }) {
-  const [emp, runs, assets] = await Promise.all([
-    api.get(`/api/employees/${id}`), api.get('/api/payroll-runs'), can('assets.view') ? api.get('/api/assets') : null,
+  const [emp, runs, assets, people] = await Promise.all([
+    api.get(`/api/employees/${id}`), api.get('/api/payroll-runs'), can('assets.view') ? api.get('/api/assets') : null, api.get('/api/employees'),
   ]);
+  const boss = people.find((e) => e.id === emp.supervisorId);
+  const reports = people.filter((e) => e.supervisorId === emp.id);
   const held = (assets || []).filter((a) => a.status === 'assigned' && a.assignedTo?.type === 'employee' && a.assignedTo.id === id);
   const sched = { ...ctx.settings.schedule, ...(emp.schedule || {}) };
   const relevantRuns = runs.filter((r) => r.employeeIds.includes(id)).slice(0, 6);
@@ -232,6 +236,8 @@ export async function employeeProfileView(el, { id }) {
         <h2>Employment &amp; pay</h2>
         <dl class="info-grid">
           ${info('Date hired', fmtDate(emp.hireDate))}${info('Employment status', emp.employmentStatus)}
+          ${info('Immediate supervisor', boss ? html`<a href="#/employees/${boss.id}">${boss.firstName} ${boss.lastName}</a>` : '')}
+          ${reports.length ? info('Direct reports', html`${reports.map((r, i) => html`${i ? ', ' : ''}<a href="#/employees/${r.id}">${r.firstName} ${r.lastName}</a>`)}`) : ''}
           ${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}
           ${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}
           ${info('Allowance', `${money(emp.allowance)} / month`)}

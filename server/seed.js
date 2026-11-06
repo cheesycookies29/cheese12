@@ -106,15 +106,27 @@ export function demoData(codes = {}) {
   // A few requests so the approval screens have something in them.
   const inDays = (n) => localDate(new Date(Date.now() + n * 86400000));
   const [, juan, andrea, mark, kristine] = data.employees;
-  const request = (emp, kind, leaveTypeId, start, end, reason, status = 'pending') => ({
-    id: randomUUID(), employeeId: emp.id, kind, leaveTypeId, startDate: start, endDate: end,
-    days: workDates(emp, data.settings, start, end).length, reason, status, filedAt: new Date().toISOString(), filedBy: null,
-    ...(status === 'rejected' ? { decidedAt: new Date().toISOString(), decidedByName: 'Demo HR Manager', decisionNote: 'Quarter-end close; please pick another week.' } : {}),
-  });
+  // Reporting lines: Juan leads Mark and Kristine; Maria (HR Manager) is over Juan, Andrea and Ramon.
+  const [maria, , , , , ramon] = data.employees;
+  for (const e of [mark, kristine]) e.supervisorId = juan.id;
+  for (const e of [juan, andrea, ramon]) e.supervisorId = maria.id;
+  // Pending requests get their approval route when the demo accounts exist (server/demo.js).
+  const request = (emp, kind, leaveTypeId, start, end, reason, status = 'pending', extra = {}) => {
+    const dates = workDates(emp, data.settings, start, end);
+    const breakdown = dates.map((date) => ({ date, portion: extra.portions?.[date] || 'whole' }));
+    const days = breakdown.reduce((n, d) => n + (d.portion === 'whole' ? 1 : 0.5), 0);
+    const filedAt = new Date().toISOString();
+    return {
+      id: randomUUID(), employeeId: emp.id, kind, leaveTypeId, startDate: start, endDate: end, breakdown, days, paidDays: days, overflowDays: 0,
+      reason, destination: extra.destination || '', status, filedAt, filedBy: null, history: [{ at: filedAt, by: `${emp.firstName} ${emp.lastName}`, text: 'Filed' }],
+      ...(status === 'rejected' ? { decidedAt: filedAt, decidedByName: 'Demo HR Manager', decisionNote: 'Quarter-end close; please pick another week.' } : {}),
+    };
+  };
   data.requests.push(
     request(kristine, 'leave', 'vl', inDays(7), inDays(9), 'Family trip to Cebu'),
     request(mark, 'remote', null, inDays(2), inDays(2), 'Waiting for a home appliance delivery'),
-    request(juan, 'leave', 'sl', inDays(1), inDays(1), 'Medical check-up'),
+    request(mark, 'ob', null, inDays(4), inDays(4), 'Product demo and requirements workshop', 'pending', { destination: 'Meridian Logistics, Pasig City' }),
+    request(juan, 'leave', 'sl', inDays(1), inDays(1), 'Medical check-up in the morning', 'pending', { portions: { [inDays(1)]: 'am' } }),
     request(andrea, 'leave', 'vl', inDays(14), inDays(18), 'Out-of-town wedding', 'rejected'),
   );
   data.requests = data.requests.filter((r) => r.days > 0);

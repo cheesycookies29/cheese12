@@ -4,7 +4,7 @@ import { ctx, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
 import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS, modal, confirmDialog } from '../ui.js';
 import { statusBadge, kindBadge, dateRange, certificateCell } from './leave.js';
-import { workDates, needsCertificate } from '/shared/leave.js';
+import { requestForm, requestDetail, progressText } from '../requests.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
 import { readClockLocation, LOCATION_NOTICE } from '../geo.js';
 import { payslipCard } from './payroll.js';
@@ -242,14 +242,19 @@ export async function meProfileView(el) {
 export async function meRequestsView(el, _params, query) {
   const emp = await api.get('/api/me/profile');
   const year = new Date().getFullYear();
+  let balances = [];
 
   async function render() {
-    const [requests, balances] = await Promise.all([api.get('/api/me/requests'), api.get(`/api/me/leave-balances?year=${year}`)]);
+    const [requests, bals, route] = await Promise.all([api.get('/api/me/requests'), api.get(`/api/me/leave-balances?year=${year}`), api.get('/api/me/approvers').catch(() => null)]);
+    balances = bals;
+    const byId = new Map(requests.map((r) => [r.id, r]));
+    const returned = requests.filter((r) => r.status === 'returned');
     mount(el, html`
       <header class="page-head">
-        <div><h1>My Requests</h1><p class="muted">File leave or remote work. HR or an administrator approves it, and approved days appear in your attendance.</p></div>
+        <div><h1>My Requests</h1><p class="muted">File leave, work from home or official business. ${route ? html`It goes to ${route.levels.filter((l) => !l.skipped).map((l) => l.label).join(route.flow === 'parallel' ? ' or ' : ', then ')}; approved days appear in your attendance.` : ''}</p></div>
         <div class="actions"><button class="btn primary" id="new-request">+ File a request</button></div>
       </header>
+      ${returned.length ? html`<div class="notice info">${plural(returned.length, 'request')} ${returned.length === 1 ? 'was' : 'were'} returned to you for revision. Open ${returned.length === 1 ? 'it' : 'them'}, make the change and resubmit.</div>` : ''}
       <section class="card">
         <h2>Leave balances ${year}</h2>
         <div class="balance-grid">${balances.map((b) => html`<div class="balance ${b.remaining !== null && b.remaining <= 0 ? 'low' : ''}">
@@ -258,33 +263,43 @@ export async function meRequestsView(el, _params, query) {
           <small class="muted">${b.credits == null ? 'No set limit' : `of ${b.credits + (b.adjusted || 0)} · ${b.used} used${b.pending ? ` · ${b.pending} pending` : ''}`}</small>
         </div>`)}</div>
       </section>
-      <section class="card">
+      <section class="card scroll-x">
         <h2>My requests</h2>
         ${requests.length
-          ? html`<table class="table">
-              <thead><tr><th>Request</th><th>Dates</th><th class="num">Days</th><th>Reason</th><th>Status</th><th></th></tr></thead>
-              <tbody>${requests.map((r) => html`<tr>
-                <td>${kindBadge(r)}${certificateCell(r, `/api/me/requests/${r.id}/attachment`)}</td>
+          ? html`<table class="table clickable stackable">
+              <thead><tr><th>Request</th><th>Dates</th><th class="num">Days</th><th>Status</th><th></th></tr></thead>
+              <tbody>${requests.map((r) => html`<tr data-open="${r.id}">
+                <td>${kindBadge(r)}${r.destination ? html`<small>${r.destination}</small>` : ''}${certificateCell(r, `/api/me/requests/${r.id}/attachment`)}</td>
                 <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
-                <td class="num">${r.days}</td>
-                <td class="notes">${r.reason}</td>
-                <td>${statusBadge(r.status)}${r.decidedByName ? html`<small>by ${r.decidedByName}${r.decisionNote ? html`: “${r.decisionNote}”` : ''}</small>` : ''}</td>
-                <td class="row-actions">${r.status === 'pending' && r.kind === 'leave' ? html`<button class="link" data-attach="${r.id}">${r.attachment ? 'Replace certificate' : 'Attach certificate'}</button>` : ''}${r.status === 'pending' ? html`<button class="link danger" data-withdraw="${r.id}">Withdraw</button>` : ''}</td>
+                <td class="num">${r.days}${r.overflowDays ? html`<small>${r.overflowDays} unpaid</small>` : ''}</td>
+                <td>${statusBadge(r.status)}${progressText(r)}</td>
+                <td class="row-actions">${r.status === 'returned' ? html`<button class="btn small-btn primary" data-edit="${r.id}">Revise</button>` : ''}${r.status === 'pending' ? html`<button class="link" data-edit="${r.id}">Edit</button>` : ''}${['pending', 'returned'].includes(r.status) && r.kind === 'leave' ? html`<button class="link" data-attach="${r.id}">${r.attachment ? 'Replace certificate' : 'Attach certificate'}</button>` : ''}${['pending', 'returned'].includes(r.status) ? html`<button class="link danger" data-withdraw="${r.id}">Withdraw</button>` : ''}</td>
               </tr>`)}</tbody>
             </table>`
           : html`<div class="empty"><p>You haven't filed any requests yet.</p></div>`}
       </section>`);
 
-    el.querySelector('#new-request').addEventListener('click', () => openForm(balances));
+    el.querySelector('#new-request').addEventListener('click', () => requestForm({ emp, balances, onDone: render }));
     el.querySelector('tbody')?.addEventListener('click', async (e) => {
       const cert = e.target.closest('[data-cert-url]');
       if (cert) return viewAttachment(cert.dataset.certUrl).catch((err) => toast(err.message, 'error'));
-      if (e.target.dataset.attach) return attachTo(e.target.dataset.attach);
-      const id = e.target.dataset.withdraw;
-      if (!id || !(await confirmDialog('Withdraw this request?', { confirmLabel: 'Withdraw' }))) return;
-      await api.post(`/api/me/requests/${id}/cancel`);
-      toast('Request withdrawn.');
-      render();
+      const t = e.target.closest('[data-attach], [data-edit], [data-withdraw]');
+      if (t?.dataset.attach) return attachTo(t.dataset.attach);
+      if (t?.dataset.edit) return requestForm({ emp, balances, existing: byId.get(t.dataset.edit), onDone: render });
+      if (t?.dataset.withdraw) {
+        return modal({
+          title: 'Withdraw request', submitLabel: 'Withdraw',
+          body: html`<label class="field"><span>Reason</span><input name="reason" required placeholder="e.g. Plans changed" /></label>`,
+          onSubmit: async (f) => {
+            if (!f.reason.value.trim()) throw new Error('Give a reason for withdrawing it.');
+            await api.post(`/api/me/requests/${t.dataset.withdraw}/cancel`, { reason: f.reason.value });
+            toast('Request withdrawn.');
+            render();
+          },
+        });
+      }
+      const row = e.target.closest('tr[data-open]');
+      if (row && !e.target.closest('button, a')) requestDetail({ ...byId.get(row.dataset.open), mine: true }, { certUrl: `/api/me/requests/${row.dataset.open}/attachment` });
     });
   }
 
@@ -303,85 +318,10 @@ export async function meRequestsView(el, _params, query) {
     input.click();
   }
 
-  function openForm(balances) {
-    // Only the leave types this employee gets (the server sends balances for those).
-    const offered = new Set(balances.map((b) => b.leaveTypeId));
-    const types = ctx.leaveTypes.filter((t) => t.active && offered.has(t.id));
-    const tomorrow = today(new Date(Date.now() + 86400000));
-    const { form } = modal({
-      title: 'File a request',
-      submitLabel: 'Submit for approval',
-      body: html`<div class="grid two">
-        <label class="field span-2"><span>Request</span>
-          <select name="what">
-            <optgroup label="Leave">${types.map((t) => html`<option value="leave:${t.id}">${t.name}${t.paid ? '' : ' (unpaid)'}</option>`)}</optgroup>
-            <optgroup label="Work arrangement"><option value="remote">Remote work (work from home)</option></optgroup>
-          </select>
-        </label>
-        <label class="field"><span>From</span><input type="date" name="startDate" value="${tomorrow}" required /></label>
-        <label class="field"><span>To</span><input type="date" name="endDate" value="${tomorrow}" required /></label>
-        <p class="span-2 request-preview muted small"></p>
-        <label class="field span-2"><span>Reason</span><textarea name="reason" rows="3" maxlength="500" placeholder="Optional, but helps your approver"></textarea></label>
-        <label class="field span-2 cert-field"><span class="cert-label">Medical certificate (optional)</span>
-          <input type="file" name="certificate" accept="${ACCEPT}" />
-          <small class="muted cert-hint">PDF or a photo, up to 5 MB. Photos are resized automatically.</small></label>
-      </div>`,
-      onSubmit: async (f) => {
-        const fd = new FormData(f);
-        const what = fd.get('what');
-        const file = f.certificate.files[0];
-        const { required, type } = certificateRule();
-        if (required && !file) throw new Error(`${type.name} of more than ${type.certificateAfterDays} day${type.certificateAfterDays === 1 ? '' : 's'} needs a medical certificate. Attach it to continue.`);
-        await api.post('/api/me/requests', {
-          kind: what === 'remote' ? 'remote' : 'leave',
-          leaveTypeId: what.startsWith('leave:') ? what.slice(6) : null,
-          startDate: fd.get('startDate'), endDate: fd.get('endDate'), reason: fd.get('reason'),
-          attachment: what !== 'remote' && file ? await prepareUpload(file) : undefined,
-        });
-        toast('Request submitted for approval.');
-        render();
-      },
-    });
-    // Whether the chosen leave and dates need a medical certificate.
-    const certificateRule = () => {
-      const fd = new FormData(form);
-      const what = fd.get('what');
-      const type = what.startsWith('leave:') && ctx.leaveTypes.find((t) => t.id === what.slice(6));
-      const start = fd.get('startDate');
-      const end = fd.get('endDate');
-      const days = start && end && end >= start ? workDates(emp, ctx.settings, start, end).length : 0;
-      return { type, leave: Boolean(type), required: Boolean(type) && needsCertificate(type, days) };
-    };
-    const preview = () => {
-      const rule = certificateRule();
-      const field = form.querySelector('.cert-field');
-      field.hidden = !rule.leave;
-      field.classList.toggle('required', rule.required);
-      form.querySelector('.cert-label').textContent = rule.required ? 'Medical certificate (required)' : 'Medical certificate (optional)';
-      form.querySelector('.cert-hint').textContent = rule.required
-        ? `Required: ${rule.type.name} longer than ${rule.type.certificateAfterDays} day${rule.type.certificateAfterDays === 1 ? '' : 's'}. PDF or a photo, up to 5 MB.`
-        : `${rule.type?.certificateAfterDays != null ? `Required for ${rule.type.name} longer than ${rule.type.certificateAfterDays} day${rule.type.certificateAfterDays === 1 ? '' : 's'}. ` : ''}PDF or a photo, up to 5 MB.`;
-      const fd = new FormData(form);
-      const start = fd.get('startDate');
-      const end = fd.get('endDate');
-      const el2 = form.querySelector('.request-preview');
-      if (!start || !end || end < start) return (el2.textContent = 'Pick a valid date range.');
-      const days = workDates(emp, ctx.settings, start, end).length;
-      const what = fd.get('what');
-      const bal = what.startsWith('leave:') && balances.find((b) => b.leaveTypeId === what.slice(6));
-      el2.textContent = `${days} work day${days === 1 ? '' : 's'} (rest days are not counted)` + (bal && bal.remaining !== null ? ` · ${bal.remaining} day(s) of ${bal.name} left` : '');
-    };
-    form.addEventListener('input', preview);
-    form.addEventListener('change', (e) => {
-      if (e.target.name === 'startDate' && form.endDate.value < e.target.value) form.endDate.value = e.target.value;
-      preview();
-    });
-    preview();
-  }
-
   await render();
   if (query.new) {
     history.replaceState(null, '', '#/me/requests');
     el.querySelector('#new-request').click();
   }
 }
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;

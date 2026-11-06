@@ -190,12 +190,22 @@ Pay frequency, multipliers, grace period, minimum overtime, which deductions app
 
 **Check these rates against the latest SSS, PhilHealth, Pag-IBIG and BIR circulars before you rely on the payroll.** Government rates change.
 
-## Leave and remote work
+## Leave, work from home and official business
 
-1. The employee opens **My Requests → File a request**, picks a leave type or **Remote work**, the dates and a reason. Only scheduled work days are counted, and leave with a yearly limit cannot exceed the remaining balance.
-2. HR Managers and Administrators see it under **Leave & Requests** (the menu shows how many are waiting) and approve or reject it with an optional note. Nobody can approve their own request.
-3. Approving writes each day into attendance: as leave (paid or unpaid, per the leave type), or as a remote-work day. The employee can still clock in on a remote day to record actual hours.
-4. An approved request can be cancelled by HR; its days are removed from attendance and the credits come back. Employees can withdraw requests that are still pending.
+The request process follows Sprout HR's: requests go to the employee's **immediate supervisor** first, then through further approval levels, and supervisors work them in an **Approval Center**.
+
+1. **Filing.** The employee opens **My Requests → File a request** and picks a leave type, **Work from home**, or **Official business** (work away from the office, with where they will be). For leave, the **date breakdown** lists each scheduled work day; each can be a *whole day*, *1st half* or *2nd half*, and shows *with pay* or *without pay*: days beyond the remaining credits are recorded as Leave Without Pay instead of being refused. The form shows who the request goes to. A leave type can require filing a set number of days ahead (**Leave types → File at least this many days ahead**), and sick leave over 3 days needs a medical certificate.
+2. **Approval route.** Set under **Leave & Requests → Approval flow**: up to three levels, each the *immediate supervisor* (from the employee record), the *supervisor's supervisor*, *HR* (anyone who approves leave) or *specific people*.
+   - **Sequential**: every level approves in turn. **Parallel**: the request goes to every level at once and the first approval decides it. A rejection always ends it.
+   - The route is fixed when the request is filed, so changes to supervisors or to the flow apply to new requests.
+   - A level with nobody to approve it (no supervisor on record, or one without an account) is skipped, and if every level is skipped HR decides, so no request gets stuck. Nobody approves their own request; someone who holds the next level too approves both at once.
+   - HR Managers and Administrators can decide any request at any point (shown as an HR override), for example when a supervisor is away.
+3. **Approval Center** (**Approvals** in the menu, for supervisors even on an Employee account, named approvers and HR): *For my approval*, *Processed* and *My team*. Open a request to see its days, the employee's balance, its route and its history. **Approve** (remarks optional), **Reject** or **Return for revision** (remarks required, the employee sees them). Tick several and **Approve selected** to approve them together. The menu counts the requests waiting for you.
+4. **Returned requests.** The employee revises the request and resubmits it; it starts its route again. Pending requests can be edited the same way, or withdrawn with a reason.
+5. **Approval writes attendance**: whole leave days as leave (paid or unpaid), half days as a half-day mark on the work day (the other half is timed against half the shift, and payroll pays half a day of leave), work from home and official business as full days the employee can still clock in on.
+6. **Cancelling.** HR, or an approver on the request's route, can cancel an approved request with a reason; its days leave attendance and the credits come back.
+
+Set each employee's **Immediate supervisor** on their record (**Employees → Edit → Employment**). The profile shows the supervisor and the direct reports. **Leave & Requests** lists every request with its status and route for HR.
 
 Default leave types (editable under **Leave & Requests → Leave types**): Vacation 15, Sick 15, Emergency 3, Paternity 7 and Solo Parent 7 days a year; Maternity and Leave Without Pay with no yearly limit. Credits can be changed per employee and year under **Leave balances**, e.g. for carry-over or new hires. Balances count all leave in attendance, including leave HR records directly.
 
@@ -203,7 +213,7 @@ Administrators can manage one person's leave under **Leave & Requests → Employ
 
 ## Not included (yet)
 
-Holidays and holiday pay rates, night differential, half-day leave, two-level approvals, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, and an audit log.
+Holidays and holiday pay rates, night differential, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, email notifications to approvers, and an audit log.
 
 ## Put it online (cloud)
 

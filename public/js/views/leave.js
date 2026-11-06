@@ -1,17 +1,19 @@
 // Leave & Requests: approvals, leave balances and credits, leave types.
 import { api } from '../api.js';
 import { ctx, can } from '../state.js';
-import { REQUEST_STATUS, LEAVE_GENDERS } from '/shared/leave.js';
+import { REQUEST_STATUS, LEAVE_GENDERS, APPROVER_TYPES, APPROVAL_FLOWS } from '/shared/leave.js';
+import { requestDetail, progressText } from '../requests.js';
+import { decide } from './approvals.js';
 import { html, mount, fmtDate, badge, toast, modal, confirmDialog, today } from '../ui.js';
 import { viewAttachment } from '../attachments.js';
 
-const STATUS_BADGE = { pending: 'amber', approved: 'green', rejected: 'gray', cancelled: 'gray' };
+const STATUS_BADGE = { pending: 'amber', returned: 'blue', approved: 'green', rejected: 'gray', cancelled: 'gray' };
 export const statusBadge = (s) => badge(REQUEST_STATUS[s] || s, STATUS_BADGE[s]);
-export const kindBadge = (r) => (r.kind === 'remote' ? badge('Remote work', 'blue') : badge(r.typeName, 'maroon-soft'));
+export const kindBadge = (r) => (r.kind === 'remote' ? badge('Work from home', 'blue') : r.kind === 'ob' ? badge('Official business', 'green') : badge(r.typeName, 'maroon-soft'));
 // Medical certificate on a request: a link to open it, or a warning if one is required and missing.
 export const certificateCell = (r, url) => r.attachment
   ? html`<button type="button" class="link cert-link" data-cert="${r.id}" data-cert-url="${url}">📎 Medical certificate</button>`
-  : r.certificateRequired && ['pending', 'approved'].includes(r.status) ? html`<small>${badge('Certificate missing', 'amber')}</small>` : '';
+  : r.certificateRequired && ['pending', 'returned', 'approved'].includes(r.status) ? html`<small>${badge('Certificate missing', 'amber')}</small>` : '';
 export const dateRange = (r) => (r.startDate === r.endDate ? fmtDate(r.startDate) : `${fmtDate(r.startDate, { month: 'short', day: 'numeric' })} – ${fmtDate(r.endDate)}`);
 
 const TABS = [
@@ -19,6 +21,7 @@ const TABS = [
   ['balances', 'Leave balances'],
   ['employee', 'Employee leave', 'leave.adjust'],
   ['types', 'Leave types'],
+  ['flow', 'Approval flow'],
 ];
 
 export async function leaveView(el, _params, query) {
@@ -26,7 +29,7 @@ export async function leaveView(el, _params, query) {
   const tab = tabs.some(([k]) => k === query.tab) ? query.tab : 'requests';
   mount(el, html`
     <header class="page-head">
-      <div><h1>Leave &amp; Requests</h1><p class="muted">${can('leave.approve') ? 'Approve leave and remote-work requests, and manage leave credits.' : 'Review requests and manage leave credits. HR Managers and Administrators approve requests.'}</p></div>
+      <div><h1>Leave &amp; Requests</h1><p class="muted">${can('leave.approve') ? 'Every leave, work-from-home and official-business request, its approval route, and leave credits. As HR you can decide any request; supervisors decide theirs in Approvals.' : 'Review requests and manage leave credits. Supervisors and HR approve requests.'}</p></div>
     </header>
     <nav class="tabs">${tabs.map(([k, label]) => html`<a href="#/leave?tab=${k}" class="${k === tab ? 'active' : ''}">${label}</a>`)}</nav>
     <div id="tab-body"></div>`);
@@ -34,6 +37,7 @@ export async function leaveView(el, _params, query) {
   if (tab === 'requests') return requestsTab(body, query);
   if (tab === 'balances') return balancesTab(body, query);
   if (tab === 'employee') return employeeLeaveTab(body, query);
+  if (tab === 'flow') return flowTab(body);
   return typesTab(body);
 }
 
@@ -44,29 +48,27 @@ async function requestsTab(el, query) {
 
   async function load() {
     const list = await api.get(`/api/requests${state.status ? `?status=${state.status}` : ''}`);
+    const byId = (id) => list.find((x) => x.id === id);
     mount(el, html`
-      <section class="card">
-        <div class="toolbar">
+      <section class="card scroll-x">
+        <div class="toolbar pad">
           <select id="f-status">
-            ${[['pending', 'Pending'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['cancelled', 'Cancelled'], ['', 'All']].map(([v, l]) => html`<option value="${v}" ${v === state.status ? 'selected' : ''}>${l}</option>`)}
+            ${[['pending', 'Pending'], ['returned', 'Returned for revision'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['cancelled', 'Cancelled'], ['', 'All']].map(([v, l]) => html`<option value="${v}" ${v === state.status ? 'selected' : ''}>${l}</option>`)}
           </select>
           <span class="muted small">${list.length} request${list.length === 1 ? '' : 's'}</span>
         </div>
         ${list.length
-          ? html`<table class="table">
-              <thead><tr><th>Employee</th><th>Request</th><th>Dates</th><th class="num">Days</th><th>Reason</th><th>Status</th><th></th></tr></thead>
-              <tbody>${list.map((r) => html`<tr>
-                <td><strong>${r.employeeName}</strong><small>${r.employeeNo}</small></td>
-                <td>${kindBadge(r)}${certificateCell(r, `/api/requests/${r.id}/attachment`)}</td>
+          ? html`<table class="table clickable stackable">
+              <thead><tr><th>Employee</th><th>Request</th><th>Dates</th><th class="num">Days</th><th>Status and route</th><th></th></tr></thead>
+              <tbody>${list.map((r) => html`<tr data-open="${r.id}">
+                <td><strong>${r.employeeName}</strong><small>${[r.employeeNo, r.supervisorName ? `reports to ${r.supervisorName}` : 'no supervisor on record'].join(' · ')}</small></td>
+                <td>${kindBadge(r)}${r.destination ? html`<small>${r.destination}</small>` : ''}${certificateCell(r, `/api/requests/${r.id}/attachment`)}</td>
                 <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
-                <td class="num">${r.days}</td>
-                <td class="notes">${r.reason}</td>
-                <td>${statusBadge(r.status)}${r.decidedByName ? html`<small>by ${r.decidedByName}${r.decisionNote ? html`: “${r.decisionNote}”` : ''}</small>` : ''}${r.cancelledByName ? html`<small>cancelled by ${r.cancelledByName}</small>` : ''}</td>
-                <td class="row-actions">${can('leave.approve')
-                  ? r.status === 'pending'
-                    ? html`<button class="btn primary small-btn" data-approve="${r.id}">Approve</button> <button class="btn small-btn" data-reject="${r.id}">Reject</button>`
-                    : r.status === 'approved' ? html`<button class="link danger" data-cancel="${r.id}">Cancel</button>` : ''
-                  : ''}</td>
+                <td class="num">${r.days}${r.overflowDays ? html`<small>${r.overflowDays} unpaid</small>` : ''}</td>
+                <td>${statusBadge(r.status)}${progressText(r)}</td>
+                <td class="row-actions">${r.status === 'pending' && r.canDecide
+                    ? html`<button class="btn primary small-btn" data-act="approve" data-id="${r.id}">${r.yourTurn ? 'Approve' : 'Approve (HR)'}</button><button class="link" data-act="return" data-id="${r.id}">Return</button><button class="link danger" data-act="reject" data-id="${r.id}">Reject</button>`
+                    : r.status === 'approved' && can('leave.approve') ? html`<button class="link danger" data-cancel="${r.id}">Cancel</button>` : ''}</td>
               </tr>`)}</tbody>
             </table>`
           : html`<div class="empty"><p>${state.status === 'pending' ? 'No requests waiting for approval.' : 'No requests.'}</p></div>`}
@@ -77,37 +79,78 @@ async function requestsTab(el, query) {
       load();
     });
     el.querySelector('tbody')?.addEventListener('click', (e) => {
-      const t = e.target;
-      const cert = t.closest('[data-cert-url]');
-      if (cert) return viewAttachment(cert.dataset.certUrl).catch((err) => toast(err.message, 'error'));
-      const r = list.find((x) => x.id === (t.dataset.approve || t.dataset.reject || t.dataset.cancel));
-      if (!r) return;
-      const action = t.dataset.approve ? 'approve' : t.dataset.reject ? 'reject' : 'cancel';
-      const what = `${r.employeeName}: ${r.typeName}, ${dateRange(r)} (${r.days} day${r.days === 1 ? '' : 's'})`;
-      const { form } = modal({
-        title: { approve: 'Approve request', reject: 'Reject request', cancel: 'Cancel approved request' }[action],
-        submitLabel: { approve: 'Approve', reject: 'Reject', cancel: 'Cancel request' }[action],
-        body: html`<p><strong>${what}</strong></p>
-          ${r.reason ? html`<p class="muted">“${r.reason}”</p>` : ''}
-          ${r.attachment ? html`<p><button type="button" class="link" data-open-cert>📎 Open the medical certificate</button></p>` : r.certificateRequired && action === 'approve' ? html`<div class="notice"><p>No medical certificate is attached. This request can't be approved until the employee attaches one under My Requests.</p></div>` : ''}
-          <p class="muted small">${{
-            approve: r.kind === 'remote' ? 'Each work day in the range is marked as remote work in the DTR and counts as a full day.' : 'Each work day in the range is recorded as leave in the DTR and deducted from the balance.',
-            reject: 'The employee will see the rejection and your note.',
-            cancel: 'The leave or remote-work days this request added to the DTR are removed, and leave credits are returned.',
-          }[action]}</p>
-          <label class="field"><span>Note to the employee (optional)</span><input name="note" maxlength="500" /></label>`,
-        onSubmit: async (f) => {
-          await api.post(`/api/requests/${r.id}/${action}`, { note: new FormData(f).get('note') });
-          toast({ approve: 'Request approved.', reject: 'Request rejected.', cancel: 'Request cancelled.' }[action]);
-          window.dispatchEvent(new Event('requests:changed'));
-          load();
-        },
-      });
-      if (action !== 'approve') form.querySelector('[type=submit]').classList.add('danger');
-      form.querySelector('[data-open-cert]')?.addEventListener('click', () => viewAttachment(`/api/requests/${r.id}/attachment`).catch((err) => toast(err.message, 'error')));
+      const t = e.target.closest('[data-cert-url], [data-act], [data-cancel]');
+      if (t?.dataset.certUrl) return viewAttachment(t.dataset.certUrl).catch((err) => toast(err.message, 'error'));
+      if (t?.dataset.act) return decide({ ...byId(t.dataset.id), hrOverride: !byId(t.dataset.id).yourTurn }, t.dataset.act, load);
+      if (t?.dataset.cancel) {
+        const r = byId(t.dataset.cancel);
+        return modal({
+          title: 'Cancel approved request', subtitle: `${r.employeeName}: ${r.typeName}, ${dateRange(r)}`, submitLabel: 'Cancel request',
+          body: html`<p class="muted small">The days this request added to the attendance record are removed and its leave credits are returned.</p>
+            <label class="field"><span>Reason (the employee sees this)</span><input name="note" maxlength="500" required /></label>`,
+          onSubmit: async (f) => {
+            await api.post(`/api/requests/${r.id}/cancel`, { note: f.note.value });
+            toast('Request cancelled.');
+            window.dispatchEvent(new Event('requests:changed'));
+            load();
+          },
+        });
+      }
+      const row = e.target.closest('tr[data-open]');
+      if (!row || e.target.closest('button, a')) return;
+      const r = byId(row.dataset.open);
+      requestDetail(r, { certUrl: `/api/requests/${r.id}/attachment` });
     });
   }
   await load();
+}
+
+// ---------- Approval flow ----------
+
+async function flowTab(el) {
+  const cfg = await api.get('/api/approval-flow');
+  const levels = structuredClone(cfg.levels);
+  let flow = cfg.flow;
+  const editable = can('leave.approve');
+  function draw() {
+    mount(el, html`<section class="card">
+      <h2>Who approves requests</h2>
+      <p class="muted small">Leave, work-from-home and official-business requests go through these levels, like Sprout HR's approval levels. Level 1 is usually the employee's <strong>immediate supervisor</strong>, set on each employee record. The route is fixed when a request is filed, so changes here apply to new requests. A level with nobody to approve it is skipped, nobody approves their own request, and HR can always decide.</p>
+      ${cfg.withoutSupervisor ? html`<p class="notice small">${cfg.withoutSupervisor} active employee${cfg.withoutSupervisor === 1 ? ' has' : 's have'} no immediate supervisor on record; their supervisor level is skipped. Set it on each <a href="#/employees">employee record</a>.</p>` : ''}
+      <form id="flow" class="stack tight">
+        <fieldset class="flow-choice" ${editable ? '' : 'disabled'}>
+          ${Object.entries(APPROVAL_FLOWS).map(([k, v]) => html`<label class="field check"><input type="radio" name="flow" value="${k}" ${k === flow ? 'checked' : ''} /><span><strong>${v.split(':')[0]}</strong>: ${v.split(':')[1]}${k === 'sequential' ? '. A rejection at any level ends it.' : '. The first approval decides; a rejection also ends it.'}</span></label>`)}
+        </fieldset>
+        <ol class="flow-levels">${levels.map((l, i) => html`<li>
+          <span class="appr-dot">${i + 1}</span>
+          <div class="grow">
+            <select data-type="${i}" ${editable ? '' : 'disabled'} aria-label="Level ${i + 1}">${Object.entries(APPROVER_TYPES).map(([k, v]) => html`<option value="${k}" ${k === l.type ? 'selected' : ''}>${v}</option>`)}</select>
+            ${l.type === 'users' ? html`<div class="flow-people">${cfg.people.map((p) => html`<label class="field check"><input type="checkbox" data-person="${i}" value="${p.id}" ${(l.userIds || []).includes(p.id) ? 'checked' : ''} ${editable ? '' : 'disabled'} /><span>${p.name}</span></label>`)}</div><small class="hint">Any one of them can approve this level.</small>` : ''}
+          </div>
+          ${editable && levels.length > 1 ? html`<button type="button" class="icon-btn danger" data-rm="${i}" aria-label="Remove level ${i + 1}">×</button>` : ''}
+        </li>`)}</ol>
+        ${editable ? html`<div class="actions">${levels.length < 3 ? html`<button type="button" class="btn" id="add">+ Add a level</button>` : ''}<span class="spacer"></span><button class="btn primary" type="submit">Save approval flow</button></div>` : html`<p class="muted small">HR Managers and Administrators change the approval flow.</p>`}
+      </form></section>`);
+    const f = el.querySelector('#flow');
+    f.querySelectorAll('[name=flow]').forEach((r) => r.addEventListener('change', () => (flow = r.value)));
+    f.querySelectorAll('[data-type]').forEach((sel) => sel.addEventListener('change', () => ((levels[sel.dataset.type] = { type: sel.value, userIds: [] }), draw())));
+    f.querySelectorAll('[data-person]').forEach((cb) => cb.addEventListener('change', () => {
+      const l = levels[cb.dataset.person];
+      l.userIds = [...f.querySelectorAll(`[data-person="${cb.dataset.person}"]:checked`)].map((x) => x.value);
+    }));
+    f.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => (levels.splice(Number(b.dataset.rm), 1), draw())));
+    f.querySelector('#add')?.addEventListener('click', () => (levels.push({ type: 'hr' }), draw()));
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api.put('/api/approval-flow', { flow, levels });
+        toast('Approval flow saved. It applies to requests filed from now on.');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+  }
+  draw();
 }
 
 // ---------- Balances ----------
@@ -389,6 +432,9 @@ function typeForm(t = {}) {
     <label class="field"><span>Medical certificate needed when longer than (days)</span>
       <input type="number" name="certificateAfterDays" min="0" max="365" step="1" value="${t.certificateAfterDays ?? ''}" placeholder="Never" />
       <small class="muted">Blank = never. 3 = required for 4 or more work days; 0 = always.</small></label>
+    <label class="field"><span>File at least this many days ahead</span>
+      <input type="number" name="advanceDays" min="0" max="90" step="1" value="${t.advanceDays ?? ''}" placeholder="Any time" />
+      <small class="muted">Blank = any time, e.g. 5 for vacation leave. Sick and emergency leave are usually left blank.</small></label>
     <label class="field check span-2"><input type="checkbox" name="active" ${t.active === false ? '' : 'checked'} /> <span>Active (employees can file it)</span></label>
   </div>`;
 }
@@ -419,7 +465,7 @@ async function typesTab(el) {
       const fd = new FormData(f);
       return {
         code: fd.get('code'), name: fd.get('name'), annualCredits: fd.get('annualCredits'), paid: fd.has('paid'), active: fd.has('active'),
-        appliesTo: fd.get('appliesTo'), gender: fd.get('gender'), certificateAfterDays: fd.get('certificateAfterDays'),
+        appliesTo: fd.get('appliesTo'), gender: fd.get('gender'), certificateAfterDays: fd.get('certificateAfterDays'), advanceDays: fd.get('advanceDays'),
       };
     };
     el.querySelector('#add-type').addEventListener('click', () =>

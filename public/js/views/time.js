@@ -5,6 +5,11 @@ import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, badge, toast, moda
 import { readClockLocation, LOCATION_NOTICE, locationPill, openLocation } from '../geo.js';
 import { LOCATION_STATUS, fmtDistance } from '/shared/geo.js';
 
+// Half-day leave and official-business labels for a DTR entry.
+const typeName = (id) => ctx.leaveTypes.find((t) => t.id === id)?.code || 'Leave';
+const halfTag = (e) => (e.halfLeave ? html` ${badge(`${typeName(e.halfLeave.leaveTypeId)} · ${e.halfLeave.portion === 'am' ? '1st' : '2nd'} half`, e.halfLeave.paid === false ? 'gray' : 'blue')}` : '');
+const awayLabel = (e) => (e.officialBusiness ? 'Official business' : 'Remote work');
+
 // ---------- Time clock (kiosk) ----------
 
 export async function clockView(el) {
@@ -61,7 +66,7 @@ export async function clockView(el) {
       ? html`<table class="table compact"><thead><tr><th>Employee</th><th>In</th><th>Out</th>${seeLocation ? html`<th>Location</th>` : ''}</tr></thead><tbody>
           ${todays.sort((a, b) => (b.timeIn || '').localeCompare(a.timeIn || '')).map((e) => html`<tr>
             <td>${fullName(byId.get(e.employeeId))}</td>
-            <td>${e.type === 'leave' ? badge(leaveName(e), 'blue') : e.remote && !e.timeIn ? badge('Remote work', 'blue') : fmtTime(e.timeIn)}</td>
+            <td>${e.type === 'leave' ? badge(leaveName(e), 'blue') : e.remote && !e.timeIn ? badge(awayLabel(e), 'blue') : e.halfLeave && !e.timeIn ? halfTag(e) : html`${fmtTime(e.timeIn)}${halfTag(e)}`}</td>
             <td>${e.type === 'leave' || !e.timeIn ? '' : e.timeOut ? fmtTime(e.timeOut) : badge('Working', 'green')}</td>
             ${seeLocation ? html`<td>${e.clockInLocation ? html`<button type="button" class="link geo-link" data-geo="${e.id}">${locationPill(e.clockInLocation, { remote: e.remote })}</button>` : ''}</td>` : ''}</tr>`)}
         </tbody></table>`
@@ -224,8 +229,10 @@ export async function dtrView(el, _params, query) {
             ${c.leave
               ? html`<td colspan="2">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}${c.paidLeave ? '' : html` <small class="muted">unpaid</small>`}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
               : e.remote && !e.timeIn
-              ? html`<td colspan="2">${badge('Remote work', 'blue')} <small class="muted">full day</small></td><td class="num">${fmtMinutes(c.workedMinutes)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
-              : html`<td>${fmtTime(e.timeIn)}${e.remote ? html` ${badge('Remote', 'blue')}` : ''}</td>
+              ? html`<td colspan="2">${badge(awayLabel(e), 'blue')}${halfTag(e)} <small class="muted">${e.halfLeave ? 'half day' : e.destination ? e.destination : 'full day'}</small></td><td class="num">${fmtMinutes(c.workedMinutes)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
+              : e.halfLeave && !e.timeIn
+              ? html`<td colspan="2">${halfTag(e)} <small class="muted">other half not clocked</small></td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
+              : html`<td>${fmtTime(e.timeIn)}${e.remote ? html` ${badge(e.officialBusiness ? 'OB' : 'Remote', 'blue')}` : ''}${halfTag(e)}</td>
                 <td>${c.open ? badge('Open', 'amber') : fmtTime(e.timeOut)}</td>
                 <td class="num">${fmtMinutes(c.workedMinutes)}</td>
                 <td class="num ${c.lateMinutes ? 'warn' : ''}">${fmtMinutes(c.lateMinutes)}</td>

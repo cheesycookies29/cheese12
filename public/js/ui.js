@@ -138,7 +138,7 @@ export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancel
       btn.disabled = false;
     }
   });
-  form.querySelector('input:not([type=hidden]), select, textarea')?.focus();
+  (form.querySelector('input:not([type=hidden]), select, textarea') || form.querySelector('[data-close]'))?.focus();
   return { form, close };
 }
 

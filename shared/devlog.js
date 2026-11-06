@@ -27,6 +27,24 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.9.0-alpha',
+    date: '2026-11-06',
+    title: 'Sprout-style leave and work-arrangement requests',
+    modules: ['hr'],
+    notes: 'Requests now follow the process of Sprout HR: the immediate supervisor approves first, further approval levels follow in sequence or in parallel, and supervisors decide in a new Approval Center. Half days, official business and return for revision are added.',
+    changes: [
+      ['new', 'hr', 'Immediate supervisor on each employee record (no reporting loops); the profile shows the supervisor and direct reports.'],
+      ['new', 'hr', 'Approval flow under Leave & Requests: up to three levels (immediate supervisor, supervisor\'s supervisor, HR, or specific people), sequential or parallel. The route is fixed when a request is filed; levels with nobody to approve are skipped; HR can decide any request.'],
+      ['new', 'hr', 'Approval Center for supervisors (also on Employee accounts), named approvers and HR: For my approval, Processed and My team; request details with days, balance, route and history; approve with optional remarks, reject or return with required remarks; approve several at once.'],
+      ['new', 'hr', 'Date breakdown when filing leave: whole day, 1st half or 2nd half per day, each marked with or without pay. Days beyond the remaining credits are recorded as Leave Without Pay.'],
+      ['new', 'hr', 'Official business as a request type (with where the employee will be), next to work from home; both appear in the DTR and count as working days.'],
+      ['new', 'hr', 'Returned requests are revised and resubmitted; pending ones can be edited; withdrawing or cancelling asks for a reason. Leave types can require filing a number of days ahead.'],
+      ['improved', 'hr', 'Half-day leave in payroll: the other half is timed against half the shift for late and undertime, and the payslip counts half a day of leave and half a day present.'],
+      ['improved', 'hr', 'Demo data has reporting lines (a team lead with two reports, the HR Manager over the others) and routed requests; the HR demo account is linked to the HR Manager.'],
+    ],
+    known: ['Approvers are told in the app (menu counts and the Approval Center); email notifications to approvers are not sent yet.'],
+  },
+  {
     version: '0.8.0-alpha',
     date: '2026-11-06',
     title: 'Sales & CRM module',

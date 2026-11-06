@@ -118,8 +118,12 @@ export function ratesFor(employee, settings) {
 export function computeEntry(entry, schedule, settings) {
   const r = { workedMinutes: 0, lateMinutes: 0, undertimeMinutes: 0, overtimeMinutes: 0, restDay: false, leave: false, paidLeave: false, remote: Boolean(entry.remote), open: false };
   if (entry.type === 'leave') return { ...r, leave: true, paidLeave: entry.paid !== false };
-  // An approved remote-work day with no clock times counts as a full scheduled day.
-  if (entry.remote && !entry.timeIn) return { ...r, workedMinutes: Math.round(hoursPerDay(schedule) * 60) };
+  // Half-day leave on a work day: the other half is worked (or remote), timed against half the shift.
+  const half = entry.halfLeave?.portion === 'am' || entry.halfLeave?.portion === 'pm' ? entry.halfLeave.portion : null;
+  if (half) Object.assign(r, { halfLeave: half, paidLeave: entry.halfLeave.paid !== false });
+  // An approved remote-work day with no clock times counts as a full scheduled day (half, beside a half-day leave).
+  if (entry.remote && !entry.timeIn) return { ...r, workedMinutes: Math.round(hoursPerDay(schedule) * 60 * (half ? 0.5 : 1)) };
+  if (half && !entry.timeIn) return r; // not clocked yet, or absent for the other half
   if (!entry.timeOut) return { ...r, open: true };
 
   const inM = toMinutes(entry.timeIn);
@@ -141,9 +145,15 @@ export function computeEntry(entry, schedule, settings) {
     r.overtimeMinutes = overtime >= minOvertime ? overtime : 0;
     return r;
   }
-  const start = toMinutes(schedule.shiftStart);
+  let start = toMinutes(schedule.shiftStart);
   let end = toMinutes(schedule.shiftEnd);
   if (end <= start) end += 1440;
+  // On leave for the first half: the day starts at mid-shift; for the second half: it ends there.
+  if (half) {
+    const mid = start + Math.round((end - start) / 2);
+    if (half === 'am') start = mid;
+    else end = mid;
+  }
   const late = inM - start;
   r.lateMinutes = late > (Number(settings.gracePeriodMinutes) || 0) ? late : 0;
   r.undertimeMinutes = Math.max(0, end - outM);
@@ -215,10 +225,19 @@ export function computePayslip({ employee, entries, periodStart, periodEnd, sett
     if (date < hireDate || !schedule.workDays.includes(dayOfWeek(date))) continue;
     att.scheduledDays += 1;
     const e = byDate.get(date);
+    const half = e && e.type !== 'leave' && (e.halfLeave?.portion === 'am' || e.halfLeave?.portion === 'pm');
     if (!e) att.absentDays += 1;
     else if (e.type === 'leave' && e.paid === false) att.unpaidLeaveDays += 1;
     else if (e.type === 'leave') att.leaveDays += 1;
-    else {
+    else if (half) {
+      // Half a day on leave, half worked (or absent if never clocked and not remote).
+      if (e.halfLeave.paid === false) att.unpaidLeaveDays += 0.5;
+      else att.leaveDays += 0.5;
+      if (e.timeIn || e.remote) {
+        att.daysPresent += 0.5;
+        if (e.remote) att.remoteDays += 0.5;
+      } else att.absentDays += 0.5;
+    } else {
       att.daysPresent += 1;
       if (e.remote) att.remoteDays += 1;
     }

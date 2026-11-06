@@ -21,6 +21,7 @@ import { reportsView, reportDetailView } from './views/reports.js';
 import { devlogView, unseenCount } from './views/devlog.js';
 import { feedbackView, feedbackInboxView, feedbackDetailView } from './views/feedback.js';
 import { clockLocationsView } from './views/locations.js';
+import { approvalsView } from './views/approvals.js';
 import { crmOverviewView, pipelineView, dealView, leadsView, leadView, accountsView, accountView, contactsView, contactView, bidsView, bidView, contractsView, contractView, activitiesView, crmSettingsView } from './views/crm.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
 
@@ -41,6 +42,7 @@ const routes = [
   ['/payroll/:id', payrollRunView, 'payroll.view', 'hr'],
   ['/payroll-setup', payrollSetupView, 'payroll.config', 'hr'],
   ['/leave', leaveView, 'leave.manage', 'hr'],
+  ['/approvals', approvalsView, 'approver', 'hr'],
   ['/me', meHomeView, 'self', 'hr'],
   ['/me/attendance', meAttendanceView, 'self', 'hr'],
   ['/me/requests', meRequestsView, 'self', 'hr'],
@@ -105,7 +107,8 @@ const NAV = {
     { href: '/clock', label: 'Time Clock', icon: 'clock', permission: 'clock.kiosk' },
     { href: '/dtr', label: 'Attendance (DTR)', icon: 'table', permission: 'attendance.view' },
     { href: '/clock-locations', label: 'Clock-in locations', icon: 'mapPin', permission: 'attendance.location' },
-    { href: '/leave', label: 'Leave & Requests', icon: 'clipboard', permission: 'leave.manage', badge: 'requests' },
+    { href: '/approvals', label: 'Approvals', icon: 'checkCircle', permission: 'approver', badge: 'approvals' },
+    { href: '/leave', label: 'Leave & Requests', icon: 'clipboard', permission: 'leave.manage' },
     { href: '/payroll', label: 'Payroll', icon: 'wallet', permission: 'payroll.view' },
     { href: '/payroll-setup', label: 'Payroll Setup', icon: 'settings', permission: 'payroll.config' },
     { heading: 'My account', permission: 'self' },
@@ -159,13 +162,15 @@ const NAV = {
 // don't see them; employee accounts always do (and are told to ask for a link).
 function allowed(permission) {
   if (permission === 'auth') return true;
+  // Supervisors (even on an Employee account), named approvers and HR see the Approval Center.
+  if (permission === 'approver') return Boolean(ctx.user.isApprover);
   if (permission === 'self') return can('self') && (Boolean(ctx.user.employeeId) || ctx.user.role === 'employee');
   return can(permission);
 }
 
 // Where each module opens for this user; null = no access.
 function moduleHome(id) {
-  if (id === 'hr') return can('dashboard') ? '/dashboard' : allowed('self') ? '/me' : null;
+  if (id === 'hr') return can('dashboard') ? '/dashboard' : allowed('self') ? '/me' : allowed('approver') ? '/approvals' : null;
   if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
   if (id === 'helpdesk') return can('helpdesk.agent') ? '/helpdesk' : '/helpdesk/mine';
   if (id === 'crm') return can('crm.view') ? '/crm' : null;
@@ -284,7 +289,7 @@ function renderNav(module) {
 
 // Counts next to menu items: pending leave approvals, new equipment problem reports, unread dev log releases, new feedback.
 const BADGES = {
-  requests: () => (can('leave.approve') ? api.get('/api/requests/summary').then((r) => r.pending) : 0),
+  approvals: () => (ctx.user.isApprover ? api.get('/api/approvals/summary').then((r) => r.pending) : 0),
   reports: () => api.get('/api/asset-reports/summary').then((r) => r.new),
   devlog: () => unseenCount(),
   feedback: () => api.get('/api/feedback/summary').then((r) => r.new),

@@ -8,6 +8,7 @@ import { demoData } from './seed.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEMO_OWNER } from './seed.js';
 import { CRM_COLLECTIONS } from './crm.js';
+import { routeRequest, migrateApprovals } from './approvals.js';
 
 // Collections the demo set adds to.
 const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS];
@@ -40,6 +41,8 @@ export function removeDemo(db, { summarize }) {
   // Records owned by demo accounts now belong to nobody.
   for (const k of CRM_COLLECTIONS) for (const x of d[k]) if (demoUsers.has(x.ownerId)) x.ownerId = null;
   for (const k of BY_EMPLOYEE) d[k] = d[k].filter((x) => !empIds.has(x.employeeId));
+  // Real employees who reported to a demo employee no longer have a supervisor on record.
+  for (const e of d.employees) if (empIds.has(e.supervisorId)) e.supervisorId = null;
   d.assetHistory = d.assetHistory.filter((h) => !assetIds.has(h.assetId));
   d.stockMovements = d.stockMovements.filter((m) => !itemIds.has(m.itemId));
   d.issueReports = d.issueReports.filter((r) => !assetIds.has(r.assetId) && !empIds.has(r.reportedBy?.employeeId));
@@ -79,6 +82,12 @@ export function addDemo(db, { summarize, demoAccounts }) {
   for (const k of COLLECTIONS) for (const rec of demo[k] || []) d[k].push({ ...rec, demo: true });
   d.helpdesk.seq = Math.max(d.helpdesk.seq || 0, demo.helpdesk.seq);
   d.users.push(...demoAccounts(db, demo.employees));
+  // Demo requests take the approval route of the demo reporting lines.
+  for (const r of d.requests) {
+    if (!r.demo || r.approvals) continue;
+    if (r.status === 'pending') routeRequest(db, r, d.employees.find((e) => e.id === r.employeeId), null);
+  }
+  migrateApprovals(db);
   // CRM demo records belong to the demo sales account (or the first administrator).
   const salesOwner = d.users.find((u) => u.username === 'sales.demo') || d.users.find((u) => u.role === 'admin');
   for (const k of CRM_COLLECTIONS) for (const x of d[k]) {
