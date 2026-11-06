@@ -159,6 +159,7 @@ export function registerFinanceRoutes(route, ctx) {
       fx.date(date);
       fx.fund(fund);
       if (status === 'posted') fx.assertOpen(date);
+      if (status === 'posted' && date > today()) fail('An entry cannot be posted with a future date.');
       const clean = lines
         .map((l) => ({ code: String(l.code), debit: round2(l.debit || 0), credit: round2(l.credit || 0), cardId: l.cardId || null, office: l.office || '', memo: text(l.memo, 160) }))
         .filter((l) => l.debit || l.credit);
@@ -271,13 +272,15 @@ export function registerFinanceRoutes(route, ctx) {
       if (!Number.isInteger(y) || y < 2000 || y > 2100) fail('Fiscal year must be a year like 2026.');
       s.fiscalYear = y;
     }
+    const list = (v, label) => (Array.isArray(v) ? v : fail(`${label} must be a list.`));
     if (body.funds) {
+      list(body.funds, 'Fund clusters');
       const codes = [...new Set(body.funds.map(String))].filter((c) => FUND_CLUSTERS.some((f) => f.code === c));
       if (!codes.length) fail('Keep at least one fund cluster.');
       s.funds = codes.sort();
     }
-    const codeList = (list, label, max = 20) => {
-      const out = (Array.isArray(list) ? list : []).map((x) => ({ ...x, code: text(x.code, max).toUpperCase(), name: text(x.name, 160) })).filter((x) => x.code || x.name);
+    const codeList = (items, label, max = 20) => {
+      const out = list(items, `The ${label}s`).map((x) => ({ ...x, code: text(x.code, max).toUpperCase(), name: text(x.name, 160) })).filter((x) => x.code || x.name);
       for (const x of out) if (!x.code || !x.name) fail(`Each ${label} needs a code and a name.`);
       if (new Set(out.map((x) => x.code)).size !== out.length) fail(`Two ${label}s have the same code.`);
       return out;
@@ -285,7 +288,7 @@ export function registerFinanceRoutes(route, ctx) {
     if (body.offices) s.offices = codeList(body.offices, 'office').map((o) => ({ code: o.code, name: o.name, head: text(o.head, 120) }));
     if (body.paps) s.paps = codeList(body.paps, 'program/activity/project', 30).map((p) => ({ code: p.code, name: p.name }));
     if (body.bankAccounts) {
-      s.bankAccounts = body.bankAccounts.map((b) => {
+      s.bankAccounts = list(body.bankAccounts, 'Bank accounts').map((b) => {
         const code = String(b.code || ACCT.cashBank);
         if (!/^1010[1-5]/.test(code)) fail('A bank account posts to a cash account (101…).');
         fx.account(code);
@@ -293,12 +296,12 @@ export function registerFinanceRoutes(route, ctx) {
         return { id: b.id || randomUUID(), name: text(b.name, 120), number: text(b.number, 40), fund: fx.fund(String(b.fund)), code };
       });
     }
-    if (body.signatories) {
+    if (body.signatories && typeof body.signatories === 'object') {
       for (const k of Object.keys(s.signatories)) {
         if (body.signatories[k]) s.signatories[k] = { name: text(body.signatories[k].name, 120), title: text(body.signatories[k].title, 120) || s.signatories[k].title };
       }
     }
-    if (body.numbering) {
+    if (body.numbering && typeof body.numbering === 'object') {
       for (const [k, v] of Object.entries(body.numbering)) {
         if (!(k in DEFAULT_NUMBERING)) continue;
         const f = text(v, 60);
@@ -307,7 +310,7 @@ export function registerFinanceRoutes(route, ctx) {
       }
     }
     if (body.taxes) {
-      s.taxes = body.taxes.map((t) => {
+      s.taxes = list(body.taxes, 'Taxes').map((t) => {
         const rate = Number(t.rate);
         if (!/^[A-Z]{2}\d{3}$/.test(String(t.atc || '').toUpperCase())) fail('An ATC looks like WC158.');
         if (!(rate >= 0 && rate <= 50)) fail(`Rate for ${t.atc} must be between 0 and 50 percent.`);
@@ -322,9 +325,9 @@ export function registerFinanceRoutes(route, ctx) {
         s[k] = n;
       }
     }
-    if (body.liquidationDays) for (const k of Object.keys(s.liquidationDays)) if (body.liquidationDays[k] !== undefined) s.liquidationDays[k] = Math.max(1, Math.min(365, Number(body.liquidationDays[k]) || 1));
+    if (body.liquidationDays && typeof body.liquidationDays === 'object') for (const k of Object.keys(s.liquidationDays)) if (body.liquidationDays[k] !== undefined) s.liquidationDays[k] = Math.max(1, Math.min(365, Number(body.liquidationDays[k]) || 1));
     if (body.revenueItems) {
-      s.revenueItems = body.revenueItems.map((r) => {
+      s.revenueItems = list(body.revenueItems, 'Fees').map((r) => {
         const a = fx.account(String(r.code));
         if (a.group !== 4 && !tracksCard(r.code)) fail(`${r.name}: a fee is credited to a revenue, trust or receivable account.`);
         if (!text(r.name, 120)) fail('Each fee needs a name.');
@@ -353,7 +356,8 @@ export function registerFinanceRoutes(route, ctx) {
   route('POST', '/api/finance/closing', 'finance:finance.accounts', ({ user, body }) => {
     const year = Number(body.year);
     const fund = fx.fund(String(body.fund || ''));
-    if (!(year >= 2000 && year < Number(today().slice(0, 4)) + 1)) fail('Pick the year to close.');
+    if (!(year >= 2000)) fail('Pick the year to close.');
+    if (year >= Number(today().slice(0, 4))) fail(`${year} is not over yet: close it in January ${year + 1} or later.`);
     const done = data().finJournals.find((j) => j.status === 'posted' && j.source?.kind === 'closing' && j.source.year === year && j.fund === fund && !j.reversedBy);
     if (done) fail(`${year} is already closed for fund ${fund} (JEV ${done.jevNo}).`);
     const b = fx.balances({ fund, from: `${year}-01-01`, to: `${year}-12-31` });
@@ -380,7 +384,10 @@ export function registerFinanceRoutes(route, ctx) {
     permissions: FINANCE_PERMISSION_LABELS,
   }));
   const FIN_ONLY = () => FINANCE_ROLES.filter((r) => r !== 'admin' && ROLES[r].side === 'hris');
+  // Only administrators create or change Finance accounts, so no finance officer can give themselves another role's powers (separation of duties).
+  const adminOnly = (u) => (u.role === 'admin' ? u : fail('Only an administrator creates or changes Finance accounts.', 403));
   route('POST', '/api/finance/users', 'finance:finance.settings', ({ user, body, campusId }) => {
+    adminOnly(user);
     if (!FIN_ONLY().includes(body.role)) fail('Pick a Finance account type.');
     const fields = validateUserFields({ ...body, role: body.role }, data());
     validatePassword(body.password);
@@ -391,6 +398,7 @@ export function registerFinanceRoutes(route, ctx) {
     return financeAccount(u);
   });
   route('PUT', '/api/finance/users/:id', 'finance:finance.settings', ({ user, params, body }) => {
+    adminOnly(user);
     const u = byId(data().users, params.id);
     if (!u || !FIN_ONLY().includes(u.role)) fail('Only Finance accounts are changed here. Administrators and other accounts are managed in the admin panel.', 404);
     if (body.role && body.role !== u.role) {
@@ -648,8 +656,8 @@ export function registerFinanceRoutes(route, ctx) {
     const asOf = query.asOf || today();
     const fund = query.fund || undefined;
     const b = fx.balances({ fund, to: asOf });
-    const year = asOf.slice(0, 4);
-    const perf = fx.balances({ fund, from: `${year}-01-01`, to: asOf, exclude: (j) => j.source?.kind === 'closing' });
+    // Revenue less expenses not yet closed to Accumulated Surplus (this year's, and any earlier year not closed yet).
+    const perf = b;
     const net = round2(sum(Object.entries(perf).filter(([c]) => c[0] === '4'), ([, x]) => x.credit - x.debit) - sum(Object.entries(perf).filter(([c]) => c[0] === '5'), ([, x]) => x.debit - x.credit));
     const lines = (pred) => {
       const groups = {};

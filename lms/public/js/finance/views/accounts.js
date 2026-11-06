@@ -196,7 +196,7 @@ export async function statementsView(el, _p, query) {
           <tr class="st-grand"><td>TOTAL ASSETS</td><td class="num">${num(pos.totals.assets)}</td></tr>
           <tr class="st-section"><td colspan="2">LIABILITIES</td></tr>${groups(pos.liabilities)}<tr class="st-total"><td>Total liabilities</td><td class="num">${num(pos.totals.liabilities)}</td></tr>
           <tr class="st-section"><td colspan="2">NET ASSETS/EQUITY</td></tr>${groups(pos.equity)}
-          <tr><td class="indent">Surplus/(deficit) for the period</td><td class="num">${num(pos.surplusThisYear)}</td></tr>
+          <tr><td class="indent">Surplus/(deficit) not yet closed</td><td class="num">${num(pos.surplusThisYear)}</td></tr>
           <tr class="st-total"><td>Total net assets/equity</td><td class="num">${num(pos.totals.equity)}</td></tr>
           <tr class="st-grand"><td>TOTAL LIABILITIES AND NET ASSETS/EQUITY</td><td class="num">${num(pos.totals.liabilities + pos.totals.equity)}</td></tr>
         </tbody></table>

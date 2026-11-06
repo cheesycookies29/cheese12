@@ -35,11 +35,15 @@ export function addFinanceDemo(data, ctx) {
   const before = Object.fromEntries(FIN_ARRAYS.map((k) => [k, new Set(data[k].map((x) => x.id))]));
   data.finDemoBackup = { settings: structuredClone(data.finSettings), counters: structuredClone(data.finCounters) };
   const today = ctx.today();
-  const Y = Number(today.slice(0, 4));
-  const yesterday = addDays(today, -1);
-  const start = [addDays(today, -150), `${Y}-01-02`].sort().at(-1);
-  const span = Math.max(1, days(start, yesterday));
-  const at = (f) => addDays(start, Math.round(span * f)); // a date in the demo's window (0 = start, 1 = yesterday)
+  let Y = Number(today.slice(0, 4));
+  let end = addDays(today, -1); // the demo's last day
+  if (days(`${Y}-01-02`, end) < 120) { // early in the year: the demo keeps last year's books instead
+    Y -= 1;
+    end = `${Y}-12-28`;
+  }
+  const start = [addDays(end, -150), `${Y}-01-02`].sort().at(-1);
+  const span = Math.max(1, days(start, end));
+  const at = (f) => addDays(start, Math.round(span * f)); // a date in the demo's window (0 = start, 1 = end)
   const month = (d) => d.slice(0, 7);
   const prevMonth = (ym) => {
     const [y, m] = ym.split('-').map(Number);
@@ -211,13 +215,13 @@ export function addFinanceDemo(data, ctx) {
     });
     if (w % 2 === 0) receipt(d, 'Aling Nena\'s Canteen', [{ itemId: fee('Canteen rental'), amount: 20000, description: 'Canteen rental for the month' }]);
     if (w === 3) receipt(d, 'Pili Farmers Association', [{ itemId: fee('Sale of farm produce'), amount: 38500, description: 'Palay, 55 cavans' }]);
-    rcdAndDeposit(d, addDays(d, 1) > yesterday ? null : addDays(d, 1));
+    rcdAndDeposit(d, addDays(d, 1) > end ? null : addDays(d, 1));
   }
   receipt(at(0.62), 'Commission on Higher Education – UniFAST', [{ itemId: fee('Free Higher'), amount: 1625000, description: 'FHE billing, tuition and other school fees, 1st semester' }], { payorCardId: sp.ched.id, mode: 'online' });
   rcdAndDeposit(at(0.62), at(0.63));
-  if (carlo) receipt(yesterday, carlo.name, [{ itemId: fee('Certification fee'), amount: 50 }, { itemId: fee('Transcript of records'), amount: 150 }], { studentId: carlo.id });
-  rcdAndDeposit(yesterday, null); // reported, not yet deposited
-  if (students[0]) receipt(today, students[0].name, [{ itemId: fee('Certification fee'), amount: 50 }], { studentId: students[0].id }); // not yet reported
+  if (carlo) receipt(end, carlo.name, [{ itemId: fee('Certification fee'), amount: 50 }, { itemId: fee('Transcript of records'), amount: 150 }], { studentId: carlo.id });
+  rcdAndDeposit(end, null); // reported, not yet deposited
+  if (students[0]) receipt(end, students[0].name, [{ itemId: fee('Certification fee'), amount: 50 }], { studentId: students[0].id }); // not yet reported
   C.put('/api/finance/revenue/targets', { fy: Y, fund: '05', targets: { 40202010: 6000000, 40201040: 120000, 40202030: 90000, 40202130: 300000, 40202050: 240000, 40202160: 400000 } });
 
   // ----- Stock catalog -----
@@ -300,17 +304,17 @@ export function addFinanceDemo(data, ctx) {
   ris('rosa', 'REG', 'Registrar\'s forms and certifications', [[it.paper, 30], [it.legal, 25], [it.folder, 12]], addDays(after, 5));
   ris('nestor', 'ADM', 'Administrative office supplies', [[it.paper, 25], [it.pen, 5], [it.folder, 10]], [addDays(after, 20), at(0.65)].sort()[0]);
   ris('maria', 'CCS', 'Midterm examinations', [[it.paper, 60], [it.ink, 10]], at(0.72));
-  ris('ramon', 'CA', 'Demonstration farm planting', [[it.fert, 20], [it.seeds, 10]], addDays(iar3.date, 1) > yesterday ? yesterday : addDays(iar3.date, 1));
-  ris('rosa', 'REG', 'Enrollment period forms', [[it.paper, 20], [it.legal, 10]], yesterday, false); // waiting for the supply office
+  ris('ramon', 'CA', 'Demonstration farm planting', [[it.fert, 20], [it.seeds, 10]], addDays(iar3.date, 1) > end ? end : addDays(iar3.date, 1));
+  ris('rosa', 'REG', 'Enrollment period forms', [[it.paper, 20], [it.legal, 10]], end, false); // waiting for the supply office
   const issueMonths = [...new Set(data.finStock.filter((m) => m.kind === 'issue').map((m) => month(m.date)))].filter((m) => m < month(today)).sort();
   for (const m of issueMonths) S.post('/api/finance/rsmi', { month: m, fund: '01' });
 
   // ----- Monthly services: electricity (fund 01), janitorial (fund 05) -----
   const monthsBack = [];
-  for (let m = prevMonth(month(today)); monthsBack.length < 4 && `${m}-28` >= start; m = prevMonth(m)) monthsBack.unshift(m);
+  for (let m = [prevMonth(month(today)), month(end)].sort()[0]; monthsBack.length < 4 && `${m}-28` >= start; m = prevMonth(m)) monthsBack.unshift(m);
   monthsBack.forEach((m, k) => {
     const billDate = [`${m}-20`, start].sort().at(-1);
-    const payDate = addDays(billDate, 6) > yesterday ? yesterday : addDays(billDate, 6);
+    const payDate = addDays(billDate, 6) > end ? end : addDays(billDate, 6);
     const kwh = 92000 + k * 4350;
     const ors = B.post('/api/finance/obligations', { fund: '01', payeeId: sp.power.id, office: 'ADM', date: billDate, particulars: `Electricity consumption for ${new Date(`${m}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })}`, lines: [{ allotmentId: al.ga.id, code: '50204020', amount: kwh }], requestedBy: { name: 'Mr. Ronaldo Pascual', title: 'Chief Administrative Officer' } });
     B.post(`/api/finance/obligations/${ors.id}/obligate`, { date: billDate });
@@ -336,27 +340,27 @@ export function addFinanceDemo(data, ctx) {
   const r01 = C.post('/api/finance/rcds', { fund: '01', date: at(0.38) });
   C.post(`/api/finance/rcds/${r01.id}/deposit`, { bankId: s.bankAccounts.find((b) => b.fund === '01').id, date: at(0.39), slipNo: 'BTr-OR-0117' });
   if (people.juan) {
-    const tOrs = B.post('/api/finance/obligations', { fund: '01', payeeId: people.juan.id, office: 'CCS', date: [addDays(today, -45), start].sort().at(-1), particulars: 'Travel to Manila: national ICT educators\' conference', lines: [{ allotmentId: al.he.id, code: '50201010', amount: 18500 }] });
+    const tOrs = B.post('/api/finance/obligations', { fund: '01', payeeId: people.juan.id, office: 'CCS', date: [[addDays(today, -45), start].sort().at(-1), addDays(end, -20)].sort()[0], particulars: 'Travel to Manila: national ICT educators\' conference', lines: [{ allotmentId: al.he.id, code: '50201010', amount: 18500 }] });
     B.post(`/api/finance/obligations/${tOrs.id}/obligate`, { date: tOrs.date });
     const t = C.post('/api/finance/dvs', { fund: '01', payeeId: people.juan.id, orsId: tOrs.id, kind: 'advance', advanceType: 'travel', gross: 18500, mode: 'check', office: 'CCS', date: tOrs.date, particulars: 'Cash advance for travel: national ICT educators\' conference', submit: true, boxA: { name: 'Dr. Elena Cruz', title: 'Dean, College of Computing Studies' } });
     payCheck(t, tOrs.date);
   }
 
   // ----- Waiting in the queues -----
-  const pending = B.post('/api/finance/obligations', { fund: '01', payeeId: sp.depot.id, office: 'LIB', date: yesterday, particulars: 'Subscription to online journals and databases, academic year', lines: [{ allotmentId: al.he.id, code: '50299070', amount: 185000 }], submit: true, requestedBy: { name: 'Ms. Grace Aquino', title: 'Chief Librarian' } });
+  const pending = B.post('/api/finance/obligations', { fund: '01', payeeId: sp.depot.id, office: 'LIB', date: end, particulars: 'Subscription to online journals and databases, academic year', lines: [{ allotmentId: al.he.id, code: '50299070', amount: 185000 }], submit: true, requestedBy: { name: 'Ms. Grace Aquino', title: 'Chief Librarian' } });
   void pending;
-  const waterOrs = B.post('/api/finance/obligations', { fund: '05', payeeId: sp.janitor.id, office: 'ADM', date: yesterday, particulars: 'Additional janitorial personnel for the enrollment period', lines: [{ allotmentId: al.stf.id, code: '50212020', amount: 34000 }] });
-  B.post(`/api/finance/obligations/${waterOrs.id}/obligate`, { date: yesterday });
-  C.post('/api/finance/dvs', { fund: '05', payeeId: sp.janitor.id, orsId: waterOrs.id, gross: 34000, nature: 'services', mode: 'bank', bankId: bank05, office: 'ADM', date: yesterday, particulars: 'Additional janitorial personnel for the enrollment period', submit: true, boxA: { name: 'Mr. Ronaldo Pascual', title: 'Chief Administrative Officer' } });
-  A.post('/api/finance/journals', { date: yesterday, fund: '01', journal: 'GJ', particulars: 'To accrue water consumption for the month (billing not yet received)', lines: [{ code: '50204010', debit: 18250, office: 'ADM' }, { code: '20101010', credit: 18250 }] });
+  const waterOrs = B.post('/api/finance/obligations', { fund: '05', payeeId: sp.janitor.id, office: 'ADM', date: end, particulars: 'Additional janitorial personnel for the enrollment period', lines: [{ allotmentId: al.stf.id, code: '50212020', amount: 34000 }] });
+  B.post(`/api/finance/obligations/${waterOrs.id}/obligate`, { date: end });
+  C.post('/api/finance/dvs', { fund: '05', payeeId: sp.janitor.id, orsId: waterOrs.id, gross: 34000, nature: 'services', mode: 'bank', bankId: bank05, office: 'ADM', date: end, particulars: 'Additional janitorial personnel for the enrollment period', submit: true, boxA: { name: 'Mr. Ronaldo Pascual', title: 'Chief Administrative Officer' } });
+  A.post('/api/finance/journals', { date: end, fund: '01', journal: 'GJ', particulars: 'To accrue water consumption for the month (billing not yet received)', lines: [{ code: '50204010', debit: 18250, office: 'ADM' }, { code: '20101010', credit: 18250 }] });
 
   // ----- Property: depreciation through last month, a transfer, a disposal -----
-  const lastMonth = prevMonth(month(today));
+  const lastMonth = [prevMonth(month(today)), month(end)].sort()[0];
   if (lastMonth >= `${Y}-01`) S.post('/api/finance/depreciation', { month: lastMonth });
   const desk = registered.find((r) => r.description?.startsWith('Desktop computer') && r.description.includes('unit 6'));
   if (desk && people.maria) S.post(`/api/finance/property/${desk.rec.id}/transfer`, { custodianId: people.maria.id, reason: 'Reassigned to the faculty room', date: at(0.75) });
   const copier = registered.find((r) => r.description?.includes('(old)'));
-  if (copier) S.post(`/api/finance/property/${copier.rec.id}/dispose`, { mode: 'Destruction (beyond repair)', appraised: 0, reason: 'Unserviceable; parts no longer available', date: `${month(today)}-01` < start ? start : `${month(today)}-01` });
+  if (copier) S.post(`/api/finance/property/${copier.rec.id}/dispose`, { mode: 'Destruction (beyond repair)', appraised: 0, reason: 'Unserviceable; parts no longer available', date: [`${month(today)}-01`, start].sort().at(-1) > end ? end : [`${month(today)}-01`, start].sort().at(-1) });
 
   // ----- Taxes withheld: remitted for every month before last -----
   const taxMonths = [...new Set(data.finDvs.filter((d) => d.status === 'paid' && d.taxTotal).map((d) => `${d.fund}|${month(d.paidDate)}`))];
@@ -365,7 +369,7 @@ export function addFinanceDemo(data, ctx) {
     if (m >= lastMonth) continue;
     const [y, mm] = m.split('-').map(Number);
     const due = `${mm === 12 ? y + 1 : y}-${String(mm === 12 ? 1 : mm + 1).padStart(2, '0')}-10`;
-    C.post('/api/finance/remittances', { month: m, fund, date: due > yesterday ? yesterday : due, ref: fund === '01' ? `TRA-${m.replace('-', '')}-01` : `eFPS-${m.replace('-', '')}-${fund}` });
+    C.post('/api/finance/remittances', { month: m, fund, date: due > end ? end : due, ref: fund === '01' ? `TRA-${m.replace('-', '')}-01` : `eFPS-${m.replace('-', '')}-${fund}` });
   }
 
   // Mark everything made here as demo data.

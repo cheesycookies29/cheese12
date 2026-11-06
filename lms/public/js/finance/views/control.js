@@ -2,7 +2,7 @@
 // accounts, fees, signatories, document numbering, withholding tax rates, thresholds, period
 // locks and year-end closing, Finance user accounts — and the audit trail.
 import { api } from '../../api.js';
-import { pageHead } from '../../shell.js';
+import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, badge, timeAgo } from '../../ui.js';
 import { DOC_LABELS } from '/shared/finance.js';
@@ -81,10 +81,11 @@ export async function controlView(el, _p, query) {
   } else if (tab === 'users') {
     const d = await api.get('/api/finance/users');
     usersData = d;
-    body = html`<section class="card"><div class="card-head"><h2>Finance accounts</h2>${edit ? html`<button class="btn primary" id="add-user">${icon('userPlus', 16)} New account</button>` : ''}</div>
-      <table class="table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Last sign-in</th><th>Status</th>${edit ? html`<th></th>` : ''}</tr></thead>
-      <tbody>${d.users.map((u) => html`<tr><td><strong>${u.name}</strong></td><td>${u.username}</td><td>${u.roleLabel}</td><td>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'Never'}</td><td>${u.status === 'active' ? badge('Active', 'green') : badge('Disabled', 'gray')}</td>${edit && u.role !== 'admin' ? html`<td class="row-actions"><button class="btn sm" data-user="${u.id}">Change</button></td>` : edit ? html`<td></td>` : ''}</tr>`)}</tbody></table>
-      <p class="muted small">Finance accounts sign in on the ATLAS home page. Employees with a teacher, registrar or staff account use Finance's self-service with their own account.</p></section>
+    const manage = ctx.user.role === 'admin';
+    body = html`<section class="card"><div class="card-head"><h2>Finance accounts</h2>${manage ? html`<button class="btn primary" id="add-user">${icon('userPlus', 16)} New account</button>` : ''}</div>
+      <table class="table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Last sign-in</th><th>Status</th>${manage ? html`<th></th>` : ''}</tr></thead>
+      <tbody>${d.users.map((u) => html`<tr><td><strong>${u.name}</strong></td><td>${u.username}</td><td>${u.roleLabel}</td><td>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'Never'}</td><td>${u.status === 'active' ? badge('Active', 'green') : badge('Disabled', 'gray')}</td>${manage && u.role !== 'admin' ? html`<td class="row-actions"><button class="btn sm" data-user="${u.id}">Change</button></td>` : manage ? html`<td></td>` : ''}</tr>`)}</tbody></table>
+      <p class="muted small">${manage ? '' : 'Only an administrator creates or changes Finance accounts, so no officer can give themselves another office\'s powers. '}Finance accounts sign in on the ATLAS home page. Employees with a teacher, registrar or staff account use Finance's self-service with their own account.</p></section>
       <section class="card"><h2>Roles and what they may do</h2><table class="table compact"><thead><tr><th>Role</th>${d.permissions.map(([, l]) => html`<th class="center" title="${l}"><small>${l.split(':')[0]}</small></th>`)}</tr></thead>
       <tbody>${d.roles.map((r) => html`<tr><td><strong>${r.label}</strong></td>${d.permissions.map(([p]) => html`<td class="center">${r.permissions.includes(p) ? icon('check', 16) : ''}</td>`)}</tr>`)}</tbody></table>
       <p class="muted small">Administrators can do everything. Separation of duties: the voucher's approving officer must be someone other than its preparer and certifier; a purchase request is not approved by its requester.</p></section>`;

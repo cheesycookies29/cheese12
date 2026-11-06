@@ -190,7 +190,7 @@ Who uses it: administrators and registrars (everything), deans (curricula, appro
 - **Revenue**: official receipt booklets for each collector, official receipts (students see theirs), the Report of Collections and Deposits and the deposit, the RAAF, revenue against targets.
 - **Control panel**: entity and fiscal year, fund clusters, offices, PAPs, bank accounts, fees, signatories, document numbering, tax rates, thresholds, periods, Finance accounts and roles, the audit trail.
 
-Every form prints on A4 after its GAM appendix. Finance accounts (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer) are created in the Control panel or in People and sign in on the ATLAS home page; every other employee gets Finance self-service with their own account once the accounting office links it to a card.
+Every form prints on A4 after its GAM appendix. Finance accounts (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer) are created by an administrator in the Control panel (or in People) and sign in on the ATLAS home page; every other employee gets Finance self-service with their own account once the accounting office links it to a card.
 
 ## Single sign-on (Keycloak)
 

@@ -195,6 +195,7 @@ export function registerBudgetRoutes(route, fx) {
     if (!preparer(user)) fail('Your account cannot prepare obligation requests.', 403);
     const o = fx.byId(D().finObligations, params.id) || fail('Obligation request not found.', 404);
     if (o.status !== 'draft') fail('Only a draft can be changed.');
+    if (o.source?.kind === 'po') fail('This request was made from a purchase order and matches it; change the PO instead (cancel and redo it).');
     Object.assign(o, obligationFields(body, o));
     o.amount = sum(o.lines, (l) => l.amount);
     if (body.submit !== undefined) o.submitted = Boolean(body.submit);
@@ -251,6 +252,8 @@ export function registerBudgetRoutes(route, fx) {
     if (o.status === 'obligated' && !can(user.role, 'finance.budget')) fail('Only the budget office cancels an obligation.', 403);
     if (o.status === 'draft' && !preparer(user)) fail('Your account cannot change obligation requests.', 403);
     if (D().finDvs.some((d) => d.orsId === o.id && d.status !== 'cancelled')) fail('A voucher is charged to this obligation. Cancel the voucher first, or adjust the obligation.');
+    const po = D().finPos.find((x) => x.orsId === o.id && !['draft', 'cancelled'].includes(x.status));
+    if (po) fail(`Purchase order ${po.no} is ${po.status === 'approved' ? 'approved' : 'being delivered'} on this obligation; cancel the PO first.`);
     o.status = 'cancelled';
     o.cancelReason = text(body.reason, 300);
     fx.audit(user, `Cancelled ${o.form} ${o.no || '(draft)'}`, { kind: 'obligation', ref: o.id });

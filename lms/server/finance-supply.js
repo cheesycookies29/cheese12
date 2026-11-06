@@ -51,6 +51,7 @@ export function registerSupplyRoutes(route, fx) {
   // ----- Items (the stock catalog) -----
   const itemView = (i) => ({ ...i, onHand: onHand(i.id), value: stockValue(i.id), accountTitle: fx.accountTitle(i.code), low: i.reorderPoint > 0 && onHand(i.id) <= i.reorderPoint });
   route('GET', '/api/finance/items', 'finance', ({ user, query }) => {
+    if (!mayRequest(user)) fail('Stock is for the school\'s offices.', 403);
     const staff = fx.isStaff(user);
     const q = String(query.q || '').toLowerCase();
     return D().finItems.filter((i) => (query.all || i.active !== false) && (!q || `${i.stockNo} ${i.description}`.toLowerCase().includes(q)))
@@ -170,7 +171,7 @@ export function registerSupplyRoutes(route, fx) {
     return base.map((l, idx) => {
       const src = list[idx];
       const category = CATEGORIES.includes(src.category) ? src.category : fail(`${l.description}: is it a supply, semi-expendable property, PPE or a service?`);
-      let code = String(src.code || (src.itemId ? fx.byId(D().finItems, src.itemId).code : ''));
+      let code = String(category === 'supply' && src.itemId ? fx.byId(D().finItems, src.itemId).code : src.code || '');
       if (category === 'supply' && !SUPPLY_CLASSES.some((c) => c.code === code)) fail(`${l.description}: pick its inventory account.`);
       if (category === 'semi' && !SEMI_CLASSES.some((c) => c.code === code)) fail(`${l.description}: pick its semi-expendable property account.`);
       if (category === 'ppe' && !ppeClass(code)) fail(`${l.description}: pick its property, plant and equipment account.`);
@@ -232,6 +233,7 @@ export function registerSupplyRoutes(route, fx) {
     if (o.status !== 'draft') fail('This PO is not a draft.');
     const ors = fx.byId(D().finObligations, o.orsId);
     if (ors?.status !== 'obligated') fail('The PO\'s obligation request must be obligated by the budget office first (funds available).');
+    if (sum(ors.lines, fx.lineObligated) + 0.001 < o.total) fail(`The obligation (₱${sum(ors.lines, fx.lineObligated).toLocaleString()}) is less than the PO (₱${o.total.toLocaleString()}).`);
     Object.assign(o, { status: 'approved', approvedBy: { name: user.name, title: fx.signatory('head').title }, approvedAt: iso() });
     fx.audit(user, `Approved PO ${o.no}`, { kind: 'po', ref: o.id });
     save();
@@ -345,6 +347,8 @@ export function registerSupplyRoutes(route, fx) {
       if (!supply) fail('Only the supply office issues supplies.', 403);
       if (!['requested', 'approved'].includes(r.status)) fail('This requisition is not open.');
       const date = fx.date(body.date || fx.today());
+      fx.assertOpen(date);
+      if (date > fx.today()) fail('Supplies cannot be issued with a future date.');
       const qtys = body.qty || {};
       let any = false;
       for (const l of r.items) {
@@ -565,6 +569,11 @@ export function registerSupplyRoutes(route, fx) {
           lines: [{ code: pc.accum, debit: p.depBooked }, { code: mode.toLowerCase().includes('sale') ? ACCT.lossOnSale : ACCT.lossOfAssets, debit: book }, { code: p.code, credit: p.cost }],
           source: { kind: 'iirup', id: p.id },
         });
+      }
+      if (p.type === 'semi' && !p.expensed) {
+        // Never issued, so still in inventory: its cost is taken out as a loss.
+        fx.postJournal({ date, fund: p.fund, journal: 'GJ', user, particulars: `Derecognition of ${p.propertyNo} ${p.description} (${mode}), IIRUP ${docNo}`, lines: [{ code: ACCT.lossOfAssets, debit: p.cost }, { code: p.code, credit: p.cost }], source: { kind: 'iirup', id: p.id } });
+        p.expensed = true;
       }
       p.history.push({ date, action: `Disposed of: ${mode}`, docNo, to: '', by: user.name, note: text(body.reason, 300) });
       Object.assign(p, { status: 'disposed', custodianId: null, disposal: { date, mode, docNo, appraised: round2(body.appraised || 0) } });

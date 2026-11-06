@@ -24,6 +24,9 @@ The bid asked for eight modules: **Card File, Accounts, Budget, Inventory, Prope
   - Disbursement voucher: Box A, Box B (the accounting entry), Box C (accountant), Box D (head of agency), Box E (receipt).
   - Each step is a permission, and the server enforces separation of duties.
 - **Printouts** follow the GAM Volume II appendices and show the appendix number.
+- **All or nothing.** If any check in a Finance change fails partway (stock short on one item of a requisition, a closed month, a switched-off account), nothing is saved.
+- **No future dates.** Entries, payments and issues cannot be dated after today.
+- **Only an administrator creates or changes Finance accounts.** No officer can give themselves another office's powers.
 
 ### Roles
 
@@ -75,7 +78,7 @@ Finance accounts sign in on the ATLAS home page. They are on the HR side, so the
 
 **Closing**
 - Months are locked through a chosen month.
-- Year-end closing posts one entry per fund: revenue and expense to Accumulated Surplus/(Deficit) (30101010), dated December 31, and refused if already done.
+- Year-end closing posts one entry per fund: revenue and expense to Accumulated Surplus/(Deficit) (30101010), dated December 31. It is only allowed once the year is over, and is refused if already done. Until a year is closed, the Statement of Financial Position shows its surplus as "not yet closed".
 
 ### Budget
 
@@ -169,7 +172,8 @@ Finance accounts sign in on the ATLAS home page. They are on the HR side, so the
 ### Disbursement
 
 **Disbursement voucher (Appendix 32)**
-- Prepared against an obligation, or without one only for non-budgetary payments. Expense and capital outlay accounts are refused without an obligation.
+- Prepared against an obligation, or without one only for non-budgetary payments: settling a liability (payables, amounts due to BIR, GSIS and others, trust liabilities). Expense, capital outlay, inventory and advance accounts are refused without an obligation.
+- The payee must be the obligation's payee. A purchase order's obligation is paid delivery by delivery: against an accepted IAR, up to the value it accepted.
 - Charges never exceed the obligation's balance, counting other vouchers not yet paid.
 - Payments for accepted deliveries debit Accounts Payable.
 - Taxes are computed from the payee's card (see Taxes below).
@@ -231,7 +235,7 @@ Finance accounts sign in on the ATLAS home page. They are on the HR side, so the
 - **Numbering**: each document's format, with the tokens `{F}` fund, `{YYYY}`, `{MM}` and `{N4}` serial.
 - **Rules**: withholding tax table (ATC, rate, nature, payee type), capitalization and high-value thresholds, residual rate, procurement ceilings, deposit deadline, liquidation deadlines.
 - **Periods**: closing the books through a month, reopening, year-end closing.
-- **Users**: Finance accounts (create, change role, disable, reset password) and the matrix of roles and permissions.
+- **Users**: Finance accounts (create, change role, disable, reset password; administrators only) and the matrix of roles and permissions.
 - **Audit trail**: every action, with who did it and when.
 
 ## 3. Taxes on government money payments (research summary)
@@ -276,6 +280,8 @@ Notes:
   - inter-fund transfers;
   - fund 01 collections remitted to the Bureau of the Treasury: there is a Constructive Income Remittance account, but no screen for it.
 - **Campus books.** Finance keeps one set of books per fund for the whole institution, not one per campus.
+- **Stock by fund.** Stock is one pool. The RSMI and the physical count post to the fund the user picks, so a school buying supplies from more than one fund should keep separate stock items per fund.
+- **Back-dated issues.** FIFO costing takes the oldest lots on hand now, not as of a back-dated issue's date.
 
 ## 5. To confirm before going live
 

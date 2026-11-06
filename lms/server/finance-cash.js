@@ -58,7 +58,11 @@ export function registerCashRoutes(route, fx) {
       return { id: d.id, no: d.no, payeeId: d.payeeId, payee: fx.cardName(d.payeeId), advanceType: d.advanceType, typeLabel: ADVANCE_TYPES.find(([k]) => k === d.advanceType)?.[1], particulars: d.particulars, paidDate: d.paidDate, amount: d.gross, liquidated, refunded, outstanding, due, overdue: outstanding > 0 && t > due, daysOut: Math.floor((Date.parse(`${t}T00:00:00`) - Date.parse(`${d.paidDate}T00:00:00`)) / 86400000) };
     });
   }
-  const unsettled = (cardId) => advances().filter((a) => a.payeeId === cardId && a.outstanding > 0);
+  // Open advances for a payee: paid and not yet settled, or on their way (prepared, certified, approved).
+  const unsettled = (cardId) => [
+    ...advances().filter((a) => a.payeeId === cardId && a.outstanding > 0),
+    ...D().finDvs.filter((d) => d.kind === 'advance' && d.payeeId === cardId && ['draft', 'certified', 'approved'].includes(d.status)).map((d) => ({ id: d.id, no: d.no || '(not yet paid)', outstanding: d.gross })),
+  ];
 
   function dvFields(body, existing, user) {
     const fund = fx.fund(String(body.fund ?? existing?.fund ?? ''));
@@ -70,20 +74,37 @@ export function registerCashRoutes(route, fx) {
     const nature = kind === 'advance' ? 'none' : NATURES.some(([k]) => k === body.nature) ? body.nature : existing?.nature || payee.nature || 'none';
     const orsId = body.orsId !== undefined ? body.orsId || null : existing?.orsId || null;
     const iarId = body.iarId !== undefined ? body.iarId || null : existing?.iarId || null;
+    const advanceType = kind === 'advance' ? (ADVANCE_TYPES.some(([k]) => k === body.advanceType) ? body.advanceType : existing?.advanceType || 'opex') : null;
     let charges = [];
     let debits;
     if (orsId) {
       const ors = fx.byId(D().finObligations, orsId) || fail('Obligation request not found.');
       if (ors.status !== 'obligated') fail(`${ors.form} ${ors.no || '(draft)'} is not obligated yet.`);
       if (ors.fund !== fund) fail(`The ${ors.form} is for fund ${ors.fund}.`);
+      if (ors.payeeId !== payee.id) fail(`The ${ors.form} is for ${fx.cardName(ors.payeeId)}; the voucher pays the obligation's payee.`);
+      // A purchase order's obligation is paid for what was delivered and accepted, delivery by delivery.
+      const poId = ors.source?.kind === 'po' ? ors.source.id : null;
+      if (poId && kind === 'payment') {
+        if (!iarId) fail('Pay a purchase order against an accepted delivery (IAR).');
+        const iar = fx.byId(D().finIars, iarId);
+        if (!iar || iar.poId !== poId) fail('That delivery (IAR) is not on this obligation\'s purchase order.');
+        const before = sum(D().finDvs.filter((x) => x.iarId === iar.id && x.id !== existing?.id && x.status !== 'cancelled'), (x) => x.gross);
+        if (gross > round2(iar.total - before) + 0.001) fail(`IAR ${iar.no} accepted ₱${iar.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}; ₱${round2(iar.total - before).toLocaleString(undefined, { minimumFractionDigits: 2 })} of it is left to pay.`);
+      } else if (iarId) fail('A delivery (IAR) is only given for a purchase order\'s obligation.');
       const view = fx.obligationView(ors);
       const pending = fx.pendingByLine(ors, existing?.id);
       const paid = fx.disbursedByLine(ors);
       const avail = ors.lines.map((l, i) => round2(fx.lineObligated(l) - paid[i] - pending[i]));
-      if (Array.isArray(body.charges) && body.charges.length) {
-        charges = body.charges.map((c) => ({ line: Number(c.line), amount: round2(c.amount) })).filter((c) => c.amount > 0);
+      const given = Array.isArray(body.charges) && body.charges.length ? body.charges : body.charges === undefined && existing?.orsId === orsId && existing?.charges?.length ? existing.charges : null;
+      if (given) {
+        const perLine = {};
+        for (const c of given) {
+          const line = Number(c.line);
+          if (avail[line] === undefined) fail('Unknown obligation line.');
+          perLine[line] = round2((perLine[line] || 0) + round2(c.amount));
+        }
+        charges = Object.entries(perLine).map(([line, amount]) => ({ line: Number(line), amount })).filter((c) => c.amount > 0);
         for (const c of charges) {
-          if (avail[c.line] === undefined) fail('Unknown obligation line.');
           if (c.amount > avail[c.line] + 0.001) fail(`${view.lines[c.line].title}: only ₱${avail[c.line].toLocaleString(undefined, { minimumFractionDigits: 2 })} of the obligation is left.`);
         }
       } else {
@@ -97,8 +118,8 @@ export function registerCashRoutes(route, fx) {
         if (left > 0) fail(`The ${ors.form} has only ₱${sum(avail).toLocaleString(undefined, { minimumFractionDigits: 2 })} left to disburse.`);
       }
       if (sum(charges, (c) => c.amount) !== gross) fail('The charges to the obligation must add up to the gross amount.');
-      if (kind === 'advance') debits = [{ code: advanceAccount(body.advanceType ?? existing?.advanceType), amount: gross, cardId: payee.id }];
-      else if (iarId || (ors.source?.kind === 'po' && D().finIars.some((i) => i.poId === ors.source.id))) {
+      if (kind === 'advance') debits = [{ code: advanceAccount(advanceType), amount: gross, cardId: payee.id }];
+      else if (poId) {
         // Deliveries were booked as Accounts Payable when accepted.
         debits = [{ code: ACCT.payable, amount: gross, cardId: payee.id }];
       } else {
@@ -110,7 +131,10 @@ export function registerCashRoutes(route, fx) {
       // No obligation: only non-budgetary payments (remitting withholdings and trust liabilities, refunds of deposits, paying prior-year payables).
       debits = (Array.isArray(body.debits) ? body.debits : existing?.debits || []).map((x) => ({ code: fx.account(String(x.code)).code, amount: fx.money(x.amount, 'Debit'), cardId: x.cardId || null }));
       if (!debits.length) fail('Pick the obligation request (ORS/BURS) to charge, or the account to debit for a payment that needs none.');
-      for (const x of debits) if (classOf(x.code) || x.code[0] === '5') fail(`${fx.accountTitle(x.code)} is an expense or capital outlay: it needs an obligation request first.`);
+      for (const x of debits) {
+        if (classOf(x.code) || x.code[0] === '5') fail(`${fx.accountTitle(x.code)} is an expense or capital outlay: it needs an obligation request first.`);
+        if (x.code[0] !== '2') fail(`${fx.accountTitle(x.code)}: a payment without an obligation request only settles a liability (payables, amounts due to BIR, GSIS and others, trust liabilities).`);
+      }
       if (sum(debits, (x) => x.amount) !== gross) fail('The debits must add up to the gross amount.');
       if (kind === 'advance') fail('A cash advance is charged to an obligation request.');
     }
@@ -118,7 +142,6 @@ export function registerCashRoutes(route, fx) {
     const deductions = (Array.isArray(body.deductions) ? body.deductions : existing?.deductions || []).map((x) => ({ code: fx.account(String(x.code)).code, label: text(x.label, 120) || fx.accountTitle(String(x.code)), amount: fx.money(x.amount, 'Deduction') }));
     const net = round2(gross - taxes.total - sum(deductions, (x) => x.amount));
     if (net <= 0) fail('Taxes and deductions are more than the amount.');
-    const advanceType = kind === 'advance' ? (ADVANCE_TYPES.some(([k]) => k === body.advanceType) ? body.advanceType : existing?.advanceType || 'opex') : null;
     if (kind === 'advance') {
       if (!['employee', 'officer'].includes(payee.kind)) fail('Cash advances are granted to employees and accountable officers only.');
       const open = unsettled(payee.id).filter((a) => a.id !== existing?.id);
@@ -128,8 +151,14 @@ export function registerCashRoutes(route, fx) {
         if (!(bond.amount >= gross) || !bond.expires || bond.expires < fx.today()) fail(`${payee.name} needs a fidelity bond of at least ₱${gross.toLocaleString()} that has not expired (Card file → bond).`);
       }
     }
+    let officerId = null;
+    if (mode === 'cash') {
+      const o = fx.card(body.officerId ?? existing?.officerId ?? fail('Paid in cash: pick the special disbursing officer who pays it (their advance is reduced).'));
+      if (o.kind !== 'officer') fail('Cash payments are made by an accountable officer (a special disbursing officer).');
+      officerId = o.id;
+    }
     return {
-      fund, payeeId: payee.id, kind, advanceType, mode, gross, nature, orsId, iarId, charges, debits,
+      fund, payeeId: payee.id, kind, advanceType, mode, gross, nature, orsId, iarId, charges, debits, officerId,
       taxes: taxes.lines, taxTotal: taxes.total, deductions, net,
       bankId: body.bankId ?? existing?.bankId ?? null, office: String(body.office ?? existing?.office ?? ''),
       date: fx.date(body.date ?? existing?.date ?? fx.today()), particulars: text(body.particulars ?? existing?.particulars, 1000) || fail('Particulars are required.'),
@@ -173,7 +202,7 @@ export function registerCashRoutes(route, fx) {
     const cash = fx.cashAvailable(d.fund, d.mode, d.bankId, d.id);
     if (d.net > cash.available) fail(`Not enough cash: ${cash.title} has ₱${cash.available.toLocaleString(undefined, { minimumFractionDigits: 2 })} available (after vouchers already approved); this voucher needs ₱${d.net.toLocaleString(undefined, { minimumFractionDigits: 2 })}.`);
     const date = fx.date(body.date || fx.today());
-    Object.assign(d, { status: 'certified', no: fx.nextNo('dv', { fund: d.fund, date }), certifiedBy: { name: user.name, title: fx.signatory('accountant').title, at: iso() }, docsComplete: true });
+    Object.assign(d, { status: 'certified', no: fx.nextNo('dv', { fund: d.fund, date }), certifiedBy: { id: user.id, name: user.name, title: fx.signatory('accountant').title, at: iso() }, docsComplete: true });
     fx.audit(user, `Certified DV ${d.no} (Box C)`, { kind: 'dv', ref: d.id });
     save();
     return dvView(d);
@@ -182,14 +211,17 @@ export function registerCashRoutes(route, fx) {
   route('POST', '/api/finance/dvs/:id/approve', 'finance:finance.approve', ({ user, params }) => {
     const d = fx.byId(D().finDvs, params.id) || fail('Voucher not found.', 404);
     if (d.status !== 'certified') fail('Only a certified voucher can be approved.');
-    if (d.createdById === user.id || d.certifiedBy?.name === user.name) fail('The approving officer must be someone other than the person who prepared or certified the voucher.');
-    Object.assign(d, { status: 'approved', approvedBy: { name: user.name, title: fx.signatory('head').title, at: iso() } });
+    if (d.createdById === user.id || d.certifiedBy?.id === user.id) fail('The approving officer must be someone other than the person who prepared or certified the voucher.');
+    Object.assign(d, { status: 'approved', approvedBy: { id: user.id, name: user.name, title: fx.signatory('head').title, at: iso() } });
     fx.audit(user, `Approved DV ${d.no} for payment (Box D)`, { kind: 'dv', ref: d.id });
     save();
     return dvView(d);
   });
   function payDv(d, user, { date, checkNo = '', lddapId = null }) {
+    if (d.status !== 'approved') fail(`DV ${d.no} is not an approved voucher waiting for payment.`);
+    if (date > fx.today()) fail('A payment cannot be dated in the future.');
     fx.assertOpen(date);
+    if (d.kind === 'advance' && unsettled(d.payeeId).some((a) => a.id !== d.id && a.outstanding > 0 && a.no !== '(not yet paid)')) fail(`${fx.cardName(d.payeeId)} has an unsettled cash advance; liquidate it first.`);
     if (date < d.date) fail('Payment is dated before the voucher.');
     const cash = fx.cashAvailable(d.fund, d.mode, d.bankId, d.id);
     if (d.net > cash.balance) fail(`Not enough cash in ${cash.title} (₱${cash.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}).`);
@@ -248,7 +280,7 @@ export function registerCashRoutes(route, fx) {
   route('GET', '/api/finance/lddaps', 'finance:finance.view', () => D().finLddaps.slice().reverse().map(lddapView));
   route('GET', '/api/finance/lddaps/:id', 'finance:finance.view', ({ params }) => lddapView(fx.byId(D().finLddaps, params.id) || fail('LDDAP-ADA not found.', 404)));
   route('POST', '/api/finance/lddaps', 'finance:finance.disburse', ({ user, body }) => {
-    const dvs = (Array.isArray(body.dvIds) ? body.dvIds : []).map((id) => fx.byId(D().finDvs, id) || fail('Voucher not found.'));
+    const dvs = [...new Set(Array.isArray(body.dvIds) ? body.dvIds : [])].map((id) => fx.byId(D().finDvs, id) || fail('Voucher not found.'));
     if (!dvs.length) fail('Pick the approved ADA vouchers to include.');
     const fund = dvs[0].fund;
     for (const d of dvs) {
@@ -286,6 +318,7 @@ export function registerCashRoutes(route, fx) {
     if (body.receiptId) {
       receipt = fx.byId(D().finReceipts, body.receiptId) || fail('Official receipt not found.');
       if (receipt.status !== 'issued') fail('That receipt was cancelled.');
+      if (receipt.payorCardId !== d.payeeId || receipt.fund !== d.fund) fail(`O.R. ${receipt.no} is not a refund from ${fx.cardName(d.payeeId)} to fund ${d.fund}.`);
       if (D().finLiquidations.some((x) => x.receiptId === receipt.id)) fail(`O.R. ${receipt.no} is already used for a refund.`);
       refund = sum(receipt.lines.filter((x) => x.code === d.debits[0].code), (x) => x.amount);
       if (!refund) fail(`O.R. ${receipt.no} has no line for ${fx.accountTitle(d.debits[0].code)}.`);
@@ -381,7 +414,8 @@ export function registerCashRoutes(route, fx) {
     const date = fx.date(body.date || fx.today());
     const withheld = sum(paidIn(`${month}-01`, fx.monthEnd(month)).filter((d) => d.fund === fund), (d) => d.taxTotal);
     const already = sum(D().finRemittances.filter((r) => r.month === month && r.fund === fund), (r) => r.amount);
-    const amount = round2(withheld - already);
+    // Never more than is owed to BIR on the books (a voided and re-paid voucher must not be remitted twice).
+    const amount = round2(Math.min(withheld - already, fx.balance(ACCT.dueBir, { fund })));
     if (amount <= 0) fail(`Nothing left to remit for ${fx.monthLabel(month)}, fund ${fund}.`);
     const mode = fund === '01' && body.mode !== 'bank' ? 'tra' : 'bank';
     const ref = text(body.ref, 60) || fail(mode === 'tra' ? 'TRA number is required.' : 'Payment reference (eFPS/bank) is required.');
@@ -566,13 +600,12 @@ export function registerCashRoutes(route, fx) {
     const year = Number(body.fy) || fx.fy();
     const fund = fx.fund(String(body.fund || '05'));
     const targets = body.targets || {};
-    D().finRevenueTargets = D().finRevenueTargets.filter((t) => !(t.fy === year && t.fund === fund));
-    for (const [code, amount] of Object.entries(targets)) {
+    const next = Object.entries(targets).map(([code, amount]) => {
       const a = fx.account(code);
       if (a.group !== 4) fail(`${a.title} is not a revenue account.`);
-      const n = fx.money(amount, a.title, { allowZero: true });
-      if (n) D().finRevenueTargets.push({ id: randomUUID(), fy: year, fund, code, amount: n });
-    }
+      return { id: randomUUID(), fy: year, fund, code, amount: fx.money(amount, a.title, { allowZero: true }) };
+    }).filter((t) => t.amount);
+    D().finRevenueTargets = [...D().finRevenueTargets.filter((t) => !(t.fy === year && t.fund === fund)), ...next];
     fx.audit(user, `Set ${year} revenue targets for fund ${fund}`, { kind: 'revenue' });
     save();
     return { ok: true };

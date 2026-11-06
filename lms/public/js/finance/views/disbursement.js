@@ -54,6 +54,7 @@ export async function dvFormView(el, _p, query) {
         <label class="field adv-only"><span>Advance for</span><select name="advanceType">${s.advanceTypes.map(([k, l]) => option(k, l, k === d.advanceType))}</select></label>
         <label class="field pay-only"><span>Nature (for withholding)</span><select name="nature">${s.natures.map(([k, l]) => option(k, l, k === d.nature))}</select></label>
         <label class="field"><span>Mode of payment</span><select name="mode">${s.paymentModes.map(([k, l]) => option(k, l, k === d.mode))}</select></label>
+        <label class="field cash-only"><span>Paid by (special disbursing officer)</span><select name="officerId">${cardOptions(cards, d.officerId, ['officer'])}</select></label>
         <label class="field"><span>Bank account (agency checks)</span><select name="bankId"><option value="">Fund's account</option>${s.bankAccounts.map((b) => option(b.id, `${b.name} ${b.number} (fund ${b.fund})`, b.id === d.bankId))}</select></label>
         <label class="field"><span>Responsibility center</span><select name="office">${officeOptions(d.office)}</select></label>
         <label class="field adv-only"><span>Liquidate by (blank: the rule's days)</span><input type="date" name="liquidateBy" value="${d.liquidateBy || ''}" /></label>
@@ -78,6 +79,9 @@ export async function dvFormView(el, _p, query) {
     form.querySelectorAll('.pay-only').forEach((x) => (x.hidden = adv));
   };
   form.kind.addEventListener('change', toggle);
+  const cashOnly = () => form.querySelectorAll('.cash-only').forEach((x) => (x.hidden = form.mode.value !== 'cash'));
+  form.mode.addEventListener('change', cashOnly);
+  cashOnly();
   toggle();
   wireLines(el, 'ded');
   wireLines(el, 'debits');

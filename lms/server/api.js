@@ -463,7 +463,15 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       const campusId = user ? activeCampusId(db.data, user) : null;
-      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies });
+      // A Finance change is all or nothing: if any check fails partway, the books are put back as they were.
+      const finSnap = req.method !== 'GET' && url.pathname.startsWith('/api/finance/') ? Object.fromEntries(Object.keys(db.data).filter((k) => k.startsWith('fin')).map((k) => [k, structuredClone(db.data[k])])) : null;
+      let result;
+      try {
+        result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies });
+      } catch (err) {
+        if (finSnap) Object.assign(db.data, finSnap);
+        throw err;
+      }
       if (result?.raw != null) return result; // a file, a page or a redirect
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }

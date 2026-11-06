@@ -210,7 +210,7 @@ test('services without a delivery, a BURS on the special trust fund, cash advanc
   // Cash advance to the bonded cashier (special disbursing officer), obligated on fund 01.
   const ors = await f.budget.post('/api/finance/obligations', { fund: '01', payeeId: f.officer.id, particulars: 'Cash advance for the seminar on GAM', lines: [{ allotmentId: b.al.id, code: '50202010', amount: 20000 }] });
   await f.budget.post(`/api/finance/obligations/${ors.id}/obligate`);
-  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.supplier.id, orsId: ors.id, kind: 'advance', gross: 20000, particulars: 'x' }), /employees and accountable officers only/);
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.supplier.id, orsId: ors.id, kind: 'advance', gross: 20000, particulars: 'x' }), /voucher pays the obligation's payee/);
   const ca = await f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.officer.id, orsId: ors.id, kind: 'advance', advanceType: 'sdo', gross: 20000, mode: 'check', particulars: 'Cash advance, seminar on GAM', submit: true });
   assert.deepEqual([ca.taxTotal, ca.entry[0].code], [0, '19901030']);
   await f.acct.post(`/api/finance/dvs/${ca.id}/certify`, { docsComplete: true });
@@ -280,15 +280,30 @@ test('the books: manual entries, reversal, period lock, depreciation, disposal, 
   assert.equal(br.book, 800000);
   await f.acct.post('/api/finance/bank-recon', { code: '10104040', fund: '01', month: '2026-08', statementBalance: 800000, cleared: br.items.map((i) => i.key) });
   assert.equal((await f.acct.get('/api/finance/bank-recon?code=10104040&fund=01&month=2026-08')).saved, true);
-  // Year-end closing (2025 has no activity: nothing to close; 2026 is not over).
+  // Year-end closing: 2025 has nothing to close; 2026 is not over yet.
   await assert.rejects(f.acct.post('/api/finance/closing', { year: 2025, fund: '01' }), /Nothing to close/);
+  await assert.rejects(f.acct.post('/api/finance/closing', { year: 2026, fund: '01' }), /not over yet/);
+  await assert.rejects(f.acct.post('/api/finance/journals', { date: '2026-08-20', fund: '01', particulars: 'Future', post: true, lines: [{ code: '50204020', debit: 1 }, { code: '20101010', credit: 1 }] }), /future date/);
+});
+
+test('year-end closing in January: revenue and expenses to accumulated surplus, statements still balance', async () => {
+  const env = setup({ today: '2027-01-20' });
+  const f = await office(env);
+  const post = (date, lines, particulars) => f.acct.post('/api/finance/journals', { date, fund: '01', particulars, post: true, lines });
+  await post('2026-03-01', [{ code: '10104040', debit: 500000 }, { code: '40301010', credit: 500000 }], 'NCA received');
+  await post('2026-06-30', [{ code: '50204020', debit: 120000 }, { code: '10104040', credit: 120000 }], 'Electricity');
+  await post('2027-01-10', [{ code: '50204020', debit: 9000 }, { code: '10104040', credit: 9000 }], 'January electricity');
   const closing = await f.acct.post('/api/finance/closing', { year: 2026, fund: '01' });
-  const perf = await f.acct.get('/api/finance/statements/performance?fund=01');
-  assert.equal(closing.lines.at(-1).code, '30101010');
-  assert.equal(closing.lines.at(-1).credit || -closing.lines.at(-1).debit, perf.totals.surplus);
+  assert.equal(closing.date, '2026-12-31');
+  assert.deepEqual(closing.lines.at(-1), { ...closing.lines.at(-1), code: '30101010', credit: 380000 });
   await assert.rejects(f.acct.post('/api/finance/closing', { year: 2026, fund: '01' }), /already closed/);
-  const pos = await f.acct.get('/api/finance/statements/position?fund=01');
-  assert.equal(pos.totals.balanced, true);
+  for (const asOf of ['2026-12-31', '2027-01-20']) {
+    const pos = await f.acct.get(`/api/finance/statements/position?fund=01&asOf=${asOf}`);
+    assert.equal(pos.totals.balanced, true, `balanced as of ${asOf}`);
+    assert.equal(pos.totals.assets, asOf === '2026-12-31' ? 380000 : 371000);
+  }
+  const perf = await f.acct.get('/api/finance/statements/performance?fund=01&from=2026-01-01&to=2026-12-31');
+  assert.equal(perf.totals.surplus, 380000, 'the statement for the year ignores the closing entry');
 });
 
 test('access: finance roles, students and guardians; the Control panel; card file and chart rules', async () => {
@@ -310,12 +325,15 @@ test('access: finance roles, students and guardians; the Control panel; card fil
   await assert.rejects(f.acct.post('/api/finance/cards', { kind: 'supplier', name: 'Bad TIN', tin: '12-34' }), /TIN looks like/);
   await assert.rejects(f.acct.post('/api/finance/cards', { kind: 'supplier', name: 'Bicol Office Depot, Inc.', tin: '123-456-789-000' }), /already has a card/);
   await assert.rejects(f.teach.post('/api/finance/cards', { kind: 'supplier', name: 'X' }), status(403));
-  // Control panel accounts: only Finance types, never one's own.
+  // Control panel accounts: only an administrator manages them (no officer can make themselves an approver), only Finance types.
   const list = await f.acct.get('/api/finance/users');
   assert.ok(list.roles.some((r) => r.id === 'approver'));
-  const me = list.users.find((u) => u.username === 'acct');
-  await assert.rejects(f.acct.put(`/api/finance/users/${me.id}`, { status: 'disabled' }), /your own account/);
-  await assert.rejects(f.acct.post('/api/finance/users', { role: 'admin', username: 'x1', name: 'X', password: PW }), /Finance account type/);
+  const head = list.users.find((u) => u.username === 'head');
+  await assert.rejects(f.acct.post('/api/finance/users', { role: 'approver', username: 'alma2', name: 'Alma Two', password: PW }), /Only an administrator/);
+  await assert.rejects(f.acct.put(`/api/finance/users/${head.id}`, { password: 'newpass123' }), /Only an administrator/);
+  await assert.rejects(f.admin.post('/api/finance/users', { role: 'admin', username: 'x1', name: 'X', password: PW }), /Finance account type/);
+  await assert.rejects(f.acct.put('/api/finance/settings', { funds: '01' }), /must be a list/);
+  await assert.rejects(f.stud.get('/api/finance/items'), status(403));
   // Numbering formats are configurable but need a serial.
   await assert.rejects(f.acct.put('/api/finance/settings', { numbering: { dv: 'DV-{YYYY}' } }), /needs a serial/);
   await f.acct.put('/api/finance/settings', { numbering: { dv: 'DV-{F}-{YYYY}-{N5}' } });
@@ -327,4 +345,56 @@ test('access: finance roles, students and guardians; the Control panel; card fil
   await f.admin.put('/api/finance/settings', {});
   const adm = await f.admin.get('/api/finance/auth/status');
   assert.ok(adm.permissions.includes('finance.approve') && adm.permissions.includes('finance.accounts'));
+});
+
+test('review fixes: no double payment, obligations follow deliveries, all-or-nothing changes, separation of duties', async () => {
+  const env = setup();
+  const f = await office(env);
+  const b = await funds(f);
+  const ors = await f.budget.post('/api/finance/obligations', { fund: '01', payeeId: f.janitor.id, particulars: 'Two services', lines: [{ allotmentId: b.al.id, code: '50212020', amount: 1000 }, { allotmentId: b.al.id, code: '50299990', amount: 1000 }] });
+  await f.budget.post(`/api/finance/obligations/${ors.id}/obligate`);
+  // Charges are added up per line; the payee must be the obligation's.
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, orsId: ors.id, gross: 1800, nature: 'services', particulars: 'x', charges: [{ line: 0, amount: 900 }, { line: 0, amount: 900 }] }), /only ₱1,000.00 of the obligation is left/);
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.supplier.id, orsId: ors.id, gross: 500, nature: 'services', particulars: 'x' }), /voucher pays the obligation's payee/);
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, orsId: ors.id, iarId: 'bogus', gross: 500, nature: 'services', particulars: 'x' }), /only given for a purchase order/);
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, gross: 500, particulars: 'x', debits: [{ code: '10404010', amount: 500 }] }), /only settles a liability/);
+  // Box C keeps the charges the preparer chose.
+  const dv = await f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, orsId: ors.id, gross: 1000, nature: 'services', mode: 'ada', particulars: 'Line 2 only', charges: [{ line: 1, amount: 1000 }], submit: true });
+  const cert = await f.acct.post(`/api/finance/dvs/${dv.id}/certify`, { docsComplete: true });
+  assert.deepEqual(cert.charges, [{ line: 1, amount: 1000 }]);
+  assert.equal(cert.entry[0].code, '50299990');
+  await f.head.post(`/api/finance/dvs/${dv.id}/approve`);
+  await f.acct.put(`/api/finance/cards/${f.janitor.id}`, { bankAccount: '555-1' });
+  // One LDDAP-ADA never pays a voucher twice.
+  const l = await f.cash.post('/api/finance/lddaps', { dvIds: [dv.id, dv.id] });
+  assert.equal(l.total, dv.net);
+  assert.equal(env.db.data.finJournals.filter((j) => j.source?.id === dv.id).length, 1);
+  await assert.rejects(f.cash.post('/api/finance/lddaps', { dvIds: [dv.id] }), /not an approved ADA voucher/);
+  // A PO's obligation cannot be edited down, and its voucher pays an accepted delivery only, up to its value.
+  const item = await f.supply.post('/api/finance/items', { stockNo: 'P-1', description: 'Paper', unit: 'ream', code: '10404010' });
+  const pr = await f.teach.post('/api/finance/prs', { office: 'CCS', fund: '01', purpose: 'Paper', submit: true, items: [{ itemId: item.id, qty: 10, unitCost: 250 }] });
+  await f.head.post(`/api/finance/prs/${pr.id}/approve`);
+  let po = await f.supply.post('/api/finance/pos', { prId: pr.id, supplierId: f.supplier.id, deliveryDate: '2026-08-20', items: [{ itemId: item.id, category: 'supply', qty: 10, unitCost: 250, description: 'Paper', unit: 'ream', code: '10404060' }] });
+  assert.equal(po.items[0].code, '10404010', 'a stock item keeps its own inventory account');
+  po = await f.supply.post(`/api/finance/pos/${po.id}/ors`, { allotments: { MOOE: b.al.id } });
+  await assert.rejects(f.budget.put(`/api/finance/obligations/${po.ors.id}`, { lines: [{ allotmentId: b.al.id, code: '50203010', amount: 1 }] }), /made from a purchase order/);
+  await f.budget.post(`/api/finance/obligations/${po.ors.id}/obligate`);
+  await f.head.post(`/api/finance/pos/${po.id}/approve`);
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.supplier.id, orsId: po.ors.id, gross: 2500, nature: 'goods', particulars: 'early' }), /accepted delivery/);
+  const iar = await f.supply.post('/api/finance/iars', { poId: po.id, invoiceNo: 'S1', inspectedBy: 'I', lines: [{ line: 0, qty: 4 }] });
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.supplier.id, orsId: po.ors.id, iarId: iar.id, gross: 2500, nature: 'goods', particulars: 'too much' }), /₱1,000.00 of it is left to pay/);
+  await assert.rejects(f.budget.post(`/api/finance/obligations/${po.ors.id}/cancel`, { reason: 'x' }), /cancel the PO first/);
+  // A failed issue changes nothing (all or nothing).
+  const ris = await f.teach.post('/api/finance/ris', { office: 'CCS', purpose: 'x', items: [{ itemId: item.id, qty: 3 }] });
+  const ink = await f.supply.post('/api/finance/items', { stockNo: 'I-1', description: 'Ink', unit: 'bottle', code: '10404010' });
+  const ris2 = await f.teach.post('/api/finance/ris', { office: 'CCS', purpose: 'x', items: [{ itemId: item.id, qty: 2 }, { itemId: ink.id, qty: 1 }] });
+  await assert.rejects(f.supply.post(`/api/finance/ris/${ris2.id}/issue`), /Only 0 bottle of Ink in stock/);
+  assert.equal((await f.supply.get(`/api/finance/items/${item.id}/card`)).item.onHand, 4, 'nothing left the stock');
+  await f.acct.post('/api/finance/periods', { lockedThrough: '2026-07' });
+  await assert.rejects(f.supply.post(`/api/finance/ris/${ris.id}/issue`, { date: '2026-07-20' }), /closed through July 2026/);
+  // No second cash advance while the first is still on its way.
+  const ors2 = await f.budget.post('/api/finance/obligations', { fund: '01', payeeId: f.employee.id, particulars: 'Travel', lines: [{ allotmentId: b.al.id, code: '50201010', amount: 2000 }] });
+  await f.budget.post(`/api/finance/obligations/${ors2.id}/obligate`);
+  await f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.employee.id, orsId: ors2.id, kind: 'advance', advanceType: 'travel', gross: 1000, particulars: 'Advance 1' });
+  await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.employee.id, orsId: ors2.id, kind: 'advance', advanceType: 'travel', gross: 1000, particulars: 'Advance 2' }), /unsettled cash advance/);
 });
