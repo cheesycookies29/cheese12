@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const ROOT = process.env.CORE_APP_DIR || path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const startedAt = new Date().toISOString();
 
 function fromGit() {

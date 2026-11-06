@@ -6,7 +6,8 @@ import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
 import { createApi } from './server/api.js';
 
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
+// CORE_APP_DIR: where public/ and shared/ live (the single .exe unpacks them there).
+const ROOT = process.env.CORE_APP_DIR || path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1'; // only reachable from this computer
 const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').filter(Boolean);

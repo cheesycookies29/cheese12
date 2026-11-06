@@ -26,6 +26,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.7.1-alpha',
+    date: '2026-11-06',
+    title: 'CORE as a single Windows program',
+    modules: ['deploy', 'system'],
+    notes: 'CORE now also ships as one file, CORE-ERP.exe: double-click it and the whole system runs on the PC, with its database kept on that computer.',
+    changes: [
+      ['new', 'deploy', 'CORE-ERP.exe holds Node.js, the server, every screen and the database engine in one file. Nothing to install or unzip; it opens CORE in the browser and shows where the data is kept.'],
+      ['new', 'deploy', 'Data is stored on the PC in %LOCALAPPDATA%\\CORE ERP\\data, and survives replacing the .exe with a newer build. A CORE-data folder next to the .exe switches to portable mode, for example on a USB drive.'],
+      ['new', 'deploy', 'Options: --network for other PCs on the office network, --port, --no-browser and --reset-password. Starting it a second time opens the running copy instead of failing.'],
+      ['new', 'deploy', 'The .exe carries the CORE icon and version details; the build checks that the embedded app, its switch-on marker, the icon and the details are all in place.'],
+    ],
+    known: ['The .exe is not code-signed yet, so Windows SmartScreen asks for confirmation the first time it runs.'],
+  },
+  {
     version: '0.7.0-alpha',
     date: '2026-11-04',
     title: 'Rebrand to CORE · ERP by Lancaster',

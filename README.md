@@ -79,7 +79,23 @@ To use a different port, run `PORT=8080 npm start`.
 
 ## Run it on Windows
 
-### Easiest: the Windows package (nothing to install)
+### Easiest: one file for Windows, `CORE-ERP.exe`
+
+`CORE-ERP.exe` is the whole system in a single file: Node.js, the server, every screen and the database engine. Nothing to install, unzip or configure.
+
+1. Copy `CORE-ERP.exe` anywhere, for example the Desktop or Documents.
+2. Double-click it. A window opens showing where your data is kept, and CORE opens in your browser at <http://localhost:3000>. Keep the window open while you use CORE; close it to stop.
+3. The first time, CORE asks you to create the Administrator account.
+
+- **Your data stays on this PC**, in `%LOCALAPPDATA%\CORE ERP\data` (the database `db.json`, uploaded files and the encryption key). Back it up from **Settings → Download backup**, or copy that folder while CORE is closed. Replacing the .exe with a newer one keeps your data.
+- **Portable mode** (e.g. on a USB drive): make a folder named `CORE-data` next to the .exe and CORE keeps its data there instead.
+- Starting it again while it is running just opens the browser.
+- Options, from a Command Prompt in the file's folder: `CORE-ERP.exe --network` (other PCs on the office network can sign in, at the address it shows), `--port 3001`, `--no-browser`, and `--reset-password <username> <new password>` for a locked-out administrator (close CORE first).
+- The file is not code-signed yet, so the first time Windows may show "Windows protected your PC": click **More info → Run anyway**.
+
+To build it, run `scripts/build-exe.sh` on Linux (`LINUX=1` also builds a Linux copy to test with). It downloads the official Node.js builds, checks them against nodejs.org's checksums, bundles the server with esbuild, embeds it and the web files with Node's single executable application feature, sets the icon and version details, and checks the result.
+
+### The Windows package (folder with launchers)
 
 `CORE-ERP-Windows-x64.zip` contains the app **and its own copy of Node.js**, so there is nothing to install.
 
