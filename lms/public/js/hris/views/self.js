@@ -295,7 +295,10 @@ export async function meRequestsView(el, _params, query) {
     // Only the leave types this employee gets (the server sends balances for those).
     const offered = new Set(balances.map((b) => b.leaveTypeId));
     const types = hr.leaveTypes.filter((t) => t.active && offered.has(t.id));
-    const tomorrow = addDays(today(), 1);
+    // Start on the next scheduled work day (on a Friday that is Monday, not a rest day).
+    const workDays = scheduleFor(emp, hr.settings).workDays;
+    let tomorrow = addDays(today(), 1);
+    for (let i = 0; i < 7 && workDays.length && !workDays.includes(new Date(`${tomorrow}T00:00:00`).getDay()); i++) tomorrow = addDays(tomorrow, 1);
     const { form } = modal({
       title: 'File a request',
       submitLabel: 'Submit for approval',

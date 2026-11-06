@@ -4,7 +4,7 @@
 
 **Lancaster ATLAS** is the Unified Education Management Platform of Lancaster Technology and Development Corporation (LTDC), the school-side sibling of the Lancaster ERP, [CORE](../README.md).
 It is built the same way as CORE: one Node.js program with **no dependencies**, a browser app with no build step, and all data in one file, `data/db.json`.
-It runs on your own computer, or online on Amazon EC2 (see [Putting it online](#putting-it-online-aws)). The brand (mark, colours, product names) is described in [docs/BRAND.md](docs/BRAND.md).
+It runs on your own computer, or online on Amazon EC2 (see [Putting it online](#putting-it-online-aws)). The brand (mark, colours, product names) is described in [docs/BRAND.md](docs/BRAND.md). The plan for ATLAS Academic (the student information system), benchmarked against the CBSUA UIS, is in [docs/ACADEMIC-PLAN.md](docs/ACADEMIC-PLAN.md).
 
 ATLAS is a family of products behind one sign-in:
 
@@ -260,6 +260,7 @@ lms/
   public/img/brand/      the ATLAS mark (light, dark, white, black) and app icon, as SVG
   scripts/brand-mark.py  draws the ATLAS mark SVGs (python3 scripts/brand-mark.py public/img/brand)
   docs/BRAND.md          brand guide; docs/brand/ has PNG lockups
+  docs/ACADEMIC-PLAN.md  plan for ATLAS Academic (SIS), benchmarked against the CBSUA UIS
   test/                  node:test suites
 ```
 
