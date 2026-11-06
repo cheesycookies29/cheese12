@@ -8,23 +8,43 @@
 // When something ships: add an entry at the top and set package.json "version"
 // to the same value (a test checks both).
 //   version  semver with a stage, e.g. '0.2.8-alpha'
-//   modules  hr | assets | system | deploy
+//   modules  hr | assets | crm | system | deploy
 //   changes  [type, module, text], type is new (Added) | improved (Changed) | fixed (Fixed)
 //   known    known issues in this build (optional)
 
 export const DEVLOG_MODULES = {
   hr: 'HR & Payroll',
   assets: 'IT Asset Management',
+  crm: 'Sales & CRM',
   system: 'System & access',
   deploy: 'Deployment & hosting',
 };
 
 // Short module keys shown as scopes, e.g. "Fixed  system  …".
-export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', system: 'system', deploy: 'deploy' };
+export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', crm: 'crm', system: 'system', deploy: 'deploy' };
 
 export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' };
 
 export const DEVLOG = [
+  {
+    version: '0.8.0-alpha',
+    date: '2026-11-06',
+    title: 'Sales & CRM module',
+    modules: ['crm'],
+    notes: 'Added Sales & CRM (MOD-06): leads, accounts, contacts, a deal pipeline with forecasts, public bids with document checklists, contracts with renewals, and activities on every record.',
+    changes: [
+      ['new', 'crm', 'Leads with sources and statuses; converting a qualified lead creates the account, the contact and a deal, and moves its open tasks and notes to the deal. Service desk tickets can be sent to the CRM as leads.'],
+      ['new', 'crm', 'Accounts (prospect, client, partner, supplier; private, government, education, non-profit) and contacts, each with related deals, bids and contracts and one timeline.'],
+      ['new', 'crm', 'Pipeline board with a column and total per stage: drag deals between stages, or onto Won or Lost (with a reason). List view with owner, stage and overdue filters; a stage bar on every deal. Stage probabilities weigh the forecast.'],
+      ['new', 'crm', 'Bids for public tenders and RFPs: reference, procurement mode, approved budget (ABC), bid amount, deadline, pre-bid and opening dates, and an editable document checklist. Public bids above the ABC are refused; an award or a loss closes the linked deal.'],
+      ['new', 'crm', 'Contracts with value, term, billing and auto-renewal, shown for renewal ahead of the end date; Renew starts a renewal deal.'],
+      ['new', 'crm', 'Activities: calls, meetings, emails, notes and tasks with due dates and owners on every record, plus automatic history of stage and status changes. The menu counts tasks due today.'],
+      ['new', 'crm', 'Overview: open pipeline, weighted forecast, won this quarter, 90-day win rate, pipeline by stage, three-month forecast, my tasks, bid deadlines, renewals, deals closing soon, and search across the CRM.'],
+      ['new', 'crm', 'Sales setup for stages, sources, lost reasons, industries, the bid checklist and the renewal notice. New account types Sales Officer and Sales Manager; administrators can give or remove CRM access per account.'],
+      ['improved', 'crm', 'Demo data includes a sales set: six organizations with contacts, leads, deals in every stage, bids, contracts and tasks, owned by a new sales.demo account.'],
+    ],
+    known: ['Dragging deals on the board needs a mouse; on phones and tablets, open the deal and use its stage bar.'],
+  },
   {
     version: '0.7.1-alpha',
     date: '2026-11-06',

@@ -2,15 +2,16 @@
 
 **CORE** is the enterprise resource planning system of Lancaster Technology and Development Corporation (LTDC). It runs on your own computer or a small cloud server and opens in your browser. Its design language is shared with the Lancaster LMS: a white top bar, an icon sidebar that folds to icons, cards on a light grey canvas, one brand colour throughout, and a **dark mode** (the moon button, remembered per browser).
 
-After signing in, everyone lands on the **CORE home page** and picks a module; the grid button in the top bar switches modules from anywhere. Three modules are live:
+After signing in, everyone lands on the **CORE home page** and picks a module; the grid button in the top bar switches modules from anywhere. Four modules are live:
 
 | Module | For |
 | --- | --- |
 | **HR & Payroll** | Employee records, time and attendance, leave and remote work, Philippine payroll |
 | **IT Asset Management** | IT equipment and consumable stock: who or where it is allocated to, warranty, history, CSV exports |
 | **IT Service Desk** | Support tickets from the portal, email and a public form, with assignment, internal notes and service levels |
+| **Sales & CRM** | Leads, accounts and contacts, a deal pipeline with forecasts, public bids with document checklists, and contract renewals |
 
-Finance & Accounting, Procurement, Project Management, Sales & CRM and Document Management are listed under **On the roadmap**.
+Finance & Accounting, Procurement, Project Management and Document Management are listed under **On the roadmap**.
 A module the user's account cannot use shows **No access**.
 
 ### HR & Payroll
@@ -46,6 +47,20 @@ A module the user's account cannot use shows **No access**.
   - *Sending email*: the SMTP server (or the same sign-in as the mailbox). Agents' replies and an acknowledgement for new emailed tickets go out from the helpdesk address, threaded so the requester's email program groups them. Without it, replies show only in the portal.
   - Mailbox passwords are stored encrypted with a key in `data/secret.key`; they are never sent back to the browser or included in a downloaded backup.
   - Gmail and Google Workspace need an **app password** (2-Step Verification on). Microsoft 365 has switched off password sign-in for IMAP and SMTP in most organisations, so it works only where an administrator allows it for that mailbox.
+
+### Sales & CRM
+
+Built on the model the major CRMs share (accounts, contacts, leads, deals moving through pipeline stages, and activities), plus what a government and enterprise IT supplier needs: bids and contracts.
+
+- **Leads**: people or organizations that showed interest (website, referral, PhilGEPS, events, the public form…), with status *New, Contacted, Qualified, Disqualified*. **Convert** a qualified lead: it becomes an account (new, or one that already exists), a contact and, optionally, a deal; its open tasks and notes move to the deal. On a service desk ticket, **Send to Sales & CRM** turns a sales enquiry into a lead.
+- **Accounts and contacts**: organizations (prospect, client, partner, supplier; private, government, education or non-profit) and the people at them. An account page shows its contacts, deals, bids and contracts, and one timeline of everything that happened with it. A prospect becomes a client when a deal is won.
+- **Pipeline**: a board with a column per stage and the total of each; drag a deal to move it, or drop it on **Won** or **Lost** at the bottom of the screen (losing asks why). The list view filters by owner, stage and overdue close dates. Each stage has a win probability that weighs the forecast. On a deal, the stage bar moves it with one click.
+- **Bids**: public tenders and RFPs with the reference number, procurement mode, approved budget (ABC), our bid amount, submission deadline, pre-bid conference and opening. Each bid gets a **document checklist** (PhilGEPS registration, permits, tax clearance, audited statements, NFCC, bid security, omnibus sworn statement, technical and financial proposals; editable). A public bid above the ABC is refused, submitting with documents unticked asks first, and an award or a loss closes the linked deal.
+- **Contracts**: value, term, billing, auto-renewal; contracts show for renewal a set number of days before they end (60 by default), and **Renew** starts a renewal deal.
+- **Activities**: on every record, log calls, meetings, emails and notes, or schedule tasks with a due date and owner; changes of stage and status are added automatically. **Activities** lists your open and overdue tasks; the menu counts the ones due today.
+- **Overview**: open pipeline, weighted forecast, won this quarter, 90-day win rate, open leads, pipeline by stage, forecast for the next three months, your tasks, bid deadlines, renewals and deals closing in 30 days. Search finds any account, person, lead, deal, bid or contract.
+- **Sales setup** (Sales Managers and Administrators): pipeline stages and probabilities (stages that still have deals cannot be removed), lead sources, lost reasons, industries, the bid checklist and the renewal notice. Administrators give or remove CRM access per account under **Sales setup → Team access**. The setup survives demo data and "erase all data"; CRM records are company data.
+- CSV export on every list. Codes: `LD-0001` leads, `DL-0001` deals, `BID-0001` bids, `CT-0001` contracts.
 
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting CORE online with Amazon EC2](deploy/aws/EC2.md).
 
@@ -127,6 +142,8 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 | **HR Manager** | Add and edit employees, manage attendance and approve overtime, run the shared time clock, **approve leave and remote-work requests**, manage leave credits, adjust Payroll Setup. View payroll and IT assets. |
 | **IT Asset Manager** | IT Asset Management: register, assign, transfer, return and retire assets; receive, issue and count stock; export. No access to HR records. |
 | **Payroll Officer** | Create, adjust and finalize payroll, adjust Payroll Setup and leave credits. View employees, attendance and requests (cannot approve them). |
+| **Sales Officer** | Sales & CRM: leads, accounts, contacts, deals, bids, contracts and activities. Cannot delete records or change the sales setup. |
+| **Sales Manager** | Everything a Sales Officer does, plus deleting CRM records and the sales setup (stages, sources, lost reasons, bid checklist). |
 | **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips, profile and assigned equipment. |
 
 - Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.

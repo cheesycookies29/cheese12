@@ -6,9 +6,11 @@
 import { randomUUID } from 'node:crypto';
 import { demoData } from './seed.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
+import { DEMO_OWNER } from './seed.js';
+import { CRM_COLLECTIONS } from './crm.js';
 
 // Collections the demo set adds to.
-const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets'];
+const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS];
 // Records that belong to an employee and go with a demo employee.
 const BY_EMPLOYEE = ['timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments'];
 
@@ -17,7 +19,7 @@ const highest = (codes, re) => codes.reduce((m, c) => Math.max(m, Number(String(
 export const hasDemo = (db) => COLLECTIONS.some((k) => (db.data[k] || []).some((x) => x.demo)) || db.data.users.some((u) => u.demo);
 
 export function demoCounts(db) {
-  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo).length]));
+  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets', 'crmAccounts', 'crmDeals'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo).length]));
 }
 
 // summarize(run) recomputes a payroll run's totals after demo payslips are taken out of it.
@@ -29,7 +31,14 @@ export function removeDemo(db, { summarize }) {
   const demoUsers = new Set(d.users.filter((u) => u.demo).map((u) => u.id));
   const removed = { ...demoCounts(db), accounts: demoUsers.size };
 
+  const crmAccountIds = new Set((d.crmAccounts || []).filter((a) => a.demo).map((a) => a.id));
   for (const k of COLLECTIONS) d[k] = (d[k] || []).filter((x) => !x.demo);
+  // CRM records someone added to a demo organization go with it, and so does their history.
+  for (const k of ['crmContacts', 'crmDeals', 'crmBids', 'crmContracts']) d[k] = d[k].filter((x) => !crmAccountIds.has(x.accountId));
+  const crmIds = new Set(['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts'].flatMap((k) => d[k].map((x) => x.id)));
+  d.crmActivities = d.crmActivities.filter((a) => crmIds.has(a.related?.id));
+  // Records owned by demo accounts now belong to nobody.
+  for (const k of CRM_COLLECTIONS) for (const x of d[k]) if (demoUsers.has(x.ownerId)) x.ownerId = null;
   for (const k of BY_EMPLOYEE) d[k] = d[k].filter((x) => !empIds.has(x.employeeId));
   d.assetHistory = d.assetHistory.filter((h) => !assetIds.has(h.assetId));
   d.stockMovements = d.stockMovements.filter((m) => !itemIds.has(m.itemId));
@@ -61,7 +70,7 @@ export function addDemo(db, { summarize, demoAccounts }) {
   if (hasDemo(db)) removeDemo(db, { summarize });
   const d = db.data;
   const demo = demoData({
-    employeePrefix: 'DEMO-', assetPrefix: 'DEMO-IT-', skuPrefix: 'DEMO-SKU-', serialPrefix: 'DEMO',
+    employeePrefix: 'DEMO-', assetPrefix: 'DEMO-IT-', skuPrefix: 'DEMO-SKU-', serialPrefix: 'DEMO', crmPrefix: 'DEMO-',
     firstReport: highest(d.issueReports.map((r) => r.number), /^IR-(\d+)$/) + 1,
     firstTicket: (d.helpdesk.seq || 0) + 1,
   });
@@ -70,5 +79,11 @@ export function addDemo(db, { summarize, demoAccounts }) {
   for (const k of COLLECTIONS) for (const rec of demo[k] || []) d[k].push({ ...rec, demo: true });
   d.helpdesk.seq = Math.max(d.helpdesk.seq || 0, demo.helpdesk.seq);
   d.users.push(...demoAccounts(db, demo.employees));
+  // CRM demo records belong to the demo sales account (or the first administrator).
+  const salesOwner = d.users.find((u) => u.username === 'sales.demo') || d.users.find((u) => u.role === 'admin');
+  for (const k of CRM_COLLECTIONS) for (const x of d[k]) {
+    if (x.ownerId === DEMO_OWNER) x.ownerId = salesOwner?.id || null;
+    if (x.createdBy === DEMO_OWNER) x.createdBy = salesOwner?.id || null;
+  }
   return demoCounts(db);
 }

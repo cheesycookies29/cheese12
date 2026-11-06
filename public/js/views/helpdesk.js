@@ -6,6 +6,7 @@ import { ctx, can } from '../state.js';
 import { TICKET_STATUS, TICKET_PRIORITY, TICKET_CHANNEL, UNRESOLVED_TICKET } from '/shared/helpdesk.js';
 import { html, mount, badge, toast, modal, confirmDialog } from '../ui.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
+import { ticketToLead } from './crm.js';
 
 const STATUS_KIND = { new: 'amber', open: 'blue', pending: 'gray', on_hold: 'gray', resolved: 'green', closed: 'gray' };
 const PRIORITY_KIND = { low: 'gray', normal: 'blue', high: 'amber', urgent: 'maroon-soft' };
@@ -175,7 +176,7 @@ export async function ticketView(el, { id }) {
           <p class="tag-line mono">${t.ref} · ${TICKET_CHANNEL[t.channel]}</p>
           <h1>${t.subject}</h1>
           <p class="muted hd-sub">${statusBadge(t.status)} ${priorityBadge(t.priority)} <span>${t.requester.name}${t.requester.email ? ` <${t.requester.email}>` : ''} · opened ${when(t.createdAt)}</span></p></div>
-        ${can('helpdesk.manage') ? html`<div class="actions"><button class="btn danger ghost" id="delete">Delete</button></div>` : ''}
+        ${can('helpdesk.manage') || can('crm.edit') ? html`<div class="actions">${can('crm.edit') ? html`<button class="btn" id="to-lead" title="This is a sales enquiry: make it a lead in Sales & CRM">Send to Sales & CRM</button>` : ''}${can('helpdesk.manage') ? html`<button class="btn danger ghost" id="delete">Delete</button>` : ''}</div>` : ''}
       </header>
       ${t.viewers.length ? html`<div class="notice"><p>${t.viewers.join(', ')} ${t.viewers.length === 1 ? 'is' : 'are'} also viewing this ticket.</p></div>` : ''}
       <div class="hd-layout">
@@ -271,6 +272,7 @@ export async function ticketView(el, { id }) {
         toast(t.publicUrl);
       }
     });
+    el.querySelector('#to-lead')?.addEventListener('click', () => ticketToLead(t.id).catch((err) => toast(err.message, 'error')));
     el.querySelector('#delete')?.addEventListener('click', async () => {
       if (!(await confirmDialog(`${t.ref} and its conversation and files will be permanently deleted.`, { title: 'Delete ticket', confirmLabel: 'Delete ticket' }))) return;
       await api.del(`/api/helpdesk/tickets/${t.id}`);

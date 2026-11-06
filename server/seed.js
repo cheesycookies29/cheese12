@@ -3,6 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { emptyData } from './db.js';
 import { eachDate, dayOfWeek } from '../shared/calc.js';
 import { localDate } from './util.js';
+import { DEFAULT_CRM } from '../shared/crm.js';
+
+const DEFAULT_BID_CHECKLIST = DEFAULT_CRM.bidChecklist;
 import { workDates } from '../shared/leave.js';
 import { ticketRef, slaDue } from '../shared/helpdesk.js';
 
@@ -117,7 +120,110 @@ export function demoData(codes = {}) {
   data.requests = data.requests.filter((r) => r.days > 0);
   seedAssets(data, c);
   seedTickets(data, c);
+  seedCrm(data, c);
   return data;
+}
+
+// Sales & CRM: fictional organizations with contacts, leads, deals in every stage, bids and
+// contracts. Records are owned by DEMO_OWNER, which addDemo() swaps for the demo sales account.
+export const DEMO_OWNER = 'demo-sales-owner';
+function seedCrm(data, c) {
+  const P = c.crmPrefix ?? '';
+  const now = Date.now();
+  const at = (days) => new Date(now + days * 86400000).toISOString();
+  const day = (days) => at(days).slice(0, 10);
+  const base = (created) => ({ id: randomUUID(), ownerId: DEMO_OWNER, createdBy: DEMO_OWNER, createdAt: at(-created), updatedAt: at(-Math.max(0, created - 3)) });
+  const event = (type, rec, subject, days) => ({ id: randomUUID(), type: 'event', subject, body: '', related: { type, id: rec.id }, ownerId: DEMO_OWNER, createdBy: DEMO_OWNER, createdAt: at(-days), done: true });
+  const acts = [];
+
+  const ACCOUNTS = [
+    ['Northfield State University', 'client', 'education', 'Education', 'Calamba, Laguna'],
+    ['Municipality of San Rafael', 'prospect', 'government', 'Government', 'San Rafael, Bulacan'],
+    ['Meridian Logistics Inc.', 'client', 'private', 'Logistics', 'Pasig City'],
+    ['Bayani Foods Corporation', 'prospect', 'private', 'Manufacturing', 'Valenzuela City'],
+    ['Provincial Government of Isla Verde', 'prospect', 'government', 'Government', 'Isla Verde Province'],
+    ['Luzon Health Partners', 'prospect', 'private', 'Healthcare', 'Quezon City'],
+  ];
+  const accounts = ACCOUNTS.map(([name, type, sector, industry, address], i) => ({
+    ...base(120 - i * 12), name, type, sector, industry, address, tin: `00${i + 1}-45${i}-78${i}-000`,
+    website: `www.${name.toLowerCase().replace(/[^a-z]+/g, '')}.example`, email: `info@${name.toLowerCase().replace(/[^a-z]+/g, '')}.example`,
+    phone: `(02) 8${700 + i * 11}-${1200 + i * 37}`, tags: sector === 'government' ? ['public sector'] : [], notes: '',
+  }));
+  const [nsu, sanRafael, meridian, bayani, islaVerde, luzon] = accounts;
+  const CONTACTS = [
+    [nsu, 'Teresa', 'Villareal', 'Vice President for Administration'], [nsu, 'Paolo', 'Santiago', 'IT Director'],
+    [sanRafael, 'Ramon', 'Del Rosario', 'Municipal Administrator'], [sanRafael, 'Liza', 'Ocampo', 'BAC Secretariat Head'],
+    [meridian, 'Grace', 'Lim', 'HR and Admin Manager'], [bayani, 'Victor', 'Manalo', 'Chief Operating Officer'],
+    [islaVerde, 'Corazon', 'Dimaculangan', 'Provincial IT Officer'], [luzon, 'Miguel', 'Ferrer', 'Finance Director'],
+  ];
+  const contacts = CONTACTS.map(([a, firstName, lastName, title], i) => ({
+    ...base(100 - i * 8), firstName, lastName, title, accountId: a.id, email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/\s+/g, '')}@${a.website.slice(4)}`,
+    phone: a.phone, mobile: `0917 ${String(5550000 + i * 1371).slice(0, 3)} ${String(5550000 + i * 1371).slice(3)}`, notes: '', tags: [],
+  }));
+  const byName = (first) => contacts.find((x) => x.firstName === first);
+
+  const STAGED = [
+    ['Student information system upgrade', nsu, 'Paolo', 'negotiation', 2850000, 18, 'Referral', 'Final pricing call with the VP'],
+    ['E-permit and business licensing portal', sanRafael, 'Ramon', 'proposal', 1950000, 35, 'PhilGEPS', 'Submit the bid for the public bidding'],
+    ['Warehouse HR and payroll rollout', meridian, 'Grace', 'won', 1320000, -20, 'Existing client', ''],
+    ['Plant attendance and timekeeping', bayani, 'Victor', 'needs', 780000, 50, 'Event', 'Site visit to the Valenzuela plant'],
+    ['Provincial helpdesk and asset tracking', islaVerde, 'Corazon', 'qualify', 2400000, 75, 'Website', 'Get the approved budget and timeline'],
+    ['Clinic patient portal', luzon, 'Miguel', 'lost', 1100000, -45, 'Cold outreach', ''],
+    ['Learning management system, phase 2', nsu, 'Teresa', 'proposal', 1650000, 28, 'Existing client', 'Demo the LMS gradebook to the deans'],
+  ];
+  const deals = STAGED.map(([title, a, contact, stage, value, closeIn, source, nextStep], i) => {
+    const deal = { ...base(90 - i * 9), code: `${P}DL-${String(i + 1).padStart(4, '0')}`, title, accountId: a.id, contactId: byName(contact).id, stage, value, expectedClose: day(closeIn), source, nextStep, description: '', lostReason: stage === 'lost' ? 'Lost to a competitor' : '' };
+    if (stage === 'won' || stage === 'lost') deal.closedAt = at(closeIn);
+    acts.push(event('deal', deal, 'Deal created in Qualification', 90 - i * 9));
+    if (stage === 'won') acts.push(event('deal', deal, 'Won · Negotiation → Won', -closeIn));
+    if (stage === 'lost') acts.push(event('deal', deal, 'Lost (Lost to a competitor) · from Proposal', -closeIn));
+    return deal;
+  });
+
+  const LEADS = [
+    ['Andres Bautista', 'Golden Harvest Cooperative', 'General Manager', 'new', 'Website', 450000, 'Payroll for 140 seasonal workers'],
+    ['Joy Navarro', 'Pacific Crest Hotels', 'HR Director', 'contacted', 'Referral', 900000, 'HRIS with leave and payroll for 3 hotels'],
+    ['Engr. Felipe Reyes', 'City Engineering Office, Sta. Lucia', 'City Engineer', 'qualified', 'PhilGEPS', 1500000, 'Project monitoring web application'],
+    ['Karen Uy', 'BrightPath Tutorials', 'Owner', 'new', 'Public form', 250000, 'Simple LMS for 600 learners'],
+    ['Dennis Tolentino', 'Tolentino Hardware', 'Owner', 'disqualified', 'Cold outreach', 120000, 'Inventory app'],
+  ];
+  const leads = LEADS.map(([name, company, title, status, source, estimatedValue, interest], i) => ({
+    ...base(20 - i * 3), code: `${P}LD-${String(i + 1).padStart(4, '0')}`, name, company, title, status, source, estimatedValue, interest,
+    email: `${name.split(' ').at(-1).toLowerCase()}@${company.toLowerCase().replace(/[^a-z]+/g, '')}.example`, phone: `0918 ${200 + i} ${4000 + i * 7}`,
+    disqualifiedReason: status === 'disqualified' ? 'Budget below our minimum engagement' : '',
+  }));
+
+  const checklist = (doneCount) => DEFAULT_BID_CHECKLIST.map((label, i) => ({ id: randomUUID(), label, done: i < doneCount, doneBy: i < doneCount ? 'Demo Sales Manager' : null, doneAt: i < doneCount ? at(-2) : null }));
+  const bids = [
+    { ...base(14), code: `${P}BID-0001`, title: 'Supply, delivery and installation of an e-permit and licensing system', accountId: sanRafael.id, dealId: deals[1].id, reference: 'SR-2026-ITB-017', mode: 'public', status: 'preparing', budget: 2000000, bidAmount: 1950000, deadline: `${day(6)}T10:00`, openingDate: day(6), preBidDate: day(-3), notes: 'Pre-bid conference attended; supplemental bid bulletin no. 1 received.', checklist: checklist(6) },
+    { ...base(40), code: `${P}BID-0002`, title: 'Provincial ICT helpdesk and asset management system', accountId: islaVerde.id, dealId: deals[4].id, reference: 'IV-PG-2026-044', mode: 'public', status: 'submitted', budget: 2500000, bidAmount: 2380000, deadline: `${day(-4)}T09:00`, openingDate: day(-4), preBidDate: day(-18), notes: 'Opened; we are the lowest calculated bid so far. Waiting for post-qualification.', checklist: checklist(10), submittedAt: at(-4) },
+    { ...base(70), code: `${P}BID-0003`, title: 'HRIS and payroll for warehouse operations', accountId: meridian.id, dealId: deals[2].id, reference: 'MLI-RFP-2026-03', mode: 'private', status: 'awarded', budget: null, bidAmount: 1320000, deadline: `${day(-35)}T17:00`, openingDate: null, preBidDate: null, notes: 'Awarded after a product demo.', checklist: checklist(10), submittedAt: at(-35) },
+  ];
+  bids[1].status = 'evaluation';
+
+  const contracts = [
+    { ...base(300), code: `${P}CT-0001`, title: 'Student information system support and maintenance', accountId: nsu.id, dealId: null, bidId: null, number: 'NSU-2025-118', value: 480000, startDate: day(-325), endDate: day(40), status: 'active', autoRenew: false, billing: 'Quarterly', terms: '8x5 support, two releases per year.' },
+    { ...base(20), code: `${P}CT-0002`, title: 'Warehouse HR and payroll: licence and implementation', accountId: meridian.id, dealId: deals[2].id, bidId: bids[2].id, number: 'MLI-PO-77812', value: 1320000, startDate: day(-15), endDate: day(350), status: 'active', autoRenew: true, billing: '50% on signing, 50% on go-live', terms: '' },
+    { ...base(500), code: `${P}CT-0003`, title: 'Website redesign and hosting', accountId: nsu.id, dealId: null, bidId: null, number: 'NSU-2024-031', value: 210000, startDate: day(-500), endDate: day(-135), status: 'expired', autoRenew: false, billing: 'One-time', terms: '' },
+  ];
+
+  const activity = (type, rel, relType, subject, body, dueIn, done, created) => ({
+    id: randomUUID(), type, subject, body, dueDate: dueIn === null ? null : day(dueIn), dueTime: null, outcome: '', related: { type: relType, id: rel.id },
+    ownerId: DEMO_OWNER, createdBy: DEMO_OWNER, createdAt: at(-created), done, doneAt: done ? at(-created) : null,
+  });
+  acts.push(
+    activity('task', bids[0], 'bid', 'Get the bid security from the bank', '', 0, false, 3),
+    activity('task', deals[0], 'deal', 'Send revised price schedule to Paolo', '', -1, false, 4),
+    activity('meeting', deals[3], 'deal', 'Site visit: Valenzuela plant', 'Walk through the biometric devices and shift patterns.', 3, false, 2),
+    activity('call', deals[0], 'deal', 'Pricing call with the VP for Administration', 'She wants a 3-year support option and staggered payments.', null, true, 6),
+    activity('task', contracts[0], 'contract', 'Prepare the renewal quotation', '', 5, false, 1),
+    activity('note', bayani, 'account', 'Background', 'Three plants; about 900 employees on shifting schedules. Currently on spreadsheets.', null, true, 30),
+    activity('email', deals[6], 'deal', 'Sent the phase 2 proposal', 'Proposal v2 with the gradebook and parent portal.', null, true, 9),
+    activity('task', leads[0], 'lead', 'Call Andres about the seasonal payroll', '', 1, false, 1),
+    activity('meeting', deals[4], 'deal', 'Discovery meeting with the Provincial IT Office', 'They have about 1,400 devices and no ticketing.', null, true, 21),
+  );
+
+  Object.assign(data, { crmAccounts: accounts, crmContacts: contacts, crmLeads: leads, crmDeals: deals, crmBids: bids, crmContracts: contracts, crmActivities: acts });
 }
 
 // A few service desk tickets in different states, from the demo employees.

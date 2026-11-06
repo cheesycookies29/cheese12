@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { ctx, can, roleLabel } from './state.js';
-import { html, mount, toast } from './ui.js';
+import { html, mount, toast, today } from './ui.js';
 import { icon, iconSvg } from './icons.js';
 import { MODULES } from './modules.js';
 import { dashboardView } from './views/dashboard.js';
@@ -21,6 +21,7 @@ import { reportsView, reportDetailView } from './views/reports.js';
 import { devlogView, unseenCount } from './views/devlog.js';
 import { feedbackView, feedbackInboxView, feedbackDetailView } from './views/feedback.js';
 import { clockLocationsView } from './views/locations.js';
+import { crmOverviewView, pipelineView, dealView, leadsView, leadView, accountsView, accountView, contactsView, contactView, bidsView, bidView, contractsView, contractView, activitiesView, crmSettingsView } from './views/crm.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
 
 // [path, view, permission needed, module]
@@ -67,6 +68,22 @@ const routes = [
   ['/helpdesk/mine', myTicketsView, 'auth', 'helpdesk'],
   ['/helpdesk/mine/:id', myTicketView, 'auth', 'helpdesk'],
   ['/helpdesk/settings', helpdeskSettingsView, 'helpdesk.manage', 'helpdesk'],
+  // Sales & CRM
+  ['/crm', crmOverviewView, 'crm.view', 'crm'],
+  ['/crm/pipeline', pipelineView, 'crm.view', 'crm'],
+  ['/crm/deals/:id', dealView, 'crm.view', 'crm'],
+  ['/crm/leads', leadsView, 'crm.view', 'crm'],
+  ['/crm/leads/:id', leadView, 'crm.view', 'crm'],
+  ['/crm/accounts', accountsView, 'crm.view', 'crm'],
+  ['/crm/accounts/:id', accountView, 'crm.view', 'crm'],
+  ['/crm/contacts', contactsView, 'crm.view', 'crm'],
+  ['/crm/contacts/:id', contactView, 'crm.view', 'crm'],
+  ['/crm/bids', bidsView, 'crm.view', 'crm'],
+  ['/crm/bids/:id', bidView, 'crm.view', 'crm'],
+  ['/crm/contracts', contractsView, 'crm.view', 'crm'],
+  ['/crm/contracts/:id', contractView, 'crm.view', 'crm'],
+  ['/crm/activities', activitiesView, 'crm.view', 'crm'],
+  ['/crm/settings', crmSettingsView, 'crm.manage', 'crm'],
   // System (shown inside whichever module is open)
   ['/users', usersView, 'users.manage', 'system'],
   ['/settings', settingsView, 'settings.edit', 'system'],
@@ -116,6 +133,17 @@ const NAV = {
     { heading: 'My account', permission: 'auth' },
     { href: '/helpdesk/mine', label: 'My tickets', icon: 'inbox', permission: 'auth' },
   ],
+  crm: [
+    { href: '/crm', label: 'Overview', icon: 'dashboard', permission: 'crm.view', exact: true },
+    { href: '/crm/pipeline', label: 'Pipeline', icon: 'chart', permission: 'crm.view', also: ['/crm/deals'] },
+    { href: '/crm/leads', label: 'Leads', icon: 'userPlus', permission: 'crm.view', badge: 'leads' },
+    { href: '/crm/accounts', label: 'Accounts', icon: 'building', permission: 'crm.view' },
+    { href: '/crm/contacts', label: 'Contacts', icon: 'users', permission: 'crm.view' },
+    { href: '/crm/bids', label: 'Bids', icon: 'clipboard', permission: 'crm.view' },
+    { href: '/crm/contracts', label: 'Contracts', icon: 'file', permission: 'crm.view' },
+    { href: '/crm/activities', label: 'Activities', icon: 'calendar', permission: 'crm.view', badge: 'crmTasks' },
+    { href: '/crm/settings', label: 'Sales setup', icon: 'settings', permission: 'crm.manage' },
+  ],
   system: [
     { heading: 'System', permission: 'users.manage' },
     { href: '/users', label: 'Users & Access', icon: 'shield', permission: 'users.manage' },
@@ -140,6 +168,7 @@ function moduleHome(id) {
   if (id === 'hr') return can('dashboard') ? '/dashboard' : allowed('self') ? '/me' : null;
   if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
   if (id === 'helpdesk') return can('helpdesk.agent') ? '/helpdesk' : '/helpdesk/mine';
+  if (id === 'crm') return can('crm.view') ? '/crm' : null;
   return null;
 }
 
@@ -260,6 +289,8 @@ const BADGES = {
   devlog: () => unseenCount(),
   feedback: () => api.get('/api/feedback/summary').then((r) => r.new),
   helpdesk: () => api.get('/api/helpdesk/summary').then((r) => r.awaiting),
+  leads: () => api.get('/api/crm/overview').then((r) => r.newLeads),
+  crmTasks: () => api.get('/api/crm/activities?mine=1&open=1').then((list) => list.filter((a) => a.dueDate && a.dueDate <= today()).length),
 };
 async function refreshBadge() {
   for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
@@ -320,7 +351,7 @@ async function navigate() {
   const params = Object.fromEntries(match.keys.map((k, i) => [k, decodeURIComponent(path.match(match.re)[i + 1])]));
   // The launcher has no sidebar; system pages keep the menu of the module they were opened from.
   body.classList.toggle('launcher-mode', !match.module);
-  if (match.module) renderNav(match.module === 'system' ? ctx.module || (moduleHome('hr') ? 'hr' : 'assets') : match.module);
+  if (match.module) renderNav(match.module === 'system' ? ctx.module || ['hr', 'assets', 'crm', 'helpdesk'].find((m) => moduleHome(m)) : match.module);
   renderBrandSub();
   markModuleSwitch();
   // Highlight the most specific nav link that contains the current path.
@@ -397,6 +428,7 @@ window.addEventListener('reports:changed', refreshBadge);
 window.addEventListener('devlog:seen', refreshBadge);
 window.addEventListener('feedback:changed', refreshBadge);
 window.addEventListener('helpdesk:changed', refreshBadge);
+window.addEventListener('crm:changed', refreshBadge);
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;

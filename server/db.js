@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, DEFAULT_RATES } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
 import { emptyHelpdesk } from './helpdesk.js';
+import { emptyCrm } from './crm.js';
 
 export function emptyData() {
   return {
@@ -28,6 +29,15 @@ export function emptyData() {
     feedback: [], // feedback from any signed-in user, read by administrators
     tickets: [], // IT Service Desk tickets (server/helpdesk.js)
     helpdesk: emptyHelpdesk(), // service desk settings: mailbox, outgoing mail, categories, SLA, saved replies
+    // Sales & CRM (server/crm.js): records, and the sales setup with code counters in `crm`.
+    crmAccounts: [],
+    crmContacts: [],
+    crmLeads: [],
+    crmDeals: [],
+    crmBids: [],
+    crmContracts: [],
+    crmActivities: [],
+    crm: emptyCrm(),
   };
 }
 

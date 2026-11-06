@@ -27,6 +27,16 @@ export const ROLES = {
     description: 'Works IT Service Desk tickets: replies, internal notes, assignment and status. Can view IT assets to see what a user has.',
     permissions: ['helpdesk.agent', 'assets.view', 'self'],
   },
+  sales: {
+    label: 'Sales Officer',
+    description: 'Works Sales & CRM: leads, accounts, contacts, deals, bids, contracts and activities. Cannot delete records or change the sales setup.',
+    permissions: ['crm.view', 'crm.edit', 'self'],
+  },
+  salesmgr: {
+    label: 'Sales Manager',
+    description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist.',
+    permissions: ['crm.view', 'crm.edit', 'crm.manage', 'self'],
+  },
   employee: {
     label: 'Employee',
     description: 'Self-service only: clock in and out, file leave and remote-work requests, see own attendance, payslips, profile and assigned IT equipment; report malfunctioning or damaged equipment.',
@@ -58,6 +68,9 @@ export const PERMISSION_LABELS = [
   ['devlog.edit', 'Write and edit dev log entries'],
   ['helpdesk.agent', 'Service desk: work all tickets (reply, notes, assign, status)'],
   ['helpdesk.manage', 'Service desk settings: receiving email address and mailbox, outgoing mail, categories, SLA, saved replies'],
+  ['crm.view', 'Sales & CRM: see accounts, contacts, leads, deals, bids and contracts'],
+  ['crm.edit', 'Sales & CRM: add and edit records, move deals, log calls, meetings and tasks'],
+  ['crm.manage', 'Sales & CRM: delete records and change the sales setup'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
@@ -69,12 +82,16 @@ export function can(role, permission) {
 }
 
 // Permissions an administrator can grant or remove per account, on top of the account type.
-// user.helpdeskAgent: true (granted), false (removed) or absent (follow the account type).
+// user.helpdeskAgent / user.crmAccess: true (granted), false (removed) or absent (follow the
+// account type). CRM access grants viewing and editing; removing it also removes crm.manage.
 // Administrators always keep everything.
-export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent' };
+export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent', 'crm.view': 'crmAccess', 'crm.edit': 'crmAccess' };
 export function userCan(user, permission) {
   if (!user) return false;
-  const field = PER_USER[permission];
-  if (field && user.role !== 'admin' && typeof user[field] === 'boolean') return user[field];
+  if (user.role !== 'admin') {
+    const field = PER_USER[permission];
+    if (field && typeof user[field] === 'boolean') return user[field];
+    if (permission === 'crm.manage' && user.crmAccess === false) return false;
+  }
   return can(user.role, permission);
 }

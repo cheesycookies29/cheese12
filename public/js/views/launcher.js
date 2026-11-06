@@ -15,7 +15,7 @@ function greeting() {
 // A few live figures per module, only from data this user may see.
 async function moduleStats() {
   const get = (url) => api.get(url).catch(() => null);
-  const [employees, requests, assets, inventory, mine, reports, desk, myTickets] = await Promise.all([
+  const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm] = await Promise.all([
     can('employees.view') ? get('/api/employees') : null,
     can('leave.manage') ? get('/api/requests/summary') : null,
     can('assets.view') ? get('/api/assets') : null,
@@ -24,6 +24,7 @@ async function moduleStats() {
     can('assets.view') ? get('/api/asset-reports/summary') : null,
     can('helpdesk.agent') ? get('/api/helpdesk/summary') : null,
     can('helpdesk.agent') ? null : get('/api/helpdesk/mine'),
+    can('crm.view') ? get('/api/crm/overview') : null,
   ]);
   const hr = [];
   if (employees) hr.push(`${employees.filter((e) => e.status === 'Active').length} active employees`);
@@ -38,7 +39,15 @@ async function moduleStats() {
   if (desk) helpdesk.push(`${desk.open} open ticket${desk.open === 1 ? '' : 's'}`, ...(desk.awaiting ? [`${desk.awaiting} awaiting reply`] : []), ...(desk.overdue ? [`${desk.overdue} overdue`] : []));
   const myOpen = myTickets?.filter((t) => !['resolved', 'closed'].includes(t.status)).length;
   if (myOpen) helpdesk.push(`${myOpen} open ticket${myOpen === 1 ? '' : 's'} of yours`);
-  return { hr, assets: assetsOut, helpdesk };
+  const sales = [];
+  const peso = (n) => (n >= 1e6 ? `₱${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M` : `₱${Math.round(n / 1000)}K`);
+  if (crm) {
+    sales.push(`${peso(crm.openValue)} open pipeline in ${crm.openCount} deal${crm.openCount === 1 ? '' : 's'}`);
+    if (crm.bids.length) sales.push(`${crm.bids.length} bid${crm.bids.length === 1 ? '' : 's'} being prepared`);
+    if (crm.myTasks.length) sales.push(`${crm.myTasks.length} task${crm.myTasks.length === 1 ? '' : 's'} due for you`);
+    if (crm.newLeads) sales.push(`${crm.newLeads} new lead${crm.newLeads === 1 ? '' : 's'}`);
+  }
+  return { hr, assets: assetsOut, helpdesk, crm: sales };
 }
 
 export async function launcherView(el) {
@@ -93,7 +102,7 @@ export async function launcherView(el) {
 
     <section class="hub-wrap">
       <div class="card-head"><h2>${icon('grid')} Your modules</h2><span class="muted small">${open} of ${live.length} available to you</span></div>
-      <div class="sys-grid three">${live.map(card)}</div>
+      <div class="sys-grid ${live.length === 3 ? 'three' : ''}">${live.map(card)}</div>
     </section>
 
     ${admin.length

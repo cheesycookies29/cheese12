@@ -7,6 +7,7 @@ import { createAttachments } from './attachments.js';
 import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
+import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
 import { createSecrets } from './secrets.js';
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
@@ -264,7 +265,10 @@ function replaceData(db, next) {
     feedback: Array.isArray(next.feedback) && next.feedback.length ? next.feedback : db.data.feedback,
     // The service desk's mail setup and settings are kept; its tickets are company data.
     helpdesk: keepHelpdeskConfig(db.data.helpdesk, next.helpdesk),
+    // So is the sales setup (pipeline stages, sources, checklist); CRM records are company data.
+    crm: keepCrmConfig(db.data.crm, next.crm),
   });
+  migrateCrm(db);
   syncDevlog(db);
   migrateLeaveTypes(db);
   const ids = new Set(db.data.employees.map((e) => e.id));
@@ -273,7 +277,7 @@ function replaceData(db, next) {
 }
 
 const DEMO_PASSWORD = 'demo1234';
-const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['employee.demo', 'employee', null]];
+const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['sales.demo', 'salesmgr', 'Demo Sales Manager'], ['employee.demo', 'employee', null]];
 
 function demoAccounts(db, employees) {
   const taken = new Set(db.data.users.map((u) => u.username));
@@ -326,7 +330,7 @@ function clock(db, emp, action, body = {}, source = 'self') {
 export function createApi(db) {
   const files = createAttachments(path.join(db.dir, 'attachments'));
   const secrets = createSecrets(db.dir);
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
@@ -638,6 +642,7 @@ export function createApi(db) {
   registerDevlogRoutes(route, db);
   registerFeedbackRoutes(route, db);
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
+  registerCrmRoutes(route, db);
   route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });
