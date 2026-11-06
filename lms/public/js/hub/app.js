@@ -2,7 +2,7 @@
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
-import { ctx, applyBranding, authHero, authLogo, atlasWord, markSrc, BYLINE, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
+import { ctx, applyBranding, authHero, authLogo, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon } from '../icons.js';
 import { roleLabel } from '/shared/roles.js';
 
@@ -56,14 +56,16 @@ function signInView(status) {
       ${cardLogo()}
       <h2>Sign in</h2>
       <p class="muted">Sign in to ATLAS with the account your school gave you.</p>
-      <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
+      ${ssoBlock(status.sso, next || '/')}
+      ${passwordFields(status.sso, html`<label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}
+      <button class="btn ${status.sso?.enabled ? '' : 'primary'} block" type="submit">Sign in</button>`)}
       <p class="form-error" hidden></p>
-      <button class="btn primary block" type="submit">Sign in</button>
       ${status.registrationOpen ? html`<p class="auth-switch">New student? <button type="button" class="link" id="apply">Apply for admission</button></p>` : ''}
-      <p class="auth-foot">Forgot your password? Ask the registrar or your administrator to reset it.</p>
+      <p class="auth-foot">${status.sso?.enabled && !status.sso.passwords ? 'Trouble signing in? Ask the registrar or your administrator.' : 'Forgot your password? Ask the registrar or your administrator to reset it.'}</p>
     </form>`, status.systems);
   form.querySelector('#apply')?.addEventListener('click', () => applyView(status));
+  showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
     if (!username || !password) throw new Error('Enter your username and password.');
     await api.post('/api/hub/login', { username, password });
@@ -190,8 +192,8 @@ async function homeView(status) {
 }
 
 async function signOut() {
-  await api.post('/api/hub/logout').catch(() => {});
-  location.href = '/';
+  const out = await api.post('/api/hub/logout').catch(() => ({}));
+  location.href = out?.ssoLogout || '/'; // a Keycloak session ends at Keycloak, which comes back here
 }
 
 async function boot() {

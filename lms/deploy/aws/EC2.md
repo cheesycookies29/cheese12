@@ -107,6 +107,22 @@ To see which version is installed, open a console (below) and run `cat /opt/ltdc
 | Point DuckDNS at the server now | `sudo ltdc-lms-duckdns` |
 | Reset a locked-out administrator | `sudo systemctl stop ltdc-lms`, then `cd /opt/ltdc-lms && sudo -u ltdc-lms node scripts/reset-password.js <username> <new-password>`, then `sudo systemctl start ltdc-lms` |
 
+## Single sign-on with Keycloak
+
+To let people sign in with the school's Keycloak (see the README, *Single sign-on*), put the Keycloak client's secret in the app's settings file, then restart. From a console on the server:
+
+```bash
+sudoedit /etc/ltdc-lms/app.env
+```
+
+Add a line `OIDC_CLIENT_SECRET=` followed by the secret from Keycloak (Clients → atlas → Credentials), save, then:
+
+```bash
+sudo systemctl restart ltdc-lms
+```
+
+Then finish in *Admin panel → Single sign-on*. The server needs to reach Keycloak over HTTPS; if Keycloak is only on the school's network, the server must be able to reach it there.
+
 ## Backups and restoring
 
 - **Every night at 2:15 AM** a copy of the data file goes to `/opt/ltdc-lms/data/backups/` (30 days kept), and uploaded files are mirrored there at 2:20 AM.

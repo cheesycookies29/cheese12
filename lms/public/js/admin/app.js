@@ -1,7 +1,7 @@
 // Admin panel (/admin): Administrators and Registrars.
 import { api } from '../api.js';
 import { html, toast } from '../ui.js';
-import { ctx, startApp, authScreen, passwordField, onFormSubmit, authLogo } from '../shell.js';
+import { ctx, startApp, authScreen, passwordField, onFormSubmit, authLogo, ssoBlock, passwordFields, showSsoError } from '../shell.js';
 import { can } from '/shared/roles.js';
 import { dashboardView } from './views/dashboard.js';
 import { enrollmentQueueView } from './views/enrollment.js';
@@ -12,6 +12,7 @@ import { modulesView } from './views/modules.js';
 import { settingsView, dataView, gradingView } from './views/settings.js';
 import { newsAdminView } from './views/news.js';
 import { systemsView } from './views/systems.js';
+import { ssoView } from './views/sso.js';
 import { campusesView } from './views/campuses.js';
 import { guardiansView, guardianView } from './views/guardians.js';
 
@@ -37,6 +38,7 @@ const routes = [
   ['/grading', gradingView, p('dashboard')],
   ['/news', newsAdminView, p('news.manage')],
   ['/systems', systemsView, p('dashboard')],
+  ['/sso', ssoView, p('settings.edit')],
   ['/campuses', campusesView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
 ];
@@ -64,6 +66,7 @@ function nav() {
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
     { href: '/systems', label: 'Home page & systems', icon: 'grid' },
+    c('settings.edit') && { href: '/sso', label: 'Single sign-on', icon: 'key' },
     c('admins.manage') && { href: '/staff', label: 'Admins, registrars & deans', icon: 'shield' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
@@ -100,12 +103,14 @@ function signedOutView(el, { status, boot }) {
       ${authLogo()}
       <h2>Admin panel</h2>
       <p class="muted">${status.schoolName}: for administrators and registrars.</p>
-      <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
+      ${ssoBlock(status.sso, '/admin')}
+      ${passwordFields(status.sso, html`<label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}
+      <button class="btn ${status.sso?.enabled ? '' : 'primary'} block" type="submit">Sign in</button>`)}
       <p class="form-error" hidden></p>
-      <button class="btn primary block" type="submit">Sign in</button>
       <p class="auth-switch">Teacher, student or parent? <a href="/">Sign in on the ATLAS home page</a></p>
     </form>`);
+  showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
     if (!username || !password) throw new Error('Enter your username and password.');
     await api.post('/api/admin/auth/login', { username, password });

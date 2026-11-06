@@ -11,6 +11,7 @@ import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { mergeHrSettings } from './hris.js';
 import { migrateLeaveTypes } from './hris-leave.js';
 import { mergeAcademicSettings } from './academic.js';
+import { mergeSso } from './sso.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS = {
     tagline: '',
   },
   systems: defaultSystemSettings(), // other systems on the ATLAS home page: { status: soon | live | hidden, url }
+  sso: mergeSso(), // single sign-on with Keycloak (server/sso.js); the client secret is in OIDC_CLIENT_SECRET, never here
 };
 
 // Activity types and their share of the running grade (weights are percentages;
@@ -100,6 +102,7 @@ export function mergeSettings(s = {}) {
     registration: { ...DEFAULT_SETTINGS.registration, ...(s.registration || {}) },
     branding: { ...DEFAULT_SETTINGS.branding, ...(s.branding || {}) },
     systems: Object.fromEntries(Object.entries(defaultSystemSettings()).map(([id, v]) => [id, { ...v, ...(s.systems?.[id] || {}) }])),
+    sso: mergeSso(s.sso),
   };
 }
 

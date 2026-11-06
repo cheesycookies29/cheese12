@@ -96,7 +96,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req) : {};
     const out = await api(req, url, body);
-    if (out.raw) return send(res, 200, out.raw, out.type, out.headers);
+    if (out.raw != null) return send(res, out.status || 200, out.raw, out.type, out.headers);
     send(res, 200, out.data, 'application/json', out.headers);
   } catch (err) {
     const status = err.status || 500;

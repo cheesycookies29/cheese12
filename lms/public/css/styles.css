@@ -682,3 +682,14 @@ body.hub .topbar { padding-left: 24px; }
   .sidebar, .topbar, .nav-scrim, .no-print, #toast { display: none !important; }
   body, main { background: #fff; padding: 0; }
 }
+
+/* Single sign-on (Keycloak) on the sign-in cards and its admin page */
+.sso-btn { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.auth-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 2px 0; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.pw-details summary { cursor: pointer; color: var(--muted); font-size: 13px; text-align: center; padding: 4px 0; }
+.pw-details[open] summary { margin-bottom: 10px; }
+.pw-details .stack { display: flex; flex-direction: column; gap: 14px; }
+.copy-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.copy-row code { overflow-wrap: anywhere; }
+ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; }

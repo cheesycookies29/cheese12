@@ -45,9 +45,10 @@ const SESSION_TTL = 8 * 60 * 60 * 1000; // signed out after 8 idle hours
 export function createSessions() {
   const sessions = new Map();
   return {
-    create(userId) {
+    // extra: e.g. { sso: true, idToken } for a single sign-on session (used to end the Keycloak session too).
+    create(userId, extra = {}) {
       const token = randomBytes(32).toString('hex');
-      sessions.set(token, { userId, expires: Date.now() + SESSION_TTL });
+      sessions.set(token, { ...extra, userId, expires: Date.now() + SESSION_TTL });
       return token;
     },
     get(token) {

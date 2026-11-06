@@ -119,6 +119,28 @@ try {
   }
 } catch {}
 
+// Single sign-on (Keycloak): the button above the password form, and the password fields under it.
+// With passwords switched off, the fields fold away under "Administrator sign-in" (a way in if Keycloak is down).
+export function ssoBlock(sso, next = '/') {
+  if (!sso?.enabled) return '';
+  return html`<a class="btn primary block sso-btn" href="/api/sso/start?next=${encodeURIComponent(next)}">${icon('key', 18)} ${sso.label}</a>
+    ${sso.passwords ? html`<div class="auth-or"><span>or with your ATLAS password</span></div>` : ''}`;
+}
+export const passwordFields = (sso, fields) => (sso?.enabled && !sso.passwords
+  ? html`<details class="pw-details"><summary>Administrator sign-in</summary><div class="stack">${fields}</div></details>`
+  : fields);
+// A sign-in that came back from Keycloak with an error (?ssoError=…): show it on the form once.
+export function showSsoError(form) {
+  const params = new URLSearchParams(location.search);
+  const msg = params.get('ssoError');
+  if (!msg || !form) return;
+  const box = form.querySelector('.form-error');
+  box.textContent = msg;
+  box.hidden = false;
+  params.delete('ssoError');
+  history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
+}
+
 // Above the sign-in form on phones, where the burgundy panel is hidden (as in CORE).
 export const authLogo = () => html`<div class="auth-brand">${themedMark('auth-mark')}<strong>ATLAS</strong><small>${BYLINE}</small></div>`;
 
@@ -360,9 +382,9 @@ export function startApp(config) {
 
   // Signing out ends every session (portal and admin) and returns to the University Portal.
   async function signOut() {
-    await api.post('/api/hub/logout').catch(() => {});
+    const out = await api.post('/api/hub/logout').catch(() => ({}));
     ctx.user = null;
-    location.href = '/';
+    location.href = out?.ssoLogout || '/'; // a Keycloak session ends at Keycloak, which comes back to /
   }
 
   ctx.refreshBadges = refreshBadges;

@@ -5,21 +5,23 @@ import { memoryDb } from '../server/db.js';
 export const TODAY = '2026-08-10';
 
 // clock: () => Date, to move time (e.g. clock in, then out); otherwise 10:00 on `today`.
-export function setup({ today = TODAY, clock = null } = {}) {
+// options: more createApi options (e.g. ssoSecret, ssoFetch for single sign-on tests).
+export function setup({ today = TODAY, clock = null, options = {} } = {}) {
   const db = memoryDb();
-  const api = createApi(db, { clock: clock || (() => new Date(`${today}T10:00:00`)) });
+  const api = createApi(db, { clock: clock || (() => new Date(`${today}T10:00:00`)), ...options });
   const client = () => {
     const jar = {};
     const call = async (method, path, body = {}) => {
       const cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
-      const { data, headers } = await api({ method, headers: { cookie } }, new URL(`http://localhost${path}`), body);
+      const res = await api({ method, headers: { cookie } }, new URL(`http://localhost${path}`), body);
+      const { data, headers } = res;
       for (const set of [headers['Set-Cookie'] || []].flat()) {
         const [pair] = set.split(';');
         const [k, v] = pair.split('=');
         if (v) jar[k] = v;
         else delete jar[k];
       }
-      return data;
+      return res.raw != null ? res : data; // a page or redirect: the whole response (status, headers, raw)
     };
     return {
       get: (p) => call('GET', p),

@@ -34,6 +34,7 @@ import { registerHrisRoutes } from './hris.js';
 import { registerGuardianRoutes, guardianChildren } from './guardian.js';
 import { HRIS_PERMISSION_LABELS } from '../shared/roles.js';
 import { registerAcademicRoutes, ACADEMIC_ROLES } from './academic.js';
+import { registerSsoRoutes } from './sso.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
 
@@ -44,7 +45,8 @@ const fail = (msg, status = 400) => {
 // options.clock: () => Date, so tests can pin "today".
 // options.setupCode (or the SETUP_CODE environment variable): when set, creating the first
 // administrator also needs this code, so nobody else can claim a new server on the internet.
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '' } = {}) {
+// options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -93,9 +95,21 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
     if (user.status === 'rejected') fail('Your application was not accepted. Contact the registrar for details.', 403);
     if (user.status !== 'active') fail('This account is disabled. Contact the registrar.', 403);
+    // With single sign-on switched on and passwords off, only administrators keep a password (a way in if Keycloak is down).
+    const sso = db.data.settings.sso;
+    if (sso?.enabled && !sso.allowPasswords && user.role !== 'admin') fail(`This school signs in with Keycloak. Choose "${sso.label}".`, 403);
     user.lastLoginAt = new Date().toISOString();
     db.save();
     return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id)) } };
+  }
+
+  // A session for `user` on their side, ending any other side's session in this browser (single sign-on).
+  function startSession(user, tokens, extra = {}) {
+    const side = ROLES[user.role]?.side;
+    if (!side) fail('This account type cannot sign in.', 403);
+    for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
+    user.lastLoginAt = new Date().toISOString();
+    return [sessionCookie(COOKIES[side], sides[side].create(user.id, extra)), ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
   }
 
   function changePassword(side, { user, token, body }) {
@@ -204,6 +218,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       user: publicUser(user),
       side,
       authBase: AUTH_BASE[side] || '/api/auth',
+      sso: sso.publicInfo(),
       systems: portalSystems(user, side),
       ...campusInfo(user),
     };
@@ -217,9 +232,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
     return out;
   });
-  route('POST', '/api/hub/logout', 'public', ({ tokens }) => {
+  route('POST', '/api/hub/logout', 'public', ({ tokens, origin }) => {
+    // A single sign-on session also ends at Keycloak: the browser goes there next.
+    const ssoSession = Object.entries(sides).map(([name, sessions]) => sessions.get(tokens[name])).find((s) => s?.sso);
+    const ssoLogout = sso.logoutUrl(ssoSession, origin);
     for (const [name, sessions] of Object.entries(sides)) sessions.destroy(tokens[name]);
-    return { data: { ok: true }, headers: { 'Set-Cookie': Object.values(COOKIES).map(clearedCookie) } };
+    return { data: { ok: true, ssoLogout }, headers: { 'Set-Cookie': Object.values(COOKIES).map(clearedCookie) } };
   });
   // School news and upcoming events for the portal home (when News & events is on for the account type).
   route('GET', '/api/hub/feed', 'public', ({ portalUser, adminUser, hrisUser }) => {
@@ -235,6 +253,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
 
   // ----- Admin panel: sign-in -----
   route('GET', '/api/admin/auth/status', 'public', ({ adminUser }) => ({
+    sso: sso.publicInfo(),
     setupRequired: setupRequired(),
     setupCodeRequired: setupRequired() && Boolean(setupCode),
     schoolName: db.data.settings.schoolName,
@@ -333,6 +352,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
   route('POST', '/api/academic/auth/campus', 'academic', ({ user, body }) => switchCampus(user, body));
   const academic = registerAcademicRoutes(route, ctx);
+  const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
 
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
   registerAdminRoutes(route, ctx);
@@ -356,6 +376,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const adminUser = resolve('admin', adminToken);
     const hrisUser = resolve('hris', hrisToken);
     const tokens = { portal: portalToken, admin: adminToken, hris: hrisToken };
+    // This app's own address as the browser sees it (behind Caddy: X-Forwarded-*), for the Keycloak redirects.
+    const origin = process.env.PUBLIC_URL?.replace(/\/$/, '') || `${String(req.headers['x-forwarded-proto'] || (req.socket?.encrypted ? 'https' : 'http')).split(',')[0]}://${req.headers['x-forwarded-host'] || req.headers.host || 'localhost'}`;
 
     for (const r of routes) {
       if (r.method !== req.method) continue;
@@ -395,8 +417,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       const campusId = user ? activeCampusId(db.data, user) : null;
-      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId });
-      if (result?.raw) return result; // a file
+      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies });
+      if (result?.raw != null) return result; // a file, a page or a redirect
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }
     fail('Not found.', 404);

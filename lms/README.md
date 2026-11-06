@@ -171,6 +171,23 @@ Parents and guardians get their own account type and their own section of the LM
 
 Who uses it: administrators and registrars (everything), deans (curricula, approving grade sheets and grade changes), teachers (their grade sheets), students (their own record). Parents and HR accounts do not see Academic. Admissions with entrance exams, block sections and schedule codes, fee assessment and cashiering, and scholarships are the next phases (see the plan).
 
+## Single sign-on (Keycloak)
+
+ATLAS can let people sign in with the school's **Keycloak** account (OpenID Connect; any standard OIDC provider works the same way). A **Sign in with Keycloak** button then appears on the ATLAS home page and the admin panel's sign-in page.
+
+- **Who can sign in:** only people who already have an ATLAS account. Keycloak proves who they are; ATLAS still decides what they may do. The first sign-in matches the Keycloak user to an ATLAS account by **email** (it must be verified in Keycloak) or by **username**, then links the two; later sign-ins use the link, even if the email changes.
+- **Passwords:** can stay on beside Keycloak, or be switched off. Off, everyone except administrators must use Keycloak; administrators keep their password so there is a way in if Keycloak is down.
+- **Signing out** of ATLAS also ends the Keycloak session.
+- **Security:** authorization code flow with PKCE, a state bound to the browser, a nonce, and the ID token's signature checked against Keycloak's published keys (RS256, PS256 or ES256), with its issuer, audience and expiry. No new dependencies.
+
+To set it up:
+
+1. In Keycloak, in the school's realm: **Clients → Create client** (OpenID Connect), Client ID e.g. `atlas`; **Client authentication** on, **Standard flow** on. Add the **Valid redirect URI** and **Valid post logout redirect URI** that *Admin panel → Single sign-on* shows (they look like `https://your-domain/api/sso/callback` and `https://your-domain/`), and Web origins `+`.
+2. Put the client's secret on the server as `OIDC_CLIENT_SECRET` (on EC2: in `/etc/ltdc-lms/app.env`, see the EC2 guide) and restart ATLAS. The secret is never stored in the data file, backups or the admin panel.
+3. In **Admin panel → Single sign-on**: the issuer (`https://sso.school.edu/realms/<realm>`), the client ID, the button text and how to match accounts; **Test connection**; then switch it on. ATLAS refuses to switch on if Keycloak does not answer.
+
+If ATLAS shows the wrong address for the redirect URIs (e.g. behind an unusual proxy), set `PUBLIC_URL=https://your-domain` on the server.
+
 ## HRIS
 
 The Human Resource Information System, built from the [Lancaster ERP's HR & Payroll](../README.md) module: the same time, leave, pay, contribution and tax rules (`shared/calc.js` and `shared/leave.js` are the ERP's files; a test checks the two stay identical), reworked for a school with campuses.
@@ -272,6 +289,8 @@ lms/
   shared/academic.js     grading scale, document types, requirements, GWA (server and browser)
   public/academic/, public/js/academic/  the Academic app; public/verify.html  the document check page
   public/js/vendor/qrcode.js  QR codes (qrcode-generator, MIT, vendored)
+  server/sso.js          single sign-on with Keycloak (OpenID Connect, PKCE, ID token checks)
+  test/oidc-provider.js  a stand-in Keycloak for the tests (and demos: it has a sign-in page)
   shared/calc.js         time and payroll rules (the ERP's file): DTR, payslips, SSS, PhilHealth, Pag-IBIG, tax
   shared/leave.js        leave rules (the ERP's file)
   shared/roles.js        account types and permissions (server and browser)
