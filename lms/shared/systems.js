@@ -34,7 +34,7 @@ export const SYSTEMS = [
     title: 'Human resources',
     description: 'Employee records, time clock and attendance, leave requests and credits, payroll and payslips.',
     icon: 'users',
-    audience: ['teacher', 'registrar', 'dean', 'admin', 'hr', 'payroll', 'staff'],
+    audience: ['teacher', 'registrar', 'dean', 'admin', 'hr', 'payroll', 'staff', 'accountant', 'budget', 'cashier', 'supply', 'approver'],
     builtIn: true,
     path: '/hris/',
   },
@@ -43,9 +43,11 @@ export const SYSTEMS = [
     product: 'Finance',
     short: 'FMIS',
     title: 'Financial management',
-    description: 'Budget, assessments and collections, disbursements, accounting and financial reports.',
+    description: 'Government accounting: budget, procurement, inventory and property, disbursements, collections and financial reports.',
     icon: 'coins',
-    audience: ['student', 'guardian', 'teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff'],
+    audience: ['student', 'teacher', 'registrar', 'dean', 'admin', 'hr', 'payroll', 'staff', 'accountant', 'budget', 'cashier', 'supply', 'approver'],
+    builtIn: true,
+    path: '/finance/',
   },
   {
     id: 'facilities',
@@ -54,7 +56,7 @@ export const SYSTEMS = [
     title: 'Facilities and property',
     description: 'Rooms and venues, bookings, maintenance requests, and the school’s property and equipment.',
     icon: 'building',
-    audience: ['teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff'],
+    audience: ['teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff', 'accountant', 'budget', 'cashier', 'supply', 'approver'],
   },
 ].map((s) => ({ ...s, name: `ATLAS ${s.product}` }));
 

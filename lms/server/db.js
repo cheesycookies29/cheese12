@@ -12,6 +12,7 @@ import { mergeHrSettings } from './hris.js';
 import { migrateLeaveTypes } from './hris-leave.js';
 import { mergeAcademicSettings } from './academic.js';
 import { mergeSso } from './sso.js';
+import { mergeFinanceSettings, mergeChart } from './finance.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -91,6 +92,18 @@ export function emptyData() {
     documentRequests: [], // TOR, certificates…: requested → paid → processing → ready → released
     issuedDocuments: [], // printed documents with a verification code and what they said
     auditLog: [], // who changed what in Academic
+    // ----- Finance (server/finance*.js) -----
+    finSettings: mergeFinanceSettings(), // entity, funds, offices, PAPs, banks, signatories, numbering, taxes, thresholds, period lock
+    finCounters: {}, // document number series
+    finAccounts: mergeChart([]), // the chart of accounts (Revised Chart of Accounts for NGAs)
+    finCards: [], // card file: suppliers, employees, accountable officers, agencies, individuals
+    finJournals: [], // journal entry vouchers (posted or draft)
+    finAppropriations: [], finAllotments: [], finNcas: [], finObligations: [], // budget: ORS/BURS
+    finItems: [], finStock: [], finPrs: [], finPos: [], finIars: [], finRis: [], finCounts: [], // procurement and inventory
+    finProperty: [], finDepRuns: [], // PPE and semi-expendable property
+    finDvs: [], finLddaps: [], finLiquidations: [], finRemittances: [], finBankRecons: [], // disbursement
+    finBooklets: [], finReceipts: [], finRcds: [], finRevenueTargets: [], // revenue
+    finAudit: [], // who did what in Finance
   };
 }
 
@@ -116,6 +129,9 @@ function normalize(data) {
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
   out.hrSettings = mergeHrSettings(data.hrSettings);
   out.academicSettings = mergeAcademicSettings(data.academicSettings);
+  out.finSettings = mergeFinanceSettings(data.finSettings);
+  out.finAccounts = mergeChart(data.finAccounts);
+  out.finCounters = { ...(data.finCounters || {}) };
   if (!Array.isArray(data.leaveTypes)) out.leaveTypes = structuredClone(DEFAULT_LEAVE_TYPES);
   migrateLeaveTypes(out);
   ensureCampuses(out);

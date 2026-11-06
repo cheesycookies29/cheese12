@@ -61,7 +61,7 @@ function sendFile(req, res, file) {
 }
 
 function serveStatic(req, url, res) {
-  // Five single-page apps: the ATLAS home page (/), ATLAS Learn (/lms/), its admin panel (/admin), ATLAS People (/hris/) and ATLAS Academic (/academic/).
+  // Six single-page apps: the ATLAS home page (/), ATLAS Learn (/lms/), its admin panel (/admin), ATLAS People (/hris/), ATLAS Academic (/academic/) and ATLAS Finance (/finance/).
   if (url.pathname === '/admin' || url.pathname === '/admin/') return sendFile(req, res, path.join(PUBLIC, 'admin', 'index.html'));
   if (url.pathname === '/lms') return send(res, 302, '', 'text/plain', { Location: '/lms/' });
   if (url.pathname === '/lms/') return sendFile(req, res, path.join(PUBLIC, 'lms', 'index.html'));
@@ -69,6 +69,8 @@ function serveStatic(req, url, res) {
   if (url.pathname === '/hris/') return sendFile(req, res, path.join(PUBLIC, 'hris', 'index.html'));
   if (url.pathname === '/academic') return send(res, 302, '', 'text/plain', { Location: '/academic/' });
   if (url.pathname === '/academic/') return sendFile(req, res, path.join(PUBLIC, 'academic', 'index.html'));
+  if (url.pathname === '/finance') return send(res, 302, '', 'text/plain', { Location: '/finance/' });
+  if (url.pathname === '/finance/') return sendFile(req, res, path.join(PUBLIC, 'finance', 'index.html'));
   if (/^\/verify\/[A-Za-z0-9-]{4,40}$/.test(url.pathname)) return sendFile(req, res, path.join(PUBLIC, 'verify.html')); // a document's verification page
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;
@@ -129,7 +131,7 @@ server.on('error', (err) => {
 server.listen(PORT, HOST, () => {
   console.log(`\n  Lancaster ATLAS is running.`);
   console.log(`  ATLAS home (everyone signs in here): http://localhost:${PORT}`);
-  console.log(`  ATLAS Learn: http://localhost:${PORT}/lms/   ·   Learn admin panel: http://localhost:${PORT}/admin   ·   ATLAS People: http://localhost:${PORT}/hris/   ·   ATLAS Academic: http://localhost:${PORT}/academic/`);
+  console.log(`  ATLAS Learn: http://localhost:${PORT}/lms/   ·   Learn admin panel: http://localhost:${PORT}/admin   ·   ATLAS People: http://localhost:${PORT}/hris/   ·   ATLAS Academic: http://localhost:${PORT}/academic/   ·   ATLAS Finance: http://localhost:${PORT}/finance/`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');

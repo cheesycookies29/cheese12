@@ -61,6 +61,36 @@ export const ROLES = {
     description: 'Prepares payroll at their campuses: payroll runs, payslips and payroll setup; views employees, attendance and leave.',
     permissions: ['hris.dashboard', 'employees.view', 'attendance.view', 'leave.manage', 'payroll.view', 'payroll.edit', 'payroll.config'],
   },
+  accountant: {
+    label: 'Chief Accountant',
+    side: 'hris',
+    description: 'Keeps the books in ATLAS Finance: journal entries, certifying vouchers (Box C), liquidations, bank reconciliation, statements, closing, and the Control panel.',
+    permissions: ['finance.view', 'finance.cardfile', 'finance.accounts', 'finance.settings'],
+  },
+  budget: {
+    label: 'Budget Officer',
+    side: 'hris',
+    description: 'Runs the budget in ATLAS Finance: appropriations, allotments, NCAs, and obligating requests (ORS/BURS Box B).',
+    permissions: ['finance.view', 'finance.cardfile', 'finance.budget'],
+  },
+  cashier: {
+    label: 'Cashier',
+    side: 'hris',
+    description: 'Disbursing and collecting officer in ATLAS Finance: vouchers, checks and LDDAP-ADA, cash advances, tax remittances, official receipts, collections and deposits.',
+    permissions: ['finance.view', 'finance.cardfile', 'finance.disburse', 'finance.collect'],
+  },
+  supply: {
+    label: 'Supply & Property Officer',
+    side: 'hris',
+    description: 'Procurement, inventory and property in ATLAS Finance: purchase requests and orders, deliveries, stock, requisitions, PAR/ICS, depreciation and disposal.',
+    permissions: ['finance.view', 'finance.cardfile', 'finance.procure', 'finance.inventory', 'finance.property'],
+  },
+  approver: {
+    label: 'Approving Officer',
+    side: 'hris',
+    description: 'The head of agency or authorized representative in ATLAS Finance: approves purchase requests, purchase orders and vouchers (Box D).',
+    permissions: ['finance.view', 'finance.approve'],
+  },
   staff: {
     label: 'Staff',
     side: 'hris',
@@ -104,6 +134,8 @@ export const HRIS_PERMISSION_LABELS = [
   ['payroll.config', 'Payroll setup: pay rules, contributions, tax tables'],
   ['hris.settings', 'Employer details and the default work schedule'],
 ];
+
+export { FINANCE_PERMISSION_LABELS } from './finance.js';
 
 export function can(role, permission) {
   const perms = ROLES[role]?.permissions || [];

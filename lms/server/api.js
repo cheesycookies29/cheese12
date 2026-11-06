@@ -8,6 +8,8 @@
 //                                    parents & guardians reach only 'guardian' routes and those marked guardians: true)
 //   'admin' | 'admin:<permission>'    signed in to the admin panel (optionally with that permission)
 //   'hris' | 'hris:<permission>'      any signed-in employee (not students), optionally with that permission
+//   'finance' | 'finance:<permission>'    ATLAS Finance: any signed-in employee or student (whichever session the
+//                                    browser has), optionally with that permission
 //   'academic' | 'academic:<permission>'  ATLAS Academic: administrators, registrars and deans (admin-panel
 //                                    session), teachers and students (portal session); optionally with that permission
 // Portal routes may also name a module; the call is refused when an administrator
@@ -35,6 +37,8 @@ import { registerGuardianRoutes, guardianChildren } from './guardian.js';
 import { HRIS_PERMISSION_LABELS } from '../shared/roles.js';
 import { registerAcademicRoutes, ACADEMIC_ROLES } from './academic.js';
 import { registerSsoRoutes } from './sso.js';
+import { registerFinanceRoutes } from './finance.js';
+import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
 
@@ -299,11 +303,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('GET', '/api/admin/demo', 'admin:data.manage', () => demoStatus(db.data));
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
     addDemo(db.data, ctx.today(), ctx.files);
+    addFinanceDemo(db.data, ctx);
     db.save();
     return demoStatus(db.data);
   });
   route('DELETE', '/api/admin/demo', 'admin:data.manage', () => {
     for (const u of users().filter((x) => x.demo)) ctx.signOutEverywhere(u.id);
+    removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
     db.save();
     return demoStatus(db.data);
@@ -352,12 +358,46 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
   route('POST', '/api/academic/auth/campus', 'academic', ({ user, body }) => switchCampus(user, body));
   const academic = registerAcademicRoutes(route, ctx);
+
+  // ----- Finance (/finance/): any employee (finance staff by their finance.* permissions) and students (their receipts) -----
+  route('GET', '/api/finance/auth/status', 'public', ({ adminUser, portalUser, hrisUser }) => {
+    const user = hrisUser || adminUser || portalUser;
+    const allowed = Boolean(user) && user.role !== 'guardian';
+    return {
+      ...campusInfo(allowed ? user : null),
+      branding: branding(),
+      setupRequired: setupRequired(),
+      user: allowed ? publicUser(user) : null,
+      deniedUser: user && !allowed ? { name: user.name, role: user.role } : null,
+      side: allowed ? ROLES[user.role].side : null,
+      authBase: '/api/finance/auth',
+      permissions: allowed ? finance.permissionsFor(user.role) : [],
+    };
+  });
+  route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
+  route('POST', '/api/finance/auth/campus', 'finance', ({ user, body }) => switchCampus(user, body));
+  const finance = registerFinanceRoutes(route, ctx);
   const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
 
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
   registerAdminRoutes(route, ctx);
   registerEnrollmentRoutes(route, ctx);
   registerGuardianRoutes(route, ctx, registerClassroomRoutes(route, ctx));
+
+  // Call a route as a user, inside the server (demo data is made through the same rules as real work).
+  ctx.invoke = (user, method, path, body = {}) => {
+    const url = new URL(`http://localhost${path}`);
+    for (const r of routes) {
+      if (r.method !== method) continue;
+      const m = url.pathname.match(r.re);
+      if (!m) continue;
+      const permission = r.access.includes(':') ? r.access.split(':')[1] : null;
+      if (permission && !can(user.role, permission)) throw new HttpError(403, `${user.name} cannot ${method} ${path}`);
+      const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+      return r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, campusId: activeCampusId(db.data, user), tokens: {}, cookies: {}, origin: '' });
+    }
+    throw new HttpError(404, `No route for ${method} ${path}`);
+  };
 
   // ----- Request handling -----
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
@@ -397,6 +437,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         token = adminUser ? adminToken : portalToken;
         if (!user) fail('Please sign in.', 401);
         if (!ACADEMIC_ROLES.includes(user.role)) fail('Academic is for students, teachers and the registrar\'s office.', 403);
+        const permission = r.access.split(':')[1];
+        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+      } else if (r.access === 'finance' || r.access.startsWith('finance:')) {
+        [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
+        if (!user) fail('Please sign in.', 401);
+        if (user.role === 'guardian') fail('Finance is for the school\'s employees and students.', 403);
         const permission = r.access.split(':')[1];
         if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
       } else if (r.access.startsWith('admin')) {

@@ -250,7 +250,7 @@ function accountCard(emp) {
   </section>`;
 }
 
-const ACCOUNT_TYPES = [['staff', 'Staff: self-service only'], ['hr', 'HR Manager: employees, attendance, leave approvals'], ['payroll', 'Payroll Officer: payroll runs and setup']];
+const ACCOUNT_TYPES = [['staff', 'Staff: self-service only'], ['hr', 'HR Manager: employees, attendance, leave approvals'], ['payroll', 'Payroll Officer: payroll runs and setup'], ['accountant', 'Chief Accountant (Finance)'], ['budget', 'Budget Officer (Finance)'], ['cashier', 'Cashier (Finance)'], ['supply', 'Supply & Property Officer (Finance)'], ['approver', 'Approving Officer (Finance)']];
 
 function wireAccount(el, emp, reload) {
   const done = (msg) => () => {

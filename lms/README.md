@@ -4,7 +4,7 @@
 
 **Lancaster ATLAS** is the Unified Education Management Platform of Lancaster Technology and Development Corporation (LTDC), the school-side sibling of the Lancaster ERP, [CORE](../README.md).
 It is built the same way as CORE: one Node.js program with **no dependencies**, a browser app with no build step, and all data in one file, `data/db.json`.
-It runs on your own computer, or online on Amazon EC2 (see [Putting it online](#putting-it-online-aws)). The brand (mark, colours, product names) is described in [docs/BRAND.md](docs/BRAND.md). ATLAS Academic was planned against the CBSUA UIS: see [docs/ACADEMIC-PLAN.md](docs/ACADEMIC-PLAN.md) for the benchmark, what is built and what comes next.
+It runs on your own computer, or online on Amazon EC2 (see [Putting it online](#putting-it-online-aws)). The brand (mark, colours, product names) is described in [docs/BRAND.md](docs/BRAND.md). ATLAS Academic was planned against the CBSUA UIS: see [docs/ACADEMIC-PLAN.md](docs/ACADEMIC-PLAN.md) for the benchmark, what is built and what comes next. ATLAS Finance follows COA, DBM and BIR rules: see [docs/FINANCE-PLAN.md](docs/FINANCE-PLAN.md) for the research, how each requirement is met and what to confirm before going live.
 
 ATLAS is a family of products behind one sign-in:
 
@@ -13,7 +13,7 @@ ATLAS is a family of products behind one sign-in:
 | **ATLAS Learn** (LMS) | Classes, lessons, quizzes, attendance, grades and enrollment, with its admin panel | Live |
 | **ATLAS People** (HRIS) | Employee records, time clock, leave, payroll and payslips; self-service for every employee | Live |
 | **ATLAS Academic** (UIS) | Student records, curricula and evaluation, grade sheets, documents, CHED/FHE reports | Live (release 1) |
-| **ATLAS Finance** (FMIS) | Budget, assessments and collections, accounting | Coming soon |
+| **ATLAS Finance** (FMIS) | Government accounting: card file, accounts, budget, inventory, property, disbursement, revenue, control panel | Live (release 1) |
 | **ATLAS Facilities** | Rooms and venues, bookings, maintenance, property | Coming soon |
 
 Everyone starts at the **ATLAS home page**, the school's single front door to these systems:
@@ -25,9 +25,10 @@ Everyone starts at the **ATLAS home page**, the school's single front door to th
 | <http://localhost:3100/admin> | **ATLAS Learn admin panel** for administrators and registrars (it also keeps its own sign-in page) |
 | <http://localhost:3100/hris/> | **ATLAS People** for every employee (self-service) and for HR and payroll staff |
 | <http://localhost:3100/academic/> | **ATLAS Academic** for the registrar's office and deans, teachers' grade sheets, and students' own records |
+| <http://localhost:3100/finance/> | **ATLAS Finance** for the accounting, budget, cashier's and supply offices, and self-service for employees (property, cash advances, requests) and students (their receipts) |
 | <http://localhost:3100/verify/CODE> | Anyone checks a document printed from Academic (the QR code on it opens this page) |
 
-**ATLAS Learn**, **ATLAS People** and **ATLAS Academic** are live. **Finance** and **Facilities** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → ATLAS home & systems** with the address each one runs at. Students do not see the ATLAS People tile.
+**ATLAS Learn**, **ATLAS People**, **ATLAS Academic** and **ATLAS Finance** are live. **Facilities** shows greyed out as *Coming soon* until an administrator switches it on under **Admin panel → ATLAS home & systems** with the address it runs at. Students do not see the ATLAS People tile.
 
 The web addresses (`/lms/`, `/hris/`), the `lms` folder, the server's service names (`ltdc-lms`) and the sign-in cookies keep their old names, so existing installs, bookmarks and servers keep working after the rename.
 
@@ -85,9 +86,14 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 | ATLAS home → People | `staff.demo` | `demo1234` | A librarian's self-service: clock in, file leave, payslips. `teacher.demo` has the same in the HRIS tile |
 | ATLAS home → Academic | `registrar.demo` | `demo1234` | The dashboard's work queue; Carlo Reyes's record (evaluation against BSIT 2026, back subjects, grades, profile, history); post the approved ED101 grade sheet; print a TOR and check its QR code; document requests from unpaid to released; CHED list, FHE billing CSV and the enrollment summary |
 | ATLAS home → Academic | `dean.demo` | `demo1234` | A dean (Elena Cruz): approve last term's GE101 grade sheet, approve the waiting INC completion, finish the draft BSED 2027 curriculum and post it |
+| ATLAS home → Finance | `accountant.demo` | `demo1234` | The Chief Accountant (Teresita Lopez): certify the waiting voucher (Box C), post the draft accrual, trial balance and financial statements per fund, ledgers, bank reconciliation, close a month, the Control panel |
+| ATLAS home → Finance | `budget.demo` | `demo1234` | The Budget Officer: obligate the library's ORS (Box B), allotment balances, the SAAODB, RAOD and aging reports |
+| ATLAS home → Finance | `cashier.demo` | `demo1234` | The Cashier (bonded): pay the approved voucher, issue an O.R. to a student, prepare the RCD and record the deposit, the taxes withheld, BIR 2307s and remittances, LDDAP-ADA, cash advances (one overdue) |
+| ATLAS home → Finance | `supply.demo` | `demo1234` | The Supply Officer: issue the waiting requisition, purchase orders and their deliveries (one late, with liquidated damages), stock cards, RSMI, property with PAR/ICS, depreciation |
+| ATLAS home → Finance | `head.demo` | `demo1234` | The approving officer (the University President): approve the purchase request and the voucher waiting for Box D |
 | ATLAS home → Academic | `student.demo` | `demo1234` | Carlo's own evaluation (what he can take next), grades, his Certificate of Registration with a QR code, and requesting a document. `teacher.demo` submits grade sheets there |
 
-The demo school has about 260 accounts: 5 programs (IT, Computer Science, Business, Agriculture, Education), 18 teachers, about 190 students with past grades (130 at the main campus), 11 applicants, about 40 parents and guardians (each sharing something different; one is paused), and HR, payroll and staff sign-ins. There are 21 courses and about 40 sections this term at the main campus. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`, `psison.demo` (Computing), `rmanalastas.demo` (General Education), `jcabrera.demo` (Business), `vbayani.demo` (Agriculture and Education). Parent accounts are named after their student, e.g. `p.camille.navarro`; the full list is under *Admin panel → Parents & guardians*. Every demo account uses the password `demo1234`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus. In Academic, the demo adds 4 colleges, posted 2026 curricula for BSIT, BSCS, BSBA and BSA and a draft for BSED, a profile and requirements for every student (a few missing), last term's grade sheets (four posted, one approved and waiting to be posted, one waiting for the dean), an INC with its completion waiting for approval, a transferee's credited subject, document requests in every status, and the dean account `dean.demo`.
+The demo school has about 260 accounts: 5 programs (IT, Computer Science, Business, Agriculture, Education), 18 teachers, about 190 students with past grades (130 at the main campus), 11 applicants, about 40 parents and guardians (each sharing something different; one is paused), and HR, payroll and staff sign-ins. There are 21 courses and about 40 sections this term at the main campus. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`, `psison.demo` (Computing), `rmanalastas.demo` (General Education), `jcabrera.demo` (Business), `vbayani.demo` (Agriculture and Education). Parent accounts are named after their student, e.g. `p.camille.navarro`; the full list is under *Admin panel → Parents & guardians*. Every demo account uses the password `demo1234`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus. In Academic, the demo adds 4 colleges, posted 2026 curricula for BSIT, BSCS, BSBA and BSA and a draft for BSED, a profile and requirements for every student (a few missing), last term's grade sheets (four posted, one approved and waiting to be posted, one waiting for the dean), an INC with its completion waiting for approval, a transferee's credited subject, document requests in every status, and the dean account `dean.demo`. In Finance, the demo keeps the books for this fiscal year so far: beginning balances, the GAA and board-approved budgets with their allotments and NCAs, three purchases (one paid by check, one delivered late and paid by LDDAP-ADA, one partly delivered), monthly electricity and janitorial payments with their taxes remitted, a legal retainer, two cash advances (one liquidated with a refund, one overdue), CHED's FHE billing and students' fees with their RCDs and deposits, stock issues and RSMIs, the school's property with its PAR/ICS and depreciation, a disposal, and something waiting in each office's queue. `teacher.demo` (Maria Santos) has property in her custody and can request supplies; `student.demo` sees his receipts.
 For the HRIS, every demo teacher and the registrar have an employee record linked to their account, with non-teaching staff beside them (guidance, nurse, ICT, guards, utility), six weeks of attendance, leave requests in every state and two finalized payroll runs.
 
 Demo records are added **next to your own data** and **Remove demo data** takes them out again without changing your records. If you already have a current term, it stays current and the demo term is listed beside it.
@@ -170,6 +176,21 @@ Parents and guardians get their own account type and their own section of the LM
 - **Settings**: grading scale, admission requirements by student type, document fees, the registrar's signature line, INC deadline, dean's-list rules.
 
 Who uses it: administrators and registrars (everything), deans (curricula, approving grade sheets and grade changes), teachers (their grade sheets), students (their own record). Parents and HR accounts do not see Academic. Admissions with entrance exams, block sections and schedule codes, fee assessment and cashiering, and scholarships are the next phases (see the plan).
+
+## Finance (government accounting)
+
+**ATLAS Finance** (<http://localhost:3100/finance/>) is the accounting system of a state university or college, per the COA Government Accounting Manual and Revised Chart of Accounts, DBM budget execution and BIR withholding (details and sources: [docs/FINANCE-PLAN.md](docs/FINANCE-PLAN.md)). Release 1 has the eight modules of the bid:
+
+- **Card File**: suppliers, employees, accountable officers (with their fidelity bond), agencies and individuals, each a subsidiary ledger with its documents and taxes withheld.
+- **Accounts**: the Revised Chart of Accounts; journal entry vouchers in four journals (posted, never edited, reversed when wrong); general and subsidiary ledgers; trial balance; Statements of Financial Position and Performance per fund cluster; bank reconciliation; closing a month; year-end closing.
+- **Budget**: appropriations, allotments (GARO/SARO/board approvals), NCAs; obligation requests (ORS for fund 01, BURS for the others) with Box B checking the allotment; SAAODB (FAR 1), RAOD, aging of obligations (FAR 3), SCBAA.
+- **Inventory**: purchase requests, purchase orders under RA 12009 (with their obligation), inspection and acceptance (stock, property and the payable; liquidated damages for late delivery), stock cards with FIFO cost, requisitions (RIS), RSMI and the physical count.
+- **Property**: PPE and semi-expendable property, PAR and ICS, transfers, returns, disposal (IIRUP), monthly straight-line depreciation, RPCPPE.
+- **Disbursement**: disbursement vouchers through Boxes A–E (Box D never by the preparer or certifier), checks and LDDAP-ADA, cash advances and liquidation, BIR withholding (1% / 2% EWT, 5% creditable VAT, 3% percentage tax…), the monthly summary, remittances by TRA, the quarterly alphalist and BIR Form 2307.
+- **Revenue**: official receipt booklets for each collector, official receipts (students see theirs), the Report of Collections and Deposits and the deposit, the RAAF, revenue against targets.
+- **Control panel**: entity and fiscal year, fund clusters, offices, PAPs, bank accounts, fees, signatories, document numbering, tax rates, thresholds, periods, Finance accounts and roles, the audit trail.
+
+Every form prints on A4 after its GAM appendix. Finance accounts (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer) are created in the Control panel or in People and sign in on the ATLAS home page; every other employee gets Finance self-service with their own account once the accounting office links it to a card.
 
 ## Single sign-on (Keycloak)
 
@@ -289,6 +310,14 @@ lms/
   shared/academic.js     grading scale, document types, requirements, GWA (server and browser)
   public/academic/, public/js/academic/  the Academic app; public/verify.html  the document check page
   public/js/vendor/qrcode.js  QR codes (qrcode-generator, MIT, vendored)
+  server/finance.js      ATLAS Finance core: Control panel, card file, chart, journal entries, ledgers, statements, bank reconciliation, closing
+  server/finance-budget.js  appropriations, allotments, NCAs, ORS/BURS, SAAODB, RAOD, aging, SCBAA
+  server/finance-supply.js  purchase requests and orders, IAR, stock (FIFO), RIS, RSMI, physical count, property, depreciation
+  server/finance-cash.js    disbursement vouchers, LDDAP-ADA, cash advances, taxes and 2307, official receipts, RCD, revenue
+  server/finance-demo.js    Finance demo data (made through Finance's own routes)
+  shared/finance.js      chart of accounts, fund clusters, withholding taxes, depreciation, numbering, amount in words
+  public/finance/, public/js/finance/, public/css/finance.css  the Finance app and its printable forms
+  docs/FINANCE-PLAN.md   ATLAS Finance: research, compliance and what to confirm before going live
   server/sso.js          single sign-on with Keycloak (OpenID Connect, PKCE, ID token checks)
   test/oidc-provider.js  a stand-in Keycloak for the tests (and demos: it has a sign-in page)
   shared/calc.js         time and payroll rules (the ERP's file): DTR, payslips, SSS, PhilHealth, Pag-IBIG, tax

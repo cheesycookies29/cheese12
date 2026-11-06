@@ -26,7 +26,7 @@ test('one sign-in: each account type lands on its own side', async () => {
   await assert.rejects(env.client().post('/api/hub/login', { username: 'ghost', password: 'nope' }), /Incorrect username or password/);
 });
 
-test('ATLAS products: Academic and Learn open, others coming soon, People not shown to students', async () => {
+test('ATLAS products: Academic, Learn and Finance open, Facilities coming soon, People not shown to students', async () => {
   const env = setup();
   const { login } = await seed(env);
   const anon = await env.client().get('/api/hub/status');
@@ -35,7 +35,8 @@ test('ATLAS products: Academic and Learn open, others coming soon, People not sh
   assert.ok(anon.systems.every((x) => x.url === ''), 'no addresses before signing in');
 
   const s = await (await login('stud1')).get('/api/hub/status');
-  assert.deepEqual(s.systems.map((x) => [x.id, x.status]), [['uis', 'live'], ['lms', 'live'], ['fmis', 'soon']]);
+  assert.deepEqual(s.systems.map((x) => [x.id, x.status]), [['uis', 'live'], ['lms', 'live'], ['fmis', 'live']]);
+  assert.equal(s.systems.find((x) => x.id === 'fmis').url, '/finance/');
   assert.equal(s.systems.find((x) => x.id === 'uis').url, '/academic/');
   assert.equal(s.systems.find((x) => x.id === 'lms').url, '/lms/');
   const t = await (await login('teach1')).get('/api/hub/status');
@@ -47,12 +48,17 @@ test('admins switch a system live with its address, or hide it', async () => {
   const env = setup();
   const { admin, login } = await seed(env);
   const { settings } = await admin.get('/api/admin/systems');
-  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, fmis: { status: 'live', url: '' } } }), /give the address/);
-  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, fmis: { status: 'live', url: 'javascript:alert(1)' } } }), /must start with/);
-  await admin.put('/api/admin/systems', { settings: { ...settings, fmis: { status: 'live', url: 'http://localhost:3000' }, facilities: { status: 'hidden', url: '' } } });
-  const t = await (await login('teach1')).get('/api/hub/status');
+  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, facilities: { status: 'live', url: '' } } }), /give the address/);
+  await assert.rejects(admin.put('/api/admin/systems', { settings: { ...settings, facilities: { status: 'live', url: 'javascript:alert(1)' } } }), /must start with/);
+  await admin.put('/api/admin/systems', { settings: { ...settings, facilities: { status: 'live', url: 'http://localhost:3000' } } });
+  let t = await (await login('teach1')).get('/api/hub/status');
+  const fac = t.systems.find((x) => x.id === 'facilities');
+  assert.deepEqual([fac.status, fac.url, fac.external], ['live', 'http://localhost:3000', true]);
+  await admin.put('/api/admin/systems', { settings: { ...settings, facilities: { status: 'hidden', url: '' } } });
+  t = await (await login('teach1')).get('/api/hub/status');
+  // Finance is built in: always live, at /finance/.
   const fmis = t.systems.find((x) => x.id === 'fmis');
-  assert.deepEqual([fmis.status, fmis.url, fmis.external], ['live', 'http://localhost:3000', true]);
+  assert.deepEqual([fmis.status, fmis.url, fmis.external], ['live', '/finance/', false]);
   // The HRIS is built in: always live, at /hris/.
   const hris = t.systems.find((x) => x.id === 'hris');
   assert.deepEqual([hris.status, hris.url, hris.external], ['live', '/hris/', false]);

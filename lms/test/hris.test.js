@@ -78,7 +78,7 @@ test('HR accounts sign in on the University Portal only, get the HRIS tile, and 
   const { hr, env } = await hrisSchool();
   const hub = await hr.get('/api/hub/status');
   assert.equal(hub.side, 'hris');
-  assert.deepEqual(hub.systems.filter((s) => s.status === 'live').map((s) => [s.id, s.url]), [['hris', '/hris/']]);
+  assert.deepEqual(hub.systems.filter((s) => s.status === 'live').map((s) => [s.id, s.url]), [['hris', '/hris/'], ['fmis', '/finance/']]);
   await assert.rejects(env.client().post('/api/auth/login', { username: 'hana', password: PW }), /ATLAS home page/);
   await assert.rejects(env.client().post('/api/admin/auth/login', { username: 'hana', password: PW }), /ATLAS home page/);
   // Signing in as someone else on the same browser ends the HR session.
