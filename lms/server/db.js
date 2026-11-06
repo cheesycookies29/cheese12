@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS as HR_DEFAULTS } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { mergeHrSettings } from './hris.js';
 import { migrateLeaveTypes } from './hris-leave.js';
+import { mergeAcademicSettings } from './academic.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -77,6 +78,17 @@ export function emptyData() {
     leaveAccess: [], // a leave type given to, or taken from, one employee
     leaveAdjustments: [], // days added or taken away, with a reason
     requests: [], // leave and remote-work requests
+    // ----- Academic (server/academic.js) -----
+    academicSettings: mergeAcademicSettings(), // grading scale, requirements, document fees, signatories
+    colleges: [], // colleges/departments; a program belongs to one (program.collegeId)
+    curricula: [], // a program's prospectus for a series: year levels → terms → courses; draft, posted or retired
+    studentProfiles: [], // personal details, student type, educational background, requirements received
+    gradeSheets: [], // one per section: submitted → approved → posted (or returned), with the grades
+    academicRecords: [], // the permanent record: one subject result per student and term (or credited)
+    gradeChanges: [], // rectifications and INC completions, approved by someone other than the requester
+    documentRequests: [], // TOR, certificates…: requested → paid → processing → ready → released
+    issuedDocuments: [], // printed documents with a verification code and what they said
+    auditLog: [], // who changed what in Academic
   };
 }
 
@@ -100,6 +112,7 @@ function normalize(data) {
   out.counters = { studentNo: {}, ...(data.counters || {}) };
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
   out.hrSettings = mergeHrSettings(data.hrSettings);
+  out.academicSettings = mergeAcademicSettings(data.academicSettings);
   if (!Array.isArray(data.leaveTypes)) out.leaveTypes = structuredClone(DEFAULT_LEAVE_TYPES);
   migrateLeaveTypes(out);
   ensureCampuses(out);

@@ -24,7 +24,7 @@ const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Which permission manages accounts of each type.
-const MANAGES = { student: 'students.manage', teacher: 'teachers.manage', guardian: 'guardians.manage', registrar: 'admins.manage', admin: 'admins.manage' };
+const MANAGES = { student: 'students.manage', teacher: 'teachers.manage', guardian: 'guardians.manage', registrar: 'admins.manage', dean: 'admins.manage', admin: 'admins.manage' };
 
 export function nextStudentNo(data, year = new Date().getFullYear()) {
   const used = new Set(data.users.map((u) => u.studentNo).filter(Boolean));
@@ -238,9 +238,12 @@ export function registerAdminRoutes(route, ctx) {
     if (u.id === user.id) fail('You cannot delete your own account.');
     if (u.role === 'admin' && u.status === 'active' && activeAdmins().length <= 1) fail('Keep at least one active administrator.');
     if (data().enrollments.some((e) => e.studentId === u.id)) fail('This student has enrollment records. Disable the account instead.');
+    if (data().academicRecords.some((r) => r.studentId === u.id)) fail('This student has an academic record. Disable the account instead.');
     if (data().sections.some((s) => s.teacherId === u.id)) fail('This teacher is assigned to sections. Reassign them or disable the account instead.');
     data().users.splice(data().users.indexOf(u), 1);
     data().guardianLinks = data().guardianLinks.filter((l) => l.guardianId !== u.id && l.studentId !== u.id);
+    data().studentProfiles = data().studentProfiles.filter((p) => p.studentId !== u.id);
+    data().documentRequests = data().documentRequests.filter((r) => r.studentId !== u.id);
     ctx.signOutEverywhere(u.id);
     save();
     return { ok: true };

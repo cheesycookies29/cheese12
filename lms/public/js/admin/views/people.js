@@ -11,7 +11,7 @@ const KINDS = {
   student: { title: 'Students', role: 'student', url: '/api/admin/users?role=student', manage: 'students.manage', sub: 'Student accounts sign in on the ATLAS home page.' },
   applicant: { title: 'Applicants', role: 'student', url: '/api/admin/users?role=student&status=pending', manage: 'students.manage', sub: 'People who applied from the sign-in page. Admitting gives them a student number and lets them sign in.' },
   teacher: { title: 'Teachers', role: 'teacher', url: '/api/admin/users?role=teacher', manage: 'teachers.manage', sub: 'Teacher accounts sign in on the ATLAS home page and see the sections assigned to them.' },
-  staff: { title: 'Admins & registrars', role: 'registrar', url: '/api/admin/users?role=staff', manage: 'admins.manage', sub: 'These accounts sign in here, on the admin panel.' },
+  staff: { title: 'Admins, registrars & deans', role: 'registrar', url: '/api/admin/users?role=staff', manage: 'admins.manage', sub: 'These accounts sign in here, on the admin panel.' },
 };
 
 // Campus choice: students belong to one campus; teachers and registrars may work at several.
@@ -33,7 +33,7 @@ export function userDialog({ user = null, role, programs = [] }, onDone) {
     title: user ? `Edit ${user.name}` : `Add ${staff ? 'an admin-panel account' : `a ${roleLabel(r).toLowerCase()}`}`,
     wide: true,
     body: html`<div class="grid">
-      ${staff && !user ? html`<label class="field"><span>Account type</span><select name="role">${['registrar', 'admin'].map((x) => option(x, ROLES[x].label, x === r))}</select><span class="hint">Registrars run enrollment; administrators can do everything.</span></label>` : ''}
+      ${staff && !user ? html`<label class="field"><span>Account type</span><select name="role">${['registrar', 'dean', 'admin'].map((x) => option(x, ROLES[x].label, x === r))}</select><span class="hint">Registrars run enrollment and records; deans approve grade sheets and build curricula in Academic; administrators can do everything.</span></label>` : ''}
       <label class="field ${staff && !user ? '' : 'span-2'}"><span>Full name<em>*</em></span><input name="name" value="${user?.name || ''}" required /></label>
       <label class="field"><span>Username<em>*</em></span><input name="username" value="${user?.username || ''}" autocapitalize="none" spellcheck="false" required /></label>
       <label class="field span-2"><span>Email</span><input type="email" name="email" value="${user?.email || ''}" /></label>

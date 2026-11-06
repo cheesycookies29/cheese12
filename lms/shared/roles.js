@@ -6,6 +6,8 @@
 //  - portal: the learning portal (/lms/): Teachers, Students, and Parents & guardians
 //            (who see only the students linked to them, as far as each link allows),
 //  - hris:   HR and staff accounts, who only use the HRIS (/hris/).
+// ATLAS Academic (/academic/) accepts administrators, registrars and deans (admin-panel session) and
+// teachers and students (portal session); the academic.* and grades.approve permissions open its screens.
 // The HRIS accepts any employee's session (a teacher or registrar linked to an employee
 // record uses its self-service); the hris.* / employees.* / payroll.* permissions below
 // open its HR screens.
@@ -21,7 +23,13 @@ export const ROLES = {
     label: 'Registrar',
     side: 'admin',
     description: 'Runs enrollment at their campuses: applicants, student records, the course catalog, terms, sections and enrollment requests.',
-    permissions: ['dashboard', 'enrollment.manage', 'students.manage', 'guardians.manage', 'catalog.manage', 'teachers.view', 'news.manage'],
+    permissions: ['dashboard', 'enrollment.manage', 'students.manage', 'guardians.manage', 'catalog.manage', 'teachers.view', 'news.manage', 'academic.view', 'academic.records', 'academic.curricula', 'academic.settings'],
+  },
+  dean: {
+    label: 'Dean / Program chair',
+    side: 'admin',
+    description: 'Leads a college at their campuses in ATLAS Academic: curricula, student records and evaluations, and approving grade sheets and grade changes.',
+    permissions: ['academic.view', 'academic.curricula', 'grades.approve', 'teachers.view'],
   },
   teacher: {
     label: 'Teacher',

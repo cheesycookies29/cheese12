@@ -399,7 +399,7 @@ async function grades(el, c) {
   const book = await api.get(`/api/classes/${c.id}/gradebook`);
   const weights = book.types.filter((t) => t.weight > 0);
   mount(el, html`
-    <p class="muted">${weights.length ? html`Weighted: ${weights.map((t, i) => html`${i ? ', ' : ''}${t.name} ${t.weight}%`)}. ` : ''}Running % counts scored work only. Final grades are percentages; ${book.passingGrade} or higher passes and completes the class for prerequisites.</p>
+    <p class="muted">${weights.length ? html`Weighted: ${weights.map((t, i) => html`${i ? ', ' : ''}${t.name} ${t.weight}%`)}. ` : ''}Running % counts scored work only. Final grades are percentages; ${book.passingGrade} or higher passes and completes the class for prerequisites. When every student has one, <a href="/academic/#/grade-sheets/${c.id}">submit the grade sheet in Academic</a> for the dean's approval and the registrar's posting.</p>
     ${book.rows.length ? html`<form id="finals"><div class="card scroll-x"><table class="table gradebook">
       <thead><tr><th>Student</th>${book.assignments.map((a) => html`<th class="score-cell" title="${a.title}">${a.title.length > 18 ? `${a.title.slice(0, 17)}…` : a.title}<br /><small>/${a.points}</small></th>`)}<th class="score-cell">Running %</th><th class="score-cell">Final grade</th></tr></thead>
       <tbody>${book.rows.map((r) => html`<tr>

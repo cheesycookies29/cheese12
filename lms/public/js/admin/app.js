@@ -64,7 +64,7 @@ function nav() {
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
     { href: '/systems', label: 'Home page & systems', icon: 'grid' },
-    c('admins.manage') && { href: '/staff', label: 'Admins & registrars', icon: 'shield' },
+    c('admins.manage') && { href: '/staff', label: 'Admins, registrars & deans', icon: 'shield' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
     { href: '/', label: 'ATLAS home', icon: 'grid', external: true },

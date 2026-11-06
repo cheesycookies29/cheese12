@@ -4,7 +4,7 @@
 
 **Lancaster ATLAS** is the Unified Education Management Platform of Lancaster Technology and Development Corporation (LTDC), the school-side sibling of the Lancaster ERP, [CORE](../README.md).
 It is built the same way as CORE: one Node.js program with **no dependencies**, a browser app with no build step, and all data in one file, `data/db.json`.
-It runs on your own computer, or online on Amazon EC2 (see [Putting it online](#putting-it-online-aws)). The brand (mark, colours, product names) is described in [docs/BRAND.md](docs/BRAND.md). The plan for ATLAS Academic (the student information system), benchmarked against the CBSUA UIS, is in [docs/ACADEMIC-PLAN.md](docs/ACADEMIC-PLAN.md).
+It runs on your own computer, or online on Amazon EC2 (see [Putting it online](#putting-it-online-aws)). The brand (mark, colours, product names) is described in [docs/BRAND.md](docs/BRAND.md). ATLAS Academic was planned against the CBSUA UIS: see [docs/ACADEMIC-PLAN.md](docs/ACADEMIC-PLAN.md) for the benchmark, what is built and what comes next.
 
 ATLAS is a family of products behind one sign-in:
 
@@ -12,7 +12,7 @@ ATLAS is a family of products behind one sign-in:
 | --- | --- | --- |
 | **ATLAS Learn** (LMS) | Classes, lessons, quizzes, attendance, grades and enrollment, with its admin panel | Live |
 | **ATLAS People** (HRIS) | Employee records, time clock, leave, payroll and payslips; self-service for every employee | Live |
-| **ATLAS Academic** (UIS) | Admissions, student records, registrar services | Coming soon |
+| **ATLAS Academic** (UIS) | Student records, curricula and evaluation, grade sheets, documents, CHED/FHE reports | Live (release 1) |
 | **ATLAS Finance** (FMIS) | Budget, assessments and collections, accounting | Coming soon |
 | **ATLAS Facilities** | Rooms and venues, bookings, maintenance, property | Coming soon |
 
@@ -24,8 +24,10 @@ Everyone starts at the **ATLAS home page**, the school's single front door to th
 | <http://localhost:3100/lms/> | **ATLAS Learn** for students, teachers and parents |
 | <http://localhost:3100/admin> | **ATLAS Learn admin panel** for administrators and registrars (it also keeps its own sign-in page) |
 | <http://localhost:3100/hris/> | **ATLAS People** for every employee (self-service) and for HR and payroll staff |
+| <http://localhost:3100/academic/> | **ATLAS Academic** for the registrar's office and deans, teachers' grade sheets, and students' own records |
+| <http://localhost:3100/verify/CODE> | Anyone checks a document printed from Academic (the QR code on it opens this page) |
 
-**ATLAS Learn** and **ATLAS People** are live. **Academic**, **Finance** and **Facilities** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → ATLAS home & systems** with the address each one runs at. Students do not see the ATLAS People tile.
+**ATLAS Learn**, **ATLAS People** and **ATLAS Academic** are live. **Finance** and **Facilities** show greyed out as *Coming soon* until an administrator switches them on under **Admin panel → ATLAS home & systems** with the address each one runs at. Students do not see the ATLAS People tile.
 
 The web addresses (`/lms/`, `/hris/`), the `lms` folder, the server's service names (`ltdc-lms`) and the sign-in cookies keep their old names, so existing installs, bookmarks and servers keep working after the rename.
 
@@ -81,8 +83,11 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 | ATLAS home → People | `payroll.demo` | `demo1234` | Two finalized payroll runs with printable payslips; payroll setup (rates and tax tables with a "try it" calculator) |
 | ATLAS home → Learn | `parent.demo` | `demo1234` | A mother (Lorna Reyes) following Carlo Reyes (everything shared) and her nephew Kevin Navarro (grades, attendance and activities only). `father.demo` is Carlo's father, without activities |
 | ATLAS home → People | `staff.demo` | `demo1234` | A librarian's self-service: clock in, file leave, payslips. `teacher.demo` has the same in the HRIS tile |
+| ATLAS home → Academic | `registrar.demo` | `demo1234` | The dashboard's work queue; Carlo Reyes's record (evaluation against BSIT 2026, back subjects, grades, profile, history); post the approved ED101 grade sheet; print a TOR and check its QR code; document requests from unpaid to released; CHED list, FHE billing CSV and the enrollment summary |
+| ATLAS home → Academic | `dean.demo` | `demo1234` | A dean (Elena Cruz): approve last term's GE101 grade sheet, approve the waiting INC completion, finish the draft BSED 2027 curriculum and post it |
+| ATLAS home → Academic | `student.demo` | `demo1234` | Carlo's own evaluation (what he can take next), grades, his Certificate of Registration with a QR code, and requesting a document. `teacher.demo` submits grade sheets there |
 
-The demo school has about 260 accounts: 5 programs (IT, Computer Science, Business, Agriculture, Education), 18 teachers, about 190 students with past grades (130 at the main campus), 11 applicants, about 40 parents and guardians (each sharing something different; one is paused), and HR, payroll and staff sign-ins. There are 21 courses and about 40 sections this term at the main campus. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`, `psison.demo` (Computing), `rmanalastas.demo` (General Education), `jcabrera.demo` (Business), `vbayani.demo` (Agriculture and Education). Parent accounts are named after their student, e.g. `p.camille.navarro`; the full list is under *Admin panel → Parents & guardians*. Every demo account uses the password `demo1234`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus.
+The demo school has about 260 accounts: 5 programs (IT, Computer Science, Business, Agriculture, Education), 18 teachers, about 190 students with past grades (130 at the main campus), 11 applicants, about 40 parents and guardians (each sharing something different; one is paused), and HR, payroll and staff sign-ins. There are 21 courses and about 40 sections this term at the main campus. Every class has lessons, announcements, a course outline (PDF), graded work, a quiz most students have taken and a few weeks of attendance; there are also school news posts with reactions and comments, and upcoming events. Other teacher accounts: `lmercado.demo`, `gaquino.demo`, `rvillareal.demo` (Agriculture), `lgonzales.demo` (Business), `mtorres.demo` (Education), `jdelacruz.demo`, `aramos.demo`, `psison.demo` (Computing), `rmanalastas.demo` (General Education), `jcabrera.demo` (Business), `vbayani.demo` (Agriculture and Education). Parent accounts are named after their student, e.g. `p.camille.navarro`; the full list is under *Admin panel → Parents & guardians*. Every demo account uses the password `demo1234`. It's the same school every time it is added. The demo school is at your first campus, and three smaller demo campuses (Sipocot, Pasacao, Calabanga) are added beside it, each with its own teachers, students and classes. `teacher.demo` also teaches a Friday class at Sipocot, and `registrar.demo` works at both, so both can try switching campus. In Academic, the demo adds 4 colleges, posted 2026 curricula for BSIT, BSCS, BSBA and BSA and a draft for BSED, a profile and requirements for every student (a few missing), last term's grade sheets (four posted, one approved and waiting to be posted, one waiting for the dean), an INC with its completion waiting for approval, a transferee's credited subject, document requests in every status, and the dean account `dean.demo`.
 For the HRIS, every demo teacher and the registrar have an employee record linked to their account, with non-teaching staff beside them (guidance, nurse, ICT, guards, utility), six weeks of attendance, leave requests in every state and two finalized payroll runs.
 
 Demo records are added **next to your own data** and **Remove demo data** takes them out again without changing your records. If you already have a current term, it stays current and the demo term is listed beside it.
@@ -130,7 +135,8 @@ For example, switch *Enrollment* off for students outside enrollment season so o
 | Account type | Signs in on | Can do |
 | --- | --- | --- |
 | **Administrator** | Admin panel | Everything, including modules, settings, admin accounts, demo data and backups |
-| **Registrar** | Admin panel | Enrollment requests, applicants, students, the catalog (courses, sections, terms, programs); can view teachers |
+| **Registrar** | Admin panel | Enrollment requests, applicants, students, the catalog (courses, sections, terms, programs); can view teachers. In Academic: student records, curricula, posting grade sheets, documents, reports and settings |
+| **Dean / Program chair** | Admin panel | In Academic: curricula, colleges, student records (view), approving grade sheets and grade changes |
 | **Teacher** | Portal | The sections assigned to them, as far as the modules allow |
 | **Student** | Portal | Enrollment and their classes, as far as the modules allow; sees which parents and guardians are linked to them |
 | **Parent / Guardian** | Portal | Follows the students linked to them, read-only, as far as each link and the modules allow (see [Parents & guardians](#parents--guardians)) |
@@ -149,6 +155,21 @@ Parents and guardians get their own account type and their own section of the LM
 **Who decides what they see.** Registrars and administrators (*Admin panel → Parents & guardians*, or the student's record) make guardian accounts and link them to students. Each link has a relationship (Mother, Father, Guardian, Grandparent…) and its own views, ticked one by one: a student's grades and attendance can be shared without their enrollment, for example. A link can be paused or removed. On top of that, *Modules* has a **Parents & guardians** column: a view switched off there is off for every guardian. One guardian can follow several students (siblings), and a student can have several guardians.
 
 **Students know.** A student's *Parents & guardians* page lists everyone linked to their records, what each can see, and when they last looked. Guardians belong to the campuses of their students, so registrars manage the ones at their own campuses.
+
+## Academic (student information system)
+
+**ATLAS Academic** (<http://localhost:3100/academic/>) is the registrar's system, built on Learn's catalog (programs, courses with prerequisites, terms, sections, enrollments). Release 1:
+
+- **One student record** with tabs: overview (this term's subjects, requirements checklist), **evaluation** against the student's curriculum (passed, credited, taking now, can take, back subjects, units earned, GWA), **grades** (the permanent record by term), documents, profile (personal details, LRN, educational background, program, curriculum, year level, student type) and history (every change, who and when).
+- **Curricula** (the prospectus): built year by year and term by term from the catalog, with prerequisite-order warnings and laboratory units; posting locks a curriculum; a new series starts as a copy. **Colleges** group programs.
+- **Grade sheets**: the teacher submits a class's final grades from Learn's gradebook (marking INC where needed); the dean approves or returns it with a reason; the registrar posts it to the permanent record. Grades become equivalents on the grading scale (99–100 = 1.00 … 75 = 3.00, below 75 = 5.00; editable).
+- **Grade changes** (rectifications and INC completions) need a reason and **a second person's approval**; the old grade stays in the record's history.
+- **Credited subjects** for transferees, with the school and the original code.
+- **Documents**: Transcript of Records, Certificate of Grades, of Enrollment, of Registration (students print their own COR), good moral, honorable dismissal. Each printout has a code and a **QR code**; anyone can check it at `/verify/<code>`. Students request documents online and follow them from requested → paid (O.R. number) → processing → ready → released.
+- **Reports**: CHED enrollment list, FHE billing details (UniFAST Form 2, with lecture and laboratory units), enrollment summary by program, year and sex, failing grades and INCs, dean's list, candidates for graduation. All print on A4 and export to CSV.
+- **Settings**: grading scale, admission requirements by student type, document fees, the registrar's signature line, INC deadline, dean's-list rules.
+
+Who uses it: administrators and registrars (everything), deans (curricula, approving grade sheets and grade changes), teachers (their grade sheets), students (their own record). Parents and HR accounts do not see Academic. Admissions with entrance exams, block sections and schedule codes, fee assessment and cashiering, and scholarships are the next phases (see the plan).
 
 ## HRIS
 
@@ -246,6 +267,11 @@ lms/
   server/hris-demo.js    HRIS demo data
   server/guardian.js     parents & guardians: links, what each can see, their pages and the registrar's
   shared/guardians.js    the views a link can share, and relationships
+  server/academic.js     ATLAS Academic: curricula, records, evaluation, grade sheets, grade changes, documents, reports
+  server/academic-demo.js  Academic demo data
+  shared/academic.js     grading scale, document types, requirements, GWA (server and browser)
+  public/academic/, public/js/academic/  the Academic app; public/verify.html  the document check page
+  public/js/vendor/qrcode.js  QR codes (qrcode-generator, MIT, vendored)
   shared/calc.js         time and payroll rules (the ERP's file): DTR, payslips, SSS, PhilHealth, Pag-IBIG, tax
   shared/leave.js        leave rules (the ERP's file)
   shared/roles.js        account types and permissions (server and browser)

@@ -4,6 +4,12 @@ ATLAS Academic is the student information system in the ATLAS family: admissions
 
 *Method.* The UIS was explored on 6 November 2026 with the account the project was given. It was read-only: after signing in, the browser blocked every request that could change data (none were attempted), and only the structure of each screen was noted (menus, columns, fields, tabs, workflows), not the records in it. 55 menu pages and the main detail screens were reviewed. References: open-source systems [RosarioSIS](https://github.com/francoisjacquet/rosariosis), [openSIS](https://github.com/OS4ED/openSIS-Classic), [Frappe Education](https://docs.frappe.io/education/program-enrollment) and [OpenEduCat](https://openeducat.org/features/student-information-system/), and the Philippine rules on free higher education ([RA 10931](https://jur.ph/law/summary/universal-access-to-quality-tertiary-education-act), [UniFAST FHE](https://unifast.gov.ph/assets/pdf/infgrfx/FHE2024.pdf)).
 
+## 0. Status
+
+**Release 1 is built** (November 2026): the app at `/academic/` with student records and evaluation, curricula, colleges, grade sheets (teacher → dean → registrar), grade changes with a second approver, credited subjects, documents with QR verification, document requests, the CHED list, FHE billing details, the enrollment summary, failing/INC, dean's list and graduation candidates, and settings. It covers phases 0, 1, 6 and 7 below, most of 2 and 8, and the student self-service parts of 4 and 5 that need no fees.
+
+Next: admissions with entrance exams (phase 2), schedule codes, block sections and rooms in Academic (3), curriculum-guided enlistment and add/drop transactions (4), fee schedules, assessment and cashiering (5), scholarships and guidance records (8), and the import tool for moving data off the UIS (0).
+
 ## 1. What the UIS has
 
 The admin portal has a term picker in the top bar ("First Semester A.Y. 2025-2026"), a light/dark theme, and 14 menu groups:

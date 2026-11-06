@@ -8,6 +8,8 @@
 //                                    parents & guardians reach only 'guardian' routes and those marked guardians: true)
 //   'admin' | 'admin:<permission>'    signed in to the admin panel (optionally with that permission)
 //   'hris' | 'hris:<permission>'      any signed-in employee (not students), optionally with that permission
+//   'academic' | 'academic:<permission>'  ATLAS Academic: administrators, registrars and deans (admin-panel
+//                                    session), teachers and students (portal session); optionally with that permission
 // Portal routes may also name a module; the call is refused when an administrator
 // has switched that module off for the caller's account type.
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
@@ -31,6 +33,7 @@ import { campusesFor, activeCampusId, campusName } from './campus.js';
 import { registerHrisRoutes } from './hris.js';
 import { registerGuardianRoutes, guardianChildren } from './guardian.js';
 import { HRIS_PERMISSION_LABELS } from '../shared/roles.js';
+import { registerAcademicRoutes, ACADEMIC_ROLES } from './academic.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
 
@@ -310,6 +313,27 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/hris/auth/campus', 'hris', ({ user, body }) => switchCampus(user, body));
   const hris = registerHrisRoutes(route, ctx);
 
+  // ----- Academic (/academic/): staff with their admin-panel session, teachers and students with the portal's -----
+  const academicUser = (adminUser, portalUser) => adminUser || portalUser || null;
+  route('GET', '/api/academic/auth/status', 'public', ({ adminUser, portalUser, hrisUser }) => {
+    const user = academicUser(adminUser, portalUser) || hrisUser;
+    const allowed = Boolean(user) && ACADEMIC_ROLES.includes(user.role);
+    return {
+      ...campusInfo(allowed ? user : null),
+      branding: branding(),
+      setupRequired: setupRequired(),
+      user: allowed ? publicUser(user) : null,
+      deniedUser: user && !allowed ? { name: user.name, role: user.role } : null,
+      side: allowed ? ROLES[user.role].side : null,
+      authBase: '/api/academic/auth',
+      permissions: allowed ? academic.permissionsFor(user.role) : [],
+      currentTermId: db.data.settings.currentTermId,
+    };
+  });
+  route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
+  route('POST', '/api/academic/auth/campus', 'academic', ({ user, body }) => switchCampus(user, body));
+  const academic = registerAcademicRoutes(route, ctx);
+
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
   registerAdminRoutes(route, ctx);
   registerEnrollmentRoutes(route, ctx);
@@ -344,6 +368,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
         if (!user) fail('Please sign in.', 401);
         if (user.role === 'student') fail('People is for school employees.', 403);
+        const permission = r.access.split(':')[1];
+        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+      } else if (r.access === 'academic' || r.access.startsWith('academic:')) {
+        user = adminUser || portalUser;
+        token = adminUser ? adminToken : portalToken;
+        if (!user) fail('Please sign in.', 401);
+        if (!ACADEMIC_ROLES.includes(user.role)) fail('Academic is for students, teachers and the registrar\'s office.', 403);
         const permission = r.access.split(':')[1];
         if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
       } else if (r.access.startsWith('admin')) {

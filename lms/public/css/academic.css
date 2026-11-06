@@ -1,0 +1,107 @@
+/* ATLAS Academic: prospectus/evaluation tables, grade-sheet status bar, issued documents (A4). */
+
+.table.compact th, .table.compact td { padding: 8px 10px; }
+.table.compact input { padding: 6px 8px; min-height: 34px; }
+.table-scroll { overflow-x: auto; }
+.sub-h { font-size: 14px; margin: 18px 0 8px; color: var(--text-2); }
+.danger-text { color: var(--danger) !important; }
+.center { text-align: center; }
+ul.tight { margin: 4px 0 0; padding-left: 18px; }
+.check-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-weight: 400; cursor: pointer; }
+.check-row + .check-row { border-top: 1px solid var(--border); }
+.check-row input { margin-top: 3px; flex: none; }
+.check-row small { display: block; color: var(--muted); font-size: 12px; }
+fieldset.field { border: 0; padding: 0; margin: 0; }
+fieldset.field legend { font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-2); }
+.doc-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.add-term { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.add-term select { width: auto; }
+.add-sub { padding: 10px 12px 12px; border-top: 1px solid var(--border); }
+.lab-in { width: 64px; text-align: right; }
+.chip.back { border-color: var(--warn); color: var(--warn); }
+.chips .chip { cursor: default; }
+
+/* Prospectus / evaluation: one block per term */
+.prospectus { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 16px; margin-bottom: 16px; align-items: start; }
+.pro-term { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.pro-term > header { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 12px 14px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.pro-term > header strong { flex: 1; }
+.pro-term .table { margin: 0; }
+.pro-term .table tr:last-child td { border-bottom: 0; }
+.pre { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+.pre.met { background: var(--success-soft); color: var(--success); border-color: transparent; }
+.pre.bad { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+tr.sub-passed td:first-child, tr.sub-credited td:first-child, tr.sub-graded td:first-child { box-shadow: inset 3px 0 0 var(--success); }
+tr.sub-enrolled td:first-child, tr.sub-pending td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+tr.sub-failed td:first-child, tr.sub-inc td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+tr.back td:first-child strong::after { content: ' · back'; color: var(--warn); font-weight: 600; font-size: 11px; }
+
+/* Grade sheets by status (dashboard) */
+.sheet-bar { display: flex; height: 12px; border-radius: 999px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); margin: 6px 0 10px; }
+.sheet-bar i, .legend i { display: block; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; }
+.s-posted { background: var(--success); }
+.s-approved { background: var(--info); }
+.s-submitted { background: var(--warn); }
+.s-returned { background: var(--danger); }
+.s-none { background: var(--border-strong); }
+a.list-item { color: var(--text); }
+a.list-item:hover { text-decoration: none; background: var(--surface-2); }
+.edu input { width: 100%; }
+
+/* Print helpers */
+.print-only { display: none; }
+.print-head { display: none; }
+
+/* Issued documents: an A4 sheet on screen, the page itself when printed */
+.document { background: #fff; color: #1e1e1e; max-width: 794px; margin: 0 auto 24px; padding: 48px 56px; border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow-lg); font-size: 13px; line-height: 1.5; }
+.document .table { color: #1e1e1e; }
+.document .table th, .document .table td { border-color: #d9d9d9; background: #fff; color: #1e1e1e; }
+.document .table th { background: #f3f3f3; }
+.doc-head { display: flex; align-items: center; justify-content: center; gap: 16px; text-align: center; padding-bottom: 14px; border-bottom: 2px solid #5d0013; }
+.doc-head img { height: 64px; width: auto; }
+.doc-head strong { display: block; font-size: 18px; }
+.doc-head span { display: block; font-size: 12px; color: #555; }
+.doc-title { text-align: center; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; margin: 18px 0 14px; color: #1e1e1e; }
+.doc-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 24px; margin: 0 0 14px; }
+.doc-info div { display: flex; gap: 8px; }
+.doc-info dt { color: #555; min-width: 120px; }
+.doc-info dd { margin: 0; font-weight: 600; }
+.doc-table .term-row td { background: #f7f2f3; font-weight: 700; color: #5d0013; }
+.doc-table em { color: #555; font-size: 11px; }
+.doc-note { text-align: center; color: #555; margin: 10px 0; }
+.doc-note.small { font-size: 11px; text-align: left; }
+.doc-letter { font-size: 14px; line-height: 1.8; text-align: justify; margin: 12px 0; }
+.doc-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-top: 36px; }
+.doc-verify { display: flex; gap: 10px; align-items: center; font-size: 11px; color: #555; }
+.doc-verify svg { width: 92px; height: 92px; }
+.doc-verify strong { display: block; font-size: 13px; color: #1e1e1e; letter-spacing: 0.04em; }
+.doc-verify span { display: block; }
+.doc-sign { text-align: center; min-width: 220px; }
+.doc-sign .line { display: block; border-top: 1px solid #1e1e1e; margin-bottom: 4px; }
+.doc-sign strong { display: block; }
+.doc-sign span { font-size: 12px; color: #555; }
+.sign-row { justify-content: space-between; gap: 16px; margin-top: 28px; font-size: 12px; }
+
+@media (max-width: 760px) {
+  .prospectus { grid-template-columns: minmax(0, 1fr); }
+  .document { padding: 24px 18px; font-size: 12px; }
+  .doc-info { grid-template-columns: minmax(0, 1fr); }
+  .doc-foot { flex-direction: column; align-items: stretch; }
+}
+
+@media print {
+  @page { size: A4; margin: 14mm; }
+  .print-only { display: block; }
+  .print-head { display: flex; flex-direction: column; margin-bottom: 10px; }
+  .sign-row.print-only { display: flex; }
+  .page-head .actions, .tabs, .toolbar, #toast { display: none !important; }
+  .card, .pro-term { box-shadow: none; break-inside: avoid; }
+  .document { border: 0; box-shadow: none; padding: 0; max-width: none; margin: 0; }
+  .table.stackable thead { display: table-header-group; }
+  .prospectus { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lab-in { display: none; }
+  span.print-only { display: inline; }
+}
+.progress.block { display: block; margin-top: 8px; }

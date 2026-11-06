@@ -7,9 +7,10 @@ import { findById } from './enrollment.js';
 import { scoreAttempt, quizPoints } from './quiz.js';
 import { meetingsClash } from '../shared/schedule.js';
 import { addHrisDemo, removeHrisDemo } from './hris-demo.js';
+import { addAcademicDemo, removeAcademicDemo } from './academic-demo.js';
 
 export const DEMO_PASSWORD = 'demo1234';
-const COLLECTIONS = ['guardianLinks', 'campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users', 'employees', 'timeEntries', 'requests', 'payrollRuns'];
+const COLLECTIONS = ['guardianLinks', 'campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users', 'employees', 'timeEntries', 'requests', 'payrollRuns', 'curricula', 'academicRecords', 'gradeSheets', 'documentRequests'];
 
 export function demoStatus(data) {
   const counts = Object.fromEntries(COLLECTIONS.map((k) => [k, data[k].filter((x) => x.demo).length]));
@@ -19,6 +20,7 @@ export function demoStatus(data) {
 // files: the file store, so uploaded files in demo sections are deleted too.
 export function removeDemo(data, files = null) {
   removeHrisDemo(data, files);
+  removeAcademicDemo(data);
   const ids = (k) => new Set(data[k].filter((x) => x.demo).map((x) => x.id));
   const users = ids('users');
   const sections = ids('sections');
@@ -640,6 +642,9 @@ export function addDemo(data, today, files = null) {
   // ----- HRIS: employee records for these people, HR/payroll/staff sign-ins, attendance, leave, payroll -----
   const userByName = (username) => data.users.find((u) => u.demo && (u.username === username || u.username === `${username}2`));
   addHrisDemo(data, today, { campuses: { main, sipocot, pasacao, calabanga }, userByName, person, rand, files, demoPdf });
+
+  // ----- Academic: colleges, curricula, student records, last term's grade sheets, documents -----
+  addAcademicDemo(data, { P, C, past, S, crowd, person, main, rand });
 
   return demoStatus(data);
 }
