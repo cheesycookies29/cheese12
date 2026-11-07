@@ -132,7 +132,9 @@ td.util, th.util { width: 140px; }
 .report th:first-child, .report td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
 .report thead th:first-child { background: var(--surface-2); }
 
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+/* Anything positioned inside a scrolling table stays inside it (never widens the page). */
+.finance-app .table-scroll { position: relative; }
 .matrix th small { white-space: normal; display: block; min-width: 72px; }
 
 /* Document numbers never break in the middle. */
@@ -157,3 +159,11 @@ td.util, th.util { width: 140px; }
 /* The cancel action keeps its distance from the main one. */
 .page-head .actions .push-right { margin-left: 24px; }
 @media (max-width: 760px) { .page-head .actions .push-right { margin-left: 0; } }
+
+/* Links that sit in muted text are underlined so they do not rely on colour alone. */
+.finance-app #app .muted a { text-decoration: underline; }
+/* Touch screens: links in lists and tables get a 24px-high target. */
+@media (pointer: coarse), (max-width: 1024px) {
+  .finance-app .table td a:not(.btn), .finance-app .fund-acct a, .finance-app .card-head > a { display: inline-block; padding: 3px 0; min-height: 24px; }
+}
+.finance-app dl.info { margin: 0; }

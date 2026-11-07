@@ -290,9 +290,9 @@ export async function bankReconView(el, _p, query) {
     <form class="toolbar" id="f"><select name="code">${cashAccounts.map((a) => option(a.code, `${a.code} · ${a.title}`, a.code === code))}</select><select name="fund">${fundOptions(fund)}</select><input type="month" name="month" value="${month}" /><button class="btn">Show</button></form>
     <form class="card" id="recon">
       <div class="grid">
-        <div class="info"><dt>Balance per books</dt><dd><strong>${money(r.book)}</strong></dd></div>
+        <dl class="info"><dt>Balance per books</dt><dd><strong>${money(r.book)}</strong></dd></dl>
         <label class="field"><span>Balance per bank statement</span><input type="number" step="0.01" name="statementBalance" value="${r.statementBalance ?? ''}" required ${edit ? '' : 'disabled'} /></label>
-        <div class="info"><dt>Status</dt><dd id="status">—</dd></div>
+        <dl class="info"><dt>Status</dt><dd id="status">—</dd></dl>
       </div>
       <h3 class="sub-h">Book entries this month and earlier not yet cleared — tick what appears on the bank statement</h3>
       <div class="table-scroll"><table class="table compact"><thead><tr><th>Cleared</th><th>Date</th><th>JEV</th><th>Particulars</th><th class="num">Deposits / debits</th><th class="num">Checks / credits</th></tr></thead>
