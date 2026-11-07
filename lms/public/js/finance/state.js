@@ -31,7 +31,12 @@ export const can = (permission) => Boolean(ctx.info?.permissions?.includes(permi
 export const isStaff = () => can('finance.view');
 export const isStudent = () => ctx.user?.role === 'student';
 export const money = (n) => peso(n);
-export const num = (n) => (Number(n) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Amounts as accountants write them: negatives in parentheses.
+const fmt2 = (n) => n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const num = (n) => {
+  const v = Number(n) || 0;
+  return v < 0 ? `(${fmt2(-v)})` : fmt2(v);
+};
 export const fy = () => fin.settings?.fiscalYear || new Date().getFullYear();
 export const thisMonth = () => localToday().slice(0, 7); // local date, not UTC
 export const monthName = (ym) => (ym ? new Date(`${ym}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' }) : '');
@@ -84,15 +89,18 @@ export function linesTable(id, cols, rows, { min = 1, addLabel = 'Add line', tot
 function lineRow(cols, r) {
   return html`<tr data-line>${cols.map((c) => (c.type === 'hidden' ? html`<td style="display:none"><input type="hidden" data-k="${c.key}" value="${r[c.key] ?? ''}" /></td>` : html`<td class="${c.type === 'number' ? 'num' : ''}" data-label="${c.label}">${
     c.type === 'select'
-      ? html`<select data-k="${c.key}">${c.options(r[c.key])}</select>`
-      : html`<input data-k="${c.key}" type="${c.type === 'number' ? 'number' : 'text'}" ${c.type === 'number' ? html`step="${c.step || '0.01'}" min="0" inputmode="decimal"` : ''} value="${r[c.key] ?? ''}" placeholder="${c.placeholder || ''}" />`
-  }</td>`))}<td class="x"><button type="button" class="icon-btn" data-remove-line aria-label="Remove line">×</button></td></tr>`;
+      ? html`<select data-k="${c.key}" aria-label="${c.label}">${c.options(r[c.key])}</select>`
+      : html`<input data-k="${c.key}" aria-label="${c.label}" type="${c.type === 'number' ? 'number' : 'text'}" ${c.type === 'number' ? html`step="${c.step || '0.01'}" min="0" inputmode="decimal"` : ''} value="${r[c.key] ?? ''}" placeholder="${c.placeholder || ''}" />`
+  }</td>`))}<td class="x"><button type="button" class="icon-btn" data-remove-line aria-label="Remove line" title="Remove line">×</button></td></tr>`;
 }
 // Wire add/remove and a running total. totalOf(rows) → text.
 export function wireLines(root, id, totalOf) {
   const box = root.querySelector(`#${id}`);
   const tbody = box.querySelector('tbody');
   const update = () => {
+    // The last line(s) cannot be removed: the remove button says so by being disabled.
+    const rows = tbody.querySelectorAll('tr[data-line]');
+    rows.forEach((tr) => (tr.querySelector('[data-remove-line]').disabled = rows.length <= Number(box.dataset.min || 1)));
     const t = box.querySelector('.lines-total');
     if (t && totalOf) t.textContent = totalOf(readLines(root, id));
   };
@@ -120,3 +128,47 @@ export const infoGrid = (pairs) => html`<dl class="info-grid">${pairs.filter(Boo
 // A money table cell.
 export const amt = (n, { strong = false, blankZero = false } = {}) => html`<td class="num">${blankZero && !Number(n) ? '' : strong ? html`<strong>${num(n)}</strong>` : num(n)}</td>`;
 export const printLink = (kind, id, label = 'Print') => html`<a class="btn" href="#/print/${kind}/${id}">${icon('file', 16)} ${label}</a>`;
+
+// ----- Page forms -----
+// Unsaved work: leaving the page (another page, reload, closing the tab) asks first. Call saved() once stored.
+export function trackChanges(form) {
+  let changed = false;
+  const mark = () => (changed = true);
+  form.addEventListener('input', mark);
+  form.addEventListener('change', mark);
+  ctx.dirty = () => changed;
+  return { saved: () => (changed = false) };
+}
+// One submission at a time: the form's buttons are disabled until the request finishes (no double saves).
+export async function busy(form, fn) {
+  if (form.dataset.busy) return undefined;
+  form.dataset.busy = '1';
+  const buttons = [...form.querySelectorAll('button')].filter((b) => !b.disabled);
+  buttons.forEach((b) => (b.disabled = true));
+  try {
+    return await fn();
+  } finally {
+    delete form.dataset.busy;
+    buttons.forEach((b) => (b.disabled = false));
+  }
+}
+
+// ----- Accessibility -----
+// Names for filter controls that have no visible label, and keyboard access to tables that scroll.
+const CONTROL_NAMES = {
+  fund: 'Fund cluster', journal: 'Journal', status: 'Status', q: 'Search', from: 'From date', to: 'To date', month: 'Month', asOf: 'As of',
+  fy: 'Fiscal year', kind: 'Kind', cls: 'Allotment class', group: 'Account group', code: 'Account', type: 'Type', year: 'Year', quarter: 'Quarter',
+  date: 'Date', lockedThrough: 'Close the books through', bankId: 'Bank account', officerId: 'Disbursing officer',
+};
+export function improveAccess(root = document) {
+  for (const c of root.querySelectorAll('select, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea')) {
+    if (c.getAttribute('aria-label') || c.closest('label') || (c.id && root.querySelector(`label[for="${c.id}"]`))) continue;
+    const name = CONTROL_NAMES[c.name] || c.placeholder || c.name;
+    if (name) c.setAttribute('aria-label', name);
+  }
+  for (const t of root.querySelectorAll('.table-scroll:not([tabindex])')) {
+    t.setAttribute('tabindex', '0');
+    t.setAttribute('role', 'region');
+    t.setAttribute('aria-label', t.closest('section, .card')?.querySelector('h2, h3')?.textContent?.trim() || 'Table');
+  }
+}

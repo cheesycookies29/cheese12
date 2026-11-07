@@ -108,3 +108,32 @@ td.util, th.util { width: 140px; }
 .finance-app .toolbar input[type='search'] { flex: 1 1 220px; min-width: 0; }
 .finance-app .toolbar label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
 .f-2307 th:first-child, .f-2307 td:first-child { width: 34%; }
+:root[data-theme='dark'] .bar i { background: var(--brand-text); }
+
+/* Line editors on phones: each line is a card; every field keeps its label; remove sits top right. */
+@media (max-width: 760px) {
+  .lines-table.stackable tr[data-line] { position: relative; padding-right: 44px; }
+  .lines-table.stackable td:first-child { display: flex; }
+  .lines-table.stackable td:first-child::before { content: attr(data-label); }
+  .lines-table.stackable td.x { position: absolute; right: 4px; top: 6px; width: auto; border: 0; }
+  .lines-table.stackable td.x::before { content: none; }
+}
+
+.util-v { display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
+.util-v .meter { flex: 1; min-width: 60px; }
+.bar { position: relative; }
+.bar em { position: absolute; top: -2px; font-style: normal; font-size: 11px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.bars { padding-top: 20px; }
+.bar span { font-size: 10px; }
+.nowrap { white-space: nowrap; }
+.find-bar input[type='search'] { max-width: 520px; font-size: 16px; }
+
+.page-head .actions .push-right { margin-left: 12px; }
+.report th:first-child, .report td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.report thead th:first-child { background: var(--surface-2); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.matrix th small { white-space: normal; display: block; min-width: 72px; }
+
+/* Document numbers never break in the middle. */
+.finance-app .table td > a > strong, .finance-app .table td > strong:first-child { white-space: nowrap; }

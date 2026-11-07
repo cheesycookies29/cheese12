@@ -741,6 +741,30 @@ export function registerFinanceRoutes(route, ctx) {
     return { ok: true };
   });
 
+  // ----- Find a document by its number (or a check no., a payee or supplier's name) -----
+  route('GET', '/api/finance/find', 'finance:finance.view', ({ query }) => {
+    const q = String(query.q || '').trim().toLowerCase();
+    if (q.length < 2) return [];
+    const norm = (v) => String(v || '').toLowerCase();
+    const has = (...vals) => vals.some((v) => norm(v).includes(q));
+    const d = data();
+    const out = [];
+    const push = (kind, no, date, text, href) => out.push({ kind, no, date, text, href });
+    for (const x of d.finDvs) if (has(x.no, x.checkNo, fx.cardName(x.payeeId))) push('Disbursement voucher', x.no || 'Not yet numbered', x.paidDate || x.date, `${fx.cardName(x.payeeId)} · ${x.particulars}${x.checkNo ? ` · check ${x.checkNo}` : ''}`, `/dvs/${x.id}`);
+    for (const x of d.finJournals) if (has(x.jevNo)) push('Journal entry voucher', x.jevNo, x.date, x.particulars, `/journals/${x.id}`);
+    for (const x of d.finObligations) if (has(x.no, fx.cardName(x.payeeId))) push(x.form, x.no || 'Not yet numbered', x.obligatedDate || x.date, `${fx.cardName(x.payeeId)} · ${x.particulars}`, `/obligations/${x.id}`);
+    for (const x of d.finPrs) if (has(x.no)) push('Purchase request', x.no, x.date, x.purpose, `/prs/${x.id}`);
+    for (const x of d.finPos) if (has(x.no, fx.cardName(x.supplierId))) push('Purchase order', x.no, x.date, fx.cardName(x.supplierId), `/pos/${x.id}`);
+    for (const x of d.finIars) if (has(x.no, x.invoiceNo)) push('Inspection and acceptance report', x.no, x.date, `Invoice ${x.invoiceNo} · ${fx.cardName(x.supplierId)}`, `/pos/${x.poId}`);
+    for (const x of d.finRis) if (has(x.no)) push('Requisition and issue slip', x.no, x.date, x.purpose, `/ris/${x.id}`);
+    for (const x of d.finReceipts) if (has(x.no, x.payorName)) push('Official receipt', x.no, x.date, `${x.payorName}${x.status === 'cancelled' ? ' (cancelled)' : ''}`, `/print/or/${x.id}`);
+    for (const x of d.finRcds) if (has(x.no)) push('Report of collections and deposits', x.no, x.date, `O.R. ${x.from}–${x.to}`, `/rcds/${x.id}`);
+    for (const x of d.finLddaps) if (has(x.no)) push('LDDAP-ADA', x.no, x.date, `${x.dvIds.length} voucher(s)`, `/print/lddap/${x.id}`);
+    for (const x of d.finProperty) if (has(x.propertyNo, x.docNo, x.serialNo)) push(x.type === 'ppe' ? 'Property (PAR)' : 'Property (ICS)', x.propertyNo, x.acquired, `${x.description}${x.docNo ? ` · ${x.type === 'ppe' ? 'PAR' : 'ICS'} ${x.docNo}` : ''}`, `/property/${x.id}`);
+    for (const x of d.finCards) if (has(x.name, x.tin)) push('Card', x.name, '', x.tin ? `TIN ${x.tin}` : x.kind, `/cards/${x.id}`);
+    return out.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 60);
+  });
+
   // ----- Dashboard -----
   route('GET', '/api/finance/dashboard', 'finance:finance.view', ({ user }) => {
     const d = data();

@@ -21,7 +21,7 @@ export async function cardListView(el, _p, query) {
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table" id="rows">
       <thead><tr><th>Name</th><th>Kind</th><th>TIN</th><th>Tax</th><th class="num">Payable</th><th class="num">Advances</th><th class="num">Receivable</th></tr></thead>
       <tbody>${list.map((c) => html`<tr data-href="/cards/${c.id}"><td><a href="#/cards/${c.id}"><strong>${c.name}</strong></a>${c.status !== 'active' ? html` ${badge(c.status, c.status === 'blacklisted' ? 'red' : 'gray')}` : ''}<small>${c.address || c.userName || ''}</small></td>
-        <td>${kindLabel(c.kind)}</td><td>${c.tin || '—'}</td><td>${c.vat === 'vat' ? 'VAT' : c.vat === 'nonvat' ? 'Non-VAT' : 'Exempt'}<small>${c.taxType === 'corporation' ? 'Corporation' : 'Individual'}</small></td>
+        <td>${kindLabel(c.kind)}</td><td class="nowrap">${c.tin || '—'}</td><td>${c.vat === 'vat' ? 'VAT' : c.vat === 'nonvat' ? 'Non-VAT' : 'Exempt'}<small>${c.taxType === 'corporation' ? 'Corporation' : 'Individual'}</small></td>
         ${amt(c.payable, { blankZero: true })}${amt(c.advances, { blankZero: true })}${amt(c.receivable, { blankZero: true })}</tr>`)}</tbody></table></div></div>`
       : html`<div class="card empty">${icon('users', 40)}<h2>No cards</h2><p>${query.q ? 'Nothing matches.' : 'Add suppliers, employees and officers as the school deals with them.'}</p></div>`}`);
   clickableRows(el);

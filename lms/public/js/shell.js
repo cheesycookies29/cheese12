@@ -317,8 +317,26 @@ export function startApp(config) {
   // Back to the University Portal, where the other systems are.
   document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" href="/" title="All systems" aria-label="All systems">${iconSvg('grid')}</a>`);
 
+  // A view with unsaved work sets ctx.dirty = () => true; leaving it asks first (and the address goes back).
+  let lastHash = location.hash;
+  let skipNext = false;
+  const leaveOk = () => !ctx.dirty?.() || window.confirm('You have unsaved changes on this page. Leave without saving?');
+  window.addEventListener('beforeunload', (e) => {
+    if (ctx.dirty?.()) e.preventDefault();
+  });
   async function navigate() {
     if (!ctx.user || ctx.user.mustChangePassword) return;
+    if (skipNext) {
+      skipNext = false;
+      return;
+    }
+    if (location.hash !== lastHash && !leaveOk()) {
+      skipNext = true;
+      location.hash = lastHash;
+      return;
+    }
+    ctx.dirty = null;
+    lastHash = location.hash;
     setDrawer(false);
     document.querySelectorAll('.modal-backdrop').forEach((m) => m.remove()); // a dialog belongs to the page it was opened on
     const path = location.hash.replace(/^#/, '').split('?')[0] || config.home();
@@ -338,10 +356,14 @@ export function startApp(config) {
     const el = old.cloneNode(false);
     old.replaceWith(el);
     window.scrollTo(0, 0);
+    // A page that takes a moment says so, instead of staying blank.
+    const loading = setTimeout(() => !el.childElementCount && mount(el, html`<p class="page-loading" role="status">Loading…</p>`), 250);
     try {
       cleanup = await match.view(el, params, query);
     } catch (err) {
       mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
+    } finally {
+      clearTimeout(loading);
     }
   }
 
@@ -382,6 +404,7 @@ export function startApp(config) {
 
   // Signing out ends every session (portal and admin) and returns to the University Portal.
   async function signOut() {
+    ctx.dirty = null; // signing out on purpose: no "unsaved changes" question
     const out = await api.post('/api/hub/logout').catch(() => ({}));
     ctx.user = null;
     location.href = out?.ssoLogout || '/'; // a Keycloak session ends at Keycloak, which comes back to /

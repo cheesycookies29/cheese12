@@ -6,7 +6,7 @@ import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, confirmDialog, downloadFile, toCsv } from '../../ui.js';
 import { today as localDate } from '../../ui.js';
 import { fundName } from '/shared/finance.js';
-import { fin, can, money, num, fy, thisMonth, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, jevBadge, amt, printLink } from '../state.js';
+import { fin, can, money, num, fy, thisMonth, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, jevBadge, amt, printLink , trackChanges, busy } from '../state.js';
 
 const today = () => localDate(); // the browser's own date, not UTC
 const journalLabel = (k) => fin.settings.journals.find(([v]) => v === k)?.[1] || k;
@@ -21,12 +21,12 @@ export async function journalListView(el, _p, query) {
       <select name="fund">${fundOptions(query.fund, { all: true })}</select>
       <select name="journal">${option('', 'All journals', !query.journal)}${fin.settings.journals.map(([v, l]) => option(v, l, v === query.journal))}</select>
       <select name="status">${option('', 'Posted and drafts', !query.status)}${option('posted', 'Posted', query.status === 'posted')}${option('draft', 'Drafts', query.status === 'draft')}</select>
-      <input type="date" name="from" value="${query.from || ''}" aria-label="From" /><input type="date" name="to" value="${query.to || ''}" aria-label="To" />
-      <input type="search" name="q" value="${query.q || ''}" placeholder="JEV no. or particulars" /><button class="btn">${icon('search', 16)} Filter</button>
+      <label>From <input type="date" name="from" value="${query.from || ''}" /></label><label>To <input type="date" name="to" value="${query.to || ''}" /></label>
+      <input type="search" name="q" value="${query.q || ''}" placeholder="JEV no. or particulars" /><button class="btn">Show</button>
     </form>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table" id="rows"><thead><tr><th>JEV no.</th><th>Date</th><th>Journal</th><th>Particulars</th><th class="num">Amount</th><th>Status</th></tr></thead>
-      <tbody>${list.map((j) => html`<tr data-href="/journals/${j.id}"><td><a href="#/journals/${j.id}"><strong>${j.jevNo || 'Draft'}</strong></a><small>Fund ${j.fund}</small></td><td>${fmtDate(j.date)}</td><td>${j.journal}</td><td>${j.particulars}</td>${amt(j.total)}<td>${jevBadge(j)}</td></tr>`)}</tbody></table></div></div>`
-      : html`<div class="card empty">${icon('book', 40)}<h2>No entries</h2><p>Nothing matches.</p></div>`}`);
+      <tbody>${list.map((j) => html`<tr data-href="/journals/${j.id}"><td class="nowrap"><a href="#/journals/${j.id}"><strong>${j.jevNo || 'Draft'}</strong></a><small>Fund ${j.fund}</small></td><td class="nowrap">${fmtDate(j.date)}</td><td><abbr title="${journalLabel(j.journal)}">${j.journal}</abbr></td><td>${j.particulars}</td>${amt(j.total)}<td>${jevBadge(j)}</td></tr>`)}</tbody></table></div></div>`
+      : html`<div class="card empty">${icon('book', 40)}<h2>No entries</h2><p>${Object.keys(query).length ? 'Nothing matches these filters — clear them to see every entry.' : 'Entries appear here as the modules post them.'}</p></div>`}`);
   clickableRows(el);
   el.querySelector('#filter').onsubmit = (e) => {
     e.preventDefault();
@@ -58,15 +58,24 @@ export async function journalFormView(el, _p, query) {
       ${linesTable('lines', cols, j.lines, { min: 2, total: true })}
       <div class="actions end"><button class="btn" type="submit" name="act" value="draft">Save draft</button><button class="btn primary" type="submit" name="act" value="post">Save and post</button></div>
     </form>`);
+  const postBtn = el.querySelector('#jev button[value=post]');
   wireLines(el, 'lines', (rows) => {
-    const dr = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
-    const cr = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
-    return `Debits ${num(dr)} · Credits ${num(cr)}${Math.abs(dr - cr) > 0.004 ? ` · out of balance by ${num(Math.abs(dr - cr))}` : ' · balanced'}`;
+    const dr = rows.reduce((t, r) => t + (Number(r.debit) || 0), 0);
+    const cr = rows.reduce((t, r) => t + (Number(r.credit) || 0), 0);
+    const off = Math.abs(dr - cr) > 0.004;
+    // Posting needs a balanced entry with something in it; the total line says what is missing.
+    postBtn.disabled = off || dr <= 0;
+    const t = el.querySelector('#lines .lines-total');
+    t.classList.toggle('danger-text', off);
+    if (dr <= 0 && cr <= 0) return 'Enter at least one debit and one credit.';
+    return `Debits ${num(dr)} · Credits ${num(cr)}${off ? ` · out of balance by ${num(Math.abs(dr - cr))}` : ' · balanced'}`;
   });
+  const changes = trackChanges(el.querySelector('#jev'));
   el.querySelector('#jev').onsubmit = async (e) => {
     e.preventDefault();
     const post = e.submitter?.value === 'post';
     const body = { ...formData(e.target), lines: readLines(el, 'lines'), post };
+    await busy(e.target, async () => {
     try {
       let out;
       if (draft) {
@@ -74,10 +83,12 @@ export async function journalFormView(el, _p, query) {
         if (post) out = await api.post(`/api/finance/journals/${draft.id}/post`);
       } else out = await api.post('/api/finance/journals', body);
       toast(out.status === 'posted' ? `Posted as JEV ${out.jevNo}.` : 'Draft saved.');
+      changes.saved();
       location.hash = `#/journals/${out.id}`;
     } catch (err) {
       toast(err.message, 'error');
     }
+    });
   };
 }
 
@@ -137,7 +148,7 @@ export async function ledgerView(el, params, query) {
       <select name="code" required>${accountOptions(chart, code)}</select>
       <select name="fund">${fundOptions(fund, { all: true })}</select>
       <input type="date" name="from" value="${from}" aria-label="From" /><input type="date" name="to" value="${to}" aria-label="To" />
-      <button class="btn primary">Show</button>
+      <button class="btn">Show</button>
     </form>
     ${g ? html`<div class="card"><div class="table-scroll"><table class="table compact"><thead><tr><th>Date</th><th>JEV</th><th>Particulars</th><th>Subsidiary</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>
       <tbody><tr class="term-row"><td colspan="6">Balance forward</td>${amt(g.opening)}</tr>
@@ -190,7 +201,7 @@ export async function statementsView(el, _p, query) {
     <div class="cols">
       <section class="card statement">
         <header class="st-head"><strong>${fin.settings.entity.name}</strong><span>Statement of Financial Position</span><span>${pos.fundName}</span><span>As of ${fmtDate(asOf)}</span></header>
-        <table class="table compact"><tbody>
+        <table class="table compact no-stack"><tbody>
           <tr class="st-section"><td colspan="2">ASSETS</td></tr>
           <tr class="st-sub"><td colspan="2">Current assets</td></tr>${groups(pos.current)}<tr class="st-total"><td>Total current assets</td><td class="num">${num(pos.totals.current)}</td></tr>
           <tr class="st-sub"><td colspan="2">Non-current assets</td></tr>${groups(pos.nonCurrent)}<tr class="st-total"><td>Total non-current assets</td><td class="num">${num(pos.totals.nonCurrent)}</td></tr>
@@ -205,7 +216,7 @@ export async function statementsView(el, _p, query) {
       </section>
       <section class="card statement">
         <header class="st-head"><strong>${fin.settings.entity.name}</strong><span>Statement of Financial Performance</span><span>${perf.fundName}</span><span>${fmtDate(from)} to ${fmtDate(asOf)}</span></header>
-        <table class="table compact"><tbody>
+        <table class="table compact no-stack"><tbody>
           <tr class="st-section"><td colspan="2">REVENUE</td></tr>${groups(perf.revenue)}<tr class="st-total"><td>Total revenue</td><td class="num">${num(perf.totals.revenue)}</td></tr>
           <tr class="st-section"><td colspan="2">LESS: CURRENT OPERATING EXPENSES</td></tr>${groups(perf.expenses)}<tr class="st-total"><td>Total expenses</td><td class="num">${num(perf.totals.expenses)}</td></tr>
           <tr class="st-grand"><td>SURPLUS/(DEFICIT) FOR THE PERIOD</td><td class="num">${num(perf.totals.surplus)}</td></tr>
@@ -303,15 +314,20 @@ export async function bankReconView(el, _p, query) {
     const open = r.items.filter((i) => !ticked.has(i.key));
     const dit = open.reduce((s, i) => s + i.debit, 0);
     const oc = open.reduce((s, i) => s + i.credit, 0);
+    const blank = form.statementBalance.value === '';
     const bank = Number(form.statementBalance.value) || 0;
     const adj = bank + dit - oc;
     const diff = Math.round((adj - r.book) * 100) / 100;
-    el.querySelector('#s-bank').textContent = num(bank);
+    // Nothing is "reconciled" until the bank statement's balance is entered.
+    el.querySelector('#s-bank').textContent = blank ? '—' : num(bank);
     el.querySelector('#s-dit').textContent = num(dit);
     el.querySelector('#s-oc').textContent = num(oc);
-    el.querySelector('#s-adj').textContent = num(adj);
-    el.querySelector('#s-diff').textContent = num(diff);
-    el.querySelector('#status').innerHTML = form.statementBalance.value === '' ? '—' : diff === 0 ? '<span class="badge green">Reconciled</span>' : '<span class="badge amber">Not reconciled</span>';
+    el.querySelector('#s-adj').textContent = blank ? '—' : num(adj);
+    const badge = blank ? '<span class="muted">Enter the bank statement balance</span>' : diff === 0 ? '<span class="badge green">Reconciled</span>' : '<span class="badge amber">Not reconciled</span>';
+    el.querySelector('#s-diff').innerHTML = blank ? '—' : `${num(diff)} ${badge}`;
+    el.querySelector('#status').innerHTML = badge;
+    const save = form.querySelector('button.primary');
+    if (save) save.disabled = blank;
   };
   form.addEventListener('input', calc);
   calc();

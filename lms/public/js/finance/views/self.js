@@ -9,7 +9,7 @@ import { risForm, prForm } from './inventory.js';
 
 export async function myView(el) {
   const d = await api.get('/api/finance/my');
-  const receipts = html`<section class="card"><h2>${icon('receipt')} ${isStudent() ? 'My payments' : 'Official receipts issued to me'}</h2>
+  const receipts = html`<section class="card">${isStudent() ? '' : html`<h2>${icon('receipt')} Official receipts issued to me</h2>`}
     ${d.receipts.length ? html`<div class="table-scroll"><table class="table"><thead><tr><th>O.R. no.</th><th>Date</th><th>For</th><th class="num">Amount</th><th></th></tr></thead>
       <tbody>${d.receipts.map((r) => html`<tr><td><strong>${r.no}</strong></td><td>${fmtDate(r.date)}</td><td>${r.lines.map((l) => l.description).join(', ')}</td>${amt(r.total)}<td><a class="btn sm" href="#/print/or/${r.id}">${icon('file', 14)} View</a></td></tr>`)}</tbody></table></div>`
       : html`<p class="muted">No payments recorded yet. Receipts issued by the cashier in your name appear here.</p>`}</section>`;
@@ -19,7 +19,7 @@ export async function myView(el) {
   }
   const total = d.property.reduce((s, p) => s + p.cost, 0);
   mount(el, html`
-    ${pageHead('My accountabilities', ctx.user.name, html`<a class="btn" href="#/me/requests">${icon('cart', 16)} Supply and purchase requests</a>`)}
+    ${pageHead('My accountabilities', ctx.user.name, html`<a class="btn" href="#/me/requests">${icon('cart', 16)} Supply & purchase requests</a>`)}
     ${!d.card ? html`<div class="notice info">${icon('flag')}<p>Your account is not linked to a card in the Finance card file yet, so no property or cash advance is shown. Ask the accounting office to link it.</p></div>` : ''}
     <div class="stats"><div class="card"><small>Property in my custody</small><strong>${d.property.length}</strong><span class="muted small">${money(total)}</span></div>
       <div class="card ${d.advances.some((a) => a.overdue) ? 'warn' : ''}"><small>Unliquidated cash advances</small><strong>${money(d.advances.reduce((s, a) => s + a.outstanding, 0))}</strong><span class="muted small">${d.advances.length} advance${d.advances.length === 1 ? '' : 's'}</span></div>
@@ -38,7 +38,7 @@ export async function myRequestsView(el) {
   const [ris, prs] = await Promise.all([api.get('/api/finance/ris'), api.get('/api/finance/prs')]);
   const mine = (l) => l.filter((x) => x.requestedBy.userId === ctx.user.id);
   mount(el, html`
-    ${pageHead('Supply and purchase requests', 'Ask the supply office for supplies in stock (RIS), or for something to be bought (PR).', html`<button class="btn" id="pr">${icon('cart', 16)} Purchase request</button><button class="btn primary" id="ris">${icon('inbox', 16)} Request supplies</button>`)}
+    ${pageHead('Supply & purchase requests', 'Ask the supply office for supplies in stock (RIS), or for something to be bought (PR).', html`<button class="btn" id="pr">${icon('cart', 16)} Purchase request</button><button class="btn primary" id="ris">${icon('inbox', 16)} Request supplies</button>`)}
     <section class="card"><h2>Requisitions (RIS)</h2>${mine(ris).length ? html`<table class="table"><thead><tr><th>RIS no.</th><th>Purpose</th><th>Items</th><th>Status</th></tr></thead>
       <tbody>${mine(ris).map((r) => html`<tr data-href="/ris/${r.id}"><td><a href="#/ris/${r.id}">${r.no}</a><small>${fmtDate(r.date)}</small></td><td>${r.purpose}</td><td>${r.items.map((i) => `${i.qty} ${i.unit} ${i.description}`).join(', ')}</td><td>${risBadge(r.status)}</td></tr>`)}</tbody></table>` : html`<p class="muted">None yet.</p>`}</section>
     <section class="card"><h2>Purchase requests (PR)</h2>${mine(prs).length ? html`<table class="table"><thead><tr><th>PR no.</th><th>Purpose</th><th class="num">Estimate</th><th>Status</th></tr></thead>

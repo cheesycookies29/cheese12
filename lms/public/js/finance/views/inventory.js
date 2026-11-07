@@ -6,7 +6,7 @@ import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, downloadFile, toCsv } from '../../ui.js';
 import { today as localDate } from '../../ui.js';
 import { classOf } from '/shared/finance.js';
-import { fin, can, money, num, thisMonth, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, prBadge, poBadge, risBadge, amt, infoGrid, printLink } from '../state.js';
+import { fin, can, money, num, thisMonth, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, prBadge, poBadge, risBadge, amt, infoGrid, printLink , trackChanges, busy } from '../state.js';
 
 const today = () => localDate(); // the browser's own date, not UTC
 const supplyAccounts = () => fin.settings.supplyClasses.map((c) => c.code);
@@ -193,15 +193,19 @@ export async function poFormView(el, _p, query) {
     tr.querySelector('[data-k=unit]').value = it.unit;
     tr.querySelector('[data-k=category]').value = 'supply';
   });
+  const changes = trackChanges(el.querySelector('#po'));
   el.querySelector('#po').onsubmit = async (e) => {
     e.preventDefault();
+    await busy(e.target, async () => {
     try {
       const o = await api.post('/api/finance/pos', { ...formData(e.target), items: readLines(el, 'po-lines').map((l) => ({ ...l, code: l.code || items.find((i) => i.id === l.itemId)?.code })), quotes: readLines(el, 'quotes') });
       toast(`PO ${o.no} saved. Next: its obligation request.`);
+      changes.saved();
       location.hash = `#/pos/${o.id}`;
     } catch (err) {
       toast(err.message, 'error');
     }
+    });
   };
 }
 
@@ -277,7 +281,7 @@ export async function risListView(el, _p, query) {
   const status = query.status || '';
   const list = await api.get(`/api/finance/ris${status ? `?status=${status}` : ''}`);
   mount(el, html`
-    ${pageHead('Requisition and issue slips', 'Supplies requested by the offices and issued from stock (GAM Appendix 63).', html`<button class="btn primary" id="add">${icon('plus', 16)} New requisition</button>`)}
+    ${pageHead('Requisitions', 'Supplies requested by the offices and issued from stock (GAM Appendix 63).', html`<button class="btn primary" id="add">${icon('plus', 16)} New requisition</button>`)}
     <nav class="tabs">${[['', 'All'], ['open', 'To issue'], ['issued', 'Issued'], ['cancelled', 'Cancelled']].map(([v, l]) => html`<a href="#/ris?status=${v}" class="${v === status ? 'active' : ''}">${l}</a>`)}</nav>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>RIS no.</th><th>Office</th><th>Purpose</th><th>Requested by</th><th>Items</th><th>Status</th></tr></thead>
       <tbody>${list.map((r) => html`<tr data-href="/ris/${r.id}"><td><a href="#/ris/${r.id}"><strong>${r.no}</strong></a><small>${fmtDate(r.date)}</small></td><td>${r.officeName}</td><td>${r.purpose}</td><td>${r.requestedBy.name}</td><td>${r.items.length}</td><td>${risBadge(r.status)}</td></tr>`)}</tbody></table></div></div>`
@@ -368,9 +372,9 @@ export async function inventoryReportsView(el, _p, query) {
     : html`
       <form class="toolbar" id="f"><input type="hidden" name="tab" value="count" /><label>As of <input type="date" name="asOf" value="${asOf}" /></label><button class="btn">Show</button></form>
       <form class="card" id="count"><div class="print-head"><strong>${fin.settings.entity.name}</strong><span>Report on the Physical Count of Inventories · as of ${fmtDate(asOf)}</span></div>
-        <div class="table-scroll"><table class="table compact"><thead><tr><th>Account</th><th>Stock no.</th><th>Article</th><th>Unit</th><th class="num">Unit value</th><th class="num">Per stock card</th><th class="num">Per count</th><th class="num">Value</th></tr></thead>
-        <tbody>${d.rows.map((r) => html`<tr><td><small>${r.code}</small></td><td>${r.stockNo}</td><td>${r.description}</td><td>${r.unit}</td>${amt(r.unitValue)}<td class="num">${r.qty}</td><td class="num">${can('finance.inventory') ? html`<input type="number" min="0" step="any" name="${r.id}" value="${r.qty}" class="count-in" aria-label="Count" />` : ''}</td>${amt(r.value)}</tr>`)}</tbody></table></div>
-        ${can('finance.inventory') ? html`<div class="actions end"><select name="fund">${fundOptions(fin.settings.funds[0])}</select><button class="btn primary">Record count and book differences</button></div>` : ''}
+        <div class="table-scroll"><table class="table compact"><thead><tr><th>Account</th><th>Stock no.</th><th>Article</th><th>Unit</th><th class="num">Unit value</th><th class="num">Per stock card</th><th class="num">Per count</th><th class="num">Difference</th><th class="num">Value per card</th></tr></thead>
+        <tbody>${d.rows.map((r) => html`<tr data-qty="${r.qty}" data-unit-value="${r.unitValue}"><td><small>${r.code}</small></td><td>${r.stockNo}</td><td>${r.description}</td><td>${r.unit}</td>${amt(r.unitValue)}<td class="num">${r.qty}</td><td class="num">${can('finance.inventory') ? html`<input type="number" min="0" step="any" name="${r.id}" placeholder="${r.qty}" class="count-in" aria-label="Counted quantity of ${r.description}" />` : ''}</td><td class="num diff"></td>${amt(r.value)}</tr>`)}</tbody></table></div>
+        ${can('finance.inventory') ? html`<p class="muted small no-print">Enter what was counted; items left blank are taken as matching the stock card.</p><div class="actions end"><label>Book differences to <select name="fund">${fundOptions(fin.settings.funds[0])}</select></label><button class="btn primary" id="book-count">Record the count</button></div>` : ''}
         ${d.counts.length ? html`<h3 class="sub-h">Earlier counts</h3><ul class="tight">${d.counts.map((c) => html`<li>${fmtDate(c.asOf)} by ${c.by}: ${c.diffs.length ? c.diffs.map((x) => `${x.description} ${x.diff > 0 ? '+' : ''}${x.diff}`).join(', ') : 'no differences'}</li>`)}</ul>` : ''}
         <div class="sign-row print-only"><div>Certified correct by:<br /><br />Inventory committee</div><div>Approved by:<br /><br /><strong>${fin.settings.signatories.head.name}</strong></div><div>Verified by:<br /><br />COA representative</div></div></form>`}`);
   el.querySelector('#f').onsubmit = (e) => {
@@ -388,10 +392,29 @@ export async function inventoryReportsView(el, _p, query) {
   });
   const countForm = el.querySelector('#count');
   if (countForm) {
+    // Live differences; the button says how many will be booked.
+    const showDiffs = () => {
+      let n = 0;
+      for (const tr of countForm.querySelectorAll('tr[data-qty]')) {
+        const input = tr.querySelector('.count-in');
+        const cell = tr.querySelector('.diff');
+        if (!input || input.value === '') {
+          cell.textContent = '';
+          continue;
+        }
+        const diff = Math.round((Number(input.value) - Number(tr.dataset.qty)) * 100) / 100;
+        cell.innerHTML = diff ? `<span class="badge ${diff < 0 ? 'red' : 'amber'}">${diff > 0 ? '+' : ''}${diff} · ${num(diff * Number(tr.dataset.unitValue))}</span>` : '<span class="muted">0</span>';
+        if (diff) n++;
+      }
+      countForm.querySelector('#book-count').textContent = n ? `Record the count and book ${n} difference${n === 1 ? '' : 's'}` : 'Record the count (no differences)';
+    };
+    countForm.addEventListener('input', showDiffs);
+    showDiffs();
     countForm.onsubmit = async (e) => {
       e.preventDefault();
       const v = formData(countForm);
-      const counts = Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'fund'));
+      // Only the items actually counted are sent; a blank count means "as per the stock card".
+      const counts = Object.fromEntries(Object.entries(v).filter(([k, x]) => k !== 'fund' && x !== ''));
       try {
         const r = await api.post('/api/finance/inventory-count', { asOf, fund: v.fund, counts });
         toast(r.diffs.length ? `${r.diffs.length} difference${r.diffs.length === 1 ? '' : 's'} booked.` : 'Count recorded: no differences.');

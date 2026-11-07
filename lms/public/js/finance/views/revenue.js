@@ -12,16 +12,18 @@ const today = () => localDate(); // the browser's own date, not UTC
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export async function receiptListView(el, _p, query) {
+  // The last 30 days by default (a whole year of receipts is too long to read); a date or a search narrows it.
   const date = query.date ?? '';
-  const list = await api.get(`/api/finance/receipts?${new URLSearchParams({ date, q: query.q || '' })}`);
+  const from = query.from ?? (date || query.q ? '' : localDate(new Date(Date.now() - 30 * 86400000)));
+  const list = await api.get(`/api/finance/receipts?${new URLSearchParams({ date, from, q: query.q || '' })}`);
   const reload = () => receiptListView(el, _p, query);
   mount(el, html`
     ${pageHead('Official receipts', 'Every collection gets an official receipt from the collector\'s booklet. Cancelled receipts keep all copies.', can('finance.collect') ? html`<button class="btn primary" id="issue">${icon('plus', 16)} Issue O.R.</button>` : '')}
-    <form class="toolbar" id="f"><input type="date" name="date" value="${date}" aria-label="Date" /><input type="search" name="q" value="${query.q || ''}" placeholder="O.R. no. or payor" /><button class="btn">${icon('search', 16)} Find</button></form>
+    <form class="toolbar" id="f"><label>Date <input type="date" name="date" value="${date}" /></label><input type="search" name="q" value="${query.q || ''}" placeholder="O.R. no. or payor" /><button class="btn">Show</button>${from ? html`<span class="muted small">Showing the last 30 days · <a href="#/receipts?from=">show all</a></span>` : ''}</form>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>O.R. no.</th><th>Date</th><th>Payor</th><th>Nature of collection</th><th>Fund</th><th class="num">Amount</th><th>Collector</th><th>Status</th><th></th></tr></thead>
       <tbody>${list.map((r) => html`<tr><td><strong>${r.no}</strong></td><td>${fmtDate(r.date)}</td><td>${r.payorName}</td><td>${r.lines.map((l) => l.description).join(', ')}</td><td>${r.fund}</td>${amt(r.total)}<td>${r.collectorName}</td>
-        <td>${r.status === 'cancelled' ? badge('Cancelled', 'gray') : r.rcdNo ? badge(`RCD ${r.rcdNo}`, 'green') : badge('Not reported', 'amber')}</td>
-        <td class="row-actions"><a class="btn sm" href="#/print/or/${r.id}">${icon('file', 14)} Print</a>${r.status === 'issued' && !r.rcdId && r.collectorId === ctx.user.id ? html`<button class="btn sm danger ghost" data-cancel="${r.id}">Cancel</button>` : ''}</td></tr>`)}</tbody></table></div></div>`
+        <td>${r.status === 'cancelled' ? badge('Cancelled', 'gray') : r.rcdNo ? html`${badge('Reported', 'green')}<small><a href="#/rcds/${r.rcdId}">RCD ${r.rcdNo}</a></small>` : badge('Not yet reported', 'amber')}</td>
+        <td class="row-actions"><a class="btn sm" href="#/print/or/${r.id}" title="Print O.R. ${r.no}">${icon('file', 14)} Print</a>${r.status === 'issued' && !r.rcdId && r.collectorId === ctx.user.id ? html`<button class="btn sm danger ghost" data-cancel="${r.id}">Cancel</button>` : ''}</td></tr>`)}</tbody></table></div></div>`
       : html`<div class="card empty">${icon('receipt', 40)}<h2>No receipts</h2><p>${date ? 'None on that day.' : 'Receipts appear here once issued.'}</p></div>`}`);
   el.querySelector('#f').onsubmit = (e) => {
     e.preventDefault();
@@ -43,7 +45,7 @@ export async function issueReceipt(done) {
   const [cards, chart] = await Promise.all([fin.cardList(), fin.chart()]);
   const items = fin.settings.revenueItems;
   const cols = [
-    { key: 'itemId', label: 'Fee', type: 'select', options: (v) => html`<option value="">Other (pick the account)</option>${items.map((i) => option(i.id, `${i.name}${i.amount ? ` · ${num(i.amount)}` : ''}`, i.id === v))}`, width: '30%' },
+    { key: 'itemId', label: 'Fee', type: 'select', options: (v) => html`<option value="" ${v === undefined ? 'selected' : ''} disabled>Pick a fee…</option>${items.map((i) => option(i.id, `${i.name}${i.amount ? ` · ${num(i.amount)}` : ''}`, i.id === v))}<option value="__other">Other (pick the account)</option>`, width: '30%' },
     { key: 'code', label: 'Account (for other)', type: 'select', options: (v) => accountOptions(chart, v, (a) => a.group === 4 || /^(103|199|202|204)/.test(a.code)) },
     { key: 'description', label: 'Description', type: 'text' },
     { key: 'amount', label: 'Amount', type: 'number' },
@@ -57,17 +59,29 @@ export async function issueReceipt(done) {
       <label class="field"><span>Student (search name or number)</span><input id="stud-q" placeholder="Type 2 letters…" autocomplete="off" /><select name="studentId" id="stud"><option value="">Not a student</option></select></label>
       <label class="field"><span>Or a card (supplier, employee, officer…)</span><select name="payorCardId">${html`<option value="">None</option>`}${cardOptions(cards, '')}</select></label>
       <label class="field"><span>Payor name (as printed)</span><input name="payorName" /></label>
-      <label class="field"><span>Check no.</span><input name="checkNo" /></label><label class="field"><span>Bank</span><input name="bank" /></label>
+      <label class="field check-only" hidden><span>Check no.</span><input name="checkNo" /></label><label class="field check-only" hidden><span>Bank</span><input name="bank" /></label>
     </div>
     <h3 class="sub-h">Nature of collection</h3>${linesTable('or-lines', cols, [], { total: true })}`,
     async onSubmit(form) {
-      const r = await api.post('/api/finance/receipts', { ...formData(form), lines: readLines(form, 'or-lines').map((l) => ({ ...l, amount: l.amount || items.find((i) => i.id === l.itemId)?.amount })) });
+      const r = await api.post('/api/finance/receipts', { ...formData(form), lines: readLines(form, 'or-lines').map((l) => ({ ...l, itemId: l.itemId === '__other' ? '' : l.itemId, amount: l.amount || items.find((i) => i.id === l.itemId)?.amount })) });
       toast(`O.R. ${r.no} issued: ${money(r.total)}.`);
       location.hash = `#/print/or/${r.id}`;
       done?.();
     },
   });
   wireLines(m.form, 'or-lines', (rows) => `Total ${money(rows.reduce((t, r) => t + (Number(r.amount) || Number(items.find((i) => i.id === r.itemId)?.amount) || 0), 0))}`);
+  // Check number and bank only for checks; the account only for an "Other" line.
+  const showCheck = () => m.form.querySelectorAll('.check-only').forEach((x) => (x.hidden = m.form.mode.value !== 'check'));
+  m.form.mode.addEventListener('change', showCheck);
+  const accountFor = () => m.form.querySelectorAll('#or-lines tr[data-line]').forEach((tr) => {
+    const other = tr.querySelector('[data-k=itemId]').value === '__other';
+    const code = tr.querySelector('[data-k=code]');
+    code.disabled = !other;
+    if (!other) code.value = '';
+  });
+  m.form.querySelector('#or-lines').addEventListener('change', accountFor);
+  m.form.querySelector('#or-lines').addEventListener('click', () => setTimeout(accountFor));
+  accountFor();
   m.form.querySelector('#or-lines').addEventListener('change', (e) => {
     const sel = e.target.closest('select[data-k=itemId]');
     const it = sel && items.find((i) => i.id === sel.value);

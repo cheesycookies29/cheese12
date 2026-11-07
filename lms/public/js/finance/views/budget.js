@@ -7,7 +7,7 @@ import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, downloadFile, toCsv } from '../../ui.js';
 import { today as localDate } from '../../ui.js';
 import { fundName, obligationForm, classOf } from '/shared/finance.js';
-import { fin, can, money, num, fy, fundOptions, officeOptions, papOptions, classOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, orsBadge, amt, infoGrid, printLink } from '../state.js';
+import { fin, can, money, num, fy, fundOptions, officeOptions, papOptions, classOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, orsBadge, amt, infoGrid, printLink , trackChanges, busy } from '../state.js';
 
 const today = () => localDate(); // the browser's own date, not UTC
 // Who may prepare and change obligation requests (as the server allows).
@@ -35,7 +35,7 @@ export async function budgetView(el, _p, query) {
   };
   const sumOf = (l, k) => l.reduce((s, x) => s + x[k], 0);
   mount(el, html`
-    ${pageHead('Appropriations and allotments', `Fiscal year ${year}. The authority to spend: appropriations (GAA, board-approved budgets) are released as allotments, which obligations are charged to.`, edit ? html`<button class="btn" id="add-ap">${icon('plus', 16)} Appropriation</button><button class="btn primary" id="add-al">${icon('plus', 16)} Allotment</button>${fin.settings.funds.includes('01') ? html`<button class="btn" id="add-nca">${icon('plus', 16)} NCA</button>` : ''}` : '')}
+    ${pageHead('Budget and allotments', `Fiscal year ${year}. The authority to spend: appropriations (GAA, board-approved budgets) are released as allotments, which obligations are charged to.`, edit ? html`<button class="btn" id="add-ap">${icon('plus', 16)} Appropriation</button><button class="btn primary" id="add-al">${icon('plus', 16)} Allotment</button>${fin.settings.funds.includes('01') ? html`<button class="btn" id="add-nca">${icon('plus', 16)} NCA</button>` : ''}` : '')}
     <nav class="tabs">${[['allotments', 'Allotments'], ['appropriations', 'Appropriations'], ['ncas', 'Cash allocations (NCA)']].map(([k, l]) => html`<a href="#/budget?tab=${k}&fy=${year}&fund=${fund}" class="${k === tab ? 'active' : ''}">${l}</a>`)}</nav>
     ${tab !== 'ncas' ? html`<form class="toolbar" id="f"><input type="hidden" name="tab" value="${tab}" /><input type="number" name="fy" value="${year}" min="2000" max="2100" aria-label="Fiscal year" style="width:110px" /><select name="fund">${fundOptions(fund, { all: true })}</select><button class="btn">Show</button></form>` : ''}
     ${tab === 'allotments' ? (als.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>Reference</th><th>Fund</th><th>PAP</th><th>Class</th><th class="num">Allotment</th><th class="num">Obligated</th><th class="num">Balance</th>${edit ? html`<th></th>` : ''}</tr></thead>
@@ -113,12 +113,12 @@ export async function obligationListView(el, _p, query) {
   const status = query.status ?? (can('finance.budget') ? 'pending' : '');
   const list = await api.get(`/api/finance/obligations?${new URLSearchParams({ status, q: query.q || '' })}`);
   mount(el, html`
-    ${pageHead('Obligation requests', 'ORS for the Regular Agency Fund (GAA), BURS for internally generated, trust and other funds. Box B certifies that the allotment is available and obligated.', preparer() ? html`<a class="btn primary" href="#/obligations/new">${icon('plus', 16)} New request</a>` : '')}
+    ${pageHead('Obligations', 'ORS for the Regular Agency Fund (GAA), BURS for internally generated, trust and other funds. Box B certifies that the allotment is available and obligated.', preparer() ? html`<a class="btn primary" href="#/obligations/new">${icon('plus', 16)} New request</a>` : '')}
     <nav class="tabs">${[['pending', 'For obligation'], ['draft', 'Drafts'], ['obligated', 'Obligated'], ['unpaid', 'Unpaid'], ['cancelled', 'Cancelled'], ['', 'All']].map(([v, l]) => html`<a href="#/obligations?status=${v}" class="${v === status ? 'active' : ''}">${l}</a>`)}</nav>
     <form class="toolbar" id="f"><input type="search" name="q" value="${query.q || ''}" placeholder="Number, payee or particulars" /><button class="btn">${icon('search', 16)} Find</button></form>
-    ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>Number</th><th>Payee</th><th>Particulars</th><th class="num">Obligated</th><th class="num">Unpaid</th><th>Status</th></tr></thead>
-      <tbody>${list.map((o) => html`<tr data-href="/obligations/${o.id}"><td><a href="#/obligations/${o.id}"><strong>${o.form} ${o.no || ''}</strong></a><small>Fund ${o.fund} · ${fmtDate(o.obligatedDate || o.date)}</small></td><td>${o.payeeName}</td><td>${o.particulars}</td>${amt(o.status === 'obligated' ? o.obligatedAmount : o.total)}${amt(o.unpaid, { blankZero: true })}<td>${orsBadge(o)}</td></tr>`)}</tbody></table></div></div>`
-      : html`<div class="card empty">${icon('clipboard', 40)}<h2>Nothing here</h2><p>${status === 'pending' ? 'No requests are waiting for Box B.' : 'None match.'}</p></div>`}`);
+    ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>Number</th><th>Payee</th><th>Particulars</th><th class="num">Amount</th><th class="num">Unpaid</th><th>Status</th></tr></thead>
+      <tbody>${list.map((o) => html`<tr data-href="/obligations/${o.id}"><td class="nowrap"><a href="#/obligations/${o.id}"><strong>${o.form} ${o.no || ''}</strong></a>${o.no ? '' : html` <span class="muted small">not yet numbered</span>`}<small>Fund ${o.fund} · ${fmtDate(o.obligatedDate || o.date)}</small></td><td>${o.payeeName}</td><td>${o.particulars}</td>${o.status === 'obligated' ? amt(o.obligatedAmount) : html`<td class="num muted" title="Requested; not yet obligated">${num(o.total)}</td>`}${o.status === 'obligated' ? amt(o.unpaid) : html`<td class="num muted">—</td>`}<td>${orsBadge(o)}</td></tr>`)}</tbody></table></div></div>`
+      : html`<div class="card empty">${icon('clipboard', 40)}<h2>${{ pending: 'No requests waiting for Box B', draft: 'No drafts', obligated: 'Nothing obligated yet', unpaid: 'Nothing left to pay', cancelled: 'Nothing cancelled' }[status] || 'No obligation requests'}</h2><p>${query.q ? 'Nothing matches the search — clear it to see all.' : status === 'pending' ? 'Requests submitted by the offices appear here for the budget office to certify.' : ''}</p></div>`}`);
   clickableRows(el);
   el.querySelector('#f').onsubmit = (e) => {
     e.preventDefault();
@@ -145,7 +145,7 @@ export async function obligationFormView(el, _p, query) {
         <label class="field"><span>Date</span><input type="date" name="date" value="${o.date}" /></label>
         <label class="field"><span>Responsibility center</span><select name="office">${officeOptions(o.office)}</select></label>
         <label class="field span-2"><span>Payee</span><select name="payeeId" required>${cardOptions(cards, o.payeeId)}</select></label>
-        <label class="field"><span>&nbsp;</span><a class="btn" href="#/cards">${icon('plus', 14)} New card</a></label>
+        <p class="field hint">Not in the card file? <a href="#/cards">Add a card</a> first.</p>
         <label class="field span-3"><span>Particulars</span><textarea name="particulars" rows="2" required>${o.particulars}</textarea></label>
         <label class="field"><span>Box A: requested by</span><input name="rbName" value="${o.requestedBy?.name || ''}" placeholder="Head of the requesting office" /></label>
         <label class="field"><span>Position</span><input name="rbTitle" value="${o.requestedBy?.title || ''}" /></label>
@@ -158,17 +158,21 @@ export async function obligationFormView(el, _p, query) {
   el.querySelector('#fund').addEventListener('change', kind);
   kind();
   wireLines(el, 'lines', (rows) => `Total ${money(rows.reduce((s, r) => s + (Number(r.amount) || 0), 0))}`);
+  const changes = trackChanges(el.querySelector('#ors'));
   el.querySelector('#ors').onsubmit = async (e) => {
     e.preventDefault();
     const v = formData(e.target);
     const body = { ...v, requestedBy: { name: v.rbName, title: v.rbTitle }, lines: readLines(el, 'lines'), submit: e.submitter?.value === 'submit' };
+    await busy(e.target, async () => {
     try {
       const out = existing ? await api.put(`/api/finance/obligations/${existing.id}`, body) : await api.post('/api/finance/obligations', body);
       toast(body.submit ? 'Submitted to the budget office.' : 'Draft saved.');
+      changes.saved();
       location.hash = `#/obligations/${out.id}`;
     } catch (err) {
       toast(err.message, 'error');
     }
+    });
   };
 }
 
@@ -185,22 +189,23 @@ export async function obligationView(el, params) {
     }
   };
   mount(el, html`
-    ${pageHead(html`${o.form} ${o.no || '(draft)'} ${orsBadge(o)}`, `${o.payeeName} · fund ${o.fund} · ${fundName(o.fund)}`, html`
+    ${pageHead(html`${o.form} ${o.no || html`<span class="muted">· numbered when obligated</span>`} ${orsBadge(o)}`, `${o.payeeName} · Fund ${o.fund} · ${fundName(o.fund)}`, html`
       ${o.status === 'obligated' ? printLink('ors', o.id) : ''}
       ${o.status === 'draft' && preparer() && !o.po ? html`<a class="btn" href="#/obligations/new?id=${o.id}">${icon('edit', 16)} Edit</a>` : ''}
       ${o.status === 'draft' && can('finance.budget') ? html`<button class="btn primary" id="obligate">Certify and obligate (Box B)</button>` : ''}
       ${o.status === 'obligated' && o.unpaid > 0 && can('finance.disburse') ? (o.po ? html`<a class="btn primary" href="#/pos/${o.po.id}">${icon('truck', 16)} Pay through PO ${o.po.no}'s deliveries</a>` : html`<a class="btn primary" href="#/dvs/new?orsId=${o.id}">${icon('file', 16)} Prepare voucher</a>`) : ''}
       ${o.status === 'obligated' && can('finance.budget') ? html`<button class="btn" id="adjust">Adjust</button>` : ''}
-      ${o.status !== 'cancelled' && !o.dvs.some((d) => d.status !== 'cancelled') && (o.status === 'draft' ? preparer() : can('finance.budget')) ? html`<button class="btn danger ghost" id="cancel">Cancel</button>` : ''}`, ['/obligations', 'Obligations'])}
+      ${o.status !== 'cancelled' && !o.dvs.some((d) => d.status !== 'cancelled') && (o.status === 'draft' ? preparer() : can('finance.budget')) ? html`<button class="btn danger ghost push-right" id="cancel">Cancel request…</button>` : ''}`, ['/obligations', 'Obligations'])}
     <section class="card">${infoGrid([
       ['Date', fmtDate(o.obligatedDate || o.date)], ['Responsibility center', o.officeName || '—'], ['Particulars', o.particulars],
       ['Box A: requested by', [o.requestedBy?.name, o.requestedBy?.title].filter(Boolean).join(', ') || '—'], ['Box B: certified by', o.certifiedBy ? `${o.certifiedBy.name}, ${o.certifiedBy.title}` : '—'],
       o.po && ['Purchase order', html`<a href="#/pos/${o.po.id}">PO ${o.po.no}</a>`], o.cancelReason && ['Cancelled', o.cancelReason],
     ])}</section>
     <section class="card"><h2>Status of obligation</h2><div class="table-scroll"><table class="table compact">
-      <thead><tr><th>PAP</th><th>UACS object code</th><th>Allotment</th><th class="num">Obligated</th><th class="num">Disbursed</th><th class="num">On vouchers</th><th class="num">Balance</th></tr></thead>
+      <thead><tr><th>PAP</th><th>UACS object code</th><th>Allotment</th><th class="num">${o.status === 'obligated' ? 'Obligated' : 'Requested'}</th><th class="num">Disbursed</th><th class="num">On vouchers</th><th class="num">Available</th></tr></thead>
       <tbody>${o.lines.map((l) => html`<tr><td>${l.pap}<small>${papName(l.pap)}</small></td><td>${l.uacs}<small>${l.title}</small></td><td>${l.allotmentRef}<small>${l.cls}</small></td>${amt(l.obligated)}${amt(l.disbursed)}${amt(l.pending, { blankZero: true })}${amt(l.available, { strong: true })}</tr>`)}</tbody>
-      <tfoot><tr><td colspan="3">Total</td>${amt(o.status === 'obligated' ? o.obligatedAmount : o.total, { strong: true })}${amt(o.disbursed, { strong: true })}<td></td>${amt(o.unpaid, { strong: true })}</tr></tfoot></table></div>
+      <tfoot><tr><td colspan="3">Total</td>${amt(o.lines.reduce((t, l) => t + l.obligated, 0), { strong: true })}${amt(o.disbursed, { strong: true })}${amt(o.lines.reduce((t, l) => t + l.pending, 0), { blankZero: true })}${amt(o.lines.reduce((t, l) => t + l.available, 0), { strong: true })}</tr></tfoot></table></div>
+      ${o.status !== 'obligated' ? html`<p class="muted small">Requested amounts: not obligated until the budget office certifies Box B.</p>` : ''}
       ${o.adjustments.length ? html`<h3 class="sub-h">Adjustments</h3><ul class="tight">${o.adjustments.map((a) => html`<li>${fmtDate(a.date)}: ${money(a.amount)} on ${o.lines[a.line].title} — ${a.reason} (${a.by})</li>`)}</ul>` : ''}
     </section>
     ${o.dvs.length ? html`<section class="card"><h2>Vouchers</h2><table class="table compact"><thead><tr><th>DV</th><th>Date</th><th class="num">Gross</th><th>Status</th></tr></thead><tbody>${o.dvs.map((d) => html`<tr><td><a href="#/dvs/${d.id}">${d.no || 'Draft'}</a></td><td>${fmtDate(d.paidDate || d.date)}</td>${amt(d.gross)}<td>${d.status}</td></tr>`)}</tbody></table></section>` : ''}`);
@@ -216,7 +221,7 @@ export async function obligationView(el, params) {
     onSubmit: (form) => act('adjust', formData(form), 'Adjusted.'),
   }));
   el.querySelector('#cancel')?.addEventListener('click', () => modal({
-    title: `Cancel ${o.form} ${o.no || '(draft)'}`, submitLabel: 'Cancel request', cancelLabel: 'Keep it',
+    title: `Cancel ${o.form} ${o.no || ''}`.trim(), submitLabel: 'Cancel request', cancelLabel: 'Keep it',
     body: html`<label class="field"><span>Reason</span><input name="reason" required /></label>`,
     onSubmit: (form) => act('cancel', formData(form), 'Cancelled.'),
   }));
@@ -236,9 +241,9 @@ export async function budgetReportsView(el, _p, query) {
   let csv;
   if (tab === 'saaodb') {
     body = html`${head('Statement of Appropriations, Allotments, Obligations, Disbursements and Balances (FAR No. 1)', `${d.fundName} · FY ${year}`)}
-      <div class="table-scroll"><table class="table compact report"><thead><tr><th>PAP</th><th>Class</th><th class="num">Appropriations</th><th class="num">Allotments</th><th class="num">Obligations Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th><th class="num">Disbursements</th><th class="num">Unreleased appropriations</th><th class="num">Unobligated allotments</th><th class="num">Unpaid obligations</th></tr></thead>
-      <tbody>${d.rows.map((r) => html`<tr><td>${r.pap}<small>${r.papName}</small></td><td>${r.cls}</td>${amt(r.appropriation)}${amt(r.allotment)}${r.obligations.map((x) => amt(x, { blankZero: true }))}${amt(r.totalDisbursements)}${amt(r.unreleased)}${amt(r.unobligated)}${amt(r.unpaid)}</tr>`)}</tbody>
-      <tfoot><tr><td colspan="2">Total</td>${amt(d.totals.appropriation, { strong: true })}${amt(d.totals.allotment, { strong: true })}<td colspan="4" class="num"><strong>${num(d.totals.totalObligations)}</strong></td>${amt(d.totals.totalDisbursements, { strong: true })}${amt(d.totals.unreleased, { strong: true })}${amt(d.totals.unobligated, { strong: true })}${amt(d.totals.unpaid, { strong: true })}</tr></tfoot></table></div>
+      <div class="table-scroll"><table class="table compact report"><thead><tr><th>PAP</th><th>Class</th><th class="num">Appropriations</th><th class="num">Allotments</th><th class="num" data-label="Obligations Q1">Obligations Q1</th><th class="num" data-label="Obligations Q2">Q2</th><th class="num" data-label="Obligations Q3">Q3</th><th class="num" data-label="Obligations Q4">Q4</th><th class="num">Total obligations</th><th class="num">Disbursements</th><th class="num">Unreleased appropriations</th><th class="num">Unobligated allotments</th><th class="num">Unpaid obligations</th></tr></thead>
+      <tbody>${d.rows.map((r) => html`<tr><td>${r.pap}<small>${r.papName}</small></td><td>${r.cls}</td>${amt(r.appropriation)}${amt(r.allotment)}${r.obligations.map((x) => amt(x, { blankZero: true }))}${amt(r.totalObligations, { strong: true })}${amt(r.totalDisbursements)}${amt(r.unreleased)}${amt(r.unobligated)}${amt(r.unpaid)}</tr>`)}</tbody>
+      <tfoot><tr><td colspan="2">Total</td>${amt(d.totals.appropriation, { strong: true })}${amt(d.totals.allotment, { strong: true })}${[0, 1, 2, 3].map((qi) => amt(d.rows.reduce((t, r) => t + r.obligations[qi], 0), { strong: true }))}${amt(d.totals.totalObligations, { strong: true })}${amt(d.totals.totalDisbursements, { strong: true })}${amt(d.totals.unreleased, { strong: true })}${amt(d.totals.unobligated, { strong: true })}${amt(d.totals.unpaid, { strong: true })}</tr></tfoot></table></div>
       ${d.prior.length ? html`<h3 class="sub-h">Prior years' obligations: adjusted and paid in ${year}</h3><table class="table compact report"><thead><tr><th>PAP</th><th>Class</th><th class="num">Adjustments</th><th class="num">Paid Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th><th class="num">Total paid</th></tr></thead>
       <tbody>${d.prior.map((r) => html`<tr><td>${r.pap}<small>${r.papName}</small></td><td>${r.cls}</td>${amt(r.adjustments, { blankZero: true })}${r.disbursements.map((x) => amt(x, { blankZero: true }))}${amt(r.total)}</tr>`)}</tbody><tfoot><tr><td colspan="7">Total</td>${amt(d.totals.priorDisbursements, { strong: true })}</tr></tfoot></table>` : ''}`;
     csv = [['PAP', 'Class', 'Appropriations', 'Allotments', 'Obligations Q1', 'Q2', 'Q3', 'Q4', 'Disbursements', 'Unreleased', 'Unobligated', 'Unpaid'], ...d.rows.map((r) => [r.pap, r.cls, r.appropriation, r.allotment, ...r.obligations, r.totalDisbursements, r.unreleased, r.unobligated, r.unpaid]),
@@ -268,7 +273,7 @@ export async function budgetReportsView(el, _p, query) {
   }
   mount(el, html`
     ${pageHead('Budget reports', 'Budget and Financial Accountability Reports (COA-DBM Joint Circular 2019-1) and the registries.', html`<button class="btn" id="csv">${icon('download', 16)} CSV</button><button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
-    <nav class="tabs">${[['saaodb', 'SAAODB (FAR 1)'], ['raod', 'RAOD'], ['aging', 'Aging (FAR 3)'], ['scbaa', 'SCBAA']].map(([k, l]) => html`<a href="#/budget-reports?tab=${k}&fy=${year}" class="${k === tab ? 'active' : ''}">${l}</a>`)}</nav>
+    <nav class="tabs">${[['saaodb', 'SAAODB (FAR 1)', 'Statement of Appropriations, Allotments, Obligations, Disbursements and Balances'], ['raod', 'RAOD', 'Registry of Allotments, Obligations and Disbursements'], ['aging', 'Aging (FAR 3)', 'Aging of Due and Demandable Obligations'], ['scbaa', 'SCBAA', 'Statement of Comparison of Budget and Actual Amounts']].map(([k, l, t]) => html`<a href="#/budget-reports?tab=${k}&fy=${year}" class="${k === tab ? 'active' : ''}" title="${t}">${l}</a>`)}</nav>
     <form class="toolbar" id="f"><input type="hidden" name="tab" value="${tab}" />${tab === 'aging' ? html`<label>As of <input type="date" name="asOf" value="${asOf}" /></label>` : html`<input type="number" name="fy" value="${year}" style="width:110px" aria-label="Fiscal year" />`}<select name="fund">${fundOptions(fund, { all: tab !== 'raod' })}</select>${tab === 'raod' ? html`<select name="cls">${classOptions(cls)}</select>` : ''}<button class="btn">Show</button></form>
     <div class="card">${body}</div>`);
   el.querySelector('#f').onsubmit = (e) => {

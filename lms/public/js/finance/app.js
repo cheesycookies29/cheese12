@@ -5,8 +5,8 @@
 import { startApp, authScreen, authLogo } from '../shell.js';
 import { html } from '../ui.js';
 import { api } from '../api.js';
-import { fin, can, isStaff, isStudent } from './state.js';
-import { dashboardView } from './views/dashboard.js';
+import { fin, can, isStaff, isStudent, improveAccess } from './state.js';
+import { dashboardView, findView } from './views/dashboard.js';
 import { cardListView, cardView } from './views/cards.js';
 import { journalListView, journalFormView, journalView, ledgerView, trialBalanceView, statementsView, chartView, bankReconView } from './views/accounts.js';
 import { budgetView, obligationListView, obligationFormView, obligationView, budgetReportsView } from './views/budget.js';
@@ -24,6 +24,7 @@ const employee = () => !isStudent();
 
 const routes = [
   ['/dashboard', dashboardView, staff],
+  ['/find', findView, staff],
   ['/cards', cardListView, staff],
   ['/cards/:id', cardView, staff],
   ['/journals', journalListView, staff],
@@ -81,39 +82,45 @@ function nav() {
       { href: '/me/requests', label: 'Supply & purchase requests', icon: 'cart', also: ['/ris', '/prs'] },
     ];
   }
+  // Each page has one name, used in the sidebar, its title and its breadcrumb.
   return [
     { heading: 'Finance' },
     { href: '/dashboard', label: 'Dashboard', icon: 'chart' },
+    { href: '/find', label: 'Find a document', icon: 'search' },
     { href: '/cards', label: 'Card file', icon: 'users' },
     { heading: 'Accounts' },
     { href: '/journals', label: 'Journal entries', icon: 'book', badge: 'journals' },
     { href: '/ledger', label: 'Ledgers', icon: 'table' },
-    { href: '/trial-balance', label: 'Trial balance', icon: 'scale', also: ['/statements'] },
-    { href: '/chart', label: 'Chart of accounts', icon: 'layers', also: ['/bank-recon'] },
+    { href: '/trial-balance', label: 'Trial balance', icon: 'scale' },
+    { href: '/statements', label: 'Financial statements', icon: 'file' },
+    { href: '/bank-recon', label: 'Bank reconciliation', icon: 'bank' },
+    { href: '/chart', label: 'Chart of accounts', icon: 'layers' },
     { heading: 'Budget' },
-    { href: '/budget', label: 'Appropriations & allotments', icon: 'wallet' },
-    { href: '/obligations', label: 'Obligations (ORS/BURS)', icon: 'clipboard', badge: 'ors' },
+    { href: '/budget', label: 'Budget & allotments', icon: 'wallet' },
+    { href: '/obligations', label: 'Obligations', icon: 'clipboard', badge: 'ors' },
     { href: '/budget-reports', label: 'Budget reports', icon: 'chart' },
     { heading: 'Inventory' },
     { href: '/prs', label: 'Purchase requests', icon: 'cart', badge: 'prs' },
     { href: '/pos', label: 'Purchase orders', icon: 'truck', badge: 'pos' },
-    { href: '/ris', label: 'Requisitions (RIS)', icon: 'inbox', badge: 'ris' },
-    { href: '/items', label: 'Stock', icon: 'box', also: ['/inventory-reports'] },
+    { href: '/ris', label: 'Requisitions', icon: 'inbox', badge: 'ris' },
+    { href: '/items', label: 'Stock', icon: 'box' },
+    { href: '/inventory-reports', label: 'Inventory reports', icon: 'clipboard' },
     { heading: 'Property' },
     { href: '/property', label: 'Property', icon: 'building' },
-    { href: '/depreciation', label: 'Depreciation', icon: 'down', also: ['/property-reports'] },
+    { href: '/depreciation', label: 'Depreciation', icon: 'down' },
+    { href: '/property-reports', label: 'Property reports', icon: 'clipboard' },
     { heading: 'Disbursement' },
-    { href: '/dvs', label: 'Vouchers (DV)', icon: 'file', badge: 'dvs' },
+    { href: '/dvs', label: 'Disbursement vouchers', icon: 'file', badge: 'dvs' },
     { href: '/lddap', label: 'LDDAP-ADA', icon: 'bank' },
     { href: '/advances', label: 'Cash advances', icon: 'coins', badge: 'advances' },
-    { href: '/taxes', label: 'Taxes (BIR)', icon: 'percent' },
+    { href: '/taxes', label: 'Taxes withheld', icon: 'percent' },
     { heading: 'Revenue' },
     { href: '/receipts', label: 'Official receipts', icon: 'receipt' },
     { href: '/rcds', label: 'Collections & deposits', icon: 'bank', badge: 'rcds' },
     { href: '/booklets', label: 'Accountable forms', icon: 'book' },
     { href: '/revenue', label: 'Revenue monitoring', icon: 'chart' },
     { heading: 'Control panel' },
-    (can('finance.settings') || can('finance.accounts')) && { href: '/control', label: 'Settings', icon: 'settings' },
+    (can('finance.settings') || can('finance.accounts')) && { href: '/control', label: 'Control panel', icon: 'settings' },
     { href: '/audit', label: 'Audit trail', icon: 'shield' },
     { heading: 'Me' },
     { href: '/me', label: 'My accountabilities', icon: 'user', exact: true },
@@ -161,3 +168,10 @@ startApp({
     rcds: async () => (can('finance.collect') ? q('undeposited') : 0),
   },
 });
+
+// Every page and dialog: names for unlabelled controls, keyboard access to scrolling tables.
+let pending = 0;
+new MutationObserver(() => {
+  cancelAnimationFrame(pending);
+  pending = requestAnimationFrame(() => improveAccess(document));
+}).observe(document.body, { childList: true, subtree: true });

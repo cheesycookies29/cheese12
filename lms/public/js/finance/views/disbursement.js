@@ -6,7 +6,7 @@ import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, badge, downloadFile, toCsv } from '../../ui.js';
 import { today as localDate } from '../../ui.js';
-import { fin, can, money, num, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, dvBadge, amt, infoGrid, printLink } from '../state.js';
+import { fin, can, money, num, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, dvBadge, amt, infoGrid, printLink , trackChanges, busy } from '../state.js';
 
 const today = () => localDate(); // the browser's own date, not UTC
 const lastMonth = () => {
@@ -20,11 +20,11 @@ export async function dvListView(el, _p, query) {
   const list = await api.get(`/api/finance/dvs?${new URLSearchParams({ status, q: query.q || '', kind: query.kind || '' })}`);
   mount(el, html`
     ${pageHead('Disbursement vouchers', 'Box A requesting office · Box B accounting entry · Box C certified by the accountant · Box D approved by the head of agency · Box E receipt of payment.', can('finance.disburse') ? html`<a class="btn primary" href="#/dvs/new">${icon('plus', 16)} New voucher</a>` : '')}
-    <nav class="tabs">${[['open', 'Open'], ['draft', 'Drafts'], ['pending', 'For Box C'], ['certified', 'For Box D'], ['approved', 'To pay'], ['paid', 'Paid'], ['cancelled', 'Cancelled'], ['', 'All']].map(([v, l]) => html`<a href="#/dvs?status=${v}" class="${v === status ? 'active' : ''}">${l}</a>`)}</nav>
+    <nav class="tabs">${[['open', 'Open'], ['draft', 'Drafts'], ['pending', 'For certification (Box C)'], ['certified', 'For approval (Box D)'], ['approved', 'To pay'], ['paid', 'Paid'], ['cancelled', 'Cancelled'], ['', 'All']].map(([v, l]) => html`<a href="#/dvs?status=${v}" class="${v === status ? 'active' : ''}">${l}</a>`)}</nav>
     <form class="toolbar" id="f"><input type="search" name="q" value="${query.q || ''}" placeholder="DV no., payee or particulars" /><select name="kind">${option('', 'Payments and advances', !query.kind)}${option('payment', 'Payments', query.kind === 'payment')}${option('advance', 'Cash advances', query.kind === 'advance')}</select><button class="btn">${icon('search', 16)} Find</button></form>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>DV no.</th><th>Payee</th><th>Particulars</th><th>Mode</th><th class="num">Gross</th><th class="num">Taxes</th><th class="num">Net</th><th>Status</th></tr></thead>
-      <tbody>${list.map((d) => html`<tr data-href="/dvs/${d.id}"><td><a href="#/dvs/${d.id}"><strong>${d.no || 'Draft'}</strong></a><small>Fund ${d.fund} · ${fmtDate(d.paidDate || d.date)}</small></td><td>${d.payee.name}${d.kind === 'advance' ? html` <span class="badge blue">Advance</span>` : ''}</td><td>${d.particulars}</td><td><small>${d.modeLabel}${d.checkNo ? ` ${d.checkNo}` : ''}</small></td>${amt(d.gross)}${amt(d.taxTotal, { blankZero: true })}${amt(d.net, { strong: true })}<td>${dvBadge(d)}</td></tr>`)}</tbody></table></div></div>`
-      : html`<div class="card empty">${icon('file', 40)}<h2>No vouchers</h2><p>Nothing in this list.</p></div>`}`);
+      <tbody>${list.map((d) => html`<tr data-href="/dvs/${d.id}"><td class="nowrap"><a href="#/dvs/${d.id}"><strong>${d.no || 'Unnumbered'}</strong></a><small>Fund ${d.fund} · ${fmtDate(d.paidDate || d.date)}</small></td><td>${d.payee.name}${d.kind === 'advance' ? html` <span class="badge blue">Advance</span>` : ''}</td><td>${d.particulars}</td><td><small>${d.modeLabel}${d.checkNo ? ` ${d.checkNo}` : ''}</small></td>${amt(d.gross)}${amt(d.taxTotal, { blankZero: true })}${amt(d.net, { strong: true })}<td>${dvBadge(d)}</td></tr>`)}</tbody></table></div></div>`
+      : html`<div class="card empty">${icon('file', 40)}<h2>${{ pending: 'No vouchers waiting for certification', certified: 'No vouchers waiting for approval', approved: 'No vouchers waiting for payment', draft: 'No drafts', paid: 'No paid vouchers yet', open: 'No open vouchers' }[status] || 'No vouchers'}</h2><p>${query.q || query.kind ? 'Nothing matches the search — clear it to see all.' : ''}</p></div>`}`);
   clickableRows(el);
   el.querySelector('#f').onsubmit = (e) => {
     e.preventDefault();
@@ -38,12 +38,12 @@ export async function dvFormView(el, _p, query) {
   const ors = query.orsId ? await api.get(`/api/finance/obligations/${query.orsId}`) : null;
   const s = fin.settings;
   const d = existing || {
-    fund: ors?.fund || s.funds[0], payeeId: ors?.payeeId || '', orsId: ors?.id || '', iarId: iar?.id || '', kind: 'payment', nature: cards.find((c) => c.id === ors?.payeeId)?.nature || 'goods',
+    fund: ors?.fund || s.funds[0], payeeId: ors?.payeeId || '', orsId: ors?.id || '', iarId: iar?.id || '', kind: 'payment', nature: cards.find((c) => c.id === ors?.payeeId)?.nature || (iar ? 'goods' : ''),
     gross: iar ? iar.total : ors ? ors.unpaid - ors.lines.reduce((t, l) => t + l.pending, 0) : '', particulars: iar ? `Payment for delivery per IAR ${iar.no}, PO ${iar.po.no}, invoice ${iar.invoiceNo}` : ors ? ors.particulars : '',
     mode: (ors?.fund || s.funds[0]) === '01' ? 'check' : 'bank', office: ors?.office || '', deductions: iar?.liquidatedDamages ? [{ code: s.acct.fines, label: `Liquidated damages (${iar.daysLate} days late)`, amount: iar.liquidatedDamages }] : [], boxA: ors?.requestedBy || {},
   };
   mount(el, html`
-    ${pageHead(existing ? `Edit DV (draft)` : 'New disbursement voucher', 'Taxes are computed from the payee\'s card and the nature of the payment; check them in the preview before submitting.', '', ['/dvs', 'Vouchers'])}
+    ${pageHead(existing ? `Edit DV (draft)` : 'New disbursement voucher', 'Taxes are computed from the payee\'s card and the nature of the payment; check them in the preview before submitting.', '', ['/dvs', 'Disbursement vouchers'])}
     <form class="card" id="dv">
       <div class="grid">
         <label class="field"><span>Kind</span><select name="kind" id="kind">${option('payment', 'Payment', d.kind === 'payment')}${option('advance', 'Cash advance', d.kind === 'advance')}</select></label>
@@ -51,9 +51,9 @@ export async function dvFormView(el, _p, query) {
         <label class="field"><span>Date</span><input type="date" name="date" value="${d.date || today()}" /></label>
         <label class="field span-2"><span>Obligation (ORS/BURS)</span><select name="orsId"><option value="">None (non-budgetary: remittances, trust, prior-year payables)</option>${obligations.map((o) => option(o.id, `${o.form} ${o.no} · ${o.payeeName} · ${num(o.unpaid)} unpaid`, o.id === d.orsId))}</select></label>
         <label class="field"><span>Payee</span><select name="payeeId" required>${cardOptions(cards, d.payeeId)}</select></label>
-        <label class="field"><span>Gross amount</span><input type="number" step="0.01" name="gross" value="${d.gross}" required /></label>
+        <label class="field"><span>Gross amount (₱)</span><input type="number" step="0.01" min="0" name="gross" value="${d.gross}" required inputmode="decimal" /></label>
         <label class="field adv-only"><span>Advance for</span><select name="advanceType">${s.advanceTypes.map(([k, l]) => option(k, l, k === d.advanceType))}</select></label>
-        <label class="field pay-only"><span>Nature (for withholding)</span><select name="nature">${s.natures.map(([k, l]) => option(k, l, k === d.nature))}</select></label>
+        <label class="field pay-only"><span>Nature of payment (decides the taxes withheld)</span><select name="nature">${d.nature ? '' : html`<option value="" selected disabled>Choose…</option>`}${s.natures.map(([k, l]) => option(k, l, k === d.nature))}</select></label>
         <label class="field"><span>Mode of payment</span><select name="mode">${s.paymentModes.map(([k, l]) => option(k, l, k === d.mode))}</select></label>
         <label class="field cash-only"><span>Paid by (special disbursing officer)</span><select name="officerId">${cardOptions(cards, d.officerId, ['officer'])}</select></label>
         <label class="field"><span>Bank account (agency checks)</span><select name="bankId"><option value="">Fund's account</option>${s.bankAccounts.map((b) => option(b.id, `${b.name} ${b.number} (fund ${b.fund})`, b.id === d.bankId))}</select></label>
@@ -78,6 +78,7 @@ export async function dvFormView(el, _p, query) {
     const adv = form.kind.value === 'advance';
     form.querySelectorAll('.adv-only').forEach((x) => (x.hidden = !adv));
     form.querySelectorAll('.pay-only').forEach((x) => (x.hidden = adv));
+    form.nature.required = !adv; // the taxes depend on it: no silent default
   };
   form.kind.addEventListener('change', toggle);
   const cashOnly = () => form.querySelectorAll('.cash-only').forEach((x) => (x.hidden = form.mode.value !== 'cash'));
@@ -91,6 +92,7 @@ export async function dvFormView(el, _p, query) {
     return { ...v, boxA: { name: v.boxAName, title: v.boxATitle }, deductions: form.kind.value === 'advance' ? [] : readLines(el, 'ded').filter((x) => Number(x.amount) > 0), debits: v.orsId ? undefined : readLines(el, 'debits') };
   };
   el.querySelector('#preview').addEventListener('click', async () => {
+    if (form.kind.value !== 'advance' && !form.nature.value) return mount(el.querySelector('#pv'), html`<p class="notice bad">Choose the nature of payment first: it decides the taxes withheld.</p>`);
     try {
       const p = await api.post('/api/finance/dvs/preview', body());
       mount(el.querySelector('#pv'), html`<div class="preview"><h3 class="sub-h">Preview</h3>
@@ -100,16 +102,20 @@ export async function dvFormView(el, _p, query) {
       mount(el.querySelector('#pv'), html`<p class="notice bad">${err.message}</p>`);
     }
   });
+  const changes = trackChanges(form);
   form.onsubmit = async (e) => {
     e.preventDefault();
     const b = { ...body(), submit: e.submitter?.value === 'submit' };
+    await busy(e.target, async () => {
     try {
       const out = existing ? await api.put(`/api/finance/dvs/${existing.id}`, b) : await api.post('/api/finance/dvs', b);
       toast(b.submit ? 'Submitted to accounting for Box C.' : 'Draft saved.');
+      changes.saved();
       location.hash = `#/dvs/${out.id}`;
     } catch (err) {
       toast(err.message, 'error');
     }
+    });
   };
 }
 
@@ -127,9 +133,9 @@ export async function dvView(el, params) {
       throw err;
     }
   };
-  const box = (label, done, who) => html`<div class="box ${done ? 'done' : ''}"><strong>${label}</strong><span>${done ? who : 'Pending'}</span></div>`;
+  const box = (label, done, who) => html`<div class="box ${done ? 'done' : ''}"><strong>${label}</strong><span>${done ? who : label.startsWith('B') ? 'Prepared (posted on payment)' : 'Pending'}</span></div>`;
   mount(el, html`
-    ${pageHead(html`DV ${d.no || '(draft)'} ${dvBadge(d)}`, `${d.payee.name} · ${d.kind === 'advance' ? 'cash advance' : d.natureLabel} · fund ${d.fund}`, html`
+    ${pageHead(html`DV ${d.no || html`<span class="muted">· numbered at certification</span>`} ${dvBadge(d)}`, `${d.payee.name} · ${d.kind === 'advance' ? 'cash advance' : d.natureLabel} · Fund ${d.fund}`, html`
       ${d.no ? printLink('dv', d.id) : ''}
       ${d.status === 'draft' && can('finance.disburse') ? html`<a class="btn" href="#/dvs/new?id=${d.id}">${icon('edit', 16)} Edit</a>` : ''}
       ${d.status === 'draft' && !d.submitted && can('finance.disburse') ? html`<button class="btn primary" id="submit">Submit to accounting</button>` : ''}
@@ -139,8 +145,8 @@ export async function dvView(el, params) {
       ${d.status === 'approved' && d.mode === 'ada' ? html`<a class="btn primary" href="#/lddap">Put on an LDDAP-ADA</a>` : ''}
       ${d.status === 'paid' && can('finance.disburse') && !d.receipt ? html`<button class="btn" id="receipt">Box E: receipt</button>` : ''}
       ${d.status === 'paid' && !d.lddapId && can('finance.accounts') ? html`<button class="btn danger ghost" id="void">Void payment</button>` : ''}
-      ${!['paid', 'cancelled'].includes(d.status) && (can('finance.disburse') || can('finance.accounts')) ? html`<button class="btn danger ghost" id="cancel">Cancel</button>` : ''}`, ['/dvs', 'Vouchers'])}
-    <div class="boxes">${box('A · Requesting office', true, d.boxA.name || '—')}${box('C · Accountant', d.certifiedBy, d.certifiedBy?.name)}${box('D · Approving officer', d.approvedBy, d.approvedBy?.name)}${box('Paid', d.status === 'paid', `${d.checkNo ? `Check ${d.checkNo}` : d.lddapNo ? `LDDAP-ADA ${d.lddapNo}` : ''} ${fmtDate(d.paidDate)}`)}${box('E · Received', d.receipt, d.receipt ? `${d.receipt.receivedBy}, ${fmtDate(d.receipt.date)}` : '')}</div>
+      ${!['paid', 'cancelled'].includes(d.status) && (can('finance.disburse') || can('finance.accounts')) ? html`<button class="btn danger ghost push-right" id="cancel">Cancel voucher…</button>` : ''}`, ['/dvs', 'Disbursement vouchers'])}
+    <div class="boxes">${box('A · Requesting office', true, d.boxA.name || '—')}${box('B · Accounting entry', d.status === 'paid', d.jevNo ? `Posted, JEV ${d.jevNo}` : 'Prepared')}${box('C · Accountant', d.certifiedBy, d.certifiedBy?.name)}${box('D · Approving officer', d.approvedBy, d.approvedBy?.name)}${box('Paid', d.status === 'paid', `${d.checkNo ? `Check ${d.checkNo}` : d.lddapNo ? `LDDAP-ADA ${d.lddapNo}` : ''} ${fmtDate(d.paidDate)}`)}${box('E · Received', d.receipt, d.receipt ? `${d.receipt.receivedBy}, ${fmtDate(d.receipt.date)}` : '')}</div>
     <section class="card">${infoGrid([
       ['Payee', html`<a href="#/cards/${d.payee.id}">${d.payee.name}</a>`], ['TIN', d.payee.tin], ['Obligation', d.ors ? html`<a href="#/obligations/${d.ors.id}">${d.ors.form} ${d.ors.no}</a>` : 'None (non-budgetary)'],
       d.iar && ['Delivery', html`IAR ${d.iar.no}`], ['Mode', d.modeLabel], ['Responsibility center', d.officeName || '—'], ['Particulars', d.particulars],
@@ -148,7 +154,7 @@ export async function dvView(el, params) {
     ])}</section>
     <div class="cols">
       <section class="card"><h2>Amount</h2><table class="table compact"><tbody><tr><td>Gross amount</td>${amt(d.gross)}</tr>
-        ${d.taxes.map((t) => html`<tr><td>Less ${t.atc} · ${t.rate}% of ${num(t.base)}</td>${amt(-t.amount)}</tr>`)}${d.deductions.map((x) => html`<tr><td>Less ${x.label}</td>${amt(-x.amount)}</tr>`)}
+        ${d.taxes.map((t) => html`<tr><td>Less ${{ ewt: 'expanded withholding tax', vat: 'VAT withheld', pt: 'percentage tax withheld' }[t.kind] || 'tax'} <span class="muted">(${t.atc}, ${t.rate}% of ${num(t.base)})</span></td>${amt(-t.amount)}</tr>`)}${d.deductions.map((x) => html`<tr><td>Less ${x.label}</td>${amt(-x.amount)}</tr>`)}
         <tr class="st-grand"><td>Net amount</td>${amt(d.net, { strong: true })}</tr></tbody></table></section>
       <section class="card"><h2>Box B · Accounting entry</h2><table class="table compact"><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
         <tbody>${d.entry.map((l) => html`<tr><td>${l.code} ${l.title}</td>${amt(l.debit, { blankZero: true })}${amt(l.credit, { blankZero: true })}</tr>`)}</tbody></table>
@@ -176,7 +182,7 @@ export async function dvView(el, params) {
   }));
   el.querySelector('#receipt')?.addEventListener('click', () => modal({ title: 'Box E: receipt of payment', submitLabel: 'Save', body: html`<label class="field"><span>Received by</span><input name="receivedBy" value="${d.payee.name}" /></label><label class="field"><span>Date</span><input type="date" name="date" value="${today()}" /></label><label class="field"><span>Payee's O.R. / invoice no.</span><input name="orNo" /></label>`, onSubmit: (f) => post('receipt', formData(f), 'Saved.') }));
   el.querySelector('#void')?.addEventListener('click', () => modal({ title: `Void the payment of DV ${d.no}`, submitLabel: 'Void payment', body: html`<p class="muted small">The payment entry is reversed and the voucher goes back to "to pay".</p><label class="field"><span>Reason</span><select name="reason">${['spoiled', 'stale (over six months)', 'cancelled', 'lost'].map((r) => option(r, r))}</select></label><label class="field"><span>Date</span><input type="date" name="date" value="${today()}" /></label>`, onSubmit: (f) => post('void-payment', formData(f), 'Payment voided.') }));
-  el.querySelector('#cancel')?.addEventListener('click', () => modal({ title: 'Cancel voucher', submitLabel: 'Cancel voucher', cancelLabel: 'Keep it', body: html`<label class="field"><span>Reason</span><input name="reason" /></label>`, onSubmit: (f) => post('cancel', formData(f), 'Cancelled.') }));
+  el.querySelector('#cancel')?.addEventListener('click', () => modal({ title: 'Cancel voucher', submitLabel: 'Cancel voucher', cancelLabel: 'Keep it', body: html`<p class="muted small">The voucher is kept, marked cancelled, and its charges are released back to the obligation.</p><label class="field"><span>Reason</span><input name="reason" required /></label>`, onSubmit: (f) => (formData(f).reason.trim() ? post('cancel', formData(f), 'Voucher cancelled.') : Promise.reject(new Error('Give the reason for cancelling.'))) }));
 }
 
 // ----- LDDAP-ADA -----
@@ -273,7 +279,7 @@ export async function taxesView(el, _p, query) {
         <tbody>${d.rows.map((r) => html`<tr><td>${r.fund}</td><td><strong>${r.atc}</strong><small>${KIND[r.kind]}</small></td><td>${r.label}</td><td class="num">${r.payees}</td>${amt(r.base)}<td class="num">${r.rate}%</td>${amt(r.amount)}</tr>`)}</tbody>
         <tfoot><tr><td colspan="6">Total</td>${amt(d.total, { strong: true })}</tr></tfoot></table>` : html`<p class="muted">Nothing withheld in ${monthName(month)}.</p>`}
         <h3 class="sub-h">Remittances</h3>${d.remittances.length ? html`<table class="table compact"><thead><tr><th>Date</th><th>Fund</th><th>Mode</th><th>Reference</th><th class="num">Amount</th><th>JEV</th></tr></thead><tbody>${d.remittances.map((r) => html`<tr><td>${fmtDate(r.date)}</td><td>${r.fund}</td><td>${r.mode === 'tra' ? 'Tax Remittance Advice' : 'Bank / eFPS'}</td><td>${r.ref}</td>${amt(r.amount)}<td><a href="#/journals/${r.journalId}">${r.jevNo}</a></td></tr>`)}</tbody></table>` : html`<p class="muted">None yet. Due by the 10th of the next month (0619-E, 1600-VT, 1600-PT).</p>`}
-        <p class="muted small">Due to BIR balance: ${d.dueBir.map((x) => `fund ${x.fund} ${money(x.balance)}`).join(' · ')}</p></div>`
+        ${d.dueBir.some((x) => x.balance > 0) ? html`<div class="notice">${icon('clock')}<p><strong>Due to BIR, not yet remitted:</strong> ${d.dueBir.filter((x) => x.balance > 0).map((x) => `Fund ${x.fund} ${money(x.balance)}`).join(' · ')}. Taxes withheld in a month are due by the 10th of the next month (0619-E, 1600-VT, 1600-PT).</p></div>` : html`<p class="muted small">Nothing is due to BIR.</p>`}</div>`
     : html`
       <form class="toolbar" id="f"><input type="hidden" name="tab" value="alpha" /><input type="number" name="year" value="${year}" style="width:100px" aria-label="Year" /><select name="quarter">${[1, 2, 3, 4].map((n) => option(n, `Quarter ${n}`, n === quarter))}</select><select name="kind">${option('ewt', 'Expanded withholding', kind === 'ewt')}${option('vat', 'VAT and percentage tax', kind === 'vat')}</select><button class="btn">Show</button></form>
       <div class="card"><div class="print-head"><strong>${fin.settings.entity.name}</strong><span>Quarterly Alphalist of Payees · ${year} Q${quarter} · ${kind === 'ewt' ? 'expanded withholding' : 'VAT and percentage tax withheld'}</span></div>

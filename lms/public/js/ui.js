@@ -144,12 +144,21 @@ export const addDays = (ymd, n) => {
 export const initials = (name) => String(name).split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
 let toastTimer;
+// The message area is a live region from the start, so screen readers announce every message.
+const toastEl = typeof document !== 'undefined' && document.getElementById('toast');
+if (toastEl) {
+  toastEl.setAttribute('role', 'status');
+  toastEl.setAttribute('aria-live', 'polite');
+}
+// Messages are announced to screen readers; errors stay longer (they are usually longer, and need reading).
 export function toast(message, type = 'ok') {
   const el = document.getElementById('toast');
+  el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  el.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
   el.textContent = message;
   el.className = `show ${type}`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (el.className = ''), 3500);
+  toastTimer = setTimeout(() => (el.className = ''), type === 'error' ? Math.max(6000, message.length * 70) : 3500);
 }
 
 // Opens a modal containing a form. `onSubmit(formData)` may throw to keep it open.
@@ -167,14 +176,40 @@ export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancel
         ${submitLabel === null ? '' : html`<button type="submit" class="btn primary">${submitLabel}</button>`}
       </footer>
     </form>`);
+  const opener = document.activeElement; // focus goes back here when the dialog closes
   document.body.appendChild(backdrop);
   labelTables(backdrop);
   watchScrollers(backdrop);
   const form = backdrop.querySelector('form');
   const errorEl = backdrop.querySelector('.form-error');
-  const close = () => backdrop.remove();
+  // Keyboard: Escape closes; Tab and Shift+Tab stay inside the dialog (the topmost one).
+  const focusables = () => [...form.querySelectorAll('button, [href], input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex="-1"])')].filter((x) => !x.disabled && x.offsetParent !== null);
+  const onKey = (e) => {
+    if (!document.body.contains(backdrop)) return document.removeEventListener('keydown', onKey); // removed by a page change
+    if (backdrop !== [...document.querySelectorAll('.modal-backdrop')].at(-1)) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    } else if (e.key === 'Tab') {
+      const f = focusables();
+      if (!f.length) return;
+      const inside = form.contains(document.activeElement);
+      if (e.shiftKey && (!inside || document.activeElement === f[0])) {
+        e.preventDefault();
+        f.at(-1).focus();
+      } else if (!e.shiftKey && (!inside || document.activeElement === f.at(-1))) {
+        e.preventDefault();
+        f[0].focus();
+      }
+    }
+  };
+  document.addEventListener('keydown', onKey);
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener('keydown', onKey);
+    if (opener && document.body.contains(opener)) opener.focus();
+  };
   backdrop.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', close));
-  backdrop.addEventListener('keydown', (e) => e.key === 'Escape' && close());
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = form.querySelector('[type=submit]');

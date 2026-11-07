@@ -6,9 +6,9 @@ import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, badge, timeAgo } from '../../ui.js';
 import { DOC_LABELS } from '/shared/finance.js';
-import { fin, can, money, monthName, fundOptions, accountOptions, linesTable, wireLines, readLines, infoGrid } from '../state.js';
+import { fin, can, money, monthName, fundOptions, accountOptions, linesTable, wireLines, readLines, infoGrid , trackChanges } from '../state.js';
 
-const TABS = [['entity', 'Entity and year'], ['structure', 'Funds, offices, PAPs'], ['banks', 'Banks and fees'], ['signatories', 'Signatories and numbering'], ['taxes', 'Taxes and thresholds'], ['periods', 'Periods and closing'], ['users', 'Users and roles']];
+const TABS = [['entity', 'Entity'], ['structure', 'Funds & offices'], ['banks', 'Banks & fees'], ['signatories', 'Signatories'], ['taxes', 'Taxes & rules'], ['periods', 'Periods & closing'], ['users', 'Users']];
 
 export async function controlView(el, _p, query) {
   await fin.refreshSettings();
@@ -86,8 +86,8 @@ export async function controlView(el, _p, query) {
       <table class="table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Last sign-in</th><th>Status</th>${manage ? html`<th></th>` : ''}</tr></thead>
       <tbody>${d.users.map((u) => html`<tr><td><strong>${u.name}</strong></td><td>${u.username}</td><td>${u.roleLabel}</td><td>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'Never'}</td><td>${u.status === 'active' ? badge('Active', 'green') : badge('Disabled', 'gray')}</td>${manage && u.role !== 'admin' ? html`<td class="row-actions"><button class="btn sm" data-user="${u.id}">Change</button></td>` : manage ? html`<td></td>` : ''}</tr>`)}</tbody></table>
       <p class="muted small">${manage ? '' : 'Only an administrator creates or changes Finance accounts, so no officer can give themselves another office\'s powers. '}Finance accounts sign in on the ATLAS home page. Employees with a teacher, registrar or staff account use Finance's self-service with their own account.</p></section>
-      <section class="card"><h2>Roles and what they may do</h2><table class="table compact"><thead><tr><th>Role</th>${d.permissions.map(([, l]) => html`<th class="center" title="${l}"><small>${l.split(':')[0]}</small></th>`)}</tr></thead>
-      <tbody>${d.roles.map((r) => html`<tr><td><strong>${r.label}</strong></td>${d.permissions.map(([p]) => html`<td class="center">${r.permissions.includes(p) ? icon('check', 16) : ''}</td>`)}</tr>`)}</tbody></table>
+      <section class="card"><h2>Roles and what they may do</h2><div class="table-scroll"><table class="table compact no-stack matrix"><thead><tr><th>Role</th>${d.permissions.map(([, l]) => html`<th class="center" title="${l}"><small>${l.split(':')[0]}</small></th>`)}</tr></thead>
+      <tbody>${d.roles.map((r) => html`<tr><td><strong>${r.label}</strong></td>${d.permissions.map(([p]) => html`<td class="center">${r.permissions.includes(p) ? html`${icon('check', 16)}<span class="sr-only">yes</span>` : ''}</td>`)}</tr>`)}</tbody></table></div>
       <p class="muted small">Administrators can do everything. Separation of duties: the voucher's approving officer must be someone other than its preparer and certifier; a purchase request is not approved by its requester.</p></section>`;
   }
   mount(el, html`
@@ -97,6 +97,7 @@ export async function controlView(el, _p, query) {
   if (usersData) controlUsers(el, usersData, reload);
   const form = el.querySelector('#form');
   if (form) {
+    trackChanges(form); // a fresh tracker after each save (the view redraws)
     ['offices', 'paps', 'banks', 'fees', 'taxes'].forEach((id) => el.querySelector(`#${id}`) && wireLines(el, id));
     form.onsubmit = (e) => {
       e.preventDefault();
