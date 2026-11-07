@@ -590,6 +590,8 @@ body.hub .topbar { padding-left: 24px; }
   h1 { font-size: 22px; }
   .card { padding: 16px; }
   .page-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  .page-head > div:first-child { flex: none; }
+  .page-head .actions { margin-left: 0; justify-content: flex-start; }
   .page-head .actions .btn { flex: 1 1 auto; }
   .cols.wide-left, .res-layout, .quiz-layout, .class-head { grid-template-columns: minmax(0, 1fr); }
   .class-head .teacher { border-left: 0; border-top: 1px solid var(--border); }
@@ -601,7 +603,7 @@ body.hub .topbar { padding-left: 24px; }
   .hub-hero h1 { font-size: 26px; }
   body.hub .topbar { padding-left: 12px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .stats strong { font-size: clamp(18px, 5.6vw, 22px); }
+  .stats strong { font-size: clamp(14px, 4vw, 22px); }
   .auth-screen { grid-template-columns: 1fr; }
   .auth-hero { display: none; }
   .auth-brand { display: block; }

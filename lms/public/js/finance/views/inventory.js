@@ -56,11 +56,11 @@ export async function stockCardView(el, params) {
   const d = await api.get(`/api/finance/items/${params.id}/card`);
   const i = d.item;
   mount(el, html`
-    ${pageHead(`${i.stockNo} · ${i.description}`, `Stock card (GAM Appendix 58) and supplies ledger card (Appendix 57) · ${i.code} ${i.accountTitle}`, html`<button class="btn" onclick="print()">${icon('file', 16)} Print</button>`, ['/items', 'Stock'])}
+    ${pageHead(`${i.stockNo} · ${i.description}`, `Stock card (GAM Appendix 58) and supplies ledger card (Appendix 57) · ${i.code} ${i.accountTitle}`, html`<button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
     <div class="stats"><div class="card"><small>On hand</small><strong>${num(i.onHand).replace(/\.00$/, '')} ${i.unit}</strong></div><div class="card accent"><small>Value (FIFO)</small><strong>${money(i.value)}</strong></div><div class="card"><small>Reorder point</small><strong>${i.reorderPoint || '—'}</strong></div></div>
     <div class="card"><div class="print-head"><strong>${fin.settings.entity.name}</strong><span>Stock Card · ${i.stockNo} ${i.description} (${i.unit})</span></div>
     <div class="table-scroll"><table class="table compact"><thead><tr><th>Date</th><th>Reference</th><th>Office</th><th class="num">Receipt</th><th class="num">Issue</th><th class="num">Unit cost</th><th class="num">Amount</th><th class="num">Balance qty</th><th class="num">Balance value</th></tr></thead>
-    <tbody>${d.rows.map((r) => html`<tr><td>${fmtDate(r.date)}</td><td>${r.ref ? `${r.ref.kind.toUpperCase()} ${r.ref.no}` : r.kind}</td><td>${r.office}</td><td class="num">${r.in || ''}</td><td class="num">${r.out || ''}</td>${amt(r.unitCost)}${amt(Math.abs(r.total))}<td class="num">${r.balance}</td>${amt(r.value)}</tr>`)}</tbody></table></div></div>`);
+    <tbody>${d.rows.map((r) => html`<tr><td class="nowrap">${fmtDate(r.date)}</td><td>${r.ref ? `${r.ref.kind.toUpperCase()} ${r.ref.no}` : r.kind}</td><td>${r.office}</td><td class="num">${r.in || ''}</td><td class="num">${r.out || ''}</td>${amt(r.unitCost)}${amt(Math.abs(r.total))}<td class="num">${r.balance}</td>${amt(r.value)}</tr>`)}</tbody></table></div></div>`);
 }
 
 // ----- Purchase requests -----
@@ -116,7 +116,7 @@ export async function prView(el, params) {
   };
   const mine = p.requestedBy.userId === ctx.user.id;
   mount(el, html`
-    ${pageHead(html`PR ${p.no} ${prBadge(p.status)}`, `${p.officeName || 'No office'} · ${fmtDate(p.date)} · fund ${p.fund}`, html`
+    ${pageHead(html`PR ${p.no} ${prBadge(p.status)}`, `${p.officeName || 'No office'} · ${fmtDate(p.date)} · Fund ${p.fund}`, html`
       ${printLink('pr', p.id)}
       ${p.status === 'draft' && (mine || can('finance.procure')) ? html`<button class="btn primary" data-a="submit">Submit</button>` : ''}
       ${p.status === 'submitted' && can('finance.approve') && !mine ? html`<button class="btn primary" data-a="approve">Approve</button>` : ''}
@@ -141,7 +141,7 @@ export async function poListView(el, _p, query) {
     ${pageHead('Purchase orders', 'Orders to suppliers (GAM Appendix 61) under the New Government Procurement Act (RA 12009), each obligated before it is approved.', can('finance.procure') ? html`<a class="btn primary" href="#/pos/new">${icon('plus', 16)} New PO</a>` : '')}
     <nav class="tabs">${[['', 'All'], ['draft', 'Drafts'], ['open', 'Waiting for delivery'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']].map(([v, l]) => html`<a href="#/pos?status=${v}" class="${v === status ? 'active' : ''}">${l}</a>`)}</nav>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>PO no.</th><th>Supplier</th><th>Mode</th><th>Deliver by</th><th class="num">Total</th><th>ORS</th><th>Status</th></tr></thead>
-      <tbody>${list.map((o) => html`<tr data-href="/pos/${o.id}"><td><a href="#/pos/${o.id}"><strong>${o.no}</strong></a><small>${fmtDate(o.date)}${o.prNo ? ` · PR ${o.prNo}` : ''}</small></td><td>${o.supplierName}</td><td><small>${o.mode}</small></td><td>${fmtDate(o.deliveryDate)}</td>${amt(o.total)}<td>${o.ors ? `${o.ors.no || 'draft'}` : '—'}</td><td>${poBadge(o.status)}</td></tr>`)}</tbody></table></div></div>`
+      <tbody>${list.map((o) => html`<tr data-href="/pos/${o.id}"><td><a href="#/pos/${o.id}"><strong>${o.no}</strong></a><small>${fmtDate(o.date)}${o.prNo ? ` · PR ${o.prNo}` : ''}</small></td><td>${o.supplierName}</td><td><small>${o.mode}</small></td><td class="nowrap">${fmtDate(o.deliveryDate)}</td>${amt(o.total)}<td>${o.ors ? `${o.ors.no || 'draft'}` : '—'}</td><td>${poBadge(o.status)}</td></tr>`)}</tbody></table></div></div>`
       : html`<div class="card empty">${icon('truck', 40)}<h2>No purchase orders</h2></div>`}`);
   clickableRows(el);
 }
@@ -226,11 +226,11 @@ export async function poView(el, params) {
       ['Place of delivery', o.place], ['Payment term', o.paymentTerm], o.approvedBy && ['Approved by', `${o.approvedBy.name}, ${o.approvedBy.title}`],
     ])}</section>
     <section class="card"><table class="table compact"><thead><tr><th>Description</th><th>Kind / account</th><th class="num">Qty</th><th class="num">Delivered</th><th class="num">Unit cost</th><th class="num">Amount</th></tr></thead>
-      <tbody>${o.items.map((i) => html`<tr><td>${i.description}</td><td><small>${i.category} · ${i.code} ${i.accountTitle} · object ${i.objectCode}</small></td><td class="num">${i.qty} ${i.unit}</td><td class="num">${i.delivered}</td>${amt(i.unitCost)}${amt(i.amount)}</tr>`)}</tbody>
+      <tbody>${o.items.map((i) => html`<tr><td>${i.description}</td><td><small>${i.category} · ${i.code} ${i.accountTitle} · object ${i.objectCode}</small></td><td class="num">${i.qty} ${i.unit}</td><td class="num">${i.delivered} ${i.unit}</td>${amt(i.unitCost)}${amt(i.amount)}</tr>`)}</tbody>
       <tfoot><tr><td colspan="5">Total</td>${amt(o.total, { strong: true })}</tr></tfoot></table>
       ${o.quotes.length ? html`<p class="muted small">Quotations: ${o.quotes.map((q) => `${fin.cards?.find((c) => c.id === q.supplierId)?.name || 'supplier'} ${num(q.amount)}`).join(' · ')}</p>` : ''}</section>
     ${o.iars.length ? html`<section class="card"><h2>Deliveries (IAR)</h2><table class="table compact"><thead><tr><th>IAR no.</th><th>Date</th><th class="num">Accepted</th><th class="num">Liquidated damages</th><th></th></tr></thead>
-      <tbody>${o.iars.map((i) => html`<tr><td>${i.no}</td><td>${fmtDate(i.date)}</td>${amt(i.total)}${amt(i.liquidatedDamages, { blankZero: true })}<td class="row-actions"><a class="btn sm" href="#/print/iar/${i.id}">${icon('file', 14)} IAR</a>${can('finance.disburse') && o.ors?.status === 'obligated' ? html`<a class="btn sm primary" href="#/dvs/new?orsId=${o.ors.id}&iarId=${i.id}">Voucher</a>` : ''}</td></tr>`)}</tbody></table></section>` : ''}`);
+      <tbody>${o.iars.map((i) => html`<tr><td>${i.no}</td><td class="nowrap">${fmtDate(i.date)}</td>${amt(i.total)}${amt(i.liquidatedDamages, { blankZero: true })}<td class="row-actions"><a class="btn sm" href="#/print/iar/${i.id}">${icon('file', 14)} IAR</a>${can('finance.disburse') && o.ors?.status === 'obligated' ? html`<a class="btn sm primary" href="#/dvs/new?orsId=${o.ors.id}&iarId=${i.id}">Voucher</a>` : ''}</td></tr>`)}</tbody></table></section>` : ''}`);
   el.querySelector('#ors')?.addEventListener('click', async () => {
     const als = (await api.get(`/api/finance/allotments?fund=${o.fund}`)).filter((a) => a.balance > 0);
     const classes = [...new Set(o.items.map((i) => classOf(i.objectCode)))];
@@ -358,7 +358,7 @@ export async function inventoryReportsView(el, _p, query) {
   const d = tab === 'rsmi' ? await api.get(`/api/finance/rsmi?month=${month}`) : await api.get(`/api/finance/inventory-count?asOf=${asOf}`);
   const reload = () => inventoryReportsView(el, _p, query);
   mount(el, html`
-    ${pageHead('Inventory reports', tab === 'rsmi' ? 'Report of Supplies and Materials Issued (Appendix 64): the month\'s issues, and the entry that charges them to expense.' : 'Report on the Physical Count of Inventories (Appendix 66): count, then book shortages and overages.', html`<button class="btn" id="csv">${icon('download', 16)} CSV</button><button class="btn" onclick="print()">${icon('file', 16)} Print</button>`, ['/items', 'Stock'])}
+    ${pageHead('Inventory reports', tab === 'rsmi' ? 'Report of Supplies and Materials Issued (Appendix 64): the month\'s issues, and the entry that charges them to expense.' : 'Report on the Physical Count of Inventories (Appendix 66): count, then book shortages and overages.', html`<button class="btn" id="csv">${icon('download', 16)} CSV</button><button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
     <nav class="tabs">${[['rsmi', 'RSMI'], ['count', 'Physical count (RPCI)']].map(([k, l]) => html`<a href="#/inventory-reports?tab=${k}" class="${k === tab ? 'active' : ''}">${l}</a>`)}</nav>
     ${tab === 'rsmi' ? html`
       <form class="toolbar" id="f"><input type="hidden" name="tab" value="rsmi" /><input type="month" name="month" value="${month}" /><button class="btn">Show</button>
@@ -373,7 +373,7 @@ export async function inventoryReportsView(el, _p, query) {
       <form class="toolbar" id="f"><input type="hidden" name="tab" value="count" /><label>As of <input type="date" name="asOf" value="${asOf}" /></label><button class="btn">Show</button></form>
       <form class="card" id="count"><div class="print-head"><strong>${fin.settings.entity.name}</strong><span>Report on the Physical Count of Inventories · as of ${fmtDate(asOf)}</span></div>
         <div class="table-scroll"><table class="table compact"><thead><tr><th>Account</th><th>Stock no.</th><th>Article</th><th>Unit</th><th class="num">Unit value</th><th class="num">Per stock card</th><th class="num">Per count</th><th class="num">Difference</th><th class="num">Value per card</th></tr></thead>
-        <tbody>${d.rows.map((r) => html`<tr data-qty="${r.qty}" data-unit-value="${r.unitValue}"><td><small>${r.code}</small></td><td>${r.stockNo}</td><td>${r.description}</td><td>${r.unit}</td>${amt(r.unitValue)}<td class="num">${r.qty}</td><td class="num">${can('finance.inventory') ? html`<input type="number" min="0" step="any" name="${r.id}" placeholder="${r.qty}" class="count-in" aria-label="Counted quantity of ${r.description}" />` : ''}</td><td class="num diff"></td>${amt(r.value)}</tr>`)}</tbody></table></div>
+        <tbody>${d.rows.map((r) => html`<tr data-qty="${r.qty}" data-unit-value="${r.unitValue}"><td><small>${r.code}</small></td><td>${r.stockNo}</td><td>${r.description}</td><td>${r.unit}</td>${amt(r.unitValue)}<td class="num">${r.qty}</td><td class="num">${can('finance.inventory') ? html`<input type="number" min="0" step="any" name="${r.id}" class="count-in" aria-label="Counted quantity of ${r.description}" />` : ''}</td><td class="num diff"></td>${amt(r.value)}</tr>`)}</tbody></table></div>
         ${can('finance.inventory') ? html`<p class="muted small no-print">Enter what was counted; items left blank are taken as matching the stock card.</p><div class="actions end"><label>Book differences to <select name="fund">${fundOptions(fin.settings.funds[0])}</select></label><button class="btn primary" id="book-count">Record the count</button></div>` : ''}
         ${d.counts.length ? html`<h3 class="sub-h">Earlier counts</h3><ul class="tight">${d.counts.map((c) => html`<li>${fmtDate(c.asOf)} by ${c.by}: ${c.diffs.length ? c.diffs.map((x) => `${x.description} ${x.diff > 0 ? '+' : ''}${x.diff}`).join(', ') : 'no differences'}</li>`)}</ul>` : ''}
         <div class="sign-row print-only"><div>Certified correct by:<br /><br />Inventory committee</div><div>Approved by:<br /><br /><strong>${fin.settings.signatories.head.name}</strong></div><div>Verified by:<br /><br />COA representative</div></div></form>`}`);
@@ -396,6 +396,7 @@ export async function inventoryReportsView(el, _p, query) {
     // Live differences; the button says how many will be booked.
     const showDiffs = () => {
       let n = 0;
+      let entered = 0;
       for (const tr of countForm.querySelectorAll('tr[data-qty]')) {
         const input = tr.querySelector('.count-in');
         const cell = tr.querySelector('.diff');
@@ -403,11 +404,15 @@ export async function inventoryReportsView(el, _p, query) {
           cell.textContent = '';
           continue;
         }
+        entered++;
         const diff = Math.round((Number(input.value) - Number(tr.dataset.qty)) * 100) / 100;
         cell.innerHTML = diff ? `<span class="badge ${diff < 0 ? 'red' : 'amber'}">${diff > 0 ? '+' : ''}${diff} · ${num(diff * Number(tr.dataset.unitValue))}</span>` : '<span class="muted">0</span>';
         if (diff) n++;
       }
-      countForm.querySelector('#book-count').textContent = n ? `Record the count and book ${n} difference${n === 1 ? '' : 's'}` : 'Record the count (no differences)';
+      // Nothing counted yet: nothing to record (a blank sheet must not pass for a count).
+      const btn = countForm.querySelector('#book-count');
+      btn.disabled = !entered;
+      btn.textContent = !entered ? 'Enter the counted quantities' : n ? `Record the count and book ${n} difference${n === 1 ? '' : 's'}` : 'Record the count (no differences)';
     };
     countForm.addEventListener('input', showDiffs);
     showDiffs();

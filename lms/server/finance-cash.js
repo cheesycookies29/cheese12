@@ -361,7 +361,16 @@ export function registerCashRoutes(route, fx) {
     }
     const list = Object.values(rows).map((r) => ({ ...r, payees: r.payees.size })).sort((a, b) => a.fund.localeCompare(b.fund) || a.kind.localeCompare(b.kind) || a.atc.localeCompare(b.atc));
     const remitted = D().finRemittances.filter((r) => r.month === month);
-    return { month, rows: list, total: sum(list, (r) => r.amount), remittances: remitted.map((r) => ({ ...r, jevNo: fx.byId(D().finJournals, r.journalId)?.jevNo || '' })), dueBir: S().funds.map((f) => ({ fund: f, balance: fx.balance(ACCT.dueBir, { fund: f }) })) };
+    // What is still to be remitted for this month, per fund (the same figure the remittance takes),
+    // and its BIR deadline: the 10th of the following month.
+    const [y, m] = month.split('-').map(Number);
+    const dueDate = `${m === 12 ? y + 1 : y}-${String((m % 12) + 1).padStart(2, '0')}-10`;
+    const toRemit = S().funds.map((f) => {
+      const withheld = sum(list.filter((r) => r.fund === f), (r) => r.amount);
+      const already = sum(remitted.filter((r) => r.fund === f), (r) => r.amount);
+      return { fund: f, withheld, remitted: already, due: round2(Math.max(0, Math.min(withheld - already, fx.balance(ACCT.dueBir, { fund: f })))) };
+    }).filter((x) => x.withheld > 0);
+    return { month, rows: list, total: sum(list, (r) => r.amount), remittances: remitted.map((r) => ({ ...r, jevNo: fx.byId(D().finJournals, r.journalId)?.jevNo || '' })), toRemit, dueDate, dueBir: S().funds.map((f) => ({ fund: f, balance: fx.balance(ACCT.dueBir, { fund: f }) })) };
   });
   // Quarterly Alphalist of Payees (for the 1601-EQ) or the VAT/percentage tax withheld.
   route('GET', '/api/finance/taxes/alphalist', 'finance:finance.view', ({ query }) => {

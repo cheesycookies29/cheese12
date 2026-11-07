@@ -97,7 +97,7 @@ export async function journalView(el, params) {
   const reload = () => journalView(el, params);
   const manual = !j.source?.kind || ['manual', 'closing', 'opening'].includes(j.source.kind);
   mount(el, html`
-    ${pageHead(html`${j.jevNo ? `JEV ${j.jevNo}` : 'Draft entry'} ${jevBadge(j)}`, `${j.journalLabel} · fund ${j.fund} · ${fmtDate(j.date)}`, html`
+    ${pageHead(html`${j.jevNo ? `JEV ${j.jevNo}` : 'Draft entry'} ${jevBadge(j)}`, `${j.journalLabel} · Fund ${j.fund} · ${fmtDate(j.date)}`, html`
       ${j.status === 'posted' ? printLink('jev', j.id) : ''}
       ${j.status === 'draft' && can('finance.accounts') ? html`<a class="btn" href="#/journals/new?id=${j.id}">${icon('edit', 16)} Edit</a><button class="btn primary" id="post">Post</button><button class="btn danger ghost" id="del">Delete</button>` : ''}
       ${j.status === 'posted' && !j.reversedBy && manual && can('finance.accounts') ? html`<button class="btn danger ghost" id="reverse">Reverse</button>` : ''}`, ['/journals', 'Journal entries'])}
@@ -152,7 +152,7 @@ export async function ledgerView(el, params, query) {
     </form>
     ${g ? html`<div class="card"><div class="table-scroll"><table class="table compact"><thead><tr><th>Date</th><th>JEV</th><th>Particulars</th><th>Subsidiary</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>
       <tbody><tr class="term-row"><td colspan="6">Balance forward</td>${amt(g.opening)}</tr>
-      ${g.rows.map((r) => html`<tr><td>${fmtDate(r.date)}</td><td><a href="#/journals/${r.journalId}">${r.jevNo}</a><small>${r.journal}</small></td><td>${r.particulars}</td><td>${r.cardName ? html`<a href="#/cards/${r.cardId}">${r.cardName}</a>` : ''}</td>${amt(r.debit, { blankZero: true })}${amt(r.credit, { blankZero: true })}${amt(r.balance)}</tr>`)}</tbody>
+      ${g.rows.map((r) => html`<tr><td class="nowrap">${fmtDate(r.date)}</td><td><a href="#/journals/${r.journalId}">${r.jevNo}</a><small>${r.journal}</small></td><td>${r.particulars}</td><td>${r.cardName ? html`<a href="#/cards/${r.cardId}">${r.cardName}</a>` : ''}</td>${amt(r.debit, { blankZero: true })}${amt(r.credit, { blankZero: true })}${amt(r.balance)}</tr>`)}</tbody>
       <tfoot><tr><td colspan="4">Totals and ending balance</td>${amt(g.debits, { strong: true })}${amt(g.credits, { strong: true })}${amt(g.closing, { strong: true })}</tr></tfoot></table></div></div>` : ''}`);
   el.querySelector('#pick').onsubmit = (e) => {
     e.preventDefault();
@@ -196,7 +196,7 @@ export async function statementsView(el, _p, query) {
   const groups = (gs) => gs.map((g) => html`<tr class="term-row"><td>${g.title}</td><td class="num">${num(g.amount)}</td></tr>${g.accounts.map((a) => html`<tr><td class="indent">${a.title}</td><td class="num">${num(a.amount)}</td></tr>`)}`);
   const sig = fin.settings.signatories;
   mount(el, html`
-    ${pageHead('Financial statements', `${pos.fundName} · per the Government Accounting Manual (PPSAS)`, html`<button class="btn" onclick="print()">${icon('file', 16)} Print</button>`, ['/trial-balance', 'Trial balance'])}
+    ${pageHead('Financial statements', `${pos.fundName} · per the Government Accounting Manual (PPSAS)`, html`<button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
     <form class="toolbar" id="f"><select name="fund">${fundOptions(fund, { all: true })}</select><label>From <input type="date" name="from" value="${from}" /></label><label>As of <input type="date" name="asOf" value="${asOf}" /></label><button class="btn">Show</button></form>
     <div class="cols">
       <section class="card statement">
@@ -286,7 +286,7 @@ export async function bankReconView(el, _p, query) {
   const r = await api.get(`/api/finance/bank-recon?${new URLSearchParams({ code, fund, month })}`);
   const edit = can('finance.accounts');
   mount(el, html`
-    ${pageHead('Bank reconciliation', `${r.title} · fund ${fund} · ${monthName(month)} (GAM Appendix ${code.startsWith('10104') ? '80' : '81'})`, html`<button class="btn" onclick="print()">${icon('file', 16)} Print</button>`, ['/chart', 'Chart of accounts'])}
+    ${pageHead('Bank reconciliation', `${r.title} · Fund ${fund} · ${monthName(month)} (GAM Appendix ${code.startsWith('10104') ? '80' : '81'})`, html`<button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
     <form class="toolbar" id="f"><select name="code">${cashAccounts.map((a) => option(a.code, `${a.code} · ${a.title}`, a.code === code))}</select><select name="fund">${fundOptions(fund)}</select><input type="month" name="month" value="${month}" /><button class="btn">Show</button></form>
     <form class="card" id="recon">
       <div class="grid">
@@ -296,7 +296,7 @@ export async function bankReconView(el, _p, query) {
       </div>
       <h3 class="sub-h">Book entries this month and earlier not yet cleared — tick what appears on the bank statement</h3>
       <div class="table-scroll"><table class="table compact"><thead><tr><th>Cleared</th><th>Date</th><th>JEV</th><th>Particulars</th><th class="num">Deposits / debits</th><th class="num">Checks / credits</th></tr></thead>
-      <tbody>${r.items.map((i) => html`<tr><td><input type="checkbox" name="c" value="${i.key}" ${i.cleared ? 'checked' : ''} ${edit ? '' : 'disabled'} aria-label="Cleared" /></td><td>${fmtDate(i.date)}</td><td>${i.jevNo}</td><td>${i.particulars}</td>${amt(i.debit, { blankZero: true })}${amt(i.credit, { blankZero: true })}</tr>`)}</tbody></table></div>
+      <tbody>${r.items.map((i) => html`<tr><td><input type="checkbox" name="c" value="${i.key}" ${i.cleared ? 'checked' : ''} ${edit ? '' : 'disabled'} aria-label="Cleared" /></td><td class="nowrap">${fmtDate(i.date)}</td><td class="nowrap">${i.jevNo}</td><td>${i.particulars}</td>${amt(i.debit, { blankZero: true })}${amt(i.credit, { blankZero: true })}</tr>`)}</tbody></table></div>
       <table class="table compact recon-sum"><tbody>
         <tr><td>Balance per bank statement</td><td class="num" id="s-bank"></td></tr>
         <tr><td>Add: deposits in transit (uncleared debits)</td><td class="num" id="s-dit"></td></tr>

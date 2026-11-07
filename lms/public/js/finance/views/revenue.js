@@ -21,8 +21,8 @@ export async function receiptListView(el, _p, query) {
     ${pageHead('Official receipts', 'Every collection gets an official receipt from the collector\'s booklet. Cancelled receipts keep all copies.', can('finance.collect') ? html`<button class="btn primary" id="issue">${icon('plus', 16)} Issue O.R.</button>` : '')}
     <form class="toolbar" id="f"><label>Date <input type="date" name="date" value="${date}" /></label><input type="search" name="q" value="${query.q || ''}" placeholder="O.R. no. or payor" /><button class="btn">Show</button>${from ? html`<span class="muted small">Showing the last 30 days · <a href="#/receipts?from=">show all</a></span>` : ''}</form>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>O.R. no.</th><th>Date</th><th>Payor</th><th>Nature of collection</th><th>Fund</th><th class="num">Amount</th><th>Collector</th><th>Status</th><th></th></tr></thead>
-      <tbody>${list.map((r) => html`<tr><td><strong>${r.no}</strong></td><td>${fmtDate(r.date)}</td><td>${r.payorName}</td><td>${r.lines.map((l) => l.description).join(', ')}</td><td>${r.fund}</td>${amt(r.total)}<td>${r.collectorName}</td>
-        <td>${r.status === 'cancelled' ? badge('Cancelled', 'gray') : r.rcdNo ? html`${badge('Reported', 'green')}<small><a href="#/rcds/${r.rcdId}">RCD ${r.rcdNo}</a></small>` : badge('Not yet reported', 'amber')}</td>
+      <tbody>${list.map((r) => html`<tr><td><strong>${r.no}</strong></td><td class="nowrap">${fmtDate(r.date)}</td><td>${r.payorName}</td><td>${r.lines.map((l) => l.description).join(', ')}</td><td>${r.fund}</td>${amt(r.total)}<td>${r.collectorName}</td>
+        <td>${r.status === 'cancelled' ? badge('Cancelled', 'gray') : r.rcdNo ? html`${badge('Reported', 'green')}<small class="nowrap"><a href="#/rcds/${r.rcdId}">RCD ${r.rcdNo}</a></small>` : badge('Not yet reported', 'amber')}</td>
         <td class="row-actions"><a class="btn sm" href="#/print/or/${r.id}" title="Print O.R. ${r.no}">${icon('file', 14)} Print</a>${r.status === 'issued' && !r.rcdId && r.collectorId === ctx.user.id ? html`<button class="btn sm danger ghost" data-cancel="${r.id}">Cancel</button>` : ''}</td></tr>`)}</tbody></table></div></div>`
       : html`<div class="card empty">${icon('receipt', 40)}<h2>No receipts</h2><p>${date ? 'None on that day.' : 'Receipts appear here once issued.'}</p></div>`}`);
   el.querySelector('#f').onsubmit = (e) => {
@@ -112,7 +112,7 @@ export async function rcdListView(el) {
   mount(el, html`
     ${pageHead('Collections and deposits', 'Each collector reports their receipts on an RCD (posted to the Cash Receipts Journal), then deposits the collections intact.', can('finance.collect') ? html`<button class="btn primary" id="new" ${mine.length ? '' : 'disabled'}>${icon('plus', 16)} Prepare RCD (${mine.length} receipt${mine.length === 1 ? '' : 's'})</button>` : '')}
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>RCD no.</th><th>Date</th><th>Collector</th><th>O.R. range</th><th class="num">Receipts</th><th class="num">Total</th><th>Deposit</th></tr></thead>
-      <tbody>${list.map((c) => html`<tr data-href="/rcds/${c.id}"><td><a href="#/rcds/${c.id}"><strong>${c.no}</strong></a><small>Fund ${c.fund}</small></td><td>${fmtDate(c.date)}</td><td>${c.collectorName}</td><td>${c.from}–${c.to}</td><td class="num">${c.count}</td>${amt(c.total)}
+      <tbody>${list.map((c) => html`<tr data-href="/rcds/${c.id}"><td><a href="#/rcds/${c.id}"><strong>${c.no}</strong></a><small>Fund ${c.fund}</small></td><td class="nowrap">${fmtDate(c.date)}</td><td>${c.collectorName}</td><td>${c.from}–${c.to}</td><td class="num">${c.count}</td>${amt(c.total)}
         <td>${c.deposit ? html`${badge('Deposited', 'green')}<small>${fmtDate(c.deposit.date)} · ${c.deposit.slipNo}</small>` : c.overdue ? badge('Undeposited – late', 'red') : badge('Undeposited', 'amber')}</td></tr>`)}</tbody></table></div></div>`
       : html`<div class="card empty">${icon('bank', 40)}<h2>No reports yet</h2></div>`}`);
   clickableRows(el);
@@ -132,15 +132,15 @@ export async function rcdView(el, params) {
   const c = await api.get(`/api/finance/rcds/${params.id}`);
   const banks = fin.settings.bankAccounts.filter((b) => b.fund === c.fund);
   mount(el, html`
-    ${pageHead(html`RCD ${c.no} ${c.deposit ? badge('Deposited', 'green') : badge('Undeposited', c.overdue ? 'red' : 'amber')}`, `${c.collectorName} · fund ${c.fund} · ${fmtDate(c.date)}`, html`${printLink('rcd', c.id)}${!c.deposit && can('finance.collect') ? html`<button class="btn primary" id="dep">Record deposit</button>` : ''}`, ['/rcds', 'Collections'])}
+    ${pageHead(html`RCD ${c.no} ${c.deposit ? badge('Deposited', 'green') : badge('Undeposited', c.overdue ? 'red' : 'amber')}`, `${c.collectorName} · Fund ${c.fund} · ${fmtDate(c.date)}`, html`${printLink('rcd', c.id)}${!c.deposit && can('finance.collect') ? html`<button class="btn primary" id="dep">Record deposit</button>` : ''}`, ['/rcds', 'Collections & deposits'])}
     <section class="card">${infoGrid([['Receipts', `${c.from} to ${c.to} (${c.count} issued)`], ['Total collections', money(c.total)], ['Collections entry', html`<a href="#/journals/${c.journalId}">JEV ${c.jevNo}</a>`], c.deposit && ['Deposit', html`${fmtDate(c.deposit.date)} · ${c.bank?.name || ''} ${c.bank?.number || ''} · slip ${c.deposit.slipNo} · <a href="#/journals/${c.deposit.journalId}">JEV ${c.depositJevNo}</a>`]])}</section>
     <section class="card"><table class="table compact"><thead><tr><th>O.R. no.</th><th>Date</th><th>Payor</th><th>Nature of collection</th><th class="num">Amount</th></tr></thead>
-      <tbody>${c.receipts.map((r) => html`<tr class="${r.status === 'cancelled' ? 'muted' : ''}"><td>${r.no}</td><td>${fmtDate(r.date)}</td><td>${r.status === 'cancelled' ? 'CANCELLED' : r.payorName}</td><td>${r.lines.map((l) => l.description).join(', ')}</td>${amt(r.total)}</tr>`)}</tbody>
+      <tbody>${c.receipts.map((r) => html`<tr class="${r.status === 'cancelled' ? 'muted' : ''}"><td>${r.no}</td><td class="nowrap">${fmtDate(r.date)}</td><td>${r.status === 'cancelled' ? 'CANCELLED' : r.payorName}</td><td>${r.lines.map((l) => l.description).join(', ')}</td>${amt(r.total)}</tr>`)}</tbody>
       <tfoot><tr><td colspan="4">Total</td>${amt(c.total, { strong: true })}</tr></tfoot></table></section>`);
   el.querySelector('#dep')?.addEventListener('click', () => modal({
     title: `Deposit of RCD ${c.no}`, submitLabel: 'Record deposit',
     body: banks.length ? html`<label class="field"><span>Bank account</span><select name="bankId">${banks.map((b) => option(b.id, `${b.name} ${b.number}`))}</select></label><label class="field"><span>Date</span><input type="date" name="date" value="${today()}" /></label><label class="field"><span>Validated deposit slip no.</span><input name="slipNo" required /></label>`
-      : html`<p>No bank account for fund ${c.fund}. Add it in the Control panel.</p>`,
+      : html`<p>No bank account for Fund ${c.fund}. Add it in the Control panel.</p>`,
     async onSubmit(form) {
       await api.post(`/api/finance/rcds/${c.id}/deposit`, formData(form));
       toast('Deposit recorded.');
@@ -156,7 +156,7 @@ export async function bookletsView(el) {
     ${pageHead('Accountable forms', 'Official receipt booklets (Accountable Form 51) issued to collecting officers, and what is left of each — the basis of the Report of Accountability for Accountable Forms (RAAF).', can('finance.collect') ? html`<button class="btn primary" id="add">${icon('plus', 16)} Issue a booklet</button>` : '')}
     ${list.length ? html`<div class="card"><div class="print-head"><strong>${fin.settings.entity.name}</strong><span>Report of Accountability for Accountable Forms · ${fmtDate(today())}</span></div>
       <table class="table"><thead><tr><th>Form</th><th>Serial numbers</th><th>Collector</th><th>Fund</th><th>Issued</th><th class="num">Qty</th><th class="num">Used</th><th class="num">Cancelled</th><th class="num">Remaining</th><th>Status</th></tr></thead>
-      <tbody>${list.map((b) => html`<tr><td>AF ${b.form}</td><td>${String(b.from).padStart(7, '0')}–${String(b.to).padStart(7, '0')}${b.status === 'active' ? html`<small>next ${String(b.next).padStart(7, '0')}</small>` : ''}</td><td>${b.collectorName}</td><td>${b.fund}</td><td>${fmtDate(b.issuedDate)}</td><td class="num">${b.quantity}</td><td class="num">${b.issued}</td><td class="num">${b.cancelled}</td><td class="num">${b.remaining}</td><td>${b.status === 'active' ? badge('In use', 'green') : badge('Used up', 'gray')}</td></tr>`)}</tbody></table></div>`
+      <tbody>${list.map((b) => html`<tr><td>AF ${b.form}</td><td>${String(b.from).padStart(7, '0')}–${String(b.to).padStart(7, '0')}${b.status === 'active' ? html`<small>next ${String(b.next).padStart(7, '0')}</small>` : ''}</td><td>${b.collectorName}</td><td>${b.fund}</td><td class="nowrap">${fmtDate(b.issuedDate)}</td><td class="num">${b.quantity}</td><td class="num">${b.issued}</td><td class="num">${b.cancelled}</td><td class="num">${b.remaining}</td><td>${b.status === 'active' ? badge('In use', 'green') : badge('Used up', 'gray')}</td></tr>`)}</tbody></table></div>`
       : html`<div class="card empty">${icon('book', 40)}<h2>No booklets</h2><p>Issue official receipt booklets to the collecting officers.</p></div>`}`);
   el.querySelector('#add')?.addEventListener('click', () => modal({
     title: 'Issue an O.R. booklet', submitLabel: 'Issue',

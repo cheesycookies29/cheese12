@@ -188,7 +188,7 @@ export async function auditView(el, _p, query) {
     ${pageHead('Audit trail', 'Who did what in Finance, newest first (the last 500 matching actions).')}
     <form class="toolbar" id="f"><input type="search" name="q" value="${query.q || ''}" placeholder="Action or person" /><button class="btn">${icon('search', 16)} Find</button></form>
     <div class="card"><table class="table compact"><thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead>
-      <tbody>${list.map((a) => html`<tr><td>${fmtDate(a.at.slice(0, 10))}<small>${new Date(a.at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</small></td><td>${a.by}</td><td>${a.action}</td></tr>`)}</tbody></table></div>`);
+      <tbody>${list.map((a) => html`<tr><td class="nowrap">${fmtDate(a.at.slice(0, 10))}<small>${new Date(a.at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</small></td><td>${a.by}</td><td>${a.action}</td></tr>`)}</tbody></table></div>`);
   el.querySelector('#f').onsubmit = (e) => {
     e.preventDefault();
     location.hash = `#/audit?q=${encodeURIComponent(formData(e.target).q)}`;

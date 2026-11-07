@@ -122,7 +122,7 @@ td.util, th.util { width: 140px; }
 .util-v { display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
 .util-v .meter { flex: 1; min-width: 60px; }
 .bar { position: relative; }
-.bar em { position: absolute; top: -2px; font-style: normal; font-size: 11px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.bar em { position: absolute; top: -18px; font-style: normal; font-size: 11px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
 .bars { padding-top: 20px; }
 .bar span { font-size: 10px; }
 .nowrap { white-space: nowrap; }
@@ -137,3 +137,23 @@ td.util, th.util { width: 140px; }
 
 /* Document numbers never break in the middle. */
 .finance-app .table td > a > strong, .finance-app .table td > strong:first-child { white-space: nowrap; }
+
+/* Wide tables: a soft shadow on the side that has more columns, so it is clear the table scrolls. */
+.finance-app .table-scroll {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(15, 23, 42, 0.2), transparent) left / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.2), transparent) right / 14px 100% no-repeat scroll;
+}
+:root[data-theme='dark'] .finance-app .table-scroll {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.6), transparent) left / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.6), transparent) right / 14px 100% no-repeat scroll;
+}
+@media print { .finance-app .table-scroll { background: none; } }
+/* The cancel action keeps its distance from the main one. */
+.page-head .actions .push-right { margin-left: 24px; }
+@media (max-width: 760px) { .page-head .actions .push-right { margin-left: 0; } }

@@ -38,7 +38,7 @@ const FORMS = {
         <div class="f-box"><strong>B.</strong> Certified: Allotment available and obligated for the purpose/adjustment necessary as indicated above.${signBox('', o.certifiedBy || sig('budget'))}</div></div>
       <h3 class="f-sub">C. Status of ${burs ? 'utilization' : 'obligation'}</h3>
       <table class="f-table"><thead><tr><th>Date</th><th>Particulars</th><th class="num">${burs ? 'Utilization' : 'Obligation'} (a)</th><th class="num">Payable (b)</th><th class="num">Payment (c)</th><th class="num">Not yet due (a−b)</th><th class="num">Due and demandable (b−c)</th></tr></thead>
-      <tbody><tr><td>${fmtDate(o.obligatedDate || o.date)}</td><td>${o.particulars}</td><td class="num">${num(o.obligatedAmount)}</td><td class="num">${num(o.payable)}</td><td class="num">${num(o.disbursed)}</td><td class="num">${num(o.obligatedAmount - o.payable)}</td><td class="num">${num(o.payable - o.disbursed)}</td></tr></tbody></table>
+      <tbody><tr><td class="nowrap">${fmtDate(o.obligatedDate || o.date)}</td><td>${o.particulars}</td><td class="num">${num(o.obligatedAmount)}</td><td class="num">${num(o.payable)}</td><td class="num">${num(o.disbursed)}</td><td class="num">${num(o.obligatedAmount - o.payable)}</td><td class="num">${num(o.payable - o.disbursed)}</td></tr></tbody></table>
       <p class="f-small">Payable: accepted deliveries for a purchase order, otherwise the amounts on disbursement vouchers.</p>`;
   },
   async dv(id) {
@@ -58,7 +58,7 @@ const FORMS = {
       <div class="f-signs"><div class="f-box"><strong>C.</strong> Certified: ☒ Cash available ☒ Subject to Authority to Debit Account (when applicable) ☒ Supporting documents complete and amount claimed proper.${signBox('', d.certifiedBy ? { name: d.certifiedBy.name, title: d.certifiedBy.title } : sig('accountant'), html`<span class="f-cap">Date: ${d.certifiedBy ? fmtDate(d.certifiedBy.at.slice(0, 10)) : ''}</span>`)}</div>
         <div class="f-box"><strong>D.</strong> Approved for payment: <em>${amountInWords(d.net)}</em>${signBox('', d.approvedBy ? { name: d.approvedBy.name, title: d.approvedBy.title } : sig('head'), html`<span class="f-cap">Date: ${d.approvedBy ? fmtDate(d.approvedBy.at.slice(0, 10)) : ''}</span>`)}</div></div>
       <div class="f-box"><strong>E.</strong> Receipt of payment
-        <table class="f-table f-kv"><tbody><tr><th>Check/ADA no.</th><td>${d.checkNo || d.lddapNo || ''}</td><th>Date</th><td>${fmtDate(d.paidDate)}</td><th>Bank name and account no.</th><td>${d.payee.bankName || ''} ${d.payee.bankAccount || ''}</td></tr>
+        <table class="f-table f-kv"><tbody><tr><th>Check/ADA no.</th><td>${d.checkNo || d.lddapNo || ''}</td><th>Date</th><td class="nowrap">${fmtDate(d.paidDate)}</td><th>Bank name and account no.</th><td>${d.payee.bankName || ''} ${d.payee.bankAccount || ''}</td></tr>
         <tr><th>Signature</th><td></td><th>Date</th><td>${d.receipt ? fmtDate(d.receipt.date) : ''}</td><th>Printed name</th><td>${d.receipt?.receivedBy || ''}</td></tr>
         <tr><th>Official receipt no. and date / other documents</th><td colspan="5">${d.receipt?.orNo || ''}</td></tr></tbody></table></div>
       <p class="f-small">JEV no.: ${d.jevNo || '________'} &nbsp; Date: ${fmtDate(d.paidDate)}</p>`;
@@ -113,7 +113,7 @@ const FORMS = {
     const issued = [...p.history].reverse().find((h) => h.docNo === p.docNo);
     return html`${head(ppe ? 'Property Acknowledgment Receipt' : 'Inventory Custodian Slip', ppe ? APPENDIX.par : APPENDIX.ics, { fund: p.fund, no: p.docNo, date: issued?.date })}
       <table class="f-table"><thead><tr><th class="num">Quantity</th><th>Unit</th>${ppe ? '' : html`<th class="num">Unit cost</th><th class="num">Total cost</th>`}<th>Description</th><th>${ppe ? 'Property number' : 'Inventory item no.'}</th>${ppe ? html`<th>Date acquired</th><th class="num">Amount</th>` : html`<th>Estimated useful life</th>`}</tr></thead>
-      <tbody><tr><td class="num">1</td><td>unit</td>${ppe ? '' : html`<td class="num">${num(p.cost)}</td><td class="num">${num(p.cost)}</td>`}<td>${p.description}${p.serialNo ? html`<br /><small>Serial no. ${p.serialNo}</small>` : ''}</td><td>${p.propertyNo}</td>${ppe ? html`<td>${fmtDate(p.acquired)}</td><td class="num">${num(p.cost)}</td>` : html`<td>${p.life ? `${p.life} years` : ''}</td>`}</tr></tbody></table>
+      <tbody><tr><td class="num">1</td><td>unit</td>${ppe ? '' : html`<td class="num">${num(p.cost)}</td><td class="num">${num(p.cost)}</td>`}<td>${p.description}${p.serialNo ? html`<br /><small>Serial no. ${p.serialNo}</small>` : ''}</td><td>${p.propertyNo}</td>${ppe ? html`<td class="nowrap">${fmtDate(p.acquired)}</td><td class="num">${num(p.cost)}</td>` : html`<td>${p.life ? `${p.life} years` : ''}</td>`}</tr></tbody></table>
       <div class="f-signs">${signBox('Received by:', { name: p.custodianName, title: 'Signature over printed name of end user' })}${signBox(ppe ? 'Issued by:' : 'Received from:', sig('supply'))}</div>`;
   },
   async ics(id) {
@@ -139,11 +139,11 @@ const FORMS = {
     return html`${head('Report of Collections and Deposits', APPENDIX.rcd, { fund: c.fund, no: c.no, date: c.date, extra: html`<span>Collecting officer: <strong>${c.collectorName}</strong></span>` })}
       <h3 class="f-sub">A. Collections</h3>
       <table class="f-table"><thead><tr><th>Date</th><th>O.R. no.</th><th>Payor</th><th>Nature of collection</th><th class="num">Amount</th></tr></thead>
-      <tbody>${c.receipts.map((r) => html`<tr><td>${fmtDate(r.date)}</td><td>${r.no}</td><td>${r.status === 'cancelled' ? 'CANCELLED' : r.payorName}</td><td>${r.lines.map((l) => l.description).join(', ')}</td><td class="num">${r.status === 'cancelled' ? '' : num(r.total)}</td></tr>`)}</tbody>
+      <tbody>${c.receipts.map((r) => html`<tr><td class="nowrap">${fmtDate(r.date)}</td><td>${r.no}</td><td>${r.status === 'cancelled' ? 'CANCELLED' : r.payorName}</td><td>${r.lines.map((l) => l.description).join(', ')}</td><td class="num">${r.status === 'cancelled' ? '' : num(r.total)}</td></tr>`)}</tbody>
       <tfoot><tr><td colspan="4">Total</td><td class="num">${num(c.total)}</td></tr></tfoot></table>
       <h3 class="f-sub">B. Remittances/Deposits</h3>
       <table class="f-table"><thead><tr><th>Bank / account</th><th>Reference (deposit slip)</th><th>Date</th><th class="num">Amount</th></tr></thead>
-      <tbody><tr><td>${c.bank ? `${c.bank.name} ${c.bank.number}` : ''}</td><td>${c.deposit?.slipNo || ''}</td><td>${fmtDate(c.deposit?.date)}</td><td class="num">${c.deposit ? num(c.total) : ''}</td></tr></tbody></table>
+      <tbody><tr><td>${c.bank ? `${c.bank.name} ${c.bank.number}` : ''}</td><td>${c.deposit?.slipNo || ''}</td><td class="nowrap">${fmtDate(c.deposit?.date)}</td><td class="num">${c.deposit ? num(c.total) : ''}</td></tr></tbody></table>
       <h3 class="f-sub">C. Accountability for accountable forms</h3><p class="f-small">Official receipts no. ${c.from} to ${c.to} issued (${c.count} with collections).</p>
       <div class="f-signs"><div class="f-box">Certification: I hereby certify that this Report of Collections and Deposits, including supporting documents, is true and correct.${signBox('', { name: c.collectorName, title: 'Collecting Officer' })}</div>
         <div class="f-box">Verification and acknowledgment: I hereby certify that the foregoing report of collections has been verified and acknowledge receipt of ₱${num(c.total)}.${signBox('', sig('cashier'))}</div></div>`;
