@@ -9,13 +9,13 @@ export const ROLES = {
   },
   hr: {
     label: 'HR Manager',
-    description: 'Manages employees, attendance, leave and the time clock; approves leave and remote work; adjusts payroll setup. Can view payroll and IT assets.',
-    permissions: ['dashboard', 'employees.view', 'employees.edit', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.config', 'leave.manage', 'leave.approve', 'assets.view', 'self'],
+    description: 'Manages employees, attendance, leave and the time clock; approves leave and remote work; adjusts payroll setup and the holiday calendar. Can view payroll and IT assets.',
+    permissions: ['dashboard', 'employees.view', 'employees.edit', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'assets.view', 'self'],
   },
   payroll: {
     label: 'Payroll Officer',
-    description: 'Runs, adjusts and finalizes payroll; adjusts payroll setup and leave credits. Can view employees and attendance.',
-    permissions: ['dashboard', 'employees.view', 'attendance.view', 'payroll.view', 'payroll.edit', 'payroll.config', 'leave.manage', 'self'],
+    description: 'Runs, adjusts and finalizes payroll; adjusts payroll setup, the holiday calendar and leave credits. Can view employees and attendance.',
+    permissions: ['dashboard', 'employees.view', 'attendance.view', 'payroll.view', 'payroll.edit', 'payroll.config', 'holidays.manage', 'leave.manage', 'self'],
   },
   it: {
     label: 'IT Asset Manager',
@@ -55,7 +55,8 @@ export const PERMISSION_LABELS = [
   ['clock.kiosk', 'Shared time clock'],
   ['payroll.view', 'View payroll runs and payslips'],
   ['payroll.edit', 'Create, adjust and finalize payroll'],
-  ['payroll.config', 'Payroll setup: pay rules, government rates, tax tables'],
+  ['payroll.config', 'Payroll setup: pay rules, holiday and night premiums, government rates, tax tables'],
+  ['holidays.manage', 'Holiday calendar: load proclaimed holidays, add local and Eid holidays'],
   ['leave.manage', 'Leave types, credits and balances; view all requests'],
   ['leave.approve', 'Approve or reject leave and remote-work requests'],
   ['leave.adjust', "Change one employee's leave: types offered, credits, adjustments, recorded days"],

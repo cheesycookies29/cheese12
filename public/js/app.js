@@ -23,6 +23,7 @@ import { feedbackView, feedbackInboxView, feedbackDetailView } from './views/fee
 import { clockLocationsView } from './views/locations.js';
 import { approvalsView } from './views/approvals.js';
 import { crmOverviewView, pipelineView, dealView, leadsView, leadView, accountsView, accountView, contactsView, contactView, bidsView, bidView, contractsView, contractView, activitiesView, crmSettingsView } from './views/crm.js';
+import { holidaysView } from './views/holidays.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
 
 // [path, view, permission needed, module]
@@ -41,6 +42,7 @@ const routes = [
   ['/payroll/:id/payslip/:employeeId', payslipView, 'payroll.view', 'hr'],
   ['/payroll/:id', payrollRunView, 'payroll.view', 'hr'],
   ['/payroll-setup', payrollSetupView, 'payroll.config', 'hr'],
+  ['/holidays', holidaysView, 'holidays.manage', 'hr'],
   ['/leave', leaveView, 'leave.manage', 'hr'],
   ['/approvals', approvalsView, 'approver', 'hr'],
   ['/me', meHomeView, 'self', 'hr'],
@@ -111,6 +113,7 @@ const NAV = {
     { href: '/leave', label: 'Leave & Requests', icon: 'clipboard', permission: 'leave.manage' },
     { href: '/payroll', label: 'Payroll', icon: 'wallet', permission: 'payroll.view' },
     { href: '/payroll-setup', label: 'Payroll Setup', icon: 'settings', permission: 'payroll.config' },
+    { href: '/holidays', label: 'Holidays', icon: 'flag', permission: 'holidays.manage' },
     { heading: 'My account', permission: 'self' },
     { href: '/me', label: 'My Home', icon: 'home', permission: 'self', exact: true },
     { href: '/me/attendance', label: 'My Attendance', icon: 'calendar', permission: 'self' },
@@ -406,7 +409,7 @@ async function boot({ fresh = false } = {}) {
   if (!ctx.user) return showAuth(status.setupRequired ? setupView : loginView);
   if (ctx.user.mustChangePassword) return showAuth(forcePasswordView);
 
-  await Promise.all([ctx.refreshSettings(), ctx.refreshLeaveTypes()]);
+  await Promise.all([ctx.refreshSettings(), ctx.refreshLeaveTypes(), ctx.refreshHolidays()]);
   setMode(null);
   mount(document.getElementById('auth'), '');
   ctx.module = null;

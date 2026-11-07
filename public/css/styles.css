@@ -1396,3 +1396,19 @@ body.launcher-mode main#app > section:last-of-type { margin-bottom: 36px; }
   .req-days li > :last-child:not(:nth-child(2)) { grid-column: 1 / -1; justify-self: start; }
 }
 .table td.row-actions > * + * { margin-left: 10px; }
+
+/* ---------- Holiday and night premiums (Payroll Setup) ---------- */
+.field.narrow { max-width: 420px; }
+.premium-table { max-width: 640px; margin-bottom: 16px; }
+.premium-table { width: 100%; table-layout: fixed; }
+.premium-table th:first-child { width: 46%; }
+.premium-table .input-suffix { max-width: 140px; }
+.premium-table input { min-width: 0; width: 100%; }
+.premium-rules { margin-top: 14px; }
+@media (max-width: 640px) {
+  .premium-table th:first-child { width: 40%; }
+  .premium-table td, .premium-table th { padding-left: 3px; padding-right: 3px; }
+  .premium-table th { font-size: 11px; }
+  .premium-table .input-suffix input { padding-left: 8px; padding-right: 2px; }
+  .premium-table .input-suffix em { padding: 0 6px 0 0; }
+}

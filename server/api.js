@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { computePayslip, toMinutes } from '../shared/calc.js';
+import { DAY_TYPES } from '../shared/holidays.js';
 import { HttpError, localDate, localTime } from './util.js';
 import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
 import { createAttachments } from './attachments.js';
@@ -9,6 +10,7 @@ import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
 import { migrateApprovals, isApprover } from './approvals.js';
+import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
 import { createSecrets } from './secrets.js';
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
@@ -29,7 +31,7 @@ const EMPLOYEE_FIELDS = [
   'employeeNo', 'firstName', 'middleName', 'lastName', 'email', 'phone', 'birthDate', 'gender', 'civilStatus',
   'address', 'position', 'department', 'employmentStatus', 'hireDate', 'status', 'payType', 'rate', 'allowance',
   'minimumWageEarner', 'flexTime', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
-  'emergencyContactName', 'emergencyContactPhone', 'schedule', 'supervisorId'];
+  'emergencyContactName', 'emergencyContactPhone', 'schedule', 'supervisorId', 'workDaysPerYear'];
 
 function pick(obj, keys) {
   return Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
@@ -60,6 +62,9 @@ function validateEmployee(input, db, existingId) {
   e.allowance = Math.max(0, Number(e.allowance) || 0);
   e.minimumWageEarner = Boolean(e.minimumWageEarner);
   e.flexTime = Boolean(e.flexTime);
+  // Own daily-rate factor (e.g. 313 for a 6-day week); empty = the company default.
+  e.workDaysPerYear = e.workDaysPerYear === '' || e.workDaysPerYear == null ? null : Math.round(Number(e.workDaysPerYear));
+  if (e.workDaysPerYear !== null && !(e.workDaysPerYear >= 200 && e.workDaysPerYear <= 366)) throw new HttpError(400, 'Work days per year must be between 200 and 366, or empty for the company default.');
   e.status = e.status === 'Inactive' ? 'Inactive' : 'Active';
   e.schedule = validateSchedule(e.schedule || db.data.settings.schedule);
   const dup = db.data.employees.find((x) => x.employeeNo.toLowerCase() === e.employeeNo.toLowerCase() && x.id !== existingId);
@@ -143,7 +148,7 @@ function computeRun(db, run) {
   run.payslips = employees
     .filter((e) => run.employeeIds.includes(e.id))
     .map((employee) =>
-      computePayslip({ employee, entries: timeEntries, periodStart: run.periodStart, periodEnd: run.periodEnd, settings, adjustments: previous.get(employee.id) }),
+      computePayslip({ employee, entries: timeEntries, periodStart: run.periodStart, periodEnd: run.periodEnd, settings, holidays: db.data.holidays, adjustments: previous.get(employee.id) }),
     )
     .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   run.payFrequency = settings.payFrequency;
@@ -180,8 +185,14 @@ function validatePayrollConfig(s) {
   s.workDaysPerYear = num(s.workDaysPerYear, 'Work days per year', 200, 366);
   s.gracePeriodMinutes = num(s.gracePeriodMinutes, 'Grace period', 0, 120);
   s.minimumOvertimeMinutes = num(s.minimumOvertimeMinutes, 'Minimum overtime', 0, 480);
-  s.overtimeMultiplier = num(s.overtimeMultiplier, 'Overtime rate', 1, 5);
-  s.restDayMultiplier = num(s.restDayMultiplier, 'Rest day rate', 1, 5);
+  s.premiums = Object.fromEntries(Object.entries(DAY_TYPES).map(([k, label]) => {
+    const p = s.premiums[k];
+    const day = k === 'ordinary' ? 1 : num(p.day, `${label}: first 8 hours`, 1, 10);
+    return [k, { day, overtime: num(p.overtime, `${label}: overtime`, 1, 15) }];
+  }));
+  s.nightDiff = { rate: num(s.nightDiff.rate, 'Night differential', 0, 1), start: s.nightDiff.start, end: s.nightDiff.end };
+  if (!TIME_RE.test(s.nightDiff.start || '') || !TIME_RE.test(s.nightDiff.end || '') || s.nightDiff.start === s.nightDiff.end) throw new HttpError(400, 'Give the night shift hours as two different times, e.g. 22:00 to 06:00.');
+  s.holidayPay = { requirePresentBefore: s.holidayPay.requirePresentBefore !== false, specialNotWorked: s.holidayPay.specialNotWorked === 'unpaid' ? 'unpaid' : 'paid' };
   s.contributions = Object.fromEntries(['sss', 'philhealth', 'pagibig', 'withholdingTax'].map((k) => [k, Boolean(s.contributions[k])]));
   const { sss, philhealth, pagibig } = s.rates;
   s.rates.sss = {
@@ -346,7 +357,7 @@ function clock(db, emp, action, body = {}, source = 'self') {
 export function createApi(db) {
   const files = createAttachments(path.join(db.dir, 'attachments'));
   const secrets = createSecrets(db.dir);
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db), migrateHolidays(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
@@ -501,7 +512,7 @@ export function createApi(db) {
   // Payroll Setup: pay rules, deductions, government rates and tax tables (HR, Payroll, Administrator).
   route('PUT', '/api/payroll-config', 'payroll.config', ({ body, user }) => {
     const s = db.data.settings;
-    const next = mergeSettings({ ...s, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'overtimeMultiplier', 'restDayMultiplier', 'contributions', 'rates']) });
+    const next = mergeSettings({ ...s, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'premiums', 'nightDiff', 'holidayPay', 'contributions', 'rates']) });
     db.data.settings = { ...validatePayrollConfig(next), payrollConfigUpdatedAt: new Date().toISOString(), payrollConfigUpdatedBy: user.name };
     db.save();
     return db.data.settings;
@@ -660,6 +671,7 @@ export function createApi(db) {
   registerFeedbackRoutes(route, db);
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   registerCrmRoutes(route, db);
+  registerHolidayRoutes(route, db);
   route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });

@@ -72,7 +72,7 @@ test('sequential: the supervisor approves first, then HR; only then is it in the
 });
 
 test('rejecting or returning needs remarks; a returned request is revised and starts again', async () => {
-  const r = await asAna('POST', '/api/me/requests', leave(day(8)));
+  const r = await asAna('POST', '/api/me/requests', leave(day(11)));
   await assert.rejects(asBen('POST', `/api/approvals/${r.id}/return`), /what the employee should change/);
   const back = await asBen('POST', `/api/approvals/${r.id}/return`, { note: 'Please file the 9th instead' });
   assert.equal(back.status, 'returned');
@@ -151,7 +151,7 @@ test('file-ahead rule, official business, bulk approval and cancelling with a re
   await admin('PUT', '/api/leave-types/vl', { ...vl, advanceDays: null });
   await assert.rejects(asAna('POST', '/api/me/requests', { kind: 'ob', startDate: day(23), endDate: day(23) }), /where you will be/);
   const ob = await asAna('POST', '/api/me/requests', { kind: 'ob', startDate: day(23), endDate: day(23), destination: 'Client site, Makati' });
-  const wfh = await asAna('POST', '/api/me/requests', { kind: 'remote', startDate: day(24), endDate: day(24) });
+  const wfh = await asAna('POST', '/api/me/requests', { kind: 'remote', startDate: day(29), endDate: day(29) });
   const bulk = await asBen('POST', '/api/approvals/bulk', { ids: [ob.id, wfh.id, 'nope'] });
   assert.equal(bulk.approved, 2);
   assert.equal(bulk.failed.length, 1);

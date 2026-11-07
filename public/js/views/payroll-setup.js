@@ -1,7 +1,8 @@
 // Payroll Setup: pay rules, deductions, government rates and tax tables.
 import { api } from '../api.js';
 import { ctx } from '../state.js';
-import { DEFAULT_RATES, sssContribution, philhealthContribution, pagibigContribution, withholdingTax, round2 } from '/shared/calc.js';
+import { DEFAULT_RATES, DEFAULT_PREMIUMS, DEFAULT_NIGHT_DIFF, sssContribution, philhealthContribution, pagibigContribution, withholdingTax, round2, suggestedFactor } from '/shared/calc.js';
+import { DAY_TYPES } from '/shared/holidays.js';
 import { html, mount, toast, amount, confirmDialog } from '../ui.js';
 
 const pct = (rate) => round2(rate * 100 * 100) / 100; // 0.05 -> 5
@@ -24,7 +25,12 @@ export async function payrollSetupView(el) {
   const s = await api.get('/api/settings');
   const rates = structuredClone(s.rates);
   const tax = { 'semi-monthly': structuredClone(rates.tax['semi-monthly']), monthly: structuredClone(rates.tax.monthly) };
+  const premiums = structuredClone(s.premiums);
+  const nightDiff = structuredClone(s.nightDiff);
   const checked = (b) => (b ? 'checked' : '');
+  const workDays = s.schedule.workDays.length;
+  const suggested = suggestedFactor(s.schedule.workDays);
+  const factorHint = `Daily rate = monthly × 12 ÷ this. The default schedule works ${workDays} days a week, which matches ${suggested} when every day except rest days is paid${suggested === Number(s.workDaysPerYear) ? '.' : `; this is set to ${s.workDaysPerYear}. Confirm with the accountant.`} An employee can have their own on their record.`;
 
   mount(el, html`
     <header class="page-head">
@@ -40,11 +46,9 @@ export async function payrollSetupView(el) {
           <label class="field"><span>Pay frequency</span>
             <select name="payFrequency"><option value="semi-monthly" ${s.payFrequency === 'semi-monthly' ? 'selected' : ''}>Semi-monthly (15th and end of month)</option><option value="monthly" ${s.payFrequency === 'monthly' ? 'selected' : ''}>Monthly</option></select>
           </label>
-          ${numField('Work days per year', 'workDaysPerYear', s.workDaysPerYear, { step: 1, hint: 'Daily rate = monthly × 12 ÷ this. Company policy: 312 (6 days × 52 weeks). 261 would suit a 5-day week.' })}
+          ${numField('Work days per year', 'workDaysPerYear', s.workDaysPerYear, { step: 1, hint: factorHint })}
           ${numField('Late grace period', 'gracePeriodMinutes', s.gracePeriodMinutes, { step: 1, suffix: 'min' })}
           ${numField('Minimum overtime', 'minimumOvertimeMinutes', s.minimumOvertimeMinutes, { step: 1, suffix: 'min', hint: 'Shorter overtime on regular days is ignored.' })}
-          ${numField('Overtime rate', 'overtimeMultiplier', s.overtimeMultiplier, { step: 0.01, suffix: '× hourly', hint: '1.25 = 125% of the hourly rate' })}
-          ${numField('Rest day work rate', 'restDayMultiplier', s.restDayMultiplier, { step: 0.01, suffix: '× hourly', hint: '1.30 = 130% of the hourly rate' })}
         </div>
         <h3>Deductions to compute</h3>
         <div class="checks">
@@ -53,6 +57,26 @@ export async function payrollSetupView(el) {
           <label><input type="checkbox" name="c_pagibig" ${checked(s.contributions.pagibig)} /> Pag-IBIG</label>
           <label><input type="checkbox" name="c_withholdingTax" ${checked(s.contributions.withholdingTax)} /> BIR withholding tax</label>
         </div>
+      </section>
+
+      <section class="card">
+        <h2>Holiday, rest day and night premiums</h2>
+        <p class="muted small">Pay for work on each kind of day, as a percentage of the hourly rate (Labor Code and DOLE's holiday pay rules). The first column covers the scheduled daily hours (8), the second each hour beyond. On a work day that is a holiday, the monthly salary already pays 100%, so the payslip adds the rest. Holidays come from the <a href="#/holidays">holiday calendar</a>.</p>
+        <table class="table compact edit-table premium-table"><thead><tr><th>Day</th><th>First 8 hours</th><th>Overtime hour</th></tr></thead><tbody id="premiums"></tbody></table>
+        <div class="grid">
+          ${numField('Night shift differential', 'nightDiff.rate', pct(nightDiff.rate), { suffix: '%', hint: 'Of the rate for each hour worked in the night shift (at least 10%).' })}
+          <label class="field"><span>Night shift from</span><input type="time" name="nightDiff.start" value="${nightDiff.start}" required /></label>
+          <label class="field"><span>Night shift until</span><input type="time" name="nightDiff.end" value="${nightDiff.end}" required /></label>
+        </div>
+        <h3>Holidays not worked</h3>
+        <div class="checks stack tight">
+          <label><input type="checkbox" name="hp_requirePresentBefore" ${checked(s.holidayPay.requirePresentBefore)} /> Pay a regular holiday only if the employee was present, or on paid leave, on the last working day before it</label>
+        </div>
+        <label class="field narrow premium-rules"><span>Special non-working day, not worked</span>
+          <select name="hp_specialNotWorked"><option value="paid" ${s.holidayPay.specialNotWorked === 'paid' ? 'selected' : ''}>Paid (company policy)</option><option value="unpaid" ${s.holidayPay.specialNotWorked === 'unpaid' ? 'selected' : ''}>Not paid: "no work, no pay"</option></select>
+          <small class="muted">The law says no work, no pay unless company policy pays it. For monthly-paid staff "not paid" is deducted like an absence.</small>
+        </label>
+        <div class="actions"><button type="button" class="btn" id="restore-premiums">Restore DOLE premium rates</button></div>
       </section>
 
       <section class="card" id="gov-rates"></section>
@@ -116,6 +140,15 @@ export async function payrollSetupView(el) {
       </div>`);
   }
 
+  function renderPremiums() {
+    const cell = (k, part) => html`<td><div class="input-suffix"><input type="number" step="any" min="100" name="prem.${k}.${part}" value="${pct(premiums[k][part])}" required /><em>%</em></div></td>`;
+    mount(el.querySelector('#premiums'), html`${Object.entries(DAY_TYPES).map(([k, label]) => html`<tr>
+      <td>${label}</td>
+      ${k === 'ordinary' ? html`<td class="muted">100% (the basic pay)</td>` : cell(k, 'day')}
+      ${cell(k, 'overtime')}
+    </tr>`)}`);
+  }
+
   function renderTax() {
     for (const freq of ['semi-monthly', 'monthly']) mount(el.querySelector(`#tax-${freq}`), taxRows(tax[freq], freq));
   }
@@ -134,8 +167,9 @@ export async function payrollSetupView(el) {
       workDaysPerYear: fd.get('workDaysPerYear'),
       gracePeriodMinutes: fd.get('gracePeriodMinutes'),
       minimumOvertimeMinutes: fd.get('minimumOvertimeMinutes'),
-      overtimeMultiplier: fd.get('overtimeMultiplier'),
-      restDayMultiplier: fd.get('restDayMultiplier'),
+      premiums: Object.fromEntries(Object.keys(DAY_TYPES).map((k) => [k, { day: k === 'ordinary' ? 1 : p(`prem.${k}.day`), overtime: p(`prem.${k}.overtime`) }])),
+      nightDiff: { rate: p('nightDiff.rate'), start: fd.get('nightDiff.start'), end: fd.get('nightDiff.end') },
+      holidayPay: { requirePresentBefore: fd.has('hp_requirePresentBefore'), specialNotWorked: fd.get('hp_specialNotWorked') },
       contributions: Object.fromEntries(['sss', 'philhealth', 'pagibig', 'withholdingTax'].map((k) => [k, fd.has(`c_${k}`)])),
       rates: {
         sss: { eeRate: p('sss.eeRate'), erRate: p('sss.erRate'), minMsc: n('sss.minMsc'), maxMsc: n('sss.maxMsc'), mscStep: n('sss.mscStep'), ecLow: n('sss.ecLow'), ecHigh: n('sss.ecHigh'), ecThreshold: n('sss.ecThreshold') },
@@ -171,6 +205,7 @@ export async function payrollSetupView(el) {
     </table>`);
   }
 
+  renderPremiums();
   renderGov();
   renderTax();
   renderTry();
@@ -191,6 +226,15 @@ export async function payrollSetupView(el) {
     }
     renderTax();
     renderTry();
+  });
+
+  el.querySelector('#restore-premiums').addEventListener('click', () => {
+    Object.assign(premiums, structuredClone(DEFAULT_PREMIUMS));
+    renderPremiums();
+    form.querySelector('[name="nightDiff.rate"]').value = pct(DEFAULT_NIGHT_DIFF.rate);
+    form.querySelector('[name="nightDiff.start"]').value = DEFAULT_NIGHT_DIFF.start;
+    form.querySelector('[name="nightDiff.end"]').value = DEFAULT_NIGHT_DIFF.end;
+    toast('DOLE premium rates filled in. Review, then save.');
   });
 
   el.querySelector('#restore').addEventListener('click', async () => {

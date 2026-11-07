@@ -6,6 +6,10 @@ export const ctx = {
   settings: null,
   user: null,
   leaveTypes: [],
+  holidays: [], // the holiday calendar: DTR badges, request day counts, payroll previews
+  async refreshHolidays() {
+    ctx.holidays = await api.get('/api/holidays').catch(() => []);
+  },
   async refreshLeaveTypes() {
     ctx.leaveTypes = await api.get('/api/leave-types');
   },

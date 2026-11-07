@@ -38,7 +38,10 @@ test('computeEntry: late, undertime, overtime', () => {
   const mon = '2026-10-05';
   assert.deepEqual(
     computeEntry({ date: mon, type: 'work', timeIn: '09:15', timeOut: '17:30' }, schedule, settings),
-    { workedMinutes: 435, lateMinutes: 15, undertimeMinutes: 30, overtimeMinutes: 0, restDay: false, leave: false, paidLeave: false, remote: false, open: false },
+    {
+      workedMinutes: 435, lateMinutes: 15, undertimeMinutes: 30, overtimeMinutes: 0, restDay: false, leave: false, paidLeave: false, remote: false, open: false,
+      dayType: 'ordinary', holiday: null, regularMinutes: 435, nightMinutes: 0, nightOvertimeMinutes: 0,
+    },
   );
   const ot = computeEntry({ date: mon, type: 'work', timeIn: '08:55', timeOut: '20:00' }, schedule, settings);
   assert.equal(ot.lateMinutes, 0);

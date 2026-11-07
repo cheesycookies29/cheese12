@@ -140,6 +140,7 @@ export async function employeeFormView(el, { id }) {
           ${field('Pay type', 'payType', emp.payType, { options: [['monthly', 'Monthly-rated'], ['daily', 'Daily-rated']] })}
           ${field('Rate (₱)', 'rate', emp.rate, { type: 'number', required: true, attrs: 'min="0" step="0.01"', hint: 'Monthly salary or daily rate, depending on pay type.' })}
           ${field('Monthly allowance (₱)', 'allowance', emp.allowance, { type: 'number', attrs: 'min="0" step="0.01"', hint: 'Non-taxable (de minimis). Split across pay periods.' })}
+          ${field('Work days per year', 'workDaysPerYear', emp.workDaysPerYear ?? '', { type: 'number', attrs: 'min="200" max="366" step="1"', hint: `Daily-rate factor. Leave empty for the company default (${ctx.settings.workDaysPerYear}). Common: 261 for a 5-day week, 313 for a 6-day week.` })}
           <label class="field check span-3"><input type="checkbox" name="minimumWageEarner" ${emp.minimumWageEarner ? 'checked' : ''} /> <span>Minimum wage earner (exempt from withholding tax)</span></label>
           <label class="field check span-3"><input type="checkbox" name="flexTime" ${emp.flexTime ? 'checked' : ''} /> <span>Flexible time (FLEX): clock-in and clock-out times do not affect pay. No late or undertime deductions; absences and approved overtime still count.</span></label>
         </div>
@@ -241,6 +242,7 @@ export async function employeeProfileView(el, { id }) {
           ${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}
           ${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}
           ${info('Allowance', `${money(emp.allowance)} / month`)}
+          ${info('Daily-rate factor', emp.workDaysPerYear ? `${emp.workDaysPerYear} days a year (own)` : `${ctx.settings.workDaysPerYear} days a year (company default)`)}
           ${info('Tax', emp.minimumWageEarner ? 'Minimum wage earner (exempt)' : 'Regular withholding')}
           ${info('Schedule', `${sched.shiftStart}–${sched.shiftEnd}, ${sched.workDays.map((d) => WEEKDAYS[d]).join(', ')}`)}
           ${info('Time', emp.flexTime ? html`${badge('FLEX', 'blue')} Flexible time: no late or undertime deductions` : 'Fixed schedule')}

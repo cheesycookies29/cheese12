@@ -1,6 +1,7 @@
 // Leave types, leave credits and balances, and leave / remote-work requests with approval.
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate } from './util.js';
+import { isDayOff, HOLIDAY_TYPES } from '../shared/holidays.js';
 import { workDates, genderAllows, needsCertificate, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, PORTIONS, portionDays, OPEN_REQUEST, REQUEST_KINDS, APPROVER_TYPES, APPROVAL_FLOWS } from '../shared/leave.js';
 import { parseUpload } from './attachments.js';
 import { routeRequest, decideStep, addHistory, canDecide, isCurrentApprover, isOnRoute, directReports, approvalSettings } from './approvals.js';
@@ -135,6 +136,13 @@ function overlaps(a, b) {
   return a.startDate <= b.endDate && b.startDate <= a.endDate;
 }
 
+// Why a date range has nothing to file: only rest days, or holidays (named).
+function noWorkDays(db, start, end) {
+  const off = (db.data.holidays || []).filter((h) => h.date >= start && h.date <= end && isDayOff(h));
+  if (!off.length) return 'There are no scheduled work days in that range.';
+  return `There are no work days to file in that range: ${off.map((h) => `${h.date} is ${h.name} (${HOLIDAY_TYPES[h.type].toLowerCase()})`).join('; ')}.`;
+}
+
 // Builds (or rebuilds, for a resubmission) a request from the form. Leave dates can be whole days
 // or a first or second half; days beyond the remaining credits go to Leave Without Pay when it is
 // offered (Sprout labels them "without pay"), otherwise the request is refused.
@@ -143,8 +151,8 @@ function buildRequest(db, employee, user, body, upload, { existingId = null, byH
   const { startDate, endDate } = body;
   if (!DATE_RE.test(startDate || '') || !DATE_RE.test(endDate || '')) throw new HttpError(400, 'Pick a start and end date.');
   if (endDate < startDate) throw new HttpError(400, 'The end date must be on or after the start date.');
-  const dates = workDates(employee, db.data.settings, startDate, endDate);
-  if (!dates.length) throw new HttpError(400, 'There are no scheduled work days in that range.');
+  const dates = workDates(employee, db.data.settings, startDate, endDate, db.data.holidays);
+  if (!dates.length) throw new HttpError(400, noWorkDays(db, startDate, endDate));
   if (dates.length > MAX_REQUEST_DAYS) throw new HttpError(400, `A request can cover at most ${MAX_REQUEST_DAYS} work days.`);
   const reason = String(body.reason || '').trim().slice(0, 500);
   const destination = String(body.destination || '').trim().slice(0, 200);
@@ -198,7 +206,7 @@ function buildRequest(db, employee, user, body, upload, { existingId = null, byH
 function approve(db, req, user) {
   const employee = db.data.employees.find((e) => e.id === req.employeeId);
   if (!employee) throw new HttpError(400, 'The employee record no longer exists.');
-  const breakdown = req.breakdown || workDates(employee, db.data.settings, req.startDate, req.endDate).map((date) => ({ date, portion: 'whole' }));
+  const breakdown = req.breakdown || workDates(employee, db.data.settings, req.startDate, req.endDate, db.data.holidays).map((date) => ({ date, portion: 'whole' }));
   const entryOn = (date) => db.data.timeEntries.find((e) => e.employeeId === employee.id && e.date === date);
 
   if (req.kind === 'leave') {
@@ -440,8 +448,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
     if (!DATE_RE.test(startDate || '') || !DATE_RE.test(endDate || '')) throw new HttpError(400, 'Pick a start and end date.');
     if (endDate < startDate) throw new HttpError(400, 'The end date must be on or after the start date.');
     if (startDate.slice(0, 4) !== endDate.slice(0, 4)) throw new HttpError(400, 'Record leave one calendar year at a time.');
-    const dates = workDates(emp, db.data.settings, startDate, endDate);
-    if (!dates.length) throw new HttpError(400, 'There are no scheduled work days in that range.');
+    const dates = workDates(emp, db.data.settings, startDate, endDate, db.data.holidays);
+    if (!dates.length) throw new HttpError(400, noWorkDays(db, startDate, endDate));
     if (dates.length > MAX_REQUEST_DAYS) throw new HttpError(400, `At most ${MAX_REQUEST_DAYS} work days at a time.`);
     const taken = db.data.timeEntries.filter((e) => e.employeeId === emp.id && dates.includes(e.date));
     if (taken.length) throw new HttpError(400, `Attendance is already recorded on ${taken.map((e) => e.date).sort().join(', ')}. Edit or remove those days in the DTR first.`);

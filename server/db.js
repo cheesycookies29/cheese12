@@ -1,11 +1,12 @@
 // Tiny JSON-file database. All data lives in data/db.json next to the app.
 import fs from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_SETTINGS, DEFAULT_RATES } from '../shared/calc.js';
+import { DEFAULT_SETTINGS, DEFAULT_RATES, premiumsOf } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
 import { emptyHelpdesk } from './helpdesk.js';
 import { emptyCrm } from './crm.js';
+import { initialHolidays } from './holidays.js';
 
 export function emptyData() {
   return {
@@ -20,6 +21,7 @@ export function emptyData() {
     leaveAccess: [], // per-employee: leave types given or taken away by an administrator
     leaveAdjustments: [], // per-employee, per-year +/- days with a reason
     requests: [], // leave and remote-work requests
+    holidays: initialHolidays(), // holiday calendar (server/holidays.js)
     assets: [], // IT assets tracked individually
     assetHistory: [], // assignment / status log per asset
     inventoryItems: [], // consumable stock
@@ -84,9 +86,14 @@ export function openDb(file) {
 }
 
 export function mergeSettings(settings = {}) {
+  // Before 0.10 overtime and rest-day work had one multiplier each; they now live in `premiums`.
+  const { overtimeMultiplier, restDayMultiplier, ...rest } = settings;
   return {
     ...structuredClone(DEFAULT_SETTINGS),
-    ...settings,
+    ...rest,
+    premiums: premiumsOf(settings),
+    nightDiff: { ...DEFAULT_SETTINGS.nightDiff, ...(settings.nightDiff || {}) },
+    holidayPay: { ...DEFAULT_SETTINGS.holidayPay, ...(settings.holidayPay || {}) },
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(settings.schedule || {}) },
     contributions: { ...DEFAULT_SETTINGS.contributions, ...(settings.contributions || {}) },
     location: { ...DEFAULT_LOCATION_SETTINGS, ...(settings.location || {}) },

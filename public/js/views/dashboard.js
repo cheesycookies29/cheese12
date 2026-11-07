@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { ctx, can, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, dayOfWeek } from '/shared/calc.js';
+import { holidaysOn } from './holidays.js';
 import { html, mount, money, fmtDate, fmtTime, fullName, badge, today } from '../ui.js';
 
 export async function dashboardView(el) {
@@ -14,6 +15,7 @@ export async function dashboardView(el) {
   const active = employees.filter((e) => e.status === 'Active');
   const entryFor = new Map(entries.map((e) => [e.employeeId, e]));
 
+  const holidayToday = holidaysOn(date).find((h) => h.type === 'regular' || h.type === 'special');
   const rows = active
     .map((emp) => {
       const sched = scheduleFor(emp, ctx.settings);
@@ -24,9 +26,10 @@ export async function dashboardView(el) {
       else if (entry?.remote && !entry.timeIn) status = badge('Remote work', 'blue');
       else if (entry && !entry.timeOut) status = badge(entry.remote ? 'Working remotely' : 'Working', 'green');
       else if (entry) status = badge('Done', 'gray');
+      else if (holidayToday) status = badge(holidayToday.name, 'maroon-soft');
       else if (scheduled) status = badge('Not in yet', 'amber');
       else status = badge('Rest day', 'gray');
-      const late = entry && entry.type === 'work' && entry.timeIn ? Math.max(0, computeEntry({ ...entry, timeOut: entry.timeOut || '23:59' }, sched, ctx.settings).lateMinutes) : 0;
+      const late = entry && entry.type === 'work' && entry.timeIn ? Math.max(0, computeEntry({ ...entry, timeOut: entry.timeOut || '23:59' }, sched, ctx.settings, holidaysOn(entry.date)).lateMinutes) : 0;
       return { emp, entry, status, late, scheduled };
     })
     .sort((a, b) => a.emp.lastName.localeCompare(b.emp.lastName));
@@ -34,7 +37,7 @@ export async function dashboardView(el) {
   const working = rows.filter((r) => r.entry?.type === 'work' && r.entry.timeIn && !r.entry.timeOut).length;
   const onLeave = rows.filter((r) => r.entry?.type === 'leave').length;
   const late = rows.filter((r) => r.late > 0).length;
-  const notIn = rows.filter((r) => r.scheduled && !r.entry).length;
+  const notIn = holidayToday ? 0 : rows.filter((r) => r.scheduled && !r.entry).length;
   const latest = runs[0];
   const depts = Object.entries(active.reduce((m, e) => ((m[e.department || 'Unassigned'] = (m[e.department || 'Unassigned'] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
   const maxDept = Math.max(1, ...depts.map((d) => d[1]));

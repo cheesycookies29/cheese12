@@ -74,7 +74,7 @@ export async function requestForm({ emp, balances, existing = null, onDone }) {
   const types = ctx.leaveTypes.filter((t) => t.active && offered.has(t.id));
   // Default to the next scheduled work day.
   const soon = (n) => new Date(Date.now() + n * 86400000).toLocaleDateString('en-CA');
-  const tomorrow = workDates(emp, ctx.settings, soon(1), soon(15))[0] || soon(1);
+  const tomorrow = workDates(emp, ctx.settings, soon(1), soon(15), ctx.holidays)[0] || soon(1);
   const start0 = existing?.startDate || tomorrow;
   const what0 = existing ? (existing.kind === 'leave' ? `leave:${existing.leaveTypeId}` : existing.kind) : `leave:${types[0]?.id || ''}`;
   const portions = Object.fromEntries((existing?.breakdown || []).filter((d) => d.portion !== 'whole').map((d) => [d.date, d.portion]));
@@ -126,7 +126,7 @@ export async function requestForm({ emp, balances, existing = null, onDone }) {
     const type = kind === 'leave' ? ctx.leaveTypes.find((t) => t.id === what.slice(6)) : null;
     const start = form.startDate.value;
     const end = form.endDate.value;
-    const dates = start && end && end >= start ? workDates(emp, ctx.settings, start, end) : [];
+    const dates = start && end && end >= start ? workDates(emp, ctx.settings, start, end, ctx.holidays) : [];
     const days = dates.reduce((n, d) => n + (kind === 'leave' ? portionDays(portions[d] || 'whole') : 1), 0);
     return { kind, type, dates, days, start, end };
   }

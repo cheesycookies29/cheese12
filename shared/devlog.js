@@ -27,6 +27,24 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.10.0-alpha',
+    date: '2026-11-07',
+    title: 'Holiday calendar, holiday and night premiums',
+    modules: ['hr'],
+    notes: 'Payroll now pays Philippine holidays, rest days and night work by the Labor Code and DOLE holiday pay rules. This is the first release from the Philippine compliance analysis.',
+    changes: [
+      ['new', 'hr', 'Holidays page: the 2026 and 2027 national holidays are loaded as proclaimed (Proclamations No. 1006 and 1427). HR adds Eid\'l Fitr, Eid\'l Adha and local holidays. Each is a regular holiday, special non-working day or special working day.'],
+      ['new', 'hr', 'Premium pay table in Payroll Setup: first 8 hours and overtime for ordinary days, rest days, special days, regular holidays and double holidays, alone or on a rest day. DOLE rates are the defaults and can be restored.'],
+      ['new', 'hr', 'Night shift differential: 10% of the applicable rate for each hour from 10 PM to 6 AM, including overtime. The meal break is not counted.'],
+      ['new', 'hr', 'Unworked holidays: a regular holiday is paid when the employee was present or on paid leave on the last working day before it. Monthly salaries already include it; daily-paid staff get a day\'s pay. Special days not worked are paid or not by company policy. Days before the first attendance record are not held against anyone.'],
+      ['new', 'hr', 'Daily-rate factor per employee (for example 313 for a 6-day week). Payroll Setup shows the factor that matches the default schedule.'],
+      ['improved', 'hr', 'Payslips list each premium with its hours and rate, and the holidays in the period. The payroll register shows the premiums together, and its export has separate Rest Day, Holiday and Night Differential columns.'],
+      ['improved', 'hr', 'Leave and work-from-home requests skip holidays, so they use no leave credits on them. The DTR and today\'s dashboard mark holidays, and the DTR export adds the day type and night shift minutes.'],
+      ['fixed', 'hr', 'Rest-day work beyond 8 hours is paid at the rest-day overtime rate (169%), not 130%. Unworked holidays are no longer counted as absences.'],
+    ],
+    known: ['Whether the night differential applies before or after the holiday overtime premium is to be confirmed with the accountant; CORE applies 10% to the rate of each hour.'],
+  },
+  {
     version: '0.9.0-alpha',
     date: '2026-11-06',
     title: 'Sprout-style leave and work-arrangement requests',

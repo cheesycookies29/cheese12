@@ -2,6 +2,7 @@
 import { api } from '../api.js';
 import { ctx, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
+import { holidaysOn, dayTag } from './holidays.js';
 import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS, modal, confirmDialog } from '../ui.js';
 import { statusBadge, kindBadge, dateRange, certificateCell } from './leave.js';
 import { requestForm, requestDetail, progressText } from '../requests.js';
@@ -17,7 +18,7 @@ function greeting() {
 
 function attendanceRows(entries, emp) {
   const schedule = scheduleFor(emp, ctx.settings);
-  return entries.map((e) => ({ entry: e, calc: computeEntry(e, schedule, ctx.settings) }));
+  return entries.map((e) => ({ entry: e, calc: computeEntry(e, schedule, ctx.settings, holidaysOn(e.date)) }));
 }
 
 function summary(rows) {
@@ -151,7 +152,7 @@ export async function meAttendanceView(el, _params, query) {
       ? html`<table class="table">
           <thead><tr><th>Date</th><th>In</th><th>Out</th><th class="num">Worked</th><th class="num">Late</th><th class="num">Undertime</th><th class="num">Overtime</th><th>Notes</th></tr></thead>
           <tbody>${rows.map(({ entry: e, calc: c }) => html`<tr>
-            <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${c.restDay ? html` ${badge('Rest day', 'gray')}` : ''}</td>
+            <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${dayTag(c)}</td>
             ${c.leave
               ? html`<td colspan="2">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
               : e.remote && !e.timeIn

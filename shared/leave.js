@@ -1,5 +1,6 @@
 // Leave types and request helpers. Shared by the server and the browser.
 import { eachDate, dayOfWeek, scheduleFor } from './calc.js';
+import { isDayOff } from './holidays.js';
 
 // annualCredits: days granted per calendar year; null = not tracked (no balance limit).
 // appliesTo (optional): 'all' (default) or 'selected' = only employees an administrator adds.
@@ -45,8 +46,10 @@ export const APPROVAL_FLOWS = { sequential: 'Sequential: level by level', parall
 export const DEFAULT_APPROVALS = { flow: 'sequential', levels: [{ type: 'supervisor' }, { type: 'hr' }] };
 export const LEVEL_STATUS = { waiting: 'Waiting', pending: 'For approval', approved: 'Approved', rejected: 'Rejected', returned: 'Returned', skipped: 'Skipped' };
 
-// Scheduled work days for an employee between two dates (inclusive).
-export function workDates(employee, settings, start, end) {
+// Scheduled work days for an employee between two dates (inclusive). Regular holidays and special
+// non-working days on the calendar are days off, so leave and remote work do not count them.
+export function workDates(employee, settings, start, end, holidays = []) {
   const schedule = scheduleFor(employee, settings);
-  return eachDate(start, end).filter((d) => schedule.workDays.includes(dayOfWeek(d)) && (!employee.hireDate || d >= employee.hireDate));
+  const off = new Set(holidays.filter(isDayOff).map((h) => h.date));
+  return eachDate(start, end).filter((d) => schedule.workDays.includes(dayOfWeek(d)) && (!employee.hireDate || d >= employee.hireDate) && !off.has(d));
 }

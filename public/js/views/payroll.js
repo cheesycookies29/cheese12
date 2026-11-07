@@ -59,11 +59,15 @@ export async function payrollListView(el) {
   });
 }
 
+// Overtime, rest-day, holiday and night-shift pay together (runs from before 0.10 have only the first two).
+const premiumTotal = (p) => p.earnings.overtimePay + p.earnings.restDayPay + (p.earnings.holidayPay || 0) + (p.earnings.nightDiffPay || 0);
+
 const REGISTER_COLUMNS = [
   ['Employee No', (p) => p.employee.employeeNo], ['Employee', (p) => p.employee.name], ['Department', (p) => p.employee.department],
   ['Days Present', (p) => p.attendance.daysPresent], ['Leave Days', (p) => p.attendance.leaveDays], ['Absences', (p) => p.attendance.absentDays],
   ['Late+UT (min)', (p) => p.attendance.lateMinutes + p.attendance.undertimeMinutes], ['OT (min)', (p) => p.attendance.overtimeMinutes + p.attendance.restDayMinutes],
-  ['Basic Pay', (p) => p.earnings.basicPay], ['Overtime Pay', (p) => p.earnings.overtimePay + p.earnings.restDayPay], ['Other Earnings', (p) => p.earnings.otherEarnings],
+  ['Basic Pay', (p) => p.earnings.basicPay], ['Overtime Pay', (p) => p.earnings.overtimePay], ['Rest Day Pay', (p) => p.earnings.restDayPay],
+  ['Holiday Pay', (p) => p.earnings.holidayPay || 0], ['Night Differential', (p) => p.earnings.nightDiffPay || 0], ['Other Earnings', (p) => p.earnings.otherEarnings],
   ['Gross Pay', (p) => p.grossPay], ['SSS', (p) => p.deductions.sss], ['PhilHealth', (p) => p.deductions.philhealth], ['Pag-IBIG', (p) => p.deductions.pagibig],
   ['Withholding Tax', (p) => p.deductions.withholdingTax], ['Other Deductions', (p) => p.deductions.otherDeductions], ['Allowance', (p) => p.allowance],
   ['Net Pay', (p) => p.netPay], ['Bank', (p) => p.employee.bankName], ['Account No', (p) => p.employee.bankAccount],
@@ -113,18 +117,18 @@ export async function payrollRunView(el, { id }) {
         <table class="table register">
           <thead><tr>
             <th>Employee</th><th class="num">Days</th><th class="num">Absent</th><th class="num">Late/UT</th><th class="num">OT</th>
-            <th class="num">Basic</th><th class="num">OT pay</th><th class="num">Other earn.</th><th class="num">Gross</th>
+            <th class="num">Basic</th><th class="num" title="Overtime, rest day, holiday and night shift pay">Premiums</th><th class="num">Other earn.</th><th class="num">Gross</th>
             <th class="num">SSS</th><th class="num">PhilHealth</th><th class="num">Pag-IBIG</th><th class="num">Tax</th><th class="num">Other ded.</th>
             <th class="num">Allowance</th><th class="num">Net pay</th><th></th>
           </tr></thead>
           <tbody>${run.payslips.map((p) => html`<tr>
             <td><strong>${p.employee.name}</strong><small>${p.employee.employeeNo}</small></td>
-            <td class="num">${p.attendance.daysPresent + p.attendance.leaveDays}/${p.attendance.scheduledDays}</td>
+            <td class="num">${p.attendance.daysPresent + p.attendance.leaveDays + (p.attendance.holidayDays || 0)}/${p.attendance.scheduledDays}</td>
             <td class="num ${p.attendance.absentDays ? 'warn' : ''}">${p.attendance.absentDays || '—'}</td>
             <td class="num">${fmtMinutes(p.attendance.lateMinutes + p.attendance.undertimeMinutes)}</td>
             <td class="num">${fmtMinutes(p.attendance.overtimeMinutes + p.attendance.restDayMinutes)}</td>
             <td class="num">${amount(p.earnings.basicPay)}</td>
-            <td class="num">${amount(p.earnings.overtimePay + p.earnings.restDayPay)}</td>
+            <td class="num">${amount(premiumTotal(p))}</td>
             <td class="num">${amount(p.earnings.otherEarnings)}</td>
             <td class="num"><strong>${amount(p.grossPay)}</strong></td>
             <td class="num">${amount(p.deductions.sss)}</td>
@@ -261,10 +265,11 @@ export function payslipCard(run, p, settings) {
           <thead><tr><th>Earnings</th><th class="num">Amount (PHP)</th></tr></thead>
           <tbody>
             ${row('Basic pay', p.earnings.basePay, { note: p.employee.payType === 'daily' ? `${a.daysPresent + a.leaveDays} day/s` : '' })}
-            ${optional('Less: absences', -p.earnings.absenceDeduction, { sub: true, note: `${a.absentDays} day/s${a.unpaidLeaveDays ? `, unpaid leave ${a.unpaidLeaveDays}` : ''}` })}
+            ${optional('Less: absences', -p.earnings.absenceDeduction, { sub: true, note: `${a.absentDays} day/s${a.unpaidLeaveDays ? `, unpaid leave ${a.unpaidLeaveDays}` : ''}${a.unpaidHolidayDays ? `, unpaid holiday ${a.unpaidHolidayDays}` : ''}` })}
             ${a.flex ? '' : optional('Less: late and undertime', -p.earnings.tardinessDeduction, { sub: true, note: fmtMinutes(a.lateMinutes + a.undertimeMinutes) })}
-            ${optional('Overtime', p.earnings.overtimePay, { note: fmtMinutes(a.overtimeMinutes) })}
-            ${optional('Rest day work', p.earnings.restDayPay, { note: fmtMinutes(a.restDayMinutes) })}
+            ${p.earnings.lines
+              ? p.earnings.lines.map((l) => row(l.label, l.amount, { note: `${l.minutes ? fmtMinutes(l.minutes) : `${l.days} day${l.days === 1 ? '' : 's'}`} × ${l.rateText}` }))
+              : html`${optional('Overtime', p.earnings.overtimePay, { note: fmtMinutes(a.overtimeMinutes) })}${optional('Rest day work', p.earnings.restDayPay, { note: fmtMinutes(a.restDayMinutes) })}`}
             ${optional('Other earnings', p.earnings.otherEarnings)}
           </tbody>
           <tfoot><tr><td>Gross pay</td><td class="num">${amount(p.grossPay)}</td></tr></tfoot>
@@ -303,9 +308,11 @@ export function payslipCard(run, p, settings) {
             <tr><td>Scheduled work days</td><td class="num">${a.scheduledDays}</td></tr>
             <tr><td>Days present${a.remoteDays ? html`<small>incl. ${a.remoteDays} remote</small>` : ''}</td><td class="num">${a.daysPresent}</td></tr>
             <tr><td>Paid leave</td><td class="num">${a.leaveDays}</td></tr>
-            <tr><td>Absences / unpaid leave</td><td class="num">${a.absentDays + a.unpaidLeaveDays}</td></tr>
+            ${a.holidays?.length ? html`<tr><td>Holidays${html`<small>${a.holidays.map((h) => `${fmtDate(h.date, { month: 'short', day: 'numeric' })} ${h.name}${h.worked ? ' (worked)' : h.paid ? '' : ' (not paid)'}`).join(' · ')}</small>`}</td><td class="num">${a.holidays.length}</td></tr>` : ''}
+            <tr><td>Absences / unpaid leave${a.unpaidHolidayDays ? html`<small>incl. ${a.unpaidHolidayDays} unpaid holiday${a.unpaidHolidayDays === 1 ? '' : 's'}</small>` : ''}</td><td class="num">${a.absentDays + a.unpaidLeaveDays + (a.unpaidHolidayDays || 0)}</td></tr>
             <tr><td>Late and undertime</td><td class="num">${a.flex ? 'Not applicable' : fmtMinutes(a.lateMinutes + a.undertimeMinutes) || '—'}</td></tr>
             <tr><td>Approved overtime</td><td class="num">${fmtMinutes(a.overtimeMinutes + a.restDayMinutes) || '—'}</td></tr>
+            ${a.nightMinutes ? html`<tr><td>Night shift hours<small>10 PM to 6 AM</small></td><td class="num">${fmtMinutes(a.nightMinutes)}</td></tr>` : ''}
           </tbody>
         </table>
         <table class="ps-table">

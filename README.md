@@ -175,7 +175,10 @@ The connection is not encrypted (plain `http`), so only do this on a network you
 | Absences | scheduled work days in the period that have no attendance record. Unpaid leave (e.g. Leave Without Pay) is deducted the same way |
 | Paid leave, remote work | counted as paid days. A remote day with no clock times counts as a full scheduled day |
 | Overtime | minutes after the end of the shift × hourly rate × 1.25. It must be **approved** in Attendance and last at least 30 minutes |
-| Rest day work | hours × hourly rate × 1.30 (approved only) |
+| Rest day work | the first 8 hours × 130%, each hour beyond × 169% (approved only) |
+| Holidays worked | special non-working day 130% (169% overtime), regular holiday 200% (260%), on a rest day 150% / 260%, double holiday 300%. On a scheduled work day the salary already covers 100%, so the payslip adds the premium. No late or undertime is counted on a holiday |
+| Holidays not worked | a regular holiday is paid if the employee was present, or on paid leave, on the last working day before it (monthly salaries already include it; daily-paid staff get a day's pay). Special days not worked are paid or not by company policy |
+| Night shift differential | 10% of the rate that applies to each hour worked from 10 PM to 6 AM (so 10% of 200% on a regular holiday) |
 | SSS | 2025 schedule: 5% employee and 10% employer share of the Monthly Salary Credit (₱5,000–₱35,000), plus EC |
 | PhilHealth | 5% of monthly basic salary (floor ₱10k, ceiling ₱100k), split 50/50 |
 | Pag-IBIG | 2% employee and 2% employer share, on a fund salary capped at ₱10,000 (max ₱200 each) |
@@ -183,12 +186,16 @@ The connection is not encrypted (plain `http`), so only do this on a network you
 | Allowance | monthly, non-taxable (de minimis), split across pay periods. Not paid, and no contributions deducted, in a period with no pay |
 
 In a semi-monthly payroll, contributions are split equally between the two cutoffs.
-To add bonuses, commissions, holiday pay, loans or cash advances, click **Adjust** on an employee's row in a draft payroll run.
+To add bonuses, commissions, loans or cash advances, click **Adjust** on an employee's row in a draft payroll run.
 A draft run can be recomputed after you edit attendance. Once you finalize it, it is locked.
 
-Pay frequency, multipliers, grace period, minimum overtime, which deductions apply, the SSS / PhilHealth / Pag-IBIG rates and the tax tables are all set in **Payroll Setup**. It has a **Try it** calculator to check deductions at any salary before saving, and a button to restore the 2025 government rates. Changes apply to new runs and to drafts when recomputed; finalized runs never change.
+Pay frequency, the daily-rate factor (work days per year; an employee can have their own), the holiday, rest-day and night premiums, the holiday rules, grace period, minimum overtime, which deductions apply, the SSS / PhilHealth / Pag-IBIG rates and the tax tables are all set in **Payroll Setup**. It has a **Try it** calculator to check deductions at any salary before saving, and a button to restore the 2025 government rates. Changes apply to new runs and to drafts when recomputed; finalized runs never change.
 
 **Check these rates against the latest SSS, PhilHealth, Pag-IBIG and BIR circulars before you rely on the payroll.** Government rates change.
+
+### Holidays
+
+**HR & Payroll → Holidays** is the calendar payroll uses. The 2026 holidays (Proclamation No. 1006) and 2027 holidays (Proclamation No. 1427) are loaded already; a year whose list CORE knows can be loaded again with one click if holidays were removed. Add **Eid'l Fitr** and **Eid'l Adha** when they are proclaimed, and any local holiday (with the city or province). Each holiday is a *regular holiday*, a *special non-working day* or a *special working day* (paid as an ordinary day). Leave and work-from-home requests skip regular holidays and special non-working days, so they do not use leave credits. The DTR marks holidays, and payslips list each premium with its hours and rate. Changing the calendar changes draft payroll runs when they are recomputed; finalized runs never change.
 
 ## Leave, work from home and official business
 
@@ -213,7 +220,7 @@ Administrators can manage one person's leave under **Leave & Requests → Employ
 
 ## Not included (yet)
 
-Holidays and holiday pay rates, night differential, 13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, email notifications to approvers, and an audit log.
+13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, email notifications to approvers, and an audit log.
 
 ## Put it online (cloud)
 

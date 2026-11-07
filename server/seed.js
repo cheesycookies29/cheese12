@@ -15,7 +15,7 @@ const PEOPLE = [
   ['Andrea', 'Villanueva', 'Lim', 'Accountant', 'Finance', 'monthly', 32000, 'Female', 'Single'],
   ['Mark', 'Bautista', 'Torres', 'Sales Associate', 'Sales', 'monthly', 22000, 'Male', 'Married'],
   ['Kristine', 'Mendoza', 'Aquino', 'Customer Support', 'Operations', 'monthly', 18000, 'Female', 'Single'],
-  ['Ramon', 'Castillo', 'Ramos', 'Warehouse Staff', 'Operations', 'daily', 695, 'Male', 'Married'],
+  ['Ramon', 'Castillo', 'Ramos', 'Warehouse Staff', 'Operations', 'daily', 755, 'Male', 'Married'],
 ];
 
 // Deterministic pseudo-random numbers so the demo looks the same every time.
@@ -76,9 +76,12 @@ export function demoData(codes = {}) {
   const start = new Date(Date.now() - 42 * 86400000);
   const from = localDate(start);
   const rand = rng(42);
+  // Holidays are days off, except at the warehouse, which stays open (so the demo shows holiday pay).
+  const daysOff = new Set(data.holidays.filter((h) => h.type === 'regular' || h.type === 'special').map((h) => h.date));
   for (const date of eachDate(from, today)) {
     if (![1, 2, 3, 4, 5].includes(dayOfWeek(date))) continue;
     for (const emp of data.employees) {
+      if (daysOff.has(date) && emp.payType !== 'daily') continue;
       const roll = rand();
       if (roll < 0.03) continue; // absent
       if (roll < 0.06) {
@@ -112,7 +115,7 @@ export function demoData(codes = {}) {
   for (const e of [juan, andrea, ramon]) e.supervisorId = maria.id;
   // Pending requests get their approval route when the demo accounts exist (server/demo.js).
   const request = (emp, kind, leaveTypeId, start, end, reason, status = 'pending', extra = {}) => {
-    const dates = workDates(emp, data.settings, start, end);
+    const dates = workDates(emp, data.settings, start, end, data.holidays);
     const breakdown = dates.map((date) => ({ date, portion: extra.portions?.[date] || 'whole' }));
     const days = breakdown.reduce((n, d) => n + (d.portion === 'whole' ? 1 : 0.5), 0);
     const filedAt = new Date().toISOString();

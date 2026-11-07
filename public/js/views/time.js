@@ -1,6 +1,8 @@
 import { api } from '../api.js';
 import { ctx, can, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
+import { holidaysOn, dayTag } from './holidays.js';
+import { DAY_TYPES } from '/shared/holidays.js';
 import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, WEEKDAYS } from '../ui.js';
 import { readClockLocation, LOCATION_NOTICE, locationPill, openLocation } from '../geo.js';
 import { LOCATION_STATUS, fmtDistance } from '/shared/geo.js';
@@ -204,7 +206,7 @@ export async function dtrView(el, _params, query) {
       .filter((e) => byId.has(e.employeeId))
       .map((e) => {
         const emp = byId.get(e.employeeId);
-        return { entry: e, emp, calc: computeEntry(e, scheduleFor(emp, ctx.settings), ctx.settings) };
+        return { entry: e, emp, calc: computeEntry(e, scheduleFor(emp, ctx.settings), ctx.settings, holidaysOn(e.date)) };
       });
     render();
   }
@@ -224,7 +226,7 @@ export async function dtrView(el, _params, query) {
       ? html`<table class="table">
           <thead><tr><th>Date</th><th>Employee</th><th>In</th><th>Out</th><th class="num">Worked</th><th class="num">Late</th><th class="num">Undertime</th><th class="num">Overtime</th>${seeLocation ? html`<th>Clock-in location</th>` : ''}<th>Notes</th><th></th></tr></thead>
           <tbody>${rows.map(({ entry: e, emp, calc: c }) => html`<tr>
-            <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${c.restDay ? html` ${badge('Rest day', 'gray')}` : ''}</td>
+            <td><strong>${fmtDate(e.date, { month: 'short', day: 'numeric' })}</strong> <small class="muted">${WEEKDAYS[new Date(e.date + 'T00:00').getDay()]}</small>${dayTag(c)}</td>
             <td>${fullName(emp)}${emp.flexTime ? html` <span class="flex-tag" title="Flexible time: no late or undertime">FLEX</span>` : ''}</td>
             ${c.leave
               ? html`<td colspan="2">${badge(leaveName(e), c.paidLeave ? 'blue' : 'gray')}${c.paidLeave ? '' : html` <small class="muted">unpaid</small>`}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>`
@@ -281,12 +283,12 @@ export async function dtrView(el, _params, query) {
 
   el.querySelector('#export').addEventListener('click', () => {
     const data = [
-      ['Date', 'Employee No', 'Employee', 'Type', 'Time In', 'Time Out', 'Worked (min)', 'Late (min)', 'Undertime (min)', 'Overtime (min)', 'OT Approved',
+      ['Date', 'Day Type', 'Holiday', 'Employee No', 'Employee', 'Type', 'Time In', 'Time Out', 'Worked (min)', 'Late (min)', 'Undertime (min)', 'Overtime (min)', 'Night Shift (min)', 'OT Approved',
         ...(seeLocation ? ['Clock-in Location', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from Office (m)'] : []), 'Notes'],
       ...rows.map(({ entry: e, emp, calc: c }) => {
         const g = e.clockInLocation;
         const where = !g ? '' : g.status !== 'ok' ? LOCATION_STATUS[g.status] : g.inside == null ? 'Recorded' : g.inside ? 'Within office radius' : e.remote ? 'Remote day' : `Outside office (${fmtDistance(g.distance)})`;
-        return [e.date, emp.employeeNo, fullName(emp), e.type === 'leave' ? leaveName(e) : e.remote ? 'Remote work' : 'Work', e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, e.otApproved ? 'Yes' : 'No',
+        return [e.date, DAY_TYPES[c.dayType], c.holiday || '', emp.employeeNo, fullName(emp), e.type === 'leave' ? leaveName(e) : e.remote ? 'Remote work' : 'Work', e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, c.nightMinutes + c.nightOvertimeMinutes, e.otApproved ? 'Yes' : 'No',
           ...(seeLocation ? [where, g?.lat ?? '', g?.lng ?? '', g?.accuracy ?? '', g?.distance ?? ''] : []), e.notes];
       }),
     ];
