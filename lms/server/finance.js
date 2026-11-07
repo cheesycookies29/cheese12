@@ -459,12 +459,12 @@ export function registerFinanceRoutes(route, ctx) {
   }
   route('GET', '/api/finance/cards', 'finance:finance.view', ({ query }) => {
     const q = String(query.q || '').toLowerCase();
-    const bal = fx.balances({ code: (c) => ['20101010', ACCT.dueOfficers].includes(c) || c.startsWith('19901') || c.startsWith('103') });
+    const bal = fx.balances({ code: (c) => /^(201|204)/.test(c) || c.startsWith('19901') || c.startsWith('103') });
     const byCard = {};
     for (const l of fx.lines({ code: (c) => c in bal })) {
       const k = (byCard[l.cardId] ||= { payable: 0, advances: 0, receivable: 0 });
       const v = round2(l.debit - l.credit);
-      if (l.code.startsWith('201')) k.payable = round2(k.payable - v);
+      if (/^(201|204)/.test(l.code)) k.payable = round2(k.payable - v); // payables and deposits held for the card (not amounts withheld for other agencies, 202)
       else if (l.code.startsWith('19901')) k.advances = round2(k.advances + v);
       else k.receivable = round2(k.receivable + v);
     }
@@ -639,7 +639,9 @@ export function registerFinanceRoutes(route, ctx) {
   });
   // Trial balance: every account with a balance, debit or credit column.
   function trialBalance({ fund, asOf, from, excludeClosing }) {
-    const b = fx.balances({ fund, to: asOf, from, exclude: excludeClosing ? (j) => j.source?.kind === 'closing' : undefined });
+    // Before closing entries: leave out only the closing of the year being shown (earlier years stay closed).
+    const closingOfYear = (j) => j?.source?.kind === 'closing' && String(j.source.year) === asOf.slice(0, 4);
+    const b = fx.balances({ fund, to: asOf, from, exclude: excludeClosing ? (j) => closingOfYear(j) || (j.reverses && closingOfYear(byId(data().finJournals, j.reverses))) : undefined });
     const rows = Object.entries(b).map(([code, x]) => {
       const net = round2(x.debit - x.credit);
       return { code, title: fx.accountTitle(code), uacs: `${code}00`, debit: net > 0 ? net : 0, credit: net < 0 ? -net : 0 };

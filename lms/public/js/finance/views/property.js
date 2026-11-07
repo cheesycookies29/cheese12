@@ -5,13 +5,14 @@ import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, badge, downloadFile, toCsv } from '../../ui.js';
+import { today as localDate } from '../../ui.js';
 import { fin, can, money, num, monthName, fundOptions, officeOptions, accountOptions, cardOptions, clickableRows, amt, infoGrid, printLink } from '../state.js';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDate(); // the browser's own date, not UTC
 const lastMonth = () => {
   const d = new Date();
   d.setDate(0);
-  return d.toISOString().slice(0, 7);
+  return localDate(d).slice(0, 7);
 };
 const statusBadge = (s) => badge({ 'in-stock': 'In stock', issued: 'Issued', returned: 'Returned', disposed: 'Disposed' }[s] || s, { 'in-stock': 'blue', issued: 'green', returned: 'amber', disposed: 'gray' }[s]);
 
@@ -132,13 +133,14 @@ export async function depreciationView(el, _p, query) {
 export async function propertyReportsView(el, _p, query) {
   const type = query.type === 'semi' ? 'semi' : 'ppe';
   const fund = query.fund || '';
-  const d = await api.get(`/api/finance/property-count?${new URLSearchParams({ type, fund })}`);
+  const asOf = query.asOf || today();
+  const d = await api.get(`/api/finance/property-count?${new URLSearchParams({ type, fund, asOf })}`);
   const title = type === 'ppe' ? 'Report on the Physical Count of Property, Plant and Equipment' : 'Report on the Physical Count of Semi-Expendable Property';
   const sig = fin.settings.signatories;
   mount(el, html`
     ${pageHead(type === 'ppe' ? 'RPCPPE' : 'RPCSP', `${title}${type === 'ppe' ? ' (GAM Appendix 74)' : ''}: the list the inventory committee counts against.`, html`<button class="btn" id="csv">${icon('download', 16)} CSV</button><button class="btn" onclick="print()">${icon('file', 16)} Print</button>`, ['/property', 'Property'])}
     <nav class="tabs">${[['ppe', 'PPE'], ['semi', 'Semi-expendable']].map(([k, l]) => html`<a href="#/property-reports?type=${k}" class="${k === type ? 'active' : ''}">${l}</a>`)}</nav>
-    <form class="toolbar" id="f"><input type="hidden" name="type" value="${type}" /><select name="fund">${fundOptions(fund, { all: true })}</select><button class="btn">Show</button></form>
+    <form class="toolbar" id="f"><input type="hidden" name="type" value="${type}" /><select name="fund">${fundOptions(fund, { all: true })}</select><label>As of <input type="date" name="asOf" value="${asOf}" /></label><button class="btn">Show</button></form>
     <div class="card"><div class="print-head"><strong>${fin.settings.entity.name}</strong><span>${title}</span><span>As of ${fmtDate(d.asOf)}${fund ? ` · fund ${fund}` : ''}</span></div>
       <div class="table-scroll"><table class="table compact"><thead><tr><th>Article / description</th><th>Property no.</th><th>Unit value</th><th>Custodian</th><th>Location</th><th>Per count</th><th>Shortage / overage</th><th>Remarks</th></tr></thead>
       <tbody>${d.groups.map((g) => html`<tr class="term-row"><td colspan="8">${g.code} · ${g.title} — ${g.items.length} item${g.items.length === 1 ? '' : 's'}, ${money(g.total)}</td></tr>${g.items.map((p) => html`<tr><td>${p.description}${p.serialNo ? html`<small>S/N ${p.serialNo}</small>` : ''}</td><td>${p.propertyNo}</td><td class="num">${num(p.cost)}</td><td>${p.custodianName || 'Supply office'}</td><td>${p.location || p.officeName || ''}</td><td></td><td></td><td></td></tr>`)}`)}</tbody>

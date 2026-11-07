@@ -98,7 +98,8 @@ export function registerSupplyRoutes(route, fx) {
   });
 
   // ----- Purchase requests -----
-  const prView = (p) => ({ ...p, officeName: fx.office(p.office)?.name || p.office, poNos: D().finPos.filter((o) => o.prId === p.id && o.status !== 'cancelled').map((o) => ({ id: o.id, no: o.no })) });
+  const stockNo = (itemId) => (itemId ? fx.byId(D().finItems, itemId)?.stockNo || '' : '');
+  const prView = (p) => ({ ...p, items: p.items.map((i) => ({ ...i, stockNo: stockNo(i.itemId) })), officeName: fx.office(p.office)?.name || p.office, poNos: D().finPos.filter((o) => o.prId === p.id && o.status !== 'cancelled').map((o) => ({ id: o.id, no: o.no })) });
   function lineItems(list, { cost = 'unitCost' } = {}) {
     const items = (Array.isArray(list) ? list : []).map((l) => {
       const item = l.itemId ? fx.byId(D().finItems, l.itemId) || fail('Stock item not found.') : null;
@@ -162,7 +163,7 @@ export function registerSupplyRoutes(route, fx) {
     ...o, supplierName: fx.cardName(o.supplierId), prNo: fx.byId(D().finPrs, o.prId)?.no || '',
     ors: o.orsId ? (({ id, no, status, form }) => ({ id, no, status, form }))(fx.byId(D().finObligations, o.orsId) || {}) : null,
     iars: D().finIars.filter((i) => i.poId === o.id).map((i) => ({ id: i.id, no: i.no, date: i.date, total: i.total, liquidatedDamages: i.liquidatedDamages })),
-    items: o.items.map((l) => ({ ...l, accountTitle: fx.accountTitle(l.code), objectCode: objectCode(l) })),
+    items: o.items.map((l) => ({ ...l, stockNo: stockNo(l.itemId), accountTitle: fx.accountTitle(l.code), objectCode: objectCode(l) })),
   });
   route('GET', '/api/finance/pos', 'finance:finance.view', ({ query }) => D().finPos.filter((o) => !query.status || o.status === query.status || (query.status === 'open' && ['approved', 'partial'].includes(o.status))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(poView));
   route('GET', '/api/finance/pos/:id', 'finance:finance.view', ({ params }) => poView(fx.byId(D().finPos, params.id) || fail('Purchase order not found.', 404)));
@@ -303,6 +304,7 @@ export function registerSupplyRoutes(route, fx) {
     });
     iar.journalId = j.id;
     o.status = o.items.every((l) => l.delivered >= l.qty - 1e-9) ? 'delivered' : 'partial';
+    iar.complete = o.status === 'delivered';
     D().finIars.push(iar);
     fx.audit(user, `Accepted delivery IAR ${iar.no} on PO ${o.no}: ₱${total.toLocaleString()}${daysLate ? ` (${daysLate} days late)` : ''}`, { kind: 'iar', ref: iar.id });
     save();
@@ -433,6 +435,10 @@ export function registerSupplyRoutes(route, fx) {
     const date = fx.date(body.asOf || fx.today());
     const fund = fx.fund(String(body.fund || S().funds[0]));
     const counts = body.counts || {};
+    fx.assertOpen(date);
+    if (date > fx.today()) fail('A count cannot be dated in the future.');
+    const latest = D().finStock.filter((m) => m.itemId in counts).map((m) => m.date).sort().at(-1);
+    if (latest && date < latest) fail(`Stock moved on ${latest}, after the count date. Record the count as of ${latest} or later (the cards must show what was on hand that day).`);
     const dr = {};
     const cr = {};
     const diffs = [];
@@ -468,7 +474,8 @@ export function registerSupplyRoutes(route, fx) {
 
   // ----- Property -----
   function registerProperty(p, user) {
-    const life = p.type === 'ppe' ? Number(p.life) || ppeClass(p.code)?.life || 5 : Number(p.life) || 0;
+    // Semi-expendable property carries the useful life of its PPE class too (printed on the ICS).
+    const life = Number(p.life) || ppeClass(p.type === 'ppe' ? p.code : p.code.replace(/^10405/, '10605').replace(/^10406/, '10607'))?.life || 5;
     const rec = {
       id: randomUUID(), propertyNo: p.propertyNo || fx.nextNo('property', { date: p.acquired }), type: p.type, description: text(p.description, 300), code: p.code,
       fund: p.fund, cost: round2(p.cost), acquired: p.acquired, life, residual: p.type === 'ppe' ? round2((p.cost * S().residualRate) / 100) : 0,
@@ -540,7 +547,8 @@ export function registerSupplyRoutes(route, fx) {
       if (params.action === 'issue' && p.status === 'issued') fail('Already issued; transfer it instead.');
       if (params.action === 'transfer' && p.status !== 'issued') fail('Only issued property is transferred.');
       if (params.action === 'transfer' && to.id === p.custodianId) fail('Already with that custodian.');
-      const docNo = fx.nextNo(params.action === 'issue' ? doc : 'ptr', { date });
+      const ptrNo = params.action === 'transfer' ? fx.nextNo('ptr', { date }) : '';
+      const docNo = fx.nextNo(doc, { date }); // the new custodian signs a new PAR/ICS
       if (params.action === 'issue' && p.type === 'semi' && !p.expensed) {
         const sc = SEMI_CLASSES.find((c) => c.code === p.code);
         fx.postJournal({ date, fund: p.fund, journal: 'GJ', user, particulars: `Issue of semi-expendable property ${p.propertyNo} to ${to.name}, ICS ${docNo}`, lines: [{ code: sc.expense, debit: p.cost, office: body.office || p.office }, { code: p.code, credit: p.cost }], source: { kind: 'ics', id: p.id } });
@@ -548,7 +556,7 @@ export function registerSupplyRoutes(route, fx) {
       }
       const from = fx.cardName(p.custodianId);
       Object.assign(p, { status: 'issued', custodianId: to.id, docNo, office: String(body.office || p.office || to.office || ''), location: text(body.location, 120) || p.location });
-      p.history.push({ date, action: params.action === 'issue' ? `Issued (${doc.toUpperCase()})` : `Transferred from ${from} (${p.type === 'ppe' ? 'PTR' : 'ITR'})`, docNo, to: to.name, by: user.name, note: text(body.reason, 300) });
+      p.history.push({ date, action: params.action === 'issue' ? `Issued (${doc.toUpperCase()})` : `Transferred from ${from} (${p.type === 'ppe' ? 'PTR' : 'ITR'} ${ptrNo}), new ${doc.toUpperCase()}`, docNo, to: to.name, by: user.name, note: text(body.reason, 300) });
     } else if (params.action === 'return') {
       if (p.status !== 'issued') fail('Only issued property is returned.');
       p.history.push({ date, action: 'Returned to the supply office', docNo: '', to: '', by: user.name, note: text(body.reason, 300) || `From ${fx.cardName(p.custodianId)}`, condition: text(body.condition, 60) });
@@ -636,11 +644,12 @@ export function registerSupplyRoutes(route, fx) {
   // ----- Reports: RPCPPE / RPCSP, register of semi-expendable property issued -----
   route('GET', '/api/finance/property-count', 'finance:finance.view', ({ query }) => {
     const type = query.type === 'semi' ? 'semi' : 'ppe';
-    const list = D().finProperty.filter((p) => p.type === type && p.status !== 'disposed' && (!query.fund || p.fund === query.fund)).map((p) => propertyView(p));
+    const asOf = query.asOf || fx.today();
+    const list = D().finProperty.filter((p) => p.type === type && p.acquired <= asOf && (p.status !== 'disposed' || p.disposal?.date > asOf) && (!query.fund || p.fund === query.fund)).map((p) => propertyView(p));
     const groups = {};
     for (const p of list) (groups[p.code] ||= { code: p.code, title: p.accountTitle, items: [], total: 0 }).items.push(p);
     for (const g of Object.values(groups)) g.total = sum(g.items, (p) => p.cost);
-    return { type, asOf: query.asOf || fx.today(), groups: Object.values(groups).sort((a, b) => a.code.localeCompare(b.code)), total: sum(list, (p) => p.cost), count: list.length };
+    return { type, asOf, groups: Object.values(groups).sort((a, b) => a.code.localeCompare(b.code)), total: sum(list, (p) => p.cost), count: list.length };
   });
 
   fx.ctx.financeSupply = {

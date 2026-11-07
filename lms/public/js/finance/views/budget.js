@@ -5,10 +5,13 @@ import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, downloadFile, toCsv } from '../../ui.js';
+import { today as localDate } from '../../ui.js';
 import { fundName, obligationForm, classOf } from '/shared/finance.js';
 import { fin, can, money, num, fy, fundOptions, officeOptions, papOptions, classOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, orsBadge, amt, infoGrid, printLink } from '../state.js';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDate(); // the browser's own date, not UTC
+// Who may prepare and change obligation requests (as the server allows).
+const preparer = () => ['finance.budget', 'finance.procure', 'finance.disburse', 'finance.accounts', 'finance.inventory'].some((p) => can(p));
 const papName = (code) => fin.settings.paps.find((p) => p.code === code)?.name || code;
 
 // ----- Appropriations, allotments and NCAs -----
@@ -24,6 +27,12 @@ export async function budgetView(el, _p, query) {
   ]);
   const edit = can('finance.budget');
   const reload = () => budgetView(el, _p, query);
+  // Go to a tab, or redraw when already on it (setting the same address does nothing).
+  const showTab = (t) => {
+    const h = `#/budget?tab=${t}&fy=${year}&fund=${fund}`;
+    if (location.hash === h) reload();
+    else location.hash = h;
+  };
   const sumOf = (l, k) => l.reduce((s, x) => s + x[k], 0);
   mount(el, html`
     ${pageHead('Appropriations and allotments', `Fiscal year ${year}. The authority to spend: appropriations (GAA, board-approved budgets) are released as allotments, which obligations are charged to.`, edit ? html`<button class="btn" id="add-ap">${icon('plus', 16)} Appropriation</button><button class="btn primary" id="add-al">${icon('plus', 16)} Allotment</button>${fin.settings.funds.includes('01') ? html`<button class="btn" id="add-nca">${icon('plus', 16)} NCA</button>` : ''}` : '')}
@@ -73,8 +82,7 @@ export async function budgetView(el, _p, query) {
     async onSubmit(form) {
       await api.post('/api/finance/appropriations', formData(form));
       toast('Appropriation recorded.');
-      location.hash = `#/budget?tab=appropriations&fy=${year}`;
-      reload();
+      showTab('appropriations');
     },
   }));
   el.querySelector('#add-al')?.addEventListener('click', () => modal({
@@ -83,7 +91,7 @@ export async function budgetView(el, _p, query) {
     async onSubmit(form) {
       await api.post('/api/finance/allotments', formData(form));
       toast('Allotment recorded.');
-      reload();
+      showTab('allotments');
     },
   }));
   el.querySelector('#add-nca')?.addEventListener('click', () => modal({
@@ -95,7 +103,7 @@ export async function budgetView(el, _p, query) {
     async onSubmit(form) {
       await api.post('/api/finance/ncas', formData(form));
       toast('NCA recorded.');
-      location.hash = '#/budget?tab=ncas';
+      showTab('ncas');
     },
   }));
 }
@@ -105,7 +113,7 @@ export async function obligationListView(el, _p, query) {
   const status = query.status ?? (can('finance.budget') ? 'pending' : '');
   const list = await api.get(`/api/finance/obligations?${new URLSearchParams({ status, q: query.q || '' })}`);
   mount(el, html`
-    ${pageHead('Obligation requests', 'ORS for the Regular Agency Fund (GAA), BURS for internally generated, trust and other funds. Box B certifies that the allotment is available and obligated.', html`<a class="btn primary" href="#/obligations/new">${icon('plus', 16)} New request</a>`)}
+    ${pageHead('Obligation requests', 'ORS for the Regular Agency Fund (GAA), BURS for internally generated, trust and other funds. Box B certifies that the allotment is available and obligated.', preparer() ? html`<a class="btn primary" href="#/obligations/new">${icon('plus', 16)} New request</a>` : '')}
     <nav class="tabs">${[['pending', 'For obligation'], ['draft', 'Drafts'], ['obligated', 'Obligated'], ['unpaid', 'Unpaid'], ['cancelled', 'Cancelled'], ['', 'All']].map(([v, l]) => html`<a href="#/obligations?status=${v}" class="${v === status ? 'active' : ''}">${l}</a>`)}</nav>
     <form class="toolbar" id="f"><input type="search" name="q" value="${query.q || ''}" placeholder="Number, payee or particulars" /><button class="btn">${icon('search', 16)} Find</button></form>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>Number</th><th>Payee</th><th>Particulars</th><th class="num">Obligated</th><th class="num">Unpaid</th><th>Status</th></tr></thead>
@@ -120,10 +128,10 @@ export async function obligationListView(el, _p, query) {
 
 export async function obligationFormView(el, _p, query) {
   const existing = query.id ? await api.get(`/api/finance/obligations/${query.id}`) : null;
-  const [chart, cards, als] = await Promise.all([fin.chart(), fin.cardList(), api.get(`/api/finance/allotments?fy=${fy()}`)]);
+  const [chart, cards, als] = await Promise.all([fin.chart(), fin.cardList(), api.get(`/api/finance/allotments?fy=${existing ? 'all' : fy()}`)]);
   const o = existing || { fund: query.fund || fin.settings.funds[0], payeeId: query.payeeId || '', date: today(), office: '', particulars: '', requestedBy: {}, lines: [] };
   const budgetable = (a) => ['PS', 'MOOE', 'FE', 'CO'].includes(classOf(a.code));
-  const alOptions = (v) => html`<option value="">Allotment…</option>${als.map((a) => option(a.id, `${a.fund} · ${a.ref} · ${a.cls} · ${num(a.balance)} left`, a.id === v))}`;
+  const alOptions = (v) => html`<option value="">Allotment…</option>${als.map((a) => option(a.id, `${a.fund} · ${a.ref}${a.continuing && a.fy !== fy() ? ` (continuing, ${a.fy})` : ''} · ${a.cls} · ${num(a.balance)} left`, a.id === v))}`;
   const cols = [
     { key: 'allotmentId', label: 'Allotment (fund · class · balance)', type: 'select', options: alOptions, width: '36%' },
     { key: 'code', label: 'Object code', type: 'select', options: (v) => accountOptions(chart, v, budgetable) },
@@ -179,11 +187,11 @@ export async function obligationView(el, params) {
   mount(el, html`
     ${pageHead(html`${o.form} ${o.no || '(draft)'} ${orsBadge(o)}`, `${o.payeeName} · fund ${o.fund} · ${fundName(o.fund)}`, html`
       ${o.status === 'obligated' ? printLink('ors', o.id) : ''}
-      ${o.status === 'draft' ? html`<a class="btn" href="#/obligations/new?id=${o.id}">${icon('edit', 16)} Edit</a>` : ''}
+      ${o.status === 'draft' && preparer() && !o.po ? html`<a class="btn" href="#/obligations/new?id=${o.id}">${icon('edit', 16)} Edit</a>` : ''}
       ${o.status === 'draft' && can('finance.budget') ? html`<button class="btn primary" id="obligate">Certify and obligate (Box B)</button>` : ''}
-      ${o.status === 'obligated' && o.unpaid > 0 && can('finance.disburse') ? html`<a class="btn primary" href="#/dvs/new?orsId=${o.id}">${icon('file', 16)} Prepare voucher</a>` : ''}
+      ${o.status === 'obligated' && o.unpaid > 0 && can('finance.disburse') ? (o.po ? html`<a class="btn primary" href="#/pos/${o.po.id}">${icon('truck', 16)} Pay through PO ${o.po.no}'s deliveries</a>` : html`<a class="btn primary" href="#/dvs/new?orsId=${o.id}">${icon('file', 16)} Prepare voucher</a>`) : ''}
       ${o.status === 'obligated' && can('finance.budget') ? html`<button class="btn" id="adjust">Adjust</button>` : ''}
-      ${o.status !== 'cancelled' && !o.dvs.some((d) => d.status !== 'cancelled') ? html`<button class="btn danger ghost" id="cancel">Cancel</button>` : ''}`, ['/obligations', 'Obligations'])}
+      ${o.status !== 'cancelled' && !o.dvs.some((d) => d.status !== 'cancelled') && (o.status === 'draft' ? preparer() : can('finance.budget')) ? html`<button class="btn danger ghost" id="cancel">Cancel</button>` : ''}`, ['/obligations', 'Obligations'])}
     <section class="card">${infoGrid([
       ['Date', fmtDate(o.obligatedDate || o.date)], ['Responsibility center', o.officeName || '—'], ['Particulars', o.particulars],
       ['Box A: requested by', [o.requestedBy?.name, o.requestedBy?.title].filter(Boolean).join(', ') || '—'], ['Box B: certified by', o.certifiedBy ? `${o.certifiedBy.name}, ${o.certifiedBy.title}` : '—'],
@@ -220,8 +228,9 @@ export async function budgetReportsView(el, _p, query) {
   const year = Number(query.fy) || fy();
   const fund = query.fund ?? (tab === 'raod' ? fin.settings.funds[0] : '');
   const cls = query.cls || 'MOOE';
+  const asOf = query.asOf || today();
   const url = { saaodb: '/api/finance/budget/saaodb', raod: '/api/finance/budget/raod', aging: '/api/finance/budget/aging', scbaa: '/api/finance/budget/scbaa' }[tab];
-  const d = await api.get(`${url}?${new URLSearchParams({ fy: year, fund, cls })}`);
+  const d = await api.get(`${url}?${new URLSearchParams({ fy: year, fund, cls, asOf })}`);
   const head = (title, sub) => html`<div class="print-head"><strong>${fin.settings.entity.name}</strong><span>${title}</span><span>${sub}</span></div>`;
   let body;
   let csv;
@@ -229,13 +238,18 @@ export async function budgetReportsView(el, _p, query) {
     body = html`${head('Statement of Appropriations, Allotments, Obligations, Disbursements and Balances (FAR No. 1)', `${d.fundName} · FY ${year}`)}
       <div class="table-scroll"><table class="table compact report"><thead><tr><th>PAP</th><th>Class</th><th class="num">Appropriations</th><th class="num">Allotments</th><th class="num">Obligations Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th><th class="num">Disbursements</th><th class="num">Unreleased appropriations</th><th class="num">Unobligated allotments</th><th class="num">Unpaid obligations</th></tr></thead>
       <tbody>${d.rows.map((r) => html`<tr><td>${r.pap}<small>${r.papName}</small></td><td>${r.cls}</td>${amt(r.appropriation)}${amt(r.allotment)}${r.obligations.map((x) => amt(x, { blankZero: true }))}${amt(r.totalDisbursements)}${amt(r.unreleased)}${amt(r.unobligated)}${amt(r.unpaid)}</tr>`)}</tbody>
-      <tfoot><tr><td colspan="2">Total</td>${amt(d.totals.appropriation, { strong: true })}${amt(d.totals.allotment, { strong: true })}<td colspan="4" class="num"><strong>${num(d.totals.totalObligations)}</strong></td>${amt(d.totals.totalDisbursements, { strong: true })}${amt(d.totals.unreleased, { strong: true })}${amt(d.totals.unobligated, { strong: true })}${amt(d.totals.unpaid, { strong: true })}</tr></tfoot></table></div>`;
-    csv = [['PAP', 'Class', 'Appropriations', 'Allotments', 'Obligations Q1', 'Q2', 'Q3', 'Q4', 'Disbursements', 'Unreleased', 'Unobligated', 'Unpaid'], ...d.rows.map((r) => [r.pap, r.cls, r.appropriation, r.allotment, ...r.obligations, r.totalDisbursements, r.unreleased, r.unobligated, r.unpaid])];
+      <tfoot><tr><td colspan="2">Total</td>${amt(d.totals.appropriation, { strong: true })}${amt(d.totals.allotment, { strong: true })}<td colspan="4" class="num"><strong>${num(d.totals.totalObligations)}</strong></td>${amt(d.totals.totalDisbursements, { strong: true })}${amt(d.totals.unreleased, { strong: true })}${amt(d.totals.unobligated, { strong: true })}${amt(d.totals.unpaid, { strong: true })}</tr></tfoot></table></div>
+      ${d.prior.length ? html`<h3 class="sub-h">Prior years' obligations: adjusted and paid in ${year}</h3><table class="table compact report"><thead><tr><th>PAP</th><th>Class</th><th class="num">Adjustments</th><th class="num">Paid Q1</th><th class="num">Q2</th><th class="num">Q3</th><th class="num">Q4</th><th class="num">Total paid</th></tr></thead>
+      <tbody>${d.prior.map((r) => html`<tr><td>${r.pap}<small>${r.papName}</small></td><td>${r.cls}</td>${amt(r.adjustments, { blankZero: true })}${r.disbursements.map((x) => amt(x, { blankZero: true }))}${amt(r.total)}</tr>`)}</tbody><tfoot><tr><td colspan="7">Total</td>${amt(d.totals.priorDisbursements, { strong: true })}</tr></tfoot></table>` : ''}`;
+    csv = [['PAP', 'Class', 'Appropriations', 'Allotments', 'Obligations Q1', 'Q2', 'Q3', 'Q4', 'Disbursements', 'Unreleased', 'Unobligated', 'Unpaid'], ...d.rows.map((r) => [r.pap, r.cls, r.appropriation, r.allotment, ...r.obligations, r.totalDisbursements, r.unreleased, r.unobligated, r.unpaid]),
+      ...(d.prior.length ? [[], [`Prior years' obligations: adjusted and paid in ${year}`], ['PAP', 'Class', 'Adjustments', 'Paid Q1', 'Q2', 'Q3', 'Q4', 'Total paid'], ...d.prior.map((r) => [r.pap, r.cls, r.adjustments, ...r.disbursements, r.total])] : [])];
   } else if (tab === 'raod') {
     body = html`${head(`Registry of Allotments, Obligations and Disbursements – ${d.classLabel}`, `${d.fundName} · FY ${year}`)}
       <div class="table-scroll"><table class="table compact report"><thead><tr><th>Date</th><th>Reference</th><th>Particulars</th><th>UACS</th><th class="num">Allotments</th><th class="num">Obligations</th><th class="num">Unobligated balance</th><th class="num">Disbursements</th><th class="num">Unpaid obligations</th></tr></thead>
       <tbody>${d.rows.map((r) => html`<tr><td>${fmtDate(r.date)}</td><td>${r.kind ? html`<a href="#/${r.kind === 'dv' ? 'dvs' : 'obligations'}/${r.id}">${r.ref}</a>` : r.ref}</td><td title="${r.particulars}">${r.particulars.length > 90 ? `${r.particulars.slice(0, 88)}…` : r.particulars}</td><td>${r.code}<small>${r.title}</small></td>${amt(r.allotment, { blankZero: true })}${amt(r.obligation, { blankZero: true })}${amt(r.unobligated)}${amt(r.disbursement, { blankZero: true })}${amt(r.unpaid)}</tr>`)}</tbody>
       <tfoot><tr><td colspan="4">Total</td>${amt(d.totals.allotment, { strong: true })}${amt(d.totals.obligations, { strong: true })}${amt(d.totals.unobligated, { strong: true })}${amt(d.totals.disbursements, { strong: true })}${amt(d.totals.unpaid, { strong: true })}</tr></tfoot></table></div>
+      ${d.prior.length ? html`<h3 class="sub-h">Earlier years' obligations: adjusted and paid in ${year}</h3><div class="table-scroll"><table class="table compact report"><thead><tr><th>Date</th><th>Reference</th><th>Obligation</th><th>Particulars</th><th>UACS</th><th class="num">Adjustment</th><th class="num">Disbursement</th></tr></thead>
+        <tbody>${d.prior.map((r) => html`<tr><td>${fmtDate(r.date)}</td><td><a href="#/${r.kind === 'dv' ? 'dvs' : 'obligations'}/${r.id}">${r.ref}</a></td><td>${r.obligationNo}</td><td>${r.particulars}</td><td>${r.code}<small>${r.title}</small></td>${amt(r.adjustment, { blankZero: true })}${amt(r.disbursement, { blankZero: true })}</tr>`)}</tbody></table></div>` : ''}
       ${d.codes.length ? html`<h3 class="sub-h">By object code</h3><table class="table compact"><thead><tr><th>Object code</th><th class="num">Obligations</th><th class="num">Disbursements</th></tr></thead><tbody>${d.codes.map((c) => html`<tr><td>${c.code} · ${c.title}</td>${amt(c.obligations)}${amt(c.disbursements)}</tr>`)}</tbody></table>` : ''}`;
     csv = [['Date', 'Reference', 'Particulars', 'Object code', 'Allotments', 'Obligations', 'Unobligated', 'Disbursements', 'Unpaid'], ...d.rows.map((r) => [r.date, r.ref, r.particulars, r.code, r.allotment, r.obligation, r.unobligated, r.disbursement, r.unpaid])];
   } else if (tab === 'aging') {
@@ -255,7 +269,7 @@ export async function budgetReportsView(el, _p, query) {
   mount(el, html`
     ${pageHead('Budget reports', 'Budget and Financial Accountability Reports (COA-DBM Joint Circular 2019-1) and the registries.', html`<button class="btn" id="csv">${icon('download', 16)} CSV</button><button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
     <nav class="tabs">${[['saaodb', 'SAAODB (FAR 1)'], ['raod', 'RAOD'], ['aging', 'Aging (FAR 3)'], ['scbaa', 'SCBAA']].map(([k, l]) => html`<a href="#/budget-reports?tab=${k}&fy=${year}" class="${k === tab ? 'active' : ''}">${l}</a>`)}</nav>
-    <form class="toolbar" id="f"><input type="hidden" name="tab" value="${tab}" /><input type="number" name="fy" value="${year}" style="width:110px" aria-label="Fiscal year" /><select name="fund">${fundOptions(fund, { all: tab !== 'raod' })}</select>${tab === 'raod' ? html`<select name="cls">${classOptions(cls)}</select>` : ''}<button class="btn">Show</button></form>
+    <form class="toolbar" id="f"><input type="hidden" name="tab" value="${tab}" />${tab === 'aging' ? html`<label>As of <input type="date" name="asOf" value="${asOf}" /></label>` : html`<input type="number" name="fy" value="${year}" style="width:110px" aria-label="Fiscal year" />`}<select name="fund">${fundOptions(fund, { all: tab !== 'raod' })}</select>${tab === 'raod' ? html`<select name="cls">${classOptions(cls)}</select>` : ''}<button class="btn">Show</button></form>
     <div class="card">${body}</div>`);
   el.querySelector('#f').onsubmit = (e) => {
     e.preventDefault();

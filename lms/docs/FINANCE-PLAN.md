@@ -86,6 +86,7 @@ Finance accounts sign in on the ATLAS home page. They are on the HR side, so the
 
 **Allotments**
 - GARO/ABM, SARO, sub-allotments, board approvals, each against its appropriation.
+- Allotments under a continuing appropriation carry their unobligated balance into the next year, where they can still be obligated.
 - An allotment cannot exceed the unreleased appropriation.
 
 **NCAs (fund 01)**
@@ -100,9 +101,10 @@ Finance accounts sign in on the ATLAS home page. They are on the HR side, so the
 - Status of obligation per line: obligated, disbursed, on vouchers, balance.
 
 **Reports**
+- Every report counts obligations, adjustments and payments in the year and quarter they happened. Earlier years' obligations paid or adjusted this year are shown in their own section.
 - SAAODB, FAR No. 1 (Appendix 17): by PAP and class, obligations by quarter, disbursements, unreleased appropriations, unobligated allotments, unpaid obligations.
 - RAOD per class (Appendix 9-A to D): chronological, with running unobligated and unpaid balances, and a recap by object code.
-- Aging of due and demandable obligations, FAR No. 3 (Appendix 22), in age buckets.
+- Aging of due and demandable obligations, FAR No. 3 (Appendix 22), in age buckets, as of any date.
 - SCBAA: original budget, final budget, actual (obligations).
 
 ### Inventory
@@ -224,7 +226,7 @@ Finance accounts sign in on the ATLAS home page. They are on the HR side, so the
 - The deposit is recorded with the validated deposit slip: Dr Cash in Bank / Cr Cash – Collecting Officers.
 - Undeposited reports past the deposit deadline are flagged.
 
-**Revenue monitoring**: income by account and month against targets set by the budget or revenue office (the basis of FAR No. 5).
+**Revenue monitoring**: the school's own income by account and month against targets set by the budget or revenue office (the basis of FAR No. 5). Subsidies from the national government and other agencies are not counted as collections.
 
 ### Control Panel
 

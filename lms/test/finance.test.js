@@ -398,3 +398,74 @@ test('review fixes: no double payment, obligations follow deliveries, all-or-not
   await f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.employee.id, orsId: ors2.id, kind: 'advance', advanceType: 'travel', gross: 1000, particulars: 'Advance 1' });
   await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.employee.id, orsId: ors2.id, kind: 'advance', advanceType: 'travel', gross: 1000, particulars: 'Advance 2' }), /unsettled cash advance/);
 });
+
+test('QA pass 3: reports by the year things happened, aging as of a date, own-source revenue, deposits on cards, voids after remittance', async () => {
+  const env = setup({ today: '2027-02-15' });
+  const f = await office(env);
+  const b = await funds(f);
+  // Obligated in August 2026, reduced in November, paid in January 2027.
+  const ors = await f.budget.post('/api/finance/obligations', { fund: '01', payeeId: f.janitor.id, particulars: 'Janitorial, Aug–Dec 2026', lines: [{ allotmentId: b.al.id, code: '50212020', amount: 10000 }] });
+  await f.budget.post(`/api/finance/obligations/${ors.id}/obligate`, { date: '2026-08-01' });
+  await f.budget.post(`/api/finance/obligations/${ors.id}/adjust`, { line: 0, amount: -2000, reason: 'Fewer personnel', date: '2026-11-10' });
+  const dv = await f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, orsId: ors.id, gross: 8000, nature: 'services', mode: 'check', particulars: 'Janitorial', date: '2027-01-10', submit: true });
+  await f.acct.post(`/api/finance/dvs/${dv.id}/certify`, { docsComplete: true, date: '2027-01-12' });
+  await f.head.post(`/api/finance/dvs/${dv.id}/approve`);
+  await f.cash.post(`/api/finance/dvs/${dv.id}/pay`, { checkNo: '5001', date: '2027-01-15' });
+  const s26 = await f.budget.get('/api/finance/budget/saaodb?fy=2026&fund=01');
+  const row = s26.rows.find((r) => r.cls === 'MOOE');
+  assert.deepEqual(row.obligations, [0, 0, 10000, -2000], 'the adjustment counts in its own quarter');
+  assert.deepEqual([row.totalDisbursements, row.unpaid], [0, 8000], 'the 2027 payment is not a 2026 disbursement');
+  const s27 = await f.budget.get('/api/finance/budget/saaodb?fy=2027&fund=01');
+  assert.equal(s27.totals.priorDisbursements, 8000, 'shown as a prior year\'s obligation paid in 2027');
+  const raod = await f.budget.get('/api/finance/budget/raod?fy=2026&fund=01&cls=MOOE');
+  assert.ok(raod.rows.every((r) => r.date.startsWith('2026')));
+  assert.equal((await f.budget.get('/api/finance/budget/aging?asOf=2026-12-31&fund=01')).total, 8000);
+  assert.equal((await f.budget.get('/api/finance/budget/aging?asOf=2027-02-15&fund=01')).total, 0);
+  // Continuing appropriations can be obligated the next year; ordinary ones cannot.
+  await assert.rejects(f.budget.post('/api/finance/obligations', { fund: '01', payeeId: f.janitor.id, particulars: 'x', lines: [{ allotmentId: b.al.id, code: '50212020', amount: 100 }] }).then((o) => f.budget.post(`/api/finance/obligations/${o.id}/obligate`)), /is for 2026/);
+  const cont = await f.budget.post('/api/finance/appropriations', { fy: 2026, fund: '01', pap: '310100100001000', cls: 'MOOE', kind: 'GAA – Continuing appropriations', ref: 'GAA 2026 (continuing)', amount: 50000 });
+  const cal = await f.budget.post('/api/finance/allotments', { fy: 2026, fund: '01', pap: '310100100001000', cls: 'MOOE', ref: 'GARO cont.', amount: 50000, appropriationId: cont.id, date: '2026-12-01' });
+  const o2 = await f.budget.post('/api/finance/obligations', { fund: '01', payeeId: f.janitor.id, particulars: 'Continuing', lines: [{ allotmentId: cal.id, code: '50212020', amount: 100 }] });
+  assert.equal((await f.budget.post(`/api/finance/obligations/${o2.id}/obligate`)).status, 'obligated');
+  // Taxes remitted for January: the January payment can no longer be voided.
+  await f.cash.post('/api/finance/remittances', { month: '2027-01', fund: '01', ref: 'TRA-2701' });
+  await assert.rejects(f.acct.post(`/api/finance/dvs/${dv.id}/void-payment`, { reason: 'spoiled' }), /already remitted/);
+  // Closing 2026; the pre-closing trial balance of 2027 does not reopen 2026.
+  await f.acct.post('/api/finance/closing', { year: 2026, fund: '01' });
+  const tb = await f.acct.get('/api/finance/trial-balance?fund=01&asOf=2027-01-31&kind=pre-closing');
+  assert.equal(tb.rows.find((r) => r.code === '40301010'), undefined, '2026 subsidy stays closed');
+  assert.equal(tb.debit, tb.credit);
+  // Own-source revenue: subsidies and trust deposits are not collections.
+  await f.acct.put('/api/finance/settings', { fiscalYear: 2027 });
+  const cashierId = f.users.find((u) => u.username === 'cash').id;
+  await f.cash.post('/api/finance/booklets', { from: 1, to: 50, fund: '05', collectorId: cashierId });
+  await f.cash.post('/api/finance/receipts', { fund: '05', payorName: 'Bicol Office Depot', payorCardId: f.supplier.id, lines: [{ code: '40202010', amount: 5000, description: 'Fees' }, { code: '20401040', amount: 20000, description: 'Bid security' }] });
+  await f.cash.post('/api/finance/rcds', { fund: '05' });
+  assert.equal((await f.acct.get('/api/finance/revenue?fy=2027')).totals.actual, 5000);
+  assert.equal((await f.acct.get('/api/finance/dashboard')).revenue.total, 5000);
+  assert.equal((await f.acct.get('/api/finance/cards?kind=supplier')).find((c) => c.id === f.supplier.id).payable, 20000, 'the bid security held shows on the card');
+  // Property as of a date; a transfer gives the new custodian a new PAR; semi-expendable items carry a useful life.
+  const gen = await f.supply.post('/api/finance/property', { type: 'ppe', code: '10605010', description: 'Generator', cost: 150000, acquired: '2026-03-10', fund: '01' });
+  assert.equal((await f.acct.get('/api/finance/property-count?type=ppe&asOf=2026-02-28')).count, 0);
+  assert.equal((await f.acct.get('/api/finance/property-count?type=ppe&asOf=2026-12-31')).count, 1);
+  const issued = await f.supply.post(`/api/finance/property/${gen.id}/issue`, { custodianId: f.employee.id });
+  const moved = await f.supply.post(`/api/finance/property/${gen.id}/transfer`, { custodianId: f.officer.id, reason: 'Reassigned' });
+  assert.notEqual(moved.docNo, issued.docNo);
+  assert.match(moved.history.at(-1).action, /PTR \d{4}-\d{2}-\d{4}\), new PAR/);
+  assert.equal((await f.supply.post('/api/finance/property', { type: 'semi', code: '10405030', description: 'Printer', cost: 9000, acquired: '2027-01-05', fund: '01' })).life, 5);
+  // The 2027 registry shows what happened this year to 2026 obligations; adjustments cannot predate their obligation.
+  const raod27 = await f.budget.get('/api/finance/budget/raod?fy=2027&fund=01&cls=MOOE');
+  assert.deepEqual(raod27.prior.map((r) => [r.date, r.disbursement]), [['2027-01-15', 8000]]);
+  await assert.rejects(f.budget.post(`/api/finance/obligations/${ors.id}/adjust`, { line: 0, amount: 100, reason: 'x', date: '2026-07-01' }), /on or after the obligation/);
+  await assert.rejects(f.budget.post(`/api/finance/obligations/${ors.id}/adjust`, { line: 0, amount: 100, reason: 'x', date: '2027-03-01' }), /future/);
+  // The continuing allotment is carried into 2027: listed for obligations, and counted in the 2027 SAAODB.
+  const al27 = await f.budget.get('/api/finance/allotments?fy=2027&fund=01');
+  assert.deepEqual(al27.map((a) => [a.ref, a.continuing, a.balance]), [['GARO cont.', true, 49900]]);
+  const s27b = await f.budget.get('/api/finance/budget/saaodb?fy=2027&fund=01');
+  const cRow = s27b.rows.find((r) => r.cls === 'MOOE');
+  assert.deepEqual([cRow.allotment, cRow.totalObligations, cRow.unobligated, cRow.unreleased], [50000, 100, 49900, 0]);
+  // Amounts withheld for other agencies (202) are not payable to the payee.
+  const gsis = await f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, gross: 900, particulars: 'Remit', debits: [{ code: '20201020', amount: 900 }], mode: 'check' });
+  assert.equal(gsis.status, 'draft');
+  assert.equal((await f.acct.get('/api/finance/cards?kind=supplier')).find((c) => c.id === f.janitor.id).payable, 0);
+});

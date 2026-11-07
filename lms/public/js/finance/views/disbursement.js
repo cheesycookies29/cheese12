@@ -5,9 +5,10 @@ import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, badge, downloadFile, toCsv } from '../../ui.js';
+import { today as localDate } from '../../ui.js';
 import { fin, can, money, num, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, dvBadge, amt, infoGrid, printLink } from '../state.js';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDate(); // the browser's own date, not UTC
 const lastMonth = () => {
   const d = new Date();
   d.setDate(0);
@@ -187,17 +188,29 @@ export async function lddapView(el) {
     ${list.length ? html`<div class="card"><table class="table"><thead><tr><th>LDDAP-ADA no.</th><th>Date</th><th>Fund</th><th class="num">Vouchers</th><th class="num">Total</th><th></th></tr></thead>
       <tbody>${list.map((l) => html`<tr><td><strong>${l.no}</strong></td><td>${fmtDate(l.date)}</td><td>${l.fund}</td><td class="num">${l.dvs.length}</td>${amt(l.total)}<td class="row-actions">${printLink('lddap', l.id)}</td></tr>`)}</tbody></table></div>`
       : html`<div class="card empty">${icon('bank', 40)}<h2>No LDDAP-ADAs</h2><p>Approved vouchers with mode "LDDAP-ADA" are listed here for payment.</p></div>`}`);
-  el.querySelector('#new')?.addEventListener('click', () => modal({
-    title: 'New LDDAP-ADA', wide: true, submitLabel: 'Issue',
-    body: html`<label class="field"><span>Date</span><input type="date" name="date" value="${today()}" /></label>
-      <table class="table compact"><thead><tr><th></th><th>DV</th><th>Payee</th><th>Bank account</th><th class="num">Net</th></tr></thead><tbody>${ada.map((d) => html`<tr><td><input type="checkbox" name="dv" value="${d.id}" checked aria-label="Include" /></td><td>${d.no} · fund ${d.fund}</td><td>${d.payee.name}</td><td>${d.payee.bankName || ''} ${d.payee.bankAccount || html`<span class="badge red">None</span>`}</td>${amt(d.net)}</tr>`)}</tbody></table>
-      <p class="muted small">One list per fund cluster. Posts each voucher's entry in the Cash Disbursements Journal.</p>`,
-    async onSubmit(form) {
-      const l = await api.post('/api/finance/lddaps', { date: form.date.value, dvIds: [...form.querySelectorAll('input[name=dv]:checked')].map((i) => i.value) });
-      toast(`LDDAP-ADA ${l.no} issued.`);
-      lddapView(el);
-    },
-  }));
+  // One list per fund cluster: the dialog shows one fund's approved ADA vouchers at a time.
+  const funds = [...new Set(ada.map((d) => d.fund))];
+  el.querySelector('#new')?.addEventListener('click', () => {
+    const m = modal({
+      title: 'New LDDAP-ADA', wide: true, submitLabel: 'Issue',
+      body: html`<div class="grid two"><label class="field"><span>Fund cluster</span><select name="fund">${funds.map((f) => option(f, `${f} · ${ada.filter((d) => d.fund === f).length} voucher(s)`))}</select></label><label class="field"><span>Date</span><input type="date" name="date" value="${today()}" /></label>
+        <label class="field span-2"><span>MDS-GSB branch / account debited</span><select name="bankId"><option value="">Not recorded</option>${fin.settings.bankAccounts.map((b) => html`<option value="${b.id}" data-fund="${b.fund}">${b.name} ${b.number}</option>`)}</select></label></div>
+        <table class="table compact"><thead><tr><th></th><th>DV</th><th>Payee</th><th>Bank account</th><th class="num">Net</th></tr></thead><tbody>${ada.map((d) => html`<tr data-fund="${d.fund}"><td><input type="checkbox" name="dv" value="${d.id}" checked aria-label="Include" /></td><td>${d.no} · fund ${d.fund}</td><td>${d.payee.name}</td><td>${d.payee.bankName || ''} ${d.payee.bankAccount || html`<span class="badge red">None</span>`}</td>${amt(d.net)}</tr>`)}</tbody></table>
+        <p class="muted small">Posts each voucher's entry in the Cash Disbursements Journal.</p>`,
+      async onSubmit(form) {
+        const l = await api.post('/api/finance/lddaps', { date: form.date.value, bankId: form.bankId.value || null, dvIds: [...form.querySelectorAll('tr:not([hidden]) input[name=dv]:checked')].map((i) => i.value) });
+        toast(`LDDAP-ADA ${l.no} issued.`);
+        lddapView(el);
+      },
+    });
+    const showFund = () => {
+      m.form.querySelectorAll('tr[data-fund]').forEach((tr) => (tr.hidden = tr.dataset.fund !== m.form.fund.value));
+      m.form.querySelectorAll('select[name=bankId] option[data-fund]').forEach((o) => (o.hidden = o.disabled = o.dataset.fund !== m.form.fund.value));
+      if (m.form.bankId.selectedOptions[0]?.disabled) m.form.bankId.value = '';
+    };
+    m.form.fund.addEventListener('change', showFund);
+    showFund();
+  });
 }
 
 // ----- Cash advances -----
@@ -218,7 +231,7 @@ export async function advancesView(el, _p, query) {
     const dv = await api.get(`/api/finance/dvs/${a.id}`);
     const ors = dv.ors ? await api.get(`/api/finance/obligations/${dv.ors.id}`) : null;
     const codes = new Set((ors?.lines || []).map((l) => l.code));
-    const receipts = (await api.get('/api/finance/receipts?unreported=')).filter((r) => r.status === 'issued' && r.payorCard === a.payee);
+    const receipts = (await api.get('/api/finance/receipts?unreported=')).filter((r) => r.status === 'issued' && r.payorCardId === a.payeeId);
     const m = modal({
       title: `Liquidation of ${a.no}`, subtitle: `${a.payee} · outstanding ${money(a.outstanding)}`, wide: true, submitLabel: 'Post liquidation',
       body: html`<label class="field"><span>Date</span><input type="date" name="date" value="${today()}" /></label>

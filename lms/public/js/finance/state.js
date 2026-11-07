@@ -2,7 +2,7 @@
 // of accounts and the card file (cached), what the signed-in person may do, and form helpers.
 import { api } from '../api.js';
 import { ctx } from '../shell.js';
-import { html, badge, option } from '../ui.js';
+import { html, badge, option, today as localToday } from '../ui.js';
 import { icon } from '../icons.js';
 import { peso, fundName, ORS_STATUS, DV_STATUS, PR_STATUS, PO_STATUS, RIS_STATUS } from '/shared/finance.js';
 
@@ -33,7 +33,7 @@ export const isStudent = () => ctx.user?.role === 'student';
 export const money = (n) => peso(n);
 export const num = (n) => (Number(n) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fy = () => fin.settings?.fiscalYear || new Date().getFullYear();
-export const thisMonth = () => new Date().toISOString().slice(0, 7);
+export const thisMonth = () => localToday().slice(0, 7); // local date, not UTC
 export const monthName = (ym) => (ym ? new Date(`${ym}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' }) : '');
 
 // ----- Selects -----
@@ -73,7 +73,7 @@ export function linesTable(id, cols, rows, { min = 1, addLabel = 'Add line', tot
   const list = rows.length ? rows : Array.from({ length: min }, () => ({}));
   return html`<div class="lines" id="${id}" data-min="${min}">
     <div class="table-scroll"><table class="table compact lines-table">
-      <thead><tr>${cols.map((c) => html`<th class="${c.type === 'number' ? 'num' : ''}" style="${c.width ? `width:${c.width}` : ''}">${c.label}</th>`)}<th class="x"></th></tr></thead>
+      <thead><tr>${cols.map((c) => html`<th class="${c.type === 'number' ? 'num' : ''}" style="${c.type === 'hidden' ? 'display:none' : c.width ? `width:${c.width}` : ''}">${c.label}</th>`)}<th class="x"></th></tr></thead>
       <tbody>${list.map((r) => lineRow(cols, r))}</tbody>
       ${total ? html`<tfoot><tr><td colspan="${cols.length + 1}" class="num lines-total"></td></tr></tfoot>` : ''}
     </table></div>
@@ -82,11 +82,11 @@ export function linesTable(id, cols, rows, { min = 1, addLabel = 'Add line', tot
   </div>`;
 }
 function lineRow(cols, r) {
-  return html`<tr data-line>${cols.map((c) => html`<td class="${c.type === 'number' ? 'num' : ''}" data-label="${c.label}">${
+  return html`<tr data-line>${cols.map((c) => (c.type === 'hidden' ? html`<td style="display:none"><input type="hidden" data-k="${c.key}" value="${r[c.key] ?? ''}" /></td>` : html`<td class="${c.type === 'number' ? 'num' : ''}" data-label="${c.label}">${
     c.type === 'select'
       ? html`<select data-k="${c.key}">${c.options(r[c.key])}</select>`
       : html`<input data-k="${c.key}" type="${c.type === 'number' ? 'number' : 'text'}" ${c.type === 'number' ? html`step="${c.step || '0.01'}" min="0" inputmode="decimal"` : ''} value="${r[c.key] ?? ''}" placeholder="${c.placeholder || ''}" />`
-  }</td>`)}<td class="x"><button type="button" class="icon-btn" data-remove-line aria-label="Remove line">×</button></td></tr>`;
+  }</td>`))}<td class="x"><button type="button" class="icon-btn" data-remove-line aria-label="Remove line">×</button></td></tr>`;
 }
 // Wire add/remove and a running total. totalOf(rows) → text.
 export function wireLines(root, id, totalOf) {

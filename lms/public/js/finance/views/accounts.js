@@ -4,10 +4,11 @@ import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, confirmDialog, downloadFile, toCsv } from '../../ui.js';
+import { today as localDate } from '../../ui.js';
 import { fundName } from '/shared/finance.js';
 import { fin, can, money, num, fy, thisMonth, monthName, fundOptions, officeOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, jevBadge, amt, printLink } from '../state.js';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDate(); // the browser's own date, not UTC
 const journalLabel = (k) => fin.settings.journals.find(([v]) => v === k)?.[1] || k;
 
 // ----- Journal entries -----

@@ -44,6 +44,14 @@ export function registerBudgetRoutes(route, fx) {
     const used = allotmentUsed(a);
     return { ...a, classLabel: ALLOTMENT_CLASSES.find((c) => c.id === a.cls)?.label, obligated: used, balance: round2(a.amount - used), papName: fx.S().paps.find((p) => p.code === a.pap)?.name || '' };
   };
+  // Allotments under continuing appropriations stay available in later years: what is left at the start of `year`.
+  const isContinuing = (a) => Boolean(fx.byId(D().finAppropriations, a.appropriationId)?.kind.includes('Continuing'));
+  function carried(year, fund) {
+    return D().finAllotments.filter((a) => a.fy < year && (!fund || a.fund === fund) && isContinuing(a)).map((a) => {
+      const before = sum(D().finObligations.filter((o) => o.status === 'obligated' && (o.obligatedDate || o.date) < `${year}-01-01`).flatMap((o) => o.lines.map((l, i) => ({ o, l, i }))).filter(({ l }) => l.allotmentId === a.id), ({ o, i }) => obligatedBy(o, i, `${year - 1}-12-31`));
+      return { a, amount: round2(a.amount - before) };
+    }).filter((x) => x.amount > 0);
+  }
   const appropriationAllotted = (ap) => sum(D().finAllotments.filter((a) => a.appropriationId === ap.id), (a) => a.amount);
   const appropriationView = (ap) => ({ ...ap, allotted: appropriationAllotted(ap), unreleased: round2(ap.amount - appropriationAllotted(ap)), papName: fx.S().paps.find((p) => p.code === ap.pap)?.name || '' });
 
@@ -57,6 +65,10 @@ export function registerBudgetRoutes(route, fx) {
       lines: o.lines.map((l, i) => ({ ...l, title: fx.accountTitle(l.code), uacs: coObject(l.code), obligated: lineObligated(l), disbursed: paid[i], pending: pending[i], available: round2(lineObligated(l) - paid[i] - pending[i]), allotmentRef: fx.byId(D().finAllotments, l.allotmentId)?.ref || '' })),
     };
     if (detail) {
+      // Payable: what is due to the payee — accepted deliveries for a purchase order, otherwise what is on vouchers.
+      const po = o.source?.kind === 'po' ? fx.byId(D().finPos, o.source.id) : null;
+      const accepted = po ? sum(D().finIars.filter((i) => i.poId === po.id), (i) => i.total) : 0;
+      out.payable = round2(Math.min(out.status === 'obligated' ? out.obligatedAmount : out.total, Math.max(accepted, out.disbursed + sum(pending))));
       out.dvs = D().finDvs.filter((d) => d.orsId === o.id).map((d) => ({ id: d.id, no: d.no, date: d.date, gross: d.gross, net: d.net, status: d.status, paidDate: d.paidDate }));
       out.po = o.source?.kind === 'po' ? (({ id, no, total: t }) => ({ id, no, total: t }))(fx.byId(D().finPos, o.source.id) || {}) : null;
     }
@@ -101,8 +113,11 @@ export function registerBudgetRoutes(route, fx) {
 
   // ----- Allotments -----
   route('GET', '/api/finance/allotments', 'finance:finance.view', ({ query }) => {
-    const year = Number(query.fy) || fx.fy();
-    return D().finAllotments.filter((a) => a.fy === year && (!query.fund || a.fund === query.fund) && (!query.cls || a.cls === query.cls)).map(allotmentView);
+    const year = query.fy === 'all' ? null : Number(query.fy) || fx.fy();
+    // A year's allotments, and earlier continuing allotments that still have a balance.
+    return D().finAllotments.filter((a) => (year == null || a.fy === year || (a.fy < year && isContinuing(a))) && (!query.fund || a.fund === query.fund) && (!query.cls || a.cls === query.cls))
+      .map((a) => ({ ...allotmentView(a), continuing: isContinuing(a) }))
+      .filter((a) => year == null || a.fy === year || a.balance > 0);
   });
   route('POST', '/api/finance/allotments', 'finance:finance.budget', ({ user, body }) => {
     const a = { id: randomUUID(), ...budgetLine(body, ALLOTMENT_KINDS), date: fx.date(body.date || fx.today()), createdAt: iso(), createdBy: user.name, appropriationId: body.appropriationId || null };
@@ -212,7 +227,7 @@ export function registerBudgetRoutes(route, fx) {
     for (const [id, amt] of Object.entries(need)) {
       const a = fx.byId(D().finAllotments, id) || fail('An allotment on this request was removed.');
       if (date < a.date) fail(`Allotment ${a.ref || a.kind} is dated ${a.date}; obligate on or after it.`);
-      if (String(a.fy) !== date.slice(0, 4) && !a.kind.includes('Continuing')) fail(`Allotment ${a.ref || a.kind} is for ${a.fy}.`);
+      if (String(a.fy) !== date.slice(0, 4) && !fx.byId(D().finAppropriations, a.appropriationId)?.kind.includes('Continuing')) fail(`Allotment ${a.ref || a.kind} is for ${a.fy}.`);
       const left = round2(a.amount - allotmentUsed(a, o.id));
       if (amt > left) fail(`Not enough allotment: ${a.ref || a.kind} (${a.cls}, ${a.pap}) has ₱${left.toLocaleString(undefined, { minimumFractionDigits: 2 })} left; this request needs ₱${amt.toLocaleString(undefined, { minimumFractionDigits: 2 })}.`);
     }
@@ -241,7 +256,11 @@ export function registerBudgetRoutes(route, fx) {
       if (amount > left) fail(`The allotment has only ₱${left.toLocaleString()} left.`);
     }
     l.adjusted = round2((l.adjusted || 0) + amount);
-    o.adjustments.push({ date: fx.date(body.date || fx.today()), line: i, amount, reason: text(body.reason, 300) || fail('Give the reason.'), by: user.name });
+    const date = fx.date(body.date || fx.today());
+    if (date < (o.obligatedDate || o.date)) fail('An adjustment is dated on or after the obligation.');
+    if (date > fx.today()) fail('An adjustment cannot be dated in the future.');
+    fx.assertOpen(date);
+    o.adjustments.push({ date, line: i, amount, reason: text(body.reason, 300) || fail('Give the reason.'), by: user.name });
     fx.audit(user, `Adjusted ${o.form} ${o.no} by ₱${amount.toLocaleString()}: ${text(body.reason, 200)}`, { kind: 'obligation', ref: o.id });
     save();
     return obligationView(o, { detail: true });
@@ -262,14 +281,19 @@ export function registerBudgetRoutes(route, fx) {
   });
 
   // ----- Reports -----
+  // What happened to an obligation line up to a date (or within a year): obligated (with adjustments) and paid.
+  const paymentsOf = (o, i) => D().finDvs.filter((d) => d.orsId === o.id && d.status === 'paid').flatMap((d) => d.charges.filter((c) => c.line === i).map((c) => ({ date: d.paidDate, amount: c.amount, dv: d })));
+  const obligatedBy = (o, i, date) => round2(o.lines[i].amount + sum(o.adjustments.filter((a) => a.line === i && a.date <= date), (a) => a.amount));
+  const paidBetween = (o, i, from, to) => sum(paymentsOf(o, i).filter((p) => p.date >= from && p.date <= to), (p) => p.amount);
   const yearObligations = (year, fund) => D().finObligations.filter((o) => o.status === 'obligated' && (o.obligatedDate || o.date).startsWith(String(year)) && (!fund || o.fund === fund));
   // Budget utilization by allotment class (dashboard).
   function utilization(year, fund) {
     return ALLOTMENT_CLASSES.map((c) => {
-      const allot = sum(D().finAllotments.filter((a) => a.fy === year && a.cls === c.id && (!fund || a.fund === fund)), (a) => a.amount);
-      const lines = yearObligations(year, fund).flatMap((o) => o.lines.map((l, i) => ({ l, paid: disbursedByLine(o)[i] }))).filter(({ l }) => l.cls === c.id);
-      const ob = sum(lines, ({ l }) => lineObligated(l));
-      const disb = sum(lines, ({ paid }) => paid);
+      const allot = round2(sum(D().finAllotments.filter((a) => a.fy === year && a.cls === c.id && (!fund || a.fund === fund)), (a) => a.amount) + sum(carried(year, fund).filter((x) => x.a.cls === c.id), (x) => x.amount));
+      const end = `${year}-12-31`;
+      const lines = yearObligations(year, fund).flatMap((o) => o.lines.map((l, i) => ({ o, l, i }))).filter(({ l }) => l.cls === c.id);
+      const ob = sum(lines, ({ o, i }) => obligatedBy(o, i, end));
+      const disb = sum(lines, ({ o, i }) => paidBetween(o, i, `${year}-01-01`, end));
       return { cls: c.id, label: c.label, allotment: allot, obligations: ob, disbursements: disb, unobligated: round2(allot - ob), unpaid: round2(ob - disb) };
     }).filter((r) => r.allotment || r.obligations);
   }
@@ -283,17 +307,31 @@ export function registerBudgetRoutes(route, fx) {
     const row = (pap, cls) => (rows[`${pap}|${cls}`] ||= { pap, papName: fx.S().paps.find((p) => p.code === pap)?.name || pap, cls, appropriation: 0, allotment: 0, obligations: [0, 0, 0, 0], disbursements: [0, 0, 0, 0] });
     for (const a of D().finAppropriations.filter((x) => x.fy === year && (!fund || x.fund === fund))) row(a.pap, a.cls).appropriation = round2(row(a.pap, a.cls).appropriation + a.amount);
     for (const a of D().finAllotments.filter((x) => x.fy === year && (!fund || x.fund === fund))) row(a.pap, a.cls).allotment = round2(row(a.pap, a.cls).allotment + a.amount);
+    // Continuing appropriations carried in from earlier years (appropriation and allotment alike).
+    for (const { a, amount } of carried(year, fund)) {
+      const r = row(a.pap, a.cls);
+      r.appropriation = round2(r.appropriation + amount);
+      r.allotment = round2(r.allotment + amount);
+      r.continuing = round2((r.continuing || 0) + amount);
+    }
     const q = (date) => Math.min(3, Math.floor((Number(date.slice(5, 7)) - 1) / 3));
+    const inYear = (d) => d.startsWith(String(year));
+    // This year's obligations (adjustments in the quarter they were made), and payments made this year.
     for (const o of yearObligations(year, fund)) {
-      const paid = disbursedByLine(o);
       o.lines.forEach((l, i) => {
         const r = row(l.pap, l.cls);
-        r.obligations[q(o.obligatedDate || o.date)] = round2(r.obligations[q(o.obligatedDate || o.date)] + lineObligated(l));
-        if (paid[i]) {
-          for (const dv of D().finDvs.filter((d) => d.orsId === o.id && d.status === 'paid')) {
-            for (const c of dv.charges.filter((c) => c.line === i)) r.disbursements[q(dv.paidDate)] = round2(r.disbursements[q(dv.paidDate)] + c.amount);
-          }
-        }
+        r.obligations[q(o.obligatedDate || o.date)] = round2(r.obligations[q(o.obligatedDate || o.date)] + l.amount);
+        for (const a of o.adjustments.filter((x) => x.line === i && inYear(x.date))) r.obligations[q(a.date)] = round2(r.obligations[q(a.date)] + a.amount);
+        for (const p of paymentsOf(o, i).filter((x) => inYear(x.date))) r.disbursements[q(p.date)] = round2(r.disbursements[q(p.date)] + p.amount);
+      });
+    }
+    // Earlier years' obligations paid this year (reported apart from this year's).
+    const prior = {};
+    for (const o of D().finObligations.filter((x) => x.status === 'obligated' && (!fund || x.fund === fund) && (x.obligatedDate || x.date) < `${year}-01-01`)) {
+      o.lines.forEach((l, i) => {
+        const r = () => (prior[`${l.pap}|${l.cls}`] ||= { pap: l.pap, papName: fx.S().paps.find((x) => x.code === l.pap)?.name || l.pap, cls: l.cls, adjustments: 0, disbursements: [0, 0, 0, 0] });
+        for (const p of paymentsOf(o, i).filter((x) => inYear(x.date))) r().disbursements[q(p.date)] = round2(r().disbursements[q(p.date)] + p.amount);
+        for (const a of o.adjustments.filter((x) => x.line === i && inYear(x.date))) r().adjustments = round2(r().adjustments + a.amount);
       });
     }
     const list = Object.values(rows).map((r) => {
@@ -302,7 +340,8 @@ export function registerBudgetRoutes(route, fx) {
       return { ...r, totalObligations: ob, totalDisbursements: di, unreleased: round2(r.appropriation - r.allotment), unobligated: round2(r.allotment - ob), unpaid: round2(ob - di) };
     }).sort((a, b) => a.pap.localeCompare(b.pap) || ALLOTMENT_CLASSES.findIndex((c) => c.id === a.cls) - ALLOTMENT_CLASSES.findIndex((c) => c.id === b.cls));
     const keys = ['appropriation', 'allotment', 'totalObligations', 'totalDisbursements', 'unreleased', 'unobligated', 'unpaid'];
-    return { fy: year, fund: fund || '', fundName: fund ? fundName(fund) : 'All fund clusters', rows: list, totals: Object.fromEntries(keys.map((k) => [k, sum(list, (r) => r[k])])) };
+    const priorRows = Object.values(prior).map((r) => ({ ...r, total: sum(r.disbursements) }));
+    return { fy: year, fund: fund || '', fundName: fund ? fundName(fund) : 'All fund clusters', rows: list, prior: priorRows, totals: { ...Object.fromEntries(keys.map((k) => [k, sum(list, (r) => r[k])])), priorDisbursements: sum(priorRows, (r) => r.total) } };
   });
 
   // RAOD: one registry per fund and allotment class, in date order, by object code.
@@ -316,12 +355,11 @@ export function registerBudgetRoutes(route, fx) {
       o.lines.forEach((l, i) => {
         if (l.cls !== cls) return;
         events.push({ date: o.obligatedDate || o.date, ref: o.no, particulars: `${fx.cardName(o.payeeId)} – ${o.particulars}`, pap: l.pap, code: l.code, allotment: 0, obligation: l.amount, disbursement: 0, kind: 'ors', id: o.id });
-        for (const adj of o.adjustments.filter((x) => x.line === i)) events.push({ date: adj.date, ref: o.no, particulars: `Adjustment: ${adj.reason}`, pap: l.pap, code: l.code, allotment: 0, obligation: adj.amount, disbursement: 0, kind: 'ors', id: o.id });
-        for (const dv of D().finDvs.filter((d) => d.orsId === o.id && d.status === 'paid')) {
-          for (const c of dv.charges.filter((c) => c.line === i)) events.push({ date: dv.paidDate, ref: dv.no, particulars: `Paid to ${fx.cardName(dv.payeeId)}`, pap: l.pap, code: l.code, allotment: 0, obligation: 0, disbursement: c.amount, kind: 'dv', id: dv.id });
-        }
+        for (const adj of o.adjustments.filter((x) => x.line === i && x.date.startsWith(String(year)))) events.push({ date: adj.date, ref: o.no, particulars: `Adjustment: ${adj.reason}`, pap: l.pap, code: l.code, allotment: 0, obligation: adj.amount, disbursement: 0, kind: 'ors', id: o.id });
+        for (const p of paymentsOf(o, i).filter((x) => x.date.startsWith(String(year)))) events.push({ date: p.date, ref: p.dv.no, particulars: `Paid to ${fx.cardName(p.dv.payeeId)}`, pap: l.pap, code: l.code, allotment: 0, obligation: 0, disbursement: p.amount, kind: 'dv', id: p.dv.id });
       });
     }
+    for (const { a, amount } of carried(year, fund).filter((x) => x.a.cls === cls)) events.push({ date: `${year}-01-01`, ref: a.ref || a.kind, particulars: `Continuing allotment carried from ${a.fy}`, pap: a.pap, allotment: amount, obligation: 0, disbursement: 0, code: '' });
     events.sort((a, b) => a.date.localeCompare(b.date) || (b.allotment - a.allotment) || (b.obligation - a.obligation));
     let unobligated = 0;
     let unpaid = 0;
@@ -331,17 +369,28 @@ export function registerBudgetRoutes(route, fx) {
       return { ...e, title: e.code ? fx.accountTitle(e.code) : '', unobligated, unpaid };
     });
     const codes = [...new Set(rows.filter((r) => r.code).map((r) => r.code))].sort().map((code) => ({ code, title: fx.accountTitle(code), obligations: sum(rows.filter((r) => r.code === code), (r) => r.obligation), disbursements: sum(rows.filter((r) => r.code === code), (r) => r.disbursement) }));
-    return { fy: year, fund, fundName: fundName(fund), cls, classLabel: ALLOTMENT_CLASSES.find((c) => c.id === cls).label, rows, codes, totals: { allotment: sum(rows, (r) => r.allotment), obligations: sum(rows, (r) => r.obligation), disbursements: sum(rows, (r) => r.disbursement), unobligated, unpaid } };
+    // Earlier years' obligations: their payments and adjustments made this year.
+    const prior = [];
+    for (const o of D().finObligations.filter((x) => x.status === 'obligated' && x.fund === fund && (x.obligatedDate || x.date) < `${year}-01-01`)) {
+      o.lines.forEach((l, i) => {
+        if (l.cls !== cls) return;
+        for (const p of paymentsOf(o, i).filter((x) => x.date.startsWith(String(year)))) prior.push({ date: p.date, ref: p.dv.no, obligationNo: o.no, id: p.dv.id, kind: 'dv', particulars: `Paid to ${fx.cardName(p.dv.payeeId)}`, code: l.code, title: fx.accountTitle(l.code), adjustment: 0, disbursement: p.amount });
+        for (const a of o.adjustments.filter((x) => x.line === i && x.date.startsWith(String(year)))) prior.push({ date: a.date, ref: o.no, obligationNo: o.no, id: o.id, kind: 'ors', particulars: `Adjustment: ${a.reason}`, code: l.code, title: fx.accountTitle(l.code), adjustment: a.amount, disbursement: 0 });
+      });
+    }
+    prior.sort((a, b) => a.date.localeCompare(b.date));
+    return { fy: year, fund, fundName: fundName(fund), cls, classLabel: ALLOTMENT_CLASSES.find((c) => c.id === cls).label, rows, codes, prior, totals: { allotment: sum(rows, (r) => r.allotment), obligations: sum(rows, (r) => r.obligation), disbursements: sum(rows, (r) => r.disbursement), unobligated, unpaid } };
   });
 
   // FAR No. 3: aging of due and demandable obligations (obligated, not yet paid).
   route('GET', '/api/finance/budget/aging', 'finance:finance.view', ({ query }) => {
-    const asOf = query.asOf || fx.today();
+    const asOf = query.asOf ? fx.date(query.asOf, 'As of') : fx.today();
     const fund = query.fund || undefined;
     const days = (d) => Math.floor((Date.parse(`${asOf}T00:00:00`) - Date.parse(`${d}T00:00:00`)) / 86400000);
+    // As of the date: obligated (with adjustments made by then) less payments made by then.
     const rows = D().finObligations.filter((o) => o.status === 'obligated' && (!fund || o.fund === fund) && (o.obligatedDate || o.date) <= asOf).map((o) => {
-      const v = obligationView(o);
-      return { id: o.id, no: o.no, form: o.form, fund: o.fund, date: o.obligatedDate || o.date, payee: v.payeeName, particulars: o.particulars, unpaid: v.unpaid, age: days(o.obligatedDate || o.date) };
+      const unpaid = round2(sum(o.lines.map((_, i) => obligatedBy(o, i, asOf) - paidBetween(o, i, '0000-01-01', asOf))));
+      return { id: o.id, no: o.no, form: o.form, fund: o.fund, date: o.obligatedDate || o.date, payee: fx.cardName(o.payeeId), particulars: o.particulars, unpaid, age: days(o.obligatedDate || o.date) };
     }).filter((r) => r.unpaid > 0).sort((a, b) => b.age - a.age);
     const buckets = [['0–30 days', 0, 30], ['31–90 days', 31, 90], ['91–365 days', 91, 365], ['Over 1 year', 366, Infinity]].map(([label, lo, hi]) => ({ label, amount: sum(rows.filter((r) => r.age >= lo && r.age <= hi), (r) => r.unpaid), count: rows.filter((r) => r.age >= lo && r.age <= hi).length }));
     return { asOf, fund: fund || '', rows, buckets, total: sum(rows, (r) => r.unpaid) };
@@ -355,7 +404,7 @@ export function registerBudgetRoutes(route, fx) {
       const aps = D().finAppropriations.filter((a) => a.fy === year && a.cls === c.id && (!fund || a.fund === fund));
       const original = sum(aps.filter((a) => /New appropriations|Board-approved|Trust receipts budget|Automatic/.test(a.kind)), (a) => a.amount);
       const final = sum(aps, (a) => a.amount);
-      const actual = sum(yearObligations(year, fund).flatMap((o) => o.lines).filter((l) => l.cls === c.id), lineObligated);
+      const actual = sum(yearObligations(year, fund).flatMap((o) => o.lines.map((l, i) => ({ o, l, i }))).filter(({ l }) => l.cls === c.id), ({ o, i }) => obligatedBy(o, i, `${year}-12-31`));
       return { cls: c.id, label: c.label, original, adjustments: round2(final - original), final, actual, difference: round2(final - actual) };
     });
     const keys = ['original', 'adjustments', 'final', 'actual', 'difference'];

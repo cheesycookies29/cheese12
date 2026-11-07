@@ -46,9 +46,9 @@ export async function controlView(el, _p, query) {
     const chart = await fin.chart();
     body = html`<form class="card" id="form">
       <h2>Bank accounts</h2><p class="muted small">Collections are deposited to these; vouchers of funds other than 01 are paid from them. Fund 01 pays through the MDS (Cash – MDS, Regular).</p>
-      ${linesTable('banks', [{ key: 'name', label: 'Bank', type: 'text' }, { key: 'number', label: 'Account no.', type: 'text' }, { key: 'fund', label: 'Fund', type: 'select', options: (v) => fundOptions(v) }, { key: 'code', label: 'Ledger account', type: 'select', options: (v) => accountOptions(chart, v || '10102020', (a) => a.code.startsWith('1010')) }], s.bankAccounts, { min: 1, addLabel: 'Add bank account' })}
+      ${linesTable('banks', [{ key: 'id', label: 'id', type: 'hidden' }, { key: 'name', label: 'Bank', type: 'text' }, { key: 'number', label: 'Account no.', type: 'text' }, { key: 'fund', label: 'Fund', type: 'select', options: (v) => fundOptions(v) }, { key: 'code', label: 'Ledger account', type: 'select', options: (v) => accountOptions(chart, v || '10102020', (a) => a.code.startsWith('1010')) }], s.bankAccounts, { min: 1, addLabel: 'Add bank account' })}
       <h2>Fees collected on official receipts</h2>
-      ${linesTable('fees', [{ key: 'name', label: 'Fee', type: 'text' }, { key: 'code', label: 'Credit to', type: 'select', options: (v) => accountOptions(chart, v, (a) => a.group === 4 || /^(103|199|202|204)/.test(a.code)) }, { key: 'amount', label: 'Default amount', type: 'number' }, { key: 'fund', label: 'Fund', type: 'select', options: (v) => fundOptions(v || '05') }], s.revenueItems, { min: 1, addLabel: 'Add fee' })}
+      ${linesTable('fees', [{ key: 'id', label: 'id', type: 'hidden' }, { key: 'name', label: 'Fee', type: 'text' }, { key: 'code', label: 'Credit to', type: 'select', options: (v) => accountOptions(chart, v, (a) => a.group === 4 || /^(103|199|202|204)/.test(a.code)) }, { key: 'amount', label: 'Default amount', type: 'number' }, { key: 'fund', label: 'Fund', type: 'select', options: (v) => fundOptions(v || '05') }], s.revenueItems, { min: 1, addLabel: 'Add fee' })}
       ${edit ? html`<div class="actions end"><button class="btn primary">Save</button></div>` : ''}</form>`;
   } else if (tab === 'signatories') {
     body = html`<form class="card" id="form"><h2>Signatories (printed on forms)</h2><div class="grid two">
@@ -102,8 +102,9 @@ export async function controlView(el, _p, query) {
       e.preventDefault();
       const v = formData(form);
       if (tab === 'entity') return save({ entity: { name: v.name, agencyCode: v.agencyCode, tin: v.tin, address: v.address }, fiscalYear: Number(v.fiscalYear) });
-      if (tab === 'structure') return save({ funds: [...form.querySelectorAll('input[name=fund]:checked')].map((i) => i.value), offices: readLines(el, 'offices'), paps: readLines(el, 'paps') });
-      if (tab === 'banks') return save({ bankAccounts: readLines(el, 'banks').map((b, i) => ({ ...b, id: s.bankAccounts[i]?.number === b.number ? s.bankAccounts[i].id : undefined })), revenueItems: readLines(el, 'fees').map((f) => ({ ...f, id: s.revenueItems.find((x) => x.name === f.name)?.id })) });
+      if (tab === 'structure') return save({ funds: [...form.querySelectorAll('input[name=fund]:checked')].map((i) => i.value), offices: readLines(el, 'offices').filter((o) => o.code || o.name), paps: readLines(el, 'paps').filter((x) => x.code || x.name) });
+      // Rows left blank are ignored (the selects in a blank row still hold their default values); ids travel with their row.
+      if (tab === 'banks') return save({ bankAccounts: readLines(el, 'banks').filter((b) => b.name || b.number).map((b) => ({ ...b, id: b.id || undefined })), revenueItems: readLines(el, 'fees').filter((f) => f.name).map((f) => ({ ...f, id: f.id || undefined })) });
       if (tab === 'signatories') {
         return save({
           signatories: Object.fromEntries(Object.keys(s.signatories).map((k) => [k, { name: v[`sn_${k}`], title: v[`st_${k}`] }])),
@@ -112,7 +113,7 @@ export async function controlView(el, _p, query) {
       }
       if (tab === 'taxes') {
         return save({
-          taxes: readLines(el, 'taxes').map((t) => ({ ...t, rate: Number(t.rate) })),
+          taxes: readLines(el, 'taxes').filter((t) => t.atc).map((t) => ({ ...t, rate: Number(t.rate) })),
           capitalization: Number(v.capitalization), semiHighValue: Number(v.semiHighValue), residualRate: Number(v.residualRate), svpLimit: Number(v.svpLimit), directAcquisitionLimit: Number(v.directAcquisitionLimit), depositDays: Number(v.depositDays),
           liquidationDays: Object.fromEntries(Object.keys(s.liquidationDays).map((k) => [k, Number(v[`ld_${k}`])])),
         });

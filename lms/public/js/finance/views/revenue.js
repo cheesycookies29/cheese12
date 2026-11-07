@@ -5,9 +5,10 @@ import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, fmtDate, badge, downloadFile, toCsv } from '../../ui.js';
+import { today as localDate } from '../../ui.js';
 import { fin, can, money, num, fy, fundOptions, accountOptions, cardOptions, linesTable, wireLines, readLines, clickableRows, amt, infoGrid, printLink } from '../state.js';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDate(); // the browser's own date, not UTC
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export async function receiptListView(el, _p, query) {
@@ -162,7 +163,7 @@ export async function revenueView(el, _p, query) {
   const [d, chart] = await Promise.all([api.get(`/api/finance/revenue?${new URLSearchParams({ fy: year, fund })}`), fin.chart()]);
   const editTargets = (can('finance.collect') || can('finance.budget'));
   mount(el, html`
-    ${pageHead('Revenue monitoring', `Fiscal year ${year}: income by account and month against the targets (the basis of FAR No. 5).`, html`${editTargets ? html`<button class="btn" id="targets">${icon('edit', 16)} Targets</button>` : ''}<button class="btn" id="csv">${icon('download', 16)} CSV</button><button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
+    ${pageHead('Revenue monitoring', `Fiscal year ${year}: the school's own income (not subsidies from the national government) by account and month, against the targets (the basis of FAR No. 5).`, html`${editTargets ? html`<button class="btn" id="targets">${icon('edit', 16)} Targets</button>` : ''}<button class="btn" id="csv">${icon('download', 16)} CSV</button><button class="btn" onclick="print()">${icon('file', 16)} Print</button>`)}
     <form class="toolbar" id="f"><input type="number" name="fy" value="${year}" style="width:100px" aria-label="Fiscal year" /><select name="fund">${fundOptions(fund, { all: true })}</select><button class="btn">Show</button></form>
     <div class="stats"><div class="card"><small>Target</small><strong>${money(d.totals.target)}</strong></div><div class="card accent"><small>Actual</small><strong>${money(d.totals.actual)}</strong></div><div class="card"><small>Achieved</small><strong>${d.totals.target ? `${Math.round((d.totals.actual / d.totals.target) * 1000) / 10}%` : '—'}</strong></div></div>
     <div class="card"><div class="table-scroll"><table class="table compact report"><thead><tr><th>Account</th>${MONTHS.map((m) => html`<th class="num">${m}</th>`)}<th class="num">Total</th><th class="num">Target</th><th class="num">%</th></tr></thead>
@@ -173,19 +174,26 @@ export async function revenueView(el, _p, query) {
     location.hash = `#/revenue?${new URLSearchParams(formData(e.target))}`;
   };
   el.querySelector('#csv').addEventListener('click', () => downloadFile(`revenue-${year}.csv`, toCsv([['Account', 'Title', ...MONTHS, 'Total', 'Target'], ...d.rows.map((r) => [r.code, r.title, ...r.months, r.total, r.target])])));
-  el.querySelector('#targets')?.addEventListener('click', () => {
-    const rev = chart.filter((a) => a.group === 4 && a.active && a.code !== fin.settings.acct.subsidyNg);
+  el.querySelector('#targets')?.addEventListener('click', async () => {
+    // Targets are set per fund: the dialog shows the picked fund's own targets (never the all-funds sum).
+    const rev = chart.filter((a) => a.group === 4 && a.active && !a.code.startsWith('403'));
     const tFund = fund || (fin.settings.funds.includes('05') ? '05' : fin.settings.funds[0]);
-    modal({
+    const targetsOf = async (f) => Object.fromEntries((await api.get(`/api/finance/revenue?${new URLSearchParams({ fy: year, fund: f })}`)).rows.map((r) => [r.code, r.target]));
+    const t0 = await targetsOf(tFund);
+    const m = modal({
       title: `Revenue targets ${year}`, wide: true, submitLabel: 'Save targets',
       body: html`<label class="field"><span>Fund cluster</span><select name="fund">${fundOptions(tFund)}</select></label>
-        <div class="table-scroll" style="max-height:50vh"><table class="table compact"><tbody>${rev.map((a) => html`<tr><td>${a.code} · ${a.title}</td><td class="num"><input type="number" step="0.01" min="0" name="t${a.code}" value="${d.rows.find((r) => r.code === a.code)?.target || ''}" /></td></tr>`)}</tbody></table></div>`,
+        <div class="table-scroll" style="max-height:50vh"><table class="table compact"><tbody>${rev.map((a) => html`<tr><td>${a.code} · ${a.title}</td><td class="num"><input type="number" step="0.01" min="0" name="t${a.code}" value="${t0[a.code] || ''}" /></td></tr>`)}</tbody></table></div>`,
       async onSubmit(form) {
         const v = formData(form);
         await api.put('/api/finance/revenue/targets', { fy: year, fund: v.fund, targets: Object.fromEntries(Object.entries(v).filter(([k, x]) => k.startsWith('t') && x).map(([k, x]) => [k.slice(1), Number(x)])) });
         toast('Targets saved.');
         revenueView(el, _p, query);
       },
+    });
+    m.form.fund.addEventListener('change', async () => {
+      const t = await targetsOf(m.form.fund.value);
+      m.form.querySelectorAll('input[name^="t"]').forEach((i) => (i.value = t[i.name.slice(1)] || ''));
     });
   });
 }

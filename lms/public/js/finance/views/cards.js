@@ -5,6 +5,7 @@ import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, modal, toast, formData, option, badge, fmtDate } from '../../ui.js';
+import { today as localDate } from '../../ui.js';
 import { fin, can, money, num, infoGrid, officeOptions, clickableRows, dvBadge, poBadge, orsBadge, amt } from '../state.js';
 
 const kindLabel = (k) => fin.settings.cardKinds.find(([v]) => v === k)?.[1] || k;
@@ -32,8 +33,11 @@ export async function cardListView(el, _p, query) {
   el.querySelector('#add')?.addEventListener('click', () => cardForm(null, () => cardListView(el, _p, query)));
 }
 
-export function cardForm(card, done) {
+export async function cardForm(card, done) {
   const c = card || { kind: 'supplier', vat: 'vat', taxType: 'corporation', nature: 'goods', status: 'active', bond: {} };
+  // ATLAS accounts that can be linked (loaded first, so saving never drops the current link).
+  const users = await api.get('/api/finance/cards/linkable').catch(() => []);
+  if (c.userId && !users.some((u) => u.id === c.userId)) users.unshift({ id: c.userId, name: c.userName || 'Linked account', roleLabel: 'current link' });
   modal({
     title: card ? `Edit ${card.name}` : 'New card', wide: true, submitLabel: card ? 'Save' : 'Add card',
     body: html`<div class="grid two">
@@ -52,7 +56,7 @@ export function cardForm(card, done) {
       <label class="field"><span>Bank</span><input name="bankName" value="${c.bankName || ''}" /></label>
       <label class="field"><span>Bank account number (for LDDAP-ADA)</span><input name="bankAccount" value="${c.bankAccount || ''}" /></label>
       <label class="field"><span>Office</span><select name="office">${officeOptions(c.office)}</select></label>
-      <label class="field"><span>ATLAS account (employees: self-service)</span><select name="userId"><option value="">None</option></select></label>
+      <label class="field"><span>ATLAS account (employees: self-service)</span><select name="userId"><option value="">None</option>${users.map((u) => option(u.id, `${u.name} · ${u.roleLabel}`, u.id === c.userId))}</select></label>
       <fieldset class="field span-2 bond"><legend>Fidelity bond (accountable officers)</legend><div class="grid three-tight">
         <label class="field"><span>Amount</span><input name="bondAmount" type="number" step="0.01" min="0" value="${c.bond?.amount || ''}" /></label>
         <label class="field"><span>Expires</span><input name="bondExpires" type="date" value="${c.bond?.expires || ''}" /></label>
@@ -69,11 +73,6 @@ export function cardForm(card, done) {
       done();
     },
   });
-  // Accounts to link: anyone signed in to ATLAS who can have a card (from the users list the Control panel sees, else none).
-  api.get('/api/finance/cards/linkable').then((users) => {
-    const sel = document.querySelector('.modal select[name=userId]');
-    if (sel) sel.insertAdjacentHTML('beforeend', users.map((u) => `<option value="${u.id}" ${u.id === c.userId ? 'selected' : ''}>${u.name} · ${u.roleLabel}</option>`).join(''));
-  }).catch(() => {});
 }
 
 export async function cardView(el, params, query) {
@@ -81,7 +80,7 @@ export async function cardView(el, params, query) {
   const c = d.card;
   const tab = query.tab || 'ledger';
   const reload = () => cardView(el, params, query);
-  const bondOk = c.bond?.amount > 0 && c.bond.expires >= new Date().toISOString().slice(0, 10);
+  const bondOk = c.bond?.amount > 0 && c.bond.expires >= localDate();
   mount(el, html`
     ${pageHead(html`${c.name} ${c.status !== 'active' ? badge(c.status, c.status === 'blacklisted' ? 'red' : 'gray') : ''}`, kindLabel(c.kind), can('finance.cardfile') ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : '', ['/cards', 'Card file'])}
     <section class="card">${infoGrid([

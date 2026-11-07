@@ -30,6 +30,7 @@ export function registerCashRoutes(route, fx) {
       ...d, payee: { id: payee.id, name: payee.name, tin: payee.tin, address: payee.address, kind: payee.kind, bankName: payee.bankName, bankAccount: payee.bankAccount, vat: payee.vat, taxType: payee.taxType },
       ors: ors ? { id: ors.id, no: ors.no, form: ors.form, status: ors.status } : null,
       pap: ors ? [...new Set((d.charges || []).map((c) => ors.lines[c.line]?.pap).filter(Boolean))].join(', ') : '',
+      objectCodes: ors ? [...new Set((d.charges || []).map((c) => ors.lines[c.line]?.code).filter(Boolean))].join(', ') : d.debits.map((x) => x.code).join(', '),
       iar: d.iarId ? (({ id, no, date }) => ({ id, no, date }))(fx.byId(D().finIars, d.iarId) || {}) : null,
       officeName: fx.office(d.office)?.name || d.office,
       entry: entryLines(d).map((l) => ({ ...l, title: fx.accountTitle(l.code), uacs: `${l.code}00` })),
@@ -250,6 +251,7 @@ export function registerCashRoutes(route, fx) {
     if (d.lddapId) fail('ADA payments are corrected with the bank (invalidated ADA entries), not here.');
     if (D().finLiquidations.some((l) => l.dvId === d.id)) fail('This advance is already partly liquidated.');
     const reason = text(body.reason, 300) || fail('Give the reason (spoiled, stale, cancelled).');
+    if (d.taxTotal && D().finRemittances.some((r) => r.fund === d.fund && r.month === d.paidDate.slice(0, 7))) fail(`The taxes withheld in ${fx.monthLabel(d.paidDate.slice(0, 7))} were already remitted and certified (2307); correct this payment with a journal entry instead.`);
     fx.reverseJournal(fx.byId(D().finJournals, d.journalId), user, `Check ${d.checkNo} ${reason}`, fx.date(body.date || fx.today()));
     d.voided = [...(d.voided || []), { checkNo: d.checkNo, date: d.paidDate, reason, by: user.name }];
     Object.assign(d, { status: 'approved', paidDate: null, checkNo: '', journalId: null, receipt: null });
@@ -290,6 +292,7 @@ export function registerCashRoutes(route, fx) {
       if (!p.bankAccount) fail(`${p.name} has no bank account on their card.`);
     }
     const date = fx.date(body.date || fx.today());
+    if (body.bankId && S().bankAccounts.find((b) => b.id === body.bankId)?.fund !== fund) fail(`Pick a fund ${fund} account for this list.`);
     const l = { id: randomUUID(), no: fx.nextNo('lddap', { fund, date }), date, fund, dvIds: dvs.map((d) => d.id), total: sum(dvs, (d) => d.net), bankId: body.bankId || null, createdBy: user.name, createdAt: iso() };
     D().finLddaps.push(l);
     for (const d of dvs) payDv(d, user, { date, lddapId: l.id });
@@ -575,7 +578,8 @@ export function registerCashRoutes(route, fx) {
   // ----- Revenue monitoring -----
   function revenueActual(year, fund) {
     const rows = {};
-    for (const l of fx.lines({ fund, from: `${year}-01-01`, to: `${year}-12-31`, code: (c) => c[0] === '4', exclude: (j) => j.source?.kind === 'closing' })) {
+    // Own-source income only: subsidies from the national government and other agencies (403) are not collections.
+    for (const l of fx.lines({ fund, from: `${year}-01-01`, to: `${year}-12-31`, code: (c) => c[0] === '4' && !c.startsWith('403'), exclude: (j) => j.source?.kind === 'closing' })) {
       const r = (rows[l.code] ||= { code: l.code, title: fx.accountTitle(l.code), months: Array(12).fill(0) });
       const m = Number(l.date.slice(5, 7)) - 1;
       r.months[m] = round2(r.months[m] + l.credit - l.debit);
@@ -612,7 +616,12 @@ export function registerCashRoutes(route, fx) {
   });
   function revenueByMonth(year) {
     const months = Array(12).fill(0);
-    for (const r of D().finReceipts) if (r.status === 'issued' && r.date.startsWith(String(year))) months[Number(r.date.slice(5, 7)) - 1] = round2(months[Number(r.date.slice(5, 7)) - 1] + r.total);
+    // Revenue collected on official receipts (not deposits held in trust, refunds of advances or collections of receivables).
+    for (const r of D().finReceipts) {
+      if (r.status !== 'issued' || !r.date.startsWith(String(year))) continue;
+      const m = Number(r.date.slice(5, 7)) - 1;
+      months[m] = round2(months[m] + sum(r.lines.filter((l) => l.code[0] === '4'), (l) => l.amount));
+    }
     const targets = sum(D().finRevenueTargets.filter((t) => t.fy === year), (t) => t.amount);
     return { months, total: sum(months), target: targets };
   }

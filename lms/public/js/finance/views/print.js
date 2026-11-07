@@ -21,7 +21,7 @@ const FORMS = {
     const j = await api.get(`/api/finance/journals/${id}`);
     return html`${head('Journal Entry Voucher', APPENDIX.jev, { fund: j.fund, no: j.jevNo, date: j.date, extra: html`<span>${j.journalLabel}</span>` })}
       <table class="f-table"><thead><tr><th>Responsibility center</th><th>Accounts and explanation</th><th>UACS code</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
-      <tbody>${j.lines.map((l) => html`<tr><td>${l.office}</td><td class="${l.credit ? 'indent' : ''}">${l.title}${l.cardName ? ` — ${l.cardName}` : ''}</td><td>${l.code}</td><td class="num">${l.debit ? num(l.debit) : ''}</td><td class="num">${l.credit ? num(l.credit) : ''}</td></tr>`)}
+      <tbody>${j.lines.map((l) => html`<tr><td>${l.office}</td><td class="${l.credit ? 'indent' : ''}">${l.title}${l.cardName ? ` — ${l.cardName}` : ''}</td><td>${l.uacs}</td><td class="num">${l.debit ? num(l.debit) : ''}</td><td class="num">${l.credit ? num(l.credit) : ''}</td></tr>`)}
       <tr><td></td><td colspan="2"><em>${j.particulars}</em></td><td></td><td></td></tr></tbody>
       <tfoot><tr><td colspan="3">Total</td><td class="num">${num(j.total)}</td><td class="num">${num(j.total)}</td></tr></tfoot></table>
       <div class="f-signs">${signBox('Prepared by:', { name: j.createdBy, title: 'Accounting staff' })}${signBox('Certified correct:', sig('accountant'))}</div>`;
@@ -37,8 +37,9 @@ const FORMS = {
       <div class="f-signs"><div class="f-box"><strong>A.</strong> Certified: Charges to appropriation/allotment are necessary, lawful and under my direct supervision; and supporting documents valid, proper and legal.${signBox('', o.requestedBy || {})}</div>
         <div class="f-box"><strong>B.</strong> Certified: Allotment available and obligated for the purpose/adjustment necessary as indicated above.${signBox('', o.certifiedBy || sig('budget'))}</div></div>
       <h3 class="f-sub">C. Status of ${burs ? 'utilization' : 'obligation'}</h3>
-      <table class="f-table"><thead><tr><th>UACS</th><th class="num">${burs ? 'Utilization' : 'Obligation'}</th><th class="num">Payment</th><th class="num">Not yet due</th><th class="num">Due and demandable</th></tr></thead>
-      <tbody>${o.lines.map((l) => html`<tr><td>${l.uacs}</td><td class="num">${num(l.obligated)}</td><td class="num">${num(l.disbursed)}</td><td class="num">${num(l.available)}</td><td class="num">${num(l.pending)}</td></tr>`)}</tbody></table>`;
+      <table class="f-table"><thead><tr><th>Date</th><th>Particulars</th><th class="num">${burs ? 'Utilization' : 'Obligation'} (a)</th><th class="num">Payable (b)</th><th class="num">Payment (c)</th><th class="num">Not yet due (a−b)</th><th class="num">Due and demandable (b−c)</th></tr></thead>
+      <tbody><tr><td>${fmtDate(o.obligatedDate || o.date)}</td><td>${o.particulars}</td><td class="num">${num(o.obligatedAmount)}</td><td class="num">${num(o.payable)}</td><td class="num">${num(o.disbursed)}</td><td class="num">${num(o.obligatedAmount - o.payable)}</td><td class="num">${num(o.payable - o.disbursed)}</td></tr></tbody></table>
+      <p class="f-small">Payable: accepted deliveries for a purchase order, otherwise the amounts on disbursement vouchers.</p>`;
   },
   async dv(id) {
     const d = await api.get(`/api/finance/dvs/${id}`);
@@ -53,7 +54,7 @@ const FORMS = {
       <tfoot><tr><td colspan="3">Amount due</td><td class="num">${num(d.net)}</td></tr></tfoot></table>
       <div class="f-box"><strong>A.</strong> Certified: Expenses/Cash Advance necessary, lawful and incurred under my direct supervision.${signBox('', d.boxA)}</div>
       <div class="f-box"><strong>B.</strong> Accounting Entry:
-        <table class="f-table"><thead><tr><th>Account title</th><th>UACS code</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${d.entry.map((l) => html`<tr><td class="${l.credit ? 'indent' : ''}">${l.title}</td><td>${l.code}</td><td class="num">${l.debit ? num(l.debit) : ''}</td><td class="num">${l.credit ? num(l.credit) : ''}</td></tr>`)}</tbody></table></div>
+        <table class="f-table"><thead><tr><th>Account title</th><th>UACS code</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${d.entry.map((l) => html`<tr><td class="${l.credit ? 'indent' : ''}">${l.title}</td><td>${l.uacs}</td><td class="num">${l.debit ? num(l.debit) : ''}</td><td class="num">${l.credit ? num(l.credit) : ''}</td></tr>`)}</tbody></table></div>
       <div class="f-signs"><div class="f-box"><strong>C.</strong> Certified: ☒ Cash available ☒ Subject to Authority to Debit Account (when applicable) ☒ Supporting documents complete and amount claimed proper.${signBox('', d.certifiedBy ? { name: d.certifiedBy.name, title: d.certifiedBy.title } : sig('accountant'), html`<span class="f-cap">Date: ${d.certifiedBy ? fmtDate(d.certifiedBy.at.slice(0, 10)) : ''}</span>`)}</div>
         <div class="f-box"><strong>D.</strong> Approved for payment: <em>${amountInWords(d.net)}</em>${signBox('', d.approvedBy ? { name: d.approvedBy.name, title: d.approvedBy.title } : sig('head'), html`<span class="f-cap">Date: ${d.approvedBy ? fmtDate(d.approvedBy.at.slice(0, 10)) : ''}</span>`)}</div></div>
       <div class="f-box"><strong>E.</strong> Receipt of payment
@@ -66,7 +67,7 @@ const FORMS = {
     const p = await api.get(`/api/finance/prs/${id}`);
     return html`${head('Purchase Request', APPENDIX.pr, { fund: p.fund, no: p.no, date: p.date, extra: html`<span>Office/section: <strong>${p.officeName}</strong></span>` })}
       <table class="f-table"><thead><tr><th>Stock/property no.</th><th>Unit</th><th>Item description</th><th class="num">Quantity</th><th class="num">Unit cost</th><th class="num">Total cost</th></tr></thead>
-      <tbody>${p.items.map((i, n) => html`<tr><td>${n + 1}</td><td>${i.unit}</td><td>${i.description}</td><td class="num">${i.qty}</td><td class="num">${num(i.unitCost)}</td><td class="num">${num(i.amount)}</td></tr>`)}</tbody>
+      <tbody>${p.items.map((i) => html`<tr><td>${i.stockNo || ''}</td><td>${i.unit}</td><td>${i.description}</td><td class="num">${i.qty}</td><td class="num">${num(i.unitCost)}</td><td class="num">${num(i.amount)}</td></tr>`)}</tbody>
       <tfoot><tr><td colspan="5">Total</td><td class="num">${num(p.total)}</td></tr></tfoot></table>
       <p><strong>Purpose:</strong> ${p.purpose}</p>
       <div class="f-signs">${signBox('Requested by:', { name: p.requestedBy.name, title: p.requestedBy.title || 'Requesting officer' })}${signBox('Approved by:', p.approvedBy || sig('head'))}</div>`;
@@ -79,7 +80,7 @@ const FORMS = {
         <tr><th>Place of delivery</th><td>${o.place}</td><th>Delivery term</th><td>On or before ${long(o.deliveryDate)}</td></tr><tr><th>Payment term</th><td colspan="3">${o.paymentTerm}</td></tr></tbody></table>
       <p class="f-small">Gentlemen: Please furnish this office the following articles subject to the terms and conditions contained herein:</p>
       <table class="f-table"><thead><tr><th>Stock/property no.</th><th>Unit</th><th>Description</th><th class="num">Quantity</th><th class="num">Unit cost</th><th class="num">Amount</th></tr></thead>
-      <tbody>${o.items.map((i, n) => html`<tr><td>${n + 1}</td><td>${i.unit}</td><td>${i.description}</td><td class="num">${i.qty}</td><td class="num">${num(i.unitCost)}</td><td class="num">${num(i.amount)}</td></tr>`)}</tbody>
+      <tbody>${o.items.map((i) => html`<tr><td>${i.stockNo || ''}</td><td>${i.unit}</td><td>${i.description}</td><td class="num">${i.qty}</td><td class="num">${num(i.unitCost)}</td><td class="num">${num(i.amount)}</td></tr>`)}</tbody>
       <tfoot><tr><td colspan="5">(Total amount in words) ${amountInWords(o.total)}</td><td class="num">${num(o.total)}</td></tr></tfoot></table>
       <p class="f-small">In case of failure to make the full delivery within the time specified above, a penalty of one-tenth (1/10) of one percent for every day of delay shall be imposed on the undelivered item/s.</p>
       <div class="f-signs">${signBox('Conforme:', { name: '', title: 'Signature over printed name of supplier / date' })}${signBox('Very truly yours:', o.approvedBy || sig('head'))}</div>
@@ -92,11 +93,11 @@ const FORMS = {
     return html`${head('Inspection and Acceptance Report', APPENDIX.iar, { fund: i.fund, no: i.no, date: i.date })}
       <table class="f-table f-kv"><tbody><tr><th>Supplier</th><td>${i.supplierName}</td><th>Invoice no.</th><td>${i.invoiceNo} · ${fmtDate(i.invoiceDate)}</td></tr><tr><th>PO no./date</th><td>${o.no} · ${fmtDate(o.date)}</td><th>Requisitioning office</th><td>${o.office}</td></tr></tbody></table>
       <table class="f-table"><thead><tr><th>Stock/property no.</th><th>Description</th><th>Unit</th><th class="num">Quantity</th><th class="num">Amount</th></tr></thead>
-      <tbody>${i.lines.map((l) => html`<tr><td>${l.line + 1}</td><td>${o.items[l.line].description}</td><td>${o.items[l.line].unit}</td><td class="num">${l.qty}</td><td class="num">${num(l.amount)}</td></tr>`)}</tbody>
+      <tbody>${i.lines.map((l) => html`<tr><td>${o.items[l.line].stockNo || ''}</td><td>${o.items[l.line].description}</td><td>${o.items[l.line].unit}</td><td class="num">${l.qty}</td><td class="num">${num(l.amount)}</td></tr>`)}</tbody>
       <tfoot><tr><td colspan="4">Total</td><td class="num">${num(i.total)}</td></tr></tfoot></table>
       ${i.daysLate ? html`<p class="f-small">Delivered ${i.daysLate} day${i.daysLate === 1 ? '' : 's'} after the delivery term: liquidated damages ₱${num(i.liquidatedDamages)}.</p>` : ''}
       <div class="f-signs"><div class="f-box"><strong>Inspection</strong><br />Date inspected: ${fmtDate(i.inspectedDate)}<br />☒ Inspected, verified and found in order as to quantity and specifications${signBox('', { name: i.inspectedBy, title: 'Inspection Officer / Inspection Committee' })}</div>
-        <div class="f-box"><strong>Acceptance</strong><br />Date received: ${fmtDate(i.date)}<br />☒ ${o.items.every((x) => x.delivered >= x.qty) ? 'Complete' : 'Partial (pls. specify quantity)'}${signBox('', { name: i.acceptedBy, title: sig('supply').title })}</div></div>`;
+        <div class="f-box"><strong>Acceptance</strong><br />Date received: ${fmtDate(i.date)}<br />☒ ${(i.complete ?? o.items.every((x) => x.delivered >= x.qty)) ? 'Complete' : 'Partial (pls. specify quantity)'}${signBox('', { name: i.acceptedBy, title: sig('supply').title })}</div></div>`;
   },
   async ris(id) {
     const r = await api.get(`/api/finance/ris/${id}`);
@@ -150,8 +151,8 @@ const FORMS = {
   async lddap(id) {
     const l = await api.get(`/api/finance/lddaps/${id}`);
     return html`${head('List of Due and Demandable Accounts Payable – Advice to Debit Account', APPENDIX.lddap, { fund: l.fund, no: l.no, date: l.date, extra: html`<span>MDS-GSB branch/account: <strong>${l.bank ? `${l.bank.name} ${l.bank.number}` : ''}</strong></span>` })}
-      <table class="f-table"><thead><tr><th>Creditor</th><th>Preferred servicing bank / account no.</th><th>ORS/BURS no.</th><th>UACS / allotment class</th><th class="num">Gross amount</th><th class="num">Withholding tax</th><th class="num">Net amount</th><th>Remarks</th></tr></thead>
-      <tbody>${l.dvs.map((d) => html`<tr><td>${d.payee.name}</td><td>${d.payee.bankName || ''} ${d.payee.bankAccount || ''}</td><td>${d.ors?.no || ''}</td><td>${d.entry[0]?.code || ''}</td><td class="num">${num(d.gross)}</td><td class="num">${num(d.taxTotal)}</td><td class="num">${num(d.net)}</td><td>DV ${d.no}</td></tr>`)}</tbody>
+      <table class="f-table"><thead><tr><th>Creditor</th><th>Preferred servicing bank / account no.</th><th>ORS/BURS no.</th><th>UACS / allotment class</th><th class="num">Gross amount</th><th class="num">Withholding tax and deductions</th><th class="num">Net amount</th><th>Remarks</th></tr></thead>
+      <tbody>${l.dvs.map((d) => html`<tr><td>${d.payee.name}</td><td>${d.payee.bankName || ''} ${d.payee.bankAccount || ''}</td><td>${d.ors?.no || ''}</td><td>${d.objectCodes}</td><td class="num">${num(d.gross)}</td><td class="num">${num(d.gross - d.net)}</td><td class="num">${num(d.net)}</td><td>DV ${d.no}</td></tr>`)}</tbody>
       <tfoot><tr><td colspan="6">Total</td><td class="num">${num(l.total)}</td><td></td></tr></tfoot></table>
       <p class="f-small">Total amount in words: <em>${amountInWords(l.total)}</em></p>
       <p class="f-small">I hereby warrant that the above list of due and demandable accounts payable is in accordance with existing budgeting, accounting and auditing rules and regulations.</p>
