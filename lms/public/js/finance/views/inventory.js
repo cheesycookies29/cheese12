@@ -391,7 +391,8 @@ export async function inventoryReportsView(el, _p, query) {
     }
   });
   const countForm = el.querySelector('#count');
-  if (countForm) {
+  // Without the inventory permission the sheet is read-only (blank columns for a printed count).
+  if (countForm && can('finance.inventory')) {
     // Live differences; the button says how many will be booked.
     const showDiffs = () => {
       let n = 0;
