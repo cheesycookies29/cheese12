@@ -75,7 +75,8 @@ export function emptyData() {
     hrSettings: structuredClone(HR_DEFAULTS), // pay rules, contributions, tax tables, default schedule
     employees: [], // employee records, each at a campus; an account links to one with user.employeeId
     timeEntries: [], // the DTR: one record per employee per date (work, remote or leave)
-    payrollRuns: [], // per campus and pay period, with computed payslips
+    payrollRuns: [], // per campus and pay period (or bonus), with computed payslips
+    payrollDeductions: [], // government payroll: an employee's loans and other recurring deductions
     leaveTypes: structuredClone(DEFAULT_LEAVE_TYPES),
     leaveCredits: [], // per-employee credits for a year, replacing the leave type's default
     leaveAccess: [], // a leave type given to, or taken from, one employee

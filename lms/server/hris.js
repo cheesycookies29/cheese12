@@ -18,6 +18,7 @@ import { campusesFor, campusName } from './campus.js';
 import { validateUserFields } from './admin.js';
 import { registerLeaveRoutes, findLeaveType, leaveBalances } from './hris-leave.js';
 import { clockInLocation, forViewer, locationSettings, purgeOldLocations, registerGeoRoutes } from './hris-geo.js';
+import { computeGovPayslip, computeGovBonus, DEFAULT_GOV, BONUS_KINDS, APPOINTMENTS, DEDUCTION_TYPES, monthlySalary, salaryFor, stepsIn, isJobOrder } from '../shared/gov-pay.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -31,7 +32,10 @@ export function mergeHrSettings(s = {}) {
     ...structuredClone(HR_DEFAULTS),
     ...s,
     schedule: { ...HR_DEFAULTS.schedule, ...(s.schedule || {}) },
-    contributions: { ...HR_DEFAULTS.contributions, ...(s.contributions || {}) },
+    // Government (GSIS, salary grades, PERA/RATA) or private-sector (SSS) payroll; a state school is government.
+    payrollSystem: s.payrollSystem === 'private' ? 'private' : 'government',
+    gov: { ...DEFAULT_GOV, ...(s.gov || {}) },
+    contributions: { gsis: true, ...HR_DEFAULTS.contributions, ...(s.contributions || {}) },
     // Each group is merged on its own, so an older or partial group still gets every field.
     rates: {
       sss: { ...DEFAULT_RATES.sss, ...(s.rates?.sss || {}) },
@@ -48,6 +52,8 @@ const EMPLOYEE_FIELDS = [
   'address', 'position', 'department', 'employmentStatus', 'hireDate', 'status', 'payType', 'rate', 'allowance',
   'minimumWageEarner', 'flexTime', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
   'emergencyContactName', 'emergencyContactPhone', 'schedule', 'category',
+  // Government service: plantilla item, salary grade and step, appointment, GSIS, PERA and RATA.
+  'salaryGrade', 'step', 'plantillaItem', 'appointment', 'gsisNo', 'pera', 'rataRepresentation', 'rataTransportation',
 ];
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
 function trimStrings(obj) {
@@ -78,6 +84,21 @@ function validateEmployee(input, data, existingId) {
   if (e.birthDate && !DATE_RE.test(e.birthDate)) fail('Birth date must be YYYY-MM-DD.');
   if (e.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.email)) fail('That email address does not look right.');
   if (!['monthly', 'daily'].includes(e.payType)) fail('Pay type must be monthly or daily.');
+  // Salary grade and step (government): the monthly rate comes from the salary schedule.
+  e.salaryGrade = e.salaryGrade === '' || e.salaryGrade == null ? null : Math.round(Number(e.salaryGrade));
+  if (e.salaryGrade != null) {
+    if (!(e.salaryGrade >= 1 && e.salaryGrade <= 33)) fail('Salary grade must be 1 to 33.');
+    e.step = Math.round(Number(e.step) || 1);
+    if (!(e.step >= 1 && e.step <= stepsIn(e.salaryGrade))) fail(`Salary grade ${e.salaryGrade} has steps 1 to ${stepsIn(e.salaryGrade)}.`);
+    e.payType = 'monthly';
+    e.rate = salaryFor(e.salaryGrade, e.step, localDate());
+  } else e.step = null;
+  e.appointment = APPOINTMENTS.includes(e.appointment) ? e.appointment : '';
+  e.pera = e.pera !== false && e.pera !== 'false';
+  for (const k of ['rataRepresentation', 'rataTransportation']) {
+    e[k] = Math.max(0, Number(e[k]) || 0);
+    if (e[k] > 100000) fail('RATA must be at most ₱100,000 a month each.');
+  }
   e.rate = Number(e.rate);
   if (!(e.rate > 0)) fail('Rate must be greater than zero.');
   e.allowance = Math.max(0, Number(e.allowance) || 0);
@@ -133,18 +154,61 @@ export function summarizeRun(run) {
     grossPay: sum((p) => p.grossPay),
     totalDeductions: sum((p) => p.totalDeductions),
     netPay: sum((p) => p.netPay),
-    employerContributions: sum((p) => p.employerShare.sss + p.employerShare.sssEc + p.employerShare.philhealth + p.employerShare.pagibig),
+    employerContributions: sum((p) => Object.values(p.employerShare || {}).reduce((a, v) => a + (Number(v) || 0), 0)),
   };
   return run;
+}
+
+// What each recurring deduction has had taken in finalized runs (other than `exceptRunId`).
+export function deductionsPaid(data, exceptRunId = null) {
+  const paid = {};
+  for (const r of data.payrollRuns) {
+    if (r.status !== 'finalized' || r.id === exceptRunId) continue;
+    for (const p of r.payslips) for (const d of p.deductions?.items || []) paid[d.id] = Math.round(((paid[d.id] || 0) + d.amount) * 100) / 100;
+  }
+  return paid;
+}
+
+// Bonuses already paid this year that count toward the P90,000 exemption, per employee.
+function benefitsThisYear(data, year, exceptRunId) {
+  const used = {};
+  for (const r of data.payrollRuns) {
+    if (r.status !== 'finalized' || r.id === exceptRunId || r.kind === 'regular' || !r.kind || !String(r.payDate).startsWith(String(year))) continue;
+    for (const p of r.payslips) used[p.employeeId] = (used[p.employeeId] || 0) + (p.benefitsCounted || 0);
+  }
+  return used;
 }
 
 export function computeRun(data, run) {
   const { hrSettings, employees, timeEntries } = data;
   const previous = new Map(run.payslips.map((p) => [p.employeeId, p.adjustments]));
-  run.payslips = employees
-    .filter((e) => run.employeeIds.includes(e.id))
-    .map((employee) => computePayslip({ employee, entries: timeEntries, periodStart: run.periodStart, periodEnd: run.periodEnd, settings: hrSettings, adjustments: previous.get(employee.id) }))
-    .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
+  const people = employees.filter((e) => run.employeeIds.includes(e.id));
+  if (run.system === 'government' && run.kind && run.kind !== 'regular') {
+    // A bonus or allowance run: eligibility, the P90,000 exemption so far this year, tax on any excess.
+    const year = Number(run.year);
+    const used = benefitsThisYear(data, year, run.id);
+    const g = hrSettings.gov;
+    run.payslips = people.map((employee) => {
+      const m = monthlySalary(employee, run.payDate) || 0;
+      const monthlyTaxable = Math.max(0, m - m * g.gsisPersonal - Math.min(m, hrSettings.rates.philhealth.ceiling) * hrSettings.rates.philhealth.rate / 2 - Math.min(m, hrSettings.rates.pagibig.maxFundSalary) * hrSettings.rates.pagibig.eeRate);
+      return computeGovBonus({ employee, kind: run.kind, year, payDate: run.payDate, settings: hrSettings, ytdExempt: used[employee.id] || 0, monthlyTaxable, adjustments: previous.get(employee.id) });
+    }).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
+  } else if (run.system === 'government') {
+    const paid = deductionsPaid(data, run.id);
+    const year = Number(run.periodEnd.slice(0, 4));
+    const vlId = hrSettings.gov.vacationLeaveId;
+    run.payslips = people.map((employee) => {
+      const vl = leaveBalances(data, employee.id, year).find((b) => b.leaveTypeId === vlId);
+      return computeGovPayslip({
+        employee, entries: timeEntries, periodStart: run.periodStart, periodEnd: run.periodEnd, settings: hrSettings, adjustments: previous.get(employee.id),
+        deductions: (data.payrollDeductions || []).filter((d) => d.employeeId === employee.id), paidSoFar: paid, vlRemaining: vl?.remaining ?? 0,
+      });
+    }).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
+  } else {
+    run.payslips = people
+      .map((employee) => computePayslip({ employee, entries: timeEntries, periodStart: run.periodStart, periodEnd: run.periodEnd, settings: hrSettings, adjustments: previous.get(employee.id) }))
+      .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
+  }
   run.payFrequency = hrSettings.payFrequency;
   run.updatedAt = new Date().toISOString();
   return summarizeRun(run);
@@ -179,7 +243,25 @@ function validatePayrollConfig(s) {
   s.minimumOvertimeMinutes = num(s.minimumOvertimeMinutes, 'Minimum overtime', 0, 480);
   s.overtimeMultiplier = num(s.overtimeMultiplier, 'Overtime rate', 1, 5);
   s.restDayMultiplier = num(s.restDayMultiplier, 'Rest day rate', 1, 5);
-  s.contributions = Object.fromEntries(['sss', 'philhealth', 'pagibig', 'withholdingTax'].map((k) => [k, Boolean(s.contributions[k])]));
+  s.contributions = Object.fromEntries(['gsis', 'sss', 'philhealth', 'pagibig', 'withholdingTax'].map((k) => [k, Boolean(s.contributions[k])]));
+  s.payrollSystem = s.payrollSystem === 'private' ? 'private' : 'government';
+  const g = s.gov;
+  s.gov = {
+    gsisPersonal: num(g.gsisPersonal, 'GSIS personal share', 0, 1), gsisGovernment: num(g.gsisGovernment, 'GSIS government share', 0, 1), ecc: num(g.ecc, 'Employees\' Compensation', 0, 10000),
+    pera: num(g.pera, 'PERA', 0, 100000), peraTaxable: Boolean(g.peraTaxable),
+    workingDaysPerMonth: num(g.workingDaysPerMonth, 'Working days a month', 15, 31),
+    netPayFloor: num(g.netPayFloor, 'Minimum net pay', 0, 1e6),
+    overtime: g.overtime === 'pay' ? 'pay' : 'cto',
+    overtimeRegular: num(g.overtimeRegular, 'Overtime rate (work days)', 1, 5), overtimeRestDay: num(g.overtimeRestDay, 'Overtime rate (rest days)', 1, 5),
+    overtimeCapPercent: num(g.overtimeCapPercent, 'Overtime cap', 0, 100),
+    tardiness: g.tardiness === 'salary' ? 'salary' : 'leave',
+    vacationLeaveId: String(g.vacationLeaveId || 'vl').slice(0, 40),
+    benefitsExemptCeiling: num(g.benefitsExemptCeiling, '13th-month and other benefits exemption', 0, 1e7),
+    cashGift: num(g.cashGift, 'Cash gift', 0, 1e6), pei: num(g.pei, 'PEI', 0, 1e6),
+    clothingAllowance: num(g.clothingAllowance, 'Clothing allowance', 0, 1e6), clothingExemptCeiling: num(g.clothingExemptCeiling, 'Clothing de minimis ceiling', 0, 1e6),
+    clothingMinMonths: num(g.clothingMinMonths, 'Months of service for the clothing allowance', 0, 24),
+    jobOrderEwt: num(g.jobOrderEwt, 'Job order withholding tax', 0, 1), jobOrderPercentageTax: num(g.jobOrderPercentageTax, 'Job order percentage tax', 0, 1),
+  };
   const { sss, philhealth, pagibig } = s.rates;
   s.rates.sss = {
     eeRate: num(sss.eeRate, 'SSS employee rate', 0, 1), erRate: num(sss.erRate, 'SSS employer rate', 0, 1),
@@ -205,7 +287,7 @@ export function deleteEmployees(data, ids, removeFile = () => {}) {
   data.timeEntries = data.timeEntries.filter((e) => !gone.has(e.employeeId));
   for (const r of data.requests) if (gone.has(r.employeeId) && r.attachment) removeFile(r.attachment.id);
   data.requests = data.requests.filter((r) => !gone.has(r.employeeId));
-  for (const k of ['leaveCredits', 'leaveAccess', 'leaveAdjustments']) data[k] = data[k].filter((c) => !gone.has(c.employeeId));
+  for (const k of ['leaveCredits', 'leaveAccess', 'leaveAdjustments', 'payrollDeductions']) data[k] = (data[k] || []).filter((c) => !gone.has(c.employeeId));
   for (const u of data.users) if (gone.has(u.employeeId)) u.employeeId = null;
   data.employees = data.employees.filter((e) => !gone.has(e.id));
 }
@@ -256,7 +338,7 @@ export function registerHrisRoutes(route, ctx) {
   });
   // Payroll setup: pay rules, deductions, government rates and tax tables (payroll, administrators).
   route('PUT', '/api/hris/payroll-config', 'hris:payroll.config', ({ body, user, campusId }) => {
-    const next = mergeHrSettings({ ...data().hrSettings, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'overtimeMultiplier', 'restDayMultiplier', 'contributions', 'rates']) });
+    const next = mergeHrSettings({ ...data().hrSettings, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'overtimeMultiplier', 'restDayMultiplier', 'contributions', 'rates', 'payrollSystem']), gov: { ...data().hrSettings.gov, ...(body.gov || {}) } });
     data().hrSettings = { ...validatePayrollConfig(next), payrollConfigUpdatedAt: new Date().toISOString(), payrollConfigUpdatedBy: user.name };
     save();
     return hrSettingsView(campusId);
@@ -538,18 +620,45 @@ export function registerHrisRoutes(route, ctx) {
     data().payrollRuns.filter((r) => r.campusId === campusId).map(({ payslips, ...run }) => run).sort((a, b) => b.periodStart.localeCompare(a.periodStart)));
   // Runs made before the campus was kept on them get its current name.
   const withCampus = (run) => ({ ...run, campusName: run.campusName || campusName(data(), run.campusId) });
-  route('GET', '/api/hris/payroll-runs/:id', 'hris:payroll.view', ({ params, campusId }) => withCampus(findRun(params.id, campusId)));
+  // With the agency's name and Finance's signatories, for the General Payroll (GAM Appendix 33).
+  const payrollForms = () => {
+    const f = data().finSettings || {};
+    const sig = (k) => ({ name: f.signatories?.[k]?.name || '', title: f.signatories?.[k]?.title || '' });
+    return { entity: f.entity?.name || data().settings.schoolName, head: sig('head'), accountant: sig('accountant'), cashier: sig('cashier') };
+  };
+  route('GET', '/api/hris/payroll-runs/:id', 'hris:payroll.view', ({ params, campusId }) => ({ ...withCampus(findRun(params.id, campusId)), forms: payrollForms() }));
   route('POST', '/api/hris/payroll-runs', 'hris:payroll.edit', ({ body, campusId }) => {
+    const system = data().hrSettings.payrollSystem;
+    const kind = BONUS_KINDS[body.kind] ? body.kind : 'regular';
+    if (kind !== 'regular') {
+      // A bonus or allowance run (government payroll): one of each kind a year per campus.
+      if (system !== 'government') fail('Bonus runs are part of government payroll (Payroll setup).');
+      const year = Math.round(Number(body.year));
+      if (!(year >= 2000 && year <= 2100)) fail('Pick the year.');
+      if (!DATE_RE.test(body.payDate || '') || !String(body.payDate).startsWith(String(year))) fail(`Pick a pay date in ${year}.`);
+      const dup = data().payrollRuns.find((r) => r.campusId === campusId && r.kind === kind && Number(r.year) === year);
+      if (dup) fail(`There is already a ${BONUS_KINDS[kind].name.toLowerCase()} run for ${year} at this campus (${dup.status}). Open it instead, or delete it first.`);
+      const employeeIds = campusEmployees(campusId).filter((e) => e.status === 'Active' && e.hireDate <= body.payDate).map((e) => e.id);
+      if (!employeeIds.length) fail('There are no active employees at this campus.');
+      const run = {
+        id: randomUUID(), campusId, campusName: campusName(data(), campusId), system, kind, year, name: `${BONUS_KINDS[kind].name} ${year}`,
+        periodStart: body.payDate, periodEnd: body.payDate, payDate: body.payDate, status: 'draft', employeeIds, payslips: [], createdAt: new Date().toISOString(),
+      };
+      computeRun(data(), run);
+      data().payrollRuns.push(run);
+      save();
+      return run;
+    }
     const { periodStart, periodEnd, payDate } = body;
     if (!DATE_RE.test(periodStart || '') || !DATE_RE.test(periodEnd || '')) fail('Pick a valid pay period.');
     if (periodEnd < periodStart) fail('Period end must be on or after period start.');
-    const clash = data().payrollRuns.find((r) => r.campusId === campusId && r.periodStart <= periodEnd && periodStart <= r.periodEnd);
+    const clash = data().payrollRuns.find((r) => r.campusId === campusId && (!r.kind || r.kind === 'regular') && r.periodStart <= periodEnd && periodStart <= r.periodEnd);
     if (clash) fail(`There is already a payroll run for ${clash.periodStart} to ${clash.periodEnd} at this campus (${clash.status}). Open it instead, or delete it first.`);
     const employeeIds = campusEmployees(campusId).filter((e) => e.status === 'Active' && e.hireDate <= periodEnd).map((e) => e.id);
     if (!employeeIds.length) fail('There are no active employees at this campus for this period.');
     const run = {
       // The campus is kept on the run: payslips show it even after the campus is renamed or an employee moves.
-      id: randomUUID(), campusId, campusName: campusName(data(), campusId), periodStart, periodEnd, payDate: DATE_RE.test(payDate || '') ? payDate : periodEnd,
+      id: randomUUID(), campusId, campusName: campusName(data(), campusId), system, kind: 'regular', periodStart, periodEnd, payDate: DATE_RE.test(payDate || '') ? payDate : periodEnd,
       status: 'draft', employeeIds, payslips: [], createdAt: new Date().toISOString(),
     };
     computeRun(data(), run);
@@ -572,6 +681,8 @@ export function registerHrisRoutes(route, ctx) {
       otherEarnings: Math.min(1e7, Math.max(0, Number(body.otherEarnings) || 0)),
       otherDeductions: Math.min(1e7, Math.max(0, Number(body.otherDeductions) || 0)),
       remarks: text(body.remarks, 300),
+      // Government payroll: leave someone out of this run (e.g. not entitled to a bonus), with the reason in the remarks.
+      excluded: run.system === 'government' && (body.excluded === true || body.excluded === 'on' || body.excluded === 'true'),
     };
     computeRun(data(), run);
     save();
@@ -582,12 +693,75 @@ export function registerHrisRoutes(route, ctx) {
     assertDraft(run);
     computeRun(data(), run);
     Object.assign(run, { status: 'finalized', campusName: campusName(data(), run.campusId), finalizedAt: new Date().toISOString(), finalizedBy: user.name });
+    // Tardiness and undertime charged to vacation leave come off the credits now (CSC rules).
+    const vlId = data().hrSettings.gov.vacationLeaveId;
+    for (const p of run.payslips) {
+      const days = p.leave?.chargedToLeaveDays;
+      if (!days) continue;
+      data().leaveAdjustments.push({ id: randomUUID(), employeeId: p.employeeId, leaveTypeId: vlId, year: Number(run.periodEnd.slice(0, 4)), days: -days, reason: `Tardiness and undertime, ${run.periodStart} to ${run.periodEnd} (${p.leave.tardinessMinutes} min)`, at: new Date().toISOString(), by: user.name, runId: run.id });
+    }
     save();
     return run;
   });
   route('DELETE', '/api/hris/payroll-runs/:id', 'hris:payroll.edit', ({ params, campusId }) => {
     const run = findRun(params.id, campusId);
     data().payrollRuns = data().payrollRuns.filter((r) => r.id !== run.id);
+    // Leave charged by the run goes back; loan balances follow the remaining finalized runs.
+    data().leaveAdjustments = data().leaveAdjustments.filter((a) => a.runId !== run.id);
+    save();
+    return { ok: true };
+  });
+
+  // ----- Loans and other recurring deductions (government payroll) -----
+  const deductionView = (d, paid) => {
+    const paidAmount = paid[d.id] || 0;
+    return { ...d, paid: paidAmount, balance: d.total ? Math.max(0, Math.round((d.total - paidAmount) * 100) / 100) : null };
+  };
+  function validateDeduction(input) {
+    const type = DEDUCTION_TYPES.find((t) => t.code === input.type) || fail('Pick the kind of deduction.');
+    const d = {
+      type: type.code,
+      name: text(input.name, 80) || type.name,
+      reference: text(input.reference, 60),
+      monthly: Math.round(Number(input.monthly) * 100) / 100,
+      total: input.total === '' || input.total == null ? null : Math.round(Number(input.total) * 100) / 100,
+      startDate: input.startDate,
+      endDate: input.endDate || null,
+      notes: text(input.notes, 300),
+    };
+    if (!(d.monthly > 0 && d.monthly <= 1e6)) fail('Enter the amount deducted a month.');
+    if (d.total != null && !(d.total >= d.monthly)) fail('The total to pay must be at least one month\'s deduction.');
+    if (!DATE_RE.test(d.startDate || '')) fail('Pick the first month of the deduction.');
+    if (d.endDate && (!DATE_RE.test(d.endDate) || d.endDate < d.startDate)) fail('The last month must be after the first.');
+    return d;
+  }
+  route('GET', '/api/hris/employees/:id/deductions', 'hris:payroll.view', ({ params, campusId }) => {
+    const emp = employeeIn(campusId, params.id);
+    const paid = deductionsPaid(data());
+    return data().payrollDeductions.filter((d) => d.employeeId === emp.id).map((d) => deductionView(d, paid)).sort((a, b) => b.startDate.localeCompare(a.startDate));
+  });
+  route('POST', '/api/hris/employees/:id/deductions', 'hris:payroll.edit', ({ params, body, campusId, user }) => {
+    const emp = employeeIn(campusId, params.id);
+    const d = { id: randomUUID(), employeeId: emp.id, ...validateDeduction(body), createdAt: new Date().toISOString(), createdBy: user.name };
+    data().payrollDeductions.push(d);
+    save();
+    return deductionView(d, {});
+  });
+  const deductionIn = (campusId, empId, id) => {
+    const emp = employeeIn(campusId, empId);
+    return data().payrollDeductions.find((d) => d.id === id && d.employeeId === emp.id) || fail('Deduction not found.', 404);
+  };
+  route('PUT', '/api/hris/employees/:id/deductions/:dedId', 'hris:payroll.edit', ({ params, body, campusId, user }) => {
+    const d = deductionIn(campusId, params.id, params.dedId);
+    Object.assign(d, validateDeduction({ ...d, ...body }), { updatedAt: new Date().toISOString(), updatedBy: user.name });
+    save();
+    return deductionView(d, deductionsPaid(data()));
+  });
+  // A deduction already taken in a finalized payroll is ended instead (its history stays).
+  route('DELETE', '/api/hris/employees/:id/deductions/:dedId', 'hris:payroll.edit', ({ params, campusId }) => {
+    const d = deductionIn(campusId, params.id, params.dedId);
+    if (deductionsPaid(data())[d.id]) fail('This deduction has been taken in a finalized payroll. Set its last month instead, so the record stays.');
+    data().payrollDeductions = data().payrollDeductions.filter((x) => x.id !== d.id);
     save();
     return { ok: true };
   });
@@ -612,7 +786,7 @@ export function registerHrisRoutes(route, ctx) {
     const emp = linkedEmployee(user);
     return data().payrollRuns
       .filter((r) => r.status === 'finalized')
-      .flatMap((r) => r.payslips.filter((p) => p.employeeId === emp.id).map((p) => ({ runId: r.id, periodStart: r.periodStart, periodEnd: r.periodEnd, payDate: r.payDate, grossPay: p.grossPay, totalDeductions: p.totalDeductions, netPay: p.netPay })))
+      .flatMap((r) => r.payslips.filter((p) => p.employeeId === emp.id && (p.grossPay || !r.kind || r.kind === 'regular')).map((p) => ({ runId: r.id, name: r.name || '', kind: r.kind || 'regular', periodStart: r.periodStart, periodEnd: r.periodEnd, payDate: r.payDate, grossPay: p.grossPay, totalDeductions: p.totalDeductions, netPay: p.netPay })))
       .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
   });
   route('GET', '/api/hris/me/payslips/:runId', 'hris', ({ user, params }) => {

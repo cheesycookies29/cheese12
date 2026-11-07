@@ -105,7 +105,7 @@ export async function meHomeView(el) {
             <div class="card-head"><h2>${icon('wallet')} Latest payslip</h2></div>
             ${latest
               ? html`<a class="latest-run" href="#/me/payslips/${latest.runId}">
-                  <span>${fmtDate(latest.periodStart)} – ${fmtDate(latest.periodEnd)}</span>
+                  <span>${latest.name || `${fmtDate(latest.periodStart)} – ${fmtDate(latest.periodEnd)}`}</span>
                   <strong>${money(latest.netPay)}</strong><small class="muted">net pay · paid ${fmtDate(latest.payDate)}</small></a>`
               : html`<p class="muted">No payslips yet. They appear here once payroll is finalized.</p>`}
           </section>
@@ -188,7 +188,7 @@ export async function mePayslipsView(el) {
         ? html`<table class="table clickable">
             <thead><tr><th>Pay period</th><th>Pay date</th><th class="num">Gross pay</th><th class="num">Deductions</th><th class="num">Net pay</th></tr></thead>
             <tbody>${payslips.map((p) => html`<tr data-href="#/me/payslips/${p.runId}">
-              <td><strong>${fmtDate(p.periodStart)} – ${fmtDate(p.periodEnd)}</strong></td><td>${fmtDate(p.payDate)}</td>
+              <td><strong>${p.name || `${fmtDate(p.periodStart)} – ${fmtDate(p.periodEnd)}`}</strong></td><td>${fmtDate(p.payDate)}</td>
               <td class="num">${money(p.grossPay)}</td><td class="num">${money(p.totalDeductions)}</td><td class="num"><strong>${money(p.netPay)}</strong></td>
             </tr>`)}</tbody>
           </table>`

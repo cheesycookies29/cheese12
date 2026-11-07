@@ -354,3 +354,116 @@ test('port fixes: payslips keep their campus, partial rate settings are filled i
   await admin.post('/api/admin/demo');
   assert.ok(env.db.data.leaveTypes.some((t) => t.id === 'vl'));
 });
+
+// ----- Government payroll (state university): salary grades, GSIS, PERA/RATA, leave, loans, bonuses -----
+import * as gov from '../shared/gov-pay.js';
+
+test('government pay rules: EO 64 schedule, contributions, PERA and RATA, tax, net pay floor', () => {
+  // Every row rises step by step and grade by grade; SG 33 has two steps.
+  for (const s of gov.SALARY_SCHEDULES) {
+    for (const [sg, row] of Object.entries(s.grades)) {
+      assert.equal(row.length, sg === '33' ? 2 : 8);
+      for (let i = 1; i < row.length; i++) assert.ok(row[i] > row[i - 1], `${s.effective} SG ${sg} step ${i + 1}`);
+    }
+  }
+  assert.equal(gov.salaryFor(11, 1, '2026-06-30'), 31705);
+  assert.equal(gov.salaryFor(11, 1, '2027-01-15'), 33387); // the next tranche from January
+  assert.equal(gov.salaryFor(1, 1, '2026-01-01'), 14634);
+  assert.equal(gov.rataShare(17), 1);
+  assert.equal(gov.rataShare(12), 0.75);
+  assert.equal(gov.rataShare(6), 0.5);
+  assert.equal(gov.rataShare(1), 0.25);
+  assert.deepEqual([3.5, 2.2, 1, 0.5].map(gov.prorateShare), [0.4, 0.3, 0.2, 0.1]);
+
+  const settings = { ...lmsCalc.DEFAULT_SETTINGS, payFrequency: 'monthly', contributions: { ...lmsCalc.DEFAULT_SETTINGS.contributions, gsis: true } };
+  const emp = { id: 'e', employeeNo: 'E', firstName: 'A', lastName: 'B', salaryGrade: 12, step: 1, hireDate: '2020-01-01', status: 'Active', rataRepresentation: 5000, rataTransportation: 5000, schedule: settings.schedule };
+  const days = [...lmsCalc.eachDate('2026-10-01', '2026-10-31')].filter((d) => ![0, 6].includes(lmsCalc.dayOfWeek(d)));
+  // 22 work days in October 2026; one absence without pay and 60 minutes late (no leave credits left).
+  const entries = days.slice(1).map((d, i) => ({ employeeId: 'e', date: d, type: 'work', timeIn: i === 0 ? '09:00' : '08:00', timeOut: '17:00' }));
+  const p = gov.computeGovPayslip({ employee: emp, entries, periodStart: '2026-10-01', periodEnd: '2026-10-31', settings, vlRemaining: 0, deductions: [] });
+  const daily = 33947 / 22;
+  assert.equal(p.earnings.absenceDeduction, lmsCalc.round2(daily));
+  assert.equal(p.earnings.tardinessDeduction, lmsCalc.round2(60 * (daily / 480)));
+  assert.equal(p.earnings.pera, lmsCalc.round2(2000 - 2000 / 22)); // PERA less 1/22 for the day without pay
+  assert.equal(p.earnings.rataDays, 21);
+  assert.equal(p.earnings.representation, 5000); // 21 days of actual work: full RATA
+  assert.equal(p.deductions.gsis, lmsCalc.round2(33947 * 0.09));
+  assert.equal(p.employerShare.gsis, lmsCalc.round2(33947 * 0.12));
+  assert.equal(p.employerShare.ecc, 100);
+  assert.equal(p.deductions.pagibig, 200);
+  assert.equal(p.deductions.philhealth, lmsCalc.round2(33947 * 0.025));
+  // PERA and RATA are not taxable.
+  assert.equal(p.taxableIncome, lmsCalc.round2(p.earnings.basicPay - p.deductions.gsis - p.deductions.philhealth - p.deductions.pagibig));
+  assert.equal(p.deductions.withholdingTax, lmsCalc.withholdingTax(p.taxableIncome, 'monthly'));
+
+  // With vacation leave credits, tardiness comes off the credits, not the pay.
+  const withLeave = gov.computeGovPayslip({ employee: emp, entries, periodStart: '2026-10-01', periodEnd: '2026-10-31', settings, vlRemaining: 5 });
+  assert.equal(withLeave.earnings.tardinessDeduction, 0);
+  assert.equal(withLeave.leave.chargedToLeaveDays, 0.125);
+
+  // Loans: GSIS first; one that would bring net pay below P5,000 a month is held back.
+  const loans = [
+    { id: 'big', type: 'COOP', monthly: 40000, startDate: '2026-01-01', createdAt: '1' },
+    { id: 'gsis', type: 'GSIS-CONSO', monthly: 4000, total: 6000, startDate: '2026-01-01', createdAt: '2' },
+  ];
+  const q = gov.computeGovPayslip({ employee: emp, entries, periodStart: '2026-10-01', periodEnd: '2026-10-31', settings, vlRemaining: 5, deductions: loans, paidSoFar: { gsis: 4000 } });
+  assert.deepEqual(q.deductions.items.map((d) => [d.id, d.amount]), [['gsis', 2000]]); // only the balance is left
+  assert.deepEqual(q.skippedDeductions.map((d) => d.id), ['big']);
+  assert.ok(q.netPay >= 5000);
+
+  // Job order: paid for days worked, no GSIS or PERA, tax withheld at the set rates.
+  const jo = gov.computeGovPayslip({ employee: { ...emp, salaryGrade: null, payType: 'daily', rate: 600, appointment: 'Job order', rataRepresentation: 0, rataTransportation: 0 }, entries, periodStart: '2026-10-01', periodEnd: '2026-10-31', settings });
+  assert.equal(jo.earnings.basePay, 21 * 600);
+  assert.equal(jo.deductions.gsis, 0);
+  assert.equal(jo.earnings.pera, 0);
+  assert.equal(jo.deductions.withholdingTax, lmsCalc.round2(jo.grossPay * 0.05));
+});
+
+test('government payroll: SG employees, loans, VL charged on finalize, bonus runs with the P90,000 exemption', async () => {
+  const { env, admin, hr, newEmployee } = await hrisSchool();
+  assert.equal((await hr.get('/api/hris/settings')).payrollSystem, 'government');
+  await assert.rejects(newEmployee(hr, { salaryGrade: 33, step: 3 }), /steps 1 to 2/);
+  const emp = await newEmployee(hr, { firstName: 'Gina', lastName: 'Gov', salaryGrade: 18, step: 2, appointment: 'Permanent', hireDate: '2026-01-05', plantillaItem: 'ITEM-1', gsisNo: '123' });
+  assert.equal(emp.rate, 54371);
+  // A loan, added by payroll (the administrator here); HR may not.
+  await assert.rejects(hr.post(`/api/hris/employees/${emp.id}/deductions`, { type: 'GSIS-MPL', monthly: 2000, startDate: '2026-10-01' }), status(403));
+  const loan = await admin.post(`/api/hris/employees/${emp.id}/deductions`, { type: 'GSIS-MPL', monthly: 2000, total: 3000, startDate: '2026-10-01', reference: 'MPL-1' });
+  assert.equal(loan.balance, 3000);
+  // October: on time every day except 48 minutes late once.
+  const days = [...lmsCalc.eachDate('2026-10-01', '2026-10-15')].filter((d) => ![0, 6].includes(lmsCalc.dayOfWeek(d)));
+  for (const [i, date] of days.entries()) await hr.post('/api/hris/time-entries', { employeeId: emp.id, date, type: 'work', timeIn: i === 2 ? '08:48' : '08:00', timeOut: '17:00' });
+  const run = await admin.post('/api/hris/payroll-runs', { periodStart: '2026-10-01', periodEnd: '2026-10-15' });
+  assert.equal(run.system, 'government');
+  const slip = run.payslips.find((p) => p.employeeId === emp.id);
+  assert.equal(slip.earnings.basicPay, 54371 / 2);
+  assert.equal(slip.earnings.pera, 1000);
+  assert.equal(slip.leave.chargedToLeaveDays, 0.1);
+  assert.deepEqual(slip.deductions.items.map((d) => d.amount), [1000]);
+  await admin.post(`/api/hris/payroll-runs/${run.id}/finalize`, {});
+  // 0.1 day of vacation leave is taken off; the loan balance follows the finalized run.
+  const adj = env.db.data.leaveAdjustments.filter((a) => a.employeeId === emp.id);
+  assert.deepEqual(adj.map((a) => [a.leaveTypeId, a.days]), [['vl', -0.1]]);
+  assert.equal((await admin.get(`/api/hris/employees/${emp.id}/deductions`))[0].balance, 2000);
+  await assert.rejects(admin.del(`/api/hris/employees/${emp.id}/deductions/${loan.id}`), /finalized payroll/);
+  // Deleting the run gives the leave back and restores the balance.
+  await admin.del(`/api/hris/payroll-runs/${run.id}`);
+  assert.equal(env.db.data.leaveAdjustments.filter((a) => a.employeeId === emp.id).length, 0);
+  assert.equal((await admin.get(`/api/hris/employees/${emp.id}/deductions`))[0].balance, 3000);
+
+  // Mid-year bonus (hired 5 Jan: 4+ months by 15 May), then the year-end bonus and cash gift.
+  const myb = await admin.post('/api/hris/payroll-runs', { kind: 'mid-year', year: 2026, payDate: '2026-05-15' });
+  const m = myb.payslips.find((p) => p.employeeId === emp.id);
+  assert.equal(m.grossPay, 54371);
+  assert.equal(m.deductions.withholdingTax, 0);
+  await assert.rejects(admin.post('/api/hris/payroll-runs', { kind: 'mid-year', year: 2026, payDate: '2026-05-20' }), /already a mid-year/);
+  await admin.post(`/api/hris/payroll-runs/${myb.id}/finalize`, {});
+  const yeb = await admin.post('/api/hris/payroll-runs', { kind: 'year-end', year: 2026, payDate: '2026-11-15' });
+  const y = yeb.payslips.find((p) => p.employeeId === emp.id);
+  assert.deepEqual(y.earnings.items.map((i) => [i.code, i.amount]), [['YEB', 54371], ['CG', 5000]]);
+  // 54,371 + 54,371 + 5,000 = 113,742: the 23,742 above P90,000 is taxed.
+  assert.equal(y.taxableIncome, 23742);
+  assert.ok(y.deductions.withholdingTax > 0);
+  // Leave someone out of a bonus run, with the reason.
+  const out = await admin.put(`/api/hris/payroll-runs/${yeb.id}/payslips/${emp.id}`, { excluded: true, remarks: 'Rating below Satisfactory' });
+  assert.equal(out.payslips.find((p) => p.employeeId === emp.id).grossPay, 0);
+});

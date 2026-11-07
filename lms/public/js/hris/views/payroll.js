@@ -6,21 +6,27 @@ import { icon } from '../../icons.js';
 import { currentPeriod } from '/shared/calc.js';
 import { html, mount, money, amount, fmtDate, fmtMinutes, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../../ui.js';
 import { hr, can, clickableRows } from '../state.js';
+import { BONUS_KINDS } from '/shared/gov-pay.js';
+import { govRegister, govNotices, govPayslipCard, generalPayroll, remittancesView, downloadRemittance, GOV_REGISTER_CSV, runTitle, isBonusRun } from './payroll-gov.js';
+
+const isGov = () => hr.settings.payrollSystem === 'government';
 
 const statusBadge = (s) => (s === 'finalized' ? badge('Finalized', 'green') : badge('Draft', 'amber'));
-const periodLabel = (r) => `${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}`;
+const periodLabel = (r) => (isBonusRun(r) ? runTitle(r) : `${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}`);
 
 export async function payrollListView(el) {
   const runs = await api.get('/api/hris/payroll-runs');
 
   mount(el, html`
-    ${pageHead('Payroll', `${hr.settings.payFrequency === 'monthly' ? 'Monthly' : 'Semi-monthly'} payroll for ${ctx.info.campusName || 'this campus'}, with SSS, PhilHealth, Pag-IBIG and BIR withholding tax.`, can('payroll.edit') ? html`<button class="btn primary" id="new-run">${icon('plus', 16)} New payroll run</button>` : '')}
+    ${pageHead('Payroll', isGov()
+      ? `${hr.settings.payFrequency === 'monthly' ? 'Monthly' : 'Semi-monthly'} government payroll for ${ctx.info.campusName || 'this campus'}: salary grades, PERA and RATA, GSIS, PhilHealth, Pag-IBIG, BIR withholding tax and loans; and the mid-year and year-end bonuses, cash gift, PEI and clothing allowance.`
+      : `${hr.settings.payFrequency === 'monthly' ? 'Monthly' : 'Semi-monthly'} payroll for ${ctx.info.campusName || 'this campus'}, with SSS, PhilHealth, Pag-IBIG and BIR withholding tax.`, can('payroll.edit') ? html`<button class="btn primary" id="new-run">${icon('plus', 16)} New payroll run</button>` : '')}
     <section class="card">
       ${runs.length
         ? html`<table class="table clickable">
             <thead><tr><th>Pay period</th><th>Pay date</th><th class="num">Employees</th><th class="num">Gross pay</th><th class="num">Deductions</th><th class="num">Net pay</th><th>Status</th></tr></thead>
             <tbody>${runs.map((r) => html`<tr data-href="#/payroll/${r.id}">
-              <td><strong>${periodLabel(r)}</strong></td><td>${fmtDate(r.payDate)}</td>
+              <td><strong>${periodLabel(r)}</strong>${isBonusRun(r) ? html` ${badge('Bonus', 'blue')}` : ''}</td><td>${fmtDate(r.payDate)}</td>
               <td class="num">${r.totals.employees}</td><td class="num">${money(r.totals.grossPay)}</td>
               <td class="num">${money(r.totals.totalDeductions)}</td><td class="num"><strong>${money(r.totals.netPay)}</strong></td>
               <td>${statusBadge(r.status)}</td></tr>`)}</tbody>
@@ -32,21 +38,42 @@ export async function payrollListView(el) {
 
   el.querySelector('#new-run')?.addEventListener('click', () => {
     const p = currentPeriod(today(), hr.settings.payFrequency);
+    const year = Number(today().slice(0, 4));
+    const bonusDate = { 'mid-year': `${year}-05-15`, 'year-end': `${year}-11-15`, pei: `${year}-12-15`, clothing: today() };
     const { form } = modal({
       title: 'New payroll run',
       submitLabel: 'Compute payroll',
       body: html`
-        <div class="grid two">
+        ${isGov() ? html`<label class="field"><span>Kind</span><select name="kind">
+          <option value="regular">Regular payroll (salary, PERA, RATA)</option>
+          ${Object.entries(BONUS_KINDS).map(([k, b]) => html`<option value="${k}">${b.name}</option>`)}
+        </select></label>
+        <div class="grid two bonus-only" hidden>
+          <label class="field"><span>Year</span><input type="number" name="year" value="${year}" min="2000" max="2100" /></label>
+          <label class="field"><span>Pay date</span><input type="date" name="bonusPayDate" value="${bonusDate['year-end']}" /><span class="hint">Mid-year bonus not before 15 May; year-end bonus and cash gift not before 15 November.</span></label>
+        </div>` : ''}
+        <div class="grid two regular-only">
           <label class="field"><span>Period start</span><input type="date" name="periodStart" value="${p.start}" required /></label>
           <label class="field"><span>Period end</span><input type="date" name="periodEnd" value="${p.end}" required /></label>
           <label class="field"><span>Pay date</span><input type="date" name="payDate" value="${p.end}" required /></label>
         </div>
-        <p class="muted small">All active employees at ${ctx.info.campusName || 'this campus'} are included. Scheduled work days without an attendance record count as absences, so record leave before running payroll, and run it once the period has ended.</p>`,
+        <p class="muted small regular-only">All active employees at ${ctx.info.campusName || 'this campus'} are included. Scheduled work days without an attendance record count as absences, so record leave before running payroll, and run it once the period has ended.</p>
+        <p class="muted small bonus-only" hidden>All active employees are listed; each one's eligibility (months of service by the cut-off date) is worked out, with prorated cash gift and PEI for less than four months.</p>`,
       onSubmit: async (f) => {
-        const run = await api.post('/api/hris/payroll-runs', Object.fromEntries(new FormData(f)));
+        const body = Object.fromEntries(new FormData(f));
+        if (body.kind && body.kind !== 'regular') body.payDate = body.bonusPayDate;
+        const run = await api.post('/api/hris/payroll-runs', body);
         toast('Payroll computed.');
         location.hash = `#/payroll/${run.id}`;
       },
+    });
+    const kindSel = form.querySelector('[name=kind]');
+    kindSel?.addEventListener('change', () => {
+      const bonus = kindSel.value !== 'regular';
+      form.querySelectorAll('.bonus-only').forEach((n) => (n.hidden = !bonus));
+      form.querySelectorAll('.regular-only').forEach((n) => (n.hidden = bonus));
+      form.querySelectorAll('.regular-only input').forEach((n) => (n.required = !bonus));
+      if (bonus) form.bonusPayDate.value = bonusDate[kindSel.value];
     });
     const start = form.querySelector('[name=periodStart]');
     start.addEventListener('change', () => {
@@ -74,7 +101,9 @@ export async function payrollRunView(el, { id }) {
     ? (await api.get('/api/hris/requests?status=pending')).filter((r) => r.startDate <= run.periodEnd && r.endDate >= run.periodStart)
     : [];
 
+  let tab = 'register';
   function render() {
+    if (run.system === 'government') return renderGov();
     const draft = run.status === 'draft';
     const editable = draft && can('payroll.edit');
     const open = run.payslips.filter((p) => p.attendance.openEntries).length;
@@ -140,10 +169,55 @@ export async function payrollRunView(el, { id }) {
     bind();
   }
 
+  // Government payroll: register, remittances and the General Payroll (GAM Appendix 33).
+  function renderGov() {
+    const draft = run.status === 'draft';
+    const editable = draft && can('payroll.edit');
+    const bonus = isBonusRun(run);
+    const t = run.totals;
+    const open = bonus ? 0 : run.payslips.filter((p) => p.attendance.openEntries).length;
+    const absent = bonus ? 0 : run.payslips.reduce((a, p) => a + p.attendance.absentDays, 0);
+    const notes = [
+      open ? html`<p><strong>${open}</strong> employee(s) have open attendance records (no clock-out). Those days are not paid until fixed in <a href="#/dtr?from=${run.periodStart}&to=${run.periodEnd}">Attendance</a>.</p>` : '',
+      absent ? html`<p><strong>${absent}</strong> scheduled work day(s) have no attendance record and were counted as absences without pay.</p>` : '',
+      !bonus && pendingRequests.length ? html`<p><strong>${pendingRequests.length}</strong> leave or remote-work request(s) in this period are still pending. <a href="#/leave">Review them</a>, then recompute.</p>` : '',
+      ...govNotices(run),
+    ].filter(Boolean);
+    mount(el, html`
+      ${pageHead(html`${runTitle(run)} ${statusBadge(run.status)}`,
+        `${bonus ? '' : `${run.payFrequency} · `}pay date ${fmtDate(run.payDate)} · ${draft ? 'Draft: recompute after changing attendance, loans or employee data.' : `Finalized ${new Date(run.finalizedAt).toLocaleString('en-PH')}${run.finalizedBy ? ` by ${run.finalizedBy}` : ''}`}`,
+        html`<button class="btn" id="export">${icon('download', 16)} Export register</button>
+          <a class="btn" href="#/payroll/${run.id}/payslip/all">Print payslips</a>
+          ${editable ? html`<button class="btn" id="recompute">Recompute</button><button class="btn gold" id="finalize">Finalize</button>` : ''}`,
+        ['/payroll', 'Payroll'])}
+      <div class="stats">
+        <div class="card"><small>Employees</small><strong>${run.payslips.filter((p) => p.grossPay).length}</strong>${bonus ? html`<span class="muted small">of ${t.employees} listed</span>` : ''}</div>
+        <div class="card"><small>Gross</small><strong>${money(t.grossPay)}</strong></div>
+        <div class="card"><small>Deductions</small><strong>${money(t.totalDeductions)}</strong></div>
+        <div class="card accent"><small>Net pay</small><strong>${money(t.netPay)}</strong></div>
+        ${bonus ? '' : html`<div class="card"><small>Government share</small><strong>${money(t.employerContributions)}</strong><span class="muted small">GSIS, ECC, PhilHealth, Pag-IBIG</span></div>`}
+      </div>
+      ${draft && notes.length ? html`<div class="notice stack-notice">${notes}</div>` : ''}
+      <nav class="tabs no-print">${[['register', 'Register'], ['remit', 'Remittances'], ['gp', 'General Payroll']].map(([k, l]) => html`<a href="javascript:void 0" role="button" data-tab="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`)}</nav>
+      ${tab === 'register' ? html`<section class="card scroll-x">${govRegister(run, { editable })}</section>` : ''}
+      ${tab === 'remit' ? html`<section class="card">${remittancesView(run)}</section>` : ''}
+      ${tab === 'gp' ? html`<div class="actions end no-print"><button class="btn primary" id="print-gp">${icon('file', 16)} Print General Payroll</button></div><section class="card">${generalPayroll(run)}</section>` : ''}
+      ${can('payroll.edit') ? html`<div class="danger-zone no-print"><button class="btn danger ghost" id="delete">${icon('trash', 16)} Delete payroll run</button></div>` : ''}`);
+    el.querySelectorAll('[data-tab]').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault();
+      tab = a.dataset.tab;
+      render();
+    }));
+    el.querySelector('#print-gp')?.addEventListener('click', () => window.print());
+    el.querySelectorAll('[data-remit]').forEach((b) => b.addEventListener('click', () => downloadRemittance(run, b.dataset.remit)));
+    bind();
+  }
+
   function bind() {
     el.querySelector('#export').addEventListener('click', () => {
-      const data = [REGISTER_COLUMNS.map((c) => c[0]), ...run.payslips.map((p) => REGISTER_COLUMNS.map(([, f]) => f(p)))];
-      downloadFile(`payroll-register-${run.periodStart}-to-${run.periodEnd}.csv`, toCsv(data));
+      const cols = run.system === 'government' ? GOV_REGISTER_CSV : REGISTER_COLUMNS;
+      const data = [cols.map((c) => c[0]), ...run.payslips.map((p) => cols.map(([, f]) => f(p)))];
+      downloadFile(isBonusRun(run) ? `${run.kind}-${run.year}.csv` : `payroll-register-${run.periodStart}-to-${run.periodEnd}.csv`, toCsv(data));
     });
     el.querySelector('#recompute')?.addEventListener('click', async () => {
       run = await api.post(`/api/hris/payroll-runs/${id}/recompute`);
@@ -168,6 +242,7 @@ export async function payrollRunView(el, { id }) {
         modal({
           title: `Adjust pay: ${p.employee.name}`,
           body: html`<div class="grid two">
+            ${run.system === 'government' ? html`<label class="field check span-2"><input type="checkbox" name="excluded" ${p.adjustments.excluded ? 'checked' : ''} /> <span>Leave out of this run${isBonusRun(run) ? ' (e.g. a performance rating below Satisfactory, or under investigation)' : ' (e.g. on leave without pay, paid elsewhere)'}; give the reason in the remarks</span></label>` : ''}
             <label class="field"><span>Other earnings (₱, taxable)</span><input type="number" min="0" step="0.01" name="otherEarnings" value="${p.adjustments.otherEarnings || ''}" /><small class="muted">Bonus, commission, holiday pay, etc.</small></label>
             <label class="field"><span>Other deductions (₱)</span><input type="number" min="0" step="0.01" name="otherDeductions" value="${p.adjustments.otherDeductions || ''}" /><small class="muted">Loans, cash advances, etc.</small></label>
             <label class="field span-2"><span>Remarks (shown on payslip)</span><input name="remarks" value="${p.adjustments.remarks}" /></label>
@@ -212,6 +287,7 @@ export function pesosInWords(value) {
 const slipNumber = (run, p) => `PS-${run.periodStart.replaceAll('-', '')}-${p.employee.employeeNo}`;
 
 export function payslipCard(run, p, settings) {
+  if (p.system === 'government') return govPayslipCard(run, p, settings, { slipNumber, pesosInWords, periodLabel });
   const a = p.attendance;
   // Amounts taken off are shown in parentheses, as on a statement.
   const row = (label, value, { sub = false, note = '' } = {}) => html`<tr class="${sub ? 'sub' : ''}"><td>${label}${note ? html`<small>${note}</small>` : ''}</td><td class="num">${value < 0 ? `(${amount(-value)})` : amount(value)}</td></tr>`;

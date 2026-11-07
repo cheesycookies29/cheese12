@@ -7,6 +7,10 @@ import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, raw, mount, money, fmtDate, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, WEEKDAYS, today, initials, timeAgo, formData } from '../../ui.js';
 import { hr, can, clickableRows } from '../state.js';
+import { APPOINTMENTS, DEDUCTION_TYPES, deductionType, salaryFor, stepsIn, isJobOrder } from '/shared/gov-pay.js';
+
+const isGov = () => hr.settings.payrollSystem === 'government';
+const sgLabel = (e) => (e.salaryGrade ? `SG ${e.salaryGrade}-${e.step || 1}` : '');
 
 const CSV_COLUMNS = [
   ['Employee No', 'employeeNo'], ['Last Name', 'lastName'], ['First Name', 'firstName'], ['Middle Name', 'middleName'],
@@ -14,6 +18,7 @@ const CSV_COLUMNS = [
   ['Hire Date', 'hireDate'], ['Pay Type', 'payType'], ['Rate', 'rate'], ['Allowance', 'allowance'], ['Email', 'email'],
   ['Phone', 'phone'], ['Birth Date', 'birthDate'], ['TIN', 'tin'], ['SSS', 'sssNo'], ['PhilHealth', 'philhealthNo'],
   ['Pag-IBIG', 'pagibigNo'], ['Bank', 'bankName'], ['Account No', 'bankAccount'],
+  ['Salary Grade', 'salaryGrade'], ['Step', 'step'], ['Plantilla Item', 'plantillaItem'], ['GSIS BP No', 'gsisNo'],
 ];
 const CATEGORY = { teaching: 'Teaching', 'non-teaching': 'Non-teaching' };
 const accountBadge = (a) => (a ? badge(a.roleLabel, a.status === 'active' ? 'green' : 'gray') : badge('No account', 'amber'));
@@ -138,7 +143,10 @@ export async function employeeFormView(el, { id }) {
           ${field('Category', 'category', emp.category, { options: Object.entries(CATEGORY) })}
           ${field('Position', 'position', emp.position, { hint: 'e.g. Instructor I, Assistant Professor II, Librarian' })}
           ${field('Department / office', 'department', emp.department)}
-          ${field('Employment status', 'employmentStatus', emp.employmentStatus, { options: ['Probationary', 'Regular', 'Contractual', 'Part-time', 'Job order'] })}
+          ${isGov()
+            ? field('Appointment status', 'employmentStatus', emp.appointment || emp.employmentStatus, { options: APPOINTMENTS, hint: 'Job order and contract of service workers have no GSIS, PERA or bonuses.' })
+            : field('Employment status', 'employmentStatus', emp.employmentStatus, { options: ['Probationary', 'Regular', 'Contractual', 'Part-time', 'Job order'] })}
+          ${isGov() ? field('Plantilla item no.', 'plantillaItem', emp.plantillaItem, { hint: 'e.g. CBSUAB-INS1-12-2015' }) : ''}
           ${field('Date hired', 'hireDate', emp.hireDate, { type: 'date', required: true })}
           ${campuses.length > 1 ? field('Campus', 'campusId', emp.campusId || ctx.info.activeCampusId, { options: campuses.map((c) => [c.id, c.name]) }) : ''}
           ${field('Record status', 'status', emp.status, { options: ['Active', 'Inactive'], hint: 'Inactive employees are left out of new payroll runs.' })}
@@ -146,10 +154,21 @@ export async function employeeFormView(el, { id }) {
       </section>
       <section class="card">
         <h2>Compensation</h2>
+        ${isGov() ? html`<p class="muted small">The monthly salary comes from the salary grade and step (EO 64, s. 2024 schedule, updated each tranche). Leave the grade blank only for someone without a plantilla position, e.g. a job order paid a daily rate.</p>` : ''}
         <div class="grid">
-          ${field('Pay type', 'payType', emp.payType, { options: [['monthly', 'Monthly-rated'], ['daily', 'Daily-rated']] })}
-          ${field('Rate (₱)', 'rate', emp.rate, { type: 'number', required: true, attrs: 'min="0" step="0.01"', hint: 'Monthly salary or daily rate, depending on pay type.' })}
-          ${field('Monthly allowance (₱)', 'allowance', emp.allowance, { type: 'number', attrs: 'min="0" step="0.01"', hint: 'Non-taxable (de minimis). Split across pay periods.' })}
+          ${isGov() ? html`
+            ${field('Salary grade', 'salaryGrade', emp.salaryGrade ?? '', { options: [['', 'None (fixed rate)'], ...Array.from({ length: 33 }, (_, i) => [i + 1, `SG ${i + 1}`])] })}
+            ${field('Step', 'step', emp.step || 1, { options: Array.from({ length: 8 }, (_, i) => [i + 1, `Step ${i + 1}`]) })}
+            <div class="field sg-salary"><span>Monthly salary</span><output id="sg-salary" class="sg-out"></output></div>` : ''}
+          <div class="grid-row ${isGov() && emp.salaryGrade ? 'hidden-rate' : ''}" id="rate-fields" style="display:contents">
+            ${field('Pay type', 'payType', emp.payType, { options: [['monthly', 'Monthly-rated'], ['daily', 'Daily-rated']] })}
+            ${field('Rate (₱)', 'rate', emp.rate, { type: 'number', required: !(isGov() && emp.salaryGrade), attrs: 'min="0" step="0.01"', hint: 'Monthly salary or daily rate, depending on pay type.' })}
+          </div>
+          ${isGov() ? html`
+            <label class="field check span-3"><input type="checkbox" name="pera" ${emp.pera !== false ? 'checked' : ''} /> <span>PERA (Personnel Economic Relief Allowance, ₱${Number(hr.settings.gov.pera).toLocaleString()} a month)</span></label>
+            ${field('RATA: representation (₱/month)', 'rataRepresentation', emp.rataRepresentation || '', { type: 'number', attrs: 'min="0" step="0.01"', hint: 'Officials only (president, VPs, deans, directors), at the GAA rate for the position.' })}
+            ${field('RATA: transportation (₱/month)', 'rataTransportation', emp.rataTransportation || '', { type: 'number', attrs: 'min="0" step="0.01"', hint: 'Not granted while using a government vehicle.' })}` : ''}
+          ${field(isGov() ? 'Other allowance (₱/month)' : 'Monthly allowance (₱)', 'allowance', emp.allowance, { type: 'number', attrs: 'min="0" step="0.01"', hint: 'Non-taxable (de minimis). Split across pay periods.' })}
           <label class="field check span-3"><input type="checkbox" name="minimumWageEarner" ${emp.minimumWageEarner ? 'checked' : ''} /> <span>Minimum wage earner (exempt from withholding tax)</span></label>
           <label class="field check span-3"><input type="checkbox" name="flexTime" ${emp.flexTime ? 'checked' : ''} /> <span>Flexible time (FLEX): clock-in and clock-out times do not affect pay. No late or undertime deductions; absences and approved overtime still count.</span></label>
         </div>
@@ -169,7 +188,7 @@ export async function employeeFormView(el, { id }) {
         <h2>Government IDs &amp; bank</h2>
         <div class="grid">
           ${field('TIN', 'tin', emp.tin)}
-          ${field('SSS no.', 'sssNo', emp.sssNo)}
+          ${isGov() ? field('GSIS BP no.', 'gsisNo', emp.gsisNo) : field('SSS no.', 'sssNo', emp.sssNo)}
           ${field('PhilHealth no.', 'philhealthNo', emp.philhealthNo)}
           ${field('Pag-IBIG MID no.', 'pagibigNo', emp.pagibigNo)}
           ${field('Bank', 'bankName', emp.bankName)}
@@ -184,6 +203,26 @@ export async function employeeFormView(el, { id }) {
     </form>`);
 
   const form = el.querySelector('#emp-form');
+  // Salary grade and step: show the monthly salary from the schedule, and hide the fixed rate.
+  if (isGov()) {
+    const showSalary = () => {
+      const sg = form.salaryGrade.value;
+      const stepSel = form.step;
+      const max = sg ? stepsIn(sg) : 8;
+      [...stepSel.options].forEach((o) => (o.hidden = o.disabled = Number(o.value) > max));
+      if (Number(stepSel.value) > max) stepSel.value = String(max);
+      stepSel.closest('.field').hidden = !sg;
+      form.querySelector('.sg-salary').hidden = !sg;
+      form.querySelector('#sg-salary').textContent = sg ? `${money(salaryFor(sg, stepSel.value, today()))} a month` : '';
+      for (const n of ['payType', 'rate']) {
+        form[n].closest('.field').hidden = Boolean(sg);
+        form[n].required = n === 'rate' && !sg;
+      }
+    };
+    form.salaryGrade.addEventListener('change', showSalary);
+    form.step.addEventListener('change', showSalary);
+    showSalary();
+  }
   // Picking an account fills in what it knows.
   form.linkUserId?.addEventListener('change', () => {
     const u = linkable.find((x) => x.id === form.linkUserId.value);
@@ -199,7 +238,12 @@ export async function employeeFormView(el, { id }) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(form);
-    const body = Object.fromEntries([...fd.entries()].filter(([k]) => !['workDays', 'shiftStart', 'shiftEnd', 'breakMinutes', 'minimumWageEarner', 'flexTime'].includes(k)));
+    const body = Object.fromEntries([...fd.entries()].filter(([k]) => !['workDays', 'shiftStart', 'shiftEnd', 'breakMinutes', 'minimumWageEarner', 'flexTime', 'pera'].includes(k)));
+    if (isGov()) {
+      body.pera = fd.has('pera');
+      body.appointment = body.employmentStatus;
+      if (body.salaryGrade) delete body.rate;
+    }
     body.minimumWageEarner = fd.has('minimumWageEarner');
     body.flexTime = fd.has('flexTime');
     body.schedule = { shiftStart: fd.get('shiftStart'), shiftEnd: fd.get('shiftEnd'), breakMinutes: fd.get('breakMinutes'), workDays: fd.getAll('workDays').map(Number) };
@@ -345,10 +389,12 @@ export async function employeeProfileView(el, { id }) {
       <section class="card">
         <h2>Employment &amp; pay</h2>
         <dl class="info-grid">
-          ${info('Campus', emp.campusName)}${info('Date hired', fmtDate(emp.hireDate))}${info('Employment status', emp.employmentStatus)}
-          ${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}
-          ${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}
-          ${info('Allowance', `${money(emp.allowance)} / month`)}
+          ${info('Campus', emp.campusName)}${info('Date hired', fmtDate(emp.hireDate))}${info(isGov() ? 'Appointment' : 'Employment status', emp.appointment || emp.employmentStatus)}
+          ${isGov() && emp.salaryGrade
+            ? html`${info('Salary grade', `${sgLabel(emp)}${emp.plantillaItem ? ` · item ${emp.plantillaItem}` : ''}`)}${info('Monthly salary', `${money(salaryFor(emp.salaryGrade, emp.step, today()))}`)}`
+            : html`${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}`}
+          ${isGov() && !isJobOrder(emp) ? info('PERA and RATA', [emp.pera !== false ? `PERA ${money(hr.settings.gov.pera)}` : 'No PERA', emp.rataRepresentation || emp.rataTransportation ? `RATA ${money(emp.rataRepresentation)} + ${money(emp.rataTransportation)}` : ''].filter(Boolean).join(' · ')) : ''}
+          ${info(isGov() ? 'Other allowance' : 'Allowance', `${money(emp.allowance)} / month`)}
           ${info('Tax', emp.minimumWageEarner ? 'Minimum wage earner (exempt)' : 'Regular withholding')}
           ${info('Schedule', `${sched.shiftStart}–${sched.shiftEnd}, ${sched.workDays.map((d) => WEEKDAYS[d]).join(', ')}`)}
           ${info('Time', emp.flexTime ? html`${badge('FLEX', 'blue')} Flexible time: no late or undertime deductions` : 'Fixed schedule')}
@@ -358,14 +404,15 @@ export async function employeeProfileView(el, { id }) {
       <section class="card">
         <h2>Government IDs &amp; bank</h2>
         <dl class="info-grid">
-          ${info('TIN', emp.tin)}${info('SSS', emp.sssNo)}${info('PhilHealth', emp.philhealthNo)}${info('Pag-IBIG', emp.pagibigNo)}
+          ${info('TIN', emp.tin)}${isGov() ? info('GSIS BP no.', emp.gsisNo) : info('SSS', emp.sssNo)}${info('PhilHealth', emp.philhealthNo)}${info('Pag-IBIG', emp.pagibigNo)}
           ${info('Bank', emp.bankName)}${info('Account no.', emp.bankAccount)}
         </dl>
       </section>
+      ${isGov() && can('payroll.view') ? html`<section class="card span-all" id="loans"></section>` : ''}
       ${can('payroll.view') ? html`<section class="card">
         <h2>Recent payslips</h2>
         ${relevantRuns.length
-          ? html`<ul class="link-list">${relevantRuns.map((r) => html`<li><a href="#/payroll/${r.id}/payslip/${emp.id}">${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}</a> ${r.status === 'draft' ? badge('Draft', 'amber') : ''}</li>`)}</ul>`
+          ? html`<ul class="link-list">${relevantRuns.map((r) => html`<li><a href="#/payroll/${r.id}/payslip/${emp.id}">${r.name || `${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}`}</a> ${r.status === 'draft' ? badge('Draft', 'amber') : ''}</li>`)}</ul>`
           : html`<p class="muted">No payroll runs include this employee yet.</p>`}
       </section>` : ''}
     </div>
@@ -375,10 +422,62 @@ export async function employeeProfileView(el, { id }) {
     </div>` : ''}`);
 
   wireAccount(el, emp, () => employeeProfileView(el, { id }));
+  if (el.querySelector('#loans')) loansCard(el.querySelector('#loans'), emp);
   el.querySelector('#delete')?.addEventListener('click', async () => {
     if (!(await confirmDialog(`Delete ${fullName(emp)} and all of their attendance and leave records? Payslips in past payroll runs are kept, and their sign-in account is only unlinked.`))) return;
     await api.del(`/api/hris/employees/${id}`);
     toast('Employee deleted.');
     location.hash = '#/employees';
   });
+}
+
+// ----- Loans and other recurring deductions (government payroll) -----
+async function loansCard(box, emp) {
+  const list = await api.get(`/api/hris/employees/${emp.id}/deductions`);
+  const edit = can('payroll.edit');
+  const now = today();
+  const state = (d) => (d.total && d.balance === 0 ? badge('Paid', 'green') : d.endDate && d.endDate < now ? badge('Ended', 'gray') : d.startDate > now ? badge('Starts later', 'blue') : badge('Active', 'brand'));
+  mount(box, html`
+    <div class="card-head"><h2>${icon('wallet')} Loans and deductions</h2>${edit ? html`<button class="btn sm" id="add-ded">${icon('plus', 14)} Add</button>` : ''}</div>
+    <p class="muted small">Taken from every payroll in order: GSIS loans first, then Pag-IBIG, then the rest. A deduction that would bring net pay below ₱${Number(hr.settings.gov.netPayFloor).toLocaleString()} a month is not taken that time (GAA).</p>
+    ${list.length ? html`<div class="table-scroll"><table class="table compact">
+      <thead><tr><th>Deduction</th><th>Remit to</th><th class="num">A month</th><th>From</th><th>To</th><th class="num">Total</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th><th></th></tr></thead>
+      <tbody>${list.map((d) => html`<tr><td><strong>${d.name}</strong>${d.reference ? html`<small>${d.reference}</small>` : ''}</td><td>${deductionType(d.type).remit}</td>
+        <td class="num">${money(d.monthly)}</td><td class="nowrap">${fmtDate(d.startDate)}</td><td class="nowrap">${d.endDate ? fmtDate(d.endDate) : '—'}</td>
+        <td class="num">${d.total ? money(d.total) : '—'}</td><td class="num">${money(d.paid)}</td><td class="num">${d.balance != null ? money(d.balance) : '—'}</td><td>${state(d)}</td>
+        <td class="row-actions">${edit ? html`<button class="link" data-edit="${d.id}">Edit</button>` : ''}</td></tr>`)}</tbody></table></div>`
+      : html`<p class="muted">No loans or other deductions.</p>`}`);
+  const open = (d = {}) => {
+    const { form, close } = modal({
+      title: d.id ? 'Edit deduction' : 'Add a loan or deduction',
+      subtitle: `${fullName(emp)} · amounts per month; semi-monthly payroll takes half each time`,
+      submitLabel: d.id ? 'Save' : 'Add',
+      body: html`<div class="grid two">
+        <label class="field span-2"><span>Kind</span><select name="type" required>${DEDUCTION_TYPES.map((t) => html`<option value="${t.code}" ${t.code === d.type ? 'selected' : ''}>${t.name} (${t.remit})</option>`)}</select></label>
+        <label class="field"><span>Loan / account no.</span><input name="reference" value="${d.reference || ''}" maxlength="60" /></label>
+        <label class="field"><span>Amount a month (₱)</span><input type="number" name="monthly" min="0.01" step="0.01" value="${d.monthly || ''}" required /></label>
+        <label class="field"><span>First month</span><input type="date" name="startDate" value="${d.startDate || now}" required /></label>
+        <label class="field"><span>Last month</span><input type="date" name="endDate" value="${d.endDate || ''}" /><span class="hint">Blank: until the total is paid, or until stopped.</span></label>
+        <label class="field span-2"><span>Total to pay (₱)</span><input type="number" name="total" min="0" step="0.01" value="${d.total ?? ''}" /><span class="hint">For a loan: the amount on the amortization schedule. Deductions stop once it is reached. Blank for dues and savings.</span></label>
+        <label class="field span-2"><span>Notes</span><input name="notes" value="${d.notes || ''}" maxlength="300" /></label>
+      </div>
+      ${d.id && !d.paid ? html`<button type="button" class="btn danger ghost sm" id="del-ded">${icon('trash', 14)} Delete</button>` : ''}`,
+      onSubmit: async (f) => {
+        const body = formData(f);
+        if (d.id) await api.put(`/api/hris/employees/${emp.id}/deductions/${d.id}`, body);
+        else await api.post(`/api/hris/employees/${emp.id}/deductions`, body);
+        toast(d.id ? 'Deduction saved. Recompute draft payroll runs to apply it.' : 'Deduction added. It is taken from the next payroll run.');
+        loansCard(box, emp);
+      },
+    });
+    form.querySelector('#del-ded')?.addEventListener('click', async () => {
+      if (!(await confirmDialog(`Delete ${d.name}?`))) return;
+      await api.del(`/api/hris/employees/${emp.id}/deductions/${d.id}`);
+      close();
+      toast('Deduction deleted.');
+      loansCard(box, emp);
+    });
+  };
+  box.querySelector('#add-ded')?.addEventListener('click', () => open());
+  box.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => open(list.find((x) => x.id === b.dataset.edit))));
 }

@@ -8,6 +8,20 @@ import { currentPeriod, scheduleFor, dayOfWeek, eachDate } from '../shared/calc.
 import { workDates, DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { computeRun, deleteEmployees, summarizeRun } from './hris.js';
 import { clockInLocation, locationSettings } from './hris-geo.js';
+import { salaryFor, BONUS_KINDS } from '../shared/gov-pay.js';
+
+// Government payroll: salary grade by position (CSC/DBM index of positions, typical for an SUC).
+const SALARY_GRADE = {
+  'Instructor I': 12, 'Instructor II': 13, 'Instructor III': 14,
+  'Assistant Professor I': 15, 'Assistant Professor II': 16, 'Assistant Professor III': 17, 'Assistant Professor IV': 18,
+  'Associate Professor I': 19, 'Associate Professor II': 20, 'Professor I': 24,
+  'University Registrar': 22, 'HR Management Officer': 18, 'Accountant II': 16, 'College Librarian': 15,
+  'Guidance Counselor': 12, 'University Nurse': 15, 'ICT Support Specialist': 11, 'Administrative Aide': 4,
+  'Records Officer': 11, 'Cashier': 11, 'Laboratory Technician': 8, 'Driver': 3, 'Scholarship Coordinator': 11,
+  'Campus Administrative Officer': 18, 'Administrative Assistant': 8,
+};
+// Appointment from the demo's employment status; daily-paid workers are job orders.
+const APPOINTMENT = { Regular: 'Permanent', Probationary: 'Temporary', Contractual: 'Contractual', 'Part-time': 'Contract of service' };
 
 const pad = (n) => String(n).padStart(2, '0');
 const hhmm = (mins) => `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
@@ -105,6 +119,7 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
   hrisAccount('payroll', 'payroll.demo', 'Benjamin Soriano', [main.id]);
   hrisAccount('staff', 'staff.demo', 'Nestor Abello', [main.id]);
 
+  const campusCode = (e) => (data.campuses.find((c) => c.id === e.campusId)?.code || 'CAM').toUpperCase();
   const emps = PEOPLE.map(([firstName, lastName, gender, position, department, category, payType, rate, campus, username, extra]) => {
     const emp = add('employees', {
       employeeNo: nextNo(), firstName, middleName: '', lastName, gender, civilStatus: rand() < 0.6 ? 'Married' : 'Single',
@@ -228,20 +243,83 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
     }
   }
 
+  // ----- Government payroll: salary grades and steps, appointments, RATA, loans -----
+  const gov = s.payrollSystem === 'government';
+  if (gov) {
+    for (const e of emps) {
+      const daily = e.payType === 'daily';
+      e.appointment = daily && e.position !== 'Driver' ? 'Job order' : APPOINTMENT[e.employmentStatus] || 'Permanent';
+      e.employmentStatus = e.appointment;
+      e.gsisNo = e.appointment === 'Job order' || e.appointment === 'Contract of service' ? '' : String(Math.floor(2e9 + rand() * 7e9));
+      const sg = SALARY_GRADE[e.position];
+      if (sg && !['Job order', 'Contract of service'].includes(e.appointment)) {
+        const years = Math.max(0, Number(today.slice(0, 4)) - Number(e.hireDate.slice(0, 4)));
+        Object.assign(e, { salaryGrade: sg, step: Math.min(8, 1 + Math.floor(years / 3)), payType: 'monthly', minimumWageEarner: false });
+        e.rate = salaryFor(e.salaryGrade, e.step, today);
+        e.plantillaItem = `${campusCode(e)}-${e.position.replace(/[^A-Z]/g, '') || 'POS'}${sg}-${e.hireDate.slice(0, 4)}`;
+      }
+      e.pera = !['Job order', 'Contract of service'].includes(e.appointment);
+      e.allowance = 0;
+    }
+    // RATA for the officials: the dean of agriculture and the Sipocot campus administrator.
+    Object.assign(byName('Ramon'), { position: 'Professor I (College Dean)', rataRepresentation: 6500, rataTransportation: 6500 });
+    Object.assign(byName('Marites'), { rataRepresentation: 5500, rataTransportation: 5500 });
+    // Loans and other deductions, already running for a while.
+    const loan = (first, type, monthly, startMonth, total, reference = '') => add('payrollDeductions', { employeeId: byName(first).id, type, name: '', reference, monthly, total, startDate: `${startMonth}-01`, endDate: null, notes: '', createdBy: 'Benjamin Soriano' });
+    const ym = (monthsBack) => {
+      const d = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
+      d.setUTCMonth(d.getUTCMonth() - monthsBack);
+      return d.toISOString().slice(0, 7);
+    };
+    data.payrollDeductions ||= [];
+    loan('Maria', 'GSIS-CONSO', 6200, ym(20), 148800, 'CL-2025-118204');
+    loan('Maria', 'HDMF-MPL', 1850, ym(15), 44400, 'MPL-7741-2025');
+    loan('Maria', 'UNION', 200, ym(30), null);
+    loan('Juan', 'GSIS-MPL', 3500, ym(10), 84000, 'MPL-2026-0311');
+    loan('Ramon', 'GSIS-POLICY', 2000, ym(8), 24000, 'PL-55120');
+    loan('Ramon', 'PROVIDENT', 500, ym(40), null);
+    loan('Josefina', 'HDMF-CAL', 1100, ym(9), 13200, 'CAL-2026-0042');
+    loan('Teresita', 'COOP', 14000, ym(2), 84000, 'COOP-0098'); // too much for her pay: held back by the P5,000 floor
+    loan('Nestor', 'UNION', 150, ym(30), null);
+    loan('Grace', 'HDMF-MP2', 1000, ym(6), null, 'MP2-31002');
+  }
+
   // ----- Payroll: both finished periods are finalized at the main campus; the latest at Sipocot -----
+  const finalize = (r, at) => {
+    Object.assign(r, { status: 'finalized', finalizedAt: at, finalizedBy: 'Benjamin Soriano' });
+    for (const p of r.payslips) {
+      if (!p.leave?.chargedToLeaveDays) continue;
+      add('leaveAdjustments', { employeeId: p.employeeId, leaveTypeId: s.gov.vacationLeaveId, year: Number(r.periodEnd.slice(0, 4)), days: -p.leave.chargedToLeaveDays, reason: `Tardiness and undertime, ${r.periodStart} to ${r.periodEnd} (${p.leave.tardinessMinutes} min)`, at, by: 'Benjamin Soriano', runId: r.id });
+    }
+  };
   const run = (campus, period) => {
     const employeeIds = data.employees.filter((e) => e.campusId === campus.id && e.status === 'Active' && e.hireDate <= period.end).map((e) => e.id);
-    if (!employeeIds.length || data.payrollRuns.some((r) => r.campusId === campus.id && r.periodStart <= period.end && period.start <= r.periodEnd)) return;
-    const r = add('payrollRuns', { campusId: campus.id, periodStart: period.start, periodEnd: period.end, payDate: period.end, status: 'draft', employeeIds, payslips: [] });
+    if (!employeeIds.length || data.payrollRuns.some((r) => r.campusId === campus.id && (!r.kind || r.kind === 'regular') && r.periodStart <= period.end && period.start <= r.periodEnd)) return;
+    const r = add('payrollRuns', { campusId: campus.id, campusName: campus.name, system: s.payrollSystem, kind: 'regular', periodStart: period.start, periodEnd: period.end, payDate: period.end, status: 'draft', employeeIds, payslips: [] });
     computeRun(data, r);
     if (campus === main && period === p1) {
       const slip = r.payslips.find((p) => p.employeeId === byName('Maria').id);
       if (slip) slip.adjustments = { otherEarnings: 1500, otherDeductions: 0, remarks: 'Honorarium: thesis panel' };
       computeRun(data, r);
     }
-    Object.assign(r, { status: 'finalized', finalizedAt: `${period.end}T09:00:00.000Z`, finalizedBy: 'Benjamin Soriano' });
+    finalize(r, `${period.end}T09:00:00.000Z`);
   };
   run(main, p2);
   run(main, p1);
   run(sipocot, p1);
+
+  // ----- Bonuses at the main campus: this year's mid-year bonus (paid), and the year-end bonus
+  // and cash gift as a draft once October has ended (released from 15 November) -----
+  if (gov) {
+    const year = Number(today.slice(0, 4));
+    const bonus = (kind, payDate, final) => {
+      if (today < payDate.slice(0, 8) + '01' || data.payrollRuns.some((r) => r.campusId === main.id && r.kind === kind && Number(r.year) === year)) return;
+      const employeeIds = data.employees.filter((e) => e.campusId === main.id && e.status === 'Active' && e.hireDate <= payDate).map((e) => e.id);
+      const r = add('payrollRuns', { campusId: main.id, campusName: main.name, system: 'government', kind, year, name: `${BONUS_KINDS[kind].name} ${year}`, periodStart: payDate, periodEnd: payDate, payDate, status: 'draft', employeeIds, payslips: [] });
+      computeRun(data, r);
+      if (final) finalize(r, `${payDate}T09:00:00.000Z`);
+    };
+    if (today >= `${year}-05-15`) bonus('mid-year', `${year}-05-15`, true);
+    if (today >= `${year}-11-01`) bonus('year-end', `${year}-11-15`, false);
+  }
 }

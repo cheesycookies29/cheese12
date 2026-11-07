@@ -235,3 +235,42 @@ img.att-preview { height: auto; max-height: 70vh; }
   .geo-filters > select { grid-column: 1 / -1; }
   .geo-filters label.inline { display: grid; gap: 4px; font-size: 13px; }
 }
+
+/* Government payroll: General Payroll (GAM Appendix 33), remittances, salary schedule. */
+.gov-form { font-size: 12px; line-height: 1.4; color: var(--text); }
+.f-appendix { text-align: right; font-style: italic; font-size: 11px; color: var(--muted); margin: 0; }
+.f-head { text-align: center; margin-bottom: 10px; }
+.f-head h1 { font-size: 16px; text-transform: uppercase; letter-spacing: 0.04em; margin: 4px 0 8px; }
+.f-entity { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; text-align: left; font-size: 12px; margin-top: 4px; }
+.f-small { font-size: 11px; color: var(--text-2); text-align: left; margin: 8px 0 0; }
+.f-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.f-table th, .f-table td { border: 1px solid var(--border-strong); padding: 4px 6px; vertical-align: top; }
+.f-table th { background: var(--surface-2); font-weight: 600; text-align: center; font-size: 11px; }
+.f-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.f-table tfoot td { font-weight: 700; }
+.gp-table td.gp-sig { min-width: 110px; }
+.gp-signs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.gp-box { border: 1px solid var(--border-strong); padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; min-height: 120px; }
+.gp-label { font-size: 11px; }
+.gp-line { margin-top: auto; border-bottom: 1px solid var(--text); min-height: 22px; text-align: center; font-weight: 700; text-transform: uppercase; display: flex; align-items: flex-end; justify-content: center; }
+.gp-cap { text-align: center; font-size: 11px; color: var(--muted); }
+.gp-date { font-size: 11px; color: var(--muted); }
+.gp-refs { margin-top: 10px; }
+.remit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.remit-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+.remit-card h3 { margin: 0; }
+.table tr.muted-row td { color: var(--muted); }
+.table td small.warn { color: var(--warn); }
+.sg-out { display: block; padding: 9px 0; font-weight: 700; font-size: 16px; color: var(--brand-text); }
+.ssl-table th:first-child { width: 60px; }
+#ssl .card-head select { max-width: 340px; }
+@media (max-width: 760px) { .gp-signs { grid-template-columns: 1fr 1fr; } }
+@media print {
+  .gov-form { font-size: 9.5px; color: #000; }
+  .general-payroll .table-scroll { overflow: visible; }
+  .f-table th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .f-table th, .f-table td, .gp-box { border-color: #555; }
+  .tabs, .stats, .notice, .page-head .actions { display: none !important; }
+  .general-payroll { page: general-payroll; }
+  @page general-payroll { size: A4 landscape; margin: 10mm; }
+}

@@ -81,7 +81,7 @@ To try it out, open **Demo data & backup → Add demo data** in the admin panel.
 | ATLAS home | `teacher.demo` | `demo1234` | IT201 A: quiz results and essays to score, work to grade, take attendance, gradebook, build a new quiz |
 | ATLAS home or admin panel | `registrar.demo` | `demo1234` | Approve requests, admit 2 applicants, manage the waitlist |
 | ATLAS home → People | `hr.demo` | `demo1234` | HR dashboard; approve the pending leave (one sick leave has a medical certificate attached); employee records and sign-in accounts; attendance; switch to Sipocot campus |
-| ATLAS home → People | `payroll.demo` | `demo1234` | Two finalized payroll runs with printable payslips; payroll setup (rates and tax tables with a "try it" calculator) |
+| ATLAS home → People | `payroll.demo` | `demo1234` | Government payroll: two finalized runs (General Payroll, remittances, payslips with loans), this year's mid-year bonus and the year-end bonus and cash gift as a draft; an employee's loans on their record; payroll setup with the salary schedule |
 | ATLAS home → Learn | `parent.demo` | `demo1234` | A mother (Lorna Reyes) following Carlo Reyes (everything shared) and her nephew Kevin Navarro (grades, attendance and activities only). `father.demo` is Carlo's father, without activities |
 | ATLAS home → People | `staff.demo` | `demo1234` | A librarian's self-service: clock in, file leave, payslips. `teacher.demo` has the same in the HRIS tile |
 | ATLAS home → Academic | `registrar.demo` | `demo1234` | The dashboard's work queue; Carlo Reyes's record (evaluation against BSIT 2026, back subjects, grades, profile, history); post the approved ED101 grade sheet; print a TOR and check its QR code; document requests from unpaid to released; CHED list, FHE billing CSV and the enrollment summary |
@@ -230,8 +230,8 @@ The Human Resource Information System, built from the [Lancaster ERP's HR & Payr
 | Time clock | One shared computer at the campus (HR office, faculty room): employees pick their name and clock in or out |
 | Clock-in locations | Where each clock-in at the campus was made, on a map, flagged *Away from campus* when outside the campus radius (never blocked); the campus location, radius and how long locations are kept (365 days by default); CSV export. HR managers and administrators only |
 | Leave & approvals | Approve, reject or cancel requests (approval writes the days into the DTR; HR cannot approve their own); leave balances per person; one employee's leave (credits, access to a leave type, adjustments with a reason, leave recorded on paper); leave types (gender rules, medical certificate rules) |
-| Payroll | A run per pay period and campus (semi-monthly or monthly): the payroll register, adjustments (other earnings and deductions), recompute, finalize; payslips with SSS, PhilHealth, Pag-IBIG and BIR withholding tax; register export |
-| Payroll setup | Pay rules, which deductions to compute, government rates and tax tables, with a calculator to try them |
+| Payroll | A run per pay period and campus (semi-monthly or monthly): the payroll register, adjustments, recompute, finalize, payslips, register export. **Government payroll** (the default): salary grade and step, PERA, RATA, GSIS, PhilHealth, Pag-IBIG, BIR withholding tax and loans; bonus runs (mid-year bonus, year-end bonus and cash gift, PEI, clothing allowance); the **General Payroll** (COA GAM Appendix 33) and a **remittance summary** per agency (GSIS, PhilHealth, Pag-IBIG, BIR, loans) with CSV files. Private-school payroll (SSS) is the ERP's |
+| Payroll setup | Government or private payroll; GSIS, PERA, minimum net pay, tardiness and overtime rules, bonus amounts; the EO 64 salary schedule; contribution rates and tax tables, with a calculator to try them |
 | HR settings | The employer's address and TIN on payslips, the default work schedule, and who can do what |
 
 ### HRIS account types
@@ -243,6 +243,18 @@ The Human Resource Information System, built from the [Lancaster ERP's HR & Payr
 | **Staff** | ATLAS home | Self-service only (a non-teaching employee) |
 | Administrator | (any) | Everything, at every campus |
 | Teacher, Registrar | (their own) | Self-service, once HR links their account to their employee record |
+
+### Government payroll
+
+For a state university or college, payroll follows the national government's rules (`shared/gov-pay.js` lists each rule and its source):
+
+- **Salary** from the employee's **salary grade and step** under EO 64, s. 2024: the 2026 (third tranche) and 2027 (fourth tranche) schedules are built in, and each payroll uses the schedule in force at the end of its period, so January payroll moves to the new tranche by itself. Employees without a plantilla position (job order, contract of service) are paid a daily rate for days worked, with no GSIS, PERA or bonuses and tax withheld at the rates in Payroll setup.
+- **Absences without pay** at the daily rate (monthly ÷ 22); **tardiness and undertime** charged to vacation leave credits first (CSC), the rest from pay. Finalizing the run takes the leave off the credits; deleting the run gives it back.
+- **PERA** (₱2,000 a month, less 1/22 per day without pay) and **RATA** (the official's monthly rate, by days of actual work in the month: 17+ days 100%, 12–16 75%, 6–11 50%, 1–5 25%), both not taxable.
+- **GSIS** 9% personal and 12% government share, **Employees' Compensation** ₱100; PhilHealth and Pag-IBIG as for everyone; BIR withholding tax on pay less the contributions.
+- **Loans and other deductions** on the employee's record (GSIS, Pag-IBIG, provident fund, cooperative, dues…), taken in order (GSIS first) with the balance kept from finalized runs; one that would bring net pay below ₱5,000 a month (GAA) is held back and listed.
+- **Bonus runs**: mid-year bonus (one month's salary, 4 months of service by 15 May), year-end bonus and ₱5,000 cash gift (4 months by 31 October; less than that, a prorated cash gift), PEI and clothing allowance. Bonuses are tax-free up to ₱90,000 a year in all; tax is withheld only on the excess. A person can be left out of a run with a reason (e.g. a rating below Satisfactory).
+- Overtime is earned as **compensatory time-off** (COC) by default; Payroll setup can make it paid instead (125% / 150%, at most 50% of the monthly salary).
 
 **Clock-in locations** come from the browser's location when someone clocks in (on My day or the time clock). The browser asks for permission once; without it, or on a plain `http://` address, the clock-in is recorded without a location. Locations are only ever sent to HR managers and administrators, never to the employee or payroll. Set each campus's point under **Clock-in locations → Set campus location** (standing on campus and pressing *Use this device's current location* is the quickest way).
 
