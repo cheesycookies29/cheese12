@@ -54,7 +54,7 @@ const EMPLOYEE_FIELDS = [
   'minimumWageEarner', 'flexTime', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
   'emergencyContactName', 'emergencyContactPhone', 'schedule', 'category',
   // Government service: plantilla item, salary grade and step, appointment, GSIS, PERA and RATA.
-  'salaryGrade', 'step', 'plantillaItem', 'appointment', 'gsisNo', 'pera', 'rataRepresentation', 'rataTransportation',
+  'salaryGrade', 'step', 'plantillaItem', 'appointment', 'gsisNo', 'pera', 'rataRepresentation', 'rataTransportation', 'separationDate',
 ];
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
 function trimStrings(obj) {
@@ -86,6 +86,8 @@ function validateEmployee(input, data, existingId) {
   if (e.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.email)) fail('That email address does not look right.');
   if (!['monthly', 'daily'].includes(e.payType)) fail('Pay type must be monthly or daily.');
   // Salary grade and step (government): the monthly rate comes from the salary schedule.
+  // Private-school payroll has no salary grades: the rate entered is the rate.
+  if (data.hrSettings.payrollSystem !== 'government') e.salaryGrade = null;
   e.salaryGrade = e.salaryGrade === '' || e.salaryGrade == null ? null : Math.round(Number(e.salaryGrade));
   if (e.salaryGrade != null) {
     if (!(e.salaryGrade >= 1 && e.salaryGrade <= 33)) fail('Salary grade must be 1 to 33.');
@@ -95,6 +97,9 @@ function validateEmployee(input, data, existingId) {
     e.rate = salaryFor(e.salaryGrade, e.step, localDate());
   } else e.step = null;
   e.appointment = APPOINTMENTS.includes(e.appointment) ? e.appointment : '';
+  // Date of separation (resignation, retirement, end of contract): bonuses look at service on their cut-off date.
+  e.separationDate = e.separationDate || null;
+  if (e.separationDate && (!DATE_RE.test(e.separationDate) || e.separationDate < e.hireDate)) fail('Date separated must be a date after the date hired.');
   e.pera = e.pera !== false && e.pera !== 'false';
   for (const k of ['rataRepresentation', 'rataTransportation']) {
     e[k] = Math.max(0, Number(e[k]) || 0);
@@ -629,6 +634,12 @@ export function registerHrisRoutes(route, ctx) {
     return { entity: f.entity?.name || data().settings.schoolName, head: sig('head'), accountant: sig('accountant'), cashier: sig('cashier') };
   };
   route('GET', '/api/hris/payroll-runs/:id', 'hris:payroll.view', ({ params, campusId }) => ({ ...withCampus(findRun(params.id, campusId)), forms: payrollForms() }));
+  // Runs elsewhere (another campus) that already pay an employee for this period or bonus:
+  // someone who moved campus is not paid twice.
+  const otherRuns = (run, employeeId) => data().payrollRuns.filter((r) => r.id !== run.id && r.employeeIds.includes(employeeId)
+    && r.payslips.some((p) => p.employeeId === employeeId && p.grossPay > 0)
+    && (run.kind && run.kind !== 'regular' ? r.kind === run.kind && Number(r.year) === Number(run.year) : (!r.kind || r.kind === 'regular') && r.periodStart <= run.periodEnd && run.periodStart <= r.periodEnd));
+  const notPaidElsewhere = (run) => (id) => !otherRuns(run, id).length;
   route('POST', '/api/hris/payroll-runs', 'hris:payroll.edit', ({ body, campusId }) => {
     const system = data().hrSettings.payrollSystem;
     const kind = BONUS_KINDS[body.kind] ? body.kind : 'regular';
@@ -640,8 +651,13 @@ export function registerHrisRoutes(route, ctx) {
       if (!DATE_RE.test(body.payDate || '') || !String(body.payDate).startsWith(String(year))) fail(`Pick a pay date in ${year}.`);
       const dup = data().payrollRuns.find((r) => r.campusId === campusId && r.kind === kind && Number(r.year) === year);
       if (dup) fail(`There is already a ${BONUS_KINDS[kind].name.toLowerCase()} run for ${year} at this campus (${dup.status}). Open it instead, or delete it first.`);
-      const employeeIds = campusEmployees(campusId).filter((e) => e.status === 'Active' && e.hireDate <= body.payDate).map((e) => e.id);
-      if (!employeeIds.length) fail('There are no active employees at this campus.');
+      // Everyone in service on the cut-off date (someone who left after it is still listed).
+      const cutoff = BONUS_KINDS[kind].cutoff ? `${year}-${BONUS_KINDS[kind].cutoff}` : body.payDate;
+      const probe = { id: '', kind, year };
+      const employeeIds = campusEmployees(campusId)
+        .filter((e) => e.hireDate <= body.payDate && (e.status === 'Active' || (e.separationDate && e.separationDate >= cutoff)))
+        .map((e) => e.id).filter(notPaidElsewhere(probe));
+      if (!employeeIds.length) fail('There are no employees at this campus for this bonus (or they were paid it at another campus).');
       const run = {
         id: randomUUID(), campusId, campusName: campusName(data(), campusId), system, kind, year, name: `${BONUS_KINDS[kind].name} ${year}`,
         periodStart: body.payDate, periodEnd: body.payDate, payDate: body.payDate, status: 'draft', employeeIds, payslips: [], createdAt: new Date().toISOString(),
@@ -656,8 +672,9 @@ export function registerHrisRoutes(route, ctx) {
     if (periodEnd < periodStart) fail('Period end must be on or after period start.');
     const clash = data().payrollRuns.find((r) => r.campusId === campusId && (!r.kind || r.kind === 'regular') && r.periodStart <= periodEnd && periodStart <= r.periodEnd);
     if (clash) fail(`There is already a payroll run for ${clash.periodStart} to ${clash.periodEnd} at this campus (${clash.status}). Open it instead, or delete it first.`);
-    const employeeIds = campusEmployees(campusId).filter((e) => e.status === 'Active' && e.hireDate <= periodEnd).map((e) => e.id);
-    if (!employeeIds.length) fail('There are no active employees at this campus for this period.');
+    const employeeIds = campusEmployees(campusId).filter((e) => e.status === 'Active' && e.hireDate <= periodEnd).map((e) => e.id)
+      .filter(notPaidElsewhere({ id: '', kind: 'regular', periodStart, periodEnd }));
+    if (!employeeIds.length) fail('There are no active employees at this campus for this period (or they were paid for it at another campus).');
     const run = {
       // The campus is kept on the run: payslips show it even after the campus is renamed or an employee moves.
       id: randomUUID(), campusId, campusName: campusName(data(), campusId), system, kind: 'regular', periodStart, periodEnd, payDate: DATE_RE.test(payDate || '') ? payDate : periodEnd,
@@ -694,6 +711,8 @@ export function registerHrisRoutes(route, ctx) {
     const run = findRun(params.id, campusId);
     assertDraft(run);
     computeRun(data(), run);
+    const twice = run.payslips.filter((p) => p.grossPay > 0 && otherRuns(run, p.employeeId).some((r) => r.status === 'finalized'));
+    if (twice.length) fail(`Already paid for this ${run.kind && run.kind !== 'regular' ? 'bonus' : 'period'} in another run: ${twice.map((p) => p.employee.name).join(', ')}. Use Adjust → leave out, then finalize.`);
     Object.assign(run, { status: 'finalized', campusName: campusName(data(), run.campusId), finalizedAt: new Date().toISOString(), finalizedBy: user.name });
     // Tardiness and undertime charged to vacation leave come off the credits now (CSC rules).
     const vlId = data().hrSettings.gov.vacationLeaveId;
@@ -710,6 +729,8 @@ export function registerHrisRoutes(route, ctx) {
     // Once Finance has its obligation request, the run is the record behind it.
     const ors = run.finance?.orsId && data().finObligations?.find((o) => o.id === run.finance.orsId);
     if (ors && ors.status !== 'cancelled') fail(`This run is on ${ors.form} ${ors.no || '(being obligated)'} in Finance. Cancel that request first.`);
+    const remit = (run.finance?.remittances || []).map((r) => data().finDvs?.find((d) => d.id === r.dvId)).find((d) => d && d.status !== 'cancelled');
+    if (remit) fail(`This run has a remittance voucher in Finance${remit.no ? ` (DV ${remit.no})` : ''}. Cancel it first.`);
     data().payrollRuns = data().payrollRuns.filter((r) => r.id !== run.id);
     // Leave charged by the run goes back; loan balances follow the remaining finalized runs.
     data().leaveAdjustments = data().leaveAdjustments.filter((a) => a.runId !== run.id);

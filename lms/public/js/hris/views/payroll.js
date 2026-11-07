@@ -328,7 +328,7 @@ export function payslipCard(run, p, settings) {
   const employerTotal = p.employerShare.sss + p.employerShare.sssEc + p.employerShare.philhealth + p.employerShare.pagibig;
   return html`
     <article class="payslip ${run.status === 'draft' ? 'is-draft' : ''}">
-      ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true">DRAFT</div>` : ''}
+      ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true" data-text="DRAFT"></div>` : ''}
       <header class="ps-head">
         <div class="ps-company">
           ${ctx.info.branding?.logo ? html`<img src="${ctx.info.branding.logo}" alt="" />` : ''}

@@ -178,7 +178,7 @@ main { flex: 1; min-width: 0; padding: 20px 28px 56px; max-width: 1360px; }
 .btn:hover { background: var(--surface-2); text-decoration: none; }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
 .btn.primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
-.btn.gold { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.gold { background: color-mix(in srgb, var(--accent) 62%, #000); border-color: color-mix(in srgb, var(--accent) 62%, #000); color: #fff; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.danger.ghost, .btn.ghost.danger { background: var(--surface); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--surface)); }
 .btn.danger.ghost:hover { background: var(--danger-soft); }

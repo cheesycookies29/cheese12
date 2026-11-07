@@ -17,9 +17,9 @@ const numField = (label, name, value, { step = 'any', suffix = '', hint } = {}) 
 
 function taxRows(rows, freq) {
   return html`${rows.map((r, i) => html`<tr>
-    <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="over" data-row="${i}" value="${r.over}" /></div></td>
-    <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="base" data-row="${i}" value="${r.base}" /></div></td>
-    <td><div class="input-suffix"><input type="number" step="any" min="0" max="100" data-tax="${freq}" data-col="rate" data-row="${i}" value="${pct(r.rate)}" /><em>%</em></div></td>
+    <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="over" data-row="${i}" value="${r.over}" aria-label="${freq} bracket ${i + 1}: over" /></div></td>
+    <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="base" data-row="${i}" value="${r.base}" aria-label="${freq} bracket ${i + 1}: base tax" /></div></td>
+    <td><div class="input-suffix"><input type="number" step="any" min="0" max="100" data-tax="${freq}" data-col="rate" data-row="${i}" value="${pct(r.rate)}" aria-label="${freq} bracket ${i + 1}: rate (%)" /><em>%</em></div></td>
     <td class="row-actions">${rows.length > 1 ? html`<button type="button" class="icon-btn danger" data-remove-row="${freq}:${i}" aria-label="Remove bracket" title="Remove bracket">${icon('trash', 16)}</button>` : ''}</td>
   </tr>`)}`;
 }
@@ -187,7 +187,7 @@ export async function payrollSetupView(el) {
       <div class="card-head"><h2>Salary schedule</h2>
         <select id="ssl-pick" aria-label="Salary schedule">${SALARY_SCHEDULES.map((x) => html`<option value="${x.effective}" ${x.effective === effective ? 'selected' : ''}>${x.name}${x.effective === scheduleOn(today()).effective ? ' · in force' : ''}</option>`)}</select></div>
       <p class="muted small">Monthly salary by salary grade and step, from ${sched.effective}. Payroll uses the schedule in force at the end of each pay period, so January payroll moves to the next tranche by itself.</p>
-      <div class="table-scroll ssl-table"><table class="table compact no-stack"><thead><tr><th>SG</th>${Array.from({ length: 8 }, (_, i) => html`<th class="num">Step ${i + 1}</th>`)}</tr></thead>
+      <div class="table-scroll ssl-table" tabindex="0" role="region" aria-label="Salary schedule"><table class="table compact no-stack"><thead><tr><th>SG</th>${Array.from({ length: 8 }, (_, i) => html`<th class="num">Step ${i + 1}</th>`)}</tr></thead>
         <tbody>${Object.entries(sched.grades).map(([sg, row]) => html`<tr><th>${sg}</th>${Array.from({ length: 8 }, (_, i) => html`<td class="num">${row[i] ? row[i].toLocaleString('en-PH') : ''}</td>`)}</tr>`)}</tbody></table></div>`);
     el.querySelector('#ssl-pick').addEventListener('change', (e) => renderSsl(e.target.value));
   }

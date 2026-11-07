@@ -155,7 +155,7 @@ export function generalPayroll(run) {
       <div class="f-entity"><span>${bonus ? html`<strong>${run.name}</strong> · pay date ${fmtDate(run.payDate)}` : html`For the period <strong>${fmtDate(run.periodStart)} – ${fmtDate(run.periodEnd)}</strong>`}</span><span>${run.campusName || ''}</span><span>Payroll no. ${run.id.slice(0, 8).toUpperCase()}</span></div>
       <p class="f-small">We acknowledge receipt of cash shown opposite our name as full compensation for services rendered for the period covered.</p>
     </header>
-    <div class="table-scroll"><table class="f-table gp-table">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="General Payroll"><table class="f-table gp-table">
       <thead>
         <tr><th rowspan="2">No.</th><th rowspan="2">Name</th><th rowspan="2">Position</th><th rowspan="2" class="num">${bonus ? 'Monthly salary' : 'Salary rate'}</th>
           <th colspan="${bonus ? 1 : 4}">Compensation</th><th colspan="${bonus ? 1 : 5}">Deductions</th><th rowspan="2" class="num">Net amount due</th><th rowspan="2">Signature of recipient</th></tr>
@@ -196,7 +196,7 @@ export function govPayslipCard(run, p, settings, { slipNumber, pesosInWords, per
   const a = p.attendance;
   return html`
     <article class="payslip ${run.status === 'draft' ? 'is-draft' : ''}">
-      ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true">DRAFT</div>` : ''}
+      ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true" data-text="DRAFT"></div>` : ''}
       <header class="ps-head">
         <div class="ps-company">
           ${ctx.info.branding?.logo ? html`<img src="${ctx.info.branding.logo}" alt="" />` : ''}
@@ -325,7 +325,7 @@ export function financeView(run, f, { canEdit }) {
         : html`<p class="muted">After the payroll voucher is paid.</p>`, f.remittances.length && f.remittances.every((r) => r.status === 'paid'))}
     </ol>
     <h3 class="sub-h">Accounting entry</h3>
-    <div class="table-scroll"><table class="table compact">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Accounting entry"><table class="table compact">
       <thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
       <tbody>
         ${e.lines.map((l) => html`<tr><td>${l.code} ${l.title}<small>${l.cls}</small></td><td class="num">${amount(l.amount)}</td><td></td></tr>`)}

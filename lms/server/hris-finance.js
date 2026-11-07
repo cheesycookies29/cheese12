@@ -12,6 +12,7 @@
 // balances, numbering, separation of duties, closed periods and the audit trail. The payroll
 // officer acts for the payroll office (Box A); Finance's officers do the rest.
 import { HttpError } from './util.js';
+import { can } from '../shared/roles.js';
 import { BONUS_KINDS } from '../shared/gov-pay.js';
 
 const fail = (msg, status = 400) => {
@@ -29,7 +30,8 @@ export const PAYROLL_CODES = {
 };
 const BONUS_CODE = { MYB: 'midYear', YEB: 'yearEnd', CG: 'cashGift', PEI: 'otherBonus', CLOTH: 'clothing', OTHER: 'otherBonus' };
 const REGULAR = ['Permanent', 'Temporary', 'Coterminous', 'Substitute', ''];
-const isJo = (p) => ['Job order', 'Contract of service'].includes(p.employee.appointment);
+// The payslip says whether it is a job order (the same test the pay rules used).
+const isJo = (p) => (p.jobOrder ?? ['Job order', 'Contract of service'].includes(p.employee.appointment));
 
 // What the run obligates and what the voucher withholds.
 export function payrollEntry(run) {
@@ -55,8 +57,9 @@ export function payrollEntry(run) {
       add('pera', e.pera);
       add('representation', e.representation);
       add('transportation', e.transportation);
-      add('overtime', e.overtimePay);
-      add('otherBonus', (e.allowance || 0) + (e.otherEarnings || 0));
+      // A job order's other pay is labor and wages (MOOE) too.
+      add(isJo(p) ? 'laborWages' : 'overtime', e.overtimePay);
+      add(isJo(p) ? 'laborWages' : 'otherBonus', (e.allowance || 0) + (e.otherEarnings || 0));
     }
     const s = p.employerShare || {};
     add('gsis', s.gsis);
@@ -92,6 +95,26 @@ export function registerPayrollFinanceRoutes(route, ctx, { data, save, findRun }
   // Finance acts for the payroll office; the permission to do so is checked on the People route.
   const asFinance = (user) => ({ ...user, role: 'admin' });
   const call = (user, method, path, body) => ctx.invoke(asFinance(user), method, path, body);
+  // All or nothing: if a later Finance call fails, what the earlier ones made is undone
+  // (as Finance does for its own requests).
+  const atomic = (fn) => {
+    const d = data();
+    const keys = Object.keys(d).filter((k) => k.startsWith('fin'));
+    const snap = Object.fromEntries(keys.map((k) => [k, structuredClone(d[k])]));
+    const runs = structuredClone(d.payrollRuns.map((r) => [r.id, r.finance]));
+    try {
+      return fn();
+    } catch (err) {
+      for (const k of keys) d[k] = snap[k];
+      for (const [id, f] of runs) {
+        const r = d.payrollRuns.find((x) => x.id === id);
+        if (r) r.finance = f;
+      }
+      save();
+      throw err;
+    }
+  };
+  const live = (dvId) => data().finDvs.find((d) => d.id === dvId && d.status !== 'cancelled');
   const runName = (run) => (run.kind && run.kind !== 'regular' ? `${BONUS_KINDS[run.kind]?.name || run.kind} ${run.year}` : `salaries for ${run.periodStart} to ${run.periodEnd}`);
   const settingsFund = () => data().hrSettings.gov?.payrollFund || '01';
 
@@ -121,13 +144,14 @@ export function registerPayrollFinanceRoutes(route, ctx, { data, save, findRun }
     };
   }
 
+  // HR (who may only view payroll) sees the documents, not Finance's allotment balances.
   route('GET', '/api/hris/payroll-runs/:id/finance', 'hris:payroll.view', ({ params, campusId, user }) => {
     const run = findRun(params.id, campusId);
     if (run.system !== 'government') fail('Only government payroll goes to Finance.');
     const entry = payrollEntry(run);
     const fund = run.finance?.fund || settingsFund();
     const classes = [...new Set(entry.lines.map((l) => l.cls))];
-    const allotments = classes.length ? call(user, 'GET', `/api/finance/allotments?fund=${fund}&fy=${run.payDate.slice(0, 4)}`).filter((a) => classes.includes(a.cls)).map((a) => ({ id: a.id, cls: a.cls, ref: a.ref || a.kind, pap: a.pap, papName: a.papName, balance: a.balance, fund: a.fund })) : [];
+    const allotments = classes.length && can(user.role, 'payroll.edit') ? call(user, 'GET', `/api/finance/allotments?fund=${fund}&fy=${run.payDate.slice(0, 4)}`).filter((a) => classes.includes(a.cls)).map((a) => ({ id: a.id, cls: a.cls, ref: a.ref || a.kind, pap: a.pap, papName: a.papName, balance: a.balance, fund: a.fund })) : [];
     const title = (code) => data().finAccounts?.find((x) => x.code === code)?.title || code;
     return {
       fund, allotments, ...status(run),
@@ -142,16 +166,17 @@ export function registerPayrollFinanceRoutes(route, ctx, { data, save, findRun }
     if (run.status !== 'finalized') fail('Finalize the payroll run first.');
     const s = status(run);
     if (s.ors && s.ors.status !== 'cancelled') fail(`This run already has ${s.ors.form} ${s.ors.no || '(being obligated)'}.`);
+    if ((run.finance?.remittances || []).some((r) => live(r.dvId))) fail('This run still has remittance vouchers in Finance. Cancel them first.');
     const entry = payrollEntry(run);
     if (!entry.gross) fail('Nothing to pay in this run.');
     const fund = String(body.fund || settingsFund());
     const pick = body.allotments || {};
     const lines = entry.lines.map((l) => ({ allotmentId: pick[l.cls] || fail(`Pick the ${l.cls} allotment to charge.`), code: l.code, amount: l.amount }));
-    const ors = call(user, 'POST', '/api/finance/obligations', {
+    const ors = atomic(() => call(user, 'POST', '/api/finance/obligations', {
       fund, payeeId: payrollPayee(user, run), date: body.date || run.payDate, submit: true,
       particulars: `Payroll: ${runName(run)}, ${run.campusName || ''} (${run.payslips.filter((p) => p.grossPay).length} employees), per General Payroll ${run.id.slice(0, 8).toUpperCase()}`,
       requestedBy: { name: user.name, title: 'Payroll Officer' }, lines,
-    });
+    }));
     run.finance = { ...(run.finance || {}), fund, orsId: ors.id, dvId: null, remittances: [] };
     save();
     return status(run);
@@ -166,12 +191,12 @@ export function registerPayrollFinanceRoutes(route, ctx, { data, save, findRun }
     if (s.dv && s.dv.status !== 'cancelled') fail(`This run already has a voucher${s.dv.no ? ` (DV ${s.dv.no})` : ''}.`);
     const entry = payrollEntry(run);
     const ors = data().finObligations.find((o) => o.id === run.finance.orsId);
-    const dv = call(user, 'POST', '/api/finance/dvs', {
+    const dv = atomic(() => call(user, 'POST', '/api/finance/dvs', {
       fund: ors.fund, payeeId: ors.payeeId, orsId: ors.id, kind: 'payment', nature: 'none', gross: entry.gross,
       mode: ['check', 'ada', 'bank'].includes(body.mode) ? body.mode : 'ada', date: body.date || run.payDate, submit: true,
       particulars: `Payment of ${runName(run)}, ${run.campusName || ''}, per General Payroll ${run.id.slice(0, 8).toUpperCase()}: net pay ₱${entry.net.toLocaleString('en-PH', { minimumFractionDigits: 2 })} credited to the employees' accounts.`,
       deductions: entry.deductions, boxA: { name: user.name, title: 'Payroll Officer' },
-    });
+    }));
     if (Math.abs(dv.net - entry.net) > 0.01) fail('The voucher does not match the payroll net pay.');
     run.finance.dvId = dv.id;
     save();
@@ -186,6 +211,7 @@ export function registerPayrollFinanceRoutes(route, ctx, { data, save, findRun }
     const entry = payrollEntry(run);
     const done = new Set(s.remittances.filter((r) => r.status !== 'cancelled').map((r) => r.agency));
     const fund = run.finance.fund;
+    atomic(() => {
     for (const [agency, code, name] of REMIT) {
       if (done.has(agency)) continue;
       const amount = r2(entry.deductions.filter((d) => d.code === code).reduce((a, d) => a + d.amount, 0));
@@ -197,6 +223,7 @@ export function registerPayrollFinanceRoutes(route, ctx, { data, save, findRun }
       });
       run.finance.remittances = [...(run.finance.remittances || []).filter((r) => r.agency !== agency), { agency, dvId: dv.id }];
     }
+    });
     save();
     return status(run);
   });

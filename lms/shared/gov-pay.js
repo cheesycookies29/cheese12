@@ -279,6 +279,13 @@ export function computeGovPayslip({ employee, entries, periodStart, periodEnd, s
   const jo = isJobOrder(employee);
   const monthly = monthlySalary(employee, periodEnd);
   const daily = monthly != null ? monthly / g.workingDaysPerMonth : Number(employee.rate) || 0;
+  // Monthly salary for GSIS, PhilHealth, Pag-IBIG and PERA: a daily-rated employee who is not a
+  // job order (e.g. casual on a daily wage) counts 22 days a month.
+  const monthlyBase = monthly ?? (jo ? null : daily * g.workingDaysPerMonth);
+  // A monthly amount split over the pay periods: the month-end run takes what the first half did
+  // not, so a month adds up to the centavo (e.g. GSIS = exactly 9% of the salary).
+  const secondHalf = divisor === 2 && periodEnd === monthEnd(periodEnd);
+  const split = (m) => (divisor === 1 ? round2(m) : secondHalf ? round2(round2(m) - round2(m / 2)) : round2(m / 2));
   const perMinute = daily / 480;
   const att = attendanceOf(employee, entries, periodStart, periodEnd, settings);
   const excluded = Boolean(adjustments.excluded);
@@ -289,20 +296,22 @@ export function computeGovPayslip({ employee, entries, periodStart, periodEnd, s
   const perDay = monthly == null || jo;
   let basePay = perDay ? (jo ? att.daysPresent : paidDays) * daily : monthly / divisor;
   if (!perDay && employee.hireDate > periodStart) basePay = Math.min(basePay, daily * att.scheduledDays); // started mid-period
+  // Share of the period in service (a new hire): PERA and contributions are for that share only.
+  const periodShare = !perDay && employee.hireDate > periodStart ? Math.min(1, basePay / (monthly / divisor)) : 1;
   const absenceDeduction = perDay ? 0 : paidDays ? Math.min(basePay, unpaidDays * daily) : basePay;
 
   // Tardiness and undertime: vacation leave credits first, the rest from pay.
   const lateMinutes = att.flex ? 0 : att.lateMinutes + att.undertimeMinutes;
   let leaveChargedDays = 0;
-  if (lateMinutes && g.tardiness === 'leave' && !jo) leaveChargedDays = Math.min(Math.round((lateMinutes / 480) * 1000) / 1000, Math.max(0, Math.floor((Number(vlRemaining) || 0) * 1000) / 1000));
+  if (lateMinutes && g.tardiness === 'leave' && !jo && !excluded) leaveChargedDays = Math.min(Math.round((lateMinutes / 480) * 1000) / 1000, Math.max(0, Math.floor((Number(vlRemaining) || 0) * 1000) / 1000));
   const salaryMinutes = Math.max(0, lateMinutes - Math.round(leaveChargedDays * 480));
   const tardinessDeduction = Math.min(Math.max(0, basePay - absenceDeduction), salaryMinutes * perMinute);
   const basicPay = excluded ? 0 : Math.max(0, basePay - absenceDeduction - tardinessDeduction);
   const anyPay = basicPay > 0;
 
   // PERA, less 1/22 of the monthly amount per day of absence without pay.
-  const peraEligible = !jo && employee.pera !== false && monthly != null;
-  const pera = peraEligible && anyPay ? Math.max(0, g.pera / divisor - (g.pera / g.workingDaysPerMonth) * unpaidDays) : 0;
+  const peraEligible = !jo && employee.pera !== false && monthlyBase != null;
+  const pera = peraEligible && anyPay ? Math.max(0, (g.pera / divisor) * periodShare - (g.pera / g.workingDaysPerMonth) * unpaidDays) : 0;
 
   // RATA, for the whole month, in the run that ends on the last day of the month.
   let rata = { representation: 0, transportation: 0, days: null, share: 0 };
@@ -332,17 +341,18 @@ export function computeGovPayslip({ employee, entries, periodStart, periodEnd, s
   // Mandatory contributions on the monthly basic salary.
   const c = settings.contributions || {};
   const rates = { ...DEFAULT_RATES, ...(settings.rates || {}) };
-  const contributing = !jo && anyPay && monthly;
+  const contributing = !jo && anyPay && monthlyBase;
   const gsisOn = contributing && c.gsis !== false;
-  const ph = contributing && c.philhealth ? philhealthContribution(monthly, rates.philhealth) : { ee: 0, er: 0 };
-  const hdmf = contributing && c.pagibig ? pagibigContribution(monthly, rates.pagibig) : { ee: 0, er: 0 };
+  const ph = contributing && c.philhealth ? philhealthContribution(monthlyBase, rates.philhealth) : { ee: 0, er: 0 };
+  const hdmf = contributing && c.pagibig ? pagibigContribution(monthlyBase, rates.pagibig) : { ee: 0, er: 0 };
+  const share = (m) => (periodShare < 1 ? round2(split(m) * periodShare) : split(m));
   const ded = {
-    gsis: gsisOn ? round2((monthly * g.gsisPersonal) / divisor) : 0,
-    philhealth: round2(ph.ee / divisor),
-    pagibig: round2(hdmf.ee / divisor),
+    gsis: gsisOn ? share(monthlyBase * g.gsisPersonal) : 0,
+    philhealth: share(ph.ee),
+    pagibig: share(hdmf.ee),
     withholdingTax: 0,
     percentageTax: 0,
-    otherDeductions: round2(Number(adjustments.otherDeductions) || 0),
+    otherDeductions: excluded ? 0 : round2(Number(adjustments.otherDeductions) || 0),
     items: [],
   };
   const taxableIncome = round2(Math.max(0, basicPay + overtimePay + otherEarnings + (g.peraTaxable ? pera : 0) - ded.gsis - ded.philhealth - ded.pagibig));
@@ -361,7 +371,7 @@ export function computeGovPayslip({ employee, entries, periodStart, periodEnd, s
   const totalDeductions = round2(mandatory + taken.reduce((a, d) => a + d.amount, 0));
 
   return {
-    system: 'government', kind: 'regular',
+    system: 'government', kind: 'regular', jobOrder: jo,
     employeeId: employee.id,
     employee: employeeInfo(employee, monthly, periodEnd),
     rates: { monthly: round2(monthly || 0), daily: round2(daily), hourly: round2(hourly), perMinute: Math.round(perMinute * 10000) / 10000 },
@@ -378,10 +388,10 @@ export function computeGovPayslip({ employee, entries, periodStart, periodEnd, s
     skippedDeductions: skipped,
     totalDeductions,
     employerShare: {
-      gsis: gsisOn ? round2((monthly * g.gsisGovernment) / divisor) : 0,
-      ecc: gsisOn ? round2(g.ecc / divisor) : 0,
-      philhealth: round2(ph.er / divisor),
-      pagibig: round2(hdmf.er / divisor),
+      gsis: gsisOn ? share(monthlyBase * g.gsisGovernment) : 0,
+      ecc: gsisOn ? share(g.ecc) : 0,
+      philhealth: share(ph.er),
+      pagibig: share(hdmf.er),
     },
     netPay: round2(grossPay - totalDeductions),
     adjustments: { otherEarnings: Number(adjustments.otherEarnings) || 0, otherDeductions: Number(adjustments.otherDeductions) || 0, remarks: adjustments.remarks || '', excluded },
@@ -404,7 +414,10 @@ export function computeGovBonus({ employee, kind, year, payDate, settings, ytdEx
   const cutoff = def.cutoff ? `${year}-${def.cutoff}` : payDate;
   const monthly = monthlySalary(employee, cutoff) || 0;
   const hire = employee.hireDate || cutoff;
-  const inService = employee.status === 'Active' && hire <= cutoff && !isJobOrder(employee);
+  // In service on the cut-off date: hired by then and not separated before it (an employee who
+  // resigned after the cut-off is still entitled, even if inactive by the pay date).
+  const sep = employee.separationDate || null;
+  const inService = hire <= cutoff && !isJobOrder(employee) && (sep ? sep >= cutoff : employee.status === 'Active');
   const months = def.windowStart ? monthsOfService(hire > def.windowStart(year) ? hire : def.windowStart(year), cutoff) : monthsOfService(hire, payDate);
   const items = [];
   let note = '';
@@ -434,7 +447,7 @@ export function computeGovBonus({ employee, kind, year, payDate, settings, ytdEx
   const taxable = round2(excess + items.filter((i) => !i.exempt && !i.deMinimis).reduce((a, i) => a + i.amount, 0));
   const rates = { ...DEFAULT_RATES, ...(settings.rates || {}) };
   const tax = taxable && settings.contributions?.withholdingTax !== false ? round2(withholdingTax(monthlyTaxable + taxable, 'monthly', rates.tax) - withholdingTax(monthlyTaxable, 'monthly', rates.tax)) : 0;
-  const otherDeductions = round2(Number(adjustments.otherDeductions) || 0);
+  const otherDeductions = adjustments.excluded ? 0 : round2(Number(adjustments.otherDeductions) || 0);
   const totalDeductions = round2(tax + otherDeductions);
   return {
     system: 'government', kind,

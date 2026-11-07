@@ -521,3 +521,62 @@ test('government payroll to Finance: ORS (Box A) → obligated → payroll vouch
   const gsisDue = plan.entry.deductions.filter((d) => d.code === '20201020').reduce((a, d) => a + d.amount, 0);
   assert.equal(st.remittances.find((r) => r.agency === 'GSIS').amount, Math.round(gsisDue * 100) / 100);
 });
+
+test('government payroll QA fixes: exclusion, new hires, daily casuals, job orders, halves, separation, moved campus, private mode', async () => {
+  const settings = { ...lmsCalc.DEFAULT_SETTINGS, payFrequency: 'semi-monthly', contributions: { ...lmsCalc.DEFAULT_SETTINGS.contributions, gsis: true } };
+  const emp = { id: 'e', employeeNo: 'E', firstName: 'A', lastName: 'B', salaryGrade: 11, step: 3, hireDate: '2020-01-01', status: 'Active', schedule: settings.schedule };
+  const work = (from, to, id = 'e', lateFirst = false) => [...lmsCalc.eachDate(from, to)].filter((d) => ![0, 6].includes(lmsCalc.dayOfWeek(d))).map((d, i) => ({ employeeId: id, date: d, type: 'work', timeIn: lateFirst && i === 0 ? '08:41' : '08:00', timeOut: '17:00' }));
+  // Left out of a run: nothing paid, no leave charged, no deductions (net 0, not negative).
+  const out = gov.computeGovPayslip({ employee: emp, entries: work('2026-10-01', '2026-10-15', 'e', true), periodStart: '2026-10-01', periodEnd: '2026-10-15', settings, vlRemaining: 5, adjustments: { excluded: true, otherDeductions: 250 } });
+  assert.deepEqual([out.grossPay, out.netPay, out.leave.chargedToLeaveDays], [0, 0, 0]);
+  // The two halves of a month add up to the monthly contribution to the centavo.
+  const h1 = gov.computeGovPayslip({ employee: emp, entries: work('2026-10-01', '2026-10-15'), periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  const h2 = gov.computeGovPayslip({ employee: emp, entries: work('2026-10-16', '2026-10-31'), periodStart: '2026-10-16', periodEnd: '2026-10-31', settings });
+  assert.equal(lmsCalc.round2(h1.deductions.gsis + h2.deductions.gsis), lmsCalc.round2(32109 * 0.09));
+  assert.equal(lmsCalc.round2(h1.employerShare.gsis + h2.employerShare.gsis), lmsCalc.round2(32109 * 0.12));
+  // A new hire mid-period: PERA and contributions for the part of the period in service.
+  const hire = gov.computeGovPayslip({ employee: { ...emp, hireDate: '2026-10-14' }, entries: work('2026-10-14', '2026-10-15'), periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  assert.ok(hire.earnings.pera < 1000 && hire.earnings.pera > 0, `PERA ${hire.earnings.pera}`);
+  assert.ok(hire.deductions.gsis < h1.deductions.gsis / 2);
+  // A casual on a daily wage (not a job order) pays GSIS, PhilHealth and Pag-IBIG and gets PERA.
+  const casual = gov.computeGovPayslip({ employee: { ...emp, salaryGrade: null, payType: 'daily', rate: 800, appointment: 'Casual' }, entries: work('2026-10-01', '2026-10-15'), periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  assert.equal(casual.deductions.gsis, lmsCalc.round2((800 * 22 * 0.09) / 2));
+  assert.equal(casual.earnings.pera, 1000);
+  // Job order recorded by employment status only: paid and booked as a job order.
+  const jo = gov.computeGovPayslip({ employee: { ...emp, salaryGrade: null, payType: 'daily', rate: 600, employmentStatus: 'Job order' }, entries: work('2026-10-01', '2026-10-15'), periodStart: '2026-10-01', periodEnd: '2026-10-15', settings });
+  assert.equal(jo.jobOrder, true);
+  const { payrollEntry } = await import('../server/hris-finance.js');
+  assert.deepEqual(payrollEntry({ kind: 'regular', payslips: [jo] }).lines.map((l) => [l.code, l.cls]), [['50216010', 'MOOE']]);
+  // Separated after the cut-off (31 October) and inactive by the pay date: still gets the year-end bonus.
+  const left = gov.computeGovBonus({ employee: { ...emp, status: 'Inactive', separationDate: '2026-11-05' }, kind: 'year-end', year: 2026, payDate: '2026-11-15', settings });
+  assert.ok(left.earnings.items.some((i) => i.code === 'YEB'));
+  const before = gov.computeGovBonus({ employee: { ...emp, status: 'Inactive', separationDate: '2026-10-15' }, kind: 'year-end', year: 2026, payDate: '2026-11-15', settings });
+  assert.equal(before.grossPay, 0);
+
+  // Moved campus after being paid: not paid again at the new campus.
+  const { env, admin, hr, other, newEmployee } = await hrisSchool();
+  const mover = await newEmployee(hr, { firstName: 'Mo', lastName: 'Ver', salaryGrade: 11, step: 1 });
+  const myb = await admin.post('/api/hris/payroll-runs', { kind: 'mid-year', year: 2026, payDate: '2026-05-15' });
+  await admin.post(`/api/hris/payroll-runs/${myb.id}/finalize`, {});
+  env.db.data.employees.find((e) => e.id === mover.id).campusId = other.id;
+  await admin.post('/api/hris/auth/campus', { campusId: other.id });
+  await assert.rejects(admin.post('/api/hris/payroll-runs', { kind: 'mid-year', year: 2026, payDate: '2026-05-15' }), /paid it at another campus/);
+  await admin.post('/api/hris/auth/campus', { campusId: (await admin.get('/api/admin/campuses'))[0].id });
+  // Private payroll: the rate typed in is kept (salary grades are a government thing).
+  await admin.put('/api/hris/payroll-config', { ...(await admin.get('/api/hris/settings')), payrollSystem: 'private' });
+  const pv = await newEmployee(hr, { firstName: 'Pri', lastName: 'Vate' });
+  const priv = await admin.put(`/api/hris/employees/${pv.id}`, { firstName: 'Pri', lastName: 'Vate', hireDate: '2025-01-06', payType: 'monthly', rate: 99999, salaryGrade: 16 });
+  assert.equal(priv.rate, 99999);
+  assert.equal(priv.salaryGrade, null);
+});
+
+test('an install that already ran private payroll stays private after the upgrade', async () => {
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const { openDb } = await import('../server/db.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-upgrade-'));
+  const file = path.join(dir, 'db.json');
+  fs.writeFileSync(file, JSON.stringify({ hrSettings: { payFrequency: 'monthly' }, payrollRuns: [{ id: 'r', campusId: 'c', periodStart: '2026-01-01', periodEnd: '2026-01-31', payslips: [], employeeIds: [], status: 'finalized' }] }));
+  assert.equal(openDb(file).data.hrSettings.payrollSystem, 'private');
+  fs.rmSync(dir, { recursive: true, force: true });
+});

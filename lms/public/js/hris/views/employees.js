@@ -150,6 +150,7 @@ export async function employeeFormView(el, { id }) {
           ${field('Date hired', 'hireDate', emp.hireDate, { type: 'date', required: true })}
           ${campuses.length > 1 ? field('Campus', 'campusId', emp.campusId || ctx.info.activeCampusId, { options: campuses.map((c) => [c.id, c.name]) }) : ''}
           ${field('Record status', 'status', emp.status, { options: ['Active', 'Inactive'], hint: 'Inactive employees are left out of new payroll runs.' })}
+          ${field('Date separated', 'separationDate', emp.separationDate, { type: 'date', hint: 'Resigned, retired or contract ended. Bonuses look at service on their cut-off date.' })}
         </div>
       </section>
       <section class="card">

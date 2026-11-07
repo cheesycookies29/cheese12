@@ -129,6 +129,9 @@ function normalize(data) {
   out.counters = { studentNo: {}, ...(data.counters || {}) };
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
   out.hrSettings = mergeHrSettings(data.hrSettings);
+  // A school that already ran (private, SSS) payroll before government payroll existed stays private
+  // until someone switches it in Payroll setup.
+  if (!data.hrSettings?.payrollSystem && (data.payrollRuns || []).some((r) => !r.system)) out.hrSettings.payrollSystem = 'private';
   out.academicSettings = mergeAcademicSettings(data.academicSettings);
   out.finSettings = mergeFinanceSettings(data.finSettings);
   out.finAccounts = mergeChart(data.finAccounts);
