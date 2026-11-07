@@ -181,16 +181,19 @@ export function addFinanceDemo(data, ctx) {
   const apHE = appr('01', HE, 'MOOE', 'GAA – New appropriations', `GAA ${Y}, SUC item`, 12000000);
   const apGA = appr('01', GA, 'MOOE', 'GAA – New appropriations', `GAA ${Y}, SUC item`, 6000000);
   const apCO = appr('01', HE, 'CO', 'GAA – New appropriations', `GAA ${Y}, capital outlay`, 8000000);
-  appr('01', HE, 'PS', 'GAA – New appropriations', `GAA ${Y}, personnel services`, 64000000);
+  const apPS = appr('01', HE, 'PS', 'GAA – New appropriations', `GAA ${Y}, personnel services`, 64000000);
   const ap05 = appr('05', GA, 'MOOE', 'Board-approved budget (IGF/STF)', `BOR Res. No. 03, s. ${Y}`, 3000000);
   const al = {
     he: allot('01', HE, 'MOOE', 'GARO / ABM (comprehensive release)', `GARO-${Y}-01-0142`, 9000000, apHE.id),
     ga: allot('01', GA, 'MOOE', 'GARO / ABM (comprehensive release)', `GARO-${Y}-01-0142`, 4500000, apGA.id),
     co: allot('01', HE, 'CO', 'SARO', `SARO-BMB-C-${String(Y).slice(2)}-0003511`, 5000000, apCO.id),
     stf: allot('05', GA, 'MOOE', 'Board approval (IGF/STF)', `BOR Res. No. 03, s. ${Y}`, 3000000, ap05.id),
+    // Personnel services: salaries and benefits, paid through ATLAS People's payroll.
+    ps: allot('01', HE, 'PS', 'GARO / ABM (comprehensive release)', `GARO-${Y}-01-0142`, 48000000, apPS.id),
   };
   B.post('/api/finance/ncas', { no: `NCA-BMB-${String(Y).slice(2)}-${String(Y).slice(2)}0412`, date: start, amount: 6000000, particulars: 'MOOE and capital outlay, first release' });
   B.post('/api/finance/ncas', { no: `NCA-BMB-${String(Y).slice(2)}-${String(Y).slice(2)}1188`, date: at(0.5), amount: 5000000, particulars: 'MOOE and capital outlay, second release' });
+  B.post('/api/finance/ncas', { no: `NCA-BMB-${String(Y).slice(2)}-${String(Y).slice(2)}0413`, date: start, amount: 30000000, particulars: 'Personnel services (salaries and benefits)' });
 
   // ----- Collections: FHE billing, fees, rent, farm produce (fund 05) -----
   const booklet = (from, fund, date) => C.post('/api/finance/booklets', { form: '51', from, to: from + 49, fund, collectorId: cash.id, date });

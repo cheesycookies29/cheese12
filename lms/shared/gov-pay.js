@@ -163,6 +163,7 @@ export const DEFAULT_GOV = {
   benefitsExemptCeiling: 90000,
   cashGift: 5000, pei: 5000, clothingAllowance: 7000, clothingExemptCeiling: 8000, clothingMinMonths: 6,
   jobOrderEwt: 0.05, jobOrderPercentageTax: 0.03,
+  payrollFund: '01', // the fund cluster salaries are paid from (Finance)
 };
 export const govSettings = (settings) => ({ ...DEFAULT_GOV, ...(settings?.gov || {}) });
 
@@ -324,7 +325,9 @@ export function computeGovPayslip({ employee, entries, periodStart, periodEnd, s
 
   const allowance = anyPay && !jo ? (Number(employee.allowance) || 0) / divisor : 0; // other non-taxable allowance
   const otherEarnings = excluded ? 0 : Number(adjustments.otherEarnings) || 0;
-  const grossPay = round2(basicPay + pera + rata.representation + rata.transportation + allowance + overtimePay + otherEarnings);
+  // Gross is the sum of the earnings as printed (each rounded to the centavo), so the payslip,
+  // the General Payroll and Finance's voucher agree to the centavo.
+  const grossPay = round2(round2(basicPay) + round2(pera) + rata.representation + rata.transportation + round2(allowance) + round2(overtimePay) + round2(otherEarnings));
 
   // Mandatory contributions on the monthly basic salary.
   const c = settings.contributions || {};

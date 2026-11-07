@@ -467,3 +467,57 @@ test('government payroll: SG employees, loans, VL charged on finalize, bonus run
   const out = await admin.put(`/api/hris/payroll-runs/${yeb.id}/payslips/${emp.id}`, { excluded: true, remarks: 'Rating below Satisfactory' });
   assert.equal(out.payslips.find((p) => p.employeeId === emp.id).grossPay, 0);
 });
+
+test('government payroll to Finance: ORS (Box A) → obligated → payroll voucher → paid with its journal entry → remittances', async () => {
+  const env = setup({ today: '2026-11-07' });
+  const admin = env.client();
+  await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
+  await admin.post('/api/admin/demo');
+  const as = async (username) => {
+    const c = env.client();
+    await c.post('/api/hub/login', { username, password: 'demo1234' });
+    return c;
+  };
+  const [payroll, budget, acct, head, cash, hr] = await Promise.all(['payroll.demo', 'budget.demo', 'accountant.demo', 'head.demo', 'cashier.demo', 'hr.demo'].map(as));
+  const run = (await payroll.get('/api/hris/payroll-runs')).find((r) => r.kind === 'regular' && r.status === 'finalized' && r.periodEnd.endsWith('-31'));
+  const plan = await payroll.get(`/api/hris/payroll-runs/${run.id}/finance`);
+  const full = await payroll.get(`/api/hris/payroll-runs/${run.id}`);
+  // The entry balances: obligation = gross pay + government shares; net = the payroll's net pay.
+  const shares = full.payslips.reduce((a, p) => a + Object.values(p.employerShare).reduce((x, y) => x + y, 0), 0);
+  assert.equal(plan.entry.gross, Math.round((full.totals.grossPay + shares) * 100) / 100);
+  assert.equal(plan.entry.net, full.totals.netPay);
+  assert.ok(plan.entry.lines.some((l) => l.code === '50101010') && plan.entry.lines.some((l) => l.code === '50103010'));
+  const ps = plan.allotments.find((a) => a.cls === 'PS');
+  const mooe = plan.allotments.find((a) => a.cls === 'MOOE');
+  assert.ok(ps, 'the PS allotment is offered');
+  // HR may look but not prepare; payroll prepares the request.
+  await assert.rejects(hr.post(`/api/hris/payroll-runs/${run.id}/finance/ors`, { allotments: { PS: ps.id, MOOE: mooe?.id } }), status(403));
+  await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/dv`, {}), /obligation request first/);
+  let st = await payroll.post(`/api/hris/payroll-runs/${run.id}/finance/ors`, { allotments: { PS: ps.id, MOOE: mooe?.id } });
+  assert.equal(st.ors.status, 'draft');
+  assert.ok(st.ors.submitted);
+  await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/ors`, { allotments: { PS: ps.id, MOOE: mooe?.id } }), /already has/);
+  await assert.rejects(payroll.del(`/api/hris/payroll-runs/${run.id}`), /Cancel that request first/);
+  await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/dv`, {}), /not obligated yet/);
+  // Box B in Finance, then the voucher.
+  await budget.post(`/api/finance/obligations/${st.ors.id}/obligate`, {});
+  st = await payroll.post(`/api/hris/payroll-runs/${run.id}/finance/dv`, {});
+  const dv = await acct.get(`/api/finance/dvs/${st.dv.id}`);
+  assert.equal(dv.gross, plan.entry.gross);
+  assert.equal(dv.net, plan.entry.net);
+  assert.ok(dv.entry.some((l) => l.code === '20201020' && l.credit > 0), 'Due to GSIS');
+  assert.ok(dv.entry.some((l) => l.code === '20201010' && l.credit > 0), 'Due to BIR');
+  await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/remittances`, {}), /paid first/);
+  // Boxes C and D, then the LDDAP-ADA pays it and posts the journal entry.
+  await acct.post(`/api/finance/dvs/${dv.id}/certify`, { docsComplete: true });
+  await head.post(`/api/finance/dvs/${dv.id}/approve`);
+  await cash.post('/api/finance/lddaps', { dvIds: [dv.id] });
+  st = await payroll.get(`/api/hris/payroll-runs/${run.id}/finance`);
+  assert.equal(st.dv.status, 'paid');
+  assert.match(st.dv.jevNo, /^01-/);
+  // Remittance vouchers settle what was withheld, one per agency.
+  st = await payroll.post(`/api/hris/payroll-runs/${run.id}/finance/remittances`, {});
+  assert.deepEqual(st.remittances.map((r) => r.agency).sort(), ['BIR', 'GSIS', 'Pag-IBIG', 'PhilHealth']);
+  const gsisDue = plan.entry.deductions.filter((d) => d.code === '20201020').reduce((a, d) => a + d.amount, 0);
+  assert.equal(st.remittances.find((r) => r.agency === 'GSIS').amount, Math.round(gsisDue * 100) / 100);
+});

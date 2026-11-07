@@ -18,6 +18,7 @@ import { campusesFor, campusName } from './campus.js';
 import { validateUserFields } from './admin.js';
 import { registerLeaveRoutes, findLeaveType, leaveBalances } from './hris-leave.js';
 import { clockInLocation, forViewer, locationSettings, purgeOldLocations, registerGeoRoutes } from './hris-geo.js';
+import { registerPayrollFinanceRoutes } from './hris-finance.js';
 import { computeGovPayslip, computeGovBonus, DEFAULT_GOV, BONUS_KINDS, APPOINTMENTS, DEDUCTION_TYPES, monthlySalary, salaryFor, stepsIn, isJobOrder } from '../shared/gov-pay.js';
 
 const fail = (msg, status = 400) => {
@@ -261,6 +262,7 @@ function validatePayrollConfig(s) {
     clothingAllowance: num(g.clothingAllowance, 'Clothing allowance', 0, 1e6), clothingExemptCeiling: num(g.clothingExemptCeiling, 'Clothing de minimis ceiling', 0, 1e6),
     clothingMinMonths: num(g.clothingMinMonths, 'Months of service for the clothing allowance', 0, 24),
     jobOrderEwt: num(g.jobOrderEwt, 'Job order withholding tax', 0, 1), jobOrderPercentageTax: num(g.jobOrderPercentageTax, 'Job order percentage tax', 0, 1),
+    payrollFund: /^\d{2}$/.test(String(g.payrollFund || '')) ? String(g.payrollFund) : '01',
   };
   const { sss, philhealth, pagibig } = s.rates;
   s.rates.sss = {
@@ -705,12 +707,17 @@ export function registerHrisRoutes(route, ctx) {
   });
   route('DELETE', '/api/hris/payroll-runs/:id', 'hris:payroll.edit', ({ params, campusId }) => {
     const run = findRun(params.id, campusId);
+    // Once Finance has its obligation request, the run is the record behind it.
+    const ors = run.finance?.orsId && data().finObligations?.find((o) => o.id === run.finance.orsId);
+    if (ors && ors.status !== 'cancelled') fail(`This run is on ${ors.form} ${ors.no || '(being obligated)'} in Finance. Cancel that request first.`);
     data().payrollRuns = data().payrollRuns.filter((r) => r.id !== run.id);
     // Leave charged by the run goes back; loan balances follow the remaining finalized runs.
     data().leaveAdjustments = data().leaveAdjustments.filter((a) => a.runId !== run.id);
     save();
     return { ok: true };
   });
+
+  registerPayrollFinanceRoutes(route, ctx, { data, save, findRun });
 
   // ----- Loans and other recurring deductions (government payroll) -----
   const deductionView = (d, paid) => {

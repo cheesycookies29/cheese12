@@ -7,7 +7,7 @@ import { currentPeriod } from '/shared/calc.js';
 import { html, mount, money, amount, fmtDate, fmtMinutes, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../../ui.js';
 import { hr, can, clickableRows } from '../state.js';
 import { BONUS_KINDS } from '/shared/gov-pay.js';
-import { govRegister, govNotices, govPayslipCard, generalPayroll, remittancesView, downloadRemittance, GOV_REGISTER_CSV, runTitle, isBonusRun } from './payroll-gov.js';
+import { govRegister, govNotices, govPayslipCard, generalPayroll, remittancesView, downloadRemittance, GOV_REGISTER_CSV, runTitle, isBonusRun, financeView } from './payroll-gov.js';
 
 const isGov = () => hr.settings.payrollSystem === 'government';
 
@@ -102,6 +102,7 @@ export async function payrollRunView(el, { id }) {
     : [];
 
   let tab = 'register';
+  let fin = null; // the run's documents in Finance (loaded when the tab opens)
   function render() {
     if (run.system === 'government') return renderGov();
     const draft = run.status === 'draft';
@@ -198,16 +199,47 @@ export async function payrollRunView(el, { id }) {
         ${bonus ? '' : html`<div class="card"><small>Government share</small><strong>${money(t.employerContributions)}</strong><span class="muted small">GSIS, ECC, PhilHealth, Pag-IBIG</span></div>`}
       </div>
       ${draft && notes.length ? html`<div class="notice stack-notice">${notes}</div>` : ''}
-      <nav class="tabs no-print">${[['register', 'Register'], ['remit', 'Remittances'], ['gp', 'General Payroll']].map(([k, l]) => html`<a href="javascript:void 0" role="button" data-tab="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`)}</nav>
+      <nav class="tabs no-print">${[['register', 'Register'], ['remit', 'Remittances'], ['gp', 'General Payroll'], ['finance', 'Finance']].map(([k, l]) => html`<a href="javascript:void 0" role="button" data-tab="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`)}</nav>
       ${tab === 'register' ? html`<section class="card scroll-x">${govRegister(run, { editable })}</section>` : ''}
       ${tab === 'remit' ? html`<section class="card">${remittancesView(run)}</section>` : ''}
+      ${tab === 'finance' ? html`<section class="card" id="fin-box">${fin ? financeView(run, fin, { canEdit: can('payroll.edit') }) : html`<p class="muted">Loading…</p>`}</section>` : ''}
       ${tab === 'gp' ? html`<div class="actions end no-print"><button class="btn primary" id="print-gp">${icon('file', 16)} Print General Payroll</button></div><section class="card">${generalPayroll(run)}</section>` : ''}
       ${can('payroll.edit') ? html`<div class="danger-zone no-print"><button class="btn danger ghost" id="delete">${icon('trash', 16)} Delete payroll run</button></div>` : ''}`);
-    el.querySelectorAll('[data-tab]').forEach((a) => a.addEventListener('click', (e) => {
+    el.querySelectorAll('[data-tab]').forEach((a) => a.addEventListener('click', async (e) => {
       e.preventDefault();
       tab = a.dataset.tab;
       render();
+      if (tab === 'finance') {
+        try {
+          fin = await api.get(`/api/hris/payroll-runs/${id}/finance`);
+        } catch (err) {
+          fin = null;
+          toast(err.message, 'error');
+        }
+        render();
+      }
     }));
+    // Finance steps: each calls People, which prepares the document in Finance.
+    const finStep = async (path, body, done) => {
+      try {
+        fin = { ...fin, ...(await api.post(`/api/hris/payroll-runs/${id}/finance/${path}`, body)) };
+        fin = await api.get(`/api/hris/payroll-runs/${id}/finance`);
+        toast(done);
+        render();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    };
+    el.querySelector('#fin-ors')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      finStep('ors', { allotments: { PS: fd.get('PS'), MOOE: fd.get('MOOE') } }, 'Obligation request sent to the budget office.');
+    });
+    el.querySelector('#fin-dv')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      finStep('dv', { mode: new FormData(e.target).get('mode') }, 'Voucher sent to the accountant (Box C).');
+    });
+    el.querySelector('#fin-remit')?.addEventListener('click', () => finStep('remittances', {}, 'Remittance vouchers sent to the accountant.'));
     el.querySelector('#print-gp')?.addEventListener('click', () => window.print());
     el.querySelectorAll('[data-remit]').forEach((b) => b.addEventListener('click', () => downloadRemittance(run, b.dataset.remit)));
     bind();

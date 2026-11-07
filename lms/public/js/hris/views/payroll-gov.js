@@ -292,3 +292,46 @@ export function govPayslipCard(run, p, settings, { slipNumber, pesosInWords, per
       </footer>
     </article>`;
 }
+
+// ----- To Finance: obligation request, payroll voucher, remittances -----
+const STATUS = { draft: ['Waiting', 'amber'], obligated: ['Obligated', 'green'], certified: ['Certified (Box C)', 'blue'], approved: ['Approved (Box D)', 'blue'], paid: ['Paid', 'green'], cancelled: ['Cancelled', 'gray'] };
+const docBadge = (d) => (d ? badge(...(STATUS[d.status] || [d.status, 'gray'])) : '');
+// The document in ATLAS Finance (opens there for Finance's officers).
+const finLink = (path, label) => html`<a href="/finance/#${path}" target="_blank" rel="noopener">${label}</a>`;
+
+export function financeView(run, f, { canEdit }) {
+  if (run.status !== 'finalized') return html`<p class="muted">Finalize the run first. A finalized government payroll goes to Finance as an obligation request, then a disbursement voucher.</p>`;
+  const e = f.entry;
+  const step = (n, title, body, done) => html`<li class="fin-step ${done ? 'done' : ''}"><span class="fin-n">${n}</span><div><h3>${title}</h3>${body}</div></li>`;
+  const ors = f.ors && f.ors.status !== 'cancelled' ? f.ors : null;
+  const dv = f.dv && f.dv.status !== 'cancelled' ? f.dv : null;
+  const classes = [...new Set(e.lines.map((l) => l.cls))];
+  return html`
+    <p class="muted small">How this payroll is paid in ATLAS Finance (COA): the payroll office prepares the obligation request and the voucher (Box A); the budget office obligates (Box B); the accountant certifies (Box C), the head of agency approves (Box D) and the cashier pays by LDDAP-ADA, which posts the journal entry. Then what was withheld is remitted.</p>
+    <ol class="fin-steps">
+      ${step(1, 'Obligation request', ors
+        ? html`<p>${finLink(`/obligations/${ors.id}`, `${ors.form} ${ors.no || '(number given when obligated)'}`)} · ${money(ors.amount)} ${docBadge(ors)}${ors.status === 'draft' ? html` <span class="muted small">with the budget office for Box B</span>` : ''}</p>`
+        : canEdit ? html`<form id="fin-ors" class="fin-form">
+            ${classes.map((c) => html`<label class="field"><span>${c === 'PS' ? 'Personnel services' : 'MOOE (job orders)'} allotment</span><select name="${c}" required>${f.allotments.filter((a) => a.cls === c).map((a) => html`<option value="${a.id}">${a.ref} · ${a.pap}${a.papName ? ` ${a.papName}` : ''} · ${money(a.balance)} left</option>`)}</select></label>`)}
+            ${classes.some((c) => !f.allotments.some((a) => a.cls === c)) ? html`<p class="notice small">No ${classes.filter((c) => !f.allotments.some((a) => a.cls === c)).join(' or ')} allotment in fund ${f.fund} for ${run.payDate.slice(0, 4)}. The budget office records it in Finance first.</p>` : html`<button class="btn primary">Prepare the obligation request</button>`}
+          </form>` : html`<p class="muted">Not yet prepared.</p>`, Boolean(ors && ors.status === 'obligated'))}
+      ${step(2, 'Payroll voucher', dv
+        ? html`<p>${finLink(`/dvs/${dv.id}`, `DV ${dv.no || '(numbered at certification)'}`)} · ${money(dv.amount)} ${docBadge(dv)}${dv.jevNo ? html` · JEV ${dv.jevNo}` : ''}</p>`
+        : ors?.status === 'obligated' && canEdit ? html`<form id="fin-dv" class="fin-form"><label class="field"><span>Paid by</span><select name="mode"><option value="ada">LDDAP-ADA (credited to the employees' accounts)</option><option value="check">MDS check</option></select></label><button class="btn primary">Prepare the voucher</button></form>`
+        : html`<p class="muted">${ors ? 'After the budget office obligates the request.' : 'After the obligation request.'}</p>`, dv?.status === 'paid')}
+      ${step(3, 'Remittances', f.remittances.length
+        ? html`<ul class="link-list">${f.remittances.map((r) => html`<li>${r.agency}: ${finLink(`/dvs/${r.id}`, `DV ${r.no || '(draft)'}`)} · ${money(r.amount)} ${docBadge(r)}</li>`)}</ul>`
+        : dv?.status === 'paid' && canEdit ? html`<button class="btn primary" id="fin-remit">Prepare remittance vouchers (GSIS, PhilHealth, Pag-IBIG, BIR)</button><p class="muted small">Cooperative, provident fund and other deductions are remitted with a voucher to each creditor in Finance.</p>`
+        : html`<p class="muted">After the payroll voucher is paid.</p>`, f.remittances.length && f.remittances.every((r) => r.status === 'paid'))}
+    </ol>
+    <h3 class="sub-h">Accounting entry</h3>
+    <div class="table-scroll"><table class="table compact">
+      <thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead>
+      <tbody>
+        ${e.lines.map((l) => html`<tr><td>${l.code} ${l.title}<small>${l.cls}</small></td><td class="num">${amount(l.amount)}</td><td></td></tr>`)}
+        ${e.deductions.map((d) => html`<tr><td class="indent">${d.code} ${d.title}<small>${d.label}</small></td><td></td><td class="num">${amount(d.amount)}</td></tr>`)}
+        <tr><td class="indent">Cash (net pay to the employees)</td><td></td><td class="num">${amount(e.net)}</td></tr>
+      </tbody>
+      <tfoot><tr><td>Total</td><td class="num">${amount(e.gross)}</td><td class="num">${amount(e.gross)}</td></tr></tfoot>
+    </table></div>`;
+}

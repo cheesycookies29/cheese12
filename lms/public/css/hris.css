@@ -274,3 +274,13 @@ img.att-preview { height: auto; max-height: 70vh; }
   .general-payroll { page: general-payroll; }
   @page general-payroll { size: A4 landscape; margin: 10mm; }
 }
+/* Payroll → Finance steps */
+.fin-steps { list-style: none; padding: 0; margin: 12px 0 20px; display: grid; gap: 12px; }
+.fin-step { display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: start; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+.fin-step h3 { margin: 4px 0 6px; font-size: 15px; }
+.fin-step p { margin: 0; }
+.fin-n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border-strong); font-weight: 700; }
+.fin-step.done .fin-n { background: var(--success-soft); color: var(--success); border-color: transparent; }
+.fin-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.fin-form .field { flex: 1 1 280px; margin: 0; }
+.table td.indent { padding-left: 28px; }
