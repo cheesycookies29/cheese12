@@ -4,9 +4,17 @@ import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
-import { html, mount, fmtMinutes, fullName, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../../ui.js';
+import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../../ui.js';
 import { hr, can, leaveName } from '../state.js';
 import { dtrCells, dayCell } from './self.js';
+import { locationPill, openLocation } from '../geo.js';
+import { LOCATION_STATUS, fmtDistance } from '/shared/geo.js';
+
+// Where a clock-in was made, for the CSV (HR managers and administrators only).
+const whereLabel = (e) => {
+  const g = e.clockInLocation;
+  return !g ? '' : g.status !== 'ok' ? LOCATION_STATUS[g.status] : g.inside == null ? 'Recorded' : g.inside ? 'Within campus radius' : e.remote ? 'Remote day' : `Away from campus (${fmtDistance(g.distance)})`;
+};
 
 function entryForm(entry, employees) {
   const type = entry.type === 'leave' ? `leave:${entry.leaveTypeId || ''}` : entry.remote ? 'remote' : 'work';
@@ -103,13 +111,15 @@ export async function dtrView(el, _params, query) {
       <div><small>Leave days</small><strong>${rows.filter((r) => r.calc.leave).length}</strong></div>
     </div>`);
     const approve = edit ? (e) => html`<button class="link" data-approve="${e.id}">Approve</button>` : null;
+    const seeLocation = can('attendance.location');
     mount(el.querySelector('#dtr-table'), rows.length
       ? html`<table class="table">
-          <thead><tr><th>Date</th><th>Employee</th><th>In</th><th>Out</th><th class="num">Worked</th><th class="num">Late</th><th class="num">Undertime</th><th class="num">Overtime</th><th>Notes</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Employee</th><th>In</th><th>Out</th><th class="num">Worked</th><th class="num">Late</th><th class="num">Undertime</th><th class="num">Overtime</th>${seeLocation ? html`<th>Clock-in location</th>` : ''}<th>Notes</th><th></th></tr></thead>
           <tbody>${rows.map(({ entry: e, emp, calc: c }) => html`<tr>
             ${dayCell(e, c)}
             <td><a href="#/employees/${emp.id}">${fullName(emp)}</a>${emp.flexTime ? html` <span class="flex-tag" title="Flexible time: no late or undertime">FLEX</span>` : ''}</td>
             ${dtrCells(e, c, { overtimeAction: approve })}
+            ${seeLocation ? html`<td>${e.clockInLocation ? html`<button type="button" class="link geo-link" data-geo="${e.id}" aria-label="Clock-in location, ${fullName(emp)}, ${e.date}">${locationPill(e.clockInLocation, { remote: e.remote })}</button>` : html`<span class="muted small">${e.timeIn ? 'Entered in DTR' : '—'}</span>`}</td>` : ''}
             <td class="notes">${e.notes}</td>
             <td class="row-actions">${edit ? html`<button class="link" data-edit="${e.id}">Edit</button><button class="link danger" data-delete="${e.id}">Delete</button>` : ''}</td>
           </tr>`)}</tbody>
@@ -131,6 +141,11 @@ export async function dtrView(el, _params, query) {
   el.querySelector('#dtr-table').addEventListener('click', async (ev) => {
     const t = ev.target;
     const find = (id) => rows.find((r) => r.entry.id === id).entry;
+    const geo = t.closest('[data-geo]')?.dataset.geo;
+    if (geo) {
+      const { entry: e, emp } = rows.find((r) => r.entry.id === geo);
+      return openLocation(e.clockInLocation, { name: fullName(emp), date: fmtDate(e.date), timeIn: fmtTime(e.timeIn), remote: e.remote });
+    }
     try {
       if (t.dataset.edit) openEntryModal(find(t.dataset.edit), employees, load);
       if (t.dataset.approve) {
@@ -149,9 +164,12 @@ export async function dtrView(el, _params, query) {
   });
 
   el.querySelector('#export').addEventListener('click', () => {
+    const seeLoc = can('attendance.location');
     const data = [
-      ['Date', 'Employee No', 'Employee', 'Type', 'Time In', 'Time Out', 'Worked (min)', 'Late (min)', 'Undertime (min)', 'Overtime (min)', 'OT Approved', 'Notes'],
-      ...rows.map(({ entry: e, emp, calc: c }) => [e.date, emp.employeeNo, fullName(emp), e.type === 'leave' ? leaveName(e) : e.remote ? 'Remote work' : 'Work', e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, e.otApproved ? 'Yes' : 'No', e.notes]),
+      ['Date', 'Employee No', 'Employee', 'Type', 'Time In', 'Time Out', 'Worked (min)', 'Late (min)', 'Undertime (min)', 'Overtime (min)', 'OT Approved',
+        ...(seeLoc ? ['Clock-in Location', 'Latitude', 'Longitude', 'Accuracy (m)', 'Distance from Campus (m)'] : []), 'Notes'],
+      ...rows.map(({ entry: e, emp, calc: c }) => [e.date, emp.employeeNo, fullName(emp), e.type === 'leave' ? leaveName(e) : e.remote ? 'Remote work' : 'Work', e.timeIn, e.timeOut, c.workedMinutes, c.lateMinutes, c.undertimeMinutes, c.overtimeMinutes, e.otApproved ? 'Yes' : 'No',
+        ...(seeLoc ? [whereLabel(e), e.clockInLocation?.lat ?? '', e.clockInLocation?.lng ?? '', e.clockInLocation?.accuracy ?? '', e.clockInLocation?.distance ?? ''] : []), e.notes]),
     ];
     downloadFile(`dtr-${state.from}-to-${state.to}.csv`, toCsv(data));
   });

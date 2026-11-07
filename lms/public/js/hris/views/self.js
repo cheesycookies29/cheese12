@@ -10,6 +10,7 @@ import { hr, leaveName, can, clickableRows } from '../state.js';
 import { statusBadge, kindBadge, dateRange, certificateCell } from './leave.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
 import { payslipCard } from './payroll.js';
+import { readClockLocation, LOCATION_NOTICE } from '../geo.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -85,6 +86,7 @@ export async function meHomeView(el) {
             <button class="btn big" id="btn-out" ${open ? '' : 'disabled'}>${icon('check', 16)} Clock out</button>
           </div>
           <p class="muted small">Schedule: ${sched.flex ? 'flexible time' : `${fmtTime(sched.shiftStart)} – ${fmtTime(sched.shiftEnd)}`}, ${sched.workDays.map((d) => WEEKDAYS[d]).join(', ')}</p>
+          <p class="geo-notice">${icon('mapPin', 13)} ${LOCATION_NOTICE}</p>
         </section>
         <div class="stack">
           <section class="card">
@@ -112,13 +114,18 @@ export async function meHomeView(el) {
 
     const clock = async (action) => {
       const btn = el.querySelector(action === 'in' ? '#btn-in' : '#btn-out');
+      const label = btn.innerHTML;
       btn.disabled = true;
       try {
-        const res = await api.post('/api/hris/me/clock', { action });
-        toast(res.message.replace(emp.firstName, 'You'));
+        // Clocking in also records where (never blocks: without a location it is recorded without one).
+        if (action === 'in') btn.textContent = 'Getting location…';
+        const where = action === 'in' ? await readClockLocation() : {};
+        const res = await api.post('/api/hris/me/clock', { action, ...where });
+        toast(res.message.replace(emp.firstName, 'You') + (where.locationError ? ' Your location could not be read, so it was recorded without it.' : ''));
         render();
       } catch (err) {
         toast(err.message, 'error');
+        btn.innerHTML = label;
         btn.disabled = false;
       }
     };
@@ -347,6 +354,7 @@ export async function meRequestsView(el, _params, query) {
       const rule = certificateRule();
       const field = form.querySelector('.cert-field');
       field.hidden = !rule.leave;
+      field.classList.toggle('required', rule.required);
       form.querySelector('.cert-label').textContent = rule.required ? 'Medical certificate (required)' : 'Medical certificate (optional)';
       form.querySelector('.cert-hint').textContent = rule.required
         ? `Required: ${rule.type.name} longer than ${rule.type.certificateAfterDays} day${rule.type.certificateAfterDays === 1 ? '' : 's'}. PDF or a photo, up to 5 MB.`

@@ -224,7 +224,7 @@ export function payslipCard(run, p, settings) {
       <header class="ps-head">
         <div class="ps-company">
           ${ctx.info.branding?.logo ? html`<img src="${ctx.info.branding.logo}" alt="" />` : ''}
-          <div><strong>${settings.employerName}</strong>${run.campusName || ctx.info.campusName ? html`<span>${run.campusName || ctx.info.campusName}</span>` : ''}${settings.employerAddress ? html`<span>${settings.employerAddress}</span>` : ''}${settings.employerTin ? html`<span>TIN ${settings.employerTin}</span>` : ''}</div>
+          <div><strong>${settings.employerName}</strong>${run.campusName ? html`<span>${run.campusName}</span>` : ''}${settings.employerAddress ? html`<span>${settings.employerAddress}</span>` : ''}${settings.employerTin ? html`<span>TIN ${settings.employerTin}</span>` : ''}</div>
         </div>
         <div class="ps-title">
           <h2>Payslip</h2>

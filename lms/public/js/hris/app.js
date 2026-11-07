@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
 import { dtrView } from './views/time.js';
+import { clockView, clockLocationsView } from './views/clock.js';
 import { leaveView } from './views/leave.js';
 import { payrollListView, payrollRunView, payslipView } from './views/payroll.js';
 import { payrollSetupView } from './views/payroll-setup.js';
@@ -24,6 +25,8 @@ const routes = [
   ['/employees/:id', employeeProfileView, perm('employees.view')],
   ['/employees/:id/edit', employeeFormView, perm('employees.edit')],
   ['/dtr', dtrView, perm('attendance.view')],
+  ['/clock', clockView, perm('clock.kiosk')],
+  ['/clock-locations', clockLocationsView, perm('attendance.location')],
   ['/leave', leaveView, perm('leave.manage')],
   ['/payroll', payrollListView, perm('payroll.view')],
   ['/payroll/:id', payrollRunView, perm('payroll.view')],
@@ -40,7 +43,7 @@ const routes = [
 ];
 
 function nav() {
-  const hrScreens = ['hris.dashboard', 'employees.view', 'attendance.view', 'leave.manage', 'payroll.view'].some(can);
+  const hrScreens = ['hris.dashboard', 'employees.view', 'attendance.view', 'clock.kiosk', 'leave.manage', 'payroll.view'].some(can);
   return [
     isEmployee() && { heading: 'Me' },
     isEmployee() && { href: '/me', label: 'My day', icon: 'clock', exact: true },
@@ -53,6 +56,8 @@ function nav() {
     can('hris.dashboard') && { href: '/dashboard', label: 'HR dashboard', icon: 'chart' },
     can('employees.view') && { href: '/employees', label: 'Employees', icon: 'users' },
     can('attendance.view') && { href: '/dtr', label: 'Attendance (DTR)', icon: 'clock' },
+    can('clock.kiosk') && { href: '/clock', label: 'Time clock', icon: 'grid' },
+    can('attendance.location') && { href: '/clock-locations', label: 'Clock-in locations', icon: 'mapPin' },
     can('leave.manage') && { href: '/leave', label: 'Leave & approvals', icon: 'clipboard', badge: 'requests' },
     can('payroll.view') && { href: '/payroll', label: 'Payroll', icon: 'wallet' },
     (can('payroll.config') || can('hris.settings')) && { heading: 'Setup' },
@@ -88,6 +93,7 @@ startApp({
     await Promise.all([hr.refreshSettings(), hr.refreshLeaveTypes()]);
   },
   badges: {
-    requests: async () => (can('leave.manage') ? (await api.get('/api/hris/requests/summary')).pending : 0),
+    // Only for those who can act on them (as in the ERP): approvers, not everyone who can see leave.
+    requests: async () => (can('leave.approve') ? (await api.get('/api/hris/requests/summary')).pending : 0),
   },
 });

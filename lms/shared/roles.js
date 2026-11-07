@@ -52,8 +52,8 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     side: 'hris',
-    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, leave approvals and credits.',
-    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'hris.settings'],
+    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits; adjusts payroll setup.',
+    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings'],
   },
   payroll: {
     label: 'Payroll Officer',
@@ -126,6 +126,8 @@ export const HRIS_PERMISSION_LABELS = [
   ['hris.accounts', 'Sign-in accounts for employees (HR, payroll and staff)'],
   ['attendance.view', 'View attendance (DTR)'],
   ['attendance.edit', 'Correct attendance and approve overtime'],
+  ['attendance.location', 'See clock-in locations; set the campus location'],
+  ['clock.kiosk', 'Open the shared time clock'],
   ['leave.manage', 'View leave requests and balances; leave types'],
   ['leave.approve', 'Approve, reject and cancel requests'],
   ['leave.adjust', 'Change one employee’s leave credits, access and days'],

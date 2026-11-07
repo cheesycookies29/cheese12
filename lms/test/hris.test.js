@@ -213,3 +213,144 @@ test('demo data adds HR records for the demo school and removes them again', asy
   assert.equal(env.db.data.requests.length, 0);
   assert.equal(env.db.data.payrollRuns.length, 0);
 });
+
+// ----- From the ERP: clock-in geotagging, the shared time clock, and the port fixes -----
+
+const NEAR = { lat: 13.58795, lng: 123.28290, accuracy: 25 }; // about 60 m from the campus point
+const FAR = { lat: 13.62, lng: 123.19, accuracy: 15 }; // about 10 km away
+
+test('clock-in geotagging: recorded per campus, flagged, shown only to HR and administrators', async () => {
+  let now = new Date('2026-11-03T08:05:00');
+  const { hr, admin, teacher, signIn, newEmployee } = await hrisSchool({ clock: () => now });
+  // Validation, then the campus location.
+  await assert.rejects(hr.put('/api/hris/location-settings', { officeLabel: 'Main', officeLat: 13.5876, officeLng: '', radius: 300, retentionDays: 365 }), /both latitude and longitude/);
+  await assert.rejects(hr.put('/api/hris/location-settings', { officeLat: 13.5876, officeLng: 123.2826, radius: 5, retentionDays: 365 }), /radius/);
+  const loc = await hr.put('/api/hris/location-settings', { officeLabel: 'Main campus', officeLat: 13.5876, officeLng: 123.2826, radius: 300, retentionDays: 365 });
+  assert.equal(loc.radius, 300);
+  assert.equal((await hr.get('/api/hris/settings')).location.officeLabel, 'Main campus');
+
+  const emp = await newEmployee(hr, { firstName: 'Tess', lastName: 'Teacher', category: 'teaching', linkUserId: teacher.id });
+  const t = await signIn('tess');
+  const res = await t.post('/api/hris/me/clock', { action: 'in', location: NEAR });
+  // The employee never gets a location back, not even their own.
+  assert.equal(res.entry.timeIn, '08:05');
+  assert.ok(!('clockInLocation' in res.entry));
+  assert.ok((await t.get('/api/hris/me/time-entries')).every((e) => !('clockInLocation' in e)));
+  await assert.rejects(t.get('/api/hris/clock-locations'), status(403));
+  await assert.rejects(t.put('/api/hris/location-settings', { radius: 300, retentionDays: 365 }), status(403));
+
+  const [entry] = await hr.get(`/api/hris/time-entries?employeeId=${emp.id}`);
+  assert.equal(entry.clockInLocation.status, 'ok');
+  assert.equal(entry.clockInLocation.source, 'self');
+  assert.equal(entry.clockInLocation.inside, true);
+  assert.ok(entry.clockInLocation.distance > 20 && entry.clockInLocation.distance < 120);
+
+  // Editing the record keeps the location.
+  now = new Date('2026-11-03T17:00:00');
+  await t.post('/api/hris/me/clock', { action: 'out' });
+  const edited = await hr.put(`/api/hris/time-entries/${entry.id}`, { ...entry, timeOut: '17:00', notes: 'checked' });
+  assert.equal(edited.clockInLocation.inside, true);
+
+  // Far away, and no location at all (permission denied): flagged, never blocked.
+  now = new Date('2026-11-04T08:00:00');
+  await t.post('/api/hris/me/clock', { action: 'in', location: FAR });
+  now = new Date('2026-11-04T17:00:00');
+  await t.post('/api/hris/me/clock', { action: 'out' });
+  now = new Date('2026-11-05T08:00:00');
+  await t.post('/api/hris/me/clock', { action: 'in', locationError: 'denied' });
+  const list = await hr.get('/api/hris/clock-locations?from=2026-11-01&to=2026-11-30');
+  assert.deepEqual(list.map((r) => [r.date, r.status, r.inside ?? null]), [['2026-11-05', 'denied', null], ['2026-11-04', 'ok', false], ['2026-11-03', 'ok', true]]);
+  assert.ok(list[1].distance > 5000);
+  // Administrators see it too.
+  assert.equal((await admin.get('/api/hris/clock-locations')).length, 3);
+});
+
+test('clock-in locations are deleted after the campus retention period', async () => {
+  const now = new Date('2026-11-03T08:00:00');
+  const { env, hr, newEmployee } = await hrisSchool({ clock: () => now });
+  const emp = await newEmployee(hr);
+  env.db.data.timeEntries.push(
+    { id: 'old', employeeId: emp.id, date: '2026-07-01', type: 'work', timeIn: '08:00', timeOut: '17:00', clockInLocation: { status: 'ok', lat: 1, lng: 1, source: 'self', at: '2026-07-01T00:00:00Z' } },
+    { id: 'new', employeeId: emp.id, date: '2026-10-30', type: 'work', timeIn: '08:00', timeOut: '17:00', clockInLocation: { status: 'ok', lat: 1, lng: 1, source: 'self', at: '2026-10-30T00:00:00Z' } },
+  );
+  await hr.put('/api/hris/location-settings', { radius: 300, retentionDays: 60 });
+  const byId = Object.fromEntries(env.db.data.timeEntries.map((e) => [e.id, e]));
+  assert.ok(!byId.old.clockInLocation, 'older than 60 days: location removed');
+  assert.ok(byId.old.timeIn, 'the attendance record stays');
+  assert.ok(byId.new.clockInLocation);
+});
+
+test('shared time clock: HR clocks campus employees in and out; others cannot', async () => {
+  let now = new Date('2026-11-03T07:58:00');
+  const { env, hr, other, newEmployee, signIn } = await hrisSchool({ clock: () => now });
+  const emp = await newEmployee(hr, { firstName: 'Kio', lastName: 'Sk' });
+  const board = await hr.get('/api/hris/clock');
+  assert.ok(board.people.some((p) => p.id === emp.id));
+  assert.ok(board.people.every((p) => !('rate' in p)), 'no pay details on the time clock');
+  const r = await hr.post('/api/hris/clock', { employeeId: emp.id, action: 'in', location: NEAR });
+  assert.match(r.message, /Kio clocked in at 07:58/);
+  assert.equal((await hr.get('/api/hris/clock')).entries.find((e) => e.employeeId === emp.id).clockInLocation.source, 'kiosk');
+  now = new Date('2026-11-03T17:05:00');
+  await hr.post('/api/hris/clock', { employeeId: emp.id, action: 'out' });
+  // An employee of another campus cannot be clocked from this one.
+  const elsewhere = await newEmployee(hr, { firstName: 'Far', lastName: 'Away' });
+  env.db.data.employees.find((e) => e.id === elsewhere.id).campusId = other.id;
+  await assert.rejects(hr.post('/api/hris/clock', { employeeId: elsewhere.id, action: 'in' }), status(404));
+  assert.ok(!(await hr.get('/api/hris/clock')).people.some((p) => p.id === elsewhere.id));
+  // A payroll officer has no time clock.
+  const pEmp = await newEmployee(hr, { firstName: 'Pay', lastName: 'Roll' });
+  await hr.post(`/api/hris/employees/${pEmp.id}/account`, { role: 'payroll', username: 'payo', password: PW, mustChangePassword: false });
+  const payroll = await signIn('payo');
+  await assert.rejects(payroll.get('/api/hris/clock'), status(403));
+  await assert.rejects(payroll.post('/api/hris/clock', { employeeId: emp.id, action: 'in' }), status(403));
+});
+
+test('HR dashboard: per-employee attendance today; work on a rest day is never late', async () => {
+  let now = new Date('2026-11-03T09:30:00'); // a Tuesday
+  const { hr, newEmployee } = await hrisSchool({ clock: () => now });
+  const late = await newEmployee(hr, { firstName: 'Lena', lastName: 'Late' });
+  await newEmployee(hr, { firstName: 'Abby', lastName: 'Absent' });
+  await hr.post('/api/hris/clock', { employeeId: late.id, action: 'in' });
+  let d = await hr.get('/api/hris/dashboard');
+  assert.equal(d.today.late, 1);
+  const row = d.today.rows.find((x) => x.id === late.id);
+  assert.equal(row.status, 'in');
+  assert.equal(row.lateMinutes, 90);
+  assert.ok(d.today.rows.some((x) => x.name === 'Absent, Abby' && x.status === 'not-in'));
+  // Saturday: Lena comes in at 09:30, which is rest-day work, not lateness.
+  now = new Date('2026-11-07T09:30:00');
+  await hr.put(`/api/hris/time-entries/${(await hr.get(`/api/hris/time-entries?employeeId=${late.id}`))[0].id}`, { employeeId: late.id, date: '2026-11-03', type: 'work', timeIn: '09:30', timeOut: '17:00' });
+  await hr.post('/api/hris/clock', { employeeId: late.id, action: 'in' });
+  d = await hr.get('/api/hris/dashboard');
+  assert.equal(d.today.late, 0);
+  assert.equal(d.today.rows.find((x) => x.id === late.id).lateMinutes, 0);
+});
+
+test('port fixes: payslips keep their campus, partial rate settings are filled in, demo clean-up', async () => {
+  const { env, admin, main } = await hrisSchool();
+  const run = await admin.post('/api/hris/payroll-runs', { periodStart: '2026-10-01', periodEnd: '2026-10-15' });
+  assert.equal(run.campusName, main.name);
+  await admin.put(`/api/admin/campuses/${main.id}`, { ...main, name: 'Renamed Campus' }).catch(() => {});
+  await admin.post(`/api/hris/payroll-runs/${run.id}/finalize`, {});
+  assert.ok((await admin.get(`/api/hris/payroll-runs/${run.id}`)).campusName);
+
+  const { mergeHrSettings } = await import('../server/hris.js');
+  const merged = mergeHrSettings({ rates: { sss: { eeRate: 0.045 } } });
+  assert.equal(merged.rates.sss.eeRate, 0.045);
+  assert.equal(merged.rates.sss.maxMsc, lmsCalc.DEFAULT_RATES.sss.maxMsc, 'missing SSS fields come from the defaults');
+  assert.equal(merged.rates.philhealth.rate, lmsCalc.DEFAULT_RATES.philhealth.rate);
+
+  // Removing the demo takes demo employees out of real draft runs; adding it brings back deleted standard leave types.
+  const { removeHrisDemo } = await import('../server/hris-demo.js');
+  const slip = (id, net) => ({ employeeId: id, grossPay: net, totalDeductions: 0, netPay: net, employerShare: { sss: 0, sssEc: 0, philhealth: 0, pagibig: 0 } });
+  const data = {
+    employees: [{ id: 'd1', demo: true }, { id: 'r1' }], timeEntries: [], requests: [], leaveCredits: [], leaveAccess: [], leaveAdjustments: [], users: [],
+    payrollRuns: [{ id: 'run', status: 'draft', employeeIds: ['d1', 'r1'], payslips: [slip('d1', 100), slip('r1', 250)] }],
+  };
+  removeHrisDemo(data);
+  assert.deepEqual(data.payrollRuns[0].employeeIds, ['r1']);
+  assert.equal(data.payrollRuns[0].totals.netPay, 250);
+  env.db.data.leaveTypes = env.db.data.leaveTypes.filter((t) => t.id !== 'vl');
+  await admin.post('/api/admin/demo');
+  assert.ok(env.db.data.leaveTypes.some((t) => t.id === 'vl'));
+});

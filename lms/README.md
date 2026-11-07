@@ -215,7 +215,7 @@ The Human Resource Information System, built from the [Lancaster ERP's HR & Payr
 
 **Everyone with an employee record** (teachers, registrars, staff) gets **self-service** in the HRIS with the sign-in they already have:
 
-- **My day**: a time clock (clock in and out), today's status and this pay period's hours, late, undertime and overtime.
+- **My day**: a time clock (clock in and out, with the phone's or laptop's location recorded at clock-in), today's status and this pay period's hours, late, undertime and overtime.
 - **My attendance**: the daily time record (DTR).
 - **Leave & requests**: balances per leave type; file leave or remote work (with a medical certificate for sick leave of more than 3 days); withdraw a pending request.
 - **My payslips**: finalized payslips, printable or saved as PDF. **My profile**.
@@ -224,23 +224,27 @@ The Human Resource Information System, built from the [Lancaster ERP's HR & Payr
 
 | Screen | What it does |
 | --- | --- |
-| HR dashboard | Headcount (teaching and non-teaching), who is in today and who has no record yet, requests to review, leave in the next two weeks, departments, employment status, birthdays, the latest payroll |
+| HR dashboard | Headcount (teaching and non-teaching), today's attendance per employee (working, done, on leave, remote, not in, minutes late), requests to review, leave in the next two weeks, departments, employment status, birthdays, the latest payroll |
 | Employees | Records (personal, employment, pay, schedule, government IDs, bank), CSV export, and the **sign-in account**: link a teacher's or registrar's LMS account, or create an HRIS account (Staff, HR Manager, Payroll Officer); reset its password or disable it |
-| Attendance (DTR) | Every record with late, undertime and overtime; add or correct records; approve overtime; CSV export |
+| Attendance (DTR) | Every record with late, undertime and overtime; add or correct records; approve overtime; CSV export. HR managers and administrators also see where each clock-in was made |
+| Time clock | One shared computer at the campus (HR office, faculty room): employees pick their name and clock in or out |
+| Clock-in locations | Where each clock-in at the campus was made, on a map, flagged *Away from campus* when outside the campus radius (never blocked); the campus location, radius and how long locations are kept (365 days by default); CSV export. HR managers and administrators only |
 | Leave & approvals | Approve, reject or cancel requests (approval writes the days into the DTR; HR cannot approve their own); leave balances per person; one employee's leave (credits, access to a leave type, adjustments with a reason, leave recorded on paper); leave types (gender rules, medical certificate rules) |
 | Payroll | A run per pay period and campus (semi-monthly or monthly): the payroll register, adjustments (other earnings and deductions), recompute, finalize; payslips with SSS, PhilHealth, Pag-IBIG and BIR withholding tax; register export |
 | Payroll setup | Pay rules, which deductions to compute, government rates and tax tables, with a calculator to try them |
-| HR settings | The employer's address and TIN on payslips, and the default work schedule |
+| HR settings | The employer's address and TIN on payslips, the default work schedule, and who can do what |
 
 ### HRIS account types
 
 | Account type | Signs in on | Can do in the HRIS |
 | --- | --- | --- |
-| **HR Manager** | ATLAS home | Employees and their accounts, attendance, leave approvals and credits, view payroll, HR settings |
+| **HR Manager** | ATLAS home | Employees and their accounts, attendance, clock-in locations and the time clock, leave approvals and credits, view payroll, payroll setup, HR settings |
 | **Payroll Officer** | ATLAS home | Payroll runs and payroll setup; views employees, attendance and leave |
 | **Staff** | ATLAS home | Self-service only (a non-teaching employee) |
 | Administrator | (any) | Everything, at every campus |
 | Teacher, Registrar | (their own) | Self-service, once HR links their account to their employee record |
+
+**Clock-in locations** come from the browser's location when someone clocks in (on My day or the time clock). The browser asks for permission once; without it, or on a plain `http://` address, the clock-in is recorded without a location. Locations are only ever sent to HR managers and administrators, never to the employee or payroll. Set each campus's point under **Clock-in locations → Set campus location** (standing on campus and pressing *Use this device's current location* is the quickest way).
 
 The first HR manager is made by an administrator: open the HRIS from the portal, add the HR manager's employee record, then **Sign-in account → Create an HRIS account** with the type *HR Manager*. HR accounts work at the campus of their record; an administrator can add campuses to them in the LMS admin panel. Students have no HRIS.
 

@@ -11,12 +11,13 @@
 //  - non-teaching staff, HR managers and payroll officers get HRIS-only accounts.
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime, text } from './util.js';
-import { computePayslip, toMinutes, scheduleFor, DEFAULT_SETTINGS as HR_DEFAULTS, DEFAULT_RATES } from '../shared/calc.js';
+import { computePayslip, toMinutes, scheduleFor, dayOfWeek, DEFAULT_SETTINGS as HR_DEFAULTS, DEFAULT_RATES } from '../shared/calc.js';
 import { ROLES, HRIS_ROLES, can } from '../shared/roles.js';
 import { hashPassword, validatePassword } from './auth.js';
 import { campusesFor, campusName } from './campus.js';
 import { validateUserFields } from './admin.js';
 import { registerLeaveRoutes, findLeaveType, leaveBalances } from './hris-leave.js';
+import { clockInLocation, forViewer, locationSettings, purgeOldLocations, registerGeoRoutes } from './hris-geo.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -31,9 +32,11 @@ export function mergeHrSettings(s = {}) {
     ...s,
     schedule: { ...HR_DEFAULTS.schedule, ...(s.schedule || {}) },
     contributions: { ...HR_DEFAULTS.contributions, ...(s.contributions || {}) },
+    // Each group is merged on its own, so an older or partial group still gets every field.
     rates: {
-      ...structuredClone(DEFAULT_RATES),
-      ...(s.rates || {}),
+      sss: { ...DEFAULT_RATES.sss, ...(s.rates?.sss || {}) },
+      philhealth: { ...DEFAULT_RATES.philhealth, ...(s.rates?.philhealth || {}) },
+      pagibig: { ...DEFAULT_RATES.pagibig, ...(s.rates?.pagibig || {}) },
       tax: { ...structuredClone(DEFAULT_RATES.tax), ...(s.rates?.tax || {}) },
     },
   };
@@ -123,7 +126,7 @@ function validateEntry(input, data, existingId) {
   return e;
 }
 
-function summarize(run) {
+export function summarizeRun(run) {
   const sum = (f) => Math.round(run.payslips.reduce((a, p) => a + f(p), 0) * 100) / 100;
   run.totals = {
     employees: run.payslips.length,
@@ -144,7 +147,7 @@ export function computeRun(data, run) {
     .sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   run.payFrequency = hrSettings.payFrequency;
   run.updatedAt = new Date().toISOString();
-  return summarize(run);
+  return summarizeRun(run);
 }
 
 const assertDraft = (run) => run.status === 'draft' || fail('This payroll run is finalized and can no longer be changed.');
@@ -229,12 +232,19 @@ export function registerHrisRoutes(route, ctx) {
     return u ? { id: u.id, name: u.name, username: u.username, role: u.role, roleLabel: ROLES[u.role]?.label || u.role, status: u.status, hrisOnly: HRIS_ROLES.includes(u.role), lastLoginAt: u.lastLoginAt || null } : null;
   };
   const employeeView = (emp) => ({ ...emp, campusName: campusName(data(), emp.campusId), account: accountOf(emp) });
-  const hrSettingsView = () => ({ ...data().hrSettings, employerName: data().settings.schoolName });
+  // Each campus has its own clock-in location; the screens get the one for the campus they are on.
+  const hrSettingsView = (campusId) => {
+    const { locations: _all, ...s } = data().hrSettings;
+    return { ...s, employerName: data().settings.schoolName, location: locationSettings(data(), campusId) };
+  };
+  // Clock-in locations past each campus's retention period are removed at start-up and while the server runs.
+  if (purgeOldLocations(data(), ctx.now())) save();
+  setInterval(() => purgeOldLocations(data(), ctx.now()) && save(), 6 * 60 * 60 * 1000).unref();
 
   // ----- Settings -----
-  route('GET', '/api/hris/settings', 'hris', () => hrSettingsView());
+  route('GET', '/api/hris/settings', 'hris', ({ campusId }) => hrSettingsView(campusId));
   // Employer details on payslips and the default work schedule (HR).
-  route('PUT', '/api/hris/settings', 'hris:hris.settings', ({ body, user }) => {
+  route('PUT', '/api/hris/settings', 'hris:hris.settings', ({ body, user, campusId }) => {
     const s = data().hrSettings;
     if ('employerAddress' in body) s.employerAddress = text(body.employerAddress, 300);
     if ('employerTin' in body) s.employerTin = text(body.employerTin, 40);
@@ -242,14 +252,14 @@ export function registerHrisRoutes(route, ctx) {
     s.updatedAt = new Date().toISOString();
     s.updatedBy = user.name;
     save();
-    return hrSettingsView();
+    return hrSettingsView(campusId);
   });
   // Payroll setup: pay rules, deductions, government rates and tax tables (payroll, administrators).
-  route('PUT', '/api/hris/payroll-config', 'hris:payroll.config', ({ body, user }) => {
+  route('PUT', '/api/hris/payroll-config', 'hris:payroll.config', ({ body, user, campusId }) => {
     const next = mergeHrSettings({ ...data().hrSettings, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'overtimeMultiplier', 'restDayMultiplier', 'contributions', 'rates']) });
     data().hrSettings = { ...validatePayrollConfig(next), payrollConfigUpdatedAt: new Date().toISOString(), payrollConfigUpdatedBy: user.name };
     save();
-    return hrSettingsView();
+    return hrSettingsView(campusId);
   });
 
   // ----- Dashboard -----
@@ -262,11 +272,28 @@ export function registerHrisRoutes(route, ctx) {
     const s = data().hrSettings;
     const scheduledToday = active.filter((e) => scheduleFor(e, s).workDays.includes(new Date(`${date}T00:00`).getDay()) && e.hireDate <= date);
     const byId = new Map(active.map((e) => [e.id, e]));
-    // Late today: clocked in after the shift start plus the grace period (not on flexible time).
-    const late = todays.filter((t) => {
-      const emp = byId.get(t.employeeId);
-      return t.type === 'work' && t.timeIn && !emp.flexTime && toMinutes(t.timeIn) - toMinutes(scheduleFor(emp, s).shiftStart) > (Number(s.gracePeriodMinutes) || 0);
-    });
+    // Late today: clocked in after the shift start plus the grace period, on a scheduled work
+    // day (rest-day work is never late) and not on flexible time.
+    const lateBy = (t) => {
+      const sched = scheduleFor(byId.get(t.employeeId), s);
+      if (t.type !== 'work' || !t.timeIn || sched.flex || !sched.workDays.includes(dayOfWeek(t.date))) return 0;
+      const mins = toMinutes(t.timeIn) - toMinutes(sched.shiftStart);
+      return mins > (Number(s.gracePeriodMinutes) || 0) ? mins : 0;
+    };
+    const late = todays.filter((t) => lateBy(t) > 0);
+    // Everyone scheduled today or with a record today, with their status (as on the ERP dashboard).
+    const rowOf = (emp) => {
+      const t = todays.find((x) => x.employeeId === emp.id);
+      const status = !t ? 'not-in' : t.type === 'leave' ? 'leave' : t.remote && !t.timeIn ? 'remote' : t.timeIn && !t.timeOut ? 'in' : 'done';
+      return {
+        id: emp.id, name: `${emp.lastName}, ${emp.firstName}`, position: emp.position || '', department: emp.department || '',
+        status, timeIn: t?.timeIn || '', timeOut: t?.timeOut || '', remote: Boolean(t?.remote), lateMinutes: t ? lateBy(t) : 0,
+        leaveTypeId: t?.leaveTypeId || null, paid: t?.paid, shiftStart: scheduleFor(emp, s).shiftStart, flex: Boolean(emp.flexTime),
+      };
+    };
+    const rowIds = new Set([...scheduledToday.map((e) => e.id), ...todays.map((t) => t.employeeId)]);
+    const order = { in: 0, done: 1, remote: 2, leave: 3, 'not-in': 4 };
+    const rows = active.filter((e) => rowIds.has(e.id)).map(rowOf).sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));
     const count = (list, key) => Object.entries(list.reduce((m, e) => ((m[e[key] || '—'] = (m[e[key] || '—'] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
     const month = date.slice(5, 7);
     const pending = data().requests.filter((r) => r.status === 'pending' && ids.has(r.employeeId));
@@ -291,6 +318,7 @@ export function registerHrisRoutes(route, ctx) {
         onLeave: todays.filter((t) => t.type === 'leave').length,
         remote: todays.filter((t) => t.remote).length,
         notIn: scheduledToday.filter((e) => !todays.some((t) => t.employeeId === e.id)).map((e) => ({ id: e.id, name: `${e.lastName}, ${e.firstName}`, position: e.position || '' })),
+        rows,
       },
       pendingRequests: pending.length,
       upcoming,
@@ -416,30 +444,33 @@ export function registerHrisRoutes(route, ctx) {
   });
 
   // ----- Attendance (DTR) -----
-  route('GET', '/api/hris/time-entries', 'hris:attendance.view', ({ query, campusId }) => {
+  // Clock-in locations are only ever sent to HR managers and administrators (hris-geo.js).
+  route('GET', '/api/hris/time-entries', 'hris:attendance.view', ({ query, campusId, user }) => {
     const ids = new Set(campusEmployees(campusId).map((e) => e.id));
     const { employeeId, from, to } = query;
     return data().timeEntries
       .filter((e) => ids.has(e.employeeId) && (!employeeId || e.employeeId === employeeId) && (!from || e.date >= from) && (!to || e.date <= to))
-      .sort((a, b) => b.date.localeCompare(a.date) || (a.timeIn || '').localeCompare(b.timeIn || ''));
+      .sort((a, b) => b.date.localeCompare(a.date) || (a.timeIn || '').localeCompare(b.timeIn || ''))
+      .map((e) => forViewer(user, e));
   });
-  route('POST', '/api/hris/time-entries', 'hris:attendance.edit', ({ body, campusId }) => {
+  route('POST', '/api/hris/time-entries', 'hris:attendance.edit', ({ body, campusId, user }) => {
     employeeIn(campusId, body.employeeId);
     const entry = { id: randomUUID(), ...validateEntry(body, data()) };
     data().timeEntries.push(entry);
     save();
-    return entry;
+    return forViewer(user, entry);
   });
   const entryIn = (campusId, id) => {
     const entry = data().timeEntries.find((e) => e.id === id) || fail('Attendance record not found.', 404);
     employeeIn(campusId, entry.employeeId);
     return entry;
   };
-  route('PUT', '/api/hris/time-entries/:id', 'hris:attendance.edit', ({ params, body, campusId }) => {
+  // Editing a record keeps the location recorded when the employee clocked in.
+  route('PUT', '/api/hris/time-entries/:id', 'hris:attendance.edit', ({ params, body, campusId, user }) => {
     const entry = entryIn(campusId, params.id);
     Object.assign(entry, validateEntry({ ...body, employeeId: entry.employeeId }, data(), entry.id));
     save();
-    return entry;
+    return forViewer(user, entry);
   });
   route('DELETE', '/api/hris/time-entries/:id', 'hris:attendance.edit', ({ params, campusId }) => {
     const entry = entryIn(campusId, params.id);
@@ -448,8 +479,9 @@ export function registerHrisRoutes(route, ctx) {
     return { ok: true };
   });
 
-  // Clock in / out at the current date and time.
-  function clock(emp, action) {
+  // Clock in / out at the current date and time. Clocking in also records where (hris-geo.js);
+  // a missing location never stops anyone from clocking in.
+  function clock(emp, action, body = {}, source = 'self') {
     if (emp.status !== 'Active') fail('This employee record is inactive.');
     const now = ctx.now();
     const date = localDate(now);
@@ -461,10 +493,11 @@ export function registerHrisRoutes(route, ctx) {
       const remoteDay = data().timeEntries.find((e) => e.employeeId === emp.id && e.date === date && e.remote && !e.timeIn);
       if (remoteDay) {
         remoteDay.timeIn = time;
+        remoteDay.clockInLocation = clockInLocation(locationSettings(data(), emp.campusId), body, source, now);
         save();
         return { message: `${emp.firstName} clocked in at ${time} (remote work).`, entry: remoteDay };
       }
-      const entry = { id: randomUUID(), ...validateEntry({ employeeId: emp.id, date, type: 'work', timeIn: time }, data()), clockedIn: true };
+      const entry = { id: randomUUID(), ...validateEntry({ employeeId: emp.id, date, type: 'work', timeIn: time }, data()), clockedIn: true, clockInLocation: clockInLocation(locationSettings(data(), emp.campusId), body, source, now) };
       data().timeEntries.push(entry);
       save();
       return { message: `${emp.firstName} clocked in at ${time}.`, entry };
@@ -479,10 +512,33 @@ export function registerHrisRoutes(route, ctx) {
     fail('Action must be "in" or "out".');
   }
 
+  // ----- Time clock (one shared computer at the campus; from the ERP) -----
+  // Who can clock in here, and where each person is today: no other employee details.
+  route('GET', '/api/hris/clock', 'hris:clock.kiosk', ({ campusId, user }) => {
+    const date = today();
+    const people = campusEmployees(campusId).filter((e) => e.status === 'Active').sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+    const ids = new Set(people.map((e) => e.id));
+    const open = data().timeEntries.filter((e) => ids.has(e.employeeId) && e.type === 'work' && e.timeIn && !e.timeOut);
+    const todays = data().timeEntries.filter((e) => ids.has(e.employeeId) && e.date === date);
+    return {
+      date,
+      people: people.map((e) => ({ id: e.id, name: `${e.lastName}, ${e.firstName}`, firstName: e.firstName, employeeNo: e.employeeNo })),
+      // Open entries from earlier days too (someone who forgot to clock out).
+      entries: [...new Map([...todays, ...open].map((e) => [e.id, e])).values()].map((e) => forViewer(user, e)),
+    };
+  });
+  route('POST', '/api/hris/clock', 'hris:clock.kiosk', ({ body, campusId, user }) => {
+    const res = clock(employeeIn(campusId, String(body.employeeId || '')), body.action, body, 'kiosk');
+    return { ...res, entry: forViewer(user, res.entry) };
+  });
+  registerGeoRoutes(route, { data, save, campusEmployees, now: () => ctx.now() });
+
   // ----- Payroll -----
   route('GET', '/api/hris/payroll-runs', 'hris:payroll.view', ({ campusId }) =>
     data().payrollRuns.filter((r) => r.campusId === campusId).map(({ payslips, ...run }) => run).sort((a, b) => b.periodStart.localeCompare(a.periodStart)));
-  route('GET', '/api/hris/payroll-runs/:id', 'hris:payroll.view', ({ params, campusId }) => findRun(params.id, campusId));
+  // Runs made before the campus was kept on them get its current name.
+  const withCampus = (run) => ({ ...run, campusName: run.campusName || campusName(data(), run.campusId) });
+  route('GET', '/api/hris/payroll-runs/:id', 'hris:payroll.view', ({ params, campusId }) => withCampus(findRun(params.id, campusId)));
   route('POST', '/api/hris/payroll-runs', 'hris:payroll.edit', ({ body, campusId }) => {
     const { periodStart, periodEnd, payDate } = body;
     if (!DATE_RE.test(periodStart || '') || !DATE_RE.test(periodEnd || '')) fail('Pick a valid pay period.');
@@ -492,7 +548,8 @@ export function registerHrisRoutes(route, ctx) {
     const employeeIds = campusEmployees(campusId).filter((e) => e.status === 'Active' && e.hireDate <= periodEnd).map((e) => e.id);
     if (!employeeIds.length) fail('There are no active employees at this campus for this period.');
     const run = {
-      id: randomUUID(), campusId, periodStart, periodEnd, payDate: DATE_RE.test(payDate || '') ? payDate : periodEnd,
+      // The campus is kept on the run: payslips show it even after the campus is renamed or an employee moves.
+      id: randomUUID(), campusId, campusName: campusName(data(), campusId), periodStart, periodEnd, payDate: DATE_RE.test(payDate || '') ? payDate : periodEnd,
       status: 'draft', employeeIds, payslips: [], createdAt: new Date().toISOString(),
     };
     computeRun(data(), run);
@@ -524,7 +581,7 @@ export function registerHrisRoutes(route, ctx) {
     const run = findRun(params.id, campusId);
     assertDraft(run);
     computeRun(data(), run);
-    Object.assign(run, { status: 'finalized', finalizedAt: new Date().toISOString(), finalizedBy: user.name });
+    Object.assign(run, { status: 'finalized', campusName: campusName(data(), run.campusId), finalizedAt: new Date().toISOString(), finalizedBy: user.name });
     save();
     return run;
   });
@@ -544,9 +601,13 @@ export function registerHrisRoutes(route, ctx) {
     const emp = linkedEmployee(user);
     return data().timeEntries
       .filter((e) => e.employeeId === emp.id && (!query.from || e.date >= query.from) && (!query.to || e.date <= query.to))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((e) => forViewer(user, e));
   });
-  route('POST', '/api/hris/me/clock', 'hris', ({ user, body }) => clock(linkedEmployee(user), body.action));
+  route('POST', '/api/hris/me/clock', 'hris', ({ user, body }) => {
+    const res = clock(linkedEmployee(user), body.action, body, 'self');
+    return { ...res, entry: forViewer(user, res.entry) };
+  });
   route('GET', '/api/hris/me/payslips', 'hris', ({ user }) => {
     const emp = linkedEmployee(user);
     return data().payrollRuns
@@ -558,7 +619,7 @@ export function registerHrisRoutes(route, ctx) {
     const emp = linkedEmployee(user);
     const run = data().payrollRuns.find((r) => r.id === params.runId && r.status === 'finalized');
     const payslip = run?.payslips.find((p) => p.employeeId === emp.id) || fail('Payslip not found.', 404);
-    const { payslips, employeeIds, ...meta } = run;
+    const { payslips, employeeIds, ...meta } = withCampus(run);
     return { run: meta, payslip };
   });
 

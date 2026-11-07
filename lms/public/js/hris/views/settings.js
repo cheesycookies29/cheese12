@@ -3,7 +3,23 @@
 import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { html, mount, toast, WEEKDAYS } from '../../ui.js';
+import { icon } from '../../icons.js';
 import { hr } from '../state.js';
+import { ROLES, HRIS_PERMISSION_LABELS } from '/shared/roles.js';
+
+// Which account types may do what in People (as on the ERP's Users & access page).
+function accessMatrix() {
+  const has = (role, p) => role.permissions.includes('*') || role.permissions.includes(p);
+  const roles = Object.entries(ROLES).filter(([, r]) => HRIS_PERMISSION_LABELS.some(([p]) => has(r, p)));
+  return html`<section class="card">
+    <h2>Who can do what</h2>
+    <p class="muted small">Account types with HR powers. Everyone with an employee record also has self-service (their own clock, attendance, requests and payslips). Accounts are created on an employee's record or by an administrator.</p>
+    <div class="table-scroll"><table class="table compact matrix">
+      <thead><tr><th>Permission</th>${roles.map(([, r]) => html`<th class="center">${r.label}</th>`)}</tr></thead>
+      <tbody>${HRIS_PERMISSION_LABELS.map(([p, label]) => html`<tr><td>${label}</td>${roles.map(([, r]) => html`<td class="center">${has(r, p) ? html`${icon('check', 16)}<span class="sr-only">yes</span>` : html`<span class="sr-only">no</span>`}</td>`)}</tr>`)}</tbody>
+    </table></div>
+  </section>`;
+}
 
 export async function hrSettingsView(el) {
   await hr.refreshSettings();
@@ -34,7 +50,8 @@ export async function hrSettingsView(el) {
       ${s.updatedAt ? html`<p class="muted small">Last changed by ${s.updatedBy} on ${new Date(s.updatedAt).toLocaleString('en-PH')}.</p>` : ''}
       <p class="form-error" hidden></p>
       <div class="actions end"><button class="btn primary" type="submit">Save HR settings</button></div>
-    </form>`);
+    </form>
+    ${accessMatrix()}`);
   const form = el.querySelector('#hr-form');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

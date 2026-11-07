@@ -5,22 +5,36 @@
 import { randomUUID } from 'node:crypto';
 import { addDays } from './util.js';
 import { currentPeriod, scheduleFor, dayOfWeek, eachDate } from '../shared/calc.js';
-import { workDates } from '../shared/leave.js';
-import { computeRun, deleteEmployees } from './hris.js';
+import { workDates, DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
+import { computeRun, deleteEmployees, summarizeRun } from './hris.js';
+import { clockInLocation, locationSettings } from './hris-geo.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const hhmm = (mins) => `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
 const minutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 
 export function removeHrisDemo(data, files = null) {
-  deleteEmployees(data, data.employees.filter((e) => e.demo).map((e) => e.id), (id) => files?.remove(id));
+  const empIds = new Set(data.employees.filter((e) => e.demo).map((e) => e.id));
+  deleteEmployees(data, [...empIds], (id) => files?.remove(id));
   data.payrollRuns = data.payrollRuns.filter((r) => !r.demo);
+  // Real draft payroll runs drop demo employees (as in the ERP); finalized runs are a record and stay as they were.
+  for (const run of data.payrollRuns) {
+    if (run.status !== 'draft' || !run.employeeIds.some((id) => empIds.has(id))) continue;
+    run.employeeIds = run.employeeIds.filter((id) => !empIds.has(id));
+    run.payslips = run.payslips.filter((p) => !empIds.has(p.employeeId));
+    summarizeRun(run);
+  }
   data.leaveAdjustments = data.leaveAdjustments.filter((a) => !a.demo);
+  // A campus location the demo set (only where none had been set) goes with it.
+  const locs = data.hrSettings?.locations || {};
+  for (const [id, l] of Object.entries(locs)) if (l.demo) delete locs[id];
 }
 
 // people: { main, sipocot, pasacao, calabanga } campuses, the demo users by username, person() to add an account,
 // rand() for repeatable "random" numbers, demoPdf() for a sample medical certificate.
 export function addHrisDemo(data, today, { campuses, userByName, person, rand, files, demoPdf }) {
+  // The demo uses the standard leave types; bring back any that were deleted (as in the ERP).
+  for (const t of DEFAULT_LEAVE_TYPES) if (!data.leaveTypes.some((x) => x.id === t.id)) data.leaveTypes.push({ ...structuredClone(t), active: true });
   const now = new Date().toISOString();
   const add = (k, rec) => {
     const r = { id: randomUUID(), demo: true, createdAt: now, ...rec };
@@ -190,6 +204,27 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
       const early = rand() < 0.04 ? 30 + Math.floor(rand() * 60) : 0; // left early (undertime)
       const timeOut = hhmm(end + (overtime || Math.floor(rand() * 15)) - early);
       add('timeEntries', { employeeId: emp.id, date, type: 'work', timeIn, timeOut, otApproved: overtime > 0 && rand() < 0.6, remote: false, notes: overtime ? 'Stayed for enrollment' : '', clockedIn: true });
+    }
+  }
+
+  // ----- Clock-in locations for the last week at the main campus (from the ERP's geotagging) -----
+  // A campus point (only if the school has not set one), then where each clock-in was made:
+  // mostly on campus, a few from far away, a few with no location (permission denied).
+  data.hrSettings.locations ||= {};
+  if (!data.hrSettings.locations[main.id]) data.hrSettings.locations[main.id] = { officeLabel: 'Main campus', officeLat: 13.58761, officeLng: 123.28263, radius: 300, retentionDays: 365, demo: true };
+  const office = locationSettings(data, main.id);
+  if (office.officeLat != null) {
+    const mainIds = new Set(emps.filter((e) => e.campusId === main.id).map((e) => e.id));
+    for (const e of data.timeEntries) {
+      if (!e.demo || !e.clockedIn || !e.timeIn || !mainIds.has(e.employeeId) || e.date < addDays(today, -7)) continue;
+      const r = rand();
+      const source = rand() < 0.3 ? 'kiosk' : 'self';
+      const at = new Date(`${e.date}T${e.timeIn}:00`);
+      const jitter = () => (rand() - 0.5) * 0.002; // within about 110 m
+      const body = r < 0.04 ? { locationError: rand() < 0.5 ? 'denied' : 'timeout' }
+        : r < 0.1 ? { location: { lat: office.officeLat + 0.02 + rand() * 0.04, lng: office.officeLng - 0.03 - rand() * 0.05, accuracy: 12 + Math.floor(rand() * 30) } }
+        : { location: { lat: office.officeLat + jitter(), lng: office.officeLng + jitter(), accuracy: 8 + Math.floor(rand() * 40) } };
+      e.clockInLocation = clockInLocation(office, body, source, at);
     }
   }
 

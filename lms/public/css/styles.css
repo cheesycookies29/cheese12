@@ -719,3 +719,4 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 /* Dark mode: the brand colour is lifted so primary buttons stand out from the dark surfaces. */
 :root[data-theme='dark'] .btn.primary { background: color-mix(in srgb, var(--brand) 72%, #fff 28%); border-color: color-mix(in srgb, var(--brand) 72%, #fff 28%); color: #fff; }
 :root[data-theme='dark'] .btn.primary:hover { background: color-mix(in srgb, var(--brand) 60%, #fff 40%); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
