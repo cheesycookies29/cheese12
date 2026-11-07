@@ -163,7 +163,7 @@ startApp({
     prs: async () => (can('finance.approve') ? q('prToApprove') : 0),
     pos: async () => (can('finance.approve') ? q('poToApprove') : 0),
     ris: async () => (can('finance.inventory') ? q('risToIssue') : 0),
-    dvs: async () => (can('finance.accounts') ? q('dvToCertify') : 0) + (can('finance.approve') ? q('dvToApprove') : 0) + (can('finance.disburse') ? q('dvToPay') : 0),
+    dvs: async () => (can('finance.accounts') ? await q('dvToCertify') : 0) + (can('finance.approve') ? await q('dvToApprove') : 0) + (can('finance.disburse') ? await q('dvToPay') : 0),
     advances: async () => q('advancesOverdue'),
     rcds: async () => (can('finance.collect') ? q('undeposited') : 0),
   },

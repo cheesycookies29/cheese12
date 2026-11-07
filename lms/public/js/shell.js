@@ -286,7 +286,9 @@ export function startApp(config) {
 
   async function refreshBadges() {
     for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
-      const n = await Promise.resolve(config.badges?.[el.dataset.badge]?.()).catch(() => 0);
+      const v = await Promise.resolve(config.badges?.[el.dataset.badge]?.()).catch(() => 0);
+      // A badge is a count: anything else (a bug upstream) shows nothing rather than garbage.
+      const n = Number.isFinite(v) && v > 0 ? v : 0;
       el.textContent = n || '';
       el.hidden = !n;
     }
