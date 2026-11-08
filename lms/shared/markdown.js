@@ -107,13 +107,15 @@ export function renderMarkdown(body, opts = {}) {
     if (bullet.test(line) || number.test(line)) {
       const ordered = number.test(line);
       const re = ordered ? number : bullet;
+      // A numbered list that goes on after a screenshot keeps its numbers ("5." starts at 5).
+      const start = ordered ? Number(line.match(/\d+/)[0]) : 1;
       const items = [];
       while (i < lines.length && (re.test(lines[i]) || (lines[i].startsWith('  ') && lines[i].trim() && items.length))) {
         if (re.test(lines[i])) items.push(lines[i].replace(re, ''));
         else items[items.length - 1] += ` ${lines[i].trim()}`;
         i++;
       }
-      out.push(`<${ordered ? 'ol' : 'ul'}>${items.map((t) => `<li>${inline(t, opts)}</li>`).join('')}</${ordered ? 'ol' : 'ul'}>`);
+      out.push(`<${ordered ? `ol${start > 1 ? ` start="${start}"` : ''}` : 'ul'}>${items.map((t) => `<li>${inline(t, opts)}</li>`).join('')}</${ordered ? 'ol' : 'ul'}>`);
       continue;
     }
     // Paragraph

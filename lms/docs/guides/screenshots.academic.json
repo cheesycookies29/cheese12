@@ -1,0 +1,14 @@
+[
+  { "file": "registrar-enrollment.jpg", "user": "registrar.demo", "url": "/admin#/enrollment" },
+  { "file": "registrar-waitlist.jpg", "user": "registrar.demo", "url": "/admin#/enrollment?status=waitlisted" },
+  { "file": "registrar-applicants.jpg", "user": "registrar.demo", "url": "/admin#/applicants" },
+  { "file": "registrar-terms.jpg", "user": "registrar.demo", "url": "/admin#/terms", "click": ["text=+ Add term"] },
+  { "file": "registrar-academic-dashboard.jpg", "user": "registrar.demo", "url": "/academic/#/dashboard", "wait": 1200 },
+  { "file": "registrar-evaluation.jpg", "user": "registrar.demo", "url": "/academic/#/students?q=Carlo", "click": ["tr[data-href] >> text=Carlo Reyes", "nav.tabs >> text=Evaluation"], "wait": 1200 },
+  { "file": "registrar-grade-sheet.jpg", "user": "registrar.demo", "url": "/academic/#/grade-sheets?status=approved", "click": ["tr[data-href] >> text=ED101"], "wait": 1200 },
+  { "file": "registrar-document-requests.jpg", "user": "registrar.demo", "url": "/academic/#/requests", "wait": 1200 },
+  { "file": "dean-dashboard.jpg", "user": "dean.demo", "url": "/academic/#/dashboard", "wait": 1200 },
+  { "file": "dean-grade-sheets.jpg", "user": "dean.demo", "url": "/academic/#/grade-sheets?status=submitted", "click": ["tr[data-href] >> text=GE101"], "wait": 1200 },
+  { "file": "dean-grade-changes.jpg", "user": "dean.demo", "url": "/academic/#/changes", "wait": 1200 },
+  { "file": "dean-curriculum.jpg", "user": "dean.demo", "url": "/academic/#/curricula", "click": ["tr[data-href] >> text=BSED 2027"], "wait": 1200 }
+]
