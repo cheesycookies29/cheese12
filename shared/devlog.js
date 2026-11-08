@@ -27,6 +27,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.11.4-alpha',
+    date: '2026-11-08',
+    title: 'Formal payslip layout',
+    modules: ['hr'],
+    notes: 'The payslip reads as a formal statement, on screen and on paper.',
+    changes: [
+      ['improved', 'hr', 'Payslip: black ink on white with thin rules and a double rule under the letterhead; the title and net pay are at body-text size (net pay in bold in a ruled box, no coloured block); one type size for the body; a smaller, lighter DRAFT or VOID mark. The logo carries the company colour.'],
+      ['fixed', 'hr', 'A printed or saved PDF payslip no longer has a grey band at the bottom of the page.'],
+    ],
+  },
+  {
     version: '0.11.3-alpha',
     date: '2026-11-08',
     title: 'Sales & CRM: QA pass 2 fixes',
