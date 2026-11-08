@@ -32,7 +32,7 @@ export const DEFAULT_CRM = {
     { id: 'negotiation', name: 'Negotiation', probability: 75 },
   ],
   sources: ['Website', 'Referral', 'Public form', 'Service desk', 'PhilGEPS', 'Event', 'Cold outreach', 'Existing client', 'Other'],
-  lostReasons: ['Price', 'Lost to a competitor', 'No budget', 'No decision', 'Requirements not met', 'Timing', 'Other'],
+  lostReasons: ['Price', 'Lost to a competitor', 'Bid not awarded', 'No budget', 'No decision', 'Requirements not met', 'Timing', 'Other'],
   industries: ['Government', 'Education', 'Healthcare', 'Banking and finance', 'Manufacturing', 'Retail', 'Telecommunications', 'Construction', 'Logistics', 'Other'],
   // Documents usually asked for in Philippine public bidding. Edit them in CRM settings to match
   // each procuring entity's bidding documents (rules change with the procurement law's IRR).

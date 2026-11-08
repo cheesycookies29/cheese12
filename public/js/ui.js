@@ -208,7 +208,8 @@ export function downloadFile(filename, content, type = 'text/csv') {
 export function toCsv(rows) {
   const cell = (c) => {
     let t = String(c ?? '');
-    if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = `'${t}`;
+    // Phone numbers (+63 917 …) and amounts (-1,234.50) are safe and stay as typed.
+    if (/^[=+\-@\t\r]/.test(t) && !/^[+-]?[\d\s().,-]+$/.test(t)) t = `'${t}`;
     return `"${t.replace(/"/g, '""')}"`;
   };
   return rows.map((r) => r.map(cell).join(',')).join('\n');

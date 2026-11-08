@@ -115,3 +115,10 @@ export function createAudit(dir) {
 
   return { record, view, list, verify, file, count: () => last.seq };
 }
+
+// A request that turned out to change nothing (e.g. access set to what it already was): no
+// generic "changed" entry for it either.
+export const noAudit = () => {
+  const a = currentActor();
+  if (a) a.before = -1;
+};

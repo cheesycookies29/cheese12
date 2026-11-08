@@ -32,9 +32,12 @@ export function removeDemo(db, { summarize }) {
   const demoUsers = new Set(d.users.filter((u) => u.demo).map((u) => u.id));
   const removed = { ...demoCounts(db), accounts: demoUsers.size };
 
+  // A demo organization that someone's own records use (a contact added to it, a lead converted
+  // into it) stays, as a real account, so those records stay with it.
+  const usedByReal = new Set(['crmContacts', 'crmDeals', 'crmBids', 'crmContracts', 'crmLeads'].flatMap((k) => (d[k] || []).filter((x) => !x.demo && x.accountId).map((x) => x.accountId)));
+  for (const a of d.crmAccounts || []) if (a.demo && usedByReal.has(a.id)) delete a.demo;
   const crmAccountIds = new Set((d.crmAccounts || []).filter((a) => a.demo).map((a) => a.id));
   for (const k of COLLECTIONS) d[k] = (d[k] || []).filter((x) => !x.demo);
-  // CRM records someone added to a demo organization go with it, and so does their history.
   for (const k of ['crmContacts', 'crmDeals', 'crmBids', 'crmContracts']) d[k] = d[k].filter((x) => !crmAccountIds.has(x.accountId));
   const crmIds = new Set(['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts'].flatMap((k) => d[k].map((x) => x.id)));
   d.crmActivities = d.crmActivities.filter((a) => crmIds.has(a.related?.id));
@@ -44,7 +47,7 @@ export function removeDemo(db, { summarize }) {
   // deal with a demo contact, a bid on a demo deal) keep the record but lose that link.
   const alive = (k) => new Set(d[k].map((x) => x.id));
   const live = { accountId: alive('crmAccounts'), contactId: alive('crmContacts'), dealId: alive('crmDeals'), bidId: alive('crmBids'), renewalOf: alive('crmContracts') };
-  for (const k of ['crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts']) {
+  for (const k of ['crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts', 'crmActivities']) {
     for (const x of d[k]) {
       for (const [field, ids] of Object.entries(live)) if (x[field] && !ids.has(x[field])) x[field] = null;
       if (demoUsers.has(x.createdBy)) x.createdBy = null;

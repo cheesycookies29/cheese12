@@ -70,14 +70,16 @@ test('removing demo data takes out demo records and what hangs off them, and kee
   const run = await admin('POST', '/api/payroll-runs', { periodStart: '2026-10-01', periodEnd: '2026-10-15', payDate: '2026-10-15' });
   assert.equal(run.payslips.length, 7);
 
-  // A real deal added to a demo organization goes with it; a task on a real deal stays.
+  // A real deal added to a demo organization keeps that organization, now as a real account;
+  // a task on a real deal stays.
   const demoAcct = db.data.crmAccounts.find((a) => a.demo);
   await admin('POST', '/api/crm/deals', { title: 'Deal on a demo account', accountId: demoAcct.id, value: 1 });
   await admin('POST', '/api/crm/activities', { type: 'task', subject: 'Follow up', dueDate: '2026-12-01', related: { type: 'deal', id: realDeal.id } });
   const res = await admin('DELETE', '/api/admin/demo');
   assert.equal(res.removed.employees, 6);
-  assert.deepEqual(db.data.crmAccounts.map((a) => a.name), ['Real Client Corp.']);
-  assert.deepEqual(db.data.crmDeals.map((x) => x.title).sort(), ['Real deal', 'Second real deal']);
+  assert.deepEqual(db.data.crmAccounts.map((a) => a.name).sort(), ['Real Client Corp.', demoAcct.name].sort());
+  assert.ok(!db.data.crmAccounts.some((a) => a.demo));
+  assert.deepEqual(db.data.crmDeals.map((x) => x.title).sort(), ['Deal on a demo account', 'Real deal', 'Second real deal']);
   assert.ok(db.data.crmActivities.some((a) => a.subject === 'Follow up'));
   assert.ok(db.data.crmActivities.every((a) => db.data.crmDeals.some((x) => x.id === a.related.id) || db.data.crmAccounts.some((x) => x.id === a.related.id)));
   assert.equal(res.removed.accounts, 5);

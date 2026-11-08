@@ -497,6 +497,8 @@ export function createApi(db) {
     if (user.id === me.id) throw new HttpError(400, 'You cannot delete your own account.');
     if (user.role === 'admin' && user.active && activeAdmins().length === 1) throw new HttpError(400, 'There must be at least one active administrator.');
     db.data.users = users().filter((u) => u.id !== user.id);
+    // Sales & CRM records they owned now have no owner (shown as such), not a dangling id.
+    for (const k of ['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts', 'crmActivities']) for (const x of db.data[k] || []) if (x.ownerId === user.id) x.ownerId = null;
     sessions.destroyForUser(user.id);
     db.save();
     audit.record('user.delete', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username}, ${user.role})` });
