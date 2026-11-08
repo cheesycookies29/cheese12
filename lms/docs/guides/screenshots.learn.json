@@ -1,0 +1,20 @@
+[
+  { "file": "student-home.jpg", "user": "student.demo", "url": "/lms/#/home", "wait": 1000 },
+  { "file": "student-class-activities.jpg", "user": "student.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Activities"], "wait": 900 },
+  { "file": "student-quiz.jpg", "user": "student.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Activities", "text=Quiz 1: Classes and objects"], "wait": 900 },
+  { "file": "student-resources.jpg", "user": "student.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Resources"], "wait": 1200 },
+  { "file": "student-enrollment.jpg", "user": "student.demo", "url": "/lms/#/enroll", "click": ["#all"], "scroll": "text=Needs an enrollment key", "wait": 900 },
+  { "file": "student-evaluation.jpg", "user": "student.demo", "url": "/academic/#/me", "wait": 1000 },
+  { "file": "student-payments.jpg", "user": "student.demo", "url": "/finance/#/me", "wait": 1000 },
+  { "file": "parent-home.jpg", "user": "parent.demo", "url": "/lms/#/home", "wait": 1000 },
+  { "file": "parent-child-overview.jpg", "user": "parent.demo", "url": "/lms/#/home", "click": [".child-card >> text=Open >> nth=0"], "wait": 1000 },
+  { "file": "parent-child-grades.jpg", "user": "parent.demo", "url": "/lms/#/home", "click": [".child-card >> text=Open >> nth=0", ".tabs >> text=Grades"], "wait": 1000 },
+  { "file": "parent-child-activities.jpg", "user": "parent.demo", "url": "/lms/#/home", "click": [".child-card >> text=Open >> nth=0", ".tabs >> text=Activities & quizzes"], "wait": 1000 },
+  { "file": "teacher-home.jpg", "user": "teacher.demo", "url": "/lms/#/home", "wait": 1000 },
+  { "file": "teacher-activities.jpg", "user": "teacher.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Activities"], "wait": 900 },
+  { "file": "teacher-quiz-builder.jpg", "user": "teacher.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Activities", "text=New quiz or exam"], "wait": 900 },
+  { "file": "teacher-quiz-results.jpg", "user": "teacher.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Activities", "text=Quiz 1: Classes and objects", "a.btn >> text=Results"], "wait": 900 },
+  { "file": "teacher-attendance.jpg", "user": "teacher.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Attendance"], "wait": 1000 },
+  { "file": "teacher-gradebook.jpg", "user": "teacher.demo", "url": "/lms/#/classes", "click": ["text=IT201 A", ".tabs >> text=Grades"], "wait": 1000 },
+  { "file": "teacher-grade-sheets.jpg", "user": "teacher.demo", "url": "/academic/#/grade-sheets", "wait": 1000 }
+]
