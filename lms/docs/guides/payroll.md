@@ -166,6 +166,8 @@ GSIS, PhilHealth and Pag-IBIG are due by the 10th of the following month; BIR Fo
 
 It lists everyone paid in the run, with the signature boxes A to D. Boxes B to D carry the names of the Chief Accountant, the head of agency and the disbursing officer from Finance's settings.
 
+![The General Payroll (Appendix 33)](payroll-general-payroll.jpg)
+
 ### Send a finalized payroll to Finance
 
 The **Finance** tab of a finalized government run takes the payroll through ATLAS Finance, one step at a time. You act for the payroll office (Box A); Finance's officers do the rest.
@@ -233,7 +235,7 @@ Their attendance record for that day is open (no clock-out), or missing. Ask HR 
 **A loan was not taken this time. Why?**
 Taking it would have brought net pay below ₱5,000 a month (GAA general provisions). The register shows *held back* and the payslip lists it under *Not deducted this time*. It is tried again in the next run; nothing is carried over automatically.
 
-**Why is *VL 0.038* under Late/UT?**
+**Why does Late/UT show VL 0.038?**
 That much tardiness and undertime (0.038 of a day, about 18 minutes) is charged to vacation leave instead of pay. The credits are taken off when the run is finalized.
 
 **Can I change an employee's salary grade?**

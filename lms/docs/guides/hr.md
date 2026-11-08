@@ -140,6 +140,8 @@ Only HR managers and administrators see locations. Approved remote-work days are
 
 The times are the server's, not the computer's. The **Today** list shows who has clocked in and refreshes every minute.
 
+![The shared time clock](hr-time-clock.jpg)
+
 ### Approve, reject or cancel a leave request
 
 1. Open **Leave & approvals → Requests**. It shows *Pending* requests first; change the filter to see approved, rejected, cancelled or all.
