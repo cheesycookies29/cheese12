@@ -1,0 +1,33 @@
+[
+  { "file": "accountant-dashboard.jpg", "user": "accountant.demo", "url": "/finance/#/dashboard", "wait": 1000 },
+  { "file": "accountant-dv-certify.jpg", "user": "accountant.demo", "url": "/finance/#/dvs?status=pending", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "accountant-journal-draft.jpg", "user": "accountant.demo", "url": "/finance/#/journals?status=draft", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "accountant-trial-balance.jpg", "user": "accountant.demo", "url": "/finance/#/trial-balance", "wait": 1000 },
+  { "file": "accountant-bank-recon.jpg", "user": "accountant.demo", "url": "/finance/#/bank-recon", "wait": 1000 },
+  { "file": "accountant-control-periods.jpg", "user": "accountant.demo", "url": "/finance/#/control?tab=periods", "wait": 1000 },
+
+  { "file": "budget-officer-dashboard.jpg", "user": "budget.demo", "url": "/finance/#/dashboard", "wait": 1000 },
+  { "file": "budget-officer-ors.jpg", "user": "budget.demo", "url": "/finance/#/obligations?status=pending", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "budget-officer-allotments.jpg", "user": "budget.demo", "url": "/finance/#/budget", "wait": 1000 },
+  { "file": "budget-officer-saaodb.jpg", "user": "budget.demo", "url": "/finance/#/budget-reports", "wait": 1000 },
+  { "file": "budget-officer-aging.jpg", "user": "budget.demo", "url": "/finance/#/budget-reports?tab=aging", "wait": 1000 },
+
+  { "file": "cashier-dashboard.jpg", "user": "cashier.demo", "url": "/finance/#/dashboard", "wait": 1000 },
+  { "file": "cashier-dv-list.jpg", "user": "cashier.demo", "url": "/finance/#/dvs?status=", "wait": 1000 },
+  { "file": "cashier-issue-or.jpg", "user": "cashier.demo", "url": "/finance/#/receipts", "click": ["text=Issue O.R."], "wait": 1000 },
+  { "file": "cashier-rcd.jpg", "user": "cashier.demo", "url": "/finance/#/rcds", "click": ["tr[data-href]:has-text(\"Undeposited\") >> nth=0"], "wait": 1000 },
+  { "file": "cashier-taxes.jpg", "user": "cashier.demo", "url": "/finance/#/taxes", "wait": 1000 },
+  { "file": "cashier-advances.jpg", "user": "cashier.demo", "url": "/finance/#/advances", "wait": 1000 },
+
+  { "file": "supply-officer-dashboard.jpg", "user": "supply.demo", "url": "/finance/#/dashboard", "wait": 1000 },
+  { "file": "supply-officer-ris.jpg", "user": "supply.demo", "url": "/finance/#/ris?status=open", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "supply-officer-po.jpg", "user": "supply.demo", "url": "/finance/#/pos", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "supply-officer-stock.jpg", "user": "supply.demo", "url": "/finance/#/items", "wait": 1000 },
+  { "file": "supply-officer-property.jpg", "user": "supply.demo", "url": "/finance/#/property", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "supply-officer-rsmi.jpg", "user": "supply.demo", "url": "/finance/#/inventory-reports", "wait": 1000 },
+
+  { "file": "approver-dashboard.jpg", "user": "head.demo", "url": "/finance/#/dashboard", "wait": 1000 },
+  { "file": "approver-dv-approve.jpg", "user": "head.demo", "url": "/finance/#/dvs?status=certified", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "approver-pr.jpg", "user": "head.demo", "url": "/finance/#/prs?status=submitted", "click": ["tr[data-href] >> nth=0"], "wait": 1000 },
+  { "file": "approver-find.jpg", "user": "head.demo", "url": "/finance/#/find?q=Agri", "wait": 1000 }
+]
