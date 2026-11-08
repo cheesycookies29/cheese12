@@ -117,7 +117,7 @@ export function registerGuardianRoutes(route, ctx, { standing, resultFor, isOpen
       const sum = (k) => all.reduce((n, x) => n + x[k], 0);
       const counted = sum('present') + sum('late') + sum('absent');
       out.attendance = { rate: counted ? Math.round(((sum('present') + sum('late')) / counted) * 100) : null, absent: sum('absent'), late: sum('late') };
-      if (out.attendance.absent) out.alerts.push({ kind: out.attendance.absent >= 3 ? 'bad' : 'warn', text: `${out.attendance.absent} absence${out.attendance.absent === 1 ? '' : 's'} this term` });
+      if (out.attendance.absent) out.alerts.push({ kind: out.attendance.absent >= (Number(data().settings.learn?.absenceAlert) || 3) ? 'bad' : 'warn', text: `${out.attendance.absent} absence${out.attendance.absent === 1 ? '' : 's'} this term` });
     }
     if (views.includes('activities')) {
       const acts = classes.flatMap(({ s }) => activitiesOf(s.id, student.id));
@@ -244,11 +244,11 @@ export function registerGuardianRoutes(route, ctx, { standing, resultFor, isOpen
   // A new guardian account, usually linked to a student straight away.
   route('POST', '/api/admin/guardians', 'admin:guardians.manage', ({ user, body, campusId }) => {
     const fields = validateUserFields({ ...body, role: 'guardian' }, data());
-    validatePassword(body.password);
+    validatePassword(body.password, data().settings.security);
     const student = body.studentId ? findStudent(user, body.studentId) : null;
     const g = {
       id: randomUUID(), ...fields, campusIds: [student?.campusIds?.[0] || campusId].filter(Boolean), status: 'active',
-      mustChangePassword: body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: iso(),
+      mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: iso(),
     };
     data().users.push(g);
     if (student) addLink(user, g, student, body);

@@ -6,7 +6,7 @@ import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, raw, mount, toast, modal, option, formData, fmtDate, timeAgo, confirmDialog } from '../../ui.js';
 import { REQUEST_STATUS, docType, fmtGrade, yearLabel } from '/shared/academic.js';
-import { can, requestBadge, gradeText, gwaText, isStudent } from '../state.js';
+import { ac, can, requestBadge, gradeText, gwaText, isStudent } from '../state.js';
 import qrcode from '../../vendor/qrcode.js';
 
 const NEXT = {
@@ -122,7 +122,7 @@ function docBody(p, doc) {
       ${!p.terms.length ? html`<tr><td colspan="5">No grades on record.</td></tr>` : ''}</tbody>
       <tfoot><tr><td colspan="3">General weighted average: <strong>${gwaText(p.gwa)}</strong></td><td colspan="2" class="num">Units earned: <strong>${p.earned}</strong></td></tr></tfoot></table>
       <p class="doc-note">*** Nothing follows ***</p>
-      <p class="doc-note small">Grading: 1.00 (highest) to 3.00 (lowest passing); 5.00 failed; INC incomplete; DRP dropped. Valid only with the registrar's signature and the school's dry seal, or when checked online with the code below.</p>`;
+      <p class="doc-note small">Grading: 1.00 (highest) to ${fmtGrade(ac.settings?.passingGrade ?? 3)} (lowest passing); 5.00 failed; INC incomplete; DRP dropped. Valid only with the registrar's signature and the school's dry seal, or when checked online with the code below.</p>`;
   }
   if (p.type === 'cog') {
     return html`${info}<p>This certifies that the following are the grades of <strong>${full}</strong> in <strong>${p.termName}</strong>:</p>

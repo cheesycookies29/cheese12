@@ -66,7 +66,7 @@ Try this with the demo school: sign in as `student.demo` (password `demo1234`). 
 
 1. Open the assignment from **Home → To do**, or from the class's **Activities** tab.
 2. Read the **Instructions**.
-3. Under **Hand in your work**, write your **Answer**, attach a **File** (up to 10 MB; drop it on the box or choose it), or paste a **Link to your work**. One of the three is enough.
+3. Under **Hand in your work**, write your **Answer**, attach a **File** (up to 10 MB unless your school set another limit; drop it on the box or choose it), or paste a **Link to your work**. One of the three is enough.
 4. Press **Hand in**.
 
 Your work then shows under **Your work** as *Handed in*. Until your teacher scores it, you can change it: edit the form under **Hand in again** and press **Replace my work**. Once it is scored, you see the score and your teacher's feedback, and it can no longer be replaced.

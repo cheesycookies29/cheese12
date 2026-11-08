@@ -283,10 +283,12 @@ export function fmtSize(bytes) {
 }
 
 // Reads a picked file for upload: { name, type, data (base64) }.
-export const MAX_UPLOAD = 10 * 1024 * 1024;
+// The browser stops files over 15 MB (the most the server accepts); the school's own limit
+// (Admin panel → Settings) is checked by the server, which says what it is.
+export const MAX_UPLOAD = 15 * 1024 * 1024;
 export function readFile(file) {
   return new Promise((resolve, reject) => {
-    if (file.size > MAX_UPLOAD) return reject(new Error(`${file.name} is larger than 10 MB.`));
+    if (file.size > MAX_UPLOAD) return reject(new Error(`${file.name} is larger than 15 MB.`));
     const r = new FileReader();
     r.onload = () => resolve({ name: file.name, type: file.type, data: String(r.result).split(',')[1] || '' });
     r.onerror = () => reject(new Error(`Could not read ${file.name}.`));

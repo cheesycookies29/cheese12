@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Running ATLAS: the Admin panel
-summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings, single sign-on, demo data, backups and the guides.
+summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, roles and permissions, single sign-on, demo data, backups and the guides.
 roles: admin
 apps: admin, home
 order: 80
@@ -9,7 +9,7 @@ order: 80
 
 ## Before you start
 
-The **Admin panel** is the school side of ATLAS Learn. Administrators and registrars use it; deans work in ATLAS Academic instead. An **Administrator** can do everything in it. A **Registrar** uses most of the same pages: they can change enrollment, students, applicants, parents & guardians, the catalog and news, see teachers, and see the **Configuration** pages read-only. **Single sign-on**, **Admins, registrars & deans** and **Demo data & backup** are for administrators only. Day-to-day enrollment (approving requests, waitlists, adding and dropping students) is explained in [the registrar's guide](registrar).
+The **Admin panel** is the school side of ATLAS Learn. Administrators and registrars use it; deans work in ATLAS Academic instead. An **Administrator** can do everything in it. A **Registrar** uses most of the same pages: they can change enrollment, students, applicants, parents & guardians, the catalog and news, see teachers, and see the **Configuration** pages read-only. **Settings center**, **Single sign-on**, **Admins, registrars & deans**, **Roles & permissions** and **Demo data & backup** are for administrators only (an administrator can give registrars more under **Roles & permissions**). Day-to-day enrollment (approving requests, waitlists, adding and dropping students) is explained in [the registrar's guide](registrar).
 
 To open it:
 
@@ -44,7 +44,8 @@ This tour uses the demo school, signed in as `admin`.
 ![Modules for students, teachers and parents & guardians](admin-modules.jpg)
 
 6. Choose **Settings & branding**. Look at the school name, the current term, the enrollment rules and the colour themes. Do not save anything yet.
-7. Choose **Demo data & backup**. This is where the demo school is added and removed, and where backups are made.
+7. Choose **Settings center**. Every setting of every system is listed here by module. Type *password* in **Find a setting**: the sign-in rules appear, each with its value now and its default.
+8. Choose **Demo data & backup**. This is where the demo school is added and removed, and where backups are made.
 
 ## How to…
 
@@ -138,7 +139,7 @@ A module that is off disappears from those people's menu, and ATLAS refuses it. 
 3. Make the weights add up to 100%, or set them all to 0 to count every point the same.
 4. Choose **Save**.
 
-Teachers pick a type for each assignment, quiz or exam. A type that is in use cannot be removed; switch it off instead.
+Teachers pick a type for each assignment, quiz or exam. A type that is in use cannot be removed; switch it off instead. A type that is off is no longer offered for new work, but work already given that type still counts by its weight; set its weight to 0 to stop that.
 
 ### Change school settings and branding
 
@@ -147,9 +148,52 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 3. Under **Enrollment rules**: **Requests need approval**, **Waitlists**, **Waitlist size per section** and **Maximum units per term** (0 means no limit).
 4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB), and the **Sign-in headline**.
 5. Under **Student applications**: whether people may apply from the sign-in page.
-6. Choose **Save settings**.
+6. Under **Sign-in and passwords**: the **Shortest password** (8 to 64 characters), **Wrong passwords before locking** and **Minutes locked**, **Sign out after (hours idle)**, **Passwords mix letters and digits**, and **Always change the first password** (new accounts and reset passwords must be changed at the first sign-in, in every system).
+7. Under **Uploads, quizzes and parent alerts**: the **Largest upload (MB)** (1 to 15), the **Quiz grace period (seconds)** that answers sent just after a deadline still count, and from how many absences a parent sees them in red.
+8. Under **Numbering**: how new student numbers, employee numbers and document request numbers look. `{YYYY}` or `{YY}` is the year, `{MM}` the month and `{N4}` the serial with at least 4 digits; **Next:** shows the number the next record will get as you type.
+9. Choose **Save settings**.
 
-The colour changes on screen as you choose it, so you can try themes before saving.
+The colour changes on screen as you choose it, so you can try themes before saving. Password rules apply to new and changed passwords; nobody has to change a password that is already set. A new numbering format applies to new records only, and never gives a number that is already in use.
+
+### Find any setting and compare it with the default
+
+The **Settings center** lists every setting in ATLAS (Admin panel, Learn, Academic, People and Finance) in one place.
+
+1. Choose **Settings center**.
+2. Type in **Find a setting**, e.g. *password*, *PERA* or *waitlist*, or choose a module such as **ATLAS People**.
+3. Tick **Only changed from the default** to see what your school has changed. Each setting shows its value **Now**, its **Default**, and who changed it last.
+4. To change a setting, choose **Open** on its group: its own screen opens.
+
+![The Settings center: every setting, by module](admin-config.jpg)
+
+### Restore a default or undo a change
+
+1. In the **Settings center**, find the setting and choose **Restore default**, or **Restore defaults** on its group to put the whole group back.
+2. Confirm with **Restore**.
+
+Every save on any settings screen is recorded under **Change history**: who, when, and each setting's value before and after. To take a change back, choose **Undo** on it; ATLAS refuses if the setting has been changed again since. The school's own information (its name, offices, bank accounts) has no default to go back to.
+
+![Change history with the value before and after](admin-config-history.jpg)
+
+### Copy settings to another ATLAS
+
+1. In the **Settings center**, choose **Export & import**, then **Export settings**. A file with the school's settings downloads: rules, grading, payroll rates, Finance numbering and taxes, roles and permissions. It has no people, records or passwords.
+2. On the other ATLAS, choose **Choose a settings file…** and pick that file.
+3. Read what would change, untick any group you want to keep as it is, and choose **Import the ticked groups**.
+
+If one group fails its checks, nothing is imported. Keep an export before big changes: importing it puts everything back.
+
+### Change what an account type may do
+
+1. Choose **Roles & permissions**.
+2. In the table for a system (**Admin panel**, **ATLAS Academic**, **ATLAS People**, **ATLAS Finance**), tick or untick a permission for an account type. A shaded box differs from the built-in setting.
+3. Choose **Save permissions**. If accounts would lose something they can do now, ATLAS asks first.
+
+For example, let deans open Finance's reports (**ATLAS Finance** → *Finance dashboard, books and reports* for **Dean / Program chair**), or keep **Academic settings** with administrators only by unticking it for **Registrar**. **Restore built-in** puts an account type back as ATLAS made it.
+
+Administrators always have every permission, and managing administrator accounts and replacing data (**Administrators only**) cannot be given to anyone else. Admin-panel permissions go only to registrars and deans, who use the Admin panel.
+
+![Roles & permissions](admin-roles.jpg)
 
 ![Settings & branding](admin-settings.jpg)
 
@@ -228,13 +272,15 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Catalog | Terms | Semesters, their enrollment windows, drop deadlines and class dates |
 | Catalog | Programs | Degrees or strands students belong to |
 | Communication | News & events | School news posts and events, for one campus or all |
+| Configuration | Settings center | Every setting in ATLAS, compared with its default; change history and undo; export and import |
 | Configuration | Campuses | Add, rename, remove and switch between campuses |
 | Configuration | Modules | What students, teachers and parents & guardians get in Learn |
 | Configuration | Activity types & grading | Activity types and how much each counts in the running grade |
-| Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, colours, logo, applications |
+| Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, colours, logo, applications, passwords and sign-in, uploads and quizzes, numbering |
 | Configuration | Home page & systems | The tiles on the ATLAS home page, and the address of systems not built in |
 | Configuration | Single sign-on | Signing in with the school's Keycloak account |
 | Configuration | Admins, registrars & deans | Accounts for administrators, registrars and deans |
+| Configuration | Roles & permissions | What each account type may do in each system |
 | Configuration | Demo data & backup | Add or remove the demo school; download or restore a backup |
 | Elsewhere | ATLAS home | The ATLAS home page, in a new tab |
 
@@ -252,9 +298,13 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 
 **Why can't I delete an account?** Students, teachers and parents are disabled, not deleted, so their records stay. On **Admins, registrars & deans** you cannot delete your own account or the last active administrator. Disabling works the same way: you cannot disable yourself or the last active administrator.
 
-**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses, systems and single sign-on are for administrators. Registrars see them read-only, with *Only administrators can change these.*
+**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses, systems and single sign-on are for administrators. Registrars see them read-only, with *Only administrators can change these.* To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
 
-**Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity.
+**Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity (change it under **Settings & branding** → **Sign-in and passwords**).
+
+**Who changed this setting?** Open **Settings center**, find the setting and choose the clock button beside it: its history lists each change with who made it, when, and the value before and after.
+
+**I gave an account type a permission, but its people do not see the new screen.** Permissions apply at their next page load; ask them to reload, or sign out and in again.
 
 **I am locked out of the only administrator account.** On the server, stop ATLAS and run `npm run reset-password -- <username> <new-password>`, then start it again.
 

@@ -1,12 +1,14 @@
 // Admin panel routes: accounts and applicants, the catalog (programs, courses,
 // terms, sections), module switches for students and teachers, settings, dashboard.
 import { randomUUID } from 'node:crypto';
-import { HttpError, DATE_RE, text } from './util.js';
+import { HttpError, DATE_RE, text, localDate } from './util.js';
 import { hashPassword, validatePassword, publicUser } from './auth.js';
 import { can, ROLES, ADMIN_ROLES } from '../shared/roles.js';
 import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
 import { mergeSettings } from './db.js';
+import { nextNumber, previewNumber } from './numbering.js';
+import { DEFAULT_NUMBERING, NUMBERING_LABELS, formatProblem } from '../shared/numbering.js';
 import { THEMES, HEX_RE } from '../shared/themes.js';
 import { SYSTEMS, SYSTEM_STATUS } from '../shared/systems.js';
 import { campusesFor, inCampus, canReach, campusIdsFrom, campusName } from './campus.js';
@@ -27,13 +29,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MANAGES = { student: 'students.manage', teacher: 'teachers.manage', guardian: 'guardians.manage', registrar: 'admins.manage', dean: 'admins.manage', admin: 'admins.manage' };
 
 export function nextStudentNo(data, year = new Date().getFullYear()) {
-  const used = new Set(data.users.map((u) => u.studentNo).filter(Boolean));
-  let n = data.counters.studentNo[year] || 0;
-  let no;
-  do no = `${year}-${String(++n).padStart(4, '0')}`;
-  while (used.has(no));
-  data.counters.studentNo[year] = n;
-  return no;
+  return nextNumber(data, 'studentNo', { date: `${year}-${localDate().slice(5)}` });
 }
 
 export function validateUserFields(input, data, existing) {
@@ -177,12 +173,12 @@ export function registerAdminRoutes(route, ctx) {
     need(user, MANAGES[body.role] || 'admins.manage');
     const fields = validateUserFields(body, data());
     fields.campusIds = campusIdsFrom(data(), user, fields.role, body.campusIds, campusId);
-    validatePassword(body.password);
+    validatePassword(body.password, data().settings.security);
     const u = {
       id: randomUUID(),
       ...fields,
       status: 'active',
-      mustChangePassword: body.mustChangePassword !== false,
+      mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false,
       passwordHash: hashPassword(body.password),
       createdAt: now(),
     };
@@ -223,7 +219,7 @@ export function registerAdminRoutes(route, ctx) {
     const u = found(data().users, params.id, 'Account');
     need(user, MANAGES[u.role]);
     if (!canReach(data(), user, u)) fail('Account not found.', 404);
-    validatePassword(body.password);
+    validatePassword(body.password, data().settings.security);
     u.passwordHash = hashPassword(body.password);
     u.mustChangePassword = true;
     ctx.signOutEverywhere(u.id);
@@ -587,17 +583,39 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // ----- Settings -----
-  route('GET', '/api/admin/settings', 'admin', () => data().settings);
+  route('GET', '/api/admin/settings', 'admin', ({ user }) => {
+    const s = data().settings;
+    const out = can(user.role, 'settings.edit') ? { ...s } : { ...s, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
+    return { ...out, numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
+  });
+  // The next number a format would give (Settings → Numbering, as the administrator types).
+  route('GET', '/api/admin/numbering-preview', 'admin:settings.edit', ({ query }) => {
+    const kind = Object.keys(DEFAULT_NUMBERING).includes(query.kind) ? query.kind : fail('Unknown series.');
+    const problem = formatProblem(query.format);
+    return problem ? { problem: `The format ${problem}.` } : { next: previewNumber(data(), kind, String(query.format).trim()) };
+  });
+  // A number in a range, or a clear message naming the setting.
+  const num = (v, min, max, label) => {
+    const n = Number(v);
+    if (v === '' || v == null || !Number.isFinite(n) || n < min || n > max) fail(`${label} must be between ${min} and ${max}.`);
+    return n;
+  };
+  const whole = (v, min, max, label) => {
+    const n = num(v, min, max, label);
+    if (!Number.isInteger(n)) fail(`${label} must be a whole number.`);
+    return n;
+  };
   route('PUT', '/api/admin/settings', 'admin:settings.edit', ({ body }) => {
     const s = mergeSettings(data().settings);
-    if ('schoolName' in body) s.schoolName = text(body.schoolName, 120) || s.schoolName;
+    if ('schoolName' in body) s.schoolName = text(body.schoolName, 120) || fail('Give the school a name.');
     if ('passingGrade' in body) {
       const g = Number(body.passingGrade);
       if (!(g > 0 && g <= 100)) fail('Passing grade must be between 1 and 100.');
       s.passingGrade = g;
     }
     if ('currentTermId' in body) {
-      if (body.currentTermId && !findById(data().terms, body.currentTermId)) fail('Term not found.');
+      const term = body.currentTermId ? findById(data().terms, body.currentTermId) || fail('Term not found.') : null;
+      if (term?.status === 'archived' && term.id !== s.currentTermId) fail(`${term.name} is archived. Pick a term that is still in use.`);
       s.currentTermId = body.currentTermId || null;
     }
     if (body.enrollment) {
@@ -605,9 +623,39 @@ export function registerAdminRoutes(route, ctx) {
       s.enrollment = {
         requireApproval: Boolean(e.requireApproval),
         allowWaitlist: Boolean(e.allowWaitlist),
-        waitlistLimit: Math.max(0, Math.floor(Number(e.waitlistLimit) || 0)),
-        maxUnits: Math.max(0, Number(e.maxUnits) || 0),
+        waitlistLimit: whole(e.waitlistLimit, 0, 500, 'Waitlist size per section'),
+        maxUnits: num(e.maxUnits, 0, 60, 'Maximum units per term'),
       };
+    }
+    if (body.security) {
+      const v = { ...s.security, ...body.security };
+      s.security = {
+        minPasswordLength: whole(v.minPasswordLength, 8, 64, 'Shortest password'),
+        requireLettersAndDigits: Boolean(v.requireLettersAndDigits),
+        lockoutAttempts: whole(v.lockoutAttempts, 3, 20, 'Wrong passwords before locking'),
+        lockoutMinutes: whole(v.lockoutMinutes, 1, 120, 'Minutes locked'),
+        idleHours: whole(v.idleHours, 1, 72, 'Sign out after (hours idle)'),
+        forcePasswordChange: Boolean(v.forcePasswordChange),
+      };
+    }
+    if (body.learn) {
+      const v = { ...s.learn, ...body.learn };
+      s.learn = {
+        maxUploadMb: whole(v.maxUploadMb, 1, 15, 'Largest upload'),
+        quizGraceSeconds: whole(v.quizGraceSeconds, 0, 300, 'Quiz grace period'),
+        absenceAlert: whole(v.absenceAlert, 1, 30, 'Absences shown in red'),
+      };
+    }
+    if (body.numbering) {
+      const next = { ...s.numbering };
+      for (const k of Object.keys(DEFAULT_NUMBERING)) {
+        if (!(k in body.numbering)) continue;
+        const f = String(body.numbering[k] ?? '').trim();
+        const problem = formatProblem(f);
+        if (problem) fail(`${NUMBERING_LABELS[k]}: the format ${problem}.`);
+        next[k] = f;
+      }
+      s.numbering = next;
     }
     if (body.registration) s.registration = { open: Boolean(body.registration.open) };
     if (body.branding) {

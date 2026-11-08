@@ -5,6 +5,7 @@ import { pageHead, ctx, applyBranding, logoSrc } from '../../shell.js';
 import { can } from '/shared/roles.js';
 import { THEMES, themeColors } from '/shared/themes.js';
 import { icon } from '../../icons.js';
+import { NUMBERING_LABELS } from '/shared/numbering.js';
 
 // Resizes a picked logo to at most 400 px wide, as PNG, so it stays small.
 function shrinkLogo(file) {
@@ -28,7 +29,7 @@ export async function settingsView(el) {
   const editable = can(ctx.user.role, 'settings.edit');
   const dis = editable ? '' : 'disabled';
   mount(el, html`
-    ${pageHead('Settings & branding', 'School details, how ATLAS looks, and the rules every enrollment request is checked against.')}
+    ${pageHead('Settings & branding', 'School details, how ATLAS looks, enrollment rules, sign-in and passwords, uploads and quizzes, and how new numbers look.')}
     ${!editable ? html`<div class="notice"><p>Only administrators can change these.</p></div>` : ''}
     <form id="settings" class="stack">
       <section class="card"><h2>School</h2><div class="grid">
@@ -58,8 +59,36 @@ export async function settingsView(el) {
       <section class="card"><h2>Student applications</h2>
         <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ATLAS home page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
       </section>
-      ${editable ? html`<div class="actions end"><button class="btn primary" type="submit">Save settings</button></div>` : ''}
+      <section class="card" id="security"><h2>Sign-in and passwords</h2><div class="grid">
+        <label class="field"><span>Shortest password</span><input type="number" name="minPasswordLength" min="8" max="64" value="${s.security.minPasswordLength}" ${dis} /><span class="hint">Characters, 8 to 64. Applies to new and changed passwords.</span></label>
+        <label class="field"><span>Wrong passwords before locking</span><input type="number" name="lockoutAttempts" min="3" max="20" value="${s.security.lockoutAttempts}" ${dis} /><span class="hint">In a row, for one username.</span></label>
+        <label class="field"><span>Minutes locked</span><input type="number" name="lockoutMinutes" min="1" max="120" value="${s.security.lockoutMinutes}" ${dis} /></label>
+        <label class="field"><span>Sign out after (hours idle)</span><input type="number" name="idleHours" min="1" max="72" value="${s.security.idleHours}" ${dis} /><span class="hint">Without using ATLAS. Shorter is safer on shared computers.</span></label>
+        <label class="field check span-2"><input type="checkbox" name="requireLettersAndDigits" ${s.security.requireLettersAndDigits ? 'checked' : ''} ${dis} /> <span><strong>Passwords mix letters and digits.</strong> A new password needs at least one of each.</span></label>
+        <label class="field check span-3"><input type="checkbox" name="forcePasswordChange" ${s.security.forcePasswordChange ? 'checked' : ''} ${dis} /> <span><strong>Always change the first password.</strong> New accounts and reset passwords must be changed at the first sign-in, in every system; staff cannot untick it.</span></label>
+      </div></section>
+      <section class="card" id="learn-rules"><h2>Uploads, quizzes and parent alerts</h2><div class="grid">
+        <label class="field"><span>Largest upload (MB)</span><input type="number" name="maxUploadMb" min="1" max="15" value="${s.learn.maxUploadMb}" ${dis} /><span class="hint">Class resources, handed-in work and attachments, 1 to 15.</span></label>
+        <label class="field"><span>Quiz grace period (seconds)</span><input type="number" name="quizGraceSeconds" min="0" max="300" value="${s.learn.quizGraceSeconds}" ${dis} /><span class="hint">Answers sent this long after the deadline still count (slow connections).</span></label>
+        <label class="field"><span>Absences shown in red to parents</span><input type="number" name="absenceAlert" min="1" max="30" value="${s.learn.absenceAlert}" ${dis} /><span class="hint">From this many in a term, on a parent's dashboard.</span></label>
+      </div></section>
+      <section class="card" id="numbering"><h2>Numbering</h2>
+        <p class="muted" style="margin-top:-6px">How new numbers look. <code>{YYYY}</code> or <code>{YY}</code> is the year, <code>{MM}</code> the month, <code>{N}</code> the serial (<code>{N4}</code>: at least 4 digits). A series starts again at 1 each year when it has the year. Numbers already given never change, and none is given twice.</p>
+        <div class="grid">${Object.entries(NUMBERING_LABELS).map(([k, label]) => html`<label class="field"><span>${label}</span><input name="num-${k}" data-series="${k}" value="${s.numbering[k]}" maxlength="40" spellcheck="false" ${dis} /><span class="hint" id="next-${k}">Next: <strong>${s.numberingNext?.[k] || ''}</strong></span></label>`)}</div>
+      </section>
+      ${editable ? html`<div class="actions end"><a class="btn ghost" href="#/config?module=admin">Compare with the defaults</a><button class="btn primary" type="submit">Save settings</button></div>` : ''}
     </form>`);
+  // The next number each format would give, as the administrator types.
+  let timer;
+  el.querySelectorAll('[data-series]').forEach((input) => input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const r = await api.get(`/api/admin/numbering-preview?kind=${input.dataset.series}&format=${encodeURIComponent(input.value)}`).catch((err) => ({ problem: err.message }));
+      const hint = el.querySelector(`#next-${input.dataset.series}`);
+      mount(hint, r.problem ? html`<span class="negative">${r.problem}</span>` : html`Next: <strong>${r.next}</strong>`);
+      input.setAttribute('aria-invalid', r.problem ? 'true' : 'false');
+    }, 250);
+  }));
   let logo = s.branding.logo;
   const form = el.querySelector('#settings');
   // Preview the colour right away.
@@ -95,6 +124,9 @@ export async function settingsView(el) {
         enrollment: { requireApproval: Boolean(v.requireApproval), allowWaitlist: Boolean(v.allowWaitlist), waitlistLimit: v.waitlistLimit, maxUnits: v.maxUnits },
         registration: { open: Boolean(v.registrationOpen) },
         branding: { theme: v.theme, color: v.color, logo, tagline: v.tagline },
+        security: { minPasswordLength: v.minPasswordLength, lockoutAttempts: v.lockoutAttempts, lockoutMinutes: v.lockoutMinutes, idleHours: v.idleHours, requireLettersAndDigits: Boolean(v.requireLettersAndDigits), forcePasswordChange: Boolean(v.forcePasswordChange) },
+        learn: { maxUploadMb: v.maxUploadMb, quizGraceSeconds: v.quizGraceSeconds, absenceAlert: v.absenceAlert },
+        numbering: Object.fromEntries(Object.keys(NUMBERING_LABELS).map((k) => [k, v[`num-${k}`]])),
       });
       ctx.info.branding = { ...ctx.info.branding, schoolName: v.schoolName, ...themeColors({ theme: v.theme, color: v.color }), logo, tagline: v.tagline };
       applyBranding(ctx.info.branding);
@@ -169,14 +201,15 @@ export async function gradingView(el) {
       <section class="card scroll-x"><table class="table">
         <thead><tr><th>Activity type</th><th>Weight %</th><th>Used by</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows.map((t, i) => html`<tr data-i="${i}">
-          <td><input data-f="name" value="${t.name}" ${editable ? '' : 'disabled'} /></td>
-          <td><input data-f="weight" type="number" min="0" max="100" value="${t.weight}" style="width:100px" ${editable ? '' : 'disabled'} /></td>
+          <td><input data-f="name" value="${t.name}" aria-label="Activity type name" ${editable ? '' : 'disabled'} /></td>
+          <td><input data-f="weight" type="number" min="0" max="100" value="${t.weight}" style="width:100px" aria-label="${t.name}: weight %" ${editable ? '' : 'disabled'} /></td>
           <td>${t.used || 0} activit${t.used === 1 ? 'y' : 'ies'}</td>
           <td><label class="switch"><input type="checkbox" data-f="active" ${t.active !== false ? 'checked' : ''} ${editable ? '' : 'disabled'} /><span class="track"></span>${t.active !== false ? 'On' : 'Off'}</label></td>
           <td class="row-actions">${editable && !t.used ? html`<button class="icon-btn danger" data-del="${i}" aria-label="Remove">${icon('trash', 16)}</button>` : ''}</td></tr>`)}</tbody>
         <tfoot><tr><td><strong>Total</strong></td><td><strong class="${total && total !== 100 ? 'warn' : ''}">${total}%</strong></td><td colspan="3" class="muted">${total === 0 ? 'All weights are 0: every point counts the same.' : total === 100 ? 'Weights add up to 100%.' : 'Weights must add up to 100% (or all be 0).'}</td></tr></tfoot>
       </table></section>
       ${editable ? html`<div class="actions" style="margin-top:12px"><button class="btn" id="add">${icon('plus', 16)} Add a type</button><span class="spacer"></span><button class="btn primary" id="save">Save</button></div>` : html`<div class="notice">${icon('shield')}<p>Only administrators can change these.</p></div>`}
+      <p class="muted small" style="margin-top:8px">A type that is off is no longer offered for new work; work already given that type still counts by its weight. To stop it counting, set its weight to 0.</p>
       <section class="card" style="margin-top:16px"><h2>How the running grade works</h2>
         <p>Each type's percentage is worked out from the scored work of that type, then combined by weight. Types with no scored work yet are left out, and the remaining weights are scaled up. Example: assignments 30%, quizzes 20%, exams 50%; a student with 80% on assignments and 90% on quizzes, and no exam yet, has (80×30 + 90×20) ÷ 50 = <strong>84%</strong>.</p>
         <p class="muted">Passing grade: <strong>${settings.passingGrade}%</strong> (under Settings). Teachers post final grades themselves; the running grade helps them.</p>

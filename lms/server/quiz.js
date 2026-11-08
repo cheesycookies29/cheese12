@@ -16,7 +16,6 @@ const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
 };
 export const QUESTION_TYPES = ['single', 'multiple', 'truefalse', 'short', 'essay'];
-const GRACE_MS = 30 * 1000; // network delay allowance on the deadline
 const round2 = (n) => Math.round(n * 100) / 100;
 const norm = (s) => String(s ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
 
@@ -115,13 +114,15 @@ export function registerQuizRoutes(route, ctx, { access, findAssignment, isOpen 
   const { db, nowLocal } = ctx;
   const nowMs = () => ctx.now().getTime();
   const data = () => db.data;
+  // Answers sent just after the deadline still count (network delay); Settings → Learn & uploads.
+  const graceMs = () => Math.min(300, Math.max(0, Number(data().settings.learn?.quizGraceSeconds ?? 30))) * 1000;
   const attemptsOf = (quizId, studentId) => data().attempts.filter((a) => a.assignmentId === quizId && (!studentId || a.studentId === studentId)).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 
   // Submit attempts whose time has run out (called before reading attempts).
   function closeExpired(quiz) {
     let changed = false;
     for (const a of attemptsOf(quiz.id)) {
-      if (!a.submittedAt && nowMs() > new Date(a.deadline).getTime() + GRACE_MS) {
+      if (!a.submittedAt && nowMs() > new Date(a.deadline).getTime() + graceMs()) {
         a.submittedAt = a.deadline;
         a.autoSubmitted = true;
         scoreAttempt(quiz, a);
@@ -208,7 +209,7 @@ export function registerQuizRoutes(route, ctx, { access, findAssignment, isOpen 
     const quiz = findAssignment(attempt.assignmentId);
     access(user, quiz.sectionId);
     if (attempt.submittedAt) fail('This attempt has already been submitted.');
-    const late = nowMs() > new Date(attempt.deadline).getTime() + GRACE_MS;
+    const late = nowMs() > new Date(attempt.deadline).getTime() + graceMs();
     if (!late) {
       for (const q of quiz.questions) if (body.answers && q.id in body.answers) attempt.answers[q.id] = cleanAnswer(q, body.answers[q.id]);
     }

@@ -16,9 +16,12 @@ export function verifyPassword(password, stored) {
   return stored != null && expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-export function validatePassword(password) {
-  if (typeof password !== 'string' || password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters.');
+// policy: settings.security (Settings → Sign-in & passwords); without it, the defaults.
+export function validatePassword(password, policy = {}) {
+  const min = Math.max(8, Number(policy.minPasswordLength) || 8);
+  if (typeof password !== 'string' || password.length < min) throw new HttpError(400, `Password must be at least ${min} characters.`);
   if (password.length > 200) throw new HttpError(400, 'Password is too long.');
+  if (policy.requireLettersAndDigits && !(/[A-Za-z]/.test(password) && /\d/.test(password))) throw new HttpError(400, 'Password must have both letters and digits.');
 }
 
 export function publicUser(user) {
@@ -38,17 +41,18 @@ export function parseCookies(header = '') {
 export const PORTAL_COOKIE = 'ltdc_lms_sid';
 export const ADMIN_COOKIE = 'ltdc_lms_admin';
 export const HRIS_COOKIE = 'ltdc_hris_sid';
-const SESSION_TTL = 8 * 60 * 60 * 1000; // signed out after 8 idle hours
+const SESSION_TTL = 8 * 60 * 60 * 1000; // signed out after 8 idle hours (Settings → Sign-in & passwords can change it)
 
 // Sessions live in memory: restarting the app signs everyone out.
 // (On AWS with more than one server, move these to a shared store such as ElastiCache or DynamoDB.)
-export function createSessions() {
+// ttl(): how long a session lasts without use, read on each request so a new setting applies at once.
+export function createSessions(ttl = () => SESSION_TTL) {
   const sessions = new Map();
   return {
     // extra: e.g. { sso: true, idToken } for a single sign-on session (used to end the Keycloak session too).
     create(userId, extra = {}) {
       const token = randomBytes(32).toString('hex');
-      sessions.set(token, { ...extra, userId, expires: Date.now() + SESSION_TTL });
+      sessions.set(token, { ...extra, userId, expires: Date.now() + ttl() });
       return token;
     },
     get(token) {
@@ -58,7 +62,7 @@ export function createSessions() {
         sessions.delete(token);
         return null;
       }
-      s.expires = Date.now() + SESSION_TTL;
+      s.expires = Date.now() + ttl();
       return s;
     },
     destroy(token) {
@@ -73,12 +77,14 @@ export function createSessions() {
 // COOKIE_SECURE=1 when served over HTTPS, so browsers never send the cookie over plain HTTP.
 const SECURE = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
 
-export const sessionCookie = (name, token) => `${name}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}${SECURE}`;
+export const sessionCookie = (name, token, maxAgeMs = SESSION_TTL) => `${name}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.round(maxAgeMs / 1000)}${SECURE}`;
 export const clearedCookie = (name) => `${name}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${SECURE}`;
 
-// Lock a username for 5 minutes after 5 wrong passwords in a row.
-export function createThrottle({ max = 5, lockMs = 5 * 60 * 1000 } = {}) {
+// Lock a username for 5 minutes after 5 wrong passwords in a row. limits: an object, or a
+// function returning { max, lockMs } (read at each attempt, so Settings apply at once).
+export function createThrottle(limits = {}) {
   const failures = new Map();
+  const get = () => ({ max: 5, lockMs: 5 * 60 * 1000, ...(typeof limits === 'function' ? limits() : limits) });
   return {
     check(key) {
       const f = failures.get(key);
@@ -90,6 +96,7 @@ export function createThrottle({ max = 5, lockMs = 5 * 60 * 1000 } = {}) {
     fail(key) {
       const f = failures.get(key) || { count: 0, until: 0 };
       f.count += 1;
+      const { max, lockMs } = get();
       if (f.count >= max) Object.assign(f, { count: 0, until: Date.now() + lockMs });
       failures.set(key, f);
     },

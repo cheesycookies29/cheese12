@@ -6,7 +6,7 @@ import {
   html, mount, modal, toast, fmtDate, fmtDateTime, statusBadge, timeAgo, formData, confirmDialog, empty, raw, escape,
   initials, fmtSize, readFile, dueText, today, downloadFile, toCsv, nowLocal,
 } from '../../ui.js';
-import { pageHead } from '../../shell.js';
+import { pageHead, ctx } from '../../shell.js';
 import { icon, CATEGORY_ICON } from '../../icons.js';
 import { has, isTeacher, classLabel, gradeText } from '../common.js';
 import { classTiles, activityHref } from './home.js';
@@ -183,7 +183,7 @@ async function resources(el, c, state = { cat: '', sel: null }) {
   const sel = list.find((r) => r.id === state.sel) || shown[0] || null;
   const present = new Set(list.map((r) => r.category));
   mount(el, html`
-    ${teacher ? html`<div class="dropzone" id="drop">${icon('upload', 22)}<div><strong>Drop files here</strong> or <button type="button" class="link" id="pick">choose files</button> · up to 10 MB each · or <button type="button" class="link" id="add-link">add a link</button></div><input type="file" id="files" multiple hidden /></div><div style="height:14px"></div>` : ''}
+    ${teacher ? html`<div class="dropzone" id="drop">${icon('upload', 22)}<div><strong>Drop files here</strong> or <button type="button" class="link" id="pick">choose files</button> · up to ${ctx.info.maxUploadMb || 10} MB each · or <button type="button" class="link" id="add-link">add a link</button></div><input type="file" id="files" multiple hidden /></div><div style="height:14px"></div>` : ''}
     <div class="chips" style="margin-bottom:14px">${CATS.filter(([k]) => !k || present.has(k)).map(([k, label]) => html`<button type="button" class="chip ${state.cat === k ? 'on' : ''}" data-cat="${k}">${label}</button>`)}</div>
     ${shown.length ? html`<div class="res-layout">
       <div>${shown.map((r, i) => html`<div class="res-item ${r === sel ? 'sel' : ''}" data-id="${r.id}">

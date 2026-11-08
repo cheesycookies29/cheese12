@@ -139,9 +139,31 @@ export const HRIS_PERMISSION_LABELS = [
 
 export { FINANCE_PERMISSION_LABELS } from './finance.js';
 
+// ----- What an administrator changed (Admin panel → Roles & permissions) -----
+// { role: { add: [permission…], remove: [permission…] } }, kept in db.data.roleOverrides. The server
+// sets it when it starts and after each change; the Admin panel's browser code sets it from its status.
+let overrides = {};
+export function setRoleOverrides(o) {
+  overrides = o && typeof o === 'object' ? o : {};
+}
+
+// The permissions an account type has: its built-in ones, with the school's changes.
+export function permissionsOf(role) {
+  const base = ROLES[role]?.permissions || [];
+  if (base.includes('*')) return base;
+  const o = overrides[role];
+  if (!o) return base;
+  const remove = new Set(o.remove || []);
+  return [...new Set([...base.filter((p) => !remove.has(p)), ...(o.add || [])])];
+}
+
 export function can(role, permission) {
-  const perms = ROLES[role]?.permissions || [];
+  const perms = permissionsOf(role);
   return perms.includes('*') || perms.includes(permission) || (permission === 'teachers.view' && perms.includes('teachers.manage'));
 }
+
+// Permissions that stay with administrators: giving them to another account type would let it make
+// itself an administrator, or replace every record.
+export const ADMIN_ONLY_PERMISSIONS = ['admins.manage', 'data.manage'];
 
 export const roleLabel = (role) => ROLES[role]?.label || role;

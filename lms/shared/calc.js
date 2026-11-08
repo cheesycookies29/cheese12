@@ -108,7 +108,7 @@ export function hoursPerDay(schedule) {
 export function ratesFor(employee, settings) {
   const schedule = scheduleFor(employee, settings);
   const rate = Number(employee.rate) || 0;
-  const factor = Number(settings.workDaysPerYear) || 312;
+  const factor = Number(settings.workDaysPerYear) || DEFAULT_SETTINGS.workDaysPerYear;
   const daily = employee.payType === 'daily' ? rate : (rate * 12) / factor;
   const monthly = employee.payType === 'daily' ? (rate * factor) / 12 : rate;
   return { monthly, daily, hourly: daily / hoursPerDay(schedule) };

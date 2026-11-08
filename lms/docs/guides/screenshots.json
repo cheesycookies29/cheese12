@@ -70,6 +70,56 @@
   "wait": 1000
  },
  {
+  "file": "admin-config.jpg",
+  "user": "admin",
+  "url": "/admin#/config?module=people",
+  "wait": 1200
+ },
+ {
+  "file": "admin-config-history.jpg",
+  "user": "admin",
+  "url": "/admin#/config?tab=history",
+  "wait": 1200,
+  "api": [
+   [
+    "PUT",
+    "/api/admin/settings",
+    {
+     "security": {
+      "minPasswordLength": 10,
+      "requireLettersAndDigits": true
+     }
+    }
+   ],
+   [
+    "PUT",
+    "/api/academic/settings",
+    {
+     "incDays": 180
+    }
+   ],
+   [
+    "PUT",
+    "/api/admin/settings",
+    {
+     "numbering": {
+      "studentNo": "{YYYY}-{N5}"
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "file": "admin-roles.jpg",
+  "user": "admin",
+  "url": "/admin#/roles",
+  "wait": 1200,
+  "scroll": ".roles-group:last-of-type",
+  "click": [
+   "input[data-role=dean][data-perm=\"finance.view\"]"
+  ]
+ },
+ {
   "file": "admin-sso.jpg",
   "user": "admin",
   "url": "/admin#/sso",

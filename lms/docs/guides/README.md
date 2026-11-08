@@ -68,6 +68,9 @@ Write for the person doing the job, in plain words, with the names exactly as th
 
 - `user`: the demo account to sign in as (password `demo1234`; `admin` uses `password123`).
 - `url`: the page to open (path and `#/route`).
+- `api` (optional): requests made as that user before the page opens, `[[method, path, body], …]`,
+  e.g. `[["PUT", "/api/academic/settings", { "incDays": 180 }]]` so a history has something to show.
+  Shots run in order on one server, so later shots see these changes.
 - `click` (optional): Playwright selectors clicked in order after the page loads, e.g. `text=Grades`,
   `[data-tab=finance]`, `tr[data-href] >> nth=0`.
 - `wait` (optional, ms): time to settle after each step (default 800).

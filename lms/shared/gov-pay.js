@@ -248,7 +248,7 @@ const employeeInfo = (employee, monthly, date) => ({
 });
 
 // Recurring deductions active in a period, taken while net pay stays at or above the floor.
-function takeDeductions(list, { periodStart, periodEnd, divisor, paidSoFar, room }) {
+function takeDeductions(list, { periodStart, periodEnd, divisor, paidSoFar, room, monthlyFloor = 5000 }) {
   const taken = [];
   const skipped = [];
   const active = list
@@ -260,7 +260,7 @@ function takeDeductions(list, { periodStart, periodEnd, divisor, paidSoFar, room
     if (amt <= 0) continue;
     const item = { id: d.id, type: d.type, name: d.name || deductionType(d.type).name, remit: deductionType(d.type).remit, amount: amt };
     if (room - amt < -0.005) {
-      skipped.push({ ...item, reason: 'Net pay would fall below the P5,000 a month floor (GAA)' });
+      skipped.push({ ...item, reason: `Net pay would fall below the ₱${Number(monthlyFloor).toLocaleString('en-PH')} a month floor (GAA)` });
       continue;
     }
     room = round2(room - amt);
@@ -366,7 +366,7 @@ export function computeGovPayslip({ employee, entries, periodStart, periodEnd, s
   // Loans and other deductions, in order, keeping net pay at or above the floor.
   const mandatory = ded.gsis + ded.philhealth + ded.pagibig + ded.withholdingTax + ded.percentageTax + ded.otherDeductions;
   const floor = jo ? 0 : g.netPayFloor / divisor;
-  const { taken, skipped } = excluded ? { taken: [], skipped: [] } : takeDeductions(deductions, { periodStart, periodEnd, divisor, paidSoFar, room: round2(grossPay - mandatory - floor) });
+  const { taken, skipped } = excluded ? { taken: [], skipped: [] } : takeDeductions(deductions, { periodStart, periodEnd, divisor, paidSoFar, room: round2(grossPay - mandatory - floor), monthlyFloor: g.netPayFloor });
   ded.items = taken;
   const totalDeductions = round2(mandatory + taken.reduce((a, d) => a + d.amount, 0));
 

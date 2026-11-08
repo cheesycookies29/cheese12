@@ -9,10 +9,11 @@
 // their admin-panel session; teachers and students with their portal session.
 import { randomUUID, randomBytes } from 'node:crypto';
 import { HttpError, text, DATE_RE } from './util.js';
+import { nextNumber } from './numbering.js';
 import { can } from '../shared/roles.js';
 import {
   DEFAULT_ACADEMIC_SETTINGS, DOCUMENT_TYPES, REQUEST_STATUS, STUDENT_TYPES, TERMS,
-  equivalent, gwa, docType, termOrder, PASSING_GRADE, ACADEMIC_PERMISSION_LABELS,
+  equivalent, gwa, docType, termOrder, ACADEMIC_PERMISSION_LABELS, scaleProblems, passingPercent,
 } from '../shared/academic.js';
 import { campusesFor, activeCampusId, canReach } from './campus.js';
 
@@ -34,6 +35,7 @@ export function mergeAcademicSettings(s = {}) {
     fees: { ...d.fees, ...(s.fees || {}) },
     honors: { ...d.honors, ...(s.honors || {}) },
     registrar: { ...d.registrar, ...(s.registrar || {}) },
+    maxUnits: undefined, // never used (Learn's Settings → Maximum units per term is the limit)
   };
 }
 
@@ -120,7 +122,7 @@ export function registerAcademicRoutes(route, ctx) {
       if (r?.passed) return { status: r.source === 'credited' ? 'credited' : 'passed', grade: r.grade, termName: r.termName || termName(r.termId), recordId: r.id };
       const e = learn.get(cid);
       if (e?.status === 'completed') {
-        const eq = equivalent(e.finalGrade, S().scale);
+        const eq = equivalent(e.finalGrade, S().scale, S().passingGrade);
         if (e.passed) return { status: 'graded', grade: eq?.grade, termName: termName(e.termId) };
         if (!r) return { status: 'failed', grade: eq?.grade, termName: termName(e.termId) };
       }
@@ -205,25 +207,42 @@ export function registerAcademicRoutes(route, ctx) {
   const campusStudents = (user, campusId) => data().users.filter((u) => u.role === 'student' && u.status === 'active' && (u.campusIds || []).includes(campusId));
 
   // ----- Settings -----
-  route('GET', '/api/academic/settings', 'academic', () => ({ ...S(), documentTypes: DOCUMENT_TYPES, studentTypes: STUDENT_TYPES, terms: TERMS }));
+  route('GET', '/api/academic/settings', 'academic', () => ({
+    ...S(), documentTypes: DOCUMENT_TYPES, studentTypes: STUDENT_TYPES, terms: TERMS,
+    learnPassing: data().settings.passingGrade, scalePassing: passingPercent(S().scale, S().passingGrade),
+  }));
   route('PUT', '/api/academic/settings', 'academic:academic.settings', ({ user, body }) => {
-    const s = S();
+    const s = structuredClone(S());
+    const range = (v, min, max, label) => {
+      const n = Number(v);
+      if (v === '' || v == null || !Number.isFinite(n) || n < min || n > max) fail(`${label} must be between ${min} and ${max}.`);
+      return n;
+    };
+    if ('passingGrade' in body) s.passingGrade = range(body.passingGrade, 1, 5, 'Lowest passing grade');
     if (Array.isArray(body.scale)) {
-      const scale = body.scale.map((b) => ({ min: Number(b.min), grade: Number(b.grade), remark: text(b.remark, 40) }));
-      if (scale.some((b) => !(b.min >= 0 && b.min <= 100) || !(b.grade >= 1 && b.grade <= 5))) fail('Each band needs a percentage from 0 to 100 and a grade from 1.00 to 5.00.');
-      if (!scale.some((b) => b.min === 0)) fail('The scale needs a band that starts at 0%.');
-      s.scale = scale.sort((a, b) => b.min - a.min);
+      if (body.scale.length > 30) fail('A scale has at most 30 bands.');
+      s.scale = body.scale.map((b) => ({ min: Number(b.min), grade: Number(b.grade), remark: text(b.remark, 40) })).sort((a, b) => b.min - a.min);
     }
+    const problems = scaleProblems(s.scale, s.passingGrade);
+    if (problems.length) fail(problems[0]);
     if (Array.isArray(body.requirements)) {
-      s.requirements = body.requirements.filter((r) => text(r.name, 120)).map((r) => ({
-        id: text(r.id, 40) || randomUUID().slice(0, 8), name: text(r.name, 120),
-        for: (Array.isArray(r.for) ? r.for : []).filter((t) => STUDENT_TYPES.some(([k]) => k === t)),
-      }));
+      const ids = new Set();
+      s.requirements = body.requirements.filter((r) => text(r.name, 120)).map((r) => {
+        let id = text(r.id, 40) || randomUUID().slice(0, 8);
+        while (ids.has(id)) id = randomUUID().slice(0, 8); // two rows must not share an id
+        ids.add(id);
+        return { id, name: text(r.name, 120), for: (Array.isArray(r.for) ? r.for : []).filter((t) => STUDENT_TYPES.some(([k]) => k === t)) };
+      });
     }
-    if (body.fees) for (const d of DOCUMENT_TYPES) if (d.id in body.fees) s.fees[d.id] = Math.max(0, Number(body.fees[d.id]) || 0);
+    if (body.fees) for (const d of DOCUMENT_TYPES) if (d.id in body.fees) s.fees[d.id] = range(body.fees[d.id] || 0, 0, 100000, `The ${d.name} fee`);
     if (body.registrar) s.registrar = { name: text(body.registrar.name, 120), title: text(body.registrar.title, 120) || 'University Registrar' };
-    if ('incDays' in body) s.incDays = Math.min(1000, Math.max(30, Number(body.incDays) || 365));
-    if (body.honors) s.honors = { maxGwa: Number(body.honors.maxGwa) || 1.75, worstGrade: Number(body.honors.worstGrade) || 2.5, minUnits: Number(body.honors.minUnits) || 15 };
+    if ('incDays' in body) s.incDays = Math.round(range(body.incDays, 30, 1000, 'Days to complete an INC'));
+    if (body.honors) {
+      const h = { ...s.honors, ...body.honors };
+      s.honors = { maxGwa: range(h.maxGwa, 1, 5, "Dean's list: GWA at most"), worstGrade: range(h.worstGrade, 1, 5, "Dean's list: no grade lower than"), minUnits: range(h.minUnits, 0, 60, "Dean's list: at least (units)") };
+      if (s.honors.worstGrade > s.passingGrade) fail(`Dean's list: "no grade lower than" cannot be a failing grade (worse than ${Number(s.passingGrade).toFixed(2)}).`);
+    }
+    data().academicSettings = s;
     audit(user, 'Changed Academic settings');
     save();
     return s;
@@ -517,7 +536,7 @@ export function registerAcademicRoutes(route, ctx) {
     if (!c) fail('Pick the subject to credit.');
     if (records(st.id).some((r) => r.courseId === c.id && r.passed)) fail(`${c.code} is already passed or credited.`);
     const grade = body.grade === '' || body.grade == null ? null : Number(body.grade);
-    if (grade != null && !(grade >= 1 && grade <= PASSING_GRADE)) fail(`A credited grade is between 1.00 and ${PASSING_GRADE.toFixed(2)}.`);
+    if (grade != null && !(grade >= 1 && grade <= S().passingGrade)) fail(`A credited grade is between 1.00 and ${Number(S().passingGrade).toFixed(2)}.`);
     const school = text(body.school, 160);
     if (!school) fail('Name the school where the subject was taken.');
     const r = {
@@ -538,7 +557,7 @@ export function registerAcademicRoutes(route, ctx) {
     const d = data();
     return d.enrollments.filter((e) => e.sectionId === section.id && ['enrolled', 'completed'].includes(e.status)).map((e) => {
       const st = byId(d.users, e.studentId);
-      const eq = e.status === 'completed' ? equivalent(e.finalGrade, S().scale) : null;
+      const eq = e.status === 'completed' ? equivalent(e.finalGrade, S().scale, S().passingGrade) : null;
       return { studentId: e.studentId, enrollmentId: e.id, name: st?.name || '?', studentNo: st?.studentNo || '', percent: e.status === 'completed' ? e.finalGrade : null, grade: eq?.grade ?? null, remark: eq ? (eq.passed ? 'passed' : 'failed') : null };
     }).sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -651,7 +670,7 @@ export function registerAcademicRoutes(route, ctx) {
     else {
       const pct = Number(body.percent);
       if (!(pct >= 0 && pct <= 100) || body.percent === '' || body.percent == null) fail('Enter the corrected percentage (0–100).');
-      const eq = equivalent(pct, S().scale);
+      const eq = equivalent(pct, S().scale, S().passingGrade);
       to = { percent: pct, grade: eq.grade, remark: eq.passed ? 'passed' : 'failed', passed: eq.passed };
     }
     const change = {
@@ -688,11 +707,8 @@ export function registerAcademicRoutes(route, ctx) {
   });
 
   // ----- Documents: requests, issuing, verification -----
-  const nextRef = () => {
-    const y = new Date().getFullYear();
-    const n = data().documentRequests.filter((r) => r.refNo?.startsWith(`DR${y}`)).length + 1;
-    return `DR${y}-${String(n).padStart(5, '0')}`;
-  };
+  // Settings → Numbering (DR2026-00001 by default); a new series continues after this year's requests.
+  const nextRef = () => nextNumber(data(), 'documentRequest');
   function newRequest(user, st, body) {
     const t = docType(body.type);
     if (!t) fail('Pick the document.');

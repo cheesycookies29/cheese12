@@ -728,3 +728,65 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
   .topbar .user-btn > svg { display: none; }
   .topbar .brand img { width: 30px; height: auto; }
 }
+
+/* ----- Settings center and Roles & permissions (Admin panel) ----- */
+.table-scroll { overflow-x: auto; max-width: 100%; }
+.roles-matrix tbody th { text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--text); background: none; }
+.roles-matrix tbody th code { text-transform: none; letter-spacing: 0; background: none; color: var(--muted); padding: 0; }
+.roles-matrix thead th:first-child { min-width: 260px; width: 320px; }
+/* The permission names stay in view while a wide table scrolls sideways. */
+.roles-matrix tbody th, .roles-matrix thead th:first-child { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--border); }
+.roles-matrix tbody th { background: var(--surface); width: 320px; max-width: 320px; white-space: normal; }
+details.config-area > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+details.config-area > summary::-webkit-details-marker { display: none; }
+details.config-area > summary::before { content: ''; width: 8px; height: 8px; border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(-45deg); transition: transform 0.15s; flex: none; }
+details.config-area[open] > summary::before { transform: rotate(45deg); }
+details.config-area > summary h3 { margin: 0; font-size: 16px; font-weight: 650; text-transform: none; letter-spacing: 0; color: var(--text); }
+.module-head { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 -4px; }
+.module-head:first-child { margin-top: 0; }
+details.config-area > summary .area-meta { color: var(--muted); font-size: 13px; }
+/* A group's buttons sit beside its heading, outside the <summary> (no buttons inside a button). */
+.config-area-wrap { position: relative; }
+.config-area-wrap + .config-area-wrap, .module-head + .config-area-wrap { margin-top: 0; }
+.area-actions { position: absolute; top: 14px; right: 20px; z-index: 1; display: flex; gap: 8px; }
+details.config-area > summary { padding-right: 230px; min-height: 30px; }
+details.config-area[open] > summary { margin-bottom: 12px; }
+.block { display: block; }
+.negative { color: var(--danger); }
+.check-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); cursor: pointer; }
+.check-inline input { width: auto; margin: 0; }
+.config-toolbar { align-items: center; }
+.config-toolbar input[type='search'] { flex: 1 1 280px; max-width: 420px; }
+.config-area .card-head { gap: 10px; flex-wrap: wrap; }
+.config-area .card-head h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.config-table td { vertical-align: top; }
+.config-table td:first-child { min-width: 240px; }
+.config-table small.block { margin-top: 2px; line-height: 1.4; }
+.config-value { max-width: 320px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.config-table tr.is-changed td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.config-table .row-actions { white-space: nowrap; }
+.history-entry { padding: 14px 18px; }
+.history-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.history-head strong { margin-right: 4px; }
+.change-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.change-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 14px; overflow-wrap: anywhere; }
+.change-label { font-weight: 600; min-width: 200px; }
+.change-from { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.change-to { color: var(--text); font-weight: 500; }
+.import-area { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px 12px; margin: 0; }
+.import-area legend { padding: 0 6px; }
+.roles-matrix th[scope='row'] { text-align: left; font-weight: 500; min-width: 260px; }
+.roles-matrix th[scope='row'] code { font-size: 11.5px; }
+.roles-matrix thead th { font-size: 12.5px; white-space: normal; min-width: 92px; }
+.roles-matrix input[type='checkbox'] { width: 18px; height: 18px; cursor: pointer; }
+.perm-changed, .perm-changed-key { background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.perm-changed-key { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
+.sticky-actions[hidden] { display: none; }
+.sticky-actions { position: sticky; bottom: 0; z-index: 5; padding: 12px 0; background: linear-gradient(to top, var(--bg) 70%, transparent); align-items: center; gap: 12px; }
+@media (max-width: 720px) {
+  .area-actions { position: static; justify-content: flex-end; margin-bottom: -6px; }
+  details.config-area > summary { padding-right: 0; }
+  .config-table td:first-child { min-width: 0; }
+  .change-label { min-width: 0; flex-basis: 100%; }
+  .history-head { flex-direction: column; }
+}

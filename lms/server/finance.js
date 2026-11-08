@@ -239,9 +239,11 @@ export function registerFinanceRoutes(route, ctx) {
   };
 
   // ----- Settings and the Control panel -----
+  const THRESHOLD_LABELS = { capitalization: 'The capitalization threshold', semiHighValue: 'The semi-expendable high-value threshold', residualRate: 'The residual value rate', depositDays: 'Days to deposit collections', svpLimit: 'The small value procurement limit', directAcquisitionLimit: 'The direct acquisition limit' };
   const publicSettings = () => ({
     ...S(),
     entity: { ...S().entity, name: S().entity.name || data().settings.schoolName },
+    entityNameSet: S().entity.name, // blank: the school's name (Admin panel → Settings), kept in step with it
     fiscalYear: fy(),
     fundClusters: FUND_CLUSTERS,
     allotmentClasses: ALLOTMENT_CLASSES,
@@ -262,6 +264,26 @@ export function registerFinanceRoutes(route, ctx) {
     const p = publicSettings();
     return isStaff(user) ? p : { entity: p.entity, fiscalYear: p.fiscalYear, fundClusters: FUND_CLUSTERS, funds: p.funds, offices: p.offices, signatories: p.signatories, journals: JOURNALS, cardKinds: CARD_KINDS };
   });
+  // Codes that Finance's documents use (fund clusters, offices, PAPs, ATCs, bank accounts), so a
+  // setting still in use cannot be removed from under them.
+  const DOC_COLLECTIONS = () => Object.keys(data()).filter((k) => k.startsWith('fin') && !['finSettings', 'finCounters', 'finAccounts', 'finAudit', 'finCards'].includes(k));
+  const usedCodes = (key) => {
+    const found = new Set();
+    const walk = (v) => {
+      if (Array.isArray(v)) for (const x of v) walk(x);
+      else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) (k === key && (typeof x === 'string' || typeof x === 'number') ? found.add(String(x)) : walk(x));
+    };
+    for (const k of DOC_COLLECTIONS()) walk(data()[k]);
+    return found;
+  };
+  const keepUsed = (before, after, key, label) => {
+    const kept = new Set(after.map(String));
+    const removed = before.map(String).filter((c) => !kept.has(c));
+    if (!removed.length) return;
+    const used = usedCodes(key);
+    const inUse = removed.filter((c) => used.has(c));
+    if (inUse.length) fail(`${label} ${inUse.join(', ')} ${inUse.length === 1 ? 'is' : 'are'} used by documents and cannot be removed.`);
+  };
   route('PUT', '/api/finance/settings', 'finance:finance.settings', ({ user, body }) => {
     const s = S();
     if (body.entity) {
@@ -277,6 +299,7 @@ export function registerFinanceRoutes(route, ctx) {
       list(body.funds, 'Fund clusters');
       const codes = [...new Set(body.funds.map(String))].filter((c) => FUND_CLUSTERS.some((f) => f.code === c));
       if (!codes.length) fail('Keep at least one fund cluster.');
+      keepUsed(s.funds, codes, 'fund', 'Fund');
       s.funds = codes.sort();
     }
     const codeList = (items, label, max = 20) => {
@@ -285,9 +308,18 @@ export function registerFinanceRoutes(route, ctx) {
       if (new Set(out.map((x) => x.code)).size !== out.length) fail(`Two ${label}s have the same code.`);
       return out;
     };
-    if (body.offices) s.offices = codeList(body.offices, 'office').map((o) => ({ code: o.code, name: o.name, head: text(o.head, 120) }));
-    if (body.paps) s.paps = codeList(body.paps, 'program/activity/project', 30).map((p) => ({ code: p.code, name: p.name }));
+    if (body.offices) {
+      const next = codeList(body.offices, 'office').map((o) => ({ code: o.code, name: o.name, head: text(o.head, 120) }));
+      keepUsed(s.offices.map((o) => o.code), next.map((o) => o.code), 'office', 'Office');
+      s.offices = next;
+    }
+    if (body.paps) {
+      const next = codeList(body.paps, 'program/activity/project', 30).map((p) => ({ code: p.code, name: p.name }));
+      keepUsed(s.paps.map((p) => p.code), next.map((p) => p.code), 'pap', 'PAP');
+      s.paps = next;
+    }
     if (body.bankAccounts) {
+      const before = s.bankAccounts;
       s.bankAccounts = list(body.bankAccounts, 'Bank accounts').map((b) => {
         const code = String(b.code || ACCT.cashBank);
         if (!/^1010[1-5]/.test(code)) fail('A bank account posts to a cash account (101…).');
@@ -295,6 +327,7 @@ export function registerFinanceRoutes(route, ctx) {
         if (!text(b.name, 120) || !text(b.number, 40)) fail('Each bank account needs a bank name and an account number.');
         return { id: b.id || randomUUID(), name: text(b.name, 120), number: text(b.number, 40), fund: fx.fund(String(b.fund)), code };
       });
+      keepUsed(before.map((b) => b.id), s.bankAccounts.map((b) => b.id), 'bankId', 'Bank account');
     }
     if (body.signatories && typeof body.signatories === 'object') {
       for (const k of Object.keys(s.signatories)) {
@@ -310,28 +343,43 @@ export function registerFinanceRoutes(route, ctx) {
       }
     }
     if (body.taxes) {
+      const before = s.taxes;
       s.taxes = list(body.taxes, 'Taxes').map((t) => {
         const rate = Number(t.rate);
         if (!/^[A-Z]{2}\d{3}$/.test(String(t.atc || '').toUpperCase())) fail('An ATC looks like WC158.');
         if (!(rate >= 0 && rate <= 50)) fail(`Rate for ${t.atc} must be between 0 and 50 percent.`);
         if (!['ewt', 'vat', 'pt'].includes(t.kind)) fail('Tax kind is ewt, vat or pt.');
-        return { atc: String(t.atc).toUpperCase(), kind: t.kind, rate, payee: t.payee || undefined, nature: text(t.nature, 30), label: text(t.label, 200) };
+        return { atc: String(t.atc).toUpperCase(), kind: t.kind, rate, payee: ['individual', 'corporation'].includes(t.payee) ? t.payee : undefined, nature: text(t.nature, 30), label: text(t.label, 200) };
       });
+      const atcs = s.taxes.map((t) => t.atc);
+      const dup = atcs.find((a, i) => atcs.indexOf(a) !== i);
+      if (dup) fail(`ATC ${dup} is listed twice.`);
+      keepUsed(before.map((t) => t.atc), atcs, 'atc', 'ATC');
     }
     for (const [k, min, max] of [['capitalization', 1, 1e7], ['semiHighValue', 0, 1e7], ['residualRate', 0, 50], ['depositDays', 0, 10], ['svpLimit', 0, 1e9], ['directAcquisitionLimit', 0, 1e9]]) {
       if (body[k] !== undefined) {
         const n = Number(body[k]);
-        if (!(n >= min && n <= max)) fail(`${k} must be between ${min} and ${max}.`);
+        if (body[k] === '' || !(n >= min && n <= max)) fail(`${THRESHOLD_LABELS[k] || k} must be between ${min.toLocaleString('en-PH')} and ${max.toLocaleString('en-PH')}.`);
         s[k] = n;
       }
     }
-    if (body.liquidationDays && typeof body.liquidationDays === 'object') for (const k of Object.keys(s.liquidationDays)) if (body.liquidationDays[k] !== undefined) s.liquidationDays[k] = Math.max(1, Math.min(365, Number(body.liquidationDays[k]) || 1));
+    if (s.semiHighValue >= s.capitalization) fail('The semi-expendable high-value threshold must be below the capitalization threshold.');
+    if (body.liquidationDays && typeof body.liquidationDays === 'object') {
+      for (const k of Object.keys(s.liquidationDays)) {
+        if (body.liquidationDays[k] === undefined) continue;
+        const n = Number(body.liquidationDays[k]);
+        if (!Number.isInteger(n) || n < 1 || n > 365) fail('Days to liquidate must be a whole number from 1 to 365.');
+        s.liquidationDays[k] = n;
+      }
+    }
     if (body.revenueItems) {
       s.revenueItems = list(body.revenueItems, 'Fees').map((r) => {
         const a = fx.account(String(r.code));
         if (a.group !== 4 && !tracksCard(r.code)) fail(`${r.name}: a fee is credited to a revenue, trust or receivable account.`);
         if (!text(r.name, 120)) fail('Each fee needs a name.');
-        return { id: r.id || randomUUID(), name: text(r.name, 120), code: a.code, amount: round2(r.amount || 0), fund: fx.fund(String(r.fund || '05')) };
+        const amount = Number(r.amount || 0);
+        if (!Number.isFinite(amount) || amount < 0 || amount > 1e8) fail(`${text(r.name, 120)}: the amount must be 0 or more.`);
+        return { id: r.id || randomUUID(), name: text(r.name, 120), code: a.code, amount: round2(amount), fund: fx.fund(String(r.fund || '05')) };
       });
     }
     fx.audit(user, 'Changed Finance settings', { kind: 'settings' });
@@ -390,8 +438,8 @@ export function registerFinanceRoutes(route, ctx) {
     adminOnly(user);
     if (!FIN_ONLY().includes(body.role)) fail('Pick a Finance account type.');
     const fields = validateUserFields({ ...body, role: body.role }, data());
-    validatePassword(body.password);
-    const u = { id: randomUUID(), ...fields, campusIds: [campusId || data().campuses[0]?.id].filter(Boolean), status: 'active', mustChangePassword: body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: iso() };
+    validatePassword(body.password, data().settings.security);
+    const u = { id: randomUUID(), ...fields, campusIds: [campusId || data().campuses[0]?.id].filter(Boolean), status: 'active', mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: iso() };
     data().users.push(u);
     fx.audit(user, `Created ${ROLES[u.role].label} account ${u.username}`, { kind: 'user', ref: u.id });
     save();
@@ -414,7 +462,7 @@ export function registerFinanceRoutes(route, ctx) {
       if (u.status === 'disabled') ctx.signOutEverywhere(u.id);
     }
     if (body.password) {
-      validatePassword(body.password);
+      validatePassword(body.password, data().settings.security);
       u.passwordHash = hashPassword(body.password);
       u.mustChangePassword = true;
       ctx.signOutEverywhere(u.id);

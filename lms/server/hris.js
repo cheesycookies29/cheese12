@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime, text } from './util.js';
 import { computePayslip, toMinutes, scheduleFor, dayOfWeek, DEFAULT_SETTINGS as HR_DEFAULTS, DEFAULT_RATES } from '../shared/calc.js';
 import { ROLES, HRIS_ROLES, can } from '../shared/roles.js';
+import { nextNumber } from './numbering.js';
 import { hashPassword, validatePassword } from './auth.js';
 import { campusesFor, campusName } from './campus.js';
 import { validateUserFields } from './admin.js';
@@ -71,8 +72,7 @@ function validateSchedule(s) {
 }
 
 export function nextEmployeeNo(data) {
-  const max = data.employees.reduce((m, e) => Math.max(m, Number((String(e.employeeNo).match(/(\d+)$/) || [])[1]) || 0), 0);
-  return `EMP-${String(max + 1).padStart(4, '0')}`;
+  return nextNumber(data, 'employeeNo');
 }
 
 function validateEmployee(input, data, existingId) {
@@ -242,7 +242,7 @@ function validateTaxTable(rows, label) {
   return out;
 }
 
-function validatePayrollConfig(s) {
+function validatePayrollConfig(s, data, prev) {
   s.payFrequency = s.payFrequency === 'monthly' ? 'monthly' : 'semi-monthly';
   s.workDaysPerYear = num(s.workDaysPerYear, 'Work days per year', 200, 366);
   s.gracePeriodMinutes = num(s.gracePeriodMinutes, 'Grace period', 0, 120);
@@ -261,7 +261,7 @@ function validatePayrollConfig(s) {
     overtimeRegular: num(g.overtimeRegular, 'Overtime rate (work days)', 1, 5), overtimeRestDay: num(g.overtimeRestDay, 'Overtime rate (rest days)', 1, 5),
     overtimeCapPercent: num(g.overtimeCapPercent, 'Overtime cap', 0, 100),
     tardiness: g.tardiness === 'salary' ? 'salary' : 'leave',
-    vacationLeaveId: String(g.vacationLeaveId || 'vl').slice(0, 40),
+    vacationLeaveId: (data?.leaveTypes || []).some((t) => t.id === g.vacationLeaveId) || !data?.leaveTypes?.length ? String(g.vacationLeaveId || 'vl').slice(0, 40) : fail('Pick the leave type that tardiness and undertime are charged to.'),
     benefitsExemptCeiling: num(g.benefitsExemptCeiling, '13th-month and other benefits exemption', 0, 1e7),
     cashGift: num(g.cashGift, 'Cash gift', 0, 1e6), pei: num(g.pei, 'PEI', 0, 1e6),
     clothingAllowance: num(g.clothingAllowance, 'Clothing allowance', 0, 1e6), clothingExemptCeiling: num(g.clothingExemptCeiling, 'Clothing de minimis ceiling', 0, 1e6),
@@ -269,6 +269,14 @@ function validatePayrollConfig(s) {
     jobOrderEwt: num(g.jobOrderEwt, 'Job order withholding tax', 0, 1), jobOrderPercentageTax: num(g.jobOrderPercentageTax, 'Job order percentage tax', 0, 1),
     payrollFund: /^\d{2}$/.test(String(g.payrollFund || '')) ? String(g.payrollFund) : '01',
   };
+  // The fund cluster payroll is charged to must be one Finance uses.
+  const funds = data?.finSettings?.funds;
+  if (Array.isArray(funds) && funds.length && !funds.includes(s.gov.payrollFund)) fail(`Fund ${s.gov.payrollFund} is not one of the fund clusters switched on in Finance (${funds.join(', ')}).`);
+  // Draft runs were computed under the old rules: changing how pay is computed under them would mix the two.
+  if (prev && data && (prev.payrollSystem !== s.payrollSystem || prev.payFrequency !== s.payFrequency)) {
+    const drafts = data.payrollRuns.filter((r) => r.status === 'draft').length;
+    if (drafts) fail(`Finalize or delete the ${drafts} draft payroll run${drafts === 1 ? '' : 's'} before changing the payroll system or pay frequency.`);
+  }
   const { sss, philhealth, pagibig } = s.rates;
   s.rates.sss = {
     eeRate: num(sss.eeRate, 'SSS employee rate', 0, 1), erRate: num(sss.erRate, 'SSS employer rate', 0, 1),
@@ -324,7 +332,12 @@ export function registerHrisRoutes(route, ctx) {
   // Each campus has its own clock-in location; the screens get the one for the campus they are on.
   const hrSettingsView = (campusId) => {
     const { locations: _all, ...s } = data().hrSettings;
-    return { ...s, employerName: data().settings.schoolName, location: locationSettings(data(), campusId) };
+    return {
+      ...s, employerName: data().settings.schoolName, location: locationSettings(data(), campusId),
+      // For Payroll setup's choices: the leave types tardiness can be charged to, and Finance's fund clusters.
+      leaveTypeChoices: data().leaveTypes.filter((t) => t.active !== false && t.paid !== false).map((t) => ({ id: t.id, code: t.code, name: t.name })),
+      fundChoices: data().finSettings?.funds || ['01'],
+    };
   };
   // Clock-in locations past each campus's retention period are removed at start-up and while the server runs.
   if (purgeOldLocations(data(), ctx.now())) save();
@@ -346,7 +359,7 @@ export function registerHrisRoutes(route, ctx) {
   // Payroll setup: pay rules, deductions, government rates and tax tables (payroll, administrators).
   route('PUT', '/api/hris/payroll-config', 'hris:payroll.config', ({ body, user, campusId }) => {
     const next = mergeHrSettings({ ...data().hrSettings, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'overtimeMultiplier', 'restDayMultiplier', 'contributions', 'rates', 'payrollSystem']), gov: { ...data().hrSettings.gov, ...(body.gov || {}) } });
-    data().hrSettings = { ...validatePayrollConfig(next), payrollConfigUpdatedAt: new Date().toISOString(), payrollConfigUpdatedBy: user.name };
+    data().hrSettings = { ...validatePayrollConfig(next, data(), data().hrSettings), payrollConfigUpdatedAt: new Date().toISOString(), payrollConfigUpdatedBy: user.name };
     save();
     return hrSettingsView(campusId);
   });
@@ -491,10 +504,10 @@ export function registerHrisRoutes(route, ctx) {
     if (data().users.some((x) => x.employeeId === emp.id)) fail('This employee already has an account. Unlink it first.');
     const role = HRIS_ROLES.includes(body.role) ? body.role : fail('Pick an account type (Staff, HR, payroll or a Finance office).');
     const fields = validateUserFields({ role, name: `${emp.firstName} ${emp.lastName}`, username: body.username, email: emp.email }, data());
-    validatePassword(body.password);
+    validatePassword(body.password, data().settings.security);
     data().users.push({
       id: randomUUID(), ...fields, campusIds: [emp.campusId], employeeId: emp.id, status: 'active',
-      mustChangePassword: body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: new Date().toISOString(),
+      mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: new Date().toISOString(),
     });
     save();
     return employeeView(emp);
@@ -517,7 +530,7 @@ export function registerHrisRoutes(route, ctx) {
       if (u.status === 'disabled') ctx.signOutEverywhere(u.id);
     }
     if (body.password) {
-      validatePassword(body.password);
+      validatePassword(body.password, data().settings.security);
       u.passwordHash = hashPassword(body.password);
       u.mustChangePassword = true;
       ctx.signOutEverywhere(u.id);

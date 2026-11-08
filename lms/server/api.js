@@ -20,7 +20,7 @@ import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
   sessionCookie, clearedCookie, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
-import { ROLES, can } from '../shared/roles.js';
+import { ROLES, can, setRoleOverrides } from '../shared/roles.js';
 import { MODULES, moduleOn, enabledModules } from '../shared/modules.js';
 import { registerEnrollmentRoutes } from './enrollment.js';
 import { registerAdminRoutes, validateUserFields } from './admin.js';
@@ -49,6 +49,7 @@ import { HRIS_PERMISSION_LABELS } from '../shared/roles.js';
 import { registerAcademicRoutes, ACADEMIC_ROLES } from './academic.js';
 import { registerSsoRoutes } from './sso.js';
 import { registerFinanceRoutes } from './finance.js';
+import { registerConfigRoutes } from './config.js';
 import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
@@ -68,8 +69,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     return timingSafeEqual(a, b);
   };
   const routes = [];
-  const sides = { portal: createSessions(), admin: createSessions(), hris: createSessions() };
-  const throttle = createThrottle();
+  // Settings → Sign-in & passwords: idle sign-out and lockout apply at once.
+  const security = () => db.data.settings.security || {};
+  const idleMs = () => Math.min(72, Math.max(1, Number(security().idleHours) || 8)) * 3600 * 1000;
+  const sides = { portal: createSessions(idleMs), admin: createSessions(idleMs), hris: createSessions(idleMs) };
+  const throttle = createThrottle(() => ({ max: Number(security().lockoutAttempts) || 5, lockMs: (Number(security().lockoutMinutes) || 5) * 60 * 1000 }));
   const users = () => db.data.users;
 
   const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false } = {}) => {
@@ -115,7 +119,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (sso?.enabled && !sso.allowPasswords && user.role !== 'admin') fail(`This school signs in with Keycloak. Choose "${sso.label}".`, 403);
     user.lastLoginAt = new Date().toISOString();
     db.save();
-    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id)) } };
+    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id), idleMs()) } };
   }
 
   // A session for `user` on their side, ending any other side's session in this browser (single sign-on).
@@ -124,12 +128,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (!side) fail('This account type cannot sign in.', 403);
     for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
     user.lastLoginAt = new Date().toISOString();
-    return [sessionCookie(COOKIES[side], sides[side].create(user.id, extra)), ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
+    return [sessionCookie(COOKIES[side], sides[side].create(user.id, extra), idleMs()), ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
   }
 
   function changePassword(side, { user, token, body }) {
     if (!verifyPassword(String(body.currentPassword || ''), user.passwordHash)) fail('Your current password is incorrect.');
-    validatePassword(body.newPassword);
+    validatePassword(body.newPassword, db.data.settings.security);
     if (body.newPassword === body.currentPassword) fail('Choose a password different from the current one.');
     user.passwordHash = hashPassword(body.newPassword);
     user.mustChangePassword = false;
@@ -169,6 +173,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     children: user?.role === 'guardian' ? guardianChildren(db.data, user.id).map(({ link, student }) => ({ id: student.id, name: student.name, relationship: link.relationship })) : undefined,
     currentTermId: db.data.settings.currentTermId,
     passingGrade: db.data.settings.passingGrade,
+    maxUploadMb: Math.min(15, Number(db.data.settings.learn?.maxUploadMb) || 10),
   });
 
   // ----- Learning portal: sign-in and admissions -----
@@ -196,7 +201,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const campus = db.data.campuses.find((c) => c.id === body.campusId) || (db.data.campuses.length === 1 ? db.data.campuses[0] : null);
     if (!campus) fail('Pick the campus you are applying to.');
     fields.campusIds = [campus.id];
-    validatePassword(body.password);
+    validatePassword(body.password, db.data.settings.security);
     const user = {
       id: randomUUID(),
       ...fields,
@@ -275,6 +280,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     branding: branding(),
     user: publicUser(adminUser),
     ...campusInfo(adminUser),
+    roleOverrides: adminUser ? db.data.roleOverrides || {} : undefined, // the Admin panel's can() (shared/roles.js)
   }));
   route('POST', '/api/admin/auth/setup', 'public', ({ body }) => {
     if (!setupRequired()) fail('Setup is already complete. Please sign in.');
@@ -286,7 +292,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       }
     }
     const fields = validateUserFields({ ...body, role: 'admin' }, db.data);
-    validatePassword(body.password);
+    validatePassword(body.password, db.data.settings.security);
     users().push({ id: randomUUID(), ...fields, status: 'active', mustChangePassword: false, passwordHash: hashPassword(body.password), createdAt: new Date().toISOString() });
     if (body.schoolName) db.data.settings.schoolName = text(body.schoolName, 120);
     if (text(body.campusName, 80)) {
@@ -309,6 +315,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (!Array.isArray(body.users) || !Array.isArray(body.enrollments)) fail('That file is not an ATLAS backup.');
     if (!body.users.some((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash)) fail('The backup has no active administrator, so nobody could sign in.');
     db.replace({ ...emptyData(), ...body });
+    setRoleOverrides(db.data.roleOverrides);
     return { ok: true };
   });
   route('GET', '/api/admin/demo', 'admin:data.manage', () => demoStatus(db.data));
@@ -388,6 +395,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
   route('POST', '/api/finance/auth/campus', 'finance', ({ user, body }) => switchCampus(user, body));
   const finance = registerFinanceRoutes(route, ctx);
+  registerConfigRoutes(route, ctx);
   const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
 
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
@@ -477,6 +485,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const campusId = user ? activeCampusId(db.data, user) : null;
       // A Finance change is all or nothing: if any check fails partway, the books are put back as they were.
       const finSnap = req.method !== 'GET' && url.pathname.startsWith('/api/finance/') ? Object.fromEntries(Object.keys(db.data).filter((k) => k.startsWith('fin')).map((k) => [k, structuredClone(db.data[k])])) : null;
+      // A settings screen's save is recorded in the Settings center's history (server/config.js).
+      const recordSettings = ctx.settingsWatch?.(req.method, url.pathname);
       let result;
       try {
         result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies });
@@ -484,6 +494,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         if (finSnap) Object.assign(db.data, finSnap);
         throw err;
       }
+      recordSettings?.(user);
       if (result?.raw != null) return result; // a file, a page or a redirect
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }

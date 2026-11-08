@@ -159,6 +159,7 @@ export async function payrollSetupView(el) {
       <h3>Time</h3>
       <div class="grid four">
         <label class="field"><span>Tardiness and undertime</span>${pick('gov.tardiness', g.tardiness, [['leave', 'Charged to vacation leave first (CSC)'], ['salary', 'Deducted from pay']])}</label>
+        <label class="field"><span>Leave charged first</span>${pick('gov.vacationLeaveId', g.vacationLeaveId, (s.leaveTypeChoices || [{ id: 'vl', code: 'VL', name: 'Vacation Leave' }]).map((t) => [t.id, `${t.code} · ${t.name}`]))}<span class="hint">When tardiness is charged to leave</span></label>
         <label class="field"><span>Overtime</span>${pick('gov.overtime', g.overtime, [['cto', 'Compensatory time-off (COC), not paid'], ['pay', 'Paid (CSC-DBM JC 2, 2015)']])}</label>
         ${numField('Overtime rate, work days', 'gov.overtimeRegular', g.overtimeRegular, { step: 0.01, suffix: '× hourly' })}
         ${numField('Overtime rate, rest days', 'gov.overtimeRestDay', g.overtimeRestDay, { step: 0.01, suffix: '× hourly' })}
@@ -177,6 +178,10 @@ export async function payrollSetupView(el) {
       <div class="grid four">
         ${numField('Withholding tax', 'gov.jobOrderEwt', pct(g.jobOrderEwt), { suffix: '%', hint: '0 if the worker gave a sworn declaration' })}
         ${numField('Percentage tax', 'gov.jobOrderPercentageTax', pct(g.jobOrderPercentageTax), { suffix: '%', hint: 'Non-VAT workers' })}
+      </div>
+      <h3>ATLAS Finance</h3>
+      <div class="grid four">
+        <label class="field"><span>Payroll fund cluster</span>${pick('gov.payrollFund', g.payrollFund, (s.fundChoices || ['01']).map((f) => [f, `Fund ${f}`]))}<span class="hint">The obligation request and voucher are charged to this fund</span></label>
       </div>`);
   }
 
@@ -229,6 +234,7 @@ export async function payrollSetupView(el) {
         tardiness: fd.get('gov.tardiness'), overtime: fd.get('gov.overtime'), overtimeRegular: n('gov.overtimeRegular'), overtimeRestDay: n('gov.overtimeRestDay'), overtimeCapPercent: n('gov.overtimeCapPercent'),
         cashGift: n('gov.cashGift'), pei: n('gov.pei'), clothingAllowance: n('gov.clothingAllowance'), clothingExemptCeiling: n('gov.clothingExemptCeiling'), clothingMinMonths: n('gov.clothingMinMonths'),
         benefitsExemptCeiling: n('gov.benefitsExemptCeiling'), jobOrderEwt: p('gov.jobOrderEwt'), jobOrderPercentageTax: p('gov.jobOrderPercentageTax'),
+        vacationLeaveId: fd.get('gov.vacationLeaveId') || g.vacationLeaveId, payrollFund: fd.get('gov.payrollFund') || g.payrollFund,
       },
       rates: {
         sss: { eeRate: p('sss.eeRate'), erRate: p('sss.erRate'), minMsc: n('sss.minMsc'), maxMsc: n('sss.maxMsc'), mscStep: n('sss.mscStep'), ecLow: n('sss.ecLow'), ecHigh: n('sss.ecHigh'), ecThreshold: n('sss.ecThreshold') },

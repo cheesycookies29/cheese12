@@ -127,7 +127,7 @@ The payment entry is reversed and the voucher goes back to *to pay*. Payments on
 ### Keep the chart of accounts and the settings
 
 1. **Chart of accounts**: **Add account** adds an 8-digit code under an existing major group (only accounts COA has authorized). **Switch off** hides an account from new entries; accounts the modules post to stay on.
-2. **Control panel** tabs: **Entity** (name, UACS code, TIN, fiscal year), **Funds & offices** (fund clusters, responsibility centers, PAPs), **Banks & fees** (bank accounts and the fee list), **Signatories** (names on every form, and document numbering), **Taxes & rules** (withholding rates, thresholds, deadlines), **Periods & closing**, and **Users** (who has which Finance role).
+2. **Control panel** tabs: **Entity** (name, UACS code, TIN, fiscal year; leave the name blank to use the school's name, so it follows a change of name), **Funds & offices** (fund clusters, responsibility centers, PAPs), **Banks & fees** (bank accounts and the fee list), **Signatories** (names on every form, and document numbering), **Taxes & rules** (withholding rates, thresholds, deadlines), **Periods & closing**, and **Users** (who has which Finance role; for administrators). A fund cluster, office, PAP, bank account or ATC that documents already use cannot be removed, and the semi-expendable threshold must stay below the capitalization threshold.
 
 ### Handle payroll from ATLAS People
 

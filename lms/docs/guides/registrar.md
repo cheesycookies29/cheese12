@@ -228,8 +228,11 @@ Deans do the same work; see [the dean's guide](dean).
 
 Open **Academic → Settings**:
 
-- **Grading scale**: from the final percentage to the grade. Click **Save scale**. Grades already posted keep the equivalent they were posted with.
-- **Rules and signatory**: the INC deadline, the dean's list rules, the registrar's name and title on documents, and the fee for each document. Click **Save**.
+- **Grading scale**: from the final percentage to the grade, and the **Lowest passing grade** (3.00 by default). **Add a band** adds a row and **×** removes one; ATLAS refuses a scale where a higher percentage gets a worse grade, two bands start at the same percentage, or nothing starts at 0%. **Restore the default scale** puts back 1.00 to 5.00 with passing at 3.00. Click **Save scale**. Grades already posted keep the equivalent they were posted with.
+- If the scale's passing line and Learn's **Passing grade (%)** (Admin panel → Settings & branding) differ, the scale shows a warning: make them the same so Learn and the permanent record agree.
+- **Rules and signatory**: the INC deadline (30 to 1000 days), the dean's list rules (the "no grade lower than" rule cannot be a failing grade), the registrar's name and title on documents, and the fee for each document. Click **Save**.
+
+An administrator decides who may change these settings (Admin panel → **Roles & permissions**), and sees every change you make in the Settings center's history.
 - **Admission requirements**: tick the student types that must submit each one; **Add** a new one. Click **Save requirements**.
 - **Colleges**: **Add college** with its code, name, dean and programs.
 

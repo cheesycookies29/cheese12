@@ -1,5 +1,5 @@
 // Uploaded files (class resources, handed-in work) and class resources (a file or a link).
-// Files arrive as base64 in JSON (up to 10 MB each) and are kept in data/files/<id>.
+// Files arrive as base64 in JSON (up to 10 MB each by default; Admin panel → Settings) and are kept in data/files/<id>.
 // They are served back with nosniff and a sandbox policy; only PDFs, pictures, audio
 // and video open in the browser, everything else downloads, so an uploaded web page
 // can never run as part of the LMS.
@@ -11,7 +11,7 @@ import { HttpError, text } from './util.js';
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
 };
-export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const MAX_FILE_BYTES = 15 * 1024 * 1024; // the most Settings can allow
 const INLINE = /^(application\/pdf|image\/(png|jpeg|gif|webp)|video\/(mp4|webm|ogg)|audio\/(mpeg|ogg|wav|webm|mp4))$/;
 
 // Kinds used for the filter chips and icons.
@@ -39,7 +39,9 @@ export function createFileStore(db) {
       if (!name || typeof input?.data !== 'string') fail('Choose a file.');
       const bytes = Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64');
       if (!bytes.length) fail('That file is empty.');
-      if (bytes.length > MAX_FILE_BYTES) fail('Files can be at most 10 MB.');
+      // Settings → Learn & uploads (at most 15 MB: requests are limited to 20 MB, and files travel as base64).
+      const maxMb = Math.min(15, Math.max(1, Number(db.data?.settings?.learn?.maxUploadMb) || 10));
+      if (bytes.length > Math.min(maxMb * 1024 * 1024, MAX_FILE_BYTES)) fail(`Files can be at most ${maxMb} MB.`);
       const meta = {
         id: randomUUID(), name, mime: /^[\w.+-]+\/[\w.+-]+$/.test(input.type || '') ? input.type : 'application/octet-stream',
         size: bytes.length, sectionId, ownerId: owner.id, createdAt: new Date().toISOString(),

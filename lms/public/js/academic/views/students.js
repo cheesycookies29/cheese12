@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, badge, toast, modal, option, initials, fmtDate, timeAgo, downloadFile, toCsv, formData } from '../../ui.js';
-import { STUDENT_TYPES, studentTypeLabel, yearLabel, DOCUMENT_TYPES, docType } from '/shared/academic.js';
+import { STUDENT_TYPES, studentTypeLabel, yearLabel, DOCUMENT_TYPES, docType, fmtGrade } from '/shared/academic.js';
 import { ac, can, clickableRows, gwaText, requestBadge } from '../state.js';
 import { evaluationSummary, evaluationTable, recordTerms, currentTerm } from './parts.js';
 
@@ -137,7 +137,7 @@ export async function studentRecordView(el, params, query) {
           <label class="field span-2"><span>Subject here</span><select name="courseId" required>${option('', 'Choose…')}${courses.map((c) => option(c.id, `${c.code} · ${c.title} (${c.units} units)`))}</select></label>
           <label class="field span-2"><span>School where it was taken</span><input name="school" required /></label>
           <label class="field"><span>Code there</span><input name="originalCode" /></label>
-          <label class="field"><span>Grade (1.00–3.00)</span><input name="grade" type="number" min="1" max="3" step="0.25" /><span class="hint">Leave blank if the TOR gives no grade.</span></label>
+          <label class="field"><span>Grade (1.00–${fmtGrade(ac.settings?.passingGrade ?? 3)})</span><input name="grade" type="number" min="1" max="${ac.settings?.passingGrade ?? 3}" step="0.25" /><span class="hint">Leave blank if the TOR gives no grade.</span></label>
           <label class="field"><span>Term or year taken</span><input name="termName" placeholder="e.g. 2nd Sem 2024–2025" /></label>
         </div>`,
         async onSubmit(form) {

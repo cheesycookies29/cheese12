@@ -48,7 +48,7 @@ function studentPart(el, a, redraw) {
     ${canSubmit ? html`<form class="card stack tight" id="submit">
       <h2>${s ? 'Hand in again' : 'Hand in your work'}</h2>
       <label class="field"><span>Answer</span><textarea name="text" style="min-height:160px">${s?.text || ''}</textarea></label>
-      <div class="field"><span>File (optional, up to 10 MB)</span>
+      <div class="field"><span>File (optional, up to ${ctx.info.maxUploadMb || 10} MB)</span>
         <div class="dropzone" id="drop">${icon('upload', 20)} <span id="drop-label">${s?.file ? html`Keeping <strong>${s.file.name}</strong>. Drop or <button type="button" class="link" id="pick">choose</button> another file to replace it.` : html`Drop a file here or <button type="button" class="link" id="pick">choose a file</button>`}</span></div>
         <input type="file" id="file" hidden /></div>
       <label class="field"><span>Link to your work (optional)</span><input name="link" value="${s?.link || ''}" placeholder="https://… (document, repository, video)" /></label>

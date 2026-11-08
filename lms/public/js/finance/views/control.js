@@ -30,7 +30,7 @@ export async function controlView(el, _p, query) {
   let usersData = null;
   if (tab === 'entity') {
     body = html`<form class="card" id="form"><div class="grid two">
-      <label class="field span-2"><span>Entity name (on every form)</span><input name="name" value="${s.entity.name}" /></label>
+      <label class="field span-2"><span>Entity name (on every form)</span><input name="name" value="${s.entityNameSet ?? s.entity.name}" placeholder="${s.entity.name}" /><span class="hint">Blank: the school's name, as set in the Admin panel</span></label>
       <label class="field"><span>UACS organization code</span><input name="agencyCode" value="${s.entity.agencyCode}" placeholder="08 084 0000000" /></label>
       <label class="field"><span>TIN (for BIR Form 2307)</span><input name="tin" value="${s.entity.tin}" /></label>
       <label class="field span-2"><span>Address</span><input name="address" value="${s.entity.address}" /></label>
@@ -92,7 +92,7 @@ export async function controlView(el, _p, query) {
   }
   mount(el, html`
     ${pageHead('Control panel', 'Settings that make ATLAS Finance fit the school\'s accounting department.')}
-    <nav class="tabs">${TABS.filter(([k]) => k === 'periods' || can('finance.settings') || k === 'users').map(([k, l]) => html`<a href="#/control?tab=${k}" class="${k === tab ? 'active' : ''}">${l}</a>`)}</nav>
+    <nav class="tabs">${TABS.filter(([k]) => k === 'periods' || can('finance.settings')).map(([k, l]) => html`<a href="#/control?tab=${k}" class="${k === tab ? 'active' : ''}">${l}</a>`)}</nav>
     ${body}`);
   if (usersData) controlUsers(el, usersData, reload);
   const form = el.querySelector('#form');

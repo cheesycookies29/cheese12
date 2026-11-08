@@ -16,6 +16,8 @@ import { systemsView } from './views/systems.js';
 import { ssoView } from './views/sso.js';
 import { campusesView } from './views/campuses.js';
 import { guardiansView, guardianView } from './views/guardians.js';
+import { configView } from './views/config.js';
+import { rolesView } from './views/roles.js';
 
 const p = (permission) => (user) => can(user.role, permission);
 
@@ -42,6 +44,8 @@ const routes = [
   ['/sso', ssoView, p('settings.edit')],
   ['/campuses', campusesView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
+  ['/config', configView, p('settings.edit')],
+  ['/roles', rolesView, (u) => u.role === 'admin'],
   ['/elsewhere', elsewhereView],
 ];
 
@@ -71,6 +75,7 @@ function nav() {
     { heading: 'Communication' },
     c('news.manage') && { href: '/news', label: 'News & events', icon: 'megaphone' },
     { heading: 'Configuration' },
+    c('settings.edit') && { href: '/config', label: 'Settings center', icon: 'search' },
     { href: '/campuses', label: 'Campuses', icon: 'building' },
     { href: '/modules', label: 'Modules', icon: 'toggles' },
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
@@ -78,6 +83,7 @@ function nav() {
     { href: '/systems', label: 'Home page & systems', icon: 'grid' },
     c('settings.edit') && { href: '/sso', label: 'Single sign-on', icon: 'key' },
     c('admins.manage') && { href: '/staff', label: 'Admins, registrars & deans', icon: 'shield' },
+    ctx.user.role === 'admin' && { href: '/roles', label: 'Roles & permissions', icon: 'lock' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
     { href: '/', label: 'ATLAS home', icon: 'grid', external: true },

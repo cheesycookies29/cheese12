@@ -183,11 +183,11 @@ Each step shows its document number, amount and status, with a link that opens i
 ### Change payroll setup
 
 1. Open **Payroll setup**.
-2. Change what you need: the **Payroll system**, **Government payroll** amounts and rules, **Pay rules**, **Deductions to compute**, contribution rates or the **Withholding tax tables**.
+2. Change what you need: the **Payroll system**, **Government payroll** amounts and rules (including **Leave charged first**, the leave type tardiness is charged to, and under **ATLAS Finance** the **Payroll fund cluster** the payroll is charged to), **Pay rules**, **Deductions to compute**, contribution rates or the **Withholding tax tables**.
 3. Use **Try it** to check the result for a salary grade and step.
 4. Click **Save payroll setup**.
 
-Changes apply to new runs and to drafts when you recompute; finalized runs keep the rules they were computed with. **Restore default rates** fills in the current GSIS, PhilHealth and Pag-IBIG rates, PERA and bonus amounts and the TRAIN tax tables, without saving. The salary schedule is read-only.
+Changes apply to new runs and to drafts when you recompute; finalized runs keep the rules they were computed with. To change the **Payroll system** or **Pay frequency**, first finalize or delete the draft runs: ATLAS refuses while there are any. The payroll fund must be one of the fund clusters switched on in Finance's Control panel. **Restore default rates** fills in the current GSIS, PhilHealth and Pag-IBIG rates, PERA and bonus amounts and the TRAIN tax tables, without saving. The salary schedule is read-only.
 
 ![Payroll setup](payroll-setup.jpg)
 

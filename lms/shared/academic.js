@@ -30,12 +30,13 @@ export const REMARKS = {
 export const fmtGrade = (g) => (g == null || g === '' ? '' : Number(g).toFixed(2));
 
 // The equivalent of a percentage on a scale (sorted from the highest band down).
-export function equivalent(percent, scale = DEFAULT_SCALE) {
+// passing: the lowest passing grade (Academic settings; 3.00 by default).
+export function equivalent(percent, scale = DEFAULT_SCALE, passing = PASSING_GRADE) {
   if (percent == null || percent === '' || Number.isNaN(Number(percent))) return null;
   const p = Number(percent);
   const bands = [...scale].sort((a, b) => b.min - a.min);
   const band = bands.find((b) => p >= b.min) || bands.at(-1);
-  return { grade: band.grade, remark: band.remark, passed: band.grade <= PASSING_GRADE };
+  return { grade: band.grade, remark: band.remark, passed: band.grade <= passing };
 }
 
 // Curriculum terms: year level 1–6, and the term in that year.
@@ -96,8 +97,28 @@ export const DEFAULT_ACADEMIC_SETTINGS = {
   incDays: 365, // an INC must be completed within this many days of posting
   honors: { maxGwa: 1.75, worstGrade: 2.5, minUnits: 15 }, // dean's list for a term
   registrar: { name: '', title: 'University Registrar' },
-  maxUnits: 26,
+  passingGrade: PASSING_GRADE, // the lowest passing grade on the scale; worse grades fail
 };
+
+// Problems with a grading scale (sorted highest band first), or [] when it is fine.
+export function scaleProblems(scale, passing = PASSING_GRADE) {
+  const out = [];
+  if (!scale.length) return ['The scale needs at least one band.'];
+  if (scale.some((b) => !(b.min >= 0 && b.min <= 100) || !(b.grade >= 1 && b.grade <= 5))) out.push('Each band needs a percentage from 0 to 100 and a grade from 1.00 to 5.00.');
+  if (!scale.some((b) => b.min === 0)) out.push('The scale needs a band that starts at 0%.');
+  const mins = scale.map((b) => b.min);
+  if (new Set(mins).size !== mins.length) out.push('Two bands start at the same percentage.');
+  for (let i = 1; i < scale.length; i++) if (scale[i].grade < scale[i - 1].grade) out.push(`${scale[i].min}% gets a better grade (${scale[i].grade.toFixed(2)}) than ${scale[i - 1].min}% (${scale[i - 1].grade.toFixed(2)}).`);
+  if (!scale.some((b) => b.grade <= passing)) out.push(`No band reaches the passing grade ${Number(passing).toFixed(2)}.`);
+  if (!scale.some((b) => b.grade > passing)) out.push('The scale needs a failing band.');
+  return out;
+}
+
+// The lowest percentage that passes on a scale (to compare with Learn's passing grade).
+export function passingPercent(scale, passing = PASSING_GRADE) {
+  const ok = scale.filter((b) => b.grade <= passing).map((b) => b.min);
+  return ok.length ? Math.min(...ok) : null;
+}
 
 // General weighted average over records with a numeric grade (credited and special grades left out).
 export function gwa(records) {

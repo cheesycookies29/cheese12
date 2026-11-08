@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, toast, modal, option, formData, confirmDialog } from '../../ui.js';
-import { STUDENT_TYPES, DOCUMENT_TYPES, fmtGrade } from '/shared/academic.js';
+import { STUDENT_TYPES, DOCUMENT_TYPES, fmtGrade, DEFAULT_SCALE, DEFAULT_ACADEMIC_SETTINGS } from '/shared/academic.js';
 import { ac, can } from '../state.js';
 
 export async function settingsView(el) {
@@ -23,25 +23,31 @@ export async function settingsView(el) {
     }
   };
   const scale = [...s.scale].sort((a, b) => b.min - a.min);
+  const pass = fmtGrade(s.passingGrade ?? 3);
+  // Learn and Academic must agree on where passing starts.
+  const mismatch = s.scalePassing != null && s.learnPassing != null && Number(s.scalePassing) !== Number(s.learnPassing);
   mount(el, html`
     ${pageHead('Academic settings', 'Rules used across Academic. Changes apply from now on; posted grades keep the equivalent they were posted with.')}
     ${!edit ? html`<div class="notice info">${icon('lock')}<p>Only the registrar and administrators change these settings. You can manage colleges below.</p></div>` : ''}
     <div class="cols">
       <form class="card" id="scale">
         <div class="card-head"><h2>${icon('chart')} Grading scale</h2></div>
-        <p class="muted small">From the final percentage to the grade on the record. 3.00 is the lowest passing grade; 5.00 fails.</p>
-        <table class="table compact"><thead><tr><th>From (%)</th><th>Grade</th><th>Description</th></tr></thead>
-          <tbody>${scale.map((b, i) => html`<tr><td><input type="number" name="min-${i}" value="${b.min}" min="0" max="100" step="0.01" ${dis} aria-label="From" /></td><td><input type="number" name="grade-${i}" value="${fmtGrade(b.grade)}" min="1" max="5" step="0.25" ${dis} aria-label="Grade" /></td><td><input name="remark-${i}" value="${b.remark}" ${dis} aria-label="Description" /></td></tr>`)}</tbody></table>
-        ${edit ? html`<div class="actions end"><button class="btn primary" type="submit">Save scale</button></div>` : ''}
+        <p class="muted small">From the final percentage to the grade on the record. ${pass} is the lowest passing grade; worse grades fail.</p>
+        ${mismatch ? html`<div class="notice warn">${icon('flag')}<p>Learn passes a final grade from <strong>${s.learnPassing}%</strong> (Admin panel → Settings), but on this scale passing starts at <strong>${s.scalePassing}%</strong>. Make them the same so Learn and the permanent record agree.</p></div>` : ''}
+        <label class="field" style="max-width:220px"><span>Lowest passing grade</span><input type="number" name="passingGrade" value="${pass}" min="1" max="5" step="0.25" ${dis} /></label>
+        <table class="table compact"><thead><tr><th>From (%)</th><th>Grade</th><th>Description</th>${edit ? html`<th></th>` : ''}</tr></thead>
+          <tbody>${scale.map((b, i) => html`<tr data-i="${i}"><td><input type="number" name="min-${i}" value="${b.min}" min="0" max="100" step="0.01" ${dis} aria-label="From (%)" /></td><td><input type="number" name="grade-${i}" value="${fmtGrade(b.grade)}" min="1" max="5" step="0.25" ${dis} aria-label="Grade" /></td><td><input name="remark-${i}" value="${b.remark}" ${dis} aria-label="Description" /></td>
+            ${edit ? html`<td><button type="button" class="icon-btn danger" data-del-band="${i}" aria-label="Remove the band from ${b.min}%">${icon('x', 14)}</button></td>` : ''}</tr>`)}</tbody></table>
+        ${edit ? html`<div class="actions"><button type="button" class="btn sm" id="add-band">${icon('plus', 14)} Add a band</button><button type="button" class="btn sm ghost" id="default-scale">Restore the default scale</button><span class="spacer"></span><button class="btn primary" type="submit">Save scale</button></div>` : ''}
       </form>
       <div class="stack">
         <form class="card" id="rules">
           <div class="card-head"><h2>${icon('settings')} Rules and signatory</h2></div>
           <div class="grid two">
             <label class="field"><span>INC deadline (days after posting)</span><input type="number" name="incDays" value="${s.incDays}" min="30" max="1000" ${dis} /></label>
-            <label class="field"><span>Dean's list: GWA at most</span><input type="number" name="maxGwa" value="${s.honors.maxGwa}" step="0.05" min="1" max="3" ${dis} /></label>
-            <label class="field"><span>No grade lower than</span><input type="number" name="worstGrade" value="${s.honors.worstGrade}" step="0.25" min="1" max="3" ${dis} /></label>
-            <label class="field"><span>At least (units)</span><input type="number" name="minUnits" value="${s.honors.minUnits}" min="1" max="40" ${dis} /></label>
+            <label class="field"><span>Dean's list: GWA at most</span><input type="number" name="maxGwa" value="${s.honors.maxGwa}" step="0.05" min="1" max="5" ${dis} /></label>
+            <label class="field"><span>No grade lower than</span><input type="number" name="worstGrade" value="${s.honors.worstGrade}" step="0.25" min="1" max="5" ${dis} /></label>
+            <label class="field"><span>At least (units)</span><input type="number" name="minUnits" value="${s.honors.minUnits}" min="0" max="60" ${dis} /></label>
             <label class="field"><span>Registrar's name (signature line)</span><input name="regName" value="${s.registrar.name}" ${dis} /></label>
             <label class="field"><span>Title</span><input name="regTitle" value="${s.registrar.title}" ${dis} /></label>
           </div>
@@ -68,10 +74,27 @@ export async function settingsView(el) {
         : html`<p class="muted">No colleges yet. Colleges group programs (e.g. College of Engineering and Food Science: BSABE).</p>`}
     </section>`);
 
-  el.querySelector('#scale').addEventListener('submit', (e) => {
+  const scaleForm = el.querySelector('#scale');
+  const readScale = () => {
+    const v = formData(scaleForm);
+    return [...scaleForm.querySelectorAll('tbody tr')].map((tr) => tr.dataset.i).map((i) => ({ min: v[`min-${i}`], grade: v[`grade-${i}`], remark: v[`remark-${i}`] }));
+  };
+  scaleForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const v = formData(e.target);
-    save({ scale: scale.map((_, i) => ({ min: v[`min-${i}`], grade: v[`grade-${i}`], remark: v[`remark-${i}`] })) }, 'Grading scale saved.');
+    save({ passingGrade: formData(scaleForm).passingGrade, scale: readScale() }, 'Grading scale saved.');
+  });
+  scaleForm.addEventListener('click', async (e) => {
+    const i = e.target.closest('[data-del-band]')?.dataset.delBand;
+    if (i != null) e.target.closest('tr').remove();
+    if (e.target.closest('#add-band')) {
+      const tbody = scaleForm.querySelector('tbody');
+      const n = Date.now();
+      tbody.insertAdjacentHTML('beforeend', `<tr data-i="${n}"><td><input type="number" name="min-${n}" min="0" max="100" step="0.01" aria-label="From (%)" required /></td><td><input type="number" name="grade-${n}" min="1" max="5" step="0.25" aria-label="Grade" required /></td><td><input name="remark-${n}" aria-label="Description" /></td><td><button type="button" class="icon-btn danger" data-del-band="${n}" aria-label="Remove this band">×</button></td></tr>`);
+      tbody.querySelector(`[name=min-${n}]`).focus();
+    }
+    if (e.target.closest('#default-scale') && (await confirmDialog('Put back the default scale (1.00 from 97% down to 5.00 below 75%, passing at 3.00)? Posted grades keep their equivalent.', { confirmLabel: 'Restore' }))) {
+      save({ passingGrade: DEFAULT_ACADEMIC_SETTINGS.passingGrade, scale: DEFAULT_SCALE }, 'Default scale restored.');
+    }
   });
   el.querySelector('#rules').addEventListener('submit', (e) => {
     e.preventDefault();

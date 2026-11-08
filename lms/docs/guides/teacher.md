@@ -77,7 +77,7 @@ Use the arrows to change the order, the pencil to edit and the bin to delete. Dr
 ### Share files and links
 
 1. Open the class and choose **Resources**.
-2. Drop files on the box, or press **choose files** (up to 10 MB each). To share a web page or video, press **add a link**, fill in the **Address** (and a title), and press **Save**.
+2. Drop files on the box, or press **choose files** (up to 10 MB each, unless your school set another limit; the box says how much). To share a web page or video, press **add a link**, fill in the **Address** (and a title), and press **Save**.
 3. Students can open PDFs, images, video and YouTube links right on the page, and download files.
 
 Press the tick next to a resource to hide it from students (press it again to show it), the up arrow to move it up, or the bin to delete it.

@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import { html, mount, modal, toast, initials, formData, raw } from './ui.js';
 import { icon, iconSvg } from './icons.js';
-import { roleLabel } from '/shared/roles.js';
+import { roleLabel, setRoleOverrides } from '/shared/roles.js';
 
 // App-wide state for the current page set (one per app, since each is its own page).
 export const ctx = { user: null, info: null };
@@ -390,6 +390,7 @@ export function startApp(config) {
     }
     ctx.info = status;
     ctx.user = status.user;
+    if (status.roleOverrides) setRoleOverrides(status.roleOverrides); // Roles & permissions (the Admin panel's can())
     applyBranding(status.branding);
     if (!ctx.user) return showAuth((el) => config.signedOutView(el, { status, boot: () => boot({ fresh: true }) }));
     if (ctx.user.mustChangePassword && config.passwordView) return showAuth(config.passwordView);

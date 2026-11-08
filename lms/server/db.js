@@ -6,6 +6,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { defaultModuleConfig } from '../shared/modules.js';
 import { defaultSystemSettings } from '../shared/systems.js';
+import { DEFAULT_NUMBERING } from '../shared/numbering.js';
 import { DEFAULT_SETTINGS as HR_DEFAULTS } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { mergeHrSettings } from './hris.js';
@@ -33,6 +34,22 @@ export const DEFAULT_SETTINGS = {
     logo: '', // a small image as a data: URL; empty = the ATLAS mark
     tagline: '',
   },
+  // Sign-in and passwords (server/auth.js).
+  security: {
+    minPasswordLength: 8, // 8–64
+    requireLettersAndDigits: false, // a password must mix letters and digits
+    lockoutAttempts: 5, // wrong passwords in a row before the username is locked (3–20)
+    lockoutMinutes: 5, // how long it stays locked (1–120)
+    idleHours: 8, // signed out after this long without using ATLAS (1–72)
+    forcePasswordChange: false, // new accounts always change their password at first sign-in (staff cannot untick it)
+  },
+  // Learn: uploads, quizzes and what parents are warned about.
+  learn: {
+    maxUploadMb: 10, // largest file a person can upload (1–15)
+    quizGraceSeconds: 30, // answers sent this long after the deadline still count (network delay; 0–300)
+    absenceAlert: 3, // a parent's dashboard shows absences in red from this many in a term (1–30)
+  },
+  numbering: structuredClone(DEFAULT_NUMBERING), // shared/numbering.js
   systems: defaultSystemSettings(), // other systems on the ATLAS home page: { status: soon | live | hidden, url }
   sso: mergeSso(), // single sign-on with Keycloak (server/sso.js); the client secret is in OIDC_CLIENT_SECRET, never here
 };
@@ -69,7 +86,9 @@ export function emptyData() {
     resources: [], // class resources: a file or a link
     news: [], // school news posts, with reactions and comments
     events: [], // school events
-    counters: { studentNo: {} }, // last student number issued per year
+    roleOverrides: {}, // Admin panel → Roles & permissions: { role: { add: [...], remove: [...] } } (shared/roles.js)
+    settingsLog: [], // Settings center: who changed which setting, when, from what to what (server/config.js)
+    counters: { studentNo: {}, employeeNo: {}, documentRequest: {} }, // last number issued in each series (per year when the format has one)
     guardianLinks: [], // a parent or guardian account linked to a student, with what it may see (server/guardian.js)
     // ----- HRIS (server/hris.js) -----
     hrSettings: structuredClone(HR_DEFAULTS), // pay rules, contributions, tax tables, default schedule
@@ -116,6 +135,9 @@ export function mergeSettings(s = {}) {
     enrollment: { ...DEFAULT_SETTINGS.enrollment, ...(s.enrollment || {}) },
     registration: { ...DEFAULT_SETTINGS.registration, ...(s.registration || {}) },
     branding: { ...DEFAULT_SETTINGS.branding, ...(s.branding || {}) },
+    security: { ...DEFAULT_SETTINGS.security, ...(s.security || {}) },
+    learn: { ...DEFAULT_SETTINGS.learn, ...(s.learn || {}) },
+    numbering: { ...DEFAULT_NUMBERING, ...(s.numbering || {}) },
     systems: Object.fromEntries(Object.entries(defaultSystemSettings()).map(([id, v]) => [id, { ...v, ...(s.systems?.[id] || {}) }])),
     sso: mergeSso(s.sso),
   };
@@ -127,7 +149,7 @@ function normalize(data) {
   for (const k of Object.keys(base)) if (Array.isArray(base[k]) && !Array.isArray(out[k])) out[k] = [];
   out.settings = mergeSettings(data.settings);
   out.modules = { ...defaultModuleConfig(), ...(data.modules || {}) };
-  out.counters = { studentNo: {}, ...(data.counters || {}) };
+  out.counters = { studentNo: {}, employeeNo: {}, documentRequest: {}, ...(data.counters || {}) };
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
   out.hrSettings = mergeHrSettings(data.hrSettings);
   // A school that already ran (private, SSS) payroll before government payroll existed stays private

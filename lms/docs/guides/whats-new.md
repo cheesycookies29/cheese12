@@ -9,6 +9,13 @@ order: 2
 
 ## November 2026
 
+### Settings for administrators
+- A **Settings center** in the Admin panel lists every setting of every system in one place: search it, see what differs from the defaults, restore a default, and see who changed what, with the value before and after; any change can be undone. Settings can be exported to a file and imported into another ATLAS, with a preview. See [the administrator's guide](admin#find-any-setting-and-compare-it-with-the-default).
+- **Roles & permissions**: administrators choose what each account type may do in each system. See [the administrator's guide](admin#change-what-an-account-type-may-do).
+- New settings: password length and letters-and-digits, lockout, signing out after idle hours, always changing the first password, the largest upload, the quiz grace period, the parent absence alert, and the format of student, employee and document request numbers. See [the administrator's guide](admin#change-school-settings-and-branding).
+- Academic's grading scale can have bands added or removed and a different lowest passing grade, with checks that the scale is in order. See [the registrar's guide](registrar#change-the-academic-settings).
+- Payroll setup shows the leave type tardiness is charged to and the payroll fund cluster. See [the payroll guide](payroll#change-payroll-setup).
+
 ### Help & guides
 - A **Help** button (the question mark in the top bar) in every system opens the guide for your job there. Every guide has a walkthrough, how-to steps, the screens and common questions. See [Getting started](getting-started).
 - Administrators can edit any guide, and add the school's own; see [the administrator's guide](admin#edit-a-guide).

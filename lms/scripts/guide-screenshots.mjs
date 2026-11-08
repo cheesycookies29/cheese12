@@ -79,6 +79,17 @@ try {
       await page.fill('input[name=password]', s.password || (s.user === 'admin' ? 'password123' : 'demo1234'));
       await page.click('button[type=submit]');
       await page.waitForTimeout(700);
+      // "api": [[method, path, body], …]: changes made as that user first (e.g. so a history has entries).
+      if (s.api) {
+        const bad = await page.evaluate(async (steps) => {
+          for (const [method, p, body] of steps) {
+            const r = await fetch(p, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+            if (!r.ok) return `${method} ${p}: ${await r.text()}`;
+          }
+          return '';
+        }, s.api);
+        if (bad) throw new Error(bad);
+      }
       await page.goto(`${server.url}${s.url}`);
       await page.waitForTimeout(wait);
       for (const sel of s.click || []) {
