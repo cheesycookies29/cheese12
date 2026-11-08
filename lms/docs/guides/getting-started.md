@@ -123,9 +123,9 @@ Every system has a **Help** button (a question mark) in the top bar, beside the 
 
 1. Choose **Help**.
 2. The **Help & guides** page opens at the guide for your job in the system you were using.
-3. To find something else, use **Search the guides**, or choose another guide under **Your guides** or **All guides**.
+3. To find something else, use **Search the guides** at the top (or press `/`), or choose a guide on the left: under **Your guides**, or under a system such as **ATLAS Learn**. On a phone, the menu button at the top left opens that list.
 
-Each guide starts with a short walkthrough, then explains each task step by step, lists every screen, and answers common questions.
+Each guide starts with a short walkthrough, then explains each task step by step, lists every screen, and answers common questions. On a wide screen, **On this page** on the right jumps to a section; on a smaller one it is a list at the top of the guide. Choose a screenshot to see it larger.
 
 ### Apply for admission
 

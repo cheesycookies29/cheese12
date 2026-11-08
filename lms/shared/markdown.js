@@ -42,11 +42,12 @@ function inline(text, opts) {
     if (!h) return label;
     return `<a href="${esc(h.url)}"${h.external ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
   });
-  s = s.replace(/\*\*(.+?)\*\*(?!\*)/g, '<strong>$1</strong>').replace(/(^|[^\w*])\*([^*\n]+)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
+  // Bold with arrows is a menu path (**Admin panel → Terms**): shown as steps.
+  s = s.replace(/\*\*(.+?)\*\*(?!\*)/g, (_, t) => (t.includes('→') ? `<strong class="ui-path">${t.split(/\s*→\s*/).map((x) => `<span>${x}</span>`).join('<i aria-hidden="true">›</i>')}</strong>` : `<strong>${t}</strong>`)).replace(/(^|[^\w*])\*([^*\n]+)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`);
 }
 
-const CALLOUT = { tip: 'ok', note: 'info', important: 'bad' };
+const CALLOUT = { tip: 'Tip', note: 'Note', important: 'Important' };
 
 // Markdown -> HTML. opts: { imageBase: '/help/img/', guideId }
 export function renderMarkdown(body, opts = {}) {
@@ -71,14 +72,17 @@ export function renderMarkdown(body, opts = {}) {
     if (h) {
       const level = Math.min(4, Math.max(2, h[1].length));
       const text = h[2].trim();
-      out.push(`<h${level} id="${slug(text)}">${inline(text, opts)}</h${level}>`);
+      const id = slug(text);
+      // A link to the section (shown on hover), as on documentation sites.
+      out.push(`<h${level} id="${id}">${inline(text, opts)}${level < 4 ? ` <a class="anchor" href="#/${opts.guideId || ''}#${id}" aria-label="Link to this section">#</a>` : ''}</h${level}>`);
       i++;
       continue;
     }
     // A screenshot on its own line
     const img = line.trim().match(/^!\[([^\]]*)\]\(([\w.-]+\.(?:jpg|jpeg|png|webp))\)$/i);
     if (img) {
-      out.push(`<figure class="guide-shot"><img src="${esc(imageBase + img[2])}" alt="${esc(img[1])}" loading="lazy" />${img[1] ? `<figcaption>${inline(img[1], opts)}</figcaption>` : ''}</figure>`);
+      // A screenshot in a browser-like frame; the Help page enlarges it on click.
+      out.push(`<figure class="guide-shot"><div class="shot-frame"><span class="shot-bar" aria-hidden="true"><i></i><i></i><i></i></span><img src="${esc(imageBase + img[2])}" alt="${esc(img[1])}" loading="lazy" /></div>${img[1] ? `<figcaption>${inline(img[1], opts)}</figcaption>` : ''}</figure>`);
       i++;
       continue;
     }
@@ -88,7 +92,9 @@ export function renderMarkdown(body, opts = {}) {
       while (i < lines.length && lines[i].startsWith('>')) quote.push(lines[i++].replace(/^>\s?/, ''));
       const text = quote.join(' ');
       const kind = text.match(/^\*\*(Tip|Note|Important):\*\*/i)?.[1]?.toLowerCase();
-      out.push(kind ? `<div class="notice ${CALLOUT[kind]} guide-callout"><p>${inline(text, opts)}</p></div>` : `<blockquote><p>${inline(text, opts)}</p></blockquote>`);
+      out.push(kind
+        ? `<aside class="callout ${kind}" role="note"><p class="callout-title">${CALLOUT[kind]}</p><p>${inline(text.replace(/^\*\*\w+:\*\*\s*/, ''), opts)}</p></aside>`
+        : `<blockquote><p>${inline(text, opts)}</p></blockquote>`);
       continue;
     }
     // Table
@@ -115,7 +121,8 @@ export function renderMarkdown(body, opts = {}) {
         else items[items.length - 1] += ` ${lines[i].trim()}`;
         i++;
       }
-      out.push(`<${ordered ? `ol${start > 1 ? ` start="${start}"` : ''}` : 'ul'}>${items.map((t) => `<li>${inline(t, opts)}</li>`).join('')}</${ordered ? 'ol' : 'ul'}>`);
+      // Numbered lists are steps (numbered circles joined by a line).
+      out.push(`<${ordered ? `ol class="steps"${start > 1 ? ` start="${start}" style="counter-reset: step ${start - 1}"` : ''}` : 'ul'}>${items.map((t) => `<li>${inline(t, opts)}</li>`).join('')}</${ordered ? 'ol' : 'ul'}>`);
       continue;
     }
     // Paragraph

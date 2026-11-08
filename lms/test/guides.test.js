@@ -89,6 +89,15 @@ test('guides are shown safely: no HTML or scripts, only web, mail and ATLAS link
   assert.match(out, /src="\/help\/img\/x.jpg"/);
 });
 
+test('guides look like documentation: menu paths, callouts, steps that go on after a screenshot, section links', () => {
+  const out = renderMarkdown('## Do it\n\n1. Open **Admin panel → Terms**.\n\n![The list](x.jpg)\n\n2. Choose **Save**.\n\n> **Tip:** Keep *one* term open.', { guideId: 'admin' });
+  assert.match(out, /<strong class="ui-path"><span>Admin panel<\/span><i aria-hidden="true">›<\/i><span>Terms<\/span><\/strong>/);
+  assert.match(out, /<aside class="callout tip" role="note"><p class="callout-title">Tip<\/p><p>Keep <em>one<\/em> term open.<\/p><\/aside>/);
+  assert.match(out, /<ol class="steps" start="2"/);
+  assert.match(out, /<figure class="guide-shot">.*<figcaption>The list<\/figcaption>/);
+  assert.match(out, /<h2 id="do-it">Do it <a class="anchor" href="#\/admin#do-it"/);
+});
+
 test('guides: signed-in people read them; administrators edit, keep their version, see built-in updates, restore', async () => {
   const env = setup();
   const admin = env.client();
@@ -124,5 +133,9 @@ test('guides: signed-in people read them; administrators edit, keep their versio
   assert.equal((await teacher.get(`/api/guides/${id}`)).edited, false);
   // Search.
   const found = await teacher.get('/api/guides?q=registrar room');
-  assert.ok(found.results.some((r) => r.id === 'campus-offices'));
+  const hit = found.results.find((r) => r.id === 'campus-offices');
+  assert.equal(hit.section, 'Before you start');
+  // Snippets are plain text: no list markers, bold or link syntax.
+  const plainHit = (await teacher.get('/api/guides?q=grade sheet')).results.find((r) => r.id === 'teacher');
+  assert.ok(plainHit.snippet && !/^[-*\d]|\*\*|\]\(/.test(plainHit.snippet), plainHit.snippet);
 });

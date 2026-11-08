@@ -208,7 +208,7 @@ The demo school is added next to your own data, at your first campus and three d
 Administrators can change any guide on the **Help & guides** page, for example to add the school's own office hours or rules.
 
 1. Open the guide (choose **Help** in the top bar), then choose **Edit this guide**.
-2. Change the text on the left, in Markdown. The preview on the right shows how it will look.
+2. Change the text on the left, in Markdown. The buttons above it add a heading (**H2**, **H3**), bold, a menu path (**→**), numbered steps, a list, a **Tip**, **Note** or important (**!**) box, a link or a screenshot. The preview on the right shows how it will look.
 3. Choose **Save**.
 
 Everyone now sees your school's version, marked *Edited by the school*. It is kept when ATLAS is updated. When an update changes the built-in guide, ATLAS says *ATLAS has updated this guide since it was edited here.*; choose **Compare and update it** to see the new built-in guide and copy in what you need. To drop your changes, open **Edit this guide** and choose **Restore the built-in guide**. **New guide** in the Help sidebar adds a guide of the school's own.

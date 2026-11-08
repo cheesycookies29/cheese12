@@ -15,11 +15,14 @@
 <body class="booting help-app" data-app="ATLAS Help">
   <div class="app">
     <header class="topbar">
+      <button type="button" class="icon-btn help-menu-btn" id="menu-btn" aria-label="Guides" aria-controls="help-side" aria-expanded="false"></button>
       <a class="brand" href="/help/#/"><img id="brand-logo" src="/img/brand/atlas-mark.svg" alt="" /><span><strong id="school-name"></strong><small id="brand-sub"></small></span></a>
+      <form class="help-search top-search" id="top-search" role="search"><span class="search-ic" aria-hidden="true"></span><input type="search" name="q" placeholder="Search the guides" aria-label="Search the guides" autocomplete="off" /><kbd aria-hidden="true">/</kbd></form>
       <span class="topbar-spacer"></span>
       <a class="round-btn" href="/" title="All systems" aria-label="All systems" id="home-btn"></a>
       <button type="button" class="round-btn" id="theme-btn" aria-label="Dark mode"></button>
     </header>
+    <div class="help-scrim" id="help-scrim" hidden></div>
     <main id="app" class="help-main"></main>
   </div>
   <div id="toast" role="status" aria-live="polite"></div>

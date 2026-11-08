@@ -66,6 +66,11 @@ export function registerGuideRoutes(route, { db, version = '' }) {
     const q = String(args.query.q || '').trim().toLowerCase();
     const list = all().sort((a, b) => a.meta.order - b.meta.order || a.meta.title.localeCompare(b.meta.title));
     // Search: guides whose text has every word, with the first matching line.
+    // A Markdown line as plain text, cut at a word, for a search result.
+    const plain = (l) => {
+      const t = l.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/^\s*(?:[-*]|\d+[.)]|>|#+|\|)\s*/, '').replace(/[*`|]/g, '').replace(/\s+/g, ' ').trim();
+      return t.length > 220 ? `${t.slice(0, 220).replace(/\s+\S*$/, '')}…` : t;
+    };
     const results = q.length >= 2 ? list.map((g) => {
       const words = q.split(/\s+/).filter(Boolean);
       const text = g.markdown.toLowerCase();
@@ -77,7 +82,7 @@ export function registerGuideRoutes(route, { db, version = '' }) {
         if (/^#{2,3}\s/.test(l)) section = l.replace(/^#+\s+/, '');
         if (l === hit) break;
       }
-      return { id: g.id, title: g.meta.title, section, snippet: hit.replace(/[#*`>|]/g, '').trim().slice(0, 220) };
+      return { id: g.id, title: g.meta.title, section, snippet: plain(hit) };
     }).filter(Boolean) : null;
     return {
       role: user.role, roleLabel: ROLES[user.role]?.label || user.role, canEdit: mayEdit(user), version,

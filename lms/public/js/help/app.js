@@ -2,20 +2,33 @@
 // screens and common questions. The guides come with ATLAS (docs/guides) and are updated with
 // it; administrators can edit them here (their version is kept, and ATLAS says when the built-in
 // guide has changed since). Opened from the Help button in every system's top bar.
+//
+// Layout after documentation sites (Starlight, VitePress): guides by system on the left, the
+// guide in the middle, "On this page" on the right following the reader, previous/next at the end.
 import { api } from '../api.js';
 import { html, raw, mount, toast, modal, confirmDialog, fmtDate } from '../ui.js';
 import { ctx, applyBranding, setTheme, isDark, renderThemeButton, atlasWord } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { parseGuide, renderMarkdown, headingsOf } from '/shared/markdown.js';
 import { guideFor } from '/shared/help.js';
+import { ROLES } from '/shared/roles.js';
 
 const appEl = document.getElementById('app');
-const APP_LABEL = { home: 'ATLAS home', learn: 'ATLAS Learn', admin: 'Admin panel', academic: 'ATLAS Academic', people: 'ATLAS People', finance: 'ATLAS Finance' };
+// The systems, in the order they appear, with their icons.
+const SYSTEMS = [
+  ['home', 'ATLAS home', 'grid'], ['learn', 'ATLAS Learn', 'book'], ['admin', 'Admin panel', 'settings'],
+  ['academic', 'ATLAS Academic', 'cap'], ['people', 'ATLAS People', 'users'], ['finance', 'ATLAS Finance', 'wallet'],
+];
+const SYS = Object.fromEntries(SYSTEMS.map(([k, label, ic]) => [k, { label, icon: ic }]));
+const START = ['getting-started', 'whats-new'];
 let list = null; // { role, roleLabel, canEdit, version, guides }
 let dirty = false;
+let spy = null;
 
 document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
 document.getElementById('home-btn').innerHTML = iconSvg('grid');
+document.getElementById('menu-btn').innerHTML = iconSvg('menu', 20);
+document.querySelector('#top-search .search-ic').innerHTML = iconSvg('search', 16);
 window.addEventListener('beforeunload', (e) => dirty && e.preventDefault());
 
 // '#/teacher#gradebook' -> { id: 'teacher', section: 'gradebook' }; '#/' -> home; '#/edit/teacher' -> editor.
@@ -28,96 +41,240 @@ function route() {
   return { id: id || '', section: section || '' };
 }
 
-const card = (g) => html`<a class="guide-card ${g.forYou ? 'mine' : ''}" href="#/${g.id}">
-  <span class="guide-ic">${icon(g.id === 'whats-new' ? 'sparkle' : g.id === 'getting-started' ? 'flag' : 'book', 20)}</span>
-  <span><strong>${g.title}</strong><small>${g.summary}</small>
-  ${g.edited ? html`<span class="badge blue">Edited by the school</span>` : g.custom ? html`<span class="badge blue">The school's guide</span>` : ''}</span></a>`;
+// ----- Sidebar (guides by system) and drawer on small screens -----
+const sideOpen = (open) => {
+  document.body.classList.toggle('help-nav-open', open);
+  document.getElementById('menu-btn').setAttribute('aria-expanded', String(open));
+  document.getElementById('help-scrim').hidden = !open;
+};
+document.getElementById('menu-btn').addEventListener('click', () => sideOpen(!document.body.classList.contains('help-nav-open')));
+document.getElementById('help-scrim').addEventListener('click', () => sideOpen(false));
+
+const primarySystem = (g) => g.apps[0] || 'home';
+const sysIcon = (g, size = 18) => icon(START.includes(g.id) ? (g.id === 'whats-new' ? 'sparkle' : 'flag') : SYS[primarySystem(g)]?.icon || 'book', size);
 
 function sidebar(activeId) {
-  const mine = list.guides.filter((g) => g.forYou && !['getting-started', 'whats-new'].includes(g.id));
-  const item = (g) => html`<a class="guide-link ${g.id === activeId ? 'active' : ''}" href="#/${g.id}" ${g.id === activeId ? 'aria-current="page"' : ''}>${g.title}</a>`;
-  const byApp = {};
-  for (const g of list.guides) {
-    if (['getting-started', 'whats-new'].includes(g.id)) continue;
-    const app = g.apps[0] || 'home';
-    (byApp[app] ||= []).push(g);
-  }
-  return html`<aside class="help-side" aria-label="Guides">
-    <form class="help-search" id="search" role="search"><input type="search" name="q" placeholder="Search the guides" aria-label="Search the guides" value="${route().q || ''}" /></form>
-    <a class="guide-link ${activeId === '' ? 'active' : ''}" href="#/">${icon('home', 16)} Help home</a>
-    ${list.guides.filter((g) => ['getting-started', 'whats-new'].includes(g.id)).map(item)}
-    ${mine.length ? html`<h3>Your guides</h3>${mine.map(item)}` : ''}
-    <details ${mine.length ? '' : 'open'}><summary>All guides</summary>
-      ${Object.entries(byApp).map(([app, gs]) => html`<h4>${APP_LABEL[app] || app}</h4>${gs.map(item)}`)}
-    </details>
-    ${list.canEdit ? html`<a class="btn sm guide-new" href="#/new">${icon('plus', 14)} New guide</a>` : ''}
-    <p class="muted small help-version">Guides for ATLAS ${list.version}. They are updated with ATLAS.</p>
+  const link = (g, withIcon = false) => html`<a class="side-link ${g.id === activeId ? 'active' : ''}" href="#/${g.id}" ${g.id === activeId ? 'aria-current="page"' : ''}>${withIcon ? sysIcon(g, 16) : ''}<span class="side-text">${g.title}</span>${g.edited || g.custom ? html`<span class="dot-school" title="${g.custom ? 'Written by the school' : 'Edited by the school'}"></span>` : ''}</a>`;
+  const mine = list.guides.filter((g) => g.forYou && !START.includes(g.id));
+  const by = {};
+  for (const g of list.guides) if (!START.includes(g.id)) (by[primarySystem(g)] ||= []).push(g);
+  return html`<aside class="help-side" id="help-side" aria-label="Guides">
+    <nav>
+      <p class="side-label">Start here</p>
+      <a class="side-link ${activeId === '' ? 'active' : ''}" href="#/" ${activeId === '' ? 'aria-current="page"' : ''}>${icon('home', 16)}<span class="side-text">Help home</span></a>
+      ${list.guides.filter((g) => START.includes(g.id)).map((g) => link(g, true))}
+      ${mine.length ? html`<p class="side-label">Your guides · ${list.roleLabel}</p>${mine.map((g) => link(g, true))}` : ''}
+      ${SYSTEMS.filter(([k]) => by[k]?.length).map(([k, label, ic]) => html`<details class="side-group" ${by[k].some((g) => g.id === activeId) || !mine.length ? 'open' : ''}>
+        <summary>${icon(ic, 16)} ${label}<span class="count">${by[k].length}</span></summary>${by[k].map((g) => link(g))}</details>`)}
+    </nav>
+    <div class="side-foot">
+      ${list.canEdit ? html`<a class="btn sm" href="#/new">${icon('plus', 14)} New guide</a>` : ''}
+      <p>Guides for ATLAS ${list.version}. They are updated with ATLAS${list.canEdit ? '; your school\'s edits are kept' : ''}.</p>
+    </div>
   </aside>`;
 }
 
-function layout(activeId, main) {
-  mount(appEl, html`<div class="help-layout">${sidebar(activeId)}<div class="help-content">${main}</div></div>`);
-  appEl.querySelector('#search').addEventListener('submit', (e) => {
+function layout(activeId, main, { toc = null, wide = false } = {}) {
+  spy?.disconnect();
+  sideOpen(false);
+  mount(appEl, html`<div class="help-layout ${toc ? 'has-toc' : ''} ${wide ? 'wide' : ''}">${sidebar(activeId)}<div class="help-content" id="help-content">${main}</div>${toc || ''}</div>`);
+}
+
+// ----- Search (top bar on wide screens; Help home has its own box) -----
+function wireSearch(form) {
+  form?.addEventListener('submit', (e) => {
     e.preventDefault();
     const q = new FormData(e.target).get('q').trim();
     location.hash = q ? `#/search/${encodeURIComponent(q)}` : '#/';
   });
 }
+wireSearch(document.getElementById('top-search'));
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement?.tagName || '')) {
+    e.preventDefault();
+    const box = document.querySelector('.hero-search input') || document.querySelector('#top-search input');
+    box?.focus();
+  }
+  if (e.key === 'Escape') sideOpen(false);
+});
+
+// ----- Help home -----
+const roleChips = (g) => g.roles.filter((r) => ROLES[r]).slice(0, 4).map((r) => html`<span class="chip">${ROLES[r].label}</span>`);
+const card = (g, { big = false } = {}) => html`<a class="guide-card ${big ? 'big' : ''}" href="#/${g.id}">
+  <span class="guide-ic">${sysIcon(g, big ? 22 : 18)}</span>
+  <span class="guide-card-body"><strong>${g.title}</strong><small>${g.summary}</small>
+    ${big || g.edited || g.custom ? html`<span class="chips">${g.edited ? html`<span class="chip school">Edited by the school</span>` : g.custom ? html`<span class="chip school">The school's guide</span>` : ''}${big ? roleChips(g) : ''}</span>` : ''}</span>
+  <span class="guide-go" aria-hidden="true">${icon('chevronRight', 16)}</span></a>`;
 
 function homeView() {
-  const mine = list.guides.filter((g) => g.forYou && !['getting-started', 'whats-new'].includes(g.id));
-  const others = list.guides.filter((g) => !g.forYou && !['getting-started', 'whats-new'].includes(g.id));
-  const start = list.guides.filter((g) => ['getting-started', 'whats-new'].includes(g.id));
+  const start = list.guides.filter((g) => START.includes(g.id));
+  const mine = list.guides.filter((g) => g.forYou && !START.includes(g.id));
+  const by = {};
+  for (const g of list.guides) if (!START.includes(g.id)) (by[primarySystem(g)] ||= []).push(g);
   layout('', html`
-    <header class="help-hero"><h1>Help & guides</h1>
-      <p>Step-by-step guides for each job in ATLAS: a walkthrough to start, how to do each task, every screen, and common questions. You are signed in as <strong>${list.roleLabel}</strong>.</p></header>
-    ${start.length ? html`<div class="guide-grid">${start.map(card)}</div>` : ''}
-    ${mine.length ? html`<h2>Your guides</h2><div class="guide-grid">${mine.map(card)}</div>` : ''}
-    ${others.length ? html`<h2>Other guides</h2><p class="muted small">For the other people you work with.</p><div class="guide-grid">${others.map(card)}</div>` : ''}`);
+    <section class="help-hero">
+      <p class="eyebrow">${icon('help', 16)} Help & guides</p>
+      <h1>How can we help, ${ctx.user.name.split(' ')[0]}?</h1>
+      <p>Step-by-step guides for each job in ATLAS: a walkthrough to start, how to do each task, every screen, and common questions.</p>
+      <form class="help-search hero-search" id="hero-search" role="search"><span class="search-ic" aria-hidden="true">${icon('search', 18)}</span><input type="search" name="q" placeholder="Search, e.g. “post final grades”" aria-label="Search the guides" /><button class="btn primary">Search</button></form>
+      <div class="start-row">${start.map((g) => html`<a class="start-link" href="#/${g.id}">${sysIcon(g, 16)} ${g.title} ${icon('chevronRight', 14)}</a>`)}</div>
+    </section>
+    ${mine.length ? html`<section class="home-block"><div class="block-head"><h2>Your guides</h2><span class="muted small">For your work as ${list.roleLabel}</span></div>
+      <div class="guide-grid big">${mine.map((g) => card(g, { big: true }))}</div></section>` : ''}
+    <section class="home-block"><div class="block-head"><h2>Browse by system</h2><span class="muted small">Guides for the people you work with</span></div>
+      <div class="system-grid">${SYSTEMS.filter(([k]) => by[k]?.length).map(([k, label, ic]) => html`<div class="system-col">
+        <h3>${icon(ic, 18)} ${label}</h3>
+        ${by[k].map((g) => html`<a class="system-link" href="#/${g.id}"><span>${g.title}</span><small>${g.roles.filter((r) => ROLES[r]).map((r) => ROLES[r].label).slice(0, 3).join(', ')}</small></a>`)}
+      </div>`)}</div></section>`, { wide: true });
+  wireSearch(appEl.querySelector('#hero-search'));
+  document.title = 'Help & guides · ATLAS';
+  window.scrollTo(0, 0);
 }
 
+// ----- Search results, with the words highlighted -----
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const mark = (text, q) => {
+  let out = esc(text);
+  for (const w of q.split(/\s+/).filter((x) => x.length > 1)) out = out.replace(new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>');
+  return raw(out);
+};
 async function searchView(q) {
   const r = await api.get(`/api/guides?q=${encodeURIComponent(q)}`);
-  layout('', html`<header class="help-hero"><h1>Search: “${q}”</h1></header>
-    ${r.results?.length ? html`<div class="list">${r.results.map((x) => html`<a class="list-item" href="#/${x.id}${x.section ? `#${x.section.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}` : ''}">
-      <span class="item-ic">${icon('book', 16)}</span><span class="grow"><strong>${x.title}${x.section ? ` › ${x.section}` : ''}</strong><small>${x.snippet}</small></span></a>`)}</div>`
-      : html`<div class="empty"><h2>Nothing found</h2><p>Try other words, or open the guide for your job.</p></div>`}`);
+  const slugOf = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  layout(null, html`
+    <nav class="crumbs-help" aria-label="Breadcrumb"><a href="#/">Help</a> ${icon('chevronRight', 12)} <span>Search</span></nav>
+    <header class="guide-header"><h1>Results for “${q}”</h1><p class="lead">${r.results?.length ? `${r.results.length} guide${r.results.length === 1 ? '' : 's'} mention it.` : 'No guide mentions all of these words.'}</p></header>
+    ${r.results?.length ? html`<div class="results">${r.results.map((x) => html`<a class="result" href="#/${x.id}${x.section ? `#${slugOf(x.section)}` : ''}">
+      <span class="result-path">${x.title}${x.section ? html` ${icon('chevronRight', 12)} ${x.section}` : ''}</span>
+      <span class="result-snippet">${mark(x.snippet, q)}</span></a>`)}</div>`
+      : html`<div class="empty-state">${icon('search', 32)}<p>Try fewer or other words, or open the guide for your job from the list.</p><a class="btn" href="#/">Help home</a></div>`}`, { wide: true });
+  document.querySelectorAll('.help-search input').forEach((i) => (i.value = q));
 }
 
+// ----- A guide -----
 async function guideView(id, section) {
   const g = await api.get(`/api/guides/${encodeURIComponent(id)}`);
   const { meta, body } = parseGuide(g.markdown);
   const toc = headingsOf(body);
+  const words = body.split(/\s+/).length;
+  const sys = SYS[primarySystem(g)] || SYS.home;
+  // Previous and next: the guides in the order of the list.
+  const order = list.guides;
+  const at = order.findIndex((x) => x.id === id);
+  const prev = at > 0 ? order[at - 1] : null;
+  const next = at >= 0 && at < order.length - 1 ? order[at + 1] : null;
+  const tocEl = toc.length > 2 ? html`<aside class="help-toc" aria-label="On this page"><p class="side-label">On this page</p>
+    <ul>${toc.map((h) => html`<li class="lvl-${h.level}"><a href="#/${id}#${h.id}" data-toc="${h.id}">${h.text.replace(/\*\*/g, '')}</a></li>`)}</ul>
+    <a class="toc-top" href="#/${id}" data-top>${icon('up', 14)} Back to top</a></aside>` : null;
   layout(id, html`
     <article class="guide">
-      <header class="guide-head">
-        <div><p class="guide-kicker">${(meta.apps || []).map((a) => APP_LABEL[a] || a).join(' · ')}</p><h1>${meta.title || id}</h1>${meta.summary ? html`<p class="guide-summary">${meta.summary}</p>` : ''}</div>
-        <div class="actions no-print">
-          <button class="btn" id="print">${icon('file', 16)} Print</button>
-          ${g.canEdit ? html`<a class="btn primary" href="#/edit/${id}">${icon('edit', 16)} Edit this guide</a>` : ''}
+      <nav class="crumbs-help" aria-label="Breadcrumb"><a href="#/">Help</a> ${icon('chevronRight', 12)} <span>${START.includes(id) ? 'Start here' : sys.label}</span> ${icon('chevronRight', 12)} <span aria-current="page">${meta.title || id}</span></nav>
+      <header class="guide-header">
+        <div class="guide-systems">${(meta.apps || []).map((a) => html`<span class="sys-chip">${icon(SYS[a]?.icon || 'grid', 14)} ${SYS[a]?.label || a}</span>`)}</div>
+        <h1>${meta.title || id}</h1>
+        ${meta.summary ? html`<p class="lead">${meta.summary}</p>` : ''}
+        <div class="guide-meta">
+          ${!START.includes(id) && g.roles?.length ? html`<span>${icon('user', 14)} For ${g.roles.filter((r) => ROLES[r]).map((r) => ROLES[r].label).slice(0, 4).join(', ')}${g.roles.length > 4 ? ' and others' : ''}</span>` : ''}
+          <span>${icon('clock', 14)} ${Math.max(1, Math.round(words / 200))} min read</span>
+          <span>${g.edited || g.custom ? html`${icon('edit', 14)} ${g.custom ? 'Written' : 'Edited'} by the school${g.editedBy ? ` · ${g.editedBy.name}, ${fmtDate(g.editedBy.at.slice(0, 10))}` : ''}` : html`${icon('checkCircle', 14)} Comes with ATLAS ${list.version}`}</span>
+          <span class="meta-actions no-print">
+            <button class="btn sm ghost" id="print">${icon('file', 14)} Print</button>
+            ${g.canEdit ? html`<a class="btn sm" href="#/edit/${id}">${icon('edit', 14)} Edit this guide</a>` : ''}
+          </span>
         </div>
       </header>
-      ${g.edited || g.custom ? html`<p class="muted small">${g.custom ? 'A guide written by the school' : 'Edited by the school'}${g.editedBy ? ` · ${g.editedBy.name}, ${fmtDate(g.editedBy.at.slice(0, 10))}` : ''}.</p>` : ''}
-      ${g.canEdit && g.builtInChanged ? html`<div class="notice info no-print">${icon('sparkle')}<p><strong>ATLAS has updated this guide since it was edited here.</strong> Your school's version is shown. <a href="#/edit/${id}">Compare and update it</a>.</p></div>` : ''}
-      ${toc.length > 3 ? html`<nav class="guide-toc no-print" aria-label="On this page"><strong>On this page</strong><ul>${toc.filter((h) => h.level === 2).map((h) => html`<li><a href="#/${id}#${h.id}">${h.text}</a></li>`)}</ul></nav>` : ''}
+      ${g.canEdit && g.builtInChanged ? html`<aside class="callout note no-print" role="note"><p class="callout-title">ATLAS has updated this guide since it was edited here</p><p>Your school's version is shown. <a href="#/edit/${id}">Compare and update it</a>.</p></aside>` : ''}
+      ${toc.length > 2 ? html`<details class="toc-inline no-print"><summary>On this page</summary><ul>${toc.filter((h) => h.level === 2).map((h) => html`<li><a href="#/${id}#${h.id}">${h.text}</a></li>`)}</ul></details>` : ''}
       <div class="guide-body">${raw(renderMarkdown(body, { guideId: id }))}</div>
-    </article>`);
+      <footer class="guide-foot no-print">
+        <div class="pager">
+          ${prev ? html`<a class="pager-link" href="#/${prev.id}"><small>${icon('chevronLeft', 14)} Previous</small><strong>${prev.title}</strong></a>` : html`<span></span>`}
+          ${next ? html`<a class="pager-link next" href="#/${next.id}"><small>Next ${icon('chevronRight', 14)}</small><strong>${next.title}</strong></a>` : ''}
+        </div>
+        <p class="muted small">${g.canEdit ? html`<a href="#/edit/${id}">${icon('edit', 14)} Edit this guide</a> · ` : ''}Something wrong or missing? ${g.canEdit ? 'Edit it for your school, or tell' : 'Tell'} the ATLAS administrator.</p>
+      </footer>
+    </article>`, { toc: tocEl });
   appEl.querySelector('#print').addEventListener('click', () => window.print());
   document.title = `${meta.title || id} · Help · ATLAS`;
+  wireShots();
+  wireSpy();
   if (section) document.getElementById(section)?.scrollIntoView();
   else window.scrollTo(0, 0);
+  appEl.querySelector('[data-top]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
-// The editor (administrators): Markdown on the left, the page as it will look on the right.
+// "On this page" follows the reader: the section on screen is highlighted.
+function wireSpy() {
+  const links = [...appEl.querySelectorAll('[data-toc]')];
+  if (!links.length || !('IntersectionObserver' in window)) return;
+  const heads = links.map((a) => document.getElementById(a.dataset.toc)).filter(Boolean);
+  const visible = new Set();
+  spy = new IntersectionObserver((entries) => {
+    for (const e of entries) (e.isIntersecting ? visible.add(e.target.id) : visible.delete(e.target.id));
+    // The first heading on screen; otherwise the last one passed.
+    const top = heads.find((h) => visible.has(h.id)) || [...heads].reverse().find((h) => h.getBoundingClientRect().top < 120) || heads[0];
+    for (const a of links) a.classList.toggle('active', a.dataset.toc === top?.id);
+  }, { rootMargin: '-72px 0px -60% 0px' });
+  heads.forEach((h) => spy.observe(h));
+}
+
+// A screenshot opens full size (Escape or a click closes it).
+function wireShots() {
+  for (const img of appEl.querySelectorAll('.guide-body .guide-shot img')) {
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.setAttribute('aria-label', `${img.alt} (enlarge)`);
+    const open = () => {
+      const box = document.createElement('div');
+      box.className = 'lightbox';
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-label', img.alt);
+      box.innerHTML = `<figure><img src="${img.getAttribute('src')}" alt="" /><figcaption></figcaption></figure><button type="button" class="round-btn" aria-label="Close">${iconSvg('x')}</button>`;
+      box.querySelector('figcaption').textContent = img.alt;
+      const close = () => {
+        box.remove();
+        document.removeEventListener('keydown', onKey);
+        img.focus();
+      };
+      const onKey = (e) => e.key === 'Escape' && close();
+      box.addEventListener('click', close);
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(box);
+      box.querySelector('button').focus();
+    };
+    img.addEventListener('click', open);
+    img.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open()));
+  }
+}
+
+// ----- The editor (administrators): Markdown with a formatting bar, and the page as it will look -----
+const TOOLS = [
+  ['H2', 'Section heading', (s) => `\n## ${s || 'Heading'}\n`],
+  ['H3', 'Task heading', (s) => `\n### ${s || 'Do something'}\n`],
+  ['B', 'Bold', (s) => `**${s || 'bold'}**`],
+  ['→', 'Menu path', (s) => `**${s || 'Admin panel → Terms'}**`],
+  ['1.', 'Numbered steps', (s) => `\n${(s || 'First step\nSecond step').split('\n').map((l, i) => `${i + 1}. ${l}`).join('\n')}\n`],
+  ['•', 'Bullet list', (s) => `\n${(s || 'One\nTwo').split('\n').map((l) => `- ${l}`).join('\n')}\n`],
+  ['Tip', 'Tip', (s) => `\n> **Tip:** ${s || 'A helpful hint.'}\n`],
+  ['Note', 'Note', (s) => `\n> **Note:** ${s || 'Something to keep in mind.'}\n`],
+  ['!', 'Important', (s) => `\n> **Important:** ${s || 'Something that must not be missed.'}\n`],
+  ['Link', 'Link to a guide or page', (s) => `[${s || 'the registrar\'s guide'}](registrar)`],
+  ['Image', 'Screenshot', (s) => `\n![${s || 'What it shows'}](file-name.jpg)\n`],
+];
+
 async function editView(id) {
   const isNew = !id;
-  const g = isNew ? { markdown: `---\nid: \ntitle: \nsummary: \nroles: \napps: home\norder: 90\n---\n\n## Before you start\n\n`, canEdit: list.canEdit } : await api.get(`/api/guides/${encodeURIComponent(id)}`);
+  const g = isNew ? { markdown: `---\nid: \ntitle: \nsummary: \nroles: \napps: home\norder: 90\n---\n\n## Before you start\n\n## Walkthrough\n\n## How to…\n\n## Screens at a glance\n\n## Questions\n`, canEdit: list.canEdit } : await api.get(`/api/guides/${encodeURIComponent(id)}`);
   if (!g.canEdit) return guideView(id);
   layout(id, html`
     <section class="guide-editor">
-      <header class="guide-head">
+      <nav class="crumbs-help" aria-label="Breadcrumb"><a href="#/">Help</a> ${icon('chevronRight', 12)} ${isNew ? html`<span>New guide</span>` : html`<a href="#/${id}">${parseGuide(g.markdown).meta.title}</a> ${icon('chevronRight', 12)} <span>Edit</span>`}</nav>
+      <header class="editor-head">
         <div><h1>${isNew ? 'New guide' : `Edit: ${parseGuide(g.markdown).meta.title}`}</h1>
-          <p class="muted small">Written in Markdown (headings ##, lists, tables, **bold**, screenshots). ${isNew ? '' : 'Your version is kept when ATLAS is updated; ATLAS tells you when its own guide changes.'} <a href="/help/#/admin#edit-a-guide" target="_blank" rel="noopener">How to edit a guide</a></p></div>
+          <p class="muted small">${isNew ? 'A guide of your school\'s own, shown with the others.' : 'Your version is kept when ATLAS is updated; ATLAS tells you when its own guide changes.'} <a href="/help/#/admin#edit-a-guide" target="_blank" rel="noopener">How to edit a guide</a></p></div>
         <div class="actions">
           ${!isNew && g.edited ? html`<button class="btn danger ghost" id="restore">Restore the built-in guide</button>` : ''}
           ${!isNew && g.custom ? html`<button class="btn danger ghost" id="remove">Delete this guide</button>` : ''}
@@ -125,20 +282,34 @@ async function editView(id) {
           <button class="btn primary" id="save">Save</button>
         </div>
       </header>
-      ${g.builtInChanged ? html`<div class="notice info">${icon('sparkle')}<p><strong>ATLAS has updated this guide since it was edited here.</strong> <button type="button" class="link" id="compare">Compare with the new built-in guide</button>, then copy in what you need, or restore it.</p></div>` : ''}
+      ${g.builtInChanged ? html`<aside class="callout note" role="note"><p class="callout-title">ATLAS has updated this guide since it was edited here</p><p><button type="button" class="link" id="compare">Compare with the new built-in guide</button>, then copy in what you need, or restore it.</p></aside>` : ''}
       ${isNew ? html`<label class="field guide-id"><span>Guide id (its web address)</span><input id="new-id" placeholder="e.g. campus-offices" pattern="[a-z0-9][a-z0-9-]{1,40}" required /></label>` : ''}
       <div class="editor-cols">
-        <label class="field"><span>Markdown</span><textarea id="md" spellcheck="true" aria-label="Guide text (Markdown)">${g.markdown}</textarea></label>
-        <div class="editor-preview"><span class="muted small">Preview</span><div class="guide-body" id="preview"></div></div>
+        <div class="editor-pane">
+          <div class="md-toolbar" role="toolbar" aria-label="Formatting">${TOOLS.map(([label, title], i) => html`<button type="button" class="tool" data-tool="${i}" title="${title}" aria-label="${title}">${label}</button>`)}</div>
+          <textarea id="md" spellcheck="true" aria-label="Guide text (Markdown)">${g.markdown}</textarea>
+        </div>
+        <div class="editor-preview"><p class="side-label">Preview</p><div class="guide-body" id="preview"></div></div>
       </div>
       <p class="form-error" hidden></p>
-    </section>`);
+    </section>`, { wide: true });
   const md = appEl.querySelector('#md');
   const preview = () => mount(appEl.querySelector('#preview'), raw(renderMarkdown(parseGuide(md.value).body, { guideId: id })));
   preview();
   md.addEventListener('input', () => {
     dirty = true;
     preview();
+  });
+  // Formatting: wraps the selection (or inserts an example) at the cursor.
+  appEl.querySelector('.md-toolbar').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tool]');
+    if (!b) return;
+    const [, , make] = TOOLS[Number(b.dataset.tool)];
+    const { selectionStart: a, selectionEnd: z, value } = md;
+    const text = make(value.slice(a, z));
+    md.setRangeText(text, a, z, 'end');
+    md.focus();
+    md.dispatchEvent(new Event('input'));
   });
   appEl.querySelector('#compare')?.addEventListener('click', () => modal({
     title: 'The built-in guide (new version)', wide: true, submitLabel: null,
@@ -183,7 +354,7 @@ async function render() {
     if (!r.id) return homeView();
     await guideView(r.id, r.section);
   } catch (e) {
-    layout(r.id || '', html`<div class="empty"><h2>${e.status === 404 ? 'Guide not found' : 'Something went wrong'}</h2><p>${e.message}</p><a class="btn" href="#/">Help home</a></div>`);
+    layout(r.id || '', html`<div class="empty-state">${icon('book', 32)}<h2>${e.status === 404 ? 'Guide not found' : 'Something went wrong'}</h2><p>${e.message}</p><a class="btn" href="#/">Help home</a></div>`, { wide: true });
   }
 }
 
@@ -192,7 +363,7 @@ async function boot() {
   try {
     status = await api.get('/api/hub/status');
   } catch {
-    return mount(appEl, html`<div class="empty"><h2>Cannot reach the server</h2></div>`);
+    return mount(appEl, html`<div class="empty-state"><h2>Cannot reach the server</h2></div>`);
   }
   ctx.info = status;
   ctx.user = status.user;
