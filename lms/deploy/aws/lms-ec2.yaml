@@ -1,0 +1,203 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Lancaster ATLAS (home page, ATLAS Learn, ATLAS People) on one Amazon EC2 server (Ubuntu 24.04) with HTTPS
+  at a DuckDNS address, a fixed public IP, daily disk snapshots, nightly data backups
+  and automatic updates from GitHub. No SSH: use Session Manager for console access.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Web address (DuckDNS) }
+        Parameters: [DuckDnsSubdomain, DuckDnsToken]
+      - Label: { default: First administrator }
+        Parameters: [AdminSetupCode]
+      - Label: { default: Server }
+        Parameters: [InstanceType, DiskSizeGiB]
+      - Label: { default: Source code (leave as is) }
+        Parameters: [GitHubRepository, GitHubBranch, AutoUpdate, UbuntuAmi]
+    ParameterLabels:
+      DuckDnsSubdomain: { default: DuckDNS name }
+      DuckDnsToken: { default: DuckDNS token }
+      AdminSetupCode: { default: Setup code }
+      InstanceType: { default: Server size }
+      DiskSizeGiB: { default: Disk size (GiB) }
+      AutoUpdate: { default: Install updates from GitHub automatically }
+
+Parameters:
+  DuckDnsSubdomain:
+    Type: String
+    Description: 'The part before .duckdns.org, e.g. cbsua-portal for https://cbsua-portal.duckdns.org (create it first at duckdns.org).'
+    AllowedPattern: '^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$'
+    ConstraintDescription: lowercase letters, numbers and dashes only, without .duckdns.org
+  DuckDnsToken:
+    Type: String
+    NoEcho: true
+    Description: The token shown at the top of your duckdns.org page. The server uses it to keep the address pointed at itself.
+    AllowedPattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    ConstraintDescription: the DuckDNS token looks like a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  AdminSetupCode:
+    Type: String
+    NoEcho: true
+    MinLength: 10
+    MaxLength: 64
+    Description: >-
+      Choose a code (10+ letters, numbers, dots, dashes). Only someone who knows it can create
+      the first administrator on the new site. Write it down.
+    AllowedPattern: '^[A-Za-z0-9._-]{10,64}$'
+    ConstraintDescription: 10 to 64 letters, numbers, dots, dashes or underscores
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+    Description: t3.micro (1 GB, ~US$10/month) for trying it out; t3.small (2 GB, ~US$19/month) for a school; t3.medium (4 GB) for heavy use.
+  DiskSizeGiB:
+    Type: Number
+    Default: 30
+    MinValue: 20
+    MaxValue: 500
+    Description: Holds the system, the data and uploaded class files (up to 10 MB each).
+  GitHubRepository:
+    Type: String
+    Default: cheesycookies29/cheese12
+    Description: owner/name of the public GitHub repository with the code.
+  GitHubBranch:
+    Type: String
+    Default: claude/compassionate-edison-kc7gd0
+    Description: Branch to install (and follow, with automatic updates).
+  AutoUpdate:
+    Type: String
+    Default: 'Yes'
+    AllowedValues: ['Yes', 'No']
+    Description: Every 10 minutes the server checks the branch; a new version is installed only if its tests pass, and is rolled back if it does not start.
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id
+    Description: Latest Ubuntu 24.04 LTS image (looked up automatically).
+
+Resources:
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: LTDC LMS - HTTP (certificate and redirect) and HTTPS from anywhere; no SSH
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: HTTP (certificate and redirect to HTTPS) }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIpv6: '::/0', Description: HTTP over IPv6 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIpv6: '::/0', Description: HTTPS over IPv6 }
+      Tags: [{ Key: Name, Value: ltdc-lms }]
+
+  # Lets AWS Systems Manager (Session Manager) open a console on the server from the AWS
+  # website, so no SSH port or key file is needed.
+  ServerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: LTDC LMS server - Session Manager access
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - { Effect: Allow, Principal: { Service: ec2.amazonaws.com }, Action: sts:AssumeRole }
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  ServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref ServerRole]
+
+  Server:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref ServerInstanceProfile
+      SecurityGroupIds: [!GetAtt WebSecurityGroup.GroupId]
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: { VolumeSize: !Ref DiskSizeGiB, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true }
+      Tags: [{ Key: Name, Value: ltdc-lms }]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # First boot: save the settings, fetch the code, run the setup script from it.
+          set -euo pipefail
+          exec >>/var/log/ltdc-lms-setup.log 2>&1
+          echo "== LTDC LMS first-boot setup $(date -Is)"
+          install -d -m 700 /etc/ltdc-lms
+          umask 077
+          cat > /etc/ltdc-lms/server.env <<'EOF'
+          LMS_DOMAIN=${DuckDnsSubdomain}.duckdns.org
+          PUBLIC_IP=${PublicAddress}
+          DUCKDNS_SUBDOMAIN=${DuckDnsSubdomain}
+          DUCKDNS_TOKEN=${DuckDnsToken}
+          SETUP_CODE=${AdminSetupCode}
+          LMS_REPO=${GitHubRepository}
+          LMS_BRANCH=${GitHubBranch}
+          LMS_AUTO_UPDATE=${AutoUpdate}
+          EOF
+          umask 022
+          export DEBIAN_FRONTEND=noninteractive
+          for i in 1 2 3 4 5; do apt-get update -q && apt-get install -y -q curl ca-certificates && break; sleep 10; done
+          SRC="$(mktemp -d)"
+          for i in 1 2 3 4 5; do curl -fsSL -o "$SRC/src.tar.gz" "https://codeload.github.com/${GitHubRepository}/tar.gz/refs/heads/${GitHubBranch}" && break; sleep 10; done
+          tar xzf "$SRC/src.tar.gz" -C "$SRC" --strip-components=1
+          bash "$SRC/lms/deploy/aws/server-setup.sh"
+          echo "== done $(date -Is)"
+
+  # The fixed address is created first so the server knows it at first boot and can point
+  # DuckDNS at it straight away.
+  PublicAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags: [{ Key: Name, Value: ltdc-lms }]
+
+  PublicAddressAttachment:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt PublicAddress.AllocationId
+      InstanceId: !Ref Server
+
+  # Daily snapshot of the server's disk at 2:00 AM Philippine time (18:00 UTC); 7 are kept.
+  SnapshotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: LTDC LMS daily snapshots (Data Lifecycle Manager)
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - { Effect: Allow, Principal: { Service: dlm.amazonaws.com }, Action: sts:AssumeRole }
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSDataLifecycleManagerServiceRole
+
+  DailySnapshots:
+    Type: AWS::DLM::LifecyclePolicy
+    Properties:
+      Description: LTDC LMS daily snapshots - 7 kept
+      State: ENABLED
+      ExecutionRoleArn: !GetAtt SnapshotRole.Arn
+      PolicyDetails:
+        PolicyType: EBS_SNAPSHOT_MANAGEMENT
+        ResourceTypes: [INSTANCE]
+        TargetTags: [{ Key: Name, Value: ltdc-lms }]
+        Schedules:
+          - Name: Daily
+            CopyTags: true
+            CreateRule: { Interval: 24, IntervalUnit: HOURS, Times: ['18:00'] }
+            RetainRule: { Count: 7 }
+
+Outputs:
+  WebsiteUrl:
+    Description: The ATLAS home page (it can take 5-10 minutes after the stack finishes to answer with HTTPS)
+    Value: !Sub https://${DuckDnsSubdomain}.duckdns.org
+  AdminPanelUrl:
+    Description: First-time setup (needs the setup code) and the LMS admin panel
+    Value: !Sub https://${DuckDnsSubdomain}.duckdns.org/admin
+  PublicIp:
+    Description: The server's fixed public IP (DuckDNS is pointed at it automatically)
+    Value: !Ref PublicAddress
+  InstanceId:
+    Description: EC2 > Instances > ltdc-lms
+    Value: !Ref Server
+  ConsoleAccess:
+    Description: Open a console on the server in the browser (Session Manager), e.g. to read /var/log/ltdc-lms-setup.log
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/systems-manager/session-manager/${Server}?region=${AWS::Region}

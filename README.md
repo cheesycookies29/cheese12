@@ -64,6 +64,9 @@ Built on the model the major CRMs share (accounts, contacts, leads, deals moving
 
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting CORE online with Amazon EC2](deploy/aws/EC2.md).
 
+> **Sibling project: Lancaster ATLAS**, the Unified Education Management Platform for schools, lives in [`lms/`](lms/README.md): ATLAS Learn (LMS), ATLAS People (HRIS, built from this ERP's HR & Payroll module), and ATLAS Academic, Finance and Facilities (coming soon), behind one sign-in on the ATLAS home page.
+> It is a separate app with its own data file: double-click `lms/Start ATLAS (Windows).bat` or `lms/Start ATLAS (Mac).command` (or run `cd lms && npm start`), then open <http://localhost:3100>. It runs on port 3100, so it can run next to the ERP.
+
 ## Run it on your Mac
 
 1. **Install Node.js** (one time only). Download the LTS installer from <https://nodejs.org> and run it.

@@ -1,0 +1,16 @@
+# Caddy gets and renews the HTTPS certificate automatically and forwards visitors
+# to the LMS on this server. __DOMAIN__ is replaced by server-setup.sh.
+__DOMAIN__ {
+	encode gzip
+	reverse_proxy 127.0.0.1:3100
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}

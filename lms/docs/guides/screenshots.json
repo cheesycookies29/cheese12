@@ -1,0 +1,754 @@
+[
+ {
+  "file": "getting-started-home.jpg",
+  "user": "teacher.demo",
+  "url": "/",
+  "wait": 1200
+ },
+ {
+  "file": "getting-started-user-menu.jpg",
+  "user": "registrar.demo",
+  "url": "/",
+  "click": [
+   "#user-btn"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "getting-started-change-password.jpg",
+  "user": "student.demo",
+  "url": "/",
+  "click": [
+   "#user-btn",
+   "#change-pw"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "getting-started-system.jpg",
+  "user": "teacher.demo",
+  "url": "/hris/",
+  "wait": 1500
+ },
+ {
+  "file": "getting-started-dark.jpg",
+  "user": "student.demo",
+  "url": "/",
+  "click": [
+   "#theme-btn"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "admin-dashboard.jpg",
+  "user": "admin",
+  "url": "/admin#/dashboard",
+  "wait": 1200
+ },
+ {
+  "file": "admin-staff.jpg",
+  "user": "admin",
+  "url": "/admin#/staff",
+  "wait": 1000
+ },
+ {
+  "file": "admin-campuses.jpg",
+  "user": "admin",
+  "url": "/admin#/campuses",
+  "wait": 1000
+ },
+ {
+  "file": "admin-modules.jpg",
+  "user": "admin",
+  "url": "/admin#/modules",
+  "wait": 1000
+ },
+ {
+  "file": "admin-settings.jpg",
+  "user": "admin",
+  "url": "/admin#/settings",
+  "wait": 1000
+ },
+ {
+  "file": "admin-config.jpg",
+  "user": "admin",
+  "url": "/admin#/config?module=people",
+  "wait": 1200
+ },
+ {
+  "file": "admin-config-history.jpg",
+  "user": "admin",
+  "url": "/admin#/config?tab=history",
+  "wait": 1200,
+  "api": [
+   [
+    "PUT",
+    "/api/admin/settings",
+    {
+     "security": {
+      "minPasswordLength": 10,
+      "requireLettersAndDigits": true
+     }
+    }
+   ],
+   [
+    "PUT",
+    "/api/academic/settings",
+    {
+     "incDays": 180
+    }
+   ],
+   [
+    "PUT",
+    "/api/admin/settings",
+    {
+     "numbering": {
+      "studentNo": "{YYYY}-{N5}"
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "file": "admin-roles.jpg",
+  "user": "admin",
+  "url": "/admin#/roles",
+  "wait": 1200,
+  "scroll": ".roles-group:last-of-type",
+  "click": [
+   "input[data-role=dean][data-perm=\"finance.view\"]"
+  ]
+ },
+ {
+  "file": "admin-calendar.jpg",
+  "user": "admin",
+  "url": "/admin#/calendar?v=month",
+  "wait": 1400
+ },
+ {
+  "file": "admin-sso.jpg",
+  "user": "admin",
+  "url": "/admin#/sso",
+  "wait": 1000
+ },
+ {
+  "file": "admin-data.jpg",
+  "user": "admin",
+  "url": "/admin#/data",
+  "wait": 1000
+ },
+ {
+  "file": "student-home.jpg",
+  "user": "student.demo",
+  "url": "/lms/#/home",
+  "wait": 1000
+ },
+ {
+  "file": "student-class-activities.jpg",
+  "user": "student.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Activities"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "student-quiz.jpg",
+  "user": "student.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Activities",
+   "text=Quiz 1: Classes and objects"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "student-resources.jpg",
+  "user": "student.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Resources"
+  ],
+  "wait": 1200
+ },
+ {
+  "file": "student-calendar.jpg",
+  "user": "student.demo",
+  "url": "/lms/#/calendar?v=month",
+  "wait": 1400
+ },
+ {
+  "file": "student-enrollment.jpg",
+  "user": "student.demo",
+  "url": "/lms/#/enroll",
+  "click": [
+   "#all"
+  ],
+  "scroll": "text=Needs an enrollment key",
+  "wait": 900
+ },
+ {
+  "file": "student-evaluation.jpg",
+  "user": "student.demo",
+  "url": "/academic/#/me",
+  "wait": 1000
+ },
+ {
+  "file": "student-payments.jpg",
+  "user": "student.demo",
+  "url": "/finance/#/me",
+  "wait": 1000
+ },
+ {
+  "file": "parent-home.jpg",
+  "user": "parent.demo",
+  "url": "/lms/#/home",
+  "wait": 1000
+ },
+ {
+  "file": "parent-child-overview.jpg",
+  "user": "parent.demo",
+  "url": "/lms/#/home",
+  "click": [
+   ".child-card >> text=Open >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "parent-child-grades.jpg",
+  "user": "parent.demo",
+  "url": "/lms/#/home",
+  "click": [
+   ".child-card >> text=Open >> nth=0",
+   ".tabs >> text=Grades"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "parent-child-activities.jpg",
+  "user": "parent.demo",
+  "url": "/lms/#/home",
+  "click": [
+   ".child-card >> text=Open >> nth=0",
+   ".tabs >> text=Activities & quizzes"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "parent-calendar.jpg",
+  "user": "parent.demo",
+  "url": "/lms/#/calendar?v=week",
+  "wait": 1400
+ },
+ {
+  "file": "teacher-home.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/home",
+  "wait": 1000
+ },
+ {
+  "file": "teacher-activities.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Activities"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "teacher-quiz-builder.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Activities",
+   "text=New quiz or exam"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "teacher-quiz-results.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Activities",
+   "text=Quiz 1: Classes and objects",
+   "a.btn >> text=Results"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "teacher-attendance.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Attendance"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "teacher-gradebook.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/classes",
+  "click": [
+   "text=IT201 A",
+   ".tabs >> text=Grades"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "teacher-calendar.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/calendar?v=week",
+  "wait": 1400
+ },
+ {
+  "file": "teacher-grade-sheets.jpg",
+  "user": "teacher.demo",
+  "url": "/academic/#/grade-sheets",
+  "wait": 1000
+ },
+ {
+  "file": "registrar-enrollment.jpg",
+  "user": "registrar.demo",
+  "url": "/admin#/enrollment"
+ },
+ {
+  "file": "registrar-waitlist.jpg",
+  "user": "registrar.demo",
+  "url": "/admin#/enrollment?status=waitlisted"
+ },
+ {
+  "file": "registrar-applicants.jpg",
+  "user": "registrar.demo",
+  "url": "/admin#/applicants"
+ },
+ {
+  "file": "registrar-terms.jpg",
+  "user": "registrar.demo",
+  "url": "/admin#/terms",
+  "click": [
+   "text=+ Add term"
+  ]
+ },
+ {
+  "file": "registrar-academic-dashboard.jpg",
+  "user": "registrar.demo",
+  "url": "/academic/#/dashboard",
+  "wait": 1200
+ },
+ {
+  "file": "registrar-evaluation.jpg",
+  "user": "registrar.demo",
+  "url": "/academic/#/students?q=Carlo",
+  "click": [
+   "tr[data-href] >> text=Carlo Reyes",
+   "nav.tabs >> text=Evaluation"
+  ],
+  "wait": 1200
+ },
+ {
+  "file": "registrar-grade-sheet.jpg",
+  "user": "registrar.demo",
+  "url": "/academic/#/grade-sheets?status=approved",
+  "click": [
+   "tr[data-href] >> text=ED101"
+  ],
+  "wait": 1200
+ },
+ {
+  "file": "registrar-document-requests.jpg",
+  "user": "registrar.demo",
+  "url": "/academic/#/requests",
+  "wait": 1200
+ },
+ {
+  "file": "dean-dashboard.jpg",
+  "user": "dean.demo",
+  "url": "/academic/#/dashboard",
+  "wait": 1200
+ },
+ {
+  "file": "dean-grade-sheets.jpg",
+  "user": "dean.demo",
+  "url": "/academic/#/grade-sheets?status=submitted",
+  "click": [
+   "tr[data-href] >> text=GE101"
+  ],
+  "wait": 1200
+ },
+ {
+  "file": "dean-grade-changes.jpg",
+  "user": "dean.demo",
+  "url": "/academic/#/changes",
+  "wait": 1200
+ },
+ {
+  "file": "dean-curriculum.jpg",
+  "user": "dean.demo",
+  "url": "/academic/#/curricula",
+  "click": [
+   "tr[data-href] >> text=BSED 2027"
+  ],
+  "wait": 1200
+ },
+ {
+  "file": "hr-dashboard.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/dashboard",
+  "wait": 1000
+ },
+ {
+  "file": "hr-employee.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/employees",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "hr-dtr.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/dtr",
+  "wait": 1000
+ },
+ {
+  "file": "hr-time-clock.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/clock",
+  "wait": 1000
+ },
+ {
+  "file": "hr-clock-locations.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/clock-locations",
+  "wait": 1000
+ },
+ {
+  "file": "hr-leave-requests.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/leave",
+  "wait": 1000
+ },
+ {
+  "file": "hr-employee-leave.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/leave?tab=employee",
+  "wait": 1000
+ },
+ {
+  "file": "payroll-runs.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/payroll",
+  "wait": 1000
+ },
+ {
+  "file": "payroll-register.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/payroll",
+  "click": [
+   "tr[data-href] >> nth=1"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "payroll-payslip.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/payroll",
+  "click": [
+   "tr[data-href] >> nth=1",
+   "tr:has-text(\"Santos\") >> text=Payslip"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "payroll-loans.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/employees",
+  "click": [
+   "text=Santos, Maria"
+  ],
+  "scroll": "#loans",
+  "wait": 1000
+ },
+ {
+  "file": "payroll-bonus.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/payroll",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "payroll-general-payroll.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/payroll",
+  "click": [
+   "tr[data-href] >> nth=1",
+   "[data-tab=gp]"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "payroll-finance.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/payroll",
+  "click": [
+   "tr[data-href] >> nth=1",
+   "[data-tab=finance]"
+  ],
+  "wait": 1500
+ },
+ {
+  "file": "payroll-setup.jpg",
+  "user": "payroll.demo",
+  "url": "/hris/#/payroll-setup",
+  "wait": 1000
+ },
+ {
+  "file": "employee-my-day.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me",
+  "wait": 1000
+ },
+ {
+  "file": "employee-my-day-phone.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me",
+  "viewport": "phone",
+  "wait": 1000
+ },
+ {
+  "file": "employee-attendance.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me/attendance",
+  "wait": 1000
+ },
+ {
+  "file": "employee-requests.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me/requests",
+  "wait": 1000
+ },
+ {
+  "file": "employee-file-request.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me/requests?new=1",
+  "wait": 1000
+ },
+ {
+  "file": "employee-payslip.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me/payslips",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "employee-accountabilities.jpg",
+  "user": "teacher.demo",
+  "url": "/finance/#/me",
+  "wait": 1000
+ },
+ {
+  "file": "accountant-dashboard.jpg",
+  "user": "accountant.demo",
+  "url": "/finance/#/dashboard",
+  "wait": 1000
+ },
+ {
+  "file": "accountant-dv-certify.jpg",
+  "user": "accountant.demo",
+  "url": "/finance/#/dvs?status=pending",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "accountant-journal-draft.jpg",
+  "user": "accountant.demo",
+  "url": "/finance/#/journals?status=draft",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "accountant-trial-balance.jpg",
+  "user": "accountant.demo",
+  "url": "/finance/#/trial-balance",
+  "wait": 1000
+ },
+ {
+  "file": "accountant-bank-recon.jpg",
+  "user": "accountant.demo",
+  "url": "/finance/#/bank-recon",
+  "wait": 1000
+ },
+ {
+  "file": "accountant-control-periods.jpg",
+  "user": "accountant.demo",
+  "url": "/finance/#/control?tab=periods",
+  "wait": 1000
+ },
+ {
+  "file": "budget-officer-dashboard.jpg",
+  "user": "budget.demo",
+  "url": "/finance/#/dashboard",
+  "wait": 1000
+ },
+ {
+  "file": "budget-officer-ors.jpg",
+  "user": "budget.demo",
+  "url": "/finance/#/obligations?status=pending",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "budget-officer-allotments.jpg",
+  "user": "budget.demo",
+  "url": "/finance/#/budget",
+  "wait": 1000
+ },
+ {
+  "file": "budget-officer-saaodb.jpg",
+  "user": "budget.demo",
+  "url": "/finance/#/budget-reports",
+  "wait": 1000
+ },
+ {
+  "file": "budget-officer-aging.jpg",
+  "user": "budget.demo",
+  "url": "/finance/#/budget-reports?tab=aging",
+  "wait": 1000
+ },
+ {
+  "file": "cashier-dashboard.jpg",
+  "user": "cashier.demo",
+  "url": "/finance/#/dashboard",
+  "wait": 1000
+ },
+ {
+  "file": "cashier-dv-list.jpg",
+  "user": "cashier.demo",
+  "url": "/finance/#/dvs?status=",
+  "wait": 1000
+ },
+ {
+  "file": "cashier-issue-or.jpg",
+  "user": "cashier.demo",
+  "url": "/finance/#/receipts",
+  "click": [
+   "text=Issue O.R."
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "cashier-rcd.jpg",
+  "user": "cashier.demo",
+  "url": "/finance/#/rcds",
+  "click": [
+   "tr[data-href]:has-text(\"Undeposited\") >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "cashier-taxes.jpg",
+  "user": "cashier.demo",
+  "url": "/finance/#/taxes",
+  "wait": 1000
+ },
+ {
+  "file": "cashier-advances.jpg",
+  "user": "cashier.demo",
+  "url": "/finance/#/advances",
+  "wait": 1000
+ },
+ {
+  "file": "supply-officer-dashboard.jpg",
+  "user": "supply.demo",
+  "url": "/finance/#/dashboard",
+  "wait": 1000
+ },
+ {
+  "file": "supply-officer-ris.jpg",
+  "user": "supply.demo",
+  "url": "/finance/#/ris?status=open",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "supply-officer-po.jpg",
+  "user": "supply.demo",
+  "url": "/finance/#/pos",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "supply-officer-stock.jpg",
+  "user": "supply.demo",
+  "url": "/finance/#/items",
+  "wait": 1000
+ },
+ {
+  "file": "supply-officer-property.jpg",
+  "user": "supply.demo",
+  "url": "/finance/#/property",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "supply-officer-rsmi.jpg",
+  "user": "supply.demo",
+  "url": "/finance/#/inventory-reports",
+  "wait": 1000
+ },
+ {
+  "file": "approver-dashboard.jpg",
+  "user": "head.demo",
+  "url": "/finance/#/dashboard",
+  "wait": 1000
+ },
+ {
+  "file": "approver-dv-approve.jpg",
+  "user": "head.demo",
+  "url": "/finance/#/dvs?status=certified",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "approver-pr.jpg",
+  "user": "head.demo",
+  "url": "/finance/#/prs?status=submitted",
+  "click": [
+   "tr[data-href] >> nth=0"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "approver-find.jpg",
+  "user": "head.demo",
+  "url": "/finance/#/find?q=Agri",
+  "wait": 1000
+ }
+]

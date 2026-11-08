@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ATLAS by Lancaster: rollout concept art, November 2026</title>
+<style>
+  @font-face { font-family: 'DM Sans'; src: url('../../../public/fonts/DMSans-Regular.ttf'); font-weight: 400; }
+  @font-face { font-family: 'DM Sans'; src: url('../../../public/fonts/DMSans-Medium.ttf'); font-weight: 500 600; }
+  @font-face { font-family: 'DM Sans'; src: url('../../../public/fonts/DMSans-Bold.ttf'); font-weight: 700 800; }
+  @font-face { font-family: 'Big Shoulders'; src: url('../../../public/fonts/BigShouldersDisplay-ExtraBold.ttf'); font-weight: 800; }
+  :root { --b: #5d0013; --b2: #45000e; --gold: #c28618; --goldl: #e8b23a; --goldp: #f2c373; --ink: #141a2b; --text: #1e1e1e; --muted: #5b6270; --bg: #f4f5f7; --night: #0e1424; --line: #2a3350; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ddd; font-family: 'DM Sans', sans-serif; color: var(--text); }
+  .panel { width: 1250px; position: relative; overflow: hidden; padding: 70px 75px; margin: 0 auto 40px; }
+  .ic { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .kicker { font-size: 14px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: #9a6a0c; margin: 0 0 14px; }
+  h1, h2, h3 { margin: 0; }
+  h1, h2 { letter-spacing: -0.035em; line-height: 1.02; }
+  h2 { font-size: 62px; font-weight: 800; color: var(--b); }
+  h2 em { font-style: normal; color: var(--b); }
+  p { margin: 0; }
+  .lead { font-size: 19px; line-height: 1.6; color: var(--muted); }
+  .wm { display: flex; align-items: center; gap: 12px; }
+  .wm img { height: 38px; width: auto; }
+  .wm strong { font-size: 19px; font-weight: 800; letter-spacing: 0.2em; }
+  .wm span { font-size: 14px; opacity: 0.85; }
+  .tile { width: 46px; height: 46px; border-radius: 12px; background: #f5e9ec; color: var(--b); display: grid; place-items: center; flex: none; }
+  .ticks { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+  .ticks li { display: flex; gap: 11px; font-size: 15.5px; line-height: 1.42; }
+  .ticks .ic { width: 18px; height: 18px; color: var(--gold); margin-top: 2px; stroke-width: 2.4; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+  .pill .ic { width: 15px; height: 15px; }
+  .pill.gold { background: #fbf3e2; color: #8a5b06; }
+  .pill.dark { background: rgba(242, 195, 115, 0.12); color: var(--goldp); border: 1px solid rgba(242, 195, 115, 0.3); }
+  .frame { position: absolute; border-radius: 16px; overflow: hidden; box-shadow: 0 26px 60px rgba(20, 26, 43, 0.22); background: #fff; border: 1px solid rgba(20, 26, 43, 0.08); }
+  .frame .bar { height: 30px; background: #eef0f3; display: flex; align-items: center; gap: 7px; padding: 0 13px; }
+  .frame .bar i { width: 10px; height: 10px; border-radius: 50%; background: #cfd3da; }
+  .frame.dk { background: #0e1424; border-color: #2a3350; }
+  .frame.dk .bar { background: #161d31; }
+  .frame.dk .bar i { background: #39425c; }
+  .frame img { display: block; width: 100%; }
+  .fi { display: flex; gap: 15px; }
+  .fi .tile { width: 42px; height: 42px; border-radius: 11px; }
+  .fi .tile .ic { width: 20px; height: 20px; }
+  .fi strong { display: block; font-size: 17px; margin-bottom: 3px; color: var(--ink); }
+  .fi span { font-size: 15px; line-height: 1.5; color: var(--muted); }
+  .flist { display: grid; gap: 20px; }
+
+  /* 1. Hero */
+  .hero { height: 625px; color: #fff; background: radial-gradient(circle at 18% 10%, #7a1636 0%, transparent 55%), linear-gradient(135deg, #6a1230 0%, #4f0b20 55%, #3c0716 100%); }
+  .hero .kicker { color: var(--goldp); margin-top: 28px; }
+  .hero h1 { font-size: 118px; font-weight: 800; letter-spacing: -0.05em; line-height: 0.95; }
+  .hero h1 .g { color: var(--goldp); }
+  .hero .sub { font-size: 22px; line-height: 1.5; margin-top: 28px; max-width: 560px; color: #f6e9ec; }
+  .hero .foot { position: absolute; left: 75px; bottom: 56px; display: flex; align-items: center; gap: 16px; font-size: 16px; color: #f1dfe3; }
+  .hero .foot i { display: block; width: 34px; height: 2px; background: var(--goldp); }
+  .hero .big { position: absolute; right: 50px; top: 130px; width: 560px; }
+  .ring { position: absolute; border: 1px solid rgba(242, 195, 115, 0.22); border-radius: 50%; }
+  .chip { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 9px; padding: 9px 18px; border-radius: 999px; background: #4f0b20; border: 1px solid rgba(242, 195, 115, 0.45); color: #fff; font-size: 16px; font-weight: 600; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25); }
+  .chip .ic { width: 18px; height: 18px; color: var(--goldp); }
+  .chip.new::after { content: 'NEW'; margin-left: 4px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.12em; padding: 2px 7px; border-radius: 999px; background: var(--goldp); color: #3c0716; }
+
+  /* 2. Inside: four systems */
+  .inside { height: 950px; background: var(--bg); }
+  .inside h2 { color: var(--ink); }
+  .cards4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 38px; }
+  .mcard { background: #fff; border-radius: 18px; padding: 28px 24px 26px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(20, 26, 43, 0.07); border-top: 5px solid var(--b); min-height: 560px; display: flex; flex-direction: column; }
+  .mcard .num { position: absolute; right: 16px; top: 4px; font-family: 'Big Shoulders', sans-serif; font-weight: 800; font-size: 96px; color: #f3e6cd; line-height: 1; }
+  .mcard .tile { width: 54px; height: 54px; border-radius: 14px; position: relative; }
+  .mcard .tile .ic { width: 25px; height: 25px; }
+  .mcard h3 { font-size: 26px; font-weight: 800; color: var(--b); margin: 22px 0 4px; letter-spacing: -0.02em; display: flex; align-items: baseline; gap: 9px; position: relative; }
+  .mcard h3 small { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: #9aa0ab; }
+  .mcard .tag { font-size: 15px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px dashed #e3e5ea; margin-bottom: 16px; min-height: 60px; }
+  .mcard .ticks li { font-size: 14.5px; }
+  .mcard .pill { margin-top: auto; align-self: flex-start; }
+  .mcard.new { border-top-color: var(--gold); }
+  .mcard.new .tile { background: #fbf1dc; color: #9a6a0c; }
+  .mcard .newtag { position: absolute; left: 24px; top: -1px; background: var(--gold); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; padding: 4px 10px; border-radius: 0 0 8px 8px; }
+  .alsob { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; align-items: center; font-size: 15px; color: var(--muted); }
+  .alsob b { font-weight: 700; color: var(--ink); margin-right: 4px; }
+  .alsob span { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: #fff; border: 1px solid #e6e8ec; color: var(--ink); font-weight: 600; }
+  .alsob span .ic { width: 17px; height: 17px; color: var(--b); }
+
+  /* 3. Siblings */
+  .sib { height: 900px; background: linear-gradient(180deg, #fbf7f1 0%, #f6efe4 100%); }
+  .sib h2 { color: var(--ink); font-size: 58px; }
+  .pair { display: grid; grid-template-columns: 1fr 230px 1fr; align-items: center; margin-top: 42px; }
+  .bcard { background: #fff; border-radius: 20px; padding: 28px 30px; box-shadow: 0 12px 34px rgba(93, 0, 19, 0.08); }
+  .bcard .wm strong { color: var(--b); }
+  .bcard .wm span { color: var(--muted); opacity: 1; }
+  .bcard .wm img { height: 46px; }
+  .bcard .who { font-size: 16px; color: var(--muted); margin: 12px 0 14px; }
+  .mods { display: grid; gap: 9px; }
+  .mod { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px; background: #f7f7f9; border: 1px solid #eceef2; font-weight: 600; font-size: 16px; }
+  .mod .ic { color: var(--b); width: 20px; height: 20px; }
+  .mod small { margin-left: auto; font-weight: 600; font-size: 12px; color: #9aa0ab; letter-spacing: 0.08em; }
+  .mod.hot { background: #fff8ea; border-color: #f0d9a4; }
+  .mod.hot small { color: #9a6a0c; }
+  .bridge { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .bridge .line { position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed var(--gold); }
+  .bridge .knot { position: relative; width: 70px; height: 70px; border-radius: 50%; background: var(--b); display: grid; place-items: center; box-shadow: 0 0 0 8px #f6efe4; }
+  .bridge .knot img { height: 34px; }
+  .bridge .lbl { position: relative; margin-top: 18px; text-align: center; font-size: 13.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #9a6a0c; background: #f6efe4; padding: 0 8px; }
+  .bridge .arrow { position: absolute; right: -2px; top: calc(50% - 7px); width: 0; height: 0; border-left: 12px solid var(--gold); border-top: 7px solid transparent; border-bottom: 7px solid transparent; }
+  .points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; margin-top: 36px; }
+  .pt { display: flex; gap: 14px; }
+  .pt strong { display: block; font-size: 18px; margin-bottom: 4px; color: var(--ink); }
+  .pt span { font-size: 15px; line-height: 1.5; color: var(--muted); }
+  .honest { margin-top: 26px; padding: 14px 18px; border-radius: 12px; background: rgba(255, 255, 255, 0.6); border: 1px solid #ecdcc0; font-size: 14.5px; color: #6b5a3a; display: flex; gap: 10px; align-items: center; }
+  .honest .ic { color: #9a6a0c; width: 18px; height: 18px; }
+
+  /* Dark panels */
+  .night { background: radial-gradient(circle at 80% 20%, #1b2440 0%, transparent 60%), var(--night); color: #e8ebf2; }
+  .night .kicker { color: var(--goldp); }
+  .night h2 { color: #fff; }
+  .night .lead { color: #aab2c3; }
+
+  /* 4. Payroll → Finance */
+  .p2f { height: 860px; }
+  .p2f .lead { max-width: 900px; margin-top: 18px; }
+  .chain { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; margin-top: 44px; position: relative; }
+  .chain::before { content: ''; position: absolute; left: 60px; right: 60px; top: 34px; border-top: 2px dashed rgba(242, 195, 115, 0.45); }
+  .lk { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 8px; }
+  .lk .dot { width: 68px; height: 68px; border-radius: 50%; display: grid; place-items: center; background: #151c30; border: 1px solid var(--line); color: var(--goldp); position: relative; }
+  .lk .dot .ic { width: 26px; height: 26px; }
+  .lk.fin .dot { background: #3a0a18; border-color: #6b1a31; color: #f7c7d2; }
+  .lk .sys { margin-top: 12px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.16em; color: #8d96aa; }
+  .lk.fin .sys { color: #f0a3b4; }
+  .lk strong { margin-top: 4px; font-size: 16px; color: #fff; }
+  .lk small { margin-top: 4px; font-size: 13px; line-height: 1.4; color: #9aa3b5; }
+  .split { position: absolute; left: 75px; right: 75px; bottom: 64px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 26px; }
+  .run { background: #151c30; border: 1px solid var(--line); border-radius: 18px; padding: 24px 26px; }
+  .run .cap { font-size: 12px; font-weight: 700; letter-spacing: 0.18em; color: #8d96aa; }
+  .run h3 { font-size: 22px; color: #fff; margin: 6px 0 16px; }
+  .run .row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #222b45; font-size: 16px; color: #cfd5e1; }
+  .run .row b { color: #fff; font-variant-numeric: tabular-nums; }
+  .run .row.net { border: 0; margin-top: 8px; padding: 14px 16px; border-radius: 12px; background: var(--b); color: var(--goldp); font-weight: 700; letter-spacing: 0.12em; font-size: 14px; align-items: center; }
+  .run .row.net b { font-size: 24px; letter-spacing: 0; color: #fff; }
+  .sent { display: grid; gap: 12px; }
+  .doc { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 14px; background: #fff; color: var(--ink); }
+  .doc .tile { width: 44px; height: 44px; }
+  .doc strong { display: block; font-size: 16px; }
+  .doc span { font-size: 13.5px; color: var(--muted); }
+  .doc b { margin-left: auto; font-size: 17px; font-variant-numeric: tabular-nums; color: var(--b); white-space: nowrap; }
+  .sent .note { font-size: 13.5px; color: #8d96aa; display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+  .sent .note .ic { width: 16px; height: 16px; color: var(--goldp); }
+
+  /* Feature panels with a screen */
+  .feat { height: 820px; }
+  .feat .copy { width: 470px; }
+  .feat h2 { font-size: 58px; }
+  .feat .lead { margin: 20px 0 28px; font-size: 18px; }
+  .finp { background: linear-gradient(90deg, #fff 0 44%, #0e1424 44% 100%); }
+  .cal { background: linear-gradient(90deg, #fff 0 44%, #f7eaee 44% 100%); }
+  .adm { background: linear-gradient(90deg, #fff 0 44%, #f6efe4 44% 100%); }
+  .stamp { display: inline-flex; align-items: center; gap: 8px; margin-top: 26px; padding: 9px 15px; border-radius: 12px; background: #fbf3e2; color: #8a5b06; font-weight: 700; font-size: 14px; }
+  .stamp .ic { width: 17px; height: 17px; }
+  .float { position: absolute; background: #fff; border-radius: 16px; box-shadow: 0 18px 40px rgba(20, 26, 43, 0.16); padding: 18px 20px; }
+  .float .cap { font-size: 11.5px; font-weight: 700; letter-spacing: 0.18em; color: #7b818d; text-transform: uppercase; }
+  .roles { display: grid; grid-template-columns: 1fr repeat(3, 58px); gap: 0; margin-top: 10px; font-size: 13.5px; }
+  .roles div { padding: 8px 4px; border-bottom: 1px solid #eef0f3; display: flex; align-items: center; }
+  .roles .h { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #8d93a0; justify-content: center; text-align: center; }
+  .roles .c { justify-content: center; }
+  .box { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #c9ced8; display: grid; place-items: center; }
+  .box.on { background: var(--b); border-color: var(--b); color: #fff; }
+  .box.on .ic { width: 12px; height: 12px; stroke-width: 3; }
+  .box.chg { box-shadow: 0 0 0 4px #fde9b8; }
+  .hist { margin-top: 10px; display: grid; gap: 8px; font-size: 14px; }
+  .hist div { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .hist s { color: #9aa0ab; }
+  .hist b { color: var(--ink); }
+
+  /* 8. Everyone */
+  .everyone { height: 690px; background: #fff; }
+  .everyone h2 { color: var(--ink); }
+  .cards6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 40px; }
+  .ecard { border: 1px solid #ebedf1; border-radius: 18px; padding: 22px 22px; background: #fcfcfd; }
+  .ecard .head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .ecard .tile { width: 48px; height: 48px; border-radius: 13px; background: var(--b); color: #fff; }
+  .ecard h3 { font-size: 20px; color: var(--ink); letter-spacing: -0.01em; }
+  .ecard .where { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9a6a0c; margin-top: 2px; }
+  .ecard .ticks li { font-size: 14.5px; }
+
+  /* 9. Under the hood */
+  .hood { height: 1180px; }
+  .hood .lead { max-width: 860px; margin-top: 18px; }
+  .arch { position: relative; margin-top: 40px; height: 470px; }
+  .layer { position: absolute; border-radius: 18px; border: 1px solid var(--line); background: #151c30; padding: 20px 22px; }
+  .layer .cap { font-size: 11.5px; font-weight: 700; letter-spacing: 0.18em; color: #8d96aa; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+  .layer .cap .ic { width: 16px; height: 16px; color: var(--goldp); }
+  .layer h3 { color: #fff; font-size: 20px; margin: 8px 0 6px; letter-spacing: -0.01em; }
+  .layer p { font-size: 14px; line-height: 1.5; color: #aab2c3; }
+  .apps { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+  .apps span { padding: 5px 10px; border-radius: 8px; background: #1e2640; border: 1px solid #2f3a5c; font-size: 13px; font-weight: 600; color: #e8ebf2; }
+  .server { border-color: rgba(242, 195, 115, 0.55); background: linear-gradient(180deg, #1b2236, #151c30); box-shadow: 0 0 0 6px rgba(242, 195, 115, 0.06); }
+  .mods2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .mods2 span { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid #2f3a5c; font-size: 13.5px; color: #e8ebf2; }
+  .mods2 .ic { width: 16px; height: 16px; color: var(--goldp); }
+  .conn { position: absolute; border-color: rgba(242, 195, 115, 0.55); border-style: dashed; border-width: 0; }
+  .conn.h { border-top-width: 2px; height: 0; }
+  .conn.v { border-left-width: 2px; width: 0; }
+  .tagc { position: absolute; font-size: 11.5px; font-weight: 700; letter-spacing: 0.14em; color: var(--goldp); background: var(--night); padding: 2px 8px; text-transform: uppercase; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 34px; }
+  .stat { border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px; background: rgba(255, 255, 255, 0.02); }
+  .stat b { display: block; font-family: 'Big Shoulders', sans-serif; font-size: 50px; line-height: 1; color: var(--goldp); }
+  .stat span { display: block; margin-top: 8px; font-size: 14px; line-height: 1.4; color: #c4cad6; }
+  .ops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 22px; }
+  .op { border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+  .op .cap { font-size: 11.5px; font-weight: 700; letter-spacing: 0.18em; color: var(--goldp); text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .op .cap .ic { width: 16px; height: 16px; }
+  .op ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+  .op li { font-size: 14px; line-height: 1.45; color: #c4cad6; padding-left: 14px; position: relative; }
+  .op li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--goldp); }
+
+  /* 10. Phones */
+  .phone { height: 780px; color: #fff; background: radial-gradient(circle at 15% 20%, #7a1636 0%, transparent 50%), linear-gradient(135deg, #5e0f29, #3c0716); }
+  .phone .kicker { color: var(--goldp); margin-top: 70px; }
+  .phone h2 { color: #fff; font-size: 60px; max-width: 470px; }
+  .phone .lead { color: #f1dfe3; max-width: 450px; margin: 22px 0 26px; }
+  .phone .ticks li { font-size: 16.5px; color: #fff; }
+  .phone .ticks .ic { color: var(--goldp); }
+  .dev { position: absolute; width: 228px; height: 494px; border-radius: 38px; background: #0b0f1a; padding: 10px; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45); }
+  .dev img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 29px; display: block; }
+  .dev .lbl { position: absolute; left: 50%; bottom: -34px; transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--goldp); }
+
+  /* 11. Roadmap */
+  .road { height: 780px; background: var(--bg); }
+  .road h2 { font-size: 62px; }
+  .road .lead { max-width: 700px; margin-top: 18px; }
+  .live { display: flex; align-items: center; margin: 38px 0 32px; }
+  .live b { display: inline-flex; align-items: center; gap: 10px; background: var(--b); color: #fff; padding: 11px 20px; border-radius: 999px; font-size: 15px; }
+  .live b i { width: 9px; height: 9px; border-radius: 50%; background: var(--goldp); }
+  .live .dash { flex: 1; border-top: 2px dashed #d9b46a; margin: 0 14px; }
+  .live .nx { border: 2px dashed #d9b46a; border-radius: 999px; padding: 8px 18px; font-weight: 700; color: #8a5b06; font-size: 15px; }
+  .cards5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .rcard { border: 2px dashed #e6cf9c; border-radius: 16px; padding: 20px 18px; background: #fff; display: flex; flex-direction: column; min-height: 340px; }
+  .rcard.first { border-style: solid; border-color: var(--gold); box-shadow: 0 14px 30px rgba(194, 134, 24, 0.14); }
+  .rcard .top { display: flex; justify-content: space-between; align-items: center; }
+  .rcard .tile { background: #fbf1dc; color: #9a6a0c; }
+  .rcard .top small { font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em; color: #8d93a0; }
+  .rcard h3 { font-size: 19px; margin: 18px 0 8px; color: var(--ink); line-height: 1.25; }
+  .rcard p { font-size: 14.5px; line-height: 1.5; color: var(--muted); margin-bottom: 16px; }
+  .rcard .dev-tag { margin-top: auto; align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; padding: 5px 11px; border-radius: 999px; background: #fbf1dc; color: #8a5b06; font-size: 13px; font-weight: 700; }
+  .rcard .dev-tag .ic { width: 14px; height: 14px; }
+  .road .deco { position: absolute; right: -60px; top: -70px; width: 380px; opacity: 0.12; }
+
+  /* 12. Sign in */
+  .signin { height: 440px; background: var(--goldp); color: #3c0716; }
+  .signin .kicker { color: #6b2a10; }
+  .signin h2 { color: #4a000f; font-size: 66px; }
+  .btn { display: inline-flex; align-items: center; gap: 12px; margin: 26px 0 24px; padding: 18px 28px; border-radius: 14px; background: #4a000f; color: var(--goldp); font-size: 21px; font-weight: 700; }
+  .btn .ic { width: 20px; height: 20px; }
+  .signin p.t { font-size: 18px; line-height: 1.55; max-width: 640px; color: #4a1a10; }
+  .signin .sig { margin-top: 24px; font-size: 14px; color: #5a2a14; display: flex; gap: 10px; align-items: baseline; }
+  .signin .sig strong { letter-spacing: 0.2em; }
+  .signin .big { position: absolute; right: -40px; top: 20px; width: 470px; }
+</style>
+</head>
+<body>
+
+<!-- 1. Hero -->
+<section class="panel hero" id="p01">
+  <div class="ring" style="width:760px;height:760px;right:-170px;top:-80px"></div>
+  <div class="ring" style="width:600px;height:600px;right:-90px;top:0"></div>
+  <img class="big" src="../assets/atlas-mark-dark.svg" alt="" />
+  <span class="chip" style="left:760px;top:118px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg> Learn</span>
+  <span class="chip" style="left:1040px;top:170px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/></svg> Academic</span>
+  <span class="chip" style="left:745px;top:330px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.5 3.5 5.5"/></svg> People</span>
+  <span class="chip new" style="left:1015px;top:395px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h12v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 13.5h2"/></svg> Finance</span>
+  <span class="chip new" style="left:800px;top:520px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> Calendar</span>
+  <div class="wm"><img src="../assets/atlas-mark-dark.svg" alt="" /><strong>ATLAS</strong><span>Education platform by Lancaster</span></div>
+  <p class="kicker">Now in ATLAS · November 2026</p>
+  <h1>One school.<br /><span class="g">One sign-in.</span></h1>
+  <p class="sub">Classes, people, records and now the school's books, on one platform, with a calendar for everyone.</p>
+  <div class="foot"><i></i>Lancaster Technology and Development Corporation · A sibling of CORE</div>
+</section>
+
+<!-- 2. Four systems -->
+<section class="panel inside" id="p02">
+  <p class="kicker">What's inside</p>
+  <h2>Four systems. <em>One sign-in.</em></h2>
+  <p class="lead" style="margin-top:14px">Open each one from the ATLAS home page, or the grid button in the top bar, wherever you are.</p>
+  <div class="cards4">
+    <div class="mcard"><span class="num">01</span><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg></span><h3>Learn <small>LMS</small></h3><p class="tag">From the first lesson to the final grade.</p>
+      <ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Enrollment with prerequisite and schedule checks, and waitlists</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Lessons, files, assignments and timed quizzes</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Attendance, gradebook and final grades</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>A school calendar for students, teachers and parents</li></ul></div>
+    <div class="mcard"><span class="num">02</span><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.5 3.5 5.5"/></svg></span><h3>People <small>HRIS</small></h3><p class="tag">From the first clock-in to the payslip.</p>
+      <ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Time clock and attendance (DTR), with clock-in locations</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Leave, credits and remote work</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Government payroll: salary grades, PERA, RATA, GSIS, bonuses</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Payslips and self-service for every employee</li></ul>
+      <span class="pill gold"><img src="../assets/core-mark.png" alt="" style="height:15px" /> Powered by CORE HR &amp; Payroll</span></div>
+    <div class="mcard"><span class="num">03</span><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/></svg></span><h3>Academic <small>UIS</small></h3><p class="tag">Records the registrar can stand behind.</p>
+      <ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>One student record, evaluated against the curriculum</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Grade sheets: teacher, dean, registrar</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>TOR and certificates with a QR check</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>CHED and FHE reports, ready to export</li></ul></div>
+    <div class="mcard new"><span class="newtag">NEW</span><span class="num">04</span><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h12v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 13.5h2"/></svg></span><h3>Finance <small>FMIS</small></h3><p class="tag">Government accounting, from budget to books.</p>
+      <ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Appropriations, allotments and obligations (ORS/BURS)</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Purchase requests and orders, inventory and property</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Vouchers, checks, LDDAP-ADA and official receipts</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Journals, trial balance and financial statements</li></ul>
+      <span class="pill gold"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg> COA, DBM and BIR rules</span></div>
+  </div>
+  <div class="alsob"><b>Across all four:</b><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> School calendar</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg> Settings center</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg> Roles &amp; permissions</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.8-2.5 2.2-2.5 4"/><path d="M12 17h.01"/></svg> Help &amp; guides</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg> Keycloak single sign-on</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M3 21h18"/><path d="M8 8h3M8 12h3M8 16h3M18 13h0M18 17h0"/></svg> Many campuses</span></div>
+</section>
+
+<!-- 3. CORE and ATLAS -->
+<section class="panel sib" id="p03">
+  <p class="kicker">Sibling projects</p>
+  <h2>CORE runs the company.<br /><em>ATLAS runs the school.</em></h2>
+  <div class="pair">
+    <div class="bcard">
+      <div class="wm"><img src="../assets/core-mark-lg.png" alt="" /><strong>CORE</strong><span>ERP by Lancaster</span></div>
+      <p class="who">For Lancaster's own people, equipment and service work.</p>
+      <div class="mods">
+        <div class="mod hot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.5 3.5 5.5"/></svg> HR &amp; Payroll <small>MOD-01</small></div>
+        <div class="mod"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg> IT Asset Management <small>MOD-02</small></div>
+        <div class="mod"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/></svg> IT Service Desk <small>MOD-07</small></div>
+      </div>
+    </div>
+    <div class="bridge"><span class="line"></span><span class="arrow"></span><span class="knot"><img src="../assets/core-mark-gold.png" alt="" /></span><span class="lbl">CORE's engine<br />inside ATLAS</span></div>
+    <div class="bcard">
+      <div class="wm"><img src="../assets/atlas-mark-lg.png" alt="" /><strong>ATLAS</strong><span>Education platform by Lancaster</span></div>
+      <p class="who">For the school's students, parents, faculty and staff.</p>
+      <div class="mods">
+        <div class="mod"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg> Learn <small>LMS</small></div>
+        <div class="mod hot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.5 3.5 5.5"/></svg> People <small>RUNS ON CORE</small></div>
+        <div class="mod"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/></svg> Academic <small>UIS</small></div>
+        <div class="mod hot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h12v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 13.5h2"/></svg> Finance <small>FED BY PEOPLE</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="points">
+    <div class="pt"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="9" cy="7" rx="6" ry="2.5"/><path d="M3 7v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V7"/><path d="M3 11v4c0 1.4 2.7 2.5 6 2.5 1 0 2-.1 2.8-.3"/><ellipse cx="16" cy="14" rx="5" ry="2.2"/><path d="M11 14v3.5c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2V14"/></svg></span><div><strong>The same payroll engine</strong><span>ATLAS People's time, leave and pay rules come from CORE's HR &amp; Payroll module. In ATLAS they also run government payroll and post it to Finance.</span></div></div>
+    <div class="pt"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><div><strong>One design language</strong><span>The same look, light and dark modes and phone layouts, so moving between the two feels familiar.</span></div></div>
+    <div class="pt"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span><div><strong>Built the same way</strong><span>One Node.js program each, no outside dependencies, and the same tests on every release, by the same Lancaster team.</span></div></div>
+  </div>
+  <p class="honest"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg> They share code, design and the team, not data: each runs on its own server with its own records.</p>
+</section>
+
+<!-- 4. Payroll into Finance -->
+<section class="panel night p2f" id="p04">
+  <p class="kicker">People → Finance · Government payroll</p>
+  <h2>From clock-in to the voucher.</h2>
+  <p class="lead">Pay is worked out by the rules for a state university: salary grades (EO 64), PERA and RATA, GSIS, PhilHealth, Pag-IBIG and BIR tax, loans and the ₱5,000 net-pay floor. One click sends it to Finance, all or nothing.</p>
+  <div class="chain">
+    <div class="lk"><span class="dot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="sys">PEOPLE</span><strong>Clock in</strong><small>My day, at the campus</small></div>
+    <div class="lk"><span class="dot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><span class="sys">PEOPLE</span><strong>Attendance</strong><small>DTR, leave, late and undertime</small></div>
+    <div class="lk"><span class="dot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="9" cy="7" rx="6" ry="2.5"/><path d="M3 7v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V7"/><path d="M3 11v4c0 1.4 2.7 2.5 6 2.5 1 0 2-.1 2.8-.3"/><ellipse cx="16" cy="14" rx="5" ry="2.2"/><path d="M11 14v3.5c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2V14"/></svg></span><span class="sys">PEOPLE</span><strong>Payroll run</strong><small>Payslips and the General Payroll</small></div>
+    <div class="lk fin"><span class="dot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11h6M9 15h4"/></svg></span><span class="sys">FINANCE</span><strong>Obligation</strong><small>ORS by object code</small></div>
+    <div class="lk fin"><span class="dot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></svg></span><span class="sys">FINANCE</span><strong>Voucher</strong><small>Certified (Box C), approved (Box D)</small></div>
+    <div class="lk fin"><span class="dot"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-5 9 5M5 9v9M9.5 9v9M14.5 9v9M19 9v9M3 20h18"/></svg></span><span class="sys">FINANCE</span><strong>Paid and remitted</strong><small>LDDAP-ADA; GSIS, PhilHealth, Pag-IBIG, BIR</small></div>
+  </div>
+  <div class="split">
+    <div class="run"><span class="cap">Payroll · Oct 16 – 31, 2026 · Main Campus</span><h3>28 employees, finalized</h3>
+      <div class="row">Gross pay <b>₱544,211.74</b></div>
+      <div class="row">GSIS, PhilHealth, Pag-IBIG, tax, loans <b>(₱101,830.30)</b></div>
+      <div class="row net">NET PAY <b>₱442,381.44</b></div></div>
+    <div class="sent">
+      <div class="doc"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11h6M9 15h4"/></svg></span><div><strong>Obligation request</strong><span>Personnel services, fund 01</span></div><b>₱544,211.74</b></div>
+      <div class="doc"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></svg></span><div><strong>Payroll voucher</strong><span>Net pay, through LDDAP-ADA</span></div><b>₱442,381.44</b></div>
+      <div class="doc"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-5 9 5M5 9v9M9.5 9v9M14.5 9v9M19 9v9M3 20h18"/></svg></span><div><strong>Remittance vouchers</strong><span>GSIS · PhilHealth · Pag-IBIG · BIR</span></div><b>₱101,830.30</b></div>
+      <p class="note"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg> Demo school figures. If any step fails, nothing is posted.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Finance -->
+<section class="panel feat finp" id="p05">
+  <div class="copy">
+    <p class="kicker">Finance · FMIS · New</p>
+    <h2>The school's books, by the book.</h2>
+    <p class="lead">Every peso from appropriation to financial statement, with each office's work waiting for it on the dashboard.</p>
+    <div class="flist">
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><div><strong>Budget</strong><span>Appropriations, allotments, NCAs, and obligations (ORS/BURS).</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.5 11h11L21 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg></span><div><strong>Procurement, inventory, property</strong><span>PR to PO to IAR; stock and RIS; PAR, ICS and depreciation.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><div><strong>Pay and collect</strong><span>Vouchers, checks, LDDAP-ADA, cash advances; official receipts and deposits.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/><path d="M8 7h7"/></svg></span><div><strong>Books and reports</strong><span>Journals, ledgers, trial balance, financial statements, BIR forms.</span></div></div>
+    </div>
+    <span class="stamp"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg> Separation of duties: a voucher's certifier and approver must differ</span>
+  </div>
+  <div class="frame dk" style="left:600px;top:165px;width:720px"><div class="bar"><i></i><i></i><i></i></div><img src="screens/desk-finance-dark.png" alt="" /></div>
+</section>
+
+<!-- 6. Calendar -->
+<section class="panel feat cal" id="p06">
+  <div class="copy">
+    <p class="kicker">Learn · School calendar · New</p>
+    <h2>Every class. Every due date. One calendar.</h2>
+    <p class="lead">Built from what ATLAS already knows, so nobody types it twice.</p>
+    <div class="flist">
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/><path d="M8 7h7"/></svg></span><div><strong>Your classes and what is due</strong><span>With a check mark when work is handed in, and a flag when it is missing.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></span><div><strong>Holidays cancel classes</strong><span>Mark a day without classes and meetings disappear from everyone's calendar.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.5 3.5 5.5"/></svg></span><div><strong>Parents see each child</strong><span>As far as each link allows, with meetings just for them.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg></span><div><strong>On any phone</strong><span>Subscribe from Google Calendar, Outlook or an iPhone.</span></div></div>
+    </div>
+  </div>
+  <div class="frame" style="left:590px;top:150px;width:740px"><div class="bar"><i></i><i></i><i></i></div><img src="screens/desk-calendar.png" alt="" /></div>
+</section>
+
+<!-- 7. Admin -->
+<section class="panel feat adm" id="p07">
+  <div class="copy">
+    <p class="kicker">For administrators · New</p>
+    <h2>Your school. Your rules.</h2>
+    <p class="lead">Change how ATLAS works without calling a developer, and see who changed what.</p>
+    <div class="flist">
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span><div><strong>Settings center</strong><span>All 112 settings of the five systems in one search, each compared with its default.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><strong>History and undo</strong><span>Who changed a setting, when, from what to what; undo in one click.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span><div><strong>Roles and permissions</strong><span>Decide what registrars, deans and every office may do.</span></div></div>
+      <div class="fi"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.8-2.5 2.2-2.5 4"/><path d="M12 17h.01"/></svg></span><div><strong>Guides that keep up</strong><span>A guide for every role, updated with every release, and editable by the school.</span></div></div>
+    </div>
+  </div>
+  <div class="frame" style="left:600px;top:96px;width:720px"><div class="bar"><i></i><i></i><i></i></div><img src="screens/desk-config.png" alt="" /></div>
+  <div class="float" style="left:560px;top:540px;width:330px"><span class="cap">Change history</span>
+    <div class="hist"><div><b>PERA</b> <s>₱2,000</s> → <b>₱2,500</b></div><div><b>Shortest password</b> <s>8</s> → <b>10</b></div><div style="color:#7b818d;font-size:12.5px">Ada Admin · just now · Undo</div></div></div>
+  <div class="float" style="left:930px;top:520px;width:310px"><span class="cap">Roles &amp; permissions</span>
+    <div class="roles"><div></div><div class="h">REG.</div><div class="h">DEAN</div><div class="h">ACCT.</div>
+      <div>Academic settings</div><div class="c"><span class="box on"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span></div><div class="c"><span class="box"></span></div><div class="c"><span class="box"></span></div>
+      <div>Finance reports</div><div class="c"><span class="box"></span></div><div class="c"><span class="box on chg"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span></div><div class="c"><span class="box on"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span></div></div></div>
+</section>
+
+<!-- 8. For everyone -->
+<section class="panel everyone" id="p08">
+  <p class="kicker">For everyone</p>
+  <h2>Each person sees <em>their</em> school.</h2>
+  <div class="cards6">
+    <div class="ecard"><div class="head"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/></svg></span><div><h3>Students</h3><p class="where">Learn · Academic · Finance</p></div></div><ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Classes, quizzes, grades and the calendar</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Enroll, evaluation, COR and documents</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Their official receipts</li></ul></div>
+    <div class="ecard"><div class="head"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.6-4 3.6-6.5 8-6.5s7.4 2.5 8 6.5"/></svg></span><div><h3>Parents &amp; guardians</h3><p class="where">Learn</p></div></div><ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Grades, attendance and missing work</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Each child's calendar</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Only what each link allows</li></ul></div>
+    <div class="ecard"><div class="head"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/><path d="M8 7h7"/></svg></span><div><h3>Faculty</h3><p class="where">Learn · Academic · People</p></div></div><ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Lessons, quizzes, attendance, gradebook</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Grade sheets to the dean and registrar</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Time clock, leave and payslips</li></ul></div>
+    <div class="ecard"><div class="head"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11h6M9 15h4"/></svg></span><div><h3>Registrar &amp; deans</h3><p class="where">Admin panel · Academic</p></div></div><ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Enrollment, sections and waitlists</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Records, curricula and approvals</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Transcripts and CHED reports</li></ul></div>
+    <div class="ecard"><div class="head"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.5 3.5 5.5"/></svg></span><div><h3>HR &amp; payroll</h3><p class="where">People</p></div></div><ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Employees, attendance and leave</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Government payroll and bonuses</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Payroll sent to Finance</li></ul></div>
+    <div class="ecard"><div class="head"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h12v4"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 13.5h2"/></svg></span><div><h3>Finance offices</h3><p class="where">Finance</p></div></div><ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Budget, accounting and cashier</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Supply, property and approvals</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Statements and BIR reports</li></ul></div>
+  </div>
+</section>
+
+<!-- 9. Under the hood -->
+<section class="panel night hood" id="p09">
+  <p class="kicker">Under the hood · The backend</p>
+  <h2>Simple to run. Built to last.</h2>
+  <p class="lead">ATLAS is built like CORE: one Node.js program that uses only Node's own standard library, browser apps with no build step, and all records in one data file. Nothing to license, nothing to keep patched but Node itself.</p>
+  <div class="arch">
+    <div class="layer" style="left:0;top:0;width:290px;height:300px"><span class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg> Browsers &amp; phones</span><h3>Seven web apps</h3><p>Plain JavaScript modules and CSS, served as they are: no framework, no bundler.</p>
+      <div class="apps"><span>Home</span><span>Learn</span><span>Admin</span><span>Academic</span><span>People</span><span>Finance</span><span>Help</span></div></div>
+    <div class="conn h" style="left:292px;width:96px;top:130px"></div><span class="tagc" style="left:300px;top:104px">HTTPS</span>
+    <div class="layer" style="left:390px;top:0;width:120px;height:300px;padding:20px 14px;text-align:center"><span class="cap" style="justify-content:center"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span><h3 style="font-size:18px">Caddy</h3><p style="font-size:13px">Automatic HTTPS certificates</p></div>
+    <div class="conn h" style="left:512px;width:36px;top:130px"></div>
+    <div class="layer server" style="left:550px;top:0;width:550px;height:300px"><span class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Node.js server · one program</span><h3>JSON API with the rules built in</h3><p>About 30,000 lines, no outside packages. Every request is checked against the account's role and permissions.</p>
+      <div class="mods2"><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.5 3.5 5.5"/></svg> Sign-in, sessions, roles</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11h6M9 15h4"/></svg> Enrollment and grading rules</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="9" cy="7" rx="6" ry="2.5"/><path d="M3 7v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V7"/><path d="M3 11v4c0 1.4 2.7 2.5 6 2.5 1 0 2-.1 2.8-.3"/><ellipse cx="16" cy="14" rx="5" ry="2.2"/><path d="M11 14v3.5c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2V14"/></svg> Payroll engine (from CORE)</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/><path d="M8 7h7"/></svg> Double-entry accounting</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> iCalendar feeds</span><span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg> QR document checks</span></div></div>
+    <div class="conn v" style="left:825px;top:302px;height:56px"></div>
+    <div class="layer" style="left:550px;top:360px;width:265px;height:110px"><span class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg> data/db.json</span><p style="margin-top:6px">Every record in one file, one list per table: ready to move to PostgreSQL.</p></div>
+    <div class="layer" style="left:835px;top:360px;width:265px;height:110px"><span class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg> data/files</span><p style="margin-top:6px">Uploaded files: resources, handed-in work, certificates.</p></div>
+    <div class="conn h" style="left:1102px;width:0;top:130px"></div>
+    <div class="layer" style="left:0;top:340px;width:510px;height:130px"><span class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/></svg> Optional · Single sign-on</span><h3 style="font-size:18px">Keycloak (OpenID Connect)</h3><p>Sign in with the school's account; PKCE and signed tokens checked by the server. The client secret stays in the server's environment.</p></div>
+    <div class="conn v" style="left:450px;top:302px;height:36px"></div><span class="tagc" style="left:462px;top:308px">OIDC</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>0</b><span>outside packages to install or patch</span></div>
+    <div class="stat"><b>100+</b><span>automated tests run before every update</span></div>
+    <div class="stat"><b>1</b><span>server for every system and campus</span></div>
+    <div class="stat"><b>18+</b><span>any Node.js from version 18</span></div>
+    <div class="stat"><b>WCAG</b><span>2 AA checked, light and dark, desktop and phone</span></div>
+  </div>
+  <div class="ops">
+    <div class="op"><p class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg> Security</p><ul><li>Passwords hashed with scrypt; lockout after wrong tries</li><li>HttpOnly, SameSite session cookies</li><li>Audit trails: settings, Academic, Finance</li></ul></div>
+    <div class="op"><p class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg> Backups</p><ul><li>A copy of the data every night, kept 30 days</li><li>A snapshot of the whole disk every day, kept 7</li><li>Download a backup from the Admin panel</li></ul></div>
+    <div class="op"><p class="cap"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M3 21h18"/><path d="M8 8h3M8 12h3M8 16h3M18 13h0M18 17h0"/></svg> Where it runs</p><ul><li>Amazon EC2 (Ubuntu), Caddy and systemd</li><li>Or one Windows or Mac computer on the school network</li><li>Updates install only when every test passes</li></ul></div>
+  </div>
+</section>
+
+<!-- 10. Phones -->
+<section class="panel phone" id="p10">
+  <p class="kicker">On your phone</p>
+  <h2>In every pocket, day and night.</h2>
+  <p class="lead">Every screen works on a phone, in light or dark mode: no app to install.</p>
+  <ul class="ticks"><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>The calendar, with a dot for each class and due date</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Clock in from My day, at the campus</li><li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>A guide for your role, one tap away</li></ul>
+  <div class="dev" style="left:548px;top:110px"><img src="screens/phone-calendar.png" alt="" /><span class="lbl">Parent · Calendar</span></div>
+  <div class="dev" style="left:788px;top:150px"><img src="screens/phone-myday-dark.png" alt="" /><span class="lbl">Faculty · My day</span></div>
+  <div class="dev" style="left:1028px;top:110px"><img src="screens/phone-help.png" alt="" /><span class="lbl">Student · Help</span></div>
+</section>
+
+<!-- 11. Roadmap -->
+<section class="panel road" id="p11">
+  <img class="deco" src="../assets/atlas-mark-burgundy.svg" alt="" />
+  <p class="kicker">Coming soon · On the roadmap</p>
+  <h2>ATLAS keeps growing.</h2>
+  <p class="lead">Each opens from the same sign-in and shares the records the school already keeps in ATLAS.</p>
+  <div class="live"><b><i></i> Live now: Academic · Learn · People · Finance</b><span class="dash"></span><span class="nx">Next ›</span></div>
+  <div class="cards5">
+    <div class="rcard first"><div class="top"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/><path d="M8 7h7"/></svg></span><small>LEARN</small></div><h3>REX Bookstore e&#8209;Reader</h3><p>E-books for each subject from the REX Bookstore app's library, opened from the ATLAS home page.</p><span class="dev-tag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Coming soon</span></div>
+    <div class="rcard"><div class="top"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 011-1h9a1 1 0 011 1v16M15 9h4a1 1 0 011 1v11M3 21h18"/><path d="M8 8h3M8 12h3M8 16h3M18 13h0M18 17h0"/></svg></span><small>FACILITIES</small></div><h3>Facilities</h3><p>Rooms and venues, bookings, maintenance requests and equipment.</p><span class="dev-tag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> In development</span></div>
+    <div class="rcard"><div class="top"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><small>FINANCE</small></div><h3>Fees and assessment</h3><p>Assessment of fees with free tuition (RA 10931), and students' statements of account.</p><span class="dev-tag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> In development</span></div>
+    <div class="rcard"><div class="top"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><small>ACADEMIC</small></div><h3>Scheduling</h3><p>Block sections, rooms and professor conflict checks.</p><span class="dev-tag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> In development</span></div>
+    <div class="rcard"><div class="top"><span class="tile"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z"/></svg></span><small>ACADEMIC</small></div><h3>Scholarships &amp; guidance</h3><p>Grants and scholar monitoring, and confidential guidance records.</p><span class="dev-tag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> In development</span></div>
+  </div>
+</section>
+
+<!-- 12. Sign in -->
+<section class="panel signin" id="p12">
+  <img class="big" src="../assets/atlas-mark-burgundy.svg" alt="" style="opacity:.14" />
+  <p class="kicker">Ready when you are</p>
+  <h2>See it for yourself.</h2>
+  <span class="btn"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg> Sign-in address to be announced</span>
+  <p class="t">One account opens every system you may use. Ask for a walkthrough with the demo school, or read the guide for your role under Help.</p>
+  <p class="sig"><strong>ATLAS</strong> Education platform by Lancaster · A sibling of CORE</p>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,149 @@
+// ATLAS Academic rules shared by the server and the browser: the grading scale, document
+// types, admission requirements, terms of a curriculum, and the general weighted average.
+// Defaults follow the CBSUA UIS (Registrar → Grading System) and common Philippine SUC practice;
+// each school changes them under Academic → Settings.
+
+// Percentage → grade equivalent. 1.00 is the best; 3.00 is the lowest passing grade; 5.00 fails.
+export const DEFAULT_SCALE = [
+  { min: 99, grade: 1.0, remark: 'Excellent' },
+  { min: 96, grade: 1.25, remark: 'Excellent' },
+  { min: 93, grade: 1.5, remark: 'Very good' },
+  { min: 90, grade: 1.75, remark: 'Very good' },
+  { min: 87, grade: 2.0, remark: 'Good' },
+  { min: 84, grade: 2.25, remark: 'Above average' },
+  { min: 81, grade: 2.5, remark: 'Average' },
+  { min: 78, grade: 2.75, remark: 'Fair' },
+  { min: 75, grade: 3.0, remark: 'Passed' },
+  { min: 0, grade: 5.0, remark: 'Failed' },
+];
+export const PASSING_GRADE = 3.0;
+
+// Remarks on the permanent record.
+export const REMARKS = {
+  passed: 'Passed',
+  failed: 'Failed',
+  inc: 'Incomplete',
+  dropped: 'Dropped',
+  credited: 'Credited',
+};
+
+export const fmtGrade = (g) => (g == null || g === '' ? '' : Number(g).toFixed(2));
+
+// The equivalent of a percentage on a scale (sorted from the highest band down).
+// passing: the lowest passing grade (Academic settings; 3.00 by default).
+export function equivalent(percent, scale = DEFAULT_SCALE, passing = PASSING_GRADE) {
+  if (percent == null || percent === '' || Number.isNaN(Number(percent))) return null;
+  const p = Number(percent);
+  const bands = [...scale].sort((a, b) => b.min - a.min);
+  const band = bands.find((b) => p >= b.min) || bands.at(-1);
+  return { grade: band.grade, remark: band.remark, passed: band.grade <= passing };
+}
+
+// Curriculum terms: year level 1–6, and the term in that year.
+export const TERMS = [
+  { id: '1', label: 'First Semester', short: '1st Sem' },
+  { id: '2', label: 'Second Semester', short: '2nd Sem' },
+  { id: 'S', label: 'Summer', short: 'Summer' },
+];
+export const termLabel = (id) => TERMS.find((t) => t.id === id)?.label || id;
+export const termOrder = (id) => ({ 1: 1, 2: 2, S: 3 })[id] || 9;
+export const yearLabel = (n) => (n ? `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' })[n] || 'th'} Year` : '');
+
+export const STUDENT_TYPES = [
+  ['new', 'New student'],
+  ['old', 'Continuing student'],
+  ['transferee', 'Transferee'],
+  ['returnee', 'Returnee'],
+  ['cross', 'Cross-enrollee'],
+];
+export const studentTypeLabel = (id) => STUDENT_TYPES.find(([k]) => k === id)?.[1] || '';
+
+// Documents the registrar issues. official: printed by the registrar only (students may request them).
+export const DOCUMENT_TYPES = [
+  { id: 'tor', label: 'Transcript of Records', short: 'TOR', fee: 150, official: true },
+  { id: 'cog', label: 'Certificate of Grades', short: 'COG', fee: 50, official: true },
+  { id: 'coe', label: 'Certificate of Enrollment', short: 'COE', fee: 50, official: true },
+  { id: 'cor', label: 'Certificate of Registration', short: 'COR', fee: 0, official: false }, // students print their own
+  { id: 'gmc', label: 'Certificate of Good Moral Character', short: 'GMC', fee: 50, official: true },
+  { id: 'hd', label: 'Honorable Dismissal', short: 'HD', fee: 100, official: true },
+];
+export const docType = (id) => DOCUMENT_TYPES.find((d) => d.id === id);
+
+export const REQUEST_STATUS = {
+  requested: 'Requested',
+  paid: 'Paid',
+  processing: 'Processing',
+  ready: 'Ready for release',
+  released: 'Released',
+  cancelled: 'Cancelled',
+};
+
+// Admission requirements (CBSUA UIS → Requirements Monitoring), with the student types that need each.
+export const DEFAULT_REQUIREMENTS = [
+  { id: 'psa', name: 'PSA birth certificate', for: ['new', 'transferee', 'returnee', 'cross'] },
+  { id: 'f138', name: 'Form 138 (report card) or its equivalent', for: ['new'] },
+  { id: 'tor-in', name: 'Transcript of records from the previous school', for: ['transferee'] },
+  { id: 'hd-in', name: 'Honorable dismissal from the previous school', for: ['transferee'] },
+  { id: 'gmc', name: 'Certificate of good moral character', for: ['new', 'transferee'] },
+  { id: 'med', name: 'Medical / dental certificate', for: ['new', 'transferee', 'returnee'] },
+  { id: 'photo', name: '2×2 ID photos', for: ['new', 'transferee', 'returnee'] },
+  { id: 'permit', name: 'Permit to cross-enroll', for: ['cross'] },
+];
+
+export const DEFAULT_ACADEMIC_SETTINGS = {
+  scale: DEFAULT_SCALE,
+  requirements: DEFAULT_REQUIREMENTS,
+  fees: Object.fromEntries(DOCUMENT_TYPES.map((d) => [d.id, d.fee])),
+  incDays: 365, // an INC must be completed within this many days of posting
+  honors: { maxGwa: 1.75, worstGrade: 2.5, minUnits: 15 }, // dean's list for a term
+  registrar: { name: '', title: 'University Registrar' },
+  passingGrade: PASSING_GRADE, // the lowest passing grade on the scale; worse grades fail
+};
+
+// Problems with a grading scale (sorted highest band first), or [] when it is fine.
+export function scaleProblems(scale, passing = PASSING_GRADE) {
+  const out = [];
+  if (!scale.length) return ['The scale needs at least one band.'];
+  if (scale.some((b) => !(b.min >= 0 && b.min <= 100) || !(b.grade >= 1 && b.grade <= 5))) out.push('Each band needs a percentage from 0 to 100 and a grade from 1.00 to 5.00.');
+  if (!scale.some((b) => b.min === 0)) out.push('The scale needs a band that starts at 0%.');
+  const mins = scale.map((b) => b.min);
+  if (new Set(mins).size !== mins.length) out.push('Two bands start at the same percentage.');
+  for (let i = 1; i < scale.length; i++) if (scale[i].grade < scale[i - 1].grade) out.push(`${scale[i].min}% gets a better grade (${scale[i].grade.toFixed(2)}) than ${scale[i - 1].min}% (${scale[i - 1].grade.toFixed(2)}).`);
+  if (!scale.some((b) => b.grade <= passing)) out.push(`No band reaches the passing grade ${Number(passing).toFixed(2)}.`);
+  if (!scale.some((b) => b.grade > passing)) out.push('The scale needs a failing band.');
+  return out;
+}
+
+// The lowest percentage that passes on a scale (to compare with Learn's passing grade).
+export function passingPercent(scale, passing = PASSING_GRADE) {
+  const ok = scale.filter((b) => b.grade <= passing).map((b) => b.min);
+  return ok.length ? Math.min(...ok) : null;
+}
+
+// General weighted average over records with a numeric grade (credited and special grades left out).
+export function gwa(records) {
+  let sum = 0;
+  let units = 0;
+  for (const r of records) {
+    if (r.grade == null || r.source === 'credited' || !(Number(r.units) > 0)) continue;
+    sum += Number(r.grade) * Number(r.units);
+    units += Number(r.units);
+  }
+  return units ? Math.round((sum / units) * 10000) / 10000 : null;
+}
+
+export const GRADE_SHEET_STATUS = {
+  none: 'Not started',
+  submitted: 'Waiting for approval',
+  approved: 'Approved, waiting to be posted',
+  posted: 'Posted',
+  returned: 'Returned to the teacher',
+};
+
+export const ACADEMIC_PERMISSION_LABELS = [
+  ['academic.view', 'View student records, curricula, grade sheets and reports'],
+  ['academic.records', 'Edit student records, credit subjects, post grade sheets, issue documents'],
+  ['academic.curricula', 'Build and post curricula; colleges'],
+  ['grades.approve', 'Approve grade sheets and grade changes'],
+  ['academic.settings', 'Grading scale, requirements, document fees and signatories'],
+];

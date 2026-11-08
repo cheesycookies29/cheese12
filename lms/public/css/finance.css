@@ -1,0 +1,169 @@
+/* ATLAS Finance: editable lines, statements, dashboard bits, voucher boxes and printable government forms (A4). */
+
+.toolbar .grow, .actions .grow { flex: 1; }
+.check-row.inline { display: inline-flex; padding: 0; border: 0; align-items: center; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 0 16px; margin-bottom: 12px; }
+.grid.three-tight { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+fieldset.bond { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+.card h2 + .check-grid, .card h2 { margin-top: 0; }
+form.card h2:not(:first-child) { margin-top: 20px; }
+
+/* Editable lines */
+.lines { margin-bottom: 12px; }
+.lines-table td { vertical-align: middle; }
+.lines-table select, .lines-table input { width: 100%; min-width: 90px; padding: 6px 8px; min-height: 34px; }
+.lines-table td.num input { text-align: right; }
+.lines-table th.x, .lines-table td.x { width: 36px; text-align: center; }
+.lines-total { font-weight: 600; color: var(--text-2); }
+.lines [data-add-line] { margin-top: 8px; }
+details.quotes { margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; }
+details.quotes summary { cursor: pointer; font-weight: 600; color: var(--text-2); }
+details.quotes[open] summary { margin-bottom: 8px; }
+.preview { border-top: 1px solid var(--border); margin-top: 14px; }
+.count-in { width: 90px; text-align: right; padding: 4px 6px; min-height: 30px; }
+
+/* Tables and statements */
+.table td.indent, td.indent { padding-left: 28px; }
+.table tr.term-row td { background: var(--surface-2); font-weight: 600; }
+.table tr.muted td { color: var(--muted); }
+.table.report small, .table small { display: block; color: var(--muted); font-size: 12px; }
+.statement .st-head { text-align: center; margin-bottom: 12px; display: flex; flex-direction: column; gap: 2px; }
+.statement .st-head span { color: var(--muted); font-size: 13px; }
+tr.st-section td { font-weight: 700; letter-spacing: 0.04em; padding-top: 14px; }
+tr.st-sub td { font-weight: 600; color: var(--text-2); }
+tr.st-total td { font-weight: 600; border-top: 1px solid var(--border-strong); }
+tr.st-grand td { font-weight: 700; border-top: 2px solid var(--text); border-bottom: 3px double var(--text); }
+.recon-sum { max-width: 620px; margin: 14px 0 0 auto; }
+
+/* Dashboard */
+.fund-cash { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.fund-cash:last-child { border-bottom: 0; }
+.fund-row { display: flex; justify-content: space-between; font-weight: 600; }
+.fund-acct { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--text-2); padding-top: 4px; }
+.fund-acct span, .fund-row span { font-variant-numeric: tabular-nums; }
+.bars { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding-top: 8px; }
+.bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.bar i { display: block; width: 100%; max-width: 26px; min-height: 2px; background: var(--brand); border-radius: 4px 4px 0 0; }
+.bar span { font-size: 11px; color: var(--muted); }
+td.util, th.util { width: 140px; }
+.meter { position: relative; display: block; height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.meter i, .meter b { position: absolute; left: 0; top: 0; bottom: 0; }
+.meter i { background: var(--info); }
+.meter b { background: var(--success); }
+.stats .card.warn { border-color: var(--danger); }
+
+/* Voucher boxes A–E */
+.boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.box { border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--surface); }
+.box strong { display: block; font-size: 12px; color: var(--text-2); }
+.box span { font-size: 13px; color: var(--muted); }
+.box.done { border-style: solid; border-color: color-mix(in srgb, var(--success) 45%, var(--surface)); background: var(--success-soft); }
+.box.done span { color: var(--text); }
+
+/* Printable government forms */
+.gov-form { font-size: 12px; line-height: 1.4; }
+.gov-form.small-form { max-width: 460px; }
+.f-appendix { text-align: right; font-style: italic; font-size: 11px; color: #555; }
+.f-head { text-align: center; margin-bottom: 10px; }
+.f-head h1 { font-size: 16px; text-transform: uppercase; letter-spacing: 0.04em; margin: 4px 0 8px; color: #1e1e1e; }
+.f-entity, .f-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; text-align: left; font-size: 12px; }
+.f-meta { margin-top: 4px; }
+.f-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.f-table th, .f-table td { border: 1px solid #555; padding: 4px 6px; vertical-align: top; color: #1e1e1e; background: #fff; }
+.f-table th { background: #f1f1f1; font-weight: 600; text-align: left; }
+.f-table .num, .f-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.f-table tfoot td { font-weight: 700; }
+.f-table.f-kv th { width: 22%; }
+.f-table td.indent { padding-left: 24px; }
+.f-sub { font-size: 12px; margin: 10px 0 2px; text-transform: uppercase; color: #1e1e1e; }
+.f-small { font-size: 11px; color: #333; }
+.f-box { border: 1px solid #555; padding: 6px 8px; margin: 6px 0; }
+.f-signs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.f-signs.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.f-signs .f-box { margin: 0; }
+.f-sign { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 6px; }
+.f-sign .f-label { align-self: flex-start; font-size: 11px; color: #555; }
+.f-sign .f-line { display: block; width: 90%; min-height: 34px; border-bottom: 1px solid #1e1e1e; display: flex; align-items: flex-end; justify-content: center; font-weight: 700; text-transform: uppercase; }
+.f-sign .f-cap { font-size: 11px; color: #555; }
+.f-check { font-size: 14px; }
+.f-or header { text-align: center; display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.f-or header strong { font-size: 18px; letter-spacing: 0.08em; }
+.f-or header span { font-size: 11px; color: #555; }
+.f-or-no { text-align: right; font-size: 14px; color: #8b0000; margin-bottom: 6px; }
+
+@media (max-width: 760px) {
+  .grid.three-tight, .f-signs, .f-signs.four { grid-template-columns: minmax(0, 1fr); }
+  .recon-sum { margin-left: 0; }
+  td.util, th.util { width: 90px; }
+}
+
+@media print {
+  .gov-form { font-size: 11px; }
+  .boxes, .no-print, #pick, #filter, #f { display: none !important; }
+  .f-table th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Filters keep their natural width */
+.finance-app .toolbar input[type='date'], .finance-app .toolbar input[type='month'], .finance-app .toolbar input[type='number'] { width: auto; }
+.finance-app .toolbar input[type='search'] { flex: 1 1 220px; min-width: 0; }
+.finance-app .toolbar label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.f-2307 th:first-child, .f-2307 td:first-child { width: 34%; }
+:root[data-theme='dark'] .bar i { background: var(--brand-text); }
+
+/* Line editors on phones: each line is a card; every field keeps its label; remove sits top right. */
+@media (max-width: 760px) {
+  .lines-table.stackable tr[data-line] { position: relative; padding-right: 44px; }
+  .lines-table.stackable td:first-child { display: flex; }
+  .lines-table.stackable td:first-child::before { content: attr(data-label); }
+  .lines-table.stackable td.x { position: absolute; right: 4px; top: 6px; width: auto; border: 0; }
+  .lines-table.stackable td.x::before { content: none; }
+}
+
+.util-v { display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
+.util-v .meter { flex: 1; min-width: 60px; }
+.bar { position: relative; }
+.bar em { position: absolute; top: -18px; font-style: normal; font-size: 11px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.bars { padding-top: 20px; }
+.bar span { font-size: 10px; }
+.nowrap { white-space: nowrap; }
+.find-bar input[type='search'] { max-width: 520px; font-size: 16px; }
+
+.page-head .actions .push-right { margin-left: 12px; }
+.report th:first-child, .report td:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.report thead th:first-child { background: var(--surface-2); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+/* Anything positioned inside a scrolling table stays inside it (never widens the page). */
+.finance-app .table-scroll { position: relative; }
+.matrix th small { white-space: normal; display: block; min-width: 72px; }
+
+/* Document numbers never break in the middle. */
+.finance-app .table td > a > strong, .finance-app .table td > strong:first-child { white-space: nowrap; }
+
+/* Wide tables: a soft shadow on the side that has more columns, so it is clear the table scrolls. */
+.finance-app .table-scroll {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(15, 23, 42, 0.2), transparent) left / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.2), transparent) right / 14px 100% no-repeat scroll;
+}
+:root[data-theme='dark'] .finance-app .table-scroll {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.6), transparent) left / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.6), transparent) right / 14px 100% no-repeat scroll;
+}
+@media print { .finance-app .table-scroll { background: none; } }
+/* The cancel action keeps its distance from the main one. */
+.page-head .actions .push-right { margin-left: 24px; }
+@media (max-width: 760px) { .page-head .actions .push-right { margin-left: 0; } }
+
+/* Links that sit in muted text are underlined so they do not rely on colour alone. */
+.finance-app #app .muted a { text-decoration: underline; }
+/* Touch screens: links in lists and tables get a 24px-high target. */
+@media (pointer: coarse), (max-width: 1024px) {
+  .finance-app .table td a:not(.btn), .finance-app .fund-acct a, .finance-app .card-head > a { display: inline-block; padding: 3px 0; min-height: 24px; }
+}
+.finance-app dl.info { margin: 0; }

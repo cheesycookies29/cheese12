@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Verify a document · ATLAS</title>
+  <link rel="icon" type="image/svg+xml" href="/img/brand/atlas-app-icon.svg" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    body { background: var(--bg); min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+    .verify { width: 100%; max-width: 460px; }
+    .verify .brand-row { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 18px; color: var(--text); }
+    .verify .brand-row img { height: 36px; }
+    .verify .brand-row strong { letter-spacing: 0.14em; font-size: 17px; color: var(--brand-text); }
+    .verify .brand-row span { color: var(--muted); font-size: 12px; }
+    .result { text-align: center; }
+    .result .big { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 10px; font-size: 32px; font-weight: 800; }
+    .result.ok .big { background: var(--success-soft); color: var(--success); }
+    .result.bad .big { background: var(--danger-soft); color: var(--danger); }
+    dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; margin: 16px 0 0; }
+    dt { color: var(--muted); font-size: 13px; }
+    dd { margin: 0; font-weight: 600; }
+    form { display: flex; gap: 8px; margin-top: 16px; }
+    form input { flex: 1; text-transform: uppercase; }
+  </style>
+  <script>
+    try { var t = localStorage.getItem('lms-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
+</head>
+<body>
+  <main class="verify">
+    <div class="brand-row"><img src="/img/brand/atlas-mark.svg" alt="" /><div><strong>ATLAS</strong><br /><span>Document verification</span></div></div>
+    <section class="card" id="out"><p class="muted">Checking…</p></section>
+    <p class="muted small" style="text-align:center">This page shows what the school issued under this code. Compare it with the paper you were given.</p>
+  </main>
+  <script type="module">
+    const out = document.getElementById('out');
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    const code = decodeURIComponent(location.pathname.split('/').pop() || '').toUpperCase();
+    const form = `<form id="again"><input name="code" placeholder="XXXX-XXXX-XXXX" aria-label="Code" value="${esc(code)}" /><button class="btn primary">Check</button></form>`;
+    try {
+      const r = await (await fetch(`/api/verify/${encodeURIComponent(code)}`)).json();
+      if (r.valid) {
+        const rows = [['Document', r.title], ['Issued to', r.student], ['Student no.', r.studentNo], ['Program', r.program], ['Term', r.termName], ['Units', r.units], ['GWA', r.gwa != null ? Number(r.gwa).toFixed(4).replace(/0{1,2}$/, '') : ''], ['School', `${r.school}${r.campus ? `, ${r.campus}` : ''}`], ['Issued on', new Date(r.issuedAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })], ['Code', r.code]].filter(([, v]) => v !== '' && v != null);
+        out.innerHTML = `<div class="result ok"><div class="big">✓</div><h2>Genuine document</h2><p class="muted">Issued by the Office of the Registrar through ATLAS.</p></div><dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+      } else {
+        out.innerHTML = `<div class="result bad"><div class="big">!</div><h2>No document with this code</h2><p class="muted">Check the code on the paper. If it is right, the document was not issued by the school through ATLAS: contact the registrar.</p></div>${form}`;
+      }
+    } catch {
+      out.innerHTML = '<p>Could not check right now. Try again later.</p>';
+    }
+    document.getElementById('again')?.addEventListener('submit', (e) => { e.preventDefault(); location.href = `/verify/${encodeURIComponent(new FormData(e.target).get('code').trim())}`; });
+  </script>
+</body>
+</html>
