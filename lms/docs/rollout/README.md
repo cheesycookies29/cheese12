@@ -2,6 +2,8 @@
 
 Concept art for announcing ATLAS, made as a set like *CORE by Lancaster* (the ERP's rollout): eleven 1250-px panels for email and slides, in one PDF and as separate PNGs (2×).
 
+**Newer set:** [`2026-11/`](2026-11/README.md), November 2026: Finance, payroll into Finance, the school calendar, the Settings center, the REX Bookstore e-Reader, CORE and ATLAS, and what ATLAS is built on.
+
 | Panel | |
 | --- | --- |
 | `p01` | Introducing: *Meet ATLAS.* |
