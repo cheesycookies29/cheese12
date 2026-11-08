@@ -10,12 +10,17 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     description: 'Manages employees, attendance, leave and the time clock; approves leave and remote work; adjusts payroll setup and the holiday calendar. Can view payroll and IT assets.',
-    permissions: ['dashboard', 'employees.view', 'employees.edit', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'assets.view', 'self'],
+    permissions: ['dashboard', 'employees.view', 'employees.edit', 'employees.sensitive', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'assets.view', 'self'],
+  },
+  hrstaff: {
+    label: 'HR Staff',
+    description: 'Day-to-day HR: views employee records without pay, government IDs or bank details; manages attendance, the shared time clock, the holiday calendar and leave records. Cannot see payroll or approve requests (unless a supervisor).',
+    permissions: ['employees.view', 'attendance.view', 'attendance.edit', 'clock.kiosk', 'holidays.manage', 'leave.manage', 'self'],
   },
   payroll: {
     label: 'Payroll Officer',
     description: 'Runs, adjusts and finalizes payroll; adjusts payroll setup, the holiday calendar and leave credits. Can view employees and attendance.',
-    permissions: ['dashboard', 'employees.view', 'attendance.view', 'payroll.view', 'payroll.edit', 'payroll.config', 'holidays.manage', 'leave.manage', 'self'],
+    permissions: ['dashboard', 'employees.view', 'employees.sensitive', 'attendance.view', 'payroll.view', 'payroll.edit', 'payroll.config', 'holidays.manage', 'leave.manage', 'self'],
   },
   it: {
     label: 'IT Asset Manager',
@@ -49,6 +54,7 @@ export const PERMISSION_LABELS = [
   ['dashboard', 'Company dashboard'],
   ['employees.view', 'View employee records'],
   ['employees.edit', 'Add and edit employees'],
+  ['employees.sensitive', 'See pay, government ID numbers and bank details (full numbers are shown on request and logged)'],
   ['attendance.view', 'View attendance (DTR)'],
   ['attendance.edit', 'Edit attendance and approve overtime'],
   ['attendance.location', 'Clock-in locations (geotagging) and the office location'],
@@ -65,6 +71,7 @@ export const PERMISSION_LABELS = [
   ['settings.edit', 'Company details and default schedule'],
   ['data.manage', 'Backup, restore and erase data'],
   ['users.manage', 'Manage user accounts'],
+  ['audit.view', 'Audit log: who viewed or changed personal data, payroll and settings'],
   ['devlog.view', 'Dev log: release notes and installed version'],
   ['devlog.edit', 'Write and edit dev log entries'],
   ['helpdesk.agent', 'Service desk: work all tickets (reply, notes, assign, status)'],

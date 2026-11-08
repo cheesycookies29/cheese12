@@ -3,7 +3,7 @@ import { ctx, can } from '../state.js';
 import { currentPeriod } from '/shared/calc.js';
 import { html, mount, money, amount, fmtDate, fmtMinutes, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../ui.js';
 
-const statusBadge = (s) => (s === 'finalized' ? badge('Finalized', 'green') : badge('Draft', 'amber'));
+const statusBadge = (s) => (s === 'finalized' ? badge('Finalized', 'green') : s === 'voided' ? badge('Voided', 'gray') : badge('Draft', 'amber'));
 const periodLabel = (r) => `${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}`;
 
 export async function payrollListView(el) {
@@ -12,7 +12,7 @@ export async function payrollListView(el) {
   mount(el, html`
     <header class="page-head">
       <div><h1>Payroll</h1><p class="muted">${ctx.settings.payFrequency === 'monthly' ? 'Monthly' : 'Semi-monthly'} payroll with SSS, PhilHealth, Pag-IBIG and BIR withholding tax.</p></div>
-      <div class="actions">${can('payroll.edit') ? html`<button class="btn primary" id="new-run">+ New payroll run</button>` : ''}</div>
+      <div class="actions"><a class="btn" href="#/payroll/ytd">Year to date</a>${can('payroll.edit') ? html`<button class="btn primary" id="new-run">+ New payroll run</button>` : ''}</div>
     </header>
     <section class="card">
       ${runs.length
@@ -91,7 +91,8 @@ export async function payrollRunView(el, { id }) {
     mount(el, html`
       <header class="page-head">
         <div><a class="back" href="#/payroll">← Payroll</a><h1>${periodLabel(run)} ${statusBadge(run.status)}</h1>
-          <p class="muted">Pay date ${fmtDate(run.payDate)} · ${run.payFrequency} · ${draft ? 'Draft: recompute after changing attendance or employee data.' : `Finalized ${new Date(run.finalizedAt).toLocaleString('en-PH')}`}</p></div>
+          <p class="muted">Pay date ${fmtDate(run.payDate)} · ${run.payFrequency} · ${draft ? 'Draft: recompute after changing attendance or employee data.' : `Finalized ${new Date(run.finalizedAt).toLocaleString('en-PH')}${run.finalizedBy ? ` by ${run.finalizedBy}` : ''}. Locked: it cannot be changed or deleted.`}</p>
+          ${run.status === 'voided' ? html`<p class="notice bad small"><span><strong>Voided</strong> ${new Date(run.voidedAt).toLocaleString('en-PH')} by ${run.voidedBy}: ${run.voidReason}. Its payslips are not counted in the year to date.</span></p>` : ''}</div>
         <div class="actions">
           <button class="btn" id="export">Export register</button>
           <a class="btn" href="#/payroll/${run.id}/payslip/all">Print payslips</a>
@@ -145,7 +146,8 @@ export async function payrollRunView(el, { id }) {
             <td class="num">${amount(run.payslips.reduce((a, p) => a + p.allowance, 0))}</td><td class="num"><strong>${amount(t.netPay)}</strong></td><td></td></tr></tfoot>
         </table>
       </section>
-      ${can('payroll.edit') ? html`<div class="danger-zone"><button class="btn danger ghost" id="delete">Delete payroll run</button></div>` : ''}`);
+      ${!can('payroll.edit') ? '' : draft ? html`<div class="danger-zone"><button class="btn danger ghost" id="delete">Delete payroll run</button></div>`
+        : run.status === 'finalized' ? html`<div class="danger-zone"><button class="btn danger ghost" id="void">Void payroll run</button><small class="muted">A finalized run is a record: it is voided with a reason, not deleted. Correct pay in the next run with adjustments, or void and run the period again.</small></div>` : ''}`);
     bind();
   }
 
@@ -171,6 +173,17 @@ export async function payrollRunView(el, { id }) {
       toast('Payroll run deleted.');
       location.hash = '#/payroll';
     });
+    el.querySelector('#void')?.addEventListener('click', () => modal({
+      title: `Void the payroll for ${periodLabel(run)}?`,
+      subtitle: 'The run and its payslips stay on record, marked voided; employees see them marked too. They leave the year-to-date totals. This cannot be undone.',
+      submitLabel: 'Void payroll run',
+      body: html`<label class="field"><span>Reason (recorded in the audit log)</span><textarea name="reason" rows="3" maxlength="500" required></textarea></label>`,
+      onSubmit: async (f) => {
+        run = await api.post(`/api/payroll-runs/${id}/void`, { reason: f.reason.value });
+        toast('Payroll run voided.');
+        render();
+      },
+    }));
     el.querySelectorAll('[data-adjust]').forEach((b) =>
       b.addEventListener('click', () => {
         const p = run.payslips.find((x) => x.employeeId === b.dataset.adjust);
@@ -228,8 +241,8 @@ export function payslipCard(run, p, settings) {
   const field = (label, value) => html`<div><dt>${label}</dt><dd>${value || '—'}</dd></div>`;
   const employerTotal = p.employerShare.sss + p.employerShare.sssEc + p.employerShare.philhealth + p.employerShare.pagibig;
   return html`
-    <article class="payslip ${run.status === 'draft' ? 'is-draft' : ''}">
-      ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true">DRAFT</div>` : ''}
+    <article class="payslip ${run.status !== 'finalized' ? 'is-draft' : ''}">
+      ${run.status === 'draft' ? html`<div class="ps-watermark" aria-hidden="true">DRAFT</div>` : run.status === 'voided' ? html`<div class="ps-watermark" aria-hidden="true">VOID</div>` : ''}
       <header class="ps-head">
         <div class="ps-company">
           <img src="/img/logo.png" alt="" />
@@ -246,7 +259,7 @@ export function payslipCard(run, p, settings) {
         <div><dt>Pay period</dt><dd>${periodLabel(run)}</dd></div>
         <div><dt>Pay date</dt><dd>${fmtDate(run.payDate)}</dd></div>
         <div><dt>Pay frequency</dt><dd>${run.payFrequency === 'monthly' ? 'Monthly' : 'Semi-monthly'}</dd></div>
-        <div><dt>Status</dt><dd>${run.status === 'draft' ? 'Draft, not final' : 'Final'}</dd></div>
+        <div><dt>Status</dt><dd>${run.status === 'draft' ? 'Draft, not final' : run.status === 'voided' ? 'Voided' : 'Final'}</dd></div>
       </dl>
 
       <section class="ps-block">

@@ -47,7 +47,7 @@ export async function meHomeView(el) {
     const remoteToday = todays?.remote && !todays.timeIn;
     const pending = requests.filter((r) => r.status === 'pending');
     const upcoming = requests.filter((r) => r.status === 'approved' && r.endDate >= today()).slice(0, 3);
-    const latest = payslips[0];
+    const latest = payslips.find((p) => p.status !== 'voided');
     const status = open
       ? html`${badge('Working', 'green')} since ${open.date === today() ? '' : fmtDate(open.date) + ' '}${fmtTime(open.timeIn)}`
       : todays?.type === 'leave'
@@ -177,15 +177,24 @@ export async function meAttendanceView(el, _params, query) {
 }
 
 export async function mePayslipsView(el) {
-  const payslips = await api.get('/api/me/payslips');
+  const year = new Date().getFullYear();
+  const [payslips, ytd] = await Promise.all([api.get('/api/me/payslips'), api.get(`/api/me/ytd?year=${year}`)]);
+  const t = ytd.totals;
   mount(el, html`
     <header class="page-head"><div><h1>My Payslips</h1><p class="muted">Payslips appear here once payroll for the period is finalized.</p></div></header>
+    ${t ? html`<h2 class="section-title">Year to date, ${year}</h2>
+    <div class="stats">
+      <div class="card"><small>Gross pay</small><strong>${money(t.grossPay)}</strong></div>
+      <div class="card"><small>Tax withheld</small><strong>${money(t.withholdingTax)}</strong></div>
+      <div class="card"><small>SSS, PhilHealth, Pag-IBIG</small><strong>${money(t.sss + t.philhealth + t.pagibig)}</strong></div>
+      <div class="card"><small>13th month so far</small><strong>${money(t.thirteenthMonthSoFar)}</strong></div>
+    </div>` : ''}
     <section class="card">
       ${payslips.length
         ? html`<table class="table clickable">
             <thead><tr><th>Pay period</th><th>Pay date</th><th class="num">Gross pay</th><th class="num">Deductions</th><th class="num">Net pay</th></tr></thead>
             <tbody>${payslips.map((p) => html`<tr data-href="#/me/payslips/${p.runId}">
-              <td><strong>${fmtDate(p.periodStart)} – ${fmtDate(p.periodEnd)}</strong></td><td>${fmtDate(p.payDate)}</td>
+              <td><strong>${fmtDate(p.periodStart)} – ${fmtDate(p.periodEnd)}</strong>${p.status === 'voided' ? html` ${badge('Voided', 'gray')}` : ''}</td><td>${fmtDate(p.payDate)}</td>
               <td class="num">${money(p.grossPay)}</td><td class="num">${money(p.totalDeductions)}</td><td class="num"><strong>${money(p.netPay)}</strong></td>
             </tr>`)}</tbody>
           </table>`

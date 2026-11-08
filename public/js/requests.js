@@ -53,7 +53,7 @@ export function requestDetail(r, { certUrl, balance, actions = '' } = {}) {
         ${balance && balance.remaining !== null ? html`<p class="small muted">${balance.name}: ${balance.remaining} day(s) left this year, including ${balance.pending} pending.</p>` : ''}
         ${r.overflowDays ? html`<p class="small">${badge(`${daysText(r.overflowDays)} without pay`, 'amber')} beyond the remaining credits, recorded as Leave Without Pay.</p>` : ''}
         ${breakdownList(r)}
-        ${r.attachment && certUrl ? html`<p><button type="button" class="link" data-cert>📎 Medical certificate</button></p>` : ''}
+        ${r.attachment && certUrl ? (r.attachmentLocked ? html`<p class="muted small">📎 Medical certificate attached. Only HR opens it.</p>` : html`<p><button type="button" class="link" data-cert>📎 Medical certificate</button></p>`) : ''}
       </div>
       <div>
         <h3>Approval route${r.flow === 'parallel' ? ' (any level can decide)' : ''}</h3>

@@ -128,7 +128,7 @@ function withEmployee(db, req, viewer) {
     typeName: req.kind === 'leave' ? type?.name || 'Leave' : REQUEST_KINDS[req.kind] || 'Work from home',
     certificateRequired: req.kind === 'leave' && needsCertificate(type, req.days),
     waitingOn: req.status === 'pending' ? (req.approvals || []).filter((l) => l.status === 'pending').map((l) => l.label) : [],
-    ...(viewer ? { canDecide: canDecide(req, viewer), yourTurn: isCurrentApprover(req, viewer) } : {}),
+    ...(viewer ? { canDecide: canDecide(req, viewer), yourTurn: isCurrentApprover(req, viewer), attachmentLocked: Boolean(req.attachment) && !(userCan(viewer, 'leave.manage') || userCan(viewer, 'leave.approve') || approvalSettings(db).attachmentsToApprovers === true) } : {}),
   };
 }
 
@@ -313,10 +313,21 @@ export function validateApprovalSettings(body, db) {
     return { type: 'users', userIds };
   });
   if (!levels.length) throw new HttpError(400, 'Keep at least one approval level.');
-  return { flow, levels };
+  // Whether approvers other than HR may open medical certificates (health data, RA 10173).
+  return { flow, levels, attachmentsToApprovers: body.attachmentsToApprovers === true };
 }
 
-export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
+export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit }) {
+  const reqLabel = (r) => {
+    const e = db.data.employees.find((x) => x.id === r.employeeId);
+    const t = r.leaveTypeId && db.data.leaveTypes.find((x) => x.id === r.leaveTypeId);
+    return `${e ? `${e.firstName} ${e.lastName}` : 'Employee'}: ${r.kind === 'leave' ? t?.name || 'Leave' : REQUEST_KINDS[r.kind]}, ${r.startDate}${r.endDate !== r.startDate ? ` to ${r.endDate}` : ''}`;
+  };
+  const logDecision = (r, action, result) => audit.record('leave.decide', { entity: 'request', entityId: r.id, label: reqLabel(r), note: `${action}${result && result !== action ? ` (${result})` : ''}` });
+  const openAttachment = (r) => {
+    audit.view('leave.attachment', { entity: 'request', entityId: r.id, label: reqLabel(r) });
+    return files.read(r.attachment);
+  };
   // Pending first, then newest filed first.
   const sortRequests = (list) => list.sort((a, b) => (b.status === 'pending') - (a.status === 'pending') || b.filedAt.localeCompare(a.filedAt));
 
@@ -486,12 +497,13 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
     sortRequests(db.data.requests.filter((r) => !query.status || r.status === query.status).map((r) => withEmployee(db, r, user))),
   );
   route('GET', '/api/requests/summary', 'leave.manage', () => ({ pending: db.data.requests.filter((r) => r.status === 'pending').length }));
-  route('GET', '/api/requests/:id/attachment', 'leave.manage', ({ params }) => files.read(findRequest(db, params.id).attachment));
+  route('GET', '/api/requests/:id/attachment', 'leave.manage', ({ params }) => openAttachment(findRequest(db, params.id)));
   for (const action of ['approve', 'reject', 'return']) {
     route('POST', `/api/requests/:id/${action}`, 'leave.approve', ({ params, body, user }) => {
       const req = findRequest(db, params.id);
-      act(db, req, user, action, body.note);
+      const result = act(db, req, user, action, body.note);
       db.save();
+      logDecision(req, action, result);
       return withEmployee(db, req, user);
     });
   }
@@ -502,6 +514,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
     if (!String(body.note || '').trim()) throw new HttpError(400, 'Give the reason for cancelling; the employee sees it.');
     cancel(db, req, user, body.note);
     db.save();
+    audit.record('leave.cancel', { entity: 'request', entityId: req.id, label: reqLabel(req), note: req.cancelReason });
     return withEmployee(db, req, user);
   });
 
@@ -519,6 +532,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
   }
   route('GET', '/api/approvals', 'auth', ({ query, user }) => approvalList(user, ['processed', 'team'].includes(query.tab) ? query.tab : 'pending'));
   route('GET', '/api/approvals/summary', 'auth', ({ user }) => ({ pending: db.data.requests.filter((r) => r.status === 'pending' && isCurrentApprover(r, user)).length, team: teamIds(user).size }));
+  const canOpenAttachment = (user) => userCan(user, 'leave.manage') || userCan(user, 'leave.approve') || approvalSettings(db).attachmentsToApprovers === true;
   const visibleTo = (req, user) => userCan(user, 'leave.manage') || isOnRoute(req, user) || teamIds(user).has(req.employeeId);
   route('GET', '/api/approvals/:id', 'auth', ({ params, user }) => {
     const req = findRequest(db, params.id);
@@ -526,17 +540,21 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
     const balance = req.kind === 'leave' ? leaveBalances(db, req.employeeId, req.startDate.slice(0, 4)).find((b) => b.leaveTypeId === req.leaveTypeId) : null;
     return { ...withEmployee(db, req, user), balance };
   });
+  // Medical certificates are health data: HR opens them; other approvers only when the approval
+  // flow allows it (Leave & Requests, Approval flow).
   route('GET', '/api/approvals/:id/attachment', 'auth', ({ params, user }) => {
     const req = findRequest(db, params.id);
     if (!visibleTo(req, user)) throw new HttpError(404, 'Request not found.');
-    return files.read(req.attachment);
+    if (!canOpenAttachment(user)) throw new HttpError(403, 'Only HR can open medical certificates. You can see that one is attached.');
+    return openAttachment(req);
   });
   for (const action of ['approve', 'reject', 'return']) {
     route('POST', `/api/approvals/:id/${action}`, 'auth', ({ params, body, user }) => {
       const req = findRequest(db, params.id);
       if (!isCurrentApprover(req, user) && !userCan(user, 'leave.approve')) throw new HttpError(403, 'This request is not waiting for your approval.');
-      act(db, req, user, action, body.note);
+      const result = act(db, req, user, action, body.note);
       db.save();
+      logDecision(req, action, result);
       return withEmployee(db, req, user);
     });
   }
@@ -550,7 +568,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files }) {
       try {
         if (!req) throw new HttpError(404, 'Request not found.');
         if (!isCurrentApprover(req, user) && !userCan(user, 'leave.approve')) throw new HttpError(403, 'Not waiting for your approval.');
-        act(db, req, user, 'approve', body.note);
+        const result = act(db, req, user, 'approve', body.note);
+        logDecision(req, 'approve', result);
         done.push(id);
       } catch (err) {
         failed.push({ id, error: err.message });

@@ -139,9 +139,10 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 | Account type | Can do |
 | --- | --- |
 | **Administrator** | Everything, including **Users & Access**, company settings, and backup/restore. |
-| **HR Manager** | Add and edit employees, manage attendance and approve overtime, run the shared time clock, **approve leave and remote-work requests**, manage leave credits, adjust Payroll Setup. View payroll and IT assets. |
+| **HR Manager** | Add and edit employees (including pay, government IDs and bank details), manage attendance and approve overtime, run the shared time clock, **approve leave and remote-work requests**, manage leave credits and the holiday calendar, adjust Payroll Setup. View payroll and IT assets. |
+| **HR Staff** | Day-to-day HR without pay data: view employee records (no pay, government IDs or bank details), manage attendance, the shared time clock, the holiday calendar and leave records. No payroll. |
 | **IT Asset Manager** | IT Asset Management: register, assign, transfer, return and retire assets; receive, issue and count stock; export. No access to HR records. |
-| **Payroll Officer** | Create, adjust and finalize payroll, adjust Payroll Setup and leave credits. View employees, attendance and requests (cannot approve them). |
+| **Payroll Officer** | Create, adjust, finalize and void payroll, add year-to-date opening balances, adjust Payroll Setup and leave credits. View employees (with pay), attendance and requests (cannot approve them). |
 | **Sales Officer** | Sales & CRM: leads, accounts, contacts, deals, bids, contracts and activities. Cannot delete records or change the sales setup. |
 | **Sales Manager** | Everything a Sales Officer does, plus deleting CRM records and the sales setup (stages, sources, lost reasons, bid checklist). |
 | **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips, profile and assigned equipment. |
@@ -150,6 +151,8 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
 - Anyone can change their password from the bottom of the sidebar. Admins can reset anyone's password or disable an account.
 - After 5 wrong passwords, that username is locked for 5 minutes. People are signed out after 8 idle hours, or when the app is restarted.
+- **Personal data.** Government ID numbers and bank accounts are masked everywhere; HR Managers, Payroll Officers and Administrators can click **Show numbers** on a profile, and the edit form and full employee export load them. Each of these is recorded in the audit log. Medical certificates open for HR only, unless **Leave & Requests → Approval flow** lets approvers open them.
+- **Audit log** (Administrators, **System → Audit log**): every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, Payroll Setup, holidays, users and settings (field by field, before and after), views of records with pay or full ID numbers, medical certificate openings, backups and restores. It is kept in `data/audit-log.jsonl`, separate from the data file, so restoring a backup or erasing all data does not touch it. Each entry is chained to the one before by a hash; the page checks the chain and warns if the file was edited.
 - **Locked out as the only admin?** Stop the app, open Terminal (Mac) or PowerShell (Windows) in the app folder, run `npm run reset-password -- admin NewPassword123` (use your admin username), then start the app again.
 
 ### Letting employees sign in from their own computers
@@ -187,7 +190,9 @@ The connection is not encrypted (plain `http`), so only do this on a network you
 
 In a semi-monthly payroll, contributions are split equally between the two cutoffs.
 To add bonuses, commissions, loans or cash advances, click **Adjust** on an employee's row in a draft payroll run.
-A draft run can be recomputed after you edit attendance. Once you finalize it, it is locked.
+A draft run can be recomputed after you edit attendance. Once you finalize it, it is locked: it cannot be changed or deleted, only **voided** with a reason (it stays on record, marked voided, and leaves the year-to-date totals). Editing attendance inside a finalized period is allowed but does not change that payroll; the DTR says so, and the difference goes in the next run as an adjustment.
+
+**Payroll → Year to date** lists each employee's totals for the year from finalized payslips: basic pay, premiums, gross, non-taxable and taxable pay, contributions, tax withheld, net pay and the **13th month so far** (1/12 of the basic pay earned at LTDC). Add an **opening balance** for pay this year that CORE did not compute: months before CORE, or a new hire's previous employer (from their BIR 2316, which counts for tax but not for LTDC's 13th month). Employees see their own totals in **My Payslips**. The 13th month run, year-end tax annualization, BIR 2316 and the alphalist will be built on these totals.
 
 Pay frequency, the daily-rate factor (work days per year; an employee can have their own), the holiday, rest-day and night premiums, the holiday rules, grace period, minimum overtime, which deductions apply, the SSS / PhilHealth / Pag-IBIG rates and the tax tables are all set in **Payroll Setup**. It has a **Try it** calculator to check deductions at any salary before saving, and a button to restore the 2025 government rates. Changes apply to new runs and to drafts when recomputed; finalized runs never change.
 
@@ -220,7 +225,7 @@ Administrators can manage one person's leave under **Leave & Requests → Employ
 
 ## Not included (yet)
 
-13th month pay, loans with amortization, government remittance reports and BIR 2316, password reset by email, email notifications to approvers, and an audit log.
+13th month pay runs, year-end tax annualization, loans with amortization, government remittance reports and BIR 2316, password reset by email, and email notifications to approvers.
 
 ## Put it online (cloud)
 
@@ -230,7 +235,7 @@ To use it 24/7 from any browser over HTTPS, follow [deploy/aws/EC2.md](deploy/aw
 
 Admins can use **Settings → Download backup** to save everything as a single JSON file, and **Restore backup** to load one back.
 The backup includes user accounts (with passwords stored as secure hashes), so keep the file private.
-You can also just copy the `data/` folder. It also holds `attachments/` (medical certificates, ticket files) and `secret.key`, which unlocks the saved mailbox passwords; without it, re-enter them under Service desk settings.
+You can also just copy the `data/` folder. It also holds `attachments/` (medical certificates, ticket files), `audit-log.jsonl` (the audit log, which a backup file does not include) and `secret.key`, which unlocks the saved mailbox passwords; without it, re-enter them under Service desk settings. On the cloud server the audit log is copied each night next to the data backups.
 
 ## For developers
 

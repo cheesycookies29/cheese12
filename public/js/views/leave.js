@@ -11,7 +11,9 @@ const STATUS_BADGE = { pending: 'amber', returned: 'blue', approved: 'green', re
 export const statusBadge = (s) => badge(REQUEST_STATUS[s] || s, STATUS_BADGE[s]);
 export const kindBadge = (r) => (r.kind === 'remote' ? badge('Work from home', 'blue') : r.kind === 'ob' ? badge('Official business', 'green') : badge(r.typeName, 'maroon-soft'));
 // Medical certificate on a request: a link to open it, or a warning if one is required and missing.
-export const certificateCell = (r, url) => r.attachment
+export const certificateCell = (r, url) => r.attachment && r.attachmentLocked
+  ? html`<small class="muted" title="Medical certificates are health data: HR opens them">📎 Certificate attached (HR only)</small>`
+  : r.attachment
   ? html`<button type="button" class="link cert-link" data-cert="${r.id}" data-cert-url="${url}">📎 Medical certificate</button>`
   : r.certificateRequired && ['pending', 'returned', 'approved'].includes(r.status) ? html`<small>${badge('Certificate missing', 'amber')}</small>` : '';
 export const dateRange = (r) => (r.startDate === r.endDate ? fmtDate(r.startDate) : `${fmtDate(r.startDate, { month: 'short', day: 'numeric' })} – ${fmtDate(r.endDate)}`);
@@ -111,6 +113,7 @@ async function flowTab(el) {
   const cfg = await api.get('/api/approval-flow');
   const levels = structuredClone(cfg.levels);
   let flow = cfg.flow;
+  let attachmentsToApprovers = cfg.attachmentsToApprovers === true;
   const editable = can('leave.approve');
   function draw() {
     mount(el, html`<section class="card">
@@ -129,9 +132,13 @@ async function flowTab(el) {
           </div>
           ${editable && levels.length > 1 ? html`<button type="button" class="icon-btn danger" data-rm="${i}" aria-label="Remove level ${i + 1}">×</button>` : ''}
         </li>`)}</ol>
+        <fieldset class="flow-choice" ${editable ? '' : 'disabled'}>
+          <label class="field check"><input type="checkbox" id="att-approvers" ${attachmentsToApprovers ? 'checked' : ''} /><span><strong>Approvers can open medical certificates.</strong> Off: only HR opens them; supervisors see that one is attached. Certificates are health data under the Data Privacy Act, so share them only with those who need them. Openings are recorded in the audit log.</span></label>
+        </fieldset>
         ${editable ? html`<div class="actions">${levels.length < 3 ? html`<button type="button" class="btn" id="add">+ Add a level</button>` : ''}<span class="spacer"></span><button class="btn primary" type="submit">Save approval flow</button></div>` : html`<p class="muted small">HR Managers and Administrators change the approval flow.</p>`}
       </form></section>`);
     const f = el.querySelector('#flow');
+    f.querySelector('#att-approvers').addEventListener('change', (e) => (attachmentsToApprovers = e.target.checked));
     f.querySelectorAll('[name=flow]').forEach((r) => r.addEventListener('change', () => (flow = r.value)));
     f.querySelectorAll('[data-type]').forEach((sel) => sel.addEventListener('change', () => ((levels[sel.dataset.type] = { type: sel.value, userIds: [] }), draw())));
     f.querySelectorAll('[data-person]').forEach((cb) => cb.addEventListener('change', () => {
@@ -143,7 +150,7 @@ async function flowTab(el) {
     f.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        await api.put('/api/approval-flow', { flow, levels });
+        await api.put('/api/approval-flow', { flow, levels, attachmentsToApprovers });
         toast('Approval flow saved. It applies to requests filed from now on.');
       } catch (err) {
         toast(err.message, 'error');

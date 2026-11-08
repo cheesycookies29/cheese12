@@ -43,7 +43,7 @@ export const APPROVER_TYPES = {
   users: 'Specific people',
 };
 export const APPROVAL_FLOWS = { sequential: 'Sequential: level by level', parallel: 'Parallel: any level can decide' };
-export const DEFAULT_APPROVALS = { flow: 'sequential', levels: [{ type: 'supervisor' }, { type: 'hr' }] };
+export const DEFAULT_APPROVALS = { flow: 'sequential', levels: [{ type: 'supervisor' }, { type: 'hr' }], attachmentsToApprovers: false };
 export const LEVEL_STATUS = { waiting: 'Waiting', pending: 'For approval', approved: 'Approved', rejected: 'Rejected', returned: 'Returned', skipped: 'Skipped' };
 
 // Scheduled work days for an employee between two dates (inclusive). Regular holidays and special

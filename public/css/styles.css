@@ -1412,3 +1412,12 @@ body.launcher-mode main#app > section:last-of-type { margin-bottom: 36px; }
   .premium-table .input-suffix input { padding-left: 8px; padding-right: 2px; }
   .premium-table .input-suffix em { padding: 0 6px 0 0; }
 }
+
+/* ---------- Year to date and audit log (0.11) ---------- */
+.section-title { font-size: 15px; margin: 4px 0 10px; }
+.audit-changes { margin: 4px 0 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+.audit-changes li { overflow-wrap: anywhere; }
+.audit-changes b { color: var(--text); font-weight: 600; }
+.audit-table td { vertical-align: top; }
+.audit-table td:first-child { white-space: nowrap; }
+.ytd-table td, .ytd-table th { white-space: nowrap; }

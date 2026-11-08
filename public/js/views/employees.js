@@ -2,6 +2,8 @@ import { api } from '../api.js';
 import { ctx, can } from '../state.js';
 import { html, raw, mount, money, fmtDate, fullName, badge, toast, confirmDialog, downloadFile, toCsv, WEEKDAYS, today } from '../ui.js';
 
+// Pay, government IDs and bank details: shown only to accounts that may see them.
+const SENSITIVE = ['rate', 'allowance', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount'];
 const CSV_COLUMNS = [
   ['Employee No', 'employeeNo'], ['Last Name', 'lastName'], ['First Name', 'firstName'], ['Middle Name', 'middleName'],
   ['Position', 'position'], ['Department', 'department'], ['Employment Status', 'employmentStatus'], ['Status', 'status'],
@@ -13,6 +15,7 @@ const CSV_COLUMNS = [
 export async function employeeListView(el, _params, query) {
   const employees = await api.get('/api/employees');
   const state = { q: query.q || '', dept: '', status: 'Active' };
+  const seePay = can('employees.sensitive');
   const departments = [...new Set(employees.map((e) => e.department).filter(Boolean))].sort();
 
   function rows() {
@@ -27,7 +30,7 @@ export async function employeeListView(el, _params, query) {
     const list = rows();
     mount(el.querySelector('#emp-table'), list.length
       ? html`<table class="table clickable">
-          <thead><tr><th>Employee</th><th>Position</th><th>Department</th><th>Status</th><th>Hired</th><th class="num">Rate</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Position</th><th>Department</th><th>Status</th><th>Hired</th>${seePay ? html`<th class="num">Rate</th>` : ''}</tr></thead>
           <tbody>${list.map((e) => html`
             <tr data-href="#/employees/${e.id}">
               <td><div class="person"><span class="avatar">${e.firstName[0]}${e.lastName[0]}</span><div><strong>${e.lastName}, ${e.firstName}</strong><small>${e.employeeNo}${e.flexTime ? html` · <span class="flex-tag">FLEX</span>` : ''}</small></div></div></td>
@@ -35,7 +38,7 @@ export async function employeeListView(el, _params, query) {
               <td>${e.department}</td>
               <td>${badge(e.employmentStatus || '—')} ${e.status === 'Inactive' ? badge('Inactive', 'gray') : ''}</td>
               <td>${fmtDate(e.hireDate)}</td>
-              <td class="num">${money(e.rate)}<small>/${e.payType === 'daily' ? 'day' : 'month'}</small></td>
+              ${seePay ? html`<td class="num">${money(e.rate)}<small>/${e.payType === 'daily' ? 'day' : 'month'}</small></td>` : ''}
             </tr>`)}</tbody>
         </table>`
       : html`<div class="empty"><p>No employees match.</p></div>`);
@@ -70,9 +73,13 @@ export async function employeeListView(el, _params, query) {
     const tr = e.target.closest('tr[data-href]');
     if (tr) location.hash = tr.dataset.href;
   });
-  el.querySelector('#export').addEventListener('click', () => {
-    const data = [CSV_COLUMNS.map((c) => c[0]), ...rows().map((e) => CSV_COLUMNS.map(([, k]) => e[k]))];
+  // With pay and full ID numbers (logged) for HR and payroll; without them for everyone else.
+  el.querySelector('#export').addEventListener('click', async () => {
+    const full = seePay ? new Map((await api.get('/api/employees/export')).map((e) => [e.id, e])) : null;
+    const cols = seePay ? CSV_COLUMNS : CSV_COLUMNS.filter(([, k]) => !SENSITIVE.includes(k));
+    const data = [cols.map((c) => c[0]), ...rows().map((e) => cols.map(([, k]) => (full?.get(e.id) || e)[k]))];
     downloadFile(`employees-${today()}.csv`, toCsv(data));
+    if (seePay) toast('Exported with government IDs and bank accounts. The export is recorded in the audit log.');
   });
 }
 
@@ -97,7 +104,7 @@ export async function employeeFormView(el, { id }) {
   const s = ctx.settings;
   const emp = isNew
     ? { employeeNo: await nextEmployeeNo(), status: 'Active', employmentStatus: 'Probationary', payType: 'monthly', hireDate: today(), allowance: 0, schedule: s.schedule }
-    : await api.get(`/api/employees/${id}`);
+    : await api.get(`/api/employees/${id}`).then(async (e) => ({ ...e, ...(await api.get(`/api/employees/${id}/private?purpose=edit`)) }));
   const others = (await api.get('/api/employees')).filter((e) => e.id !== id && e.status !== 'Inactive').sort((a, b) => a.lastName.localeCompare(b.lastName));
   const sched = { ...s.schedule, ...(emp.schedule || {}) };
 
@@ -195,13 +202,17 @@ export async function employeeFormView(el, { id }) {
   });
 }
 
+const idInfo = (e) => html`${info('TIN', e.tin)}${info('SSS', e.sssNo)}${info('PhilHealth', e.philhealthNo)}${info('Pag-IBIG', e.pagibigNo)}${info('Bank', e.bankName)}${info('Account no.', e.bankAccount)}`;
+
 function info(label, value) {
   return html`<div class="info"><dt>${label}</dt><dd>${value || html`<span class="muted">—</span>`}</dd></div>`;
 }
 
 export async function employeeProfileView(el, { id }) {
-  const [emp, runs, assets, people] = await Promise.all([
-    api.get(`/api/employees/${id}`), api.get('/api/payroll-runs'), can('assets.view') ? api.get('/api/assets') : null, api.get('/api/employees'),
+  const year = new Date().getFullYear();
+  const [emp, runs, assets, people, ytd] = await Promise.all([
+    api.get(`/api/employees/${id}`), can('payroll.view') ? api.get('/api/payroll-runs') : [], can('assets.view') ? api.get('/api/assets') : null, api.get('/api/employees'),
+    can('payroll.view') ? api.get(`/api/employees/${id}/ytd?year=${year}`) : null,
   ]);
   const boss = people.find((e) => e.id === emp.supervisorId);
   const reports = people.filter((e) => e.supervisorId === emp.id);
@@ -240,27 +251,37 @@ export async function employeeProfileView(el, { id }) {
           ${info('Immediate supervisor', boss ? html`<a href="#/employees/${boss.id}">${boss.firstName} ${boss.lastName}</a>` : '')}
           ${reports.length ? info('Direct reports', html`${reports.map((r, i) => html`${i ? ', ' : ''}<a href="#/employees/${r.id}">${r.firstName} ${r.lastName}</a>`)}`) : ''}
           ${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}
+          ${emp.restricted ? info('Pay', html`<span class="muted">Visible to HR and payroll only</span>`) : html`
           ${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}
           ${info('Allowance', `${money(emp.allowance)} / month`)}
           ${info('Daily-rate factor', emp.workDaysPerYear ? `${emp.workDaysPerYear} days a year (own)` : `${ctx.settings.workDaysPerYear} days a year (company default)`)}
-          ${info('Tax', emp.minimumWageEarner ? 'Minimum wage earner (exempt)' : 'Regular withholding')}
+          ${info('Tax', emp.minimumWageEarner ? 'Minimum wage earner (exempt)' : 'Regular withholding')}`}
           ${info('Schedule', `${sched.shiftStart}–${sched.shiftEnd}, ${sched.workDays.map((d) => WEEKDAYS[d]).join(', ')}`)}
           ${info('Time', emp.flexTime ? html`${badge('FLEX', 'blue')} Flexible time: no late or undertime deductions` : 'Fixed schedule')}
         </dl>
       </section>
       <section class="card">
-        <h2>Government IDs &amp; bank</h2>
-        <dl class="info-grid">
-          ${info('TIN', emp.tin)}${info('SSS', emp.sssNo)}${info('PhilHealth', emp.philhealthNo)}${info('Pag-IBIG', emp.pagibigNo)}
-          ${info('Bank', emp.bankName)}${info('Account no.', emp.bankAccount)}
-        </dl>
+        <div class="card-head"><h2>Government IDs &amp; bank</h2>${emp.restricted ? '' : html`<button class="link" id="reveal">Show numbers</button>`}</div>
+        ${emp.restricted
+          ? html`<p class="muted">Visible to HR and payroll only.</p>`
+          : html`<dl class="info-grid" id="ids">${idInfo(emp)}</dl><p class="muted small">Numbers are masked. Showing them is recorded in the audit log.</p>`}
       </section>
-      <section class="card">
+      ${ytd ? html`<section class="card">
+        <h2>Year to date, ${year}</h2>
+        ${ytd.totals
+          ? html`<dl class="info-grid">
+              ${info('Gross pay', money(ytd.totals.grossPay))}${info('Tax withheld', money(ytd.totals.withholdingTax))}
+              ${info('SSS, PhilHealth, Pag-IBIG', money(ytd.totals.sss + ytd.totals.philhealth + ytd.totals.pagibig))}${info('Net pay', money(ytd.totals.netPay))}
+              ${info('13th month so far', html`${money(ytd.totals.thirteenthMonthSoFar)} <small class="muted">1/12 of ${money(ytd.totals.thirteenthBasis)} basic pay</small>`)}
+            </dl><a class="link" href="#/payroll/ytd?year=${year}">Year to date for everyone</a>`
+          : html`<p class="muted">No finalized payslips this year yet.</p>`}
+      </section>` : ''}
+      ${can('payroll.view') ? html`<section class="card">
         <h2>Recent payslips</h2>
         ${relevantRuns.length
-          ? html`<ul class="link-list">${relevantRuns.map((r) => html`<li><a href="#/payroll/${r.id}/payslip/${emp.id}">${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}</a> ${r.status === 'draft' ? badge('Draft', 'amber') : ''}</li>`)}</ul>`
+          ? html`<ul class="link-list">${relevantRuns.map((r) => html`<li><a href="#/payroll/${r.id}/payslip/${emp.id}">${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}</a> ${r.status === 'draft' ? badge('Draft', 'amber') : r.status === 'voided' ? badge('Voided', 'gray') : ''}</li>`)}</ul>`
           : html`<p class="muted">No payroll runs include this employee yet.</p>`}
-      </section>
+      </section>` : ''}
       ${assets ? html`<section class="card">
         <h2>IT equipment</h2>
         ${held.length
@@ -274,6 +295,10 @@ export async function employeeProfileView(el, { id }) {
       <small class="muted">Tip: set the employee to Inactive instead to keep their records.</small>
     </div>` : ''}`);
 
+  el.querySelector('#reveal')?.addEventListener('click', async (e) => {
+    mount(el.querySelector('#ids'), idInfo(await api.get(`/api/employees/${id}/private`)));
+    e.target.remove();
+  });
   el.querySelector('#delete')?.addEventListener('click', async () => {
     if (!(await confirmDialog(`Delete ${fullName(emp)} and all of their attendance records? Payslips in past payroll runs are kept.`))) return;
     await api.del(`/api/employees/${id}`);

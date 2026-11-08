@@ -15,6 +15,7 @@ export function emptyData() {
     employees: [],
     timeEntries: [],
     payrollRuns: [],
+    payrollLedger: [], // year-to-date rows per finalized payslip, plus opening balances (server/ledger.js)
     users: [],
     leaveTypes: structuredClone(DEFAULT_LEAVE_TYPES),
     leaveCredits: [], // per-employee, per-year overrides of a leave type's annual credits
@@ -63,6 +64,7 @@ export function openDb(file) {
     data.issueReports ||= [];
     data.feedback ||= [];
     data.tickets ||= [];
+    data.payrollLedger ||= [];
   }
 
   const db = {

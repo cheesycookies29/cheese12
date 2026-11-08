@@ -164,9 +164,9 @@ function openEntryModal(entry, employees, onSaved) {
         otApproved: fd.has('otApproved'),
         notes: fd.get('notes'),
       };
-      if (entry.id) await api.put(`/api/time-entries/${entry.id}`, body);
-      else await api.post('/api/time-entries', body);
-      toast('Attendance saved.');
+      const res = entry.id ? await api.put(`/api/time-entries/${entry.id}`, body) : await api.post('/api/time-entries', body);
+      // A day inside a finalized payroll: saved, but that payroll does not change.
+      toast(res.warning ? `Attendance saved. ${res.warning}` : 'Attendance saved.', res.warning ? 'error' : 'ok');
       onSaved();
     },
   });
@@ -270,13 +270,13 @@ export async function dtrView(el, _params, query) {
     }
     if (t.dataset.edit) openEntryModal(find(t.dataset.edit), employees, load);
     if (t.dataset.approve) {
-      await api.put(`/api/time-entries/${t.dataset.approve}`, { ...find(t.dataset.approve), otApproved: true });
-      toast('Overtime approved.');
+      const res = await api.put(`/api/time-entries/${t.dataset.approve}`, { ...find(t.dataset.approve), otApproved: true });
+      toast(res.warning ? `Overtime approved. ${res.warning}` : 'Overtime approved.', res.warning ? 'error' : 'ok');
       load();
     }
     if (t.dataset.delete && (await confirmDialog('Delete this attendance record?'))) {
-      await api.del(`/api/time-entries/${t.dataset.delete}`);
-      toast('Record deleted.');
+      const res = await api.del(`/api/time-entries/${t.dataset.delete}`);
+      toast(res.warning ? `Record deleted. ${res.warning}` : 'Record deleted.', res.warning ? 'error' : 'ok');
       load();
     }
   });

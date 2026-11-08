@@ -27,6 +27,23 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.11.0-alpha',
+    date: '2026-11-08',
+    title: 'Year to date, audit log, locked payroll and personal-data limits',
+    modules: ['hr', 'system', 'deploy'],
+    notes: 'The second release from the Philippine compliance analysis: the year-to-date record that the 13th month, annualization and BIR 2316 will use, and the accountability the Data Privacy Act asks for.',
+    changes: [
+      ['new', 'hr', 'Payroll → Year to date: each employee\'s totals for the year from finalized payslips (basic, premiums, gross, non-taxable, taxable, contributions, tax withheld, net) and the 13th month so far. Opening balances for pay before CORE or from a previous employer\'s BIR 2316. Export to CSV. Employees see their own totals in My Payslips.'],
+      ['new', 'hr', 'Finalized payroll runs are locked: they cannot be changed or deleted, only voided with a reason. Voided runs stay on record, are marked on payslips, and leave the year-to-date totals. Finalizing records who did it.'],
+      ['new', 'system', 'Audit log for Administrators: sign-ins and failed sign-ins; changes to employees, pay, attendance, leave, payroll, Payroll Setup, holidays, users and settings, field by field; views of records with pay or full ID numbers; certificate openings; backups and restores. Entries are hash-chained, kept outside the data file, and checked on the page.'],
+      ['new', 'system', 'HR Staff account type: day-to-day HR without pay, government IDs or bank details.'],
+      ['improved', 'hr', 'Government ID numbers and bank accounts are masked; Show numbers, the edit form and the full employee export load them and are logged. Accounts without pay access do not receive pay data at all.'],
+      ['improved', 'hr', 'Medical certificates open for HR only, unless the approval flow lets approvers open them; supervisors see that one is attached.'],
+      ['improved', 'hr', 'Editing attendance inside a finalized payroll period warns that the payroll does not change.'],
+      ['improved', 'deploy', 'The nightly backup on the cloud server also copies the audit log.'],
+    ],
+  },
+  {
     version: '0.10.0-alpha',
     date: '2026-11-07',
     title: 'Holiday calendar, holiday and night premiums',

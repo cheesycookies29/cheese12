@@ -24,6 +24,8 @@ import { clockLocationsView } from './views/locations.js';
 import { approvalsView } from './views/approvals.js';
 import { crmOverviewView, pipelineView, dealView, leadsView, leadView, accountsView, accountView, contactsView, contactView, bidsView, bidView, contractsView, contractView, activitiesView, crmSettingsView } from './views/crm.js';
 import { holidaysView } from './views/holidays.js';
+import { ytdView } from './views/ytd.js';
+import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
 
 // [path, view, permission needed, module]
@@ -39,6 +41,7 @@ const routes = [
   ['/dtr', dtrView, 'attendance.view', 'hr'],
   ['/clock-locations', clockLocationsView, 'attendance.location', 'hr'],
   ['/payroll', payrollListView, 'payroll.view', 'hr'],
+  ['/payroll/ytd', ytdView, 'payroll.view', 'hr'],
   ['/payroll/:id/payslip/:employeeId', payslipView, 'payroll.view', 'hr'],
   ['/payroll/:id', payrollRunView, 'payroll.view', 'hr'],
   ['/payroll-setup', payrollSetupView, 'payroll.config', 'hr'],
@@ -91,6 +94,7 @@ const routes = [
   // System (shown inside whichever module is open)
   ['/users', usersView, 'users.manage', 'system'],
   ['/settings', settingsView, 'settings.edit', 'system'],
+  ['/audit', auditView, 'audit.view', 'system'],
   ['/devlog', devlogView, 'devlog.view', 'system'],
   ['/feedback', feedbackView, 'auth', 'system'],
   ['/feedback/inbox', feedbackInboxView, 'feedback.view', 'system'],
@@ -154,6 +158,7 @@ const NAV = {
     { heading: 'System', permission: 'users.manage' },
     { href: '/users', label: 'Users & Access', icon: 'shield', permission: 'users.manage' },
     { href: '/settings', label: 'Settings', icon: 'toggles', permission: 'settings.edit' },
+    { href: '/audit', label: 'Audit log', icon: 'activity', permission: 'audit.view' },
     { href: '/devlog', label: 'Dev log', icon: 'code', permission: 'devlog.view', badge: 'devlog' },
     { href: '/feedback/inbox', label: 'Feedback inbox', icon: 'message', permission: 'feedback.view', badge: 'feedback' },
     { heading: 'Help', permission: 'auth' },

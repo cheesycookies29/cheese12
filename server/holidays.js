@@ -38,7 +38,8 @@ function validateHoliday(body, db, existingId) {
   return h;
 }
 
-export function registerHolidayRoutes(route, db) {
+export function registerHolidayRoutes(route, db, { audit }) {
+  const label = (h) => `${h.name}, ${h.date}`;
   const list = (year) => db.data.holidays.filter((h) => !year || h.date.startsWith(String(year))).sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
   // Every signed-in user sees the calendar: the DTR, requests and payslips use it.
   route('GET', '/api/holidays', 'auth', ({ query }) => list(query.year));
@@ -49,6 +50,7 @@ export function registerHolidayRoutes(route, db) {
     const h = { id: randomUUID(), ...validateHoliday(body, db), createdAt: now(), createdBy: user.name };
     db.data.holidays.push(h);
     db.save();
+    audit.record('holiday.create', { entity: 'holiday', entityId: h.id, label: label(h), note: h.type });
     return h;
   });
   // Adds the proclaimed national holidays of a year that are not on the calendar yet.
@@ -58,20 +60,24 @@ export function registerHolidayRoutes(route, db) {
     const missing = presetHolidays(year).filter((p) => !db.data.holidays.some((h) => h.date === p.date && h.name === p.name));
     db.data.holidays.push(...missing.map((h) => ({ id: randomUUID(), ...h, createdAt: now(), createdBy: user.name })));
     db.save();
+    audit.record('holiday.load', { entity: 'holiday', label: `${year} national holidays`, note: `${missing.length} added (${PH_HOLIDAYS[year].basis})` });
     return { added: missing.length, holidays: list(year) };
   });
   route('PUT', '/api/holidays/:id', 'holidays.manage', ({ params, body, user }) => {
     const h = db.data.holidays.find((x) => x.id === params.id);
     if (!h) throw new HttpError(404, 'Holiday not found.');
+    const before = { ...h };
     Object.assign(h, validateHoliday(body, db, h.id), { updatedAt: now(), updatedBy: user.name });
     db.save();
+    audit.record('holiday.update', { entity: 'holiday', entityId: h.id, label: label(h), changes: Object.entries(h).filter(([k, v]) => ['date', 'name', 'type', 'scope', 'place', 'basis'].includes(k) && before[k] !== v).map(([k, v]) => ({ field: k, from: before[k] ?? '', to: v })) });
     return h;
   });
   route('DELETE', '/api/holidays/:id', 'holidays.manage', ({ params }) => {
-    const before = db.data.holidays.length;
+    const h = db.data.holidays.find((x) => x.id === params.id);
+    if (!h) throw new HttpError(404, 'Holiday not found.');
     db.data.holidays = db.data.holidays.filter((x) => x.id !== params.id);
-    if (db.data.holidays.length === before) throw new HttpError(404, 'Holiday not found.');
     db.save();
+    audit.record('holiday.delete', { entity: 'holiday', entityId: h.id, label: label(h) });
     return { ok: true };
   });
 }

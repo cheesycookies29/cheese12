@@ -11,6 +11,9 @@ import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './h
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
 import { migrateApprovals, isApprover } from './approvals.js';
 import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
+import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS } from './audit.js';
+import { registerLedgerRoutes, syncLedger, postRun, voidRunRows, yearTotals } from './ledger.js';
+import { areaOfPath } from '../shared/audit.js';
 import { createSecrets } from './secrets.js';
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
@@ -25,6 +28,9 @@ import { buildInfo } from './build.js';
 import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Changes that are records in themselves, or not about company data: no generic audit entry.
+const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'mustChangePassword'];
+const UNAUDITED = /^\/api\/(me\/clock|clock|auth\/logout|feedback|me\/feedback|public\/)/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const EMPLOYEE_FIELDS = [
@@ -32,6 +38,22 @@ const EMPLOYEE_FIELDS = [
   'address', 'position', 'department', 'employmentStatus', 'hireDate', 'status', 'payType', 'rate', 'allowance',
   'minimumWageEarner', 'flexTime', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
   'emergencyContactName', 'emergencyContactPhone', 'schedule', 'supervisorId', 'workDaysPerYear'];
+
+// Pay, government IDs and bank details: only accounts with employees.sensitive receive them.
+const SENSITIVE_FIELDS = ['rate', 'allowance', 'minimumWageEarner', 'workDaysPerYear', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount'];
+const PRIVATE_FIELDS = ['tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount'];
+// What an account may see of an employee record. Government ID and bank numbers are masked even
+// for HR and payroll; the full numbers come from /private, which is logged.
+function employeeFor(user, e) {
+  const out = { ...e };
+  if (!userCan(user, 'employees.sensitive')) {
+    for (const f of SENSITIVE_FIELDS) delete out[f];
+    out.restricted = true;
+    return out;
+  }
+  for (const f of MASKED_FIELDS) if (out[f]) out[f] = mask(out[f]);
+  return out;
+}
 
 function pick(obj, keys) {
   return Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
@@ -51,6 +73,9 @@ function validateSchedule(s) {
 
 function validateEmployee(input, db, existingId) {
   const e = trimStrings(pick(input, EMPLOYEE_FIELDS));
+  // A masked number sent back unchanged (e.g. "••••1234") keeps the number on record.
+  const before = existingId && db.data.employees.find((x) => x.id === existingId);
+  for (const f of MASKED_FIELDS) if (typeof e[f] === 'string' && e[f].startsWith('••••')) e[f] = before?.[f] || '';
   for (const f of ['employeeNo', 'firstName', 'lastName', 'hireDate']) {
     if (!e[f]) throw new HttpError(400, `${f} is required.`);
   }
@@ -355,9 +380,10 @@ function clock(db, emp, action, body = {}, source = 'self') {
 }
 
 export function createApi(db) {
+  const audit = createAudit(db.dir);
   const files = createAttachments(path.join(db.dir, 'attachments'));
   const secrets = createSecrets(db.dir);
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db), migrateHolidays(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
@@ -368,7 +394,7 @@ export function createApi(db) {
   const route = (method, pattern, permission, handler, { duringPasswordChange = false } = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, re, keys, permission, handler, duringPasswordChange });
+    routes.push({ method, re, keys, permission, handler, duringPasswordChange, pattern });
   };
   const users = () => db.data.users;
   const activeAdmins = () => users().filter((u) => u.role === 'admin' && u.active);
@@ -394,6 +420,7 @@ export function createApi(db) {
     user.passwordHash = hashPassword(body.password);
     user.createdAt = new Date().toISOString();
     users().push(user);
+    audit.record('user.create', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, note: 'First administrator, created at setup', actor: { user, ip: currentActor()?.ip } });
     return startSession(user);
   });
   route('POST', '/api/auth/login', 'public', ({ body }) => {
@@ -402,9 +429,11 @@ export function createApi(db) {
     const user = users().find((u) => u.username === username);
     if (!verifyPassword(String(body.password || ''), user?.passwordHash) || !user.active) {
       throttle.fail(username);
+      audit.record('auth.login-failed', { entity: 'user', entityId: user?.id || '', label: username.slice(0, 64), note: user && !user.active ? 'Account disabled' : 'Wrong username or password', actor: { name: `Unknown (${username.slice(0, 64)})`, ip: currentActor()?.ip } });
       throw new HttpError(401, user && !user.active ? 'This account is disabled. Contact your administrator.' : 'Incorrect username or password.');
     }
     throttle.reset(username);
+    audit.record('auth.login', { entity: 'user', entityId: user.id, label: user.username, actor: { user, ip: currentActor()?.ip } });
     return startSession(user);
   });
   route('POST', '/api/auth/logout', 'auth', ({ token }) => {
@@ -418,6 +447,7 @@ export function createApi(db) {
     user.passwordHash = hashPassword(body.newPassword);
     user.mustChangePassword = false;
     sessions.destroyForUser(user.id, token);
+    audit.record('auth.password-change', { entity: 'user', entityId: user.id, label: user.username });
     db.save();
     return { user: publicUser(user) };
   }, { duringPasswordChange: true });
@@ -432,6 +462,7 @@ export function createApi(db) {
     user.createdAt = new Date().toISOString();
     users().push(user);
     db.save();
+    audit.record('user.create', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, changes: diff({}, publicUser(user), USER_AUDIT_FIELDS) });
     return publicUser(user);
   });
   route('PUT', '/api/users/:id', 'users.manage', ({ params, body, user: me }) => {
@@ -441,9 +472,11 @@ export function createApi(db) {
     if (user.role === 'admin' && user.active && (next.role !== 'admin' || !next.active) && activeAdmins().length === 1) {
       throw new HttpError(400, 'There must be at least one active administrator.');
     }
+    const before = publicUser(user);
     Object.assign(user, next, { updatedAt: new Date().toISOString() });
     if (!user.active) sessions.destroyForUser(user.id);
     db.save();
+    audit.record('user.update', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, changes: diff(before, publicUser(user), USER_AUDIT_FIELDS) });
     return publicUser(user);
   });
   route('POST', '/api/users/:id/reset-password', 'users.manage', ({ params, body }) => {
@@ -453,6 +486,7 @@ export function createApi(db) {
     user.mustChangePassword = true;
     sessions.destroyForUser(user.id);
     db.save();
+    audit.record('user.reset-password', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})` });
     return publicUser(user);
   });
   route('DELETE', '/api/users/:id', 'users.manage', ({ params, user: me }) => {
@@ -462,6 +496,7 @@ export function createApi(db) {
     db.data.users = users().filter((u) => u.id !== user.id);
     sessions.destroyForUser(user.id);
     db.save();
+    audit.record('user.delete', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username}, ${user.role})` });
     return { ok: true };
   });
 
@@ -481,20 +516,28 @@ export function createApi(db) {
   route('GET', '/api/me/payslips', 'self', ({ user }) => {
     const emp = linkedEmployee(user);
     return db.data.payrollRuns
-      .filter((r) => r.status === 'finalized')
-      .flatMap((r) => r.payslips.filter((p) => p.employeeId === emp.id).map((p) => ({ runId: r.id, periodStart: r.periodStart, periodEnd: r.periodEnd, payDate: r.payDate, grossPay: p.grossPay, totalDeductions: p.totalDeductions, netPay: p.netPay })))
+      .filter((r) => r.status === 'finalized' || r.status === 'voided')
+      .flatMap((r) => r.payslips.filter((p) => p.employeeId === emp.id).map((p) => ({ runId: r.id, status: r.status, periodStart: r.periodStart, periodEnd: r.periodEnd, payDate: r.payDate, grossPay: p.grossPay, totalDeductions: p.totalDeductions, netPay: p.netPay })))
       .sort((a, b) => b.periodStart.localeCompare(a.periodStart));
   });
   route('GET', '/api/me/payslips/:runId', 'self', ({ user, params }) => {
     const emp = linkedEmployee(user);
-    const run = db.data.payrollRuns.find((r) => r.id === params.runId && r.status === 'finalized');
+    const run = db.data.payrollRuns.find((r) => r.id === params.runId && (r.status === 'finalized' || r.status === 'voided'));
     const payslip = run?.payslips.find((p) => p.employeeId === emp.id);
     if (!payslip) throw new HttpError(404, 'Payslip not found.');
     const { payslips, employeeIds, ...meta } = run;
     return { run: meta, payslip };
   });
 
-  registerLeaveRoutes(route, db, { linkedEmployee, files });
+  // The employee's own year-to-date totals (from finalized payslips and opening balances).
+  route('GET', '/api/me/ytd', 'self', ({ user, query }) => {
+    const emp = linkedEmployee(user);
+    const year = Number(query.year) || new Date().getFullYear();
+    return { year, totals: yearTotals(db, year, emp.id)[0] || null };
+  });
+
+  registerLeaveRoutes(route, db, { linkedEmployee, files, audit });
+  registerLedgerRoutes(route, db, { audit });
   registerAssetRoutes(route, db, { linkedEmployee });
 
   // ----- Settings -----
@@ -502,39 +545,67 @@ export function createApi(db) {
   // Company details and default schedule (Administrator).
   route('PUT', '/api/settings', 'settings.edit', ({ body }) => {
     const s = db.data.settings;
+    const before = flatten(pick(s, ['companyName', 'companyAddress', 'companyTin', 'schedule']));
     for (const k of ['companyName', 'companyAddress', 'companyTin']) if (k in body) s[k] = String(body[k] || '').trim();
     if (!s.companyName) throw new HttpError(400, 'Company name is required.');
     if (body.schedule) s.schedule = validateSchedule(body.schedule);
     db.save();
+    const changes = diff(before, flatten(pick(s, ['companyName', 'companyAddress', 'companyTin', 'schedule'])));
+    if (changes.length) audit.record('settings.update', { entity: 'settings', label: 'Company details and default schedule', changes });
     return s;
   });
 
   // Payroll Setup: pay rules, deductions, government rates and tax tables (HR, Payroll, Administrator).
   route('PUT', '/api/payroll-config', 'payroll.config', ({ body, user }) => {
     const s = db.data.settings;
-    const next = mergeSettings({ ...s, ...pick(body, ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'premiums', 'nightDiff', 'holidayPay', 'contributions', 'rates']) });
+    const keys = ['payFrequency', 'workDaysPerYear', 'gracePeriodMinutes', 'minimumOvertimeMinutes', 'premiums', 'nightDiff', 'holidayPay', 'contributions', 'rates'];
+    const before = flatten(pick(s, keys));
+    const next = mergeSettings({ ...s, ...pick(body, keys) });
     db.data.settings = { ...validatePayrollConfig(next), payrollConfigUpdatedAt: new Date().toISOString(), payrollConfigUpdatedBy: user.name };
     db.save();
+    const changes = diff(before, flatten(pick(db.data.settings, keys)));
+    if (changes.length) audit.record('payroll.config', { entity: 'settings', label: 'Payroll Setup', changes });
     return db.data.settings;
   });
 
   // ----- Employees -----
-  route('GET', '/api/employees', 'employees.view', () => db.data.employees);
-  route('GET', '/api/employees/:id', 'employees.view', ({ params }) => findEmployee(db, params.id));
-  route('POST', '/api/employees', 'employees.edit', ({ body }) => {
+  const empLabel = (e) => `${e.firstName} ${e.lastName} (${e.employeeNo})`;
+  route('GET', '/api/employees', 'employees.view', ({ user }) => db.data.employees.map((e) => employeeFor(user, e)));
+  // The full list, with government IDs and bank accounts, for the CSV export (logged).
+  route('GET', '/api/employees/export', 'employees.sensitive', () => {
+    audit.record('employee.export', { entity: 'employee', label: `${db.data.employees.length} employees`, note: 'Includes pay, government IDs and bank accounts' });
+    return db.data.employees;
+  });
+  route('GET', '/api/employees/:id', 'employees.view', ({ params, user }) => {
+    const emp = findEmployee(db, params.id);
+    if (userCan(user, 'employees.sensitive')) audit.view('employee.view', { entity: 'employee', entityId: emp.id, label: empLabel(emp), note: 'Record with pay' });
+    return employeeFor(user, emp);
+  });
+  // Full government ID numbers and bank account: for the edit form and the "Show" button (logged).
+  route('GET', '/api/employees/:id/private', 'employees.sensitive', ({ params, query }) => {
+    const emp = findEmployee(db, params.id);
+    audit.view('employee.reveal', { entity: 'employee', entityId: emp.id, label: empLabel(emp), note: query.purpose === 'edit' ? 'Opened for editing' : 'Shown on the profile' });
+    return pick(emp, PRIVATE_FIELDS);
+  });
+  route('POST', '/api/employees', 'employees.edit', ({ body, user }) => {
     const emp = { id: randomUUID(), ...validateEmployee(body, db), createdAt: new Date().toISOString() };
     db.data.employees.push(emp);
     db.save();
-    return emp;
+    audit.record('employee.create', { entity: 'employee', entityId: emp.id, label: empLabel(emp), changes: diff({}, emp, EMPLOYEE_FIELDS) });
+    return employeeFor(user, emp);
   });
-  route('PUT', '/api/employees/:id', 'employees.edit', ({ params, body }) => {
+  route('PUT', '/api/employees/:id', 'employees.edit', ({ params, body, user }) => {
     const emp = findEmployee(db, params.id);
+    const before = { ...emp };
     Object.assign(emp, validateEmployee(body, db, emp.id), { updatedAt: new Date().toISOString() });
     db.save();
-    return emp;
+    const changes = diff(before, emp, EMPLOYEE_FIELDS);
+    if (changes.length) audit.record('employee.update', { entity: 'employee', entityId: emp.id, label: empLabel(emp), changes });
+    return employeeFor(user, emp);
   });
   route('DELETE', '/api/employees/:id', 'employees.edit', ({ params }) => {
-    findEmployee(db, params.id);
+    const gone = findEmployee(db, params.id);
+    audit.record('employee.delete', { entity: 'employee', entityId: gone.id, label: empLabel(gone), note: 'Record, attendance, requests and leave balances removed; finalized payslips and the year-to-date ledger are kept' });
     db.data.employees = db.data.employees.filter((e) => e.id !== params.id);
     for (const e of db.data.employees) if (e.supervisorId === params.id) e.supervisorId = null;
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.employeeId !== params.id);
@@ -556,24 +627,41 @@ export function createApi(db) {
       .sort((a, b) => b.date.localeCompare(a.date) || (a.timeIn || '').localeCompare(b.timeIn || ''))
       .map((e) => forViewer(user, e));
   });
+  // A day inside a finalized payroll: the change is allowed but cannot alter that payroll.
+  const lockedRun = (entry) => db.data.payrollRuns.find((r) => r.status === 'finalized' && r.employeeIds.includes(entry.employeeId) && entry.date >= r.periodStart && entry.date <= r.periodEnd);
+  const lockNote = (run) => (run ? `In the finalized payroll for ${run.periodStart} to ${run.periodEnd}: that payroll does not change. Settle any difference with an adjustment in the next run.` : '');
+  const entryLabel = (entry) => {
+    const emp = db.data.employees.find((e) => e.id === entry.employeeId);
+    return `${emp ? `${emp.firstName} ${emp.lastName}` : 'Employee'}, ${entry.date}`;
+  };
+  const ENTRY_FIELDS = ['date', 'type', 'timeIn', 'timeOut', 'otApproved', 'remote', 'leaveTypeId', 'paid', 'notes'];
   route('POST', '/api/time-entries', 'attendance.edit', ({ body, user }) => {
     const entry = { id: randomUUID(), ...validateEntry(body, db) };
     db.data.timeEntries.push(entry);
     db.save();
-    return forViewer(user, entry);
+    const warning = lockNote(lockedRun(entry));
+    audit.record('attendance.create', { entity: 'timeEntry', entityId: entry.id, label: entryLabel(entry), changes: diff({}, entry, ENTRY_FIELDS), note: warning });
+    return { ...forViewer(user, entry), warning };
   });
   // Editing a record keeps the location recorded when the employee clocked in.
   route('PUT', '/api/time-entries/:id', 'attendance.edit', ({ params, body, user }) => {
     const entry = db.data.timeEntries.find((e) => e.id === params.id);
     if (!entry) throw new HttpError(404, 'Time entry not found.');
+    const before = { ...entry };
     Object.assign(entry, validateEntry(body, db, entry.id));
     db.save();
-    return forViewer(user, entry);
+    const warning = lockNote(lockedRun(before) || lockedRun(entry));
+    audit.record('attendance.update', { entity: 'timeEntry', entityId: entry.id, label: entryLabel(entry), changes: diff(before, entry, ENTRY_FIELDS), note: warning });
+    return { ...forViewer(user, entry), warning };
   });
   route('DELETE', '/api/time-entries/:id', 'attendance.edit', ({ params }) => {
+    const entry = db.data.timeEntries.find((e) => e.id === params.id);
+    if (!entry) throw new HttpError(404, 'Time entry not found.');
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.id !== params.id);
     db.save();
-    return { ok: true };
+    const warning = lockNote(lockedRun(entry));
+    audit.record('attendance.delete', { entity: 'timeEntry', entityId: entry.id, label: entryLabel(entry), changes: diff(entry, {}, ENTRY_FIELDS), note: warning });
+    return { ok: true, warning };
   });
 
   route('POST', '/api/clock', 'clock.kiosk', ({ body, user }) => {
@@ -586,7 +674,12 @@ export function createApi(db) {
   route('GET', '/api/payroll-runs', 'payroll.view', () =>
     db.data.payrollRuns.map(({ payslips, ...run }) => run).sort((a, b) => b.periodStart.localeCompare(a.periodStart)),
   );
-  route('GET', '/api/payroll-runs/:id', 'payroll.view', ({ params }) => findRun(db, params.id));
+  const runLabel = (run) => `${run.periodStart} to ${run.periodEnd} (pay date ${run.payDate})`;
+  route('GET', '/api/payroll-runs/:id', 'payroll.view', ({ params }) => {
+    const run = findRun(db, params.id);
+    audit.view('payroll.run.view', { entity: 'payrollRun', entityId: run.id, label: runLabel(run) });
+    return run;
+  });
   route('POST', '/api/payroll-runs', 'payroll.edit', ({ body }) => {
     const { periodStart, periodEnd, payDate } = body;
     if (!DATE_RE.test(periodStart || '') || !DATE_RE.test(periodEnd || '')) throw new HttpError(400, 'Pick a valid pay period.');
@@ -606,6 +699,7 @@ export function createApi(db) {
     computeRun(db, run);
     db.data.payrollRuns.push(run);
     db.save();
+    audit.record('payroll.run.create', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: `${run.payslips.length} payslips` });
     return run;
   });
   route('POST', '/api/payroll-runs/:id/recompute', 'payroll.edit', ({ params }) => {
@@ -613,6 +707,7 @@ export function createApi(db) {
     assertDraft(run);
     computeRun(db, run);
     db.save();
+    audit.record('payroll.run.recompute', { entity: 'payrollRun', entityId: run.id, label: runLabel(run) });
     return run;
   });
   route('PUT', '/api/payroll-runs/:id/payslips/:employeeId', 'payroll.edit', ({ params, body }) => {
@@ -620,6 +715,7 @@ export function createApi(db) {
     assertDraft(run);
     const slip = run.payslips.find((p) => p.employeeId === params.employeeId);
     if (!slip) throw new HttpError(404, 'Payslip not found.');
+    const before = { ...slip.adjustments };
     slip.adjustments = {
       otherEarnings: Math.max(0, Number(body.otherEarnings) || 0),
       otherDeductions: Math.max(0, Number(body.otherDeductions) || 0),
@@ -627,54 +723,85 @@ export function createApi(db) {
     };
     computeRun(db, run);
     db.save();
+    const changes = diff(before, slip.adjustments, ['otherEarnings', 'otherDeductions', 'remarks']);
+    if (changes.length) audit.record('payroll.run.adjust', { entity: 'payrollRun', entityId: run.id, label: `${slip.employee.name}, ${runLabel(run)}`, changes });
     return run;
   });
-  route('POST', '/api/payroll-runs/:id/finalize', 'payroll.edit', ({ params }) => {
+  // Finalizing locks the run and posts its payslips to the year-to-date ledger.
+  route('POST', '/api/payroll-runs/:id/finalize', 'payroll.edit', ({ params, user }) => {
     const run = findRun(db, params.id);
     assertDraft(run);
     computeRun(db, run);
-    run.status = 'finalized';
-    run.finalizedAt = new Date().toISOString();
+    Object.assign(run, { status: 'finalized', finalizedAt: new Date().toISOString(), finalizedBy: user.name });
+    postRun(db, run);
     db.save();
+    audit.record('payroll.run.finalize', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: `${run.payslips.length} payslips, net pay ₱${Number(run.totals?.netPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` });
+    return run;
+  });
+  // A finalized run is a record: it is voided (with a reason), never deleted or changed. Its
+  // payslips leave the year-to-date totals; employees still see them, marked voided.
+  route('POST', '/api/payroll-runs/:id/void', 'payroll.edit', ({ params, body, user }) => {
+    const run = findRun(db, params.id);
+    if (run.status !== 'finalized') throw new HttpError(400, run.status === 'voided' ? 'This payroll run is already voided.' : 'Only a finalized payroll run can be voided. Delete a draft instead.');
+    const reason = String(body.reason || '').trim().slice(0, 500);
+    if (!reason) throw new HttpError(400, 'Give the reason for voiding this payroll run.');
+    Object.assign(run, { status: 'voided', voidedAt: new Date().toISOString(), voidedBy: user.name, voidReason: reason });
+    voidRunRows(db, run, run.voidedAt);
+    db.save();
+    audit.record('payroll.run.void', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: reason });
     return run;
   });
   route('DELETE', '/api/payroll-runs/:id', 'payroll.edit', ({ params }) => {
-    findRun(db, params.id);
+    const run = findRun(db, params.id);
+    if (run.status !== 'draft') throw new HttpError(400, 'A finalized payroll run is a record and cannot be deleted. Void it instead, with a reason.');
     db.data.payrollRuns = db.data.payrollRuns.filter((r) => r.id !== params.id);
     db.save();
+    audit.record('payroll.run.delete', { entity: 'payrollRun', entityId: run.id, label: runLabel(run) });
     return { ok: true };
   });
 
   // ----- Data management -----
-  route('GET', '/api/admin/export', 'data.manage', () => db.data);
+  route('GET', '/api/admin/export', 'data.manage', () => {
+    audit.record('data.export', { label: 'Full backup', note: 'All company data, including pay, government IDs and bank accounts' });
+    return db.data;
+  });
   route('POST', '/api/admin/import', 'data.manage', ({ body }) => {
     if (!body || !Array.isArray(body.employees) || !Array.isArray(body.timeEntries) || !Array.isArray(body.payrollRuns)) {
       throw new HttpError(400, 'That file is not a valid backup.');
     }
     // Keep the current accounts unless the backup carries its own.
     replaceData(db, { ...body, users: Array.isArray(body.users) && body.users.length ? body.users : users() });
+    syncLedger(db) && db.save();
+    audit.record('data.import', { label: 'Backup restored', note: `${db.data.employees.length} employees, ${db.data.payrollRuns.length} payroll runs` });
     return { ok: true };
   });
   // Demo data is added next to the real data (server/demo.js); loading again refreshes it.
   route('GET', '/api/admin/demo', 'data.manage', () => ({ loaded: hasDemo(db), counts: demoCounts(db) }));
   route('POST', '/api/admin/demo', 'data.manage', () => {
     const counts = addDemo(db, { summarize, demoAccounts });
+    syncLedger(db);
     db.save();
+    audit.record('data.demo-load', { label: 'Demo data' });
     return { ok: true, counts, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
   });
   route('DELETE', '/api/admin/demo', 'data.manage', () => {
     const removed = removeDemo(db, { summarize });
     db.save();
+    audit.record('data.demo-remove', { label: 'Demo data' });
     return { ok: true, removed };
   });
   registerDevlogRoutes(route, db);
   registerFeedbackRoutes(route, db);
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   registerCrmRoutes(route, db);
-  registerHolidayRoutes(route, db);
+  registerHolidayRoutes(route, db, { audit });
+  // ----- Audit log (Administrators) -----
+  route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
+  route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());
   route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });
+    audit.record('data.reset', { label: 'All company data erased', note: 'The audit log is kept' });
     return { ok: true };
   });
 
@@ -693,7 +820,13 @@ export function createApi(db) {
         if (r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
       }
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-      const result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip: clientIp(req), origin: publicOrigin(req) });
+      const ip = clientIp(req);
+      const actor = { user, ip, before: audit.count() };
+      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, origin: publicOrigin(req) }));
+      // A change with no entry of its own is still recorded, with its route (never its body).
+      if (req.method !== 'GET' && user && audit.count() === actor.before && !UNAUDITED.test(url.pathname)) {
+        audit.record(`${areaOfPath(url.pathname)}.change`, { entityId: params.id || '', label: `${req.method} ${r.pattern}`, actor });
+      }
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }
     throw new HttpError(404, 'Not found.');
