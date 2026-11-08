@@ -9,9 +9,10 @@ order: 2
 
 ## November 2026
 
-### Sales & CRM checks (0.11.2)
+### Sales & CRM checks (0.11.2 and 0.11.3)
 - Two people editing the same record no longer overwrite each other: the second save is refused with a message to reload. See [the sales guide](sales).
 - **Renew** on a contract links the renewal deal to the contract, and does not start a second one. Bids above the ABC are refused in every government procurement mode. Deals are closed as won or lost from the stage bar or the board, which always ask for the lost reason. See [the sales guide](sales).
+- A contract with a renewal in progress shows *Renewal DL-… open*. Removing the demo data keeps your own sales records, and a demo organization they use stays as a real account.
 - Errors on ticks, checklists and deletes are now shown; dialogs keep keyboard focus inside and close with Escape; CSV exports open correctly in Excel and cannot run formulas.
 
 ### Help & guides

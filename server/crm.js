@@ -147,7 +147,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     lead: (l) => ({ ...l, ownerName: userName(l.ownerId) }),
     deal: (x) => ({ ...x, accountName: accountName(x.accountId), contactName: contactName(x.contactId), ownerName: userName(x.ownerId), stageName: stageName(crm(), x.stage), probability: dealProbability(x, crm()), weighted: weightedValue(x, crm()) }),
     bid: (b) => ({ ...b, accountName: accountName(b.accountId), ownerName: userName(b.ownerId), daysLeft: b.status === 'preparing' ? daysBetween(localDate(), b.deadline?.slice(0, 10)) : null, checklistDone: b.checklist.filter((i) => i.done).length }),
-    contract: (c) => ({ ...c, accountName: accountName(c.accountId), ownerName: userName(c.ownerId), daysLeft: c.status === 'active' ? daysBetween(localDate(), c.endDate) : null }),
+    contract: (c) => ({ ...c, accountName: accountName(c.accountId), ownerName: userName(c.ownerId), renewalOpen: d().crmDeals.find((x) => x.renewalOf === c.id && isOpenDeal(x))?.code || null, daysLeft: c.status === 'active' ? daysBetween(localDate(), c.endDate) : null }),
     activity: (a) => ({ ...a, ownerName: userName(a.ownerId), createdByName: userName(a.createdBy), relatedName: relatedName(a.related) }),
   };
   function relatedName(rel) {
@@ -503,7 +503,8 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   });
   route('GET', '/api/crm/deals/:id', 'crm.view', ({ params }) => {
     const x = find('deal', params.id);
-    return { ...out.deal(x), bids: d().crmBids.filter((b) => b.dealId === x.id).map(out.bid), contracts: d().crmContracts.filter((c) => c.dealId === x.id).map(out.contract) };
+    const renewed = x.renewalOf && d().crmContracts.find((c) => c.id === x.renewalOf);
+    return { ...out.deal(x), renews: renewed ? { id: renewed.id, code: renewed.code, title: renewed.title } : null, bids: d().crmBids.filter((b) => b.dealId === x.id).map(out.bid), contracts: d().crmContracts.filter((c) => c.dealId === x.id).map(out.contract) };
   });
   route('PUT', '/api/crm/deals/:id', 'crm.edit', ({ params, body, user: u }) => {
     const x = find('deal', params.id);

@@ -135,7 +135,7 @@ For every government procurement mode (all but *Private RFP*), a bid above the A
 2. Enter the **Contract title**, **Client**, **Contract or PO no.**, **Value (₱)**, **Status**, **Start**, **End**, **Billing** and **Key terms**. Tick **Renews automatically** if it does.
 3. Click **Save**.
 
-A contract shows *Renew in … days* when it ends within the renewal notice (60 days unless your manager changed it), and appears under **Renewals coming up** on the Overview. To work on the renewal, open the contract and click **Renew**: CORE starts a new deal, *Renewal: …*, with the same account and value and the end date as the expected close. The contract shows it under **Renewal**, and the deal links back to the contract. While that deal is open, **Renew** opens it instead of starting another. Set the old contract to *Ended* when the term is over.
+A contract shows *Renew in … days* when it ends within the renewal notice (60 days unless your manager changed it), and appears under **Renewals coming up** on the Overview. To work on the renewal, open the contract and click **Renew**: CORE starts a new deal, *Renewal: …*, with the same account and value and the end date as the expected close. The contract shows it under **Renewal**, and the deal links back to the contract. While that deal is open, the contract shows *Renewal DL-… open* and **Renew** opens the deal instead of starting another. Set the old contract to *Ended* when the term is over.
 
 ![A contract due for renewal](sales-contract.jpg)
 
@@ -207,7 +207,7 @@ Anyone with access to Sales & CRM. Administrators can give access to other accou
 A service desk agent with CRM access opens the ticket and clicks **Send to Sales & CRM**. The lead keeps a link to the ticket.
 
 **CORE says the record was changed since I opened it. What do I do?**
-Someone else saved the same record while your form was open. Close the form, reload the page to see their change, and make yours again. This keeps one person's save from undoing another's.
+Someone else saved the same record while your form was open. Close the form: the page loads their change. Then make yours again. This keeps one person's save from undoing another's.
 
 **Can I undo a lost deal?**
 Yes. Open the deal and click another stage in the stage bar. The history keeps both moves.

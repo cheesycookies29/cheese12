@@ -103,14 +103,15 @@ export function toast(message, type = 'ok') {
 
 // Opens a modal containing a form. `onSubmit(formData)` may throw to keep it open.
 // subtitle: a line under the title; submitLabel null = a read-only window with only a close button.
-export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancelLabel = 'Cancel', onSubmit, wide = false, className = '' }) {
+// onClose: called once the dialog is closed (by Save, Cancel or Escape).
+export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancelLabel = 'Cancel', onSubmit, onClose, wide = false, className = '' }) {
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.innerHTML = render(html`
     <form class="modal ${wide ? 'wide' : ''} ${className}" novalidate role="dialog" aria-modal="true" aria-label="${title}">
       <header><div class="modal-title"><h2>${title}</h2>${subtitle ? html`<p>${subtitle}</p>` : ''}</div><button type="button" class="icon-btn" data-close aria-label="Close">×</button></header>
       <div class="modal-body">${body}</div>
-      <p class="form-error" hidden></p>
+      <p class="form-error" role="alert" hidden></p>
       <footer>
         <button type="button" class="btn" data-close>${submitLabel === null && cancelLabel === 'Cancel' ? 'Close' : cancelLabel}</button>
         ${submitLabel === null ? '' : html`<button type="submit" class="btn primary">${submitLabel}</button>`}
@@ -148,9 +149,13 @@ export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancel
   };
   document.addEventListener('keydown', onKey);
   const close = () => {
+    if (!backdrop.isConnected) return;
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
-    if (opener?.isConnected && opener !== document.body && !document.querySelector('.modal-backdrop')) opener.focus();
+    // Back to the opener: on the page, or in the dialog underneath (a confirm opened from a form).
+    const top = [...document.querySelectorAll('.modal-backdrop')].pop();
+    if (opener?.isConnected && opener !== document.body && (!top || top.contains(opener)) && !opener.disabled) opener.focus();
+    onClose?.();
   };
   backdrop.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', close));
   form.addEventListener('submit', async (e) => {
@@ -167,6 +172,8 @@ export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancel
     } finally {
       btn.disabled = false;
     }
+    // Refused (or a confirm on top was closed): focus back in this dialog, on Save.
+    if (backdrop.isConnected && [...document.querySelectorAll('.modal-backdrop')].pop() === backdrop && !form.contains(document.activeElement)) btn.focus();
   });
   (form.querySelector('input:not([type=hidden]), select, textarea') || form.querySelector('[data-close]'))?.focus();
   return { form, close };

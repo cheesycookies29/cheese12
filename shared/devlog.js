@@ -27,6 +27,25 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.11.3-alpha',
+    date: '2026-11-08',
+    title: 'Sales & CRM: QA pass 2 fixes',
+    modules: ['crm', 'system'],
+    notes: 'The fixes from the second QA pass of Sales & CRM: a regression check of every pass 1 fix, then a fresh search.',
+    changes: [
+      ['fixed', 'crm', '+ Account and Edit on an account opened nothing in 0.11.2 (a pass 1 regression). A browser check now opens every CRM form.'],
+      ['fixed', 'crm', 'A bid award or a win on the board now counts as a change to the deal and the account, so a form opened before it is refused instead of reopening the deal or turning the client back into a prospect.'],
+      ['fixed', 'crm', 'Moving a contact, deal or contract to another account drops the links that no longer fit (with a line in the history), instead of blocking every later save of the linked records.'],
+      ['fixed', 'crm', 'Removing the demo data keeps your own sales records on a demo organization, and keeps that organization as a real account.'],
+      ['fixed', 'crm', 'One open renewal per contract on every path; a terminated or draft contract cannot be renewed. The contract list shows "Renewal DL-… open", and the deal names the contract it renews.'],
+      ['fixed', 'crm', 'Yes/no fields take true or false only; deadlines, amounts ("1,00" is refused) and dates (1900 to 2100) are taken exactly as sent; an unknown choice keeps the stored value; an Ended contract cannot end in the future.'],
+      ['fixed', 'crm', 'The activity box keeps what you type when you change its type, and a task\'s date no longer follows it to a note. After someone else saves a record, closing your form loads their version.'],
+      ['fixed', 'crm', 'Phones: the stage bar wraps so Won and Lost are on screen, Sales setup stage names are readable, and the Activities tabs fit. Bid deadlines show 12-hour times.'],
+      ['fixed', 'system', 'Focus returns to the dialog underneath after a confirm; toasts and form errors are announced to screen readers; a missing record links back to its module. Phone numbers export without a leading quote. Deleting a user leaves their CRM records with no owner rather than a broken one. A CRM access change that changes nothing is not logged.'],
+    ],
+    known: ['"Won this quarter" on the Overview opens all won deals, not only this quarter\'s.', 'Setting an awarded bid back to Preparing does not reopen its won deal; reopen the deal from its stage bar.'],
+  },
+  {
     version: '0.11.2-alpha',
     date: '2026-11-08',
     title: 'Sales & CRM: QA fixes',

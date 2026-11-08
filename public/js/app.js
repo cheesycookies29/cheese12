@@ -398,8 +398,9 @@ async function navigate() {
   try {
     cleanup = await match.view(el, params, query);
   } catch (err) {
-    if (err.status === 404) mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Not found</h2><p>${err.message} It may have been deleted.</p><p><button type="button" class="btn" data-back>Go back</button></p></div>`);
-    el.querySelector('[data-back]')?.addEventListener('click', () => history.back());
+    // A deleted record or an old link: a way back into the module, not out of CORE.
+    const home = (match.module && moduleHome(match.module === 'system' ? ctx.module : match.module)) || homeRoute();
+    if (err.status === 404) mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>${err.message}</h2><p>It may have been deleted, or the link is out of date.</p><p><a class="btn" href="#${home}">Back to the module</a></p></div>`);
     if (err.status !== 404) mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
   }
 }

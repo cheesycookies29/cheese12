@@ -30,9 +30,15 @@ const guard = (fn, after) => async (...args) => {
     await fn(...args);
   } catch (err) {
     toast(err.message, 'error');
-    after?.();
+    try {
+      await after?.();
+    } catch {
+      window.dispatchEvent(new HashChangeEvent('hashchange')); // the page again, or Not found
+    }
   }
 };
+// Load the current page again (after a refusal that means the screen is out of date).
+const reloadPage = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
 const initials = (name) => (name || '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 const ownerChip = (name) => (name ? html`<span class="crm-owner" title="${name}"><span class="avatar xs">${initials(name)}</span>${name}</span>` : html`<span class="muted">No owner</span>`);
@@ -51,14 +57,19 @@ const leadBadge = (s) => badge(LEAD_STATUS[s] || s, KINDS.lead[s]);
 const bidBadge = (s) => badge(BID_STATUS[s] || s, KINDS.bid[s]);
 const stageBadge = (d) => badge(d.stageName, d.stage === 'won' ? 'green' : d.stage === 'lost' ? 'gray' : 'blue');
 function contractBadge(c, notice) {
+  if (c.status === 'active' && c.renewalOpen) return badge(`Renewal ${c.renewalOpen} open`, 'blue');
   if (c.status === 'active' && c.daysLeft !== null && c.daysLeft < 0) return badge('Past end date', 'amber');
   if (c.status === 'active' && c.daysLeft !== null && c.daysLeft <= notice) return badge(`Renew in ${plural(c.daysLeft, 'day')}`, 'amber');
   return badge(CONTRACT_STATUS[c.status] || c.status, KINDS.contract[c.status]);
 }
+const clock = (hm) => {
+  const [h, mm] = hm.split(':').map(Number);
+  return `${h % 12 || 12}:${String(mm).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+};
 function deadlineText(b) {
   if (b.status !== 'preparing' || b.daysLeft === null) return b.deadline ? fmtDate(b.deadline.slice(0, 10)) : '—';
   if (b.daysLeft < 0) return html`<span class="crm-due bad">Deadline passed</span>`;
-  if (b.daysLeft === 0) return html`<span class="crm-due bad">Due today${b.deadline.length > 10 ? `, ${b.deadline.slice(11)}` : ''}</span>`;
+  if (b.daysLeft === 0) return html`<span class="crm-due bad">Due today${b.deadline.length > 10 ? `, ${clock(b.deadline.slice(11))}` : ''}</span>`;
   return html`<span class="crm-due ${b.daysLeft <= 3 ? 'bad' : b.daysLeft <= 7 ? 'warn' : ''}">${plural(b.daysLeft, 'day')} left</span>`;
 }
 
@@ -77,11 +88,11 @@ function fieldHtml(f, v) {
   const req = f.required ? html`<em>*</em>` : '';
   const cls = `field ${f.span ? 'span-2' : ''}`;
   if (f.type === 'checkbox') return html`<label class="field check ${f.span ? 'span-2' : ''}"><input type="checkbox" name="${f.name}" ${val ? 'checked' : ''} /><span>${f.label}</span></label>`;
-  if (f.type === 'select') return html`<label class="${cls}"><span>${f.label}${req}</span><select name="${f.name}">${options(f.options, val, f.blank)}</select>${f.hint ? html`<small class="hint">${f.hint}</small>` : ''}</label>`;
+  if (f.type === 'select') return html`<label class="${cls}"><span>${f.label}${req}</span><select name="${f.name}" ${f.required ? 'aria-required="true"' : ''}>${options(f.options, val, f.blank)}</select>${f.hint ? html`<small class="hint">${f.hint}</small>` : ''}</label>`;
   if (f.type === 'textarea') return html`<label class="${cls}"><span>${f.label}${req}</span><textarea name="${f.name}" rows="${f.rows || 3}" placeholder="${f.placeholder || ''}">${val}</textarea>${f.hint ? html`<small class="hint">${f.hint}</small>` : ''}</label>`;
   if (f.type === 'datalist') return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" list="dl-${f.name}" value="${val}" placeholder="${f.placeholder || ''}" /><datalist id="dl-${f.name}">${f.options.map((o) => html`<option value="${o}"></option>`)}</datalist></label>`;
   const hint = f.hint ? html`<small class="hint">${f.hint}</small>` : '';
-  if (f.type === 'number') return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" type="number" min="0" step="0.01" inputmode="decimal" value="${val}" placeholder="${f.placeholder || ''}" />${hint}</label>`;
+  if (f.type === 'number') return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" type="number" min="0" step="0.01" inputmode="decimal" value="${val}" placeholder="${f.placeholder || ''}" ${f.required ? 'aria-required="true"' : ''} />${hint}</label>`;
   return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" type="${f.type || 'text'}" value="${val}" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''} />${hint}</label>`;
 }
 function formValues(form, fields) {
@@ -89,10 +100,20 @@ function formValues(form, fields) {
   return Object.fromEntries(fields.map((f) => [f.name, f.type === 'checkbox' ? form.elements[f.name].checked : fd.get(f.name)]));
 }
 function recordForm({ title, subtitle, fields, values = {}, submitLabel = 'Save', onSubmit }) {
+  let stale = false;
   return modal({
     title, subtitle, wide: true, submitLabel, className: 'crm-form',
     body: html`<div class="grid two">${fields.map((f) => fieldHtml(f, values[f.name]))}</div>`,
-    onSubmit: (form) => onSubmit(formValues(form, fields), form),
+    onSubmit: async (form) => {
+      try {
+        await onSubmit(formValues(form, fields), form);
+      } catch (err) {
+        // Someone else saved this record: closing the form loads their version.
+        if (err.status === 409 && /changed by/.test(err.message)) stale = true;
+        throw err;
+      }
+    },
+    onClose: () => stale && reloadPage(),
   });
 }
 // The team, plus the record's current owner if they have since lost CRM access (so saving the
@@ -300,7 +321,12 @@ const ACT_ICON = { call: 'headset', meeting: 'users', email: 'mail', task: 'chec
 async function timeline(el, type, id) {
   const m = metaCache || (await meta());
   let kind = 'note';
-  let draft = {}; // what is typed in the composer, kept when the type changes
+  const LABELS = {
+    subject: (k) => (k === 'note' ? 'Title (optional)' : k === 'task' ? 'What needs doing?' : `${ACTIVITY_TYPES[k]} subject`),
+    body: (k) => (k === 'note' ? 'Write a note…' : 'Details, outcome or agenda (optional)'),
+    date: (k) => (k === 'task' ? 'Due' : 'Schedule for'),
+    submit: (k) => (k === 'task' ? 'Add task' : k === 'note' ? 'Save note' : `Log ${ACTIVITY_TYPES[k].toLowerCase()}`),
+  };
   async function render() {
     const list = await api.get(`/api/crm/activities?type=${type}&id=${id}`);
     const open = list.filter((a) => a.type !== 'event' && !a.done).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
@@ -324,14 +350,14 @@ async function timeline(el, type, id) {
     };
     mount(el, html`
       ${canEdit() ? html`<form class="crm-composer" id="composer" novalidate>
-        <div class="seg-btns crm-seg" role="tablist">${Object.entries(ACTIVITY_TYPES).map(([k, v]) => html`<button type="button" data-kind="${k}" class="${k === kind ? 'active' : ''}">${icon(ACT_ICON[k], 14)} ${v}</button>`)}</div>
-        <input name="subject" value="${draft.subject || ''}" placeholder="${kind === 'note' ? 'Title (optional)' : kind === 'task' ? 'What needs doing?' : `${ACTIVITY_TYPES[kind]} subject`}" />
-        <textarea name="body" rows="2" placeholder="${kind === 'note' ? 'Write a note…' : 'Details, outcome or agenda (optional)'}">${draft.body || ''}</textarea>
+        <div class="seg-btns crm-seg" role="group" aria-label="Type of activity">${Object.entries(ACTIVITY_TYPES).map(([k, v]) => html`<button type="button" data-kind="${k}" class="${k === kind ? 'active' : ''}" aria-pressed="${k === kind ? 'true' : 'false'}">${icon(ACT_ICON[k], 14)} ${v}</button>`)}</div>
+        <input name="subject" placeholder="${LABELS.subject(kind)}" aria-label="Subject" />
+        <textarea name="body" rows="2" placeholder="${LABELS.body(kind)}" aria-label="Details"></textarea>
         <div class="crm-composer-foot">
-          <label class="field inline"><span>${kind === 'task' ? 'Due' : 'Schedule for'}</span><input type="date" name="dueDate" value="${draft.dueDate || (kind === 'task' ? today() : '')}" /></label>
-          <label class="field inline"><span>Owner</span><select name="ownerId">${options(teamOptions(m), draft.ownerId || ctx.user.id)}</select></label>
+          <label class="field inline"><span data-date-label>${LABELS.date(kind)}</span><input type="date" name="dueDate" value="${kind === 'task' ? today() : ''}" /></label>
+          <label class="field inline"><span>Owner</span><select name="ownerId">${options(teamOptions(m), ctx.user.id)}</select></label>
           <span class="spacer"></span>
-          <button class="btn primary" type="submit">${kind === 'task' ? 'Add task' : kind === 'note' ? 'Save note' : `Log ${ACTIVITY_TYPES[kind].toLowerCase()}`}</button>
+          <button class="btn primary" type="submit">${LABELS.submit(kind)}</button>
         </div>
         <p class="form-error" hidden></p>
       </form>` : ''}
@@ -339,10 +365,21 @@ async function timeline(el, type, id) {
       <h3 class="crm-tl-h">History</h3>
       ${past.length ? html`<ul class="crm-timeline">${past.map(row)}</ul>` : html`<p class="muted">Nothing logged yet.</p>`}`);
     const composer = el.querySelector('#composer');
+    // Changing the type relabels the form; what is typed stays, and so does the focus.
     el.querySelectorAll('[data-kind]').forEach((b) => b.addEventListener('click', () => {
-      draft = { subject: composer.subject.value, body: composer.body.value, dueDate: composer.dueDate.value, ownerId: composer.ownerId.value };
+      const was = kind;
       kind = b.dataset.kind;
-      render();
+      composer.querySelectorAll('[data-kind]').forEach((x) => {
+        x.classList.toggle('active', x === b);
+        x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+      });
+      composer.subject.placeholder = LABELS.subject(kind);
+      composer.body.placeholder = LABELS.body(kind);
+      composer.querySelector('[data-date-label]').textContent = LABELS.date(kind);
+      composer.querySelector('[type=submit]').textContent = LABELS.submit(kind);
+      // A task is due today unless a date was chosen; that default does not follow it to a note.
+      if (kind === 'task' && !composer.dueDate.value) composer.dueDate.value = today();
+      else if (was === 'task' && kind !== 'task' && composer.dueDate.value === today()) composer.dueDate.value = '';
     }));
     composer?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -353,7 +390,6 @@ async function timeline(el, type, id) {
       btn.disabled = true;
       try {
         await api.post('/api/crm/activities', { type: kind, subject: f.subject.value, body: f.body.value, dueDate: f.dueDate.value || null, ownerId: f.ownerId.value, related: { type, id } });
-        draft = {};
         toast(kind === 'task' ? 'Task added.' : 'Saved.');
         changed();
         render();
@@ -385,7 +421,7 @@ const head = (title, sub, actions = '', back = '') => html`
     <div>${back ? html`<a class="back" href="#${back[0]}">← ${back[1]}</a>` : ''}<h1>${title}</h1>${sub ? html`<p class="muted">${sub}</p>` : ''}</div>
     ${actions ? html`<div class="actions">${actions}</div>` : ''}
   </header>`;
-const searchBox = (placeholder) => html`<input type="search" id="q" placeholder="${placeholder}" />`;
+const searchBox = (placeholder) => html`<input type="search" id="q" placeholder="${placeholder}" aria-label="${placeholder}" />`;
 const ownerFilter = (m) => html`<select id="f-owner" aria-label="Owner"><option value="">Everyone</option><option value="me">Mine</option>${m.team.map((u) => html`<option value="${u.id}">${u.name}</option>`)}</select>`;
 const matchOwner = (rec, v) => !v || (v === 'me' ? rec.ownerId === ctx.user.id : rec.ownerId === v);
 const matchText = (q, ...fields) => !q || fields.some((f) => String(f || '').toLowerCase().includes(q));
@@ -420,7 +456,7 @@ export async function crmOverviewView(el) {
   const stat = (label, value, sub, href, cls = '') => html`<a class="card ${cls}" href="#${href}"><small>${label}</small><strong>${value}</strong>${sub ? html`<span class="muted small">${sub}</span>` : ''}</a>`;
   mount(el, html`
     ${head('Sales & CRM', `${ctx.settings.companyName} pipeline, bids and renewals.`, html`
-      <div class="crm-search"><input type="search" id="crm-q" placeholder="Search accounts, people, deals, bids…" autocomplete="off" /><div class="crm-search-pop" id="crm-hits" hidden></div></div>
+      <div class="crm-search"><input type="search" id="crm-q" placeholder="Search accounts, people, deals, bids…" aria-label="Search the CRM" autocomplete="off" /><div class="crm-search-pop" id="crm-hits" hidden></div></div>
       ${canEdit() ? html`<button class="btn" id="new-lead">+ Lead</button><button class="btn primary" id="new-deal">+ Deal</button>` : ''}`)}
     <div class="stats">
       ${stat('Open pipeline', short(ov.openValue), plural(ov.openCount, 'open deal'), '/crm/pipeline', 'accent')}
@@ -444,7 +480,7 @@ export async function crmOverviewView(el) {
       <section class="card">
         <div class="card-head"><h2>${icon('check')} My tasks</h2><a href="#/crm/activities">All activities</a></div>
         ${ov.myTasks.length ? html`<ul class="crm-mini">${ov.myTasks.map((t) => html`<li>
-            <label class="crm-tick"><input type="checkbox" data-done="${t.id}" /></label>
+            <label class="crm-tick"><input type="checkbox" data-done="${t.id}" aria-label="Done: ${t.subject}" /></label>
             <span class="grow"><strong>${t.subject}</strong><small>${t.relatedName ? html`<a href="#/crm/${t.related.type}s/${t.related.id}">${t.relatedName}</a> · ` : ''}<span class="crm-due ${t.dueDate < today() ? 'bad' : 'warn'}">${t.dueDate < today() ? `Overdue, ${fmtDate(t.dueDate)}` : 'Today'}</span></small></span></li>`)}</ul>`
           : html`<p class="muted">Nothing due today.${ov.myUpcoming ? ` ${plural(ov.myUpcoming, 'task')} coming up.` : ''}</p>`}
       </section>
@@ -492,7 +528,11 @@ function wireSearch(el) {
       pop.hidden = false;
     }, 200);
   });
-  input.addEventListener('keydown', (e) => e.key === 'Escape' && ((pop.hidden = true), input.blur()));
+  input.closest('.crm-search').addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || pop.hidden) return;
+    pop.hidden = true;
+    input.focus();
+  });
   document.addEventListener('click', (e) => !e.target.closest('.crm-search') && (pop.hidden = true));
 }
 
@@ -633,9 +673,10 @@ export async function dealView(el, { id }) {
     ${head(html`${x.title} ${stageBadge(x)}`, html`<span class="mono">${x.code}</span> · <a href="#/crm/accounts/${x.accountId}">${x.accountName}</a>${x.contactName ? html` · <a href="#/crm/contacts/${x.contactId}">${x.contactName}</a>` : ''}`, html`
       ${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/pipeline', 'Pipeline'])}
     <nav class="crm-path" aria-label="Stage">
-      ${stages.map((s, i) => html`<button type="button" class="${x.stage === s.id ? 'cur' : (idx >= 0 && i < idx) || x.stage === 'won' ? 'past' : ''}" data-stage="${s.id}" ${canEdit() ? '' : 'disabled'}>${s.name}</button>`)}
-      <button type="button" class="won ${x.stage === 'won' ? 'cur' : ''}" data-stage="won" ${canEdit() ? '' : 'disabled'}>${icon('check', 14)} Won</button>
-      <button type="button" class="lost ${x.stage === 'lost' ? 'cur' : ''}" data-stage="lost" ${canEdit() ? '' : 'disabled'}>Lost</button>
+      ${stages.map((s, i) => html`<button type="button" class="${x.stage === s.id ? 'cur' : (idx >= 0 && i < idx) || x.stage === 'won' ? 'past' : ''}" data-stage="${s.id}" ${x.stage === s.id ? 'aria-current="step"' : ''} ${canEdit() ? '' : 'disabled'}>${s.name}</button>`)}
+      <span class="crm-path-break" aria-hidden="true"></span>
+      <button type="button" class="won ${x.stage === 'won' ? 'cur' : ''}" data-stage="won" ${x.stage === 'won' ? 'aria-current="step"' : ''} ${canEdit() ? '' : 'disabled'}>${icon('check', 14)} Won</button>
+      <button type="button" class="lost ${x.stage === 'lost' ? 'cur' : ''}" data-stage="lost" ${x.stage === 'lost' ? 'aria-current="step"' : ''} ${canEdit() ? '' : 'disabled'}>Lost</button>
     </nav>
     <div class="cols wide-left">
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
@@ -643,7 +684,7 @@ export async function dealView(el, { id }) {
         <section class="card"><h2>Details</h2><dl class="info-grid">
           ${info('Value', money(x.value))}${info('Weighted', html`${money(x.weighted)} <small class="muted">(${x.probability}%)</small>`)}
           ${info('Expected close', x.expectedClose ? html`${fmtDate(x.expectedClose)}${isOpenDeal(x) && x.expectedClose < today() ? html` ${badge('Overdue', 'amber')}` : ''}` : '')}
-          ${info('Owner', ownerChip(x.ownerName))}${info('Source', x.source)}${info('Next step', x.nextStep)}${x.renewalOf ? info('Renews', html`<a href="#/crm/contracts/${x.renewalOf}">The contract</a>`) : ''}
+          ${info('Owner', ownerChip(x.ownerName))}${info('Source', x.source)}${info('Next step', x.nextStep)}${x.renews ? info('Renews', html`<a href="#/crm/contracts/${x.renews.id}">${x.renews.code} · ${x.renews.title}</a>`) : ''}
           ${x.closedAt ? info(x.stage === 'won' ? 'Won on' : 'Lost on', fmtDate(x.closedAt.slice(0, 10))) : ''}${x.lostReason ? info('Lost reason', x.lostReason) : ''}
         </dl>${x.description ? html`<p class="pre small crm-desc">${x.description}</p>` : ''}</section>
         <section class="card"><div class="card-head"><h2>Bids</h2>${canEdit() ? html`<button class="btn small-btn" id="add-bid">+ Bid</button>` : ''}</div>
@@ -858,7 +899,7 @@ export async function bidView(el, { id }) {
     ${head(html`${b.title} ${bidBadge(b.status)}`, html`<span class="mono">${b.reference || b.code}</span> · <a href="#/crm/accounts/${b.accountId}">${b.accountName}</a> · ${BID_MODES[b.mode]}`, html`
       ${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/bids', 'Bids'])}
     <div class="stats">
-      <div class="card ${b.status === 'preparing' && b.daysLeft !== null && b.daysLeft <= 3 ? 'attention' : ''}"><small>Submission deadline</small><strong>${b.deadline ? fmtDate(b.deadline.slice(0, 10)) : '—'}</strong><span class="muted small">${b.deadline?.length > 10 ? `${b.deadline.slice(11)} · ` : ''}${deadlineText(b)}</span></div>
+      <div class="card ${b.status === 'preparing' && b.daysLeft !== null && b.daysLeft <= 3 ? 'attention' : ''}"><small>Submission deadline</small><strong>${b.deadline ? fmtDate(b.deadline.slice(0, 10)) : '—'}</strong><span class="muted small">${b.deadline?.length > 10 ? `${clock(b.deadline.slice(11))} · ` : ''}${deadlineText(b)}</span></div>
       <div class="card"><small>Approved budget (ABC)</small><strong>${b.budget ? short(b.budget) : '—'}</strong></div>
       <div class="card"><small>Our bid</small><strong>${b.bidAmount ? short(b.bidAmount) : '—'}</strong>${margin !== null ? html`<span class="muted small">${margin}% below the ABC</span>` : ''}</div>
       <div class="card"><small>Documents ready</small><strong>${b.checklistDone}/${b.checklist.length}</strong><span class="progress"><i style="width:${pct}%"></i></span></div>
@@ -870,7 +911,7 @@ export async function bidView(el, { id }) {
           <label><input type="checkbox" data-item="${i.id}" ${i.done ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} /><span>${i.label}</span></label>
           ${i.done ? html`<small class="muted">${i.doneBy || ''}${i.doneAt ? ` · ${fmtDate(i.doneAt.slice(0, 10))}` : ''}</small>` : ''}
           ${canEdit() ? html`<button type="button" class="icon-btn" data-remove="${i.id}" aria-label="Remove ${i.label}">${icon('x', 14)}</button>` : ''}</li>`)}</ul>
-        ${canEdit() ? html`<form id="add-item" class="crm-add-item"><input name="label" placeholder="Add a document this bid needs…" /><button class="btn" type="submit">Add</button></form>` : ''}
+        ${canEdit() ? html`<form id="add-item" class="crm-add-item"><input name="label" placeholder="Add a document this bid needs…" aria-label="Document to add" /><button class="btn" type="submit">Add</button></form>` : ''}
       </section>
       <div class="stack">
         <section class="card"><h2>Details</h2><dl class="info-grid">
@@ -944,7 +985,7 @@ export async function contractView(el, { id }) {
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <section class="card"><h2>Details</h2><dl class="info-grid">
         ${info('Owner', ownerChip(c.ownerName))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}
-        ${c.renewals.length ? info('Renewal', html`${c.renewals.map((x) => html`<a href="#/crm/deals/${x.id}">${x.code}</a> ${stageBadge(x)} `)}`) : ''}
+        ${c.renewals.length ? info('Renewal', html`${c.renewals.map((x) => html`<a href="#/crm/deals/${x.id}">${x.code} · ${x.title}</a> ${stageBadge(x)} `)}`) : ''}
       </dl>${c.terms ? html`<h3>Key terms</h3><p class="pre small">${c.terms}</p>` : ''}</section>
     </div>`);
   const reload = () => contractView(el, { id });
@@ -1049,7 +1090,10 @@ export async function crmSettingsView(el, _params, query) {
         // Refused (for example a removed stage still has deals): show the saved stages again.
         save({ stages: s.stages }).catch((err) => {
           toast(err.message, 'error');
-          s.stages = structuredClone(m.setup.stages);
+          // Put back the saved stages that were removed, where they were; other edits stay.
+          m.setup.stages.forEach((st, i) => {
+            if (!s.stages.some((x) => x.id === st.id)) s.stages.splice(Math.min(i, s.stages.length), 0, structuredClone(st));
+          });
           draw();
         });
       });
