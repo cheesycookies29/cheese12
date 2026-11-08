@@ -66,7 +66,7 @@ async function requestsTab(el, query) {
                 <td><strong>${r.employeeName}</strong><small>${[r.employeeNo, r.supervisorName ? `reports to ${r.supervisorName}` : 'no supervisor on record'].join(' · ')}</small></td>
                 <td>${kindBadge(r)}${r.destination ? html`<small>${r.destination}</small>` : ''}${certificateCell(r, `/api/requests/${r.id}/attachment`)}</td>
                 <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
-                <td class="num">${r.days}${r.overflowDays ? html`<small>${r.overflowDays} unpaid</small>` : ''}</td>
+                <td class="num">${r.days}${r.overflowDays ? html`<small class="block">${r.overflowDays} unpaid</small>` : ''}</td>
                 <td>${statusBadge(r.status)}${progressText(r)}</td>
                 <td class="row-actions">${r.status === 'pending' && r.canDecide
                     ? html`<button class="btn primary small-btn" data-act="approve" data-id="${r.id}">${r.yourTurn ? 'Approve' : 'Approve (HR)'}</button><button class="link" data-act="return" data-id="${r.id}">Return</button><button class="link danger" data-act="reject" data-id="${r.id}">Reject</button>`
@@ -118,7 +118,7 @@ async function flowTab(el) {
   function draw() {
     mount(el, html`<section class="card">
       <h2>Who approves requests</h2>
-      <p class="muted small">Leave, work-from-home and official-business requests go through these levels, like Sprout HR's approval levels. Level 1 is usually the employee's <strong>immediate supervisor</strong>, set on each employee record. The route is fixed when a request is filed, so changes here apply to new requests. A level with nobody to approve it is skipped, nobody approves their own request, and HR can always decide.</p>
+      <p class="muted small">Leave, work-from-home and official-business requests go through these levels. Level 1 is usually the employee's <strong>immediate supervisor</strong>, set on each employee record. The route is fixed when a request is filed, so changes here apply to new requests. A level with nobody to approve it is skipped, nobody approves their own request, and HR can always decide.</p>
       ${cfg.withoutSupervisor ? html`<p class="notice small">${cfg.withoutSupervisor} active employee${cfg.withoutSupervisor === 1 ? ' has' : 's have'} no immediate supervisor on record; their supervisor level is skipped. Set it on each <a href="#/employees">employee record</a>.</p>` : ''}
       <form id="flow" class="stack tight">
         <fieldset class="flow-choice" ${editable ? '' : 'disabled'}>
@@ -133,7 +133,7 @@ async function flowTab(el) {
           ${editable && levels.length > 1 ? html`<button type="button" class="icon-btn danger" data-rm="${i}" aria-label="Remove level ${i + 1}">×</button>` : ''}
         </li>`)}</ol>
         <fieldset class="flow-choice" ${editable ? '' : 'disabled'}>
-          <label class="field check"><input type="checkbox" id="att-approvers" ${attachmentsToApprovers ? 'checked' : ''} /><span><strong>Approvers can open medical certificates.</strong> Off: only HR opens them; supervisors see that one is attached. Certificates are health data under the Data Privacy Act, so share them only with those who need them. Openings are recorded in the audit log.</span></label>
+          <label class="field check"><input type="checkbox" id="att-approvers" ${attachmentsToApprovers ? 'checked' : ''} /><span><strong>Approvers can open medical certificates.</strong> Off: only accounts that manage leave (HR and payroll) open them; supervisors see that one is attached. Certificates are health data under the Data Privacy Act, so share them only with those who need them. Openings are recorded in the audit log.</span></label>
         </fieldset>
         ${editable ? html`<div class="actions">${levels.length < 3 ? html`<button type="button" class="btn" id="add">+ Add a level</button>` : ''}<span class="spacer"></span><button class="btn primary" type="submit">Save approval flow</button></div>` : html`<p class="muted small">HR Managers and Administrators change the approval flow.</p>`}
       </form></section>`);

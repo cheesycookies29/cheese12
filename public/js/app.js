@@ -178,7 +178,7 @@ function allowed(permission) {
 
 // Where each module opens for this user; null = no access.
 function moduleHome(id) {
-  if (id === 'hr') return can('dashboard') ? '/dashboard' : allowed('self') ? '/me' : allowed('approver') ? '/approvals' : null;
+  if (id === 'hr') return can('dashboard') ? '/dashboard' : can('employees.view') ? '/employees' : allowed('self') ? '/me' : allowed('approver') ? '/approvals' : null;
   if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
   if (id === 'helpdesk') return can('helpdesk.agent') ? '/helpdesk' : '/helpdesk/mine';
   if (id === 'crm') return can('crm.view') ? '/crm' : null;
@@ -218,6 +218,12 @@ themeBtn.addEventListener('click', () => {
   renderThemeButton();
 });
 renderThemeButton();
+
+// Help & guides: opens the guide for this person's job in the module they are in (shared/help.js).
+themeBtn.insertAdjacentHTML('beforebegin', `<a class="round-btn" id="help-btn" href="/help/" target="_blank" rel="noopener" title="Help & guides" aria-label="Help and guides">${iconSvg('help')}</a>`);
+document.getElementById('help-btn').addEventListener('click', (e) => {
+  e.currentTarget.href = `/help/?from=${encodeURIComponent(body.classList.contains('launcher-mode') ? 'home' : ctx.module || 'home')}`;
+});
 
 // A drop-down opened from a top-bar button; closes on outside click or Escape.
 function popover(root, btn, pop) {
@@ -435,6 +441,8 @@ ctx.signOut = signOut;
 ctx.moduleHome = moduleHome;
 ctx.changePassword = openChangePassword;
 
+// A dialog belongs to the page it was opened on: changing page closes it.
+window.addEventListener('hashchange', () => document.querySelectorAll('.modal-backdrop').forEach((b) => b.remove()));
 window.addEventListener('hashchange', navigate);
 window.addEventListener('requests:changed', refreshBadge);
 window.addEventListener('reports:changed', refreshBadge);

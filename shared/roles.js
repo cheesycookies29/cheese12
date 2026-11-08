@@ -74,6 +74,7 @@ export const PERMISSION_LABELS = [
   ['audit.view', 'Audit log: who viewed or changed personal data, payroll and settings'],
   ['devlog.view', 'Dev log: release notes and installed version'],
   ['devlog.edit', 'Write and edit dev log entries'],
+  ['guides.edit', 'Help & guides: edit the guides and add the company\'s own'],
   ['helpdesk.agent', 'Service desk: work all tickets (reply, notes, assign, status)'],
   ['helpdesk.manage', 'Service desk settings: receiving email address and mailbox, outgoing mail, categories, SLA, saved replies'],
   ['crm.view', 'Sales & CRM: see accounts, contacts, leads, deals, bids and contracts'],

@@ -49,7 +49,7 @@ export async function settingsView(el) {
 
     <section class="card">
       <div class="card-head"><h2>Demo data</h2>${demo.loaded ? html`<span class="badge amber">Loaded</span>` : ''}</div>
-      <p class="muted">Adds sample employees with attendance, leave requests, IT assets, stock and helpdesk tickets <strong>next to your own data</strong>, so you can try features safely. Demo records are numbered DEMO-0001, DEMO-IT-0001 and so on, and nothing you entered is changed. Demo sign-in accounts hr.demo, payroll.demo, it.demo and employee.demo use the password <code>demo1234</code>.</p>
+      <p class="muted">Adds sample employees with attendance, leave requests, IT assets, stock, helpdesk tickets and Sales & CRM records <strong>next to your own data</strong>, so you can try features safely. Demo records are numbered DEMO-0001, DEMO-IT-0001 and so on, and nothing you entered is changed. Demo sign-in accounts hr.demo, payroll.demo, it.demo, sales.demo and employee.demo use the password <code>demo1234</code>.</p>
       ${demo.loaded ? html`<p class="small">Loaded now: ${demo.counts.employees} demo employees, ${demo.counts.assets} assets, ${demo.counts.inventoryItems} stock items, ${demo.counts.tickets} tickets. Demo employees are included in new payroll runs until you remove them.</p>` : ''}
       <div class="actions">
         <button class="btn" id="demo">${demo.loaded ? 'Reload demo data' : 'Add demo data'}</button>
@@ -101,7 +101,7 @@ export async function settingsView(el) {
   el.querySelector('#demo').addEventListener('click', async () => {
     const message = demo.loaded
       ? 'The current demo records are replaced with a fresh set (changes made to demo records are lost). Your own data is not touched.'
-      : 'Sample employees, attendance, leave requests, IT assets, stock and helpdesk tickets are added next to your data, plus four demo sign-in accounts (password demo1234). Your own data is not changed, and you can remove the demo records at any time.';
+      : 'Sample employees, attendance, leave requests, IT assets, stock, helpdesk tickets and Sales & CRM records are added next to your data, plus five demo sign-in accounts (password demo1234). Your own data is not changed, and you can remove the demo records at any time.';
     if (!(await confirmDialog(message, { title: demo.loaded ? 'Reload demo data' : 'Add demo data', confirmLabel: demo.loaded ? 'Reload demo data' : 'Add demo data', danger: false }))) return;
     const res = await api.post('/api/admin/demo');
     toast(`Demo data added: ${res.counts.employees} employees, ${res.counts.assets} assets, ${res.counts.tickets} tickets. Demo accounts use the password demo1234.`);
@@ -115,7 +115,7 @@ export async function settingsView(el) {
   });
 
   el.querySelector('#reset').addEventListener('click', async () => {
-    if (!(await confirmDialog('Permanently erase all employees, attendance, payroll runs and settings? User accounts are kept, except demo accounts.', { confirmLabel: 'Erase everything' }))) return;
+    if (!(await confirmDialog('Permanently erase all company data: employees, attendance, leave, payroll runs, IT assets and stock, service desk tickets, Sales & CRM records and settings? User accounts are kept (except demo accounts), and so are the audit log, the dev log, feedback, guide edits, the service desk mail setup and the sales setup.', { confirmLabel: 'Erase everything' }))) return;
     await api.post('/api/admin/reset');
     await ctx.refreshSettings();
     toast('All data erased.');

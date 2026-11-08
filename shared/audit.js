@@ -65,6 +65,7 @@ export const AUDIT_ACTIONS = {
   'attendance.change': 'Changed attendance settings',
   'payroll.change': 'Changed payroll data',
   'system.change': 'Changed system data',
+  'system.guide': 'Changed a Help guide',
 };
 
 export const actionLabel = (a) => AUDIT_ACTIONS[a] || a;

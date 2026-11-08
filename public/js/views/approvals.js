@@ -67,7 +67,7 @@ export async function approvalsView(el, _params, query) {
         <td><strong>${r.employeeName}</strong><small>${[r.employeeNo, r.department].filter(Boolean).join(' · ')}</small></td>
         <td>${kindBadge(r)}${r.destination ? html`<small>${r.destination}</small>` : ''}${certificateCell(r, `/api/approvals/${r.id}/attachment`)}</td>
         <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
-        <td class="num">${r.days}${r.overflowDays ? html`<small>${r.overflowDays} unpaid</small>` : ''}</td>
+        <td class="num">${r.days}${r.overflowDays ? html`<small class="block">${r.overflowDays} unpaid</small>` : ''}</td>
         <td>${statusBadge(r.status)}${r.status === 'pending' && r.yourTurn ? html`<small>${badge('Your turn', 'amber')}</small>` : progressText(r)}</td>
         <td class="row-actions">${r.status === 'pending' && r.canDecide ? html`<button class="btn small-btn primary" data-act="approve" data-id="${r.id}">Approve</button><button class="link" data-act="return" data-id="${r.id}">Return</button><button class="link danger" data-act="reject" data-id="${r.id}">Reject</button>` : ''}</td>
       </tr>`)}</tbody></table>`

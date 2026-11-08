@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#5d0013" />
+  <title>Help & guides · CORE</title>
+  <link rel="icon" type="image/svg+xml" href="/img/core-app-icon.svg" />
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/help.css" />
+  <script>
+    try { var t = localStorage.getItem('core-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
+</head>
+<body class="booting help-app">
+  <div class="app">
+    <header class="topbar">
+      <button type="button" class="icon-btn help-menu-btn" id="menu-btn" aria-label="Guides" aria-controls="help-side" aria-expanded="false"></button>
+      <a class="brand" href="/help/#/" aria-label="Help home">
+        <img class="core-mark on-light" src="/img/core-mark-brand.svg" alt="" /><img class="core-mark on-dark" src="/img/core-mark.svg" alt="" />
+        <span><span class="core-word"><strong>CORE</strong><em>Help &amp; guides</em></span><small>ERP by Lancaster</small></span>
+      </a>
+      <form class="help-search top-search" id="top-search" role="search"><span class="search-ic" aria-hidden="true"></span><input type="search" name="q" placeholder="Search the guides" aria-label="Search the guides" autocomplete="off" /><kbd aria-hidden="true">/</kbd></form>
+      <span class="topbar-spacer"></span>
+      <a class="round-btn" href="/#/launcher" title="Back to CORE" aria-label="Back to CORE" id="home-btn"></a>
+      <button type="button" class="round-btn" id="theme-btn" aria-label="Dark mode"></button>
+    </header>
+    <div class="help-scrim" id="help-scrim" hidden></div>
+    <main id="app" class="help-main"></main>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/js/help/app.js"></script>
+</body>
+</html>

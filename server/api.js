@@ -13,6 +13,7 @@ import { migrateApprovals, isApprover } from './approvals.js';
 import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
 import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS } from './audit.js';
 import { registerLedgerRoutes, syncLedger, postRun, voidRunRows, yearTotals } from './ledger.js';
+import { registerGuideRoutes } from './guides.js';
 import { areaOfPath } from '../shared/audit.js';
 import { createSecrets } from './secrets.js';
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
@@ -309,6 +310,8 @@ function replaceData(db, next) {
     ...next,
     devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog,
     feedback: Array.isArray(next.feedback) && next.feedback.length ? next.feedback : db.data.feedback,
+    // So are administrators' edits of the Help guides.
+    guideEdits: Array.isArray(next.guideEdits) && next.guideEdits.length ? next.guideEdits : db.data.guideEdits || [],
     // The service desk's mail setup and settings are kept; its tickets are company data.
     helpdesk: keepHelpdeskConfig(db.data.helpdesk, next.helpdesk),
     // So is the sales setup (pipeline stages, sources, checklist); CRM records are company data.
@@ -795,6 +798,7 @@ export function createApi(db) {
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   registerCrmRoutes(route, db);
   registerHolidayRoutes(route, db, { audit });
+  registerGuideRoutes(route, db, { audit });
   // ----- Audit log (Administrators) -----
   route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
   route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());

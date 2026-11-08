@@ -19,7 +19,7 @@ export async function clockView(el) {
   const byId = new Map(employees.map((e) => [e.id, e]));
 
   mount(el, html`
-    <header class="page-head"><div><h1>Time Clock</h1><p class="muted">Employees clock in and out here. Times use this computer's clock.</p></div></header>
+    <header class="page-head"><div><h1>Time Clock</h1><p class="muted">Employees clock in and out here. The time recorded is CORE's server time, not this computer's clock.</p></div></header>
     <div class="cols clock-cols">
       <section class="card clock-card">
         <div class="clock-time" id="clock-time"></div>

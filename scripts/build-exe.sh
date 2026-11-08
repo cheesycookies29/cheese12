@@ -44,7 +44,7 @@ fi
   --log-level=warning --outfile="$WORK/core.cjs"
 
 # 4. Web files, from git only (never data/ or local files), embedded as assets.
-FILES=$(git -C "$ROOT" ls-files public shared)
+FILES=$(git -C "$ROOT" ls-files public shared docs/guides)
 ROOT="$ROOT" WORK="$WORK" node -e '
   const [files, build, version, commit] = process.argv.slice(1);
   const list = files.split("\n").filter(Boolean);

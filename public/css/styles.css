@@ -496,6 +496,7 @@ body.hub .topbar { padding-left: 24px; }
 .actions.center { justify-content: center; }
 .clock-cols { grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); }
 .table td.num small { display: inline; }
+.table td.num small.block { display: block; }
 .table.compact td { padding: 8px 10px; }
 .table tfoot td { border-top: 2px solid var(--maroon); border-bottom: 0; background: var(--maroon-soft); }
 .register { font-size: 13px; }

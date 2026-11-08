@@ -12,6 +12,8 @@ export const FEEDBACK_AREAS = {
   general: 'General / whole system',
   hr: 'HR & Payroll',
   assets: 'IT Asset Management',
+  helpdesk: 'IT Service Desk',
+  crm: 'Sales & CRM',
 };
 
 export const FEEDBACK_STATUS = {

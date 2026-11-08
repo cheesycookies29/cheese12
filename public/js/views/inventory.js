@@ -107,10 +107,9 @@ export async function inventoryView(el, _params, query) {
     const list = rows();
     mount(el.querySelector('#inv-table'), list.length
       ? html`<table class="table">
-          <thead><tr><th>SKU</th><th>Item</th><th>Category</th><th class="num">On hand</th><th class="num">Reorder at</th><th>Location</th><th class="num">Unit cost</th><th class="num">Stock value</th><th></th></tr></thead>
+          <thead><tr><th>Item</th><th>Category</th><th class="num">On hand</th><th class="num">Reorder at</th><th>Location</th><th class="num">Unit cost</th><th class="num">Stock value</th><th></th></tr></thead>
           <tbody>${list.map((i) => html`<tr class="${isLow(i) ? 'row-low' : ''}">
-            <td><a class="mono" href="#/assets/inventory/${i.id}">${i.sku}</a></td>
-            <td><a href="#/assets/inventory/${i.id}"><strong>${i.name}</strong></a></td>
+            <td><a href="#/assets/inventory/${i.id}"><strong>${i.name}</strong></a><small class="mono">${i.sku}</small></td>
             <td>${i.category || html`<span class="muted">—</span>`}</td>
             <td class="num"><strong>${i.quantity}</strong> <small>${i.unit}</small> ${stockBadge(i)}</td>
             <td class="num">${i.reorderLevel}</td>

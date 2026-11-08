@@ -17,7 +17,7 @@ const db = openDb(DB_FILE);
 const api = createApi(db);
 
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': path.join(ROOT, 'public') };
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.ttf': 'font/ttf' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ttf': 'font/ttf' };
 
 function send(res, status, body, type = 'application/json', headers = {}) {
   const textual = /^text\/|json|javascript|svg/.test(type);
@@ -65,6 +65,10 @@ function serveStatic(url, res) {
     if (fs.existsSync(file) && fs.statSync(file).isFile()) {
       return send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || 'application/octet-stream');
     }
+    // A folder with its own page, e.g. /help/ (Help & guides).
+    const index = path.join(file, 'index.html');
+    if (rel.endsWith('/') && fs.existsSync(index)) return send(res, 200, fs.readFileSync(index), 'text/html');
+    if (fs.existsSync(index) && !rel.endsWith('/')) return send(res, 302, '', 'text/plain', { Location: `${url.pathname}/${url.search}` });
     // /support and /support/t/<token> are the public helpdesk form; everything else is the app.
     const page = url.pathname === '/support' || url.pathname.startsWith('/support/') ? 'support.html' : 'index.html';
     if (prefix === '/') return send(res, 200, fs.readFileSync(path.join(dir, page)), 'text/html');

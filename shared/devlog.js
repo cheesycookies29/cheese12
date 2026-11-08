@@ -27,6 +27,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.11.1-alpha',
+    date: '2026-11-08',
+    title: 'Help & guides',
+    modules: ['system', 'hr', 'assets', 'crm'],
+    notes: 'A user manual inside CORE: a guide for each job, with a walkthrough on the demo data, the steps for each task, every screen and common questions. The same Help & guides concept as the Lancaster LMS.',
+    changes: [
+      ['new', 'system', 'Help & guides (/help/), opened from the ? button in the top bar on the guide for your job in the module you are in: Getting started, What\'s new, and guides for employees, approvers, HR, payroll, IT assets, the service desk, sales and administrators. Search across all guides; print any guide.'],
+      ['new', 'system', 'Administrators can edit any guide for the company, add the company\'s own guides, and restore the built-in guide. Their version is kept across updates, and CORE says when the built-in guide has changed since. Edits are in the audit log.'],
+      ['new', 'system', 'Screenshots in the guides are taken from the demo data by a script, so they can be retaken after any change to a screen. Tests check that every menu item of every module is covered by a guide.'],
+    ],
+  },
+  {
     version: '0.11.0-alpha',
     date: '2026-11-08',
     title: 'Year to date, audit log, locked payroll and personal-data limits',

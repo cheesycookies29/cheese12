@@ -281,7 +281,7 @@ export async function meRequestsView(el, _params, query) {
               <tbody>${requests.map((r) => html`<tr data-open="${r.id}">
                 <td>${kindBadge(r)}${r.destination ? html`<small>${r.destination}</small>` : ''}${certificateCell(r, `/api/me/requests/${r.id}/attachment`)}</td>
                 <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
-                <td class="num">${r.days}${r.overflowDays ? html`<small>${r.overflowDays} unpaid</small>` : ''}</td>
+                <td class="num">${r.days}${r.overflowDays ? html`<small class="block">${r.overflowDays} unpaid</small>` : ''}</td>
                 <td>${statusBadge(r.status)}${progressText(r)}</td>
                 <td class="row-actions">${r.status === 'returned' ? html`<button class="btn small-btn primary" data-edit="${r.id}">Revise</button>` : ''}${r.status === 'pending' ? html`<button class="link" data-edit="${r.id}">Edit</button>` : ''}${['pending', 'returned'].includes(r.status) && r.kind === 'leave' ? html`<button class="link" data-attach="${r.id}">${r.attachment ? 'Replace certificate' : 'Attach certificate'}</button>` : ''}${['pending', 'returned'].includes(r.status) ? html`<button class="link danger" data-withdraw="${r.id}">Withdraw</button>` : ''}</td>
               </tr>`)}</tbody>

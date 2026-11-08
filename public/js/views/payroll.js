@@ -190,7 +190,7 @@ export async function payrollRunView(el, { id }) {
         modal({
           title: `Adjust pay: ${p.employee.name}`,
           body: html`<div class="grid two">
-            <label class="field"><span>Other earnings (₱, taxable)</span><input type="number" min="0" step="0.01" name="otherEarnings" value="${p.adjustments.otherEarnings || ''}" /><small class="muted">Bonus, commission, holiday pay, etc.</small></label>
+            <label class="field"><span>Other earnings (₱, taxable)</span><input type="number" min="0" step="0.01" name="otherEarnings" value="${p.adjustments.otherEarnings || ''}" /><small class="muted">Bonus, commission, allowance arrears, etc. Holiday, rest-day and night pay are computed already.</small></label>
             <label class="field"><span>Other deductions (₱)</span><input type="number" min="0" step="0.01" name="otherDeductions" value="${p.adjustments.otherDeductions || ''}" /><small class="muted">Loans, cash advances, etc.</small></label>
             <label class="field span-2"><span>Remarks (shown on payslip)</span><input name="remarks" value="${p.adjustments.remarks}" /></label>
           </div>`,

@@ -149,7 +149,7 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 
 - Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
-- Anyone can change their password from the bottom of the sidebar. Admins can reset anyone's password or disable an account.
+- Anyone can change their password from the menu under their name at the top right. Admins can reset anyone's password or disable an account.
 - After 5 wrong passwords, that username is locked for 5 minutes. People are signed out after 8 idle hours, or when the app is restarted.
 - **Personal data.** Government ID numbers and bank accounts are masked everywhere; HR Managers, Payroll Officers and Administrators can click **Show numbers** on a profile, and the edit form and full employee export load them. Each of these is recorded in the audit log. Medical certificates open for HR only, unless **Leave & Requests → Approval flow** lets approvers open them.
 - **Audit log** (Administrators, **System → Audit log**): every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, Payroll Setup, holidays, users and settings (field by field, before and after), views of records with pay or full ID numbers, medical certificate openings, backups and restores. It is kept in `data/audit-log.jsonl`, separate from the data file, so restoring a backup or erasing all data does not touch it. Each entry is chained to the one before by a hash; the page checks the chain and warns if the file was edited.
@@ -204,7 +204,7 @@ Pay frequency, the daily-rate factor (work days per year; an employee can have t
 
 ## Leave, work from home and official business
 
-The request process follows Sprout HR's: requests go to the employee's **immediate supervisor** first, then through further approval levels, and supervisors work them in an **Approval Center**.
+The request process follows common Philippine HR practice: requests go to the employee's **immediate supervisor** first, then through further approval levels, and supervisors work them in an **Approval Center**.
 
 1. **Filing.** The employee opens **My Requests → File a request** and picks a leave type, **Work from home**, or **Official business** (work away from the office, with where they will be). For leave, the **date breakdown** lists each scheduled work day; each can be a *whole day*, *1st half* or *2nd half*, and shows *with pay* or *without pay*: days beyond the remaining credits are recorded as Leave Without Pay instead of being refused. The form shows who the request goes to. A leave type can require filing a set number of days ahead (**Leave types → File at least this many days ahead**), and sick leave over 3 days needs a medical certificate.
 2. **Approval route.** Set under **Leave & Requests → Approval flow**: up to three levels, each the *immediate supervisor* (from the employee record), the *supervisor's supervisor*, *HR* (anyone who approves leave) or *specific people*.
@@ -227,6 +227,25 @@ Administrators can manage one person's leave under **Leave & Requests → Employ
 
 13th month pay runs, year-end tax annualization, loans with amortization, government remittance reports and BIR 2316, password reset by email, and email notifications to approvers.
 
+## Help & guides
+
+The **?** button in CORE's top bar opens **Help & guides** (`/help/`): a guide for each job, with a walkthrough using the demo data, step-by-step tasks, every screen and common questions, plus search. It opens on the guide for your job in the module you were in.
+
+| Guide | For |
+|---|---|
+| Getting started with CORE | Everyone: signing in, modules, password, phone, help |
+| What's new in CORE | Everyone: the changes in each update |
+| Your self-service | Every employee: clock in, attendance, requests, payslips, assets, tickets |
+| Approving requests | Supervisors and named approvers |
+| Running HR | HR Managers and HR Staff |
+| Running payroll | Payroll Officers |
+| Managing IT assets | IT Asset Managers |
+| Working the IT Service Desk | Helpdesk Agents and IT |
+| Selling with Sales & CRM | Sales Officers and Managers |
+| Administering CORE | Administrators |
+
+Administrators can edit a guide for the company (**Edit this guide**), add the company's own guides (**New guide**), and go back to the built-in guide at any time. Their version is kept when CORE is updated, and CORE says when the built-in guide has changed since.
+
 ## Put it online (cloud)
 
 To use it 24/7 from any browser over HTTPS, follow [deploy/aws/EC2.md](deploy/aws/EC2.md). It sets up an Amazon EC2 Ubuntu server with Caddy for HTTPS, automatic restarts, nightly data backups and optional automatic deployment: the GitHub workflow `.github/workflows/deploy-ec2.yml` tests every push and installs it on the server through AWS Systems Manager (permissions from `deploy/aws/github-deploy.yaml`; no SSH keys or AWS keys stored). Two settings matter online: `COOKIE_SECURE=1` (login cookie sent over HTTPS only) and `ALLOWED_HOSTS=<your address>`. To create the first Administrator from the server instead of the first-run page, stop the app and run `npm run create-admin -- <username> "<Full Name>"`; it prints a temporary password.
@@ -248,5 +267,6 @@ You can also just copy the `data/` folder. It also holds `attachments/` (medical
 - `shared/calc.js` holds all the time and payroll math. Both the server and the browser use it.
 - `shared/roles.js` defines the account types and permissions. The server enforces them on every API call (`server/api.js`), and the browser uses them to hide screens and buttons. Passwords and sessions are in `server/auth.js`.
 - `public/` is the single-page app: plain ES modules with no build step.
+- **Guides** are Markdown files in `docs/guides`, shipped with the code; `docs/guides/README.md` explains the format. When a screen changes, update its guide and retake its screenshots with `npm run guides:screenshots` (needs Playwright). `npm test` checks that every menu item is covered by a guide and every screenshot exists.
 - Run the tests with `npm test`.
 - Build the Windows package with `scripts/build-windows.sh` (needs `curl`, `zip`, `unzip`; set `NODE_VERSION` to change the bundled runtime). The launchers, icon and read-me it adds are in `packaging/windows/`.
