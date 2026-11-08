@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, DATE_RE, text } from './util.js';
 import { TIME_RE } from '../shared/schedule.js';
 import { campusName } from './campus.js';
+import { EVENT_CATEGORY_IDS, AUDIENCE_IDS, forAudience } from '../shared/calendar.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -27,7 +28,7 @@ export function registerNewsRoutes(route, ctx) {
   const here = (campusId) => (x) => x.campusId == null || x.campusId === campusId;
   const withCampus = (x) => ({ ...x, campusName: x.campusId ? campusName(data(), x.campusId) : 'All campuses' });
   const sorted = (user, campusId) => data().news.filter(here(campusId)).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).map((n) => withCampus(postView(n, user)));
-  const upcoming = (campusId) => data().events.filter(here(campusId)).filter((e) => (e.endDate || e.startDate) >= today()).sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.startTime || '').localeCompare(b.startTime || '')).map(withCampus);
+  const upcoming = (campusId, role = null) => data().events.filter(here(campusId)).filter((e) => !role || forAudience(e, role)).filter((e) => (e.endDate || e.startDate) >= today()).sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.startTime || '').localeCompare(b.startTime || '')).map(withCampus);
   const findHere = (id, campusId) => {
     const n = findPost(id);
     if (!here(campusId)(n)) fail('Post not found.', 404);
@@ -36,7 +37,7 @@ export function registerNewsRoutes(route, ctx) {
 
   // ----- Portal -----
   route('GET', '/api/news', 'portal', ({ user, query, campusId }) => sorted(user, campusId).slice(0, Math.min(100, Number(query.limit) || 30)), { module: 'news', guardians: true });
-  route('GET', '/api/events', 'portal', ({ query, campusId }) => (query.all === '1' ? data().events.filter(here(campusId)).sort((a, b) => b.startDate.localeCompare(a.startDate)).map(withCampus) : upcoming(campusId)), { module: 'news', guardians: true });
+  route('GET', '/api/events', 'portal', ({ user, query, campusId }) => (query.all === '1' ? data().events.filter(here(campusId)).filter((e) => forAudience(e, user.role)).sort((a, b) => b.startDate.localeCompare(a.startDate)).map(withCampus) : upcoming(campusId, user.role)), { module: 'news', guardians: true });
 
   route('POST', '/api/news/:id/react', 'portal', ({ user, params, body, campusId }) => {
     const n = findHere(params.id, campusId);
@@ -112,6 +113,11 @@ export function registerNewsRoutes(route, ctx) {
       title: text(b.title, 200), description: text(b.description, 5000), location: text(b.location, 200),
       startDate: b.startDate || '', endDate: b.endDate || b.startDate || '', startTime: b.startTime || '', endTime: b.endTime || '',
     };
+    // School calendar: what kind of event it is, who it is for (none = everyone), and whether classes are held.
+    e.category = EVENT_CATEGORY_IDS.includes(b.category) ? b.category : 'event';
+    e.audience = (Array.isArray(b.audience) ? b.audience : []).filter((a) => AUDIENCE_IDS.includes(a));
+    if (e.audience.length === AUDIENCE_IDS.length) e.audience = [];
+    e.noClasses = b.noClasses === undefined ? e.category === 'holiday' : Boolean(b.noClasses);
     if (!e.title) fail('Give the event a title.');
     if (!DATE_RE.test(e.startDate) || !DATE_RE.test(e.endDate)) fail('Pick the event dates.');
     if (e.endDate < e.startDate) fail('The event must end on or after its start date.');
@@ -127,7 +133,7 @@ export function registerNewsRoutes(route, ctx) {
   });
   route('PUT', '/api/admin/events/:id', 'admin:news.manage', ({ user, params, body, campusId }) => {
     const e = editable(data().events.find((x) => x.id === params.id) || fail('Event not found.', 404), user, campusId);
-    Object.assign(e, eventFields(body), { campusId: campusFor(body, user, campusId) });
+    Object.assign(e, eventFields(body), { campusId: campusFor(body, user, campusId), updatedAt: iso() });
     save();
     return e;
   });

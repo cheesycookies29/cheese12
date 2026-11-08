@@ -154,6 +154,19 @@ The sheet then shows *Waiting for approval*. The dean approves it (*Approved, wa
 
 > **Important:** Once submitted, the grades in the sheet cannot be changed unless it is returned. After posting, a correction is a grade change on the student's record, made by the registrar's office.
 
+### Use the calendar
+
+**Calendar** shows your sections' class meetings and the due dates of their activities and quizzes, with examinations, holidays, days without classes, school events (including those for teachers only, like faculty meetings) and the term's first and last day of classes.
+
+1. Open **Calendar**, and choose **Month**, **Week** or **List**.
+2. Choose an entry for its details, and **Open the class** or **Open the activity**. Choose a day to see everything on it.
+3. The coloured buttons above the calendar show or hide each kind of entry.
+4. **Print** prints the view you see, e.g. the month for your desk.
+
+Classes on a holiday or a day without classes are left out, so plan make-up work from the calendar. To have it on your phone, choose **Subscribe → Make my calendar address** and add the address to your calendar app, which then reads the calendar's own address, which keeps it up to date every few hours. Anyone with the address sees your calendar: if you shared it by mistake, choose **Get a new address** (the old one stops working) or **Stop sharing**.
+
+![The week view for a teacher](teacher-calendar.jpg)
+
 ### See who is in a class
 
 Open the class and choose **Class list**. It lists students by status: *Enrolled*, *Completed*, *Waiting for registrar approval* and *Waitlist* (in order), with their number, program and email. The registrar approves requests and manages the waitlist.
@@ -164,6 +177,7 @@ Open the class and choose **Class list**. It lists students by status: *Enrolled
 |---|---|---|
 | Learn | Home | What is waiting to be graded, the sections you teach, today's classes, events and news |
 | Learn | My sections | Your sections this term (**Show past terms** for earlier ones); each opens its announcements, lessons, resources, activities, attendance, grades and class list |
+| Learn | Calendar | Your sections' meetings and due dates, exams, holidays, school events and term dates; subscribe from your phone |
 | Learn | Schedule | Your weekly teaching timetable |
 | Learn | News & events | School news (react and comment) and upcoming events |
 | Academic | Grade sheets | Submit each class's final grades and follow them through approval and posting |

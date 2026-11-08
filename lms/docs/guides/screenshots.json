@@ -120,6 +120,12 @@
   ]
  },
  {
+  "file": "admin-calendar.jpg",
+  "user": "admin",
+  "url": "/admin#/calendar?v=month",
+  "wait": 1400
+ },
+ {
   "file": "admin-sso.jpg",
   "user": "admin",
   "url": "/admin#/sso",
@@ -167,6 +173,12 @@
    ".tabs >> text=Resources"
   ],
   "wait": 1200
+ },
+ {
+  "file": "student-calendar.jpg",
+  "user": "student.demo",
+  "url": "/lms/#/calendar?v=month",
+  "wait": 1400
  },
  {
   "file": "student-enrollment.jpg",
@@ -226,6 +238,12 @@
   "wait": 1000
  },
  {
+  "file": "parent-calendar.jpg",
+  "user": "parent.demo",
+  "url": "/lms/#/calendar?v=week",
+  "wait": 1400
+ },
+ {
   "file": "teacher-home.jpg",
   "user": "teacher.demo",
   "url": "/lms/#/home",
@@ -283,6 +301,12 @@
    ".tabs >> text=Grades"
   ],
   "wait": 1000
+ },
+ {
+  "file": "teacher-calendar.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/calendar?v=week",
+  "wait": 1400
  },
  {
   "file": "teacher-grade-sheets.jpg",

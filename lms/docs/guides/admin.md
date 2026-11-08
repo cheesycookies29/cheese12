@@ -212,7 +212,22 @@ Each card says which account types see that tile.
 2. Choose **Post**.
 3. For an event, choose **New event**, fill in the dates, times and location, and choose **Save**.
 
-Posts and events appear on the home pages of the campus, when the **News & events** module is on.
+Posts and events appear on the home pages of the campus, when the **News & events** module is on. Events also go on the school calendar (see below).
+
+### Plan the school calendar
+
+**School calendar** shows the campus's school events, holidays and examinations with the term dates (enrollment, the last day to drop, the first and last day of classes), by month, week or list.
+
+1. Choose **School calendar**.
+2. Choose a day, then **Add an event on this day** (or **New event** at the top).
+3. Fill in the **Title** and the **Kind**: **School event**, **Holiday or no classes**, **Examinations**, **Meeting**, **Activity** or **Deadline**.
+4. Under **For**, untick who should not see it: e.g. a faculty meeting only for **Teachers**, a parent–teacher conference for **Teachers** and **Parents & guardians**.
+5. Tick **No classes** for a day without classes (a holiday ticks it by itself; also typhoon suspensions or exam days). Class meetings on those days disappear from everyone's calendar at the campus.
+6. Choose **Save**. To change or delete an event, choose it on the calendar, then **Edit** or **Delete**.
+
+Students, teachers and parents see these events on their own **Calendar** in Learn, with their classes and due dates. They can subscribe to it from Google Calendar, Outlook or a phone. The **School calendar** module (under **Modules**) turns the calendar on or off for students, teachers and parents.
+
+![The school calendar in the Admin panel](admin-calendar.jpg)
 
 ### Set up single sign-on with Keycloak
 
@@ -271,6 +286,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Catalog | Courses | The school's subjects, with units and prerequisites |
 | Catalog | Terms | Semesters, their enrollment windows, drop deadlines and class dates |
 | Catalog | Programs | Degrees or strands students belong to |
+| Communication | School calendar | School events, holidays, exams and term dates by month, week or list; add an event on a day |
 | Communication | News & events | School news posts and events, for one campus or all |
 | Configuration | Settings center | Every setting in ATLAS, compared with its default; change history and undo; export and import |
 | Configuration | Campuses | Add, rename, remove and switch between campuses |

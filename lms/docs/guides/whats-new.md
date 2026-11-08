@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### School calendar
+- Students, teachers and parents have a **Calendar** in Learn: class meetings, due dates (and whether work was handed in), examinations, holidays and days without classes, school events and term dates, by month, week or list, with filters. Parents see each linked student as far as the link allows. Subscribe from Google Calendar, Outlook or a phone. See [the student's guide](student#use-the-calendar), [the teacher's guide](teacher#use-the-calendar) and [the parent's guide](parent#see-the-school-calendar).
+- Administrators and registrars plan it under **School calendar** in the Admin panel: each event has a kind (holiday, examinations, meeting…), who it is for, and whether classes are held. See [the administrator's guide](admin#plan-the-school-calendar).
+
 ### Settings for administrators
 - A **Settings center** in the Admin panel lists every setting of every system in one place: search it, see what differs from the defaults, restore a default, and see who changed what, with the value before and after; any change can be undone. Settings can be exported to a file and imported into another ATLAS, with a preview. See [the administrator's guide](admin#find-any-setting-and-compare-it-with-the-default).
 - **Roles & permissions**: administrators choose what each account type may do in each system. See [the administrator's guide](admin#change-what-an-account-type-may-do).

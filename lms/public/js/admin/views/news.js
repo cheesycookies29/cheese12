@@ -5,6 +5,7 @@ import { pageHead, ctx } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { postCard } from '../../portal/views/news.js';
 import { dateBox, eventWhen } from '../../portal/views/home.js';
+import { EVENT_CATEGORIES, AUDIENCES, categoryLabel } from '/shared/calendar.js';
 
 // Administrators can post to every campus; registrars post for their current campus.
 function scopeField(item) {
@@ -34,26 +35,42 @@ function postDialog(post, onDone) {
   });
 }
 
-function eventDialog(ev, onDone) {
-  modal({
+// A school event: also what kind it is on the school calendar, who it is for, and whether classes are held.
+// date: a start date for a new event (the day picked on the School calendar).
+export function eventDialog(ev, onDone, { date = '' } = {}) {
+  const audience = ev?.audience || [];
+  const { form } = modal({
     title: ev ? 'Edit event' : 'New event',
     wide: true,
     body: html`<div class="grid">
-      <label class="field span-3"><span>Title<em>*</em></span><input name="title" value="${ev?.title || ''}" required /></label>
-      <label class="field"><span>Starts<em>*</em></span><input type="date" name="startDate" value="${ev?.startDate || ''}" required /></label>
-      <label class="field"><span>Ends</span><input type="date" name="endDate" value="${ev?.endDate || ''}" /></label>
+      <label class="field span-2"><span>Title<em>*</em></span><input name="title" value="${ev?.title || ''}" required /></label>
+      <label class="field"><span>Kind</span><select name="category">${EVENT_CATEGORIES.map((c) => html`<option value="${c.id}" ${(ev?.category || 'event') === c.id ? 'selected' : ''}>${c.label}</option>`)}</select></label>
+      <label class="field"><span>Starts<em>*</em></span><input type="date" name="startDate" value="${ev?.startDate || date}" required /></label>
+      <label class="field"><span>Ends</span><input type="date" name="endDate" value="${ev?.endDate || date}" /></label>
       <label class="field"><span>Location</span><input name="location" value="${ev?.location || ''}" /></label>
-      <div class="span-3">${scopeField(ev)}</div>
-      <label class="field"><span>From</span><input type="time" name="startTime" value="${ev?.startTime || ''}" /></label>
+      <label class="field"><span>From</span><input type="time" name="startTime" value="${ev?.startTime || ''}" /><span class="hint">Blank: all day</span></label>
       <label class="field"><span>To</span><input type="time" name="endTime" value="${ev?.endTime || ''}" /></label>
+      <fieldset class="field"><legend>For</legend>${AUDIENCES.map((a) => html`<label class="check-row"><input type="checkbox" name="aud-${a.id}" ${!audience.length || audience.includes(a.id) ? 'checked' : ''} /> ${a.label}</label>`)}</fieldset>
+      <label class="field check span-3"><input type="checkbox" name="noClasses" ${ev ? (ev.noClasses ? 'checked' : '') : ''} /> <span><strong>No classes.</strong> Class meetings on these days disappear from everyone's calendar (holidays, suspensions, exam days without classes). Ticked by itself for a holiday.</span></label>
+      <div class="span-3">${scopeField(ev)}</div>
       <label class="field span-3"><span>Description</span><textarea name="description" style="min-height:90px">${ev?.description || ''}</textarea></label>
     </div>`,
     async onSubmit(form) {
-      const body = { ...formData(form), allCampuses: Boolean(form.querySelector('[name=allCampuses]')?.checked) };
+      const v = formData(form);
+      const body = {
+        ...v, allCampuses: Boolean(form.querySelector('[name=allCampuses]')?.checked),
+        audience: AUDIENCES.map((a) => a.id).filter((id) => v[`aud-${id}`]),
+        noClasses: v.category === 'holiday' || Boolean(v.noClasses),
+      };
+      if (!body.audience.length) throw new Error('Tick who the event is for.');
       await (ev ? api.put(`/api/admin/events/${ev.id}`, body) : api.post('/api/admin/events', body));
-      toast('Saved.');
+      toast('Saved. It is on the school calendar.');
       onDone();
     },
+  });
+  // A holiday has no classes.
+  form.querySelector('[name=category]').addEventListener('change', (e) => {
+    if (e.target.value === 'holiday') form.querySelector('[name=noClasses]').checked = true;
   });
 }
 
@@ -67,7 +84,7 @@ export async function newsAdminView(el) {
       <div class="posts">${posts.length ? posts.map((n) => postCard(n, { admin: true })) : empty('No posts yet', 'Share announcements with the whole school.')}</div>
       <section class="card"><h2>${icon('calendar')} Events</h2>
         ${events.length ? html`<div class="list">${events.map((e) => html`<div class="list-item" style="${(e.endDate || e.startDate) < todayStr ? 'opacity:.6' : ''}">${dateBox(e.startDate)}
-          <span class="grow"><strong>${e.title}</strong><small>${eventWhen(e)}${e.location ? ` · ${e.location}` : ''}</small></span>
+          <span class="grow"><strong>${e.title}</strong><small>${categoryLabel(e.category)} · ${eventWhen(e)}${e.location ? ` · ${e.location}` : ''}${e.noClasses ? ' · No classes' : ''}</small></span>
           <span class="actions"><button class="icon-btn" data-edit-event="${e.id}" aria-label="Edit">${icon('edit', 16)}</button><button class="icon-btn danger" data-del-event="${e.id}" aria-label="Delete">${icon('trash', 16)}</button></span></div>`)}</div>` : html`<p class="muted">No events yet.</p>`}
       </section>
     </div>`);

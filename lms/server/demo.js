@@ -591,17 +591,29 @@ export function addDemo(data, today, files = null) {
   for (const [campus, title] of [[sipocot, 'Welcome to Sipocot Campus'], [pasacao, 'Pasacao Campus coastal clean-up this Saturday'], [calabanga, 'Calabanga Campus farm visit for first-years']]) {
     add('news', { campusId: campus.id, title, body: 'Details from the campus administrator. See you there!', authorId: null, authorName: `${campus.name} Office`, pinned: false, commentsOff: false, createdAt: `${addDays(today, -4)}T09:00:00.000Z`, reactions: { like: [] }, comments: [] });
   }
-  for (const [campus, title, description, location, start, end, from, to] of [
-    [null, 'Last day to request sections', 'Enrollment requests close at the end of the day.', 'Learning portal', 20, 20, '', ''],
-    [null, 'University intramurals', 'Opening parade and games across campus. Classes are suspended in the afternoon.', 'Main grounds', 9, 11, '08:00', '17:00'],
-    [null, 'Midterm examinations week', '', '', 14, 18, '', ''],
-    [main, 'Career fair', 'Meet employers and partner companies. Bring copies of your résumé.', 'Gymnasium', 26, 26, '09:00', '16:00'],
-    [null, 'Foundation Day', 'Mass, program and alumni homecoming.', 'University grounds', 40, 40, '07:00', '21:00'],
-    [null, 'Final examinations week', '', '', 92, 96, '', ''],
-    [sipocot, 'Sipocot Campus clean-up drive', 'Bring gloves and a water bottle.', 'Sipocot Campus grounds', 6, 6, '07:00', '10:00'],
-    [pasacao, 'Pasacao Campus coastal clean-up', '', 'Pasacao beach', 5, 5, '06:00', '09:00'],
-    [calabanga, 'Farm visit for first-years', 'Buses leave at 7:00 AM.', 'Calabanga demo farm', 8, 8, '07:00', '15:00'],
-  ]) add('events', { campusId: campus?.id ?? null, title, description, location, startDate: addDays(today, start), endDate: addDays(today, end), startTime: from, endTime: to, createdBy: 'Demo data' });
+  // Kind on the school calendar (category), who it is for (audience; empty = everyone), and no-class days.
+  for (const [campus, title, description, location, start, end, from, to, category = 'event', extra = {}] of [
+    [null, 'Last day to request sections', 'Enrollment requests close at the end of the day.', 'Learning portal', 20, 20, '', '', 'deadline', { audience: ['student', 'guardian'] }],
+    [null, 'University intramurals', 'Opening parade and games across campus. Classes are suspended in the afternoon.', 'Main grounds', 9, 11, '08:00', '17:00', 'activity'],
+    [null, 'Midterm examinations week', 'See each class for the time and room. Bring your school ID.', '', 14, 18, '', '', 'exam'],
+    [main, 'Career fair', 'Meet employers and partner companies. Bring copies of your résumé.', 'Gymnasium', 26, 26, '09:00', '16:00', 'event', { audience: ['student', 'teacher'] }],
+    [null, 'Parent–teacher conference', 'Talk with your student\'s teachers about the midterm results. Sign up at the registrar\'s office.', 'College buildings', 23, 23, '13:00', '17:00', 'meeting', { audience: ['teacher', 'guardian'] }],
+    [main, 'Faculty meeting', 'Agenda: midterm grades and the final examination schedule.', 'Conference room', 21, 21, '15:00', '17:00', 'meeting', { audience: ['teacher'] }],
+    [null, 'Foundation Day', 'Mass, program and alumni homecoming. No classes.', 'University grounds', 40, 40, '07:00', '21:00', 'event', { noClasses: true }],
+    [null, 'Final examinations week', 'See each class for the time and room.', '', 92, 96, '', '', 'exam'],
+    [sipocot, 'Sipocot Campus clean-up drive', 'Bring gloves and a water bottle.', 'Sipocot Campus grounds', 6, 6, '07:00', '10:00', 'activity'],
+    [pasacao, 'Pasacao Campus coastal clean-up', '', 'Pasacao beach', 5, 5, '06:00', '09:00', 'activity'],
+    [calabanga, 'Farm visit for first-years', 'Buses leave at 7:00 AM.', 'Calabanga demo farm', 8, 8, '07:00', '15:00', 'activity'],
+  ]) add('events', { campusId: campus?.id ?? null, title, description, location, startDate: addDays(today, start), endDate: addDays(today, end), startTime: from, endTime: to, category, audience: [], noClasses: category === 'holiday', ...extra, createdBy: 'Demo data' });
+  // National holidays (Philippines) from a month ago to five months ahead: no classes.
+  const year = Number(today.slice(0, 4));
+  for (const y of [year - 1, year, year + 1]) {
+    for (const [md, title] of [['01-01', 'New Year\'s Day'], ['04-09', 'Araw ng Kagitingan'], ['05-01', 'Labor Day'], ['06-12', 'Independence Day'], ['08-21', 'Ninoy Aquino Day'], ['08-31', 'National Heroes Day'], ['11-01', 'All Saints\' Day'], ['11-30', 'Bonifacio Day'], ['12-08', 'Feast of the Immaculate Conception'], ['12-24', 'Christmas Eve'], ['12-25', 'Christmas Day'], ['12-30', 'Rizal Day'], ['12-31', 'Last day of the year']]) {
+      const date = `${y}-${md}`;
+      if (date < addDays(today, -31) || date > addDays(today, 150)) continue;
+      add('events', { campusId: null, title, description: 'National holiday: no classes.', location: '', startDate: date, endDate: date, startTime: '', endTime: '', category: 'holiday', audience: [], noClasses: true, createdBy: 'Demo data' });
+    }
+  }
 
   // ----- Parents & guardians: Carlo's mother (who is also Kevin's guardian, with fewer views) and father -----
   const allViews = { enrollment: true, schedule: true, grades: true, attendance: true, activities: true };

@@ -92,7 +92,7 @@ export function registerClassroomRoutes(route, ctx) {
       }
     }
     if (on('news')) {
-      out.events = ctx.upcomingEvents(campusId).slice(0, 4);
+      out.events = ctx.upcomingEvents(campusId, user.role).slice(0, 4);
       out.news = d.news.filter((n) => n.campusId == null || n.campusId === campusId).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 3).map(({ reactions, comments, ...n }) => ({ ...n, comments: comments?.length || 0 }));
     }
     if (user.role === 'student' && on('enrollment')) {

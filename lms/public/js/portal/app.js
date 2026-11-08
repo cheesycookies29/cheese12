@@ -8,6 +8,7 @@ import { catalogView, myEnrollmentView } from './views/enroll.js';
 import { classesView, classView } from './views/classes.js';
 import { assignmentView } from './views/assignment.js';
 import { scheduleView } from './views/schedule.js';
+import { calendarView } from './views/calendar.js';
 import { gradesView } from './views/grades.js';
 import { quizView, quizResultsView, attemptGradeView, quizEditView } from './views/quiz.js';
 import { newsView } from './views/news.js';
@@ -36,6 +37,7 @@ const routes = [
   ['/attempts/:id', attemptGradeView, mod('assignments', (u) => u.role === 'teacher')],
   ['/news', newsView, mod('news')],
   ['/schedule', scheduleView, mod('schedule', learner)],
+  ['/calendar', calendarView, mod('calendar')],
   ['/grades', gradesView, mod('grades', student)],
 ];
 
@@ -47,7 +49,8 @@ function nav() {
       { href: '/home', label: 'Your students', icon: 'home', exact: true },
       kids.length && { heading: 'Students' },
       ...kids.map((c) => ({ href: `/children/${c.id}`, label: c.name, icon: 'user' })),
-      has('news') && { heading: 'School' },
+      (has('news') || has('calendar')) && { heading: 'School' },
+      has('calendar') && { href: '/calendar', label: 'School calendar', icon: 'calendar' },
       has('news') && { href: '/news', label: 'News & events', icon: 'megaphone' },
     ].filter(Boolean);
   }
@@ -55,7 +58,8 @@ function nav() {
     { href: '/home', label: 'Home', icon: 'home' },
     { href: '/classes', label: isStudent ? 'My classes' : 'My sections', icon: 'book', also: ['/assignments', '/quizzes', '/attempts'] },
     isStudent && has('enrollment') && { href: '/enroll', label: 'Enrollment', icon: 'clipboard', also: ['/enroll/mine'] },
-    has('schedule') && { href: '/schedule', label: 'Schedule', icon: 'calendar' },
+    has('calendar') && { href: '/calendar', label: 'Calendar', icon: 'calendar' },
+    has('schedule') && { href: '/schedule', label: 'Schedule', icon: 'clock' },
     isStudent && has('grades') && { href: '/grades', label: 'Grades', icon: 'chart' },
     has('news') && { href: '/news', label: 'News & events', icon: 'megaphone' },
     isStudent && { href: '/guardians', label: 'Parents & guardians', icon: 'users' },

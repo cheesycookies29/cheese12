@@ -18,6 +18,7 @@ import { campusesView } from './views/campuses.js';
 import { guardiansView, guardianView } from './views/guardians.js';
 import { configView } from './views/config.js';
 import { rolesView } from './views/roles.js';
+import { schoolCalendarView } from './views/calendar.js';
 
 const p = (permission) => (user) => can(user.role, permission);
 
@@ -40,6 +41,7 @@ const routes = [
   ['/settings', settingsView, p('dashboard')],
   ['/grading', gradingView, p('dashboard')],
   ['/news', newsAdminView, p('news.manage')],
+  ['/calendar', schoolCalendarView, p('dashboard')],
   ['/systems', systemsView, p('dashboard')],
   ['/sso', ssoView, p('settings.edit')],
   ['/campuses', campusesView, p('dashboard')],
@@ -73,6 +75,7 @@ function nav() {
     { href: '/terms', label: 'Terms', icon: 'calendar' },
     { href: '/programs', label: 'Programs', icon: 'folder' },
     { heading: 'Communication' },
+    { href: '/calendar', label: 'School calendar', icon: 'calendar' },
     c('news.manage') && { href: '/news', label: 'News & events', icon: 'megaphone' },
     { heading: 'Configuration' },
     c('settings.edit') && { href: '/config', label: 'Settings center', icon: 'search' },

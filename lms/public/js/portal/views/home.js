@@ -69,7 +69,7 @@ export async function homeView(el) {
           ${todays.length ? html`<div class="list">${todays.map((m) => html`<a class="list-item" href="#/classes/${m.c.id}"><span class="item-ic">${icon('cap')}</span><span class="grow"><strong>${classLabel(m.c)}</strong><small>${formatTime(m.start)}–${formatTime(m.end)}${m.c.room ? ` · ${m.c.room}` : ''}</small></span></a>`)}</div>`
             : html`<p class="muted">No classes today.</p>`}
         </section>
-        ${has('news') ? html`<section class="card"><div class="card-head"><h2>${icon('calendar')} Upcoming events</h2><a href="#/news">All ${icon('chevronRight', 14)}</a></div>
+        ${has('news') ? html`<section class="card"><div class="card-head"><h2>${icon('calendar')} Upcoming events</h2><a href="${has('calendar') ? '#/calendar' : '#/news'}">${has('calendar') ? 'Calendar' : 'All'} ${icon('chevronRight', 14)}</a></div>
           ${d.events?.length ? html`<div class="list">${d.events.map((e) => html`<div class="list-item">${dateBox(e.startDate)}<span class="grow"><strong>${e.title}</strong><small>${eventWhen(e)}${e.location ? ` · ${e.location}` : ''}</small></span></div>`)}</div>` : html`<p class="muted">No upcoming events.</p>`}
         </section>
         <section class="card"><div class="card-head"><h2>${icon('news')} School news</h2><a href="#/news">All ${icon('chevronRight', 14)}</a></div>

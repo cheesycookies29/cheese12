@@ -58,6 +58,13 @@ export const MODULES = [
     guardian: 'See running grades and final grades.',
   },
   {
+    id: 'calendar',
+    label: 'School calendar',
+    student: 'A month, week and list calendar of their classes, due dates, exams, holidays, school events and term dates; subscribe from a phone.',
+    teacher: 'The same calendar for the sections they teach: class meetings, due dates, exams, holidays and school events.',
+    guardian: 'The calendar of each linked student (classes and due dates as far as each link allows), with holidays and school events.',
+  },
+  {
     id: 'news',
     label: 'News & events',
     student: 'Read school news (react and comment) and see upcoming events.',

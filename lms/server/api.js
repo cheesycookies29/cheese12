@@ -50,6 +50,7 @@ import { registerAcademicRoutes, ACADEMIC_ROLES } from './academic.js';
 import { registerSsoRoutes } from './sso.js';
 import { registerFinanceRoutes } from './finance.js';
 import { registerConfigRoutes } from './config.js';
+import { registerCalendarRoutes } from './calendar.js';
 import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
@@ -268,7 +269,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const here = (x) => x.campusId == null || x.campusId === campusId;
     const news = db.data.news.filter(here).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 4)
       .map(({ reactions, comments, ...n }) => ({ ...n, body: n.body.slice(0, 280), comments: comments?.length || 0 }));
-    return { news, events: ctx.upcomingEvents(campusId).slice(0, 5) };
+    return { news, events: ctx.upcomingEvents(campusId, portalUser ? user.role : null).slice(0, 5) };
   });
 
   // ----- Admin panel: sign-in -----
@@ -402,7 +403,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   registerGuideRoutes(route, { db, version: APP_VERSION });
   registerAdminRoutes(route, ctx);
   registerEnrollmentRoutes(route, ctx);
-  registerGuardianRoutes(route, ctx, registerClassroomRoutes(route, ctx));
+  const classroom = registerClassroomRoutes(route, ctx);
+  registerGuardianRoutes(route, ctx, classroom);
+  registerCalendarRoutes(route, ctx, classroom);
 
   // Call a route as a user, inside the server (demo data is made through the same rules as real work).
   ctx.invoke = (user, method, path, body = {}) => {

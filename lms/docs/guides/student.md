@@ -131,6 +131,23 @@ Your seat goes to the first student on the waitlist. You can drop an enrolled cl
 
 Open **Schedule** for the week's timetable. Pending requests are drawn dashed. If the school has more than one term, pick one at the top.
 
+### Use the calendar
+
+**Calendar** puts everything with a date in one place: your class meetings, what is due (and whether you handed it in), examinations, holidays and days without classes, school events and the term's dates (enrollment, the last day to drop, the first and last day of classes).
+
+1. Open **Calendar**. **Month** shows the month; **Week** lists each day; **List** shows only the days with something on them (the view on a phone).
+2. Use **‹** and **›** to move, and **Today** to come back.
+3. Choose an entry for its details: the time, the room, the class, and **Open the class** or **Open the activity**. Choose a day (or **+2 more**) to see everything on it.
+4. The coloured buttons above the calendar (**Classes**, **Due dates**, **Examinations**, …) show or hide each kind; the calendar remembers your choice.
+
+Class meetings do not appear on holidays and days without classes. Work you handed in is crossed out with a check mark.
+
+![The calendar: classes, due dates, exams and holidays](student-calendar.jpg)
+
+To see the calendar in Google Calendar, Outlook or your phone, choose **Subscribe → Make my calendar address**, then **Copy address** and add it to your calendar app (the dialog says where). Your calendar app reads the calendar's own address, which keeps it up to date every few hours. Anyone with the address sees your calendar: if you shared it by mistake, choose **Get a new address** (the old one stops working) or **Stop sharing**.
+
+With the keyboard: Tab to the month, move between days with the arrow keys (Home and End for the start and end of the week, Page Up and Page Down for the month before and after), and press Enter for the day's list.
+
 ### React to school news
 
 1. Open **News & events**.
@@ -169,6 +186,7 @@ Open **Finance → My payments** and press **View** next to the O.R. number to s
 | Learn | Home | Your to-do list, classes, today's classes, events, news and class announcements |
 | Learn | My classes | This term's classes (**Show past terms** for earlier ones); each class has its lessons, resources, activities, attendance and grades |
 | Learn | Enrollment | **Open sections** to request seats or join waitlists; **My enrollment** to follow, withdraw or drop |
+| Learn | Calendar | Your classes, due dates, exams, holidays, school events and term dates by month, week or list; subscribe from your phone |
 | Learn | Schedule | Your weekly timetable |
 | Learn | Grades | Running scores and final grades, term by term |
 | Learn | News & events | School news (react and comment) and upcoming events |

@@ -252,6 +252,7 @@ An administrator decides who may change these settings (Admin panel → **Roles 
 | **Courses** | The catalog: codes, titles, units, prerequisites, programs |
 | **Terms** | Each term's enrollment window, drop deadline, class dates, and which term is current |
 | **Programs** | Degree programs students belong to |
+| **School calendar** | The campus's school events, holidays, exams and term dates; add an event on a day (see [Plan the school calendar](admin#plan-the-school-calendar)) |
 | **News & events** | School news posts and events on everyone's home page |
 | **Campuses** | The school's campuses (view only) |
 | **Modules** | What students, teachers and parents get in Learn (view only; administrators change it) |

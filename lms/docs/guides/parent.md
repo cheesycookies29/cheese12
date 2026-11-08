@@ -96,6 +96,19 @@ You see the titles, dates and scores, never the questions or answers.
 
 The **Grades** tab always lists every term, so the term picker is not shown there.
 
+### See the school calendar
+
+**School calendar** shows, for each of your students, their class meetings and what is due (as far as each link shares **Class schedule** and **Activities & quizzes**), with examinations, holidays, days without classes, school events (including meetings for parents) and the term's dates.
+
+1. Open **School calendar**. With more than one student, pick one, or **All my students** (each entry then starts with the student's name, e.g. *Carlo: Quiz 1*).
+2. Choose **Month**, **Week** or **List**, and move with **‹**, **›** and **Today**.
+3. Choose an entry for its details. A due date says whether the work is **Handed in**, **To do**, **Overdue** or **Missing**; **Open** goes to the student's page.
+4. The coloured buttons above the calendar show or hide each kind of entry.
+
+To follow it from your phone, choose **Subscribe → Make my calendar address** and add the address to your calendar app, which then reads the calendar's own address, which keeps it up to date every few hours. Anyone with the address sees your calendar: if you shared it by mistake, choose **Get a new address** (the old one stops working) or **Stop sharing**.
+
+![A parent's school calendar for two students](parent-calendar.jpg)
+
 ### Read school news and events
 
 Open **News & events** for the school's announcements and upcoming events. You can react to a post with **Like**, **Love** or **Celebrate**, and write a comment and press **Post**.
@@ -106,6 +119,7 @@ Open **News & events** for the school's announcements and upcoming events. You c
 |---|---|
 | Your students | A card for each linked student: this term at a glance and what is worth a look |
 | Your student's name (for example **Carlo Reyes**) | That student's page: **Overview** and the tabs shared with you (**Enrollment**, **Class schedule**, **Grades**, **Attendance**, **Activities & quizzes**) |
+| School calendar | Your students' classes and due dates, with exams, holidays, school events and term dates; subscribe from your phone |
 | News & events | School news (react and comment) and upcoming events |
 
 ## Questions
