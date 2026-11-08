@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### REX Bookstore e-Reader (coming soon)
+- The ATLAS home page has a **REX Bookstore e-Reader** tile, marked **Coming soon**: e-books for your subjects from the REX Bookstore app's library, for students and teachers. Administrators switch it on under **Home page & systems** once it is connected. See [the administrator's guide](admin#choose-what-the-atlas-home-page-shows).
+
 ### School calendar
 - Students, teachers and parents have a **Calendar** in Learn: class meetings, due dates (and whether work was handed in), examinations, holidays and days without classes, school events and term dates, by month, week or list, with filters. Parents see each linked student as far as the link allows. Subscribe from Google Calendar, Outlook or a phone. See [the student's guide](student#use-the-calendar), [the teacher's guide](teacher#use-the-calendar) and [the parent's guide](parent#see-the-school-calendar).
 - The calendar has a cleaner look: one frame, a dot and time for each class or due date, events of several days as one bar, tick boxes to show or hide each kind, a week of seven columns and a list with the date beside each day.

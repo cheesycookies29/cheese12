@@ -200,8 +200,10 @@ Administrators always have every permission, and managing administrator accounts
 ### Choose what the ATLAS home page shows
 
 1. Choose **Home page & systems**. Academic, Learn, People and Finance are built in and always live.
-2. For **Facilities**, choose a **Status**: **Coming soon (greyed out)**, **Live: open it from the portal** or **Hidden**.
+2. For **Facilities** or the **REX Bookstore e-Reader**, choose a **Status**: **Coming soon (greyed out)**, **Live: open it from the portal** or **Hidden**.
 3. To make it live, type its **Address** (starting with `https://`, `http://` or `/`).
+
+The **REX Bookstore e-Reader** connects to the REX Bookstore app's library of e-books, for students and teachers. It shows as **Coming soon** until that connection is ready; then switch it to **Live** with the address of the e-reader.
 4. Choose **Save**. The home page changes at once.
 
 Each card says which account types see that tile.

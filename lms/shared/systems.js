@@ -58,7 +58,20 @@ export const SYSTEMS = [
     icon: 'building',
     audience: ['teacher', 'registrar', 'admin', 'hr', 'payroll', 'staff', 'accountant', 'budget', 'cashier', 'supply', 'approver'],
   },
-].map((s) => ({ ...s, name: `ATLAS ${s.product}` }));
+  {
+    // REX Bookstore's e-reader: the e-books from the REX Bookstore app's library, for classes.
+    // Coming soon; when the connection to the REX Bookstore app is ready, an administrator switches
+    // it live with its address (Admin panel → Home page & systems).
+    id: 'rex',
+    product: 'REX Bookstore e-Reader',
+    name: 'REX Bookstore e-Reader',
+    short: 'e-Reader',
+    title: 'E-books for your classes',
+    description: 'Read the REX Bookstore e-books for your subjects on any device: textbooks and workbooks from the REX Bookstore app\'s library.',
+    icon: 'book',
+    audience: ['student', 'teacher', 'registrar', 'dean', 'admin'],
+  },
+].map((s) => ({ ...s, name: s.name || `ATLAS ${s.product}` }));
 
 export const SYSTEM_STATUS = ['soon', 'live', 'hidden'];
 

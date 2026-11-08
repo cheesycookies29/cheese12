@@ -26,16 +26,17 @@ test('one sign-in: each account type lands on its own side', async () => {
   await assert.rejects(env.client().post('/api/hub/login', { username: 'ghost', password: 'nope' }), /Incorrect username or password/);
 });
 
-test('ATLAS products: Academic, Learn and Finance open, Facilities coming soon, People not shown to students', async () => {
+test('ATLAS products: Academic, Learn and Finance open, Facilities and the REX Bookstore e-Reader coming soon, People not shown to students', async () => {
   const env = setup();
   const { login } = await seed(env);
   const anon = await env.client().get('/api/hub/status');
-  assert.deepEqual(anon.systems.map((x) => x.id), ['uis', 'lms', 'hris', 'fmis', 'facilities']);
-  assert.deepEqual(anon.systems.map((x) => x.name), ['ATLAS Academic', 'ATLAS Learn', 'ATLAS People', 'ATLAS Finance', 'ATLAS Facilities']);
+  assert.deepEqual(anon.systems.map((x) => x.id), ['uis', 'lms', 'hris', 'fmis', 'facilities', 'rex']);
+  assert.deepEqual(anon.systems.map((x) => x.name), ['ATLAS Academic', 'ATLAS Learn', 'ATLAS People', 'ATLAS Finance', 'ATLAS Facilities', 'REX Bookstore e-Reader']);
   assert.ok(anon.systems.every((x) => x.url === ''), 'no addresses before signing in');
 
   const s = await (await login('stud1')).get('/api/hub/status');
-  assert.deepEqual(s.systems.map((x) => [x.id, x.status]), [['uis', 'live'], ['lms', 'live'], ['fmis', 'live']]);
+  assert.deepEqual(s.systems.map((x) => [x.id, x.status]), [['uis', 'live'], ['lms', 'live'], ['fmis', 'live'], ['rex', 'soon']]);
+  assert.equal(s.systems.find((x) => x.id === 'rex').url, '', 'the e-reader is coming soon: no address yet');
   assert.equal(s.systems.find((x) => x.id === 'fmis').url, '/finance/');
   assert.equal(s.systems.find((x) => x.id === 'uis').url, '/academic/');
   assert.equal(s.systems.find((x) => x.id === 'lms').url, '/lms/');

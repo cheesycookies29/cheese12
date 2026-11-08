@@ -149,6 +149,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | People tile | HR: employee records, time clock, attendance, leave and payslips. For every employee; not for students or parents |
 | Finance tile | The school's accounts for the finance offices, and self-service for employees and students (for example, receipts). Not for parents |
 | Facilities tile | Rooms, bookings, maintenance and property. Shown as **Coming soon** until your school switches it on |
+| REX Bookstore e-Reader tile | E-books for your subjects from the REX Bookstore app's library. For students, teachers, registrars, deans and administrators; shown as **Coming soon** for now |
 | All systems | The grid button in each system's top bar: back to the ATLAS home page |
 | Help | The question-mark button in the top bar: the Help & guides page |
 | Dark mode | The moon (or sun) button: dark or light screens |
