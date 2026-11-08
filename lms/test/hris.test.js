@@ -35,7 +35,19 @@ async function hrisSchool(opts = {}) {
   return { env, admin, hr, main, other, teacher, signIn, newEmployee, hrEmp };
 }
 
-test('payroll and time rules are the ERP\'s, unchanged', { skip: !fs.existsSync(ERP_CALC) && 'the ERP is not next to the LMS' }, async () => {
+// Everything ATLAS computes must match CORE (the same value under the same name). CORE may compute
+// more (e.g. its holiday and night-shift premiums, added after ATLAS took the engine), so its extra
+// fields are not compared: a new CORE feature must not fail ATLAS's tests, or CORE's deploys.
+function assertSameAsCore(atlas, core, path = 'payslip') {
+  if (atlas && typeof atlas === 'object') {
+    assert.ok(core && typeof core === 'object', `${path}: CORE has no ${path}`);
+    for (const k of Object.keys(atlas)) assertSameAsCore(atlas[k], core[k], `${path}.${k}`);
+  } else {
+    assert.deepEqual(atlas, core, `${path}: ATLAS ${atlas}, CORE ${core}`);
+  }
+}
+
+test('payroll and time rules agree with the ERP\'s (CORE)', { skip: !fs.existsSync(ERP_CALC) && 'the ERP is not next to the LMS' }, async () => {
   const erpCalc = await import(ERP_CALC);
   const settings = { ...lmsCalc.DEFAULT_SETTINGS, workDaysPerYear: 261 };
   const employee = { id: 'e1', employeeNo: 'E1', firstName: 'A', lastName: 'B', payType: 'monthly', rate: 32000, allowance: 2000, hireDate: '2020-01-01', schedule: settings.schedule };
@@ -45,7 +57,7 @@ test('payroll and time rules are the ERP\'s, unchanged', { skip: !fs.existsSync(
     { employeeId: 'e1', date: '2026-10-05', type: 'leave', paid: true },
   ];
   const args = { employee, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings };
-  assert.deepEqual(lmsCalc.computePayslip(args), erpCalc.computePayslip(args));
+  assertSameAsCore(lmsCalc.computePayslip(args), erpCalc.computePayslip(args));
   for (const fn of ['sssContribution', 'philhealthContribution', 'pagibigContribution']) assert.deepEqual(lmsCalc[fn](32000), erpCalc[fn](32000));
   assert.equal(lmsCalc.withholdingTax(16000, 'semi-monthly'), erpCalc.withholdingTax(16000, 'semi-monthly'));
 });
