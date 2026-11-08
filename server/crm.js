@@ -28,22 +28,38 @@ export function migrateCrm(db) {
   for (const k of CRM_COLLECTIONS) if (!Array.isArray(db.data[k])) (db.data[k] = []), (changed = true);
   if (!db.data.crm) (db.data.crm = emptyCrm()), (changed = true);
   else for (const [k, v] of Object.entries(emptyCrm())) if (!(k in db.data.crm)) (db.data.crm[k] = v), (changed = true);
+  // Code counters never fall behind the codes in use (e.g. after restoring an older backup).
+  for (const [kind, coll, prefix] of [['lead', 'crmLeads', 'LD'], ['deal', 'crmDeals', 'DL'], ['bid', 'crmBids', 'BID'], ['contract', 'crmContracts', 'CT']]) {
+    const top = db.data[coll].reduce((n, r) => Math.max(n, Number(String(r.code || '').match(new RegExp(`^${prefix}-(\\d+)$`))?.[1] || 0)), 0);
+    if (top > (db.data.crm.seq[kind] || 0)) (db.data.crm.seq[kind] = top), (changed = true);
+  }
   return changed;
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
+const MAX_AMOUNT = 1e12; // ₱1 trillion: anything above is a typing mistake
+// Only text and numbers become text: an array or object sent as a field is treated as empty.
+const str = (v, max = 200) => (v == null || typeof v === 'object' ? '' : String(v)).trim().slice(0, max);
 const now = () => new Date().toISOString();
+// A real calendar date (2026-02-30 and 2026-13-01 are refused), sent as text.
+export const isDate = (v) => {
+  if (typeof v !== 'string' || !DATE_RE.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
 const optDate = (v, label) => {
-  if (!v) return null;
-  if (!DATE_RE.test(v)) throw new HttpError(400, `${label} must be a date.`);
+  if (v == null || v === '') return null;
+  if (!isDate(v)) throw new HttpError(400, `${label} must be a date.`);
   return v;
 };
+// Pesos: a number, or text of digits (commas, spaces and ₱ allowed). No hex, exponents or Infinity.
 const money = (v, label) => {
   if (v === '' || v == null) return null;
-  const n = Number(String(v).replace(/[,₱\s]/g, ''));
-  if (!Number.isFinite(n) || n < 0) throw new HttpError(400, `${label} must be an amount of zero or more.`);
+  const s = typeof v === 'number' ? String(v) : typeof v === 'string' ? v.replace(/[,₱\s]/g, '') : null;
+  const n = s !== null && (typeof v === 'number' || /^\d+(\.\d+)?$/.test(s)) ? Number(s) : NaN;
+  if (!Number.isFinite(n) || n < 0 || n > MAX_AMOUNT) throw new HttpError(400, `${label} must be an amount from ₱0 to ₱1,000,000,000,000.`);
   return Math.round(n * 100) / 100;
 };
 const optEmail = (v) => {
@@ -51,30 +67,53 @@ const optEmail = (v) => {
   if (e && !EMAIL_RE.test(e)) throw new HttpError(400, `"${e}" is not a valid email address.`);
   return e || null;
 };
-const pick = (v, options, fallback) => (Object.hasOwn(options, v) ? v : fallback);
-const tags = (v) => [...new Set((Array.isArray(v) ? v : String(v || '').split(',')).map((t) => str(t, 40)).filter(Boolean))].slice(0, 12);
+const pick = (v, options, fallback) => (typeof v === 'string' && Object.hasOwn(options, v) ? v : fallback);
+const tags = (v) => [...new Set((Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : []).map((t) => str(t, 40)).filter(Boolean))].slice(0, 12);
+// Honorifics are not first names: "Engr. Felipe Reyes" -> Felipe / Reyes.
+const HONORIFIC = /^(engr|atty|dr|mr|mrs|ms|prof|arch|hon|sir|ma'?am)\.?$/i;
+export function splitName(full) {
+  const words = str(full, 120).split(/\s+/).filter(Boolean);
+  while (words.length > 2 && HONORIFIC.test(words[0])) words.shift();
+  if (words.length === 2 && HONORIFIC.test(words[0])) words.shift();
+  const [firstName = '', ...rest] = words;
+  return { firstName, lastName: rest.join(' ') };
+}
+// The record as stored, with what the request sends on top: a PUT that leaves a field out keeps it.
+const merged = (rec, body) => ({ ...rec, ...(body && typeof body === 'object' ? body : {}) });
 
-export function registerCrmRoutes(route, db) {
+export function registerCrmRoutes(route, db, { audit } = {}) {
   const d = () => db.data;
   const crm = () => db.data.crm;
   const user = (id) => d().users.find((u) => u.id === id);
   const team = () => d().users.filter((u) => u.active && userCan(u, 'crm.view'));
   const userName = (id) => user(id)?.name || null;
 
-  function owner(v, fallback) {
+  // `current`: the record's owner now. Keeping it is always allowed, even if that person has since
+  // lost CRM access; choosing someone new needs an account with CRM access.
+  function owner(v, fallback, current) {
     if (!v) return fallback;
-    if (!team().some((u) => u.id === v)) throw new HttpError(400, 'The owner must be an account with CRM access.');
+    if (v === current) return v;
+    if (typeof v !== 'string' || !team().some((u) => u.id === v)) throw new HttpError(400, 'The owner must be an account with CRM access.');
     return v;
   }
+  const ownerOrMe = (id, u) => (team().some((t) => t.id === id) ? id : u.id);
   function find(kind, id) {
+    if (!Object.hasOwn(RELATED, kind)) throw new HttpError(400, 'Unknown kind of record.');
     const rec = d()[RELATED[kind]].find((x) => x.id === id);
     if (!rec) throw new HttpError(404, `${kind[0].toUpperCase() + kind.slice(1)} not found.`);
     return rec;
   }
-  const optRef = (kind, id) => (id ? find(kind, id).id : null);
+  const optRef = (kind, id) => (id ? find(kind, typeof id === 'string' ? id : '').id : null);
+  // Stale edits: the form sends the updatedAt it loaded; if the record changed since, refuse.
+  function fresh(rec, body) {
+    if (body?.updatedAt && rec.updatedAt && body.updatedAt !== rec.updatedAt) {
+      throw new HttpError(409, `This record was changed by ${userName(rec.updatedBy) || 'someone else'} since you opened it. Close the form, reload, and make your change again.`);
+    }
+  }
   const nextCode = (kind, prefix) => `${prefix}-${String(++crm().seq[kind]).padStart(4, '0')}`;
   const stamp = (rec, u, isNew) => {
     rec.updatedAt = now();
+    rec.updatedBy = u.id;
     if (isNew) Object.assign(rec, { id: randomUUID(), createdAt: rec.updatedAt, createdBy: u.id });
     return rec;
   };
@@ -96,7 +135,7 @@ export function registerCrmRoutes(route, db) {
   };
   function relatedName(rel) {
     if (!rel) return null;
-    const rec = d()[RELATED[rel.type]]?.find((x) => x.id === rel.id);
+    const rec = Object.hasOwn(RELATED, rel.type) ? d()[RELATED[rel.type]].find((x) => x.id === rel.id) : null;
     if (!rec) return null;
     return rel.type === 'contact' ? personName(rec) : rel.type === 'lead' ? rec.name : rec.title || rec.name;
   }
@@ -112,12 +151,14 @@ export function registerCrmRoutes(route, db) {
     const today = localDate();
     const deals = d().crmDeals;
     const open = deals.filter(isOpenDeal);
-    const since = (days) => new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    // Dates in Philippine (server) time: a deal won at 7:30 AM on the 1st counts for that month.
+    const since = (days) => localDate(new Date(Date.now() - days * 86400000));
+    const day = (iso) => (iso ? localDate(new Date(iso)) : '');
     const monthStart = today.slice(0, 8) + '01';
     const q = Math.floor((Number(today.slice(5, 7)) - 1) / 3) * 3 + 1;
     const quarterStart = `${today.slice(0, 4)}-${String(q).padStart(2, '0')}-01`;
-    const won = (from) => deals.filter((x) => x.stage === 'won' && (x.closedAt || '').slice(0, 10) >= from);
-    const closed90 = deals.filter((x) => !isOpenDeal(x) && (x.closedAt || '').slice(0, 10) >= since(90));
+    const won = (from) => deals.filter((x) => x.stage === 'won' && day(x.closedAt) >= from);
+    const closed90 = deals.filter((x) => !isOpenDeal(x) && day(x.closedAt) >= since(90));
     const sum = (list, f = (x) => Number(x.value) || 0) => list.reduce((s, x) => s + f(x), 0);
     const months = [0, 1, 2].map((i) => {
       const dt = new Date(`${monthStart}T00:00:00Z`);
@@ -142,7 +183,8 @@ export function registerCrmRoutes(route, db) {
       newLeads: d().crmLeads.filter((l) => l.status === 'new').length,
       openLeads: d().crmLeads.filter((l) => OPEN_LEAD.includes(l.status)).length,
       bids: d().crmBids.filter((b) => b.status === 'preparing').map(out.bid).sort((a, b) => (a.deadline || '').localeCompare(b.deadline || '')).slice(0, 6),
-      contracts: d().crmContracts.filter((c) => c.status === 'active' && c.endDate && daysBetween(today, c.endDate) <= crm().renewalNoticeDays).map(out.contract).sort((a, b) => a.endDate.localeCompare(b.endDate)).slice(0, 6),
+      // Ending within the notice period, or ended less than that long ago and still marked active.
+      contracts: d().crmContracts.filter((c) => c.status === 'active' && c.endDate && Math.abs(daysBetween(today, c.endDate)) <= crm().renewalNoticeDays).map(out.contract).sort((a, b) => a.endDate.localeCompare(b.endDate)).slice(0, 6),
       myTasks: tasks.filter((a) => a.dueDate <= today).map(out.activity).sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 8),
       myUpcoming: tasks.filter((a) => a.dueDate > today).length,
       closingSoon: open.filter((x) => x.expectedClose && x.expectedClose >= today && daysBetween(today, x.expectedClose) <= 30).map(out.deal).sort((a, b) => a.expectedClose.localeCompare(b.expectedClose)).slice(0, 6),
@@ -172,7 +214,7 @@ export function registerCrmRoutes(route, db) {
     return {
       name, type: pick(b.type, ACCOUNT_TYPES, 'prospect'), sector: pick(b.sector, SECTORS, 'private'), industry: str(b.industry, 80),
       tin: str(b.tin, 30), website: str(b.website, 200), email: optEmail(b.email), phone: str(b.phone, 40),
-      address: str(b.address, 300), tags: tags(b.tags), notes: str(b.notes, 4000), ownerId: owner(b.ownerId, rec.ownerId || u.id),
+      address: str(b.address, 300), tags: tags(b.tags), notes: str(b.notes, 4000), ownerId: owner(b.ownerId, rec.ownerId || u.id, rec.ownerId),
     };
   }
   route('GET', '/api/crm/accounts', 'crm.view', () => d().crmAccounts.map(out.account).sort((a, b) => a.name.localeCompare(b.name)));
@@ -196,7 +238,8 @@ export function registerCrmRoutes(route, db) {
   });
   route('PUT', '/api/crm/accounts/:id', 'crm.edit', ({ params, body, user: u }) => {
     const a = find('account', params.id);
-    Object.assign(a, validAccount(body, u, a));
+    fresh(a, body);
+    Object.assign(a, validAccount(merged(a, body), u, a));
     stamp(a, u);
     db.save();
     return out.account(a);
@@ -206,6 +249,7 @@ export function registerCrmRoutes(route, db) {
     const used = ['crmDeals', 'crmBids', 'crmContracts'].reduce((n, k) => n + d()[k].filter((x) => x.accountId === a.id).length, 0);
     if (used) throw new HttpError(400, `This account has ${used} deal${used === 1 ? '' : 's'}, bid${used === 1 ? '' : 's'} or contract${used === 1 ? '' : 's'}. Delete or move those first.`);
     for (const c of d().crmContacts) if (c.accountId === a.id) c.accountId = null;
+    for (const l of d().crmLeads) if (l.accountId === a.id) l.accountId = null;
     removeWithActivities('account', a.id);
     db.save();
     return { ok: true };
@@ -218,7 +262,7 @@ export function registerCrmRoutes(route, db) {
     if (!firstName && !lastName) throw new HttpError(400, "Enter the contact's name.");
     return {
       firstName, lastName, title: str(b.title, 120), accountId: optRef('account', b.accountId), email: optEmail(b.email),
-      phone: str(b.phone, 40), mobile: str(b.mobile, 40), notes: str(b.notes, 4000), tags: tags(b.tags), ownerId: owner(b.ownerId, rec.ownerId || u.id),
+      phone: str(b.phone, 40), mobile: str(b.mobile, 40), notes: str(b.notes, 4000), tags: tags(b.tags), ownerId: owner(b.ownerId, rec.ownerId || u.id, rec.ownerId),
     };
   }
   route('GET', '/api/crm/contacts', 'crm.view', () => d().crmContacts.map(out.contact).sort((a, b) => a.name.localeCompare(b.name)));
@@ -235,7 +279,8 @@ export function registerCrmRoutes(route, db) {
   });
   route('PUT', '/api/crm/contacts/:id', 'crm.edit', ({ params, body, user: u }) => {
     const c = find('contact', params.id);
-    Object.assign(c, validContact(body, u, c));
+    fresh(c, body);
+    Object.assign(c, validContact(merged(c, body), u, c));
     stamp(c, u);
     db.save();
     return out.contact(c);
@@ -243,6 +288,7 @@ export function registerCrmRoutes(route, db) {
   route('DELETE', '/api/crm/contacts/:id', 'crm.manage', ({ params }) => {
     const c = find('contact', params.id);
     for (const x of d().crmDeals) if (x.contactId === c.id) x.contactId = null;
+    for (const l of d().crmLeads) if (l.contactId === c.id) l.contactId = null;
     removeWithActivities('contact', c.id);
     db.save();
     return { ok: true };
@@ -254,11 +300,12 @@ export function registerCrmRoutes(route, db) {
     if (!name) throw new HttpError(400, "Enter the lead's name.");
     const status = pick(b.status, LEAD_STATUS, rec.status || 'new');
     if (status === 'converted' && rec.status !== 'converted') throw new HttpError(400, 'Use Convert to turn a lead into an account and a deal.');
+    if (status === 'disqualified' && !str(b.disqualifiedReason)) throw new HttpError(400, 'Say why the lead is disqualified.');
     return {
       name, company: str(b.company, 160), title: str(b.title, 120), email: optEmail(b.email), phone: str(b.phone, 40),
       source: str(b.source, 60) || rec.source || 'Other', status, estimatedValue: money(b.estimatedValue, 'Estimated value'),
       interest: str(b.interest, 2000), disqualifiedReason: status === 'disqualified' ? str(b.disqualifiedReason, 200) : '',
-      ownerId: owner(b.ownerId, rec.ownerId || u.id),
+      ownerId: owner(b.ownerId, rec.ownerId || u.id, rec.ownerId),
     };
   }
   route('GET', '/api/crm/leads', 'crm.view', () => d().crmLeads.map(out.lead).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
@@ -274,8 +321,9 @@ export function registerCrmRoutes(route, db) {
   route('PUT', '/api/crm/leads/:id', 'crm.edit', ({ params, body, user: u }) => {
     const l = find('lead', params.id);
     if (l.status === 'converted') throw new HttpError(400, 'This lead was converted. Edit its account, contact or deal instead.');
+    fresh(l, body);
     const before = l.status;
-    Object.assign(l, validLead(body, u, l));
+    Object.assign(l, validLead(merged(l, body), u, l));
     stamp(l, u);
     if (before !== l.status) history('lead', l, u, `Status: ${LEAD_STATUS[before]} → ${LEAD_STATUS[l.status]}${l.disqualifiedReason ? ` (${l.disqualifiedReason})` : ''}`);
     db.save();
@@ -291,23 +339,40 @@ export function registerCrmRoutes(route, db) {
   route('POST', '/api/crm/leads/:id/convert', 'crm.edit', ({ params, body, user: u }) => {
     const l = find('lead', params.id);
     if (l.status === 'converted') throw new HttpError(400, 'This lead is already converted.');
+    if (l.status === 'disqualified') throw new HttpError(400, 'This lead is disqualified. Set it back to New, Contacted or Qualified before converting it.');
+    // All or nothing: if any part fails (e.g. a bad close date), the account, contact and history
+    // added so far are taken back, so a retry does not leave duplicates.
+    const mark = { accounts: d().crmAccounts.length, contacts: d().crmContacts.length, deals: d().crmDeals.length, activities: d().crmActivities.length, seq: { ...crm().seq } };
+    try {
+      return convertLead(l, body, u);
+    } catch (err) {
+      d().crmAccounts.length = mark.accounts;
+      d().crmContacts.length = mark.contacts;
+      d().crmDeals.length = mark.deals;
+      d().crmActivities.length = mark.activities;
+      crm().seq = mark.seq;
+      throw err;
+    }
+  });
+  function convertLead(l, body, u) {
+    const ownerId = ownerOrMe(l.ownerId, u);
     let account = body.accountId ? find('account', body.accountId) : null;
     if (!account) {
       const name = str(body.accountName || l.company || l.name, 160);
       account = d().crmAccounts.find((a) => a.name.toLowerCase() === name.toLowerCase());
       if (!account) {
-        account = stamp(validAccount({ name, type: 'prospect', email: null, ownerId: l.ownerId }, u), u, true);
+        account = stamp(validAccount({ name, type: 'prospect', email: null, ownerId }, u), u, true);
         d().crmAccounts.push(account);
         history('account', account, u, `Account created from lead ${l.code}`);
       }
     }
-    const [firstName, ...rest] = l.name.split(/\s+/);
-    const contact = stamp(validContact({ firstName, lastName: rest.join(' '), title: l.title, email: l.email, phone: l.phone, accountId: account.id, ownerId: l.ownerId }, u), u, true);
+    const { firstName, lastName } = splitName(l.name);
+    const contact = stamp(validContact({ firstName, lastName, title: l.title, email: l.email, phone: l.phone, accountId: account.id, ownerId }, u), u, true);
     d().crmContacts.push(contact);
     history('contact', contact, u, `Contact created from lead ${l.code}`);
     let deal = null;
     if (body.createDeal !== false) {
-      const fields = validDeal({ title: str(body.dealTitle, 160) || `${account.name}: ${l.interest ? l.interest.slice(0, 60) : 'new opportunity'}`, accountId: account.id, contactId: contact.id, value: body.dealValue ?? l.estimatedValue, stage: crm().stages[0]?.id, source: l.source, expectedClose: body.expectedClose, ownerId: l.ownerId }, u);
+      const fields = validDeal({ title: str(body.dealTitle, 160) || `${account.name}: ${l.interest ? l.interest.slice(0, 60) : 'new opportunity'}`, accountId: account.id, contactId: contact.id, value: body.dealValue ?? l.estimatedValue, stage: crm().stages[0]?.id, source: l.source, expectedClose: body.expectedClose, ownerId }, u);
       deal = stamp({ code: nextCode('deal', 'DL'), ...fields }, u, true);
       deal.leadId = l.id;
       d().crmDeals.push(deal);
@@ -320,15 +385,17 @@ export function registerCrmRoutes(route, db) {
     for (const a of d().crmActivities) if (a.related?.type === 'lead' && a.related.id === l.id && a.type !== 'event') a.related = { type: deal ? 'deal' : 'contact', id: deal ? deal.id : contact.id };
     db.save();
     return { lead: out.lead(l), account: out.account(account), contact: out.contact(contact), deal: deal && out.deal(deal) };
-  });
+  }
   // A service desk ticket (e.g. from the public form) that is really a sales enquiry.
   route('POST', '/api/crm/leads/from-ticket/:ticketId', 'crm.edit', ({ params, user: u }) => {
+    if (!userCan(u, 'helpdesk.agent')) throw new HttpError(403, 'Only service desk agents can send a ticket to Sales & CRM.');
     const t = d().tickets.find((x) => x.id === params.ticketId);
     if (!t) throw new HttpError(404, 'Ticket not found.');
     const existing = d().crmLeads.find((l) => l.ticketId === t.id);
     if (existing) return out.lead(existing);
     const first = t.messages.find((m) => m.kind !== 'event');
-    const fields = validLead({ name: t.requester?.name || t.requester?.email || 'Unknown', company: t.requester?.organization || '', email: t.requester?.email, phone: t.requester?.phone || '', source: t.channel === 'web' ? 'Public form' : 'Service desk', interest: `${t.subject}\n\n${first?.body || ''}`.trim() }, u);
+    const email = EMAIL_RE.test(String(t.requester?.email || '')) ? t.requester.email : null;
+    const fields = validLead({ name: t.requester?.name || t.requester?.email || 'Unknown', company: t.requester?.organization || '', email, phone: t.requester?.phone || '', source: t.channel === 'web' ? 'Public form' : 'Service desk', interest: `${t.subject}\n\n${first?.body || ''}`.trim() }, u);
     const l = stamp({ code: nextCode('lead', 'LD'), ...fields }, u, true);
     l.ticketId = t.id;
     d().crmLeads.push(l);
@@ -342,14 +409,22 @@ export function registerCrmRoutes(route, db) {
   function validDeal(b, u, rec = {}) {
     const title = str(b.title, 160);
     if (!title) throw new HttpError(400, 'Enter a name for the deal.');
-    const stage = b.stage ?? rec.stage ?? crm().stages[0]?.id;
+    const stage = typeof b.stage === 'string' ? b.stage : rec.stage ?? crm().stages[0]?.id;
     if (!stageList(crm()).some((s) => s.id === stage)) throw new HttpError(400, 'Pick a valid stage.');
+    if (stage === 'lost' && rec.stage !== 'lost' && !str(b.lostReason)) throw new HttpError(400, 'Say why the deal was lost.');
     const accountId = optRef('account', b.accountId);
     if (!accountId) throw new HttpError(400, 'Pick the account (organization) for this deal.');
     const contactId = optRef('contact', b.contactId);
+    // The main contact must work at the deal's account (or at no account yet).
+    const contact = contactId && d().crmContacts.find((c) => c.id === contactId);
+    if (contact?.accountId && contact.accountId !== accountId) throw new HttpError(400, `${personName(contact)} is a contact of ${accountName(contact.accountId)}, not of this deal's account.`);
+    // A renewal deal is linked to the contract it renews (Renew on the contract page).
+    const renewalOf = optRef('contract', b.renewalOf);
+    if (renewalOf && d().crmContracts.find((c) => c.id === renewalOf).accountId !== accountId) throw new HttpError(400, "The contract being renewed belongs to another account.");
     return {
+      renewalOf,
       title, accountId, contactId, stage, value: money(b.value, 'Value') ?? 0, expectedClose: optDate(b.expectedClose, 'Expected close date'),
-      source: str(b.source, 60) || rec.source || '', description: str(b.description, 4000), nextStep: str(b.nextStep, 200), ownerId: owner(b.ownerId, rec.ownerId || u.id),
+      source: str(b.source, 60) || rec.source || '', description: str(b.description, 4000), nextStep: str(b.nextStep, 200), ownerId: owner(b.ownerId, rec.ownerId || u.id, rec.ownerId),
       lostReason: stage === 'lost' ? str(b.lostReason, 120) || rec.lostReason || '' : '',
     };
   }
@@ -371,10 +446,18 @@ export function registerCrmRoutes(route, db) {
   route('GET', '/api/crm/deals', 'crm.view', () => d().crmDeals.map(out.deal).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
   route('POST', '/api/crm/deals', 'crm.edit', ({ body, user: u }) => {
     const fields = validDeal(body, u);
-    const x = stamp({ code: nextCode('deal', 'DL'), ...fields }, u, true);
-    if (x.stage === 'won' || x.stage === 'lost') x.closedAt = now();
+    // A deal added as Won or Lost starts in the first stage and is then closed, so winning has
+    // the same effects as on the board (closing date, history, a prospect becomes a client).
+    const target = fields.stage;
+    const closing = target === 'won' || target === 'lost';
+    // One open renewal per contract: pressing Renew twice does not make two deals.
+    const already = fields.renewalOf && d().crmDeals.find((x) => x.renewalOf === fields.renewalOf && isOpenDeal(x));
+    if (already) throw new HttpError(409, `${already.code} is already the renewal of this contract.`);
+    const x = stamp({ code: nextCode('deal', 'DL'), ...fields, ...(closing ? { stage: crm().stages[0].id } : {}) }, u, true);
     d().crmDeals.push(x);
     history('deal', x, u, `Deal created in ${stageName(crm(), x.stage)}`);
+    if (closing) moveStage(x, target, u, fields.lostReason);
+    if (x.renewalOf) history('contract', d().crmContracts.find((c) => c.id === x.renewalOf), u, `Renewal deal ${x.code} opened`);
     db.save();
     return out.deal(x);
   });
@@ -384,7 +467,8 @@ export function registerCrmRoutes(route, db) {
   });
   route('PUT', '/api/crm/deals/:id', 'crm.edit', ({ params, body, user: u }) => {
     const x = find('deal', params.id);
-    const next = validDeal(body, u, x);
+    fresh(x, body);
+    const next = validDeal(merged(x, body), u, x);
     const stage = next.stage;
     Object.assign(x, { ...next, stage: x.stage });
     moveStage(x, stage, u, next.lostReason);
@@ -404,31 +488,42 @@ export function registerCrmRoutes(route, db) {
   });
   route('DELETE', '/api/crm/deals/:id', 'crm.manage', ({ params }) => {
     const x = find('deal', params.id);
-    for (const k of ['crmBids', 'crmContracts']) for (const r of d()[k]) if (r.dealId === x.id) r.dealId = null;
+    for (const k of ['crmBids', 'crmContracts', 'crmLeads']) for (const r of d()[k]) if (r.dealId === x.id) r.dealId = null;
     removeWithActivities('deal', x.id);
     db.save();
     return { ok: true };
   });
 
   // ===== Bids (tenders and RFPs) =====
+  // Government procurement (RA 12009) rejects any bid above the approved budget for the contract,
+  // whatever the mode; a private RFP's budget is only a guide.
+  function aboveAbc(f) {
+    if (f.mode !== 'private' && f.bidAmount && f.budget && f.bidAmount > f.budget) throw new HttpError(400, 'The bid amount is above the approved budget (ABC). Government procurement rejects bids above the ABC.');
+  }
+  // A linked deal or bid must belong to the same account.
+  function sameAccount(rec, accountId, what) {
+    if (rec && rec.accountId !== accountId) throw new HttpError(400, `That ${what} (${rec.code}) belongs to ${accountName(rec.accountId)}, not to this account.`);
+  }
   function validBid(b, u, rec = {}) {
     const title = str(b.title, 200);
     if (!title) throw new HttpError(400, 'Enter the project or tender title.');
     const accountId = optRef('account', b.accountId);
     if (!accountId) throw new HttpError(400, 'Pick the procuring entity or client.');
     const deadline = str(b.deadline, 16);
-    if (deadline && !/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(deadline)) throw new HttpError(400, 'Submission deadline must be a date and time.');
+    if (deadline && !(isDate(deadline.slice(0, 10)) && (deadline.length === 10 || (deadline[10] === 'T' && TIME_RE.test(deadline.slice(11)))))) throw new HttpError(400, 'Submission deadline must be a date and time.');
+    const dealId = optRef('deal', b.dealId);
+    sameAccount(dealId && d().crmDeals.find((x) => x.id === dealId), accountId, 'deal');
     return {
-      title, accountId, dealId: optRef('deal', b.dealId), reference: str(b.reference, 80), mode: pick(b.mode, BID_MODES, 'public'),
+      title, accountId, dealId, reference: str(b.reference, 80), mode: pick(b.mode, BID_MODES, 'public'),
       status: pick(b.status, BID_STATUS, rec.status || 'preparing'), budget: money(b.budget, 'Approved budget (ABC)'), bidAmount: money(b.bidAmount, 'Bid amount'),
       deadline: deadline || null, openingDate: optDate(b.openingDate, 'Bid opening date'), preBidDate: optDate(b.preBidDate, 'Pre-bid conference date'),
-      notes: str(b.notes, 4000), ownerId: owner(b.ownerId, rec.ownerId || u.id),
+      notes: str(b.notes, 4000), ownerId: owner(b.ownerId, rec.ownerId || u.id, rec.ownerId),
     };
   }
   route('GET', '/api/crm/bids', 'crm.view', () => d().crmBids.map(out.bid).sort((a, b) => (b.deadline || '').localeCompare(a.deadline || '')));
   route('POST', '/api/crm/bids', 'crm.edit', ({ body, user: u }) => {
     const fields = validBid(body, u);
-    if (fields.mode === 'public' && fields.bidAmount && fields.budget && fields.bidAmount > fields.budget) throw new HttpError(400, 'The bid amount is above the approved budget (ABC); public bids above the ABC are rejected.');
+    aboveAbc(fields);
     const b = stamp({ code: nextCode('bid', 'BID'), ...fields, checklist: crm().bidChecklist.map((label) => ({ id: randomUUID(), label, done: false })) }, u, true);
     d().crmBids.push(b);
     history('bid', b, u, 'Bid created');
@@ -438,10 +533,12 @@ export function registerCrmRoutes(route, db) {
   route('GET', '/api/crm/bids/:id', 'crm.view', ({ params }) => out.bid(find('bid', params.id)));
   route('PUT', '/api/crm/bids/:id', 'crm.edit', ({ params, body, user: u }) => {
     const b = find('bid', params.id);
+    fresh(b, body);
     const before = b.status;
-    const next = validBid(body, u, b);
-    if (next.mode === 'public' && next.bidAmount && next.budget && next.bidAmount > next.budget) throw new HttpError(400, 'The bid amount is above the approved budget (ABC); public bids above the ABC are rejected.');
-    if (next.status === 'submitted' && before === 'preparing') {
+    const next = validBid(merged(b, body), u, b);
+    aboveAbc(next);
+    // Leaving "preparing" for submitted, under evaluation or awarded means the documents went in.
+    if (before === 'preparing' && ['submitted', 'evaluation', 'awarded'].includes(next.status)) {
       const missing = b.checklist.filter((i) => !i.done).length;
       if (missing && !body.submitAnyway) throw new HttpError(409, `${missing} document${missing === 1 ? ' is' : 's are'} not ticked on the checklist.`);
     }
@@ -464,6 +561,7 @@ export function registerCrmRoutes(route, db) {
       if (!label) throw new HttpError(400, 'Name the document.');
       b.checklist.push({ id: randomUUID(), label, done: false });
     } else if (body.remove) {
+      if (!b.checklist.some((i) => i.id === body.remove)) throw new HttpError(404, 'Checklist item not found.');
       b.checklist = b.checklist.filter((i) => i.id !== body.remove);
     } else {
       const item = b.checklist.find((i) => i.id === body.itemId);
@@ -493,10 +591,14 @@ export function registerCrmRoutes(route, db) {
     const startDate = optDate(b.startDate, 'Start date');
     const endDate = optDate(b.endDate, 'End date');
     if (startDate && endDate && endDate < startDate) throw new HttpError(400, 'The end date is before the start date.');
+    const dealId = optRef('deal', b.dealId);
+    const bidId = optRef('bid', b.bidId);
+    sameAccount(dealId && d().crmDeals.find((x) => x.id === dealId), accountId, 'deal');
+    sameAccount(bidId && d().crmBids.find((x) => x.id === bidId), accountId, 'bid');
     return {
-      title, accountId, dealId: optRef('deal', b.dealId), bidId: optRef('bid', b.bidId), number: str(b.number, 80), value: money(b.value, 'Contract value') ?? 0,
+      title, accountId, dealId, bidId, number: str(b.number, 80), value: money(b.value, 'Contract value') ?? 0,
       startDate, endDate, status: pick(b.status, CONTRACT_STATUS, rec.status || 'active'), autoRenew: Boolean(b.autoRenew),
-      billing: str(b.billing, 120), terms: str(b.terms, 4000), ownerId: owner(b.ownerId, rec.ownerId || u.id),
+      billing: str(b.billing, 120), terms: str(b.terms, 4000), ownerId: owner(b.ownerId, rec.ownerId || u.id, rec.ownerId),
     };
   }
   route('GET', '/api/crm/contracts', 'crm.view', () => d().crmContracts.map(out.contract).sort((a, b) => (a.endDate || '9').localeCompare(b.endDate || '9')));
@@ -508,11 +610,15 @@ export function registerCrmRoutes(route, db) {
     db.save();
     return out.contract(c);
   });
-  route('GET', '/api/crm/contracts/:id', 'crm.view', ({ params }) => out.contract(find('contract', params.id)));
+  route('GET', '/api/crm/contracts/:id', 'crm.view', ({ params }) => {
+    const c = find('contract', params.id);
+    return { ...out.contract(c), renewals: d().crmDeals.filter((x) => x.renewalOf === c.id).map(out.deal) };
+  });
   route('PUT', '/api/crm/contracts/:id', 'crm.edit', ({ params, body, user: u }) => {
     const c = find('contract', params.id);
+    fresh(c, body);
     const before = c.status;
-    Object.assign(c, validContract(body, u, c));
+    Object.assign(c, validContract(merged(c, body), u, c));
     stamp(c, u);
     if (before !== c.status) history('contract', c, u, `Status: ${CONTRACT_STATUS[before]} → ${CONTRACT_STATUS[c.status]}`);
     db.save();
@@ -520,6 +626,7 @@ export function registerCrmRoutes(route, db) {
   });
   route('DELETE', '/api/crm/contracts/:id', 'crm.manage', ({ params }) => {
     find('contract', params.id);
+    for (const x of d().crmDeals) if (x.renewalOf === params.id) x.renewalOf = null;
     removeWithActivities('contract', params.id);
     db.save();
     return { ok: true };
@@ -527,8 +634,8 @@ export function registerCrmRoutes(route, db) {
 
   // ===== Activities: calls, meetings, emails, tasks, notes and automatic history =====
   function relatedTo(rel) {
-    if (!rel || !RELATED[rel.type]) throw new HttpError(400, 'Say which record this is about.');
-    return { type: rel.type, id: find(rel.type, rel.id).id };
+    if (!rel || typeof rel !== 'object' || !Object.hasOwn(RELATED, rel.type)) throw new HttpError(400, 'Say which record this is about.');
+    return { type: rel.type, id: find(rel.type, typeof rel.id === 'string' ? rel.id : '').id };
   }
   // Everything about a record; for an account also its contacts', deals', bids' and contracts'.
   function timelineFor(type, id) {
@@ -541,20 +648,22 @@ export function registerCrmRoutes(route, db) {
   }
   route('GET', '/api/crm/activities', 'crm.view', ({ query, user: u }) => {
     let list = query.type && query.id ? timelineFor(query.type, query.id) : d().crmActivities.filter((a) => a.type !== 'event');
-    if (query.mine) list = list.filter((a) => a.ownerId === u.id);
-    if (query.open) list = list.filter((a) => !a.done && a.type !== 'event');
+    const yes = (v) => v === '1' || v === 'true';
+    if (yes(query.mine)) list = list.filter((a) => a.ownerId === u.id);
+    if (yes(query.open)) list = list.filter((a) => !a.done && a.type !== 'event');
     return list.map(out.activity).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   });
   function validActivity(b, u, rec = {}) {
     const type = pick(b.type, ACTIVITY_TYPES, rec.type || 'note');
+    if (b.dueTime != null && b.dueTime !== '' && !(typeof b.dueTime === 'string' && TIME_RE.test(b.dueTime))) throw new HttpError(400, 'Due time must be a time, e.g. 14:30.');
     const subject = str(b.subject, 200);
     const body = str(b.body, 8000);
     if (!subject && !body) throw new HttpError(400, 'Write what happened or what needs doing.');
     const dueDate = optDate(b.dueDate, 'Due date');
     if (type === 'task' && !dueDate) throw new HttpError(400, 'Give the task a due date.');
     return {
-      type, subject: subject || body.split('\n')[0].slice(0, 120), body, dueDate, dueTime: /^\d{2}:\d{2}$/.test(b.dueTime || '') ? b.dueTime : null,
-      outcome: str(b.outcome, 200), related: rec.related || relatedTo(b.related), ownerId: owner(b.ownerId, rec.ownerId || u.id),
+      type, subject: subject || body.split('\n')[0].slice(0, 120), body, dueDate, dueTime: typeof b.dueTime === 'string' && TIME_RE.test(b.dueTime) ? b.dueTime : null,
+      outcome: str(b.outcome, 200), related: rec.related || relatedTo(b.related), ownerId: owner(b.ownerId, rec.ownerId || u.id, rec.ownerId),
       // Notes and logged calls/meetings/emails are done when written; tasks and anything scheduled wait.
       done: typeof b.done === 'boolean' ? b.done : rec.done ?? (type === 'note' || !dueDate),
     };
@@ -569,11 +678,19 @@ export function registerCrmRoutes(route, db) {
   route('PUT', '/api/crm/activities/:id', 'crm.edit', ({ params, body, user: u }) => {
     const a = d().crmActivities.find((x) => x.id === params.id);
     if (!a || a.type === 'event') throw new HttpError(404, 'Activity not found.');
+    if ('done' in body && typeof body.done !== 'boolean') throw new HttpError(400, 'Done must be true or false.');
+    const onlyDone = Object.keys(body).length === 1 && 'done' in body;
+    // Ticking a task off: its author, its owner or a manager. Changing what was written: the
+    // author or a manager, as for deleting it.
+    const mayTick = a.createdBy === u.id || a.ownerId === u.id || userCan(u, 'crm.manage');
+    const mayEdit = a.createdBy === u.id || userCan(u, 'crm.manage');
+    if (onlyDone ? !mayTick : !mayEdit) throw new HttpError(403, onlyDone ? 'Only the person it is assigned to, its author or a CRM manager can tick it off.' : 'Only the person who wrote it or a CRM manager can change it.');
     const wasDone = a.done;
-    Object.assign(a, Object.keys(body).length === 1 && 'done' in body ? { done: Boolean(body.done) } : validActivity({ ...a, ...body }, u, a));
+    Object.assign(a, onlyDone ? { done: body.done } : validActivity({ ...a, ...body }, u, a));
     if (a.done && !wasDone) a.doneAt = now();
     if (!a.done) a.doneAt = null;
     a.updatedAt = now();
+    a.updatedBy = u.id;
     db.save();
     return out.activity(a);
   });
@@ -598,8 +715,8 @@ export function registerCrmRoutes(route, db) {
       if (!items.length) throw new HttpError(400, `Keep at least one ${label}.`);
       return items;
     };
-    const stages = (Array.isArray(body.stages) ? body.stages : []).map((s, i) => ({
-      id: /^[a-z0-9-]{2,24}$/.test(s.id || '') && !['won', 'lost'].includes(s.id) ? s.id : `stage-${Date.now().toString(36)}-${i}`,
+    const stages = (Array.isArray(body.stages) ? body.stages : []).filter((s) => s && typeof s === 'object').map((s, i) => ({
+      id: typeof s.id === 'string' && /^[a-z0-9-]{2,24}$/.test(s.id) && !['won', 'lost'].includes(s.id) ? s.id : `stage-${Date.now().toString(36)}-${i}`,
       name: str(s.name, 40),
       probability: Math.max(0, Math.min(99, Math.round(Number(s.probability) || 0))),
     })).filter((s) => s.name);
@@ -631,12 +748,14 @@ export function registerCrmRoutes(route, db) {
     const u = d().users.find((x) => x.id === params.userId && x.active);
     if (!u) throw new HttpError(404, 'User not found.');
     if (u.role === 'admin') throw new HttpError(400, 'Administrators always have CRM access.');
+    const before = userCan(u, 'crm.view');
     if (body.access === true || body.access === false) {
       if (body.access === can(u.role, 'crm.view')) delete u.crmAccess;
       else u.crmAccess = body.access;
     } else if (body.access === null) delete u.crmAccess;
     else throw new HttpError(400, 'Choose whether this account can use the CRM.');
     db.save();
+    audit?.record('user.update', { entity: 'user', entityId: u.id, label: `${u.name} (${u.username})`, changes: [{ field: 'Sales & CRM access', from: before ? 'Yes' : 'No', to: userCan(u, 'crm.view') ? 'Yes' : 'No' }] });
     return access();
   });
 }

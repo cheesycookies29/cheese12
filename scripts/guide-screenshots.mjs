@@ -108,7 +108,7 @@ try {
       }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();
       const text = await page.$eval('#app', (e) => e.innerText).catch(() => '');
-      if (/Something went wrong|Not found\.|does not have access/.test(text)) throw new Error(text.slice(0, 160));
+      if (/Something went wrong|Not found\.|It may have been deleted|does not have access/.test(text)) throw new Error(text.slice(0, 160));
       await page.screenshot({ path: path.join(OUT, s.file), type: 'jpeg', quality: 72, fullPage: Boolean(s.full) });
       console.log('✓', s.file);
     } catch (err) {

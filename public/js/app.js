@@ -365,7 +365,13 @@ async function navigate() {
   const path = location.hash.replace(/^#/, '').split('?')[0] || homeRoute();
   const query = Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] || ''));
   const match = routes.find((r) => r.re.test(path));
-  if (!match || !allowed(match.permission)) return (location.hash = `#${homeRoute()}`);
+  if (!match) return (location.hash = `#${homeRoute()}`);
+  if (!allowed(match.permission)) {
+    // A link or bookmark to a page this account may not open: stay in the module when possible.
+    const home = match.module && moduleHome(match.module);
+    if (home && home !== path) toast('Your account type cannot open that page.', 'error');
+    return (location.hash = `#${home && home !== path ? home : homeRoute()}`);
+  }
 
   const params = Object.fromEntries(match.keys.map((k, i) => [k, decodeURIComponent(path.match(match.re)[i + 1])]));
   // The launcher has no sidebar; system pages keep the menu of the module they were opened from.
@@ -392,7 +398,9 @@ async function navigate() {
   try {
     cleanup = await match.view(el, params, query);
   } catch (err) {
-    mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
+    if (err.status === 404) mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Not found</h2><p>${err.message} It may have been deleted.</p><p><button type="button" class="btn" data-back>Go back</button></p></div>`);
+    el.querySelector('[data-back]')?.addEventListener('click', () => history.back());
+    if (err.status !== 404) mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
   }
 }
 

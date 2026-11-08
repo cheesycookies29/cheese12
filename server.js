@@ -34,7 +34,10 @@ function readBody(req) {
     });
     req.on('end', () => {
       try {
-        resolve(raw ? JSON.parse(raw) : {});
+        const body = raw ? JSON.parse(raw) : {};
+        // Every endpoint takes a JSON object; null, a number or a string is a bad request.
+        if (body === null || typeof body !== 'object') return reject(Object.assign(new Error('Send a JSON object.'), { status: 400 }));
+        resolve(body);
       } catch {
         reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
       }

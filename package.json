@@ -1,6 +1,6 @@
 {
   "name": "ltdc-erp",
-  "version": "0.11.1-alpha",
+  "version": "0.11.2-alpha",
   "description": "CORE · ERP by Lancaster: HR & Payroll, IT Asset Management and IT Service Desk, self-hosted.",
   "type": "module",
   "private": true,

@@ -27,6 +27,27 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.11.2-alpha',
+    date: '2026-11-08',
+    title: 'Sales & CRM: QA fixes',
+    modules: ['crm', 'system'],
+    notes: 'The fixes from two QA passes of Sales & CRM (server and screens).',
+    changes: [
+      ['fixed', 'crm', 'A form opened before someone else saved the same record is refused with "changed by … since you opened it", instead of silently undoing their change (for example reopening a deal they had just won).'],
+      ['fixed', 'crm', 'Converting a lead is all or nothing: a refused conversion leaves no account or contact behind. Disqualified leads cannot be converted, and disqualifying needs a reason. Honorifics (Engr., Atty., Dr.) are not taken as first names.'],
+      ['fixed', 'crm', 'A deal cannot be closed as lost without a reason by any path; a deal added as won makes the prospect a client, as on the board. Contacts, linked deals and bids must belong to the same account.'],
+      ['fixed', 'crm', 'Bids above the ABC are refused in every government procurement mode, and the document check applies to any move out of Preparing.'],
+      ['fixed', 'crm', 'Impossible dates and times (Feb 30, 25:00) and odd values (arrays, "1e3", amounts above ₱1 trillion) are refused with a message instead of being saved or crashing a page.'],
+      ['fixed', 'crm', 'Only the author or a Sales Manager can edit a logged call, note or task; the owner can still tick it done. Notes and emails no longer show a done box.'],
+      ['fixed', 'crm', 'Won this month and quarter, the win rate and renewals use Philippine dates. Deleting a record clears the links that pointed at it, including converted leads; removing the demo data keeps real records intact.'],
+      ['improved', 'crm', 'Renew on a contract links the renewal deal to it and opens the open renewal instead of making a second one.'],
+      ['fixed', 'crm', 'Screens: refused deletes, ticks and checklist changes now show why; typing in the activity box survives a change of type; a double click saves once; account fields start blank on new records; long emails wrap on phones; ₱1B shows as ₱1B.'],
+      ['fixed', 'system', 'Dialogs keep keyboard focus inside, close with Escape, and return focus to the button that opened them. CSV exports open in Excel with accents intact and cannot run spreadsheet formulas. A deleted record shows "Not found" instead of a server error. Muted text meets the WCAG AA contrast ratio.'],
+      ['fixed', 'crm', 'Turning a service desk ticket into a lead needs service desk agent access. Changes to CRM access are recorded in the audit log as user changes.'],
+    ],
+    known: ['Setting an awarded bid back to Preparing does not reopen its won deal; reopen the deal from its stage bar.'],
+  },
+  {
     version: '0.11.1-alpha',
     date: '2026-11-08',
     title: 'Help & guides',

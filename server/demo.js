@@ -40,6 +40,17 @@ export function removeDemo(db, { summarize }) {
   d.crmActivities = d.crmActivities.filter((a) => crmIds.has(a.related?.id));
   // Records owned by demo accounts now belong to nobody.
   for (const k of CRM_COLLECTIONS) for (const x of d[k]) if (demoUsers.has(x.ownerId)) x.ownerId = null;
+  // Real records that pointed at a removed demo record (a lead converted into a demo account, a
+  // deal with a demo contact, a bid on a demo deal) keep the record but lose that link.
+  const alive = (k) => new Set(d[k].map((x) => x.id));
+  const live = { accountId: alive('crmAccounts'), contactId: alive('crmContacts'), dealId: alive('crmDeals'), bidId: alive('crmBids'), renewalOf: alive('crmContracts') };
+  for (const k of ['crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts']) {
+    for (const x of d[k]) {
+      for (const [field, ids] of Object.entries(live)) if (x[field] && !ids.has(x[field])) x[field] = null;
+      if (demoUsers.has(x.createdBy)) x.createdBy = null;
+      if (demoUsers.has(x.updatedBy)) x.updatedBy = null;
+    }
+  }
   for (const k of BY_EMPLOYEE) d[k] = d[k].filter((x) => !empIds.has(x.employeeId));
   // Real employees who reported to a demo employee no longer have a supervisor on record.
   for (const e of d.employees) if (empIds.has(e.supervisorId)) e.supervisorId = null;

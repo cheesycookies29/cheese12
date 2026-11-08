@@ -17,7 +17,7 @@
   --border-strong: #d1d5db;
   --text: #111827;
   --text-2: #374151;
-  --muted: #6b7280;
+  --muted: #636a76;
   --brand-ink: #ffffff;
   --brand-soft: color-mix(in srgb, var(--brand) 9%, var(--surface));
   --brand-softer: color-mix(in srgb, var(--brand) 4%, var(--surface));
@@ -26,7 +26,7 @@
   --brand-text: var(--brand);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
   --success: #15803d; --success-soft: #dcfce7;
-  --warn: #a16207; --warn-soft: #fef3c7;
+  --warn: #92570a; --warn-soft: #fef3c7;
   --danger: #b91c1c; --danger-soft: #fee2e2;
   --info: #1d4ed8; --info-soft: #dbeafe;
   --radius: 12px;
@@ -443,7 +443,7 @@ body.hub .topbar { padding-left: 24px; }
   .table.stackable, .table.stackable tbody, .table.stackable tfoot, .table.stackable tr { display: block; width: 100%; }
   .table.stackable tr { padding: 12px 2px; border-bottom: 1px solid var(--border); }
   .table.stackable tbody tr:hover { background: none; }
-  .table.stackable td { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 4px 0; border: 0; text-align: right; }
+  .table.stackable td { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 4px 0; border: 0; text-align: right; overflow-wrap: anywhere; min-width: 0; }
   .table.stackable td::before { content: attr(data-label); flex-shrink: 0; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
   .table.stackable td:not([data-label])::before { content: none; }
   .table.stackable td:first-child { display: block; text-align: left; font-size: 15px; padding-bottom: 6px; }
@@ -1232,6 +1232,10 @@ body.launcher-mode main#app > section:last-of-type { margin-bottom: 36px; }
 .crm-mini .grow { flex: 1; min-width: 0; }
 .crm-mini strong { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
 .crm-mini small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+/* Long emails and unbroken names wrap instead of pushing the card (or the phone page) sideways. */
+.crm-mini small, .crm-act small, .crm-act strong { overflow-wrap: anywhere; }
+/* The Won/Lost drop zones are not covered by a toast while a card is dragged. */
+body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
 .crm-tick { display: inline-grid; place-items: center; flex: none; }
 .crm-tick input { width: 18px; height: 18px; accent-color: var(--brand); cursor: pointer; margin: 0; }
 
@@ -1337,7 +1341,7 @@ body.launcher-mode main#app > section:last-of-type { margin-bottom: 36px; }
 }
 .stats .card > span.muted, .stats .card > span.small, .stats .card > .crm-due { display: block; margin-top: 4px; }
 .stats .card > .progress { display: block; margin-top: 10px; }
-.crm-board { grid-auto-flow: unset; grid-template-columns: repeat(var(--cols, 4), minmax(200px, 1fr)); }
+.crm-board { grid-auto-flow: unset; grid-template-columns: repeat(var(--cols, 4), minmax(176px, 1fr)); scrollbar-width: thin; }
 .crm-closed-note { margin: 4px 0 0; }
 .crm-closed-note .ic { vertical-align: -2px; margin-right: 4px; }
 .crm-dropbar { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 70; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: min(560px, calc(100vw - 32px)); }

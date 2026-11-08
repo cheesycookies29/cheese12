@@ -9,6 +9,11 @@ order: 2
 
 ## November 2026
 
+### Sales & CRM checks (0.11.2)
+- Two people editing the same record no longer overwrite each other: the second save is refused with a message to reload. See [the sales guide](sales).
+- **Renew** on a contract links the renewal deal to the contract, and does not start a second one. Bids above the ABC are refused in every government procurement mode. Deals are closed as won or lost from the stage bar or the board, which always ask for the lost reason. See [the sales guide](sales).
+- Errors on ticks, checklists and deletes are now shown; dialogs keep keyboard focus inside and close with Escape; CSV exports open correctly in Excel and cannot run formulas.
+
 ### Help & guides
 - The **?** button in the top bar opens **Help & guides**: a guide for each job in CORE, with a walkthrough using the demo data, step-by-step tasks, every screen and common questions, and search across all of them. It opens on the guide for your job in the module you were in. See [Getting started](getting-started#get-help).
 - Administrators can edit any guide for the company, add the company's own guides, and see when an update of CORE changes a guide they edited. See [the administrator's guide](admin#edit-a-help-guide).

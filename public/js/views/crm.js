@@ -14,11 +14,24 @@ import {
 // ---------- Small helpers ----------
 const changed = () => window.dispatchEvent(new Event('crm:changed'));
 const plural = (n, w, many = `${w}s`) => `${n} ${n === 1 ? w : many}`;
+// ₱950, ₱12K, ₱1.25M, ₱100B: rounds into the next unit (₱999,600 is ₱1M, not ₱1000K).
 const short = (n) => {
   const v = Number(n) || 0;
-  if (v >= 1e6) return `₱${(v / 1e6).toFixed(v >= 1e7 ? 1 : 2).replace(/\.?0+$/, '')}M`;
+  const unit = (x, u) => `₱${Number(x.toFixed(x >= 10 ? 1 : 2))}${u}`;
+  if (v >= 999.5e6) return unit(v / 1e9, 'B');
+  if (v >= 999.5e3) return unit(v / 1e6, 'M');
   if (v >= 1e3) return `₱${Math.round(v / 1e3)}K`;
-  return `₱${v}`;
+  return `₱${Math.round(v)}`;
+};
+// An inline action (a tick, a delete): a refusal from the server is shown, then `after` redraws
+// the screen so it matches what was saved.
+const guard = (fn, after) => async (...args) => {
+  try {
+    await fn(...args);
+  } catch (err) {
+    toast(err.message, 'error');
+    after?.();
+  }
 };
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
 const initials = (name) => (name || '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -82,7 +95,9 @@ function recordForm({ title, subtitle, fields, values = {}, submitLabel = 'Save'
     onSubmit: (form) => onSubmit(formValues(form, fields), form),
   });
 }
-const teamOptions = (m) => m.team.map((u) => [u.id, u.name]);
+// The team, plus the record's current owner if they have since lost CRM access (so saving the
+// form does not hand the record to someone else without anyone choosing to).
+const teamOptions = (m, rec = {}) => [...m.team.map((u) => [u.id, u.name]), ...(rec.ownerId && !m.team.some((u) => u.id === rec.ownerId) ? [[rec.ownerId, `${rec.ownerName || 'Former user'} (no CRM access)`]] : [])];
 
 // ---------- Record forms ----------
 async function lists() {
@@ -98,7 +113,7 @@ const accountFields = (m) => [
   { name: 'email', label: 'Email', type: 'email' },
   { name: 'phone', label: 'Phone' },
   { name: 'website', label: 'Website' },
-  { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m) },
+  { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m, rec) },
   { name: 'address', label: 'Address', span: 2 },
   { name: 'tags', label: 'Tags', placeholder: 'Comma-separated, e.g. LGU, renewal', span: 2 },
   { name: 'notes', label: 'Notes', type: 'textarea', span: 2 },
@@ -109,7 +124,7 @@ export async function editAccount(rec = {}, after) {
     title: rec.id ? 'Edit account' : 'New account', subtitle: 'An organization you sell to or work with: client, prospect, partner or supplier.',
     fields: accountFields(m), values: { ownerId: ctx.user.id, ...rec, tags: (rec.tags || []).join(', ') },
     onSubmit: async (v) => {
-      const saved = rec.id ? await api.put(`/api/crm/accounts/${rec.id}`, v) : await api.post('/api/crm/accounts', v);
+      const saved = rec.id ? await api.put(`/api/crm/accounts/${rec.id}`, { ...v, updatedAt: rec.updatedAt }) : await api.post('/api/crm/accounts', v);
       toast(rec.id ? 'Account saved.' : 'Account added.');
       after?.(saved);
     },
@@ -123,12 +138,12 @@ async function editContact(rec = {}, after) {
       { name: 'firstName', label: 'First name', required: true }, { name: 'lastName', label: 'Last name' },
       { name: 'title', label: 'Position' }, { name: 'accountId', label: 'Organization', type: 'select', options: accounts.map((a) => [a.id, a.name]), blank: 'None' },
       { name: 'email', label: 'Email', type: 'email' }, { name: 'mobile', label: 'Mobile' }, { name: 'phone', label: 'Office phone' },
-      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m) },
+      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m, rec) },
       { name: 'notes', label: 'Notes', type: 'textarea', span: 2 },
     ],
     values: { ownerId: ctx.user.id, ...rec },
     onSubmit: async (v) => {
-      const saved = rec.id ? await api.put(`/api/crm/contacts/${rec.id}`, v) : await api.post('/api/crm/contacts', v);
+      const saved = rec.id ? await api.put(`/api/crm/contacts/${rec.id}`, { ...v, updatedAt: rec.updatedAt }) : await api.post('/api/crm/contacts', v);
       toast(rec.id ? 'Contact saved.' : 'Contact added.');
       after?.(saved);
     },
@@ -144,13 +159,13 @@ async function editLead(rec = {}, after) {
       { name: 'title', label: 'Position' }, { name: 'source', label: 'Source', type: 'select', options: m.setup.sources.map((s) => [s, s]) },
       { name: 'email', label: 'Email', type: 'email' }, { name: 'phone', label: 'Phone' },
       { name: 'estimatedValue', label: 'Estimated value (₱)', type: 'number' }, { name: 'status', label: 'Status', type: 'select', options: statuses },
-      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m) },
+      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m, rec) },
       { name: 'disqualifiedReason', label: 'If disqualified, why', placeholder: 'e.g. budget below our minimum' },
       { name: 'interest', label: 'What they need', type: 'textarea', span: 2, rows: 4 },
     ],
     values: { ownerId: ctx.user.id, source: m.setup.sources[0], status: 'new', ...rec },
     onSubmit: async (v) => {
-      const saved = rec.id ? await api.put(`/api/crm/leads/${rec.id}`, v) : await api.post('/api/crm/leads', v);
+      const saved = rec.id ? await api.put(`/api/crm/leads/${rec.id}`, { ...v, updatedAt: rec.updatedAt }) : await api.post('/api/crm/leads', v);
       toast(rec.id ? 'Lead saved.' : 'Lead added.');
       changed();
       after?.(saved);
@@ -160,92 +175,124 @@ async function editLead(rec = {}, after) {
 async function editDeal(rec = {}, after) {
   const [m, { accounts, contacts }] = await Promise.all([meta(), lists()]);
   if (!accounts.length) return toast('Add the account (organization) first, then its deals.', 'error');
-  recordForm({
+  const { form } = recordForm({
     title: rec.id ? 'Edit deal' : 'New deal', subtitle: 'A qualified opportunity with a value and an expected close date.',
     fields: [
       { name: 'title', label: 'Deal name', required: true, span: 2, placeholder: 'e.g. HRIS and payroll for 3 hotels' },
-      { name: 'accountId', label: 'Account', type: 'select', options: accounts.map((a) => [a.id, a.name]), required: true },
+      { name: 'accountId', label: 'Account', type: 'select', options: accounts.map((a) => [a.id, a.name]), required: true, blank: rec.accountId ? undefined : 'Choose…' },
       { name: 'contactId', label: 'Main contact', type: 'select', options: contacts.map((c) => [c.id, `${c.name}${c.accountName ? ` · ${c.accountName}` : ''}`]), blank: 'None' },
       { name: 'value', label: 'Value (₱)', type: 'number', required: true }, { name: 'expectedClose', label: 'Expected close', type: 'date' },
-      { name: 'stage', label: 'Stage', type: 'select', options: stageList(m.setup).map((s) => [s.id, `${s.name} (${s.probability}%)`]) },
-      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m) },
+      // Won and Lost are set on the board or the deal's stage bar, which ask for the lost reason.
+      { name: 'stage', label: 'Stage', type: 'select', options: stageList(m.setup).filter((s) => !['won', 'lost'].includes(s.id) || s.id === rec.stage).map((s) => [s.id, `${s.name} (${s.probability}%)`]), hint: rec.id ? 'To mark it won or lost, use the stage bar on the deal.' : '' },
+      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m, rec) },
       { name: 'source', label: 'Source', type: 'select', options: m.setup.sources.map((s) => [s, s]), blank: '—' },
       { name: 'nextStep', label: 'Next step', placeholder: 'e.g. Demo to the deans on Friday' },
       { name: 'description', label: 'Description', type: 'textarea', span: 2 },
     ],
     values: { ownerId: ctx.user.id, stage: m.setup.stages[0].id, ...rec },
     onSubmit: async (v) => {
-      const saved = rec.id ? await api.put(`/api/crm/deals/${rec.id}`, v) : await api.post('/api/crm/deals', v);
+      if (v.value === '' || v.value == null) throw new Error('Enter the deal value. Use 0 if it is not known yet.');
+      const saved = rec.id ? await api.put(`/api/crm/deals/${rec.id}`, { ...v, updatedAt: rec.updatedAt }) : await api.post('/api/crm/deals', { ...v, renewalOf: rec.renewalOf || null });
       toast(rec.id ? 'Deal saved.' : 'Deal added.');
       after?.(saved);
     },
   });
+  // The main contact list shows the chosen account's contacts (and people without an account).
+  const pickContacts = () => {
+    const sel = form.elements.contactId;
+    const keep = sel.value;
+    const list = contacts.filter((c) => !c.accountId || c.accountId === form.elements.accountId.value);
+    sel.innerHTML = '';
+    sel.add(new Option('None', ''));
+    for (const c of list) sel.add(new Option(c.name, c.id, false, c.id === keep));
+  };
+  form.elements.accountId.addEventListener('change', pickContacts);
+  pickContacts();
+}
+// A linked-deal list that shows only the chosen account's deals (the server refuses others).
+function dealsOfAccount(form, deals, label = (x) => `${x.code} · ${x.title}`) {
+  const sel = form.elements.dealId;
+  const refill = () => {
+    const keep = sel.value;
+    sel.innerHTML = '';
+    sel.add(new Option('None', ''));
+    for (const x of deals.filter((d) => d.accountId === form.elements.accountId.value)) sel.add(new Option(label(x), x.id, false, x.id === keep));
+  };
+  form.elements.accountId.addEventListener('change', refill);
+  refill();
 }
 async function editBid(rec = {}, after) {
   const [m, { accounts, deals }] = await Promise.all([meta(), lists()]);
   if (!accounts.length) return toast('Add the procuring entity as an account first.', 'error');
-  recordForm({
+  const { form } = recordForm({
     title: rec.id ? 'Edit bid' : 'New bid', subtitle: 'A public tender or RFP. The document checklist from the sales setup is added to every new bid.',
     fields: [
       { name: 'title', label: 'Project or tender title', required: true, span: 2 },
-      { name: 'accountId', label: 'Procuring entity or client', type: 'select', options: accounts.map((a) => [a.id, a.name]), required: true },
+      { name: 'accountId', label: 'Procuring entity or client', type: 'select', options: accounts.map((a) => [a.id, a.name]), required: true, blank: rec.accountId ? undefined : 'Choose…' },
       { name: 'reference', label: 'Reference no.', placeholder: 'e.g. PhilGEPS or ITB number' },
       { name: 'mode', label: 'Procurement mode', type: 'select', options: Object.entries(BID_MODES) },
       { name: 'status', label: 'Status', type: 'select', options: Object.entries(BID_STATUS) },
-      { name: 'budget', label: 'Approved budget, ABC (₱)', type: 'number' }, { name: 'bidAmount', label: 'Our bid (₱)', type: 'number', hint: 'Public bids above the ABC are rejected.' },
+      { name: 'budget', label: 'Approved budget, ABC (₱)', type: 'number' }, { name: 'bidAmount', label: 'Our bid (₱)', type: 'number', hint: 'Government bids above the ABC are rejected.' },
       { name: 'deadline', label: 'Submission deadline', type: 'datetime-local' }, { name: 'openingDate', label: 'Bid opening', type: 'date' },
       { name: 'preBidDate', label: 'Pre-bid conference', type: 'date' },
       { name: 'dealId', label: 'Linked deal', type: 'select', options: deals.filter((x) => isOpenDeal(x) || x.id === rec.dealId).map((x) => [x.id, `${x.code} · ${x.title}`]), blank: 'None', hint: 'An award closes the deal as won.' },
-      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m) },
+      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m, rec) },
       { name: 'notes', label: 'Notes', type: 'textarea', span: 2, placeholder: 'Bid bulletins, clarifications, post-qualification…' },
     ],
     values: { ownerId: ctx.user.id, status: 'preparing', mode: 'public', ...rec },
     onSubmit: async (v) => {
       let saved;
       try {
-        saved = rec.id ? await api.put(`/api/crm/bids/${rec.id}`, v) : await api.post('/api/crm/bids', v);
+        saved = rec.id ? await api.put(`/api/crm/bids/${rec.id}`, { ...v, updatedAt: rec.updatedAt }) : await api.post('/api/crm/bids', v);
       } catch (err) {
         if (!/not ticked/.test(err.message)) throw err;
         if (!(await confirmDialog(`${err.message} Mark the bid as submitted anyway?`, { confirmLabel: 'Mark as submitted', danger: false, title: 'Checklist incomplete' }))) throw new Error('Not saved. Tick the documents on the checklist first.');
-        saved = await api.put(`/api/crm/bids/${rec.id}`, { ...v, submitAnyway: true });
+        saved = await api.put(`/api/crm/bids/${rec.id}`, { ...v, updatedAt: rec.updatedAt, submitAnyway: true });
       }
-      toast(rec.id ? 'Bid saved.' : 'Bid added.');
+      toast(saved.status === 'awarded' && rec.status !== 'awarded' && saved.dealId ? 'Bid awarded. The linked deal is marked as won.' : rec.id ? 'Bid saved.' : 'Bid added.');
       after?.(saved);
     },
   });
+  dealsOfAccount(form, deals.filter((x) => isOpenDeal(x) || x.id === rec.dealId));
 }
 async function editContract(rec = {}, after) {
   const [m, { accounts, deals }] = await Promise.all([meta(), lists()]);
   if (!accounts.length) return toast('Add the client as an account first.', 'error');
-  recordForm({
+  const { form } = recordForm({
     title: rec.id ? 'Edit contract' : 'New contract',
     fields: [
       { name: 'title', label: 'Contract title', required: true, span: 2 },
-      { name: 'accountId', label: 'Client', type: 'select', options: accounts.map((a) => [a.id, a.name]), required: true },
+      { name: 'accountId', label: 'Client', type: 'select', options: accounts.map((a) => [a.id, a.name]), required: true, blank: rec.accountId ? undefined : 'Choose…' },
       { name: 'number', label: 'Contract or PO no.' },
       { name: 'value', label: 'Value (₱)', type: 'number' }, { name: 'status', label: 'Status', type: 'select', options: Object.entries(CONTRACT_STATUS) },
       { name: 'startDate', label: 'Start', type: 'date' }, { name: 'endDate', label: 'End', type: 'date', hint: `Shown for renewal ${m.setup.renewalNoticeDays} days before.` },
       { name: 'billing', label: 'Billing', placeholder: 'e.g. Quarterly, 50% on signing' },
       { name: 'dealId', label: 'From deal', type: 'select', options: deals.map((x) => [x.id, `${x.code} · ${x.title}`]), blank: 'None' },
-      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m) },
+      { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m, rec) },
       { name: 'autoRenew', label: 'Renews automatically', type: 'checkbox' },
       { name: 'terms', label: 'Key terms', type: 'textarea', span: 2 },
     ],
     values: { ownerId: ctx.user.id, status: 'active', ...rec },
     onSubmit: async (v) => {
-      const saved = rec.id ? await api.put(`/api/crm/contracts/${rec.id}`, v) : await api.post('/api/crm/contracts', v);
+      const saved = rec.id ? await api.put(`/api/crm/contracts/${rec.id}`, { ...v, updatedAt: rec.updatedAt }) : await api.post('/api/crm/contracts', v);
       toast(rec.id ? 'Contract saved.' : 'Contract recorded.');
       after?.(saved);
     },
   });
+  dealsOfAccount(form, deals);
 }
 
 async function removeRecord(kind, rec, label, backHref) {
   if (!(await confirmDialog(`Delete ${label}? Its notes and history go with it. This cannot be undone.`, { title: `Delete ${kind}` }))) return;
-  await api.del(`/api/crm/${kind === 'opportunity' ? 'deals' : `${kind}s`}/${rec.id}`);
+  try {
+    await api.del(`/api/crm/${kind === 'opportunity' ? 'deals' : `${kind}s`}/${rec.id}`);
+  } catch (err) {
+    return toast(err.message, 'error');
+  }
   toast('Deleted.');
   changed();
-  location.hash = backHref;
+  // Replace the page in the history, so Back does not open the deleted record.
+  location.replace(backHref);
 }
 
 // ---------- Timeline: log activities, schedule tasks, see history ----------
@@ -253,6 +300,7 @@ const ACT_ICON = { call: 'headset', meeting: 'users', email: 'mail', task: 'chec
 async function timeline(el, type, id) {
   const m = metaCache || (await meta());
   let kind = 'note';
+  let draft = {}; // what is typed in the composer, kept when the type changes
   async function render() {
     const list = await api.get(`/api/crm/activities?type=${type}&id=${id}`);
     const open = list.filter((a) => a.type !== 'event' && !a.done).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
@@ -263,7 +311,7 @@ async function timeline(el, type, id) {
         <span class="crm-act-ic">${icon(ACT_ICON[a.type] || 'file', 16)}</span>
         <div class="grow">
           <div class="crm-act-head">
-            ${a.type !== 'event' && canEdit() ? html`<label class="crm-tick" title="${a.done ? 'Mark as not done' : 'Mark as done'}"><input type="checkbox" data-done="${a.id}" ${a.done ? 'checked' : ''} /></label>` : ''}
+            ${a.type !== 'event' && canEdit() && (!a.done || a.type === 'task' || a.dueDate) ? html`<label class="crm-tick" title="${a.done ? 'Mark as not done' : 'Mark as done'}"><input type="checkbox" data-done="${a.id}" ${a.done ? 'checked' : ''} /></label>` : ''}
             <strong>${a.subject}</strong>
             ${a.type !== 'event' ? html`<span class="badge gray">${ACTIVITY_TYPES[a.type]}</span>` : ''}
             ${a.dueDate && a.type !== 'event' ? html`<span class="crm-due ${overdue ? 'bad' : a.dueDate === today() ? 'warn' : ''}">${a.done ? 'Due' : overdue ? 'Overdue ·' : 'Due'} ${fmtDate(a.dueDate)}${a.dueTime ? `, ${a.dueTime}` : ''}</span>` : ''}
@@ -277,11 +325,11 @@ async function timeline(el, type, id) {
     mount(el, html`
       ${canEdit() ? html`<form class="crm-composer" id="composer" novalidate>
         <div class="seg-btns crm-seg" role="tablist">${Object.entries(ACTIVITY_TYPES).map(([k, v]) => html`<button type="button" data-kind="${k}" class="${k === kind ? 'active' : ''}">${icon(ACT_ICON[k], 14)} ${v}</button>`)}</div>
-        <input name="subject" placeholder="${kind === 'note' ? 'Title (optional)' : kind === 'task' ? 'What needs doing?' : `${ACTIVITY_TYPES[kind]} subject`}" />
-        <textarea name="body" rows="2" placeholder="${kind === 'note' ? 'Write a note…' : 'Details, outcome or agenda (optional)'}"></textarea>
+        <input name="subject" value="${draft.subject || ''}" placeholder="${kind === 'note' ? 'Title (optional)' : kind === 'task' ? 'What needs doing?' : `${ACTIVITY_TYPES[kind]} subject`}" />
+        <textarea name="body" rows="2" placeholder="${kind === 'note' ? 'Write a note…' : 'Details, outcome or agenda (optional)'}">${draft.body || ''}</textarea>
         <div class="crm-composer-foot">
-          <label class="field inline"><span>${kind === 'task' ? 'Due' : 'Schedule for'}</span><input type="date" name="dueDate" value="${kind === 'task' ? today() : ''}" /></label>
-          <label class="field inline"><span>Owner</span><select name="ownerId">${options(teamOptions(m), ctx.user.id)}</select></label>
+          <label class="field inline"><span>${kind === 'task' ? 'Due' : 'Schedule for'}</span><input type="date" name="dueDate" value="${draft.dueDate || (kind === 'task' ? today() : '')}" /></label>
+          <label class="field inline"><span>Owner</span><select name="ownerId">${options(teamOptions(m), draft.ownerId || ctx.user.id)}</select></label>
           <span class="spacer"></span>
           <button class="btn primary" type="submit">${kind === 'task' ? 'Add task' : kind === 'note' ? 'Save note' : `Log ${ACTIVITY_TYPES[kind].toLowerCase()}`}</button>
         </div>
@@ -290,32 +338,43 @@ async function timeline(el, type, id) {
       ${open.length ? html`<h3 class="crm-tl-h">Open and upcoming</h3><ul class="crm-timeline">${open.map(row)}</ul>` : ''}
       <h3 class="crm-tl-h">History</h3>
       ${past.length ? html`<ul class="crm-timeline">${past.map(row)}</ul>` : html`<p class="muted">Nothing logged yet.</p>`}`);
-    el.querySelectorAll('[data-kind]').forEach((b) => b.addEventListener('click', () => ((kind = b.dataset.kind), render())));
-    el.querySelector('#composer')?.addEventListener('submit', async (e) => {
+    const composer = el.querySelector('#composer');
+    el.querySelectorAll('[data-kind]').forEach((b) => b.addEventListener('click', () => {
+      draft = { subject: composer.subject.value, body: composer.body.value, dueDate: composer.dueDate.value, ownerId: composer.ownerId.value };
+      kind = b.dataset.kind;
+      render();
+    }));
+    composer?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target;
       const err = f.querySelector('.form-error');
+      const btn = f.querySelector('[type=submit]');
+      if (btn.disabled) return; // a double click saves once
+      btn.disabled = true;
       try {
         await api.post('/api/crm/activities', { type: kind, subject: f.subject.value, body: f.body.value, dueDate: f.dueDate.value || null, ownerId: f.ownerId.value, related: { type, id } });
+        draft = {};
         toast(kind === 'task' ? 'Task added.' : 'Saved.');
         changed();
         render();
       } catch (ex) {
         err.textContent = ex.message;
         err.hidden = false;
+        btn.disabled = false;
       }
     });
-    el.querySelectorAll('[data-done]').forEach((cb) => cb.addEventListener('change', async () => {
+    el.querySelectorAll('[data-done]').forEach((cb) => cb.addEventListener('change', guard(async () => {
       await api.put(`/api/crm/activities/${cb.dataset.done}`, { done: cb.checked });
       changed();
       render();
-    }));
-    el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
+    }, render)));
+    el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', guard(async () => {
       if (!(await confirmDialog('Delete this activity?', { title: 'Delete activity' }))) return;
       await api.del(`/api/crm/activities/${b.dataset.del}`);
+      toast('Activity deleted.');
       changed();
       render();
-    }));
+    }, render)));
   }
   await render();
 }
@@ -406,12 +465,14 @@ export async function crmOverviewView(el) {
     </div>`);
   el.querySelector('#new-lead')?.addEventListener('click', () => editLead({}, (l) => (location.hash = `#/crm/leads/${l.id}`)));
   el.querySelector('#new-deal')?.addEventListener('click', () => editDeal({}, (x) => (location.hash = `#/crm/deals/${x.id}`)));
-  el.querySelectorAll('[data-done]').forEach((cb) => cb.addEventListener('change', async () => {
+  el.querySelectorAll('[data-done]').forEach((cb) => cb.addEventListener('change', guard(async () => {
     await api.put(`/api/crm/activities/${cb.dataset.done}`, { done: true });
     toast('Task done.');
     changed();
+    const list = cb.closest('ul');
     cb.closest('li').remove();
-  }));
+    if (list && !list.children.length) list.replaceWith(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Nothing due today.' }));
+  }, () => (cb.checked = false))));
   wireSearch(el);
 }
 
@@ -477,7 +538,7 @@ export async function pipelineView(el, _params, query) {
           <div class="crm-col-body">${inCol.length ? inCol.map(card) : html`<p class="crm-col-empty">${canEdit() ? 'Drag deals here' : 'No deals'}</p>`}</div>
         </section>`;
       })}</div>
-      <p class="muted small crm-closed-note">${icon('check', 14)} ${plural(closed.filter((x) => x.stage === 'won').length, 'deal')} won and ${closed.filter((x) => x.stage === 'lost').length} lost are in the <a href="#/crm/pipeline?view=list" data-to-list>list</a>.${canEdit() ? ' Drag a card to the bottom of the screen to mark it won or lost.' : ''}</p>
+      <p class="muted small crm-closed-note">${icon('check', 14)} ${plural(closed.filter((x) => x.stage === 'won').length, 'deal')} won and ${closed.filter((x) => x.stage === 'lost').length} lost are in the <a href="#/crm/pipeline?view=list" data-to-list>list</a>.${canEdit() ? (matchMedia('(pointer: coarse)').matches ? ' To mark a deal won or lost, open it and use its stage bar.' : ' Drag a card to the bottom of the screen to mark it won or lost.') : ''}</p>
       <div class="crm-dropbar" id="dropbar" hidden>
         <div class="crm-drop won" data-stage="won">${icon('checkCircle', 20)} Won</div>
         <div class="crm-drop lost" data-stage="lost">${icon('x', 20)} Lost</div>
@@ -582,7 +643,7 @@ export async function dealView(el, { id }) {
         <section class="card"><h2>Details</h2><dl class="info-grid">
           ${info('Value', money(x.value))}${info('Weighted', html`${money(x.weighted)} <small class="muted">(${x.probability}%)</small>`)}
           ${info('Expected close', x.expectedClose ? html`${fmtDate(x.expectedClose)}${isOpenDeal(x) && x.expectedClose < today() ? html` ${badge('Overdue', 'amber')}` : ''}` : '')}
-          ${info('Owner', ownerChip(x.ownerName))}${info('Source', x.source)}${info('Next step', x.nextStep)}
+          ${info('Owner', ownerChip(x.ownerName))}${info('Source', x.source)}${info('Next step', x.nextStep)}${x.renewalOf ? info('Renews', html`<a href="#/crm/contracts/${x.renewalOf}">The contract</a>`) : ''}
           ${x.closedAt ? info(x.stage === 'won' ? 'Won on' : 'Lost on', fmtDate(x.closedAt.slice(0, 10))) : ''}${x.lostReason ? info('Lost reason', x.lostReason) : ''}
         </dl>${x.description ? html`<p class="pre small crm-desc">${x.description}</p>` : ''}</section>
         <section class="card"><div class="card-head"><h2>Bids</h2>${canEdit() ? html`<button class="btn small-btn" id="add-bid">+ Bid</button>` : ''}</div>
@@ -627,7 +688,7 @@ export async function leadView(el, { id }) {
   const converted = l.status === 'converted';
   mount(el, html`
     ${head(html`${l.name} ${leadBadge(l.status)}`, html`<span class="mono">${l.code}</span>${l.company ? ` · ${l.company}` : ''} · ${l.source}`, html`
-      ${canEdit() && !converted ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button><button class="btn primary" id="convert">${icon('check', 16)} Convert</button>` : ''}
+      ${canEdit() && !converted ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>${l.status !== 'disqualified' ? html`<button class="btn primary" id="convert">${icon('check', 16)} Convert</button>` : ''}` : ''}
       ${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/leads', 'Leads'])}
     ${converted ? html`<div class="notice ok">${icon('checkCircle', 18)} <p>Converted on ${fmtDate(l.convertedAt.slice(0, 10))} to <a href="#/crm/accounts/${l.accountId}">the account</a>, <a href="#/crm/contacts/${l.contactId}">a contact</a>${l.dealId ? html` and <a href="#/crm/deals/${l.dealId}">a deal</a>` : ''}.</p></div>` : ''}
     <div class="cols wide-left">
@@ -708,7 +769,7 @@ export async function accountView(el, { id }) {
           ${a.tags?.length ? info('Tags', html`${a.tags.map((t) => html`<span class="badge gray">${t}</span> `)}`) : ''}
         </dl>${a.notes ? html`<p class="pre small crm-desc">${a.notes}</p>` : ''}</section>
         <section class="card"><div class="card-head"><h2>People</h2>${canEdit() ? html`<button class="btn small-btn" id="add-contact">+ Contact</button>` : ''}</div>
-          ${a.contactList.length ? html`<ul class="crm-mini">${a.contactList.map((c) => html`<li><span class="avatar xs">${initials(c.name)}</span><span class="grow"><a href="#/crm/contacts/${c.id}"><strong>${c.name}</strong></a><small>${c.title || ''}${c.email ? ` · ${c.email}` : ''}</small></span></li>`)}</ul>` : html`<p class="muted small">No contacts yet.</p>`}</section>
+          ${a.contactList.length ? html`<ul class="crm-mini">${a.contactList.map((c) => html`<li><span class="avatar xs">${initials(c.name)}</span><span class="grow"><a href="#/crm/contacts/${c.id}"><strong>${c.name}</strong></a><small>${[c.title, c.email].filter(Boolean).join(' · ')}</small></span></li>`)}</ul>` : html`<p class="muted small">No contacts yet.</p>`}</section>
         <section class="card"><h2>Deals</h2>
           ${a.deals.length ? html`<ul class="crm-mini">${a.deals.map((x) => html`<li><span class="grow"><a href="#/crm/deals/${x.id}"><strong>${x.title}</strong></a><small>${x.code}${x.expectedClose ? ` · ${fmtDate(x.expectedClose)}` : ''}</small></span><span class="crm-amt">${short(x.value)}<small>${stageBadge(x)}</small></span></li>`)}</ul>` : html`<p class="muted small">No deals yet.</p>`}</section>
         <section class="card"><div class="card-head"><h2>Bids and contracts</h2>${canEdit() ? html`<span class="actions"><button class="btn small-btn" id="add-bid">+ Bid</button><button class="btn small-btn" id="add-contract">+ Contract</button></span>` : ''}</div>
@@ -762,7 +823,7 @@ export async function contactView(el, { id }) {
       </div>
     </div>`);
   el.querySelector('#edit')?.addEventListener('click', () => editContact(c, () => contactView(el, { id })));
-  el.querySelector('#del')?.addEventListener('click', () => removeRecord('contact', c, c.name, '#/crm/contacts'));
+  el.querySelector('#del')?.addEventListener('click', () => removeRecord('contact', c, `the contact "${c.name}"`, '#/crm/contacts'));
   await timeline(el.querySelector('#timeline'), 'contact', id);
 }
 
@@ -820,22 +881,27 @@ export async function bidView(el, { id }) {
       </div>
     </div>`);
   const reload = () => bidView(el, { id });
+  // After a tick or an add, the page is redrawn; focus goes back where it was (keyboard users).
+  const reloadFocus = async (selector) => {
+    await reload();
+    el.querySelector(selector)?.focus();
+  };
   el.querySelector('#edit')?.addEventListener('click', () => editBid(b, reload));
   el.querySelector('#del')?.addEventListener('click', () => removeRecord('bid', b, `the bid "${b.title}"`, '#/crm/bids'));
-  el.querySelectorAll('[data-item]').forEach((cb) => cb.addEventListener('change', async () => {
+  el.querySelectorAll('[data-item]').forEach((cb) => cb.addEventListener('change', guard(async () => {
     await api.put(`/api/crm/bids/${id}/checklist`, { itemId: cb.dataset.item, done: cb.checked });
-    reload();
-  }));
-  el.querySelectorAll('[data-remove]').forEach((btn) => btn.addEventListener('click', async () => {
+    await reloadFocus(`[data-item="${cb.dataset.item}"]`);
+  }, reload)));
+  el.querySelectorAll('[data-remove]').forEach((btn) => btn.addEventListener('click', guard(async () => {
     await api.put(`/api/crm/bids/${id}/checklist`, { remove: btn.dataset.remove });
-    reload();
-  }));
-  el.querySelector('#add-item')?.addEventListener('submit', async (e) => {
+    await reloadFocus('#add-item input');
+  }, reload)));
+  el.querySelector('#add-item')?.addEventListener('submit', guard(async (e) => {
     e.preventDefault();
     if (!e.target.label.value.trim()) return;
     await api.put(`/api/crm/bids/${id}/checklist`, { add: e.target.label.value });
-    reload();
-  });
+    await reloadFocus('#add-item input');
+  }, reload));
   await timeline(el.querySelector('#timeline'), 'bid', id);
 }
 
@@ -878,6 +944,7 @@ export async function contractView(el, { id }) {
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <section class="card"><h2>Details</h2><dl class="info-grid">
         ${info('Owner', ownerChip(c.ownerName))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}
+        ${c.renewals.length ? info('Renewal', html`${c.renewals.map((x) => html`<a href="#/crm/deals/${x.id}">${x.code}</a> ${stageBadge(x)} `)}`) : ''}
       </dl>${c.terms ? html`<h3>Key terms</h3><p class="pre small">${c.terms}</p>` : ''}</section>
     </div>`);
   const reload = () => contractView(el, { id });
@@ -885,9 +952,16 @@ export async function contractView(el, { id }) {
   el.querySelector('#del')?.addEventListener('click', () => removeRecord('contract', c, `the contract "${c.title}"`, '#/crm/contracts'));
   // Renewing records a new contract for the next term and a deal to track it.
   el.querySelector('#renew')?.addEventListener('click', () => {
+    // A renewal already in progress opens instead of a second one.
+    const open = c.renewals.find(isOpenDeal);
+    if (open) {
+      toast(`${open.code} is already the renewal of this contract.`);
+      location.hash = `#/crm/deals/${open.id}`;
+      return;
+    }
     const start = c.endDate || today();
     const next = (ymd, days) => new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
-    editDeal({ title: `Renewal: ${c.title}`, accountId: c.accountId, value: c.value, expectedClose: start, nextStep: `Renewal of ${c.number || c.code}, term from ${fmtDate(next(start, 1))}` }, (x) => (location.hash = `#/crm/deals/${x.id}`));
+    editDeal({ title: `Renewal: ${c.title}`, accountId: c.accountId, renewalOf: c.id, value: c.value, expectedClose: start, nextStep: `Renewal of ${c.number || c.code}, term from ${fmtDate(next(start, 1))}` }, (x) => (location.hash = `#/crm/deals/${x.id}`));
   });
   await timeline(el.querySelector('#timeline'), 'contract', id);
 }
@@ -914,14 +988,17 @@ export async function activitiesView(el, _params, query) {
         <td><strong>${a.subject}</strong><small>${ACTIVITY_TYPES[a.type]}${a.body ? ` · ${a.body.slice(0, 80)}` : ''}</small></td>
         <td>${a.relatedName ? html`<a href="#/crm/${a.related.type}s/${a.related.id}">${a.relatedName}</a>` : '—'}</td>
         <td>${a.dueDate ? html`<span class="crm-due ${!a.done && a.dueDate < today() ? 'bad' : !a.done && a.dueDate === today() ? 'warn' : ''}">${fmtDate(a.dueDate)}</span>` : '—'}</td><td>${a.ownerName || '—'}</td>
-        <td>${canEdit() ? html`<label class="crm-tick"><input type="checkbox" data-done="${a.id}" ${a.done ? 'checked' : ''} aria-label="Done: ${a.subject}" /></label>` : a.done ? 'Yes' : ''}</td></tr>`)}</tbody></table>`
+        <td>${canEdit() && (!a.done || a.type === 'task' || a.dueDate) ? html`<label class="crm-tick"><input type="checkbox" data-done="${a.id}" ${a.done ? 'checked' : ''} aria-label="Done: ${a.subject}" /></label>` : a.done ? 'Yes' : ''}</td></tr>`)}</tbody></table>`
       : html`<div class="empty"><p>${state.view === 'mine' ? 'Nothing open for you. Tasks you add on a record show here.' : 'Nothing here.'}</p></div>`);
-    el.querySelectorAll('[data-done]').forEach((cb) => cb.addEventListener('change', async () => {
-      await api.put(`/api/crm/activities/${cb.dataset.done}`, { done: cb.checked });
-      changed();
+    const refresh = async () => {
       rows = await api.get('/api/crm/activities');
       draw();
-    }));
+    };
+    el.querySelectorAll('[data-done]').forEach((cb) => cb.addEventListener('change', guard(async () => {
+      await api.put(`/api/crm/activities/${cb.dataset.done}`, { done: cb.checked });
+      changed();
+      await refresh();
+    }, refresh)));
   }
   el.querySelectorAll('[data-view]').forEach((a) => a.addEventListener('click', (e) => {
     e.preventDefault();
@@ -965,7 +1042,17 @@ export async function crmSettingsView(el, _params, query) {
       pane.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => (read(), s.stages.splice(Number(b.dataset.rm), 1), draw())));
       pane.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => { read(); const i = Number(b.dataset.up); [s.stages[i - 1], s.stages[i]] = [s.stages[i], s.stages[i - 1]]; draw(); }));
       pane.querySelectorAll('[data-down]').forEach((b) => b.addEventListener('click', () => { read(); const i = Number(b.dataset.down); [s.stages[i + 1], s.stages[i]] = [s.stages[i], s.stages[i + 1]]; draw(); }));
-      pane.querySelector('#f').addEventListener('submit', (e) => (e.preventDefault(), read(), save({ stages: s.stages }).catch((err) => toast(err.message, 'error'))));
+      pane.querySelector('#f').addEventListener('submit', (e) => {
+        e.preventDefault();
+        read();
+        if (s.stages.some((st) => !st.name.trim())) return toast('Name every stage, or remove the ones you do not need.', 'error');
+        // Refused (for example a removed stage still has deals): show the saved stages again.
+        save({ stages: s.stages }).catch((err) => {
+          toast(err.message, 'error');
+          s.stages = structuredClone(m.setup.stages);
+          draw();
+        });
+      });
     };
     draw();
   } else if (tab === 'lists') {
@@ -996,11 +1083,11 @@ export async function crmSettingsView(el, _params, query) {
           <td class="row-actions">${p.role === 'admin' ? html`<span class="muted small">Always</span>` : html`
             ${!p.hasAccess ? html`<button class="btn small-btn" data-set="${p.id}" data-v="true">Give access</button>` : html`<button class="btn small-btn" data-set="${p.id}" data-v="false">Remove</button>`}
             ${p.override !== null ? html`<button class="link" data-set="${p.id}" data-v="null">Follow account type</button>` : ''}`}</td></tr>`)}</tbody></table>`);
-      pane.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', async () => {
+      pane.querySelectorAll('[data-set]').forEach((b) => b.addEventListener('click', guard(async () => {
         await api.put(`/api/crm/access/${b.dataset.set}`, { access: JSON.parse(b.dataset.v) });
         toast('Access updated.');
         draw();
-      }));
+      }, draw)));
     };
     await draw();
   }

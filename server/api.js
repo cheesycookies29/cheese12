@@ -796,7 +796,7 @@ export function createApi(db) {
   registerDevlogRoutes(route, db);
   registerFeedbackRoutes(route, db);
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
-  registerCrmRoutes(route, db);
+  registerCrmRoutes(route, db, { audit });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });
   // ----- Audit log (Administrators) -----
@@ -823,13 +823,19 @@ export function createApi(db) {
         if (user.mustChangePassword && !r.duringPasswordChange) throw new HttpError(403, 'Please change your password first.');
         if (r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
       }
-      const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+      let params;
+      try {
+        params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+      } catch {
+        throw new HttpError(404, 'Not found.');
+      }
       const ip = clientIp(req);
       const actor = { user, ip, before: audit.count() };
       const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, origin: publicOrigin(req) }));
       // A change with no entry of its own is still recorded, with its route (never its body).
       if (req.method !== 'GET' && user && audit.count() === actor.before && !UNAUDITED.test(url.pathname)) {
-        audit.record(`${areaOfPath(url.pathname)}.change`, { entityId: params.id || '', label: `${req.method} ${r.pattern}`, actor });
+        const data = result && result.headers && 'data' in result ? result.data : result;
+        audit.record(`${areaOfPath(url.pathname)}.change`, { entityId: params.id || params.userId || (typeof data?.id === 'string' ? data.id : ''), label: `${req.method} ${r.pattern}`, actor });
       }
       return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }

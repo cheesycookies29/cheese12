@@ -104,7 +104,7 @@ Two accounts cannot have the same name. A prospect becomes a client by itself wh
 1. Click **+ Deal** on the Overview, the **Pipeline**, or an account page. Add the account first if it is new.
 2. Enter the **Deal name**, **Account**, **Main contact**, **Value (₱)**, **Expected close**, **Stage**, **Owner**, **Source** and the **Next step**. Click **Save**.
 3. To move it, drag its card on the **Pipeline** board, or click a stage in the stage bar on the deal page.
-4. When it is won, click **Won** in the stage bar (or drop the card on **Won**). When it is lost, click **Lost**, pick the **Reason** and click **Mark as lost**.
+4. When it is won, click **Won** in the stage bar (or drop the card on **Won**). When it is lost, click **Lost**, pick the **Reason** and click **Mark as lost**. The **Edit** form does not offer Won or Lost: a deal is closed from the stage bar or the board. On a phone, use the stage bar.
 
 Each move is written in the deal's history. Won and lost deals leave the board and stay in the **List**. Each stage's probability weighs the forecast: a ₱1M deal at *Proposal* (50%) counts ₱500K.
 
@@ -127,7 +127,7 @@ Every list in Sales & CRM has **Export CSV**.
 5. On the bid page, tick each document in the **Document checklist** once it is signed, notarized where needed, and in the envelope. To add a document this bid needs, type it under the list and click **Add**; the **×** removes one.
 6. When the envelope is in, click **Edit**, set **Status** to *Submitted* and click **Save**.
 
-For *Competitive (public) bidding*, a bid above the ABC is refused: public bids above the ABC are rejected. Setting a bid to *Submitted* with documents unticked asks first (**Mark as submitted**). When the bid is *Awarded*, the linked deal closes as won; when it is *Not awarded*, the deal closes as lost.
+For every government procurement mode (all but *Private RFP*), a bid above the ABC is refused, because the procuring entity would reject it. Setting a bid to *Submitted* with documents unticked asks first (**Mark as submitted**). When the bid is *Awarded*, the linked deal closes as won; when it is *Not awarded*, the deal closes as lost.
 
 ### Record a contract and renew it
 
@@ -135,7 +135,7 @@ For *Competitive (public) bidding*, a bid above the ABC is refused: public bids 
 2. Enter the **Contract title**, **Client**, **Contract or PO no.**, **Value (₱)**, **Status**, **Start**, **End**, **Billing** and **Key terms**. Tick **Renews automatically** if it does.
 3. Click **Save**.
 
-A contract shows *Renew in … days* when it ends within the renewal notice (60 days unless your manager changed it), and appears under **Renewals coming up** on the Overview. To work on the renewal, open the contract and click **Renew**: CORE starts a new deal, *Renewal: …*, with the same account and value and the end date as the expected close. Set the old contract to *Ended* when the term is over.
+A contract shows *Renew in … days* when it ends within the renewal notice (60 days unless your manager changed it), and appears under **Renewals coming up** on the Overview. To work on the renewal, open the contract and click **Renew**: CORE starts a new deal, *Renewal: …*, with the same account and value and the end date as the expected close. The contract shows it under **Renewal**, and the deal links back to the contract. While that deal is open, **Renew** opens it instead of starting another. Set the old contract to *Ended* when the term is over.
 
 ![A contract due for renewal](sales-contract.jpg)
 
@@ -195,7 +195,7 @@ Those are for Sales Managers and administrators. Ask your manager to delete a re
 Each open deal's value times its stage probability, added up. It is a better guess of what will close than the full pipeline. The probabilities are set in **Sales setup**.
 
 **Why was my bid refused?**
-Under Philippine procurement law (RA 9184, and the New Government Procurement Act, RA 12009, that replaced it) a bid above the approved budget for the contract (ABC) is disqualified, so CORE does not accept one for *Competitive (public) bidding*. Check the amount, or the procurement mode.
+Under Philippine procurement law (RA 9184, and the New Government Procurement Act, RA 12009, that replaced it) a bid above the approved budget for the contract (ABC) is disqualified, so CORE does not accept one in any government procurement mode. Check the amount, or the procurement mode (*Private RFP* has no ABC rule).
 
 **Where does the bid checklist come from?**
 It lists the eligibility, technical and financial documents usually asked for in Philippine public bidding. Always check it against the procuring entity's bidding documents and bid bulletins, and add or remove documents on the bid.
@@ -205,6 +205,9 @@ Anyone with access to Sales & CRM. Administrators can give access to other accou
 
 **A lead came in through the service desk. How do I get it here?**
 A service desk agent with CRM access opens the ticket and clicks **Send to Sales & CRM**. The lead keeps a link to the ticket.
+
+**CORE says the record was changed since I opened it. What do I do?**
+Someone else saved the same record while your form was open. Close the form, reload the page to see their change, and make yours again. This keeps one person's save from undoing another's.
 
 **Can I undo a lost deal?**
 Yes. Open the deal and click another stage in the stage bar. The history keeps both moves.

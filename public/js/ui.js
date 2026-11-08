@@ -120,9 +120,39 @@ export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancel
   labelTables(backdrop);
   const form = backdrop.querySelector('form');
   const errorEl = backdrop.querySelector('.form-error');
-  const close = () => backdrop.remove();
+  // Keyboard: Escape closes the top dialog wherever focus is, Tab stays inside it, and focus
+  // goes back to the button that opened it.
+  const opener = document.activeElement;
+  form.tabIndex = -1; // a click on the dialog's text keeps focus in the dialog
+  const focusable = () => [...form.querySelectorAll('a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])')].filter((x) => x.offsetParent !== null);
+  const onKey = (e) => {
+    if (!backdrop.isConnected) return document.removeEventListener('keydown', onKey); // closed by navigation
+    if ([...document.querySelectorAll('.modal-backdrop')].pop() !== backdrop) return; // a dialog on top of this one
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    } else if (e.key === 'Tab') {
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const inside = form.contains(document.activeElement);
+      if (e.shiftKey && (!inside || document.activeElement === first || document.activeElement === form)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+  document.addEventListener('keydown', onKey);
+  const close = () => {
+    backdrop.remove();
+    document.removeEventListener('keydown', onKey);
+    if (opener?.isConnected && opener !== document.body && !document.querySelector('.modal-backdrop')) opener.focus();
+  };
   backdrop.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', close));
-  backdrop.addEventListener('keydown', (e) => e.key === 'Escape' && close());
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = form.querySelector('[type=submit]');
@@ -166,14 +196,22 @@ export function confirmDialog(message, { confirmLabel = 'Delete', danger = true,
 }
 
 export function downloadFile(filename, content, type = 'text/csv') {
-  const url = URL.createObjectURL(new Blob([content], { type }));
+  // A byte-order mark, so Excel opens accented names (Peñaflor) and ₱ correctly.
+  const url = URL.createObjectURL(new Blob([type.startsWith('text/csv') ? '\uFEFF' : '', content], { type }));
   const a = Object.assign(document.createElement('a'), { href: url, download: filename });
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Cells that a spreadsheet would run as a formula (=, +, -, @, tab, return) get a leading ' so
+// they open as text. Plain negative numbers are left alone.
 export function toCsv(rows) {
-  return rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const cell = (c) => {
+    let t = String(c ?? '');
+    if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = `'${t}`;
+    return `"${t.replace(/"/g, '""')}"`;
+  };
+  return rows.map((r) => r.map(cell).join(',')).join('\n');
 }
 
 export const badge = (text, kind = '') => html`<span class="badge ${kind}">${text}</span>`;

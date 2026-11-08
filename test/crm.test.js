@@ -61,7 +61,9 @@ test('a lead is qualified and converted into an account, a contact and a deal', 
   assert.equal(lead.estimatedValue, 1250000);
   const contacted = await sales('PUT', `/api/crm/leads/${lead.id}`, { ...lead, status: 'qualified' });
   assert.equal(contacted.status, 'qualified');
-  await assert.rejects(sales('PUT', `/api/crm/leads/${lead.id}`, { ...lead, status: 'converted' }), /Use Convert/);
+  await assert.rejects(sales('PUT', `/api/crm/leads/${lead.id}`, { ...contacted, status: 'converted' }), /Use Convert/);
+  // A form opened before that change is refused instead of overwriting it.
+  await assert.rejects(sales('PUT', `/api/crm/leads/${lead.id}`, { ...lead, phone: '0917' }), /changed by Sofia Lim since you opened it/);
   // A follow-up task on the lead moves to the deal on conversion.
   await sales('POST', '/api/crm/activities', { type: 'task', subject: 'Send capability deck', dueDate: addDays(1), related: { type: 'lead', id: lead.id } });
   const r = await sales('POST', `/api/crm/leads/${lead.id}/convert`, { dealTitle: 'Laguna HRIS' });
@@ -116,7 +118,7 @@ test('bids: approved budget check, document checklist, award closes the linked d
   for (const item of bid.checklist) await sales('PUT', `/api/crm/bids/${bid.id}/checklist`, { itemId: item.id, done: true });
   const extra = await sales('PUT', `/api/crm/bids/${bid.id}/checklist`, { add: 'Certificate of site inspection' });
   assert.equal(extra.checklist.length, 11);
-  const sent = await sales('PUT', `/api/crm/bids/${bid.id}`, { ...bid, status: 'submitted', submitAnyway: true });
+  const sent = await sales('PUT', `/api/crm/bids/${bid.id}`, { ...extra, status: 'submitted', submitAnyway: true });
   assert.equal(sent.status, 'submitted');
   await sales('PUT', `/api/crm/bids/${bid.id}`, { ...sent, status: 'awarded' });
   const after = await sales('GET', `/api/crm/deals/${deal.id}`);
@@ -169,11 +171,13 @@ test('sales setup: stages in use cannot be removed; managers delete, officers ca
 
 test('a service desk ticket becomes a lead once', async () => {
   db.data.tickets.push({ id: 't1', number: 'HD-000099', subject: 'Quote for a payroll system', channel: 'web', requester: { name: 'Lea Cruz', email: 'lea@acme.ph', phone: '0917 000 0000', organization: 'Acme Foods' }, messages: [{ id: 'm1', kind: 'message', body: 'We have 300 staff.' }] });
-  const lead = await sales('POST', '/api/crm/leads/from-ticket/t1');
+  // Only service desk agents send tickets on; an administrator is both.
+  await assert.rejects(sales('POST', '/api/crm/leads/from-ticket/t1'), /Only service desk agents/);
+  const lead = await admin('POST', '/api/crm/leads/from-ticket/t1');
   assert.equal(lead.source, 'Public form');
   assert.equal(lead.company, 'Acme Foods');
   assert.match(lead.interest, /300 staff/);
-  const again = await sales('POST', '/api/crm/leads/from-ticket/t1');
+  const again = await admin('POST', '/api/crm/leads/from-ticket/t1');
   assert.equal(again.id, lead.id);
   assert.ok(db.data.tickets[0].messages.some((m) => m.kind === 'event' && /Sales & CRM/.test(m.body)));
 });
