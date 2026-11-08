@@ -104,7 +104,7 @@ async function lists() {
   const [accounts, contacts, deals] = await Promise.all([api.get('/api/crm/accounts'), api.get('/api/crm/contacts'), api.get('/api/crm/deals')]);
   return { accounts, contacts, deals };
 }
-const accountFields = (m) => [
+const accountFields = (m, rec = {}) => [
   { name: 'name', label: 'Organization name', required: true, span: 2 },
   { name: 'type', label: 'Relationship', type: 'select', options: Object.entries(ACCOUNT_TYPES) },
   { name: 'sector', label: 'Sector', type: 'select', options: Object.entries(SECTORS) },
@@ -122,7 +122,7 @@ export async function editAccount(rec = {}, after) {
   const m = await meta();
   recordForm({
     title: rec.id ? 'Edit account' : 'New account', subtitle: 'An organization you sell to or work with: client, prospect, partner or supplier.',
-    fields: accountFields(m), values: { ownerId: ctx.user.id, ...rec, tags: (rec.tags || []).join(', ') },
+    fields: accountFields(m, rec), values: { ownerId: ctx.user.id, ...rec, tags: (rec.tags || []).join(', ') },
     onSubmit: async (v) => {
       const saved = rec.id ? await api.put(`/api/crm/accounts/${rec.id}`, { ...v, updatedAt: rec.updatedAt }) : await api.post('/api/crm/accounts', v);
       toast(rec.id ? 'Account saved.' : 'Account added.');
