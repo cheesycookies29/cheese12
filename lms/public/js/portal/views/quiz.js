@@ -3,14 +3,14 @@
 // per-question analysis, and scoring essays.
 import { api } from '../../api.js';
 import { html, mount, toast, fmtDateTime, confirmDialog, empty, raw, escape, dueText, downloadFile, toCsv, initials } from '../../ui.js';
-import { pageHead } from '../../shell.js';
+import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { classLabel } from '../common.js';
 import { richText } from './classes.js';
 
 const TYPE_LABELS = { single: 'One answer', multiple: 'Several answers', truefalse: 'True or false', short: 'Short answer', essay: 'Essay (you score it)' };
 const SHOW_LABELS = { immediately: 'Right after they submit', after_close: 'After the quiz closes', never: 'Never (score only)' };
-const crumbs = (cls, extra = []) => [['/classes', 'My classes'], [`/classes/${cls.id}/activities`, classLabel(cls)], ...extra];
+const crumbs = (cls, extra = []) => [['/classes', ctx.user?.role === 'student' ? 'My classes' : 'My sections'], [`/classes/${cls.id}/activities`, classLabel(cls)], ...extra];
 
 // ----- Builder -----
 const blankQuestion = (type) => ({

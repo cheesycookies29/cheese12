@@ -287,3 +287,4 @@ img.att-preview { height: auto; max-height: 70vh; }
 /* The draft watermark is drawn by CSS (decoration, not text), and the confidentiality line meets AA contrast. */
 .ps-watermark::before { content: attr(data-text); }
 .ps-conf { color: #7a5410; }
+.cell-btn.readonly { cursor: default; display: inline-block; }

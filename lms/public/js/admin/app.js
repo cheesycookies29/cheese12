@@ -1,6 +1,7 @@
 // Admin panel (/admin): Administrators and Registrars.
 import { api } from '../api.js';
-import { html, toast } from '../ui.js';
+import { html, toast, mount } from '../ui.js';
+import { icon } from '../icons.js';
 import { ctx, startApp, authScreen, passwordField, onFormSubmit, authLogo, ssoBlock, passwordFields, showSsoError } from '../shell.js';
 import { can } from '/shared/roles.js';
 import { dashboardView } from './views/dashboard.js';
@@ -41,10 +42,19 @@ const routes = [
   ['/sso', ssoView, p('settings.edit')],
   ['/campuses', campusesView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
+  ['/elsewhere', elsewhereView],
 ];
+
+// Deans (and anyone else here without the panel's pages) work in ATLAS Academic.
+function elsewhereView(el) {
+  mount(el, html`<div class="card empty">${icon('cap', 40)}<h2>The Admin panel is for administrators and registrars</h2>
+    <p>Your work is in ATLAS Academic: grade sheets, grade changes, curricula and your students' records.</p>
+    <a class="btn primary" href="/academic/">Open ATLAS Academic</a> <a class="btn" href="/">ATLAS home</a></div>`);
+}
 
 function nav() {
   const c = (perm) => can(ctx.user.role, perm);
+  if (!c('dashboard')) return [{ href: '/elsewhere', label: 'ATLAS Academic', icon: 'cap' }, { href: '/', label: 'ATLAS home', icon: 'grid', external: true }];
   return [
     { href: '/dashboard', label: 'Dashboard', icon: 'home' },
     { heading: 'Enrollment' },
@@ -124,7 +134,7 @@ startApp({
   product: 'Learn',
   routes,
   nav,
-  home: () => '/dashboard',
+  home: () => (can(ctx.user.role, 'dashboard') ? '/dashboard' : '/elsewhere'),
   signedOutView,
   badges: {
     enrollment: () => api.get('/api/admin/enrollments/summary').then((s) => s.pending),

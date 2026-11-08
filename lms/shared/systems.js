@@ -1,6 +1,6 @@
 // The systems of Lancaster ATLAS, shown as tiles on the ATLAS home page (/).
 // ATLAS Learn (the LMS) and ATLAS People (the HRIS) are built in; the others are switched
-// live by an administrator (Admin panel → Portal & systems) once they exist, with the
+// live by an administrator (Admin panel → Home page & systems) once they exist, with the
 // address they run at. Ids stay as they were (hris, lms…) so saved settings keep working.
 // audience: account types that see the tile (students do not see HRIS, for example).
 

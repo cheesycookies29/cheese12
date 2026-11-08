@@ -96,7 +96,7 @@ export async function peopleView(el, { kind }) {
 
   mount(el, html`
     ${pageHead(k.title, k.sub, mayManage && kind !== 'applicant' ? html`<button class="btn primary" id="add">+ Add ${kind === 'staff' ? 'account' : roleLabel(k.role).toLowerCase()}</button>` : '')}
-    ${kind === 'applicant' ? html`<p class="hint" style="margin-bottom:12px">Turn the portal's "Apply as a student" form on or off under <a href="#/settings">Settings → Student applications</a>.</p>` : ''}
+    ${kind === 'applicant' ? html`<p class="hint" style="margin-bottom:12px">Turn the "Apply for admission" form on the ATLAS home page on or off under <a href="#/settings">Settings → Student applications</a>.</p>` : ''}
     ${rows.length ? html`
       <div class="toolbar"><input type="search" placeholder="Search" /><span class="spacer"></span><span class="muted" id="shown">${rows.length} shown</span></div>
       <div class="card scroll-x"><table class="table ${kind === 'student' || kind === 'teacher' ? 'clickable' : ''}">${columns[kind]()}</table></div>`

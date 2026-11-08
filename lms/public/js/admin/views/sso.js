@@ -41,7 +41,7 @@ export async function ssoView(el) {
           <h2>${icon('settings')} In Keycloak</h2>
           <ol class="steps">
             <li>Clients → <strong>Create client</strong>: OpenID Connect, Client ID <code>${s.clientId || 'atlas'}</code>.</li>
-            <li><strong>Client authentication</strong> on; <strong>Standard flow</strong> on (nothing else needed).</li>
+            <li><strong>Client authentication</strong> on (a confidential client, with <code>OIDC_CLIENT_SECRET</code> set on the server), or off for a public client; <strong>Standard flow</strong> on (nothing else needed).</li>
             <li><strong>Valid redirect URIs</strong>: ${copy(s.redirectUri)}</li>
             <li><strong>Valid post logout redirect URIs</strong>: ${copy(s.postLogoutUri)}</li>
             <li><strong>Web origins</strong>: <code>+</code></li>

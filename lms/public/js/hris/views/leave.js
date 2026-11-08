@@ -90,7 +90,7 @@ async function requestsTab(el, query) {
         submitLabel: { approve: 'Approve', reject: 'Reject', cancel: 'Cancel request' }[action],
         body: html`<p><strong>${what}</strong></p>
           ${r.reason ? html`<p class="muted">“${r.reason}”</p>` : ''}
-          ${r.attachment ? html`<p><button type="button" class="link" data-open-cert>📎 Open the medical certificate</button></p>` : r.certificateRequired && action === 'approve' ? html`<div class="notice"><p>No medical certificate is attached. This request can't be approved until the employee attaches one under My Requests.</p></div>` : ''}
+          ${r.attachment ? html`<p><button type="button" class="link" data-open-cert>📎 Open the medical certificate</button></p>` : r.certificateRequired && action === 'approve' ? html`<div class="notice"><p>No medical certificate is attached. This request can't be approved until the employee attaches one under Leave &amp; requests.</p></div>` : ''}
           <p class="muted small">${{
             approve: r.kind === 'remote' ? 'Each work day in the range is marked as remote work in the DTR and counts as a full day.' : 'Each work day in the range is recorded as leave in the DTR and deducted from the balance.',
             reject: 'The employee will see the rejection and your note.',
@@ -137,10 +137,12 @@ async function balancesTab(el, query) {
                   const b = r.balances.find((x) => x.leaveTypeId === t.id);
                   if (!b.offered) return html`<td class="center"><span class="muted small" title="Not offered to this employee">n/a</span></td>`;
                   const low = b.remaining !== null && b.remaining <= 0;
-                  return html`<td class="center"><button class="cell-btn ${low ? 'low' : ''} ${b.overridden ? 'override' : ''}" data-emp="${r.employeeId}" data-type="${t.id}">
-                    <strong>${b.remaining ?? '∞'}</strong><span>/ ${b.credits == null ? '—' : b.credits + b.adjusted}</span>
-                    ${b.used || b.pending ? html`<small>${b.used} used${b.pending ? `, ${b.pending} pending` : ''}</small>` : ''}
-                  </button></td>`;
+                  const inner = html`<strong>${b.remaining ?? '∞'}</strong><span>/ ${b.credits == null ? '—' : b.credits + b.adjusted}</span>
+                    ${b.used || b.pending ? html`<small>${b.used} used${b.pending ? `, ${b.pending} pending` : ''}</small>` : ''}`;
+                  // Only HR managers and administrators change credits; others see them.
+                  return can('leave.adjust')
+                    ? html`<td class="center"><button class="cell-btn ${low ? 'low' : ''} ${b.overridden ? 'override' : ''}" data-emp="${r.employeeId}" data-type="${t.id}">${inner}</button></td>`
+                    : html`<td class="center"><span class="cell-btn readonly ${low ? 'low' : ''}">${inner}</span></td>`;
                 })}
               </tr>`)}</tbody>
             </table>
@@ -401,7 +403,7 @@ async function typesTab(el) {
     const types = hr.leaveTypes;
     mount(el, html`
       <section class="card">
-        <div class="toolbar"><span class="muted small">Leave types are the same at every campus.</span><span class="spacer"></span><button class="btn primary" id="add-type">${icon('plus', 16)} Add leave type</button></div>
+        <div class="toolbar"><span class="muted small">Leave types are the same at every campus.</span><span class="spacer"></span>${can('leave.adjust') ? html`<button class="btn primary" id="add-type">${icon('plus', 16)} Add leave type</button>` : ''}</div>
         <div class="scroll-x"><table class="table">
           <thead><tr><th>Code</th><th>Name</th><th>Pay</th><th class="num">Annual credits</th><th>Who gets it</th><th>Rules</th><th>Status</th><th></th></tr></thead>
           <tbody>${types.map((t) => html`<tr>
@@ -411,7 +413,7 @@ async function typesTab(el) {
             <td>${t.appliesTo === 'selected' ? badge('Selected employees', 'blue') : 'Everyone'}${t.gender ? html`<small>${LEAVE_GENDERS[t.gender]}</small>` : ''}</td>
             <td>${t.certificateAfterDays != null ? html`<span class="small">Medical certificate ${t.certificateAfterDays === 0 ? 'always' : `over ${t.certificateAfterDays} day${t.certificateAfterDays === 1 ? '' : 's'}`}</span>` : html`<span class="muted">—</span>`}</td>
             <td>${t.active ? badge('Active', 'green') : badge('Inactive', 'gray')}</td>
-            <td class="row-actions"><button class="link" data-edit="${t.id}">Edit</button><button class="link danger" data-delete="${t.id}">Delete</button></td>
+            <td class="row-actions">${can('leave.adjust') ? html`<button class="link" data-edit="${t.id}">Edit</button><button class="link danger" data-delete="${t.id}">Delete</button>` : ''}</td>
           </tr>`)}</tbody>
         </table></div>
         <p class="muted small">Defaults follow common Philippine practice (Service Incentive Leave is at least 5 days under the Labor Code; maternity, paternity and solo parent leave follow RA 11210, RA 8187 and RA 11861). Adjust to school policy (for example, teachers' proportional vacation pay under DepEd and CHED rules).</p>
@@ -424,7 +426,7 @@ async function typesTab(el) {
         appliesTo: fd.get('appliesTo'), gender: fd.get('gender'), certificateAfterDays: fd.get('certificateAfterDays'),
       };
     };
-    el.querySelector('#add-type').addEventListener('click', () =>
+    el.querySelector('#add-type')?.addEventListener('click', () =>
       modal({ title: 'Add leave type', body: typeForm(), submitLabel: 'Add', onSubmit: async (f) => { await api.post('/api/hris/leave-types', read(f)); toast('Leave type added.'); load(); } }),
     );
     el.querySelector('tbody').addEventListener('click', async (e) => {

@@ -229,7 +229,7 @@ export async function meProfileView(el) {
         ${info('Schedule', `${sched.flex ? 'Flexible time' : `${fmtTime(sched.shiftStart)} – ${fmtTime(sched.shiftEnd)}`}, ${sched.workDays.map((d) => WEEKDAYS[d]).join(', ')}`)}
       </dl></section>
       <section class="card"><h2>Government IDs &amp; bank</h2><dl class="info-grid">
-        ${info('TIN', emp.tin)}${info('SSS', emp.sssNo)}${info('PhilHealth', emp.philhealthNo)}${info('Pag-IBIG', emp.pagibigNo)}
+        ${info('TIN', emp.tin)}${hr.settings.payrollSystem === 'government' ? info('GSIS BP no.', emp.gsisNo) : info('SSS', emp.sssNo)}${info('PhilHealth', emp.philhealthNo)}${info('Pag-IBIG', emp.pagibigNo)}
         ${info('Bank', emp.bankName)}${info('Account no.', emp.bankAccount)}
       </dl></section>
     </div>
@@ -254,7 +254,7 @@ export async function meRequestsView(el, _params, query) {
         </div>`)}</div>
       </section>
       <section class="card">
-        <h2>My requests</h2>
+        <h2>Leave &amp; requests</h2>
         ${requests.length
           ? html`<table class="table">
               <thead><tr><th>Request</th><th>Dates</th><th class="num">Days</th><th>Reason</th><th>Status</th><th></th></tr></thead>

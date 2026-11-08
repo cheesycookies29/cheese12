@@ -6,7 +6,7 @@ import { pageHead, ctx } from '../../shell.js';
 import { can, roleLabel } from '/shared/roles.js';
 import { icon } from '../../icons.js';
 
-const STATUS = [['soon', 'Coming soon (greyed out)'], ['live', 'Live: open it from the portal'], ['hidden', 'Hidden']];
+const STATUS = [['soon', 'Coming soon (greyed out)'], ['live', 'Live: open it from the ATLAS home page'], ['hidden', 'Hidden']];
 
 export async function systemsView(el) {
   const { systems, settings } = await api.get('/api/admin/systems');

@@ -391,7 +391,8 @@ export function registerHrisRoutes(route, ctx) {
       .sort((a, b) => a.startDate.localeCompare(b.startDate))
       .slice(0, 8)
       .map((r) => ({ id: r.id, kind: r.kind, startDate: r.startDate, endDate: r.endDate, days: r.days, name: `${byId.get(r.employeeId).firstName} ${byId.get(r.employeeId).lastName}`, typeName: r.kind === 'remote' ? 'Remote work' : data().leaveTypes.find((t) => t.id === r.leaveTypeId)?.name || 'Leave' }));
-    const runs = can(user.role, 'payroll.view') ? data().payrollRuns.filter((r) => r.campusId === campusId).sort((a, b) => b.periodStart.localeCompare(a.periodStart)) : [];
+    // The latest regular payroll (bonus runs are not "the payroll").
+    const runs = can(user.role, 'payroll.view') ? data().payrollRuns.filter((r) => r.campusId === campusId && (!r.kind || r.kind === 'regular')).sort((a, b) => b.periodStart.localeCompare(a.periodStart)) : [];
     return {
       date,
       headcount: active.length,

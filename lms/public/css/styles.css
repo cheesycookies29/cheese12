@@ -706,7 +706,7 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 @keyframes page-loading-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* Required fields are marked; links inside text and tables are underlined (not told apart by colour alone). */
-.field:has(:required) > span:first-child::after { content: ' *'; color: var(--danger); font-weight: 700; }
+.field:has(:required) > span:first-child:not(:has(em))::after { content: ' *'; color: var(--danger); font-weight: 700; }
 #app p a:not(.btn), #app dd a:not(.btn), #app td a:not(.btn), #app li a:not(.btn), #app small a:not(.btn) { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 /* Touch screens: checkboxes and radios large enough to tap. */
 @media (pointer: coarse) { input[type='checkbox'], input[type='radio'] { width: 24px; height: 24px; } }
@@ -720,3 +720,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 :root[data-theme='dark'] .btn.primary { background: color-mix(in srgb, var(--brand) 72%, #fff 28%); border-color: color-mix(in srgb, var(--brand) 72%, #fff 28%); color: #fff; }
 :root[data-theme='dark'] .btn.primary:hover { background: color-mix(in srgb, var(--brand) 60%, #fff 40%); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+/* Narrow phones: the top bar's round buttons (systems, help, theme) make room for the ATLAS name. */
+@media (max-width: 400px) {
+  .topbar { gap: 6px; }
+  .topbar .round-btn { width: 34px; height: 34px; }
+  .topbar .round-btn svg { width: 18px; height: 18px; }
+  .topbar .user-btn > svg { display: none; }
+  .topbar .brand img { width: 30px; height: auto; }
+}

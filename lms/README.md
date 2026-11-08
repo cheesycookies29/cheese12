@@ -28,7 +28,7 @@ Everyone starts at the **ATLAS home page**, the school's single front door to th
 | <http://localhost:3100/finance/> | **ATLAS Finance** for the accounting, budget, cashier's and supply offices, and self-service for employees (property, cash advances, requests) and students (their receipts) |
 | <http://localhost:3100/verify/CODE> | Anyone checks a document printed from Academic (the QR code on it opens this page) |
 
-**ATLAS Learn**, **ATLAS People**, **ATLAS Academic** and **ATLAS Finance** are live. **Facilities** shows greyed out as *Coming soon* until an administrator switches it on under **Admin panel → ATLAS home & systems** with the address it runs at. Students do not see the ATLAS People tile.
+**ATLAS Learn**, **ATLAS People**, **ATLAS Academic** and **ATLAS Finance** are live. **Facilities** shows greyed out as *Coming soon* until an administrator switches it on under **Admin panel → Home page & systems** with the address it runs at. Students do not see the ATLAS People tile.
 
 The web addresses (`/lms/`, `/hris/`), the `lms` folder, the server's service names (`ltdc-lms`) and the sign-in cookies keep their old names, so existing installs, bookmarks and servers keep working after the rename.
 

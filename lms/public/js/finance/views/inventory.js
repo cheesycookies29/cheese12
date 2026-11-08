@@ -121,7 +121,7 @@ export async function prView(el, params) {
       ${p.status === 'draft' && (mine || can('finance.procure')) ? html`<button class="btn primary" data-a="submit">Submit</button>` : ''}
       ${p.status === 'submitted' && can('finance.approve') && !mine ? html`<button class="btn primary" data-a="approve">Approve</button>` : ''}
       ${p.status === 'approved' && can('finance.procure') ? html`<a class="btn primary" href="#/pos/new?prId=${p.id}">${icon('truck', 16)} Prepare PO</a>` : ''}
-      ${['draft', 'submitted', 'approved'].includes(p.status) && (mine || can('finance.procure') || can('finance.approve')) ? html`<button class="btn danger ghost" data-a="cancel">Cancel</button>` : ''}`, can('finance.view') ? ['/prs', 'Purchase requests'] : ['/me/requests', 'My requests'])}
+      ${['draft', 'submitted', 'approved'].includes(p.status) && (mine || can('finance.procure') || can('finance.approve')) ? html`<button class="btn danger ghost" data-a="cancel">Cancel</button>` : ''}`, can('finance.view') ? ['/prs', 'Purchase requests'] : ['/me/requests', 'Supply & purchase requests'])}
     <section class="card">${infoGrid([['Purpose', p.purpose], ['Requested by', `${p.requestedBy.name}${p.requestedBy.title ? `, ${p.requestedBy.title}` : ''}`], ['Approved by', p.approvedBy ? `${p.approvedBy.name}, ${p.approvedBy.title}` : '—'], p.poNos.length && ['Purchase orders', html`${p.poNos.map((o) => html`<a href="#/pos/${o.id}">PO ${o.no}</a> `)}`], p.cancelReason && ['Cancelled', p.cancelReason]])}</section>
     <section class="card"><table class="table compact"><thead><tr><th>Unit</th><th>Description</th><th class="num">Qty</th><th class="num">Est. unit cost</th><th class="num">Est. cost</th></tr></thead>
       <tbody>${p.items.map((i) => html`<tr><td>${i.unit}</td><td>${i.description}</td><td class="num">${i.qty}</td>${amt(i.unitCost)}${amt(i.amount)}</tr>`)}</tbody><tfoot><tr><td colspan="4">Total</td>${amt(p.total, { strong: true })}</tr></tfoot></table></section>`);
@@ -327,7 +327,7 @@ export async function risView(el, params) {
       ${printLink('ris', r.id)}
       ${r.status === 'requested' && can('finance.inventory') ? html`<button class="btn" data-a="approve">Approve</button>` : ''}
       ${open && can('finance.inventory') ? html`<button class="btn primary" data-a="issue">Issue</button>` : ''}
-      ${open && (can('finance.inventory') || r.requestedBy.userId === ctx.user.id) ? html`<button class="btn danger ghost" data-a="cancel">Cancel</button>` : ''}`, can('finance.view') ? ['/ris', 'Requisitions'] : ['/me/requests', 'My requests'])}
+      ${open && (can('finance.inventory') || r.requestedBy.userId === ctx.user.id) ? html`<button class="btn danger ghost" data-a="cancel">Cancel</button>` : ''}`, can('finance.view') ? ['/ris', 'Requisitions'] : ['/me/requests', 'Supply & purchase requests'])}
     <section class="card">${infoGrid([['Requested by', r.requestedBy.name], ['Approved by', r.approvedBy || '—'], ['Issued by', r.issuedBy ? `${r.issuedBy}, ${fmtDate(r.issuedDate)}` : '—'], ['Received by', r.receivedBy || '—']])}
       <table class="table compact"><thead><tr><th>Stock no.</th><th>Description</th><th>Unit</th><th class="num">Requested</th><th class="num">In stock</th><th class="num">Issued</th></tr></thead>
       <tbody>${r.items.map((i) => html`<tr><td>${i.stockNo}</td><td>${i.description}</td><td>${i.unit}</td><td class="num">${i.qty}</td><td class="num">${i.onHand}</td><td class="num">${r.status === 'issued' ? i.issued : ''}</td></tr>`)}</tbody></table></section>`);

@@ -2,7 +2,7 @@
 // stepping from one student to the next.
 import { api } from '../../api.js';
 import { html, mount, modal, toast, fmtDateTime, statusBadge, timeAgo, formData, confirmDialog, empty, fmtSize, readFile, dueText, initials } from '../../ui.js';
-import { pageHead } from '../../shell.js';
+import { ctx, pageHead } from '../../shell.js';
 import { icon, CATEGORY_ICON } from '../../icons.js';
 import { richText, taskDialog } from './classes.js';
 import { classLabel } from '../common.js';
@@ -13,7 +13,7 @@ export async function assignmentView(el, { id }) {
   const a = await api.get(`/api/assignments/${id}`);
   if (a.kind === 'quiz') return (location.hash = `#/quizzes/${id}`);
   const teacher = 'submissions' in a;
-  const back = [['/classes', 'My classes'], [`/classes/${a.class.id}/activities`, classLabel(a.class)]];
+  const back = [['/classes', ctx.user?.role === 'student' ? 'My classes' : 'My sections'], [`/classes/${a.class.id}/activities`, classLabel(a.class)]];
   mount(el, html`
     ${pageHead(html`${a.title} ${a.published ? '' : statusBadge('pending', 'Draft')}`, html`${a.class.course.title} · ${dueText(a.dueAt)}${a.allowLate ? ' · late work accepted' : ''} · ${a.points} points`,
       teacher ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button><button class="btn danger ghost" id="delete">${icon('trash', 16)} Delete</button>` : '', back)}

@@ -56,7 +56,7 @@ export async function settingsView(el) {
         </div>
       </section>
       <section class="card"><h2>Student applications</h2>
-        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The sign-in page shows "Apply as a student". Applicants appear under Applicants and can sign in once admitted.</span></label>
+        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ATLAS home page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
       </section>
       ${editable ? html`<div class="actions end"><button class="btn primary" type="submit">Save settings</button></div>` : ''}
     </form>`);

@@ -296,8 +296,9 @@ export function govPayslipCard(run, p, settings, { slipNumber, pesosInWords, per
 // ----- To Finance: obligation request, payroll voucher, remittances -----
 const STATUS = { draft: ['Waiting', 'amber'], obligated: ['Obligated', 'green'], certified: ['Certified (Box C)', 'blue'], approved: ['Approved (Box D)', 'blue'], paid: ['Paid', 'green'], cancelled: ['Cancelled', 'gray'] };
 const docBadge = (d) => (d ? badge(...(STATUS[d.status] || [d.status, 'gray'])) : '');
-// The document in ATLAS Finance (opens there for Finance's officers).
-const finLink = (path, label) => html`<a href="/finance/#${path}" target="_blank" rel="noopener">${label}</a>`;
+// The document in ATLAS Finance: a link for those who can open it there (administrators), its
+// number otherwise (Finance's officers find it under the same number).
+const finLink = (path, label) => (ctx.user?.role === 'admin' ? html`<a href="/finance/#${path}" target="_blank" rel="noopener">${label}</a>` : html`<strong>${label}</strong>`);
 
 export function financeView(run, f, { canEdit }) {
   if (run.status !== 'finalized') return html`<p class="muted">Finalize the run first. A finalized government payroll goes to Finance as an obligation request, then a disbursement voucher.</p>`;

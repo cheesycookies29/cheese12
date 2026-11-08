@@ -2,7 +2,7 @@
 // administrators keep student records, curricula, grade sheets, documents and reports;
 // teachers submit their grade sheets; students see their evaluation, grades and registration,
 // and request documents. Benchmarked against the CBSUA UIS (docs/ACADEMIC-PLAN.md).
-import { startApp, authScreen, authLogo } from '../shell.js';
+import { ctx, startApp, authScreen, authLogo } from '../shell.js';
 import { html } from '../ui.js';
 import { api } from '../api.js';
 import { ac, can, isStudent, isTeacher, isStaff } from './state.js';
@@ -52,7 +52,7 @@ function nav() {
   }
   if (isTeacher()) return [{ heading: 'Teaching' }, { href: '/grade-sheets', label: 'Grade sheets', icon: 'clipboard' }];
   return [
-    { heading: 'Registrar' },
+    { heading: ctx.user?.role === 'dean' ? 'College' : 'Registrar' },
     { href: '/dashboard', label: 'Dashboard', icon: 'chart' },
     { href: '/students', label: 'Students', icon: 'users' },
     { href: '/grade-sheets', label: 'Grade sheets', icon: 'clipboard', badge: 'sheets' },

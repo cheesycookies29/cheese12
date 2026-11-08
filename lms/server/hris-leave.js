@@ -158,7 +158,7 @@ function approve(data, req, user, note) {
     const block = genderBlock(type, employee);
     if (block) throw new HttpError(400, `Cannot approve: ${block}`);
     if (needsCertificate(type, req.days) && !req.attachment) {
-      throw new HttpError(400, `Cannot approve yet: ${type.name} of more than ${type.certificateAfterDays} days needs a medical certificate, and none is attached. The employee can attach it under My requests.`);
+      throw new HttpError(400, `Cannot approve yet: ${type.name} of more than ${type.certificateAfterDays} days needs a medical certificate, and none is attached. The employee can attach it under Leave & requests.`);
     }
     const bal = leaveBalances(data, employee.id, req.startDate.slice(0, 4)).find((b) => b.leaveTypeId === type.id);
     if (bal.remaining !== null && bal.remaining < 0) throw new HttpError(400, `Not enough ${type.name} credits left to approve this request.`);
@@ -263,13 +263,13 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
 
   // ----- Leave types (school-wide) -----
   route('GET', '/api/hris/leave-types', 'hris', () => data().leaveTypes);
-  route('POST', '/api/hris/leave-types', 'hris:leave.manage', ({ body }) => {
+  route('POST', '/api/hris/leave-types', 'hris:leave.adjust', ({ body }) => {
     const type = { id: randomUUID(), ...validateLeaveType(body, data()) };
     data().leaveTypes.push(type);
     save();
     return type;
   });
-  route('PUT', '/api/hris/leave-types/:id', 'hris:leave.manage', ({ params, body }) => {
+  route('PUT', '/api/hris/leave-types/:id', 'hris:leave.adjust', ({ params, body }) => {
     const type = findLeaveType(data(), params.id);
     Object.assign(type, validateLeaveType(body, data(), type.id));
     // Keep the paid flag on future leave entries in step with the type.
@@ -277,7 +277,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     save();
     return type;
   });
-  route('DELETE', '/api/hris/leave-types/:id', 'hris:leave.manage', ({ params }) => {
+  route('DELETE', '/api/hris/leave-types/:id', 'hris:leave.adjust', ({ params }) => {
     const type = findLeaveType(data(), params.id);
     const used = data().timeEntries.some((e) => e.leaveTypeId === type.id) || data().requests.some((r) => r.leaveTypeId === type.id);
     if (used) throw new HttpError(400, `${type.name} has been used. Mark it inactive instead of deleting it.`);
@@ -295,7 +295,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
       .sort((a, b) => a.lastName.localeCompare(b.lastName))
       .map((e) => ({ employeeId: e.id, employeeNo: e.employeeNo, name: `${e.lastName}, ${e.firstName}`, department: e.department || '', balances: leaveBalances(data(), e.id, year) }));
   });
-  route('PUT', '/api/hris/leave-credits', 'hris:leave.manage', ({ body, campusId }) => {
+  route('PUT', '/api/hris/leave-credits', 'hris:leave.adjust', ({ body, campusId }) => {
     const year = Number(body.year);
     if (!(year >= 2000 && year <= 2100)) throw new HttpError(400, 'Pick a valid year.');
     const emp = employeeIn(campusId, body.employeeId);
@@ -439,6 +439,8 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
   });
   route('POST', '/api/hris/requests/:id/cancel', 'hris:leave.approve', ({ params, body, user, campusId }) => {
     const req = findRequest(params.id, campusId);
+    // As with approving: another approver handles your own request (withdraw a pending one under Leave & requests).
+    if (user.employeeId && user.employeeId === req.employeeId) throw new HttpError(403, 'You cannot cancel your own request here. Another approver must do it.');
     cancel(data(), req, user, body.note);
     save();
     return withEmployee(data(), req);
