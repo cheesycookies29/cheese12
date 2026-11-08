@@ -94,6 +94,8 @@ Only a payment that settles a liability needs no ORS/BURS: amounts due to BIR, G
 
 ATLAS refuses a new advance while the person has one unsettled, and an advance for a special disbursing officer or payroll needs a fidelity bond on the officer's card that covers the amount and has not expired. When the officer refunds the unused balance, issue an O.R. crediting the advance account with the officer's card; the Chief Accountant then posts the liquidation.
 
+![Outstanding cash advances, one overdue](cashier-advances.jpg)
+
 ### Remit the taxes withheld
 
 1. Open **Taxes withheld**. The **Monthly summary and remittance** tab shows last month by fund and ATC, and what is still to remit and when it is due (the 10th of the next month).

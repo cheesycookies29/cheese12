@@ -76,7 +76,7 @@ export async function controlView(el, _p, query) {
       ${can('finance.accounts') ? html`<form class="toolbar" id="lock"><input type="month" name="lockedThrough" value="${s.lockedThrough}" /><button class="btn primary">Close through this month</button><button type="button" class="btn" id="reopen">Reopen all</button></form>` : ''}
     </section>
     <section class="card"><h2>Year-end closing</h2><p class="muted small">Closes revenue and expense accounts to Accumulated Surplus/(Deficit), one entry per fund cluster, dated December 31. Statements and the trial balance can still be shown before closing entries.</p>
-      ${can('finance.accounts') ? html`<form class="toolbar" id="close"><input type="number" name="year" value="${s.fiscalYear - (new Date().getMonth() < 2 ? 1 : 0)}" style="width:100px" /><select name="fund">${fundOptions(s.funds[0])}</select><button class="btn primary">Post closing entry</button></form>` : ''}
+      ${can('finance.accounts') ? html`<form class="toolbar" id="close"><input type="number" name="year" value="${new Date().getFullYear() - 1}" aria-label="Year to close (the last year that is over)" style="width:100px" /><select name="fund">${fundOptions(s.funds[0])}</select><button class="btn primary">Post closing entry</button></form>` : ''}
     </section>`;
   } else if (tab === 'users') {
     const d = await api.get('/api/finance/users');

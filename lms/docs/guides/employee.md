@@ -82,7 +82,7 @@ Some offices have a shared **Time clock** computer instead: pick your name and c
 5. Attach a medical certificate if the leave needs one (see below).
 6. Click **Submit for approval**.
 
-The request shows *Pending* under **My requests**. When HR approves it, the days appear in **My attendance**: leave days come off your balance, and a remote-work day counts as a full day. You cannot file more days than you have left, or dates that overlap another pending or approved request. You only see the leave types you are entitled to.
+The request shows *Pending* under **Leave & requests**. When HR approves it, the days appear in **My attendance**: leave days come off your balance, and a remote-work day counts as a full day. You cannot file more days than you have left, or dates that overlap another pending or approved request. You only see the leave types you are entitled to.
 
 On an approved remote-work day you can still clock in and out to record your hours.
 

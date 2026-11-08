@@ -266,7 +266,7 @@ Notes:
 
 ## 4. What is not in this release
 
-- **Payroll from ATLAS People.** Payroll vouchers are entered here. People computes payroll, but its personnel-services obligations and payroll entries are not yet posted to Finance automatically.
+- **Payroll from ATLAS People.** Done: a finalized government payroll run sends its ORS/BURS (personnel services, and labor and wages for job orders), then its payroll voucher and the remittance vouchers to GSIS, PhilHealth, Pag-IBIG and BIR, through Finance's own routes (server/hris-finance.js). Loans owed to cooperatives and other creditors are still remitted with a voucher made in Finance.
 - **Petty cash fund**: petty cash vouchers (Appendix 48), replenishment report (Appendix 49), registers.
 - **Further reports and outputs**:
   - the remaining budget reports in DBM's exact templates for online submission: FAR No. 1-A, 1-B, 1-C, 2, 2-A, 4, 5 and BAR No. 1;

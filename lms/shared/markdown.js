@@ -42,7 +42,7 @@ function inline(text, opts) {
     if (!h) return label;
     return `<a href="${esc(h.url)}"${h.external ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
   });
-  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/(^|[^\w*])\*([^*\n]+)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
+  s = s.replace(/\*\*(.+?)\*\*(?!\*)/g, '<strong>$1</strong>').replace(/(^|[^\w*])\*([^*\n]+)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`);
 }
 

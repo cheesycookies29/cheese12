@@ -41,7 +41,11 @@ Try this with the demo school: sign in as `accountant.demo` (password `demo1234`
 ![The trial balance for fund 01](accountant-trial-balance.jpg)
 
 7. Open **Bank reconciliation**. Pick the cash account, the fund and the month. Type the **Balance per bank statement**, tick the entries that appear on the statement, and watch the summary: when the difference is 0.00 it says *Reconciled*.
+
+![A bank reconciliation](accountant-bank-recon.jpg)
 8. Open **Control panel → Periods & closing** to see how the books are closed. (In the demo you can close a past month and then click **Reopen all**.)
+
+![Closing the books in the Control panel](accountant-control-periods.jpg)
 
 ## How to…
 
@@ -181,4 +185,3 @@ When the payroll office sends a finalized government payroll to Finance, its vou
 
 **Year-end closing says the year is not over.** Closing is allowed from January of the next year, once per fund.
 
-**Where do I check who changed something?** **Audit trail** lists every action with who did it and when. Search by action or person.

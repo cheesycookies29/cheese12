@@ -41,6 +41,8 @@ Try this with the demo school: sign in as `supply.demo` (password `demo1234`).
 
 5. Click **Inspect and accept delivery**. You would enter the supplier's invoice number and the quantity delivered now; because the PO is late, ATLAS computes liquidated damages. (Close the dialog without saving if you are only looking.)
 6. Open **Stock**. Tick **Low stock only** and click **Find** to see what needs a purchase request. Click an item for its stock card.
+
+![Stock items with what is on hand](supply-officer-stock.jpg)
 7. Open **Property** and open an item. Its property card shows how it was received and to whom it was issued, with the depreciation schedule.
 
 ![A property item with its PAR and property card](supply-officer-property.jpg)
@@ -97,6 +99,8 @@ Offices and employees file requisitions through **Supply & purchase requests** i
 2. If some issues are not yet booked, pick the fund and click **Book … issues (JEV)**.
 
 The entry charges the month's issues to expense by office (Dr expense / Cr inventory). The **Recapitulation** shows the entry.
+
+![The RSMI for the month](supply-officer-rsmi.jpg)
 
 ### Record the physical count of inventories
 
