@@ -137,10 +137,10 @@ Open **Schedule** for the week's timetable. Pending requests are drawn dashed. I
 
 1. Open **Calendar**. **Month** shows the month; **Week** lists each day; **List** shows only the days with something on them (the view on a phone).
 2. Use **‹** and **›** to move, and **Today** to come back.
-3. Choose an entry for its details: the time, the room, the class, and **Open the class** or **Open the activity**. Choose a day (or **+2 more**) to see everything on it.
-4. The coloured buttons above the calendar (**Classes**, **Due dates**, **Examinations**, …) show or hide each kind; the calendar remembers your choice.
+3. Choose an entry for its details: the time, the room, the class, and **Open the class** or **Open the activity**. Choose a day (or **2 more**) to see everything on it.
+4. The coloured tick boxes above the calendar (**Classes**, **Due dates**, **Examinations**, …) show or hide each kind; the calendar remembers your choice.
 
-Class meetings do not appear on holidays and days without classes. Work you handed in is crossed out with a check mark.
+Class meetings do not appear on holidays and days without classes. Work you handed in is greyed out with a check mark; a red **!** marks missing work. Events that last several days run as one bar across the days.
 
 ![The calendar: classes, due dates, exams and holidays](student-calendar.jpg)
 

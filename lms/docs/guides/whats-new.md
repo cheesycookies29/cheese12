@@ -11,6 +11,7 @@ order: 2
 
 ### School calendar
 - Students, teachers and parents have a **Calendar** in Learn: class meetings, due dates (and whether work was handed in), examinations, holidays and days without classes, school events and term dates, by month, week or list, with filters. Parents see each linked student as far as the link allows. Subscribe from Google Calendar, Outlook or a phone. See [the student's guide](student#use-the-calendar), [the teacher's guide](teacher#use-the-calendar) and [the parent's guide](parent#see-the-school-calendar).
+- The calendar has a cleaner look: one frame, a dot and time for each class or due date, events of several days as one bar, tick boxes to show or hide each kind, a week of seven columns and a list with the date beside each day.
 - Administrators and registrars plan it under **School calendar** in the Admin panel: each event has a kind (holiday, examinations, meeting…), who it is for, and whether classes are held. See [the administrator's guide](admin#plan-the-school-calendar).
 
 ### Settings for administrators

@@ -160,7 +160,7 @@ The sheet then shows *Waiting for approval*. The dean approves it (*Approved, wa
 
 1. Open **Calendar**, and choose **Month**, **Week** or **List**.
 2. Choose an entry for its details, and **Open the class** or **Open the activity**. Choose a day to see everything on it.
-3. The coloured buttons above the calendar show or hide each kind of entry.
+3. The coloured tick boxes above the calendar show or hide each kind of entry.
 4. **Print** prints the view you see, e.g. the month for your desk.
 
 Classes on a holiday or a day without classes are left out, so plan make-up work from the calendar. To have it on your phone, choose **Subscribe → Make my calendar address** and add the address to your calendar app, which then reads the calendar's own address, which keeps it up to date every few hours. Anyone with the address sees your calendar: if you shared it by mistake, choose **Get a new address** (the old one stops working) or **Stop sharing**.

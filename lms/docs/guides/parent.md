@@ -103,7 +103,7 @@ The **Grades** tab always lists every term, so the term picker is not shown ther
 1. Open **School calendar**. With more than one student, pick one, or **All my students** (each entry then starts with the student's name, e.g. *Carlo: Quiz 1*).
 2. Choose **Month**, **Week** or **List**, and move with **‹**, **›** and **Today**.
 3. Choose an entry for its details. A due date says whether the work is **Handed in**, **To do**, **Overdue** or **Missing**; **Open** goes to the student's page.
-4. The coloured buttons above the calendar show or hide each kind of entry.
+4. The coloured tick boxes above the calendar show or hide each kind of entry.
 
 To follow it from your phone, choose **Subscribe → Make my calendar address** and add the address to your calendar app, which then reads the calendar's own address, which keeps it up to date every few hours. Anyone with the address sees your calendar: if you shared it by mistake, choose **Get a new address** (the old one stops working) or **Stop sharing**.
 
