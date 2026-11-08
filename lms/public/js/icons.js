@@ -26,6 +26,7 @@ const P = {
   check: '<path d="M5 12l5 5 9-10"/>',
   checkCircle: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
   circle: '<circle cx="12" cy="12" r="9"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 0c0 1.8-2.5 2.2-2.5 4"/><path d="M12 17h.01"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>',

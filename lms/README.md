@@ -100,6 +100,13 @@ Demo records are added **next to your own data** and **Remove demo data** takes 
 
 Other settings: `PORT=3101 npm start` (another port), `HOST=0.0.0.0 npm start` (let other computers on your network open it), `DB_FILE=/path/db.json` (another data file).
 
+## Help & guides
+
+Every system has a **Help** button (the question mark in the top bar). It opens **Help & guides** (`/help/`) at the guide for that person's job there: students, parents, teachers, registrars, deans, administrators, HR, payroll, employees (self-service) and each Finance office. Each guide has a walkthrough with screenshots of the demo school, how-to steps for each task, a table of every screen, and common questions; there is also *Getting started* and *What's new*. Guides can be searched and printed.
+
+- **They come with ATLAS.** The guides are written in `docs/guides/` next to the code (format and process: [docs/guides/README.md](docs/guides/README.md)), so every update brings its guides. A test fails when a screen in any sidebar has no guide, or a screenshot is missing; `npm run guides:screenshots` retakes the screenshots from the demo school (needs Playwright).
+- **Administrators can edit them** (**Edit this guide**, with a live preview) and add the school's own guides. The school's version is kept across updates; when an update changes a guide the school has edited, the administrator is told and can compare, copy in what is new, or restore the built-in guide.
+
 ## Admin panel
 
 | Page | What it does |

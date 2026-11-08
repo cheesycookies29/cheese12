@@ -3,12 +3,12 @@
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
 import { ctx, applyBranding, authHero, authLogo, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
-import { icon } from '../icons.js';
+import { icon, iconSvg } from '../icons.js';
 import { roleLabel } from '/shared/roles.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
-const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/'], admin: ['/admin', '/hris/', '/academic/', '/finance/'], hris: ['/hris/', '/finance/'] };
+const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/', '/help/'], admin: ['/admin', '/hris/', '/academic/', '/finance/', '/help/'], hris: ['/hris/', '/finance/', '/help/'] };
 const next = new URLSearchParams(location.search).get('next');
 
 document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
@@ -218,6 +218,9 @@ async function boot() {
   mount(document.getElementById('school-name'), atlasWord());
   mount(document.getElementById('brand-sub'), html`${status.branding.schoolName}${status.campusName ? html` · <strong class="campus-name">${status.campusName}</strong>` : ''}${status.branding.termName ? ` · ${status.branding.termName}` : ''}`);
   renderThemeButton();
+  const helpBtn = document.getElementById('help-btn');
+  helpBtn.innerHTML = iconSvg('help');
+  helpBtn.hidden = false;
   userMenu(status);
   homeView(status);
 }

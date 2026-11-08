@@ -318,6 +318,8 @@ export function startApp(config) {
   document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
   // Back to the University Portal, where the other systems are.
   document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" href="/" title="All systems" aria-label="All systems">${iconSvg('grid')}</a>`);
+  // Help & guides: opens the guide for this person in this system (shared/help.js).
+  document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" id="help-btn" href="/help/?from=${encodeURIComponent(config.side)}" target="_blank" rel="noopener" title="Help & guides" aria-label="Help and guides">${iconSvg('help')}</a>`);
 
   // A view with unsaved work sets ctx.dirty = () => true; leaving it asks first (and the address goes back).
   let lastHash = location.hash;

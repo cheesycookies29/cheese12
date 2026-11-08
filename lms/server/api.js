@@ -29,6 +29,17 @@ import { addDemo, removeDemo, demoStatus } from './demo.js';
 import { emptyData } from './db.js';
 import { createFileStore } from './files.js';
 import { registerNewsRoutes } from './news.js';
+import { registerGuideRoutes } from './guides.js';
+import { readFileSync } from 'node:fs';
+
+// The version of this ATLAS (package.json), shown with the guides.
+const APP_VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version || '';
+  } catch {
+    return '';
+  }
+})();
 import { themeColors } from '../shared/themes.js';
 import { SYSTEMS } from '../shared/systems.js';
 import { campusesFor, activeCampusId, campusName } from './campus.js';
@@ -380,6 +391,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
 
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
+  registerGuideRoutes(route, { db, version: APP_VERSION });
   registerAdminRoutes(route, ctx);
   registerEnrollmentRoutes(route, ctx);
   registerGuardianRoutes(route, ctx, registerClassroomRoutes(route, ctx));

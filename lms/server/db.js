@@ -82,6 +82,7 @@ export function emptyData() {
     leaveAccess: [], // a leave type given to, or taken from, one employee
     leaveAdjustments: [], // days added or taken away, with a reason
     requests: [], // leave and remote-work requests
+    guideEdits: [], // administrators' versions of the Help & guides pages (server/guides.js)
     // ----- Academic (server/academic.js) -----
     academicSettings: mergeAcademicSettings(), // grading scale, requirements, document fees, signatories
     colleges: [], // colleges/departments; a program belongs to one (program.collegeId)

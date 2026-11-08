@@ -17,7 +17,7 @@ const api = createApi(db);
 
 const PUBLIC = path.join(ROOT, 'public');
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': PUBLIC };
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.ttf': 'font/ttf' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf' };
 const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin' };
 
 function send(res, status, body, type = 'application/json', headers = {}) {
@@ -71,6 +71,8 @@ function serveStatic(req, url, res) {
   if (url.pathname === '/academic/') return sendFile(req, res, path.join(PUBLIC, 'academic', 'index.html'));
   if (url.pathname === '/finance') return send(res, 302, '', 'text/plain', { Location: '/finance/' });
   if (url.pathname === '/finance/') return sendFile(req, res, path.join(PUBLIC, 'finance', 'index.html'));
+  if (url.pathname === '/help') return send(res, 302, '', 'text/plain', { Location: '/help/' });
+  if (url.pathname === '/help/') return sendFile(req, res, path.join(PUBLIC, 'help', 'index.html'));
   if (/^\/verify\/[A-Za-z0-9-]{4,40}$/.test(url.pathname)) return sendFile(req, res, path.join(PUBLIC, 'verify.html')); // a document's verification page
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;
