@@ -1,5 +1,11 @@
 [
  {
+  "file": "getting-started-sign-in.jpg",
+  "user": null,
+  "url": "/",
+  "wait": 900
+ },
+ {
   "file": "getting-started-home.jpg",
   "user": "teacher.demo",
   "url": "/",

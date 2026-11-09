@@ -42,6 +42,7 @@ export function setTheme(dark) {
 }
 export function renderThemeButton() {
   const btn = document.getElementById('theme-btn');
+  if (!btn) return;
   btn.innerHTML = iconSvg(isDark() ? 'sun' : 'moon');
   btn.title = isDark() ? 'Light mode' : 'Dark mode';
   const logo = document.getElementById('brand-logo');
@@ -49,37 +50,59 @@ export function renderThemeButton() {
 }
 
 // ----- Sign-in screens -----
-const PORTAL_POINTS = [['cap', 'Enrollment', 'Request classes and follow each request'], ['book', 'Classes', 'Lessons, files and announcements'], ['quiz', 'Quizzes', 'Timed exams with instant results'], ['chart', 'Grades', 'Grades, attendance and your schedule']];
-const ADMIN_POINTS = [['clipboard', 'Enrollment', 'Requests, waitlists and applicants'], ['layers', 'Catalog', 'Courses, terms and sections'], ['toggles', 'Modules', 'What students, teachers and parents can use'], ['settings', 'Settings', 'Branding, grading and school rules']];
+const PORTAL_POINTS = [['cap', 'Enrollment'], ['book', 'Classes'], ['quiz', 'Quizzes'], ['chart', 'Grades']];
+const ADMIN_POINTS = [['clipboard', 'Enrollment'], ['layers', 'Catalog'], ['toggles', 'Modules'], ['settings', 'Settings']];
 
-// The burgundy panel beside every sign-in form, laid out like CORE's: the wordmark, a short
-// line about this system, what it covers, and the school. The mark sits faintly in the corner.
-export function authHero({ kicker = '', title, text, points = [] }) {
+// Every sign-in screen is a bookplate on paper: the school's seal and name at the top, the form
+// inside a double rule, and what this sign-in opens along the bottom. Help and dark mode sit above.
+const appLine = () => {
+  const app = document.body.dataset.app || 'ATLAS';
+  return app === 'ATLAS' ? 'ATLAS' : app.replace(/^ATLAS /, 'ATLAS · ').replace(/ · Admin$/, ' · Admin panel');
+};
+export function authPlate(el, { line = appLine(), ledger = [], card }) {
   const b = ctx.info?.branding || {};
-  return html`<section class="auth-hero">
-    <img class="hero-mark" src="/img/brand/atlas-mark-white.svg" alt="" />
-    <div class="seal"><img src="${markSrc(true)}" alt="" /><div><strong>ATLAS</strong><small>${BYLINE}</small></div></div>
-    <div style="position:relative;z-index:1">
-      ${kicker ? html`<p class="auth-kicker">${kicker}</p>` : ''}
-      <h1>${title}</h1>
-      <p>${text}</p>
-      ${points.length ? html`<ul class="auth-points">${points.map(([i, name, t]) => html`<li>${icon(i, 30)} <span><strong>${name}</strong>${t ? html` · ${t}` : ''}</span></li>`)}</ul>` : ''}
-    </div>
-    <small class="hero-foot">${b.logo ? html`<img src="${b.logo}" alt="" />` : ''}© ${new Date().getFullYear()} ${b.schoolName || 'Lancaster Technology and Development Corporation'}</small>
-  </section>`;
-}
-
-export function authScreen(el, { admin = false } = {}, card) {
-  const b = ctx.info?.branding || {};
+  const campus = ctx.info?.campusName;
+  const open = ledger.filter(([, later]) => !later);
+  const soon = ledger.filter(([, later]) => later);
   mount(el, html`
     <div class="auth-screen">
-      ${authHero(admin
-        ? { kicker: 'Learn · Admin panel', title: 'Run the school side.', text: `Enrollment, the catalog and accounts${b.schoolName ? ` for ${b.schoolName}` : ''}.`, points: ADMIN_POINTS }
-        : { kicker: 'Learn', title: b.tagline || 'Learning, all in one place.', text: 'Classes, lessons, quizzes, grades and attendance, for students, teachers and parents.', points: PORTAL_POINTS })}
-      <section class="auth-panel">${card}</section>
+      <header class="auth-bar">
+        <a class="auth-lockup" href="/">${themedMark('auth-bar-mark')}<strong>ATLAS</strong></a>
+        <nav class="auth-links" aria-label="Help and display">
+          <a href="/help/" aria-label="Help and guides">${icon('help', 16)} <span>Help &amp; guides</span></a>
+          <button type="button" class="link auth-theme" id="auth-theme"></button>
+        </nav>
+      </header>
+      <main class="auth-panel">
+        <div class="plate">
+          <div class="plate-seal${b.logo ? ' own' : ''}"><img src="${b.logo || '/img/brand/atlas-mark-white.svg'}" alt="" /></div>
+          <div class="plate-frame">
+            <p class="plate-ex">Ex libris</p>
+            <h1 class="plate-school">${b.schoolName || 'ATLAS'}</h1>
+            <p class="plate-line">${line}</p>
+            <div class="plate-rule" aria-hidden="true"><span></span></div>
+            ${b.tagline ? html`<p class="plate-tag">${b.tagline}</p>` : ''}
+            ${card}
+          </div>
+        </div>
+      </main>
+      <footer class="auth-footer">
+        ${open.length ? html`<ul class="auth-ledger" aria-label="What this sign-in opens">${open.map(([name]) => html`<li>${name}</li>`)}</ul>` : ''}
+        ${soon.length ? html`<p class="auth-soon">Coming soon: ${soon.map(([name]) => name).join(', ')}</p>` : ''}
+        <p class="auth-copy">© ${new Date().getFullYear()} ${b.schoolName || 'Lancaster Technology and Development Corporation'}${campus ? ` · ${campus}` : ''}</p>
+      </footer>
     </div>`);
-  const form = el.querySelector('form');
-  form?.querySelector('input')?.focus();
+  const theme = el.querySelector('#auth-theme');
+  const drawTheme = () => {
+    const label = isDark() ? 'Light mode' : 'Dark mode';
+    theme.innerHTML = `${iconSvg(isDark() ? 'sun' : 'moon', 16)} <span>${label}</span>`;
+    theme.setAttribute('aria-label', label);
+  };
+  drawTheme();
+  theme.addEventListener('click', () => {
+    setTheme(!isDark());
+    drawTheme();
+  });
   el.querySelectorAll('[data-toggle-pw]').forEach((btn) =>
     btn.addEventListener('click', () => {
       const input = btn.previousElementSibling;
@@ -87,7 +110,15 @@ export function authScreen(el, { admin = false } = {}, card) {
       btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
     }),
   );
+  const form = el.querySelector('form');
+  form?.querySelector('input')?.focus();
   return form;
+}
+
+export function authScreen(el, { admin = false } = {}, card) {
+  const learn = document.body.dataset.app === 'ATLAS Learn';
+  const ledger = (admin ? ADMIN_POINTS : learn ? PORTAL_POINTS : []).map(([, name]) => [name]);
+  return authPlate(el, { ledger, card });
 }
 
 // "Switch campus" in the user menu, for accounts that work at more than one campus.
@@ -141,8 +172,6 @@ export function showSsoError(form) {
   history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
 }
 
-// Above the sign-in form on phones, where the burgundy panel is hidden (as in CORE).
-export const authLogo = () => html`<div class="auth-brand">${themedMark('auth-mark')}<strong>ATLAS</strong><small>${BYLINE}</small></div>`;
 
 export const passwordField = (label, name, autocomplete) => html`
   <label class="field"><span>${label}</span>
@@ -169,7 +198,6 @@ export function onFormSubmit(form, handler) {
 export function forcePasswordView(el, { admin, authBase, onDone, onSignOut }) {
   const form = authScreen(el, { admin }, html`
     <form class="auth-card" novalidate>
-      ${authLogo()}
       <h2>Choose a new password</h2>
       <p class="muted">Hi ${ctx.user.name}. Your password was set by someone else, so please replace it before continuing.</p>
       ${passwordField('Current (temporary) password', 'currentPassword', 'current-password')}

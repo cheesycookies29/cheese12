@@ -2,7 +2,7 @@
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
-import { ctx, applyBranding, authHero, authLogo, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
+import { ctx, applyBranding, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel } from '/shared/roles.js';
 
@@ -20,42 +20,21 @@ function showAuth(render) {
 }
 
 // ----- Signed out -----
-function hubScreen(card, systems) {
-  const b = ctx.info.branding;
-  mount(authEl, html`
-    <div class="auth-screen">
-      ${authHero({
-        kicker: 'Unified education management',
-        title: b.tagline || 'One sign-in for every school system.',
-        text: `For the students, parents, faculty and staff of ${b.schoolName}.`,
-        points: [
-          ...systems.filter((s) => s.status === 'live').map((s) => [s.icon, s.product, s.title]),
-          ...(systems.some((s) => s.status !== 'live') ? [['clock', 'Coming soon', systems.filter((s) => s.status !== 'live').map((s) => s.product).join(', ')]] : []),
-        ],
-      })}
-      <section class="auth-panel">${card}</section>
-    </div>`);
-  authEl.querySelectorAll('[data-toggle-pw]').forEach((btn) => btn.addEventListener('click', () => {
-    const input = btn.previousElementSibling;
-    input.type = input.type === 'password' ? 'text' : 'password';
-    btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
-  }));
-  const form = authEl.querySelector('form');
-  form?.querySelector('input')?.focus();
-  return form;
+function hubScreen(card, systems, line) {
+  return authPlate(authEl, {
+    line,
+    card,
+    ledger: [...systems.filter((s) => s.status === 'live'), ...systems.filter((s) => s.status !== 'live')].map((s) => [s.product, s.status !== 'live']),
+  });
 }
-
-const cardLogo = authLogo;
 
 function signInView(status) {
   if (status.setupRequired) {
-    return hubScreen(html`<div class="auth-card">${cardLogo()}<h2>Not set up yet</h2><p class="muted">An administrator needs to set up the system first: create the administrator account and name the school.</p><a class="btn primary block" href="/admin">Set up in the admin panel</a></div>`, status.systems);
+    return hubScreen(html`<div class="auth-card"><h2>Not set up yet</h2><p class="muted">An administrator needs to set up the system first: create the administrator account and name the school.</p><a class="btn primary block" href="/admin">Set up in the admin panel</a></div>`, status.systems);
   }
   const form = hubScreen(html`
     <form class="auth-card" novalidate>
-      ${cardLogo()}
-      <h2>Sign in</h2>
-      <p class="muted">Sign in to ATLAS with the account your school gave you.</p>
+      <h2 class="sr-only">Sign in</h2>
       ${ssoBlock(status.sso, next || '/')}
       ${passwordFields(status.sso, html`<label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}
@@ -63,7 +42,7 @@ function signInView(status) {
       <p class="form-error" hidden></p>
       ${status.registrationOpen ? html`<p class="auth-switch">New student? <button type="button" class="link" id="apply">Apply for admission</button></p>` : ''}
       <p class="auth-foot">${status.sso?.enabled && !status.sso.passwords ? 'Trouble signing in? Ask the registrar or your administrator.' : 'Forgot your password? Ask the registrar or your administrator to reset it.'}</p>
-    </form>`, status.systems);
+    </form>`, status.systems, 'ATLAS · Sign in');
   form.querySelector('#apply')?.addEventListener('click', () => applyView(status));
   showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
@@ -77,8 +56,7 @@ function applyView(status) {
   const back = () => signInView(status);
   const form = hubScreen(html`
     <form class="auth-card" novalidate>
-      ${cardLogo()}
-      <h2>Apply for admission</h2>
+      <h2 class="sr-only">Apply for admission</h2>
       <p class="muted">The registrar reviews your application; you can sign in once you are admitted.</p>
       <label class="field"><span>Full name</span><input name="name" autocomplete="name" required /></label>
       <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required /></label>
@@ -91,7 +69,7 @@ function applyView(status) {
       <p class="form-error" hidden></p>
       <button class="btn primary block" type="submit">Send application</button>
       <p class="auth-switch"><button type="button" class="link" id="back">← Back to sign in</button></p>
-    </form>`, status.systems);
+    </form>`, status.systems, 'ATLAS · Apply for admission');
   api.get('/api/auth/programs').then((programs) => {
     form.querySelector('#programs').insertAdjacentHTML('beforeend', programs.map((p) => `<option value="${p.id}">${p.code} · ${p.name.replace(/</g, '&lt;')}</option>`).join(''));
   });

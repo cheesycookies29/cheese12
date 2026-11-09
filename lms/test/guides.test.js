@@ -57,7 +57,7 @@ test('every screenshot a guide shows exists and is in screenshots.json (and noth
   }
   for (const s of manifest) {
     assert.ok(used.has(s.file), `screenshots.json: ${s.file} is not shown by any guide`);
-    assert.ok(s.user && s.url, `screenshots.json: ${s.file} needs user and url`);
+    assert.ok('user' in s && s.url, `screenshots.json: ${s.file} needs user (null for a signed-out screen) and url`);
   }
 });
 

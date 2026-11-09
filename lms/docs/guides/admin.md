@@ -146,7 +146,7 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 1. Choose **Settings & branding**.
 2. Under **School**: the **School name**, the **Current term** and the **Passing grade (%)**.
 3. Under **Enrollment rules**: **Requests need approval**, **Waitlists**, **Waitlist size per section** and **Maximum units per term** (0 means no limit).
-4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB), and the **Sign-in headline**.
+4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB; it replaces the ATLAS mark in the round seal on the sign-in pages), and the **Sign-in headline** (an optional line under the school name on the sign-in pages).
 5. Under **Student applications**: whether people may apply from the sign-in page.
 6. Under **Sign-in and passwords**: the **Shortest password** (8 to 64 characters), **Wrong passwords before locking** and **Minutes locked**, **Sign out after (hours idle)**, **Passwords mix letters and digits**, and **Always change the first password** (new accounts and reset passwords must be changed at the first sign-in, in every system).
 7. Under **Uploads, quizzes and parent alerts**: the **Largest upload (MB)** (1 to 15), the **Quiz grace period (seconds)** that answers sent just after a deadline still count, and from how many absences a parent sees them in red.

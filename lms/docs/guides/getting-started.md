@@ -44,9 +44,14 @@ This tour uses the demo school. Sign in as `teacher.demo` with the password `dem
 
 ### Sign in
 
-1. Open the ATLAS home page.
+1. Open the ATLAS home page. The sign-in page shows your school's name at the top, the form under it, and the systems ATLAS opens at the bottom.
+
+![The ATLAS sign-in page: the school's seal and name, then Username, Password and Sign in](getting-started-sign-in.jpg)
+
 2. Type your **Username** and **Password**. Choose **Show** to see the password you typed.
 3. Choose **Sign in**.
+
+**Help & guides** and **Dark mode** are at the top right of the sign-in page, so you can read the guides or switch to dark mode before you sign in. On a phone they are the question mark and the moon.
 
 The home page opens with the tiles for your account. If you opened a system's address directly (for example `/hris/`) while signed out, ATLAS asks you to sign in on the home page and then takes you back to that system.
 

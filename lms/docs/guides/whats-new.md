@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A new sign-in page
+- Every ATLAS sign-in page (the home page, the admin panel, and the page shown when an account cannot use a system) has a new look: the school's seal and name at the top, the form under it, and the systems ATLAS opens at the bottom. **Help & guides** and **Dark mode** are now on the sign-in page too. See [Getting started](getting-started#sign-in).
+
 ### A tidier home page
 - **Your systems** on the ATLAS home page is now one row of tiles of the same size. When they do not all fit, use the arrows beside *… available*, the dots under the tiles, or swipe. See [Getting started](getting-started#walkthrough).
 

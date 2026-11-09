@@ -2,7 +2,7 @@
 // Manual, Revised Chart of Accounts), DBM (budget execution, ORS/BURS) and BIR (withholding on
 // government money payments). Modules: Card file, Accounts, Budget, Inventory, Property,
 // Disbursement, Revenue and the Control panel; self-service for employees and students.
-import { startApp, authScreen, authLogo } from '../shell.js';
+import { startApp, authScreen } from '../shell.js';
 import { html } from '../ui.js';
 import { api } from '../api.js';
 import { fin, can, isStaff, isStudent, improveAccess } from './state.js';
@@ -131,7 +131,7 @@ const home = () => (isStaff() ? '/dashboard' : '/me');
 
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
-    return authScreen(el, {}, html`<div class="auth-card">${authLogo()}<h2>Finance is for the school</h2>
+    return authScreen(el, {}, html`<div class="auth-card"><h2>Finance is for the school</h2>
       <p class="muted">You are signed in as ${status.deniedUser.name}. ATLAS Finance is for the school's employees and students. Your systems are on the ATLAS home page.</p>
       <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
   }
