@@ -1,29 +1,28 @@
 import { api } from '../api.js';
 import { ctx } from '../state.js';
 import { html, mount, modal, toast } from '../ui.js';
-import { icon } from '../icons.js';
 
-const POINTS = [
-  ['users', 'HR & Payroll', 'Employees, attendance, leave and payroll'],
-  ['laptop', 'IT Asset Management', 'Equipment, stock and who holds what'],
-  ['headset', 'IT Service Desk', 'Tickets from staff, email and customers'],
-];
+const MODULES = ['HR & Payroll', 'IT Assets', 'Service Desk', 'Sales & CRM'];
 
+// The sign-in screens: CORE's own ground (deep maroon, the mark drawn large in gold line) beside
+// a cream panel that holds the form. On a phone the ground shrinks to a band above the form.
 function authScreen(el, card) {
   mount(el, html`
     <div class="auth-screen">
-      <section class="auth-hero">
-        <img class="hero-mark" src="/img/core-mark.svg" alt="" />
-        <div class="seal"><img class="core-seal" src="/img/core-mark.svg" alt="" /><div><strong class="core-name">CORE</strong><small>ERP by Lancaster</small></div></div>
-        <div style="position:relative;z-index:1">
-          <p class="auth-kicker">Enterprise Resource Planning</p>
+      <section class="auth-stage">
+        <img class="auth-stage-mark" src="/img/core-mark-line.svg" alt="" />
+        <div class="auth-wordmark"><img src="/img/core-mark.svg" alt="" /><span>CORE</span></div>
+        <div class="auth-intro">
+          <p class="auth-kicker">ERP by Lancaster</p>
           <h1>Every part of the company, on one core.</h1>
-          <p>One sign-in for the people, equipment and service work of Lancaster Technology and Development Corporation.</p>
-          <ul class="auth-points">${POINTS.map(([i, name, text]) => html`<li>${icon(i, 30)} <span><strong>${name}</strong> · ${text}</span></li>`)}</ul>
+          <p>One sign-in for the people, equipment, service and sales work of Lancaster Technology and Development Corporation.</p>
         </div>
-        <small>© ${new Date().getFullYear()} Lancaster Technology and Development Corporation</small>
+        <ul class="auth-modules" aria-label="Modules">${MODULES.map((m) => html`<li>${m}</li>`)}</ul>
       </section>
-      <section class="auth-panel">${card}</section>
+      <section class="auth-panel">
+        ${card}
+        <p class="auth-legal">© ${new Date().getFullYear()} Lancaster Technology and Development Corporation</p>
+      </section>
     </div>`);
   const form = el.querySelector('form');
   form.querySelector('input')?.focus();
@@ -36,9 +35,6 @@ function authScreen(el, card) {
   );
   return form;
 }
-
-// Shown above the form on phones, where the hero is hidden.
-const cardBrand = () => html`<img class="auth-logo core" src="/img/core-mark-brand.svg" alt="" /><div class="auth-brand"><strong>CORE</strong><small>ERP by Lancaster</small></div>`;
 
 const passwordField = (label, name, autocomplete) => html`
   <label class="field"><span>${label}</span>
@@ -65,13 +61,12 @@ function onSubmit(form, handler) {
 export function loginView(el, { onSignedIn }) {
   const form = authScreen(el, html`
     <form class="auth-card" novalidate>
-      ${cardBrand()}
       <h2>Sign in</h2>
-      <p class="muted">Sign in to CORE with the account your administrator gave you.</p>
+      <p class="muted">Use the account your administrator gave you.</p>
       <label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}
       <p class="form-error" hidden></p>
-      <button class="btn primary block" type="submit">Sign in</button>
+      <button class="btn primary block" type="submit">Sign in to CORE</button>
       <p class="auth-foot">Forgot your password? Ask your administrator to reset it.</p>
     </form>`);
   onSubmit(form, async ({ username, password }) => {
@@ -84,7 +79,6 @@ export function loginView(el, { onSignedIn }) {
 export function setupView(el, { onSignedIn }) {
   const form = authScreen(el, html`
     <form class="auth-card" novalidate>
-      ${cardBrand()}
       <h2>Welcome! Let's get set up</h2>
       <p class="muted">Create the first <strong>Administrator</strong> account. You can add HR, payroll, IT and employee accounts after signing in.</p>
       <label class="field"><span>Your full name</span><input name="name" autocomplete="name" required /></label>
@@ -105,7 +99,6 @@ export function setupView(el, { onSignedIn }) {
 export function forcePasswordView(el, { onSignedIn, onSignOut }) {
   const form = authScreen(el, html`
     <form class="auth-card" novalidate>
-      ${cardBrand()}
       <h2>Choose a new password</h2>
       <p class="muted">Hi ${ctx.user.name}. Your password was set by an administrator, so please replace it before continuing.</p>
       ${passwordField('Current (temporary) password', 'currentPassword', 'current-password')}

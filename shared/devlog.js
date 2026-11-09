@@ -27,6 +27,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.11.5-alpha',
+    date: '2026-11-09',
+    title: 'New sign-in page',
+    modules: ['system'],
+    notes: 'The sign-in, first-run setup and change-password screens carry the CORE brand.',
+    changes: [
+      ['improved', 'system', 'Sign-in: CORE\'s deep maroon ground with the mark drawn large in gold line, the four modules along its foot, and the form on a cream panel beside it. A sharper Sign in to CORE button with a gold edge, and the copyright at the foot of the panel. The same layout for first-run setup and for choosing a new password.'],
+      ['improved', 'system', 'On a phone or tablet the maroon ground becomes a short band above the form; on a small phone the form starts within the first screen. In the dark theme the panel is a dark warm tone instead of navy.'],
+    ],
+  },
+  {
     version: '0.11.4-alpha',
     date: '2026-11-08',
     title: 'Formal payslip layout',
