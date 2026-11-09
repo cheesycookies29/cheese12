@@ -45,7 +45,13 @@ test('payroll and time rules are the ERP\'s, unchanged', { skip: !fs.existsSync(
     { employeeId: 'e1', date: '2026-10-05', type: 'leave', paid: true },
   ];
   const args = { employee, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings };
-  assert.deepEqual(lmsCalc.computePayslip(args), erpCalc.computePayslip(args));
+  // The ERP has since added holidays, premium lines and night shift pay (CORE 0.10). For a
+  // period with none of them, every figure the LMS computes must still equal the ERP's.
+  const lmsSlip = lmsCalc.computePayslip(args);
+  const erpSlip = erpCalc.computePayslip(args);
+  const sameShape = (from, like) => Object.fromEntries(Object.keys(like).map((k) => [k, like[k] && typeof like[k] === 'object' && !Array.isArray(like[k]) ? sameShape(from[k], like[k]) : from[k]]));
+  assert.deepEqual(lmsSlip, sameShape(erpSlip, lmsSlip));
+  assert.equal(erpSlip.earnings.holidayPay + erpSlip.earnings.nightDiffPay, 0);
   for (const fn of ['sssContribution', 'philhealthContribution', 'pagibigContribution']) assert.deepEqual(lmsCalc[fn](32000), erpCalc[fn](32000));
   assert.equal(lmsCalc.withholdingTax(16000, 'semi-monthly'), erpCalc.withholdingTax(16000, 'semi-monthly'));
 });

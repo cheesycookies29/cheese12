@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow, noarchive" />
+<meta name="theme-color" content="#0a2c2d" />
+<title>Legati Group</title>
+<meta name="description" content="Legati Group is a holding company that builds and keeps businesses for the long term." />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 132'%3E%3Crect x='3' y='3' width='94' height='126' fill='%23F6E574' stroke='%230A2C2D' stroke-width='6'/%3E%3Cpath d='M27 6V102H72V126M94 30H49V77H71V55' fill='none' stroke='%230A2C2D' stroke-width='5'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=Oswald:wght@500&family=Open+Sans:ital,wght@0,300;0,400;1,300&display=swap" />
+<style>
+/* Layout: the brand book's page. A plain Legati Green rail on the left, white pages ruled into
+   bands by hairlines, the mark once per screen at the top right, the Roman-capital wordmark on
+   type guide lines, and one gold meander band. Palette and faces follow the Legati logo usage
+   guidelines. */
+:root {
+  /* Brand palette (logo usage guidelines) */
+  --green: #0a2c2d;        /* Legati Green: trust */
+  --white: #fcfbfc;        /* Legati White: clarity */
+  --gold-a: #f6e574;       /* Legati Gold, top of the 180° gradient */
+  --gold-b: #fffda5;       /* Legati Gold, bottom */
+  --parchment: #fffda5;    /* Legati Parchment: resilience */
+  /* Neutrals, biased toward the green */
+  --ink: #0a2c2d;
+  --text: #22393a;
+  --muted: #566b6b;
+  --rule: #d7dddb;
+  --guide: #b9c3c0;
+  --mist: #f1f3f2;
+  --on-green: #eef3f1;
+  --on-green-muted: #a9bdbb;
+  --on-green-rule: rgba(238, 243, 241, 0.2);
+  --gold-line: #e3cf4f;
+
+  --display: 'Marcellus', 'Cormorant Garamond', 'Times New Roman', serif;   /* stands in for LT Remark */
+  --head: 'Oswald', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --body: 'Open Sans', 'Segoe UI', system-ui, sans-serif;
+
+  --rail: 64px;
+  --wrap: 1120px;
+  --gutter: clamp(20px, 5vw, 64px);
+  --header: 64px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: var(--header); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--white);
+  color: var(--text);
+  font: 300 17px/1.7 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+img, svg { max-width: 100%; }
+a { color: inherit; }
+p { margin: 0; text-wrap: pretty; }
+h1, h2, h3 { text-wrap: balance; }
+::selection { background: var(--parchment); color: var(--ink); }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+.on-green :focus-visible { outline-color: var(--gold-a); }
+main:focus { outline: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -9999px; top: 8px; z-index: 50; background: var(--green); color: var(--white); padding: 12px 16px; }
+.skip:focus { left: calc(var(--rail) + 12px); }
+
+/* ---------- The rail: plain green, as on the brand book pages ---------- */
+.rail { position: fixed; inset: 0 auto 0 0; width: calc(var(--rail) + env(safe-area-inset-left, 0px)); z-index: 20; background: var(--green); }
+.page { margin-left: var(--rail); }
+
+/* ---------- Header ---------- */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15;
+  background: color-mix(in srgb, var(--white) 94%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+.top-in {
+  max-width: calc(var(--wrap) + 2 * var(--gutter)); margin: 0 auto; min-height: var(--header);
+  padding-block: 10px; padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; gap: 24px; position: relative;
+}
+.brand { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; text-decoration: none; color: var(--ink); }
+.brand .mark { width: 22px; display: none; }
+.brand span { font: 400 17px/1 var(--display); letter-spacing: 0.32em; white-space: nowrap; transition: opacity .3s; }
+.top.over-hero .brand span { opacity: 0; }
+.nav { margin-left: auto; display: flex; align-items: center; gap: 28px; }
+.nav a { font: 500 13px/1 var(--head); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; color: var(--muted); text-decoration: none; padding: 8px 0; border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
+.nav a:hover { color: var(--ink); border-bottom-color: var(--gold-line); }
+.nav a.cta { color: var(--green); border: 1px solid var(--green); padding: 11px 18px; }
+.nav a.cta:hover { background: var(--green); color: var(--white); }
+.menu-btn { display: none; margin-left: auto; background: none; border: 1px solid var(--muted); width: 44px; height: 44px; cursor: pointer; color: var(--ink); padding: 0; }
+.menu-btn svg { width: 18px; height: 18px; display: block; margin: auto; }
+.menu-btn .x { display: none; }
+.menu-btn[aria-expanded="true"] .bars { display: none; }
+.menu-btn[aria-expanded="true"] .x { display: block; }
+
+/* ---------- Bands and wraps ---------- */
+.band { border-bottom: 1px solid var(--rule); }
+.wrap {
+  max-width: calc(var(--wrap) + 2 * var(--gutter)); margin: 0 auto;
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+.eyebrow { font: 500 12.5px/1.2 var(--head); letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin: 0; }
+h2.title { font: 500 clamp(34px, 4.4vw, 52px)/1.06 var(--head); color: var(--ink); margin: 10px 0 0; letter-spacing: -0.005em; }
+h3 { font: 400 25px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02em; margin: 0; }
+.lede { font-size: 19px; line-height: 1.65; max-width: 60ch; color: var(--text); }
+.prose { display: grid; gap: 18px; max-width: 62ch; }
+
+/* ---------- Hero ---------- */
+.hero .wrap { padding-block: clamp(28px, 4vw, 56px) clamp(44px, 6vw, 80px); display: grid; gap: clamp(22px, 3vw, 36px); }
+.hero-mid { display: flex; justify-content: space-between; align-items: center; gap: 32px; }
+.hero-mark { width: clamp(96px, 10.5vw, 150px); flex: none; }
+.wordmark { margin: 0; display: grid; justify-items: start; min-width: 0; }
+.wordmark span {
+  display: block;
+  font: 400 clamp(44px, 7.2vw, 104px)/1.2 var(--display); letter-spacing: 0.2em; color: var(--ink);
+  /* type guide lines at cap height, x-height (dotted) and baseline, as on the brand book page */
+  background:
+    linear-gradient(var(--rule), var(--rule)) 0 19% / calc(100% - 0.2em) 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--guide) 0 2px, transparent 2px 5px) 0 50% / calc(100% - 0.2em) 1px no-repeat,
+    linear-gradient(var(--rule), var(--rule)) 0 81% / calc(100% - 0.2em) 1px no-repeat;
+}
+.hero-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 5vw, 72px); align-items: start; padding-top: clamp(4px, 1vw, 12px); }
+.hero-body h1 { font: 500 clamp(30px, 3.3vw, 44px)/1.12 var(--head); color: var(--ink); margin: 0; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
+.btn { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; font: 500 13.5px/1 var(--head); letter-spacing: 0.14em; text-transform: uppercase; text-decoration: none; padding: 0 22px; border: 1px solid var(--green); transition: background .2s, color .2s; }
+.btn.solid { background: var(--green); color: var(--white); }
+.btn.solid:hover { background: #134243; }
+.btn.line { color: var(--green); }
+.btn.line:hover { background: var(--mist); }
+.btn svg { width: 18px; height: 10px; }
+.on-green .btn.line { color: var(--white); border-color: var(--gold-a); }
+.on-green .btn.line:hover { background: rgba(246, 229, 116, 0.1); }
+
+/* ---------- Meander band ---------- */
+.meander { background: var(--green); color: var(--on-green); overflow: hidden; position: relative; }
+/* the brand banner's gold maze: meander keys turned 45°, fading in toward the right */
+.meander .maze { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-mask-image: linear-gradient(90deg, transparent 38%, #000 82%); mask-image: linear-gradient(90deg, transparent 38%, #000 82%); }
+.meander .wrap { position: relative; }
+.meander figure { margin: 0; padding-block: clamp(56px, 8vw, 104px); display: grid; gap: 14px; }
+.meander .motto { font: 400 clamp(26px, 3.4vw, 40px)/1.3 var(--display); color: var(--white); max-width: 30ch; letter-spacing: 0.01em; text-wrap: balance; }
+.meander figcaption { font: 500 12.5px/1.2 var(--head); letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-a); }
+
+/* ---------- The name ---------- */
+.split { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 6vw, 88px); padding-block: clamp(64px, 9vw, 112px); }
+.split aside { display: grid; gap: 22px; align-content: start; }
+.def { border-top: 1px solid var(--ink); padding-top: 16px; display: grid; gap: 6px; max-width: 34ch; }
+.def b { font: 400 26px/1.2 var(--display); letter-spacing: 0.06em; color: var(--ink); }
+.def i { font-style: italic; color: var(--muted); font-size: 15px; }
+.def p { font-size: 15.5px; }
+.marks { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 18px 26px; align-items: center; }
+.marks svg { width: 40px; height: 40px; color: var(--ink); flex: none; }
+.marks svg.lg { width: 34px; height: 45px; }
+.marks .arrow { width: 26px; height: 10px; color: var(--muted); }
+.marks figcaption { flex-basis: 100%; font-size: 13.5px; color: var(--muted); }
+
+/* ---------- Pillars ---------- */
+.pillars-band { background: var(--mist); }
+.pillars-band .wrap { padding-block: clamp(64px, 9vw, 112px); display: grid; gap: clamp(36px, 5vw, 56px); }
+.pillars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(14px, 2vw, 24px); list-style: none; margin: 0; padding: 0; }
+.pillar { display: grid; grid-template-rows: auto 1fr auto; }
+/* capital: a stepped abacus over a narrower echinus, in the pillar's brand colour */
+.pillar .capital { height: 38px; clip-path: polygon(0 0, 100% 0, 100% 45%, 94% 45%, 94% 100%, 6% 100%, 6% 45%, 0 45%); position: relative; }
+.pillar .capital.c-white { background: var(--ink); }
+.pillar .capital.c-white::before { content: ""; position: absolute; inset: 1px 1px 0; background: var(--white); clip-path: inherit; }
+.pillar .shaft { margin: 0 6%; background: var(--white); padding: 24px 22px 28px; display: grid; gap: 10px; align-content: start; position: relative; border-inline: 1px solid var(--rule); }
+/* fluting, kept to the edges of the shaft so the text sits on a clean ground */
+.pillar .shaft::before, .pillar .shaft::after { content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); }
+.pillar .shaft::before { left: 8px; }
+.pillar .shaft::after { right: 8px; }
+.pillar .colour { font: 500 11.5px/1.2 var(--head); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.pillar .colour i { width: 10px; height: 10px; display: inline-block; box-shadow: inset 0 0 0 1px rgba(10, 44, 45, 0.25); }
+.pillar h3 { font-size: 26px; }
+.pillar p { font-size: 15.5px; line-height: 1.6; }
+.pillar .base { height: 16px; background: var(--ink); clip-path: polygon(4% 0, 96% 0, 96% 50%, 100% 50%, 100% 100%, 0 100%, 0 50%, 4% 50%); }
+.c-green { background: var(--green); }
+.c-gold { background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); }
+.c-parchment { background: var(--parchment); }
+.c-white { background: var(--white); }
+
+/* ---------- How we hold ---------- */
+.hold { padding-block: clamp(64px, 9vw, 112px); display: grid; gap: clamp(36px, 5vw, 56px); }
+.hold-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--ink); }
+.hold-grid article { padding: 26px 28px 8px 0; display: grid; gap: 12px; align-content: start; }
+.hold-grid article + article { padding-left: 28px; border-left: 1px solid var(--rule); }
+.hold-grid p { font-size: 16px; }
+.hold-grid svg { width: 28px; height: 28px; color: var(--green); }
+
+/* ---------- The group ---------- */
+.group { padding-block: clamp(64px, 9vw, 104px); display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 6vw, 88px); align-items: start; }
+.company { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); padding: 26px 0 22px; display: grid; gap: 10px; }
+.company .kind { font: 500 12px/1.2 var(--head); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.company h3 { font-size: 28px; }
+.company p { font-size: 16px; max-width: 52ch; }
+.company a { justify-self: start; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: 500 13px/1 var(--head); letter-spacing: 0.16em; text-transform: uppercase; color: var(--green); text-decoration: underline 1px var(--gold-line); text-underline-offset: 7px; }
+.company a:hover { text-decoration-color: var(--green); }
+.company a svg { width: 18px; height: 10px; }
+
+/* ---------- Contact ---------- */
+.contact { background: var(--green); color: var(--on-green); }
+.contact .wrap { padding-block: clamp(64px, 9vw, 104px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: clamp(28px, 6vw, 88px); align-items: center; }
+.contact .eyebrow { color: var(--gold-a); }
+.contact h2.title { color: var(--white); }
+.contact .lede { color: var(--on-green); margin-top: 18px; }
+.contact .hero-actions { margin-top: 28px; }
+.contact-mark { justify-self: end; width: clamp(96px, 12vw, 150px); }
+
+/* ---------- Footer ---------- */
+footer { border-top: 1px solid var(--rule); }
+footer .wrap { padding-block: 22px calc(22px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px 28px; align-items: center; justify-content: space-between; }
+footer .brand span { font-size: 14px; }
+footer nav { display: flex; flex-wrap: wrap; gap: 0 22px; }
+footer nav a { display: inline-flex; align-items: center; min-height: 44px; font: 400 13.5px/1.4 var(--body); color: var(--muted); text-decoration: none; }
+footer nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
+
+/* ---------- Motion: the mark draws itself once ---------- */
+.draw path { stroke-dasharray: 260; stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .draw path { animation: draw 1.6s cubic-bezier(.6, 0, .2, 1) .2s both; }
+  .draw path + path { animation-delay: .55s; }
+  @keyframes draw { from { stroke-dashoffset: 260; } to { stroke-dashoffset: 0; } }
+}
+
+/* ---------- Narrower screens ---------- */
+@media (max-width: 1100px) {
+  .pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 961px) and (max-width: 1280px) {
+  /* E6: the maze starts further right while the motto is wide */
+  .meander .maze { -webkit-mask-image: linear-gradient(90deg, transparent 58%, #000 92%); mask-image: linear-gradient(90deg, transparent 58%, #000 92%); }
+  .meander .motto { max-width: 22ch; }
+}
+@media (max-width: 960px) {
+  .hero-body, .split, .group, .contact .wrap { grid-template-columns: minmax(0, 1fr); }
+  .hero-body h1 { font-size: clamp(32px, 5.4vw, 42px); }
+  .contact-mark { display: none; }
+  .hold-grid { grid-template-columns: minmax(0, 1fr); }
+  .hold-grid article, .hold-grid article + article { padding: 22px 0; border-left: 0; }
+  .hold-grid article + article { border-top: 1px solid var(--rule); }
+}
+@media (max-width: 900px) {
+  :root { --rail: 0px; --header: 64px; }
+  .rail { display: none; }
+  .brand .mark { display: block; }
+  .menu-btn { display: block; }
+  .hero-mark { display: none; }
+  .nav { display: none; position: absolute; left: 0; right: 0; top: 100%; background: var(--white); border-bottom: 1px solid var(--rule); box-shadow: 0 12px 24px rgba(10, 44, 45, 0.08); flex-direction: column; align-items: stretch; gap: 0; padding: 8px max(var(--gutter), env(safe-area-inset-right, 0px)) 18px max(var(--gutter), env(safe-area-inset-left, 0px)); }
+  .nav.open { display: flex; }
+  .nav a { padding: 15px 0; border-bottom: 1px solid var(--rule); font-size: 14px; }
+  .nav a.cta { margin-top: 16px; text-align: center; padding: 15px; }
+  .skip:focus { left: 12px; }
+}
+@media (max-width: 760px) {
+  .lede { font-size: 17.5px; }
+  .meander .maze { -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.06), rgba(0,0,0,.22)); mask-image: linear-gradient(90deg, rgba(0,0,0,.06), rgba(0,0,0,.22)); }
+  .pillars { gap: 12px; }
+  .pillar .shaft { padding: 18px 18px 20px; gap: 6px; }
+  .pillar .base { height: 10px; }
+  footer nav { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0 22px; }
+  .pillar .capital { height: 22px; }
+}
+@media (max-width: 560px) {
+  .pillars { grid-template-columns: minmax(0, 1fr); }
+  .wordmark span { letter-spacing: 0.14em; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="lg-gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6E574" />
+      <stop offset="1" stop-color="#FFFDA5" />
+    </linearGradient>
+    <symbol id="lg-mark" viewBox="0 0 100 132">
+      <rect x="3" y="3" width="94" height="126" fill="url(#lg-gold)" stroke="#0A2C2D" stroke-width="6" />
+      <path d="M27 6V102H72V126M94 30H49V77H71V55" fill="none" stroke="#0A2C2D" stroke-width="5" />
+    </symbol>
+    <!-- The meander key turned 45°, as in the Legati banner and the diamond form of the mark's history. -->
+    <pattern id="lg-maze" width="104" height="104" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M9 95V9H95V84H26V26H78V66H43V43H61" fill="none" stroke="#F6E574" stroke-width="7" stroke-linecap="square" />
+    </pattern>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+<div class="rail" aria-hidden="true"></div>
+
+<div class="page">
+  <header class="top">
+    <div class="top-in">
+      <a class="brand" href="#top" aria-label="Legati Group, back to top">
+        <svg class="mark" viewBox="0 0 100 132" aria-hidden="true"><use href="#lg-mark" /></svg>
+        <span>LEGATI GROUP</span>
+      </a>
+      <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="nav">
+        <span class="sr">Menu</span>
+        <svg class="bars" viewBox="0 0 18 18" aria-hidden="true"><path d="M1 4.5h16M1 9h16M1 13.5h16" stroke="currentColor" stroke-width="1.5" /></svg>
+        <svg class="x" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15" stroke="currentColor" stroke-width="1.5" /></svg>
+      </button>
+      <nav class="nav" id="nav" aria-label="Main">
+        <a href="#name">The name</a>
+        <a href="#principles">Principles</a>
+        <a href="#approach">Approach</a>
+        <a href="#group">The group</a>
+        <a class="cta" href="#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="band hero" id="top" aria-labelledby="hero-title">
+      <div class="wrap">
+        <p class="eyebrow">A holding company · Philippines</p>
+        <div class="hero-mid">
+          <p class="wordmark" aria-hidden="true"><span>LEGATI</span><span>GROUP</span></p>
+          <svg class="hero-mark draw" viewBox="0 0 100 132" aria-hidden="true">
+            <rect x="3" y="3" width="94" height="126" fill="url(#lg-gold)" stroke="#0A2C2D" stroke-width="6" />
+            <path d="M27 6V102H72V126" fill="none" stroke="#0A2C2D" stroke-width="5" />
+            <path d="M94 30H49V77H71V55" fill="none" stroke="#0A2C2D" stroke-width="5" />
+          </svg>
+        </div>
+        <div class="hero-body">
+          <h1 id="hero-title">We build and keep businesses for the long term.</h1>
+          <div>
+            <p class="lede">Legati Group is a holding company. We give the businesses we hold the capital, governance and patience to grow, and we stand behind how they are run.</p>
+            <div class="hero-actions">
+              <a class="btn solid" href="#principles">Our principles</a>
+              <a class="btn line" href="#group">Our companies
+                <svg viewBox="0 0 18 10" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="meander on-green" aria-label="Our motto">
+      <svg class="maze" aria-hidden="true"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg>
+      <div class="wrap">
+        <figure>
+          <p class="motto">Strength and stability, carried with authority and responsibility.</p>
+          <figcaption>The idea behind the Legati mark</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band" id="name" aria-labelledby="name-title">
+      <div class="wrap split">
+        <aside>
+          <p class="eyebrow">The name</p>
+          <h2 class="title" id="name-title">Why Legati</h2>
+          <div class="def">
+            <b>lēgātus</b>
+            <i>Latin, plural lēgātī</i>
+            <p>An envoy or commander entrusted to act with the authority of Rome, and held to account for how it was used.</p>
+          </div>
+        </aside>
+        <div class="prose">
+          <p class="lede">A legatus carried real authority and answered for it. That balance of power and responsibility is the standard we hold ourselves to.</p>
+          <p>Our mark is drawn from the meander, the continuous line that ran along Roman pillars and temples. Its corners turn back on themselves and never break, a figure of strength and of stability. Inside it sit the letters L and G.</p>
+          <p>The pillar is a good picture of a holding company. It carries weight that is not its own, it is built to stand for generations, and it only works if it is sound all the way through.</p>
+          <figure class="marks">
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M3 37V3h34v27H13V13h14v10h-6" fill="none" stroke="currentColor" stroke-width="3.2" /></svg>
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M37 3v34H3V13h24v14H13v-6" fill="none" stroke="currentColor" stroke-width="3.2" /></svg>
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 37 20 20 37 3 20l11-11 11 11-5 5-5-5" fill="none" stroke="currentColor" stroke-width="3" /></svg>
+            <svg class="arrow" viewBox="0 0 26 10" aria-hidden="true"><path d="M0 5h24M20 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
+            <svg class="lg" viewBox="0 0 100 132" aria-hidden="true"><use href="#lg-mark" /></svg>
+            <figcaption>From the meander to the Legati mark.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="band pillars-band" id="principles" aria-labelledby="principles-title">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Principles</p>
+          <h2 class="title" id="principles-title">Four pillars, one for each color of the house</h2>
+        </div>
+        <ul class="pillars">
+          <li class="pillar">
+            <div class="capital c-green" aria-hidden="true"></div>
+            <div class="shaft">
+              <span class="colour"><i class="c-green" aria-hidden="true"></i>Legati Green</span>
+              <h3>Trust</h3>
+              <p>We keep our word to the people and companies who depend on us. Trust is earned slowly and kept on purpose.</p>
+            </div>
+            <div class="base" aria-hidden="true"></div>
+          </li>
+          <li class="pillar">
+            <div class="capital c-gold" aria-hidden="true"></div>
+            <div class="shaft">
+              <span class="colour"><i class="c-gold" aria-hidden="true"></i>Legati Gold</span>
+              <h3>Excellence</h3>
+              <p>We set a high standard for the work of every business we hold, and we invest so that it can be met.</p>
+            </div>
+            <div class="base" aria-hidden="true"></div>
+          </li>
+          <li class="pillar">
+            <div class="capital c-parchment" aria-hidden="true"></div>
+            <div class="shaft">
+              <span class="colour"><i class="c-parchment" aria-hidden="true"></i>Legati Parchment</span>
+              <h3>Resilience</h3>
+              <p>We build for good years and hard ones: sound finances, steady leadership and decisions made for the long run.</p>
+            </div>
+            <div class="base" aria-hidden="true"></div>
+          </li>
+          <li class="pillar">
+            <div class="capital c-white" aria-hidden="true"></div>
+            <div class="shaft">
+              <span class="colour"><i class="c-white" aria-hidden="true"></i>Legati White</span>
+              <h3>Clarity</h3>
+              <p>We say clearly what we own, how we decide and what we expect, so that no one has to guess.</p>
+            </div>
+            <div class="base" aria-hidden="true"></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" id="approach" aria-labelledby="approach-title">
+      <div class="wrap hold">
+        <div>
+          <p class="eyebrow">Approach</p>
+          <h2 class="title" id="approach-title">How we hold a business</h2>
+        </div>
+        <div class="hold-grid">
+          <article>
+            <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M2 26h24M5 26V9M23 26V9M2 6h24L14 1zM10 26V9M18 26V9" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+            <h3>For the long term</h3>
+            <p>We build to keep. Our plans have no exit date, so decisions are weighed against the next ten years, not the next quarter.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M2 26V2h24v18H8V8h12v6h-6" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+            <h3>The group sets standards, the companies run</h3>
+            <p>Each company keeps its own leadership, name and customers. The group sets the standards, supports the people who lead, and holds them to account.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="1.6" /><path d="M8 14.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+            <h3>Responsible for what we hold</h3>
+            <p>We expect to be judged on how our companies are run and on what they deliver, and we hold ourselves to the standards we set for them.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="group" aria-labelledby="group-title">
+      <div class="wrap group">
+        <div class="prose">
+          <p class="eyebrow">The group</p>
+          <h2 class="title" id="group-title">Our companies</h2>
+          <p>The businesses of the group work under their own names, with the standards and backing of Legati Group behind them.</p>
+        </div>
+        <article class="company">
+          <span class="kind">Member company</span>
+          <h3>Lancaster Technology and Development Corporation</h3>
+          <p>Software and systems development.</p>
+          <a href="https://lancastertechdev.com" rel="noopener" target="_blank">Visit Lancaster<span class="sr"> (opens in a new tab)</span>
+            <svg viewBox="0 0 18 10" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="contact on-green" id="contact" aria-labelledby="contact-title">
+      <div class="wrap">
+        <div>
+          <p class="eyebrow">Contact</p>
+          <h2 class="title" id="contact-title">Get in touch</h2>
+          <p class="lede">For now, enquiries to the group go through Lancaster Technology and Development Corporation.</p>
+          <div class="hero-actions">
+            <a class="btn line" href="https://lancastertechdev.com/contact" rel="noopener" target="_blank">Send an enquiry<span class="sr"> through Lancaster (opens in a new tab)</span>
+              <svg viewBox="0 0 18 10" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
+            </a>
+          </div>
+        </div>
+        <svg class="contact-mark" viewBox="0 0 100 132" aria-hidden="true"><use href="#lg-mark" /></svg>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <a class="brand" href="#top" aria-label="Legati Group, back to top"><span>LEGATI GROUP</span></a>
+      <nav aria-label="Footer">
+        <a href="#name">The name</a>
+        <a href="#principles">Principles</a>
+        <a href="#approach">Approach</a>
+        <a href="#group">The group</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <small>© 2026 Legati Group. All rights reserved.</small>
+    </div>
+  </footer>
+</div>
+
+<script>
+  // Phone menu: opens under the header; closes on a choice, Escape, a tap outside, or focus leaving it.
+  const btn = document.getElementById('menu-btn');
+  const nav = document.getElementById('nav');
+  const isOpen = () => nav.classList.contains('open');
+  const setOpen = (open) => { nav.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open)); };
+  btn.addEventListener('click', () => setOpen(!isOpen()));
+  nav.addEventListener('click', (e) => { if (e.target.closest('a')) setOpen(false); });
+  document.addEventListener('click', (e) => { if (isOpen() && !e.target.closest('.top')) setOpen(false); });
+  nav.addEventListener('focusout', (e) => { if (isOpen() && !nav.contains(e.relatedTarget) && e.relatedTarget !== btn) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) { setOpen(false); btn.focus(); } });
+  document.querySelector('.top .brand').addEventListener('click', () => setOpen(false));
+  matchMedia('(min-width: 901px)').addEventListener('change', (e) => { if (e.matches) setOpen(false); });
+
+  // The header shows the name only once the hero wordmark has scrolled away.
+  const header = document.querySelector('.top');
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => header.classList.toggle('over-hero', entry.isIntersecting), { rootMargin: '-64px 0px 0px 0px' }).observe(document.querySelector('.wordmark'));
+  }
+
+</script>
+</body>
+</html>
