@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A tidier home page
+- **Your systems** on the ATLAS home page is now one row of tiles of the same size. When they do not all fit, use the arrows beside *… available*, the dots under the tiles, or swipe. See [Getting started](getting-started#walkthrough).
+
 ### REX Bookstore e-Reader (coming soon)
 - The ATLAS home page has a **REX Bookstore e-Reader** tile, marked **Coming soon**: e-books for your subjects from the REX Bookstore app's library, for students and teachers. Administrators switch it on under **Home page & systems** once it is connected. See [the administrator's guide](admin#choose-what-the-atlas-home-page-shows).
 

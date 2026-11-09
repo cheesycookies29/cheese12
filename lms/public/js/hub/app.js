@@ -146,13 +146,70 @@ function systemCard(s, side) {
   const openLabel = s.id === 'lms' && side === 'admin' ? 'Open the admin panel' : `Open ${s.product}`;
   const body = html`
     <span class="sys-top"><span class="sys-ic">${icon(s.icon, 26)}</span>${live ? html`<span class="sys-code">${s.short}</span>` : html`<span class="badge gray">${icon('lock', 12)} Coming soon</span>`}</span>
-    <span class="sys-name">${s.product}</span>
+    <span class="sys-name">${s.product.replace(/-/g, '\u2011')}</span>
     <strong class="sys-title">${s.title}</strong>
     <p>${s.description}</p>
     <span class="sys-open">${live ? html`${openLabel} ${icon(s.external ? 'external' : 'chevronRight', 16)}` : 'Not available yet'}</span>`;
   return live
     ? html`<a class="sys-card" href="${s.url}" ${s.external ? html`target="_blank" rel="noopener"` : ''}>${body}</a>`
     : html`<div class="sys-card soon" aria-disabled="true" title="${s.product} is coming soon">${body}</div>`;
+}
+
+// "Your systems" as a carousel: the cards scroll sideways and snap into place (swipe on a phone,
+// arrows or dots elsewhere, or arrow keys once the row has focus). Live systems come first.
+// The arrows and dots only show when some cards are out of view.
+function systemsCarousel(wrap) {
+  const track = wrap.querySelector('#sys-track');
+  const arrows = document.querySelector('.sys-arrows');
+  const prev = document.getElementById('sys-prev');
+  const next = document.getElementById('sys-next');
+  const dots = document.getElementById('sys-dots');
+  const smooth = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+  const cardStep = () => (track.children[1] ? track.children[1].offsetLeft - track.children[0].offsetLeft : track.clientWidth);
+  const perPage = () => Math.max(1, Math.round(track.clientWidth / cardStep()));
+  const pages = () => Math.max(1, Math.ceil(track.children.length / perPage() - 0.01));
+  const atEnd = () => track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+  const pageNow = () => (atEnd() ? pages() - 1 : Math.min(pages() - 1, Math.round(track.scrollLeft / (cardStep() * perPage()))));
+  const goPage = (n) => track.scrollTo({ left: Math.max(0, n) * cardStep() * perPage(), behavior: smooth() });
+  let drawn = -1;
+  const update = () => {
+    const overflow = track.scrollWidth > track.clientWidth + 2;
+    arrows.hidden = !overflow;
+    dots.hidden = !overflow;
+    wrap.classList.toggle('more-left', overflow && track.scrollLeft > 4);
+    wrap.classList.toggle('more-right', overflow && track.scrollLeft + track.clientWidth < track.scrollWidth - 4);
+    prev.disabled = track.scrollLeft <= 4;
+    next.disabled = atEnd();
+    if (!overflow) return;
+    if (drawn !== pages()) {
+      drawn = pages();
+      dots.innerHTML = Array.from({ length: drawn }, (_, i) => `<button type="button" data-page="${i}" aria-label="Systems, page ${i + 1} of ${drawn}"></button>`).join('');
+    }
+    [...dots.children].forEach((d, i) => d.setAttribute('aria-current', i === pageNow() ? 'true' : 'false'));
+  };
+  prev.addEventListener('click', () => goPage(pageNow() - 1));
+  next.addEventListener('click', () => goPage(pageNow() + 1));
+  dots.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-page]');
+    if (b) goPage(Number(b.dataset.page));
+  });
+  track.addEventListener('keydown', (e) => {
+    if (e.target !== track || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+    track.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * cardStep(), behavior: smooth() });
+  });
+  // A card reached with Tab is brought fully into view.
+  track.addEventListener('focusin', (e) => {
+    const card = e.target.closest('.sys-card');
+    if (card && card !== track) card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: smooth() });
+  });
+  let raf = 0;
+  track.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(update);
+  }, { passive: true });
+  new ResizeObserver(update).observe(track);
+  update();
 }
 
 async function homeView(status) {
@@ -170,11 +227,17 @@ async function homeView(status) {
       ${status.campusName ? html`<span class="hub-role">${icon('building', 14)} ${status.campusName}${status.campuses.length > 1 ? html` · <button type="button" class="link hub-switch" id="hub-switch">switch</button>` : ''}</span>` : ''}
     </div></section>
     <section class="hub-wrap">
-      <div class="card-head"><h2>${icon('grid')} Your systems</h2><span class="muted small">${live} of ${systems.length} available</span></div>
-      <div class="sys-grid">${systems.map((s) => systemCard(s, status.side))}</div>
+      <div class="card-head"><h2 id="sys-heading">${icon('grid')} Your systems</h2>
+        <div class="sys-nav"><span class="muted small">${live} of ${systems.length} available</span>
+          <span class="sys-arrows" hidden><button type="button" class="icon-btn" id="sys-prev" aria-label="Previous systems" aria-controls="sys-track">${icon('chevronLeft', 18)}</button><button type="button" class="icon-btn" id="sys-next" aria-label="More systems" aria-controls="sys-track">${icon('chevronRight', 18)}</button></span></div></div>
+      <div class="sys-carousel" id="sys-carousel">
+        <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${systems.map((s) => systemCard(s, status.side))}</div>
+      </div>
+      <div class="sys-dots" id="sys-dots" hidden></div>
     </section>
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span></div></footer>`);
+  systemsCarousel(appEl.querySelector('#sys-carousel'));
   appEl.querySelector('#hub-switch')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('user-pop').hidden = false;

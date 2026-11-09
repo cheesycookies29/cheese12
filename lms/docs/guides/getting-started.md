@@ -23,7 +23,7 @@ This guide is for everyone. The guides for your own job are listed on the **Help
 This tour uses the demo school. Sign in as `teacher.demo` with the password `demo1234`.
 
 1. Open the ATLAS home page. Type `teacher.demo` under **Username** and `demo1234` under **Password**, then choose **Sign in**.
-2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a tile for each system your account may use, and how many are available.
+2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a tile for each system your account may use, and how many are available. When there are more tiles than fit across the screen, they move in a row: choose the arrows beside *… available* or the dots under the tiles, swipe the row on a phone or tablet, or click the row and press the left and right arrow keys.
 
 ![The ATLAS home page after signing in](getting-started-home.jpg)
 
@@ -143,7 +143,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Screen or button | What it is for |
 |---|---|
 | Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open |
-| ATLAS home page | Your greeting, account type and campus, **Your systems**, **Announcements** and **Upcoming events** |
+| ATLAS home page | Your greeting, account type and campus, **Your systems** (a row of tiles with arrows and dots when they do not all fit), **Announcements** and **Upcoming events** |
 | Academic tile | Academic records: student records, registration, grades and registrar services. For students, teachers, registrars, deans and administrators |
 | Learn tile | Classes, lessons, quizzes, attendance, grades and enrollment. For students, parents and guardians, and teachers; registrars and administrators open its admin panel |
 | People tile | HR: employee records, time clock, attendance, leave and payslips. For every employee; not for students or parents |
