@@ -212,10 +212,30 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .slide:hover, .slide:focus-within { border-color: var(--ink); }
 .slide-art { position: relative; min-height: clamp(160px, 24svh, 300px); overflow: hidden; background: var(--green); display: grid; place-items: center; opacity: calc(0.4 + 0.6 * var(--v)); transition: opacity .25s linear; }
 .slide-maze { position: absolute; inset: -80px; width: calc(100% + 160px); height: calc(100% + 160px); max-width: none; opacity: 0.13; transform: translateX(calc(var(--p) * 40px)); }
-.slide-mono { position: relative; font: 400 clamp(56px, 6vw, 84px)/1 var(--display); letter-spacing: 0.12em; padding-left: 0.12em; background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); -webkit-background-clip: text; background-clip: text; color: transparent; transform: translateX(calc(var(--p) * -22px)); }
-.slide.is-soon .slide-art { background: var(--parchment); }
-.slide.is-soon .slide-maze { opacity: 0.07; filter: brightness(0.2); }
-.slide.is-soon .slide-mono { background: none; color: var(--ink); }
+/* each company's own mark on a ground from its own colors, the Legati meander faint behind;
+   where no mark could be found, a nameplate set in the house type (not anyone's logo) */
+.slide-logo { position: relative; display: block; width: auto; max-width: 62%; object-fit: contain; transform: translateX(calc(var(--p) * -22px)); }
+.art-light { background: var(--art-bg); }
+.art-light .slide-maze { opacity: 0.045; filter: brightness(0.25); }
+.art-lt { --art-bg: linear-gradient(160deg, #fbf8f3, #efe9df); box-shadow: inset 0 -3px 0 #5b0816; }
+.art-lt .slide-logo { height: clamp(84px, 50%, 144px); }
+.art-cd { --art-bg: linear-gradient(160deg, #f7f8fb, #e7eaf1); box-shadow: inset 0 -3px 0 #c9a13b; }
+.art-cd .slide-logo { height: clamp(78px, 46%, 128px); }
+.art-cp { background: radial-gradient(120% 90% at 50% 20%, #232323, #0b0b0b 70%); }
+.art-cp .slide-maze { opacity: 0.06; filter: grayscale(1) brightness(2); }
+.art-cp .slide-logo { height: clamp(84px, 52%, 150px); }
+.plate { position: relative; display: grid; justify-items: center; gap: 10px; text-align: center; padding: 0 16px; transform: translateX(calc(var(--p) * -22px)); }
+.plate b { font: 400 clamp(36px, 3.6vw, 54px)/1 var(--display); letter-spacing: 0.16em; padding-left: 0.16em; text-transform: uppercase; }
+.plate small { font: 500 12px/1.2 var(--head); letter-spacing: 0.32em; padding-left: 0.32em; text-transform: uppercase; }
+.plate small::before { content: ""; display: block; width: 36px; height: 1px; margin: 0 auto 10px; background: currentColor; opacity: 0.6; }
+.art-tt { background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); color: var(--green); }
+.art-tt .slide-maze { opacity: 0.05; filter: brightness(0.2); }
+.art-cs { color: var(--white); }
+.art-cs .plate b { font-size: clamp(30px, 2.9vw, 44px); background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.art-cs .plate small { color: var(--on-green); }
+.art-cb { background: var(--parchment); color: var(--ink); }
+.art-cb .slide-maze { opacity: 0.045; filter: brightness(0.2); }
+.art-cb .plate b { font-size: clamp(32px, 3.2vw, 48px); }
 .slide-body { display: grid; grid-template-rows: auto auto 1fr auto; align-content: start; gap: 10px; padding: 22px 24px 18px; }
 .slide-body > p { grid-row: 3; }
 .slide-body > a, .slide-body > .soon { grid-row: 4; }
@@ -652,7 +672,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
         <div class="carousel" role="region" aria-roledescription="carousel" aria-labelledby="companies-title">
           <ul class="track" id="co-track" tabindex="0" aria-label="Companies of the group. Use the arrow keys or the buttons to move.">
             <li class="slide">
-              <div class="slide-art" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="slide-mono">LT</span></div>
+              <div class="slide-art art-light art-lt" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><img class="slide-logo" src="/img/legati/companies/lancaster.png" width="450" height="450" alt="" loading="lazy" decoding="async" /></div>
               <div class="slide-body">
                 <span class="kind">Technology</span>
                 <h3>Lancaster Technology and Development Corporation</h3>
@@ -661,7 +681,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
               </div>
             </li>
             <li class="slide">
-              <div class="slide-art" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="slide-mono">CD</span></div>
+              <div class="slide-art art-light art-cd" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><img class="slide-logo" src="/img/legati/companies/centurion.png" width="130" height="129" alt="" loading="lazy" decoding="async" /></div>
               <div class="slide-body">
                 <span class="kind">Digital</span>
                 <h3>Centurion Digital Solutions</h3>
@@ -669,7 +689,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
               </div>
             </li>
             <li class="slide">
-              <div class="slide-art" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="slide-mono">TT</span></div>
+              <div class="slide-art art-tt" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="plate"><b>Tora</b><small>by Tiger</small></span></div>
               <div class="slide-body">
                 <span class="kind">Member company</span>
                 <h3>Tora by Tiger</h3>
@@ -677,7 +697,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
               </div>
             </li>
             <li class="slide">
-              <div class="slide-art" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="slide-mono">CP</span></div>
+              <div class="slide-art art-cp" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><img class="slide-logo" src="/img/legati/companies/ceramic-pro.png" width="225" height="228" alt="" loading="lazy" decoding="async" /></div>
               <div class="slide-body">
                 <span class="kind">Surface protection</span>
                 <h3>Ceramic Pro</h3>
@@ -686,7 +706,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
               </div>
             </li>
             <li class="slide">
-              <div class="slide-art" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="slide-mono">CS</span></div>
+              <div class="slide-art art-cs" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="plate"><b>Clubhouse</b><small>Studio</small></span></div>
               <div class="slide-body">
                 <span class="kind">Member company</span>
                 <h3>Clubhouse Studio</h3>
@@ -694,7 +714,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
               </div>
             </li>
             <li class="slide is-soon">
-              <div class="slide-art" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="slide-mono">CB</span></div>
+              <div class="slide-art art-cb" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><span class="plate"><b>Cresmont</b><small>Builders</small></span></div>
               <div class="slide-body">
                 <span class="kind">Construction</span>
                 <h3>Cresmont Builders Corporation</h3>
