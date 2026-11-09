@@ -158,17 +158,20 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .hero .wrap { min-height: calc(100svh - var(--nav) - 48px); display: grid; grid-template-rows: minmax(0, 1fr) auto; }
 .hero-text { position: relative; z-index: 1; display: grid; gap: 24px; align-content: start; align-self: center; max-width: 720px; padding-bottom: 32px; }
 .hero h1 { font: 400 clamp(40px, 5.2vw, 76px)/1.06 var(--display); color: var(--white); letter-spacing: 0.005em; max-width: 15ch; }
-.hero-mark { position: absolute; top: calc(50% - 56px); transform: translateY(-50%); right: max(var(--gutter), env(safe-area-inset-right, 0px)); width: clamp(210px, 25vw, 380px); max-height: calc(100% - 190px); aspect-ratio: 100 / 132; pointer-events: none; }
+.hero-mark { position: absolute; top: calc(50% - 56px); transform: translateY(-50%); right: max(var(--gutter), env(safe-area-inset-right, 0px)); width: clamp(200px, 23vw, 340px); max-height: calc(100% - 190px); aspect-ratio: 132 / 164; pointer-events: none; }
 .hero-mark svg { display: block; width: 100%; height: 100%; overflow: visible; }
-/* the Legati mark in line: its own proportions (border 6, key 5), gold on the green */
-.hero-mark .stroke { fill: none; stroke: var(--gold-a); stroke-width: 3; stroke-linejoin: miter; opacity: 0.55; }
-.hero-mark .glow { fill: url(#lg-gold); opacity: 0.12; }
+/* the Legati mark itself, set like a plaque: the gold plate, the key cut through it, a fine mount */
+.hero-mark svg { filter: drop-shadow(0 0 48px rgba(246, 229, 116, 0.12)); }
+.hero-mark .plate { fill: url(#lg-gold); }
+.hero-mark .key { fill: none; stroke: var(--green); stroke-width: 5; stroke-linecap: butt; stroke-linejoin: miter; }
+.hero-mark .mount { fill: none; stroke: var(--gold-a); stroke-width: 0.45; stroke-linejoin: miter; opacity: 0.6; }
 @media (prefers-reduced-motion: no-preference) {
-  .js .hero-mark .stroke { stroke-dasharray: 1; stroke-dashoffset: 1; }
-  .js .hero.is-in .hero-mark .stroke { stroke-dashoffset: 0; transition: stroke-dashoffset 2.6s cubic-bezier(.65, 0, .35, 1) .5s; }
-  .js .hero.is-in .hero-mark .inner { transition-delay: 1.1s; transition-duration: 2.2s; }
-  .js .hero-mark .glow { opacity: 0; }
-  .js .hero.is-in .hero-mark .glow { opacity: 0.12; transition: opacity 1.6s ease 2.2s; }
+  /* the plate rises into place, the key cuts itself in, then the mount draws round it */
+  .js .hero-mark .plate { clip-path: inset(100% 0 0 0); }
+  .js .hero-mark .key, .js .hero-mark .mount { stroke-dasharray: 1; stroke-dashoffset: 1; }
+  .js .hero.is-in .hero-mark .plate { clip-path: inset(0 0 0 0); transition: clip-path 1.1s cubic-bezier(.65, 0, .35, 1) .45s; }
+  .js .hero.is-in .hero-mark .key { stroke-dashoffset: 0; transition: stroke-dashoffset 1.5s cubic-bezier(.65, 0, .35, 1) 1.2s; }
+  .js .hero.is-in .hero-mark .mount { stroke-dashoffset: 0; transition: stroke-dashoffset 1.8s cubic-bezier(.65, 0, .35, 1) 1.9s; }
 }
 .hero h1 em { font-style: normal; background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hero-lead { font-size: 20px; line-height: 1.55; max-width: 44ch; color: var(--on-green); }
@@ -430,7 +433,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
 /* a reload or a link into the middle of the page: what is already on screen stands at once */
 .rv-now [data-rv], .rv-now [data-rv] *, .rv-now [data-rv]::before { transition: none !important; }
 /* motion paused: nothing enters, nothing drifts */
-.motion-off .hero [data-e], .motion-off .hero .facts::before, .motion-off .hero-mark .stroke, .motion-off .hero-mark .glow { transition: none !important; }
+.motion-off .hero [data-e], .motion-off .hero .facts::before, .motion-off .hero-mark .plate, .motion-off .hero-mark .key, .motion-off .hero-mark .mount { transition: none !important; }
 .rv .def[data-rv] { border-top-color: transparent; }
 .rv .legatus .def::before { color: rgba(246, 229, 116, 0.6); }
 .rv [data-rv="portrait"] .portrait { clip-path: inset(100% 0 0 0); }
@@ -594,10 +597,13 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
     <section class="hero on-green" id="top" aria-labelledby="hero-title">
       <div class="wrap">
         <div class="hero-mark" aria-hidden="true">
-          <svg viewBox="0 0 100 132" preserveAspectRatio="xMidYMid meet">
-            <rect class="glow" x="3" y="3" width="94" height="126" />
-            <rect class="stroke" x="3" y="3" width="94" height="126" pathLength="1" />
-            <path class="stroke inner" d="M27 6V102H72V126M94 30H49V77H71V55" pathLength="1" />
+          <svg viewBox="-16 -16 132 164" preserveAspectRatio="xMidYMid meet">
+            <!-- the Legati mark at its own geometry: a gold plate (inside the logo's 6-unit green
+                 border, which is the ground here) cut by the meander key, 5 units wide; a fine gold
+                 mount around it -->
+            <path class="mount" d="M50 144H-12V-12H112V144Z" pathLength="1" />
+            <rect class="plate" x="6" y="6" width="88" height="120" />
+            <path class="key" d="M27 6V102H72V126M94 30H49V77H71V55" pathLength="1" />
           </svg>
         </div>
         <div class="hero-text">
