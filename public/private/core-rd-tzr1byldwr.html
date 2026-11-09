@@ -161,7 +161,15 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .hero-mark { position: absolute; top: calc(50% - 56px); transform: translateY(-50%); right: max(var(--gutter), env(safe-area-inset-right, 0px)); width: clamp(200px, 23vw, 340px); max-height: calc(100% - 190px); aspect-ratio: 132 / 164; pointer-events: none; }
 .hero-mark svg { display: block; width: 100%; height: 100%; overflow: visible; }
 /* the Legati mark itself, set like a plaque: the gold plate, the key cut through it, a fine mount */
-.hero-mark svg { filter: drop-shadow(0 0 48px rgba(246, 229, 116, 0.12)); }
+.hero-mark svg { filter: drop-shadow(0 0 48px rgba(246, 229, 116, 0.12)); pointer-events: auto; cursor: pointer; transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .8s cubic-bezier(.2, .7, .2, 1), filter .5s ease; }
+.hero-mark .front, .hero-mark .back { transition: transform .8s cubic-bezier(.2, .7, .2, 1); }
+.hero-mark .front { transform: translate(var(--fx, 0px), var(--fy, 0px)); }
+.hero-mark .back { transform: translate(var(--bx, 0px), var(--by, 0px)); }
+.hero-mark .sheen { fill: url(#hm-sheen); opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+/* the pointer moves the plaque: it turns toward the pointer, the plate floats before its mount, light follows */
+.hero-mark.is-tracking svg { transition: transform .15s linear, filter .5s ease; filter: drop-shadow(0 0 64px rgba(246, 229, 116, 0.2)); }
+.hero-mark.is-tracking .front, .hero-mark.is-tracking .back { transition: transform .15s linear; }
+.hero-mark.is-tracking .sheen { opacity: 1; }
 .hero-mark .plate { fill: url(#lg-gold); }
 .hero-mark .key { fill: none; stroke: var(--green); stroke-width: 5; stroke-linecap: butt; stroke-linejoin: miter; }
 .hero-mark .mount { fill: none; stroke: var(--gold-a); stroke-width: 0.45; stroke-linejoin: miter; opacity: 0.6; }
@@ -434,6 +442,8 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
 .rv-now [data-rv], .rv-now [data-rv] *, .rv-now [data-rv]::before { transition: none !important; }
 /* motion paused: nothing enters, nothing drifts */
 .motion-off .hero [data-e], .motion-off .hero .facts::before, .motion-off .hero-mark .plate, .motion-off .hero-mark .key, .motion-off .hero-mark .mount { transition: none !important; }
+.motion-off .hero-mark svg { cursor: default; transform: none; }
+@media (prefers-reduced-motion: reduce) { .hero-mark svg { cursor: default; transform: none; } }
 .rv .def[data-rv] { border-top-color: transparent; }
 .rv .legatus .def::before { color: rgba(246, 229, 116, 0.6); }
 .rv [data-rv="portrait"] .portrait { clip-path: inset(100% 0 0 0); }
@@ -601,9 +611,18 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
             <!-- the Legati mark at its own geometry: a gold plate (inside the logo's 6-unit green
                  border, which is the ground here) cut by the meander key, 5 units wide; a fine gold
                  mount around it -->
-            <path class="mount" d="M50 144H-12V-12H112V144Z" pathLength="1" />
-            <rect class="plate" x="6" y="6" width="88" height="120" />
-            <path class="key" d="M27 6V102H72V126M94 30H49V77H71V55" pathLength="1" />
+            <defs>
+              <radialGradient id="hm-sheen" cx="0.3" cy="0.2" r="0.65">
+                <stop offset="0" stop-color="#fffff0" stop-opacity="0.6" />
+                <stop offset="1" stop-color="#fffff0" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <g class="back"><path class="mount" d="M50 144H-12V-12H112V144Z" pathLength="1" /></g>
+            <g class="front">
+              <rect class="plate" x="6" y="6" width="88" height="120" />
+              <rect class="sheen" x="6" y="6" width="88" height="120" />
+              <path class="key" d="M27 6V102H72V126M94 30H49V77H71V55" pathLength="1" />
+            </g>
           </svg>
         </div>
         <div class="hero-text">
@@ -1028,6 +1047,51 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
     h.dataset.landing = '';
     setTimeout(() => h.focus({ preventScroll: true }), 0);
   });
+
+  // The hero's mark answers the visitor: on a desktop it turns toward the pointer, its plate floats
+  // before the mount and a light follows across the gold; a click or tap cuts the key in again.
+  // Nothing moves under reduced motion or with motion paused.
+  const mark = document.querySelector('.hero-mark');
+  if (mark) {
+    const heroEl = mark.closest('.hero');
+    const fine = matchMedia('(hover: hover) and (pointer: fine)');
+    const calmMark = matchMedia('(prefers-reduced-motion: reduce)');
+    const quiet = () => calmMark.matches || html.classList.contains('motion-off');
+    const sheen = document.getElementById('hm-sheen');
+    const set = (x, y) => {
+      mark.style.setProperty('--ry', `${(x * 12).toFixed(2)}deg`);
+      mark.style.setProperty('--rx', `${(-y * 9).toFixed(2)}deg`);
+      mark.style.setProperty('--fx', `${(x * 2.6).toFixed(2)}px`);
+      mark.style.setProperty('--fy', `${(y * 2.6).toFixed(2)}px`);
+      mark.style.setProperty('--bx', `${(-x * 1.6).toFixed(2)}px`);
+      mark.style.setProperty('--by', `${(-y * 1.6).toFixed(2)}px`);
+      sheen.setAttribute('cx', (0.5 + x * 0.55).toFixed(3));
+      sheen.setAttribute('cy', (0.5 + y * 0.55).toFixed(3));
+    };
+    let at = null, markFrame = 0;
+    const follow = () => {
+      markFrame = 0;
+      if (!at) return;
+      const r = mark.getBoundingClientRect();
+      const clamp = (v) => Math.max(-1, Math.min(1, v));
+      set(clamp((at.x - (r.left + r.width / 2)) / (r.width * 1.4)), clamp((at.y - (r.top + r.height / 2)) / (r.height * 1.2)));
+    };
+    heroEl.addEventListener('pointermove', (e) => {
+      if (!fine.matches || quiet() || e.pointerType !== 'mouse') return;
+      at = { x: e.clientX, y: e.clientY };
+      mark.classList.add('is-tracking');
+      if (!markFrame) markFrame = requestAnimationFrame(follow);
+    });
+    heroEl.addEventListener('pointerleave', () => { at = null; mark.classList.remove('is-tracking'); set(0, 0); });
+    mark.querySelector('svg').addEventListener('click', () => {
+      if (quiet()) return;
+      const ease = 'cubic-bezier(.65, 0, .35, 1)';
+      mark.querySelector('.key').animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 1200, easing: ease });
+      mark.querySelector('.mount').animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 1500, delay: 250, easing: ease, fill: 'backwards' });
+      mark.querySelector('svg').animate([{ scale: 1 }, { scale: 0.97 }, { scale: 1 }], { duration: 500, easing: 'cubic-bezier(.2, .7, .2, 1)' });
+    });
+    addEventListener('blur', () => { at = null; mark.classList.remove('is-tracking'); set(0, 0); });
+  }
 
   // The hero enters once, on load.
   requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector('.hero').classList.add('is-in')));
