@@ -73,7 +73,9 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-padding-top: var(--nav); }
+html { scroll-padding-top: 0; scrollbar-gutter: stable; }
+:is(a, button, [tabindex], input) { scroll-margin-top: calc(var(--nav) + 16px); }
+main > section, footer.closing { scroll-margin-top: 0; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body { margin: 0; background: var(--white); color: var(--text); font: 300 17px/1.7 var(--body); -webkit-font-smoothing: antialiased; }
 img, svg { max-width: 100%; }
@@ -153,14 +155,13 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
   radial-gradient(120% 60% at 50% 120%, rgba(246, 229, 116, 0.55), rgba(246, 229, 116, 0.16) 40%, rgba(246, 229, 116, 0) 64%),
   radial-gradient(60% 40% at 85% 10%, rgba(255, 253, 165, 0.06), rgba(255, 253, 165, 0) 70%),
   var(--green); color: var(--on-green); overflow: hidden; }
-.hero .wrap { min-height: calc(100svh - var(--nav) - 48px); display: grid; grid-template-rows: auto 1fr; }
-.hero-text { position: relative; z-index: 1; display: grid; gap: 24px; align-content: start; max-width: 720px; }
+.hero .wrap { min-height: calc(100svh - var(--nav) - 48px); display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+.hero-text { position: relative; z-index: 1; display: grid; gap: 24px; align-content: start; align-self: center; max-width: 720px; padding-bottom: 32px; }
 .hero h1 { font: 400 clamp(40px, 5.2vw, 76px)/1.06 var(--display); color: var(--white); letter-spacing: 0.005em; max-width: 15ch; }
-.hero-mark { position: absolute; top: 4px; right: max(var(--gutter), env(safe-area-inset-right, 0px)); width: clamp(210px, 25vw, 380px); max-height: calc(100% - 150px); aspect-ratio: 100 / 132; pointer-events: none; }
+.hero-mark { position: absolute; top: calc(50% - 56px); transform: translateY(-50%); right: max(var(--gutter), env(safe-area-inset-right, 0px)); width: clamp(210px, 25vw, 380px); max-height: calc(100% - 190px); aspect-ratio: 100 / 132; pointer-events: none; }
 .hero-mark svg { display: block; width: 100%; height: 100%; overflow: visible; }
 /* the Legati mark in line: its own proportions (border 6, key 5), gold on the green */
-.hero-mark svg { opacity: 0.32; }
-.hero-mark .stroke { fill: none; stroke: var(--gold-a); stroke-width: 5; stroke-linejoin: miter; }
+.hero-mark .stroke { fill: none; stroke: var(--gold-a); stroke-width: 3; stroke-linejoin: miter; opacity: 0.55; }
 .hero-mark .glow { fill: url(#lg-gold); opacity: 0.12; }
 @media (prefers-reduced-motion: no-preference) {
   .js .hero-mark .stroke { stroke-dasharray: 1; stroke-dashoffset: 1; }
@@ -186,14 +187,16 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 
 /* ---------- Companies: a carousel the visitor moves ---------- */
 .carousel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; min-width: 0; }
-.track { position: relative; list-style: none; margin: 0; padding: 4px 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 2 * 24px) / 2.9); grid-template-rows: minmax(0, 1fr) auto; gap: 0 24px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; cursor: grab; }
+.track { position: relative; list-style: none; margin: 0; padding: 4px 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: var(--card, calc((100% - 2 * 24px) / 2.9)); grid-template-rows: minmax(0, 1fr) auto; gap: 0 24px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; cursor: grab; }
 #companies { overflow-x: clip; }
 #companies .stack { gap: clamp(32px, 4.4vw, 48px); }
 #companies .carousel { grid-template-rows: minmax(0, 1fr) auto; }
 .track { --bleed: max(var(--gutter), env(safe-area-inset-right, 0px), (100vw - var(--rail) - var(--wrap)) / 2); margin-right: calc(-1 * var(--bleed)); padding-right: var(--bleed); }
 .track::-webkit-scrollbar { display: none; }
+.js .track::after { content: ""; grid-row: 1 / span 2; }
 .track.dragging { cursor: grabbing; scroll-snap-type: none; user-select: none; }
-.track:focus-visible { outline-offset: 6px; }
+.track:focus-visible { outline: none; }
+.carousel:has(.track:focus-visible) { outline: 2px solid var(--green); outline-offset: 8px; }
 .slide { --v: 1; --p: 0; position: relative; scroll-snap-align: start; display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; min-width: 0; background: var(--white); border: 1px solid var(--rule); transition: border-color .3s; }
 .slide:hover, .slide:focus-within { border-color: var(--ink); }
 .slide-art { position: relative; min-height: clamp(160px, 24svh, 300px); overflow: hidden; background: var(--green); display: grid; place-items: center; opacity: calc(0.4 + 0.6 * var(--v)); transition: opacity .25s linear; }
@@ -202,7 +205,9 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .slide.is-soon .slide-art { background: var(--parchment); }
 .slide.is-soon .slide-maze { opacity: 0.07; filter: brightness(0.2); }
 .slide.is-soon .slide-mono { background: none; color: var(--ink); }
-.slide-body { display: grid; grid-template-rows: auto auto minmax(3.2em, auto) auto; gap: 10px; padding: 22px 24px 18px; }
+.slide-body { display: grid; grid-template-rows: auto auto 1fr auto; align-content: start; gap: 10px; padding: 22px 24px 18px; }
+.slide-body > p { grid-row: 3; }
+.slide-body > a, .slide-body > .soon { grid-row: 4; }
 .slide .kind { font: 500 12px/1.2 var(--head); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
 .slide h3 { font-size: 24px; }
 .slide p { font-size: 15px; }
@@ -236,12 +241,10 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .def i { font: 500 12px/1.2 var(--head); font-style: normal; letter-spacing: 0.2em; text-transform: uppercase; color: var(--on-green-muted); }
 .def p { font-size: 17px; color: var(--on-green); flex-basis: 100%; }
 .motion-btn { display: none; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; background: var(--green); color: var(--white); border: 1px solid var(--gold-a); font: 500 12px/1 var(--head); letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; transition: background .2s, color .2s; }
-.legatus .motion-btn { position: absolute; z-index: 2; right: max(var(--gutter), env(safe-area-inset-right, 0px)); bottom: 24px; }
+.legatus .motion-btn { position: absolute; z-index: 2; right: max(var(--gutter), env(safe-area-inset-right, 0px), (100% - var(--wrap)) / 2); bottom: 24px; }
 .motion-btn:hover { background: #134243; }
 .motion-btn[aria-pressed="true"] { background: var(--gold-a); color: var(--green); }
 .motion-btn svg { width: 10px; height: 12px; }
-.motion-btn .play, .motion-off .motion-btn .pause { display: none; }
-.motion-off .motion-btn .play { display: block; }
 .foot-row .motion-btn { min-height: 40px; border-color: rgba(246, 229, 116, 0.5); }
 html:not(.js) .motion-btn { display: none !important; }
 @media (prefers-reduced-motion: no-preference) {
@@ -271,11 +274,10 @@ html:not(.js) .motion-btn { display: none !important; }
 .chair-head { display: grid; gap: 0; align-content: end; padding-bottom: 8px; }
 .chair-photo { aspect-ratio: 4 / 5; width: 100%; max-height: calc(100svh - var(--padt) - var(--padb) - 110px); margin: 0; overflow: hidden; background: #c9cbca; justify-self: start; }
 .chair-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.chair-head .label { margin-bottom: 14px; }
 .chair-name { font: 400 clamp(32px, 3vw, 42px)/1.1 var(--display); color: var(--ink); }
 .chair-title { margin-top: 10px; font: 500 12px/1.3 var(--head); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
 .chair-mandate { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--gold-line); font: 400 clamp(20px, 1.8vw, 24px)/1.4 var(--display); color: var(--ink); max-width: 34ch; }
-.chair-bio { margin-top: 16px; font-size: 16px; line-height: 1.7; max-width: 58ch; }
+.chair-bio { margin-top: 16px; font-size: 16px; line-height: 1.7; max-width: 54ch; text-wrap: pretty; }
 .five { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: clamp(28px, 4vw, 44px); }
 .five-head { display: grid; gap: 14px; }
 .five-head .statement { font: 400 clamp(26px, 2.8vw, 40px)/1.18 var(--display); color: var(--ink); max-width: 28ch; }
@@ -327,18 +329,19 @@ html:has(.profile[open]) { overflow: hidden; }
 }
 .portrait { aspect-ratio: 4 / 5; max-width: 100%; overflow: hidden; background: #c9cbca; margin-bottom: 10px; border-bottom: 3px solid var(--gold-line); }
 .portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.heads h3 { font-size: 21px; line-height: 1.22; }
+.heads h3 { font-size: 21px; line-height: 1.22; align-self: end; }
+.heads .pre { display: block; margin-bottom: 4px; font: 500 12px/1.2 var(--head); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
 @media (min-width: 641px) { .heads .nw { white-space: nowrap; } }
 @media (min-width: 1024px) { .heads .portrait { aspect-ratio: 3 / 4; } }
 .heads .role { font-size: 15px; line-height: 1.5; color: var(--muted); }
 
 /* ---------- Principles: four pillars, one for each color of the house ---------- */
-.pillars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(14px, 2vw, 24px); list-style: none; margin: 0; padding: 0; min-height: 0; align-self: center; }
+.pillars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(14px, 2vw, 24px); list-style: none; margin: 0; padding: 0; min-height: 0; align-self: end; }
 .pillar { display: grid; grid-template-rows: auto 1fr auto; }
 .pillar .capital { height: 38px; clip-path: polygon(0 0, 100% 0, 100% 45%, 94% 45%, 94% 100%, 6% 100%, 6% 45%, 0 45%); position: relative; }
 .pillar .capital.c-white { background: var(--ink); }
 .pillar .capital.c-white::before { content: ""; position: absolute; inset: 1px 1px 0; background: var(--white); clip-path: inherit; }
-.pillar .shaft { margin: 0 6%; background: var(--white); padding: 24px 22px 22px; display: grid; grid-template-rows: auto auto auto 1fr; gap: 10px; position: relative; border-inline: 1px solid var(--rule); min-height: clamp(260px, 32svh, 380px); }
+.pillar .shaft { margin: 0 6%; background: var(--white); padding: 24px 22px 22px; display: grid; grid-template-rows: auto auto auto 1fr; gap: 10px; position: relative; border-inline: 1px solid var(--rule); min-height: clamp(280px, 38svh, 440px); }
 .pillar .num { align-self: end; justify-self: end; margin-top: 16px; font: 400 clamp(44px, 4.4vw, 64px)/1 var(--display); letter-spacing: 0.04em; background: linear-gradient(180deg, var(--gold-line), var(--gold-b)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .pillar .shaft::before, .pillar .shaft::after { content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); }
 .pillar .shaft::before { left: 8px; }
@@ -380,7 +383,7 @@ footer.closing { min-height: 100svh; padding-block: var(--padt) 0; position: rel
 .journey-label { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%) rotate(180deg); writing-mode: vertical-rl; font: 500 11px/1 var(--head); letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold-a); white-space: nowrap; transition: opacity .3s; }
 .journey-label.swap { opacity: 0; }
 .nav-side a.is-here { color: var(--white); background-size: 100% 1px; }
-.nav-side a.cta.is-here { color: var(--green); box-shadow: 0 0 0 3px rgba(246, 229, 116, 0.35); }
+.nav-side a.cta.is-here { color: var(--green); box-shadow: inset 0 -3px 0 var(--green); }
 /* phones have no rail: the journey is a gold line along the foot of the header */
 .nav-bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--gold-line), var(--gold-b)); transform-origin: left; transform: scaleX(var(--jp, 0)); display: none; }
 @media (max-width: 900px) { .nav-bar::after { display: block; } }
@@ -439,8 +442,14 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
   :root { --padt: 104px; --padb: 60px; }
   .stack { gap: 32px; }
   .slide-body { padding: 18px 20px 12px; gap: 8px; }
+  .heads .portrait { aspect-ratio: 1 / 1; }
+  .five-head .statement { font-size: clamp(24px, 2.4vw, 32px); }
+  .chair-bio { font-size: 15px; }
+  .pillar .shaft { min-height: clamp(220px, 30svh, 300px); }
   .slide h3 { font-size: 23px; }
-  .slide-art { min-height: clamp(128px, 19svh, 200px); }
+  .slide-art { min-height: clamp(112px, 17svh, 200px); }
+  #companies .stack { gap: 24px; }
+  #companies .carousel { gap: 16px; }
   .legatus .mo-wh__text { font-size: clamp(30px, 2.9vw, 40px); }
   .legatus .stack { gap: 26px; }
   .def p { font-size: 16px; line-height: 1.6; }
@@ -449,34 +458,34 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
   .chair-mandate { margin-top: 18px; padding-top: 16px; font-size: 20px; }
   .chair-bio { font-size: 15px; line-height: 1.6; margin-top: 12px; }
 }
+@media (max-width: 959px) { .pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1100px) {
-  .track { grid-auto-columns: calc((100% - 24px) / 1.7); }
-  .pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .track { grid-auto-columns: var(--card, calc((100% - 24px) / 1.7)); }
   .nav-side { gap: 18px; }
   .nav-side a { letter-spacing: 0.12em; }
   .nav-in { --brandw: 44px; }
   .brand span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .brand svg { width: 26px; }
-  .pillar .shaft { min-height: 0; }
 }
 @media (max-width: 1023px) {
   :root { --padt: 104px; --padb: 72px; }
-  .section-head, .chair { grid-template-columns: minmax(0, 1fr); }
+  .section-head { grid-template-columns: minmax(0, 1fr); }
   .hold-grid { grid-template-columns: minmax(0, 1fr); }
   #leadership { --h: 2; }
   .g2 { grid-template-rows: auto auto; row-gap: clamp(56px, 8vw, 96px); }
   .chair { align-items: start; }
-  .chair-photo { height: auto; max-height: none; max-width: 420px; width: 100%; }
+  .chair-photo { height: auto; max-height: none; width: 100%; }
   .heads { align-self: start; }
   #companies .carousel { align-self: center; grid-template-rows: auto auto; }
   .track { grid-template-rows: auto auto; }
   .hero-mark { display: none; }
-  .hero h1 { max-width: 17ch; }
+  .hero h1 { max-width: 15ch; font-size: clamp(40px, 7.4vw, 76px); }
   .legatus .maze { left: 0; -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.04), rgba(0,0,0,.14)); mask-image: linear-gradient(90deg, rgba(0,0,0,.04), rgba(0,0,0,.14)); }
   .legatus::after { display: none; }
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 20px; }
   .heads { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+@media (max-width: 699px) { .chair { grid-template-columns: minmax(0, 1fr); } .chair-photo { max-width: 420px; } }
 @media (max-width: 900px) {
   :root { --rail: 0px; }
   .rail { display: none; }
@@ -497,7 +506,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
   .facts b { font-size: 30px; }
   .lede { font-size: 17.5px; }
   .hero-lead { font-size: 18px; }
-  .track { grid-auto-columns: 86%; gap: 0 16px; }
+  .track { grid-auto-columns: var(--card, 86%); gap: 0 16px; }
   .slide-body { padding: 18px 18px 14px; }
   .pillars { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .pillar .capital { height: 22px; }
@@ -684,7 +693,6 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
       <div class="maze" aria-hidden="true"><svg><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg></div>
       <button class="motion-btn" type="button" data-motion aria-pressed="false">
         <svg class="pause" viewBox="0 0 10 12" aria-hidden="true"><path d="M2 1v10M8 1v10" stroke="currentColor" stroke-width="2.4" /></svg>
-        <svg class="play" viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1l8 5-8 5z" fill="currentColor" /></svg>
         <span>Pause motion</span>
       </button>
       <div class="wrap stack">
@@ -739,10 +747,9 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
             <img src="/img/legati/domantay.jpg" width="640" height="800" alt="John N. Domantay, Chairman and CEO of Legati Group" />
           </figure>
           <div class="chair-head">
-            <p class="label">Chairman</p>
             <h3 class="chair-name">John N.&nbsp;Domantay</h3>
             <p class="chair-title">Chairman &amp; CEO</p>
-            <p class="chair-mandate">John is the Chairman and CEO of Legati Group, and has led its companies to consistent year-on-year growth while spearheading digital transformation initiatives across the country.</p>
+            <p class="chair-mandate">He has led Legati Group’s companies to consistent year-on-year growth while spearheading digital transformation initiatives across the country.</p>
             <p class="chair-bio">A businessman by profession, John has built and invested in ventures spanning the automotive, food and beverage, infrastructure, information technology and real estate sectors, and he continues to steer his companies toward market leadership and long-term value creation. He graduated cum laude from De La Salle University and earned his postgraduate degree in Management from the Asian Institute of Management.</p>
           </div>
         </div>
@@ -755,35 +762,35 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
           <ul class="heads">
             <li>
               <div class="portrait"><img src="/img/legati/dagangon.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
-              <h3><button class="head-open" type="button" aria-haspopup="dialog"><span class="nw">Khim G. Dagangon</span>, CPA<span class="sr">, profile</span></button></h3>
+              <h3><button class="head-open" type="button" aria-haspopup="dialog" tabindex="-1" data-name="Khim G. Dagangon, CPA"><span class="pre">CPA</span><span class="nw">Khim G. Dagangon</span></button></h3>
               <p class="role">Group Chief Financial Officer</p>
               <span class="more" aria-hidden="true">Profile <svg viewBox="0 0 18 10"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></span>
               <div class="bio"><p>A Certified Public Accountant and Certified Financial Consultant, Khim leads Legati Group’s financial strategy as Group Chief Financial Officer. He draws on years of experience in financial analysis, reporting and auditing, honed through his work with multinational companies and as an accountant at one of the country’s top auditing firms, to ensure robust financial management and strategic planning across the group.</p></div>
             </li>
             <li>
               <div class="portrait"><img src="/img/legati/tomas.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
-              <h3><button class="head-open" type="button" aria-haspopup="dialog">Atty. <span class="nw">Christian Y. Tomas</span><span class="sr">, profile</span></button></h3>
+              <h3><button class="head-open" type="button" aria-haspopup="dialog" tabindex="-1" data-name="Atty. Christian Y. Tomas"><span class="pre">Atty.</span><span class="nw">Christian Y. Tomas</span></button></h3>
               <p class="role">Group Chief Legal Officer</p>
               <span class="more" aria-hidden="true">Profile <svg viewBox="0 0 18 10"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></span>
               <div class="bio"><p>With more than 20 years in legal practice, Atty. Chris combines deep expertise in litigation, labor and corporate law with executive leadership as Group Chief Legal Officer of Legati Group. He oversees the group’s legal team, providing counsel, managing contracts and ensuring that every corporate initiative complies with sound legal and regulatory standards.</p></div>
             </li>
             <li>
               <div class="portrait"><img src="/img/legati/arcenal.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
-              <h3><button class="head-open" type="button" aria-haspopup="dialog">Atty. <span class="nw">Aiiza A. Arcenal</span><span class="sr">, profile</span></button></h3>
+              <h3><button class="head-open" type="button" aria-haspopup="dialog" tabindex="-1" data-name="Atty. Aiiza A. Arcenal"><span class="pre">Atty.</span><span class="nw">Aiiza A. Arcenal</span></button></h3>
               <p class="role">Group Director, Legal and Compliance</p>
               <span class="more" aria-hidden="true">Profile <svg viewBox="0 0 18 10"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></span>
               <div class="bio"><p>A professional with expertise in legal writing, quality auditing and leadership, Atty. Aiiza Arcenal serves as Group Director for Legal and Compliance at Legati Group. She is an administrative lawyer, policy analyst, procurement professor and local government consultant, known for her ability to bridge legal insight with practical solutions that support organizational excellence.</p></div>
             </li>
             <li>
               <div class="portrait"><img src="/img/legati/claro.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
-              <h3><button class="head-open" type="button" aria-haspopup="dialog"><span class="nw">Josemaria E. Claro</span><span class="sr">, profile</span></button></h3>
+              <h3><button class="head-open" type="button" aria-haspopup="dialog" tabindex="-1" data-name="Josemaria E. Claro"><span class="nw">Josemaria E. Claro</span></button></h3>
               <p class="role">Group Director, Integrated Communications Department</p>
               <span class="more" aria-hidden="true">Profile <svg viewBox="0 0 18 10"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></span>
               <div class="bio"><p>With a strong background in communications campaigns, crisis management and strategic communications consultancy, Josemaria E. Claro leverages his experience across the public and private sectors to foster meaningful connections with stakeholders across diverse industries. He leads Legati Group’s Integrated Communications Department.</p></div>
             </li>
             <li>
               <div class="portrait"><img src="/img/legati/asuncion.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
-              <h3><button class="head-open" type="button" aria-haspopup="dialog"><span class="nw">Lianne A. Asuncion</span><span class="sr">, profile</span></button></h3>
+              <h3><button class="head-open" type="button" aria-haspopup="dialog" tabindex="-1" data-name="Lianne A. Asuncion"><span class="nw">Lianne A. Asuncion</span></button></h3>
               <p class="role">Group Director, Human Resources Department</p>
               <span class="more" aria-hidden="true">Profile <svg viewBox="0 0 18 10"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg></span>
               <div class="bio"><p>A human resources and recruitment expert, Lianne Asuncion leverages her expertise to help Legati Group and its companies attract, retain and develop the talent essential to their success.</p></div>
@@ -869,7 +876,6 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
         <div class="foot-end">
           <button class="motion-btn" type="button" data-motion aria-pressed="false">
             <svg class="pause" viewBox="0 0 10 12" aria-hidden="true"><path d="M2 1v10M8 1v10" stroke="currentColor" stroke-width="2.4" /></svg>
-            <svg class="play" viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1l8 5-8 5z" fill="currentColor" /></svg>
             <span>Pause motion</span>
           </button>
           <small>© 2026 Legati Group, Inc. All rights reserved.</small>
@@ -1042,6 +1048,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
     el.querySelectorAll('.mo-w').forEach((w) => w.classList.add('is-on'));
     el.classList.add('is-done');
   };
+  const held = [];
   const setMotion = (off, early) => {
     html.classList.toggle('motion-off', off);
     motionBtns.forEach((b) => b.setAttribute('aria-pressed', String(off)));
@@ -1049,9 +1056,14 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
       stopReveals();
       document.querySelectorAll('[data-moment]').forEach((el) => {
         // before the moments load, they are simply not started; once running, they are stopped finished
-        if (early) { el.removeAttribute('data-moment'); return; }
+        if (early) { held.push([el, el.dataset.moment]); el.removeAttribute('data-moment'); return; }
         Promise.resolve(el.__momentP).then((api) => { api?.destroy?.(); settle(el); });
       });
+    }
+    if (!off && held.length) {
+      const start = held.splice(0);
+      start.forEach(([el, id]) => { el.dataset.moment = id; });
+      import('/legati-kit/moments/moments.js').then((m) => start.forEach(([el]) => m.mount(el))).catch(() => {});
     }
     try { localStorage.setItem('legati-motion-off', off ? '1' : ''); } catch {}
   };
@@ -1062,10 +1074,11 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
   // click outside closes it; focus returns to the card).
   const profile = document.getElementById('profile');
   if (profile?.showModal) {
+    document.querySelectorAll('.head-open').forEach((b) => { b.removeAttribute('tabindex'); b.setAttribute('aria-label', b.dataset.name); });
     document.querySelectorAll('.head-open').forEach((b) => b.addEventListener('click', () => {
       const li = b.closest('li');
       document.getElementById('profile-img').src = li.querySelector('.portrait img').src;
-      document.getElementById('profile-name').textContent = b.textContent.replace(/, profile$/, '');
+      document.getElementById('profile-name').textContent = b.dataset.name;
       document.getElementById('profile-role').textContent = li.querySelector('.role').textContent;
       document.getElementById('profile-bio').innerHTML = li.querySelector('.bio').innerHTML;
       profile.showModal();
@@ -1088,14 +1101,33 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
     const still = () => calm.matches || html.classList.contains('motion-off');
     const maxScroll = () => track.scrollWidth - track.clientWidth;
     // the stops: each card's start, the last ones folded into the end of the track
+    const stride = () => slides[1].offsetLeft - slides[0].offsetLeft;
+    // how many cards the visible track holds whole (the bleed to the page edge included)
+    const perView = () => Math.max(1, Math.floor((track.clientWidth + 1 + (stride() - slides[0].offsetWidth)) / stride()));
+    // the end of the track is trimmed so the last stop shows the last cards whole, none cut at the left
+    const fit = () => {
+      // the cards keep the width the CSS gives them; the track reaches exactly to the page edge
+      // (measured, so a classic scrollbar does not push it past); a last, empty column is sized so
+      // the last stop shows the last cards whole, none cut at the left
+      track.style.removeProperty('--card');
+      track.style.marginRight = track.style.paddingRight = track.style.gridTemplateColumns = '';
+      const pad0 = parseFloat(getComputedStyle(track).paddingRight) || 0;
+      const edge = track.closest('section').getBoundingClientRect().right;
+      const bleed = Math.max(0, edge - (track.getBoundingClientRect().right - pad0));
+      const card = slides[0].getBoundingClientRect().width;
+      const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+      track.style.setProperty('--card', `${card}px`);
+      track.style.marginRight = `${-bleed}px`;
+      track.style.paddingRight = '0px';
+      const n = slides.length, view = track.clientWidth;
+      const k = Math.max(1, Math.floor((view + gap + 1) / (card + gap)));
+      const tail = Math.max(0, (n - k) * (card + gap) + view - n * (card + gap));
+      track.style.gridTemplateColumns = `repeat(${n}, ${card}px) ${tail}px`;
+    };
     const snaps = () => {
-      const max = maxScroll(), stride = slides[1].offsetLeft - slides[0].offsetLeft, out = [];
-      for (const el of slides) {
-        const x = el.offsetLeft - slides[0].offsetLeft;
-        if (x < max - stride / 2) out.push(x);   // a stop too close to the end folds into it: no short last step
-      }
-      out.push(max);
-      return out;
+      const max = maxScroll() + 1, out = [];
+      for (let i = 0; i <= slides.length - perView(); i++) out.push(Math.min(max, slides[i].offsetLeft - slides[0].offsetLeft));
+      return out.filter((x, i) => i === 0 || x - out[i - 1] > 2);
     };
     const current = () => {
       const pts = snaps();
@@ -1111,11 +1143,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
       track.scrollTo({ left, behavior: still() ? 'auto' : 'smooth' });
       if (say && Math.abs(track.scrollLeft - left) < 2) schedule();
     };
-    const span = () => {
-      const box = track.getBoundingClientRect();
-      const seen = slides.map((el, i) => { const r = el.getBoundingClientRect(); return (Math.min(r.right, box.right - 1) - Math.max(r.left, box.left)) / r.width > 0.9 ? i + 1 : 0; }).filter(Boolean);
-      return seen.length ? [seen[0], seen[seen.length - 1]] : [current() + 1, current() + 1];
-    };
+    const span = () => { const a = current() + 1; return [a, Math.min(slides.length, a + perView() - 1)]; };
     let frame = 0;
     const paint = () => {
       frame = 0;
@@ -1141,7 +1169,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(paint); };
     track.addEventListener('scroll', schedule, { passive: true });
-    addEventListener('resize', schedule);
+    addEventListener('resize', () => { fit(); schedule(); });
     // the arrows stay focusable at the ends (aria-disabled), so a keyboard never loses its place
     prev.addEventListener('click', () => { if (prev.getAttribute('aria-disabled') !== 'true') go(current() - 1, true); });
     next.addEventListener('click', () => { if (next.getAttribute('aria-disabled') !== 'true') go(current() + 1, true); });
@@ -1155,26 +1183,29 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
     let drag = null;
     track.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'mouse' || e.button !== 0) return;
-      drag = { x: e.clientX, left: track.scrollLeft, moved: false };
+      drag = { x: e.clientX, left: track.scrollLeft, moved: false, from: current(), dx: 0 };
     });
     addEventListener('pointermove', (e) => {
       if (!drag) return;
       const dx = e.clientX - drag.x;
+      drag.dx = dx;
       if (!drag.moved && Math.abs(dx) > 5) { drag.moved = true; track.classList.add('dragging'); }
       if (drag.moved) track.scrollLeft = drag.left - dx;
     });
     addEventListener('pointerup', () => {
       if (!drag) return;
-      const moved = drag.moved;
+      const { moved, from, dx } = drag;
       drag = null;
       if (!moved) return;
       track.classList.remove('dragging');
-      go(current());
+      go(Math.abs(dx) > 60 ? from + (dx < 0 ? 1 : -1) : current());
       const block = (e) => { e.preventDefault(); e.stopPropagation(); };
       track.addEventListener('click', block, true);
       setTimeout(() => track.removeEventListener('click', block, true), 0);
     });
     track.addEventListener('dragstart', (e) => e.preventDefault());
+    fit();
+    addEventListener('load', () => { fit(); schedule(); });
     paint();
   }
 </script>
