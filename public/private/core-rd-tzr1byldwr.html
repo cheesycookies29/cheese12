@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow, noarchive" />
 <meta name="theme-color" content="#0a2c2d" />
 <title>Legati Group</title>
-<meta name="description" content="Legati Group is a holding company that builds and keeps businesses for the long term." />
+<meta name="description" content="Legati Group, Inc. is the holding company of Lancaster, Centurion, Tora by Tiger, Ceramic Pro and Clubhouse Studio." />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 132'%3E%3Crect x='3' y='3' width='94' height='126' fill='%23F6E574' stroke='%230A2C2D' stroke-width='6'/%3E%3Cpath d='M27 6V102H72V126M94 30H49V77H71V55' fill='none' stroke='%230A2C2D' stroke-width='5'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -198,6 +198,44 @@ h3 { font: 400 25px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .hold-grid p { font-size: 16px; }
 .hold-grid svg { width: 28px; height: 28px; color: var(--green); }
 
+/* ---------- Section heads, roster ---------- */
+.stack { padding-block: clamp(64px, 9vw, 112px); display: grid; gap: clamp(36px, 5vw, 56px); }
+.section-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px clamp(28px, 6vw, 88px); align-items: end; }
+.section-head > p { max-width: 54ch; font-size: 16.5px; }
+.roster { border-top: 1px solid var(--rule); padding-top: 18px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px; }
+.roster ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 0; }
+.roster li { font: 400 clamp(17px, 1.6vw, 21px)/1.4 var(--display); color: var(--ink); letter-spacing: 0.04em; display: inline-flex; align-items: center; }
+.roster li + li::before { content: ""; width: 6px; height: 6px; margin: 0 16px; transform: rotate(45deg); background: linear-gradient(180deg, var(--gold-a), var(--gold-line)); box-shadow: 0 0 0 1px rgba(10, 44, 45, 0.35); }
+
+/* ---------- Companies ---------- */
+.companies { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--ink); }
+.co { display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; padding: 26px 28px 24px 0; border-bottom: 1px solid var(--rule); min-width: 0; }
+.co:not(:nth-child(3n + 1)) { padding-left: 28px; border-left: 1px solid var(--rule); }
+.co .kind { font: 500 12px/1.2 var(--head); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.co h3 { font-size: 25px; }
+.co p { font-size: 15.5px; }
+.co a, .co .soon { align-self: end; justify-self: start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 500 12.5px/1.2 var(--head); letter-spacing: 0.12em; text-transform: uppercase; color: var(--green); text-decoration: underline 1px var(--gold-line); text-underline-offset: 7px; overflow-wrap: anywhere; }
+.co a:hover { text-decoration-color: var(--green); }
+.co a svg { width: 11px; height: 11px; flex: none; }
+.co.is-soon { background: linear-gradient(180deg, rgba(255, 253, 165, 0.45), rgba(255, 253, 165, 0)); }
+.co .soon { text-decoration: none; color: var(--ink); }
+.co .soon::before { content: ""; width: 7px; height: 7px; transform: rotate(45deg); background: var(--gold-a); box-shadow: 0 0 0 1px var(--ink); }
+
+/* ---------- What it builds ---------- */
+.outcomes { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px; padding-top: 4px; }
+.outcomes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 0; }
+.outcomes li { font: 400 clamp(20px, 2vw, 26px)/1.35 var(--display); color: var(--ink); display: inline-flex; align-items: center; }
+.outcomes li + li::before { content: ""; width: 7px; height: 7px; margin: 0 18px; transform: rotate(45deg); background: var(--gold-a); box-shadow: 0 0 0 1px var(--ink); }
+
+/* ---------- Leadership ---------- */
+#approach { background: var(--mist); }
+.heads { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(20px, 3vw, 40px); }
+.heads li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 18px; align-items: start; padding: 24px 0; border-top: 1px solid var(--rule); }
+.heads li:nth-child(-n + 3) { border-top-color: var(--ink); }
+.heads .mono { width: 56px; height: 72px; display: grid; place-items: center; font: 400 21px/1 var(--display); letter-spacing: 0.08em; color: var(--ink); background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); box-shadow: inset 0 0 0 3px var(--ink); padding-left: 0.08em; }
+.heads h3 { font-size: 22px; }
+.heads p { font-size: 15px; color: var(--muted); margin-top: 4px; }
+
 /* ---------- The group ---------- */
 .group { padding-block: clamp(64px, 9vw, 104px); display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 6vw, 88px); align-items: start; }
 .company { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); padding: 26px 0 22px; display: grid; gap: 10px; }
@@ -248,6 +286,10 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
 /* ---------- Narrower screens ---------- */
 @media (max-width: 1100px) {
   .pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .companies, .heads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .co:not(:nth-child(3n + 1)) { padding-left: 0; border-left: 0; }
+  .co:nth-child(even) { padding-left: 28px; border-left: 1px solid var(--rule); }
+  .heads li:nth-child(3) { border-top-color: var(--rule); }
 }
 @media (min-width: 961px) and (max-width: 1280px) {
   /* E6: the maze starts further right while the motto is wide */
@@ -255,7 +297,7 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
   .meander .motto { max-width: 22ch; }
 }
 @media (max-width: 960px) {
-  .hero-body, .split, .group, .contact .wrap { grid-template-columns: minmax(0, 1fr); }
+  .hero-body, .split, .group, .contact .wrap, .section-head { grid-template-columns: minmax(0, 1fr); }
   .hero-body h1 { font-size: clamp(32px, 5.4vw, 42px); }
   .contact-mark { display: none; }
   .hold-grid { grid-template-columns: minmax(0, 1fr); }
@@ -284,7 +326,12 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
   .pillar .capital { height: 22px; }
 }
 @media (max-width: 560px) {
-  .pillars { grid-template-columns: minmax(0, 1fr); }
+  .pillars, .companies, .heads { grid-template-columns: minmax(0, 1fr); }
+  .co:nth-child(n), .co:nth-child(even) { padding-left: 0; border-left: 0; padding-right: 0; }
+  .heads li:nth-child(2) { border-top-color: var(--rule); }
+  .roster ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; width: 100%; }
+  .roster li + li::before { content: none; }
+  .co.is-soon { padding-inline: 16px; }
   .wordmark span { letter-spacing: 0.14em; }
 }
 </style>
@@ -323,10 +370,10 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
         <svg class="x" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3l12 12M15 3L3 15" stroke="currentColor" stroke-width="1.5" /></svg>
       </button>
       <nav class="nav" id="nav" aria-label="Main">
-        <a href="#name">The name</a>
-        <a href="#principles">Principles</a>
+        <a href="#companies">Companies</a>
         <a href="#approach">Approach</a>
-        <a href="#group">The group</a>
+        <a href="#leadership">Leadership</a>
+        <a href="#principles">Principles</a>
         <a class="cta" href="#contact">Contact</a>
       </nav>
     </div>
@@ -335,7 +382,7 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
   <main id="main" tabindex="-1">
     <section class="band hero" id="top" aria-labelledby="hero-title">
       <div class="wrap">
-        <p class="eyebrow">A holding company · Philippines</p>
+        <p class="eyebrow">Legati Group, Inc. · Holding company · Philippines</p>
         <div class="hero-mid">
           <p class="wordmark" aria-hidden="true"><span>LEGATI</span><span>GROUP</span></p>
           <svg class="hero-mark draw" viewBox="0 0 100 132" aria-hidden="true">
@@ -347,14 +394,20 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
         <div class="hero-body">
           <h1 id="hero-title">We build and keep businesses for the long term.</h1>
           <div>
-            <p class="lede">Legati Group is a holding company. We give the businesses we hold the capital, governance and patience to grow, and we stand behind how they are run.</p>
+            <p class="lede">Legati Group, Inc. is the holding company overseeing a diverse portfolio of businesses. We give each one strategic direction, corporate oversight and shared services, and we stand behind how they are run.</p>
             <div class="hero-actions">
-              <a class="btn solid" href="#principles">Our principles</a>
-              <a class="btn line" href="#group">Our companies
+              <a class="btn solid" href="#companies">Our companies</a>
+              <a class="btn line" href="#leadership">Leadership
                 <svg viewBox="0 0 18 10" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
               </a>
             </div>
           </div>
+        </div>
+        <div class="roster">
+          <p class="eyebrow">The group</p>
+          <ul>
+            <li>Lancaster</li><li>Centurion</li><li>Tora by Tiger</li><li>Ceramic Pro</li><li>Clubhouse Studio</li>
+          </ul>
         </div>
       </div>
     </section>
@@ -369,30 +422,121 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
       </div>
     </section>
 
-    <section class="band" id="name" aria-labelledby="name-title">
-      <div class="wrap split">
-        <aside>
-          <p class="eyebrow">The name</p>
-          <h2 class="title" id="name-title">Why Legati</h2>
-          <div class="def">
-            <b>lēgātus</b>
-            <i>Latin, plural lēgātī</i>
-            <p>An envoy or commander entrusted to act with the authority of Rome, and held to account for how it was used.</p>
+    <section class="band" id="companies" aria-labelledby="companies-title">
+      <div class="wrap stack">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Companies</p>
+            <h2 class="title" id="companies-title">One group, many trades</h2>
           </div>
-        </aside>
-        <div class="prose">
-          <p class="lede">A legatus carried real authority and answered for it. That balance of power and responsibility is the standard we hold ourselves to.</p>
-          <p>Our mark is drawn from the meander, the continuous line that ran along Roman pillars and temples. Its corners turn back on themselves and never break, a figure of strength and of stability. Inside it sit the letters L and G.</p>
-          <p>The pillar is a good picture of a holding company. It carries weight that is not its own, it is built to stand for generations, and it only works if it is sound all the way through.</p>
-          <figure class="marks">
-            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M3 37V3h34v27H13V13h14v10h-6" fill="none" stroke="currentColor" stroke-width="3.2" /></svg>
-            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M37 3v34H3V13h24v14H13v-6" fill="none" stroke="currentColor" stroke-width="3.2" /></svg>
-            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 37 20 20 37 3 20l11-11 11 11-5 5-5-5" fill="none" stroke="currentColor" stroke-width="3" /></svg>
-            <svg class="arrow" viewBox="0 0 26 10" aria-hidden="true"><path d="M0 5h24M20 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
-            <svg class="lg" viewBox="0 0 100 132" aria-hidden="true"><use href="#lg-mark" /></svg>
-            <figcaption>From the meander to the Legati mark.</figcaption>
-          </figure>
+          <p>Each company works under its own name and leadership, with the direction, oversight and shared services of Legati Group behind it.</p>
         </div>
+        <ul class="companies">
+          <li class="co">
+            <span class="kind">Technology</span>
+            <h3>Lancaster Technology and Development Corporation</h3>
+            <p>Software and systems development for businesses and institutions.</p>
+            <a href="https://lancastertechdev.com/" rel="noopener" target="_blank">lancastertechdev.com<span class="sr"> (opens in a new tab)</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 9l6-6M4 3h5v5" fill="none" stroke="currentColor" stroke-width="1.4" /></svg></a>
+          </li>
+          <li class="co">
+            <span class="kind">Digital</span>
+            <h3>Centurion Digital Solutions</h3>
+            <a href="https://centurion.com.ph/" rel="noopener" target="_blank">centurion.com.ph<span class="sr"> (opens in a new tab)</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 9l6-6M4 3h5v5" fill="none" stroke="currentColor" stroke-width="1.4" /></svg></a>
+          </li>
+          <li class="co">
+            <span class="kind">Member company</span>
+            <h3>Tora by Tiger</h3>
+            <a href="https://www.instagram.com/torabytiger/" rel="noopener" target="_blank">Instagram · @torabytiger<span class="sr"> (opens in a new tab)</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 9l6-6M4 3h5v5" fill="none" stroke="currentColor" stroke-width="1.4" /></svg></a>
+          </li>
+          <li class="co">
+            <span class="kind">Surface protection</span>
+            <h3>Ceramic Pro</h3>
+            <p>Ceramic coatings.</p>
+            <a href="https://ceramicpro.com/" rel="noopener" target="_blank">ceramicpro.com<span class="sr"> (opens in a new tab)</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 9l6-6M4 3h5v5" fill="none" stroke="currentColor" stroke-width="1.4" /></svg></a>
+          </li>
+          <li class="co">
+            <span class="kind">Member company</span>
+            <h3>Clubhouse Studio</h3>
+            <a href="https://www.instagram.com/clubhousestudio_/" rel="noopener" target="_blank">Instagram · @clubhousestudio_<span class="sr"> (opens in a new tab)</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 9l6-6M4 3h5v5" fill="none" stroke="currentColor" stroke-width="1.4" /></svg></a>
+          </li>
+          <li class="co is-soon">
+            <span class="kind">Construction</span>
+            <h3>Cresmont Builders Corporation</h3>
+            <p>The next company to join the group.</p>
+            <span class="soon">Coming soon</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" id="approach" aria-labelledby="approach-title">
+      <div class="wrap stack">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Approach</p>
+            <h2 class="title" id="approach-title">What the group provides</h2>
+          </div>
+          <p>A holding company earns its place by making each business stronger than it would be alone. These are the three things we give every company in the group.</p>
+        </div>
+        <div class="hold-grid">
+          <article>
+            <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2v24M14 2l-6 6M14 2l6 6M4 26h20" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+            <h3>Strategic direction</h3>
+            <p>The group sets the long-term course for each business and weighs decisions against the next ten years, not the next quarter.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M2 26V2h24v18H8V8h12v6h-6" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+            <h3>Corporate oversight</h3>
+            <p>Each company keeps its own leadership, name and customers. The group sets the standards, supports the people who lead, and holds them to account.</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M2 26h24M5 26V9M23 26V9M2 6h24L14 1zM10 26V9M18 26V9" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
+            <h3>Shared services</h3>
+            <p>Finance, legal and compliance, communications and human resources are led at group level, so each company can give its attention to its customers.</p>
+          </article>
+        </div>
+        <div class="outcomes">
+          <p class="eyebrow">What it builds</p>
+          <ul><li>Collaboration</li><li>Operational alignment</li><li>Sustainable growth</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="leadership" aria-labelledby="leadership-title">
+      <div class="wrap stack">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Leadership</p>
+            <h2 class="title" id="leadership-title">Group heads</h2>
+          </div>
+          <p>The group's leadership sets direction for every company and leads the shared functions they rely on: finance, legal and compliance, communications and people.</p>
+        </div>
+        <ul class="heads">
+          <li>
+            <span class="mono" aria-hidden="true">JD</span>
+            <div><h3>John N. Domantay</h3><p>Chairman &amp; CEO</p></div>
+          </li>
+          <li>
+            <span class="mono" aria-hidden="true">KD</span>
+            <div><h3>Khim G. Dagangon</h3><p>Group Chief Financial Officer</p></div>
+          </li>
+          <li>
+            <span class="mono" aria-hidden="true">CT</span>
+            <div><h3>Atty. Christian Y. Tomas</h3><p>Group Chief Legal Officer</p></div>
+          </li>
+          <li>
+            <span class="mono" aria-hidden="true">AA</span>
+            <div><h3>Atty. Aiiza A. Arsenal</h3><p>Group Director, Legal and Compliance</p></div>
+          </li>
+          <li>
+            <span class="mono" aria-hidden="true">JC</span>
+            <div><h3>Josemaria E. Claro</h3><p>Group Director, Integrated Communications Department</p></div>
+          </li>
+          <li>
+            <span class="mono" aria-hidden="true">LA</span>
+            <div><h3>Lianne A. Asuncioun</h3><p>Group Director, Human Resources Department</p></div>
+          </li>
+        </ul>
       </div>
     </section>
 
@@ -443,47 +587,30 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
       </div>
     </section>
 
-    <section class="band" id="approach" aria-labelledby="approach-title">
-      <div class="wrap hold">
-        <div>
-          <p class="eyebrow">Approach</p>
-          <h2 class="title" id="approach-title">How we hold a business</h2>
-        </div>
-        <div class="hold-grid">
-          <article>
-            <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M2 26h24M5 26V9M23 26V9M2 6h24L14 1zM10 26V9M18 26V9" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
-            <h3>For the long term</h3>
-            <p>We build to keep. Our plans have no exit date, so decisions are weighed against the next ten years, not the next quarter.</p>
-          </article>
-          <article>
-            <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M2 26V2h24v18H8V8h12v6h-6" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
-            <h3>The group sets standards, the companies run</h3>
-            <p>Each company keeps its own leadership, name and customers. The group sets the standards, supports the people who lead, and holds them to account.</p>
-          </article>
-          <article>
-            <svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="1.6" /><path d="M8 14.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="1.6" /></svg>
-            <h3>Responsible for what we hold</h3>
-            <p>We expect to be judged on how our companies are run and on what they deliver, and we hold ourselves to the standards we set for them.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="band" id="group" aria-labelledby="group-title">
-      <div class="wrap group">
+    <section class="band" id="name" aria-labelledby="name-title">
+      <div class="wrap split">
+        <aside>
+          <p class="eyebrow">The name</p>
+          <h2 class="title" id="name-title">Why Legati</h2>
+          <div class="def">
+            <b>lēgātus</b>
+            <i>Latin, plural lēgātī</i>
+            <p>An envoy or commander entrusted to act with the authority of Rome, and held to account for how it was used.</p>
+          </div>
+        </aside>
         <div class="prose">
-          <p class="eyebrow">The group</p>
-          <h2 class="title" id="group-title">Our companies</h2>
-          <p>The businesses of the group work under their own names, with the standards and backing of Legati Group behind them.</p>
+          <p class="lede">A legatus carried real authority and answered for it. That balance of power and responsibility is the standard we hold ourselves to.</p>
+          <p>Our mark is drawn from the meander, the continuous line that ran along Roman pillars and temples. Its corners turn back on themselves and never break, a figure of strength and of stability. Inside it sit the letters L and G.</p>
+          <p>The pillar is a good picture of a holding company. It carries weight that is not its own, it is built to stand for generations, and it only works if it is sound all the way through.</p>
+          <figure class="marks">
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M3 37V3h34v27H13V13h14v10h-6" fill="none" stroke="currentColor" stroke-width="3.2" /></svg>
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M37 3v34H3V13h24v14H13v-6" fill="none" stroke="currentColor" stroke-width="3.2" /></svg>
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 37 20 20 37 3 20l11-11 11 11-5 5-5-5" fill="none" stroke="currentColor" stroke-width="3" /></svg>
+            <svg class="arrow" viewBox="0 0 26 10" aria-hidden="true"><path d="M0 5h24M20 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
+            <svg class="lg" viewBox="0 0 100 132" aria-hidden="true"><use href="#lg-mark" /></svg>
+            <figcaption>From the meander to the Legati mark.</figcaption>
+          </figure>
         </div>
-        <article class="company">
-          <span class="kind">Member company</span>
-          <h3>Lancaster Technology and Development Corporation</h3>
-          <p>Software and systems development.</p>
-          <a href="https://lancastertechdev.com" rel="noopener" target="_blank">Visit Lancaster<span class="sr"> (opens in a new tab)</span>
-            <svg viewBox="0 0 18 10" aria-hidden="true"><path d="M0 5h16M12 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
-          </a>
-        </article>
       </div>
     </section>
 
@@ -509,13 +636,14 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
     <div class="wrap">
       <a class="brand" href="#top" aria-label="Legati Group, back to top"><span>LEGATI GROUP</span></a>
       <nav aria-label="Footer">
-        <a href="#name">The name</a>
-        <a href="#principles">Principles</a>
+        <a href="#companies">Companies</a>
         <a href="#approach">Approach</a>
-        <a href="#group">The group</a>
+        <a href="#leadership">Leadership</a>
+        <a href="#principles">Principles</a>
+        <a href="#name">The name</a>
         <a href="#contact">Contact</a>
       </nav>
-      <small>© 2026 Legati Group. All rights reserved.</small>
+      <small>© 2026 Legati Group, Inc. All rights reserved.</small>
     </div>
   </footer>
 </div>
