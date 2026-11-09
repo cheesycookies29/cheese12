@@ -238,12 +238,14 @@ h3 { font: 400 25px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 
 /* ---------- Leadership ---------- */
 #approach { background: var(--mist); }
-.heads { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 clamp(20px, 3vw, 40px); }
-.heads li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 18px; align-items: start; padding: 24px 0; border-top: 1px solid var(--rule); }
-.heads li:nth-child(-n + 3) { border-top-color: var(--ink); }
-.heads .mono { width: 56px; height: 72px; display: grid; place-items: center; font: 400 21px/1 var(--display); letter-spacing: 0.08em; color: var(--ink); background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); box-shadow: inset 0 0 0 3px var(--ink); padding-left: 0.08em; }
-.heads h3 { font-size: 22px; }
-.heads p { font-size: 15px; color: var(--muted); margin-top: 4px; }
+.heads { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(28px, 4vw, 48px) clamp(20px, 3vw, 40px); }
+.heads li { display: grid; align-content: start; gap: 4px; min-width: 0; }
+/* portraits share one frame: 4:5, head and shoulders, on the studio grey */
+.portrait { aspect-ratio: 4 / 5; max-width: 100%; overflow: hidden; background: #c9cbca; margin-bottom: 14px; border-bottom: 3px solid var(--ink); }
+.portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.portrait .mono { width: 100%; height: 100%; display: grid; place-items: center; font: 400 clamp(48px, 6vw, 76px)/1 var(--display); letter-spacing: 0.1em; padding-left: 0.1em; color: var(--ink); background: radial-gradient(circle at 50% 40%, #d9dbda, #c4c6c5 70%); }
+.heads h3 { font-size: 23px; }
+.heads p { font-size: 15px; color: var(--muted); }
 
 /* ---------- The group ---------- */
 .group { padding-block: clamp(64px, 9vw, 104px); display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 6vw, 88px); align-items: start; }
@@ -299,7 +301,6 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
   .companies, .heads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .co:not(:nth-child(3n + 1)) { padding-left: 0; border-left: 0; }
   .co:nth-child(even) { padding-left: 28px; border-left: 1px solid var(--rule); }
-  .heads li:nth-child(3) { border-top-color: var(--rule); }
 }
 @media (min-width: 961px) and (max-width: 1280px) {
   /* E6: the maze starts further right while the motto is wide */
@@ -336,9 +337,11 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
   .pillar .capital { height: 22px; }
 }
 @media (max-width: 560px) {
-  .pillars, .companies, .heads { grid-template-columns: minmax(0, 1fr); }
+  .pillars, .companies { grid-template-columns: minmax(0, 1fr); }
+  .heads { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 16px; }
+  .heads h3 { font-size: 19px; }
+  .heads p { font-size: 14px; }
   .co:nth-child(n), .co:nth-child(even) { padding-left: 0; border-left: 0; padding-right: 0; }
-  .heads li:nth-child(2) { border-top-color: var(--rule); }
   .roster ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; width: 100%; }
   .roster li + li::before { content: none; }
   .co.is-soon { padding-inline: 16px; }
@@ -525,28 +528,34 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
         </div>
         <ul class="heads">
           <li>
-            <span class="mono" aria-hidden="true">JD</span>
-            <div><h3>John N. Domantay</h3><p>Chairman &amp; CEO</p></div>
+            <div class="portrait"><img src="/img/legati/domantay.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
+            <h3>John N. Domantay</h3>
+            <p>Chairman &amp; CEO</p>
           </li>
           <li>
-            <span class="mono" aria-hidden="true">KD</span>
-            <div><h3>Khim G. Dagangon</h3><p>Group Chief Financial Officer</p></div>
+            <div class="portrait"><img src="/img/legati/dagangon.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
+            <h3>Khim G. Dagangon</h3>
+            <p>Group Chief Financial Officer</p>
           </li>
           <li>
-            <span class="mono" aria-hidden="true">CT</span>
-            <div><h3>Atty. Christian Y. Tomas</h3><p>Group Chief Legal Officer</p></div>
+            <div class="portrait"><img src="/img/legati/tomas.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
+            <h3>Atty. Christian Y. Tomas</h3>
+            <p>Group Chief Legal Officer</p>
           </li>
           <li>
-            <span class="mono" aria-hidden="true">AA</span>
-            <div><h3>Atty. Aiiza A. Arsenal</h3><p>Group Director, Legal and Compliance</p></div>
+            <div class="portrait"><img src="/img/legati/arsenal.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
+            <h3>Atty. Aiiza A. Arsenal</h3>
+            <p>Group Director, Legal and Compliance</p>
           </li>
           <li>
-            <span class="mono" aria-hidden="true">JC</span>
-            <div><h3>Josemaria E. Claro</h3><p>Group Director, Integrated Communications Department</p></div>
+            <div class="portrait"><img src="/img/legati/claro.jpg" width="640" height="800" alt="" loading="lazy" decoding="async" /></div>
+            <h3>Josemaria E. Claro</h3>
+            <p>Group Director, Integrated Communications Department</p>
           </li>
           <li>
-            <span class="mono" aria-hidden="true">LA</span>
-            <div><h3>Lianne A. Asuncioun</h3><p>Group Director, Human Resources Department</p></div>
+            <div class="portrait"><span class="mono" aria-hidden="true">LA</span></div>
+            <h3>Lianne A. Asuncioun</h3>
+            <p>Group Director, Human Resources Department</p>
           </li>
         </ul>
       </div>
