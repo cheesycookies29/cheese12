@@ -112,6 +112,10 @@ h3 { font: 400 25px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .prose { display: grid; gap: 18px; max-width: 62ch; }
 
 /* ---------- Hero ---------- */
+/* a soft parchment light behind the mark */
+.hero { position: relative; overflow: hidden; }
+.hero::before { content: ""; position: absolute; top: -18vw; right: -12vw; width: min(64vw, 820px); aspect-ratio: 1; background: radial-gradient(closest-side, rgba(255, 253, 165, 0.6), rgba(255, 253, 165, 0.18) 55%, rgba(255, 253, 165, 0)); pointer-events: none; }
+.hero .wrap { position: relative; }
 .hero .wrap { padding-block: clamp(28px, 4vw, 56px) clamp(44px, 6vw, 80px); display: grid; gap: clamp(22px, 3vw, 36px); }
 .hero-mid { display: flex; justify-content: space-between; align-items: center; gap: 32px; }
 .hero-mark { width: clamp(96px, 10.5vw, 150px); flex: none; }
@@ -140,7 +144,10 @@ h3 { font: 400 25px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 /* ---------- Meander band ---------- */
 .meander { background: var(--green); color: var(--on-green); overflow: hidden; position: relative; }
 /* the brand banner's gold maze: meander keys turned 45°, fading in toward the right */
-.meander .maze { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-mask-image: linear-gradient(90deg, transparent 38%, #000 82%); mask-image: linear-gradient(90deg, transparent 38%, #000 82%); }
+.maze { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+/* the drawing is one lattice step larger than the band, so it can drift and loop without a seam */
+.maze svg { position: absolute; left: -148px; top: -148px; width: calc(100% + 148px); height: calc(100% + 148px); max-width: none; }
+.meander .maze { -webkit-mask-image: linear-gradient(90deg, transparent 38%, #000 82%); mask-image: linear-gradient(90deg, transparent 38%, #000 82%); }
 .meander .wrap { position: relative; }
 .meander figure { margin: 0; padding-block: clamp(56px, 8vw, 104px); display: grid; gap: 14px; }
 .meander .motto { font: 400 clamp(26px, 3.4vw, 40px)/1.3 var(--display); color: var(--white); max-width: 30ch; letter-spacing: 0.01em; text-wrap: balance; }
@@ -202,8 +209,9 @@ h3 { font: 400 25px/1.25 var(--display); color: var(--ink); letter-spacing: 0.02
 .company a svg { width: 18px; height: 10px; }
 
 /* ---------- Contact ---------- */
-.contact { background: var(--green); color: var(--on-green); }
-.contact .wrap { padding-block: clamp(64px, 9vw, 104px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: clamp(28px, 6vw, 88px); align-items: center; }
+.contact { background: var(--green); color: var(--on-green); position: relative; overflow: hidden; }
+.contact .maze { opacity: 0.13; -webkit-mask-image: linear-gradient(90deg, transparent 40%, #000 100%); mask-image: linear-gradient(90deg, transparent 40%, #000 100%); }
+.contact .wrap { position: relative; padding-block: clamp(64px, 9vw, 104px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: clamp(28px, 6vw, 88px); align-items: center; }
 .contact .eyebrow { color: var(--gold-a); }
 .contact h2.title { color: var(--white); }
 .contact .lede { color: var(--on-green); margin-top: 18px; }
@@ -218,6 +226,16 @@ footer nav { display: flex; flex-wrap: wrap; gap: 0 22px; }
 footer nav a { display: inline-flex; align-items: center; min-height: 44px; font: 400 13.5px/1.4 var(--body); color: var(--muted); text-decoration: none; }
 footer nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
+
+/* ---------- Motion: background drift, slow and quiet ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .maze svg { animation: maze-drift 32s linear infinite; }
+  .contact .maze svg { animation-duration: 48s; animation-direction: reverse; }
+  .hero::before { animation: glow 16s ease-in-out infinite alternate; }
+  /* one step of the 45° lattice (104px × cos 45°), so each loop ends where it began */
+  @keyframes maze-drift { to { transform: translate(73.539px, 73.539px); } }
+  @keyframes glow { from { transform: translate(0, 0) scale(1); opacity: 0.85; } to { transform: translate(-6vw, 4vw) scale(1.12); opacity: 1; } }
+}
 
 /* ---------- Motion: the mark draws itself once ---------- */
 .draw path { stroke-dasharray: 260; stroke-dashoffset: 0; }
@@ -342,7 +360,7 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
     </section>
 
     <section class="meander on-green" aria-label="Our motto">
-      <svg class="maze" aria-hidden="true"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg>
+      <div class="maze" aria-hidden="true"><svg><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg></div>
       <div class="wrap">
         <figure>
           <p class="motto">Strength and stability, carried with authority and responsibility.</p>
@@ -470,6 +488,7 @@ footer small { font: 400 13px/1.4 var(--body); color: var(--muted); }
     </section>
 
     <section class="contact on-green" id="contact" aria-labelledby="contact-title">
+      <div class="maze" aria-hidden="true"><svg><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg></div>
       <div class="wrap">
         <div>
           <p class="eyebrow">Contact</p>
