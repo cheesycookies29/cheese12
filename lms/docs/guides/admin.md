@@ -53,7 +53,7 @@ This tour uses the demo school, signed in as `admin`.
 
 1. Open the ATLAS home page on the new server. It says **Not set up yet**; choose **Set up in the admin panel**.
 2. If the server asks for a **Setup code**, type the code chosen when the server was created.
-3. Type the **School name**, the **Campus name**, your **Full name**, a **Username** and a password (at least 8 characters), twice.
+3. Type the **School name**, the **Campus name**, **Your full name**, a **Username** and a password (at least 8 characters), twice.
 4. Choose **Create account and sign in**.
 
 The Dashboard opens with a *Getting started* note. Add a term, courses and sections, then students and teachers. To look around first, add the demo data (see [Add or remove the demo school](#add-or-remove-the-demo-school)).
@@ -201,7 +201,7 @@ If one group fails its checks, nothing is imported. Keep an export before big ch
 2. In the table for a system (**Admin panel**, **ATLAS Academic**, **ATLAS People**, **ATLAS Finance**), tick or untick a permission for an account type. A shaded box differs from the built-in setting.
 3. Choose **Save permissions**. If accounts would lose something they can do now, ATLAS asks first.
 
-For example, let deans open Finance's reports (**ATLAS Finance** → *Finance dashboard, books and reports* for **Dean / Program chair**), or keep **Academic settings** with administrators only by unticking it for **Registrar**. **Restore built-in** puts an account type back as ATLAS made it.
+For example, let deans open Finance's reports (**ATLAS Finance** → *Finance dashboard, books and reports* for **Dean / Program chair**), or keep the academic settings with administrators only by unticking *Grading scale, requirements, document fees and signatories* (under **ATLAS Academic**) for **Registrar**. **Restore built-in** puts an account type back as ATLAS made it.
 
 Administrators always have every permission, and managing administrator accounts and replacing data (**Administrators only**) cannot be given to anyone else. Admin-panel permissions go only to registrars and deans, who use the Admin panel.
 
@@ -212,11 +212,11 @@ Administrators always have every permission, and managing administrator accounts
 ### Choose what the ATLAS home page shows
 
 1. Choose **Home page & systems**. Academic, Learn, People and Finance are built in and always live.
-2. For **Facilities** or the **REX Bookstore e-Reader**, choose a **Status**: **Coming soon (greyed out)**, **Live: open it from the portal** or **Hidden**.
+2. For **Facilities** or the **REX Bookstore e-Reader**, choose a **Status**: **Coming soon (greyed out)**, **Live: open it from the ATLAS home page** or **Hidden**.
 3. To make it live, type its **Address** (starting with `https://`, `http://` or `/`).
+4. Choose **Save**. The home page changes at once.
 
 The **REX Bookstore e-Reader** connects to the REX Bookstore app's library of e-books, for students and teachers. It shows as **Coming soon** until that connection is ready; then switch it to **Live** with the address of the e-reader.
-4. Choose **Save**. The home page changes at once.
 
 Each card says which account types see that tile.
 
@@ -330,7 +330,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 
 **Why can't I delete an account?** Students, teachers and parents are disabled, not deleted, so their records stay. On **Admins, registrars & deans** you cannot delete your own account or the last active administrator. Disabling works the same way: you cannot disable yourself or the last active administrator.
 
-**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses, systems and single sign-on are for administrators. Registrars see them read-only, with *Only administrators can change these.* To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
+**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses and systems are for administrators. Registrars see them read-only, with *Only administrators can change these.* (**Single sign-on** is not in a registrar's sidebar at all.) To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
 
 **Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity (change it under **Settings & branding** → **Sign-in and passwords**).
 

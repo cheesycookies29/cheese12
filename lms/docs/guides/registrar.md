@@ -34,7 +34,7 @@ Use the demo school to try the whole job once. Sign in as `registrar.demo` (pass
 
 ### 2. Look at a waitlist
 
-1. Open the **Waitlisted** tab. IT210 A is full (3 of 3 seats), and two students are in line, numbered in the order they joined.
+1. Open the **Waitlisted** tab. IT210 A is full (3 of 3 seats), and four students are in line, numbered in the order they joined.
 2. Click **History** on one of them to see every step of the request.
 
 ![The waitlist of a full section](registrar-waitlist.jpg)
@@ -75,7 +75,7 @@ Use the demo school to try the whole job once. Sign in as `registrar.demo` (pass
 1. On Carlo's record, open the **Documents** tab and click **Transcript of Records**. The transcript opens with a code and a QR code.
 2. Click the link under the title (it ends in `/verify/` and the code): that page is what anyone sees when they check the document.
 3. Open **Document requests**. Carlo's request for 2 copies of his Transcript of Records is *Requested*. Click **Record payment**, type any O.R. number and click **Record payment**.
-4. Click **Start processing**, then **Ready for release**, then **Release**.
+4. Click **Start processing**, then **Ready for release**, then **Release**. Check the name under **Released to** and click **Release** again.
 
 ![Document requests](registrar-document-requests.jpg)
 
@@ -105,7 +105,7 @@ You can also open the section under **Sections**: it lists *Enrolled*, *Pending 
 ### Add a student to a section yourself
 
 1. Open **Admin panel → Enrollment requests** and click **+ Add a student to a section** (or open the student and click **+ Add to a section**, or open the section and click **+ Add a student**).
-2. Choose the **Student** and the **Section**. Add a **Note** if useful, for example *Cross-enrollee*.
+2. Choose the **Student** and the **Section**. Fill in **Note (optional)** if useful, for example *Cross-enrollee*.
 3. Tick **Override the rules: prerequisites, unit limit, schedule conflicts and a full section** only when you mean to.
 4. Click **Add**.
 
@@ -195,7 +195,7 @@ The result: the subject counts as passed in the student's evaluation and shows o
 
 ### Keep a student's record up to date
 
-1. Open **Academic → Students**. Use **Show** to find students with *No curriculum*, *Missing requirements* or *With an INC*.
+1. Open **Academic → Students**. Use the list that says **All students** to find students with *No curriculum*, *Missing requirements* or *With an INC*.
 2. Open a student. On **Overview**, tick each requirement as you receive it.
 3. On **Profile**, set the **Program**, **Curriculum** (only posted curricula of the program are listed), **Year level** and **Student type**, the personal details and the educational background. Click **Save**.
 
@@ -231,10 +231,10 @@ Open **Academic → Settings**:
 - **Grading scale**: from the final percentage to the grade, and the **Lowest passing grade** (3.00 by default). **Add a band** adds a row and **×** removes one; ATLAS refuses a scale where a higher percentage gets a worse grade, two bands start at the same percentage, or nothing starts at 0%. **Restore the default scale** puts back 1.00 to 5.00 with passing at 3.00. Click **Save scale**. Grades already posted keep the equivalent they were posted with.
 - If the scale's passing line and Learn's **Passing grade (%)** (Admin panel → Settings & branding) differ, the scale shows a warning: make them the same so Learn and the permanent record agree.
 - **Rules and signatory**: the INC deadline (30 to 1000 days), the dean's list rules (the "no grade lower than" rule cannot be a failing grade), the registrar's name and title on documents, and the fee for each document. Click **Save**.
-
-An administrator decides who may change these settings (Admin panel → **Roles & permissions**), and sees every change you make in the Settings center's history.
 - **Admission requirements**: tick the student types that must submit each one; **Add** a new one. Click **Save requirements**.
 - **Colleges**: **Add college** with its code, name, dean and programs.
+
+An administrator decides who may change these settings (Admin panel → **Roles & permissions**), and sees every change you make in the Settings center's history.
 
 ## Screens at a glance
 
