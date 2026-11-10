@@ -214,8 +214,7 @@ h3 { font: 400 24px/1.25 var(--display); color: var(--ink); letter-spacing: 0.00
 .slide-logo { position: relative; display: block; width: auto; max-width: 62%; object-fit: contain; transform: translateX(calc(var(--p) * -22px)); }
 .art-light { background: var(--art-bg); }
 .art-light .slide-maze { opacity: 0.045; filter: brightness(0.25); }
-.art-lt { background: radial-gradient(120% 90% at 50% 20%, #5e0a1c, #3d0410 72%); box-shadow: inset 0 -3px 0 #d9ad48; }
-.art-lt .slide-maze { opacity: 0.08; }
+.art-lt { --art-bg: linear-gradient(160deg, #fbf8f3, #efe9df); box-shadow: inset 0 -3px 0 #5b0816; }
 .art-lt .slide-logo { height: clamp(84px, 50%, 144px); }
 .art-cd { --art-bg: linear-gradient(160deg, #f7f8fb, #e7eaf1); box-shadow: inset 0 -3px 0 #c9a13b; }
 .art-cd .slide-logo { height: clamp(78px, 46%, 128px); }
@@ -684,7 +683,7 @@ html:not(.js) .menu-btn, html:not(.js) .carousel-bar .arrow, html:not(.js) .coun
         <div class="carousel" role="region" aria-roledescription="carousel" aria-labelledby="companies-title">
           <ul class="track" id="co-track" tabindex="0" aria-label="Companies of the group. Use the arrow keys or the buttons to move.">
             <li class="slide">
-              <div class="slide-art art-lt" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><img class="slide-logo" src="/img/legati/companies/lancaster-gold.png" width="450" height="450" alt="" loading="lazy" decoding="async" /></div>
+              <div class="slide-art art-light art-lt" aria-hidden="true"><svg class="slide-maze"><rect width="100%" height="100%" fill="url(#lg-maze)" /></svg><img class="slide-logo" src="/img/legati/companies/lancaster.png" width="450" height="450" alt="" loading="lazy" decoding="async" /></div>
               <div class="slide-body">
                 <span class="kind">Technology</span>
                 <h3>Lancaster Technology and Development Corporation</h3>
