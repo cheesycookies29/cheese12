@@ -208,10 +208,12 @@ ATLAS can let people sign in with the school's **Keycloak** account (OpenID Conn
 - **Signing out** of ATLAS also ends the Keycloak session.
 - **Security:** authorization code flow with PKCE, a state bound to the browser, a nonce, and the ID token's signature checked against Keycloak's published keys (RS256, PS256 or ES256), with its issuer, audience and expiry. No new dependencies.
 
-To set it up:
+To set it up, the quick way: **Admin panel → Single sign-on → Set up for me**. Give the realm address and a Keycloak administrator's username and password (or a service account with the realm-management role *manage-clients*). ATLAS uses Keycloak's admin API (`server/keycloak-admin.js`) to create the client, or bring an existing one in line (confidential, standard flow, PKCE S256, its redirect and sign-out addresses, web origins `+`). It keeps the client secret in `data/oidc-client.secret` (readable by ATLAS only; not in `db.json` or the nightly copies) and switches single sign-on on, with no restart. The Keycloak sign-in is used for that request only and is never stored or logged.
+
+By hand:
 
 1. In Keycloak, in the school's realm: **Clients → Create client** (OpenID Connect), Client ID e.g. `atlas`; **Client authentication** on, **Standard flow** on. Add the **Valid redirect URI** and **Valid post logout redirect URI** that *Admin panel → Single sign-on* shows (they look like `https://your-domain/api/sso/callback` and `https://your-domain/`), and Web origins `+`.
-2. Put the client's secret on the server as `OIDC_CLIENT_SECRET` (on EC2: in `/etc/ltdc-lms/app.env`, see the EC2 guide) and restart ATLAS. The secret is never stored in the data file, backups or the admin panel.
+2. Put the client's secret on the server as `OIDC_CLIENT_SECRET` (on EC2: in `/etc/ltdc-lms/app.env`, see the EC2 guide) and restart ATLAS. The secret is never stored in the data file, backups or the admin panel. (If `data/oidc-client.secret` exists, from *Set up for me*, it is used instead.)
 3. In **Admin panel → Single sign-on**: the issuer (`https://sso.school.edu/realms/<realm>`), the client ID, the button text and how to match accounts; **Test connection**; then switch it on. ATLAS refuses to switch on if Keycloak does not answer.
 
 If ATLAS shows the wrong address for the redirect URIs (e.g. behind an unusual proxy), set `PUBLIC_URL=https://your-domain` on the server.

@@ -245,15 +245,17 @@ Students, teachers and parents see these events on their own **Calendar** in Lea
 
 ### Set up single sign-on with Keycloak
 
-You need a Keycloak realm, and someone who can change the server's settings.
+You need a Keycloak realm and a Keycloak account that may manage its clients: a Keycloak administrator, or a service account with the realm-management role *manage-clients*. ATLAS does the rest.
 
 1. Choose **Single sign-on**.
-2. In Keycloak, create the client as listed in the **In Keycloak** card. Use **Copy** for the **Valid redirect URIs** and **Valid post logout redirect URIs**.
-3. Put the client secret in the server's settings as `OIDC_CLIENT_SECRET` and restart ATLAS. It is never typed into the admin panel. The **Status** card then shows **Client secret: Set on the server**. Without a secret (**Not set**), make the Keycloak client public instead (**Client authentication** off).
-4. Back in **Single sign-on**, type the **Issuer (realm address)** and **Client ID**, and change the **Button text** if you like.
-5. Choose how to **Match Keycloak users to ATLAS accounts by**: **Email (verified in Keycloak)** or **Username**. By username, only students, parents and staff are linked on the username alone; teachers, registrars, deans, administrators and officers must also have the same verified email in Keycloak as on their ATLAS account, so that nobody gets such an account just by having its username in Keycloak.
-6. Choose **Test connection**. ATLAS shows *Keycloak answered.* or what went wrong.
-7. Tick **Show "Sign in with Keycloak" on the sign-in pages** and choose **Save**.
+2. In **Set up for me**, type the **Issuer (realm address)**, for example `https://sso.school.edu/realms/school`. Keep **Client ID to use** as `atlas` unless the school wants another name.
+3. Under **Sign in to Keycloak as**, choose **A Keycloak administrator** and type their username and password, or **A service account** and its client ID and secret. In **That account's realm**, leave `master` for a Keycloak administrator; for a realm administrator or a service account, type the school's realm.
+4. Choose **Set up in Keycloak**. ATLAS creates its client in Keycloak (or fixes the one already there), keeps the client secret on the server and switches single sign-on on. It then says what it did, or what went wrong. The **Status** card shows **Client secret: Saved on the server by Set up for me**.
+5. Under **Keycloak connection**, choose how to **Match Keycloak users to ATLAS accounts by**: **Email (verified in Keycloak)** or **Username**, change the **Button text** if you like, and choose **Save**. By username, only students, parents and staff are linked on the username alone; teachers, registrars, deans, administrators and officers must also have the same verified email in Keycloak as on their ATLAS account, so that nobody gets such an account just by having its username in Keycloak.
+
+The Keycloak sign-in you type is used for the set-up only: it is not saved anywhere. A Keycloak account with two-step sign-in cannot be used here; use a service account instead. Untick **Switch single sign-on on when done** to connect first and switch it on later. **Set up again** is safe to repeat: it keeps the client's secret and only adds what is missing.
+
+To set it up by hand instead, create the client as listed in **Or by hand, in Keycloak**, put its secret in the server's settings as `OIDC_CLIENT_SECRET` and restart ATLAS, then fill in **Keycloak connection**, choose **Test connection**, tick **Show "Sign in with Keycloak" on the sign-in pages** and choose **Save**. A secret saved by **Set up for me** is used instead of `OIDC_CLIENT_SECRET`.
 
 Leave **Keep ATLAS passwords too** ticked while people get used to it. When you untick it, everyone except administrators must sign in with Keycloak; administrators keep their password in case Keycloak is down. Anyone else who types a password is told to use Keycloak, whether the password was right or not.
 

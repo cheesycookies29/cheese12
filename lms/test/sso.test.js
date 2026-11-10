@@ -3,7 +3,11 @@
 // ID token, the settings, password sign-in when SSO is on, and signing out of Keycloak too.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { setup, seed, TODAY } from './support.js';
+import { memoryDb } from '../server/db.js';
 import { startProvider } from './oidc-provider.js';
 
 const PW = 'password123';
@@ -162,4 +166,114 @@ test('ES256-signed tokens and matching by username work too', async () => {
   assert.ok(!f.env.db.data.users.some((u) => u.ssoSubject?.endsWith('|kc-evil')));
   const rosa = await f.ssoSignIn({ sub: 'kc-42', preferred_username: 'Rosa', email: 'ROSA@school.edu', email_verified: true }, { next: '/admin' });
   assert.equal((await rosa.client.get('/api/admin/auth/status')).user.username, 'rosa');
+});
+
+// "Set up for me": ATLAS makes its own client in Keycloak with the admin API.
+async function freshSchool({ providerOptions = {}, db } = {}) {
+  const kc = await startProvider({ noClient: true, ...providerOptions });
+  providers.push(kc);
+  const env = setup({ options: { ssoSecret: '' }, ...(db ? { db } : {}) });
+  const s = await seed(env);
+  await s.admin.post('/api/admin/users', { role: 'student', username: 'carlo', name: 'Carlo Reyes', email: 'carlo@school.edu', password: PW, mustChangePassword: false });
+  return { ...s, env, kc };
+}
+const asAdmin = (kc, extra = {}) => ({ issuer: kc.issuer, clientId: 'atlas', auth: { kind: 'password', username: 'kcadmin', password: 'kc-pass', ...extra } });
+
+test('set up for me: ATLAS creates its Keycloak client, keeps the secret and switches sign-on on', async () => {
+  const f = await freshSchool();
+  assert.equal((await f.admin.get('/api/admin/sso')).enabled, false);
+  const out = await f.admin.post('/api/admin/sso/provision', asAdmin(f.kc));
+  assert.deepEqual([out.enabled, out.issuer, out.clientId, out.secretSet, out.secretSource], [true, f.kc.issuer, 'atlas', true, 'file']);
+  assert.deepEqual([out.done.realm, out.done.created], ['school', true]);
+  // The client, as Keycloak now holds it: confidential, standard flow with PKCE, ATLAS's addresses.
+  const c = f.kc.clients.find((x) => x.clientId === 'atlas');
+  assert.deepEqual(
+    [c.publicClient, c.standardFlowEnabled, c.implicitFlowEnabled, c.directAccessGrantsEnabled, c.redirectUris, c.webOrigins, c.attributes['pkce.code.challenge.method'], c.attributes['post.logout.redirect.uris']],
+    [false, true, false, false, ['http://localhost/api/sso/callback'], ['+'], 'S256', 'http://localhost/'],
+  );
+  assert.ok(f.kc.secret && f.kc.secret === c.secret, 'Keycloak made a secret');
+  // Nothing secret is kept in the data or sent back: not the Keycloak password, not the client secret.
+  const saved = JSON.stringify(f.env.db.data);
+  for (const v of ['kc-pass', f.kc.secret]) {
+    assert.equal(saved.includes(v), false);
+    assert.equal(JSON.stringify(out).includes(v), false);
+  }
+  // A real sign-in works straight away, with the secret ATLAS just received.
+  const client = f.env.client();
+  const start = await client.get('/api/sso/start');
+  const back = f.kc.authorize(start.headers.Location, { sub: 'kc-9', email: 'carlo@school.edu', email_verified: true }, { now: NOW });
+  await client.get(back);
+  assert.equal((await client.get('/api/hub/status')).user.username, 'carlo');
+  // Running it again changes nothing and keeps the same secret.
+  const secret = f.kc.secret;
+  const again = await f.admin.post('/api/admin/sso/provision', asAdmin(f.kc));
+  assert.deepEqual([again.done.created, again.done.changes, f.kc.secret], [false, [], secret]);
+});
+
+test('set up for me: an existing client is brought in line without losing what else it has', async () => {
+  const f = await freshSchool({ providerOptions: { noClient: false, client: { publicClient: true, standardFlowEnabled: false, redirectUris: ['https://old.school.edu/*'], webOrigins: [], attributes: { 'post.logout.redirect.uris': 'https://old.school.edu/' }, secret: '' } } });
+  const out = await f.admin.post('/api/admin/sso/provision', { ...asAdmin(f.kc), enable: false });
+  assert.equal(out.done.created, false);
+  assert.deepEqual(out.done.changes, ['turned on client authentication', 'turned on the standard flow', 'added the redirect address', 'added the sign-out address', 'set web origins to "+"', 'required PKCE (S256)', 'made a client secret']);
+  const c = f.kc.clients[0];
+  assert.deepEqual([c.publicClient, c.redirectUris, c.attributes['post.logout.redirect.uris']], [false, ['https://old.school.edu/*', 'http://localhost/api/sso/callback'], 'https://old.school.edu/##http://localhost/']);
+  assert.equal(out.enabled, false, 'enable: false only connects; the administrator switches it on later');
+  // A service account in the school's realm works as well as an administrator.
+  const svc = await f.admin.post('/api/admin/sso/provision', { issuer: f.kc.issuer, auth: { kind: 'client', realm: 'school', clientId: 'atlas-setup', clientSecret: 'svc-pass' } });
+  assert.deepEqual([svc.enabled, svc.done.changes], [true, []]);
+  assert.ok(f.kc.adminLog.calls.includes('token school client_credentials'));
+});
+
+test('set up for me: wrong or weak Keycloak accounts are refused clearly, and nothing changes', async () => {
+  const f = await freshSchool();
+  const tries = [
+    [asAdmin(f.kc, { password: 'nope' }), /did not accept that username and password in the "master" realm/],
+    [asAdmin(f.kc, { realm: 'other' }), /no realm "other"/],
+    [{ issuer: f.kc.issuer, auth: { kind: 'client', clientId: 'atlas-setup', clientSecret: 'bad' } }, /did not accept that service account/],
+    [{ ...asAdmin(f.kc), issuer: `${f.kc.issuer.replace(/school$/, '')}nowhere` }, /Keycloak answered 404|Could not reach/],
+    [{ ...asAdmin(f.kc), issuer: 'https://sso.example.edu/not-a-realm' }, /Could not reach Keycloak|realm address/],
+    [{ ...asAdmin(f.kc), clientId: 'bad id' }, /client ID may use/],
+    [{ ...asAdmin(f.kc), issuer: 'http://sso.example.edu/realms/x' }, /Use https/],
+  ];
+  for (const [body, why] of tries) await assert.rejects(f.admin.post('/api/admin/sso/provision', body), why);
+  f.kc.admin.canManage = false;
+  await assert.rejects(f.admin.post('/api/admin/sso/provision', asAdmin(f.kc)), (e) => e.status === 403 && /manage-clients/.test(e.message));
+  f.kc.admin.canManage = true;
+  f.kc.admin.otp = true;
+  await assert.rejects(f.admin.post('/api/admin/sso/provision', asAdmin(f.kc)), /required action pending/);
+  assert.equal(f.kc.clients.length, 0);
+  const s = await f.admin.get('/api/admin/sso');
+  assert.deepEqual([s.enabled, s.issuer, s.secretSet], [false, '', false]);
+  // Only an administrator, even if a role is given the settings permission.
+  await f.admin.post('/api/admin/users', { role: 'registrar', username: 'rosa', name: 'Rosa', password: PW, mustChangePassword: false });
+  await f.admin.put('/api/admin/roles', { overrides: { registrar: { add: ['settings.edit'] } } });
+  const reg = f.env.client();
+  await reg.post('/api/hub/login', { username: 'rosa', password: PW });
+  assert.equal((await reg.get('/api/admin/sso')).enabled, false, 'the registrar now has the settings permission');
+  await assert.rejects(reg.post('/api/admin/sso/provision', asAdmin(f.kc)), (e) => e.status === 403);
+});
+
+test('set up for me: the secret is kept in a file beside the data, readable by ATLAS only, and read again after a restart', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-sso-'));
+  try {
+    const db = memoryDb();
+    db.dir = dir;
+    const f = await freshSchool({ db });
+    await f.admin.post('/api/admin/sso/provision', asAdmin(f.kc));
+    const file = path.join(dir, 'oidc-client.secret');
+    assert.equal(fs.readFileSync(file, 'utf8').trim(), f.kc.secret);
+    if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    // A restarted ATLAS on the same data reads it, ahead of an older OIDC_CLIENT_SECRET.
+    const restarted = setup({ db, options: { ssoSecret: 'old-env-secret' } });
+    const admin = restarted.client();
+    await admin.post('/api/admin/auth/login', { username: 'admin', password: PW });
+    const s = await admin.get('/api/admin/sso');
+    assert.deepEqual([s.enabled, s.secretSet, s.secretSource], [true, true, 'file']);
+    const client = restarted.client();
+    const start = await client.get('/api/sso/start');
+    await client.get(f.kc.authorize(start.headers.Location, { sub: 'kc-9', email: 'carlo@school.edu', email_verified: true }, { now: NOW }));
+    assert.equal((await client.get('/api/hub/status')).user.username, 'carlo');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

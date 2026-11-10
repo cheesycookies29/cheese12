@@ -9,7 +9,15 @@ import { generateKeyPairSync, createHash, sign, randomBytes } from 'node:crypto'
 const b64url = (v) => Buffer.from(typeof v === 'string' ? v : JSON.stringify(v)).toString('base64url');
 
 // users: { username: { password, claims } } for the sign-in page a browser sees (browser checks and demos).
-export async function startProvider({ realm = 'school', clientId = 'atlas', secret = 's3cret', alg = 'RS256', users = {}, host = '127.0.0.1', port = 0 } = {}) {
+// admin: the admin REST API (for "Set up for me"): an administrator in `admin.realm` (username,
+// password), a service account (svcId, svcSecret) and whether they may manage clients. `clients`
+// starts with the client ATLAS uses, as Keycloak would hold it, unless `noClient` (it is then
+// made through the admin API, and its secret becomes the one the token endpoint checks).
+export async function startProvider({ realm = 'school', clientId = 'atlas', secret: initialSecret = 's3cret', alg = 'RS256', users = {}, host = '127.0.0.1', port = 0, admin = {}, noClient = false, client = {} } = {}) {
+  let secret = initialSecret;
+  const adm = { realm: 'master', username: 'kcadmin', password: 'kc-pass', svcId: 'atlas-setup', svcSecret: 'svc-pass', canManage: true, otp: false, ...admin };
+  const clients = noClient ? [] : [{ id: 'uuid-atlas', clientId, enabled: true, publicClient: false, standardFlowEnabled: true, redirectUris: [], webOrigins: [], attributes: {}, secret, ...client }];
+  const adminLog = { calls: [] };
   const { privateKey, publicKey } = alg === 'ES256'
     ? generateKeyPairSync('ec', { namedCurve: 'P-256' })
     : generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -33,6 +41,69 @@ export async function startProvider({ realm = 'school', clientId = 'atlas', secr
       res.end(JSON.stringify(body));
     };
     const base = `/realms/${realm}`;
+    const readBody = (fn) => {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => fn(raw));
+    };
+    // Admin sign-in: an administrator (password grant, admin-cli) or a service account (client credentials).
+    const tokenIn = url.pathname.match(/^\/realms\/([^/]+)\/protocol\/openid-connect\/token$/);
+    if (tokenIn && req.method === 'POST') {
+      return readBody((raw) => {
+        const p = new URLSearchParams(raw);
+        const grant = p.get('grant_type');
+        if (grant === 'password' || grant === 'client_credentials') {
+          adminLog.calls.push(`token ${decodeURIComponent(tokenIn[1])} ${grant}`);
+          if (decodeURIComponent(tokenIn[1]) !== adm.realm && decodeURIComponent(tokenIn[1]) !== realm) return json(404, { error: 'Realm does not exist' });
+          if (grant === 'password') {
+            if (p.get('client_id') !== 'admin-cli' || p.get('username') !== adm.username || p.get('password') !== adm.password) return json(401, { error: 'invalid_grant', error_description: 'Invalid user credentials' });
+            if (adm.otp) return json(400, { error: 'invalid_grant', error_description: 'Account is not fully set up' });
+          } else {
+            const basic = Buffer.from(String(req.headers.authorization || '').replace(/^Basic /, ''), 'base64').toString();
+            if (basic !== `${adm.svcId}:${adm.svcSecret}`) return json(401, { error: 'unauthorized_client', error_description: 'Invalid client or Invalid client credentials' });
+          }
+          return json(200, { access_token: 'admin-token', token_type: 'Bearer', expires_in: 60 });
+        }
+        if (tokenIn[1] !== realm) return json(400, { error: 'unsupported_grant_type' });
+        return codeExchange(p);
+      });
+    }
+    // The admin REST API, for the school's realm.
+    if (url.pathname.startsWith('/admin/realms/')) {
+      const parts = url.pathname.split('/').slice(3).map(decodeURIComponent); // [realm, 'clients', id?, 'client-secret'?]
+      adminLog.calls.push(`${req.method} ${url.pathname}${url.search}`);
+      if (req.headers.authorization !== 'Bearer admin-token') return json(401, { error: 'HTTP 401 Unauthorized' });
+      if (parts[0] !== realm) return json(404, { error: 'Realm not found.' });
+      if (!adm.canManage) return json(403, { error: 'HTTP 403 Forbidden' });
+      if (parts[1] !== 'clients') return json(404, {});
+      const pub = ({ secret: _s, ...c }) => c;
+      if (parts.length === 2 && req.method === 'GET') return json(200, clients.filter((c) => !url.searchParams.get('clientId') || c.clientId === url.searchParams.get('clientId')).map(pub));
+      if (parts.length === 2 && req.method === 'POST') {
+        return readBody((raw) => {
+          const rep = JSON.parse(raw);
+          if (clients.some((c) => c.clientId === rep.clientId)) return json(409, { errorMessage: `Client ${rep.clientId} already exists` });
+          const id = `uuid-${randomBytes(4).toString('hex')}`;
+          clients.push({ ...rep, id, secret: '' });
+          res.writeHead(201, { Location: `${issuer.replace(/\/realms\/.*/, '')}/admin/realms/${realm}/clients/${id}` });
+          res.end();
+        });
+      }
+      const c = clients.find((x) => x.id === parts[2]);
+      if (!c) return json(404, { error: 'Could not find client' });
+      if (parts.length === 3 && req.method === 'PUT') {
+        return readBody((raw) => {
+          Object.assign(c, JSON.parse(raw), { id: c.id, secret: c.secret });
+          res.writeHead(204);
+          res.end();
+        });
+      }
+      if (parts[3] === 'client-secret') {
+        if (req.method === 'POST') c.secret = randomBytes(16).toString('hex');
+        if (c.clientId === clientId && c.secret) secret = c.secret; // the token endpoint checks the client's secret
+        return json(200, c.secret ? { type: 'secret', value: c.secret } : { type: 'secret' });
+      }
+      return json(404, {});
+    }
     if (url.pathname === `${base}/.well-known/openid-configuration`) {
       return json(200, {
         issuer, authorization_endpoint: `${issuer}/protocol/openid-connect/auth`, token_endpoint: `${issuer}/protocol/openid-connect/token`,
@@ -76,12 +147,12 @@ export async function startProvider({ realm = 'school', clientId = 'atlas', secr
     if (url.pathname === `${base}/protocol/openid-connect/certs`) {
       return json(200, { keys: [{ ...publicKey.export({ format: 'jwk' }), kid, use: 'sig', alg }] });
     }
-    if (url.pathname === `${base}/protocol/openid-connect/token` && req.method === 'POST') {
-      let raw = '';
-      req.on('data', (c) => (raw += c));
-      req.on('end', () => {
+    res.writeHead(404);
+    res.end();
+
+    function codeExchange(p) {
+      {
         log.tokenRequests++;
-        const p = new URLSearchParams(raw);
         const basic = Buffer.from(String(req.headers.authorization || '').replace(/^Basic /, ''), 'base64').toString();
         if (secret && basic !== `${clientId}:${secret}`) return json(401, { error: 'unauthorized_client', error_description: 'Invalid client credentials' });
         const c = codes.get(p.get('code'));
@@ -93,17 +164,17 @@ export async function startProvider({ realm = 'school', clientId = 'atlas', secr
         const now = Math.floor(c.now / 1000);
         const claims = { iss: issuer, aud: clientId, azp: clientId, sub: c.claims.sub, iat: now, exp: now + 300, nonce: c.nonce, ...c.claims, ...(c.tamper.claims || {}) };
         return json(200, { access_token: 'at', token_type: 'Bearer', id_token: sign_(claims, c.tamper.wrongKey ? { key: other.privateKey } : {}) });
-      });
-      return;
+      }
     }
-    res.writeHead(404);
-    res.end();
   });
   await new Promise((r) => server.listen(port, host, r));
   issuer = `http://${host}:${server.address().port}/realms/${realm}`;
 
   return {
-    issuer, clientId, secret, log,
+    issuer, clientId, log, clients, adminLog, admin: adm,
+    get secret() {
+      return secret;
+    },
     // The person signs in as `claims` (sub, email, preferred_username…); tamper changes what comes back.
     authorize(authUrl, claims, { tamper = {}, now = Date.now() } = {}) {
       const u = new URL(authUrl);

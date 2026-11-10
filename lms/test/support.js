@@ -6,8 +6,8 @@ export const TODAY = '2026-08-10';
 
 // clock: () => Date, to move time (e.g. clock in, then out); otherwise 10:00 on `today`.
 // options: more createApi options (e.g. ssoSecret, ssoFetch for single sign-on tests).
-export function setup({ today = TODAY, clock = null, options = {} } = {}) {
-  const db = memoryDb();
+// db: the database (in memory unless given; give one with `dir` to test files kept beside the data).
+export function setup({ today = TODAY, clock = null, options = {}, db = memoryDb() } = {}) {
   const api = createApi(db, { clock: clock || (() => new Date(`${today}T10:00:00`)), ...options });
   const client = () => {
     const jar = {};

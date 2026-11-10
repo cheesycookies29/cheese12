@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Keycloak: set up for me
+- **Single sign-on** has a new **Set up for me**: type the realm address and a Keycloak administrator's sign-in (or a service account's), and ATLAS creates its client in Keycloak, keeps the client secret on the server and switches single sign-on on. Nothing needs to be changed on the server by hand, and the Keycloak sign-in is not saved. See [the administrator's guide](admin#set-up-single-sign-on-with-keycloak).
+
 ### Second security review: first fixes
 - **Quizzes:** with *Students see answers: Right after they submit*, a student who still has attempts left now sees their score only. The correct answers show once no attempts are left or the quiz closes, so a second attempt is still the student's own work. See [the teacher's guide](teacher#build-a-quiz-or-exam) and [the student's guide](student#take-a-quiz-or-exam).
 - **Parents:** a link that does not share **Grades** no longer shows final grades under **Enrollment**.

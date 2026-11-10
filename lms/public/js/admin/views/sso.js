@@ -1,6 +1,7 @@
-// Single sign-on with Keycloak: the connection (issuer, client), how people are matched to
-// ATLAS accounts, whether passwords stay on, a connection test, and the values to enter in
-// Keycloak. The client secret is set on the server (OIDC_CLIENT_SECRET), never here.
+// Single sign-on with Keycloak: "Set up for me" (ATLAS makes its client in Keycloak with a
+// Keycloak administrator's sign-in, used once and not kept), the connection (issuer, client), how
+// people are matched to ATLAS accounts, whether passwords stay on, a connection test, and the values
+// to enter in Keycloak by hand. The client secret is kept on the server, never shown here.
 import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
@@ -9,10 +10,30 @@ import { html, mount, toast, badge, formData } from '../../ui.js';
 export async function ssoView(el) {
   const s = await api.get('/api/admin/sso');
   const reload = () => ssoView(el);
+  const secretText = { file: 'Saved on the server by Set up for me', env: 'Set on the server (OIDC_CLIENT_SECRET)' }[s.secretSource] || 'Not set';
+  const ready = s.enabled && s.secretSet;
   const copy = (text) => html`<span class="copy-row"><code>${text}</code><button type="button" class="btn sm" data-copy="${text}">${icon('clipboard', 14)} Copy</button></span>`;
   mount(el, html`
     ${pageHead(html`Single sign-on ${s.enabled ? badge('On', 'green') : badge('Off', 'gray')}`, 'Let people sign in to ATLAS with the school\'s Keycloak account. Keycloak proves who they are; ATLAS still decides what each account may do.')}
     <div class="cols wide-left">
+      <div class="stack">
+      <form class="card" id="auto" autocomplete="off">
+        <h2>${icon('sparkle')} ${ready ? 'Set up again' : 'Set up for me'}</h2>
+        <p class="muted">ATLAS signs in to Keycloak once, creates its client (or fixes an existing one), keeps the client secret on the server and switches single sign-on on. The Keycloak sign-in below is used for this only and is not saved.</p>
+        <div class="grid two">
+          <label class="field span-2"><span>Issuer (realm address)</span><input name="issuer" value="${s.issuer}" placeholder="https://sso.school.edu/realms/school" spellcheck="false" required /></label>
+          <label class="field"><span>Client ID to use</span><input name="clientId" value="${s.clientId || 'atlas'}" spellcheck="false" /></label>
+          <label class="field"><span>Sign in to Keycloak as</span><select name="kind"><option value="password">A Keycloak administrator</option><option value="client">A service account</option></select></label>
+          <label class="field" data-kind="password"><span>Administrator's username</span><input name="username" autocomplete="off" spellcheck="false" /></label>
+          <label class="field" data-kind="password"><span>Password</span><input name="password" type="password" autocomplete="new-password" /></label>
+          <label class="field" data-kind="client" hidden><span>Service account client ID</span><input name="svcId" autocomplete="off" spellcheck="false" /></label>
+          <label class="field" data-kind="client" hidden><span>Service account secret</span><input name="svcSecret" type="password" autocomplete="new-password" /></label>
+          <label class="field span-2"><span>That account's realm</span><input name="realm" placeholder="master" spellcheck="false" /><span class="hint">Usually <code>master</code> for an administrator. For a realm administrator or a service account, the school's realm. The account needs the realm-management role <em>manage-clients</em>; an account with two-step sign-in cannot be used here.</span></label>
+          <label class="field check span-2"><input type="checkbox" name="enable" checked /> <span><strong>Switch single sign-on on when done.</strong> Off: only connect; switch it on below later.</span></label>
+        </div>
+        <div class="actions end"><button class="btn primary" type="submit">${icon('key', 16)} Set up in Keycloak</button></div>
+        <div id="auto-out" aria-live="polite"></div>
+      </form>
       <form class="card" id="sso">
         <h2>${icon('key')} Keycloak connection</h2>
         <div class="grid two">
@@ -28,29 +49,58 @@ export async function ssoView(el) {
         <div class="actions end"><button type="button" class="btn" id="test">${icon('link', 16)} Test connection</button><button class="btn primary" type="submit">Save</button></div>
         <div id="test-out"></div>
       </form>
+      </div>
       <div class="stack">
         <section class="card">
           <h2>${icon('shield')} Status</h2>
           <dl class="info-grid">
-            <div class="info"><dt>Client secret</dt><dd>${s.secretSet ? badge('Set on the server', 'green') : badge('Not set', 'amber')}</dd></div>
+            <div class="info"><dt>Client secret</dt><dd>${s.secretSet ? badge(secretText, 'green') : badge('Not set', 'amber')}</dd></div>
             <div class="info"><dt>Linked accounts</dt><dd>${s.linked}</dd></div>
           </dl>
-          ${!s.secretSet ? html`<p class="hint" style="margin-top:12px">Without a secret, the Keycloak client must be public (Client authentication off); PKCE still protects the sign-in. For a confidential client, set <code>OIDC_CLIENT_SECRET</code> in the server's settings file and restart.</p>` : ''}
+          ${!s.secretSet ? html`<p class="hint" style="margin-top:12px">Use <strong>Set up for me</strong> to get one. Without a secret, the Keycloak client must be public (Client authentication off); PKCE still protects the sign-in.</p>` : ''}
         </section>
         <section class="card">
-          <h2>${icon('settings')} In Keycloak</h2>
+          <h2>${icon('settings')} Or by hand, in Keycloak</h2>
           <ol class="steps">
             <li>Clients → <strong>Create client</strong>: OpenID Connect, Client ID <code>${s.clientId || 'atlas'}</code>.</li>
             <li><strong>Client authentication</strong> on (a confidential client, with <code>OIDC_CLIENT_SECRET</code> set on the server), or off for a public client; <strong>Standard flow</strong> on (nothing else needed).</li>
             <li><strong>Valid redirect URIs</strong>: ${copy(s.redirectUri)}</li>
             <li><strong>Valid post logout redirect URIs</strong>: ${copy(s.postLogoutUri)}</li>
             <li><strong>Web origins</strong>: <code>+</code></li>
-            <li>Credentials tab: copy the <strong>Client secret</strong> into the server's <code>OIDC_CLIENT_SECRET</code> (never here).</li>
+            <li>Credentials tab: copy the <strong>Client secret</strong> into the server's <code>OIDC_CLIENT_SECRET</code> and restart (never here).</li>
           </ol>
           <p class="hint">Behind Caddy on EC2 these addresses use your domain automatically. If they show the wrong address, set <code>PUBLIC_URL</code> on the server.</p>
         </section>
       </div>
     </div>`);
+
+  const auto = el.querySelector('#auto');
+  const showKind = () => auto.querySelectorAll('[data-kind]').forEach((f) => (f.hidden = f.dataset.kind !== auto.kind.value));
+  auto.kind.addEventListener('change', showKind);
+  auto.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = formData(auto);
+    const out = el.querySelector('#auto-out');
+    const button = auto.querySelector('button[type=submit]');
+    button.disabled = true;
+    mount(out, html`<p class="muted">Signing in to Keycloak and setting up the client…</p>`);
+    try {
+      const r = await api.post('/api/admin/sso/provision', {
+        issuer: v.issuer, clientId: v.clientId, enable: Boolean(v.enable),
+        auth: v.kind === 'client' ? { kind: 'client', realm: v.realm, clientId: v.svcId, clientSecret: v.svcSecret } : { kind: 'password', realm: v.realm, username: v.username, password: v.password },
+      });
+      for (const name of ['password', 'svcSecret']) auto[name].value = '';
+      const extra = r.done.changes.filter((c) => !c.startsWith('created the client'));
+      const what = r.done.created ? `Created the client "${r.clientId}"` : r.done.changes.length ? `Updated the client "${r.clientId}"` : `The client "${r.clientId}" was already right`;
+      toast(r.enabled ? 'Keycloak is set up and single sign-on is on.' : 'Keycloak is set up.');
+      await reload();
+      mount(el.querySelector('#auto-out'), html`<div class="notice ok">${icon('checkCircle')}<p><strong>${what} in the "${r.done.realm}" realm.</strong> ${extra.length ? html`ATLAS also ${extra.join(', ')}. ` : ''}The client secret is kept on the server. ${r.enabled ? html`People now see "${r.label}" on the sign-in pages.` : 'Switch single sign-on on below when you are ready.'}</p></div>`);
+    } catch (err) {
+      auto.password.value = '';
+      button.disabled = false;
+      mount(out, html`<div class="notice bad">${icon('flag')}<p>${err.message}</p></div>`);
+    }
+  });
 
   const form = el.querySelector('#sso');
   const values = () => {

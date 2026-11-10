@@ -14,10 +14,17 @@
 //
 // Only people who already have an ATLAS account can sign in; Keycloak proves who they are, ATLAS
 // decides what they may do. Settings live in data.settings.sso (Admin panel → Single sign-on);
-// the client secret only in the environment (OIDC_CLIENT_SECRET), never in the data file or backups.
+// the client secret never in the data file or backups: either in the file oidc-client.secret beside
+// the data file (readable by ATLAS only; written by "Set up for me", server/keycloak-admin.js), or
+// in the environment (OIDC_CLIENT_SECRET). The file, when there is one, wins.
+import fs from 'node:fs';
+import path from 'node:path';
 import { randomBytes, createHash, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { HttpError, text } from './util.js';
 import { ROLES } from '../shared/roles.js';
+import { provisionKeycloakClient } from './keycloak-admin.js';
+
+export const SSO_SECRET_FILE = 'oidc-client.secret';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -44,8 +51,24 @@ function page(title, message, to) {
 <script>location.replace(${JSON.stringify(to)})</script></body></html>`;
 }
 
-export function registerSsoRoutes(route, ctx, { startSession, secret = process.env.OIDC_CLIENT_SECRET || '', fetchImpl = (...a) => fetch(...a) }) {
+export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret = process.env.OIDC_CLIENT_SECRET || '', fetchImpl = (...a) => fetch(...a) }) {
   const data = () => ctx.db.data;
+  // The client secret: the file beside the data file (from "Set up for me"), else the environment.
+  const secretFile = ctx.db.dir ? path.join(ctx.db.dir, SSO_SECRET_FILE) : null;
+  let secret = envSecret;
+  let secretSource = envSecret ? 'env' : '';
+  if (secretFile && fs.existsSync(secretFile)) {
+    const fromFile = fs.readFileSync(secretFile, 'utf8').trim();
+    if (fromFile) [secret, secretSource] = [fromFile, 'file'];
+  }
+  const keepSecret = (value) => {
+    if (secretFile) {
+      const tmp = `${secretFile}.tmp`;
+      fs.writeFileSync(tmp, `${value}\n`, { mode: 0o600 });
+      fs.renameSync(tmp, secretFile);
+    }
+    [secret, secretSource] = [value, 'file'];
+  };
   const cfg = () => data().settings.sso;
   const pending = new Map(); // state → { nonce, verifier, next, redirectUri, at }
   const cache = { discovery: null, discoveryAt: 0, jwks: null, jwksAt: 0, issuer: '' };
@@ -219,20 +242,21 @@ export function registerSsoRoutes(route, ctx, { startSession, secret = process.e
   }
 
   // ----- Settings (Admin panel → Single sign-on) -----
-  const view = (origin) => ({ ...cfg(), secretSet: Boolean(secret), redirectUri: `${origin}/api/sso/callback`, postLogoutUri: `${origin}/`, linked: data().users.filter((u) => u.ssoSubject).length });
+  const view = (origin) => ({ ...cfg(), secretSet: Boolean(secret), secretSource, redirectUri: `${origin}/api/sso/callback`, postLogoutUri: `${origin}/`, linked: data().users.filter((u) => u.ssoSubject).length });
   route('GET', '/api/admin/sso', 'admin:settings.edit', ({ origin }) => view(origin));
   route('POST', '/api/admin/sso/test', 'admin:settings.edit', async ({ body }) => {
     const d = await discovery(text(body.issuer, 300) || cfg().issuer, true);
     return { ok: true, issuer: d.issuer, authorization: d.authorization_endpoint, token: d.token_endpoint, logout: d.end_session_endpoint || null, keys: (await getJson(d.jwks_uri)).keys?.length || 0 };
   });
+  const cleanIssuer = (value) => {
+    const issuer = text(value, 300).replace(/\/$/, '');
+    if (issuer && !/^https?:\/\/[^\s]+$/.test(issuer)) fail('The issuer is an address like https://sso.school.edu/realms/school.');
+    if (issuer.startsWith('http://') && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${issuer}/`)) fail('Use https for Keycloak (http only for a Keycloak on this same machine).');
+    return issuer;
+  };
   route('PUT', '/api/admin/sso', 'admin:settings.edit', async ({ body, origin }) => {
     const s = cfg();
-    if ('issuer' in body) {
-      const issuer = text(body.issuer, 300).replace(/\/$/, '');
-      if (issuer && !/^https?:\/\/[^\s]+$/.test(issuer)) fail('The issuer is an address like https://sso.school.edu/realms/school.');
-      if (issuer.startsWith('http://') && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${issuer}/`)) fail('Use https for Keycloak (http only for a Keycloak on this same machine).');
-      s.issuer = issuer;
-    }
+    if ('issuer' in body) s.issuer = cleanIssuer(body.issuer);
     if ('clientId' in body) s.clientId = text(body.clientId, 120);
     if ('label' in body) s.label = text(body.label, 60) || DEFAULT_SSO.label;
     if ('matchBy' in body) s.matchBy = body.matchBy === 'username' ? 'username' : 'email';
@@ -248,6 +272,32 @@ export function registerSsoRoutes(route, ctx, { startSession, secret = process.e
     ctx.db.save();
     return view(origin);
   });
+
+  // Set up for me: ATLAS creates (or fixes) its client in Keycloak with the admin API, keeps the
+  // client secret, saves the connection and, if asked, switches single sign-on on. The Keycloak
+  // credentials in the body are used for this request only: never stored, logged or sent back.
+  route('POST', '/api/admin/sso/provision', 'admin:settings.edit', async ({ body, origin, user }) => {
+    if (user.role !== 'admin') fail('Only an administrator can set up Keycloak.', 403);
+    if (!origin) fail('ATLAS does not know its own address. Set PUBLIC_URL on the server.');
+    const issuer = cleanIssuer(body.issuer);
+    if (!issuer) fail('Give the issuer (the realm address).');
+    const clientId = text(body.clientId, 120) || 'atlas';
+    if (!/^[\w.@:-]+$/.test(clientId)) fail('The client ID may use letters, digits and . - _ : @ only.');
+    const auth = body.auth || {};
+    await discovery(issuer, true); // the realm answers before anything is changed in it
+    const out = await provisionKeycloakClient({
+      fetchImpl, issuer, clientId, origin,
+      redirectUri: `${origin}/api/sso/callback`, postLogoutUri: `${origin}/`,
+      auth: { kind: auth.kind, realm: text(auth.realm, 100), username: text(auth.username, 200), password: String(auth.password || '').slice(0, 500), clientId: text(auth.clientId, 200), clientSecret: String(auth.clientSecret || '').slice(0, 500) },
+    });
+    keepSecret(out.secret);
+    const s = cfg();
+    Object.assign(s, { issuer, clientId });
+    if (body.enable !== false) s.enabled = true;
+    ctx.db.save();
+    console.log(`Single sign-on: Keycloak client "${clientId}" in realm "${out.realm}" set up by ${user.username}${out.changes.length ? ` (${out.changes.join(', ')})` : ' (nothing to change)'}.`);
+    return { ...view(origin), done: { realm: out.realm, created: out.created, changes: out.changes } };
+  }, { limit: 'password' });
 
   return { logoutUrl, publicInfo: () => (cfg().enabled ? { enabled: true, label: cfg().label, passwords: cfg().allowPasswords } : { enabled: false, passwords: true }) };
 }
