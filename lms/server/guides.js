@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { HttpError } from './util.js';
 import { can, ROLES } from '../shared/roles.js';
 import { parseGuide } from '../shared/markdown.js';
+import { searchGuides } from './guide-search.js';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'guides');
 const fail = (msg, status = 400) => {
@@ -18,6 +19,9 @@ const fail = (msg, status = 400) => {
 };
 const hash = (s) => crypto.createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
 const ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+// Guides anyone may read without signing in: how to sign in, and what to do when it does not work
+// (the sign-in pages link to Help). Every other guide needs a sign-in.
+export const PUBLIC_GUIDES = ['getting-started'];
 
 // The built-in guides, read from disk (re-read when a file changes, e.g. after an update).
 let cache = { stamp: '', guides: new Map() };
@@ -39,8 +43,9 @@ export function builtInGuides(dir = DIR) {
 export function registerGuideRoutes(route, { db, version = '' }) {
   const data = () => db.data;
   const edits = () => (data().guideEdits ||= []);
-  const userOf = ({ portalUser, adminUser, hrisUser }) => portalUser || adminUser || hrisUser || fail('Please sign in to read the guides.', 401);
-  const mayEdit = (user) => can(user.role, 'guides.edit') || user.role === 'admin';
+  const visitor = ({ portalUser, adminUser, hrisUser }) => portalUser || adminUser || hrisUser || null;
+  const userOf = (args) => visitor(args) || fail('Please sign in to read the guides.', 401);
+  const mayEdit = (user) => Boolean(user) && (can(user.role, 'guides.edit') || user.role === 'admin');
 
   // Every guide as this person sees it: the administrator's version where there is one.
   function all() {
@@ -54,44 +59,29 @@ export function registerGuideRoutes(route, { db, version = '' }) {
     }
     return [...out.values()];
   }
-  const forRole = (g, role) => g.meta.roles.includes(role);
+  const forRole = (g, role) => Boolean(role) && g.meta.roles.includes(role);
   const summary = (g, user) => ({
     id: g.id, title: g.meta.title || g.id, summary: g.meta.summary, roles: g.meta.roles, apps: g.meta.apps, order: g.meta.order,
-    forYou: forRole(g, user.role), custom: !g.builtIn, edited: Boolean(g.edit && g.builtIn),
+    forYou: forRole(g, user?.role), custom: !g.builtIn, edited: Boolean(g.edit && g.builtIn),
     builtInChanged: Boolean(g.edit && g.builtIn && g.edit.baseHash !== g.builtIn.hash),
   });
 
+  // The list of guides, and a search of them (?q=). Signed out: only the public guides.
   route('GET', '/api/guides', 'public', (args) => {
-    const user = userOf(args);
-    const q = String(args.query.q || '').trim().toLowerCase();
-    const list = all().sort((a, b) => a.meta.order - b.meta.order || a.meta.title.localeCompare(b.meta.title));
-    // Search: guides whose text has every word, with the first matching line.
-    // A Markdown line as plain text, cut at a word, for a search result.
-    const plain = (l) => {
-      const t = l.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/^\s*(?:[-*]|\d+[.)]|>|#+|\|)\s*/, '').replace(/[*`|]/g, '').replace(/\s+/g, ' ').trim();
-      return t.length > 220 ? `${t.slice(0, 220).replace(/\s+\S*$/, '')}…` : t;
-    };
-    const results = q.length >= 2 ? list.map((g) => {
-      const words = q.split(/\s+/).filter(Boolean);
-      const text = g.markdown.toLowerCase();
-      if (!words.every((w) => text.includes(w))) return null;
-      const lines = g.markdown.split('\n').filter((l) => l.trim() && !l.startsWith('---') && !/^\w+:\s/.test(l));
-      const hit = lines.find((l) => words.every((w) => l.toLowerCase().includes(w))) || lines.find((l) => l.toLowerCase().includes(words[0])) || '';
-      let section = '';
-      for (const l of g.markdown.split('\n')) {
-        if (/^#{2,3}\s/.test(l)) section = l.replace(/^#+\s+/, '');
-        if (l === hit) break;
-      }
-      return { id: g.id, title: g.meta.title, section, snippet: plain(hit) };
-    }).filter(Boolean) : null;
+    const user = visitor(args);
+    const q = String(args.query.q || '').trim();
+    const list = all().filter((g) => user || PUBLIC_GUIDES.includes(g.id)).sort((a, b) => a.meta.order - b.meta.order || a.meta.title.localeCompare(b.meta.title));
+    const found = q.length >= 2 ? searchGuides(list.map((g) => ({ id: g.id, title: g.meta.title || g.id, markdown: g.markdown, forYou: forRole(g, user?.role), order: g.meta.order })), q) : null;
     return {
-      role: user.role, roleLabel: ROLES[user.role]?.label || user.role, canEdit: mayEdit(user), version,
-      guides: list.map((g) => summary(g, user)), results,
+      signedIn: Boolean(user), role: user?.role || null, roleLabel: user ? ROLES[user.role]?.label || user.role : '', canEdit: mayEdit(user), version,
+      guides: list.map((g) => summary(g, user)),
+      results: found?.results ?? null, partial: found?.partial ?? false, terms: found?.terms ?? [],
     };
   });
 
   route('GET', '/api/guides/:id', 'public', (args) => {
-    const user = userOf(args);
+    const user = visitor(args);
+    if (!user && !PUBLIC_GUIDES.includes(args.params.id)) fail('Please sign in to read this guide.', 401);
     const g = all().find((x) => x.id === args.params.id) || fail('Guide not found.', 404);
     const editor = mayEdit(user);
     return {

@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setup } from './support.js';
 import { ROLES } from '../shared/roles.js';
-import { parseGuide, renderMarkdown, imagesOf } from '../shared/markdown.js';
+import { parseGuide, renderMarkdown, imagesOf, slug } from '../shared/markdown.js';
+import { searchGuides, parseQuery, sectionsOf } from '../server/guide-search.js';
 import { guideFor } from '../shared/help.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -103,8 +104,16 @@ test('guides: signed-in people read them; administrators edit, keep their versio
   const admin = env.client();
   await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: 'password123' });
   await admin.post('/api/admin/users', { role: 'teacher', username: 'tess', name: 'Tess Teacher', password: 'password123', mustChangePassword: false, campusIds: [(await admin.get('/api/admin/campuses'))[0].id] });
+  // Signed out (the sign-in pages link to Help): only "Getting started" can be listed, read and searched.
   const anon = env.client();
-  await assert.rejects(anon.get('/api/guides'), (e) => e.status === 401);
+  const open = await anon.get('/api/guides');
+  assert.equal(open.signedIn, false);
+  assert.deepEqual(open.guides.map((x) => x.id), ['getting-started']);
+  assert.equal(open.canEdit, false);
+  assert.ok((await anon.get('/api/guides/getting-started')).markdown.includes('## Questions'));
+  await assert.rejects(anon.get('/api/guides/admin'), (e) => e.status === 401);
+  assert.ok((await anon.get('/api/guides?q=payslip')).results.every((r) => r.id === 'getting-started'));
+  await assert.rejects(anon.put('/api/guides/getting-started', { markdown: 'x' }), (e) => e.status === 401);
   const teacher = env.client();
   await teacher.post('/api/hub/login', { username: 'tess', password: 'password123' });
   const list = await teacher.get('/api/guides');
@@ -138,4 +147,90 @@ test('guides: signed-in people read them; administrators edit, keep their versio
   // Snippets are plain text: no list markers, bold or link syntax.
   const plainHit = (await teacher.get('/api/guides?q=grade sheet')).results.find((r) => r.id === 'teacher');
   assert.ok(plainHit.snippet && !/^[-*\d]|\*\*|\]\(/.test(plainHit.snippet), plainHit.snippet);
+});
+
+// ----- The guides hold together: links, lists and steps -----
+test('every link between guides goes to a guide and a section that exist', () => {
+  const sections = new Map(guides.map((g) => [g.meta.id, new Set([...g.body.matchAll(/^#{2,4}\s+(.+)$/gm)].map((m) => slug(m[1].trim())))]));
+  const broken = [];
+  for (const g of guides) {
+    for (const m of g.body.matchAll(/(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g)) {
+      const url = m[2];
+      if (/^(https?:|mailto:|\/)/.test(url)) continue;
+      const [id, hash] = url.startsWith('#') ? [g.meta.id, url.slice(1)] : url.split('#');
+      if (!sections.has(id)) broken.push(`${g.file}: [${m[1]}](${url}) → there is no guide "${id}"`);
+      else if (hash && !sections.get(id).has(hash)) broken.push(`${g.file}: [${m[1]}](${url}) → ${id} has no section "#${hash}"`);
+    }
+  }
+  assert.deepEqual(broken, [], `Broken links in the guides (a heading was renamed?):\n${broken.join('\n')}`);
+});
+
+test('guides use only what the Help page can show: lists one level deep, steps numbered in order, captions on pictures', () => {
+  const problems = [];
+  for (const g of guides) {
+    let expect = 1;
+    let section = '';
+    g.body.split('\n').forEach((l, i) => {
+      const at = `${g.file} line ${i + 1}`;
+      if (/^\s{2,}([-*]|\d+[.)])\s+/.test(l)) problems.push(`${at}: a list inside a list is shown as running text; use a sentence, a table or separate steps`);
+      if (/^!\[\s*\]\(/.test(l.trim())) problems.push(`${at}: a picture needs a caption (it is read aloud and shown under the picture)`);
+      if (/^#{2,4}\s/.test(l)) {
+        expect = 1;
+        section = l.replace(/^#+\s*/, '');
+        return;
+      }
+      const n = l.match(/^(\d+)[.)]\s/);
+      if (!n) return;
+      const k = Number(n[1]);
+      if (k === 1) expect = 1;
+      if (k !== expect) problems.push(`${at} ("${section}"): step ${k} where step ${expect} is expected`);
+      expect = k + 1;
+    });
+    // Nothing of the Markdown is left over on the page.
+    const text = renderMarkdown(g.body, { guideId: g.meta.id }).replace(/<code>[\s\S]*?<\/code>/g, '').replace(/<[^>]+>/g, ' ');
+    const stray = text.match(/\*\*[^*\n]{1,60}\*\*|(?:^|\s)#{2,}\s\S+|\]\([^)\s]+\)/);
+    if (stray) problems.push(`${g.file}: Markdown shown as text on the page: "${stray[0].trim()}"`);
+  }
+  assert.deepEqual(problems, [], problems.join('\n'));
+});
+
+test('tables are named by their columns (screen readers tell them apart)', () => {
+  const out = renderMarkdown('| Screen | What it is for |\n|---|---|\n| **Home** | Start |\n\n| Tab | Shows |\n|---|---|\n| A | B |');
+  assert.match(out, /aria-label="Table: Screen, What it is for"/);
+  assert.match(out, /aria-label="Table: Tab, Shows"/);
+});
+
+// ----- Search -----
+const searchable = (role) => guides.map((g) => ({ id: g.meta.id, title: g.meta.title, markdown: fs.readFileSync(path.join(GUIDES, g.file), 'utf8'), forYou: g.meta.roles.includes(role), order: g.meta.order }));
+const top = (role, q) => searchGuides(searchable(role), q).results[0];
+
+test('search: everyday words, parts of words, the reader\'s own guide first, questions found by their words', () => {
+  assert.deepEqual(parseQuery('How do I log in?'), [['sign in']]);
+  assert.deepEqual(parseQuery('my grades'), [['grades']]);
+  assert.equal(parseQuery('salary')[0][0], 'salary');
+  // Each question is found on its own.
+  const q = sectionsOf(fs.readFileSync(path.join(GUIDES, 'getting-started.md'), 'utf8')).filter((s) => s.parent === 'Questions');
+  assert.ok(q.length >= 5 && q.every((s) => s.anchor === 'questions' && s.heading));
+  // "login" is "sign in" in the guides; "log in" does not match "catalog in".
+  assert.deepEqual([top('student', 'login').id, top('student', 'login').section], ['getting-started', 'Sign in']);
+  assert.ok(searchGuides(searchable('student'), 'log in').results.every((r) => /sign/i.test(r.section + r.snippet)));
+  // The reader's own guide comes first, by the task that fits.
+  assert.deepEqual([top('student', 'drop a class').id, top('student', 'drop a class').anchor], ['student', 'follow-withdraw-or-drop-a-request']);
+  assert.equal(top('student', 'forgot my password').section, 'I forgot my password');
+  assert.equal(top('student', 'tuition').id, 'student');
+  assert.equal(top('staff', 'salary').id, 'employee');
+  assert.equal(top('registrar', 'post final grades').id, 'registrar');
+  assert.equal(top('registrar', 'enrolling students').section, 'Approve, reject or drop enrollments'); // enrolling → enroll, enrollments
+  // The anchor of every result is a section of that guide.
+  for (const r of searchGuides(searchable('admin'), 'password').results) {
+    const anchors = [...byId.get(r.id).body.matchAll(/^#{2,3}\s+(.+)$/gm)].map((m) => slug(m[1].trim()));
+    assert.ok(anchors.includes(r.anchor), `${r.id}#${r.anchor}`);
+  }
+  // Nothing found, and the closest when no section has every word.
+  assert.deepEqual(searchGuides(searchable('student'), 'zzzz').results, []);
+  const near = searchGuides(searchable('student'), 'payslip zzzz');
+  assert.equal(near.partial, true);
+  assert.ok(near.results.length > 0);
+  // Words to highlight are the starts of words.
+  assert.ok(searchGuides(searchable('student'), 'grades').terms.includes('grade'));
 });

@@ -15,7 +15,10 @@ When a change adds, renames or removes something a user sees:
    `npm run guides:screenshots -- teacher-gradebook.jpg` for one). It starts a throw-away server
    with the demo school and photographs every image in `screenshots.json`.
 3. `npm test` checks that every sidebar item of every app is covered by a guide, that every image a
-   guide shows exists and is in `screenshots.json`, and that every guide has a valid header.
+   guide shows exists and is in `screenshots.json`, that every guide has a valid header, that every
+   link between guides goes to a section that exists (so renaming a heading shows which links to
+   fix), that lists are one level deep and steps are numbered in order, and that the search finds
+   the common questions.
 
 ## The guide format
 
@@ -57,6 +60,30 @@ Following the Diátaxis framework (tutorials, how-to guides, reference and expla
    (e.g. a COA or CSC rule).
 
 Write for the person doing the job, in plain words, with the names exactly as the screens show them.
+
+### Words
+
+- **Choose** a button, link, tab or menu item (it fits a mouse and a phone; not *click*, *tap* or
+  *press*). **Press** is for keys (`Enter`, `/`). **Type** text, **tick** a check box, **pick** from
+  a list or a date.
+- Names on the screen are in **bold**, exactly as shown, capitals included. Messages ATLAS shows are
+  in *italics*. What the reader types is in `code`.
+- One action per step, and say what happens ("The request shows as *Pending approval*").
+- Say who can help when the reader cannot do something themselves (the registrar, HR, an administrator).
+- A question in **Questions** starts in bold, as the reader would ask it or as ATLAS says it
+  (`**ATLAS says "Too many requests."** …`), then the answer in the same paragraph. Each question
+  is found by the search on its own, so use the words people would type.
+
+## Search and reading without signing in
+
+- The Help search (`server/guide-search.js`) looks in each section and each question, matches the
+  start of words, and knows everyday words for the guides' words (*login* → *sign in*, *salary* →
+  *payslip*). When people search for a word the guides do not use, add it to `SYNONYMS` there rather
+  than to the guides.
+- Signed out, people can read and search **Getting started** only (`PUBLIC_GUIDES` in
+  `server/guides.js`): the sign-in pages link to Help, so everything about signing in, passwords and
+  sign-in messages belongs in that guide. Do not put anything there that only signed-in people
+  should read.
 
 ## Screenshots
 

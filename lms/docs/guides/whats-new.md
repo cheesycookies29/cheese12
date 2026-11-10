@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### Help & guides: better search, and help before you sign in
+- The search on the **Help & guides** page now looks in each section and each question, and understands everyday words: *login* finds **Sign in**, *salary* finds your payslips, *tuition* finds your receipts. Your own guides come first, and each result opens at the right section.
+- **Help & guides** on the sign-in page now opens [Getting started](getting-started) without signing in: how to sign in, what to do about a forgotten password or a locked account, and what each sign-in message means. The other guides open once you are signed in.
+
 ### Security review
 - ATLAS now limits how fast one person or one network address can send requests, and how many wrong passwords one address may try. Administrators set both under **Settings & branding → Sign-in and passwords**. See [the administrator's guide](admin#change-school-settings-and-branding).
 - A wrong-password lock now applies to the address the wrong passwords came from, so nobody can lock a colleague out from elsewhere.

@@ -148,12 +148,22 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 3. Under **Enrollment rules**: **Requests need approval**, **Waitlists**, **Waitlist size per section** and **Maximum units per term** (0 means no limit).
 4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB; it replaces the ATLAS mark in the round seal on the sign-in pages), and the **Sign-in headline** (an optional line under the school name on the sign-in pages).
 5. Under **Student applications**: whether people may apply from the sign-in page.
-6. Under **Sign-in and passwords**: the **Shortest password** (8 to 64 characters), **Wrong passwords before locking** and **Minutes locked**, **Sign out after (hours idle)**, **Passwords mix letters and digits**, and **Always change the first password** (new accounts and reset passwords must be changed at the first sign-in, in every system). The lock is for one username on one network address, so nobody can lock a colleague out from elsewhere; ten times as many wrong passwords lock the username everywhere.
-   - **Requests per person per minute** (60 to 3000, normally 300): above this, ATLAS asks the person to wait a few seconds. A network address that is not signed in gets four times as many.
-   - **Wrong passwords per network address** (10 to 1000 in 15 minutes, normally 30): an address that keeps guessing passwords, for any usernames, has to wait. Raise it if a whole campus reaches the internet through one address and people mistype often.
+6. Under **Sign-in and passwords**: the password rules, the lock after wrong passwords, when idle people are signed out, and the limits on requests (see the table below).
 7. Under **Uploads, quizzes and parent alerts**: the **Largest upload (MB)** (1 to 15), the **Quiz grace period (seconds)** that answers sent just after a deadline still count, and from how many absences a parent sees them in red.
 8. Under **Numbering**: how new student numbers, employee numbers and document request numbers look. `{YYYY}` or `{YY}` is the year, `{MM}` the month and `{N4}` the serial with at least 4 digits; **Next:** shows the number the next record will get as you type.
 9. Choose **Save settings**.
+
+The settings under **Sign-in and passwords**:
+
+| Setting | What it does |
+| --- | --- |
+| **Shortest password** | 8 to 64 characters, for new and changed passwords |
+| **Passwords mix letters and digits** | A new password needs at least one letter and one digit |
+| **Always change the first password** | New accounts and reset passwords must be changed at the first sign-in, in every system |
+| **Wrong passwords before locking**, **Minutes locked** | A username is locked after this many wrong passwords in a row. The lock is for the network address they came from, so nobody can lock a colleague out from elsewhere; ten times as many lock the username everywhere |
+| **Sign out after (hours idle)** | People are signed out after this long without using ATLAS |
+| **Requests per person per minute** | 60 to 3000, normally 300. Above this, ATLAS asks the person to wait a few seconds. A network address that is not signed in gets four times as many |
+| **Wrong passwords per network address** | 10 to 1000 in 15 minutes, normally 30. An address that keeps guessing passwords, for any usernames, has to wait. Raise it if a whole campus reaches the internet through one address and people mistype often |
 
 The colour changes on screen as you choose it, so you can try themes before saving. Password rules apply to new and changed passwords; nobody has to change a password that is already set. A new numbering format applies to new records only, and never gives a number that is already in use.
 

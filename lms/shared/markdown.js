@@ -108,7 +108,9 @@ export function renderMarkdown(body, opts = {}) {
       i += 2;
       const rows = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(cells(lines[i++]));
-      out.push(`<div class="table-scroll" tabindex="0" role="region" aria-label="Table"><table class="table guide-table"><thead><tr>${head.map((c) => `<th>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      // Each table is named by its columns, so screen readers can tell the tables of a page apart.
+      const name = esc(`Table: ${head.map((c) => c.replace(/[*`]/g, '')).filter(Boolean).join(', ')}`);
+      out.push(`<div class="table-scroll" tabindex="0" role="region" aria-label="${name}"><table class="table guide-table"><thead><tr>${head.map((c) => `<th>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
       continue;
     }
     // Lists
