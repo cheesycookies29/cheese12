@@ -23,7 +23,7 @@ This guide is for everyone. The guides for your own job are listed on the **Help
 This tour uses the demo school. Sign in as `teacher.demo` with the password `demo1234`.
 
 1. Open the ATLAS home page. Type `teacher.demo` under **Username** and `demo1234` under **Password**, then choose **Sign in**.
-2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a tile for each system your account may use, and how many are available. When there are more tiles than fit across the screen, they move in a row: choose the arrows beside *… available* or the dots under the tiles, swipe the row on a phone or tablet, or click the row and press the left and right arrow keys.
+2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a tile for each system your account may use, and how many are available. When there are more tiles than fit across the screen, they move in a row: choose the arrows beside *… available* or the dots under the tiles, swipe the row on a phone or tablet, or press `Tab` until the row itself is selected and then the left and right arrow keys.
 
 ![The ATLAS home page after signing in](getting-started-home.jpg)
 
@@ -51,7 +51,7 @@ This tour uses the demo school. Sign in as `teacher.demo` with the password `dem
 2. Type your **Username** and **Password**. Choose **Show** to see the password you typed.
 3. Choose **Sign in**.
 
-**Help & guides** and **Dark mode** are at the top right of the sign-in page, so you can read the guides or switch to dark mode before you sign in. On a phone they are the question mark and the moon.
+**Help & guides** and **Dark mode** are at the top right of the sign-in page, so you can read this guide or switch to dark mode before you sign in; the other guides open once you are signed in. On a phone they are the question mark and the moon.
 
 The home page opens with the tiles for your account. If you opened a system's address directly (for example `/hris/`) while signed out, ATLAS asks you to sign in on the home page and then takes you back to that system.
 
@@ -147,7 +147,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 
 | Screen or button | What it is for |
 |---|---|
-| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open |
+| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open; **Help & guides** and **Dark mode** at the top right |
 | ATLAS home page | Your greeting, account type and campus, **Your systems** (a row of tiles with arrows and dots when they do not all fit), **Announcements** and **Upcoming events** |
 | Academic tile | Academic records: student records, registration, grades and registrar services. For students, teachers, registrars, deans and administrators |
 | Learn tile | Classes, lessons, quizzes, attendance, grades and enrollment. For students, parents and guardians, and teachers; registrars and administrators open its admin panel |
@@ -165,9 +165,11 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 
 **I forgot my password.** Ask the registrar or your administrator to reset it; employees can also ask HR. They give you a temporary password, and ATLAS asks you to choose your own the next time you sign in. If your school signs in with Keycloak, reset your password in Keycloak.
 
-**ATLAS says "Too many failed attempts. Try again in 5 minutes."** After 5 wrong passwords in a row, ATLAS locks that username for 5 minutes. Wait, then try again with the right password.
+**ATLAS says "Too many failed attempts. Try again in 5 minutes."** After 5 wrong passwords in a row, ATLAS locks that username for 5 minutes on the network the wrong passwords came from (for example the school's Wi-Fi); until then even the right password is refused there. Wait, then try again with the right password. Your school may have set other numbers. If it says *Too many wrong passwords from your network* instead, too many wrong passwords came from your network, perhaps from other people: wait the minutes it says.
 
-**ATLAS says "Your session has ended. Please sign in again."** ATLAS signs you out after 8 hours without any activity. You are also signed out when the ATLAS server is restarted, when someone resets your password, and on your other devices when you change your password.
+**ATLAS says "Too many requests. Try again in … seconds."** ATLAS limits how many requests one person, or one network before anyone has signed in, can send in a minute. Wait the seconds it says, then reload the page or try again.
+
+**ATLAS took me back to the sign-in page, or says "Your session has ended. Please sign in again."** ATLAS signs you out after 8 hours without any activity (your school may have set another time). You are also signed out when the ATLAS server is restarted, when someone resets your password, and on your other devices when you change your password.
 
 **ATLAS says "This account is disabled."** The registrar or an administrator has switched your account off. Contact the registrar.
 

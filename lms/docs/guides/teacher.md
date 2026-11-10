@@ -159,7 +159,7 @@ The sheet then shows *Waiting for approval*. The dean approves it (*Approved, wa
 **Calendar** shows your sections' class meetings and the due dates of their activities and quizzes, with examinations, holidays, days without classes, school events (including those for teachers only, like faculty meetings) and the term's first and last day of classes.
 
 1. Open **Calendar**, and choose **Month**, **Week** or **List**.
-2. Choose an entry for its details, and **Open the class** or **Open the activity**. Choose a day to see everything on it.
+2. Choose an entry for its details, and **Open the class**, **Open the activity** or **Open the quiz**. Choose a day to see everything on it.
 3. The coloured tick boxes above the calendar show or hide each kind of entry.
 4. **Print** prints the view you see, e.g. the month for your desk.
 

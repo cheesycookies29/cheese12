@@ -34,7 +34,7 @@ Try this with the demo school: sign in as `student.demo` (password `demo1234`). 
 ![Learn's Home: the To do list, your classes, today and upcoming events](student-home.jpg)
 
 2. Open the class **IT201 A** (Computer Programming 2). The top card shows the schedule, room, units and your teacher. The tabs below hold the class: **Announcements**, **Lessons**, **Resources**, **Activities**, **Attendance** and **Grades**.
-3. Choose **Resources**. Pick *Course outline* to read the PDF right on the page, or press **Download**. Links and YouTube videos open in the same preview.
+3. Choose **Resources**. Pick *Course outline* to read the PDF right on the page, or press **Download**. YouTube videos play in the same preview; for other links, choose **Open link**.
 
 ![A class's Resources, with a PDF preview](student-resources.jpg)
 
@@ -123,7 +123,7 @@ A message tells you the result, and the row now shows your status. In the demo, 
 ### Follow, withdraw or drop a request
 
 1. Open **Enrollment → My enrollment**. It lists your requests and classes for the term with their status, your place on a waitlist, and the last update.
-2. To cancel a pending or waitlisted request, press **Withdraw**. To leave a class you are enrolled in, press **Drop**, then **Drop class**.
+2. To cancel a pending or waitlisted request, press **Withdraw**, then **Withdraw** again to confirm. To leave a class you are enrolled in, press **Drop**, then **Drop class**.
 
 Your seat goes to the first student on the waitlist. You can drop an enrolled class until the term's drop deadline; after that, ask the registrar.
 
@@ -137,7 +137,7 @@ Open **Schedule** for the week's timetable. Pending requests are drawn dashed. I
 
 1. Open **Calendar**. **Month** shows the month; **Week** lists each day; **List** shows only the days with something on them (the view on a phone).
 2. Use **‹** and **›** to move, and **Today** to come back.
-3. Choose an entry for its details: the time, the room, the class, and **Open the class** or **Open the activity**. Choose a day (or **2 more**) to see everything on it.
+3. Choose an entry for its details: the time, the room, the class, and **Open the class**, **Open the activity** or **Open the quiz**. Choose a day (or **2 more**, when a day has more than fits) to see everything on it.
 4. The coloured tick boxes above the calendar (**Classes**, **Due dates**, **Examinations**, …) show or hide each kind; the calendar remembers your choice.
 
 Class meetings do not appear on holidays and days without classes. Work you handed in is greyed out with a check mark; a red **!** marks missing work. Events that last several days run as one bar across the days.
@@ -152,7 +152,7 @@ With the keyboard: Tab to the month, move between days with the arrow keys (Home
 
 1. Open **News & events**.
 2. Press **Like**, **Love** or **Celebrate** under a post, or write a comment and press **Post**.
-3. To remove your comment, press the bin next to it.
+3. To remove your comment, press the bin next to it, then **Delete** to confirm.
 
 ### See who follows your records
 
