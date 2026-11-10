@@ -40,7 +40,7 @@ Try this with the demo school: sign in as `accountant.demo` (password `demo1234`
 
 ![The trial balance for fund 01](accountant-trial-balance.jpg)
 
-7. Open **Bank reconciliation**. Pick the cash account, the fund and the month. Type the **Balance per bank statement**, tick the entries that appear on the statement, and watch the summary: when the difference is 0.00 it says *Reconciled*.
+7. Open **Bank reconciliation**. Pick the cash account, the fund and the month, and click **Show**. Type the **Balance per bank statement**, tick the entries that appear on the statement, and watch the summary: when the difference is 0.00 it says *Reconciled*.
 
 ![A bank reconciliation](accountant-bank-recon.jpg)
 8. Open **Control panel → Periods & closing** to see how the books are closed. (In the demo you can close a past month and then click **Reopen all**.)
@@ -108,7 +108,7 @@ The cashier grants the advance on a voucher; you post its liquidation (Liquidati
 4. Under **Refund of the unused balance: official receipt**, pick the refund O.R. if there is one.
 5. Click **Post liquidation**.
 
-The advance shows *Settled* once nothing is outstanding. Advances past their **Liquidate by** date are marked *Overdue*, and the officer cannot get a new advance until it is settled.
+Once nothing is outstanding, the advance leaves the **Outstanding** tab and shows *Settled* under **All, including settled**. Advances past their **Liquidate by** date are marked *Overdue*, and the officer cannot get a new advance until it is settled.
 
 ### Void a check payment
 

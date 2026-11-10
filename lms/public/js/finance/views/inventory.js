@@ -238,7 +238,7 @@ export async function poView(el, params) {
     modal({
       title: `Obligation request for PO ${o.no}`, submitLabel: missing.length ? null : 'Send to the budget office',
       body: missing.length
-        ? html`<div class="notice bad">${icon('flag')}<p>Fund ${o.fund} has no ${missing.join(' or ')} allotment with a balance for this order. The budget office records one first (Budget → Appropriations and allotments), or the PO is charged to another fund.</p></div>`
+        ? html`<div class="notice bad">${icon('flag')}<p>Fund ${o.fund} has no ${missing.join(' or ')} allotment with a balance for this order. The budget office records one first (Budget → Budget & allotments), or the PO is charged to another fund.</p></div>`
         : html`<p class="muted small">The PO's object codes are grouped and charged to the allotments you pick; the budget office certifies Box B.</p>${classes.map((c) => html`<label class="field"><span>${c} allotment</span><select name="${c}" required>${als.filter((a) => a.cls === c).map((a) => option(a.id, `${a.ref}${a.continuing && a.fy !== fin.settings.fiscalYear ? ` (continuing, ${a.fy})` : ''} · ${a.pap} · ${num(a.balance)} left`))}</select></label>`)}`,
       async onSubmit(form) {
         await api.post(`/api/finance/pos/${o.id}/ors`, { allotments: formData(form) });

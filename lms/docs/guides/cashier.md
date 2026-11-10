@@ -14,7 +14,7 @@ This guide is for the Cashier: the school's disbursing and collecting officer in
 - **Disbursing.** You prepare disbursement vouchers (DV) against obligations, pay them once approved (MDS or agency check, or LDDAP-ADA), grant cash advances, record Box E, and remit the taxes withheld to BIR.
 - **Collecting.** You issue official receipts (O.R.) from your booklet, report them on the Report of Collections and Deposits (RCD) and record the deposit.
 
-**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates Finance accounts.
+**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates or changes Finance accounts.
 
 **How a voucher moves.** You prepare it (Box A is the requesting office), the Chief Accountant certifies Box C, the approving officer signs Box D, and you pay it. Box B (the accounting entry) is posted when it is paid. The other offices' guides: [Chief Accountant](accountant), [Budget Officer](budget-officer), [Supply Officer](supply-officer), [Approving Officer](approver).
 
@@ -28,7 +28,7 @@ Try this with the demo school: sign in as `cashier.demo` (password `demo1234`).
 
 ![The cashier's dashboard](cashier-dashboard.jpg)
 
-2. Open **Official receipts** and click **Issue O.R.**. Leave the fund at *05 · Internally Generated Funds*. In **Student (search name or number)**, type `Carlo` and pick Carlo Reyes. Under **Nature of collection**, pick a fee (the amount fills in), and click **Issue O.R.**. The receipt takes the next number in your booklet and opens ready to print.
+2. Open **Official receipts** and click **Issue O.R.**. Leave the fund at *05 · Internally Generated Funds*. In **Student (search name or number)**, type `Carlo` and pick Carlo Reyes. Under **Nature of collection**, pick a fee that has a set amount, such as *Certification fee* (the amount fills in), and click **Issue O.R.**. The receipt takes the next number in your booklet and opens ready to print.
 
 ![Issuing an official receipt](cashier-issue-or.jpg)
 
@@ -109,7 +109,7 @@ For the 1601-EQ, use the **Quarterly alphalist and 2307** tab; the **2307** butt
 ### Issue and cancel official receipts
 
 1. **Official receipts → Issue O.R.**: pick the fund, date and mode (Cash, Check, Online / bank transfer). The payor is a student, a card, or a name typed under **Payor name (as printed)**.
-2. Add a line per fee. For something not on the fee list, pick *Other (pick the account)* and choose the account.
+2. Add a line per fee, and type the amount if the fee has no set amount. For something not on the fee list, pick *Other (pick the account)* and choose the account.
 3. Click **Issue O.R.** and print it.
 
 To cancel a receipt you issued that is not yet on an RCD, click **Cancel** on its row and give the reason. Write "Cancelled" on all copies and keep them in the booklet.

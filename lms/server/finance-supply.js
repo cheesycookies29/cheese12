@@ -179,7 +179,7 @@ export function registerSupplyRoutes(route, fx) {
       if (category === 'service' && classOf(code) !== 'MOOE') fail(`${l.description}: pick the MOOE expense account for the service.`);
       if (category === 'ppe' && l.unitCost < S().capitalization) fail(`${l.description}: ₱${l.unitCost.toLocaleString()} is below the ₱${S().capitalization.toLocaleString()} capitalization threshold; it is semi-expendable property.`);
       if (category === 'semi' && l.unitCost >= S().capitalization) fail(`${l.description}: ₱${l.unitCost.toLocaleString()} is at or above the capitalization threshold; it is PPE.`);
-      if (category === 'supply' && !src.itemId) fail(`${l.description}: supplies come from the stock catalog (Inventory → Items).`);
+      if (category === 'supply' && !src.itemId) fail(`${l.description}: supplies come from the stock catalog (Inventory → Stock).`);
       fx.account(code);
       return { ...l, category, code, delivered: 0 };
     });

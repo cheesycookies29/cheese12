@@ -17,7 +17,7 @@ This guide is for the head of agency (the University or College President) or th
 
 Everything else in Finance you can open and read, so you can check a document before you approve it. You cannot prepare, certify or pay anything, and you cannot approve a voucher you prepared or certified yourself, or a purchase request you filed.
 
-**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates Finance accounts.
+**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates or changes Finance accounts.
 
 > **Tip:** The **?** button at the top of every page opens these guides. The other offices have theirs: [Chief Accountant](accountant), [Budget Officer](budget-officer), [Cashier](cashier), [Supply Officer](supply-officer).
 

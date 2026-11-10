@@ -15,7 +15,7 @@ This guide is for the Budget Officer and the budget office staff. In **ATLAS Fin
 - Every expense, capital outlay and cash advance is charged to an allotment on an **obligation request**: the **ORS** for fund 01 (Regular Agency Fund), the **BURS** for the other funds. You certify **Box B**: the allotment is available and obligated.
 - **NCAs** (Notices of Cash Allocation) for fund 01 are the cash the voucher's Box C checks.
 
-**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates Finance accounts.
+**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates or changes Finance accounts.
 
 **Before you can record a budget,** the programs, activities and projects (PAPs) must be in the Control panel. The Chief Accountant keeps it; ask them to add a PAP if it is missing.
 

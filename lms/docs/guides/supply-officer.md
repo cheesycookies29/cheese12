@@ -16,7 +16,7 @@ This guide is for the Supply & Property Officer and the supply office staff. In 
 - **Stock** on stock cards with FIFO cost, issued on **requisitions** (RIS, Appendix 63) and booked monthly on the **RSMI** (Appendix 64); the **physical count** (RPCI, Appendix 66).
 - **Property**: PPE (unit cost of ₱50,000 or more) on a Property Acknowledgment Receipt (PAR), semi-expendable property on an Inventory Custodian Slip (ICS); transfers, returns, disposal (IIRUP) and monthly depreciation.
 
-**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates Finance accounts.
+**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates or changes Finance accounts.
 
 **Who does what.** The approving officer approves PRs and POs, the budget office obligates the PO's request (Box B), and the cashier pays the supplier once you have accepted the delivery. The other guides: [Chief Accountant](accountant), [Budget Officer](budget-officer), [Cashier](cashier), [Approving Officer](approver).
 
@@ -95,7 +95,7 @@ Offices and employees file requisitions through **Supply & purchase requests** i
 
 ### Book the RSMI
 
-1. Open **Inventory reports** (the **RSMI** tab) and pick the month.
+1. Open **Inventory reports** (the **RSMI** tab), pick the month and click **Show**.
 2. If some issues are not yet booked, pick the fund and click **Book … issues (JEV)**.
 
 The entry charges the month's issues to expense by office (Dr expense / Cr inventory). The **Recapitulation** shows the entry.
@@ -132,7 +132,7 @@ The asset and its accumulated depreciation come off the books; the book value is
 1. Open **Depreciation**, pick the month under **Through** and click **Preview**.
 2. Click **Book ₱… through …**.
 
-One entry is posted per fund and PPE class (Dr depreciation expense / Cr accumulated depreciation). Months not yet booked are caught up. Depreciation is straight-line: (cost − 5% residual) ÷ the useful life in months.
+One entry is posted per fund, with lines for each PPE class (Dr depreciation expense / Cr accumulated depreciation). Months not yet booked are caught up. Only a month that has ended can be booked. Depreciation is straight-line: (cost − 5% residual) ÷ the useful life in months.
 
 ### Print the property count reports
 

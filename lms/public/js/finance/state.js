@@ -63,9 +63,13 @@ export const risBadge = (s) => badge(RIS_STATUS[s] || s, KIND[s]);
 export const jevBadge = (j) => (j.reversedBy ? badge('Reversed', 'gray') : badge(j.status === 'posted' ? 'Posted' : 'Draft', j.status === 'posted' ? 'green' : 'amber'));
 
 // Rows of a table that open a page when clicked (tr[data-href]).
+// Wired once per page element, however often a view redraws. (Kept here, not as an attribute:
+// the shell makes each new page from a copy of the last one, which would copy the attribute
+// without the click handler, and rows would stop opening after the first list.)
+const wiredRows = new WeakSet();
 export function clickableRows(root) {
-  if (root.dataset.rows) return;
-  root.dataset.rows = '1';
+  if (wiredRows.has(root)) return;
+  wiredRows.add(root);
   root.addEventListener('click', (e) => {
     const tr = e.target.closest('tr[data-href]');
     if (tr && !e.target.closest('a, button, input, select, label')) location.hash = tr.dataset.href;
