@@ -26,8 +26,13 @@ export function registerCashRoutes(route, fx) {
   const dvView = (d) => {
     const payee = fx.byId(D().finCards, d.payeeId) || {};
     const ors = fx.byId(D().finObligations, d.orsId);
+    // Once certified, a voucher pays the bank account it was certified with (d.payTo), whatever
+    // the payee's card says afterwards: the account that was checked and approved is the one paid.
+    const bank = d.payTo || { bankName: payee.bankName || '', bankAccount: payee.bankAccount || '' };
+    const cardChanged = Boolean(d.payTo && d.status !== 'paid' && d.status !== 'cancelled' && ((payee.bankAccount || '') !== d.payTo.bankAccount || (payee.bankName || '') !== d.payTo.bankName));
     return {
-      ...d, payee: { id: payee.id, name: payee.name, tin: payee.tin, address: payee.address, kind: payee.kind, bankName: payee.bankName, bankAccount: payee.bankAccount, vat: payee.vat, taxType: payee.taxType },
+      ...d, payee: { id: payee.id, name: payee.name, tin: payee.tin, address: payee.address, kind: payee.kind, bankName: bank.bankName, bankAccount: bank.bankAccount, vat: payee.vat, taxType: payee.taxType },
+      payToChanged: cardChanged ? { bankName: payee.bankName || '', bankAccount: payee.bankAccount || '' } : null,
       ors: ors ? { id: ors.id, no: ors.no, form: ors.form, status: ors.status } : null,
       pap: ors ? [...new Set((d.charges || []).map((c) => ors.lines[c.line]?.pap).filter(Boolean))].join(', ') : '',
       objectCodes: ors ? [...new Set((d.charges || []).map((c) => ors.lines[c.line]?.code).filter(Boolean))].join(', ') : d.debits.map((x) => x.code).join(', '),
@@ -203,6 +208,9 @@ export function registerCashRoutes(route, fx) {
     const cash = fx.cashAvailable(d.fund, d.mode, d.bankId, d.id);
     if (d.net > cash.available) fail(`Not enough cash: ${cash.title} has ₱${cash.available.toLocaleString(undefined, { minimumFractionDigits: 2 })} available (after vouchers already approved); this voucher needs ₱${d.net.toLocaleString(undefined, { minimumFractionDigits: 2 })}.`);
     const date = fx.date(body.date || fx.today());
+    const payee = fx.byId(D().finCards, d.payeeId) || {};
+    if (d.mode === 'ada' && !payee.bankAccount) fail(`${payee.name || 'The payee'} has no bank account on their card. Add it before certifying a voucher paid by LDDAP-ADA.`);
+    d.payTo = { bankName: payee.bankName || '', bankAccount: payee.bankAccount || '', at: iso() };
     Object.assign(d, { status: 'certified', no: fx.nextNo('dv', { fund: d.fund, date }), certifiedBy: { id: user.id, name: user.name, title: fx.signatory('accountant').title, at: iso() }, docsComplete: true });
     fx.audit(user, `Certified DV ${d.no} (Box C)`, { kind: 'dv', ref: d.id });
     save();
@@ -289,7 +297,7 @@ export function registerCashRoutes(route, fx) {
       if (d.status !== 'approved' || d.mode !== 'ada') fail(`DV ${d.no} is not an approved ADA voucher.`);
       if (d.fund !== fund) fail('One LDDAP-ADA per fund cluster.');
       const p = fx.byId(D().finCards, d.payeeId);
-      if (!p.bankAccount) fail(`${p.name} has no bank account on their card.`);
+      if (!(d.payTo ? d.payTo.bankAccount : p.bankAccount)) fail(`${p.name} had no bank account when DV ${d.no} was certified. Cancel the voucher and prepare it again once the account is on their card.`);
     }
     const date = fx.date(body.date || fx.today());
     if (body.bankId && S().bankAccounts.find((b) => b.id === body.bankId)?.fund !== fund) fail(`Pick a fund ${fund} account for this list.`);

@@ -322,11 +322,13 @@ export async function risView(el, params) {
     }
   };
   const open = ['requested', 'approved'].includes(r.status);
+  const ownRis = r.requestedBy.userId === ctx.user.id && ctx.user.role !== 'admin';
   mount(el, html`
     ${pageHead(html`RIS ${r.no} ${risBadge(r.status)}`, `${r.officeName || 'No office'} · ${fmtDate(r.date)} · ${r.purpose}`, html`
       ${printLink('ris', r.id)}
-      ${r.status === 'requested' && can('finance.inventory') ? html`<button class="btn" data-a="approve">Approve</button>` : ''}
-      ${open && can('finance.inventory') ? html`<button class="btn primary" data-a="issue">Issue</button>` : ''}
+      ${r.status === 'requested' && can('finance.inventory') && !ownRis ? html`<button class="btn" data-a="approve">Approve</button>` : ''}
+      ${open && can('finance.inventory') && !ownRis ? html`<button class="btn primary" data-a="issue">Issue</button>` : ''}
+      ${open && can('finance.inventory') && ownRis ? html`<span class="muted small">Your own requisition: another supply officer or an administrator approves and issues it.</span>` : ''}
       ${open && (can('finance.inventory') || r.requestedBy.userId === ctx.user.id) ? html`<button class="btn danger ghost" data-a="cancel">Cancel</button>` : ''}`, can('finance.view') ? ['/ris', 'Requisitions'] : ['/me/requests', 'Supply & purchase requests'])}
     <section class="card">${infoGrid([['Requested by', r.requestedBy.name], ['Approved by', r.approvedBy || '—'], ['Issued by', r.issuedBy ? `${r.issuedBy}, ${fmtDate(r.issuedDate)}` : '—'], ['Received by', r.receivedBy || '—']])}
       <table class="table compact"><thead><tr><th>Stock no.</th><th>Description</th><th>Unit</th><th class="num">Requested</th><th class="num">In stock</th><th class="num">Issued</th></tr></thead>

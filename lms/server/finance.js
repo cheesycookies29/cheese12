@@ -528,10 +528,20 @@ export function registerFinanceRoutes(route, ctx) {
     save();
     return cardRow(c);
   });
+  // What decides who is paid, and whether they may be: only the Chief Accountant (or an
+  // administrator) changes these on an existing card, and the history keeps the old and new value.
+  const GUARDED = [['name', 'name'], ['bankName', 'bank'], ['bankAccount', 'bank account'], ['status', 'status']];
+  const bondText = (b) => (b?.amount ? `₱${Number(b.amount).toLocaleString()}${b.expires ? ` to ${b.expires}` : ''}${b.policy ? ` (${b.policy})` : ''}` : 'none');
   route('PUT', '/api/finance/cards/:id', 'finance:finance.cardfile', ({ user, params, body }) => {
     const c = fx.card(params.id);
-    Object.assign(c, cardFields(body, c), { updatedAt: iso() });
-    fx.audit(user, `Changed card ${c.name}`, { kind: 'card', ref: c.id });
+    const next = cardFields(body, c);
+    const changes = GUARDED.filter(([k]) => (next[k] || '') !== (c[k] || '')).map(([k, label]) => `${label} ${c[k] || 'none'} → ${next[k] || 'none'}`);
+    if (bondText(next.bond) !== bondText(c.bond)) changes.push(`bond ${bondText(c.bond)} → ${bondText(next.bond)}`);
+    if (changes.length && !can(user.role, 'finance.accounts')) {
+      fail('Only the Chief Accountant or an administrator changes a card\'s name, bank details, bond or status: they decide who is paid. Ask them to make this change.', 403);
+    }
+    Object.assign(c, next, { updatedAt: iso() });
+    fx.audit(user, `Changed card ${c.name}${changes.length ? `: ${changes.join('; ')}` : ''}`, { kind: 'card', ref: c.id });
     save();
     return cardRow(c);
   });

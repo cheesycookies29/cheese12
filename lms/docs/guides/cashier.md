@@ -71,7 +71,7 @@ The voucher goes to the Chief Accountant's **For certification (Box C)** list. A
 3. Untick any voucher to leave out, and choose **Issue**.
 4. Choose **Print** on the new list to send it to the bank.
 
-Each payee needs a bank account on their card (the dialog shows *None* in red if missing). Each voucher's entry is posted to the Cash Disbursements Journal.
+Each voucher is paid to the bank account it was certified with (Box C): the payee's card must have one before the accountant certifies an LDDAP-ADA voucher. If the card is changed afterwards, the voucher says so and still pays the certified account; to pay another account, cancel the voucher and prepare it again. Each voucher's entry is posted to the Cash Disbursements Journal.
 
 ### Pay a payroll from ATLAS People
 
@@ -134,7 +134,7 @@ The list is the Report of Accountability for Accountable Forms (RAAF): used, can
 |---|---|
 | Dashboard | **Waiting for you**: vouchers to pay, receipts not reported, reports not deposited, overdue advances |
 | Find a document | Type a DV, O.R., RCD, LDDAP-ADA or check number, or a payee's name |
-| Card file | Payees with their TIN, tax status, bank account and fidelity bond; add or edit cards |
+| Card file | Payees with their TIN, tax status, bank account and fidelity bond; add cards and edit contact and tax details (the name, bank details, status and bond of an existing card are changed by the Chief Accountant) |
 | Journal entries | The books (view) |
 | Ledgers | One account's ledger (view) |
 | Trial balance | Per fund (view) |

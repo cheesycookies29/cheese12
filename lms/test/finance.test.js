@@ -143,6 +143,13 @@ test('procure to pay: PR → PO with its ORS → IAR (stock, property, payable) 
   const tb = await f.acct.get('/api/finance/trial-balance?fund=01');
   assert.equal(tb.debit, tb.credit);
   assert.equal(tb.rows.find((r) => r.code === '20201010'), undefined, 'Due to BIR cleared by the remittance');
+  // Nobody approves or issues their own requisition: the supply officer's own goes to an administrator.
+  const own = await f.supply.post('/api/finance/ris', { office: 'ADM', purpose: 'For the supply office', items: [{ itemId: item.id, qty: 2 }] });
+  const notOwn = (e) => e.status === 403 && /your own requisition/.test(e.message);
+  await assert.rejects(f.supply.post(`/api/finance/ris/${own.id}/approve`), notOwn);
+  await assert.rejects(f.supply.post(`/api/finance/ris/${own.id}/issue`), notOwn);
+  await f.admin.post(`/api/finance/ris/${own.id}/approve`);
+  await f.supply.post(`/api/finance/ris/${own.id}/cancel`, { reason: 'not needed' });
   // Inventory: a requisition issued (FIFO), then the RSMI books the expense.
   const ris = await f.teach.post('/api/finance/ris', { office: 'CCS', purpose: 'Laboratory use', items: [{ itemId: item.id, qty: 30 }] });
   await assert.rejects(f.teach.post(`/api/finance/ris/${ris.id}/issue`), status(403));
@@ -360,14 +367,31 @@ test('review fixes: no double payment, obligations follow deliveries, all-or-not
   await assert.rejects(f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, gross: 500, particulars: 'x', debits: [{ code: '10404010', amount: 500 }] }), /only settles a liability/);
   // Box C keeps the charges the preparer chose.
   const dv = await f.cash.post('/api/finance/dvs', { fund: '01', payeeId: f.janitor.id, orsId: ors.id, gross: 1000, nature: 'services', mode: 'ada', particulars: 'Line 2 only', charges: [{ line: 1, amount: 1000 }], submit: true });
+  // An LDDAP-ADA voucher is certified only once the payee has a bank account on their card.
+  await assert.rejects(f.acct.post(`/api/finance/dvs/${dv.id}/certify`, { docsComplete: true }), /no bank account on their card/);
+  await f.acct.put(`/api/finance/cards/${f.janitor.id}`, { bankName: 'Land Bank', bankAccount: '555-1' });
   const cert = await f.acct.post(`/api/finance/dvs/${dv.id}/certify`, { docsComplete: true });
   assert.deepEqual(cert.charges, [{ line: 1, amount: 1000 }]);
   assert.equal(cert.entry[0].code, '50299990');
   await f.head.post(`/api/finance/dvs/${dv.id}/approve`);
-  await f.acct.put(`/api/finance/cards/${f.janitor.id}`, { bankAccount: '555-1' });
+  // After approval the payment cannot be redirected. The cashier cannot change who is paid on a
+  // card (bank details, name, status, bond); and if the Chief Accountant changes the account, the
+  // voucher still pays the one it was certified with, and says that the card has changed.
+  const guarded = (e) => e.status === 403 && /Chief Accountant/.test(e.message);
+  await assert.rejects(f.cash.put(`/api/finance/cards/${f.janitor.id}`, { bankAccount: '9999-0000-ATTACKER' }), guarded);
+  await assert.rejects(f.cash.put(`/api/finance/cards/${f.janitor.id}`, { name: 'Somebody Else' }), guarded);
+  await assert.rejects(f.cash.put(`/api/finance/cards/${f.officer.id}`, { bond: { amount: 9000000, expires: '2030-12-31' } }), guarded);
+  await assert.rejects(f.supply.put(`/api/finance/cards/${f.janitor.id}`, { status: 'inactive' }), guarded);
+  await f.cash.put(`/api/finance/cards/${f.janitor.id}`, { phone: '0917 555 0100' }); // contact details are still theirs to keep
+  await f.acct.put(`/api/finance/cards/${f.janitor.id}`, { bankAccount: '777-CHANGED' });
+  assert.match(env.db.data.finAudit.at(-1).action, /bank account 555-1 → 777-CHANGED/);
+  const shown = await f.cash.get(`/api/finance/dvs/${dv.id}`);
+  assert.equal(shown.payee.bankAccount, '555-1');
+  assert.equal(shown.payToChanged.bankAccount, '777-CHANGED');
   // One LDDAP-ADA never pays a voucher twice.
   const l = await f.cash.post('/api/finance/lddaps', { dvIds: [dv.id, dv.id] });
   assert.equal(l.total, dv.net);
+  assert.equal(l.dvs[0].payee.bankAccount, '555-1', 'paid to the account that was certified');
   assert.equal(env.db.data.finJournals.filter((j) => j.source?.id === dv.id).length, 1);
   await assert.rejects(f.cash.post('/api/finance/lddaps', { dvIds: [dv.id] }), /not an approved ADA voucher/);
   // A PO's obligation cannot be edited down, and its voucher pays an accepted delivery only, up to its value.

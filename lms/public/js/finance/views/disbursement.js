@@ -38,7 +38,7 @@ export async function dvFormView(el, _p, query) {
   const ors = query.orsId ? await api.get(`/api/finance/obligations/${query.orsId}`) : null;
   const s = fin.settings;
   const d = existing || {
-    fund: ors?.fund || s.funds[0], payeeId: ors?.payeeId || '', orsId: ors?.id || '', iarId: iar?.id || '', kind: 'payment', nature: cards.find((c) => c.id === ors?.payeeId)?.nature || (iar ? 'goods' : ''),
+    fund: ors?.fund || s.funds[0], payeeId: ors?.payeeId || '', orsId: ors?.id || '', iarId: iar?.id || '', kind: query.kind === 'advance' ? 'advance' : 'payment', nature: cards.find((c) => c.id === ors?.payeeId)?.nature || (iar ? 'goods' : ''),
     gross: iar ? iar.total : ors ? ors.unpaid - ors.lines.reduce((t, l) => t + l.pending, 0) : '', particulars: iar ? `Payment for delivery per IAR ${iar.no}, PO ${iar.po.no}, invoice ${iar.invoiceNo}` : ors ? ors.particulars : '',
     mode: (ors?.fund || s.funds[0]) === '01' ? 'check' : 'bank', office: ors?.office || '', deductions: iar?.liquidatedDamages ? [{ code: s.acct.fines, label: `Liquidated damages (${iar.daysLate} days late)`, amount: iar.liquidatedDamages }] : [], boxA: ors?.requestedBy || {},
   };
@@ -142,15 +142,16 @@ export async function dvView(el, params) {
       ${d.status === 'draft' && d.submitted && can('finance.accounts') ? html`<button class="btn primary" id="certify">Certify (Box C)</button>` : ''}
       ${d.status === 'certified' && can('finance.approve') ? html`<button class="btn primary" id="approve">Approve (Box D)</button>` : ''}
       ${d.status === 'approved' && can('finance.disburse') && d.mode !== 'ada' ? html`<button class="btn primary" id="pay">Pay</button>` : ''}
-      ${d.status === 'approved' && d.mode === 'ada' ? html`<a class="btn primary" href="#/lddap">Put on an LDDAP-ADA</a>` : ''}
+      ${d.status === 'approved' && d.mode === 'ada' && can('finance.disburse') ? html`<a class="btn primary" href="#/lddap">Put on an LDDAP-ADA</a>` : ''}
       ${d.status === 'paid' && can('finance.disburse') && !d.receipt ? html`<button class="btn" id="receipt">Box E: receipt</button>` : ''}
       ${d.status === 'paid' && !d.lddapId && can('finance.accounts') ? html`<button class="btn danger ghost" id="void">Void payment</button>` : ''}
       ${!['paid', 'cancelled'].includes(d.status) && (can('finance.disburse') || can('finance.accounts')) ? html`<button class="btn danger ghost push-right" id="cancel">Cancel voucher…</button>` : ''}`, ['/dvs', 'Disbursement vouchers'])}
+    ${d.payToChanged ? html`<div class="notice">${icon('flag')}<p><strong>The payee's card now shows another bank account</strong> (${[d.payToChanged.bankName, d.payToChanged.bankAccount].filter(Boolean).join(' · ') || 'none'}). This voucher pays the account it was certified with: ${[d.payee.bankName, d.payee.bankAccount].filter(Boolean).join(' · ') || 'none'}. To pay another account, cancel this voucher and prepare it again.</p></div>` : ''}
     <div class="boxes">${box('A · Requesting office', true, d.boxA.name || '—')}${box('B · Accounting entry', d.status === 'paid', d.jevNo ? `Posted, JEV ${d.jevNo}` : 'Prepared')}${box('C · Accountant', d.certifiedBy, d.certifiedBy?.name)}${box('D · Approving officer', d.approvedBy, d.approvedBy?.name)}${box('Paid', d.status === 'paid', `${d.checkNo ? `Check ${d.checkNo}` : d.lddapNo ? `LDDAP-ADA ${d.lddapNo}` : ''} ${fmtDate(d.paidDate)}`)}${box('E · Received', d.receipt, d.receipt ? `${d.receipt.receivedBy}, ${fmtDate(d.receipt.date)}` : '')}</div>
     <section class="card">${infoGrid([
       ['Payee', html`<a href="#/cards/${d.payee.id}">${d.payee.name}</a>`], ['TIN', d.payee.tin], ['Obligation', d.ors ? html`<a href="#/obligations/${d.ors.id}">${d.ors.form} ${d.ors.no}</a>` : 'None (non-budgetary)'],
       d.iar && ['Delivery', html`IAR ${d.iar.no}`], ['Mode', d.modeLabel], ['Responsibility center', d.officeName || '—'], ['Particulars', d.particulars],
-      d.kind === 'advance' && ['Advance for', d.advanceType], d.voided?.length && ['Voided checks', d.voided.map((v) => `${v.checkNo} (${v.reason})`).join('; ')], d.cancelReason && ['Cancelled', d.cancelReason],
+      d.kind === 'advance' && ['Advance for', fin.settings.advanceTypes.find(([k]) => k === d.advanceType)?.[1] || d.advanceType], d.voided?.length && ['Voided checks', d.voided.map((v) => `${v.checkNo} (${v.reason})`).join('; ')], d.cancelReason && ['Cancelled', d.cancelReason],
     ])}</section>
     <div class="cols">
       <section class="card"><h2>Amount</h2><table class="table compact"><tbody><tr><td>Gross amount</td>${amt(d.gross)}</tr>
@@ -225,7 +226,7 @@ export async function advancesView(el, _p, query) {
   const list = await api.get(`/api/finance/advances${all ? '?all=1' : ''}`);
   const chart = await fin.chart();
   mount(el, html`
-    ${pageHead('Cash advances', 'Advances to officers and employees (COA Circular 97-002): liquidate on time; no new advance while one is unsettled.', html`${can('finance.disburse') ? html`<a class="btn primary" href="#/dvs/new">${icon('plus', 16)} New advance (DV)</a>` : ''}`)}
+    ${pageHead('Cash advances', 'Advances to officers and employees (COA Circular 97-002): liquidate on time; no new advance while one is unsettled.', html`${can('finance.disburse') ? html`<a class="btn primary" href="#/dvs/new?kind=advance">${icon('plus', 16)} New advance (DV)</a>` : ''}`)}
     <nav class="tabs"><a href="#/advances" class="${all ? '' : 'active'}">Outstanding</a><a href="#/advances?all=1" class="${all ? 'active' : ''}">All, including settled</a></nav>
     ${list.length ? html`<div class="card"><div class="table-scroll"><table class="table"><thead><tr><th>DV</th><th>Officer</th><th>Purpose</th><th>Granted</th><th>Liquidate by</th><th class="num">Amount</th><th class="num">Liquidated</th><th class="num">Refunded</th><th class="num">Outstanding</th>${can('finance.accounts') ? html`<th></th>` : ''}</tr></thead>
       <tbody>${list.map((a) => html`<tr><td><a href="#/dvs/${a.id}">${a.no}</a></td><td><a href="#/cards/${a.payeeId}">${a.payee}</a><small>${a.typeLabel}</small></td><td>${a.particulars}</td><td class="nowrap">${fmtDate(a.paidDate)}<small>${a.daysOut} days ago</small></td><td class="nowrap">${fmtDate(a.due)} ${a.overdue ? badge('Overdue', 'red') : ''}</td>${amt(a.amount)}${amt(a.liquidated, { blankZero: true })}${amt(a.refunded, { blankZero: true })}${amt(a.outstanding, { strong: true })}

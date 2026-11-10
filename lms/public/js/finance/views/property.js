@@ -109,7 +109,8 @@ export async function depreciationView(el, _p, query) {
   mount(el, html`
     ${pageHead('Depreciation', 'Straight-line, monthly, by PPE class and fund: Dr depreciation expense, Cr accumulated depreciation. Months not yet booked are caught up.', html`<a class="btn" href="#/property-reports">${icon('clipboard', 16)} Physical count reports</a>`)}
     <form class="toolbar" id="f"><label>Through <input type="month" name="month" value="${month}" /></label><button class="btn">Preview</button>
-      ${d.rows.length && can('finance.property') ? html`<span class="grow"></span><button type="button" class="btn primary" id="run">Book ${money(d.total)} through ${monthName(month)}</button>` : ''}</form>
+      ${d.rows.length && can('finance.property') && d.bookable ? html`<span class="grow"></span><button type="button" class="btn primary" id="run">Book ${money(d.total)} through ${monthName(month)}</button>` : ''}</form>
+    ${d.rows.length && !d.bookable ? html`<div class="notice">${icon('clock')}<p>${monthName(month)} has not ended yet, so this is a preview. Depreciation is booked after the month ends.</p></div>` : ''}
     <div class="card">${d.rows.length ? html`<table class="table compact"><thead><tr><th>Fund</th><th>PPE account</th><th>Debit</th><th>Credit</th><th class="num">Items</th><th class="num">Amount</th></tr></thead>
       <tbody>${d.rows.map((r) => html`<tr><td>${r.fund}</td><td>${r.code} ${r.title}</td><td>${r.expense}</td><td>${r.accum}</td><td class="num">${r.items}</td>${amt(r.amount)}</tr>`)}</tbody><tfoot><tr><td colspan="5">Total</td>${amt(d.total, { strong: true })}</tr></tfoot></table>`
       : html`<div class="notice ok">${icon('checkCircle')}<p>Depreciation through ${monthName(month)} is fully booked.</p></div>`}</div>

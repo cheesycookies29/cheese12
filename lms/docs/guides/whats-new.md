@@ -18,6 +18,10 @@ order: 2
 - **People, privacy:** the reason for a leave and its medical certificate are shown to HR only. The payroll office sees the type, dates and status.
 - **People, own records:** officers cannot add or change their own attendance, loans or which leave they get, and HR cannot unlink a Finance office account. A leave day entered in the DTR always has a leave type.
 - When ATLAS refuses something (for example deleting a payroll run that Finance is using), the screen now says why instead of doing nothing.
+- **Finance, payments:** a voucher is paid to the bank account it was certified with. An LDDAP-ADA voucher is certified only when the payee's card has a bank account, and a later change to the card does not change where an approved voucher is paid. See [the cashier's guide](cashier#pay-by-lddap-ada).
+- **Finance, card file:** on an existing card, the name, bank details, status (including blacklisting) and fidelity bond are changed by the Chief Accountant or an administrator only, and **History** keeps the old and new value.
+- **Finance, supplies:** nobody approves or issues their own requisition.
+- **Finance, small fixes:** **New advance (DV)** opens the form as a cash advance; depreciation offers **Book** only for a month that has ended; a voucher shows what an advance is for in words.
 
 ### The guides were checked against every screen
 - Every guide was followed step by step in ATLAS and corrected where a name, a step or a result no longer matched the screen: confirmations that were missing (**Finalize**, **Withdraw**, **Release**), buttons that load a report (**Show**), where a list is filtered, and who may do what.

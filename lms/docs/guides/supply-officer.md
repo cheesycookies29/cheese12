@@ -91,7 +91,7 @@ The inventory account cannot be changed once the item has moved. Untick **In use
 2. Choose **Approve** if your office approves first, or go straight to **Issue**.
 3. Adjust the quantities if stock is short, fill in **Received by**, and choose **Issue**.
 
-Offices and employees file requisitions through **Supply & purchase requests** in their own Finance self-service; you can also choose **New requisition**.
+Offices and employees file requisitions through **Supply & purchase requests** in their own Finance self-service; you can also choose **New requisition**. A requisition you filed yourself is approved and issued by another supply officer or an administrator, not by you.
 
 ### Book the RSMI
 
@@ -145,7 +145,7 @@ One entry is posted per fund, with lines for each PPE class (Dr depreciation exp
 |---|---|
 | Dashboard | **Waiting for you**: requisitions to issue, stock at the reorder point, depreciation not yet booked |
 | Find a document | Type a PR, PO, IAR, RIS, property or PAR/ICS number, or a supplier's name |
-| Card file | Suppliers (with blacklisting), employees and officers who hold property |
+| Card file | Suppliers, employees and officers who hold property. Blacklisting a supplier, and changing a card's name or bank details, is done by the Chief Accountant |
 | Journal entries | The books (view) |
 | Ledgers | One account's ledger (view) |
 | Trial balance | Per fund (view) |

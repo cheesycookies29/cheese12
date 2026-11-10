@@ -151,7 +151,7 @@ When the payroll office sends a finalized government payroll to Finance, its vou
 |---|---|
 | Dashboard | Cash by fund, budget utilization, collections, and **Waiting for you**: vouchers to certify, draft entries, overdue advances |
 | Find a document | Type any document number (DV, JEV, ORS/BURS, PR, PO, IAR, RIS, O.R., RCD, LDDAP-ADA, property, PAR/ICS), a check number or a name |
-| Card file | Suppliers, employees, accountable officers, agencies and individuals; each card's subsidiary ledgers, documents, taxes withheld and property |
+| Card file | Suppliers, employees, accountable officers, agencies and individuals; each card's subsidiary ledgers, documents, taxes withheld and property. Only you (or an administrator) change an existing card's name, bank details, status or fidelity bond; **History** keeps the old and new value |
 | Journal entries | Every JEV by journal; new entries, posting, reversing |
 | Ledgers | The general ledger of one account, per fund and period |
 | Trial balance | Per fund or all funds, before or after closing entries |
