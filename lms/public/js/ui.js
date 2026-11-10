@@ -259,8 +259,14 @@ export function downloadFile(filename, content, type = 'text/csv') {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// A cell that starts like a formula (= + - @, or a tab or carriage return) gets a leading
+// apostrophe, so Excel and Google Sheets show it as text instead of running it.
 export function toCsv(rows) {
-  return rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const cell = (c) => {
+    const s = String(c ?? '');
+    return /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
+  };
+  return rows.map((r) => r.map((c) => `"${cell(c).replace(/"/g, '""')}"`).join(',')).join('\n');
 }
 
 export const badge = (text, kind = '') => html`<span class="badge ${kind}">${text}</span>`;

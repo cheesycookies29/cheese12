@@ -71,12 +71,12 @@ function applyView(status) {
       <p class="auth-switch"><button type="button" class="link" id="back">← Back to sign in</button></p>
     </form>`, status.systems, 'ATLAS · Apply for admission');
   api.get('/api/auth/programs').then((programs) => {
-    form.querySelector('#programs').insertAdjacentHTML('beforeend', programs.map((p) => `<option value="${p.id}">${p.code} · ${p.name.replace(/</g, '&lt;')}</option>`).join(''));
+    form.querySelector('#programs').insertAdjacentHTML('beforeend', String(html`${programs.map((p) => option(p.id, `${p.code} · ${p.name}`))}`));
   });
   api.get('/api/auth/campuses').then((campuses) => {
     if (campuses.length < 2) return;
     form.querySelector('#campus-field').hidden = false;
-    form.querySelector('#campuses').innerHTML = `<option value="">Choose a campus…</option>${campuses.map((c) => `<option value="${c.id}">${c.name.replace(/</g, '&lt;')}</option>`).join('')}`;
+    form.querySelector('#campuses').innerHTML = String(html`${option('', 'Choose a campus…')}${campuses.map((c) => option(c.id, c.name))}`);
   });
   form.querySelector('#back').addEventListener('click', back);
   onFormSubmit(form, async (v) => {

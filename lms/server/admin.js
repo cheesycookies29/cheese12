@@ -573,7 +573,7 @@ export function registerAdminRoutes(route, ctx) {
       const v = body.settings?.[s.id] || {};
       const status = SYSTEM_STATUS.includes(v.status) ? v.status : 'soon';
       const url = text(v.url, 500);
-      if (url && !/^(https?:\/\/|\/)/i.test(url)) fail(`${s.name}: the address must start with https://, http:// or /.`);
+      if (url && (!/^(https?:\/\/|\/)/i.test(url) || /^\/[\/\\]/.test(url))) fail(`${s.name}: the address must start with https://, http:// or / (one slash).`);
       if (status === 'live' && !url) fail(`${s.name}: give the address it runs at before switching it on.`);
       next[s.id] = { status, url };
     }
@@ -636,6 +636,8 @@ export function registerAdminRoutes(route, ctx) {
         lockoutMinutes: whole(v.lockoutMinutes, 1, 120, 'Minutes locked'),
         idleHours: whole(v.idleHours, 1, 72, 'Sign out after (hours idle)'),
         forcePasswordChange: Boolean(v.forcePasswordChange),
+        requestsPerMinute: whole(v.requestsPerMinute, 60, 3000, 'Requests per person per minute'),
+        signInFailuresPerAddress: whole(v.signInFailuresPerAddress, 10, 1000, 'Wrong passwords per network address'),
       };
     }
     if (body.learn) {

@@ -24,9 +24,11 @@ export function validatePassword(password, policy = {}) {
   if (policy.requireLettersAndDigits && !(/[A-Za-z]/.test(password) && /\d/.test(password))) throw new HttpError(400, 'Password must have both letters and digits.');
 }
 
+// What may leave the server about an account: never the password hash, the private calendar
+// address (it opens the person's calendar without signing in) or the Keycloak link.
 export function publicUser(user) {
   if (!user) return null;
-  const { passwordHash, ...rest } = user;
+  const { passwordHash, calendarToken, ssoSubject, ...rest } = user;
   return rest;
 }
 
@@ -48,6 +50,12 @@ const SESSION_TTL = 8 * 60 * 60 * 1000; // signed out after 8 idle hours (Settin
 // ttl(): how long a session lasts without use, read on each request so a new setting applies at once.
 export function createSessions(ttl = () => SESSION_TTL) {
   const sessions = new Map();
+  // Ended sessions are cleared every ten minutes, not only when someone uses them again.
+  const sweep = setInterval(() => {
+    const t = Date.now();
+    for (const [token, s] of sessions) if (s.expires < t) sessions.delete(token);
+  }, 10 * 60 * 1000);
+  sweep.unref?.();
   return {
     // extra: e.g. { sso: true, idToken } for a single sign-on session (used to end the Keycloak session too).
     create(userId, extra = {}) {
@@ -82,9 +90,18 @@ export const clearedCookie = (name) => `${name}=; HttpOnly; SameSite=Strict; Pat
 
 // Lock a username for 5 minutes after 5 wrong passwords in a row. limits: an object, or a
 // function returning { max, lockMs } (read at each attempt, so Settings apply at once).
+// fail(key, times): this key locks after `times` × max failures (a looser, wider lock).
+// Entries left alone for a day are forgotten, so made-up usernames do not pile up in memory.
 export function createThrottle(limits = {}) {
   const failures = new Map();
   const get = () => ({ max: 5, lockMs: 5 * 60 * 1000, ...(typeof limits === 'function' ? limits() : limits) });
+  const DAY = 24 * 3600 * 1000;
+  const prune = () => {
+    const t = Date.now();
+    for (const [key, f] of failures) if (f.until < t && t - f.at > DAY) failures.delete(key);
+  };
+  const timer = setInterval(prune, 3600 * 1000);
+  timer.unref?.();
   return {
     check(key) {
       const f = failures.get(key);
@@ -93,12 +110,14 @@ export function createThrottle(limits = {}) {
         throw new HttpError(429, `Too many failed attempts. Try again in ${mins} minute${mins > 1 ? 's' : ''}.`);
       }
     },
-    fail(key) {
-      const f = failures.get(key) || { count: 0, until: 0 };
+    fail(key, times = 1) {
+      const f = failures.get(key) || { count: 0, until: 0, at: 0 };
       f.count += 1;
+      f.at = Date.now();
       const { max, lockMs } = get();
-      if (f.count >= max) Object.assign(f, { count: 0, until: Date.now() + lockMs });
+      if (f.count >= max * times) Object.assign(f, { count: 0, until: Date.now() + lockMs });
       failures.set(key, f);
+      if (failures.size > 100000) prune();
     },
     reset(key) {
       failures.delete(key);

@@ -81,7 +81,9 @@ The record opens. The employee is included in the next payroll run at that campu
 
 Give the person the username and temporary password. They sign in on the ATLAS home page and are asked to choose their own password. From then on they have self-service in People.
 
-> **Note:** The same list of account types also creates HR managers, payroll officers and the Finance offices (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer).
+> **Note:** The same list of account types also creates HR managers and payroll officers. Accounts for the Finance offices (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer) are created and changed only by an administrator, so that nobody can give themselves the power to approve payments.
+
+> **Note:** You cannot change your own leave credits, leave adjustments, pay or HR details, and a payroll officer cannot adjust their own payslip. Another officer or an administrator does it.
 
 ### Reset a password, disable or unlink an account
 

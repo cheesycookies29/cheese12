@@ -17,7 +17,7 @@ import { nextNumber } from './numbering.js';
 import { hashPassword, validatePassword } from './auth.js';
 import { campusesFor, campusName } from './campus.js';
 import { validateUserFields } from './admin.js';
-import { registerLeaveRoutes, findLeaveType, leaveBalances } from './hris-leave.js';
+import { registerLeaveRoutes, findLeaveType, leaveBalances, notOwnRecord } from './hris-leave.js';
 import { clockInLocation, forViewer, locationSettings, purgeOldLocations, registerGeoRoutes } from './hris-geo.js';
 import { registerPayrollFinanceRoutes } from './hris-finance.js';
 import { computeGovPayslip, computeGovBonus, DEFAULT_GOV, BONUS_KINDS, APPOINTMENTS, DEDUCTION_TYPES, monthlySalary, salaryFor, stepsIn, isJobOrder } from '../shared/gov-pay.js';
@@ -444,6 +444,7 @@ export function registerHrisRoutes(route, ctx) {
   });
   route('PUT', '/api/hris/employees/:id', 'hris:employees.edit', ({ params, body, user, campusId }) => {
     const emp = employeeIn(campusId, params.id);
+    notOwnRecord(user, emp.id, 'change pay, position or other HR details');
     const fields = validateEmployee({ ...emp, ...body }, data(), emp.id);
     const moveTo = body.campusId ? targetCampus(user, body.campusId, campusId) : emp.campusId;
     if (moveTo !== emp.campusId && data().payrollRuns.some((r) => r.status === 'draft' && r.employeeIds.includes(emp.id))) {
@@ -474,7 +475,15 @@ export function registerHrisRoutes(route, ctx) {
   // Accounts at this campus that an employee record can be linked to: teachers and
   // registrars (their LMS account), and HRIS accounts. Students never; administrators
   // only by an administrator.
-  const linkableRoles = (caller) => ['teacher', 'registrar', ...HRIS_ROLES, ...(caller.role === 'admin' ? ['admin'] : [])];
+  // Finance office accounts (Chief Accountant, Budget Officer, Cashier, Supply, Approving Officer)
+  // are made and changed by an administrator only, as in Finance's own Control panel: otherwise an
+  // HR manager could give an account they control the power to approve payments (separation of duties).
+  const FINANCE_OFFICE = HRIS_ROLES.filter((r) => (ROLES[r].permissions || []).some((p) => p.startsWith('finance.')));
+  const assignableRoles = (caller) => (caller.role === 'admin' ? HRIS_ROLES : HRIS_ROLES.filter((r) => !FINANCE_OFFICE.includes(r)));
+  const notFinanceOffice = (caller, role, what) => {
+    if (caller.role !== 'admin' && FINANCE_OFFICE.includes(role)) fail(`Only an administrator ${what} Finance office accounts.`, 403);
+  };
+  const linkableRoles = (caller) => ['teacher', 'registrar', ...assignableRoles(caller), ...(caller.role === 'admin' ? ['admin'] : [])];
   function linkable(caller, emp, userId) {
     if (!can(caller.role, 'hris.accounts')) fail('Your account cannot link sign-in accounts.', 403);
     const u = data().users.find((x) => x.id === userId);
@@ -503,6 +512,7 @@ export function registerHrisRoutes(route, ctx) {
     }
     if (data().users.some((x) => x.employeeId === emp.id)) fail('This employee already has an account. Unlink it first.');
     const role = HRIS_ROLES.includes(body.role) ? body.role : fail('Pick an account type (Staff, HR, payroll or a Finance office).');
+    notFinanceOffice(user, role, 'creates');
     const fields = validateUserFields({ role, name: `${emp.firstName} ${emp.lastName}`, username: body.username, email: emp.email }, data());
     validatePassword(body.password, data().settings.security);
     data().users.push({
@@ -517,6 +527,8 @@ export function registerHrisRoutes(route, ctx) {
     const emp = employeeIn(campusId, params.id);
     const u = data().users.find((x) => x.employeeId === emp.id) || fail('This employee has no account.', 404);
     if (!HRIS_ROLES.includes(u.role)) fail(`${u.name} signs in with their ${ROLES[u.role].label.toLowerCase()} account; change it in the Learn admin panel.`);
+    notFinanceOffice(user, u.role, 'changes');
+    if (body.role) notFinanceOffice(user, body.role, 'creates');
     if (body.role && body.role !== u.role) {
       if (!HRIS_ROLES.includes(body.role)) fail('Pick an account type (Staff, HR, payroll or a Finance office).');
       if (u.id === user.id) fail('You cannot change your own account type.');
@@ -706,7 +718,8 @@ export function registerHrisRoutes(route, ctx) {
     save();
     return run;
   });
-  route('PUT', '/api/hris/payroll-runs/:id/payslips/:employeeId', 'hris:payroll.edit', ({ params, body, campusId }) => {
+  route('PUT', '/api/hris/payroll-runs/:id/payslips/:employeeId', 'hris:payroll.edit', ({ params, body, user, campusId }) => {
+    notOwnRecord(user, params.employeeId, 'adjust a payslip');
     const run = findRun(params.id, campusId);
     assertDraft(run);
     const slip = run.payslips.find((p) => p.employeeId === params.employeeId) || fail('Payslip not found.', 404);

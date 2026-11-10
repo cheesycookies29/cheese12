@@ -93,7 +93,7 @@ export async function issueReceipt(done) {
     timer = setTimeout(async () => {
       const list = await api.get(`/api/finance/students?q=${encodeURIComponent(e.target.value)}`).catch(() => []);
       const sel = m.form.querySelector('#stud');
-      sel.innerHTML = `<option value="">Not a student</option>${list.map((s) => `<option value="${s.id}">${s.name}${s.studentNo ? ` · ${s.studentNo}` : ''}</option>`).join('')}`;
+      sel.innerHTML = String(html`${option('', 'Not a student')}${list.map((s) => option(s.id, `${s.name}${s.studentNo ? ` · ${s.studentNo}` : ''}`))}`); // names are escaped
       if (list.length === 1) {
         sel.value = list[0].id;
         m.form.payorName.value ||= list[0].name;

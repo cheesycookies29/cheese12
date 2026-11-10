@@ -9,6 +9,11 @@ order: 2
 
 ## November 2026
 
+### Security review
+- ATLAS now limits how fast one person or one network address can send requests, and how many wrong passwords one address may try. Administrators set both under **Settings & branding → Sign-in and passwords**. See [the administrator's guide](admin#change-school-settings-and-branding).
+- A wrong-password lock now applies to the address the wrong passwords came from, so nobody can lock a colleague out from elsewhere.
+- Only administrators create and change Finance office accounts, also in People. Officers cannot change their own leave, pay or payslip. See [the HR guide](hr).
+
 ### A new sign-in page
 - Every ATLAS sign-in page (the home page, the admin panel, and the page shown when an account cannot use a system) has a new look: the school's seal and name at the top, the form under it, and the systems ATLAS opens at the bottom. **Help & guides** and **Dark mode** are now on the sign-in page too. See [Getting started](getting-started#sign-in).
 

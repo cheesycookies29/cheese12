@@ -122,7 +122,8 @@ export function registerSsoRoutes(route, ctx, { startSession, secret = process.e
         user = name ? all.find((u) => u.username === name) : null;
       } else {
         const email = String(claims.email || '').trim().toLowerCase();
-        if (email && claims.email_verified === false) fail(`Your Keycloak email ${email} is not verified yet. Verify it in Keycloak, then try again.`, 403);
+        // Only a verified email may find an account (a missing claim counts as not verified).
+        if (email && claims.email_verified !== true) fail(`Your Keycloak email ${email} is not verified yet. Verify it in Keycloak, then try again.`, 403);
         const matches = email ? all.filter((u) => String(u.email || '').toLowerCase() === email) : [];
         if (matches.length > 1) fail(`More than one ATLAS account uses ${email}. Ask the registrar to fix the duplicate.`, 409);
         user = matches[0];
@@ -162,7 +163,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret = process.e
       state, nonce, code_challenge: b64url(createHash('sha256').update(verifier).digest()), code_challenge_method: 'S256',
     })) u.searchParams.set(k, v);
     return { raw: '', type: 'text/plain', status: 302, headers: { Location: u.toString(), 'Set-Cookie': stateCookie(state) } };
-  });
+  }, { limit: 'lookup' });
 
   route('GET', '/api/sso/callback', 'public', async ({ query, cookies, tokens }) => {
     const back = (msg) => ({ raw: page('Sign-in did not finish', msg, `/?ssoError=${encodeURIComponent(msg)}`), type: 'text/html', headers: { 'Set-Cookie': stateCookie('', 0) } });
@@ -192,7 +193,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret = process.e
       if (!(err instanceof HttpError) || err.status >= 500 && err.status !== 502 && err.status !== 503) console.error('SSO callback:', err);
       return back(err instanceof HttpError ? err.message : 'Something went wrong while signing in.');
     }
-  });
+  }, { limit: 'lookup' });
 
   // Where to send the browser after an ATLAS sign-out, to end the Keycloak session too.
   function logoutUrl(session, origin) {

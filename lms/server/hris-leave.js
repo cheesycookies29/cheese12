@@ -7,6 +7,13 @@ import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { workDates, genderAllows, needsCertificate, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
 
+// Officers cannot change their own leave or pay: another officer or an administrator does (separation of duties).
+export function notOwnRecord(user, employeeId, what) {
+  if (user && user.role !== 'admin' && user.employeeId && user.employeeId === employeeId) {
+    throw new HttpError(403, `You cannot ${what} on your own record. Ask another officer or an administrator.`);
+  }
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_REQUEST_DAYS = 180;
 
@@ -295,10 +302,11 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
       .sort((a, b) => a.lastName.localeCompare(b.lastName))
       .map((e) => ({ employeeId: e.id, employeeNo: e.employeeNo, name: `${e.lastName}, ${e.firstName}`, department: e.department || '', balances: leaveBalances(data(), e.id, year) }));
   });
-  route('PUT', '/api/hris/leave-credits', 'hris:leave.adjust', ({ body, campusId }) => {
+  route('PUT', '/api/hris/leave-credits', 'hris:leave.adjust', ({ body, user, campusId }) => {
     const year = Number(body.year);
     if (!(year >= 2000 && year <= 2100)) throw new HttpError(400, 'Pick a valid year.');
     const emp = employeeIn(campusId, body.employeeId);
+    notOwnRecord(user, emp.id, 'set leave credits');
     const type = findLeaveType(data(), body.leaveTypeId);
     data().leaveCredits = data().leaveCredits.filter((c) => !(c.employeeId === emp.id && c.year === year && c.leaveTypeId === type.id));
     if (body.credits !== null && body.credits !== '') {
@@ -349,6 +357,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
   // Add or take away days, with a reason (carry-over, correction, offset…).
   route('POST', '/api/hris/employees/:id/leave-adjustments', 'hris:leave.adjust', ({ params, body, user, campusId }) => {
     const emp = employeeIn(campusId, params.id);
+    notOwnRecord(user, emp.id, 'adjust leave');
     const type = findLeaveType(data(), body.leaveTypeId);
     const year = yearOf(body.year);
     const days = Number(body.days);
@@ -361,8 +370,9 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     save();
     return employeeLeave(emp, year);
   });
-  route('DELETE', '/api/hris/employees/:id/leave-adjustments/:adjId', 'hris:leave.adjust', ({ params, campusId }) => {
+  route('DELETE', '/api/hris/employees/:id/leave-adjustments/:adjId', 'hris:leave.adjust', ({ params, user, campusId }) => {
     const emp = employeeIn(campusId, params.id);
+    notOwnRecord(user, emp.id, 'adjust leave');
     const adj = data().leaveAdjustments.find((a) => a.id === params.adjId && a.employeeId === emp.id);
     if (!adj) throw new HttpError(404, 'Adjustment not found.');
     data().leaveAdjustments = data().leaveAdjustments.filter((a) => a.id !== adj.id);
@@ -373,6 +383,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
   // Record leave the employee took (e.g. filed on paper): one DTR leave entry per scheduled work day.
   route('POST', '/api/hris/employees/:id/leave-days', 'hris:leave.adjust', ({ params, body, user, campusId }) => {
     const emp = employeeIn(campusId, params.id);
+    notOwnRecord(user, emp.id, 'record leave days');
     const type = findLeaveType(data(), body.leaveTypeId);
     const block = genderBlock(type, emp);
     if (block) throw new HttpError(400, block);
@@ -402,8 +413,9 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     const runs = finalizedOn(emp.campusId, dates);
     return { ...employeeLeave(emp, year), recorded: dates.length, warning: runs.length ? `Payroll for ${runs.map((r) => `${r.periodStart} to ${r.periodEnd}`).join(', ')} is already finalized, so those payslips are unchanged.` : null };
   });
-  route('DELETE', '/api/hris/employees/:id/leave-days/:entryId', 'hris:leave.adjust', ({ params, campusId }) => {
+  route('DELETE', '/api/hris/employees/:id/leave-days/:entryId', 'hris:leave.adjust', ({ params, user, campusId }) => {
     const emp = employeeIn(campusId, params.id);
+    notOwnRecord(user, emp.id, 'remove leave days');
     const entry = data().timeEntries.find((e) => e.id === params.entryId && e.employeeId === emp.id && e.type === 'leave');
     if (!entry) throw new HttpError(404, 'Leave day not found.');
     if (entry.requestId) throw new HttpError(400, 'This day comes from an approved request. Cancel the request under Leave & requests instead, so the employee sees it.');

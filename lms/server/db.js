@@ -38,10 +38,12 @@ export const DEFAULT_SETTINGS = {
   security: {
     minPasswordLength: 8, // 8–64
     requireLettersAndDigits: false, // a password must mix letters and digits
-    lockoutAttempts: 5, // wrong passwords in a row before the username is locked (3–20)
+    lockoutAttempts: 5, // wrong passwords in a row before the username is locked on that address; ten times as many lock it everywhere (3–20)
     lockoutMinutes: 5, // how long it stays locked (1–120)
     idleHours: 8, // signed out after this long without using ATLAS (1–72)
     forcePasswordChange: false, // new accounts always change their password at first sign-in (staff cannot untick it)
+    requestsPerMinute: 300, // rate limit: requests per signed-in person per minute; four times as many per address when signed out (60–3000)
+    signInFailuresPerAddress: 30, // wrong passwords from one network address, across all usernames, before it pauses 15 minutes (10–1000)
   },
   // Learn: uploads, quizzes and what parents are warned about.
   learn: {
