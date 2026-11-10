@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate } from './util.js';
 import { isDayOff, HOLIDAY_TYPES } from '../shared/holidays.js';
-import { workDates, genderAllows, needsCertificate, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, PORTIONS, portionDays, OPEN_REQUEST, REQUEST_KINDS, APPROVER_TYPES, APPROVAL_FLOWS } from '../shared/leave.js';
+import { workDates, genderAllows, needsCertificate, certificateReason, priorFilings, CERTIFICATE_COUNTED, CERTIFICATE_PERIODS, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, PORTIONS, portionDays, OPEN_REQUEST, REQUEST_KINDS, APPROVER_TYPES, APPROVAL_FLOWS } from '../shared/leave.js';
 import { parseUpload } from './attachments.js';
 import { routeRequest, decideStep, addHistory, canDecide, isCurrentApprover, isOnRoute, directReports, approvalSettings } from './approvals.js';
 import { userCan } from '../shared/roles.js';
@@ -17,14 +17,26 @@ export function findLeaveType(db, id) {
 }
 
 // Leave types saved by older builds lack the gender and certificate rules: take them
-// from the built-in defaults (Maternity: women, Paternity: men, Sick Leave: over 3 days).
+// from the built-in defaults (Maternity: women, Paternity: men, Sick Leave: from 4 days).
+// The old certificate rule ("longer than N days") becomes "from N + 1 days", which means the same.
 export function migrateLeaveTypes(db) {
   let changed = false;
   for (const t of db.data.leaveTypes) {
     const builtIn = DEFAULT_LEAVE_TYPES.find((d) => d.id === t.id);
-    for (const k of ['gender', 'certificateAfterDays', 'advanceDays']) {
+    if (!('certificateFromDays' in t)) {
+      t.certificateFromDays = 'certificateAfterDays' in t
+        ? (t.certificateAfterDays == null ? null : t.certificateAfterDays + 1)
+        : builtIn ? builtIn.certificateFromDays : null;
+      changed = true;
+    }
+    if ('certificateAfterDays' in t) {
+      delete t.certificateAfterDays;
+      changed = true;
+    }
+    const fill = { gender: null, advanceDays: null, certificateAfterCount: null, certificatePeriod: 'year' };
+    for (const k of Object.keys(fill)) {
       if (!(k in t)) {
-        t[k] = builtIn ? builtIn[k] : null;
+        t[k] = builtIn && k in builtIn ? builtIn[k] : fill[k];
         changed = true;
       }
     }
@@ -47,6 +59,7 @@ function findRequest(db, id) {
   return req;
 }
 
+const blankOr = (v) => (v === '' || v == null ? null : Number(v));
 function validateLeaveType(input, db, existingId) {
   const t = {
     code: String(input.code || '').trim().toUpperCase(),
@@ -57,15 +70,23 @@ function validateLeaveType(input, db, existingId) {
     // 'all' = every employee unless an admin removes it for someone; 'selected' = only employees an admin adds.
     appliesTo: input.appliesTo === 'selected' ? 'selected' : 'all',
     gender: LEAVE_GENDERS[input.gender] ? input.gender : null,
-    certificateAfterDays: input.certificateAfterDays === '' || input.certificateAfterDays == null ? null : Number(input.certificateAfterDays),
+    // a request of this many work days or more needs a medical certificate (an older client may still send
+    // certificateAfterDays, "longer than N days")
+    certificateFromDays: blankOr(input.certificateFromDays !== undefined ? input.certificateFromDays : input.certificateAfterDays == null || input.certificateAfterDays === '' ? input.certificateAfterDays : Number(input.certificateAfterDays) + 1),
+    // once this many requests of the type were filed in the year or month, every later one needs one
+    certificateAfterCount: blankOr(input.certificateAfterCount),
+    certificatePeriod: CERTIFICATE_PERIODS[input.certificatePeriod] ? input.certificatePeriod : 'year',
     advanceDays: input.advanceDays === '' || input.advanceDays == null ? null : Number(input.advanceDays),
   };
   if (t.advanceDays !== null && !(Number.isInteger(t.advanceDays) && t.advanceDays >= 0 && t.advanceDays <= 90)) throw new HttpError(400, 'File-ahead rule: a whole number of days from 0 to 90, or blank.');
   if (!/^[A-Z0-9]{1,8}$/.test(t.code)) throw new HttpError(400, 'Code must be 1–8 letters or digits.');
   if (!t.name) throw new HttpError(400, 'Name is required.');
   if (t.annualCredits !== null && !(t.annualCredits >= 0 && t.annualCredits <= 366)) throw new HttpError(400, 'Annual credits must be between 0 and 366, or blank for no limit.');
-  if (t.certificateAfterDays !== null && !(Number.isInteger(t.certificateAfterDays) && t.certificateAfterDays >= 0 && t.certificateAfterDays <= 365)) {
-    throw new HttpError(400, 'Medical certificate: enter a whole number of days (0 = always required), or leave it blank.');
+  if (t.certificateFromDays !== null && !(Number.isInteger(t.certificateFromDays) && t.certificateFromDays >= 1 && t.certificateFromDays <= 365)) {
+    throw new HttpError(400, 'Medical certificate, days in one request: a whole number of work days from 1 (every request) to 365, or blank.');
+  }
+  if (t.certificateAfterCount !== null && !(Number.isInteger(t.certificateAfterCount) && t.certificateAfterCount >= 0 && t.certificateAfterCount <= 365)) {
+    throw new HttpError(400, 'Medical certificate, number of requests: a whole number from 0 (every request) to 365, or blank.');
   }
   if (db.data.leaveTypes.some((x) => x.code === t.code && x.id !== existingId)) throw new HttpError(400, `Code ${t.code} is already used.`);
   return t;
@@ -103,10 +124,24 @@ export function leaveBalances(db, employeeId, year) {
       .reduce((a, r) => a + requestDaysOf(r, t.id), 0);
     return {
       leaveTypeId: t.id, code: t.code, name: t.name, paid: t.paid, active: t.active, offered: offeredTo(db, employeeId, t),
-      gender: t.gender || null, eligible: genderAllows(t, emp), certificateAfterDays: t.certificateAfterDays ?? null,
+      gender: t.gender || null, eligible: genderAllows(t, emp),
+      certificateFromDays: t.certificateFromDays ?? null, certificateAfterCount: t.certificateAfterCount ?? null, certificatePeriod: t.certificatePeriod || 'year',
+      filings: t.certificateAfterCount == null ? [] : filingsOf(db, employeeId, t.id),
       credits, overridden: Boolean(override), adjusted, used, pending, remaining: credits == null ? null : credits + adjusted - used - pending,
     };
   });
+}
+
+// The employee's requests of a leave type that count toward the "after N filings" certificate rule.
+function filingsOf(db, employeeId, leaveTypeId) {
+  return db.data.requests
+    .filter((r) => r.employeeId === employeeId && r.kind === 'leave' && r.leaveTypeId === leaveTypeId && CERTIFICATE_COUNTED.includes(r.status))
+    .map((r) => ({ id: r.id, startDate: r.startDate, filedAt: r.filedAt }));
+}
+// Requests of the same type filed before this one in its year or month.
+function priorOf(db, type, req) {
+  if (!type || type.certificateAfterCount == null) return 0;
+  return priorFilings(type, filingsOf(db, req.employeeId, type.id), req.startDate, { excludeId: req.id, before: req.filedAt || null });
 }
 
 // Days of a request that count against a leave type (its paid days, or its overflow on Leave Without Pay).
@@ -126,7 +161,7 @@ function withEmployee(db, req, viewer) {
     department: emp?.department || '',
     supervisorName: sup ? `${sup.firstName} ${sup.lastName}` : null,
     typeName: req.kind === 'leave' ? type?.name || 'Leave' : REQUEST_KINDS[req.kind] || 'Work from home',
-    certificateRequired: req.kind === 'leave' && needsCertificate(type, req.days),
+    certificateRequired: req.kind === 'leave' && needsCertificate(type, req.days, priorOf(db, type, req)),
     waitingOn: req.status === 'pending' ? (req.approvals || []).filter((l) => l.status === 'pending').map((l) => l.label) : [],
     ...(viewer ? { canDecide: canDecide(req, viewer), yourTurn: isCurrentApprover(req, viewer), attachmentLocked: Boolean(req.attachment) && !(userCan(viewer, 'leave.manage') || userCan(viewer, 'leave.approve') || approvalSettings(db).attachmentsToApprovers === true) } : {}),
   };
@@ -187,8 +222,12 @@ function buildRequest(db, employee, user, body, upload, { existingId = null, byH
     if (over && (!type.paid || !lwop)) {
       throw new HttpError(400, `Not enough ${type.name} credits: ${Math.max(0, bal.remaining + own)} day(s) left, ${days} requested.`);
     }
-    if (needsCertificate(type, days) && !upload) {
-      throw new HttpError(400, `${type.name} of more than ${type.certificateAfterDays} day${type.certificateAfterDays === 1 ? '' : 's'} needs a medical certificate. This request is ${days} work days; attach the certificate (PDF or photo) and submit again.`);
+    // A certificate the rules ask for must come with the filing (or already be on the request being
+    // revised); without it the filing is refused.
+    const existing = existingId && db.data.requests.find((r) => r.id === existingId);
+    const prior = priorOf(db, type, { id: existingId, employeeId: employee.id, startDate, filedAt: existing?.filedAt || null });
+    if (needsCertificate(type, days, prior) && !upload) {
+      throw new HttpError(400, `${certificateReason(type, days, prior)} Attach the certificate (PDF or photo) and submit again.`);
     }
   }
   const clash = db.data.requests.find((r) => r.id !== existingId && r.employeeId === employee.id && ['pending', 'returned', 'approved'].includes(r.status) && overlaps(r, { startDate, endDate }));
@@ -213,8 +252,9 @@ function approve(db, req, user) {
     const type = findLeaveType(db, req.leaveTypeId);
     const block = genderBlock(type, employee);
     if (block) throw new HttpError(400, `Cannot approve: ${block}`);
-    if (needsCertificate(type, req.days) && !req.attachment) {
-      throw new HttpError(400, `Cannot approve yet: ${type.name} of more than ${type.certificateAfterDays} days needs a medical certificate, and none is attached. The employee can attach it under My Requests.`);
+    const prior = priorOf(db, type, req);
+    if (needsCertificate(type, req.days, prior) && !req.attachment) {
+      throw new HttpError(400, `Cannot approve yet: ${certificateReason(type, req.days, prior).replace(/^You have/, 'The employee has')} None is attached; the employee can attach it under My Requests.`);
     }
     const busy = breakdown.filter((d) => {
       const e = entryOn(d.date);

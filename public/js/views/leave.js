@@ -1,7 +1,7 @@
 // Leave & Requests: approvals, leave balances and credits, leave types.
 import { api } from '../api.js';
 import { ctx, can } from '../state.js';
-import { REQUEST_STATUS, LEAVE_GENDERS, APPROVER_TYPES, APPROVAL_FLOWS } from '/shared/leave.js';
+import { REQUEST_STATUS, LEAVE_GENDERS, APPROVER_TYPES, APPROVAL_FLOWS, certificateSummary } from '/shared/leave.js';
 import { requestDetail, progressText } from '../requests.js';
 import { decide } from './approvals.js';
 import { html, mount, fmtDate, badge, toast, modal, confirmDialog, today } from '../ui.js';
@@ -436,9 +436,23 @@ function typeForm(t = {}) {
         <option value="" ${t.gender ? '' : 'selected'}>Any gender</option>
         ${Object.entries(LEAVE_GENDERS).map(([k, v]) => html`<option value="${k}" ${t.gender === k ? 'selected' : ''}>${v}</option>`)}
       </select><small class="muted">Uses the gender on the employee record, e.g. maternity or paternity leave.</small></label>
-    <label class="field"><span>Medical certificate needed when longer than (days)</span>
-      <input type="number" name="certificateAfterDays" min="0" max="365" step="1" value="${t.certificateAfterDays ?? ''}" placeholder="Never" />
-      <small class="muted">Blank = never. 3 = required for 4 or more work days; 0 = always.</small></label>
+    <fieldset class="field span-2 cert-rules"><legend>Medical certificate</legend>
+      <p class="muted small">A request that meets either rule cannot be filed without a certificate (PDF or photo). Leave both blank if none is needed.</p>
+      <div class="grid two">
+        <label class="field"><span>Required from this many work days in one request</span>
+          <input type="number" name="certificateFromDays" min="1" max="365" step="1" value="${t.certificateFromDays ?? ''}" placeholder="No" />
+          <small class="muted">1 = every request; 4 = requests of 4 or more work days.</small></label>
+        <div class="field"><span>Required after this many requests</span>
+          <div class="inline-pair">
+            <input type="number" name="certificateAfterCount" min="0" max="365" step="1" value="${t.certificateAfterCount ?? ''}" placeholder="No" aria-label="Number of requests" />
+            <select name="certificatePeriod" aria-label="Counted per">
+              <option value="year" ${t.certificatePeriod !== 'month' ? 'selected' : ''}>in a year</option>
+              <option value="month" ${t.certificatePeriod === 'month' ? 'selected' : ''}>in a month</option>
+            </select>
+          </div>
+          <small class="muted">3 = once an employee has filed 3 this year, the 4th and later need one. Cancelled and rejected requests do not count.</small></div>
+      </div>
+    </fieldset>
     <label class="field"><span>File at least this many days ahead</span>
       <input type="number" name="advanceDays" min="0" max="90" step="1" value="${t.advanceDays ?? ''}" placeholder="Any time" />
       <small class="muted">Blank = any time, e.g. 5 for vacation leave. Sick and emergency leave are usually left blank.</small></label>
@@ -460,7 +474,7 @@ async function typesTab(el) {
             <td>${t.paid ? badge('Paid', 'green') : badge('Unpaid', 'gray')}</td>
             <td class="num">${t.annualCredits ?? 'No limit'}</td>
             <td>${t.appliesTo === 'selected' ? badge('Selected employees', 'blue') : 'Everyone'}${t.gender ? html`<small>${LEAVE_GENDERS[t.gender]}</small>` : ''}</td>
-            <td>${t.certificateAfterDays != null ? html`<span class="small">Medical certificate ${t.certificateAfterDays === 0 ? 'always' : `over ${t.certificateAfterDays} day${t.certificateAfterDays === 1 ? '' : 's'}`}</span>` : html`<span class="muted">—</span>`}</td>
+            <td>${certificateSummary(t) ? html`<span class="small">Medical certificate: ${certificateSummary(t)}</span>` : html`<span class="muted">—</span>`}</td>
             <td>${t.active ? badge('Active', 'green') : badge('Inactive', 'gray')}</td>
             <td class="row-actions"><button class="link" data-edit="${t.id}">Edit</button><button class="link danger" data-delete="${t.id}">Delete</button></td>
           </tr>`)}</tbody>
@@ -472,7 +486,7 @@ async function typesTab(el) {
       const fd = new FormData(f);
       return {
         code: fd.get('code'), name: fd.get('name'), annualCredits: fd.get('annualCredits'), paid: fd.has('paid'), active: fd.has('active'),
-        appliesTo: fd.get('appliesTo'), gender: fd.get('gender'), certificateAfterDays: fd.get('certificateAfterDays'), advanceDays: fd.get('advanceDays'),
+        appliesTo: fd.get('appliesTo'), gender: fd.get('gender'), certificateFromDays: fd.get('certificateFromDays'), certificateAfterCount: fd.get('certificateAfterCount'), certificatePeriod: fd.get('certificatePeriod'), advanceDays: fd.get('advanceDays'),
       };
     };
     el.querySelector('#add-type').addEventListener('click', () =>

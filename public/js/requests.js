@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import { ctx } from './state.js';
 import { html, mount, modal, fmtDate, badge, toast } from './ui.js';
-import { workDates, needsCertificate, PORTIONS, portionDays, LEVEL_STATUS, REQUEST_STATUS } from '/shared/leave.js';
+import { workDates, needsCertificate, certificateReason, priorFilings, PORTIONS, portionDays, LEVEL_STATUS, REQUEST_STATUS } from '/shared/leave.js';
 import { ACCEPT, prepareUpload, viewAttachment } from './attachments.js';
 
 const LEVEL_KIND = { waiting: 'gray', pending: 'amber', approved: 'green', rejected: 'gray', returned: 'blue', skipped: 'gray' };
@@ -104,8 +104,8 @@ export async function requestForm({ emp, balances, existing = null, onDone }) {
     </div>`,
     onSubmit: async (f) => {
       const s = state();
-      if (s.kind === 'leave' && s.type && needsCertificate(s.type, s.days) && !f.certificate.files[0] && !existing?.attachment) {
-        throw new Error(`${s.type.name} of more than ${s.type.certificateAfterDays} day${s.type.certificateAfterDays === 1 ? '' : 's'} needs a medical certificate. Attach it to continue.`);
+      if (s.kind === 'leave' && s.type && needsCertificate(s.type, s.days, s.prior) && !f.certificate.files[0] && !existing?.attachment) {
+        throw new Error(`${certificateReason(s.type, s.days, s.prior)} Attach it to continue.`);
       }
       const file = f.certificate.files[0];
       const body = {
@@ -128,17 +128,20 @@ export async function requestForm({ emp, balances, existing = null, onDone }) {
     const end = form.endDate.value;
     const dates = start && end && end >= start ? workDates(emp, ctx.settings, start, end, ctx.holidays) : [];
     const days = dates.reduce((n, d) => n + (kind === 'leave' ? portionDays(portions[d] || 'whole') : 1), 0);
-    return { kind, type, dates, days, start, end };
+    // Earlier requests of the type in the same year or month, for the "after N requests" certificate rule.
+    const filings = type ? balances.find((b) => b.leaveTypeId === type.id)?.filings : [];
+    const prior = type ? priorFilings(type, filings, start, { excludeId: existing?.id, before: existing?.filedAt || null }) : 0;
+    return { kind, type, dates, days, start, end, prior };
   }
   function draw() {
     const s = state();
     form.querySelector('.ob-field').hidden = s.kind !== 'ob';
     const cert = form.querySelector('.cert-field');
     cert.hidden = s.kind !== 'leave';
-    const required = s.type && needsCertificate(s.type, s.days);
+    const required = s.type && needsCertificate(s.type, s.days, s.prior);
     form.querySelector('.cert-label').textContent = required ? 'Medical certificate (required)' : 'Medical certificate (optional)';
     form.querySelector('.cert-hint').textContent = required
-      ? `Required: ${s.type.name} longer than ${s.type.certificateAfterDays} day${s.type.certificateAfterDays === 1 ? '' : 's'}. PDF or a photo, up to 5 MB.${existing?.attachment ? ' The one already attached is kept unless you choose a new file.' : ''}`
+      ? `${certificateReason(s.type, s.days, s.prior)} PDF or a photo, up to 5 MB.${existing?.attachment ? ' The one already attached is kept unless you choose a new file.' : ''}`
       : 'PDF or a photo, up to 5 MB.';
     const box = form.querySelector('.req-breakdown');
     if (!s.dates.length) return mount(box, html`<p class="muted small">${s.start && s.end && s.end < s.start ? 'The end date is before the start date.' : 'No scheduled work days in this range; rest days are not counted.'}</p>`);

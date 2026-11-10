@@ -1469,3 +1469,11 @@ body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
   .crm-stage-table .row-actions .icon-btn { width: 28px; height: 30px; margin: 0; padding: 0; display: inline-grid; place-items: center; }
   .tabs a { padding: 10px 9px; }
 }
+
+/* Leave type: the medical certificate rules */
+.cert-rules { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin: 0; gap: 10px; }
+.cert-rules legend { font-weight: 600; font-size: 13px; color: var(--text-2); padding: 0 6px; }
+.cert-rules > p { margin: 0; }
+.inline-pair { display: flex; gap: 8px; }
+.inline-pair input { flex: 1 1 80px; min-width: 0; }
+.inline-pair select { flex: 0 1 auto; width: auto; }

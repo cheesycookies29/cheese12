@@ -27,6 +27,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.11.6-alpha',
+    date: '2026-11-10',
+    title: 'Medical certificate rules',
+    modules: ['hr'],
+    notes: 'HR sets when a leave type needs a medical certificate; a filing without a required one is refused.',
+    changes: [
+      ['improved', 'hr', 'Leave types: two medical certificate rules, used alone or together. Required from a number of work days in one request (1 = every request), and required after a number of requests in a year or a month (counting pending, returned and approved requests). The leave type list shows both.'],
+      ['improved', 'hr', 'A leave request that needs a certificate under either rule is refused without one, on filing and on editing, with the reason ("Every Sick Leave request needs a medical certificate", "You have already filed 3 Sick Leave requests this year …"). The filing form marks the certificate as required and says why. Approval is refused until one is attached.'],
+      ['fixed', 'hr', 'The certificate setting no longer reads "longer than N days", where 1 meant two days or more. It is now "from N days"; saved settings carry over unchanged (longer than 3 days is from 4 days).'],
+    ],
+  },
+  {
     version: '0.11.5-alpha',
     date: '2026-11-09',
     title: 'New sign-in page',

@@ -189,9 +189,22 @@ It applies to requests filed from now on. A level with nobody to approve it is s
 
 1. Open **Leave & Requests → Leave balances** and pick the **Year**. Each cell shows remaining of credits.
 2. Click a cell to set that employee's **Credits** for the year, for example for carry-over or a new hire. Leave it blank for the default.
-3. Open **Leave types** and click **+ Add leave type**, or **Edit** on a row. Set the **Code**, **Name**, **Annual credits (days)**, **Paid leave**, **Who gets it**, **Limited to**, **Medical certificate needed when longer than (days)** and **File at least this many days ahead**.
+3. Open **Leave types** and click **+ Add leave type**, or **Edit** on a row. Set the **Code**, **Name**, **Annual credits (days)**, **Paid leave**, **Who gets it**, **Limited to**, the **Medical certificate** rules (see below) and **File at least this many days ahead**.
 
-A leave type that was used cannot be deleted; untick **Active** instead. The **Employee leave** tab, for one person's leave in detail (types offered, adjustments with a reason, leave recorded by hand), is for administrators.
+A leave type that was used cannot be deleted; untick **Active** instead.
+
+### Set when a medical certificate is needed
+
+Each leave type has two certificate rules. Use either or both; a request that meets either one cannot be filed without a certificate (a PDF or a photo).
+
+1. Open **Leave & Requests → Leave types** and click **Edit** on the leave type, for example **Sick Leave**.
+2. Under **Medical certificate**, set **Required from this many work days in one request**: **1** means every request; **4** means requests of 4 or more work days (the default for Sick Leave). Leave it blank to turn this rule off.
+3. Set **Required after this many requests**, and choose **in a year** or **in a month**. For example **3 in a year**: once an employee has filed 3 Sick Leave requests this year, the 4th and every later one needs a certificate. Pending, returned and approved requests count; cancelled and rejected ones do not. Leave it blank to turn this rule off.
+4. Click **Save**. The **Rules** column shows the result, for example *Medical certificate: from 4 days; after 3 a year*.
+
+![Sick Leave's medical certificate rules](hr-leave-type-certificate.jpg)
+
+When an employee files without a required certificate, CORE refuses the request and tells them why. A request filed before you changed a rule cannot be approved until a certificate is attached. The **Employee leave** tab, for one person's leave in detail (types offered, adjustments with a reason, leave recorded by hand), is for administrators.
 
 ### Keep the holiday calendar
 

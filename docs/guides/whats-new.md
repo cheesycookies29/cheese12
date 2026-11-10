@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### Medical certificate rules (0.11.6)
+- HR sets when a leave type needs a medical certificate: from a number of work days in one request (1 = every request), after a number of requests in a year or a month, or both. A sick leave filed without a required certificate is refused, with the reason. See [the HR guide](hr#set-when-a-medical-certificate-is-needed).
+- The old setting carries over unchanged: Sick Leave *longer than 3 days* is now *from 4 days*. See [the employee guide](employee#attach-a-medical-certificate).
+
 ### New sign-in page (0.11.5)
 - The sign-in page has a new look: CORE's maroon and gold beside the form, the same for first-run setup and for choosing a new password. Signing in works as before. See [Getting started](getting-started#sign-in).
 

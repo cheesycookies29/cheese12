@@ -27,6 +27,7 @@
   {"file": "hr-approvals.jpg", "user": "hr.demo", "url": "/#/approvals"},
   {"file": "hr-leave-requests.jpg", "user": "hr.demo", "url": "/#/leave"},
   {"file": "hr-approval-flow.jpg", "user": "hr.demo", "url": "/#/leave?tab=flow"},
+  {"file": "hr-leave-type-certificate.jpg", "user": "hr.demo", "url": "/#/leave?tab=types", "click": ["[data-edit=sl]"], "scroll": ".cert-rules"},
   {"file": "hr-holidays.jpg", "user": "hr.demo", "url": "/#/holidays?year=2026", "click": ["#add"]},
   {"file": "payroll-new-run.jpg", "user": "payroll.demo", "url": "/#/payroll", "api": [["POST", "/api/payroll-runs", {"periodStart": "2026-10-01", "periodEnd": "2026-10-15", "payDate": "2026-10-15"}]], "click": ["#new-run"]},
   {"file": "payroll-register.jpg", "user": "payroll.demo", "url": "/#/payroll", "api": [["POST", "/api/payroll-runs", {"periodStart": "2026-10-16", "periodEnd": "2026-10-31", "payDate": "2026-10-31"}]], "click": ["tr[data-href] >> nth=0"]},
