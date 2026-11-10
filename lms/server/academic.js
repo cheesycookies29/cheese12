@@ -818,7 +818,7 @@ export function registerAcademicRoutes(route, ctx) {
       student: p.student.name, studentNo: mask(p.student.studentNo), program: p.student.program?.name || '',
       termName: p.termName || '', units: p.units ?? p.earned ?? null, gwa: p.gwa ?? null,
     };
-  });
+  }, { limit: 'lookup' });
 
   // ----- Students' own record (self-service) -----
   route('GET', '/api/academic/my/record', 'academic', ({ user }) => {

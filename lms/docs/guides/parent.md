@@ -31,7 +31,7 @@ Try this with the demo school: sign in as `parent.demo` (password `demo1234`). Y
 
 ![Your students: a card for each student](parent-home.jpg)
 
-2. On Carlo's card, press **Open** (or choose **Carlo Reyes** in the sidebar). His page opens on **Overview**: the same figures, **Worth a look**, his **Classes this term**, and **What you can see**.
+2. On Carlo's card, choose **Open** (or choose **Carlo Reyes** in the sidebar). His page opens on **Overview**: the same figures, **Worth a look**, his **Classes this term**, and **What you can see**.
 
 ![A student's Overview](parent-child-overview.jpg)
 
@@ -52,7 +52,7 @@ Try this with the demo school: sign in as `parent.demo` (password `demo1234`). Y
 1. In the sidebar, choose **Your students**.
 2. Read the student's card: running grade, attendance rate, enrolled units and activities due.
 3. Look at the lines under the figures. ATLAS flags a pending enrollment request, absences, a class below the passing grade, and work not handed in after the due date.
-4. Press **Open** for the details.
+4. Choose **Open** for the details.
 
 ### See grades
 
@@ -102,7 +102,7 @@ The **Grades** tab always lists every term, so the term picker is not shown ther
 
 1. Open **School calendar**. With more than one student, pick one, or **All my students** (each entry then starts with the student's name, e.g. *Carlo: Quiz 1*).
 2. Choose **Month**, **Week** or **List**, and move with **‹**, **›** and **Today**.
-3. Choose an entry for its details. A due date says whether the work is **Handed in**, **To do**, **Overdue** or **Missing**; **Open** goes to the student's page.
+3. Choose an entry for its details. A due date says whether the work is **Handed in**, **To do**, **Overdue** or **Missing**; **Open the activity** or **Open the quiz** (for a class meeting, **Open the class**) goes to the student's page.
 4. The coloured tick boxes above the calendar show or hide each kind of entry.
 
 To follow it from your phone, choose **Subscribe → Make my calendar address** and add the address to your calendar app, which then reads the calendar's own address, which keeps it up to date every few hours. Anyone with the address sees your calendar: if you shared it by mistake, choose **Get a new address** (the old one stops working) or **Stop sharing**.
@@ -111,7 +111,7 @@ To follow it from your phone, choose **Subscribe → Make my calendar address** 
 
 ### Read school news and events
 
-Open **News & events** for the school's announcements and upcoming events. You can react to a post with **Like**, **Love** or **Celebrate**, and write a comment and press **Post**.
+Open **News & events** for the school's announcements and upcoming events. You can react to a post with **Like**, **Love** or **Celebrate**, and write a comment and choose **Post**.
 
 ## Screens at a glance
 

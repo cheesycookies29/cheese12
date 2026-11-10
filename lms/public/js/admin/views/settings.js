@@ -59,13 +59,19 @@ export async function settingsView(el) {
       <section class="card"><h2>Student applications</h2>
         <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ATLAS home page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
       </section>
-      <section class="card" id="security"><h2>Sign-in and passwords</h2><div class="grid">
+      <section class="card" id="security"><h2>Sign-in and passwords</h2>
+        <p class="muted small">${s.passwordEncryption?.on
+          ? html`${icon('lock', 14)} <strong>Passwords are encrypted.</strong> Each password is stored only as a one-way hash, and that hash is encrypted with the server's key (key ${s.passwordEncryption.keyId}). A copy of the data or a backup cannot be used to guess passwords without the key.`
+          : html`<strong>Password hashes are not encrypted.</strong> Passwords are stored only as one-way hashes. Start the server with a key (PASSWORD_KEY) to encrypt them too.`}</p>
+        <div class="grid">
         <label class="field"><span>Shortest password</span><input type="number" name="minPasswordLength" min="8" max="64" value="${s.security.minPasswordLength}" ${dis} /><span class="hint">Characters, 8 to 64. Applies to new and changed passwords.</span></label>
-        <label class="field"><span>Wrong passwords before locking</span><input type="number" name="lockoutAttempts" min="3" max="20" value="${s.security.lockoutAttempts}" ${dis} /><span class="hint">In a row, for one username.</span></label>
+        <label class="field"><span>Wrong passwords before locking</span><input type="number" name="lockoutAttempts" min="3" max="20" value="${s.security.lockoutAttempts}" ${dis} /><span class="hint">In a row, for one username from one network address. Ten times as many lock it from everywhere.</span></label>
         <label class="field"><span>Minutes locked</span><input type="number" name="lockoutMinutes" min="1" max="120" value="${s.security.lockoutMinutes}" ${dis} /></label>
         <label class="field"><span>Sign out after (hours idle)</span><input type="number" name="idleHours" min="1" max="72" value="${s.security.idleHours}" ${dis} /><span class="hint">Without using ATLAS. Shorter is safer on shared computers.</span></label>
         <label class="field check span-2"><input type="checkbox" name="requireLettersAndDigits" ${s.security.requireLettersAndDigits ? 'checked' : ''} ${dis} /> <span><strong>Passwords mix letters and digits.</strong> A new password needs at least one of each.</span></label>
         <label class="field check span-3"><input type="checkbox" name="forcePasswordChange" ${s.security.forcePasswordChange ? 'checked' : ''} ${dis} /> <span><strong>Always change the first password.</strong> New accounts and reset passwords must be changed at the first sign-in, in every system; staff cannot untick it.</span></label>
+        <label class="field"><span>Requests per person per minute</span><input type="number" name="requestsPerMinute" min="60" max="3000" value="${s.security.requestsPerMinute}" ${dis} /><span class="hint">60 to 3000. Above this, ATLAS asks the person to wait a moment. Signed out, a network address gets four times as many.</span></label>
+        <label class="field"><span>Wrong passwords per network address</span><input type="number" name="signInFailuresPerAddress" min="10" max="1000" value="${s.security.signInFailuresPerAddress}" ${dis} /><span class="hint">In 15 minutes, across all usernames, before that address waits. Raise it if a whole campus shares one internet address.</span></label>
       </div></section>
       <section class="card" id="learn-rules"><h2>Uploads, quizzes and parent alerts</h2><div class="grid">
         <label class="field"><span>Largest upload (MB)</span><input type="number" name="maxUploadMb" min="1" max="15" value="${s.learn.maxUploadMb}" ${dis} /><span class="hint">Class resources, handed-in work and attachments, 1 to 15.</span></label>
@@ -124,7 +130,7 @@ export async function settingsView(el) {
         enrollment: { requireApproval: Boolean(v.requireApproval), allowWaitlist: Boolean(v.allowWaitlist), waitlistLimit: v.waitlistLimit, maxUnits: v.maxUnits },
         registration: { open: Boolean(v.registrationOpen) },
         branding: { theme: v.theme, color: v.color, logo, tagline: v.tagline },
-        security: { minPasswordLength: v.minPasswordLength, lockoutAttempts: v.lockoutAttempts, lockoutMinutes: v.lockoutMinutes, idleHours: v.idleHours, requireLettersAndDigits: Boolean(v.requireLettersAndDigits), forcePasswordChange: Boolean(v.forcePasswordChange) },
+        security: { minPasswordLength: v.minPasswordLength, lockoutAttempts: v.lockoutAttempts, lockoutMinutes: v.lockoutMinutes, idleHours: v.idleHours, requireLettersAndDigits: Boolean(v.requireLettersAndDigits), forcePasswordChange: Boolean(v.forcePasswordChange), requestsPerMinute: v.requestsPerMinute, signInFailuresPerAddress: v.signInFailuresPerAddress },
         learn: { maxUploadMb: v.maxUploadMb, quizGraceSeconds: v.quizGraceSeconds, absenceAlert: v.absenceAlert },
         numbering: Object.fromEntries(Object.keys(NUMBERING_LABELS).map((k) => [k, v[`num-${k}`]])),
       });

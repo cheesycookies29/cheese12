@@ -2,7 +2,7 @@
 // administrators keep student records, curricula, grade sheets, documents and reports;
 // teachers submit their grade sheets; students see their evaluation, grades and registration,
 // and request documents. Benchmarked against the CBSUA UIS (docs/ACADEMIC-PLAN.md).
-import { ctx, startApp, authScreen, authLogo } from '../shell.js';
+import { ctx, startApp, authScreen } from '../shell.js';
 import { html } from '../ui.js';
 import { api } from '../api.js';
 import { ac, can, isStudent, isTeacher, isStaff } from './state.js';
@@ -71,7 +71,7 @@ const home = () => (isStudent() ? '/me' : isTeacher() ? '/grade-sheets' : '/dash
 // Everyone signs in on the ATLAS home page; it sends them back here.
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
-    return authScreen(el, {}, html`<div class="auth-card">${authLogo()}<h2>Academic is for students and the school</h2>
+    return authScreen(el, {}, html`<div class="auth-card"><h2>Academic is for students and the school</h2>
       <p class="muted">You are signed in as ${status.deniedUser.name}. Academic records are for students, teachers and the registrar's office. Your systems are on the ATLAS home page.</p>
       <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
   }

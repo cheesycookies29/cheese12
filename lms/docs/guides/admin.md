@@ -53,7 +53,7 @@ This tour uses the demo school, signed in as `admin`.
 
 1. Open the ATLAS home page on the new server. It says **Not set up yet**; choose **Set up in the admin panel**.
 2. If the server asks for a **Setup code**, type the code chosen when the server was created.
-3. Type the **School name**, the **Campus name**, your **Full name**, a **Username** and a password (at least 8 characters), twice.
+3. Type the **School name**, the **Campus name**, **Your full name**, a **Username** and a password (at least 8 characters), twice.
 4. Choose **Create account and sign in**.
 
 The Dashboard opens with a *Getting started* note. Add a term, courses and sections, then students and teachers. To look around first, add the demo data (see [Add or remove the demo school](#add-or-remove-the-demo-school)).
@@ -146,12 +146,24 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 1. Choose **Settings & branding**.
 2. Under **School**: the **School name**, the **Current term** and the **Passing grade (%)**.
 3. Under **Enrollment rules**: **Requests need approval**, **Waitlists**, **Waitlist size per section** and **Maximum units per term** (0 means no limit).
-4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB), and the **Sign-in headline**.
+4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB; it replaces the ATLAS mark in the round seal on the sign-in pages), and the **Sign-in headline** (an optional line under the school name on the sign-in pages).
 5. Under **Student applications**: whether people may apply from the sign-in page.
-6. Under **Sign-in and passwords**: the **Shortest password** (8 to 64 characters), **Wrong passwords before locking** and **Minutes locked**, **Sign out after (hours idle)**, **Passwords mix letters and digits**, and **Always change the first password** (new accounts and reset passwords must be changed at the first sign-in, in every system).
+6. Under **Sign-in and passwords**: the password rules, the lock after wrong passwords, when idle people are signed out, and the limits on requests (see the table below).
 7. Under **Uploads, quizzes and parent alerts**: the **Largest upload (MB)** (1 to 15), the **Quiz grace period (seconds)** that answers sent just after a deadline still count, and from how many absences a parent sees them in red.
 8. Under **Numbering**: how new student numbers, employee numbers and document request numbers look. `{YYYY}` or `{YY}` is the year, `{MM}` the month and `{N4}` the serial with at least 4 digits; **Next:** shows the number the next record will get as you type.
 9. Choose **Save settings**.
+
+The settings under **Sign-in and passwords**:
+
+| Setting | What it does |
+| --- | --- |
+| **Shortest password** | 8 to 64 characters, for new and changed passwords |
+| **Passwords mix letters and digits** | A new password needs at least one letter and one digit |
+| **Always change the first password** | New accounts and reset passwords must be changed at the first sign-in, in every system |
+| **Wrong passwords before locking**, **Minutes locked** | A username is locked after this many wrong passwords in a row. The lock is for the network address they came from, so nobody can lock a colleague out from elsewhere; ten times as many lock the username everywhere |
+| **Sign out after (hours idle)** | People are signed out after this long without using ATLAS |
+| **Requests per person per minute** | 60 to 3000, normally 300. Above this, ATLAS asks the person to wait a few seconds. A network address that is not signed in gets four times as many |
+| **Wrong passwords per network address** | 10 to 1000 in 15 minutes, normally 30. An address that keeps guessing passwords, for any usernames, has to wait. Raise it if a whole campus reaches the internet through one address and people mistype often |
 
 The colour changes on screen as you choose it, so you can try themes before saving. Password rules apply to new and changed passwords; nobody has to change a password that is already set. A new numbering format applies to new records only, and never gives a number that is already in use.
 
@@ -189,7 +201,7 @@ If one group fails its checks, nothing is imported. Keep an export before big ch
 2. In the table for a system (**Admin panel**, **ATLAS Academic**, **ATLAS People**, **ATLAS Finance**), tick or untick a permission for an account type. A shaded box differs from the built-in setting.
 3. Choose **Save permissions**. If accounts would lose something they can do now, ATLAS asks first.
 
-For example, let deans open Finance's reports (**ATLAS Finance** → *Finance dashboard, books and reports* for **Dean / Program chair**), or keep **Academic settings** with administrators only by unticking it for **Registrar**. **Restore built-in** puts an account type back as ATLAS made it.
+For example, let deans open Finance's reports (**ATLAS Finance** → *Finance dashboard, books and reports* for **Dean / Program chair**), or keep the academic settings with administrators only by unticking *Grading scale, requirements, document fees and signatories* (under **ATLAS Academic**) for **Registrar**. **Restore built-in** puts an account type back as ATLAS made it.
 
 Administrators always have every permission, and managing administrator accounts and replacing data (**Administrators only**) cannot be given to anyone else. Admin-panel permissions go only to registrars and deans, who use the Admin panel.
 
@@ -200,11 +212,11 @@ Administrators always have every permission, and managing administrator accounts
 ### Choose what the ATLAS home page shows
 
 1. Choose **Home page & systems**. Academic, Learn, People and Finance are built in and always live.
-2. For **Facilities** or the **REX Bookstore e-Reader**, choose a **Status**: **Coming soon (greyed out)**, **Live: open it from the portal** or **Hidden**.
+2. For **Facilities** or the **REX Bookstore e-Reader**, choose a **Status**: **Coming soon (greyed out)**, **Live: open it from the ATLAS home page** or **Hidden**.
 3. To make it live, type its **Address** (starting with `https://`, `http://` or `/`).
+4. Choose **Save**. The home page changes at once.
 
 The **REX Bookstore e-Reader** connects to the REX Bookstore app's library of e-books, for students and teachers. It shows as **Coming soon** until that connection is ready; then switch it to **Live** with the address of the e-reader.
-4. Choose **Save**. The home page changes at once.
 
 Each card says which account types see that tile.
 
@@ -239,11 +251,11 @@ You need a Keycloak realm, and someone who can change the server's settings.
 2. In Keycloak, create the client as listed in the **In Keycloak** card. Use **Copy** for the **Valid redirect URIs** and **Valid post logout redirect URIs**.
 3. Put the client secret in the server's settings as `OIDC_CLIENT_SECRET` and restart ATLAS. It is never typed into the admin panel. The **Status** card then shows **Client secret: Set on the server**. Without a secret (**Not set**), make the Keycloak client public instead (**Client authentication** off).
 4. Back in **Single sign-on**, type the **Issuer (realm address)** and **Client ID**, and change the **Button text** if you like.
-5. Choose how to **Match Keycloak users to ATLAS accounts by**: **Email (verified in Keycloak)** or **Username**.
+5. Choose how to **Match Keycloak users to ATLAS accounts by**: **Email (verified in Keycloak)** or **Username**. By username, only students, parents and staff are linked on the username alone; teachers, registrars, deans, administrators and officers must also have the same verified email in Keycloak as on their ATLAS account, so that nobody gets such an account just by having its username in Keycloak.
 6. Choose **Test connection**. ATLAS shows *Keycloak answered.* or what went wrong.
 7. Tick **Show "Sign in with Keycloak" on the sign-in pages** and choose **Save**.
 
-Leave **Keep ATLAS passwords too** ticked while people get used to it. When you untick it, everyone except administrators must sign in with Keycloak; administrators keep their password in case Keycloak is down.
+Leave **Keep ATLAS passwords too** ticked while people get used to it. When you untick it, everyone except administrators must sign in with Keycloak; administrators keep their password in case Keycloak is down. Anyone else who types a password is told to use Keycloak, whether the password was right or not.
 
 ![Single sign-on settings](admin-sso.jpg)
 
@@ -262,13 +274,15 @@ The demo school is added next to your own data, at your first campus and three d
 1. Choose **Demo data & backup → Download backup**. A file named like `atlas-backup-2026-11-08.json` is saved.
 2. To restore, choose **Restore from backup…**, pick the file and confirm **Restore**.
 
-> **Important:** Restoring replaces **all** current data with the backup and cannot be undone. The backup holds the records (with passwords as secure hashes), so keep it private. Uploaded files are not in it: to keep them too, copy the server's whole `data` folder.
+> **Important:** Restoring replaces **all** current data with the backup and cannot be undone. The backup holds the records, so keep it private. Passwords are in it only as one-way hashes, encrypted with the server's own password key, which is not in the backup: a backup restored on another server needs that key (the person who looks after the server knows where it is), or the passwords must be reset. Uploaded files are not in it: to keep them too, copy the server's whole `data` folder.
+
+**Settings & branding → Sign-in and passwords** shows whether the password hashes are encrypted, and with which key.
 
 ### Edit a guide
 
 Administrators can change any guide on the **Help & guides** page, for example to add the school's own office hours or rules.
 
-1. Open the guide (choose **Help** in the top bar), then choose **Edit this guide**.
+1. Open the guide (choose **Help & guides**, the question mark in the top bar), then choose **Edit this guide**.
 2. Change the text on the left, in Markdown. The buttons above it add a heading (**H2**, **H3**), bold, a menu path (**→**), numbered steps, a list, a **Tip**, **Note** or important (**!**) box, a link or a screenshot. The preview on the right shows how it will look.
 3. Choose **Save**.
 
@@ -316,7 +330,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 
 **Why can't I delete an account?** Students, teachers and parents are disabled, not deleted, so their records stay. On **Admins, registrars & deans** you cannot delete your own account or the last active administrator. Disabling works the same way: you cannot disable yourself or the last active administrator.
 
-**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses, systems and single sign-on are for administrators. Registrars see them read-only, with *Only administrators can change these.* To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
+**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses and systems are for administrators. Registrars see them read-only, with *Only administrators can change these.* (**Single sign-on** is not in a registrar's sidebar at all.) To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
 
 **Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity (change it under **Settings & branding** → **Sign-in and passwords**).
 

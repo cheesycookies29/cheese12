@@ -74,11 +74,14 @@ try {
     const page = await context.newPage();
     const wait = s.wait ?? 800;
     try {
-      await page.goto(`${server.url}/`);
-      await page.fill('input[name=username]', s.user);
-      await page.fill('input[name=password]', s.password || (s.user === 'admin' ? 'password123' : 'demo1234'));
-      await page.click('button[type=submit]');
-      await page.waitForTimeout(700);
+      // "user": null takes the screen signed out (the sign-in pages).
+      if (s.user) {
+        await page.goto(`${server.url}/`);
+        await page.fill('input[name=username]', s.user);
+        await page.fill('input[name=password]', s.password || (s.user === 'admin' ? 'password123' : 'demo1234'));
+        await page.click('button[type=submit]');
+        await page.waitForTimeout(700);
+      }
       // "api": [[method, path, body], …]: changes made as that user first (e.g. so a history has entries).
       if (s.api) {
         const bad = await page.evaluate(async (steps) => {

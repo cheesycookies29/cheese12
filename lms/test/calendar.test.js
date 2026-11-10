@@ -51,6 +51,12 @@ test('a student sees classes, due dates, term dates and school events; holidays 
   assert.ok(!t.entries.some((x) => x.title === 'Enrollment closes'));
   assert.equal(t.entries.filter((x) => x.kind === 'class').length, 6); // PROG1 A (Mon/Wed) and PROG2 A (Tue)
 
+  // A request still waiting for approval is not a class yet: no meetings or due dates from it.
+  const waiting = await f.login('stud2');
+  const req = await waiting.post('/api/enrollment', { sectionId: f.sections.prog1.id });
+  assert.equal(req.status, 'pending');
+  assert.ok(!(await waiting.get(`/api/calendar?${range}`)).entries.some((x) => x.kind === 'class' || x.kind === 'due'));
+
   // Due dates follow the Modules switches, and the calendar has its own.
   const config = (await f.admin.get('/api/admin/modules')).config;
   config.assignments.student = false;

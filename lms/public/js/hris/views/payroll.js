@@ -14,6 +14,14 @@ const isGov = () => hr.settings.payrollSystem === 'government';
 const statusBadge = (s) => (s === 'finalized' ? badge('Finalized', 'green') : badge('Draft', 'amber'));
 const periodLabel = (r) => (isBonusRun(r) ? runTitle(r) : `${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}`);
 
+// A draft can be deleted by the payroll office. A finalized run is the record of what was paid:
+// only an administrator removes it; the payroll office corrects it in the next run.
+const deleteZone = (run) => {
+  if (!can('payroll.edit')) return '';
+  if (run.status === 'finalized' && ctx.user?.role !== 'admin') return html`<p class="muted small no-print" style="margin-top:16px">This payroll is finalized, so it cannot be deleted here. Correct it in the next run with Adjust, or ask an administrator.</p>`;
+  return html`<div class="danger-zone no-print"><button class="btn danger ghost" id="delete">${icon('trash', 16)} Delete payroll run</button></div>`;
+};
+
 export async function payrollListView(el) {
   const runs = await api.get('/api/hris/payroll-runs');
 
@@ -166,7 +174,7 @@ export async function payrollRunView(el, { id }) {
             <td class="num">${amount(run.payslips.reduce((a, p) => a + p.allowance, 0))}</td><td class="num"><strong>${amount(t.netPay)}</strong></td><td></td></tr></tfoot>
         </table>
       </section>
-      ${can('payroll.edit') ? html`<div class="danger-zone"><button class="btn danger ghost" id="delete">${icon('trash', 16)} Delete payroll run</button></div>` : ''}`);
+      ${deleteZone(run)}`);
     bind();
   }
 
@@ -204,7 +212,7 @@ export async function payrollRunView(el, { id }) {
       ${tab === 'remit' ? html`<section class="card">${remittancesView(run)}</section>` : ''}
       ${tab === 'finance' ? html`<section class="card" id="fin-box">${fin ? financeView(run, fin, { canEdit: can('payroll.edit') }) : html`<p class="muted">Loading…</p>`}</section>` : ''}
       ${tab === 'gp' ? html`<div class="actions end no-print"><button class="btn primary" id="print-gp">${icon('file', 16)} Print General Payroll</button></div><section class="card">${generalPayroll(run)}</section>` : ''}
-      ${can('payroll.edit') ? html`<div class="danger-zone no-print"><button class="btn danger ghost" id="delete">${icon('trash', 16)} Delete payroll run</button></div>` : ''}`);
+      ${deleteZone(run)}`);
     el.querySelectorAll('[data-tab]').forEach((a) => a.addEventListener('click', async (e) => {
       e.preventDefault();
       tab = a.dataset.tab;

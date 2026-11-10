@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 import { html, toast, mount } from '../ui.js';
 import { icon } from '../icons.js';
-import { ctx, startApp, authScreen, passwordField, onFormSubmit, authLogo, ssoBlock, passwordFields, showSsoError } from '../shell.js';
+import { ctx, startApp, authScreen, passwordField, onFormSubmit, ssoBlock, passwordFields, showSsoError } from '../shell.js';
 import { can } from '/shared/roles.js';
 import { dashboardView } from './views/dashboard.js';
 import { enrollmentQueueView } from './views/enrollment.js';
@@ -97,7 +97,6 @@ function signedOutView(el, { status, boot }) {
   if (status.setupRequired) {
     const form = authScreen(el, { admin: true }, html`
       <form class="auth-card" novalidate>
-        ${authLogo()}
         <h2>Welcome! Let's set up ATLAS</h2>
         <p class="muted">Create the first <strong>Administrator</strong>. You can add registrars, teachers and students after signing in.</p>
         ${status.setupCodeRequired ? html`<label class="field"><span>Setup code</span><input name="setupCode" autocomplete="off" required /><span class="hint">The code chosen when this server was created.</span></label>` : ''}
@@ -119,9 +118,8 @@ function signedOutView(el, { status, boot }) {
   }
   const form = authScreen(el, { admin: true }, html`
     <form class="auth-card" novalidate>
-      ${authLogo()}
-      <h2>Admin panel</h2>
-      <p class="muted">${status.schoolName}: for administrators and registrars.</p>
+      <h2 class="sr-only">Sign in to the admin panel</h2>
+      <p class="muted">For administrators and registrars.</p>
       ${ssoBlock(status.sso, '/admin')}
       ${passwordFields(status.sso, html`<label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}

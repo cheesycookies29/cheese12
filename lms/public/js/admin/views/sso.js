@@ -21,7 +21,7 @@ export async function ssoView(el) {
           <label class="field"><span>Button text</span><input name="label" value="${s.label}" /></label>
           <label class="field span-2"><span>Match Keycloak users to ATLAS accounts by</span>
             <select name="matchBy"><option value="email" ${s.matchBy === 'email' ? 'selected' : ''}>Email (verified in Keycloak)</option><option value="username" ${s.matchBy === 'username' ? 'selected' : ''}>Username</option></select>
-            <span class="hint">The first sign-in links the two; after that the link is used, even if the email changes. Only people who already have an ATLAS account can sign in.</span></label>
+            <span class="hint">The first sign-in links the two; after that the link is used, even if the email changes. Only people who already have an ATLAS account can sign in. By username, only students, parents and staff are linked on the username alone: teachers, registrars, deans, administrators and officers must also have the same verified email in Keycloak as on their ATLAS account.</span></label>
           <label class="field check span-2"><input type="checkbox" name="allowPasswords" ${s.allowPasswords ? 'checked' : ''} /> <span><strong>Keep ATLAS passwords too.</strong> Off: everyone except administrators must use Keycloak (administrators keep a password, in case Keycloak is down).</span></label>
           <label class="field check span-2"><input type="checkbox" name="enabled" ${s.enabled ? 'checked' : ''} /> <span><strong>Show "${s.label}" on the sign-in pages.</strong> ATLAS checks that Keycloak answers before switching this on.</span></label>
         </div>

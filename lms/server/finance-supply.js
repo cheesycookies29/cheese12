@@ -179,7 +179,7 @@ export function registerSupplyRoutes(route, fx) {
       if (category === 'service' && classOf(code) !== 'MOOE') fail(`${l.description}: pick the MOOE expense account for the service.`);
       if (category === 'ppe' && l.unitCost < S().capitalization) fail(`${l.description}: ₱${l.unitCost.toLocaleString()} is below the ₱${S().capitalization.toLocaleString()} capitalization threshold; it is semi-expendable property.`);
       if (category === 'semi' && l.unitCost >= S().capitalization) fail(`${l.description}: ₱${l.unitCost.toLocaleString()} is at or above the capitalization threshold; it is PPE.`);
-      if (category === 'supply' && !src.itemId) fail(`${l.description}: supplies come from the stock catalog (Inventory → Items).`);
+      if (category === 'supply' && !src.itemId) fail(`${l.description}: supplies come from the stock catalog (Inventory → Stock).`);
       fx.account(code);
       return { ...l, category, code, delivered: 0 };
     });
@@ -341,12 +341,16 @@ export function registerSupplyRoutes(route, fx) {
   route('POST', '/api/finance/ris/:id/:action', 'finance', ({ user, params, body }) => {
     const r = fx.byId(D().finRis, params.id) || fail('Requisition not found.', 404);
     const supply = can(user.role, 'finance.inventory');
+    // Nobody approves or issues their own requisition: another supply officer or an administrator does.
+    const own = r.requestedBy.userId === user.id && user.role !== 'admin';
     if (params.action === 'approve') {
       if (!supply) fail('Only the supply office approves requisitions.', 403);
+      if (own) fail('This is your own requisition: another supply officer or an administrator approves it.', 403);
       if (r.status !== 'requested') fail('Only a new requisition can be approved.');
       Object.assign(r, { status: 'approved', approvedBy: user.name, approvedAt: iso() });
     } else if (params.action === 'issue') {
       if (!supply) fail('Only the supply office issues supplies.', 403);
+      if (own) fail('This is your own requisition: another supply officer or an administrator issues it.', 403);
       if (!['requested', 'approved'].includes(r.status)) fail('This requisition is not open.');
       const date = fx.date(body.date || fx.today());
       fx.assertOpen(date);
@@ -613,7 +617,7 @@ export function registerSupplyRoutes(route, fx) {
       byClass[k].items++;
       byClass[k].amount = round2(byClass[k].amount + amount);
     }
-    return { month, rows: Object.values(byClass), total: sum(plan, (x) => x.amount), runs: D().finDepRuns.slice(-24).reverse().map((r) => ({ ...r, jevNo: fx.byId(D().finJournals, r.journalId)?.jevNo || '' })) };
+    return { month, bookable: month < fx.today().slice(0, 7), rows: Object.values(byClass), total: sum(plan, (x) => x.amount), runs: D().finDepRuns.slice(-24).reverse().map((r) => ({ ...r, jevNo: fx.byId(D().finJournals, r.journalId)?.jevNo || '' })) };
   });
   route('POST', '/api/finance/depreciation', 'finance:finance.property', ({ user, body }) => {
     const month = /^\d{4}-\d{2}$/.test(body.month || '') ? body.month : fail('Pick the month.');

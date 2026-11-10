@@ -12,7 +12,9 @@ const STATUS_BADGE = { pending: 'amber', approved: 'green', rejected: 'gray', ca
 export const statusBadge = (s) => badge(REQUEST_STATUS[s] || s, STATUS_BADGE[s]);
 export const kindBadge = (r) => (r.kind === 'remote' ? badge('Remote work', 'blue') : badge(r.typeName, 'brand'));
 // Medical certificate on a request: a link to open it, or a warning if one is required and missing.
-export const certificateCell = (r, url) => r.attachment
+export const certificateCell = (r, url) => r.attachment?.withheld
+  ? html`<small class="muted">📎 Certificate on file (HR)</small>`
+  : r.attachment
   ? html`<small><button type="button" class="link cert-link" data-cert="${r.id}" data-cert-url="${url}">📎 Medical certificate</button></small>`
   : r.certificateRequired && ['pending', 'approved'].includes(r.status) ? html`<small>${badge('Certificate missing', 'amber')}</small>` : '';
 export const dateRange = (r) => (r.startDate === r.endDate ? fmtDate(r.startDate) : `${fmtDate(r.startDate, { month: 'short', day: 'numeric' })} – ${fmtDate(r.endDate)}`);
@@ -61,7 +63,7 @@ async function requestsTab(el, query) {
                 <td>${kindBadge(r)}${certificateCell(r, `/api/hris/requests/${r.id}/attachment`)}</td>
                 <td>${dateRange(r)}<small>Filed ${fmtDate(r.filedAt.slice(0, 10))}</small></td>
                 <td class="num">${r.days}</td>
-                <td class="notes">${r.reason}</td>
+                <td class="notes">${r.detailsWithheld ? html`<span class="muted">Shown to HR only</span>` : r.reason}</td>
                 <td>${statusBadge(r.status)}${r.decidedByName ? html`<small>by ${r.decidedByName}${r.decisionNote ? html`: “${r.decisionNote}”` : ''}</small>` : ''}${r.cancelledByName ? html`<small>cancelled by ${r.cancelledByName}</small>` : ''}</td>
                 <td class="row-actions">${can('leave.approve')
                   ? r.status === 'pending'

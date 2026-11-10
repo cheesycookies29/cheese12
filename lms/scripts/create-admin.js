@@ -16,6 +16,8 @@ if (!/^[a-z0-9._-]{3,40}$/.test(username) || !name) {
   process.exit(1);
 }
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+// The password is stored as a plain one-way hash here; ATLAS encrypts it with its key at the next
+// sign-in or start (so this script never needs the key, wherever the app keeps it).
 const db = openDb(process.env.DB_FILE || path.join(root, 'data', 'db.json'));
 if (db.data.users.some((u) => u.role === 'admin')) {
   console.error('An administrator already exists. To regain access, use: npm run reset-password -- <username> <new-password>');

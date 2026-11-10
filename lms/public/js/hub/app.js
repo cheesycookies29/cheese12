@@ -2,7 +2,7 @@
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
-import { ctx, applyBranding, authHero, authLogo, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
+import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel } from '/shared/roles.js';
 
@@ -20,42 +20,21 @@ function showAuth(render) {
 }
 
 // ----- Signed out -----
-function hubScreen(card, systems) {
-  const b = ctx.info.branding;
-  mount(authEl, html`
-    <div class="auth-screen">
-      ${authHero({
-        kicker: 'Unified education management',
-        title: b.tagline || 'One sign-in for every school system.',
-        text: `For the students, parents, faculty and staff of ${b.schoolName}.`,
-        points: [
-          ...systems.filter((s) => s.status === 'live').map((s) => [s.icon, s.product, s.title]),
-          ...(systems.some((s) => s.status !== 'live') ? [['clock', 'Coming soon', systems.filter((s) => s.status !== 'live').map((s) => s.product).join(', ')]] : []),
-        ],
-      })}
-      <section class="auth-panel">${card}</section>
-    </div>`);
-  authEl.querySelectorAll('[data-toggle-pw]').forEach((btn) => btn.addEventListener('click', () => {
-    const input = btn.previousElementSibling;
-    input.type = input.type === 'password' ? 'text' : 'password';
-    btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
-  }));
-  const form = authEl.querySelector('form');
-  form?.querySelector('input')?.focus();
-  return form;
+function hubScreen(card, systems, line) {
+  return authPlate(authEl, {
+    line,
+    card,
+    ledger: [...systems.filter((s) => s.status === 'live'), ...systems.filter((s) => s.status !== 'live')].map((s) => [s.product, s.status !== 'live']),
+  });
 }
-
-const cardLogo = authLogo;
 
 function signInView(status) {
   if (status.setupRequired) {
-    return hubScreen(html`<div class="auth-card">${cardLogo()}<h2>Not set up yet</h2><p class="muted">An administrator needs to set up the system first: create the administrator account and name the school.</p><a class="btn primary block" href="/admin">Set up in the admin panel</a></div>`, status.systems);
+    return hubScreen(html`<div class="auth-card"><h2>Not set up yet</h2><p class="muted">An administrator needs to set up the system first: create the administrator account and name the school.</p><a class="btn primary block" href="/admin">Set up in the admin panel</a></div>`, status.systems);
   }
   const form = hubScreen(html`
     <form class="auth-card" novalidate>
-      ${cardLogo()}
-      <h2>Sign in</h2>
-      <p class="muted">Sign in to ATLAS with the account your school gave you.</p>
+      <h2 class="sr-only">Sign in</h2>
       ${ssoBlock(status.sso, next || '/')}
       ${passwordFields(status.sso, html`<label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}
@@ -63,7 +42,7 @@ function signInView(status) {
       <p class="form-error" hidden></p>
       ${status.registrationOpen ? html`<p class="auth-switch">New student? <button type="button" class="link" id="apply">Apply for admission</button></p>` : ''}
       <p class="auth-foot">${status.sso?.enabled && !status.sso.passwords ? 'Trouble signing in? Ask the registrar or your administrator.' : 'Forgot your password? Ask the registrar or your administrator to reset it.'}</p>
-    </form>`, status.systems);
+    </form>`, status.systems, 'ATLAS · Sign in');
   form.querySelector('#apply')?.addEventListener('click', () => applyView(status));
   showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
@@ -77,8 +56,7 @@ function applyView(status) {
   const back = () => signInView(status);
   const form = hubScreen(html`
     <form class="auth-card" novalidate>
-      ${cardLogo()}
-      <h2>Apply for admission</h2>
+      <h2 class="sr-only">Apply for admission</h2>
       <p class="muted">The registrar reviews your application; you can sign in once you are admitted.</p>
       <label class="field"><span>Full name</span><input name="name" autocomplete="name" required /></label>
       <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required /></label>
@@ -91,14 +69,14 @@ function applyView(status) {
       <p class="form-error" hidden></p>
       <button class="btn primary block" type="submit">Send application</button>
       <p class="auth-switch"><button type="button" class="link" id="back">← Back to sign in</button></p>
-    </form>`, status.systems);
+    </form>`, status.systems, 'ATLAS · Apply for admission');
   api.get('/api/auth/programs').then((programs) => {
-    form.querySelector('#programs').insertAdjacentHTML('beforeend', programs.map((p) => `<option value="${p.id}">${p.code} · ${p.name.replace(/</g, '&lt;')}</option>`).join(''));
+    form.querySelector('#programs').insertAdjacentHTML('beforeend', String(html`${programs.map((p) => option(p.id, `${p.code} · ${p.name}`))}`));
   });
   api.get('/api/auth/campuses').then((campuses) => {
     if (campuses.length < 2) return;
     form.querySelector('#campus-field').hidden = false;
-    form.querySelector('#campuses').innerHTML = `<option value="">Choose a campus…</option>${campuses.map((c) => `<option value="${c.id}">${c.name.replace(/</g, '&lt;')}</option>`).join('')}`;
+    form.querySelector('#campuses').innerHTML = String(html`${option('', 'Choose a campus…')}${campuses.map((c) => option(c.id, c.name))}`);
   });
   form.querySelector('#back').addEventListener('click', back);
   onFormSubmit(form, async (v) => {
@@ -146,13 +124,70 @@ function systemCard(s, side) {
   const openLabel = s.id === 'lms' && side === 'admin' ? 'Open the admin panel' : `Open ${s.product}`;
   const body = html`
     <span class="sys-top"><span class="sys-ic">${icon(s.icon, 26)}</span>${live ? html`<span class="sys-code">${s.short}</span>` : html`<span class="badge gray">${icon('lock', 12)} Coming soon</span>`}</span>
-    <span class="sys-name">${s.product}</span>
+    <span class="sys-name">${s.product.replace(/-/g, '\u2011')}</span>
     <strong class="sys-title">${s.title}</strong>
     <p>${s.description}</p>
     <span class="sys-open">${live ? html`${openLabel} ${icon(s.external ? 'external' : 'chevronRight', 16)}` : 'Not available yet'}</span>`;
   return live
     ? html`<a class="sys-card" href="${s.url}" ${s.external ? html`target="_blank" rel="noopener"` : ''}>${body}</a>`
     : html`<div class="sys-card soon" aria-disabled="true" title="${s.product} is coming soon">${body}</div>`;
+}
+
+// "Your systems" as a carousel: the cards scroll sideways and snap into place (swipe on a phone,
+// arrows or dots elsewhere, or arrow keys once the row has focus). Live systems come first.
+// The arrows and dots only show when some cards are out of view.
+function systemsCarousel(wrap) {
+  const track = wrap.querySelector('#sys-track');
+  const arrows = document.querySelector('.sys-arrows');
+  const prev = document.getElementById('sys-prev');
+  const next = document.getElementById('sys-next');
+  const dots = document.getElementById('sys-dots');
+  const smooth = () => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+  const cardStep = () => (track.children[1] ? track.children[1].offsetLeft - track.children[0].offsetLeft : track.clientWidth);
+  const perPage = () => Math.max(1, Math.round(track.clientWidth / cardStep()));
+  const pages = () => Math.max(1, Math.ceil(track.children.length / perPage() - 0.01));
+  const atEnd = () => track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+  const pageNow = () => (atEnd() ? pages() - 1 : Math.min(pages() - 1, Math.round(track.scrollLeft / (cardStep() * perPage()))));
+  const goPage = (n) => track.scrollTo({ left: Math.max(0, n) * cardStep() * perPage(), behavior: smooth() });
+  let drawn = -1;
+  const update = () => {
+    const overflow = track.scrollWidth > track.clientWidth + 2;
+    arrows.hidden = !overflow;
+    dots.hidden = !overflow;
+    wrap.classList.toggle('more-left', overflow && track.scrollLeft > 4);
+    wrap.classList.toggle('more-right', overflow && track.scrollLeft + track.clientWidth < track.scrollWidth - 4);
+    prev.disabled = track.scrollLeft <= 4;
+    next.disabled = atEnd();
+    if (!overflow) return;
+    if (drawn !== pages()) {
+      drawn = pages();
+      dots.innerHTML = Array.from({ length: drawn }, (_, i) => `<button type="button" data-page="${i}" aria-label="Systems, page ${i + 1} of ${drawn}"></button>`).join('');
+    }
+    [...dots.children].forEach((d, i) => d.setAttribute('aria-current', i === pageNow() ? 'true' : 'false'));
+  };
+  prev.addEventListener('click', () => goPage(pageNow() - 1));
+  next.addEventListener('click', () => goPage(pageNow() + 1));
+  dots.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-page]');
+    if (b) goPage(Number(b.dataset.page));
+  });
+  track.addEventListener('keydown', (e) => {
+    if (e.target !== track || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+    track.scrollBy({ left: (e.key === 'ArrowRight' ? 1 : -1) * cardStep(), behavior: smooth() });
+  });
+  // A card reached with Tab is brought fully into view.
+  track.addEventListener('focusin', (e) => {
+    const card = e.target.closest('.sys-card');
+    if (card && card !== track) card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: smooth() });
+  });
+  let raf = 0;
+  track.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(update);
+  }, { passive: true });
+  new ResizeObserver(update).observe(track);
+  update();
 }
 
 async function homeView(status) {
@@ -170,11 +205,17 @@ async function homeView(status) {
       ${status.campusName ? html`<span class="hub-role">${icon('building', 14)} ${status.campusName}${status.campuses.length > 1 ? html` · <button type="button" class="link hub-switch" id="hub-switch">switch</button>` : ''}</span>` : ''}
     </div></section>
     <section class="hub-wrap">
-      <div class="card-head"><h2>${icon('grid')} Your systems</h2><span class="muted small">${live} of ${systems.length} available</span></div>
-      <div class="sys-grid">${systems.map((s) => systemCard(s, status.side))}</div>
+      <div class="card-head"><h2 id="sys-heading">${icon('grid')} Your systems</h2>
+        <div class="sys-nav"><span class="muted small">${live} of ${systems.length} available</span>
+          <span class="sys-arrows" hidden><button type="button" class="icon-btn" id="sys-prev" aria-label="Previous systems" aria-controls="sys-track">${icon('chevronLeft', 18)}</button><button type="button" class="icon-btn" id="sys-next" aria-label="More systems" aria-controls="sys-track">${icon('chevronRight', 18)}</button></span></div></div>
+      <div class="sys-carousel" id="sys-carousel">
+        <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${systems.map((s) => systemCard(s, status.side))}</div>
+      </div>
+      <div class="sys-dots" id="sys-dots" hidden></div>
     </section>
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span></div></footer>`);
+  systemsCarousel(appEl.querySelector('#sys-carousel'));
   appEl.querySelector('#hub-switch')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('user-pop').hidden = false;
@@ -200,8 +241,8 @@ async function boot() {
   let status;
   try {
     status = await api.get('/api/hub/status');
-  } catch {
-    return showAuth((el) => mount(el, html`<div class="empty"><h2>Cannot reach the server</h2><p>Start it (double-click “Start ATLAS”, or <code>npm start</code>), then reload this page.</p></div>`));
+  } catch (err) {
+    return showAuth((el) => mount(el, failureNotice(err)));
   }
   ctx.info = status;
   ctx.user = status.user;

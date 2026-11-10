@@ -40,7 +40,7 @@ export async function quizEditView(el, { id, classId }) {
         <label class="field"><span>Closes</span><input type="datetime-local" name="dueAt" value="${q.dueAt}" /><span class="hint">Attempts in progress are submitted at this time.</span></label>
         <label class="field"><span>Time limit (minutes)</span><input type="number" name="timeLimit" min="0" max="600" value="${q.quiz.timeLimit}" /><span class="hint">0 = no limit. The server keeps the time, not the student's computer.</span></label>
         <label class="field"><span>Attempts allowed</span><input type="number" name="attempts" min="0" max="20" value="${q.quiz.attempts}" /><span class="hint">0 = unlimited. The highest score counts.</span></label>
-        <label class="field"><span>Students see answers</span><select name="showResults">${Object.entries(SHOW_LABELS).map(([k, l]) => html`<option value="${k}" ${k === q.quiz.showResults ? 'selected' : ''}>${l}</option>`)}</select></label>
+        <label class="field"><span>Students see answers</span><select name="showResults">${Object.entries(SHOW_LABELS).map(([k, l]) => html`<option value="${k}" ${k === q.quiz.showResults ? 'selected' : ''}>${l}</option>`)}</select><span class="hint">While a student still has attempts left, they see their score only; the correct answers show once no attempts are left or the quiz closes.</span></label>
         <div class="field"><span>Options</span>
           <label class="field check"><input type="checkbox" name="shuffle" ${q.quiz.shuffle ? 'checked' : ''} /> <span>Shuffle question order for each student</span></label>
           <label class="field check"><input type="checkbox" name="published" ${q.published ? 'checked' : ''} /> <span>Published (students can see it)</span></label></div>
@@ -220,9 +220,10 @@ function quizIntro(el, q, cls) {
             ${!q.open ? html`<span class="badge ${q.opensAt && !submitted.length ? 'gray' : 'red'}">${q.opensAt && new Date(`${q.opensAt}:00`) > new Date() ? `Opens ${fmtDateTime(q.opensAt)}` : 'Closed'}</span>` : ''}
             ${q.open && q.attemptsLeft === 0 ? html`<span class="badge gray">No attempts left</span>` : ''}
           </div>
-          ${canStart && q.quiz.timeLimit ? html`<p class="hint" style="margin-top:10px">The clock starts when you press Start and keeps running if you close the page. Answers save as you go, and the quiz submits itself when time is up.</p>` : ''}
+          ${canStart && q.quiz.timeLimit ? html`<p class="hint" style="margin-top:10px">The clock starts when you start the quiz and keeps running if you close the page. Answers save as you go, and the quiz submits itself when time is up.</p>` : ''}
         </section>
         ${q.review && best ? html`<h3>Your best attempt, with answers</h3>${q.review.map((x, i) => questionReview(x, i, best))}` : ''}
+        ${q.reviewLater ? html`<p class="hint" style="margin-top:14px">${icon('lock', 14)} The correct answers show here once you have no attempts left or the quiz closes. Until then you see your score.</p>` : ''}
       </div>
       <section class="card"><h2>Your attempts</h2>
         ${submitted.length ? html`<div class="list">${submitted.map((a, i) => html`<div class="list-item"><span class="item-ic ${a.score != null ? 'ok' : ''}">${icon(a.score != null ? 'checkCircle' : 'clock')}</span>

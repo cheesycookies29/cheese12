@@ -9,6 +9,7 @@ import { nameParts } from './academic.js';
 
 const FEMALE = new Set(['Andrea', 'Camille', 'Patricia', 'Kristine', 'Nicole', 'Danica', 'Shaira', 'Aileen', 'Erika', 'Hannah', 'Mae', 'Princess', 'Joanna', 'Clarisse', 'Faith', 'Lovely', 'Rica', 'Joy', 'Bea', 'Jasmine', 'Angela', 'Trisha', 'Lea', 'Aira', 'Celine']);
 
+const MIDDLE = ['Santos', 'Reyes', 'Cruz', 'Garcia', 'Lopez'];
 export function removeAcademicDemo(data) {
   const users = new Set(data.users.filter((u) => u.demo).map((u) => u.id));
   const sections = new Set(data.sections.filter((s) => s.demo).map((s) => s.id));
@@ -80,7 +81,7 @@ export function addAcademicDemo(data, { P, C, past, S, crowd, person, main, rand
     const requirements = {};
     for (const r of REQS.filter((x) => x.for.includes(type))) if (!(r.id === 'med' && i % 4 === 0) && !(r.id === 'gmc' && i % 9 === 0)) requirements[r.id] = { at: daysAgo(120 + (i % 30)), by: REG };
     add('studentProfiles', {
-      studentId: st.id, studentType: type, lastName: n.last, firstName: n.first, middleName: ['Santos', 'Reyes', 'Cruz', 'Garcia', 'Lopez'][i % 5],
+      studentId: st.id, studentType: type, lastName: n.last, firstName: n.first, middleName: MIDDLE[i % 5] === n.last ? MIDDLE[(i + 1) % 5] : MIDDLE[i % 5], // never the same as the last name
       sex: FEMALE.has(first) ? 'Female' : 'Male', birthDate: `${2008 - st.yearLevel}-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 27) + 1).padStart(2, '0')}`,
       citizenship: 'Filipino', civilStatus: 'Single', address: ['Pili, Camarines Sur', 'Naga City', 'Iriga City', 'Sipocot, Camarines Sur', 'Pasacao, Camarines Sur'][i % 5],
       lrn: `1234${String(100000 + i * 37).slice(-6)}0`, previousSchool: type === 'transferee' ? 'Bicol University' : ['Pili National High School', 'Camarines Sur National High School', 'Naga City Science High School'][i % 3],

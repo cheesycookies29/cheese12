@@ -18,17 +18,19 @@ export DEBIAN_FRONTEND=noninteractive
 echo "-- Philippine time (attendance, due dates, logs)"
 timedatectl set-timezone Asia/Manila
 
-echo "-- Packages: Node.js and Caddy from Ubuntu, plus tools"
+echo "-- Packages: Caddy and tools from Ubuntu; Node.js 22 LTS from NodeSource (Ubuntu's Node 18 is past its end of life)"
 apt-get update -q
-apt-get install -y -q nodejs caddy rsync curl unattended-upgrades
-node --version
+apt-get install -y -q caddy rsync curl ca-certificates iproute2 unattended-upgrades
+bash "$HERE/install-node.sh"
 
 echo "-- Security updates install themselves"
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
 echo "-- App user and folders"
 id ltdc-lms >/dev/null 2>&1 || useradd --system --home-dir "$APP" --shell /usr/sbin/nologin ltdc-lms
-install -d -o ltdc-lms -g ltdc-lms "$APP" "$APP/data" "$APP/data/backups"
+install -d -o ltdc-lms -g ltdc-lms "$APP"
+# The data (records, the password key, backups) is for the app's own account only.
+install -d -o ltdc-lms -g ltdc-lms -m 750 "$APP/data" "$APP/data/backups"
 
 echo "-- App settings (only what the app needs; the DuckDNS token stays out of it)"
 umask 027

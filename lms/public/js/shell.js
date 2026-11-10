@@ -42,6 +42,7 @@ export function setTheme(dark) {
 }
 export function renderThemeButton() {
   const btn = document.getElementById('theme-btn');
+  if (!btn) return;
   btn.innerHTML = iconSvg(isDark() ? 'sun' : 'moon');
   btn.title = isDark() ? 'Light mode' : 'Dark mode';
   const logo = document.getElementById('brand-logo');
@@ -49,37 +50,59 @@ export function renderThemeButton() {
 }
 
 // ----- Sign-in screens -----
-const PORTAL_POINTS = [['cap', 'Enrollment', 'Request classes and follow each request'], ['book', 'Classes', 'Lessons, files and announcements'], ['quiz', 'Quizzes', 'Timed exams with instant results'], ['chart', 'Grades', 'Grades, attendance and your schedule']];
-const ADMIN_POINTS = [['clipboard', 'Enrollment', 'Requests, waitlists and applicants'], ['layers', 'Catalog', 'Courses, terms and sections'], ['toggles', 'Modules', 'What students, teachers and parents can use'], ['settings', 'Settings', 'Branding, grading and school rules']];
+const PORTAL_POINTS = [['cap', 'Enrollment'], ['book', 'Classes'], ['quiz', 'Quizzes'], ['chart', 'Grades']];
+const ADMIN_POINTS = [['clipboard', 'Enrollment'], ['layers', 'Catalog'], ['toggles', 'Modules'], ['settings', 'Settings']];
 
-// The burgundy panel beside every sign-in form, laid out like CORE's: the wordmark, a short
-// line about this system, what it covers, and the school. The mark sits faintly in the corner.
-export function authHero({ kicker = '', title, text, points = [] }) {
+// Every sign-in screen is a bookplate on paper: the school's seal and name at the top, the form
+// inside a double rule, and what this sign-in opens along the bottom. Help and dark mode sit above.
+const appLine = () => {
+  const app = document.body.dataset.app || 'ATLAS';
+  return app === 'ATLAS' ? 'ATLAS' : app.replace(/^ATLAS /, 'ATLAS · ').replace(/ · Admin$/, ' · Admin panel');
+};
+export function authPlate(el, { line = appLine(), ledger = [], card }) {
   const b = ctx.info?.branding || {};
-  return html`<section class="auth-hero">
-    <img class="hero-mark" src="/img/brand/atlas-mark-white.svg" alt="" />
-    <div class="seal"><img src="${markSrc(true)}" alt="" /><div><strong>ATLAS</strong><small>${BYLINE}</small></div></div>
-    <div style="position:relative;z-index:1">
-      ${kicker ? html`<p class="auth-kicker">${kicker}</p>` : ''}
-      <h1>${title}</h1>
-      <p>${text}</p>
-      ${points.length ? html`<ul class="auth-points">${points.map(([i, name, t]) => html`<li>${icon(i, 30)} <span><strong>${name}</strong>${t ? html` · ${t}` : ''}</span></li>`)}</ul>` : ''}
-    </div>
-    <small class="hero-foot">${b.logo ? html`<img src="${b.logo}" alt="" />` : ''}© ${new Date().getFullYear()} ${b.schoolName || 'Lancaster Technology and Development Corporation'}</small>
-  </section>`;
-}
-
-export function authScreen(el, { admin = false } = {}, card) {
-  const b = ctx.info?.branding || {};
+  const campus = ctx.info?.campusName;
+  const open = ledger.filter(([, later]) => !later);
+  const soon = ledger.filter(([, later]) => later);
   mount(el, html`
     <div class="auth-screen">
-      ${authHero(admin
-        ? { kicker: 'Learn · Admin panel', title: 'Run the school side.', text: `Enrollment, the catalog and accounts${b.schoolName ? ` for ${b.schoolName}` : ''}.`, points: ADMIN_POINTS }
-        : { kicker: 'Learn', title: b.tagline || 'Learning, all in one place.', text: 'Classes, lessons, quizzes, grades and attendance, for students, teachers and parents.', points: PORTAL_POINTS })}
-      <section class="auth-panel">${card}</section>
+      <header class="auth-bar">
+        <a class="auth-lockup" href="/">${themedMark('auth-bar-mark')}<strong>ATLAS</strong></a>
+        <nav class="auth-links" aria-label="Help and display">
+          <a href="/help/" aria-label="Help and guides">${icon('help', 16)} <span>Help &amp; guides</span></a>
+          <button type="button" class="link auth-theme" id="auth-theme"></button>
+        </nav>
+      </header>
+      <main class="auth-panel">
+        <div class="plate">
+          <div class="plate-seal${b.logo ? ' own' : ''}"><img src="${b.logo || '/img/brand/atlas-mark-white.svg'}" alt="" /></div>
+          <div class="plate-frame">
+            <p class="plate-ex">Ex libris</p>
+            <h1 class="plate-school">${b.schoolName || 'ATLAS'}</h1>
+            <p class="plate-line">${line}</p>
+            <div class="plate-rule" aria-hidden="true"><span></span></div>
+            ${b.tagline ? html`<p class="plate-tag">${b.tagline}</p>` : ''}
+            ${card}
+          </div>
+        </div>
+      </main>
+      <footer class="auth-footer">
+        ${open.length ? html`<ul class="auth-ledger" aria-label="What this sign-in opens">${open.map(([name]) => html`<li>${name}</li>`)}</ul>` : ''}
+        ${soon.length ? html`<p class="auth-soon">Coming soon: ${soon.map(([name]) => name).join(', ')}</p>` : ''}
+        <p class="auth-copy">© ${new Date().getFullYear()} ${b.schoolName || 'Lancaster Technology and Development Corporation'}${campus ? ` · ${campus}` : ''}</p>
+      </footer>
     </div>`);
-  const form = el.querySelector('form');
-  form?.querySelector('input')?.focus();
+  const theme = el.querySelector('#auth-theme');
+  const drawTheme = () => {
+    const label = isDark() ? 'Light mode' : 'Dark mode';
+    theme.innerHTML = `${iconSvg(isDark() ? 'sun' : 'moon', 16)} <span>${label}</span>`;
+    theme.setAttribute('aria-label', label);
+  };
+  drawTheme();
+  theme.addEventListener('click', () => {
+    setTheme(!isDark());
+    drawTheme();
+  });
   el.querySelectorAll('[data-toggle-pw]').forEach((btn) =>
     btn.addEventListener('click', () => {
       const input = btn.previousElementSibling;
@@ -87,7 +110,15 @@ export function authScreen(el, { admin = false } = {}, card) {
       btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
     }),
   );
+  const form = el.querySelector('form');
+  form?.querySelector('input')?.focus();
   return form;
+}
+
+export function authScreen(el, { admin = false } = {}, card) {
+  const learn = document.body.dataset.app === 'ATLAS Learn';
+  const ledger = (admin ? ADMIN_POINTS : learn ? PORTAL_POINTS : []).map(([, name]) => [name]);
+  return authPlate(el, { ledger, card });
 }
 
 // "Switch campus" in the user menu, for accounts that work at more than one campus.
@@ -118,6 +149,37 @@ try {
     setTimeout(() => toast(msg), 300);
   }
 } catch {}
+// A message that must outlive a change of page (a session that ended takes the person to the
+// sign-in page, which would otherwise say nothing). Shown once, if the page changed just now.
+export function toastOnNextPage(message, kind = 'error') {
+  try {
+    sessionStorage.setItem('atlas-next-toast', JSON.stringify({ message, kind, at: Date.now() }));
+  } catch {}
+}
+try {
+  const next = JSON.parse(sessionStorage.getItem('atlas-next-toast') || 'null');
+  sessionStorage.removeItem('atlas-next-toast');
+  if (next && Date.now() - next.at < 10000) setTimeout(() => toast(next.message, next.kind), 400);
+} catch {}
+
+// What to show when a page or the first request fails. The server answered (err.status): say what
+// it said; too many requests is a short wait, not a fault. No answer at all: the server cannot be reached.
+export function failureNotice(err, { page = false } = {}) {
+  if (err?.status === 429) {
+    return html`<div class="${page ? 'card ' : ''}empty">${icon('clock', 40)}<h2>Please wait a moment</h2><p>${err.message}</p><p class="muted">ATLAS limits how many requests one person or one network can send in a minute. Nothing is lost.</p><p><button type="button" class="btn primary" data-reload>Try again</button></p></div>`;
+  }
+  if (err?.status) return html`<div class="${page ? 'card ' : ''}empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p><button type="button" class="btn" data-reload>Try again</button></p></div>`;
+  return html`<div class="${page ? 'card ' : ''}empty">${icon('flag', 40)}<h2>Cannot reach the server</h2><p>Check your internet connection, then try again. If ATLAS runs on this computer, start it (double-click “Start ATLAS”, or <code>npm start</code>).</p><p><button type="button" class="btn primary" data-reload>Try again</button></p></div>`;
+}
+document.addEventListener('click', (e) => e.target.closest?.('[data-reload]') && location.reload());
+// A button whose request the server refuses must say why: when nothing else showed the answer,
+// it is shown here (otherwise the screen would just do nothing).
+window.addEventListener('unhandledrejection', (e) => {
+  const err = e.reason;
+  if (!err?.status || err.status === 401 || !err.message) return;
+  e.preventDefault();
+  toast(err.message, 'error');
+});
 
 // Single sign-on (Keycloak): the button above the password form, and the password fields under it.
 // With passwords switched off, the fields fold away under "Administrator sign-in" (a way in if Keycloak is down).
@@ -141,8 +203,6 @@ export function showSsoError(form) {
   history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}${location.hash}`);
 }
 
-// Above the sign-in form on phones, where the burgundy panel is hidden (as in CORE).
-export const authLogo = () => html`<div class="auth-brand">${themedMark('auth-mark')}<strong>ATLAS</strong><small>${BYLINE}</small></div>`;
 
 export const passwordField = (label, name, autocomplete) => html`
   <label class="field"><span>${label}</span>
@@ -169,7 +229,6 @@ export function onFormSubmit(form, handler) {
 export function forcePasswordView(el, { admin, authBase, onDone, onSignOut }) {
   const form = authScreen(el, { admin }, html`
     <form class="auth-card" novalidate>
-      ${authLogo()}
       <h2>Choose a new password</h2>
       <p class="muted">Hi ${ctx.user.name}. Your password was set by someone else, so please replace it before continuing.</p>
       ${passwordField('Current (temporary) password', 'currentPassword', 'current-password')}
@@ -365,7 +424,7 @@ export function startApp(config) {
     try {
       cleanup = await match.view(el, params, query);
     } catch (err) {
-      mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
+      mount(el, failureNotice(err, { page: true }));
     } finally {
       clearTimeout(loading);
     }
@@ -383,10 +442,10 @@ export function startApp(config) {
     let status;
     try {
       status = await api.get(`${config.authBase}/status`);
-    } catch {
+    } catch (err) {
       document.body.classList.add('auth-mode');
       document.body.classList.remove('booting');
-      return mount(document.getElementById('auth'), html`<div class="empty"><h2>Cannot reach the server</h2><p>Start ATLAS (double-click “Start ATLAS”, or <code>npm start</code>), then reload this page.</p></div>`);
+      return mount(document.getElementById('auth'), failureNotice(err));
     }
     ctx.info = status;
     ctx.user = status.user;
@@ -423,6 +482,7 @@ export function startApp(config) {
     if (!ctx.user) return;
     ctx.user = null;
     toast('Your session has ended. Please sign in again.', 'error');
+    toastOnNextPage('Your session has ended. Please sign in again.'); // Learn, People, Academic and Finance go to the home page to sign in
     boot();
   });
   boot();

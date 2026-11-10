@@ -289,13 +289,17 @@ function accountCard(emp) {
     </dl>
     <p class="hint-line">${a.hrisOnly ? 'A staff account: signs in on the ATLAS home page and opens People.' : `Their ${a.roleLabel.toLowerCase()} account in Learn; the same sign-in opens self-service here. Password and status are managed in the Learn admin panel.`}</p>
     ${manage ? html`<div class="actions" style="margin-top:12px">
-      ${a.hrisOnly ? html`<button class="btn" id="acct-edit">${icon('settings', 16)} Change type or status</button><button class="btn" id="acct-reset">${icon('key', 16)} Reset password</button>` : ''}
+      ${a.hrisOnly && FINANCE_OFFICE.includes(a.role) && ctx.user?.role !== 'admin' ? html`<span class="muted small">Only an administrator changes Finance office accounts.</span>` : ''}
+      ${a.hrisOnly && (!FINANCE_OFFICE.includes(a.role) || ctx.user?.role === 'admin') ? html`<button class="btn" id="acct-edit">${icon('settings', 16)} Change type or status</button><button class="btn" id="acct-reset">${icon('key', 16)} Reset password</button>` : ''}
       <button class="btn danger ghost" id="acct-unlink">Unlink</button>
     </div>` : ''}
   </section>`;
 }
 
-const ACCOUNT_TYPES = [['staff', 'Staff: self-service only'], ['hr', 'HR Manager: employees, attendance, leave approvals'], ['payroll', 'Payroll Officer: payroll runs and setup'], ['accountant', 'Chief Accountant (Finance)'], ['budget', 'Budget Officer (Finance)'], ['cashier', 'Cashier (Finance)'], ['supply', 'Supply & Property Officer (Finance)'], ['approver', 'Approving Officer (Finance)']];
+const ALL_ACCOUNT_TYPES = [['staff', 'Staff: self-service only'], ['hr', 'HR Manager: employees, attendance, leave approvals'], ['payroll', 'Payroll Officer: payroll runs and setup'], ['accountant', 'Chief Accountant (Finance)'], ['budget', 'Budget Officer (Finance)'], ['cashier', 'Cashier (Finance)'], ['supply', 'Supply & Property Officer (Finance)'], ['approver', 'Approving Officer (Finance)']];
+// Finance office accounts are made and changed by an administrator only (separation of duties).
+const FINANCE_OFFICE = ['accountant', 'budget', 'cashier', 'supply', 'approver'];
+const accountTypes = () => ALL_ACCOUNT_TYPES.filter(([v]) => ctx.user?.role === 'admin' || !FINANCE_OFFICE.includes(v));
 
 function wireAccount(el, emp, reload) {
   const done = (msg) => () => {
@@ -308,7 +312,7 @@ function wireAccount(el, emp, reload) {
       title: `Sign-in account for ${fullName(emp)}`,
       submitLabel: 'Create account',
       body: html`<div class="stack tight">
-        <label class="field"><span>Account type</span><select name="role">${ACCOUNT_TYPES.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select></label>
+        <label class="field"><span>Account type</span><select name="role">${accountTypes().map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select></label>
         <label class="field"><span>Username</span><input name="username" value="${suggested}" required /><span class="hint">3–40 lowercase letters, numbers, dots, dashes or underscores.</span></label>
         <label class="field"><span>Temporary password (at least 8 characters)</span><input name="password" type="text" required autocomplete="off" /><span class="hint">They are asked to choose their own when they first sign in.</span></label>
       </div>`,
@@ -325,7 +329,7 @@ function wireAccount(el, emp, reload) {
       submitLabel: 'Link',
       body: list.length
         ? html`<label class="field"><span>Account at ${ctx.info.campusName}</span><select name="userId">${list.map((u) => html`<option value="${u.id}" ${u.name.toLowerCase() === `${emp.firstName} ${emp.lastName}`.toLowerCase() ? 'selected' : ''}>${u.name} · ${u.roleLabel} · ${u.username}</option>`)}</select></label>`
-        : html`<p class="muted">Every teacher, registrar and staff account at this campus is already linked to an employee record.</p>`,
+        : html`<p class="muted">Every teacher, registrar, dean and staff account at this campus is already linked to an employee record.</p>`,
       async onSubmit(form) {
         if (!list.length) return;
         await api.post(`/api/hris/employees/${emp.id}/account`, formData(form));
@@ -336,7 +340,7 @@ function wireAccount(el, emp, reload) {
   el.querySelector('#acct-edit')?.addEventListener('click', () => modal({
     title: `${emp.account.username}: type and status`,
     body: html`<div class="stack tight">
-      <label class="field"><span>Account type</span><select name="role">${ACCOUNT_TYPES.map(([v, l]) => html`<option value="${v}" ${emp.account.role === v ? 'selected' : ''}>${l}</option>`)}</select></label>
+      <label class="field"><span>Account type</span><select name="role">${accountTypes().map(([v, l]) => html`<option value="${v}" ${emp.account.role === v ? 'selected' : ''}>${l}</option>`)}</select></label>
       <label class="field"><span>Status</span><select name="status"><option value="active" ${emp.account.status === 'active' ? 'selected' : ''}>Active: can sign in</option><option value="disabled" ${emp.account.status === 'disabled' ? 'selected' : ''}>Disabled: cannot sign in</option></select></label>
     </div>`,
     async onSubmit(form) {

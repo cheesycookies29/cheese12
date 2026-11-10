@@ -18,8 +18,10 @@ import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { HttpError, localDate, localDateTime, text } from './util.js';
 import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
+  sealAllPasswords, needsSealing, sealHash, readableHash, passwordEncryption,
   sessionCookie, clearedCookie, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
+import { clientIp, createRateLimiter } from './ratelimit.js';
 import { ROLES, can, setRoleOverrides } from '../shared/roles.js';
 import { MODULES, moduleOn, enabledModules } from '../shared/modules.js';
 import { registerEnrollmentRoutes } from './enrollment.js';
@@ -63,7 +65,7 @@ const fail = (msg, status = 400) => {
 // options.setupCode (or the SETUP_CODE environment variable): when set, creating the first
 // administrator also needs this code, so nobody else can claim a new server on the internet.
 // options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch } = {}) {
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -75,12 +77,41 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const idleMs = () => Math.min(72, Math.max(1, Number(security().idleHours) || 8)) * 3600 * 1000;
   const sides = { portal: createSessions(idleMs), admin: createSessions(idleMs), hris: createSessions(idleMs) };
   const throttle = createThrottle(() => ({ max: Number(security().lockoutAttempts) || 5, lockMs: (Number(security().lockoutMinutes) || 5) * 60 * 1000 }));
+  // Rate limits (server/ratelimit.js). Signed in: per person; not signed in: per network address
+  // (four times as many, as a whole school may share one address). RATE_LIMITS=off switches them off.
+  const limits = createRateLimiter(() => {
+    if (rateLimits === 'off') return {};
+    const perMinute = Number(security().requestsPerMinute) || 300;
+    const MIN = 60 * 1000;
+    return {
+      user: { limit: perMinute, windowMs: MIN },
+      address: { limit: perMinute * 4, windowMs: MIN },
+      signin: { limit: 60, windowMs: MIN }, // sign-in attempts per address (each is a slow password check)
+      signinFail: { limit: Number(security().signInFailuresPerAddress) || 30, windowMs: 15 * MIN }, // wrong passwords per address
+      password: { limit: 10, windowMs: 15 * MIN }, // password changes per person (each checks the current password)
+      apply: { limit: 10, windowMs: 60 * MIN }, // applications per address
+      setup: { limit: 20, windowMs: 15 * MIN }, // first-administrator attempts per address
+      lookup: { limit: 60, windowMs: MIN }, // document checks, calendar feeds and Keycloak sign-ins per address
+    };
+  });
   const users = () => db.data.users;
+  // Password hashes are encrypted under the current key (server/auth.js): plain ones, and ones under
+  // an old key, are encrypted now; ones under a key this server lacks cannot be used until it has it.
+  function sealPasswords() {
+    const { sealed, unreadable } = sealAllPasswords(users());
+    if (sealed) db.save();
+    if (unreadable) console.warn(`  ${unreadable} account(s) have passwords encrypted with another key, so they cannot sign in. Set PASSWORD_KEY (or PASSWORD_KEY_OLD) to that key, or reset those passwords.`);
+    return { sealed, unreadable };
+  }
+  // server.js waits until the new version has run for a while (sealAtStart: false), so an update
+  // that is rolled back never leaves hashes the previous version cannot read.
+  if (sealAtStart) sealPasswords();
 
-  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false } = {}) => {
+  // limit: a rate-limit rule this route also counts against (see `limits`).
+  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null } = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, re, keys, access, handler, module, duringPasswordChange, guardians });
+    routes.push({ method, re, keys, access, handler, module, duringPasswordChange, guardians, limit });
   };
 
   const ctx = {
@@ -95,16 +126,33 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   };
 
   // ----- Sign-in (shared logic for both sides) -----
-  function signIn(side, body) {
-    const username = String(body.username || '').trim().toLowerCase();
+  // Wrong passwords lock a username for this address (so a stranger cannot lock someone out of
+  // every computer), for every address after ten times as many, and pause an address that keeps
+  // guessing across many usernames.
+  function signIn(side, body, ip = '') {
+    const username = String(body.username || '').trim().toLowerCase().slice(0, 120);
+    const password = String(body.password || '');
     const key = `${side}:${username}`;
+    const here = `${key}@${ip}`;
+    limits.check('signinFail', ip, 'Too many wrong passwords from your network.');
+    throttle.check(here);
     throttle.check(key);
     const user = users().find((u) => u.username === username);
-    if (!verifyPassword(String(body.password || ''), user?.passwordHash)) {
-      throttle.fail(key);
-      fail('Incorrect username or password.', 401);
+    // With single sign-on on and passwords off, only administrators keep a password (a way in if
+    // Keycloak is down). Everyone else gets the same answer whether the password was right, wrong
+    // or the account does not exist, so old passwords cannot be tested here.
+    const sso = db.data.settings.sso;
+    const passwordsOff = Boolean(sso?.enabled && !sso.allowPasswords);
+    const right = password.length <= 200 && verifyPassword(password, user?.passwordHash);
+    if (!right || (passwordsOff && user.role !== 'admin')) {
+      limits.add('signinFail', ip);
+      throttle.fail(here);
+      throttle.fail(key, 10);
+      fail(passwordsOff ? `This school signs in with Keycloak. Choose "${sso.label}".` : 'Incorrect username or password.', 401);
     }
+    throttle.reset(here);
     throttle.reset(key);
+    if (needsSealing(user.passwordHash)) user.passwordHash = sealHash(user.passwordHash); // saved below
     if (ROLES[user.role]?.side !== side) {
       fail(ROLES[user.role]?.side === 'hris'
         ? 'HR and staff accounts sign in on the ATLAS home page and open People.'
@@ -115,9 +163,6 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
     if (user.status === 'rejected') fail('Your application was not accepted. Contact the registrar for details.', 403);
     if (user.status !== 'active') fail('This account is disabled. Contact the registrar.', 403);
-    // With single sign-on switched on and passwords off, only administrators keep a password (a way in if Keycloak is down).
-    const sso = db.data.settings.sso;
-    if (sso?.enabled && !sso.allowPasswords && user.role !== 'admin') fail(`This school signs in with Keycloak. Choose "${sso.label}".`, 403);
     user.lastLoginAt = new Date().toISOString();
     db.save();
     return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id), idleMs()) } };
@@ -179,12 +224,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
 
   // ----- Learning portal: sign-in and admissions -----
   route('GET', '/api/auth/status', 'public', ({ portalUser }) => portalInfo(portalUser));
-  route('POST', '/api/auth/login', 'public', ({ body }) => signIn('portal', body));
+  route('POST', '/api/auth/login', 'public', ({ body, ip }) => signIn('portal', body, ip), { limit: 'signin' });
   route('POST', '/api/auth/logout', 'public', ({ portalToken }) => {
     sides.portal.destroy(portalToken);
     return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(PORTAL_COOKIE) } };
   });
-  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, guardians: true });
+  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, limit: 'password', guardians: true });
   route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body), { guardians: true });
   route('POST', '/api/admin/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body));
   route('GET', '/api/auth/campuses', 'public', () => (db.data.settings.registration.open ? db.data.campuses.map((c) => ({ id: c.id, name: c.name })) : []));
@@ -195,8 +240,6 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   });
   route('POST', '/api/auth/apply', 'public', ({ body }) => {
     if (!db.data.settings.registration.open) fail('Applications are closed. Contact the registrar.', 403);
-    throttle.check('apply');
-    throttle.fail('apply'); // a 5-minute pause after every 5 applications slows down scripted sign-ups
     const fields = validateUserFields({ ...body, role: 'student', studentNo: '' }, db.data);
     if (!fields.email) fail('Email is required so the registrar can contact you.');
     const campus = db.data.campuses.find((c) => c.id === body.campusId) || (db.data.campuses.length === 1 ? db.data.campuses[0] : null);
@@ -216,7 +259,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     users().push(user);
     db.save();
     return { ok: true };
-  });
+  }, { limit: 'apply' });
 
   // ----- University Portal (/): one sign-in for every system -----
   // The account type decides which session is opened: students and teachers get the
@@ -245,14 +288,14 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   });
   // One person per browser: signing in here ends any other session this browser had.
-  route('POST', '/api/hub/login', 'public', ({ body, tokens }) => {
+  route('POST', '/api/hub/login', 'public', ({ body, tokens, ip }) => {
     const found = users().find((u) => u.username === String(body.username || '').trim().toLowerCase());
     const side = ROLES[found?.role]?.side || 'portal';
-    const out = signIn(side, body);
+    const out = signIn(side, body, ip);
     for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
     out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
     return out;
-  });
+  }, { limit: 'signin' });
   route('POST', '/api/hub/logout', 'public', ({ tokens, origin }) => {
     // A single sign-on session also ends at Keycloak: the browser goes there next.
     const ssoSession = Object.entries(sides).map(([name, sessions]) => sessions.get(tokens[name])).find((s) => s?.sso);
@@ -283,12 +326,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     ...campusInfo(adminUser),
     roleOverrides: adminUser ? db.data.roleOverrides || {} : undefined, // the Admin panel's can() (shared/roles.js)
   }));
-  route('POST', '/api/admin/auth/setup', 'public', ({ body }) => {
+  route('POST', '/api/admin/auth/setup', 'public', ({ body, ip }) => {
     if (!setupRequired()) fail('Setup is already complete. Please sign in.');
     if (setupCode) {
-      throttle.check('setup');
+      throttle.check(`setup@${ip}`);
       if (!sameCode(body.setupCode)) {
-        throttle.fail('setup');
+        throttle.fail(`setup@${ip}`);
         fail('That setup code is not correct. It is the one chosen when the server was created.', 403);
       }
     }
@@ -301,23 +344,26 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       db.data.campuses[0].code = db.data.campuses[0].name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MAIN';
     }
     db.save();
-    return signIn('admin', body);
-  });
-  route('POST', '/api/admin/auth/login', 'public', ({ body }) => signIn('admin', body));
+    return signIn('admin', body, ip);
+  }, { limit: 'setup' });
+  route('POST', '/api/admin/auth/login', 'public', ({ body, ip }) => signIn('admin', body, ip), { limit: 'signin' });
   route('POST', '/api/admin/auth/logout', 'public', ({ adminToken }) => {
     sides.admin.destroy(adminToken);
     return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(ADMIN_COOKIE) } };
   });
-  route('POST', '/api/admin/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true });
+  route('POST', '/api/admin/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password' });
 
   // ----- Data: backups and demo data -----
   route('GET', '/api/admin/backup', 'admin:data.manage', () => db.data);
   route('POST', '/api/admin/restore', 'admin:data.manage', ({ body }) => {
     if (!Array.isArray(body.users) || !Array.isArray(body.enrollments)) fail('That file is not an ATLAS backup.');
-    if (!body.users.some((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash)) fail('The backup has no active administrator, so nobody could sign in.');
+    const admins = body.users.filter((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash);
+    if (!admins.length) fail('The backup has no active administrator, so nobody could sign in.');
+    if (!admins.some((u) => readableHash(u.passwordHash))) fail('This backup\'s passwords are encrypted with another server\'s key, so nobody could sign in. Start ATLAS with that key as PASSWORD_KEY_OLD, then restore again.');
     db.replace({ ...emptyData(), ...body });
     setRoleOverrides(db.data.roleOverrides);
-    return { ok: true };
+    const { unreadable } = sealPasswords();
+    return { ok: true, unreadablePasswords: unreadable };
   });
   route('GET', '/api/admin/demo', 'admin:data.manage', () => demoStatus(db.data));
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
@@ -338,7 +384,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // Teachers and registrars use their own session (portal or admin); HR and staff
   // accounts have the HRIS session. Students have no HRIS.
   const hrisStatus = (user) => {
-    const allowed = Boolean(user) && user.role !== 'student';
+    const allowed = Boolean(user) && user.role !== 'student' && user.role !== 'guardian';
     return {
       ...campusInfo(allowed ? user : null),
       branding: branding(),
@@ -353,7 +399,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   };
   route('GET', '/api/hris/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => hrisStatus(hrisUser || adminUser || portalUser));
-  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
+  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
   route('POST', '/api/hris/auth/campus', 'hris', ({ user, body }) => switchCampus(user, body));
   const hris = registerHrisRoutes(route, ctx);
 
@@ -374,7 +420,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       currentTermId: db.data.settings.currentTermId,
     };
   });
-  route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
+  route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
   route('POST', '/api/academic/auth/campus', 'academic', ({ user, body }) => switchCampus(user, body));
   const academic = registerAcademicRoutes(route, ctx);
 
@@ -393,7 +439,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       permissions: allowed ? finance.permissionsFor(user.role) : [],
     };
   });
-  route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true });
+  route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
   route('POST', '/api/finance/auth/campus', 'finance', ({ user, body }) => switchCampus(user, body));
   const finance = registerFinanceRoutes(route, ctx);
   registerConfigRoutes(route, ctx);
@@ -425,7 +471,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Request handling -----
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
 
-  return async function handle(req, url, body) {
+  handle.sealPasswords = sealPasswords;
+  return handle;
+  async function handle(req, url, body) {
     const cookies = parseCookies(req.headers.cookie);
     const resolve = (side, token) => {
       const s = sides[side].get(token);
@@ -439,6 +487,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const adminUser = resolve('admin', adminToken);
     const hrisUser = resolve('hris', hrisToken);
     const tokens = { portal: portalToken, admin: adminToken, hris: hrisToken };
+    const ip = clientIp(req);
+    const signedIn = portalUser || adminUser || hrisUser;
+    if (signedIn) limits.hit('user', signedIn.id);
+    else limits.hit('address', ip);
     // This app's own address as the browser sees it (behind Caddy: X-Forwarded-*), for the Keycloak redirects.
     const origin = process.env.PUBLIC_URL?.replace(/\/$/, '') || `${String(req.headers['x-forwarded-proto'] || (req.socket?.encrypted ? 'https' : 'http')).split(',')[0]}://${req.headers['x-forwarded-host'] || req.headers.host || 'localhost'}`;
 
@@ -452,7 +504,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         // Whoever is signed in on this browser: an HR/staff account, else an admin-panel or portal account.
         [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
         if (!user) fail('Please sign in.', 401);
-        if (user.role === 'student') fail('People is for school employees.', 403);
+        if (user.role === 'student' || user.role === 'guardian') fail('People is for school employees.', 403);
         const permission = r.access.split(':')[1];
         if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
       } else if (r.access === 'academic' || r.access.startsWith('academic:')) {
@@ -484,6 +536,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         if (r.module && !moduleOn(db.data.modules, r.module, user.role)) fail(`${MODULE_NAMES[r.module]} is switched off for ${user.role}s.`, 403);
       }
       if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
+      if (r.limit) limits.hit(r.limit, r.limit === 'password' ? user.id : ip);
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       const campusId = user ? activeCampusId(db.data, user) : null;
       // A Finance change is all or nothing: if any check fails partway, the books are put back as they were.
@@ -492,7 +545,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const recordSettings = ctx.settingsWatch?.(req.method, url.pathname);
       let result;
       try {
-        result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies });
+        result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies, ip });
       } catch (err) {
         if (finSnap) Object.assign(db.data, finSnap);
         throw err;

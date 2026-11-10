@@ -92,6 +92,26 @@ New versions on the branch `claude/compassionate-edison-kc7gd0` are installed au
 
 To see which version is installed, open a console (below) and run `cat /opt/ltdc-lms/build.json`.
 
+### Who can change what the server runs
+
+The server installs whatever is on the branch it follows, once that version's tests pass. So **anyone who can push to that branch can change what your school's server runs.** Protect it on GitHub: **Settings → Branches → Add branch ruleset** (or *Add rule*) for the branch, with **Require a pull request before merging**, at least one approval, and **Block force pushes**. Keep the list of people with write access short.
+
+The server limits the damage a bad version could do before it is installed: the tests run as the account `nobody`, with none of the server's settings, unable to read ATLAS's data, and without a network where the server allows it. Only a version that passes is installed, and it then runs as the app's own account, which can write only to the data folder.
+
+The updater itself (`/usr/local/sbin/ltdc-lms-update`) is **not** replaced by updates, because it runs as root: a new updater is installed only when someone runs `upgrade-server.sh` on the server (next section).
+
+## Bringing an older server up to date
+
+A server set up before November 2026 needs this once. From a console on the server:
+
+```bash
+sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh
+```
+
+It installs **Node.js 22** (Ubuntu's Node 18 no longer gets security fixes; from then on it is kept current by the automatic security updates), replaces the updater and the service file with the current ones, closes the data folder to other accounts on the server, and restarts ATLAS. Data is not touched. To check afterwards: `node --version` shows v22.
+
+Then, in the AWS console, require **IMDSv2** on the server, so that a request tricked out of the app cannot read the server's AWS credentials: **EC2 → Instances → ltdc-lms → Actions → Instance settings → Modify instance metadata options → IMDSv2: Required**, and **Save**. (Servers created from the current template already have this.)
+
 ## Opening a console on the server (no SSH)
 
 **CloudFormation → ltdc-lms → Outputs → ConsoleAccess**, or **EC2 → Instances → ltdc-lms → Connect → Session Manager → Connect**. Useful commands:
@@ -128,6 +148,20 @@ Then finish in *Admin panel → Single sign-on*. The server needs to reach Keycl
 - **Every night at 2:15 AM** a copy of the data file goes to `/opt/ltdc-lms/data/backups/` (30 days kept), and uploaded files are mirrored there at 2:20 AM.
 - **Every day at 2:00 AM** AWS takes a snapshot of the whole disk (7 kept): **EC2 → Snapshots**. To go back to one, create a volume from it and swap it in, or ask for help.
 - From the admin panel, **Demo data & backup → Download backup** saves the records (not uploaded files) to your computer.
+
+### The password key
+
+Passwords are stored only as one-way hashes, and those hashes are encrypted with a key kept outside the data: `/opt/ltdc-lms/data/password.key`, made by ATLAS the first time it starts. The nightly copies and downloaded backups do **not** contain it, so a copied backup cannot be used to guess passwords. The daily disk snapshots do contain it.
+
+**Keep a copy of the key somewhere safe** (the school's password manager). Without it, a backup restored on another server has no working passwords. To see it, from a console:
+
+```bash
+sudo cat /opt/ltdc-lms/data/password.key
+```
+
+- **Moving to a new server:** copy `password.key` into the new server's `/opt/ltdc-lms/data/` with the data, or add the old key as `PASSWORD_KEY_OLD=<key>` in `/etc/ltdc-lms/app.env` before restoring.
+- **Changing the key** (e.g. if it may have been seen): add `PASSWORD_KEY_OLD=<the current key>` and `PASSWORD_KEY=<a new key from openssl rand -hex 32>` to `/etc/ltdc-lms/app.env`, then `sudo systemctl restart ltdc-lms`. Every hash is re-encrypted two minutes after the start; nobody changes their password. After that, the old key can be removed.
+- **Lost the key:** reset each password (the table above shows how, for an administrator).
 
 ## If something goes wrong
 

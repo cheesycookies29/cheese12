@@ -14,7 +14,7 @@ This guide is for the Cashier: the school's disbursing and collecting officer in
 - **Disbursing.** You prepare disbursement vouchers (DV) against obligations, pay them once approved (MDS or agency check, or LDDAP-ADA), grant cash advances, record Box E, and remit the taxes withheld to BIR.
 - **Collecting.** You issue official receipts (O.R.) from your booklet, report them on the Report of Collections and Deposits (RCD) and record the deposit.
 
-**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates Finance accounts.
+**Signing in.** Sign in on the ATLAS home page with your Finance account and open **Finance**. Only an administrator creates or changes Finance accounts.
 
 **How a voucher moves.** You prepare it (Box A is the requesting office), the Chief Accountant certifies Box C, the approving officer signs Box D, and you pay it. Box B (the accounting entry) is posted when it is paid. The other offices' guides: [Chief Accountant](accountant), [Budget Officer](budget-officer), [Supply Officer](supply-officer), [Approving Officer](approver).
 
@@ -28,16 +28,16 @@ Try this with the demo school: sign in as `cashier.demo` (password `demo1234`).
 
 ![The cashier's dashboard](cashier-dashboard.jpg)
 
-2. Open **Official receipts** and click **Issue O.R.**. Leave the fund at *05 · Internally Generated Funds*. In **Student (search name or number)**, type `Carlo` and pick Carlo Reyes. Under **Nature of collection**, pick a fee (the amount fills in), and click **Issue O.R.**. The receipt takes the next number in your booklet and opens ready to print.
+2. Open **Official receipts** and choose **Issue O.R.**. Leave the fund at *05 · Internally Generated Funds*. In **Student (search name or number)**, type `Carlo` and pick Carlo Reyes. Under **Nature of collection**, pick a fee that has a set amount, such as *Certification fee* (the amount fills in), and choose **Issue O.R.**. The receipt takes the next number in your booklet and opens ready to print.
 
 ![Issuing an official receipt](cashier-issue-or.jpg)
 
-3. Open **Collections & deposits** and click **Prepare RCD**. The button counts your receipts not yet reported. Pick fund 05, keep today's date under **Through** and click **Prepare and post**. The collections are posted to the Cash Receipts Journal.
-4. On the report, click **Record deposit**. Pick the bank account, enter the date and the validated deposit slip number, and click **Record deposit**. The report now shows *Deposited*. Do the same for the older report still marked *Undeposited*.
+3. Open **Collections & deposits** and choose **Prepare RCD**. The button counts your receipts not yet reported. Pick fund 05, keep today's date under **Through** and choose **Prepare and post**. The collections are posted to the Cash Receipts Journal.
+4. On the report, choose **Record deposit**. Pick the bank account, enter the date and the validated deposit slip number, and choose **Record deposit**. The report now shows *Deposited*. Do the same for the older report still marked *Undeposited*.
 
 ![A Report of Collections and Deposits waiting for its deposit](cashier-rcd.jpg)
 
-5. Open **Disbursement vouchers** and look at the tabs: **Open**, **Drafts**, **For certification (Box C)**, **For approval (Box D)**, **To pay**, **Paid**, **Cancelled**, **All**. In the demo, the Agri-Pinoy Farm Supply voucher is waiting for Box D. To pay it, sign in as `head.demo` and approve it first (see [the approving officer's guide](approver)), then come back: it is under **To pay**. Open it, click **Pay**, enter a check number and click **Record payment**.
+5. Open **Disbursement vouchers** and look at the tabs: **Open**, **Drafts**, **For certification (Box C)**, **For approval (Box D)**, **To pay**, **Paid**, **Cancelled**, **All**. In the demo, the Agri-Pinoy Farm Supply voucher is waiting for Box D. To pay it, sign in as `head.demo` and approve it first (see [the approving officer's guide](approver)), then come back: it is under **To pay**. Open it, choose **Pay**, enter a check number and choose **Record payment**.
 
 ![All disbursement vouchers](cashier-dv-list.jpg)
 
@@ -47,31 +47,31 @@ Try this with the demo school: sign in as `cashier.demo` (password `demo1234`).
 
 ### Prepare a voucher for an obligation
 
-1. Open the obligated ORS/BURS (**Obligations → Unpaid**) and click **Prepare voucher**. For a purchase order, open the PO instead and click **Voucher** on the delivery (IAR) being paid; or, on the ORS, click **Pay through PO …'s deliveries**.
+1. Open the obligated ORS/BURS (**Obligations → Unpaid**) and choose **Prepare voucher**. For a purchase order, open the PO instead and choose **Voucher** on the delivery (IAR) being paid; or, on the ORS, choose **Pay through PO …'s deliveries**.
 2. The form fills in the fund, payee, obligation, gross amount and particulars. Check them.
 3. Pick the **Nature of payment** (Goods, Services, Contractor, Rent / lease, Professional fees…). It decides the taxes withheld, with the payee's tax status on their card.
 4. Pick the **Mode of payment**: *MDS check*, *LDDAP-ADA (online)*, *Check from the agency bank account* or *Cash (petty cash / disbursing officer)*.
 5. Fill in **Box A: certified by** and **Position** (the head of the requesting office).
-6. Click **Preview taxes and entry** and check the net amount and the Box B entry.
-7. Click **Submit to accounting** (or **Save draft**).
+6. Choose **Preview taxes and entry** and check the net amount and the Box B entry.
+7. Choose **Submit to accounting** (or **Save draft**).
 
 The voucher goes to the Chief Accountant's **For certification (Box C)** list. A late delivery's liquidated damages are already under **Other deductions**.
 
 ### Pay a voucher
 
 1. Open **Disbursement vouchers → To pay** and open the voucher.
-2. For a check: click **Pay**, enter the check number and date, and click **Record payment**. The entry is posted to the Check Disbursements Journal.
-3. For LDDAP-ADA: click **Put on an LDDAP-ADA** (see below).
-4. When the payee receives it, click **Box E: receipt**, fill in who received it, the date and the payee's O.R. or invoice number, and click **Save**.
+2. For a check: choose **Pay**, enter the check number and date, and choose **Record payment**. The entry is posted to the Check Disbursements Journal.
+3. For LDDAP-ADA: choose **Put on an LDDAP-ADA** (see below).
+4. When the payee receives it, choose **Box E: receipt**, fill in who received it, the date and the payee's O.R. or invoice number, and choose **Save**.
 
 ### Pay by LDDAP-ADA
 
-1. Open **LDDAP-ADA** and click **New LDDAP-ADA (… ready)**.
+1. Open **LDDAP-ADA** and choose **New LDDAP-ADA (… ready)**.
 2. Pick the fund cluster: one list per fund. Pick the MDS-GSB branch or account debited and the date.
-3. Untick any voucher to leave out, and click **Issue**.
-4. Click **Print** on the new list to send it to the bank.
+3. Untick any voucher to leave out, and choose **Issue**.
+4. Choose **Print** on the new list to send it to the bank.
 
-Each payee needs a bank account on their card (the dialog shows *None* in red if missing). Each voucher's entry is posted to the Cash Disbursements Journal.
+Each voucher is paid to the bank account it was certified with (Box C): the payee's card must have one before the accountant certifies an LDDAP-ADA voucher. If the card is changed afterwards, the voucher says so and still pays the certified account; to pay another account, cancel the voucher and prepare it again. Each voucher's entry is posted to the Cash Disbursements Journal.
 
 ### Pay a payroll from ATLAS People
 
@@ -81,13 +81,13 @@ Payroll vouchers come from the payroll office, already submitted, with mode LDDA
 
 Only a payment that settles a liability needs no ORS/BURS: amounts due to BIR, GSIS and others, payables, trust liabilities.
 
-1. Click **New voucher**, choose *None (non-budgetary: remittances, trust, prior-year payables)* under **Obligation (ORS/BURS)**.
+1. Choose **New voucher**, choose *None (non-budgetary: remittances, trust, prior-year payables)* under **Obligation (ORS/BURS)**.
 2. Open **Debits (only for payments without an obligation)** and enter the liability account and amount.
 3. Submit it to accounting as usual.
 
 ### Grant a cash advance
 
-1. The advance needs an obligation first. Then click **New voucher** (or **New advance (DV)** on **Cash advances**).
+1. The advance needs an obligation first. Then choose **New voucher** (or **New advance (DV)** on **Cash advances**).
 2. Choose **Kind**: *Cash advance*, the obligation, the employee or accountable officer as payee, and **Advance for** (operating expenses, local or foreign travel, payroll, special disbursing officer).
 3. Leave **Liquidate by** blank to use the rule's days, or set a date.
 4. Submit it to accounting.
@@ -99,8 +99,8 @@ ATLAS refuses a new advance while the person has one unsettled, and an advance f
 ### Remit the taxes withheld
 
 1. Open **Taxes withheld**. The **Monthly summary and remittance** tab shows last month by fund and ATC, and what is still to remit and when it is due (the 10th of the next month).
-2. Click **Record remittance**, pick the fund, enter the TRA number (fund 01) or the payment reference (other funds, eFPS), and the date.
-3. Click **Record remittance**.
+2. Choose **Record remittance**, pick the fund, enter the TRA number (fund 01) or the payment reference (other funds, eFPS), and the date.
+3. Choose **Record remittance**.
 
 For the 1601-EQ, use the **Quarterly alphalist and 2307** tab; the **2307** button prints each payee's BIR Form 2307.
 
@@ -109,22 +109,22 @@ For the 1601-EQ, use the **Quarterly alphalist and 2307** tab; the **2307** butt
 ### Issue and cancel official receipts
 
 1. **Official receipts → Issue O.R.**: pick the fund, date and mode (Cash, Check, Online / bank transfer). The payor is a student, a card, or a name typed under **Payor name (as printed)**.
-2. Add a line per fee. For something not on the fee list, pick *Other (pick the account)* and choose the account.
-3. Click **Issue O.R.** and print it.
+2. Add a line per fee, and type the amount if the fee has no set amount. For something not on the fee list, pick *Other (pick the account)* and choose the account.
+3. Choose **Issue O.R.** and print it.
 
-To cancel a receipt you issued that is not yet on an RCD, click **Cancel** on its row and give the reason. Write "Cancelled" on all copies and keep them in the booklet.
+To cancel a receipt you issued that is not yet on an RCD, choose **Cancel** on its row and give the reason. Write "Cancelled" on all copies and keep them in the booklet.
 
 ### Report and deposit collections
 
-1. **Collections & deposits → Prepare RCD**, pick the fund and the **Through** date, and click **Prepare and post**.
-2. Deposit the collections intact, then open the report and click **Record deposit** with the validated deposit slip number.
+1. **Collections & deposits → Prepare RCD**, pick the fund and the **Through** date, and choose **Prepare and post**.
+2. Deposit the collections intact, then open the report and choose **Record deposit** with the validated deposit slip number.
 
 A report not deposited by the deadline in the Control panel is marked *Undeposited – late*.
 
 ### Keep accountable forms
 
-1. Open **Accountable forms** and click **Issue a booklet**.
-2. Enter the form (51), fund, serial numbers from and to (at most 1,000), the collecting officer and the date, and click **Issue**.
+1. Open **Accountable forms** and choose **Issue a booklet**.
+2. Enter the form (51), fund, serial numbers from and to (at most 1,000), the collecting officer and the date, and choose **Issue**.
 
 The list is the Report of Accountability for Accountable Forms (RAAF): used, cancelled and remaining receipts per booklet.
 
@@ -134,7 +134,7 @@ The list is the Report of Accountability for Accountable Forms (RAAF): used, can
 |---|---|
 | Dashboard | **Waiting for you**: vouchers to pay, receipts not reported, reports not deposited, overdue advances |
 | Find a document | Type a DV, O.R., RCD, LDDAP-ADA or check number, or a payee's name |
-| Card file | Payees with their TIN, tax status, bank account and fidelity bond; add or edit cards |
+| Card file | Payees with their TIN, tax status, bank account and fidelity bond; add cards and edit contact and tax details (the name, bank details, status and bond of an existing card are changed by the Chief Accountant) |
 | Journal entries | The books (view) |
 | Ledgers | One account's ledger (view) |
 | Trial balance | Per fund (view) |

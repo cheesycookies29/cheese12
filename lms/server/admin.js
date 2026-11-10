@@ -2,7 +2,7 @@
 // terms, sections), module switches for students and teachers, settings, dashboard.
 import { randomUUID } from 'node:crypto';
 import { HttpError, DATE_RE, text, localDate } from './util.js';
-import { hashPassword, validatePassword, publicUser } from './auth.js';
+import { hashPassword, validatePassword, publicUser, passwordEncryption } from './auth.js';
 import { can, ROLES, ADMIN_ROLES } from '../shared/roles.js';
 import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
@@ -573,7 +573,7 @@ export function registerAdminRoutes(route, ctx) {
       const v = body.settings?.[s.id] || {};
       const status = SYSTEM_STATUS.includes(v.status) ? v.status : 'soon';
       const url = text(v.url, 500);
-      if (url && !/^(https?:\/\/|\/)/i.test(url)) fail(`${s.name}: the address must start with https://, http:// or /.`);
+      if (url && (!/^(https?:\/\/|\/)/i.test(url) || /^\/[\/\\]/.test(url))) fail(`${s.name}: the address must start with https://, http:// or / (one slash).`);
       if (status === 'live' && !url) fail(`${s.name}: give the address it runs at before switching it on.`);
       next[s.id] = { status, url };
     }
@@ -586,7 +586,7 @@ export function registerAdminRoutes(route, ctx) {
   route('GET', '/api/admin/settings', 'admin', ({ user }) => {
     const s = data().settings;
     const out = can(user.role, 'settings.edit') ? { ...s } : { ...s, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
-    return { ...out, numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
+    return { ...out, passwordEncryption: passwordEncryption(), numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
   });
   // The next number a format would give (Settings → Numbering, as the administrator types).
   route('GET', '/api/admin/numbering-preview', 'admin:settings.edit', ({ query }) => {
@@ -636,6 +636,8 @@ export function registerAdminRoutes(route, ctx) {
         lockoutMinutes: whole(v.lockoutMinutes, 1, 120, 'Minutes locked'),
         idleHours: whole(v.idleHours, 1, 72, 'Sign out after (hours idle)'),
         forcePasswordChange: Boolean(v.forcePasswordChange),
+        requestsPerMinute: whole(v.requestsPerMinute, 60, 3000, 'Requests per person per minute'),
+        signInFailuresPerAddress: whole(v.signInFailuresPerAddress, 10, 1000, 'Wrong passwords per network address'),
       };
     }
     if (body.learn) {

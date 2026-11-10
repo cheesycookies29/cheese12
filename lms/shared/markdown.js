@@ -30,20 +30,24 @@ function href(url, opts) {
   if (/^(https?:|mailto:)/i.test(u)) return { url: u, external: true };
   if (u.startsWith('#')) return { url: `#/${opts.guideId || ''}${u}` };
   if (/^[a-z0-9-]+(#[a-z0-9-]+)?$/i.test(u)) return { url: `#/${u}` };
-  if (u.startsWith('/')) return { url: u }; // a page of ATLAS, e.g. /admin#/terms
+  if (u.startsWith('/') && !/^\/[\/\\]/.test(u)) return { url: u }; // a page of ATLAS, e.g. /admin#/terms (not //other-site)
   return null;
 }
 
+// Bold and italic. A bold with arrows is a menu path (**Admin panel → Terms**): shown as steps.
+const emphasis = (s) => s.replace(/\*\*(.+?)\*\*(?!\*)/g, (_, t) => (t.includes('→') ? `<strong class="ui-path">${t.split(/\s*→\s*/).map((x) => `<span>${x}</span>`).join('<i aria-hidden="true">›</i>')}</strong>` : `<strong>${t}</strong>`)).replace(/(^|[^\w*])\*([^*\n]+)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
+
 function inline(text, opts) {
   const codes = [];
+  const links = [];
   let s = esc(text).replace(/`([^`]+)`/g, (_, c) => `\u0000${codes.push(c) - 1}\u0000`);
+  // Links are set aside while bold and italic are applied, so those never reach inside an href.
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (all, label, url) => {
     const h = href(url.replace(/&amp;/g, '&'), opts);
     if (!h) return label;
-    return `<a href="${esc(h.url)}"${h.external ? ' target="_blank" rel="noopener"' : ''}>${label}</a>`;
+    return `\u0001${links.push(`<a href="${esc(h.url)}"${h.external ? ' target="_blank" rel="noopener"' : ''}>${emphasis(label)}</a>`) - 1}\u0001`;
   });
-  // Bold with arrows is a menu path (**Admin panel → Terms**): shown as steps.
-  s = s.replace(/\*\*(.+?)\*\*(?!\*)/g, (_, t) => (t.includes('→') ? `<strong class="ui-path">${t.split(/\s*→\s*/).map((x) => `<span>${x}</span>`).join('<i aria-hidden="true">›</i>')}</strong>` : `<strong>${t}</strong>`)).replace(/(^|[^\w*])\*([^*\n]+)\*(?=[^\w*]|$)/g, '$1<em>$2</em>');
+  s = emphasis(s).replace(/\u0001(\d+)\u0001/g, (_, i) => links[i]);
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`);
 }
 
@@ -104,7 +108,9 @@ export function renderMarkdown(body, opts = {}) {
       i += 2;
       const rows = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(cells(lines[i++]));
-      out.push(`<div class="table-scroll" tabindex="0" role="region" aria-label="Table"><table class="table guide-table"><thead><tr>${head.map((c) => `<th>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      // Each table is named by its columns, so screen readers can tell the tables of a page apart.
+      const name = esc(`Table: ${head.map((c) => c.replace(/[*`]/g, '')).filter(Boolean).join(', ')}`);
+      out.push(`<div class="table-scroll" tabindex="0" role="region" aria-label="${name}"><table class="table guide-table"><thead><tr>${head.map((c) => `<th>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
       continue;
     }
     // Lists

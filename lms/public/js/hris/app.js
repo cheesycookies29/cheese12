@@ -1,7 +1,7 @@
 // ATLAS People, the HRIS (/hris/): employee self-service for everyone with an employee record, and the
 // HR screens (employees, attendance, leave, payroll) for HR managers, payroll officers
 // and administrators. Screens and rules come from the Lancaster ERP's HR & Payroll module.
-import { startApp, authScreen, authLogo } from '../shell.js';
+import { startApp, authScreen } from '../shell.js';
 import { html } from '../ui.js';
 import { hr, can, isEmployee } from './state.js';
 import { api } from '../api.js';
@@ -72,8 +72,8 @@ const home = () => (can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' 
 // Students have no HRIS: say so instead.
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
-    return authScreen(el, {}, html`<div class="auth-card">${authLogo()}<h2>People is for school employees</h2>
-      <p class="muted">You are signed in as ${status.deniedUser.name}, a student account. Your systems are on the ATLAS home page.</p>
+    return authScreen(el, {}, html`<div class="auth-card"><h2>People is for school employees</h2>
+      <p class="muted">You are signed in as ${status.deniedUser.name}, a ${status.deniedUser.role === 'guardian' ? 'parent or guardian' : 'student'} account. Your systems are on the ATLAS home page.</p>
       <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
   }
   location.replace(`/?next=${encodeURIComponent('/hris/')}`);

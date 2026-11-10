@@ -7,7 +7,7 @@
 // guide in the middle, "On this page" on the right following the reader, previous/next at the end.
 import { api } from '../api.js';
 import { html, raw, mount, toast, modal, confirmDialog, fmtDate } from '../ui.js';
-import { ctx, applyBranding, setTheme, isDark, renderThemeButton, atlasWord } from '../shell.js';
+import { ctx, applyBranding, setTheme, isDark, renderThemeButton, atlasWord, failureNotice } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { parseGuide, renderMarkdown, headingsOf } from '/shared/markdown.js';
 import { guideFor } from '/shared/help.js';
@@ -21,7 +21,10 @@ const SYSTEMS = [
 ];
 const SYS = Object.fromEntries(SYSTEMS.map(([k, label, ic]) => [k, { label, icon: ic }]));
 const START = ['getting-started', 'whats-new'];
-let list = null; // { role, roleLabel, canEdit, version, guides }
+let list = null; // { signedIn, role, roleLabel, canEdit, version, guides }
+// Signed out, only "Getting started" can be read (the sign-in pages link here); the rest asks to sign in.
+const SIGN_IN = `/?next=${encodeURIComponent('/help/')}`;
+const signedIn = () => Boolean(ctx.user);
 let dirty = false;
 let spy = null;
 
@@ -69,6 +72,7 @@ function sidebar(activeId) {
     </nav>
     <div class="side-foot">
       ${list.canEdit ? html`<a class="btn sm" href="#/new">${icon('plus', 14)} New guide</a>` : ''}
+      ${signedIn() ? '' : html`<a class="btn sm primary" href="${SIGN_IN}">${icon('key', 14)} Sign in</a><p>Sign in to see the guides for your own work: classes, records, payslips and more.</p>`}
       <p>Guides for ATLAS ${list.version}. They are updated with ATLAS${list.canEdit ? '; your school\'s edits are kept' : ''}.</p>
     </div>
   </aside>`;
@@ -114,14 +118,19 @@ function homeView() {
   layout('', html`
     <section class="help-hero">
       <p class="eyebrow">${icon('help', 16)} Help & guides</p>
-      <h1>How can we help, ${ctx.user.name.split(' ')[0]}?</h1>
-      <p>Step-by-step guides for each job in ATLAS: a walkthrough to start, how to do each task, every screen, and common questions.</p>
-      <form class="help-search hero-search" id="hero-search" role="search"><span class="search-ic" aria-hidden="true">${icon('search', 18)}</span><input type="search" name="q" placeholder="Search, e.g. “post final grades”" aria-label="Search the guides" /><button class="btn primary">Search</button></form>
+      <h1>${signedIn() ? `How can we help, ${ctx.user.name.split(' ')[0]}?` : 'How can we help?'}</h1>
+      <p>${signedIn()
+        ? 'Step-by-step guides for each job in ATLAS: a walkthrough to start, how to do each task, every screen, and common questions.'
+        : html`You are not signed in. <strong>Getting started</strong> explains signing in, passwords and what to do when signing in does not work. <a href="${SIGN_IN}">Sign in</a> to see the guides for your own work.`}</p>
+      <form class="help-search hero-search" id="hero-search" role="search"><span class="search-ic" aria-hidden="true">${icon('search', 18)}</span><input type="search" name="q" placeholder="${signedIn() ? 'Search, e.g. “post final grades”' : 'Search, e.g. “forgot password”'}" aria-label="Search the guides" /><button class="btn primary">Search</button></form>
       <div class="start-row">${start.map((g) => html`<a class="start-link" href="#/${g.id}">${sysIcon(g, 16)} ${g.title} ${icon('chevronRight', 14)}</a>`)}</div>
     </section>
     ${mine.length ? html`<section class="home-block"><div class="block-head"><h2>Your guides</h2><span class="muted small">For your work as ${list.roleLabel}</span></div>
       <div class="guide-grid big">${mine.map((g) => card(g, { big: true }))}</div></section>` : ''}
-    <section class="home-block"><div class="block-head"><h2>Browse by system</h2><span class="muted small">Guides for the people you work with</span></div>
+    ${signedIn() ? '' : html`<section class="home-block"><div class="block-head"><h2>Trouble signing in?</h2><span class="muted small">Answers you can read without signing in</span></div>
+      <div class="guide-grid big">${[['getting-started#sign-in', 'key', 'Sign in', 'Where to sign in, and with which username and password.'], ['getting-started#questions', 'help', 'Forgotten password, locked account and other messages', 'What each sign-in message means and who can help.'], ...(ctx.info?.sso?.enabled ? [['getting-started#sign-in-with-keycloak', 'shield', ctx.info.sso.label || 'Sign in with Keycloak', 'Use your school account instead of an ATLAS password.']] : [])]
+    .map(([to, ic, title, text]) => html`<a class="guide-card big" href="#/${to}"><span class="guide-ic">${icon(ic, 22)}</span><span class="guide-card-body"><strong>${title}</strong><small>${text}</small></span><span class="guide-go" aria-hidden="true">${icon('chevronRight', 16)}</span></a>`)}</div></section>`}
+    <section class="home-block" ${signedIn() ? '' : 'hidden'}><div class="block-head"><h2>Browse by system</h2><span class="muted small">Guides for the people you work with</span></div>
       <div class="system-grid">${SYSTEMS.filter(([k]) => by[k]?.length).map(([k, label, ic]) => html`<div class="system-col">
         <h3>${icon(ic, 18)} ${label}</h3>
         ${by[k].map((g) => html`<a class="system-link" href="#/${g.id}"><span>${g.title}</span><small>${g.roles.filter((r) => ROLES[r]).map((r) => ROLES[r].label).slice(0, 3).join(', ')}</small></a>`)}
@@ -132,23 +141,31 @@ function homeView() {
 }
 
 // ----- Search results, with the words highlighted -----
+// The server searches each section of each guide in the reader's own words (server/guide-search.js)
+// and says which starts of words to highlight.
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const mark = (text, q) => {
-  let out = esc(text);
-  for (const w of q.split(/\s+/).filter((x) => x.length > 1)) out = out.replace(new RegExp(`(${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>');
-  return raw(out);
+const mark = (text, terms) => {
+  const alts = terms.filter((t) => t.length > 1).sort((a, b) => b.length - a.length).map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '[\\s-]+'));
+  if (!alts.length) return raw(esc(text));
+  return raw(esc(text).replace(new RegExp(`(?<![A-Za-z0-9])((?:${alts.join('|')})[A-Za-z0-9]*)`, 'gi'), '<mark>$1</mark>'));
 };
 async function searchView(q) {
   const r = await api.get(`/api/guides?q=${encodeURIComponent(q)}`);
-  const slugOf = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const n = r.results?.length || 0;
+  const lead = !n ? 'Nothing in the guides matches these words.'
+    : r.partial ? 'No section has all of these words. These are the closest.'
+      : `${n} place${n === 1 ? '' : 's'} in the guides${n >= 12 ? ' (the best 12)' : ''}, best match first.`;
   layout(null, html`
     <nav class="crumbs-help" aria-label="Breadcrumb"><a href="#/">Help</a> ${icon('chevronRight', 12)} <span>Search</span></nav>
-    <header class="guide-header"><h1>Results for “${q}”</h1><p class="lead">${r.results?.length ? `${r.results.length} guide${r.results.length === 1 ? '' : 's'} mention it.` : 'No guide mentions all of these words.'}</p></header>
-    ${r.results?.length ? html`<div class="results">${r.results.map((x) => html`<a class="result" href="#/${x.id}${x.section ? `#${slugOf(x.section)}` : ''}">
-      <span class="result-path">${x.title}${x.section ? html` ${icon('chevronRight', 12)} ${x.section}` : ''}</span>
-      <span class="result-snippet">${mark(x.snippet, q)}</span></a>`)}</div>`
-      : html`<div class="empty-state">${icon('search', 32)}<p>Try fewer or other words, or open the guide for your job from the list.</p><a class="btn" href="#/">Help home</a></div>`}`, { wide: true });
+    <header class="guide-header"><h1>Results for “${q}”</h1><p class="lead" role="status">${lead}</p></header>
+    ${n ? html`<div class="results">${r.results.map((x) => html`<a class="result" href="#/${x.id}${x.anchor ? `#${x.anchor}` : ''}">
+      <span class="result-path">${x.title}${x.section ? html` ${icon('chevronRight', 12)} ${mark(x.section, r.terms)}` : ''}</span>
+      <span class="result-snippet">${mark(x.snippet, r.terms)}</span></a>`)}</div>`
+      : html`<div class="empty-state">${icon('search', 32)}<p>Try fewer words, or the name on the screen (for example “enrollment” or “payslip”). ${signedIn() ? 'You can also open the guide for your job from the list.' : html`Only <a href="#/getting-started">Getting started</a> can be searched before you sign in.`}</p><a class="btn" href="#/">Help home</a>${signedIn() ? '' : html` <a class="btn primary" href="${SIGN_IN}">Sign in</a>`}</div>`}
+    ${n && !signedIn() ? html`<p class="muted small" style="margin-top:16px">Only Getting started can be searched before you sign in. <a href="${SIGN_IN}">Sign in</a> to search every guide.</p>` : ''}`, { wide: true });
   document.querySelectorAll('.help-search input').forEach((i) => (i.value = q));
+  document.title = `Search: ${q} · Help · ATLAS`;
+  window.scrollTo(0, 0);
 }
 
 // ----- A guide -----
@@ -191,7 +208,7 @@ async function guideView(id, section) {
           ${prev ? html`<a class="pager-link" href="#/${prev.id}"><small>${icon('chevronLeft', 14)} Previous</small><strong>${prev.title}</strong></a>` : html`<span></span>`}
           ${next ? html`<a class="pager-link next" href="#/${next.id}"><small>Next ${icon('chevronRight', 14)}</small><strong>${next.title}</strong></a>` : ''}
         </div>
-        <p class="muted small">${g.canEdit ? html`<a href="#/edit/${id}">${icon('edit', 14)} Edit this guide</a> · ` : ''}Something wrong or missing? ${g.canEdit ? 'Edit it for your school, or tell' : 'Tell'} the ATLAS administrator.</p>
+        <p class="muted small">${g.canEdit ? html`<a href="#/edit/${id}">${icon('edit', 14)} Edit this guide</a> · ` : ''}Something wrong or missing? ${g.canEdit ? 'Edit it for your school, or tell' : 'Tell'} the ATLAS administrator.${signedIn() ? '' : html` <a href="${SIGN_IN}">Sign in</a> to see the guides for your own work.`}</p>
       </footer>
     </article>`, { toc: tocEl });
   appEl.querySelector('#print').addEventListener('click', () => window.print());
@@ -354,6 +371,9 @@ async function render() {
     if (!r.id) return homeView();
     await guideView(r.id, r.section);
   } catch (e) {
+    if (e.status === 401 || (!signedIn() && e.status === 404)) {
+      return layout(r.id || '', html`<div class="empty-state">${icon('key', 32)}<h2>Sign in to read this guide</h2><p>Before you sign in, only <a href="#/getting-started">Getting started</a> can be read. The guides for your own work open once you are signed in.</p><a class="btn primary" href="${SIGN_IN}">Sign in</a> <a class="btn" href="#/">Help home</a></div>`, { wide: true });
+    }
     layout(r.id || '', html`<div class="empty-state">${icon('book', 32)}<h2>${e.status === 404 ? 'Guide not found' : 'Something went wrong'}</h2><p>${e.message}</p><a class="btn" href="#/">Help home</a></div>`, { wide: true });
   }
 }
@@ -362,14 +382,22 @@ async function boot() {
   let status;
   try {
     status = await api.get('/api/hub/status');
-  } catch {
-    return mount(appEl, html`<div class="empty-state"><h2>Cannot reach the server</h2></div>`);
+  } catch (err) {
+    document.body.classList.remove('booting');
+    return mount(appEl, failureNotice(err));
   }
   ctx.info = status;
   ctx.user = status.user;
   applyBranding(status.branding);
-  if (!status.user) return location.replace(`/?next=${encodeURIComponent('/help/')}`);
   document.body.classList.remove('booting');
+  if (!status.user) {
+    // Signed out: the button that goes to the systems becomes "Sign in".
+    const home = document.getElementById('home-btn');
+    home.href = SIGN_IN;
+    home.title = 'Sign in';
+    home.setAttribute('aria-label', 'Sign in');
+    home.innerHTML = iconSvg('key');
+  }
   mount(document.getElementById('school-name'), atlasWord('Help & guides'));
   mount(document.getElementById('brand-sub'), html`${status.branding.schoolName}`);
   renderThemeButton();
@@ -377,7 +405,7 @@ async function boot() {
   // From a system's Help button: straight to the guide for this person there.
   const from = new URLSearchParams(location.search).get('from');
   if (from && !location.hash.replace(/^#\/?/, '')) {
-    const id = guideFor(from, status.user.role);
+    const id = status.user ? guideFor(from, status.user.role) : 'getting-started';
     history.replaceState(null, '', `/help/#/${list.guides.some((g) => g.id === id) ? id : ''}`);
   }
   window.addEventListener('hashchange', render);

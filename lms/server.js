@@ -2,8 +2,10 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
+import { loadPasswordKeys } from './server/auth.js';
 import { createApi } from './server/api.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -12,13 +14,42 @@ const HOST = process.env.HOST || '127.0.0.1'; // only reachable from this comput
 const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').filter(Boolean);
 const DB_FILE = process.env.DB_FILE || path.join(ROOT, 'data', 'db.json');
 
+// The key that encrypts the password hashes: PASSWORD_KEY, or password.key beside the data file.
+loadPasswordKeys(path.dirname(DB_FILE));
 const db = openDb(DB_FILE);
-const api = createApi(db);
+const api = createApi(db, { sealAtStart: false });
 
 const PUBLIC = path.join(ROOT, 'public');
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': PUBLIC };
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf' };
-const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin' };
+// The pages' small inline scripts (the dark-mode switch before first paint) are allowed by their
+// exact hash; nothing else inline runs. Frames: ATLAS's own files (PDF previews), YouTube links in
+// classes and the clock-in map. Styles stay 'unsafe-inline' for style="" attributes.
+const inlineHashes = [...new Set(fs.readdirSync(PUBLIC, { recursive: true }).filter((f) => f.endsWith('.html'))
+  .flatMap((f) => [...fs.readFileSync(path.join(PUBLIC, f), 'utf8').matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1])))]
+  .map((code) => `'sha256-${createHash('sha256').update(code).digest('base64')}'`);
+const CSP = [
+  "default-src 'self'",
+  `script-src 'self' ${inlineHashes.join(' ')}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "frame-src 'self' blob: https://www.youtube-nocookie.com https://www.openstreetmap.org",
+  "frame-ancestors 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN', // ATLAS frames its own PDFs; no other site may frame ATLAS
+  'Referrer-Policy': 'same-origin',
+  'Content-Security-Policy': CSP,
+  'Permissions-Policy': 'camera=(), microphone=(), payment=(), usb=(), geolocation=(self)', // clock-in uses the location
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+};
 
 function send(res, status, body, type = 'application/json', headers = {}) {
   const textual = /^text\/|json|javascript|svg/.test(type);
@@ -26,21 +57,41 @@ function send(res, status, body, type = 'application/json', headers = {}) {
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
+// The JSON body, at most 20 MB (uploads come as base64 in JSON). Bytes are joined before decoding,
+// so a letter split across two network packets is not broken; past the limit the upload is
+// stopped instead of being read to the end.
+const MAX_BODY = 20 * 1024 * 1024;
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let raw = '';
+    const chunks = [];
+    let size = 0;
+    let done = false;
+    const stop = (err) => {
+      if (done) return;
+      done = true;
+      reject(err);
+    };
+    if (Number(req.headers['content-length']) > MAX_BODY) return stop(Object.assign(new Error('Request too large.'), { status: 413, close: true }));
     req.on('data', (chunk) => {
-      raw += chunk;
-      if (raw.length > 20 * 1024 * 1024) reject(Object.assign(new Error('Request too large.'), { status: 413 }));
+      if (done) return;
+      size += chunk.length;
+      if (size > MAX_BODY) return stop(Object.assign(new Error('Request too large.'), { status: 413, close: true }));
+      chunks.push(chunk);
     });
     req.on('end', () => {
+      if (done) return;
+      done = true;
+      const raw = Buffer.concat(chunks).toString('utf8');
+      let body;
       try {
-        resolve(raw ? JSON.parse(raw) : {});
+        body = raw ? JSON.parse(raw) : {};
       } catch {
-        reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
+        return reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
       }
+      if (body === null || typeof body !== 'object') return reject(Object.assign(new Error('The request body must be a JSON object.'), { status: 400 }));
+      resolve(body);
     });
-    req.on('error', reject);
+    req.on('error', stop);
   });
 }
 
@@ -76,7 +127,13 @@ function serveStatic(req, url, res) {
   if (/^\/verify\/[A-Za-z0-9-]{4,40}$/.test(url.pathname)) return sendFile(req, res, path.join(PUBLIC, 'verify.html')); // a document's verification page
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;
-    const rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
+    let rel;
+    try {
+      rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
+    } catch {
+      return send(res, 400, 'Bad request', 'text/plain');
+    }
+    if (rel.includes('\0')) return send(res, 400, 'Bad request', 'text/plain');
     const file = path.join(dir, rel);
     if (!file.startsWith(dir + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');
     if (fs.existsSync(file) && fs.statSync(file).isFile()) return sendFile(req, res, file);
@@ -86,9 +143,22 @@ function serveStatic(req, url, res) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  // A malformed address or Host header is answered with 400, never allowed to stop the server.
+  let url;
+  try {
+    url = new URL(req.url, 'http://localhost');
+  } catch {
+    return send(res, 400, { error: 'Bad request.' });
+  }
   if (url.pathname === '/healthz') return send(res, 200, { ok: true }); // for a load balancer health check later
-  if (!url.pathname.startsWith('/api/')) return serveStatic(req, url, res);
+  if (!url.pathname.startsWith('/api/')) {
+    try {
+      return serveStatic(req, url, res);
+    } catch (err) {
+      console.error(err);
+      return send(res, 500, 'Something went wrong.', 'text/plain');
+    }
+  }
   // Block other websites from calling this API (DNS rebinding / CSRF): only accept
   // requests addressed to localhost, a plain IP address, or a name in ALLOWED_HOSTS.
   const hostname = (req.headers.host || '').replace(/:\d+$/, '');
@@ -105,9 +175,18 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     if (status === 500) console.error(err);
-    send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message });
+    if (res.headersSent) return res.destroy();
+    send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message }, 'application/json', { ...(err.headers || {}), ...(err.close ? { Connection: 'close' } : {}) });
+    if (err.close) res.on('finish', () => req.socket?.destroy()); // stop receiving an upload that is too large
   }
 });
+// Slow clients: the headers must arrive within 20 seconds (a "slowloris" cannot hold connections
+// open by trickling them); a whole request, uploads included, within 5 minutes.
+server.headersTimeout = 20 * 1000;
+server.requestTimeout = 5 * 60 * 1000;
+// Anything that still slips through is logged, and the server keeps serving everyone else.
+process.on('uncaughtException', (err) => console.error('Unexpected error (ATLAS keeps running):', err));
+process.on('unhandledRejection', (err) => console.error('Unexpected error (ATLAS keeps running):', err));
 
 function openBrowser(url) {
   const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`;
@@ -136,6 +215,14 @@ server.listen(PORT, HOST, () => {
   console.log(`  ATLAS Learn: http://localhost:${PORT}/lms/   ·   Learn admin panel: http://localhost:${PORT}/admin   ·   ATLAS People: http://localhost:${PORT}/hris/   ·   ATLAS Academic: http://localhost:${PORT}/academic/   ·   ATLAS Finance: http://localhost:${PORT}/finance/`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
+  // An old Node.js still runs ATLAS, but no longer gets security fixes.
+  if (Number(process.versions.node.split('.')[0]) < 20) console.warn(`  Node.js ${process.versions.node} no longer gets security updates. Install Node.js 22 (on the AWS server: sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh).`);
   console.log('  Press Ctrl+C to stop.\n');
   if (process.env.OPEN_BROWSER) openBrowser(`http://localhost:${PORT}/`);
+  // Encrypt any password hashes not yet under the current key, once this version has run for two
+  // minutes (an update that fails to start is rolled back sooner, and the old version must still read them).
+  setTimeout(() => {
+    const { sealed } = api.sealPasswords();
+    if (sealed) console.log(`  Encrypted ${sealed} password hash(es) with the password key.`);
+  }, Number(process.env.PASSWORD_SEAL_DELAY_MS ?? 120000)).unref();
 });

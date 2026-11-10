@@ -9,6 +9,48 @@ order: 2
 
 ## November 2026
 
+### Second security review: first fixes
+- **Quizzes:** with *Students see answers: Right after they submit*, a student who still has attempts left now sees their score only. The correct answers show once no attempts are left or the quiz closes, so a second attempt is still the student's own work. See [the teacher's guide](teacher#build-a-quiz-or-exam) and [the student's guide](student#take-a-quiz-or-exam).
+- **Parents:** a link that does not share **Grades** no longer shows final grades under **Enrollment**.
+- **Keycloak:** matching by username links teachers, registrars, deans, administrators and officers only when their verified Keycloak email is also the one on their ATLAS account. With ATLAS passwords switched off, typing a password gives the same answer whether it was right or not. See [the administrator's guide](admin#set-up-single-sign-on-with-keycloak).
+- The **Apply for admission** form accepts ten applications an hour from one network address.
+- **People, payroll:** a finalized payroll run is the record of what was paid, so only an administrator can delete it; the payroll office corrects it in the next run with **Adjust**. See [the payroll guide](payroll#questions).
+- **People, privacy:** the reason for a leave and its medical certificate are shown to HR only. The payroll office sees the type, dates and status.
+- **People, own records:** officers cannot add or change their own attendance, loans or which leave they get, and HR cannot unlink a Finance office account. A leave day entered in the DTR always has a leave type.
+- When ATLAS refuses something (for example deleting a payroll run that Finance is using), the screen now says why instead of doing nothing.
+- **Finance, payments:** a voucher is paid to the bank account it was certified with. An LDDAP-ADA voucher is certified only when the payee's card has a bank account, and a later change to the card does not change where an approved voucher is paid. See [the cashier's guide](cashier#pay-by-lddap-ada).
+- **Finance, card file:** on an existing card, the name, bank details, status (including blacklisting) and fidelity bond are changed by the Chief Accountant or an administrator only, and **History** keeps the old and new value.
+- **Finance, supplies:** nobody approves or issues their own requisition.
+- **For whoever looks after the server:** new servers run Node.js 22 and require IMDSv2, and an update's tests no longer run as root. A server set up earlier needs one command, once: see `deploy/aws/EC2.md`, *Bringing an older server up to date*.
+- **Finance, small fixes:** **New advance (DV)** opens the form as a cash advance; depreciation offers **Book** only for a month that has ended; a voucher shows what an advance is for in words.
+
+### The guides were checked against every screen
+- Every guide was followed step by step in ATLAS and corrected where a name, a step or a result no longer matched the screen: confirmations that were missing (**Finalize**, **Withdraw**, **Release**), buttons that load a report (**Show**), where a list is filtered, and who may do what.
+- The guides now use the same words throughout: **choose** a button, link or tab; **press** a key; **tick** a box.
+- [Getting started](getting-started#questions) explains the newer messages: *Too many requests*, the lock after wrong passwords, and being taken back to the sign-in page.
+
+### Small fixes found while checking the guides
+- In Finance and Academic, choosing a row of a list opens the record every time (it could stop working after the first list you opened).
+- When your session ends, the sign-in page now says so. When you send too many requests, ATLAS shows *Please wait a moment* with the time to wait, instead of *Cannot reach the server*.
+- A dean's account can be linked to their employee record, so deans get self-service in People. See [the HR guide](hr#give-an-employee-a-sign-in-account).
+- The calendar no longer shows classes and due dates from an enrollment request that is still waiting for approval.
+
+### Help & guides: better search, and help before you sign in
+- The search on the **Help & guides** page now looks in each section and each question, and understands everyday words: *login* finds **Sign in**, *salary* finds your payslips, *tuition* finds your receipts. Your own guides come first, and each result opens at the right section.
+- **Help & guides** on the sign-in page now opens [Getting started](getting-started) without signing in: how to sign in, what to do about a forgotten password or a locked account, and what each sign-in message means. The other guides open once you are signed in.
+
+### Security review
+- ATLAS now limits how fast one person or one network address can send requests, and how many wrong passwords one address may try. Administrators set both under **Settings & branding → Sign-in and passwords**. See [the administrator's guide](admin#change-school-settings-and-branding).
+- A wrong-password lock now applies to the address the wrong passwords came from, so nobody can lock a colleague out from elsewhere.
+- Password hashes are now also encrypted with a key kept outside the data, so a copied backup cannot be used to guess passwords. **Settings & branding → Sign-in and passwords** shows it is on. See [the administrator's guide](admin#make-a-backup-or-restore-one).
+- Only administrators create and change Finance office accounts, also in People. Officers cannot change their own leave, pay or payslip. See [the HR guide](hr).
+
+### A new sign-in page
+- Every ATLAS sign-in page (the home page, the admin panel, and the page shown when an account cannot use a system) has a new look: the school's seal and name at the top, the form under it, and the systems ATLAS opens at the bottom. **Help & guides** and **Dark mode** are now on the sign-in page too. See [Getting started](getting-started#sign-in).
+
+### A tidier home page
+- **Your systems** on the ATLAS home page is now one row of tiles of the same size. When they do not all fit, use the arrows beside *… available*, the dots under the tiles, or swipe. See [Getting started](getting-started#walkthrough).
+
 ### REX Bookstore e-Reader (coming soon)
 - The ATLAS home page has a **REX Bookstore e-Reader** tile, marked **Coming soon**: e-books for your subjects from the REX Bookstore app's library, for students and teachers. Administrators switch it on under **Home page & systems** once it is connected. See [the administrator's guide](admin#choose-what-the-atlas-home-page-shows).
 

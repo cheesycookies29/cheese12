@@ -26,24 +26,24 @@ Try this with the demo school: sign in as `accountant.demo` (password `demo1234`
 
 ![The accountant's dashboard with the Waiting for you list](accountant-dashboard.jpg)
 
-2. Click **1 voucher to certify (Box C)**. The list opens on the **For certification (Box C)** tab. Click the janitorial voucher for Kalinisan Multi-Purpose Cooperative.
+2. Choose **1 voucher to certify (Box C)**. The list opens on the **For certification (Box C)** tab. Choose the janitorial voucher for Kalinisan Multi-Purpose Cooperative.
 3. Read the voucher. The boxes across the top show where it is (A requesting office, B accounting entry, C accountant, D approving officer, Paid, E received). Check the **Amount** (gross, taxes withheld, net) and the **Box B · Accounting entry**.
 
 ![A voucher waiting for Box C](accountant-dv-certify.jpg)
 
-4. Click **Certify (Box C)**, tick *Cash available; subject to Authority to Debit Account (when applicable); supporting documents complete and amount claimed proper*, and click **Certify**. The voucher now has its DV number and goes to the approving officer for Box D.
-5. Go back to the **Dashboard** and click **1 draft journal entry**. Open the draft (an accrual of the month's water bill). Check that debits equal credits, then click **Post**. It gets its JEV number.
+4. Choose **Certify (Box C)**, tick *Cash available; subject to Authority to Debit Account (when applicable); supporting documents complete and amount claimed proper*, and choose **Certify**. The voucher now has its DV number and goes to the approving officer for Box D.
+5. Go back to the **Dashboard** and choose **1 draft journal entry**. Open the draft (an accrual of the month's water bill). Check that debits equal credits, then choose **Post**. It gets its JEV number.
 
 ![A draft journal entry ready to post](accountant-journal-draft.jpg)
 
-6. Open **Trial balance**. Pick a fund cluster (or all), the date and *Including closing entries* or *Before closing entries*, and click **Show**. Click any account code to open its ledger. Click **Financial statements** for the Statement of Financial Position and the Statement of Financial Performance of the same fund.
+6. Open **Trial balance**. Pick a fund cluster (or all), the date and *Including closing entries* or *Before closing entries*, and choose **Show**. Choose any account code to open its ledger. Choose **Financial statements** for the Statement of Financial Position and the Statement of Financial Performance of the same fund.
 
 ![The trial balance for fund 01](accountant-trial-balance.jpg)
 
-7. Open **Bank reconciliation**. Pick the cash account, the fund and the month. Type the **Balance per bank statement**, tick the entries that appear on the statement, and watch the summary: when the difference is 0.00 it says *Reconciled*.
+7. Open **Bank reconciliation**. Pick the cash account, the fund and the month, and choose **Show**. Type the **Balance per bank statement**, tick the entries that appear on the statement, and watch the summary: when the difference is 0.00 it says *Reconciled*.
 
 ![A bank reconciliation](accountant-bank-recon.jpg)
-8. Open **Control panel → Periods & closing** to see how the books are closed. (In the demo you can close a past month and then click **Reopen all**.)
+8. Open **Control panel → Periods & closing** to see how the books are closed. (In the demo you can close a past month and then choose **Reopen all**.)
 
 ![Closing the books in the Control panel](accountant-control-periods.jpg)
 
@@ -52,82 +52,94 @@ Try this with the demo school: sign in as `accountant.demo` (password `demo1234`
 ### Certify a voucher (Box C)
 
 1. Open **Disbursement vouchers**. Your list opens on **For certification (Box C)**.
-2. Open the voucher. Check the payee, the obligation (ORS/BURS) it charges, the taxes and the Box B entry. Click the payee's name to see their card, or the ORS/BURS number to see what is left on the obligation.
-3. Click **Certify (Box C)**, tick the statement and click **Certify**.
+2. Open the voucher. Check the payee, the obligation (ORS/BURS) it charges, the taxes and the Box B entry. Choose the payee's name to see their card, or the ORS/BURS number to see what is left on the obligation.
+3. Choose **Certify (Box C)**, tick the statement and choose **Certify**.
 
-The voucher is numbered and moves to **For approval (Box D)**. ATLAS checks again that the obligation still has the balance and that the cash is available (the cash account's balance less vouchers already approved). If not, it says *Not enough cash…* and nothing changes. If the voucher is wrong, click **Cancel voucher…** and give the reason; its charges go back to the obligation.
+The voucher is numbered and moves to **For approval (Box D)**. ATLAS checks again that the obligation still has the balance and that the cash is available (the cash account's balance less vouchers already approved). If not, it says *Not enough cash…* and nothing changes. If the voucher is wrong, choose **Cancel voucher…** and give the reason; its charges go back to the obligation.
 
 ### Post a journal entry
 
 Modules post their own entries. Enter by hand only adjusting, correcting and other entries no module makes.
 
-1. Open **Journal entries** and click **New entry**.
+1. Open **Journal entries** and choose **New entry**.
 2. Pick the date, the fund cluster and the journal (General Journal, Cash Receipts Journal, Cash Disbursements Journal or Check Disbursements Journal), and write the particulars.
 3. Fill in the lines: account, the card (for a subsidiary ledger) and office if needed, and the debit or the credit. The total line tells you if the entry is out of balance.
-4. Click **Save draft** to finish later, or **Save and post**.
+4. Choose **Save draft** to finish later, or **Save and post**.
 
 The entry gets its JEV number when posted. **Save and post** stays disabled until debits equal credits.
 
 ### Reverse a posted entry
 
-1. Open the entry from **Journal entries** and click **Reverse**.
-2. Give the date and the reason, and click **Reverse**.
+1. Open the entry from **Journal entries** and choose **Reverse**.
+2. Give the date and the reason, and choose **Reverse**.
 
 An opposite entry is posted and both stay on the books. Only entries made here (and opening or closing entries) can be reversed. An entry made by a module is undone in its module: cancel the voucher, void the payment, or cancel the receipt or report.
 
 ### Read a ledger
 
-1. Open **Ledgers**, pick the account, the fund (or all funds) and the dates, and click **Show**.
-2. The ledger starts with the balance forward and ends with the totals and ending balance. Click a JEV number to open the entry. **CSV** downloads it; **Print** prints it.
+1. Open **Ledgers**, pick the account, the fund (or all funds) and the dates, and choose **Show**.
+2. The ledger starts with the balance forward and ends with the totals and ending balance. Choose a JEV number to open the entry. **CSV** downloads it; **Print** prints it.
 
 For one payee's accounts payable, advances or receivables, open their card in **Card file** and use the **Subsidiary ledgers** tab. The **Taxes withheld** tab has a **BIR 2307** button for each quarter.
 
 ### Prepare the financial statements
 
-1. Open **Financial statements**, pick the fund cluster (or all), the start date and the **As of** date, and click **Show**.
+1. Open **Financial statements**, pick the fund cluster (or all), the start date and the **As of** date, and choose **Show**.
 2. Check that the Statement of Financial Position balances. If it does not, a red notice says so: check the trial balance.
-3. Click **Print**. The printout carries the accountant's and the head's signature lines from the Control panel.
+3. Choose **Print**. The printout carries the accountant's and the head's signature lines from the Control panel.
 
 Until a year is closed, the year's result shows as *Surplus/(deficit) not yet closed*.
 
 ### Reconcile a bank account
 
-1. Open **Bank reconciliation**. Pick the cash account, the fund and the month, and click **Show**.
+1. Open **Bank reconciliation**. Pick the cash account, the fund and the month, and choose **Show**.
 2. Type the **Balance per bank statement**.
 3. Tick each book entry that appears on the bank statement. What you leave unticked is counted as deposits in transit or outstanding checks.
 4. If there is still a difference (bank charges, errors, unrecorded items), book it with a journal entry, then come back.
-5. Click **Save reconciliation**.
+5. Choose **Save reconciliation**.
 
 ### Liquidate a cash advance
 
 The cashier grants the advance on a voucher; you post its liquidation (Liquidation Report, Appendix 44).
 
 1. If the officer is refunding unused money, ask the cashier to issue the official receipt first, crediting the advance account on the officer's card.
-2. Open **Cash advances** and click **Liquidate** on the advance.
+2. Open **Cash advances** and choose **Liquidate** on the advance.
 3. Enter the expenses (account, particulars, amount). Only the object codes on the advance's obligation are offered.
 4. Under **Refund of the unused balance: official receipt**, pick the refund O.R. if there is one.
-5. Click **Post liquidation**.
+5. Choose **Post liquidation**.
 
-The advance shows *Settled* once nothing is outstanding. Advances past their **Liquidate by** date are marked *Overdue*, and the officer cannot get a new advance until it is settled.
+Once nothing is outstanding, the advance leaves the **Outstanding** tab and shows *Settled* under **All, including settled**. Advances past their **Liquidate by** date are marked *Overdue*, and the officer cannot get a new advance until it is settled.
 
 ### Void a check payment
 
-1. Open the paid voucher and click **Void payment**.
-2. Pick the reason (spoiled, stale, cancelled or lost) and the date, and click **Void payment**.
+1. Open the paid voucher and choose **Void payment**.
+2. Pick the reason (spoiled, stale, cancelled or lost) and the date, and choose **Void payment**.
 
 The payment entry is reversed and the voucher goes back to *to pay*. Payments on an LDDAP-ADA are corrected with the bank, not here.
 
 ### Close a month and the year
 
 1. When the month's reports are done, post or delete every draft entry dated in it.
-2. Open **Control panel → Periods & closing**, pick the month and click **Close through this month**. Nothing can be posted in it or before it.
-3. To correct something, click **Reopen all**, fix it, and close again.
-4. After December, under **Year-end closing**, pick the year and the fund cluster and click **Post closing entry**. It closes revenue and expenses to Accumulated Surplus/(Deficit), dated December 31. Do it once for each fund.
+2. Open **Control panel → Periods & closing**, pick the month and choose **Close through this month**. Nothing can be posted in it or before it.
+3. To correct something, choose **Reopen all**, fix it, and close again.
+4. After December, under **Year-end closing**, pick the year and the fund cluster and choose **Post closing entry**. It closes revenue and expenses to Accumulated Surplus/(Deficit), dated December 31. Do it once for each fund.
 
 ### Keep the chart of accounts and the settings
 
 1. **Chart of accounts**: **Add account** adds an 8-digit code under an existing major group (only accounts COA has authorized). **Switch off** hides an account from new entries; accounts the modules post to stay on.
-2. **Control panel** tabs: **Entity** (name, UACS code, TIN, fiscal year; leave the name blank to use the school's name, so it follows a change of name), **Funds & offices** (fund clusters, responsibility centers, PAPs), **Banks & fees** (bank accounts and the fee list), **Signatories** (names on every form, and document numbering), **Taxes & rules** (withholding rates, thresholds, deadlines), **Periods & closing**, and **Users** (who has which Finance role; for administrators). A fund cluster, office, PAP, bank account or ATC that documents already use cannot be removed, and the semi-expendable threshold must stay below the capitalization threshold.
+2. **Control panel**: the settings of Finance, one tab each.
+
+| Tab | What you set there |
+| --- | --- |
+| **Entity** | Name, UACS code, TIN and fiscal year. Leave the name blank to use the school's name, so it follows a change of name |
+| **Funds & offices** | Fund clusters, responsibility centers and PAPs |
+| **Banks & fees** | Bank accounts and the fee list |
+| **Signatories** | The names on every form, and document numbering |
+| **Taxes & rules** | Withholding rates, thresholds and deadlines |
+| **Periods & closing** | Close a month so nothing more is posted in it, reopen it to correct, and the year-end closing |
+| **Users** | Who has which Finance role (only an administrator changes it) |
+
+A fund cluster, office, PAP, bank account or ATC that documents already use cannot be removed, and the semi-expendable threshold must stay below the capitalization threshold.
 
 ### Handle payroll from ATLAS People
 
@@ -139,7 +151,7 @@ When the payroll office sends a finalized government payroll to Finance, its vou
 |---|---|
 | Dashboard | Cash by fund, budget utilization, collections, and **Waiting for you**: vouchers to certify, draft entries, overdue advances |
 | Find a document | Type any document number (DV, JEV, ORS/BURS, PR, PO, IAR, RIS, O.R., RCD, LDDAP-ADA, property, PAR/ICS), a check number or a name |
-| Card file | Suppliers, employees, accountable officers, agencies and individuals; each card's subsidiary ledgers, documents, taxes withheld and property |
+| Card file | Suppliers, employees, accountable officers, agencies and individuals; each card's subsidiary ledgers, documents, taxes withheld and property. Only you (or an administrator) change an existing card's name, bank details, status or fidelity bond; **History** keeps the old and new value |
 | Journal entries | Every JEV by journal; new entries, posting, reversing |
 | Ledgers | The general ledger of one account, per fund and period |
 | Trial balance | Per fund or all funds, before or after closing entries |

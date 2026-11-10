@@ -35,7 +35,7 @@ async function hrisSchool(opts = {}) {
   return { env, admin, hr, main, other, teacher, signIn, newEmployee, hrEmp };
 }
 
-test('payroll and time rules are the ERP\'s, unchanged', { skip: !fs.existsSync(ERP_CALC) && 'the ERP is not next to the LMS' }, async () => {
+test('payroll and time rules agree with the ERP\'s (CORE)', { skip: !fs.existsSync(ERP_CALC) && 'the ERP is not next to the LMS' }, async () => {
   const erpCalc = await import(ERP_CALC);
   const settings = { ...lmsCalc.DEFAULT_SETTINGS, workDaysPerYear: 261 };
   const employee = { id: 'e1', employeeNo: 'E1', firstName: 'A', lastName: 'B', payType: 'monthly', rate: 32000, allowance: 2000, hireDate: '2020-01-01', schedule: settings.schedule };
@@ -503,7 +503,10 @@ test('government payroll to Finance: ORS (Box A) → obligated → payroll vouch
   assert.equal(st.ors.status, 'draft');
   assert.ok(st.ors.submitted);
   await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/ors`, { allotments: { PS: ps.id, MOOE: mooe?.id } }), /already has/);
-  await assert.rejects(payroll.del(`/api/hris/payroll-runs/${run.id}`), /Cancel that request first/);
+  // A finalized run is the record of what was paid: the payroll officer cannot delete it, and an
+  // administrator cannot while Finance has a live document for it.
+  await assert.rejects(payroll.del(`/api/hris/payroll-runs/${run.id}`), (e) => e.status === 403 && /finalized/.test(e.message));
+  await assert.rejects(admin.del(`/api/hris/payroll-runs/${run.id}`), /Cancel that request first/);
   await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/dv`, {}), /not obligated yet/);
   // Box B in Finance, then the voucher.
   await budget.post(`/api/finance/obligations/${st.ors.id}/obligate`, {});
@@ -585,4 +588,14 @@ test('an install that already ran private payroll stays private after the upgrad
   fs.writeFileSync(file, JSON.stringify({ hrSettings: { payFrequency: 'monthly' }, payrollRuns: [{ id: 'r', campusId: 'c', periodStart: '2026-01-01', periodEnd: '2026-01-31', payslips: [], employeeIds: [], status: 'finalized' }] }));
   assert.equal(openDb(file).data.hrSettings.payrollSystem, 'private');
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a dean\'s account can be linked to their employee record, for self-service in People', async () => {
+  const f = await hrisSchool();
+  const dean = await f.admin.post('/api/admin/users', { role: 'dean', username: 'dina', name: 'Dina Dean', password: PW, mustChangePassword: false, campusIds: [f.main.id] });
+  assert.ok((await f.hr.get('/api/hris/accounts/linkable')).some((u) => u.id === dean.id), 'HR is offered the dean\'s account');
+  const emp = await f.newEmployee(f.hr, { firstName: 'Dina', lastName: 'Dean', position: 'Dean' });
+  const linked = await f.hr.post(`/api/hris/employees/${emp.id}/account`, { userId: dean.id });
+  assert.equal(linked.account.username, 'dina');
+  assert.equal(linked.account.hrisOnly, false); // her password stays with the admin panel
 });

@@ -38,12 +38,15 @@ export async function cardForm(card, done) {
   // ATLAS accounts that can be linked (loaded first, so saving never drops the current link).
   const users = await api.get('/api/finance/cards/linkable').catch(() => []);
   if (c.userId && !users.some((u) => u.id === c.userId)) users.unshift({ id: c.userId, name: c.userName || 'Linked account', roleLabel: 'current link' });
+  // On an existing card, what decides who is paid (name, bank details, status, bond) is changed
+  // by the Chief Accountant or an administrator only.
+  const lock = card && !can('finance.accounts') ? 'disabled' : '';
   modal({
     title: card ? `Edit ${card.name}` : 'New card', wide: true, submitLabel: card ? 'Save' : 'Add card',
-    body: html`<div class="grid two">
+    body: html`${lock ? html`<p class="hint" style="margin-bottom:12px">${icon('lock', 14)} The name, bank details, status and bond are changed by the Chief Accountant or an administrator: they decide who is paid.</p>` : ''}<div class="grid two">
       <label class="field"><span>Kind</span><select name="kind">${fin.settings.cardKinds.map(([v, l]) => option(v, l, v === c.kind))}</select></label>
-      <label class="field"><span>Status</span><select name="status">${[['active', 'Active'], ['inactive', 'Inactive'], ['blacklisted', 'Blacklisted (no orders or payments)']].map(([v, l]) => option(v, l, v === c.status))}</select></label>
-      <label class="field span-2"><span>Name (registered name for suppliers)</span><input name="name" value="${c.name || ''}" required /></label>
+      <label class="field"><span>Status</span><select name="status" ${lock}>${[['active', 'Active'], ['inactive', 'Inactive'], ['blacklisted', 'Blacklisted (no orders or payments)']].map(([v, l]) => option(v, l, v === c.status))}</select></label>
+      <label class="field span-2"><span>Name (registered name for suppliers)</span><input name="name" value="${c.name || ''}" required ${lock} /></label>
       <label class="field"><span>TIN</span><input name="tin" value="${c.tin || ''}" placeholder="123-456-789-000" /></label>
       <label class="field"><span>Tax status</span><select name="vat">${fin.settings.vatStatus.map(([v, l]) => option(v, l, v === c.vat))}</select></label>
       <label class="field"><span>Taxpayer type</span><select name="taxType">${option('corporation', 'Corporation / partnership', c.taxType === 'corporation')}${option('individual', 'Individual (incl. sole proprietor)', c.taxType === 'individual')}</select></label>
@@ -53,19 +56,19 @@ export async function cardForm(card, done) {
       <label class="field"><span>Phone</span><input name="phone" value="${c.phone || ''}" /></label>
       <label class="field"><span>Email</span><input name="email" type="email" value="${c.email || ''}" /></label>
       <label class="field"><span>Position (employees and officers)</span><input name="position" value="${c.position || ''}" /></label>
-      <label class="field"><span>Bank</span><input name="bankName" value="${c.bankName || ''}" /></label>
-      <label class="field"><span>Bank account number (for LDDAP-ADA)</span><input name="bankAccount" value="${c.bankAccount || ''}" /></label>
+      <label class="field"><span>Bank</span><input name="bankName" value="${c.bankName || ''}" ${lock} /></label>
+      <label class="field"><span>Bank account number (for LDDAP-ADA)</span><input name="bankAccount" value="${c.bankAccount || ''}" ${lock} /></label>
       <label class="field"><span>Office</span><select name="office">${officeOptions(c.office)}</select></label>
       <label class="field"><span>ATLAS account (employees: self-service)</span><select name="userId"><option value="">None</option>${users.map((u) => option(u.id, `${u.name} · ${u.roleLabel}`, u.id === c.userId))}</select></label>
       <fieldset class="field span-2 bond"><legend>Fidelity bond (accountable officers)</legend><div class="grid three-tight">
-        <label class="field"><span>Amount</span><input name="bondAmount" type="number" step="0.01" min="0" value="${c.bond?.amount || ''}" /></label>
-        <label class="field"><span>Expires</span><input name="bondExpires" type="date" value="${c.bond?.expires || ''}" /></label>
-        <label class="field"><span>Bond / policy no.</span><input name="bondPolicy" value="${c.bond?.policy || ''}" /></label></div></fieldset>
+        <label class="field"><span>Amount</span><input name="bondAmount" type="number" step="0.01" min="0" value="${c.bond?.amount || ''}" ${lock} /></label>
+        <label class="field"><span>Expires</span><input name="bondExpires" type="date" value="${c.bond?.expires || ''}" ${lock} /></label>
+        <label class="field"><span>Bond / policy no.</span><input name="bondPolicy" value="${c.bond?.policy || ''}" ${lock} /></label></div></fieldset>
       <label class="field span-2"><span>Notes</span><textarea name="notes" rows="2">${c.notes || ''}</textarea></label>
     </div>`,
     async onSubmit(form) {
       const v = formData(form);
-      const body = { ...v, bond: { amount: Number(v.bondAmount) || 0, expires: v.bondExpires, policy: v.bondPolicy } };
+      const body = lock ? v : { ...v, bond: { amount: Number(v.bondAmount) || 0, expires: v.bondExpires, policy: v.bondPolicy } };
       if (card) await api.put(`/api/finance/cards/${card.id}`, body);
       else await api.post('/api/finance/cards', body);
       fin.forget();
