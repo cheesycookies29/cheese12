@@ -106,8 +106,9 @@ main:focus, [data-landing]:focus { outline: none; }
 .nav-side a.cta:active { transform: scale(0.98); }
 .brand { position: relative; z-index: 1; justify-self: center; display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 44px; color: var(--white); text-decoration: none; }
 .wordmark { display: block; aspect-ratio: 1995 / 202; background: currentColor; -webkit-mask: url(/img/legati/brand/wordmark.webp) center / contain no-repeat; mask: url(/img/legati/brand/wordmark.webp) center / contain no-repeat; }
-.brand .mark { --mk-ink: var(--white); width: 42px; height: 21px; flex: none; }
-.brand .wordmark { height: 15px; }
+/* the header logo is all gold: the mark's bands and the wordmark */
+.brand .mark { --mk-ink: var(--gold-a); width: 42px; height: 21px; flex: none; }
+.brand .wordmark { height: 15px; background: linear-gradient(180deg, var(--gold-a), var(--gold-b)); }
 .menu-btn { display: none; justify-self: end; width: 44px; height: 44px; background: none; border: 1px solid rgba(246, 229, 116, 0.6); color: var(--white); cursor: pointer; padding: 0; }
 .menu-btn svg { width: 18px; height: 18px; display: block; margin: auto; }
 .menu-btn .x, .menu-btn[aria-expanded="true"] .bars { display: none; }
