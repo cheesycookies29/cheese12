@@ -153,7 +153,9 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 - Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
 - Anyone can change their password from the menu under their name at the top right. Admins can reset anyone's password or disable an account.
-- After 5 wrong passwords, that username is locked for 5 minutes. People are signed out after 8 idle hours, or when the app is restarted.
+- After 5 wrong passwords, that username is locked for 5 minutes, then 15, then an hour while wrong passwords keep coming. New passwords must be 8+ characters, not a common password, and not contain the username or name.
+- **2-step verification**: anyone can turn it on under their name → **My security** (an authenticator app such as Google Authenticator, plus ten one-time recovery codes). Admins can require it for Administrators or everyone, and reset it for someone who lost their phone, in **Settings → Sign-in & security** and **Users & Access**. The 2-step secrets are sealed with `data/secret.key`: copy that file with a backup if you move CORE to another computer, or people will need a recovery code.
+- **Sessions and limits** (**Settings → Sign-in & security**): signed out after 8 idle hours and 24 hours at most by default, or when the app is restarted; **My security** lists where you are signed in. Requests per person, sign-in attempts and failed sign-ins per network address, and the public support form are rate-limited (answer *429, try again in…*). Pages carry a strict Content-Security-Policy and security headers, and changes sent from other websites are refused.
 - **Personal data.** Government ID numbers and bank accounts are masked everywhere; HR Managers, Payroll Officers and Administrators can click **Show numbers** on a profile, and the edit form and full employee export load them. Each of these is recorded in the audit log. Medical certificates open for HR only, unless **Leave & Requests → Approval flow** lets approvers open them.
 - **Audit log** (Administrators, **System → Audit log**): every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, Payroll Setup, holidays, users and settings (field by field, before and after), views of records with pay or full ID numbers, medical certificate openings, backups and restores. It is kept in `data/audit-log.jsonl`, separate from the data file, so restoring a backup or erasing all data does not touch it. Each entry is chained to the one before by a hash; the page checks the chain and warns if the file was edited.
 - **Locked out as the only admin?** Stop the app, open Terminal (Mac) or PowerShell (Windows) in the app folder, run `npm run reset-password -- admin NewPassword123` (use your admin username), then start the app again.
@@ -236,7 +238,7 @@ The **?** button in CORE's top bar opens **Help & guides** (`/help/`): a guide f
 
 | Guide | For |
 |---|---|
-| Getting started with CORE | Everyone: signing in, modules, password, phone, help |
+| Getting started with CORE | Everyone: signing in, modules, password, 2-step verification, phone, help |
 | What's new in CORE | Everyone: the changes in each update |
 | Your self-service | Every employee: clock in, attendance, requests, payslips, assets, tickets |
 | Approving requests | Supervisors and named approvers |

@@ -70,7 +70,7 @@ Load the demo data under **System → Settings → Demo data**. It adds these ac
 | `sales.demo` | Sales Manager | Sales & CRM |
 | `employee.demo` | Employee | Juan Dela Cruz, Software Engineer and team lead of Mark and Kristine |
 
-The screenshot script also creates the first administrator, `admin` (password `password123`).
+The screenshot script also creates the first administrator, `admin` (password `Guide-Shots-2026`).
 
 ## Screenshots
 
@@ -80,7 +80,7 @@ The screenshot script also creates the first administrator, `admin` (password `p
 { "file": "hr-dtr.jpg", "user": "hr.demo", "url": "/#/dtr", "click": ["text=Edit >> nth=0"], "wait": 900 }
 ```
 
-- `user`: the demo account to sign in as (password `demo1234`; `admin` uses `password123`).
+- `user`: the demo account to sign in as (password `demo1234`; `admin` uses `Guide-Shots-2026`).
 - `url`: the page to open (path and `#/route`).
 - `api` (optional): requests made as that user before the page opens, `[[method, path, body], …]`,
   e.g. `[["POST", "/api/payroll-runs", { "periodStart": "…" }]]` so a list has something to show.

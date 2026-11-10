@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
 import { createApi } from './server/api.js';
+import { baseHeaders, pagePolicy, API_POLICY, crossSite } from './server/security.js';
 
 // CORE_APP_DIR: where public/ and shared/ live (the single .exe unpacks them there).
 const ROOT = process.env.CORE_APP_DIR || path.dirname(fileURLToPath(import.meta.url));
@@ -14,14 +15,21 @@ const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').filter(Boolea
 const DB_FILE = process.env.DB_FILE || path.join(ROOT, 'data', 'db.json');
 
 const db = openDb(DB_FILE);
-const api = createApi(db);
+// Rate limits are on; RATE_LIMITS=off only for scripted runs such as the guide screenshots.
+const api = createApi(db, { rateLimits: process.env.RATE_LIMITS !== 'off' });
+// The Content-Security-Policy for CORE's pages, with the hashes of their small inline scripts.
+const PAGE_POLICY = pagePolicy(ROOT);
+// HTTPS directly, or through the HTTPS proxy on this computer (Caddy): then browsers are told to stay on HTTPS.
+const viaHttps = (req) => Boolean(req.socket?.encrypted) || (/^(127\.|::1$|::ffff:127\.)/.test(req.socket?.remoteAddress || '') && req.headers['x-forwarded-proto'] === 'https');
 
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': path.join(ROOT, 'public') };
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ttf': 'font/ttf' };
 
 function send(res, status, body, type = 'application/json', headers = {}) {
   const textual = /^text\/|json|javascript|svg/.test(type);
-  res.writeHead(status, { 'Content-Type': textual ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...headers });
+  // Every answer carries the security headers; CORE's pages get the page policy, data the strictest.
+  const policy = type === 'text/html' ? (headers['X-Robots-Tag'] ? {} : { 'Content-Security-Policy': PAGE_POLICY }) : type === 'application/json' ? { 'Content-Security-Policy': API_POLICY } : {};
+  res.writeHead(status, { ...baseHeaders({ https: res.viaHttps }), ...policy, 'Content-Type': textual ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...headers });
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
@@ -80,7 +88,13 @@ function serveStatic(url, res) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  res.viaHttps = viaHttps(req);
+  let url;
+  try {
+    url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  } catch {
+    return send(res, 400, { error: 'Bad request.' });
+  }
   if (!url.pathname.startsWith('/api/')) return serveStatic(url, res);
   // Block other websites from calling this API (DNS rebinding / CSRF): only accept
   // requests addressed to localhost or a plain IP address (e.g. 192.168.1.20 on the office network).
@@ -90,6 +104,8 @@ const server = http.createServer(async (req, res) => {
   if (['POST', 'PUT', 'DELETE'].includes(req.method) && !(req.headers['content-type'] || '').startsWith('application/json')) {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
+  // A change must come from CORE's own pages, never from another site (cross-site request forgery).
+  if (req.method !== 'GET' && req.method !== 'HEAD' && crossSite(req)) return send(res, 403, { error: 'This request came from another site and was refused.' });
   try {
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req) : {};
     const { data, headers } = await api(req, url, body);
@@ -97,7 +113,7 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     if (status === 500) console.error(err);
-    send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message });
+    send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message }, 'application/json', err.headers || {});
   }
 });
 

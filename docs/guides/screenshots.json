@@ -5,6 +5,7 @@
   {"file": "getting-started-modules.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#mod-btn"], "wait": 900},
   {"file": "getting-started-user-menu.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#user-btn"], "wait": 900},
   {"file": "getting-started-phone.jpg", "user": "employee.demo", "url": "/#/launcher", "viewport": "phone", "wait": 1200},
+  {"file": "getting-started-security.jpg", "user": "employee.demo", "url": "/#/account/security", "wait": 1000},
   {"file": "getting-started-help.jpg", "user": "employee.demo", "url": "/help/#/", "wait": 1200},
   {"file": "approver-flow.jpg", "user": "admin", "url": "/#/payroll", "api": [["POST", "/api/payroll-runs", {"periodStart": "2026-10-16", "periodEnd": "2026-10-31", "payDate": "2026-10-30"}]], "click": ["tr[data-href] >> nth=0", "#finalize", ".modal button[type=submit]", "#nav a[href='#/leave']", "text=Approval flow"], "wait": 2000, "fresh": true},
   {"file": "employee-home.jpg", "user": "employee.demo", "url": "/#/me", "wait": 1000},
@@ -67,8 +68,9 @@
   {"file": "admin-access-matrix.jpg", "user": "admin", "url": "/#/users", "wait": 1000, "click": ["#menu-btn"], "scroll": ".matrix tbody tr >> nth=2"},
   {"file": "admin-settings.jpg", "user": "admin", "url": "/#/settings", "wait": 1000},
   {"file": "admin-data.jpg", "user": "admin", "url": "/#/settings", "scroll": "h2:has-text('Demo data')", "wait": 1000},
+  {"file": "admin-security.jpg", "user": "admin", "url": "/#/settings", "scroll": "button:has-text('Save sign-in settings')", "wait": 1000},
   {"file": "admin-audit.jpg", "user": "admin", "url": "/#/audit", "wait": 1200, "api": [["GET", "/api/admin/export"], ["POST", "/api/users", {"name": "Rosa Lim", "username": "rosa.lim", "role": "hrstaff", "password": "Welcome2026", "mustChangePassword": true}]]},
   {"file": "admin-devlog.jpg", "user": "admin", "url": "/#/devlog", "wait": 1200},
-  {"file": "admin-feedback-inbox.jpg", "user": "admin", "url": "/#/feedback/inbox", "wait": 1000, "api": [["POST", "/api/auth/login", {"username": "sales.demo", "password": "demo1234"}], ["POST", "/api/feedback", {"type": "idea", "area": "general", "subject": "Add Sales & CRM to the Module list", "message": "When I send feedback about the pipeline I have to pick General. Could Sales & CRM be one of the modules?"}], ["POST", "/api/auth/login", {"username": "employee.demo", "password": "demo1234"}], ["POST", "/api/feedback", {"type": "question", "area": "hr", "subject": "Can I file a half-day leave?", "message": "I need Friday afternoon off for a check-up. Is there a way to file only half a day?"}], ["POST", "/api/auth/login", {"username": "admin", "password": "password123"}]]},
+  {"file": "admin-feedback-inbox.jpg", "user": "admin", "url": "/#/feedback/inbox", "wait": 1000, "api": [["POST", "/api/auth/login", {"username": "sales.demo", "password": "demo1234"}], ["POST", "/api/feedback", {"type": "idea", "area": "general", "subject": "Add Sales & CRM to the Module list", "message": "When I send feedback about the pipeline I have to pick General. Could Sales & CRM be one of the modules?"}], ["POST", "/api/auth/login", {"username": "employee.demo", "password": "demo1234"}], ["POST", "/api/feedback", {"type": "question", "area": "hr", "subject": "Can I file a half-day leave?", "message": "I need Friday afternoon off for a check-up. Is there a way to file only half a day?"}], ["POST", "/api/auth/login", {"username": "admin", "password": "Guide-Shots-2026"}]]},
   {"file": "admin-guide-editor.jpg", "user": "admin", "url": "/help/#/edit/admin", "wait": 1500}
 ]

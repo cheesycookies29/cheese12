@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { computePayslip, toMinutes } from '../shared/calc.js';
 import { DAY_TYPES } from '../shared/holidays.js';
@@ -16,6 +16,9 @@ import { registerLedgerRoutes, syncLedger, postRun, voidRunRows, yearTotals } fr
 import { registerGuideRoutes } from './guides.js';
 import { areaOfPath } from '../shared/audit.js';
 import { createSecrets } from './secrets.js';
+import { createRateLimiter } from './ratelimit.js';
+import { securitySettings, validateSecuritySettings, twoFactorRequired, TWO_FACTOR_POLICIES } from './security.js';
+import { newSecret, verifyCode, otpauthUrl, newRecoveryCodes, hashRecovery, looksLikeRecovery } from './totp.js';
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
@@ -277,6 +280,12 @@ function clientIp(req) {
   return remote || 'local';
 }
 
+// Whether the visitor reached CORE over HTTPS: directly, or through the HTTPS proxy on this computer.
+function isHttps(req) {
+  const local = /^(127\.|::1$|::ffff:127\.)/.test(req.socket?.remoteAddress || '');
+  return Boolean(req.socket?.encrypted) || (local && req.headers?.['x-forwarded-proto'] === 'https');
+}
+
 // The address people use to reach the app, e.g. https://erp.company.com, for links in emails.
 function publicOrigin(req) {
   const local = /^(127\.|::1$|::ffff:127\.)/.test(req.socket?.remoteAddress || '');
@@ -382,7 +391,8 @@ function clock(db, emp, action, body = {}, source = 'self') {
   throw new HttpError(400, 'Action must be "in" or "out".');
 }
 
-export function createApi(db) {
+// rateLimits: on in the running app (server.js); off where tests call the API directly.
+export function createApi(db, { rateLimits = false } = {}) {
   const audit = createAudit(db.dir);
   const files = createAttachments(path.join(db.dir, 'attachments'));
   const secrets = createSecrets(db.dir);
@@ -391,8 +401,27 @@ export function createApi(db) {
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
   const routes = [];
-  const sessions = createSessions();
+  // Sign-in and security policy (Settings → Sign-in & security), read at each use so changes apply at once.
+  const sec = () => securitySettings(db);
+  const sessions = createSessions(() => ({ idleMs: sec().sessionIdleMinutes * 60000, maxMs: sec().sessionMaxHours * 3600000 }));
   const throttle = createThrottle();
+  // Rate limits: everyday use per person (or per network address before signing in), sign-in
+  // attempts and failures per address, password and 2-step changes per person, the public form.
+  const limiter = createRateLimiter(() => {
+    const s = sec();
+    return {
+      'api-user': { limit: s.requestsPerMinute, windowMs: 60000 },
+      'api-anon': { limit: 120, windowMs: 60000 },
+      auth: { limit: 20, windowMs: 60000 },
+      'signin-fail': { limit: s.signInFailuresPerAddress, windowMs: 15 * 60000 },
+      sensitive: { limit: 10, windowMs: 15 * 60000 },
+      'public-write': { limit: 20, windowMs: 60 * 60000 },
+    };
+  });
+  const limits = rateLimits ? limiter : { hit() {}, check() {}, add() {} };
+  // A password that was right, waiting for the 2-step code: challenge id → { userId, expires, attempts }.
+  const challenges = new Map();
+  const TWO_FACTOR_WAIT = 5 * 60000;
   // permission: 'public', 'auth' (any signed-in user) or a permission from shared/roles.js
   const route = (method, pattern, permission, handler, { duringPasswordChange = false } = {}) => {
     const keys = [];
@@ -402,11 +431,44 @@ export function createApi(db) {
   const users = () => db.data.users;
   const activeAdmins = () => users().filter((u) => u.role === 'admin' && u.active);
 
-  function startSession(user) {
+  function startSession(user, client = {}) {
     user.lastLoginAt = new Date().toISOString();
     db.save();
-    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(sessions.create(user.id)) } };
+    const token = sessions.create(user.id, client);
+    return { data: { user: authUser(user) }, headers: { 'Set-Cookie': sessionCookie(token, { maxAge: sessions.maxAgeSeconds(), secure: client.https }) } };
   }
+  // The signed-in account as the browser sees it, with whether 2-step verification must be set up first.
+  const authUser = (user) => ({ ...publicUser(user), isApprover: isApprover(db, user), twoFactorSetupRequired: twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt });
+  const requirePassword = (user, password) => {
+    if (!verifyPassword(String(password || ''), user.passwordHash)) throw new HttpError(400, 'Your password is not right.');
+  };
+  // The second step: a code from the authenticator app (each works once), or an unused recovery code.
+  // Returns 'app', 'recovery', or null when it is wrong.
+  function secondFactor(user, code) {
+    const tf = user.twoFactor;
+    if (!tf?.enabledAt) return null;
+    if (looksLikeRecovery(code)) {
+      const hit = (tf.recovery || []).find((r) => r.hash === hashRecovery(code) && !r.usedAt);
+      if (!hit) return null;
+      hit.usedAt = new Date().toISOString();
+      db.save();
+      return 'recovery';
+    }
+    // The secret is sealed with this server's key; a backup restored elsewhere only accepts recovery codes.
+    const secret = secrets.open(tf.secret);
+    const step = secret && verifyCode(secret, code, { lastStep: tf.lastStep ?? -1 });
+    if (step == null || step === false) return null;
+    tf.lastStep = step;
+    db.save();
+    return 'app';
+  }
+  const recoveryLeft = (user) => (user.twoFactor?.recovery || []).filter((r) => !r.usedAt).length;
+  const issueRecovery = (user) => {
+    const codes = newRecoveryCodes();
+    user.twoFactor.recovery = codes.map((c) => ({ hash: hashRecovery(c), usedAt: null }));
+    return codes;
+  };
+  const passwordRules = (who) => [who, sec()];
 
   function linkedEmployee(user) {
     const emp = user.employeeId && db.data.employees.find((e) => e.id === user.employeeId);
@@ -415,37 +477,81 @@ export function createApi(db) {
   }
 
   // ----- Sign in -----
-  route('GET', '/api/auth/status', 'public', ({ user }) => ({ setupRequired: users().length === 0, user: user ? { ...publicUser(user), isApprover: isApprover(db, user) } : null }));
-  route('POST', '/api/auth/setup', 'public', ({ body }) => {
+  route('GET', '/api/auth/status', 'public', ({ user }) => ({ setupRequired: users().length === 0, user: user ? authUser(user) : null }));
+  route('POST', '/api/auth/setup', 'public', ({ body, client }) => {
     if (users().length) throw new HttpError(400, 'Setup is already complete. Please sign in.');
     const user = { id: randomUUID(), ...validateUser({ ...body, role: 'admin', active: true }, db), mustChangePassword: false };
-    validatePassword(body.password);
+    validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.createdAt = new Date().toISOString();
     users().push(user);
     audit.record('user.create', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, note: 'First administrator, created at setup', actor: { user, ip: currentActor()?.ip } });
-    return startSession(user);
+    return startSession(user, client);
   });
-  route('POST', '/api/auth/login', 'public', ({ body }) => {
+  // Too many failed sign-ins from one network address (any usernames) stop that address for a while;
+  // too many for one username lock it, for longer each time (server/auth.js).
+  const signInFailed = (username, user, client, note) => {
+    limits.add('signin-fail', client.ip);
+    const locked = throttle.fail(username);
+    audit.record('auth.login-failed', { entity: 'user', entityId: user?.id || '', label: username.slice(0, 64), note, actor: { name: `Unknown (${username.slice(0, 64)})`, ip: client.ip } });
+    if (locked) audit.record('auth.locked', { entity: 'user', entityId: user?.id || '', label: username.slice(0, 64), note: `Locked for ${locked} minutes after 5 failed attempts`, actor: { name: 'CORE', ip: client.ip } });
+  };
+  route('POST', '/api/auth/login', 'public', ({ body, client }) => {
     const username = String(body.username || '').trim().toLowerCase();
+    limits.check('signin-fail', client.ip, 'Too many failed sign-ins from this network.');
     throttle.check(username);
     const user = users().find((u) => u.username === username);
     if (!verifyPassword(String(body.password || ''), user?.passwordHash) || !user.active) {
-      throttle.fail(username);
-      audit.record('auth.login-failed', { entity: 'user', entityId: user?.id || '', label: username.slice(0, 64), note: user && !user.active ? 'Account disabled' : 'Wrong username or password', actor: { name: `Unknown (${username.slice(0, 64)})`, ip: currentActor()?.ip } });
+      signInFailed(username, user, client, user && !user.active ? 'Account disabled' : 'Wrong username or password');
       throw new HttpError(401, user && !user.active ? 'This account is disabled. Contact your administrator.' : 'Incorrect username or password.');
     }
     throttle.reset(username);
-    audit.record('auth.login', { entity: 'user', entityId: user.id, label: user.username, actor: { user, ip: currentActor()?.ip } });
-    return startSession(user);
+    // With 2-step verification on, the password alone does not sign in: the code comes next.
+    if (user.twoFactor?.enabledAt) {
+      const challenge = randomBytes(24).toString('hex');
+      challenges.set(challenge, { userId: user.id, expires: Date.now() + TWO_FACTOR_WAIT, attempts: 0 });
+      for (const [id, c] of challenges) if (c.expires < Date.now()) challenges.delete(id);
+      return { twoFactorRequired: true, challenge };
+    }
+    audit.record('auth.login', { entity: 'user', entityId: user.id, label: user.username, actor: { user, ip: client.ip } });
+    return startSession(user, client);
   });
-  route('POST', '/api/auth/logout', 'auth', ({ token }) => {
+  route('POST', '/api/auth/2fa', 'public', ({ body, client }) => {
+    const id = String(body.challenge || '');
+    const c = challenges.get(id);
+    const user = c && c.expires > Date.now() && users().find((u) => u.id === c.userId && u.active);
+    if (!user || !user.twoFactor?.enabledAt) {
+      challenges.delete(id);
+      throw new HttpError(401, 'The sign-in has expired. Enter your username and password again.');
+    }
+    limits.check('signin-fail', client.ip, 'Too many failed sign-ins from this network.');
+    throttle.check(user.username);
+    const how = secondFactor(user, body.code);
+    if (!how) {
+      c.attempts += 1;
+      limits.add('signin-fail', client.ip);
+      audit.record('auth.2fa-failed', { entity: 'user', entityId: user.id, label: user.username, actor: { name: user.name, ip: client.ip } });
+      if (c.attempts >= 5) {
+        challenges.delete(id);
+        signInFailed(user.username, user, client, 'Five wrong 2-step verification codes');
+        throw new HttpError(401, 'Too many wrong codes. Enter your username and password again.');
+      }
+      throw new HttpError(401, 'That code is not right. Check that the time on your phone is correct, or use a recovery code.');
+    }
+    challenges.delete(id);
+    throttle.reset(user.username);
+    if (how === 'recovery') audit.record('auth.recovery-used', { entity: 'user', entityId: user.id, label: user.username, note: `${recoveryLeft(user)} recovery codes left`, actor: { user, ip: client.ip } });
+    audit.record('auth.login', { entity: 'user', entityId: user.id, label: user.username, note: how === 'recovery' ? 'With a recovery code' : 'With 2-step verification', actor: { user, ip: client.ip } });
+    return startSession(user, client);
+  });
+  route('POST', '/api/auth/logout', 'auth', ({ token, client }) => {
     sessions.destroy(token);
-    return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie } };
+    return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(client.https) } };
   }, { duringPasswordChange: true });
   route('POST', '/api/auth/change-password', 'auth', ({ user, token, body }) => {
+    limits.hit('sensitive', user.id, 'Too many password changes.');
     if (!verifyPassword(String(body.currentPassword || ''), user.passwordHash)) throw new HttpError(400, 'Your current password is incorrect.');
-    validatePassword(body.newPassword);
+    validatePassword(body.newPassword, ...passwordRules(user));
     if (body.newPassword === body.currentPassword) throw new HttpError(400, 'Choose a password different from the current one.');
     user.passwordHash = hashPassword(body.newPassword);
     user.mustChangePassword = false;
@@ -455,11 +561,94 @@ export function createApi(db) {
     return { user: publicUser(user) };
   }, { duringPasswordChange: true });
 
+  // ----- My security: 2-step verification and where I am signed in -----
+  const during = { duringPasswordChange: true };
+  route('GET', '/api/me/2fa', 'auth', ({ user }) => ({
+    enabled: Boolean(user.twoFactor?.enabledAt), enabledAt: user.twoFactor?.enabledAt || null,
+    recoveryLeft: recoveryLeft(user), required: twoFactorRequired(sec(), user),
+  }), during);
+  // Step 1: a new secret for the authenticator app (the QR code), after the password is confirmed.
+  route('POST', '/api/me/2fa/setup', 'auth', ({ user, body }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    requirePassword(user, body.password);
+    const secret = newSecret();
+    user.twoFactorPending = { secret: secrets.seal(secret), createdAt: new Date().toISOString() };
+    db.save();
+    return { secret, otpauthUrl: otpauthUrl({ secret, account: user.username, issuer: 'CORE ERP' }) };
+  }, during);
+  // Step 2: the first code from the app proves it is set up; then ten recovery codes, shown once.
+  route('POST', '/api/me/2fa/enable', 'auth', ({ user, body, token }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    const pending = user.twoFactorPending;
+    const secret = pending && Date.now() - Date.parse(pending.createdAt) < 15 * 60000 && secrets.open(pending.secret);
+    if (!secret) throw new HttpError(400, 'Start again: scan a new QR code.');
+    const step = verifyCode(secret, body.code);
+    if (step == null) throw new HttpError(400, 'That code is not right. Enter the 6-digit code the app shows now.');
+    user.twoFactor = { secret: pending.secret, enabledAt: new Date().toISOString(), lastStep: step, recovery: [] };
+    delete user.twoFactorPending;
+    const codes = issueRecovery(user);
+    // Anyone signed in elsewhere signs in again, now with the code.
+    sessions.destroyForUser(user.id, token);
+    db.save();
+    audit.record('auth.2fa-on', { entity: 'user', entityId: user.id, label: user.username });
+    return { recoveryCodes: codes, user: authUser(user) };
+  }, during);
+  route('POST', '/api/me/2fa/disable', 'auth', ({ user, body }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    if (twoFactorRequired(sec(), user)) throw new HttpError(400, 'Your company requires 2-step verification for your account, so it cannot be turned off.');
+    requirePassword(user, body.password);
+    if (!secondFactor(user, body.code)) throw new HttpError(400, 'That code is not right.');
+    delete user.twoFactor;
+    db.save();
+    audit.record('auth.2fa-off', { entity: 'user', entityId: user.id, label: user.username });
+    return { user: authUser(user) };
+  }, during);
+  route('POST', '/api/me/2fa/recovery-codes', 'auth', ({ user, body }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    requirePassword(user, body.password);
+    if (!secondFactor(user, body.code)) throw new HttpError(400, 'That code is not right.');
+    const codes = issueRecovery(user);
+    db.save();
+    audit.record('auth.recovery-new', { entity: 'user', entityId: user.id, label: user.username });
+    return { recoveryCodes: codes };
+  }, during);
+  const sessionRow = (s, currentId) => ({ id: s.id, current: s.id === currentId, device: s.device, ip: s.ip, signedInAt: new Date(s.created).toISOString(), lastSeenAt: new Date(s.lastSeen).toISOString() });
+  route('GET', '/api/me/sessions', 'auth', ({ user, token }) => {
+    const current = sessions.get(token, { touch: false })?.id;
+    return sessions.list(user.id).map((s) => sessionRow(s, current));
+  }, during);
+  route('DELETE', '/api/me/sessions/:id', 'auth', ({ user, params }) => {
+    if (!sessions.destroyById(user.id, params.id)) throw new HttpError(404, 'That session has already ended.');
+    audit.record('auth.sessions', { entity: 'user', entityId: user.id, label: user.username, note: 'One session' });
+    return { ok: true };
+  }, during);
+  route('POST', '/api/me/sessions/sign-out-others', 'auth', ({ user, token }) => {
+    const n = sessions.destroyForUser(user.id, token);
+    audit.record('auth.sessions', { entity: 'user', entityId: user.id, label: user.username, note: `${n} other session${n === 1 ? '' : 's'}` });
+    return { signedOut: n };
+  }, during);
+
+  // ----- Sign-in & security settings (Administrators) -----
+  route('GET', '/api/security-settings', 'users.manage', () => ({ ...sec(), policies: TWO_FACTOR_POLICIES }));
+  route('PUT', '/api/security-settings', 'users.manage', ({ body, user }) => {
+    const before = sec();
+    const next = validateSecuritySettings(body, before);
+    // Requiring 2-step verification of yourself before you have it would lock you out at the next sign-in.
+    if (twoFactorRequired(next, user) && !user.twoFactor?.enabledAt) {
+      throw new HttpError(400, 'Turn on 2-step verification for your own account first (your name → My security), then require it.');
+    }
+    db.data.settings.security = next;
+    db.save();
+    const changes = diff(before, next);
+    if (changes.length) audit.record('settings.security', { entity: 'settings', label: 'Sign-in and security', changes });
+    return { ...next, policies: TWO_FACTOR_POLICIES };
+  });
+
   // ----- User accounts -----
-  route('GET', '/api/users', 'users.manage', () => users().map(publicUser));
+  route('GET', '/api/users', 'users.manage', () => users().map((u) => ({ ...publicUser(u), sessions: sessions.list(u.id).length, twoFactorRequired: twoFactorRequired(sec(), u) })));
   route('POST', '/api/users', 'users.manage', ({ body }) => {
     const user = { id: randomUUID(), ...validateUser(body, db) };
-    validatePassword(body.password);
+    validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.mustChangePassword = body.mustChangePassword !== false;
     user.createdAt = new Date().toISOString();
@@ -477,19 +666,39 @@ export function createApi(db) {
     }
     const before = publicUser(user);
     Object.assign(user, next, { updatedAt: new Date().toISOString() });
-    if (!user.active) sessions.destroyForUser(user.id);
+    // A disabled account, or one whose role changed, signs in again (with its new access).
+    if (!user.active || before.role !== user.role) sessions.destroyForUser(user.id);
     db.save();
     audit.record('user.update', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, changes: diff(before, publicUser(user), USER_AUDIT_FIELDS) });
     return publicUser(user);
   });
   route('POST', '/api/users/:id/reset-password', 'users.manage', ({ params, body }) => {
     const user = findUser(db, params.id);
-    validatePassword(body.password);
+    validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.mustChangePassword = true;
     sessions.destroyForUser(user.id);
     db.save();
     audit.record('user.reset-password', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})` });
+    return publicUser(user);
+  });
+  route('POST', '/api/users/:id/sign-out', 'users.manage', ({ params }) => {
+    const user = findUser(db, params.id);
+    const n = sessions.destroyForUser(user.id);
+    audit.record('user.sign-out', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, note: `${n} session${n === 1 ? '' : 's'} ended` });
+    return { signedOut: n };
+  });
+  // For someone who lost their phone and their recovery codes: they sign in with the password and,
+  // if the company requires it, set up 2-step verification again.
+  route('POST', '/api/users/:id/2fa/reset', 'users.manage', ({ params, user: me }) => {
+    const user = findUser(db, params.id);
+    if (user.id === me.id) throw new HttpError(400, 'Change your own 2-step verification under My security.');
+    if (!user.twoFactor && !user.twoFactorPending) throw new HttpError(400, `${user.name} does not use 2-step verification.`);
+    delete user.twoFactor;
+    delete user.twoFactorPending;
+    sessions.destroyForUser(user.id);
+    db.save();
+    audit.record('user.2fa-reset', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})` });
     return publicUser(user);
   });
   route('DELETE', '/api/users/:id', 'users.manage', ({ params, user: me }) => {
@@ -816,6 +1025,12 @@ export function createApi(db) {
     const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
     const session = sessions.get(token);
     const user = session && users().find((u) => u.id === session.userId && u.active);
+    const ip = clientIp(req);
+    const client = { ip, ua: String(req.headers?.['user-agent'] || '').slice(0, 300), https: isHttps(req) };
+    if (user) limits.hit('api-user', user.id);
+    else limits.hit('api-anon', ip);
+    if (req.method === 'POST' && /^\/api\/auth\/(login|setup|2fa)$/.test(url.pathname)) limits.hit('auth', ip, 'Too many sign-in attempts from this network.');
+    if (req.method !== 'GET' && url.pathname.startsWith('/api/public/')) limits.hit('public-write', ip, 'Too many messages from this network.');
     for (const r of routes) {
       if (r.method !== req.method) continue;
       const m = url.pathname.match(r.re);
@@ -823,6 +1038,7 @@ export function createApi(db) {
       if (r.permission !== 'public') {
         if (!user) throw new HttpError(401, 'Please sign in.');
         if (user.mustChangePassword && !r.duringPasswordChange) throw new HttpError(403, 'Please change your password first.');
+        if (!r.duringPasswordChange && twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt) throw new HttpError(403, 'Set up 2-step verification first.');
         if (r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
       }
       let params;
@@ -831,9 +1047,8 @@ export function createApi(db) {
       } catch {
         throw new HttpError(404, 'Not found.');
       }
-      const ip = clientIp(req);
       const actor = { user, ip, before: audit.count() };
-      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, origin: publicOrigin(req) }));
+      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, client, origin: publicOrigin(req) }));
       // A change with no entry of its own is still recorded, with its route (never its body).
       if (req.method !== 'GET' && user && audit.count() === actor.before && !UNAUDITED.test(url.pathname)) {
         const data = result && result.headers && 'data' in result ? result.data : result;

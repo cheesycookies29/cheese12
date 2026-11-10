@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### Sign-in security (0.12)
+- **2-step verification**: sign in with your password and a code from an authenticator app on your phone. Set it up under your name → **My security**, and keep the ten recovery codes it gives you. See [Getting started](getting-started#turn-on-2-step-verification).
+- **My security** also lists where you are signed in, with **Sign out** for each device and **Sign out everywhere else**. See [Getting started](getting-started#see-where-you-are-signed-in).
+- New passwords cannot be common ones or contain your username or name. Repeated wrong passwords lock a username for longer each time, and too many requests or failed sign-ins from one place are refused for a while.
+- Administrators set who must use 2-step verification, how long sessions last and the limits in **Settings → Sign-in & security**, and can sign someone out everywhere or reset their 2-step verification in **Users & Access**. See [the administrator's guide](admin#set-the-sign-in-and-security-rules).
+
 ### Medical certificate rules (0.11.6)
 - HR sets when a leave type needs a medical certificate: from a number of work days in one request (1 = every request), after a number of requests in a year or a month, or both. A sick leave filed without a required certificate is refused, with the reason. See [the HR guide](hr#set-when-a-medical-certificate-is-needed).
 - The old setting carries over unchanged: Sick Leave *longer than 3 days* is now *from 4 days*. See [the employee guide](employee#attach-a-medical-certificate).

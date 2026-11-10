@@ -27,6 +27,25 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.12.0-alpha',
+    date: '2026-11-10',
+    title: 'Sign-in security: rate limits and 2-step verification',
+    modules: ['system', 'deploy'],
+    notes: 'Rate limits, stronger lockouts and password rules, 2-step verification with an authenticator app, and control over sessions.',
+    changes: [
+      ['new', 'system', '2-step verification with an authenticator app (time-based codes, as in Google Authenticator, Microsoft Authenticator or 1Password): set up under your name → My security with a QR code, then a code is asked after the password. Ten recovery codes, shown once, each work once. Codes cannot be used twice; five wrong codes end the sign-in. The secret is sealed with the server key.'],
+      ['new', 'system', 'Settings → Sign-in & security (Administrators): require 2-step verification for Administrators or everyone, the idle and longest session times, requests per minute per person, failed sign-ins per network address, and whether common passwords are refused. People without required 2-step verification set it up at their next sign-in before anything else.'],
+      ['new', 'system', 'My security: change password, turn 2-step verification on or off, new recovery codes, and where you are signed in (device, network address, times) with Sign out on each and Sign out everywhere else.'],
+      ['new', 'system', 'Users & Access: a 2-step column, the number of devices each person is signed in on, Sign out everywhere, and Reset 2-step for someone who lost their phone and codes.'],
+      ['new', 'system', 'Rate limits: requests per person per minute, sign-in requests per network address, failed sign-ins per network address in 15 minutes, password and 2-step changes per person, and messages to the public support form. Past a limit CORE answers "too many" with when to try again.'],
+      ['improved', 'system', 'A username is locked for 5, then 15, then 60 minutes while wrong passwords keep coming (was 5 minutes each time). Locks and failed 2-step codes are in the audit log.'],
+      ['improved', 'system', 'Password rules for every new password: 8 to 200 characters, not a common password, not containing the username or name.'],
+      ['improved', 'system', 'Sessions end after the idle time and after the longest session time. Changing an account type, turning on 2-step verification or resetting it signs the account out on other devices.'],
+      ['improved', 'deploy', 'Security headers on every answer: a Content-Security-Policy that allows only CORE\'s own scripts, no framing, no MIME sniffing, a same-origin referrer and browser-feature policy, and HSTS with a Secure cookie over HTTPS. Changes sent from another website are refused.'],
+    ],
+    known: ['Rate-limit counts and sessions are kept in memory: restarting CORE signs everyone out and clears the counts.'],
+  },
+  {
     version: '0.11.6-alpha',
     date: '2026-11-10',
     title: 'Medical certificate rules',

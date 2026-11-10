@@ -1,9 +1,9 @@
 import { api } from '../api.js';
-import { ctx } from '../state.js';
+import { ctx, can } from '../state.js';
 import { html, mount, toast, confirmDialog, downloadFile, today, WEEKDAYS } from '../ui.js';
 
 export async function settingsView(el) {
-  const [s, demo] = await Promise.all([api.get('/api/settings'), api.get('/api/admin/demo')]);
+  const [s, demo, security] = await Promise.all([api.get('/api/settings'), api.get('/api/admin/demo'), can('users.manage') ? api.get('/api/security-settings') : null]);
   const checked = (b) => (b ? 'checked' : '');
 
   mount(el, html`
@@ -36,6 +36,24 @@ export async function settingsView(el) {
       <p class="form-error" hidden></p>
       <div class="actions end"><button class="btn primary" type="submit">Save settings</button></div>
     </form>
+
+    ${security ? html`<form id="security-form" class="card" novalidate>
+      <h2>Sign-in &amp; security</h2>
+      <p class="muted small">Who must use 2-step verification, how long people stay signed in, and the limits that slow down password guessing and floods of requests. Each person sets up 2-step verification under their name → <strong>My security</strong>.</p>
+      <div class="grid">
+        <label class="field span-3"><span>2-step verification</span>
+          <select name="twoFactor">${Object.entries(security.policies).map(([k, v]) => html`<option value="${k}" ${security.twoFactor === k ? 'selected' : ''}>${v}</option>`)}</select>
+          <small class="muted">When required, people without it set it up the next time they sign in. Turn it on for your own account first.</small></label>
+        <label class="field"><span>Sign out after (idle minutes)</span><input type="number" name="sessionIdleMinutes" min="5" max="1440" value="${security.sessionIdleMinutes}" /><small class="muted">Without using CORE. 480 = 8 hours.</small></label>
+        <label class="field"><span>Longest session (hours)</span><input type="number" name="sessionMaxHours" min="1" max="720" value="${security.sessionMaxHours}" /><small class="muted">Then sign in again, even if in use.</small></label>
+        <label class="field"><span>Requests per minute, per person</span><input type="number" name="requestsPerMinute" min="60" max="5000" value="${security.requestsPerMinute}" /><small class="muted">More than this is refused for a moment. 300 is plenty for normal use.</small></label>
+        <label class="field"><span>Failed sign-ins per network address</span><input type="number" name="signInFailuresPerAddress" min="5" max="1000" value="${security.signInFailuresPerAddress}" /><small class="muted">In 15 minutes, any usernames. Then that address waits. An office behind one address may need more.</small></label>
+        <label class="field check span-2"><input type="checkbox" name="blockCommonPasswords" ${checked(security.blockCommonPasswords)} /> <span>Refuse common passwords and passwords with the username or name</span></label>
+      </div>
+      <p class="muted small">Always on: a username is locked for 5, then 15, then 60 minutes after 5 wrong passwords in a row; changing a password, a role or 2-step verification signs the account out elsewhere; every sign-in, failure and lock is in the <a href="#/audit">Audit log</a>.</p>
+      <p class="form-error" hidden></p>
+      <div class="actions end"><button class="btn primary" type="submit">Save sign-in settings</button></div>
+    </form>` : ''}
 
     <section class="card">
       <h2>Data</h2>
@@ -74,6 +92,24 @@ export async function settingsView(el) {
       toast('Settings saved.');
     } catch (err) {
       const errEl = form.querySelector('.form-error');
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
+  });
+
+  el.querySelector('#security-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const errEl = f.querySelector('.form-error');
+    try {
+      await api.put('/api/security-settings', {
+        twoFactor: f.twoFactor.value, sessionIdleMinutes: Number(f.sessionIdleMinutes.value), sessionMaxHours: Number(f.sessionMaxHours.value),
+        requestsPerMinute: Number(f.requestsPerMinute.value), signInFailuresPerAddress: Number(f.signInFailuresPerAddress.value),
+        blockCommonPasswords: f.blockCommonPasswords.checked,
+      });
+      errEl.hidden = true;
+      toast('Sign-in settings saved.');
+    } catch (err) {
       errEl.textContent = err.message;
       errEl.hidden = false;
     }

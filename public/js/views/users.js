@@ -59,7 +59,7 @@ export async function usersView(el) {
     </header>
     <section class="card scroll-x">
       <table class="table">
-        <thead><tr><th>User</th><th>Account type</th><th>Linked employee</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
+        <thead><tr><th>User</th><th>Account type</th><th>Linked employee</th><th>Status</th><th>2-step</th><th>Last sign-in</th><th></th></tr></thead>
         <tbody>${users.map((u) => {
           const emp = empById.get(u.employeeId);
           return html`<tr>
@@ -68,10 +68,13 @@ export async function usersView(el) {
             <td>${badge(roleLabel(u.role), ROLE_BADGE[u.role])}${u.role !== 'admin' && typeof u.helpdeskAgent === 'boolean' ? html`<small><a href="#/helpdesk/settings?tab=agents">${u.helpdeskAgent ? '+ Helpdesk agent' : 'Helpdesk agent access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.crmAccess === 'boolean' ? html`<small><a href="#/crm/settings?tab=access">${u.crmAccess ? '+ Sales & CRM' : 'Sales & CRM access removed'}</a></small>` : ''}</td>
             <td>${emp ? html`<a href="#/employees/${emp.id}">${emp.firstName} ${emp.lastName}</a>` : html`<span class="muted">—</span>`}</td>
             <td>${u.active ? badge('Active', 'green') : badge('Disabled', 'gray')} ${u.mustChangePassword ? badge('Temp. password', 'amber') : ''} ${u.demo ? badge('Demo', 'gray') : ''}</td>
-            <td>${fmtWhen(u.lastLoginAt)}</td>
+            <td>${u.twoFactorEnabled ? badge('On', 'green') : u.twoFactorRequired ? badge('Not set up', 'amber') : html`<span class="muted">Off</span>`}</td>
+            <td>${fmtWhen(u.lastLoginAt)}${u.sessions ? html`<small>Signed in on ${u.sessions} device${u.sessions === 1 ? '' : 's'}</small>` : ''}</td>
             <td class="row-actions">
               <button class="link" data-edit="${u.id}">Edit</button>
               <button class="link" data-reset="${u.id}">Reset password</button>
+              ${u.sessions && u.id !== ctx.user.id ? html`<button class="link" data-signout="${u.id}">Sign out everywhere</button>` : ''}
+              ${u.twoFactorEnabled && u.id !== ctx.user.id ? html`<button class="link" data-tfa="${u.id}">Reset 2-step</button>` : ''}
               ${u.id === ctx.user.id ? '' : html`<button class="link danger" data-delete="${u.id}">Delete</button>`}
             </td>
           </tr>`;
@@ -115,8 +118,23 @@ export async function usersView(el) {
 
   el.querySelector('tbody').addEventListener('click', async (e) => {
     const t = e.target;
-    const user = users.find((u) => u.id === (t.dataset.edit || t.dataset.reset || t.dataset.delete));
+    const user = users.find((u) => u.id === (t.dataset.edit || t.dataset.reset || t.dataset.delete || t.dataset.signout || t.dataset.tfa));
     if (!user) return;
+
+    if (t.dataset.signout && (await confirmDialog(`Sign ${user.name} out of CORE on every device? They can sign in again with their password.`, { title: 'Sign out everywhere', confirmLabel: 'Sign out', danger: false }))) {
+      const { signedOut } = await api.post(`/api/users/${user.id}/sign-out`);
+      toast(`${user.name} was signed out of ${signedOut} device${signedOut === 1 ? '' : 's'}.`);
+      reload();
+    }
+    if (t.dataset.tfa && (await confirmDialog(`Turn off 2-step verification for ${user.name}? Do this only when they lost their phone and their recovery codes, and you have confirmed who they are. They are signed out, sign in with their password, and set it up again if the company requires it.`, { title: 'Reset 2-step verification', confirmLabel: 'Reset 2-step' }))) {
+      try {
+        await api.post(`/api/users/${user.id}/2fa/reset`);
+        toast('2-step verification was reset.');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+      reload();
+    }
 
     if (t.dataset.edit) {
       const { form } = modal({

@@ -118,11 +118,11 @@ test('guides: signed-in people read them; administrators edit, keep their versio
     };
   };
   const admin = client();
-  await admin('POST', '/api/auth/setup', { name: 'Ada Admin', username: 'admin', password: 'password123' });
-  await admin('POST', '/api/users', { name: 'Hana HR', username: 'hana', role: 'hr', password: 'password123', mustChangePassword: false });
+  await admin('POST', '/api/auth/setup', { name: 'Ada Admin', username: 'admin', password: 'Guide-Shots-2026' });
+  await admin('POST', '/api/users', { name: 'Hana HR', username: 'hana', role: 'hr', password: 'Guide-Shots-2026', mustChangePassword: false });
   await assert.rejects(client()('GET', '/api/guides'), /sign in/i);
   const hr = client();
-  await hr('POST', '/api/auth/login', { username: 'hana', password: 'password123' });
+  await hr('POST', '/api/auth/login', { username: 'hana', password: 'Guide-Shots-2026' });
   const list = await hr('GET', '/api/guides');
   assert.equal(list.canEdit, false);
   assert.ok(list.guides.find((g) => g.id === 'hr').forYou);

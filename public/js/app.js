@@ -12,7 +12,8 @@ import { usersView } from './views/users.js';
 import { meHomeView, meAttendanceView, mePayslipsView, mePayslipView, meProfileView, meRequestsView } from './views/self.js';
 import { payrollSetupView } from './views/payroll-setup.js';
 import { leaveView } from './views/leave.js';
-import { loginView, setupView, forcePasswordView, openChangePassword } from './views/login.js';
+import { loginView, setupView, forcePasswordView, forceTwoFactorView, openChangePassword } from './views/login.js';
+import { securityView } from './views/security.js';
 import { launcherView } from './views/launcher.js';
 import { assetsDashboardView, assetListView, assetFormView, assetDetailView } from './views/assets.js';
 import { inventoryView, inventoryItemView } from './views/inventory.js';
@@ -97,6 +98,7 @@ const routes = [
   ['/audit', auditView, 'audit.view', 'system'],
   ['/devlog', devlogView, 'devlog.view', 'system'],
   ['/feedback', feedbackView, 'auth', 'system'],
+  ['/account/security', securityView, 'auth', 'system'],
   ['/feedback/inbox', feedbackInboxView, 'feedback.view', 'system'],
   ['/feedback/inbox/:id', feedbackDetailView, 'feedback.view', 'system'],
 ].map(([pattern, view, permission, module]) => {
@@ -277,6 +279,7 @@ function renderUserBox() {
     <div class="menu-pop" id="user-pop" role="menu" hidden>
       <div class="who"><strong>${u.name}</strong><small>${u.username}</small><small>${roleLabel(u.role)}</small></div>
       <a role="menuitem" href="#/feedback">${icon('comment')} Send feedback</a>
+      <a role="menuitem" href="#/account/security">${icon('shield')} My security</a>
       <button type="button" role="menuitem" id="change-pw">${icon('key')} Change password</button>
       <button type="button" role="menuitem" id="sign-out">${icon('logout')} Sign out</button>
     </div>`);
@@ -428,6 +431,7 @@ async function boot({ fresh = false } = {}) {
   ctx.user = status.user;
   if (!ctx.user) return showAuth(status.setupRequired ? setupView : loginView);
   if (ctx.user.mustChangePassword) return showAuth(forcePasswordView);
+  if (ctx.user.twoFactorSetupRequired) return showAuth(forceTwoFactorView);
 
   await Promise.all([ctx.refreshSettings(), ctx.refreshLeaveTypes(), ctx.refreshHolidays()]);
   setMode(null);

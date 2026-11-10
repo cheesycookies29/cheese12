@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Administering CORE
-summary: For administrators: user accounts and what each account type may do, company settings, backups and demo data, the audit log, the dev log, feedback, and editing the Help guides.
+summary: For administrators: user accounts and what each account type may do, sign-in and security rules, company settings, backups and demo data, the audit log, the dev log, feedback, and editing the Help guides.
 roles: admin
 apps: system, home
 order: 60
@@ -23,7 +23,7 @@ A first tour, signed in as `admin` with the demo data loaded. It takes about ten
 ### Accounts and what they may do
 
 1. Sign in and choose **Users & Access** under **Administration** on the CORE home.
-2. The table lists every account with its **Account type**, **Linked employee**, **Status** (*Active* or *Disabled*, *Temp. password* until they choose their own, *Demo* for demo accounts) and **Last sign-in**.
+2. The table lists every account with its **Account type**, **Linked employee**, **Status** (*Active* or *Disabled*, *Temp. password* until they choose their own, *Demo* for demo accounts), **2-step** (*On*, *Off*, or *Not set up* when the company requires it) and **Last sign-in**, with how many devices the person is signed in on.
 3. Scroll down to **Account types**. This table shows, for every account type, what it may do: a tick means yes. It is fixed by the account type; to give someone other powers, change their account type.
 
 ![Users & Access](admin-users.jpg)
@@ -101,7 +101,39 @@ You cannot change your own account type or disable your own account, and there m
 1. Open **Users & Access** and click **Reset password** on the row.
 2. Type a **New temporary password** and click **Reset password**.
 
-The person is signed out everywhere and must choose a new password at the next sign-in. After 5 wrong passwords a username is locked for 5 minutes; it unlocks by itself.
+The person is signed out everywhere and must choose a new password at the next sign-in. The temporary password follows the password rules too (see [Set the sign-in and security rules](#set-the-sign-in-and-security-rules)). After 5 wrong passwords a username is locked for 5 minutes, then 15, then an hour if the wrong passwords continue; it unlocks by itself.
+
+### Sign someone out everywhere
+
+1. Open **Users & Access**. **Last sign-in** shows *Signed in on N devices* for someone signed in now.
+2. Click **Sign out everywhere** on the row and confirm.
+
+They can sign in again with their password. To keep them out, disable the account instead.
+
+### Reset someone's 2-step verification
+
+For someone who lost their phone and their recovery codes. Confirm who they are first (in person or by a call you place).
+
+1. Open **Users & Access** and click **Reset 2-step** on the row.
+2. Confirm **Reset 2-step**.
+
+They are signed out, sign in with their password only, and set up 2-step verification again if the company requires it. Your own 2-step verification is changed under your name → **My security**.
+
+### Set the sign-in and security rules
+
+1. Open **Settings** and scroll to **Sign-in & security**.
+2. Under **2-step verification**, choose *Optional for everyone*, *Required for Administrators* or *Required for everyone*. Turn it on for your own account first (your name → **My security**): CORE will not let you require it of yourself before.
+3. **Sign out after (idle minutes)**: people are signed out after this long without using CORE (480 = 8 hours). **Longest session (hours)**: they sign in again after this long, even if in use.
+4. **Requests per minute, per person**: more than this is refused for a moment. 300 is plenty for normal use.
+5. **Failed sign-ins per network address**: in 15 minutes, for any usernames; then that address waits. An office where everyone shares one internet address may need a higher number.
+6. **Refuse common passwords and passwords with the username or name**: on unless you untick it.
+7. Click **Save sign-in settings**.
+
+When 2-step verification becomes required, people without it are asked to set it up the next time they sign in, and can do nothing else in CORE until they have.
+
+![Settings: Sign-in & security](admin-security.jpg)
+
+> **Note:** Always on: the username lock after 5 wrong passwords; a password change, an account type change or turning on 2-step verification signs the account out on other devices; and every sign-in, failed sign-in, lock and 2-step change is in the audit log.
 
 ### Delete an account
 
@@ -207,8 +239,8 @@ Setting these up is described in CORE's README file and in the server set-up ins
 
 | Screen | What it is for |
 |---|---|
-| Users & Access | Accounts: add, edit, disable, reset passwords, delete; link to an employee record; the table of what each account type may do |
-| Settings | Company details printed on payslips, the default work schedule, Download backup, Restore backup, Erase all data, and the demo data |
+| Users & Access | Accounts: add, edit, disable, reset passwords, delete; 2-step status, sign out everywhere, reset 2-step; link to an employee record; the table of what each account type may do |
+| Settings | Company details printed on payslips, the default work schedule, Sign-in & security, Download backup, Restore backup, Erase all data, and the demo data |
 | Audit log | Who viewed or changed personal data, payroll, attendance, leave and settings, and every sign-in; the integrity check; CSV export |
 | Dev log | The version installed and every release of CORE; write and edit entries; export CHANGELOG.md |
 | Feedback inbox | Feedback from everyone: read, respond, set the status, export |
@@ -222,6 +254,15 @@ No. Reset it under **Users & Access** and give them the temporary password yours
 
 **I am the only administrator and I am locked out. What now?**
 Wait 5 minutes if you typed the wrong password too often. If you forgot it, close CORE and reset it from the computer it runs on: `CORE-ERP.exe --reset-password admin NewPassword123`, or `npm run reset-password -- admin NewPassword123` in the app folder. Then start CORE again.
+
+**Someone lost their phone. Can they still sign in?**
+Yes, with one of their recovery codes instead of the app's code. If they have none left, reset their 2-step verification in **Users & Access**.
+
+**We moved CORE to a new server from a backup, and 2-step codes stopped working.**
+2-step secrets are sealed with a key kept on the server (`data/secret.key`), not in the backup. Copy that file with the backup, or have people sign in with a recovery code and set up 2-step verification again (or reset it for them).
+
+**People in the office are told there are too many failed sign-ins from this network.**
+Everyone behind one internet address shares the count. Raise **Failed sign-ins per network address** in **Settings → Sign-in & security**, or wait 15 minutes.
 
 **Why is the audit log not in the backup?**
 It is kept in its own file, `data/audit-log.jsonl`, so that restoring a backup, loading demo data or erasing all data can never change it. Each entry carries a fingerprint of the one before it, which is how the page can tell when the file was edited. Copy the `data` folder to keep it.
