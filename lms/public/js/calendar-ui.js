@@ -204,10 +204,10 @@ export async function calendarScreen(el, opts) {
           </div>
           <div class="cal-tools">
             ${data.children?.length ? html`<label class="cal-child"><span class="sr-only">Student</span><select id="cal-child">${data.children.length > 1 ? html`<option value="all" ${state.child === 'all' ? 'selected' : ''}>All my students</option>` : ''}${data.children.map((c) => html`<option value="${c.id}" ${state.child === c.id ? 'selected' : ''}>${c.name}</option>`)}</select></label>` : ''}
-            <div class="seg cal-seg" role="group" aria-label="View">${[['month', 'Month'], ['week', 'Week'], ['list', 'List']].map(([v, l]) => html`<button type="button" data-view="${v}" class="${state.view === v ? 'on' : ''}" aria-pressed="${state.view === v}">${l}</button>`)}</div>
+            <div class="seg cal-seg" role="group" aria-label="View">${[['month', 'Month'], ['week', 'Week'], ['list', 'List']].map(([v, l]) => html`<button type="button" data-view="${v}" class="${state.view === v ? 'on' : ''}" aria-pressed="${String(state.view === v)}">${l}</button>`)}</div>
           </div>
         </div>
-        <div class="cal-legend" role="group" aria-label="Show on the calendar">${data.kinds.map((k) => html`<button type="button" class="cal-key k-${k.id} ${state.hidden.has(k.id) ? '' : 'on'}" data-kind="${k.id}" aria-pressed="${!state.hidden.has(k.id)}">
+        <div class="cal-legend" role="group" aria-label="Show on the calendar">${data.kinds.map((k) => html`<button type="button" class="cal-key k-${k.id} ${state.hidden.has(k.id) ? '' : 'on'}" data-kind="${k.id}" aria-pressed="${String(!state.hidden.has(k.id))}">
           <span class="cal-swatch" aria-hidden="true">${icon('check', 11)}</span>${k.label}<span class="count">${counts[k.id]}</span></button>`)}</div>
         ${state.view === 'month' ? monthGrid() : state.view === 'week' ? weekView() : listView()}
       </div>`);

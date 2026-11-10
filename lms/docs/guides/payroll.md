@@ -35,8 +35,8 @@ A first tour with the demo school, about fifteen minutes.
 
 ### A finalized regular run
 
-1. Click the second row, the latest half-month payroll. The **Register** tab has one line per employee: salary grade and step, days present out of scheduled, absences, late and undertime (with the part charged to vacation leave, e.g. *VL 0.038*), basic salary, PERA, RATA, gross, GSIS, PhilHealth, Pag-IBIG, tax, loans and net pay.
-2. Find *Santos, Maria* and click **Payslip**. Her payslip shows an honorarium under **Other earnings** and her GSIS and Pag-IBIG loans under **Deductions**. Click the pay period in the breadcrumb to go back to the run.
+1. Choose the second row, the latest half-month payroll. The **Register** tab has one line per employee: salary grade and step, days present out of scheduled, absences, late and undertime (with the part charged to vacation leave, e.g. *VL 0.038*), basic salary, PERA, RATA, gross, GSIS, PhilHealth, Pag-IBIG, tax, loans and net pay.
+2. Find *Santos, Maria* and choose **Payslip**. Her payslip shows an honorarium under **Other earnings** and her GSIS and Pag-IBIG loans under **Deductions**. Choose the pay period in the breadcrumb to go back to the run.
 3. Open the **Remittances** tab: what to remit to GSIS, PhilHealth, Pag-IBIG, BIR and each loan creditor, with a **CSV** per agency.
 4. Open the **General Payroll** tab: the COA form (GAM Appendix 33), ready to print.
 5. Open the **Finance** tab: the three steps that send this payroll to ATLAS Finance. Leave them for now.
@@ -47,7 +47,7 @@ A first tour with the demo school, about fifteen minutes.
 
 ### Loans on an employee's record
 
-1. Open **Employees** and click *Santos, Maria*.
+1. Open **Employees** and choose *Santos, Maria*.
 2. Scroll to **Loans and deductions**: a GSIS Consolidated Loan, a Pag-IBIG Multi-Purpose Loan and union dues, each with the monthly amount, what has been paid and the balance. **Add** enters a new one.
 
 ![Loans and deductions on an employee's record](payroll-loans.jpg)
@@ -56,8 +56,8 @@ A first tour with the demo school, about fifteen minutes.
 
 1. Go back to **Payroll** and open **Year-end bonus and cash gift 2026** (the first row; the year is the current one). It is a draft.
 2. Read the notice: some employees get nothing, for example a contract of service worker. The **Note** column says why for each person.
-3. Click **Adjust** on a row to see how someone is left out of the run with a reason.
-4. When you are ready, click **Finalize**, then **Finalize** again to confirm. The run is recomputed one last time and locked, and the payslips appear in each employee's **My payslips**.
+3. Choose **Adjust** on a row to see how someone is left out of the run with a reason.
+4. When you are ready, choose **Finalize**, then **Finalize** again to confirm. The run is recomputed one last time and locked, and the payslips appear in each employee's **My payslips**.
 
 ![The year-end bonus and cash gift as a draft](payroll-bonus.jpg)
 
@@ -65,23 +65,23 @@ A first tour with the demo school, about fifteen minutes.
 
 1. Open **Payroll setup**. The **Government payroll** card holds the GSIS shares, PERA, the minimum net pay, the tardiness and overtime rules and the bonus amounts.
 2. Scroll to **Salary schedule**: the EO 64 tranches, with the one in force marked.
-3. Under **Try it**, pick a salary grade and step to see one pay period's deductions. Nothing is saved until you click **Save payroll setup**.
+3. Under **Try it**, pick a salary grade and step to see one pay period's deductions. Nothing is saved until you choose **Save payroll setup**.
 
 ## How to…
 
 ### Run payroll for a pay period
 
-1. Open **Payroll** and click **New payroll run**.
+1. Open **Payroll** and choose **New payroll run**.
 2. Leave **Kind** at *Regular payroll (salary, PERA, RATA)*.
 3. Check **Period start**, **Period end** and **Pay date**. They start at the current pay period; changing the start moves the end to the end of that period.
-4. Click **Compute payroll**.
+4. Choose **Compute payroll**.
 
 All active employees of the campus hired by the end of the period are included, except anyone already paid for that period in another campus's run. The run opens as a *Draft*. Run it once the period has ended, so that all attendance is in.
 
 ### Check a draft run
 
 1. Read the notice above the tabs and deal with what it lists (see below).
-2. Ask HR to fix attendance or decide pending requests, then click **Recompute**.
+2. Ask HR to fix attendance or decide pending requests, then choose **Recompute**.
 3. Open a few payslips and compare them with the register.
 
 The notice lists:
@@ -96,24 +96,24 @@ The notice lists:
 
 ### Adjust one employee's pay
 
-1. In a draft run, click **Adjust** on the employee's row.
+1. In a draft run, choose **Adjust** on the employee's row.
 2. Enter **Other earnings (₱, taxable)**, such as an honorarium, or **Other deductions (₱)**, such as a refund.
 3. Write the reason in **Remarks (shown on payslip)**.
-4. Click **Save**. The run is recomputed.
+4. Choose **Save**. The run is recomputed.
 
 You cannot adjust your own payslip or leave yourself out: ATLAS answers *You cannot adjust a payslip on your own record. Ask another officer or an administrator.*
 
 ### Leave someone out of a run
 
-1. Click **Adjust** on the employee's row.
+1. Choose **Adjust** on the employee's row.
 2. Tick **Leave out of this run** and give the reason in **Remarks**, for example *On leave without pay* or, in a bonus run, *Performance rating below Satisfactory*.
-3. Click **Save**.
+3. Choose **Save**.
 
 The row turns grey and pays nothing; no loans are taken. If someone has already been paid for the period or bonus in a finalized run at another campus, ATLAS refuses to finalize until they are left out.
 
 ### Finalize a run
 
-1. Open the draft run and click **Finalize**, then **Finalize** again.
+1. Open the draft run and choose **Finalize**, then **Finalize** again.
 2. The run is recomputed one last time and locked.
 
 After finalizing:
@@ -127,28 +127,28 @@ A finalized run never changes, even if payroll setup changes later. To correct o
 
 ### Print payslips
 
-1. Open the run and click **Print payslips** for every employee, or **Payslip** on one row.
-2. Click **Print / Save as PDF**.
+1. Open the run and choose **Print payslips** for every employee, or **Payslip** on one row.
+2. Choose **Print / Save as PDF**.
 
 A draft payslip is marked *DRAFT*. Each payslip shows the employer address and TIN set in HR settings.
 
 ### Add a loan or deduction to an employee
 
-1. Open **Employees**, click the employee and scroll to **Loans and deductions**.
-2. Click **Add**.
+1. Open **Employees**, choose the employee and scroll to **Loans and deductions**.
+2. Choose **Add**.
 3. Choose the **Kind**, for example *GSIS Multi-Purpose Loan (GSIS)* or *Cooperative (Cooperative)*. The agency in brackets is where it is remitted.
 4. Enter the **Loan / account no.**, the **Amount a month (₱)**, the **First month** and, if known, the **Last month**.
 5. For a loan, enter the **Total to pay (₱)** from the amortization schedule. Deductions stop once it is paid. Leave it blank for dues and savings.
-6. Click **Add**.
+6. Choose **Add**.
 
-It is taken from the next payroll run. On a semi-monthly payroll half the monthly amount is taken each time. To change a loan, click **Edit**; recompute draft runs to apply it. A deduction already taken in a finalized payroll cannot be deleted: set its **Last month** instead.
+It is taken from the next payroll run. On a semi-monthly payroll half the monthly amount is taken each time. To change a loan, choose **Edit**; recompute draft runs to apply it. A deduction already taken in a finalized payroll cannot be deleted: set its **Last month** instead.
 
 ### Run a bonus or allowance
 
-1. Open **Payroll** and click **New payroll run**.
+1. Open **Payroll** and choose **New payroll run**.
 2. Choose the **Kind**: *Mid-year bonus*, *Year-end bonus and cash gift*, *Productivity Enhancement Incentive* or *Clothing / uniform allowance*.
 3. Enter the **Year** and the **Pay date**. The mid-year bonus is paid from 15 May; the year-end bonus and cash gift from 15 November.
-4. Click **Compute payroll**.
+4. Choose **Compute payroll**.
 5. Read the **Months** and **Note** columns. Leave out anyone who is not entitled for a reason ATLAS cannot see (for example a rating below Satisfactory), then **Finalize**.
 
 There can be one run of each kind per year at a campus. Everyone in service on the cut-off date is listed, including someone who left after it (HR records the **Date separated**).
@@ -157,14 +157,14 @@ There can be one run of each kind per year at a campus. Everyone in service on t
 
 1. Open a finalized run and the **Remittances** tab.
 2. For each agency, the card shows the employee share, the government share and loans, and the total to remit.
-3. Click **CSV** on a card for a list per employee with their GSIS BP no., PhilHealth no., Pag-IBIG MID or TIN, for the agency's remittance file.
+3. Choose **CSV** on a card for a list per employee with their GSIS BP no., PhilHealth no., Pag-IBIG MID or TIN, for the agency's remittance file.
 
 GSIS, PhilHealth and Pag-IBIG are due by the 10th of the following month; BIR Form 1601-C by the 10th (the 15th for eFPS filers).
 
 ### Print the General Payroll
 
 1. Open the run and the **General Payroll** tab.
-2. Click **Print General Payroll**.
+2. Choose **Print General Payroll**.
 
 It lists everyone paid in the run, with the signature boxes A to D. Boxes B to D carry the names of the Chief Accountant, the head of agency and the disbursing officer from Finance's settings.
 
@@ -174,9 +174,9 @@ It lists everyone paid in the run, with the signature boxes A to D. Boxes B to D
 
 The **Finance** tab of a finalized government run takes the payroll through ATLAS Finance, one step at a time. You act for the payroll office (Box A); Finance's officers do the rest.
 
-1. **Obligation request.** Choose the **Personnel services allotment** (and the **MOOE (job orders) allotment** if the run pays job orders) and click **Prepare the obligation request**. The ORS/BURS goes to the budget office, which obligates it (Box B).
-2. **Payroll voucher.** Once the request shows *Obligated*, choose **Paid by**: *LDDAP-ADA (credited to the employees' accounts)* or *MDS check*, and click **Prepare the voucher**. It goes to the Chief Accountant (Box C), then the head of agency (Box D), then the cashier, who pays it. Paying it posts the journal entry.
-3. **Remittances.** Once the voucher shows *Paid*, click **Prepare remittance vouchers (GSIS, PhilHealth, Pag-IBIG, BIR)**. They go to the accountant like any voucher.
+1. **Obligation request.** Choose the **Personnel services allotment** (and the **MOOE (job orders) allotment** if the run pays job orders) and choose **Prepare the obligation request**. The ORS/BURS goes to the budget office, which obligates it (Box B).
+2. **Payroll voucher.** Once the request shows *Obligated*, choose **Paid by**: *LDDAP-ADA (credited to the employees' accounts)* or *MDS check*, and choose **Prepare the voucher**. It goes to the Chief Accountant (Box C), then the head of agency (Box D), then the cashier, who pays it. Paying it posts the journal entry.
+3. **Remittances.** Once the voucher shows *Paid*, choose **Prepare remittance vouchers (GSIS, PhilHealth, Pag-IBIG, BIR)**. They go to the accountant like any voucher.
 
 Each step shows its document number, amount and status. Finance's officers find the document in ATLAS Finance under the same number; an administrator also gets a link to it on this tab. The **Accounting entry** under the steps shows what the voucher debits and credits. Cooperative, provident fund and other deductions are remitted with a voucher to each creditor, made in Finance. A run with live documents in Finance cannot be deleted.
 
@@ -187,7 +187,7 @@ Each step shows its document number, amount and status. Finance's officers find 
 1. Open **Payroll setup**.
 2. Change what you need: the **Payroll system**, **Government payroll** amounts and rules (including **Leave charged first**, the leave type tardiness is charged to, and under **ATLAS Finance** the **Payroll fund cluster** the payroll is charged to), **Pay rules**, **Deductions to compute**, contribution rates or the **Withholding tax tables**.
 3. Use **Try it** to check the result for a salary grade and step.
-4. Click **Save payroll setup**.
+4. Choose **Save payroll setup**.
 
 Changes apply to new runs and to drafts when you recompute; finalized runs keep the rules they were computed with. To change the **Payroll system** or **Pay frequency**, first finalize or delete the draft runs: ATLAS refuses while there are any. The payroll fund must be one of the fund clusters switched on in Finance's Control panel. **Restore default rates** fills in the current GSIS, PhilHealth and Pag-IBIG rates, PERA and bonus amounts and the TRAIN tax tables, without saving. The salary schedule is read-only.
 

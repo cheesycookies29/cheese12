@@ -149,6 +149,29 @@ try {
     setTimeout(() => toast(msg), 300);
   }
 } catch {}
+// A message that must outlive a change of page (a session that ended takes the person to the
+// sign-in page, which would otherwise say nothing). Shown once, if the page changed just now.
+export function toastOnNextPage(message, kind = 'error') {
+  try {
+    sessionStorage.setItem('atlas-next-toast', JSON.stringify({ message, kind, at: Date.now() }));
+  } catch {}
+}
+try {
+  const next = JSON.parse(sessionStorage.getItem('atlas-next-toast') || 'null');
+  sessionStorage.removeItem('atlas-next-toast');
+  if (next && Date.now() - next.at < 10000) setTimeout(() => toast(next.message, next.kind), 400);
+} catch {}
+
+// What to show when a page or the first request fails. The server answered (err.status): say what
+// it said; too many requests is a short wait, not a fault. No answer at all: the server cannot be reached.
+export function failureNotice(err, { page = false } = {}) {
+  if (err?.status === 429) {
+    return html`<div class="${page ? 'card ' : ''}empty">${icon('clock', 40)}<h2>Please wait a moment</h2><p>${err.message}</p><p class="muted">ATLAS limits how many requests one person or one network can send in a minute. Nothing is lost.</p><p><button type="button" class="btn primary" data-reload>Try again</button></p></div>`;
+  }
+  if (err?.status) return html`<div class="${page ? 'card ' : ''}empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p><button type="button" class="btn" data-reload>Try again</button></p></div>`;
+  return html`<div class="${page ? 'card ' : ''}empty">${icon('flag', 40)}<h2>Cannot reach the server</h2><p>Check your internet connection, then try again. If ATLAS runs on this computer, start it (double-click “Start ATLAS”, or <code>npm start</code>).</p><p><button type="button" class="btn primary" data-reload>Try again</button></p></div>`;
+}
+document.addEventListener('click', (e) => e.target.closest?.('[data-reload]') && location.reload());
 
 // Single sign-on (Keycloak): the button above the password form, and the password fields under it.
 // With passwords switched off, the fields fold away under "Administrator sign-in" (a way in if Keycloak is down).
@@ -393,7 +416,7 @@ export function startApp(config) {
     try {
       cleanup = await match.view(el, params, query);
     } catch (err) {
-      mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
+      mount(el, failureNotice(err, { page: true }));
     } finally {
       clearTimeout(loading);
     }
@@ -411,10 +434,10 @@ export function startApp(config) {
     let status;
     try {
       status = await api.get(`${config.authBase}/status`);
-    } catch {
+    } catch (err) {
       document.body.classList.add('auth-mode');
       document.body.classList.remove('booting');
-      return mount(document.getElementById('auth'), html`<div class="empty"><h2>Cannot reach the server</h2><p>Start ATLAS (double-click “Start ATLAS”, or <code>npm start</code>), then reload this page.</p></div>`);
+      return mount(document.getElementById('auth'), failureNotice(err));
     }
     ctx.info = status;
     ctx.user = status.user;
@@ -451,6 +474,7 @@ export function startApp(config) {
     if (!ctx.user) return;
     ctx.user = null;
     toast('Your session has ended. Please sign in again.', 'error');
+    toastOnNextPage('Your session has ended. Please sign in again.'); // Learn, People, Academic and Finance go to the home page to sign in
     boot();
   });
   boot();

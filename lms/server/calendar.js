@@ -19,7 +19,9 @@ import { guardianChildren } from './guardian.js';
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
 };
-const IN_CLASS = ['enrolled', 'completed', 'pending'];
+// Classes a student is in. A request still waiting for approval is not a class yet: its meetings
+// and due dates would open pages the student cannot use.
+const IN_CLASS = ['enrolled', 'completed'];
 const MAX_DAYS = 125;
 
 export function registerCalendarRoutes(route, ctx, { resultFor, isOpen }) {

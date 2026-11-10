@@ -9,6 +9,17 @@ order: 2
 
 ## November 2026
 
+### The guides were checked against every screen
+- Every guide was followed step by step in ATLAS and corrected where a name, a step or a result no longer matched the screen: confirmations that were missing (**Finalize**, **Withdraw**, **Release**), buttons that load a report (**Show**), where a list is filtered, and who may do what.
+- The guides now use the same words throughout: **choose** a button, link or tab; **press** a key; **tick** a box.
+- [Getting started](getting-started#questions) explains the newer messages: *Too many requests*, the lock after wrong passwords, and being taken back to the sign-in page.
+
+### Small fixes found while checking the guides
+- In Finance and Academic, choosing a row of a list opens the record every time (it could stop working after the first list you opened).
+- When your session ends, the sign-in page now says so. When you send too many requests, ATLAS shows *Please wait a moment* with the time to wait, instead of *Cannot reach the server*.
+- A dean's account can be linked to their employee record, so deans get self-service in People. See [the HR guide](hr#give-an-employee-a-sign-in-account).
+- The calendar no longer shows classes and due dates from an enrollment request that is still waiting for approval.
+
 ### Help & guides: better search, and help before you sign in
 - The search on the **Help & guides** page now looks in each section and each question, and understands everyday words: *login* finds **Sign in**, *salary* finds your payslips, *tuition* finds your receipts. Your own guides come first, and each result opens at the right section.
 - **Help & guides** on the sign-in page now opens [Getting started](getting-started) without signing in: how to sign in, what to do about a forgotten password or a locked account, and what each sign-in message means. The other guides open once you are signed in.

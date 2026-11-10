@@ -2,7 +2,7 @@
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
-import { ctx, applyBranding, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
+import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel } from '/shared/roles.js';
 
@@ -241,8 +241,8 @@ async function boot() {
   let status;
   try {
     status = await api.get('/api/hub/status');
-  } catch {
-    return showAuth((el) => mount(el, html`<div class="empty"><h2>Cannot reach the server</h2><p>Start it (double-click “Start ATLAS”, or <code>npm start</code>), then reload this page.</p></div>`));
+  } catch (err) {
+    return showAuth((el) => mount(el, failureNotice(err)));
   }
   ctx.info = status;
   ctx.user = status.user;

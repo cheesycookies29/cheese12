@@ -7,7 +7,7 @@
 // guide in the middle, "On this page" on the right following the reader, previous/next at the end.
 import { api } from '../api.js';
 import { html, raw, mount, toast, modal, confirmDialog, fmtDate } from '../ui.js';
-import { ctx, applyBranding, setTheme, isDark, renderThemeButton, atlasWord } from '../shell.js';
+import { ctx, applyBranding, setTheme, isDark, renderThemeButton, atlasWord, failureNotice } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { parseGuide, renderMarkdown, headingsOf } from '/shared/markdown.js';
 import { guideFor } from '/shared/help.js';
@@ -382,8 +382,9 @@ async function boot() {
   let status;
   try {
     status = await api.get('/api/hub/status');
-  } catch {
-    return mount(appEl, html`<div class="empty-state"><h2>Cannot reach the server</h2></div>`);
+  } catch (err) {
+    document.body.classList.remove('booting');
+    return mount(appEl, failureNotice(err));
   }
   ctx.info = status;
   ctx.user = status.user;

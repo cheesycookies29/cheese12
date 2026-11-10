@@ -29,18 +29,18 @@ Try this with the demo school: sign in as `head.demo` (password `demo1234`).
 
 ![The approving officer's dashboard](approver-dashboard.jpg)
 
-2. Click **1 voucher to approve (Box D)**. **Disbursement vouchers** opens on **For approval (Box D)**. Open the Agri-Pinoy Farm Supply voucher.
-3. Read it before signing. In the boxes across the top, Box A (the requesting office) and Box C (the accountant) are done; Box D is yours. Click the **Obligation** number to see the ORS and what is left on it. **Delivery** is the IAR that accepted the supplies, and **Amount** shows the gross, the taxes withheld and the net the supplier will receive.
+2. Choose **1 voucher to approve (Box D)**. **Disbursement vouchers** opens on **For approval (Box D)**. Open the Agri-Pinoy Farm Supply voucher.
+3. Read it before signing. In the boxes across the top, Box A (the requesting office) and Box C (the accountant) are done; Box D is yours. Choose the **Obligation** number to see the ORS and what is left on it. **Delivery** is the IAR that accepted the supplies, and **Amount** shows the gross, the taxes withheld and the net the supplier will receive.
 
 ![A voucher waiting for Box D](approver-dv-approve.jpg)
 
-4. Click **Approve (Box D)**. The dialog repeats the net amount and the payee. Click **Approve for payment**. The voucher goes to the cashier's **To pay** list.
-5. Go back to the **Dashboard** and click **1 purchase request to approve**. Open the Registrar's request for security paper and toner. Check the purpose, the items and the estimated cost.
+4. Choose **Approve (Box D)**. The dialog repeats the net amount and the payee. Choose **Approve for payment**. The voucher goes to the cashier's **To pay** list.
+5. Go back to the **Dashboard** and choose **1 purchase request to approve**. Open the Registrar's request for security paper and toner. Check the purpose, the items and the estimated cost.
 
 ![A purchase request waiting for approval](approver-pr.jpg)
 
-6. Click **Approve**. The request goes to the supply office, which prepares the purchase order.
-7. Open **Find a document**, type `Agri` and click **Find**. Every document for that supplier is listed: the voucher, the ORS, the purchase order and the supplier's card. Click a number to open it.
+6. Choose **Approve**. The request goes to the supply office, which prepares the purchase order.
+7. Open **Find a document**, type `Agri` and choose **Find**. Every document for that supplier is listed: the voucher, the ORS, the purchase order and the supplier's card. Choose a number to open it.
 
 ![Finding a supplier's documents](approver-find.jpg)
 
@@ -50,7 +50,7 @@ Try this with the demo school: sign in as `head.demo` (password `demo1234`).
 
 1. Open **Disbursement vouchers**. Your list opens on **For approval (Box D)**.
 2. Open the voucher and check the payee, the obligation, the particulars and the net amount.
-3. Click **Approve (Box D)** and then **Approve for payment**.
+3. Choose **Approve (Box D)** and then **Approve for payment**.
 
 The voucher is ready for the cashier to pay by check or on an LDDAP-ADA. If something is wrong, do not approve it: ask the cashier or the Chief Accountant to correct or cancel it. Only they can cancel a voucher.
 
@@ -58,15 +58,15 @@ The voucher is ready for the cashier to pay by check or on an LDDAP-ADA. If some
 
 1. Open **Purchase requests**, then the **For approval** tab.
 2. Open the request and check the office, purpose, items and estimate.
-3. Click **Approve**.
+3. Choose **Approve**.
 
-To turn a request down, click **Cancel**, give the reason and click **Cancel request**. The requester sees it as cancelled.
+To turn a request down, choose **Cancel**, give the reason and choose **Cancel request**. The requester sees it as cancelled.
 
 ### Approve a purchase order
 
 1. Open **Purchase orders** and open the order (drafts are on the **Drafts** tab).
 2. Check the supplier, the mode of procurement, the items and the **Obligation** line: it must say *obligated*.
-3. Click **Approve PO**.
+3. Choose **Approve PO**.
 
 The button appears only once the PO's ORS/BURS is obligated by the budget office. After approval, the supply office serves the order to the supplier and accepts the deliveries.
 
@@ -77,8 +77,8 @@ Government payroll from ATLAS People reaches you as a voucher like any other, in
 ### Check a document before approving
 
 1. Open **Find a document**.
-2. Type the number from the paper form (DV, JEV, ORS/BURS, PR, PO, IAR, RIS, O.R., RCD, LDDAP-ADA, property or PAR/ICS number), a check number, or part of a payee's or supplier's name, and click **Find**.
-3. Click the number to open it.
+2. Type the number from the paper form (DV, JEV, ORS/BURS, PR, PO, IAR, RIS, O.R., RCD, LDDAP-ADA, property or PAR/ICS number), a check number, or part of a payee's or supplier's name, and choose **Find**.
+3. Choose the number to open it.
 
 From a voucher you can open its payee's card (**Card file**) to see everything paid to them, the taxes withheld and any property in their custody.
 

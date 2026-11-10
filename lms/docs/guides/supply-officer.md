@@ -30,17 +30,17 @@ Try this with the demo school: sign in as `supply.demo` (password `demo1234`).
 
 ![The supply officer's dashboard](supply-officer-dashboard.jpg)
 
-2. Click **1 requisition to issue**. **Requisitions** opens on **To issue**. Open the Registrar's requisition for enrollment period forms. The **In stock** column shows what is on hand.
+2. Choose **1 requisition to issue**. **Requisitions** opens on **To issue**. Open the Registrar's requisition for enrollment period forms. The **In stock** column shows what is on hand.
 
 ![A requisition waiting to be issued](supply-officer-ris.jpg)
 
-3. Click **Issue**. The quantities to issue are filled in (at most what was requested and what is in stock). Check **Received by** and click **Issue**. The stock cards go down, at FIFO cost.
+3. Choose **Issue**. The quantities to issue are filled in (at most what was requested and what is in stock). Check **Received by** and choose **Issue**. The stock cards go down, at FIFO cost.
 4. Open **Purchase orders** and open the agricultural supplies PO. It is *Partly delivered* and *Late*: 40 of 60 bags of fertilizer came. The **Deliveries (IAR)** section lists the IAR already accepted.
 
 ![A purchase order with a partial delivery](supply-officer-po.jpg)
 
-5. Click **Inspect and accept delivery**. You would enter the supplier's invoice number and the quantity delivered now; because the PO is late, ATLAS computes liquidated damages. (Close the dialog without saving if you are only looking.)
-6. Open **Stock**. Tick **Low stock only** and click **Find** to see what needs a purchase request. Click an item for its stock card.
+5. Choose **Inspect and accept delivery**. You would enter the supplier's invoice number and the quantity delivered now; because the PO is late, ATLAS computes liquidated damages. (Close the dialog without saving if you are only looking.)
+6. Open **Stock**. Tick **Low stock only** and choose **Find** to see what needs a purchase request. Choose an item for its stock card.
 
 ![Stock items with what is on hand](supply-officer-stock.jpg)
 7. Open **Property** and open an item. Its property card shows how it was received and to whom it was issued, with the depreciation schedule.
@@ -54,49 +54,49 @@ Try this with the demo school: sign in as `supply.demo` (password `demo1234`).
 ### Turn a purchase request into a purchase order
 
 1. Open **Purchase requests → Approved** and open the PR.
-2. Click **Prepare PO**. The items come over from the PR.
+2. Choose **Prepare PO**. The items come over from the PR.
 3. Pick the supplier, the mode of procurement, the delivery date (**Deliver by**), fund, office, place of delivery and payment term.
 4. For each item, check the **Kind** (*Supply*, *Semi-expendable*, *PPE* or *Service*) and the **Account**. Supplies come from the stock list. A unit cost of ₱50,000 or more is PPE; below that, semi-expendable.
 5. Optionally, enter the quotations under **Abstract of quotations (optional)**.
-6. Click **Save PO**.
+6. Choose **Save PO**.
 
-ATLAS refuses a mode whose ceiling the order exceeds (Small Value Procurement and Direct Acquisition), and a blacklisted supplier. You can also click **New PO** on **Purchase orders** to order without a PR.
+ATLAS refuses a mode whose ceiling the order exceeds (Small Value Procurement and Direct Acquisition), and a blacklisted supplier. You can also choose **New PO** on **Purchase orders** to order without a PR.
 
 ### Request the PO's obligation
 
-1. On the draft PO, click **Request obligation**.
-2. For each allotment class on the order, pick the allotment to charge, and click **Send to the budget office**.
+1. On the draft PO, choose **Request obligation**.
+2. For each allotment class on the order, pick the allotment to charge, and choose **Send to the budget office**.
 
 The ORS/BURS groups the PO's object codes. Once the budget office obligates it (Box B), the approving officer can approve the PO. If the fund has no allotment of that class with a balance, the dialog says so: ask the budget office.
 
 ### Inspect and accept a delivery (IAR)
 
-1. Open the approved PO and click **Inspect and accept delivery**.
+1. Open the approved PO and choose **Inspect and accept delivery**.
 2. Enter the date accepted, the supplier's invoice number and date, and who inspected it.
 3. Enter the quantity **Delivered now** for each item (property in whole units).
-4. Click **Accept delivery**.
+4. Choose **Accept delivery**.
 
 Supplies go into stock, each unit of property is registered, and the payable to the supplier is booked. A partial delivery leaves the PO *Partly delivered*. If the delivery is late, liquidated damages of 1/10 of 1% a day of the late items (up to 10% of the contract) are computed and offered as a deduction on the voucher. Print the IAR with the **IAR** button.
 
 ### Add a stock item
 
-1. Open **Stock** and click **New item**.
-2. Enter the stock number, unit, description, inventory account and reorder point, and click **Add**.
+1. Open **Stock** and choose **New item**.
+2. Enter the stock number, unit, description, inventory account and reorder point, and choose **Add**.
 
 The inventory account cannot be changed once the item has moved. Untick **In use** to retire an item.
 
 ### Issue a requisition
 
 1. Open **Requisitions → To issue** and open the RIS.
-2. Click **Approve** if your office approves first, or go straight to **Issue**.
-3. Adjust the quantities if stock is short, fill in **Received by**, and click **Issue**.
+2. Choose **Approve** if your office approves first, or go straight to **Issue**.
+3. Adjust the quantities if stock is short, fill in **Received by**, and choose **Issue**.
 
-Offices and employees file requisitions through **Supply & purchase requests** in their own Finance self-service; you can also click **New requisition**.
+Offices and employees file requisitions through **Supply & purchase requests** in their own Finance self-service; you can also choose **New requisition**.
 
 ### Book the RSMI
 
-1. Open **Inventory reports** (the **RSMI** tab), pick the month and click **Show**.
-2. If some issues are not yet booked, pick the fund and click **Book … issues (JEV)**.
+1. Open **Inventory reports** (the **RSMI** tab), pick the month and choose **Show**.
+2. If some issues are not yet booked, pick the fund and choose **Book … issues (JEV)**.
 
 The entry charges the month's issues to expense by office (Dr expense / Cr inventory). The **Recapitulation** shows the entry.
 
@@ -104,16 +104,16 @@ The entry charges the month's issues to expense by office (Dr expense / Cr inven
 
 ### Record the physical count of inventories
 
-1. Open **Inventory reports → Physical count (RPCI)**, set **As of** and click **Show**. **Print** gives the count sheet.
+1. Open **Inventory reports → Physical count (RPCI)**, set **As of** and choose **Show**. **Print** gives the count sheet.
 2. After the count, type each counted quantity under **Per count**. Items left blank are taken as matching the stock card.
-3. Pick the fund under **Book differences to** and click **Record the count…**.
+3. Pick the fund under **Book differences to** and choose **Record the count…**.
 
 Shortages are booked as a loss of assets and overages as miscellaneous income. Record the count as of the latest stock movement or later.
 
 ### Issue, transfer and return property
 
 1. Open **Property**, pick **Property, plant and equipment** or **Semi-expendable**, and open the item.
-2. **Issue (PAR)** or **Issue (ICS)**: pick the custodian (an employee or accountable officer card), office, location and date, and click **Issue**. Click **Print PAR** or **Print ICS** for the signed copy.
+2. **Issue (PAR)** or **Issue (ICS)**: pick the custodian (an employee or accountable officer card), office, location and date, and choose **Issue**. Choose **Print PAR** or **Print ICS** for the signed copy.
 3. **Transfer**: pick the new custodian and give the reason (PTR/ITR).
 4. **Return**: pick the condition (*Serviceable*, *Unserviceable*, *For repair*).
 
@@ -122,22 +122,22 @@ Issuing semi-expendable property charges it to expense (COA Circular 2022-004). 
 ### Dispose of property (IIRUP)
 
 1. Book depreciation through the previous month first.
-2. Open the item and click **Dispose (IIRUP)**.
-3. Pick the mode of disposal, the appraised value, remarks and date, and click **Dispose**.
+2. Open the item and choose **Dispose (IIRUP)**.
+3. Pick the mode of disposal, the appraised value, remarks and date, and choose **Dispose**.
 
 The asset and its accumulated depreciation come off the books; the book value is a loss.
 
 ### Book depreciation
 
-1. Open **Depreciation**, pick the month under **Through** and click **Preview**.
-2. Click **Book ₱… through …**.
+1. Open **Depreciation**, pick the month under **Through** and choose **Preview**.
+2. Choose **Book ₱… through …**.
 
 One entry is posted per fund, with lines for each PPE class (Dr depreciation expense / Cr accumulated depreciation). Months not yet booked are caught up. Only a month that has ended can be booked. Depreciation is straight-line: (cost − 5% residual) ÷ the useful life in months.
 
 ### Print the property count reports
 
-1. Open **Property reports**, pick **PPE** (RPCPPE) or **Semi-expendable**, the fund and the date, and click **Show**.
-2. Click **Print**. The report lists property by account with blank **Per count** and **Shortage / overage** columns and the inventory committee's signature lines.
+1. Open **Property reports**, pick **PPE** (RPCPPE) or **Semi-expendable**, the fund and the date, and choose **Show**.
+2. Choose **Print**. The report lists property by account with blank **Per count** and **Shortage / overage** columns and the inventory committee's signature lines.
 
 ## Screens at a glance
 

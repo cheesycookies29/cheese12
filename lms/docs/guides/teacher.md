@@ -38,12 +38,12 @@ Try this with the demo school: sign in as `teacher.demo` (password `demo1234`). 
 
 ![A class's Activities, with progress and work to grade](teacher-activities.jpg)
 
-4. Open **Exercise 1: A BankAccount class**. Press **Grade** next to a student, give a **Score** and **Feedback**, and keep **Then open the next one to grade** ticked. Press **Save**: the next submission opens.
-5. Go back to **Activities** and open **Quiz 1: Classes and objects**, then press **Results**. You see the average, highest and lowest scores, each student's best attempt, and **How each question went**. Press **Score** next to a student whose essay waits, give the essay a score, and press **Save scores**.
+4. Open **Exercise 1: A BankAccount class**. Choose **Grade** next to a student, give a **Score** and **Feedback**, and keep **Then open the next one to grade** ticked. Choose **Save**: the next submission opens.
+5. Go back to **Activities** and open **Quiz 1: Classes and objects**, then choose **Results**. You see the average, highest and lowest scores, each student's best attempt, and **How each question went**. Choose **Score** next to a student whose essay waits, give the essay a score, and choose **Save scores**.
 
 ![Quiz results: scores, essays to score and how each question went](teacher-quiz-results.jpg)
 
-6. Choose the **Attendance** tab. Press **Mark everyone present**, change the few who were late or absent, and press **Save attendance**.
+6. Choose the **Attendance** tab. Choose **Mark everyone present**, change the few who were late or absent, and choose **Save attendance**.
 
 ![Taking attendance](teacher-attendance.jpg)
 
@@ -61,56 +61,56 @@ Try this with the demo school: sign in as `teacher.demo` (password `demo1234`). 
 
 1. Open the class and choose **Announcements**.
 2. Under **New announcement**, write a title and the message.
-3. Press **Post**.
+3. Choose **Post**.
 
-Students see it in the class and on their **Home**. To remove it, press the bin and confirm.
+Students see it in the class and on their **Home**. To remove it, choose the bin and confirm.
 
 ### Write a lesson
 
-1. Open the class, choose **Lessons** and press **New lesson**.
+1. Open the class, choose **Lessons** and choose **New lesson**.
 2. Fill in the **Title** and the **Lesson** text (links become clickable). Add a **Material link** for slides, a video or a reading if you have one.
 3. Untick **Students can see it** to keep it as a draft.
-4. Press **Save**.
+4. Choose **Save**.
 
 Use the arrows to change the order, the pencil to edit and the bin to delete. Drafts are marked *Draft: students cannot see this yet*.
 
 ### Share files and links
 
 1. Open the class and choose **Resources**.
-2. Drop files on the box, or press **choose files** (up to 10 MB each, unless your school set another limit; the box says how much). To share a web page or video, press **add a link**, fill in the **Address** (and a title), and press **Save**.
+2. Drop files on the box, or choose **choose files** (up to 10 MB each, unless your school set another limit; the box says how much). To share a web page or video, choose **add a link**, fill in the **Address** (and a title), and choose **Save**.
 3. Students can open PDFs, images, video and YouTube links right on the page, and download files.
 
-Press the tick next to a resource to hide it from students (press it again to show it), the up arrow to move it up, or the bin to delete it.
+Choose the tick next to a resource to hide it from students (choose it again to show it), the up arrow to move it up, or the bin to delete it.
 
 ### Create an assignment
 
-1. Open the class, choose **Activities** and press **New assignment**.
+1. Open the class, choose **Activities** and choose **New assignment**.
 2. Fill in the **Title**, choose the **Type**, and write the **Instructions**.
 3. Set **Opens (optional)**, **Due** and **Points**.
 4. Tick **Accept late work (marked late)** if students may hand in after the due date.
 5. Untick **Students can see it** to keep it as a draft.
-6. Press **Save**. The assignment's page opens.
+6. Choose **Save**. The assignment's page opens.
 
 Students hand in text, a file or a link. Use **Edit** or **Delete** at the top of the assignment's page to change it later.
 
 ### Grade handed-in work
 
 1. Open the assignment from **Home → To grade**, or from the class's **Activities**.
-2. Press **Grade** next to a student (or **Change** to change a score).
+2. Choose **Grade** next to a student (or **Change** to change a score).
 3. Read the work: text, the file (PDFs and images show in the window) or the link.
 4. Enter the **Score (out of …)** and your **Feedback**. Leave **Then open the next one to grade** ticked to move straight on.
-5. Press **Save**.
+5. Choose **Save**.
 
 The student sees the score and your feedback. To send work back so the student can hand it in again, leave the score blank and save.
 
 ### Build a quiz or exam
 
-1. Open the class, choose **Activities** and press **New quiz or exam**.
+1. Open the class, choose **Activities** and choose **New quiz or exam**.
 2. Under **Details**, fill in the **Title** and choose the **Type** (it shows how much that type counts in the grade).
 3. Set **Opens** and **Closes**, the **Time limit (minutes)** (0 = no limit), **Attempts allowed** (0 = unlimited; the highest score counts) and **Students see answers**: *Right after they submit*, *After the quiz closes* or *Never (score only)*.
 4. Tick **Shuffle question order for each student** if you want.
 5. Write the questions. Change a question's kind with its drop-down, and add more with the buttons under **Add a question**: *One answer*, *Several answers*, *True or false*, *Short answer* and *Essay*. Tick the correct choices; for a short answer, list the accepted answers one per line.
-6. Tick **Published (students can see it)** when it is ready, and press **Create quiz**.
+6. Tick **Published (students can see it)** when it is ready, and choose **Create quiz**.
 
 ![The quiz builder](teacher-quiz-builder.jpg)
 
@@ -118,10 +118,10 @@ Everything but essays is scored automatically. On the quiz's page, **Edit** chan
 
 ### Score essays and review a quiz
 
-1. Open the quiz and press **Results** (or open it from **Home → To grade**).
-2. **Essays to score** shows how many answers wait for you. Press **Score** next to a student (or **Review** to look at a scored attempt).
+1. Open the quiz and choose **Results** (or open it from **Home → To grade**).
+2. **Essays to score** shows how many answers wait for you. Choose **Score** next to a student (or **Review** to look at a scored attempt).
 3. For each question, enter or correct the score and add feedback.
-4. Press **Save scores**.
+4. Choose **Save scores**.
 
 **How each question went** shows the share of students with full marks on each question; questions in red were missed by most of the class. **Export CSV** downloads each student's attempts and best score.
 
@@ -129,8 +129,8 @@ Everything but essays is scored automatically. On the quiz's page, **Edit** chan
 
 1. Open the class and choose **Attendance**.
 2. Check the date at the top (it starts on today; you can pick an earlier day).
-3. Press **Mark everyone present**, then change the students who were **Late**, **Absent** or **Excused**.
-4. Press **Save attendance**.
+3. Choose **Mark everyone present**, then change the students who were **Late**, **Absent** or **Excused**.
+4. Choose **Save attendance**.
 
 Saving again for the same day replaces it. Below, the month's grid shows every day taken; use **Previous** and **Next** to change month and **Export CSV** to download it.
 
@@ -138,8 +138,8 @@ Saving again for the same day replaces it. Below, the month's grid shows every d
 
 1. Open the class and choose **Grades**.
 2. Check the scores. *to grade* marks work still waiting for you.
-3. Type each student's **Final grade** as a percentage (0–100), or press **Fill empty finals from running %** to copy the running percentage into every empty box, then adjust.
-4. Press **Save final grades**.
+3. Type each student's **Final grade** as a percentage (0–100), or choose **Fill empty finals from running %** to copy the running percentage into every empty box, then adjust.
+4. Choose **Save final grades**.
 
 A final grade at or above the passing grade (75 by default) completes the class as passed and counts for prerequisites; below it, as failed. Clear a box and save to take a final grade back. **Export CSV** downloads the gradebook.
 
@@ -148,7 +148,7 @@ A final grade at or above the passing grade (75 by default) completes the class 
 1. Give every student a final grade in Learn first (see above).
 2. Open **Academic → Grade sheets** and choose the class. The sheet lists each student's final percentage, its equivalent grade and the remark.
 3. If a student has not finished the requirements, tick **INC** on their row.
-4. Press **Submit grade sheet**, then **Submit**. The button stays off until every student has a final grade or is marked INC.
+4. Choose **Submit grade sheet**, then **Submit**. The button stays off until every student has a final grade or is marked INC.
 
 The sheet then shows *Waiting for approval*. The dean approves it (*Approved, waiting to be posted*) and the registrar posts it to the students' permanent records (*Posted*). If the dean or registrar returns it, it shows *Returned to the teacher* with the reason: fix the grades in Learn and submit again. **Print** prints the sheet with its signature lines.
 
@@ -188,7 +188,7 @@ Open the class and choose **Class list**. It lists students by status: *Enrolled
 Every assignment, quiz and exam has a type: by default *Assignment* (30%), *Short Quiz* (20%), *Long Quiz* (20%) and *Examination* (30%). The school sets the types and their weights (**Admin panel → Activity types & grading**). The running grade combines each type's percentage by its weight and leaves out types with nothing scored yet. For example, with 80% on assignments and 90% on short quizzes and nothing else scored: (80×30 + 90×20) ÷ 50 = 84%. The weights are listed at the top of the class's **Grades** tab.
 
 **How do timed quizzes stay fair?**
-The server starts the clock when the student presses Start and refuses answers after the time limit (or the closing time, if sooner). Answers save as students go, and an attempt is submitted automatically when time runs out, even if the page was closed. Attempts still open at the closing time are submitted then.
+The server starts the clock when the student chooses **Start quiz** and refuses answers after the time limit (or the closing time, if sooner). Answers save as students go, and an attempt is submitted automatically when time runs out, even if the page was closed. Attempts still open at the closing time are submitted then.
 
 **How are *Several answers* questions scored?**
 With partial credit: each right pick adds, each wrong pick takes away. Short answers ignore capital letters and extra spaces.
