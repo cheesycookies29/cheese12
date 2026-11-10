@@ -35,18 +35,6 @@ async function hrisSchool(opts = {}) {
   return { env, admin, hr, main, other, teacher, signIn, newEmployee, hrEmp };
 }
 
-// Everything ATLAS computes must match CORE (the same value under the same name). CORE may compute
-// more (e.g. its holiday and night-shift premiums, added after ATLAS took the engine), so its extra
-// fields are not compared: a new CORE feature must not fail ATLAS's tests, or CORE's deploys.
-function assertSameAsCore(atlas, core, path = 'payslip') {
-  if (atlas && typeof atlas === 'object') {
-    assert.ok(core && typeof core === 'object', `${path}: CORE has no ${path}`);
-    for (const k of Object.keys(atlas)) assertSameAsCore(atlas[k], core[k], `${path}.${k}`);
-  } else {
-    assert.deepEqual(atlas, core, `${path}: ATLAS ${atlas}, CORE ${core}`);
-  }
-}
-
 test('payroll and time rules agree with the ERP\'s (CORE)', { skip: !fs.existsSync(ERP_CALC) && 'the ERP is not next to the LMS' }, async () => {
   const erpCalc = await import(ERP_CALC);
   const settings = { ...lmsCalc.DEFAULT_SETTINGS, workDaysPerYear: 261 };
@@ -57,7 +45,13 @@ test('payroll and time rules agree with the ERP\'s (CORE)', { skip: !fs.existsSy
     { employeeId: 'e1', date: '2026-10-05', type: 'leave', paid: true },
   ];
   const args = { employee, entries, periodStart: '2026-10-01', periodEnd: '2026-10-15', settings };
-  assertSameAsCore(lmsCalc.computePayslip(args), erpCalc.computePayslip(args));
+  // The ERP has since added holidays, premium lines and night shift pay (CORE 0.10). For a
+  // period with none of them, every figure the LMS computes must still equal the ERP's.
+  const lmsSlip = lmsCalc.computePayslip(args);
+  const erpSlip = erpCalc.computePayslip(args);
+  const sameShape = (from, like) => Object.fromEntries(Object.keys(like).map((k) => [k, like[k] && typeof like[k] === 'object' && !Array.isArray(like[k]) ? sameShape(from[k], like[k]) : from[k]]));
+  assert.deepEqual(lmsSlip, sameShape(erpSlip, lmsSlip));
+  assert.equal(erpSlip.earnings.holidayPay + erpSlip.earnings.nightDiffPay, 0);
   for (const fn of ['sssContribution', 'philhealthContribution', 'pagibigContribution']) assert.deepEqual(lmsCalc[fn](32000), erpCalc[fn](32000));
   assert.equal(lmsCalc.withholdingTax(16000, 'semi-monthly'), erpCalc.withholdingTax(16000, 'semi-monthly'));
 });

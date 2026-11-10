@@ -9,6 +9,13 @@ order: 2
 
 ## November 2026
 
+### Medical certificate rules (0.11.6)
+- HR sets when a leave type needs a medical certificate: from a number of work days in one request (1 = every request), after a number of requests in a year or a month, or both. A sick leave filed without a required certificate is refused, with the reason. See [the HR guide](hr#set-when-a-medical-certificate-is-needed).
+- The old setting carries over unchanged: Sick Leave *longer than 3 days* is now *from 4 days*. See [the employee guide](employee#attach-a-medical-certificate).
+
+### New sign-in page (0.11.5)
+- The sign-in page has a new look: CORE's maroon and gold beside the form, the same for first-run setup and for choosing a new password. Signing in works as before. See [Getting started](getting-started#sign-in).
+
 ### Sales & CRM checks (0.11.2 and 0.11.3)
 - Two people editing the same record no longer overwrite each other: the second save is refused with a message to reload. See [the sales guide](sales).
 - **Renew** on a contract links the renewal deal to the contract, and does not start a second one. Bids above the ABC are refused in every government procurement mode. Deals are closed as won or lost from the stage bar or the board, which always ask for the lost reason. See [the sales guide](sales).

@@ -109,7 +109,7 @@ If you file more days than you have left, the extra days are marked *Without pay
 
 ### Attach a medical certificate
 
-A medical certificate is required when the leave type asks for one: **Sick Leave of more than 3 days**. The form then says *Medical certificate (required)*.
+A medical certificate is required when the leave type's rules ask for one. For **Sick Leave** that is a request of 4 or more work days, unless HR set other rules: for example every sick leave, or every one after your 3rd this year. The form then says *Medical certificate (required)* and why. Without the certificate, CORE does not accept the request.
 
 1. In **File a request**, choose the file under **Medical certificate**: a PDF or a photo, up to 5 MB.
 2. To add or change it later, click **Attach certificate** (or **Replace certificate**) on the request in **My Requests**. This works while it is pending or returned to you.

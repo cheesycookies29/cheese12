@@ -89,7 +89,7 @@ The employee revises it and clicks **Resubmit for approval**. It then starts its
 1. A leave with a certificate shows **📎 Medical certificate** under the request. Click it.
 2. If it says *Certificate attached (HR only)*, only HR can open it. You can still see that one is attached.
 
-Sick Leave of more than 3 days cannot be approved until a certificate is attached. The row shows *Certificate missing* until the employee attaches it.
+A Sick Leave that needs a certificate under HR's rules (by default, 4 or more work days) cannot be approved until one is attached. The row shows *Certificate missing* until the employee attaches it.
 
 ### Decide as HR when it is not your turn
 
@@ -155,7 +155,7 @@ That level had nobody to approve it: no supervisor on record, or a supervisor wi
 The route is fixed when the request is filed. Changes to supervisors or to the approval flow apply to new requests.
 
 **Why can't I approve this request?**
-CORE says why. Common reasons: a Sick Leave of more than 3 days with no medical certificate, attendance already recorded on one of the days, or not enough credits left.
+CORE says why. Common reasons: a Sick Leave that needs a medical certificate and has none, attendance already recorded on one of the days, or not enough credits left.
 
 **Why can't I open the medical certificate?**
 Certificates are health data under the Data Privacy Act. Only HR and payroll open them unless HR ticks **Approvers can open medical certificates** under **Leave & Requests → Approval flow**. Every opening is recorded in the audit log.
