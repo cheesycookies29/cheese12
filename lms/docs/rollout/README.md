@@ -4,6 +4,8 @@ Concept art for announcing ATLAS, made as a set like *CORE by Lancaster* (the ER
 
 **Newer set:** [`2026-11/`](2026-11/README.md), November 2026: Finance, payroll into Finance, the school calendar, the Settings center, the REX Bookstore e-Reader, CORE and ATLAS, and what ATLAS is built on.
 
+**Security and technology:** [`2026-11-security/`](2026-11-security/README.md), November 2026: the layers of API security every request passes, the rate limiter, passwords and sign-in, access and separation of duties, the server, and the framework and backend technologies.
+
 | Panel | |
 | --- | --- |
 | `p01` | Introducing: *Meet ATLAS.* |
