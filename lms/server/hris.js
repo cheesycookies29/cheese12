@@ -483,7 +483,7 @@ export function registerHrisRoutes(route, ctx) {
   const notFinanceOffice = (caller, role, what) => {
     if (caller.role !== 'admin' && FINANCE_OFFICE.includes(role)) fail(`Only an administrator ${what} Finance office accounts.`, 403);
   };
-  const linkableRoles = (caller) => ['teacher', 'registrar', ...assignableRoles(caller), ...(caller.role === 'admin' ? ['admin'] : [])];
+  const linkableRoles = (caller) => ['teacher', 'registrar', 'dean', ...assignableRoles(caller), ...(caller.role === 'admin' ? ['admin'] : [])];
   function linkable(caller, emp, userId) {
     if (!can(caller.role, 'hris.accounts')) fail('Your account cannot link sign-in accounts.', 403);
     const u = data().users.find((x) => x.id === userId);

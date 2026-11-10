@@ -329,7 +329,7 @@ function wireAccount(el, emp, reload) {
       submitLabel: 'Link',
       body: list.length
         ? html`<label class="field"><span>Account at ${ctx.info.campusName}</span><select name="userId">${list.map((u) => html`<option value="${u.id}" ${u.name.toLowerCase() === `${emp.firstName} ${emp.lastName}`.toLowerCase() ? 'selected' : ''}>${u.name} · ${u.roleLabel} · ${u.username}</option>`)}</select></label>`
-        : html`<p class="muted">Every teacher, registrar and staff account at this campus is already linked to an employee record.</p>`,
+        : html`<p class="muted">Every teacher, registrar, dean and staff account at this campus is already linked to an employee record.</p>`,
       async onSubmit(form) {
         if (!list.length) return;
         await api.post(`/api/hris/employees/${emp.id}/account`, formData(form));

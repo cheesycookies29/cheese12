@@ -103,7 +103,7 @@ To stop a curriculum from being assigned to new students, click **Retire**. Stud
 
 ### Look up a student or a report
 
-1. Open **Students**. Search by name, student number or email, or filter by program, year level, or **Show** (*No curriculum*, *Missing requirements*, *With an INC*).
+1. Open **Students**. Search by name, student number or email, or filter by program or year level, or change **All students** to *No curriculum*, *Missing requirements* or *With an INC*.
 2. Open a student. **Evaluation** shows their record against their curriculum: subjects passed, credited, being taken, those they can take next, and back subjects. **Print evaluation** prints it.
 3. Open **Reports** for the enrollment list and summary, failing grades and INCs, the dean's list and candidates for graduation. Each prints on A4 and exports to CSV.
 

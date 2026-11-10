@@ -592,3 +592,13 @@ test('an install that already ran private payroll stays private after the upgrad
   assert.equal(openDb(file).data.hrSettings.payrollSystem, 'private');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('a dean\'s account can be linked to their employee record, for self-service in People', async () => {
+  const f = await hrisSchool();
+  const dean = await f.admin.post('/api/admin/users', { role: 'dean', username: 'dina', name: 'Dina Dean', password: PW, mustChangePassword: false, campusIds: [f.main.id] });
+  assert.ok((await f.hr.get('/api/hris/accounts/linkable')).some((u) => u.id === dean.id), 'HR is offered the dean\'s account');
+  const emp = await f.newEmployee(f.hr, { firstName: 'Dina', lastName: 'Dean', position: 'Dean' });
+  const linked = await f.hr.post(`/api/hris/employees/${emp.id}/account`, { userId: dean.id });
+  assert.equal(linked.account.username, 'dina');
+  assert.equal(linked.account.hrisOnly, false); // her password stays with the admin panel
+});

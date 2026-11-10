@@ -36,7 +36,7 @@ A first tour with the demo school, about fifteen minutes.
 ### A finalized regular run
 
 1. Click the second row, the latest half-month payroll. The **Register** tab has one line per employee: salary grade and step, days present out of scheduled, absences, late and undertime (with the part charged to vacation leave, e.g. *VL 0.038*), basic salary, PERA, RATA, gross, GSIS, PhilHealth, Pag-IBIG, tax, loans and net pay.
-2. Find *Santos, Maria* and click **Payslip**. Her payslip shows an honorarium under **Other earnings** and her GSIS and Pag-IBIG loans under **Deductions**. Click **Payroll** in the breadcrumb to go back.
+2. Find *Santos, Maria* and click **Payslip**. Her payslip shows an honorarium under **Other earnings** and her GSIS and Pag-IBIG loans under **Deductions**. Click the pay period in the breadcrumb to go back to the run.
 3. Open the **Remittances** tab: what to remit to GSIS, PhilHealth, Pag-IBIG, BIR and each loan creditor, with a **CSV** per agency.
 4. Open the **General Payroll** tab: the COA form (GAM Appendix 33), ready to print.
 5. Open the **Finance** tab: the three steps that send this payroll to ATLAS Finance. Leave them for now.
@@ -57,7 +57,7 @@ A first tour with the demo school, about fifteen minutes.
 1. Go back to **Payroll** and open **Year-end bonus and cash gift 2026** (the first row; the year is the current one). It is a draft.
 2. Read the notice: some employees get nothing, for example a contract of service worker. The **Note** column says why for each person.
 3. Click **Adjust** on a row to see how someone is left out of the run with a reason.
-4. When you are ready, click **Finalize**. The run is recomputed one last time and locked, and the payslips appear in each employee's **My payslips**.
+4. When you are ready, click **Finalize**, then **Finalize** again to confirm. The run is recomputed one last time and locked, and the payslips appear in each employee's **My payslips**.
 
 ![The year-end bonus and cash gift as a draft](payroll-bonus.jpg)
 
@@ -100,6 +100,8 @@ The notice lists:
 2. Enter **Other earnings (₱, taxable)**, such as an honorarium, or **Other deductions (₱)**, such as a refund.
 3. Write the reason in **Remarks (shown on payslip)**.
 4. Click **Save**. The run is recomputed.
+
+You cannot adjust your own payslip or leave yourself out: ATLAS answers *You cannot adjust a payslip on your own record. Ask another officer or an administrator.*
 
 ### Leave someone out of a run
 
@@ -176,7 +178,7 @@ The **Finance** tab of a finalized government run takes the payroll through ATLA
 2. **Payroll voucher.** Once the request shows *Obligated*, choose **Paid by**: *LDDAP-ADA (credited to the employees' accounts)* or *MDS check*, and click **Prepare the voucher**. It goes to the Chief Accountant (Box C), then the head of agency (Box D), then the cashier, who pays it. Paying it posts the journal entry.
 3. **Remittances.** Once the voucher shows *Paid*, click **Prepare remittance vouchers (GSIS, PhilHealth, Pag-IBIG, BIR)**. They go to the accountant like any voucher.
 
-Each step shows its document number, amount and status, with a link that opens it in Finance for Finance's officers. The **Accounting entry** under the steps shows what the voucher debits and credits. Cooperative, provident fund and other deductions are remitted with a voucher to each creditor, made in Finance. A run with live documents in Finance cannot be deleted.
+Each step shows its document number, amount and status. Finance's officers find the document in ATLAS Finance under the same number; an administrator also gets a link to it on this tab. The **Accounting entry** under the steps shows what the voucher debits and credits. Cooperative, provident fund and other deductions are remitted with a voucher to each creditor, made in Finance. A run with live documents in Finance cannot be deleted.
 
 ![The Finance tab of a finalized run](payroll-finance.jpg)
 
@@ -248,7 +250,7 @@ Each run uses the salary schedule in force at the end of its period. The EO 64 s
 No. Payslips of a finalized run never change. Delete the run (when it has no live documents in Finance) and run the period again, or correct it in the next run with **Adjust**.
 
 **Why can't I open the documents in Finance?**
-The links on the **Finance** tab open the documents in ATLAS Finance for its officers (budget, accounting, cashier). You see their status on the tab.
+The **Finance** tab shows you each document's number and status, not a link. The documents are opened in ATLAS Finance by its officers (budget, accounting, cashier), who find them under the same number. Only an administrator gets a link on the tab.
 
 **Who can see the payroll?**
 Payroll officers, HR managers (view only) and administrators. Each employee sees only their own finalized payslips.

@@ -73,7 +73,7 @@ const home = () => (can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' 
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
     return authScreen(el, {}, html`<div class="auth-card"><h2>People is for school employees</h2>
-      <p class="muted">You are signed in as ${status.deniedUser.name}, a student account. Your systems are on the ATLAS home page.</p>
+      <p class="muted">You are signed in as ${status.deniedUser.name}, a ${status.deniedUser.role === 'guardian' ? 'parent or guardian' : 'student'} account. Your systems are on the ATLAS home page.</p>
       <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
   }
   location.replace(`/?next=${encodeURIComponent('/hris/')}`);

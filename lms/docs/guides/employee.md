@@ -12,7 +12,7 @@ order: 50
 This guide is for **everyone with an employee record**: teachers, registrars, deans, non-teaching staff, and the HR, payroll and Finance officers for their own records.
 
 - Sign in on the ATLAS home page and open the **People** tile. Teachers and registrars use the sign-in they already have; non-teaching staff get one from HR.
-- If you see **Getting started** instead of **My day**, your account is not linked to your employee record yet. Ask the HR office to link it (they do it from your record under **Employees → Sign-in account**).
+- If you see **Getting started** instead of **My day**, your account is not linked to your employee record yet. Ask the HR office to link it (they do it from your record under **Employees → Sign-in account**). A Finance office account is linked by an administrator.
 - The **Finance** tile on the ATLAS home page has your accountabilities and your supply and purchase requests. Finance officers find **My accountabilities** at the bottom of the Finance sidebar.
 - To try things out, use the demo school: sign in as `staff.demo` (password `demo1234`), Nestor Abello, the college librarian. `teacher.demo` has the same in People, and property in her custody in Finance.
 
@@ -93,7 +93,7 @@ A medical certificate is required when the leave type asks for one, for example 
 1. In **File a request**, choose the file under **Medical certificate**: a PDF or a photo, up to 5 MB. Photos are resized automatically.
 2. To add or replace it later, open **Leave & requests** and click **Attach certificate** (or **Replace certificate**) on the pending request.
 
-HR cannot approve the request until the certificate is attached.
+When a certificate is required, the request cannot be submitted without it.
 
 ### Withdraw a request
 
@@ -117,7 +117,7 @@ Payslips appear once payroll for the period is finalized. Your latest one is als
 1. Open **My profile** to see your personal details, employment, schedule, government IDs and bank account.
 2. Click **Change password** to choose a new password.
 
-To change any of your details, contact HR.
+To change any of your details, contact HR. HR managers and payroll officers cannot change their own record, leave or payslip: another officer or an administrator does it.
 
 ### See your property and cash advances
 

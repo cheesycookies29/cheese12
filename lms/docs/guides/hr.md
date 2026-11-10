@@ -64,7 +64,7 @@ A first tour with the demo school. It takes about ten minutes.
 ### Add an employee
 
 1. Open **Employees** and click **Add employee** (also on the HR dashboard).
-2. If the person already signs in to Learn (a teacher or registrar), pick their account under **Already has an account?**. ATLAS fills in the name, email and department and links the account when you save.
+2. If the person already signs in to Learn (a teacher, registrar or dean), pick their account under **Already has an account?**. ATLAS fills in the name, email and department and links the account when you save.
 3. Fill in **Personal information**. Set **Gender**: maternity and paternity leave use it.
 4. Under **Employment**, enter the **Employee no.** (the next free number is suggested), **Category** (teaching or non-teaching), position, office, **Appointment status**, **Date hired** and, if you have more than one campus, the **Campus**.
 5. Under **Compensation**, pick the **Salary grade** and **Step**. The monthly salary from the salary schedule is shown beside them. For someone without a plantilla position (a job order paid by the day), leave the grade at *None (fixed rate)* and enter the **Pay type** and **Rate**. Tick **PERA** and enter RATA only for officials who receive it.
@@ -76,14 +76,14 @@ The record opens. The employee is included in the next payroll run at that campu
 ### Give an employee a sign-in account
 
 1. Open the employee's record under **Employees**.
-2. For a teacher or registrar: in the **Sign-in account** card, click **Link an existing account**, pick their Learn account and click **Link**.
+2. For a teacher, registrar or dean: in the **Sign-in account** card, click **Link an existing account**, pick their Learn account and click **Link**.
 3. For non-teaching staff: click **Create a sign-in account**, choose the **Account type** (usually *Staff: self-service only*), check the username, type a temporary password of at least 8 characters and click **Create account**.
 
 Give the person the username and temporary password. They sign in on the ATLAS home page and are asked to choose their own password. From then on they have self-service in People.
 
-> **Note:** The same list of account types also creates HR managers and payroll officers. Accounts for the Finance offices (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer) are created and changed only by an administrator, so that nobody can give themselves the power to approve payments.
+> **Note:** The same list of account types also creates HR managers and payroll officers. Accounts for the Finance offices (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer) are created, linked and changed only by an administrator, so that nobody can give themselves the power to approve payments.
 
-> **Note:** You cannot change your own leave credits, leave adjustments, pay or HR details, and a payroll officer cannot adjust their own payslip. Another officer or an administrator does it.
+> **Note:** You cannot change your own leave credits, leave adjustments, leave days, pay or HR details, and a payroll officer cannot adjust their own payslip. ATLAS answers *You cannot … on your own record. Ask another officer or an administrator.*
 
 ### Reset a password, disable or unlink an account
 
@@ -91,7 +91,7 @@ Give the person the username and temporary password. They sign in on the ATLAS h
 2. In **Sign-in account**, click **Reset password** to set a new temporary password (they are signed out everywhere), or **Change type or status** to change the account type or set it to *Disabled: cannot sign in*.
 3. Click **Unlink** to separate the account from the record. The account stays, but loses self-service until it is linked again.
 
-Reset password and Change type or status appear only for People accounts. A teacher's or registrar's password and status are managed in the Learn admin panel. You cannot change your own account type or disable your own account.
+Reset password and Change type or status appear only for People accounts. A teacher's, registrar's or dean's password and status are managed in the Learn admin panel. A Finance office account shows *Only an administrator changes Finance office accounts.* instead. You cannot change your own account type or disable your own account.
 
 ### Edit, deactivate or move an employee
 
@@ -148,7 +148,7 @@ The times are the server's, not the computer's. The **Today** list shows who has
 
 1. Open **Leave & approvals → Requests**. It shows *Pending* requests first; change the filter to see approved, rejected, cancelled or all.
 2. Click **Approve** or **Reject** on a row. Add a note to the employee if you like and confirm.
-3. To undo an approved request, filter by *Approved* and click **Cancel**. The leave or remote days are taken out of the DTR and the credits come back.
+3. To undo an approved request, filter by *Approved*, click **Cancel** on its row, then **Cancel request**. The leave or remote days are taken out of the DTR and the credits come back.
 
 Approving writes each work day of the request into the DTR: leave days come off the balance; remote-work days count as full days. A request cannot be approved when:
 
@@ -209,6 +209,7 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
 | HR settings | Employer details on payslips, the default work schedule, and who can do what |
 | My day, My attendance, Leave & requests, My payslips, My profile | Your own self-service, as for every employee: see [the employee guide](employee) |
+| My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 
 ## Questions
 
