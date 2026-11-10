@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ATLAS by Lancaster: the prospectus (email art, November 2026)</title>
+<style>
+  @font-face { font-family: 'DM Sans'; src: url('../../../public/fonts/DMSans-Regular.ttf'); font-weight: 400; }
+  @font-face { font-family: 'DM Sans'; src: url('../../../public/fonts/DMSans-Medium.ttf'); font-weight: 500 600; }
+  @font-face { font-family: 'DM Sans'; src: url('../../../public/fonts/DMSans-Bold.ttf'); font-weight: 700 800; }
+  @font-face { font-family: 'Newsreader'; src: url('../../../public/fonts/Newsreader-Regular.ttf'); font-weight: 400; }
+  @font-face { font-family: 'Newsreader'; src: url('../../../public/fonts/Newsreader-Medium.ttf'); font-weight: 500; }
+  @font-face { font-family: 'Newsreader'; src: url('../../../public/fonts/Newsreader-Italic.ttf'); font-style: italic; font-weight: 400; }
+  @font-face { font-family: 'Big Shoulders'; src: url('../../../public/fonts/BigShouldersDisplay-ExtraBold.ttf'); font-weight: 800; }
+
+  /* One system: paper and ink, four flat colours (one per system), hairlines, square corners. */
+  :root {
+    --paper: #f6efe3; --paper2: #efe5d3; --leaf: #fbf7ee; --ink: #1c1410; --soft: #5c5148; --rule: rgba(28, 20, 16, 0.85); --hair: rgba(28, 20, 16, 0.22);
+    --burgundy: #5d0013; --navy: #18203a; --forest: #1f4335; --ochre: #e0aa3e; --cream: #f8f0df;
+    --u: 95.833px; /* one column and its gutter: 12 columns of 75.83px, 20px gutters, 60px margins */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #cfc8bd; font-family: 'DM Sans', sans-serif; color: var(--ink); }
+  h1, h2, h3, p, ul, ol, dl, dd { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  .panel { width: 1250px; position: relative; overflow: hidden; margin: 0 auto 40px; padding: 0 60px; background: var(--paper); }
+  .serif { font-family: 'Newsreader', serif; font-weight: 400; }
+  em { font-family: 'Newsreader', serif; font-style: italic; font-weight: 400; }
+  .num { font-family: 'Big Shoulders', sans-serif; font-weight: 800; line-height: 0.8; }
+  .label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+  /* The running head of each page. */
+  .folio { height: 56px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--rule); font-size: 11.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+  .folio span:first-child { display: flex; align-items: center; gap: 10px; }
+  .folio img { height: 20px; }
+  .folio i { font-family: 'Newsreader', serif; font-size: 15px; letter-spacing: 0; text-transform: none; font-weight: 400; }
+  .dark { color: var(--cream); }
+  .dark .folio { border-color: rgba(248, 240, 223, 0.6); }
+  h1, h2 { font-family: 'Newsreader', serif; font-weight: 400; letter-spacing: -0.025em; line-height: 0.98; }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: 20px; }
+  .body { font-size: 16.5px; line-height: 1.55; color: var(--soft); }
+  .dark .body { color: rgba(248, 240, 223, 0.82); }
+  .shot { position: absolute; border: 1px solid var(--ink); background: #fff; }
+  .shot img { display: block; width: 100%; }
+  .rows li { border-top: 1px solid var(--hair); padding: 11px 0; font-size: 15px; line-height: 1.4; }
+  .rows li:last-child { border-bottom: 1px solid var(--hair); }
+  .dark .rows li { border-color: rgba(248, 240, 223, 0.28); }
+
+  /* The bookplate of the sign-in page. */
+  .plate { position: absolute; background: var(--leaf); color: var(--ink); text-align: center; border: 1px solid var(--burgundy); outline: 1px solid var(--burgundy); outline-offset: -9px; padding: 62px 30px 34px; }
+  .plate .seal { position: absolute; left: 50%; top: -37px; width: 74px; height: 74px; margin-left: -37px; border-radius: 50%; background: var(--burgundy); border: 4px solid var(--leaf); display: grid; place-items: center; }
+  .plate .seal img { width: 38px; }
+  .plate .ex { font-family: 'Newsreader', serif; font-style: italic; font-size: 19px; color: #7a5a10; }
+  .plate .name { font-family: 'Newsreader', serif; font-size: 42px; line-height: 1.05; letter-spacing: -0.015em; margin: 6px 0 12px; }
+  .plate .line { display: flex; align-items: center; gap: 12px; margin: 16px 18px; }
+  .plate .line::before, .plate .line::after { content: ''; flex: 1; border-top: 1px solid var(--hair); }
+  .plate .line i { width: 7px; height: 7px; background: #b98a2a; transform: rotate(45deg); }
+  .plate .label { color: var(--burgundy); }
+  .plate .field { margin: 12px 18px 0; height: 40px; border: 1px solid rgba(28, 20, 16, 0.35); background: #fff; text-align: left; padding: 11px 12px; font-size: 13px; color: #8a7f74; }
+  .plate .go { margin: 12px 18px 0; height: 42px; background: var(--burgundy); color: var(--cream); font-weight: 700; font-size: 14.5px; display: grid; place-items: center; }
+
+  /* g01 Cover */
+  .cover { height: 800px; }
+  .cover .folio { width: calc(var(--u) * 7 - 20px); }
+  .cover .block { position: absolute; right: 0; top: 0; bottom: 0; width: calc(1250px - 60px - var(--u) * 7); background: var(--burgundy); }
+  .cover .block .no { position: absolute; right: 60px; top: 21px; color: var(--cream); }
+  .cover .block .foot { position: absolute; left: 0; right: 0; bottom: 34px; text-align: center; color: rgba(248, 240, 223, 0.75); }
+  .cover h1 { font-size: 118px; margin-top: 74px; width: 660px; }
+  .cover h1 em { color: var(--burgundy); }
+  .cover .body { width: calc(var(--u) * 5 - 20px); margin-top: 34px; font-size: 19px; }
+  .cover .toc { position: absolute; left: 60px; bottom: 44px; width: calc(var(--u) * 7 - 20px); display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--rule); }
+  .cover .toc li { padding: 14px 14px 0 0; }
+  .cover .toc li + li { border-left: 1px solid var(--hair); padding-left: 14px; }
+  .cover .toc .num { font-size: 30px; display: block; margin-bottom: 8px; }
+  .cover .toc strong { font-family: 'Newsreader', serif; font-weight: 500; font-size: 21px; display: block; }
+  .cover .toc span { font-size: 12.5px; color: var(--soft); }
+
+  /* g02 The index of systems */
+  .index { height: 985px; }
+  .index .top { padding: 56px 0 44px; align-items: end; }
+  .index h2 { grid-column: 1 / 9; font-size: 78px; }
+  .index h2 em { color: var(--burgundy); }
+  .index .top .body { grid-column: 9 / 13; padding-bottom: 8px; }
+  .four { position: absolute; left: 0; right: 0; top: 340px; display: grid; grid-template-columns: repeat(4, 1fr); }
+  .four > div { border-left: 1px solid var(--hair); }
+  .four > div:first-child { border-left: 0; }
+  .four .sw { height: 150px; position: relative; color: var(--cream); }
+  .four .sw .num { position: absolute; left: 30px; bottom: 18px; font-size: 112px; }
+  .four .sw .label { position: absolute; right: 22px; top: 18px; }
+  .four > div:first-child .sw .num { left: 60px; }
+  .four > div:first-child .txt { padding-left: 60px; }
+  .four > div:last-child .txt { padding-right: 60px; }
+  .four .txt { padding: 26px 30px 0; }
+  .four h3 { font-family: 'Newsreader', serif; font-weight: 400; font-size: 44px; letter-spacing: -0.02em; line-height: 1; }
+  .four .txt > em { display: block; font-size: 17.5px; color: var(--soft); margin: 8px 0 20px; min-height: 48px; line-height: 1.35; }
+  .index .across { position: absolute; left: 60px; right: 60px; bottom: 40px; border-top: 1px solid var(--rule); padding-top: 14px; display: flex; gap: 26px; align-items: baseline; font-size: 14.5px; color: var(--soft); }
+  .index .across .label { color: var(--ink); white-space: nowrap; }
+
+  /* g03 Learn */
+  .learn { height: 820px; }
+  .learn .big { position: absolute; left: 54px; top: 104px; font-size: 250px; color: var(--burgundy); }
+  .learn .stand { position: absolute; left: 60px; top: 330px; width: calc(var(--u) * 4 - 30px); font-family: 'Newsreader', serif; font-style: italic; font-size: 29px; line-height: 1.22; letter-spacing: -0.01em; }
+  .cap { position: absolute; background: var(--burgundy); color: var(--cream); padding: 26px 30px 24px; }
+  .cap h2 { font-size: 40px; line-height: 1.04; }
+  .cap .label { display: block; margin: 12px 0 14px; opacity: 0.8; }
+  .cap p { font-size: 15px; line-height: 1.5; border-top: 1px solid rgba(248, 240, 223, 0.45); border-bottom: 1px solid rgba(248, 240, 223, 0.45); padding: 13px 0; }
+  .cap .tags { display: block; font-size: 12.5px; padding-top: 11px; letter-spacing: 0.04em; opacity: 0.85; }
+
+  /* g04 People to Finance */
+  .pay { height: 880px; background: var(--paper2); }
+  .pay .top { padding: 56px 0 46px; align-items: end; }
+  .pay h2 { grid-column: 1 / 8; font-size: 84px; }
+  .pay h2 em { color: var(--forest); }
+  .pay .top .body { grid-column: 8 / 13; padding-bottom: 8px; }
+  .steps { display: grid; grid-template-columns: repeat(6, 1fr); }
+  .steps li { border-top: 9px solid var(--forest); padding: 16px 16px 0 0; }
+  .steps li.f { border-top-color: var(--ochre); }
+  .steps li + li { padding-left: 16px; border-left: 1px solid var(--hair); }
+  .steps .num { font-size: 38px; display: block; }
+  .steps .label { display: block; margin: 12px 0 4px; color: var(--forest); }
+  .steps li.f .label { color: #8a5f08; }
+  .steps strong { font-family: 'Newsreader', serif; font-weight: 500; font-size: 23px; line-height: 1.1; display: block; }
+  .steps span.t { display: block; font-size: 13.5px; line-height: 1.4; color: var(--soft); margin-top: 6px; }
+  .ledger { position: absolute; left: 60px; bottom: 56px; width: calc(var(--u) * 7 - 20px); background: var(--leaf); border: 1px solid var(--ink); padding: 22px 26px 20px; }
+  .ledger .label { color: var(--soft); }
+  .ledger h3 { font-family: 'Newsreader', serif; font-weight: 400; font-size: 30px; margin: 6px 0 14px; letter-spacing: -0.015em; }
+  .ledger .r { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--hair); font-size: 16px; }
+  .ledger .r b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .ledger .r.net { border-top: 3px double var(--ink); border-bottom: 3px double var(--ink); font-weight: 700; padding: 12px 0; }
+  .ledger .r.net b { font-family: 'Newsreader', serif; font-weight: 500; font-size: 30px; }
+  .sent { position: absolute; left: calc(60px + var(--u) * 8); right: 60px; bottom: 56px; }
+  .sent .label { display: block; margin-bottom: 12px; color: #8a5f08; }
+  .sent li strong { font-family: 'Newsreader', serif; font-weight: 500; font-size: 20px; display: block; }
+  .sent li span { font-size: 13.5px; color: var(--soft); }
+  .sent em { display: block; margin-top: 14px; font-size: 15.5px; color: var(--soft); line-height: 1.35; }
+
+  /* g05 Finance */
+  .fin { height: 800px; background: var(--navy); }
+  .fin .shot { left: -150px; top: 150px; width: 920px; border-color: rgba(248, 240, 223, 0.5); }
+  .fin .col { position: absolute; left: calc(60px + var(--u) * 8); right: 60px; top: 104px; }
+  .fin .num { font-size: 170px; color: var(--ochre); display: block; margin-left: -6px; }
+  .fin h2 { font-size: 52px; margin: 26px 0 22px; }
+  .fin h2 em { color: var(--ochre); }
+  .fin .rows li strong { display: block; font-family: 'Newsreader', serif; font-weight: 500; font-size: 20px; }
+  .fin .rows li span { font-size: 13.5px; color: rgba(248, 240, 223, 0.75); }
+  .fin .note { margin-top: 16px; font-size: 15.5px; color: rgba(248, 240, 223, 0.8); }
+
+  /* g06 The directory */
+  .dir { height: 845px; }
+  .dir .rail { position: absolute; left: 60px; top: 112px; width: calc(var(--u) * 4 - 20px); }
+  .dir h2 { font-size: 66px; }
+  .dir h2 em { color: var(--burgundy); }
+  .dir .rail .body { margin-top: 24px; }
+  .dir .rail .key { position: absolute; left: 0; top: 520px; display: grid; gap: 9px; font-size: 13px; }
+  .dir .rail .key span { display: flex; align-items: center; gap: 10px; }
+  .dir .rail .key i, .dir .where i { width: 12px; height: 12px; flex: none; }
+  .dir table { position: absolute; left: calc(60px + var(--u) * 4 + 20px); right: 60px; top: 112px; border-collapse: collapse; width: calc(var(--u) * 8 - 40px); }
+  .dir td { border-top: 1px solid var(--hair); padding: 19px 0; vertical-align: top; }
+  .dir tr:first-child td { border-top: 1px solid var(--rule); }
+  .dir tr:last-child td { border-bottom: 1px solid var(--rule); }
+  .dir td.who { width: 215px; font-family: 'Newsreader', serif; font-style: italic; font-size: 27px; line-height: 1.05; letter-spacing: -0.01em; padding-right: 18px; }
+  .dir td.what { font-size: 15.5px; line-height: 1.5; color: var(--soft); padding-right: 24px; }
+  .dir td.where { width: 132px; }
+  .dir .where span { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-top: 4px; }
+  .dir .where span + span { margin-top: 7px; }
+  .bA { background: var(--navy); } .bL { background: var(--burgundy); } .bP { background: var(--forest); } .bF { background: var(--ochre); } .bX { background: var(--ink); }
+
+  /* g07 Colophon */
+  .colo { height: 790px; background: var(--burgundy); }
+  .colo .lead { position: absolute; left: 60px; top: 108px; width: calc(var(--u) * 5 - 20px); font-family: 'Newsreader', serif; font-size: 35px; line-height: 1.2; letter-spacing: -0.015em; }
+  .colo .lead em { color: var(--ochre); }
+  .colo .lead small { display: block; font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.55; letter-spacing: 0; margin-top: 24px; color: rgba(248, 240, 223, 0.82); }
+  .colo .checks { position: absolute; left: calc(60px + var(--u) * 6); right: 60px; top: 108px; }
+  .colo .checks .label { display: block; margin-bottom: 14px; color: var(--ochre); }
+  .colo .checks ol { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+  .colo .checks li { border-top: 1px solid rgba(248, 240, 223, 0.3); padding: 12px 0 13px; display: grid; grid-template-columns: 30px 1fr; }
+  .colo .checks li .num { font-size: 24px; color: var(--ochre); padding-top: 5px; }
+  .colo .checks li strong { font-family: 'Newsreader', serif; font-weight: 500; font-size: 19.5px; display: block; }
+  .colo .checks li span { font-size: 13px; line-height: 1.4; color: rgba(248, 240, 223, 0.78); }
+  .figs { position: absolute; left: 60px; right: 60px; bottom: 50px; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid rgba(248, 240, 223, 0.6); }
+  .figs div { padding: 20px 20px 0 0; }
+  .figs div + div { border-left: 1px solid rgba(248, 240, 223, 0.3); padding-left: 20px; }
+  .figs b { font-family: 'Newsreader', serif; font-weight: 400; font-size: 96px; line-height: 0.9; letter-spacing: -0.03em; display: block; color: var(--cream); }
+  .figs span { display: block; font-size: 14.5px; line-height: 1.4; margin-top: 10px; color: rgba(248, 240, 223, 0.82); max-width: 210px; }
+
+  /* g08 Phones */
+  .pocket { height: 720px; background: var(--ochre); }
+  .pocket h2 { font-size: 82px; margin-top: 60px; width: calc(var(--u) * 5); }
+  .pocket .body { color: #4a3508; width: calc(var(--u) * 4 - 20px); margin-top: 26px; }
+  .pocket .rows { width: calc(var(--u) * 4 - 20px); margin-top: 22px; }
+  .pocket .rows li { border-color: rgba(28, 20, 16, 0.35); }
+  .dev { position: absolute; width: 236px; height: 510px; border: 1px solid var(--ink); border-radius: 34px; background: var(--ink); padding: 9px; }
+  .dev img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 26px; display: block; }
+  .dev .label { position: absolute; left: 0; right: 0; top: -30px; text-align: center; white-space: nowrap; }
+
+  /* g09 Forthcoming */
+  .next { height: 700px; }
+  .next .top { padding: 56px 0 34px; align-items: end; }
+  .next h2 { grid-column: 1 / 8; font-size: 104px; font-style: italic; }
+  .next .top .body { grid-column: 8 / 13; padding-bottom: 14px; }
+  .next table { width: 100%; border-collapse: collapse; }
+  .next td { border-top: 1px solid var(--hair); padding: 17px 0; vertical-align: baseline; }
+  .next tr:first-child td { border-top: 1px solid var(--rule); }
+  .next tr:last-child td { border-bottom: 1px solid var(--rule); }
+  .next td.n { width: calc(var(--u) - 20px); }
+  .next td.n .num { font-size: 30px; }
+  .next td.t { width: calc(var(--u) * 4); font-family: 'Newsreader', serif; font-size: 29px; letter-spacing: -0.015em; padding-right: 20px; }
+  .next td.d { font-size: 15.5px; line-height: 1.45; color: var(--soft); padding-right: 30px; }
+  .next td.s { width: calc(var(--u) * 2 - 20px); text-align: right; white-space: nowrap; }
+  .next td.s .label { color: var(--soft); }
+  .next tr.first td.s .label { color: var(--burgundy); }
+  .next tr.first td.t em { color: var(--burgundy); }
+
+  /* g10 Close */
+  .close { height: 560px; }
+  .close .block { position: absolute; left: 0; top: 0; bottom: 0; width: calc(60px + var(--u) * 5 - 20px); background: var(--burgundy); }
+  .close .side { margin-left: calc(var(--u) * 5 + 20px); }
+  .close h2 { font-size: 88px; margin-top: 52px; }
+  .close h2 em { color: var(--burgundy); }
+  .close .body { margin-top: 24px; font-size: 18px; max-width: 520px; }
+  .close .addr { margin-top: 30px; display: flex; align-items: stretch; border: 1px solid var(--ink); max-width: 560px; }
+  .close .addr span { flex: 1; padding: 15px 18px; font-size: 16px; color: var(--soft); background: var(--leaf); }
+  .close .addr b { padding: 15px 22px; background: var(--ink); color: var(--cream); font-size: 15px; }
+  .close .sig { position: absolute; right: 60px; bottom: 34px; left: calc(60px + var(--u) * 5 + 20px); border-top: 1px solid var(--rule); padding-top: 12px; display: flex; justify-content: space-between; }
+
+  /* Extras: a header, a footer strip and a square teaser. */
+  .xhead { height: 300px; }
+  .xhead .block { position: absolute; left: 0; top: 0; bottom: 0; width: 300px; background: var(--burgundy); display: grid; place-items: center; }
+  .xhead .block img { width: 150px; }
+  .xhead .txt { margin-left: 290px; padding-top: 56px; }
+  .xhead .label { color: var(--burgundy); }
+  .xhead h1 { font-size: 80px; margin-top: 14px; }
+  .xhead h1 em { color: var(--burgundy); }
+  .xhead .bar, .xfoot .bar { position: absolute; left: 300px; right: 0; bottom: 0; height: 14px; display: grid; grid-template-columns: repeat(4, 1fr); }
+  .xfoot { height: 170px; background: var(--ink); color: var(--cream); display: flex; align-items: center; justify-content: space-between; }
+  .xfoot .bar { left: 0; top: 0; bottom: auto; }
+  .xfoot .wm { display: flex; align-items: center; gap: 16px; }
+  .xfoot .wm img { height: 46px; }
+  .xfoot .wm strong { font-size: 22px; letter-spacing: 0.22em; }
+  .xfoot .wm span { display: block; font-size: 13.5px; opacity: 0.8; margin-top: 2px; letter-spacing: 0; font-weight: 400; }
+  .xfoot em { font-size: 24px; opacity: 0.92; }
+  .xsq { width: 1080px; height: 1080px; background: var(--burgundy); padding: 0 70px; }
+  .xsq .folio { border-color: rgba(248, 240, 223, 0.6); }
+  .xsq h1 { font-size: 132px; margin-top: 70px; }
+  .xsq h1 em { color: var(--ochre); }
+  .xsq .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; display: grid; grid-template-columns: repeat(4, 1fr); }
+  .xsq .names { position: absolute; left: 70px; bottom: 66px; display: grid; gap: 6px; font-family: 'Newsreader', serif; font-size: 30px; }
+  .xsq .names span { display: flex; align-items: baseline; gap: 14px; }
+  .xsq .names .num { font-size: 22px; color: var(--ochre); width: 30px; }
+</style>
+</head>
+<body>
+
+<!-- g01. Cover -->
+<section class="panel cover" id="g01">
+  <div class="folio"><span><img src="../assets/atlas-mark-lg.png" alt="" /> ATLAS</span><span><i>The prospectus</i></span><span>November 2026</span></div>
+  <h1>One school.<br /><em>One sign-in.</em></h1>
+  <p class="body">ATLAS is the education platform by Lancaster. Classes, student records, people and the school's books are four systems that open with the same account, and share what the school already knows.</p>
+  <ul class="toc">
+    <li><span class="num" style="color:var(--navy)">01</span><strong>Academic</strong><span>Student records</span></li>
+    <li><span class="num" style="color:var(--burgundy)">02</span><strong>Learn</strong><span>Classes and grades</span></li>
+    <li><span class="num" style="color:var(--forest)">03</span><strong>People</strong><span>HR and payroll</span></li>
+    <li><span class="num" style="color:#a87510">04</span><strong>Finance</strong><span>The school's books</span></li>
+  </ul>
+  <div class="block">
+    <span class="label no">No. 1 of 10</span>
+    <div class="plate" style="left:92px;top:196px;width:336px">
+      <span class="seal"><img src="../assets/atlas-mark-dark.svg" alt="" /></span>
+      <p class="ex">Ex libris</p>
+      <p class="name">Your school</p>
+      <p class="label">ATLAS · Sign in</p>
+      <p class="line"><i></i></p>
+      <p class="field">Username</p>
+      <p class="field">Password</p>
+      <p class="go">Sign in</p>
+    </div>
+    <p class="label foot">Academic · Learn · People · Finance</p>
+  </div>
+</section>
+
+<!-- g02. The index of systems -->
+<section class="panel index" id="g02">
+  <div class="folio"><span><img src="../assets/atlas-mark-lg.png" alt="" /> ATLAS</span><span><i>What is inside</i></span><span>No. 2 of 10</span></div>
+  <div class="grid top">
+    <h2>Four systems. <em>One record of the school.</em></h2>
+    <p class="body">A student admitted in Academic is the same student in Learn. A teacher's clock-in becomes their pay, and their pay becomes a voucher in Finance. Nothing is typed twice.</p>
+  </div>
+  <div class="four">
+    <div><div class="sw bA"><span class="num">01</span><span class="label">UIS</span></div><div class="txt"><h3>Academic</h3><em>The registrar's and the dean's office</em>
+      <ul class="rows"><li>Admissions and student records</li><li>Curricula and evaluation</li><li>Grade sheets, dean-approved</li><li>Transcripts with a QR check</li><li>CHED and FHE reports</li></ul></div></div>
+    <div><div class="sw bL"><span class="num">02</span><span class="label">LMS</span></div><div class="txt"><h3>Learn</h3><em>The classroom, for students, teachers and parents</em>
+      <ul class="rows"><li>Enrollment and sections</li><li>Lessons and resources</li><li>Quizzes and exams</li><li>Attendance and grades</li><li>News, events and the calendar</li></ul></div></div>
+    <div><div class="sw bP"><span class="num">03</span><span class="label">HRIS</span></div><div class="txt"><h3>People</h3><em>Human resources and government payroll</em>
+      <ul class="rows"><li>Employee records</li><li>Time clock and DTR</li><li>Leave and approvals</li><li>Government payroll</li><li>Payslips and remittances</li></ul></div></div>
+    <div><div class="sw bF" style="color:var(--ink)"><span class="num">04</span><span class="label">FMIS</span></div><div class="txt"><h3>Finance</h3><em>Accounting that follows COA, DBM and BIR rules</em>
+      <ul class="rows"><li>Budget and obligations</li><li>Procurement and property</li><li>Vouchers and receipts</li><li>Journals and ledgers</li><li>Financial statements</li></ul></div></div>
+  </div>
+  <p class="across"><span class="label">Across all four</span><span>One sign-in · roles and permissions · many campuses · the school calendar · Help &amp; guides · optional Keycloak single sign-on</span></p>
+</section>
+
+<!-- g03. Learn -->
+<section class="panel learn" id="g03">
+  <div class="folio"><span><img src="../assets/atlas-mark-lg.png" alt="" /> ATLAS</span><span><i>Learn</i></span><span>No. 3 of 10</span></div>
+  <span class="num big">02</span>
+  <p class="stand">What is due, what is next and how it is going: one page, for every class.</p>
+  <div class="shot" style="left:455px;top:122px;width:1010px"><img src="screens/desk-learn.png" alt="" /></div>
+  <div class="cap" style="left:60px;top:498px;width:455px">
+    <h2>The week, <em>at a glance.</em></h2>
+    <span class="label">Learn · Students, teachers, parents</span>
+    <p>Students see their to-do list with due dates, take quizzes and follow their grades. Teachers write lessons, build quizzes and mark attendance. Parents follow each linked child, as far as the school shares.</p>
+    <span class="tags">To do · Classes · Quizzes · Grades · Calendar · News</span>
+  </div>
+</section>
+
+<!-- g04. People to Finance -->
+<section class="panel pay" id="g04">
+  <div class="folio"><span><img src="../assets/atlas-mark-lg.png" alt="" /> ATLAS</span><span><i>People and Finance</i></span><span>No. 4 of 10</span></div>
+  <div class="grid top">
+    <h2>From clock-in <em>to the voucher.</em></h2>
+    <p class="body">Pay follows the rules for a state university: salary grades, PERA and RATA, GSIS, PhilHealth, Pag-IBIG and BIR tax, loans and the ₱5,000 net-pay floor. One click sends a finalized run to Finance, all of it or none of it.</p>
+  </div>
+  <ol class="steps">
+    <li><span class="num">1</span><span class="label">People</span><strong>Clock in</strong><span class="t">From My day, at the campus</span></li>
+    <li><span class="num">2</span><span class="label">People</span><strong>Attendance</strong><span class="t">DTR, leave, late and undertime</span></li>
+    <li><span class="num">3</span><span class="label">People</span><strong>Payroll run</strong><span class="t">Payslips and the General Payroll</span></li>
+    <li class="f"><span class="num">4</span><span class="label">Finance</span><strong>Obligation</strong><span class="t">An obligation request, by object code</span></li>
+    <li class="f"><span class="num">5</span><span class="label">Finance</span><strong>Voucher</strong><span class="t">Certified, then approved by someone else</span></li>
+    <li class="f"><span class="num">6</span><span class="label">Finance</span><strong>Paid, remitted</strong><span class="t">LDDAP-ADA; GSIS, PhilHealth, Pag-IBIG, BIR</span></li>
+  </ol>
+  <div class="ledger">
+    <span class="label">Payroll · Oct 16 – 31, 2026 · Main Campus</span>
+    <h3>28 employees, finalized</h3>
+    <div class="r"><span>Gross pay</span><b>₱558,451.49</b></div>
+    <div class="r"><span>GSIS, PhilHealth, Pag-IBIG, tax and loans</span><b>(₱105,033.37)</b></div>
+    <div class="r net"><span>Net pay</span><b>₱453,418.12</b></div>
+  </div>
+  <div class="sent">
+    <span class="label">Sent to Finance in one step</span>
+    <ul class="rows">
+      <li><strong>Obligation request</strong><span>Personnel services, by object code</span></li>
+      <li><strong>Payroll voucher</strong><span>Net pay, paid through LDDAP-ADA</span></li>
+      <li><strong>Remittance vouchers</strong><span>GSIS · PhilHealth · Pag-IBIG · BIR</span></li>
+    </ul>
+    <em>Demo school figures. If any step fails, nothing is posted.</em>
+  </div>
+</section>
+
+<!-- g05. Finance -->
+<section class="panel fin dark" id="g05">
+  <div class="folio"><span><img src="../assets/atlas-mark-dark.svg" alt="" /> ATLAS</span><span><i>Finance</i></span><span>No. 5 of 10</span></div>
+  <div class="shot"><img src="screens/desk-finance-dark.png" alt="" /></div>
+  <div class="col">
+    <span class="num">04</span>
+    <h2>The school's books, <em>by the rules.</em></h2>
+    <ul class="rows">
+      <li><strong>Budget</strong><span>Appropriations, allotments, NCAs and obligations</span></li>
+      <li><strong>Buying and keeping</strong><span>Purchase requests to inspection; property and depreciation</span></li>
+      <li><strong>Paying and collecting</strong><span>Vouchers, LDDAP-ADA and checks; official receipts</span></li>
+      <li><strong>Books and reports</strong><span>Journals, ledgers and financial statements</span></li>
+    </ul>
+    <p class="note"><em>Whoever prepares or certifies a voucher cannot approve it.</em></p>
+  </div>
+</section>
+
+<!-- g06. The directory -->
+<section class="panel dir" id="g06">
+  <div class="folio"><span><img src="../assets/atlas-mark-lg.png" alt="" /> ATLAS</span><span><i>Who it is for</i></span><span>No. 6 of 10</span></div>
+  <div class="rail">
+    <h2>A page for <em>everyone</em> at the school.</h2>
+    <p class="body">Each person signs in once and sees only what their role, campus and classes allow.</p>
+    <p class="key"><span><i class="bA"></i> Academic</span><span><i class="bL"></i> Learn</span><span><i class="bP"></i> People</span><span><i class="bF"></i> Finance</span><span><i class="bX"></i> Admin panel</span></p>
+  </div>
+  <table>
+    <tr><td class="who">Students</td><td class="what">See what is due, take quizzes, follow grades, ask to enroll, and request documents from the registrar.</td><td class="where"><span><i class="bL"></i> Learn</span><span><i class="bA"></i> Academic</span></td></tr>
+    <tr><td class="who">Parents &amp; guardians</td><td class="what">Follow each linked child's classes, grades, attendance and calendar, as far as each link allows.</td><td class="where"><span><i class="bL"></i> Learn</span></td></tr>
+    <tr><td class="who">Teachers</td><td class="what">Write lessons, build quizzes, mark attendance and submit grade sheets; clock in and file leave.</td><td class="where"><span><i class="bL"></i> Learn</span><span><i class="bP"></i> People</span></td></tr>
+    <tr><td class="who">Registrars &amp; deans</td><td class="what">Admit and enroll students, keep their records, evaluate curricula, approve grade sheets, issue transcripts.</td><td class="where"><span><i class="bA"></i> Academic</span></td></tr>
+    <tr><td class="who">HR &amp; payroll</td><td class="what">Keep employee records, attendance and leave; run government payroll and its remittances.</td><td class="where"><span><i class="bP"></i> People</span></td></tr>
+    <tr><td class="who">Finance offices</td><td class="what">Budget, procurement, vouchers, receipts and the books, each office with its own part to sign.</td><td class="where"><span><i class="bF"></i> Finance</span></td></tr>
+    <tr><td class="who">Administrators</td><td class="what">One Settings center with history and undo, roles and permissions, campuses and single sign-on.</td><td class="where"><span><i class="bX"></i> Admin panel</span></td></tr>
+  </table>
+</section>
+
+<!-- g07. Colophon -->
+<section class="panel colo dark" id="g07">
+  <div class="folio"><span><img src="../assets/atlas-mark-dark.svg" alt="" /> ATLAS</span><span><i>Colophon</i></span><span>No. 7 of 10</span></div>
+  <p class="lead">ATLAS is written in plain JavaScript and runs on <em>Node.js 22,</em> using only its standard library. No framework and no outside packages: <em>every line is Lancaster's own.</em>
+    <small>Caddy serves it over HTTPS. Records live in one data file with atomic saves; passwords are hashed with scrypt, then encrypted with AES-256-GCM under a key kept apart from the data. Keycloak single sign-on is optional.</small></p>
+  <div class="checks">
+    <span class="label">Every request passes eight checks</span>
+    <ol>
+      <li><span class="num">1</span><div><strong>HTTPS only</strong><span>Encrypted, with HSTS for a year</span></div></li>
+      <li><span class="num">2</span><div><strong>Address check</strong><span>Only the school's own address</span></div></li>
+      <li><span class="num">3</span><div><strong>Rate limits</strong><span>Per person and per network address</span></div></li>
+      <li><span class="num">4</span><div><strong>Same-site only</strong><span>JSON from ATLAS's own pages</span></div></li>
+      <li><span class="num">5</span><div><strong>Session</strong><span>A random token scripts cannot read</span></div></li>
+      <li><span class="num">6</span><div><strong>Role and permission</strong><span>Each route states who may call it</span></div></li>
+      <li><span class="num">7</span><div><strong>Scope</strong><span>Campus, class and family</span></div></li>
+      <li><span class="num">8</span><div><strong>Business rules</strong><span>Separation of duties, own records</span></div></li>
+    </ol>
+  </div>
+  <div class="figs">
+    <div><b>0</b><span>outside packages to install or patch</span></div>
+    <div><b>400</b><span>API routes, each with its own access rule</span></div>
+    <div><b>129</b><span>automated tests, run before every update is installed</span></div>
+    <div><b>1</b><span>server for every system and every campus</span></div>
+  </div>
+</section>
+
+<!-- g08. Phones -->
+<section class="panel pocket" id="g08">
+  <div class="folio"><span><img src="../assets/atlas-mark-lg.png" alt="" /> ATLAS</span><span><i>On a phone</i></span><span>No. 8 of 10</span></div>
+  <h2>In every pocket, <em>day and night.</em></h2>
+  <p class="body">Every screen works on a phone, in light or dark. There is no app to install.</p>
+  <ul class="rows"><li>The calendar, with a dot for each class and due date</li><li>Clock in from My day, at the campus</li><li>A guide for your role, one tap away</li></ul>
+  <div class="dev" style="left:478px;top:150px"><span class="label">Sign in</span><img src="screens/phone-signin.png" alt="" /></div>
+  <div class="dev" style="left:718px;top:250px"><span class="label">Parent · Calendar</span><img src="screens/phone-calendar.png" alt="" /></div>
+  <div class="dev" style="left:958px;top:150px"><span class="label">Teacher · My day</span><img src="screens/phone-myday-dark.png" alt="" /></div>
+</section>
+
+<!-- g09. Forthcoming -->
+<section class="panel next" id="g09">
+  <div class="folio"><span><img src="../assets/atlas-mark-lg.png" alt="" /> ATLAS</span><span><i>On the roadmap</i></span><span>No. 9 of 10</span></div>
+  <div class="grid top">
+    <h2>Forthcoming.</h2>
+    <p class="body">Live now: Academic, Learn, People and Finance. Each of these will open from the same sign-in and use the records the school already keeps in ATLAS.</p>
+  </div>
+  <table>
+    <tr class="first"><td class="n"><span class="num">05</span></td><td class="t">REX Bookstore <em>e&#8209;Reader</em></td><td class="d">E-books for each subject from the REX Bookstore app's library, opened from the ATLAS home page.</td><td class="s"><span class="label">Coming soon</span></td></tr>
+    <tr><td class="n"><span class="num">06</span></td><td class="t">Facilities</td><td class="d">Rooms and venues, bookings, maintenance requests and equipment.</td><td class="s"><span class="label">In development</span></td></tr>
+    <tr><td class="n"><span class="num">07</span></td><td class="t">Fees and assessment</td><td class="d">Assessment of fees with free tuition (RA 10931), and students' statements of account.</td><td class="s"><span class="label">In development</span></td></tr>
+    <tr><td class="n"><span class="num">08</span></td><td class="t">Scheduling</td><td class="d">Block sections, rooms and checks for professors' conflicts.</td><td class="s"><span class="label">In development</span></td></tr>
+    <tr><td class="n"><span class="num">09</span></td><td class="t">Scholarships and guidance</td><td class="d">Grants and scholar monitoring, and confidential guidance records.</td><td class="s"><span class="label">In development</span></td></tr>
+  </table>
+</section>
+
+<!-- g10. Close -->
+<section class="panel close" id="g10">
+  <div class="block">
+    <div class="plate" style="left:94px;top:118px;width:330px;padding-bottom:30px">
+      <span class="seal"><img src="../assets/atlas-mark-dark.svg" alt="" /></span>
+      <p class="ex">Ex libris</p>
+      <p class="name">Your school</p>
+      <p class="label">ATLAS · Sign in</p>
+      <p class="line"><i></i></p>
+      <p class="field">Username</p>
+      <p class="go">Sign in</p>
+    </div>
+  </div>
+  <div class="side">
+    <div class="folio"><span><i>Ready when you are</i></span><span>No. 10 of 10</span></div>
+    <h2>See it <em>for yourself.</em></h2>
+    <p class="body">One account opens every system you may use. Ask for a walkthrough with the demo school, or read the guide for your role under Help.</p>
+    <p class="addr"><span>Sign-in address to be announced</span><b>Sign in</b></p>
+  </div>
+  <p class="sig"><span class="label">ATLAS · Education platform by Lancaster</span><span class="label">A sibling of CORE</span></p>
+</section>
+
+<!-- Extras: a header for the top of an email, a footer strip, a square teaser. -->
+<section class="panel xhead" id="x01">
+  <div class="block"><img src="../assets/atlas-mark-dark.svg" alt="" /></div>
+  <div class="txt"><span class="label">ATLAS · Education platform by Lancaster</span><h1>One school. <em>One sign-in.</em></h1></div>
+  <div class="bar"><i class="bA"></i><i class="bL" style="background:#7d1a2f"></i><i class="bP"></i><i class="bF"></i></div>
+</section>
+
+<section class="panel xfoot" id="x02">
+  <div class="bar"><i class="bA" style="background:#2a3660"></i><i class="bL" style="background:#7d1a2f"></i><i class="bP" style="background:#2f6650"></i><i class="bF"></i></div>
+  <div class="wm"><img src="../assets/atlas-mark-dark.svg" alt="" /><div><strong>ATLAS</strong><span>Education platform by Lancaster · A sibling of CORE</span></div></div>
+  <em>Academic · Learn · People · Finance</em>
+</section>
+
+<section class="panel xsq dark" id="x03">
+  <div class="folio"><span><img src="../assets/atlas-mark-dark.svg" alt="" /> ATLAS</span><span>Education platform by Lancaster</span></div>
+  <h1>One school.<br /><em>One sign-in.</em></h1>
+  <p class="body" style="font-size:27px;line-height:1.45;margin-top:44px;width:640px">Classes, student records, people and the school's books: four systems that open with the same account.</p>
+  <p class="names"><span><b class="num">01</b> Academic</span><span><b class="num">02</b> Learn</span><span><b class="num">03</b> People</span><span><b class="num">04</b> Finance</span></p>
+  <div class="plate" style="right:70px;bottom:104px;width:330px;padding-bottom:30px">
+    <span class="seal"><img src="../assets/atlas-mark-dark.svg" alt="" /></span>
+    <p class="ex">Ex libris</p>
+    <p class="name">Your school</p>
+    <p class="label">ATLAS · Sign in</p>
+    <p class="line"><i></i></p>
+    <p class="go">Sign in</p>
+  </div>
+  <div class="bar"><i style="background:#2a3660"></i><i style="background:#7d1a2f"></i><i style="background:#2f6650"></i><i class="bF"></i></div>
+</section>
+
+</body>
+</html>
