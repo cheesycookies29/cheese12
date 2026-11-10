@@ -138,11 +138,17 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     throttle.check(here);
     throttle.check(key);
     const user = users().find((u) => u.username === username);
-    if (password.length > 200 || !verifyPassword(password, user?.passwordHash)) {
+    // With single sign-on on and passwords off, only administrators keep a password (a way in if
+    // Keycloak is down). Everyone else gets the same answer whether the password was right, wrong
+    // or the account does not exist, so old passwords cannot be tested here.
+    const sso = db.data.settings.sso;
+    const passwordsOff = Boolean(sso?.enabled && !sso.allowPasswords);
+    const right = password.length <= 200 && verifyPassword(password, user?.passwordHash);
+    if (!right || (passwordsOff && user.role !== 'admin')) {
       limits.add('signinFail', ip);
       throttle.fail(here);
       throttle.fail(key, 10);
-      fail('Incorrect username or password.', 401);
+      fail(passwordsOff ? `This school signs in with Keycloak. Choose "${sso.label}".` : 'Incorrect username or password.', 401);
     }
     throttle.reset(here);
     throttle.reset(key);
@@ -157,9 +163,6 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
     if (user.status === 'rejected') fail('Your application was not accepted. Contact the registrar for details.', 403);
     if (user.status !== 'active') fail('This account is disabled. Contact the registrar.', 403);
-    // With single sign-on switched on and passwords off, only administrators keep a password (a way in if Keycloak is down).
-    const sso = db.data.settings.sso;
-    if (sso?.enabled && !sso.allowPasswords && user.role !== 'admin') fail(`This school signs in with Keycloak. Choose "${sso.label}".`, 403);
     user.lastLoginAt = new Date().toISOString();
     db.save();
     return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id), idleMs()) } };
@@ -256,7 +259,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     users().push(user);
     db.save();
     return { ok: true };
-  });
+  }, { limit: 'apply' });
 
   // ----- University Portal (/): one sign-in for every system -----
   // The account type decides which session is opened: students and teachers get the

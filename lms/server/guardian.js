@@ -155,7 +155,9 @@ export function registerGuardianRoutes(route, ctx, { standing, resultFor, isOpen
         .filter((e) => e.studentId === student.id && e.termId === termId)
         .map((e) => {
           const v = enrollmentView(d, e);
-          return { id: v.id, status: v.status, statusLabel: v.statusLabel, position: v.position, section: v.section, finalGrade: v.finalGrade ?? null, passed: v.passed ?? null, createdAt: v.createdAt, updatedAt: v.updatedAt, history: (v.history || []).map((h) => ({ at: h.at, status: h.status, note: h.note || '' })) };
+          return { id: v.id, status: v.status, statusLabel: v.statusLabel, position: v.position, section: v.section, finalGrade: has('grades') ? v.finalGrade ?? null : null, passed: has('grades') ? v.passed ?? null : null, createdAt: v.createdAt, updatedAt: v.updatedAt,
+            // Without Grades on this link, the history says a class was completed but not with which grade.
+            history: (v.history || []).map((h) => ({ at: h.at, status: h.status, note: !has('grades') && /^Final grade/i.test(h.note || '') ? '' : h.note || '' })) };
         })
         .sort((a, b) => a.section.course.code.localeCompare(b.section.course.code));
     }

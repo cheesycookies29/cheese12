@@ -47,7 +47,7 @@ Try this with the demo school: sign in as `student.demo` (password `demo1234`). 
 ![A quiz before you start it](student-quiz.jpg)
 
 6. Answer the questions. Your answers save as you go (*All answers saved.*), and the numbered boxes on the right show which questions you have answered. Choose **Submit**, then **Submit** again to confirm.
-7. Back on the quiz page, **Your attempts** shows your attempt. This quiz shows the correct answers right after you submit; the essay question is scored by your teacher afterwards.
+7. Back on the quiz page, **Your attempts** shows your attempt. Your score shows right after you submit. This quiz allows two attempts, so the correct answers appear once you have used both, or when the quiz closes. The essay question is scored by your teacher afterwards.
 8. In the sidebar, open **Enrollment**. Tick **Show sections I can't take, and why** to see every section of the term, with the reason next to the ones you cannot take (for example *IT202 requires IT201 first*).
 
 ![Open sections, with the reasons you can't take some of them](student-enrollment.jpg)
@@ -80,7 +80,7 @@ Your work then shows under **Your work** as *Handed in*. Until your teacher scor
 3. Answer each question. For *Choose all that apply*, tick every right choice; wrong ticks take points away.
 4. Choose **Submit** and confirm. If some questions are unanswered, ATLAS tells you how many first.
 
-The highest score of your attempts counts (**Counts toward your grade**). Depending on the quiz, the correct answers appear right after you submit, after the quiz closes, or never.
+The highest score of your attempts counts (**Counts toward your grade**). Depending on the quiz, the correct answers appear right after you submit, after the quiz closes, or never. While you still have attempts left you see your score only; the correct answers come once no attempts are left or the quiz closes.
 
 > **Important:** The clock is kept by the school's server, not your computer. It keeps running if you close the page, and when time is up the quiz submits the answers you saved.
 
@@ -224,7 +224,7 @@ Final grades in Learn are percentages. Academic turns them into the grading scal
 No. Answers save as you go. Open the quiz again to carry on while time is left; when time runs out, what you saved is submitted.
 
 **Why can't I see the correct answers of a quiz?**
-Your teacher chooses when they appear: right after you submit, after the quiz closes, or never (score only). Until then the answer key is never sent to your computer.
+Your teacher chooses when they appear: right after you submit, after the quiz closes, or never (score only). Even with *right after you submit*, they wait until you have no attempts left or the quiz closes, so that a second attempt is still your own work. Until then the answer key is never sent to your computer.
 
 **A payment I made is not under My payments.**
 Only official receipts issued in your name appear. Ask the cashier.

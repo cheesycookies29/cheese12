@@ -251,11 +251,11 @@ You need a Keycloak realm, and someone who can change the server's settings.
 2. In Keycloak, create the client as listed in the **In Keycloak** card. Use **Copy** for the **Valid redirect URIs** and **Valid post logout redirect URIs**.
 3. Put the client secret in the server's settings as `OIDC_CLIENT_SECRET` and restart ATLAS. It is never typed into the admin panel. The **Status** card then shows **Client secret: Set on the server**. Without a secret (**Not set**), make the Keycloak client public instead (**Client authentication** off).
 4. Back in **Single sign-on**, type the **Issuer (realm address)** and **Client ID**, and change the **Button text** if you like.
-5. Choose how to **Match Keycloak users to ATLAS accounts by**: **Email (verified in Keycloak)** or **Username**.
+5. Choose how to **Match Keycloak users to ATLAS accounts by**: **Email (verified in Keycloak)** or **Username**. By username, only students, parents and staff are linked on the username alone; teachers, registrars, deans, administrators and officers must also have the same verified email in Keycloak as on their ATLAS account, so that nobody gets such an account just by having its username in Keycloak.
 6. Choose **Test connection**. ATLAS shows *Keycloak answered.* or what went wrong.
 7. Tick **Show "Sign in with Keycloak" on the sign-in pages** and choose **Save**.
 
-Leave **Keep ATLAS passwords too** ticked while people get used to it. When you untick it, everyone except administrators must sign in with Keycloak; administrators keep their password in case Keycloak is down.
+Leave **Keep ATLAS passwords too** ticked while people get used to it. When you untick it, everyone except administrators must sign in with Keycloak; administrators keep their password in case Keycloak is down. Anyone else who types a password is told to use Keycloak, whether the password was right or not.
 
 ![Single sign-on settings](admin-sso.jpg)
 

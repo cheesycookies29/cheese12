@@ -112,6 +112,11 @@ test('settings: the secret is never shown, Keycloak must answer before SSO turns
   // Passwords off: everyone but administrators signs in with Keycloak.
   await f.admin.put('/api/admin/sso', { allowPasswords: false });
   await assert.rejects(f.env.client().post('/api/hub/login', { username: 'rosa', password: PW }), /signs in with Keycloak/);
+  // The same answer for a wrong password and for an account that does not exist: old passwords cannot be tested.
+  const answer = (body) => f.env.client().post('/api/hub/login', body).then(() => 'signed in', (e) => `${e.status} ${e.message}`);
+  const right = await answer({ username: 'rosa', password: PW });
+  assert.equal(await answer({ username: 'rosa', password: 'not-her-password' }), right);
+  assert.equal(await answer({ username: 'nobody-here', password: PW }), right);
   await f.env.client().post('/api/hub/login', { username: 'admin', password: PW }); // a way in if Keycloak is down
   // Registrars cannot change SSO.
   const reg = f.env.client();
@@ -142,6 +147,19 @@ test('signing out of ATLAS also ends the Keycloak session', async () => {
 
 test('ES256-signed tokens and matching by username work too', async () => {
   const f = await school({ providerOptions: { alg: 'ES256' }, matchBy: 'username' });
-  const { client } = await f.ssoSignIn({ sub: 'kc-42', preferred_username: 'Rosa', email: 'someone-else@school.edu' });
-  assert.equal((await client.get('/api/hub/status')).user.username, 'rosa');
+  // A student is linked by the username alone.
+  const { client } = await f.ssoSignIn({ sub: 'kc-41', preferred_username: 'Carlo', email: 'someone-else@school.edu' });
+  assert.equal((await client.get('/api/hub/status')).user.username, 'carlo');
+  // A staff account is not: a Keycloak user who can name themselves "admin" or "rosa" does not get
+  // that account unless Keycloak also vouches for the email on it.
+  const refused = async (claims, re) => {
+    const { res } = await f.ssoSignIn(claims);
+    assert.match(decodeURIComponent(res.raw), re);
+  };
+  await refused({ sub: 'kc-evil', preferred_username: 'ADMIN', email_verified: false }, /must be verified and the same/);
+  await refused({ sub: 'kc-evil', preferred_username: 'admin', email: 'eve@school.edu', email_verified: true }, /must be verified and the same/);
+  await refused({ sub: 'kc-42', preferred_username: 'Rosa', email: 'rosa@school.edu' }, /must be verified and the same/); // not verified
+  assert.ok(!f.env.db.data.users.some((u) => u.ssoSubject?.endsWith('|kc-evil')));
+  const rosa = await f.ssoSignIn({ sub: 'kc-42', preferred_username: 'Rosa', email: 'ROSA@school.edu', email_verified: true }, { next: '/admin' });
+  assert.equal((await rosa.client.get('/api/admin/auth/status')).user.username, 'rosa');
 });

@@ -17,6 +17,7 @@
 // the client secret only in the environment (OIDC_CLIENT_SECRET), never in the data file or backups.
 import { randomBytes, createHash, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { HttpError, text } from './util.js';
+import { ROLES } from '../shared/roles.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -24,6 +25,8 @@ const fail = (msg, status = 400) => {
 export const SSO_STATE_COOKIE = 'ltdc_sso_state';
 export const DEFAULT_SSO = { enabled: false, issuer: '', clientId: '', label: 'Sign in with Keycloak', matchBy: 'email', allowPasswords: true };
 const NEXT_OK = ['/', '/lms/', '/admin', '/hris/', '/academic/'];
+// Account types a Keycloak username alone may link (the first time); every other type also needs a verified, matching email.
+const USERNAME_ALONE = ['student', 'guardian', 'staff'];
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
 const fromB64url = (s) => Buffer.from(String(s), 'base64url');
 
@@ -120,6 +123,15 @@ export function registerSsoRoutes(route, ctx, { startSession, secret = process.e
       if (cfg().matchBy === 'username') {
         const name = String(claims.preferred_username || '').trim().toLowerCase();
         user = name ? all.find((u) => u.username === name) : null;
+        // A username alone must not hand over an account with powers (a Keycloak user who could
+        // name themselves "admin" would become the administrator). Such an account is linked only
+        // when Keycloak also vouches for the email on the ATLAS account.
+        if (user && !USERNAME_ALONE.includes(user.role)) {
+          const email = String(claims.email || '').trim().toLowerCase();
+          if (!email || claims.email_verified !== true || email !== String(user.email || '').toLowerCase()) {
+            fail(`To link the ${ROLES[user.role]?.label || 'staff'} account ${user.username}, your Keycloak email must be verified and the same as the email on that ATLAS account. Ask an administrator to check both.`, 403);
+          }
+        }
       } else {
         const email = String(claims.email || '').trim().toLowerCase();
         // Only a verified email may find an account (a missing claim counts as not verified).

@@ -155,6 +155,11 @@ export function registerQuizRoutes(route, ctx, { access, findAssignment, isOpen 
     const mine = attemptsOf(quiz.id, user.id);
     const show = resultsVisible(quiz, nowLocal());
     const current = mine.find((x) => !x.submittedAt);
+    const submitted = mine.filter((x) => x.submittedAt).length;
+    // The answer key is sent only once the student cannot answer again: no attempts left, or the
+    // quiz has closed. Before that they see their score and which answers were right, not the key
+    // (otherwise a blank first attempt would give away the second).
+    const finished = !isOpen(quiz) || (quiz.quiz.attempts > 0 && submitted >= quiz.quiz.attempts);
     return {
       ...base,
       resultsVisible: show,
@@ -163,7 +168,8 @@ export function registerQuizRoutes(route, ctx, { access, findAssignment, isOpen 
       attemptsLeft: quiz.quiz.attempts ? Math.max(0, quiz.quiz.attempts - mine.filter((x) => x.submittedAt).length) : null,
       current: current ? { ...studentAttemptView(quiz, current, false), questions: orderFor(quiz, current).map(questionForStudent) } : null,
       // After results are released, the questions with the right answers, for review.
-      review: show && mine.some((x) => x.submittedAt) ? quiz.questions : null,
+      review: show && submitted && finished ? quiz.questions : null,
+      reviewLater: Boolean(show && submitted && !finished), // the key comes when attempts run out or the quiz closes
     };
   }, { module: 'assignments' });
 

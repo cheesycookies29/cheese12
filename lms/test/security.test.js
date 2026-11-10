@@ -315,3 +315,70 @@ test('password hashes are encrypted with the server key: switch-on, key change, 
     auth.setPasswordKeys('');
   }
 });
+
+// ----- Second assessment (November 2026) -----
+test('quiz answers shown "right after they submit" are sent only once the student cannot answer again', async () => {
+  const { seed } = await import('./support.js');
+  const env = setup();
+  const s = await seed(env);
+  await s.admin.post('/api/admin/enrollments', { studentId: s.students.s1.id, sectionId: s.sections.prog1.id, force: true });
+  const t1 = await s.login('teach1');
+  const s1 = await s.login('stud1');
+  const questions = [{ type: 'single', prompt: '2 + 2?', points: 2, options: [{ text: '3' }, { text: '4', correct: true }] }, { type: 'short', prompt: 'Capital?', points: 2, answers: ['Manila'] }];
+  const quiz = await t1.post(`/api/classes/${s.sections.prog1.id}/assignments`, { kind: 'quiz', title: 'Quiz', published: true, dueAt: '2026-08-20T23:59', quiz: { attempts: 2, showResults: 'immediately' }, questions });
+  const hasKey = (v) => /"correct":true|"answers":\["Manila"\]/.test(JSON.stringify(v));
+  // A blank first attempt: the score and what was right, but no key while a second attempt is left.
+  const first = await s1.post(`/api/quizzes/${quiz.id}/start`);
+  await s1.put(`/api/attempts/${first.id}`, { answers: {}, submit: true });
+  let mine = await s1.get(`/api/quizzes/${quiz.id}`);
+  assert.equal(mine.attemptsLeft, 1);
+  assert.equal(mine.review, null);
+  assert.equal(mine.reviewLater, true);
+  assert.equal(mine.attempts[0].score, 0);
+  assert.ok(!hasKey(mine), 'the answer key is not sent while an attempt is left');
+  // The last attempt used: now the key, for review.
+  const second = await s1.post(`/api/quizzes/${quiz.id}/start`);
+  assert.ok(!hasKey(await s1.get(`/api/quizzes/${quiz.id}`)), 'nor during the second attempt');
+  await s1.put(`/api/attempts/${second.id}`, { answers: {}, submit: true });
+  mine = await s1.get(`/api/quizzes/${quiz.id}`);
+  assert.equal(mine.attemptsLeft, 0);
+  assert.ok(hasKey(mine.review));
+  // Unlimited attempts: the key comes when the quiz closes.
+  const open = await t1.post(`/api/classes/${s.sections.prog1.id}/assignments`, { kind: 'quiz', title: 'Practice', published: true, dueAt: '2026-08-20T23:59', quiz: { attempts: 0, showResults: 'immediately' }, questions });
+  const a = await s1.post(`/api/quizzes/${open.id}/start`);
+  await s1.put(`/api/attempts/${a.id}`, { answers: {}, submit: true });
+  assert.ok(!hasKey(await s1.get(`/api/quizzes/${open.id}`)));
+});
+
+test('applications for admission are limited per network address', async () => {
+  const env = setup();
+  const admin = env.client();
+  await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
+  await admin.put('/api/admin/settings', { registration: { open: true } });
+  const form = (i) => ({ name: `Kid ${i}`, username: `kid${i}`, email: `kid${i}@example.com`, password: PW });
+  const here = from(env, '203.0.113.40');
+  for (let i = 0; i < 10; i++) await here.post('/api/auth/apply', form(i));
+  await assert.rejects(here.post('/api/auth/apply', form(10)), (e) => e.status === 429 && Boolean(e.headers['Retry-After']));
+  await from(env, '203.0.113.41').post('/api/auth/apply', form(11)); // another address still can
+});
+
+test('a parent whose link does not share Grades sees no final grades, in the class list or its history', async () => {
+  const { seed } = await import('./support.js');
+  const env = setup();
+  const s = await seed(env);
+  const past = await s.admin.post('/api/admin/enrollments', { studentId: s.students.s1.id, sectionId: s.sections.pastProg1.id, force: true });
+  const t2 = await s.login('teach2');
+  await t2.put(`/api/classes/${s.sections.pastProg1.id}/final-grades`, { grades: [{ enrollmentId: past.id, grade: 91 }] });
+  await s.admin.post('/api/admin/guardians', { name: 'Mara Mom', username: 'mara', password: PW, mustChangePassword: false, studentId: s.students.s1.id, relationship: 'Mother', views: { enrollment: true, grades: false } });
+  const mom = env.client();
+  await mom.post('/api/hub/login', { username: 'mara', password: PW });
+  const seen = await mom.get(`/api/guardian/children/${s.students.s1.id}?termId=${s.past.id}`);
+  assert.equal(seen.enrollment.length, 1);
+  assert.equal(seen.enrollment[0].finalGrade, null);
+  assert.equal(seen.enrollment[0].passed, null);
+  assert.ok(seen.enrollment[0].history.every((h) => !/grade|91|passed|failed/i.test(h.note)), 'no grade in the history notes');
+  // With Grades shared, they are there.
+  const [link] = await s.admin.get(`/api/admin/students/${s.students.s1.id}/guardians`);
+  await s.admin.put(`/api/admin/guardian-links/${link.id}`, { views: { enrollment: true, grades: true } });
+  assert.equal((await mom.get(`/api/guardian/children/${s.students.s1.id}?termId=${s.past.id}`)).enrollment[0].finalGrade, 91);
+});

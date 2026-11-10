@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### Second security review: first fixes
+- **Quizzes:** with *Students see answers: Right after they submit*, a student who still has attempts left now sees their score only. The correct answers show once no attempts are left or the quiz closes, so a second attempt is still the student's own work. See [the teacher's guide](teacher#build-a-quiz-or-exam) and [the student's guide](student#take-a-quiz-or-exam).
+- **Parents:** a link that does not share **Grades** no longer shows final grades under **Enrollment**.
+- **Keycloak:** matching by username links teachers, registrars, deans, administrators and officers only when their verified Keycloak email is also the one on their ATLAS account. With ATLAS passwords switched off, typing a password gives the same answer whether it was right or not. See [the administrator's guide](admin#set-up-single-sign-on-with-keycloak).
+- The **Apply for admission** form accepts ten applications an hour from one network address.
+
 ### The guides were checked against every screen
 - Every guide was followed step by step in ATLAS and corrected where a name, a step or a result no longer matched the screen: confirmations that were missing (**Finalize**, **Withdraw**, **Release**), buttons that load a report (**Show**), where a list is filtered, and who may do what.
 - The guides now use the same words throughout: **choose** a button, link or tab; **press** a key; **tick** a box.

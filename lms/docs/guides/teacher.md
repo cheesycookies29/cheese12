@@ -107,7 +107,7 @@ The student sees the score and your feedback. To send work back so the student c
 
 1. Open the class, choose **Activities** and choose **New quiz or exam**.
 2. Under **Details**, fill in the **Title** and choose the **Type** (it shows how much that type counts in the grade).
-3. Set **Opens** and **Closes**, the **Time limit (minutes)** (0 = no limit), **Attempts allowed** (0 = unlimited; the highest score counts) and **Students see answers**: *Right after they submit*, *After the quiz closes* or *Never (score only)*.
+3. Set **Opens** and **Closes**, the **Time limit (minutes)** (0 = no limit), **Attempts allowed** (0 = unlimited; the highest score counts) and **Students see answers**: *Right after they submit*, *After the quiz closes* or *Never (score only)*. With *Right after they submit*, a student who still has attempts left sees their score only; the correct answers show once no attempts are left or the quiz closes.
 4. Tick **Shuffle question order for each student** if you want.
 5. Write the questions. Change a question's kind with its drop-down, and add more with the buttons under **Add a question**: *One answer*, *Several answers*, *True or false*, *Short answer* and *Essay*. Tick the correct choices; for a short answer, list the accepted answers one per line.
 6. Tick **Published (students can see it)** when it is ready, and choose **Create quiz**.
