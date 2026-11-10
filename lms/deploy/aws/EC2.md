@@ -92,6 +92,26 @@ New versions on the branch `claude/compassionate-edison-kc7gd0` are installed au
 
 To see which version is installed, open a console (below) and run `cat /opt/ltdc-lms/build.json`.
 
+### Who can change what the server runs
+
+The server installs whatever is on the branch it follows, once that version's tests pass. So **anyone who can push to that branch can change what your school's server runs.** Protect it on GitHub: **Settings → Branches → Add branch ruleset** (or *Add rule*) for the branch, with **Require a pull request before merging**, at least one approval, and **Block force pushes**. Keep the list of people with write access short.
+
+The server limits the damage a bad version could do before it is installed: the tests run as the account `nobody`, with none of the server's settings, unable to read ATLAS's data, and without a network where the server allows it. Only a version that passes is installed, and it then runs as the app's own account, which can write only to the data folder.
+
+The updater itself (`/usr/local/sbin/ltdc-lms-update`) is **not** replaced by updates, because it runs as root: a new updater is installed only when someone runs `upgrade-server.sh` on the server (next section).
+
+## Bringing an older server up to date
+
+A server set up before November 2026 needs this once. From a console on the server:
+
+```bash
+sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh
+```
+
+It installs **Node.js 22** (Ubuntu's Node 18 no longer gets security fixes; from then on it is kept current by the automatic security updates), replaces the updater and the service file with the current ones, closes the data folder to other accounts on the server, and restarts ATLAS. Data is not touched. To check afterwards: `node --version` shows v22.
+
+Then, in the AWS console, require **IMDSv2** on the server, so that a request tricked out of the app cannot read the server's AWS credentials: **EC2 → Instances → ltdc-lms → Actions → Instance settings → Modify instance metadata options → IMDSv2: Required**, and **Save**. (Servers created from the current template already have this.)
+
 ## Opening a console on the server (no SSH)
 
 **CloudFormation → ltdc-lms → Outputs → ConsoleAccess**, or **EC2 → Instances → ltdc-lms → Connect → Session Manager → Connect**. Useful commands:

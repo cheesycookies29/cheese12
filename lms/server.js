@@ -215,6 +215,8 @@ server.listen(PORT, HOST, () => {
   console.log(`  ATLAS Learn: http://localhost:${PORT}/lms/   ·   Learn admin panel: http://localhost:${PORT}/admin   ·   ATLAS People: http://localhost:${PORT}/hris/   ·   ATLAS Academic: http://localhost:${PORT}/academic/   ·   ATLAS Finance: http://localhost:${PORT}/finance/`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
+  // An old Node.js still runs ATLAS, but no longer gets security fixes.
+  if (Number(process.versions.node.split('.')[0]) < 20) console.warn(`  Node.js ${process.versions.node} no longer gets security updates. Install Node.js 22 (on the AWS server: sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh).`);
   console.log('  Press Ctrl+C to stop.\n');
   if (process.env.OPEN_BROWSER) openBrowser(`http://localhost:${PORT}/`);
   // Encrypt any password hashes not yet under the current key, once this version has run for two

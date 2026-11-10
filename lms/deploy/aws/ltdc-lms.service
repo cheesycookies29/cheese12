@@ -18,6 +18,8 @@ ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 ReadWritePaths=/opt/ltdc-lms/data
+# New data files are not readable by other accounts on the server.
+UMask=0027
 
 [Install]
 WantedBy=multi-user.target

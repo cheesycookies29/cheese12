@@ -30,9 +30,9 @@ This tour uses the demo school. Sign in as `teacher.demo` with the password `dem
 3. Scroll down: **Announcements** and **Upcoming events** show the school's latest news and events for your campus.
 4. Choose **Open People** on the People tile. People opens straight away; you do not sign in again.
 
-![A system: the menu button on the left, and the All systems, Help, dark mode and name buttons on the right](getting-started-system.jpg)
+![A system: the menu button on the left, and the All systems, Help & guides, dark mode and name buttons on the right](getting-started-system.jpg)
 
-5. Look at the top bar. On the left is the **menu** button (three lines), which folds the side menu. On the right are, in order: **All systems** (the grid of squares), **Help** (the question mark), the **dark mode** button (the moon) and your name.
+5. Look at the top bar. On the left is the **menu** button (three lines), which folds the side menu. On the right are, in order: **All systems** (the grid of squares), **Help & guides** (the question mark), the **dark mode** button (the moon) and your name.
 6. Choose **All systems**. You are back on the ATLAS home page.
 7. Choose your name at the top right. The menu shows your username, account type, **Change password** and **Sign out**. An account that works at more than one campus also sees **Switch campus** here.
 
@@ -124,9 +124,9 @@ You are signed out of every ATLAS system in this browser, and back on the sign-i
 
 ### Get help
 
-Every system has a **Help** button (a question mark) in the top bar, beside the dark mode button; the ATLAS home page has one too.
+Every system has a **Help & guides** button (a question mark) in the top bar, beside the dark mode button; the ATLAS home page has one too.
 
-1. Choose **Help**.
+1. Choose **Help & guides**.
 2. The **Help & guides** page opens at the guide for your job in the system you were using.
 3. To find something else, use **Search the guides** at the top (or press `/`), or choose a guide on the left: under **Your guides**, or under a system such as **ATLAS Learn**. On a phone, the menu button at the top left opens that list.
 

@@ -111,6 +111,9 @@ Resources:
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref ServerInstanceProfile
       SecurityGroupIds: [!GetAtt WebSecurityGroup.GroupId]
+      # Instance metadata only through IMDSv2 (a session token), and only from the server itself:
+      # a request tricked out of the app cannot read the server's AWS credentials.
+      MetadataOptions: { HttpEndpoint: enabled, HttpTokens: required, HttpPutResponseHopLimit: 1 }
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs: { VolumeSize: !Ref DiskSizeGiB, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true }

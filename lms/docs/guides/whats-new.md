@@ -21,6 +21,7 @@ order: 2
 - **Finance, payments:** a voucher is paid to the bank account it was certified with. An LDDAP-ADA voucher is certified only when the payee's card has a bank account, and a later change to the card does not change where an approved voucher is paid. See [the cashier's guide](cashier#pay-by-lddap-ada).
 - **Finance, card file:** on an existing card, the name, bank details, status (including blacklisting) and fidelity bond are changed by the Chief Accountant or an administrator only, and **History** keeps the old and new value.
 - **Finance, supplies:** nobody approves or issues their own requisition.
+- **For whoever looks after the server:** new servers run Node.js 22 and require IMDSv2, and an update's tests no longer run as root. A server set up earlier needs one command, once: see `deploy/aws/EC2.md`, *Bringing an older server up to date*.
 - **Finance, small fixes:** **New advance (DV)** opens the form as a cash advance; depreciation offers **Book** only for a month that has ended; a voucher shows what an advance is for in words.
 
 ### The guides were checked against every screen

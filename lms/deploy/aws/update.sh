@@ -27,14 +27,33 @@ if [ "$LATEST" = "$CURRENT" ] && [ "$FORCE" != "--force" ]; then exit 0; fi
 echo "Installing ${LATEST:0:7} (was ${CURRENT:0:7})"
 
 TMP="$(mktemp -d)"
+chmod 755 "$TMP" # the tests run as "nobody" and must be able to read the new version
 trap 'rm -rf "$TMP"' EXIT
 curl -fsSL --max-time 120 -o "$TMP/src.tar.gz" "https://codeload.github.com/$LMS_REPO/tar.gz/$LATEST"
 tar xzf "$TMP/src.tar.gz" -C "$TMP" --strip-components=1
 NEW="$TMP/lms"
 [ -f "$NEW/server.js" ] || { echo "No LMS in this version of the repository."; exit 1; }
 
+# The tests are the new version's own code and have not been installed yet, so they do not run as
+# root: they run as "nobody", with an empty environment (none of this server's settings), unable
+# to read ATLAS's data or settings. Where the server allows it, they also run without a network
+# (only "localhost", which the tests use).
 echo "Running the tests…"
-if ! (cd "$NEW" && env -u SETUP_CODE timeout 600 node --test >"$TMP/tests.log" 2>&1); then
+run_tests() { # $1 = nonet: without a network
+  local as_nobody='exec runuser -u nobody -- env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/tmp timeout 600 node --test'
+  if [ "${1:-}" = nonet ]; then
+    (cd "$NEW" && unshare -n -- sh -c "ip link set lo up && $as_nobody") >"$TMP/tests.log" 2>&1
+  else
+    (cd "$NEW" && sh -c "$as_nobody") >"$TMP/tests.log" 2>&1
+  fi
+}
+TESTS_OK=no
+if unshare -n -- sh -c 'ip link set lo up' >/dev/null 2>&1 && run_tests nonet; then
+  TESTS_OK=yes
+elif run_tests; then
+  TESTS_OK=yes
+fi
+if [ "$TESTS_OK" != yes ]; then
   tail -n 40 "$TMP/tests.log"
   echo "Tests failed: ${LATEST:0:7} was NOT installed. The current version keeps running."
   exit 1
@@ -50,6 +69,7 @@ systemctl stop ltdc-lms 2>/dev/null || true
 rsync -a --delete --exclude /data/ "$NEW/" "$APP/"
 printf '{"commit":"%s","installedAt":"%s","channel":"aws"}\n' "$LATEST" "$(date -Is)" > "$APP/build.json"
 chown -R ltdc-lms:ltdc-lms "$APP"
+chmod 750 "$APP/data" # records, the password key and backups: the app's own account only
 systemctl start ltdc-lms 9>&-
 
 for _ in $(seq 1 20); do

@@ -282,7 +282,7 @@ The demo school is added next to your own data, at your first campus and three d
 
 Administrators can change any guide on the **Help & guides** page, for example to add the school's own office hours or rules.
 
-1. Open the guide (choose **Help** in the top bar), then choose **Edit this guide**.
+1. Open the guide (choose **Help & guides**, the question mark in the top bar), then choose **Edit this guide**.
 2. Change the text on the left, in Markdown. The buttons above it add a heading (**H2**, **H3**), bold, a menu path (**→**), numbered steps, a list, a **Tip**, **Note** or important (**!**) box, a link or a screenshot. The preview on the right shows how it will look.
 3. Choose **Save**.
 
