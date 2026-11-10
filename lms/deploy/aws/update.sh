@@ -66,6 +66,10 @@ if [ -d "$PREV" ]; then
   echo "Putting the previous version back."
   systemctl stop ltdc-lms || true
   rsync -a --delete --exclude /data/ "$PREV/" "$APP/"
+  # The data as it was before the update, in case the new version had already changed it.
+  if [ -f "$APP/data/backups/db-before-update-$STAMP.json" ]; then
+    cp -p "$APP/data/backups/db-before-update-$STAMP.json" "$APP/data/db.json"
+  fi
   chown -R ltdc-lms:ltdc-lms "$APP"
   systemctl start ltdc-lms 9>&-
 fi

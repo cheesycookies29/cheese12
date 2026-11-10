@@ -11,6 +11,8 @@ if (!username || !password || password.length < 8) {
   process.exit(1);
 }
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+// The password is stored as a plain one-way hash here; ATLAS encrypts it with its key at the next
+// sign-in or start (so this script never needs the key, wherever the app keeps it).
 const db = openDb(process.env.DB_FILE || path.join(root, 'data', 'db.json'));
 const user = db.data.users.find((u) => u.username === username.toLowerCase());
 if (!user) {

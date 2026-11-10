@@ -59,7 +59,11 @@ export async function settingsView(el) {
       <section class="card"><h2>Student applications</h2>
         <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ATLAS home page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
       </section>
-      <section class="card" id="security"><h2>Sign-in and passwords</h2><div class="grid">
+      <section class="card" id="security"><h2>Sign-in and passwords</h2>
+        <p class="muted small">${s.passwordEncryption?.on
+          ? html`${icon('lock', 14)} <strong>Passwords are encrypted.</strong> Each password is stored only as a one-way hash, and that hash is encrypted with the server's key (key ${s.passwordEncryption.keyId}). A copy of the data or a backup cannot be used to guess passwords without the key.`
+          : html`<strong>Password hashes are not encrypted.</strong> Passwords are stored only as one-way hashes. Start the server with a key (PASSWORD_KEY) to encrypt them too.`}</p>
+        <div class="grid">
         <label class="field"><span>Shortest password</span><input type="number" name="minPasswordLength" min="8" max="64" value="${s.security.minPasswordLength}" ${dis} /><span class="hint">Characters, 8 to 64. Applies to new and changed passwords.</span></label>
         <label class="field"><span>Wrong passwords before locking</span><input type="number" name="lockoutAttempts" min="3" max="20" value="${s.security.lockoutAttempts}" ${dis} /><span class="hint">In a row, for one username from one network address. Ten times as many lock it from everywhere.</span></label>
         <label class="field"><span>Minutes locked</span><input type="number" name="lockoutMinutes" min="1" max="120" value="${s.security.lockoutMinutes}" ${dis} /></label>

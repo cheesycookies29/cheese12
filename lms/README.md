@@ -392,6 +392,7 @@ The app reads these settings (all set by the template): `COOKIE_SECURE=1`, `ALLO
 - **The visitor's address** is the last entry of `X-Forwarded-For`, believed only when the connection comes from this computer (Caddy). Keep `HOST=127.0.0.1` behind a proxy; on a LAN without a proxy the connection's own address is used.
 - **Headers**: a Content-Security-Policy (no inline scripts except the dark-mode snippets, allowed by hash), `X-Frame-Options: SAMEORIGIN`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy`. Caddy adds HSTS.
 - **Requests**: JSON bodies only, at most 20 MB; a malformed address or Host is answered `400`/`403`; request headers must arrive within 20 seconds.
+- **Passwords** are stored only as scrypt hashes, and each hash is encrypted with AES-256-GCM under a key kept outside the data: `PASSWORD_KEY` (64 hex characters), else `password.key` beside the data file, made on first start (readable by the app only, not in backups). `PASSWORD_KEY_OLD` (comma-separated) reads hashes under earlier keys; they are re-encrypted under the current key two minutes after the start (`PASSWORD_SEAL_DELAY_MS`) and at each sign-in. Moving ATLAS to another computer: copy the whole `data` folder, key included. See [deploy/aws/EC2.md](deploy/aws/EC2.md), *The password key*.
 
 When one server is no longer enough:
 

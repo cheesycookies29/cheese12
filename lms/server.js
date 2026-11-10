@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
+import { loadPasswordKeys } from './server/auth.js';
 import { createApi } from './server/api.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -13,8 +14,10 @@ const HOST = process.env.HOST || '127.0.0.1'; // only reachable from this comput
 const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS || '').split(',').filter(Boolean);
 const DB_FILE = process.env.DB_FILE || path.join(ROOT, 'data', 'db.json');
 
+// The key that encrypts the password hashes: PASSWORD_KEY, or password.key beside the data file.
+loadPasswordKeys(path.dirname(DB_FILE));
 const db = openDb(DB_FILE);
-const api = createApi(db);
+const api = createApi(db, { sealAtStart: false });
 
 const PUBLIC = path.join(ROOT, 'public');
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': PUBLIC };
@@ -214,4 +217,10 @@ server.listen(PORT, HOST, () => {
   console.log(`  Data file: ${DB_FILE}`);
   console.log('  Press Ctrl+C to stop.\n');
   if (process.env.OPEN_BROWSER) openBrowser(`http://localhost:${PORT}/`);
+  // Encrypt any password hashes not yet under the current key, once this version has run for two
+  // minutes (an update that fails to start is rolled back sooner, and the old version must still read them).
+  setTimeout(() => {
+    const { sealed } = api.sealPasswords();
+    if (sealed) console.log(`  Encrypted ${sealed} password hash(es) with the password key.`);
+  }, Number(process.env.PASSWORD_SEAL_DELAY_MS ?? 120000)).unref();
 });

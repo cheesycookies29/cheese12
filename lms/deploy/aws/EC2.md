@@ -129,6 +129,20 @@ Then finish in *Admin panel → Single sign-on*. The server needs to reach Keycl
 - **Every day at 2:00 AM** AWS takes a snapshot of the whole disk (7 kept): **EC2 → Snapshots**. To go back to one, create a volume from it and swap it in, or ask for help.
 - From the admin panel, **Demo data & backup → Download backup** saves the records (not uploaded files) to your computer.
 
+### The password key
+
+Passwords are stored only as one-way hashes, and those hashes are encrypted with a key kept outside the data: `/opt/ltdc-lms/data/password.key`, made by ATLAS the first time it starts. The nightly copies and downloaded backups do **not** contain it, so a copied backup cannot be used to guess passwords. The daily disk snapshots do contain it.
+
+**Keep a copy of the key somewhere safe** (the school's password manager). Without it, a backup restored on another server has no working passwords. To see it, from a console:
+
+```bash
+sudo cat /opt/ltdc-lms/data/password.key
+```
+
+- **Moving to a new server:** copy `password.key` into the new server's `/opt/ltdc-lms/data/` with the data, or add the old key as `PASSWORD_KEY_OLD=<key>` in `/etc/ltdc-lms/app.env` before restoring.
+- **Changing the key** (e.g. if it may have been seen): add `PASSWORD_KEY_OLD=<the current key>` and `PASSWORD_KEY=<a new key from openssl rand -hex 32>` to `/etc/ltdc-lms/app.env`, then `sudo systemctl restart ltdc-lms`. Every hash is re-encrypted two minutes after the start; nobody changes their password. After that, the old key can be removed.
+- **Lost the key:** reset each password (the table above shows how, for an administrator).
+
 ## If something goes wrong
 
 | What you see | What to do |

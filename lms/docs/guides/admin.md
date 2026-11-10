@@ -264,7 +264,9 @@ The demo school is added next to your own data, at your first campus and three d
 1. Choose **Demo data & backup → Download backup**. A file named like `atlas-backup-2026-11-08.json` is saved.
 2. To restore, choose **Restore from backup…**, pick the file and confirm **Restore**.
 
-> **Important:** Restoring replaces **all** current data with the backup and cannot be undone. The backup holds the records (with passwords as secure hashes), so keep it private. Uploaded files are not in it: to keep them too, copy the server's whole `data` folder.
+> **Important:** Restoring replaces **all** current data with the backup and cannot be undone. The backup holds the records, so keep it private. Passwords are in it only as one-way hashes, encrypted with the server's own password key, which is not in the backup: a backup restored on another server needs that key (the person who looks after the server knows where it is), or the passwords must be reset. Uploaded files are not in it: to keep them too, copy the server's whole `data` folder.
+
+**Settings & branding → Sign-in and passwords** shows whether the password hashes are encrypted, and with which key.
 
 ### Edit a guide
 

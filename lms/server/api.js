@@ -18,6 +18,7 @@ import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { HttpError, localDate, localDateTime, text } from './util.js';
 import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
+  sealAllPasswords, needsSealing, sealHash, readableHash, passwordEncryption,
   sessionCookie, clearedCookie, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
 import { clientIp, createRateLimiter } from './ratelimit.js';
@@ -64,7 +65,7 @@ const fail = (msg, status = 400) => {
 // options.setupCode (or the SETUP_CODE environment variable): when set, creating the first
 // administrator also needs this code, so nobody else can claim a new server on the internet.
 // options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, rateLimits = process.env.RATE_LIMITS || '' } = {}) {
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -94,6 +95,17 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   });
   const users = () => db.data.users;
+  // Password hashes are encrypted under the current key (server/auth.js): plain ones, and ones under
+  // an old key, are encrypted now; ones under a key this server lacks cannot be used until it has it.
+  function sealPasswords() {
+    const { sealed, unreadable } = sealAllPasswords(users());
+    if (sealed) db.save();
+    if (unreadable) console.warn(`  ${unreadable} account(s) have passwords encrypted with another key, so they cannot sign in. Set PASSWORD_KEY (or PASSWORD_KEY_OLD) to that key, or reset those passwords.`);
+    return { sealed, unreadable };
+  }
+  // server.js waits until the new version has run for a while (sealAtStart: false), so an update
+  // that is rolled back never leaves hashes the previous version cannot read.
+  if (sealAtStart) sealPasswords();
 
   // limit: a rate-limit rule this route also counts against (see `limits`).
   const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null } = {}) => {
@@ -134,6 +146,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     }
     throttle.reset(here);
     throttle.reset(key);
+    if (needsSealing(user.passwordHash)) user.passwordHash = sealHash(user.passwordHash); // saved below
     if (ROLES[user.role]?.side !== side) {
       fail(ROLES[user.role]?.side === 'hris'
         ? 'HR and staff accounts sign in on the ATLAS home page and open People.'
@@ -341,10 +354,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('GET', '/api/admin/backup', 'admin:data.manage', () => db.data);
   route('POST', '/api/admin/restore', 'admin:data.manage', ({ body }) => {
     if (!Array.isArray(body.users) || !Array.isArray(body.enrollments)) fail('That file is not an ATLAS backup.');
-    if (!body.users.some((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash)) fail('The backup has no active administrator, so nobody could sign in.');
+    const admins = body.users.filter((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash);
+    if (!admins.length) fail('The backup has no active administrator, so nobody could sign in.');
+    if (!admins.some((u) => readableHash(u.passwordHash))) fail('This backup\'s passwords are encrypted with another server\'s key, so nobody could sign in. Start ATLAS with that key as PASSWORD_KEY_OLD, then restore again.');
     db.replace({ ...emptyData(), ...body });
     setRoleOverrides(db.data.roleOverrides);
-    return { ok: true };
+    const { unreadable } = sealPasswords();
+    return { ok: true, unreadablePasswords: unreadable };
   });
   route('GET', '/api/admin/demo', 'admin:data.manage', () => demoStatus(db.data));
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
@@ -452,7 +468,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Request handling -----
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
 
-  return async function handle(req, url, body) {
+  handle.sealPasswords = sealPasswords;
+  return handle;
+  async function handle(req, url, body) {
     const cookies = parseCookies(req.headers.cookie);
     const resolve = (side, token) => {
       const s = sides[side].get(token);

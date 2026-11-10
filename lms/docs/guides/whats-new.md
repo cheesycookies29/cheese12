@@ -12,6 +12,7 @@ order: 2
 ### Security review
 - ATLAS now limits how fast one person or one network address can send requests, and how many wrong passwords one address may try. Administrators set both under **Settings & branding → Sign-in and passwords**. See [the administrator's guide](admin#change-school-settings-and-branding).
 - A wrong-password lock now applies to the address the wrong passwords came from, so nobody can lock a colleague out from elsewhere.
+- Password hashes are now also encrypted with a key kept outside the data, so a copied backup cannot be used to guess passwords. **Settings & branding → Sign-in and passwords** shows it is on. See [the administrator's guide](admin#make-a-backup-or-restore-one).
 - Only administrators create and change Finance office accounts, also in People. Officers cannot change their own leave, pay or payslip. See [the HR guide](hr).
 
 ### A new sign-in page

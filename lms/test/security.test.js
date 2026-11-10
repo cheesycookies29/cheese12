@@ -239,3 +239,79 @@ test('injection: CSV cells that look like formulas, calendar titles with line br
   const other = systems.find((s) => !s.builtIn);
   await assert.rejects(admin.put('/api/admin/systems', { settings: { [other.id]: { status: 'live', url: '//evil.example' } } }), /one slash/);
 });
+
+test('password hashes are encrypted with the server key: switch-on, key change, wrong key, restore, key file', async () => {
+  const auth = await import('../server/auth.js');
+  const { createApi } = await import('../server/api.js');
+  const clientOf = (api) => {
+    const jar = {};
+    const call = async (method, p, body = {}) => {
+      const res = await api({ method, headers: { cookie: Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ') } }, new URL(`http://localhost${p}`), body);
+      for (const set of [res.headers['Set-Cookie'] || []].flat()) {
+        const [k, v] = set.split(';')[0].split('=');
+        if (v) jar[k] = v;
+        else delete jar[k];
+      }
+      return res.data;
+    };
+    return { get: (p) => call('GET', p), post: (p, b) => call('POST', p, b) };
+  };
+  const K1 = '1'.repeat(64);
+  const K2 = '2'.repeat(64);
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    // Before: plain one-way hashes.
+    auth.setPasswordKeys('');
+    const env = setup();
+    const admin = env.client();
+    await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
+    await admin.post('/api/admin/users', { role: 'teacher', username: 'tess', name: 'Tess', password: PW, mustChangePassword: false });
+    assert.ok(env.db.data.users.every((u) => u.passwordHash.startsWith('scrypt$')));
+    assert.equal((await admin.get('/api/admin/settings')).passwordEncryption.on, false);
+
+    // A key arrives (a restart): every hash is encrypted at once, and sign-in still works.
+    auth.setPasswordKeys(K1);
+    const api1 = createApi(env.db);
+    assert.ok(env.db.data.users.every((u) => /^enc1\$[0-9a-f]{8}\$/.test(u.passwordHash)), 'all encrypted');
+    assert.ok(!JSON.stringify(env.db.data).includes('scrypt$'), 'no plain hash left in the data');
+    const a1 = clientOf(api1);
+    await a1.post('/api/admin/auth/login', { username: 'admin', password: PW });
+    assert.equal((await a1.get('/api/admin/settings')).passwordEncryption.on, true);
+    await assert.rejects(clientOf(api1).post('/api/hub/login', { username: 'tess', password: 'wrong-password' }), status(401));
+    const before = env.db.data.users.find((u) => u.username === 'tess').passwordHash;
+
+    // A new key, with the old one given as PASSWORD_KEY_OLD: re-encrypted, nobody changes a password.
+    auth.setPasswordKeys(K2, [K1]);
+    const api2 = createApi(env.db);
+    const after = env.db.data.users.find((u) => u.username === 'tess').passwordHash;
+    assert.notEqual(after.split('$')[1], before.split('$')[1], 'now under the new key');
+    await clientOf(api2).post('/api/hub/login', { username: 'tess', password: PW });
+
+    // A copy of the data on a server without the key (or with another key) is useless.
+    const backup = structuredClone(env.db.data);
+    auth.setPasswordKeys('3'.repeat(64));
+    const stranger = setup();
+    const sAdmin = stranger.client();
+    await sAdmin.post('/api/admin/auth/setup', { name: 'Sam', username: 'sam', password: PW });
+    await assert.rejects(clientOf(createApi(env.db)).post('/api/hub/login', { username: 'tess', password: PW }), status(401));
+    await assert.rejects(sAdmin.post('/api/admin/restore', backup), /another server's key/);
+
+    // The key file: made once beside the data, readable by the app only, and reused.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-key-'));
+    const first = auth.loadPasswordKeys(dir, {});
+    const file = path.join(dir, 'password.key');
+    assert.ok(first.on && fs.existsSync(file));
+    if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    const id = auth.passwordEncryption().keyId;
+    auth.loadPasswordKeys(dir, {});
+    assert.equal(auth.passwordEncryption().keyId, id, 'the same key next time');
+    auth.loadPasswordKeys(dir, { PASSWORD_KEY: K1 });
+    assert.notEqual(auth.passwordEncryption().keyId, id, 'PASSWORD_KEY wins over the file');
+    assert.throws(() => auth.loadPasswordKeys(dir, { PASSWORD_KEY: 'short' }), /64 hexadecimal/);
+    fs.rmSync(dir, { recursive: true, force: true });
+  } finally {
+    console.warn = warn;
+    auth.setPasswordKeys('');
+  }
+});

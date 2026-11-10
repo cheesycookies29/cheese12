@@ -2,7 +2,7 @@
 // terms, sections), module switches for students and teachers, settings, dashboard.
 import { randomUUID } from 'node:crypto';
 import { HttpError, DATE_RE, text, localDate } from './util.js';
-import { hashPassword, validatePassword, publicUser } from './auth.js';
+import { hashPassword, validatePassword, publicUser, passwordEncryption } from './auth.js';
 import { can, ROLES, ADMIN_ROLES } from '../shared/roles.js';
 import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
@@ -586,7 +586,7 @@ export function registerAdminRoutes(route, ctx) {
   route('GET', '/api/admin/settings', 'admin', ({ user }) => {
     const s = data().settings;
     const out = can(user.role, 'settings.edit') ? { ...s } : { ...s, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
-    return { ...out, numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
+    return { ...out, passwordEncryption: passwordEncryption(), numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
   });
   // The next number a format would give (Settings → Numbering, as the administrator types).
   route('GET', '/api/admin/numbering-preview', 'admin:settings.edit', ({ query }) => {
