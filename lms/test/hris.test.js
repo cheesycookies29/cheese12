@@ -503,7 +503,10 @@ test('government payroll to Finance: ORS (Box A) → obligated → payroll vouch
   assert.equal(st.ors.status, 'draft');
   assert.ok(st.ors.submitted);
   await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/ors`, { allotments: { PS: ps.id, MOOE: mooe?.id } }), /already has/);
-  await assert.rejects(payroll.del(`/api/hris/payroll-runs/${run.id}`), /Cancel that request first/);
+  // A finalized run is the record of what was paid: the payroll officer cannot delete it, and an
+  // administrator cannot while Finance has a live document for it.
+  await assert.rejects(payroll.del(`/api/hris/payroll-runs/${run.id}`), (e) => e.status === 403 && /finalized/.test(e.message));
+  await assert.rejects(admin.del(`/api/hris/payroll-runs/${run.id}`), /Cancel that request first/);
   await assert.rejects(payroll.post(`/api/hris/payroll-runs/${run.id}/finance/dv`, {}), /not obligated yet/);
   // Box B in Finance, then the voucher.
   await budget.post(`/api/finance/obligations/${st.ors.id}/obligate`, {});

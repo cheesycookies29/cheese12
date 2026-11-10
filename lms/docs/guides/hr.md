@@ -83,13 +83,13 @@ Give the person the username and temporary password. They sign in on the ATLAS h
 
 > **Note:** The same list of account types also creates HR managers and payroll officers. Accounts for the Finance offices (Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer) are created, linked and changed only by an administrator, so that nobody can give themselves the power to approve payments.
 
-> **Note:** You cannot change your own leave credits, leave adjustments, leave days, pay or HR details, and a payroll officer cannot adjust their own payslip. ATLAS answers *You cannot … on your own record. Ask another officer or an administrator.*
+> **Note:** You cannot change your own attendance, leave credits, leave adjustments, leave days, which leave you get, pay or HR details, and a payroll officer cannot adjust their own payslip. ATLAS answers *You cannot … on your own record. Ask another officer or an administrator.*
 
 ### Reset a password, disable or unlink an account
 
 1. Open the employee's record.
 2. In **Sign-in account**, choose **Reset password** to set a new temporary password (they are signed out everywhere), or **Change type or status** to change the account type or set it to *Disabled: cannot sign in*.
-3. Choose **Unlink** to separate the account from the record. The account stays, but loses self-service until it is linked again.
+3. Choose **Unlink** to separate the account from the record. The account stays, but loses self-service until it is linked again. A Finance office account is unlinked by an administrator.
 
 Reset password and Change type or status appear only for People accounts. A teacher's, registrar's or dean's password and status are managed in the Learn admin panel. A Finance office account shows *Only an administrator changes Finance office accounts.* instead. You cannot change your own account type or disable your own account.
 
@@ -109,7 +109,7 @@ Reset password and Change type or status appear only for People accounts. A teac
 3. Choose the **Type**: *Work (on site)*, *Remote work*, or a leave type. For work, enter **Time in** and **Time out**. Leave **Time out** blank if the person is still working; for a full remote day leave both times blank.
 4. Add a note saying why, and choose **Save**.
 
-A record with a time in but no time out shows *Open* and is not paid until it is fixed. An employee can have only one record per day.
+A record with a time in but no time out shows *Open* and is not paid until it is fixed. An employee can have only one record per day. A leave day always has a leave type, so it comes off that leave's credits. You cannot add or change your own records: another HR manager or an administrator does it.
 
 ### Approve overtime
 

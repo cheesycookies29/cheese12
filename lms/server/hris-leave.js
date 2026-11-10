@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { workDates, genderAllows, needsCertificate, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
+import { can } from '../shared/roles.js';
 
 // Officers cannot change their own leave or pay: another officer or an administrator does (separation of duties).
 export function notOwnRecord(user, employeeId, what) {
@@ -343,6 +344,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
   // Give or take away a leave type for one employee; offered = null goes back to the type's default.
   route('PUT', '/api/hris/employees/:id/leave-access', 'hris:leave.adjust', ({ params, body, user, campusId }) => {
     const emp = employeeIn(campusId, params.id);
+    notOwnRecord(user, emp.id, 'change which leave you get');
     const type = findLeaveType(data(), body.leaveTypeId);
     const block = body.offered === true && genderBlock(type, emp);
     if (block) throw new HttpError(400, block);
@@ -426,15 +428,18 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
   });
 
   // ----- Requests (HR and payroll see them; HR decides) -----
-  route('GET', '/api/hris/requests', 'hris:leave.manage', ({ query, campusId }) => {
+  // The reason and the medical certificate are health information: only those who decide on
+  // leave (leave.approve) see them. Payroll sees what it needs to pay: the type, dates, days and status.
+  const forReader = (user, view) => (can(user.role, 'leave.approve') ? view : { ...view, reason: '', decisionNote: '', attachment: view.attachment ? { withheld: true } : null, detailsWithheld: true });
+  route('GET', '/api/hris/requests', 'hris:leave.manage', ({ query, campusId, user }) => {
     const mine = atCampus(campusId);
-    return sortRequests(data().requests.filter((r) => mine.has(r.employeeId) && (!query.status || r.status === query.status)).map((r) => withEmployee(data(), r)));
+    return sortRequests(data().requests.filter((r) => mine.has(r.employeeId) && (!query.status || r.status === query.status)).map((r) => forReader(user, withEmployee(data(), r))));
   });
   route('GET', '/api/hris/requests/summary', 'hris:leave.manage', ({ campusId }) => {
     const mine = atCampus(campusId);
     return { pending: data().requests.filter((r) => r.status === 'pending' && mine.has(r.employeeId)).length };
   });
-  route('GET', '/api/hris/requests/:id/attachment', 'hris:leave.manage', ({ params, campusId }) => certificates.read(findRequest(params.id, campusId).attachment));
+  route('GET', '/api/hris/requests/:id/attachment', 'hris:leave.approve', ({ params, campusId }) => certificates.read(findRequest(params.id, campusId).attachment));
   route('POST', '/api/hris/requests/:id/approve', 'hris:leave.approve', ({ params, body, user, campusId }) => {
     const req = findRequest(params.id, campusId);
     approve(data(), req, user, body.note);

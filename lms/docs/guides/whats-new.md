@@ -14,6 +14,10 @@ order: 2
 - **Parents:** a link that does not share **Grades** no longer shows final grades under **Enrollment**.
 - **Keycloak:** matching by username links teachers, registrars, deans, administrators and officers only when their verified Keycloak email is also the one on their ATLAS account. With ATLAS passwords switched off, typing a password gives the same answer whether it was right or not. See [the administrator's guide](admin#set-up-single-sign-on-with-keycloak).
 - The **Apply for admission** form accepts ten applications an hour from one network address.
+- **People, payroll:** a finalized payroll run is the record of what was paid, so only an administrator can delete it; the payroll office corrects it in the next run with **Adjust**. See [the payroll guide](payroll#questions).
+- **People, privacy:** the reason for a leave and its medical certificate are shown to HR only. The payroll office sees the type, dates and status.
+- **People, own records:** officers cannot add or change their own attendance, loans or which leave they get, and HR cannot unlink a Finance office account. A leave day entered in the DTR always has a leave type.
+- When ATLAS refuses something (for example deleting a payroll run that Finance is using), the screen now says why instead of doing nothing.
 
 ### The guides were checked against every screen
 - Every guide was followed step by step in ATLAS and corrected where a name, a step or a result no longer matched the screen: confirmations that were missing (**Finalize**, **Withdraw**, **Release**), buttons that load a report (**Show**), where a list is filtered, and who may do what.

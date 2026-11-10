@@ -8,7 +8,7 @@ import { currentPeriod, scheduleFor, dayOfWeek, eachDate } from '../shared/calc.
 import { workDates, DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { computeRun, deleteEmployees, summarizeRun } from './hris.js';
 import { clockInLocation, locationSettings } from './hris-geo.js';
-import { salaryFor, BONUS_KINDS } from '../shared/gov-pay.js';
+import { salaryFor, BONUS_KINDS, DEDUCTION_TYPES } from '../shared/gov-pay.js';
 
 // Government payroll: salary grade by position (CSC/DBM index of positions, typical for an SUC).
 const SALARY_GRADE = {
@@ -265,7 +265,7 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
     Object.assign(byName('Ramon'), { position: 'Professor I (College Dean)', rataRepresentation: 6500, rataTransportation: 6500 });
     Object.assign(byName('Marites'), { rataRepresentation: 5500, rataTransportation: 5500 });
     // Loans and other deductions, already running for a while.
-    const loan = (first, type, monthly, startMonth, total, reference = '') => add('payrollDeductions', { employeeId: byName(first).id, type, name: '', reference, monthly, total, startDate: `${startMonth}-01`, endDate: null, notes: '', createdBy: 'Benjamin Soriano' });
+    const loan = (first, type, monthly, startMonth, total, reference = '') => add('payrollDeductions', { employeeId: byName(first).id, type, name: DEDUCTION_TYPES.find((t) => t.code === type)?.name || type, reference, monthly, total, startDate: `${startMonth}-01`, endDate: null, notes: '', createdBy: 'Benjamin Soriano' });
     const ym = (monthsBack) => {
       const d = new Date(`${today.slice(0, 7)}-01T00:00:00Z`);
       d.setUTCMonth(d.getUTCMonth() - monthsBack);

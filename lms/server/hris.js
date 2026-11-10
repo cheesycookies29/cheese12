@@ -135,11 +135,10 @@ function validateEntry(input, data, existingId) {
   if (e.type === 'leave') {
     e.timeIn = e.timeOut = null;
     e.otApproved = false;
-    // Leave entries without a type are treated as paid leave.
-    if (input.leaveTypeId) {
-      const type = findLeaveType(data, input.leaveTypeId);
-      Object.assign(e, { leaveTypeId: type.id, paid: type.paid });
-    } else e.paid = true;
+    // A leave day has a type, so it comes off that leave's credits (a day without one was paid leave from nowhere).
+    if (!input.leaveTypeId) fail('Pick the leave type.');
+    const type = findLeaveType(data, input.leaveTypeId);
+    Object.assign(e, { leaveTypeId: type.id, paid: type.paid });
   } else if (e.remote && !e.timeIn) {
     // A remote-work day without clock times counts as a full scheduled day.
     if (e.timeOut) fail('Enter a time in, or leave both times blank for a full remote day.');
@@ -551,8 +550,9 @@ export function registerHrisRoutes(route, ctx) {
     return employeeView(emp);
   });
   // Unlink: the account stays (it may be a teacher's LMS account); it just no longer has HRIS self-service.
-  route('DELETE', '/api/hris/employees/:id/account', 'hris:hris.accounts', ({ params, campusId }) => {
+  route('DELETE', '/api/hris/employees/:id/account', 'hris:hris.accounts', ({ params, campusId, user }) => {
     const emp = employeeIn(campusId, params.id);
+    for (const u of data().users) if (u.employeeId === emp.id) notFinanceOffice(user, u.role, 'unlinks');
     for (const u of data().users) if (u.employeeId === emp.id) u.employeeId = null;
     save();
     return employeeView(emp);
@@ -570,6 +570,7 @@ export function registerHrisRoutes(route, ctx) {
   });
   route('POST', '/api/hris/time-entries', 'hris:attendance.edit', ({ body, campusId, user }) => {
     employeeIn(campusId, body.employeeId);
+    notOwnRecord(user, body.employeeId, 'add attendance or leave');
     const entry = { id: randomUUID(), ...validateEntry(body, data()) };
     data().timeEntries.push(entry);
     save();
@@ -583,12 +584,14 @@ export function registerHrisRoutes(route, ctx) {
   // Editing a record keeps the location recorded when the employee clocked in.
   route('PUT', '/api/hris/time-entries/:id', 'hris:attendance.edit', ({ params, body, campusId, user }) => {
     const entry = entryIn(campusId, params.id);
+    notOwnRecord(user, entry.employeeId, 'change attendance');
     Object.assign(entry, validateEntry({ ...body, employeeId: entry.employeeId }, data(), entry.id));
     save();
     return forViewer(user, entry);
   });
-  route('DELETE', '/api/hris/time-entries/:id', 'hris:attendance.edit', ({ params, campusId }) => {
+  route('DELETE', '/api/hris/time-entries/:id', 'hris:attendance.edit', ({ params, campusId, user }) => {
     const entry = entryIn(campusId, params.id);
+    notOwnRecord(user, entry.employeeId, 'remove attendance');
     data().timeEntries = data().timeEntries.filter((e) => e.id !== entry.id);
     save();
     return { ok: true };
@@ -751,8 +754,11 @@ export function registerHrisRoutes(route, ctx) {
     save();
     return run;
   });
-  route('DELETE', '/api/hris/payroll-runs/:id', 'hris:payroll.edit', ({ params, campusId }) => {
+  route('DELETE', '/api/hris/payroll-runs/:id', 'hris:payroll.edit', ({ params, campusId, user }) => {
     const run = findRun(params.id, campusId);
+    // A finalized run is the record of what was paid: payslips, loan payments and leave charged.
+    // The payroll officer corrects it in the next run; only an administrator removes it.
+    if (run.status === 'finalized' && user.role !== 'admin') fail('This payroll is finalized: it is the record of what was paid. Correct it in the next run with Adjust, or ask an administrator to delete it.', 403);
     // Once Finance has its obligation request, the run is the record behind it.
     const ors = run.finance?.orsId && data().finObligations?.find((o) => o.id === run.finance.orsId);
     if (ors && ors.status !== 'cancelled') fail(`This run is on ${ors.form} ${ors.no || '(being obligated)'} in Finance. Cancel that request first.`);
@@ -797,6 +803,7 @@ export function registerHrisRoutes(route, ctx) {
   });
   route('POST', '/api/hris/employees/:id/deductions', 'hris:payroll.edit', ({ params, body, campusId, user }) => {
     const emp = employeeIn(campusId, params.id);
+    notOwnRecord(user, emp.id, 'add a loan or deduction');
     const d = { id: randomUUID(), employeeId: emp.id, ...validateDeduction(body), createdAt: new Date().toISOString(), createdBy: user.name };
     data().payrollDeductions.push(d);
     save();
@@ -808,13 +815,15 @@ export function registerHrisRoutes(route, ctx) {
   };
   route('PUT', '/api/hris/employees/:id/deductions/:dedId', 'hris:payroll.edit', ({ params, body, campusId, user }) => {
     const d = deductionIn(campusId, params.id, params.dedId);
+    notOwnRecord(user, d.employeeId, 'change a loan or deduction');
     Object.assign(d, validateDeduction({ ...d, ...body }), { updatedAt: new Date().toISOString(), updatedBy: user.name });
     save();
     return deductionView(d, deductionsPaid(data()));
   });
   // A deduction already taken in a finalized payroll is ended instead (its history stays).
-  route('DELETE', '/api/hris/employees/:id/deductions/:dedId', 'hris:payroll.edit', ({ params, campusId }) => {
+  route('DELETE', '/api/hris/employees/:id/deductions/:dedId', 'hris:payroll.edit', ({ params, campusId, user }) => {
     const d = deductionIn(campusId, params.id, params.dedId);
+    notOwnRecord(user, d.employeeId, 'remove a loan or deduction');
     if (deductionsPaid(data())[d.id]) fail('This deduction has been taken in a finalized payroll. Set its last month instead, so the record stays.');
     data().payrollDeductions = data().payrollDeductions.filter((x) => x.id !== d.id);
     save();

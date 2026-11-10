@@ -88,7 +88,7 @@ On an approved remote-work day you can still clock in and out to record your hou
 
 ### Attach a medical certificate
 
-A medical certificate is required when the leave type asks for one, for example **Sick Leave of more than 3 work days**. The form says *Medical certificate (required)* when it is.
+Your reason and your medical certificate are read by HR only; the payroll office sees the type and dates of your leave, not why. A medical certificate is required when the leave type asks for one, for example **Sick Leave of more than 3 work days**. The form says *Medical certificate (required)* when it is.
 
 1. In **File a request**, choose the file under **Medical certificate**: a PDF or a photo, up to 5 MB. Photos are resized automatically.
 2. To add or replace it later, open **Leave & requests** and choose **Attach certificate** (or **Replace certificate**) on the pending request.

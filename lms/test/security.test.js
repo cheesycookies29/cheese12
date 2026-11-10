@@ -382,3 +382,58 @@ test('a parent whose link does not share Grades sees no final grades, in the cla
   await s.admin.put(`/api/admin/guardian-links/${link.id}`, { views: { enrollment: true, grades: true } });
   assert.equal((await mom.get(`/api/guardian/children/${s.students.s1.id}?termId=${s.past.id}`)).enrollment[0].finalGrade, 91);
 });
+
+test('People: officers and their own records; health details of leave; finalized payroll', async () => {
+  const env = setup({ today: '2026-11-07' });
+  const admin = env.client();
+  await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
+  await admin.post('/api/admin/demo');
+  const as = async (username) => {
+    const c = env.client();
+    await c.post('/api/hub/login', { username, password: 'demo1234' });
+    return c;
+  };
+  const [hr, payroll] = await Promise.all(['hr.demo', 'payroll.demo'].map(as));
+  const me = async (c) => (await c.get('/api/hris/auth/status')).user.employeeId;
+  const own = (re = /own record/) => (e) => e.status === 403 && re.test(e.message);
+
+  // An HR manager cannot write their own attendance, and a leave day needs a type.
+  const hrId = await me(hr);
+  await assert.rejects(hr.post('/api/hris/time-entries', { employeeId: hrId, date: '2026-11-05', type: 'work', timeIn: '06:00', timeOut: '23:59', otApproved: true }), own());
+  const mine = (await hr.get(`/api/hris/time-entries?employeeId=${hrId}`))[0];
+  if (mine) {
+    await assert.rejects(hr.put(`/api/hris/time-entries/${mine.id}`, { ...mine, otApproved: true }), own());
+    await assert.rejects(hr.del(`/api/hris/time-entries/${mine.id}`), own());
+  }
+  const someone = (await hr.get('/api/hris/employees')).find((e) => e.id !== hrId && e.status === 'Active');
+  await assert.rejects(hr.post('/api/hris/time-entries', { employeeId: someone.id, date: '2026-11-06', type: 'leave' }), /Pick the leave type/);
+
+  // A payroll officer cannot change their own loans.
+  const payId = await me(payroll);
+  await assert.rejects(payroll.post(`/api/hris/employees/${payId}/deductions`, { type: 'OTHER', name: 'x', monthly: 1, startDate: '2026-11-01' }), own());
+  for (const d of await payroll.get(`/api/hris/employees/${payId}/deductions`)) {
+    await assert.rejects(payroll.put(`/api/hris/employees/${payId}/deductions/${d.id}`, { monthly: 1 }), own());
+    await assert.rejects(payroll.del(`/api/hris/employees/${payId}/deductions/${d.id}`), own());
+  }
+
+  // Payroll sees leave requests without the reason or the medical certificate; HR sees both.
+  const forPayroll = await payroll.get('/api/hris/requests');
+  const forHr = await hr.get('/api/hris/requests');
+  assert.ok(forHr.some((r) => r.reason), 'HR reads reasons');
+  assert.ok(forPayroll.length === forHr.length && forPayroll.every((r) => r.reason === '' && r.decisionNote === '' && r.detailsWithheld));
+  assert.ok(forPayroll.every((r) => r.leaveTypeId !== undefined && r.status), 'payroll still sees the type and status');
+  const withCert = forHr.find((r) => r.attachment);
+  if (withCert) {
+    await assert.rejects(payroll.get(`/api/hris/requests/${withCert.id}/attachment`), status(403));
+    assert.ok(await hr.get(`/api/hris/requests/${withCert.id}/attachment`));
+  }
+
+  // HR cannot unlink a Finance office account from its employee record.
+  const cashier = env.db.data.users.find((u) => u.role === 'cashier');
+  const emp = await admin.post('/api/hris/employees', { firstName: 'Cora', lastName: 'Cash', gender: 'Female', hireDate: '2025-01-06', payType: 'monthly', rate: 26100, position: 'Cashier', department: 'Finance' });
+  await admin.post(`/api/hris/employees/${emp.id}/account`, { userId: cashier.id });
+  await assert.rejects(hr.del(`/api/hris/employees/${emp.id}/account`), (e) => e.status === 403 && /administrator/.test(e.message));
+
+  // The demo's loans have names.
+  assert.ok(env.db.data.payrollDeductions.length > 0 && env.db.data.payrollDeductions.every((d) => d.name));
+});

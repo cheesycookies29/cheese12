@@ -172,6 +172,14 @@ export function failureNotice(err, { page = false } = {}) {
   return html`<div class="${page ? 'card ' : ''}empty">${icon('flag', 40)}<h2>Cannot reach the server</h2><p>Check your internet connection, then try again. If ATLAS runs on this computer, start it (double-click “Start ATLAS”, or <code>npm start</code>).</p><p><button type="button" class="btn primary" data-reload>Try again</button></p></div>`;
 }
 document.addEventListener('click', (e) => e.target.closest?.('[data-reload]') && location.reload());
+// A button whose request the server refuses must say why: when nothing else showed the answer,
+// it is shown here (otherwise the screen would just do nothing).
+window.addEventListener('unhandledrejection', (e) => {
+  const err = e.reason;
+  if (!err?.status || err.status === 401 || !err.message) return;
+  e.preventDefault();
+  toast(err.message, 'error');
+});
 
 // Single sign-on (Keycloak): the button above the password form, and the password fields under it.
 // With passwords switched off, the fields fold away under "Administrator sign-in" (a way in if Keycloak is down).

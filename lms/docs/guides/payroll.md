@@ -19,7 +19,7 @@ This guide is for **payroll officers**. You prepare payroll for the campus you a
 ### What to have ready before a run
 
 - Attendance for the whole period is complete in **Attendance (DTR)**. A scheduled work day with no record counts as an absence without pay.
-- Leave and remote-work requests in the period are decided by HR.
+- Leave and remote-work requests in the period are decided by HR. On **Leave & approvals** you see each request's type, dates, days and status; the reason and the medical certificate are shown to HR only.
 - Each employee's **salary grade and step**, PERA, RATA and appointment are right on their record (HR edits records), and loans are entered on the record (you do this).
 
 ## Walkthrough
@@ -123,7 +123,7 @@ After finalizing:
 - loan balances count the amounts taken;
 - the **Finance** tab opens.
 
-A finalized run never changes, even if payroll setup changes later. To correct one, delete it (only while it has no live documents in Finance) and run the period again; deleting gives back the leave it charged.
+A finalized run never changes, even if payroll setup changes later: it is the record of what was paid. Correct it in the next run with **Adjust**. Only an administrator can delete a finalized run (and only while it has no live documents in Finance); deleting gives back the leave it charged and the loan payments it took.
 
 ### Print payslips
 
@@ -247,7 +247,7 @@ No; HR edits employee records. Ask HR, then recompute your draft.
 Each run uses the salary schedule in force at the end of its period. The EO 64 schedule has a new tranche on 1 January.
 
 **Can I change a finalized run?**
-No. Payslips of a finalized run never change. Delete the run (when it has no live documents in Finance) and run the period again, or correct it in the next run with **Adjust**.
+No. Payslips of a finalized run never change. Correct it in the next run with **Adjust**. If the whole run must be redone, ask an administrator to delete it (possible only while it has no live documents in Finance), then run the period again.
 
 **Why can't I open the documents in Finance?**
 The **Finance** tab shows you each document's number and status, not a link. The documents are opened in ATLAS Finance by its officers (budget, accounting, cashier), who find them under the same number. Only an administrator gets a link on the tab.
