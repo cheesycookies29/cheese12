@@ -134,14 +134,18 @@ export function leaveBalances(db, employeeId, year) {
 
 // The employee's requests of a leave type that count toward the "after N filings" certificate rule.
 function filingsOf(db, employeeId, leaveTypeId) {
+  // order: the position in the list, which is the filing order (two filings can share a millisecond).
   return db.data.requests
-    .filter((r) => r.employeeId === employeeId && r.kind === 'leave' && r.leaveTypeId === leaveTypeId && CERTIFICATE_COUNTED.includes(r.status))
-    .map((r) => ({ id: r.id, startDate: r.startDate, filedAt: r.filedAt }));
+    .map((r, order) => ({ r, order }))
+    .filter(({ r }) => r.employeeId === employeeId && r.kind === 'leave' && r.leaveTypeId === leaveTypeId && CERTIFICATE_COUNTED.includes(r.status))
+    .map(({ r, order }) => ({ id: r.id, startDate: r.startDate, filedAt: r.filedAt, order }));
 }
 // Requests of the same type filed before this one in its year or month.
 function priorOf(db, type, req) {
   if (!type || type.certificateAfterCount == null) return 0;
-  return priorFilings(type, filingsOf(db, req.employeeId, type.id), req.startDate, { excludeId: req.id, before: req.filedAt || null });
+  const filings = filingsOf(db, req.employeeId, type.id);
+  const order = req.id ? db.data.requests.findIndex((r) => r.id === req.id) : -1;
+  return priorFilings(type, filings, req.startDate, { excludeId: req.id, before: req.filedAt || null, beforeOrder: order < 0 ? null : order });
 }
 
 // Days of a request that count against a leave type (its paid days, or its overflow on Leave Without Pay).

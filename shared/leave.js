@@ -28,10 +28,12 @@ export const CERTIFICATE_COUNTED = ['pending', 'returned', 'approved'];
 const periodOf = (type, date) => (type?.certificatePeriod === 'month' ? String(date).slice(0, 7) : String(date).slice(0, 4));
 // How many requests of this type the employee filed before this one in the same year or month (by the
 // leave's start date). filings: [{ id, startDate, filedAt }] of the employee's counted requests of the type.
-export function priorFilings(type, filings, startDate, { excludeId = null, before = null } = {}) {
+// before / beforeOrder: count only requests filed earlier than this one (same time: earlier in the list).
+export function priorFilings(type, filings, startDate, { excludeId = null, before = null, beforeOrder = null } = {}) {
   if (!type || !startDate) return 0;
   const key = periodOf(type, startDate);
-  return (filings || []).filter((f) => f.id !== excludeId && periodOf(type, f.startDate) === key && (!before || f.filedAt < before)).length;
+  const earlier = (f) => !before || f.filedAt < before || (f.filedAt === before && beforeOrder != null && f.order != null && f.order < beforeOrder);
+  return (filings || []).filter((f) => f.id !== excludeId && periodOf(type, f.startDate) === key && earlier(f)).length;
 }
 // Which rule makes a certificate necessary: 'days', 'count', or null when none is needed.
 export function certificateRule(type, days, prior = 0) {

@@ -233,3 +233,13 @@ test('a request that now needs a certificate cannot be approved without one', as
   assert.equal((await admin('GET', '/api/leave-types')).find((t) => t.id === 'sl').certificateFromDays, 4);
   await setSl({ certificateFromDays: 4 });
 });
+
+test('requests filed in the same millisecond are counted in filing order', async () => {
+  const { priorFilings } = await import('../shared/leave.js');
+  const type = { certificateAfterCount: 1, certificatePeriod: 'month' };
+  const at = '2026-09-01T00:00:00.000Z';
+  const filings = [{ id: 'a', startDate: '2026-09-01', filedAt: at, order: 0 }, { id: 'b', startDate: '2026-09-02', filedAt: at, order: 1 }, { id: 'c', startDate: '2026-09-03', filedAt: at, order: 2 }];
+  assert.equal(priorFilings(type, filings, '2026-09-03', { excludeId: 'c', before: at, beforeOrder: 2 }), 2);
+  assert.equal(priorFilings(type, filings, '2026-09-01', { excludeId: 'a', before: at, beforeOrder: 0 }), 0);
+  assert.equal(priorFilings(type, filings, '2026-09-04'), 3, 'a new filing counts every earlier one');
+});
