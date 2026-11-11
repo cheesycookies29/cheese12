@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.15.1-alpha',
+    date: '2026-11-11',
+    title: 'Clock-in location map fixed',
+    modules: ['hr'],
+    notes: 'The map of a clock-in location shows again.',
+    changes: [
+      ['fixed', 'hr', 'Clock-in locations: the map in a clock-in\'s details was blank since 0.12.0, because the new Content-Security-Policy blocked the OpenStreetMap embed. That one address is now allowed as a frame. Locations were recorded and checked against the office radius all along; only the map was missing.'],
+    ],
+  },
+  {
     version: '0.15.0-alpha',
     date: '2026-11-11',
     title: 'Project Management: watchers, daily digest, bulk edit, files, billing forecast and CSV import',

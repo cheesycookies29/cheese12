@@ -86,7 +86,8 @@ export function baseHeaders({ https = false } = {}) {
 
 // The Content-Security-Policy for CORE's own pages: scripts only from CORE, plus the few small
 // inline scripts in its pages (theme before first paint), allowed by their hash. Styles may be inline
-// (the screens use style attributes); images may be data: or blob: (QR codes, attachments).
+// (the screens use style attributes); images may be data: or blob: (QR codes, attachments). Frames:
+// CORE itself, blob: (PDF previews) and the OpenStreetMap embed that shows a clock-in location.
 export function pagePolicy(root) {
   const hashes = new Set();
   for (const page of ['index.html', 'support.html', path.join('help', 'index.html')]) {
@@ -104,7 +105,7 @@ export function pagePolicy(root) {
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "connect-src 'self'",
-    "frame-src 'self' blob:",
+    "frame-src 'self' blob: https://www.openstreetmap.org",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

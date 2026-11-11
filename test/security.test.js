@@ -153,6 +153,8 @@ test('browser checks: other sites cannot make changes; pages get a script policy
   const csp = pagePolicy(path.resolve('.'));
   assert.match(csp, /script-src 'self' 'sha256-/);
   assert.match(csp, /frame-ancestors 'none'/);
+  // The clock-in location map is an OpenStreetMap embed: it must be allowed as a frame, and nothing else outside.
+  assert.match(csp, /frame-src 'self' blob: https:\/\/www\.openstreetmap\.org(;|$)/);
   assert.equal(baseHeaders()['X-Frame-Options'], 'DENY');
   assert.equal(baseHeaders()['Strict-Transport-Security'], undefined);
   assert.match(baseHeaders({ https: true })['Strict-Transport-Security'], /max-age=/);
