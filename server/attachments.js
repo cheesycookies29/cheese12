@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { HttpError } from './util.js';
+import { HttpError, keepPrivate } from './util.js';
 import { ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
 
 const ID_RE = /^[0-9a-f-]{36}$/;
@@ -39,12 +39,19 @@ export function createAttachments(dir) {
     if (!ID_RE.test(id || '')) throw new HttpError(404, 'File not found.');
     return path.join(dir, id);
   };
+  // Files kept by older builds were readable by other accounts on the computer: close them.
+  if (fs.existsSync(dir)) {
+    keepPrivate(dir, 0o700);
+    try {
+      for (const name of fs.readdirSync(dir)) if (ID_RE.test(name)) keepPrivate(path.join(dir, name));
+    } catch {}
+  }
   return {
     // Stores an upload; returns the metadata kept on the record.
     save({ name, type, buffer }) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
       const id = randomUUID();
-      fs.writeFileSync(fileOf(id), buffer);
+      fs.writeFileSync(fileOf(id), buffer, { mode: 0o600 });
       return { id, name, type, size: buffer.length, uploadedAt: new Date().toISOString() };
     },
     read(meta) {

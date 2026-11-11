@@ -1,13 +1,17 @@
 // Audit trail (Data Privacy Act, RA 10173: accountability for who saw or changed personal data).
 // Entries are appended to data/audit-log.jsonl, a file of its own: restoring a backup, loading
 // demo data or erasing all data never rewrites it. Each entry carries the hash of the one before
-// it, so an edited or deleted line breaks the chain and the Audit log page says so.
+// it, so an edited or deleted line breaks the chain and the Audit log page says so. The chain is
+// sealed with a key made from the server key (data/secret.key), so someone who can only write the
+// log file cannot rebuild it. Logs begun by older builds keep their unkeyed entries: the number
+// of the first keyed entry is kept in the settings, and every entry from there on must be keyed.
 //
 // The signed-in user and their address come from the request being handled (AsyncLocalStorage),
 // so any module can call audit.record() without passing them along.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { keepPrivate } from './util.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 const actorStore = new AsyncLocalStorage();
@@ -15,7 +19,11 @@ export const withActor = (actor, fn) => actorStore.run(actor, fn);
 // Who is acting right now (null outside a request, e.g. at start-up).
 export const currentActor = () => actorStore.getStore() || null;
 
+// Entries written before 0.12.1: a plain hash of the entry and the hash before it.
 const hashOf = (prev, entry) => createHash('sha256').update(`${prev}\n${JSON.stringify(entry)}`).digest('hex');
+// Entries since (marked k: 1): the same, sealed with the audit key.
+const macOf = (key, prev, entry) => createHmac('sha256', key).update(`${prev}\n${JSON.stringify(entry)}`).digest('hex');
+const same = (a, b) => typeof a === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 // Government ID numbers and bank accounts are kept to their last 4 characters in the log.
 export const MASKED_FIELDS = ['tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankAccount'];
@@ -51,15 +59,24 @@ export function flatten(obj, prefix = '', out = {}) {
   return out;
 }
 
-export function createAudit(dir) {
-  fs.mkdirSync(dir, { recursive: true });
+// key: () => the audit key (server/secrets.js derive()). keyedFrom / setKeyedFrom: read and store
+// the number of the first keyed entry (kept in the settings). Without a key the chain is unkeyed.
+export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedFrom = () => {} } = {}) {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const file = path.join(dir, 'audit-log.jsonl');
   let last = { seq: 0, hash: '' };
+  let firstKeyed = null;
   if (fs.existsSync(file)) {
+    keepPrivate(file);
     const lines = fs.readFileSync(file, 'utf8').trim().split('\n').filter(Boolean);
     const tail = lines.length && JSON.parse(lines.at(-1));
     if (tail) last = { seq: tail.seq, hash: tail.hash };
+    firstKeyed = lines.map((l) => JSON.parse(l)).find((e) => e.k === 1)?.seq ?? null;
   }
+  // First start with a key: a new log is keyed from entry 1, an older one from its next entry.
+  if (key && !Number.isInteger(keyedFrom())) setKeyedFrom(firstKeyed ?? last.seq + 1);
+  let auditKey = null;
+  const getKey = () => (auditKey ||= key());
   const recentViews = new Map(); // `${user}:${what}` -> time, so repeated views log once in 10 minutes
 
   // action: e.g. 'employee.update'. entity / entityId: the record. label: a readable name for it.
@@ -70,8 +87,9 @@ export function createAudit(dir) {
       userId: a.user?.id || null, userName: a.user?.name || a.name || 'System', role: a.user?.role || '', ip: a.ip || '',
       action, entity, entityId: entityId || '', label: label || '', changes, note: note || '', prev: last.hash,
     };
-    entry.hash = hashOf(last.hash, entry);
-    fs.appendFileSync(file, `${JSON.stringify(entry)}\n`);
+    if (key) entry.k = 1;
+    entry.hash = key ? macOf(getKey(), last.hash, entry) : hashOf(last.hash, entry);
+    fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
     last = { seq: entry.seq, hash: entry.hash };
     return entry;
   }
@@ -100,17 +118,32 @@ export function createAudit(dir) {
     return { total: rows.length, entries: rows.reverse().slice(0, Math.min(Number(limit) || 500, 5000)) };
   }
 
-  // Re-computes the chain: ok when no entry was changed, removed or reordered.
+  // Re-computes the chain: ok when no entry was changed, removed or reordered. Entries before
+  // keyedFrom are checked by their plain hash; from keyedFrom on each must be keyed and sealed
+  // with the audit key, so a chain rebuilt without the key (or with the key missing) fails.
   function verify() {
+    const from = key && Number.isInteger(keyedFrom()) ? keyedFrom() : null;
     let prev = '';
     let seq = 0;
+    let secret = null;
     for (const e of all()) {
       const { hash, ...rest } = e;
-      if (e.prev !== prev || e.seq !== seq + 1 || hashOf(prev, rest) !== hash) return { ok: false, count: seq, brokenAt: e.seq ?? seq + 1, at: e.at };
+      const broken = { ok: false, count: seq, brokenAt: e.seq ?? seq + 1, at: e.at, keyedFrom: from };
+      if (e.prev !== prev || e.seq !== seq + 1) return broken;
+      const keyed = from !== null && e.seq >= from;
+      if (keyed !== (e.k === 1)) return broken;
+      if (keyed) {
+        try {
+          secret ||= getKey();
+        } catch {
+          return { ...broken, keyMissing: true };
+        }
+      }
+      if (!same(hash, keyed ? macOf(secret, prev, rest) : hashOf(prev, rest))) return broken;
       prev = hash;
       seq = e.seq;
     }
-    return { ok: true, count: seq };
+    return { ok: true, count: seq, keyedFrom: from };
   }
 
   return { record, view, list, verify, file, count: () => last.seq };

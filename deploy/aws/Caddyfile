@@ -2,7 +2,10 @@
 # and forwards visitors to LTDC ERP running on this server.
 erp.example.com {
 	encode gzip
-	reverse_proxy 127.0.0.1:3000
+	# The app is told the visitor's own address, replacing any X-Forwarded-For the visitor sent.
+	reverse_proxy 127.0.0.1:3000 {
+		header_up X-Forwarded-For {remote_host}
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff

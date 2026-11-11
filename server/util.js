@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+
 const pad = (n) => String(n).padStart(2, '0');
 
 // Local (not UTC) date/time of the machine running the app.
@@ -14,4 +16,12 @@ export class HttpError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+// The data holds pay, government IDs and password hashes: its files are for the app's account
+// only (0600), in folders only that account can open (0700). Best effort: Windows has no such modes.
+export function keepPrivate(target, mode = 0o600) {
+  try {
+    fs.chmodSync(target, mode);
+  } catch {}
 }

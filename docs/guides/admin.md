@@ -40,7 +40,7 @@ A first tour, signed in as `admin` with the demo data loaded. It takes about ten
 
 ### The audit log
 
-1. Open **Audit log**. The green notice **Intact** says no entry was changed, removed or reordered since it was written.
+1. Open **Audit log**. The green notice **Intact** says no entry was changed, removed or reordered since it was written. **Keyed from entry N** means the entries from that number on are sealed with this server's key, so they cannot be rewritten by editing the file.
 2. The list shows the last 30 days, newest first: when, who (with the computer's address), what, and the record. Changes show each field, before and after.
 3. Pick **Sign-in** under **All areas** to see who signed in, and every failed sign-in.
 
@@ -155,9 +155,11 @@ Pay rules, rates and tax tables are not here: they are in **Payroll Setup** (see
 
 1. Open **Settings** and scroll to **Data**.
 2. Click **Download backup**. CORE saves one file with all the company's data, named after today's date.
-3. To go back to a backup, click **Restore backup…**, pick the file and click **Restore**. Everything now in CORE is replaced by the backup.
+3. To go back to a backup, click **Restore backup…**, pick the file, enter **your password** and click **Restore**. Everything now in CORE is replaced by the backup.
 
-Download a backup regularly and keep it somewhere safe and private: it holds pay, government IDs, bank accounts and the user accounts (passwords are stored as secure hashes). Attached files (medical certificates, ticket files) and the audit log are not in the backup file; copy the `data` folder for those. A restore keeps the current user accounts when the backup has none.
+Download a backup regularly and keep it somewhere safe and private: it holds pay, government IDs, bank accounts and the user accounts (passwords are stored as secure hashes). Attached files (medical certificates, ticket files) and the audit log are not in the backup file; copy the `data` folder for those. A restore keeps the current user accounts when the backup has none. CORE checks the user accounts in the file first: a backup with an invalid account, or with no active Administrator, is refused and nothing is changed.
+
+> **Note:** Restore only backups you downloaded from CORE yourself. The user accounts in the file replace the current ones.
 
 ![The Data and Demo data sections of Settings](admin-data.jpg)
 

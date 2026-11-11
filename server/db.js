@@ -1,6 +1,8 @@
 // Tiny JSON-file database. All data lives in data/db.json next to the app.
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { keepPrivate } from './util.js';
 import { DEFAULT_SETTINGS, DEFAULT_RATES, premiumsOf } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
@@ -44,8 +46,20 @@ export function emptyData() {
   };
 }
 
+// An existing data folder is closed to other accounts too, unless it is plainly not CORE's own:
+// a shared folder such as /tmp, someone else's folder, or the home folder.
+function closeFolder(dir) {
+  try {
+    const st = fs.statSync(dir);
+    const own = typeof process.getuid !== 'function' || st.uid === process.getuid();
+    if (own && !(st.mode & 0o1000) && path.resolve(dir) !== path.resolve(os.homedir())) fs.chmodSync(dir, 0o700);
+  } catch {}
+}
+
 export function openDb(file) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  closeFolder(path.dirname(file));
+  if (fs.existsSync(file)) keepPrivate(file);
   let data = emptyData();
   if (fs.existsSync(file)) {
     data = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -79,7 +93,8 @@ export function openDb(file) {
     },
     save() {
       const tmp = `${file}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+      fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+      keepPrivate(tmp); // a temp file left by an older build keeps its old mode otherwise
       fs.renameSync(tmp, file);
     },
   };

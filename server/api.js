@@ -271,13 +271,62 @@ function findUser(db, id) {
   return user;
 }
 
-// The visitor's address. Behind the local HTTPS proxy (Caddy) it comes from X-Forwarded-For;
-// that header is trusted only from this machine, so it can't be faked from outside.
-function clientIp(req) {
+// The visitor's address. Behind the local HTTPS proxy (Caddy) it comes from X-Forwarded-For, and
+// that header is read only when the request comes from this machine. A visitor can send the
+// header too, and a proxy adds the address it saw after theirs: so the last entry, the one the
+// nearest proxy wrote, is the address, and whatever comes before it is ignored.
+export function clientIp(req) {
   const remote = req.socket?.remoteAddress || '';
   const forwarded = req.headers?.['x-forwarded-for'];
-  if (forwarded && /^(127\.|::1$|::ffff:127\.)/.test(remote)) return String(forwarded).split(',')[0].trim();
+  if (forwarded && /^(127\.|::1$|::ffff:127\.)/.test(remote)) {
+    const last = String(forwarded).split(',').pop().trim();
+    if (last) return last;
+  }
   return remote || 'local';
+}
+
+// A user account as a backup may carry it: only the fields CORE itself writes, each of the right
+// kind. Anything else in the file is dropped; a wrong value refuses the whole restore.
+const PASSWORD_HASH_RE = /^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/;
+const isText = (v, max = 400) => typeof v === 'string' && v.length <= max;
+const optional = (v, ok) => v === undefined || v === null || ok(v);
+function validTwoFactor(tf) {
+  if (!tf || typeof tf !== 'object' || Array.isArray(tf)) return null;
+  if (!isText(tf.secret) || !isText(tf.enabledAt, 40) || !optional(tf.lastStep, Number.isInteger) || !Array.isArray(tf.recovery) || tf.recovery.length > 20) return null;
+  if (!tf.recovery.every((r) => r && isText(r.hash, 128) && optional(r.usedAt, (v) => isText(v, 40)))) return null;
+  return { secret: tf.secret, enabledAt: tf.enabledAt, lastStep: tf.lastStep ?? -1, recovery: tf.recovery.map((r) => ({ hash: r.hash, usedAt: r.usedAt ?? null })) };
+}
+function backupUsers(list) {
+  const bad = (i, why) => new HttpError(400, `That backup cannot be restored: user account ${i + 1} ${why}. Nothing was changed.`);
+  const out = [];
+  list.forEach((raw, i) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw bad(i, 'is not an account');
+    if (!isText(raw.id, 64) || !raw.id) throw bad(i, 'has no valid id');
+    if (typeof raw.username !== 'string' || !USERNAME_RE.test(raw.username) || raw.username !== raw.username.toLowerCase()) throw bad(i, 'has an invalid username');
+    if (!isText(raw.name, 200) || !raw.name.trim()) throw bad(i, 'has no name');
+    if (!Object.hasOwn(ROLES, raw.role)) throw bad(i, 'has an unknown account type');
+    if (typeof raw.active !== 'boolean') throw bad(i, 'does not say whether it is active');
+    if (typeof raw.passwordHash !== 'string' || !PASSWORD_HASH_RE.test(raw.passwordHash)) throw bad(i, 'has an invalid password hash');
+    if (!optional(raw.employeeId, (v) => isText(v, 64))) throw bad(i, 'has an invalid employee link');
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'demo']) if (!optional(raw[k], (v) => typeof v === 'boolean')) throw bad(i, `has an invalid "${k}"`);
+    for (const k of ['createdAt', 'lastLoginAt']) if (!optional(raw[k], (v) => isText(v, 40))) throw bad(i, `has an invalid "${k}"`);
+    const u = { id: raw.id, username: raw.username, name: raw.name.trim(), role: raw.role, employeeId: raw.employeeId || null, active: raw.active, passwordHash: raw.passwordHash };
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
+    if (raw.twoFactor !== undefined && raw.twoFactor !== null) {
+      u.twoFactor = validTwoFactor(raw.twoFactor);
+      if (!u.twoFactor) throw bad(i, 'has invalid 2-step verification details');
+    }
+    if (raw.twoFactorPending !== undefined && raw.twoFactorPending !== null) {
+      const p = raw.twoFactorPending;
+      if (typeof p !== 'object' || !isText(p.secret) || !isText(p.createdAt, 40)) throw bad(i, 'has invalid 2-step verification details');
+      u.twoFactorPending = { secret: p.secret, createdAt: p.createdAt };
+    }
+    if (out.some((x) => x.username === u.username)) throw bad(i, `repeats the username "${u.username}"`);
+    if (out.some((x) => x.id === u.id)) throw bad(i, 'repeats the id of another account');
+    out.push(u);
+  });
+  if (!out.some((u) => u.role === 'admin' && u.active)) throw new HttpError(400, 'That backup cannot be restored: it has no active Administrator account. Nothing was changed.');
+  return out;
 }
 
 // Whether the visitor reached CORE over HTTPS: directly, or through the HTTPS proxy on this computer.
@@ -317,6 +366,8 @@ function replaceData(db, next) {
   // brings its own (demo data and "erase all data" start from an empty template and must not wipe them).
   db.replace({
     ...next,
+    // Where the audit log's keyed entries begin belongs to this server's log, not to the backup.
+    settings: { ...next.settings, auditKeyedFrom: db.data.settings.auditKeyedFrom },
     devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog,
     feedback: Array.isArray(next.feedback) && next.feedback.length ? next.feedback : db.data.feedback,
     // So are administrators' edits of the Help guides.
@@ -393,9 +444,18 @@ function clock(db, emp, action, body = {}, source = 'self') {
 
 // rateLimits: on in the running app (server.js); off where tests call the API directly.
 export function createApi(db, { rateLimits = false } = {}) {
-  const audit = createAudit(db.dir);
-  const files = createAttachments(path.join(db.dir, 'attachments'));
   const secrets = createSecrets(db.dir);
+  // The audit chain is sealed with a key made from the server key. Where keyed entries begin is
+  // kept in the settings (never taken from a restored backup: see replaceData).
+  const audit = createAudit(db.dir, {
+    key: () => secrets.derive('core-audit-chain-v1'),
+    keyedFrom: () => db.data.settings.auditKeyedFrom,
+    setKeyedFrom: (seq) => {
+      db.data.settings.auditKeyedFrom = seq;
+      db.save();
+    },
+  });
+  const files = createAttachments(path.join(db.dir, 'attachments'));
   const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
@@ -501,9 +561,11 @@ export function createApi(db, { rateLimits = false } = {}) {
     limits.check('signin-fail', client.ip, 'Too many failed sign-ins from this network.');
     throttle.check(username);
     const user = users().find((u) => u.username === username);
-    if (!verifyPassword(String(body.password || ''), user?.passwordHash) || !user.active) {
+    const rightPassword = verifyPassword(String(body.password || ''), user?.passwordHash);
+    if (!rightPassword || !user.active) {
       signInFailed(username, user, client, user && !user.active ? 'Account disabled' : 'Wrong username or password');
-      throw new HttpError(401, user && !user.active ? 'This account is disabled. Contact your administrator.' : 'Incorrect username or password.');
+      // That an account is disabled is said only to someone who knows its password.
+      throw new HttpError(401, rightPassword ? 'This account is disabled. Contact your administrator.' : 'Incorrect username or password.');
     }
     throttle.reset(username);
     // With 2-step verification on, the password alone does not sign in: the code comes next.
@@ -979,14 +1041,22 @@ export function createApi(db, { rateLimits = false } = {}) {
     audit.record('data.export', { label: 'Full backup', note: 'All company data, including pay, government IDs and bank accounts' });
     return db.data;
   });
-  route('POST', '/api/admin/import', 'data.manage', ({ body }) => {
-    if (!body || !Array.isArray(body.employees) || !Array.isArray(body.timeEntries) || !Array.isArray(body.payrollRuns)) {
+  // A restore replaces everything, the accounts included: the administrator's password is asked
+  // again, and the accounts in the file are checked before anything is replaced.
+  route('POST', '/api/admin/import', 'data.manage', ({ body, user }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    const { password, ...backup } = body || {};
+    if (!password) throw new HttpError(400, 'Enter your password to restore a backup.');
+    requirePassword(user, password);
+    if (!Array.isArray(backup.employees) || !Array.isArray(backup.timeEntries) || !Array.isArray(backup.payrollRuns)) {
       throw new HttpError(400, 'That file is not a valid backup.');
     }
     // Keep the current accounts unless the backup carries its own.
-    replaceData(db, { ...body, users: Array.isArray(body.users) && body.users.length ? body.users : users() });
+    replaceData(db, { ...backup, users: Array.isArray(backup.users) && backup.users.length ? backupUsers(backup.users) : users() });
     syncLedger(db) && db.save();
-    audit.record('data.import', { label: 'Backup restored', note: `${db.data.employees.length} employees, ${db.data.payrollRuns.length} payroll runs` });
+    // The accounts after a restore are on record: an account the backup added shows here.
+    const admins = activeAdmins().map((u) => u.username).join(', ');
+    audit.record('data.import', { label: 'Backup restored', note: `${db.data.employees.length} employees, ${db.data.payrollRuns.length} payroll runs, ${users().length} user accounts (administrators: ${admins})`.slice(0, 500) });
     return { ok: true };
   });
   // Demo data is added next to the real data (server/demo.js); loading again refreshes it.
@@ -1013,7 +1083,8 @@ export function createApi(db, { rateLimits = false } = {}) {
   // ----- Audit log (Administrators) -----
   route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
   route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());
-  route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
+  // The build's details (Node version, commit, branch) are for Administrators; others see the version.
+  route('GET', '/api/system/about', 'devlog.view', ({ user }) => (userCan(user, 'users.manage') ? { version: APP_VERSION, node: process.version, ...buildInfo() } : { version: APP_VERSION }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });
     audit.record('data.reset', { label: 'All company data erased', note: 'The audit log is kept' });
@@ -1059,5 +1130,14 @@ export function createApi(db, { rateLimits = false } = {}) {
     throw new HttpError(404, 'Not found.');
   }
   handle.helpdesk = helpdesk;
+  // Whether the request carries a live session (server.js allows large uploads only then).
+  handle.signedIn = (req) => {
+    try {
+      const session = sessions.get(parseCookies(req.headers?.cookie)[SESSION_COOKIE], { touch: false });
+      return Boolean(session && users().some((u) => u.id === session.userId && u.active));
+    } catch {
+      return false;
+    }
+  };
   return handle;
 }

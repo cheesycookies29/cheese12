@@ -108,7 +108,7 @@ To use a different port, run `PORT=8080 npm start`.
 - **Your data stays on this PC**, in `%LOCALAPPDATA%\CORE ERP\data` (the database `db.json`, uploaded files and the encryption key). Back it up from **Settings → Download backup**, or copy that folder while CORE is closed. Replacing the .exe with a newer one keeps your data.
 - **Portable mode** (e.g. on a USB drive): make a folder named `CORE-data` next to the .exe and CORE keeps its data there instead.
 - Starting it again while it is running just opens the browser.
-- Options, from a Command Prompt in the file's folder: `CORE-ERP.exe --network` (other PCs on the office network can sign in, at the address it shows), `--port 3001`, `--no-browser`, and `--reset-password <username> <new password>` for a locked-out administrator (close CORE first).
+- Options, from a Command Prompt in the file's folder: `CORE-ERP.exe --network` (other PCs on the office network can sign in, at the address it shows; plain `http`, so passwords travel unencrypted: for a trusted office network only, see [Letting employees sign in from their own computers](#letting-employees-sign-in-from-their-own-computers)), `--port 3001`, `--no-browser`, and `--reset-password <username> <new password>` for a locked-out administrator (close CORE first).
 - The file is not code-signed yet, so the first time Windows may show "Windows protected your PC": click **More info → Run anyway**.
 
 To build it, run `scripts/build-exe.sh` on Linux (`LINUX=1` also builds a Linux copy to test with). It downloads the official Node.js builds, checks them against nodejs.org's checksums, bundles the server with esbuild, embeds it and the web files with Node's single executable application feature, sets the icon and version details, and checks the result.
@@ -122,7 +122,7 @@ To build it, run `scripts/build-exe.sh` on Linux (`LINUX=1` also builds a Linux 
 3. Double-click **`Start CORE ERP.bat`**. The app opens in your browser at <http://localhost:3000>. Keep the black window open while you use it.
 4. Optional: double-click **`Create desktop shortcut.bat`**.
 
-The folder also has **`Start CORE ERP (office network).bat`** (lets other PCs sign in), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
+The folder also has **`Start CORE ERP (office network).bat`** (lets other PCs sign in, over plain `http`: for a trusted office network only), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
 To build the package yourself, run `scripts/build-windows.sh` on macOS or Linux. It downloads the official Node.js Windows build, checks it against nodejs.org's checksums, and writes `dist/CORE-ERP-Windows-x64.zip`.
 
 ### From the source code
@@ -157,7 +157,7 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 - **2-step verification**: anyone can turn it on under their name → **My security** (an authenticator app such as Google Authenticator, plus ten one-time recovery codes). Admins can require it for Administrators or everyone, and reset it for someone who lost their phone, in **Settings → Sign-in & security** and **Users & Access**. The 2-step secrets are sealed with `data/secret.key`: copy that file with a backup if you move CORE to another computer, or people will need a recovery code.
 - **Sessions and limits** (**Settings → Sign-in & security**): signed out after 8 idle hours and 24 hours at most by default, or when the app is restarted; **My security** lists where you are signed in. Requests per person, sign-in attempts and failed sign-ins per network address, and the public support form are rate-limited (answer *429, try again in…*). Pages carry a strict Content-Security-Policy and security headers, and changes sent from other websites are refused.
 - **Personal data.** Government ID numbers and bank accounts are masked everywhere; HR Managers, Payroll Officers and Administrators can click **Show numbers** on a profile, and the edit form and full employee export load them. Each of these is recorded in the audit log. Medical certificates open for HR only, unless **Leave & Requests → Approval flow** lets approvers open them.
-- **Audit log** (Administrators, **System → Audit log**): every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, Payroll Setup, holidays, users and settings (field by field, before and after), views of records with pay or full ID numbers, medical certificate openings, backups and restores. It is kept in `data/audit-log.jsonl`, separate from the data file, so restoring a backup or erasing all data does not touch it. Each entry is chained to the one before by a hash; the page checks the chain and warns if the file was edited.
+- **Audit log** (Administrators, **System → Audit log**): every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, Payroll Setup, holidays, users and settings (field by field, before and after), views of records with pay or full ID numbers, medical certificate openings, backups and restores. It is kept in `data/audit-log.jsonl`, separate from the data file, so restoring a backup or erasing all data does not touch it. Each entry is chained to the one before by a hash sealed with a key made from the server key (`data/secret.key`), so the chain cannot be rebuilt by someone who only edits the log; the page checks the chain, warns if the file was edited, and says from which entry the log is keyed (entries written before 0.12.1 keep their unkeyed hashes). The data file, the audit log and attached files are readable only by the account that runs the app.
 - **Locked out as the only admin?** Stop the app, open Terminal (Mac) or PowerShell (Windows) in the app folder, run `npm run reset-password -- admin NewPassword123` (use your admin username), then start the app again.
 
 ### Letting employees sign in from their own computers
@@ -170,7 +170,7 @@ By default only the computer running the app can open it. To let others on the s
 
 Others then open `http://192.168.1.20:3000` (using your IP address) in their browser.
 
-The connection is not encrypted (plain `http`), so only do this on a network you trust.
+**The connection is not encrypted (plain `http`)**: passwords and the sign-in cookie travel unencrypted, and anyone on the same network can read them. Only do this on a trusted office network (never on guest or public Wi-Fi, and never open the port to the internet); the app prints this warning when it starts this way. For anything beyond a trusted office LAN, use the HTTPS set-up in [deploy/aws/EC2.md](deploy/aws/EC2.md).
 
 ## How pay is computed
 

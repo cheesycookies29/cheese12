@@ -27,6 +27,26 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.12.1-alpha',
+    date: '2026-11-11',
+    title: 'Security fixes from the penetration test',
+    modules: ['system', 'deploy'],
+    notes: 'Fixes for the findings of the security assessment of 0.12.0: the server no longer stops on a malformed address, per-address limits and the audit log\'s integrity hold, and restoring a backup is checked.',
+    changes: [
+      ['fixed', 'system', 'A request with a malformed address is answered "400 Bad request"; an error while serving a page is an error answer and never stops the server. Slow connections are closed after 30 seconds without headers and 2 minutes without the full request.'],
+      ['fixed', 'system', 'Behind the HTTPS proxy, a visitor\'s network address is the one the proxy saw, not one the visitor sent: rate limits per address and the addresses in the audit log can no longer be chosen by the visitor.'],
+      ['fixed', 'system', 'The audit log\'s chain is sealed with a key made from the server key, so it cannot be rebuilt by editing the file. Existing logs keep their earlier entries; the Audit log page shows "Keyed from entry N".'],
+      ['fixed', 'system', 'Restore backup asks for the administrator\'s password and checks every user account in the file (account type, username, password hash, 2-step details, at least one active Administrator) before anything is replaced; fields CORE does not know are dropped.'],
+      ['fixed', 'system', 'The data file, the audit log and attached files are readable only by the account that runs CORE (existing files are corrected at start-up).'],
+      ['fixed', 'system', 'Requests from visitors who are not signed in are limited to 1 MB (the public support form: its three files), and an oversized request is refused before it is read.'],
+      ['fixed', 'system', 'Sign-in says an account is disabled only when the password is right.'],
+      ['improved', 'system', 'The Dev log\'s build details (Node version, commit, channel) are shown to Administrators only.'],
+      ['improved', 'deploy', 'The Caddy configuration sets the visitor\'s address itself; the deployment workflow\'s GitHub Actions are pinned to exact commits.'],
+      ['improved', 'deploy', 'Started for the office network (plain http), CORE prints a warning that passwords travel unencrypted; the README says the same and points to the HTTPS set-up.'],
+    ],
+    known: ['After updating a server behind Caddy, copy the new deploy/aws/Caddyfile setting (header_up X-Forwarded-For) and reload Caddy.', 'The audit key is made from data/secret.key: keep that file with the audit log when moving the data folder.'],
+  },
+  {
     version: '0.12.0-alpha',
     date: '2026-11-10',
     title: 'Sign-in security: rate limits and 2-step verification',

@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### Security fixes (0.12.1)
+- **Restore backup** now asks for your password, and refuses a backup whose user accounts are not valid. See [the administrator's guide](admin#back-up-and-restore).
+- The **Audit log** notice says *Keyed from entry N*: entries from there on are sealed with the server's key. See [the administrator's guide](admin#the-audit-log).
+
 ### Sign-in security (0.12)
 - **2-step verification**: sign in with your password and a code from an authenticator app on your phone. Set it up under your name → **My security**, and keep the ten recovery codes it gives you. See [Getting started](getting-started#turn-on-2-step-verification).
 - **My security** also lists where you are signed in, with **Sign out** for each device and **Sign out everywhere else**. See [Getting started](getting-started#see-where-you-are-signed-in).

@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { ctx, can } from '../state.js';
-import { html, mount, toast, confirmDialog, downloadFile, today, WEEKDAYS } from '../ui.js';
+import { html, mount, toast, confirmDialog, modal, downloadFile, today, WEEKDAYS } from '../ui.js';
 
 export async function settingsView(el) {
   const [s, demo, security] = await Promise.all([api.get('/api/settings'), api.get('/api/admin/demo'), can('users.manage') ? api.get('/api/security-settings') : null]);
@@ -123,15 +123,27 @@ export async function settingsView(el) {
   el.querySelector('#restore').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
-    if (!file || !(await confirmDialog('Replace ALL current data with this backup?', { confirmLabel: 'Restore' }))) return;
+    if (!file) return;
+    let backup;
     try {
-      await api.post('/api/admin/import', JSON.parse(await file.text()));
-      await ctx.refreshSettings();
-      toast('Backup restored.');
-      location.hash = '#/dashboard';
-    } catch (err) {
-      toast(err instanceof SyntaxError ? 'That file is not valid JSON.' : err.message, 'error');
+      backup = JSON.parse(await file.text());
+    } catch {
+      return toast('That file is not valid JSON.', 'error');
     }
+    // A restore replaces everything, the accounts included, so it asks for the password again.
+    const { form } = modal({
+      title: 'Restore backup',
+      body: html`<p>Replace ALL current data with this backup? The user accounts in the backup replace the current ones.</p>
+        <label class="field"><span>Your password</span><input type="password" name="password" autocomplete="current-password" required /></label>`,
+      submitLabel: 'Restore',
+      onSubmit: async (f) => {
+        await api.post('/api/admin/import', { ...backup, password: f.password.value });
+        await ctx.refreshSettings();
+        toast('Backup restored.');
+        location.hash = '#/dashboard';
+      },
+    });
+    form.querySelector('[type=submit]').classList.add('danger');
   });
 
   el.querySelector('#demo').addEventListener('click', async () => {

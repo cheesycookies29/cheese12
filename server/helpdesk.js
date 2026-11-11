@@ -12,6 +12,7 @@ import { withImap } from './mail/imap.js';
 import { sendMail } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
 import { parseUpload, uploadFromBuffer } from './attachments.js';
+import { MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
 
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,6 +29,9 @@ const PUBLIC_PER_EMAIL_PER_DAY = 10;
 const PUBLIC_REPLIES_PER_IP_PER_HOUR = 30;
 const PUBLIC_MIN_FILL_MS = 2500;
 const PUBLIC_MAX_FILES = 3;
+// The largest request the public form can need: its files as base64 (4 bytes for every 3), plus
+// 1 MB for the text around them. server.js reads no more than this from a visitor.
+export const PUBLIC_BODY_BYTES = PUBLIC_MAX_FILES * Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4 + 1024 * 1024;
 
 export function emptyHelpdesk() {
   return {
