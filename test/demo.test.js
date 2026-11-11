@@ -49,8 +49,8 @@ test('loading demo data adds to real data and never reuses its numbers', async (
   const salesDemo = db.data.users.find((u) => u.username === 'sales.demo');
   assert.ok(db.data.crmDeals.filter((x) => x.demo).every((x) => x.ownerId === salesDemo.id && x.code.startsWith('DEMO-DL-')));
   assert.equal(count('crmDeals', false), 1);
-  // Project Management: three projects, with the demo accounts (pm.demo is a Project Manager) as members.
-  assert.equal(res.counts.pmProjects, 3);
+  // Project Management: ten projects in every state, with the demo accounts (pm.demo is a Project Manager) as members.
+  assert.equal(res.counts.pmProjects, 10);
   assert.ok(db.data.users.some((u) => u.username === 'pm.demo' && u.role === 'pm' && u.employeeId));
   const real2 = await admin('POST', '/api/crm/deals', { title: 'Second real deal', accountId: realClient.id, value: 5000 });
   assert.equal(real2.code, 'DL-0002', 'real deal numbers are not affected by the demo set');
@@ -86,7 +86,7 @@ test('removing demo data takes out demo records and what hangs off them, and kee
   assert.ok(db.data.crmActivities.some((a) => a.subject === 'Follow up'));
   assert.ok(db.data.crmActivities.every((a) => db.data.crmDeals.some((x) => x.id === a.related.id) || db.data.crmAccounts.some((x) => x.id === a.related.id)));
   assert.equal(res.removed.accounts, 6);
-  assert.equal(res.removed.pmProjects, 3);
+  assert.equal(res.removed.pmProjects, 10);
   assert.equal(db.data.pmProjects.length, 0);
   assert.equal(count('employees', true), 0);
   assert.equal(db.data.employees.length, 1);

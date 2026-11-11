@@ -570,7 +570,7 @@ test('migration and the setup: collections are made, counters catch up, the setu
   assert.equal(again.code, 'PRJ-0001');
 });
 
-test('demo data: three projects with the demo accounts as members, removed cleanly', async () => {
+test('demo data: ten projects with the demo accounts as members, removed cleanly', async () => {
   const db3 = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'core-pm-demo-')), 'db.json'));
   const h3 = createApi(db3);
   const c3 = () => {
@@ -585,7 +585,7 @@ test('demo data: three projects with the demo accounts as members, removed clean
   await a3('POST', '/api/auth/setup', { name: 'Admin', username: 'admin', password: 'secret123' });
   const real = await a3('POST', '/api/pm/projects', { name: 'Real project', startDate: today });
   const res = await a3('POST', '/api/admin/demo');
-  assert.equal(res.counts.pmProjects, 3);
+  assert.equal(res.counts.pmProjects, 10);
   assert.ok(res.demoAccounts.some((x) => x.username === 'pm.demo' && x.role === 'pm'));
   const pmd = c3();
   await pmd('POST', '/api/auth/login', { username: 'pm.demo', password: 'demo1234' });
@@ -593,7 +593,15 @@ test('demo data: three projects with the demo accounts as members, removed clean
   assert.equal(me.role, 'pm');
   assert.ok(me.employeeId, 'pm.demo is linked to a demo employee');
   const ov = await pmd('GET', '/api/pm/overview');
-  assert.equal(ov.projects.length, 4);
+  assert.equal(ov.projects.length, 11, 'the ten demo projects and the real one');
+  // Every project state, both kinds of health reading, a WIP limit, custom statuses and a ticket link.
+  assert.deepEqual(new Set(db3.data.pmProjects.filter((p) => p.demo).map((p) => p.status)), new Set(['planning', 'active', 'on_hold', 'completed', 'cancelled']));
+  assert.ok(db3.data.pmProjects.some((p) => p.demo && p.healthOverride && db3.data.users.some((u) => u.id === p.healthOverride.by)), 'override by a real account id');
+  assert.ok(db3.data.pmProjects.some((p) => p.demo && p.statuses.some((x) => x.wipLimit)));
+  assert.ok(db3.data.pmProjects.some((p) => p.demo && p.statuses.some((x) => x.name === 'Client sign-off')));
+  const linked = db3.data.pmTasks.find((t) => t.demo && t.ticketId);
+  assert.ok(linked && db3.data.tickets.some((x) => x.id === linked.ticketId), 'a demo task linked to a demo ticket');
+  assert.ok(ov.projects.some((p) => p.health === 'red'), 'one is off track');
   const lms = ov.projects.find((p) => p.name === 'Learning management system, phase 2');
   assert.equal(lms.status, 'active');
   assert.equal(lms.health, 'amber');

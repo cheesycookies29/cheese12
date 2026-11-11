@@ -26,7 +26,7 @@ Who sees what:
 
 Open it from the CORE home with **Open Project Management**, or from the modules button. It opens on **Overview**, the list of projects. Codes are given automatically: `PRJ-0001` for a project, `PRJ-0001-12` for its 12th task (demo records start with `DEMO-`).
 
-To try things out, use the demo data: sign in as `pm.demo` (password `demo1234`), Andrea Villanueva, a Project Manager. `employee.demo` (Juan Dela Cruz) is a member of two projects.
+To try things out, use the demo data: sign in as `pm.demo` (password `demo1234`), Andrea Villanueva, a Project Manager. `employee.demo` (Juan Dela Cruz) is a member of several of them; `hr.demo`, `payroll.demo` and `it.demo` run or work on the internal ones.
 
 ## Walkthrough
 
@@ -39,6 +39,21 @@ A first tour with the demo data. It takes about fifteen minutes.
 3. Change the filter from **Open projects** to **All**, or pick a type or a manager, or tick **Mine**. The filters stay in the address, so a bookmark keeps them.
 
 ![The project portfolio](projects-portfolio.jpg)
+
+The demo has ten projects, chosen so each part of the module has something to show:
+
+| Project | What to look at |
+|---|---|
+| *Learning management system, phase 2* | A client delivery in full swing: deliverables with billing, overdue and blocked tasks, comments, time. The tour below uses it. |
+| *Warehouse HR and payroll rollout* | The board's **WIP limit**: four tasks in *In progress*, whose limit is 3. The manager's own reading (*Off track*, with a note) next to the computed health. |
+| *SIS support and maintenance, 2025–2026* | A project with **its own statuses** (*Backlog*, *Client sign-off*, *Released*), a release submitted and waiting for the client's sign-off, and the contract renewal coming up. |
+| *Year-end payroll and 2027 tax tables* | *Off track*: its first milestone has passed with work still open. Run by `payroll.demo`. |
+| *Data privacy compliance review* | **On hold**, with the manager's note on why. |
+| *Laptop refresh, engineering team* | A task linked to a **service desk ticket** (Juan's laptop battery); the ticket shows the task too. |
+| *Provincial helpdesk and asset tracking* | **Planning**: a government bid not yet awarded, with deliverables from the terms of reference. |
+| *University website redesign* | **Completed**, both deliverables accepted. Choose **All** in the filter to see it. |
+| *Move the file server to the cloud* | **Cancelled**, with the reason in its description. |
+| *Office network refresh* | A small internal IT project. |
 
 ### A project's overview
 

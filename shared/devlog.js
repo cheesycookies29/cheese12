@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.13.2-alpha',
+    date: '2026-11-11',
+    title: 'More Project Management demo data',
+    modules: ['projects'],
+    notes: 'The demo now has ten projects, one or more in every state, so each part of Project Management has something to show.',
+    changes: [
+      ['improved', 'projects', 'Seven more demo projects: the Meridian payroll rollout (a WIP limit exceeded on the board, and the manager\'s Off track reading over the computed health), SIS support and maintenance (its own statuses, a release waiting for the client\'s sign-off), year-end payroll (off track, run by the Payroll Officer), a data privacy review on hold, a laptop refresh with a task linked to a service desk ticket, a completed website project and a cancelled one.'],
+      ['improved', 'projects', 'The HR, Payroll and IT demo accounts now manage or work on projects, so Workload and My work have more people and tasks; more comments with @mentions and two weeks of logged time across the projects.'],
+    ],
+  },
+  {
     version: '0.13.1-alpha',
     date: '2026-11-11',
     title: 'Modules carousel on the CORE home',

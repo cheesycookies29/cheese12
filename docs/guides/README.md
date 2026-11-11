@@ -68,7 +68,7 @@ Load the demo data under **System → Settings → Demo data**. It adds these ac
 | `payroll.demo` | Payroll Officer | not linked to an employee |
 | `it.demo` | IT Asset Manager | also works service desk tickets |
 | `sales.demo` | Sales Manager | Sales & CRM |
-| `pm.demo` | Project Manager | Andrea Villanueva, who runs the delivery projects (LMS phase 2, the provincial helpdesk bid) |
+| `pm.demo` | Project Manager | Andrea Villanueva, who runs the delivery projects (LMS phase 2, the Meridian payroll rollout, the provincial helpdesk bid) |
 | `employee.demo` | Employee | Juan Dela Cruz, Software Engineer and team lead of Mark and Kristine; a member of two projects |
 
 The screenshot script also creates the first administrator, `admin` (password `Guide-Shots-2026`).

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### More demo projects (0.13.2)
+- The demo data now has ten projects in every state: on hold, completed and cancelled ones, one off track, one with its own statuses, one with a WIP limit and one with a task linked to a service desk ticket. See [the projects guide](projects#walkthrough).
+
 ### Modules carousel (0.13.1)
 - The CORE home shows **Your modules** in a sliding row, like the ATLAS home: swipe it on a phone, or use the arrows and dots. Modules coming soon are at the end of the row. See [Getting started](getting-started).
 

@@ -266,7 +266,7 @@ function seedProjects(data, c) {
   };
   const [pmU, juan, it, sales] = ['pm.demo', 'employee.demo', 'it.demo', 'sales.demo'].map(DEMO_USER);
   const [nsu, , , , islaVerde] = data.crmAccounts;
-  const status = (id) => DEFAULT_STATUSES.find((x) => x.id === id);
+  const statusIn = (p, id) => p.statuses.find((x) => x.id === id);
   const projects = [];
   const milestones = [];
   const tasks = [];
@@ -278,8 +278,10 @@ function seedProjects(data, c) {
     const p = {
       id: randomUUID(), code, statuses: structuredClone(DEFAULT_STATUSES), healthOverride: null, taskSeq: 0, version: 1, budgetHours: null,
       accountId: null, dealId: null, contractId: null, description: '', createdAt: at(-60), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: fields.managerId,
-      history: [{ at: at(-60), by: fields.managerId, field: 'created', from: '', to: '' }], ...fields,
+      history: [{ at: at(fields.createdDaysAgo ? -fields.createdDaysAgo : -60), by: fields.managerId, field: 'created', from: '', to: '' }], ...fields,
     };
+    if (fields.createdDaysAgo) p.createdAt = at(-fields.createdDaysAgo);
+    delete p.createdDaysAgo;
     projects.push(p);
     const mIds = ms.map(([name, due, deliverable, billingPercent, submitted, accepted, note], i) => {
       const m = { id: randomUUID(), projectId: p.id, name, dueDate: wd(due), deliverable, billingPercent: billingPercent ?? null, submittedAt: submitted == null ? null : wd(submitted), acceptedAt: accepted == null ? null : wd(accepted), acceptanceNote: note || '', order: i, version: 1, createdAt: at(-60), updatedAt: at(-2) };
@@ -294,11 +296,11 @@ function seedProjects(data, c) {
         assigneeId: who, startDate: start == null ? null : wd(start), dueDate: due == null ? null : wd(due), estimateHours: est ?? null,
         milestoneId: mi == null ? null : mIds[mi], parentId: extra.parent ? byKey[extra.parent].id : null,
         checklist: (extra.checklist || []).map(([text, done]) => ({ id: randomUUID(), text, done })), blockedBy: (extra.blockedBy || []).map((k) => byKey[k].id),
-        ticketId: null, rank: (i + 1) * 1024, completedAt: status(st).category === 'done' ? at(due == null ? -1 : Math.min(-1, due)) : null,
+        ticketId: extra.ticketId || null, rank: (i + 1) * 1024, completedAt: statusIn(p, st).category === 'done' ? at(due == null ? -1 : Math.min(-1, due)) : null,
         version: 1, createdAt: at(-45), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: who || fields.managerId,
         history: [{ at: at(-45), by: fields.managerId, field: 'created', from: '', to: '' }],
       };
-      if (st !== 'todo') t.history.push({ at: at(Math.min(-1, start ?? -1)), by: who || fields.managerId, field: 'status', from: 'To do', to: status(st).name });
+      if (statusIn(p, st).category !== 'todo') t.history.push({ at: at(Math.min(-1, start ?? -1)), by: who || fields.managerId, field: 'status', from: p.statuses[0].name, to: statusIn(p, st).name });
       byKey[ref] = t;
       tasks.push(t);
     });
@@ -399,6 +401,171 @@ function seedProjects(data, c) {
     ['wifi', 'Wi-Fi access point for meeting room B', 0, 'todo', juan, 5, 9, 3],
     ['diagram', 'Update the network diagram', null, 'todo', juan, 12, 15, 2],
   ]);
+
+
+  // ----- More projects, so every state and view has something to show -----
+  const [hrU, payU] = ['hr.demo', 'payroll.demo'].map(DEMO_USER);
+  const [, , meridian] = data.crmAccounts;
+  const [sisContract, meridianContract, websiteContract] = data.crmContracts;
+  const say = (proj, task, userId, body, daysAgo) => comments.push({ id: randomUUID(), taskId: task.id, projectId: proj.p.id, userId, body, createdAt: at(-daysAgo) });
+  // Time on the last ten working days: rows of [userId, taskRef or null, hours, note] per day.
+  const logDays = (proj, perDay) => workDays.forEach((ago, i) => {
+    for (const [userId, ref, hours, note] of perDay(i)) logs.push({ id: randomUUID(), projectId: proj.p.id, taskId: ref ? proj.byKey[ref].id : null, userId, date: day(-ago), hours, note: note || '', createdAt: at(-ago) });
+  });
+
+  // 4. Meridian's warehouse HR and payroll rollout: won three weeks ago, early in delivery. The
+  // In progress column has a WIP limit of 3 (four tasks are in it, so the board warns), and the
+  // manager's reading is "off track", worse than what the tasks alone show.
+  const meridianRollout = project(4, {
+    name: 'Warehouse HR and payroll rollout', type: 'Client', status: 'active', startDate: wd(-14), endDate: wd(75), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: payU, role: 'member' }, { userId: hrU, role: 'member' }, { userId: juan, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: meridian.id, dealId: data.crmDeals[2].id, contractId: meridianContract.id, budgetHours: 360,
+    description: 'HR records, attendance and payroll for 420 warehouse staff in two sites. Billing: 50% on signing (paid), 50% on go-live.',
+    statuses: DEFAULT_STATUSES.map((x) => (x.id === 'doing' ? { ...structuredClone(x), wipLimit: 3 } : structuredClone(x))),
+    healthOverride: { value: 'red', note: 'Off track in practice: Meridian\'s HR has not sent the 2026 leave balances, so the parallel run will move a week unless they arrive by Friday.', by: pmU, at: at(-1) },
+  }, [
+    ['Set-up and data migration', 12, false],
+    ['Parallel payroll run', 40, false],
+    ['Go-live and acceptance', 70, true, 50],
+  ], [
+    ['kick', 'Kick-off with Grace Lim and the site supervisors', 0, 'done', pmU, -14, -13, 3],
+    ['master', 'Employee master file from Meridian\'s spreadsheet', 0, 'doing', hrU, -10, 3, 16, { checklist: [['Template sent', true], ['Site A file received', true], ['Site B file received', false], ['Duplicates removed', false]] }],
+    ['sched', 'Shift schedules for both warehouses', 0, 'doing', juan, -6, 5, 12],
+    ['leave', 'Opening leave balances for 2026', 0, 'waiting', hrU, -8, 2, 4, { priority: 'high', description: 'Waiting for Meridian\'s HR to send the balances as of the go-live month.' }],
+    ['rates', 'Pay rules: night differential and holiday premiums', 0, 'doing', payU, -5, 6, 10],
+    ['bio', 'Connect the biometric clocks at Site A', 0, 'doing', juan, -3, 8, 8, { blockedBy: ['sched'] }],
+    ['users', 'User accounts for the site supervisors', 0, 'todo', juan, 7, 10, 3],
+    ['parallel1', 'Parallel run: first cut-off', 1, 'todo', payU, 20, 27, 20, { blockedBy: ['master', 'rates'] }],
+    ['compare', 'Compare against the old payroll and explain each difference', 1, 'todo', payU, 27, 33, 16],
+    ['parallel2', 'Parallel run: second cut-off', 1, 'todo', payU, 34, 40, 16],
+    ['train', 'Train the payroll and HR staff', 2, 'todo', pmU, 50, 60, 12],
+    ['golive', 'Go-live payroll', 2, 'todo', payU, 62, 66, 8, { priority: 'high' }],
+    ['accept', 'Acceptance and turnover', 2, 'todo', pmU, 66, 70, 2],
+  ]);
+  say(meridianRollout, meridianRollout.byKey.leave, pmU, '@hr.demo can you call Grace tomorrow? Without the balances the parallel run will be off.', 2);
+  say(meridianRollout, meridianRollout.byKey.leave, hrU, 'Called her. Site A is ready; Site B will send theirs on Thursday.', 1);
+  say(meridianRollout, meridianRollout.byKey.bio, juan, 'Site A has 6 devices of the same model as Bayani\'s. The import should work as is.', 1);
+  logDays(meridianRollout, (i) => [
+    [hrU, 'master', i < 6 ? 3 : 2],
+    [juan, i % 2 ? 'sched' : 'bio', 3],
+    [payU, i < 5 ? 'rates' : null, 2, i < 5 ? '' : 'Reading Meridian\'s current payroll rules'],
+    ...(i % 4 === 0 ? [[pmU, 'kick', 1, 'Weekly call with Grace']] : []),
+  ]);
+
+  // 5. Support for the student information system: a year-long contract with its own statuses
+  // (Backlog, In progress, Client sign-off, Released), two releases a year, ending in 40 days.
+  const sis = project(5, {
+    name: 'SIS support and maintenance, 2025–2026', type: 'Client', status: 'active', startDate: wd(-325), endDate: wd(40), managerId: it, createdDaysAgo: 325,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }, { userId: sales, role: 'viewer' }],
+    accountId: nsu.id, contractId: sisContract.id, budgetHours: 300,
+    description: '8x5 support for the student information system and two releases a year, under contract NSU-2025-118. Renewal is being discussed in Sales & CRM.',
+    statuses: [
+      { id: 'backlog', name: 'Backlog', category: 'todo', color: 'gray' },
+      { id: 'doing', name: 'In progress', category: 'active', color: 'blue', wipLimit: 2 },
+      { id: 'signoff', name: 'Client sign-off', category: 'active', color: 'violet' },
+      { id: 'released', name: 'Released', category: 'done', color: 'green' },
+      { id: 'cancelled', name: 'Cancelled', category: 'cancelled', color: 'gray' },
+    ],
+  }, [
+    ['Release 2025.2', -200, true, 50, -203, -196, 'Accepted by Paolo Santiago.'],
+    ['Release 2026.1', 5, true, 50, -2, null],
+    ['Renewal decision', 30, false],
+  ], [
+    ['enrol', 'Online enrolment for second semester', 0, 'released', juan, -260, -205, 60],
+    ['tor', 'Transcript of records PDF', 0, 'released', juan, -240, -206, 24],
+    ['perf', 'Speed up the grade encoding page', 1, 'released', juan, -90, -40, 30],
+    ['sched', 'Class scheduling conflicts report', 1, 'released', juan, -70, -32, 20],
+    ['sso', 'Single sign-on with the LMS', 1, 'signoff', juan, -60, 4, 6, { description: 'Released; Paolo is checking it with the College of Nursing before signing the release.' }],
+    ['patch', 'Monthly security patches', null, 'doing', it, -5, 3, 4],
+    ['backup', 'Restore test of the nightly backup', null, 'backlog', it, 10, 12, 3],
+    ['report', 'Support report for the renewal (tickets, response times)', 2, 'backlog', it, 15, 25, 6, { priority: 'high' }],
+    ['handover', 'Handover notes if the contract is not renewed', 2, 'backlog', it, 28, 38, 4],
+    ['mobile', 'Mobile view of the student portal', null, 'cancelled', juan, -150, -120, 40, { description: 'Moved to the phase 2 proposal instead.' }],
+  ]);
+  say(sis, sis.byKey.sso, it, '@pm.demo Paolo says the Nursing check takes another week. Can the LMS team keep their test accounts open until then?', 3);
+  logDays(sis, (i) => [[it, i % 2 ? 'patch' : null, 1, i % 2 ? '' : 'Support tickets'], ...(i < 3 ? [[juan, 'sso', 1.5, 'Fixes from the Nursing check']] : [])]);
+
+  // 6. A finished project: the university website, delivered and accepted, contract expired.
+  project(6, {
+    name: 'University website redesign', type: 'Client', status: 'completed', startDate: wd(-500), endDate: wd(-150), managerId: pmU, createdDaysAgo: 505,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }],
+    accountId: nsu.id, contractId: websiteContract.id, budgetHours: 240,
+    description: 'New public website on the university\'s own hosting, with a news section for each college. Delivered and accepted.',
+  }, [
+    ['Design approved', -430, true, 40, -432, -428, 'Approved by the Office of the President.'],
+    ['Launch and acceptance', -160, true, 60, -165, -158, 'Acceptance certificate NSU-ACC-2025-07.'],
+  ], [
+    ['brief', 'Content inventory and sitemap', 0, 'done', pmU, -500, -480, 16],
+    ['design', 'Home and college page designs', 0, 'done', juan, -480, -435, 60],
+    ['build', 'Build the templates', 1, 'done', juan, -425, -300, 90],
+    ['news', 'News section per college', 1, 'done', juan, -300, -240, 30],
+    ['migrate', 'Move 1,200 pages from the old site', 1, 'done', pmU, -260, -190, 40],
+    ['launch', 'Launch and redirects from the old addresses', 1, 'done', juan, -170, -165, 6],
+    ['handover', 'Train the web editors', 1, 'done', pmU, -165, -160, 6],
+  ]);
+
+  // 7. Internal, off track: year-end payroll work whose first milestone has passed with work open.
+  const yearEnd = project(7, {
+    name: 'Year-end payroll and 2027 tax tables', type: 'Internal', status: 'active', startDate: wd(-30), endDate: wd(45), managerId: payU,
+    members: [{ userId: payU, role: 'manager' }, { userId: hrU, role: 'member' }, { userId: pmU, role: 'viewer' }],
+    description: 'Get payroll ready for the year-end: contribution checks, 2027 tax tables in Payroll Setup, the 13th month pay and the annual reports to the BIR.',
+  }, [
+    ['Contributions reconciled', -3, false],
+    ['13th month pay released', 30, false],
+    ['Annual reports filed', 45, false],
+  ], [
+    ['sss', 'Reconcile SSS, PhilHealth and Pag-IBIG remittances, January to October', 0, 'doing', payU, -25, -6, 20, { priority: 'high', checklist: [['SSS', true], ['PhilHealth', true], ['Pag-IBIG', false]] }],
+    ['loans', 'Check the salary loan deductions against the SSS statements', 0, 'todo', payU, -10, -4, 6],
+    ['tax', 'Enter the 2027 tax tables in Payroll Setup', 1, 'todo', payU, 5, 12, 4, { description: 'Use the BIR\'s revenue regulations for 2027 once published; check against last year\'s table.' }],
+    ['thirteenth', 'Compute the 13th month pay and check it with HR', 1, 'todo', payU, 15, 25, 10],
+    ['separated', 'Final pay for the three separated employees', 1, 'doing', hrU, -4, 8, 6],
+    ['alpha', 'Prepare the alphalist of employees', 2, 'todo', payU, 30, 42, 12],
+    ['certs', 'Certificates of tax withheld for each employee', 2, 'todo', hrU, 32, 44, 8],
+  ]);
+  say(yearEnd, yearEnd.byKey.sss, payU, 'Pag-IBIG\'s statement for September is missing. Requested a copy; the milestone will be a few days late.', 2);
+  logDays(yearEnd, (i) => [[payU, i < 7 ? 'sss' : 'loans', 2], ...(i < 4 ? [[hrU, 'separated', 1.5]] : [])]);
+
+  // 8. On hold, with the manager's note.
+  project(8, {
+    name: 'Data privacy compliance review (RA 10173)', type: 'Internal', status: 'on_hold', startDate: wd(-50), endDate: wd(60), managerId: hrU,
+    members: [{ userId: hrU, role: 'manager' }, { userId: it, role: 'member' }, { userId: pmU, role: 'viewer' }],
+    description: 'Annual review of how the company keeps personal data. On hold until the new Data Protection Officer is appointed.',
+    healthOverride: { value: 'amber', note: 'Paused on purpose: waiting for the DPO appointment from management, expected next month.', by: hrU, at: at(-12) },
+  }, [['Inventory of personal data', -10, false], ['Privacy impact assessment', 40, false]], [
+    ['inventory', 'List the systems and files that hold personal data', 0, 'done', hrU, -50, -30, 10],
+    ['access', 'Review who can see pay and government IDs', 0, 'done', it, -40, -25, 6, { description: 'Done with the Users & Access table and the audit log.' }],
+    ['retention', 'Retention periods for applicant files', 0, 'waiting', hrU, -25, -12, 4],
+    ['pia', 'Privacy impact assessment for the clock-in locations', 1, 'todo', hrU, 20, 35, 12],
+    ['notice', 'Update the employee privacy notice', 1, 'todo', hrU, 30, 40, 4],
+  ]);
+
+  // 9. Cancelled, with the reason in the description.
+  project(9, {
+    name: 'Move the file server to the cloud', type: 'Internal', status: 'cancelled', startDate: wd(-90), endDate: wd(-20), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
+    description: 'Cancelled: the quote for the internet upgrade came in above budget. Revisit next year with the new lease line.',
+  }, [['Pilot with the Sales folder', -40, false]], [
+    ['quote', 'Quotes for storage and the internet upgrade', 0, 'done', it, -90, -70, 4],
+    ['pilot', 'Pilot with the Sales folder', 0, 'cancelled', juan, -60, -40, 10],
+    ['policy', 'Folder permissions plan', 0, 'cancelled', it, -60, -45, 6],
+  ]);
+
+  // 10. Internal laptop refresh, with a task linked to Juan's service desk ticket.
+  const battery = data.tickets.find((x) => x.subject === 'Laptop battery drains very fast');
+  const laptops = project(10, {
+    name: 'Laptop refresh, engineering team', type: 'Internal', status: 'active', startDate: wd(-7), endDate: wd(30), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: payU, role: 'viewer' }],
+    budgetHours: 40,
+    description: 'Replace the five oldest engineering laptops and re-image them; the old units go to the training room.',
+  }, [['New laptops issued', 21, false]], [
+    ['list', 'List the five oldest units from IT Assets', 0, 'done', it, -7, -6, 1],
+    ['quote', 'Get three quotes and the purchase approval', 0, 'doing', it, -5, 4, 3],
+    ['image', 'Prepare the standard image', 0, 'todo', it, 5, 10, 6],
+    ['juan', 'Juan\'s laptop: battery first, then a replacement unit', 0, 'doing', it, -1, 2, 2, { priority: 'high', ticketId: battery?.id || null }],
+    ['issue', 'Issue the new laptops and record them in IT Assets', 0, 'todo', it, 15, 21, 5],
+    ['training', 'Move the old units to the training room', null, 'todo', juan, 22, 28, 2],
+  ]);
+  say(laptops, laptops.byKey.juan, it, 'Battery ordered. Linked to his ticket so the service desk sees where it is.', 1);
 
   Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs });
 }

@@ -115,6 +115,7 @@ function linkDemoPeople(d) {
     p.members = p.members.map((m) => ({ ...m, userId: id(m.userId) })).filter((m) => m.userId);
     for (const f of ['managerId', 'createdBy', 'updatedBy']) p[f] = id(p[f]);
     for (const h of p.history || []) h.by = id(h.by);
+    if (p.healthOverride) p.healthOverride.by = id(p.healthOverride.by);
   }
   for (const t of d.pmTasks.filter((x) => x.demo)) {
     for (const f of ['assigneeId', 'createdBy', 'updatedBy']) t[f] = id(t[f]);
