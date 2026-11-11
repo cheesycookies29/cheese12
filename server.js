@@ -141,7 +141,8 @@ const server = http.createServer(async (req, res) => {
   try {
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req, bodyLimit(req, url)) : {};
     const { data, headers } = await api(req, url, body);
-    send(res, 200, data, 'application/json', headers);
+    // A file to download (project attachments) is sent as bytes; everything else as JSON.
+    send(res, 200, data, Buffer.isBuffer(data) ? 'application/octet-stream' : 'application/json', headers);
   } catch (err) {
     const status = err.status || 500;
     if (status === 500) console.error(err);

@@ -1834,3 +1834,83 @@ details > summary { cursor: pointer; }
 @media (max-width: 760px) { .toolbar > .pm-phone-only { display: block; } }
 .pm-sort.asc::after { content: ' ▲'; }
 .pm-sort.desc::after { content: ' ▼'; }
+
+/* ----- Project Management 0.15: files, watchers, bulk edit, import, milestones, digest ----- */
+.pm-files { list-style: none; margin: 0 0 10px; padding: 0; }
+.pm-files li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.pm-files li:first-child { border-top: 0; padding-top: 0; }
+.pm-files .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pm-files small { display: block; color: var(--muted); font-size: 12px; }
+.pm-file-ic { flex: none; width: 30px; height: 30px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text-2); }
+.pm-file-add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.pm-file-add label.btn { position: relative; }
+.pm-file-add label.btn:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pm-ms-files { align-self: flex-start; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+.pm-watch .pm-watch-n { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; line-height: 20px; text-align: center; }
+.pm-watch.on { border-color: var(--brand); color: var(--brand-text); background: var(--brand-softer); }
+.pm-watch.on .pm-watch-n { background: var(--brand-soft); color: var(--brand-text); }
+.pm-watchers { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pm-watchers li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+/* The List: selection and the bulk bar, which stays at the bottom of the window while tasks are selected. */
+.pm-list .pm-sel { width: 18px; height: 18px; margin: 0 10px 0 0; vertical-align: -3px; cursor: pointer; accent-color: var(--brand); }
+.pm-list tr.pm-selected td { background: var(--brand-softer); }
+.pm-selall { padding-top: 10px; padding-bottom: 0; }
+.pm-selall .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; min-height: 32px; cursor: pointer; }
+.pm-selall input { width: 18px; height: 18px; accent-color: var(--brand); }
+.pm-bulk { position: sticky; bottom: 0; z-index: 20; margin-top: 12px; }
+.pm-bulk-in { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.12); }
+.pm-bulk-count { white-space: nowrap; }
+.pm-bulk-actions { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+/* Import */
+.pm-steps { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; padding: 0; counter-reset: step; font-size: 13px; color: var(--muted); }
+.pm-steps li { counter-increment: step; display: inline-flex; align-items: center; gap: 6px; }
+.pm-steps li::before { content: counter(step); width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-strong); font-size: 12px; font-weight: 700; }
+.pm-steps li.on { color: var(--text); font-weight: 700; }
+.pm-steps li.on::before { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.pm-imp-map { margin-bottom: 8px; }
+.pm-imp-actions { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.pm-imp-sample td, .pm-imp-sample th { font-size: 12px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-imp-rows td { vertical-align: top; }
+.pm-imp-msg { display: block; font-size: 13px; }
+.pm-imp-msg.bad { color: var(--danger); }
+/* Milestones across projects and the forecast */
+.pm-milestones td .pm-diamond { margin-right: 6px; }
+.pm-milestones tr.pm-late td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+.pm-forecast-table td.bad { color: var(--danger); font-weight: 600; }
+.pm-forecast-table tr.pm-this-month td { background: var(--brand-softer); }
+/* My work: the daily digest */
+.pm-digest .card-head { flex-wrap: wrap; gap: 6px 16px; }
+.pm-digest-pref { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; min-height: 32px; cursor: pointer; }
+.pm-digest-pref input { width: 18px; height: 18px; accent-color: var(--brand); }
+.pm-digest-sum { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-digest-sum li { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 13px; color: var(--text-2); }
+.pm-digest-sum li strong { font-size: 16px; color: var(--text); margin-right: 4px; }
+.pm-digest-sum li.is-bad strong { color: var(--danger); }
+.pm-digest-sum li.is-warn strong { color: var(--warn); }
+.pm-digest-more summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: 32px; display: flex; align-items: center; gap: 6px; list-style: none; }
+.pm-digest-more summary::-webkit-details-marker { display: none; }
+.pm-digest-more summary::before { content: '▸'; color: var(--muted); }
+.pm-digest-more[open] summary::before { content: '▾'; }
+.pm-digest-more h3 { font-size: 14px; margin: 12px 0 4px; }
+.pm-digest-list { list-style: none; margin: 0; padding: 0; }
+.pm-digest-list li { padding: 5px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.pm-digest-list li:first-child { border-top: 0; }
+.pm-digest-list small { display: block; color: var(--muted); font-size: 12px; }
+@media (pointer: coarse) {
+  .pm-bulk .btn, .pm-watch, .pm-file-add .btn, .pm-ms-files { min-height: 44px; }
+  .pm-files .icon-btn { min-width: 44px; min-height: 44px; }
+  .pm-list .pm-sel, .pm-selall input, .pm-digest-pref input { width: 22px; height: 22px; }
+  .pm-selall .check, .pm-digest-pref, .pm-digest-more summary { min-height: 44px; }
+}
+@media (max-width: 760px) {
+  .pm-bulk { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; }
+  .card:has(+ .pm-bulk:not([hidden])) { margin-bottom: 84px; }
+  body:has(.pm-bulk:not([hidden])) #toast { bottom: 84px; }
+  .pm-bulk-in { border-radius: 0; border-width: 1px 0 0; flex-wrap: nowrap; overflow-x: auto; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+  .pm-bulk-actions { flex-wrap: nowrap; flex: none; }
+  .pm-bulk-in .btn { flex: none; }
+  .pm-list .pm-sel { margin-right: 8px; }
+  .pm-steps { gap: 4px 10px; }
+  .pm-imp-actions { flex-wrap: wrap; }
+  .pm-imp-actions .btn { flex: 1 1 auto; }
+}

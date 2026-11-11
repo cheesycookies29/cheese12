@@ -303,6 +303,8 @@ function seedProjects(data, c) {
         ticketId: extra.ticketId || null, rank: (i + 1) * 1024, completedAt: statusIn(p, st).category === 'done' ? at(due == null ? -1 : Math.min(-1, due)) : null,
         version: 1, createdAt: at(added), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: who || fields.managerId,
         history: [{ at: at(added), by: fields.managerId, field: 'created', from: '', to: '' }], remainingHours: extra.left ?? null,
+        // Watchers: who added it (the manager) and its assignee, as CORE does, plus any named here.
+        watchers: [...new Set([fields.managerId, who, ...(extra.watchers || [])].filter(Boolean))], attachments: [],
       };
       if (statusIn(p, st).category !== 'todo') t.history.push({ at: at(Math.min(-1, start ?? -1)), by: who || fields.managerId, field: 'status', from: p.statuses[0].name, to: statusIn(p, st).name });
       byKey[ref] = t;
@@ -348,7 +350,7 @@ function seedProjects(data, c) {
     ['train', 'Faculty training, four batches', 3, 'todo', pmU, 28, 38, 16, { checklist: [['Book the AVR', false], ['Training manual', false], ['Attendance sheets', false]] }],
     ['announce', 'Parent portal launch announcement', 3, 'todo', pmU, 38, 40, 3],
     ['cutover', 'Go-live cut-over', 3, 'todo', it, 41, 42, 6, { priority: 'high' }],
-    ['accept', 'Acceptance certificate signed', 3, 'todo', pmU, 43, 45, 1],
+    ['accept', 'Acceptance certificate signed', 3, 'todo', pmU, 43, 45, 1, { watchers: [sales] }],
     ['weekly', 'Weekly status report to the VP', null, 'todo', pmU, null, 2, 1],
     ['shells', 'Migrate phase 1 course shells', null, 'cancelled', juan, -15, -10, 8, { description: 'Not needed: the university keeps phase 1 as it is.' }],
     ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 1, { added: -10 }],
@@ -588,6 +590,11 @@ function seedProjects(data, c) {
   ]);
   say(laptops, laptops.byKey.juan, it, 'Battery ordered. Linked to his ticket so the service desk sees where it is.', 1);
 
+  // People who commented on a task watch it, as in CORE.
+  for (const cm of comments) {
+    const t = tasks.find((x) => x.id === cm.taskId);
+    if (t && !t.watchers.includes(cm.userId)) t.watchers.push(cm.userId);
+  }
   Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs, pmNotifications: notes, pmViews: views });
 }
 

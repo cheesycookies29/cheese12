@@ -1,17 +1,20 @@
-// Project Management screens: the portfolio (and its templates), a project's Overview, Board,
-// List, Timeline and Time tabs, the task page, My work (with "For you"), Workload and the Projects
+// Project Management screens: the portfolio (its templates, and milestones with the billing
+// forecast), a project's Overview, Board, List (bulk edit, import), Timeline and Time tabs, the task
+// page (watchers, files), My work (with "For you" and the daily digest), Workload and the Projects
 // setup. Built for dated,
 // contract-bound delivery: milestones (some are deliverables the client accepts), a board of
 // tasks, and what is late. Everything a project shows is worked out by the server from its tasks
 // (shared/projects.js); nothing here stores a percentage or a health colour.
 import { api } from '../api.js';
 import { ctx, can, roleLabel } from '../state.js';
-import { html, mount, badge, toast, modal, confirmDialog, fmtDate, today, downloadFile, toCsv } from '../ui.js';
+import { html, mount, badge, toast, modal, confirmDialog, fmtDate, today, downloadFile, toCsv, money } from '../ui.js';
 import { icon } from '../icons.js';
+import { ACCEPT, prepareUpload, sizeLabel } from '../attachments.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, MY_WORK_GROUPS,
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
   QUICK_FILTERS, parseFilters, taskMatches, VIEW_TABS, groupNotifications,
+  billingForecast, forecastCsvRows, IMPORT_FIELDS, IMPORT_TEMPLATE, IMPORT_MAX_ROWS, DIGEST_MAX,
 } from '/shared/projects.js';
 
 // ---------- Small helpers ----------
@@ -157,6 +160,46 @@ function popMenu(btn, items, label) {
   return close;
 }
 
+// ---------- Files (tasks and milestones) ----------
+// A file opens as a download (the server sends it as an attachment to save), never in the page.
+// base: the files' address, e.g. /api/pm/tasks/<id>/attachments.
+const MAX_FILES = 5;
+function fileBlock(list, base, canAdd) {
+  return html`${list.length ? html`<ul class="pm-files">${list.map((a) => html`<li>
+      <span class="pm-file-ic" aria-hidden="true">${icon(a.type === 'application/pdf' ? 'file' : 'image', 16)}</span>
+      <span class="grow"><a href="${base}/${a.id}" download="${a.name}">${a.name}</a><small>${sizeLabel(a.size)} · ${a.byName} · ${when(a.uploadedAt)}</small></span>
+      ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>`
+    : html`<p class="muted small">No files yet.</p>`}
+    ${canAdd ? (list.length < MAX_FILES ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${ACCEPT}" multiple data-add-file /></label>
+        <small class="muted">PDF or photos (JPEG, PNG, WebP), up to 5 MB each; at most ${MAX_FILES}.</small></div>`
+      : html`<p class="muted small">${MAX_FILES} files, the most there can be. Remove one to add another.</p>`) : ''}`;
+}
+// Uploads what was picked (up to the room left) and removes on request; done(list) gets the new list.
+function wireFiles(root, base, list, done) {
+  root.querySelector('[data-add-file]')?.addEventListener('change', guard(async (e) => {
+    const input = e.target;
+    const picked = [...input.files].slice(0, MAX_FILES - list.length);
+    if (input.files.length > picked.length) toast(`Only ${picked.length} more file${picked.length === 1 ? '' : 's'} can be added here.`, 'error');
+    input.disabled = true;
+    let out = null;
+    try {
+      for (const f of picked) out = await api.post(base, { file: await prepareUpload(f) });
+    } finally {
+      input.disabled = false;
+      if (out) {
+        toast(`${plural(picked.length, 'file')} added.`);
+        await done(out.attachments);
+      }
+    }
+  }, () => done(null)));
+  root.querySelectorAll('[data-del-file]').forEach((b) => b.addEventListener('click', guard(async () => {
+    const a = list.find((x) => x.id === b.dataset.delFile);
+    if (!(await confirmDialog(`Remove the file "${a.name}"?`, { title: 'Remove file', confirmLabel: 'Remove' }))) return;
+    const out = await api.del(`${base}/${a.id}`);
+    toast('File removed.');
+    await done(out.attachments);
+  }, () => done(null))));
+}
 
 // ---------- Forms ----------
 // New project (from scratch or from a template: `templateId` picks one) or Edit project.
@@ -302,6 +345,8 @@ async function newTask(p, tasks, preset = {}, after) {
 }
 
 // ---------- Portfolio ----------
+// Projects, and Milestones (with the billing forecast) across them.
+const portfolioTabs = (on) => html`<nav class="tabs pm-tabs" aria-label="Portfolio views">${[['projects', '/projects', 'Projects', 'folder'], ['milestones', '/projects/milestones', 'Milestones', 'flag']].map(([k, href, label, ic]) => html`<a href="#${href}" class="${k === on ? 'active' : ''}" ${k === on ? 'aria-current="page"' : ''}>${icon(ic, 16)} ${label}</a>`)}</nav>`;
 export async function portfolioView(el, _params, query) {
   const [ov, m] = await Promise.all([api.get('/api/pm/overview'), meta()]);
   const state = { status: query.status || 'open', type: query.type || '', manager: query.manager || '', mine: query.mine === '1', q: query.q || '' };
@@ -309,6 +354,7 @@ export async function portfolioView(el, _params, query) {
   const stat = (label, value, sub, cls = '', href = '') => html`<${href ? 'a' : 'div'} class="card ${cls}" ${href ? html`href="${href}"` : ''}><small>${label}</small><strong>${value}</strong>${sub ? html`<span class="muted small">${sub}</span>` : ''}</${href ? 'a' : 'div'}>`;
   mount(el, html`
     ${head('Projects', can('pm.view') ? 'Every project: progress, health and the next milestone.' : 'The projects you are a member of.', can('pm.edit') ? html`<button class="btn primary" id="new">+ New project</button>` : '')}
+    ${portfolioTabs('projects')}
     <div class="stats">
       ${stat('Open projects', ov.counts.open, `${ov.counts.active} active`)}
       ${stat('At risk', ov.counts.amber, 'amber: watch these', ov.counts.amber ? 'attention' : '')}
@@ -376,6 +422,75 @@ export async function portfolioView(el, _params, query) {
   draw();
 }
 
+// Milestones of every project you can open: due, health, deliverable, submitted and accepted.
+// With Sales & CRM access, each deliverable's amount (its billing % of the contract, or of the
+// deal without a contract) and the billing forecast by month; the server leaves the amounts out
+// for everyone else.
+const monthLabel = (ym) => fmtDate(`${ym}-01`, { month: 'long', year: 'numeric' });
+export async function portfolioMilestonesView(el, _params, query) {
+  const data = await api.get('/api/pm/milestones');
+  const state = { show: query.show === 'all' ? 'all' : 'open', month: String(query.month || ''), client: String(query.client || ''), health: String(query.health || ''), deliverables: query.deliverables === '1' };
+  const clientOf = (r) => r.accountName || 'Internal';
+  const months = [...new Set(data.rows.map((r) => r.dueDate.slice(0, 7)))].sort();
+  const clients = [...new Set(data.rows.map(clientOf))].sort((a, b) => a.localeCompare(b));
+  if (!months.includes(state.month)) state.month = '';
+  if (!clients.includes(state.client)) state.client = '';
+  mount(el, html`
+    ${head('Projects', 'Milestones and deliverables across the projects you can open, soonest first.')}
+    ${portfolioTabs('milestones')}
+    <section class="card scroll-x">
+      <div class="toolbar pad pm-filterbar">
+        <select id="f-show" aria-label="Which milestones">${options([['open', 'Upcoming and overdue'], ['all', 'All, accepted and done too']], state.show)}</select>
+        <select id="f-month" aria-label="Month due"><option value="">Every month</option>${options(months.map((m) => [m, monthLabel(m)]), state.month)}</select>
+        <select id="f-client" aria-label="Client"><option value="">Every client</option>${options(clients.map((c) => [c, c]), state.client)}</select>
+        <select id="f-health" aria-label="Health"><option value="">Any health</option>${options([...Object.entries(HEALTH), ['done', 'Accepted or done']], state.health)}</select>
+        <label class="field check inline"><input type="checkbox" id="f-deliv" ${state.deliverables ? 'checked' : ''} /><span>Deliverables only</span></label>
+      </div>
+      <div id="ms-list"></div>
+    </section>
+    ${data.amounts ? html`<section class="card pm-forecast" aria-labelledby="fc-h"><div class="card-head"><h2 id="fc-h">${icon('chart')} Billing forecast</h2><button type="button" class="btn" id="fc-csv">${icon('download', 16)} Export CSV</button></div><div id="fc"></div></section>` : ''}`);
+  const shown = () => data.rows.filter((r) => (state.show === 'all' || !r.finished) && (!state.month || r.dueDate.startsWith(state.month)) && (!state.client || clientOf(r) === state.client)
+    && (!state.health || (state.health === 'done' ? r.finished : r.health === state.health)) && (!state.deliverables || r.deliverable));
+  // The forecast follows the client and the month; it always counts accepted deliverables as earned.
+  const forecast = () => billingForecast(data.rows.filter((r) => r.deliverable && Number(r.billingPercent) > 0 && (!state.client || clientOf(r) === state.client)), data.today);
+  const statusOf = (r) => (r.acceptedAt ? badge(`Accepted ${short(r.acceptedAt)}`, 'green') : r.submittedAt ? badge(`Submitted ${short(r.submittedAt)}`, 'blue') : r.finished ? badge('Work done', 'green') : '');
+  const draw = () => {
+    const qs = new URLSearchParams(Object.entries({ show: state.show === 'all' ? 'all' : '', month: state.month, client: state.client, health: state.health, deliverables: state.deliverables ? '1' : '' }).filter(([, v]) => v)).toString();
+    history.replaceState(null, '', `#/projects/milestones${qs ? `?${qs}` : ''}`);
+    const rows = shown();
+    mount(el.querySelector('#ms-list'), rows.length ? html`<table class="table clickable pm-milestones">
+      <thead><tr><th>Milestone</th><th>Client</th><th>Due</th><th>Health</th><th>Deliverable</th><th>Submitted / accepted</th>${data.amounts ? html`<th class="num">Amount</th>` : ''}</tr></thead>
+      <tbody>${rows.map((r) => html`<tr data-href="#/projects/${r.projectId}" class="${r.overdue ? 'pm-late' : ''}">
+        <td><span class="pm-diamond ${r.deliverable ? 'deliverable' : ''}" aria-hidden="true"></span><a href="#/projects/${r.projectId}"><strong>${r.name}</strong></a><small><span class="mono">${r.projectCode}</span> · ${r.projectName}${r.files ? html` · ${icon('paperclip', 12)} ${plural(r.files, 'file')}` : ''}</small></td>
+        <td>${clientOf(r)}</td>
+        <td class="nowrap">${r.overdue ? html`<span class="crm-due bad">${icon('calendar', 12)} Overdue · ${fmtDate(r.dueDate)}</span>` : fmtDate(r.dueDate)}</td>
+        <td>${r.finished ? html`<span class="muted small">Done</span>` : healthChip(r.health, r.reason || '')}${r.reason && !r.finished ? html`<small>${r.reason}</small>` : ''}</td>
+        <td>${r.deliverable ? `Yes${r.billingPercent != null ? `, ${r.billingPercent}%` : ''}` : '—'}</td>
+        <td>${statusOf(r) || '—'}</td>
+        ${data.amounts ? html`<td class="num">${r.amount != null ? money(r.amount) : '—'}${r.amount != null ? html`<small class="block">${r.acceptedAt ? 'earned' : r.overdue ? 'overdue' : 'expected'}</small>` : ''}</td>` : ''}
+      </tr>`)}</tbody></table>`
+      : html`<div class="empty"><p>${data.rows.length ? 'No milestone matches the filters.' : 'No milestones yet in the projects you can open.'}</p></div>`);
+    el.querySelectorAll('#ms-list tr[data-href]').forEach((tr) => tr.addEventListener('click', (e) => !e.target.closest('a') && (location.hash = tr.dataset.href)));
+    const fcBox = el.querySelector('#fc');
+    if (!fcBox) return;
+    const f = forecast();
+    const t = f.total;
+    mount(fcBox, html`<p class="muted small">What the deliverables bill, by month: each one's billing % of the linked contract's value (of the deal's when there is no contract). Expected: not yet accepted, by the month it is due; earned: accepted, by the month of acceptance.${state.client ? ` Only ${state.client}.` : ''}</p>
+      ${f.months.length ? html`<div class="scroll-x"><table class="table pm-forecast-table"><thead><tr><th>Month</th><th class="num">Expected</th><th class="num">Of which overdue</th><th class="num">Earned (accepted)</th><th class="num">Deliverables</th></tr></thead>
+        <tbody>${f.months.map((m) => html`<tr class="${m.month === data.today.slice(0, 7) ? 'pm-this-month' : ''}"><td><strong>${monthLabel(m.month)}</strong></td><td class="num">${m.expected ? money(m.expected) : '—'}</td><td class="num ${m.overdue ? 'bad' : ''}">${m.overdue ? html`${icon('alert', 12)} ${money(m.overdue)}` : '—'}</td><td class="num">${m.earned ? money(m.earned) : '—'}</td><td class="num">${m.count}${m.noValue ? html`<small class="block">${m.noValue} without a value</small>` : ''}</td></tr>`)}</tbody>
+        <tfoot><tr><td><strong>Total</strong></td><td class="num"><strong>${money(t.expected)}</strong></td><td class="num">${t.overdue ? money(t.overdue) : '—'}</td><td class="num"><strong>${money(t.earned)}</strong></td><td class="num">${t.count}</td></tr></tfoot></table></div>
+        ${t.noValue ? html`<p class="muted small">${plural(t.noValue, 'deliverable')} ${t.noValue === 1 ? 'has' : 'have'} no amount: the project has no contract or deal with a value.</p>` : ''}`
+      : html`<p class="muted">No deliverables with a billing % yet.</p>`}`);
+  };
+  el.querySelector('#f-show').addEventListener('change', (e) => ((state.show = e.target.value), draw()));
+  el.querySelector('#f-month').addEventListener('change', (e) => ((state.month = e.target.value), draw()));
+  el.querySelector('#f-client').addEventListener('change', (e) => ((state.client = e.target.value), draw()));
+  el.querySelector('#f-health').addEventListener('change', (e) => ((state.health = e.target.value), draw()));
+  el.querySelector('#f-deliv').addEventListener('change', (e) => ((state.deliverables = e.target.checked), draw()));
+  el.querySelector('#fc-csv')?.addEventListener('click', () => downloadFile(`billing-forecast-${today()}.csv`, toCsv(forecastCsvRows(forecast()))));
+  draw();
+}
+
 // ---------- A project: header and tabs ----------
 const TABS = [['', 'Overview', 'dashboard'], ['board', 'Board', 'grid'], ['list', 'List', 'table'], ['timeline', 'Timeline', 'calendar'], ['time', 'Time', 'clock']];
 function projectHeader(p, tab, actions = '') {
@@ -405,6 +520,8 @@ export async function projectOverviewView(el, { id }) {
       ${tpl ? '' : html`<div class="pm-ms-foot">${m.acceptedAt ? badge(`Accepted ${short(m.acceptedAt)}`, 'green') : m.submittedAt ? badge(`Submitted ${short(m.submittedAt)}`, 'blue') : m.finished ? badge('Work done', 'green') : healthChip(m.value, m.reasons.join('; '))}</div>
       ${m.reasons?.length && !m.acceptedAt ? html`<small class="pm-ms-why">${m.reasons[0]}</small>` : ''}`}
       ${m.afterContract ? html`<small class="crm-due bad">${icon('alert', 12)} After the contract ends (${fmtDate(p.contract.endDate)})</small>` : ''}
+      ${tpl ? '' : html`<button type="button" class="link pm-ms-files" data-ms-files="${m.id}">${icon('paperclip', 14)} ${m.attachments.length ? (m.deliverable ? `Acceptance document and files (${m.attachments.length})` : plural(m.attachments.length, 'file')) : m.deliverable ? 'Acceptance document' : 'Files'}</button>
+        ${m.deliverable && m.acceptedAt && !m.attachments.length ? html`<small class="crm-due warn">${icon('alert', 12)} Accepted: attach the signed document</small>` : ''}`}
     </li>`;
   const taskLine = (t) => html`<li><span class="grow"><a href="#/projects/${p.id}/tasks/${t.id}"><strong>${t.title}</strong></a><small><span class="mono">${t.key}</span> · ${t.statusName}${t.assigneeName ? ` · ${t.assigneeName}` : ' · unassigned'}</small></span>${dueChip(t)}</li>`;
   const act = (a) => {
@@ -508,7 +625,31 @@ export async function projectOverviewView(el, { id }) {
   }));
   el.querySelector('#add-ms')?.addEventListener('click', () => editMilestone(p, {}, reload));
   el.querySelectorAll('[data-ms]').forEach((b) => b.addEventListener('click', () => editMilestone(p, p.milestones.find((m) => m.id === b.dataset.ms), reload)));
+  el.querySelectorAll('[data-ms-files]').forEach((b) => b.addEventListener('click', () => milestoneFiles(p, p.milestones.find((m) => m.id === b.dataset.msFiles), reload)));
   el.querySelector('#members')?.addEventListener('click', () => editMembers(p, reload));
+}
+
+// A milestone's files; for a deliverable, the place for the client's signed acceptance document.
+function milestoneFiles(p, m, after) {
+  const base = `/api/pm/projects/${p.id}/milestones/${m.id}/attachments`;
+  let list = m.attachments;
+  let touched = false;
+  const { form } = modal({
+    title: m.deliverable ? 'Acceptance document and files' : 'Milestone files', subtitle: `${m.name}. ${m.deliverable ? 'Attach the certificate of acceptance the client signed (a PDF, or a photo of it), and anything else that goes with this deliverable.' : 'Files that go with this milestone.'}`,
+    submitLabel: null, body: html`<div id="mf"></div>`, onClose: () => touched && after?.(),
+  });
+  const box = form.querySelector('#mf');
+  const draw = () => {
+    mount(box, fileBlock(list, base, may(p.access, 'work')));
+    wireFiles(box, base, list, async (next) => {
+      touched = true;
+      if (next) list = next;
+      else list = (await api.get(`/api/pm/projects/${p.id}`)).milestones.find((x) => x.id === m.id)?.attachments || [];
+      draw();
+      box.querySelector('[data-add-file]')?.focus();
+    });
+  };
+  draw();
 }
 
 function editMilestone(p, m, after) {
@@ -522,16 +663,24 @@ function editMilestone(p, m, after) {
       <label class="field"><span>Submitted to the client on</span><input type="date" name="submittedAt" value="${m.submittedAt || ''}" /></label>
       <label class="field"><span>Accepted on</span><input type="date" name="acceptedAt" value="${m.acceptedAt || ''}" /></label>
       <label class="field span-2"><span>Acceptance note</span><input name="acceptanceNote" maxlength="500" value="${m.acceptanceNote || ''}" placeholder="e.g. Certificate of acceptance signed by the VP" /></label>
+      <p class="span-2 notice small pm-accept-hint" hidden>${icon('paperclip', 16)} <span>Accepted: attach the signed acceptance document with <strong>Acceptance document</strong> on the milestone card, so it is with the deliverable when an auditor asks.</span></p>
       ${m.id ? html`<p class="span-2"><button type="button" class="link danger" id="del-ms">Delete this milestone</button> <span class="muted small">Its tasks stay, without a milestone.</span></p>` : ''}
     </div>`,
     onSubmit: async (f) => {
       const v = { name: f.name.value, dueDate: f.dueDate.value, deliverable: f.deliverable.checked, billingPercent: f.billingPercent.value, submittedAt: f.submittedAt.value || null, acceptedAt: f.acceptedAt.value || null, acceptanceNote: f.acceptanceNote.value };
       if (m.id) await api.put(`/api/pm/projects/${p.id}/milestones/${m.id}`, { ...v, version: m.version });
       else await api.post(`/api/pm/projects/${p.id}/milestones`, v);
-      toast('Milestone saved.');
+      // Accepted without a document yet: say where it goes.
+      toast(v.deliverable && v.acceptedAt && !m.attachments?.length ? 'Milestone saved. Attach the signed acceptance document from the milestone card.' : 'Milestone saved.');
       after?.();
     },
   });
+  // Setting "Accepted on" for a deliverable without a document suggests attaching one.
+  const hint = form.querySelector('.pm-accept-hint');
+  const syncHint = () => (hint.hidden = !(form.deliverable.checked && form.acceptedAt.value && !m.attachments?.length));
+  form.acceptedAt.addEventListener('change', syncHint);
+  form.deliverable.addEventListener('change', syncHint);
+  syncHint();
   form.querySelector('#del-ms')?.addEventListener('click', async () => {
     if (!(await confirmDialog(`Delete the milestone "${m.name}"?`, { title: 'Delete milestone' }))) return;
     await api.del(`/api/pm/projects/${p.id}/milestones/${m.id}`).then(() => {
@@ -632,7 +781,7 @@ function printReport(p) {
       <div><small>Hours</small><strong>${hrs(p.hours.logged)}</strong><span>of ${hrs(p.hours.estimate)} estimated</span></div>
     </section>
     <h2>Milestones</h2>
-    <table><thead><tr><th>Milestone</th><th>Due</th><th>Progress</th><th>Status</th></tr></thead><tbody>${ms.map((m) => html`<tr><td>${m.name}${m.deliverable ? html` <em>(deliverable${m.billingPercent != null ? `, ${m.billingPercent}%` : ''})</em>` : ''}</td><td>${fmtDate(m.dueDate)}</td><td>${m.progress.percent == null ? '—' : `${m.progress.percent}%`}</td><td>${m.acceptedAt ? `Accepted ${fmtDate(m.acceptedAt)}` : m.submittedAt ? `Submitted ${fmtDate(m.submittedAt)}` : HEALTH[m.value] || ''}</td></tr>`)}</tbody></table>
+    <table><thead><tr><th>Milestone</th><th>Due</th><th>Progress</th><th>Status</th></tr></thead><tbody>${ms.map((m) => html`<tr><td>${m.name}${m.deliverable ? html` <em>(deliverable${m.billingPercent != null ? `, ${m.billingPercent}%` : ''})</em>` : ''}</td><td>${fmtDate(m.dueDate)}</td><td>${m.progress.percent == null ? '—' : `${m.progress.percent}%`}</td><td>${m.acceptedAt ? `Accepted ${fmtDate(m.acceptedAt)}${m.attachments?.length ? ' (document attached)' : ''}` : m.submittedAt ? `Submitted ${fmtDate(m.submittedAt)}` : HEALTH[m.value] || ''}</td></tr>`)}</tbody></table>
     <h2>Overdue (${p.overdue.length})</h2>
     ${p.overdue.length ? html`<table><tbody>${p.overdue.slice(0, 10).map((t) => html`<tr><td>${t.key}</td><td>${t.title}</td><td>${t.assigneeName || 'Unassigned'}</td><td>Due ${fmtDate(t.dueDate)}</td></tr>`)}</tbody></table>` : html`<p>Nothing overdue.</p>`}
     <h2>Next two weeks</h2>
@@ -980,11 +1129,12 @@ export async function listView(el, { id }, query) {
   // "overdue=1" (older links) is the Overdue chip.
   const f = parseFilters([query.f, query.overdue === '1' ? 'overdue' : ''].filter(Boolean).join(','));
   const SORT_KEYS = ['rank', 'key', 'title', 'status', 'assignee', 'due', 'priority', 'estimate', 'left'];
-  const state = { q: String(query.q || '').slice(0, 100), group: query.group === 'status' ? 'status' : 'milestone', who: knownWho(p, query.who || ''), show: ['open', 'done', 'all'].includes(query.show) ? query.show : 'open', f, sort: SORT_KEYS.includes(query.sort) ? query.sort : 'rank', dir: query.dir === 'desc' ? -1 : 1 };
+  const state = { q: String(query.q || '').slice(0, 100), group: query.group === 'status' ? 'status' : 'milestone', who: knownWho(p, query.who || ''), show: ['open', 'done', 'all'].includes(query.show) ? query.show : 'open', f, sort: SORT_KEYS.includes(query.sort) ? query.sort : 'rank', dir: query.dir === 'desc' ? -1 : 1, sel: new Set() };
   const people = await assigneeOptions(p, p.access, null);
   const queue = saveQueue();
+  const manage = may(p.access, 'manage');
   mount(el, html`
-    ${projectHeader(p, 'list', html`<button class="btn" id="export">${icon('download', 16)} Export CSV</button>${work ? html`<button class="btn primary" id="new">+ Task</button>` : ''}`)}
+    ${projectHeader(p, 'list', html`<button class="btn" id="export">${icon('download', 16)} Export CSV</button>${manage ? html`<button class="btn" id="import">${icon('upload', 16)} Import tasks</button>` : ''}${work ? html`<button class="btn primary" id="new">+ Task</button>` : ''}`)}
     <section class="card scroll-x">
       <div class="toolbar pad pm-filterbar">
         <input type="search" id="q" placeholder="Search key, title or assignee…" aria-label="Search tasks" value="${state.q}" maxlength="100" />
@@ -996,7 +1146,8 @@ export async function listView(el, { id }, query) {
       </div>
       <div class="pm-chips-row">${chipBar(state.f)}</div>
       <div id="list"></div>
-    </section>`);
+    </section>
+    ${work ? html`<div class="pm-bulk" id="bulk" role="region" aria-label="Change the selected tasks" hidden></div>` : ''}`);
   const SORTS = {
     rank: byRank, key: (a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }), title: (a, b) => a.title.localeCompare(b.title),
     status: (a, b) => p.statuses.findIndex((s) => s.id === a.statusId) - p.statuses.findIndex((s) => s.id === b.statusId),
@@ -1016,8 +1167,8 @@ export async function listView(el, { id }, query) {
     return [...parents.flatMap((t) => [t, ...hits.filter((s) => s.parentId === t.id).sort(cmp)]), ...orphans];
   }
   const th = (k, label, cls = '') => html`<th class="${cls}" ${state.sort === k ? html`aria-sort="${state.dir === 1 ? 'ascending' : 'descending'}"` : ''}><button type="button" class="pm-sort ${state.sort === k ? (state.dir === 1 ? 'on asc' : 'on desc') : ''}" data-sort="${k}" aria-label="Sort by ${label}">${label}</button></th>`;
-  const row = (t) => html`<tr data-href="#/projects/${id}/tasks/${t.id}" class="${t.parentId ? 'pm-sub' : ''} ${t.overdue ? 'pm-late' : ''}">
-      <td><a href="#/projects/${id}/tasks/${t.id}"><strong>${t.title}</strong></a><small><span class="mono">${t.key}</span>${t.blocked ? html` · ${icon('lock', 12)} blocked` : ''}${t.subtasks ? ` · ${plural(t.subtasks, 'subtask')}` : ''}${t.checklist.length ? ` · ${t.checklistDone}/${t.checklist.length} checked` : ''}</small></td>
+  const row = (t) => html`<tr data-href="#/projects/${id}/tasks/${t.id}" class="${t.parentId ? 'pm-sub' : ''} ${t.overdue ? 'pm-late' : ''} ${state.sel.has(t.id) ? 'pm-selected' : ''}">
+      <td>${work ? html`<input type="checkbox" class="pm-sel" data-sel="${t.id}" aria-label="Select ${t.key} ${t.title}" ${state.sel.has(t.id) ? 'checked' : ''} />` : ''}<a href="#/projects/${id}/tasks/${t.id}"><strong>${t.title}</strong></a><small><span class="mono">${t.key}</span>${t.blocked ? html` · ${icon('lock', 12)} blocked` : ''}${t.subtasks ? ` · ${plural(t.subtasks, 'subtask')}` : ''}${t.checklist.length ? ` · ${t.checklistDone}/${t.checklist.length} checked` : ''}</small></td>
       <td>${work ? html`<select data-f="statusId" data-id="${t.id}" aria-label="Status of ${t.key}">${options(p.statuses.map((s) => [s.id, s.name]), t.statusId)}</select>` : statusChip(p.statuses.find((s) => s.id === t.statusId))}</td>
       <td>${work ? html`<select data-f="assigneeId" data-id="${t.id}" aria-label="Assignee of ${t.key}">${people}</select>` : t.assigneeName || '—'}</td>
       <td>${work ? html`<input type="date" data-f="dueDate" data-id="${t.id}" value="${t.dueDate || ''}" aria-label="Due date of ${t.key}" class="${t.overdue ? 'bad' : ''}" />` : t.dueDate ? dueChip(t, { long: true }) : '—'}</td>
@@ -1028,7 +1179,7 @@ export async function listView(el, { id }, query) {
   function groups() {
     if (state.group === 'status') return p.statuses.map((s) => ({ key: s.id, title: html`${statusChip(s)}`, list: tasks.filter((t) => t.statusId === s.id) }));
     return [...p.milestones.map((m) => ({ key: m.id, title: html`<span class="pm-diamond ${m.deliverable ? 'deliverable' : ''}" aria-hidden="true"></span>${m.name} <small class="muted">due ${fmtDate(m.dueDate)}</small>`, list: tasks.filter((t) => t.milestoneIdEffective === m.id) })),
-      { key: 'none', title: 'No milestone', list: tasks.filter((t) => !t.milestoneIdEffective) }];
+      { key: 'none', title: 'No milestone', list: tasks.filter((t) => !t.milestoneIdEffective || !p.milestones.some((m) => m.id === t.milestoneIdEffective)) }];
   }
   function draw() {
     // The same order of keys as a saved view (shared/projects.js VIEW_KEYS), so a view is recognized.
@@ -1037,12 +1188,38 @@ export async function listView(el, { id }, query) {
     const label = el.querySelector('#views span');
     if (label) label.textContent = views.find((v) => v.tab === 'list' && v.query === qs)?.name || 'Views';
     const gs = groups().map((g) => ({ ...g, rows: rows(g.list) })).filter((g) => g.rows.length);
-    mount(el.querySelector('#list'), gs.length ? html`<table class="table clickable pm-list">
+    // The selection keeps only tasks still shown: a bulk change applies to what you see.
+    const shownIds = gs.flatMap((g) => g.rows.map((t) => t.id));
+    for (const x of [...state.sel]) if (!shownIds.includes(x)) state.sel.delete(x);
+    mount(el.querySelector('#list'), gs.length ? html`${work ? html`<div class="pm-selall pad"><label class="check"><input type="checkbox" id="sel-all" /><span>Select all ${plural(shownIds.length, 'task')} shown</span></label></div>` : ''}<table class="table clickable pm-list ${work ? 'pm-selectable' : ''}">
       <thead><tr>${th('title', 'Task')}${th('status', 'Status')}${th('assignee', 'Assignee')}${th('due', 'Due')}${th('priority', 'Priority')}${th('estimate', 'Estimate', 'num')}${th('left', 'Left', 'num')}</tr></thead>
       ${gs.map((g) => html`<tbody><tr class="pm-group"><th colspan="7" scope="rowgroup">${g.title} <span class="muted small">${plural(g.rows.length, 'task')}</span></th></tr>${g.rows.map(row)}</tbody>`)}
     </table>${gs.some((g) => g.rows.some((t) => t.remainingOverride)) ? html`<p class="muted small pad">* Hours left as set on the task; otherwise the estimate less the time logged.</p>` : ''}` : html`<div class="empty"><p>${tasks.length ? 'No task matches the filters.' : work ? 'No tasks yet. Add one with + Task, or on the board.' : 'No tasks yet.'}</p></div>`);
     el.querySelectorAll('select[data-f="assigneeId"]').forEach((s) => (s.value = tasks.find((t) => t.id === s.dataset.id)?.assigneeId || ''));
-    el.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', (e) => !e.target.closest('a, select, input, button') && (location.hash = tr.dataset.href)));
+    el.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', (e) => !e.target.closest('a, select, input, button, label') && (location.hash = tr.dataset.href)));
+    // Selecting rows for a bulk change.
+    const syncSel = () => {
+      const all = el.querySelector('#sel-all');
+      if (all) {
+        const n = shownIds.filter((x) => state.sel.has(x)).length;
+        all.checked = n > 0 && n === shownIds.length;
+        all.indeterminate = n > 0 && n < shownIds.length;
+      }
+      drawBulk();
+    };
+    el.querySelectorAll('[data-sel]').forEach((cb) => cb.addEventListener('change', () => {
+      if (cb.checked) state.sel.add(cb.dataset.sel);
+      else state.sel.delete(cb.dataset.sel);
+      cb.closest('tr').classList.toggle('pm-selected', cb.checked);
+      syncSel();
+    }));
+    el.querySelector('#sel-all')?.addEventListener('change', (e) => {
+      for (const x of shownIds) if (e.target.checked) state.sel.add(x);
+      else state.sel.delete(x);
+      el.querySelectorAll('[data-sel]').forEach((cb) => ((cb.checked = state.sel.has(cb.dataset.sel)), cb.closest('tr').classList.toggle('pm-selected', cb.checked)));
+      syncSel();
+    });
+    syncSel();
     el.querySelectorAll('[data-sort]').forEach((b) => b.addEventListener('click', () => {
       if (state.sort === b.dataset.sort) state.dir = -state.dir;
       else (state.sort = b.dataset.sort), (state.dir = 1);
@@ -1063,6 +1240,69 @@ export async function listView(el, { id }, query) {
       }, async () => ((tasks = await api.get(`/api/pm/projects/${id}/tasks`)), draw())), input.type === 'date' ? 700 : 0);
     }));
   }
+  // ----- Bulk change of the selected tasks -----
+  const reloadList = async () => {
+    tasks = await api.get(`/api/pm/projects/${id}/tasks`);
+    draw();
+  };
+  const bulk = async (body) => {
+    const r = await api.post(`/api/pm/projects/${id}/tasks/bulk`, { ids: [...state.sel], ...body });
+    toast(r.removed != null ? `${plural(r.removed, 'task')} deleted.` : `${plural(r.changed, 'task')} changed.`);
+    state.sel.clear();
+    changed();
+    await reloadList();
+    el.querySelector('#sel-all')?.focus();
+  };
+  const members = p.members.filter((m) => m.role !== 'viewer' && m.active);
+  const BULK = {
+    status: ['Status', () => html`<label class="field"><span>New status</span><select name="v">${options(p.statuses.map((s) => [s.id, s.name]))}</select></label>`, (f) => bulk({ set: { statusId: f.v.value } })],
+    assignee: ['Assignee', () => html`<label class="field"><span>Assign to</span><select name="v"><option value="">Nobody (unassigned)</option>${options(members.map((m) => [m.userId, m.name]))}</select><small class="hint">Members of the project only. Add someone under Members first.</small></label>`, (f) => bulk({ set: { assigneeId: f.v.value || null } })],
+    milestone: ['Milestone', () => html`<label class="field"><span>Milestone</span><select name="v"><option value="">None</option>${options(p.milestones.map((m) => [m.id, `${m.name} (${short(m.dueDate)})`]))}</select></label>`, (f) => bulk({ set: { milestoneId: f.v.value || null } })],
+    priority: ['Priority', () => html`<label class="field"><span>Priority</span><select name="v">${options(Object.entries(PRIORITY), 'normal')}</select></label>`, (f) => bulk({ set: { priority: f.v.value } })],
+    dates: ['Move dates', () => html`<label class="field"><span>Move the start and due dates by (working days)</span><input type="number" name="v" min="-260" max="260" step="1" value="5" inputmode="numeric" required /><small class="hint">A negative number moves them earlier. Weekends and the holidays in CORE's calendar are skipped; tasks without dates keep none.</small></label>`,
+      (f) => {
+        const n = Number(f.v.value);
+        if (!Number.isInteger(n) || !n) throw new Error('Enter a whole number of working days, such as 5 or -3.');
+        return bulk({ shiftDays: n });
+      }],
+    watchers: ['Watchers', () => html`${manage ? html`<label class="field"><span>Person</span><select name="who">${options(p.members.filter((m) => m.active).map((m) => [m.userId, m.userId === ctx.user.id ? `${m.name} (you)` : m.name]), ctx.user.id)}</select></label>` : ''}
+        <fieldset class="field pm-radio"><legend>${manage ? 'Watching these tasks' : 'You'}</legend>
+          <label class="check"><input type="radio" name="how" value="add" checked /><span>${manage ? 'Add as a watcher' : 'Watch these tasks'}</span></label>
+          <label class="check"><input type="radio" name="how" value="remove" /><span>${manage ? 'Remove as a watcher' : 'Stop watching these tasks'}</span></label></fieldset>
+        <p class="muted small">Watchers hear of comments and of the task being done or cancelled.${manage ? '' : ' A project manager can add others.'}</p>`,
+      (f) => {
+        const who = f.who?.value || ctx.user.id;
+        return bulk({ watchers: f.how.value === 'add' ? { add: [who] } : { remove: [who] } });
+      }],
+  };
+  function drawBulk() {
+    const bar = el.querySelector('#bulk');
+    if (!bar) return;
+    const n = state.sel.size;
+    bar.hidden = !n;
+    if (!n) return mount(bar, '');
+    mount(bar, html`<div class="pm-bulk-in">
+      <strong class="pm-bulk-count" aria-live="polite">${plural(n, 'task')} selected</strong>
+      <div class="pm-bulk-actions">${Object.entries(BULK).map(([k, [label]]) => html`<button type="button" class="btn small-btn" data-bulk="${k}">${label}</button>`)}
+        <button type="button" class="btn small-btn danger ghost" data-bulk-del>Delete</button></div>
+      <button type="button" class="btn small-btn ghost" data-bulk-clear>Clear selection</button></div>`);
+    bar.querySelectorAll('[data-bulk]').forEach((b) => b.addEventListener('click', () => {
+      const [label, body, apply] = BULK[b.dataset.bulk];
+      modal({ title: `${label}: ${plural(state.sel.size, 'task')}`, subtitle: 'Every selected task is checked first: if one cannot take the change, nothing is changed and CORE says which.', submitLabel: 'Apply', body: body(), onSubmit: (f) => apply(f) });
+    }));
+    bar.querySelector('[data-bulk-del]').addEventListener('click', guard(async () => {
+      const subs = tasks.filter((t) => state.sel.has(t.parentId) && !state.sel.has(t.id)).length;
+      if (!(await confirmDialog(`Delete ${plural(state.sel.size, 'selected task')}${subs ? ` and ${plural(subs, 'subtask')} under them` : ''}? Their comments and files go too; time logged on them stays on the project. Only a project manager, or the person who added a task, can delete it: if one of them is not yours, nothing is deleted.`, { title: 'Delete tasks' }))) return;
+      await bulk({ delete: true });
+    }, reloadList));
+    bar.querySelector('[data-bulk-clear]').addEventListener('click', () => {
+      state.sel.clear();
+      draw();
+      el.querySelector('#sel-all')?.focus();
+    });
+  }
+  // An import may add milestones: the whole List is loaded again.
+  el.querySelector('#import')?.addEventListener('click', () => importTasks(p, () => listView(el, { id }, query)));
   el.querySelector('#q').addEventListener('input', (e) => ((state.q = e.target.value.trim()), draw()));
   el.querySelector('#f-group').addEventListener('change', (e) => ((state.group = e.target.value), draw()));
   el.querySelector('#f-who').addEventListener('change', (e) => ((state.who = e.target.value), draw()));
@@ -1076,6 +1316,87 @@ export async function listView(el, { id }, query) {
     downloadFile(`${p.code}-tasks-${today()}.csv`, toCsv(taskCsvRows(shown, p.milestones)));
   });
   draw();
+}
+
+// Import tasks from a CSV file (project managers): choose the file, match its columns, check every
+// row (nothing is saved), then import all of them or none. The file is read by the server.
+function importTasks(p, after) {
+  const st = { csv: null, name: '', preview: null, check: null };
+  const { form, close } = modal({ title: 'Import tasks', wide: true, submitLabel: null, subtitle: `Into ${p.code} ${p.name}. From a CSV file saved from Excel or Google Sheets, with a header row: up to ${IMPORT_MAX_ROWS.toLocaleString('en-PH')} tasks and 2 MB.`, body: html`<div id="imp" aria-live="polite"></div>` });
+  const box = form.querySelector('#imp');
+  const colOptions = (sel) => html`<option value="">Not in the file</option>${st.preview.headers.map((h, i) => option(i, h || `Column ${i + 1}`, sel))}`;
+  const mapping = () => Object.fromEntries([...box.querySelectorAll('[data-map]')].filter((x) => x.value !== '').map((x) => [x.dataset.map, Number(x.value)]));
+  const send = (dryRun) => api.post(`/api/pm/projects/${p.id}/import`, { csv: st.csv, fileName: st.name, mapping: st.mapping, createMilestones: st.createMs, dryRun });
+  const step1 = () => {
+    mount(box, html`<ol class="pm-steps"><li class="on">Choose the file</li><li>Match the columns</li><li>Check and import</li></ol>
+      <label class="field"><span>CSV file</span><input type="file" id="imp-file" accept=".csv,text/csv" /></label>
+      <p class="small">Columns CORE reads (by their header; you can match them on the next step): <strong>Title</strong> (required), Description, Status (its name on the board), Assignee (a member's username or full name), Start and Due (2026-12-01 or 01/12/2026, day first), Estimate (h), Priority, Milestone (by name), Parent (another row's number, the header being row 1, or its title; one level) and Checklist (items separated by ;).</p>
+      <p><button type="button" class="link" id="imp-tpl">${icon('download', 14)} Download the template</button></p>`);
+    box.querySelector('#imp-tpl').addEventListener('click', () => downloadFile('core-tasks-template.csv', toCsv(IMPORT_TEMPLATE)));
+    box.querySelector('#imp-file').addEventListener('change', guard(async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) throw new Error(`The file is ${sizeLabel(file.size)}; the limit is 2 MB. Split it into smaller files.`);
+      st.csv = await file.text();
+      st.name = file.name;
+      st.preview = await api.post(`/api/pm/projects/${p.id}/import/preview`, { csv: st.csv });
+      step2();
+      box.querySelector('[data-map]')?.focus();
+    }));
+  };
+  const step2 = () => {
+    const pv = st.preview;
+    mount(box, html`<ol class="pm-steps"><li>Choose the file</li><li class="on">Match the columns</li><li>Check and import</li></ol>
+      <p><strong>${st.name}</strong>: ${plural(pv.count, 'row')} under the header.</p>
+      <div class="grid two pm-imp-map">${Object.entries(IMPORT_FIELDS).map(([k, f]) => html`<label class="field"><span>${f.label}${f.required ? html`<em>*</em>` : ''}</span><select data-map="${k}">${colOptions(pv.mapping[k])}</select></label>`)}</div>
+      <label class="field check"><input type="checkbox" id="imp-ms" /><span>Create the milestones that are missing (due on the latest due date of their tasks, or the project's end date)</span></label>
+      ${pv.sample.length ? html`<details><summary>The first rows of the file</summary><div class="scroll-x"><table class="table compact no-stack pm-imp-sample"><thead><tr>${pv.headers.map((h) => html`<th>${h}</th>`)}</tr></thead><tbody>${pv.sample.map((r) => html`<tr>${r.map((c) => html`<td>${c}</td>`)}</tr>`)}</tbody></table></div></details>` : ''}
+      <div class="actions pm-imp-actions"><button type="button" class="btn" id="imp-back">Choose another file</button><span class="spacer"></span><button type="button" class="btn primary" id="imp-check">Check the file</button></div>`);
+    box.querySelector('#imp-back').addEventListener('click', step1);
+    box.querySelector('#imp-check').addEventListener('click', guard(async (e) => {
+      e.target.disabled = true;
+      st.mapping = mapping();
+      st.createMs = box.querySelector('#imp-ms').checked;
+      try {
+        st.check = await send(true);
+        step3();
+      } finally {
+        e.target.disabled = false;
+      }
+    }));
+  };
+  const step3 = () => {
+    const c = st.check;
+    const bad = c.rows.filter((r) => r.errors.length);
+    const warn = c.rows.filter((r) => !r.errors.length && r.warnings.length);
+    mount(box, html`<ol class="pm-steps"><li>Choose the file</li><li>Match the columns</li><li class="on">Check and import</li></ol>
+      ${bad.length ? html`<p class="notice bad">${icon('alert', 16)} <span>${plural(bad.length, 'row')} of ${c.tasks} ${bad.length === 1 ? 'has' : 'have'} problems, so nothing can be imported yet. Correct the file and choose it again, or change how the columns are matched.</span></p>`
+        : html`<p class="notice ok">${icon('checkCircle', 16)} <span>All ${plural(c.tasks, 'row')} can be imported: ${plural(c.tasks - c.subtasks, 'task')} and ${plural(c.subtasks, 'subtask')}${c.newMilestones.length ? `, and ${plural(c.newMilestones.length, 'new milestone')}` : ''}. Nothing is saved until you click Import.</span></p>`}
+      ${c.newMilestones.length ? html`<p class="small">New milestones: ${c.newMilestones.map((m) => `${m.name} (due ${m.dueDate ? fmtDate(m.dueDate) : 'no date'})`).join('; ')}.</p>` : ''}
+      ${bad.length || warn.length ? html`<div class="scroll-x"><table class="table compact pm-imp-rows"><thead><tr><th class="num">Row</th><th>Title</th><th>What to fix</th></tr></thead><tbody>
+        ${[...bad, ...warn].slice(0, 200).map((r) => html`<tr class="${r.errors.length ? 'pm-late' : ''}"><td class="num">${r.row}</td><td>${r.title || html`<span class="muted">(no title)</span>`}</td><td>${[...r.errors, ...r.warnings].map((x) => html`<span class="pm-imp-msg ${r.errors.includes(x) ? 'bad' : ''}">${x}</span>`)}</td></tr>`)}
+      </tbody></table></div>${bad.length + warn.length > 200 ? html`<p class="muted small">The first 200 rows with problems are listed.</p>` : ''}` : ''}
+      <div class="actions pm-imp-actions"><button type="button" class="btn" id="imp-back">Back to the columns</button><span class="spacer"></span>${bad.length ? '' : html`<button type="button" class="btn primary" id="imp-go">Import ${plural(c.tasks, 'task')}</button>`}</div>`);
+    box.querySelector('#imp-back').addEventListener('click', () => {
+      step2();
+      box.querySelectorAll('[data-map]').forEach((x) => (x.value = st.mapping[x.dataset.map] ?? ''));
+      box.querySelector('#imp-ms').checked = st.createMs;
+    });
+    box.querySelector('#imp-go')?.addEventListener('click', guard(async (e) => {
+      e.target.disabled = true;
+      try {
+        const r = await send(false);
+        toast(`${plural(r.imported, 'task')} imported${r.milestones ? `, with ${plural(r.milestones, 'new milestone')}` : ''}.`);
+        changed();
+        close();
+        await after?.();
+      } finally {
+        e.target.disabled = false;
+      }
+    }));
+    (box.querySelector('#imp-go') || box.querySelector('#imp-back')).focus();
+  };
+  step1();
 }
 
 // ---------- Timeline ----------
@@ -1153,7 +1474,7 @@ export async function taskView(el, { projectId, id }) {
           <p class="tag-line mono">${t.key}${t.parent ? html` · subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}">${t.parent.key}</a>` : ''}</p>
           <h1>${t.title} ${statusChip(status)}</h1>
           <p class="muted">${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} Added ${when(t.createdAt)}</p></div>
-        <div class="actions">${work ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit title and description</button>` : ''}${canDelete ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}</div>
+        <div class="actions">${p.isTemplate ? '' : html`<button class="btn pm-watch ${t.watching ? 'on' : ''}" id="watch" aria-pressed="${t.watching ? 'true' : 'false'}" title="${t.watching ? 'You hear of its comments and when it is done or cancelled. Click to stop.' : 'Hear of its comments and when it is done or cancelled.'}">${icon('eye', 16)} ${t.watching ? 'Watching' : 'Watch'} <span class="pm-watch-n" aria-label="${plural(t.watcherList.length, 'watcher')}">${t.watcherList.length}</span></button>`}${work ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit title and description</button>` : ''}${canDelete ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}</div>
       </header>
       <div class="pm-task">
         <div class="stack">
@@ -1164,6 +1485,8 @@ export async function taskView(el, { projectId, id }) {
           ${t.parentId ? '' : html`<section class="card"><div class="card-head"><h2>${icon('layers')} Subtasks</h2><span class="muted small">${t.subtaskList.length ? `${t.subtaskList.filter((s) => s.category === 'done').length}/${t.subtaskList.length} done` : ''}</span></div>
             ${t.subtaskList.length ? html`<ul class="crm-mini">${t.subtaskList.map((s) => html`<li><span class="grow"><a href="#/projects/${p.id}/tasks/${s.id}"><strong>${s.title}</strong></a><small><span class="mono">${s.key}</span> · ${s.statusName}${s.assigneeName ? ` · ${s.assigneeName}` : ''}</small></span>${dueChip(s)}</li>`)}</ul>` : html`<p class="muted small">No subtasks. A subtask counts for progress instead of this task.</p>`}
             ${work ? html`<form id="add-sub" class="crm-add-item"><input name="title" maxlength="200" placeholder="Add a subtask…" aria-label="Subtask title" /><button class="btn" type="submit">Add</button></form>` : ''}</section>`}
+          <section class="card" id="files-card"><div class="card-head"><h2>${icon('paperclip')} Files</h2><span class="muted small">${t.attachments.length ? `${t.attachments.length} of ${t.maxFiles}` : ''}</span></div>
+            <div id="files">${fileBlock(t.attachments, `/api/pm/tasks/${t.id}/attachments`, work)}</div></section>
           <section class="card"><h2>${icon('comment')} Comments</h2>
             ${comments.length ? html`<ul class="pm-comments">${comments.map(comment)}</ul>` : html`<p class="muted small">No comments yet.</p>`}
             ${may(t.access, 'comment') ? html`<form id="comment" class="pm-composer"><textarea name="body" rows="3" maxlength="4000" placeholder="Write a comment. Mention someone with @ and their username." aria-label="Comment"></textarea>
@@ -1191,6 +1514,9 @@ export async function taskView(el, { projectId, id }) {
             ${work && blockedChoices.length ? html`<div class="crm-add-item"><select id="block-pick" aria-label="Task this one waits for"><option value="">Waits for…</option>${options(blockedChoices.map((x) => [x.id, `${x.key} · ${x.title}`]))}</select><button type="button" class="btn" id="block-add">Add</button></div>` : ''}
             ${t.blocking.length ? html`<p class="small muted">${t.blocking.map((b) => b.key).join(', ')} ${t.blocking.length === 1 ? 'waits' : 'wait'} for this task.</p>` : ''}
           </section>
+          ${p.isTemplate ? '' : html`<section class="card"><h2>${icon('eye')} Watchers</h2>
+            ${t.watcherList.length ? html`<ul class="pm-watchers">${t.watcherList.map((w) => html`<li>${avatar(w.name)}<span>${w.name}${w.userId === ctx.user.id ? ' (you)' : ''}</span></li>`)}</ul>` : html`<p class="muted small">Nobody is watching this task.</p>`}
+            <p class="muted small">Watchers hear of comments and when the task is done or cancelled. Who added it, its assignee and whoever comments watch it.</p></section>`}
           ${t.ticket ? html`<section class="card"><h2>${icon('ticket')} Service desk ticket</h2><p>${can('helpdesk.agent') ? html`<a href="#/helpdesk/tickets/${t.ticket.id}" class="mono">${t.ticket.ref}</a>` : html`<span class="mono">${t.ticket.ref}</span>`} ${badge(t.ticket.statusName, ['resolved', 'closed'].includes(t.ticket.status) ? 'green' : 'blue')}</p><p class="muted small">Closing one does not close the other.</p></section>` : ''}
           <section class="card"><div class="card-head"><h2>${icon('clock')} Time</h2></div>
             <dl class="pm-hours">
@@ -1279,6 +1605,13 @@ export async function taskView(el, { projectId, id }) {
       toast(r.warning || `${hrs(r.hours)} logged.`, r.warning ? 'error' : 'ok');
       await reload('#log [name=hours]');
     }, () => reload()));
+    el.querySelector('#watch')?.addEventListener('click', guard(async () => {
+      const r = await api.put(`/api/pm/tasks/${id}/watch`, { watching: !t.watching });
+      toast(r.watching ? `You are watching ${t.key}.` : `You stopped watching ${t.key}.`);
+      await reload('#watch');
+    }, () => reload()));
+    const filesBox = el.querySelector('#files');
+    if (filesBox) wireFiles(filesBox, `/api/pm/tasks/${id}/attachments`, t.attachments, async () => reload('#files [data-add-file]'));
     el.querySelector('#edit')?.addEventListener('click', () => modal({
       title: `Edit ${t.key}`, wide: true,
       body: html`<div class="grid two"><label class="field span-2"><span>Title</span><input name="title" maxlength="200" value="${t.title}" /></label><label class="field span-2"><span>Description</span><textarea name="description" rows="8">${t.description || ''}</textarea></label></div>`,
@@ -1289,7 +1622,7 @@ export async function taskView(el, { projectId, id }) {
       },
     }));
     el.querySelector('#del')?.addEventListener('click', async () => {
-      if (!(await confirmDialog(`Delete ${t.key} ${t.title}?${t.subtasks ? ` Its ${plural(t.subtasks, 'subtask')} go with it.` : ''} Comments go too; time logged on it stays on the project.`, { title: 'Delete task' }))) return;
+      if (!(await confirmDialog(`Delete ${t.key} ${t.title}?${t.subtasks ? ` Its ${plural(t.subtasks, 'subtask')} go with it.` : ''} Comments and files go too; time logged on it stays on the project.`, { title: 'Delete task' }))) return;
       await api.del(`/api/pm/tasks/${id}`).then(() => {
         toast('Task deleted.');
         changed();
@@ -1361,7 +1694,8 @@ function noteLine(g) {
   const who = g.actors.length > 2 ? `${g.actors[0]} and ${g.actors.length - 1} others` : g.actors.join(' and ');
   const task = n.taskKey ? html`<span class="mono">${n.taskKey}</span> ${n.taskTitle}` : '';
   const many = g.count > 1;
-  const what = {
+  // Several tasks at once (a bulk change or an import): the text names them.
+  const what = !n.taskId && (g.kind === 'assigned' || g.kind === 'status') ? html`${who} ${n.text}` : {
     assigned: many ? html`${who} assigned you ${task} (${g.count} times)` : html`${who} assigned you ${task}`,
     mentioned: many ? html`${g.count} mentions of you on ${task}` : html`${who} mentioned you on ${task}`,
     commented: many ? html`${g.count} comments on ${task}` : html`${who} commented on ${task}`,
@@ -1378,10 +1712,35 @@ function noteLine(g) {
   </li>`;
 }
 
+// The daily digest as it would be emailed today, and "Email me a daily digest".
+function digestCard(dg) {
+  const e = dg.email;
+  const line = (t) => html`<li><a href="#/projects/${t.projectId}/tasks/${t.id}"><span class="mono">${t.key}</span> ${t.title}</a><small>${t.projectName} · ${t.dueDate === dg.today ? 'due today' : `due ${fmtDate(t.dueDate)}`}</small></li>`;
+  const part = (title, list, item) => (list.length ? html`<h3>${title} <span class="muted small">${list.length}</span></h3><ul class="pm-digest-list">${list.slice(0, DIGEST_MAX).map(item)}</ul>${list.length > DIGEST_MAX ? html`<p class="muted small">and ${list.length - DIGEST_MAX} more</p>` : ''}` : '');
+  const status = e.emailing ? `Emailed at ${e.time} ${e.workingDaysOnly ? 'on working days' : 'every day'} to ${e.address}, when there is something in it.` : e.reason;
+  return html`<section class="card pm-digest" aria-labelledby="digest-h">
+    <div class="card-head"><h2 id="digest-h">${icon('mail')} Daily digest</h2>
+      <label class="check pm-digest-pref"><input type="checkbox" id="digest-pref" ${e.preference ? 'checked' : ''} aria-describedby="digest-status" /><span>Email me a daily digest</span></label></div>
+    <p class="muted small" id="digest-status">${status}</p>
+    ${dg.empty ? html`<p class="small">Nothing today: no task of yours overdue or due within 3 working days, no milestone at risk, and nothing unread.</p>` : html`
+    <ul class="pm-digest-sum">
+      <li class="${dg.overdue.length ? 'is-bad' : ''}"><strong>${dg.overdue.length}</strong> overdue</li>
+      <li class="${dg.dueSoon.length ? 'is-warn' : ''}"><strong>${dg.dueSoon.length}</strong> due within 3 working days</li>
+      <li class="${dg.atRisk.length ? 'is-warn' : ''}"><strong>${dg.atRisk.length}</strong> ${dg.atRisk.length === 1 ? 'milestone' : 'milestones'} at risk in projects you manage</li>
+      <li><strong>${dg.unread}</strong> unread for you</li></ul>
+    <details class="pm-digest-more"><summary>Show today's digest</summary>
+      ${part('Overdue', dg.overdue, line)}
+      ${part('Due in the next 3 working days', dg.dueSoon, line)}
+      ${part('Milestones at risk in projects you manage', dg.atRisk, (m) => html`<li><a href="#/projects/${m.projectId}">${m.name}</a><small><span class="mono">${m.projectCode}</span> ${m.projectName} · ${HEALTH[m.value]} · due ${fmtDate(m.dueDate)}${m.reason ? ` · ${m.reason}` : ''}</small></li>`)}
+    </details>`}
+  </section>`;
+}
+
 export async function myWorkView(el, _params, query = {}) {
-  const [g, notes] = await Promise.all([
+  const [g, notes, dg] = await Promise.all([
     can('pm.view') || ctx.user.inProjects ? api.get('/api/pm/my-work') : { overdue: [], today: [], week: [], later: [], none: [] },
     api.get('/api/pm/notifications').catch(() => ({ unread: 0, items: [] })),
+    api.get('/api/pm/digest').catch(() => null),
   ]);
   const total = Object.values(g).reduce((n, l) => n + l.length, 0);
   const groups = groupNotifications(notes.items);
@@ -1400,8 +1759,9 @@ export async function myWorkView(el, _params, query = {}) {
         ${notes.unread ? html`<button type="button" class="btn small-btn" id="read-all">Mark all read</button>` : ''}</div>
       ${groups.length ? html`<ul class="pm-notes">${(all ? groups : groups.slice(0, SHOW)).map(noteLine)}</ul>
         ${!all && groups.length > SHOW ? html`<p class="pm-notes-more"><a href="#/projects/my-work?notes=all">Show all ${groups.length}</a></p>` : ''}`
-        : html`<p class="muted small">Nothing yet. When someone assigns you a task, mentions you, comments on a task of yours, finishes or cancels your task, or adds you to a project, it shows here.</p>`}
+        : html`<p class="muted small">Nothing yet. When someone assigns you a task, mentions you, comments on a task of yours or one you watch, finishes or cancels it, or adds you to a project, it shows here.</p>`}
     </section>
+    ${dg ? digestCard(dg) : ''}
     ${total ? Object.entries(MY_WORK_GROUPS).filter(([k]) => g[k].length).map(([k, label]) => html`<section class="card pm-mywork ${k}">
         <div class="card-head"><h2>${k === 'overdue' ? icon('alert') : icon('calendar')} ${label} <span class="muted small">${g[k].length}</span></h2></div>
         <ul class="crm-mini">${g[k].map(row)}</ul></section>`)
@@ -1414,6 +1774,11 @@ export async function myWorkView(el, _params, query = {}) {
     await myWorkView(el, _params, query);
     el.querySelector(`[data-status="${t.id}"]`)?.focus();
   }, () => myWorkView(el, _params, query))));
+  el.querySelector('#digest-pref')?.addEventListener('change', guard(async (e) => {
+    const r = await api.put('/api/pm/digest/preference', { email: e.target.checked });
+    toast(r.preference ? 'You will get the daily digest by email.' : 'No more digest emails. It stays here on My work.');
+    el.querySelector('#digest-status').textContent = r.emailing ? `Emailed at ${r.time} ${r.workingDaysOnly ? 'on working days' : 'every day'} to ${r.address}, when there is something in it.` : r.reason;
+  }, () => myWorkView(el, _params, query)));
   const markRead = (body) => api.put('/api/pm/notifications/read', body).then(() => changed());
   el.querySelector('#read-all')?.addEventListener('click', guard(async () => {
     await markRead({ all: true });
@@ -1473,11 +1838,11 @@ export async function workloadView(el, _params, query) {
 
 // ---------- Projects setup ----------
 export async function pmSettingsView(el, _params, query) {
-  const TABS_SET = { statuses: 'Default statuses', types: 'Project types', ...(can('users.manage') ? { access: 'Team access' } : {}) };
+  const TABS_SET = { statuses: 'Default statuses', types: 'Project types', digest: 'Daily digest', ...(can('users.manage') ? { access: 'Team access' } : {}) };
   const tab = TABS_SET[query.tab] ? query.tab : 'statuses';
   const s = await api.get('/api/pm/settings');
   mount(el, html`
-    ${head('Projects setup', 'How new projects start: the statuses of their board and the project types.')}
+    ${head('Projects setup', 'How new projects start (the statuses of their board and the project types), and the daily digest email.')}
     <nav class="tabs">${Object.entries(TABS_SET).map(([k, v]) => html`<a href="#/projects/settings?tab=${k}" class="${k === tab ? 'active' : ''}">${v}</a>`)}</nav>
     <section class="card" id="pane"></section>`);
   const pane = el.querySelector('#pane');
@@ -1495,6 +1860,29 @@ export async function pmSettingsView(el, _params, query) {
       e.preventDefault();
       await api.put('/api/pm/settings', { statuses: s.statuses, types: e.target.types.value.split('\n').map((x) => x.trim()).filter(Boolean) });
       toast('Project types saved.');
+      reload();
+    }, reload));
+  } else if (tab === 'digest') {
+    const g = s.digest;
+    const last = g.lastRun;
+    mount(pane, html`<form id="f"><h2>Daily digest email</h2>
+      <p class="muted small">One email a day to each person, only when there is something in it: their overdue tasks, tasks due within 3 working days, milestones at risk in the projects they manage, and how many For you notifications they have not read. It lists only projects the person can open. Everyone can turn it off for themselves on My work, where the same digest is shown.</p>
+      ${g.canEmail ? html`<p class="notice ok small">${icon('checkCircle', 16)} <span>Sent through the Service Desk's outgoing email.</span></p>`
+        : html`<p class="notice small">${icon('alert', 16)} <span>CORE has no outgoing email set up, so no digest is emailed: people see it on My work. ${can('helpdesk.manage') ? html`Set it up under <a href="#/helpdesk/settings">Service desk settings</a> (sending email).` : 'An administrator sets it up under Service desk settings (sending email).'}</span></p>`}
+      <label class="field check"><input type="checkbox" name="enabled" ${g.enabled ? 'checked' : ''} /><span>Email the daily digest</span></label>
+      <div class="grid two">
+        <label class="field"><span>Send at</span><input type="time" name="time" value="${g.time}" required /><small class="hint">This server's local time (Philippine time on a server set up for the Philippines).</small></label>
+      </div>
+      <label class="field check"><input type="checkbox" name="workingDaysOnly" ${g.workingDaysOnly ? 'checked' : ''} /><span>Working days only (no weekends or holidays on CORE's calendar)</span></label>
+      <p class="muted small">${g.links ? html`Links in the email open CORE at <span class="mono">${g.origin}</span>, the address this page was saved from.` : 'Links in the email open CORE at the address this page is saved from. Save it from the address people use (not localhost) to include them; without one, the email has no links.'}
+        If CORE was off at the time, the digest goes when it starts again that day, never twice.</p>
+      ${last ? html`<p class="muted small">Last sent ${when(last.at)}: ${plural(last.sent, 'email')}${last.failed ? html`, <span class="crm-due bad">${last.failed} not sent (${last.error || 'the mail server refused'})</span>` : ''}.</p>` : ''}
+      <div class="actions end"><button class="btn primary" type="submit">Save</button></div></form>`);
+    pane.querySelector('#f').addEventListener('submit', guard(async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      await api.put('/api/pm/settings/digest', { enabled: f.enabled.checked, time: f.time.value, workingDaysOnly: f.workingDaysOnly.checked });
+      toast('Daily digest saved.');
       reload();
     }, reload));
   } else {

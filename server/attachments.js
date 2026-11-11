@@ -1,6 +1,6 @@
-// Files attached to records (medical certificates on leave requests). Each file is
-// kept in an "attachments" folder next to the data file, named by its id, so the
-// database itself stays small. Uploads arrive as base64 inside the JSON request.
+// Files attached to records (medical certificates on leave requests, service desk tickets, project
+// tasks and milestones). Each file is kept in an "attachments" folder next to the data file, named
+// by its id, so the database itself stays small. Uploads arrive as base64 inside the JSON request.
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -58,6 +58,12 @@ export function createAttachments(dir) {
       const file = fileOf(meta?.id);
       if (!fs.existsSync(file)) throw new HttpError(404, 'The file is missing from the server. It may not have been included when data was restored.');
       return { name: meta.name, type: meta.type, size: meta.size, data: fs.readFileSync(file).toString('base64') };
+    },
+    // The file's bytes, for a download (Project Management sends them as a file, not inside JSON).
+    buffer(meta) {
+      const file = fileOf(meta?.id);
+      if (!fs.existsSync(file)) throw new HttpError(404, 'The file is missing from the server. It may not have been included when data was restored.');
+      return fs.readFileSync(file);
     },
     // Files are not removed when data is replaced (demo data, restore), so restoring a backup brings them back.
     remove(meta) {

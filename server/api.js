@@ -309,10 +309,10 @@ function backupUsers(list) {
     if (typeof raw.active !== 'boolean') throw bad(i, 'does not say whether it is active');
     if (typeof raw.passwordHash !== 'string' || !PASSWORD_HASH_RE.test(raw.passwordHash)) throw bad(i, 'has an invalid password hash');
     if (!optional(raw.employeeId, (v) => isText(v, 64))) throw bad(i, 'has an invalid employee link');
-    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'demo']) if (!optional(raw[k], (v) => typeof v === 'boolean')) throw bad(i, `has an invalid "${k}"`);
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'pmDigest', 'demo']) if (!optional(raw[k], (v) => typeof v === 'boolean')) throw bad(i, `has an invalid "${k}"`);
     for (const k of ['createdAt', 'lastLoginAt']) if (!optional(raw[k], (v) => isText(v, 40))) throw bad(i, `has an invalid "${k}"`);
     const u = { id: raw.id, username: raw.username, name: raw.name.trim(), role: raw.role, employeeId: raw.employeeId || null, active: raw.active, passwordHash: raw.passwordHash };
-    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'pmDigest', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
     if (raw.twoFactor !== undefined && raw.twoFactor !== null) {
       u.twoFactor = validTwoFactor(raw.twoFactor);
       if (!u.twoFactor) throw bad(i, 'has invalid 2-step verification details');
@@ -449,7 +449,8 @@ function clock(db, emp, action, body = {}, source = 'self') {
 }
 
 // rateLimits: on in the running app (server.js); off where tests call the API directly.
-export function createApi(db, { rateLimits = false } = {}) {
+// digestMail and digestClock: tests replace how the Projects digest sends and what time it is.
+export function createApi(db, { rateLimits = false, digestMail, digestClock } = {}) {
   const secrets = createSecrets(db.dir);
   // The audit chain is sealed with a key made from the server key. Where keyed entries begin is
   // kept in the settings (never taken from a restored backup: see replaceData).
@@ -1070,14 +1071,14 @@ export function createApi(db, { rateLimits = false } = {}) {
   // Demo data is added next to the real data (server/demo.js); loading again refreshes it.
   route('GET', '/api/admin/demo', 'data.manage', () => ({ loaded: hasDemo(db), counts: demoCounts(db) }));
   route('POST', '/api/admin/demo', 'data.manage', () => {
-    const counts = addDemo(db, { summarize, demoAccounts });
+    const counts = addDemo(db, { summarize, demoAccounts, removeFile: (a) => files.remove(a) });
     syncLedger(db);
     db.save();
     audit.record('data.demo-load', { label: 'Demo data' });
     return { ok: true, counts, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
   });
   route('DELETE', '/api/admin/demo', 'data.manage', () => {
-    const removed = removeDemo(db, { summarize });
+    const removed = removeDemo(db, { summarize, removeFile: (a) => files.remove(a) });
     db.save();
     audit.record('data.demo-remove', { label: 'Demo data' });
     return { ok: true, removed };
@@ -1086,7 +1087,7 @@ export function createApi(db, { rateLimits = false } = {}) {
   registerFeedbackRoutes(route, db);
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   registerCrmRoutes(route, db, { audit });
-  registerProjectRoutes(route, db, { audit });
+  const projects = registerProjectRoutes(route, db, { audit, files, mailer: helpdesk.mailer, ...(digestMail ? { sendMail: digestMail } : {}), ...(digestClock ? { clock: digestClock } : {}) });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });
   // ----- Audit log (Administrators) -----
@@ -1139,6 +1140,7 @@ export function createApi(db, { rateLimits = false } = {}) {
     throw new HttpError(404, 'Not found.');
   }
   handle.helpdesk = helpdesk;
+  handle.projects = projects;
   // Whether the request carries a live session (server.js allows large uploads only then).
   handle.signedIn = (req) => {
     try {

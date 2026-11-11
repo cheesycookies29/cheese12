@@ -27,8 +27,10 @@ export function demoCounts(db) {
 }
 
 // summarize(run) recomputes a payroll run's totals after demo payslips are taken out of it.
-export function removeDemo(db, { summarize }) {
+// removeFile(meta): removes a stored file (files on the tasks and milestones that go).
+export function removeDemo(db, { summarize, removeFile = () => {} }) {
   const d = db.data;
+  const withFiles = [...d.pmTasks, ...d.pmMilestones].filter((x) => x.attachments?.length);
   const empIds = new Set(d.employees.filter((e) => e.demo).map((e) => e.id));
   const assetIds = new Set(d.assets.filter((a) => a.demo).map((a) => a.id));
   const itemIds = new Set(d.inventoryItems.filter((i) => i.demo).map((i) => i.id));
@@ -58,6 +60,8 @@ export function removeDemo(db, { summarize }) {
     }
   }
   removeDemoProjects(d, demoUsers);
+  const kept = new Set([...d.pmTasks, ...d.pmMilestones].map((x) => x.id));
+  for (const x of withFiles) if (!kept.has(x.id)) x.attachments.forEach(removeFile);
   for (const k of BY_EMPLOYEE) d[k] = d[k].filter((x) => !empIds.has(x.employeeId));
   // Real employees who reported to a demo employee no longer have a supervisor on record.
   for (const e of d.employees) if (empIds.has(e.supervisorId)) e.supervisorId = null;
@@ -111,6 +115,7 @@ function removeDemoProjects(d, demoUsers) {
   const tickets = alive('tickets');
   for (const t of d.pmTasks) {
     if (demoUsers.has(t.assigneeId)) t.assigneeId = null;
+    if (t.watchers?.some((x) => demoUsers.has(x))) t.watchers = t.watchers.filter((x) => !demoUsers.has(x));
     if (t.ticketId && !tickets.has(t.ticketId)) t.ticketId = null;
   }
 }
@@ -127,6 +132,7 @@ function linkDemoPeople(d) {
   }
   for (const t of d.pmTasks.filter((x) => x.demo)) {
     for (const f of ['assigneeId', 'createdBy', 'updatedBy']) t[f] = id(t[f]);
+    t.watchers = [...new Set((t.watchers || []).map(id).filter(Boolean))];
     for (const h of t.history || []) h.by = id(h.by);
   }
   for (const k of ['pmComments', 'pmTimeLogs']) d[k] = d[k].filter((x) => !x.demo || (x.userId = id(x.userId)));
@@ -137,8 +143,8 @@ function linkDemoPeople(d) {
 }
 
 // Adds a fresh demo set (replacing an earlier one) without touching real records.
-export function addDemo(db, { summarize, demoAccounts }) {
-  if (hasDemo(db)) removeDemo(db, { summarize });
+export function addDemo(db, { summarize, demoAccounts, removeFile }) {
+  if (hasDemo(db)) removeDemo(db, { summarize, removeFile });
   const d = db.data;
   const demo = demoData({
     employeePrefix: 'DEMO-', assetPrefix: 'DEMO-IT-', skuPrefix: 'DEMO-SKU-', serialPrefix: 'DEMO', crmPrefix: 'DEMO-',

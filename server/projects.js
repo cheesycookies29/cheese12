@@ -5,9 +5,17 @@
 // Data lives in db.data.pm* collections; the Projects setup (default statuses, project types and
 // the code counter) in db.data.pm. A project marked as a template (isTemplate) is left out of the
 // portfolio, My work, Workload and health; "+ New project" can start from it.
+// Tasks have watchers (who hears of comments and of the task being done or cancelled), files
+// (tasks and milestones, through server/attachments.js) and can be changed in bulk or imported from
+// a CSV file. A daily digest goes by email through the Service Desk's outgoing mail, when set up.
 import { randomUUID } from 'node:crypto';
-import { HttpError, localDate } from './util.js';
+import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
+import { parseUpload } from './attachments.js';
+import { sendMail as smtpSend } from './mail/smtp.js';
+import { composeMessage, newMessageId } from './mail/compose.js';
+import { digestEmail } from './pm-digest.js';
+import { parseCsv } from '../shared/csv.js';
 import { can, userCan } from '../shared/roles.js';
 import { isDate } from './crm.js';
 import { computeEntry, scheduleFor, hoursPerDay } from '../shared/calc.js';
@@ -17,7 +25,8 @@ import {
   workCalendar, statusOf, categoryOf, isOpenCategory, firstStatus, statusSetProblem, taskFlags, milestoneOfTask, leafTasks,
   projectStatus, placeInColumn, byRank, makesCycle, myWorkGroup, workload, daysBetween, addDays,
   validHours, RANK_STEP, weekStart, remainingOf, validRemaining, shiftWorkDays, mentionedUsernames, cleanViewQuery, VIEW_TABS,
-  NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup,
+  NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup, addWorkDays, DIGEST_DEFAULTS, validDigestTime, digestDue, digestFor, billingAmount, billingForecast,
+  IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan,
 } from '../shared/projects.js';
 import { addStarterTemplates } from './pm-templates.js';
 
@@ -25,7 +34,10 @@ import { addStarterTemplates } from './pm-templates.js';
 // pmNotifications: "For you" on My work, one row per person and event. pmViews: saved filters of a
 // project's Board or List, a person's own (userId) or shared with the project (userId null).
 export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComments', 'pmTimeLogs', 'pmNotifications', 'pmViews'];
-export const emptyPm = () => ({ statuses: structuredClone(DEFAULT_STATUSES), types: [...DEFAULT_TYPES], seq: { project: 0 } });
+// digest: the company's daily digest (Projects setup), the address links in it open (origin, from
+// where the setup was saved) and, per person, the last day one was sent (sent: { userId: date }).
+export const emptyDigest = () => ({ ...DIGEST_DEFAULTS, origin: null, sent: {}, lastRun: null });
+export const emptyPm = () => ({ statuses: structuredClone(DEFAULT_STATUSES), types: [...DEFAULT_TYPES], seq: { project: 0 }, digest: emptyDigest() });
 
 // The Projects setup survives demo data and "erase all data", like the sales setup: a setup
 // someone saved (`customized`) comes with a backup; otherwise the current one is kept, with the
@@ -64,6 +76,15 @@ export function migratePm(db) {
     if (!Array.isArray(pm.statuses) || statusSetProblem(pm.statuses)) (pm.statuses = structuredClone(DEFAULT_STATUSES)), (changed = true);
     if (!Array.isArray(pm.types) || !pm.types.length) (pm.types = [...DEFAULT_TYPES]), (changed = true);
     if (!pm.seq || typeof pm.seq !== 'object' || !Number.isInteger(pm.seq.project) || pm.seq.project < 0) (pm.seq = { project: 0 }), (changed = true);
+    const g = pm.digest;
+    if (!g || typeof g !== 'object' || Array.isArray(g)) (pm.digest = emptyDigest()), (changed = true);
+    else {
+      if (typeof g.enabled !== 'boolean') (g.enabled = false), (changed = true);
+      if (!validDigestTime(g.time)) (g.time = DIGEST_DEFAULTS.time), (changed = true);
+      if (typeof g.workingDaysOnly !== 'boolean') (g.workingDaysOnly = true), (changed = true);
+      if (!g.sent || typeof g.sent !== 'object' || Array.isArray(g.sent)) (g.sent = {}), (changed = true);
+      if (g.origin != null && (typeof g.origin !== 'string' || !/^https?:\/\/[^\s/]+$/.test(g.origin))) (g.origin = null), (changed = true);
+    }
   }
   // The code counter never falls behind the codes in use (e.g. after restoring an older backup).
   const top = db.data.pmProjects.reduce((n, p) => Math.max(n, Number(String(p.code || '').match(/^PRJ-(\d+)$/)?.[1] || 0)), 0);
@@ -74,6 +95,12 @@ export function migratePm(db) {
   if (!db.data.pm.templatesSeeded) {
     if (!db.data.pmProjects.some((p) => p.isTemplate)) addStarterTemplates(db.data);
     db.data.pm.templatesSeeded = true;
+    changed = true;
+  }
+  // Watchers (0.15): tasks from before watch the person who added them and their assignee.
+  for (const t of db.data.pmTasks) {
+    if (Array.isArray(t.watchers)) continue;
+    t.watchers = [...new Set([t.createdBy, t.assigneeId].filter((x) => typeof x === 'string'))];
     changed = true;
   }
   return changed;
@@ -89,7 +116,11 @@ export function removeUserFromProjects(db, userId) {
     p.members = p.members.filter((m) => m.userId !== userId);
     if (p.managerId === userId) p.managerId = null;
   }
-  for (const t of db.data.pmTasks || []) if (t.assigneeId === userId) t.assigneeId = null;
+  for (const t of db.data.pmTasks || []) {
+    if (t.assigneeId === userId) t.assigneeId = null;
+    if (t.watchers?.includes(userId)) t.watchers = t.watchers.filter((x) => x !== userId);
+    if (t.unwatchedBy?.includes(userId)) t.unwatchedBy = t.unwatchedBy.filter((x) => x !== userId);
+  }
   db.data.pmNotifications = (db.data.pmNotifications || []).filter((n) => n.userId !== userId);
   for (const n of db.data.pmNotifications) if (n.actorId === userId) n.actorId = null;
   db.data.pmViews = (db.data.pmViews || []).filter((v) => v.userId !== userId);
@@ -140,7 +171,16 @@ const MILESTONE_FIELDS = ['name', 'dueDate', 'deliverable', 'billingPercent', 's
 const LEVEL = { read: 1, comment: 2, work: 3, manage: 4 };
 const MAX_HISTORY = 200;
 
-export function registerProjectRoutes(route, db, { audit } = {}) {
+// The files of tasks and milestones of a project (to remove with it).
+export const projectFiles = (data, projectId) => [...(data.pmTasks || []), ...(data.pmMilestones || [])].filter((x) => x.projectId === projectId).flatMap((x) => x.attachments || []);
+
+const MAX_FILES = 5; // per task or milestone
+const BULK_MAX = 200; // tasks per bulk change
+const BULK_FIELDS = ['statusId', 'assigneeId', 'milestoneId', 'priority'];
+
+// files: server/attachments.js; mailer: the Service Desk's outgoing mail (canEmail, smtpOptions,
+// address). sendMail and clock can be replaced by tests.
+export function registerProjectRoutes(route, db, { audit, files, mailer, sendMail = smtpSend, clock = () => new Date() } = {}) {
   const d = () => db.data;
   const pm = () => db.data.pm;
   const user = (id) => d().users.find((u) => u.id === id);
@@ -233,14 +273,14 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const s = statusOf(p, t.statusId);
     const flags = taskFlags(t, p, ctx.byId, ctx.today, ctx.cal);
     const ticket = t.ticketId && d().tickets.find((x) => x.id === t.ticketId);
-    const { history, ...rest } = t;
+    const { history, unwatchedBy, ...rest } = t;
     const logged = ctx.logged.get(t.id) || 0;
     return {
       ...rest, statusName: s?.name || '', category: flags.category, overdue: flags.overdue, dueSoon: flags.dueSoon, blocked: flags.blocked, blockers: flags.blockers,
       // Hours: logged on the task, and what is left (remainingHours stays the override, or null).
       remainingHours: t.remainingHours ?? null, loggedHours: Math.round(logged * 100) / 100, remaining: remainingOf(t, logged, flags.category), remainingOverride: t.remainingHours != null,
       assigneeName: userName(t.assigneeId), subtasks: ctx.children.get(t.id) || 0, checklistDone: t.checklist.filter((i) => i.done).length,
-      milestoneIdEffective: milestoneOfTask(t, ctx.byId),
+      milestoneIdEffective: milestoneOfTask(t, ctx.byId), watchers: watchersOf(t), files: (t.attachments || []).length, attachments: undefined,
       ticket: ticket ? { id: ticket.id, ref: ticket.ref, status: ticket.status, statusName: TICKET_STATUS[ticket.status] || ticket.status } : null,
     };
   }
@@ -275,13 +315,73 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     }
   }
   const quote = (body) => `“${str(String(body).replace(/\s+/g, ' '), 90)}${String(body).length > 90 ? '…' : ''}”`;
-  // A task moved into Done or Cancelled by someone else: its assignee is told.
-  function notifyStatus(t, p, u, fromId) {
+  // A task moved into Done or Cancelled by someone else: its assignee and watchers are told.
+  const closedBy = (t, p, fromId) => {
     const from = statusOf(p, fromId)?.category;
     const to = statusOf(p, t.statusId);
-    if (!to || from === to.category || !['done', 'cancelled'].includes(to.category)) return;
-    notify([t.assigneeId], 'status', p, t, u, `moved ${t.key} to ${to.name}`);
+    return to && from !== to.category && ['done', 'cancelled'].includes(to.category) ? to : null;
+  };
+  function notifyStatus(t, p, u, fromId) {
+    const to = closedBy(t, p, fromId);
+    if (to) notify([t.assigneeId, ...watchersOf(t)], 'status', p, t, u, `moved ${t.key} to ${to.name}`);
   }
+  // Changes to many tasks at once (bulk edit, import): one notification per person for each kind,
+  // naming the tasks, instead of one per task. byUser: Map userId → [{ t, … }].
+  function notifyGrouped(byUser, kind, p, u, one, many) {
+    for (const [userId, list] of byUser) {
+      if (list.length === 1) notify([userId], kind, p, list[0].t, u, one(list[0]));
+      else notify([userId], kind, p, null, u, many(list));
+    }
+  }
+  const keysOf = (list) => `${list.slice(0, 6).map((x) => x.t.key).join(', ')}${list.length > 6 ? ` and ${list.length - 6} more` : ''}`;
+  const addTo = (map, userId, item) => userId && map.set(userId, [...(map.get(userId) || []), item]);
+
+  // ----- Watchers -----
+  // A task's watchers hear of its comments and of it being done or cancelled (For you, and the
+  // digest's unread count). Creating a task, being assigned it or commenting on it starts watching,
+  // except that a comment does not bring back someone who stopped watching (unwatchedBy).
+  const watchersOf = (t) => (Array.isArray(t.watchers) ? t.watchers : (t.watchers = []));
+  function autoWatch(t, ids, { force = false } = {}) {
+    for (const id of ids) {
+      if (!id || watchersOf(t).includes(id)) continue;
+      if (!force && t.unwatchedBy?.includes(id)) continue;
+      t.watchers.push(id);
+      if (t.unwatchedBy?.includes(id)) t.unwatchedBy = t.unwatchedBy.filter((x) => x !== id);
+    }
+  }
+  function setWatching(t, id, on) {
+    if (on) return autoWatch(t, [id], { force: true });
+    t.watchers = watchersOf(t).filter((x) => x !== id);
+    if (!t.unwatchedBy?.includes(id)) (t.unwatchedBy ||= []).push(id);
+  }
+  // Only people who can still open the project watch its tasks.
+  const canOpen = (p, id) => {
+    const x = activeUser(id);
+    return Boolean(x && levelOf(p, x));
+  };
+  const watcherList = (t) => watchersOf(t).map((id) => ({ userId: id, name: userName(id) || 'Former user' })).sort((a, b) => a.name.localeCompare(b.name));
+
+  // ----- Files on tasks and milestones (server/attachments.js) -----
+  // Up to 5 each; anyone who works on the project adds them, the uploader or a manager removes
+  // them, and anyone who can open the project downloads them: as a file to save, never shown in
+  // the page (Content-Disposition: attachment, its own sandboxing policy).
+  const filesOf = (rec) => (Array.isArray(rec.attachments) ? rec.attachments : (rec.attachments = []));
+  const fileOut = (a, p, u) => ({ id: a.id, name: a.name, type: a.type, size: a.size, uploadedAt: a.uploadedAt, by: a.by || null, byName: byName(a.by), canDelete: (a.by === u.id && LEVEL[levelOf(p, u)] >= LEVEL.work) || levelOf(p, u) === 'manage' });
+  function addFile(rec, body) {
+    if (!files) throw new HttpError(500, 'Files cannot be stored here.');
+    if (filesOf(rec).length >= MAX_FILES) throw new HttpError(400, `There are already ${MAX_FILES} files here, the most there can be. Remove one first.`);
+    return { ...files.save(parseUpload(body?.file)) };
+  }
+  function findFile(rec, fileId) {
+    const a = filesOf(rec).find((x) => x.id === fileId);
+    if (!a) throw new HttpError(404, 'File not found.');
+    return a;
+  }
+  const mayRemoveFile = (a, p, u) => fileOut(a, p, u).canDelete;
+  const removeFiles = (list) => list.forEach((a) => files?.remove(a));
+  // A file to save: plain bytes, with a name the browser keeps, and nothing it would open in the page.
+  const disposition = (name) => `attachment; filename="${String(name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+  const download = (a) => ({ data: files.buffer(a), headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': disposition(a.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Download-Options': 'noopen' } });
   // People who became members (not by being assigned a task: that has its own notification).
   function notifyAdded(p, u, beforeIds) {
     const added = p.members.filter((m) => !beforeIds.includes(m.userId));
@@ -413,7 +513,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
       healthOverride: p.healthOverride ? { ...p.healthOverride, byName: userName(p.healthOverride.by) } : null,
       deal: userCan(u, 'crm.view') || p.dealId ? crmRef('crmDeals', p.dealId) : null,
       contract: crmRef('crmContracts', p.contractId),
-      milestones: milestones.map((m) => ({ ...m, ...s.milestones.find((x) => x.id === m.id), afterContract: Boolean(m.deliverable && contract?.endDate && m.dueDate > contract.endDate) })),
+      milestones: milestones.map((m) => ({ ...m, ...s.milestones.find((x) => x.id === m.id), afterContract: Boolean(m.deliverable && contract?.endDate && m.dueDate > contract.endDate), attachments: (m.attachments || []).map((a) => fileOut(a, p, u)) })),
       // Remaining: what is left of the open leaf tasks (estimate less logged, or the hours left set on a task).
       hours: {
         estimate: Math.round(leaves.reduce((n, t) => n + (Number(t.estimateHours) || 0), 0) * 100) / 100, logged: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100,
@@ -458,6 +558,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
   });
   route('DELETE', '/api/pm/projects/:id', 'pm.manage', ({ params, user: u }) => {
     const p = findProject(params.id, u);
+    removeFiles(projectFiles(d(), p.id));
     removeProject(p.id);
     db.save();
     return { ok: true };
@@ -500,7 +601,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
         id: taskIds.get(t.id), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title: t.title, description: t.description, statusId: todo, priority: t.priority,
         assigneeId: null, startDate: move(t.startDate), dueDate: move(t.dueDate), estimateHours: t.estimateHours ?? null, remainingHours: null, milestoneId: msIds.get(t.milestoneId) || null,
         parentId: taskIds.get(t.parentId) || null, checklist: t.checklist.map((c) => ({ id: randomUUID(), text: c.text, done: false })),
-        blockedBy: (t.blockedBy || []).map((x) => taskIds.get(x)).filter(Boolean), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null,
+        blockedBy: (t.blockedBy || []).map((x) => taskIds.get(x)).filter(Boolean), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null, watchers: [],
         version: 1, createdAt: now(), createdBy: u.id, updatedAt: now(), updatedBy: u.id, history: [{ at: now(), by: u.id, field: 'created', from: '', to: `copied from ${t.key}` }],
       });
     });
@@ -535,6 +636,8 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     // A member who is now a viewer keeps their tasks; they can still read and comment.
     const was = p.members.map((m) => m.userId);
     p.members = next.members;
+    // Someone who can no longer open the project stops watching its tasks.
+    for (const t of tasksOf(p)) if (watchersOf(t).some((id) => !canOpen(p, id))) t.watchers = t.watchers.filter((id) => canOpen(p, id));
     notifyAdded(p, u, was);
     track(p, u, 'members', '', `${p.members.length} member${p.members.length === 1 ? '' : 's'}`);
     bump(p, u);
@@ -664,6 +767,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const p = findProject(params.id, u, 'manage');
     const m = findMilestone(p, params.mid);
     for (const t of tasksOf(p)) if (t.milestoneId === m.id) (t.milestoneId = null), bump(t, u);
+    removeFiles(m.attachments || []);
     d().pmMilestones = d().pmMilestones.filter((x) => x.id !== m.id);
     track(p, u, 'milestone removed', m.name, '');
     db.save();
@@ -752,6 +856,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const at = now();
     const t = {
       id: randomUUID(), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, ...fields, checklist: [], ticketId: null, rank: RANK_STEP, completedAt: null,
+      watchers: [...new Set([u.id, fields.assigneeId].filter(Boolean))], attachments: [],
       version: 1, createdAt: at, createdBy: u.id, updatedAt: at, updatedBy: u.id, history: [{ at, by: u.id, field: 'created', from: '', to: '' }], ...extra,
     };
     setCompleted(t, p);
@@ -790,6 +895,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
       others: ctx.tasks.filter((x) => x.id !== t.id).sort(byRank).map((x) => ({ id: x.id, key: x.key, title: x.title, parentId: x.parentId })),
       milestones: milestonesOf(p).map((m) => ({ id: m.id, name: m.name, dueDate: m.dueDate })),
       time: logs.map((x) => ({ ...x, userName: userName(x.userId) })), loggedHours: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100,
+      watching: watchersOf(t).includes(u.id), watcherList: watcherList(t), attachments: filesOf(t).map((a) => fileOut(a, p, u)), maxFiles: MAX_FILES,
     };
   });
   route('PUT', '/api/pm/tasks/:id', 'auth', ({ params, body, user: u }) => {
@@ -801,7 +907,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     addAssignee(p, t);
     setCompleted(t, p);
     trackTask(t, p, u, before);
-    if (t.assigneeId !== before.assigneeId) notify([t.assigneeId], 'assigned', p, t, u, `assigned you ${t.key} ${t.title}`);
+    if (t.assigneeId !== before.assigneeId) notify([t.assigneeId], 'assigned', p, t, u, `assigned you ${t.key} ${t.title}`), autoWatch(t, [t.assigneeId], { force: true });
     notifyStatus(t, p, u, before.statusId);
     bump(t, u);
     db.save();
@@ -849,16 +955,23 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     db.save();
     return { checklist: t.checklist, version: t.version };
   });
-  // Deleting a task: its subtasks and comments go with it; time logged on it stays on the project.
-  route('DELETE', '/api/pm/tasks/:id', 'auth', ({ params, user: u }) => {
-    const { t, p } = findTask(params.id, u, 'work');
-    if (levelOf(p, u) !== 'manage' && t.createdBy !== u.id) throw new HttpError(403, 'Only the person who added the task or a project manager can delete it.');
-    const ids = new Set([t.id, ...tasksOf(p).filter((x) => x.parentId === t.id).map((x) => x.id)]);
+  // Deleting tasks: their subtasks, comments and files go with them; time logged on them stays on
+  // the project. Returns the ids removed.
+  function removeTasks(p, rootIds) {
+    const ids = new Set([...rootIds, ...tasksOf(p).filter((x) => rootIds.includes(x.parentId)).map((x) => x.id)]);
+    removeFiles(tasksOf(p).filter((x) => ids.has(x.id)).flatMap((x) => x.attachments || []));
     d().pmTasks = d().pmTasks.filter((x) => !ids.has(x.id));
     for (const x of tasksOf(p)) if (x.blockedBy.some((id) => ids.has(id))) x.blockedBy = x.blockedBy.filter((id) => !ids.has(id));
     d().pmComments = d().pmComments.filter((c) => !ids.has(c.taskId));
     d().pmNotifications = d().pmNotifications.filter((n) => !ids.has(n.taskId));
     for (const l of d().pmTimeLogs) if (ids.has(l.taskId)) l.taskId = null;
+    return ids;
+  }
+  const mayDelete = (t, p, u) => levelOf(p, u) === 'manage' || (LEVEL[levelOf(p, u)] >= LEVEL.work && t.createdBy === u.id);
+  route('DELETE', '/api/pm/tasks/:id', 'auth', ({ params, user: u }) => {
+    const { t, p } = findTask(params.id, u, 'work');
+    if (!mayDelete(t, p, u)) throw new HttpError(403, 'Only the person who added the task or a project manager can delete it.');
+    const ids = removeTasks(p, [t.id]);
     db.save();
     return { ok: true, removed: ids.size };
   });
@@ -881,7 +994,9 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const named = new Set(mentionedUsernames(text, p.members.map((m) => user(m.userId)?.username).filter(Boolean)));
     const mentioned = p.members.map((m) => user(m.userId)).filter((x) => x && named.has(x.username.toLowerCase())).map((x) => x.id);
     notify(mentioned, 'mentioned', p, t, u, `mentioned you on ${t.key}: ${quote(text)}`);
-    notify([t.assigneeId, t.createdBy].filter((id) => !mentioned.includes(id)), 'commented', p, t, u, `commented on ${t.key}: ${quote(text)}`);
+    notify([t.assigneeId, t.createdBy, ...watchersOf(t)].filter((id) => !mentioned.includes(id)), 'commented', p, t, u, `commented on ${t.key}: ${quote(text)}`);
+    // Commenting starts watching (unless you stopped watching this task); a mention does not.
+    if (!p.isTemplate) autoWatch(t, [u.id]);
     db.save();
     return { ...c, userName: u.name, canDelete: true };
   });
@@ -894,6 +1009,258 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     d().pmComments = d().pmComments.filter((x) => x !== c);
     db.save();
     return { ok: true };
+  });
+
+  // ===== Watching a task =====
+  // { watching: true | false }: for yourself, on any task of a project you can open.
+  route('PUT', '/api/pm/tasks/:id/watch', 'auth', ({ params, body, user: u }) => {
+    const { t, p } = findTask(params.id, u);
+    if (p.isTemplate) throw new HttpError(400, 'Tasks of a template cannot be watched.');
+    if (typeof body.watching !== 'boolean') throw new HttpError(400, 'Say whether to watch the task.');
+    setWatching(t, u.id, body.watching);
+    noAudit(); // a person's own preference, not a change to the project
+    db.save();
+    return { watching: body.watching, watcherList: watcherList(t) };
+  });
+
+  // ===== Files on a task =====
+  route('GET', '/api/pm/tasks/:id/attachments/:fileId', 'auth', ({ params, user: u }) => {
+    const { t } = findTask(params.id, u);
+    return download(findFile(t, params.fileId));
+  });
+  route('POST', '/api/pm/tasks/:id/attachments', 'auth', ({ params, body, user: u }) => {
+    const { t, p } = findTask(params.id, u, 'work');
+    const a = { ...addFile(t, body), by: u.id };
+    filesOf(t).push(a);
+    track(t, u, 'file added', '', a.name);
+    bump(t, u);
+    db.save();
+    return { attachments: filesOf(t).map((x) => fileOut(x, p, u)), version: t.version };
+  });
+  route('DELETE', '/api/pm/tasks/:id/attachments/:fileId', 'auth', ({ params, user: u }) => {
+    const { t, p } = findTask(params.id, u);
+    const a = findFile(t, params.fileId);
+    if (!mayRemoveFile(a, p, u)) throw new HttpError(403, 'Only the person who added the file or a project manager can remove it.');
+    t.attachments = filesOf(t).filter((x) => x !== a);
+    removeFiles([a]);
+    track(t, u, 'file removed', a.name, '');
+    bump(t, u);
+    db.save();
+    return { attachments: filesOf(t).map((x) => fileOut(x, p, u)), version: t.version };
+  });
+
+  // ===== Files on a milestone (for a deliverable: the acceptance document) =====
+  // Changes are kept in the project's history, like the milestone's own.
+  route('GET', '/api/pm/projects/:id/milestones/:mid/attachments/:fileId', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    return download(findFile(findMilestone(p, params.mid), params.fileId));
+  });
+  route('POST', '/api/pm/projects/:id/milestones/:mid/attachments', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u, 'work');
+    const m = findMilestone(p, params.mid);
+    const a = { ...addFile(m, body), by: u.id };
+    filesOf(m).push(a);
+    track(p, u, `${m.name}: file added`, '', a.name);
+    db.save();
+    return { attachments: filesOf(m).map((x) => fileOut(x, p, u)) };
+  });
+  route('DELETE', '/api/pm/projects/:id/milestones/:mid/attachments/:fileId', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    const m = findMilestone(p, params.mid);
+    const a = findFile(m, params.fileId);
+    if (!mayRemoveFile(a, p, u)) throw new HttpError(403, 'Only the person who added the file or a project manager can remove it.');
+    m.attachments = filesOf(m).filter((x) => x !== a);
+    removeFiles([a]);
+    track(p, u, `${m.name}: file removed`, a.name, '');
+    db.save();
+    return { attachments: filesOf(m).map((x) => fileOut(x, p, u)) };
+  });
+
+  // ===== Bulk edit (the List) =====
+  // { ids (1–200 tasks of this project), set: { statusId, assigneeId, milestoneId, priority },
+  //   shiftDays (± working days, start and due), watchers: { add: [userId], remove: [userId] } }
+  // or { ids, delete: true }. Every task is checked first; if one cannot take the change, nothing
+  // is saved and the refusal names the tasks. Each task changed gets its history and a new version
+  // (like a board move, no version check); notifications are one per person; one audit entry.
+  route('POST', '/api/pm/projects/:id/tasks/bulk', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u, 'work');
+    const level = levelOf(p, u);
+    if (!Array.isArray(body.ids) || !body.ids.length || body.ids.length > BULK_MAX) throw new HttpError(400, `Pick from 1 to ${BULK_MAX} tasks.`);
+    const ids = [...new Set(body.ids.map(idOf))];
+    const byId = new Map(tasksOf(p).map((t) => [t.id, t]));
+    if (ids.some((id) => !byId.has(id))) throw new HttpError(404, 'Task not found.');
+    const picked = ids.map((id) => byId.get(id));
+    if (body.delete === true) {
+      const refused = picked.filter((t) => !mayDelete(t, p, u));
+      if (refused.length) throw new HttpError(403, `Nothing was deleted. Only the person who added a task or a project manager can delete it: ${refused.slice(0, 10).map((t) => t.key).join(', ')}${refused.length > 10 ? '…' : ''}.`);
+      const gone = removeTasks(p, picked.map((t) => t.id));
+      audit?.record('projects.bulk', { entity: 'project', entityId: p.id, label: `${p.code} ${p.name}`, note: `Deleted ${gone.size} task${gone.size === 1 ? '' : 's'} (subtasks included)` });
+      db.save();
+      return { removed: gone.size };
+    }
+    const set = body.set && typeof body.set === 'object' && !Array.isArray(body.set) ? pickFields(body.set, BULK_FIELDS) : {};
+    const changes = {};
+    const what = [];
+    if (Object.hasOwn(set, 'statusId')) {
+      const s = typeof set.statusId === 'string' && statusOf(p, set.statusId);
+      if (!s) throw new HttpError(400, 'Pick a status from this project.');
+      changes.statusId = s.id;
+      what.push(`status ${s.name}`);
+    }
+    if (Object.hasOwn(set, 'assigneeId')) {
+      const id = idOf(set.assigneeId) || null;
+      const m = id && p.members.find((x) => x.userId === id);
+      if (id && (!m || m.role === 'viewer' || !activeUser(id))) throw new HttpError(400, 'Pick the assignee from the project\'s members.');
+      changes.assigneeId = id;
+      what.push(`assignee ${id ? userName(id) : 'none'}`);
+    }
+    if (Object.hasOwn(set, 'milestoneId')) {
+      const id = idOf(set.milestoneId) || null;
+      const m = id && d().pmMilestones.find((x) => x.id === id && x.projectId === p.id);
+      if (id && !m) throw new HttpError(400, 'Pick a milestone of this project.');
+      changes.milestoneId = id;
+      what.push(`milestone ${m ? m.name : 'none'}`);
+    }
+    if (Object.hasOwn(set, 'priority')) {
+      changes.priority = oneOf(set.priority, PRIORITY, 'Priority', null);
+      if (!changes.priority) throw new HttpError(400, 'Priority: pick one of the options.');
+      what.push(`priority ${PRIORITY[changes.priority]}`);
+    }
+    let shift = 0;
+    if (body.shiftDays !== undefined && body.shiftDays !== null && body.shiftDays !== 0) {
+      shift = body.shiftDays;
+      if (!Number.isInteger(shift) || Math.abs(shift) > 260) throw new HttpError(400, 'Move the dates by a whole number of working days, at most 260 either way.');
+      what.push(`dates moved ${shift > 0 ? '+' : ''}${shift} working day${Math.abs(shift) === 1 ? '' : 's'}`);
+    }
+    const w = body.watchers && typeof body.watchers === 'object' && !Array.isArray(body.watchers) ? body.watchers : {};
+    const list = (v) => {
+      if (v == null) return [];
+      if (!Array.isArray(v) || v.length > 100) throw new HttpError(400, 'Watchers: a list of people.');
+      return [...new Set(v.map(idOf).filter(Boolean))];
+    };
+    const watchAdd = list(w.add);
+    const watchRemove = list(w.remove);
+    if (level !== 'manage' && [...watchAdd, ...watchRemove].some((id) => id !== u.id)) throw new HttpError(403, 'You can add or remove only yourself as a watcher. A project manager can add others.');
+    for (const id of watchAdd) if (!canOpen(p, id)) throw new HttpError(400, `${userName(id) || 'That account'} cannot open this project, so cannot watch its tasks.`);
+    if (watchAdd.length) what.push(`watchers + ${watchAdd.map((id) => userName(id)).join(', ')}`);
+    if (watchRemove.length) what.push(`watchers − ${watchRemove.map((id) => userName(id) || 'Former user').join(', ')}`);
+    if (!what.length) throw new HttpError(400, 'Choose a change to make.');
+    // First check every task; nothing is saved unless all of them can take the change.
+    const c = cal();
+    const plans = [];
+    const problems = [];
+    for (const t of picked) {
+      const next = { ...changes };
+      if (shift) {
+        if (t.startDate) next.startDate = addWorkDays(t.startDate, shift, c);
+        if (t.dueDate) next.dueDate = addWorkDays(t.dueDate, shift, c);
+      }
+      try {
+        validTask({ ...t, ...next }, p, u, level, t);
+        plans.push([t, next]);
+      } catch (err) {
+        problems.push(`${t.key}: ${err.message}`);
+      }
+    }
+    if (problems.length) throw new HttpError(400, `Nothing was changed: ${problems.length === 1 ? 'one task cannot' : `${problems.length} tasks cannot`} take this change. ${problems.slice(0, 8).join(' ')}${problems.length > 8 ? ' …' : ''}`);
+    const assigned = new Map();
+    const closed = new Map();
+    for (const [t, next] of plans) {
+      const before = { ...t };
+      Object.assign(t, next);
+      if (before.statusId !== t.statusId) t.rank = nextRank(p, t.statusId);
+      setCompleted(t, p);
+      trackTask(t, p, u, before);
+      if (t.assigneeId && t.assigneeId !== before.assigneeId) addTo(assigned, t.assigneeId, { t }), autoWatch(t, [t.assigneeId], { force: true });
+      const to = closedBy(t, p, before.statusId);
+      if (to) for (const id of new Set([t.assigneeId, ...watchersOf(t)])) addTo(closed, id, { t, to });
+      const watching = [...watchersOf(t)];
+      for (const id of watchAdd) setWatching(t, id, true);
+      for (const id of watchRemove) setWatching(t, id, false);
+      const names = (ids) => ids.map((id) => userName(id) || 'Former user').join(', ');
+      if (watching.join() !== watchersOf(t).join()) track(t, u, 'watchers', names(watching), names(t.watchers));
+      bump(t, u);
+    }
+    notifyGrouped(assigned, 'assigned', p, u, ({ t }) => `assigned you ${t.key} ${t.title}`, (l) => `assigned you ${l.length} tasks in ${p.code}: ${keysOf(l)}`);
+    notifyGrouped(closed, 'status', p, u, ({ t, to }) => `moved ${t.key} to ${to.name}`, (l) => `moved ${l.length} tasks to ${[...new Set(l.map((x) => x.to.name))].join(' or ')}: ${keysOf(l)}`);
+    audit?.record('projects.bulk', { entity: 'project', entityId: p.id, label: `${p.code} ${p.name}`, note: `${plans.length} task${plans.length === 1 ? '' : 's'}: ${what.join('; ')}`.slice(0, 500) });
+    db.save();
+    const ctx = taskCtx(p);
+    return { changed: plans.length, tasks: plans.map(([t]) => taskOut(t, p, ctx)) };
+  });
+
+  // ===== Import tasks from a CSV file (project managers) =====
+  // The file's text is sent as it is ({ csv }); it is read here (shared/csv.js). preview: the
+  // columns and how they are matched. import: { csv, mapping, createMilestones, dryRun } checks
+  // every row (dryRun: and stops there), or creates every task, all or nothing.
+  function readCsv(body) {
+    if (typeof body.csv !== 'string' || !body.csv.trim()) throw new HttpError(400, 'Choose a CSV file.');
+    if (Buffer.byteLength(body.csv, 'utf8') > IMPORT_MAX_BYTES) throw new HttpError(400, `The file is larger than ${IMPORT_MAX_BYTES / 1048576} MB. Split it into smaller files.`);
+    const { rows, error } = parseCsv(body.csv);
+    if (error) throw new HttpError(400, `The file could not be read: ${error}`);
+    if (rows.length < 2) throw new HttpError(400, 'The file has no task rows under its header row.');
+    if (rows.length - 1 > IMPORT_MAX_ROWS) throw new HttpError(400, `The file has ${rows.length - 1} rows; at most ${IMPORT_MAX_ROWS.toLocaleString('en-US')} can be imported at once.`);
+    return { headers: rows[0].map((h) => str(h, 100)), rows: rows.slice(1) };
+  }
+  function validMapping(v, columns) {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) throw new HttpError(400, 'Say which column holds what.');
+    const out = {};
+    for (const field of Object.keys(IMPORT_FIELDS)) {
+      const c = v[field];
+      if (c === undefined || c === null || c === '') continue;
+      const n = Number(c);
+      if (!Number.isInteger(n) || n < 0 || n >= columns) throw new HttpError(400, `${IMPORT_FIELDS[field].label}: pick one of the file's columns.`);
+      out[field] = n;
+    }
+    if (out.title === undefined) throw new HttpError(400, 'Pick the column that holds the task titles.');
+    const used = Object.values(out);
+    if (new Set(used).size !== used.length) throw new HttpError(400, 'Each column can fill one field only.');
+    return out;
+  }
+  route('POST', '/api/pm/projects/:id/import/preview', 'auth', ({ params, body, user: u }) => {
+    findProject(params.id, u, 'manage');
+    const { headers, rows } = readCsv(body);
+    noAudit(); // reading a file changes nothing
+    return { headers, mapping: guessImportMapping(headers), sample: rows.slice(0, 5).map((r) => headers.map((_, i) => str(r[i], 120))), count: rows.length };
+  });
+  route('POST', '/api/pm/projects/:id/import', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u, 'manage');
+    const { headers, rows } = readCsv(body);
+    const mapping = validMapping(body.mapping, headers.length);
+    const createMilestones = bool(body.createMilestones, 'Create the milestones that are missing', false);
+    const dryRun = bool(body.dryRun, 'Check only', false);
+    const plan = importPlan(rows, mapping, { project: p, members: membersOut(p), milestones: milestonesOf(p), createMilestones });
+    const summary = { tasks: plan.tasks.length, subtasks: plan.tasks.filter((t) => t.parentRow).length, newMilestones: plan.newMilestones, errorCount: plan.errorCount, rows: plan.rows };
+    if (dryRun) {
+      noAudit();
+      return summary;
+    }
+    if (plan.errorCount) throw new HttpError(400, `Nothing was imported: ${plan.errorCount === 1 ? 'one row has' : `${plan.errorCount} rows have`} problems. Check the file again to see them.`);
+    const at = now();
+    const msIds = new Map();
+    for (const m of plan.newMilestones) {
+      const rec = { id: randomUUID(), projectId: p.id, name: m.name, dueDate: m.dueDate, deliverable: false, billingPercent: null, submittedAt: null, acceptedAt: null, acceptanceNote: '', order: milestonesOf(p).length, version: 1, createdAt: at, updatedAt: at, updatedBy: u.id };
+      d().pmMilestones.push(rec);
+      msIds.set(m.name.toLowerCase(), rec.id);
+      track(p, u, 'milestone', '', `${m.name} (imported)`);
+    }
+    const rowIds = new Map(plan.tasks.map((t) => [t.row, randomUUID()]));
+    const assigned = new Map();
+    for (const r of plan.tasks) {
+      const milestoneId = r.milestone ? r.milestone.id || msIds.get(r.milestone.name.toLowerCase()) : null;
+      const fields = {
+        title: r.title, description: r.description, statusId: r.statusId, priority: r.priority, assigneeId: r.assigneeId, startDate: r.startDate, dueDate: r.dueDate,
+        estimateHours: r.estimateHours, remainingHours: null, milestoneId, parentId: r.parentRow ? rowIds.get(r.parentRow) : null, blockedBy: [],
+      };
+      const t = newTask(p, u, fields, { id: rowIds.get(r.row), checklist: r.checklist.map((text) => ({ id: randomUUID(), text, done: false })), rank: nextRank(p, r.statusId) });
+      t.history[0].to = 'imported from a CSV file';
+      addTo(assigned, t.assigneeId, { t });
+    }
+    notifyGrouped(assigned, 'assigned', p, u, ({ t }) => `assigned you ${t.key} ${t.title}`, (l) => `assigned you ${l.length} tasks in ${p.code}: ${keysOf(l)}`);
+    const name = str(body.fileName, 120);
+    audit?.record('projects.import', { entity: 'project', entityId: p.id, label: `${p.code} ${p.name}`, note: `${plan.tasks.length} tasks imported${name ? ` from ${name}` : ''}${plan.newMilestones.length ? `; ${plan.newMilestones.length} milestones added` : ''}` });
+    db.save();
+    return { imported: plan.tasks.length, milestones: plan.newMilestones.length };
   });
 
   // ===== Time =====
@@ -1080,6 +1447,152 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     return { ok: true };
   });
 
+  // ===== Milestones across projects, and the billing forecast =====
+  // Every milestone of the projects a person can open (not templates or cancelled projects), with
+  // its project, client, health, deliverable, submitted and accepted dates. Amounts (billing % of
+  // the contract's value, or of the deal's without a contract) and the forecast by month are only
+  // for people with Sales & CRM access: without it the fields are not sent at all.
+  route('GET', '/api/pm/milestones', 'auth', ({ user: u }) => {
+    const money = userCan(u, 'crm.view');
+    const c = cal();
+    const t0 = today();
+    const rows = [];
+    for (const p of visibleProjects(u).filter((x) => x.status !== 'cancelled')) {
+      const ms = milestonesOf(p);
+      if (!ms.length) continue;
+      const st = projectStatus(p, ms, tasksOf(p), t0, c);
+      const contract = p.contractId && d().crmContracts.find((x) => x.id === p.contractId);
+      const deal = p.dealId && d().crmDeals.find((x) => x.id === p.dealId);
+      const value = Number(contract?.value) > 0 ? Number(contract.value) : Number(deal?.value) > 0 ? Number(deal.value) : null;
+      for (const m of ms) {
+        const s = st.milestones.find((x) => x.id === m.id);
+        const done = Boolean(m.acceptedAt) || s.finished;
+        const row = {
+          id: m.id, name: m.name, dueDate: m.dueDate, deliverable: Boolean(m.deliverable), billingPercent: m.deliverable ? m.billingPercent ?? null : null,
+          submittedAt: m.submittedAt || null, acceptedAt: m.acceptedAt || null, finished: done, overdue: !done && m.dueDate < t0,
+          health: done || p.status === 'completed' ? null : s.value, reason: done ? null : s.reasons[0] || null, progress: s.progress.percent, files: (m.attachments || []).length,
+          projectId: p.id, projectCode: p.code, projectName: p.name, projectStatus: p.status, accountId: p.accountId || null, accountName: accountName(p.accountId),
+        };
+        if (money) Object.assign(row, { amount: billingAmount(m, value), valueFrom: value == null ? null : Number(contract?.value) > 0 ? `contract ${contract.code}` : `deal ${deal.code}` });
+        rows.push(row);
+      }
+    }
+    rows.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.projectCode.localeCompare(b.projectCode));
+    const forecast = money ? billingForecast(rows.filter((r) => r.deliverable && Number(r.billingPercent) > 0), t0) : null;
+    return { today: t0, amounts: money, rows, forecast };
+  });
+
+  // ===== The daily digest =====
+  // One email per person per working day (Projects setup) through the Service Desk's outgoing mail:
+  // their overdue tasks, tasks due within 3 working days, milestones at risk in projects they
+  // manage, and their unread For you count. Only projects the person can open. Without outgoing
+  // mail, or for someone who turned it off, the same digest is on My work and nothing is sent.
+  const digestSettings = () => pm().digest;
+  const emailOf = (x) => {
+    const emp = x?.employeeId && d().employees.find((e) => e.id === x.employeeId);
+    const email = String(emp?.email || '').trim().toLowerCase();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+  };
+  // The address links in the email open CORE at: where the setup was saved from, unless that was
+  // this computer only (localhost), which would not open for anyone reading on another device.
+  const linkOrigin = () => {
+    const o = digestSettings().origin;
+    if (!o) return null;
+    try {
+      return /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(new URL(o).hostname) ? null : o;
+    } catch {
+      return null;
+    }
+  };
+  function digestOf(x, day = today()) {
+    const c = cal();
+    const projects = d().pmProjects.filter((p) => !p.isTemplate && levelOf(p, x));
+    const tasks = [];
+    const milestones = [];
+    for (const p of projects) {
+      const all = tasksOf(p);
+      for (const t of all) {
+        if (t.assigneeId !== x.id || !t.dueDate || !isOpenCategory(categoryOf(p, t))) continue;
+        tasks.push({ id: t.id, key: t.key, title: t.title, dueDate: t.dueDate, projectId: p.id, projectCode: p.code, projectName: p.name });
+      }
+      if (!OPEN_PROJECT.includes(p.status) || !p.members.some((m) => m.userId === x.id && m.role === 'manager')) continue;
+      const ms = milestonesOf(p);
+      const st = projectStatus(p, ms, all, day, c);
+      for (const m of ms) {
+        const s = st.milestones.find((y) => y.id === m.id);
+        if (m.acceptedAt || s.finished) continue;
+        milestones.push({ id: m.id, name: m.name, dueDate: m.dueDate, deliverable: Boolean(m.deliverable), value: s.value, reason: s.reasons[0] || '', projectId: p.id, projectCode: p.code, projectName: p.name });
+      }
+    }
+    return digestFor({ tasks, milestones, unread: myNotifications(x).filter((n) => !n.readAt).length, today: day, cal: c });
+  }
+  // Whether a person's digest is emailed, and if not, why (shown on My work).
+  function emailStatus(x) {
+    const g = digestSettings();
+    const reason = x.pmDigest === false ? 'You turned the email off. The digest is shown here only.'
+      : !g.enabled ? 'Daily digest emails are turned off for the company (Projects setup), so the digest is shown here only.'
+        : !mailer?.canEmail() ? 'CORE has no outgoing email set up (Service Desk settings), so the digest is shown here only.'
+          : !emailOf(x) ? 'There is no email address on your employee record, so the digest is shown here only.' : null;
+    return { preference: x.pmDigest !== false, emailing: !reason, reason, address: emailOf(x), time: g.time, workingDaysOnly: g.workingDaysOnly };
+  }
+  let digestRun = null;
+  // Sends the digests that are due (called every minute; tests call it with their own clock). Each
+  // person gets at most one a day: the day is marked, and saved, before the email goes, so a crash
+  // or a failed send never sends it twice. A server that was off at the send time catches up later
+  // the same day. Nobody is emailed without outgoing mail, an email address or an active account.
+  function runDigest(at = clock()) {
+    if (digestRun) return digestRun;
+    digestRun = (async () => {
+      const g = digestSettings();
+      const day = localDate(at);
+      const out = { day, sent: 0, empty: 0, failed: 0 };
+      if (!digestDue(g, day, localTime(at), cal())) return { ...out, reason: 'not due' };
+      if (!mailer?.canEmail()) return { ...out, reason: 'no outgoing mail' };
+      const due = d().users.filter((x) => x.active && x.pmDigest !== false && g.sent[x.id] !== day && emailOf(x));
+      if (!due.length) return out;
+      const jobs = [];
+      for (const x of due) {
+        g.sent[x.id] = day;
+        const dg = digestOf(x, day);
+        if (dg.empty) out.empty++;
+        else jobs.push({ x, dg });
+      }
+      db.save();
+      const from = mailer.address();
+      let error = null;
+      for (const { x, dg } of jobs) {
+        const m = digestEmail(dg, { name: x.name, company: d().settings?.companyName || '', origin: linkOrigin() });
+        const raw = composeMessage({ from: { name: 'CORE Projects', email: from }, to: [{ name: x.name, email: emailOf(x) }], subject: m.subject, text: m.text, html: m.html, messageId: newMessageId(from), auto: 'generated' });
+        try {
+          await sendMail(mailer.smtpOptions(), { from, to: [emailOf(x)], raw });
+          out.sent++;
+        } catch (err) {
+          out.failed++;
+          error = String(err?.message || err).slice(0, 200);
+        }
+      }
+      g.lastRun = { at: at.toISOString(), day, sent: out.sent, failed: out.failed, error };
+      db.save();
+      // A failure is recorded once a run (the mail server's answer, never the sign-in).
+      if (out.failed) audit?.record('projects.digest-failed', { label: 'Projects daily digest', note: `${out.failed} of ${jobs.length} not sent: ${error}`, actor: { name: 'CORE' } });
+      return out;
+    })().finally(() => (digestRun = null));
+    return digestRun;
+  }
+  const digestTimer = setInterval(() => runDigest().catch(() => {}), 60000);
+  digestTimer.unref?.();
+
+  // My digest (as it would be emailed today) and whether it is emailed.
+  route('GET', '/api/pm/digest', 'auth', ({ user: u }) => ({ ...digestOf(u), email: emailStatus(u) }));
+  // "Email me a daily digest" (on unless turned off).
+  route('PUT', '/api/pm/digest/preference', 'auth', ({ body, user: u }) => {
+    if (typeof body.email !== 'boolean') throw new HttpError(400, 'Say whether to email you the daily digest.');
+    if (body.email) delete u.pmDigest;
+    else u.pmDigest = false;
+    db.save();
+    return emailStatus(u);
+  });
+
   // ===== Workload: planned hours against capacity, per person and week =====
   route('GET', '/api/pm/workload', 'pm.view', ({ query }) => {
     const from = isDate(query.from) ? query.from : today();
@@ -1164,14 +1677,30 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
   });
 
   // ===== Projects setup (pm.manage) =====
-  route('GET', '/api/pm/settings', 'pm.manage', () => ({ statuses: pm().statuses, types: pm().types }));
+  const digestOut = () => {
+    const g = digestSettings();
+    return { enabled: g.enabled, time: g.time, workingDaysOnly: g.workingDaysOnly, origin: g.origin, links: Boolean(linkOrigin()), canEmail: Boolean(mailer?.canEmail()), lastRun: g.lastRun || null };
+  };
+  route('GET', '/api/pm/settings', 'pm.manage', () => ({ statuses: pm().statuses, types: pm().types, digest: digestOut() }));
+  // The daily digest: on or off, the time (HH:MM, this server's local time) and working days only.
+  // Links in the email open CORE at the address this was saved from.
+  route('PUT', '/api/pm/settings/digest', 'pm.manage', ({ body, origin }) => {
+    const enabled = bool(body.enabled, 'Send the daily digest', false);
+    const time = body.time === undefined ? digestSettings().time : body.time;
+    if (!validDigestTime(time)) throw new HttpError(400, 'Enter the time as HH:MM, e.g. 07:30.');
+    const workingDaysOnly = bool(body.workingDaysOnly, 'Working days only', true);
+    Object.assign(digestSettings(), { enabled, time, workingDaysOnly, origin: typeof origin === 'string' && /^https?:\/\/[^\s/]+$/.test(origin) ? origin : null });
+    pm().customized = true;
+    db.save();
+    return digestOut();
+  });
   route('PUT', '/api/pm/settings', 'pm.manage', ({ body }) => {
     const statuses = validStatuses(body.statuses, pm().statuses);
     const types = [...new Set((Array.isArray(body.types) ? body.types : []).map((x) => str(x, 40)).filter(Boolean))];
     if (!types.length || types.length > 20) throw new HttpError(400, 'Keep 1 to 20 project types.');
     Object.assign(pm(), { customized: true, statuses, types });
     db.save();
-    return { statuses, types };
+    return { statuses, types, digest: digestOut() };
   });
 
   // ===== Projects access per account (administrators), like CRM access =====
@@ -1201,4 +1730,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     audit?.record('user.update', { entity: 'user', entityId: x.id, label: `${x.name} (${x.username})`, changes: [{ field: 'Projects access', from: before, to: after }] });
     return access();
   });
+
+  // For tests: send the digests now (with a clock), and a person's digest.
+  return { runDigest, digestOf: (userId) => digestOf(user(userId)) };
 }

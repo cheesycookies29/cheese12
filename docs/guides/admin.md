@@ -162,7 +162,7 @@ Pay rules, rates and tax tables are not here: they are in **Payroll Setup** (see
 2. Click **Download backup**. CORE saves one file with all the company's data, named after today's date.
 3. To go back to a backup, click **Restore backup…**, pick the file, enter **your password** and click **Restore**. Everything now in CORE is replaced by the backup.
 
-Download a backup regularly and keep it somewhere safe and private: it holds pay, government IDs, bank accounts and the user accounts (passwords are stored as secure hashes). Attached files (medical certificates, ticket files) and the audit log are not in the backup file; copy the `data` folder for those. A restore keeps the current user accounts when the backup has none. CORE checks the user accounts in the file first: a backup with an invalid account, or with no active Administrator, is refused and nothing is changed.
+Download a backup regularly and keep it somewhere safe and private: it holds pay, government IDs, bank accounts and the user accounts (passwords are stored as secure hashes). Attached files (medical certificates, ticket files, files on project tasks and deliverables) and the audit log are not in the backup file; copy the `data` folder for those. A restore keeps the current user accounts when the backup has none. CORE checks the user accounts in the file first: a backup with an invalid account, or with no active Administrator, is refused and nothing is changed.
 
 > **Note:** Restore only backups you downloaded from CORE yourself. The user accounts in the file replace the current ones.
 

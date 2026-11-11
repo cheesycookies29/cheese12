@@ -522,3 +522,230 @@ export function milestoneBurnup(m, { project, tasks, tasksById, today, cal }, da
     done: upTo?.done || 0, expected: upTo?.expected ?? null, tasks: current.length,
   };
 }
+
+// ---------- Watchers and the daily digest ----------
+// The digest lists at most this many lines per part; the rest are counted ("and 4 more").
+export const DIGEST_MAX = 15;
+export const DIGEST_DEFAULTS = { enabled: false, time: '07:30', workingDaysOnly: true };
+export const validDigestTime = (v) => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+// Is a digest due for `day` at `time` (local HH:MM)? On or after the send time, and on a working
+// day when the company says so. A day already sent is the caller's to check (one per person per day).
+export function digestDue(settings, day, time, cal) {
+  if (!settings?.enabled) return false;
+  if (time < (validDigestTime(settings.time) ? settings.time : DIGEST_DEFAULTS.time)) return false;
+  return !(settings.workingDaysOnly !== false && !isWorkDay(day, cal));
+}
+// One person's digest. tasks: their open tasks (dueDate, key, title, project …); milestones: those
+// not finished in open projects they manage, with their health (`value`). unread: their unread For
+// you count. Overdue: due before today; due soon: today or within DUE_SOON_DAYS working days.
+export function digestFor({ tasks = [], milestones = [], unread = 0, today, cal }) {
+  const byDue = (a, b) => String(a.dueDate).localeCompare(String(b.dueDate)) || String(a.key || a.name).localeCompare(String(b.key || b.name), undefined, { numeric: true });
+  const dated = tasks.filter((t) => t.dueDate);
+  const overdue = dated.filter((t) => t.dueDate < today).sort(byDue);
+  const dueSoon = dated.filter((t) => t.dueDate >= today && workDaysBetween(today, t.dueDate, cal) <= DUE_SOON_DAYS).sort(byDue);
+  const atRisk = milestones.filter((m) => m.value === 'amber' || m.value === 'red').sort((a, b) => RANK[b.value] - RANK[a.value] || byDue(a, b));
+  return { today, overdue, dueSoon, atRisk, unread: Number(unread) || 0, empty: !overdue.length && !dueSoon.length && !atRisk.length && !unread };
+}
+
+// ---------- Billing forecast (deliverables across projects) ----------
+// What a deliverable bills: its billing % of the contract's value (or the deal's, without a
+// contract). null when there is no % or no value to apply it to.
+export function billingAmount(m, value) {
+  const pct = Number(m.billingPercent);
+  if (!m.deliverable || !(pct > 0) || !(Number(value) > 0)) return null;
+  return Math.round(Number(value) * pct) / 100;
+}
+// By month: expected (not yet accepted, by due month), earned (accepted, by month of acceptance)
+// and, of the expected, what is overdue. rows: { dueDate, acceptedAt, amount }. Months ascending.
+export function billingForecast(rows, today) {
+  const months = new Map();
+  const at = (k) => {
+    if (!months.has(k)) months.set(k, { month: k, expected: 0, earned: 0, overdue: 0, count: 0, noValue: 0 });
+    return months.get(k);
+  };
+  for (const r of rows) {
+    const accepted = Boolean(r.acceptedAt);
+    const m = at(String(accepted ? r.acceptedAt : r.dueDate).slice(0, 7));
+    m.count++;
+    if (r.amount == null) {
+      m.noValue++;
+      continue;
+    }
+    if (accepted) m.earned += r.amount;
+    else {
+      m.expected += r.amount;
+      if (r.dueDate < today) m.overdue += r.amount;
+    }
+  }
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const list = [...months.values()].sort((a, b) => a.month.localeCompare(b.month)).map((m) => ({ ...m, expected: r2(m.expected), earned: r2(m.earned), overdue: r2(m.overdue) }));
+  const sum = (k) => r2(list.reduce((n, m) => n + m[k], 0));
+  return { months: list, total: { expected: sum('expected'), earned: sum('earned'), overdue: sum('overdue'), count: list.reduce((n, m) => n + m.count, 0), noValue: list.reduce((n, m) => n + m.noValue, 0) } };
+}
+// The forecast as CSV rows (pass them to toCsv, which keeps cells that look like formulas as text).
+export function forecastCsvRows(f) {
+  return [
+    ['Month', 'Expected', 'Of which overdue', 'Earned (accepted)', 'Deliverables', 'Without a value'],
+    ...f.months.map((m) => [m.month, m.expected, m.overdue, m.earned, m.count, m.noValue]),
+    ['Total', f.total.expected, f.total.overdue, f.total.earned, f.total.count, f.total.noValue],
+  ];
+}
+
+// ---------- Importing tasks from a CSV file ----------
+export const IMPORT_MAX_ROWS = 2000;
+export const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+// The fields a column can fill, with the header names each is recognized by (compared without
+// case, spaces or punctuation).
+export const IMPORT_FIELDS = {
+  title: { label: 'Title', required: true, names: ['title', 'task', 'taskname', 'name', 'summary'] },
+  description: { label: 'Description', names: ['description', 'details', 'notes'] },
+  status: { label: 'Status', names: ['status', 'state'] },
+  assignee: { label: 'Assignee', names: ['assignee', 'assignedto', 'owner', 'responsible', 'username'] },
+  start: { label: 'Start', names: ['start', 'startdate', 'begin', 'from'] },
+  due: { label: 'Due', names: ['due', 'duedate', 'deadline', 'end', 'enddate', 'finish', 'to'] },
+  estimate: { label: 'Estimate (h)', names: ['estimate', 'estimateh', 'estimatehours', 'estimatedhours', 'hours'] },
+  priority: { label: 'Priority', names: ['priority'] },
+  milestone: { label: 'Milestone', names: ['milestone', 'phase', 'deliverable'] },
+  parent: { label: 'Parent', names: ['parent', 'parenttask', 'subtaskof'] },
+  checklist: { label: 'Checklist', names: ['checklist', 'checklistitems', 'items'] },
+};
+const normHeader = (h) => String(h || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+// Which column fills which field: { field: column index }, from the header names.
+export function guessImportMapping(headers) {
+  const out = {};
+  const used = new Set();
+  for (const [field, { names }] of Object.entries(IMPORT_FIELDS)) {
+    const i = headers.findIndex((h, k) => !used.has(k) && names.includes(normHeader(h)));
+    if (i >= 0) (out[field] = i), used.add(i);
+  }
+  return out;
+}
+// The template file: the headers, and two example rows.
+export const IMPORT_TEMPLATE = [
+  ['Title', 'Description', 'Status', 'Assignee', 'Start', 'Due', 'Estimate (h)', 'Priority', 'Milestone', 'Parent', 'Checklist'],
+  ['Requirements workshop', 'With the client\'s department heads', 'To do', '', '2026-12-01', '2026-12-03', '8', 'Normal', 'Design sign-off', '', 'Book the room; Send the agenda'],
+  ['Workshop minutes', '', 'To do', '', '', '04/12/2026', '2', 'High', 'Design sign-off', '2', ''],
+];
+
+// A date as YYYY-MM-DD, or DD/MM/YYYY (also D/M/YYYY, with / - or .). null when empty;
+// undefined when it is not a date.
+export function parseImportDate(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return null;
+  let y;
+  let m;
+  let d;
+  let hit = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (hit) [, y, m, d] = hit;
+  else if ((hit = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(s))) [, d, m, y] = hit;
+  else return undefined;
+  const ymd = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const dt = new Date(`${ymd}T00:00:00Z`);
+  return !Number.isNaN(dt.getTime()) && dt.toISOString().slice(0, 10) === ymd ? ymd : undefined;
+}
+// Hours: 0 to 9999, with a dot or a decimal comma ("1,5").
+function parseImportHours(v) {
+  const s = String(v ?? '').trim().replace(/\s*h(ours?|rs?)?$/i, '');
+  if (!s) return null;
+  if (!/^\d+([.,]\d+)?$/.test(s)) return undefined;
+  const n = Number(s.replace(',', '.'));
+  return n >= 0 && n <= 9999 ? Math.round(n * 100) / 100 : undefined;
+}
+
+// Works out what an import would create, without changing anything. rows: the file's rows after
+// the header (arrays of cells); mapping: { field: column }. ctx: { project (with statuses and
+// endDate), members: [{ userId, username, name, role, active }], milestones: [{ id, name }],
+// createMilestones }. Every row's problems are listed; nothing may be imported while one has any.
+// Returns { rows: [{ row, title, errors, warnings, parent }], tasks, newMilestones, errorCount }.
+// `row` is the row number a spreadsheet shows (the header is row 1); Parent may give that number
+// or another row's title.
+export function importPlan(rows, mapping, { project, members = [], milestones = [], createMilestones = false }) {
+  const cell = (r, field) => (mapping[field] == null || mapping[field] === '' ? '' : String(r[Number(mapping[field])] ?? '').trim());
+  const statusByName = new Map(project.statuses.map((s) => [s.name.trim().toLowerCase(), s]));
+  const defaultStatus = firstStatus(project.statuses, 'todo');
+  const prio = new Map(Object.entries(PRIORITY).flatMap(([k, label]) => [[k, k], [label.toLowerCase(), k]]));
+  const msByName = new Map(milestones.map((m) => [m.name.trim().toLowerCase(), m]));
+  const people = members.filter((m) => m.active);
+  const findPerson = (v) => {
+    const s = v.toLowerCase().replace(/^@/, '');
+    return people.find((m) => m.username.toLowerCase() === s) || people.filter((m) => m.name.toLowerCase() === s).at(0) || null;
+  };
+  const out = [];
+  const tasks = [];
+  const newMs = new Map();
+  rows.forEach((r, i) => {
+    const rowNo = i + 2;
+    const errors = [];
+    const warnings = [];
+    let title = cell(r, 'title');
+    if (!title) errors.push('The title is empty.');
+    if (title.length > 200) (title = title.slice(0, 200)), warnings.push('The title was cut to 200 characters.');
+    let description = cell(r, 'description');
+    if (description.length > 8000) (description = description.slice(0, 8000)), warnings.push('The description was cut to 8,000 characters.');
+    const st = cell(r, 'status');
+    const status = st ? statusByName.get(st.toLowerCase()) : defaultStatus;
+    if (!status) errors.push(`No status "${st}" in this project (${project.statuses.map((s) => s.name).join(', ')}).`);
+    const who = cell(r, 'assignee');
+    let assigneeId = null;
+    if (who) {
+      const person = findPerson(who);
+      if (!person) errors.push(`"${who}" is not a member of this project (give the username or the full name).`);
+      else if (person.role === 'viewer') errors.push(`${person.name} is a viewer on this project; only members can be assigned.`);
+      else assigneeId = person.userId;
+    }
+    const startDate = parseImportDate(cell(r, 'start'));
+    const dueDate = parseImportDate(cell(r, 'due'));
+    if (startDate === undefined) errors.push(`Start "${cell(r, 'start')}" is not a date (use YYYY-MM-DD or DD/MM/YYYY).`);
+    if (dueDate === undefined) errors.push(`Due "${cell(r, 'due')}" is not a date (use YYYY-MM-DD or DD/MM/YYYY).`);
+    if (startDate && dueDate && dueDate < startDate) errors.push('The due date is before the start date.');
+    const estimateHours = parseImportHours(cell(r, 'estimate'));
+    if (estimateHours === undefined) errors.push(`Estimate "${cell(r, 'estimate')}" is not a number of hours from 0 to 9999.`);
+    const pr = cell(r, 'priority');
+    const priority = pr ? prio.get(pr.toLowerCase()) : 'normal';
+    if (!priority) errors.push(`Priority "${pr}": use ${Object.values(PRIORITY).join(', ')}.`);
+    const msName = cell(r, 'milestone');
+    let milestone = null;
+    if (msName) {
+      milestone = msByName.get(msName.toLowerCase()) || null;
+      if (!milestone && !createMilestones) errors.push(`No milestone "${msName}" in this project. Add it first, or tick "Create the milestones that are missing".`);
+      if (!milestone && createMilestones) {
+        const key = msName.toLowerCase();
+        if (!newMs.has(key)) newMs.set(key, { name: msName.slice(0, 160), dueDate: null, rows: [] });
+        milestone = newMs.get(key);
+        milestone.rows.push(rowNo);
+        if (dueDate && (!milestone.dueDate || dueDate > milestone.dueDate)) milestone.dueDate = dueDate;
+      }
+    }
+    const items = cell(r, 'checklist').split(';').map((x) => x.trim()).filter(Boolean);
+    if (items.length > 50) errors.push('A checklist has at most 50 items.');
+    out.push({ row: rowNo, title, errors, warnings, parent: null });
+    tasks.push({
+      row: rowNo, title, description, statusId: status?.id || null, priority: priority || 'normal', assigneeId, startDate: startDate || null, dueDate: dueDate || null,
+      estimateHours: estimateHours ?? null, milestone, checklist: items.slice(0, 50).map((x) => x.slice(0, 300)), parentRef: cell(r, 'parent'), parentRow: null,
+    });
+  });
+  // Parents: a row number or a title in the file, one level deep.
+  const byTitle = new Map();
+  for (const t of tasks) if (t.title && !byTitle.has(t.title.toLowerCase())) byTitle.set(t.title.toLowerCase(), t);
+  for (const [i, t] of tasks.entries()) {
+    if (!t.parentRef) continue;
+    const ref = t.parentRef;
+    const parent = /^\d+$/.test(ref) ? tasks.find((x) => x.row === Number(ref)) : byTitle.get(ref.toLowerCase());
+    if (!parent) out[i].errors.push(`Parent "${ref}" is not a row of this file (give its row number, the header being row 1, or its title).`);
+    else if (parent === t) out[i].errors.push('A task cannot be its own parent.');
+    else {
+      t.parentRow = parent.row;
+      out[i].parent = parent.row;
+    }
+  }
+  for (const [i, t] of tasks.entries()) {
+    const parent = t.parentRow && tasks.find((x) => x.row === t.parentRow);
+    if (parent?.parentRow) out[i].errors.push(`Row ${parent.row} is itself a subtask. Subtasks are one level deep.`);
+  }
+  // A milestone to create needs a due date: its tasks' latest, or the project's end date.
+  for (const m of newMs.values()) {
+    if (!m.dueDate) m.dueDate = project.endDate || null;
+    if (!m.dueDate) for (const row of m.rows) out[tasks.findIndex((t) => t.row === row)].errors.push(`The new milestone "${m.name}" needs a due date: give its tasks a due date, or give the project an end date.`);
+  }
+  return { rows: out, tasks, newMilestones: [...newMs.values()].map(({ name, dueDate, rows: r }) => ({ name, dueDate, tasks: r.length })), errorCount: out.filter((x) => x.errors.length).length };
+}

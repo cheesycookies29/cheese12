@@ -28,6 +28,27 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.15.0-alpha',
+    date: '2026-11-11',
+    title: 'Project Management: watchers, daily digest, bulk edit, files, billing forecast and CSV import',
+    modules: ['projects'],
+    notes: 'The second batch of improvements from the review of Jira against Project Management: watchers on tasks and a daily digest email through the Service Desk\'s outgoing mail, bulk changes on the List, files on tasks and deliverables, milestones across projects with a billing forecast, and importing tasks from a CSV file.',
+    changes: [
+      ['new', 'projects', 'Watchers on tasks: the person who adds a task and its assignee watch it, and so does anyone who comments (unless they stopped watching that task); a Watch / Watching toggle and a Watchers list on the task. Watchers hear under For you of comments and of the task moved to done or cancelled, never twice for one event and never of their own actions. Someone who can no longer open the project stops watching. Existing tasks watch their creator and assignee.'],
+      ['new', 'projects', 'Daily digest: overdue tasks, tasks due within 3 working days, milestones at risk or off track in projects one manages, and the unread For you count, on My work and by email once a working day. Projects setup (pm.manage): on or off (off by default), the send time (07:30, the server\'s local time) and working days only (weekends and holidays skipped). Each person can turn the email off ("Email me a daily digest"). Sent through the Service Desk\'s outgoing mail with a plain-text and an HTML part, links to the address the setup was saved from (none for localhost); one per person per day, marked before sending so it never goes twice, caught up the same day after a restart; no email for disabled accounts, accounts without an email address or days with nothing to say; only projects the person can open. A failed send is recorded in the audit log and not retried that day.'],
+      ['new', 'projects', 'Bulk edit on the List: tick tasks (or all shown) and set the status, assignee (members only), milestone or priority, move start and due dates by working days, add or remove watchers (yourself; managers anyone who can open the project), or delete (managers, or the tasks you added). POST /api/pm/projects/:id/tasks/bulk, up to 200 tasks: every task checked first, all or nothing; each changed task gets its history and a new version; notifications grouped per person; one audit entry. A sticky bar at the bottom, fixed on phones.'],
+      ['new', 'projects', 'Files on tasks and milestones (a deliverable\'s acceptance document): PDF, JPEG, PNG and WebP checked by content, 5 MB each, 5 per task or milestone; members add, the uploader or a manager removes, anyone who can open the project downloads, as a file to save (Content-Disposition: attachment, a sandboxing policy, never inline). Kept in the task or project history. Setting Accepted on for a deliverable without a document suggests attaching one. Deleting a task, milestone or project, or the demo data, deletes its files; like other attachments they are not in the backup file.'],
+      ['new', 'projects', 'Milestones tab on the portfolio: milestones of the projects one can open, with project, client, due date, health, deliverable and billing %, submitted and accepted, filtered by month, client, health and deliverables. For Sales & CRM users only (enforced by the API), each deliverable\'s amount (billing % of the linked contract\'s value, or the deal\'s) and a billing forecast by month: expected, overdue, earned when accepted; CSV export, formula-safe.'],
+      ['new', 'projects', 'Import tasks from a CSV file (project managers): read by the server (quoted fields, line breaks in fields, a byte-order mark, comma or semicolon), up to 2,000 rows and 2 MB; columns matched by header and adjustable (title, description, status, assignee, start, due in YYYY-MM-DD or DD/MM/YYYY, estimate, priority, milestone, parent by row number or title, checklist); every row checked first, with its problems listed; then all or nothing, with the missing milestones created on request. Imported tasks are plain text, get "imported from a CSV file" in their history, and the import one audit entry. A template file to download.'],
+      ['improved', 'projects', 'Demo data: watchers on every demo task (its manager, its assignee, those who commented, and sales.demo on one); billing amounts come from the linked contracts and, for the provincial bid, the deal. Demo data turns no email on.'],
+    ],
+    known: [
+      'The digest\'s links open CORE at the address the Projects setup was saved from; without one (or from localhost) the email has no links.',
+      'No demo files: demo data has no stored files elsewhere either, so the demo deliverables have no acceptance document until one is attached.',
+      'The billing forecast uses each project\'s contract or deal value as it is now; amounts in other currencies are not converted.',
+    ],
+  },
+  {
     version: '0.14.0-alpha',
     date: '2026-11-11',
     title: 'Project Management: notifications, hours left, quick filters, templates and burn-up',

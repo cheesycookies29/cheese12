@@ -163,7 +163,7 @@ A reply to a resolved ticket reopens it. A closed ticket cannot be reopened: ope
 **Service desk settings** is in the menu for **administrators only**. Agents ask an administrator for these changes. It has five tabs:
 
 1. **Receiving email**: the **Helpdesk email address**, the mailbox it is read from (pick the **Email provider** to fill in Gmail, Microsoft 365 or Zoho), the sign-in and app password, **Check every (minutes)**, **Who can open tickets by email**, and the category and priority for emailed tickets. Tick **Receive email at this address** and click **Save**. **Test connection** checks the sign-in; **Check mail now** imports at once.
-2. **Sending email**: the outgoing mail (SMTP) server, usually with **Use the same sign-in as the mailbox**. Tick **Send replies by email** and click **Save**. **Send a test email** checks it.
+2. **Sending email**: the outgoing mail (SMTP) server, usually with **Use the same sign-in as the mailbox**. Tick **Send replies by email** and click **Save**. **Send a test email** checks it. Project Management's **daily digest** goes out through the same server, from the helpdesk address (see [the projects guide](projects#set-up-the-daily-digest-project-managers)).
 3. **Tickets & replies**: the **Categories (one per line)**, the **Service level targets (hours)**, **Close resolved tickets after (days)**, the acknowledgement email, and **Saved replies** (**+ Add**).
 4. **Public form**: **Accept requests from this link**, the page title and introduction, the categories visitors can choose, and the link to share.
 5. **Agents**: who works tickets. Turn **Agent access** on or off for any account.

@@ -794,6 +794,8 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     return publicSettings();
   });
 
-  // For tests: run the poller now, trust self-signed test certificates.
-  return { pollOnce, ingest, autoClose, setTlsForTests: (o) => ((smtpTls = o), (imapTls = o)) };
+  // For tests: run the poller now, trust self-signed test certificates. `mailer`: the outgoing mail
+  // setup, which the Projects digest sends through (from the helpdesk address).
+  const mailer = { canEmail: () => Boolean(canEmail()), smtpOptions, address: () => hd().mailbox.address };
+  return { pollOnce, ingest, autoClose, mailer, setTlsForTests: (o) => ((smtpTls = o), (imapTls = o)) };
 }

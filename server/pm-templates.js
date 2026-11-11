@@ -132,7 +132,7 @@ export function addStarterTemplates(data, { demo = false } = {}) {
         id: randomUUID(), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title, description: '', statusId: todo, priority: extra.priority || 'normal',
         assigneeId: null, startDate: wd(from), dueDate: wd(to), estimateHours: estimate ?? null, remainingHours: null, milestoneId: mi == null ? null : msIds[mi],
         parentId: extra.parent ? byRef[extra.parent].id : null, checklist: (extra.checklist || []).map((text) => ({ id: randomUUID(), text, done: false })),
-        blockedBy: (extra.blockedBy || []).map((r) => byRef[r].id), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null,
+        blockedBy: (extra.blockedBy || []).map((r) => byRef[r].id), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null, watchers: [],
         version: 1, createdAt: at, createdBy: null, updatedAt: at, updatedBy: null, history: [{ at, by: null, field: 'created', from: '', to: '' }], ...tag,
       };
       byRef[ref] = t;

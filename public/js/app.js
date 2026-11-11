@@ -28,7 +28,7 @@ import { holidaysView } from './views/holidays.js';
 import { ytdView } from './views/ytd.js';
 import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
-import { portfolioView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, workloadView, pmSettingsView, myWorkBadge } from './views/projects.js';
+import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, workloadView, pmSettingsView, myWorkBadge } from './views/projects.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -96,6 +96,7 @@ const routes = [
   // Project Management ('projects': pm.view, or a member of a project)
   ['/projects', portfolioView, 'projects', 'projects'],
   ['/projects/my-work', myWorkView, 'projects', 'projects'],
+  ['/projects/milestones', portfolioMilestonesView, 'projects', 'projects'],
   ['/projects/workload', workloadView, 'pm.view', 'projects'],
   ['/projects/settings', pmSettingsView, 'pm.manage', 'projects'],
   ['/projects/:id/board', boardView, 'projects', 'projects'],
@@ -169,7 +170,7 @@ const NAV = {
     { href: '/crm/settings', label: 'Sales setup', icon: 'settings', permission: 'crm.manage' },
   ],
   projects: [
-    { href: '/projects', label: 'Overview', icon: 'dashboard', permission: 'projects' },
+    { href: '/projects', label: 'Overview', icon: 'dashboard', permission: 'projects', also: ['/projects/milestones'] },
     { href: '/projects/my-work', label: 'My work', icon: 'task', permission: 'projects', badge: 'pmWork' },
     { href: '/projects/workload', label: 'Workload', icon: 'users', permission: 'pm.view' },
     { href: '/projects/settings', label: 'Projects setup', icon: 'settings', permission: 'pm.manage' },

@@ -88,6 +88,15 @@ If you are on a project, **Project Management** is one of your modules, whatever
 3. Below are the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. The number next to **My work** counts the overdue ones, today's and the unread **For you** ones.
 4. Change a task's status in its row, or click it to open it.
 
+### Get the daily digest by email
+
+**My work** also has your **Daily digest**: your overdue tasks, those due within 3 working days, milestones at risk in projects you manage, and how many **For you** you have not read. When your company has turned on digest emails and your employee record has an email address, CORE emails it to you once a working day (07:30 unless your company chose another time), only when there is something in it.
+
+1. Open **Project Management → My work**.
+2. Under **Daily digest**, tick or untick **Email me a daily digest**. The line under it says whether, when and where it is emailed, or why not.
+
+**Show today's digest** opens the same lists on the page. See [the projects guide](projects#get-the-daily-digest).
+
 Your **My Home** page in HR & Payroll also shows **My project tasks** when you have some. See [the projects guide](projects).
 
 ### Change your password

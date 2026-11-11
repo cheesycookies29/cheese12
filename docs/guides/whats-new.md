@@ -9,6 +9,14 @@ order: 2
 
 ## November 2026
 
+### Projects: watchers, daily digest, bulk edit, files, milestones and billing forecast, CSV import (0.15)
+- **Watch** a task to hear of its comments and of it being done or cancelled; you watch tasks you add, are assigned or comment on. See [the projects guide](projects#watch-a-task).
+- A **daily digest** on My work, and by email once a working day when the company turns it on and outgoing email is set up: your overdue tasks, those due soon, milestones at risk in projects you manage, and unread For you. Turn the email off for yourself with **Email me a daily digest**. See [Getting started](getting-started#get-the-daily-digest-by-email) and [the projects guide](projects#set-up-the-daily-digest-project-managers).
+- **Change many tasks at once** on the List: tick them, then set the status, assignee, milestone or priority, move their dates in working days, add or remove watchers, or delete them. See [the projects guide](projects#change-many-tasks-at-once).
+- **Files** on tasks and milestones, and the **acceptance document** of a deliverable. See [the projects guide](projects#attach-files-to-a-task-or-a-deliverable).
+- A **Milestones** tab on the portfolio, with each deliverable's amount and the **billing forecast** by month for Sales & CRM users. See [the projects guide](projects#see-milestones-and-the-billing-forecast-across-projects).
+- **Import tasks** from a CSV file, with a template, column matching and a check before anything is saved. See [the projects guide](projects#import-tasks-from-a-csv-file-project-managers).
+
 ### Projects: For you, hours left, quick filters, templates and the burn-up (0.14)
 - **For you** on **My work**: a task assigned to you, an @mention, a comment on your task, your task done or cancelled by someone else, and being added to a project. Similar ones share a line; the number next to My work includes the unread ones. See [Getting started](getting-started#see-your-project-tasks-my-work) and [the projects guide](projects#catch-up-on-what-concerns-you-for-you).
 - **Hours left** on every task: the estimate less the hours logged, or set by hand on the task or when logging time. Tasks, the list and a project's overview show estimate, logged and left; **Workload** now plans the hours left, not the whole estimate. See [the projects guide](projects#keep-the-hours-left-up-to-date).
