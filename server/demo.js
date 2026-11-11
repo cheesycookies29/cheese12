@@ -9,6 +9,7 @@ import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEMO_OWNER, DEMO_USER } from './seed.js';
 import { CRM_COLLECTIONS } from './crm.js';
 import { PM_COLLECTIONS } from './projects.js';
+import { addStarterTemplates } from './pm-templates.js';
 import { routeRequest, migrateApprovals } from './approvals.js';
 
 // Collections the demo set adds to.
@@ -20,8 +21,9 @@ const highest = (codes, re) => codes.reduce((m, c) => Math.max(m, Number(String(
 
 export const hasDemo = (db) => COLLECTIONS.some((k) => (db.data[k] || []).some((x) => x.demo)) || db.data.users.some((u) => u.demo);
 
+// Projects are counted without templates (the starter templates are not demo projects).
 export function demoCounts(db) {
-  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets', 'crmAccounts', 'crmDeals', 'pmProjects'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo).length]));
+  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets', 'crmAccounts', 'crmDeals', 'pmProjects'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo && !(k === 'pmProjects' && x.isTemplate)).length]));
 }
 
 // summarize(run) recomputes a payroll run's totals after demo payslips are taken out of it.
@@ -93,6 +95,12 @@ function removeDemoProjects(d, demoUsers) {
   d.pmComments = d.pmComments.filter((c) => tasks.has(c.taskId) && !demoUsers.has(c.userId));
   d.pmTimeLogs = d.pmTimeLogs.filter((x) => !demoUsers.has(x.userId));
   for (const x of d.pmTimeLogs) if (x.taskId && !tasks.has(x.taskId)) x.taskId = null;
+  // Demo accounts' notifications and private views go; a demo account's actions on real projects
+  // stay in others' notifications without a name.
+  d.pmNotifications = d.pmNotifications.filter((n) => !demoUsers.has(n.userId) && (!n.taskId || tasks.has(n.taskId)));
+  for (const n of d.pmNotifications) if (demoUsers.has(n.actorId)) n.actorId = null;
+  d.pmViews = d.pmViews.filter((v) => !demoUsers.has(v.userId));
+  for (const v of d.pmViews) if (demoUsers.has(v.createdBy)) v.createdBy = null;
   const alive = (k) => new Set(d[k].map((x) => x.id));
   const live = { accountId: alive('crmAccounts'), dealId: alive('crmDeals'), contractId: alive('crmContracts') };
   for (const p of d.pmProjects) {
@@ -122,6 +130,10 @@ function linkDemoPeople(d) {
     for (const h of t.history || []) h.by = id(h.by);
   }
   for (const k of ['pmComments', 'pmTimeLogs']) d[k] = d[k].filter((x) => !x.demo || (x.userId = id(x.userId)));
+  d.pmNotifications = d.pmNotifications.filter((n) => !n.demo || ((n.actorId = id(n.actorId)), (n.userId = id(n.userId))));
+  // A private demo view whose account is not there goes (it must never become a shared one).
+  d.pmViews = d.pmViews.filter((v) => !v.demo || v.userId === null || (v.userId = id(v.userId)));
+  for (const v of d.pmViews.filter((x) => x.demo)) v.createdBy = id(v.createdBy);
 }
 
 // Adds a fresh demo set (replacing an earlier one) without touching real records.
@@ -151,5 +163,7 @@ export function addDemo(db, { summarize, demoAccounts }) {
     if (x.createdBy === DEMO_OWNER) x.createdBy = salesOwner?.id || null;
   }
   linkDemoPeople(d);
+  // The starter templates, if they were deleted: the demo shows "+ New project" from a template.
+  addStarterTemplates(d, { demo: true });
   return demoCounts(db);
 }

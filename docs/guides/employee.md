@@ -63,7 +63,7 @@ On a phone, **My Home** shows the same clock at the top. It works the same way.
 1. Open **My Payslips**. Payslips appear once the payroll officer finalizes the payroll for a period. In fresh demo data there are none yet.
 2. Click the grid button and open **IT Asset Management**. **My Assets** shows Juan's Lenovo ThinkPad and Dell monitor.
 3. Open **IT Service Desk**. **My tickets** shows his ticket about the laptop battery.
-4. Juan is on two projects, so **Project Management** is among his modules too. Its **My work** lists the project tasks assigned to him, and **My Home** shows a **My project tasks** box with a link to it. See [the projects guide](projects).
+4. Juan is on two projects, so **Project Management** is among his modules too. Its **My work** lists the project tasks assigned to him, with **For you** on top (a task assigned to him, a mention, a comment on his task), and **My Home** shows a **My project tasks** box with a link to it. See [the projects guide](projects).
 
 ## How to…
 

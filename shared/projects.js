@@ -69,6 +69,23 @@ export function workDatesIn(from, to, cal) {
   for (let d = from, i = 0; d <= to && i < 3700; d = addDays(d, 1), i++) if (isWorkDay(d, cal)) out.push(d);
   return out;
 }
+// The date `n` working days after `ymd` (before it when n is negative); `ymd` itself when n is 0.
+export function addWorkDays(ymd, n, cal) {
+  let d = ymd;
+  const step = n < 0 ? -1 : 1;
+  for (let left = Math.abs(n), i = 0; left > 0 && i < 3700; i++) {
+    d = addDays(d, step);
+    if (isWorkDay(d, cal)) left--;
+  }
+  return d;
+}
+// A date moved with its project: it keeps its place in working days from the old start, counted
+// from the new start (a date on a weekend or holiday lands on the working day before it).
+export function shiftWorkDays(ymd, oldStart, newStart, cal) {
+  if (!ymd) return null;
+  const n = ymd >= oldStart ? workDaysBetween(oldStart, ymd, cal) : -workDaysBetween(ymd, oldStart, cal);
+  return addWorkDays(newStart, n, cal);
+}
 
 // ---------- Statuses and tasks ----------
 export const statusOf = (project, statusId) => project.statuses.find((s) => s.id === statusId) || null;
@@ -256,12 +273,30 @@ export function myWorkGroup(task, today) {
   return 'later';
 }
 
+// ---------- Remaining hours ----------
+// What is left of a task: 0 once it is done or cancelled; the "hours left" someone working on it
+// set (remainingHours, null when not set); otherwise its estimate less the time logged on it, never
+// below 0. null when there is neither an estimate nor hours left to go by. Progress stays weighed by
+// estimates (progressOf), so logging time does not move it.
+export function remainingOf(task, loggedHours, category) {
+  if (category === 'done' || category === 'cancelled') return 0;
+  if (task.remainingHours != null && Number.isFinite(Number(task.remainingHours))) return Math.round(Number(task.remainingHours) * 100) / 100;
+  if (!(Number(task.estimateHours) > 0)) return null;
+  return Math.round(Math.max(0, Number(task.estimateHours) - (Number(loggedHours) || 0)) * 100) / 100;
+}
+// Hours left: 0 to 9999, in quarter hours.
+export const validRemaining = (h) => Number.isFinite(h) && h >= 0 && h <= 9999 && Math.abs(h * 4 - Math.round(h * 4)) < 1e-9;
+// The hours Workload plans for a task: what is left of it (`remaining`, worked out by the caller),
+// or its estimate when the caller did not say.
+const hoursToPlan = (task) => Number(task.remaining !== undefined ? task.remaining : task.estimateHours) || 0;
+
 // ---------- Workload ----------
-// The hours of an open task, by day: its estimate spread evenly over the working days from its
-// start to its due date, or all on the due date (no start, or no working day in between). A task
-// already overdue counts on `from`: it is still to be done. Tasks without a due date are not planned.
+// The hours of an open task, by day: what is left of it spread evenly over the working days from
+// its start (or `from`, if later) to its due date, or all on the due date (no start, or no working
+// day in between). A task already overdue counts on `from`: it is still to be done. Tasks without
+// a due date are not planned.
 export function plannedDays(task, cal, from) {
-  const hours = Number(task.estimateHours) || 0;
+  const hours = hoursToPlan(task);
   if (!hours || !task.dueDate) return [];
   if (task.dueDate < from) return [{ date: from, hours }];
   const start = task.startDate && task.startDate <= task.dueDate ? (task.startDate < from ? from : task.startDate) : null;
@@ -285,7 +320,8 @@ export function weekCapacity(week, person, cal) {
 }
 
 // Person × week grid. people: [{ id, name, workDays?, hoursPerDay?, leave? }]; tasks: open tasks
-// with assigneeId, estimateHours, startDate, dueDate (plus whatever the caller wants back).
+// with assigneeId, estimateHours, remaining (hours left), startDate, dueDate (plus whatever the
+// caller wants back). Work is planned from `from` on: days of the first week before it are past.
 export function workload({ people, tasks, from, weeks, cal }) {
   const first = weekStart(from);
   const keys = Array.from({ length: weeks }, (_, i) => addDays(first, i * 7));
@@ -296,11 +332,11 @@ export function workload({ people, tasks, from, weeks, cal }) {
     const unscheduledTasks = [];
     for (const t of tasks.filter((x) => x.assigneeId === p.id)) {
       if (!t.dueDate) {
-        if (Number(t.estimateHours) > 0) (unscheduled += Number(t.estimateHours)), unscheduledTasks.push(t);
+        if (hoursToPlan(t) > 0) (unscheduled += hoursToPlan(t)), unscheduledTasks.push(t);
         continue;
       }
       const byWeek = new Map();
-      for (const { date, hours } of plannedDays(t, cal, first)) {
+      for (const { date, hours } of plannedDays(t, cal, from > first ? from : first)) {
         if (date > end) continue;
         const k = weekStart(date);
         byWeek.set(k, (byWeek.get(k) || 0) + hours);
@@ -338,6 +374,11 @@ export function mentionParts(body, usernames) {
   return parts;
 }
 
+// The usernames a comment mentions, of those given (the project's members), in lower case.
+export function mentionedUsernames(body, usernames) {
+  return [...new Set(mentionParts(String(body || ''), usernames).filter((x) => x.mention).map((x) => x.mention.toLowerCase()))];
+}
+
 // ---------- Time ----------
 export const validHours = (h) => Number.isFinite(h) && h >= 0.25 && h <= 24 && Math.abs(h * 4 - Math.round(h * 4)) < 1e-9;
 
@@ -346,7 +387,138 @@ export const validHours = (h) => Number.isFinite(h) && h >= 0.25 && h <= 24 && M
 export function taskCsvRows(tasks, milestones = []) {
   const ms = new Map(milestones.map((m) => [m.id, m.name]));
   return [
-    ['Key', 'Task', 'Parent', 'Status', 'Priority', 'Assignee', 'Milestone', 'Start', 'Due', 'Estimate (h)', 'Checklist', 'Overdue', 'Blocked'],
-    ...tasks.map((t) => [t.key, t.title, tasks.find((x) => x.id === t.parentId)?.key || '', t.statusName, PRIORITY[t.priority] || t.priority, t.assigneeName || '', ms.get(t.milestoneIdEffective || t.milestoneId) || '', t.startDate || '', t.dueDate || '', t.estimateHours ?? '', t.checklist?.length ? `${t.checklistDone}/${t.checklist.length}` : '', t.overdue ? 'Yes' : '', t.blocked ? 'Yes' : '']),
+    ['Key', 'Task', 'Parent', 'Status', 'Priority', 'Assignee', 'Milestone', 'Start', 'Due', 'Estimate (h)', 'Logged (h)', 'Left (h)', 'Checklist', 'Overdue', 'Blocked'],
+    ...tasks.map((t) => [t.key, t.title, tasks.find((x) => x.id === t.parentId)?.key || '', t.statusName, PRIORITY[t.priority] || t.priority, t.assigneeName || '', ms.get(t.milestoneIdEffective || t.milestoneId) || '', t.startDate || '', t.dueDate || '', t.estimateHours ?? '', t.loggedHours ?? '', t.remaining ?? '', t.checklist?.length ? `${t.checklistDone}/${t.checklist.length}` : '', t.overdue ? 'Yes' : '', t.blocked ? 'Yes' : '']),
   ];
+}
+
+// ---------- Quick filters and saved views (Board and List) ----------
+// A few fixed filters, combined: Mine and Unassigned widen each other (either one); the others
+// narrow (all of them). Deliberately few: configurable filters turn into a query language.
+export const QUICK_FILTERS = { mine: 'Mine', unassigned: 'Unassigned', overdue: 'Overdue', week: 'Due this week', blocked: 'Blocked', high: 'High & urgent' };
+export const parseFilters = (v) => [...new Set(String(v || '').split(',').map((x) => x.trim()).filter((x) => Object.hasOwn(QUICK_FILTERS, x)))];
+// Does a task (as the server sends it: category, overdue, blocked) match the chips and the search
+// text (its key, title or assignee)? "Due this week": open and due Monday to Sunday of this week,
+// like My work's "This week".
+export function taskMatches(t, { chips = [], q = '' } = {}, { today, userId } = {}) {
+  const on = new Set(chips);
+  const open = t.category === 'todo' || t.category === 'active';
+  if ((on.has('mine') || on.has('unassigned')) && !((on.has('mine') && t.assigneeId === userId) || (on.has('unassigned') && !t.assigneeId))) return false;
+  if (on.has('overdue') && !t.overdue) return false;
+  if (on.has('week') && !(open && t.dueDate && today && t.dueDate >= weekStart(today) && t.dueDate <= addDays(weekStart(today), 6))) return false;
+  if (on.has('blocked') && !t.blocked) return false;
+  if (on.has('high') && t.priority !== 'high' && t.priority !== 'urgent') return false;
+  const text = String(q || '').trim().toLowerCase();
+  return !text || `${t.key || ''} ${t.title || ''} ${t.assigneeName || ''}`.toLowerCase().includes(text);
+}
+
+// A saved view keeps the filters in a tab's address. Only these keys are kept, each value short
+// and the chips known ones; a filter that names a person or milestone no longer there shows all.
+export const VIEW_TABS = { board: 'Board', list: 'List' };
+export const VIEW_KEYS = { board: ['f', 'q', 'who', 'ms', 'cancelled'], list: ['f', 'q', 'group', 'who', 'show', 'sort', 'dir'] };
+export function cleanViewQuery(tab, query) {
+  const keys = VIEW_KEYS[tab] || [];
+  const src = new URLSearchParams(typeof query === 'string' ? query.replace(/^\?/, '').slice(0, 2000) : '');
+  const out = new URLSearchParams();
+  for (const k of keys) {
+    let v = String(src.get(k) || '').trim().slice(0, 100);
+    if (k === 'f') v = parseFilters(v).join(',');
+    if (v) out.set(k, v);
+  }
+  return out.toString().slice(0, 500);
+}
+
+// ---------- Notifications ("For you" on My work) ----------
+export const NOTIFY_KINDS = { assigned: 'Assigned to you', mentioned: 'Mentioned you', commented: 'Comment', status: 'Done or cancelled', added: 'Added to a project' };
+export const NOTIFY_KEEP = 200; // per person, newest kept
+export const NOTIFY_DAYS = 60; // older ones are removed
+
+// Similar events shown as one line: the same kind on the same task (or project), read or not.
+// items: newest first, each { id, kind, taskId, projectId, readAt, actorName, … }. Returns groups,
+// newest first: { key, kind, ids, count, unread, latest, actors }.
+export function groupNotifications(items) {
+  const groups = new Map();
+  for (const n of items) {
+    const key = `${n.kind}|${n.taskId || n.projectId}|${n.readAt ? 'read' : 'unread'}`;
+    if (!groups.has(key)) groups.set(key, { key, kind: n.kind, ids: [], count: 0, unread: !n.readAt, latest: n, actors: [] });
+    const g = groups.get(key);
+    g.ids.push(n.id);
+    g.count++;
+    if (n.actorName && !g.actors.includes(n.actorName)) g.actors.push(n.actorName);
+  }
+  return [...groups.values()];
+}
+
+// ---------- Milestone burn-up ----------
+// Scope and work done in a milestone, day by day (working days), with the expected line, on the
+// same basis as its progress: hours when 60% of its leaf tasks have an estimate, else tasks.
+// Worked out from what the tasks remember: when each was added (createdAt), its status changes
+// (history) and when it was done (completedAt). Deleted tasks are not remembered, and a task moved
+// to another milestone counts in its current one throughout.
+// ctx: { project, tasks (all the project's), tasksById, today, cal }; dayOf(iso) → local YYYY-MM-DD.
+export function milestoneBurnup(m, { project, tasks, tasksById, today, cal }, dayOf = (iso) => String(iso || '').slice(0, 10)) {
+  const parents = new Set(tasks.filter((t) => t.parentId).map((t) => t.parentId));
+  const leaves = tasks.filter((t) => milestoneOfTask(t, tasksById) === m.id && !parents.has(t.id));
+  const current = leaves.filter((t) => categoryOf(project, t) !== 'cancelled');
+  const estimated = current.filter((t) => Number(t.estimateHours) > 0);
+  const byHours = current.length > 0 && estimated.length >= ESTIMATE_SHARE * current.length;
+  const avg = estimated.length ? estimated.reduce((s, t) => s + Number(t.estimateHours), 0) / estimated.length : 1;
+  const weight = (t) => (byHours ? (Number(t.estimateHours) > 0 ? Number(t.estimateHours) : avg) : 1);
+  // Each task's category over time: [date, category] from its status changes, the last one being
+  // where it is now (its current spell in Done starting on completedAt).
+  const catOf = new Map(project.statuses.map((s) => [s.name, s.category]));
+  const lives = leaves.map((t) => {
+    const events = (t.history || []).filter((h) => h.field === 'status' && h.at).sort((a, b) => a.at.localeCompare(b.at)).map((h) => [dayOf(h.at), catOf.get(h.to) || null, catOf.get(h.from) || null]);
+    const first = events.find((e) => e[2])?.[2] || 'todo';
+    const steps = events.filter((e) => e[1]).map(([date, cat]) => [date, cat]);
+    const now = categoryOf(project, t);
+    const last = steps.at(-1);
+    const since = now === 'done' && t.completedAt ? dayOf(t.completedAt) : last?.[0] || dayOf(t.updatedAt || t.createdAt);
+    if (last && last[1] === now) last[0] = now === 'done' && t.completedAt ? since : last[0];
+    else steps.push([since, now]);
+    return { created: dayOf(t.createdAt), first, steps, w: weight(t) };
+  });
+  const catOn = (life, date) => {
+    let cat = life.first;
+    for (const [d, c] of life.steps) if (d <= date) cat = c;
+    return cat;
+  };
+  // The same start as the milestone's health line: its first task's start, or the project's.
+  const starts = tasks.filter((t) => milestoneOfTask(t, tasksById) === m.id).map((t) => t.startDate).filter(Boolean).sort();
+  const start = starts[0] || project.startDate || today;
+  const due = m.dueDate || today;
+  const finished = Boolean(m.acceptedAt) || (current.length > 0 && current.every((t) => categoryOf(project, t) === 'done'));
+  const lastDone = lives.flatMap((l) => l.steps.filter((s) => s[1] === 'done').map((s) => s[0])).sort().at(-1);
+  let end = due;
+  if (!finished && today > end) end = today;
+  if (finished && lastDone && lastDone > end) end = lastDone;
+  let dates = start <= end ? workDatesIn(start, end, cal) : [];
+  if (!dates.length || dates[0] !== start) dates = [start, ...dates.filter((d) => d > start)];
+  if (dates.at(-1) !== end && end > start) dates.push(end);
+  // At most 260 points: a long milestone is sampled, keeping its first and last day.
+  if (dates.length > 260) {
+    const step = Math.ceil(dates.length / 260);
+    dates = dates.filter((d, i) => i % step === 0 || i === dates.length - 1);
+  }
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const points = dates.map((date) => {
+    let scope = 0;
+    let done = 0;
+    for (const l of lives) {
+      if (l.created > date) continue;
+      const cat = catOn(l, date);
+      if (cat === 'cancelled') continue;
+      scope += l.w;
+      if (cat === 'done') done += l.w;
+    }
+    return { date, scope: r2(scope), done: date <= today ? r2(done) : null, expected: r2((expectedPercent(start, due, date, cal) / 100) * scope) };
+  });
+  const atStart = points[0]?.scope || 0;
+  const peak = points.reduce((n, p) => Math.max(n, p.scope), 0);
+  const upTo = points.filter((p) => p.date <= today).at(-1) || points[0];
+  return {
+    milestoneId: m.id, basis: byHours ? 'hours' : 'count', start, due, end, today, finished, points,
+    scope: points.at(-1)?.scope || 0, scopeAtStart: atStart, added: r2(Math.max(0, peak - atStart)),
+    done: upTo?.done || 0, expected: upTo?.expected ?? null, tasks: current.length,
+  };
 }

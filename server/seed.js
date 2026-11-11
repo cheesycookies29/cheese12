@@ -272,6 +272,8 @@ function seedProjects(data, c) {
   const tasks = [];
   const comments = [];
   const logs = [];
+  const notes = [];
+  const views = [];
 
   function project(n, fields, ms, rows) {
     const code = `${P}PRJ-${String(n).padStart(4, '0')}`;
@@ -291,14 +293,16 @@ function seedProjects(data, c) {
     const byKey = {};
     rows.forEach(([ref, title, mi, st, who, start, due, est, extra = {}], i) => {
       const n2 = ++p.taskSeq;
+      // Added before its start (or as `added` says: a task that came in later, for the burn-up).
+      const added = extra.added ?? Math.min(-45, (start ?? -45) - 3);
       const t = {
         id: randomUUID(), projectId: p.id, key: `${code}-${n2}`, title, description: extra.description || '', statusId: st, priority: extra.priority || 'normal',
         assigneeId: who, startDate: start == null ? null : wd(start), dueDate: due == null ? null : wd(due), estimateHours: est ?? null,
         milestoneId: mi == null ? null : mIds[mi], parentId: extra.parent ? byKey[extra.parent].id : null,
         checklist: (extra.checklist || []).map(([text, done]) => ({ id: randomUUID(), text, done })), blockedBy: (extra.blockedBy || []).map((k) => byKey[k].id),
         ticketId: extra.ticketId || null, rank: (i + 1) * 1024, completedAt: statusIn(p, st).category === 'done' ? at(due == null ? -1 : Math.min(-1, due)) : null,
-        version: 1, createdAt: at(-45), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: who || fields.managerId,
-        history: [{ at: at(-45), by: fields.managerId, field: 'created', from: '', to: '' }],
+        version: 1, createdAt: at(added), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: who || fields.managerId,
+        history: [{ at: at(added), by: fields.managerId, field: 'created', from: '', to: '' }], remainingHours: extra.left ?? null,
       };
       if (statusIn(p, st).category !== 'todo') t.history.push({ at: at(Math.min(-1, start ?? -1)), by: who || fields.managerId, field: 'status', from: p.statuses[0].name, to: statusIn(p, st).name });
       byKey[ref] = t;
@@ -327,12 +331,12 @@ function seedProjects(data, c) {
     ['wire', 'Parent portal wireframes', 0, 'done', juan, -33, -27, 12],
     ['sign', 'Design sign-off with the VP for Administration', 0, 'done', pmU, -24, -22, 2],
     ['weights', 'Gradebook: grading periods and weights', 1, 'done', juan, -20, -10, 32],
-    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 24, { priority: 'high', checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
+    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 24, { priority: 'high', left: 6, checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
     ['login', 'Parent portal: sign-in and linking to students', 1, 'doing', juan, -8, 3, 20],
     ['grades', 'Parent portal: grades and attendance pages', 1, 'todo', juan, 1, 5, 16, { blockedBy: ['login'] }],
     ['staging', 'Set up the staging server', 1, 'done', it, -18, -14, 6],
-    ['ssl', 'SSL certificate and domain for the parent portal', 1, 'waiting', it, -10, -3, 2, { description: 'Waiting for the university\'s IT office to add the DNS record.' }],
-    ['privacy', 'Data privacy notice for parents', 1, 'review', pmU, -7, 2, 4, { checklist: [['Draft the notice', true], ['Review with the university\'s DPO', false]] }],
+    ['ssl', 'SSL certificate and domain for the parent portal', 1, 'waiting', it, -10, -3, 2, { added: -12, description: 'Waiting for the university\'s IT office to add the DNS record.' }],
+    ['privacy', 'Data privacy notice for parents', 1, 'review', pmU, -7, 2, 4, { added: -8, checklist: [['Draft the notice', true], ['Review with the university\'s DPO', false]] }],
     ['reports', 'Gradebook reports', 1, 'doing', juan, -6, 5, null],
     ['r1', 'Class record report', null, 'done', juan, -6, -3, 6, { parent: 'reports' }],
     ['r2', 'Report card PDF', null, 'doing', juan, -2, 4, 8, { parent: 'reports' }],
@@ -347,13 +351,28 @@ function seedProjects(data, c) {
     ['accept', 'Acceptance certificate signed', 3, 'todo', pmU, 43, 45, 1],
     ['weekly', 'Weekly status report to the VP', null, 'todo', pmU, null, 2, 1],
     ['shells', 'Migrate phase 1 course shells', null, 'cancelled', juan, -15, -10, 8, { description: 'Not needed: the university keeps phase 1 as it is.' }],
-    ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 1],
+    ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 1, { added: -10 }],
   ]);
   const k = lms.byKey;
   comments.push(
     { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: pmU, body: '@employee.demo the Engineering lists have about 40 cross-enrolled students. Can you check them before the build review?', createdAt: at(-3) },
     { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: juan, body: 'Checked 32 of them. The other 8 need the registrar\'s updated list; I asked Teresa for it.', createdAt: at(-2) },
     { id: randomUUID(), taskId: k.ssl.id, projectId: lms.p.id, userId: it, body: 'Still waiting for Paolo (IT Director) to add the DNS record. Followed up by email today.', createdAt: at(-1) },
+    { id: randomUUID(), taskId: k.login.id, projectId: lms.p.id, userId: it, body: 'The staging server has the parent portal build now; the test parent accounts are ready.', createdAt: at(-1) },
+    { id: randomUUID(), taskId: k.login.id, projectId: lms.p.id, userId: pmU, body: 'Thanks. Can we show the sign-in to the registrar on Friday?', createdAt: at(-0.2) },
+  );
+  // "For you" for Juan (employee.demo): unread mentions, comments and an assignment; older ones read.
+  const note = (userId, kind, proj, task, actorId, text, daysAgo, read = false) => notes.push({ id: randomUUID(), userId, kind, projectId: proj.id, taskId: task?.id || null, actorId, text, at: at(-daysAgo), readAt: read ? at(-daysAgo + 0.1) : null });
+  note(juan, 'mentioned', lms.p, k.import, pmU, `mentioned you on ${k.import.key}: “@employee.demo the Engineering lists have about 40 cross-enrolled students. Can you…”`, 3);
+  note(juan, 'commented', lms.p, k.login, it, `commented on ${k.login.key}: “The staging server has the parent portal build now; the test parent accounts are ready.”`, 1);
+  note(juan, 'commented', lms.p, k.login, pmU, `commented on ${k.login.key}: “Thanks. Can we show the sign-in to the registrar on Friday?”`, 0.2);
+  note(juan, 'assigned', lms.p, k.fixes, pmU, `assigned you ${k.fixes.key} ${k.fixes.title}`, 2);
+  note(juan, 'status', lms.p, k.wire, pmU, `moved ${k.wire.key} to Done`, 27, true);
+  note(juan, 'added', lms.p, null, pmU, `added you to ${lms.p.code} ${lms.p.name} as member`, 42, true);
+  // Saved views shared with the project by its manager.
+  views.push(
+    { id: randomUUID(), projectId: lms.p.id, userId: null, createdBy: pmU, tab: 'board', name: 'Due this week', query: 'f=week', createdAt: at(-20) },
+    { id: randomUUID(), projectId: lms.p.id, userId: null, createdBy: pmU, tab: 'list', name: 'High and urgent, by status', query: 'f=high&group=status', createdAt: at(-20) },
   );
   // Time logged over the last two weeks, on working days up to yesterday.
   const workDays = [];
@@ -443,6 +462,7 @@ function seedProjects(data, c) {
     ['accept', 'Acceptance and turnover', 2, 'todo', pmU, 66, 70, 2],
   ]);
   say(meridianRollout, meridianRollout.byKey.leave, pmU, '@hr.demo can you call Grace tomorrow? Without the balances the parallel run will be off.', 2);
+  note(hrU, 'mentioned', meridianRollout.p, meridianRollout.byKey.leave, pmU, `mentioned you on ${meridianRollout.byKey.leave.key}: “@hr.demo can you call Grace tomorrow? Without the balances the parallel run…”`, 2);
   say(meridianRollout, meridianRollout.byKey.leave, hrU, 'Called her. Site A is ready; Site B will send theirs on Thursday.', 1);
   say(meridianRollout, meridianRollout.byKey.bio, juan, 'Site A has 6 devices of the same model as Bayani\'s. The import should work as is.', 1);
   logDays(meridianRollout, (i) => [
@@ -483,6 +503,7 @@ function seedProjects(data, c) {
     ['mobile', 'Mobile view of the student portal', null, 'cancelled', juan, -150, -120, 40, { description: 'Moved to the phase 2 proposal instead.' }],
   ]);
   say(sis, sis.byKey.sso, it, '@pm.demo Paolo says the Nursing check takes another week. Can the LMS team keep their test accounts open until then?', 3);
+  note(pmU, 'mentioned', sis.p, sis.byKey.sso, it, `mentioned you on ${sis.byKey.sso.key}: “@pm.demo Paolo says the Nursing check takes another week. Can the LMS team…”`, 3);
   logDays(sis, (i) => [[it, i % 2 ? 'patch' : null, 1, i % 2 ? '' : 'Support tickets'], ...(i < 3 ? [[juan, 'sso', 1.5, 'Fixes from the Nursing check']] : [])]);
 
   // 6. A finished project: the university website, delivered and accepted, contract expired.
@@ -567,7 +588,7 @@ function seedProjects(data, c) {
   ]);
   say(laptops, laptops.byKey.juan, it, 'Battery ordered. Linked to his ticket so the service desk sees where it is.', 1);
 
-  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs });
+  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs, pmNotifications: notes, pmViews: views });
 }
 
 // A few service desk tickets in different states, from the demo employees.

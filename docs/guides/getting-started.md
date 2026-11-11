@@ -84,8 +84,9 @@ To go back to the CORE home, choose the CORE logo at the top left, or **All modu
 If you are on a project, **Project Management** is one of your modules, whatever your account type.
 
 1. Open **Project Management**. **Overview** lists the projects you are on.
-2. Open **My work** in the side menu. It lists the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. The number next to **My work** counts the overdue ones and today's.
-3. Change a task's status in its row, or click it to open it.
+2. Open **My work** in the side menu. **For you**, at the top, tells you what others did that concerns you: a task assigned to you, an @mention, a comment on your task, your task moved to done or cancelled, being added to a project. New ones are in bold; several on the same task are one line (*3 comments on …*). Open one, or click its tick, to mark it read; **Mark all read** clears them all.
+3. Below are the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. The number next to **My work** counts the overdue ones, today's and the unread **For you** ones.
+4. Change a task's status in its row, or click it to open it.
 
 Your **My Home** page in HR & Payroll also shows **My project tasks** when you have some. See [the projects guide](projects).
 

@@ -28,6 +28,27 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.14.0-alpha',
+    date: '2026-11-11',
+    title: 'Project Management: notifications, hours left, quick filters, templates and burn-up',
+    modules: ['projects'],
+    notes: 'The first batch of improvements from the review of Jira against Project Management: in-app notifications on My work, remaining hours planned on Workload, quick filters and saved views on the board and list, project templates with three starter templates, and a burn-up chart per milestone.',
+    changes: [
+      ['new', 'projects', 'For you on My work: a notification when someone else assigns you a task, @mentions you (members of the project only), comments on a task assigned to you or that you added, moves your task to a done or cancelled status, or adds you to a project. Never for your own actions. Similar ones are grouped on one line; mark one or all as read. The My work badge counts the unread ones. Kept per person (newest 200, 60 days) and readable only by their owner, and only for projects they can still open.'],
+      ['new', 'projects', 'Hours left on tasks: the estimate less the hours logged (never below 0; 0 when done or cancelled), or set by hand on the task or when logging time ("Hours left after this"); a new estimate clears the hand-set value, which is kept in the task history. The task page, the list, the Time tab and the project overview show estimate, logged and left. Progress stays weighted by estimates.'],
+      ['improved', 'projects', 'Workload plans the hours left on each task, from today (or its start, if later) to its due date, instead of the whole estimate.'],
+      ['new', 'projects', 'Quick filters on the board and the list: Mine, Unassigned, Overdue, Due this week, Blocked, High & urgent (Mine and Unassigned widen each other, the rest narrow), and a search on the board, all kept in the address. Saved views: a named set of filters, private or shared with the project (project managers); only known filter keys are stored.'],
+      ['new', 'projects', 'Project templates: a project manager marks a project as a template (kept in the project history); templates are left out of the portfolio, counts, health, My work and Workload, and listed under Templates. New project from a template copies statuses, milestones with deliverable and billing %, tasks, subtasks, unticked checklists, blocked-by links and estimates, with dates moved in working days (weekends and the holiday calendar skipped); no assignees, time or comments. A manager and client links can be given.'],
+      ['new', 'projects', 'Three starter templates (Client implementation, Government contract with deliverables, Internal IT project), coded TPL-0001 and up so they never take a project code; made once per database, again after "Erase all data", and not made again once deleted. Demo data brings back any that were deleted.'],
+      ['new', 'projects', 'Milestone burn-up on a project\'s overview: scope, done and the expected line by working day, in hours or tasks by the same rule as progress, worked out from when tasks were added, their status history and completion dates. An inline SVG with a text summary; deleted tasks are not tracked.'],
+      ['improved', 'projects', 'Demo data: unread notifications for employee.demo, pm.demo and hr.demo, two saved views shared on the LMS project, hours left set on a task, and tasks added after the start so the burn-up shows scope growth.'],
+    ],
+    known: [
+      'Notifications are in CORE only; no email or digest yet.',
+      'The burn-up cannot show deleted tasks, and counts a task moved between milestones in its current milestone from the day it was added.',
+    ],
+  },
+  {
     version: '0.13.2-alpha',
     date: '2026-11-11',
     title: 'More Project Management demo data',

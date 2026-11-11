@@ -105,7 +105,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   const team = () => d().users.filter((u) => u.active && userCan(u, 'crm.view'));
   const userName = (id) => user(id)?.name || null;
   // The projects delivering a deal or contract (Project Management), shown on its page.
-  const projectsOf = (field, id) => (d().pmProjects || []).filter((p) => p[field] === id).map((p) => ({ id: p.id, code: p.code, name: p.name, status: p.status }));
+  const projectsOf = (field, id) => (d().pmProjects || []).filter((p) => p[field] === id && !p.isTemplate).map((p) => ({ id: p.id, code: p.code, name: p.name, status: p.status }));
 
   // `current`: the record's owner now. Keeping it is always allowed, even if that person has since
   // lost CRM access; choosing someone new needs an account with CRM access.

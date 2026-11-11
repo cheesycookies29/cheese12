@@ -3,7 +3,8 @@
 // the project's own members (manager, member or viewer), whatever their account type. Everyone
 // else gets "not found", for the project and for everything in it.
 // Data lives in db.data.pm* collections; the Projects setup (default statuses, project types and
-// the code counter) in db.data.pm.
+// the code counter) in db.data.pm. A project marked as a template (isTemplate) is left out of the
+// portfolio, My work, Workload and health; "+ New project" can start from it.
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate } from './util.js';
 import { noAudit } from './audit.js';
@@ -15,19 +16,42 @@ import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, DEFAULT_STATUSES, DEFAULT_TYPES,
   workCalendar, statusOf, categoryOf, isOpenCategory, firstStatus, statusSetProblem, taskFlags, milestoneOfTask, leafTasks,
   projectStatus, placeInColumn, byRank, makesCycle, myWorkGroup, workload, daysBetween, addDays,
-  validHours, RANK_STEP, weekStart,
+  validHours, RANK_STEP, weekStart, remainingOf, validRemaining, shiftWorkDays, mentionedUsernames, cleanViewQuery, VIEW_TABS,
+  NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup,
 } from '../shared/projects.js';
+import { addStarterTemplates } from './pm-templates.js';
 
-export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComments', 'pmTimeLogs'];
+// Every collection here has a projectId, so deleting a project (or the demo data) takes its records.
+// pmNotifications: "For you" on My work, one row per person and event. pmViews: saved filters of a
+// project's Board or List, a person's own (userId) or shared with the project (userId null).
+export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComments', 'pmTimeLogs', 'pmNotifications', 'pmViews'];
 export const emptyPm = () => ({ statuses: structuredClone(DEFAULT_STATUSES), types: [...DEFAULT_TYPES], seq: { project: 0 } });
 
 // The Projects setup survives demo data and "erase all data", like the sales setup: a setup
 // someone saved (`customized`) comes with a backup; otherwise the current one is kept, with the
 // code counter of the incoming data.
+// Whether the starter templates were made goes with the projects, like the counter: a backup brings
+// its own, and erased data (or a backup from before templates) gets them again.
 export function keepPmConfig(current, next) {
   const seq = (s) => ({ project: Number.isInteger(s?.project) && s.project >= 0 ? s.project : 0 });
+  const seeded = next?.templatesSeeded === true ? { templatesSeeded: true } : {};
   if (next?.customized) return { ...emptyPm(), ...next, seq: seq(next.seq) };
-  return { ...emptyPm(), ...(current || {}), seq: seq(next?.seq) };
+  const { templatesSeeded, ...setup } = current || {};
+  return { ...emptyPm(), ...setup, seq: seq(next?.seq), ...seeded };
+}
+
+// Notifications older than 60 days go, and each person keeps their newest 200.
+export function pruneNotifications(list, nowMs = Date.now(), userId = null) {
+  const cutoff = new Date(nowMs - NOTIFY_DAYS * 86400000).toISOString();
+  const kept = list.filter((n) => n.at >= cutoff);
+  const per = new Map();
+  for (const n of kept) if (!userId || n.userId === userId) per.set(n.userId, (per.get(n.userId) || 0) + 1);
+  const over = new Map([...per].filter(([, c]) => c > NOTIFY_KEEP).map(([id, c]) => [id, c - NOTIFY_KEEP]));
+  if (!over.size) return kept.length === list.length ? list : kept;
+  // The oldest of those over the cap go.
+  const drop = new Set();
+  for (const [id, n] of over) kept.filter((x) => x.userId === id).sort((a, b) => a.at.localeCompare(b.at)).slice(0, n).forEach((x) => drop.add(x));
+  return kept.filter((x) => !drop.has(x));
 }
 
 export function migratePm(db) {
@@ -44,6 +68,14 @@ export function migratePm(db) {
   // The code counter never falls behind the codes in use (e.g. after restoring an older backup).
   const top = db.data.pmProjects.reduce((n, p) => Math.max(n, Number(String(p.code || '').match(/^PRJ-(\d+)$/)?.[1] || 0)), 0);
   if (top > db.data.pm.seq.project) (db.data.pm.seq.project = top), (changed = true);
+  const pruned = pruneNotifications(db.data.pmNotifications);
+  if (pruned !== db.data.pmNotifications) (db.data.pmNotifications = pruned), (changed = true);
+  // The starter templates, once per database (unless it already has templates of its own).
+  if (!db.data.pm.templatesSeeded) {
+    if (!db.data.pmProjects.some((p) => p.isTemplate)) addStarterTemplates(db.data);
+    db.data.pm.templatesSeeded = true;
+    changed = true;
+  }
   return changed;
 }
 
@@ -51,12 +83,16 @@ export function migratePm(db) {
 export const isProjectMember = (db, user) => Boolean(user) && (db.data.pmProjects || []).some((p) => p.members.some((m) => m.userId === user.id));
 
 // A deleted account: off every project, its tasks unassigned, the project's manager field cleared.
+// Their notifications and private saved views go; shared views and others' notifications stay.
 export function removeUserFromProjects(db, userId) {
   for (const p of db.data.pmProjects || []) {
     p.members = p.members.filter((m) => m.userId !== userId);
     if (p.managerId === userId) p.managerId = null;
   }
   for (const t of db.data.pmTasks || []) if (t.assigneeId === userId) t.assigneeId = null;
+  db.data.pmNotifications = (db.data.pmNotifications || []).filter((n) => n.userId !== userId);
+  for (const n of db.data.pmNotifications) if (n.actorId === userId) n.actorId = null;
+  db.data.pmViews = (db.data.pmViews || []).filter((v) => v.userId !== userId);
 }
 
 // The project tasks linked to a service desk ticket (shown on the ticket).
@@ -99,7 +135,7 @@ const idOf = (v) => (typeof v === 'string' && v.length <= 64 ? v : '');
 const pickFields = (body, keys) => Object.fromEntries(keys.filter((k) => body && typeof body === 'object' && Object.hasOwn(body, k)).map((k) => [k, body[k]]));
 
 const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'budgetHours', 'accountId', 'dealId', 'contractId'];
-const TASK_FIELDS = ['title', 'description', 'statusId', 'priority', 'assigneeId', 'startDate', 'dueDate', 'estimateHours', 'milestoneId', 'parentId', 'blockedBy'];
+const TASK_FIELDS = ['title', 'description', 'statusId', 'priority', 'assigneeId', 'startDate', 'dueDate', 'estimateHours', 'remainingHours', 'milestoneId', 'parentId', 'blockedBy'];
 const MILESTONE_FIELDS = ['name', 'dueDate', 'deliverable', 'billingPercent', 'submittedAt', 'acceptedAt', 'acceptanceNote'];
 const LEVEL = { read: 1, comment: 2, work: 3, manage: 4 };
 const MAX_HISTORY = 200;
@@ -148,7 +184,9 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     need(p, u, level);
     return { t, p };
   }
-  const visibleProjects = (u) => d().pmProjects.filter((p) => levelOf(p, u));
+  // The projects a person sees in lists (templates apart).
+  const visibleProjects = (u) => d().pmProjects.filter((p) => !p.isTemplate && levelOf(p, u));
+  const visibleTemplates = (u) => d().pmProjects.filter((p) => p.isTemplate && levelOf(p, u));
 
   // Stale edits: the form sends the version it loaded; if the record changed since, refuse.
   function fresh(rec, body) {
@@ -182,9 +220,10 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const s = projectStatus(p, milestones, tasks, today(), c);
     const next = milestones.find((m) => !m.acceptedAt && s.milestones.find((x) => x.id === m.id && !x.finished));
     const { history, ...rest } = p;
+    // A template is a pattern, not work: no health.
     return {
-      ...rest, access: levelOf(p, u), managerName: userName(p.managerId), accountName: accountName(p.accountId),
-      health: s.value, healthReasons: s.reasons, progress: s.progress, openTasks: s.openTasks, overdueTasks: s.overdueTasks, blockedTasks: s.blockedTasks,
+      ...rest, isTemplate: Boolean(p.isTemplate), access: levelOf(p, u), managerName: userName(p.managerId), accountName: accountName(p.accountId),
+      health: p.isTemplate ? null : s.value, healthReasons: p.isTemplate ? [] : s.reasons, progress: s.progress, openTasks: s.openTasks, overdueTasks: s.overdueTasks, blockedTasks: s.blockedTasks,
       myOpenTasks: tasks.filter((t) => t.assigneeId === u.id && isOpenCategory(categoryOf(p, t))).length,
       nextMilestone: next ? { id: next.id, name: next.name, dueDate: next.dueDate, deliverable: next.deliverable } : null,
       members: membersOut(p),
@@ -195,8 +234,11 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const flags = taskFlags(t, p, ctx.byId, ctx.today, ctx.cal);
     const ticket = t.ticketId && d().tickets.find((x) => x.id === t.ticketId);
     const { history, ...rest } = t;
+    const logged = ctx.logged.get(t.id) || 0;
     return {
       ...rest, statusName: s?.name || '', category: flags.category, overdue: flags.overdue, dueSoon: flags.dueSoon, blocked: flags.blocked, blockers: flags.blockers,
+      // Hours: logged on the task, and what is left (remainingHours stays the override, or null).
+      remainingHours: t.remainingHours ?? null, loggedHours: Math.round(logged * 100) / 100, remaining: remainingOf(t, logged, flags.category), remainingOverride: t.remainingHours != null,
       assigneeName: userName(t.assigneeId), subtasks: ctx.children.get(t.id) || 0, checklistDone: t.checklist.filter((i) => i.done).length,
       milestoneIdEffective: milestoneOfTask(t, ctx.byId),
       ticket: ticket ? { id: ticket.id, ref: ticket.ref, status: ticket.status, statusName: TICKET_STATUS[ticket.status] || ticket.status } : null,
@@ -206,9 +248,45 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const tasks = tasksOf(p);
     const children = new Map();
     for (const t of tasks) if (t.parentId) children.set(t.parentId, (children.get(t.parentId) || 0) + 1);
-    return { tasks, byId: new Map(tasks.map((t) => [t.id, t])), children, today: today(), cal: cal() };
+    return { tasks, byId: new Map(tasks.map((t) => [t.id, t])), children, logged: loggedByTask(p), today: today(), cal: cal() };
   }
-  const historyOut = (h) => h.map((e) => ({ ...e, byName: userName(e.by) || 'Former user' }));
+  // Hours logged per task of a project.
+  function loggedByTask(p) {
+    const m = new Map();
+    for (const x of d().pmTimeLogs) if (x.projectId === p.id && x.taskId) m.set(x.taskId, (m.get(x.taskId) || 0) + x.hours);
+    return m;
+  }
+  // No author: made by CORE itself (the starter templates).
+  const byName = (id) => (id ? userName(id) || 'Former user' : 'CORE');
+  const historyOut = (h) => h.map((e) => ({ ...e, byName: byName(e.by) }));
+
+  // ----- "For you": a notification for each person an event is addressed to -----
+  // Never to the person who acted, to a disabled account or to someone who cannot open the
+  // project; nothing from templates. The text is short and has no names (they are looked up when
+  // read, so a renamed account shows its new name).
+  function notify(userIds, kind, p, t, u, text) {
+    if (p.isTemplate) return;
+    const at = now();
+    for (const userId of new Set(userIds)) {
+      const x = userId && userId !== u.id && activeUser(userId);
+      if (!x || !levelOf(p, x)) continue;
+      d().pmNotifications.push({ id: randomUUID(), userId, kind, projectId: p.id, taskId: t?.id || null, actorId: u.id, text: str(text, 140), at, readAt: null });
+      d().pmNotifications = pruneNotifications(d().pmNotifications, Date.now(), userId);
+    }
+  }
+  const quote = (body) => `“${str(String(body).replace(/\s+/g, ' '), 90)}${String(body).length > 90 ? '…' : ''}”`;
+  // A task moved into Done or Cancelled by someone else: its assignee is told.
+  function notifyStatus(t, p, u, fromId) {
+    const from = statusOf(p, fromId)?.category;
+    const to = statusOf(p, t.statusId);
+    if (!to || from === to.category || !['done', 'cancelled'].includes(to.category)) return;
+    notify([t.assigneeId], 'status', p, t, u, `moved ${t.key} to ${to.name}`);
+  }
+  // People who became members (not by being assigned a task: that has its own notification).
+  function notifyAdded(p, u, beforeIds) {
+    const added = p.members.filter((m) => !beforeIds.includes(m.userId));
+    for (const m of added) notify([m.userId], 'added', p, null, u, `added you to ${p.code} ${p.name} as ${MEMBER_ROLES[m.role].toLowerCase()}`);
+  }
 
   // ===== Meta: the setup, people to pick, CRM records to link =====
   route('GET', '/api/pm/meta', 'auth', ({ user: u }) => {
@@ -234,10 +312,11 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
   route('GET', '/api/pm/overview', 'auth', ({ user: u }) => {
     const c = cal();
     const projects = visibleProjects(u).map((p) => summaryOf(p, u, c)).sort((a, b) => a.code.localeCompare(b.code));
+    const templates = visibleTemplates(u).map((p) => templateOut(p, u)).sort((a, b) => a.name.localeCompare(b.name));
     const open = projects.filter((p) => OPEN_PROJECT.includes(p.status));
     const mine = d().pmTasks.filter((t) => t.assigneeId === u.id).map((t) => ({ t, p: projects.find((x) => x.id === t.projectId) })).filter(({ t, p }) => p && isOpenCategory(categoryOf(p, t)));
     return {
-      projects,
+      projects, templates,
       counts: {
         open: open.length, active: open.filter((p) => p.status === 'active').length,
         amber: open.filter((p) => p.health === 'amber').length, red: open.filter((p) => p.health === 'red').length,
@@ -246,6 +325,14 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
       },
     };
   });
+
+  // ===== Templates: the list "+ New project" starts from (pm.edit), and the portfolio's Templates =====
+  const templateOut = (p, u) => ({
+    id: p.id, code: p.code, name: p.name, type: p.type, description: p.description, starter: p.starter || null, access: levelOf(p, u),
+    milestones: d().pmMilestones.filter((m) => m.projectId === p.id).length, tasks: d().pmTasks.filter((t) => t.projectId === p.id).length,
+    deliverables: d().pmMilestones.filter((m) => m.projectId === p.id && m.deliverable).length, updatedAt: p.updatedAt,
+  });
+  route('GET', '/api/pm/templates', 'pm.edit', ({ user: u }) => visibleTemplates(u).map((p) => templateOut(p, u)).sort((a, b) => a.name.localeCompare(b.name)));
 
   // ===== Projects =====
   function crmLinks(b, u, rec) {
@@ -296,6 +383,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     };
     keepManager(p);
     d().pmProjects.push(p);
+    notifyAdded(p, u, []);
     return p;
   }
   route('POST', '/api/pm/projects', 'pm.edit', ({ body, user: u }) => {
@@ -326,12 +414,16 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
       deal: userCan(u, 'crm.view') || p.dealId ? crmRef('crmDeals', p.dealId) : null,
       contract: crmRef('crmContracts', p.contractId),
       milestones: milestones.map((m) => ({ ...m, ...s.milestones.find((x) => x.id === m.id), afterContract: Boolean(m.deliverable && contract?.endDate && m.dueDate > contract.endDate) })),
-      hours: { estimate: Math.round(leaves.reduce((n, t) => n + (Number(t.estimateHours) || 0), 0) * 100) / 100, logged: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100 },
+      // Remaining: what is left of the open leaf tasks (estimate less logged, or the hours left set on a task).
+      hours: {
+        estimate: Math.round(leaves.reduce((n, t) => n + (Number(t.estimateHours) || 0), 0) * 100) / 100, logged: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100,
+        remaining: Math.round(leaves.reduce((n, t) => n + (remainingOf(t, ctx.logged.get(t.id) || 0, categoryOf(p, t)) || 0), 0) * 100) / 100,
+      },
       counts: { tasks: ctx.tasks.length, open: s.openTasks, overdue: s.overdueTasks, blocked: s.blockedTasks, dueSoon: ctx.tasks.filter((t) => taskFlags(t, p, ctx.byId, ctx.today, ctx.cal).dueSoon).length },
       overdue: ctx.tasks.filter((t) => taskFlags(t, p, ctx.byId, ctx.today, ctx.cal).overdue).map(out).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
       upcoming: ctx.tasks.filter((t) => isOpenCategory(categoryOf(p, t)) && t.dueDate && t.dueDate >= ctx.today && t.dueDate <= horizon).map(out).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
       blockedList: ctx.tasks.filter((t) => taskFlags(t, p, ctx.byId, ctx.today, ctx.cal).blocked).map(out),
-      activity: activity.map((a) => ({ ...a, byName: userName(a.by) || 'Former user' })),
+      activity: activity.map((a) => ({ ...a, byName: byName(a.by) })),
       tickets: ticketsFor(p, u),
     };
   });
@@ -349,13 +441,17 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
   route('PUT', '/api/pm/projects/:id', 'auth', ({ params, body, user: u }) => {
     const p = findProject(params.id, u, 'manage');
     fresh(p, body);
-    const before = { status: p.status, startDate: p.startDate, endDate: p.endDate, managerId: p.managerId };
+    const before = { status: p.status, startDate: p.startDate, endDate: p.endDate, managerId: p.managerId, isTemplate: Boolean(p.isTemplate), members: p.members.map((m) => m.userId) };
+    const isTemplate = bool(body.isTemplate, 'Use as a template', before.isTemplate);
     Object.assign(p, validProject({ ...p, ...pickFields(body, PROJECT_FIELDS) }, u, p));
+    p.isTemplate = isTemplate;
     keepManager(p);
     track(p, u, 'status', PROJECT_STATUS[before.status], PROJECT_STATUS[p.status]);
     track(p, u, 'start', before.startDate, p.startDate);
     track(p, u, 'end', before.endDate, p.endDate);
     track(p, u, 'manager', userName(before.managerId), userName(p.managerId));
+    track(p, u, 'template', before.isTemplate ? 'Yes' : 'No', p.isTemplate ? 'Yes' : 'No');
+    notifyAdded(p, u, before.members);
     bump(p, u);
     db.save();
     return summaryOf(p, u);
@@ -370,17 +466,26 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     for (const k of PM_COLLECTIONS) d()[k] = d()[k].filter((x) => (k === 'pmProjects' ? x.id !== id : x.projectId !== id));
   }
 
-  // Copy as a template: the statuses, milestones and tasks, with dates moved by the same number
-  // of days as the start date. No people, time, comments or links.
+  // Copy, or a new project from a template: the statuses, milestones (with their deliverable and
+  // billing %) and tasks (subtasks, checklists unticked, blocked-by links, estimates). No people,
+  // time or comments. Dates move with the start date: by the same number of days for a copy, by
+  // the same number of working days (weekends and holidays skipped) from a template. The new
+  // project's manager and client links can be given (CRM links need Sales & CRM access).
   route('POST', '/api/pm/projects/:id/copy', 'pm.edit', ({ params, body, user: u }) => {
     const src = findProject(params.id, u);
     const name = str(body.name, 160);
     if (!name) throw new HttpError(400, 'Name the new project.');
     const startDate = optDate(body.startDate, 'Start date');
     if (!startDate) throw new HttpError(400, 'Enter the new start date.');
+    const c = cal();
     const shift = daysBetween(src.startDate, startDate);
-    const move = (v) => (v ? addDays(v, shift) : null);
-    const p = createProject({ name, type: src.type, description: src.description, status: 'planning', startDate, endDate: move(src.endDate), managerId: u.id, budgetHours: src.budgetHours ?? null, accountId: null, dealId: null, contractId: null }, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
+    const move = src.isTemplate ? (v) => shiftWorkDays(v, src.startDate, startDate, c) : (v) => (v ? addDays(v, shift) : null);
+    const fields = validProject({
+      ...pickFields(body, ['managerId', 'accountId', 'dealId', 'contractId']), name, type: src.type, description: src.description, status: 'planning',
+      startDate, endDate: move(src.endDate), budgetHours: src.budgetHours ?? null,
+    }, u, { type: src.type });
+    const p = createProject(fields, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
+    if (src.isTemplate) track(p, u, 'template', '', `${src.code} ${src.name}`);
     const msIds = new Map();
     for (const m of milestonesOf(src)) {
       const id = randomUUID();
@@ -393,7 +498,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     srcTasks.forEach((t, i) => {
       d().pmTasks.push({
         id: taskIds.get(t.id), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title: t.title, description: t.description, statusId: todo, priority: t.priority,
-        assigneeId: null, startDate: move(t.startDate), dueDate: move(t.dueDate), estimateHours: t.estimateHours ?? null, milestoneId: msIds.get(t.milestoneId) || null,
+        assigneeId: null, startDate: move(t.startDate), dueDate: move(t.dueDate), estimateHours: t.estimateHours ?? null, remainingHours: null, milestoneId: msIds.get(t.milestoneId) || null,
         parentId: taskIds.get(t.parentId) || null, checklist: t.checklist.map((c) => ({ id: randomUUID(), text: c.text, done: false })),
         blockedBy: (t.blockedBy || []).map((x) => taskIds.get(x)).filter(Boolean), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null,
         version: 1, createdAt: now(), createdBy: u.id, updatedAt: now(), updatedBy: u.id, history: [{ at: now(), by: u.id, field: 'created', from: '', to: `copied from ${t.key}` }],
@@ -428,7 +533,9 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
       bump(t, u);
     }
     // A member who is now a viewer keeps their tasks; they can still read and comment.
+    const was = p.members.map((m) => m.userId);
     p.members = next.members;
+    notifyAdded(p, u, was);
     track(p, u, 'members', '', `${p.members.length} member${p.members.length === 1 ? '' : 's'}`);
     bump(p, u);
     db.save();
@@ -524,6 +631,13 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     return m;
   };
   route('GET', '/api/pm/projects/:id/milestones', 'auth', ({ params, user: u }) => milestonesOf(findProject(params.id, u)));
+  // Burn-up of a milestone: scope, done and the expected line by working day (shared/projects.js).
+  route('GET', '/api/pm/projects/:id/milestones/:mid/burnup', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    const m = findMilestone(p, params.mid);
+    const ctx = taskCtx(p);
+    return { ...milestoneBurnup(m, { project: p, tasks: ctx.tasks, tasksById: ctx.byId, today: ctx.today, cal: ctx.cal }, (iso) => localDate(new Date(iso))), name: m.name, deliverable: m.deliverable };
+  });
   route('POST', '/api/pm/projects/:id/milestones', 'auth', ({ params, body, user: u }) => {
     const p = findProject(params.id, u, 'manage');
     const fields = validMilestone(pickFields(body, MILESTONE_FIELDS), p);
@@ -595,9 +709,14 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
       if (!m && level !== 'manage') throw new HttpError(400, `${who.name} is not on this project. Ask a project manager to add them.`);
       if (m?.role === 'viewer') throw new HttpError(400, `${who.name} is a viewer on this project. A project manager can make them a member.`);
     }
+    // Hours left: empty (null) means estimate less logged. A new estimate starts that count again.
+    const estimateHours = optNum(b.estimateHours, 'Estimate (hours)', 0, 9999);
+    let remainingHours = optNum(b.remainingHours, 'Hours left', 0, 9999);
+    if (remainingHours !== null && !validRemaining(remainingHours)) throw new HttpError(400, 'Hours left must be from 0 to 9999, in quarter hours (0.25, 0.5, 0.75…).');
+    if (rec.id && estimateHours !== (rec.estimateHours ?? null) && b.remainingHours === rec.remainingHours) remainingHours = null;
     return {
       title, description: str(b.description, 8000), statusId, priority: oneOf(b.priority, PRIORITY, 'Priority', rec.priority || 'normal'),
-      assigneeId, startDate, dueDate, estimateHours: optNum(b.estimateHours, 'Estimate (hours)', 0, 9999), milestoneId, parentId, blockedBy,
+      assigneeId, startDate, dueDate, estimateHours, remainingHours, milestoneId, parentId, blockedBy,
     };
   }
   const addAssignee = (p, t) => {
@@ -611,6 +730,8 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     track(t, u, 'due', before.dueDate, t.dueDate);
     track(t, u, 'milestone', ms(before.milestoneId), ms(t.milestoneId));
     track(t, u, 'priority', PRIORITY[before.priority], PRIORITY[t.priority]);
+    const left = (v) => (v == null ? '' : `${v} h`);
+    track(t, u, 'hours left', left(before.remainingHours), left(t.remainingHours));
   }
   const setCompleted = (t, p) => {
     const cat = categoryOf(p, t);
@@ -648,6 +769,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const fields = validTask(pickFields(body, TASK_FIELDS), p, u, level);
     const t = newTask(p, u, fields, { checklist: checklistFrom(body.checklist), rank: nextRank(p, fields.statusId, body.position === 'top') });
     addAssignee(p, t);
+    notify([t.assigneeId], 'assigned', p, t, u, `assigned you ${t.key} ${t.title}`);
     db.save();
     const ctx = taskCtx(p);
     return taskOut(t, p, ctx);
@@ -679,6 +801,8 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     addAssignee(p, t);
     setCompleted(t, p);
     trackTask(t, p, u, before);
+    if (t.assigneeId !== before.assigneeId) notify([t.assigneeId], 'assigned', p, t, u, `assigned you ${t.key} ${t.title}`);
+    notifyStatus(t, p, u, before.statusId);
     bump(t, u);
     db.save();
     return taskOut(t, p, taskCtx(p));
@@ -698,6 +822,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     t.rank = place.rank;
     setCompleted(t, p);
     track(t, u, 'status', statusOf(p, from)?.name, status.name);
+    notifyStatus(t, p, u, from);
     bump(t, u);
     db.save();
     const wip = status.wipLimit && column.length + 1 > status.wipLimit ? `"${status.name}" has ${column.length + 1} tasks; its limit is ${status.wipLimit}.` : null;
@@ -732,6 +857,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     d().pmTasks = d().pmTasks.filter((x) => !ids.has(x.id));
     for (const x of tasksOf(p)) if (x.blockedBy.some((id) => ids.has(id))) x.blockedBy = x.blockedBy.filter((id) => !ids.has(id));
     d().pmComments = d().pmComments.filter((c) => !ids.has(c.taskId));
+    d().pmNotifications = d().pmNotifications.filter((n) => !ids.has(n.taskId));
     for (const l of d().pmTimeLogs) if (ids.has(l.taskId)) l.taskId = null;
     db.save();
     return { ok: true, removed: ids.size };
@@ -750,6 +876,12 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     if (!text) throw new HttpError(400, 'Write the comment.');
     const c = { id: randomUUID(), taskId: t.id, projectId: p.id, userId: u.id, body: text, createdAt: now() };
     d().pmComments.push(c);
+    // @mentions of the project's members; the task's assignee and the person who added it hear of
+    // any other comment (once: a mention is enough).
+    const named = new Set(mentionedUsernames(text, p.members.map((m) => user(m.userId)?.username).filter(Boolean)));
+    const mentioned = p.members.map((m) => user(m.userId)).filter((x) => x && named.has(x.username.toLowerCase())).map((x) => x.id);
+    notify(mentioned, 'mentioned', p, t, u, `mentioned you on ${t.key}: ${quote(text)}`);
+    notify([t.assigneeId, t.createdBy].filter((id) => !mentioned.includes(id)), 'commented', p, t, u, `commented on ${t.key}: ${quote(text)}`);
     db.save();
     return { ...c, userName: u.name, canDelete: true };
   });
@@ -800,7 +932,10 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const sum = (list) => Math.round(list.reduce((n, x) => n + x.hours, 0) * 100) / 100;
     const people = [...new Set(logs.map((x) => x.userId))].map((id) => ({ userId: id, name: userName(id) || 'Former user', hours: sum(logs.filter((x) => x.userId === id)) })).sort((a, b) => b.hours - a.hours);
     const tasks = tasksOf(p);
-    const byTask = tasks.map((t) => ({ taskId: t.id, key: t.key, title: t.title, estimate: t.estimateHours ?? null, hours: sum(logs.filter((x) => x.taskId === t.id)) })).filter((x) => x.hours || x.estimate);
+    const byTask = tasks.map((t) => {
+      const hours = sum(logs.filter((x) => x.taskId === t.id));
+      return { taskId: t.id, key: t.key, title: t.title, estimate: t.estimateHours ?? null, hours, left: remainingOf(t, hours, categoryOf(p, t)) };
+    }).filter((x) => x.hours || x.estimate);
     const noTask = sum(logs.filter((x) => !x.taskId));
     const week = weekStart(today());
     return {
@@ -819,10 +954,20 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const hours = typeof body.hours === 'number' ? body.hours : typeof body.hours === 'string' && /^\d+(\.\d+)?$/.test(body.hours.trim()) ? Number(body.hours) : NaN;
     if (!validHours(hours)) throw new HttpError(400, 'Hours must be from 0.25 to 24, in quarter hours (0.25, 0.5, 0.75…).');
     const taskId = idOf(body.taskId) || null;
-    if (taskId && !d().pmTasks.some((t) => t.id === taskId && t.projectId === p.id)) throw new HttpError(400, 'Pick a task of this project.');
+    const task = taskId && d().pmTasks.find((t) => t.id === taskId && t.projectId === p.id);
+    if (taskId && !task) throw new HttpError(400, 'Pick a task of this project.');
     if (loggedOn(u.id, date) + hours > 24) throw new HttpError(400, 'That would be more than 24 hours logged on one day.');
+    // "Hours left after this" (optional) sets the task's hours left, as on the task.
+    const left = optNum(body.remainingHours, 'Hours left', 0, 9999);
+    if (left !== null && !task) throw new HttpError(400, 'Hours left is for time logged on a task.');
+    if (left !== null && !validRemaining(left)) throw new HttpError(400, 'Hours left must be from 0 to 9999, in quarter hours (0.25, 0.5, 0.75…).');
     const x = { id: randomUUID(), projectId: p.id, taskId, userId: u.id, date, hours, note: str(body.note, 500), createdAt: now() };
     d().pmTimeLogs.push(x);
+    if (left !== null && left !== task.remainingHours) {
+      track(task, u, 'hours left', task.remainingHours == null ? '' : `${task.remainingHours} h`, `${left} h`);
+      task.remainingHours = left;
+      bump(task, u);
+    }
     db.save();
     const out = timeOut(x, u, p, new Map());
     return { ...out, warning: out.overAttended ? `You have logged ${out.dayTotal} h on ${date}, more than the ${out.attended} h your attendance shows. It is saved; check the DTR or your entries.` : null };
@@ -845,7 +990,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     for (const t of d().pmTasks) {
       if (t.assigneeId !== u.id) continue;
       const p = d().pmProjects.find((x) => x.id === t.projectId);
-      if (!p || !levelOf(p, u) || !isOpenCategory(categoryOf(p, t))) continue;
+      if (!p || p.isTemplate || !levelOf(p, u) || !isOpenCategory(categoryOf(p, t))) continue;
       if (!ctxs.has(p.id)) ctxs.set(p.id, taskCtx(p));
       groups[myWorkGroup(t, t0)].push({ ...taskOut(t, p, ctxs.get(p.id)), project: { id: p.id, code: p.code, name: p.name, statuses: p.statuses }, access: levelOf(p, u) });
     }
@@ -853,16 +998,102 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     return groups;
   });
 
+  // ===== "For you": my notifications (only ever the signed-in person's own) =====
+  // Those about projects I can no longer open are left out (not deleted: access may come back).
+  function myNotifications(u) {
+    d().pmNotifications = pruneNotifications(d().pmNotifications, Date.now(), u.id);
+    const projects = new Map();
+    const open = (id) => {
+      if (!projects.has(id)) {
+        const p = d().pmProjects.find((x) => x.id === id);
+        projects.set(id, p && !p.isTemplate && levelOf(p, u) ? p : null);
+      }
+      return projects.get(id);
+    };
+    return d().pmNotifications.filter((n) => n.userId === u.id && open(n.projectId)).sort((a, b) => b.at.localeCompare(a.at)).map((n) => {
+      const p = open(n.projectId);
+      const t = n.taskId && d().pmTasks.find((x) => x.id === n.taskId);
+      return {
+        id: n.id, kind: n.kind, text: n.text, at: n.at, readAt: n.readAt, actorName: userName(n.actorId) || 'Someone',
+        projectId: p.id, projectCode: p.code, projectName: p.name, taskId: t ? t.id : null, taskKey: t?.key || null, taskTitle: t?.title || null,
+      };
+    });
+  }
+  route('GET', '/api/pm/notifications', 'auth', ({ user: u, query }) => {
+    const all = myNotifications(u);
+    const unread = all.filter((n) => !n.readAt).length;
+    return { unread, items: (query.unread === '1' ? all.filter((n) => !n.readAt) : all).slice(0, 100) };
+  });
+  route('GET', '/api/pm/notifications/summary', 'auth', ({ user: u }) => ({ unread: myNotifications(u).filter((n) => !n.readAt).length }));
+  // Mark read: { ids: [...] } (mine only; anyone else's are ignored) or { all: true }.
+  route('PUT', '/api/pm/notifications/read', 'auth', ({ body, user: u }) => {
+    noAudit(); // reading is not a change to the company's data
+    let pick;
+    if (body.all === true) pick = () => true;
+    else {
+      if (!Array.isArray(body.ids) || !body.ids.length || body.ids.length > NOTIFY_KEEP) throw new HttpError(400, `Send the notifications to mark as read (1 to ${NOTIFY_KEEP}), or all.`);
+      const ids = new Set(body.ids.map(idOf).filter(Boolean));
+      pick = (n) => ids.has(n.id);
+    }
+    const at = now();
+    let marked = 0;
+    for (const n of d().pmNotifications) if (n.userId === u.id && !n.readAt && pick(n)) (n.readAt = at), marked++;
+    if (marked) db.save();
+    return { marked, unread: myNotifications(u).filter((n) => !n.readAt).length };
+  });
+
+  // ===== Saved views of a project's Board or List =====
+  // Mine (anyone who can open the project) or shared with the project (its managers). I see my own
+  // and the shared ones; someone else's private view is "not found".
+  const viewOut = (v, p, u) => ({ id: v.id, tab: v.tab, name: v.name, query: v.query, shared: v.userId === null, mine: v.createdBy === u.id, createdAt: v.createdAt, canDelete: v.userId === u.id || (v.userId === null && (v.createdBy === u.id || levelOf(p, u) === 'manage')) });
+  const viewsOf = (p, u) => d().pmViews.filter((v) => v.projectId === p.id && (v.userId === null || v.userId === u.id));
+  route('GET', '/api/pm/projects/:id/views', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    return viewsOf(p, u).sort((a, b) => Number(a.userId !== null) - Number(b.userId !== null) || a.name.localeCompare(b.name)).map((v) => viewOut(v, p, u));
+  });
+  route('POST', '/api/pm/projects/:id/views', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u);
+    const tab = oneOf(body.tab, VIEW_TABS, 'Tab', null);
+    if (!tab) throw new HttpError(400, 'Say which tab the view is for.');
+    const name = str(body.name, 60);
+    if (!name) throw new HttpError(400, 'Name the view.');
+    const shared = bool(body.shared, 'Shared', false);
+    if (shared) need(p, u, 'manage');
+    if (typeof body.query !== 'string' || body.query.length > 2000) throw new HttpError(400, 'The view\'s filters are missing or too long.');
+    const query = cleanViewQuery(tab, body.query);
+    const userId = shared ? null : u.id;
+    const same = d().pmViews.filter((v) => v.projectId === p.id && v.userId === userId);
+    if (same.length >= 30) throw new HttpError(400, `${shared ? 'This project has' : 'You have'} 30 saved views; delete one first.`);
+    if (same.some((v) => v.tab === tab && v.name.toLowerCase() === name.toLowerCase())) throw new HttpError(400, `There is already a view called "${name}". Pick another name, or delete that one first.`);
+    const v = { id: randomUUID(), projectId: p.id, userId, createdBy: u.id, tab, name, query, createdAt: now() };
+    d().pmViews.push(v);
+    db.save();
+    return viewOut(v, p, u);
+  });
+  route('DELETE', '/api/pm/projects/:id/views/:viewId', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    const v = viewsOf(p, u).find((x) => x.id === params.viewId);
+    if (!v) throw new HttpError(404, 'View not found.');
+    if (!viewOut(v, p, u).canDelete) throw new HttpError(403, 'Only the person who saved a shared view or a project manager can delete it.');
+    d().pmViews = d().pmViews.filter((x) => x !== v);
+    db.save();
+    return { ok: true };
+  });
+
   // ===== Workload: planned hours against capacity, per person and week =====
   route('GET', '/api/pm/workload', 'pm.view', ({ query }) => {
     const from = isDate(query.from) ? query.from : today();
     const weeks = Math.min(26, Math.max(1, Math.round(Number(query.weeks)) || 6));
     const c = cal();
-    const open = d().pmProjects.filter((p) => OPEN_PROJECT.includes(p.status));
-    const tasks = open.flatMap((p) => tasksOf(p).filter((t) => t.assigneeId && isOpenCategory(categoryOf(p, t))).map((t) => ({
-      id: t.id, key: t.key, title: t.title, projectId: p.id, projectCode: p.code, projectName: p.name, assigneeId: t.assigneeId,
-      estimateHours: t.estimateHours, startDate: t.startDate, dueDate: t.dueDate,
-    })));
+    const open = d().pmProjects.filter((p) => OPEN_PROJECT.includes(p.status) && !p.isTemplate);
+    // What is left of each task is planned, not its whole estimate.
+    const tasks = open.flatMap((p) => {
+      const logged = loggedByTask(p);
+      return tasksOf(p).filter((t) => t.assigneeId && isOpenCategory(categoryOf(p, t))).map((t) => ({
+        id: t.id, key: t.key, title: t.title, projectId: p.id, projectCode: p.code, projectName: p.name, assigneeId: t.assigneeId,
+        estimateHours: t.estimateHours, remaining: remainingOf(t, logged.get(t.id) || 0, categoryOf(p, t)) ?? 0, startDate: t.startDate, dueDate: t.dueDate,
+      }));
+    });
     const ids = new Set([...tasks.map((t) => t.assigneeId), ...open.flatMap((p) => p.members.filter((m) => m.role !== 'viewer').map((m) => m.userId))]);
     const end = addDays(weekStart(from), weeks * 7);
     const people = [...ids].map(user).filter((x) => x?.active).map((x) => {
@@ -918,6 +1149,7 @@ export function registerProjectRoutes(route, db, { audit } = {}) {
     const ticket = d().tickets.find((x) => x.id === params.ticketId);
     if (!ticket) throw new HttpError(404, 'Ticket not found.');
     const p = findProject(idOf(body.projectId), u, 'work');
+    if (p.isTemplate) throw new HttpError(400, `${p.code} is a template. Pick an open project.`);
     if (!OPEN_PROJECT.includes(p.status)) throw new HttpError(400, `${p.code} is ${PROJECT_STATUS[p.status].toLowerCase()}. Pick an open project.`);
     const existing = tasksOf(p).find((t) => t.ticketId === ticket.id);
     if (existing) return { ...taskOut(existing, p, taskCtx(p)), existing: true };

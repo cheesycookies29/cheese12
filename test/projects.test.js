@@ -565,7 +565,8 @@ test('migration and the setup: collections are made, counters catch up, the setu
   await a2('POST', '/api/pm/projects', { name: 'Gone after erase', type: 'Only type', startDate: today });
   await a2('POST', '/api/admin/reset');
   assert.deepEqual(db2.data.pm.types, ['Only type']);
-  assert.equal(db2.data.pmProjects.length, 0);
+  assert.equal(db2.data.pmProjects.filter((p) => !p.isTemplate).length, 0);
+  assert.equal(db2.data.pmProjects.filter((p) => p.starter).length, 3, 'erased data gets the starter templates again');
   const again = await a2('POST', '/api/pm/projects', { name: 'After erase', type: 'Only type', startDate: today });
   assert.equal(again.code, 'PRJ-0001');
 });
@@ -628,10 +629,13 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   await a3('PUT', `/api/pm/projects/${real.id}`, { accountId: db3.data.crmAccounts.find((a) => a.demo && a.name === 'Luzon Health Partners').id });
   await a3('POST', `/api/pm/projects/${real.id}/tasks`, { title: 'Real task for the demo PM', assigneeId: pmDemoId });
   await a3('DELETE', '/api/admin/demo');
-  assert.deepEqual(db3.data.pmProjects.map((p) => p.name), ['Real project']);
+  assert.deepEqual(db3.data.pmProjects.filter((p) => !p.isTemplate).map((p) => p.name), ['Real project']);
   const left = db3.data.pmProjects[0];
   assert.ok(!left.members.some((m) => m.userId === pmDemoId));
   assert.equal(left.accountId, null);
-  assert.ok(db3.data.pmTasks.every((t) => t.projectId === real.id && t.assigneeId === null));
-  assert.ok([...db3.data.pmMilestones, ...db3.data.pmComments, ...db3.data.pmTimeLogs].every((x) => x.projectId === real.id));
+  const kept = new Set(db3.data.pmProjects.map((p) => p.id));
+  assert.ok(db3.data.pmTasks.filter((t) => t.projectId === real.id).every((t) => t.assigneeId === null));
+  assert.ok(db3.data.pmTasks.every((t) => kept.has(t.projectId)));
+  assert.ok([...db3.data.pmMilestones, ...db3.data.pmComments, ...db3.data.pmTimeLogs].every((x) => kept.has(x.projectId)));
+  assert.ok([...db3.data.pmComments, ...db3.data.pmTimeLogs].every((x) => x.projectId === real.id));
 });

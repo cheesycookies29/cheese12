@@ -87,7 +87,7 @@ test('removing demo data takes out demo records and what hangs off them, and kee
   assert.ok(db.data.crmActivities.every((a) => db.data.crmDeals.some((x) => x.id === a.related.id) || db.data.crmAccounts.some((x) => x.id === a.related.id)));
   assert.equal(res.removed.accounts, 6);
   assert.equal(res.removed.pmProjects, 10);
-  assert.equal(db.data.pmProjects.length, 0);
+  assert.equal(db.data.pmProjects.filter((p) => !p.isTemplate).length, 0, 'only the starter templates are left');
   assert.equal(count('employees', true), 0);
   assert.equal(db.data.employees.length, 1);
   assert.ok(db.data.timeEntries.every((e) => e.employeeId === real.id));

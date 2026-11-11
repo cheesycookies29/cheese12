@@ -44,13 +44,16 @@ export function emptyData() {
     crmContracts: [],
     crmActivities: [],
     crm: emptyCrm(),
-    // Project Management (server/projects.js): projects, milestones, tasks, comments and time
-    // logs, and the Projects setup with the code counter in `pm`.
+    // Project Management (server/projects.js): projects (and templates), milestones, tasks,
+    // comments, time logs, notifications and saved views, and the Projects setup with the code
+    // counter in `pm`.
     pmProjects: [],
     pmMilestones: [],
     pmTasks: [],
     pmComments: [],
     pmTimeLogs: [],
+    pmNotifications: [], // "For you" on My work: one row per person and event
+    pmViews: [], // saved filters of a project's Board or List
     pm: emptyPm(),
   };
 }

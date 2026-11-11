@@ -9,6 +9,13 @@ order: 2
 
 ## November 2026
 
+### Projects: For you, hours left, quick filters, templates and the burn-up (0.14)
+- **For you** on **My work**: a task assigned to you, an @mention, a comment on your task, your task done or cancelled by someone else, and being added to a project. Similar ones share a line; the number next to My work includes the unread ones. See [Getting started](getting-started#see-your-project-tasks-my-work) and [the projects guide](projects#catch-up-on-what-concerns-you-for-you).
+- **Hours left** on every task: the estimate less the hours logged, or set by hand on the task or when logging time. Tasks, the list and a project's overview show estimate, logged and left; **Workload** now plans the hours left, not the whole estimate. See [the projects guide](projects#keep-the-hours-left-up-to-date).
+- **Quick filters** on the board and the list (*Mine, Unassigned, Overdue, Due this week, Blocked, High & urgent*), a search on the board, and **saved views**, your own or shared with the project. See [the projects guide](projects#filter-the-board-or-list-quickly).
+- **Project templates**: mark a project as a template, and start new projects from one with the dates moved in working days. Three starter templates come with CORE. See [the projects guide](projects#start-a-project-from-a-template).
+- **Milestone burn-up** on a project's overview: scope, work done and the expected line. See [the projects guide](projects#read-the-milestone-burn-up).
+
 ### More demo projects (0.13.2)
 - The demo data now has ten projects in every state: on hold, completed and cancelled ones, one off track, one with its own statuses, one with a WIP limit and one with a task linked to a service desk ticket. See [the projects guide](projects#walkthrough).
 
