@@ -88,7 +88,7 @@ export function emptyData() {
     resources: [], // class resources: a file or a link
     news: [], // school news posts, with reactions and comments
     events: [], // school events
-    roleOverrides: {}, // Admin panel → Roles & permissions: { role: { add: [...], remove: [...] } } (shared/roles.js)
+    roleOverrides: {}, // ATLAS Control → Roles & permissions: { role: { add: [...], remove: [...] } } (shared/roles.js)
     settingsLog: [], // Settings center: who changed which setting, when, from what to what (server/config.js)
     counters: { studentNo: {}, employeeNo: {}, documentRequest: {} }, // last number issued in each series (per year when the format has one)
     guardianLinks: [], // a parent or guardian account linked to a student, with what it may see (server/guardian.js)
@@ -127,6 +127,7 @@ export function emptyData() {
     finDvs: [], finLddaps: [], finLiquidations: [], finRemittances: [], finBankRecons: [], // disbursement
     finBooklets: [], finReceipts: [], finRcds: [], finRevenueTargets: [], // revenue
     finAudit: [], // who did what in Finance
+    auditTrail: [], // ATLAS Control's audit trail: sign-ins, failed sign-ins, changes and refusals in every system (server/audit.js)
   };
 }
 

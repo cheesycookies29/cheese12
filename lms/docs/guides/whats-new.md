@@ -9,6 +9,13 @@ order: 2
 
 ## November 2026
 
+### ATLAS Control: the administrators' control panel
+- **ATLAS Control** is a new system for administrators only: a **Control** tile on their ATLAS home page, and **ATLAS Control** in the Admin panel's sidebar. Nobody else sees it or can open it. See [the administrator's guide](admin#open-atlas-control).
+- **Accounts:** every account in every system in one list, with search and filters. An account's page shows what it can open, where it is signed in and its trail, and has its actions: reset the password, end its sessions, unlock it, change its type or campuses, disable it, unlink it from Keycloak. **New staff account** makes accounts of any staff type.
+- **Sessions** shows everyone signed in now, with the browser and network address; end one session or everyone else's. **Locked sign-ins** lists usernames locked after wrong passwords, and unlocks them.
+- **Audit trail:** sign-ins and failed sign-ins with the network address, every change by staff in every system, refused requests, and the Settings, Finance and Academic logs in one list. Filter it and **Download CSV**. Passwords are never recorded.
+- **Access map** shows which account types open which systems and Learn modules. **Roles & permissions**, **Sign-in and passwords** and **Single sign-on** moved from the Admin panel to Control; their old addresses open them there.
+
 ### Keycloak: set up for me
 - **Single sign-on** has a new **Set up for me**: type the realm address and a Keycloak administrator's sign-in (or a service account's), and ATLAS creates its client in Keycloak, keeps the client secret on the server and switches single sign-on on. Nothing needs to be changed on the server by hand, and the Keycloak sign-in is not saved. See [the administrator's guide](admin#set-up-single-sign-on-with-keycloak).
 

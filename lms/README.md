@@ -14,6 +14,7 @@ ATLAS is a family of products behind one sign-in:
 | **ATLAS People** (HRIS) | Employee records, time clock, leave, payroll and payslips; self-service for every employee | Live |
 | **ATLAS Academic** (UIS) | Student records, curricula and evaluation, grade sheets, documents, CHED/FHE reports | Live (release 1) |
 | **ATLAS Finance** (FMIS) | Government accounting: card file, accounts, budget, inventory, property, disbursement, revenue, control panel | Live (release 1) |
+| **ATLAS Control** | The administrators' control panel: every account, sessions and locked sign-ins, access to every system, sign-in rules, single sign-on and the audit trail | Live (administrators only) |
 | **ATLAS Facilities** | Rooms and venues, bookings, maintenance, property | Coming soon |
 
 Everyone starts at the **ATLAS home page**, the school's single front door to these systems:
@@ -26,6 +27,7 @@ Everyone starts at the **ATLAS home page**, the school's single front door to th
 | <http://localhost:3100/hris/> | **ATLAS People** for every employee (self-service) and for HR and payroll staff |
 | <http://localhost:3100/academic/> | **ATLAS Academic** for the registrar's office and deans, teachers' grade sheets, and students' own records |
 | <http://localhost:3100/finance/> | **ATLAS Finance** for the accounting, budget, cashier's and supply offices, and self-service for employees (property, cash advances, requests) and students (their receipts) |
+| <http://localhost:3100/control/> | **ATLAS Control** for administrators only: accounts, sessions, access, roles and permissions, sign-in rules, single sign-on and the audit trail |
 | <http://localhost:3100/verify/CODE> | Anyone checks a document printed from Academic (the QR code on it opens this page) |
 
 **ATLAS Learn**, **ATLAS People**, **ATLAS Academic** and **ATLAS Finance** are live. **Facilities** shows greyed out as *Coming soon* until an administrator switches it on under **Admin panel → Home page & systems** with the address it runs at. Students do not see the ATLAS People tile.
@@ -208,13 +210,13 @@ ATLAS can let people sign in with the school's **Keycloak** account (OpenID Conn
 - **Signing out** of ATLAS also ends the Keycloak session.
 - **Security:** authorization code flow with PKCE, a state bound to the browser, a nonce, and the ID token's signature checked against Keycloak's published keys (RS256, PS256 or ES256), with its issuer, audience and expiry. No new dependencies.
 
-To set it up, the quick way: **Admin panel → Single sign-on → Set up for me**. Give the realm address and a Keycloak administrator's username and password (or a service account with the realm-management role *manage-clients*). ATLAS uses Keycloak's admin API (`server/keycloak-admin.js`) to create the client, or bring an existing one in line (confidential, standard flow, PKCE S256, its redirect and sign-out addresses, web origins `+`). It keeps the client secret in `data/oidc-client.secret` (readable by ATLAS only; not in `db.json` or the nightly copies) and switches single sign-on on, with no restart. The Keycloak sign-in is used for that request only and is never stored or logged.
+To set it up, the quick way: **ATLAS Control → Single sign-on → Set up for me**. Give the realm address and a Keycloak administrator's username and password (or a service account with the realm-management role *manage-clients*). ATLAS uses Keycloak's admin API (`server/keycloak-admin.js`) to create the client, or bring an existing one in line (confidential, standard flow, PKCE S256, its redirect and sign-out addresses, web origins `+`). It keeps the client secret in `data/oidc-client.secret` (readable by ATLAS only; not in `db.json` or the nightly copies) and switches single sign-on on, with no restart. The Keycloak sign-in is used for that request only and is never stored or logged.
 
 By hand:
 
-1. In Keycloak, in the school's realm: **Clients → Create client** (OpenID Connect), Client ID e.g. `atlas`; **Client authentication** on, **Standard flow** on. Add the **Valid redirect URI** and **Valid post logout redirect URI** that *Admin panel → Single sign-on* shows (they look like `https://your-domain/api/sso/callback` and `https://your-domain/`), and Web origins `+`.
+1. In Keycloak, in the school's realm: **Clients → Create client** (OpenID Connect), Client ID e.g. `atlas`; **Client authentication** on, **Standard flow** on. Add the **Valid redirect URI** and **Valid post logout redirect URI** that *ATLAS Control → Single sign-on* shows (they look like `https://your-domain/api/sso/callback` and `https://your-domain/`), and Web origins `+`.
 2. Put the client's secret on the server as `OIDC_CLIENT_SECRET` (on EC2: in `/etc/ltdc-lms/app.env`, see the EC2 guide) and restart ATLAS. The secret is never stored in the data file, backups or the admin panel. (If `data/oidc-client.secret` exists, from *Set up for me*, it is used instead.)
-3. In **Admin panel → Single sign-on**: the issuer (`https://sso.school.edu/realms/<realm>`), the client ID, the button text and how to match accounts; **Test connection**; then switch it on. ATLAS refuses to switch on if Keycloak does not answer.
+3. In **ATLAS Control → Single sign-on**: the issuer (`https://sso.school.edu/realms/<realm>`), the client ID, the button text and how to match accounts; **Test connection**; then switch it on. ATLAS refuses to switch on if Keycloak does not answer.
 
 If ATLAS shows the wrong address for the redirect URIs (e.g. behind an unusual proxy), set `PUBLIC_URL=https://your-domain` on the server.
 
@@ -346,6 +348,9 @@ lms/
   shared/finance.js      chart of accounts, fund clusters, withholding taxes, depreciation, numbering, amount in words
   public/finance/, public/js/finance/, public/css/finance.css  the Finance app and its printable forms
   docs/FINANCE-PLAN.md   ATLAS Finance: research, compliance and what to confirm before going live
+  server/control.js      ATLAS Control's API (administrators only): accounts, sessions, locks, access map, audit trail
+  server/audit.js        the audit trail: sign-ins, failed sign-ins, changes and refusals, with the Settings, Finance and Academic logs
+  public/control/, public/js/control/, public/css/control.css  the Control app
   server/sso.js          single sign-on with Keycloak (OpenID Connect, PKCE, ID token checks)
   test/oidc-provider.js  a stand-in Keycloak for the tests (and demos: it has a sign-in page)
   shared/calc.js         time and payroll rules (the ERP's file): DTR, payslips, SSS, PhilHealth, Pag-IBIG, tax
@@ -390,7 +395,8 @@ The app reads these settings (all set by the template): `COOKIE_SECURE=1`, `ALLO
 
 **Security in the app** (see [docs/security/VAPT-2026-11.md](docs/security/VAPT-2026-11.md)):
 
-- **Rate limits** (`server/ratelimit.js`): requests per signed-in person per minute (Settings → Sign-in and passwords, normally 300), four times as many per network address when signed out, and tighter limits on sign-in, password changes, applications, first-time setup, document checks, calendar feeds and Keycloak sign-ins. Over a limit, the API answers `429` with `Retry-After`. Counts are kept in memory, per server process. `RATE_LIMITS=off` switches them off (load tests only).
+- **Audit trail** (`server/audit.js`, ATLAS Control → Audit trail): every sign-in and failed sign-in with the network address and browser, sign-outs and password changes, every change by staff in any system (method, route and the record it was about; never the request's contents), every refused request, and Control's own actions, in `auditTrail` (the last 50,000). Shown with the Settings history, Finance's audit and Academic's log; filtered and downloadable as CSV. A username that does not exist is written as *(unknown username)*.
+- **Rate limits** (`server/ratelimit.js`): requests per signed-in person per minute (Control → Sign-in and passwords, normally 300), four times as many per network address when signed out, and tighter limits on sign-in, password changes, applications, first-time setup, document checks, calendar feeds and Keycloak sign-ins. Over a limit, the API answers `429` with `Retry-After`. Counts are kept in memory, per server process. `RATE_LIMITS=off` switches them off (load tests only).
 - **The visitor's address** is the last entry of `X-Forwarded-For`, believed only when the connection comes from this computer (Caddy). Keep `HOST=127.0.0.1` behind a proxy; on a LAN without a proxy the connection's own address is used.
 - **Headers**: a Content-Security-Policy (no inline scripts except the dark-mode snippets, allowed by hash), `X-Frame-Options: SAMEORIGIN`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy`. Caddy adds HSTS.
 - **Requests**: JSON bodies only, at most 20 MB; a malformed address or Host is answered `400`/`403`; request headers must arrive within 20 seconds.

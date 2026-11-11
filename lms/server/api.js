@@ -33,6 +33,8 @@ import { createFileStore } from './files.js';
 import { registerNewsRoutes } from './news.js';
 import { registerGuideRoutes } from './guides.js';
 import { readFileSync } from 'node:fs';
+import { createAudit, systemOf, describeRoute, sideLabel, isStaff, addAuditDemo, removeAuditDemo } from './audit.js';
+import { registerControlRoutes } from './control.js';
 
 // The version of this ATLAS (package.json), shown with the guides.
 const APP_VERSION = (() => {
@@ -95,6 +97,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   });
   const users = () => db.data.users;
+  // The audit trail (server/audit.js, ATLAS Control → Audit trail).
+  const audit = createAudit(db);
+  const SIDE_SYSTEM = { portal: 'learn', admin: 'admin', hris: 'people' };
   // Password hashes are encrypted under the current key (server/auth.js): plain ones, and ones under
   // an old key, are encrypted now; ones under a key this server lacks cannot be used until it has it.
   function sealPasswords() {
@@ -108,10 +113,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   if (sealAtStart) sealPasswords();
 
   // limit: a rate-limit rule this route also counts against (see `limits`).
-  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null } = {}) => {
+  // audit: false when the route records its own, clearer entry in the audit trail (or nothing worth one);
+  // a refused request is recorded either way.
+  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null, audit: logged = true } = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, re, keys, access, handler, module, duringPasswordChange, guardians, limit });
+    routes.push({ method, pattern, re, keys, access, handler, module, duringPasswordChange, guardians, limit, audit: logged });
   };
 
   const ctx = {
@@ -123,21 +130,34 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     signOutEverywhere(userId) {
       for (const side of Object.values(sides)) side.destroyForUser(userId);
     },
+    audit: (e) => audit.record(e),
   };
 
   // ----- Sign-in (shared logic for both sides) -----
   // Wrong passwords lock a username for this address (so a stranger cannot lock someone out of
   // every computer), for every address after ten times as many, and pause an address that keeps
   // guessing across many usernames.
-  function signIn(side, body, ip = '') {
+  function signIn(side, body, ip = '', agent = '') {
     const username = String(body.username || '').trim().toLowerCase().slice(0, 120);
     const password = String(body.password || '');
     const key = `${side}:${username}`;
     const here = `${key}@${ip}`;
-    limits.check('signinFail', ip, 'Too many wrong passwords from your network.');
-    throttle.check(here);
-    throttle.check(key);
     const user = users().find((u) => u.username === username);
+    // Every refusal is in the audit trail, with the account it was for (a username nobody has is not
+    // written down: people sometimes type their password into the username box).
+    const refuse = (reason, run) => {
+      try {
+        return run();
+      } catch (err) {
+        audit.record({ kind: 'signin', system: SIDE_SYSTEM[side], action: `Sign-in ${err.status === 401 ? 'failed' : 'refused'}: ${reason}`, target: user || null, targetName: user ? '' : '(unknown username)', ip, agent, outcome: 'failed', detail: sideLabel(side) });
+        throw err;
+      }
+    };
+    refuse('too many wrong passwords from this address', () => limits.check('signinFail', ip, 'Too many wrong passwords from your network.'));
+    refuse('username locked', () => {
+      throttle.check(here);
+      throttle.check(key);
+    });
     // With single sign-on on and passwords off, only administrators keep a password (a way in if
     // Keycloak is down). Everyone else gets the same answer whether the password was right, wrong
     // or the account does not exist, so old passwords cannot be tested here.
@@ -148,24 +168,29 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       limits.add('signinFail', ip);
       throttle.fail(here);
       throttle.fail(key, 10);
-      fail(passwordsOff ? `This school signs in with Keycloak. Choose "${sso.label}".` : 'Incorrect username or password.', 401);
+      refuse(!right ? (user ? 'wrong password' : 'no such account') : 'passwords are switched off', () => fail(passwordsOff ? `This school signs in with Keycloak. Choose "${sso.label}".` : 'Incorrect username or password.', 401));
     }
     throttle.reset(here);
     throttle.reset(key);
     if (needsSealing(user.passwordHash)) user.passwordHash = sealHash(user.passwordHash); // saved below
-    if (ROLES[user.role]?.side !== side) {
-      fail(ROLES[user.role]?.side === 'hris'
-        ? 'HR and staff accounts sign in on the ATLAS home page and open People.'
-        : side === 'admin'
-          ? 'Teachers and students sign in on the ATLAS home page, not the admin panel.'
-          : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
-    }
-    if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
-    if (user.status === 'rejected') fail('Your application was not accepted. Contact the registrar for details.', 403);
-    if (user.status !== 'active') fail('This account is disabled. Contact the registrar.', 403);
+    refuse('wrong sign-in page', () => {
+      if (ROLES[user.role]?.side !== side) {
+        fail(ROLES[user.role]?.side === 'hris'
+          ? 'HR and staff accounts sign in on the ATLAS home page and open People.'
+          : side === 'admin'
+            ? 'Teachers and students sign in on the ATLAS home page, not the admin panel.'
+            : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
+      }
+    });
+    refuse(`account ${user.status}`, () => {
+      if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
+      if (user.status === 'rejected') fail('Your application was not accepted. Contact the registrar for details.', 403);
+      if (user.status !== 'active') fail('This account is disabled. Contact the registrar.', 403);
+    });
     user.lastLoginAt = new Date().toISOString();
     db.save();
-    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id), idleMs()) } };
+    audit.record({ kind: 'signin', system: SIDE_SYSTEM[side], action: 'Signed in', actor: user, target: user, ip, agent, detail: `${sideLabel(side)} · password` });
+    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id, { ip, agent }), idleMs()) } };
   }
 
   // A session for `user` on their side, ending any other side's session in this browser (single sign-on).
@@ -177,13 +202,17 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     return [sessionCookie(COOKIES[side], sides[side].create(user.id, extra), idleMs()), ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
   }
 
-  function changePassword(side, { user, token, body }) {
-    if (!verifyPassword(String(body.currentPassword || ''), user.passwordHash)) fail('Your current password is incorrect.');
+  function changePassword(side, { user, token, body, ip, agent }) {
+    if (!verifyPassword(String(body.currentPassword || ''), user.passwordHash)) {
+      audit.record({ kind: 'password', system: SIDE_SYSTEM[side], action: 'Password change failed: wrong current password', actor: user, target: user, ip, agent, outcome: 'failed' });
+      fail('Your current password is incorrect.');
+    }
     validatePassword(body.newPassword, db.data.settings.security);
     if (body.newPassword === body.currentPassword) fail('Choose a password different from the current one.');
     user.passwordHash = hashPassword(body.newPassword);
     user.mustChangePassword = false;
     for (const [name, sessions] of Object.entries(sides)) sessions.destroyForUser(user.id, name === side ? token : undefined);
+    audit.record({ kind: 'password', system: SIDE_SYSTEM[side], action: 'Changed their password', actor: user, target: user, ip, agent, detail: 'Their other sessions were ended.' });
     db.save();
     return { user: publicUser(user) };
   }
@@ -224,14 +253,15 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
 
   // ----- Learning portal: sign-in and admissions -----
   route('GET', '/api/auth/status', 'public', ({ portalUser }) => portalInfo(portalUser));
-  route('POST', '/api/auth/login', 'public', ({ body, ip }) => signIn('portal', body, ip), { limit: 'signin' });
-  route('POST', '/api/auth/logout', 'public', ({ portalToken }) => {
+  route('POST', '/api/auth/login', 'public', ({ body, ip, agent }) => signIn('portal', body, ip, agent), { limit: 'signin' });
+  route('POST', '/api/auth/logout', 'public', ({ portalToken, portalUser, ip, agent }) => {
+    if (portalUser) audit.record({ kind: 'signout', system: 'learn', action: 'Signed out', actor: portalUser, target: portalUser, ip, agent });
     sides.portal.destroy(portalToken);
     return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(PORTAL_COOKIE) } };
   });
-  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, limit: 'password', guardians: true });
-  route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body), { guardians: true });
-  route('POST', '/api/admin/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body));
+  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, limit: 'password', guardians: true, audit: false });
+  route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body), { guardians: true, audit: false });
+  route('POST', '/api/admin/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body), { audit: false });
   route('GET', '/api/auth/campuses', 'public', () => (db.data.settings.registration.open ? db.data.campuses.map((c) => ({ id: c.id, name: c.name })) : []));
 
   route('GET', '/api/auth/programs', 'public', () => {
@@ -269,7 +299,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const cfg = s.builtIn ? { status: 'live', url: '' } : db.data.settings.systems[s.id] || { status: 'soon', url: '' };
       return { ...s, status: cfg.status, url: s.builtIn ? (s.id === 'lms' && side === 'admin' ? '/admin' : s.path) : cfg.url, external: !s.builtIn };
     })
-    .filter((s) => s.status !== 'hidden' && (!user || s.audience.includes(user.role)))
+    .filter((s) => s.status !== 'hidden' && (user ? s.audience.includes(user.role) : !s.signedInOnly))
     .map(({ audience, ...s }) => (user ? s : { ...s, url: '' }));
   const AUTH_BASE = { portal: '/api/auth', admin: '/api/admin/auth', hris: '/api/hris/auth' };
   route('GET', '/api/hub/status', 'public', ({ portalUser, adminUser, hrisUser }) => {
@@ -288,15 +318,17 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   });
   // One person per browser: signing in here ends any other session this browser had.
-  route('POST', '/api/hub/login', 'public', ({ body, tokens, ip }) => {
+  route('POST', '/api/hub/login', 'public', ({ body, tokens, ip, agent }) => {
     const found = users().find((u) => u.username === String(body.username || '').trim().toLowerCase());
     const side = ROLES[found?.role]?.side || 'portal';
-    const out = signIn(side, body, ip);
+    const out = signIn(side, body, ip, agent);
     for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
     out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
     return out;
   }, { limit: 'signin' });
-  route('POST', '/api/hub/logout', 'public', ({ tokens, origin }) => {
+  route('POST', '/api/hub/logout', 'public', ({ tokens, origin, portalUser, adminUser, hrisUser, ip, agent }) => {
+    const who = portalUser || adminUser || hrisUser;
+    if (who) audit.record({ kind: 'signout', system: 'home', action: 'Signed out', actor: who, target: who, ip, agent });
     // A single sign-on session also ends at Keycloak: the browser goes there next.
     const ssoSession = Object.entries(sides).map(([name, sessions]) => sessions.get(tokens[name])).find((s) => s?.sso);
     const ssoLogout = sso.logoutUrl(ssoSession, origin);
@@ -326,7 +358,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     ...campusInfo(adminUser),
     roleOverrides: adminUser ? db.data.roleOverrides || {} : undefined, // the Admin panel's can() (shared/roles.js)
   }));
-  route('POST', '/api/admin/auth/setup', 'public', ({ body, ip }) => {
+  route('POST', '/api/admin/auth/setup', 'public', ({ body, ip, agent }) => {
     if (!setupRequired()) fail('Setup is already complete. Please sign in.');
     if (setupCode) {
       throttle.check(`setup@${ip}`);
@@ -344,14 +376,17 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       db.data.campuses[0].code = db.data.campuses[0].name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'MAIN';
     }
     db.save();
-    return signIn('admin', body, ip);
+    const first = users().find((u) => u.username === fields.username);
+    audit.record({ kind: 'account', system: 'admin', action: 'Set up ATLAS: made the first administrator', actor: first, target: first, ip, agent });
+    return signIn('admin', body, ip, agent);
   }, { limit: 'setup' });
-  route('POST', '/api/admin/auth/login', 'public', ({ body, ip }) => signIn('admin', body, ip), { limit: 'signin' });
-  route('POST', '/api/admin/auth/logout', 'public', ({ adminToken }) => {
+  route('POST', '/api/admin/auth/login', 'public', ({ body, ip, agent }) => signIn('admin', body, ip, agent), { limit: 'signin' });
+  route('POST', '/api/admin/auth/logout', 'public', ({ adminToken, adminUser, ip, agent }) => {
+    if (adminUser) audit.record({ kind: 'signout', system: 'admin', action: 'Signed out', actor: adminUser, target: adminUser, ip, agent });
     sides.admin.destroy(adminToken);
     return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(ADMIN_COOKIE) } };
   });
-  route('POST', '/api/admin/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password' });
+  route('POST', '/api/admin/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password', audit: false });
 
   // ----- Data: backups and demo data -----
   route('GET', '/api/admin/backup', 'admin:data.manage', () => db.data);
@@ -369,6 +404,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
     addDemo(db.data, ctx.today(), ctx.files);
     addFinanceDemo(db.data, ctx);
+    addAuditDemo(db.data, clock().getTime());
     db.save();
     return demoStatus(db.data);
   });
@@ -376,6 +412,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     for (const u of users().filter((x) => x.demo)) ctx.signOutEverywhere(u.id);
     removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
+    removeAuditDemo(db.data);
     db.save();
     return demoStatus(db.data);
   });
@@ -399,8 +436,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   };
   route('GET', '/api/hris/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => hrisStatus(hrisUser || adminUser || portalUser));
-  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
-  route('POST', '/api/hris/auth/campus', 'hris', ({ user, body }) => switchCampus(user, body));
+  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/hris/auth/campus', 'hris', ({ user, body }) => switchCampus(user, body), { audit: false });
   const hris = registerHrisRoutes(route, ctx);
 
   // ----- Academic (/academic/): staff with their admin-panel session, teachers and students with the portal's -----
@@ -420,8 +457,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       currentTermId: db.data.settings.currentTermId,
     };
   });
-  route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
-  route('POST', '/api/academic/auth/campus', 'academic', ({ user, body }) => switchCampus(user, body));
+  route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/academic/auth/campus', 'academic', ({ user, body }) => switchCampus(user, body), { audit: false });
   const academic = registerAcademicRoutes(route, ctx);
 
   // ----- Finance (/finance/): any employee (finance staff by their finance.* permissions) and students (their receipts) -----
@@ -439,8 +476,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       permissions: allowed ? finance.permissionsFor(user.role) : [],
     };
   });
-  route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
-  route('POST', '/api/finance/auth/campus', 'finance', ({ user, body }) => switchCampus(user, body));
+  route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/finance/auth/campus', 'finance', ({ user, body }) => switchCampus(user, body), { audit: false });
   const finance = registerFinanceRoutes(route, ctx);
   registerConfigRoutes(route, ctx);
   const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
@@ -452,6 +489,23 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const classroom = registerClassroomRoutes(route, ctx);
   registerGuardianRoutes(route, ctx, classroom);
   registerCalendarRoutes(route, ctx, classroom);
+  // ----- ATLAS Control (/control/): administrators only, with their admin-panel session -----
+  route('GET', '/api/control/auth/status', 'public', ({ adminUser, portalUser, hrisUser }) => {
+    const someone = adminUser || portalUser || hrisUser;
+    const ok = adminUser?.role === 'admin';
+    return {
+      sso: sso.publicInfo(),
+      setupRequired: setupRequired(),
+      branding: branding(),
+      user: ok ? publicUser(adminUser) : null,
+      deniedUser: someone && !ok ? { name: someone.name, role: someone.role } : null,
+      ...campusInfo(ok ? adminUser : null),
+      roleOverrides: ok ? db.data.roleOverrides || {} : undefined,
+    };
+  });
+  route('POST', '/api/control/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/control/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body), { audit: false });
+  registerControlRoutes(route, ctx, { sides, throttle, limitsOff: rateLimits === 'off' });
 
   // Call a route as a user, inside the server (demo data is made through the same rules as real work).
   ctx.invoke = (user, method, path, body = {}) => {
@@ -488,6 +542,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const hrisUser = resolve('hris', hrisToken);
     const tokens = { portal: portalToken, admin: adminToken, hris: hrisToken };
     const ip = clientIp(req);
+    const agent = String(req.headers['user-agent'] || '').slice(0, 160);
     const signedIn = portalUser || adminUser || hrisUser;
     if (signedIn) limits.hit('user', signedIn.id);
     else limits.hit('address', ip);
@@ -500,59 +555,78 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       if (!m) continue;
       let user = null;
       let token = null;
-      if (r.access === 'hris' || r.access.startsWith('hris:')) {
-        // Whoever is signed in on this browser: an HR/staff account, else an admin-panel or portal account.
-        [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
-        if (!user) fail('Please sign in.', 401);
-        if (user.role === 'student' || user.role === 'guardian') fail('People is for school employees.', 403);
-        const permission = r.access.split(':')[1];
-        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
-      } else if (r.access === 'academic' || r.access.startsWith('academic:')) {
-        user = adminUser || portalUser;
-        token = adminUser ? adminToken : portalToken;
-        if (!user) fail('Please sign in.', 401);
-        if (!ACADEMIC_ROLES.includes(user.role)) fail('Academic is for students, teachers and the registrar\'s office.', 403);
-        const permission = r.access.split(':')[1];
-        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
-      } else if (r.access === 'finance' || r.access.startsWith('finance:')) {
-        [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
-        if (!user) fail('Please sign in.', 401);
-        if (user.role === 'guardian') fail('Finance is for the school\'s employees and students.', 403);
-        const permission = r.access.split(':')[1];
-        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
-      } else if (r.access.startsWith('admin')) {
-        user = adminUser;
-        token = adminToken;
-        if (!user) fail('Please sign in to the admin panel.', 401);
-        const permission = r.access.split(':')[1];
-        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
-      } else if (r.access !== 'public') {
-        user = portalUser;
-        token = portalToken;
-        if (!user) fail('Please sign in.', 401);
-        if (['teacher', 'student', 'guardian'].includes(r.access) && user.role !== r.access) fail(r.access === 'guardian' ? 'Only parents and guardians can do this.' : `Only ${r.access}s can do this.`, 403);
-        // Parents & guardians see the school through their linked students only.
-        if (user.role === 'guardian' && r.access === 'portal' && !r.guardians) fail('This part of Learn is for students and teachers.', 403);
-        if (r.module && !moduleOn(db.data.modules, r.module, user.role)) fail(`${MODULE_NAMES[r.module]} is switched off for ${user.role}s.`, 403);
-      }
-      if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
-      if (r.limit) limits.hit(r.limit, r.limit === 'password' ? user.id : ip);
-      const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-      const campusId = user ? activeCampusId(db.data, user) : null;
-      // A Finance change is all or nothing: if any check fails partway, the books are put back as they were.
-      const finSnap = req.method !== 'GET' && url.pathname.startsWith('/api/finance/') ? Object.fromEntries(Object.keys(db.data).filter((k) => k.startsWith('fin')).map((k) => [k, structuredClone(db.data[k])])) : null;
-      // A settings screen's save is recorded in the Settings center's history (server/config.js).
-      const recordSettings = ctx.settingsWatch?.(req.method, url.pathname);
-      let result;
+      const lastFin = db.data.finAudit.at(-1)?.id;
+      const lastAcademic = db.data.auditLog.at(-1)?.id;
       try {
-        result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies, ip });
+        if (r.access === 'hris' || r.access.startsWith('hris:')) {
+          // Whoever is signed in on this browser: an HR/staff account, else an admin-panel or portal account.
+          [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
+          if (!user) fail('Please sign in.', 401);
+          if (user.role === 'student' || user.role === 'guardian') fail('People is for school employees.', 403);
+          const permission = r.access.split(':')[1];
+          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+        } else if (r.access === 'academic' || r.access.startsWith('academic:')) {
+          user = adminUser || portalUser;
+          token = adminUser ? adminToken : portalToken;
+          if (!user) fail('Please sign in.', 401);
+          if (!ACADEMIC_ROLES.includes(user.role)) fail('Academic is for students, teachers and the registrar\'s office.', 403);
+          const permission = r.access.split(':')[1];
+          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+        } else if (r.access === 'finance' || r.access.startsWith('finance:')) {
+          [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
+          if (!user) fail('Please sign in.', 401);
+          if (user.role === 'guardian') fail('Finance is for the school\'s employees and students.', 403);
+          const permission = r.access.split(':')[1];
+          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+        } else if (r.access.startsWith('admin')) {
+          user = adminUser;
+          token = adminToken;
+          if (!user) fail('Please sign in to the admin panel.', 401);
+          const permission = r.access.split(':')[1];
+          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+        } else if (r.access !== 'public') {
+          user = portalUser;
+          token = portalToken;
+          if (!user) fail('Please sign in.', 401);
+          if (['teacher', 'student', 'guardian'].includes(r.access) && user.role !== r.access) fail(r.access === 'guardian' ? 'Only parents and guardians can do this.' : `Only ${r.access}s can do this.`, 403);
+          // Parents & guardians see the school through their linked students only.
+          if (user.role === 'guardian' && r.access === 'portal' && !r.guardians) fail('This part of Learn is for students and teachers.', 403);
+          if (r.module && !moduleOn(db.data.modules, r.module, user.role)) fail(`${MODULE_NAMES[r.module]} is switched off for ${user.role}s.`, 403);
+        }
+        if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
+        if (r.limit) limits.hit(r.limit, r.limit === 'password' ? user.id : ip);
+        const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+        const campusId = user ? activeCampusId(db.data, user) : null;
+        // A Finance change is all or nothing: if any check fails partway, the books are put back as they were.
+        const finSnap = req.method !== 'GET' && url.pathname.startsWith('/api/finance/') ? Object.fromEntries(Object.keys(db.data).filter((k) => k.startsWith('fin')).map((k) => [k, structuredClone(db.data[k])])) : null;
+        // A settings screen's save is recorded in the Settings center's history (server/config.js).
+        const recordSettings = ctx.settingsWatch?.(req.method, url.pathname);
+        let result;
+        try {
+          result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies, ip, agent });
+        } catch (err) {
+          if (finSnap) Object.assign(db.data, finSnap);
+          throw err;
+        }
+        const settingsEntries = recordSettings?.(user);
+        // Every change by staff goes in the audit trail, unless the system's own log has it already
+        // (Settings history, Finance's audit, Academic's log: the trail shows those too).
+        if (req.method !== 'GET' && r.audit && isStaff(user) && !settingsEntries?.length && db.data.finAudit.at(-1)?.id === lastFin && db.data.auditLog.at(-1)?.id === lastAcademic) {
+          // About whom or what: an account named in the address, else what was just made, else the record's id.
+          const about = Object.values(params).map((v) => users().find((u) => u.id === v)).find(Boolean);
+          const made = !about && req.method === 'POST' && result && typeof result === 'object' && typeof result.id === 'string' ? result : null;
+          const target = about || (made ? { id: made.id, name: made.name || made.title || made.code || '' } : Object.values(params)[0] ? { id: Object.values(params)[0], name: '' } : null);
+          audit.record({ kind: 'change', system: systemOf(url.pathname), action: describeRoute(req.method, r.pattern), actor: user, target, ip, agent, detail: `${req.method} ${url.pathname}`.slice(0, 200) });
+        }
+        if (result?.raw != null) return result; // a file, a page or a redirect
+        return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
       } catch (err) {
-        if (finSnap) Object.assign(db.data, finSnap);
+        // Refused: someone signed in asked for something their account may not do.
+        if (err instanceof HttpError && err.status === 403 && (user || signedIn) && !(user?.mustChangePassword && !r.duringPasswordChange)) {
+          audit.record({ kind: 'refused', system: systemOf(url.pathname), action: `Refused: ${describeRoute(req.method, r.pattern)}`, actor: user || signedIn, ip, agent, outcome: 'refused', detail: `${req.method} ${url.pathname.slice(0, 160)} · ${err.message}`.slice(0, 400) });
+        }
         throw err;
       }
-      recordSettings?.(user);
-      if (result?.raw != null) return result; // a file, a page or a redirect
-      return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
     }
     fail('Not found.', 404);
   };

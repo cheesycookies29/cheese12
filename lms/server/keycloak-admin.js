@@ -1,5 +1,5 @@
 // Sets up ATLAS's client in Keycloak through Keycloak's admin REST API, so an administrator does
-// not have to click through Keycloak's console: Admin panel → Single sign-on → Set up for me.
+// not have to click through Keycloak's console: ATLAS Control → Single sign-on → Set up for me.
 //
 //   1. A token for a Keycloak account allowed to manage clients: an administrator's username and
 //      password (through Keycloak's own admin-cli client), or a service account's client ID and

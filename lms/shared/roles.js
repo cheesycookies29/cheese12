@@ -139,7 +139,7 @@ export const HRIS_PERMISSION_LABELS = [
 
 export { FINANCE_PERMISSION_LABELS } from './finance.js';
 
-// ----- What an administrator changed (Admin panel → Roles & permissions) -----
+// ----- What an administrator changed (ATLAS Control → Roles & permissions) -----
 // { role: { add: [permission…], remove: [permission…] } }, kept in db.data.roleOverrides. The server
 // sets it when it starts and after each change; the Admin panel's browser code sets it from its status.
 let overrides = {};

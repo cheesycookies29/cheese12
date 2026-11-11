@@ -13,7 +13,7 @@
 //      Keycloak session (RP-initiated logout).
 //
 // Only people who already have an ATLAS account can sign in; Keycloak proves who they are, ATLAS
-// decides what they may do. Settings live in data.settings.sso (Admin panel → Single sign-on);
+// decides what they may do. Settings live in data.settings.sso (ATLAS Control → Single sign-on);
 // the client secret never in the data file or backups: either in the file oidc-client.secret beside
 // the data file (readable by ATLAS only; written by "Set up for me", server/keycloak-admin.js), or
 // in the environment (OIDC_CLIENT_SECRET). The file, when there is one, wins.
@@ -31,7 +31,7 @@ const fail = (msg, status = 400) => {
 };
 export const SSO_STATE_COOKIE = 'ltdc_sso_state';
 export const DEFAULT_SSO = { enabled: false, issuer: '', clientId: '', label: 'Sign in with Keycloak', matchBy: 'email', allowPasswords: true };
-const NEXT_OK = ['/', '/lms/', '/admin', '/hris/', '/academic/'];
+const NEXT_OK = ['/', '/lms/', '/admin', '/control/', '/hris/', '/academic/'];
 // Account types a Keycloak username alone may link (the first time); every other type also needs a verified, matching email.
 const USERNAME_ALONE = ['student', 'guardian', 'staff'];
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
@@ -200,8 +200,9 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     return { raw: '', type: 'text/plain', status: 302, headers: { Location: u.toString(), 'Set-Cookie': stateCookie(state) } };
   }, { limit: 'lookup' });
 
-  route('GET', '/api/sso/callback', 'public', async ({ query, cookies, tokens }) => {
-    const back = (msg) => ({ raw: page('Sign-in did not finish', msg, `/?ssoError=${encodeURIComponent(msg)}`), type: 'text/html', headers: { 'Set-Cookie': stateCookie('', 0) } });
+  route('GET', '/api/sso/callback', 'public', async ({ query, cookies, tokens, ip, agent }) => {
+    const failed = (msg) => ctx.audit?.({ kind: 'signin', system: 'home', action: 'Keycloak sign-in failed', ip, agent, outcome: 'failed', detail: msg });
+    const back = (msg) => (failed(msg), { raw: page('Sign-in did not finish', msg, `/?ssoError=${encodeURIComponent(msg)}`), type: 'text/html', headers: { 'Set-Cookie': stateCookie('', 0) } });
     const st = pending.get(String(query.state || ''));
     if (query.error) {
       if (st) pending.delete(query.state);
@@ -217,7 +218,8 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
       const tok = await getJson(d.token_endpoint, { method: 'POST', headers, body: form.toString() });
       const claims = await verifyIdToken(tok.id_token, st.nonce);
       const user = accountFor(claims);
-      const session = startSession(user, tokens, { sso: true, idToken: tok.id_token });
+      const session = startSession(user, tokens, { sso: true, idToken: tok.id_token, ip, agent });
+      ctx.audit?.({ kind: 'signin', system: 'home', action: 'Signed in with Keycloak', actor: user, target: user, ip, agent, detail: `Keycloak user ${user.ssoName || ''}`.trim() });
       ctx.db.save();
       return {
         raw: page('Signed in', `Welcome, ${user.name}.`, st.next),
@@ -241,7 +243,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     return u.toString();
   }
 
-  // ----- Settings (Admin panel → Single sign-on) -----
+  // ----- Settings (ATLAS Control → Single sign-on) -----
   const view = (origin) => ({ ...cfg(), secretSet: Boolean(secret), secretSource, redirectUri: `${origin}/api/sso/callback`, postLogoutUri: `${origin}/`, linked: data().users.filter((u) => u.ssoSubject).length });
   route('GET', '/api/admin/sso', 'admin:settings.edit', ({ origin }) => view(origin));
   route('POST', '/api/admin/sso/test', 'admin:settings.edit', async ({ body }) => {
@@ -291,13 +293,14 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
       auth: { kind: auth.kind, realm: text(auth.realm, 100), username: text(auth.username, 200), password: String(auth.password || '').slice(0, 500), clientId: text(auth.clientId, 200), clientSecret: String(auth.clientSecret || '').slice(0, 500) },
     });
     keepSecret(out.secret);
+    ctx.audit?.({ kind: 'access', system: 'admin', action: 'Set up Keycloak single sign-on', actor: user, ip: '', detail: `Client "${clientId}" in realm "${out.realm}"${out.changes.length ? `: ${out.changes.join(', ')}` : ''}` });
     const s = cfg();
     Object.assign(s, { issuer, clientId });
     if (body.enable !== false) s.enabled = true;
     ctx.db.save();
     console.log(`Single sign-on: Keycloak client "${clientId}" in realm "${out.realm}" set up by ${user.username}${out.changes.length ? ` (${out.changes.join(', ')})` : ' (nothing to change)'}.`);
     return { ...view(origin), done: { realm: out.realm, created: out.created, changes: out.changes } };
-  }, { limit: 'password' });
+  }, { limit: 'password', audit: false });
 
   return { logoutUrl, publicInfo: () => (cfg().enabled ? { enabled: true, label: cfg().label, passwords: cfg().allowPasswords } : { enabled: false, passwords: true }) };
 }

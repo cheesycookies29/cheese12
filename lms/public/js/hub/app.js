@@ -8,7 +8,7 @@ import { roleLabel } from '/shared/roles.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
-const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/', '/help/'], admin: ['/admin', '/hris/', '/academic/', '/finance/', '/help/'], hris: ['/hris/', '/finance/', '/help/'] };
+const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/', '/help/'], admin: ['/admin', '/control/', '/hris/', '/academic/', '/finance/', '/help/'], hris: ['/hris/', '/finance/', '/help/'] };
 const next = new URLSearchParams(location.search).get('next');
 
 document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));

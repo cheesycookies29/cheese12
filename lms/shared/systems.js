@@ -50,6 +50,20 @@ export const SYSTEMS = [
     path: '/finance/',
   },
   {
+    // The administrators' control panel: access to every system, every account, sessions and the
+    // audit trail. Only administrators see it, and it is not listed before signing in.
+    id: 'control',
+    product: 'Control',
+    short: 'ADMIN',
+    title: 'Admin control panel',
+    description: 'Access to every system, all accounts and who is signed in, and the audit trail of sign-ins and changes.',
+    icon: 'shield',
+    audience: ['admin'],
+    builtIn: true,
+    signedInOnly: true,
+    path: '/control/',
+  },
+  {
     id: 'facilities',
     product: 'Facilities',
     short: '',

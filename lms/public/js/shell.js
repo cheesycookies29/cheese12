@@ -290,7 +290,7 @@ export function startApp(config) {
   function renderTop() {
     const b = ctx.info.branding;
     applyBranding(b);
-    mount(document.getElementById('school-name'), atlasWord(config.side === 'admin' ? 'Learn · Admin' : config.product || 'Learn'));
+    mount(document.getElementById('school-name'), atlasWord(config.brandLine || (config.side === 'admin' ? 'Learn · Admin' : config.product || 'Learn')));
     mount(document.getElementById('brand-sub'), html`${b.schoolName}${ctx.info.campusName ? html` · <strong class="campus-name">${ctx.info.campusName}</strong>` : ''}${b.termName ? ` · ${b.termName}` : ''}`);
     renderThemeButton();
   }

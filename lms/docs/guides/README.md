@@ -30,7 +30,7 @@ id: teacher                      # file name without .md; used in links: /help/#
 title: Teaching with ATLAS Learn
 summary: One sentence: what this guide helps you do.
 roles: teacher                   # account types it is written for (comma-separated, see shared/roles.js)
-apps: learn, people, finance     # where its screens are: home, learn, admin, academic, people, finance
+apps: learn, people, finance     # where its screens are: home, learn, admin, academic, people, finance, control
 order: 20                        # place in the list (lower first)
 ---
 ```

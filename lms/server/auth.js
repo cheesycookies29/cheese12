@@ -159,10 +159,12 @@ export function createSessions(ttl = () => SESSION_TTL) {
   }, 10 * 60 * 1000);
   sweep.unref?.();
   return {
-    // extra: e.g. { sso: true, idToken } for a single sign-on session (used to end the Keycloak session too).
+    // extra: e.g. { sso: true, idToken } for a single sign-on session (used to end the Keycloak session too),
+    // and { ip, agent }: where it was opened from (shown to administrators in Control → Sessions).
     create(userId, extra = {}) {
       const token = randomBytes(32).toString('hex');
-      sessions.set(token, { ...extra, userId, expires: Date.now() + ttl() });
+      const at = Date.now();
+      sessions.set(token, { ...extra, userId, createdAt: at, lastSeen: at, expires: at + ttl() });
       return token;
     },
     get(token) {
@@ -172,8 +174,21 @@ export function createSessions(ttl = () => SESSION_TTL) {
         sessions.delete(token);
         return null;
       }
-      s.expires = Date.now() + ttl();
+      s.lastSeen = Date.now();
+      s.expires = s.lastSeen + ttl();
       return s;
+    },
+    // Live sessions, each with a short id made from its token (the token itself is never shown).
+    list() {
+      const t = Date.now();
+      return [...sessions].filter(([, s]) => s.expires >= t).map(([token, s]) => ({
+        id: sessionId(token), userId: s.userId, createdAt: s.createdAt, lastSeen: s.lastSeen, expires: s.expires, ip: s.ip || '', agent: s.agent || '', sso: Boolean(s.sso),
+      }));
+    },
+    idOf: (token) => (token ? sessionId(token) : ''),
+    destroyById(id) {
+      for (const token of sessions.keys()) if (sessionId(token) === id) return sessions.delete(token);
+      return false;
     },
     destroy(token) {
       sessions.delete(token);
@@ -183,6 +198,8 @@ export function createSessions(ttl = () => SESSION_TTL) {
     },
   };
 }
+
+const sessionId = (token) => createHash('sha256').update(token).digest('hex').slice(0, 16);
 
 // COOKIE_SECURE=1 when served over HTTPS, so browsers never send the cookie over plain HTTP.
 const SECURE = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
@@ -223,6 +240,11 @@ export function createThrottle(limits = {}) {
     },
     reset(key) {
       failures.delete(key);
+    },
+    // Keys locked right now, with when they open again (Control → Locked sign-ins).
+    locked() {
+      const t = Date.now();
+      return [...failures].filter(([, f]) => f.until > t).map(([key, f]) => ({ key, until: f.until }));
     },
   };
 }

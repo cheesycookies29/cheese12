@@ -16,7 +16,7 @@ const GUIDES = path.join(ROOT, 'docs', 'guides');
 const files = fs.readdirSync(GUIDES).filter((f) => f.endsWith('.md') && f !== 'README.md');
 const guides = files.map((f) => ({ file: f, ...parseGuide(fs.readFileSync(path.join(GUIDES, f), 'utf8')) }));
 const byId = new Map(guides.map((g) => [g.meta.id, g]));
-const APPS = { portal: 'learn', admin: 'admin', academic: 'academic', hris: 'people', finance: 'finance' };
+const APPS = { portal: 'learn', admin: 'admin', academic: 'academic', hris: 'people', finance: 'finance', control: 'control' };
 
 // Sidebar labels of an app (every `label:` in its app.js nav).
 function navLabels(app) {

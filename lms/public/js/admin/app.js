@@ -13,11 +13,9 @@ import { modulesView } from './views/modules.js';
 import { settingsView, dataView, gradingView } from './views/settings.js';
 import { newsAdminView } from './views/news.js';
 import { systemsView } from './views/systems.js';
-import { ssoView } from './views/sso.js';
 import { campusesView } from './views/campuses.js';
 import { guardiansView, guardianView } from './views/guardians.js';
 import { configView } from './views/config.js';
-import { rolesView } from './views/roles.js';
 import { schoolCalendarView } from './views/calendar.js';
 
 const p = (permission) => (user) => can(user.role, permission);
@@ -43,11 +41,12 @@ const routes = [
   ['/news', newsAdminView, p('news.manage')],
   ['/calendar', schoolCalendarView, p('dashboard')],
   ['/systems', systemsView, p('dashboard')],
-  ['/sso', ssoView, p('settings.edit')],
+  // Single sign-on and Roles & permissions are in ATLAS Control now (administrators only).
+  ['/sso', () => location.replace('/control/#/sso')],
   ['/campuses', campusesView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
   ['/config', configView, p('settings.edit')],
-  ['/roles', rolesView, (u) => u.role === 'admin'],
+  ['/roles', () => location.replace('/control/#/roles')],
   ['/elsewhere', elsewhereView],
 ];
 
@@ -84,11 +83,10 @@ function nav() {
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
     { href: '/systems', label: 'Home page & systems', icon: 'grid' },
-    c('settings.edit') && { href: '/sso', label: 'Single sign-on', icon: 'key' },
     c('admins.manage') && { href: '/staff', label: 'Admins, registrars & deans', icon: 'shield' },
-    ctx.user.role === 'admin' && { href: '/roles', label: 'Roles & permissions', icon: 'lock' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
+    ctx.user.role === 'admin' && { href: '/control/', label: 'ATLAS Control', icon: 'shield', external: true },
     { href: '/', label: 'ATLAS home', icon: 'grid', external: true },
   ].filter(Boolean);
 }

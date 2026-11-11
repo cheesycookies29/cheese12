@@ -118,7 +118,7 @@
  {
   "file": "admin-roles.jpg",
   "user": "admin",
-  "url": "/admin#/roles",
+  "url": "/control/#/roles",
   "wait": 1200,
   "scroll": ".roles-group:last-of-type",
   "click": [
@@ -134,8 +134,29 @@
  {
   "file": "admin-sso.jpg",
   "user": "admin",
-  "url": "/admin#/sso",
+  "url": "/control/#/sso",
   "wait": 1000
+ },
+ {
+  "file": "control-overview.jpg",
+  "user": "admin",
+  "url": "/control/#/overview",
+  "wait": 1200
+ },
+ {
+  "file": "control-account.jpg",
+  "user": "admin",
+  "url": "/control/#/accounts?q=registrar.demo",
+  "wait": 1000,
+  "click": [
+   "tbody tr"
+  ]
+ },
+ {
+  "file": "control-audit.jpg",
+  "user": "admin",
+  "url": "/control/#/audit?kind=signin&outcome=failed",
+  "wait": 1200
  },
  {
   "file": "admin-data.jpg",

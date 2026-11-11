@@ -18,6 +18,7 @@ const appEl = document.getElementById('app');
 const SYSTEMS = [
   ['home', 'ATLAS home', 'grid'], ['learn', 'ATLAS Learn', 'book'], ['admin', 'Admin panel', 'settings'],
   ['academic', 'ATLAS Academic', 'cap'], ['people', 'ATLAS People', 'users'], ['finance', 'ATLAS Finance', 'wallet'],
+  ['control', 'ATLAS Control', 'shield'],
 ];
 const SYS = Object.fromEntries(SYSTEMS.map(([k, label, ic]) => [k, { label, icon: ic }]));
 const START = ['getting-started', 'whats-new'];
