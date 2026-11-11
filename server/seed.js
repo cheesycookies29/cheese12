@@ -8,11 +8,12 @@ import { DEFAULT_CRM } from '../shared/crm.js';
 const DEFAULT_BID_CHECKLIST = DEFAULT_CRM.bidChecklist;
 import { workDates } from '../shared/leave.js';
 import { ticketRef, slaDue } from '../shared/helpdesk.js';
+import { DEFAULT_STATUSES } from '../shared/projects.js';
 
 const PEOPLE = [
   ['Maria', 'Santos', 'Reyes', 'HR Manager', 'Human Resources', 'monthly', 55000, 'Female', 'Married'],
   ['Juan', 'Dela Cruz', 'Garcia', 'Software Engineer', 'Engineering', 'monthly', 45000, 'Male', 'Single'],
-  ['Andrea', 'Villanueva', 'Lim', 'Accountant', 'Finance', 'monthly', 32000, 'Female', 'Single'],
+  ['Andrea', 'Villanueva', 'Lim', 'Project Manager', 'Delivery', 'monthly', 32000, 'Female', 'Single'],
   ['Mark', 'Bautista', 'Torres', 'Sales Associate', 'Sales', 'monthly', 22000, 'Male', 'Married'],
   ['Kristine', 'Mendoza', 'Aquino', 'Customer Support', 'Operations', 'monthly', 18000, 'Female', 'Single'],
   ['Ramon', 'Castillo', 'Ramos', 'Warehouse Staff', 'Operations', 'daily', 755, 'Male', 'Married'],
@@ -136,6 +137,7 @@ export function demoData(codes = {}) {
   seedAssets(data, c);
   seedTickets(data, c);
   seedCrm(data, c);
+  seedProjects(data, c);
   return data;
 }
 
@@ -184,13 +186,14 @@ function seedCrm(data, c) {
     ['Plant attendance and timekeeping', bayani, 'Victor', 'needs', 780000, 50, 'Event', 'Site visit to the Valenzuela plant'],
     ['Provincial helpdesk and asset tracking', islaVerde, 'Corazon', 'qualify', 2400000, 75, 'Website', 'Get the approved budget and timeline'],
     ['Clinic patient portal', luzon, 'Miguel', 'lost', 1100000, -45, 'Cold outreach', ''],
-    ['Learning management system, phase 2', nsu, 'Teresa', 'proposal', 1650000, 28, 'Existing client', 'Demo the LMS gradebook to the deans'],
+    ['Learning management system, phase 2', nsu, 'Teresa', 'won', 1650000, -46, 'Existing client', ''],
   ];
   const deals = STAGED.map(([title, a, contact, stage, value, closeIn, source, nextStep], i) => {
-    const deal = { ...base(90 - i * 9), code: `${P}DL-${String(i + 1).padStart(4, '0')}`, title, accountId: a.id, contactId: byName(contact).id, stage, value, expectedClose: day(closeIn), source, nextStep, description: '', lostReason: stage === 'lost' ? 'Lost to a competitor' : '' };
+    // The LMS phase 2 deal was won some weeks ago (its project is running: see seedProjects).
+    const deal = { ...base(i === 6 ? 110 : 90 - i * 9), code: `${P}DL-${String(i + 1).padStart(4, '0')}`, title, accountId: a.id, contactId: byName(contact).id, stage, value, expectedClose: day(closeIn), source, nextStep, description: '', lostReason: stage === 'lost' ? 'Lost to a competitor' : '' };
     if (stage === 'won' || stage === 'lost') deal.closedAt = at(closeIn);
-    acts.push(event('deal', deal, 'Deal created in Qualification', 90 - i * 9));
-    if (stage === 'won') acts.push(event('deal', deal, 'Won · Negotiation → Won', -closeIn));
+    acts.push(event('deal', deal, 'Deal created in Qualification', i === 6 ? 110 : 90 - i * 9));
+    if (stage === 'won') acts.push(event('deal', deal, `Won · ${i === 6 ? 'Proposal' : 'Negotiation'} → Won`, -closeIn));
     if (stage === 'lost') acts.push(event('deal', deal, 'Lost (Lost to a competitor) · from Proposal', -closeIn));
     return deal;
   });
@@ -220,6 +223,7 @@ function seedCrm(data, c) {
     { ...base(300), code: `${P}CT-0001`, title: 'Student information system support and maintenance', accountId: nsu.id, dealId: null, bidId: null, number: 'NSU-2025-118', value: 480000, startDate: day(-325), endDate: day(40), status: 'active', autoRenew: false, billing: 'Quarterly', terms: '8x5 support, two releases per year.' },
     { ...base(20), code: `${P}CT-0002`, title: 'Warehouse HR and payroll: licence and implementation', accountId: meridian.id, dealId: deals[2].id, bidId: bids[2].id, number: 'MLI-PO-77812', value: 1320000, startDate: day(-15), endDate: day(350), status: 'active', autoRenew: true, billing: '50% on signing, 50% on go-live', terms: '' },
     { ...base(500), code: `${P}CT-0003`, title: 'Website redesign and hosting', accountId: nsu.id, dealId: null, bidId: null, number: 'NSU-2024-031', value: 210000, startDate: day(-500), endDate: day(-135), status: 'expired', autoRenew: false, billing: 'One-time', terms: '' },
+    { ...base(45), code: `${P}CT-0004`, title: 'Learning management system, phase 2: implementation', accountId: nsu.id, dealId: deals[6].id, bidId: null, number: 'NSU-2026-204', value: 1650000, startDate: day(-42), endDate: day(80), status: 'active', autoRenew: false, billing: '30% on design sign-off, 70% on acceptance', terms: 'Gradebook and parent portal; four batches of faculty training; 90 days of warranty support.' },
   ];
 
   const activity = (type, rel, relType, subject, body, dueIn, done, created) => ({
@@ -233,12 +237,170 @@ function seedCrm(data, c) {
     activity('call', deals[0], 'deal', 'Pricing call with the VP for Administration', 'She wants a 3-year support option and staggered payments.', null, true, 6),
     activity('task', contracts[0], 'contract', 'Prepare the renewal quotation', '', 5, false, 1),
     activity('note', bayani, 'account', 'Background', 'Three plants; about 900 employees on shifting schedules. Currently on spreadsheets.', null, true, 30),
-    activity('email', deals[6], 'deal', 'Sent the phase 2 proposal', 'Proposal v2 with the gradebook and parent portal.', null, true, 9),
+    activity('email', deals[6], 'deal', 'Sent the phase 2 proposal', 'Proposal v2 with the gradebook and parent portal.', null, true, 60),
     activity('task', leads[0], 'lead', 'Call Andres about the seasonal payroll', '', 1, false, 1),
     activity('meeting', deals[4], 'deal', 'Discovery meeting with the Provincial IT Office', 'They have about 1,400 devices and no ticketing.', null, true, 21),
   );
 
   Object.assign(data, { crmAccounts: accounts, crmContacts: contacts, crmLeads: leads, crmDeals: deals, crmBids: bids, crmContracts: contracts, crmActivities: acts });
+}
+
+// Project Management: the LMS phase 2 delivery for Northfield State University (won deal and
+// contract, about six weeks in), the provincial helpdesk bid being planned, and a small internal
+// IT project. People are written as DEMO_USER('pm.demo') and so on; addDemo() swaps in the demo
+// accounts' ids once they exist.
+export const DEMO_USER = (username) => `demo-user:${username}`;
+function seedProjects(data, c) {
+  const P = c.crmPrefix ?? '';
+  const now = Date.now();
+  const at = (days) => new Date(now + days * 86400000).toISOString();
+  const day = (days) => localDate(new Date(now + days * 86400000));
+  // A working day: a weekend day or a holiday moves back to the working day before.
+  const off = new Set(data.holidays.filter((h) => h.type === 'regular' || h.type === 'special').map((h) => h.date));
+  const wd = (days) => {
+    for (let n = days; n > days - 10; n--) {
+      const dow = new Date(now + n * 86400000).getDay();
+      if (dow !== 0 && dow !== 6 && !off.has(day(n))) return day(n);
+    }
+    return day(days);
+  };
+  const [pmU, juan, it, sales] = ['pm.demo', 'employee.demo', 'it.demo', 'sales.demo'].map(DEMO_USER);
+  const [nsu, , , , islaVerde] = data.crmAccounts;
+  const status = (id) => DEFAULT_STATUSES.find((x) => x.id === id);
+  const projects = [];
+  const milestones = [];
+  const tasks = [];
+  const comments = [];
+  const logs = [];
+
+  function project(n, fields, ms, rows) {
+    const code = `${P}PRJ-${String(n).padStart(4, '0')}`;
+    const p = {
+      id: randomUUID(), code, statuses: structuredClone(DEFAULT_STATUSES), healthOverride: null, taskSeq: 0, version: 1, budgetHours: null,
+      accountId: null, dealId: null, contractId: null, description: '', createdAt: at(-60), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: fields.managerId,
+      history: [{ at: at(-60), by: fields.managerId, field: 'created', from: '', to: '' }], ...fields,
+    };
+    projects.push(p);
+    const mIds = ms.map(([name, due, deliverable, billingPercent, submitted, accepted, note], i) => {
+      const m = { id: randomUUID(), projectId: p.id, name, dueDate: wd(due), deliverable, billingPercent: billingPercent ?? null, submittedAt: submitted == null ? null : wd(submitted), acceptedAt: accepted == null ? null : wd(accepted), acceptanceNote: note || '', order: i, version: 1, createdAt: at(-60), updatedAt: at(-2) };
+      milestones.push(m);
+      return m.id;
+    });
+    const byKey = {};
+    rows.forEach(([ref, title, mi, st, who, start, due, est, extra = {}], i) => {
+      const n2 = ++p.taskSeq;
+      const t = {
+        id: randomUUID(), projectId: p.id, key: `${code}-${n2}`, title, description: extra.description || '', statusId: st, priority: extra.priority || 'normal',
+        assigneeId: who, startDate: start == null ? null : wd(start), dueDate: due == null ? null : wd(due), estimateHours: est ?? null,
+        milestoneId: mi == null ? null : mIds[mi], parentId: extra.parent ? byKey[extra.parent].id : null,
+        checklist: (extra.checklist || []).map(([text, done]) => ({ id: randomUUID(), text, done })), blockedBy: (extra.blockedBy || []).map((k) => byKey[k].id),
+        ticketId: null, rank: (i + 1) * 1024, completedAt: status(st).category === 'done' ? at(due == null ? -1 : Math.min(-1, due)) : null,
+        version: 1, createdAt: at(-45), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: who || fields.managerId,
+        history: [{ at: at(-45), by: fields.managerId, field: 'created', from: '', to: '' }],
+      };
+      if (st !== 'todo') t.history.push({ at: at(Math.min(-1, start ?? -1)), by: who || fields.managerId, field: 'status', from: 'To do', to: status(st).name });
+      byKey[ref] = t;
+      tasks.push(t);
+    });
+    return { p, byKey };
+  }
+
+  // 1. LMS phase 2 for Northfield State University: active, about six weeks in.
+  const won = data.crmDeals[6];
+  const lmsContract = data.crmContracts.find((x) => x.dealId === won.id);
+  const lms = project(1, {
+    name: 'Learning management system, phase 2', type: 'Client', status: 'active', startDate: wd(-42), endDate: wd(50), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: nsu.id, dealId: won.id, contractId: lmsContract.id, budgetHours: 420,
+    description: 'Gradebook and parent portal for the LMS delivered in phase 1, with faculty training. Billing: 30% on design sign-off, 70% on acceptance.',
+  }, [
+    ['Design and requirements sign-off', -21, true, 30, -22, -18, 'Signed by the VP for Administration.'],
+    ['Gradebook and parent portal build', 5, false],
+    ['User acceptance testing', 24, false],
+    ['Go-live and acceptance', 45, true, 70],
+  ], [
+    ['kick', 'Kick-off meeting with the deans', 0, 'done', pmU, -42, -41, 3],
+    ['req', 'Requirements workshops with the three colleges', 0, 'done', pmU, -40, -33, 16],
+    ['gdd', 'Gradebook design document', 0, 'done', juan, -35, -26, 24],
+    ['wire', 'Parent portal wireframes', 0, 'done', juan, -33, -27, 12],
+    ['sign', 'Design sign-off with the VP for Administration', 0, 'done', pmU, -24, -22, 2],
+    ['weights', 'Gradebook: grading periods and weights', 1, 'done', juan, -20, -10, 32],
+    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 24, { priority: 'high', checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
+    ['login', 'Parent portal: sign-in and linking to students', 1, 'doing', juan, -8, 3, 20],
+    ['grades', 'Parent portal: grades and attendance pages', 1, 'todo', juan, 1, 5, 16, { blockedBy: ['login'] }],
+    ['staging', 'Set up the staging server', 1, 'done', it, -18, -14, 6],
+    ['ssl', 'SSL certificate and domain for the parent portal', 1, 'waiting', it, -10, -3, 2, { description: 'Waiting for the university\'s IT office to add the DNS record.' }],
+    ['privacy', 'Data privacy notice for parents', 1, 'review', pmU, -7, 2, 4, { checklist: [['Draft the notice', true], ['Review with the university\'s DPO', false]] }],
+    ['reports', 'Gradebook reports', 1, 'doing', juan, -6, 5, null],
+    ['r1', 'Class record report', null, 'done', juan, -6, -3, 6, { parent: 'reports' }],
+    ['r2', 'Report card PDF', null, 'doing', juan, -2, 4, 8, { parent: 'reports' }],
+    ['r3', 'Dean\'s summary of grades', null, 'todo', juan, 3, 5, 6, { parent: 'reports' }],
+    ['scripts', 'UAT test scripts', 2, 'todo', pmU, 2, 12, 12],
+    ['uat', 'UAT sessions with the registrar and two deans', 2, 'todo', pmU, 14, 20, 10],
+    ['fixes', 'Fix the UAT findings', 2, 'todo', juan, 18, 23, 24],
+    ['load', 'Load test with 3,000 parents', 2, 'todo', it, 10, 16, 8],
+    ['train', 'Faculty training, four batches', 3, 'todo', pmU, 28, 38, 16, { checklist: [['Book the AVR', false], ['Training manual', false], ['Attendance sheets', false]] }],
+    ['announce', 'Parent portal launch announcement', 3, 'todo', pmU, 38, 40, 3],
+    ['cutover', 'Go-live cut-over', 3, 'todo', it, 41, 42, 6, { priority: 'high' }],
+    ['accept', 'Acceptance certificate signed', 3, 'todo', pmU, 43, 45, 1],
+    ['weekly', 'Weekly status report to the VP', null, 'todo', pmU, null, 2, 1],
+    ['shells', 'Migrate phase 1 course shells', null, 'cancelled', juan, -15, -10, 8, { description: 'Not needed: the university keeps phase 1 as it is.' }],
+    ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 1],
+  ]);
+  const k = lms.byKey;
+  comments.push(
+    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: pmU, body: '@employee.demo the Engineering lists have about 40 cross-enrolled students. Can you check them before the build review?', createdAt: at(-3) },
+    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: juan, body: 'Checked 32 of them. The other 8 need the registrar\'s updated list; I asked Teresa for it.', createdAt: at(-2) },
+    { id: randomUUID(), taskId: k.ssl.id, projectId: lms.p.id, userId: it, body: 'Still waiting for Paolo (IT Director) to add the DNS record. Followed up by email today.', createdAt: at(-1) },
+  );
+  // Time logged over the last two weeks, on working days up to yesterday.
+  const workDays = [];
+  for (let i = 1; workDays.length < 10 && i < 30; i++) {
+    const dow = new Date(now - i * 86400000).getDay();
+    if (dow !== 0 && dow !== 6 && !off.has(day(-i))) workDays.push(i);
+  }
+  workDays.forEach((ago, i) => {
+    const date = day(-ago);
+    const log = (userId, task, hours, note = '') => logs.push({ id: randomUUID(), projectId: lms.p.id, taskId: task?.id || null, userId, date, hours, note, createdAt: at(-ago) });
+    log(juan, i < 5 ? k.import : k.weights, 5, i === 0 ? 'Cross-enrolled students' : '');
+    log(juan, i % 2 ? k.login : k.r1, i === 2 ? 5 : 1.5);
+    log(pmU, i % 3 ? k.emails : k.privacy, 1.5);
+    log(pmU, null, 1, 'Status meeting');
+    if (i % 3 === 0) log(it, i < 6 ? k.ssl : k.staging, 2);
+  });
+
+  // 2. The provincial helpdesk: a government bid being planned, deliverables from the terms of reference.
+  project(2, {
+    name: 'Provincial helpdesk and asset tracking', type: 'Government', status: 'planning', startDate: wd(21), endDate: wd(140), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: islaVerde.id, dealId: data.crmDeals[4].id, budgetHours: 600,
+    description: 'If the bid is awarded: an ICT helpdesk and asset management system for 12 provincial offices, about 1,400 devices.',
+  }, [
+    ['Inception report and work plan', 35, true, 15],
+    ['System installed in the 12 offices', 90, true, 45],
+    ['Training and turnover', 130, true, 40],
+  ], [
+    ['kick', 'Kick-off with the Provincial IT Office', 0, 'todo', pmU, 21, 21, 3],
+    ['inv', 'Inventory of devices per office', 0, 'todo', it, 22, 33, 40],
+    ['inception', 'Write the inception report', 0, 'todo', pmU, 25, 35, 16],
+    ['install', 'Install and configure the service desk', 1, 'todo', it, 40, 85, 120],
+    ['focal', 'Train the office focal persons', 2, 'todo', pmU, 95, 125, 40],
+  ]);
+
+  // 3. A small internal IT project.
+  project(3, {
+    name: 'Office network refresh', type: 'Internal', status: 'active', startDate: wd(-10), endDate: wd(20), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
+    description: 'New PoE switches and cabling on the 3rd floor; Wi-Fi in the meeting rooms.',
+  }, [['New switches live', 10, false]], [
+    ['survey', 'Survey the 3rd floor cabling', 0, 'done', it, -10, -8, 4],
+    ['order', 'Order two PoE switches', 0, 'done', it, -8, -7, 1],
+    ['replace', 'Replace the switches on the 3rd floor', 0, 'doing', it, 2, 4, 8, { priority: 'high', checklist: [['Schedule after office hours', true], ['Back up the switch configuration', false], ['Label the patch panel', false]] }],
+    ['wifi', 'Wi-Fi access point for meeting room B', 0, 'todo', juan, 5, 9, 3],
+    ['diagram', 'Update the network diagram', null, 'todo', juan, 12, 15, 2],
+  ]);
+
+  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs });
 }
 
 // A few service desk tickets in different states, from the demo employees.
@@ -273,8 +435,8 @@ function seedTickets(data, c) {
     make(c.firstTicket + 2, juan, 'Laptop battery drains very fast', 'Hardware', 'normal', 'open', 5, 'portal', [
       msg(r(juan), 'My laptop goes from 100% to 20% in about an hour, even with only the browser open.', ago(5)),
     ]),
-    make(c.firstTicket + 3, andrea, 'Cannot open the Finance shared drive', 'Account and access', 'high', 'new', 2, 'email', [
-      msg(r(andrea), 'I get "Access denied" when I open \\\\fileserver\\finance since this morning. I need it for the month-end close.', ago(2)),
+    make(c.firstTicket + 3, andrea, 'Cannot open the Projects shared drive', 'Account and access', 'high', 'new', 2, 'email', [
+      msg(r(andrea), 'I get "Access denied" when I open \\\\fileserver\\projects since this morning. I need it for the client status report due today.', ago(2)),
     ]),
   ];
   data.helpdesk.seq = c.firstTicket + data.tickets.length - 1;

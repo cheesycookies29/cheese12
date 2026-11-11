@@ -8,6 +8,7 @@ import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
 import { emptyHelpdesk } from './helpdesk.js';
 import { emptyCrm } from './crm.js';
+import { emptyPm } from './projects.js';
 import { initialHolidays } from './holidays.js';
 
 export function emptyData() {
@@ -43,6 +44,14 @@ export function emptyData() {
     crmContracts: [],
     crmActivities: [],
     crm: emptyCrm(),
+    // Project Management (server/projects.js): projects, milestones, tasks, comments and time
+    // logs, and the Projects setup with the code counter in `pm`.
+    pmProjects: [],
+    pmMilestones: [],
+    pmTasks: [],
+    pmComments: [],
+    pmTimeLogs: [],
+    pm: emptyPm(),
   };
 }
 

@@ -13,6 +13,7 @@ import { sendMail } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
 import { parseUpload, uploadFromBuffer } from './attachments.js';
 import { MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
+import { linkedTasks } from './projects.js';
 
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -132,7 +133,8 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     const s = summary(t);
     const visible = (m) => !forRequester || m.kind === 'reply' || (m.kind === 'event' && m.public);
     const messages = t.messages.filter(visible).map(({ emailMessageId, email, ...m }) => (forRequester ? m : { ...m, email }));
-    return { ...s, ccs: forRequester ? [] : t.ccs, messages, ...(forRequester ? {} : { publicUrl: t.publicUrl || null }) };
+    // Agents see the project tasks made from the ticket (Add to a project).
+    return { ...s, ccs: forRequester ? [] : t.ccs, messages, ...(forRequester ? {} : { publicUrl: t.publicUrl || null, projectTasks: linkedTasks(db, t.id) }) };
   };
 
   // ----- Creating and updating -----

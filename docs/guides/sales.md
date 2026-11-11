@@ -139,6 +139,18 @@ A contract shows *Renew in … days* when it ends within the renewal notice (60 
 
 ![A contract due for renewal](sales-contract.jpg)
 
+### Start a project from a won deal
+
+When a deal is won, the work of delivering it is a project in **Project Management**. Starting it needs an account that can edit projects as well as use the CRM: a Project Manager with CRM access, or a sales account an administrator gave **Projects access** (Sales Managers see every project, read only).
+
+1. Open the won deal (or its contract) and click **Start project**.
+2. Check the **Project name**, **Type**, **Project manager**, **Start** and **End** dates. The end date comes from the contract when there is one.
+3. Click **Start project**.
+
+The project opens, linked to the client, the deal and the contract. The deal and the contract list it under **Projects**; Sales Managers can open it to follow the delivery. A deal starts one project; to start a second one for the same deal, CORE asks first. See [the projects guide](projects).
+
+![Start project on a won deal](sales-start-project.jpg)
+
 ### Log a call, meeting, email, note or task
 
 1. Open the record it is about: a lead, account, contact, deal, bid or contract.
@@ -182,7 +194,7 @@ An account that still has deals, bids or contracts cannot be deleted; delete or 
 | Accounts | Organizations: clients, prospects, partners and suppliers, with their people, deals, bids, contracts and timeline |
 | Contacts | The people at your accounts |
 | Bids | Public tenders and RFPs: ABC, our bid, deadlines and the document checklist |
-| Contracts | What was won: value, term, billing, renewal badges and **Renew** |
+| Contracts | What was won: value, term, billing, renewal badges and **Renew**; the projects delivering it |
 | Activities | Calls, meetings, emails, notes and tasks across the CRM; your open and overdue tasks |
 | Sales setup | Pipeline stages and probabilities, lead sources, lost reasons, industries, renewal notice and the bid checklist (Sales Managers); team access (administrators) |
 
@@ -208,6 +220,9 @@ A service desk agent with CRM access opens the ticket and clicks **Send to Sales
 
 **CORE says the record was changed since I opened it. What do I do?**
 Someone else saved the same record while your form was open. Close the form: the page loads their change. Then make yours again. This keeps one person's save from undoing another's.
+
+**Where do I see how the delivery of a won deal is going?**
+On the deal or contract page, under **Projects**. Sales Managers can open the project to see its progress, health and milestones (read only).
 
 **Can I undo a lost deal?**
 Yes. Open the deal and click another stage in the stage bar. The history keeps both moves.

@@ -6,12 +6,13 @@
 import { randomUUID } from 'node:crypto';
 import { demoData } from './seed.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
-import { DEMO_OWNER } from './seed.js';
+import { DEMO_OWNER, DEMO_USER } from './seed.js';
 import { CRM_COLLECTIONS } from './crm.js';
+import { PM_COLLECTIONS } from './projects.js';
 import { routeRequest, migrateApprovals } from './approvals.js';
 
 // Collections the demo set adds to.
-const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS];
+const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS, ...PM_COLLECTIONS];
 // Records that belong to an employee and go with a demo employee.
 const BY_EMPLOYEE = ['timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments'];
 
@@ -20,7 +21,7 @@ const highest = (codes, re) => codes.reduce((m, c) => Math.max(m, Number(String(
 export const hasDemo = (db) => COLLECTIONS.some((k) => (db.data[k] || []).some((x) => x.demo)) || db.data.users.some((u) => u.demo);
 
 export function demoCounts(db) {
-  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets', 'crmAccounts', 'crmDeals'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo).length]));
+  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets', 'crmAccounts', 'crmDeals', 'pmProjects'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo).length]));
 }
 
 // summarize(run) recomputes a payroll run's totals after demo payslips are taken out of it.
@@ -54,6 +55,7 @@ export function removeDemo(db, { summarize }) {
       if (demoUsers.has(x.updatedBy)) x.updatedBy = null;
     }
   }
+  removeDemoProjects(d, demoUsers);
   for (const k of BY_EMPLOYEE) d[k] = d[k].filter((x) => !empIds.has(x.employeeId));
   // Real employees who reported to a demo employee no longer have a supervisor on record.
   for (const e of d.employees) if (empIds.has(e.supervisorId)) e.supervisorId = null;
@@ -82,6 +84,45 @@ export function removeDemo(db, { summarize }) {
   return removed;
 }
 
+// After the demo records are gone: what was inside a demo project goes too; real projects drop
+// demo people, and links to demo CRM records and tickets.
+function removeDemoProjects(d, demoUsers) {
+  const projects = new Set(d.pmProjects.map((p) => p.id));
+  for (const k of PM_COLLECTIONS.slice(1)) d[k] = d[k].filter((x) => projects.has(x.projectId));
+  const tasks = new Set(d.pmTasks.map((t) => t.id));
+  d.pmComments = d.pmComments.filter((c) => tasks.has(c.taskId) && !demoUsers.has(c.userId));
+  d.pmTimeLogs = d.pmTimeLogs.filter((x) => !demoUsers.has(x.userId));
+  for (const x of d.pmTimeLogs) if (x.taskId && !tasks.has(x.taskId)) x.taskId = null;
+  const alive = (k) => new Set(d[k].map((x) => x.id));
+  const live = { accountId: alive('crmAccounts'), dealId: alive('crmDeals'), contractId: alive('crmContracts') };
+  for (const p of d.pmProjects) {
+    for (const [field, ids] of Object.entries(live)) if (p[field] && !ids.has(p[field])) p[field] = null;
+    p.members = p.members.filter((m) => !demoUsers.has(m.userId));
+    if (demoUsers.has(p.managerId)) p.managerId = null;
+  }
+  const tickets = alive('tickets');
+  for (const t of d.pmTasks) {
+    if (demoUsers.has(t.assigneeId)) t.assigneeId = null;
+    if (t.ticketId && !tickets.has(t.ticketId)) t.ticketId = null;
+  }
+}
+
+// Demo projects name people by username (seed.js DEMO_USER); these become the accounts' ids, or
+// nobody when the account is not there.
+function linkDemoPeople(d) {
+  const id = (v) => (typeof v === 'string' && v.startsWith(DEMO_USER('')) ? d.users.find((u) => u.username === v.slice(DEMO_USER('').length))?.id || null : v);
+  for (const p of d.pmProjects.filter((x) => x.demo)) {
+    p.members = p.members.map((m) => ({ ...m, userId: id(m.userId) })).filter((m) => m.userId);
+    for (const f of ['managerId', 'createdBy', 'updatedBy']) p[f] = id(p[f]);
+    for (const h of p.history || []) h.by = id(h.by);
+  }
+  for (const t of d.pmTasks.filter((x) => x.demo)) {
+    for (const f of ['assigneeId', 'createdBy', 'updatedBy']) t[f] = id(t[f]);
+    for (const h of t.history || []) h.by = id(h.by);
+  }
+  for (const k of ['pmComments', 'pmTimeLogs']) d[k] = d[k].filter((x) => !x.demo || (x.userId = id(x.userId)));
+}
+
 // Adds a fresh demo set (replacing an earlier one) without touching real records.
 export function addDemo(db, { summarize, demoAccounts }) {
   if (hasDemo(db)) removeDemo(db, { summarize });
@@ -108,5 +149,6 @@ export function addDemo(db, { summarize, demoAccounts }) {
     if (x.ownerId === DEMO_OWNER) x.ownerId = salesOwner?.id || null;
     if (x.createdBy === DEMO_OWNER) x.createdBy = salesOwner?.id || null;
   }
+  linkDemoPeople(d);
   return demoCounts(db);
 }

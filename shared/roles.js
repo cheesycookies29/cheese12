@@ -39,8 +39,13 @@ export const ROLES = {
   },
   salesmgr: {
     label: 'Sales Manager',
-    description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist.',
-    permissions: ['crm.view', 'crm.edit', 'crm.manage', 'self'],
+    description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist. Sees every project (read only), to follow the delivery of what was sold.',
+    permissions: ['crm.view', 'crm.edit', 'crm.manage', 'pm.view', 'self'],
+  },
+  pm: {
+    label: 'Project Manager',
+    description: 'Runs Project Management: creates and edits any project, its members, milestones and tasks; sees every project, the workload and time; deletes projects and changes the Projects setup. Can view employee records.',
+    permissions: ['pm.view', 'pm.edit', 'pm.manage', 'employees.view', 'self'],
   },
   employee: {
     label: 'Employee',
@@ -80,6 +85,9 @@ export const PERMISSION_LABELS = [
   ['crm.view', 'Sales & CRM: see accounts, contacts, leads, deals, bids and contracts'],
   ['crm.edit', 'Sales & CRM: add and edit records, move deals, log calls, meetings and tasks'],
   ['crm.manage', 'Sales & CRM: delete records and change the sales setup'],
+  ['pm.view', 'Projects: see every project, its tasks, milestones, time and the workload'],
+  ['pm.edit', 'Projects: create projects and edit any project (details, members, columns, milestones, tasks)'],
+  ['pm.manage', 'Projects: delete projects and change the Projects setup'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
@@ -91,16 +99,18 @@ export function can(role, permission) {
 }
 
 // Permissions an administrator can grant or remove per account, on top of the account type.
-// user.helpdeskAgent / user.crmAccess: true (granted), false (removed) or absent (follow the
-// account type). CRM access grants viewing and editing; removing it also removes crm.manage.
-// Administrators always keep everything.
-export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent', 'crm.view': 'crmAccess', 'crm.edit': 'crmAccess' };
+// user.helpdeskAgent / user.crmAccess / user.pmAccess: true (granted), false (removed) or absent
+// (follow the account type). CRM and Projects access grant viewing and editing; removing it also
+// removes crm.manage / pm.manage. Administrators always keep everything.
+// (Anyone who is a member of a project can open that project without pm.view: see server/projects.js.)
+export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent', 'crm.view': 'crmAccess', 'crm.edit': 'crmAccess', 'pm.view': 'pmAccess', 'pm.edit': 'pmAccess' };
 export function userCan(user, permission) {
   if (!user) return false;
   if (user.role !== 'admin') {
     const field = PER_USER[permission];
     if (field && typeof user[field] === 'boolean') return user[field];
     if (permission === 'crm.manage' && user.crmAccess === false) return false;
+    if (permission === 'pm.manage' && user.pmAccess === false) return false;
   }
   return can(user.role, permission);
 }

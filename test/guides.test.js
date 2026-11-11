@@ -17,7 +17,7 @@ const GUIDES = path.join(ROOT, 'docs', 'guides');
 const files = fs.readdirSync(GUIDES).filter((f) => f.endsWith('.md') && f !== 'README.md');
 const guides = files.map((f) => ({ file: f, ...parseGuide(fs.readFileSync(path.join(GUIDES, f), 'utf8')) }));
 const byId = new Map(guides.map((g) => [g.meta.id, g]));
-const MODULES = ['hr', 'assets', 'helpdesk', 'crm', 'system'];
+const MODULES = ['hr', 'assets', 'helpdesk', 'crm', 'projects', 'system'];
 
 // Sidebar labels per module, from the NAV object in public/js/app.js.
 function navLabels() {

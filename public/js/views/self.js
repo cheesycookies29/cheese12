@@ -38,9 +38,12 @@ export async function meHomeView(el) {
   const period = currentPeriod(today(), ctx.settings.payFrequency);
 
   async function render() {
-    const [all, payslips, requests, balances] = await Promise.all([
+    const [all, payslips, requests, balances, work] = await Promise.all([
       api.get('/api/me/time-entries'), api.get('/api/me/payslips'), api.get('/api/me/requests'), api.get('/api/me/leave-balances'),
+      ctx.user.inProjects ? api.get('/api/pm/my-work').catch(() => null) : null,
     ]);
+    // Project tasks assigned to me: a link to My work, when there are any.
+    const myTasks = work ? Object.values(work).flat() : [];
     const entries = all.filter((e) => e.date >= period.start && e.date <= period.end);
     const open = all.find((e) => e.type === 'work' && e.timeIn && !e.timeOut);
     const todays = all.find((e) => e.date === today());
@@ -87,6 +90,11 @@ export async function meHomeView(el) {
             ${upcoming.length ? html`<ul class="link-list">${upcoming.map((r) => html`<li>${kindBadge(r)} ${dateRange(r)}</li>`)}</ul>` : ''}
             <div class="actions"><a class="btn primary" href="#/me/requests?new=1">File a request</a><a class="btn" href="#/me/requests">My requests</a></div>
           </section>
+          ${myTasks.length ? html`<section class="card">
+            <h2>My project tasks</h2>
+            <p>${myTasks.length} open task${myTasks.length === 1 ? '' : 's'}${work.overdue.length ? html` · ${badge(`${work.overdue.length} overdue`, 'red')}` : ''}${work.today.length ? html` · ${work.today.length} due today` : ''}</p>
+            <a href="#/projects/my-work">Open My work →</a>
+          </section>` : ''}
           <section class="card">
             <h2>Latest payslip</h2>
             ${latest

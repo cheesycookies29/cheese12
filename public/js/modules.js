@@ -9,12 +9,13 @@ export const MODULES = [
     description: 'Support tickets from the portal, by email and from the public form, with assignment, internal notes and service levels.' },
   { id: 'crm', code: 'MOD-06', name: 'Sales & CRM', glyph: 'chart', status: 'live', tagline: 'Leads, pipeline, bids and contracts',
     description: 'Leads, accounts and contacts, a drag-and-drop deal pipeline with forecasts, public bids with document checklists, and contract renewals.' },
+  { id: 'projects', code: 'MOD-05', name: 'Project Management', glyph: 'layers', status: 'live', tagline: 'Projects, milestones, tasks and time',
+    description: 'Client, government and internal projects: milestones and deliverables, a task board, a timeline, time logs, and who has how much work.' },
   { id: 'finance', code: 'MOD-03', name: 'Finance & Accounting', glyph: 'wallet', status: 'soon',
     description: 'General ledger, payables and receivables, budgets and financial statements.' },
   { id: 'procurement', code: 'MOD-04', name: 'Procurement', glyph: 'receipt', status: 'soon',
     description: 'Purchase requests and approvals, suppliers, purchase orders and deliveries.' },
-  { id: 'projects', code: 'MOD-05', name: 'Project Management', glyph: 'layers', status: 'soon',
-    description: 'Projects, milestones, resource allocation and timesheets.' },
+
   { id: 'documents', code: 'MOD-08', name: 'Document Management', glyph: 'folder', status: 'soon',
     description: 'Contracts, compliance files, templates and approvals.' },
 ];

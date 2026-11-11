@@ -13,6 +13,7 @@ export const AUDIT_AREAS = {
   assets: 'IT assets',
   helpdesk: 'Service desk',
   crm: 'Sales & CRM',
+  projects: 'Projects',
   system: 'System',
 };
 
@@ -72,6 +73,7 @@ export const AUDIT_ACTIONS = {
   'assets.change': 'Changed IT assets or inventory',
   'helpdesk.change': 'Changed the service desk',
   'crm.change': 'Changed Sales & CRM',
+  'projects.change': 'Changed a project, its tasks or time',
   'attendance.change': 'Changed attendance settings',
   'payroll.change': 'Changed payroll data',
   'system.change': 'Changed system data',
@@ -87,6 +89,7 @@ export function areaOfPath(pathname) {
   if (/^\/api\/(assets|inventory|stock|issue-reports|me\/assets)/.test(pathname)) return 'assets';
   if (/^\/api\/(helpdesk|tickets|me\/tickets)/.test(pathname)) return 'helpdesk';
   if (/^\/api\/crm/.test(pathname)) return 'crm';
+  if (/^\/api\/pm\//.test(pathname)) return 'projects';
   if (/^\/api\/(time-entries|clock-locations|location-settings)/.test(pathname)) return 'attendance';
   if (/^\/api\/(payroll|employees\/[^/]+\/ytd)/.test(pathname)) return 'payroll';
   return 'system';

@@ -8,7 +8,7 @@
 // When something ships: add an entry at the top and set package.json "version"
 // to the same value (a test checks both).
 //   version  semver with a stage, e.g. '0.2.8-alpha'
-//   modules  hr | assets | crm | system | deploy
+//   modules  hr | assets | crm | projects | system | deploy
 //   changes  [type, module, text], type is new (Added) | improved (Changed) | fixed (Fixed)
 //   known    known issues in this build (optional)
 
@@ -16,16 +16,40 @@ export const DEVLOG_MODULES = {
   hr: 'HR & Payroll',
   assets: 'IT Asset Management',
   crm: 'Sales & CRM',
+  projects: 'Project Management',
   system: 'System & access',
   deploy: 'Deployment & hosting',
 };
 
 // Short module keys shown as scopes, e.g. "Fixed  system  …".
-export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', crm: 'crm', system: 'system', deploy: 'deploy' };
+export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', crm: 'crm', projects: 'projects', system: 'system', deploy: 'deploy' };
 
 export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' };
 
 export const DEVLOG = [
+  {
+    version: '0.13.0-alpha',
+    date: '2026-11-11',
+    title: 'Project Management module',
+    modules: ['projects', 'crm', 'system'],
+    notes: 'Added Project Management (MOD-05) for dated, contract-bound delivery: projects with milestones and contract deliverables, a task board, a list, a timeline, time logs, My work and Workload. Progress and health are worked out from the tasks.',
+    changes: [
+      ['new', 'projects', 'Projects with a code (PRJ-0001), type, status, dates, project manager, budget in hours, and links to the client, deal and contract in Sales & CRM. Members have a role in the project: manager, member or viewer. Anyone on a project opens it, whatever their account type; everyone else gets "not found", for the project and everything in it.'],
+      ['new', 'projects', 'Milestones, with contract deliverables and their billing % (at most 100% per project), submitted and accepted dates and an acceptance note. A deliverable due after the contract ends is flagged.'],
+      ['new', 'projects', 'Tasks with status, priority, one assignee, start and due dates, estimate, milestone, one level of subtasks, a checklist, "blocked by" links (a flag only; loops are refused), comments with @mentions and a history of status, assignee, dates, milestone and priority. Keys such as PRJ-0001-12 are never reused.'],
+      ['new', 'projects', 'Board with a column per status: drag cards, or use the Move to menu (keyboard and phones); quick add; filters by assignee and milestone; WIP limits that warn. Statuses belong to four fixed categories (to do, in progress, done, cancelled); project managers rename, recolour, add and remove them, choosing where the tasks of a removed status go.'],
+      ['new', 'projects', 'List grouped by milestone or status, edited in place, sortable, filters in the address and CSV export; Timeline of weeks with milestones, task bars, today, weekends and holidays (a dated list on phones); Time tab to log hours, with totals by person and task against estimates.'],
+      ['new', 'projects', 'Progress over leaf tasks, by hours when 60% of them have an estimate, otherwise by count. Health per milestone and project: red when a milestone is past due with open work, amber with overdue tasks, tasks due after their milestone, or progress more than 15 points behind the line, counted in working days with CORE\'s holiday calendar. A project manager can add their own reading with a note; the computed one stays visible.'],
+      ['new', 'projects', 'Overview (portfolio) with progress, health and next milestone; a project overview with milestones, overdue and blocked tasks, members, CRM links, the client\'s open service desk tickets (agents) and recent activity; Print status report on one page; Copy a project as a template with dates moved.'],
+      ['new', 'projects', 'My work: your open tasks in every project, grouped overdue, today, this week, later and no date, with quick status changes; also on My Home. Workload: planned hours per person and week against capacity, less holidays and approved leave.'],
+      ['new', 'projects', 'Time logs (quarter hours, today or earlier): a day with more project hours than the DTR\'s attended hours is flagged, not refused, and the check is shown only to the person, the project\'s managers and HR.'],
+      ['new', 'system', 'New account type Project Manager; Sales Managers see every project (read only). Administrators give or remove Projects access per account under Projects setup → Team access. Project changes are in the audit log under Projects. Demo data adds three projects and the pm.demo account.'],
+      ['new', 'crm', 'Start project on a won deal or a contract (for accounts that can also edit projects): a project linked to the client, deal and contract, once per deal unless confirmed. Deal and contract pages list their projects. Deleting a CRM record keeps its projects, without the link.'],
+      ['improved', 'crm', 'Demo data: the LMS phase 2 deal for Northfield State University is won, with its implementation contract, and runs as a project.'],
+      ['new', 'system', 'Service Desk: Add to a project turns a ticket into a task for an agent who is on the project; the task shows the ticket\'s status and the ticket lists the task.'],
+    ],
+    known: ['No notifications yet: mentions are highlighted and My work counts overdue tasks, but nobody is emailed.', 'Someone added to a project while signed in sees Project Management once CORE is reloaded or they sign in again.', 'Dragging cards needs a mouse or trackpad; on touch screens use the Move to menu.'],
+  },
   {
     version: '0.12.1-alpha',
     date: '2026-11-11',

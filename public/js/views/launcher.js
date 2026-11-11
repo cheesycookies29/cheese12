@@ -15,7 +15,7 @@ function greeting() {
 // A few live figures per module, only from data this user may see.
 async function moduleStats() {
   const get = (url) => api.get(url).catch(() => null);
-  const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm] = await Promise.all([
+  const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm, pm] = await Promise.all([
     can('employees.view') ? get('/api/employees') : null,
     can('leave.manage') ? get('/api/requests/summary') : null,
     can('assets.view') ? get('/api/assets') : null,
@@ -25,6 +25,7 @@ async function moduleStats() {
     can('helpdesk.agent') ? get('/api/helpdesk/summary') : null,
     can('helpdesk.agent') ? null : get('/api/helpdesk/mine'),
     can('crm.view') ? get('/api/crm/overview') : null,
+    can('pm.view') || ctx.user.inProjects ? get('/api/pm/overview') : null,
   ]);
   const hr = [];
   if (employees) hr.push(`${employees.filter((e) => e.status === 'Active').length} active employees`);
@@ -47,7 +48,14 @@ async function moduleStats() {
     if (crm.myTasks.length) sales.push(`${crm.myTasks.length} task${crm.myTasks.length === 1 ? '' : 's'} due for you`);
     if (crm.newLeads) sales.push(`${crm.newLeads} new lead${crm.newLeads === 1 ? '' : 's'}`);
   }
-  return { hr, assets: assetsOut, helpdesk, crm: sales };
+  const projects = [];
+  if (pm) {
+    const n = pm.counts.open;
+    projects.push(`${n} open project${n === 1 ? '' : 's'}`);
+    if (pm.counts.amber + pm.counts.red) projects.push(`${pm.counts.amber + pm.counts.red} at risk or off track`);
+    if (pm.counts.myOpen) projects.push(`${pm.counts.myOpen} task${pm.counts.myOpen === 1 ? '' : 's'} of yours${pm.counts.myOverdue ? `, ${pm.counts.myOverdue} overdue` : ''}`);
+  }
+  return { hr, assets: assetsOut, helpdesk, crm: sales, projects };
 }
 
 export async function launcherView(el) {
@@ -102,7 +110,7 @@ export async function launcherView(el) {
 
     <section class="hub-wrap">
       <div class="card-head"><h2>${icon('grid')} Your modules</h2><span class="muted small">${open} of ${live.length} available to you</span></div>
-      <div class="sys-grid ${live.length === 3 ? 'three' : ''}">${live.map(card)}</div>
+      <div class="sys-grid ${live.length === 3 || live.length === 5 ? 'three' : ''}">${live.map(card)}</div>
     </section>
 
     ${admin.length

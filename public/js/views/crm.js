@@ -6,6 +6,7 @@ import { api } from '../api.js';
 import { ctx, can, roleLabel } from '../state.js';
 import { html, mount, badge, toast, modal, confirmDialog, money, fmtDate, today, downloadFile, toCsv } from '../ui.js';
 import { icon } from '../icons.js';
+import { startProject } from './projects.js';
 import {
   ACCOUNT_TYPES, SECTORS, LEAD_STATUS, OPEN_LEAD, BID_STATUS, OPEN_BID, BID_MODES, CONTRACT_STATUS, ACTIVITY_TYPES,
   stageList, isOpenDeal, daysBetween,
@@ -415,6 +416,11 @@ async function timeline(el, type, id) {
   await render();
 }
 
+// The projects delivering a deal or contract (Project Management).
+const PROJECT_STATUS_LABEL = { planning: 'Planning', active: 'Active', on_hold: 'On hold', completed: 'Completed', cancelled: 'Cancelled' };
+const projectsCard = (list, empty) => html`<section class="card"><h2>${icon('layers')} Projects</h2>
+  ${list.length ? html`<ul class="crm-mini">${list.map((p) => html`<li><span class="grow"><a href="#/projects/${p.id}"><strong>${p.name}</strong></a><small class="mono">${p.code}</small></span>${badge(PROJECT_STATUS_LABEL[p.status] || p.status, p.status === 'active' ? 'green' : p.status === 'planning' ? 'blue' : 'gray')}</li>`)}</ul>` : html`<p class="muted small">${empty}</p>`}</section>`;
+
 // ---------- Shared page pieces ----------
 const head = (title, sub, actions = '', back = '') => html`
   <header class="page-head">
@@ -671,7 +677,7 @@ export async function dealView(el, { id }) {
   const idx = stages.findIndex((s) => s.id === x.stage);
   mount(el, html`
     ${head(html`${x.title} ${stageBadge(x)}`, html`<span class="mono">${x.code}</span> · <a href="#/crm/accounts/${x.accountId}">${x.accountName}</a>${x.contactName ? html` · <a href="#/crm/contacts/${x.contactId}">${x.contactName}</a>` : ''}`, html`
-      ${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/pipeline', 'Pipeline'])}
+      ${x.stage === 'won' && can('pm.edit') ? html`<button class="btn primary" id="start-project">${icon('layers', 16)} Start project</button>` : ''}${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/pipeline', 'Pipeline'])}
     <nav class="crm-path" aria-label="Stage">
       ${stages.map((s, i) => html`<button type="button" class="${x.stage === s.id ? 'cur' : (idx >= 0 && i < idx) || x.stage === 'won' ? 'past' : ''}" data-stage="${s.id}" ${x.stage === s.id ? 'aria-current="step"' : ''} ${canEdit() ? '' : 'disabled'}>${s.name}</button>`)}
       <span class="crm-path-break" aria-hidden="true"></span>
@@ -691,6 +697,7 @@ export async function dealView(el, { id }) {
           ${x.bids.length ? html`<ul class="crm-mini">${x.bids.map((b) => html`<li><span class="grow"><a href="#/crm/bids/${b.id}"><strong>${b.title}</strong></a><small>${b.reference || b.code}</small></span>${bidBadge(b.status)}</li>`)}</ul>` : html`<p class="muted small">No bid linked. Add one if this goes through public bidding or an RFP.</p>`}</section>
         <section class="card"><div class="card-head"><h2>Contracts</h2>${canEdit() && x.stage === 'won' ? html`<button class="btn small-btn" id="add-contract">+ Contract</button>` : ''}</div>
           ${x.contracts.length ? html`<ul class="crm-mini">${x.contracts.map((c) => html`<li><span class="grow"><a href="#/crm/contracts/${c.id}"><strong>${c.title}</strong></a><small>${money(c.value)}</small></span>${contractBadge(c, m.setup.renewalNoticeDays)}</li>`)}</ul>` : html`<p class="muted small">${x.stage === 'won' ? 'Record the contract for this win.' : 'Recorded once the deal is won.'}</p>`}</section>
+        ${projectsCard(x.projects, x.stage === 'won' ? 'Start the project that delivers this deal with Start project.' : 'A project is started once the deal is won.')}
       </div>
     </div>`);
   const reload = () => dealView(el, { id });
@@ -698,6 +705,7 @@ export async function dealView(el, { id }) {
   el.querySelector('#edit')?.addEventListener('click', () => editDeal(x, reload));
   el.querySelector('#del')?.addEventListener('click', () => removeRecord('opportunity', x, `the deal "${x.title}"`, '#/crm/pipeline'));
   el.querySelector('#add-bid')?.addEventListener('click', () => editBid({ accountId: x.accountId, dealId: x.id, title: x.title, bidAmount: x.value }, (b) => (location.hash = `#/crm/bids/${b.id}`)));
+  el.querySelector('#start-project')?.addEventListener('click', () => startProject('deal', x));
   el.querySelector('#add-contract')?.addEventListener('click', () => editContract({ accountId: x.accountId, dealId: x.id, title: x.title, value: x.value, startDate: today() }, (c) => (location.hash = `#/crm/contracts/${c.id}`)));
   await timeline(el.querySelector('#timeline'), 'deal', id);
 }
@@ -825,6 +833,7 @@ export async function accountView(el, { id }) {
   el.querySelector('#add-deal')?.addEventListener('click', () => editDeal({ accountId: a.id }, (x) => (location.hash = `#/crm/deals/${x.id}`)));
   el.querySelector('#add-contact')?.addEventListener('click', () => editContact({ accountId: a.id }, reload));
   el.querySelector('#add-bid')?.addEventListener('click', () => editBid({ accountId: a.id }, (b) => (location.hash = `#/crm/bids/${b.id}`)));
+  el.querySelector('#start-project')?.addEventListener('click', () => startProject('deal', x));
   el.querySelector('#add-contract')?.addEventListener('click', () => editContract({ accountId: a.id, startDate: today() }, reload));
   await timeline(el.querySelector('#timeline'), 'account', id);
 }
@@ -975,7 +984,7 @@ export async function contractView(el, { id }) {
   const pct = total ? Math.max(0, Math.min(100, Math.round((gone / total) * 100))) : null;
   mount(el, html`
     ${head(html`${c.title} ${contractBadge(c, m.setup.renewalNoticeDays)}`, html`<span class="mono">${c.number || c.code}</span> · <a href="#/crm/accounts/${c.accountId}">${c.accountName}</a>`, html`
-      ${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canEdit() && c.status === 'active' ? html`<button class="btn primary" id="renew">Renew</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/contracts', 'Contracts'])}
+      ${['active', 'draft'].includes(c.status) && can('pm.edit') ? html`<button class="btn" id="start-project">${icon('layers', 16)} Start project</button>` : ''}${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canEdit() && c.status === 'active' ? html`<button class="btn primary" id="renew">Renew</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/contracts', 'Contracts'])}
     <div class="stats">
       <div class="card"><small>Value</small><strong>${short(c.value)}</strong>${c.billing ? html`<span class="muted small">${c.billing}</span>` : ''}</div>
       <div class="card"><small>Term</small><strong>${c.endDate ? fmtDate(c.endDate) : 'Open-ended'}</strong><span class="muted small">from ${c.startDate ? fmtDate(c.startDate) : '—'}</span>${pct !== null ? html`<span class="progress"><i style="width:${pct}%"></i></span>` : ''}</div>
@@ -987,9 +996,11 @@ export async function contractView(el, { id }) {
         ${info('Owner', ownerChip(c.ownerName))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}
         ${c.renewals.length ? info('Renewal', html`${c.renewals.map((x) => html`<a href="#/crm/deals/${x.id}">${x.code} · ${x.title}</a> ${stageBadge(x)} `)}`) : ''}
       </dl>${c.terms ? html`<h3>Key terms</h3><p class="pre small">${c.terms}</p>` : ''}</section>
-    </div>`);
+    </div>
+    ${c.projects.length || can('pm.edit') ? projectsCard(c.projects, 'No project delivers this contract yet.') : ''}`);
   const reload = () => contractView(el, { id });
   el.querySelector('#edit')?.addEventListener('click', () => editContract(c, reload));
+  el.querySelector('#start-project')?.addEventListener('click', () => startProject('contract', c));
   el.querySelector('#del')?.addEventListener('click', () => removeRecord('contract', c, `the contract "${c.title}"`, '#/crm/contracts'));
   // Renewing records a new contract for the next term and a deal to track it.
   el.querySelector('#renew')?.addEventListener('click', () => {

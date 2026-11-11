@@ -2,7 +2,7 @@
 
 **CORE** is the enterprise resource planning system of Lancaster Technology and Development Corporation (LTDC). It runs on your own computer or a small cloud server and opens in your browser. Its design language is shared with the Lancaster LMS: a white top bar, an icon sidebar that folds to icons, cards on a light grey canvas, one brand colour throughout, and a **dark mode** (the moon button, remembered per browser).
 
-After signing in, everyone lands on the **CORE home page** and picks a module; the grid button in the top bar switches modules from anywhere. Four modules are live:
+After signing in, everyone lands on the **CORE home page** and picks a module; the grid button in the top bar switches modules from anywhere. Five modules are live:
 
 | Module | For |
 | --- | --- |
@@ -10,8 +10,9 @@ After signing in, everyone lands on the **CORE home page** and picks a module; t
 | **IT Asset Management** | IT equipment and consumable stock: who or where it is allocated to, warranty, history, CSV exports |
 | **IT Service Desk** | Support tickets from the portal, email and a public form, with assignment, internal notes and service levels |
 | **Sales & CRM** | Leads, accounts and contacts, a deal pipeline with forecasts, public bids with document checklists, and contract renewals |
+| **Project Management** | Client, government and internal projects: milestones and contract deliverables, a task board, a timeline, time logs, My work and workload |
 
-Finance & Accounting, Procurement, Project Management and Document Management are listed under **On the roadmap**.
+Finance & Accounting, Procurement and Document Management are listed under **On the roadmap**.
 A module the user's account cannot use shows **No access**.
 
 ### HR & Payroll
@@ -61,6 +62,20 @@ Built on the model the major CRMs share (accounts, contacts, leads, deals moving
 - **Overview**: open pipeline, weighted forecast, won this quarter, 90-day win rate, open leads, pipeline by stage, forecast for the next three months, your tasks, bid deadlines, renewals and deals closing in 30 days. Search finds any account, person, lead, deal, bid or contract.
 - **Sales setup** (Sales Managers and Administrators): pipeline stages and probabilities (stages that still have deals cannot be removed), lead sources, lost reasons, industries, the bid checklist and the renewal notice. Administrators give or remove CRM access per account under **Sales setup → Team access**. The setup survives demo data and "erase all data"; CRM records are company data.
 - CSV export on every list. Codes: `LD-0001` leads, `DL-0001` deals, `BID-0001` bids, `CT-0001` contracts.
+
+### Project Management
+
+Opinionated and lean, for dated, contract-bound services delivery (client implementations, government contracts with deliverables, internal IT projects) rather than software sprints.
+
+- **Projects**: code (`PRJ-0001`), type (*Client, Government, Internal*, editable), status (*Planning, Active, On hold, Completed, Cancelled*), dates, project manager, budget in hours, and links to the client, deal and contract in Sales & CRM. **Members** have a role in the project: *Manager* (edit everything), *Member* (tasks, board, comments, time) or *Viewer* (read and comment). Anyone on a project opens it, whatever their account type; to everyone else the project and its tasks do not exist.
+- **Milestones** and **contract deliverables** with their billing %, submitted and accepted dates and acceptance note; a deliverable due after the contract's end date is flagged.
+- **Tasks** (`PRJ-0001-12`): status, priority, one assignee, start and due dates, estimate, milestone, one level of subtasks, a checklist, *blocked by* links (a flag, never automatic rescheduling), comments with @mentions, a linked service desk ticket and a history.
+- **Views**: a **Board** (drag cards, or the **Move to** menu on the keyboard and phones; WIP limits warn), a **List** grouped by milestone or status with in-place edits and CSV export, a **Timeline** of weeks with milestones and task bars (a dated list on phones), and **Time**. Each project's statuses belong to four fixed categories (*to do, in progress, done, cancelled*), so progress and reports work whatever they are called.
+- **Progress and health are worked out, never typed**: progress over leaf tasks, by hours when most have an estimate; a milestone is red past its date with open work, amber with overdue tasks, tasks due after it, or progress more than 15 points behind the line (in working days, with the holiday calendar). A project manager can add their own reading with a note; the computed one stays visible. **Print status report** fits one page.
+- **My work** (every member: overdue, today, this week, later, no date) and **Workload** (planned hours per person and week against capacity, less holidays and approved leave).
+- **Time logs** in quarter hours; a day with more project hours than attended hours in the DTR is flagged, not refused.
+- From **Sales & CRM**, **Start project** on a won deal or a contract; from the **Service Desk**, **Add to a project** turns a ticket into a linked task. **Copy** a project as a template with its dates moved.
+- **Projects setup** (Project Managers): the statuses new projects start with and the project types. Administrators give or remove Projects access per account under **Projects setup → Team access**. The setup survives demo data and "erase all data".
 
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting CORE online with Amazon EC2](deploy/aws/EC2.md).
 
@@ -147,8 +162,9 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 | **IT Asset Manager** | IT Asset Management: register, assign, transfer, return and retire assets; receive, issue and count stock; export. No access to HR records. |
 | **Payroll Officer** | Create, adjust, finalize and void payroll, add year-to-date opening balances, adjust Payroll Setup and leave credits. View employees (with pay), attendance and requests (cannot approve them). |
 | **Sales Officer** | Sales & CRM: leads, accounts, contacts, deals, bids, contracts and activities. Cannot delete records or change the sales setup. |
-| **Sales Manager** | Everything a Sales Officer does, plus deleting CRM records and the sales setup (stages, sources, lost reasons, bid checklist). |
-| **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips, profile and assigned equipment. |
+| **Sales Manager** | Everything a Sales Officer does, plus deleting CRM records and the sales setup (stages, sources, lost reasons, bid checklist). Sees every project, read only. |
+| **Project Manager** | Project Management: every project, starting and editing projects, deleting them, the workload and the Projects setup. Can view employee records. |
+| **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips, profile and assigned equipment. Like every account, opens the projects they are a member of. |
 
 - Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
@@ -247,6 +263,7 @@ The **?** button in CORE's top bar opens **Help & guides** (`/help/`): a guide f
 | Managing IT assets | IT Asset Managers |
 | Working the IT Service Desk | Helpdesk Agents and IT |
 | Selling with Sales & CRM | Sales Officers and Managers |
+| Running projects | Project Managers and everyone on a project |
 | Administering CORE | Administrators |
 
 Administrators can edit a guide for the company (**Edit this guide**), add the company's own guides (**New guide**), and go back to the built-in guide at any time. Their version is kept when CORE is updated, and CORE says when the built-in guide has changed since.
@@ -267,6 +284,7 @@ You can also just copy the `data/` folder. It also holds `attachments/` (medical
 
 - `server.js` is a dependency-free Node HTTP server. The JSON API is in `server/api.js` and storage in `server/db.js`.
 - `server/leave.js` and `server/assets.js` hold the leave/request and IT asset routes; `shared/assets.js` the asset statuses and categories.
+- `server/projects.js` holds the Project Management routes (access by membership, checks, history); `shared/projects.js` the statuses and the calculations shared with the browser: progress, health, board order, workload and My work.
 - `public/js/modules.js` lists the modules shown on the CORE home page (`public/js/views/launcher.js`) and in the module switcher. To add a module: add its routes and menu in `public/js/app.js` (each menu item names an icon from `public/js/icons.js`), set it to `live`, and give it a home in `moduleHome()`.
 - **Design:** `public/css/styles.css` follows the Lancaster LMS design system. Colours are tokens on `:root` (`--brand`, `--accent`, `--surface`, `--border`, `--text`, `--muted`…) with dark-mode values under `[data-theme='dark']`; use the tokens, not fixed colours, so every screen follows the theme. The older names (`--maroon`, `--gold`…) are mapped onto them. The CORE mark is `public/img/core-mark.svg` (gold), `core-mark-brand.svg` (maroon) and `core-app-icon.svg` (app tile). Payslips stay on white paper in both themes.
 - `shared/calc.js` holds all the time and payroll math. Both the server and the browser use it.

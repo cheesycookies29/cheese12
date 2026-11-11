@@ -2,7 +2,7 @@
 id: getting-started
 title: Getting started with CORE
 summary: Sign in, find your way around the modules, change your password, turn on 2-step verification, use CORE on a phone, and get help.
-roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, employee
+roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
 apps: home, system
 order: 1
 ---
@@ -17,6 +17,7 @@ CORE is the ERP of Lancaster Technology and Development Corporation (LTDC). It i
 | **IT Asset Management** | Laptops, devices and consumable stock: who holds what, and its history. Employees see the equipment assigned to them. |
 | **IT Service Desk** | Support tickets from CORE, by email and from the public form. |
 | **Sales & CRM** | Leads, accounts, contacts, the deal pipeline, public bids and contracts. |
+| **Project Management** | Projects with milestones, a task board, a timeline and time logs. Anyone who is on a project opens it here, and **My work** lists their tasks. |
 
 You sign in once and move between modules without signing in again. What you see depends on your **account type** (for example *Employee*, *HR Manager* or *Sales Officer*): a module you may not use is shown locked.
 
@@ -77,6 +78,16 @@ If your company requires 2-step verification and you have not set it up, CORE sh
 2. The module opens on its first page. Its pages are in the side menu on the left.
 
 To go back to the CORE home, choose the CORE logo at the top left, or **All modules** in the modules menu.
+
+### See your project tasks (My work)
+
+If you are on a project, **Project Management** is one of your modules, whatever your account type.
+
+1. Open **Project Management**. **Overview** lists the projects you are on.
+2. Open **My work** in the side menu. It lists the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. The number next to **My work** counts the overdue ones and today's.
+3. Change a task's status in its row, or click it to open it.
+
+Your **My Home** page in HR & Payroll also shows **My project tasks** when you have some. See [the projects guide](projects).
 
 ### Change your password
 
@@ -157,7 +168,7 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | My security | Change password, 2-step verification and recovery codes, where you are signed in |
 | Send feedback | A message to the administrators about CORE |
 
-The screens of each module are described in its guide: [the employee guide](employee), [approving requests](approver), [HR](hr), [payroll](payroll), [IT assets](it-assets), [the service desk](service-desk), [sales](sales) and [administration](admin).
+The screens of each module are described in its guide: [the employee guide](employee), [approving requests](approver), [HR](hr), [payroll](payroll), [IT assets](it-assets), [the service desk](service-desk), [sales](sales), [projects](projects) and [administration](admin).
 
 ## Questions
 
@@ -171,7 +182,7 @@ Ask an administrator to reset your 2-step verification in **Users & Access**. Yo
 The codes depend on the time. Check that the time on your phone is set automatically, and type the code before it changes. Each code works once.
 
 **A module is locked on the CORE home. Why?**
-Your account type does not include it. If your work needs it, ask an administrator. They can change your account type or, for the service desk and the CRM, give you access to that module only.
+Your account type does not include it. If your work needs it, ask an administrator. They can change your account type or, for the service desk, the CRM and Projects, give you access to that module only. Project Management also opens for anyone a project manager adds to a project.
 
 **Why don't I see My Home or My Payslips?**
 Your sign-in account is not linked to your employee record. An administrator links it in **Users & Access**.

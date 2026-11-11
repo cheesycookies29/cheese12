@@ -29,7 +29,7 @@ const realDeal = await admin('POST', '/api/crm/deals', { title: 'Real deal', acc
 const count = (k, demo) => db.data[k].filter((x) => Boolean(x.demo) === demo).length;
 
 test('loading demo data adds to real data and never reuses its numbers', async () => {
-  assert.deepEqual(await admin('GET', '/api/admin/demo'), { loaded: false, counts: { employees: 0, assets: 0, inventoryItems: 0, tickets: 0, crmAccounts: 0, crmDeals: 0 } });
+  assert.deepEqual(await admin('GET', '/api/admin/demo'), { loaded: false, counts: { employees: 0, assets: 0, inventoryItems: 0, tickets: 0, crmAccounts: 0, crmDeals: 0, pmProjects: 0 } });
   const res = await admin('POST', '/api/admin/demo');
   assert.equal(res.counts.employees, 6);
   assert.equal(count('employees', false), 1, 'the real employee is still there');
@@ -49,6 +49,9 @@ test('loading demo data adds to real data and never reuses its numbers', async (
   const salesDemo = db.data.users.find((u) => u.username === 'sales.demo');
   assert.ok(db.data.crmDeals.filter((x) => x.demo).every((x) => x.ownerId === salesDemo.id && x.code.startsWith('DEMO-DL-')));
   assert.equal(count('crmDeals', false), 1);
+  // Project Management: three projects, with the demo accounts (pm.demo is a Project Manager) as members.
+  assert.equal(res.counts.pmProjects, 3);
+  assert.ok(db.data.users.some((u) => u.username === 'pm.demo' && u.role === 'pm' && u.employeeId));
   const real2 = await admin('POST', '/api/crm/deals', { title: 'Second real deal', accountId: realClient.id, value: 5000 });
   assert.equal(real2.code, 'DL-0002', 'real deal numbers are not affected by the demo set');
   // The new numbering keeps working after the demo set.
@@ -82,7 +85,9 @@ test('removing demo data takes out demo records and what hangs off them, and kee
   assert.deepEqual(db.data.crmDeals.map((x) => x.title).sort(), ['Deal on a demo account', 'Real deal', 'Second real deal']);
   assert.ok(db.data.crmActivities.some((a) => a.subject === 'Follow up'));
   assert.ok(db.data.crmActivities.every((a) => db.data.crmDeals.some((x) => x.id === a.related.id) || db.data.crmAccounts.some((x) => x.id === a.related.id)));
-  assert.equal(res.removed.accounts, 5);
+  assert.equal(res.removed.accounts, 6);
+  assert.equal(res.removed.pmProjects, 3);
+  assert.equal(db.data.pmProjects.length, 0);
   assert.equal(count('employees', true), 0);
   assert.equal(db.data.employees.length, 1);
   assert.ok(db.data.timeEntries.every((e) => e.employeeId === real.id));
@@ -95,7 +100,7 @@ test('removing demo data takes out demo records and what hangs off them, and kee
   assert.deepEqual(draft.payslips.map((p) => p.employeeId), [real.id]);
   assert.equal(draft.totals.employees, 1);
   assert.deepEqual(db.data.tickets.map((t) => t.subject).sort(), ['Real ticket', 'Second real ticket']);
-  assert.deepEqual(await admin('GET', '/api/admin/demo'), { loaded: false, counts: { employees: 0, assets: 0, inventoryItems: 0, tickets: 0, crmAccounts: 0, crmDeals: 0 } });
+  assert.deepEqual(await admin('GET', '/api/admin/demo'), { loaded: false, counts: { employees: 0, assets: 0, inventoryItems: 0, tickets: 0, crmAccounts: 0, crmDeals: 0, pmProjects: 0 } });
 });
 
 test('an empty system gets the full demo, as before', async () => {

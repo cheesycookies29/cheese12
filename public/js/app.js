@@ -28,6 +28,7 @@ import { holidaysView } from './views/holidays.js';
 import { ytdView } from './views/ytd.js';
 import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
+import { portfolioView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, workloadView, pmSettingsView, myWorkBadge } from './views/projects.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -92,6 +93,17 @@ const routes = [
   ['/crm/contracts/:id', contractView, 'crm.view', 'crm'],
   ['/crm/activities', activitiesView, 'crm.view', 'crm'],
   ['/crm/settings', crmSettingsView, 'crm.manage', 'crm'],
+  // Project Management ('projects': pm.view, or a member of a project)
+  ['/projects', portfolioView, 'projects', 'projects'],
+  ['/projects/my-work', myWorkView, 'projects', 'projects'],
+  ['/projects/workload', workloadView, 'pm.view', 'projects'],
+  ['/projects/settings', pmSettingsView, 'pm.manage', 'projects'],
+  ['/projects/:id/board', boardView, 'projects', 'projects'],
+  ['/projects/:id/list', listView, 'projects', 'projects'],
+  ['/projects/:id/timeline', timelineView, 'projects', 'projects'],
+  ['/projects/:id/time', projectTimeView, 'projects', 'projects'],
+  ['/projects/:projectId/tasks/:id', taskView, 'projects', 'projects'],
+  ['/projects/:id', projectOverviewView, 'projects', 'projects'],
   // System (shown inside whichever module is open)
   ['/users', usersView, 'users.manage', 'system'],
   ['/settings', settingsView, 'settings.edit', 'system'],
@@ -156,6 +168,12 @@ const NAV = {
     { href: '/crm/activities', label: 'Activities', icon: 'calendar', permission: 'crm.view', badge: 'crmTasks' },
     { href: '/crm/settings', label: 'Sales setup', icon: 'settings', permission: 'crm.manage' },
   ],
+  projects: [
+    { href: '/projects', label: 'Overview', icon: 'dashboard', permission: 'projects' },
+    { href: '/projects/my-work', label: 'My work', icon: 'task', permission: 'projects', badge: 'pmWork' },
+    { href: '/projects/workload', label: 'Workload', icon: 'users', permission: 'pm.view' },
+    { href: '/projects/settings', label: 'Projects setup', icon: 'settings', permission: 'pm.manage' },
+  ],
   system: [
     { heading: 'System', permission: 'users.manage' },
     { href: '/users', label: 'Users & Access', icon: 'shield', permission: 'users.manage' },
@@ -175,6 +193,8 @@ function allowed(permission) {
   // Supervisors (even on an Employee account), named approvers and HR see the Approval Center.
   if (permission === 'approver') return Boolean(ctx.user.isApprover);
   if (permission === 'self') return can('self') && (Boolean(ctx.user.employeeId) || ctx.user.role === 'employee');
+  // Projects: everyone who sees every project, and the members of any project.
+  if (permission === 'projects') return can('pm.view') || Boolean(ctx.user.inProjects);
   return can(permission);
 }
 
@@ -184,6 +204,7 @@ function moduleHome(id) {
   if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
   if (id === 'helpdesk') return can('helpdesk.agent') ? '/helpdesk' : '/helpdesk/mine';
   if (id === 'crm') return can('crm.view') ? '/crm' : null;
+  if (id === 'projects') return allowed('projects') ? '/projects' : null;
   return null;
 }
 
@@ -313,6 +334,7 @@ const BADGES = {
   helpdesk: () => api.get('/api/helpdesk/summary').then((r) => r.awaiting),
   leads: () => api.get('/api/crm/overview').then((r) => r.newLeads),
   crmTasks: () => api.get('/api/crm/activities?mine=1&open=1').then((list) => list.filter((a) => a.dueDate && a.dueDate <= today()).length),
+  pmWork: () => myWorkBadge(),
 };
 async function refreshBadge() {
   for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
@@ -379,7 +401,7 @@ async function navigate() {
   const params = Object.fromEntries(match.keys.map((k, i) => [k, decodeURIComponent(path.match(match.re)[i + 1])]));
   // The launcher has no sidebar; system pages keep the menu of the module they were opened from.
   body.classList.toggle('launcher-mode', !match.module);
-  if (match.module) renderNav(match.module === 'system' ? ctx.module || ['hr', 'assets', 'crm', 'helpdesk'].find((m) => moduleHome(m)) : match.module);
+  if (match.module) renderNav(match.module === 'system' ? ctx.module || ['hr', 'assets', 'crm', 'projects', 'helpdesk'].find((m) => moduleHome(m)) : match.module);
   renderBrandSub();
   markModuleSwitch();
   // Highlight the most specific nav link that contains the current path.
@@ -463,6 +485,7 @@ window.addEventListener('devlog:seen', refreshBadge);
 window.addEventListener('feedback:changed', refreshBadge);
 window.addEventListener('helpdesk:changed', refreshBadge);
 window.addEventListener('crm:changed', refreshBadge);
+window.addEventListener('pm:changed', refreshBadge);
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;

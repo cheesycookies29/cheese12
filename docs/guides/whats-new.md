@@ -2,12 +2,19 @@
 id: whats-new
 title: What's new in CORE
 summary: The changes in each update, newest first, and which guide explains them.
-roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, employee
+roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
 apps: home
 order: 2
 ---
 
 ## November 2026
+
+### Project Management (0.13)
+- A new module, **Project Management**: projects with milestones and contract deliverables, a task board, a list, a timeline, time logs, and health worked out from the tasks. See [the projects guide](projects).
+- **My work** lists the tasks assigned to you in every project you are on, and **My Home** shows them too. Anyone a project manager adds to a project can open it. See [Getting started](getting-started#see-your-project-tasks-my-work).
+- A new account type, **Project Manager**, and **Projects access** per account. See [the administrator's guide](admin#give-someone-the-service-desk-sales-crm-or-projects).
+- In Sales & CRM, **Start project** on a won deal or a contract, and its projects on the deal and contract pages. See [the sales guide](sales#start-a-project-from-a-won-deal).
+- On a service desk ticket, **Add to a project** turns it into a task; both link to each other. See [the service desk guide](service-desk#add-a-ticket-to-a-project).
 
 ### Security fixes (0.12.1)
 - **Restore backup** now asks for your password, and refuses a backup whose user accounts are not valid. See [the administrator's guide](admin#back-up-and-restore).

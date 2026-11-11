@@ -27,7 +27,7 @@ id: hr                           # file name without .md; used in links: /help/#
 title: Running HR in CORE
 summary: One sentence: what this guide helps you do.
 roles: hr, hrstaff               # account types it is written for (comma-separated, see shared/roles.js)
-apps: hr                         # modules its screens are in: home, hr, assets, helpdesk, crm, system
+apps: hr                         # modules its screens are in: home, hr, assets, helpdesk, crm, projects, system
 order: 30                        # place in the list (lower first)
 ---
 ```
@@ -68,7 +68,8 @@ Load the demo data under **System → Settings → Demo data**. It adds these ac
 | `payroll.demo` | Payroll Officer | not linked to an employee |
 | `it.demo` | IT Asset Manager | also works service desk tickets |
 | `sales.demo` | Sales Manager | Sales & CRM |
-| `employee.demo` | Employee | Juan Dela Cruz, Software Engineer and team lead of Mark and Kristine |
+| `pm.demo` | Project Manager | Andrea Villanueva, who runs the delivery projects (LMS phase 2, the provincial helpdesk bid) |
+| `employee.demo` | Employee | Juan Dela Cruz, Software Engineer and team lead of Mark and Kristine; a member of two projects |
 
 The screenshot script also creates the first administrator, `admin` (password `Guide-Shots-2026`).
 

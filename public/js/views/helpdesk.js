@@ -7,6 +7,7 @@ import { TICKET_STATUS, TICKET_PRIORITY, TICKET_CHANNEL, UNRESOLVED_TICKET } fro
 import { html, mount, badge, toast, modal, confirmDialog } from '../ui.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
 import { ticketToLead } from './crm.js';
+import { addTicketToProject } from './projects.js';
 
 const STATUS_KIND = { new: 'amber', open: 'blue', pending: 'gray', on_hold: 'gray', resolved: 'green', closed: 'gray' };
 const PRIORITY_KIND = { low: 'gray', normal: 'blue', high: 'amber', urgent: 'maroon-soft' };
@@ -176,7 +177,7 @@ export async function ticketView(el, { id }) {
           <p class="tag-line mono">${t.ref} · ${TICKET_CHANNEL[t.channel]}</p>
           <h1>${t.subject}</h1>
           <p class="muted hd-sub">${statusBadge(t.status)} ${priorityBadge(t.priority)} <span>${t.requester.name}${t.requester.email ? ` <${t.requester.email}>` : ''} · opened ${when(t.createdAt)}</span></p></div>
-        ${can('helpdesk.manage') || can('crm.edit') ? html`<div class="actions">${can('crm.edit') ? html`<button class="btn" id="to-lead" title="This is a sales enquiry: make it a lead in Sales & CRM">Send to Sales & CRM</button>` : ''}${can('helpdesk.manage') ? html`<button class="btn danger ghost" id="delete">Delete</button>` : ''}</div>` : ''}
+        <div class="actions"><button class="btn" id="to-project" title="This is project work: make it a task in a project">Add to a project</button>${can('crm.edit') ? html`<button class="btn" id="to-lead" title="This is a sales enquiry: make it a lead in Sales & CRM">Send to Sales & CRM</button>` : ''}${can('helpdesk.manage') ? html`<button class="btn danger ghost" id="delete">Delete</button>` : ''}</div>
       </header>
       ${t.viewers.length ? html`<div class="notice"><p>${t.viewers.join(', ')} ${t.viewers.length === 1 ? 'is' : 'are'} also viewing this ticket.</p></div>` : ''}
       <div class="hd-layout">
@@ -212,6 +213,10 @@ export async function ticketView(el, { id }) {
             </form>
             ${t.asset ? html`<p class="small"><a href="#/assets/item/${t.asset.id}">Open asset ${t.asset.tag}</a></p>` : ''}
           </section>
+          ${t.projectTasks?.length ? html`<section class="card">
+            <h2>Project tasks</h2>
+            <ul class="link-list">${t.projectTasks.map((x) => html`<li><a href="#/projects/${x.projectId}/tasks/${x.id}"><span class="mono">${x.key}</span> ${x.title}</a><small class="muted"> · ${x.statusName}</small></li>`)}</ul>
+          </section>` : ''}
           <section class="card">
             <h2>Service level</h2>
             <dl class="hd-dl">
@@ -273,6 +278,10 @@ export async function ticketView(el, { id }) {
       }
     });
     el.querySelector('#to-lead')?.addEventListener('click', () => ticketToLead(t.id).catch((err) => toast(err.message, 'error')));
+    el.querySelector('#to-project')?.addEventListener('click', () => addTicketToProject(t, async () => {
+      t = { ...(await api.get(`/api/helpdesk/tickets/${t.id}`)), viewers: t.viewers };
+      render();
+    }).catch((err) => toast(err.message, 'error')));
     el.querySelector('#delete')?.addEventListener('click', async () => {
       if (!(await confirmDialog(`${t.ref} and its conversation and files will be permanently deleted.`, { title: 'Delete ticket', confirmLabel: 'Delete ticket' }))) return;
       await api.del(`/api/helpdesk/tickets/${t.id}`);

@@ -46,7 +46,7 @@ A first tour with the demo data. It takes about ten minutes.
 
 ### Answer a new ticket
 
-1. Go back to **Tickets** and open *HD-000004 Cannot open the Finance shared drive*. It is *New* and *High*.
+1. Go back to **Tickets** and open *HD-000004 Cannot open the Projects shared drive*. It is *New* and *High*.
 2. Under **Assignee**, choose yourself. The ticket becomes *Open*.
 3. Type a reply, leave **Then** at *Waiting on requester* and click **Send reply**. The first response is now recorded.
 
@@ -135,6 +135,17 @@ Some tickets, often from the public form, are really sales enquiries.
 2. CORE creates a lead with the requester's details and the message, and opens it. The ticket notes *Sent to Sales & CRM as lead …*.
 
 The button shows only for accounts with Sales & CRM access. If yours does not have it, add an internal note and pass the ticket to an administrator or the sales team.
+
+### Add a ticket to a project
+
+A ticket that is really project work (a change request on a system you are rolling out, a site visit for a project) becomes a task in that project. You need to be a member of the project.
+
+1. Open the ticket and click **Add to a project**.
+2. Pick the **Project** and click **Add task**.
+
+The task gets the ticket's subject, priority and first message, and a link to the ticket. The ticket shows the task under **Project tasks**, and an internal line *Added to project PRJ-… as task PRJ-…-…*. The task shows the ticket's status as it changes. Closing one does not close the other. See [the projects guide](projects).
+
+![Adding a ticket to a project](desk-add-to-project.jpg)
 
 ### My tickets: your own requests
 

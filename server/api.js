@@ -9,6 +9,7 @@ import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
+import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects } from './projects.js';
 import { migrateApprovals, isApprover } from './approvals.js';
 import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
 import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS } from './audit.js';
@@ -33,7 +34,7 @@ import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Changes that are records in themselves, or not about company data: no generic audit entry.
-const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'mustChangePassword'];
+const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'mustChangePassword'];
 const UNAUDITED = /^\/api\/(me\/clock|clock|auth\/logout|feedback|me\/feedback|public\/)/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -308,10 +309,10 @@ function backupUsers(list) {
     if (typeof raw.active !== 'boolean') throw bad(i, 'does not say whether it is active');
     if (typeof raw.passwordHash !== 'string' || !PASSWORD_HASH_RE.test(raw.passwordHash)) throw bad(i, 'has an invalid password hash');
     if (!optional(raw.employeeId, (v) => isText(v, 64))) throw bad(i, 'has an invalid employee link');
-    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'demo']) if (!optional(raw[k], (v) => typeof v === 'boolean')) throw bad(i, `has an invalid "${k}"`);
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'demo']) if (!optional(raw[k], (v) => typeof v === 'boolean')) throw bad(i, `has an invalid "${k}"`);
     for (const k of ['createdAt', 'lastLoginAt']) if (!optional(raw[k], (v) => isText(v, 40))) throw bad(i, `has an invalid "${k}"`);
     const u = { id: raw.id, username: raw.username, name: raw.name.trim(), role: raw.role, employeeId: raw.employeeId || null, active: raw.active, passwordHash: raw.passwordHash };
-    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
     if (raw.twoFactor !== undefined && raw.twoFactor !== null) {
       u.twoFactor = validTwoFactor(raw.twoFactor);
       if (!u.twoFactor) throw bad(i, 'has invalid 2-step verification details');
@@ -376,8 +377,11 @@ function replaceData(db, next) {
     helpdesk: keepHelpdeskConfig(db.data.helpdesk, next.helpdesk),
     // So is the sales setup (pipeline stages, sources, checklist); CRM records are company data.
     crm: keepCrmConfig(db.data.crm, next.crm),
+    // So is the Projects setup (default statuses, project types); projects are company data.
+    pm: keepPmConfig(db.data.pm, next.pm),
   });
   migrateCrm(db);
+  migratePm(db);
   syncDevlog(db);
   migrateLeaveTypes(db);
   const ids = new Set(db.data.employees.map((e) => e.id));
@@ -386,20 +390,22 @@ function replaceData(db, next) {
 }
 
 const DEMO_PASSWORD = 'demo1234';
-const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['sales.demo', 'salesmgr', 'Demo Sales Manager'], ['employee.demo', 'employee', null]];
+const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['sales.demo', 'salesmgr', 'Demo Sales Manager'], ['pm.demo', 'pm', null], ['employee.demo', 'employee', null]];
 
 function demoAccounts(db, employees) {
   const taken = new Set(db.data.users.map((u) => u.username));
   const juan = employees.find((e) => e.firstName === 'Juan') || employees[0];
   const maria = employees.find((e) => e.firstName === 'Maria');
+  const andrea = employees.find((e) => e.firstName === 'Andrea') || juan;
   const linked = new Set(db.data.users.map((u) => u.employeeId).filter(Boolean));
   return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => ({
     id: randomUUID(),
     username,
-    name: name || `${juan.firstName} ${juan.lastName}`,
+    name: name || (role === 'pm' ? `${andrea.firstName} ${andrea.lastName}` : `${juan.firstName} ${juan.lastName}`),
     role,
-    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager.
-    employeeId: role === 'employee' ? juan.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null,
+    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager; the
+    // project manager is Andrea, who runs the delivery projects.
+    employeeId: role === 'employee' ? juan.id : role === 'pm' && !linked.has(andrea.id) ? andrea.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null,
     active: true,
     mustChangePassword: false,
     demo: true,
@@ -456,7 +462,7 @@ export function createApi(db, { rateLimits = false } = {}) {
     },
   });
   const files = createAttachments(path.join(db.dir, 'attachments'));
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migratePm(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
@@ -498,7 +504,7 @@ export function createApi(db, { rateLimits = false } = {}) {
     return { data: { user: authUser(user) }, headers: { 'Set-Cookie': sessionCookie(token, { maxAge: sessions.maxAgeSeconds(), secure: client.https }) } };
   }
   // The signed-in account as the browser sees it, with whether 2-step verification must be set up first.
-  const authUser = (user) => ({ ...publicUser(user), isApprover: isApprover(db, user), twoFactorSetupRequired: twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt });
+  const authUser = (user) => ({ ...publicUser(user), isApprover: isApprover(db, user), inProjects: isProjectMember(db, user), twoFactorSetupRequired: twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt });
   const requirePassword = (user, password) => {
     if (!verifyPassword(String(password || ''), user.passwordHash)) throw new HttpError(400, 'Your password is not right.');
   };
@@ -770,6 +776,8 @@ export function createApi(db, { rateLimits = false } = {}) {
     db.data.users = users().filter((u) => u.id !== user.id);
     // Sales & CRM records they owned now have no owner (shown as such), not a dangling id.
     for (const k of ['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts', 'crmActivities']) for (const x of db.data[k] || []) if (x.ownerId === user.id) x.ownerId = null;
+    // Off every project; their tasks are unassigned.
+    removeUserFromProjects(db, user.id);
     sessions.destroyForUser(user.id);
     db.save();
     audit.record('user.delete', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username}, ${user.role})` });
@@ -1078,6 +1086,7 @@ export function createApi(db, { rateLimits = false } = {}) {
   registerFeedbackRoutes(route, db);
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   registerCrmRoutes(route, db, { audit });
+  registerProjectRoutes(route, db, { audit });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });
   // ----- Audit log (Administrators) -----

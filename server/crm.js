@@ -104,6 +104,8 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   const user = (id) => d().users.find((u) => u.id === id);
   const team = () => d().users.filter((u) => u.active && userCan(u, 'crm.view'));
   const userName = (id) => user(id)?.name || null;
+  // The projects delivering a deal or contract (Project Management), shown on its page.
+  const projectsOf = (field, id) => (d().pmProjects || []).filter((p) => p[field] === id).map((p) => ({ id: p.id, code: p.code, name: p.name, status: p.status }));
 
   // `current`: the record's owner now. Keeping it is always allowed, even if that person has since
   // lost CRM access; choosing someone new needs an account with CRM access.
@@ -504,7 +506,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   route('GET', '/api/crm/deals/:id', 'crm.view', ({ params }) => {
     const x = find('deal', params.id);
     const renewed = x.renewalOf && d().crmContracts.find((c) => c.id === x.renewalOf);
-    return { ...out.deal(x), renews: renewed ? { id: renewed.id, code: renewed.code, title: renewed.title } : null, bids: d().crmBids.filter((b) => b.dealId === x.id).map(out.bid), contracts: d().crmContracts.filter((c) => c.dealId === x.id).map(out.contract) };
+    return { ...out.deal(x), renews: renewed ? { id: renewed.id, code: renewed.code, title: renewed.title } : null, bids: d().crmBids.filter((b) => b.dealId === x.id).map(out.bid), contracts: d().crmContracts.filter((c) => c.dealId === x.id).map(out.contract), projects: projectsOf('dealId', x.id) };
   });
   route('PUT', '/api/crm/deals/:id', 'crm.edit', ({ params, body, user: u }) => {
     const x = find('deal', params.id);
@@ -668,7 +670,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   });
   route('GET', '/api/crm/contracts/:id', 'crm.view', ({ params }) => {
     const c = find('contract', params.id);
-    return { ...out.contract(c), renewals: d().crmDeals.filter((x) => x.renewalOf === c.id).map(out.deal) };
+    return { ...out.contract(c), renewals: d().crmDeals.filter((x) => x.renewalOf === c.id).map(out.deal), projects: projectsOf('contractId', c.id) };
   });
   route('PUT', '/api/crm/contracts/:id', 'crm.edit', ({ params, body, user: u }) => {
     const c = find('contract', params.id);
@@ -767,6 +769,9 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   function removeWithActivities(kind, id) {
     d()[RELATED[kind]] = d()[RELATED[kind]].filter((x) => x.id !== id);
     d().crmActivities = d().crmActivities.filter((a) => !(a.related?.type === kind && a.related.id === id));
+    // A project linked to it keeps going, without the link.
+    const field = { account: 'accountId', deal: 'dealId', contract: 'contractId' }[kind];
+    if (field) for (const p of d().pmProjects || []) if (p[field] === id) p[field] = null;
   }
 
   // ===== Sales setup (CRM managers) =====

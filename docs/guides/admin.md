@@ -9,12 +9,12 @@ order: 60
 
 ## Before you start
 
-This guide is for **administrators**: the people who give others their accounts, keep the company settings and the backups, and watch the audit log. An administrator can open every module and every screen. The work of each module is in its own guide: [HR](hr), [payroll](payroll), [IT assets](it-assets), [the service desk](service-desk) and [sales](sales).
+This guide is for **administrators**: the people who give others their accounts, keep the company settings and the backups, and watch the audit log. An administrator can open every module and every screen. The work of each module is in its own guide: [HR](hr), [payroll](payroll), [IT assets](it-assets), [the service desk](service-desk), [sales](sales) and [projects](projects).
 
 - The first administrator is created the first time CORE starts: CORE asks for a name, a username and a password. Keep at least two administrator accounts, so one can help the other.
 - On the **CORE home**, the **Administration** card has **Users & Access**, **Settings & Backups**, **Dev log** and **Feedback inbox**.
 - Inside any module, the side menu ends with **System**: **Users & Access**, **Settings**, **Audit log**, **Dev log** and **Feedback inbox**, then **Send feedback** under **Help**.
-- To try things out, load the demo data (see [Load or remove the demo data](#load-or-remove-the-demo-data)). It adds the demo accounts `hr.demo`, `payroll.demo`, `it.demo`, `sales.demo` and `employee.demo`, all with the password `demo1234`.
+- To try things out, load the demo data (see [Load or remove the demo data](#load-or-remove-the-demo-data)). It adds the demo accounts `hr.demo`, `payroll.demo`, `it.demo`, `sales.demo`, `pm.demo` and `employee.demo`, all with the password `demo1234`.
 
 ## Walkthrough
 
@@ -78,14 +78,19 @@ Give the person their username and temporary password privately. They choose the
 | Sales Manager | Sales & CRM, with deleting and the sales setup |
 | Employee | Self-service only |
 
-### Give someone the service desk or Sales & CRM
+### Give someone the service desk, Sales & CRM or Projects
 
 Some access can be given to one account on top of its account type:
 
 1. For the service desk: open **IT Service Desk → Service desk settings → Agents** and turn on **Agent access** for the person. *use default* goes back to their account type.
 2. For Sales & CRM: open **Sales & CRM → Sales setup → Team access** and click **Give access** (or **Remove**). **Follow account type** undoes it.
+3. For Projects: open **Project Management → Projects setup → Team access** and click **Give access** (or **Remove**). Access lets the person see every project and start and edit projects; removing it from a Project Manager also takes away deleting projects and the setup. **Follow account type** undoes it.
 
-**Users & Access** then shows *+ Helpdesk agent* or *+ Sales & CRM* under the account type, as a link to that page. Administrators always have both.
+**Users & Access** then shows *+ Helpdesk agent*, *+ Sales & CRM* or *+ Projects* under the account type, as a link to that page. Administrators always have all three.
+
+You do not need Projects access to work on a project: its project manager adds people as members, and members open their projects whatever their account type. The **Project Manager** account type runs the module: every project, the workload and the Projects setup.
+
+![Projects setup: Team access](admin-projects-access.jpg)
 
 ### Change an account type, or disable an account
 
@@ -166,7 +171,7 @@ Download a backup regularly and keep it somewhere safe and private: it holds pay
 ### Load or remove the demo data
 
 1. Open **Settings** and scroll to **Demo data**.
-2. Click **Add demo data** and confirm. CORE adds sample employees with attendance and leave, IT assets and stock, service desk tickets, sales accounts and deals, and the demo accounts, next to your own data.
+2. Click **Add demo data** and confirm. CORE adds sample employees with attendance and leave, IT assets and stock, service desk tickets, sales accounts and deals, three projects with tasks and logged time, and the demo accounts, next to your own data.
 3. **Reload demo data** replaces the demo records with a fresh set.
 4. **Remove demo data** takes out every demo record and the demo accounts. Your own records stay.
 
@@ -273,7 +278,7 @@ It is kept in its own file, `data/audit-log.jsonl`, so that restoring a backup, 
 The Data Privacy Act (RA 10173) holds the company accountable for who saw personal data. Opening a record with pay, showing full government ID numbers and opening a medical certificate are logged, once per person and record every 10 minutes.
 
 **Can I give one person a power their account type does not have?**
-Only service desk work and Sales & CRM, as in [Give someone the service desk or Sales & CRM](#give-someone-the-service-desk-or-sales-crm). Everything else follows the account type.
+Only service desk work, Sales & CRM and Projects, as in [Give someone the service desk, Sales & CRM or Projects](#give-someone-the-service-desk-sales-crm-or-projects). Everything else follows the account type. (Being a member of a project is not a power of the account: the project's manager adds people.)
 
 **What happens to my Help guide edits when CORE is updated?**
 They stay. CORE tells you on the guide when its own version has changed, so you can compare.
