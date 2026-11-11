@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.13.1-alpha',
+    date: '2026-11-11',
+    title: 'Modules carousel on the CORE home',
+    modules: ['system'],
+    notes: 'The CORE home shows the modules in a sliding row, the same layout as the ATLAS home.',
+    changes: [
+      ['improved', 'system', 'Your modules is a carousel: the cards slide sideways and snap into place, with arrows and page dots (shown only when some cards are out of view), swipe on phones, and the arrow keys once the row is selected. Modules you can open come first, then locked ones, then the modules in development, marked Coming soon. The separate "On the roadmap" list is gone.'],
+    ],
+  },
+  {
     version: '0.13.0-alpha',
     date: '2026-11-11',
     title: 'Project Management module',

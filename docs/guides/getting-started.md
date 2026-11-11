@@ -36,7 +36,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The CORE sign-in page](getting-started-signin.jpg)
 
-2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. Further down, **On the roadmap** lists the modules in development.
+2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. The cards sit in one row that slides sideways: swipe it on a phone, or use the arrows or dots beside **Your modules** (or the arrow keys once the row is selected). After the modules you may open come the locked ones, then the modules still in development, greyed out and marked *Coming soon*.
 
 ![The CORE home, with a card per module](getting-started-home.jpg)
 
@@ -161,7 +161,7 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | Screen | What it is for |
 |---|---|
 | Sign-in page | Your username and password; the 2-step code; choosing your own password the first time |
-| CORE home | The modules you may open, with live figures, the roadmap, and shortcuts for administrators |
+| CORE home | Your modules in a sliding row (the ones you may open, with live figures, then the ones coming soon), and shortcuts for administrators |
 | Modules menu (grid button) | Switching modules from anywhere |
 | Help & guides (question mark) | The guide for your job, search, and what's new |
 | Your name (top right) | Send feedback, My security, Change password, Sign out |

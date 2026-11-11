@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Modules carousel (0.13.1)
+- The CORE home shows **Your modules** in a sliding row, like the ATLAS home: swipe it on a phone, or use the arrows and dots. Modules coming soon are at the end of the row. See [Getting started](getting-started).
+
 ### Project Management (0.13)
 - A new module, **Project Management**: projects with milestones and contract deliverables, a task board, a list, a timeline, time logs, and health worked out from the tasks. See [the projects guide](projects).
 - **My work** lists the tasks assigned to you in every project you are on, and **My Home** shows them too. Anyone a project manager adds to a project can open it. See [Getting started](getting-started#see-your-project-tasks-my-work).
