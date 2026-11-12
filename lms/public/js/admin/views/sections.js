@@ -2,12 +2,12 @@
 import { api } from '../../api.js';
 import { html, mount, modal, toast, statusBadge, option, formData, confirmDialog, empty } from '../../ui.js';
 import { pageHead, ctx, badgesChanged } from '../../shell.js';
-import { can } from '/shared/roles.js';
+import { userCan } from '/shared/roles.js';
 import { DAYS } from '/shared/schedule.js';
 import { lookups, termSelect, currentTermId, setQuery, seatBar, sectionTitle, filterRows } from '../common.js';
 import { enrollmentActions, wireEnrollmentActions, showHistory, addEnrollmentDialog } from './enrollment.js';
 
-const mayEdit = () => can(ctx.user.role, 'catalog.manage');
+const mayEdit = () => userCan(ctx.user, 'catalog.manage');
 
 // Meetings are entered as days + one time range (the common case). Sections whose
 // days have different times keep them unless the days/times are changed here.
@@ -80,7 +80,7 @@ export async function sectionsView(el, params, query) {
 
 export async function sectionView(el, { id }) {
   const s = await api.get(`/api/admin/sections/${id}`);
-  const enrollManage = can(ctx.user.role, 'enrollment.manage');
+  const enrollManage = userCan(ctx.user, 'enrollment.manage');
   const groups = [['enrolled', 'Enrolled'], ['pending', 'Pending approval'], ['waitlisted', 'Waitlist (in order)'], ['completed', 'Completed'], ['dropped', 'Dropped or rejected']];
   const inGroup = (key) => s.roster.filter((e) => (key === 'dropped' ? ['dropped', 'rejected'].includes(e.status) : e.status === key)).sort((a, b) => (key === 'waitlisted' ? a.position - b.position : a.student.name.localeCompare(b.student.name)));
   mount(el, html`

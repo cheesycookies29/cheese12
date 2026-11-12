@@ -9,6 +9,11 @@ order: 2
 
 ## November 2026
 
+### ATLAS Control: access as in CORE
+- **Own access:** in Control, open an account and choose **Change access** to give that one person a permission more, or take one away, without changing their account type. See [the administrator's guide](admin#give-one-account-more-or-less-access).
+- **Audit trail:** the log is now kept as CORE keeps it: in its own file, every entry chained to the one before. The page says **Intact.** when nothing was changed, removed or reordered. Restoring a backup no longer touches it. Changes to accounts, access and settings show each field before and after.
+- **Accounts:** link a staff account to its employee record under **Edit**, and **Delete** an account that has no records (others are disabled, so the records keep who made them).
+
 ### ATLAS Control: the administrators' control panel
 - **ATLAS Control** is a new system for administrators only: a **Control** tile on their ATLAS home page, and **ATLAS Control** in the Admin panel's sidebar. Nobody else sees it or can open it. See [the administrator's guide](admin#open-atlas-control).
 - **Accounts:** every account in every system in one list, with search and filters. An account's page shows what it can open, where it is signed in and its trail, and has its actions: reset the password, end its sessions, unlock it, change its type or campuses, disable it, unlink it from Keycloak. **New staff account** makes accounts of any staff type.

@@ -13,7 +13,7 @@
 // Accountability for Accountable Forms (RAAF) and revenue monitoring against targets.
 import { randomUUID } from 'node:crypto';
 import { text } from './util.js';
-import { can } from '../shared/roles.js';
+import { userCan } from '../shared/roles.js';
 import { ACCT, ADVANCE_TYPES, PAYMENT_MODES, NATURES, round2, sum, withholding, classOf, fundName, tracksCard } from '../shared/finance.js';
 
 export function registerCashRoutes(route, fx) {
@@ -277,7 +277,7 @@ export function registerCashRoutes(route, fx) {
   });
   route('POST', '/api/finance/dvs/:id/cancel', 'finance', ({ user, params, body }) => {
     const d = fx.byId(D().finDvs, params.id) || fail('Voucher not found.', 404);
-    if (!can(user.role, 'finance.disburse') && !can(user.role, 'finance.accounts')) fail('Your account cannot cancel vouchers.', 403);
+    if (!userCan(user, 'finance.disburse') && !userCan(user, 'finance.accounts')) fail('Your account cannot cancel vouchers.', 403);
     if (['paid', 'cancelled'].includes(d.status)) fail(d.status === 'paid' ? 'A paid voucher is not cancelled; void the payment first.' : 'Already cancelled.');
     Object.assign(d, { status: 'cancelled', cancelReason: text(body.reason, 300), cancelledBy: user.name });
     fx.audit(user, `Cancelled DV ${d.no || '(draft)'}`, { kind: 'dv', ref: d.id });
@@ -456,7 +456,7 @@ export function registerCashRoutes(route, fx) {
     const used = D().finReceipts.filter((r) => r.bookletId === b.id);
     return { ...b, collectorName: fx.byId(D().users, b.collectorId)?.name || '', issued: used.filter((r) => r.status === 'issued').length, cancelled: used.filter((r) => r.status === 'cancelled').length, remaining: b.status === 'active' ? b.to - b.next + 1 : 0, quantity: b.to - b.from + 1 };
   };
-  route('GET', '/api/finance/collectors', 'finance:finance.view', () => D().users.filter((u) => u.status === 'active' && can(u.role, 'finance.collect')).map((u) => ({ id: u.id, name: u.name })));
+  route('GET', '/api/finance/collectors', 'finance:finance.view', () => D().users.filter((u) => u.status === 'active' && userCan(u, 'finance.collect')).map((u) => ({ id: u.id, name: u.name })));
   route('GET', '/api/finance/booklets', 'finance:finance.view', () => D().finBooklets.slice().reverse().map(bookletView));
   route('POST', '/api/finance/booklets', 'finance:finance.collect', ({ user, body }) => {
     const from = Number(body.from);
@@ -465,7 +465,7 @@ export function registerCashRoutes(route, fx) {
     const form = text(body.form, 20) || '51';
     if (D().finBooklets.some((b) => b.form === form && !(to < b.from || from > b.to))) fail('Those serial numbers overlap a booklet already recorded.');
     const collector = fx.byId(D().users, body.collectorId) || fail('Pick the collecting officer.');
-    if (!can(collector.role, 'finance.collect')) fail(`${collector.name} is not a collecting officer (needs the Revenue permission).`);
+    if (!userCan(collector, 'finance.collect')) fail(`${collector.name} is not a collecting officer (needs the Revenue permission).`);
     const b = { id: randomUUID(), form, from, to, next: from, fund: fx.fund(String(body.fund || '05')), collectorId: collector.id, issuedDate: fx.date(body.date || fx.today()), status: 'active', createdBy: user.name };
     D().finBooklets.push(b);
     fx.audit(user, `Issued AF ${form} booklet ${from}–${to} to ${collector.name}`, { kind: 'booklet', ref: b.id });
@@ -617,7 +617,7 @@ export function registerCashRoutes(route, fx) {
     return { fy: year, fund: fund || '', rows, totals: { target: sum(rows, (r) => r.target), actual: sum(rows, (r) => r.total), months: Array.from({ length: 12 }, (_, m) => sum(rows, (r) => r.months[m])) } };
   });
   route('PUT', '/api/finance/revenue/targets', 'finance', ({ user, body }) => {
-    if (!can(user.role, 'finance.collect') && !can(user.role, 'finance.budget')) fail('Revenue targets are set by the budget or revenue office.', 403);
+    if (!userCan(user, 'finance.collect') && !userCan(user, 'finance.budget')) fail('Revenue targets are set by the budget or revenue office.', 403);
     const year = Number(body.fy) || fx.fy();
     const fund = fx.fund(String(body.fund || '05'));
     const targets = body.targets || {};

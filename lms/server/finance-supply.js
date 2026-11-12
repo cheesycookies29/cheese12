@@ -10,7 +10,7 @@
 // Report on the Physical Count of PPE (RPCPPE) / Semi-expendable Property (RPCSP).
 import { randomUUID } from 'node:crypto';
 import { text } from './util.js';
-import { can } from '../shared/roles.js';
+import { userCan } from '../shared/roles.js';
 import { PPE_CLASSES, SEMI_CLASSES, SUPPLY_CLASSES, PROCUREMENT_MODES, ACCT, round2, sum, depreciation, classOf } from '../shared/finance.js';
 
 const CATEGORIES = ['supply', 'semi', 'ppe', 'service'];
@@ -113,12 +113,12 @@ export function registerSupplyRoutes(route, fx) {
   }
   const mayRequest = (u) => u.role !== 'student' && u.role !== 'guardian';
   route('GET', '/api/finance/prs', 'finance', ({ user, query }) => {
-    const mine = !can(user.role, 'finance.view');
+    const mine = !userCan(user, 'finance.view');
     return D().finPrs.filter((p) => (!mine || p.requestedBy?.userId === user.id) && (!query.status || p.status === query.status)).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(prView);
   });
   route('GET', '/api/finance/prs/:id', 'finance', ({ user, params }) => {
     const p = fx.byId(D().finPrs, params.id) || fail('Purchase request not found.', 404);
-    if (!can(user.role, 'finance.view') && p.requestedBy?.userId !== user.id) fail('Purchase request not found.', 404);
+    if (!userCan(user, 'finance.view') && p.requestedBy?.userId !== user.id) fail('Purchase request not found.', 404);
     return prView(p);
   });
   route('POST', '/api/finance/prs', 'finance', ({ user, body }) => {
@@ -139,16 +139,16 @@ export function registerSupplyRoutes(route, fx) {
     const p = fx.byId(D().finPrs, params.id) || fail('Purchase request not found.', 404);
     const own = p.requestedBy?.userId === user.id;
     if (params.action === 'submit') {
-      if (!own && !can(user.role, 'finance.procure')) fail('Not your request.', 403);
+      if (!own && !userCan(user, 'finance.procure')) fail('Not your request.', 403);
       if (p.status !== 'draft') fail('Already submitted.');
       p.status = 'submitted';
     } else if (params.action === 'approve') {
-      if (!can(user.role, 'finance.approve')) fail('Only the approving officer approves purchase requests.', 403);
+      if (!userCan(user, 'finance.approve')) fail('Only the approving officer approves purchase requests.', 403);
       if (p.status !== 'submitted') fail('Only a submitted request can be approved.');
       if (own) fail('You cannot approve your own request.');
       Object.assign(p, { status: 'approved', approvedBy: { name: user.name, title: fx.signatory('head').title }, approvedAt: iso() });
     } else if (params.action === 'cancel') {
-      if (!own && !can(user.role, 'finance.procure') && !can(user.role, 'finance.approve')) fail('Not your request.', 403);
+      if (!own && !userCan(user, 'finance.procure') && !userCan(user, 'finance.approve')) fail('Not your request.', 403);
       if (['ordered', 'cancelled'].includes(p.status)) fail('An ordered or cancelled request cannot be cancelled.');
       Object.assign(p, { status: 'cancelled', cancelReason: text(body.reason, 300) });
     } else fail('Unknown action.', 404);
@@ -314,12 +314,12 @@ export function registerSupplyRoutes(route, fx) {
   // ----- Requisition and issue slips -----
   const risView = (r) => ({ ...r, officeName: fx.office(r.office)?.name || r.office, items: r.items.map((l) => ({ ...l, ...(({ stockNo, description, unit }) => ({ stockNo, description, unit }))(fx.byId(D().finItems, l.itemId) || {}), onHand: onHand(l.itemId) })) });
   route('GET', '/api/finance/ris', 'finance', ({ user, query }) => {
-    const mine = !can(user.role, 'finance.view');
+    const mine = !userCan(user, 'finance.view');
     return D().finRis.filter((r) => (!mine || r.requestedBy.userId === user.id) && (!query.status || r.status === query.status || (query.status === 'open' && ['requested', 'approved'].includes(r.status)))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(risView);
   });
   route('GET', '/api/finance/ris/:id', 'finance', ({ user, params }) => {
     const r = fx.byId(D().finRis, params.id) || fail('Requisition not found.', 404);
-    if (!can(user.role, 'finance.view') && r.requestedBy.userId !== user.id) fail('Requisition not found.', 404);
+    if (!userCan(user, 'finance.view') && r.requestedBy.userId !== user.id) fail('Requisition not found.', 404);
     return risView(r);
   });
   route('POST', '/api/finance/ris', 'finance', ({ user, body }) => {
@@ -340,7 +340,7 @@ export function registerSupplyRoutes(route, fx) {
   });
   route('POST', '/api/finance/ris/:id/:action', 'finance', ({ user, params, body }) => {
     const r = fx.byId(D().finRis, params.id) || fail('Requisition not found.', 404);
-    const supply = can(user.role, 'finance.inventory');
+    const supply = userCan(user, 'finance.inventory');
     // Nobody approves or issues their own requisition: another supply officer or an administrator does.
     const own = r.requestedBy.userId === user.id && user.role !== 'admin';
     if (params.action === 'approve') {

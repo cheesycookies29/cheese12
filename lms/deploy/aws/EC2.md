@@ -147,7 +147,7 @@ Then finish in *ATLAS Control → Single sign-on*. The server needs to reach Key
 
 ## Backups and restoring
 
-- **Every night at 2:15 AM** a copy of the data file goes to `/opt/ltdc-lms/data/backups/` (30 days kept), and uploaded files are mirrored there at 2:20 AM.
+- **Every night at 2:15 AM** a copy of the data file goes to `/opt/ltdc-lms/data/backups/` (30 days kept), uploaded files are mirrored there at 2:20 AM, and the audit log (`audit-log.jsonl`, kept apart from the data) is copied at 2:25 AM. A server set up before this runs `sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh` once to get the audit-log copy.
 - **Every day at 2:00 AM** AWS takes a snapshot of the whole disk (7 kept): **EC2 → Snapshots**. To go back to one, create a volume from it and swap it in, or ask for help.
 - From the admin panel, **Demo data & backup → Download backup** saves the records (not uploaded files) to your computer.
 

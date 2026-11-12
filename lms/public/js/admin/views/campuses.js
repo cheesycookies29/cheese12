@@ -3,7 +3,7 @@
 import { api } from '../../api.js';
 import { html, mount, modal, toast, formData, confirmDialog } from '../../ui.js';
 import { pageHead, ctx } from '../../shell.js';
-import { can } from '/shared/roles.js';
+import { userCan } from '/shared/roles.js';
 import { icon } from '../../icons.js';
 
 function campusDialog(c, onDone) {
@@ -24,7 +24,7 @@ function campusDialog(c, onDone) {
 
 export async function campusesView(el) {
   const list = await api.get('/api/admin/campuses');
-  const editable = can(ctx.user.role, 'campuses.manage');
+  const editable = userCan(ctx.user, 'campuses.manage');
   const redraw = () => campusesView(el);
   mount(el, html`
     ${pageHead('Campuses', 'Every campus has the same features, catalog and terms. Each has its own students, teachers, registrars, sections, news and events.', editable ? html`<button class="btn primary" id="add">${icon('plus', 16)} Add campus</button>` : '')}

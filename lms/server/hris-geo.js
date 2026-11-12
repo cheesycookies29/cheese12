@@ -3,7 +3,7 @@
 // the campus. Only accounts with 'attendance.location' (HR managers and administrators)
 // ever receive it back. Each campus has its own location, radius and retention period.
 import { HttpError } from './util.js';
-import { can } from '../shared/roles.js';
+import { userCan } from '../shared/roles.js';
 import { LOCATION_STATUS, CLOCK_SOURCES, DEFAULT_LOCATION_SETTINGS, distanceMeters, hasOffice } from '../shared/geo.js';
 
 const num = (v) => (v === '' || v == null ? null : Number(v));
@@ -33,7 +33,7 @@ export function clockInLocation(office, body, source, at = new Date()) {
   };
 }
 
-export const canSeeLocation = (user) => Boolean(user) && can(user.role, 'attendance.location');
+export const canSeeLocation = (user) => Boolean(user) && userCan(user, 'attendance.location');
 // A time entry as this user may see it.
 export const forViewer = (user, entry) => {
   if (!entry || canSeeLocation(user) || !('clockInLocation' in entry)) return entry;

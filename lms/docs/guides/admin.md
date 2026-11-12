@@ -127,15 +127,27 @@ Students and teachers have no **Delete** button: disable their accounts instead,
 | **Ask for a new password** | They keep their password but must choose a new one at the next sign-in |
 | **Unlink from Keycloak** | The next Keycloak sign-in links the account again by its email or username |
 | **Disable**, **Enable** | A disabled account is signed out everywhere and cannot sign in; its records stay |
+| **Delete** | Only for an account that has no records: no enrollment, no sections, no changes in any system. Otherwise disable it, so the records keep who made them |
 
 You cannot disable yourself, reset your own password here (use **Change password** under your name) or disable the last active administrator.
 
 ### Change an account's type or campuses
 
 1. In Control, open the account and choose **Edit**.
-2. Change the **Full name**, **Username** or **Email**, the **Account type**, or the campuses it works at, and choose **Save**.
+2. Change the **Full name**, **Username** or **Email**, the **Account type**, the campuses it works at, or the **Linked employee record** (it gives People's self-service; one account per employee), and choose **Save**.
 
 Only staff accounts change type; students and parents keep theirs. Changing the type signs the person out, and they sign in again with the new permissions. A teacher who still has sections keeps the type until their sections go to another teacher (Admin panel → **Sections**). Nobody changes their own type, and the last active administrator stays one.
+
+### Give one account more or less access
+
+The account type decides what someone may do (**Roles & permissions**). Sometimes one person needs a little more or a little less, for example one registrar who also reads Finance's reports, or one HR manager who should not approve leave. Change that person's access, not the whole account type.
+
+1. In Control, open the account from **Accounts**.
+2. In **Access**, choose **Change access**.
+3. Tick a permission to give it to this account, or untick one to take it away. Shaded rows are this account's own, different from its account type. Permissions this account type can never have are not offered, and **Administrators only** ones stay with administrators.
+4. Choose **Save access**. It applies at once.
+
+The account page lists what was **Given** and **Taken away**, and **Accounts** marks such accounts **Own access** (filter on it). The **Access map** shows how many accounts of each type have their own access. Changing an account's type clears its own access, as it belonged to the old type. Administrators always have every permission, and you cannot change your own access.
 
 ### See who is signed in, and end sessions
 
@@ -148,10 +160,15 @@ Only staff accounts change type; students and parents keep theirs. Changing the 
 ### Read and download the audit trail
 
 1. In Control, choose **Audit trail**. The newest entries are first: sign-ins and failed sign-ins (with the network address), sign-outs and password changes, every change by staff in every system, requests that were refused, Control's own actions, and the Settings history, Finance's audit and Academic's log.
-2. Narrow it with the search box (a name, an action or a network address), the kind (**Sign-in**, **Change**, **Refused**…), the outcome (**Done**, **Failed**, **Refused**), the system, the log, and the dates **From** and **To**. Failed and refused entries are shaded.
-3. Choose **Download CSV** for every entry that matches, for a report or an investigation. The download itself is written in the trail.
+2. The notice at the top checks the log: **Intact.** means no entry was changed, removed or reordered. If it says **The audit log was altered.**, the file was edited outside ATLAS: keep a copy and investigate.
+3. Narrow it with the search box (a name, an action, a changed field or a network address), the kind (**Sign-in**, **Change**, **Refused**…), the outcome (**Done**, **Failed**, **Refused**), the system, the log, and the dates **From** and **To**. Failed and refused entries are shaded.
+4. Choose **Download CSV** for every entry that matches, for a report or an investigation. The download itself is written in the trail.
 
-To see one person's trail, open their account and choose **Full trail**. Passwords and what people type into forms are never recorded; a username nobody has is written as *(unknown username)*, as people sometimes type their password there by mistake. The trail keeps the last 50,000 sign-ins and changes.
+A change to an account, its access or a setting lists each field with its value before and after.
+
+To see one person's trail, open their account and choose **Full trail**. Passwords and what people type into forms are never recorded; a username nobody has is written as *(unknown username)*, as people sometimes type their password there by mistake.
+
+The audit log is kept the way CORE keeps its own: in a file of its own beside the data (`audit-log.jsonl`), every entry numbered and chained to the one before. Entries cannot be edited or deleted in ATLAS, and restoring a backup or removing the demo school does not change them. A backup does not contain the audit log; on the AWS server a copy is kept each night with the other backups.
 
 ![The audit trail](control-audit.jpg)
 
@@ -396,14 +413,14 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Sidebar group | Screen | What it is for |
 |---|---|---|
 | (top) | Overview | Accounts, who is signed in, sign-ins and failed sign-ins in the last 24 hours, locked usernames, refused requests, a security checklist and the latest in the audit trail |
-| Users | Accounts | Every account in every system; open one to see what it can open, its sessions and its trail, and to reset its password, end its sessions, unlock it, change it or disable it |
+| Users | Accounts | Every account in every system; open one to see what it can open, its access, its sessions and its trail, and to reset its password, end its sessions, unlock it, change it, give it more or less access, disable or delete it |
 | Users | Sessions | Everyone signed in now, with their system, browser and network address; end one, or everyone else's |
 | Users | Locked sign-ins | Usernames locked after wrong passwords, where and until when; unlock them |
 | Access | Access map | Which account types open which systems and Learn modules, and how many permissions each has |
 | Access | Roles & permissions | What each account type may do in each system |
 | Access | Sign-in and passwords | Password rules, lock-out, idle sign-out and rate limits, for every system |
 | Access | Single sign-on | Signing in with the school's Keycloak account |
-| Audit | Audit trail | Sign-ins, failed sign-ins, changes by staff in every system, refused requests and the Settings, Finance and Academic logs; filter and download |
+| Audit | Audit trail | Sign-ins, failed sign-ins, changes by staff in every system (field by field), refused requests and the Settings, Finance and Academic logs; a check that the log is intact; filter and download |
 | Elsewhere | Admin panel, ATLAS home | Back to the Admin panel or the ATLAS home page, in a new tab |
 
 ## Questions

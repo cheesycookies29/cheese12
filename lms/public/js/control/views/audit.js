@@ -15,6 +15,9 @@ export async function auditView(el, params, q) {
   mount(el, html`
     ${pageHead(d.user ? html`Audit trail: ${d.user.name}` : 'Audit trail', 'Who signed in and who failed to, every change by staff in every system, requests that were refused, and the Settings, Finance and Academic logs, newest first. Passwords and what people type into forms are never recorded.',
       html`<a class="btn" href="${csv}" download>${icon('download', 16)} Download CSV</a>`, d.user ? [['/accounts', 'Accounts'], [`/accounts/${d.user.id}`, d.user.name]] : '')}
+    ${d.check.ok
+      ? html`<div class="notice ok">${icon('checkCircle')}<p><strong>Intact.</strong> All ${d.check.count.toLocaleString()} entries of the audit log check out: none was changed, removed or reordered. Entries cannot be edited or deleted here, and restoring a backup or removing the demo school leaves them as they are.</p></div>`
+      : html`<div class="notice bad">${icon('flag')}<p><strong>The audit log was altered.</strong> Entry ${d.check.brokenAt}${d.check.at ? html` (${new Date(d.check.at).toLocaleString()})` : ''} does not match the entries before it: the file was edited outside ATLAS. Keep a copy of <code>audit-log.jsonl</code> and investigate.</p></div>`}
     <form class="toolbar filters" id="filter">
       <input type="search" name="q" value="${q.q || ''}" placeholder="Who, what, address…" aria-label="Search the trail" />
       <select name="kind" aria-label="Kind">${option('', 'Every kind', !q.kind)}${Object.entries(KINDS).map(([k, l]) => option(k, l, q.kind === k))}</select>
@@ -29,6 +32,6 @@ export async function auditView(el, params, q) {
     </form>
     ${d.entries.length ? html`<div class="card flush"><div class="table-scroll"><table class="table trail">${trailHead()}<tbody>${d.entries.map((e) => trailRow(e))}</tbody></table></div></div>${pager(d, q, '/audit')}`
       : html`<div class="card empty">${icon('search', 32)}<p>Nothing in the trail matches.</p></div>`}
-    <p class="muted small">The trail keeps the last ${d.kept.max.toLocaleString()} sign-ins and changes (${d.kept.trail.toLocaleString()} now${d.kept.oldest ? html`, since <time datetime="${d.kept.oldest}">${new Date(d.kept.oldest).toLocaleDateString()}</time>` : ''}). The download has every entry that matches the filters, with the network address of each sign-in.</p>`);
+    <p class="muted small">The audit log keeps every entry${d.kept.oldest ? html`, since <time datetime="${d.kept.oldest}">${new Date(d.kept.oldest).toLocaleDateString()}</time>` : ''}, in its own file beside the data (<code>audit-log.jsonl</code>); each entry is chained to the one before by a hash, as in CORE. The download has every entry that matches the filters, with each sign-in's network address.</p>`);
   wireFilter(el.querySelector('#filter'), '/audit', keep);
 }

@@ -2,7 +2,7 @@
 import { api } from '../../api.js';
 import { html, mount, modal, toast, statusBadge, timeAgo, fmtDate, option, formData, confirmDialog, empty } from '../../ui.js';
 import { pageHead, badgesChanged, ctx } from '../../shell.js';
-import { can, ROLES, roleLabel } from '/shared/roles.js';
+import { userCan, ROLES, roleLabel } from '/shared/roles.js';
 import { lookups, filterRows, sectionTitle } from '../common.js';
 import { enrollmentActions, wireEnrollmentActions, showHistory, addEnrollmentDialog } from './enrollment.js';
 import { studentGuardiansCard } from './guardians.js';
@@ -77,7 +77,7 @@ export function resetPasswordDialog(user) {
 
 export async function peopleView(el, { kind }) {
   const k = KINDS[kind];
-  const mayManage = can(ctx.user.role, k.manage);
+  const mayManage = userCan(ctx.user, k.manage);
   const [list, { programs }] = await Promise.all([api.get(k.url), lookups('programs')]);
   const rows = kind === 'student' ? list.filter((u) => u.status === 'active' || u.status === 'disabled') : list;
 
@@ -144,13 +144,13 @@ export async function peopleView(el, { kind }) {
 
 export async function personView(el, { id }) {
   const u = await api.get(`/api/admin/users/${id}`);
-  const manage = can(ctx.user.role, u.role === 'student' ? 'students.manage' : 'teachers.manage');
+  const manage = userCan(ctx.user, u.role === 'student' ? 'students.manage' : 'teachers.manage');
   const back = u.role === 'student' ? ['/students', 'Students'] : ['/teachers', 'Teachers'];
   const info = (label, value) => html`<div class="info"><dt>${label}</dt><dd>${value || '—'}</dd></div>`;
   const enrollments = u.enrollments || [];
   mount(el, html`
     ${pageHead(html`${u.name} ${statusBadge(u.status)}`, `${roleLabel(u.role)} · ${u.username}`, manage ? html`
-      ${u.role === 'student' && u.status === 'active' && can(ctx.user.role, 'enrollment.manage') ? html`<button class="btn primary" id="enroll">+ Add to a section</button>` : ''}
+      ${u.role === 'student' && u.status === 'active' && userCan(ctx.user, 'enrollment.manage') ? html`<button class="btn primary" id="enroll">+ Add to a section</button>` : ''}
       <button class="btn" id="edit">Edit</button><button class="btn" id="reset">Reset password</button>` : '', back)}
     <section class="card"><dl class="info-grid">
       ${u.role === 'student' ? html`${info('Student number', html`<span class="mono">${u.studentNo}</span>`)}${info('Program', u.program ? `${u.program.code} · ${u.program.name}` : '')}${info('Year level', `Year ${u.yearLevel || 1}`)}` : ''}
@@ -167,9 +167,9 @@ export async function personView(el, { id }) {
         <tbody>${enrollments.map((e) => html`<tr><td>${sectionTitle(e.section)}</td><td>${e.section.term.name}</td><td>${e.section.course.units}</td>
           <td>${statusBadge(e.status, e.statusLabel)}${e.position ? html`<small>#${e.position} in line</small>` : ''}</td>
           <td>${e.finalGrade != null ? html`<strong>${e.finalGrade}</strong> ${e.passed ? statusBadge('enrolled', 'Passed') : statusBadge('rejected', 'Failed')}` : '—'}</td>
-          <td class="row-actions">${can(ctx.user.role, 'enrollment.manage') ? enrollmentActions(e) : ''}<button class="btn" data-history="${e.id}">History</button></td></tr>`)}</tbody>
+          <td class="row-actions">${userCan(ctx.user, 'enrollment.manage') ? enrollmentActions(e) : ''}<button class="btn" data-history="${e.id}">History</button></td></tr>`)}</tbody>
       </table>` : html`<p class="muted" style="padding:18px">No enrollments yet.</p>`}</div>
-      ${can(ctx.user.role, 'guardians.manage') && u.status !== 'pending' ? html`<div id="guardians-box"></div>` : ''}` : ''}
+      ${userCan(ctx.user, 'guardians.manage') && u.status !== 'pending' ? html`<div id="guardians-box"></div>` : ''}` : ''}
     ${u.role === 'teacher' ? html`
       <h3>Sections</h3>
       <div class="card scroll-x">${u.sections.length ? html`<table class="table clickable">

@@ -46,3 +46,12 @@ fieldset.plain { border: 0; padding: 0; margin: 0; }
 @media (max-width: 760px) {
   .row-flags { text-align: left; white-space: normal; }
 }
+
+/* One account's own access, and changes in the trail (field: before → after). */
+.own-access { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+.access-edit fieldset + fieldset { margin-top: 16px; }
+.access-edit legend { margin-bottom: 6px; }
+.access-edit .check-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; }
+.access-edit .check-row.own { background: var(--brand-softer, var(--surface-2)); box-shadow: inset 0 0 0 1px var(--brand-line, var(--border)); }
+.trail-changes { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12.5px; color: var(--muted); }
+.trail-changes b { color: var(--text); font-weight: 600; }

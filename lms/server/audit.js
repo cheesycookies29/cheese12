@@ -1,14 +1,22 @@
 // The audit trail (ATLAS Control → Audit trail): who signed in and who failed to, from where; who
-// changed what in every system; requests that were refused. Kept in db.data.auditTrail, the last
-// AUDIT_MAX events. Passwords, tokens and what was typed into forms are never recorded.
+// changed what in every system, field by field where it can say; requests that were refused.
+// Passwords, tokens and what was typed into forms are never recorded.
+//
+// Kept as CORE ERP keeps its audit log (server/audit.js at the repository root): appended to
+// audit-log.jsonl beside the data file, a file of its own, so restoring a backup or removing the demo
+// school never rewrites it. Each entry carries a number and the hash of the one before, so an edited,
+// removed or reordered line breaks the chain, and Control's Audit trail page says so.
 //
 // The trail shown to administrators also brings in the logs each system already keeps, so there is
 // one place to look: the Settings center's history (settingsLog, with old and new values), Finance's
 // audit (finAudit) and Academic's (auditLog).
-import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
 import { ROLES, roleLabel } from '../shared/roles.js';
 
-export const AUDIT_MAX = 50000;
+export const AUDIT_FILE = 'audit-log.jsonl';
+const hashOf = (prev, entry) => createHash('sha256').update(`${prev}\n${JSON.stringify(entry)}`).digest('hex');
 
 export const SYSTEM_LABELS = { home: 'ATLAS home', learn: 'Learn', admin: 'Admin panel', academic: 'Academic', people: 'People', finance: 'Finance', control: 'Control', help: 'Help' };
 export const KIND_LABELS = { signin: 'Sign-in', signout: 'Sign-out', password: 'Password', account: 'Account', access: 'Access', session: 'Session', settings: 'Settings', change: 'Change', refused: 'Refused', data: 'Data' };
@@ -43,43 +51,91 @@ export function describeRoute(method, pattern) {
   return `${VERB[method] || method} · ${fixed.map(words).join(' › ') || 'record'}`;
 }
 
+// db: the database (its folder holds the file; in memory in tests). Returns { record, entries,
+// verify, file }.
 export function createAudit(db) {
-  const list = () => db.data.auditTrail;
-  let pending = null;
-  // Saved shortly after, together with anything else, so a burst of failed sign-ins does not write
-  // the data file each time.
-  const saveSoon = () => {
-    if (pending) return;
-    pending = setTimeout(() => {
-      pending = null;
-      db.save();
-    }, 1500);
-    pending.unref?.();
+  const file = db.dir ? path.join(db.dir, AUDIT_FILE) : null;
+  const entries = []; // oldest first, as in the file
+  if (file && fs.existsSync(file)) {
+    for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        entries.push(JSON.parse(line));
+      } catch {
+        // a damaged line: verify() reports where the chain breaks
+      }
+    }
+  }
+  let last = entries.length ? { seq: entries.at(-1).seq || entries.length, hash: entries.at(-1).hash || '' } : { seq: 0, hash: '' };
+  const append = (fields) => {
+    const entry = { seq: last.seq + 1, ...fields, prev: last.hash };
+    entry.hash = hashOf(last.hash, entry);
+    if (file) fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, { mode: 0o640 });
+    entries.push(entry);
+    last = { seq: entry.seq, hash: entry.hash };
+    return entry;
   };
+  // A trail kept inside the data file by an earlier ATLAS moves into the file, once; its demo
+  // entries stay with the demo school (auditDemo).
+  if (Array.isArray(db.data.auditTrail)) {
+    const old = db.data.auditTrail;
+    db.data.auditDemo = [...(db.data.auditDemo || []), ...old.filter((e) => e.demo)];
+    for (const e of old.filter((x) => !x.demo).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))) {
+      const { id, at, ...rest } = e;
+      append({ id: id || randomUUID(), at, ...rest });
+    }
+    delete db.data.auditTrail;
+    db.save();
+  }
+  const text = (v, n) => String(v ?? '').slice(0, n);
   return {
-    // e: { kind, action, system, actor (a user or null), target (a user, or { id, name }), ip, agent, outcome, detail }
+    file,
+    // e: { kind, action, system, actor (a user or null), target (a user, or { id, name }), targetName,
+    // ip, agent, outcome, detail, changes: [{ field, from, to }] }
     record(e) {
       const actor = e.actor || null;
       const target = e.target || null;
-      list().push({
+      return append({
         id: randomUUID(),
         at: new Date().toISOString(),
         kind: e.kind || 'change',
         system: e.system || 'home',
-        action: String(e.action || '').slice(0, 200),
+        action: text(e.action, 200),
         actorId: actor?.id || null,
         actor: actor ? actor.name : '',
         actorRole: actor?.role || '',
         targetId: target?.id || null,
-        target: target ? String(target.name || target.username || '').slice(0, 160) : String(e.targetName || '').slice(0, 160),
+        target: target ? text(target.name || target.username, 160) : text(e.targetName, 160),
         targetUser: Boolean(target?.username), // the target is an account (Control links to it)
-        ip: String(e.ip || '').slice(0, 64),
-        agent: String(e.agent || '').slice(0, 160),
+        ip: text(e.ip, 64),
+        agent: text(e.agent, 160),
         outcome: e.outcome || 'ok',
-        detail: String(e.detail || '').slice(0, 400),
+        detail: text(e.detail, 400),
+        changes: (Array.isArray(e.changes) ? e.changes : []).slice(0, 60).map((c) => ({ field: text(c.field, 120), from: text(c.from, 200), to: text(c.to, 200) })),
       });
-      if (list().length > AUDIT_MAX) list().splice(0, list().length - AUDIT_MAX);
-      saveSoon();
+    },
+    entries: () => entries,
+    count: () => last.seq,
+    // Re-computes the chain from the file: ok when no entry was changed, removed or reordered.
+    verify() {
+      let lines;
+      if (file) lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter((l) => l.trim()) : [];
+      else lines = entries.map((x) => JSON.stringify(x));
+      let prev = '';
+      let seq = 0;
+      for (const line of lines) {
+        let e;
+        try {
+          e = JSON.parse(line);
+        } catch {
+          return { ok: false, count: seq, brokenAt: seq + 1, at: null };
+        }
+        const { hash, ...rest } = e;
+        if (e.prev !== prev || e.seq !== seq + 1 || hashOf(prev, rest) !== hash) return { ok: false, count: seq, brokenAt: e.seq ?? seq + 1, at: e.at || null };
+        prev = hash;
+        seq = e.seq;
+      }
+      return { ok: true, count: seq };
     },
   };
 }
@@ -93,17 +149,18 @@ const short = (v) => {
 
 // Every source in one shape: { id, at, source, kind, system, action, actor, actorId, actorRole,
 // target, targetId, ip, agent, outcome, detail }.
-export function combinedTrail(data) {
+export function combinedTrail(data, trail = []) {
   const users = new Map(data.users.map((u) => [u.id, u]));
   const role = (id) => users.get(id)?.role || '';
   const out = [];
-  for (const e of data.auditTrail) out.push({ ...e, source: 'trail' });
+  for (const e of trail) out.push({ ...e, source: 'trail' });
+  for (const e of data.auditDemo || []) out.push({ ...e, source: 'trail' });
   for (const e of data.settingsLog) {
     out.push({
       id: e.id, at: e.at, source: 'settings', kind: 'settings', system: e.module === 'admin' ? 'admin' : e.module === 'hris' ? 'people' : e.module || 'admin',
       action: `${{ undo: 'Undid a change to', reset: 'Restored a default in', 'reset-all': 'Restored the defaults of', import: 'Imported' }[e.via] || 'Changed'} ${e.areaLabel}`,
       actor: e.by, actorId: e.byId, actorRole: role(e.byId), target: e.areaLabel, targetId: null, targetUser: false, ip: '', agent: '', outcome: 'ok',
-      detail: e.changes.map((c) => `${c.label}: ${short(c.from)} → ${short(c.to)}`).join('; ').slice(0, 400),
+      detail: '', changes: e.changes.map((c) => ({ field: c.label, from: short(c.from), to: short(c.to) })),
     });
   }
   for (const e of data.finAudit) {
@@ -128,7 +185,7 @@ export function filterTrail(list, f = {}) {
     && (!f.userId || e.actorId === f.userId || e.targetId === f.userId)
     && (!f.from || e.at.slice(0, 10) >= f.from)
     && (!f.to || e.at.slice(0, 10) <= f.to)
-    && (!q || `${e.action} ${e.actor} ${e.target} ${e.detail} ${e.ip}`.toLowerCase().includes(q)));
+    && (!q || `${e.action} ${e.actor} ${e.target} ${e.detail} ${e.ip} ${(e.changes || []).map((c) => `${c.field} ${c.from} ${c.to}`).join(' ')}`.toLowerCase().includes(q)));
 }
 
 // CSV, with formula-looking cells made text (as in the browser's toCsv).
@@ -138,8 +195,8 @@ export function trailCsv(list) {
     const safe = /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s;
     return `"${safe.replace(/"/g, '""')}"`;
   };
-  const rows = [['When (UTC)', 'Source', 'System', 'Kind', 'What', 'Who', 'Account type', 'About', 'Outcome', 'Address', 'Details']];
-  for (const e of list) rows.push([e.at, SOURCE_LABELS[e.source] || e.source, SYSTEM_LABELS[e.system] || e.system, KIND_LABELS[e.kind] || e.kind, e.action, e.actor, e.actorRole ? roleLabel(e.actorRole) : '', e.target, e.outcome, e.ip, e.detail]);
+  const rows = [['#', 'When (UTC)', 'Source', 'System', 'Kind', 'What', 'Who', 'Account type', 'About', 'Outcome', 'Address', 'Changes', 'Details']];
+  for (const e of list) rows.push([e.seq || '', e.at, SOURCE_LABELS[e.source] || e.source, SYSTEM_LABELS[e.system] || e.system, KIND_LABELS[e.kind] || e.kind, e.action, e.actor, e.actorRole ? roleLabel(e.actorRole) : '', e.target, e.outcome, e.ip, (e.changes || []).map((c) => `${c.field}: ${c.from || '(empty)'} -> ${c.to || '(empty)'}`).join('; '), e.detail]);
   return `﻿${rows.map((r) => r.map(cell).join(',')).join('\r\n')}\r\n`;
 }
 
@@ -151,7 +208,7 @@ export const isStaff = (u) => Boolean(u && ROLES[u.role] && !['student', 'guardi
 // Every entry has demo: true and goes when the demo school is removed. Addresses are from the ranges
 // kept for examples (192.0.2.x, 198.51.100.x, 203.0.113.x).
 export function removeAuditDemo(data) {
-  data.auditTrail = data.auditTrail.filter((e) => !e.demo);
+  data.auditDemo = [];
 }
 export function addAuditDemo(data, now = Date.now()) {
   removeAuditDemo(data);
@@ -190,6 +247,5 @@ export function addAuditDemo(data, now = Date.now()) {
   signIn(3, 'registrar.demo', 'admin', 'Admin panel', '192.0.2.14', PC);
   signIn(2, 'student.demo', 'learn', 'Learn', '198.51.100.23', PHONE);
   add(1.9, { kind: 'password', system: 'learn', action: 'Changed their password', actor: 'student.demo', target: 'student.demo', ip: '198.51.100.23', agent: PHONE, detail: 'Their other sessions were ended.' });
-  data.auditTrail.push(...out);
-  data.auditTrail.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  data.auditDemo = out;
 }

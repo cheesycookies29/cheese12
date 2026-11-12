@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime, text } from './util.js';
 import { computePayslip, toMinutes, scheduleFor, dayOfWeek, DEFAULT_SETTINGS as HR_DEFAULTS, DEFAULT_RATES } from '../shared/calc.js';
-import { ROLES, HRIS_ROLES, can } from '../shared/roles.js';
+import { ROLES, HRIS_ROLES, userCan } from '../shared/roles.js';
 import { nextNumber } from './numbering.js';
 import { hashPassword, validatePassword } from './auth.js';
 import { campusesFor, campusName } from './campus.js';
@@ -404,7 +404,7 @@ export function registerHrisRoutes(route, ctx) {
       .slice(0, 8)
       .map((r) => ({ id: r.id, kind: r.kind, startDate: r.startDate, endDate: r.endDate, days: r.days, name: `${byId.get(r.employeeId).firstName} ${byId.get(r.employeeId).lastName}`, typeName: r.kind === 'remote' ? 'Remote work' : data().leaveTypes.find((t) => t.id === r.leaveTypeId)?.name || 'Leave' }));
     // The latest regular payroll (bonus runs are not "the payroll").
-    const runs = can(user.role, 'payroll.view') ? data().payrollRuns.filter((r) => r.campusId === campusId && (!r.kind || r.kind === 'regular')).sort((a, b) => b.periodStart.localeCompare(a.periodStart)) : [];
+    const runs = userCan(user, 'payroll.view') ? data().payrollRuns.filter((r) => r.campusId === campusId && (!r.kind || r.kind === 'regular')).sort((a, b) => b.periodStart.localeCompare(a.periodStart)) : [];
     return {
       date,
       headcount: active.length,
@@ -484,7 +484,7 @@ export function registerHrisRoutes(route, ctx) {
   };
   const linkableRoles = (caller) => ['teacher', 'registrar', 'dean', ...assignableRoles(caller), ...(caller.role === 'admin' ? ['admin'] : [])];
   function linkable(caller, emp, userId) {
-    if (!can(caller.role, 'hris.accounts')) fail('Your account cannot link sign-in accounts.', 403);
+    if (!userCan(caller, 'hris.accounts')) fail('Your account cannot link sign-in accounts.', 403);
     const u = data().users.find((x) => x.id === userId);
     if (!u || !linkableRoles(caller).includes(u.role) || (u.role !== 'admin' && !(u.campusIds || []).includes(emp.campusId))) fail('Account not found at this campus.', 404);
     const other = u.employeeId && data().employees.find((e) => e.id === u.employeeId && e.id !== emp.id);

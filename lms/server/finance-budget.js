@@ -7,7 +7,7 @@
 // (FAR No. 3) and the Statement of Comparison of Budget and Actual Amounts (SCBAA).
 import { randomUUID } from 'node:crypto';
 import { text } from './util.js';
-import { can } from '../shared/roles.js';
+import { userCan } from '../shared/roles.js';
 import { ALLOTMENT_CLASSES, ACCT, round2, sum, classOf, obligationForm, fundName, coObject } from '../shared/finance.js';
 
 const APPROPRIATION_KINDS = ['GAA – New appropriations', 'GAA – Continuing appropriations', 'Automatic appropriations (RLIP)', 'Supplemental / special purpose', 'Board-approved budget (IGF/STF)', 'Trust receipts budget'];
@@ -164,7 +164,7 @@ export function registerBudgetRoutes(route, fx) {
   });
 
   // ----- Obligations (ORS / BURS) -----
-  const preparer = (u) => ['finance.budget', 'finance.procure', 'finance.disburse', 'finance.accounts', 'finance.inventory'].some((p) => can(u.role, p));
+  const preparer = (u) => ['finance.budget', 'finance.procure', 'finance.disburse', 'finance.accounts', 'finance.inventory'].some((p) => userCan(u, p));
   route('GET', '/api/finance/obligations', 'finance:finance.view', ({ query }) => {
     const q = String(query.q || '').toLowerCase();
     return D().finObligations
@@ -268,7 +268,7 @@ export function registerBudgetRoutes(route, fx) {
   route('POST', '/api/finance/obligations/:id/cancel', 'finance', ({ user, params, body }) => {
     const o = fx.byId(D().finObligations, params.id) || fail('Obligation request not found.', 404);
     if (o.status === 'cancelled') fail('Already cancelled.');
-    if (o.status === 'obligated' && !can(user.role, 'finance.budget')) fail('Only the budget office cancels an obligation.', 403);
+    if (o.status === 'obligated' && !userCan(user, 'finance.budget')) fail('Only the budget office cancels an obligation.', 403);
     if (o.status === 'draft' && !preparer(user)) fail('Your account cannot change obligation requests.', 403);
     if (D().finDvs.some((d) => d.orsId === o.id && d.status !== 'cancelled')) fail('A voucher is charged to this obligation. Cancel the voucher first, or adjust the obligation.');
     const po = D().finPos.find((x) => x.orsId === o.id && !['draft', 'cancelled'].includes(x.status));

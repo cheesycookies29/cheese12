@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError, DATE_RE, text, localDate } from './util.js';
 import { hashPassword, validatePassword, publicUser, passwordEncryption } from './auth.js';
-import { can, ROLES, ADMIN_ROLES } from '../shared/roles.js';
+import { userCan, ROLES, ADMIN_ROLES } from '../shared/roles.js';
 import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
 import { mergeSettings } from './db.js';
@@ -20,7 +20,7 @@ const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
 };
 const need = (user, permission) => {
-  if (!can(user.role, permission)) fail('Your account does not have access to this.', 403);
+  if (!userCan(user, permission)) fail('Your account does not have access to this.', 403);
 };
 const USERNAME_RE = /^[a-z0-9._-]{3,40}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -585,7 +585,7 @@ export function registerAdminRoutes(route, ctx) {
   // ----- Settings -----
   route('GET', '/api/admin/settings', 'admin', ({ user }) => {
     const s = data().settings;
-    const out = can(user.role, 'settings.edit') ? { ...s } : { ...s, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
+    const out = userCan(user, 'settings.edit') ? { ...s } : { ...s, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
     return { ...out, passwordEncryption: passwordEncryption(), numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
   });
   // The next number a format would give (Settings → Numbering, as the administrator types).

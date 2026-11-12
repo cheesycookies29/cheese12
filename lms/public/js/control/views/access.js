@@ -16,7 +16,7 @@ export async function accessView(el) {
         <caption class="sr-only">Which account types see each system on the ATLAS home page</caption>
         <thead><tr><th scope="col">Account type</th><th scope="col" class="num">Active accounts</th>${shown.map((s) => html`<th scope="col" class="center">${s.product}${s.status === 'soon' ? html`<small class="muted block">Coming soon</small>` : ''}</th>`)}<th scope="col" class="num">Permissions</th></tr></thead>
         <tbody>${d.roles.map((r) => html`<tr>
-          <td><strong>${r.label}</strong>${r.changed ? html` <span class="badge amber">Changed</span>` : ''}<small class="muted block">${r.sideLabel} session</small></td>
+          <td><strong>${r.label}</strong>${r.changed ? html` <span class="badge amber">Changed</span>` : ''}<small class="muted block">${r.sideLabel} session</small>${r.ownAccess ? html`<a class="small block" href="#/accounts?role=${r.id}&flag=own-access">${r.ownAccess} with their own access</a>` : ''}</td>
           <td class="num"><a href="#/accounts?role=${r.id}&status=active">${r.accounts}</a></td>
           ${shown.map((s) => html`<td class="center">${r.systems.includes(s.id) ? yes(`${r.label} sees ${s.product}`) : html`<span class="muted" aria-label="No">·</span>`}</td>`)}
           <td class="num">${r.permissions === null ? (r.id === 'admin' ? 'All' : '—') : r.permissions ? html`<a href="#/roles">${r.permissions}</a>` : '—'}</td></tr>`)}</tbody></table></div>

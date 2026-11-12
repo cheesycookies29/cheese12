@@ -10,7 +10,7 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 import { HttpError, text, DATE_RE } from './util.js';
 import { nextNumber } from './numbering.js';
-import { can } from '../shared/roles.js';
+import { userCan } from '../shared/roles.js';
 import {
   DEFAULT_ACADEMIC_SETTINGS, DOCUMENT_TYPES, REQUEST_STATUS, STUDENT_TYPES, TERMS,
   equivalent, gwa, docType, termOrder, ACADEMIC_PERMISSION_LABELS, scaleProblems, passingPercent,
@@ -580,7 +580,7 @@ export function registerAcademicRoutes(route, ctx) {
   }
   route('GET', '/api/academic/grade-sheets', 'academic', ({ user, query, campusId }) => {
     if (user.role === 'student') fail('Not for students.', 403);
-    if (isStaff(user) && !can(user.role, 'academic.view')) fail('Your account does not have access to this.', 403);
+    if (isStaff(user) && !userCan(user, 'academic.view')) fail('Your account does not have access to this.', 403);
     // A status to work on (waiting for approval, to post, returned) lists every term unless one is picked.
     const termId = query.termId === 'all' || (!query.termId && ['submitted', 'approved', 'returned'].includes(query.status)) ? null : query.termId || data().settings.currentTermId;
     const list = data().sections.filter((s) => (!termId || s.termId === termId) && s.status !== 'cancelled' && (user.role === 'teacher' ? s.teacherId === user.id : s.campusId === campusId));
@@ -592,7 +592,7 @@ export function registerAcademicRoutes(route, ctx) {
 
   route('POST', '/api/academic/grade-sheets/:sectionId/submit', 'academic', ({ user, params, body }) => {
     const s = reachSection(user, params.sectionId);
-    if (user.role !== 'teacher' && !can(user.role, 'academic.records')) fail('Only the teacher or the registrar submits a grade sheet.', 403);
+    if (user.role !== 'teacher' && !userCan(user, 'academic.records')) fail('Only the teacher or the registrar submits a grade sheet.', 403);
     const g = sheetOf(s.id);
     if (g && !['returned'].includes(g.status)) fail(g.status === 'posted' ? 'This grade sheet is already posted.' : 'This grade sheet is already submitted.');
     const inc = new Set(Array.isArray(body.inc) ? body.inc : []);
@@ -623,7 +623,7 @@ export function registerAcademicRoutes(route, ctx) {
     return sheetView(s, true);
   });
   route('POST', '/api/academic/grade-sheets/:id/return', 'academic', ({ user, params, body }) => {
-    if (!can(user.role, 'grades.approve') && !can(user.role, 'academic.records')) fail('Your account does not have access to this.', 403);
+    if (!userCan(user, 'grades.approve') && !userCan(user, 'academic.records')) fail('Your account does not have access to this.', 403);
     const { g, s } = sheetById(user, params.id);
     if (!['submitted', 'approved'].includes(g.status)) fail('Only a submitted or approved grade sheet can be returned.');
     const note = text(body.note, 500);
@@ -967,5 +967,5 @@ export function registerAcademicRoutes(route, ctx) {
     return data().auditLog.filter((a) => (!query.studentId || a.studentId === query.studentId) && (!a.studentId || ids.has(a.studentId))).slice(-300).reverse();
   });
 
-  return { evaluation, permissionsFor: (role) => ACADEMIC_PERMISSION_LABELS.map(([p]) => p).filter((p) => can(role, p)) };
+  return { evaluation, permissionsFor: (user) => ACADEMIC_PERMISSION_LABELS.map(([p]) => p).filter((p) => userCan(user, p)) };
 }

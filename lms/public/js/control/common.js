@@ -49,7 +49,7 @@ export function wireFilter(form, base, keep = {}) {
 export const trailRow = (e, { who = true } = {}) => html`<tr class="${e.outcome !== 'ok' ? 'trail-bad' : ''}">
   <td data-label="When" class="nowrap">${when(e.at)}</td>
   ${who ? html`<td data-label="Who">${e.actorId ? html`<a href="#/accounts/${e.actorId}">${e.actor}</a>` : e.actor || html`<span class="muted">Not signed in</span>`}</td>` : ''}
-  <td data-label="What"><strong class="trail-action">${e.action}</strong>${e.detail ? html`<small class="muted block trail-detail">${e.detail}</small>` : ''}</td>
+  <td data-label="What"><strong class="trail-action">${e.action}</strong>${e.changes?.length ? html`<ul class="trail-changes">${e.changes.map((c) => html`<li><b>${c.field}</b>: ${c.from || '(empty)'} → ${c.to || '(empty)'}</li>`)}</ul>` : ''}${e.detail ? html`<small class="muted block trail-detail">${e.detail}</small>` : ''}</td>
   <td data-label="About">${!e.target || (e.targetId && e.targetId === e.actorId) ? html`<span class="muted">—</span>` : e.targetUser ? html`<a href="#/accounts/${e.targetId}">${e.target}</a>` : e.target}</td>
   <td data-label="Where"><span class="nowrap">${SYSTEMS[e.system] || e.system}</span>${e.ip ? html`<small class="muted block mono">${e.ip}</small>` : ''}</td>
   <td data-label="Outcome">${outcomeBadge(e.outcome)}</td>

@@ -162,6 +162,29 @@ export function can(role, permission) {
   return perms.includes('*') || perms.includes(permission) || (permission === 'teachers.view' && perms.includes('teachers.manage'));
 }
 
+// ----- One account's own access (ATLAS Control → Accounts → Access), after CORE's per-user grants -----
+// user.access = { add: [permission…], remove: [permission…] }: given to, or taken from, this one
+// account on top of its account type. Administrators always keep everything. Every check that is
+// about a person (not an account type) goes through userCan.
+export function userCan(user, permission) {
+  if (!user || !ROLES[user.role]) return false;
+  if (user.role !== 'admin') {
+    const a = user.access;
+    if (a?.remove?.includes(permission)) return false;
+    if (a?.add?.includes(permission)) return true;
+    if (permission === 'teachers.view' && a?.add?.includes('teachers.manage')) return true;
+  }
+  return can(user.role, permission);
+}
+
+// The permissions one account has: its account type's, with its own changes.
+export function permissionsOfUser(user) {
+  const base = permissionsOf(user?.role);
+  if (!user || base.includes('*')) return base;
+  const remove = new Set(user.access?.remove || []);
+  return [...new Set([...base.filter((p) => !remove.has(p)), ...(user.access?.add || [])])];
+}
+
 // Permissions that stay with administrators: giving them to another account type would let it make
 // itself an administrator, or replace every record.
 export const ADMIN_ONLY_PERMISSIONS = ['admins.manage', 'data.manage'];

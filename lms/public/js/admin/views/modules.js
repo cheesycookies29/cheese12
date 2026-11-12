@@ -2,14 +2,14 @@
 import { api } from '../../api.js';
 import { html, mount, toast } from '../../ui.js';
 import { pageHead, ctx } from '../../shell.js';
-import { can } from '/shared/roles.js';
+import { userCan } from '/shared/roles.js';
 
 const toggle = (id, role, on, disabled) => html`
   <label class="switch"><input type="checkbox" data-module="${id}" data-role="${role}" ${on ? 'checked' : ''} ${disabled ? 'disabled' : ''} /><span class="track"></span><span class="state">${on ? 'On' : 'Off'}</span></label>`;
 
 export async function modulesView(el) {
   const { modules, config } = await api.get('/api/admin/modules');
-  const editable = can(ctx.user.role, 'modules.config');
+  const editable = userCan(ctx.user, 'modules.config');
   mount(el, html`
     ${pageHead('Modules', 'Choose what students, teachers and parents & guardians get in Learn. A module that is off disappears from their menu and the server refuses it.')}
     ${!editable ? html`<div class="notice"><p>Only administrators can change these.</p></div>` : ''}

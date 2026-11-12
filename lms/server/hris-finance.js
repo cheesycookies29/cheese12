@@ -12,7 +12,7 @@
 // balances, numbering, separation of duties, closed periods and the audit trail. The payroll
 // officer acts for the payroll office (Box A); Finance's officers do the rest.
 import { HttpError } from './util.js';
-import { can } from '../shared/roles.js';
+import { userCan } from '../shared/roles.js';
 import { BONUS_KINDS } from '../shared/gov-pay.js';
 
 const fail = (msg, status = 400) => {
@@ -151,7 +151,7 @@ export function registerPayrollFinanceRoutes(route, ctx, { data, save, findRun }
     const entry = payrollEntry(run);
     const fund = run.finance?.fund || settingsFund();
     const classes = [...new Set(entry.lines.map((l) => l.cls))];
-    const allotments = classes.length && can(user.role, 'payroll.edit') ? call(user, 'GET', `/api/finance/allotments?fund=${fund}&fy=${run.payDate.slice(0, 4)}`).filter((a) => classes.includes(a.cls)).map((a) => ({ id: a.id, cls: a.cls, ref: a.ref || a.kind, pap: a.pap, papName: a.papName, balance: a.balance, fund: a.fund })) : [];
+    const allotments = classes.length && userCan(user, 'payroll.edit') ? call(user, 'GET', `/api/finance/allotments?fund=${fund}&fy=${run.payDate.slice(0, 4)}`).filter((a) => classes.includes(a.cls)).map((a) => ({ id: a.id, cls: a.cls, ref: a.ref || a.kind, pap: a.pap, papName: a.papName, balance: a.balance, fund: a.fund })) : [];
     const title = (code) => data().finAccounts?.find((x) => x.code === code)?.title || code;
     return {
       fund, allotments, ...status(run),

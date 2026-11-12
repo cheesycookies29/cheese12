@@ -6,8 +6,8 @@
 #
 # What it does (each step is safe to repeat):
 #   1. Node.js 22 LTS from NodeSource (Ubuntu's Node 18 no longer gets security fixes).
-#   2. The updater (/usr/local/sbin/ltdc-lms-update) and the service file are replaced with the
-#      current ones. The updater is deliberately not replaced by ordinary updates: it runs as
+#   2. The updater (/usr/local/sbin/ltdc-lms-update), the service file and the nightly backups are
+#      replaced with the current ones. The updater is deliberately not replaced by ordinary updates: it runs as
 #      root, so a new one is installed only when someone runs this script.
 #   3. The data folder is closed to other accounts on the server.
 set -euo pipefail
@@ -23,6 +23,7 @@ install -m 750 "$HERE/update.sh" /usr/local/sbin/ltdc-lms-update
 install -m 644 "$HERE/ltdc-lms.service" /etc/systemd/system/ltdc-lms.service
 install -m 644 "$HERE/ltdc-lms-update.service" /etc/systemd/system/ltdc-lms-update.service
 install -m 644 "$HERE/ltdc-lms-update.timer" /etc/systemd/system/ltdc-lms-update.timer
+install -m 644 "$HERE/ltdc-lms-backup.cron" /etc/cron.d/ltdc-lms-backup
 systemctl daemon-reload
 
 echo "-- 3. Data folder"

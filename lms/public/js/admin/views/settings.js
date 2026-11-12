@@ -2,7 +2,7 @@
 import { api } from '../../api.js';
 import { html, mount, toast, option, formData, confirmDialog, downloadFile, today } from '../../ui.js';
 import { pageHead, ctx, applyBranding, logoSrc } from '../../shell.js';
-import { can } from '/shared/roles.js';
+import { userCan } from '/shared/roles.js';
 import { THEMES, themeColors } from '/shared/themes.js';
 import { icon } from '../../icons.js';
 import { NUMBERING_LABELS } from '/shared/numbering.js';
@@ -26,7 +26,7 @@ function shrinkLogo(file) {
 
 export async function settingsView(el) {
   const [s, terms] = await Promise.all([api.get('/api/admin/settings'), api.get('/api/admin/terms')]);
-  const editable = can(ctx.user.role, 'settings.edit');
+  const editable = userCan(ctx.user, 'settings.edit');
   const dis = editable ? '' : 'disabled';
   mount(el, html`
     ${pageHead('Settings & branding', 'School details, how ATLAS looks, enrollment rules, sign-in and passwords, uploads and quizzes, and how new numbers look.')}
@@ -186,7 +186,7 @@ export async function dataView(el) {
 // Activity types and how much each counts toward the running grade.
 export async function gradingView(el) {
   const [types, settings] = await Promise.all([api.get('/api/admin/activity-types'), api.get('/api/admin/settings')]);
-  const editable = can(ctx.user.role, 'settings.edit');
+  const editable = userCan(ctx.user, 'settings.edit');
   const rows = types.map((t) => ({ ...t }));
   const render = () => {
     const total = rows.reduce((n, t) => n + (Number(t.weight) || 0), 0);

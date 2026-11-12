@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { html, toast, mount } from '../ui.js';
 import { icon } from '../icons.js';
 import { ctx, startApp, authScreen, passwordField, onFormSubmit, ssoBlock, passwordFields, showSsoError } from '../shell.js';
-import { can } from '/shared/roles.js';
+import { userCan } from '/shared/roles.js';
 import { dashboardView } from './views/dashboard.js';
 import { enrollmentQueueView } from './views/enrollment.js';
 import { peopleView, personView } from './views/people.js';
@@ -18,7 +18,7 @@ import { guardiansView, guardianView } from './views/guardians.js';
 import { configView } from './views/config.js';
 import { schoolCalendarView } from './views/calendar.js';
 
-const p = (permission) => (user) => can(user.role, permission);
+const p = (permission) => (user) => userCan(user, permission);
 
 const routes = [
   ['/dashboard', dashboardView, p('dashboard')],
@@ -29,7 +29,7 @@ const routes = [
   ['/staff', (el, params, q) => peopleView(el, { kind: 'staff' }, q), p('admins.manage')],
   ['/guardians', guardiansView, p('guardians.manage')],
   ['/guardians/:id', guardianView, p('guardians.manage')],
-  ['/people/:id', personView, (u) => can(u.role, 'students.manage') || can(u.role, 'teachers.view')],
+  ['/people/:id', personView, (u) => userCan(u, 'students.manage') || userCan(u, 'teachers.view')],
   ['/courses', coursesView, p('dashboard')],
   ['/sections', sectionsView, p('dashboard')],
   ['/sections/:id', sectionView, p('dashboard')],
@@ -58,7 +58,7 @@ function elsewhereView(el) {
 }
 
 function nav() {
-  const c = (perm) => can(ctx.user.role, perm);
+  const c = (perm) => userCan(ctx.user, perm);
   if (!c('dashboard')) return [{ href: '/elsewhere', label: 'ATLAS Academic', icon: 'cap' }, { href: '/', label: 'ATLAS home', icon: 'grid', external: true }];
   return [
     { href: '/dashboard', label: 'Dashboard', icon: 'home' },
@@ -139,7 +139,7 @@ startApp({
   product: 'Learn',
   routes,
   nav,
-  home: () => (can(ctx.user.role, 'dashboard') ? '/dashboard' : '/elsewhere'),
+  home: () => (userCan(ctx.user, 'dashboard') ? '/dashboard' : '/elsewhere'),
   signedOutView,
   badges: {
     enrollment: () => api.get('/api/admin/enrollments/summary').then((s) => s.pending),

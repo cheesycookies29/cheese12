@@ -7,7 +7,7 @@ import { icon } from '../../icons.js';
 import { when, statusBadge, browserOf, pager, wireFilter, trailHead, trailRow } from '../common.js';
 
 const SIGNIN = [['', 'Any sign-in'], ['online', 'Signed in now'], ['never', 'Never signed in'], ['stale', 'Staff, not in 90 days']];
-const FLAGS = [['', 'Anything'], ['locked', 'Locked'], ['must-change', 'Must change password'], ['sso', 'Linked to Keycloak']];
+const FLAGS = [['', 'Anything'], ['locked', 'Locked'], ['must-change', 'Must change password'], ['sso', 'Linked to Keycloak'], ['own-access', 'Own access']];
 const SORTS = [['name', 'Name'], ['recent', 'Last sign-in'], ['role', 'Account type'], ['created', 'Newest']];
 
 export async function accountsView(el, params, q) {
@@ -17,6 +17,8 @@ export async function accountsView(el, params, q) {
     u.locked ? badge('Locked', 'red') : '',
     u.sso ? badge('Keycloak', 'blue') : '',
     u.mustChangePassword ? badge('New password due', 'amber') : '',
+    u.ownAccess ? badge('Own access', 'brand') : '',
+    u.demo ? badge('Demo', 'gray') : '',
   ];
   mount(el, html`
     ${pageHead('Accounts', 'Every account in every system: students, parents, teachers and staff. Open one to see what it can reach, its sessions and its trail.', html`<button class="btn primary" id="add">${icon('userPlus', 16)} New staff account</button>`)}
@@ -34,7 +36,7 @@ export async function accountsView(el, params, q) {
     ${d.users.length ? html`<div class="card flush"><div class="table-scroll"><table class="table accounts">
       <thead><tr><th>Name</th><th>Account type</th><th>Status</th><th>Campuses</th><th>Last sign-in</th><th></th></tr></thead>
       <tbody>${d.users.map((u) => html`<tr data-href="/accounts/${u.id}">
-        <td data-label="Name"><a href="#/accounts/${u.id}"><strong>${u.name}</strong></a><small class="muted block">${u.username}${u.studentNo ? ` · ${u.studentNo}` : ''}${u.email ? ` · ${u.email}` : ''}</small></td>
+        <td data-label="Name"><a href="#/accounts/${u.id}"><strong>${u.name}</strong></a>${u.id === ctx.user.id ? html` <span class="muted">(you)</span>` : ''}<small class="muted block">${u.username}${u.studentNo ? ` · ${u.studentNo}` : ''}${u.email ? ` · ${u.email}` : ''}</small></td>
         <td data-label="Account type">${u.roleLabel}</td>
         <td data-label="Status">${statusBadge(u.status)}</td>
         <td data-label="Campuses"><small>${u.campuses.join(', ') || '—'}</small></td>
@@ -122,6 +124,7 @@ export async function accountView(el, { id }) {
       ${u.sso ? html`<button class="btn" id="unlink">${icon('link', 16)} Unlink from Keycloak</button>` : ''}
       ${!me && ['active', 'disabled'].includes(u.status) ? html`<button class="btn ${u.status === 'active' ? 'danger' : ''}" id="status">${u.status === 'active' ? html`${icon('x', 16)} Disable` : html`${icon('check', 16)} Enable`}</button>` : ''}
       <a class="btn ghost" href="#/audit?userId=${u.id}">${icon('search', 16)} Full trail</a>
+      ${!me ? html`<button class="btn ghost danger" id="delete">${icon('trash', 16)} Delete</button>` : ''}
     </div>
     <div class="cols wide-left">
       <div class="stack">
@@ -146,7 +149,13 @@ export async function accountView(el, { id }) {
         <section class="card"><h2>${icon('grid')} Can open</h2>
           <ul class="sys-list">${u.systems.map((s) => html`<li>${s.name}${s.status !== 'live' ? html` ${badge('Coming soon', 'gray')}` : ''}</li>`)}</ul>
           ${u.modules ? html`<p class="small"><strong>Learn modules:</strong> ${u.modules.join(', ') || 'none'}</p>` : ''}
-          <p class="small">${u.permissions.includes('*') ? html`<strong>Every permission</strong> (administrator).` : html`<strong>${u.permissions.length} permission${u.permissions.length === 1 ? '' : 's'}</strong> as ${u.roleLabel}.`} <a href="#/roles">Roles & permissions</a></p>
+        </section>
+        <section class="card"><div class="card-head"><h2>${icon('shield')} Access</h2>${u.accessGroups.length && !me ? html`<button class="btn sm" id="access">Change access</button>` : ''}</div>
+          ${u.permissions.includes('*') ? html`<p class="small"><strong>Every permission</strong>: administrators always have everything.</p>`
+            : !u.accessGroups.length ? html`<p class="small">${u.modules ? 'Students and parents have no permissions: what they see is set by Learn modules and parent links.' : 'No permissions.'}</p>`
+            : html`<p class="small"><strong>${u.permissions.length} permission${u.permissions.length === 1 ? '' : 's'}</strong>: those of a ${u.roleLabel}${u.ownAccess.add.length || u.ownAccess.remove.length ? ', with this account\'s own changes:' : ', as set under Roles & permissions.'}</p>
+              ${u.ownAccess.add.length || u.ownAccess.remove.length ? html`<ul class="own-access">${u.accessGroups.flatMap((g) => g.permissions).filter((p) => p.now !== p.byType).map((p) => html`<li>${p.now ? badge('Given', 'green') : badge('Taken away', 'red')} ${p.label}</li>`)}</ul>` : ''}`}
+          <p class="small muted"><a href="#/roles">Roles & permissions</a> sets what each account type may do; here, one account can have a permission more or less.</p>
         </section>
         <section class="card"><h2>${icon('laptop')} Sessions</h2>
           ${u.sessionList.length ? html`<ul class="session-list">${u.sessionList.map((s) => html`<li><strong>${s.sideLabel}</strong>${s.sso ? html` ${badge('Keycloak', 'blue')}` : ''}<small class="muted block">${browserOf(s.agent) || 'Browser not known'}${s.ip ? ` · ${s.ip}` : ''}</small><small class="muted block">Signed in ${when(s.createdAt)} · last active ${when(s.lastSeen)}</small></li>`)}</ul>` : html`<p class="muted">Not signed in.</p>`}
@@ -158,6 +167,17 @@ export async function accountView(el, { id }) {
     </section>`);
 
   el.querySelector('#edit').addEventListener('click', () => editDialog(u, campuses, reload));
+  el.querySelector('#access')?.addEventListener('click', () => accessDialog(u, reload));
+  el.querySelector('#delete')?.addEventListener('click', async () => {
+    if (!(await confirmDialog(`Delete the account "${u.username}"? ${u.name} can no longer sign in. An account that has records (enrollment, sections, changes in any system) cannot be deleted: disable it instead, so the records keep who made them.`, { confirmLabel: 'Delete', title: 'Delete account' }))) return;
+    try {
+      await api.del(`/api/control/users/${u.id}`);
+      toast('Account deleted.');
+      location.hash = '#/accounts';
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
   el.querySelector('#reset')?.addEventListener('click', () => {
     modal({
       title: `Reset ${u.name}'s password`,
@@ -198,15 +218,43 @@ function editDialog(u, campuses, onDone) {
       ${u.canChangeRole ? html`<label class="field"><span>Account type</span><select name="role" ${u.id === ctx.user.id ? 'disabled' : ''}>${u.assignableRoles.map((r) => option(r.id, r.label, r.id === u.role))}</select>
         <span class="hint">${u.id === ctx.user.id ? 'Another administrator can change yours.' : 'Changing it signs them out; they sign in again with the new permissions.'}</span></label>` : ''}
       ${u.canChangeRole && u.role !== 'admin' ? campusChecks(campuses, u.campusIds) : ''}
+      ${u.canChangeRole ? html`<label class="field span-2"><span>Linked employee record</span><select name="employeeId">${option('', '— None —', !u.employeeId)}${u.employees.map((e) => option(e.id, `${e.name}${e.no ? ` (${e.no})` : ''}`, e.id === u.employeeId))}</select>
+        <span class="hint">Gives them People's self-service (My day, payslips, leave). One account per employee.</span></label>` : ''}
     </div>`,
     async onSubmit(form) {
       const v = formData(form);
       const body = { name: v.name, username: v.username, email: v.email };
       if (v.role && v.role !== u.role) body.role = v.role;
       if (form.querySelector('[name=campusIds]')) body.campusIds = pickedCampuses(form);
+      if (form.querySelector('[name=employeeId]')) body.employeeId = v.employeeId || null;
       await api.put(`/api/control/users/${u.id}`, body);
       toast('Saved.');
       onDone();
     },
+  });
+}
+
+// One account's own access: every permission its account type may be given, ticked when it has it.
+// A tick that differs from the account type is this account's own (marked); the rest follows the type.
+function accessDialog(u, onDone) {
+  modal({
+    title: `Access: ${u.name}`,
+    subtitle: `What this ${u.roleLabel} may do. Shaded rows are this account's own, different from the account type; set a row back to match the type to follow it again. Changes apply at once.`,
+    wide: true,
+    submitLabel: 'Save access',
+    body: html`<div class="access-edit">${u.accessGroups.map((g) => html`<fieldset class="plain"><legend><strong>${g.label}</strong></legend>
+      ${g.permissions.map((p) => html`<label class="check-row ${p.now !== p.byType ? 'own' : ''}" data-type="${p.byType ? 1 : 0}"><input type="checkbox" name="perm" value="${p.id}" ${p.now ? 'checked' : ''} ${p.adminOnly ? 'disabled' : ''} />
+        <span>${p.label}<small class="muted block">${p.adminOnly ? 'Administrators only' : p.byType ? `A ${u.roleLabel} has this` : `Not part of a ${u.roleLabel}'s access`} · <code>${p.id}</code></small></span></label>`)}</fieldset>`)}</div>`,
+    async onSubmit(form) {
+      const permissions = [...form.querySelectorAll('[name=perm]:checked')].map((i) => i.value);
+      await api.put(`/api/control/users/${u.id}/access`, { permissions });
+      toast('Access saved.');
+      onDone();
+    },
+  });
+  const box = document.querySelector('.modal .access-edit');
+  box.addEventListener('change', (e) => {
+    const row = e.target.closest('.check-row');
+    if (row) row.classList.toggle('own', e.target.checked !== (row.dataset.type === '1'));
   });
 }

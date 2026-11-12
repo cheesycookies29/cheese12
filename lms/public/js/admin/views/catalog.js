@@ -2,10 +2,10 @@
 import { api } from '../../api.js';
 import { html, mount, modal, toast, statusBadge, fmtDate, option, formData, confirmDialog, empty } from '../../ui.js';
 import { pageHead, ctx } from '../../shell.js';
-import { can } from '/shared/roles.js';
+import { userCan } from '/shared/roles.js';
 import { lookups, filterRows } from '../common.js';
 
-const mayEdit = () => can(ctx.user.role, 'catalog.manage');
+const mayEdit = () => userCan(ctx.user, 'catalog.manage');
 
 function wireCrud(el, { list, edit, del, redraw }) {
   el.querySelector('#add')?.addEventListener('click', () => edit(null));

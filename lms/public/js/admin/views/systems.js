@@ -3,7 +3,7 @@
 import { api } from '../../api.js';
 import { html, mount, toast } from '../../ui.js';
 import { pageHead, ctx } from '../../shell.js';
-import { can, roleLabel } from '/shared/roles.js';
+import { userCan, roleLabel } from '/shared/roles.js';
 import { icon } from '../../icons.js';
 
 const STATUS = [['soon', 'Coming soon (greyed out)'], ['live', 'Live: open it from the ATLAS home page'], ['hidden', 'Hidden']];
@@ -19,7 +19,7 @@ const BUILT_IN_NOTE = {
 
 export async function systemsView(el) {
   const { systems, settings } = await api.get('/api/admin/systems');
-  const editable = can(ctx.user.role, 'settings.edit');
+  const editable = userCan(ctx.user, 'settings.edit');
   mount(el, html`
     ${pageHead('Home page & systems', html`Everyone signs in once at the <a href="/" target="_blank" rel="noopener">ATLAS home page</a> and sees a tile for each system they may use.`)}
     <form id="systems" class="stack">

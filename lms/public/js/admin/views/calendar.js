@@ -3,12 +3,12 @@
 import { api } from '../../api.js';
 import { toast } from '../../ui.js';
 import { ctx } from '../../shell.js';
-import { can } from '/shared/roles.js';
+import { userCan } from '/shared/roles.js';
 import { calendarScreen } from '../../calendar-ui.js';
 import { eventDialog } from './news.js';
 
 export function schoolCalendarView(el, params, query) {
-  const edit = can(ctx.user.role, 'news.manage');
+  const edit = userCan(ctx.user, 'news.manage');
   return calendarScreen(el, {
     title: 'School calendar',
     subtitle: `School events, holidays and exams at ${ctx.info.campusName || 'this campus'}, with the term dates. Students, teachers and parents see them on their own calendars, with their classes and due dates.`,

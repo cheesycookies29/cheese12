@@ -10,7 +10,8 @@
 // Administrators only (role 'admin'), whatever Roles & permissions gives other account types.
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
-import { ROLES, roleLabel, permissionsOf } from '../shared/roles.js';
+import { ROLES, roleLabel, permissionsOf, permissionsOfUser, ADMIN_ONLY_PERMISSIONS } from '../shared/roles.js';
+import { PERMISSION_GROUPS, grantable } from './config.js';
 import { MODULES, MODULE_ROLES, moduleOn } from '../shared/modules.js';
 import { SYSTEMS } from '../shared/systems.js';
 import { publicUser, hashPassword, validatePassword, passwordEncryption } from './auth.js';
@@ -38,6 +39,10 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     return handler(a);
   }, { audit: false });
   const log = (a, e) => ctx.audit({ system: 'control', actor: a.user, ip: a.ip, agent: a.agent, ...e });
+  const trail = () => ctx.auditLog.entries();
+  const everything = () => combinedTrail(data(), trail());
+  const permLabel = () => Object.fromEntries(PERMISSION_GROUPS.flatMap((g) => g.permissions));
+  const describeAccess = (acc) => [...(acc.add || []).map((p) => `+ ${permLabel()[p] || p}`), ...(acc.remove || []).map((p) => `− ${permLabel()[p] || p}`)].join('; ');
   const found = (id) => data().users.find((u) => u.id === id) || fail('Account not found.', 404);
   const activeAdmins = () => data().users.filter((u) => u.role === 'admin' && u.status === 'active');
 
@@ -73,7 +78,8 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     id: u.id, name: u.name, username: u.username, email: u.email || '', role: u.role, roleLabel: roleLabel(u.role), side: ROLES[u.role]?.side || '',
     status: u.status, campuses: campusesOf(u), lastLoginAt: u.lastLoginAt || null, createdAt: u.createdAt || null,
     sso: Boolean(u.ssoSubject), mustChangePassword: Boolean(u.mustChangePassword), sessions: sessions.get(u.id) || 0, locked: lockedNames.has(u.username),
-    studentNo: u.studentNo || '', employeeId: u.employeeId || null,
+    studentNo: u.studentNo || '', employeeId: u.employeeId || null, demo: Boolean(u.demo),
+    ownAccess: (u.access?.add?.length || 0) + (u.access?.remove?.length || 0),
   });
 
   // ----- Overview -----
@@ -81,7 +87,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     const d = data();
     const now = Date.now();
     const since = new Date(now - DAY).toISOString();
-    const recent = d.auditTrail.filter((e) => e.at >= since);
+    const recent = [...trail(), ...(d.auditDemo || [])].filter((e) => e.at >= since);
     const sess = allSessions();
     const byRole = {};
     for (const u of d.users) byRole[u.role] = (byRole[u.role] || 0) + 1;
@@ -115,8 +121,8 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       },
       locks: locks().length,
       checks,
-      recent: combinedTrail(d).slice(0, 8),
-      trailSize: d.auditTrail.length,
+      recent: everything().slice(0, 8),
+      trailSize: trail().length,
     };
   });
 
@@ -136,7 +142,8 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       && (query.signin !== 'online' || sessions.has(u.id))
       && (query.flag !== 'locked' || lockedNames.has(u.username))
       && (query.flag !== 'sso' || u.ssoSubject)
-      && (query.flag !== 'must-change' || u.mustChangePassword));
+      && (query.flag !== 'must-change' || u.mustChangePassword)
+      && (query.flag !== 'own-access' || u.access?.add?.length || u.access?.remove?.length));
     const sorts = {
       name: (a, b) => a.name.localeCompare(b.name),
       recent: (a, b) => String(b.lastLoginAt || '').localeCompare(String(a.lastLoginAt || '')),
@@ -155,6 +162,19 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     };
   });
 
+  // One account's own access (after CORE's per-user grants): the permissions groups its account type
+  // may be given, each permission with whether the type has it and whether this account has it now.
+  const accessGroups = (u) => (u.role === 'admin' || !STAFF_ROLES.includes(u.role) ? [] : PERMISSION_GROUPS.filter((g) => g.roles.includes(u.role)).map((g) => ({
+    id: g.id, label: g.label,
+    permissions: g.permissions.map(([id, label]) => ({ id, label, byType: permissionsOf(u.role).includes(id), now: permissionsOfUser(u).includes(id), adminOnly: ADMIN_ONLY_PERMISSIONS.includes(id) })),
+  })));
+  const employeeName = (e) => e.name || [e.firstName, e.lastName].filter(Boolean).join(' ');
+  // Employee records a staff account can be linked to: not linked to another account (as in CORE).
+  const linkableEmployees = (u) => (data().employees || [])
+    .filter((e) => !data().users.some((x) => x.employeeId === e.id && x.id !== u.id))
+    .map((e) => ({ id: e.id, name: employeeName(e), no: e.employeeNo || '' }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   const detail = (u) => {
     const sessions = new Map([[u.id, sessionsOf(u.id).length]]);
     const lockedNames = new Set(locks().map((l) => l.username));
@@ -166,13 +186,16 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       updatedAt: u.updatedAt || null,
       ssoName: u.ssoSubject ? u.ssoName || '' : '',
       ssoLinkedAt: u.ssoSubject ? u.ssoLinkedAt || null : null,
-      employee: emp ? { id: emp.id, name: emp.name || [emp.firstName, emp.lastName].filter(Boolean).join(' '), no: emp.employeeNo || '' } : null,
-      permissions: permissionsOf(u.role),
+      employee: emp ? { id: emp.id, name: employeeName(emp), no: emp.employeeNo || '' } : null,
+      permissions: permissionsOfUser(u),
+      ownAccess: { add: u.access?.add || [], remove: u.access?.remove || [] },
+      accessGroups: accessGroups(u),
+      employees: STAFF_ROLES.includes(u.role) ? linkableEmployees(u) : [],
       systems: systemsFor(u.role),
       modules: MODULE_ROLES.includes(u.role) ? MODULES.filter((m) => moduleOn(data().modules, m.id, u.role)).map((m) => m.label) : null,
       sessionList: sessionsOf(u.id).sort((a, b) => b.lastSeen - a.lastSeen).map((s) => ({ ...s, sideLabel: sideLabel(s.side), createdAt: new Date(s.createdAt).toISOString(), lastSeen: new Date(s.lastSeen).toISOString() })),
       locks: locks().filter((l) => l.username === u.username),
-      trail: filterTrail(combinedTrail(data()), { userId: u.id }).slice(0, 40),
+      trail: filterTrail(everything(), { userId: u.id }).slice(0, 40),
       canChangeRole: STAFF_ROLES.includes(u.role),
       assignableRoles: STAFF_ROLES.includes(u.role) ? STAFF_ROLES.map((r) => ({ id: r, label: roleLabel(r) })) : [],
       links: {
@@ -204,7 +227,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       passwordHash: hashPassword(body.password), createdAt: new Date().toISOString(),
     };
     data().users.push(u);
-    log(a, { kind: 'account', action: `Made a ${roleLabel(u.role)} account`, target: u, detail: campusesOf(u).join(', ') });
+    log(a, { kind: 'account', action: `Made a ${roleLabel(u.role)} account`, target: u, changes: [['name', u.name], ['username', u.username], ['email', u.email], ['account type', roleLabel(u.role)], ['campuses', campusesOf(u).join(', ')]].filter(([, v]) => v).map(([field, to]) => ({ field, from: '', to })) });
     save();
     return publicUser(u);
   });
@@ -212,11 +235,13 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
   control('PUT', '/api/control/users/:id', (a) => {
     const { body, user } = a;
     const u = found(a.params.id);
+    // What changed, field by field, before and after (as CORE's audit log keeps it).
     const changes = [];
+    const changed = (field, from, to) => changes.push({ field, from: String(from ?? ''), to: String(to ?? '') });
     // Name, username and email: the same checks as everywhere.
     if (['name', 'username', 'email'].some((k) => k in body)) {
       const f = validateUserFields({ name: u.name, username: u.username, email: u.email, ...u, ...Object.fromEntries(['name', 'username', 'email'].filter((k) => k in body).map((k) => [k, body[k]])) }, data(), u);
-      for (const k of ['name', 'username', 'email']) if (f[k] !== (u[k] || '')) (changes.push(`${k}: ${u[k] || '—'} → ${f[k] || '—'}`), (u[k] = f[k]));
+      for (const k of ['name', 'username', 'email']) if (f[k] !== (u[k] || '')) (changed(k, u[k], f[k]), (u[k] = f[k]));
     }
     let signOut = false;
     if ('role' in body && body.role !== u.role) {
@@ -224,30 +249,99 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       if (u.id === user.id) fail('You cannot change your own account type.');
       if (u.role === 'admin' && u.status === 'active' && activeAdmins().length <= 1) fail('Keep at least one active administrator.');
       if (u.role === 'teacher' && data().sections.some((s) => s.teacherId === u.id && s.status !== 'cancelled')) fail('This teacher has sections. Give them to another teacher first (Admin panel → Sections).');
-      changes.push(`account type: ${roleLabel(u.role)} → ${roleLabel(body.role)}`);
+      changed('account type', roleLabel(u.role), roleLabel(body.role));
       if (body.role === 'admin') u.campusIds = [];
       else if (u.role === 'admin') u.campusIds = campusList(body.role, body.campusIds || data().campuses.slice(0, 1).map((c) => c.id));
       u.role = body.role;
+      // Its own access belonged to the old account type.
+      if (u.access) (changed('own access', describeAccess(u.access), 'none (follows the new account type)'), delete u.access);
       signOut = true; // the account now signs in to another side, with other permissions
     }
     if ('campusIds' in body && u.role !== 'admin' && STAFF_ROLES.includes(u.role)) {
       const ids = campusList(u.role, body.campusIds);
-      if (ids.join() !== (u.campusIds || []).join()) (changes.push(`campuses: ${campusesOf(u).join(', ') || '—'} → ${ids.map((id) => campusName(data(), id)).join(', ')}`), (u.campusIds = ids));
+      if (ids.join() !== (u.campusIds || []).join()) (changed('campuses', campusesOf(u).join(', '), ids.map((id) => campusName(data(), id)).join(', ')), (u.campusIds = ids));
+    }
+    if ('employeeId' in body && STAFF_ROLES.includes(u.role) && (body.employeeId || null) !== (u.employeeId || null)) {
+      const emp = body.employeeId ? (data().employees || []).find((e) => e.id === body.employeeId) || fail('Employee record not found.') : null;
+      const other = emp && data().users.find((x) => x.employeeId === emp.id && x.id !== u.id);
+      if (other) fail(`That employee is already linked to the account "${other.username}".`);
+      const was = u.employeeId ? (data().employees || []).find((e) => e.id === u.employeeId) : null;
+      changed('employee record', was ? employeeName(was) : '', emp ? employeeName(emp) : '');
+      if (emp) u.employeeId = emp.id;
+      else delete u.employeeId;
     }
     if ('status' in body && body.status !== u.status) {
       if (!['active', 'disabled'].includes(body.status) || ['pending', 'rejected'].includes(u.status)) fail('Applicants are admitted or turned down by the registrar.');
       if (u.id === user.id && body.status === 'disabled') fail('You cannot disable your own account.');
       if (u.role === 'admin' && body.status === 'disabled' && activeAdmins().length <= 1) fail('Keep at least one active administrator.');
-      changes.push(`status: ${u.status} → ${body.status}`);
+      changed('status', u.status, body.status);
       u.status = body.status;
       if (u.status === 'disabled') signOut = true;
     }
     if (!changes.length) return detail(u);
     u.updatedAt = new Date().toISOString();
     if (signOut) ctx.signOutEverywhere(u.id);
-    log(a, { kind: 'account', action: 'Changed an account', target: u, detail: changes.join('; ') });
+    log(a, { kind: 'account', action: 'Changed an account', target: u, changes });
     save();
     return detail(u);
+  });
+
+  // ----- One account's own access -----
+  // permissions: every permission the account should have now. What differs from its account type
+  // is kept on the account ({ add, remove }); the rest follows the account type, even when it changes.
+  control('PUT', '/api/control/users/:id/access', (a) => {
+    const u = found(a.params.id);
+    if (u.role === 'admin') fail('Administrators always have every permission.');
+    if (!STAFF_ROLES.includes(u.role)) fail('Students and parents have no permissions: what they see is set by Learn modules and parent links.');
+    if (u.id === a.user.id) fail('You cannot change your own access.');
+    const wanted = new Set((Array.isArray(a.body.permissions) ? a.body.permissions : []).map(String));
+    const offered = new Set(accessGroups(u).flatMap((g) => g.permissions.map((p) => p.id)));
+    const type = new Set(permissionsOf(u.role));
+    for (const p of wanted) {
+      if (type.has(p)) continue;
+      if (!offered.has(p) || !grantable(u.role, p)) fail(`${roleLabel(u.role)} accounts cannot be given "${p}".`);
+    }
+    const add = [...wanted].filter((p) => !type.has(p)).sort();
+    const remove = [...type].filter((p) => offered.has(p) && !wanted.has(p)).sort();
+    const before = permissionsOfUser(u);
+    if (add.length || remove.length) u.access = { add, remove };
+    else delete u.access;
+    const after = permissionsOfUser(u);
+    const label = Object.fromEntries(PERMISSION_GROUPS.flatMap((g) => g.permissions));
+    const changes = [...new Set([...before, ...after])].filter((p) => before.includes(p) !== after.includes(p)).sort()
+      .map((p) => ({ field: label[p] || p, from: before.includes(p) ? 'Yes' : 'No', to: after.includes(p) ? 'Yes' : 'No' }));
+    if (!changes.length) return detail(u);
+    u.updatedAt = new Date().toISOString();
+    log(a, { kind: 'access', action: 'Changed an account\'s own access', target: u, changes, detail: u.access ? '' : 'Now follows the account type.' });
+    save();
+    return detail(u);
+  });
+
+  // Delete an account nobody has used for records (as in CORE's Users & Access); otherwise disable it,
+  // so the records keep who made them.
+  control('DELETE', '/api/control/users/:id', (a) => {
+    const u = found(a.params.id);
+    const d = data();
+    if (u.id === a.user.id) fail('You cannot delete your own account.');
+    if (u.role === 'admin' && u.status === 'active' && activeAdmins().length <= 1) fail('Keep at least one active administrator.');
+    const used = [
+      [d.enrollments.some((e) => e.studentId === u.id), 'enrollment records'],
+      [d.academicRecords.some((r) => r.studentId === u.id), 'an academic record'],
+      [d.sections.some((s) => s.teacherId === u.id), 'sections'],
+      [d.finAudit.some((e) => e.byId === u.id), 'Finance records'],
+      [d.auditLog.some((e) => e.byId === u.id), 'Academic records'],
+      [trail().some((e) => e.actorId === u.id && ['change', 'account', 'access', 'session', 'data'].includes(e.kind)), 'changes in the audit trail'],
+    ].filter(([yes]) => yes).map(([, what]) => what);
+    if (used.length) fail(`This account has ${used.join(', ')}. Disable it instead, so the records keep who made them.`);
+    d.users.splice(d.users.indexOf(u), 1);
+    d.guardianLinks = d.guardianLinks.filter((l) => l.guardianId !== u.id && l.studentId !== u.id);
+    d.studentProfiles = d.studentProfiles.filter((p) => p.studentId !== u.id);
+    d.documentRequests = d.documentRequests.filter((r) => r.studentId !== u.id);
+    ctx.signOutEverywhere(u.id);
+    unlockUsername(u.username);
+    log(a, { kind: 'account', action: 'Deleted an account', targetName: `${u.name} (${u.username}, ${roleLabel(u.role)})` });
+    save();
+    return { ok: true };
   });
 
   control('POST', '/api/control/users/:id/reset-password', (a) => {
@@ -347,6 +441,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
         modules: MODULE_ROLES.includes(r) ? MODULES.filter((m) => moduleOn(data().modules, m.id, r)).map((m) => m.id) : null,
         permissions: ROLES[r].permissions.includes('*') ? null : permissionsOf(r).length,
         changed: Boolean(data().roleOverrides?.[r]),
+        ownAccess: data().users.filter((u) => u.role === r && (u.access?.add?.length || u.access?.remove?.length)).length,
       })),
     };
   });
@@ -355,7 +450,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
   control('GET', '/api/control/audit', (a) => {
     const { query } = a;
     const f = { q: query.q, source: query.source, kind: query.kind, system: query.system, outcome: query.outcome, userId: query.userId, from: query.from, to: query.to };
-    const list = filterTrail(combinedTrail(data()), f);
+    const list = filterTrail(everything(), f);
     if (query.format === 'csv') {
       log(a, { kind: 'data', action: 'Downloaded the audit trail', detail: `${list.length} entr${list.length === 1 ? 'y' : 'ies'}${Object.entries(f).filter(([, v]) => v).map(([k, v]) => `; ${k}: ${v}`).join('')}`.slice(0, 400) });
       return { raw: trailCsv(list), type: 'text/csv', headers: { 'Content-Disposition': `attachment; filename="atlas-audit-trail-${new Date().toISOString().slice(0, 10)}.csv"` } };
@@ -368,7 +463,8 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       total: list.length, page, pages, entries: list.slice((page - 1) * size, page * size),
       user: who ? { id: who.id, name: who.name } : null,
       labels: { systems: SYSTEM_LABELS, kinds: KIND_LABELS, sources: SOURCE_LABELS },
-      kept: { trail: data().auditTrail.length, max: 50000, oldest: data().auditTrail[0]?.at || null },
+      kept: { trail: trail().length, oldest: trail()[0]?.at || null, file: Boolean(ctx.auditLog.file) },
+      check: ctx.auditLog.verify(),
     };
   });
 

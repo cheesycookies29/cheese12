@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { workDates, genderAllows, needsCertificate, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
-import { can } from '../shared/roles.js';
+import { userCan } from '../shared/roles.js';
 
 // Officers cannot change their own leave or pay: another officer or an administrator does (separation of duties).
 export function notOwnRecord(user, employeeId, what) {
@@ -430,7 +430,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
   // ----- Requests (HR and payroll see them; HR decides) -----
   // The reason and the medical certificate are health information: only those who decide on
   // leave (leave.approve) see them. Payroll sees what it needs to pay: the type, dates, days and status.
-  const forReader = (user, view) => (can(user.role, 'leave.approve') ? view : { ...view, reason: '', decisionNote: '', attachment: view.attachment ? { withheld: true } : null, detailsWithheld: true });
+  const forReader = (user, view) => (userCan(user, 'leave.approve') ? view : { ...view, reason: '', decisionNote: '', attachment: view.attachment ? { withheld: true } : null, detailsWithheld: true });
   route('GET', '/api/hris/requests', 'hris:leave.manage', ({ query, campusId, user }) => {
     const mine = atCampus(campusId);
     return sortRequests(data().requests.filter((r) => mine.has(r.employeeId) && (!query.status || r.status === query.status)).map((r) => forReader(user, withEmployee(data(), r))));

@@ -166,7 +166,7 @@ export const PERMISSION_GROUPS = [
   { id: 'people', label: 'ATLAS People', permissions: HRIS_PERMISSION_LABELS, roles: EMPLOYEE_ROLES },
   { id: 'finance', label: 'ATLAS Finance', permissions: FINANCE_PERMISSION_LABELS, roles: EMPLOYEE_ROLES },
 ];
-const grantable = (role, permission) => !ADMIN_ONLY_PERMISSIONS.includes(permission) && PERMISSION_GROUPS.some((g) => g.roles.includes(role) && g.permissions.some(([p]) => p === permission));
+export const grantable = (role, permission) => !ADMIN_ONLY_PERMISSIONS.includes(permission) && PERMISSION_GROUPS.some((g) => g.roles.includes(role) && g.permissions.some(([p]) => p === permission));
 
 // Overrides from the permissions an account type should have: { add, remove } against the built-in ones.
 function overridesFor(role, wanted) {

@@ -127,7 +127,7 @@ export function emptyData() {
     finDvs: [], finLddaps: [], finLiquidations: [], finRemittances: [], finBankRecons: [], // disbursement
     finBooklets: [], finReceipts: [], finRcds: [], finRevenueTargets: [], // revenue
     finAudit: [], // who did what in Finance
-    auditTrail: [], // ATLAS Control's audit trail: sign-ins, failed sign-ins, changes and refusals in every system (server/audit.js)
+    auditDemo: [], // the demo school's sample audit trail (the real one is in audit-log.jsonl, server/audit.js)
   };
 }
 

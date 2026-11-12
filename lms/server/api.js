@@ -22,7 +22,7 @@ import {
   sessionCookie, clearedCookie, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
 import { clientIp, createRateLimiter } from './ratelimit.js';
-import { ROLES, can, setRoleOverrides } from '../shared/roles.js';
+import { ROLES, can, userCan, setRoleOverrides } from '../shared/roles.js';
 import { MODULES, moduleOn, enabledModules } from '../shared/modules.js';
 import { registerEnrollmentRoutes } from './enrollment.js';
 import { registerAdminRoutes, validateUserFields } from './admin.js';
@@ -131,6 +131,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       for (const side of Object.values(sides)) side.destroyForUser(userId);
     },
     audit: (e) => audit.record(e),
+    auditLog: audit, // entries() and verify(), for Control
   };
 
   // ----- Sign-in (shared logic for both sides) -----
@@ -395,7 +396,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const admins = body.users.filter((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash);
     if (!admins.length) fail('The backup has no active administrator, so nobody could sign in.');
     if (!admins.some((u) => readableHash(u.passwordHash))) fail('This backup\'s passwords are encrypted with another server\'s key, so nobody could sign in. Start ATLAS with that key as PASSWORD_KEY_OLD, then restore again.');
-    db.replace({ ...emptyData(), ...body });
+    // The audit log is not part of a backup (it is its own file): an old backup's trail is left out.
+    const { auditTrail, ...restored } = body;
+    db.replace({ ...emptyData(), ...restored });
     setRoleOverrides(db.data.roleOverrides);
     const { unreadable } = sealPasswords();
     return { ok: true, unreadablePasswords: unreadable };
@@ -431,7 +434,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       allowed,
       side: allowed ? ROLES[user.role].side : null,
       authBase: '/api/hris/auth',
-      permissions: allowed ? HRIS_PERMISSION_LABELS.map(([p]) => p).filter((p) => can(user.role, p)) : [],
+      permissions: allowed ? HRIS_PERMISSION_LABELS.map(([p]) => p).filter((p) => userCan(user, p)) : [],
       employee: allowed ? hris.employeeSummary(user) : null,
     };
   };
@@ -453,7 +456,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       deniedUser: user && !allowed ? { name: user.name, role: user.role } : null,
       side: allowed ? ROLES[user.role].side : null,
       authBase: '/api/academic/auth',
-      permissions: allowed ? academic.permissionsFor(user.role) : [],
+      permissions: allowed ? academic.permissionsFor(user) : [],
       currentTermId: db.data.settings.currentTermId,
     };
   });
@@ -473,7 +476,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       deniedUser: user && !allowed ? { name: user.name, role: user.role } : null,
       side: allowed ? ROLES[user.role].side : null,
       authBase: '/api/finance/auth',
-      permissions: allowed ? finance.permissionsFor(user.role) : [],
+      permissions: allowed ? finance.permissionsFor(user) : [],
     };
   });
   route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false });
@@ -515,7 +518,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const m = url.pathname.match(r.re);
       if (!m) continue;
       const permission = r.access.includes(':') ? r.access.split(':')[1] : null;
-      if (permission && !can(user.role, permission)) throw new HttpError(403, `${user.name} cannot ${method} ${path}`);
+      if (permission && !userCan(user, permission)) throw new HttpError(403, `${user.name} cannot ${method} ${path}`);
       const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       return r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, campusId: activeCampusId(db.data, user), tokens: {}, cookies: {}, origin: '' });
     }
@@ -526,6 +529,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
 
   handle.sealPasswords = sealPasswords;
+  handle.audit = audit;
   return handle;
   async function handle(req, url, body) {
     const cookies = parseCookies(req.headers.cookie);
@@ -564,26 +568,26 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
           if (!user) fail('Please sign in.', 401);
           if (user.role === 'student' || user.role === 'guardian') fail('People is for school employees.', 403);
           const permission = r.access.split(':')[1];
-          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+          if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access === 'academic' || r.access.startsWith('academic:')) {
           user = adminUser || portalUser;
           token = adminUser ? adminToken : portalToken;
           if (!user) fail('Please sign in.', 401);
           if (!ACADEMIC_ROLES.includes(user.role)) fail('Academic is for students, teachers and the registrar\'s office.', 403);
           const permission = r.access.split(':')[1];
-          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+          if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access === 'finance' || r.access.startsWith('finance:')) {
           [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
           if (!user) fail('Please sign in.', 401);
           if (user.role === 'guardian') fail('Finance is for the school\'s employees and students.', 403);
           const permission = r.access.split(':')[1];
-          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+          if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access.startsWith('admin')) {
           user = adminUser;
           token = adminToken;
           if (!user) fail('Please sign in to the admin panel.', 401);
           const permission = r.access.split(':')[1];
-          if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+          if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access !== 'public') {
           user = portalUser;
           token = portalToken;

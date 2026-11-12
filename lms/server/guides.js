@@ -9,7 +9,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { HttpError } from './util.js';
-import { can, ROLES } from '../shared/roles.js';
+import { userCan, ROLES } from '../shared/roles.js';
 import { parseGuide } from '../shared/markdown.js';
 import { searchGuides } from './guide-search.js';
 
@@ -45,7 +45,7 @@ export function registerGuideRoutes(route, { db, version = '' }) {
   const edits = () => (data().guideEdits ||= []);
   const visitor = ({ portalUser, adminUser, hrisUser }) => portalUser || adminUser || hrisUser || null;
   const userOf = (args) => visitor(args) || fail('Please sign in to read the guides.', 401);
-  const mayEdit = (user) => Boolean(user) && (can(user.role, 'guides.edit') || user.role === 'admin');
+  const mayEdit = (user) => Boolean(user) && (userCan(user, 'guides.edit') || user.role === 'admin');
 
   // Every guide as this person sees it: the administrator's version where there is one.
   function all() {

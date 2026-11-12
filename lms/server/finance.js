@@ -11,7 +11,7 @@
 // finance.* permissions; others use self-service) and students (their own payments).
 import { randomUUID } from 'node:crypto';
 import { HttpError, text, DATE_RE } from './util.js';
-import { can, ROLES } from '../shared/roles.js';
+import { can, userCan, ROLES } from '../shared/roles.js';
 import { hashPassword, validatePassword, publicUser } from './auth.js';
 import { validateUserFields } from './admin.js';
 import {
@@ -28,7 +28,8 @@ const fail = (msg, status = 400) => {
 };
 const iso = () => new Date().toISOString();
 export const FINANCE_ROLES = Object.keys(ROLES).filter((r) => (ROLES[r].permissions || []).some((p) => p === '*' || p.startsWith('finance.')));
-export const financePermissions = (role) => FINANCE_PERMISSION_LABELS.map(([p]) => p).filter((p) => can(role, p));
+// For an account (its own access counts) or, given a role id, for an account type.
+export const financePermissions = (who) => FINANCE_PERMISSION_LABELS.map(([p]) => p).filter((p) => (typeof who === 'string' ? can(who, p) : userCan(who, p)));
 
 export const DEFAULT_FINANCE_SETTINGS = {
   entity: { name: '', agencyCode: '', address: '', tin: '' }, // name: the school's name when empty
@@ -88,7 +89,7 @@ export function registerFinanceRoutes(route, ctx) {
   const S = () => data().finSettings;
   const today = () => ctx.today();
   const fy = () => Number(S().fiscalYear) || Number(today().slice(0, 4));
-  const isStaff = (u) => can(u.role, 'finance.view');
+  const isStaff = (u) => userCan(u, 'finance.view');
   const staff = (u) => (isStaff(u) ? u : fail('This part of Finance is for the finance offices.', 403));
   const byId = (list, id) => list.find((x) => x.id === id);
 
@@ -425,7 +426,7 @@ export function registerFinanceRoutes(route, ctx) {
   });
 
   // ----- Finance accounts (users) from the Control panel -----
-  const financeAccount = (u) => ({ ...publicUser(u), roleLabel: ROLES[u.role]?.label || u.role, status: u.status, lastLoginAt: u.lastLoginAt || null, permissions: financePermissions(u.role) });
+  const financeAccount = (u) => ({ ...publicUser(u), roleLabel: ROLES[u.role]?.label || u.role, status: u.status, lastLoginAt: u.lastLoginAt || null, permissions: financePermissions(u) });
   route('GET', '/api/finance/users', 'finance:finance.settings', () => ({
     users: data().users.filter((u) => FINANCE_ROLES.includes(u.role)).sort((a, b) => a.name.localeCompare(b.name)).map(financeAccount),
     roles: FINANCE_ROLES.filter((r) => r !== 'admin').map((r) => ({ id: r, label: ROLES[r].label, description: ROLES[r].description, permissions: financePermissions(r) })),
@@ -537,7 +538,7 @@ export function registerFinanceRoutes(route, ctx) {
     const next = cardFields(body, c);
     const changes = GUARDED.filter(([k]) => (next[k] || '') !== (c[k] || '')).map(([k, label]) => `${label} ${c[k] || 'none'} → ${next[k] || 'none'}`);
     if (bondText(next.bond) !== bondText(c.bond)) changes.push(`bond ${bondText(c.bond)} → ${bondText(next.bond)}`);
-    if (changes.length && !can(user.role, 'finance.accounts')) {
+    if (changes.length && !userCan(user, 'finance.accounts')) {
       fail('Only the Chief Accountant or an administrator changes a card\'s name, bank details, bond or status: they decide who is paid. Ask them to make this change.', 403);
     }
     Object.assign(c, next, { updatedAt: iso() });
@@ -851,7 +852,7 @@ export function registerFinanceRoutes(route, ctx) {
     const revenue = ctx.financeCash.revenueByMonth(year);
     return {
       year, today: t, lockedThrough: S().lockedThrough, cash, budget, queue, revenue,
-      permissions: financePermissions(user.role),
+      permissions: financePermissions(user),
       recent: d.finAudit.slice(-10).reverse(),
     };
   });

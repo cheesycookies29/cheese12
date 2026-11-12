@@ -3,7 +3,11 @@
 // changes and refusals in every system, with the Settings, Finance and Academic logs).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { setup, seed } from './support.js';
+import { memoryDb } from '../server/db.js';
 
 const PW = 'password123';
 
@@ -17,7 +21,7 @@ async function school() {
     await c.post('/api/hub/login', { username, password });
     return c;
   };
-  return { ...s, env, reg, signIn, trail: () => env.db.data.auditTrail };
+  return { ...s, env, reg, signIn, trail: () => env.api.audit.entries() };
 }
 
 test('Control is for administrators only, and only they see it on the ATLAS home page', async () => {
@@ -80,7 +84,7 @@ test('the audit trail has sign-ins, failed sign-ins and changes, and never a pas
   assert.equal(f.trail().length, before, 'the Settings history has it');
   const view = await f.admin.get('/api/control/audit?source=settings');
   assert.match(view.entries[0].action, /Changed Sign-in and passwords/);
-  assert.match(view.entries[0].detail, /Shortest password: 8 → 10/);
+  assert.deepEqual(view.entries[0].changes, [{ field: 'Shortest password', from: '8', to: '10' }]);
   // Changing one's own password, and signing out.
   const rosa = await f.signIn('rosa');
   await rosa.post('/api/admin/auth/change-password', { currentPassword: PW, newPassword: 'rosa-new-pass-2' });
@@ -134,7 +138,7 @@ test('accounts: one list for every system, staff accounts made here, and the rul
   const d = await f.admin.put(`/api/control/users/${f.reg.id}`, { role: 'dean' });
   assert.equal(d.role, 'dean');
   await assert.rejects(rosa.get('/api/admin/dashboard'), (e) => e.status === 401);
-  assert.match(f.trail().at(-1).detail, /account type: Registrar → Dean/);
+  assert.deepEqual(f.trail().at(-1).changes, [{ field: 'account type', from: 'Registrar', to: 'Dean / Program chair' }]);
   // Guards: not your own type, not the last administrator, not a teacher who still has sections, not a student.
   const me = f.env.db.data.users.find((u) => u.username === 'admin');
   await assert.rejects(f.admin.put(`/api/control/users/${me.id}`, { role: 'registrar' }), /your own account type/);
@@ -219,12 +223,115 @@ test('the access map: which account types open which systems and modules', async
 test('the demo school brings a few days of trail, and takes it away again', async () => {
   const f = await school();
   await f.admin.post('/api/admin/demo');
-  const demo = f.env.db.data.auditTrail.filter((e) => e.demo);
+  const demo = f.env.db.data.auditDemo;
   assert.ok(demo.length >= 15);
   assert.ok(demo.some((e) => e.outcome === 'failed') && demo.some((e) => e.outcome === 'refused'));
   const failed = await f.admin.get('/api/control/audit?kind=signin&outcome=failed&q=203.0.113.45');
   assert.ok(failed.total >= 5);
   await f.admin.del('/api/admin/demo');
-  assert.equal(f.env.db.data.auditTrail.filter((e) => e.demo).length, 0);
-  assert.ok(f.env.db.data.auditTrail.length > 0, 'the real trail stays');
+  assert.equal(f.env.db.data.auditDemo.length, 0);
+  assert.ok(f.env.api.audit.entries().length > 0, 'the real trail stays');
+});
+
+// After CORE ERP's Users & Access: one account's own access, on top of its account type.
+test('own access: give one account a permission, or take one away, without changing its account type', async () => {
+  const f = await school();
+  const campus = [f.env.db.data.campuses[0].id];
+  const staff = await f.admin.post('/api/control/users', { role: 'staff', username: 'sam', name: 'Sam Staff', password: PW, campusIds: campus, mustChangePassword: false });
+  const hr = await f.admin.post('/api/control/users', { role: 'hr', username: 'hana', name: 'Hana HR', password: PW, campusIds: campus, mustChangePassword: false });
+  const sam = await f.signIn('sam');
+  await assert.rejects(sam.get('/api/finance/collectors'), (e) => e.status === 403);
+  // The account page offers the permission groups for its type, with what the type gives.
+  const page = await f.admin.get(`/api/control/users/${staff.id}`);
+  assert.deepEqual(page.accessGroups.map((g) => g.id), ['people', 'finance'], 'staff: People and Finance permissions; not the Admin panel or Academic');
+  assert.ok(page.accessGroups.flatMap((g) => g.permissions).every((p) => !p.byType));
+  // Give Sam Finance's view: it works at once, and Finance's own status shows it.
+  const after = await f.admin.put(`/api/control/users/${staff.id}/access`, { permissions: ['finance.view'] });
+  assert.deepEqual(after.ownAccess, { add: ['finance.view'], remove: [] });
+  assert.deepEqual(after.permissions, ['finance.view']);
+  assert.ok(Array.isArray(await sam.get('/api/finance/collectors')));
+  assert.ok((await sam.get('/api/finance/auth/status')).permissions.includes('finance.view'));
+  const entry = f.trail().at(-1);
+  assert.deepEqual([entry.action, entry.target, entry.changes], ["Changed an account's own access", 'Sam Staff', [{ field: 'Finance dashboard, books and reports', from: 'No', to: 'Yes' }]]);
+  // Take approving leave away from one HR manager only.
+  const hana = await f.signIn('hana');
+  const hrType = (await f.admin.get(`/api/control/users/${hr.id}`)).permissions;
+  await f.admin.put(`/api/control/users/${hr.id}/access`, { permissions: hrType.filter((p) => p !== 'leave.approve') });
+  await assert.rejects(hana.post('/api/hris/requests/x/approve', {}), (e) => e.status === 403);
+  assert.ok(Array.isArray(await hana.get('/api/hris/employees')), 'the rest of HR stays');
+  // What cannot be given: Admin-panel permissions to a People account, administrators' own, anything to students.
+  await assert.rejects(f.admin.put(`/api/control/users/${staff.id}/access`, { permissions: ['students.manage'] }), /cannot be given/);
+  await assert.rejects(f.admin.put(`/api/control/users/${staff.id}/access`, { permissions: ['admins.manage'] }), /cannot be given/);
+  await assert.rejects(f.admin.put(`/api/control/users/${f.students.s1.id}/access`, { permissions: ['finance.view'] }), /no permissions/);
+  const me = f.env.db.data.users.find((u) => u.username === 'admin');
+  await assert.rejects(f.admin.put(`/api/control/users/${me.id}/access`, { permissions: [] }), /every permission/);
+  // Changing the account type drops its own access (it belonged to the old type).
+  const moved = await f.admin.put(`/api/control/users/${staff.id}`, { role: 'payroll' });
+  assert.deepEqual(moved.ownAccess, { add: [], remove: [] });
+  assert.ok(f.trail().at(-1).changes.some((c) => c.field === 'own access'));
+  // Back to what the type gives: nothing is kept on the account.
+  await f.admin.put(`/api/control/users/${hr.id}/access`, { permissions: hrType });
+  assert.equal(f.env.db.data.users.find((u) => u.id === hr.id).access, undefined);
+  assert.equal((await f.admin.get('/api/control/users?q=hana')).users[0].ownAccess, 0);
+});
+
+test('the audit log is its own file, chained like CORE\'s: kept across restores, and tampering shows', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-audit-'));
+  try {
+    const db = memoryDb();
+    db.dir = dir;
+    // An older ATLAS kept the trail inside the data: it moves into the file once.
+    db.data.auditTrail = [{ id: 'old-1', at: '2026-01-01T00:00:00.000Z', kind: 'signin', system: 'admin', action: 'Signed in', actorId: null, actor: 'Someone', outcome: 'ok' }];
+    const env = setup({ db });
+    const s = await seed(env);
+    assert.equal(db.data.auditTrail, undefined);
+    const file = path.join(dir, 'audit-log.jsonl');
+    const lines = () => fs.readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.equal(lines()[0].action, 'Signed in');
+    assert.deepEqual(lines().map((e) => e.seq), lines().map((_, i) => i + 1));
+    assert.ok(lines().every((e, i) => e.prev === (i ? lines()[i - 1].hash : '')));
+    let view = await s.admin.get('/api/control/audit');
+    assert.deepEqual([view.check.ok, view.check.count], [true, lines().length]);
+    // A backup holds no trail, and restoring one (even an old one with a trail inside) changes nothing in it.
+    const count = lines().length;
+    const backup = await s.admin.get('/api/admin/backup');
+    assert.equal('auditTrail' in backup, false);
+    await s.admin.post('/api/admin/restore', { ...backup, auditTrail: [{ id: 'x', at: '2020-01-01T00:00:00Z', action: 'Fake' }] });
+    assert.ok(lines().length >= count);
+    assert.equal(lines().some((e) => e.action === 'Fake'), false);
+    // Someone edits the file by hand: the Audit trail page says so, and from which entry.
+    const all = lines();
+    all[2].action = 'Something else';
+    fs.writeFileSync(file, `${all.map((e) => JSON.stringify(e)).join('\n')}\n`);
+    view = await s.admin.get('/api/control/audit');
+    assert.deepEqual([view.check.ok, view.check.brokenAt], [false, 3]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('delete an unused account, link a staff account to its employee record', async () => {
+  const f = await school();
+  const campus = [f.env.db.data.campuses[0].id];
+  const temp = await f.admin.post('/api/control/users', { role: 'staff', username: 'temp', name: 'Temp Account', password: PW, campusIds: campus });
+  await f.admin.del(`/api/control/users/${temp.id}`);
+  assert.equal(f.env.db.data.users.some((u) => u.id === temp.id), false);
+  assert.deepEqual([f.trail().at(-1).action, f.trail().at(-1).target], ['Deleted an account', 'Temp Account (temp, Staff)']);
+  // An account that made changes, or has sections, is disabled instead.
+  await assert.rejects(f.admin.del(`/api/control/users/${f.teachers.t1.id}`), /sections.*Disable it instead/);
+  const me = f.env.db.data.users.find((u) => u.username === 'admin');
+  await assert.rejects(f.admin.del(`/api/control/users/${me.id}`), /your own account/);
+  const busy = await f.admin.post('/api/control/users', { role: 'registrar', username: 'busy', name: 'Busy Registrar', password: PW, campusIds: campus, mustChangePassword: false });
+  const b = await f.signIn('busy');
+  await b.post('/api/admin/courses', { code: 'BUSY', title: 'Busy course', units: 1 });
+  await assert.rejects(f.admin.del(`/api/control/users/${busy.id}`), /changes in the audit trail/);
+  // Employee records: one account each, as in CORE.
+  const emp = await f.admin.post('/api/hris/employees', { firstName: 'Hana', lastName: 'Cruz', hireDate: '2026-01-05', payType: 'monthly', rate: 30000 });
+  {
+    const hr = await f.admin.post('/api/control/users', { role: 'hr', username: 'hana', name: 'Hana Cruz', password: PW, campusIds: campus });
+    const linked = await f.admin.put(`/api/control/users/${hr.id}`, { employeeId: emp.id });
+    assert.equal(linked.employee.id, emp.id);
+    assert.deepEqual(f.trail().at(-1).changes, [{ field: 'employee record', from: '', to: 'Hana Cruz' }]);
+    await assert.rejects(f.admin.put(`/api/control/users/${f.reg.id}`, { employeeId: emp.id }), /already linked to the account "hana"/);
+  }
 });
