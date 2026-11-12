@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### ATLAS behind Cloudflare
+- **System → Cloudflare** (Admin panel, administrators only) puts ATLAS behind Cloudflare at a name on the school's own domain, like `atlas.school.edu.ph`. Paste a Cloudflare API token once: ATLAS adds the address in Cloudflare, sets SSL/TLS to Full (strict), and the server switches over by itself, with its own certificate. The token is not kept. The page then shows whether the server has its certificate and answers through Cloudflare, can make the server **Only accept visitors through Cloudflare**, and can switch Cloudflare off again. The server needs its Cloudflare helper installed once. See [the administrator's guide](admin#put-atlas-behind-cloudflare).
+
 ### Safer and faster under load
 - **The Audit log check is clearer about what it seals.** The notice now reads **Sign-in and access log intact** and says how many of the entries below (Settings, Finance and Academic) come from the data file and are restored with a backup, rather than implying every row is sealed. See [the administrator's guide](admin#read-and-export-the-audit-log).
 - **The Audit log opens quickly however large it grows:** the integrity check no longer re-reads the whole file on every visit.

@@ -15,6 +15,7 @@ import { newsAdminView } from './views/news.js';
 import { systemsView } from './views/systems.js';
 import { campusesView } from './views/campuses.js';
 import { ssoView } from './views/sso.js';
+import { cloudflareView } from './views/cloudflare.js';
 import { rolesView } from './views/roles.js';
 import { signInView } from './views/signin.js';
 import { systemRoutes, systemNav } from '../system/index.js';
@@ -46,6 +47,7 @@ const routes = [
   ['/calendar', schoolCalendarView, p('dashboard')],
   ['/systems', systemsView, p('dashboard')],
   ['/sso', ssoView, (u) => u.role === 'admin'],
+  ['/cloudflare', cloudflareView, (u) => u.role === 'admin'],
   ['/sign-in', signInView, (u) => u.role === 'admin'],
   ['/campuses', campusesView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
@@ -93,6 +95,7 @@ function nav() {
       { href: '/roles', label: 'Roles & permissions', icon: 'lock' },
       { href: '/sign-in', label: 'Sign-in and passwords', icon: 'key' },
       { href: '/sso', label: 'Single sign-on', icon: 'link' },
+      { href: '/cloudflare', label: 'Cloudflare', icon: 'cloud' },
     ]),
     { heading: 'Elsewhere' },
     { href: '/', label: 'ATLAS home', icon: 'grid', external: true },

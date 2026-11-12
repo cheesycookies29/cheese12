@@ -13,6 +13,7 @@ import { mergeHrSettings } from './hris.js';
 import { migrateLeaveTypes } from './hris-leave.js';
 import { mergeAcademicSettings } from './academic.js';
 import { mergeSso } from './sso.js';
+import { mergeCloudflare } from './cloudflare.js';
 import { mergeFinanceSettings, mergeChart } from './finance.js';
 
 export const DEFAULT_SETTINGS = {
@@ -54,6 +55,7 @@ export const DEFAULT_SETTINGS = {
   numbering: structuredClone(DEFAULT_NUMBERING), // shared/numbering.js
   systems: defaultSystemSettings(), // other systems on the ATLAS home page: { status: soon | live | hidden, url }
   sso: mergeSso(), // single sign-on with Keycloak (server/sso.js); the client secret is in OIDC_CLIENT_SECRET, never here
+  cloudflare: mergeCloudflare(), // System → Cloudflare (server/cloudflare.js): the hostname set up and what was done; never the API token
 };
 
 // Activity types and their share of the running grade (weights are percentages;
@@ -143,6 +145,7 @@ export function mergeSettings(s = {}) {
     numbering: { ...DEFAULT_NUMBERING, ...(s.numbering || {}) },
     systems: Object.fromEntries(Object.entries(defaultSystemSettings()).map(([id, v]) => [id, { ...v, ...(s.systems?.[id] || {}) }])),
     sso: mergeSso(s.sso),
+    cloudflare: mergeCloudflare(s.cloudflare),
   };
 }
 
