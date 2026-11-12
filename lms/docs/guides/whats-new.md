@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### The Admin panel on the home page
+- **Administration**, below your systems on the ATLAS home page, as in CORE: the **Admin panel**, and shortcuts to the pages in it you use most (administrators: **Users & Access**, the **Settings center**, the **Audit log** and **What's new**; registrars: **Enrollment requests** and **Applicants**). For administrators and registrars only. The Learn tile now says **Manage Learn**. See [the administrator's guide](admin).
+
 ### ATLAS behind Cloudflare
 - **System → Cloudflare** (Admin panel, administrators only) puts ATLAS behind Cloudflare at a name on the school's own domain, like `atlas.school.edu.ph`. Paste a Cloudflare API token once: ATLAS adds the address in Cloudflare, sets SSL/TLS to Full (strict), and the server switches over by itself, with its own certificate. The token is not kept. The page then shows whether the server has its certificate and answers through Cloudflare, can make the server **Only accept visitors through Cloudflare**, and can switch Cloudflare off again. The server needs its Cloudflare helper installed once. See [the administrator's guide](admin#put-atlas-behind-cloudflare).
 

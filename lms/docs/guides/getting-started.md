@@ -74,7 +74,7 @@ If your school has also kept ATLAS passwords, the card says **or with your ATLAS
 1. On the ATLAS home page, choose the tile, for example **Open Learn**.
 2. To come back, choose **All systems** (the grid of squares) in the top bar.
 
-Administrators and registrars see **Open the admin panel** on the Learn tile, because they manage Learn instead of taking classes. A tile marked **Coming soon** cannot be opened yet.
+Administrators and registrars also have **Administration** below their systems: the **Admin panel**, and shortcuts to the pages in it they use most. Their Learn tile says **Manage Learn**, because they run Learn instead of taking classes. A tile marked **Coming soon** cannot be opened yet.
 
 ### Switch campus
 
@@ -148,7 +148,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Screen or button | What it is for |
 |---|---|
 | Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open; **Help & guides** and **Dark mode** at the top right |
-| ATLAS home page | Your greeting, account type and campus, **Your systems** (a row of tiles with arrows and dots when they do not all fit), **Announcements** and **Upcoming events** |
+| ATLAS home page | Your greeting, account type and campus, **Your systems** (a row of tiles with arrows and dots when they do not all fit), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
 | Academic tile | Academic records: student records, registration, grades and registrar services. For students, teachers, registrars, deans and administrators |
 | Learn tile | Classes, lessons, quizzes, attendance, grades and enrollment. For students, parents and guardians, and teachers; registrars and administrators open its admin panel |
 | People tile | HR: employee records, time clock, attendance, leave and payslips. For every employee; not for students or parents |

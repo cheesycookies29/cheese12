@@ -46,6 +46,13 @@
   "wait": 1000
  },
  {
+  "file": "home-administration.jpg",
+  "user": "admin",
+  "url": "/",
+  "scroll": ".admin-tiles",
+  "wait": 1200
+ },
+ {
   "file": "admin-dashboard.jpg",
   "user": "admin",
   "url": "/admin#/dashboard",

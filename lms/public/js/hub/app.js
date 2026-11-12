@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
 import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
-import { roleLabel } from '/shared/roles.js';
+import { roleLabel, userCan } from '/shared/roles.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -121,7 +121,8 @@ const dateBox = (ymd) => {
 
 function systemCard(s, side) {
   const live = s.status === 'live' && s.url;
-  const openLabel = s.id === 'lms' && side === 'admin' ? 'Open the admin panel' : `Open ${s.product}`;
+  // The admin panel has its own place under Administration; from here it is where Learn is run.
+  const openLabel = s.id === 'lms' && side === 'admin' ? 'Manage Learn' : `Open ${s.product}`;
   const body = html`
     <span class="sys-top"><span class="sys-ic">${icon(s.icon, 26)}</span>${live ? html`<span class="sys-code">${s.short}</span>` : html`<span class="badge gray">${icon('lock', 12)} Coming soon</span>`}</span>
     <span class="sys-name">${s.product.replace(/-/g, '\u2011')}</span>
@@ -190,6 +191,35 @@ function systemsCarousel(wrap) {
   update();
 }
 
+// Administration, as on CORE's home page: the admin panel, and shortcuts to the pages in it that
+// apply to every system. Only for accounts that open the admin panel (administrators, registrars),
+// and each shortcut only for those whose account may open that page.
+function administration(status) {
+  const u = status.user;
+  if (status.side !== 'admin' || !userCan(u, 'dashboard')) return '';
+  const admin = u.role === 'admin';
+  const tiles = [
+    admin && ['/admin#/system/users', 'users', 'Users & Access', 'Every account, its access and sign-in'],
+    userCan(u, 'settings.edit') && ['/admin#/config', 'search', 'Settings center', 'Every setting, its history and undo'],
+    admin && ['/admin#/system/audit', 'table', 'Audit log', 'Sign-ins, changes and refused requests'],
+    userCan(u, 'enrollment.manage') && ['/admin#/enrollment', 'clipboard', 'Enrollment requests', 'Waiting for the registrar'],
+    userCan(u, 'students.manage') && ['/admin#/applicants', 'userPlus', 'Applicants', 'Applications for admission'],
+  ].filter(Boolean).slice(0, 3);
+  tiles.push(['/help/#/whats-new', 'sparkle', 'What\'s new', 'What changed in each update']);
+  const covers = admin
+    ? 'Users and access, campuses, the catalog, modules, the Settings center, branding, sign-in security, data and backups'
+    : 'Enrollment, applicants and students, the catalog, terms and sections, news and the school calendar';
+  return html`<section class="hub-wrap" aria-labelledby="admin-heading">
+    <div class="card-head"><h2 id="admin-heading">${icon('settings')} Administration</h2><span class="muted small">Applies to every system</span></div>
+    <a class="admin-hero" href="/admin">
+      <span class="admin-hero-ic">${icon('shield', 28)}</span>
+      <span class="grow"><strong>Admin panel</strong><small>${covers}</small></span>
+      <span class="admin-hero-open">Open ${icon('chevronRight', 16)}</span>
+    </a>
+    <div class="admin-tiles">${tiles.map(([href, ic, title, sub]) => html`<a class="admin-tile" href="${href}"><span class="ic-box">${icon(ic, 20)}</span><span class="grow"><strong>${title}</strong><small>${sub}</small></span>${icon('chevronRight', 16)}</a>`)}</div>
+  </section>`;
+}
+
 async function homeView(status) {
   const u = status.user;
   const hour = new Date().getHours();
@@ -213,6 +243,7 @@ async function homeView(status) {
       </div>
       <div class="sys-dots" id="sys-dots" hidden></div>
     </section>
+    ${administration(status)}
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span></div></footer>`);
   systemsCarousel(appEl.querySelector('#sys-carousel'));

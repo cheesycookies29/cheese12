@@ -16,7 +16,9 @@ The **Admin panel** is the school side of ATLAS Learn. Administrators and regist
 To open it:
 
 1. Sign in on the ATLAS home page.
-2. On the **Learn** tile, choose **Open the admin panel**.
+2. Under **Administration**, below your systems, choose **Admin panel**. The tiles beside it go straight to **Users & Access**, the **Settings center**, the **Audit log** and **What's new**.
+
+![Administration on the ATLAS home page: the Admin panel and shortcuts into it](home-administration.jpg)
 
 The admin panel also has its own sign-in page at `/admin`, for administrators and registrars.
 
@@ -28,7 +30,7 @@ Most lists in the admin panel show **one campus at a time**: the campus shown un
 
 This tour uses the demo school, signed in as `admin`.
 
-1. On the ATLAS home page, choose **Open the admin panel** on the Learn tile. The **Dashboard** opens.
+1. On the ATLAS home page, under **Administration**, choose **Admin panel**. The **Dashboard** opens.
 
 ![The Dashboard: enrollment numbers, the fullest sections and recent activity](admin-dashboard.jpg)
 

@@ -14,7 +14,7 @@ This guide is for registrars and their staff. Your work happens in two places:
 - **The Admin panel of ATLAS Learn**: enrollment requests and waitlists, applicants, student accounts, and the catalog (sections, courses, terms, programs).
 - **ATLAS Academic**: student records, curricula, grade sheets, grade changes, document requests, reports and the academic settings.
 
-To sign in, open the ATLAS home page and sign in with your username and password. On the home page, the **Learn** tile says *Open the admin panel*, and the **Academic** tile says *Open Academic*. You can also sign in to the Admin panel directly at `/admin`.
+To sign in, open the ATLAS home page and sign in with your username and password. On the home page, **Administration** (below your systems) has the **Admin panel**, with shortcuts to **Enrollment requests** and **Applicants**; the **Learn** tile says *Manage Learn* and also opens the Admin panel, and the **Academic** tile says *Open Academic*. You can also sign in to the Admin panel directly at `/admin`.
 
 If you work at more than one campus, the campus you are on shows in the top bar. To change it, choose your name at the top right and pick a campus under **Switch campus**. Every list (students, sections, enrollment requests, grade sheets, document requests) follows the campus you are on.
 
@@ -26,7 +26,7 @@ Use the demo school to try the whole job once. Sign in as `registrar.demo` (pass
 
 ### 1. Approve a request
 
-1. On the ATLAS home page, open the **Learn** tile (*Open the admin panel*). The **Dashboard** shows the current term, whether its enrollment window is open, and counts of pending requests, waitlisted students and applicants.
+1. On the ATLAS home page, under **Administration**, choose **Admin panel**. The **Dashboard** shows the current term, whether its enrollment window is open, and counts of pending requests, waitlisted students and applicants.
 2. Open **Enrollment requests**. The **Pending approval** tab lists every request waiting for you.
 3. Type `Carlo` in the search box. Carlo Reyes has asked for a seat in PE101 A. Choose **Approve**. He is now enrolled.
 

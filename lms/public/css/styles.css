@@ -597,6 +597,27 @@ a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shado
 .sys-card.soon .sys-name, .sys-card.soon .sys-open { color: var(--muted); }
 .sys-card.soon .sys-title { color: var(--text-2); }
 .sys-card.soon .sys-open { font-weight: 500; }
+/* Administration on the home page (as on CORE's): the admin panel, then shortcuts into it. */
+.admin-hero { display: flex; align-items: center; gap: 18px; padding: 22px 24px; background: var(--brand-softer); border: 1px solid var(--brand-line); border-radius: 16px; color: var(--text); box-shadow: var(--shadow); transition: box-shadow 0.14s, border-color 0.14s; }
+a.admin-hero:hover { text-decoration: none; box-shadow: var(--shadow-lg); border-color: var(--brand); }
+.admin-hero-ic { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; flex: none; background: var(--brand); color: #fff; }
+.admin-hero .grow { flex: 1; min-width: 0; }
+.admin-hero strong { display: block; font-size: 20px; line-height: 1.25; }
+.admin-hero small { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.admin-hero-open { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--brand-text); flex: none; }
+.admin-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+.admin-tile { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; color: var(--text); box-shadow: var(--shadow); }
+a.admin-tile:hover { text-decoration: none; border-color: var(--brand-line); background: var(--brand-softer); }
+.admin-tile .ic-box { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--brand-soft); color: var(--brand-text); }
+.admin-tile .grow { flex: 1; min-width: 0; }
+.admin-tile strong { display: block; font-size: 14px; }
+.admin-tile small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.admin-tile > svg { color: var(--muted); flex: none; }
+@media (max-width: 560px) {
+  .admin-hero { flex-wrap: wrap; padding: 18px; gap: 14px; }
+  .admin-hero .grow { flex-basis: calc(100% - 70px); }
+  .admin-hero-open { margin-left: 70px; }
+}
 .hub-foot { margin-top: auto; padding: 22px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .hub-foot .hub-wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 #feed { margin-bottom: 32px; }
