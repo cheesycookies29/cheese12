@@ -108,7 +108,7 @@ A server set up before November 2026 needs this once. From a console on the serv
 sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh
 ```
 
-It installs **Node.js 22** (Ubuntu's Node 18 no longer gets security fixes; from then on it is kept current by the automatic security updates), replaces the updater and the service file with the current ones, closes the data folder to other accounts on the server, and restarts ATLAS. Data is not touched. To check afterwards: `node --version` shows v22.
+It installs **Node.js 22** (Ubuntu's Node 18 no longer gets security fixes; from then on it is kept current by the automatic security updates), replaces the updater and the service file with the current ones, closes the data folder to other accounts on the server, installs the Cloudflare helper (see [Cloudflare](#cloudflare)), and restarts ATLAS. Data is not touched. To check afterwards: `node --version` shows v22.
 
 Then, in the AWS console, require **IMDSv2** on the server, so that a request tricked out of the app cannot read the server's AWS credentials: **EC2 → Instances → ltdc-lms → Actions → Instance settings → Modify instance metadata options → IMDSv2: Required**, and **Save**. (Servers created from the current template already have this.)
 
@@ -125,6 +125,8 @@ Then, in the AWS console, require **IMDSv2** on the server, so that a request tr
 | Install the latest version now | `sudo ltdc-lms-update` |
 | Turn automatic updates off / on | `sudo systemctl disable --now ltdc-lms-update.timer` / `sudo systemctl enable --now ltdc-lms-update.timer` |
 | Point DuckDNS at the server now | `sudo ltdc-lms-duckdns` |
+| Cloudflare set-up log | `sudo journalctl -u ltdc-lms-cloudflare -n 50` |
+| Apply the Cloudflare set-up again now | `sudo ltdc-lms-cloudflare --force` |
 | Reset a locked-out administrator | `sudo systemctl stop ltdc-lms`, then `cd /opt/ltdc-lms && sudo -u ltdc-lms node scripts/reset-password.js <username> <new-password>`, then `sudo systemctl start ltdc-lms` |
 
 ## Single sign-on with Keycloak
@@ -144,6 +146,52 @@ sudo systemctl restart ltdc-lms
 ```
 
 Then finish in *Admin panel → System → Single sign-on*. The server needs to reach Keycloak over HTTPS; if Keycloak is only on the school's network, the server must be able to reach it there.
+
+## Cloudflare
+
+ATLAS can sit behind Cloudflare at the school's own address (for example **atlas.school.edu.ph**) instead of the DuckDNS address: **Set up Cloudflare for me** in the Admin panel. ATLAS makes the changes at Cloudflare (the DNS record, SSL/TLS **Full (strict)**) with the API token you give it, then asks the server to do its part. The token is used by ATLAS for those calls only: it never reaches the server's files (not `app.env`, not the data folder, not the backups), and the server's helper never sees it.
+
+### What the server does
+
+The server's part is done by a small root helper, `/usr/local/sbin/ltdc-lms-cloudflare`, started by `ltdc-lms-cloudflare.path` a few seconds after ATLAS writes its request (`/opt/ltdc-lms/data/cloudflare.json`). It:
+
+1. **Checks the request.** Only a website name (lowercase letters, numbers, dots and dashes; not an IP address, not the DuckDNS address) is accepted. Anything else is refused and nothing changes.
+2. **Gets Cloudflare's address list** from cloudflare.com, or, if the server cannot reach it, uses the copy that comes with ATLAS (`/usr/local/share/ltdc-lms/cloudflare-ips.txt`).
+3. **Caddy** (`/etc/caddy/Caddyfile`): a site for the school's address. For connections from Cloudflare's addresses, the visitor's own address is taken from Cloudflare's `CF-Connecting-IP` header and passed to ATLAS, so sign-in limits apply to each visitor rather than to Cloudflare; from any other address the header is ignored, so it cannot be forged. The DuckDNS address forwards visitors to the school's address. Caddy checks the new settings first (`caddy validate`); if it refuses them, the old ones stay.
+4. **ATLAS's settings** (`/etc/ltdc-lms/app.env`): `ALLOWED_HOSTS` gets the school's address and `PUBLIC_URL` is set to it; every other line stays as it is. ATLAS restarts only if they changed.
+5. **Checks** that the school's address has its certificate (up to about 2 minutes) and that it answers through Cloudflare, then writes the answer the Admin panel shows (`/opt/ltdc-lms/data/cloudflare-status.json`).
+
+The certificate still comes from Let's Encrypt and renews itself: Cloudflare passes the check on port 80 to the server, so Cloudflare's **Always Use HTTPS** stays off (Caddy itself sends HTTP visitors to HTTPS). Its log: `sudo journalctl -u ltdc-lms-cloudflare -n 50`.
+
+**A server set up before the Cloudflare helper existed** needs it installed once, from a console (like the updater, it runs as root, so ordinary updates do not install it):
+
+```bash
+sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh
+```
+
+Until then, the Admin panel keeps showing that it is waiting for the server.
+
+### Only accept visitors through Cloudflare
+
+With this switched on, the server's firewall accepts web visitors (ports 80 and 443) **only from Cloudflare's addresses**, in a firewall table of its own (`inet ltdc_cloudflare`); nothing else on the server's firewall is changed, and the AWS console (Session Manager) is not affected. So the **DuckDNS address stops working**: it no longer opens ATLAS, not even as a forward, and it is taken out of Caddy's settings (its certificate could not renew). Everyone uses the school's address.
+
+It is switched on only after the server has seen the school's address answer through Cloudflare. If it does not (for example the DNS record is not proxied yet), the server stays open to direct visitors and the Admin panel says why. The table is put back at every restart of the server (`ltdc-lms-cloudflare.service` runs at boot). Switching it off in the Admin panel removes the table at once.
+
+### Undoing it by hand
+
+If the Admin panel cannot be reached, from a console on the server:
+
+```bash
+# Accept visitors directly again (at once):
+sudo nft delete table inet ltdc_cloudflare
+# Back to the DuckDNS address only, as when Cloudflare is switched off in the Admin panel:
+echo "{\"version\":1,\"hostname\":\"\",\"lockOrigin\":false,\"requestedAt\":\"$(date -u +%FT%TZ)\"}" | sudo -u ltdc-lms tee /opt/ltdc-lms/data/cloudflare.json
+sudo journalctl -u ltdc-lms-cloudflare -n 20   # shows "Status: off."
+```
+
+Or do what set-up does, step by step: `sudo nft delete table inet ltdc_cloudflare`; `sudo /usr/local/sbin/ltdc-lms-cloudflare --print-plain-caddyfile | sudo tee /etc/caddy/Caddyfile >/dev/null` and `sudo systemctl reload caddy`; in `sudoedit /etc/ltdc-lms/app.env`, set `ALLOWED_HOSTS=` to the DuckDNS address only and delete the `PUBLIC_URL=` line; then `sudo systemctl restart ltdc-lms`. To stop the helper altogether: `sudo systemctl disable --now ltdc-lms-cloudflare.path ltdc-lms-cloudflare.service`.
+
+At Cloudflare, the school's DNS record still points at the server; delete it there if the address should not be used any more.
 
 ## Backups and restoring
 

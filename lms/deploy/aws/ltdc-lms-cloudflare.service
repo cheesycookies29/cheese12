@@ -1,0 +1,41 @@
+# Applies the Cloudflare set-up asked for in the ATLAS Admin panel (started by
+# ltdc-lms-cloudflare.path when the request changes), and at boot puts the firewall back as it was
+# last applied (firewall rules do not survive a restart). See deploy/aws/EC2.md, "Cloudflare".
+[Unit]
+Description=Lancaster ATLAS: apply the Cloudflare set-up from the Admin panel
+After=network-online.target nftables.service caddy.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ltdc-lms-cloudflare
+TimeoutStartSec=15min
+# /var/lib/ltdc-lms-cloudflare: what was applied (root only). /run/ltdc-lms-cloudflare: the lock.
+StateDirectory=ltdc-lms-cloudflare
+StateDirectoryMode=0700
+RuntimeDirectory=ltdc-lms-cloudflare
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+# Root, but it may only change Caddy's settings, the app's settings, its answer in the data folder
+# and the firewall, and restart Caddy and ATLAS.
+ProtectSystem=strict
+ReadWritePaths=/etc/caddy /etc/ltdc-lms /opt/ltdc-lms/data -/var/lib/caddy -/var/log/caddy
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_CHOWN CAP_FOWNER CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
