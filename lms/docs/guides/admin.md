@@ -1,17 +1,17 @@
 ---
 id: admin
 title: Running ATLAS: the Admin panel
-summary: Set up and look after ATLAS as an administrator: the Admin panel (accounts, campuses, the catalog, modules, settings, demo data, backups, the guides) and ATLAS Control (every account, sessions, roles and permissions, sign-in rules, single sign-on and the audit trail).
+summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, and System (Users & Access, roles and permissions, sign-in rules, single sign-on and the Audit log), demo data, backups and the guides.
 roles: admin
-apps: admin, control, home
+apps: admin, home
 order: 80
 ---
 
 ## Before you start
 
-The **Admin panel** is the school side of ATLAS Learn. Administrators and registrars use it; deans work in ATLAS Academic instead. An **Administrator** can do everything in it. A **Registrar** uses most of the same pages: they can change enrollment, students, applicants, parents & guardians, the catalog and news, see teachers, and see the **Configuration** pages read-only. **Settings center**, **Admins, registrars & deans** and **Demo data & backup** are for administrators only (an administrator can give registrars more under **Roles & permissions**, in Control).
+The **Admin panel** is the school side of ATLAS Learn. Administrators and registrars use it; deans work in ATLAS Academic instead. An **Administrator** can do everything in it. A **Registrar** uses most of the same pages: they can change enrollment, students, applicants, parents & guardians, the catalog and news, see teachers, and see the **Configuration** pages read-only. **Settings center** and **Demo data & backup** are for administrators only (an administrator can give registrars more under **Roles & permissions**). Day-to-day enrollment (approving requests, waitlists, adding and dropping students) is explained in [the registrar's guide](registrar).
 
-**ATLAS Control** is the administrators' control panel for the whole of ATLAS: every account in every system, who is signed in, locked sign-ins, which account types open which systems, **Roles & permissions**, **Sign-in and passwords**, **Single sign-on** and the **Audit trail** of sign-ins and changes. Only administrators see it: it is a tile on their ATLAS home page, and **ATLAS Control** under **Elsewhere** in the Admin panel's sidebar. Nobody else can open it, whatever their permissions. Day-to-day enrollment (approving requests, waitlists, adding and dropping students) is explained in [the registrar's guide](registrar).
+**System**, at the bottom of the sidebar, is for administrators only, as in CORE: **Users & Access** (every account in every system, and what each account type can do) and the **Audit log** (sign-ins, failed sign-ins and every change). It is in the sidebar of whichever system you have open: the Admin panel, People, Academic and Finance. In the Admin panel it also has **Roles & permissions**, **Sign-in and passwords** and **Single sign-on**. Nobody else sees System, whatever their permissions.
 
 To open it:
 
@@ -33,9 +33,9 @@ This tour uses the demo school, signed in as `admin`.
 ![The Dashboard: enrollment numbers, the fullest sections and recent activity](admin-dashboard.jpg)
 
 2. Read the line under **Dashboard**: the campus, the current term, whether enrollment is open and the class dates. The boxes count requests **Pending approval**, **Waitlisted** students, **Applicants** and more. Choose any box to open the list behind it.
-3. In the sidebar, choose **Admins, registrars & deans**. This is where accounts that use the admin panel and Academic are made.
+3. In the sidebar, under **System**, choose **Users & Access**. Every account in ATLAS is here, with what each account type can do below.
 
-![Admins, registrars & deans](admin-staff.jpg)
+![System → Users & Access](system-users.jpg)
 
 4. Choose **Campuses**. The demo school has a main campus and three smaller ones. On **Sipocot Campus**, choose **Switch to it**. The page reloads; the campus under your name and on the Dashboard is now Sipocot. Switch back to **Main Campus** the same way.
 
@@ -60,18 +60,15 @@ This tour uses the demo school, signed in as `admin`.
 
 The Dashboard opens with a *Getting started* note. Add a term, courses and sections, then students and teachers. To look around first, add the demo data (see [Add or remove the demo school](#add-or-remove-the-demo-school)).
 
-### Add an administrator, registrar or dean
+### Add an administrator, registrar, dean or other staff account
 
-1. Choose **Admins, registrars & deans → + Add account**.
-2. Choose the **Account type**: Registrar, Dean / Program chair or Administrator.
-3. Fill in the **Full name**, **Username** (3 to 40 lowercase letters, numbers, dots, dashes or underscores) and **Email**.
-4. When the school has more than one campus, tick the campuses under **Works at**. Administrators always reach every campus.
-5. Type a **Temporary password** (at least 8 characters). Leave **Ask them to choose their own password when they first sign in** ticked.
-6. Choose **Save**, and give the person their username and temporary password.
+1. Under **System**, choose **Users & Access → + Add user**.
+2. Type the **Full name** and **Username** (3 to 40 lowercase letters, numbers, dots, dashes or underscores), and choose the **Account type**: the line under it says what that type can do. Any staff type can be made here: Administrator, Registrar, Dean / Program chair, Teacher, HR Manager, Payroll Officer, the Finance offices or Staff.
+3. Type the **Email** (needed to link a teacher, registrar, dean, administrator or officer to Keycloak), and tick the campuses under **Works at**. Administrators always reach every campus.
+4. Keep the **Temporary password** ATLAS suggests (**New** makes another) and give it to the person privately. They choose a new password at first sign-in.
+5. Choose **Create user**.
 
-The list shows each account's type, status and last sign-in, with **Edit**, **Reset password** and **Delete**.
-
-Accounts for HR managers, payroll officers and other staff are not made here: HR makes them in ATLAS People, on the employee's record (see [the HR guide](hr)). Accounts for the finance offices are made by an administrator in **ATLAS Finance → Control panel**.
+Students and parents are added from **Students** and **Parents & guardians**. HR can also make accounts in ATLAS People, on the employee's record (see [the HR guide](hr)).
 
 ### Add a teacher or a student
 
@@ -82,100 +79,50 @@ Accounts for HR managers, payroll officers and other staff are not made here: HR
 
 The person's record opens. Teachers and students sign in on the ATLAS home page.
 
-### Reset a password or disable an account
+### Find an account, change it, reset its password or disable it
 
-1. Open the account: from **Students** or **Teachers**, choose the row; for an administrator, registrar or dean, use the buttons on **Admins, registrars & deans**.
-2. To reset: choose **Reset password**, type a **New temporary password** and choose **Reset password**. The person is signed out everywhere and must choose their own password at the next sign-in.
-3. To disable: choose **Edit**, set **Status** to **Disabled (cannot sign in)** and choose **Save**. The person is signed out at once. Set it back to **Active** to let them in again.
+1. Under **System**, choose **Users & Access**. Search by name, username, email or student number, or narrow the list by **Account type**, status, or **Signed in now**, **Locked**, **Own access**, **Temporary password** or **Linked to Keycloak**.
+2. Each row shows the account type, the **Linked employee**, the status (with **Temp. password**, **Locked**, **Signed in**, **Keycloak** or **Demo** where they apply) and the last sign-in. Choose a link on the row (below).
 
-Students and teachers have no **Delete** button: disable their accounts instead, so their records stay. Only accounts on **Admins, registrars & deans** can be deleted.
-
-### Open ATLAS Control
-
-1. On the ATLAS home page, choose **Open Control** on the **Control** tile (it may be on the second page of **Your systems**). From the Admin panel, choose **ATLAS Control** under **Elsewhere**.
-2. The **Overview** shows how many accounts are active, who is signed in now, sign-ins and failed sign-ins in the last 24 hours, locked usernames and refused requests. Each number opens the list behind it.
-3. The **Security checklist** marks what is done and what to look at, for example *Two to five administrators* or *No unused staff accounts*. **Fix** opens the screen that fixes it.
-
-![ATLAS Control: the Overview](control-overview.jpg)
-
-### Find an account and see what it can reach
-
-1. In Control, choose **Accounts**. Every account is here: students, parents, teachers, registrars, deans, HR, payroll, the Finance offices, staff and administrators.
-2. Search by name, username, email or student number, or narrow the list by account type, status, campus, sign-in (**Signed in now**, **Never signed in**, **Staff, not in 90 days**) or a flag (**Locked**, **Must change password**, **Linked to Keycloak**).
-3. Choose a row. The account's page shows its campuses, last sign-in, password state and Keycloak link; **Can open** lists the systems on its ATLAS home page, its Learn modules and its permissions; **Sessions** shows where it is signed in; **Trail** lists what it did and what was done to it.
-
-![An account in Control: what it can open, its sessions and its trail](control-account.jpg)
-
-### Make a staff account
-
-1. In Control, choose **Accounts → New staff account**.
-2. Choose the **Account type**: Teacher, Registrar, Dean / Program chair, HR Manager, Payroll Officer, a Finance office, Staff or Administrator. Students and parents are added by the registrar in the Admin panel.
-3. Type the **Full name**, **Username** and **Email** (an email is needed to link a teacher, registrar, dean, administrator or officer to Keycloak), and tick the campuses they work at.
-4. Keep the **Temporary password** ATLAS suggests (**New** makes another) and give it to the person. They choose their own when they first sign in.
-5. Choose **Make the account**.
-
-### Reset a password, unlock an account or sign someone out
-
-1. In Control, open the account from **Accounts**.
-2. Choose the button for what you need (below).
-
-| Button | What it does |
+| Link | What it does |
 | --- | --- |
-| **Reset password** | Give the person the temporary password shown. Their sessions end, the username is unlocked, and they choose a new password at the next sign-in |
-| **End sessions** | They are signed out of every browser and sign in again |
+| **Edit** | Change the **Full name**, **Username**, **Account type**, **Email**, **Linked employee record**, campuses, or untick **Account is active (can sign in)** to disable it. Changing the type signs the person out. **Unlink** ends a Keycloak link |
+| **Access** | Give this one person a permission more, or take one away (see the next section) |
+| **Reset password** | Give them the temporary password shown. They are signed out, unlocked, and choose a new password at the next sign-in |
 | **Unlock** | A username locked after wrong passwords can sign in again at once |
-| **Ask for a new password** | They keep their password but must choose a new one at the next sign-in |
-| **Unlink from Keycloak** | The next Keycloak sign-in links the account again by its email or username |
-| **Disable**, **Enable** | A disabled account is signed out everywhere and cannot sign in; its records stay |
-| **Delete** | Only for an account that has no records: no enrollment, no sections, no changes in any system. Otherwise disable it, so the records keep who made them |
+| **Sign out** | Ends every session of the person |
+| **Audit log** | What they did, and what was done to their account |
+| **Delete** | Only for an account with no records (no enrollment, no sections, no changes in any system). Otherwise untick **Account is active**, so the records keep who made them |
 
-You cannot disable yourself, reset your own password here (use **Change password** under your name) or disable the last active administrator.
+You cannot change your own account type or disable, reset or delete your own account, and the last active administrator stays one. Only staff accounts change type: students and parents keep theirs, and a teacher who still has sections keeps the teacher type until their sections go to another teacher.
 
-### Change an account's type or campuses
-
-1. In Control, open the account and choose **Edit**.
-2. Change the **Full name**, **Username** or **Email**, the **Account type**, the campuses it works at, or the **Linked employee record** (it gives People's self-service; one account per employee), and choose **Save**.
-
-Only staff accounts change type; students and parents keep theirs. Changing the type signs the person out, and they sign in again with the new permissions. A teacher who still has sections keeps the type until their sections go to another teacher (Admin panel → **Sections**). Nobody changes their own type, and the last active administrator stays one.
+Below the accounts, **Account types** lists what each type can do in each system, with ✓ and —, as in CORE. Change a type under **Roles & permissions**.
 
 ### Give one account more or less access
 
-The account type decides what someone may do (**Roles & permissions**). Sometimes one person needs a little more or a little less, for example one registrar who also reads Finance's reports, or one HR manager who should not approve leave. Change that person's access, not the whole account type.
+The account type decides what someone may do. Sometimes one person needs a little more or a little less, for example one registrar who also reads Finance's reports, or one HR manager who should not approve leave.
 
-1. In Control, open the account from **Accounts**.
-2. In **Access**, choose **Change access**.
-3. Tick a permission to give it to this account, or untick one to take it away. Shaded rows are this account's own, different from its account type. Permissions this account type can never have are not offered, and **Administrators only** ones stay with administrators.
-4. Choose **Save access**. It applies at once.
+1. Under **System → Users & Access**, choose **Access** on the person's row.
+2. Tick a permission to give it to this person, or untick one to take it away. Shaded rows are this person's own, different from the account type. Permissions the account type can never have are not offered, and **Administrators only** ones stay with administrators.
+3. Choose **Save access**. It applies at once.
 
-The account page lists what was **Given** and **Taken away**, and **Accounts** marks such accounts **Own access** (filter on it). The **Access map** shows how many accounts of each type have their own access. Changing an account's type clears its own access, as it belonged to the old type. Administrators always have every permission, and you cannot change your own access.
+The row then shows **+ own access** under the account type. Changing a person's account type clears their own access, as it belonged to the old type. Administrators always have every permission.
 
-### See who is signed in, and end sessions
+### Read and export the Audit log
 
-1. In Control, choose **Sessions**. Each row is one browser: the person, the system (**Admin panel**, **Learn** or **People**, and **Keycloak** for a single sign-on), the browser, the network address, when they signed in and when they were last active.
-2. Choose **End** on a row to sign that browser out.
-3. After a suspected break-in, or before maintenance, choose **End everyone else's**: everyone but you signs in again.
+1. Under **System**, choose **Audit log**. It opens on the last 30 days, newest first: sign-ins and failed sign-ins (with the network address), sign-outs and password changes, every change by staff in every system, requests that were refused, and the Settings, Finance and Academic logs.
+2. The notice at the top checks the log: **Intact.** means no entry was changed, removed or reordered. If it says **The log was altered.**, the file was edited outside ATLAS: keep a copy and investigate.
+3. Narrow it with **From** and **To**, the area (**Sign-in**, **Account**, **Change**, **Refused**…), the system, the outcome, or the search box (a name, a record, a changed field or a network address). A change to an account, its access or a setting lists each field with its value before and after.
+4. Choose **Export CSV** for every entry that matches. The export itself is written in the log.
 
-**Locked sign-ins** lists usernames locked after wrong passwords, with the network address (or **Every address**) and when the lock opens; choose **Unlock** to open it now.
+![The Audit log](system-audit.jpg)
 
-### Read and download the audit trail
-
-1. In Control, choose **Audit trail**. The newest entries are first: sign-ins and failed sign-ins (with the network address), sign-outs and password changes, every change by staff in every system, requests that were refused, Control's own actions, and the Settings history, Finance's audit and Academic's log.
-2. The notice at the top checks the log: **Intact.** means no entry was changed, removed or reordered. If it says **The audit log was altered.**, the file was edited outside ATLAS: keep a copy and investigate.
-3. Narrow it with the search box (a name, an action, a changed field or a network address), the kind (**Sign-in**, **Change**, **Refused**…), the outcome (**Done**, **Failed**, **Refused**), the system, the log, and the dates **From** and **To**. Failed and refused entries are shaded.
-4. Choose **Download CSV** for every entry that matches, for a report or an investigation. The download itself is written in the trail.
-
-A change to an account, its access or a setting lists each field with its value before and after.
-
-To see one person's trail, open their account and choose **Full trail**. Passwords and what people type into forms are never recorded; a username nobody has is written as *(unknown username)*, as people sometimes type their password there by mistake.
-
-The audit log is kept the way CORE keeps its own: in a file of its own beside the data (`audit-log.jsonl`), every entry numbered and chained to the one before. Entries cannot be edited or deleted in ATLAS, and restoring a backup or removing the demo school does not change them. A backup does not contain the audit log; on the AWS server a copy is kept each night with the other backups.
-
-![The audit trail](control-audit.jpg)
+Passwords and what people type into forms are never recorded; a username nobody has is written as *(unknown username)*, as people sometimes type their password there by mistake. The log is kept the way CORE keeps its own: in a file of its own beside the data (`audit-log.jsonl`), every entry numbered and chained to the one before. Entries cannot be edited or deleted in ATLAS, and restoring a backup or removing the demo school does not change them. A backup does not contain the audit log; on the AWS server a copy is kept each night with the other backups.
 
 ### Set the rules for passwords and sign-in
 
-1. In Control, choose **Sign-in and passwords**.
-2. Change the settings (see the table below) and choose **Save**. They apply at once, in every system, and the change is in the audit trail with the old and new value.
+1. Under **System**, choose **Sign-in and passwords**.
+2. Change the settings (see the table below) and choose **Save**. They apply at once, in every system, and the change is in the Audit log with the old and new value.
 
 The settings under **Sign-in and passwords**:
 
@@ -251,7 +198,7 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 3. Under **Enrollment rules**: **Requests need approval**, **Waitlists**, **Waitlist size per section** and **Maximum units per term** (0 means no limit).
 4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB; it replaces the ATLAS mark in the round seal on the sign-in pages), and the **Sign-in headline** (an optional line under the school name on the sign-in pages).
 5. Under **Student applications**: whether people may apply from the sign-in page.
-6. **Sign-in and passwords** are set in ATLAS Control (see [Set the rules for passwords and sign-in](#set-the-rules-for-passwords-and-sign-in)).
+6. **Sign-in and passwords** are under **System** (see [Set the rules for passwords and sign-in](#set-the-rules-for-passwords-and-sign-in)).
 7. Under **Uploads, quizzes and parent alerts**: the **Largest upload (MB)** (1 to 15), the **Quiz grace period (seconds)** that answers sent just after a deadline still count, and from how many absences a parent sees them in red.
 8. Under **Numbering**: how new student numbers, employee numbers and document request numbers look. `{YYYY}` or `{YY}` is the year, `{MM}` the month and `{N4}` the serial with at least 4 digits; **Next:** shows the number the next record will get as you type.
 9. Choose **Save settings**.
@@ -288,7 +235,7 @@ If one group fails its checks, nothing is imported. Keep an export before big ch
 
 ### Change what an account type may do
 
-1. In ATLAS Control, choose **Roles & permissions**.
+1. Under **System**, choose **Roles & permissions**.
 2. In the table for a system (**Admin panel**, **ATLAS Academic**, **ATLAS People**, **ATLAS Finance**), tick or untick a permission for an account type. A shaded box differs from the built-in setting.
 3. Choose **Save permissions**. If accounts would lose something they can do now, ATLAS asks first.
 
@@ -336,9 +283,9 @@ Students, teachers and parents see these events on their own **Calendar** in Lea
 
 ### Set up single sign-on with Keycloak
 
-Single sign-on is in ATLAS Control. You need a Keycloak realm and a Keycloak account that may manage its clients: a Keycloak administrator, or a service account with the realm-management role *manage-clients*. ATLAS does the rest.
+Single sign-on is under **System**. You need a Keycloak realm and a Keycloak account that may manage its clients: a Keycloak administrator, or a service account with the realm-management role *manage-clients*. ATLAS does the rest.
 
-1. In ATLAS Control, choose **Single sign-on**.
+1. Under **System**, choose **Single sign-on**.
 2. In **Set up for me**, type the **Issuer (realm address)**, for example `https://sso.school.edu/realms/school`. Keep **Client ID to use** as `atlas` unless the school wants another name.
 3. Under **Sign in to Keycloak as**, choose **A Keycloak administrator** and type their username and password, or **A service account** and its client ID and secret. In **That account's realm**, leave `master` for a Keycloak administrator; for a realm administrator or a service account, type the school's realm.
 4. Choose **Set up in Keycloak**. ATLAS creates its client in Keycloak (or fixes the one already there), keeps the client secret on the server and switches single sign-on on. It then says what it did, or what went wrong. The **Status** card shows **Client secret: Saved on the server by Set up for me**.
@@ -369,7 +316,7 @@ The demo school is added next to your own data, at your first campus and three d
 
 > **Important:** Restoring replaces **all** current data with the backup and cannot be undone. The backup holds the records, so keep it private. Passwords are in it only as one-way hashes, encrypted with the server's own password key, which is not in the backup: a backup restored on another server needs that key (the person who looks after the server knows where it is), or the passwords must be reset. Uploaded files are not in it: to keep them too, copy the server's whole `data` folder.
 
-**ATLAS Control → Sign-in and passwords** shows whether the password hashes are encrypted, and with which key.
+**System → Sign-in and passwords** shows whether the password hashes are encrypted, and with which key.
 
 ### Edit a guide
 
@@ -403,25 +350,13 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Configuration | Activity types & grading | Activity types and how much each counts in the running grade |
 | Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, colours, logo, applications, uploads and quizzes, numbering |
 | Configuration | Home page & systems | The tiles on the ATLAS home page, and the address of systems not built in |
-| Configuration | Admins, registrars & deans | Accounts for administrators, registrars and deans |
 | Configuration | Demo data & backup | Add or remove the demo school; download or restore a backup |
-| Elsewhere | ATLAS Control | The administrators' control panel, in a new tab (administrators only) |
+| System | Users & Access | Every account in every system, with Edit, Access, Reset password, Unlock, Sign out, Audit log and Delete; what each account type can do (administrators only) |
+| System | Roles & permissions | What each account type may do in each system |
+| System | Sign-in and passwords | Password rules, lock-out, idle sign-out and rate limits, for every system |
+| System | Single sign-on | Signing in with the school's Keycloak account |
+| System | Audit log | Sign-ins, failed sign-ins, every change (field by field) and refused requests, with a check that the log is intact; export |
 | Elsewhere | ATLAS home | The ATLAS home page, in a new tab |
-
-**ATLAS Control** (administrators only):
-
-| Sidebar group | Screen | What it is for |
-|---|---|---|
-| (top) | Overview | Accounts, who is signed in, sign-ins and failed sign-ins in the last 24 hours, locked usernames, refused requests, a security checklist and the latest in the audit trail |
-| Users | Accounts | Every account in every system; open one to see what it can open, its access, its sessions and its trail, and to reset its password, end its sessions, unlock it, change it, give it more or less access, disable or delete it |
-| Users | Sessions | Everyone signed in now, with their system, browser and network address; end one, or everyone else's |
-| Users | Locked sign-ins | Usernames locked after wrong passwords, where and until when; unlock them |
-| Access | Access map | Which account types open which systems and Learn modules, and how many permissions each has |
-| Access | Roles & permissions | What each account type may do in each system |
-| Access | Sign-in and passwords | Password rules, lock-out, idle sign-out and rate limits, for every system |
-| Access | Single sign-on | Signing in with the school's Keycloak account |
-| Audit | Audit trail | Sign-ins, failed sign-ins, changes by staff in every system (field by field), refused requests and the Settings, Finance and Academic logs; a check that the log is intact; filter and download |
-| Elsewhere | Admin panel, ATLAS home | Back to the Admin panel or the ATLAS home page, in a new tab |
 
 ## Questions
 
@@ -429,17 +364,17 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 
 | Account type | Made in |
 |---|---|
-| Administrator, Registrar, Dean / Program chair | Admin panel → Admins, registrars & deans, or ATLAS Control → Accounts → New staff account |
+| Administrator, Registrar, Dean / Program chair | System → Users & Access → + Add user |
 | Teacher, Student | Admin panel → Teachers, Students (or Applicants) |
 | Parent / Guardian | Admin panel → Parents & guardians |
-| HR Manager, Payroll Officer, Staff | ATLAS People, on the employee's record, or ATLAS Control → Accounts → New staff account |
-| Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer | ATLAS Finance → Control panel |
+| HR Manager, Payroll Officer, Staff | ATLAS People, on the employee's record, or System → Users & Access → + Add user |
+| Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer | ATLAS Finance → Control panel, or System → Users & Access → + Add user |
 
-**Why can't I delete an account?** Students, teachers and parents are disabled, not deleted, so their records stay. On **Admins, registrars & deans** you cannot delete your own account or the last active administrator. Disabling works the same way: you cannot disable yourself or the last active administrator.
+**Why can't I delete an account?** Students, teachers and parents are disabled, not deleted, so their records stay. Under **System → Users & Access**, an account with no records can be deleted; you cannot delete your own account or the last active administrator. Disabling works the same way: you cannot disable yourself or the last active administrator.
 
-**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses and systems are for administrators. Registrars see them read-only, with *Only administrators can change these.* (ATLAS Control, with **Roles & permissions** and **Single sign-on**, is for administrators only.) To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
+**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses and systems are for administrators. Registrars see them read-only, with *Only administrators can change these.* (**System**, with **Users & Access**, **Roles & permissions** and **Single sign-on**, is for administrators only.) To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
 
-**Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity (change it in ATLAS Control → **Sign-in and passwords**). To sign everyone else out on purpose, use **Sessions → End everyone else's** in Control.
+**Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity (change it under **System → Sign-in and passwords**). To sign one person out, use **Sign out** on their row in **Users & Access**.
 
 **Who changed this setting?** Open **Settings center**, find the setting and choose the clock button beside it: its history lists each change with who made it, when, and the value before and after.
 

@@ -14,6 +14,10 @@ import { settingsView, dataView, gradingView } from './views/settings.js';
 import { newsAdminView } from './views/news.js';
 import { systemsView } from './views/systems.js';
 import { campusesView } from './views/campuses.js';
+import { ssoView } from './views/sso.js';
+import { rolesView } from './views/roles.js';
+import { signInView } from './views/signin.js';
+import { systemRoutes, systemNav } from '../system/index.js';
 import { guardiansView, guardianView } from './views/guardians.js';
 import { configView } from './views/config.js';
 import { schoolCalendarView } from './views/calendar.js';
@@ -26,7 +30,7 @@ const routes = [
   ['/students', (el, params, q) => peopleView(el, { kind: 'student' }, q), p('students.manage')],
   ['/applicants', (el, params, q) => peopleView(el, { kind: 'applicant' }, q), p('students.manage')],
   ['/teachers', (el, params, q) => peopleView(el, { kind: 'teacher' }, q), p('teachers.view')],
-  ['/staff', (el, params, q) => peopleView(el, { kind: 'staff' }, q), p('admins.manage')],
+  ['/staff', () => (location.hash = '#/system/users?role=staff'), p('admins.manage')], // now System → Users & Access
   ['/guardians', guardiansView, p('guardians.manage')],
   ['/guardians/:id', guardianView, p('guardians.manage')],
   ['/people/:id', personView, (u) => userCan(u, 'students.manage') || userCan(u, 'teachers.view')],
@@ -41,12 +45,13 @@ const routes = [
   ['/news', newsAdminView, p('news.manage')],
   ['/calendar', schoolCalendarView, p('dashboard')],
   ['/systems', systemsView, p('dashboard')],
-  // Single sign-on and Roles & permissions are in ATLAS Control now (administrators only).
-  ['/sso', () => location.replace('/control/#/sso')],
+  ['/sso', ssoView, (u) => u.role === 'admin'],
+  ['/sign-in', signInView, (u) => u.role === 'admin'],
   ['/campuses', campusesView, p('dashboard')],
   ['/data', dataView, p('data.manage')],
   ['/config', configView, p('settings.edit')],
-  ['/roles', () => location.replace('/control/#/roles')],
+  ['/roles', rolesView, (u) => u.role === 'admin'],
+  ...systemRoutes(),
   ['/elsewhere', elsewhereView],
 ];
 
@@ -83,10 +88,13 @@ function nav() {
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
     { href: '/systems', label: 'Home page & systems', icon: 'grid' },
-    c('admins.manage') && { href: '/staff', label: 'Admins, registrars & deans', icon: 'shield' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
+    ...systemNav([
+      { href: '/roles', label: 'Roles & permissions', icon: 'lock' },
+      { href: '/sign-in', label: 'Sign-in and passwords', icon: 'key' },
+      { href: '/sso', label: 'Single sign-on', icon: 'link' },
+    ]),
     { heading: 'Elsewhere' },
-    ctx.user.role === 'admin' && { href: '/control/', label: 'ATLAS Control', icon: 'shield', external: true },
     { href: '/', label: 'ATLAS home', icon: 'grid', external: true },
   ].filter(Boolean);
 }

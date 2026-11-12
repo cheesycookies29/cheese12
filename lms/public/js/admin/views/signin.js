@@ -1,41 +1,15 @@
-// Control → Access map (which account types open which systems and Learn modules, with their
-// permissions) and Sign-in and passwords (the rules for every system).
+// Admin panel → System → Sign-in and passwords: the password rules, lock-out, idle sign-out and rate
+// limits, for every system.
 import { api } from '../../api.js';
 import { html, mount, toast, formData } from '../../ui.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 
-export async function accessView(el) {
-  const d = await api.get('/api/control/access');
-  const shown = d.systems.filter((s) => s.status !== 'hidden');
-  const yes = (label) => html`${icon('check', 16)}<span class="sr-only">${label}</span>`;
-  mount(el, html`
-    ${pageHead('Access map', 'Which account types open which system, which Learn modules they have, and how many permissions. Change permissions under Roles & permissions; Learn modules and the systems on the ATLAS home page in the Admin panel.')}
-    <section class="card"><h2>${icon('grid')} Systems</h2>
-      <div class="table-scroll"><table class="table compact no-stack matrix access-matrix">
-        <caption class="sr-only">Which account types see each system on the ATLAS home page</caption>
-        <thead><tr><th scope="col">Account type</th><th scope="col" class="num">Active accounts</th>${shown.map((s) => html`<th scope="col" class="center">${s.product}${s.status === 'soon' ? html`<small class="muted block">Coming soon</small>` : ''}</th>`)}<th scope="col" class="num">Permissions</th></tr></thead>
-        <tbody>${d.roles.map((r) => html`<tr>
-          <td><strong>${r.label}</strong>${r.changed ? html` <span class="badge amber">Changed</span>` : ''}<small class="muted block">${r.sideLabel} session</small>${r.ownAccess ? html`<a class="small block" href="#/accounts?role=${r.id}&flag=own-access">${r.ownAccess} with their own access</a>` : ''}</td>
-          <td class="num"><a href="#/accounts?role=${r.id}&status=active">${r.accounts}</a></td>
-          ${shown.map((s) => html`<td class="center">${r.systems.includes(s.id) ? yes(`${r.label} sees ${s.product}`) : html`<span class="muted" aria-label="No">·</span>`}</td>`)}
-          <td class="num">${r.permissions === null ? (r.id === 'admin' ? 'All' : '—') : r.permissions ? html`<a href="#/roles">${r.permissions}</a>` : '—'}</td></tr>`)}</tbody></table></div>
-      <p class="muted small">A system shows on someone's ATLAS home page when it is for their account type and not hidden. What they can do inside it is set by permissions (staff) or by Learn modules (students, teachers, parents). <a href="/admin#/systems">Home page & systems</a></p>
-    </section>
-    <section class="card"><h2>${icon('toggles')} Learn modules</h2>
-      <div class="table-scroll"><table class="table compact no-stack matrix">
-        <caption class="sr-only">Which Learn modules are on for students, teachers and parents</caption>
-        <thead><tr><th scope="col">Module</th>${d.roles.filter((r) => r.modules).map((r) => html`<th scope="col" class="center">${r.label}</th>`)}</tr></thead>
-        <tbody>${d.modules.map((m) => html`<tr><td><strong>${m.label}</strong></td>${d.roles.filter((r) => r.modules).map((r) => html`<td class="center">${r.modules.includes(m.id) ? yes('On') : html`<span class="muted" aria-label="Off">·</span>`}</td>`)}</tr>`)}</tbody></table></div>
-      <p class="muted small"><a href="/admin#/modules">Change modules in the Admin panel</a></p>
-    </section>`);
-}
-
 export async function signInView(el) {
   const s = await api.get('/api/admin/settings');
   const v = s.security;
   mount(el, html`
-    ${pageHead('Sign-in and passwords', 'Password rules, lock-out, idle sign-out and rate limits, for every system. Each change is in the audit trail with its old and new value.')}
+    ${pageHead('Sign-in and passwords', 'Password rules, lock-out, idle sign-out and rate limits, for every system. Each change is in the Audit log with its old and new value.')}
     <div class="notice ${s.passwordEncryption?.on ? 'ok' : ''}">${icon('lock')}<p>${s.passwordEncryption?.on
       ? html`<strong>Passwords are encrypted.</strong> Each password is stored only as a one-way hash, and that hash is encrypted with the server's key (key ${s.passwordEncryption.keyId}). A copy of the data or a backup cannot be used to guess passwords without the key.`
       : html`<strong>Password hashes are not encrypted.</strong> Passwords are stored only as one-way hashes. Start the server with a key (PASSWORD_KEY) to encrypt them too.`}</p></div>

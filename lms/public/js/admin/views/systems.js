@@ -13,7 +13,6 @@ const BUILT_IN_NOTE = {
   lms: () => html`Students, teachers and parents open Learn (<code>/lms/</code>); administrators and registrars open this admin panel.`,
   uis: (s) => html`Runs at <code>${s.path}</code>. The registrar's office and deans get the records, grade sheets, curricula and documents; teachers submit grade sheets; students see their own record and ask for documents. Their accounts are made in this admin panel.`,
   hris: (s) => html`Runs at <code>${s.path}</code>. HR managers and payroll officers get its HR screens; anyone with an employee record (teachers, registrars, staff) gets self-service. Accounts for HR, payroll and staff are made in People, on an employee's record.`,
-  control: (s) => html`Runs at <code>${s.path}</code>. Administrators only: access to every system, all accounts, sessions and the audit trail. Nobody else sees it, and it is not listed before signing in.`,
   fmis: (s) => html`Runs at <code>${s.path}</code>. The Finance offices (accounting, budget, cashier, supply and the approving officer) get its screens; employees and students see their own receipts, requests and accountabilities. Only an administrator makes Finance office accounts, in Finance under Control panel.`,
 };
 

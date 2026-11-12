@@ -1,12 +1,11 @@
-// ATLAS Control (/control/): the administrators' control panel for the whole of ATLAS.
-//   - Overview: accounts, who is signed in now, sign-in trouble today, and a security checklist.
-//   - Accounts: every account in every system, one list: open one to see what it can reach, its
-//     sessions and its trail; make staff accounts, change an account's type, campuses or status,
-//     reset its password, end its sessions, unlock it, unlink it from Keycloak.
-//   - Sessions: everyone signed in now, where from; end one, or everyone else's.
-//   - Locked sign-ins: usernames locked after wrong passwords; unlock them.
-//   - Access map: which account types open which systems and Learn modules, with their permissions.
-//   - Audit trail: server/audit.js, with the Settings history, Finance's and Academic's logs.
+// System → Users & Access and System → Audit log, as in CORE ERP (the repository root's
+// public/js/views/users.js and audit.js): administrators see them in the sidebar of whichever
+// ATLAS system they have open (shared from public/js/system/).
+//   - Users & Access: every account in every system, one list; make staff accounts, change an
+//     account's type, campuses, linked employee, own access or status, reset its password, end its
+//     sessions, unlock it, unlink it from Keycloak, delete it when it has no records; and the
+//     account types with what each may do.
+//   - Audit log: server/audit.js, with the Settings history, Finance's and Academic's logs.
 // Administrators only (role 'admin'), whatever Roles & permissions gives other account types.
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
@@ -14,7 +13,7 @@ import { ROLES, roleLabel, permissionsOf, permissionsOfUser, ADMIN_ONLY_PERMISSI
 import { PERMISSION_GROUPS, grantable } from './config.js';
 import { MODULES, MODULE_ROLES, moduleOn } from '../shared/modules.js';
 import { SYSTEMS } from '../shared/systems.js';
-import { publicUser, hashPassword, validatePassword, passwordEncryption } from './auth.js';
+import { publicUser, hashPassword, validatePassword } from './auth.js';
 import { validateUserFields } from './admin.js';
 import { campusName } from './campus.js';
 import { combinedTrail, filterTrail, trailCsv, sideLabel, SYSTEM_LABELS, KIND_LABELS, SOURCE_LABELS } from './audit.js';
@@ -26,19 +25,19 @@ const DAY = 24 * 3600 * 1000;
 // Account types made here: everyone but students and parents (the registrar makes those, in the Admin panel).
 export const STAFF_ROLES = Object.keys(ROLES).filter((r) => !['student', 'guardian'].includes(r));
 
-export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff = false }) {
+export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   const { db } = ctx;
   const data = () => db.data;
   const save = () => db.save();
   const only = (user) => {
-    if (user?.role !== 'admin') fail('ATLAS Control is for administrators.', 403);
+    if (user?.role !== 'admin') fail('Users & Access is for administrators.', 403);
   };
-  // Every Control route: administrators only, and its own entry in the audit trail.
-  const control = (method, pattern, handler) => route(method, pattern, 'admin', (a) => {
+  // Every route here: administrators only, and its own entry in the audit trail.
+  const sys = (method, pattern, handler) => route(method, pattern, 'admin', (a) => {
     only(a.user);
     return handler(a);
   }, { audit: false });
-  const log = (a, e) => ctx.audit({ system: 'control', actor: a.user, ip: a.ip, agent: a.agent, ...e });
+  const log = (a, e) => ctx.audit({ system: 'system', actor: a.user, ip: a.ip, agent: a.agent, ...e });
   const trail = () => ctx.auditLog.entries();
   const everything = () => combinedTrail(data(), trail());
   const permLabel = () => Object.fromEntries(PERMISSION_GROUPS.flatMap((g) => g.permissions));
@@ -78,56 +77,17 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     id: u.id, name: u.name, username: u.username, email: u.email || '', role: u.role, roleLabel: roleLabel(u.role), side: ROLES[u.role]?.side || '',
     status: u.status, campuses: campusesOf(u), lastLoginAt: u.lastLoginAt || null, createdAt: u.createdAt || null,
     sso: Boolean(u.ssoSubject), mustChangePassword: Boolean(u.mustChangePassword), sessions: sessions.get(u.id) || 0, locked: lockedNames.has(u.username),
-    studentNo: u.studentNo || '', employeeId: u.employeeId || null, demo: Boolean(u.demo),
+    studentNo: u.studentNo || '', employeeId: u.employeeId || null, demo: Boolean(u.demo), staff: STAFF_ROLES.includes(u.role),
+    employee: (() => {
+      const e = u.employeeId ? (data().employees || []).find((x) => x.id === u.employeeId) : null;
+      return e ? { id: e.id, name: e.name || [e.firstName, e.lastName].filter(Boolean).join(' ') } : null;
+    })(),
     ownAccess: (u.access?.add?.length || 0) + (u.access?.remove?.length || 0),
   });
 
-  // ----- Overview -----
-  control('GET', '/api/control/overview', () => {
-    const d = data();
-    const now = Date.now();
-    const since = new Date(now - DAY).toISOString();
-    const recent = [...trail(), ...(d.auditDemo || [])].filter((e) => e.at >= since);
-    const sess = allSessions();
-    const byRole = {};
-    for (const u of d.users) byRole[u.role] = (byRole[u.role] || 0) + 1;
-    const sec = d.settings.security || {};
-    const admins = activeAdmins();
-    const staleStaff = d.users.filter((u) => u.status === 'active' && STAFF_ROLES.includes(u.role) && u.role !== 'admin' && (!u.lastLoginAt || now - Date.parse(u.lastLoginAt) > 90 * DAY)).length;
-    const checks = [
-      { id: 'key', ok: passwordEncryption().on, label: 'Password hashes are encrypted', detail: passwordEncryption().on ? 'Every hash is encrypted with the server\'s password key.' : 'The server has no password key: hashes are not encrypted.' },
-      { id: 'length', ok: Number(sec.minPasswordLength) >= 10, label: 'Passwords of 10 characters or more', detail: `New passwords need at least ${sec.minPasswordLength || 8} characters.`, fix: '#/sign-in' },
-      { id: 'mix', ok: Boolean(sec.requireLettersAndDigits), label: 'Passwords mix letters and digits', detail: sec.requireLettersAndDigits ? 'On.' : 'Off: a password can be all letters.', fix: '#/sign-in' },
-      { id: 'first', ok: Boolean(sec.forcePasswordChange), label: 'First passwords are always changed', detail: sec.forcePasswordChange ? 'New and reset passwords must be changed at the first sign-in.' : 'Staff may untick it when they make an account.', fix: '#/sign-in' },
-      { id: 'admins', ok: admins.length >= 2 && admins.length <= 5, label: 'Two to five administrators', detail: `${admins.length} active administrator${admins.length === 1 ? '' : 's'}. ${admins.length < 2 ? 'With one, nobody can get back in if that person is away.' : admins.length > 5 ? 'Each administrator can do everything: keep the list short.' : ''}`.trim(), fix: '#/accounts?role=admin' },
-      { id: 'sso', ok: Boolean(d.settings.sso?.enabled), label: 'Single sign-on with Keycloak', detail: d.settings.sso?.enabled ? 'On: Keycloak can add two-step sign-in.' : 'Off. Keycloak can add two-step sign-in, which ATLAS passwords do not have.', fix: '#/sso', optional: true },
-      { id: 'stale', ok: staleStaff === 0, label: 'No unused staff accounts', detail: staleStaff ? `${staleStaff} active staff account${staleStaff === 1 ? ' has' : 's have'} not signed in for 90 days. Disable the ones nobody uses.` : 'Every active staff account has signed in within 90 days.', fix: '#/accounts?signin=stale' },
-      { id: 'cookie', ok: process.env.COOKIE_SECURE === '1', label: 'Cookies only over HTTPS', detail: process.env.COOKIE_SECURE === '1' ? 'COOKIE_SECURE is on.' : 'COOKIE_SECURE is off (normal on a test computer; set it on the live server).', optional: process.env.NODE_ENV !== 'production' },
-      { id: 'limits', ok: !limitsOff, label: 'Rate limits on', detail: limitsOff ? 'RATE_LIMITS=off: only for load tests.' : 'Requests and sign-in attempts are limited.' },
-    ];
-    return {
-      accounts: {
-        total: d.users.length, active: d.users.filter((u) => u.status === 'active').length, disabled: d.users.filter((u) => u.status === 'disabled').length,
-        pending: d.users.filter((u) => u.status === 'pending').length, mustChange: d.users.filter((u) => u.status === 'active' && u.mustChangePassword).length,
-        sso: d.users.filter((u) => u.ssoSubject).length,
-        byRole: Object.keys(ROLES).map((r) => ({ role: r, label: roleLabel(r), count: byRole[r] || 0 })),
-      },
-      sessions: { total: sess.length, people: new Set(sess.map((s) => s.userId)).size, bySide: Object.keys(sides).map((side) => ({ side, label: sideLabel(side), count: sess.filter((s) => s.side === side).length })) },
-      today: {
-        signIns: recent.filter((e) => e.kind === 'signin' && e.outcome === 'ok').length,
-        failedSignIns: recent.filter((e) => e.kind === 'signin' && e.outcome === 'failed').length,
-        refused: recent.filter((e) => e.outcome === 'refused').length,
-        changes: recent.filter((e) => e.kind === 'change' || e.kind === 'account' || e.kind === 'access').length,
-      },
-      locks: locks().length,
-      checks,
-      recent: everything().slice(0, 8),
-      trailSize: trail().length,
-    };
-  });
 
   // ----- Accounts -----
-  control('GET', '/api/control/users', ({ query }) => {
+  sys('GET', '/api/system/users', ({ query }) => {
     const q = String(query.q || '').trim().toLowerCase();
     const now = Date.now();
     const sessions = new Map();
@@ -150,7 +110,10 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       role: (a, b) => roleLabel(a.role).localeCompare(roleLabel(b.role)) || a.name.localeCompare(b.name),
       created: (a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')),
     };
-    list = list.sort(sorts[query.sort] || sorts.name);
+    // As in CORE: by account type (administrators first), then name.
+    const order = Object.keys(ROLES);
+    sorts.type = (a, b) => order.indexOf(a.role) - order.indexOf(b.role) || a.name.localeCompare(b.name);
+    list = list.sort(sorts[query.sort] || sorts.type);
     const size = 50;
     const pages = Math.max(1, Math.ceil(list.length / size));
     const page = Math.min(pages, Math.max(1, Number(query.page) || 1));
@@ -204,7 +167,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       },
     };
   };
-  control('GET', '/api/control/users/:id', ({ params }) => detail(found(params.id)));
+  sys('GET', '/api/system/users/:id', ({ params }) => detail(found(params.id)));
 
   const campusList = (role, requested) => {
     if (role === 'admin') return [];
@@ -215,7 +178,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
   };
 
   // A staff account: any account type but student and parent.
-  control('POST', '/api/control/users', (a) => {
+  sys('POST', '/api/system/users', (a) => {
     const { body } = a;
     if (!STAFF_ROLES.includes(body.role)) fail('Make students and parents in the Admin panel (Students, Parents & guardians).');
     const fields = validateUserFields(body, data());
@@ -232,7 +195,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     return publicUser(u);
   });
 
-  control('PUT', '/api/control/users/:id', (a) => {
+  sys('PUT', '/api/system/users/:id', (a) => {
     const { body, user } = a;
     const u = found(a.params.id);
     // What changed, field by field, before and after (as CORE's audit log keeps it).
@@ -289,7 +252,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
   // ----- One account's own access -----
   // permissions: every permission the account should have now. What differs from its account type
   // is kept on the account ({ add, remove }); the rest follows the account type, even when it changes.
-  control('PUT', '/api/control/users/:id/access', (a) => {
+  sys('PUT', '/api/system/users/:id/access', (a) => {
     const u = found(a.params.id);
     if (u.role === 'admin') fail('Administrators always have every permission.');
     if (!STAFF_ROLES.includes(u.role)) fail('Students and parents have no permissions: what they see is set by Learn modules and parent links.');
@@ -319,7 +282,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
 
   // Delete an account nobody has used for records (as in CORE's Users & Access); otherwise disable it,
   // so the records keep who made them.
-  control('DELETE', '/api/control/users/:id', (a) => {
+  sys('DELETE', '/api/system/users/:id', (a) => {
     const u = found(a.params.id);
     const d = data();
     if (u.id === a.user.id) fail('You cannot delete your own account.');
@@ -344,7 +307,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     return { ok: true };
   });
 
-  control('POST', '/api/control/users/:id/reset-password', (a) => {
+  sys('POST', '/api/system/users/:id/reset-password', (a) => {
     const u = found(a.params.id);
     if (u.id === a.user.id) fail('Change your own password from the menu under your name.');
     validatePassword(a.body.password, data().settings.security);
@@ -356,27 +319,27 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     save();
     return { ok: true };
   });
-  control('POST', '/api/control/users/:id/require-password-change', (a) => {
+  sys('POST', '/api/system/users/:id/require-password-change', (a) => {
     const u = found(a.params.id);
     u.mustChangePassword = true;
     log(a, { kind: 'password', action: 'Asked for a new password at the next sign-in', target: u });
     save();
     return detail(u);
   });
-  control('POST', '/api/control/users/:id/sign-out', (a) => {
+  sys('POST', '/api/system/users/:id/sign-out', (a) => {
     const u = found(a.params.id);
     const n = sessionsOf(u.id).length;
     ctx.signOutEverywhere(u.id);
     log(a, { kind: 'session', action: 'Ended every session of an account', target: u, detail: `${n} session${n === 1 ? '' : 's'}` });
     return { ok: true, ended: n };
   });
-  control('POST', '/api/control/users/:id/unlock', (a) => {
+  sys('POST', '/api/system/users/:id/unlock', (a) => {
     const u = found(a.params.id);
     const n = unlockUsername(u.username);
     log(a, { kind: 'access', action: 'Unlocked a username', target: u, detail: `${n} lock${n === 1 ? '' : 's'} cleared` });
     return { ok: true, cleared: n };
   });
-  control('POST', '/api/control/users/:id/unlink-sso', (a) => {
+  sys('POST', '/api/system/users/:id/unlink-sso', (a) => {
     const u = found(a.params.id);
     if (!u.ssoSubject) fail('This account is not linked to Keycloak.');
     delete u.ssoSubject;
@@ -389,7 +352,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
   });
 
   // ----- Sessions -----
-  control('GET', '/api/control/sessions', ({ adminToken }) => {
+  sys('GET', '/api/system/sessions', ({ adminToken }) => {
     const mine = sides.admin.idOf(adminToken);
     const users = new Map(data().users.map((u) => [u.id, u]));
     return allSessions()
@@ -399,7 +362,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
       })
       .sort((a, b) => b.lastSeen.localeCompare(a.lastSeen));
   });
-  control('DELETE', '/api/control/sessions/:id', (a) => {
+  sys('DELETE', '/api/system/sessions/:id', (a) => {
     const s = allSessions().find((x) => x.id === a.params.id) || fail('That session has already ended.', 404);
     if (s.side === 'admin' && s.id === sides.admin.idOf(a.adminToken)) fail('That is this session: sign out instead.');
     sides[s.side].destroyById(s.id);
@@ -408,7 +371,7 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     return { ok: true };
   });
   // Everyone else signs in again: after a suspected break-in, or before maintenance.
-  control('POST', '/api/control/sessions/end-others', (a) => {
+  sys('POST', '/api/system/sessions/end-others', (a) => {
     const mine = sides.admin.idOf(a.adminToken);
     let n = 0;
     for (const s of allSessions()) if (!(s.side === 'admin' && s.id === mine)) (sides[s.side].destroyById(s.id), n++);
@@ -417,8 +380,8 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
   });
 
   // ----- Locked sign-ins -----
-  control('GET', '/api/control/locks', () => locks().sort((a, b) => b.until.localeCompare(a.until)));
-  control('POST', '/api/control/locks/clear', (a) => {
+  sys('GET', '/api/system/locks', () => locks().sort((a, b) => b.until.localeCompare(a.until)));
+  sys('POST', '/api/system/locks/clear', (a) => {
     const key = String(a.body.key || '');
     const l = locks().find((x) => x.key === key) || fail('That lock has already opened.', 404);
     throttle.reset(key);
@@ -427,27 +390,9 @@ export function registerControlRoutes(route, ctx, { sides, throttle, limitsOff =
     return { ok: true };
   });
 
-  // ----- Access map: account types × systems, Learn modules and permissions -----
-  control('GET', '/api/control/access', () => {
-    const counts = {};
-    for (const u of data().users) if (u.status === 'active') counts[u.role] = (counts[u.role] || 0) + 1;
-    const systems = SYSTEMS.map((s) => ({ id: s.id, name: s.name, product: s.product, builtIn: Boolean(s.builtIn), status: s.builtIn ? 'live' : data().settings.systems[s.id]?.status || 'soon' }));
-    return {
-      systems,
-      modules: MODULES.map((m) => ({ id: m.id, label: m.label })),
-      roles: Object.keys(ROLES).map((r) => ({
-        id: r, label: roleLabel(r), description: ROLES[r].description, side: ROLES[r].side, sideLabel: sideLabel(ROLES[r].side), accounts: counts[r] || 0,
-        systems: SYSTEMS.filter((s) => s.audience.includes(r)).map((s) => s.id),
-        modules: MODULE_ROLES.includes(r) ? MODULES.filter((m) => moduleOn(data().modules, m.id, r)).map((m) => m.id) : null,
-        permissions: ROLES[r].permissions.includes('*') ? null : permissionsOf(r).length,
-        changed: Boolean(data().roleOverrides?.[r]),
-        ownAccess: data().users.filter((u) => u.role === r && (u.access?.add?.length || u.access?.remove?.length)).length,
-      })),
-    };
-  });
 
   // ----- Audit trail -----
-  control('GET', '/api/control/audit', (a) => {
+  sys('GET', '/api/system/audit', (a) => {
     const { query } = a;
     const f = { q: query.q, source: query.source, kind: query.kind, system: query.system, outcome: query.outcome, userId: query.userId, from: query.from, to: query.to };
     const list = filterTrail(everything(), f);

@@ -129,7 +129,7 @@ Then, in the AWS console, require **IMDSv2** on the server, so that a request tr
 
 ## Single sign-on with Keycloak
 
-The simplest way needs no console: **ATLAS Control → Single sign-on → Set up for me** (see the README, *Single sign-on*). ATLAS creates its client in Keycloak and keeps the client secret in `/opt/ltdc-lms/data/oidc-client.secret`, readable by ATLAS only. Like the password key, it is not in the nightly copies or downloaded backups, but it is in the daily disk snapshots.
+The simplest way needs no console: **Admin panel → System → Single sign-on → Set up for me** (see the README, *Single sign-on*). ATLAS creates its client in Keycloak and keeps the client secret in `/opt/ltdc-lms/data/oidc-client.secret`, readable by ATLAS only. Like the password key, it is not in the nightly copies or downloaded backups, but it is in the daily disk snapshots.
 
 To do it by hand instead, put the Keycloak client's secret in the app's settings file, then restart. From a console on the server:
 
@@ -143,7 +143,7 @@ Add a line `OIDC_CLIENT_SECRET=` followed by the secret from Keycloak (Clients �
 sudo systemctl restart ltdc-lms
 ```
 
-Then finish in *ATLAS Control → Single sign-on*. The server needs to reach Keycloak over HTTPS; if Keycloak is only on the school's network, the server must be able to reach it there.
+Then finish in *Admin panel → System → Single sign-on*. The server needs to reach Keycloak over HTTPS; if Keycloak is only on the school's network, the server must be able to reach it there.
 
 ## Backups and restoring
 

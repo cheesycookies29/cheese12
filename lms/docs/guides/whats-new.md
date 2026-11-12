@@ -9,13 +9,19 @@ order: 2
 
 ## November 2026
 
+### Users & Access and the Audit log, as in CORE
+- **ATLAS Control is gone.** Its pages are now in a **System** group at the bottom of the sidebar, as in CORE, for administrators only, in whichever system is open: the Admin panel, People, Academic and Finance. See [the administrator's guide](admin#find-an-account-change-it-reset-its-password-or-disable-it).
+- **Users & Access** is one page, as in CORE: every account with its type, linked employee, status and last sign-in, and **Edit**, **Access**, **Reset password**, **Unlock**, **Sign out**, **Audit log** and **Delete** on each row; **+ Add user** for staff accounts of any type; and **Account types**, what each type can do in each system. It replaces **Admins, registrars & deans**.
+- **Audit log** opens on the last 30 days, with **Export CSV** and the check that the log is intact.
+- **Roles & permissions**, **Sign-in and passwords** and **Single sign-on** are back in the Admin panel, under **System**.
+
 ### ATLAS Control: access as in CORE
 - **Own access:** in Control, open an account and choose **Change access** to give that one person a permission more, or take one away, without changing their account type. See [the administrator's guide](admin#give-one-account-more-or-less-access).
 - **Audit trail:** the log is now kept as CORE keeps it: in its own file, every entry chained to the one before. The page says **Intact.** when nothing was changed, removed or reordered. Restoring a backup no longer touches it. Changes to accounts, access and settings show each field before and after.
 - **Accounts:** link a staff account to its employee record under **Edit**, and **Delete** an account that has no records (others are disabled, so the records keep who made them).
 
 ### ATLAS Control: the administrators' control panel
-- **ATLAS Control** is a new system for administrators only: a **Control** tile on their ATLAS home page, and **ATLAS Control** in the Admin panel's sidebar. Nobody else sees it or can open it. See [the administrator's guide](admin#open-atlas-control).
+- **ATLAS Control** is a new system for administrators only: a **Control** tile on their ATLAS home page, and **ATLAS Control** in the Admin panel's sidebar. Nobody else sees it or can open it. See [the administrator's guide](admin#find-an-account-change-it-reset-its-password-or-disable-it).
 - **Accounts:** every account in every system in one list, with search and filters. An account's page shows what it can open, where it is signed in and its trail, and has its actions: reset the password, end its sessions, unlock it, change its type or campuses, disable it, unlink it from Keycloak. **New staff account** makes accounts of any staff type.
 - **Sessions** shows everyone signed in now, with the browser and network address; end one session or everyone else's. **Locked sign-ins** lists usernames locked after wrong passwords, and unlocks them.
 - **Audit trail:** sign-ins and failed sign-ins with the network address, every change by staff in every system, refused requests, and the Settings, Finance and Academic logs in one list. Filter it and **Download CSV**. Passwords are never recorded.

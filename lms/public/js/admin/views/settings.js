@@ -60,7 +60,7 @@ export async function settingsView(el) {
         <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ATLAS home page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
       </section>
       <section class="card" id="security"><h2>Sign-in and passwords</h2>
-        <p class="muted">Password rules, lock-out, idle sign-out and rate limits apply to every system, so they are set in <strong>ATLAS Control</strong>, which only administrators open.${ctx.user.role === 'admin' ? html` <a href="/control/#/sign-in">Open Sign-in and passwords in Control</a>.` : ''}</p>
+        <p class="muted">Password rules, lock-out, idle sign-out and rate limits apply to every system, so administrators set them under <strong>System → Sign-in and passwords</strong>.${ctx.user.role === 'admin' ? html` <a href="#/sign-in">Open Sign-in and passwords</a>.` : ''}</p>
       </section>
       <section class="card" id="learn-rules"><h2>Uploads, quizzes and parent alerts</h2><div class="grid">
         <label class="field"><span>Largest upload (MB)</span><input type="number" name="maxUploadMb" min="1" max="15" value="${s.learn.maxUploadMb}" ${dis} /><span class="hint">Class resources, handed-in work and attachments, 1 to 15.</span></label>

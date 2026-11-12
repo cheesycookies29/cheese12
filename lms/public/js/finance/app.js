@@ -3,6 +3,7 @@
 // government money payments). Modules: Card file, Accounts, Budget, Inventory, Property,
 // Disbursement, Revenue and the Control panel; self-service for employees and students.
 import { startApp, authScreen } from '../shell.js';
+import { systemRoutes, systemNav } from '../system/index.js';
 import { html } from '../ui.js';
 import { api } from '../api.js';
 import { fin, can, isStaff, isStudent, improveAccess } from './state.js';
@@ -71,6 +72,7 @@ const routes = [
   ['/me', myView],
   ['/me/requests', myRequestsView, employee],
   ['/print/:kind/:id', printView],
+  ...systemRoutes(),
 ];
 
 function nav() {
@@ -124,6 +126,7 @@ function nav() {
     { href: '/audit', label: 'Audit trail', icon: 'shield' },
     { heading: 'Me' },
     { href: '/me', label: 'My accountabilities', icon: 'user', exact: true },
+    ...systemNav(),
   ].filter(Boolean);
 }
 

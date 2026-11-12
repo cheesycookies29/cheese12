@@ -1,4 +1,4 @@
-// The audit trail (ATLAS Control → Audit trail): who signed in and who failed to, from where; who
+// The audit log (System → Audit log, in every system's sidebar for administrators): who signed in and who failed to, from where; who
 // changed what in every system, field by field where it can say; requests that were refused.
 // Passwords, tokens and what was typed into forms are never recorded.
 //
@@ -18,14 +18,14 @@ import { ROLES, roleLabel } from '../shared/roles.js';
 export const AUDIT_FILE = 'audit-log.jsonl';
 const hashOf = (prev, entry) => createHash('sha256').update(`${prev}\n${JSON.stringify(entry)}`).digest('hex');
 
-export const SYSTEM_LABELS = { home: 'ATLAS home', learn: 'Learn', admin: 'Admin panel', academic: 'Academic', people: 'People', finance: 'Finance', control: 'Control', help: 'Help' };
+export const SYSTEM_LABELS = { home: 'ATLAS home', learn: 'Learn', admin: 'Admin panel', academic: 'Academic', people: 'People', finance: 'Finance', control: 'Users & Access', system: 'Users & Access', help: 'Help' };
 export const KIND_LABELS = { signin: 'Sign-in', signout: 'Sign-out', password: 'Password', account: 'Account', access: 'Access', session: 'Session', settings: 'Settings', change: 'Change', refused: 'Refused', data: 'Data' };
 export const SOURCE_LABELS = { trail: 'Access & changes', settings: 'Settings history', finance: 'Finance audit', academic: 'Academic log' };
 
 // Which system an API address belongs to.
 export function systemOf(pathname) {
   const p = String(pathname || '');
-  if (p.startsWith('/api/control/')) return 'control';
+  if (p.startsWith('/api/system/')) return 'system';
   if (p.startsWith('/api/admin/')) return 'admin';
   if (p.startsWith('/api/hris/')) return 'people';
   if (p.startsWith('/api/finance/')) return 'finance';

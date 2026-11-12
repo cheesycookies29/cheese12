@@ -18,7 +18,7 @@ export async function rolesView(el) {
   const draw = () => {
     mount(el, html`
       ${pageHead('Roles & permissions', 'What each kind of account may do in each system. Changes apply at the next page load for everyone with that kind of account.')}
-      <div class="notice info">${icon('shield')}<p>Administrators always have every permission. Managing administrator accounts and replacing data stay with administrators, and Admin-panel permissions go only to accounts that use the Admin panel. Every change is recorded in the <a href="#/audit?source=settings&q=Roles">audit trail</a>, with the permissions before and after.</p></div>
+      <div class="notice info">${icon('shield')}<p>Administrators always have every permission. Managing administrator accounts and replacing data stay with administrators, and Admin-panel permissions go only to accounts that use the Admin panel. Every change is recorded in the <a href="#/system/audit?source=settings&q=Roles">Audit log</a>, with the permissions before and after.</p></div>
       <section class="card"><h2>Account types</h2>
         <div class="table-scroll"><table class="table compact">
           <thead><tr><th>Account type</th><th>Accounts</th><th>Permissions</th><th></th></tr></thead>

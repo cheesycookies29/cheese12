@@ -31,7 +31,7 @@ const fail = (msg, status = 400) => {
 };
 export const SSO_STATE_COOKIE = 'ltdc_sso_state';
 export const DEFAULT_SSO = { enabled: false, issuer: '', clientId: '', label: 'Sign in with Keycloak', matchBy: 'email', allowPasswords: true };
-const NEXT_OK = ['/', '/lms/', '/admin', '/control/', '/hris/', '/academic/'];
+const NEXT_OK = ['/', '/lms/', '/admin', '/hris/', '/academic/'];
 // Account types a Keycloak username alone may link (the first time); every other type also needs a verified, matching email.
 const USERNAME_ALONE = ['student', 'guardian', 'staff'];
 const b64url = (buf) => Buffer.from(buf).toString('base64url');

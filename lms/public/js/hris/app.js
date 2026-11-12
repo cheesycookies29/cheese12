@@ -2,6 +2,7 @@
 // HR screens (employees, attendance, leave, payroll) for HR managers, payroll officers
 // and administrators. Screens and rules come from the Lancaster ERP's HR & Payroll module.
 import { startApp, authScreen } from '../shell.js';
+import { systemRoutes, systemNav } from '../system/index.js';
 import { html } from '../ui.js';
 import { hr, can, isEmployee } from './state.js';
 import { api } from '../api.js';
@@ -40,6 +41,7 @@ const routes = [
   ['/me/payslips/:runId', mePayslipView, emp],
   ['/me/profile', meProfileView, emp],
   ['/not-linked', notLinkedView, () => !isEmployee()],
+  ...systemRoutes(),
 ];
 
 function nav() {
@@ -63,6 +65,7 @@ function nav() {
     (can('payroll.config') || can('hris.settings')) && { heading: 'Setup' },
     can('payroll.config') && { href: '/payroll-setup', label: 'Payroll setup', icon: 'settings' },
     can('hris.settings') && { href: '/settings', label: 'HR settings', icon: 'building' },
+    ...systemNav(),
   ].filter(Boolean);
 }
 

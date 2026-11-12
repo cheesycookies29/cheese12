@@ -34,7 +34,7 @@ import { registerNewsRoutes } from './news.js';
 import { registerGuideRoutes } from './guides.js';
 import { readFileSync } from 'node:fs';
 import { createAudit, systemOf, describeRoute, sideLabel, isStaff, addAuditDemo, removeAuditDemo } from './audit.js';
-import { registerControlRoutes } from './control.js';
+import { registerSystemRoutes } from './system.js';
 
 // The version of this ATLAS (package.json), shown with the guides.
 const APP_VERSION = (() => {
@@ -300,7 +300,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const cfg = s.builtIn ? { status: 'live', url: '' } : db.data.settings.systems[s.id] || { status: 'soon', url: '' };
       return { ...s, status: cfg.status, url: s.builtIn ? (s.id === 'lms' && side === 'admin' ? '/admin' : s.path) : cfg.url, external: !s.builtIn };
     })
-    .filter((s) => s.status !== 'hidden' && (user ? s.audience.includes(user.role) : !s.signedInOnly))
+    .filter((s) => s.status !== 'hidden' && (!user || s.audience.includes(user.role)))
     .map(({ audience, ...s }) => (user ? s : { ...s, url: '' }));
   const AUTH_BASE = { portal: '/api/auth', admin: '/api/admin/auth', hris: '/api/hris/auth' };
   route('GET', '/api/hub/status', 'public', ({ portalUser, adminUser, hrisUser }) => {
@@ -492,23 +492,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const classroom = registerClassroomRoutes(route, ctx);
   registerGuardianRoutes(route, ctx, classroom);
   registerCalendarRoutes(route, ctx, classroom);
-  // ----- ATLAS Control (/control/): administrators only, with their admin-panel session -----
-  route('GET', '/api/control/auth/status', 'public', ({ adminUser, portalUser, hrisUser }) => {
-    const someone = adminUser || portalUser || hrisUser;
-    const ok = adminUser?.role === 'admin';
-    return {
-      sso: sso.publicInfo(),
-      setupRequired: setupRequired(),
-      branding: branding(),
-      user: ok ? publicUser(adminUser) : null,
-      deniedUser: someone && !ok ? { name: someone.name, role: someone.role } : null,
-      ...campusInfo(ok ? adminUser : null),
-      roleOverrides: ok ? db.data.roleOverrides || {} : undefined,
-    };
-  });
-  route('POST', '/api/control/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password', audit: false });
-  route('POST', '/api/control/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body), { audit: false });
-  registerControlRoutes(route, ctx, { sides, throttle, limitsOff: rateLimits === 'off' });
+  // ----- System → Users & Access and Audit log (administrators, in any system's sidebar) -----
+  registerSystemRoutes(route, ctx, { sides, throttle });
 
   // Call a route as a user, inside the server (demo data is made through the same rules as real work).
   ctx.invoke = (user, method, path, body = {}) => {

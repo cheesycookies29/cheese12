@@ -112,7 +112,7 @@ function sendFile(req, res, file) {
 }
 
 function serveStatic(req, url, res) {
-  // The single-page apps: the ATLAS home page (/), ATLAS Learn (/lms/), its admin panel (/admin), ATLAS People (/hris/), ATLAS Academic (/academic/), ATLAS Finance (/finance/), ATLAS Control (/control/) and Help (/help/).
+  // The single-page apps: the ATLAS home page (/), ATLAS Learn (/lms/), its admin panel (/admin), ATLAS People (/hris/), ATLAS Academic (/academic/), ATLAS Finance (/finance/) and Help (/help/).
   if (url.pathname === '/admin' || url.pathname === '/admin/') return sendFile(req, res, path.join(PUBLIC, 'admin', 'index.html'));
   if (url.pathname === '/lms') return send(res, 302, '', 'text/plain', { Location: '/lms/' });
   if (url.pathname === '/lms/') return sendFile(req, res, path.join(PUBLIC, 'lms', 'index.html'));
@@ -122,8 +122,8 @@ function serveStatic(req, url, res) {
   if (url.pathname === '/academic/') return sendFile(req, res, path.join(PUBLIC, 'academic', 'index.html'));
   if (url.pathname === '/finance') return send(res, 302, '', 'text/plain', { Location: '/finance/' });
   if (url.pathname === '/finance/') return sendFile(req, res, path.join(PUBLIC, 'finance', 'index.html'));
-  if (url.pathname === '/control') return send(res, 302, '', 'text/plain', { Location: '/control/' });
-  if (url.pathname === '/control/') return sendFile(req, res, path.join(PUBLIC, 'control', 'index.html'));
+  // ATLAS Control was folded into System → Users & Access (in every system's sidebar).
+  if (url.pathname === '/control' || url.pathname === '/control/') return send(res, 302, '', 'text/plain', { Location: '/admin#/system/users' });
   if (url.pathname === '/help') return send(res, 302, '', 'text/plain', { Location: '/help/' });
   if (url.pathname === '/help/') return sendFile(req, res, path.join(PUBLIC, 'help', 'index.html'));
   if (/^\/verify\/[A-Za-z0-9-]{4,40}$/.test(url.pathname)) return sendFile(req, res, path.join(PUBLIC, 'verify.html')); // a document's verification page

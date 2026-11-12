@@ -3,6 +3,7 @@
 // teachers submit their grade sheets; students see their evaluation, grades and registration,
 // and request documents. Benchmarked against the CBSUA UIS (docs/ACADEMIC-PLAN.md).
 import { ctx, startApp, authScreen } from '../shell.js';
+import { systemRoutes, systemNav } from '../system/index.js';
 import { html } from '../ui.js';
 import { api } from '../api.js';
 import { ac, can, isStudent, isTeacher, isStaff } from './state.js';
@@ -36,6 +37,7 @@ const routes = [
   ['/me/grades', myGradesView, student],
   ['/me/registration', myRegistrationView, student],
   ['/me/requests', myRequestsView, student],
+  ...systemRoutes(),
 ];
 
 function nav() {
@@ -63,6 +65,7 @@ function nav() {
     { href: '/reports', label: 'Reports', icon: 'download' },
     (can('academic.settings') || can('academic.curricula')) && { heading: 'Setup' },
     (can('academic.settings') || can('academic.curricula')) && { href: '/settings', label: 'Settings', icon: 'settings' },
+    ...systemNav(),
   ].filter(Boolean);
 }
 

@@ -52,12 +52,6 @@
   "wait": 1200
  },
  {
-  "file": "admin-staff.jpg",
-  "user": "admin",
-  "url": "/admin#/staff",
-  "wait": 1000
- },
- {
   "file": "admin-campuses.jpg",
   "user": "admin",
   "url": "/admin#/campuses",
@@ -118,7 +112,7 @@
  {
   "file": "admin-roles.jpg",
   "user": "admin",
-  "url": "/control/#/roles",
+  "url": "/admin#/roles",
   "wait": 1200,
   "scroll": ".roles-group:last-of-type",
   "click": [
@@ -134,28 +128,19 @@
  {
   "file": "admin-sso.jpg",
   "user": "admin",
-  "url": "/control/#/sso",
+  "url": "/admin#/sso",
   "wait": 1000
  },
  {
-  "file": "control-overview.jpg",
+  "file": "system-users.jpg",
   "user": "admin",
-  "url": "/control/#/overview",
+  "url": "/admin#/system/users",
   "wait": 1200
  },
  {
-  "file": "control-account.jpg",
+  "file": "system-audit.jpg",
   "user": "admin",
-  "url": "/control/#/accounts?q=registrar.demo",
-  "wait": 1000,
-  "click": [
-   "tbody tr"
-  ]
- },
- {
-  "file": "control-audit.jpg",
-  "user": "admin",
-  "url": "/control/#/audit?kind=signin&outcome=failed",
+  "url": "/admin#/system/audit?kind=signin&outcome=failed",
   "wait": 1200
  },
  {
