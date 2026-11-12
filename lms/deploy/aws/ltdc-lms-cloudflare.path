@@ -1,0 +1,10 @@
+# Starts ltdc-lms-cloudflare.service when ATLAS writes a Cloudflare request (Admin panel).
+[Unit]
+Description=Lancaster ATLAS: watch for a Cloudflare request from the Admin panel
+
+[Path]
+PathChanged=/opt/ltdc-lms/data/cloudflare.json
+Unit=ltdc-lms-cloudflare.service
+
+[Install]
+WantedBy=paths.target

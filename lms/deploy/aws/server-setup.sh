@@ -5,6 +5,9 @@
 #   Visitors ──HTTPS──▶ Caddy (80/443, automatic certificate) ──▶ LMS (127.0.0.1:3100)
 #                                                                   └── /opt/ltdc-lms/data
 #
+# Cloudflare (optional, from the Admin panel) is applied by /usr/local/sbin/ltdc-lms-cloudflare,
+# installed here by install-cloudflare.sh; see EC2.md, "Cloudflare".
+#
 # Settings come from /etc/ltdc-lms/server.env (written by the user data):
 #   LMS_DOMAIN, DUCKDNS_SUBDOMAIN, DUCKDNS_TOKEN, SETUP_CODE, LMS_REPO, LMS_BRANCH, LMS_AUTO_UPDATE
 set -euo pipefail
@@ -20,7 +23,7 @@ timedatectl set-timezone Asia/Manila
 
 echo "-- Packages: Caddy and tools from Ubuntu; Node.js 22 LTS from NodeSource (Ubuntu's Node 18 is past its end of life)"
 apt-get update -q
-apt-get install -y -q caddy rsync curl ca-certificates iproute2 unattended-upgrades
+apt-get install -y -q caddy rsync curl ca-certificates iproute2 unattended-upgrades nftables
 bash "$HERE/install-node.sh"
 
 echo "-- Security updates install themselves"
@@ -47,6 +50,9 @@ chown root:ltdc-lms /etc/ltdc-lms/app.env
 chmod 640 /etc/ltdc-lms/app.env
 install -m 644 "$HERE/ltdc-lms.service" /etc/systemd/system/ltdc-lms.service
 
+echo "-- Cloudflare helper (Admin panel: Set up Cloudflare for me)"
+bash "$HERE/install-cloudflare.sh"
+
 echo "-- DuckDNS: point $LMS_DOMAIN at this server now and every 5 minutes"
 install -m 750 "$HERE/duckdns-update.sh" /usr/local/sbin/ltdc-lms-duckdns
 echo "*/5 * * * * root /usr/local/sbin/ltdc-lms-duckdns >/dev/null 2>&1" > /etc/cron.d/ltdc-lms-duckdns
@@ -62,7 +68,9 @@ done
 echo "Public IP now: ${NOW:-unknown}"
 
 echo "-- Caddy: HTTPS certificate for $LMS_DOMAIN and forwarding to the app"
-sed "s/__DOMAIN__/$LMS_DOMAIN/" "$HERE/Caddyfile" > /etc/caddy/Caddyfile
+# The same plain Caddyfile the Cloudflare helper goes back to when Cloudflare is switched off.
+/usr/local/sbin/ltdc-lms-cloudflare --print-plain-caddyfile > /etc/caddy/Caddyfile.new
+mv -f /etc/caddy/Caddyfile.new /etc/caddy/Caddyfile
 systemctl enable caddy
 systemctl restart caddy
 
@@ -85,5 +93,9 @@ if [ "${LMS_AUTO_UPDATE:-Yes}" = "Yes" ]; then
 else
   systemctl disable --now ltdc-lms-update.timer 2>/dev/null || true
   echo "Automatic updates are off. Install one by hand: sudo /usr/local/sbin/ltdc-lms-update"
+fi
+if [ -f "$APP/data/cloudflare.json" ]; then
+  echo "-- Cloudflare was set up in the Admin panel: applying it again"
+  /usr/local/sbin/ltdc-lms-cloudflare --force || echo "The Cloudflare set-up needs attention: see Admin panel → Cloudflare, or journalctl -u ltdc-lms-cloudflare."
 fi
 echo "Lancaster ATLAS is set up: https://$LMS_DOMAIN"

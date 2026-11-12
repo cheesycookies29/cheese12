@@ -10,6 +10,10 @@
 #      replaced with the current ones. The updater is deliberately not replaced by ordinary updates: it runs as
 #      root, so a new one is installed only when someone runs this script.
 #   3. The data folder is closed to other accounts on the server.
+#   4. The Cloudflare helper (/usr/local/sbin/ltdc-lms-cloudflare, for "Set up Cloudflare for me" in
+#      the Admin panel), its list of Cloudflare's addresses, its systemd units and nftables. Root
+#      code too, so it is installed only here. If Cloudflare is already set up, it is applied again
+#      at the end (nothing is switched off).
 set -euo pipefail
 [ "$(id -u)" = 0 ] || { echo "Run as root: sudo bash $0"; exit 1; }
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -31,16 +35,24 @@ chown -R ltdc-lms:ltdc-lms "$APP/data"
 chmod 750 "$APP/data"
 [ -f "$APP/data/password.key" ] && chmod 600 "$APP/data/password.key"
 
+echo "-- 4. Cloudflare helper"
+bash "$HERE/install-cloudflare.sh"
+
 echo "-- Restarting ATLAS on the new Node.js"
 systemctl restart ltdc-lms
+UP=no
 for _ in $(seq 1 20); do
-  if curl -fs -o /dev/null http://127.0.0.1:3100/healthz; then
-    echo "Lancaster ATLAS is running on Node.js $(node --version)."
-    echo "One step is left, in the AWS console: require IMDSv2 on the instance (see deploy/aws/EC2.md, \"Bringing an older server up to date\")."
-    exit 0
-  fi
+  if curl -fs -o /dev/null http://127.0.0.1:3100/healthz; then UP=yes; break; fi
   sleep 1
 done
-echo "ATLAS did not answer after the restart. Recent log:"
-journalctl -u ltdc-lms -n 30 --no-pager || true
-exit 1
+if [ "$UP" != yes ]; then
+  echo "ATLAS did not answer after the restart. Recent log:"
+  journalctl -u ltdc-lms -n 30 --no-pager || true
+  exit 1
+fi
+echo "Lancaster ATLAS is running on Node.js $(node --version)."
+if [ -f "$APP/data/cloudflare.json" ]; then
+  echo "-- Cloudflare is set up in the Admin panel: applying it again with the new helper"
+  /usr/local/sbin/ltdc-lms-cloudflare --force || echo "The Cloudflare set-up needs attention: see Admin panel → Cloudflare, or journalctl -u ltdc-lms-cloudflare."
+fi
+echo "One step is left, in the AWS console: require IMDSv2 on the instance (see deploy/aws/EC2.md, \"Bringing an older server up to date\")."
