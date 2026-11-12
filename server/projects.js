@@ -2,12 +2,16 @@
 // a board, comments and time logs. Who sees a project: anyone with pm.view (every project), and
 // the project's own members (manager, member or viewer), whatever their account type. Everyone
 // else gets "not found", for the project and for everything in it.
-// Data lives in db.data.pm* collections; the Projects setup (default statuses, project types and
-// the code counter) in db.data.pm. A project marked as a template (isTemplate) is left out of the
-// portfolio, My work, Workload and health; "+ New project" can start from it.
+// Data lives in db.data.pm* collections; the Projects setup (default statuses, project types, the
+// wording of the effort sizes and the code counter) in db.data.pm. A project marked as a template
+// (isTemplate) is left out of the portfolio, My work, Workload and health; "+ New project" can
+// start from it.
 // Tasks have watchers (who hears of comments and of the task being done or cancelled), files
 // (tasks and milestones, through server/attachments.js) and can be changed in bulk or imported from
 // a CSV file. A daily digest goes by email through the Service Desk's outgoing mail, when set up.
+// Effort is a task's size (XS to XL). Hours are only kept on projects that track time
+// (timeTracking, off unless a manager turns it on): the Time tab, logging on tasks, the budget and
+// the weekly Timesheet, which is separate from attendance (the DTR is only shown next to it).
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
@@ -18,13 +22,14 @@ import { digestEmail } from './pm-digest.js';
 import { parseCsv } from '../shared/csv.js';
 import { can, userCan } from '../shared/roles.js';
 import { isDate } from './crm.js';
-import { computeEntry, scheduleFor, hoursPerDay } from '../shared/calc.js';
+import { computeEntry, scheduleFor } from '../shared/calc.js';
 import { TICKET_STATUS, UNRESOLVED_TICKET } from '../shared/helpdesk.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, DEFAULT_STATUSES, DEFAULT_TYPES,
   workCalendar, statusOf, categoryOf, isOpenCategory, firstStatus, statusSetProblem, taskFlags, milestoneOfTask, leafTasks,
   projectStatus, placeInColumn, byRank, makesCycle, myWorkGroup, workload, daysBetween, addDays,
-  validHours, RANK_STEP, weekStart, remainingOf, validRemaining, shiftWorkDays, mentionedUsernames, cleanViewQuery, VIEW_TABS,
+  validHours, RANK_STEP, weekStart, shiftWorkDays, mentionedUsernames, cleanViewQuery, VIEW_TABS, MAX_DAY_HOURS,
+  isSize, sizeName, sizeWeight, sizeFromHours, cleanSizeNotes, DEFAULT_SIZE_NOTES, SIZE_KEYS,
   NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup, addWorkDays, DIGEST_DEFAULTS, validDigestTime, digestDue, digestFor, billingAmount, billingForecast,
   IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan,
 } from '../shared/projects.js';
@@ -37,7 +42,8 @@ export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComme
 // digest: the company's daily digest (Projects setup), the address links in it open (origin, from
 // where the setup was saved) and, per person, the last day one was sent (sent: { userId: date }).
 export const emptyDigest = () => ({ ...DIGEST_DEFAULTS, origin: null, sent: {}, lastRun: null });
-export const emptyPm = () => ({ statuses: structuredClone(DEFAULT_STATUSES), types: [...DEFAULT_TYPES], seq: { project: 0 }, digest: emptyDigest() });
+// sizes: the company's wording of what each effort size means (the weights never change).
+export const emptyPm = () => ({ statuses: structuredClone(DEFAULT_STATUSES), types: [...DEFAULT_TYPES], sizes: { ...DEFAULT_SIZE_NOTES }, seq: { project: 0 }, digest: emptyDigest() });
 
 // The Projects setup survives demo data and "erase all data", like the sales setup: a setup
 // someone saved (`customized`) comes with a backup; otherwise the current one is kept, with the
@@ -75,6 +81,7 @@ export function migratePm(db) {
     // A setup of the wrong shape (a hand-edited backup) falls back to the defaults, key by key.
     if (!Array.isArray(pm.statuses) || statusSetProblem(pm.statuses)) (pm.statuses = structuredClone(DEFAULT_STATUSES)), (changed = true);
     if (!Array.isArray(pm.types) || !pm.types.length) (pm.types = [...DEFAULT_TYPES]), (changed = true);
+    if (!cleanSizeNotes(pm.sizes).notes) (pm.sizes = { ...DEFAULT_SIZE_NOTES }), (changed = true);
     if (!pm.seq || typeof pm.seq !== 'object' || !Number.isInteger(pm.seq.project) || pm.seq.project < 0) (pm.seq = { project: 0 }), (changed = true);
     const g = pm.digest;
     if (!g || typeof g !== 'object' || Array.isArray(g)) (pm.digest = emptyDigest()), (changed = true);
@@ -103,7 +110,55 @@ export function migratePm(db) {
     t.watchers = [...new Set([t.createdBy, t.assigneeId].filter((x) => typeof x === 'string'))];
     changed = true;
   }
+  if (migrateEffort(db.data)) changed = true;
   return changed;
+}
+
+// Sizes instead of hours (0.17), once: each task's (and template task's) hour estimate becomes a
+// size (sizeFromHours), noted in its history; estimates and hours left go. A project with time
+// logged on it tracks time from now on, so its history stays visible, and keeps its budget; the
+// others do not track time. Saved List views that sorted by the estimate sort by size, and those
+// that sorted by the hours left lose that sort. Running it again changes nothing.
+export function migrateEffort(data) {
+  let changed = false;
+  const at = new Date().toISOString();
+  for (const t of data.pmTasks) {
+    if (Object.hasOwn(t, 'estimateHours') || Object.hasOwn(t, 'remainingHours')) {
+      if (!isSize(t.size)) {
+        t.size = sizeFromHours(t.estimateHours);
+        if (t.size) {
+          (t.history ||= []).push({ at, by: null, field: 'size from the hour estimate', from: `${Number(t.estimateHours)} h`, to: sizeName(t.size) });
+          if (t.history.length > MAX_HISTORY) t.history.splice(0, t.history.length - MAX_HISTORY);
+        }
+      }
+      delete t.estimateHours;
+      delete t.remainingHours;
+      changed = true;
+    }
+    if (t.size !== null && !isSize(t.size)) (t.size = null), (changed = true);
+  }
+  const logged = new Set(data.pmTimeLogs.map((x) => x.projectId));
+  for (const p of data.pmProjects) {
+    if (typeof p.timeTracking !== 'boolean') {
+      p.timeTracking = !p.isTemplate && logged.has(p.id);
+      if (p.timeTracking) (p.history ||= []).push({ at, by: null, field: 'time tracking', from: '', to: 'On: it has logged time' });
+      changed = true;
+    }
+    if (!p.timeTracking && p.budgetHours != null) (p.budgetHours = null), (changed = true);
+  }
+  for (const v of data.pmViews) {
+    const q = cleanViewQuery(v.tab, v.query);
+    if (q !== v.query) (v.query = q), (changed = true);
+  }
+  return changed;
+}
+
+// The weekly Timesheet: for anyone who works (member or manager) on a project that tracks time,
+// and for those who manage one (they see their members' timesheets). Shown in the browser's menu.
+export function timesheetAccess(db, user) {
+  if (!user) return false;
+  const tracked = (db.data.pmProjects || []).filter((p) => p.timeTracking && !p.isTemplate);
+  return tracked.some((p) => p.members.some((m) => m.userId === user.id && m.role !== 'viewer')) || (userCan(user, 'pm.edit') && tracked.length > 0);
 }
 
 // Is this account a member of any project? (The Projects module opens for members.)
@@ -165,8 +220,8 @@ const idOf = (v) => (typeof v === 'string' && v.length <= 64 ? v : '');
 // Only the fields a form may change: anything else in the body is ignored.
 const pickFields = (body, keys) => Object.fromEntries(keys.filter((k) => body && typeof body === 'object' && Object.hasOwn(body, k)).map((k) => [k, body[k]]));
 
-const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'budgetHours', 'accountId', 'dealId', 'contractId'];
-const TASK_FIELDS = ['title', 'description', 'statusId', 'priority', 'assigneeId', 'startDate', 'dueDate', 'estimateHours', 'remainingHours', 'milestoneId', 'parentId', 'blockedBy'];
+const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours', 'accountId', 'dealId', 'contractId'];
+const TASK_FIELDS = ['title', 'description', 'statusId', 'priority', 'assigneeId', 'startDate', 'dueDate', 'size', 'milestoneId', 'parentId', 'blockedBy'];
 const MILESTONE_FIELDS = ['name', 'dueDate', 'deliverable', 'billingPercent', 'submittedAt', 'acceptedAt', 'acceptanceNote'];
 const LEVEL = { read: 1, comment: 2, work: 3, manage: 4 };
 const MAX_HISTORY = 200;
@@ -176,7 +231,8 @@ export const projectFiles = (data, projectId) => [...(data.pmTasks || []), ...(d
 
 const MAX_FILES = 5; // per task or milestone
 const BULK_MAX = 200; // tasks per bulk change
-const BULK_FIELDS = ['statusId', 'assigneeId', 'milestoneId', 'priority'];
+const BULK_FIELDS = ['statusId', 'assigneeId', 'milestoneId', 'priority', 'size'];
+const TIMESHEET_MAX_CELLS = 500; // per save
 
 // files: server/attachments.js; mailer: the Service Desk's outgoing mail (canEmail, smtpOptions,
 // address). sendMail and clock can be replaced by tests.
@@ -262,7 +318,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const { history, ...rest } = p;
     // A template is a pattern, not work: no health.
     return {
-      ...rest, isTemplate: Boolean(p.isTemplate), access: levelOf(p, u), managerName: userName(p.managerId), accountName: accountName(p.accountId),
+      ...rest, isTemplate: Boolean(p.isTemplate), timeTracking: Boolean(p.timeTracking), budgetHours: p.timeTracking ? p.budgetHours ?? null : null, access: levelOf(p, u), managerName: userName(p.managerId), accountName: accountName(p.accountId),
       health: p.isTemplate ? null : s.value, healthReasons: p.isTemplate ? [] : s.reasons, progress: s.progress, openTasks: s.openTasks, overdueTasks: s.overdueTasks, blockedTasks: s.blockedTasks,
       myOpenTasks: tasks.filter((t) => t.assigneeId === u.id && isOpenCategory(categoryOf(p, t))).length,
       nextMilestone: next ? { id: next.id, name: next.name, dueDate: next.dueDate, deliverable: next.deliverable } : null,
@@ -274,11 +330,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const flags = taskFlags(t, p, ctx.byId, ctx.today, ctx.cal);
     const ticket = t.ticketId && d().tickets.find((x) => x.id === t.ticketId);
     const { history, unwatchedBy, ...rest } = t;
-    const logged = ctx.logged.get(t.id) || 0;
     return {
-      ...rest, statusName: s?.name || '', category: flags.category, overdue: flags.overdue, dueSoon: flags.dueSoon, blocked: flags.blocked, blockers: flags.blockers,
-      // Hours: logged on the task, and what is left (remainingHours stays the override, or null).
-      remainingHours: t.remainingHours ?? null, loggedHours: Math.round(logged * 100) / 100, remaining: remainingOf(t, logged, flags.category), remainingOverride: t.remainingHours != null,
+      ...rest, size: isSize(t.size) ? t.size : null, statusName: s?.name || '', category: flags.category, overdue: flags.overdue, dueSoon: flags.dueSoon, blocked: flags.blocked, blockers: flags.blockers,
+      // Hours logged on the task: only on a project that tracks time.
+      ...(ctx.time ? { loggedHours: Math.round((ctx.logged.get(t.id) || 0) * 100) / 100 } : {}),
       assigneeName: userName(t.assigneeId), subtasks: ctx.children.get(t.id) || 0, checklistDone: t.checklist.filter((i) => i.done).length,
       milestoneIdEffective: milestoneOfTask(t, ctx.byId), watchers: watchersOf(t), files: (t.attachments || []).length, attachments: undefined,
       ticket: ticket ? { id: ticket.id, ref: ticket.ref, status: ticket.status, statusName: TICKET_STATUS[ticket.status] || ticket.status } : null,
@@ -288,9 +343,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const tasks = tasksOf(p);
     const children = new Map();
     for (const t of tasks) if (t.parentId) children.set(t.parentId, (children.get(t.parentId) || 0) + 1);
-    return { tasks, byId: new Map(tasks.map((t) => [t.id, t])), children, logged: loggedByTask(p), today: today(), cal: cal() };
+    const time = Boolean(p.timeTracking);
+    return { tasks, byId: new Map(tasks.map((t) => [t.id, t])), children, time, logged: time ? loggedByTask(p) : new Map(), today: today(), cal: cal() };
   }
-  // Hours logged per task of a project.
+  // Hours logged per task of a project (one that tracks time).
   function loggedByTask(p) {
     const m = new Map();
     for (const x of d().pmTimeLogs) if (x.projectId === p.id && x.taskId) m.set(x.taskId, (m.get(x.taskId) || 0) + x.hours);
@@ -392,7 +448,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   route('GET', '/api/pm/meta', 'auth', ({ user: u }) => {
     const managesAny = userCan(u, 'pm.edit') || d().pmProjects.some((p) => p.members.some((m) => m.userId === u.id && m.role === 'manager'));
     return {
-      types: pm().types, statuses: pm().statuses,
+      types: pm().types, statuses: pm().statuses, sizes: pm().sizes,
       can: { view: userCan(u, 'pm.view'), edit: userCan(u, 'pm.edit'), manage: userCan(u, 'pm.manage') },
       // People to add as members or assignees: for those who can add them.
       people: managesAny ? d().users.filter((x) => x.active).map((x) => ({ id: x.id, name: x.name, username: x.username, role: x.role })).sort((a, b) => a.name.localeCompare(b.name)) : [],
@@ -462,9 +518,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     if (endDate && endDate < startDate) throw new HttpError(400, 'The end date is before the start date.');
     const managerId = idOf(b.managerId) || rec.managerId || u.id;
     if (managerId !== rec.managerId && !activeUser(managerId)) throw new HttpError(400, 'Pick the project manager from the list of active accounts.');
+    // Hours only on a project that tracks time: without it, no budget in hours either.
+    const timeTracking = bool(b.timeTracking, 'Track time on this project', Boolean(rec.timeTracking));
     return {
       name, type, description: str(b.description, 8000), status: oneOf(b.status, PROJECT_STATUS, 'Status', rec.status || 'planning'),
-      startDate, endDate, managerId, budgetHours: optNum(b.budgetHours, 'Budget (hours)', 0, 1000000), ...crmLinks(b, u, rec),
+      startDate, endDate, managerId, timeTracking, budgetHours: timeTracking ? optNum(b.budgetHours, 'Budget (hours)', 0, 1000000) : null, ...crmLinks(b, u, rec),
     };
   }
   // The manager is always a member with the manager role.
@@ -498,7 +556,6 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const s = projectStatus(p, milestones, ctx.tasks, ctx.today, ctx.cal);
     const contract = p.contractId && d().crmContracts.find((c) => c.id === p.contractId);
     const leaves = leafTasks(ctx.tasks, p);
-    const logs = d().pmTimeLogs.filter((x) => x.projectId === p.id);
     const out = (t) => taskOut(t, p, ctx);
     // Recent changes: task history and comments, newest first.
     const activity = [
@@ -514,11 +571,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       deal: userCan(u, 'crm.view') || p.dealId ? crmRef('crmDeals', p.dealId) : null,
       contract: crmRef('crmContracts', p.contractId),
       milestones: milestones.map((m) => ({ ...m, ...s.milestones.find((x) => x.id === m.id), afterContract: Boolean(m.deliverable && contract?.endDate && m.dueDate > contract.endDate), attachments: (m.attachments || []).map((a) => fileOut(a, p, u)) })),
-      // Remaining: what is left of the open leaf tasks (estimate less logged, or the hours left set on a task).
-      hours: {
-        estimate: Math.round(leaves.reduce((n, t) => n + (Number(t.estimateHours) || 0), 0) * 100) / 100, logged: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100,
-        remaining: Math.round(leaves.reduce((n, t) => n + (remainingOf(t, ctx.logged.get(t.id) || 0, categoryOf(p, t)) || 0), 0) * 100) / 100,
-      },
+      // Effort: the leaf tasks' sizes (points: their weights), and how many have one.
+      effort: { tasks: leaves.length, sized: leaves.filter((t) => isSize(t.size)).length, points: leaves.reduce((n, t) => n + sizeWeight(t.size), 0) },
+      // Time: only on a project that tracks time.
+      time: ctx.time ? { logged: Math.round(d().pmTimeLogs.filter((x) => x.projectId === p.id).reduce((n, x) => n + x.hours, 0) * 100) / 100, budget: p.budgetHours ?? null } : null,
       counts: { tasks: ctx.tasks.length, open: s.openTasks, overdue: s.overdueTasks, blocked: s.blockedTasks, dueSoon: ctx.tasks.filter((t) => taskFlags(t, p, ctx.byId, ctx.today, ctx.cal).dueSoon).length },
       overdue: ctx.tasks.filter((t) => taskFlags(t, p, ctx.byId, ctx.today, ctx.cal).overdue).map(out).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
       upcoming: ctx.tasks.filter((t) => isOpenCategory(categoryOf(p, t)) && t.dueDate && t.dueDate >= ctx.today && t.dueDate <= horizon).map(out).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
@@ -541,7 +597,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   route('PUT', '/api/pm/projects/:id', 'auth', ({ params, body, user: u }) => {
     const p = findProject(params.id, u, 'manage');
     fresh(p, body);
-    const before = { status: p.status, startDate: p.startDate, endDate: p.endDate, managerId: p.managerId, isTemplate: Boolean(p.isTemplate), members: p.members.map((m) => m.userId) };
+    const before = { status: p.status, startDate: p.startDate, endDate: p.endDate, managerId: p.managerId, isTemplate: Boolean(p.isTemplate), timeTracking: Boolean(p.timeTracking), members: p.members.map((m) => m.userId) };
     const isTemplate = bool(body.isTemplate, 'Use as a template', before.isTemplate);
     Object.assign(p, validProject({ ...p, ...pickFields(body, PROJECT_FIELDS) }, u, p));
     p.isTemplate = isTemplate;
@@ -551,6 +607,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     track(p, u, 'end', before.endDate, p.endDate);
     track(p, u, 'manager', userName(before.managerId), userName(p.managerId));
     track(p, u, 'template', before.isTemplate ? 'Yes' : 'No', p.isTemplate ? 'Yes' : 'No');
+    track(p, u, 'time tracking', before.timeTracking ? 'On' : 'Off', p.timeTracking ? 'On' : 'Off');
     notifyAdded(p, u, before.members);
     bump(p, u);
     db.save();
@@ -568,10 +625,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   }
 
   // Copy, or a new project from a template: the statuses, milestones (with their deliverable and
-  // billing %) and tasks (subtasks, checklists unticked, blocked-by links, estimates). No people,
-  // time or comments. Dates move with the start date: by the same number of days for a copy, by
-  // the same number of working days (weekends and holidays skipped) from a template. The new
-  // project's manager and client links can be given (CRM links need Sales & CRM access).
+  // billing %) and tasks (subtasks, checklists unticked, blocked-by links, sizes), and whether it
+  // tracks time. No people, time logged or comments. Dates move with the start date: by the same
+  // number of days for a copy, by the same number of working days (weekends and holidays skipped)
+  // from a template. The new project's manager and client links can be given (CRM links need
+  // Sales & CRM access).
   route('POST', '/api/pm/projects/:id/copy', 'pm.edit', ({ params, body, user: u }) => {
     const src = findProject(params.id, u);
     const name = str(body.name, 160);
@@ -583,7 +641,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const move = src.isTemplate ? (v) => shiftWorkDays(v, src.startDate, startDate, c) : (v) => (v ? addDays(v, shift) : null);
     const fields = validProject({
       ...pickFields(body, ['managerId', 'accountId', 'dealId', 'contractId']), name, type: src.type, description: src.description, status: 'planning',
-      startDate, endDate: move(src.endDate), budgetHours: src.budgetHours ?? null,
+      startDate, endDate: move(src.endDate), timeTracking: Boolean(src.timeTracking), budgetHours: src.timeTracking ? src.budgetHours ?? null : null,
     }, u, { type: src.type });
     const p = createProject(fields, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
     if (src.isTemplate) track(p, u, 'template', '', `${src.code} ${src.name}`);
@@ -599,7 +657,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     srcTasks.forEach((t, i) => {
       d().pmTasks.push({
         id: taskIds.get(t.id), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title: t.title, description: t.description, statusId: todo, priority: t.priority,
-        assigneeId: null, startDate: move(t.startDate), dueDate: move(t.dueDate), estimateHours: t.estimateHours ?? null, remainingHours: null, milestoneId: msIds.get(t.milestoneId) || null,
+        assigneeId: null, startDate: move(t.startDate), dueDate: move(t.dueDate), size: isSize(t.size) ? t.size : null, milestoneId: msIds.get(t.milestoneId) || null,
         parentId: taskIds.get(t.parentId) || null, checklist: t.checklist.map((c) => ({ id: randomUUID(), text: c.text, done: false })),
         blockedBy: (t.blockedBy || []).map((x) => taskIds.get(x)).filter(Boolean), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null, watchers: [],
         version: 1, createdAt: now(), createdBy: u.id, updatedAt: now(), updatedBy: u.id, history: [{ at: now(), by: u.id, field: 'created', from: '', to: `copied from ${t.key}` }],
@@ -813,15 +871,16 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       if (!m && level !== 'manage') throw new HttpError(400, `${who.name} is not on this project. Ask a project manager to add them.`);
       if (m?.role === 'viewer') throw new HttpError(400, `${who.name} is a viewer on this project. A project manager can make them a member.`);
     }
-    // Hours left: empty (null) means estimate less logged. A new estimate starts that count again.
-    const estimateHours = optNum(b.estimateHours, 'Estimate (hours)', 0, 9999);
-    let remainingHours = optNum(b.remainingHours, 'Hours left', 0, 9999);
-    if (remainingHours !== null && !validRemaining(remainingHours)) throw new HttpError(400, 'Hours left must be from 0 to 9999, in quarter hours (0.25, 0.5, 0.75…).');
-    if (rec.id && estimateHours !== (rec.estimateHours ?? null) && b.remainingHours === rec.remainingHours) remainingHours = null;
     return {
       title, description: str(b.description, 8000), statusId, priority: oneOf(b.priority, PRIORITY, 'Priority', rec.priority || 'normal'),
-      assigneeId, startDate, dueDate, estimateHours, remainingHours, milestoneId, parentId, blockedBy,
+      assigneeId, startDate, dueDate, size: validSize(b.size), milestoneId, parentId, blockedBy,
     };
+  }
+  // A size: XS to XL, or none (empty).
+  function validSize(v) {
+    if (v == null || v === '') return null;
+    if (!isSize(v)) throw new HttpError(400, `Size: pick ${SIZE_KEYS.join(', ')} or none.`);
+    return v;
   }
   const addAssignee = (p, t) => {
     if (t.assigneeId && !p.members.some((m) => m.userId === t.assigneeId)) p.members.push({ userId: t.assigneeId, role: 'member' });
@@ -834,8 +893,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     track(t, u, 'due', before.dueDate, t.dueDate);
     track(t, u, 'milestone', ms(before.milestoneId), ms(t.milestoneId));
     track(t, u, 'priority', PRIORITY[before.priority], PRIORITY[t.priority]);
-    const left = (v) => (v == null ? '' : `${v} h`);
-    track(t, u, 'hours left', left(before.remainingHours), left(t.remainingHours));
+    track(t, u, 'size', sizeName(before.size), sizeName(t.size));
   }
   const setCompleted = (t, p) => {
     const cat = categoryOf(p, t);
@@ -882,11 +940,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   route('GET', '/api/pm/tasks/:id', 'auth', ({ params, user: u }) => {
     const { t, p } = findTask(params.id, u);
     const ctx = taskCtx(p);
-    const logs = d().pmTimeLogs.filter((x) => x.taskId === t.id).sort((a, b) => b.date.localeCompare(a.date));
+    const logs = ctx.time ? d().pmTimeLogs.filter((x) => x.taskId === t.id).sort((a, b) => b.date.localeCompare(a.date)) : [];
     const parent = t.parentId && ctx.byId.get(t.parentId);
     return {
       ...taskOut(t, p, ctx), history: historyOut(t.history || []), access: levelOf(p, u),
-      project: { id: p.id, code: p.code, name: p.name, statuses: p.statuses, members: membersOut(p) },
+      project: { id: p.id, code: p.code, name: p.name, statuses: p.statuses, members: membersOut(p), timeTracking: ctx.time, isTemplate: Boolean(p.isTemplate) },
       parent: parent ? { id: parent.id, key: parent.key, title: parent.title } : null,
       subtaskList: ctx.tasks.filter((x) => x.parentId === t.id).sort(byRank).map((x) => taskOut(x, p, ctx)),
       blockedByList: t.blockedBy.map((id) => ctx.byId.get(id)).filter(Boolean).map((x) => taskOut(x, p, ctx)),
@@ -894,7 +952,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       // The rest of the project, for the parent and blocked-by pickers.
       others: ctx.tasks.filter((x) => x.id !== t.id).sort(byRank).map((x) => ({ id: x.id, key: x.key, title: x.title, parentId: x.parentId })),
       milestones: milestonesOf(p).map((m) => ({ id: m.id, name: m.name, dueDate: m.dueDate })),
-      time: logs.map((x) => ({ ...x, userName: userName(x.userId) })), loggedHours: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100,
+      ...(ctx.time ? { time: logs.map((x) => ({ ...x, userName: userName(x.userId) })), loggedHours: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100 } : { time: null }),
       watching: watchersOf(t).includes(u.id), watcherList: watcherList(t), attachments: filesOf(t).map((a) => fileOut(a, p, u)), maxFiles: MAX_FILES,
     };
   });
@@ -1077,7 +1135,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   });
 
   // ===== Bulk edit (the List) =====
-  // { ids (1–200 tasks of this project), set: { statusId, assigneeId, milestoneId, priority },
+  // { ids (1–200 tasks of this project), set: { statusId, assigneeId, milestoneId, priority, size },
   //   shiftDays (± working days, start and due), watchers: { add: [userId], remove: [userId] } }
   // or { ids, delete: true }. Every task is checked first; if one cannot take the change, nothing
   // is saved and the refusal names the tasks. Each task changed gets its history and a new version
@@ -1125,6 +1183,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       changes.priority = oneOf(set.priority, PRIORITY, 'Priority', null);
       if (!changes.priority) throw new HttpError(400, 'Priority: pick one of the options.');
       what.push(`priority ${PRIORITY[changes.priority]}`);
+    }
+    if (Object.hasOwn(set, 'size')) {
+      changes.size = validSize(set.size);
+      what.push(`size ${changes.size ? sizeName(changes.size) : 'none'}`);
     }
     let shift = 0;
     if (body.shiftDays !== undefined && body.shiftDays !== null && body.shiftDays !== 0) {
@@ -1230,7 +1292,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const createMilestones = bool(body.createMilestones, 'Create the milestones that are missing', false);
     const dryRun = bool(body.dryRun, 'Check only', false);
     const plan = importPlan(rows, mapping, { project: p, members: membersOut(p), milestones: milestonesOf(p), createMilestones });
-    const summary = { tasks: plan.tasks.length, subtasks: plan.tasks.filter((t) => t.parentRow).length, newMilestones: plan.newMilestones, errorCount: plan.errorCount, rows: plan.rows };
+    const summary = { tasks: plan.tasks.length, subtasks: plan.tasks.filter((t) => t.parentRow).length, newMilestones: plan.newMilestones, errorCount: plan.errorCount, fromHours: plan.fromHours, rows: plan.rows };
     if (dryRun) {
       noAudit();
       return summary;
@@ -1250,7 +1312,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const milestoneId = r.milestone ? r.milestone.id || msIds.get(r.milestone.name.toLowerCase()) : null;
       const fields = {
         title: r.title, description: r.description, statusId: r.statusId, priority: r.priority, assigneeId: r.assigneeId, startDate: r.startDate, dueDate: r.dueDate,
-        estimateHours: r.estimateHours, remainingHours: null, milestoneId, parentId: r.parentRow ? rowIds.get(r.parentRow) : null, blockedBy: [],
+        size: r.size, milestoneId, parentId: r.parentRow ? rowIds.get(r.parentRow) : null, blockedBy: [],
       };
       const t = newTask(p, u, fields, { id: rowIds.get(r.row), checklist: r.checklist.map((text) => ({ id: randomUUID(), text, done: false })), rank: nextRank(p, r.statusId) });
       t.history[0].to = 'imported from a CSV file';
@@ -1258,14 +1320,20 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     }
     notifyGrouped(assigned, 'assigned', p, u, ({ t }) => `assigned you ${t.key} ${t.title}`, (l) => `assigned you ${l.length} tasks in ${p.code}: ${keysOf(l)}`);
     const name = str(body.fileName, 120);
-    audit?.record('projects.import', { entity: 'project', entityId: p.id, label: `${p.code} ${p.name}`, note: `${plan.tasks.length} tasks imported${name ? ` from ${name}` : ''}${plan.newMilestones.length ? `; ${plan.newMilestones.length} milestones added` : ''}` });
+    audit?.record('projects.import', { entity: 'project', entityId: p.id, label: `${p.code} ${p.name}`, note: `${plan.tasks.length} tasks imported${name ? ` from ${name}` : ''}${plan.newMilestones.length ? `; ${plan.newMilestones.length} milestones added` : ''}${plan.fromHours ? `; ${plan.fromHours} sizes from hour estimates` : ''}` });
     db.save();
     return { imported: plan.tasks.length, milestones: plan.newMilestones.length };
   });
 
-  // ===== Time =====
+  // ===== Time (only on projects that track time) =====
+  // A project tracks time when a manager turns it on (timeTracking). Without it there are no hours
+  // in it at all: no Time tab, no logging on its tasks, no budget, nothing on the Timesheet.
+  function needTracking(p) {
+    if (p.isTemplate) throw new HttpError(400, `${p.code} is a template. Time is logged on projects.`);
+    if (!p.timeTracking) throw new HttpError(400, `${p.code} does not track time. A project manager can turn it on under Edit: Track time on this project.`);
+  }
   // Hours a person attended on a day, from the DTR (null when CORE cannot tell: no linked
-  // employee record, or still clocked in).
+  // employee record, or still clocked in). For comparison only: nothing is filled in from it.
   function attendedHours(userId, date) {
     const emp = d().employees.find((e) => e.id === user(userId)?.employeeId);
     if (!emp) return null;
@@ -1292,61 +1360,180 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       canDelete: x.userId === u.id || levelOf(p, u) === 'manage',
     };
   }
+  // Hours from a form: a number, or text of digits.
+  const hoursOf = (v) => (typeof v === 'number' ? v : typeof v === 'string' && /^\d+(\.\d+)?$/.test(v.trim()) ? Number(v) : NaN);
   route('GET', '/api/pm/projects/:id/time', 'auth', ({ params, user: u }) => {
     const p = findProject(params.id, u);
+    needTracking(p);
     const logs = d().pmTimeLogs.filter((x) => x.projectId === p.id).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
     const cache = new Map();
     const sum = (list) => Math.round(list.reduce((n, x) => n + x.hours, 0) * 100) / 100;
-    const people = [...new Set(logs.map((x) => x.userId))].map((id) => ({ userId: id, name: userName(id) || 'Former user', hours: sum(logs.filter((x) => x.userId === id)) })).sort((a, b) => b.hours - a.hours);
+    const people = [...new Set(logs.map((x) => x.userId))].map((id) => ({ userId: id, name: userName(id) || 'Former user', hours: sum(logs.filter((x) => x.userId === id)), member: isWorker(p, id) })).sort((a, b) => b.hours - a.hours);
     const tasks = tasksOf(p);
-    const byTask = tasks.map((t) => {
-      const hours = sum(logs.filter((x) => x.taskId === t.id));
-      return { taskId: t.id, key: t.key, title: t.title, estimate: t.estimateHours ?? null, hours, left: remainingOf(t, hours, categoryOf(p, t)) };
-    }).filter((x) => x.hours || x.estimate);
+    const byTask = tasks.map((t) => ({ taskId: t.id, key: t.key, title: t.title, size: isSize(t.size) ? t.size : null, hours: sum(logs.filter((x) => x.taskId === t.id)) })).filter((x) => x.hours);
     const noTask = sum(logs.filter((x) => !x.taskId));
     const week = weekStart(today());
     return {
       entries: logs.slice(0, 500).map((x) => timeOut(x, u, p, cache)),
       mine: logs.filter((x) => x.userId === u.id && x.date >= week).map((x) => timeOut(x, u, p, cache)),
-      byPerson: people, byTask: byTask.sort((a, b) => b.hours - a.hours), noTask,
-      total: sum(logs), estimate: Math.round(leafTasks(tasks, p).reduce((n, t) => n + (Number(t.estimateHours) || 0), 0) * 100) / 100,
+      byPerson: people, byTask: byTask.sort((a, b) => b.hours - a.hours), noTask, total: sum(logs), budget: p.budgetHours ?? null,
       tasks: tasks.filter((t) => isOpenCategory(categoryOf(p, t)) || logs.some((x) => x.taskId === t.id)).sort(byRank).map((t) => ({ id: t.id, key: t.key, title: t.title })),
     };
   });
   route('POST', '/api/pm/projects/:id/time', 'auth', ({ params, body, user: u }) => {
     const p = findProject(params.id, u, 'work');
+    needTracking(p);
     const date = optDate(body.date, 'Date');
     if (!date) throw new HttpError(400, 'Pick the date.');
     if (date > today()) throw new HttpError(400, 'Time can be logged for today or earlier.');
-    const hours = typeof body.hours === 'number' ? body.hours : typeof body.hours === 'string' && /^\d+(\.\d+)?$/.test(body.hours.trim()) ? Number(body.hours) : NaN;
+    const hours = hoursOf(body.hours);
     if (!validHours(hours)) throw new HttpError(400, 'Hours must be from 0.25 to 24, in quarter hours (0.25, 0.5, 0.75…).');
     const taskId = idOf(body.taskId) || null;
     const task = taskId && d().pmTasks.find((t) => t.id === taskId && t.projectId === p.id);
     if (taskId && !task) throw new HttpError(400, 'Pick a task of this project.');
-    if (loggedOn(u.id, date) + hours > 24) throw new HttpError(400, 'That would be more than 24 hours logged on one day.');
-    // "Hours left after this" (optional) sets the task's hours left, as on the task.
-    const left = optNum(body.remainingHours, 'Hours left', 0, 9999);
-    if (left !== null && !task) throw new HttpError(400, 'Hours left is for time logged on a task.');
-    if (left !== null && !validRemaining(left)) throw new HttpError(400, 'Hours left must be from 0 to 9999, in quarter hours (0.25, 0.5, 0.75…).');
+    if (loggedOn(u.id, date) + hours > MAX_DAY_HOURS) throw new HttpError(400, 'That would be more than 24 hours logged on one day.');
     const x = { id: randomUUID(), projectId: p.id, taskId, userId: u.id, date, hours, note: str(body.note, 500), createdAt: now() };
     d().pmTimeLogs.push(x);
-    if (left !== null && left !== task.remainingHours) {
-      track(task, u, 'hours left', task.remainingHours == null ? '' : `${task.remainingHours} h`, `${left} h`);
-      task.remainingHours = left;
-      bump(task, u);
-    }
     db.save();
     const out = timeOut(x, u, p, new Map());
-    return { ...out, warning: out.overAttended ? `You have logged ${out.dayTotal} h on ${date}, more than the ${out.attended} h your attendance shows. It is saved; check the DTR or your entries.` : null };
+    return { ...out, warning: out.overAttended ? overNote(out.dayTotal, out.attended, date) : null };
   });
+  const overNote = (logged, attended, date) => `You have logged ${Math.round(logged * 100) / 100} h on ${date}, more than the ${attended} h your attendance shows. It is saved; this is only for your information.`;
   route('DELETE', '/api/pm/projects/:id/time/:entryId', 'auth', ({ params, user: u }) => {
     const p = findProject(params.id, u);
+    needTracking(p);
     const x = d().pmTimeLogs.find((y) => y.id === params.entryId && y.projectId === p.id);
     if (!x) throw new HttpError(404, 'Time entry not found.');
     if (x.userId !== u.id && levelOf(p, u) !== 'manage') throw new HttpError(403, 'You can delete your own time entries only.');
     d().pmTimeLogs = d().pmTimeLogs.filter((y) => y !== x);
     db.save();
     return { ok: true };
+  });
+
+  // ===== The weekly Timesheet =====
+  // A person's hours on the projects that track time, Monday to Sunday: a row per project and task
+  // (or the project without a task). Saving writes one time entry per project, task and day (it
+  // replaces what was logged there), only ever for the person saving, and only on projects that
+  // track time where they are a member. The same checks as logging: today or earlier, quarter
+  // hours, at most 24 h a day across projects. Separate from attendance: the DTR's hours are shown
+  // under it for comparison only (to the person, the project's managers and attendance.view, as on
+  // the Time tab), and a day with more project hours than attended is flagged, never refused.
+  // Managers open their members' timesheets, read only.
+  const isWorker = (p, userId) => p.members.some((m) => m.userId === userId && m.role !== 'viewer');
+  const trackedProjects = () => d().pmProjects.filter((p) => p.timeTracking && !p.isTemplate);
+  // The projects of `target`'s timesheet that `u` sees: all of their own; a manager, those they manage.
+  const sheetProjects = (u, target) => trackedProjects().filter((p) => isWorker(p, target.id) && (target.id === u.id || levelOf(p, u) === 'manage'));
+  function sheetPeople(u) {
+    const ids = new Set();
+    for (const p of trackedProjects()) {
+      if (levelOf(p, u) === 'manage') for (const m of p.members) if (m.role !== 'viewer') ids.add(m.userId);
+      if (isWorker(p, u.id)) ids.add(u.id);
+    }
+    return [...ids].map((id) => ({ id, name: userName(id) || 'Former user', self: id === u.id })).sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name));
+  }
+  function timesheetOf(u, target, week) {
+    const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
+    const projects = sheetProjects(u, target).sort((a, b) => a.code.localeCompare(b.code));
+    const shown = new Set(projects.map((p) => p.id));
+    const logs = d().pmTimeLogs.filter((x) => x.userId === target.id && x.date >= days[0] && x.date <= days[6] && shown.has(x.projectId));
+    const rows = new Map();
+    const rowOf = (projectId, taskId) => {
+      const k = `${projectId}|${taskId || ''}`;
+      if (!rows.has(k)) rows.set(k, { projectId, taskId: taskId || null, hours: days.map(() => 0), notes: [] });
+      return rows.get(k);
+    };
+    for (const x of logs) {
+      const r = rowOf(x.projectId, x.taskId);
+      r.hours[days.indexOf(x.date)] += x.hours;
+      if (x.note && !r.notes.includes(x.note)) r.notes.push(x.note);
+    }
+    for (const p of projects) if (![...rows.values()].some((r) => r.projectId === p.id)) rowOf(p.id, null);
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const out = projects.map((p) => {
+      const used = new Set([...rows.values()].filter((r) => r.projectId === p.id && r.taskId).map((r) => r.taskId));
+      return {
+        id: p.id, code: p.code, name: p.name, manage: levelOf(p, u) === 'manage',
+        tasks: tasksOf(p).filter((t) => used.has(t.id) || isOpenCategory(categoryOf(p, t))).sort(byRank).map((t) => ({ id: t.id, key: t.key, title: t.title, size: isSize(t.size) ? t.size : null })),
+      };
+    });
+    const order = new Map(projects.map((p, i) => [p.id, i]));
+    const keyOf = (r) => d().pmTasks.find((t) => t.id === r.taskId)?.key || '';
+    const list = [...rows.values()].map((r) => ({ ...r, hours: r.hours.map(r2), total: r2(r.hours.reduce((n, h) => n + h, 0)) }))
+      .sort((a, b) => order.get(a.projectId) - order.get(b.projectId) || Number(Boolean(a.taskId)) - Number(Boolean(b.taskId)) || keyOf(a).localeCompare(keyOf(b), undefined, { numeric: true }));
+    const totals = days.map((_, i) => r2(list.reduce((n, r) => n + r.hours[i], 0)));
+    // The DTR, for comparison only (the rule of the Time tab).
+    const check = target.id === u.id || userCan(u, 'attendance.view') || projects.some((p) => mayCheck(u, p, target.id));
+    const attendance = check ? days.map((x) => attendedHours(target.id, x)) : null;
+    const allLogged = days.map((x) => loggedOn(target.id, x));
+    return {
+      week, days, today: today(), user: { id: target.id, name: target.name }, self: target.id === u.id, editable: target.id === u.id,
+      people: sheetPeople(u), projects: out, rows: list, totals, total: r2(totals.reduce((n, h) => n + h, 0)), maxDay: MAX_DAY_HOURS,
+      attendance, over: attendance ? days.map((x, i) => attendance[i] !== null && allLogged[i] > attendance[i] + 1e-9) : null,
+    };
+  }
+  const weekOf = (v) => (isDate(v) ? weekStart(v) : weekStart(today()));
+  route('GET', '/api/pm/timesheet', 'auth', ({ query, user: u }) => {
+    const target = query.user && query.user !== u.id ? user(String(query.user)) : u;
+    if (!target || (target.id !== u.id && !sheetProjects(u, target).length)) throw new HttpError(404, 'Timesheet not found.');
+    return timesheetOf(u, target, weekOf(query.week));
+  });
+  // { week, cells: [{ projectId, taskId (or null), date, hours (0 or empty clears it) }] }: the cells
+  // changed. Every cell is checked first; if one cannot be saved, nothing is.
+  route('PUT', '/api/pm/timesheet', 'auth', ({ body, user: u }) => {
+    if (!isDate(body.week)) throw new HttpError(400, 'Say which week the timesheet is for.');
+    const week = weekStart(body.week);
+    const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
+    if (!Array.isArray(body.cells) || !body.cells.length || body.cells.length > TIMESHEET_MAX_CELLS) throw new HttpError(400, `Send the cells that changed (1 to ${TIMESHEET_MAX_CELLS}).`);
+    const plan = new Map();
+    for (const c of body.cells) {
+      const p = d().pmProjects.find((x) => x.id === idOf(c?.projectId));
+      if (!p || !levelOf(p, u)) throw new HttpError(404, 'Project not found.');
+      if (!isWorker(p, u.id)) throw new HttpError(403, `Only the members of ${p.code} log time on it.`);
+      needTracking(p);
+      const taskId = idOf(c.taskId) || null;
+      if (taskId && !d().pmTasks.some((t) => t.id === taskId && t.projectId === p.id)) throw new HttpError(400, `Pick a task of ${p.code}.`);
+      if (!isDate(c.date) || !days.includes(c.date)) throw new HttpError(400, 'Each day must be in the week shown.');
+      const hours = c.hours == null || c.hours === '' ? 0 : hoursOf(c.hours);
+      if (hours !== 0 && !validHours(hours)) throw new HttpError(400, 'Hours must be from 0.25 to 24, in quarter hours (0.25, 0.5, 0.75…). Leave a day empty for none.');
+      if (hours && c.date > today()) throw new HttpError(400, 'Time can be logged for today or earlier.');
+      plan.set(`${p.id}|${taskId || ''}|${c.date}`, { p, taskId, date: c.date, hours });
+    }
+    // At most 24 hours a day, across every project, after the save.
+    const mine = d().pmTimeLogs.filter((x) => x.userId === u.id);
+    const cellKey = (x) => `${x.projectId}|${x.taskId || ''}|${x.date}`;
+    for (const date of new Set([...plan.values()].map((c) => c.date))) {
+      const kept = mine.filter((x) => x.date === date && !plan.has(cellKey(x))).reduce((n, x) => n + x.hours, 0);
+      const total = kept + [...plan.values()].filter((c) => c.date === date).reduce((n, c) => n + c.hours, 0);
+      if (total > MAX_DAY_HOURS + 1e-9) throw new HttpError(400, `Nothing was saved: that would be ${Math.round(total * 100) / 100} h on ${date}, more than 24 hours on one day.`);
+    }
+    let saved = 0;
+    const drop = new Set();
+    for (const [k, c] of plan) {
+      const same = mine.filter((x) => cellKey(x) === k);
+      const before = same.reduce((n, x) => n + x.hours, 0);
+      if (Math.abs(before - c.hours) < 1e-9) continue;
+      saved++;
+      if (!c.hours) {
+        same.forEach((x) => drop.add(x));
+        continue;
+      }
+      if (same.length) {
+        // One entry for the cell: the first keeps its id, with the notes of the others.
+        const [first, ...rest] = same;
+        first.hours = c.hours;
+        first.note = str([...new Set(same.map((x) => x.note).filter(Boolean))].join('; '), 500);
+        first.updatedAt = now();
+        rest.forEach((x) => drop.add(x));
+      } else d().pmTimeLogs.push({ id: randomUUID(), projectId: c.p.id, taskId: c.taskId, userId: u.id, date: c.date, hours: c.hours, note: '', createdAt: now(), via: 'timesheet' });
+    }
+    if (drop.size) d().pmTimeLogs = d().pmTimeLogs.filter((x) => !drop.has(x));
+    if (saved) db.save();
+    else noAudit();
+    // For information only: the days just saved with more project hours than attended.
+    const sheet = timesheetOf(u, u, week);
+    const savedDays = new Set([...plan.values()].map((c) => c.date));
+    const warnings = sheet.over ? sheet.days.filter((x, i) => sheet.over[i] && savedDays.has(x)).map((x) => overNote(loggedOn(u.id, x), sheet.attendance[sheet.days.indexOf(x)], x)) : [];
+    return { ...sheet, saved, warnings };
   });
 
   // ===== My work: my open tasks across the projects I can still open =====
@@ -1594,20 +1781,19 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     return emailStatus(u);
   });
 
-  // ===== Workload: planned hours against capacity, per person and week =====
+  // ===== Workload: how busy each person is, per week, as a level =====
+  // The open leaf tasks' sizes (in working days, Medium without a size) against each person's
+  // working days, less holidays and approved leave (shared/projects.js workload).
   route('GET', '/api/pm/workload', 'pm.view', ({ query }) => {
     const from = isDate(query.from) ? query.from : today();
     const weeks = Math.min(26, Math.max(1, Math.round(Number(query.weeks)) || 6));
     const c = cal();
     const open = d().pmProjects.filter((p) => OPEN_PROJECT.includes(p.status) && !p.isTemplate);
-    // What is left of each task is planned, not its whole estimate.
-    const tasks = open.flatMap((p) => {
-      const logged = loggedByTask(p);
-      return tasksOf(p).filter((t) => t.assigneeId && isOpenCategory(categoryOf(p, t))).map((t) => ({
-        id: t.id, key: t.key, title: t.title, projectId: p.id, projectCode: p.code, projectName: p.name, assigneeId: t.assigneeId,
-        estimateHours: t.estimateHours, remaining: remainingOf(t, logged.get(t.id) || 0, categoryOf(p, t)) ?? 0, startDate: t.startDate, dueDate: t.dueDate,
-      }));
-    });
+    // Leaf tasks only: a task with subtasks is planned through them.
+    const tasks = open.flatMap((p) => leafTasks(tasksOf(p), p).filter((t) => t.assigneeId && isOpenCategory(categoryOf(p, t))).map((t) => ({
+      id: t.id, key: t.key, title: t.title, projectId: p.id, projectCode: p.code, projectName: p.name, assigneeId: t.assigneeId,
+      size: isSize(t.size) ? t.size : null, startDate: t.startDate, dueDate: t.dueDate,
+    })));
     const ids = new Set([...tasks.map((t) => t.assigneeId), ...open.flatMap((p) => p.members.filter((m) => m.role !== 'viewer').map((m) => m.userId))]);
     const end = addDays(weekStart(from), weeks * 7);
     const people = [...ids].map(user).filter((x) => x?.active).map((x) => {
@@ -1621,7 +1807,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
         }
       }
       const schedule = emp ? scheduleFor(emp, d().settings) : null;
-      return { id: x.id, name: x.name, workDays: schedule?.workDays, hoursPerDay: schedule ? hoursPerDay(schedule) : undefined, leave, leaveDays: [...leave.values()].reduce((n, v) => n + v, 0) };
+      return { id: x.id, name: x.name, workDays: schedule?.workDays, leave, leaveDays: [...leave.values()].reduce((n, v) => n + v, 0) };
     }).sort((a, b) => a.name.localeCompare(b.name));
     return workload({ people, tasks, from, weeks, cal: c });
   });
@@ -1638,7 +1824,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       startDate: contract?.startDate && contract.startDate > today() ? contract.startDate : today(), endDate: contract?.endDate || null, managerId: u.id,
       accountId: rec.accountId, dealId: kind === 'deal' ? rec.id : rec.dealId || null, contractId: contract?.id || null,
     };
-    const fields = validProject({ ...defaults, ...pickFields(body, ['name', 'type', 'description', 'startDate', 'endDate', 'managerId', 'budgetHours']) }, u);
+    const fields = validProject({ ...defaults, ...pickFields(body, ['name', 'type', 'description', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours']) }, u);
     const p = createProject(fields, u);
     db.save();
     return summaryOf(p, u);
@@ -1682,7 +1868,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const g = digestSettings();
     return { enabled: g.enabled, time: g.time, workingDaysOnly: g.workingDaysOnly, origin: g.origin, links: Boolean(linkOrigin()), canEmail: Boolean(mailer?.canEmail()), lastRun: g.lastRun || null };
   };
-  route('GET', '/api/pm/settings', 'pm.manage', () => ({ statuses: pm().statuses, types: pm().types, digest: digestOut() }));
+  route('GET', '/api/pm/settings', 'pm.manage', () => ({ statuses: pm().statuses, types: pm().types, sizes: pm().sizes, digest: digestOut() }));
   // The daily digest: on or off, the time (HH:MM, this server's local time) and working days only.
   // Links in the email open CORE at the address this was saved from.
   route('PUT', '/api/pm/settings/digest', 'pm.manage', ({ body, origin }) => {
@@ -1699,9 +1885,16 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const statuses = validStatuses(body.statuses, pm().statuses);
     const types = [...new Set((Array.isArray(body.types) ? body.types : []).map((x) => str(x, 40)).filter(Boolean))];
     if (!types.length || types.length > 20) throw new HttpError(400, 'Keep 1 to 20 project types.');
-    Object.assign(pm(), { customized: true, statuses, types });
+    // The wording of the effort sizes (optional: kept when not sent). The weights never change.
+    let sizes = pm().sizes;
+    if (body.sizes !== undefined) {
+      const r = cleanSizeNotes(body.sizes);
+      if (r.problem) throw new HttpError(400, r.problem);
+      sizes = r.notes;
+    }
+    Object.assign(pm(), { customized: true, statuses, types, sizes });
     db.save();
-    return { statuses, types, digest: digestOut() };
+    return { statuses, types, sizes, digest: digestOut() };
   });
 
   // ===== Projects access per account (administrators), like CRM access =====

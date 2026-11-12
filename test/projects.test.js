@@ -54,7 +54,8 @@ const today = localDate();
 const day = (n) => addDays(today, n);
 const settings = () => db.data.settings;
 
-const base = await pia('POST', '/api/pm/projects', { name: 'Clinic system rollout', type: 'Client', startDate: day(-20), endDate: day(60) });
+// It tracks time, so its members log hours (a project does not, unless a manager turns it on).
+const base = await pia('POST', '/api/pm/projects', { name: 'Clinic system rollout', type: 'Client', startDate: day(-20), endDate: day(60), timeTracking: true });
 
 test('Project Managers create projects; members open theirs by role; everyone else gets "not found"', async () => {
   assert.equal(base.code, 'PRJ-0001');
@@ -142,8 +143,10 @@ test('inputs are checked: dates, choices, hours, lengths, one level of subtasks,
   await assert.rejects(pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'T', startDate: day(5), dueDate: day(1) }), /before the start/);
   await assert.rejects(pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'T', priority: 'asap' }), /Priority: pick one/);
   await assert.rejects(pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'T', statusId: 'nope' }), /status from this project/);
-  await assert.rejects(pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'T', estimateHours: '1e3' }), /Estimate/);
-  await assert.rejects(pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'T', estimateHours: -2 }), /Estimate/);
+  for (const size of ['XXL', 'm', 8, ['M'], { M: 1 }]) await assert.rejects(pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'T', size }), /Size: pick XS, S, M, L, XL/);
+  assert.equal((await pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'Sized', size: 'L' })).size, 'L');
+  // Hours are not a task field any more: an estimate sent is ignored.
+  assert.equal((await pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'Old form', estimateHours: 8 })).estimateHours, undefined);
   await assert.rejects(pia('POST', `/api/pm/projects/${p}/tasks`, { title: '   ' }), /title/);
   await assert.rejects(pia('PUT', `/api/pm/projects/${p}`, { status: 'archived' }), /Status: pick one/);
   await assert.rejects(pia('PUT', `/api/pm/projects/${p}`, { endDate: day(-100) }), /end date is before/);
@@ -274,15 +277,16 @@ test('a stale form is refused with who changed it; board moves skip the check bu
 const project = { statuses: DEFAULT_STATUSES, startDate: '2026-11-02' };
 const task = (id, statusId, extra = {}) => ({ id, statusId, ...extra });
 
-test('progress: by hours when 60% of leaf tasks have estimates (the rest at the average), else by count', () => {
-  // 2 of 4 estimated (50%): by count. Cancelled tasks are left out.
-  let leaves = leafTasks([task('a', 'done', { estimateHours: 10 }), task('b', 'todo', { estimateHours: 30 }), task('c', 'todo'), task('d', 'done'), task('x', 'cancelled')], project);
-  assert.deepEqual(progressOf(leaves, project), { percent: 50, basis: 'count', done: 2, total: 4 });
-  // 3 of 4 estimated: by hours; the unestimated task counts at the average (20 h).
-  leaves = leafTasks([task('a', 'done', { estimateHours: 10 }), task('b', 'todo', { estimateHours: 30 }), task('c', 'todo', { estimateHours: 20 }), task('d', 'done')], project);
-  assert.deepEqual(progressOf(leaves, project), { percent: 38, basis: 'hours', done: 2, total: 4 });
+test('progress: by size when 60% of leaf tasks have one (the rest at the average weight), else by count', () => {
+  // 2 of 4 sized (50%): by count. Cancelled tasks are left out.
+  let leaves = leafTasks([task('a', 'done', { size: 'S' }), task('b', 'todo', { size: 'L' }), task('c', 'todo'), task('d', 'done'), task('x', 'cancelled', { size: 'XL' })], project);
+  assert.deepEqual(progressOf(leaves, project), { percent: 50, basis: 'count', done: 2, total: 4, sized: 2 });
+  // 3 of 4 sized: by size weights (S 2, L 5, M 3); the unsized one counts at their average (10/3).
+  leaves = leafTasks([task('a', 'done', { size: 'S' }), task('b', 'todo', { size: 'L' }), task('c', 'todo', { size: 'M' }), task('d', 'done')], project);
+  assert.deepEqual(progressOf(leaves, project), { percent: Math.round(((2 + 10 / 3) / (2 + 5 + 3 + 10 / 3)) * 100), basis: 'size', done: 2, total: 4, sized: 3 });
+  assert.equal(progressOf(leaves, project).percent, 40);
   // A task with subtasks is measured by its subtasks.
-  leaves = leafTasks([task('p', 'todo', { estimateHours: 100 }), task('s1', 'done', { parentId: 'p' }), task('s2', 'todo', { parentId: 'p' })], project);
+  leaves = leafTasks([task('p', 'todo', { size: 'XL' }), task('s1', 'done', { parentId: 'p' }), task('s2', 'todo', { parentId: 'p' })], project);
   assert.deepEqual(leaves.map((t) => t.id), ['s1', 's2']);
   assert.equal(progressOf(leaves, project).percent, 50);
   assert.equal(progressOf([], project).percent, null);
@@ -343,35 +347,39 @@ test('health through the API: a manager\'s reading is kept next to the computed 
   await pia('DELETE', `/api/pm/projects/${p.id}`);
 });
 
-test('workload: estimates spread over working days, capacity less holidays and approved leave', async () => {
+test('workload: sizes spread over working days, days available less holidays and approved leave', async () => {
   const cal = workCalendar({ schedule: { workDays: [1, 2, 3, 4, 5] } }, [{ date: '2026-11-30', type: 'regular' }]);
-  // Week of 30 Nov: Bonifacio Day off and one day of leave, so 3 working days of 8 hours.
-  assert.equal(weekCapacity('2026-11-30', { leave: new Map([['2026-12-02', 1]]) }, cal), 24);
-  assert.equal(weekCapacity('2026-11-30', { leave: new Map([['2026-12-02', 0.5]]), hoursPerDay: 8 }, cal), 28);
-  assert.equal(weekCapacity('2026-11-30', { workDays: [1, 2, 3, 4, 5, 6] }, cal), 40);
-  // 9 hours from Thursday 26 Nov to Tuesday 1 Dec: 3 working days (Mon 30 is a holiday), 3 h each.
-  assert.deepEqual(plannedDays({ estimateHours: 9, startDate: '2026-11-26', dueDate: '2026-12-01' }, cal, '2026-11-23'), [{ date: '2026-11-26', hours: 3 }, { date: '2026-11-27', hours: 3 }, { date: '2026-12-01', hours: 3 }]);
-  // Only a due date: all of it in that week. Already overdue: counted from the first week shown.
-  assert.deepEqual(plannedDays({ estimateHours: 6, dueDate: '2026-12-03' }, cal, '2026-11-23'), [{ date: '2026-12-03', hours: 6 }]);
-  assert.deepEqual(plannedDays({ estimateHours: 6, dueDate: '2026-11-02' }, cal, '2026-11-23'), [{ date: '2026-11-23', hours: 6 }]);
-  const grid = workload({ people: [{ id: 'u', name: 'U' }], tasks: [{ id: 't', assigneeId: 'u', estimateHours: 50, dueDate: '2026-11-27' }, { id: 'n', assigneeId: 'u', estimateHours: 4 }], from: '2026-11-25', weeks: 2, cal });
+  // Week of 30 Nov: Bonifacio Day off and one day of leave, so 3 working days.
+  assert.equal(weekCapacity('2026-11-30', { leave: new Map([['2026-12-02', 1]]) }, cal), 3);
+  assert.equal(weekCapacity('2026-11-30', { leave: new Map([['2026-12-02', 0.5]]) }, cal), 3.5);
+  assert.equal(weekCapacity('2026-11-30', { workDays: [1, 2, 3, 4, 5, 6] }, cal), 5);
+  // M (3 days) from Thursday 26 Nov to Tuesday 1 Dec: 3 working days (Mon 30 is a holiday), a day each.
+  assert.deepEqual(plannedDays({ size: 'M', startDate: '2026-11-26', dueDate: '2026-12-01' }, cal, '2026-11-23'), [{ date: '2026-11-26', days: 1 }, { date: '2026-11-27', days: 1 }, { date: '2026-12-01', days: 1 }]);
+  // Only a due date: all of it in that week. Already overdue: whole in the first week shown. No size: as M.
+  assert.deepEqual(plannedDays({ size: 'S', dueDate: '2026-12-03' }, cal, '2026-11-23'), [{ date: '2026-12-03', days: 1 }]);
+  assert.deepEqual(plannedDays({ size: 'L', dueDate: '2026-11-02' }, cal, '2026-11-23'), [{ date: '2026-11-23', days: 5 }]);
+  assert.deepEqual(plannedDays({ dueDate: '2026-12-03' }, cal, '2026-11-23'), [{ date: '2026-12-03', days: 3 }]);
+  const grid = workload({ people: [{ id: 'u', name: 'U' }], tasks: [{ id: 't', assigneeId: 'u', size: 'XL', dueDate: '2026-11-27' }, { id: 'n', assigneeId: 'u', size: 'S' }], from: '2026-11-25', weeks: 2, cal });
   assert.deepEqual(grid.weeks, ['2026-11-23', '2026-11-30']);
-  assert.equal(grid.rows[0].cells[0].planned, 50);
-  assert.equal(grid.rows[0].cells[0].over, true);
-  assert.equal(grid.rows[0].cells[1].capacity, 32);
-  assert.equal(grid.rows[0].unscheduled, 4);
-  // Through the API: Juan's approved leave (in the DTR) lowers his capacity.
+  assert.equal(grid.rows[0].cells[0].planned, 10);
+  assert.equal(grid.rows[0].cells[0].level, 'over');
+  assert.equal(grid.rows[0].cells[1].available, 4);
+  assert.equal(grid.rows[0].cells[1].level, 'light');
+  assert.deepEqual([grid.rows[0].unscheduled.count, grid.rows[0].unscheduled.days], [1, 1]);
+  // Through the API: Juan's approved leave (in the DTR) lowers his days; the level, not hours.
   const monday = weekStart(day(14));
   await admin('POST', '/api/time-entries', { employeeId: juan.employeeId, date: addDays(monday, 1), type: 'leave' });
-  await pia('POST', `/api/pm/projects/${base.id}/tasks`, { title: 'Big job', assigneeId: juan.id, estimateHours: 60, startDate: monday, dueDate: addDays(monday, 4) });
+  await pia('POST', `/api/pm/projects/${base.id}/tasks`, { title: 'Big job', assigneeId: juan.id, size: 'XL', startDate: monday, dueDate: addDays(monday, 4) });
   const wl = await pia('GET', `/api/pm/workload?from=${monday}&weeks=2`);
   const row = wl.rows.find((r) => r.name === 'Juan Cruz');
   const cell = row.cells[0];
   const holidays = new Set(db.data.holidays.filter((h) => ['regular', 'special'].includes(h.type) && h.date >= monday && h.date <= addDays(monday, 4) && h.date !== addDays(monday, 1)).map((h) => h.date)).size;
-  assert.equal(cell.capacity, (5 - 1 - holidays) * 8);
-  assert.ok(cell.planned >= 60 && cell.over);
-  assert.ok(cell.tasks.some((t) => t.title === 'Big job'));
+  assert.equal(cell.available, 5 - 1 - holidays);
+  assert.ok(cell.planned >= 10 && cell.level === 'over');
+  assert.ok(cell.onLeave);
+  assert.ok(cell.tasks.some((t) => t.title === 'Big job' && t.size === 'XL'));
   assert.equal(row.leaveDays, 1);
+  assert.ok(!('capacity' in cell) && !('hours' in cell.tasks[0]), 'no hours in the workload');
   // A bad date or number of weeks falls back to today and at most 26 weeks.
   const odd = await pia('GET', '/api/pm/workload?from=<script>&weeks=999');
   assert.equal(odd.weeks.length, 26);
@@ -380,7 +388,7 @@ test('workload: estimates spread over working days, capacity less holidays and a
 test('copying a project as a template moves every date by the same number of days', async () => {
   const src = await pia('POST', '/api/pm/projects', { name: 'Template', startDate: '2026-01-05', endDate: '2026-03-31' });
   const ms = await pia('POST', `/api/pm/projects/${src.id}/milestones`, { name: 'Phase 1', dueDate: '2026-02-02', deliverable: true, billingPercent: 40, submittedAt: '2026-02-01', acceptedAt: '2026-02-03' });
-  const a = await pia('POST', `/api/pm/projects/${src.id}/tasks`, { title: 'A', startDate: '2026-01-05', dueDate: '2026-01-09', milestoneId: ms.id, assigneeId: pia.id, estimateHours: 8, checklist: ['one', 'two'] });
+  const a = await pia('POST', `/api/pm/projects/${src.id}/tasks`, { title: 'A', startDate: '2026-01-05', dueDate: '2026-01-09', milestoneId: ms.id, assigneeId: pia.id, size: 'S', checklist: ['one', 'two'] });
   const b = await pia('POST', `/api/pm/projects/${src.id}/tasks`, { title: 'B', dueDate: '2026-01-20', parentId: a.id });
   await pia('PUT', `/api/pm/tasks/${a.id}/move`, { statusId: 'done' });
   await pia('POST', `/api/pm/tasks/${a.id}/comments`, { body: 'Not copied' });
@@ -396,6 +404,7 @@ test('copying a project as a template moves every date by the same number of day
   assert.equal(ca.assigneeId, null);
   assert.equal(ca.statusId, 'todo');
   assert.deepEqual(ca.checklist.map((i) => [i.text, i.done]), [['one', false], ['two', false]]);
+  assert.deepEqual([ca.size, cb.size], ['S', null]);
   const cm = (await pia('GET', `/api/pm/projects/${c.id}`)).milestones[0];
   assert.deepEqual([cm.dueDate, cm.billingPercent, cm.acceptedAt, cm.submittedAt], ['2026-05-04', 40, null, null]);
   assert.equal(ca.milestoneId, cm.id);
@@ -487,7 +496,7 @@ test('comments with @mentions, own deletes; time over the attended hours is flag
   const date = day(-3);
   await admin('POST', '/api/time-entries', { employeeId: juan.employeeId, date, type: 'work', timeIn: '09:00', timeOut: '13:00' });
   const r = await juan('POST', `/api/pm/projects/${base.id}/time`, { date, hours: 5, note: 'Long day' });
-  assert.match(r.warning, /more than the 4 h your attendance shows/);
+  assert.match(r.warning, /more than the 4 h your attendance shows. It is saved; this is only for your information/);
   const time = await pia('GET', `/api/pm/projects/${base.id}/time`);
   const entry = time.entries.find((x) => x.id === r.id);
   assert.equal(entry.overAttended, true);
@@ -611,7 +620,21 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   assert.equal(full.milestones.length, 4);
   assert.equal(full.milestones.filter((m) => m.deliverable).length, 2);
   assert.ok(full.counts.overdue >= 2 && full.counts.blocked === 1);
-  assert.ok(full.hours.logged > 0);
+  assert.equal(full.time, null, 'the LMS project does not track time');
+  assert.equal(full.timeTracking, false);
+  assert.ok(full.effort.sized > 20 && full.progress.basis === 'size');
+  // Only the SIS support contract tracks time, and only it has time logged.
+  const tracked = db3.data.pmProjects.filter((p) => p.demo && p.timeTracking);
+  assert.deepEqual(tracked.map((p) => p.name), ['SIS support and maintenance, 2025–2026']);
+  assert.ok(db3.data.pmTimeLogs.length > 0 && db3.data.pmTimeLogs.every((x) => x.projectId === tracked[0].id));
+  assert.ok(db3.data.pmProjects.filter((p) => p.demo && !p.timeTracking).every((p) => p.budgetHours == null));
+  assert.ok(db3.data.pmTasks.every((t) => !('estimateHours' in t) && !('remainingHours' in t)), 'sizes, not hours');
+  assert.ok(db3.data.pmTasks.filter((t) => t.demo && !t.isTemplate).filter((t) => t.size).length > 60);
+  // The workload shows a mix of levels, not a wall of red.
+  const wl = await pmd('GET', '/api/pm/workload?weeks=6');
+  const levels = wl.rows.flatMap((r) => r.cells.map((c) => c.level));
+  assert.ok(levels.filter((l) => l === 'light' || l === 'normal').length > levels.length / 2);
+  assert.ok(levels.includes('light') && levels.includes('normal') && (levels.includes('busy') || levels.includes('over')));
   const tasks = await pmd('GET', `/api/pm/projects/${lms.id}/tasks`);
   assert.ok(tasks.length >= 25);
   assert.ok(new Set(tasks.map((t) => t.statusId)).size >= 5, 'tasks across the statuses');

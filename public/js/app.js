@@ -36,7 +36,7 @@ import { holidaysView } from './views/holidays.js';
 import { ytdView } from './views/ytd.js';
 import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
-import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, workloadView, pmSettingsView, myWorkBadge } from './views/projects.js';
+import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, workloadView, timesheetView, pmSettingsView, myWorkBadge } from './views/projects.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -106,6 +106,7 @@ const routes = [
   ['/projects/my-work', myWorkView, 'projects', 'projects'],
   ['/projects/milestones', portfolioMilestonesView, 'projects', 'projects'],
   ['/projects/workload', workloadView, 'pm.view', 'projects'],
+  ['/projects/timesheet', timesheetView, 'timesheet', 'projects'],
   ['/projects/settings', pmSettingsView, 'pm.manage', 'projects'],
   ['/projects/:id/board', boardView, 'projects', 'projects'],
   ['/projects/:id/list', listView, 'projects', 'projects'],
@@ -190,6 +191,7 @@ const NAV = {
   projects: [
     { href: '/projects', label: 'Overview', icon: 'dashboard', permission: 'projects', also: ['/projects/milestones'] },
     { href: '/projects/my-work', label: 'My work', icon: 'task', permission: 'projects', badge: 'pmWork' },
+    { href: '/projects/timesheet', label: 'Timesheet', icon: 'clock', permission: 'timesheet' },
     { href: '/projects/workload', label: 'Workload', icon: 'users', permission: 'pm.view' },
     { href: '/projects/settings', label: 'Projects setup', icon: 'settings', permission: 'pm.manage' },
   ],
@@ -238,6 +240,8 @@ function allowed(permission) {
   if (permission === 'self') return can('self') && (Boolean(ctx.user.employeeId) || ctx.user.role === 'employee');
   // Projects: everyone who sees every project, and the members of any project.
   if (permission === 'projects') return can('pm.view') || Boolean(ctx.user.inProjects);
+  // The weekly Timesheet: members of a project that tracks time, and those who manage one.
+  if (permission === 'timesheet') return Boolean(ctx.user.timesheet);
   return can(permission);
 }
 

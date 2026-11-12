@@ -17,7 +17,7 @@ CORE is the ERP of Lancaster Technology and Development Corporation (LTDC). It i
 | **IT Asset Management** | Laptops, devices and consumable stock: who holds what, and its history. Employees see the equipment assigned to them. |
 | **IT Service Desk** | Support tickets from CORE, by email and from the public form. |
 | **Sales & CRM** | Leads, accounts, contacts, the deal pipeline, public bids and contracts. |
-| **Project Management** | Projects with milestones, a task board, a timeline and time logs. Anyone who is on a project opens it here, and **My work** lists their tasks. |
+| **Project Management** | Projects with milestones, a task board with sized tasks, a timeline, and a weekly timesheet for the projects that track time. Anyone who is on a project opens it here, and **My work** lists their tasks. |
 
 You sign in once and move between modules without signing in again. What you see depends on your **account type** (for example *Employee*, *HR Manager* or *Sales Officer*): a module you may not use is shown locked.
 
@@ -87,6 +87,8 @@ If you are on a project, **Project Management** is one of your modules, whatever
 2. Open **My work** in the side menu. **For you**, at the top, tells you what others did that concerns you: a task assigned to you, an @mention, a comment on your task, your task moved to done or cancelled, being added to a project. New ones are in bold; several on the same task are one line (*3 comments on …*). Open one, or click its tick, to mark it read; **Mark all read** clears them all.
 3. Below are the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. The number next to **My work** counts the overdue ones, today's and the unread **For you** ones.
 4. Change a task's status in its row, or click it to open it.
+
+If you are on a project that tracks time (most do not: they use task sizes, not hours), **Timesheet** in the same menu is where you enter your hours for the week, separately from clocking in. See [the projects guide](projects#fill-in-your-timesheet).
 
 ### Get the daily digest by email
 

@@ -1,7 +1,9 @@
 // Project Management screens: the portfolio (its templates, and milestones with the billing
-// forecast), a project's Overview, Board, List (bulk edit, import), Timeline and Time tabs, the task
-// page (watchers, files), My work (with "For you" and the daily digest), Workload and the Projects
-// setup. Built for dated,
+// forecast), a project's Overview, Board, List (bulk edit, import), Timeline and Time tabs (Time
+// only on a project that tracks time), the task page (size, watchers, files), My work (with "For
+// you" and the daily digest), the weekly Timesheet, Workload (load levels) and the Projects setup.
+// Effort is a task's size (XS to XL), never hours; hours only exist where a project tracks time.
+// Built for dated,
 // contract-bound delivery: milestones (some are deliverables the client accepts), a board of
 // tasks, and what is late. Everything a project shows is worked out by the server from its tasks
 // (shared/projects.js); nothing here stores a percentage or a health colour.
@@ -15,6 +17,7 @@ import {
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
   QUICK_FILTERS, parseFilters, taskMatches, VIEW_TABS, groupNotifications,
   billingForecast, forecastCsvRows, IMPORT_FIELDS, IMPORT_TEMPLATE, IMPORT_MAX_ROWS, DIGEST_MAX,
+  SIZES, SIZE_KEYS, UNSIZED_AS, sizeName, sizeEffort, LOAD_LEVELS, LIST_SORTS,
 } from '/shared/projects.js';
 
 // ---------- Small helpers ----------
@@ -70,7 +73,13 @@ const projectBadge = (s) => badge(PROJECT_STATUS[s] || s, PROJECT_BADGE[s]);
 export const healthChip = (v, title = '') => (v ? html`<span class="pm-health ${v}" title="${title}"><i aria-hidden="true"></i>${HEALTH[v]}</span>` : html`<span class="muted small">—</span>`);
 const statusChip = (s) => html`<span class="pm-st pm-c-${s?.color || 'gray'}"><i aria-hidden="true"></i>${s?.name || '—'}</span>`;
 const progressBar = (pr) => (pr?.percent == null ? html`<span class="muted small">No tasks yet</span>`
-  : html`<span class="pm-progress" title="${pr.basis === 'hours' ? 'Weighted by estimated hours' : 'By number of tasks'}"><span class="progress"><i style="width:${pr.percent}%"></i></span><b>${pr.percent}%</b></span>`);
+  : html`<span class="pm-progress" title="${pr.basis === 'size' ? 'Weighted by the tasks\' sizes' : 'By number of tasks'}"><span class="progress"><i style="width:${pr.percent}%"></i></span><b>${pr.percent}%</b></span>`);
+// A task's size: the letters, with the name and what it means for screen readers and on hover.
+// notes: the company's wording of the sizes (meta().sizes).
+const sizeChip = (s, notes) => (SIZES[s] ? html`<span class="pm-size pm-size-${s}" title="Size ${sizeName(s)}: ${sizeEffort(s, notes)}"><span aria-hidden="true">${s}</span><span class="sr-only">Size ${sizeName(s)}</span></span>` : '');
+// short: "M · Medium" without what it means (in a table cell).
+const sizeOptions = (selected, notes, none = 'No size', short = false) => html`<option value="">${none}</option>${SIZE_KEYS.map((k) => option(k, short ? sizeName(k) : `${sizeName(k)} (${sizeEffort(k, notes)})`, selected))}`;
+const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task in progress and Workload.';
 const priorityBadge = (p) => (p === 'urgent' ? badge('Urgent', 'red') : p === 'high' ? badge('High', 'amber') : '');
 function dueChip(t, { long = false } = {}) {
   if (!t.dueDate) return '';
@@ -212,14 +221,16 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
     title: rec.id ? (rec.isTemplate ? 'Edit template' : 'Edit project') : 'New project', wide: true, subtitle: rec.id ? rec.code : 'The statuses of the board come from the Projects setup, or from the template; change them later under Board → Edit columns.',
     body: html`<div class="grid two">
       ${templates.length ? html`<label class="field span-2"><span>Start from</span><select name="from"><option value="">A blank project</option>${options(templates.map((t) => [t.id, `Template: ${t.name}`]), templateId)}</select>
-        <small class="hint" id="from-hint">A template brings its board statuses, milestones (with deliverables and billing %), tasks, subtasks, checklists and estimates, with the dates moved to your start date in working days. No assignees, time or comments.</small></label>` : ''}
+        <small class="hint" id="from-hint">A template brings its board statuses, milestones (with deliverables and billing %), tasks, subtasks, checklists and sizes, and whether it tracks time, with the dates moved to your start date in working days. No assignees, time or comments.</small></label>` : ''}
       <label class="field span-2"><span>Project name<em>*</em></span><input name="name" value="${rec.name || ''}" required /></label>
       <label class="field ${blank()}"><span>Type</span><select name="type">${options([...new Set([...m.types, ...(rec.type ? [rec.type] : [])])].map((t) => [t, t]), rec.type || m.types[0])}</select></label>
       <label class="field ${blank()}"><span>Status</span><select name="status">${options(Object.entries(PROJECT_STATUS), rec.status || 'planning')}</select></label>
       <label class="field"><span>Start<em>*</em></span><input type="date" name="startDate" value="${rec.startDate || today()}" required /></label>
       <label class="field ${blank()}"><span>End</span><input type="date" name="endDate" value="${rec.endDate || ''}" /></label>
       <label class="field"><span>Project manager</span><select name="managerId">${options(people.map((x) => [x.id, x.name]), rec.managerId || ctx.user.id)}</select></label>
-      <label class="field ${blank()}"><span>Budget (hours)</span><input type="number" name="budgetHours" min="0" step="1" inputmode="decimal" value="${rec.budgetHours ?? ''}" /></label>
+      <div class="field span-2 pm-track ${blank()}"><label class="check"><input type="checkbox" name="timeTracking" ${rec.timeTracking ? 'checked' : ''} aria-describedby="track-hint" /><span>Track time on this project</span></label>
+        <small class="hint" id="track-hint">For time-and-materials work, or when the client asks for a timesheet. Members then log hours on its tasks and on their Timesheet. Off: no hours anywhere in the project${rec.id ? '; turning it off hides the hours logged, it does not delete them' : ''}.</small></div>
+      <label class="field ${blank()} pm-budget"><span>Budget (hours)</span><input type="number" name="budgetHours" min="0" step="1" inputmode="decimal" value="${rec.budgetHours ?? ''}" /><small class="hint">Optional: the hours logged are shown against it.</small></label>
       ${crm ? html`
         <label class="field"><span>Client</span><select name="accountId"><option value="">None (internal)</option>${options(crm.accounts.map((a) => [a.id, a.name]), rec.accountId)}</select></label>
         <label class="field"><span>Deal</span><select name="dealId"></select></label>
@@ -236,6 +247,8 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
         saved = await api.post(`/api/pm/projects/${v.from}/copy`, pick(['name', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId']));
       } else {
         delete v.from;
+        v.timeTracking = f.timeTracking.checked;
+        if (!v.timeTracking) delete v.budgetHours;
         if (rec.id && may(rec.access, 'manage')) v.isTemplate = f.isTemplate.checked;
         saved = rec.id ? await api.put(`/api/pm/projects/${rec.id}`, { ...v, version: rec.version }) : await api.post('/api/pm/projects', v);
       }
@@ -244,13 +257,15 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       after?.(saved);
     },
   });
-  // From a template: only the fields a template does not bring.
+  // From a template: only the fields a template does not bring. The budget only with time tracking.
   const from = form.elements.from;
-  if (from) {
-    const sync = () => form.querySelectorAll('.pm-blank-only').forEach((x) => (x.hidden = Boolean(from.value)));
-    from.addEventListener('change', sync);
-    sync();
-  }
+  const sync = () => {
+    form.querySelectorAll('.pm-blank-only').forEach((x) => (x.hidden = Boolean(from?.value)));
+    form.querySelector('.pm-budget').hidden = Boolean(from?.value) || !form.elements.timeTracking.checked;
+  };
+  from?.addEventListener('change', sync);
+  form.elements.timeTracking.addEventListener('change', sync);
+  sync();
   // The deal and contract lists show the chosen client's.
   if (crm) {
     const fill = (name, list, label) => {
@@ -320,7 +335,7 @@ export async function addTicketToProject(ticket, after) {
 // New task (List, Overview), with the project's statuses, members and milestones.
 async function newTask(p, tasks, preset = {}, after) {
   const top = tasks.filter((t) => !t.parentId);
-  const assignees = await assigneeOptions(p, p.access, preset.assigneeId);
+  const [assignees, m] = await Promise.all([assigneeOptions(p, p.access, preset.assigneeId), meta()]);
   modal({
     title: preset.parentId ? 'New subtask' : 'New task', wide: true, submitLabel: 'Add task',
     body: html`<div class="grid two">
@@ -328,7 +343,7 @@ async function newTask(p, tasks, preset = {}, after) {
       <label class="field"><span>Status</span><select name="statusId">${options(p.statuses.filter((s) => s.category !== 'cancelled').map((s) => [s.id, s.name]), preset.statusId)}</select></label>
       <label class="field"><span>Priority</span><select name="priority">${options(Object.entries(PRIORITY), 'normal')}</select></label>
       <label class="field"><span>Assignee</span><select name="assigneeId">${assignees}</select></label>
-      <label class="field"><span>Estimate (hours)</span><input type="number" name="estimateHours" min="0" step="0.25" inputmode="decimal" /></label>
+      <label class="field"><span>Size</span><select name="size" aria-describedby="new-size-hint">${sizeOptions('', m.sizes)}</select><small class="hint" id="new-size-hint">${sizeHint}</small></label>
       <label class="field"><span>Start</span><input type="date" name="startDate" /></label>
       <label class="field"><span>Due</span><input type="date" name="dueDate" /></label>
       <label class="field"><span>Milestone</span><select name="milestoneId"><option value="">None</option>${options(p.milestones.map((m) => [m.id, `${m.name} (${short(m.dueDate)})`]), preset.milestoneId)}</select></label>
@@ -492,6 +507,7 @@ export async function portfolioMilestonesView(el, _params, query) {
 }
 
 // ---------- A project: header and tabs ----------
+// Time: only on a project that tracks time.
 const TABS = [['', 'Overview', 'dashboard'], ['board', 'Board', 'grid'], ['list', 'List', 'table'], ['timeline', 'Timeline', 'calendar'], ['time', 'Time', 'clock']];
 function projectHeader(p, tab, actions = '') {
   return html`
@@ -501,7 +517,7 @@ function projectHeader(p, tab, actions = '') {
         <p class="muted"><span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
       ${actions ? html`<div class="actions">${actions}</div>` : ''}
     </header>
-    <nav class="tabs pm-tabs" aria-label="Project views">${TABS.map(([k, label, ic]) => html`<a href="#/projects/${p.id}${k ? `/${k}` : ''}" class="${k === tab ? 'active' : ''}" ${k === tab ? 'aria-current="page"' : ''}>${icon(ic, 16)} ${label}</a>`)}</nav>`;
+    <nav class="tabs pm-tabs" aria-label="Project views">${TABS.filter(([k]) => k !== 'time' || p.timeTracking).map(([k, label, ic]) => html`<a href="#/projects/${p.id}${k ? `/${k}` : ''}" class="${k === tab ? 'active' : ''}" ${k === tab ? 'aria-current="page"' : ''}>${icon(ic, 16)} ${label}</a>`)}</nav>`;
 }
 const loadProject = (id) => api.get(`/api/pm/projects/${id}`);
 
@@ -543,12 +559,13 @@ export async function projectOverviewView(el, { id }) {
     ${tpl ? html`<div class="stats">
       <div class="card"><small>Milestones</small><strong>${p.milestones.length}</strong><span class="muted small">${plural(p.milestones.filter((m) => m.deliverable).length, 'deliverable')}</span></div>
       <a class="card" href="#/projects/${p.id}/list?show=all"><small>Tasks</small><strong>${p.counts.tasks}</strong><span class="muted small">subtasks included</span></a>
-      <div class="card"><small>Hours</small><strong>${hrs(p.hours.estimate)}</strong><span class="muted small">estimated</span></div>
+      ${effortCard(p)}
     </div>` : html`<div class="stats">
-      <div class="card"><small>Progress</small><strong>${p.progress.percent == null ? '—' : `${p.progress.percent}%`}</strong><span class="muted small">${p.progress.total ? `${p.progress.done} of ${plural(p.progress.total, 'task')} done${p.progress.basis === 'hours' ? ', by hours' : ''}` : 'no tasks yet'}</span>${p.progress.percent != null ? html`<span class="progress"><i style="width:${p.progress.percent}%"></i></span>` : ''}</div>
+      <div class="card"><small>Progress</small><strong>${p.progress.percent == null ? '—' : `${p.progress.percent}%`}</strong><span class="muted small">${p.progress.total ? `${p.progress.done} of ${plural(p.progress.total, 'task')} done${p.progress.basis === 'size' ? ', weighed by size' : ''}` : 'no tasks yet'}</span>${p.progress.percent != null ? html`<span class="progress"><i style="width:${p.progress.percent}%"></i></span>` : ''}</div>
       <a class="card ${p.counts.overdue ? 'attention' : ''}" href="#/projects/${p.id}/list?f=overdue"><small>Overdue tasks</small><strong>${p.counts.overdue}</strong><span class="muted small">${p.counts.dueSoon} due within 3 working days</span></a>
       <a class="card" href="#/projects/${p.id}/board?f=blocked"><small>Blocked</small><strong>${p.counts.blocked}</strong><span class="muted small">waiting for another task</span></a>
-      <a class="card" href="#/projects/${p.id}/time"><small>Hours</small><strong>${hrs(p.hours.remaining)} left</strong><span class="muted small">${hrs(p.hours.estimate)} estimated · ${hrs(p.hours.logged)} logged${p.budgetHours ? ` · budget ${hrs(p.budgetHours)}` : ''}</span></a>
+      ${effortCard(p)}
+      ${p.time ? html`<a class="card" href="#/projects/${p.id}/time"><small>Time</small><strong>${hrs(p.time.logged)}</strong><span class="muted small">logged${p.time.budget ? ` of a ${hrs(p.time.budget)} budget` : ''}</span>${p.time.budget ? html`<span class="progress ${p.time.logged > p.time.budget ? 'over' : ''}"><i style="width:${Math.min(100, Math.round((p.time.logged / p.time.budget) * 100))}%"></i></span>` : ''}</a>` : ''}
     </div>`}
     <section class="card">
       <div class="card-head"><h2>${icon('flag')} Milestones</h2>${manage ? html`<button class="btn small-btn" id="add-ms">+ Milestone</button>` : ''}</div>
@@ -629,6 +646,14 @@ export async function projectOverviewView(el, { id }) {
   el.querySelector('#members')?.addEventListener('click', () => editMembers(p, reload));
 }
 
+// How many of the tasks have a size (progress weighs by size from 60%), and their effort points.
+function effortCard(p) {
+  const e = p.effort;
+  const share = e.tasks ? Math.round((e.sized / e.tasks) * 100) : 0;
+  return html`<a class="card" href="#/projects/${p.id}/list?show=all&sort=size&dir=desc"><small>Sized tasks</small><strong>${e.sized} of ${e.tasks}</strong>
+    <span class="muted small">${!e.tasks ? 'no tasks yet' : share >= 60 ? `${e.points} effort points; progress weighs by size` : 'under 60%: progress counts tasks, not sizes'}</span></a>`;
+}
+
 // A milestone's files; for a deliverable, the place for the client's signed acceptance document.
 function milestoneFiles(p, m, after) {
   const base = `/api/pm/projects/${p.id}/milestones/${m.id}/attachments`;
@@ -695,7 +720,7 @@ async function editMembers(p, after) {
   const m = await meta(true);
   const list = p.members.map((x) => ({ ...x }));
   const { form } = modal({
-    title: 'Project members', wide: true, subtitle: 'Managers change the project; members work on tasks and log time; viewers read and comment. Anyone on the list can open the project.',
+    title: 'Project members', wide: true, subtitle: `Managers change the project; members work on tasks${p.timeTracking ? ' and log time' : ''}; viewers read and comment. Anyone on the list can open the project.`,
     body: html`<div id="mem"></div>`,
     onSubmit: async () => {
       const r = await api.put(`/api/pm/projects/${p.id}/members`, { version: p.version, members: list.map(({ userId, role }) => ({ userId, role })) });
@@ -727,8 +752,8 @@ async function editMembers(p, after) {
 // working day. Inline SVG drawn on a 100 × 100 box stretched to the card (lines keep their width);
 // the labels are HTML around it, so they stay readable on a phone. The text under it says the same.
 function burnupChart(b) {
-  const unit = b.basis === 'hours' ? 'h' : 'tasks';
-  const fmt = (n) => (b.basis === 'hours' ? hrs(n) : plural(Math.round(n * 100) / 100, 'task'));
+  const bySize = b.basis === 'size';
+  const fmt = (n) => plural(Math.round(n * 10) / 10, bySize ? 'effort point' : 'task');
   const pts = b.points;
   if (pts.length < 2 || !pts.some((x) => x.scope > 0)) return html`<p class="muted small">No tasks to chart in this milestone yet${pts.length < 2 ? ', or its due date is before its first task starts' : ''}.</p>`;
   const top = Math.max(1, ...pts.map((x) => Math.max(x.scope, x.expected || 0))) * 1.08;
@@ -744,7 +769,7 @@ function burnupChart(b) {
   const pct = b.scope ? Math.round((b.done / b.scope) * 100) : 0;
   const summary = `${b.name}: scope ${fmt(b.scope)}${b.added ? `, of which ${fmt(b.added)} added after ${fmtDate(b.start)}` : ''}. Done ${fmt(b.done)} (${pct}%)${b.today <= b.end ? ' by today' : ''}${b.expected != null && !b.finished ? `; expected by now ${fmt(b.expected)}` : ''}. Due ${fmtDate(b.due)}.`;
   return html`<div class="pm-bu">
-      <div class="pm-bu-y" aria-hidden="true"><span>${fmt(Math.round(top))}</span><span>0</span></div>
+      <div class="pm-bu-y" aria-hidden="true"><span>${Math.round(top)}</span><span class="pm-bu-unit">${bySize ? 'effort points' : 'tasks'}</span><span>0</span></div>
       <div class="pm-bu-plot">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Burn-up chart. ${summary}" focusable="false">
           ${[25, 50, 75].map((y) => html`<line class="pm-bu-grid" x1="0" x2="100" y1="${y}" y2="${y}" />`)}
@@ -760,7 +785,7 @@ function burnupChart(b) {
     </div>
     <ul class="pm-bu-legend" aria-hidden="true"><li><i class="scope"></i>Scope</li><li><i class="done"></i>Done</li><li><i class="expected"></i>Expected (straight line in working days)</li><li><i class="today"></i>Today</li></ul>
     <p class="small pm-bu-text">${summary}</p>
-    <p class="muted small">In ${unit === 'h' ? 'estimated hours, as the milestone\'s progress is (60% or more of its tasks have an estimate)' : 'tasks, as the milestone\'s progress is (fewer than 60% have an estimate)'}. Worked out from when tasks were added, their status changes and when they were done. Deleted tasks are not kept, so they do not show; a task moved from another milestone counts here from the day it was added.</p>`;
+    <p class="muted small">In ${bySize ? `effort points, as the milestone's progress is: 60% or more of its tasks have a size, and each counts its weight (${SIZE_KEYS.map((k) => `${k} ${SIZES[k].weight}`).join(', ')}; a task without one, the average)` : 'tasks, as the milestone\'s progress is: fewer than 60% of them have a size'}. Worked out from when tasks were added, their status changes and when they were done. Deleted tasks are not kept, so they do not show; a task moved from another milestone counts here from the day it was added.</p>`;
 }
 
 // Print status report: one page, from the project as loaded. Printed from a copy placed outside the
@@ -776,9 +801,10 @@ function printReport(p) {
       <p class="pm-r-date">Status report<br />${fmtDate(today(), { month: 'long', day: 'numeric', year: 'numeric' })}</p></header>
     <section class="pm-r-head">
       <div><small>Health</small><strong>${p.health ? HEALTH[p.health] : PROJECT_STATUS[p.status]}</strong>${p.healthOverride ? html`<span>Manager: ${HEALTH[p.healthOverride.value]}. ${p.healthOverride.note}</span>` : html`<span>${p.healthReasons.join('; ') || 'Nothing late or behind.'}</span>`}</div>
-      <div><small>Progress</small><strong>${p.progress.percent == null ? '—' : `${p.progress.percent}%`}</strong><span>${p.progress.done} of ${plural(p.progress.total, 'task')} done</span></div>
+      <div><small>Progress</small><strong>${p.progress.percent == null ? '—' : `${p.progress.percent}%`}</strong><span>${p.progress.done} of ${plural(p.progress.total, 'task')} done${p.progress.basis === 'size' ? ', weighed by size' : ''}</span></div>
       <div><small>Dates</small><strong>${short(p.startDate)} – ${p.endDate ? short(p.endDate) : '…'}</strong><span>Manager: ${p.managerName || '—'}</span></div>
-      <div><small>Hours</small><strong>${hrs(p.hours.logged)}</strong><span>of ${hrs(p.hours.estimate)} estimated</span></div>
+      ${p.time ? html`<div><small>Time</small><strong>${hrs(p.time.logged)}</strong><span>logged${p.time.budget ? ` of a ${hrs(p.time.budget)} budget` : ''}</span></div>`
+        : html`<div><small>Open tasks</small><strong>${p.counts.open}</strong><span>${p.counts.overdue} overdue · ${p.counts.blocked} blocked</span></div>`}
     </section>
     <h2>Milestones</h2>
     <table><thead><tr><th>Milestone</th><th>Due</th><th>Progress</th><th>Status</th></tr></thead><tbody>${ms.map((m) => html`<tr><td>${m.name}${m.deliverable ? html` <em>(deliverable${m.billingPercent != null ? `, ${m.billingPercent}%` : ''})</em>` : ''}</td><td>${fmtDate(m.dueDate)}</td><td>${m.progress.percent == null ? '—' : `${m.progress.percent}%`}</td><td>${m.acceptedAt ? `Accepted ${fmtDate(m.acceptedAt)}${m.attachments?.length ? ' (document attached)' : ''}` : m.submittedAt ? `Submitted ${fmtDate(m.submittedAt)}` : HEALTH[m.value] || ''}</td></tr>`)}</tbody></table>
@@ -870,7 +896,7 @@ function deleteViews(p, views) {
 
 // ---------- Board ----------
 export async function boardView(el, { id }, query) {
-  const [p, all, views] = await Promise.all([loadProject(id), api.get(`/api/pm/projects/${id}/tasks`), api.get(`/api/pm/projects/${id}/views`)]);
+  const [p, all, views, m] = await Promise.all([loadProject(id), api.get(`/api/pm/projects/${id}/tasks`), api.get(`/api/pm/projects/${id}/views`), meta()]);
   let tasks = all;
   const work = may(p.access, 'work');
   const state = { who: knownWho(p, query.who || ''), ms: knownMs(p, query.ms || ''), cancelled: query.cancelled === '1', f: parseFilters(query.f), q: String(query.q || '').slice(0, 100) };
@@ -895,7 +921,7 @@ export async function boardView(el, { id }, query) {
         ${work ? html`<button type="button" class="icon-btn pm-move-btn" data-move="${t.id}" aria-haspopup="menu" aria-label="Move ${t.key} to…" title="Move to…">${icon('chevronDown', 16)}</button>` : ''}</div>
       <a class="pm-card-title" href="#/projects/${p.id}/tasks/${t.id}">${t.title}</a>
       ${t.parentId ? html`<small class="muted">Subtask of ${tasks.find((x) => x.id === t.parentId)?.key || ''}</small>` : ''}
-      <div class="pm-card-foot">${dueChip(t)}${t.checklist.length ? html`<span class="pm-meta" title="Checklist">${icon('check', 12)} ${t.checklistDone}/${t.checklist.length}</span>` : ''}${t.subtasks ? html`<span class="pm-meta" title="Subtasks">${icon('layers', 12)} ${t.subtasks}</span>` : ''}${t.ticket ? html`<span class="pm-meta" title="Service desk ticket ${t.ticket.ref}">${icon('ticket', 12)}</span>` : ''}<span class="spacer"></span>${avatar(t.assigneeName)}</div>
+      <div class="pm-card-foot">${sizeChip(t.size, m.sizes)}${dueChip(t)}${t.checklist.length ? html`<span class="pm-meta" title="Checklist">${icon('check', 12)} ${t.checklistDone}/${t.checklist.length}</span>` : ''}${t.subtasks ? html`<span class="pm-meta" title="Subtasks">${icon('layers', 12)} ${t.subtasks}</span>` : ''}${t.ticket ? html`<span class="pm-meta" title="Service desk ticket ${t.ticket.ref}">${icon('ticket', 12)}</span>` : ''}<span class="spacer"></span>${avatar(t.assigneeName)}</div>
     </article>`;
   function draw(focusId) {
     const list = shown();
@@ -1123,13 +1149,14 @@ function editStatuses({ statuses, counts = {}, title, save, after }) {
 
 // ---------- List ----------
 export async function listView(el, { id }, query) {
-  const [p, all, views] = await Promise.all([loadProject(id), api.get(`/api/pm/projects/${id}/tasks`), api.get(`/api/pm/projects/${id}/views`)]);
+  const [p, all, views, m] = await Promise.all([loadProject(id), api.get(`/api/pm/projects/${id}/tasks`), api.get(`/api/pm/projects/${id}/views`), meta()]);
   let tasks = all;
   const work = may(p.access, 'work');
   // "overdue=1" (older links) is the Overdue chip.
   const f = parseFilters([query.f, query.overdue === '1' ? 'overdue' : ''].filter(Boolean).join(','));
-  const SORT_KEYS = ['rank', 'key', 'title', 'status', 'assignee', 'due', 'priority', 'estimate', 'left'];
-  const state = { q: String(query.q || '').slice(0, 100), group: query.group === 'status' ? 'status' : 'milestone', who: knownWho(p, query.who || ''), show: ['open', 'done', 'all'].includes(query.show) ? query.show : 'open', f, sort: SORT_KEYS.includes(query.sort) ? query.sort : 'rank', dir: query.dir === 'desc' ? -1 : 1, sel: new Set() };
+  // An address from before 0.17 may sort by the estimate (now the size) or the hours left (gone).
+  const sortBy = query.sort === 'estimate' ? 'size' : query.sort;
+  const state = { q: String(query.q || '').slice(0, 100), group: query.group === 'status' ? 'status' : 'milestone', who: knownWho(p, query.who || ''), show: ['open', 'done', 'all'].includes(query.show) ? query.show : 'open', f, sort: LIST_SORTS.includes(sortBy) ? sortBy : 'rank', dir: query.dir === 'desc' && LIST_SORTS.includes(sortBy) ? -1 : 1, sel: new Set() };
   const people = await assigneeOptions(p, p.access, null);
   const queue = saveQueue();
   const manage = may(p.access, 'manage');
@@ -1141,7 +1168,7 @@ export async function listView(el, { id }, query) {
         <select id="f-group" aria-label="Group by">${options([['milestone', 'Group by milestone'], ['status', 'Group by status']], state.group)}</select>
         <select id="f-who" aria-label="Assignee"><option value="">Everyone</option>${options([['me', 'Mine'], ['none', 'Unassigned'], ...p.members.filter((m) => m.role !== 'viewer').map((m) => [m.userId, m.name])], state.who)}</select>
         <select id="f-show" aria-label="Which tasks">${options([['open', 'Open tasks'], ['done', 'Done'], ['all', 'All tasks']], state.show)}</select>
-        <select id="f-sort" class="pm-phone-only" aria-label="Sort by">${options([['rank', 'Board order'], ['due', 'Sort by due date'], ['priority', 'Sort by priority'], ['assignee', 'Sort by assignee'], ['status', 'Sort by status'], ['title', 'Sort by title'], ['left', 'Sort by hours left']], state.sort)}</select>
+        <select id="f-sort" class="pm-phone-only" aria-label="Sort by">${options([['rank', 'Board order'], ['due', 'Sort by due date'], ['priority', 'Sort by priority'], ['assignee', 'Sort by assignee'], ['status', 'Sort by status'], ['title', 'Sort by title'], ['size', 'Sort by size']], state.sort)}</select>
         ${viewsButton(views, 'list')}
       </div>
       <div class="pm-chips-row">${chipBar(state.f)}</div>
@@ -1153,7 +1180,7 @@ export async function listView(el, { id }, query) {
     status: (a, b) => p.statuses.findIndex((s) => s.id === a.statusId) - p.statuses.findIndex((s) => s.id === b.statusId),
     assignee: (a, b) => (a.assigneeName || '~').localeCompare(b.assigneeName || '~'), due: (a, b) => (a.dueDate || '9').localeCompare(b.dueDate || '9'),
     priority: (a, b) => Object.keys(PRIORITY).indexOf(b.priority) - Object.keys(PRIORITY).indexOf(a.priority),
-    estimate: (a, b) => (a.estimateHours ?? -1) - (b.estimateHours ?? -1), left: (a, b) => (a.remaining ?? -1) - (b.remaining ?? -1),
+    size: (a, b) => (SIZES[a.size]?.weight ?? 0) - (SIZES[b.size]?.weight ?? 0),
   };
   const match = (t) => taskMatches(t, { chips: state.f, q: state.q }, { today: today(), userId: ctx.user.id })
     && (!state.who || (state.who === 'me' ? t.assigneeId === ctx.user.id : state.who === 'none' ? !t.assigneeId : t.assigneeId === state.who))
@@ -1173,8 +1200,7 @@ export async function listView(el, { id }, query) {
       <td>${work ? html`<select data-f="assigneeId" data-id="${t.id}" aria-label="Assignee of ${t.key}">${people}</select>` : t.assigneeName || '—'}</td>
       <td>${work ? html`<input type="date" data-f="dueDate" data-id="${t.id}" value="${t.dueDate || ''}" aria-label="Due date of ${t.key}" class="${t.overdue ? 'bad' : ''}" />` : t.dueDate ? dueChip(t, { long: true }) : '—'}</td>
       <td>${priorityBadge(t.priority) || PRIORITY[t.priority]}</td>
-      <td class="num">${t.estimateHours != null ? hrs(t.estimateHours) : '—'}${t.loggedHours ? html`<small>${hrs(t.loggedHours)} logged</small>` : ''}</td>
-      <td class="num ${t.estimateHours != null && t.loggedHours > t.estimateHours ? 'warn' : ''}" title="${t.remainingOverride ? 'Hours left, as set on the task' : 'Estimate less logged'}">${t.remaining != null ? html`${hrs(t.remaining)}${t.remainingOverride ? html`<span class="pm-set" aria-label="(set on the task)">*</span>` : ''}` : '—'}</td>
+      <td class="pm-size-cell">${work ? html`<select data-f="size" data-id="${t.id}" aria-label="Size of ${t.key}" class="pm-size-select" title="${t.size ? `${sizeName(t.size)}: ${sizeEffort(t.size, m.sizes)}` : 'No size'}">${sizeOptions(t.size, m.sizes, '—', true)}</select>` : sizeChip(t.size, m.sizes) || html`<span class="muted">—</span>`}${p.timeTracking && t.loggedHours ? html`<small>${hrs(t.loggedHours)} logged</small>` : ''}</td>
     </tr>`;
   function groups() {
     if (state.group === 'status') return p.statuses.map((s) => ({ key: s.id, title: html`${statusChip(s)}`, list: tasks.filter((t) => t.statusId === s.id) }));
@@ -1192,9 +1218,9 @@ export async function listView(el, { id }, query) {
     const shownIds = gs.flatMap((g) => g.rows.map((t) => t.id));
     for (const x of [...state.sel]) if (!shownIds.includes(x)) state.sel.delete(x);
     mount(el.querySelector('#list'), gs.length ? html`${work ? html`<div class="pm-selall pad"><label class="check"><input type="checkbox" id="sel-all" /><span>Select all ${plural(shownIds.length, 'task')} shown</span></label></div>` : ''}<table class="table clickable pm-list ${work ? 'pm-selectable' : ''}">
-      <thead><tr>${th('title', 'Task')}${th('status', 'Status')}${th('assignee', 'Assignee')}${th('due', 'Due')}${th('priority', 'Priority')}${th('estimate', 'Estimate', 'num')}${th('left', 'Left', 'num')}</tr></thead>
-      ${gs.map((g) => html`<tbody><tr class="pm-group"><th colspan="7" scope="rowgroup">${g.title} <span class="muted small">${plural(g.rows.length, 'task')}</span></th></tr>${g.rows.map(row)}</tbody>`)}
-    </table>${gs.some((g) => g.rows.some((t) => t.remainingOverride)) ? html`<p class="muted small pad">* Hours left as set on the task; otherwise the estimate less the time logged.</p>` : ''}` : html`<div class="empty"><p>${tasks.length ? 'No task matches the filters.' : work ? 'No tasks yet. Add one with + Task, or on the board.' : 'No tasks yet.'}</p></div>`);
+      <thead><tr>${th('title', 'Task')}${th('status', 'Status')}${th('assignee', 'Assignee')}${th('due', 'Due')}${th('priority', 'Priority')}${th('size', 'Size')}</tr></thead>
+      ${gs.map((g) => html`<tbody><tr class="pm-group"><th colspan="6" scope="rowgroup">${g.title} <span class="muted small">${plural(g.rows.length, 'task')}</span></th></tr>${g.rows.map(row)}</tbody>`)}
+    </table>` : html`<div class="empty"><p>${tasks.length ? 'No task matches the filters.' : work ? 'No tasks yet. Add one with + Task, or on the board.' : 'No tasks yet.'}</p></div>`);
     el.querySelectorAll('select[data-f="assigneeId"]').forEach((s) => (s.value = tasks.find((t) => t.id === s.dataset.id)?.assigneeId || ''));
     el.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', (e) => !e.target.closest('a, select, input, button, label') && (location.hash = tr.dataset.href)));
     // Selecting rows for a bulk change.
@@ -1259,6 +1285,7 @@ export async function listView(el, { id }, query) {
     assignee: ['Assignee', () => html`<label class="field"><span>Assign to</span><select name="v"><option value="">Nobody (unassigned)</option>${options(members.map((m) => [m.userId, m.name]))}</select><small class="hint">Members of the project only. Add someone under Members first.</small></label>`, (f) => bulk({ set: { assigneeId: f.v.value || null } })],
     milestone: ['Milestone', () => html`<label class="field"><span>Milestone</span><select name="v"><option value="">None</option>${options(p.milestones.map((m) => [m.id, `${m.name} (${short(m.dueDate)})`]))}</select></label>`, (f) => bulk({ set: { milestoneId: f.v.value || null } })],
     priority: ['Priority', () => html`<label class="field"><span>Priority</span><select name="v">${options(Object.entries(PRIORITY), 'normal')}</select></label>`, (f) => bulk({ set: { priority: f.v.value } })],
+    size: ['Size', () => html`<label class="field"><span>Size</span><select name="v">${sizeOptions('M', m.sizes, 'No size')}</select><small class="hint">${sizeHint}</small></label>`, (f) => bulk({ set: { size: f.v.value || null } })],
     dates: ['Move dates', () => html`<label class="field"><span>Move the start and due dates by (working days)</span><input type="number" name="v" min="-260" max="260" step="1" value="5" inputmode="numeric" required /><small class="hint">A negative number moves them earlier. Weekends and the holidays in CORE's calendar are skipped; tasks without dates keep none.</small></label>`,
       (f) => {
         const n = Number(f.v.value);
@@ -1313,7 +1340,7 @@ export async function listView(el, { id }, query) {
   el.querySelector('#new')?.addEventListener('click', () => newTask(p, tasks, {}, async () => ((tasks = await api.get(`/api/pm/projects/${id}/tasks`)), draw())));
   el.querySelector('#export').addEventListener('click', () => {
     const shown = groups().flatMap((g) => rows(g.list));
-    downloadFile(`${p.code}-tasks-${today()}.csv`, toCsv(taskCsvRows(shown, p.milestones)));
+    downloadFile(`${p.code}-tasks-${today()}.csv`, toCsv(taskCsvRows(shown, p.milestones, { time: p.timeTracking })));
   });
   draw();
 }
@@ -1330,7 +1357,7 @@ function importTasks(p, after) {
   const step1 = () => {
     mount(box, html`<ol class="pm-steps"><li class="on">Choose the file</li><li>Match the columns</li><li>Check and import</li></ol>
       <label class="field"><span>CSV file</span><input type="file" id="imp-file" accept=".csv,text/csv" /></label>
-      <p class="small">Columns CORE reads (by their header; you can match them on the next step): <strong>Title</strong> (required), Description, Status (its name on the board), Assignee (a member's username or full name), Start and Due (2026-12-01 or 01/12/2026, day first), Estimate (h), Priority, Milestone (by name), Parent (another row's number, the header being row 1, or its title; one level) and Checklist (items separated by ;).</p>
+      <p class="small">Columns CORE reads (by their header; you can match them on the next step): <strong>Title</strong> (required), Description, Status (its name on the board), Assignee (a member's username or full name), Start and Due (2026-12-01 or 01/12/2026, day first), Size (XS, S, M, L, XL or their names: Extra small … Extra large), Priority, Milestone (by name), Parent (another row's number, the header being row 1, or its title; one level) and Checklist (items separated by ;). A file with an <strong>Estimate (h)</strong> column instead of sizes still works: up to 2 h becomes XS, up to 8 h S, up to 24 h M, up to 48 h L, more XL.</p>
       <p><button type="button" class="link" id="imp-tpl">${icon('download', 14)} Download the template</button></p>`);
     box.querySelector('#imp-tpl').addEventListener('click', () => downloadFile('core-tasks-template.csv', toCsv(IMPORT_TEMPLATE)));
     box.querySelector('#imp-file').addEventListener('change', guard(async (e) => {
@@ -1373,6 +1400,7 @@ function importTasks(p, after) {
       ${bad.length ? html`<p class="notice bad">${icon('alert', 16)} <span>${plural(bad.length, 'row')} of ${c.tasks} ${bad.length === 1 ? 'has' : 'have'} problems, so nothing can be imported yet. Correct the file and choose it again, or change how the columns are matched.</span></p>`
         : html`<p class="notice ok">${icon('checkCircle', 16)} <span>All ${plural(c.tasks, 'row')} can be imported: ${plural(c.tasks - c.subtasks, 'task')} and ${plural(c.subtasks, 'subtask')}${c.newMilestones.length ? `, and ${plural(c.newMilestones.length, 'new milestone')}` : ''}. Nothing is saved until you click Import.</span></p>`}
       ${c.newMilestones.length ? html`<p class="small">New milestones: ${c.newMilestones.map((m) => `${m.name} (due ${m.dueDate ? fmtDate(m.dueDate) : 'no date'})`).join('; ')}.</p>` : ''}
+      ${c.fromHours ? html`<p class="notice small">${icon('help', 16)} <span>${plural(c.fromHours, 'row')} ${c.fromHours === 1 ? 'takes its' : 'take their'} size from the <strong>Estimate (h)</strong> column: up to 2 h XS, up to 8 h S, up to 24 h M, up to 48 h L, more XL. Each one is listed below.</span></p>` : ''}
       ${bad.length || warn.length ? html`<div class="scroll-x"><table class="table compact pm-imp-rows"><thead><tr><th class="num">Row</th><th>Title</th><th>What to fix</th></tr></thead><tbody>
         ${[...bad, ...warn].slice(0, 200).map((r) => html`<tr class="${r.errors.length ? 'pm-late' : ''}"><td class="num">${r.row}</td><td>${r.title || html`<span class="muted">(no title)</span>`}</td><td>${[...r.errors, ...r.warnings].map((x) => html`<span class="pm-imp-msg ${r.errors.includes(x) ? 'bad' : ''}">${x}</span>`)}</td></tr>`)}
       </tbody></table></div>${bad.length + warn.length > 200 ? html`<p class="muted small">The first 200 rows with problems are listed.</p>` : ''}` : ''}
@@ -1452,7 +1480,7 @@ export async function timelineView(el, { id }) {
 
 // ---------- Task ----------
 export async function taskView(el, { projectId, id }) {
-  let t = await api.get(`/api/pm/tasks/${id}`);
+  let [t, m] = await Promise.all([api.get(`/api/pm/tasks/${id}`), meta()]);
   const queue = saveQueue();
   if (t.projectId !== projectId) return (location.hash = `#/projects/${t.projectId}/tasks/${t.id}`);
   const p = t.project;
@@ -1502,9 +1530,8 @@ export async function taskView(el, { projectId, id }) {
               <label class="field"><span>Assignee</span><select name="assigneeId" ${work ? '' : 'disabled'}>${assignees}</select></label>
               <div class="grid two"><label class="field"><span>Start</span><input type="date" name="startDate" value="${t.startDate || ''}" ${work ? '' : 'disabled'} /></label>
                 <label class="field"><span>Due</span><input type="date" name="dueDate" value="${t.dueDate || ''}" ${work ? '' : 'disabled'} /></label></div>
-              <div class="grid two"><label class="field"><span>Estimate (hours)</span><input type="number" name="estimateHours" min="0" step="0.25" inputmode="decimal" value="${t.estimateHours ?? ''}" ${work ? '' : 'disabled'} /></label>
-                <label class="field"><span>Hours left</span><input type="number" name="remainingHours" min="0" step="0.25" inputmode="decimal" value="${t.remainingOverride ? t.remainingHours : ''}" placeholder="${t.remaining != null && !t.remainingOverride ? t.remaining : ''}" aria-describedby="left-hint" ${work ? '' : 'disabled'} /></label></div>
-              <small class="hint" id="left-hint">${t.remainingOverride ? 'Set by hand. Empty it to count the estimate less the time logged; a new estimate also does.' : 'Empty: the estimate less the time logged. Set it when that is wrong.'}</small>
+              <label class="field"><span>Size</span><select name="size" aria-describedby="size-hint" ${work ? '' : 'disabled'}>${sizeOptions(t.size, m.sizes)}</select></label>
+              <small class="hint" id="size-hint">${t.size ? `${sizeName(t.size)}: ${sizeEffort(t.size, m.sizes)}. ` : ''}${sizeHint}${t.subtasks ? ' Its subtasks count instead of it.' : ''}</small>
               <label class="field"><span>Milestone</span><select name="milestoneId" ${work ? '' : 'disabled'}><option value="">${t.parentId && t.milestoneIdEffective ? 'As its parent' : 'None'}</option>${options(t.milestones.map((m) => [m.id, `${m.name} (${short(m.dueDate)})`]), t.milestoneId)}</select></label>
               ${t.subtasks ? '' : html`<label class="field"><span>Subtask of</span><select name="parentId" ${work ? '' : 'disabled'}><option value="">None (a task)</option>${options(t.others.filter((x) => !x.parentId).map((x) => [x.id, `${x.key} · ${x.title}`]), t.parentId)}</select></label>`}
             </form>
@@ -1518,18 +1545,12 @@ export async function taskView(el, { projectId, id }) {
             ${t.watcherList.length ? html`<ul class="pm-watchers">${t.watcherList.map((w) => html`<li>${avatar(w.name)}<span>${w.name}${w.userId === ctx.user.id ? ' (you)' : ''}</span></li>`)}</ul>` : html`<p class="muted small">Nobody is watching this task.</p>`}
             <p class="muted small">Watchers hear of comments and when the task is done or cancelled. Who added it, its assignee and whoever comments watch it.</p></section>`}
           ${t.ticket ? html`<section class="card"><h2>${icon('ticket')} Service desk ticket</h2><p>${can('helpdesk.agent') ? html`<a href="#/helpdesk/tickets/${t.ticket.id}" class="mono">${t.ticket.ref}</a>` : html`<span class="mono">${t.ticket.ref}</span>`} ${badge(t.ticket.statusName, ['resolved', 'closed'].includes(t.ticket.status) ? 'green' : 'blue')}</p><p class="muted small">Closing one does not close the other.</p></section>` : ''}
-          <section class="card"><div class="card-head"><h2>${icon('clock')} Time</h2></div>
-            <dl class="pm-hours">
-              <div><dt>Estimate</dt><dd>${t.estimateHours != null ? hrs(t.estimateHours) : '—'}</dd></div>
-              <div><dt>Logged</dt><dd>${hrs(t.loggedHours)}</dd></div>
-              <div><dt>Left</dt><dd>${t.remaining != null ? hrs(t.remaining) : '—'}${t.remainingOverride && !['done', 'cancelled'].includes(t.category) ? html`<small>set by hand</small>` : ''}</dd></div>
-            </dl>
-            ${t.estimateHours != null && t.loggedHours > t.estimateHours ? html`<p class="crm-due bad small">${icon('alert', 12)} Over the estimate by ${hrs(t.loggedHours - t.estimateHours)}</p>` : ''}
+          ${t.time ? html`<section class="card"><div class="card-head"><h2>${icon('clock')} Time</h2><span class="muted small">${hrs(t.loggedHours)} logged</span></div>
             ${t.time.length ? html`<ul class="crm-mini">${t.time.slice(0, 8).map((x) => html`<li><span class="grow"><strong>${hrs(x.hours)}</strong> ${x.userName}<small>${fmtDate(x.date)}${x.note ? ` · ${x.note}` : ''}</small></span></li>`)}</ul>` : html`<p class="muted small">No time logged on this task.</p>`}
             ${work ? html`<form id="log" class="pm-log-mini"><input type="date" name="date" value="${today()}" max="${today()}" aria-label="Date" /><input type="number" name="hours" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="Hours" aria-label="Hours" />
-              <input type="number" name="remainingHours" min="0" step="0.25" inputmode="decimal" placeholder="Hours left after this (optional)" aria-label="Hours left after this (optional)" class="pm-log-left" />
-              <input name="note" maxlength="500" placeholder="Note" aria-label="Note" /><button class="btn" type="submit">Log</button></form>` : ''}
-          </section>
+              <input name="note" maxlength="500" placeholder="Note" aria-label="Note" /><button class="btn" type="submit">Log</button></form>
+              <p class="muted small">Or a whole week at once on your <a href="#/projects/timesheet">Timesheet</a>.</p>` : ''}
+          </section>` : ''}
         </aside>
       </div></div>`);
     wire();
@@ -1601,8 +1622,8 @@ export async function taskView(el, { projectId, id }) {
     el.querySelector('#log')?.addEventListener('submit', guard(async (e) => {
       e.preventDefault();
       const f = e.target;
-      const r = await api.post(`/api/pm/projects/${p.id}/time`, { date: f.date.value, hours: f.hours.value, note: f.note.value, taskId: id, remainingHours: f.remainingHours.value || null });
-      toast(r.warning || `${hrs(r.hours)} logged.`, r.warning ? 'error' : 'ok');
+      const r = await api.post(`/api/pm/projects/${p.id}/time`, { date: f.date.value, hours: f.hours.value, note: f.note.value, taskId: id });
+      toast(r.warning || `${hrs(r.hours)} logged.`);
       await reload('#log [name=hours]');
     }, () => reload()));
     el.querySelector('#watch')?.addEventListener('click', guard(async () => {
@@ -1633,18 +1654,26 @@ export async function taskView(el, { projectId, id }) {
   await render();
 }
 
-// ---------- Time tab ----------
+// ---------- Time tab (a project that tracks time) ----------
 export async function projectTimeView(el, { id }) {
-  const [p, data] = await Promise.all([loadProject(id), api.get(`/api/pm/projects/${id}/time`)]);
+  const p = await loadProject(id);
+  if (!p.timeTracking) {
+    return mount(el, html`${projectHeader(p, 'time')}
+      <div class="card empty">${icon('clock', 40)}<h2>This project does not track time</h2>
+        <p>Its tasks have sizes, not hours. ${may(p.access, 'manage') ? html`To log hours on it (for time-and-materials work, or a client who asks for a timesheet), tick <strong>Track time on this project</strong> under <strong>Edit</strong> on the Overview.` : 'A project manager can turn time tracking on when the client needs hours.'}</p>
+        <p><a class="btn" href="#/projects/${id}">Back to the overview</a></p></div>`);
+  }
+  const data = await api.get(`/api/pm/projects/${id}/time`);
   const work = may(p.access, 'work');
-  const flag = (x) => (x.overAttended ? html`<span class="crm-due bad" title="${x.dayTotal} h logged that day; ${x.attended} h in the DTR">${icon('alert', 12)} Over attended (${x.attended} h)</span>` : '');
+  const manage = may(p.access, 'manage');
+  const flag = (x) => (x.overAttended ? html`<span class="crm-due warn" title="${x.dayTotal} h logged that day; ${x.attended} h in the DTR. For information only.">${icon('alert', 12)} More than attended (${x.attended} h)</span>` : '');
   const entryRow = (x) => html`<tr><td>${fmtDate(x.date)}</td><td>${x.userName}</td><td>${x.taskKey ? html`<a href="#/projects/${id}/tasks/${x.taskId}">${x.taskKey}</a> ${x.taskTitle}` : html`<span class="muted">Project work</span>`}${x.note ? html`<small>${x.note}</small>` : ''}</td><td class="num">${hrs(x.hours)}</td><td>${flag(x) || ''}</td>
     <td class="row-actions">${x.canDelete ? html`<button type="button" class="icon-btn danger" data-del="${x.id}" aria-label="Delete this entry">${icon('trash', 16)}</button>` : ''}</td></tr>`;
   const mineTotal = data.mine.reduce((n, x) => n + x.hours, 0);
   mount(el, html`
-    ${projectHeader(p, 'time')}
+    ${projectHeader(p, 'time', work ? html`<a class="btn" href="#/projects/timesheet">${icon('calendar', 16)} My timesheet</a>` : '')}
     <div class="stats">
-      <div class="card"><small>Logged</small><strong>${hrs(data.total)}</strong><span class="muted small">of ${hrs(data.estimate)} estimated${p.budgetHours ? ` · budget ${hrs(p.budgetHours)}` : ''}</span>${data.estimate ? html`<span class="progress"><i style="width:${Math.min(100, Math.round((data.total / data.estimate) * 100))}%"></i></span>` : ''}</div>
+      <div class="card"><small>Logged</small><strong>${hrs(data.total)}</strong><span class="muted small">${data.budget ? `of a ${hrs(data.budget)} budget` : 'no budget in hours set'}</span>${data.budget ? html`<span class="progress ${data.total > data.budget ? 'over' : ''}"><i style="width:${Math.min(100, Math.round((data.total / data.budget) * 100))}%"></i></span>` : ''}</div>
       <div class="card"><small>My hours this week</small><strong>${hrs(mineTotal)}</strong><span class="muted small">since ${fmtDate(weekStart(today()))}</span></div>
       <div class="card"><small>Not on a task</small><strong>${hrs(data.noTask)}</strong><span class="muted small">meetings and project work</span></div>
     </div>
@@ -1655,9 +1684,8 @@ export async function projectTimeView(el, { id }) {
             <label class="field"><span>Date</span><input type="date" name="date" value="${today()}" max="${today()}" /></label>
             <label class="field"><span>Hours</span><input type="number" name="hours" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="e.g. 1.5" /></label>
             <label class="field span-2"><span>Task</span><select name="taskId"><option value="">No task (project work, meetings)</option>${options(data.tasks.map((x) => [x.id, `${x.key} · ${x.title}`]))}</select></label>
-            <label class="field span-2"><span>Hours left on the task after this</span><input type="number" name="remainingHours" min="0" step="0.25" inputmode="decimal" placeholder="Optional" /><small class="hint">Leave it empty to count the estimate less the time logged.</small></label>
             <label class="field span-2"><span>Note</span><input name="note" maxlength="500" placeholder="What you did (optional)" /></label>
-            <div class="actions span-2"><small class="muted">Hours above your attendance in the DTR for that day are flagged, not refused.</small><span class="spacer"></span><button class="btn primary" type="submit">Log time</button></div>
+            <div class="actions span-2"><small class="muted">Separate from attendance: a day with more hours here than in your DTR is only flagged.</small><span class="spacer"></span><button class="btn primary" type="submit">Log time</button></div>
           </form></section>` : ''}
         <section class="card scroll-x"><h2>${work ? 'My entries this week' : 'Entries'}</h2>
           ${(work ? data.mine : data.entries).length ? html`<table class="table"><thead><tr><th>Date</th><th>Who</th><th>Task</th><th class="num">Hours</th><th>Check</th><th></th></tr></thead><tbody>${(work ? data.mine : data.entries.slice(0, 50)).map(entryRow)}</tbody></table>` : html`<p class="muted pad">Nothing logged${work ? ' this week' : ''} yet.</p>`}
@@ -1665,16 +1693,16 @@ export async function projectTimeView(el, { id }) {
         ${work && data.entries.length ? html`<section class="card scroll-x"><details><summary><h2>All entries (${data.entries.length})</h2></summary><table class="table"><thead><tr><th>Date</th><th>Who</th><th>Task</th><th class="num">Hours</th><th>Check</th><th></th></tr></thead><tbody>${data.entries.map(entryRow)}</tbody></table></details></section>` : ''}
       </div>
       <div class="stack">
-        <section class="card scroll-x"><h2>By person</h2>${data.byPerson.length ? html`<table class="table"><thead><tr><th>Person</th><th class="num">Hours</th></tr></thead><tbody>${data.byPerson.map((x) => html`<tr><td>${x.name}</td><td class="num">${hrs(x.hours)}</td></tr>`)}</tbody></table>` : html`<p class="muted pad">No time logged yet.</p>`}</section>
-        <section class="card scroll-x"><h2>By task: estimate, logged and left</h2>${data.byTask.length ? html`<table class="table"><thead><tr><th>Task</th><th class="num">Estimate</th><th class="num">Logged</th><th class="num">Left</th></tr></thead><tbody>${data.byTask.map((x) => html`<tr><td><a href="#/projects/${id}/tasks/${x.taskId}">${x.title}</a><small class="mono">${x.key}</small></td><td class="num">${x.estimate != null ? hrs(x.estimate) : '—'}</td><td class="num ${x.estimate != null && x.hours > x.estimate ? 'warn' : ''}">${hrs(x.hours)}</td><td class="num">${x.left != null ? hrs(x.left) : '—'}</td></tr>`)}</tbody></table>` : html`<p class="muted pad">No estimates or time yet.</p>`}</section>
+        <section class="card scroll-x"><h2>By person</h2>${data.byPerson.length ? html`<table class="table"><thead><tr><th>Person</th><th class="num">Hours</th></tr></thead><tbody>${data.byPerson.map((x) => html`<tr><td>${manage && x.member ? html`<a href="#/projects/timesheet?user=${x.userId}" title="Open ${x.name}'s timesheet">${x.name}</a>` : x.name}</td><td class="num">${hrs(x.hours)}</td></tr>`)}</tbody></table>${manage ? html`<p class="muted small pad">Open a member's name for their weekly timesheet.</p>` : ''}` : html`<p class="muted pad">No time logged yet.</p>`}</section>
+        <section class="card scroll-x"><h2>By task</h2>${data.byTask.length ? html`<table class="table"><thead><tr><th>Task</th><th>Size</th><th class="num">Logged</th></tr></thead><tbody>${data.byTask.map((x) => html`<tr><td><a href="#/projects/${id}/tasks/${x.taskId}">${x.title}</a><small class="mono">${x.key}</small></td><td>${sizeChip(x.size) || html`<span class="muted">—</span>`}</td><td class="num">${hrs(x.hours)}</td></tr>`)}</tbody></table>` : html`<p class="muted pad">No time logged on tasks yet.</p>`}</section>
       </div>
     </div>`);
   const reload = () => projectTimeView(el, { id });
   el.querySelector('#log')?.addEventListener('submit', guard(async (e) => {
     e.preventDefault();
     const f = e.target;
-    const r = await api.post(`/api/pm/projects/${id}/time`, { date: f.date.value, hours: f.hours.value, taskId: f.taskId.value || null, note: f.note.value, remainingHours: f.remainingHours.value || null });
-    toast(r.warning || `${hrs(r.hours)} logged.`, r.warning ? 'error' : 'ok');
+    const r = await api.post(`/api/pm/projects/${id}/time`, { date: f.date.value, hours: f.hours.value, taskId: f.taskId.value || null, note: f.note.value });
+    toast(r.warning || `${hrs(r.hours)} logged.`);
     await reload();
     el.querySelector('#log [name=hours]')?.focus();
   }, reload));
@@ -1800,49 +1828,209 @@ export async function myWorkView(el, _params, query = {}) {
   }));
 }
 
+// ---------- Timesheet ----------
+// Your hours on the projects that track time, a week at a time: a row per project (and task, if you
+// pick one), Monday to Sunday, in quarter hours. Saving writes one entry per project, task and day.
+// It is not attendance: your DTR's hours are shown under it for comparison only, nothing is taken
+// from them, and a day with more project hours than clocked in is flagged, never refused. A project
+// manager opens their members' timesheets (read only) from the person list or the Time tab.
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const ymd = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : null);
+const num = (n) => String(Math.round((Number(n) || 0) * 100) / 100);
+export async function timesheetView(el, _params, query) {
+  const week = weekStart(ymd(query.week) || today());
+  const who = String(query.user || '');
+  const data = await api.get(`/api/pm/timesheet?week=${week}${who ? `&user=${encodeURIComponent(who)}` : ''}`);
+  const edit = data.editable;
+  const t0 = data.today;
+  const projectOf = (id) => data.projects.find((x) => x.id === id);
+  const taskOf = (r) => projectOf(r.projectId)?.tasks.find((x) => x.id === r.taskId);
+  // The rows as on screen, and the hours as loaded (to send only what changed).
+  const rows = data.rows.map((r) => ({ projectId: r.projectId, taskId: r.taskId, hours: [...r.hours], notes: r.notes }));
+  const keyOf = (projectId, taskId, i) => `${projectId}|${taskId || ''}|${data.days[i]}`;
+  const loaded = new Map(data.rows.flatMap((r) => r.hours.map((h, i) => [keyOf(r.projectId, r.taskId, i), h])));
+  const current = () => {
+    const m = new Map();
+    for (const r of rows) r.hours.forEach((h, i) => m.set(keyOf(r.projectId, r.taskId, i), (m.get(keyOf(r.projectId, r.taskId, i)) || 0) + (Number(h) || 0)));
+    return m;
+  };
+  const changes = () => {
+    const now = current();
+    const out = [];
+    for (const k of new Set([...loaded.keys(), ...now.keys()])) {
+      if (Math.abs((loaded.get(k) || 0) - (now.get(k) || 0)) < 1e-9) continue;
+      const [projectId, taskId, date] = k.split('|');
+      out.push({ projectId, taskId: taskId || null, date, hours: now.get(k) || 0 });
+    }
+    return out;
+  };
+  const range = `${fmtDate(data.days[0], { month: 'short', day: 'numeric' })} – ${fmtDate(data.days[6], { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const who2 = data.self ? 'Your' : `${data.user.name}'s`;
+  const taskSelect = (r, i) => {
+    const p = projectOf(r.projectId);
+    const taken = rows.filter((x, j) => j !== i && x.projectId === r.projectId).map((x) => x.taskId || '');
+    return html`<select data-task="${i}" aria-label="Task for this row of ${p.code}"><option value="" ${taken.includes('') ? 'disabled' : ''}>No task (project work)</option>${p.tasks.map((t) => html`<option value="${t.id}" ${r.taskId === t.id ? 'selected' : ''} ${taken.includes(t.id) ? 'disabled' : ''}>${t.key} · ${t.title}${t.size ? ` (${t.size})` : ''}</option>`)}</select>`;
+  };
+  const rowHead = (r, i) => {
+    const p = projectOf(r.projectId);
+    const t = taskOf(r);
+    return html`<th scope="row"><span class="pm-ts-proj"><span class="mono">${p.code}</span> ${p.name}</span>
+      ${edit ? taskSelect(r, i) : html`<span class="pm-ts-task">${t ? html`<a href="#/projects/${p.id}/tasks/${t.id}">${t.key}</a> ${t.title}` : html`<span class="muted">No task (project work)</span>`}</span>`}
+      ${r.notes?.length ? html`<small class="muted" title="${r.notes.join('; ')}">${r.notes[0]}${r.notes.length > 1 ? ` and ${r.notes.length - 1} more` : ''}</small>` : ''}</th>`;
+  };
+  const cell = (r, i, j) => {
+    const d = data.days[j];
+    const label = `Hours on ${projectOf(r.projectId).code}${taskOf(r) ? ` ${taskOf(r).key}` : ', no task'}, ${DAY_LONG[j]} ${fmtDate(d, { month: 'short', day: 'numeric' })}`;
+    if (!edit) return html`<td class="num">${r.hours[j] ? num(r.hours[j]) : html`<span class="muted">·</span>`}</td>`;
+    return html`<td class="num"><input type="number" min="0" max="24" step="0.25" inputmode="decimal" data-r="${i}" data-d="${j}" value="${r.hours[j] ? num(r.hours[j]) : ''}" aria-label="${label}" ${d > t0 ? 'disabled title="Time can be logged for today or earlier."' : ''} /></td>`;
+  };
+  function draw() {
+    const totals = data.days.map((_, j) => rows.reduce((n, r) => n + (Number(r.hours[j]) || 0), 0));
+    const total = totals.reduce((n, h) => n + h, 0);
+    const byProject = data.projects.map((p) => ({ p, list: rows.map((r, i) => ({ r, i })).filter((x) => x.r.projectId === p.id) }));
+    mount(el.querySelector('#ts'), data.projects.length ? html`<div class="scroll-x pm-ts-scroll"><table class="table no-stack pm-ts">
+      <thead><tr><th scope="col">Project and task</th>${data.days.map((d, j) => html`<th scope="col" class="num ${d === t0 ? 'pm-ts-today' : ''}">${DAY_NAMES[j]}<small>${short(d)}</small></th>`)}<th scope="col" class="num">Total</th></tr></thead>
+      ${byProject.map(({ p, list }) => html`<tbody>${list.map(({ r, i }) => html`<tr>${rowHead(r, i)}${data.days.map((_, j) => cell(r, i, j))}<td class="num"><b>${num(r.hours.reduce((n, h) => n + (Number(h) || 0), 0))}</b></td></tr>`)}
+        ${edit && list.length <= p.tasks.length ? html`<tr class="pm-ts-add"><td colspan="9"><button type="button" class="link" data-add="${p.id}">${icon('plus', 14)} Another task on ${p.code}</button></td></tr>` : ''}</tbody>`)}
+      <tfoot><tr class="pm-ts-total"><th scope="row">Total</th>${totals.map((h, j) => html`<td class="num ${h > data.maxDay ? 'bad' : ''}"><b>${h ? num(h) : '0'}</b></td>`)}<td class="num"><b>${num(total)}</b></td></tr>
+        ${data.attendance ? html`<tr class="pm-ts-dtr"><th scope="row">Clocked in (DTR)<small>For comparison only</small></th>${data.attendance.map((h, j) => {
+          const over = h !== null && totals[j] > h + 1e-9;
+          return html`<td class="num">${h === null ? html`<span class="muted" title="No attendance to compare: no employee record, or still clocked in">—</span>` : num(h)}${over ? html`<span class="pm-ts-over" title="More project hours (${num(totals[j])}) than clocked in (${num(h)}). For information only.">${icon('alert', 12)}<span class="sr-only">More project hours than clocked in</span></span>` : ''}</td>`;
+        })}<td></td></tr>` : ''}</tfoot>
+    </table></div>` : html`<div class="empty"><p>${data.self ? `You are not a member of a project that tracks time, so there is nothing to fill in. ${others.length ? 'Pick a member under Timesheet of to see their hours.' : 'A project manager turns time tracking on for a project under Edit.'}` : 'No project that tracks time.'}</p></div>`);
+    const n = changes().length;
+    const st = el.querySelector('#ts-status');
+    if (st) st.textContent = n ? `${plural(n, 'change')} not saved yet` : 'All saved';
+    const save = el.querySelector('#ts-save');
+    if (save) save.disabled = !n;
+    wire();
+  }
+  function wire() {
+    el.querySelectorAll('#ts input[data-r]').forEach((inp) => inp.addEventListener('change', () => {
+      const v = inp.value.trim();
+      const h = v === '' ? 0 : Number(v);
+      if (!Number.isFinite(h) || h < 0 || h > 24) {
+        toast('Enter hours from 0 to 24, in quarter hours (0.25, 0.5, 0.75…).', 'error');
+        inp.value = rows[Number(inp.dataset.r)].hours[Number(inp.dataset.d)] || '';
+        return;
+      }
+      rows[Number(inp.dataset.r)].hours[Number(inp.dataset.d)] = Math.round(h * 4) / 4;
+      const focus = `[data-r="${inp.dataset.r}"][data-d="${inp.dataset.d}"]`;
+      draw();
+      el.querySelector(focus)?.focus();
+    }));
+    el.querySelectorAll('[data-task]').forEach((sel) => sel.addEventListener('change', () => {
+      rows[Number(sel.dataset.task)].taskId = sel.value || null;
+      draw();
+      el.querySelector(`[data-task="${sel.dataset.task}"]`)?.focus();
+    }));
+    el.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => {
+      const p = projectOf(b.dataset.add);
+      const taken = rows.filter((r) => r.projectId === p.id).map((r) => r.taskId || '');
+      const free = taken.includes('') ? p.tasks.find((t) => !taken.includes(t.id))?.id : '';
+      if (free === undefined) return;
+      const at = rows.map((r) => r.projectId).lastIndexOf(p.id) + 1;
+      rows.splice(at, 0, { projectId: p.id, taskId: free || null, hours: data.days.map(() => 0), notes: [] });
+      draw();
+      el.querySelector(`[data-task="${at}"]`)?.focus();
+    }));
+  }
+  const go = async (q) => {
+    if (changes().length && !(await confirmDialog('You have hours not saved yet. Leave this week without saving them?', { title: 'Unsaved hours', confirmLabel: 'Leave without saving' }))) return;
+    location.hash = `#/projects/timesheet?${new URLSearchParams(Object.entries(q).filter(([, v]) => v)).toString()}`;
+  };
+  // Managers who are not on a project that tracks time still pick themselves first.
+  const others = data.people.filter((x) => !x.self);
+  const people = data.people.some((x) => x.self) ? data.people : [{ id: ctx.user.id, name: ctx.user.name, self: true }, ...data.people];
+  mount(el, html`
+    ${head('Timesheet', data.self ? 'Your hours on the projects that track time, a week at a time. It is separate from attendance: the DTR is for pay; this is what each project took.' : `${data.user.name}'s hours on the projects you manage that track time. Read only: only they change their own hours.`)}
+    <div class="toolbar pm-ts-bar">
+      <button type="button" class="btn" id="prev" aria-label="Previous week">${icon('chevronLeft', 16)} <span class="pm-hide-phone">Previous</span></button>
+      <strong class="pm-ts-range">${range} <small class="muted">W${isoWeek(week)}</small></strong>
+      <button type="button" class="btn" id="next" aria-label="Next week"><span class="pm-hide-phone">Next</span> ${icon('chevronRight', 16)}</button>
+      ${week !== weekStart(t0) ? html`<button type="button" class="btn" id="this">This week</button>` : ''}
+      <span class="spacer"></span>
+      ${others.length ? html`<label class="field inline pm-ts-who"><span>Timesheet of</span><select id="who">${options(people.map((x) => [x.self ? '' : x.id, x.self ? `${x.name} (you)` : x.name]), data.self ? '' : data.user.id)}</select></label>` : ''}
+    </div>
+    <section class="card pm-ts-card" id="ts"></section>
+    ${edit && data.projects.length ? html`<div class="pm-ts-save"><span class="muted small" id="ts-status" aria-live="polite"></span><button type="button" class="btn primary" id="ts-save" disabled>Save timesheet</button></div>` : ''}
+    <p class="muted small pm-ts-note">${icon('help', 14)} Quarter hours, today or earlier, at most 24 hours a day across projects. ${data.attendance && data.projects.length ? `The Clocked in (DTR) row is ${data.self ? 'your' : 'their'} attendance, shown for comparison only: nothing is filled in from it, and a day with more project hours than clocked in is only flagged.` : ''} Only projects that track time are here; the others use sizes, not hours.</p>`);
+  draw();
+  el.querySelector('#prev').addEventListener('click', () => go({ week: addDays(week, -7), user: data.self ? '' : data.user.id }));
+  el.querySelector('#next').addEventListener('click', () => go({ week: addDays(week, 7), user: data.self ? '' : data.user.id }));
+  el.querySelector('#this')?.addEventListener('click', () => go({ user: data.self ? '' : data.user.id }));
+  el.querySelector('#who')?.addEventListener('change', (e) => go({ week, user: e.target.value }));
+  el.querySelector('#ts-save')?.addEventListener('click', guard(async (e) => {
+    const cells = changes();
+    if (!cells.length) return;
+    e.target.disabled = true;
+    const r = await api.put('/api/pm/timesheet', { week, cells });
+    toast(r.warnings?.length ? r.warnings.join(' ') : `Timesheet saved: ${plural(r.saved, 'change')}.`);
+    changed();
+    await timesheetView(el, _params, query);
+    el.querySelector('#ts-save')?.focus();
+  }, () => timesheetView(el, _params, query)));
+}
+
 // ---------- Workload ----------
+// How busy each person is, week by week: a level (a word, a shape and a colour, with a small bar),
+// not a number of hours. A cell opens the tasks behind it, with their sizes.
+const levelChip = (level) => html`<span class="pm-level ${level}"><i aria-hidden="true"></i>${LOAD_LEVELS[level].label}</span>`;
+// Days, roughly: quarter days under one, half days above ("¾ day", "2.5 days").
+const daysText = (n) => {
+  const r = n < 1 ? Math.round(n * 4) / 4 : Math.round(n * 2) / 2;
+  if (n > 0 && !r) return 'under ¼ day';
+  return { 0.25: '¼ day', 0.5: '½ day', 0.75: '¾ day', 1: '1 day' }[r] || `${r} days`;
+};
 export async function workloadView(el, _params, query) {
   const state = { from: query.from || today(), weeks: Number(query.weeks) || 6 };
-  const data = await api.get(`/api/pm/workload?from=${encodeURIComponent(state.from)}&weeks=${state.weeks}`);
+  const [data, m] = await Promise.all([api.get(`/api/pm/workload?from=${encodeURIComponent(state.from)}&weeks=${state.weeks}`), meta()]);
+  const tip = (c) => (c.tasks.length ? c.tasks.map((t) => `${t.key} ${t.title} (${t.size || `no size, as ${UNSIZED_AS}`})`).join('\n') : 'No planned work');
+  const bar = (c) => (c.available ? Math.min(100, Math.round((c.planned / c.available / 1.5) * 100)) : 0);
   mount(el, html`
-    ${head('Workload', 'Planned hours of open tasks against each person\'s capacity: working days, less holidays and approved leave. An estimate is spread over the task\'s working days from start to due.')}
+    ${head('Workload', 'How busy each person is, week by week. Each open task counts by its size (in working days: XS a quarter day, S 1, M 3, L 5, XL 10; a task without a size as M), spread over its working days from start to due, against the person\'s working days less holidays and approved leave.')}
     <div class="toolbar">
       <label class="field inline"><span>From the week of</span><input type="date" id="from" value="${state.from}" /></label>
       <select id="weeks" aria-label="Number of weeks">${options([[4, '4 weeks'], [6, '6 weeks'], [8, '8 weeks'], [12, '12 weeks']], state.weeks)}</select>
-      <span class="spacer"></span><span class="muted small">${icon('alert', 14)} Red: more planned than capacity</span>
     </div>
+    <ul class="pm-level-key" aria-label="Load levels">${['light', 'normal', 'busy', 'over', 'leave'].map((k) => html`<li>${levelChip(k)}<small class="muted">${LOAD_LEVELS[k].note}</small></li>`)}</ul>
     <section class="card scroll-x">${data.rows.length ? html`<table class="table matrix pm-load-table">
       <thead><tr><th>Person</th>${data.weeks.map((w) => html`<th class="center">${short(w)}<small>W${isoWeek(w)}</small></th>`)}<th class="center">No due date</th></tr></thead>
       <tbody>${data.rows.map((r) => html`<tr><th scope="row">${r.name}${r.leaveDays ? html`<small>${r.leaveDays} day${r.leaveDays === 1 ? '' : 's'} of leave</small>` : ''}</th>
-        ${r.cells.map((c, i) => html`<td><button type="button" class="pm-load ${c.over ? 'over' : ''} ${c.planned ? '' : 'empty'}" data-r="${r.id}" data-c="${i}" aria-label="${r.name}, week of ${short(c.week)}: ${c.planned} of ${c.capacity} hours${c.over ? ', over capacity' : ''}">
-          <span><b>${Math.round(c.planned)}</b> / ${Math.round(c.capacity)} h</span><span class="progress"><i style="width:${c.capacity ? Math.min(100, Math.round((c.planned / c.capacity) * 100)) : c.planned ? 100 : 0}%"></i></span></button></td>`)}
-        <td class="center">${r.unscheduled ? html`<button type="button" class="link" data-un="${r.id}">${hrs(r.unscheduled)}</button>` : html`<span class="muted">—</span>`}</td></tr>`)}</tbody></table>`
-      : html`<div class="empty"><p>No one has open tasks in open projects.</p></div>`}</section>`);
+        ${r.cells.map((c, i) => html`<td><button type="button" class="pm-load ${c.level}" data-r="${r.id}" data-c="${i}" title="${tip(c)}" aria-label="${r.name}, week of ${short(c.week)}: ${LOAD_LEVELS[c.level].label}, ${plural(c.tasks.length, 'task')}. Open the list.">
+          ${levelChip(c.level)}<span class="pm-load-bar" aria-hidden="true"><i style="width:${bar(c)}%"></i></span></button></td>`)}
+        <td class="center">${r.unscheduled.count ? html`<button type="button" class="link" data-un="${r.id}">${plural(r.unscheduled.count, 'task')}</button>` : html`<span class="muted">—</span>`}</td></tr>`)}</tbody></table>`
+      : html`<div class="empty"><p>No one has open tasks in open projects.</p></div>`}</section>
+    <p class="muted small">The bar fills at one and a half times the days available. Open a cell for its tasks and the days behind the level.</p>`);
   const go = () => (location.hash = `#/projects/workload?from=${state.from}&weeks=${state.weeks}`);
   el.querySelector('#from').addEventListener('change', (e) => e.target.value && ((state.from = e.target.value), go()));
   el.querySelector('#weeks').addEventListener('change', (e) => ((state.weeks = Number(e.target.value)), go()));
-  const list = (title, sub, tasks, hoursOf) => modal({
+  const list = (title, sub, tasks) => modal({
     title, subtitle: sub, submitLabel: null,
-    body: tasks.length ? html`<ul class="crm-mini">${tasks.map((t) => html`<li><span class="grow"><a href="#/projects/${t.projectId}/tasks/${t.id}"><strong>${t.title}</strong></a><small><span class="mono">${t.key}</span> · ${t.projectName}${t.dueDate ? ` · due ${fmtDate(t.dueDate)}` : ''}</small></span><strong>${hrs(hoursOf(t))}</strong></li>`)}</ul>` : html`<p class="muted">No planned work this week.</p>`,
+    body: tasks.length ? html`<ul class="crm-mini pm-load-list">${tasks.map((t) => html`<li><span class="grow"><a href="#/projects/${t.projectId}/tasks/${t.id}"><strong>${t.title}</strong></a><small><span class="mono">${t.key}</span> · ${t.projectName}${t.dueDate ? ` · due ${fmtDate(t.dueDate)}` : ''}${t.overdue ? ' · overdue, so counted whole this week' : ''}</small></span>
+        <span class="pm-load-size">${sizeChip(t.size, m.sizes) || html`<span class="pm-size pm-size-none" title="No size: counted as ${sizeName(UNSIZED_AS)}">?</span>`}<small>${t.size ? sizeName(t.size) : `No size: counted as ${UNSIZED_AS}`}${t.days != null ? html`<br />≈ ${daysText(t.days)}${t.dueDate ? ' here' : ''}` : ''}</small></span></li>`)}</ul>
+      ${tasks.some((t) => !t.size) ? html`<p class="muted small">A task without a size counts as ${sizeName(UNSIZED_AS)} (${sizeEffort(UNSIZED_AS, m.sizes)}). Give it a size on the task for a truer picture.</p>` : ''}` : html`<p class="muted">No planned work this week.</p>`,
   });
   el.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', () => {
     const r = data.rows.find((x) => x.id === b.dataset.r);
     const c = r.cells[Number(b.dataset.c)];
-    list(`${r.name}: week of ${fmtDate(c.week)}`, `${hrs(c.planned)} planned of ${hrs(c.capacity)} capacity`, c.tasks, (t) => t.hours);
+    const sub = c.available ? `${LOAD_LEVELS[c.level].label}: ≈ ${daysText(c.planned)} of work planned, of ${daysText(c.available)} available${c.onLeave ? ' (leave taken off)' : ''}.` : `${LOAD_LEVELS[c.level].label}: no working days this week${c.planned ? `, yet ≈ ${daysText(c.planned)} of work is planned in it` : ''}.`;
+    list(`${r.name}: week of ${fmtDate(c.week)}`, sub, c.tasks);
   }));
   el.querySelectorAll('[data-un]').forEach((b) => b.addEventListener('click', () => {
     const r = data.rows.find((x) => x.id === b.dataset.un);
-    list(`${r.name}: no due date`, 'Estimated tasks without a due date are not planned into a week.', r.unscheduledTasks, (t) => t.estimateHours);
+    list(`${r.name}: no due date`, `Tasks without a due date are not planned into a week (≈ ${daysText(r.unscheduled.days)} of work). Give them a due date to see them here.`, r.unscheduled.tasks);
   }));
 }
 
 // ---------- Projects setup ----------
 export async function pmSettingsView(el, _params, query) {
-  const TABS_SET = { statuses: 'Default statuses', types: 'Project types', digest: 'Daily digest', ...(can('users.manage') ? { access: 'Team access' } : {}) };
+  const TABS_SET = { statuses: 'Default statuses', types: 'Project types', sizes: 'Effort sizes', digest: 'Daily digest', ...(can('users.manage') ? { access: 'Team access' } : {}) };
   const tab = TABS_SET[query.tab] ? query.tab : 'statuses';
   const s = await api.get('/api/pm/settings');
   mount(el, html`
-    ${head('Projects setup', 'How new projects start (the statuses of their board and the project types), and the daily digest email.')}
+    ${head('Projects setup', 'How new projects start (the statuses of their board and the project types), what the effort sizes mean, and the daily digest email.')}
     <nav class="tabs">${Object.entries(TABS_SET).map(([k, v]) => html`<a href="#/projects/settings?tab=${k}" class="${k === tab ? 'active' : ''}">${v}</a>`)}</nav>
     <section class="card" id="pane"></section>`);
   const pane = el.querySelector('#pane');
@@ -1860,6 +2048,21 @@ export async function pmSettingsView(el, _params, query) {
       e.preventDefault();
       await api.put('/api/pm/settings', { statuses: s.statuses, types: e.target.types.value.split('\n').map((x) => x.trim()).filter(Boolean) });
       toast('Project types saved.');
+      reload();
+    }, reload));
+  } else if (tab === 'sizes') {
+    mount(pane, html`<form id="f"><h2>Effort sizes</h2>
+      <p class="muted small">Every task can have a size instead of an hour estimate: a rough idea of the effort that nobody has to defend to the hour. The size weighs the task in progress and the burn-up (when at least 60% of the tasks have one), and its days count in Workload. You can reword what each size means for your teams; the sizes, their weights and their days stay as they are, so reports compare across projects.</p>
+      <div class="scroll-x"><table class="table compact no-stack pm-size-table"><thead><tr><th>Size</th><th>What it means</th><th class="num">Weight</th><th class="num" title="Working days in Workload">Days</th></tr></thead>
+        <tbody>${SIZE_KEYS.map((k) => html`<tr><td>${sizeChip(k, s.sizes)} <strong>${SIZES[k].label}</strong></td><td><input name="${k}" value="${s.sizes[k]}" maxlength="60" required aria-label="What ${sizeName(k)} means" /></td><td class="num">${SIZES[k].weight}</td><td class="num">${SIZES[k].days}</td></tr>`)}</tbody></table></div>
+      <div class="actions end"><button type="button" class="btn ghost" id="sizes-reset">Use the built-in wording</button><button class="btn primary" type="submit">Save sizes</button></div></form>`);
+    const f = pane.querySelector('#f');
+    pane.querySelector('#sizes-reset').addEventListener('click', () => SIZE_KEYS.forEach((k) => (f.elements[k].value = SIZES[k].effort)));
+    f.addEventListener('submit', guard(async (e) => {
+      e.preventDefault();
+      await api.put('/api/pm/settings', { statuses: s.statuses, types: s.types, sizes: Object.fromEntries(SIZE_KEYS.map((k) => [k, f.elements[k].value])) });
+      metaCache = null;
+      toast('Effort sizes saved.');
       reload();
     }, reload));
   } else if (tab === 'digest') {

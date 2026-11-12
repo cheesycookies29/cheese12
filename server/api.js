@@ -9,7 +9,7 @@ import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
-import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects } from './projects.js';
+import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects, timesheetAccess } from './projects.js';
 import { migrateApprovals, isApprover } from './approvals.js';
 import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
 import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS } from './audit.js';
@@ -519,7 +519,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     return { data: { user: authUser(user) }, headers: { 'Set-Cookie': sessionCookie(token, { maxAge: sessions.maxAgeSeconds(), secure: client.https }) } };
   }
   // The signed-in account as the browser sees it, with whether 2-step verification must be set up first.
-  const authUser = (user) => ({ ...publicUser(user), isApprover: isApprover(db, user), inProjects: isProjectMember(db, user), twoFactorSetupRequired: twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt });
+  const authUser = (user) => ({ ...publicUser(user), isApprover: isApprover(db, user), inProjects: isProjectMember(db, user), timesheet: timesheetAccess(db, user), twoFactorSetupRequired: twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt });
   const requirePassword = (user, password) => {
     if (!verifyPassword(String(password || ''), user.passwordHash)) throw new HttpError(400, 'Your password is not right.');
   };

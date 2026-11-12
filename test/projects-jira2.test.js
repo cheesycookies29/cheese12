@@ -501,7 +501,7 @@ test('CSV parser: quotes, line breaks in fields, doubled quotes, a BOM, commas o
   assert.equal(parseImportDate('4/12/2026'), '2026-12-04');
   assert.equal(parseImportDate('31/02/2026'), undefined);
   assert.equal(parseImportDate(''), null);
-  assert.deepEqual(guessImportMapping(IMPORT_TEMPLATE[0]), { title: 0, description: 1, status: 2, assignee: 3, start: 4, due: 5, estimate: 6, priority: 7, milestone: 8, parent: 9, checklist: 10 });
+  assert.deepEqual(guessImportMapping(IMPORT_TEMPLATE[0]), { title: 0, description: 1, status: 2, assignee: 3, start: 4, due: 5, size: 6, priority: 7, milestone: 8, parent: 9, checklist: 10 });
 });
 
 test('importPlan: every row checked; parents by row number or title, one level; milestones to create', () => {
@@ -511,7 +511,7 @@ test('importPlan: every row checked; parents by row number or title, one level; 
   const row = (o) => IMPORT_TEMPLATE[0].map((h) => o[h] ?? '');
   const plan = importPlan([
     row({ Title: 'Parent', Assignee: 'Juan Cruz', Due: '2026-12-10', Milestone: 'New phase', Checklist: 'a; b ;' }),
-    row({ Title: 'Child', Parent: '2', Status: 'in progress', Priority: 'High', 'Estimate (h)': '1,5' }),
+    row({ Title: 'Child', Parent: '2', Status: 'in progress', Priority: 'High', Size: 'Medium' }),
     row({ Title: 'Grandchild', Parent: 'Child' }),
     row({ Title: '', Assignee: 'vic', Start: '2026-12-05', Due: '2026-12-01', Priority: 'Top', Status: 'Nope' }),
   ], map, { project, members, milestones: [], createMilestones: true });
@@ -520,7 +520,7 @@ test('importPlan: every row checked; parents by row number or title, one level; 
   assert.deepEqual(plan.tasks[0].checklist, ['a', 'b']);
   assert.equal(plan.tasks[1].parentRow, 2);
   assert.equal(plan.tasks[1].statusId, 'doing');
-  assert.equal(plan.tasks[1].estimateHours, 1.5);
+  assert.equal(plan.tasks[1].size, 'M');
   assert.match(plan.rows[2].errors.join(), /Row 3 is itself a subtask/);
   assert.equal(plan.rows[3].errors.length, 5, plan.rows[3].errors.join(' | '));
   assert.deepEqual(plan.newMilestones, [{ name: 'New phase', dueDate: '2026-12-10', tasks: 1 }]);
@@ -548,6 +548,9 @@ test('import: managers only; preview, check (nothing saved), then all or nothing
   const check = await pia('POST', `/api/pm/projects/${q.id}/import`, { csv, mapping: pv.mapping, dryRun: true });
   assert.equal(check.errorCount, 1);
   assert.match(check.rows[2].errors[0], /No milestone "New phase"/);
+  // An "Estimate (h)" column still works: each estimate becomes a size, noted on its row.
+  assert.equal(check.fromHours, 2);
+  assert.match(check.rows[0].warnings.join(), /Size S · Small, from the estimate of 8 h/);
   assert.equal((await pia('GET', `/api/pm/projects/${q.id}/tasks`)).length, 0);
   await fails(pia('POST', `/api/pm/projects/${q.id}/import`, { csv, mapping: pv.mapping }), 400, /Nothing was imported/);
   assert.equal((await pia('GET', `/api/pm/projects/${q.id}/tasks`)).length, 0);
@@ -558,6 +561,7 @@ test('import: managers only; preview, check (nothing saved), then all or nothing
   assert.deepEqual(tasks.map((t) => t.key), [`${q.code}-1`, `${q.code}-2`, `${q.code}-3`]);
   const [w, mi, f] = tasks;
   assert.equal(w.description, 'With the deans; bring "the" slides');
+  assert.deepEqual([w.size, mi.size, f.size], ['S', 'XS', null]);
   assert.equal(w.assigneeId, juan.id);
   assert.equal(w.dueDate, '2026-12-04');
   assert.equal(w.milestoneId, ms.id);

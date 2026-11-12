@@ -18,7 +18,7 @@ import { DEFAULT_SETTINGS } from '../shared/calc.js';
 import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
 import { DEFAULT_APPROVALS } from '../shared/leave.js';
 import { DEFAULT_CRM } from '../shared/crm.js';
-import { DEFAULT_STATUSES, DEFAULT_TYPES, DIGEST_DEFAULTS } from '../shared/projects.js';
+import { DEFAULT_STATUSES, DEFAULT_TYPES, DIGEST_DEFAULTS, DEFAULT_SIZE_NOTES } from '../shared/projects.js';
 import { DEFAULT_BRANDING } from '../shared/brand.js';
 import { SECURITY_DEFAULTS, securitySettings, twoFactorRequired } from './security.js';
 import { approvalSettings } from './approvals.js';
@@ -89,8 +89,8 @@ function definitions(db) {
     },
     crm: { get: (d) => pick(d.crm, CRM_KEYS), defaults: () => pick(DEFAULT_CRM, CRM_KEYS), save: (v) => ['PUT', '/api/crm/settings', v], watch: [['PUT', /^\/api\/crm\/settings$/]] },
     projects: {
-      get: (d) => ({ statuses: (d.pm?.statuses || []).map(statusOf), types: clone(d.pm?.types || []) }),
-      defaults: () => ({ statuses: DEFAULT_STATUSES.map(statusOf), types: [...DEFAULT_TYPES] }),
+      get: (d) => ({ statuses: (d.pm?.statuses || []).map(statusOf), types: clone(d.pm?.types || []), sizes: { ...DEFAULT_SIZE_NOTES, ...clone(d.pm?.sizes || {}) } }),
+      defaults: () => ({ statuses: DEFAULT_STATUSES.map(statusOf), types: [...DEFAULT_TYPES], sizes: { ...DEFAULT_SIZE_NOTES } }),
       save: (v) => ['PUT', '/api/pm/settings', v],
       watch: [['PUT', /^\/api\/pm\/settings$/]],
     },

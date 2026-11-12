@@ -247,7 +247,10 @@ function seedCrm(data, c) {
 
 // Project Management: the LMS phase 2 delivery for Northfield State University (won deal and
 // contract, about six weeks in), the provincial helpdesk bid being planned, and a small internal
-// IT project. People are written as DEMO_USER('pm.demo') and so on; addDemo() swaps in the demo
+// IT project, among ten. Tasks have sizes (XS to XL), not hours; only the SIS support contract
+// tracks time (its support hours matter for the renewal), so only it has time logged. The sizes
+// and dates are set so Workload shows a mix: mostly Light and Normal, with one Busy and one
+// Overloaded week. People are written as DEMO_USER('pm.demo') and so on; addDemo() swaps in the demo
 // accounts' ids once they exist.
 export const DEMO_USER = (username) => `demo-user:${username}`;
 function seedProjects(data, c) {
@@ -278,7 +281,7 @@ function seedProjects(data, c) {
   function project(n, fields, ms, rows) {
     const code = `${P}PRJ-${String(n).padStart(4, '0')}`;
     const p = {
-      id: randomUUID(), code, statuses: structuredClone(DEFAULT_STATUSES), healthOverride: null, taskSeq: 0, version: 1, budgetHours: null,
+      id: randomUUID(), code, statuses: structuredClone(DEFAULT_STATUSES), healthOverride: null, taskSeq: 0, version: 1, timeTracking: false, budgetHours: null,
       accountId: null, dealId: null, contractId: null, description: '', createdAt: at(-60), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: fields.managerId,
       history: [{ at: at(fields.createdDaysAgo ? -fields.createdDaysAgo : -60), by: fields.managerId, field: 'created', from: '', to: '' }], ...fields,
     };
@@ -291,18 +294,18 @@ function seedProjects(data, c) {
       return m.id;
     });
     const byKey = {};
-    rows.forEach(([ref, title, mi, st, who, start, due, est, extra = {}], i) => {
+    rows.forEach(([ref, title, mi, st, who, start, due, size, extra = {}], i) => {
       const n2 = ++p.taskSeq;
       // Added before its start (or as `added` says: a task that came in later, for the burn-up).
       const added = extra.added ?? Math.min(-45, (start ?? -45) - 3);
       const t = {
         id: randomUUID(), projectId: p.id, key: `${code}-${n2}`, title, description: extra.description || '', statusId: st, priority: extra.priority || 'normal',
-        assigneeId: who, startDate: start == null ? null : wd(start), dueDate: due == null ? null : wd(due), estimateHours: est ?? null,
+        assigneeId: who, startDate: start == null ? null : wd(start), dueDate: due == null ? null : wd(due), size: size ?? null,
         milestoneId: mi == null ? null : mIds[mi], parentId: extra.parent ? byKey[extra.parent].id : null,
         checklist: (extra.checklist || []).map(([text, done]) => ({ id: randomUUID(), text, done })), blockedBy: (extra.blockedBy || []).map((k) => byKey[k].id),
         ticketId: extra.ticketId || null, rank: (i + 1) * 1024, completedAt: statusIn(p, st).category === 'done' ? at(due == null ? -1 : Math.min(-1, due)) : null,
         version: 1, createdAt: at(added), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: who || fields.managerId,
-        history: [{ at: at(added), by: fields.managerId, field: 'created', from: '', to: '' }], remainingHours: extra.left ?? null,
+        history: [{ at: at(added), by: fields.managerId, field: 'created', from: '', to: '' }],
         // Watchers: who added it (the manager) and its assignee, as CORE does, plus any named here.
         watchers: [...new Set([fields.managerId, who, ...(extra.watchers || [])].filter(Boolean))], attachments: [],
       };
@@ -319,7 +322,7 @@ function seedProjects(data, c) {
   const lms = project(1, {
     name: 'Learning management system, phase 2', type: 'Client', status: 'active', startDate: wd(-42), endDate: wd(50), managerId: pmU,
     members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
-    accountId: nsu.id, dealId: won.id, contractId: lmsContract.id, budgetHours: 420,
+    accountId: nsu.id, dealId: won.id, contractId: lmsContract.id,
     description: 'Gradebook and parent portal for the LMS delivered in phase 1, with faculty training. Billing: 30% on design sign-off, 70% on acceptance.',
   }, [
     ['Design and requirements sign-off', -21, true, 30, -22, -18, 'Signed by the VP for Administration.'],
@@ -327,33 +330,33 @@ function seedProjects(data, c) {
     ['User acceptance testing', 24, false],
     ['Go-live and acceptance', 45, true, 70],
   ], [
-    ['kick', 'Kick-off meeting with the deans', 0, 'done', pmU, -42, -41, 3],
-    ['req', 'Requirements workshops with the three colleges', 0, 'done', pmU, -40, -33, 16],
-    ['gdd', 'Gradebook design document', 0, 'done', juan, -35, -26, 24],
-    ['wire', 'Parent portal wireframes', 0, 'done', juan, -33, -27, 12],
-    ['sign', 'Design sign-off with the VP for Administration', 0, 'done', pmU, -24, -22, 2],
-    ['weights', 'Gradebook: grading periods and weights', 1, 'done', juan, -20, -10, 32],
-    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 24, { priority: 'high', left: 6, checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
-    ['login', 'Parent portal: sign-in and linking to students', 1, 'doing', juan, -8, 3, 20],
-    ['grades', 'Parent portal: grades and attendance pages', 1, 'todo', juan, 1, 5, 16, { blockedBy: ['login'] }],
-    ['staging', 'Set up the staging server', 1, 'done', it, -18, -14, 6],
-    ['ssl', 'SSL certificate and domain for the parent portal', 1, 'waiting', it, -10, -3, 2, { added: -12, description: 'Waiting for the university\'s IT office to add the DNS record.' }],
-    ['privacy', 'Data privacy notice for parents', 1, 'review', pmU, -7, 2, 4, { added: -8, checklist: [['Draft the notice', true], ['Review with the university\'s DPO', false]] }],
+    ['kick', 'Kick-off meeting with the deans', 0, 'done', pmU, -42, -41, 'S'],
+    ['req', 'Requirements workshops with the three colleges', 0, 'done', pmU, -40, -33, 'M'],
+    ['gdd', 'Gradebook design document', 0, 'done', juan, -35, -26, 'M'],
+    ['wire', 'Parent portal wireframes', 0, 'done', juan, -33, -27, 'M'],
+    ['sign', 'Design sign-off with the VP for Administration', 0, 'done', pmU, -24, -22, 'XS'],
+    ['weights', 'Gradebook: grading periods and weights', 1, 'done', juan, -20, -10, 'L'],
+    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 'S', { priority: 'high', checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
+    ['login', 'Parent portal: sign-in and linking to students', 1, 'doing', juan, -8, 3, 'S'],
+    ['grades', 'Parent portal: grades and attendance pages', 1, 'todo', juan, 1, 5, 'M', { blockedBy: ['login'] }],
+    ['staging', 'Set up the staging server', 1, 'done', it, -18, -14, 'S'],
+    ['ssl', 'SSL certificate and domain for the parent portal', 1, 'waiting', it, -10, -3, 'XS', { added: -12, description: 'Waiting for the university\'s IT office to add the DNS record.' }],
+    ['privacy', 'Data privacy notice for parents', 1, 'review', pmU, -7, 2, 'S', { added: -8, checklist: [['Draft the notice', true], ['Review with the university\'s DPO', false]] }],
     ['reports', 'Gradebook reports', 1, 'doing', juan, -6, 5, null],
-    ['r1', 'Class record report', null, 'done', juan, -6, -3, 6, { parent: 'reports' }],
-    ['r2', 'Report card PDF', null, 'doing', juan, -2, 4, 8, { parent: 'reports' }],
-    ['r3', 'Dean\'s summary of grades', null, 'todo', juan, 3, 5, 6, { parent: 'reports' }],
-    ['scripts', 'UAT test scripts', 2, 'todo', pmU, 2, 12, 12],
-    ['uat', 'UAT sessions with the registrar and two deans', 2, 'todo', pmU, 14, 20, 10],
-    ['fixes', 'Fix the UAT findings', 2, 'todo', juan, 18, 23, 24],
-    ['load', 'Load test with 3,000 parents', 2, 'todo', it, 10, 16, 8],
-    ['train', 'Faculty training, four batches', 3, 'todo', pmU, 28, 38, 16, { checklist: [['Book the AVR', false], ['Training manual', false], ['Attendance sheets', false]] }],
-    ['announce', 'Parent portal launch announcement', 3, 'todo', pmU, 38, 40, 3],
-    ['cutover', 'Go-live cut-over', 3, 'todo', it, 41, 42, 6, { priority: 'high' }],
-    ['accept', 'Acceptance certificate signed', 3, 'todo', pmU, 43, 45, 1, { watchers: [sales] }],
-    ['weekly', 'Weekly status report to the VP', null, 'todo', pmU, null, 2, 1],
-    ['shells', 'Migrate phase 1 course shells', null, 'cancelled', juan, -15, -10, 8, { description: 'Not needed: the university keeps phase 1 as it is.' }],
-    ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 1, { added: -10 }],
+    ['r1', 'Class record report', null, 'done', juan, -6, -3, 'S', { parent: 'reports' }],
+    ['r2', 'Report card PDF', null, 'doing', juan, -2, 4, 'S', { parent: 'reports' }],
+    ['r3', 'Dean\'s summary of grades', null, 'todo', juan, 3, 5, 'S', { parent: 'reports' }],
+    ['scripts', 'UAT test scripts', 2, 'todo', pmU, 2, 12, 'M'],
+    ['uat', 'UAT sessions with the registrar and two deans', 2, 'todo', pmU, 14, 20, 'M'],
+    ['fixes', 'Fix the UAT findings', 2, 'todo', juan, 18, 23, 'M'],
+    ['load', 'Load test with 3,000 parents', 2, 'todo', it, 10, 16, 'S'],
+    ['train', 'Faculty training, four batches', 3, 'todo', pmU, 28, 38, 'M', { checklist: [['Book the AVR', false], ['Training manual', false], ['Attendance sheets', false]] }],
+    ['announce', 'Parent portal launch announcement', 3, 'todo', pmU, 38, 40, 'S'],
+    ['cutover', 'Go-live cut-over', 3, 'todo', it, 41, 42, 'S', { priority: 'high' }],
+    ['accept', 'Acceptance certificate signed', 3, 'todo', pmU, 43, 45, 'XS', { watchers: [sales] }],
+    ['weekly', 'Weekly status report to the VP', null, 'todo', pmU, null, 2, 'XS'],
+    ['shells', 'Migrate phase 1 course shells', null, 'cancelled', juan, -15, -10, 'S', { description: 'Not needed: the university keeps phase 1 as it is.' }],
+    ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 'XS', { added: -10 }],
   ]);
   const k = lms.byKey;
   comments.push(
@@ -376,38 +379,29 @@ function seedProjects(data, c) {
     { id: randomUUID(), projectId: lms.p.id, userId: null, createdBy: pmU, tab: 'board', name: 'Due this week', query: 'f=week', createdAt: at(-20) },
     { id: randomUUID(), projectId: lms.p.id, userId: null, createdBy: pmU, tab: 'list', name: 'High and urgent, by status', query: 'f=high&group=status', createdAt: at(-20) },
   );
-  // Time logged over the last two weeks, on working days up to yesterday.
+  // The last ten working days up to yesterday (time logged on the SIS support contract).
   const workDays = [];
   for (let i = 1; workDays.length < 10 && i < 30; i++) {
     const dow = new Date(now - i * 86400000).getDay();
     if (dow !== 0 && dow !== 6 && !off.has(day(-i))) workDays.push(i);
   }
-  workDays.forEach((ago, i) => {
-    const date = day(-ago);
-    const log = (userId, task, hours, note = '') => logs.push({ id: randomUUID(), projectId: lms.p.id, taskId: task?.id || null, userId, date, hours, note, createdAt: at(-ago) });
-    log(juan, i < 5 ? k.import : k.weights, 5, i === 0 ? 'Cross-enrolled students' : '');
-    log(juan, i % 2 ? k.login : k.r1, i === 2 ? 5 : 1.5);
-    log(pmU, i % 3 ? k.emails : k.privacy, 1.5);
-    log(pmU, null, 1, 'Status meeting');
-    if (i % 3 === 0) log(it, i < 6 ? k.ssl : k.staging, 2);
-  });
 
   // 2. The provincial helpdesk: a government bid being planned, deliverables from the terms of reference.
   project(2, {
     name: 'Provincial helpdesk and asset tracking', type: 'Government', status: 'planning', startDate: wd(21), endDate: wd(140), managerId: pmU,
     members: [{ userId: pmU, role: 'manager' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
-    accountId: islaVerde.id, dealId: data.crmDeals[4].id, budgetHours: 600,
+    accountId: islaVerde.id, dealId: data.crmDeals[4].id,
     description: 'If the bid is awarded: an ICT helpdesk and asset management system for 12 provincial offices, about 1,400 devices.',
   }, [
     ['Inception report and work plan', 35, true, 15],
     ['System installed in the 12 offices', 90, true, 45],
     ['Training and turnover', 130, true, 40],
   ], [
-    ['kick', 'Kick-off with the Provincial IT Office', 0, 'todo', pmU, 21, 21, 3],
-    ['inv', 'Inventory of devices per office', 0, 'todo', it, 22, 33, 40],
-    ['inception', 'Write the inception report', 0, 'todo', pmU, 25, 35, 16],
-    ['install', 'Install and configure the service desk', 1, 'todo', it, 40, 85, 120],
-    ['focal', 'Train the office focal persons', 2, 'todo', pmU, 95, 125, 40],
+    ['kick', 'Kick-off with the Provincial IT Office', 0, 'todo', pmU, 21, 21, 'S'],
+    ['inv', 'Inventory of devices per office', 0, 'todo', it, 22, 33, 'L'],
+    ['inception', 'Write the inception report', 0, 'todo', pmU, 25, 35, 'M'],
+    ['install', 'Install and configure the service desk', 1, 'todo', it, 40, 85, 'XL'],
+    ['focal', 'Train the office focal persons', 2, 'todo', pmU, 95, 125, 'L'],
   ]);
 
   // 3. A small internal IT project.
@@ -416,11 +410,11 @@ function seedProjects(data, c) {
     members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
     description: 'New PoE switches and cabling on the 3rd floor; Wi-Fi in the meeting rooms.',
   }, [['New switches live', 10, false]], [
-    ['survey', 'Survey the 3rd floor cabling', 0, 'done', it, -10, -8, 4],
-    ['order', 'Order two PoE switches', 0, 'done', it, -8, -7, 1],
-    ['replace', 'Replace the switches on the 3rd floor', 0, 'doing', it, 2, 4, 8, { priority: 'high', checklist: [['Schedule after office hours', true], ['Back up the switch configuration', false], ['Label the patch panel', false]] }],
-    ['wifi', 'Wi-Fi access point for meeting room B', 0, 'todo', juan, 5, 9, 3],
-    ['diagram', 'Update the network diagram', null, 'todo', juan, 12, 15, 2],
+    ['survey', 'Survey the 3rd floor cabling', 0, 'done', it, -10, -8, 'S'],
+    ['order', 'Order two PoE switches', 0, 'done', it, -8, -7, 'XS'],
+    ['replace', 'Replace the switches on the 3rd floor', 0, 'doing', it, 2, 4, 'S', { priority: 'high', checklist: [['Schedule after office hours', true], ['Back up the switch configuration', false], ['Label the patch panel', false]] }],
+    ['wifi', 'Wi-Fi access point for meeting room B', 0, 'todo', juan, 5, 9, 'S'],
+    ['diagram', 'Update the network diagram', null, 'todo', juan, 12, 15, 'XS'],
   ]);
 
 
@@ -429,7 +423,8 @@ function seedProjects(data, c) {
   const [, , meridian] = data.crmAccounts;
   const [sisContract, meridianContract, websiteContract] = data.crmContracts;
   const say = (proj, task, userId, body, daysAgo) => comments.push({ id: randomUUID(), taskId: task.id, projectId: proj.p.id, userId, body, createdAt: at(-daysAgo) });
-  // Time on the last ten working days: rows of [userId, taskRef or null, hours, note] per day.
+  // Time on the last ten working days (a project that tracks time): rows of [userId, taskRef or
+  // null, hours, note] per day.
   const logDays = (proj, perDay) => workDays.forEach((ago, i) => {
     for (const [userId, ref, hours, note] of perDay(i)) logs.push({ id: randomUUID(), projectId: proj.p.id, taskId: ref ? proj.byKey[ref].id : null, userId, date: day(-ago), hours, note: note || '', createdAt: at(-ago) });
   });
@@ -440,7 +435,7 @@ function seedProjects(data, c) {
   const meridianRollout = project(4, {
     name: 'Warehouse HR and payroll rollout', type: 'Client', status: 'active', startDate: wd(-14), endDate: wd(75), managerId: pmU,
     members: [{ userId: pmU, role: 'manager' }, { userId: payU, role: 'member' }, { userId: hrU, role: 'member' }, { userId: juan, role: 'member' }, { userId: sales, role: 'viewer' }],
-    accountId: meridian.id, dealId: data.crmDeals[2].id, contractId: meridianContract.id, budgetHours: 360,
+    accountId: meridian.id, dealId: data.crmDeals[2].id, contractId: meridianContract.id,
     description: 'HR records, attendance and payroll for 420 warehouse staff in two sites. Billing: 50% on signing (paid), 50% on go-live.',
     statuses: DEFAULT_STATUSES.map((x) => (x.id === 'doing' ? { ...structuredClone(x), wipLimit: 3 } : structuredClone(x))),
     healthOverride: { value: 'red', note: 'Off track in practice: Meridian\'s HR has not sent the 2026 leave balances, so the parallel run will move a week unless they arrive by Friday.', by: pmU, at: at(-1) },
@@ -449,37 +444,32 @@ function seedProjects(data, c) {
     ['Parallel payroll run', 40, false],
     ['Go-live and acceptance', 70, true, 50],
   ], [
-    ['kick', 'Kick-off with Grace Lim and the site supervisors', 0, 'done', pmU, -14, -13, 3],
-    ['master', 'Employee master file from Meridian\'s spreadsheet', 0, 'doing', hrU, -10, 3, 16, { checklist: [['Template sent', true], ['Site A file received', true], ['Site B file received', false], ['Duplicates removed', false]] }],
-    ['sched', 'Shift schedules for both warehouses', 0, 'doing', juan, -6, 5, 12],
-    ['leave', 'Opening leave balances for 2026', 0, 'waiting', hrU, -8, 2, 4, { priority: 'high', description: 'Waiting for Meridian\'s HR to send the balances as of the go-live month.' }],
-    ['rates', 'Pay rules: night differential and holiday premiums', 0, 'doing', payU, -5, 6, 10],
-    ['bio', 'Connect the biometric clocks at Site A', 0, 'doing', juan, -3, 8, 8, { blockedBy: ['sched'] }],
-    ['users', 'User accounts for the site supervisors', 0, 'todo', juan, 7, 10, 3],
-    ['parallel1', 'Parallel run: first cut-off', 1, 'todo', payU, 20, 27, 20, { blockedBy: ['master', 'rates'] }],
-    ['compare', 'Compare against the old payroll and explain each difference', 1, 'todo', payU, 27, 33, 16],
-    ['parallel2', 'Parallel run: second cut-off', 1, 'todo', payU, 34, 40, 16],
-    ['train', 'Train the payroll and HR staff', 2, 'todo', pmU, 50, 60, 12],
-    ['golive', 'Go-live payroll', 2, 'todo', payU, 62, 66, 8, { priority: 'high' }],
-    ['accept', 'Acceptance and turnover', 2, 'todo', pmU, 66, 70, 2],
+    ['kick', 'Kick-off with Grace Lim and the site supervisors', 0, 'done', pmU, -14, -13, 'S'],
+    ['master', 'Employee master file from Meridian\'s spreadsheet', 0, 'doing', hrU, -10, 3, 'M', { checklist: [['Template sent', true], ['Site A file received', true], ['Site B file received', false], ['Duplicates removed', false]] }],
+    ['sched', 'Shift schedules for both warehouses', 0, 'doing', juan, -6, 5, 'S'],
+    ['leave', 'Opening leave balances for 2026', 0, 'waiting', hrU, -8, 2, 'S', { priority: 'high', description: 'Waiting for Meridian\'s HR to send the balances as of the go-live month.' }],
+    ['rates', 'Pay rules: night differential and holiday premiums', 0, 'doing', payU, -5, 6, 'M'],
+    ['bio', 'Connect the biometric clocks at Site A', 0, 'doing', juan, -3, 8, 'S', { blockedBy: ['sched'] }],
+    ['users', 'User accounts for the site supervisors', 0, 'todo', juan, 7, 10, 'M'],
+    ['parallel1', 'Parallel run: first cut-off', 1, 'todo', payU, 20, 27, 'M', { blockedBy: ['master', 'rates'] }],
+    ['compare', 'Compare against the old payroll and explain each difference', 1, 'todo', payU, 27, 33, 'S'],
+    ['parallel2', 'Parallel run: second cut-off', 1, 'todo', payU, 34, 40, 'M'],
+    ['train', 'Train the payroll and HR staff', 2, 'todo', pmU, 50, 60, 'M'],
+    ['golive', 'Go-live payroll', 2, 'todo', payU, 62, 66, 'S', { priority: 'high' }],
+    ['accept', 'Acceptance and turnover', 2, 'todo', pmU, 66, 70, 'XS'],
   ]);
   say(meridianRollout, meridianRollout.byKey.leave, pmU, '@hr.demo can you call Grace tomorrow? Without the balances the parallel run will be off.', 2);
   note(hrU, 'mentioned', meridianRollout.p, meridianRollout.byKey.leave, pmU, `mentioned you on ${meridianRollout.byKey.leave.key}: “@hr.demo can you call Grace tomorrow? Without the balances the parallel run…”`, 2);
   say(meridianRollout, meridianRollout.byKey.leave, hrU, 'Called her. Site A is ready; Site B will send theirs on Thursday.', 1);
   say(meridianRollout, meridianRollout.byKey.bio, juan, 'Site A has 6 devices of the same model as Bayani\'s. The import should work as is.', 1);
-  logDays(meridianRollout, (i) => [
-    [hrU, 'master', i < 6 ? 3 : 2],
-    [juan, i % 2 ? 'sched' : 'bio', 3],
-    [payU, i < 5 ? 'rates' : null, 2, i < 5 ? '' : 'Reading Meridian\'s current payroll rules'],
-    ...(i % 4 === 0 ? [[pmU, 'kick', 1, 'Weekly call with Grace']] : []),
-  ]);
 
   // 5. Support for the student information system: a year-long contract with its own statuses
-  // (Backlog, In progress, Client sign-off, Released), two releases a year, ending in 40 days.
+  // (Backlog, In progress, Client sign-off, Released), two releases a year, ending in 40 days. It
+  // tracks time: the support hours go into the renewal discussion.
   const sis = project(5, {
     name: 'SIS support and maintenance, 2025–2026', type: 'Client', status: 'active', startDate: wd(-325), endDate: wd(40), managerId: it, createdDaysAgo: 325,
     members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }, { userId: sales, role: 'viewer' }],
-    accountId: nsu.id, contractId: sisContract.id, budgetHours: 300,
+    accountId: nsu.id, contractId: sisContract.id, timeTracking: true, budgetHours: 300,
     description: '8x5 support for the student information system and two releases a year, under contract NSU-2025-118. Renewal is being discussed in Sales & CRM.',
     statuses: [
       { id: 'backlog', name: 'Backlog', category: 'todo', color: 'gray' },
@@ -493,16 +483,16 @@ function seedProjects(data, c) {
     ['Release 2026.1', 5, true, 50, -2, null],
     ['Renewal decision', 30, false],
   ], [
-    ['enrol', 'Online enrolment for second semester', 0, 'released', juan, -260, -205, 60],
-    ['tor', 'Transcript of records PDF', 0, 'released', juan, -240, -206, 24],
-    ['perf', 'Speed up the grade encoding page', 1, 'released', juan, -90, -40, 30],
-    ['sched', 'Class scheduling conflicts report', 1, 'released', juan, -70, -32, 20],
-    ['sso', 'Single sign-on with the LMS', 1, 'signoff', juan, -60, 4, 6, { description: 'Released; Paolo is checking it with the College of Nursing before signing the release.' }],
-    ['patch', 'Monthly security patches', null, 'doing', it, -5, 3, 4],
-    ['backup', 'Restore test of the nightly backup', null, 'backlog', it, 10, 12, 3],
-    ['report', 'Support report for the renewal (tickets, response times)', 2, 'backlog', it, 15, 25, 6, { priority: 'high' }],
-    ['handover', 'Handover notes if the contract is not renewed', 2, 'backlog', it, 28, 38, 4],
-    ['mobile', 'Mobile view of the student portal', null, 'cancelled', juan, -150, -120, 40, { description: 'Moved to the phase 2 proposal instead.' }],
+    ['enrol', 'Online enrolment for second semester', 0, 'released', juan, -260, -205, 'XL'],
+    ['tor', 'Transcript of records PDF', 0, 'released', juan, -240, -206, 'M'],
+    ['perf', 'Speed up the grade encoding page', 1, 'released', juan, -90, -40, 'L'],
+    ['sched', 'Class scheduling conflicts report', 1, 'released', juan, -70, -32, 'M'],
+    ['sso', 'Single sign-on with the LMS', 1, 'signoff', juan, -60, 4, 'S', { description: 'Released; Paolo is checking it with the College of Nursing before signing the release.' }],
+    ['patch', 'Monthly security patches', null, 'doing', it, -5, 3, 'S'],
+    ['backup', 'Restore test of the nightly backup', null, 'backlog', it, 10, 12, 'S'],
+    ['report', 'Support report for the renewal (tickets, response times)', 2, 'backlog', it, 15, 25, 'S', { priority: 'high' }],
+    ['handover', 'Handover notes if the contract is not renewed', 2, 'backlog', it, 28, 38, 'S'],
+    ['mobile', 'Mobile view of the student portal', null, 'cancelled', juan, -150, -120, 'L', { description: 'Moved to the phase 2 proposal instead.' }],
   ]);
   say(sis, sis.byKey.sso, it, '@pm.demo Paolo says the Nursing check takes another week. Can the LMS team keep their test accounts open until then?', 3);
   note(pmU, 'mentioned', sis.p, sis.byKey.sso, it, `mentioned you on ${sis.byKey.sso.key}: “@pm.demo Paolo says the Nursing check takes another week. Can the LMS team…”`, 3);
@@ -512,19 +502,19 @@ function seedProjects(data, c) {
   project(6, {
     name: 'University website redesign', type: 'Client', status: 'completed', startDate: wd(-500), endDate: wd(-150), managerId: pmU, createdDaysAgo: 505,
     members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }],
-    accountId: nsu.id, contractId: websiteContract.id, budgetHours: 240,
+    accountId: nsu.id, contractId: websiteContract.id,
     description: 'New public website on the university\'s own hosting, with a news section for each college. Delivered and accepted.',
   }, [
     ['Design approved', -430, true, 40, -432, -428, 'Approved by the Office of the President.'],
     ['Launch and acceptance', -160, true, 60, -165, -158, 'Acceptance certificate NSU-ACC-2025-07.'],
   ], [
-    ['brief', 'Content inventory and sitemap', 0, 'done', pmU, -500, -480, 16],
-    ['design', 'Home and college page designs', 0, 'done', juan, -480, -435, 60],
-    ['build', 'Build the templates', 1, 'done', juan, -425, -300, 90],
-    ['news', 'News section per college', 1, 'done', juan, -300, -240, 30],
-    ['migrate', 'Move 1,200 pages from the old site', 1, 'done', pmU, -260, -190, 40],
-    ['launch', 'Launch and redirects from the old addresses', 1, 'done', juan, -170, -165, 6],
-    ['handover', 'Train the web editors', 1, 'done', pmU, -165, -160, 6],
+    ['brief', 'Content inventory and sitemap', 0, 'done', pmU, -500, -480, 'M'],
+    ['design', 'Home and college page designs', 0, 'done', juan, -480, -435, 'XL'],
+    ['build', 'Build the templates', 1, 'done', juan, -425, -300, 'XL'],
+    ['news', 'News section per college', 1, 'done', juan, -300, -240, 'L'],
+    ['migrate', 'Move 1,200 pages from the old site', 1, 'done', pmU, -260, -190, 'L'],
+    ['launch', 'Launch and redirects from the old addresses', 1, 'done', juan, -170, -165, 'S'],
+    ['handover', 'Train the web editors', 1, 'done', pmU, -165, -160, 'S'],
   ]);
 
   // 7. Internal, off track: year-end payroll work whose first milestone has passed with work open.
@@ -537,16 +527,15 @@ function seedProjects(data, c) {
     ['13th month pay released', 30, false],
     ['Annual reports filed', 45, false],
   ], [
-    ['sss', 'Reconcile SSS, PhilHealth and Pag-IBIG remittances, January to October', 0, 'doing', payU, -25, -6, 20, { priority: 'high', checklist: [['SSS', true], ['PhilHealth', true], ['Pag-IBIG', false]] }],
-    ['loans', 'Check the salary loan deductions against the SSS statements', 0, 'todo', payU, -10, -4, 6],
-    ['tax', 'Enter the 2027 tax tables in Payroll Setup', 1, 'todo', payU, 5, 12, 4, { description: 'Use the BIR\'s revenue regulations for 2027 once published; check against last year\'s table.' }],
-    ['thirteenth', 'Compute the 13th month pay and check it with HR', 1, 'todo', payU, 15, 25, 10],
-    ['separated', 'Final pay for the three separated employees', 1, 'doing', hrU, -4, 8, 6],
-    ['alpha', 'Prepare the alphalist of employees', 2, 'todo', payU, 30, 42, 12],
-    ['certs', 'Certificates of tax withheld for each employee', 2, 'todo', hrU, 32, 44, 8],
+    ['sss', 'Reconcile SSS, PhilHealth and Pag-IBIG remittances, January to October', 0, 'doing', payU, -25, -6, 'M', { priority: 'high', checklist: [['SSS', true], ['PhilHealth', true], ['Pag-IBIG', false]] }],
+    ['loans', 'Check the salary loan deductions against the SSS statements', 0, 'todo', payU, -10, -4, 'S'],
+    ['tax', 'Enter the 2027 tax tables in Payroll Setup', 1, 'todo', payU, 5, 12, 'S', { description: 'Use the BIR\'s revenue regulations for 2027 once published; check against last year\'s table.' }],
+    ['thirteenth', 'Compute the 13th month pay and check it with HR', 1, 'todo', payU, 15, 25, 'S'],
+    ['separated', 'Final pay for the three separated employees', 1, 'doing', hrU, -4, 8, 'S'],
+    ['alpha', 'Prepare the alphalist of employees', 2, 'todo', payU, 30, 42, 'M'],
+    ['certs', 'Certificates of tax withheld for each employee', 2, 'todo', hrU, 32, 44, 'S'],
   ]);
   say(yearEnd, yearEnd.byKey.sss, payU, 'Pag-IBIG\'s statement for September is missing. Requested a copy; the milestone will be a few days late.', 2);
-  logDays(yearEnd, (i) => [[payU, i < 7 ? 'sss' : 'loans', 2], ...(i < 4 ? [[hrU, 'separated', 1.5]] : [])]);
 
   // 8. On hold, with the manager's note.
   project(8, {
@@ -555,11 +544,11 @@ function seedProjects(data, c) {
     description: 'Annual review of how the company keeps personal data. On hold until the new Data Protection Officer is appointed.',
     healthOverride: { value: 'amber', note: 'Paused on purpose: waiting for the DPO appointment from management, expected next month.', by: hrU, at: at(-12) },
   }, [['Inventory of personal data', -10, false], ['Privacy impact assessment', 40, false]], [
-    ['inventory', 'List the systems and files that hold personal data', 0, 'done', hrU, -50, -30, 10],
-    ['access', 'Review who can see pay and government IDs', 0, 'done', it, -40, -25, 6, { description: 'Done with the Users & Access table and the audit log.' }],
-    ['retention', 'Retention periods for applicant files', 0, 'waiting', hrU, -25, -12, 4],
-    ['pia', 'Privacy impact assessment for the clock-in locations', 1, 'todo', hrU, 20, 35, 12],
-    ['notice', 'Update the employee privacy notice', 1, 'todo', hrU, 30, 40, 4],
+    ['inventory', 'List the systems and files that hold personal data', 0, 'done', hrU, -50, -30, 'M'],
+    ['access', 'Review who can see pay and government IDs', 0, 'done', it, -40, -25, 'S', { description: 'Done with the Users & Access table and the audit log.' }],
+    ['retention', 'Retention periods for applicant files', 0, 'waiting', hrU, -25, -12, 'XS'],
+    ['pia', 'Privacy impact assessment for the clock-in locations', 1, 'todo', hrU, 20, 35, 'M'],
+    ['notice', 'Update the employee privacy notice', 1, 'todo', hrU, 30, 40, 'S'],
   ]);
 
   // 9. Cancelled, with the reason in the description.
@@ -568,9 +557,9 @@ function seedProjects(data, c) {
     members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
     description: 'Cancelled: the quote for the internet upgrade came in above budget. Revisit next year with the new lease line.',
   }, [['Pilot with the Sales folder', -40, false]], [
-    ['quote', 'Quotes for storage and the internet upgrade', 0, 'done', it, -90, -70, 4],
-    ['pilot', 'Pilot with the Sales folder', 0, 'cancelled', juan, -60, -40, 10],
-    ['policy', 'Folder permissions plan', 0, 'cancelled', it, -60, -45, 6],
+    ['quote', 'Quotes for storage and the internet upgrade', 0, 'done', it, -90, -70, 'S'],
+    ['pilot', 'Pilot with the Sales folder', 0, 'cancelled', juan, -60, -40, 'M'],
+    ['policy', 'Folder permissions plan', 0, 'cancelled', it, -60, -45, 'S'],
   ]);
 
   // 10. Internal laptop refresh, with a task linked to Juan's service desk ticket.
@@ -578,15 +567,14 @@ function seedProjects(data, c) {
   const laptops = project(10, {
     name: 'Laptop refresh, engineering team', type: 'Internal', status: 'active', startDate: wd(-7), endDate: wd(30), managerId: it,
     members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: payU, role: 'viewer' }],
-    budgetHours: 40,
     description: 'Replace the five oldest engineering laptops and re-image them; the old units go to the training room.',
   }, [['New laptops issued', 21, false]], [
-    ['list', 'List the five oldest units from IT Assets', 0, 'done', it, -7, -6, 1],
-    ['quote', 'Get three quotes and the purchase approval', 0, 'doing', it, -5, 4, 3],
-    ['image', 'Prepare the standard image', 0, 'todo', it, 5, 10, 6],
-    ['juan', 'Juan\'s laptop: battery first, then a replacement unit', 0, 'doing', it, -1, 2, 2, { priority: 'high', ticketId: battery?.id || null }],
-    ['issue', 'Issue the new laptops and record them in IT Assets', 0, 'todo', it, 15, 21, 5],
-    ['training', 'Move the old units to the training room', null, 'todo', juan, 22, 28, 2],
+    ['list', 'List the five oldest units from IT Assets', 0, 'done', it, -7, -6, 'XS'],
+    ['quote', 'Get three quotes and the purchase approval', 0, 'doing', it, -5, 4, 'S'],
+    ['image', 'Prepare the standard image', 0, 'todo', it, 5, 10, 'S'],
+    ['juan', 'Juan\'s laptop: battery first, then a replacement unit', 0, 'doing', it, -1, 2, 'XS', { priority: 'high', ticketId: battery?.id || null }],
+    ['issue', 'Issue the new laptops and record them in IT Assets', 0, 'todo', it, 15, 21, 'S'],
+    ['training', 'Move the old units to the training room', null, 'todo', juan, 22, 28, 'XS'],
   ]);
   say(laptops, laptops.byKey.juan, it, 'Battery ordered. Linked to his ticket so the service desk sees where it is.', 1);
 

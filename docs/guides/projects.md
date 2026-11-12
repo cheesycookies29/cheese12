@@ -1,7 +1,7 @@
 ---
 id: projects
 title: Running projects
-summary: For Project Managers and everyone on a project: the portfolio, templates and milestones with the billing forecast, a project's milestones, deliverables and burn-up, the board and list with quick filters, saved views, bulk edit and CSV import, tasks with watchers, files and hours left, time, My work with For you and the daily digest, Workload and the Projects setup.
+summary: For Project Managers and everyone on a project: the portfolio, templates and milestones with the billing forecast, a project's milestones, deliverables and burn-up, the board and list with quick filters, saved views, bulk edit and CSV import, tasks with sizes, watchers and files, time tracking and the weekly Timesheet, My work with For you and the daily digest, Workload and the Projects setup.
 roles: pm, employee, it, salesmgr
 apps: projects
 order: 55
@@ -9,7 +9,9 @@ order: 55
 
 ## Before you start
 
-**Project Management** keeps the company's dated, contract-bound work in one place: client implementations, government contracts with deliverables, and internal IT projects. A project has **milestones** (some are contract **deliverables** the client accepts, with a share of the contract price), **tasks** on a board, and the **time** people spend on it. CORE works out each project's progress and health from its tasks, so nobody has to type a percentage.
+**Project Management** keeps the company's dated, contract-bound work in one place: client implementations, government contracts with deliverables, and internal IT projects. A project has **milestones** (some are contract **deliverables** the client accepts, with a share of the contract price) and **tasks** on a board. Each task can have a **size**, from *XS* to *XL*: a rough idea of the effort, not an hour estimate. CORE works out each project's progress and health from its tasks, so nobody has to type a percentage.
+
+Hours come in only where they are needed: a project manager can turn on **time tracking** for a project billed by the hour or whose client asks for a timesheet. Its members then log hours on it, on its tasks or on their weekly **Timesheet**. The other projects have no hours at all.
 
 Who sees what:
 
@@ -21,7 +23,7 @@ Who sees what:
 | Role in a project | Can |
 |---|---|
 | Manager | Edit the project, its members, columns, milestones and every task |
-| Member | Add and edit tasks, move cards, comment, log time |
+| Member | Add and edit tasks, move cards, comment; log time on a project that tracks time |
 | Viewer | Read and comment |
 
 Open it from the CORE home with **Open Project Management**, or from the modules button. It opens on **Overview**, the list of projects. Codes are given automatically: `PRJ-0001` for a project, `PRJ-0001-12` for its 12th task (demo records start with `DEMO-`).
@@ -50,9 +52,9 @@ The demo has ten projects, chosen so each part of the module has something to sh
 
 | Project | What to look at |
 |---|---|
-| *Learning management system, phase 2* | A client delivery in full swing: deliverables with billing, overdue and blocked tasks, comments, time. The tour below uses it. |
+| *Learning management system, phase 2* | A client delivery in full swing: deliverables with billing, overdue and blocked tasks, sized tasks, comments. The tour below uses it. |
 | *Warehouse HR and payroll rollout* | The board's **WIP limit**: four tasks in *In progress*, whose limit is 3. The manager's own reading (*Off track*, with a note) next to the computed health. |
-| *SIS support and maintenance, 2025–2026* | A project with **its own statuses** (*Backlog*, *Client sign-off*, *Released*), a release submitted and waiting for the client's sign-off, and the contract renewal coming up. |
+| *SIS support and maintenance, 2025–2026* | The one project that **tracks time**: the support hours count in the renewal talks, so it has a **Time** tab, a budget in hours, and time on Juan's **Timesheet**. It also has **its own statuses** (*Backlog*, *Client sign-off*, *Released*) and a release waiting for the client's sign-off. |
 | *Year-end payroll and 2027 tax tables* | *Off track*: its first milestone has passed with work still open. Run by `payroll.demo`. |
 | *Data privacy compliance review* | **On hold**, with the manager's note on why. |
 | *Laptop refresh, engineering team* | A task linked to a **service desk ticket** (Juan's laptop battery); the ticket shows the task too. |
@@ -65,10 +67,10 @@ The three starter templates are under **Templates** in the filter.
 
 ### A project's overview
 
-1. Click *Learning management system, phase 2*. The project opens on its **Overview**. Its tabs are **Overview**, **Board**, **List**, **Timeline** and **Time**.
+1. Click *Learning management system, phase 2*. The project opens on its **Overview**. Its tabs are **Overview**, **Board**, **List** and **Timeline** (a project that tracks time also has **Time**).
 2. The **Health** line says why the project is *At risk*: tasks in *Gradebook and parent portal build* are overdue.
 3. Under **Milestones**, each card shows its due date, its progress and its health. *Design and requirements sign-off* is a deliverable (gold diamond) for 30% of the contract, and was accepted. *Go-live and acceptance* is the deliverable for the other 70%.
-4. The **Hours** figure shows the hours left on the open tasks, with the hours estimated and logged under it.
+4. **Sized tasks** says how many tasks have a size. When 60% or more do, progress is weighed by size (a *Large* task done counts more than an *Extra small* one); otherwise every task counts the same. A project that tracks time also shows **Time**: the hours logged, against its budget.
 5. **Milestone burn-up** draws the next open milestone: the grey line is its scope (the work it holds), the green line the work done, and the dashed gold line where the work should be by each day. *Gradebook and parent portal build* is well below the dashed line, and its scope grew when tasks were added after the start. Pick another milestone in the list to see its chart.
 6. Each milestone card has **Files** (on a deliverable, **Acceptance document**): click it on *Design and requirements sign-off* to see where the client's signed certificate goes.
 7. Further down: **Overdue** tasks, **Blocked** tasks, **Recent activity**, the **Members**, and **Links** to the client, the deal and the contract in Sales & CRM.
@@ -80,7 +82,7 @@ The three starter templates are under **Templates** in the filter.
 ### The board
 
 1. Click **Board**. There is a column per status, from *To do* to *Done*, with the number of tasks in each.
-2. Each card shows the task's key, title, due date (red when overdue), checklist (*2/3*), subtasks, the assignee's initials and, when it waits for another task, *Blocked*.
+2. Each card shows the task's key, title, **size** (*M*, *L*…), due date (red when overdue), checklist (*2/3*), subtasks, the assignee's initials and, when it waits for another task, *Blocked*.
 3. Drag *Data privacy notice for parents* from **For review** to **Done**. CORE says *moved to Done*.
 4. Every card has a **Move to** menu (the small arrow at its top right). It lists the statuses, and **Move up** and **Move down** in the column. It works with the keyboard and on a phone, where dragging does not.
 5. To add a task, type its title in **+ Add a task** at the top of a column and press Enter.
@@ -95,21 +97,23 @@ The three starter templates are under **Templates** in the filter.
 
 ### A task
 
-1. Click *Gradebook: import class lists from the SIS*. The task page has its description, **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, the linked service desk ticket and **Time** on the right.
+1. Click *Gradebook: import class lists from the SIS*. The task page has its description, **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, **Watchers** and the linked service desk ticket on the right.
 2. Tick *Test with the College of Engineering lists* in the checklist.
 3. Under **Details**, change **Status** to *For review*. Each change is saved at once and written in the history.
-4. The **Time** box shows the **Estimate**, the hours **Logged** and the hours **Left**. Juan logged more than the 24 hours estimated, but set **Hours left** to 6: the work is not done yet.
+4. **Size** says how big the task is: *S · Small (about a day)*. Pick another to change it; the line under it says what the size means. On a project that tracks time, a **Time** box under it shows the hours logged on the task and lets you log more.
 5. Under **Comments**, write a comment and mention someone with @ and their username, for example `@employee.demo`. The mention is highlighted, and Juan finds it under **For you** on his My work.
 6. At the top, **Watch** (or **Watching**) shows how many people watch the task; the **Watchers** box lists them. **Files** holds documents and photos for the task.
 
 ![A task](projects-task.jpg)
 
+![Picking a task's size](projects-sizes.jpg)
+
 ### List, timeline and time
 
-1. Click the project's name at the top, then **List**: every task in a table, grouped by milestone (or by status), with the status, assignee and due date editable in place, and the estimate, hours logged and hours **Left**. It has the same quick filters, search and **Views** as the board. Click a column title to sort; **Export CSV** saves what is shown.
-2. Tick two tasks: a bar appears at the bottom with **Status**, **Assignee**, **Milestone**, **Priority**, **Move dates**, **Watchers** and **Delete** for all the ticked tasks at once. **Clear selection** closes it. Project managers also have **Import tasks** at the top.
+1. Click the project's name at the top, then **List**: every task in a table, grouped by milestone (or by status), with the status, assignee, due date and **Size** editable in place. It has the same quick filters, search and **Views** as the board. Click a column title to sort; **Export CSV** saves what is shown.
+2. Tick two tasks: a bar appears at the bottom with **Status**, **Assignee**, **Milestone**, **Priority**, **Size**, **Move dates**, **Watchers** and **Delete** for all the ticked tasks at once. **Clear selection** closes it. Project managers also have **Import tasks** at the top.
 3. Click **Timeline**: weeks across the top, milestones as diamonds, tasks as bars from their start to their due date (a dot when there is only a due date), a red line for today, and weekends and holidays shaded. It scrolls sideways; on a phone it is a list by date.
-4. Click **Time**: log your hours, see your entries this week, and the totals by person and by task against the estimates.
+4. Go back to **Overview** and open *SIS support and maintenance, 2025–2026*, the project that tracks time. Its **Time** tab has **Log time**, your entries this week, and the hours by person and by task, against the 300-hour budget.
 
 ![The list, grouped by milestone](projects-list.jpg)
 
@@ -119,18 +123,31 @@ The three starter templates are under **Templates** in the filter.
 
 ![Logging time](projects-time.jpg)
 
+### The timesheet
+
+1. Sign in as `employee.demo` and open **Timesheet** in the side menu. It is there for everyone on a project that tracks time.
+2. Each row is a project that tracks time (Juan has one, *SIS support…*), with a **task picker**; the columns are Monday to Sunday of this week. Juan's hours of the last few working days are there (early in the week, click **Previous** to see them).
+3. Type hours in a day (quarter hours: *1.5*, *0.25*), or pick a task in the row's list. **Another task on …** adds a row for a second task of the same project. The **Total** row and column add up as you type.
+4. The grey **Clocked in (DTR)** row is Juan's attendance, for comparison only: nothing is taken from it. A day with more project hours than clocked in gets a small warning sign; it is still saved.
+5. Click **Save timesheet**. **Previous** and **Next** move a week; **This week** comes back.
+
+![The weekly timesheet](projects-timesheet.jpg)
+
 ### My work and Workload
 
 1. Sign in as `employee.demo` and open **My work** in the side menu. **For you** at the top lists what others did that concerns Juan: Andrea mentioned him, there are *2 comments on* a task of his, a task was assigned to him. Unread ones are in bold; open one or click its tick to mark it read, or **Mark all read**.
 2. Under it, **Daily digest** sums up Juan's day: overdue tasks, tasks due within 3 working days, and unread notifications. **Show today's digest** lists them; **Email me a daily digest** turns the email on or off for him.
 3. Below, the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. Change a task's status right there.
-4. Sign in as `pm.demo` again and open **Workload**. Each row is a person; each column a week. A cell shows the hours planned for that person that week against their capacity: the hours **left** on their tasks, spread over the working days to each due date. A red cell has more work than time. Click a cell to see its tasks.
+4. Sign in as `pm.demo` again and open **Workload**. Each row is a person; each column a week. A cell shows how busy that person is that week, as a **level**: *Light*, *Normal*, *Busy*, *Overloaded* or *On leave*, each with its own shape and colour, and a small bar. Most of the demo is *Light* or *Normal*, with a *Busy* and an *Overloaded* week or two (Juan's and the payroll officer's, depending on the day).
+5. Point at a cell to see its tasks, or click it: the list shows each task with its size, and the line at the top says roughly how many days of work that is against the days available (*≈ 4 of 5 days*).
 
 ![My work](projects-my-work.jpg)
 
 ![The daily digest on My work](projects-digest.jpg)
 
-![Workload: planned hours against capacity](projects-workload.jpg)
+![Workload: load levels by person and week](projects-workload.jpg)
+
+![A Workload cell opened: the tasks and their sizes](projects-workload-detail.jpg)
 
 ## How to…
 
@@ -138,7 +155,7 @@ The three starter templates are under **Templates** in the filter.
 
 1. On **Overview**, click **+ New project**.
 2. Enter the **Project name**, the **Type** (*Client*, *Government* or *Internal*), the **Status**, the **Start** date (required) and the **End** date.
-3. Pick the **Project manager**, and the **Budget (hours)** if there is one.
+3. Pick the **Project manager**. Tick **Track time on this project** only for time-and-materials work or when the client asks for a timesheet (see [Turn time tracking on for a project](projects#turn-time-tracking-on-for-a-project)); then enter the **Budget (hours)** if there is one.
 4. If you have Sales & CRM access, pick the **Client**, the **Deal** and the **Contract**. A deliverable due after the contract's end date is flagged.
 5. Click **Save**.
 
@@ -150,7 +167,7 @@ The project opens. Its board starts with the statuses from the Projects setup. F
 2. Enter the **Project name** and the **Start** date, pick the **Project manager**, and if you have Sales & CRM access the **Client**, **Deal** and **Contract**.
 3. Click **Save**.
 
-The new project gets the template's board statuses, milestones (deliverables keep their billing %), tasks, subtasks, checklists (unticked), blocked-by links and estimates. Every date keeps its place in **working days** from the start: a task due on the template's 10th working day is due on the project's 10th working day, skipping weekends and the holidays in CORE's calendar. Nobody is assigned, and no time or comments are copied. The type and description come from the template; change them under **Edit**.
+The new project gets the template's board statuses, milestones (deliverables keep their billing %), tasks, subtasks, checklists (unticked), blocked-by links and sizes, and tracks time if the template does. Every date keeps its place in **working days** from the start: a task due on the template's 10th working day is due on the project's 10th working day, skipping weekends and the holidays in CORE's calendar. Nobody is assigned, and no time or comments are copied. The type and description come from the template; change them under **Edit**.
 
 ![Starting a project from a template](projects-from-template.jpg)
 
@@ -183,16 +200,31 @@ The project manager is always a manager. Open tasks of someone taken off the pro
 ### Add and plan tasks
 
 1. On the **List**, click **+ Task** (or type in **+ Add a task** on the board).
-2. Enter the **Title**, and if you know them the **Assignee**, **Start**, **Due**, **Estimate (hours)**, **Milestone** and **Priority**.
+2. Enter the **Title**, and if you know them the **Assignee**, **Start**, **Due**, **Size**, **Milestone** and **Priority**.
 3. To break a task down, pick it under **Subtask of**, or add subtasks on the task's page. Subtasks are one level deep: a subtask cannot have subtasks.
 4. When a task cannot start before another is done, open it and pick that task under **Blocked by**. The card shows *Blocked* until the other task is done; nothing is rescheduled.
 
-Progress counts the subtasks, not their parent. When most tasks (60% or more) have an estimate, progress is weighed by hours (a task without one counts at the average); otherwise every task counts the same. Cancelled tasks do not count.
+Progress counts the subtasks, not their parent. When most tasks (60% or more) have a size, progress is weighed by size (a task without one counts at the average); otherwise every task counts the same. Cancelled tasks do not count.
+
+### Size a task
+
+1. Open the task and pick its **Size** under **Details** (or in the **Size** column of the **List**, or when you add it).
+2. Pick by how much work it is, roughly:
+
+| Size | Means (as set up) | Weight in progress | Days in Workload |
+|---|---|---|---|
+| XS · Extra small | under half a day | 1 | ¼ |
+| S · Small | about a day | 2 | 1 |
+| M · Medium | a few days | 3 | 3 |
+| L · Large | about a week | 5 | 5 |
+| XL · Extra large | two weeks or more | 8 | 10 |
+
+A size is a rough idea, not a promise: pick the nearest and move on. An *XL* task is usually worth splitting into subtasks. To size many tasks at once, tick them on the **List** and use **Size** in the bar. Changes are in the task's history. A Project Manager can reword what each size means under **Projects setup → Effort sizes**; the weights and days stay the same everywhere.
 
 ### Change many tasks at once
 
 1. On the **List**, tick the tasks to change, or tick **Select all … tasks shown** (it takes the tasks the filters show). With the keyboard, Tab to a box and press Space.
-2. In the bar at the bottom, click what to change: **Status**, **Assignee** (members of the project only), **Milestone**, **Priority**, **Move dates** (a number of working days, negative for earlier; weekends and holidays are skipped, and tasks without dates keep none) or **Watchers**.
+2. In the bar at the bottom, click what to change: **Status**, **Assignee** (members of the project only), **Milestone**, **Priority**, **Size** (or no size), **Move dates** (a number of working days, negative for earlier; weekends and holidays are skipped, and tasks without dates keep none) or **Watchers**.
 3. Pick the new value and click **Apply**.
 
 CORE checks every selected task first. If one cannot take the change (for example a due date that would fall before its start), nothing is changed and CORE says which task and why. Each task changed gets the change in its history. People are told once, not once per task: *assigned you 5 tasks…*. At most 200 tasks at a time.
@@ -220,7 +252,8 @@ The columns:
 | Status | The name of a status on this project's board; empty: the first *To do* status |
 | Assignee | The username or full name of a member of the project (not a viewer) |
 | Start, Due | `2026-12-01` or `01/12/2026` (day first) |
-| Estimate (h) | Hours, such as `8` or `1.5` (`1,5` works too) |
+| Size | `XS`, `S`, `M`, `L` or `XL`, or the names (*Extra small* … *Extra large*) |
+| Estimate (h) | Instead of a size (a file from before sizes, or another tool): hours such as `8` or `1,5`, turned into a size: up to 2 h *XS*, up to 8 h *S*, up to 24 h *M*, up to 48 h *L*, more *XL*. **Check the file** lists each row converted |
 | Priority | Low, Normal, High or Urgent |
 | Milestone | The name of a milestone of the project |
 | Parent | Another row's number (the header is row 1) or its title; that row becomes the parent. One level only |
@@ -283,23 +316,61 @@ A task moved to *Done* gets its completion date. When a column has a **WIP limit
 
 The category is what counts: *To do* and *In progress* are open work, *Done* is finished, *Cancelled* is left out of progress. Keep at least one *To do* and one *Done* status.
 
+### Turn time tracking on for a project
+
+Most projects need no hours: sizes are enough to plan, and the client pays by milestone. Turn time tracking on for work billed by the hour, or when the client asks for a timesheet.
+
+1. On the project's **Overview**, click **Edit** (project managers).
+2. Tick **Track time on this project**, and enter the **Budget (hours)** if there is one.
+3. Click **Save**.
+
+The project gets a **Time** tab and a **Time** figure on its overview, its tasks a **Time** box, and its members find it on their **Timesheet**. Untick it to turn it off: the hours logged are hidden, not deleted, and come back if you turn it on again. The change is in the project's history.
+
 ### Log your time
+
+On a project that tracks time:
 
 1. Open the project's **Time** tab (or the **Time** box on a task).
 2. Pick the **Date**, enter the **Hours** (quarter hours: 0.25, 0.5, 1.75…), pick the **Task** or *No task* for meetings and project work, and add a **Note**.
-3. If the estimate less what is logged is not what is really left, enter **Hours left on the task after this** (optional).
-4. Click **Log time**.
+3. Click **Log time**.
 
-If the hours you logged on a day are more than your attendance in the DTR shows, CORE saves them and flags them (*Over attended*). Only you, the project's managers and HR see that check. You can delete your own entries; a project manager can delete any.
+Or fill in a whole week at once on your **Timesheet** (below). If the hours you logged on a day are more than your attendance in the DTR shows, CORE saves them and only flags them (*More than attended*). Only you, the project's managers and people who see attendance see that check. You can delete your own entries; a project manager can delete any.
 
-### Keep the hours left up to date
+### Fill in your timesheet
 
-Each task shows its **Estimate**, the hours **Logged** on it and the hours **Left**: the estimate less the hours logged, never below 0, and 0 once the task is done or cancelled.
+1. Open **Timesheet** in the side menu (it is there when you are on a project that tracks time).
+2. Each project that tracks time has a row. Pick a **task** in the row if the hours were for one, or leave *No task (project work)*. **Another task on …** adds a row.
+3. Type the hours for each day, in quarter hours. Days after today are closed.
+4. Click **Save timesheet**.
 
-1. When that is wrong (half the hours are logged but most of the work remains), open the task and enter **Hours left** under **Details**, or enter it when you log time.
-2. To go back to estimate less logged, empty the box. A new **Estimate** also starts the count again.
+Each cell is one entry: changing it changes that entry, and emptying it removes it. A day can have at most 24 hours across your projects; a day in the future cannot have any. **Clocked in (DTR)** shows your attendance next to it, for comparison only: nothing is filled in from it, and a day with more project hours than clocked in is flagged, never refused. Move between weeks with **Previous**, **Next** and **This week**; CORE asks before leaving hours not saved.
 
-Anyone who works on the task (members and managers) can set it; the change is in the task's history. **Workload** plans the hours left, not the whole estimate, and the project's **Overview** adds them up. Progress still goes by the estimates, so logging time does not move it.
+![The weekly timesheet](projects-timesheet.jpg)
+
+### See a member's timesheet (project managers)
+
+1. Open **Timesheet**, and pick the person under **Timesheet of**. Or click their name under **By person** on the project's **Time** tab.
+2. Move between weeks as on your own.
+
+You see the projects you manage that track time, read only: only the person changes their hours (a manager can still delete a wrong entry on the **Time** tab). You also see their **Clocked in (DTR)** row.
+
+### Read Workload
+
+1. Open **Workload** (Project Managers and Sales Managers).
+2. Pick the week to start from and how many weeks to show.
+3. Read the levels: each open task counts by its size in working days (*XS* a quarter day, *S* 1, *M* 3, *L* 5, *XL* 10; a task without a size as *M*), spread over its working days from start to due. A task with only a due date counts in that week; an overdue one counts whole in the first week shown. That is set against the person's working days that week, less holidays and approved leave.
+
+| Level | Means |
+|---|---|
+| Light (open circle) | under half of the days available are planned |
+| Normal (dot) | 50 to 90% |
+| Busy (triangle) | 90 to 120% |
+| Overloaded (square) | over 120% |
+| On leave (dash) | no days available that week |
+
+4. Point at or click a cell to see its tasks and sizes, and the days behind the level (*≈ 4 of 5 days*). **No due date** lists the tasks that are not planned into a week.
+
+The levels are deliberately rough: a *Busy* or *Overloaded* week is a reason to talk, move a due date or share the work, not a measurement. Done and cancelled tasks, templates and tasks with subtasks (their subtasks count) are left out.
 
 ### Read the milestone burn-up
 
@@ -307,7 +378,7 @@ Anyone who works on the task (members and managers) can set it; the change is in
 2. Read the three lines: **Scope** (what the milestone holds), **Done** (up to today) and **Expected** (a straight line from the milestone's start to its due date, in working days). The red line is today.
 3. The text under the chart says the same in words: the scope, how much was added after the start, what is done and what was expected by now.
 
-The chart counts hours when 60% or more of the milestone's tasks have an estimate, and tasks otherwise, as its progress does. A task cancelled leaves the scope from the day it was cancelled; a task reopened leaves *Done* until it is done again.
+The chart counts **effort points** (each task's size weight: *XS* 1, *S* 2, *M* 3, *L* 5, *XL* 8) when 60% or more of the milestone's tasks have a size, and **tasks** otherwise, as its progress does. It never counts hours. A task cancelled leaves the scope from the day it was cancelled; a task reopened leaves *Done* until it is done again.
 
 ### See milestones and the billing forecast across projects
 
@@ -361,7 +432,7 @@ Your reading is shown with your name next to the one CORE works out, which stays
 1. On the project's **Overview**, click **Print status report**.
 2. Print it, or choose **Save as PDF** in the print window.
 
-The report fits one page: the health, progress, dates and hours, every milestone, the overdue tasks and the tasks due in the next two weeks.
+The report fits one page: the health, progress, dates, the open tasks (or, on a project that tracks time, the hours logged against the budget), every milestone, the overdue tasks and the tasks due in the next two weeks.
 
 ### Copy a project
 
@@ -375,26 +446,30 @@ The copy has the same statuses, milestones and tasks, with every date moved by t
 1. Open **Projects setup**.
 2. **Default statuses**: click **Edit statuses** to change the columns new projects start with.
 3. **Project types**: one per line. Click **Save types**.
+4. **Effort sizes**: reword what each size means for your teams (for example *XS: an hour or two*). The sizes, their weights and their days stay fixed. Click **Save sizes**; **Use the built-in wording** puts the original back.
 
-A change applies to new projects. **Daily digest** is described above. Administrators also see **Team access** (see [the administrator's guide](admin)).
+Statuses and types apply to new projects; the wording of the sizes applies at once, everywhere. **Daily digest** is described above. Administrators also see **Team access** (see [the administrator's guide](admin)).
 
 ![Projects setup](projects-setup.jpg)
+
+![Projects setup: Effort sizes](projects-setup-sizes.jpg)
 
 ## Screens at a glance
 
 | Screen | What it is for |
 |---|---|
 | Overview | The portfolio: every project you may see with its progress, health and next milestone; filters; **Templates**; **+ New project** (blank or from a template). Its **Milestones** tab: milestones and deliverables across projects, with amounts and the **Billing forecast** for Sales & CRM users |
-| A project: Overview | Health and why, progress, overdue and blocked tasks, hours left, estimated and logged, the milestones and deliverables (with their files and acceptance document), the **Milestone burn-up**, members, links to Sales & CRM, open service desk tickets of the client, recent activity, **Print status report** |
+| A project: Overview | Health and why, progress, overdue and blocked tasks, how many tasks are sized, the hours logged (on a project that tracks time), the milestones and deliverables (with their files and acceptance document), the **Milestone burn-up**, members, links to Sales & CRM, open service desk tickets of the client, recent activity, **Print status report** |
 | A template | Like a project's overview, with **New project from this template** instead of health |
 | A project: Board | A column per status; drag cards or use **Move to**; quick add; quick filters, search and **Views**; filters by assignee and milestone; **Edit columns** |
-| A project: List | Every task in a table grouped by milestone or status, edited in place, with estimate, logged and hours left; quick filters, search and **Views**; ticked tasks changed together (bulk edit); **Export CSV**; **Import tasks** (managers) |
+| A project: List | Every task in a table grouped by milestone or status, edited in place, with its size; quick filters, search and **Views**; ticked tasks changed together (bulk edit); **Export CSV**; **Import tasks** (managers) |
 | A project: Timeline | Weeks across, milestones and tasks along a line, today, weekends and holidays; a dated list on a phone |
-| A project: Time | Log hours; your entries this week; totals by person and by task against estimates |
-| A task | Details (with hours left), checklist, subtasks, files, blocked by, comments with @mentions, **Watch** and watchers, time (estimate, logged, left), the linked ticket, history |
+| A project: Time | Only on a project that tracks time: log hours; your entries this week; the hours by person (open a member's timesheet) and by task, against the budget |
+| A task | Details (with the size), checklist, subtasks, files, blocked by, comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
 | My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date |
-| Workload | Hours left on open tasks against each person's capacity, week by week (Project Managers, Sales Managers) |
-| Projects setup | The statuses new projects start with, the project types and the daily digest (Project Managers); team access (administrators) |
+| Timesheet | Your hours on the projects that track time, Monday to Sunday, with your DTR next to it for comparison; your members' timesheets, read only (project managers) |
+| Workload | How busy each person is, week by week: *Light*, *Normal*, *Busy*, *Overloaded* or *On leave*, from the sizes of their open tasks and their working days (Project Managers, Sales Managers) |
+| Projects setup | The statuses new projects start with, the project types, what the effort sizes mean, and the daily digest (Project Managers); team access (administrators) |
 
 ## Questions
 
@@ -404,11 +479,17 @@ You are not on it, and your account does not see every project. Ask its project 
 **How is health worked out?**
 From the tasks, every time you open the project. A milestone is *Off track* when its date has passed with work still open, and *At risk* with an overdue task, a task due after it, or progress more than 15 points behind the straight line from its start to its due date (counted in working days, so weekends and the holidays in CORE's calendar do not count). The project takes its worst milestone, and is *At risk* while any task is overdue and *Off track* when its end date has passed with work open.
 
-**What is the capacity on Workload?**
-The person's working days that week, less holidays and approved leave, times the hours of their work day (8 by default, or their schedule in HR). The hours left on a task (not its whole estimate) are spread over its working days from its start, or today if later, to its due date; with only a due date, they count in that week. Tasks without a due date are under **No due date**.
+**Why sizes, not hours?**
+An hour estimate looks precise and rarely is: a task "of 16 hours" is really "a couple of days, give or take". Sizes say that honestly, take seconds to set, and are all progress and Workload need. Hours worked are already in the DTR for pay, and clients are billed by milestone, not by the hour, so CORE does not ask everyone to log hours twice. Where hours do matter (time-and-materials work, a client who wants a timesheet), turn on time tracking for that project.
+
+**How does Workload decide a level?**
+From the sizes of the person's open tasks in days (*XS* ¼, *S* 1, *M* 3, *L* 5, *XL* 10; no size counts as *M*), spread over each task's working days from start to due, against their working days that week, less holidays and approved leave: under 50% *Light*, 50 to 90% *Normal*, 90 to 120% *Busy*, over 120% *Overloaded*, no days available *On leave*. Days of a task already past are taken as done; an overdue task counts whole in the first week shown, so move its due date when it is nearly finished. The grid shows only the level; open a cell for the days.
+
+**What happened to my hour estimates?**
+When CORE was updated to 0.17, each task's estimate became a size (up to 2 h *XS*, up to 8 h *S*, up to 24 h *M*, up to 48 h *L*, more *XL*), with a line in its history: *size from the hour estimate*. Tasks without an estimate have no size. "Hours left" is gone. Projects that had time logged on them track time, so their hours stay visible; the others do not.
 
 **I logged time; why did progress not move?**
-Progress goes by the tasks that are done, weighed by their estimates. The hours left change as you log time; progress changes when a task is done.
+Progress goes by the tasks that are done, weighed by their sizes. Logging time never moves it.
 
 **Why did I not get a notification?**
 CORE tells you only about what others did: your own changes never notify you. It does not notify about edits of dates or descriptions, and nothing comes from templates. If you were taken off a project, its notifications are no longer shown. To hear about a task that is not yours, **Watch** it.
@@ -440,5 +521,5 @@ No. The task shows the ticket's status and the ticket shows the task; each is cl
 **CORE says the task was changed since I opened it. What do I do?**
 Someone else saved it while you had it open. The page loads their change; make yours again. Moving cards on the board does not ask: the last move wins.
 
-**Is time on a project the same as attendance?**
-No. The DTR is attendance for pay. Time on a project is effort reporting; CORE only compares the two and flags a day with more project hours than attended hours.
+**Is the timesheet the same as attendance?**
+No. The DTR is attendance for pay. The timesheet is what each project took, and only on projects that track time. CORE shows your DTR next to it for comparison and flags a day with more project hours than clocked in; it never fills one in from the other, and never refuses hours because of it.

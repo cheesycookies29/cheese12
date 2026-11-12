@@ -33,7 +33,7 @@ export const AREAS = [
   ['helpdeskForm', 'helpdesk', 'Public form', '#/helpdesk/settings?tab=public', 'helpdesk.manage'],
   ['helpdeskMail', 'helpdesk', 'Receiving and sending email (no passwords)', '#/helpdesk/settings?tab=mailbox', 'helpdesk.manage'],
   ['crm', 'crm', 'Sales setup', '#/crm/settings', 'crm.manage'],
-  ['projects', 'projects', 'Projects setup: statuses and types', '#/projects/settings', 'pm.manage'],
+  ['projects', 'projects', 'Projects setup: statuses, types and effort sizes', '#/projects/settings', 'pm.manage'],
   ['digest', 'projects', 'Projects daily digest', '#/projects/settings?tab=digest', 'pm.manage'],
 ];
 
@@ -58,7 +58,7 @@ export const SETTINGS = [
   ['modules', 'assets', 'IT Asset Management', 'Assets, stock, allocations and My Assets.', 'bool'],
   ['modules', 'helpdesk', 'IT Service Desk', 'Tickets, email, the public form and My tickets.', 'bool'],
   ['modules', 'crm', 'Sales & CRM', 'Leads, accounts, pipeline, bids and contracts.', 'bool'],
-  ['modules', 'projects', 'Project Management', 'Projects, My work, the workload and the digest.', 'bool'],
+  ['modules', 'projects', 'Project Management', 'Projects, My work, the workload, timesheets and the digest.', 'bool'],
   ['roles', '', 'Permissions changed from the defaults', 'Which account types were given or lost permissions.', 'roles'],
   // ----- HR & Payroll -----
   ['location', 'officeLabel', 'Office name', 'Shown with each clock-in location.'],
@@ -107,6 +107,7 @@ export const SETTINGS = [
   // ----- Project Management -----
   ['projects', 'statuses', 'Default task statuses', 'The columns new projects start with.', 'list'],
   ['projects', 'types', 'Project types', '', 'list'],
+  ['projects', 'sizes', 'Effort sizes: what each one means', 'The description of each task size, XS to XL (e.g. "about a day"). The sizes and their weights stay fixed.'],
   ['digest', 'enabled', 'Send the daily digest', 'By email, through the Service Desk\'s outgoing mail.', 'bool'],
   ['digest', 'time', 'Digest time', 'The server\'s local time.'],
   ['digest', 'workingDaysOnly', 'Working days only', 'Weekends and holidays skipped.', 'bool'],

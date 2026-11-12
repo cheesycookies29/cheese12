@@ -28,6 +28,29 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.17.0-alpha',
+    date: '2026-11-12',
+    title: 'Projects: effort sizes instead of hours',
+    modules: ['projects'],
+    notes: 'Project Management stops asking for hours. Tasks have an effort size (XS to XL) instead of an hour estimate; progress, the burn-up and Workload work from the sizes; Workload shows a load level instead of hours against capacity. Hours are kept only on projects that track time, which a manager turns on, with a weekly Timesheet that is separate from attendance.',
+    changes: [
+      ['new', 'projects', 'Effort sizes: a task\'s optional size is XS, S, M, L or XL (shown as "M · Medium"), with a weight (1, 2, 3, 5, 8) for progress and the burn-up and an effort in working days (0.25, 1, 3, 5, 10) for Workload, in one table in shared/projects.js (SIZES). Set on the task page, the new-task form, in place on the List (sortable) and in bulk edit; changes go to the task\'s history; board cards and the List show the size. The Projects setup (pm.manage) has an Effort sizes tab to reword the descriptions only (pm.sizes, also in the Settings center); weights and days never change.'],
+      ['improved', 'projects', 'Progress and the milestone burn-up are weighed by size when at least 60% of the leaf tasks have one (unsized tasks at the average weight; the same ESTIMATE_SHARE rule as before, on size weights), otherwise by count. The burn-up axis says effort points or tasks. The hour estimate and hours left are gone from the task page, List, board, overview, CSV export (a Size column; Logged (h) only when the project tracks time), bulk edit, templates, the import mapping and the print status report.'],
+      ['improved', 'projects', 'Workload shows a level per person and week instead of hours: planned = the open leaf tasks\' effort days (no size counts as M, and the detail says so), spread over each task\'s working days from start to due (days already past are taken as done; only a due date: that week; overdue: whole in the first week); available = working days less holidays and approved leave. Light under 50%, Normal 50–90%, Busy 90–120%, Overloaded over 120%, On leave with no available days (Days off for a week of holidays only). Each level has a word, a shape and a colour and a small bar; a cell lists its tasks with their sizes on hover and opens a detail with "≈ 4 of 5 days". Weeks are whole (Monday to Sunday), so a week reads the same all week.'],
+      ['new', 'projects', 'Time tracking per project (timeTracking, off by default), set by managers under Edit ("Track time on this project"). Off: no Time tab, no logging on tasks, no budget hours, no hours in the project\'s API responses; the time routes refuse with a 400. On: the Time tab (logged against the budget, by person, by task), logging on tasks and a Time card on the overview. Turning it off hides the hours logged without deleting them. Copies and new projects from a template take the template\'s setting.'],
+      ['new', 'projects', 'Timesheet (Projects menu, for members of a project that tracks time and those who manage one): a week of the person\'s time-tracked projects, a row per project and task with a task picker, Mon–Sun cells in quarter hours, daily and weekly totals, week navigation. GET/PUT /api/pm/timesheet: saving upserts one pmTimeLogs entry per project, task and day (merging older multiple entries), all or nothing, with the existing checks (today or earlier, quarter hours, at most 24 h a day across projects, membership as member or manager, tracking on, not a template); it only ever writes the signed-in person\'s own entries. The DTR\'s attended hours are shown as a separate "Clocked in (DTR)" row for comparison only, to the person, the project\'s managers and attendance.view (the Time tab\'s rule); a day with more project hours than attended is flagged, never refused or prefilled. Managers open a member\'s timesheet read only (person picker, or By person on the Time tab); others get 404.'],
+      ['improved', 'projects', 'Migration (migratePm, once and idempotent): each task\'s and template task\'s estimateHours becomes a size (≤ 2 h XS, ≤ 8 h S, ≤ 24 h M, ≤ 48 h L, more XL; unestimated: none) with a history entry "size from the hour estimate"; estimateHours and remainingHours are removed. Projects with time logs get timeTracking: true (with a history entry) and keep budgetHours; the others false, without a budget. Saved List views sorted by the estimate sort by size; those sorted by hours left lose that sort.'],
+      ['improved', 'projects', 'CSV import: a Size column (XS–XL or the names, or "M · Medium" as exported); an Estimate (h) column is still read and converted with the migration\'s rule, each such row noted in the check, and counted in the audit entry. The downloadable template has Size.'],
+      ['improved', 'projects', 'Demo data and starter templates use sizes; only "SIS support and maintenance" tracks time (its support hours matter for the renewal) and keeps its time logs; the others have none. Sizes and dates give Workload a mix of levels with a Busy and an Overloaded week.'],
+      ['improved', 'projects', 'The guides (projects, getting started, what\'s new) describe sizes, Workload levels, time tracking and the Timesheet, with new and retaken screenshots.'],
+    ],
+    known: [
+      'Workload levels depend on the day the demo data was loaded: on some weekdays two weeks show Busy or Overloaded.',
+      'An overdue task counts whole in the first week shown, however much of it is done; moving its due date spreads it again.',
+      'The timesheet lists the projects a person is a member of now; hours logged on a project they have left are not shown there (they stay on its Time tab).',
+    ],
+  },
+  {
     version: '0.16.0-alpha',
     date: '2026-11-12',
     title: 'The Admin panel',

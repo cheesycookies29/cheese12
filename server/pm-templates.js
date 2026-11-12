@@ -12,7 +12,7 @@ import { localDate } from './util.js';
 import { DEFAULT_STATUSES, workCalendar, weekStart, addWorkDays, firstStatus, RANK_STEP } from '../shared/projects.js';
 
 // [name, working day due, deliverable, billing %]
-// [ref, title, milestone index (null: none, or the parent's), start, due, estimate, extra]
+// [ref, title, milestone index (null: none, or the parent's), start, due, size (XS to XL), extra]
 const STARTERS = [
   {
     starter: 'client-implementation', name: 'Client implementation', type: 'Client', days: 95,
@@ -26,24 +26,24 @@ const STARTERS = [
       ['Hypercare ends', 95, false],
     ],
     tasks: [
-      ['kick', 'Kick-off meeting with the client', 0, 0, 1, 4, { checklist: ['Agenda and attendees', 'Introduce the teams and contacts', 'Agree the meeting schedule'] }],
-      ['plan', 'Project plan and schedule', 0, 1, 5, 8, { blockedBy: ['kick'] }],
-      ['workshops', 'Requirements workshops', 1, 6, 14, 24],
-      ['spec', 'Requirements document', 1, 10, 18, 16, { blockedBy: ['workshops'] }],
-      ['signoff', 'Requirements sign-off by the client', 1, 18, 20, 2, { blockedBy: ['spec'], priority: 'high' }],
-      ['env', 'Set up the test and production environments', 2, 15, 25, 12],
+      ['kick', 'Kick-off meeting with the client', 0, 0, 1, 'S', { checklist: ['Agenda and attendees', 'Introduce the teams and contacts', 'Agree the meeting schedule'] }],
+      ['plan', 'Project plan and schedule', 0, 1, 5, 'S', { blockedBy: ['kick'] }],
+      ['workshops', 'Requirements workshops', 1, 6, 14, 'M'],
+      ['spec', 'Requirements document', 1, 10, 18, 'M', { blockedBy: ['workshops'] }],
+      ['signoff', 'Requirements sign-off by the client', 1, 18, 20, 'XS', { blockedBy: ['spec'], priority: 'high' }],
+      ['env', 'Set up the test and production environments', 2, 15, 25, 'M'],
       ['build', 'Configure and build', 2, 21, 48, null],
-      ['b1', 'Set-up and master data', null, 21, 30, 32, { parent: 'build' }],
-      ['b2', 'Workflows and reports', null, 28, 42, 56, { parent: 'build' }],
-      ['b3', 'Integrations and data migration', null, 35, 48, 32, { parent: 'build' }],
-      ['scripts', 'UAT test scripts', 3, 40, 50, 12],
-      ['uat', 'UAT sessions with the client', 3, 51, 60, 16, { blockedBy: ['build', 'scripts'] }],
-      ['fixes', 'Fix the UAT findings', 3, 56, 64, 24],
-      ['training', 'Train the client\'s users', 4, 62, 70, 16, { checklist: ['Training manual', 'Book the venue', 'Attendance sheets'] }],
-      ['golive', 'Go-live cut-over', 4, 72, 73, 8, { priority: 'high', blockedBy: ['uat'], checklist: ['Go/no-go meeting', 'Final data migration', 'Announce the go-live'] }],
-      ['accept', 'Certificate of acceptance signed', 4, 74, 75, 1],
-      ['hyper', 'Hypercare: daily check-ins with the client', 5, 76, 95, 20],
-      ['close', 'Close-out report and handover to support', 5, 90, 95, 4],
+      ['b1', 'Set-up and master data', null, 21, 30, 'L', { parent: 'build' }],
+      ['b2', 'Workflows and reports', null, 28, 42, 'XL', { parent: 'build' }],
+      ['b3', 'Integrations and data migration', null, 35, 48, 'L', { parent: 'build' }],
+      ['scripts', 'UAT test scripts', 3, 40, 50, 'M'],
+      ['uat', 'UAT sessions with the client', 3, 51, 60, 'M', { blockedBy: ['build', 'scripts'] }],
+      ['fixes', 'Fix the UAT findings', 3, 56, 64, 'M'],
+      ['training', 'Train the client\'s users', 4, 62, 70, 'M', { checklist: ['Training manual', 'Book the venue', 'Attendance sheets'] }],
+      ['golive', 'Go-live cut-over', 4, 72, 73, 'S', { priority: 'high', blockedBy: ['uat'], checklist: ['Go/no-go meeting', 'Final data migration', 'Announce the go-live'] }],
+      ['accept', 'Certificate of acceptance signed', 4, 74, 75, 'XS'],
+      ['hyper', 'Hypercare: daily check-ins with the client', 5, 76, 95, 'M'],
+      ['close', 'Close-out report and handover to support', 5, 90, 95, 'S'],
     ],
   },
   {
@@ -58,20 +58,20 @@ const STARTERS = [
       ['Warranty period ends', 180, false],
     ],
     tasks: [
-      ['ntp', 'Notice to proceed received', 0, 0, 0, 1, { checklist: ['Notice of award', 'Contract signed', 'Performance security posted', 'Notice to proceed'] }],
-      ['kick', 'Kick-off with the agency\'s project team', 0, 1, 3, 4, { blockedBy: ['ntp'] }],
-      ['inception', 'Write the inception report and work plan', 0, 3, 12, 24, { blockedBy: ['kick'] }],
-      ['sub0', 'Submit the inception report', 0, 13, 15, 1, { blockedBy: ['inception'], priority: 'high' }],
-      ['d1', 'Work for deliverable 1', 1, 16, 42, 80],
-      ['sub1', 'Submit deliverable 1 with the acceptance form', 1, 43, 45, 2, { blockedBy: ['d1'] }],
-      ['d2', 'Work for deliverable 2', 2, 46, 72, 80],
-      ['sub2', 'Submit deliverable 2 with the acceptance form', 2, 73, 75, 2, { blockedBy: ['d2'] }],
-      ['d3', 'Work for deliverable 3', 3, 76, 102, 80],
-      ['sub3', 'Submit deliverable 3 with the acceptance form', 3, 103, 105, 2, { blockedBy: ['d3'] }],
-      ['final', 'Final report and turnover documents', 4, 106, 118, 16, { checklist: ['As-built documents', 'Training records', 'Turnover of accounts and passwords'] }],
-      ['inspect', 'Inspection and acceptance committee visit', 4, 118, 120, 4, { priority: 'high', blockedBy: ['final'] }],
-      ['billing', 'Bill each accepted deliverable', null, 15, 120, 6, { checklist: ['Inception report', 'Deliverable 1', 'Deliverable 2', 'Deliverable 3', 'Final acceptance'] }],
-      ['warranty', 'Warranty support: respond to the agency\'s reports', 5, 121, 180, 24],
+      ['ntp', 'Notice to proceed received', 0, 0, 0, 'XS', { checklist: ['Notice of award', 'Contract signed', 'Performance security posted', 'Notice to proceed'] }],
+      ['kick', 'Kick-off with the agency\'s project team', 0, 1, 3, 'S', { blockedBy: ['ntp'] }],
+      ['inception', 'Write the inception report and work plan', 0, 3, 12, 'M', { blockedBy: ['kick'] }],
+      ['sub0', 'Submit the inception report', 0, 13, 15, 'XS', { blockedBy: ['inception'], priority: 'high' }],
+      ['d1', 'Work for deliverable 1', 1, 16, 42, 'XL'],
+      ['sub1', 'Submit deliverable 1 with the acceptance form', 1, 43, 45, 'XS', { blockedBy: ['d1'] }],
+      ['d2', 'Work for deliverable 2', 2, 46, 72, 'XL'],
+      ['sub2', 'Submit deliverable 2 with the acceptance form', 2, 73, 75, 'XS', { blockedBy: ['d2'] }],
+      ['d3', 'Work for deliverable 3', 3, 76, 102, 'XL'],
+      ['sub3', 'Submit deliverable 3 with the acceptance form', 3, 103, 105, 'XS', { blockedBy: ['d3'] }],
+      ['final', 'Final report and turnover documents', 4, 106, 118, 'M', { checklist: ['As-built documents', 'Training records', 'Turnover of accounts and passwords'] }],
+      ['inspect', 'Inspection and acceptance committee visit', 4, 118, 120, 'S', { priority: 'high', blockedBy: ['final'] }],
+      ['billing', 'Bill each accepted deliverable', null, 15, 120, 'S', { checklist: ['Inception report', 'Deliverable 1', 'Deliverable 2', 'Deliverable 3', 'Final acceptance'] }],
+      ['warranty', 'Warranty support: respond to the agency\'s reports', 5, 121, 180, 'M'],
     ],
   },
   {
@@ -84,15 +84,15 @@ const STARTERS = [
       ['Closed out', 40, false],
     ],
     tasks: [
-      ['scope', 'Scope, budget and schedule', 0, 0, 3, 4],
-      ['approve', 'Approval from management', 0, 3, 5, 1, { blockedBy: ['scope'] }],
-      ['quotes', 'Get three quotes and the purchase approval', 1, 5, 12, 4, { blockedBy: ['approve'] }],
-      ['order', 'Order and receive the equipment', 1, 12, 20, 2, { blockedBy: ['quotes'] }],
-      ['assets', 'Record the equipment in IT Assets', 1, 18, 20, 2],
-      ['pilot', 'Pilot with one team', 2, 21, 25, 8, { blockedBy: ['order'] }],
-      ['rollout', 'Roll out to everyone', 2, 26, 35, 24, { checklist: ['Schedule after office hours', 'Back up first', 'Tell the users what changes'] }],
-      ['docs', 'Update the documentation and diagrams', 3, 34, 38, 4],
-      ['lessons', 'Lessons learned and close-out', 3, 38, 40, 2],
+      ['scope', 'Scope, budget and schedule', 0, 0, 3, 'S'],
+      ['approve', 'Approval from management', 0, 3, 5, 'XS', { blockedBy: ['scope'] }],
+      ['quotes', 'Get three quotes and the purchase approval', 1, 5, 12, 'S', { blockedBy: ['approve'] }],
+      ['order', 'Order and receive the equipment', 1, 12, 20, 'XS', { blockedBy: ['quotes'] }],
+      ['assets', 'Record the equipment in IT Assets', 1, 18, 20, 'XS'],
+      ['pilot', 'Pilot with one team', 2, 21, 25, 'S', { blockedBy: ['order'] }],
+      ['rollout', 'Roll out to everyone', 2, 26, 35, 'M', { checklist: ['Schedule after office hours', 'Back up first', 'Tell the users what changes'] }],
+      ['docs', 'Update the documentation and diagrams', 3, 34, 38, 'S'],
+      ['lessons', 'Lessons learned and close-out', 3, 38, 40, 'XS'],
     ],
   },
 ];
@@ -115,7 +115,7 @@ export function addStarterTemplates(data, { demo = false } = {}) {
     const tag = demo ? { demo: true } : {};
     const p = {
       id: randomUUID(), code: nextCode(data.pmProjects), name: s.name, type: s.type, description: s.description, status: 'planning',
-      startDate: start, endDate: wd(s.days), managerId: null, budgetHours: null, accountId: null, dealId: null, contractId: null,
+      startDate: start, endDate: wd(s.days), managerId: null, timeTracking: false, budgetHours: null, accountId: null, dealId: null, contractId: null,
       members: [], statuses: structuredClone(statuses), healthOverride: null, taskSeq: 0, version: 1, isTemplate: true, starter: s.starter,
       createdAt: at, createdBy: null, updatedAt: at, updatedBy: null, history: [{ at, by: null, field: 'created', from: '', to: 'starter template' }], ...tag,
     };
@@ -127,10 +127,10 @@ export function addStarterTemplates(data, { demo = false } = {}) {
     });
     const todo = firstStatus(p.statuses, 'todo')?.id || p.statuses[0].id;
     const byRef = {};
-    s.tasks.forEach(([ref, title, mi, from, to, estimate, extra = {}], i) => {
+    s.tasks.forEach(([ref, title, mi, from, to, size, extra = {}], i) => {
       const t = {
         id: randomUUID(), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title, description: '', statusId: todo, priority: extra.priority || 'normal',
-        assigneeId: null, startDate: wd(from), dueDate: wd(to), estimateHours: estimate ?? null, remainingHours: null, milestoneId: mi == null ? null : msIds[mi],
+        assigneeId: null, startDate: wd(from), dueDate: wd(to), size: size ?? null, milestoneId: mi == null ? null : msIds[mi],
         parentId: extra.parent ? byRef[extra.parent].id : null, checklist: (extra.checklist || []).map((text) => ({ id: randomUUID(), text, done: false })),
         blockedBy: (extra.blockedBy || []).map((r) => byRef[r].id), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null, watchers: [],
         version: 1, createdAt: at, createdBy: null, updatedAt: at, updatedBy: null, history: [{ at, by: null, field: 'created', from: '', to: '' }], ...tag,

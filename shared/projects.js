@@ -6,6 +6,9 @@
 // A project has milestones (some are contract deliverables) and tasks. Each task has a status
 // from the project's own list; every status belongs to one of four fixed categories, which is
 // what progress, "overdue" and the reports go by. Subtasks are one level deep.
+//
+// Effort is a task's size (XS to XL), not hours: a rough idea that is honest about being rough.
+// Hours exist only on projects that track time (timeTracking), as a record of what was spent.
 
 import { TICKET_PRIORITY } from './helpdesk.js';
 import { isDayOff } from './holidays.js';
@@ -31,10 +34,63 @@ export const DEFAULT_STATUSES = [
 export const DEFAULT_TYPES = ['Client', 'Government', 'Internal'];
 export const DEFAULT_PM = { statuses: DEFAULT_STATUSES, types: DEFAULT_TYPES };
 
-export const HOURS_PER_DAY = 8; // capacity of a working day, unless the person's schedule says otherwise
 export const DUE_SOON_DAYS = 3; // working days
 export const BEHIND_POINTS = 15; // progress this far below the expected line makes a milestone at risk
-export const ESTIMATE_SHARE = 0.6; // weigh progress by hours when this share of tasks has an estimate
+export const ESTIMATE_SHARE = 0.6; // weigh progress by size when this share of the tasks has a size
+
+// ---------- Effort sizes ----------
+// A task's size: how much work it is, roughly. The weight counts in progress and the burn-up (a
+// Large task is worth five Extra small ones); the days (working days) are only for Workload. The
+// Projects setup may reword the descriptions ("about a day"), never the weights or the days.
+export const SIZES = {
+  XS: { label: 'Extra small', effort: 'under half a day', weight: 1, days: 0.25 },
+  S: { label: 'Small', effort: 'about a day', weight: 2, days: 1 },
+  M: { label: 'Medium', effort: 'a few days', weight: 3, days: 3 },
+  L: { label: 'Large', effort: 'about a week', weight: 5, days: 5 },
+  XL: { label: 'Extra large', effort: 'two weeks or more', weight: 8, days: 10 },
+};
+export const SIZE_KEYS = Object.keys(SIZES);
+// Workload counts a task without a size as Medium (and says so).
+export const UNSIZED_AS = 'M';
+export const DEFAULT_SIZE_NOTES = Object.fromEntries(SIZE_KEYS.map((k) => [k, SIZES[k].effort]));
+export const isSize = (v) => typeof v === 'string' && Object.hasOwn(SIZES, v);
+// "M · Medium"; '' for no size.
+export const sizeName = (s) => (isSize(s) ? `${s} · ${SIZES[s].label}` : '');
+// What a size means: the company's wording (Projects setup) or the built-in one.
+export const sizeEffort = (s, notes) => (isSize(s) ? (typeof notes?.[s] === 'string' && notes[s].trim()) || SIZES[s].effort : '');
+export const sizeWeight = (s) => (isSize(s) ? SIZES[s].weight : 0);
+// The effort of a task in working days, for Workload only.
+export const effortDays = (t) => SIZES[isSize(t?.size) ? t.size : UNSIZED_AS].days;
+// The size an hour estimate becomes (the 0.17 migration and "Estimate (h)" in an import):
+// up to 2 h XS, up to 8 h S, up to 24 h M, up to 48 h L, more XL. No estimate: no size.
+export function sizeFromHours(h) {
+  const n = Number(h);
+  if (h == null || h === '' || !Number.isFinite(n) || n <= 0) return null;
+  return n <= 2 ? 'XS' : n <= 8 ? 'S' : n <= 24 ? 'M' : n <= 48 ? 'L' : 'XL';
+}
+// A size as people write it: XS…XL, the label ("Medium", "extra large"), or "M · Medium" as CORE
+// exports it. null when empty; undefined when it is not a size.
+export function parseSize(v) {
+  const s = String(v ?? '').trim();
+  if (!s) return null;
+  const key = s.split('·')[0].trim().toUpperCase();
+  if (isSize(key)) return key;
+  const norm = (x) => x.toLowerCase().replace(/[^a-z]/g, '');
+  return SIZE_KEYS.find((k) => norm(SIZES[k].label) === norm(s)) || undefined;
+}
+// The descriptions the Projects setup may change: one short line per size. Returns them, or a
+// problem in words.
+export function cleanSizeNotes(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return { problem: 'Send a description for each size.' };
+  const out = {};
+  for (const k of SIZE_KEYS) {
+    const text = typeof v[k] === 'string' ? v[k].trim() : '';
+    if (!text) return { problem: `Describe size ${k} (${SIZES[k].label}), e.g. "${SIZES[k].effort}".` };
+    if (text.length > 60) return { problem: `Keep the description of ${k} to 60 characters.` };
+    out[k] = text;
+  }
+  return { notes: out };
+}
 
 // ---------- Dates (local YYYY-MM-DD strings, counted in whole days) ----------
 const utc = (ymd) => Date.UTC(Number(ymd.slice(0, 4)), Number(ymd.slice(5, 7)) - 1, Number(ymd.slice(8, 10)));
@@ -129,20 +185,25 @@ export function leafTasks(tasks, project) {
   return tasks.filter((t) => !parents.has(t.id) && categoryOf(project, t) !== 'cancelled');
 }
 
+// How tasks weigh in progress and the burn-up: by size when at least 60% of them have one (the
+// others count at the average weight of those that do), otherwise every task the same.
+export function sizeBasis(tasks) {
+  const sized = tasks.filter((t) => sizeWeight(t.size));
+  const bySize = tasks.length > 0 && sized.length >= ESTIMATE_SHARE * tasks.length;
+  const avg = sized.length ? sized.reduce((s, t) => s + sizeWeight(t.size), 0) / sized.length : 1;
+  return { bySize, sized: sized.length, weight: (t) => (bySize ? sizeWeight(t.size) || avg : 1) };
+}
+
 // Progress of a set of leaf tasks, 0–100 (null when there is nothing to measure). Weighted by
-// estimated hours when at least 60% of the tasks have an estimate (the others count at the
-// average estimate); otherwise every task counts the same.
+// size when at least 60% of the tasks have one (the others at the average weight); otherwise
+// every task counts the same. basis: 'size' or 'count'.
 export function progressOf(leaves, project) {
-  if (!leaves.length) return { percent: null, basis: 'count', done: 0, total: 0 };
+  if (!leaves.length) return { percent: null, basis: 'count', done: 0, total: 0, sized: 0 };
   const done = leaves.filter((t) => categoryOf(project, t) === 'done');
-  const estimated = leaves.filter((t) => Number(t.estimateHours) > 0);
-  if (estimated.length >= ESTIMATE_SHARE * leaves.length) {
-    const avg = estimated.reduce((s, t) => s + Number(t.estimateHours), 0) / estimated.length;
-    const w = (t) => (Number(t.estimateHours) > 0 ? Number(t.estimateHours) : avg);
-    const all = leaves.reduce((s, t) => s + w(t), 0);
-    return { percent: Math.round((done.reduce((s, t) => s + w(t), 0) / all) * 100), basis: 'hours', done: done.length, total: leaves.length };
-  }
-  return { percent: Math.round((done.length / leaves.length) * 100), basis: 'count', done: done.length, total: leaves.length };
+  const b = sizeBasis(leaves);
+  const all = leaves.reduce((s, t) => s + b.weight(t), 0);
+  const percent = Math.round((done.reduce((s, t) => s + b.weight(t), 0) / all) * 100);
+  return { percent, basis: b.bySize ? 'size' : 'count', done: done.length, total: leaves.length, sized: b.sized };
 }
 
 // Where progress should be by today on a straight line from `start` to `due`, counted in working
@@ -273,86 +334,99 @@ export function myWorkGroup(task, today) {
   return 'later';
 }
 
-// ---------- Remaining hours ----------
-// What is left of a task: 0 once it is done or cancelled; the "hours left" someone working on it
-// set (remainingHours, null when not set); otherwise its estimate less the time logged on it, never
-// below 0. null when there is neither an estimate nor hours left to go by. Progress stays weighed by
-// estimates (progressOf), so logging time does not move it.
-export function remainingOf(task, loggedHours, category) {
-  if (category === 'done' || category === 'cancelled') return 0;
-  if (task.remainingHours != null && Number.isFinite(Number(task.remainingHours))) return Math.round(Number(task.remainingHours) * 100) / 100;
-  if (!(Number(task.estimateHours) > 0)) return null;
-  return Math.round(Math.max(0, Number(task.estimateHours) - (Number(loggedHours) || 0)) * 100) / 100;
-}
-// Hours left: 0 to 9999, in quarter hours.
-export const validRemaining = (h) => Number.isFinite(h) && h >= 0 && h <= 9999 && Math.abs(h * 4 - Math.round(h * 4)) < 1e-9;
-// The hours Workload plans for a task: what is left of it (`remaining`, worked out by the caller),
-// or its estimate when the caller did not say.
-const hoursToPlan = (task) => Number(task.remaining !== undefined ? task.remaining : task.estimateHours) || 0;
-
 // ---------- Workload ----------
-// The hours of an open task, by day: what is left of it spread evenly over the working days from
-// its start (or `from`, if later) to its due date, or all on the due date (no start, or no working
-// day in between). A task already overdue counts on `from`: it is still to be done. Tasks without
-// a due date are not planned.
-export function plannedDays(task, cal, from) {
-  const hours = hoursToPlan(task);
-  if (!hours || !task.dueDate) return [];
-  if (task.dueDate < from) return [{ date: from, hours }];
-  const start = task.startDate && task.startDate <= task.dueDate ? (task.startDate < from ? from : task.startDate) : null;
-  const days = start ? workDatesIn(start, task.dueDate, cal) : [];
-  if (!days.length) return [{ date: task.dueDate, hours }];
-  return days.map((date) => ({ date, hours: hours / days.length }));
+// How busy each person is, week by week, as a level rather than a number of hours: the effort of
+// their open tasks (their sizes, in working days) against the working days they have.
+export const LOAD_LEVELS = {
+  light: { label: 'Light', note: 'under 50% of the days available' },
+  normal: { label: 'Normal', note: '50 to 90%' },
+  busy: { label: 'Busy', note: '90 to 120%' },
+  over: { label: 'Overloaded', note: 'over 120%' },
+  leave: { label: 'On leave', note: 'no days available' },
+  off: { label: 'Days off', note: 'no working days: holidays' },
+};
+export const LOAD_LIMITS = { normal: 0.5, busy: 0.9, over: 1.2 };
+// The level of `planned` days against `available` days (onLeave: some of the week is leave).
+export function loadLevel(planned, available, onLeave = false) {
+  if (!(available > 0)) return onLeave ? 'leave' : 'off';
+  const r = (Number(planned) || 0) / available;
+  if (r < LOAD_LIMITS.normal - 1e-9) return 'light';
+  if (r <= LOAD_LIMITS.busy + 1e-9) return 'normal';
+  if (r <= LOAD_LIMITS.over + 1e-9) return 'busy';
+  return 'over';
 }
 
-// Capacity of a person in a week, in hours: their working days that are not holidays, minus
-// approved leave (leave: Map date → days off, 1 or 0.5), times their hours per day.
+// The working days of an open task, by day: its effort (`days`, or its size's days; Medium
+// without a size) spread evenly over its working days from start to due. Days before `from` are
+// past and not counted. Only a due date (or no working day in between): all on the due date. A task
+// already overdue counts whole on `from`: it is still to be done. No due date: not planned.
+export function plannedDays(task, cal, from) {
+  const effort = task.days !== undefined ? Number(task.days) || 0 : effortDays(task);
+  if (!effort || !task.dueDate) return [];
+  if (task.dueDate < from) return [{ date: from, days: effort }];
+  const all = task.startDate && task.startDate <= task.dueDate ? workDatesIn(task.startDate, task.dueDate, cal) : [];
+  if (!all.length) return [{ date: task.dueDate, days: effort }];
+  const each = effort / all.length;
+  const left = all.filter((d) => d >= from);
+  // Due on a day off after its last working day has gone by: what is left of it is today's.
+  if (!left.length) return [{ date: from, days: each }];
+  return left.map((date) => ({ date, days: each }));
+}
+
+// The days a person can work in a week: their working days that are not holidays, minus approved
+// leave (leave: Map date → days off, 1 or 0.5).
 export function weekCapacity(week, person, cal) {
   const pcal = { workDays: person.workDays || cal.workDays, off: cal.off };
-  const perDay = person.hoursPerDay || HOURS_PER_DAY;
   let days = 0;
   for (let i = 0; i < 7; i++) {
     const d = addDays(week, i);
     if (!isWorkDay(d, pcal)) continue;
     days += 1 - Math.min(1, person.leave?.get(d) || 0);
   }
-  return Math.round(days * perDay * 100) / 100;
+  return Math.round(days * 100) / 100;
 }
 
-// Person × week grid. people: [{ id, name, workDays?, hoursPerDay?, leave? }]; tasks: open tasks
-// with assigneeId, estimateHours, remaining (hours left), startDate, dueDate (plus whatever the
-// caller wants back). Work is planned from `from` on: days of the first week before it are past.
+// Person × week grid of levels, in whole weeks from the week `from` is in (so a week reads the same
+// on Monday and on Friday). people: [{ id, name, workDays?, leave? }]; tasks: open leaf tasks
+// with assigneeId, size, startDate, dueDate (plus whatever the caller wants back). A task due
+// before the first week counts whole in it. Each cell: { week, available (days), planned (days),
+// level, onLeave, tasks: [{ …task, days, unsized, overdue }] }.
 export function workload({ people, tasks, from, weeks, cal }) {
   const first = weekStart(from);
   const keys = Array.from({ length: weeks }, (_, i) => addDays(first, i * 7));
   const end = addDays(first, weeks * 7 - 1);
+  const start = first;
+  const r2 = (n) => Math.round(n * 100) / 100;
   const rows = people.map((p) => {
-    const cells = keys.map((week) => ({ week, capacity: weekCapacity(week, p, cal), planned: 0, tasks: [] }));
-    let unscheduled = 0;
-    const unscheduledTasks = [];
+    const cells = keys.map((week) => {
+      const onLeave = [...(p.leave?.keys() || [])].some((d) => d >= week && d <= addDays(week, 6));
+      return { week, available: weekCapacity(week, p, cal), planned: 0, onLeave, tasks: [] };
+    });
+    const unscheduled = [];
     for (const t of tasks.filter((x) => x.assigneeId === p.id)) {
+      const unsized = !isSize(t.size);
       if (!t.dueDate) {
-        if (hoursToPlan(t) > 0) (unscheduled += hoursToPlan(t)), unscheduledTasks.push(t);
+        unscheduled.push({ ...t, days: effortDays(t), unsized });
         continue;
       }
       const byWeek = new Map();
-      for (const { date, hours } of plannedDays(t, cal, from > first ? from : first)) {
+      for (const { date, days } of plannedDays(t, cal, start)) {
         if (date > end) continue;
         const k = weekStart(date);
-        byWeek.set(k, (byWeek.get(k) || 0) + hours);
+        byWeek.set(k, (byWeek.get(k) || 0) + days);
       }
-      for (const [k, hours] of byWeek) {
+      for (const [k, days] of byWeek) {
         const cell = cells.find((c) => c.week === k);
         if (!cell) continue;
-        cell.planned += hours;
-        cell.tasks.push({ ...t, hours: Math.round(hours * 100) / 100 });
+        cell.planned += days;
+        cell.tasks.push({ ...t, days: r2(days), unsized, overdue: t.dueDate < start });
       }
     }
     for (const c of cells) {
-      c.planned = Math.round(c.planned * 100) / 100;
-      c.over = c.planned > c.capacity;
+      c.planned = r2(c.planned);
+      c.level = loadLevel(c.planned, c.available, c.onLeave);
     }
-    return { ...p, leave: undefined, cells, unscheduled: Math.round(unscheduled * 100) / 100, unscheduledTasks };
+    return { ...p, leave: undefined, cells, unscheduled: { count: unscheduled.length, days: r2(unscheduled.reduce((n, t) => n + t.days, 0)), tasks: unscheduled } };
   });
   return { weeks: keys, rows };
 }
@@ -379,16 +453,17 @@ export function mentionedUsernames(body, usernames) {
   return [...new Set(mentionParts(String(body || ''), usernames).filter((x) => x.mention).map((x) => x.mention.toLowerCase()))];
 }
 
-// ---------- Time ----------
+// ---------- Time (projects that track time) ----------
 export const validHours = (h) => Number.isFinite(h) && h >= 0.25 && h <= 24 && Math.abs(h * 4 - Math.round(h * 4)) < 1e-9;
+export const MAX_DAY_HOURS = 24; // per person and day, across projects
 
 // CSV rows of a project's tasks (the List's Export CSV). Pass them to toCsv, which makes cells
-// that start like a formula safe.
-export function taskCsvRows(tasks, milestones = []) {
+// that start like a formula safe. time: the project tracks time (a Logged column).
+export function taskCsvRows(tasks, milestones = [], { time = false } = {}) {
   const ms = new Map(milestones.map((m) => [m.id, m.name]));
   return [
-    ['Key', 'Task', 'Parent', 'Status', 'Priority', 'Assignee', 'Milestone', 'Start', 'Due', 'Estimate (h)', 'Logged (h)', 'Left (h)', 'Checklist', 'Overdue', 'Blocked'],
-    ...tasks.map((t) => [t.key, t.title, tasks.find((x) => x.id === t.parentId)?.key || '', t.statusName, PRIORITY[t.priority] || t.priority, t.assigneeName || '', ms.get(t.milestoneIdEffective || t.milestoneId) || '', t.startDate || '', t.dueDate || '', t.estimateHours ?? '', t.loggedHours ?? '', t.remaining ?? '', t.checklist?.length ? `${t.checklistDone}/${t.checklist.length}` : '', t.overdue ? 'Yes' : '', t.blocked ? 'Yes' : '']),
+    ['Key', 'Task', 'Parent', 'Status', 'Priority', 'Assignee', 'Milestone', 'Start', 'Due', 'Size', ...(time ? ['Logged (h)'] : []), 'Checklist', 'Overdue', 'Blocked'],
+    ...tasks.map((t) => [t.key, t.title, tasks.find((x) => x.id === t.parentId)?.key || '', t.statusName, PRIORITY[t.priority] || t.priority, t.assigneeName || '', ms.get(t.milestoneIdEffective || t.milestoneId) || '', t.startDate || '', t.dueDate || '', sizeName(t.size), ...(time ? [t.loggedHours ?? ''] : []), t.checklist?.length ? `${t.checklistDone}/${t.checklist.length}` : '', t.overdue ? 'Yes' : '', t.blocked ? 'Yes' : '']),
   ];
 }
 
@@ -416,13 +491,19 @@ export function taskMatches(t, { chips = [], q = '' } = {}, { today, userId } = 
 // and the chips known ones; a filter that names a person or milestone no longer there shows all.
 export const VIEW_TABS = { board: 'Board', list: 'List' };
 export const VIEW_KEYS = { board: ['f', 'q', 'who', 'ms', 'cancelled'], list: ['f', 'q', 'group', 'who', 'show', 'sort', 'dir'] };
+// The List's columns it can be sorted by (rank, board order, is the default).
+export const LIST_SORTS = ['rank', 'key', 'title', 'status', 'assignee', 'due', 'priority', 'size'];
 export function cleanViewQuery(tab, query) {
   const keys = VIEW_KEYS[tab] || [];
   const src = new URLSearchParams(typeof query === 'string' ? query.replace(/^\?/, '').slice(0, 2000) : '');
+  // Views saved before 0.17 sorted by the estimate (now the size) or the hours left (gone).
+  if (tab === 'list' && src.get('sort') === 'estimate') src.set('sort', 'size');
+  if (tab === 'list' && src.has('sort') && !LIST_SORTS.includes(src.get('sort'))) (src.delete('sort'), src.delete('dir'));
   const out = new URLSearchParams();
   for (const k of keys) {
     let v = String(src.get(k) || '').trim().slice(0, 100);
     if (k === 'f') v = parseFilters(v).join(',');
+    if (k === 'dir' && v !== 'desc') v = '';
     if (v) out.set(k, v);
   }
   return out.toString().slice(0, 500);
@@ -451,7 +532,8 @@ export function groupNotifications(items) {
 
 // ---------- Milestone burn-up ----------
 // Scope and work done in a milestone, day by day (working days), with the expected line, on the
-// same basis as its progress: hours when 60% of its leaf tasks have an estimate, else tasks.
+// same basis as its progress: effort points (size weights) when 60% of its leaf tasks have a
+// size, else tasks.
 // Worked out from what the tasks remember: when each was added (createdAt), its status changes
 // (history) and when it was done (completedAt). Deleted tasks are not remembered, and a task moved
 // to another milestone counts in its current one throughout.
@@ -460,10 +542,9 @@ export function milestoneBurnup(m, { project, tasks, tasksById, today, cal }, da
   const parents = new Set(tasks.filter((t) => t.parentId).map((t) => t.parentId));
   const leaves = tasks.filter((t) => milestoneOfTask(t, tasksById) === m.id && !parents.has(t.id));
   const current = leaves.filter((t) => categoryOf(project, t) !== 'cancelled');
-  const estimated = current.filter((t) => Number(t.estimateHours) > 0);
-  const byHours = current.length > 0 && estimated.length >= ESTIMATE_SHARE * current.length;
-  const avg = estimated.length ? estimated.reduce((s, t) => s + Number(t.estimateHours), 0) / estimated.length : 1;
-  const weight = (t) => (byHours ? (Number(t.estimateHours) > 0 ? Number(t.estimateHours) : avg) : 1);
+  // Weighed like the milestone's progress: on the tasks it holds now (not cancelled).
+  const basis = sizeBasis(current);
+  const weight = basis.weight;
   // Each task's category over time: [date, category] from its status changes, the last one being
   // where it is now (its current spell in Done starting on completedAt).
   const catOf = new Map(project.statuses.map((s) => [s.name, s.category]));
@@ -517,7 +598,7 @@ export function milestoneBurnup(m, { project, tasks, tasksById, today, cal }, da
   const peak = points.reduce((n, p) => Math.max(n, p.scope), 0);
   const upTo = points.filter((p) => p.date <= today).at(-1) || points[0];
   return {
-    milestoneId: m.id, basis: byHours ? 'hours' : 'count', start, due, end, today, finished, points,
+    milestoneId: m.id, basis: basis.bySize ? 'size' : 'count', start, due, end, today, finished, points,
     scope: points.at(-1)?.scope || 0, scopeAtStart: atStart, added: r2(Math.max(0, peak - atStart)),
     done: upTo?.done || 0, expected: upTo?.expected ?? null, tasks: current.length,
   };
@@ -603,6 +684,8 @@ export const IMPORT_FIELDS = {
   assignee: { label: 'Assignee', names: ['assignee', 'assignedto', 'owner', 'responsible', 'username'] },
   start: { label: 'Start', names: ['start', 'startdate', 'begin', 'from'] },
   due: { label: 'Due', names: ['due', 'duedate', 'deadline', 'end', 'enddate', 'finish', 'to'] },
+  size: { label: 'Size', names: ['size', 'tshirtsize', 'effort', 'effortsize'] },
+  // Files from before sizes, or from other tools: an hour estimate becomes a size (sizeFromHours).
   estimate: { label: 'Estimate (h)', names: ['estimate', 'estimateh', 'estimatehours', 'estimatedhours', 'hours'] },
   priority: { label: 'Priority', names: ['priority'] },
   milestone: { label: 'Milestone', names: ['milestone', 'phase', 'deliverable'] },
@@ -622,9 +705,9 @@ export function guessImportMapping(headers) {
 }
 // The template file: the headers, and two example rows.
 export const IMPORT_TEMPLATE = [
-  ['Title', 'Description', 'Status', 'Assignee', 'Start', 'Due', 'Estimate (h)', 'Priority', 'Milestone', 'Parent', 'Checklist'],
-  ['Requirements workshop', 'With the client\'s department heads', 'To do', '', '2026-12-01', '2026-12-03', '8', 'Normal', 'Design sign-off', '', 'Book the room; Send the agenda'],
-  ['Workshop minutes', '', 'To do', '', '', '04/12/2026', '2', 'High', 'Design sign-off', '2', ''],
+  ['Title', 'Description', 'Status', 'Assignee', 'Start', 'Due', 'Size', 'Priority', 'Milestone', 'Parent', 'Checklist'],
+  ['Requirements workshop', 'With the client\'s department heads', 'To do', '', '2026-12-01', '2026-12-03', 'S', 'Normal', 'Design sign-off', '', 'Book the room; Send the agenda'],
+  ['Workshop minutes', '', 'To do', '', '', '04/12/2026', 'Extra small', 'High', 'Design sign-off', '2', ''],
 ];
 
 // A date as YYYY-MM-DD, or DD/MM/YYYY (also D/M/YYYY, with / - or .). null when empty;
@@ -656,7 +739,8 @@ function parseImportHours(v) {
 // the header (arrays of cells); mapping: { field: column }. ctx: { project (with statuses and
 // endDate), members: [{ userId, username, name, role, active }], milestones: [{ id, name }],
 // createMilestones }. Every row's problems are listed; nothing may be imported while one has any.
-// Returns { rows: [{ row, title, errors, warnings, parent }], tasks, newMilestones, errorCount }.
+// Returns { rows: [{ row, title, errors, warnings, parent, fromHours }], tasks, newMilestones,
+// errorCount, fromHours } (fromHours: how many rows took their size from an hour estimate).
 // `row` is the row number a spreadsheet shows (the header is row 1); Parent may give that number
 // or another row's title.
 export function importPlan(rows, mapping, { project, members = [], milestones = [], createMilestones = false }) {
@@ -698,8 +782,17 @@ export function importPlan(rows, mapping, { project, members = [], milestones = 
     if (startDate === undefined) errors.push(`Start "${cell(r, 'start')}" is not a date (use YYYY-MM-DD or DD/MM/YYYY).`);
     if (dueDate === undefined) errors.push(`Due "${cell(r, 'due')}" is not a date (use YYYY-MM-DD or DD/MM/YYYY).`);
     if (startDate && dueDate && dueDate < startDate) errors.push('The due date is before the start date.');
+    // Size: XS to XL or the label; an "Estimate (h)" column fills it when the row has no size.
+    let size = parseSize(cell(r, 'size'));
+    if (size === undefined) errors.push(`Size "${cell(r, 'size')}": use ${SIZE_KEYS.join(', ')} or ${SIZE_KEYS.map((k) => SIZES[k].label).join(', ')}.`);
     const estimateHours = parseImportHours(cell(r, 'estimate'));
+    let fromHours = false;
     if (estimateHours === undefined) errors.push(`Estimate "${cell(r, 'estimate')}" is not a number of hours from 0 to 9999.`);
+    else if (estimateHours > 0 && size === null) {
+      size = sizeFromHours(estimateHours);
+      fromHours = true;
+      warnings.push(`Size ${sizeName(size)}, from the estimate of ${estimateHours} h.`);
+    } else if (estimateHours > 0 && size) warnings.push(`The estimate of ${estimateHours} h is left out: the row has a size (${size}).`);
     const pr = cell(r, 'priority');
     const priority = pr ? prio.get(pr.toLowerCase()) : 'normal';
     if (!priority) errors.push(`Priority "${pr}": use ${Object.values(PRIORITY).join(', ')}.`);
@@ -718,10 +811,10 @@ export function importPlan(rows, mapping, { project, members = [], milestones = 
     }
     const items = cell(r, 'checklist').split(';').map((x) => x.trim()).filter(Boolean);
     if (items.length > 50) errors.push('A checklist has at most 50 items.');
-    out.push({ row: rowNo, title, errors, warnings, parent: null });
+    out.push({ row: rowNo, title, errors, warnings, parent: null, fromHours });
     tasks.push({
       row: rowNo, title, description, statusId: status?.id || null, priority: priority || 'normal', assigneeId, startDate: startDate || null, dueDate: dueDate || null,
-      estimateHours: estimateHours ?? null, milestone, checklist: items.slice(0, 50).map((x) => x.slice(0, 300)), parentRef: cell(r, 'parent'), parentRow: null,
+      size: size || null, milestone, checklist: items.slice(0, 50).map((x) => x.slice(0, 300)), parentRef: cell(r, 'parent'), parentRow: null,
     });
   });
   // Parents: a row number or a title in the file, one level deep.
@@ -747,5 +840,5 @@ export function importPlan(rows, mapping, { project, members = [], milestones = 
     if (!m.dueDate) m.dueDate = project.endDate || null;
     if (!m.dueDate) for (const row of m.rows) out[tasks.findIndex((t) => t.row === row)].errors.push(`The new milestone "${m.name}" needs a due date: give its tasks a due date, or give the project an end date.`);
   }
-  return { rows: out, tasks, newMilestones: [...newMs.values()].map(({ name, dueDate, rows: r }) => ({ name, dueDate, tasks: r.length })), errorCount: out.filter((x) => x.errors.length).length };
+  return { rows: out, tasks, newMilestones: [...newMs.values()].map(({ name, dueDate, rows: r }) => ({ name, dueDate, tasks: r.length })), errorCount: out.filter((x) => x.errors.length).length, fromHours: out.filter((x) => x.fromHours).length };
 }

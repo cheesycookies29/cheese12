@@ -9,6 +9,15 @@ order: 2
 
 ## November 2026
 
+### Projects: sizes instead of hours, time tracking only where needed, and the Timesheet (0.17)
+- Tasks have a **size** instead of an hour estimate: *XS*, *S*, *M*, *L* or *XL* (shown as *M · Medium*), a rough idea of the effort. Set it on the task, in the **List** (also for many tasks at once) or when you add a task. Progress and the milestone burn-up weigh tasks by size when most have one, and the burn-up counts *effort points* or tasks, never hours. *Hours left* is gone. See [the projects guide](projects#size-a-task).
+- Your hour estimates became sizes (up to 2 h *XS*, up to 8 h *S*, up to 24 h *M*, up to 48 h *L*, more *XL*), noted in each task's history. See [the projects guide](projects#questions).
+- **Workload** shows a level for each person and week, *Light*, *Normal*, *Busy*, *Overloaded* or *On leave*, each with its own shape, instead of hours against capacity. Open a cell for its tasks, their sizes and the days behind the level. See [the projects guide](projects#read-workload).
+- **Time tracking is per project** and off unless a project manager turns it on (**Track time on this project** under **Edit**), for time-and-materials work or a client who asks for a timesheet. Only then does the project have a **Time** tab, logging on its tasks and a budget in hours. Projects that had time logged on them track time already. See [the projects guide](projects#turn-time-tracking-on-for-a-project).
+- A weekly **Timesheet** in the Projects menu for everyone on a project that tracks time: a row per project and task, Monday to Sunday, with your DTR shown under it for comparison only. Project managers open their members' timesheets. See [the projects guide](projects#fill-in-your-timesheet).
+- **Projects setup → Effort sizes**: reword what each size means for your teams. See [the projects guide](projects#change-the-projects-setup-project-managers).
+- The CSV import reads a **Size** column, and still an **Estimate (h)** column, turned into sizes; the template has **Size**. See [the projects guide](projects#import-tasks-from-a-csv-file-project-managers).
+
 ### The Admin panel (0.16)
 - Everything administrators look after is now in one place, the **Admin panel**: the **Admin panel** card on the CORE home, **Admin panel** at the end of every module's side menu, and in the modules menu. The **System** items in the module menus moved there; old links such as `#/settings` and `#/users` still work. See [the administrator's guide](admin) and [Getting started](getting-started#open-the-admin-panel-administrators).
 - A **Dashboard**: accounts, who is signed in, 2-step adoption, failed sign-ins and locks, the audit log check, modules, feedback waiting, data size and the last backup. See [the administrator's guide](admin#the-dashboard).
@@ -28,7 +37,7 @@ order: 2
 
 ### Projects: For you, hours left, quick filters, templates and the burn-up (0.14)
 - **For you** on **My work**: a task assigned to you, an @mention, a comment on your task, your task done or cancelled by someone else, and being added to a project. Similar ones share a line; the number next to My work includes the unread ones. See [Getting started](getting-started#see-your-project-tasks-my-work) and [the projects guide](projects#catch-up-on-what-concerns-you-for-you).
-- **Hours left** on every task: the estimate less the hours logged, or set by hand on the task or when logging time. Tasks, the list and a project's overview show estimate, logged and left; **Workload** now plans the hours left, not the whole estimate. See [the projects guide](projects#keep-the-hours-left-up-to-date).
+- **Hours left** on every task: the estimate less the hours logged, or set by hand on the task or when logging time. Tasks, the list and a project's overview show estimate, logged and left; **Workload** now plans the hours left, not the whole estimate. (Replaced by task sizes in 0.17: see [the projects guide](projects#size-a-task).)
 - **Quick filters** on the board and the list (*Mine, Unassigned, Overdue, Due this week, Blocked, High & urgent*), a search on the board, and **saved views**, your own or shared with the project. See [the projects guide](projects#filter-the-board-or-list-quickly).
 - **Project templates**: mark a project as a template, and start new projects from one with the dates moved in working days. Three starter templates come with CORE. See [the projects guide](projects#start-a-project-from-a-template).
 - **Milestone burn-up** on a project's overview: scope, work done and the expected line. See [the projects guide](projects#read-the-milestone-burn-up).
