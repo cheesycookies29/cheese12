@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { ctx, roleLabel } from '../state.js';
-import { ROLES, PERMISSION_LABELS, can as roleCan } from '/shared/roles.js';
+import { ROLES } from '/shared/roles.js';
 import { html, mount, badge, toast, modal, confirmDialog } from '../ui.js';
 
 const ROLE_BADGE = { admin: 'maroon', hr: 'blue', payroll: 'amber', it: 'green', support: 'maroon-soft', sales: 'brand', salesmgr: 'brand', pm: 'green', employee: 'gray' };
@@ -54,7 +54,7 @@ export async function usersView(el) {
 
   mount(el, html`
     <header class="page-head">
-      <div><h1>Users &amp; Access</h1><p class="muted">Who can sign in, and what each account type can do.</p></div>
+      <div><h1>Users &amp; Access</h1><p class="muted">Who can sign in, with which account type, and how they sign in.</p></div>
       <div class="actions"><button class="btn primary" id="add-user">+ Add user</button></div>
     </header>
     <section class="card scroll-x">
@@ -65,7 +65,7 @@ export async function usersView(el) {
           return html`<tr>
             <td><div class="person"><span class="avatar">${u.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
               <div><strong>${u.name}${u.id === ctx.user.id ? html` <span class="muted you">(you)</span>` : ''}</strong><small>${u.username}</small></div></div></td>
-            <td>${badge(roleLabel(u.role), ROLE_BADGE[u.role])}${u.role !== 'admin' && typeof u.helpdeskAgent === 'boolean' ? html`<small><a href="#/helpdesk/settings?tab=agents">${u.helpdeskAgent ? '+ Helpdesk agent' : 'Helpdesk agent access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.crmAccess === 'boolean' ? html`<small><a href="#/crm/settings?tab=access">${u.crmAccess ? '+ Sales & CRM' : 'Sales & CRM access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.pmAccess === 'boolean' ? html`<small><a href="#/projects/settings?tab=access">${u.pmAccess ? '+ Projects' : 'Projects access removed'}</a></small>` : ''}</td>
+            <td>${badge(roleLabel(u.role), ROLE_BADGE[u.role])}${u.role !== 'admin' && typeof u.helpdeskAgent === 'boolean' ? html`<small><a href="#/admin/access">${u.helpdeskAgent ? '+ Helpdesk agent' : 'Helpdesk agent access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.crmAccess === 'boolean' ? html`<small><a href="#/admin/access">${u.crmAccess ? '+ Sales & CRM' : 'Sales & CRM access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.pmAccess === 'boolean' ? html`<small><a href="#/admin/access">${u.pmAccess ? '+ Projects' : 'Projects access removed'}</a></small>` : ''}</td>
             <td>${emp ? html`<a href="#/employees/${emp.id}">${emp.firstName} ${emp.lastName}</a>` : html`<span class="muted">—</span>`}</td>
             <td>${u.active ? badge('Active', 'green') : badge('Disabled', 'gray')} ${u.mustChangePassword ? badge('Temp. password', 'amber') : ''} ${u.demo ? badge('Demo', 'gray') : ''}</td>
             <td>${u.twoFactorEnabled ? badge('On', 'green') : u.twoFactorRequired ? badge('Not set up', 'amber') : html`<span class="muted">Off</span>`}</td>
@@ -81,16 +81,7 @@ export async function usersView(el) {
         })}</tbody>
       </table>
     </section>
-    <section class="card">
-      <h2>Account types</h2>
-      <div class="scroll-x flat">
-        <table class="table matrix">
-          <thead><tr><th>Access</th>${Object.values(ROLES).map((r) => html`<th class="center">${r.label}</th>`)}</tr></thead>
-          <tbody>${PERMISSION_LABELS.map(([perm, label]) => html`<tr><td>${label}</td>${Object.keys(ROLES).map((role) => html`<td class="center">${roleCan(role, perm) ? html`<span class="yes" aria-label="Yes">✓</span>` : html`<span class="no" aria-label="No">—</span>`}</td>`)}</tr>`)}</tbody>
-        </table>
-      </div>
-      <p class="muted small">HR Managers and Payroll Officers linked to an employee record also get the “My account” pages.</p>
-    </section>`);
+    <p class="muted small">What each account type may do is under <a href="#/admin/roles">Roles &amp; permissions</a>; access given to one person on top of it (service desk, Sales & CRM, Projects) is under <a href="#/admin/access">Access grants</a>. HR Managers and Payroll Officers linked to an employee record also get the “My account” pages.</p>`);
 
   el.querySelector('#add-user').addEventListener('click', () => {
     const { form } = modal({

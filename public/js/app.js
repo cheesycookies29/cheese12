@@ -1,19 +1,27 @@
 import { api } from './api.js';
-import { ctx, can, roleLabel } from './state.js';
+import { ctx, can, roleLabel, mayUseModule, moduleOn, panelAccess } from './state.js';
 import { html, mount, toast, today } from './ui.js';
 import { icon, iconSvg } from './icons.js';
-import { MODULES } from './modules.js';
+import { MODULES, SWITCHABLE } from './modules.js';
+import { redirectOf } from '/shared/redirects.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
 import { clockView, dtrView } from './views/time.js';
 import { payrollListView, payrollRunView, payslipView } from './views/payroll.js';
-import { settingsView } from './views/settings.js';
+import { settingsView, securityView } from './views/settings.js';
+import { adminDashboardView } from './views/admin/dashboard.js';
+import { rolesView } from './views/admin/roles.js';
+import { accessView } from './views/admin/access.js';
+import { configView } from './views/admin/config.js';
+import { modulesView } from './views/admin/modules.js';
+import { dataView, demoView } from './views/admin/data.js';
+import { guidesAdminView } from './views/admin/guides.js';
 import { usersView } from './views/users.js';
 import { meHomeView, meAttendanceView, mePayslipsView, mePayslipView, meProfileView, meRequestsView } from './views/self.js';
 import { payrollSetupView } from './views/payroll-setup.js';
 import { leaveView } from './views/leave.js';
 import { loginView, setupView, forcePasswordView, forceTwoFactorView, openChangePassword } from './views/login.js';
-import { securityView } from './views/security.js';
+import { securityView as mySecurityView } from './views/security.js';
 import { launcherView } from './views/launcher.js';
 import { assetsDashboardView, assetListView, assetFormView, assetDetailView } from './views/assets.js';
 import { inventoryView, inventoryItemView } from './views/inventory.js';
@@ -105,15 +113,25 @@ const routes = [
   ['/projects/:id/time', projectTimeView, 'projects', 'projects'],
   ['/projects/:projectId/tasks/:id', taskView, 'projects', 'projects'],
   ['/projects/:id', projectOverviewView, 'projects', 'projects'],
-  // System (shown inside whichever module is open)
-  ['/users', usersView, 'users.manage', 'system'],
-  ['/settings', settingsView, 'settings.edit', 'system'],
-  ['/audit', auditView, 'audit.view', 'system'],
-  ['/devlog', devlogView, 'devlog.view', 'system'],
-  ['/feedback', feedbackView, 'auth', 'system'],
-  ['/account/security', securityView, 'auth', 'system'],
-  ['/feedback/inbox', feedbackInboxView, 'feedback.view', 'system'],
-  ['/feedback/inbox/:id', feedbackDetailView, 'feedback.view', 'system'],
+  // Admin panel ('system'): its own sidebar. Each page needs its own permission; 'panel' = any of them.
+  ['/admin/dashboard', adminDashboardView, 'panel', 'system'],
+  ['/admin/users', usersView, 'users.manage', 'system'],
+  ['/admin/roles', rolesView, 'roles.manage', 'system'],
+  ['/admin/access', accessView, 'users.manage', 'system'],
+  ['/admin/config', configView, 'settings.center', 'system'],
+  ['/admin/modules', modulesView, 'modules.config', 'system'],
+  ['/admin/settings', settingsView, 'settings.edit', 'system'],
+  ['/admin/security', securityView, 'users.manage', 'system'],
+  ['/admin/guides', guidesAdminView, 'guides.edit', 'system'],
+  ['/admin/audit', auditView, 'audit.view', 'system'],
+  ['/admin/devlog', devlogView, 'devlog.view', 'system'],
+  ['/admin/feedback', feedbackInboxView, 'feedback.view', 'system'],
+  ['/admin/feedback/:id', feedbackDetailView, 'feedback.view', 'system'],
+  ['/admin/data', dataView, 'data.manage', 'system'],
+  ['/admin/demo', demoView, 'data.manage', 'system'],
+  // Your own pages ('user'): shown inside whichever module is open.
+  ['/feedback', feedbackView, 'auth', 'user'],
+  ['/account/security', mySecurityView, 'auth', 'user'],
 ].map(([pattern, view, permission, module]) => {
   const keys = [];
   const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
@@ -175,22 +193,46 @@ const NAV = {
     { href: '/projects/workload', label: 'Workload', icon: 'users', permission: 'pm.view' },
     { href: '/projects/settings', label: 'Projects setup', icon: 'settings', permission: 'pm.manage' },
   ],
+  // The Admin panel's own sidebar (ported from Lancaster ATLAS). A heading shows when something under it does.
   system: [
-    { heading: 'System', permission: 'users.manage' },
-    { href: '/users', label: 'Users & Access', icon: 'shield', permission: 'users.manage' },
-    { href: '/settings', label: 'Settings', icon: 'toggles', permission: 'settings.edit' },
-    { href: '/audit', label: 'Audit log', icon: 'activity', permission: 'audit.view' },
-    { href: '/devlog', label: 'Dev log', icon: 'code', permission: 'devlog.view', badge: 'devlog' },
-    { href: '/feedback/inbox', label: 'Feedback inbox', icon: 'message', permission: 'feedback.view', badge: 'feedback' },
+    { href: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', permission: 'panel' },
+    { heading: 'People' },
+    { href: '/admin/users', label: 'Users & Access', icon: 'users', permission: 'users.manage' },
+    { href: '/admin/roles', label: 'Roles & permissions', icon: 'lock', permission: 'roles.manage' },
+    { href: '/admin/access', label: 'Access grants', icon: 'key', permission: 'users.manage' },
+    { heading: 'Configuration' },
+    { href: '/admin/config', label: 'Settings center', icon: 'search', permission: 'settings.center' },
+    { href: '/admin/modules', label: 'Modules', icon: 'grid', permission: 'modules.config' },
+    { href: '/admin/settings', label: 'Settings & branding', icon: 'toggles', permission: 'settings.edit' },
+    { href: '/admin/security', label: 'Sign-in & security', icon: 'shield', permission: 'users.manage' },
+    { href: '/admin/guides', label: 'Help & guides', icon: 'help', permission: 'guides.edit' },
+    { heading: 'Records' },
+    { href: '/admin/audit', label: 'Audit log', icon: 'activity', permission: 'audit.view' },
+    { href: '/admin/devlog', label: 'Dev log', icon: 'code', permission: 'devlog.view', badge: 'devlog' },
+    { href: '/admin/feedback', label: 'Feedback inbox', icon: 'message', permission: 'feedback.view', badge: 'feedback' },
+    { heading: 'Data' },
+    { href: '/admin/data', label: 'Backup & restore', icon: 'database', permission: 'data.manage' },
+    { href: '/admin/demo', label: 'Demo data', icon: 'sparkle', permission: 'data.manage' },
+    { heading: 'Elsewhere' },
+    { href: '/launcher', label: 'CORE home', icon: 'home', permission: 'auth' },
+    { href: '/feedback', label: 'Send feedback', icon: 'comment', permission: 'auth', exact: true },
+  ],
+  // At the end of every module's menu: the way into the Admin panel (for accounts with any admin
+  // permission), then Send feedback.
+  common: [
+    { heading: 'Administration', permission: 'panel' },
+    { href: '/admin/dashboard', label: 'Admin panel', icon: 'settings', permission: 'panel', badge: 'admin' },
     { heading: 'Help', permission: 'auth' },
     { href: '/feedback', label: 'Send feedback', icon: 'comment', permission: 'auth', exact: true },
   ],
 };
 
+
 // Self-service pages need a linked employee record. Staff accounts without one
 // don't see them; employee accounts always do (and are told to ask for a link).
 function allowed(permission) {
   if (permission === 'auth') return true;
+  if (permission === 'panel') return panelAccess();
   // Supervisors (even on an Employee account), named approvers and HR see the Approval Center.
   if (permission === 'approver') return Boolean(ctx.user.isApprover);
   if (permission === 'self') return can('self') && (Boolean(ctx.user.employeeId) || ctx.user.role === 'employee');
@@ -199,8 +241,10 @@ function allowed(permission) {
   return can(permission);
 }
 
-// Where each module opens for this user; null = no access.
+// Where each module opens for this user; null = no access (or the module is turned off for the
+// company: then only administrators open it).
 function moduleHome(id) {
+  if (SWITCHABLE.includes(id) && !mayUseModule(id)) return null;
   if (id === 'hr') return can('dashboard') ? '/dashboard' : can('employees.view') ? '/employees' : allowed('self') ? '/me' : allowed('approver') ? '/approvals' : null;
   if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
   if (id === 'helpdesk') return can('helpdesk.agent') ? '/helpdesk' : '/helpdesk/mine';
@@ -223,7 +267,8 @@ const runCleanup = () => {
 // ----- Top bar -----
 function renderBrandSub() {
   const m = moduleOf(ctx.module);
-  document.getElementById('brand-sub').textContent = m && !body.classList.contains('launcher-mode') ? m.name : ctx.settings?.companyName || 'Lancaster Technology and Development Corporation';
+  const inApp = !body.classList.contains('launcher-mode');
+  document.getElementById('brand-sub').textContent = inApp && ctx.module === 'system' ? 'Admin panel' : m && inApp ? m.name : ctx.settings?.companyName || 'Lancaster Technology and Development Corporation';
 }
 
 const isDark = () => document.documentElement.dataset.theme === 'dark';
@@ -278,7 +323,8 @@ function renderModuleSwitch() {
     <button type="button" class="round-btn" id="mod-btn" title="Modules" aria-label="Modules" aria-haspopup="menu" aria-expanded="false">${icon('grid', 18)}</button>
     <div class="menu-pop mod-pop" id="mod-pop" role="menu" hidden>
       <div class="menu-label">CORE modules</div>
-      ${items.map((m) => html`<a role="menuitem" href="#${m.home}" data-mod="${m.id}"><span class="mod-ic">${icon(m.glyph, 18)}</span><span class="grow"><strong>${m.name}</strong><small>${m.tagline}</small></span></a>`)}
+      ${items.map((m) => html`<a role="menuitem" href="#${m.home}" data-mod="${m.id}"><span class="mod-ic">${icon(m.glyph, 18)}</span><span class="grow"><strong>${m.name}</strong><small>${moduleOn(m.id) ? m.tagline : 'Off for the company · administrators only'}</small></span></a>`)}
+      ${panelAccess() ? html`<div class="menu-sep"></div><a role="menuitem" href="#/admin/dashboard" data-mod="system"><span class="mod-ic">${icon('settings', 18)}</span><span class="grow"><strong>Admin panel</strong><small>Users, roles, modules, settings and data</small></span></a>` : ''}
       <div class="menu-sep"></div>
       <a role="menuitem" href="#/launcher">${icon('home')} <span class="grow">All modules</span></a>
     </div>`);
@@ -311,13 +357,17 @@ function renderUserBox() {
 }
 
 // ----- Sidebar -----
-function renderNav(module) {
-  if (module === ctx.module && document.querySelector('#nav a')) return;
+function renderNav(module, force = false) {
+  if (!force && module === ctx.module && document.querySelector('#nav a')) return;
   ctx.module = module;
   const m = moduleOf(module);
-  const items = [...(NAV[module] || []), ...NAV.system].filter((n) => allowed(n.permission));
+  const panel = module === 'system';
+  // A heading shows only when something under it does.
+  const visible = (panel ? NAV.system : [...(NAV[module] || []), ...NAV.common]).filter((n) => allowed(n.permission || 'auth'));
+  const items = visible.filter((n, i) => !n.heading || (visible[i + 1] && !visible[i + 1].heading));
   mount(document.getElementById('nav'), html`
-    ${m ? html`<div class="nav-module" title="${m.name}"><span class="mod-ic">${icon(m.glyph, 18)}</span><span><strong>${m.name}</strong><small>${m.code}</small></span></div>` : ''}
+    ${panel ? html`<div class="nav-module" title="Admin panel"><span class="mod-ic">${icon('settings', 18)}</span><span><strong>Admin panel</strong><small>CORE · Administration</small></span></div>` : ''}
+    ${m ? html`<div class="nav-module" title="${m.name}"><span class="mod-ic">${icon(m.glyph, 18)}</span><span><strong>${m.name}</strong><small>${m.code}${moduleOn(m.id) ? '' : ' · Off for the company'}</small></span></div>` : ''}
     ${items.map((n) =>
       n.heading
         ? html`<div class="nav-heading">${n.heading}</div>`
@@ -332,6 +382,8 @@ const BADGES = {
   reports: () => api.get('/api/asset-reports/summary').then((r) => r.new),
   devlog: () => unseenCount(),
   feedback: () => api.get('/api/feedback/summary').then((r) => r.new),
+  // On the "Admin panel" link: new feedback and dev log releases not opened yet.
+  admin: () => Promise.all([can('feedback.view') ? BADGES.feedback().catch(() => 0) : 0, can('devlog.view') ? unseenCount().catch(() => 0) : 0]).then(([a, b]) => a + b),
   helpdesk: () => api.get('/api/helpdesk/summary').then((r) => r.awaiting),
   leads: () => api.get('/api/crm/overview').then((r) => r.newLeads),
   crmTasks: () => api.get('/api/crm/activities?mine=1&open=1').then((list) => list.filter((a) => a.dueDate && a.dueDate <= today()).length),
@@ -389,20 +441,31 @@ async function navigate() {
   setMenu(false);
   closePops();
   const path = location.hash.replace(/^#/, '').split('?')[0] || homeRoute();
-  const query = Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] || ''));
+  const search = location.hash.split('?')[1] || '';
+  // A page that moved (e.g. #/settings to the Admin panel): open it where it is now.
+  const moved = redirectOf(path);
+  if (moved) return location.replace(`#${moved}${search ? `?${search}` : ''}`);
+  const query = Object.fromEntries(new URLSearchParams(search));
   const match = routes.find((r) => r.re.test(path));
   if (!match) return (location.hash = `#${homeRoute()}`);
+  // A module the company turned off: only administrators open it.
+  if (SWITCHABLE.includes(match.module) && !mayUseModule(match.module)) {
+    toast(`${moduleOf(match.module).name} is turned off for the company.`, 'error');
+    return (location.hash = `#${homeRoute()}`);
+  }
   if (!allowed(match.permission)) {
     // A link or bookmark to a page this account may not open: stay in the module when possible.
-    const home = match.module && moduleHome(match.module);
+    const home = match.module === 'system' ? (panelAccess() ? '/admin/dashboard' : null) : match.module && match.module !== 'user' && moduleHome(match.module);
     if (home && home !== path) toast('Your account type cannot open that page.', 'error');
     return (location.hash = `#${home && home !== path ? home : homeRoute()}`);
   }
 
   const params = Object.fromEntries(match.keys.map((k, i) => [k, decodeURIComponent(path.match(match.re)[i + 1])]));
-  // The launcher has no sidebar; system pages keep the menu of the module they were opened from.
+  // The launcher has no sidebar; the Admin panel has its own; your own pages (feedback, security)
+  // keep the menu of the module they were opened from.
   body.classList.toggle('launcher-mode', !match.module);
-  if (match.module) renderNav(match.module === 'system' ? ctx.module || ['hr', 'assets', 'crm', 'projects', 'helpdesk'].find((m) => moduleHome(m)) : match.module);
+  const firstModule = () => ['hr', 'assets', 'crm', 'projects', 'helpdesk'].find((m) => moduleHome(m)) || (panelAccess() ? 'system' : 'helpdesk');
+  if (match.module) renderNav(match.module === 'user' ? (ctx.module && ctx.module !== 'user' ? ctx.module : firstModule()) : match.module);
   renderBrandSub();
   markModuleSwitch();
   // Highlight the most specific nav link that contains the current path.
@@ -425,7 +488,7 @@ async function navigate() {
     cleanup = await match.view(el, params, query);
   } catch (err) {
     // A deleted record or an old link: a way back into the module, not out of CORE.
-    const home = (match.module && moduleHome(match.module === 'system' ? ctx.module : match.module)) || homeRoute();
+    const home = (match.module === 'system' ? '/admin/dashboard' : match.module && moduleHome(match.module === 'user' ? ctx.module : match.module)) || homeRoute();
     if (err.status === 404) mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>${err.message}</h2><p>It may have been deleted, or the link is out of date.</p><p><a class="btn" href="#${home}">Back to the module</a></p></div>`);
     if (err.status !== 404) mount(el, html`<div class="card empty">${icon('flag', 40)}<h2>Something went wrong</h2><p>${err.message}</p><p class="muted">Is the server still running? Check the window it was started from.</p></div>`);
   }
@@ -452,11 +515,13 @@ async function boot({ fresh = false } = {}) {
     return mount(document.getElementById('auth'), html`<div class="empty"><h2>Cannot reach the server</h2><p>Start CORE (double-click “Start CORE ERP”, or <code>npm start</code>), then reload this page.</p></div>`);
   }
   ctx.user = status.user;
+  // The branding (sign-in page too), the company's changes to the account types, the modules that are on.
+  ctx.applyStatus(status);
   if (!ctx.user) return showAuth(status.setupRequired ? setupView : loginView);
   if (ctx.user.mustChangePassword) return showAuth(forcePasswordView);
   if (ctx.user.twoFactorSetupRequired) return showAuth(forceTwoFactorView);
 
-  await Promise.all([ctx.refreshSettings(), ctx.refreshLeaveTypes(), ctx.refreshHolidays()]);
+  await Promise.all([ctx.refreshSettings(), mayUseModule('hr') ? ctx.refreshLeaveTypes() : (ctx.leaveTypes = []), ctx.refreshHolidays()]);
   setMode(null);
   mount(document.getElementById('auth'), '');
   ctx.module = null;
@@ -487,6 +552,18 @@ window.addEventListener('feedback:changed', refreshBadge);
 window.addEventListener('helpdesk:changed', refreshBadge);
 window.addEventListener('crm:changed', refreshBadge);
 window.addEventListener('pm:changed', refreshBadge);
+// A module turned on or off, or roles changed, here: the menus follow at once.
+window.addEventListener('modules:changed', () => {
+  if (!ctx.user) return;
+  pops.length = 0;
+  renderModuleSwitch();
+  renderUserBox();
+  if (ctx.module) renderNav(ctx.module, true);
+  markModuleSwitch();
+  const links = [...document.querySelectorAll('#nav a[data-href]')];
+  const path = location.hash.replace(/^#/, '').split('?')[0];
+  links.forEach((a) => a.classList.toggle('active', a.dataset.href === path));
+});
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;

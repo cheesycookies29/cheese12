@@ -1,25 +1,55 @@
+// Admin panel → Settings & branding (company details, default schedule, brand colour, logo and the
+// sign-in headline) and Admin panel → Sign-in & security. Backups and demo data are in admin/data.js.
 import { api } from '../api.js';
-import { ctx, can } from '../state.js';
-import { html, mount, toast, confirmDialog, modal, downloadFile, today, WEEKDAYS } from '../ui.js';
+import { ctx, applyBrand } from '../state.js';
+import { html, mount, toast, WEEKDAYS } from '../ui.js';
+import { icon } from '../icons.js';
+import { THEMES, HEX_RE, DEFAULT_HEADLINE, HEADLINE_MAX, LOGO_MAX_BYTES, MIN_CONTRAST, contrast, themeColors } from '/shared/brand.js';
+import { pageHead } from './admin/common.js';
+
+// A picked logo, made at most 400 px wide or high and re-drawn as a PNG (or a JPEG if that is
+// smaller), so it is small and carries nothing but the picture. SVG is not accepted.
+function shrinkLogo(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('Pick a picture.'));
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return reject(new Error('Pick a PNG, JPEG or WebP picture.'));
+    if (file.size > 8 * 1024 * 1024) return reject(new Error('That picture is too large. Use one under 8 MB.'));
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 400 / img.width, 400 / img.height);
+      const c = Object.assign(document.createElement('canvas'), { width: Math.max(1, Math.round(img.width * scale)), height: Math.max(1, Math.round(img.height * scale)) });
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      let out = c.toDataURL('image/png');
+      if (out.length * 0.75 > LOGO_MAX_BYTES) out = c.toDataURL('image/jpeg', 0.85);
+      if (out.length * 0.75 > LOGO_MAX_BYTES) return reject(new Error('The logo is still over 300 KB after shrinking. Use a simpler picture.'));
+      resolve(out);
+    };
+    img.onerror = () => reject(new Error('That picture could not be read.'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+const ratio = (hex) => (HEX_RE.test(hex) ? contrast(hex, '#ffffff') : 0);
 
 export async function settingsView(el) {
-  const [s, demo, security] = await Promise.all([api.get('/api/settings'), api.get('/api/admin/demo'), can('users.manage') ? api.get('/api/security-settings') : null]);
-  const checked = (b) => (b ? 'checked' : '');
+  const s = await api.get('/api/settings');
+  const b = s.branding;
+  const checked = (v) => (v ? 'checked' : '');
+  let logo; // undefined: unchanged; '' removed; data: URL new
+  const custom = b.theme === 'custom' ? b.color : '#1e3a5f';
 
   mount(el, html`
-    <header class="page-head"><div><h1>Settings</h1><p class="muted">Company details, default schedule and data management.</p></div></header>
+    ${pageHead('Settings & branding', 'Company details, the default work schedule, and how CORE looks: the brand colour, the logo and the sign-in headline.', html`<a class="btn ghost" href="#/admin/config?module=admin">${icon('search', 16)} Compare with the defaults</a>`)}
     <form id="settings-form" class="stack" novalidate>
       <section class="card">
         <h2>Company</h2>
         <div class="grid">
-          <label class="field"><span>Company name</span><input name="companyName" value="${s.companyName}" required /></label>
-          <label class="field"><span>TIN</span><input name="companyTin" value="${s.companyTin}" /></label>
-          <label class="field span-3"><span>Address</span><input name="companyAddress" value="${s.companyAddress}" /></label>
+          <label class="field"><span>Company name</span><input name="companyName" value="${s.companyName}" required maxlength="200" /></label>
+          <label class="field"><span>TIN</span><input name="companyTin" value="${s.companyTin}" maxlength="200" /></label>
+          <label class="field span-3"><span>Address</span><input name="companyAddress" value="${s.companyAddress}" maxlength="300" /></label>
         </div>
-      </section>
-      <section class="card">
-        <h2>Payroll rules</h2>
-        <p class="muted small">Pay frequency, overtime rates, government contribution rates and tax tables are in <a href="#/payroll-setup">Payroll Setup</a>, where HR Managers and Payroll Officers can also adjust them.</p>
+        <p class="muted small">Printed on every payslip; the name is also on the CORE home and the sign-in page. Pay rules, rates and tax tables are in <a href="#/payroll-setup">Payroll Setup</a>.</p>
       </section>
       <section class="card">
         <h2>Default work schedule</h2>
@@ -28,18 +58,116 @@ export async function settingsView(el) {
           <label class="field"><span>Shift start</span><input type="time" name="shiftStart" value="${s.schedule.shiftStart}" /></label>
           <label class="field"><span>Shift end</span><input type="time" name="shiftEnd" value="${s.schedule.shiftEnd}" /></label>
           <label class="field"><span>Unpaid break (minutes)</span><input type="number" name="breakMinutes" value="${s.schedule.breakMinutes}" min="0" /></label>
-          <div class="field span-3"><span>Work days</span>
+          <fieldset class="field span-3 days-field"><legend>Work days</legend>
             <div class="days">${WEEKDAYS.map((d, i) => html`<label><input type="checkbox" name="workDays" value="${i}" ${checked(s.schedule.workDays.includes(i))} /> ${d}</label>`)}</div>
-          </div>
+          </fieldset>
         </div>
       </section>
-      <p class="form-error" hidden></p>
+      <section class="card" id="branding">
+        <h2>Branding</h2>
+        <p class="muted small">One colour runs through every module, the Admin panel and the sign-in page, in light and dark mode. The colour changes on screen as you choose it; it is kept when you save.</p>
+        <fieldset class="brand-field"><legend>Brand colour</legend>
+          <div class="swatches">${Object.entries(THEMES).map(([k, t]) => html`<label class="swatch"><input type="radio" name="theme" value="${k}" ${b.theme === k ? 'checked' : ''} /><i style="background:linear-gradient(135deg, ${t.brand} 60%, ${t.accent} 60%)"></i>${t.label}${k === 'core' ? html`<small class="muted">Default</small>` : ''}</label>`)}
+            <label class="swatch"><input type="radio" name="theme" value="custom" ${b.theme === 'custom' ? 'checked' : ''} /><i id="custom-dot" style="background:${custom}"></i>Company colour</label></div>
+        </fieldset>
+        <div class="grid brand-custom">
+          <label class="field"><span>Company colour</span><span class="color-pair"><input type="color" name="colorPick" value="${custom}" aria-label="Pick the company colour" /><input name="color" value="${custom}" maxlength="7" spellcheck="false" autocapitalize="none" aria-describedby="contrast-note" /></span></label>
+          <p class="field span-2 contrast-note" id="contrast-note" aria-live="polite"></p>
+        </div>
+        <div class="grid">
+          <div class="field span-2"><span>Company logo</span>
+            <div class="logo-box"><img id="logo-preview" src="${b.logo || '/img/core-mark-brand.svg'}" alt="${b.logo ? 'The company logo' : 'No logo: the CORE mark'}" />
+              <div class="stack tight"><label class="btn sm">${icon('upload', 15)} Upload logo<input type="file" id="logo" accept="image/png,image/jpeg,image/webp" hidden /></label>
+                <button type="button" class="link" id="logo-reset" ${b.logo ? '' : 'hidden'}>Remove the logo</button>
+                <span class="hint muted small">PNG, JPEG or WebP, under 300 KB once shrunk (CORE makes it at most 400 pixels). Shown on the sign-in page and the CORE home. SVG is not accepted.</span></div></div></div>
+          <label class="field"><span>Sign-in headline</span><input name="headline" value="${b.headline}" placeholder="${DEFAULT_HEADLINE}" maxlength="${HEADLINE_MAX}" /><small class="muted">The large line on the sign-in page. Empty: “${DEFAULT_HEADLINE}”</small></label>
+        </div>
+      </section>
+      <p class="form-error" role="alert" hidden></p>
       <div class="actions end"><button class="btn primary" type="submit">Save settings</button></div>
-    </form>
+    </form>`);
 
-    ${security ? html`<form id="security-form" class="card" novalidate>
-      <h2>Sign-in &amp; security</h2>
-      <p class="muted small">Who must use 2-step verification, how long people stay signed in, and the limits that slow down password guessing and floods of requests. Each person sets up 2-step verification under their name → <strong>My security</strong>.</p>
+  const form = el.querySelector('#settings-form');
+  const colorText = form.color;
+  const colorPick = form.colorPick;
+  const note = el.querySelector('#contrast-note');
+  const preview = () => {
+    const theme = form.theme.value;
+    const color = colorText.value.trim().toLowerCase();
+    el.querySelector('#custom-dot').style.background = HEX_RE.test(color) ? color : '#888';
+    const r = ratio(color);
+    mount(note, theme !== 'custom' ? html`<span class="muted">Pick <strong>Company colour</strong> to use your own.</span>`
+      : !HEX_RE.test(color) ? html`<span class="bad-text">Type the colour as # and six digits, e.g. #1e3a5f.</span>`
+        : r >= MIN_CONTRAST ? html`<span class="ok-text">${icon('check', 14)} Readable: white text on it has a contrast of ${r} : 1 (at least ${MIN_CONTRAST} : 1 is needed).</span>`
+          : html`<span class="bad-text">${icon('alert', 14)} Too light: white text on it has a contrast of only ${r} : 1, and at least ${MIN_CONTRAST} : 1 is needed. Choose a darker colour.</span>`);
+    if (theme !== 'custom' || (HEX_RE.test(color) && r >= MIN_CONTRAST)) applyBrand(themeColors({ theme, color }));
+  };
+  form.addEventListener('change', (e) => {
+    if (e.target.name === 'colorPick') {
+      colorText.value = colorPick.value;
+      form.querySelector('input[value=custom]').checked = true;
+    }
+    if (['theme', 'colorPick', 'color'].includes(e.target.name)) preview();
+  });
+  colorText.addEventListener('input', () => {
+    if (HEX_RE.test(colorText.value.trim())) colorPick.value = colorText.value.trim().toLowerCase();
+    form.querySelector('input[value=custom]').checked = true;
+    preview();
+  });
+  preview();
+  // Leaving without saving puts the saved colours back.
+  const saved = () => applyBrand(ctx.brand || {});
+
+  el.querySelector('#logo').addEventListener('change', async (e) => {
+    try {
+      logo = await shrinkLogo(e.target.files[0]);
+      el.querySelector('#logo-preview').src = logo;
+      el.querySelector('#logo-preview').alt = 'The new logo (not saved yet)';
+      el.querySelector('#logo-reset').hidden = false;
+      toast('Logo ready. Save settings to use it.');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+    e.target.value = '';
+  });
+  el.querySelector('#logo-reset').addEventListener('click', (e) => {
+    logo = '';
+    el.querySelector('#logo-preview').src = '/img/core-mark-brand.svg';
+    el.querySelector('#logo-preview').alt = 'No logo: the CORE mark';
+    e.target.hidden = true;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const errEl = form.querySelector('.form-error');
+    const branding = { theme: fd.get('theme'), color: fd.get('theme') === 'custom' ? String(fd.get('color')).trim().toLowerCase() : '', headline: fd.get('headline') };
+    if (logo !== undefined) branding.logo = logo;
+    try {
+      await api.put('/api/settings', {
+        companyName: fd.get('companyName'), companyTin: fd.get('companyTin'), companyAddress: fd.get('companyAddress'),
+        schedule: { shiftStart: fd.get('shiftStart'), shiftEnd: fd.get('shiftEnd'), breakMinutes: fd.get('breakMinutes'), workDays: fd.getAll('workDays').map(Number) },
+        branding,
+      });
+      await Promise.all([ctx.refreshSettings(), ctx.refreshStatus()]);
+      errEl.hidden = true;
+      toast('Settings saved.');
+      settingsView(el);
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
+  });
+  return saved;
+}
+
+export async function securityView(el) {
+  const security = await api.get('/api/security-settings');
+  const checked = (b) => (b ? 'checked' : '');
+  mount(el, html`
+    ${pageHead('Sign-in & security', 'Who must use 2-step verification, how long people stay signed in, and the limits that slow down password guessing and floods of requests.')}
+    <form id="security-form" class="card" novalidate>
+      <p class="muted small">Each person sets up 2-step verification under their name → <strong>My security</strong>.</p>
       <div class="grid">
         <label class="field span-3"><span>2-step verification</span>
           <select name="twoFactor">${Object.entries(security.policies).map(([k, v]) => html`<option value="${k}" ${security.twoFactor === k ? 'selected' : ''}>${v}</option>`)}</select>
@@ -50,54 +178,11 @@ export async function settingsView(el) {
         <label class="field"><span>Failed sign-ins per network address</span><input type="number" name="signInFailuresPerAddress" min="5" max="1000" value="${security.signInFailuresPerAddress}" /><small class="muted">In 15 minutes, any usernames. Then that address waits. An office behind one address may need more.</small></label>
         <label class="field check span-2"><input type="checkbox" name="blockCommonPasswords" ${checked(security.blockCommonPasswords)} /> <span>Refuse common passwords and passwords with the username or name</span></label>
       </div>
-      <p class="muted small">Always on: a username is locked for 5, then 15, then 60 minutes after 5 wrong passwords in a row; changing a password, a role or 2-step verification signs the account out elsewhere; every sign-in, failure and lock is in the <a href="#/audit">Audit log</a>.</p>
-      <p class="form-error" hidden></p>
-      <div class="actions end"><button class="btn primary" type="submit">Save sign-in settings</button></div>
-    </form>` : ''}
-
-    <section class="card">
-      <h2>Data</h2>
-      <p class="muted small">Everything is stored on this computer in <code>data/db.json</code> inside the app folder. Download a backup regularly. Medical certificates attached to leave requests are kept as files in <code>data/attachments</code> and are not in the backup file; copy that folder too.</p>
-      <div class="actions">
-        <button class="btn" id="backup">Download backup</button>
-        <label class="btn">Restore backup… <input type="file" id="restore" accept="application/json,.json" hidden /></label>
-        <button class="btn danger ghost" id="reset">Erase all data</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-head"><h2>Demo data</h2>${demo.loaded ? html`<span class="badge amber">Loaded</span>` : ''}</div>
-      <p class="muted">Adds sample employees with attendance, leave requests, IT assets, stock, helpdesk tickets and Sales & CRM records <strong>next to your own data</strong>, so you can try features safely. Demo records are numbered DEMO-0001, DEMO-IT-0001 and so on, and nothing you entered is changed. Demo sign-in accounts hr.demo, payroll.demo, it.demo, sales.demo and employee.demo use the password <code>demo1234</code>.</p>
-      ${demo.loaded ? html`<p class="small">Loaded now: ${demo.counts.employees} demo employees, ${demo.counts.assets} assets, ${demo.counts.inventoryItems} stock items, ${demo.counts.tickets} tickets. Demo employees are included in new payroll runs until you remove them.</p>` : ''}
-      <div class="actions">
-        <button class="btn" id="demo">${demo.loaded ? 'Reload demo data' : 'Add demo data'}</button>
-        ${demo.loaded ? html`<button class="btn danger ghost" id="remove-demo">Remove demo data</button>` : ''}
-      </div>
-    </section>`);
-
-  const form = el.querySelector('#settings-form');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(form);
-    const body = {
-      companyName: fd.get('companyName'),
-      companyTin: fd.get('companyTin'),
-      companyAddress: fd.get('companyAddress'),
-      schedule: { shiftStart: fd.get('shiftStart'), shiftEnd: fd.get('shiftEnd'), breakMinutes: fd.get('breakMinutes'), workDays: fd.getAll('workDays').map(Number) },
-    };
-    try {
-      await api.put('/api/settings', body);
-      await ctx.refreshSettings();
-      form.querySelector('.form-error').hidden = true;
-      toast('Settings saved.');
-    } catch (err) {
-      const errEl = form.querySelector('.form-error');
-      errEl.textContent = err.message;
-      errEl.hidden = false;
-    }
-  });
-
-  el.querySelector('#security-form')?.addEventListener('submit', async (e) => {
+      <p class="muted small">Always on: a username is locked for 5, then 15, then 60 minutes after 5 wrong passwords in a row; changing a password, a role or 2-step verification signs the account out elsewhere; every sign-in, failure and lock is in the <a href="#/admin/audit?area=auth">Audit log</a>.</p>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="actions end"><a class="btn ghost" href="#/admin/config?q=sign-in">Compare with the defaults</a><button class="btn primary" type="submit">Save sign-in settings</button></div>
+    </form>`);
+  el.querySelector('#security-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = e.target;
     const errEl = f.querySelector('.form-error');
@@ -113,60 +198,5 @@ export async function settingsView(el) {
       errEl.textContent = err.message;
       errEl.hidden = false;
     }
-  });
-
-  el.querySelector('#backup').addEventListener('click', async () => {
-    const data = await api.get('/api/admin/export');
-    downloadFile(`ltdc-hr-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
-  });
-
-  el.querySelector('#restore').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    let backup;
-    try {
-      backup = JSON.parse(await file.text());
-    } catch {
-      return toast('That file is not valid JSON.', 'error');
-    }
-    // A restore replaces everything, the accounts included, so it asks for the password again.
-    const { form } = modal({
-      title: 'Restore backup',
-      body: html`<p>Replace ALL current data with this backup? The user accounts in the backup replace the current ones.</p>
-        <label class="field"><span>Your password</span><input type="password" name="password" autocomplete="current-password" required /></label>`,
-      submitLabel: 'Restore',
-      onSubmit: async (f) => {
-        await api.post('/api/admin/import', { ...backup, password: f.password.value });
-        await ctx.refreshSettings();
-        toast('Backup restored.');
-        location.hash = '#/dashboard';
-      },
-    });
-    form.querySelector('[type=submit]').classList.add('danger');
-  });
-
-  el.querySelector('#demo').addEventListener('click', async () => {
-    const message = demo.loaded
-      ? 'The current demo records are replaced with a fresh set (changes made to demo records are lost). Your own data is not touched.'
-      : 'Sample employees, attendance, leave requests, IT assets, stock, helpdesk tickets and Sales & CRM records are added next to your data, plus five demo sign-in accounts (password demo1234). Your own data is not changed, and you can remove the demo records at any time.';
-    if (!(await confirmDialog(message, { title: demo.loaded ? 'Reload demo data' : 'Add demo data', confirmLabel: demo.loaded ? 'Reload demo data' : 'Add demo data', danger: false }))) return;
-    const res = await api.post('/api/admin/demo');
-    toast(`Demo data added: ${res.counts.employees} employees, ${res.counts.assets} assets, ${res.counts.tickets} tickets. Demo accounts use the password demo1234.`);
-    settingsView(el);
-  });
-  el.querySelector('#remove-demo')?.addEventListener('click', async () => {
-    if (!(await confirmDialog('All demo employees (with their attendance, leave and payslips in draft runs), demo assets, stock, problem reports and tickets, and the demo sign-in accounts are removed. So are the demo sales records. Your own records stay, and a demo organization that your own sales records use stays as a real account; real equipment lent to a demo employee goes back to stock. Finalized payroll runs are not changed.', { title: 'Remove demo data', confirmLabel: 'Remove demo data' }))) return;
-    const res = await api.del('/api/admin/demo');
-    toast(`Demo data removed: ${res.removed.employees} employees, ${res.removed.assets} assets, ${res.removed.tickets} tickets, ${res.removed.accounts} accounts.`);
-    settingsView(el);
-  });
-
-  el.querySelector('#reset').addEventListener('click', async () => {
-    if (!(await confirmDialog('Permanently erase all company data: employees, attendance, leave, payroll runs, IT assets and stock, service desk tickets, Sales & CRM records and settings? User accounts are kept (except demo accounts), and so are the audit log, the dev log, feedback, guide edits, the service desk mail setup and the sales setup.', { confirmLabel: 'Erase everything' }))) return;
-    await api.post('/api/admin/reset');
-    await ctx.refreshSettings();
-    toast('All data erased.');
-    location.hash = '#/dashboard';
   });
 }

@@ -27,7 +27,7 @@ HR Staff do day-to-day HR without pay data. Compared with an HR Manager:
 | Dashboard, Clock-in locations, Payroll, Payroll Setup | Yes | No |
 | Approvals | Yes | Only if they supervise someone |
 
-An HR Staff account opens **HR & Payroll** on **Employees**. Link it to the person's own employee record under **Users & Access** so they also get their own self-service (**My Home**, **My Payslips**…).
+An HR Staff account opens **HR & Payroll** on **Employees**. Link it to the person's own employee record under **Admin panel → Users & Access** so they also get their own self-service (**My Home**, **My Payslips**…).
 
 ## Walkthrough
 

@@ -60,7 +60,7 @@ Write for the person doing the job, in plain words, with the names exactly as th
 
 ## Demo accounts
 
-Load the demo data under **System → Settings → Demo data**. It adds these accounts (password `demo1234`):
+Load the demo data under **Admin panel → Demo data**. It adds these accounts (password `demo1234`):
 
 | Account | Type | Who |
 |---|---|---|

@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/css/help.css" />
   <script>
     try { var t = localStorage.getItem('core-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+    try { var b = JSON.parse(localStorage.getItem('core-brand') || 'null'), h = /^#[0-9a-f]{6}$/i; if (b && h.test(b.brand) && h.test(b.accent)) { document.documentElement.style.setProperty('--brand', b.brand); document.documentElement.style.setProperty('--accent', b.accent); } } catch (e) {}
   </script>
 </head>
 <body class="booting help-app">

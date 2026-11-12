@@ -91,7 +91,7 @@ export async function feedbackView(el) {
       <header class="page-head">
         <div><h1>Feedback</h1><p class="muted">Report a problem, suggest an improvement or ask a question. Feedback is reviewed by the system administrators.</p></div>
         <div class="actions">
-          ${can('feedback.view') ? html`<a class="btn" href="#/feedback/inbox">Feedback inbox</a>` : ''}
+          ${can('feedback.view') ? html`<a class="btn" href="#/admin/feedback">Feedback inbox</a>` : ''}
           <button class="btn primary" id="new-feedback">+ New feedback</button></div>
       </header>
       <section class="card fb-card">
@@ -136,7 +136,7 @@ export async function feedbackInboxView(el, _params, query) {
       ? html`<table class="table clickable no-stack fb-table">
           <thead><tr><th>No.</th><th>Received</th><th>From</th><th>Type</th><th>Subject</th><th>Module</th><th>Status</th></tr></thead>
           <tbody>${list.map((f) => html`<tr data-id="${f.id}" class="${f.status === 'new' ? 'unread' : ''}">
-            <td><a class="mono" href="#/feedback/inbox/${f.id}">${f.number}</a></td>
+            <td><a class="mono" href="#/admin/feedback/${f.id}">${f.number}</a></td>
             <td>${fmtDate(f.createdAt.slice(0, 10))}</td>
             <td>${f.userName}<small>${f.roleLabel}</small></td>
             <td>${typeBadge(f.type)}</td>
@@ -147,9 +147,9 @@ export async function feedbackInboxView(el, _params, query) {
         <div class="fb-list fb-cards">${list.map((f) => row(f, { staff: true }))}</div>`
       : html`<div class="empty"><p>${all.length ? 'No feedback matches the current filters.' : 'No feedback has been submitted yet.'}</p></div>`);
     el.querySelectorAll('#list tbody tr').forEach((tr) => tr.addEventListener('click', (e) => {
-      if (!e.target.closest('a')) location.hash = `#/feedback/inbox/${tr.dataset.id}`;
+      if (!e.target.closest('a')) location.hash = `#/admin/feedback/${tr.dataset.id}`;
     }));
-    el.querySelectorAll('#list [data-open-feedback]').forEach((b) => b.addEventListener('click', () => (location.hash = `#/feedback/inbox/${b.dataset.openFeedback}`)));
+    el.querySelectorAll('#list [data-open-feedback]').forEach((b) => b.addEventListener('click', () => (location.hash = `#/admin/feedback/${b.dataset.openFeedback}`)));
   }
 
   mount(el, html`
@@ -211,7 +211,7 @@ export async function feedbackDetailView(el, { id }) {
 
   mount(el, html`<div class="fb-page">
     <header class="page-head">
-      <div><a class="back" href="#/feedback/inbox">← Feedback inbox</a>
+      <div><a class="back" href="#/admin/feedback">← Feedback inbox</a>
         <p class="tag-line mono">${f.number}</p>
         <h1>${f.subject}</h1>
         <p class="muted fb-sub">${feedbackStatus(f.status)}<span>Submitted ${when(f.createdAt)} by ${f.userName}</span></p></div>
@@ -239,6 +239,6 @@ export async function feedbackDetailView(el, { id }) {
     await api.del(`/api/feedback/${f.id}`);
     toast('Feedback deleted.');
     changed();
-    location.hash = '#/feedback/inbox';
+    location.hash = '#/admin/feedback';
   });
 }

@@ -263,7 +263,7 @@ Watchers hear, under **For you**, of every comment on the task and of it being m
 
 Members and managers add files; everyone who can open the project downloads them; the person who added a file or a project manager removes it. Adding and removing are in the task's (or the project's) history. When you set **Accepted on** for a deliverable that has no document yet, CORE reminds you to attach the signed certificate, and the card says so until you do. Deleting a task, a milestone or the project deletes its files.
 
-> **Note:** Files are kept in CORE's `data` folder, not in the backup file from **Settings → Download backup**. Your administrator copies the `data` folder to keep them (see [the administrator's guide](admin)).
+> **Note:** Files are kept in CORE's `data` folder, not in the backup file from **Admin panel → Backup & restore → Download backup**. Your administrator copies the `data` folder to keep them (see [the administrator's guide](admin)).
 
 ![A deliverable's acceptance document](projects-files.jpg)
 

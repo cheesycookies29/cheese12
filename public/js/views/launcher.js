@@ -1,8 +1,9 @@
 // CORE home: the first page after sign-in. A greeting, the modules this account can open
 // (with a few live figures), the roadmap, and administration shortcuts.
 import { api } from '../api.js';
-import { ctx, can, roleLabel } from '../state.js';
+import { ctx, can, roleLabel, mayUseModule, moduleOn, panelAccess } from '../state.js';
 import { MODULES } from '../modules.js';
+import { roleOverrides } from '/shared/roles.js';
 import { unseenCount } from './devlog.js';
 import { html, mount } from '../ui.js';
 import { icon } from '../icons.js';
@@ -12,9 +13,10 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-// A few live figures per module, only from data this user may see.
+// A few live figures per module, only from data this user may see (none from a module turned off).
 async function moduleStats() {
-  const get = (url) => api.get(url).catch(() => null);
+  const MOD = [[/^\/api\/(employees|requests)/, 'hr'], [/^\/api\/(assets|inventory|asset-reports|me\/assets)/, 'assets'], [/^\/api\/helpdesk/, 'helpdesk'], [/^\/api\/crm/, 'crm'], [/^\/api\/pm/, 'projects']];
+  const get = (url) => (mayUseModule(MOD.find(([re]) => re.test(url))?.[1]) ? api.get(url).catch(() => null) : null);
   const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm, pm] = await Promise.all([
     can('employees.view') ? get('/api/employees') : null,
     can('leave.manage') ? get('/api/requests/summary') : null,
@@ -59,13 +61,19 @@ async function moduleStats() {
 }
 
 export async function launcherView(el) {
+  // The CORE home always shows the modules and access as they are now (an administrator may have
+  // turned a module off or changed an account type since this page was loaded).
+  const was = JSON.stringify([ctx.modules, roleOverrides()]);
+  await ctx.refreshStatus().catch(() => {});
+  if (JSON.stringify([ctx.modules, roleOverrides()]) !== was) window.dispatchEvent(new Event('modules:changed'));
   const u = ctx.user;
   const [stats, devlogNew, feedbackNew] = await Promise.all([
     moduleStats(),
     can('devlog.view') ? unseenCount().catch(() => 0) : 0,
     can('feedback.view') ? api.get('/api/feedback/summary').then((r) => r.new).catch(() => 0) : 0,
   ]);
-  const live = MODULES.filter((m) => m.status === 'live');
+  // A module the company turned off is gone, except for administrators, who see it marked Off.
+  const live = MODULES.filter((m) => m.status === 'live' && mayUseModule(m.id));
   const soon = MODULES.filter((m) => m.status !== 'live');
   const open = live.filter((m) => ctx.moduleHome(m.id)).length;
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -73,13 +81,14 @@ export async function launcherView(el) {
   const card = (m) => {
     const home = ctx.moduleHome(m.id);
     const figures = stats[m.id] || [];
-    const top = html`<span class="sys-top"><span class="sys-ic">${icon(m.glyph, 26)}</span><span class="sys-code">${m.code}</span></span>`;
+    const off = !moduleOn(m.id);
+    const top = html`<span class="sys-top"><span class="sys-ic">${icon(m.glyph, 26)}</span>${off ? html`<span class="badge gray" title="Turned off for the company: only administrators see it">${icon('lock', 12)} Off</span>` : html`<span class="sys-code">${m.code}</span>`}</span>`;
     return home
       ? html`<a class="sys-card" href="#${home}" data-module="${m.id}">
           ${top}
           <strong class="sys-name" style="font-size:20px">${m.name}</strong>
           <p>${m.description}</p>
-          ${figures.length ? html`<ul class="sys-figs">${figures.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
+          ${off ? html`<ul class="sys-figs"><li>Off for the company. Only administrators see it; turn it on under Admin panel → Modules.</li></ul>` : figures.length ? html`<ul class="sys-figs">${figures.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
           <span class="sys-open">Open ${m.name} ${icon('chevronRight', 16)}</span>
         </a>`
       : html`<div class="sys-card locked" data-module="${m.id}" aria-disabled="true">
@@ -99,17 +108,20 @@ export async function launcherView(el) {
   // The ones this account can open come first, then locked ones, then the roadmap.
   const ordered = [...live.filter((m) => ctx.moduleHome(m.id)), ...live.filter((m) => !ctx.moduleHome(m.id))];
 
+  // Administration: the Admin panel first, then shortcuts to the pages used most.
   const admin = [
-    can('users.manage') && ['/users', 'shield', 'Users & Access', 'Accounts, roles and agents'],
-    can('settings.edit') && ['/settings', 'toggles', 'Settings & Backups', 'Company details and data'],
-    can('devlog.view') && ['/devlog', 'code', 'Dev log', 'What changed in each release', devlogNew],
-    can('feedback.view') && ['/feedback/inbox', 'message', 'Feedback inbox', 'What users are telling you', feedbackNew],
+    can('users.manage') && ['/admin/users', 'users', 'Users & Access', 'Accounts, sign-in and 2-step'],
+    can('settings.center') && ['/admin/config', 'search', 'Settings center', 'Every setting, its history and undo'],
+    can('devlog.view') && ['/admin/devlog', 'code', 'Dev log', 'What changed in each release', devlogNew],
+    can('feedback.view') && ['/admin/feedback', 'message', 'Feedback inbox', 'What users are telling you', feedbackNew],
   ].filter(Boolean);
+  const offCount = MODULES.filter((m) => m.status === 'live' && !moduleOn(m.id)).length;
 
   mount(el, html`
     <section class="hub-hero">
       <img class="hero-mark" src="/img/core-mark.svg" alt="" />
       <div class="hub-wrap">
+        ${ctx.brand?.logo ? html`<img class="hub-logo" src="${ctx.brand.logo}" alt="${ctx.settings.companyName}" />` : ''}
         <p class="hub-kicker">${today}</p>
         <h1>${greeting()}, ${u.name.split(' ')[0]}</h1>
         <p>Welcome to CORE, the ERP of ${ctx.settings.companyName}. Choose a module to continue.</p>
@@ -127,10 +139,15 @@ export async function launcherView(el) {
       <div class="sys-dots" id="sys-dots" hidden></div>
     </section>
 
-    ${admin.length
+    ${panelAccess()
       ? html`<section class="hub-wrap">
           <div class="card-head"><h2>${icon('settings')} Administration</h2><span class="muted small">Applies to every module</span></div>
-          <div class="admin-tiles">${admin.map(([href, ic, title, sub, count]) => html`<a class="admin-tile" href="#${href}"><span class="ic-box">${icon(ic, 20)}</span><span class="grow"><strong>${title}</strong><small>${sub}</small></span>${count ? html`<span class="count">${count} new</span>` : icon('chevronRight', 16)}</a>`)}</div>
+          <a class="admin-panel-card" href="#/admin/dashboard" data-module="admin">
+            <span class="ic-box">${icon('shield', 26)}</span>
+            <span class="grow"><strong>Admin panel</strong><small>Users and roles, modules, the Settings center, branding, sign-in security, records and backups${offCount ? ` · ${offCount} module${offCount === 1 ? '' : 's'} off` : ''}</small></span>
+            <span class="sys-open">Open ${icon('chevronRight', 16)}</span>
+          </a>
+          ${admin.length ? html`<div class="admin-tiles">${admin.map(([href, ic, title, sub, count]) => html`<a class="admin-tile" href="#${href}"><span class="ic-box">${icon(ic, 20)}</span><span class="grow"><strong>${title}</strong><small>${sub}</small></span>${count ? html`<span class="count">${count} new</span>` : icon('chevronRight', 16)}</a>`)}</div>` : ''}
         </section>`
       : ''}
 

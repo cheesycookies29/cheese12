@@ -2,7 +2,7 @@
 // opens and follows their own tickets, and the settings (receiving address, mailbox,
 // outgoing mail, categories, SLA targets, saved replies).
 import { api } from '../api.js';
-import { ctx, can } from '../state.js';
+import { ctx, can, mayUseModule } from '../state.js';
 import { TICKET_STATUS, TICKET_PRIORITY, TICKET_CHANNEL, UNRESOLVED_TICKET } from '/shared/helpdesk.js';
 import { html, mount, badge, toast, modal, confirmDialog } from '../ui.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
@@ -177,7 +177,7 @@ export async function ticketView(el, { id }) {
           <p class="tag-line mono">${t.ref} · ${TICKET_CHANNEL[t.channel]}</p>
           <h1>${t.subject}</h1>
           <p class="muted hd-sub">${statusBadge(t.status)} ${priorityBadge(t.priority)} <span>${t.requester.name}${t.requester.email ? ` <${t.requester.email}>` : ''} · opened ${when(t.createdAt)}</span></p></div>
-        <div class="actions"><button class="btn" id="to-project" title="This is project work: make it a task in a project">Add to a project</button>${can('crm.edit') ? html`<button class="btn" id="to-lead" title="This is a sales enquiry: make it a lead in Sales & CRM">Send to Sales & CRM</button>` : ''}${can('helpdesk.manage') ? html`<button class="btn danger ghost" id="delete">Delete</button>` : ''}</div>
+        <div class="actions">${mayUseModule('projects') ? html`<button class="btn" id="to-project" title="This is project work: make it a task in a project">Add to a project</button>` : ''}${can('crm.edit') && mayUseModule('crm') ? html`<button class="btn" id="to-lead" title="This is a sales enquiry: make it a lead in Sales & CRM">Send to Sales & CRM</button>` : ''}${can('helpdesk.manage') ? html`<button class="btn danger ghost" id="delete">Delete</button>` : ''}</div>
       </header>
       ${t.viewers.length ? html`<div class="notice"><p>${t.viewers.join(', ')} ${t.viewers.length === 1 ? 'is' : 'are'} also viewing this ticket.</p></div>` : ''}
       <div class="hd-layout">

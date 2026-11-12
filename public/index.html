@@ -10,8 +10,9 @@
   <link rel="apple-touch-icon" href="/img/icon-192.png" />
   <link rel="stylesheet" href="/css/styles.css" />
   <script>
-    // Dark or light, chosen per browser (the moon button), before the page paints.
+    // Dark or light, chosen per browser (the moon button), and the company's brand colours, before the page paints.
     try { var t = localStorage.getItem('core-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+    try { var b = JSON.parse(localStorage.getItem('core-brand') || 'null'), h = /^#[0-9a-f]{6}$/i; if (b && h.test(b.brand) && h.test(b.accent)) { document.documentElement.style.setProperty('--brand', b.brand); document.documentElement.style.setProperty('--accent', b.accent); } } catch (e) {}
   </script>
 </head>
 <body class="booting">

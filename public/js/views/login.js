@@ -3,26 +3,29 @@ import { ctx } from '../state.js';
 import { html, mount, modal, toast } from '../ui.js';
 import { twoFactorSetup } from './security.js';
 
-const MODULES = ['HR & Payroll', 'IT Assets', 'Service Desk', 'Sales & CRM'];
+const MODULES = ['HR & Payroll', 'IT Assets', 'Service Desk', 'Sales & CRM', 'Projects'];
 
-// The sign-in screens: CORE's own ground (deep maroon, the mark drawn large in gold line) beside
-// a cream panel that holds the form. On a phone the ground shrinks to a band above the form.
+// The sign-in screens: CORE's own ground (the brand colour, the mark drawn large in the accent's
+// line) beside a cream panel that holds the form. On a phone the ground shrinks to a band above the
+// form. The colour, the company's logo and the headline come from Admin panel → Settings & branding.
 function authScreen(el, card) {
+  const b = ctx.brand || {};
+  const company = b.companyName || 'Lancaster Technology and Development Corporation';
   mount(el, html`
     <div class="auth-screen">
       <section class="auth-stage">
         <img class="auth-stage-mark" src="/img/core-mark-line.svg" alt="" />
-        <div class="auth-wordmark"><img src="/img/core-mark.svg" alt="" /><span>CORE</span></div>
+        <div class="auth-wordmark"><img src="/img/core-mark.svg" alt="" /><span>CORE</span>${b.logo ? html`<img class="auth-logo" src="${b.logo}" alt="${company}" />` : ''}</div>
         <div class="auth-intro">
           <p class="auth-kicker">ERP by Lancaster</p>
-          <h1>Every part of the company, on one core.</h1>
-          <p>One sign-in for the people, equipment, service and sales work of Lancaster Technology and Development Corporation.</p>
+          <h1>${b.headline || 'Every part of the company, on one core.'}</h1>
+          <p>One sign-in for the people, equipment, service, sales and project work of ${company}.</p>
         </div>
         <ul class="auth-modules" aria-label="Modules">${MODULES.map((m) => html`<li>${m}</li>`)}</ul>
       </section>
       <section class="auth-panel">
         ${card}
-        <p class="auth-legal">© ${new Date().getFullYear()} Lancaster Technology and Development Corporation</p>
+        <p class="auth-legal">© ${new Date().getFullYear()} ${company}</p>
       </section>
     </div>`);
   const form = el.querySelector('.auth-card');

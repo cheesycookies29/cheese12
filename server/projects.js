@@ -1546,6 +1546,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const g = digestSettings();
       const day = localDate(at);
       const out = { day, sent: 0, empty: 0, failed: 0 };
+      if (db.data.modules?.projects === false) return { ...out, reason: 'module off' };
       if (!digestDue(g, day, localTime(at), cal())) return { ...out, reason: 'not due' };
       if (!mailer?.canEmail()) return { ...out, reason: 'no outgoing mail' };
       const due = d().users.filter((x) => x.active && x.pmDigest !== false && g.sent[x.id] !== day && emailOf(x));

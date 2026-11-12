@@ -71,11 +71,14 @@ test('every screenshot a guide shows exists and is in screenshots.json (and noth
 test('every screen in every sidebar is covered by a guide for that module', () => {
   const missing = [];
   const labels = navLabels();
-  assert.deepEqual(Object.keys(labels).sort(), [...MODULES].sort());
+  // 'system' is the Admin panel's sidebar; 'common' is shown at the end of every module's menu.
+  assert.deepEqual(Object.keys(labels).sort(), [...MODULES, 'common'].sort());
   for (const mod of MODULES) {
     const text = guides.filter((g) => g.meta.apps.includes(mod)).map((g) => g.body.toLowerCase()).join('\n');
     for (const label of labels[mod]) if (!text.includes(label.toLowerCase())) missing.push(`${mod}: "${label}"`);
   }
+  const everyone = guides.filter((g) => g.meta.apps.includes('home')).map((g) => g.body.toLowerCase()).join('\n');
+  for (const label of labels.common) if (!everyone.includes(label.toLowerCase())) missing.push(`every module: "${label}"`);
   assert.deepEqual(missing, [], `Screens with no guide: describe them in the guide for the people who use them (docs/guides).\n${missing.join('\n')}`);
 });
 

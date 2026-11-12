@@ -9,6 +9,15 @@ order: 2
 
 ## November 2026
 
+### The Admin panel (0.16)
+- Everything administrators look after is now in one place, the **Admin panel**: the **Admin panel** card on the CORE home, **Admin panel** at the end of every module's side menu, and in the modules menu. The **System** items in the module menus moved there; old links such as `#/settings` and `#/users` still work. See [the administrator's guide](admin) and [Getting started](getting-started#open-the-admin-panel-administrators).
+- A **Dashboard**: accounts, who is signed in, 2-step adoption, failed sign-ins and locks, the audit log check, modules, feedback waiting, data size and the last backup. See [the administrator's guide](admin#the-dashboard).
+- **Roles & permissions**: change what each account type may do, with the defaults marked and **Restore defaults**. Administrators always keep everything. See [the administrator's guide](admin#change-what-an-account-type-may-do).
+- **Access grants**: the service desk, Sales & CRM and Projects access of each person in one table. See [the administrator's guide](admin#give-someone-the-service-desk-sales-crm-or-projects).
+- **Modules**: turn a module off for the company; it disappears for everyone but administrators, and nothing is deleted. See [the administrator's guide](admin#turn-a-module-on-or-off).
+- The **Settings center**: every setting in one searchable list with its default, the change history with **Undo**, and export and import of the company's settings. See [the administrator's guide](admin#find-any-setting-and-compare-it-with-the-default).
+- **Branding**: the company's colour, logo and sign-in headline, on every page and the sign-in page. See [the administrator's guide](admin#change-the-brand-colour-logo-and-sign-in-headline).
+
 ### Projects: watchers, daily digest, bulk edit, files, milestones and billing forecast, CSV import (0.15)
 - **Watch** a task to hear of its comments and of it being done or cancelled; you watch tasks you add, are assigned or comment on. See [the projects guide](projects#watch-a-task).
 - A **daily digest** on My work, and by email once a working day when the company turns it on and outgoing email is set up: your overdue tasks, those due soon, milestones at risk in projects you manage, and unread For you. Turn the email off for yourself with **Email me a daily digest**. See [Getting started](getting-started#get-the-daily-digest-by-email) and [the projects guide](projects#set-up-the-daily-digest-project-managers).

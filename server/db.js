@@ -10,6 +10,7 @@ import { emptyHelpdesk } from './helpdesk.js';
 import { emptyCrm } from './crm.js';
 import { emptyPm } from './projects.js';
 import { initialHolidays } from './holidays.js';
+import { DEFAULT_BRANDING } from '../shared/brand.js';
 
 export function emptyData() {
   return {
@@ -55,6 +56,12 @@ export function emptyData() {
     pmNotifications: [], // "For you" on My work: one row per person and event
     pmViews: [], // saved filters of a project's Board or List
     pm: emptyPm(),
+    // Admin panel (server/config.js): the company's changes to the account types, which modules are
+    // on, the history of settings changes, and when a backup was last downloaded.
+    roleOverrides: {}, // { role: { add: [permission…], remove: [permission…] } }
+    modules: {}, // { hr: true, assets: false, … }: a module missing here is on
+    settingsLog: [], // who changed which setting, from what to what (Settings center → Change history)
+    adminState: { lastBackupAt: null, lastBackupBy: null },
   };
 }
 
@@ -91,11 +98,16 @@ export function openDb(file) {
     data.feedback ||= [];
     data.tickets ||= [];
     data.payrollLedger ||= [];
+    data.roleOverrides ||= {};
+    data.modules ||= {};
+    data.settingsLog ||= [];
+    data.adminState ||= { lastBackupAt: null, lastBackupBy: null };
   }
 
   const db = {
     // Folder holding the data file; uploaded files are kept under it.
     dir: path.dirname(file),
+    file,
     get data() {
       return data;
     },
@@ -126,6 +138,7 @@ export function mergeSettings(settings = {}) {
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(settings.schedule || {}) },
     contributions: { ...DEFAULT_SETTINGS.contributions, ...(settings.contributions || {}) },
     location: { ...DEFAULT_LOCATION_SETTINGS, ...(settings.location || {}) },
+    branding: { ...DEFAULT_BRANDING, ...(settings.branding || {}) },
     rates: {
       sss: { ...DEFAULT_RATES.sss, ...(settings.rates?.sss || {}) },
       philhealth: { ...DEFAULT_RATES.philhealth, ...(settings.rates?.philhealth || {}) },

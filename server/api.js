@@ -23,7 +23,10 @@ import { newSecret, verifyCode, otpauthUrl, newRecoveryCodes, hashRecovery, look
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
-import { ROLES, userCan } from '../shared/roles.js';
+import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides } from '../shared/roles.js';
+import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig } from '../shared/modules.js';
+import { registerAdminRoutes } from './config.js';
+import { validateBranding, publicBrand, settingsForBrowser } from './branding.js';
 import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
   sessionCookie, clearedCookie, SESSION_COOKIE,
@@ -362,7 +365,9 @@ function applyPolicyUpdates(db) {
 }
 
 // Replace all data, then unlink accounts whose employee record no longer exists.
-function replaceData(db, next) {
+// keepAdmin: keep the company's changes to the account types and which modules are on (erasing
+// all data keeps the accounts, so it keeps what they may do).
+function replaceData(db, next, { keepAdmin = false } = {}) {
   // The dev log and user feedback are about the software, not company data: keep them unless a backup
   // brings its own (demo data and "erase all data" start from an empty template and must not wipe them).
   db.replace({
@@ -379,7 +384,14 @@ function replaceData(db, next) {
     crm: keepCrmConfig(db.data.crm, next.crm),
     // So is the Projects setup (default statuses, project types); projects are company data.
     pm: keepPmConfig(db.data.pm, next.pm),
+    // Roles and modules come from a backup only as CORE writes them (never an admin-only power for
+    // another account type); the settings history and the last backup belong to this server.
+    roleOverrides: keepAdmin || next.roleOverrides === undefined ? db.data.roleOverrides : cleanOverrides(next.roleOverrides),
+    modules: keepAdmin || next.modules === undefined ? db.data.modules : cleanModuleConfig(next.modules),
+    settingsLog: db.data.settingsLog || [],
+    adminState: db.data.adminState,
   });
+  setRoleOverrides(db.data.roleOverrides);
   migrateCrm(db);
   migratePm(db);
   syncDevlog(db);
@@ -463,12 +475,14 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     },
   });
   const files = createAttachments(path.join(db.dir, 'attachments'));
+  // What each account type may do, with the company's changes (Admin panel → Roles & permissions).
+  setRoleOverrides(db.data.roleOverrides);
   const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migratePm(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
   const routes = [];
-  // Sign-in and security policy (Settings → Sign-in & security), read at each use so changes apply at once.
+  // Sign-in and security policy (Admin panel → Sign-in & security), read at each use so changes apply at once.
   const sec = () => securitySettings(db);
   const sessions = createSessions(() => ({ idleMs: sec().sessionIdleMinutes * 60000, maxMs: sec().sessionMaxHours * 3600000 }));
   const throttle = createThrottle();
@@ -544,7 +558,13 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   }
 
   // ----- Sign in -----
-  route('GET', '/api/auth/status', 'public', ({ user }) => ({ setupRequired: users().length === 0, user: user ? authUser(user) : null }));
+  // Before sign-in too: the branding (colours, headline, logo) for the sign-in page. Signed in: the
+  // account, the company's changes to the account types and which modules are on, so the browser
+  // shows what the server allows.
+  route('GET', '/api/auth/status', 'public', ({ user }) => ({
+    setupRequired: users().length === 0, user: user ? authUser(user) : null, brand: publicBrand(db.data.settings),
+    ...(user ? { roleOverrides: roleOverrides(), modules: cleanModuleConfig(db.data.modules) } : {}),
+  }));
   route('POST', '/api/auth/setup', 'public', ({ body, client }) => {
     if (users().length) throw new HttpError(400, 'Setup is already complete. Please sign in.');
     const user = { id: randomUUID(), ...validateUser({ ...body, role: 'admin', active: true }, db), mustChangePassword: false };
@@ -826,18 +846,24 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   registerAssetRoutes(route, db, { linkedEmployee });
 
   // ----- Settings -----
-  route('GET', '/api/settings', 'auth', () => db.data.settings);
-  // Company details and default schedule (Administrator).
+  route('GET', '/api/settings', 'auth', () => settingsForBrowser(db.data.settings));
+  // Company details, default schedule and branding (Admin panel → Settings & branding).
   route('PUT', '/api/settings', 'settings.edit', ({ body }) => {
     const s = db.data.settings;
-    const before = flatten(pick(s, ['companyName', 'companyAddress', 'companyTin', 'schedule']));
-    for (const k of ['companyName', 'companyAddress', 'companyTin']) if (k in body) s[k] = String(body[k] || '').trim();
-    if (!s.companyName) throw new HttpError(400, 'Company name is required.');
-    if (body.schedule) s.schedule = validateSchedule(body.schedule);
+    const brandOf = (x) => ({ ...x.branding, logo: x.branding?.logo ? `(a picture, ${Math.round((x.branding.logo.length * 3) / 4 / 1024)} KB)` : '' });
+    const keys = ['companyName', 'companyAddress', 'companyTin', 'schedule'];
+    const before = flatten({ ...pick(s, keys), branding: brandOf(s) });
+    // Everything is checked before anything is changed.
+    const next = {};
+    for (const k of ['companyName', 'companyAddress', 'companyTin']) if (k in body) next[k] = String(body[k] ?? '').trim().slice(0, k === 'companyAddress' ? 300 : 200);
+    if ('companyName' in next && !next.companyName) throw new HttpError(400, 'Company name is required.');
+    if (body.schedule) next.schedule = validateSchedule(body.schedule);
+    if (body.branding !== undefined) next.branding = validateBranding(body.branding, s.branding);
+    Object.assign(s, next);
     db.save();
-    const changes = diff(before, flatten(pick(s, ['companyName', 'companyAddress', 'companyTin', 'schedule'])));
-    if (changes.length) audit.record('settings.update', { entity: 'settings', label: 'Company details and default schedule', changes });
-    return s;
+    const changes = diff(before, flatten({ ...pick(s, keys), branding: brandOf(s) }));
+    if (changes.length) audit.record('settings.update', { entity: 'settings', label: 'Company details, default schedule and branding', changes });
+    return settingsForBrowser(s);
   });
 
   // Payroll Setup: pay rules, deductions, government rates and tax tables (HR, Payroll, Administrator).
@@ -850,7 +876,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     db.save();
     const changes = diff(before, flatten(pick(db.data.settings, keys)));
     if (changes.length) audit.record('payroll.config', { entity: 'settings', label: 'Payroll Setup', changes });
-    return db.data.settings;
+    return settingsForBrowser(db.data.settings);
   });
 
   // ----- Employees -----
@@ -1046,8 +1072,11 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   });
 
   // ----- Data management -----
-  route('GET', '/api/admin/export', 'data.manage', () => {
+  route('GET', '/api/admin/export', 'data.manage', ({ user }) => {
     audit.record('data.export', { label: 'Full backup', note: 'All company data, including pay, government IDs and bank accounts' });
+    // When the last backup was downloaded, and by whom (Admin panel → Dashboard).
+    db.data.adminState = { lastBackupAt: new Date().toISOString(), lastBackupBy: user.name };
+    db.save();
     return db.data;
   });
   // A restore replaces everything, the accounts included: the administrator's password is asked
@@ -1090,16 +1119,55 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const projects = registerProjectRoutes(route, db, { audit, files, mailer: helpdesk.mailer, ...(digestMail ? { sendMail: digestMail } : {}), ...(digestClock ? { clock: digestClock } : {}) });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });
+  // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
+  const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length });
   // ----- Audit log (Administrators) -----
   route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
   route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());
   // The build's details (Node version, commit, branch) are for Administrators; others see the version.
   route('GET', '/api/system/about', 'devlog.view', ({ user }) => (userCan(user, 'users.manage') ? { version: APP_VERSION, node: process.version, ...buildInfo() } : { version: APP_VERSION }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
-    replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });
+    replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) }, { keepAdmin: true });
     audit.record('data.reset', { label: 'All company data erased', note: 'The audit log is kept' });
     return { ok: true };
   });
+
+  // Whether `user` may use route `r` (null: signed out), or why not. A module the company turned
+  // off is refused for everyone but administrators, and on the public form too.
+  function authorize(r, user, method, pathname) {
+    if (r.permission !== 'public') {
+      if (!user) throw new HttpError(401, 'Please sign in.');
+      if (user.mustChangePassword && !r.duringPasswordChange) throw new HttpError(403, 'Please change your password first.');
+      if (!r.duringPasswordChange && twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt) throw new HttpError(403, 'Set up 2-step verification first.');
+    }
+    const mod = moduleOfApi(method, pathname);
+    if (mod && !moduleOn(db.data.modules, mod) && user?.role !== 'admin') throw new HttpError(403, `${moduleName(mod)} is turned off for the company. An administrator can turn it on in the Admin panel, under Modules.`);
+    if (r.permission !== 'public' && r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
+  }
+  const paramsOf = (r, m) => {
+    try {
+      return Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+    } catch {
+      throw new HttpError(404, 'Not found.');
+    }
+  };
+
+  // Runs one of CORE's own routes as `user`, inside the request being handled, with the same checks
+  // as a request from the browser (the Settings center saves through each screen's route this way).
+  // Only routes that answer at once are used.
+  function invoke(user, method, pathname, body = {}) {
+    for (const r of routes) {
+      if (r.method !== method) continue;
+      const m = pathname.match(r.re);
+      if (!m) continue;
+      authorize(r, user, method, pathname);
+      const a = currentActor();
+      const result = r.handler({ params: paramsOf(r, m), body: structuredClone(body ?? {}), query: {}, user, token: null, ip: a?.ip || '', client: a?.client || {}, origin: a?.origin });
+      if (result && typeof result.then === 'function') throw new Error(`${method} ${r.pattern} cannot be called from the Settings center.`);
+      return result;
+    }
+    throw new HttpError(404, 'Not found.');
+  }
 
   // Returns { data, headers }. handle.helpdesk exposes the mail poller (used by tests).
   async function handle(req, url, body) {
@@ -1112,24 +1180,19 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     else limits.hit('api-anon', ip);
     if (req.method === 'POST' && /^\/api\/auth\/(login|setup|2fa)$/.test(url.pathname)) limits.hit('auth', ip, 'Too many sign-in attempts from this network.');
     if (req.method !== 'GET' && url.pathname.startsWith('/api/public/')) limits.hit('public-write', ip, 'Too many messages from this network.');
+    // Several CORE servers can share one process (the tests): each request uses its own company's roles.
+    setRoleOverrides(db.data.roleOverrides);
     for (const r of routes) {
       if (r.method !== req.method) continue;
       const m = url.pathname.match(r.re);
       if (!m) continue;
-      if (r.permission !== 'public') {
-        if (!user) throw new HttpError(401, 'Please sign in.');
-        if (user.mustChangePassword && !r.duringPasswordChange) throw new HttpError(403, 'Please change your password first.');
-        if (!r.duringPasswordChange && twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt) throw new HttpError(403, 'Set up 2-step verification first.');
-        if (r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
-      }
-      let params;
-      try {
-        params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-      } catch {
-        throw new HttpError(404, 'Not found.');
-      }
-      const actor = { user, ip, before: audit.count() };
+      authorize(r, user, req.method, url.pathname);
+      const params = paramsOf(r, m);
+      const actor = { user, ip, client, origin: publicOrigin(req), before: audit.count() };
+      // A settings screen's save is recorded in the Settings center's history, before and after.
+      const recordSettings = admin.settingsWatch(req.method, url.pathname);
       const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, client, origin: publicOrigin(req) }));
+      recordSettings?.(user);
       // A change with no entry of its own is still recorded, with its route (never its body).
       if (req.method !== 'GET' && user && audit.count() === actor.before && !UNAUDITED.test(url.pathname)) {
         const data = result && result.headers && 'data' in result ? result.data : result;

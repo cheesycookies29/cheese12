@@ -335,7 +335,9 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
   }
 
   // Background work: poll the mailbox when due, and close old resolved tickets.
+  // Nothing runs while the Service Desk is turned off (Admin panel → Modules); its tickets stay.
   const timer = setInterval(() => {
+    if (db.data.modules?.helpdesk === false) return;
     const b = hd().mailbox;
     if (autoClose()) db.save();
     const last = hd().mailState.lastPollAt ? new Date(hd().mailState.lastPollAt).getTime() : 0;

@@ -54,7 +54,7 @@ export async function employeeListView(el, _params, query) {
       </div>
     </header>
     ${employees.length === 0
-      ? html`<div class="card empty"><h2>No employees yet</h2><p>Add your first employee, or load demo data from <a href="#/settings">Settings</a>.</p></div>`
+      ? html`<div class="card empty"><h2>No employees yet</h2><p>Add your first employee, or load demo data from <a href="#/admin/demo">Admin panel → Demo data</a>.</p></div>`
       : html`<div class="card">
           <div class="toolbar">
             <input type="search" id="q" placeholder="Search name, number, position…" value="${state.q}" />

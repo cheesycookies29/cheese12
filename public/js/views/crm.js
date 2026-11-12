@@ -3,7 +3,7 @@
 // status, the details, related records, and a timeline where people log calls, meetings,
 // emails, notes and tasks next to the automatic history.
 import { api } from '../api.js';
-import { ctx, can, roleLabel } from '../state.js';
+import { ctx, can, roleLabel, mayUseModule } from '../state.js';
 import { html, mount, badge, toast, modal, confirmDialog, money, fmtDate, today, downloadFile, toCsv } from '../ui.js';
 import { icon } from '../icons.js';
 import { startProject } from './projects.js';
@@ -677,7 +677,7 @@ export async function dealView(el, { id }) {
   const idx = stages.findIndex((s) => s.id === x.stage);
   mount(el, html`
     ${head(html`${x.title} ${stageBadge(x)}`, html`<span class="mono">${x.code}</span> · <a href="#/crm/accounts/${x.accountId}">${x.accountName}</a>${x.contactName ? html` · <a href="#/crm/contacts/${x.contactId}">${x.contactName}</a>` : ''}`, html`
-      ${x.stage === 'won' && can('pm.edit') ? html`<button class="btn primary" id="start-project">${icon('layers', 16)} Start project</button>` : ''}${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/pipeline', 'Pipeline'])}
+      ${x.stage === 'won' && can('pm.edit') && mayUseModule('projects') ? html`<button class="btn primary" id="start-project">${icon('layers', 16)} Start project</button>` : ''}${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/pipeline', 'Pipeline'])}
     <nav class="crm-path" aria-label="Stage">
       ${stages.map((s, i) => html`<button type="button" class="${x.stage === s.id ? 'cur' : (idx >= 0 && i < idx) || x.stage === 'won' ? 'past' : ''}" data-stage="${s.id}" ${x.stage === s.id ? 'aria-current="step"' : ''} ${canEdit() ? '' : 'disabled'}>${s.name}</button>`)}
       <span class="crm-path-break" aria-hidden="true"></span>
@@ -984,7 +984,7 @@ export async function contractView(el, { id }) {
   const pct = total ? Math.max(0, Math.min(100, Math.round((gone / total) * 100))) : null;
   mount(el, html`
     ${head(html`${c.title} ${contractBadge(c, m.setup.renewalNoticeDays)}`, html`<span class="mono">${c.number || c.code}</span> · <a href="#/crm/accounts/${c.accountId}">${c.accountName}</a>`, html`
-      ${['active', 'draft'].includes(c.status) && can('pm.edit') ? html`<button class="btn" id="start-project">${icon('layers', 16)} Start project</button>` : ''}${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canEdit() && c.status === 'active' ? html`<button class="btn primary" id="renew">Renew</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/contracts', 'Contracts'])}
+      ${['active', 'draft'].includes(c.status) && can('pm.edit') && mayUseModule('projects') ? html`<button class="btn" id="start-project">${icon('layers', 16)} Start project</button>` : ''}${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canEdit() && c.status === 'active' ? html`<button class="btn primary" id="renew">Renew</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/contracts', 'Contracts'])}
     <div class="stats">
       <div class="card"><small>Value</small><strong>${short(c.value)}</strong>${c.billing ? html`<span class="muted small">${c.billing}</span>` : ''}</div>
       <div class="card"><small>Term</small><strong>${c.endDate ? fmtDate(c.endDate) : 'Open-ended'}</strong><span class="muted small">from ${c.startDate ? fmtDate(c.startDate) : '—'}</span>${pct !== null ? html`<span class="progress"><i style="width:${pct}%"></i></span>` : ''}</div>

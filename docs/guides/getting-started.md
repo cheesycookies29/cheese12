@@ -36,7 +36,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The CORE sign-in page](getting-started-signin.jpg)
 
-2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. The cards sit in one row that slides sideways: swipe it on a phone, or use the arrows or dots beside **Your modules** (or the arrow keys once the row is selected). After the modules you may open come the locked ones, then the modules still in development, greyed out and marked *Coming soon*.
+2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. The cards sit in one row that slides sideways: swipe it on a phone, or use the arrows or dots beside **Your modules** (or the arrow keys once the row is selected). After the modules you may open come the locked ones, then the modules still in development, greyed out and marked *Coming soon*. A module your company has turned off is not shown at all.
 
 ![The CORE home, with a card per module](getting-started-home.jpg)
 
@@ -144,6 +144,18 @@ CORE works in the phone's browser; there is nothing to install. On a narrow scre
 
 > **Tip:** Clocking in from a phone records where you were, if you allow location. See [the employee guide](employee).
 
+### Open the Admin panel (administrators)
+
+Administrators, and anyone your company gave an administration permission (for example the audit log), have an **Administration** section on the CORE home. It starts with the **Admin panel** card; under it are shortcuts such as **Users & Access**, **Settings center**, **Dev log** and **Feedback inbox**.
+
+1. On the CORE home, choose the **Admin panel** card. Or, inside any module, choose **Admin panel** at the bottom of the side menu, or in the **modules** menu.
+2. The Admin panel has its own side menu: the **Dashboard**, people and roles, the modules and settings, the records (audit log, dev log, feedback) and the data (backups, demo data). You see only the pages your account may open.
+3. To go back, choose **CORE home** at the bottom of its side menu, or the CORE logo.
+
+![The Administration section of the CORE home, with the Admin panel card](getting-started-admin-panel.jpg)
+
+Everything in the Admin panel is described in [the administrator's guide](admin).
+
 ### Get help
 
 1. Choose **Help** (the question mark) in the top bar. The **Help & guides** page opens in a new tab, on the guide for your job in the module you were in.
@@ -171,7 +183,8 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | Screen | What it is for |
 |---|---|
 | Sign-in page | Your username and password; the 2-step code; choosing your own password the first time |
-| CORE home | Your modules in a sliding row (the ones you may open, with live figures, then the ones coming soon), and shortcuts for administrators |
+| CORE home | Your modules in a sliding row (the ones you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
+| Admin panel | For administrators: users, roles, modules, settings, records and backups (see [the administrator's guide](admin)) |
 | Modules menu (grid button) | Switching modules from anywhere |
 | Help & guides (question mark) | The guide for your job, search, and what's new |
 | Your name (top right) | Send feedback, My security, Change password, Sign out |
@@ -183,19 +196,19 @@ The screens of each module are described in its guide: [the employee guide](empl
 ## Questions
 
 **I forgot my password. What do I do?**
-Ask an administrator. They set a temporary password in **Users & Access**, and CORE asks you to choose your own when you sign in.
+Ask an administrator. They set a temporary password in **Admin panel → Users & Access**, and CORE asks you to choose your own when you sign in.
 
 **I lost my phone and my recovery codes. How do I sign in?**
-Ask an administrator to reset your 2-step verification in **Users & Access**. You then sign in with your password and, if your company requires it, set it up again on your new phone.
+Ask an administrator to reset your 2-step verification in **Admin panel → Users & Access**. You then sign in with your password and, if your company requires it, set it up again on your new phone.
 
 **CORE says the code is not right, but I typed what the app shows.**
 The codes depend on the time. Check that the time on your phone is set automatically, and type the code before it changes. Each code works once.
 
 **A module is locked on the CORE home. Why?**
-Your account type does not include it. If your work needs it, ask an administrator. They can change your account type or, for the service desk, the CRM and Projects, give you access to that module only. Project Management also opens for anyone a project manager adds to a project.
+Your account type does not include it. If your work needs it, ask an administrator. They can change your account type, change what your account type may do, or, for the service desk, the CRM and Projects, give you access to that module only. A module your company turned off is not shown. Project Management also opens for anyone a project manager adds to a project.
 
 **Why don't I see My Home or My Payslips?**
-Your sign-in account is not linked to your employee record. An administrator links it in **Users & Access**.
+Your sign-in account is not linked to your employee record. An administrator links it in **Admin panel → Users & Access**.
 
 **Is my data private?**
 Each account sees only what its job needs. Pay, government ID numbers and bank details are shown only to HR, payroll and administrators, and the numbers are masked until someone chooses to show them. Who viewed or changed personal data is recorded in an audit log, as the Data Privacy Act (RA 10173) expects.

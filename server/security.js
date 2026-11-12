@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { HttpError } from './util.js';
 
-// Settings → Sign-in & security. Ranges keep a mistyped value from locking everyone out.
+// Admin panel → Sign-in & security. Ranges keep a mistyped value from locking everyone out.
 export const SECURITY_DEFAULTS = {
   requestsPerMinute: 300, // per signed-in person
   signInFailuresPerAddress: 20, // failed sign-ins from one network address in 15 minutes
