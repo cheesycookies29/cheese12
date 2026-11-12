@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Running ATLAS: the Admin panel
-summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, and System (Users & Access, roles and permissions, sign-in rules, single sign-on and the Audit log), demo data, backups and the guides.
+summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, and System (Users & Access, roles and permissions, sign-in rules, single sign-on, Cloudflare and the Audit log), demo data, backups and the guides.
 roles: admin
 apps: admin, home
 order: 80
@@ -11,7 +11,7 @@ order: 80
 
 The **Admin panel** is the school side of ATLAS Learn. Administrators and registrars use it; deans work in ATLAS Academic instead. An **Administrator** can do everything in it. A **Registrar** uses most of the same pages: they can change enrollment, students, applicants, parents & guardians, the catalog and news, see teachers, and see the **Configuration** pages read-only. **Settings center** and **Demo data & backup** are for administrators only (an administrator can give registrars more under **Roles & permissions**). Day-to-day enrollment (approving requests, waitlists, adding and dropping students) is explained in [the registrar's guide](registrar).
 
-**System**, at the bottom of the sidebar, is for administrators only, as in CORE: **Users & Access** (every account in every system, and what each account type can do) and the **Audit log** (sign-ins, failed sign-ins and every change). It is in the sidebar of whichever system you have open: the Admin panel, People, Academic and Finance. In the Admin panel it also has **Roles & permissions**, **Sign-in and passwords** and **Single sign-on**. Nobody else sees System, whatever their permissions.
+**System**, at the bottom of the sidebar, is for administrators only, as in CORE: **Users & Access** (every account in every system, and what each account type can do) and the **Audit log** (sign-ins, failed sign-ins and every change). It is in the sidebar of whichever system you have open: the Admin panel, People, Academic and Finance. In the Admin panel it also has **Roles & permissions**, **Sign-in and passwords**, **Single sign-on** and **Cloudflare** (putting ATLAS behind Cloudflare at a name on the school's own domain). Nobody else sees System, whatever their permissions.
 
 To open it:
 
@@ -299,6 +299,46 @@ Leave **Keep ATLAS passwords too** ticked while people get used to it. When you 
 
 ![Single sign-on settings](admin-sso.jpg)
 
+### Put ATLAS behind Cloudflare
+
+Cloudflare stands in front of the server: it keeps attacks and floods of traffic away from it and makes ATLAS faster to load. People then reach ATLAS at a name on the school's own domain, such as `atlas.school.edu.ph`; the DuckDNS address keeps working. A duckdns.org address itself cannot go on Cloudflare.
+
+You need three things:
+
+- The school's domain on Cloudflare, shown there as **Active**. Adding a domain to Cloudflare means changing its nameservers where the domain is registered; Cloudflare shows which.
+- A Cloudflare API token for that domain (the steps are below, and on the page).
+- The server's Cloudflare helper, installed once: whoever looks after the server runs `sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh` from a console (see the server guide, `deploy/aws/EC2.md`). Until then the page says *The server's Cloudflare helper is not installed.* You can still do the Cloudflare side first; the server switches over once the helper is there.
+
+To make the API token:
+
+1. Sign in to Cloudflare and open **My Profile → API Tokens**.
+2. Choose **Create Token**, then **Create Custom Token**.
+3. Under **Permissions**, add three: **Zone · Zone · Read**, **Zone · DNS · Edit** and **Zone · Zone Settings · Edit**.
+4. Under **Zone Resources**, choose **Include · Specific zone** and the school's domain.
+5. Choose **Continue to summary**, then **Create Token**, and copy the token.
+
+To set it up:
+
+1. Under **System**, choose **Cloudflare**.
+2. In **Set up for me**, type the **New address for ATLAS**, for example `atlas.school.edu.ph`.
+3. Check **This server's address**: on AWS it is filled in for you. It must be the server's public IPv4 address.
+4. Paste the token in **Cloudflare API token** and choose **Set up in Cloudflare**. ATLAS adds the address to the domain in Cloudflare, pointing at this server through Cloudflare, sets **SSL/TLS** to **Full (strict)** and the oldest TLS version allowed to 1.2, and says what it did.
+5. The page shows *Waiting for the server to switch over* while the server gets an HTTPS certificate for the new name, usually a minute; it checks every few seconds. Then it shows **Active**, with **HTTPS certificate** and **Through Cloudflare** ticked. If it shows **Failed**, it says why: fix that and choose **Set up again**.
+
+ATLAS uses the token for this one request and does not keep it; you can delete it in Cloudflare afterwards. If the name already has another record in Cloudflare (a CNAME, for example), or the token lacks a permission, ATLAS changes nothing and says what to fix. **Set up again** is safe to repeat: it only changes what is not right yet. For the first minute, the new address may show Cloudflare's *Error 526* until the server has its certificate.
+
+> **Important:** The SSL/TLS setting is for the whole domain in Cloudflare. If the school has other websites on the same domain that go through Cloudflare, they now need a valid HTTPS certificate too. ATLAS warns you when it changed this setting.
+
+> **Note:** ATLAS does not turn on Cloudflare's **Always Use HTTPS**: ATLAS sends visitors to HTTPS itself. If it is on, the page warns you, because it may block the server's certificate renewals; you can turn it off in Cloudflare under **SSL/TLS → Edge Certificates**.
+
+**Only accept visitors through Cloudflare.** Once Cloudflare is **Active**, tick this under **Who may reach the server**. The server's firewall then accepts web visitors from Cloudflare only, so nobody can go around Cloudflare to the server's own address (the DuckDNS address then no longer opens ATLAS in a browser either). The server turns it on only after it has checked that ATLAS answers through Cloudflare. Untick it to accept visitors from anywhere again.
+
+**Switch Cloudflare off.** Choose **Switch Cloudflare off** and confirm. The server goes back to its DuckDNS address only. ATLAS does not change Cloudflare: the DNS record it made stays there, and you can delete it in Cloudflare under the domain's **DNS** page.
+
+> **Important:** If single sign-on is set up, Keycloak sends people back only to the address it knows. After the switch, open ATLAS at the new address and choose **System → Single sign-on → Set up again**, so Keycloak learns the new address.
+
+![System → Cloudflare](admin-cloudflare.jpg)
+
 ### Add or remove the demo school
 
 1. Choose **Demo data & backup**.
@@ -355,6 +395,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | System | Roles & permissions | What each account type may do in each system |
 | System | Sign-in and passwords | Password rules, lock-out, idle sign-out and rate limits, for every system |
 | System | Single sign-on | Signing in with the school's Keycloak account |
+| System | Cloudflare | Putting ATLAS behind Cloudflare at a name on the school's own domain; only accepting visitors through Cloudflare; switching it off |
 | System | Audit log | Sign-ins, failed sign-ins, every change (field by field) and refused requests, with a check that the log is intact; export |
 | Elsewhere | ATLAS home | The ATLAS home page, in a new tab |
 
@@ -372,7 +413,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 
 **Why can't I delete an account?** Students, teachers and parents are disabled, not deleted, so their records stay. Under **System → Users & Access**, an account with no records can be deleted; you cannot delete your own account or the last active administrator. Disabling works the same way: you cannot disable yourself or the last active administrator.
 
-**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses and systems are for administrators. Registrars see them read-only, with *Only administrators can change these.* (**System**, with **Users & Access**, **Roles & permissions** and **Single sign-on**, is for administrators only.) To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
+**Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses and systems are for administrators. Registrars see them read-only, with *Only administrators can change these.* (**System**, with **Users & Access**, **Roles & permissions**, **Single sign-on** and **Cloudflare**, is for administrators only.) To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
 
 **Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity (change it under **System → Sign-in and passwords**). To sign one person out, use **Sign out** on their row in **Users & Access**.
 
@@ -381,5 +422,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 **I gave an account type a permission, but its people do not see the new screen.** Permissions apply at their next page load; ask them to reload, or sign out and in again.
 
 **I am locked out of the only administrator account.** On the server, stop ATLAS and run `npm run reset-password -- <username> <new-password>`, then start it again.
+
+**The new address shows Cloudflare's Error 526.** Cloudflare cannot find a valid certificate on the server yet. Right after **Set up in Cloudflare** this lasts about a minute, while the server gets one. If it stays, open **System → Cloudflare**: the server's answer says what went wrong (often the helper is not installed yet, or the address does not point at this server).
 
 **Does a backup include uploaded files?** No. **Download backup** holds the records only. To keep class resources and handed-in work too, copy the server's whole `data` folder.

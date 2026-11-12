@@ -52,6 +52,7 @@ import { registerGuardianRoutes, guardianChildren } from './guardian.js';
 import { HRIS_PERMISSION_LABELS } from '../shared/roles.js';
 import { registerAcademicRoutes, ACADEMIC_ROLES } from './academic.js';
 import { registerSsoRoutes } from './sso.js';
+import { registerCloudflareRoutes } from './cloudflare.js';
 import { registerFinanceRoutes } from './finance.js';
 import { registerConfigRoutes } from './config.js';
 import { registerCalendarRoutes } from './calendar.js';
@@ -73,7 +74,9 @@ const fail = (msg, status = 400) => {
 // options.setupCode (or the SETUP_CODE environment variable): when set, creating the first
 // administrator also needs this code, so nobody else can claim a new server on the internet.
 // options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true } = {}) {
+// options.cloudflareFetch / options.cloudflareHelper: fetch for Cloudflare's API and the AWS instance
+// metadata, and where the server's Cloudflare helper is installed, for tests (default: fetch, /usr/local/sbin/ltdc-lms-cloudflare).
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, cloudflareFetch, cloudflareHelper, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -490,6 +493,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const finance = registerFinanceRoutes(route, ctx);
   registerConfigRoutes(route, ctx);
   const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
+  registerCloudflareRoutes(route, ctx, { ...(cloudflareFetch ? { fetchImpl: cloudflareFetch } : {}), ...(cloudflareHelper ? { helperPath: cloudflareHelper } : {}) });
 
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
   registerGuideRoutes(route, { db, version: APP_VERSION });

@@ -53,6 +53,7 @@ const P = {
   inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>',
   userPlus: '<circle cx="9" cy="8" r="4"/><path d="M2 21c.6-4 3-6 7-6s6 1.5 7 4M19 8v6M16 11h6"/>',
   database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  cloud: '<path d="M7 19h10.5a4.5 4.5 0 00.6-8.96A6.5 6.5 0 005.6 9.6 4.75 4.75 0 007 19z"/>',
   shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
   external: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/>',
   download: '<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',

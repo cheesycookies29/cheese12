@@ -132,6 +132,12 @@
   "wait": 1000
  },
  {
+  "file": "admin-cloudflare.jpg",
+  "user": "admin",
+  "url": "/admin#/cloudflare",
+  "wait": 2200
+ },
+ {
   "file": "system-users.jpg",
   "user": "admin",
   "url": "/admin#/system/users",

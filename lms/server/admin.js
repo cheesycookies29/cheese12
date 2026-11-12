@@ -585,7 +585,9 @@ export function registerAdminRoutes(route, ctx) {
   // ----- Settings -----
   route('GET', '/api/admin/settings', 'admin', ({ user }) => {
     const s = data().settings;
-    const out = userCan(user, 'settings.edit') ? { ...s } : { ...s, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
+    const { cloudflare, ...rest } = s; // System → Cloudflare is for administrators only (its own screen)
+    const mine = user.role === 'admin' ? s : rest;
+    const out = userCan(user, 'settings.edit') ? { ...mine } : { ...mine, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
     return { ...out, passwordEncryption: passwordEncryption(), numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
   });
   // The next number a format would give (Settings → Numbering, as the administrator types).
