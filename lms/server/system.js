@@ -395,7 +395,8 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   sys('GET', '/api/system/audit', (a) => {
     const { query } = a;
     const f = { q: query.q, source: query.source, kind: query.kind, system: query.system, outcome: query.outcome, userId: query.userId, from: query.from, to: query.to };
-    const list = filterTrail(everything(), f);
+    const all = everything();
+    const list = filterTrail(all, f);
     if (query.format === 'csv') {
       log(a, { kind: 'data', action: 'Downloaded the audit trail', detail: `${list.length} entr${list.length === 1 ? 'y' : 'ies'}${Object.entries(f).filter(([, v]) => v).map(([k, v]) => `; ${k}: ${v}`).join('')}`.slice(0, 400) });
       return { raw: trailCsv(list), type: 'text/csv', headers: { 'Content-Disposition': `attachment; filename="atlas-audit-trail-${new Date().toISOString().slice(0, 10)}.csv"` } };
@@ -404,11 +405,15 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
     const pages = Math.max(1, Math.ceil(list.length / size));
     const page = Math.min(pages, Math.max(1, Number(query.page) || 1));
     const who = query.userId ? data().users.find((u) => u.id === query.userId) : null;
+    // The sealed chain (source 'trail') is tamper-evident; the Settings, Finance and Academic rows
+    // come from the data file and are restored with a backup, so they are not part of the seal. Tell
+    // the page how many of everything there is sit outside the chain, so the "Intact" notice is honest.
+    const unsealed = all.filter((e) => e.source !== 'trail').length;
     return {
       total: list.length, page, pages, entries: list.slice((page - 1) * size, page * size),
       user: who ? { id: who.id, name: who.name } : null,
       labels: { systems: SYSTEM_LABELS, kinds: KIND_LABELS, sources: SOURCE_LABELS },
-      kept: { trail: trail().length, oldest: trail()[0]?.at || null, file: Boolean(ctx.auditLog.file) },
+      kept: { trail: trail().length, oldest: trail()[0]?.at || null, file: Boolean(ctx.auditLog.file), sealed: trail().length, unsealed },
       check: ctx.auditLog.verify(),
     };
   });

@@ -17,6 +17,7 @@ import { ROLES, roleLabel } from '../shared/roles.js';
 
 export const AUDIT_FILE = 'audit-log.jsonl';
 const hashOf = (prev, entry) => createHash('sha256').update(`${prev}\n${JSON.stringify(entry)}`).digest('hex');
+const sameStat = (a, b) => Boolean(a && b && a.size === b.size && a.mtimeMs === b.mtimeMs);
 
 export const SYSTEM_LABELS = { home: 'ATLAS home', learn: 'Learn', admin: 'Admin panel', academic: 'Academic', people: 'People', finance: 'Finance', control: 'Users & Access', system: 'Users & Access', help: 'Help' };
 export const KIND_LABELS = { signin: 'Sign-in', signout: 'Sign-out', password: 'Password', account: 'Account', access: 'Access', session: 'Session', settings: 'Settings', change: 'Change', refused: 'Refused', data: 'Data' };
@@ -67,12 +68,23 @@ export function createAudit(db) {
     }
   }
   let last = entries.length ? { seq: entries.at(-1).seq || entries.length, hash: entries.at(-1).hash || '' } : { seq: 0, hash: '' };
+  // verify() re-reads the whole file to detect an edit made outside ATLAS. The audit page loads it
+  // on every visit, so the result is cached and only recomputed when the file has actually changed on
+  // disk since the last check (its size or modified time differs from what we recorded). Our own
+  // appends update the record, so a run of page loads with no outside edit each cost only a stat().
+  const statOf = () => { try { const s = fs.statSync(file); return { size: s.size, mtimeMs: s.mtimeMs }; } catch { return null; } };
+  let cache = null; // the last verify() result
+  let cacheStat = null; // the file's size + mtime when `cache` was computed
   const append = (fields) => {
     const entry = { seq: last.seq + 1, ...fields, prev: last.hash };
     entry.hash = hashOf(last.hash, entry);
+    const goodBefore = file && cache?.ok && cacheStat && sameStat(cacheStat, statOf());
     if (file) fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, { mode: 0o640 });
     entries.push(entry);
     last = { seq: entry.seq, hash: entry.hash };
+    // If the chain was intact and untouched from outside right up to this append, extend the cached
+    // result instead of forcing the next verify() to re-read the whole file; otherwise clear it.
+    if (file) { if (goodBefore) { cache = { ok: true, count: entry.seq }; cacheStat = statOf(); } else { cache = null; cacheStat = null; } }
     return entry;
   };
   // A trail kept inside the data file by an earlier ATLAS moves into the file, once; its demo
@@ -117,27 +129,36 @@ export function createAudit(db) {
     entries: () => entries,
     count: () => last.seq,
     // Re-computes the chain from the file: ok when no entry was changed, removed or reordered.
+    // The result is cached and only recomputed when the file changed on disk since the last call.
     verify() {
-      let lines;
-      if (file) lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter((l) => l.trim()) : [];
-      else lines = entries.map((x) => JSON.stringify(x));
-      let prev = '';
-      let seq = 0;
-      for (const line of lines) {
-        let e;
-        try {
-          e = JSON.parse(line);
-        } catch {
-          return { ok: false, count: seq, brokenAt: seq + 1, at: null };
-        }
-        const { hash, ...rest } = e;
-        if (e.prev !== prev || e.seq !== seq + 1 || hashOf(prev, rest) !== hash) return { ok: false, count: seq, brokenAt: e.seq ?? seq + 1, at: e.at || null };
-        prev = hash;
-        seq = e.seq;
+      if (file) {
+        const now = statOf();
+        if (cache && cacheStat && sameStat(cacheStat, now)) return cache;
+        const r = verifyLines(fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter((l) => l.trim()) : []);
+        cache = r;
+        cacheStat = statOf();
+        return r;
       }
-      return { ok: true, count: seq };
+      return verifyLines(entries.map((x) => JSON.stringify(x)));
     },
   };
+  function verifyLines(lines) {
+    let prev = '';
+    let seq = 0;
+    for (const line of lines) {
+      let e;
+      try {
+        e = JSON.parse(line);
+      } catch {
+        return { ok: false, count: seq, brokenAt: seq + 1, at: null };
+      }
+      const { hash, ...rest } = e;
+      if (e.prev !== prev || e.seq !== seq + 1 || hashOf(prev, rest) !== hash) return { ok: false, count: seq, brokenAt: e.seq ?? seq + 1, at: e.at || null };
+      prev = hash;
+      seq = e.seq;
+    }
+    return { ok: true, count: seq };
+  }
 }
 
 // ----- The combined trail, for Control → Audit trail -----

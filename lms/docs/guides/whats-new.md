@@ -9,6 +9,11 @@ order: 2
 
 ## November 2026
 
+### Safer and faster under load
+- **The Audit log check is clearer about what it seals.** The notice now reads **Sign-in and access log intact** and says how many of the entries below (Settings, Finance and Academic) come from the data file and are restored with a backup, rather than implying every row is sealed. See [the administrator's guide](admin#read-and-export-the-audit-log).
+- **The Audit log opens quickly however large it grows:** the integrity check no longer re-reads the whole file on every visit.
+- **A visitor who is not signed in can no longer send a large request** to slow the server; uploads still work once you are signed in.
+
 ### Users & Access and the Audit log, as in CORE
 - **ATLAS Control is gone.** Its pages are now in a **System** group at the bottom of the sidebar, as in CORE, for administrators only, in whichever system is open: the Admin panel, People, Academic and Finance. See [the administrator's guide](admin#find-an-account-change-it-reset-its-password-or-disable-it).
 - **Users & Access** is one page, as in CORE: every account with its type, linked employee, status and last sign-in, and **Edit**, **Access**, **Reset password**, **Unlock**, **Sign out**, **Audit log** and **Delete** on each row; **+ Add user** for staff accounts of any type; and **Account types**, what each type can do in each system. It replaces **Admins, registrars & deans**.

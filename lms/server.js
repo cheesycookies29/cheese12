@@ -57,11 +57,11 @@ function send(res, status, body, type = 'application/json', headers = {}) {
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
-// The JSON body, at most 20 MB (uploads come as base64 in JSON). Bytes are joined before decoding,
-// so a letter split across two network packets is not broken; past the limit the upload is
-// stopped instead of being read to the end.
-const MAX_BODY = 20 * 1024 * 1024;
-function readBody(req) {
+// The JSON body: at most 20 MB for someone signed in (uploads come as base64 in JSON), 256 KB for
+// anyone else (api.prepare decides, before a byte is read). Bytes are joined before decoding, so a
+// letter split across two network packets is not broken; past the limit the upload is stopped
+// instead of being read to the end.
+function readBody(req, MAX_BODY) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
@@ -170,7 +170,10 @@ const server = http.createServer(async (req, res) => {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
   try {
-    const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req) : {};
+    // Rate limits and the body's size limit come first: a flood or an oversized body from someone
+    // who is not signed in is refused before the server spends any time reading it.
+    const { maxBody } = api.prepare(req);
+    const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req, maxBody) : {};
     const out = await api(req, url, body);
     if (out.raw != null) return send(res, out.status || 200, out.raw, out.type, out.headers);
     send(res, 200, out.data, 'application/json', out.headers);

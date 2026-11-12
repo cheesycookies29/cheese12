@@ -59,6 +59,12 @@ import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
 
+// The largest request body: 20 MB for someone signed in (files travel as base64 in JSON), and
+// 256 KB for anyone else; signing in, applying and first-run setup need only a few hundred bytes.
+// Reading and decoding a large body holds up the whole server, so a stranger may not send one.
+export const MAX_BODY_SIGNED_IN = 20 * 1024 * 1024;
+export const MAX_BODY_SIGNED_OUT = 256 * 1024;
+
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
 };
@@ -513,10 +519,15 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Request handling -----
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
 
+  // Requests whose rate-limit tally was already taken by prepare() (the web server calls it before
+  // reading the body); handle() then does not count them again. A WeakSet so finished requests drop out.
+  const counted = new WeakSet();
   handle.sealPasswords = sealPasswords;
   handle.audit = audit;
+  handle.prepare = prepare;
   return handle;
-  async function handle(req, url, body) {
+  // Who sent a request, from its session cookies (no body needed).
+  function whoIs(req) {
     const cookies = parseCookies(req.headers.cookie);
     const resolve = (side, token) => {
       const s = sides[side].get(token);
@@ -529,12 +540,28 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const portalUser = resolve('portal', portalToken);
     const adminUser = resolve('admin', adminToken);
     const hrisUser = resolve('hris', hrisToken);
+    return { cookies, portalToken, adminToken, hrisToken, portalUser, adminUser, hrisUser, signedIn: portalUser || adminUser || hrisUser };
+  }
+  // Called by the web server before it reads a request's body: the request is counted against the
+  // rate limits first (a flood is refused before any work is done), and the body may be large
+  // (uploads) only for someone signed in. Signing in, applying and first-run setup are small.
+  function prepare(req) {
+    const { signedIn } = whoIs(req);
+    if (signedIn) limits.hit('user', signedIn.id);
+    else limits.hit('address', clientIp(req));
+    counted.add(req);
+    return { maxBody: signedIn ? MAX_BODY_SIGNED_IN : MAX_BODY_SIGNED_OUT };
+  }
+
+  async function handle(req, url, body) {
+    const { cookies, portalToken, adminToken, hrisToken, portalUser, adminUser, hrisUser, signedIn } = whoIs(req);
     const tokens = { portal: portalToken, admin: adminToken, hris: hrisToken };
     const ip = clientIp(req);
     const agent = String(req.headers['user-agent'] || '').slice(0, 160);
-    const signedIn = portalUser || adminUser || hrisUser;
-    if (signedIn) limits.hit('user', signedIn.id);
-    else limits.hit('address', ip);
+    if (!counted.has(req)) {
+      if (signedIn) limits.hit('user', signedIn.id);
+      else limits.hit('address', ip);
+    }
     // This app's own address as the browser sees it (behind Caddy: X-Forwarded-*), for the Keycloak redirects.
     const origin = process.env.PUBLIC_URL?.replace(/\/$/, '') || `${String(req.headers['x-forwarded-proto'] || (req.socket?.encrypted ? 'https' : 'http')).split(',')[0]}://${req.headers['x-forwarded-host'] || req.headers.host || 'localhost'}`;
 

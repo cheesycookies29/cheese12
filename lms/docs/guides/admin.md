@@ -111,7 +111,7 @@ The row then shows **+ own access** under the account type. Changing a person's 
 ### Read and export the Audit log
 
 1. Under **System**, choose **Audit log**. It opens on the last 30 days, newest first: sign-ins and failed sign-ins (with the network address), sign-outs and password changes, every change by staff in every system, requests that were refused, and the Settings, Finance and Academic logs.
-2. The notice at the top checks the log: **Intact.** means no entry was changed, removed or reordered. If it says **The log was altered.**, the file was edited outside ATLAS: keep a copy and investigate.
+2. The notice at the top checks the log: **Sign-in and access log intact.** means no sealed entry was changed, removed or reordered. The sealed log covers sign-ins, failed sign-ins and the changes staff make across ATLAS; the Settings, Finance and Academic entries shown below it come from the data file and are restored with a backup, so they sit outside the seal and the notice says how many they are. If it says **The log was altered.**, the sealed file was edited outside ATLAS: keep a copy and investigate.
 3. Narrow it with **From** and **To**, the area (**Sign-in**, **Account**, **Change**, **Refused**…), the system, the outcome, or the search box (a name, a record, a changed field or a network address). A change to an account, its access or a setting lists each field with its value before and after.
 4. Choose **Export CSV** for every entry that matches. The export itself is written in the log.
 

@@ -208,6 +208,12 @@ test('the server answers malformed requests with 400 and keeps running; security
     assert.equal((await post('{"username":"a"}', 'text/plain')).status, 415);
     const big = await post(`{"a":"${'x'.repeat(21 * 1024 * 1024)}"}`).catch(() => ({ status: 413 }));
     assert.equal(big.status, 413);
+    // A request from someone not signed in may not carry a multi-MB body: it is refused on its
+    // Content-Length, before the server reads or parses it (so a flood cannot stall the server).
+    const midBody = `{"a":"${'x'.repeat(2 * 1024 * 1024)}"}`;
+    const mid = await post(midBody).catch(() => ({ status: 413 }));
+    assert.equal(mid.status, 413, 'a 2 MB body from a signed-out client is refused');
+    assert.ok((await fetch(`${base}/healthz`)).ok, 'still running after the oversized body');
     // Letters split across network packets arrive whole.
     const r = await fetch(`${base}/api/hub/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'ñ'.repeat(70000), password: 'x' }) });
     assert.equal(r.status, 401);
