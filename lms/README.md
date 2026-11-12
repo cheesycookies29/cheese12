@@ -218,6 +218,12 @@ By hand:
 
 If ATLAS shows the wrong address for the redirect URIs (e.g. behind an unusual proxy), set `PUBLIC_URL=https://your-domain` on the server.
 
+## Cloudflare
+
+**Admin panel → System → Cloudflare → Set up for me** puts ATLAS behind Cloudflare at a name on the school's own domain (a DuckDNS address cannot go on Cloudflare). The administrator gives the new name, the server's public address (filled in from AWS) and a Cloudflare API token with *Zone · Zone · Read*, *Zone · DNS · Edit* and *Zone · Zone Settings · Edit*; the token is used for that request only and never stored or logged. ATLAS (`server/cloudflare.js`) adds a proxied A record, sets SSL/TLS to Full (strict) and TLS 1.2 or newer, and leaves "Always Use HTTPS" alone (Caddy redirects to HTTPS itself, and certificate renewals come in over HTTP through Cloudflare).
+
+ATLAS cannot change the server's web server or firewall, so it writes `data/cloudflare.json`, and a root helper on the AWS server (`deploy/aws/cloudflare-apply.sh`, installed by `upgrade-server.sh` as `/usr/local/sbin/ltdc-lms-cloudflare` and started by a systemd path unit) applies it: Caddy serves the new name and passes on each visitor's real address (`CF-Connecting-IP`, trusted only from Cloudflare's addresses, so rate limits and the audit log see people, not Cloudflare), `ALLOWED_HOSTS` and `PUBLIC_URL` change, the certificate and the route through Cloudflare are checked, and, if asked, the server accepts web traffic only from Cloudflare (nftables). Its answer, `data/cloudflare-status.json`, shows in the Admin panel. The helper treats the request as untrusted input; see `deploy/aws/EC2.md`, "Cloudflare". If single sign-on is set up, run its *Set up for me* again after the switch, so Keycloak knows the new address.
+
 ## HRIS
 
 The Human Resource Information System, built from the [Lancaster ERP's HR & Payroll](../README.md) module: the same time, leave, pay, contribution and tax rules (`shared/calc.js` and `shared/leave.js` are the ERP's files; a test checks the two stay identical), reworked for a school with campuses.

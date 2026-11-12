@@ -556,3 +556,45 @@ test('the server scripts install the helper, its units and the ranges, and keep 
   assert.match(service, /^ExecStart=\/usr\/local\/sbin\/ltdc-lms-cloudflare$/m);
   assert.match(service, /^WantedBy=multi-user\.target$/m);
 });
+
+// Both halves together: the request file the Admin panel really writes is what the helper reads,
+// and the status the helper really writes is what the Admin panel shows.
+test('end to end: the Admin panel\'s request is applied by the helper, and its answer shows in the Admin panel', { skip }, async (t) => {
+  const { setup } = await import('./support.js');
+  const { memoryDb } = await import('../server/db.js');
+  const { fakeCloudflare, TOKEN } = await import('./cloudflare-api.js');
+  const sb = sandbox(t);
+  const db = memoryDb();
+  db.dir = sb.p('data');
+  const env = setup({ db, options: { cloudflareFetch: fakeCloudflare().fetch, cloudflareHelper: SCRIPT } });
+  const admin = env.client();
+  await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: 'password123' });
+
+  // Set up for me → the request file → the helper switches Caddy and the app's settings over.
+  const set = await admin.post('/api/admin/cloudflare/setup', { token: TOKEN, hostname: HOST, originIp: '54.169.10.20', lockOrigin: false });
+  assert.equal(set.state, 'pending');
+  assert.equal(set.helperInstalled, true);
+  let r = sb.run({ STUB_EDGE: 'ok' });
+  assert.equal(r.code, 0, r.out);
+  assert.match(siteBlock(caddyfileFrom(sb), HOST), /header_up X-Forwarded-For \{http\.request\.header\.CF-Connecting-IP\}/);
+  assert.match(sb.read('etc', 'app.env'), new RegExp(`^ALLOWED_HOSTS=${DUCK},${HOST}$`, 'm'));
+  let view = await admin.get('/api/admin/cloudflare');
+  assert.deepEqual([view.state, view.pending, view.status.certificate, view.status.throughCloudflare, view.status.originLocked], ['active', false, true, true, false]);
+  assert.ok(!sb.read('data', 'cloudflare.json').includes(TOKEN) && !sb.read('data', 'cloudflare-status.json').includes(TOKEN), 'the token never reaches the server\'s files');
+
+  // Only through Cloudflare → the firewall table; then off → everything as it was.
+  assert.equal((await admin.post('/api/admin/cloudflare/lock', { lockOrigin: true })).state, 'pending');
+  r = sb.run({ STUB_EDGE: 'ok' });
+  assert.equal(r.code, 0, r.out);
+  view = await admin.get('/api/admin/cloudflare');
+  assert.deepEqual([view.state, view.status.originLocked], ['active', true]);
+  assert.match(sb.read('nft-applied.nft'), /table inet ltdc_cloudflare/);
+
+  await admin.post('/api/admin/cloudflare/off', {});
+  r = sb.run({ STUB_EDGE: 'ok' });
+  assert.equal(r.code, 0, r.out);
+  view = await admin.get('/api/admin/cloudflare');
+  assert.deepEqual([view.state, view.status.originLocked], ['off', false]);
+  assert.equal(caddyfileFrom(sb), plainCaddyfile);
+  assert.equal(sb.read('etc', 'app.env'), APP_ENV);
+});
