@@ -184,12 +184,12 @@ export async function ticketView(el, { id }) {
         <div class="hd-main">
           <section class="card">${thread(t, { agentView: true })}</section>
           <section class="card hd-compose">
-            <form id="compose">
+            <form id="compose" novalidate>
               <div class="seg hd-mode">
                 <label><input type="radio" name="mode" value="reply" ${mode === 'reply' ? 'checked' : ''} /> Reply to requester</label>
                 <label><input type="radio" name="mode" value="note" ${mode === 'note' ? 'checked' : ''} /> Internal note</label>
               </div>
-              <textarea id="reply-text" name="body" rows="5" maxlength="20000" placeholder="${mode === 'note' ? 'Visible to agents only.' : t.requester.email ? `Sent to ${t.requester.email} and shown in their portal.` : 'Shown in the requester’s portal (no email address on file).'}">${draft}</textarea>
+              <textarea id="reply-text" name="body" rows="5" maxlength="20000" required aria-label="${mode === 'note' ? 'Internal note' : 'Reply'}" data-msg="${mode === 'note' ? 'Write the note.' : 'Write the reply.'}" placeholder="${mode === 'note' ? 'Visible to agents only.' : t.requester.email ? `Sent to ${t.requester.email} and shown in their portal.` : 'Shown in the requester’s portal (no email address on file).'}">${draft}</textarea>
               <div class="hd-compose-bar">
                 ${canned.length ? html`<select id="canned" aria-label="Saved reply"><option value="">Insert saved reply…</option>${canned.map((c) => html`<option value="${c.id}">${c.title}</option>`)}</select>` : ''}
                 <label class="btn small-btn hd-attach">Attach<input type="file" name="files" accept="${ACCEPT}" multiple hidden /></label>
@@ -240,8 +240,10 @@ export async function ticketView(el, { id }) {
       e.target.value = '';
       box.focus();
     });
+    const composeErrors = formErrors(compose);
     compose.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!composeErrors.validate()) return;
       const btn = compose.querySelector('[type=submit]');
       btn.disabled = true;
       try {
@@ -313,8 +315,8 @@ export async function newTicketView(el) {
     <header class="page-head"><div><a class="back" href="#/helpdesk/tickets">← Tickets</a><h1>Log a ticket</h1><p class="muted">For requests received by phone, chat or in person.</p></div></header>
     <section class="card">
       <form id="new" class="grid two" novalidate>
-        ${users ? html`<label class="field span-2"><span>Requester</span><select name="requesterUserId"><option value="">Someone without an account (enter below)</option>${users.filter((u) => u.active).map((u) => html`<option value="${u.id}">${u.name} (${u.username})</option>`)}</select></label>` : ''}
-        <label class="field ext"><span>Requester name</span><input name="requesterName" maxlength="120" placeholder="e.g. Juan Dela Cruz" /></label>
+        ${users ? html`<label class="field span-2"><span>Requester</span><select name="requesterUserId"><option value="">No account: type the name below</option>${users.filter((u) => u.active).map((u) => html`<option value="${u.id}">${u.name} (${u.username})</option>`)}</select></label>` : ''}
+        <label class="field ext"><span>Requester name<em>*</em></span><input name="requesterName" maxlength="120" required data-msg="Enter the requester's name, or pick a user." placeholder="e.g. Juan Dela Cruz" /></label>
         <label class="field ext"><span>Requester email (for replies)</span><input name="requesterEmail" type="email" maxlength="200" placeholder="juan@company.com" /></label>
         <label class="field span-2"><span>Subject<em>*</em></span><input name="subject" maxlength="200" required placeholder="e.g. Cannot print to the 3F printer" /></label>
         <label class="field"><span>Category</span><select name="category">${info.categories.map((c) => html`<option>${c}</option>`)}</select></label>
@@ -364,7 +366,7 @@ function openNewTicket(info, onDone) {
           <option value="high">High: I can barely work</option><option value="urgent">Urgent: I cannot work at all</option></select></label>
       </div>
       ${info.myAssets.length ? html`<label class="field"><span>Which equipment? (optional)</span><select name="assetId"><option value="">Not about a specific device</option>${info.myAssets.map((a) => html`<option value="${a.id}">${a.tag} · ${a.name}</option>`)}</select></label>` : ''}
-      <label class="field"><span>Describe the problem</span><textarea name="body" rows="5" maxlength="20000" required placeholder="What happens, since when, and any error message."></textarea></label>
+      <label class="field"><span>Describe the problem</span><textarea name="body" rows="5" maxlength="20000" required data-msg="Describe the problem." placeholder="What happens, since when, and any error message."></textarea></label>
       <label class="field"><span>Screenshots or files (optional)</span><input type="file" name="files" accept="${ACCEPT}" multiple /></label>
       ${info.mailboxAddress ? html`<p class="muted small">You can also email <strong>${info.mailboxAddress}</strong> from ${info.myEmail || 'your work email'}.</p>` : ''}`,
     onSubmit: async (f) => {

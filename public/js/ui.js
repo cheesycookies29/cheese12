@@ -72,6 +72,29 @@ export function enhance(root) {
   fitFigures(root);
   watchScrollers();
   queueScrollers();
+  watchHitAreas();
+  queueHitAreas();
+  root.querySelectorAll('.toolbar input[type=search]').forEach(fitPlaceholder);
+}
+
+// A search box's hint ("Search name, number, position…") that does not fit its box (a phone, beside
+// the Filters button) is shortened rather than cut: to its label ("Search assets…"), else "Search…".
+let measure = null;
+export function shortPlaceholder(full, label, fits) {
+  if (!full || fits(full)) return full;
+  const tries = [label && `${label.replace(/…$/, '')}…`, 'Search…'].filter(Boolean);
+  return tries.find(fits) || tries[tries.length - 1];
+}
+export function fitPlaceholder(input) {
+  if (typeof document === 'undefined' || !input.isConnected) return;
+  if (!('ph' in input.dataset)) input.dataset.ph = input.placeholder || '';
+  const room = input.clientWidth;
+  if (!room) return;
+  measure ||= document.createElement('canvas').getContext('2d');
+  const cs = getComputedStyle(input);
+  measure.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const free = room - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 4;
+  input.placeholder = shortPlaceholder(input.dataset.ph, input.getAttribute('aria-label'), (t) => measure.measureText(t).width <= free);
 }
 
 // A list's filters (two or more selects, checkboxes or date ranges beside the search) fold into one
@@ -183,7 +206,178 @@ function watchScrollers() {
   addEventListener('resize', () => {
     queueScrollers();
     fitFigures(document);
+    document.querySelectorAll('.toolbar input[type=search]').forEach(fitPlaceholder);
   });
+}
+
+// ----- Touch: taller hit areas for text links, grown only into free space -----
+// On a touch screen a small text link in a table, list or card gets up to 44 px of height to tap,
+// as vertical padding (on an inline link this moves nothing). The padding grows only into the free
+// space above and below each of the link's lines: up to the nearest control there, and only half way
+// when that control is a text link too, so a hit area never covers another control or another link's
+// text. Measured after every render, resize and change of the page (fragsweep checks the result).
+export const HIT_LINKS = ':is(td, dd, li, .card, small, .cell-v, .hd-sub, .meta, .crm-card, .pm-card, p.muted) > a:not(.btn):not(.back):not(.list-item):not(.tile):not(.sys-card):not(.fb-row):not(.result):not(.side-link):not(.admin-tile):not(.admin-panel-card), .crm-card-title, .pm-card-title';
+const HIT_OBSTACLES = 'a[href], button, input:not([type=hidden]), select, textarea, summary, label, [role=button], [tabindex="0"]';
+export const HIT_SIZE = 44;
+// lines: the link's own line boxes [{ left, top, right, bottom }]; others: the boxes of everything
+// tappable around it, { left, top, right, bottom, link } (link: a text link that grows too).
+// Returns the padding for the top and the bottom of every line, in whole pixels.
+export function hitPadding(lines, others, size = HIT_SIZE) {
+  let top = Infinity;
+  let bottom = Infinity;
+  for (const l of lines) {
+    const want = Math.max(0, Math.ceil((size - (l.bottom - l.top)) / 2));
+    top = Math.min(top, want);
+    bottom = Math.min(bottom, want);
+    for (const o of others) {
+      if (o.right <= l.left + 1 || o.left >= l.right - 1) continue; // not above or below this line
+      const share = (gap) => Math.max(0, Math.floor(o.link ? gap / 2 : gap));
+      if (o.bottom <= l.top + 1) top = Math.min(top, share(l.top - o.bottom));
+      else if (o.top >= l.bottom - 1) bottom = Math.min(bottom, share(o.top - l.bottom));
+      else return { top: 0, bottom: 0 }; // already touching on this line
+    }
+  }
+  return lines.length ? { top, bottom } : { top: 0, bottom: 0 };
+}
+const SCROLLS = /(auto|scroll|hidden)/;
+// How far from a link's lines anything can still limit its padding: a control up to 22 px away (the
+// most a line ever grows), or a text link up to 44 px away (the two share the gap).
+const HIT_REACH = HIT_SIZE + 2;
+const TALL = 200;
+const box = (r, link = false) => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom, link });
+export function fitHitAreas(root = document.querySelector('main') || document.body) {
+  if (typeof matchMedia !== 'function' || !root) return;
+  const links = [...root.querySelectorAll(HIT_LINKS)];
+  links.forEach((a) => a.classList.remove('hit', 'hit-box'));
+  if (!matchMedia('(pointer: coarse)').matches) return;
+  // Inline links, and links laid out as a box (a flex item, a block) shorter than 44 px; an inline link
+  // holding a block (a record's title in a list, whose whole row is the link) is left alone.
+  const boxy = new Set();
+  const grow = new Set(links.filter((a) => {
+    if (!a.getClientRects().length) return false;
+    const d = getComputedStyle(a).display;
+    if (d === 'inline') return ![...a.children].some((c) => !/^inline/.test(getComputedStyle(c).display));
+    if (!/^(block|inline-block|flex|inline-flex|list-item)$/.test(d) || a.getBoundingClientRect().height >= HIT_SIZE) return false;
+    boxy.add(a);
+    return true;
+  }));
+  if (!grow.size) return;
+  // The scrolling box each element sits in directly (null: none below root), cached per element, so a
+  // long list costs one walk up per element rather than one per pair.
+  const scrollerMemo = new Map();
+  const isScroller = (q) => {
+    if (!scrollerMemo.has(q)) {
+      const cs = getComputedStyle(q);
+      scrollerMemo.set(q, SCROLLS.test(cs.overflowX) || SCROLLS.test(cs.overflowY));
+    }
+    return scrollerMemo.get(q);
+  };
+  // Nearest scroller at or above q (null at root).
+  const ownMemo = new Map();
+  const scrollerAtOrAbove = (q) => {
+    const path = [];
+    let found = null;
+    for (; q && q !== root; q = q.parentElement) {
+      if (ownMemo.has(q)) { found = ownMemo.get(q); break; }
+      path.push(q);
+      if (isScroller(q)) { found = q; break; }
+    }
+    // Everything walked through below the answer shares it (the scroller itself answers itself).
+    for (const x of path) ownMemo.set(x, found);
+    return found;
+  };
+  const homeOf = (el) => scrollerAtOrAbove(el.parentElement);
+  // Obstacles grouped by the scroller they sit in, sorted by top so each link only looks at its band.
+  const groups = new Map(); // scroller (or null) → { items: [...], tall: [...] }
+  const groupOf = (h) => {
+    if (!groups.has(h)) groups.set(h, { items: [], tall: [] });
+    return groups.get(h);
+  };
+  const byEl = new Map();
+  for (const e of root.querySelectorAll(HIT_OBSTACLES)) {
+    if (!e.getClientRects().length) continue;
+    const rects = grow.has(e) && !boxy.has(e) ? [...e.getClientRects()].filter((r) => r.width > 0).map((r) => box(r, true)) : [box(e.getBoundingClientRect())];
+    if (!rects.length) continue;
+    const x = { e, home: homeOf(e), rects, top: Math.min(...rects.map((r) => r.top)), bottom: Math.max(...rects.map((r) => r.bottom)) };
+    byEl.set(e, x);
+    const g = groupOf(x.home);
+    (x.bottom - x.top > TALL ? g.tall : g.items).push(x);
+  }
+  // A scroller inside another scroller (or inside root) moves under whatever sits beside it, so to the
+  // links outside it the scroller's whole box is in the way, once, whatever it holds.
+  const nested = new Map(); // outer scroller (or null) → boxes of the scrollers directly inside it holding obstacles
+  for (const h of groups.keys()) {
+    for (let s = h; s; s = homeOf(s)) {
+      const outer = homeOf(s);
+      if (!nested.has(outer)) nested.set(outer, new Map());
+      if (nested.get(outer).has(s)) break;
+      nested.get(outer).set(s, box(s.getBoundingClientRect()));
+    }
+  }
+  for (const g of groups.values()) g.items.sort((p, q) => p.top - q.top);
+  const firstAtOrAfter = (items, y) => {
+    let lo = 0;
+    let hi = items.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (items[mid].top < y) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  for (const a of grow) {
+    const me = byEl.get(a);
+    if (!me) continue;
+    const lo = me.top - HIT_REACH;
+    const hi = me.bottom + HIT_REACH;
+    const near = (o) => o.bottom > lo && o.top < hi;
+    const others = [];
+    const take = (o) => {
+      if (o !== me && near(o) && !a.contains(o.e) && !o.e.contains(a)) others.push(...o.rects);
+    };
+    const g = groups.get(me.home);
+    if (g) {
+      // Items are at most TALL px high, so anything reaching the band starts at most TALL px above it.
+      for (let i = firstAtOrAfter(g.items, lo - TALL); i < g.items.length && g.items[i].top < hi; i++) take(g.items[i]);
+      g.tall.forEach(take);
+    }
+    for (const [s, b] of nested.get(me.home) || []) if (!s.contains(a) && b.bottom > lo && b.top < hi) others.push(b);
+    const { top, bottom } = hitPadding(me.rects, others);
+    if (top || bottom) {
+      a.style.setProperty('--hit-t', `${top}px`);
+      a.style.setProperty('--hit-b', `${bottom}px`);
+      // A box grows by its padding: a negative margin of the same size keeps everything in place.
+      if (boxy.has(a)) {
+        const cs = getComputedStyle(a);
+        a.style.setProperty('--hit-mt', cs.marginTop);
+        a.style.setProperty('--hit-mb', cs.marginBottom);
+        a.classList.add('hit-box');
+      }
+      a.classList.add('hit');
+    }
+  }
+}
+let hitQueued = false;
+let hitWatching = false;
+function queueHitAreas() {
+  if (hitQueued || typeof requestAnimationFrame !== 'function') return;
+  hitQueued = true;
+  requestAnimationFrame(() => {
+    hitQueued = false;
+    fitHitAreas();
+  });
+}
+function watchHitAreas() {
+  if (hitWatching || typeof document === 'undefined') return;
+  hitWatching = true;
+  addEventListener('resize', queueHitAreas);
+  document.fonts?.ready?.then(queueHitAreas);
+  const main = document.querySelector('main');
+  if (!main) return;
+  // Anything that adds, removes or resizes content (a section opening, a list filtering) measures again.
+  if (typeof MutationObserver === 'function') new MutationObserver(queueHitAreas).observe(main, { childList: true, subtree: true, characterData: true });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(queueHitAreas).observe(main);
+  matchMedia('(pointer: coarse)').addEventListener?.('change', queueHitAreas);
 }
 
 // ----- Form errors: every problem shown at its field -----
@@ -240,9 +434,17 @@ export function labelOf(control) {
   return text || humanizeKey(control.name || control.id || '');
 }
 const controlsOf = (form) => [...form.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]), select, textarea')].filter((c) => c.name || c.id);
+// "Company name is required." for a label that names the field; a label that is an instruction or a
+// sentence ("Add a message", "Move the start and due dates by") reads "Fill in “Add a message”." instead.
+const INSTRUCTION = /^(add|attach|choose|describe|enter|explain|give|list|move|pick|say|select|tell|type|upload|write|what|when|why|how|who|which)\b/i;
+export function requiredMessage(label) {
+  const text = String(label || '').trim();
+  if (!text) return 'Fill in this field.';
+  return INSTRUCTION.test(text) || text.split(/\s+/).length > 4 ? `Fill in “${text}”.` : `${text} is required.`;
+}
 function messageFor(c, label) {
   if (c.validity.valueMissing && c.dataset.msg) return c.dataset.msg;
-  if (c.validity.valueMissing) return c.type === 'checkbox' ? `Tick “${label}”.` : c.type === 'file' ? `Attach ${label.toLowerCase()}.` : `${label} is required.`;
+  if (c.validity.valueMissing) return c.type === 'checkbox' ? `Tick “${label}”.` : c.type === 'file' ? `Attach ${label.toLowerCase()}.` : requiredMessage(label);
   if (c.validity.typeMismatch && c.type === 'email') return `${label}: enter a valid email address, such as name@example.com.`;
   if (c.validity.typeMismatch) return `${label}: check the format.`;
   if (c.validity.rangeUnderflow) return `${label} must be ${c.min} or more.`;
@@ -297,13 +499,17 @@ export function formErrors(form, summary = form.querySelector('.form-error')) {
       c.addEventListener('input', () => clearOne(c), { once: true });
       c.addEventListener('change', () => clearOne(c), { once: true });
     }
+    // One field wrong: its message under it is enough (the summary would only repeat it).
     if (summary) {
-      summary.textContent = message || errorSummary(errors);
-      summary.hidden = false;
+      const one = errors.length === 1 && errors[0].el;
+      summary.textContent = one ? '' : message || errorSummary(errors);
+      summary.hidden = !!one;
     }
     const first = errors.find((e) => e.el)?.el;
     if (first) {
-      first.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      // The field and its message come into view together (clear of a sticky header or footer).
+      const box = first.closest('.field, label') || first;
+      box.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       first.focus({ preventScroll: true });
     } else summary?.scrollIntoView({ block: 'center' });
     return errors.length;

@@ -2,7 +2,7 @@
 // sign-in headline) and Admin panel → Sign-in & security. Backups and demo data are in admin/data.js.
 import { api } from '../api.js';
 import { ctx, applyBrand } from '../state.js';
-import { html, mount, toast, WEEKDAYS } from '../ui.js';
+import { html, mount, toast, formErrors, WEEKDAYS } from '../ui.js';
 import { icon } from '../icons.js';
 import { THEMES, HEX_RE, DEFAULT_HEADLINE, HEADLINE_MAX, LOGO_MAX_BYTES, MIN_CONTRAST, contrast, themeColors } from '/shared/brand.js';
 import { pageHead } from './admin/common.js';
@@ -137,10 +137,11 @@ export async function settingsView(el) {
     e.target.hidden = true;
   });
 
+  const errors = formErrors(form);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!errors.validate()) return;
     const fd = new FormData(form);
-    const errEl = form.querySelector('.form-error');
     const branding = { theme: fd.get('theme'), color: fd.get('theme') === 'custom' ? String(fd.get('color')).trim().toLowerCase() : '', headline: fd.get('headline') };
     if (logo !== undefined) branding.logo = logo;
     try {
@@ -150,12 +151,11 @@ export async function settingsView(el) {
         branding,
       });
       await Promise.all([ctx.refreshSettings(), ctx.refreshStatus()]);
-      errEl.hidden = true;
+      errors.clear();
       toast('Settings saved.');
       settingsView(el);
     } catch (err) {
-      errEl.textContent = err.message;
-      errEl.hidden = false;
+      errors.server(err);
     }
   });
   return saved;
@@ -182,21 +182,21 @@ export async function securityView(el) {
       <p class="form-error" role="alert" hidden></p>
       <div class="actions end"><a class="btn ghost" href="#/admin/config?q=sign-in">Compare with the defaults</a><button class="btn primary" type="submit">Save sign-in settings</button></div>
     </form>`);
+  const secErrors = formErrors(el.querySelector('#security-form'));
   el.querySelector('#security-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = e.target;
-    const errEl = f.querySelector('.form-error');
+    if (!secErrors.validate()) return;
     try {
       await api.put('/api/security-settings', {
         twoFactor: f.twoFactor.value, sessionIdleMinutes: Number(f.sessionIdleMinutes.value), sessionMaxHours: Number(f.sessionMaxHours.value),
         requestsPerMinute: Number(f.requestsPerMinute.value), signInFailuresPerAddress: Number(f.signInFailuresPerAddress.value),
         blockCommonPasswords: f.blockCommonPasswords.checked,
       });
-      errEl.hidden = true;
+      secErrors.clear();
       toast('Sign-in settings saved.');
     } catch (err) {
-      errEl.textContent = err.message;
-      errEl.hidden = false;
+      secErrors.server(err);
     }
   });
 }

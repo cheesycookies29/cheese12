@@ -92,6 +92,8 @@ export async function payrollSetupView(el) {
             <button type="button" class="link" data-add-row="${freq}">+ Add bracket</button>
           </div>`)}
         </div>
+        <p class="muted small">To start again from the official rates, fill in the 2025 SSS, PhilHealth and Pag-IBIG rates and the TRAIN tax tables. Nothing is saved until you save.</p>
+        <div class="actions"><button type="button" class="btn" id="restore">Restore 2025 government rates</button></div>
       </section>
 
       <section class="card">
@@ -103,7 +105,6 @@ export async function payrollSetupView(el) {
 
       <p class="form-error" role="alert" hidden></p>
       <div class="actions end save-bar">
-        <button type="button" class="btn" id="restore">Restore 2025 government rates</button>
         <button class="btn primary" type="submit">Save payroll setup</button>
       </div>
     </form>`);

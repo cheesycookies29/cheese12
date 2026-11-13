@@ -139,7 +139,7 @@ The three starter templates are under **Templates** in the filter.
 
 1. Sign in as `employee.demo` and open **My work** in the side menu. **For you** at the top lists what others did that concerns Juan: Andrea mentioned him, there are *2 comments on* a task of his, a task was assigned to him. Unread ones are in bold; open one or click its tick to mark it read, or **Mark all read**.
 2. Under it, **Daily digest** sums up Juan's day: overdue tasks, tasks due within 3 working days, and unread notifications. **Show today's digest** lists them; **Email me a daily digest** turns the email on or off for him.
-3. Below, the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. Change a task's status right there.
+3. Below, the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. Change a task's status right there. Open a task with its title (on a phone or tablet, anywhere on its row); the project's name under it opens the project.
 
 ![My work](projects-my-work.jpg)
 

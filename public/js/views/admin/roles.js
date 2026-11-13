@@ -54,7 +54,8 @@ export async function rolesView(el) {
     <p class="muted small"><span class="perm-changed-key"></span> A shaded box differs from the default. <em>default</em> marks what CORE gives that account type.</p>
     <div class="actions end sticky-actions" id="save-bar" hidden><span class="muted small">Unsaved changes</span><button type="button" class="btn" id="discard">Discard</button><button type="button" class="btn primary" id="save">Save permissions</button></div>`);
 
-  // Phones: only the picked account type's column (the CSS hides the others under 760 px).
+  // Phones: only the picked account type's column (the CSS hides the others under 760 px, and on a
+  // landscape phone).
   const showRole = (id) => {
     picked = pickedRole(editable.map((r) => r.id), id);
     el.classList.add('roles-picking');

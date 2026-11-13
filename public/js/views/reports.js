@@ -30,7 +30,7 @@ export function openReportProblem(asset, onDone) {
         <label class="field"><span>Noticed on</span><input type="date" name="noticedOn" value="${today()}" max="${today()}" /></label>
         <label class="field span-2"><span>Can you still work on it?</span><select name="impact" required>${Object.entries(ISSUE_IMPACT).map(([k, v]) => html`<option value="${k}" ${k === 'limited' ? 'selected' : ''}>${v}</option>`)}</select></label>
         <label class="field span-2"><span>Describe the problem</span>
-          <textarea name="description" rows="5" maxlength="2000" required placeholder="What happens, since when, and what you were doing. Include any error message, e.g. &quot;Screen flickers and goes black after 10 minutes&quot;."></textarea></label>
+          <textarea name="description" rows="5" maxlength="2000" required data-msg="Describe the problem." placeholder="What happens, since when, and what you were doing. Include any error message, e.g. &quot;Screen flickers and goes black after 10 minutes&quot;."></textarea></label>
       </div>
       <p class="muted small">IT is notified in the system and will update you here. For a lost or stolen device, also tell your manager right away.</p>`,
     onSubmit: async (f) => {

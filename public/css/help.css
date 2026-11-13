@@ -181,7 +181,7 @@
 .guide-go { color: var(--muted); align-self: center; transition: transform 0.15s, color 0.15s; }
 .guide-card:hover .guide-go { transform: translateX(2px); color: var(--brand-text); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
 .chip.school { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 35%, transparent); color: var(--text); }
 .system-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
 .system-col { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 16px 16px 10px; }
@@ -295,12 +295,19 @@
   .md-toolbar::-webkit-scrollbar { display: none; }
   .md-toolbar .tool { flex: none; }
 }
+/* The editor's toolbar, when it scrolls sideways on a phone, fades on the side where more tools wait. */
+.md-toolbar.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.md-toolbar.more-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+.md-toolbar.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 @media (pointer: coarse) {
+  .start-link { min-height: 44px; }
   .md-toolbar .tool { min-width: 44px; height: 44px; font-size: 14px; }
   .editor-pane textarea { font-size: 16px; }
   .side-link { min-height: 44px; }
 }
 @media (max-width: 760px) {
+  /* What is scrolled into view (the field being typed in) stops below the top bar and toolbar and above the Save bar. */
+  html:has(.guide-editor) { scroll-padding: 136px 0 84px; }
   .guide-editor { padding-bottom: 76px; }
   .guide-editor .editor-head .actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 18px rgba(16, 24, 40, 0.1); }
   .guide-editor .editor-head .actions .btn { flex: 1 1 0; min-height: 46px; }
@@ -313,11 +320,11 @@
   .lightbox.pan { display: block; place-items: start; overflow: auto; padding: 64px 0 24px; overscroll-behavior: contain; touch-action: pan-x pan-y pinch-zoom; cursor: default; }
   .lightbox.pan figure { max-width: none; width: max-content; }
   .lightbox.pan img { width: min(1280px, 260vw); max-width: none; max-height: none; border-radius: 0; }
-  .lightbox.pan figcaption { position: fixed; left: 16px; right: 72px; top: 18px; text-align: left; margin: 0; font-size: 13px; }
+  .lightbox.pan figcaption { position: fixed; left: 16px; right: 72px; top: 14px; text-align: left; margin: 0; font-size: 13px; padding: 6px 10px; border-radius: 8px; background: rgba(10, 12, 18, 0.85); color: #fff; width: fit-content; max-width: calc(100vw - 88px); }
   .lightbox .round-btn { z-index: 1; }
 }
 @media print {
-  .shot-frame img { max-width: 100%; height: auto; max-height: 110mm; }
+  .shot-frame img { max-width: 100%; height: auto; max-height: 85mm; } /* smaller: a screenshot that does not fit leaves less of a page empty */
 }
 @media (pointer: coarse) {
   .crumbs-help a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin-block: -12px; }

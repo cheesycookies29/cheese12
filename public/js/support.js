@@ -110,7 +110,7 @@ async function showTicket(token) {
             ${m.attachments.length ? html`<div class="hd-files">${m.attachments.map((a) => html`<button type="button" class="link" data-file="${a.id}">📎 ${a.name} (${sizeLabel(a.size)})</button>`)}</div>` : ''}</li>`)}</ol>
       ${t.canReply
         ? html`<form id="sp-reply" class="sp-reply" novalidate>
-            <label class="field"><span>${t.status === 'resolved' ? 'Not solved? Reply and we will look again' : 'Add a message'}</span><textarea name="message" rows="4" maxlength="5000" required></textarea></label>
+            <label class="field"><span>${t.status === 'resolved' ? 'Not solved? Reply and we will look again' : 'Add a message'}</span><textarea name="message" rows="4" maxlength="5000" required data-msg="Write your message."></textarea></label>
             ${t.allowFiles ? html`<label class="field"><span>Attach files (optional)</span><input type="file" name="files" accept="${ACCEPT}" multiple /></label>` : ''}
             <p class="form-error" hidden></p>
             <button class="btn primary" type="submit">Send message</button>

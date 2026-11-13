@@ -387,6 +387,12 @@ async function timeline(el, type, id) {
       const f = e.target;
       const btn = f.querySelector('[type=submit]');
       if (btn.disabled) return; // a double click saves once
+      // Nothing written: mark the box to write in (the title for a task, the note for a note).
+      if (!f.subject.value.trim() && !f.body.value.trim()) {
+        const box = kind === 'note' ? f.body : f.subject;
+        formErrors(f).show([{ el: box, name: box.name, label: box.getAttribute('aria-label'), message: kind === 'note' ? 'Write the note.' : kind === 'task' ? 'Write what needs doing.' : 'Write what happened.' }]);
+        return;
+      }
       btn.disabled = true;
       try {
         await api.post('/api/crm/activities', { type: kind, subject: f.subject.value, body: f.body.value, dueDate: f.dueDate.value || null, ownerId: f.ownerId.value, related: { type, id } });
@@ -858,7 +864,7 @@ export async function contactsView(el) {
     render: {
       noun: 'contact', empty: 'No contacts yet.',
       filter: (c, s) => matchText(s.q, c.name, c.email, c.phone, c.mobile, c.accountName) && matchOwner(c, s.owner),
-      table: (rows) => html`<table class="table clickable stackable"><thead><tr><th>Name</th><th>Organization</th><th>Email</th><th>Mobile</th><th>Owner</th></tr></thead>
+      table: (rows) => html`<table class="table clickable stackable stack-md"><thead><tr><th>Name</th><th>Organization</th><th>Email</th><th>Mobile</th><th>Owner</th></tr></thead>
         <tbody>${rows.map((c) => html`<tr data-href="#/crm/contacts/${c.id}"><td><a href="#/crm/contacts/${c.id}"><strong>${c.name}</strong></a><small>${c.title || ''}</small></td><td>${c.accountId ? html`<a href="#/crm/accounts/${c.accountId}">${c.accountName}</a>` : '—'}</td><td>${c.email ? html`<a href="mailto:${c.email}">${c.email}</a>` : '—'}</td><td>${c.mobile || c.phone || '—'}</td><td>${c.ownerName || '—'}</td></tr>`)}</tbody></table>`,
     },
   });

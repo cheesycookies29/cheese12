@@ -18,6 +18,10 @@ order: 2
 - **Roles & permissions** on a phone shows one account type at a time. See [the administrator's guide](admin#change-what-an-account-type-may-do). The payroll register shows a summary per employee with **Details**. See [the payroll guide](payroll#read-the-register).
 - **Won** on a deal now asks you to confirm, like **Lost**. See [the sales guide](sales).
 - Help & guides: a screenshot opens full size on a phone to look around in; the guide editor has **Write** and **Preview** tabs on a phone.
+- Tapping is exact: a link's tap area grows only into free space, so a tap on a name or a title never opens its neighbour, and the List's checkboxes always tick. In **My work** and other task lists the whole row opens the task. See [Getting started](getting-started#use-core-on-a-phone).
+- On a tablet and a phone turned sideways, wide lists are compact cards (the fields side by side, the buttons at the top right), the filters fold into **Filters**, messages appear at the top and long forms keep **Save** at the bottom. **Access grants** and **Contacts** no longer scroll sideways. The page's main button comes first on a phone.
+- **Payroll Setup**: **Restore 2025 government rates** is under the tax tables, out of the Save bar; the tax brackets show their whole values on a tablet. See [the payroll guide](payroll#change-payroll-setup).
+- Smaller fixes: **Settings & branding** marks the field to fix; an empty reply, note or activity marks its box; a single wrong field is no longer repeated in a red box; a disabled button always looks disabled.
 
 ### Workload removed (0.17.1)
 - **Workload** is no longer in Project Management. Task sizes still weigh progress and the burn-up; My work, the Timesheet and time tracking work as before. See [the projects guide](projects).

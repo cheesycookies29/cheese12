@@ -248,7 +248,7 @@ export async function employeeProfileView(el, { id }) {
         <dl class="info-grid">
           ${info('Date hired', fmtDate(emp.hireDate))}${info('Employment status', emp.employmentStatus)}
           ${info('Immediate supervisor', boss ? html`<a href="#/employees/${boss.id}">${boss.firstName} ${boss.lastName}</a>` : '')}
-          ${reports.length ? info('Direct reports', html`${reports.map((r, i) => html`${i ? ', ' : ''}<a href="#/employees/${r.id}">${r.firstName} ${r.lastName}</a>`)}`) : ''}
+          ${reports.length ? info('Direct reports', html`<ul class="comma-list">${reports.map((r) => html`<li><a href="#/employees/${r.id}">${r.firstName} ${r.lastName}</a></li>`)}</ul>`) : ''}
           ${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}
           ${emp.restricted ? info('Pay', html`<span class="muted">Visible to HR and payroll only</span>`) : html`
           ${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}

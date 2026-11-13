@@ -38,7 +38,7 @@ export async function accessView(el) {
     <div class="cols three grant-help">${GRANTS.map((g) => html`<div class="card"><strong>${g.label}</strong><p class="muted small">${g.what}</p></div>`)}</div>
     <section class="card scroll-x">
       <div class="card-head"><h2>Everyone with an active account</h2><span class="muted small">${granted} with access of their own</span></div>
-      <table class="table grant-table">
+      <table class="table grant-table stack-md">
         <thead><tr><th>Person</th><th>Account type</th>${GRANTS.map((g) => html`<th>${g.label}</th>`)}</tr></thead>
         <tbody>${people.map((p) => html`<tr data-row="${p.id}">
           <td><strong>${p.name}</strong><small class="muted block">${p.username}</small></td>

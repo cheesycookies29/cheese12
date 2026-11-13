@@ -63,7 +63,7 @@ export async function meHomeView(el) {
 
     mount(el, html`
       <header class="page-head">
-        <div><h1>${greeting()}, ${emp.firstName}</h1><p class="muted">${emp.position || 'Employee'} · ${emp.employeeNo}</p></div>
+        <div><h1>${greeting()}, ${emp.firstName}</h1><p class="muted">${emp.position || 'Employee'} · <span class="nowrap">${emp.employeeNo}</span></p></div>
       </header>
       <div class="cols">
         <section class="card clock-card">
@@ -234,7 +234,7 @@ export async function meProfileView(el) {
     <header class="page-head">
       <div class="person big"><span class="avatar">${emp.firstName[0]}${emp.lastName[0]}</span>
         <div><h1>${emp.firstName} ${emp.middleName ? emp.middleName + ' ' : ''}${emp.lastName}</h1>
-        <p class="muted">${emp.position || 'Employee'} · ${emp.department || '—'} · ${emp.employeeNo}</p></div></div>
+        <p class="muted">${emp.position || 'Employee'} · ${emp.department || '—'} · <span class="nowrap">${emp.employeeNo}</span></p></div></div>
       <div class="actions"><button class="btn" id="change-pw">Change password</button></div>
     </header>
     <div class="cols">

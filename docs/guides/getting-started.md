@@ -140,13 +140,14 @@ Choose the **moon** button in the top bar for dark mode, and the **sun** to go b
 
 ### Use CORE on a phone
 
-CORE works in the phone's browser; there is nothing to install. On a narrow screen the side menu folds away: choose the **menu** button (three lines) at the top left to open it, and tap outside it to close it. Tables become cards, one per row (on a tablet too, for the wide lists).
+CORE works in the phone's browser; there is nothing to install. On a narrow screen the side menu folds away: choose the **menu** button (three lines) at the top left to open it, and tap outside it to close it. Tables become cards, one per row. On a tablet or a phone turned sideways the wide lists are cards too, with the fields side by side and each label above its value, and the row's buttons at the top right.
 
-- **Filters**: on a phone a list's filters (owner, status, stage…) fold into one **Filters** button next to the search. The number on it says how many are on; tap it to see and change them.
+- **Filters**: on a phone or a tablet a list's filters (owner, status, stage…) fold into one **Filters** button next to the search. The number on it says how many are on; tap it to see and change them (it stays shaded while they are open). A search hint too long for the box is shortened, such as *Search…*.
+- **Tapping**: a link's tap area grows only into the free space around it, so a tap always opens what is under your finger. In lists such as **My work** the whole row opens the task; the project link in it opens the project.
 - **Tabs and chips** that do not fit scroll sideways: a fade at the edge shows there is more, and the tab you are on is always in view.
-- **Forms**: when something is missing, every field to fix is outlined with a message under it, and CORE takes you to the first one. On long forms (an employee, an asset, Payroll Setup) the **Save** buttons stay at the bottom of the screen.
-- **Messages** such as *Saved.* appear at the top of a phone's screen, so they never cover a button.
-- Turned sideways, the top bar is shorter and windows use the whole height, with their buttons always at the bottom.
+- **Forms**: when something is missing, every field to fix is outlined with a message under it, and CORE takes you to the first one. When only one field is wrong, its message is under it. On long forms (an employee, an asset, Payroll Setup) the **Save** button (and **Cancel**) stays at the bottom of a phone's or tablet's screen.
+- **Messages** such as *Saved.* appear at the top of a phone's or tablet's screen, so they never cover a button. On a computer they rise above a bar at the bottom of the page.
+- Turned sideways, the top bar is shorter and windows use the whole height, with their title at the top and their buttons at the bottom.
 
 ![CORE on a phone](getting-started-phone.jpg)
 

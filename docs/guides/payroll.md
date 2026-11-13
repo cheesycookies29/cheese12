@@ -177,7 +177,7 @@ To take one back, click **Remove** in **Opening balances** and give a reason.
 2. **Pay rules**: **Pay frequency**, **Work days per year** (the daily-rate factor), **Late grace period** and **Minimum overtime**. Under **Deductions to compute**, tick SSS, PhilHealth, Pag-IBIG and BIR withholding tax.
 3. **Holiday, rest day and night premiums**: the rate for the first 8 hours and for each overtime hour on each kind of day, the **Night shift differential** and its hours. **Restore DOLE premium rates** fills in the defaults below.
 4. **Holidays not worked**: whether a regular holiday needs the employee present, or on paid leave, on the last working day before it, and whether a **Special non-working day, not worked** is *Paid (company policy)* or *Not paid: "no work, no pay"*.
-5. **Government contributions** and **Withholding tax tables** (**+ Add bracket**, **Remove**). **Restore 2025 government rates** fills in the 2025 SSS, PhilHealth and Pag-IBIG rates and the TRAIN tables.
+5. **Government contributions** and **Withholding tax tables** (**+ Add bracket**, **Remove**). **Restore 2025 government rates**, under the tax tables, fills in the 2025 SSS, PhilHealth and Pag-IBIG rates and the TRAIN tables. Nothing is saved until you choose **Save payroll setup**.
 6. Under **Try it**, enter a **Monthly salary ₱** to see one period's deductions with the values on the page, saved or not.
 7. Click **Save payroll setup**.
 

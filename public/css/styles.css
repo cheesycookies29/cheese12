@@ -683,6 +683,8 @@ body.hub .topbar { padding-left: 24px; }
 .edit-table td { padding: 6px; }
 .tax-cols { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
 .tax-cols h3 { margin-top: 4px; }
+/* Tablets and landscape phones: one bracket table per row, so each input shows its whole value. */
+@media (max-width: 1100px) { .tax-cols { grid-template-columns: minmax(0, 1fr); } }
 .try { max-width: 560px; }
 .table .mono { white-space: nowrap; }
 .tag-line { margin: 6px 0 0; color: var(--gold); font-weight: 700; letter-spacing: 0.08em; font-size: 13px; }
@@ -1041,6 +1043,11 @@ a.fb-row { color: var(--text); }
 .geo-link:hover .geo-pill { text-decoration: underline; }
 .geo-map { display: block; width: 100%; height: min(52vh, 380px); border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
 .geo-links { margin: 8px 0 16px; }
+/* In a card (stacked table), a long location wraps inside the card instead of running past its edge. */
+@media (max-width: 1024px) {
+  .geo-pill { white-space: normal; max-width: 100%; text-align: left; overflow-wrap: anywhere; }
+  button.link.geo-link { flex-shrink: 1; min-width: 0; max-width: 100%; }
+}
 .office-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 22px; }
 .office-bar > div { display: grid; gap: 2px; }
 .table tr.flag-row td:first-child { box-shadow: inset 3px 0 0 var(--gold-bright); }
@@ -1437,6 +1444,13 @@ body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
 .flow-levels { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 10px; }
 .flow-levels li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
 .flow-levels select { max-width: 320px; }
+/* Phones: the level's number and its remove button on top, the approver picker across the card under them. */
+@media (max-width: 760px) {
+  .flow-levels li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; }
+  .flow-levels li > .grow { grid-column: 1 / -1; grid-row: 2; }
+  .flow-levels li > .icon-btn { grid-column: 3; grid-row: 1; }
+  .flow-levels select { width: 100%; max-width: none; }
+}
 .flow-people { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 6px 14px; margin-top: 10px; }
 @media (max-width: 760px) {
   .req-detail { grid-template-columns: minmax(0, 1fr); }
@@ -1632,6 +1646,11 @@ body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
 .pm-tl-label a, .pm-tl-label strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--text); }
 .pm-tl-label small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pm-tl-row.sub .pm-tl-label { padding-left: 26px; }
+/* Touch: 44 px rows, and the whole label cell (title and key) opens the task. */
+@media (pointer: coarse) {
+  .pm-tl { --row: 44px; }
+  .pm-tl-label > a::after { content: ''; position: absolute; inset: 0; }
+}
 .pm-tl-track { flex: none; width: calc(var(--days) * var(--day)); display: grid; grid-template-columns: repeat(var(--days), var(--day)); align-items: center; position: relative; z-index: 1; }
 .pm-tl-track.weeks span { grid-row: 1; border-left: 1px solid var(--border); padding: 0 6px; font-size: 11.5px; white-space: nowrap; overflow: hidden; align-self: stretch; display: flex; align-items: center; gap: 4px; }
 .pm-tl-track.weeks small { color: var(--muted); }
@@ -1799,7 +1818,7 @@ details > summary { cursor: pointer; }
 
 /* Touch targets */
 @media (pointer: coarse) {
-  .pm-move-btn { min-width: 44px; min-height: 44px; margin: -12px -8px -12px auto; }
+  .pm-move-btn { min-width: 44px; min-height: 44px; margin: -14px -8px -5px auto; } /* ends at the top row: clear of the title */
   .pm-move-pop button, .pm-pop button { min-height: 44px; }
   .pm-chips .chip, .pm-views-btn, .pm-note-read { min-height: 44px; }
   .pm-note-read { min-width: 44px; }
@@ -2023,7 +2042,7 @@ details.config-area > summary .area-meta { color: var(--muted); font-size: 13px;
 .config-area-wrap { position: relative; }
 .config-area-wrap + .config-area-wrap, .module-head + .config-area-wrap { margin-top: 0; }
 .area-actions { position: absolute; top: 14px; right: 20px; z-index: 1; display: flex; gap: 8px; }
-details.config-area > summary { padding-right: 230px; }
+details.config-area > summary { margin-right: 230px; }
 details.config-area[open] > summary { margin-bottom: 12px; }
 .check-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); cursor: pointer; min-height: 44px; }
 .check-inline input { width: auto; margin: 0; }
@@ -2047,7 +2066,7 @@ details.config-area[open] > summary { margin-bottom: 12px; }
 .import-area legend { padding: 0 6px; }
 @media (max-width: 720px) {
   .area-actions { position: static; justify-content: flex-end; margin-bottom: -6px; }
-  details.config-area > summary { padding-right: 0; }
+  details.config-area > summary { margin-right: 0; }
   .config-table td:first-child { min-width: 0; }
   .config-value { max-width: none; }
   .change-label { min-width: 0; flex-basis: 100%; }
@@ -2081,6 +2100,7 @@ fieldset.days-field > legend, fieldset.brand-field > legend { padding: 0; margin
 .color-pair input:not([type='color']) { max-width: 140px; font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace; }
 .contrast-note { margin: 0; font-size: 13px; }
 .logo-box { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand-custom + .grid { margin-top: 14px; }
 .logo-box > div { min-width: 0; flex: 1 1 180px; }
 .logo-box img { height: 64px; max-width: 200px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px; background: #fff; }
 .erase-card { border-color: color-mix(in srgb, var(--danger) 35%, var(--surface)); }
@@ -2124,6 +2144,7 @@ select { max-width: 100%; }
   .stats strong { display: block; white-space: nowrap; font-size: clamp(18px, 5.4vw, 22px); }
   /* A figure too long for half a row (₱1,234,567.89) takes the whole row (ui.js fitFigures). */
   .stats > .card.fig-wide { grid-column: 1 / -1; }
+  .stats { grid-auto-flow: row dense; } /* the other tiles fill the hole a wide one leaves */
 }
 @media (max-width: 420px) { .grid.four { grid-template-columns: minmax(0, 1fr); } }
 /* Forms: two columns on landscape phones and tablets, one on phones. */
@@ -2140,29 +2161,43 @@ select { max-width: 100%; }
 .register td:first-child { min-width: 180px; max-width: 240px; white-space: normal; }
 .register td:first-child strong { overflow-wrap: anywhere; }
 
+/* The payroll register scrolls with its first column pinned: no padding beside it for figures to show through. */
+@media (min-width: 761px) { .card.scroll-x:has(> .table.register) { padding-left: 0; padding-right: 0; } }
+
 /* T2: wide tables (6 columns or more, marked .stack-md by ui.js) are cards up to 1024 px too, so a
-   tablet or a landscape phone never hides their last columns. Same rules as the phone block above. */
+   tablet or a landscape phone never hides their last columns. With the room a tablet has, each card
+   is a grid: the title across the top, then the fields side by side, each label above its value. */
 @media (min-width: 761px) and (max-width: 1024px) {
   .scroll-x:has(.table.stack-md) { overflow-x: visible; }
   .card.scroll-x:has(.table.stack-md) { padding: 0 20px 6px; }
   .table.stack-md thead { display: none; }
-  .table.stack-md, .table.stack-md tbody, .table.stack-md tfoot, .table.stack-md tr { display: block; width: 100%; }
-  .table.stack-md tr { padding: 12px 2px; border-bottom: 1px solid var(--border); }
+  .table.stack-md, .table.stack-md tbody, .table.stack-md tfoot { display: block; width: 100%; }
+  .table.stack-md tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 20px; align-items: start; width: 100%; padding: 14px 2px; border-bottom: 1px solid var(--border); }
   .table.stack-md tbody tr:hover { background: none; }
-  .table.stack-md td { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 4px 0; border: 0; text-align: right; overflow-wrap: anywhere; min-width: 0; }
-  .table.stack-md td::before { content: attr(data-label); flex-shrink: 0; text-align: left; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  /* A shaded row (low stock, a picked task) is shaded as one card, not cell by cell. */
+  .table.stack-md tr:is(.row-low, .pm-selected) > td { background: none; }
+  .table.stack-md tr.row-low { background: var(--accent-soft); border-radius: 8px; padding-inline: 12px; }
+  :root[data-theme='dark'] .table.stack-md tr.row-low { background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+  .pm-list.stack-md tr.pm-selected { background: var(--brand-softer); }
+  .table.stack-md td { display: block; padding: 0; border: 0; text-align: left; overflow-wrap: anywhere; min-width: 0; }
+  .table.stack-md td::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
   .table.stack-md td:not([data-label])::before { content: none; }
-  .table.stack-md td:first-child { display: block; text-align: left; font-size: 15px; padding-bottom: 6px; }
+  .table.stack-md td:first-child { grid-column: 1 / -1; font-size: 15px; }
   .table.stack-md td:first-child::before { content: none; }
   .table.stack-md td.is-empty { display: none; }
-  .table.stack-md td.row-actions, .table.stack-md td:last-child:not([data-label]) { justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
-  .table.stack-md .cell-v { text-align: right; min-width: 0; }
-  .table.stack-md td:first-child .cell-v { text-align: left; }
+  .table.stack-md td.row-actions, .table.stack-md td:last-child:not([data-label]) { grid-column: 1 / -1; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  /* The row's buttons share the title's row, on the right. */
+  .table.stack-md tr:has(> td.row-actions:not(:first-child), > td:last-child:not([data-label]):not(:first-child)) > td:first-child { grid-column: 1 / -3; }
+  .table.stack-md tr > :is(td.row-actions, td:last-child:not([data-label])):not(:first-child) { grid-row: 1; grid-column: -3 / -1; align-self: start; }
+  /* Long text (a description, a ticket's subject) takes two fields' width. */
+  .table.stack-md td:is([data-label='Detail'], [data-label='Description'], [data-label='Problem'], [data-label='Notes'], [data-label='Note']) { grid-column: span 2; }
+  .table.stack-md .cell-v { text-align: left; min-width: 0; }
   .table.stack-md td.row-actions .link { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; min-height: 44px; justify-content: center; }
   .table.stack-md td.row-actions .link.danger { border-color: color-mix(in srgb, var(--danger) 35%, var(--surface)); }
   .table.stack-md tfoot tr { background: var(--brand-softer); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
   .table.stack-md tfoot td { background: none; border: 0; }
-  .table.stack-md td.num, .table.stack-md td.center { text-align: right; }
+  .table.stack-md td.num, .table.stack-md td.center { text-align: left !important; }
+  .table.stack-md td small.clip { max-width: none; white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
   .table.stack-md tr.unread td:first-child, .table.stack-md tr.flag-row td:first-child { box-shadow: none; }
   .table.stack-md tr.unread, .table.stack-md tr.flag-row { box-shadow: inset 3px 0 0 var(--gold-bright); padding-left: 12px; }
   .table.stack-md .module-row td:not(:first-child) { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: start; text-align: left; gap: 4px 12px; padding: 8px 0; }
@@ -2170,16 +2205,28 @@ select { max-width: 100%; }
   .pm-list.stack-md tr.pm-group th { display: block; padding: 14px 0 6px; border: 0; white-space: normal; }
   .pm-list.stack-md tr.pm-sub td:first-child { padding-left: 16px; }
   .pm-list.stack-md tr.pm-sub td:first-child::before { left: 2px; }
-  .pm-list.stack-md select, .pm-list.stack-md input[type='date'] { max-width: 60%; }
+  .pm-list.stack-md select, .pm-list.stack-md input[type='date'] { width: 100%; max-width: 100%; }
   .pm-list.stack-md td.num small { display: inline; margin-left: 6px; }
   .pm-list.stack-md td.num small::before { content: '· '; }
   .pm-milestones.stack-md tr.pm-late td:first-child { box-shadow: none; }
   .pm-milestones.stack-md tr.pm-late { box-shadow: inset 3px 0 0 var(--danger); padding-left: 12px; }
   .stack-md .grant { flex-wrap: wrap; }
+  /* Access grants: wider fields, so each grant's picker shows its whole choice. */
+  .grant-table.stack-md tr { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+  .grant-table.stack-md .grant select { flex: 1 1 100%; width: 100%; min-width: 0; }
   .card.scroll-x:has(.table.stack-md) > :is(.toolbar.pad, .muted.pad, h2.pad, .card-head.pad, .pm-chips-row) { padding-left: 0; padding-right: 0; }
+  /* Service desk queue: the subject leads the card, then the ticket number. */
+  .hd-table.stack-md td[data-label='Subject'] { order: -1; grid-column: 1 / -1; font-size: 15px; }
+  .hd-table.stack-md td[data-label='Subject']::before { content: none; }
+  .hd-table.stack-md td:first-child { font-size: 13px; }
+  .hd-table.stack-md td:first-child .cell-v { display: flex; gap: 8px; align-items: baseline; }
+  .hd-table.stack-md td:first-child small { display: inline; }
 }
 /* The filter row inside a list card lines up with the cards below it (no second indent). */
 @media (max-width: 760px) {
+  /* ...and so does the title of a list card that is empty (no table, so no card rules). */
+  .card.scroll-x:not(:has(.table.stackable)) > h2 { padding: 16px 16px 0; }
+  .table.stackable td.row-actions { gap: 8px; }
   .card.scroll-x:has(.table.stackable) > :is(.toolbar.pad, .muted.pad, h2.pad, .card-head.pad, .pm-chips-row) { padding-left: 0; padding-right: 0; }
   .table.stackable td::before { font-size: 12px; }
   /* Overdue milestones and flagged rows: the marker is on the card, clear of its text. */
@@ -2209,7 +2256,12 @@ select { max-width: 100%; }
 .tabs.more-left, .pm-chips.more-left, .seg-btns.more-left, .crm-path.more-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
 .tabs.more-left.more-right, .pm-chips.more-left.more-right, .seg-btns.more-left.more-right, .crm-path.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 /* Tables, boards and strips: a fade on the right edge only (a sticky first column stays crisp). */
-:is(.scroll-x, .table-scroll, .pm-ts-scroll, .crm-board, .pm-board, .pm-ms-strip, .pm-tl-scroll, .pm-bulk-in).more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); }
+:is(.scroll-x, .table-scroll, .pm-ts-scroll, .crm-board, .pm-board, .pm-ms-strip, .pm-tl-scroll, .pm-bulk-in):not(.card).more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); }
+/* A card that scrolls keeps its frame (border, corners, shadow): its right edge gets an inner shade. */
+.card.scroll-x.more-right { box-shadow: var(--shadow), inset -26px 0 20px -20px rgba(16, 24, 40, 0.22); }
+:root[data-theme='dark'] .card.scroll-x.more-right { box-shadow: var(--shadow), inset -26px 0 20px -20px rgba(0, 0, 0, 0.7); }
+/* Desktop: the asset register's eight columns fit the card with the sidebar open. */
+@media (min-width: 1025px) and (max-width: 1440px) { #asset-table .table th, #asset-table .table td { padding-left: 10px; padding-right: 10px; } }
 .scroll-hint { display: none; margin: 6px 0 0; font-size: 12px; color: var(--muted); text-align: right; }
 @media (max-width: 1024px) { .scroll-hint:has(+ .more-right), .more-right + .scroll-hint { display: block; } }
 
@@ -2243,6 +2295,7 @@ select { max-width: 100%; }
   .crm-checklist .icon-btn { opacity: 1; color: var(--muted); }
   .sys-dots { gap: 0; }
   .sys-dots button { flex: 0 1 44px; min-width: 0; height: 44px; }
+  .sys-dots { margin-inline: -16px; } /* the page's side padding too: eight 44 px dots fit a 360 px phone */
   .sys-arrows .icon-btn { width: 44px; height: 44px; }
   .modal header .icon-btn { width: 44px; height: 44px; }
   .pm-sel, .appr-table input[type='checkbox'] { width: 22px; height: 22px; }
@@ -2288,32 +2341,50 @@ select { max-width: 100%; }
   .modal-backdrop { padding-top: 0; }
   .modal, .modal.wide { max-height: 100vh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; border-radius: 12px 12px 0 0; }
   .modal::before { display: none; }
-  .modal header { padding: 8px 12px 8px 16px; border-bottom-width: 1px; align-items: center; }
+  .modal { scroll-padding-block: 60px 68px; }
+  .modal header { position: sticky; top: 0; z-index: 3; background: var(--surface); padding: 8px 12px 8px 16px; border-bottom-width: 1px; align-items: center; }
   .modal header h2 { font-size: 16px; }
   .modal-title p { display: none; }
   .modal-body { overflow: visible; flex: none; padding: 12px 16px; }
   .modal footer { position: sticky; bottom: 0; z-index: 2; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); }
   .modal footer .btn { min-height: 44px; }
 }
-/* Long forms: the save buttons stay at the bottom of a phone's screen. */
-@media (max-width: 760px) {
+/* Long forms: the save buttons stay at the bottom of a phone's or tablet's screen (Save, and Cancel
+   at most: other actions stay in the page). */
+@media (max-width: 1024px) {
   .save-bar { position: sticky; bottom: 0; z-index: 15; margin: 0 -16px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 18px rgba(16, 24, 40, 0.1); }
   .save-bar.actions { flex-wrap: nowrap; }
   .save-bar .btn { flex: 1 1 0; min-height: 46px; }
   .save-bar .btn.primary { flex-grow: 2; }
   form.stack:has(> .save-bar) { margin-bottom: 0; }
+  /* A field scrolled into view (focus, the keyboard, a form error) stops above the bar. */
+  html:has(.save-bar) { scroll-padding-bottom: 84px; }
+}
+@media (min-width: 761px) and (max-width: 1024px) {
+  .save-bar .btn, .save-bar .btn.primary { flex: 0 0 auto; min-width: 160px; }
+}
+@media (max-height: 500px) and (max-width: 1024px) {
+  .save-bar { padding-block: 6px calc(6px + env(safe-area-inset-bottom)); }
+  .save-bar .btn { min-height: 44px; }
+  html:has(.save-bar) { scroll-padding-bottom: 64px; }
 }
 
 /* T7: content first on phones. Filters fold into one "Filters" button with a count (ui.js). */
 .filters-btn { display: none; }
 .filters-btn .count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--brand); color: var(--brand-ink); font-size: 12px; line-height: 20px; text-align: center; }
 .filters-btn .count[hidden] { display: none; }
-@media (max-width: 760px), (max-height: 500px) and (max-width: 960px) {
+@media (max-width: 760px), (max-height: 500px) and (max-width: 960px), (pointer: coarse) and (max-width: 1024px) {
   .toolbar.has-filters > .filters-btn { display: inline-flex; flex: 0 0 auto; }
   .toolbar.has-filters > input[type='search'] { flex: 1 1 0; min-width: 0; }
   .toolbar.has-filters:not(.filters-open) > .filter-item { display: none !important; }
   .toolbar.has-filters.filters-open > .filter-item { flex: 1 1 100%; }
   .toolbar.has-filters.filters-open > .filter-item.filter-extra { flex: 0 1 auto; }
+  /* Open, the button looks pressed (like an active chip). */
+  .filters-btn[aria-expanded='true'] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-text); }
+}
+/* On a tablet the open filters sit two to a row. */
+@media (min-width: 761px) and (max-width: 1024px) and (pointer: coarse) {
+  .toolbar.has-filters.filters-open > .filter-item:not(.filter-extra) { flex: 1 1 calc(50% - 8px); }
 }
 @media (max-width: 960px) {
   /* CRM records: the details first, then the activity. */
@@ -2324,8 +2395,11 @@ select { max-width: 100%; }
 }
 /* Service desk tickets keep two columns on tablets, the conversation first everywhere. */
 @media (min-width: 761px) and (max-width: 960px) {
-  .hd-layout { grid-template-columns: minmax(0, 1fr) 260px; }
+  .hd-layout { grid-template-columns: minmax(0, 1fr) 300px; }
 }
+/* A linked task: its key stays on one line, the title wraps beside it. */
+.link-list li > a:has(> .mono) { gap: 6px; }
+.link-list li > a > .mono { flex-shrink: 0; white-space: nowrap; }
 
 /* T8: sticky and fixed bars. A shorter top bar on a landscape phone; toasts at the top of a phone's
    screen, clear of the primary button, the bulk bar and the save bar at the bottom. */
@@ -2336,14 +2410,21 @@ select { max-width: 100%; }
   .page-head p.muted { display: none; }
   .crm-board, .pm-board { scroll-margin-top: var(--topbar); }
 }
-@media (max-width: 760px) {
+/* Wherever toasts stay at the bottom, they rise above a bulk bar or an "Unsaved changes" bar. */
+body:has(.pm-bulk:not([hidden]), .sticky-actions:not([hidden])) #toast { bottom: 96px; }
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1024px) {
   #toast { top: calc(var(--topbar) + 8px); bottom: auto; transform: translateY(-12px); }
   #toast.show { transform: none; }
-  body:has(.pm-bulk:not([hidden])) #toast { bottom: auto; }
+  body:has(.pm-bulk:not([hidden]), .sticky-actions:not([hidden])) #toast { bottom: auto; }
+}
+@media (min-width: 761px) and (max-width: 1024px) and (pointer: coarse) {
+  #toast { left: 50%; right: auto; transform: translate(-50%, -12px); max-width: min(560px, calc(100vw - 32px)); }
+  #toast.show { transform: translate(-50%, 0); }
 }
 @media (max-height: 500px) {
   #toast { top: calc(var(--topbar) + 6px); bottom: auto; left: auto; right: 16px; max-width: min(420px, calc(100vw - 32px)); transform: translateY(-12px); }
   #toast.show { transform: none; }
+  body:has(.pm-bulk:not([hidden]), .sticky-actions:not([hidden])) #toast { bottom: auto; }
 }
 
 /* ----- Per screen (0.18) ----- */
@@ -2355,8 +2436,11 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
 .cert-field input[type='file'] { width: 100%; }
 /* Page-head buttons on phones: an even two-column grid; a destructive button goes last and stays one cell. */
 @media (max-width: 760px) {
-  .page-head .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .page-head .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
   .page-head .actions > :only-child { grid-column: 1 / -1; }
+  /* The main action comes first, across the row; a secondary left alone in its row takes the row too. */
+  .page-head .actions > .btn.primary { grid-column: 1 / -1; order: -1; }
+  .page-head .actions:not(:has(> :is(.btn.danger, #del, #delete))) > :nth-last-child(1 of :not(.btn.primary, .seg-btns)):nth-child(odd of :not(.btn.primary, .seg-btns)) { grid-column: 1 / -1; }
   .page-head .actions > :is(.btn.danger, .btn.ghost.danger, #del, #delete) { order: 10; }
   .page-head .actions > .seg-btns { grid-column: 1 / -1; justify-self: start; }
   .page-head .actions .btn { width: 100%; min-width: 0; white-space: normal; text-align: center; }
@@ -2371,9 +2455,10 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .pf-link .btn { flex: 1 1 0; }
 }
 /* HR: the payroll register on a phone shows the summary (pay, net) and "Details" for the rest. */
-.ph-only { display: none; }
+/* (button.ph-only: as specific as the touch rule that shows every button.link) */
+.ph-only, button.ph-only { display: none; }
 @media (max-width: 760px) {
-  .ph-only { display: inline-flex; }
+  .ph-only, button.ph-only { display: inline-flex; }
   .table.stackable.register tbody tr:not(.show-detail) td.ph-detail { display: none; }
   .table.stackable.register tfoot td.ph-detail { display: none; }
 }
@@ -2456,6 +2541,13 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .crm-path button.won, .crm-path button.lost { flex: none; }
   .crm-path button.won { grid-column: 1; }
 }
+/* Projects board on a phone: the board comes up sooner (the project's details are on its Overview). */
+@media (max-width: 760px), (max-height: 500px) and (max-width: 960px) {
+  #app:has(#board) .pm-head p.muted { display: none; }
+  #app:has(#board) .pm-head h1 { margin-bottom: 0; }
+  #app:has(#board) .pm-tabs { margin-bottom: 10px; }
+  #app:has(#board) .pm-chips-line { margin-bottom: 6px; }
+}
 /* Projects: a milestone's note wraps inside its card; the burn-up's method folds away. */
 .pm-ms .crm-due { white-space: normal; }
 .pm-bu-method summary { color: var(--brand-text); font-weight: 600; font-size: 13px; }
@@ -2494,6 +2586,11 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .pm-ts-rows li { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 6px 12px; align-items: end; padding: 12px 0; border-top: 1px solid var(--border); }
   .pm-ts-rows li:first-child { border-top: 0; }
   .pm-ts-rows .pm-ts-row-head { min-width: 0; }
+  /* The task picker takes the card's width (its title shows in full); the week's hours and the
+     day's hours share the line under it. */
+  .pm-ts-rows li:has(> .pm-ts-row-head > select) .pm-ts-row-head { display: contents; }
+  .pm-ts-rows li:has(> .pm-ts-row-head > select) :is(.pm-ts-proj, select) { grid-column: 1 / -1; }
+  .pm-ts-rows li:has(> .pm-ts-row-head > select) .pm-ts-row-head > small { grid-column: 1; align-self: end; padding-bottom: 12px; }
   .pm-ts-rows select { width: 100%; margin-top: 4px; }
   .pm-ts-rows .field { gap: 4px; }
   .pm-ts-rows .field input { width: 100%; text-align: right; font-variant-numeric: tabular-nums; }
@@ -2513,27 +2610,30 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .pm-steps li.on::after { content: "(step " counter(step) " of 3)"; color: var(--muted); font-weight: 500; }
   .pm-imp-sample { display: none; }
 }
-/* Admin panel: roles on a phone, one account type at a time (picked above the groups). */
+/* Admin panel: roles on a phone (upright or on its side), one account type at a time (picked above the groups). */
 .role-pick { display: none; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 500px) and (max-width: 960px) {
   .role-pick { display: flex; position: sticky; top: var(--topbar); z-index: 6; margin: 0 -16px 16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
   .role-pick .field { flex: 1; }
   .roles-picking .roles-matrix .pick-hide { display: none; }
   .roles-picking .roles-matrix thead th:first-child, .roles-picking .roles-matrix tbody th { width: auto; min-width: 0; max-width: none; }
   .roles-picking .roles-matrix td, .roles-picking .roles-matrix thead th:not(:first-child) { width: 96px; }
+  .roles-picking .roles-matrix tbody td { border-bottom: 1px solid var(--border); }
 }
+@media (max-height: 500px) and (max-width: 960px) { .role-pick { padding-block: 4px; } }
 /* Admin panel: the Settings center's Open button sits inside its group's card. */
 .config-area-wrap > .area-actions { top: 12px; right: 16px; }
 @media (max-width: 720px) {
   .config-area-wrap > .area-actions { position: absolute; top: 12px; right: 12px; margin: 0; }
-  .config-area-wrap > details.config-area > summary { padding-right: 96px; }
-  .config-area-wrap:has(.area-actions .btn + .btn) > details.config-area > summary { padding-right: 0; padding-top: 44px; }
+  .config-area-wrap > details.config-area > summary { margin-right: 96px; }
+  .config-area-wrap:has(.area-actions .btn + .btn) > details.config-area > summary { margin-right: 0; margin-top: 44px; }
 }
 /* Admin panel: the dev log's filters wrap instead of running off the screen. */
 @media (max-width: 760px) {
   .log-toolbar .seg-btns { flex-wrap: wrap; overflow: visible; max-width: 100%; }
   .log-toolbar .seg-btns button { border-bottom: 1px solid var(--border); margin-bottom: -1px; }
   .logo-box { flex-direction: column; align-items: flex-start; }
+  .logo-box > div { flex: 0 0 auto; } /* (in a column, a 180 px basis was 180 px of height) */
   .logo-box img { order: -1; }
   .brand-field .hint + .field, .field + .hint + .field { margin-top: 12px; }
 }
@@ -2559,8 +2659,8 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .sp-actions .btn { width: 100%; }
   .sp-link .btn { width: 100%; }
 }
-/* A disabled button looks disabled, whatever its colour. */
-.btn.primary:disabled, .btn.gold:disabled, .btn.danger:not(.ghost):disabled { background: var(--surface-2); border-color: var(--border-strong); color: var(--muted); opacity: 1; }
+/* A disabled button looks disabled, whatever its colour: every one the same, neutral and faded. */
+.btn.primary:disabled, .btn.gold:disabled, .btn.danger:not(.ghost):disabled { background: var(--surface); border-color: var(--border-strong); color: var(--text-2); opacity: 0.45; box-shadow: none; }
 @media (pointer: coarse) { .row-actions a.link, td > a.link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; } }
 @media (max-width: 760px) { .logo-box .stack.tight { align-items: flex-start; } }
 @media (max-height: 500px) and (orientation: landscape) and (min-width: 600px) {
@@ -2568,18 +2668,42 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .page-head .actions { flex: 0 1 auto; }
   .page-head .actions .btn { flex: 0 1 auto; }
 }
-/* Touch: text links in tables, lists and cards get a 44 px tall hit area without moving anything
-   (vertical padding on an inline link grows only what can be tapped). */
+/* Touch: text links in tables, lists and cards get a taller hit area without moving anything
+   (vertical padding on an inline link grows only what can be tapped). ui.js fitHitAreas() sets how
+   much for each link: up to 44 px, but only into the free space around it, so a hit area never
+   covers another control or another link's text. */
 @media (pointer: coarse) {
-  :is(td, dd, li, .card, small, .cell-v, .hd-sub, .meta, .crm-card, .pm-card, p.muted) > a:not(.btn):not(.back):not(.list-item):not(.tile):not(.sys-card):not(.fb-row):not(.result):not(.side-link):not(.admin-tile):not(.admin-panel-card),
-  .crm-card-title, .pm-card-title, td > a.mono, .cell-v > a.mono { padding-block: 14px; margin-block: -14px; }
-  .crm-card-title, .pm-card-title { padding-block: 6px; margin-block: -6px; }
+  a.hit { padding-block: var(--hit-t, 0px) var(--hit-b, 0px); }
+  a.hit.hit-box { margin-block: calc(var(--hit-mt, 0px) - var(--hit-t, 0px)) calc(var(--hit-mb, 0px) - var(--hit-b, 0px)); }
   .topbar .brand { min-width: 44px; }
   .tabs a, .seg-btns button { min-width: 44px; justify-content: center; }
   .cell-btn, .pm-ts tbody th select, .req-days.edit select { min-height: 44px; }
   .pm-sel-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin: -11px 0 -11px -11px; vertical-align: middle; cursor: pointer; }
   .pm-sel-hit .pm-sel { margin: 0; }
+  /* Lists of records (a title, a line of details, a date or a status): the whole row opens the
+     record; the other links and controls in the row sit above it and keep their own place. */
+  .crm-mini li:has(> .grow > a:first-child) { position: relative; }
+  .crm-mini li > .grow > a:first-child::after { content: ''; position: absolute; inset: 0; }
+  .crm-mini li:has(> .grow > a:first-child) :is(a, button, select, input, label, summary):not(.grow > a:first-child) { position: relative; z-index: 1; }
+  /* Board cards (projects, pipeline): the whole card opens the task or deal; its Move button and
+     other controls sit above. */
+  .pm-card, .crm-card { position: relative; }
+  .pm-card-title::after, .crm-card-title::after { content: ''; position: absolute; inset: 0; }
+  :is(.pm-card, .crm-card) :is(button, select, input, label, a:not(.pm-card-title, .crm-card-title)) { position: relative; z-index: 1; }
+  /* Lists of people (Direct reports): one name per row, each a 44 px row. */
+  ul.comma-list li { display: block; }
+  ul.comma-list li > a { display: inline-flex; align-items: center; min-height: 44px; }
+  ul.comma-list li + li::before { content: none; }
 }
+/* The List's title beside its checkbox: a title that wraps stays in its own column. */
+.pm-row-title { display: flex; align-items: flex-start; }
+.pm-row-title > span { flex: 1; min-width: 0; }
+.pm-row-title .pm-sel { margin-top: 1px; vertical-align: 0; }
+@media (pointer: coarse) { .pm-row-title .pm-sel-hit { margin: -11px 0 -11px -11px; } }
+/* A list of names that reads as one line on a desktop ("Juan Dela Cruz, Andrea Villanueva"). */
+.comma-list { list-style: none; margin: 0; padding: 0; }
+.comma-list li { display: inline; }
+.comma-list li + li::before { content: ', '; }
 /* A 44 px minimum width replaces the automatic one (the text's width): keep these from shrinking. */
 @media (pointer: coarse) {
   .tabs a, .seg-btns button, .card-head > a, a.back, .crumbs a, button.link, .rel-actions .link, .hd-files .link, .pm-ts-add .link { flex-shrink: 0; }
@@ -2598,7 +2722,6 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .crm-stage-table .row-actions .icon-btn { width: auto; height: auto; }
 }
 @media (pointer: coarse) {
-  :is(td, dd, li, .card, small, .cell-v, .hd-sub, .meta, p.muted) > a:not(.btn):not(.back):not(.list-item):not(.tile):not(.sys-card):not(.fb-row) { padding-block: 14px; margin-block: -14px; }
   .crm-path button, .crm-funnel-row { min-height: 44px; }
   .field > label.check, .pf-cats label { display: flex; align-items: center; min-height: 44px; }
 }

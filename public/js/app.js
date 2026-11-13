@@ -4,6 +4,7 @@ import { html, mount, toast, today } from './ui.js';
 import { icon, iconSvg } from './icons.js';
 import { MODULES, SWITCHABLE } from './modules.js';
 import { redirectOf } from '/shared/redirects.js';
+import { nextInTrap } from './phone.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
 import { clockView, dtrView } from './views/time.js';
@@ -434,11 +435,11 @@ document.getElementById('sidebar').addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Tab' || !body.classList.contains('nav-open') || document.querySelector('.modal-backdrop')) return;
   const items = [menuBtn, ...document.querySelectorAll('#sidebar a[href], #sidebar button')].filter((x) => x.offsetParent !== null);
-  const i = items.indexOf(document.activeElement);
-  if (i === -1 || (e.shiftKey && i === 0) || (!e.shiftKey && i === items.length - 1)) {
-    e.preventDefault();
-    items[e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : i === -1 || i === items.length - 1 ? 0 : i + 1].focus();
-  }
+  if (!items.length) return;
+  // Always moved by hand: the menu button is not next to the drawer's links in the page, so the
+  // browser's own Tab order would leave the drawer from it.
+  e.preventDefault();
+  items[nextInTrap(items.indexOf(document.activeElement), items.length, e.shiftKey)].focus();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;

@@ -172,6 +172,7 @@ async function searchView(q) {
       : html`<div class="empty-state">${icon('search', 32)}<p>Try fewer or other words, or open the guide for your job from the list.</p><a class="btn" href="#/">Help home</a></div>`}`, { wide: true });
   document.querySelectorAll('.help-search input').forEach((i) => (i.value = q));
   wireSearch(appEl.querySelector('.results-search'));
+  window.scrollTo(0, 0);
 }
 
 // ----- A guide -----
