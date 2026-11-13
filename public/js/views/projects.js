@@ -67,6 +67,40 @@ function saveQueue() {
 }
 const may = (access, level) => LEVEL[access] >= LEVEL[level];
 
+// ---------- List size ----------
+// The project lists (Projects, Milestones, a project's List, My work) come comfortable (the default:
+// the key and details on their own line under each title) or compact (one line a row, tighter
+// spacing, for scanning long lists). The choice is kept in this browser, like the theme.
+const DENSITY_KEY = 'core-pm-density';
+export const DENSITIES = { comfortable: 'Comfortable', compact: 'Compact' };
+export function listDensity() {
+  try {
+    return localStorage.getItem(DENSITY_KEY) === 'compact' ? 'compact' : 'comfortable';
+  } catch {
+    return 'comfortable';
+  }
+}
+const applyDensity = (d = listDensity()) => document.body.classList.toggle('pm-compact', d === 'compact');
+// fold: on phones the switch folds into the list's Filters button with the other list controls.
+const densitySwitch = (fold = true) => {
+  const d = listDensity();
+  return html`<div class="seg-btns pm-density" role="group" aria-label="List size" ${fold ? 'data-fold' : ''}>${Object.entries(DENSITIES).map(([k, label]) => html`<button type="button" data-density="${k}" class="${d === k ? 'active' : ''}" aria-pressed="${d === k ? 'true' : 'false'}" title="${k === 'compact' ? 'One line a row, more rows on screen' : 'More room, details under each title'}">${label}</button>`)}</div>`;
+};
+function wireDensity(el) {
+  applyDensity();
+  el.querySelectorAll('[data-density]').forEach((b) => b.addEventListener('click', () => {
+    const d = b.dataset.density;
+    try {
+      localStorage.setItem(DENSITY_KEY, d);
+    } catch {}
+    applyDensity(d);
+    el.querySelectorAll('[data-density]').forEach((x) => {
+      x.classList.toggle('active', x.dataset.density === d);
+      x.setAttribute('aria-pressed', String(x.dataset.density === d));
+    });
+  }));
+}
+
 // ---------- Badges and chips ----------
 const PROJECT_BADGE = { planning: 'blue', active: 'green', on_hold: 'amber', completed: 'gray', cancelled: 'gray' };
 const projectBadge = (s) => badge(PROJECT_STATUS[s] || s, PROJECT_BADGE[s]);
@@ -385,9 +419,11 @@ export async function portfolioView(el, _params, query) {
         <select id="f-type" aria-label="Type"><option value="">All types</option>${options(m.types.map((t) => [t, t]), state.type)}</select>
         <select id="f-manager" aria-label="Project manager"><option value="">All managers</option>${options(managers, state.manager)}</select>
         <label class="field check inline"><input type="checkbox" id="f-mine" ${state.mine ? 'checked' : ''} /><span>Mine</span></label>
+        ${densitySwitch()}
       </div>
       <div id="list"></div>
     </section>`);
+  wireDensity(el);
   // Templates: their own list, with "Use" to start a project from one.
   const drawTemplates = (q) => {
     const rows = ov.templates.filter((t) => (!state.type || t.type === state.type) && (!q || [t.name, t.code, t.description].some((f) => String(f || '').toLowerCase().includes(q))));
@@ -461,10 +497,12 @@ export async function portfolioMilestonesView(el, _params, query) {
         <select id="f-client" aria-label="Client"><option value="">Every client</option>${options(clients.map((c) => [c, c]), state.client)}</select>
         <select id="f-health" aria-label="Health"><option value="">Any health</option>${options([...Object.entries(HEALTH), ['done', 'Accepted or done']], state.health)}</select>
         <label class="field check inline"><input type="checkbox" id="f-deliv" ${state.deliverables ? 'checked' : ''} /><span>Deliverables only</span></label>
+        ${densitySwitch()}
       </div>
       <div id="ms-list"></div>
     </section>
     ${data.amounts ? html`<section class="card pm-forecast" aria-labelledby="fc-h"><div class="card-head"><h2 id="fc-h">${icon('chart')} Billing forecast</h2><button type="button" class="btn" id="fc-csv">${icon('download', 16)} Export CSV</button></div><div id="fc"></div></section>` : ''}`);
+  wireDensity(el);
   const shown = () => data.rows.filter((r) => (state.show === 'all' || !r.finished) && (!state.month || r.dueDate.startsWith(state.month)) && (!state.client || clientOf(r) === state.client)
     && (!state.health || (state.health === 'done' ? r.finished : r.health === state.health)) && (!state.deliverables || r.deliverable));
   // The forecast follows the client and the month; it always counts accepted deliverables as earned.
@@ -1171,11 +1209,13 @@ export async function listView(el, { id }, query) {
         <select id="f-show" aria-label="Which tasks">${options([['open', 'Open tasks'], ['done', 'Done'], ['all', 'All tasks']], state.show)}</select>
         <select id="f-sort" class="pm-phone-only" aria-label="Sort by">${options([['rank', 'Board order'], ['due', 'Sort by due date'], ['priority', 'Sort by priority'], ['assignee', 'Sort by assignee'], ['status', 'Sort by status'], ['title', 'Sort by title'], ['size', 'Sort by size']], state.sort)}</select>
         ${viewsButton(views, 'list')}
+        ${densitySwitch()}
       </div>
       <div class="pm-chips-row">${chipBar(state.f)}</div>
       <div id="list"></div>
     </section>
     ${work ? html`<div class="pm-bulk" id="bulk" role="region" aria-label="Change the selected tasks" hidden></div>` : ''}`);
+  wireDensity(el);
   const SORTS = {
     rank: byRank, key: (a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }), title: (a, b) => a.title.localeCompare(b.title),
     status: (a, b) => p.statuses.findIndex((s) => s.id === a.statusId) - p.statuses.findIndex((s) => s.id === b.statusId),
@@ -1802,7 +1842,7 @@ export async function myWorkView(el, _params, query = {}) {
       ${may(t.access, 'work') ? html`<select data-status="${t.id}" aria-label="Status of ${t.key}">${options(t.project.statuses.map((s) => [s.id, s.name]), t.statusId)}</select>` : statusChip(t.project.statuses.find((s) => s.id === t.statusId))}
     </li>`;
   mount(el, html`
-    ${head('My work', total ? `${plural(total, 'open task')} assigned to you, across your projects.` : 'Tasks assigned to you, across your projects.')}
+    ${head('My work', total ? `${plural(total, 'open task')} assigned to you, across your projects.` : 'Tasks assigned to you, across your projects.', total ? densitySwitch(false) : '')}
     <section class="card pm-foryou" aria-labelledby="foryou-h">
       <div class="card-head"><h2 id="foryou-h">${icon('inbox')} For you ${notes.unread ? html`<span class="badge blue">${notes.unread} unread</span>` : ''}</h2>
         ${notes.unread ? html`<button type="button" class="btn small-btn" id="read-all">Mark all read</button>` : ''}</div>
@@ -1815,6 +1855,7 @@ export async function myWorkView(el, _params, query = {}) {
         <div class="card-head"><h2>${k === 'overdue' ? icon('alert') : icon('calendar')} ${label} <span class="muted small">${g[k].length}</span></h2></div>
         <ul class="crm-mini">${g[k].map(row)}</ul></section>`)
       : html`<div class="card empty">${icon('task', 40)}<h2>Nothing assigned to you</h2><p>Tasks assigned to you in any project show here, soonest first.</p>${can('pm.view') || ctx.user.inProjects ? html`<p><a class="btn" href="#/projects">Open the projects</a></p>` : ''}</div>`}`);
+  wireDensity(el);
   el.querySelectorAll('[data-status]').forEach((s) => s.addEventListener('change', guard(async () => {
     const t = Object.values(g).flat().find((x) => x.id === s.dataset.status);
     const r = await api.put(`/api/pm/tasks/${t.id}/move`, { statusId: s.value });

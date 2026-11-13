@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Compact or comfortable project lists (0.19)
+- **Projects**, **Milestones**, a project's **List** and **My work** have a **Comfortable** / **Compact** switch. Compact shows about a third more rows on a screen; CORE remembers your choice in this browser. See [the projects guide](projects#make-the-lists-compact-or-comfortable).
+
 ### Phones and tablets (0.18)
 - Every screen fits a phone: nothing makes the page wider than the screen, and wide lists are cards on tablets and landscape phones too. Tabs and chips that scroll sideways fade at the edge, and the one you are on is in view. See [Getting started](getting-started#use-core-on-a-phone).
 - Buttons, menu items, links and checkboxes are easier to tap (at least 44 px), inputs no longer make the phone zoom in, and small text is larger.

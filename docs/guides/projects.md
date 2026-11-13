@@ -268,6 +268,15 @@ It is all or nothing: one row with a problem and nothing is imported. Tasks get 
 
 The filters are in the page's address, so a bookmark or a link you send keeps them.
 
+### Make the lists compact or comfortable
+
+1. Open **Projects**, **Milestones**, a project's **List** or **My work**.
+2. Next to the filters (on My work, under the title), click **Compact** for tighter rows, smaller type and slimmer controls, so more of a long list fits on the screen. Click **Comfortable** to go back to the roomier rows; that is how CORE starts.
+
+![A project's List in compact rows](projects-list-compact.jpg)
+
+The choice applies to all four lists and is kept in this browser, like the dark or light theme: another computer or browser starts comfortable. On a phone the switch is under **Filters**, and buttons and boxes stay large enough to tap.
+
 ### Save a view
 
 1. Set the filters, search, grouping or sort you want on the **Board** or the **List**.
@@ -445,7 +454,7 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 | A project: Timeline | Weeks across, milestones and tasks along a line, today, weekends and holidays; a dated list on a phone |
 | A project: Time | Only on a project that tracks time: log hours; your entries this week; the hours by person (open a member's timesheet) and by task, against the budget |
 | A task | Details (with the size), checklist, subtasks, files, blocked by, comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
-| My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date |
+| My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date; **Comfortable** or **Compact** rows |
 | Timesheet | Your hours on the projects that track time, Monday to Sunday, with your DTR next to it for comparison; your members' timesheets, read only (project managers) |
 | Projects setup | The statuses new projects start with, the project types, what the effort sizes mean, and the daily digest (Project Managers); team access (administrators) |
 

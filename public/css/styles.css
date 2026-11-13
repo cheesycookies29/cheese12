@@ -2734,3 +2734,37 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .premium-table td:first-child { grid-column: 1 / -1; font-weight: 600; }
   .premium-table td[data-label]::before { content: attr(data-label); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 }
+
+/* ----- Projects lists: List size (Comfortable / Compact) -----
+   Comfortable is the default. Compact tightens the rows for scanning long lists: less padding, a
+   smaller type size, slimmer controls in the row, and the details under a title closer to it.
+   On touch screens the controls keep their 44 px; only the spacing around them tightens. */
+.pm-density { flex: none; }
+.pm-density button { white-space: nowrap; }
+.pm-density button.active { background: var(--brand); color: #fff; }
+body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list) td { padding-top: 5px; padding-bottom: 5px; font-size: 13px; line-height: 1.3; }
+body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list) td small { font-size: 11.5px; margin-top: 1px; }
+body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list) td.nowrap, body.pm-compact .pm-list td:nth-child(n+2) { white-space: nowrap; }
+body.pm-compact .pm-list tr.pm-group th { padding-top: 8px; padding-bottom: 6px; }
+body.pm-compact .pm-list select, body.pm-compact .pm-list input[type='date'] { padding-top: 2px; padding-bottom: 2px; font-size: 12.5px; }
+body.pm-compact .pm-list .pm-size-cell small, body.pm-compact .pm-list td.num small { display: inline; margin-left: 6px; }
+body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list) .badge, body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list) .pm-health { padding-top: 1px; padding-bottom: 1px; }
+body.pm-compact .pm-portfolio .pm-progress .progress { height: 6px; }
+body.pm-compact .pm-mywork .crm-mini li { padding: 4px 0; gap: 10px; font-size: 13px; line-height: 1.3; }
+body.pm-compact .pm-mywork .crm-mini li:first-child { padding-top: 0; }
+body.pm-compact .pm-mywork .crm-mini li small { font-size: 11.5px; }
+body.pm-compact .pm-mywork select { padding-top: 2px; padding-bottom: 2px; font-size: 12.5px; }
+body.pm-compact .pm-mywork .card-head { margin-bottom: 4px; }
+@media (max-width: 760px) {
+  /* Phones: rows are cards; compact keeps them cards with less room around and between the fields. */
+  body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list).stackable tr { padding-top: 6px; padding-bottom: 6px; }
+  body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list).stackable td { padding-top: 1px; padding-bottom: 1px; white-space: normal; }
+}
+@media (min-width: 761px) and (max-width: 1024px) {
+  body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list).stack-md tr { padding-top: 8px; padding-bottom: 8px; gap: 6px 16px; }
+  body.pm-compact :is(.pm-portfolio, .pm-milestones, .pm-list).stack-md td { white-space: normal; }
+}
+@media (pointer: coarse) {
+  .pm-density button { min-height: 44px; padding-left: 14px; padding-right: 14px; }
+  body.pm-compact .pm-list select, body.pm-compact .pm-list input[type='date'], body.pm-compact .pm-mywork select { padding-top: 5px; padding-bottom: 5px; font-size: 16px; }
+}

@@ -78,6 +78,7 @@
   {"file": "projects-move-to.jpg", "user": "employee.demo", "url": "/#/projects", "viewport": "phone", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Board')", "[data-move] >> nth=0"], "wait": 1000},
   {"file": "projects-task.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Board')", ".pm-card-title >> text=Gradebook: import class lists"], "wait": 1000},
   {"file": "projects-list.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')"], "wait": 1000},
+  {"file": "projects-list-compact.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "[data-density=compact]"], "wait": 1000},
   {"file": "projects-bulk.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "[data-sel] >> nth=0", "[data-sel] >> nth=1", "[data-sel] >> nth=2", "[data-bulk=priority]"], "wait": 900},
   {"file": "projects-import.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "#import"], "wait": 900},
   {"file": "projects-timeline.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Timeline')"], "wait": 1000},

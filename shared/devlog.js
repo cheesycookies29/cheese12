@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.19.0-alpha',
+    date: '2026-11-13',
+    title: 'Compact project lists',
+    modules: ['projects'],
+    notes: 'The project lists come in two sizes: comfortable (as before) and compact, for scanning long lists.',
+    changes: [
+      ['new', 'projects', 'List size: a Comfortable / Compact switch on Projects, Milestones, a project\'s List and My work. Compact tightens the rows (padding, type size, the controls in a row, the line under a title): rows are 25 to 35% shorter at 1280 px. The choice is kept in this browser (localStorage core-pm-density), like the theme, and applies to all four lists. On phones the switch folds into Filters (on My work it stays under the title), cards keep their layout with less room around the fields, and touch controls keep 44 px and 16 px text.'],
+    ],
+  },
+  {
     version: '0.18.0-alpha',
     date: '2026-11-13',
     title: 'Phones and tablets',
