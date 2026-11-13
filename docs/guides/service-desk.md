@@ -54,7 +54,7 @@ A first tour with the demo data. It takes about ten minutes.
 
 ### Reply to the requester
 
-1. Open the ticket. Leave **Reply to requester** selected.
+1. Open the ticket. Leave **Reply to requester** selected. On a phone or tablet the conversation and the reply box come first; the ticket's status, priority, assignee and the other details are after them.
 2. Type your reply. To use a standard answer, pick it under **Insert saved reply…**; the requester's first name and the ticket number are filled in.
 3. To add screenshots or PDFs, click **Attach** (up to 5 files).
 4. Under **Then**, choose the next status. For a *New* or *Open* ticket it suggests *Waiting on requester*. Choose *Resolved* if your reply fixes it.

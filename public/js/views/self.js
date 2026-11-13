@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { ctx, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
 import { holidaysOn, dayTag } from './holidays.js';
-import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS, modal, confirmDialog } from '../ui.js';
+import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS, modal, confirmDialog, showClock } from '../ui.js';
 import { statusBadge, kindBadge, dateRange, certificateCell } from './leave.js';
 import { requestForm, requestDetail, progressText } from '../requests.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
@@ -114,7 +114,7 @@ export async function meHomeView(el) {
         if (action === 'in') btn.textContent = 'Getting location…';
         const where = action === 'in' ? await readClockLocation() : {};
         const res = await api.post('/api/me/clock', { action, ...where });
-        toast(res.message.replace(emp.firstName, 'You') + (where.locationError ? ' Your location could not be read, so it was recorded without one.' : ''));
+        toast(res.message.replace(emp.firstName, 'You').replace(/\b(\d{2}:\d{2})\b/, (t) => fmtTime(t)) + (where.locationError ? ' Your location could not be read, so it was recorded without one.' : ''));
         render();
       } catch (err) {
         toast(err.message, 'error');
@@ -131,7 +131,7 @@ export async function meHomeView(el) {
     const t = el.querySelector('#clock-time');
     if (!t) return;
     const now = new Date();
-    t.textContent = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    showClock(t, now);
     el.querySelector('#clock-date').textContent = now.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   };
   const timer = setInterval(tick, 1000);
@@ -194,7 +194,7 @@ export async function mePayslipsView(el) {
     <div class="stats">
       <div class="card"><small>Gross pay</small><strong>${money(t.grossPay)}</strong></div>
       <div class="card"><small>Tax withheld</small><strong>${money(t.withholdingTax)}</strong></div>
-      <div class="card"><small>SSS, PhilHealth, Pag-IBIG</small><strong>${money(t.sss + t.philhealth + t.pagibig)}</strong></div>
+      <div class="card"><small>SSS, PhilHealth, Pag&#8209;IBIG</small><strong>${money(t.sss + t.philhealth + t.pagibig)}</strong></div>
       <div class="card"><small>13th month so far</small><strong>${money(t.thirteenthMonthSoFar)}</strong></div>
     </div>` : ''}
     <section class="card">

@@ -4,7 +4,7 @@
 // emails, notes and tasks next to the automatic history.
 import { api } from '../api.js';
 import { ctx, can, roleLabel, mayUseModule } from '../state.js';
-import { html, mount, badge, toast, modal, confirmDialog, money, fmtDate, today, downloadFile, toCsv } from '../ui.js';
+import { html, mount, formErrors, badge, toast, modal, confirmDialog, money, fmtDate, today, downloadFile, toCsv } from '../ui.js';
 import { icon } from '../icons.js';
 import { startProject } from './projects.js';
 import {
@@ -89,11 +89,11 @@ function fieldHtml(f, v) {
   const req = f.required ? html`<em>*</em>` : '';
   const cls = `field ${f.span ? 'span-2' : ''}`;
   if (f.type === 'checkbox') return html`<label class="field check ${f.span ? 'span-2' : ''}"><input type="checkbox" name="${f.name}" ${val ? 'checked' : ''} /><span>${f.label}</span></label>`;
-  if (f.type === 'select') return html`<label class="${cls}"><span>${f.label}${req}</span><select name="${f.name}" ${f.required ? 'aria-required="true"' : ''}>${options(f.options, val, f.blank)}</select>${f.hint ? html`<small class="hint">${f.hint}</small>` : ''}</label>`;
+  if (f.type === 'select') return html`<label class="${cls}"><span>${f.label}${req}</span><select name="${f.name}" ${f.required ? 'required' : ''} ${f.requiredMsg ? html`data-msg="${f.requiredMsg}"` : ''}>${options(f.options, val, f.blank)}</select>${f.hint ? html`<small class="hint">${f.hint}</small>` : ''}</label>`;
   if (f.type === 'textarea') return html`<label class="${cls}"><span>${f.label}${req}</span><textarea name="${f.name}" rows="${f.rows || 3}" placeholder="${f.placeholder || ''}">${val}</textarea>${f.hint ? html`<small class="hint">${f.hint}</small>` : ''}</label>`;
   if (f.type === 'datalist') return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" list="dl-${f.name}" value="${val}" placeholder="${f.placeholder || ''}" /><datalist id="dl-${f.name}">${f.options.map((o) => html`<option value="${o}"></option>`)}</datalist></label>`;
   const hint = f.hint ? html`<small class="hint">${f.hint}</small>` : '';
-  if (f.type === 'number') return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" type="number" min="0" step="0.01" inputmode="decimal" value="${val}" placeholder="${f.placeholder || ''}" ${f.required ? 'aria-required="true"' : ''} />${hint}</label>`;
+  if (f.type === 'number') return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" type="number" min="0" step="0.01" inputmode="decimal" value="${val}" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''} ${f.requiredMsg ? html`data-msg="${f.requiredMsg}"` : ''} />${hint}</label>`;
   return html`<label class="${cls}"><span>${f.label}${req}</span><input name="${f.name}" type="${f.type || 'text'}" value="${val}" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''} />${hint}</label>`;
 }
 function formValues(form, fields) {
@@ -203,7 +203,7 @@ async function editDeal(rec = {}, after) {
       { name: 'title', label: 'Deal name', required: true, span: 2, placeholder: 'e.g. HRIS and payroll for 3 hotels' },
       { name: 'accountId', label: 'Account', type: 'select', options: accounts.map((a) => [a.id, a.name]), required: true, blank: rec.accountId ? undefined : 'Choose…' },
       { name: 'contactId', label: 'Main contact', type: 'select', options: contacts.map((c) => [c.id, `${c.name}${c.accountName ? ` · ${c.accountName}` : ''}`]), blank: 'None' },
-      { name: 'value', label: 'Value (₱)', type: 'number', required: true }, { name: 'expectedClose', label: 'Expected close', type: 'date' },
+      { name: 'value', label: 'Value (₱)', type: 'number', required: true, requiredMsg: 'Enter the deal value. Use 0 if it is not known yet.' }, { name: 'expectedClose', label: 'Expected close', type: 'date' },
       // Won and Lost are set on the board or the deal's stage bar, which ask for the lost reason.
       { name: 'stage', label: 'Stage', type: 'select', options: stageList(m.setup).filter((s) => !['won', 'lost'].includes(s.id) || s.id === rec.stage).map((s) => [s.id, `${s.name} (${s.probability}%)`]), hint: rec.id ? 'To mark it won or lost, use the stage bar on the deal.' : '' },
       { name: 'ownerId', label: 'Owner', type: 'select', options: teamOptions(m, rec) },
@@ -385,7 +385,6 @@ async function timeline(el, type, id) {
     composer?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target;
-      const err = f.querySelector('.form-error');
       const btn = f.querySelector('[type=submit]');
       if (btn.disabled) return; // a double click saves once
       btn.disabled = true;
@@ -395,8 +394,7 @@ async function timeline(el, type, id) {
         changed();
         render();
       } catch (ex) {
-        err.textContent = ex.message;
-        err.hidden = false;
+        formErrors(f).server(ex);
         btn.disabled = false;
       }
     });
@@ -662,6 +660,14 @@ async function moveDeal(deal, stage, after) {
     changed();
     await after?.();
   };
+  // Won is a light confirmation, like Lost (a mis-tap on a phone should not close a deal).
+  if (stage === 'won') {
+    return modal({
+      title: 'Mark this deal as won?', subtitle: deal.title, submitLabel: 'Mark as won',
+      body: html`<p>${money(deal.value)}${deal.accountName ? ` · ${deal.accountName}` : ''}. The deal leaves the open pipeline; you can then start its project and record the contract.</p>`,
+      onSubmit: () => go(),
+    });
+  }
   if (stage !== 'lost') return go().catch((err) => toast(err.message, 'error'));
   modal({
     title: 'Why was it lost?', subtitle: deal.title, submitLabel: 'Mark as lost',
@@ -684,7 +690,7 @@ export async function dealView(el, { id }) {
       <button type="button" class="won ${x.stage === 'won' ? 'cur' : ''}" data-stage="won" ${x.stage === 'won' ? 'aria-current="step"' : ''} ${canEdit() ? '' : 'disabled'}>${icon('check', 14)} Won</button>
       <button type="button" class="lost ${x.stage === 'lost' ? 'cur' : ''}" data-stage="lost" ${x.stage === 'lost' ? 'aria-current="step"' : ''} ${canEdit() ? '' : 'disabled'}>Lost</button>
     </nav>
-    <div class="cols wide-left">
+    <div class="cols wide-left crm-record">
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <div class="stack">
         <section class="card"><h2>Details</h2><dl class="info-grid">
@@ -740,7 +746,7 @@ export async function leadView(el, { id }) {
       ${canEdit() && !converted ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>${l.status !== 'disqualified' ? html`<button class="btn primary" id="convert">${icon('check', 16)} Convert</button>` : ''}` : ''}
       ${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/leads', 'Leads'])}
     ${converted ? html`<div class="notice ok">${icon('checkCircle', 18)} <p>Converted on ${fmtDate(l.convertedAt.slice(0, 10))} to <a href="#/crm/accounts/${l.accountId}">the account</a>, <a href="#/crm/contacts/${l.contactId}">a contact</a>${l.dealId ? html` and <a href="#/crm/deals/${l.dealId}">a deal</a>` : ''}.</p></div>` : ''}
-    <div class="cols wide-left">
+    <div class="cols wide-left crm-record">
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <section class="card"><h2>Details</h2><dl class="info-grid">
         ${info('Position', l.title)}${info('Email', l.email ? html`<a href="mailto:${l.email}">${l.email}</a>` : '')}${info('Phone', l.phone)}
@@ -757,7 +763,7 @@ export async function leadView(el, { id }) {
     modal({
       title: 'Convert lead', subtitle: `${l.name}${l.company ? `, ${l.company}` : ''}`, submitLabel: 'Convert', wide: true,
       body: html`<div class="grid two">
-        <label class="field span-2"><span>Account</span><select name="accountId">${option('', `Create a new account: ${l.company || l.name}`)}${accounts.map((a) => option(a.id, a.name, match?.id))}</select></label>
+        <label class="field span-2"><span>Account</span><select name="accountId">${option('', `New account: ${l.company || l.name}`)}${accounts.map((a) => option(a.id, a.name, match?.id))}</select><small class="hint">Leave “New account” to create the account <strong>${l.company || l.name}</strong>, or pick an existing one.</small></label>
         <label class="field check span-2"><input type="checkbox" name="createDeal" checked /><span>Also create a deal</span></label>
         <label class="field span-2"><span>Deal name</span><input name="dealTitle" value="${l.company || l.name}: ${(l.interest || 'new opportunity').split('\n')[0].slice(0, 60)}" /></label>
         <label class="field"><span>Value (₱)</span><input name="dealValue" type="number" min="0" step="0.01" value="${l.estimatedValue ?? ''}" /></label>
@@ -810,7 +816,7 @@ export async function accountView(el, { id }) {
       <div class="card"><small>Active contracts</small><strong>${a.contracts.filter((c) => c.status === 'active').length}</strong></div>
       <div class="card"><small>Bids</small><strong>${a.bids.length}</strong><span class="muted small">${a.bids.filter((b) => OPEN_BID.includes(b.status)).length} in progress</span></div>
     </div>
-    <div class="cols wide-left">
+    <div class="cols wide-left crm-record">
       <section class="card"><h2>Activity</h2><p class="muted small">Includes the activity of its contacts, deals, bids and contracts.</p><div id="timeline"></div></section>
       <div class="stack">
         <section class="card"><h2>Details</h2><dl class="info-grid">
@@ -863,7 +869,7 @@ export async function contactView(el, { id }) {
   mount(el, html`
     ${head(c.name, html`${c.title || ''}${c.accountId ? html`${c.title ? ' · ' : ''}<a href="#/crm/accounts/${c.accountId}">${c.accountName}</a>` : ''}`, html`
       ${canEdit() ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}${canManage() ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`, ['/crm/contacts', 'Contacts'])}
-    <div class="cols wide-left">
+    <div class="cols wide-left crm-record">
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <div class="stack">
         <section class="card"><h2>Details</h2><dl class="info-grid">
@@ -913,7 +919,7 @@ export async function bidView(el, { id }) {
       <div class="card"><small>Our bid</small><strong>${b.bidAmount ? short(b.bidAmount) : '—'}</strong>${margin !== null ? html`<span class="muted small">${margin}% below the ABC</span>` : ''}</div>
       <div class="card"><small>Documents ready</small><strong>${b.checklistDone}/${b.checklist.length}</strong><span class="progress"><i style="width:${pct}%"></i></span></div>
     </div>
-    <div class="cols wide-left">
+    <div class="cols wide-left crm-record">
       <section class="card">
         <div class="card-head"><h2>${icon('clipboard')} Document checklist</h2><span class="muted small">Tick each document once it is signed, notarized where needed, and in the envelope.</span></div>
         <ul class="crm-checklist">${b.checklist.map((i) => html`<li class="${i.done ? 'done' : ''}">
@@ -990,7 +996,7 @@ export async function contractView(el, { id }) {
       <div class="card"><small>Term</small><strong>${c.endDate ? fmtDate(c.endDate) : 'Open-ended'}</strong><span class="muted small">from ${c.startDate ? fmtDate(c.startDate) : '—'}</span>${pct !== null ? html`<span class="progress"><i style="width:${pct}%"></i></span>` : ''}</div>
       <div class="card ${c.daysLeft !== null && c.daysLeft <= m.setup.renewalNoticeDays ? 'attention' : ''}"><small>Days left</small><strong>${c.daysLeft === null ? '—' : Math.max(0, c.daysLeft)}</strong><span class="muted small">${c.autoRenew ? 'Renews automatically' : 'Manual renewal'}</span></div>
     </div>
-    <div class="cols wide-left">
+    <div class="cols wide-left crm-record">
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <section class="card"><h2>Details</h2><dl class="info-grid">
         ${info('Owner', ownerChip(c.ownerName))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}

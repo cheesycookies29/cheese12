@@ -4,7 +4,7 @@
 import { api } from '../api.js';
 import { ctx, can, mayUseModule } from '../state.js';
 import { TICKET_STATUS, TICKET_PRIORITY, TICKET_CHANNEL, UNRESOLVED_TICKET } from '/shared/helpdesk.js';
-import { html, mount, badge, toast, modal, confirmDialog } from '../ui.js';
+import { html, mount, formErrors, badge, toast, modal, confirmDialog } from '../ui.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
 import { ticketToLead } from './crm.js';
 import { addTicketToProject } from './projects.js';
@@ -316,12 +316,12 @@ export async function newTicketView(el) {
         ${users ? html`<label class="field span-2"><span>Requester</span><select name="requesterUserId"><option value="">Someone without an account (enter below)</option>${users.filter((u) => u.active).map((u) => html`<option value="${u.id}">${u.name} (${u.username})</option>`)}</select></label>` : ''}
         <label class="field ext"><span>Requester name</span><input name="requesterName" maxlength="120" placeholder="e.g. Juan Dela Cruz" /></label>
         <label class="field ext"><span>Requester email (for replies)</span><input name="requesterEmail" type="email" maxlength="200" placeholder="juan@company.com" /></label>
-        <label class="field span-2"><span>Subject</span><input name="subject" maxlength="200" required placeholder="e.g. Cannot print to the 3F printer" /></label>
+        <label class="field span-2"><span>Subject<em>*</em></span><input name="subject" maxlength="200" required placeholder="e.g. Cannot print to the 3F printer" /></label>
         <label class="field"><span>Category</span><select name="category">${info.categories.map((c) => html`<option>${c}</option>`)}</select></label>
         <label class="field"><span>Priority</span><select name="priority">${Object.entries(TICKET_PRIORITY).map(([k, v]) => html`<option value="${k}" ${k === 'normal' ? 'selected' : ''}>${v}</option>`)}</select></label>
         <label class="field"><span>Assign to</span><select name="assigneeId"><option value="">Unassigned</option>${agents.map((a) => html`<option value="${a.id}" ${a.id === ctx.user.id ? 'selected' : ''}>${a.name}</option>`)}</select></label>
         ${assets.length ? html`<label class="field"><span>Related asset</span><select name="assetId"><option value="">None</option>${assets.filter((a) => a.status !== 'retired').map((a) => html`<option value="${a.id}">${a.assetTag} · ${a.name}</option>`)}</select></label>` : ''}
-        <label class="field span-2"><span>Description</span><textarea name="body" rows="6" maxlength="20000" required></textarea></label>
+        <label class="field span-2"><span>Description<em>*</em></span><textarea name="body" rows="6" maxlength="20000" required></textarea></label>
         <label class="field span-2"><span>Attachments (optional)</span><input type="file" name="files" accept="${ACCEPT}" multiple /></label>
         <p class="form-error span-2" hidden></p>
         <div class="actions span-2"><button class="btn primary" type="submit">Create ticket</button></div>
@@ -331,9 +331,10 @@ export async function newTicketView(el) {
   const sync = () => form.querySelectorAll('.ext').forEach((x) => (x.hidden = Boolean(form.requesterUserId?.value)));
   form.requesterUserId?.addEventListener('change', sync);
   sync();
+  const errors = formErrors(form);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const err = form.querySelector('.form-error');
+    if (!errors.validate()) return;
     try {
       const body = Object.fromEntries(new FormData(form));
       delete body.files;
@@ -342,8 +343,7 @@ export async function newTicketView(el) {
       changed();
       location.hash = `#/helpdesk/tickets/${t.id}`;
     } catch (ex) {
-      err.textContent = ex.message;
-      err.hidden = false;
+      errors.server(ex);
     }
   });
 }
@@ -487,7 +487,7 @@ export async function helpdeskSettingsView(el) {
           <label class="field"><span>Priority for emailed tickets</span><select name="defaultPriority">${Object.entries(TICKET_PRIORITY).map(([k, v]) => html`<option value="${k}" ${k === b.defaultPriority ? 'selected' : ''}>${v}</option>`)}</select></label>
           <label class="field check span-2"><input type="checkbox" name="enabled" ${b.enabled ? 'checked' : ''} /> <span>Receive email at this address</span></label>
           <p class="form-error span-2" hidden></p>
-          <div class="actions span-2"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="test-in">Test connection</button><button class="btn" type="button" id="poll">Check mail now</button></div>
+          <div class="actions span-2 form-actions"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="test-in">Test connection</button><button class="btn" type="button" id="poll">Check mail now</button></div>
         </form>
       </section>
       <section class="card">
@@ -611,18 +611,20 @@ export async function helpdeskSettingsView(el) {
     wire();
   }
 
-  const saveForm = (form, url, read) => form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const err = form.querySelector('.form-error');
-    try {
-      s = await api.put(url, read(form));
-      toast('Saved.');
-      render();
-    } catch (ex) {
-      err.textContent = ex.message;
-      err.hidden = false;
-    }
-  });
+  const saveForm = (form, url, read) => {
+    const errors = formErrors(form);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errors.clear();
+      try {
+        s = await api.put(url, read(form));
+        toast('Saved.');
+        render();
+      } catch (ex) {
+        errors.server(ex);
+      }
+    });
+  };
   const busy = async (btn, fn) => {
     btn.disabled = true;
     const label = btn.textContent;

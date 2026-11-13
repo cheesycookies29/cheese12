@@ -242,7 +242,7 @@ label.inline { display: flex; align-items: center; gap: 8px; color: var(--muted)
 .badge.red { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
 .badge.gray { background: var(--surface-2); color: var(--muted); }
 .badge.brand, .badge.maroon { background: var(--brand-soft); color: var(--brand-text); border-color: transparent; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 12px; margin-bottom: 16px; }
 .stats .card { padding: 16px 18px; color: var(--text); display: block; }
 .stats a.card:hover { border-color: var(--brand-line); text-decoration: none; }
 .stats small { display: block; color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 6px; }
@@ -251,7 +251,7 @@ label.inline { display: flex; align-items: center; gap: 8px; color: var(--muted)
 .stats .card.accent strong { color: var(--brand-text); }
 .stats.small { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
 .stats.small strong { font-size: 20px; }
-.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 0; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 16px; margin: 0; }
 .info dt { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
 .info dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .progress { height: 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
@@ -481,7 +481,7 @@ body.hub .topbar { padding-left: 24px; }
   #toast.show { transform: none; }
   input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea { font-size: 16px; }
 }
-/* Touch screens: tap targets of at least 36 px (text links in tables become buttons on phones). */
+/* Touch screens: tap targets (raised to 44 px in "Phones and tablets, 0.18" at the end of this file). */
 @media (pointer: coarse) {
   input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea { font-size: 16px; }
   .btn.sm { min-height: 36px; padding: 6px 12px; }
@@ -512,6 +512,7 @@ body.hub .topbar { padding-left: 24px; }
   .table.stackable td:first-child .cell-v { text-align: left; }
   .topbar .brand img { width: 34px; max-width: 34px; object-fit: cover; object-position: left center; }
   .table.stackable td.row-actions .link { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; min-height: 36px; justify-content: center; }
+  @media (pointer: coarse) { .table.stackable td.row-actions .link { min-height: 44px; } }
   .table.stackable td.row-actions .link.danger { border-color: color-mix(in srgb, var(--danger) 35%, var(--surface)); }
   .table.stackable .module-row td:not(:first-child) { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: start; text-align: left; gap: 4px 12px; padding: 8px 0; }
   .table.stackable .module-row td::before { grid-row: span 2; }
@@ -550,7 +551,7 @@ body.hub .topbar { padding-left: 24px; }
 /* ===== ERP: base pieces the LMS does not have ===== */
 .back { font-size: 13px; font-weight: 500; }
 .actions.center { justify-content: center; }
-.clock-cols { grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); }
+.clock-cols { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
 .table td.num small { display: inline; }
 .table td.num small.block { display: block; }
 .table.compact td { padding: 8px 10px; }
@@ -664,7 +665,7 @@ body.hub .topbar { padding-left: 24px; }
 .cell-btn small { display: block; color: var(--muted); font-size: 11px; }
 .cell-btn.override { border-color: var(--gold-bright); }
 .cell-btn.low strong { color: var(--danger); }
-.balance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.balance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); gap: 12px; }
 .balance { border: 1px solid var(--border); border-left: 4px solid var(--gold-bright); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
 .balance strong { font-family: var(--display); font-weight: 800; font-size: 30px; color: var(--maroon); line-height: 1.1; }
 .balance.low { border-left-color: var(--danger); }
@@ -674,14 +675,13 @@ body.hub .topbar { padding-left: 24px; }
 .balance-chips strong { font-family: var(--display); font-weight: 800; font-size: 24px; color: var(--maroon); line-height: 1; }
 .balance-chips span { font-size: 11px; color: var(--muted); }
 .request-preview { margin: -4px 0 0; }
-.grid.four { grid-template-columns: repeat(4, 1fr); }
 .input-suffix { display: flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); }
 .input-suffix:focus-within { outline: 3px solid rgba(204, 153, 52, 0.25); border-color: var(--gold); }
 .input-suffix input { border: 0; outline: none !important; min-width: 0; }
 .input-suffix em { font-style: normal; color: var(--muted); padding: 0 10px; white-space: nowrap; font-size: 13px; }
 .input-suffix em.pre { padding: 0 0 0 10px; }
 .edit-table td { padding: 6px; }
-.tax-cols { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.tax-cols { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
 .tax-cols h3 { margin-top: 4px; }
 .try { max-width: 560px; }
 .table .mono { white-space: nowrap; }
@@ -715,7 +715,7 @@ body.hub .topbar { padding-left: 24px; }
 .seg label { white-space: nowrap; }
 .holder-card .holder-name { font-family: var(--display); font-weight: 800; font-size: 28px; color: var(--maroon); margin: 0; }
 .holder-card.held { border-top: 4px solid var(--maroon); }
-.holders { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 16px; margin-top: 16px; }
+.holders { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(460px, 100%), 1fr)); gap: 16px; margin-top: 16px; }
 .card.holder header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
 .card.holder h2 { margin: 6px 0 0; text-transform: none; font-size: 22px; }
 .card.holder p { margin: 2px 0 0; }
@@ -728,7 +728,7 @@ body.hub .topbar { padding-left: 24px; }
 .num.neg { color: var(--maroon); font-weight: 700; }
 .num.pos { color: var(--success); font-weight: 700; }
 .unit { font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--muted); }
-.asset-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.asset-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; margin-bottom: 16px; }
 .asset-card { border-top: 4px solid var(--gold-bright); }
 .asset-card h2 { text-transform: none; font-size: 22px; margin: 2px 0 4px; }
 .asset-card .info-grid { margin-top: 12px; }
@@ -880,7 +880,7 @@ h2.spaced { margin-top: 22px; }
 .fb-row-tags small { color: var(--muted); font-size: 12px; }
 .fb-cards { display: none; }
 /* Details and history */
-.fb-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 16px; margin: 0; }
+.fb-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: 12px 16px; margin: 0; }
 .fb-meta div { min-width: 0; }
 .fb-meta dt { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .fb-meta dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
@@ -1082,7 +1082,6 @@ a.fb-row { color: var(--text); }
   .hd-tiles { grid-template-columns: 1fr 1fr; }
   .hd-tiles .hd-tile:last-child { grid-column: 1 / -1; }
   .hd-layout { grid-template-columns: 1fr; }
-  .hd-side { order: -1; }
   .hd-compose-bar .btn.primary { width: 100%; justify-content: center; }
   .hd-compose-bar label.inline { flex: 1; }
   .sp-head img { height: 30px; }
@@ -1438,7 +1437,7 @@ body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
 .flow-levels { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 10px; }
 .flow-levels li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
 .flow-levels select { max-width: 320px; }
-.flow-people { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 14px; margin-top: 10px; }
+.flow-people { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 6px 14px; margin-top: 10px; }
 @media (max-width: 760px) {
   .req-detail { grid-template-columns: minmax(0, 1fr); }
   .req-days li { grid-template-columns: 1fr auto; }
@@ -1457,7 +1456,7 @@ body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
 @media (max-width: 640px) {
   .premium-table th:first-child { width: 40%; }
   .premium-table td, .premium-table th { padding-left: 3px; padding-right: 3px; }
-  .premium-table th { font-size: 11px; }
+  .premium-table th { font-size: 12px; }
   .premium-table .input-suffix input { padding-left: 8px; padding-right: 2px; }
   .premium-table .input-suffix em { padding: 0 6px 0 0; }
 }
@@ -1857,7 +1856,6 @@ details > summary { cursor: pointer; }
   @page { margin: 14mm; }
 }
 .pm-after-table { margin-top: 14px; }
-@media (max-width: 960px) { .pm-task > aside { order: -1; } }
 .pm-phone-only { display: none; }
 @media (max-width: 760px) { .toolbar > .pm-phone-only { display: block; } }
 .pm-sort.asc::after { content: ' ▲'; }
@@ -2100,3 +2098,516 @@ fieldset.days-field > legend, fieldset.brand-field > legend { padding: 0; margin
 .grant select { min-width: 0; }
 @media (max-width: 760px) { .grant { flex-wrap: wrap; } }
 :root[data-theme='dark'] .auth-panel { background: color-mix(in srgb, var(--brand) 14%, #141012); }
+
+/* ===== Phones and tablets (0.18) =====
+   One place for the phone and tablet rules that every screen shares: a page that never grows wider
+   than the phone, tables that turn into cards up to tablet width, sideways scrollers that show there
+   is more, 44 px touch targets, 16 px inputs (no iOS zoom), a 12 px floor for small text, form errors
+   at their fields, dialogs that fit a landscape phone, and toasts that stay clear of the buttons. */
+
+/* T1: one wide element can never make the page wider than the phone. clip (not hidden) keeps
+   position: sticky working inside, and fixed bars, sheets and toasts are not clipped. */
+main#app { overflow-x: clip; }
+/* Scrollers contain their absolutely placed bits (screen-reader-only labels), which would otherwise
+   sit at their place in the wide content and widen the page. */
+.scroll-x, .table-scroll, .pm-ts-scroll, .pm-tl-scroll { position: relative; }
+select { max-width: 100%; }
+.toolbar > select, .toolbar > input, .toolbar > label.inline, .toolbar > .field { min-width: 0; max-width: 100%; }
+.toolbar label.inline > input:not([type='checkbox']):not([type='radio']), .toolbar label.inline > select { min-width: 0; }
+.cols > *, .stack > *, .grid > *, .tiles > *, .stats > *, .hd-layout > *, .pm-task > *, .req-detail > * { min-width: 0; }
+.stats strong { overflow-wrap: normal; }
+.notice:not(:has(> svg, > .ic)) { display: block; }
+.notice:not(:has(> svg, > .ic)) > p + p { margin-top: 6px; }
+.grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 960px) {
+  .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats strong { display: block; white-space: nowrap; font-size: clamp(18px, 5.4vw, 22px); }
+  /* A figure too long for half a row (₱1,234,567.89) takes the whole row (ui.js fitFigures). */
+  .stats > .card.fig-wide { grid-column: 1 / -1; }
+}
+@media (max-width: 420px) { .grid.four { grid-template-columns: minmax(0, 1fr); } }
+/* Forms: two columns on landscape phones and tablets, one on phones. */
+@media (min-width: 601px) and (max-width: 960px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid > .span-3, .grid > .field.check { grid-column: 1 / -1; }
+}
+.clock-time { font-size: clamp(40px, 13vw, 72px); white-space: nowrap; }
+@media (max-width: 760px) {
+  .timeline li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .table.stackable.register td:first-child, .table.stackable.register td:first-child .cell-v { white-space: normal; }
+  .ytd-table td:first-child, .ytd-table th:first-child { white-space: normal; min-width: 150px; }
+}
+.register td:first-child { min-width: 180px; max-width: 240px; white-space: normal; }
+.register td:first-child strong { overflow-wrap: anywhere; }
+
+/* T2: wide tables (6 columns or more, marked .stack-md by ui.js) are cards up to 1024 px too, so a
+   tablet or a landscape phone never hides their last columns. Same rules as the phone block above. */
+@media (min-width: 761px) and (max-width: 1024px) {
+  .scroll-x:has(.table.stack-md) { overflow-x: visible; }
+  .card.scroll-x:has(.table.stack-md) { padding: 0 20px 6px; }
+  .table.stack-md thead { display: none; }
+  .table.stack-md, .table.stack-md tbody, .table.stack-md tfoot, .table.stack-md tr { display: block; width: 100%; }
+  .table.stack-md tr { padding: 12px 2px; border-bottom: 1px solid var(--border); }
+  .table.stack-md tbody tr:hover { background: none; }
+  .table.stack-md td { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 4px 0; border: 0; text-align: right; overflow-wrap: anywhere; min-width: 0; }
+  .table.stack-md td::before { content: attr(data-label); flex-shrink: 0; text-align: left; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .table.stack-md td:not([data-label])::before { content: none; }
+  .table.stack-md td:first-child { display: block; text-align: left; font-size: 15px; padding-bottom: 6px; }
+  .table.stack-md td:first-child::before { content: none; }
+  .table.stack-md td.is-empty { display: none; }
+  .table.stack-md td.row-actions, .table.stack-md td:last-child:not([data-label]) { justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+  .table.stack-md .cell-v { text-align: right; min-width: 0; }
+  .table.stack-md td:first-child .cell-v { text-align: left; }
+  .table.stack-md td.row-actions .link { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; min-height: 44px; justify-content: center; }
+  .table.stack-md td.row-actions .link.danger { border-color: color-mix(in srgb, var(--danger) 35%, var(--surface)); }
+  .table.stack-md tfoot tr { background: var(--brand-softer); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+  .table.stack-md tfoot td { background: none; border: 0; }
+  .table.stack-md td.num, .table.stack-md td.center { text-align: right; }
+  .table.stack-md tr.unread td:first-child, .table.stack-md tr.flag-row td:first-child { box-shadow: none; }
+  .table.stack-md tr.unread, .table.stack-md tr.flag-row { box-shadow: inset 3px 0 0 var(--gold-bright); padding-left: 12px; }
+  .table.stack-md .module-row td:not(:first-child) { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: start; text-align: left; gap: 4px 12px; padding: 8px 0; }
+  .pm-list.stack-md tr.pm-group { display: block; }
+  .pm-list.stack-md tr.pm-group th { display: block; padding: 14px 0 6px; border: 0; white-space: normal; }
+  .pm-list.stack-md tr.pm-sub td:first-child { padding-left: 16px; }
+  .pm-list.stack-md tr.pm-sub td:first-child::before { left: 2px; }
+  .pm-list.stack-md select, .pm-list.stack-md input[type='date'] { max-width: 60%; }
+  .pm-list.stack-md td.num small { display: inline; margin-left: 6px; }
+  .pm-list.stack-md td.num small::before { content: '· '; }
+  .pm-milestones.stack-md tr.pm-late td:first-child { box-shadow: none; }
+  .pm-milestones.stack-md tr.pm-late { box-shadow: inset 3px 0 0 var(--danger); padding-left: 12px; }
+  .stack-md .grant { flex-wrap: wrap; }
+  .card.scroll-x:has(.table.stack-md) > :is(.toolbar.pad, .muted.pad, h2.pad, .card-head.pad, .pm-chips-row) { padding-left: 0; padding-right: 0; }
+}
+/* The filter row inside a list card lines up with the cards below it (no second indent). */
+@media (max-width: 760px) {
+  .card.scroll-x:has(.table.stackable) > :is(.toolbar.pad, .muted.pad, h2.pad, .card-head.pad, .pm-chips-row) { padding-left: 0; padding-right: 0; }
+  .table.stackable td::before { font-size: 12px; }
+  /* Overdue milestones and flagged rows: the marker is on the card, clear of its text. */
+  .pm-milestones.stackable tr.pm-late td:first-child { box-shadow: none; }
+  .pm-milestones.stackable tr.pm-late { box-shadow: inset 3px 0 0 var(--danger); padding-left: 12px; }
+  .table.stackable td small.clip { max-width: none; white-space: normal; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; text-align: left; }
+  /* Emails and links: on their own line under the label, left-aligned, broken at sensible places. */
+  .table.stackable td[data-label='Email'], .table.stackable td[data-label='Website'] { display: block; text-align: left; overflow-wrap: anywhere; }
+  .table.stackable td[data-label='Email']::before, .table.stackable td[data-label='Website']::before { display: block; }
+  /* Access grants: the label and current state on one row, the select under them. */
+  .table.stackable td .grant { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: stretch; gap: 6px; width: 100%; }
+  .table.stackable td:has(> .grant), .table.stackable td:has(> .cell-v > .grant) { display: block; text-align: left; }
+  .table.stackable td:has(> .grant)::before, .table.stackable td:has(> .cell-v > .grant)::before { display: block; margin-bottom: 4px; }
+  .table.stackable .grant select { width: 100%; }
+  /* Admin modules: labels above their values. */
+  .table.stackable .module-row td:not(:first-child) { grid-template-columns: minmax(0, 1fr); }
+  .table.stackable .module-row td::before { grid-row: auto; }
+  .table.stackable .module-row .desc { grid-column: 1; }
+  /* Guide tables (Help & guides) read as text: the label above the value, left-aligned. */
+  .guide-table.stackable td { display: block; text-align: left; }
+  .guide-table.stackable td::before { display: block; margin-bottom: 2px; }
+}
+
+/* T3: sideways scrollers show that there is more (ui.js marks .more-left / .more-right), and the
+   active tab or chip is scrolled into view when the page opens. */
+.tabs.more-right, .pm-chips.more-right, .seg-btns.more-right, .crm-path.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.tabs.more-left, .pm-chips.more-left, .seg-btns.more-left, .crm-path.more-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+.tabs.more-left.more-right, .pm-chips.more-left.more-right, .seg-btns.more-left.more-right, .crm-path.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+/* Tables, boards and strips: a fade on the right edge only (a sticky first column stays crisp). */
+:is(.scroll-x, .table-scroll, .pm-ts-scroll, .crm-board, .pm-board, .pm-ms-strip, .pm-tl-scroll, .pm-bulk-in).more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); }
+.scroll-hint { display: none; margin: 6px 0 0; font-size: 12px; color: var(--muted); text-align: right; }
+@media (max-width: 1024px) { .scroll-hint:has(+ .more-right), .more-right + .scroll-hint { display: block; } }
+
+/* T4: touch screens: every control at least 44 × 44 px. Checkboxes, radios and small links keep
+   their look; their label or padding is the hit area. Desktops (a mouse) are unchanged. */
+@media (pointer: coarse) {
+  .btn, .btn.sm, .btn.small-btn, label.btn { min-height: 44px; }
+  .btn.sm, .btn.small-btn { padding: 8px 14px; }
+  .icon-btn, .round-btn, #menu-btn { min-width: 44px; min-height: 44px; }
+  .round-btn { width: 44px; height: 44px; }
+  .topbar .brand { min-height: 44px; }
+  .user-btn { min-height: 44px; }
+  #nav a, .menu-pop button, .menu-pop a, .crm-search-pop a { min-height: 44px; }
+  .tabs a { min-height: 44px; }
+  .chip { min-height: 44px; padding: 8px 14px; }
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']), select { min-height: 44px; }
+  input[type='color'] { min-height: 44px; min-width: 44px; }
+  button.link { min-height: 44px; min-width: 44px; padding: 4px 8px; }
+  a.back, .crumbs a, .card-head > a, .link-list li > a, .rel-actions .link, .hd-files .link, .pw-wrap .link, .auth-switch .link, .auth-foot .link, .cert-link,
+  .pm-ts-add .link, .pm-ms-files, .geo-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+  a.back { margin-block: -8px -2px; }
+  .card-head > a { margin-block: -10px; }
+  .pw-wrap .link { justify-content: center; padding: 0 8px; right: 2px; }
+  .seg label, .seg-btns button, .crm-seg button { min-height: 44px; }
+  .seg-btns button { padding: 8px 12px; }
+  .days label, .checks label, label.inline:has(> input[type='checkbox']), .field.check, .switch, .check-inline, .crm-checklist label, .pm-radio .check, .pm-track .check,
+  .recovery .check, .appr-table label, .fb-type, .flow-people label, .pf-cats label { min-height: 44px; align-items: center; }
+  .field.check input { margin-top: 0; }
+  .crm-tick { min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }
+  .crm-tick input { width: 22px; height: 22px; }
+  .crm-checklist .icon-btn { opacity: 1; color: var(--muted); }
+  .sys-dots { gap: 0; }
+  .sys-dots button { flex: 0 1 44px; min-width: 0; height: 44px; }
+  .sys-arrows .icon-btn { width: 44px; height: 44px; }
+  .modal header .icon-btn { width: 44px; height: 44px; }
+  .pm-sel, .appr-table input[type='checkbox'] { width: 22px; height: 22px; }
+  .perm-box { min-width: 44px; min-height: 44px; }
+  details > summary { min-height: 44px; }
+  .sp-actions .btn, .sp-submit { min-height: 48px; }
+}
+/* Work days: chips you can tap, four and three to a row on phones. */
+@media (pointer: coarse) {
+  .days { gap: 8px; }
+  .days label { justify-content: center; min-width: 64px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); cursor: pointer; }
+  .days label:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-text); font-weight: 600; }
+  .days label:has(input:focus-visible) { outline: 3px solid color-mix(in srgb, var(--brand) 30%, transparent); outline-offset: 2px; }
+}
+
+/* T6: inputs at 16 px on touch screens (iOS zooms into anything smaller), and nothing under 12 px. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea { font-size: max(16px, 1em) !important; }
+}
+@media (pointer: coarse), (max-width: 760px) {
+  small { font-size: max(12px, 0.83em); }
+  .mono { font-size: max(12px, 0.92em); }
+  .nav-heading, .nav-module small, .side-foot, .menu-label, .sys-code, .admin-tile .count, .tabs .count, .nav-badge, .holder-count span, .hd-tile small, .hd-dl dt, .fb-meta dt,
+  .balance-chips span, .cell-btn small, .swatch small, .flag, .rel-scopes code, .cscope, .rel-tally, .rel-meta, .ctype, .perm-default, .flex-tag, .date-box b,
+  .pm-card-top .mono, .pm-card-top .badge, .pm-size, .pm-blocked, .pm-size-cell small, .pm-list td.num small, .pm-ts tbody th small, .pm-ts-dtr th small,
+  .pm-tl-label small, .pm-tl-track.weeks span, .pm-bu-y, .pm-bu-x, .pm-bu-unit, .pm-bu-mark, .roles-matrix th[scope='row'] code, .pm-steps li::before { font-size: 12px; }
+  .avatar.xs { font-size: 11px; }
+  .pf-snippet, .editor-pane textarea { font-size: 16px; }
+}
+
+/* T5: form errors at their fields (ui.js formErrors), and dialogs that fit a landscape phone or a
+   phone with the keyboard up: a compact header, the whole sheet scrolls, the buttons stay at its foot. */
+.field-error { display: block; margin-top: 2px; color: var(--danger); font-size: 13px; font-weight: 600; }
+.field-error::before { content: '! '; }
+[aria-invalid='true']:not([type='checkbox']):not([type='radio']) { border-color: var(--danger) !important; box-shadow: 0 0 0 1px var(--danger); }
+.form-error ul { margin: 4px 0 0; padding-left: 18px; }
+.modal-body > .form-error { margin: 0 0 14px; }
+.modal-body > .form-error[hidden] { display: none; }
+@media (max-width: 960px) {
+  .modal, .modal.wide { max-height: 92vh; max-height: 92dvh; }
+}
+@media (max-height: 500px) {
+  .modal-backdrop { padding-top: 0; }
+  .modal, .modal.wide { max-height: 100vh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; border-radius: 12px 12px 0 0; }
+  .modal::before { display: none; }
+  .modal header { padding: 8px 12px 8px 16px; border-bottom-width: 1px; align-items: center; }
+  .modal header h2 { font-size: 16px; }
+  .modal-title p { display: none; }
+  .modal-body { overflow: visible; flex: none; padding: 12px 16px; }
+  .modal footer { position: sticky; bottom: 0; z-index: 2; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); }
+  .modal footer .btn { min-height: 44px; }
+}
+/* Long forms: the save buttons stay at the bottom of a phone's screen. */
+@media (max-width: 760px) {
+  .save-bar { position: sticky; bottom: 0; z-index: 15; margin: 0 -16px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 18px rgba(16, 24, 40, 0.1); }
+  .save-bar.actions { flex-wrap: nowrap; }
+  .save-bar .btn { flex: 1 1 0; min-height: 46px; }
+  .save-bar .btn.primary { flex-grow: 2; }
+  form.stack:has(> .save-bar) { margin-bottom: 0; }
+}
+
+/* T7: content first on phones. Filters fold into one "Filters" button with a count (ui.js). */
+.filters-btn { display: none; }
+.filters-btn .count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--brand); color: var(--brand-ink); font-size: 12px; line-height: 20px; text-align: center; }
+.filters-btn .count[hidden] { display: none; }
+@media (max-width: 760px), (max-height: 500px) and (max-width: 960px) {
+  .toolbar.has-filters > .filters-btn { display: inline-flex; flex: 0 0 auto; }
+  .toolbar.has-filters > input[type='search'] { flex: 1 1 0; min-width: 0; }
+  .toolbar.has-filters:not(.filters-open) > .filter-item { display: none !important; }
+  .toolbar.has-filters.filters-open > .filter-item { flex: 1 1 100%; }
+  .toolbar.has-filters.filters-open > .filter-item.filter-extra { flex: 0 1 auto; }
+}
+@media (max-width: 960px) {
+  /* CRM records: the details first, then the activity. */
+  .crm-record > .stack { display: contents; }
+  .crm-record > .stack > :first-child, .crm-record > section:nth-child(2) { order: -1; }
+  /* Boards: each column scrolls on its own, so every column starts on the first screen. */
+  .pm-col, .crm-col { max-height: max(340px, calc(100vh - var(--topbar) - 110px)); max-height: max(340px, calc(100dvh - var(--topbar) - 110px)); }
+}
+/* Service desk tickets keep two columns on tablets, the conversation first everywhere. */
+@media (min-width: 761px) and (max-width: 960px) {
+  .hd-layout { grid-template-columns: minmax(0, 1fr) 260px; }
+}
+
+/* T8: sticky and fixed bars. A shorter top bar on a landscape phone; toasts at the top of a phone's
+   screen, clear of the primary button, the bulk bar and the save bar at the bottom. */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root { --topbar: 48px; }
+  .topbar .brand img.core-mark { height: 30px; width: 30px; }
+  .page-head { margin-bottom: 12px; }
+  .page-head p.muted { display: none; }
+  .crm-board, .pm-board { scroll-margin-top: var(--topbar); }
+}
+@media (max-width: 760px) {
+  #toast { top: calc(var(--topbar) + 8px); bottom: auto; transform: translateY(-12px); }
+  #toast.show { transform: none; }
+  body:has(.pm-bulk:not([hidden])) #toast { bottom: auto; }
+}
+@media (max-height: 500px) {
+  #toast { top: calc(var(--topbar) + 6px); bottom: auto; left: auto; right: 16px; max-width: min(420px, calc(100vw - 32px)); transform: translateY(-12px); }
+  #toast.show { transform: none; }
+}
+
+/* ----- Per screen (0.18) ----- */
+/* File pickers look like the app's buttons, in both themes. */
+input[type='file'] { font-size: 14px; color: var(--muted); }
+input[type='file']::file-selector-button { font: inherit; font-weight: 600; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 8px 14px; margin-right: 12px; cursor: pointer; }
+input[type='file']::file-selector-button:hover { background: var(--surface-2); }
+@media (pointer: coarse) { input[type='file']::file-selector-button { min-height: 44px; } input[type='file'] { min-height: 52px; } }
+.cert-field input[type='file'] { width: 100%; }
+/* Page-head buttons on phones: an even two-column grid; a destructive button goes last and stays one cell. */
+@media (max-width: 760px) {
+  .page-head .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .page-head .actions > :only-child { grid-column: 1 / -1; }
+  .page-head .actions > :is(.btn.danger, .btn.ghost.danger, #del, #delete) { order: 10; }
+  .page-head .actions > .seg-btns { grid-column: 1 / -1; justify-self: start; }
+  .page-head .actions .btn { width: 100%; min-width: 0; white-space: normal; text-align: center; }
+  .fb-page .page-head .actions { grid-auto-flow: row; grid-auto-columns: auto; }
+}
+/* Mailbox and other settings action rows: full width on phones, Save first. */
+@media (max-width: 760px) {
+  .form-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .form-actions .btn { width: 100%; }
+  .pf-cats { flex-direction: column; gap: 0; }
+  .pf-link input { flex-basis: 100%; }
+  .pf-link .btn { flex: 1 1 0; }
+}
+/* HR: the payroll register on a phone shows the summary (pay, net) and "Details" for the rest. */
+.ph-only { display: none; }
+@media (max-width: 760px) {
+  .ph-only { display: inline-flex; }
+  .table.stackable.register tbody tr:not(.show-detail) td.ph-detail { display: none; }
+  .table.stackable.register tfoot td.ph-detail { display: none; }
+}
+/* Payroll setup: the tax brackets as small forms on phones. */
+@media (max-width: 760px) {
+  .tax-table thead { display: none; }
+  .tax-table, .tax-table tbody { display: block; width: 100%; }
+  .tax-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .tax-table td { display: flex; flex-direction: column; gap: 4px; padding: 0; border: 0; min-width: 0; }
+  .tax-table td::before { content: attr(data-label); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .tax-table td.row-actions { justify-content: flex-end; align-items: flex-start; }
+  .tax-table td.row-actions::before { content: none; }
+  .tax-table .input-suffix input { min-width: 0; }
+  .premium-table .input-suffix { max-width: none; }
+}
+/* Payslip on a phone's or tablet's screen: readable sizes (the printed payslip keeps its own, below). */
+@media screen and (max-width: 1024px) {
+  .payslip { font-size: 13px; }
+  .payslip h3, .ps-table th, .ps-meta dt, .ps-fields dt, .ps-summary dt, .ps-net span, .ps-sign, .ps-table td small, .ps-company span, .ps-ref, .ps-net em { font-size: 12px; }
+  .ps-conf, .ps-foot p { font-size: 12px; letter-spacing: 0.04em; }
+  .ps-table td { padding: 6px 8px; }
+  .ps-table th { padding: 6px 8px; }
+}
+/* Printed payslips are laid out at A4 width whatever the device (Save as PDF from a phone too). */
+@media print {
+  .payslip { width: 186mm; min-width: 186mm; max-width: 186mm; }
+  .ps-head { flex-direction: row !important; }
+  .ps-company > div { min-width: 0; }
+  .ps-fields div { grid-template-columns: 105px minmax(0, 1fr) !important; }
+}
+/* HR: the time clock and My Home clock: the time on one line, AM/PM smaller. */
+.clock-time .ampm { font-size: 0.42em; margin-left: 0.15em; letter-spacing: 0.02em; }
+@media (max-width: 760px) {
+  .clock-buttons .btn { flex: 1 1 0; }
+  .balance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .balance strong { font-size: 26px; }
+  .balance-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .balance-chips div { min-width: 0; }
+  /* From / To filters: the label above the date, so both dates line up. */
+  .toolbar > label.inline:has(> input[type='date']) { flex-direction: column; align-items: stretch; gap: 4px; font-size: 13px; }
+  .geo-filters > label.inline { grid-column: auto; }
+  .office-bar .small-btn, #use-here { width: 100%; justify-content: center; }
+  #use-here + .geo-here { display: block; margin-top: 6px; }
+}
+:root[data-theme='dark'] .geo-map { border-color: var(--border-strong); background: #1f2937; }
+/* Light theme: the gold of tag lines (asset tags, ticket numbers) dark enough to read. */
+:root { --gold-text: color-mix(in srgb, var(--accent) 62%, #000); }
+:root[data-theme='dark'] { --gold-text: var(--accent); }
+.tag-line, .sp-kicker { color: var(--gold-text); }
+:root[data-theme='dark'] .key-assigned { background: linear-gradient(90deg, var(--maroon), var(--gold-bright)); }
+/* Assets: inventory row buttons share the card's width; the problem text shows three lines. */
+@media (max-width: 760px) {
+  .table.stackable td:last-child:not([data-label]) .btn { flex: 1 1 auto; }
+  .my-report .btn, .asset-card-foot .btn, [data-report] { width: 100%; justify-content: center; }
+  .table.stackable td.row-actions .link { flex: 1 1 auto; }
+}
+/* Service desk: the queue's phone cards lead with the subject. */
+@media (max-width: 760px) {
+  .hd-table.stackable tr { display: flex; flex-direction: column; }
+  .hd-table.stackable td[data-label='Subject'] { order: -1; display: block; text-align: left; font-size: 15px; padding-bottom: 2px; }
+  .hd-table.stackable td[data-label='Subject']::before { content: none; }
+  .hd-table.stackable td[data-label='Subject'] .cell-v { text-align: left; }
+  .hd-table.stackable td:first-child { display: flex; font-size: 13px; padding-bottom: 4px; gap: 6px; justify-content: flex-start; }
+  .hd-table.stackable td:first-child .cell-v { display: flex; gap: 8px; align-items: baseline; }
+  .hd-table.stackable td:first-child small { display: inline; }
+  .hd-compose-bar label.inline { flex: 1 1 100%; }
+}
+/* Sales & CRM: the activity type picker and the deal's stages fit a phone. */
+@media (max-width: 760px) {
+  .crm-composer .crm-seg { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; }
+  .crm-composer .crm-seg button { flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 12px; justify-content: center; }
+  .crm-composer .crm-seg button + button { border-left: 1px solid var(--border); }
+  .crm-composer-foot .field.inline { flex: 1 1 100%; }
+  .crm-composer-foot .field.inline input, .crm-composer-foot .field.inline select { flex: 1; width: auto; min-width: 0; }
+}
+@media (max-width: 640px) {
+  .crm-path { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .crm-path-break { display: none; }
+  .crm-path button, .crm-path button:first-child, .crm-path button:last-child { clip-path: none; border-radius: 8px; border: 1px solid var(--border); padding: 9px 10px; white-space: normal; }
+  .crm-path button.won, .crm-path button.lost { flex: none; }
+  .crm-path button.won { grid-column: 1; }
+}
+/* Projects: a milestone's note wraps inside its card; the burn-up's method folds away. */
+.pm-ms .crm-due { white-space: normal; }
+.pm-bu-method summary { color: var(--brand-text); font-weight: 600; font-size: 13px; }
+/* The List's bulk bar on a phone or a landscape phone: the count, Actions and ×; everything else in the Actions sheet. */
+.pm-bulk-menu, .pm-bulk-x { display: none; }
+@media (max-width: 760px), (max-height: 500px) {
+  .pm-bulk-in { flex-wrap: nowrap; overflow: visible; }
+  .pm-bulk-in > .pm-bulk-actions, .pm-bulk-in > [data-bulk-clear] { display: none; }
+  .pm-bulk-menu, .pm-bulk-x { display: inline-flex; }
+  .pm-bulk-count { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .pm-bulk-sheet { display: grid; gap: 8px; }
+  .pm-bulk-sheet .btn { width: 100%; justify-content: flex-start; }
+}
+@media (max-height: 500px) and (min-width: 761px) {
+  .pm-bulk { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; }
+  .pm-bulk-in { border-radius: 0; padding: 6px 16px calc(6px + env(safe-area-inset-bottom)); }
+}
+/* Projects: the timesheet on a phone, one day at a time. */
+.pm-ts-phone { display: none; }
+@media (max-width: 760px) {
+  .pm-ts-card:has(.pm-ts-phone) .pm-ts-scroll { display: none; }
+  .pm-ts-phone { display: block; padding: 12px 4px 16px; }
+  .pm-ts-phone > :not(.pm-ts-days) { margin-inline: 12px; }
+  .pm-ts-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin: 0 0 12px; }
+  .pm-ts-days button { display: flex; flex-direction: column; align-items: center; gap: 0; min-height: 56px; padding: 4px 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .pm-ts-days button small { font-size: 12px; font-weight: 500; color: var(--muted); }
+  .pm-ts-days button b { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+  .pm-ts-days button.today { border-color: var(--brand-line); }
+  .pm-ts-days button[aria-selected='true'] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .pm-ts-days button[aria-selected='true'] small, .pm-ts-days button[aria-selected='true'] b { color: var(--brand-ink); }
+  .pm-ts-days button.bad b { color: var(--danger); }
+  .pm-ts-days button[aria-selected='true'].bad b { color: #fff; text-decoration: underline; }
+  .pm-ts-dayhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 8px; }
+  .pm-ts-dayhead h2 { margin: 0; font-size: 15px; }
+  .pm-ts-rows { list-style: none; margin: 0; padding: 0; }
+  .pm-ts-rows li { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 6px 12px; align-items: end; padding: 12px 0; border-top: 1px solid var(--border); }
+  .pm-ts-rows li:first-child { border-top: 0; }
+  .pm-ts-rows .pm-ts-row-head { min-width: 0; }
+  .pm-ts-rows select { width: 100%; margin-top: 4px; }
+  .pm-ts-rows .field { gap: 4px; }
+  .pm-ts-rows .field input { width: 100%; text-align: right; font-variant-numeric: tabular-nums; }
+  .pm-ts-rows small { display: block; color: var(--muted); }
+  .pm-ts-rows .pm-ts-add-row { display: block; padding: 6px 0 2px; border-top: 0; }
+  .pm-ts-phone-total { display: flex; justify-content: space-between; gap: 12px; margin: 10px 0 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-weight: 600; }
+  .pm-ts-phone-total.bad b { color: var(--danger); }
+}
+/* Projects setup: effort sizes as label + full-width input on phones. */
+@media (max-width: 760px) {
+  .pm-size-table thead { display: none; }
+  .pm-size-table, .pm-size-table tbody, .pm-size-table tr, .pm-size-table td { display: block; width: 100%; }
+  .pm-size-table tr { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .pm-size-table td { padding: 2px 0; border: 0; }
+  .pm-size-table td input { min-width: 0; }
+  .pm-steps li:not(.on) { display: none; }
+  .pm-steps li.on::after { content: "(step " counter(step) " of 3)"; color: var(--muted); font-weight: 500; }
+  .pm-imp-sample { display: none; }
+}
+/* Admin panel: roles on a phone, one account type at a time (picked above the groups). */
+.role-pick { display: none; }
+@media (max-width: 760px) {
+  .role-pick { display: flex; position: sticky; top: var(--topbar); z-index: 6; margin: 0 -16px 16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .role-pick .field { flex: 1; }
+  .roles-picking .roles-matrix .pick-hide { display: none; }
+  .roles-picking .roles-matrix thead th:first-child, .roles-picking .roles-matrix tbody th { width: auto; min-width: 0; max-width: none; }
+  .roles-picking .roles-matrix td, .roles-picking .roles-matrix thead th:not(:first-child) { width: 96px; }
+}
+/* Admin panel: the Settings center's Open button sits inside its group's card. */
+.config-area-wrap > .area-actions { top: 12px; right: 16px; }
+@media (max-width: 720px) {
+  .config-area-wrap > .area-actions { position: absolute; top: 12px; right: 12px; margin: 0; }
+  .config-area-wrap > details.config-area > summary { padding-right: 96px; }
+  .config-area-wrap:has(.area-actions .btn + .btn) > details.config-area > summary { padding-right: 0; padding-top: 44px; }
+}
+/* Admin panel: the dev log's filters wrap instead of running off the screen. */
+@media (max-width: 760px) {
+  .log-toolbar .seg-btns { flex-wrap: wrap; overflow: visible; max-width: 100%; }
+  .log-toolbar .seg-btns button { border-bottom: 1px solid var(--border); margin-bottom: -1px; }
+  .logo-box { flex-direction: column; align-items: flex-start; }
+  .logo-box img { order: -1; }
+  .brand-field .hint + .field, .field + .hint + .field { margin-top: 12px; }
+}
+/* Sign-in on a landscape phone: the brand band shrinks to a strip so the form is on the first screen. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .auth-screen { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); grid-template-rows: none; min-height: 100vh; }
+  .auth-stage { padding: 20px 24px; gap: 12px; justify-content: flex-start; }
+  .auth-intro h1 { font-size: 26px; }
+  .auth-intro p:last-child, .auth-kicker, .auth-modules, .auth-stage-mark { display: none; }
+  .auth-panel { padding: 16px 24px; gap: 12px; }
+  .auth-card { gap: 12px; margin-block: 0; }
+  .auth-card h2 { font-size: 22px; }
+  .auth-panel input { height: 44px; }
+  .auth-panel .btn.primary.block { min-height: 46px; }
+  .auth-legal { padding-top: 10px; }
+}
+/* Public support page: body copy and labels a little larger on phones; the link wraps. */
+.sp-url { display: block; flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-size: 14px; overflow-wrap: anywhere; word-break: break-all; }
+@media (max-width: 760px) {
+  .sp-privacy, .sp-foot { font-size: 13px; }
+  .sp-card .field > span:first-child { font-size: 14px; }
+  .sp-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .sp-actions .btn { width: 100%; }
+  .sp-link .btn { width: 100%; }
+}
+/* A disabled button looks disabled, whatever its colour. */
+.btn.primary:disabled, .btn.gold:disabled, .btn.danger:not(.ghost):disabled { background: var(--surface-2); border-color: var(--border-strong); color: var(--muted); opacity: 1; }
+@media (pointer: coarse) { .row-actions a.link, td > a.link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; } }
+@media (max-width: 760px) { .logo-box .stack.tight { align-items: flex-start; } }
+@media (max-height: 500px) and (orientation: landscape) and (min-width: 600px) {
+  .page-head { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .page-head .actions { flex: 0 1 auto; }
+  .page-head .actions .btn { flex: 0 1 auto; }
+}
+/* Touch: text links in tables, lists and cards get a 44 px tall hit area without moving anything
+   (vertical padding on an inline link grows only what can be tapped). */
+@media (pointer: coarse) {
+  :is(td, dd, li, .card, small, .cell-v, .hd-sub, .meta, .crm-card, .pm-card, p.muted) > a:not(.btn):not(.back):not(.list-item):not(.tile):not(.sys-card):not(.fb-row):not(.result):not(.side-link):not(.admin-tile):not(.admin-panel-card),
+  .crm-card-title, .pm-card-title, td > a.mono, .cell-v > a.mono { padding-block: 14px; margin-block: -14px; }
+  .crm-card-title, .pm-card-title { padding-block: 6px; margin-block: -6px; }
+  .topbar .brand { min-width: 44px; }
+  .tabs a, .seg-btns button { min-width: 44px; justify-content: center; }
+  .cell-btn, .pm-ts tbody th select, .req-days.edit select { min-height: 44px; }
+  .pm-sel-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin: -11px 0 -11px -11px; vertical-align: middle; cursor: pointer; }
+  .pm-sel-hit .pm-sel { margin: 0; }
+}
+/* A 44 px minimum width replaces the automatic one (the text's width): keep these from shrinking. */
+@media (pointer: coarse) {
+  .tabs a, .seg-btns button, .card-head > a, a.back, .crumbs a, button.link, .rel-actions .link, .hd-files .link, .pm-ts-add .link { flex-shrink: 0; }
+}
+/* Sales setup stages on a phone: the name on its own line, then the probability and the 44 px move/remove buttons. */
+@media (max-width: 640px) {
+  .crm-stage-table thead { display: none; }
+  .crm-stage-table, .crm-stage-table tbody { display: block; width: 100%; }
+  .crm-stage-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .crm-stage-table td { display: block; padding: 0 !important; border: 0; }
+  .crm-stage-table td:first-child { grid-column: 1 / -1; }
+  .crm-stage-table td.num { display: flex; align-items: center; gap: 6px; }
+  .crm-stage-table td.num::before { content: 'Probability %'; font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .crm-stage-table td.num input { width: 90px; }
+  .crm-stage-table td.row-actions { display: flex; justify-content: flex-end; }
+  .crm-stage-table .row-actions .icon-btn { width: auto; height: auto; }
+}
+@media (pointer: coarse) {
+  :is(td, dd, li, .card, small, .cell-v, .hd-sub, .meta, p.muted) > a:not(.btn):not(.back):not(.list-item):not(.tile):not(.sys-card):not(.fb-row) { padding-block: 14px; margin-block: -14px; }
+  .crm-path button, .crm-funnel-row { min-height: 44px; }
+  .field > label.check, .pf-cats label { display: flex; align-items: center; min-height: 44px; }
+}
+/* Payroll setup: holiday premiums on a phone, the day's name above its two rates. */
+@media (max-width: 640px) {
+  .premium-table thead { display: none; }
+  .premium-table, .premium-table tbody { display: block; width: 100%; }
+  .premium-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .premium-table td { display: flex; flex-direction: column; gap: 4px; padding: 0 !important; border: 0; min-width: 0; }
+  .premium-table td:first-child { grid-column: 1 / -1; font-weight: 600; }
+  .premium-table td[data-label]::before { content: attr(data-label); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+}

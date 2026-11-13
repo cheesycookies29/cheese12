@@ -84,6 +84,7 @@
   {"file": "projects-sizes.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "[data-sel] >> nth=3", "[data-sel] >> nth=4", "[data-bulk=size]"], "wait": 900},
   {"file": "projects-time.jpg", "user": "employee.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=SIS support and maintenance", ".pm-tabs a:has-text('Time') >> nth=1"], "wait": 1000},
   {"file": "projects-timesheet.jpg", "user": "employee.demo", "url": "/#/projects/timesheet", "wait": 1000},
+  {"file": "projects-timesheet-phone.jpg", "user": "employee.demo", "url": "/#/projects/timesheet", "viewport": "phone", "wait": 1000},
   {"file": "projects-my-work.jpg", "user": "employee.demo", "url": "/#/projects/my-work", "wait": 1000},
   {"file": "projects-digest.jpg", "user": "employee.demo", "url": "/#/projects/my-work", "click": [".pm-digest-more summary"], "scroll": ".pm-digest", "wait": 1000},
   {"file": "projects-setup.jpg", "user": "pm.demo", "url": "/#/projects/settings", "wait": 1000},

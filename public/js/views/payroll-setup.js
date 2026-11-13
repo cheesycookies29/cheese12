@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { ctx } from '../state.js';
 import { DEFAULT_RATES, DEFAULT_PREMIUMS, DEFAULT_NIGHT_DIFF, sssContribution, philhealthContribution, pagibigContribution, withholdingTax, round2, suggestedFactor } from '/shared/calc.js';
 import { DAY_TYPES } from '/shared/holidays.js';
-import { html, mount, toast, amount, confirmDialog } from '../ui.js';
+import { html, mount, formErrors, toast, amount, confirmDialog } from '../ui.js';
 
 const pct = (rate) => round2(rate * 100 * 100) / 100; // 0.05 -> 5
 const numField = (label, name, value, { step = 'any', suffix = '', hint } = {}) => html`
@@ -14,9 +14,9 @@ const numField = (label, name, value, { step = 'any', suffix = '', hint } = {}) 
 
 function taxRows(rows, freq) {
   return html`${rows.map((r, i) => html`<tr>
-    <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="over" data-row="${i}" value="${r.over}" /></div></td>
-    <td><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="base" data-row="${i}" value="${r.base}" /></div></td>
-    <td><div class="input-suffix"><input type="number" step="any" min="0" max="100" data-tax="${freq}" data-col="rate" data-row="${i}" value="${pct(r.rate)}" /><em>%</em></div></td>
+    <td data-label="Over"><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="over" data-row="${i}" value="${r.over}" /></div></td>
+    <td data-label="Base tax"><div class="input-suffix"><em class="pre">₱</em><input type="number" step="any" min="0" data-tax="${freq}" data-col="base" data-row="${i}" value="${r.base}" /></div></td>
+    <td data-label="Rate"><div class="input-suffix"><input type="number" step="any" min="0" max="100" data-tax="${freq}" data-col="rate" data-row="${i}" value="${pct(r.rate)}" /><em>%</em></div></td>
     <td class="row-actions">${rows.length > 1 ? html`<button type="button" class="link danger" data-remove-row="${freq}:${i}">Remove</button>` : ''}</td>
   </tr>`)}`;
 }
@@ -44,7 +44,8 @@ export async function payrollSetupView(el) {
         <h2>Pay rules</h2>
         <div class="grid">
           <label class="field"><span>Pay frequency</span>
-            <select name="payFrequency"><option value="semi-monthly" ${s.payFrequency === 'semi-monthly' ? 'selected' : ''}>Semi-monthly (15th and end of month)</option><option value="monthly" ${s.payFrequency === 'monthly' ? 'selected' : ''}>Monthly</option></select>
+            <select name="payFrequency"><option value="semi-monthly" ${s.payFrequency === 'semi-monthly' ? 'selected' : ''}>Semi-monthly</option><option value="monthly" ${s.payFrequency === 'monthly' ? 'selected' : ''}>Monthly</option></select>
+            <small class="muted">Semi-monthly pays on the 15th and at the end of the month.</small>
           </label>
           ${numField('Work days per year', 'workDaysPerYear', s.workDaysPerYear, { step: 1, hint: factorHint })}
           ${numField('Late grace period', 'gracePeriodMinutes', s.gracePeriodMinutes, { step: 1, suffix: 'min' })}
@@ -87,7 +88,7 @@ export async function payrollSetupView(el) {
         <div class="cols tax-cols">
           ${['semi-monthly', 'monthly'].map((freq) => html`<div>
             <h3>${freq === 'monthly' ? 'Monthly' : 'Semi-monthly'}</h3>
-            <table class="table compact edit-table"><thead><tr><th>Over</th><th>Base tax</th><th>Rate</th><th></th></tr></thead><tbody id="tax-${freq}"></tbody></table>
+            <table class="table compact edit-table tax-table"><thead><tr><th>Over</th><th>Base tax</th><th>Rate</th><th><span class="sr-only">Remove</span></th></tr></thead><tbody id="tax-${freq}"></tbody></table>
             <button type="button" class="link" data-add-row="${freq}">+ Add bracket</button>
           </div>`)}
         </div>
@@ -100,8 +101,8 @@ export async function payrollSetupView(el) {
         <div id="try-result"></div>
       </section>
 
-      <p class="form-error" hidden></p>
-      <div class="actions end">
+      <p class="form-error" role="alert" hidden></p>
+      <div class="actions end save-bar">
         <button type="button" class="btn" id="restore">Restore 2025 government rates</button>
         <button class="btn primary" type="submit">Save payroll setup</button>
       </div>
@@ -141,10 +142,10 @@ export async function payrollSetupView(el) {
   }
 
   function renderPremiums() {
-    const cell = (k, part) => html`<td><div class="input-suffix"><input type="number" step="any" min="100" name="prem.${k}.${part}" value="${pct(premiums[k][part])}" required /><em>%</em></div></td>`;
+    const cell = (k, part) => html`<td data-label="${part === 'day' ? 'First 8 hours' : 'Overtime hour'}"><div class="input-suffix"><input type="number" step="any" min="100" name="prem.${k}.${part}" value="${pct(premiums[k][part])}" required /><em>%</em></div></td>`;
     mount(el.querySelector('#premiums'), html`${Object.entries(DAY_TYPES).map(([k, label]) => html`<tr>
       <td>${label}</td>
-      ${k === 'ordinary' ? html`<td class="muted">100% (the basic pay)</td>` : cell(k, 'day')}
+      ${k === 'ordinary' ? html`<td class="muted" data-label="First 8 hours">100% (the basic pay)</td>` : cell(k, 'day')}
       ${cell(k, 'overtime')}
     </tr>`)}`);
   }
@@ -248,19 +249,18 @@ export async function payrollSetupView(el) {
     toast('Default rates filled in. Review, then save.');
   });
 
+  const errors = formErrors(form);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const errEl = form.querySelector('.form-error');
+    if (!errors.validate()) return;
     try {
       await api.put('/api/payroll-config', collect());
       await ctx.refreshSettings();
-      errEl.hidden = true;
+      errors.clear();
       toast('Payroll setup saved. Recompute draft payroll runs to apply it.');
       payrollSetupView(el);
     } catch (err) {
-      errEl.textContent = err.message;
-      errEl.hidden = false;
-      errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      errors.server(err);
     }
   });
 }

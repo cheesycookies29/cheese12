@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { ctx, can } from '../state.js';
-import { html, raw, mount, money, fmtDate, fullName, badge, toast, confirmDialog, downloadFile, toCsv, WEEKDAYS, today } from '../ui.js';
+import { html, raw, mount, formErrors, money, fmtDate, fullName, badge, toast, confirmDialog, downloadFile, toCsv, WEEKDAYS, today } from '../ui.js';
 
 // Pay, government IDs and bank details: shown only to accounts that may see them.
 const SENSITIVE = ['rate', 'allowance', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount'];
@@ -58,7 +58,7 @@ export async function employeeListView(el, _params, query) {
       : html`<div class="card">
           <div class="toolbar">
             <input type="search" id="q" placeholder="Search name, number, position…" value="${state.q}" />
-            <select id="dept"><option value="">All departments</option>${departments.map((d) => html`<option>${d}</option>`)}</select>
+            <select id="dept" aria-label="Department"><option value="">All departments</option>${departments.map((d) => html`<option>${d}</option>`)}</select>
             <select id="status"><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="">All</option></select>
           </div>
           <div id="emp-table"></div>
@@ -174,16 +174,18 @@ export async function employeeFormView(el, { id }) {
           ${field('Account no.', 'bankAccount', emp.bankAccount)}
         </div>
       </section>
-      <p class="form-error" hidden></p>
-      <div class="actions end">
+      <p class="form-error" role="alert" hidden></p>
+      <div class="actions end save-bar">
         <a class="btn" href="${isNew ? '#/employees' : `#/employees/${id}`}">Cancel</a>
         <button class="btn primary" type="submit">${isNew ? 'Create employee' : 'Save changes'}</button>
       </div>
     </form>`);
 
   const form = el.querySelector('#emp-form');
+  const errors = formErrors(form);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!errors.validate()) return;
     const fd = new FormData(form);
     const body = Object.fromEntries([...fd.entries()].filter(([k]) => !['workDays', 'shiftStart', 'shiftEnd', 'breakMinutes', 'minimumWageEarner', 'flexTime'].includes(k)));
     body.minimumWageEarner = fd.has('minimumWageEarner');
@@ -194,10 +196,7 @@ export async function employeeFormView(el, { id }) {
       toast(isNew ? 'Employee created.' : 'Changes saved.');
       location.hash = `#/employees/${saved.id}`;
     } catch (err) {
-      const errEl = form.querySelector('.form-error');
-      errEl.textContent = err.message;
-      errEl.hidden = false;
-      errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      errors.server(err);
     }
   });
 }
@@ -226,7 +225,7 @@ export async function employeeProfileView(el, { id }) {
         <a class="back" href="#/employees">← Employees</a>
         <div class="person big"><span class="avatar">${emp.firstName[0]}${emp.lastName[0]}</span>
           <div><h1>${emp.firstName} ${emp.middleName ? emp.middleName + ' ' : ''}${emp.lastName}</h1>
-          <p class="muted">${emp.position || 'No position'} · ${emp.department || 'No department'} · ${emp.employeeNo} ${emp.status === 'Inactive' ? badge('Inactive', 'gray') : badge(emp.employmentStatus)}</p></div>
+          <p class="muted">${emp.position || 'No position'} · ${emp.department || 'No department'} · <span class="nowrap">${emp.employeeNo}</span> ${emp.status === 'Inactive' ? badge('Inactive', 'gray') : badge(emp.employmentStatus)}</p></div>
         </div>
       </div>
       <div class="actions">

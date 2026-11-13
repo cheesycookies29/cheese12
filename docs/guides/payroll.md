@@ -37,7 +37,7 @@ A first tour with the demo data, about fifteen minutes. It uses the last full ha
 ### Read the register
 
 1. The cards show the employees, gross pay, total deductions, net pay and the employer contributions.
-2. The register has one line per employee: **Days** (paid days of scheduled days), **Absent**, **Late/UT**, **OT**, **Basic**, **Premiums** (overtime, rest day, holiday and night-shift pay together), **Other earn.**, **Gross**, the SSS, PhilHealth, Pag-IBIG and tax deductions, **Other ded.**, **Allowance** and **Net pay**.
+2. The register has one line per employee: **Days** (paid days of scheduled days), **Absent**, **Late/UT**, **OT**, **Basic**, **Premiums** (overtime, rest day, holiday and night-shift pay together), **Other earn.**, **Gross**, the SSS, PhilHealth, Pag-IBIG and tax deductions, **Other ded.**, **Allowance** and **Net pay**. On a phone each employee is a card with the days, gross and net pay; **Details** shows the rest.
 3. If a notice shows above the register, it lists open records, absences, overtime not yet approved and pending requests in the period.
 
 ![The register of a draft run](payroll-register.jpg)

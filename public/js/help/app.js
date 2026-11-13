@@ -42,7 +42,7 @@ let dirty = false;
 let spy = null;
 
 document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
-document.getElementById('home-btn').innerHTML = iconSvg('grid');
+document.getElementById('home-btn').innerHTML = iconSvg('home');
 document.getElementById('menu-btn').innerHTML = iconSvg('menu', 20);
 document.querySelector('#top-search .search-ic').innerHTML = iconSvg('search', 16);
 window.addEventListener('beforeunload', (e) => dirty && e.preventDefault());
@@ -59,10 +59,15 @@ function route() {
 
 // ----- Sidebar (guides by system) and drawer on small screens -----
 const sideOpen = (open) => {
+  const was = document.body.classList.contains('help-nav-open');
   document.body.classList.toggle('help-nav-open', open);
   document.getElementById('menu-btn').setAttribute('aria-expanded', String(open));
   document.getElementById('help-scrim').hidden = !open;
+  // Open: focus the guide being read (once the drawer is shown). Closed: back to the menu button.
+  if (open) requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector('.help-side .side-link.active, .help-side .side-link')?.focus({ preventScroll: true })));
+  else if (was && document.querySelector('.help-side')?.contains(document.activeElement)) document.getElementById('menu-btn').focus();
 };
+document.addEventListener('keydown', (e) => e.key === 'Escape' && document.body.classList.contains('help-nav-open') && (sideOpen(false), document.getElementById('menu-btn').focus()));
 document.getElementById('menu-btn').addEventListener('click', () => sideOpen(!document.body.classList.contains('help-nav-open')));
 document.getElementById('help-scrim').addEventListener('click', () => sideOpen(false));
 
@@ -159,12 +164,14 @@ async function searchView(q) {
   const slugOf = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   layout(null, html`
     <nav class="crumbs-help" aria-label="Breadcrumb"><a href="#/">Help</a> ${icon('chevronRight', 12)} <span>Search</span></nav>
+    <form class="help-search hero-search results-search" role="search"><span class="search-ic" aria-hidden="true">${icon('search', 18)}</span><input type="search" name="q" value="${q}" aria-label="Search the guides" /><button class="btn primary">Search</button></form>
     <header class="guide-header"><h1>Results for “${q}”</h1><p class="lead">${r.results?.length ? `${r.results.length} guide${r.results.length === 1 ? '' : 's'} mention it.` : 'No guide mentions all of these words.'}</p></header>
     ${r.results?.length ? html`<div class="results">${r.results.map((x) => html`<a class="result" href="#/${x.id}${x.section ? `#${slugOf(x.section)}` : ''}">
       <span class="result-path">${x.title}${x.section ? html` ${icon('chevronRight', 12)} ${x.section}` : ''}</span>
       <span class="result-snippet">${mark(x.snippet, q)}</span></a>`)}</div>`
       : html`<div class="empty-state">${icon('search', 32)}<p>Try fewer or other words, or open the guide for your job from the list.</p><a class="btn" href="#/">Help home</a></div>`}`, { wide: true });
   document.querySelectorAll('.help-search input').forEach((i) => (i.value = q));
+  wireSearch(appEl.querySelector('.results-search'));
 }
 
 // ----- A guide -----
@@ -249,14 +256,20 @@ function wireShots() {
       box.setAttribute('role', 'dialog');
       box.setAttribute('aria-label', img.alt);
       box.innerHTML = `<figure><img src="${img.getAttribute('src')}" alt="" /><figcaption></figcaption></figure><button type="button" class="round-btn" aria-label="Close">${iconSvg('x')}</button>`;
-      box.querySelector('figcaption').textContent = img.alt;
+      box.querySelector('figcaption').textContent = matchMedia('(max-width: 960px)').matches ? `${img.alt}. Drag to look around; × closes it.` : img.alt;
       const close = () => {
+        if (!box.isConnected) return;
         box.remove();
         document.removeEventListener('keydown', onKey);
-        img.focus();
+        if (img.isConnected) img.focus();
       };
+      // Going to another page (the browser's Back on a phone) closes it too.
+      addEventListener('hashchange', close, { once: true });
       const onKey = (e) => e.key === 'Escape' && close();
-      box.addEventListener('click', close);
+      // On a phone the screenshot opens at full size to pan around: only × or the dark edge closes it.
+      const panning = matchMedia('(max-width: 960px)').matches;
+      if (panning) box.classList.add('pan');
+      box.addEventListener('click', (e) => (!panning || e.target === box || e.target.closest('button')) && close());
       document.addEventListener('keydown', onKey);
       document.body.appendChild(box);
       box.querySelector('button').focus();
@@ -300,16 +313,34 @@ async function editView(id) {
       </header>
       ${g.builtInChanged ? html`<aside class="callout note" role="note"><p class="callout-title">CORE has updated this guide since it was edited here</p><p><button type="button" class="link" id="compare">Compare with the new built-in guide</button>, then copy in what you need, or restore it.</p></aside>` : ''}
       ${isNew ? html`<label class="field guide-id"><span>Guide id (its web address)</span><input id="new-id" placeholder="e.g. office-rules" pattern="[a-z0-9][a-z0-9-]{1,40}" required /></label>` : ''}
-      <div class="editor-cols">
-        <div class="editor-pane">
+      <div class="editor-tabs" role="tablist" aria-label="Editor"><button type="button" role="tab" id="tab-write" aria-selected="true" aria-controls="pane-write">Write</button><button type="button" role="tab" id="tab-preview" aria-selected="false" aria-controls="pane-preview" tabindex="-1">Preview</button></div>
+      <div class="editor-cols show-write">
+        <div class="editor-pane" id="pane-write" role="tabpanel" aria-labelledby="tab-write">
           <div class="md-toolbar" role="toolbar" aria-label="Formatting">${TOOLS.map(([label, title], i) => html`<button type="button" class="tool" data-tool="${i}" title="${title}" aria-label="${title}">${label}</button>`)}</div>
           <textarea id="md" spellcheck="true" aria-label="Guide text (Markdown)">${g.markdown}</textarea>
         </div>
-        <div class="editor-preview"><p class="side-label">Preview</p><div class="guide-body" id="preview"></div></div>
+        <div class="editor-preview" id="pane-preview" role="tabpanel" aria-labelledby="tab-preview"><p class="side-label">Preview</p><div class="guide-body" id="preview"></div></div>
       </div>
       <p class="form-error" hidden></p>
     </section>`, { wide: true });
   const md = appEl.querySelector('#md');
+  // Phones and tablets: Write and Preview are tabs instead of two long columns one under the other.
+  const cols = appEl.querySelector('.editor-cols');
+  const tabs = [...appEl.querySelectorAll('.editor-tabs [role=tab]')];
+  tabs.forEach((t, i) => t.addEventListener('click', () => {
+    tabs.forEach((x, j) => {
+      x.setAttribute('aria-selected', String(i === j));
+      x.tabIndex = i === j ? 0 : -1;
+    });
+    cols.classList.toggle('show-write', i === 0);
+    cols.classList.toggle('show-preview', i === 1);
+  }));
+  appEl.querySelector('.editor-tabs').addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const next = tabs[(tabs.indexOf(document.activeElement) + 1) % 2];
+    next.click();
+    next.focus();
+  });
   const preview = () => mount(appEl.querySelector('#preview'), raw(renderMarkdown(parseGuide(md.value).body, { guideId: id })));
   preview();
   md.addEventListener('input', () => {

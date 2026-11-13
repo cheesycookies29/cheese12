@@ -3,7 +3,7 @@ import { ctx, can, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
 import { holidaysOn, dayTag } from './holidays.js';
 import { DAY_TYPES } from '/shared/holidays.js';
-import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, WEEKDAYS } from '../ui.js';
+import { html, mount, fmtDate, fmtTime, fmtMinutes, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, WEEKDAYS, showClock } from '../ui.js';
 import { readClockLocation, LOCATION_NOTICE, locationPill, openLocation } from '../geo.js';
 import { LOCATION_STATUS, fmtDistance } from '/shared/geo.js';
 
@@ -38,13 +38,13 @@ export async function clockView(el) {
       </section>
       <section class="card">
         <h2>Today</h2>
-        <div id="today-list"></div>
+        <div id="today-list" class="scroll-x"></div>
       </section>
     </div>`);
 
   const tick = () => {
     const now = new Date();
-    el.querySelector('#clock-time').textContent = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    showClock(el.querySelector('#clock-time'), now);
     el.querySelector('#clock-date').textContent = now.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   };
   tick();
@@ -106,7 +106,7 @@ export async function clockView(el) {
       if (action === 'in') btn.textContent = 'Getting location…';
       const where = action === 'in' ? await readClockLocation() : {};
       const res = await api.post('/api/clock', { employeeId: select.value, action, ...where });
-      toast(res.message + (where.locationError ? ' Location could not be read on this device; recorded without it.' : ''));
+      toast(res.message.replace(/\b(\d{2}:\d{2})\b/, (t) => fmtTime(t)) + (where.locationError ? ' Location could not be read on this device; recorded without it.' : ''));
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -196,7 +196,7 @@ export async function dtrView(el, _params, query) {
         <label class="inline">To <input type="date" id="f-to" value="${state.to}" /></label>
       </div>
       <div id="summary"></div>
-      <div id="dtr-table"></div>
+      <div id="dtr-table" class="scroll-x"></div>
     </section>`);
 
   async function load() {

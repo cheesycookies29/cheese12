@@ -7,6 +7,10 @@ import { html, mount, toast, confirmDialog, badge } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { setRoleOverrides } from '/shared/roles.js';
 import { pageHead } from './common.js';
+import { pickedRole } from '../../phone.js';
+
+// On a phone the grid shows one account type at a time; the choice is kept while the page is open.
+let picked = null;
 
 export async function rolesView(el) {
   const d = await api.get('/api/admin/roles');
@@ -29,27 +33,36 @@ export async function rolesView(el) {
           <td>${r.fixed ? 'Everything' : ticked[r.id].size}</td>
           <td class="row-actions">${r.changed ? html`<button type="button" class="btn sm" data-restore="${r.id}">Restore defaults</button>` : ''}</td></tr>`)}</tbody></table></div>
     </section>
+    <div class="role-pick"><label class="field"><span>Account type to show</span><select id="role-pick">${editable.map((r) => html`<option value="${r.id}" ${r.id === pickedRole(editable.map((x) => x.id), picked) ? 'selected' : ''}>${r.label}</option>`)}</select></label></div>
     ${d.groups.map((g) => html`<section class="card roles-group">
       <h2>${g.label}</h2>
       <div class="table-scroll"><table class="table no-stack matrix roles-matrix">
         <caption class="sr-only">${g.label}: which account types have each permission</caption>
-        <thead><tr><th scope="col">Permission</th><th scope="col" class="center">Administrator</th>${editable.map((r) => html`<th scope="col" class="center">${r.label}</th>`)}</tr></thead>
+        <thead><tr><th scope="col">Permission</th><th scope="col" class="center" data-col="admin">Administrator</th>${editable.map((r) => html`<th scope="col" class="center" data-col="${r.id}">${r.label}</th>`)}</tr></thead>
         <tbody>${g.permissions.map((p) => html`<tr>
           <th scope="row"><span class="perm-label">${p.label}</span>${p.adminOnly ? html` ${badge('Administrators only', 'gray')}` : ''}<small class="muted block"><code>${p.id}</code></small></th>
-          <td class="center">${icon('check', 16)}<span class="sr-only">always</span></td>
+          <td class="center" data-col="admin">${icon('check', 16)}<span class="sr-only">always</span></td>
           ${editable.map((r) => {
             const builtIn = r.builtIn.includes(p.id);
             const on = ticked[r.id].has(p.id);
             const changed = on !== builtIn;
             const locked = p.adminOnly && !builtIn;
-            return html`<td class="center ${changed ? 'perm-changed' : ''}"><label class="perm-box"><input type="checkbox" data-role="${r.id}" data-perm="${p.id}" ${on ? 'checked' : ''} ${locked ? 'disabled' : ''}
+            return html`<td class="center ${changed ? 'perm-changed' : ''}" data-col="${r.id}"><label class="perm-box"><input type="checkbox" data-role="${r.id}" data-perm="${p.id}" ${on ? 'checked' : ''} ${locked ? 'disabled' : ''}
               aria-label="${r.label}: ${p.label}${builtIn ? ' (default: yes)' : ' (default: no)'}" title="${locked ? 'Stays with administrators' : changed ? (builtIn ? 'Default: on. Changed: off.' : 'Default: off. Changed: on.') : builtIn ? 'Default' : ''}" />${builtIn ? html`<span class="perm-default" aria-hidden="true">default</span>` : ''}</label></td>`;
           })}</tr>`)}</tbody></table></div>
     </section>`)}
     <p class="muted small"><span class="perm-changed-key"></span> A shaded box differs from the default. <em>default</em> marks what CORE gives that account type.</p>
     <div class="actions end sticky-actions" id="save-bar" hidden><span class="muted small">Unsaved changes</span><button type="button" class="btn" id="discard">Discard</button><button type="button" class="btn primary" id="save">Save permissions</button></div>`);
 
+  // Phones: only the picked account type's column (the CSS hides the others under 760 px).
+  const showRole = (id) => {
+    picked = pickedRole(editable.map((r) => r.id), id);
+    el.classList.add('roles-picking');
+    el.querySelectorAll('.roles-matrix [data-col]').forEach((c) => c.classList.toggle('pick-hide', c.dataset.col !== picked));
+  };
+  showRole(picked);
   el.onchange = (e) => {
+    if (e.target.id === 'role-pick') return showRole(e.target.value);
     const box = e.target.closest('[data-perm]');
     if (!box) return;
     ticked[box.dataset.role][box.checked ? 'add' : 'delete'](box.dataset.perm);

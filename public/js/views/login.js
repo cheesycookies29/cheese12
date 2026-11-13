@@ -87,7 +87,7 @@ function codeView(el, { challenge, onSignedIn }) {
   const form = authScreen(el, html`
     <form class="auth-card" novalidate>
       <h2>Enter your code</h2>
-      <p class="muted code-hint">Open your authenticator app and enter the 6-digit code for <strong>CORE ERP</strong>.</p>
+      <p class="muted code-hint">Open your authenticator app and enter the 6&#8209;digit code for <strong>CORE ERP</strong>.</p>
       <label class="field"><span class="code-label">Code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required /></label>
       <p class="form-error" hidden></p>
       <button class="btn primary block" type="submit">Verify and sign in</button>
@@ -102,6 +102,10 @@ function codeView(el, { challenge, onSignedIn }) {
     form.querySelector('.code-label').textContent = 'Recovery code';
     form.querySelector('.code-hint').textContent = 'Enter one of the recovery codes you saved, for example K7QPM-2XW4D. Each works once.';
     e.target.hidden = true;
+    // The old error said to use a recovery code: it no longer applies.
+    const err = form.querySelector('.form-error');
+    err.hidden = true;
+    err.textContent = '';
     input.value = '';
     input.focus();
   });

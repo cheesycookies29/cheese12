@@ -273,3 +273,53 @@
   .shot-frame img { max-height: 120mm; width: auto; margin: 0 auto; }
   .callout { break-inside: avoid; }
 }
+
+/* ----- Phones and tablets (0.18) ----- */
+.guide-body { overflow-wrap: break-word; }
+.ui-path { overflow-wrap: anywhere; max-width: 100%; }
+@media (max-width: 720px) { .ui-path span { white-space: normal; } }
+.results-search { display: none; margin-bottom: 18px; }
+@media (max-width: 720px) { .results-search { display: flex; } }
+@media (min-width: 721px) and (max-width: 960px) {
+  .help-app .topbar .brand { flex: none; }
+  .help-app .top-search { max-width: 320px; }
+}
+/* Editor: Write / Preview tabs, 44 px toolbar buttons, 16 px text and the buttons at the bottom on phones. */
+.editor-tabs { display: none; }
+@media (max-width: 960px) {
+  .editor-tabs { display: flex; gap: 4px; margin: 0 0 10px; border-bottom: 1px solid var(--border); }
+  .editor-tabs button { min-height: 44px; padding: 8px 16px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; }
+  .editor-tabs button[aria-selected='true'] { color: var(--brand-text); border-bottom-color: var(--brand); }
+  .editor-cols.show-write .editor-preview, .editor-cols.show-preview .editor-pane { display: none; }
+  .md-toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .md-toolbar::-webkit-scrollbar { display: none; }
+  .md-toolbar .tool { flex: none; }
+}
+@media (pointer: coarse) {
+  .md-toolbar .tool { min-width: 44px; height: 44px; font-size: 14px; }
+  .editor-pane textarea { font-size: 16px; }
+  .side-link { min-height: 44px; }
+}
+@media (max-width: 760px) {
+  .guide-editor { padding-bottom: 76px; }
+  .guide-editor .editor-head .actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 18px rgba(16, 24, 40, 0.1); }
+  .guide-editor .editor-head .actions .btn { flex: 1 1 0; min-height: 46px; }
+  .guide-editor .editor-head .actions .btn.danger { flex: 0 1 auto; white-space: normal; }
+}
+/* The drawer: the article behind it does not scroll. */
+@media (max-width: 960px) { body.help-nav-open { overflow: hidden; } }
+/* A screenshot on a phone opens at a readable size, to pan around. */
+@media (max-width: 960px) {
+  .lightbox.pan { display: block; place-items: start; overflow: auto; padding: 64px 0 24px; overscroll-behavior: contain; touch-action: pan-x pan-y pinch-zoom; cursor: default; }
+  .lightbox.pan figure { max-width: none; width: max-content; }
+  .lightbox.pan img { width: min(1280px, 260vw); max-width: none; max-height: none; border-radius: 0; }
+  .lightbox.pan figcaption { position: fixed; left: 16px; right: 72px; top: 18px; text-align: left; margin: 0; font-size: 13px; }
+  .lightbox .round-btn { z-index: 1; }
+}
+@media print {
+  .shot-frame img { max-width: 100%; height: auto; max-height: 110mm; }
+}
+@media (pointer: coarse) {
+  .crumbs-help a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin-block: -12px; }
+  .top-search kbd { font-size: 12px; }
+}

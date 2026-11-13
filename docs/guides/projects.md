@@ -133,6 +133,8 @@ The three starter templates are under **Templates** in the filter.
 
 ![The weekly timesheet](projects-timesheet.jpg)
 
+![The timesheet on a phone, one day at a time](projects-timesheet-phone.jpg)
+
 ### My work
 
 1. Sign in as `employee.demo` and open **My work** in the side menu. **For you** at the top lists what others did that concerns Juan: Andrea mentioned him, there are *2 comments on* a task of his, a task was assigned to him. Unread ones are in bold; open one or click its tick to mark it read, or **Mark all read**.
@@ -218,7 +220,7 @@ A size is a rough idea, not a promise: pick the nearest and move on. An *XL* tas
 ### Change many tasks at once
 
 1. On the **List**, tick the tasks to change, or tick **Select all … tasks shown** (it takes the tasks the filters show). With the keyboard, Tab to a box and press Space.
-2. In the bar at the bottom, click what to change: **Status**, **Assignee** (members of the project only), **Milestone**, **Priority**, **Size** (or no size), **Move dates** (a number of working days, negative for earlier; weekends and holidays are skipped, and tasks without dates keep none) or **Watchers**.
+2. In the bar at the bottom, click what to change: **Status**, **Assignee** (members of the project only), **Milestone**, **Priority**, **Size** (or no size), **Move dates** (a number of working days, negative for earlier; weekends and holidays are skipped, and tasks without dates keep none) or **Watchers**. On a phone the bar shows the count, **Actions** (the same list, and **Delete**) and **×** to clear the selection.
 3. Pick the new value and click **Apply**.
 
 CORE checks every selected task first. If one cannot take the change (for example a due date that would fall before its start), nothing is changed and CORE says which task and why. Each task changed gets the change in its history. People are told once, not once per task: *assigned you 5 tasks…*. At most 200 tasks at a time.
@@ -334,7 +336,7 @@ Or fill in a whole week at once on your **Timesheet** (below). If the hours you 
 
 1. Open **Timesheet** in the side menu (it is there when you are on a project that tracks time).
 2. Each project that tracks time has a row. Pick a **task** in the row if the hours were for one, or leave *No task (project work)*. **Another task on …** adds a row.
-3. Type the hours for each day, in quarter hours. Days after today are closed.
+3. Type the hours for each day, in quarter hours. Days after today are closed. On a phone the week shows one day at a time: tap a day at the top (each shows its hours) and type the hours for each row.
 4. Click **Save timesheet**.
 
 Each cell is one entry: changing it changes that entry, and emptying it removes it. A day can have at most 24 hours across your projects; a day in the future cannot have any. **Clocked in (DTR)** shows your attendance next to it, for comparison only: nothing is filled in from it, and a day with more project hours than clocked in is flagged, never refused. Move between weeks with **Previous**, **Next** and **This week**; CORE asks before leaving hours not saved.

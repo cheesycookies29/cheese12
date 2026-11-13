@@ -411,7 +411,8 @@ function setMenu(open) {
   body.classList.toggle('nav-open', open);
   menuBtn.setAttribute('aria-expanded', String(phone() ? open : !body.classList.contains('nav-mini')));
   scrim.hidden = !open;
-  if (open) document.querySelector('#nav a.active, #nav a')?.focus({ preventScroll: true });
+  // The drawer becomes focusable once it is shown: focus its active link a frame later.
+  if (open) requestAnimationFrame(() => requestAnimationFrame(() => body.classList.contains('nav-open') && document.querySelector('#nav a.active, #nav a')?.focus({ preventScroll: true })));
 }
 try {
   if (localStorage.getItem('core-nav') === 'mini') body.classList.add('nav-mini');
@@ -428,6 +429,16 @@ menuBtn.addEventListener('click', () => {
 scrim.addEventListener('click', () => setMenu(false));
 document.getElementById('sidebar').addEventListener('click', (e) => {
   if (e.target.closest('a[href]')) setMenu(false);
+});
+// While the drawer is open on a phone, Tab stays in it (and on the menu button that closes it).
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab' || !body.classList.contains('nav-open') || document.querySelector('.modal-backdrop')) return;
+  const items = [menuBtn, ...document.querySelectorAll('#sidebar a[href], #sidebar button')].filter((x) => x.offsetParent !== null);
+  const i = items.indexOf(document.activeElement);
+  if (i === -1 || (e.shiftKey && i === 0) || (!e.shiftKey && i === items.length - 1)) {
+    e.preventDefault();
+    items[e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : i === -1 || i === items.length - 1 ? 0 : i + 1].focus();
+  }
 });
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;

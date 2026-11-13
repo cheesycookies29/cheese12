@@ -104,7 +104,7 @@ Two accounts cannot have the same name. A prospect becomes a client by itself wh
 1. Click **+ Deal** on the Overview, the **Pipeline**, or an account page. Add the account first if it is new.
 2. Enter the **Deal name**, **Account**, **Main contact**, **Value (₱)**, **Expected close**, **Stage**, **Owner**, **Source** and the **Next step**. Click **Save**.
 3. To move it, drag its card on the **Pipeline** board, or click a stage in the stage bar on the deal page.
-4. When it is won, click **Won** in the stage bar (or drop the card on **Won**). When it is lost, click **Lost**, pick the **Reason** and click **Mark as lost**. The **Edit** form does not offer Won or Lost: a deal is closed from the stage bar or the board. On a phone, use the stage bar.
+4. When it is won, click **Won** in the stage bar (or drop the card on **Won**) and confirm with **Mark as won**. When it is lost, click **Lost**, pick the **Reason** and click **Mark as lost**. The **Edit** form does not offer Won or Lost: a deal is closed from the stage bar or the board. On a phone, use the stage bar.
 
 Each move is written in the deal's history. Won and lost deals leave the board and stay in the **List**. Each stage's probability weighs the forecast: a ₱1M deal at *Proposal* (50%) counts ₱500K.
 

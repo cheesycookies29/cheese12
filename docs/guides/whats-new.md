@@ -9,6 +9,16 @@ order: 2
 
 ## November 2026
 
+### Phones and tablets (0.18)
+- Every screen fits a phone: nothing makes the page wider than the screen, and wide lists are cards on tablets and landscape phones too. Tabs and chips that scroll sideways fade at the edge, and the one you are on is in view. See [Getting started](getting-started#use-core-on-a-phone).
+- Buttons, menu items, links and checkboxes are easier to tap (at least 44 px), inputs no longer make the phone zoom in, and small text is larger.
+- Forms show every problem at once, at its field, with the field's name (*First name is required.*), and take you to the first one. Long forms keep **Save** at the bottom of a phone's screen; windows fit a phone turned sideways with their buttons in view.
+- On a phone: a list's filters fold into one **Filters** button; tickets, tasks and CRM records show the conversation, description or details first; board columns scroll on their own; messages appear at the top of the screen.
+- **Timesheet** on a phone: one day at a time, with a day picker. See [the projects guide](projects#fill-in-your-timesheet). The List's bulk bar becomes **Actions** and **×**. See [the projects guide](projects#change-many-tasks-at-once).
+- **Roles & permissions** on a phone shows one account type at a time. See [the administrator's guide](admin#change-what-an-account-type-may-do). The payroll register shows a summary per employee with **Details**. See [the payroll guide](payroll#read-the-register).
+- **Won** on a deal now asks you to confirm, like **Lost**. See [the sales guide](sales).
+- Help & guides: a screenshot opens full size on a phone to look around in; the guide editor has **Write** and **Preview** tabs on a phone.
+
 ### Workload removed (0.17.1)
 - **Workload** is no longer in Project Management. Task sizes still weigh progress and the burn-up; My work, the Timesheet and time tracking work as before. See [the projects guide](projects).
 

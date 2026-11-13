@@ -428,9 +428,9 @@ function typeForm(t = {}) {
       <small class="muted">Unpaid leave is deducted like an absence.</small></div>
     <label class="field span-2"><span>Who gets it</span>
       <select name="appliesTo">
-        <option value="all" ${t.appliesTo !== 'selected' ? 'selected' : ''}>Every employee (you can remove it for someone)</option>
-        <option value="selected" ${t.appliesTo === 'selected' ? 'selected' : ''}>Only employees you add, under Employee leave</option>
-      </select></label>
+        <option value="all" ${t.appliesTo !== 'selected' ? 'selected' : ''}>Every employee</option>
+        <option value="selected" ${t.appliesTo === 'selected' ? 'selected' : ''}>Only employees you add</option>
+      </select><small class="muted">Every employee: you can still remove it for someone. Only employees you add: add them under Employee leave.</small></label>
     <label class="field"><span>Limited to</span>
       <select name="gender">
         <option value="" ${t.gender ? '' : 'selected'}>Any gender</option>

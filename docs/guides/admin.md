@@ -96,7 +96,7 @@ These are CORE's defaults; your company can change them under **Roles & permissi
 ### Change what an account type may do
 
 1. Open **Admin panel → Roles & permissions**.
-2. In the table for a part of CORE, tick or untick a permission for an account type. A shaded box differs from the default; *default* marks what CORE gives that account type.
+2. In the table for a part of CORE, tick or untick a permission for an account type. A shaded box differs from the default; *default* marks what CORE gives that account type. On a phone, pick the account type under **Account type to show**: the tables then show its column only.
 3. Click **Save permissions** in the bar at the bottom (**Discard** forgets the changes). If accounts would lose something they can do now, CORE asks first.
 
 Everyone with that account type gets the change the next time they open a page; the server applies it at once. For example, let **HR Manager** read the **Audit log** (under **Admin panel**), or take **Add and edit employees** from **HR Manager** so only administrators add employees. **Restore defaults** on an account type puts it back as CORE made it.

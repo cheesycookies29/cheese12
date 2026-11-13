@@ -140,7 +140,13 @@ Choose the **moon** button in the top bar for dark mode, and the **sun** to go b
 
 ### Use CORE on a phone
 
-CORE works in the phone's browser; there is nothing to install. On a narrow screen the side menu folds away: choose the **menu** button (three lines) at the top left to open it, and tap outside it to close it. Tables become cards, one per row.
+CORE works in the phone's browser; there is nothing to install. On a narrow screen the side menu folds away: choose the **menu** button (three lines) at the top left to open it, and tap outside it to close it. Tables become cards, one per row (on a tablet too, for the wide lists).
+
+- **Filters**: on a phone a list's filters (owner, status, stage…) fold into one **Filters** button next to the search. The number on it says how many are on; tap it to see and change them.
+- **Tabs and chips** that do not fit scroll sideways: a fade at the edge shows there is more, and the tab you are on is always in view.
+- **Forms**: when something is missing, every field to fix is outlined with a message under it, and CORE takes you to the first one. On long forms (an employee, an asset, Payroll Setup) the **Save** buttons stay at the bottom of the screen.
+- **Messages** such as *Saved.* appear at the top of a phone's screen, so they never cover a button.
+- Turned sideways, the top bar is shorter and windows use the whole height, with their buttons always at the bottom.
 
 ![CORE on a phone](getting-started-phone.jpg)
 
