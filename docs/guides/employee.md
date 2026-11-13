@@ -55,6 +55,7 @@ On a phone, **My Home** shows the same clock at the top. It works the same way.
 
 1. In **My Requests**, look at **My requests**. Each row has its status and who it is waiting on.
 2. Click a row to open it. You see each day, the approval route level by level, and the history.
+3. When it is decided, the **bell** in the top bar tells you: approved, rejected with the reason, or returned for revision with what to change. Choose the notification to open the request.
 
 ![My Requests: leave balances and your requests](employee-requests.jpg)
 
@@ -140,6 +141,8 @@ An approved request cannot be withdrawn. Ask HR to cancel it; the days leave you
 2. Click a pay period to open the payslip.
 3. Click **Print / Save as PDF**.
 
+When the payroll officer finalizes a payroll, the **bell** in the top bar tells you *Your payslip for … is ready*; choose it to open the payslip.
+
 The list shows the pay period, pay date, gross pay, deductions and net pay. Your latest payslip is also on **My Home**. A payslip marked *Voided* was cancelled by the payroll officer: it stays in the list for your records but no longer counts in the year-to-date totals. Ask the payroll officer why it was voided.
 
 ![My Payslips with the year-to-date totals](employee-payslips.jpg)
@@ -158,6 +161,8 @@ To change any of your details, contact HR.
 3. Choose **What's wrong?** (*Malfunction*, *Physical damage*, *Lost or stolen* or *Other problem*), **Noticed on**, and **Can you still work on it?**.
 4. **Describe the problem** and click **Send report**.
 
+When IT assigns you equipment or issues you supplies, the **bell** in the top bar tells you, and opens **My Assets**.
+
 IT is told in CORE. The card then shows *Problem reported* with the report number. Under **My problem reports** you follow its status (*New*, *Being checked*, *Resolved*, *Closed*) and IT's notes. **Supplies issued to you** lists consumables IT gave you. **Export CSV** saves the whole list. For a lost or stolen device, also tell your manager right away.
 
 ![My Assets: the equipment assigned to you](employee-assets.jpg)
@@ -171,7 +176,7 @@ IT is told in CORE. The card then shows *Problem reported* with the report numbe
 
 ![A new support ticket](employee-new-ticket.jpg)
 
-The ticket opens with its number, for example *HD-000003*. IT's replies appear on it, and the list says *IT replied*. Write under **Add a reply** and click **Send** to answer. When it is fixed, click **My problem is solved**. A reply reopens a resolved ticket; for a closed one, open a new ticket and mention the old number.
+The ticket opens with its number, for example *HD-000003*. IT's replies appear on it, and the list says *IT replied*; the **bell** in the top bar also tells you when IT replies, or resolves or closes your ticket. Write under **Add a reply** and click **Send** to answer. When it is fixed, click **My problem is solved**. A reply reopens a resolved ticket; for a closed one, open a new ticket and mention the old number.
 
 If you work the service desk, your sidebar also has **Log a ticket**, for a call or walk-in on someone else's behalf. See [the service desk guide](service-desk).
 
@@ -190,6 +195,9 @@ If you work the service desk, your sidebar also has **Log a ticket**, for a call
 | Log a ticket | In IT Service Desk, for service desk agents only: log a ticket for someone else |
 
 ## Questions
+
+**How do I know my request was approved, or my payslip is ready?**
+The **bell** in the top bar. Its red number counts what you have not read; choose it to see the latest and open one. See [See your notifications](getting-started#see-your-notifications).
 
 **Why does it say I was absent?**
 A scheduled work day with no attendance record counts as an absence. If you worked, ask HR to correct your record.

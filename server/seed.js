@@ -9,6 +9,8 @@ const DEFAULT_BID_CHECKLIST = DEFAULT_CRM.bidChecklist;
 import { workDates } from '../shared/leave.js';
 import { ticketRef, slaDue } from '../shared/helpdesk.js';
 import { DEFAULT_STATUSES } from '../shared/projects.js';
+import { notify, accountOfEmployee } from './notifications.js';
+import { tellApprovers, tellRequester } from './leave.js';
 
 const PEOPLE = [
   ['Maria', 'Santos', 'Reyes', 'HR Manager', 'Human Resources', 'monthly', 55000, 'Female', 'Married'],
@@ -715,4 +717,33 @@ function seedAssets(data, c) {
     move(daysAgo(30 - i * 3), 'out', -qty, { issuedTo: to, reference: `REQ-${2026100 + i}` });
     if (i === 4) move(daysAgo(5), 'out', -2, { issuedTo: { type: 'location', id: null, name: 'BGC Office, 32F' }, reference: 'Printer refill' });
   });
+}
+
+// The bell for the demo accounts (after they exist and the requests have their routes): the
+// requests waiting for Maria (hr.demo) and Juan (employee.demo), the HR decision on Andrea's
+// (pm.demo) leave, and the laptop IT gave Juan. Written as the modules write them, marked demo.
+export function seedNotifications(db) {
+  const d = db.data;
+  const hours = (h) => new Date(Date.now() - h * 3600000).toISOString();
+  const by = (username) => d.users.find((u) => u.username === username && u.demo) || null;
+  const hr = by('hr.demo');
+  const it = by('it.demo');
+  const reqs = d.requests.filter((r) => r.demo);
+  // Newest first: a request filed a few hours ago, the others earlier today or yesterday.
+  reqs.filter((r) => r.status === 'pending').forEach((r, i) => {
+    const asker = accountOfEmployee(db, r.employeeId);
+    const e = d.employees.find((x) => x.id === r.employeeId);
+    tellApprovers(db, r, asker || { id: null, name: `${e.firstName} ${e.lastName}` }, 'filed', new Set(), { at: hours(1.5 + i * 9), demo: true });
+  });
+  for (const r of reqs.filter((x) => x.status === 'rejected')) {
+    if (!hr) continue;
+    for (const n of tellRequester(db, r, hr, 'rejected', { at: hours(40), demo: true })) n.readAt = hours(30);
+  }
+  // Equipment: read, a while ago.
+  const juan = by('employee.demo');
+  const laptop = juan && d.assets.find((a) => a.demo && a.assignedTo?.type === 'employee' && a.assignedTo.id === juan.employeeId);
+  if (laptop && it) {
+    const rows = notify(db, [juan.id], { module: 'assets', kind: 'asset.assigned', title: `${it.name} assigned ${laptop.assetTag} ${laptop.name} to you`, body: `${laptop.category} · See it under My Assets`, link: '#/assets/mine' }, { actorId: it.id, at: hours(24 * 20), demo: true });
+    for (const n of rows) n.readAt = hours(24 * 19);
+  }
 }

@@ -165,6 +165,8 @@ Only HR Managers and administrators see locations. Approved remote-work days are
 2. Click a row to see the days, the route and any medical certificate.
 3. Click **Approve** (or **Approve (HR)** when it is not your turn), **Return** or **Reject**. Remarks are required to return or reject; the employee sees them.
 
+When the approval flow has an HR level, the **bell** in the top bar tells everyone with approval rights when a request reaches it (*Ben Reyes approved Ana Reyes's request for 2 days of Vacation Leave*); choosing it opens the request. The employee hears of your decision in their own bell, with your remarks, and of a cancellation with its reason.
+
 As HR Manager you can decide any request at any point, for example when a supervisor is away. Approving out of turn decides it for every level still to come. Nobody approves their own request. To undo an approved request, filter by *Approved*, click **Cancel** and give a reason: its days leave the DTR and the credits come back.
 
 ### Approve several at once

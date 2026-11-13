@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate } from './util.js';
 import { noAudit } from './audit.js';
+import { notify } from './notifications.js';
 import { can, userCan } from '../shared/roles.js';
 import {
   ACCOUNT_TYPES, SECTORS, LEAD_STATUS, OPEN_LEAD, BID_STATUS, OPEN_BID, BID_MODES, CONTRACT_STATUS, ACTIVITY_TYPES,
@@ -140,6 +141,21 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   const history = (kind, rec, u, text) =>
     d().crmActivities.push({ id: randomUUID(), type: 'event', subject: text, body: '', related: { type: kind, id: rec.id }, ownerId: u?.id || null, createdBy: u?.id || null, createdAt: now(), done: true });
 
+  // ----- Notifications (the bell): a record given a new owner by someone else -----
+  const OWNED = {
+    lead: (r) => [`lead ${r.code} ${r.name}`, r.company, 'leads'],
+    deal: (r) => [`deal ${r.code} ${r.title}`, accountName(r.accountId), 'deals'],
+    account: (r) => [`account ${r.name}`, ACCOUNT_TYPES[r.type], 'accounts'],
+    contact: (r) => [`contact ${personName(r)}`, accountName(r.accountId), 'contacts'],
+    bid: (r) => [`bid ${r.code} ${r.title}`, accountName(r.accountId), 'bids'],
+    contract: (r) => [`contract ${r.code} ${r.title}`, accountName(r.accountId), 'contracts'],
+  };
+  function tellOwner(kind, rec, before, u) {
+    if (!rec.ownerId || rec.ownerId === before || rec.ownerId === u.id) return;
+    const [what, where, path] = OWNED[kind](rec);
+    notify(db, [rec.ownerId], { module: 'crm', kind: 'crm.owner', title: `${u.name} made you the owner of ${what}`, body: where || 'Sales & CRM', link: `#/crm/${path}/${rec.id}` }, { actorId: u.id });
+  }
+
   // ----- Shapes sent to the browser: records with the names they point to -----
   const accountName = (id) => d().crmAccounts.find((a) => a.id === id)?.name || null;
   const contactName = (id) => personName(d().crmContacts.find((c) => c.id === id)) || null;
@@ -241,6 +257,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const a = stamp(validAccount(body, u), u, true);
     d().crmAccounts.push(a);
     history('account', a, u, 'Account created');
+    tellOwner('account', a, null, u);
     db.save();
     return out.account(a);
   });
@@ -258,8 +275,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   route('PUT', '/api/crm/accounts/:id', 'crm.edit', ({ params, body, user: u }) => {
     const a = find('account', params.id);
     fresh(a, body);
+    const owner0 = a.ownerId;
     Object.assign(a, validAccount(merged(a, body), u, a));
     stamp(a, u);
+    tellOwner('account', a, owner0, u);
     db.save();
     return out.account(a);
   });
@@ -289,6 +308,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const c = stamp(validContact(body, u), u, true);
     d().crmContacts.push(c);
     history('contact', c, u, 'Contact created');
+    tellOwner('contact', c, null, u);
     db.save();
     return out.contact(c);
   });
@@ -299,8 +319,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   route('PUT', '/api/crm/contacts/:id', 'crm.edit', ({ params, body, user: u }) => {
     const c = find('contact', params.id);
     fresh(c, body);
+    const owner0 = c.ownerId;
     Object.assign(c, validContact(merged(c, body), u, c));
     stamp(c, u);
+    tellOwner('contact', c, owner0, u);
     // Moved to another organization: no longer the main contact on the old one's deals.
     for (const x of d().crmDeals) if (x.contactId === c.id && c.accountId && x.accountId !== c.accountId) {
       x.contactId = null;
@@ -339,6 +361,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const l = stamp({ code: nextCode('lead', 'LD'), ...fields }, u, true);
     d().crmLeads.push(l);
     history('lead', l, u, `Lead created (source: ${l.source})`);
+    tellOwner('lead', l, null, u);
     db.save();
     return out.lead(l);
   });
@@ -348,8 +371,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     if (l.status === 'converted') throw new HttpError(400, 'This lead was converted. Edit its account, contact or deal instead.');
     fresh(l, body);
     const before = l.status;
+    const owner0 = l.ownerId;
     Object.assign(l, validLead(merged(l, body), u, l));
     stamp(l, u);
+    tellOwner('lead', l, owner0, u);
     if (before !== l.status) history('lead', l, u, `Status: ${LEAD_STATUS[before]} → ${LEAD_STATUS[l.status]}${l.disqualifiedReason ? ` (${l.disqualifiedReason})` : ''}`);
     db.save();
     return out.lead(l);
@@ -498,6 +523,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const x = stamp({ code: nextCode('deal', 'DL'), ...fields, ...(closing ? { stage: crm().stages[0].id } : {}) }, u, true);
     d().crmDeals.push(x);
     history('deal', x, u, `Deal created in ${stageName(crm(), x.stage)}`);
+    tellOwner('deal', x, null, u);
     if (closing) moveStage(x, target, u, fields.lostReason);
     if (x.renewalOf) history('contract', d().crmContracts.find((c) => c.id === x.renewalOf), u, `Renewal deal ${x.code} opened`);
     db.save();
@@ -516,9 +542,11 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const next = validDeal(merged(x, body), u, x);
     const stage = next.stage;
     if (!isOpenDeal(x) && isOpenDeal({ stage })) openRenewalCheck(x);
+    const owner0 = x.ownerId;
     Object.assign(x, { ...next, stage: x.stage });
     moveStage(x, stage, u, next.lostReason);
     stamp(x, u);
+    tellOwner('deal', x, owner0, u);
     // Moved to another account: its bids and contracts stay with theirs and lose the link.
     for (const k of ['crmBids', 'crmContracts']) for (const r of d()[k]) if (r.dealId === x.id && r.accountId !== x.accountId) {
       r.dealId = null;
@@ -584,6 +612,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const b = stamp({ code: nextCode('bid', 'BID'), ...fields, checklist: crm().bidChecklist.map((label) => ({ id: randomUUID(), label, done: false })) }, u, true);
     d().crmBids.push(b);
     history('bid', b, u, 'Bid created');
+    tellOwner('bid', b, null, u);
     db.save();
     return out.bid(b);
   });
@@ -599,8 +628,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
       const missing = b.checklist.filter((i) => !i.done).length;
       if (missing && bool(body.submitAnyway, 'Submit anyway') !== true) throw new HttpError(409, `${missing} document${missing === 1 ? ' is' : 's are'} not ticked on the checklist.`);
     }
+    const owner0 = b.ownerId;
     Object.assign(b, next);
     stamp(b, u);
+    tellOwner('bid', b, owner0, u);
     if (before !== b.status) {
       if (b.status === 'submitted') b.submittedAt = now();
       history('bid', b, u, `Status: ${BID_STATUS[before]} → ${BID_STATUS[b.status]}`);
@@ -665,6 +696,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const c = stamp({ code: nextCode('contract', 'CT'), ...fields }, u, true);
     d().crmContracts.push(c);
     history('contract', c, u, 'Contract recorded');
+    tellOwner('contract', c, null, u);
     db.save();
     return out.contract(c);
   });
@@ -676,8 +708,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const c = find('contract', params.id);
     fresh(c, body);
     const before = c.status;
+    const owner0 = c.ownerId;
     Object.assign(c, validContract(merged(c, body), u, c));
     stamp(c, u);
+    tellOwner('contract', c, owner0, u);
     for (const x of d().crmDeals) if (x.renewalOf === c.id && x.accountId !== c.accountId) {
       x.renewalOf = null;
       stamp(x, u);

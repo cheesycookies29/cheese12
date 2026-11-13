@@ -6,14 +6,14 @@
 import { randomUUID } from 'node:crypto';
 import { demoData } from './seed.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
-import { DEMO_OWNER, DEMO_USER } from './seed.js';
+import { DEMO_OWNER, DEMO_USER, seedNotifications } from './seed.js';
 import { CRM_COLLECTIONS } from './crm.js';
 import { PM_COLLECTIONS } from './projects.js';
 import { addStarterTemplates } from './pm-templates.js';
 import { routeRequest, migrateApprovals } from './approvals.js';
 
 // Collections the demo set adds to.
-const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS, ...PM_COLLECTIONS];
+const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS, ...PM_COLLECTIONS, 'notifications'];
 // Records that belong to an employee and go with a demo employee.
 const BY_EMPLOYEE = ['timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments'];
 
@@ -79,6 +79,9 @@ export function removeDemo(db, { summarize, removeFile = () => {} }) {
   d.tickets = d.tickets.filter((t) => !demoUsers.has(t.requester?.userId));
   for (const t of d.tickets) if (demoUsers.has(t.assigneeId)) t.assigneeId = null;
   d.feedback = d.feedback.filter((f) => !demoUsers.has(f.userId));
+  // The bell: demo accounts' notifications go; others' no longer name a demo account.
+  d.notifications = (d.notifications || []).filter((n) => !demoUsers.has(n.userId));
+  for (const n of d.notifications) if (demoUsers.has(n.actorId)) n.actorId = null;
   // Draft payroll runs drop demo employees; finalized runs are a record and stay as they were.
   for (const run of d.payrollRuns) {
     if (run.status !== 'draft') continue;
@@ -171,5 +174,6 @@ export function addDemo(db, { summarize, demoAccounts, removeFile }) {
   linkDemoPeople(d);
   // The starter templates, if they were deleted: the demo shows "+ New project" from a template.
   addStarterTemplates(d, { demo: true });
+  seedNotifications(db);
   return demoCounts(db);
 }

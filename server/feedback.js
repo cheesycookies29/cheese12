@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { ROLES } from '../shared/roles.js';
 import { FEEDBACK_TYPES, FEEDBACK_AREAS, FEEDBACK_STATUS } from '../shared/feedback.js';
+import { notify, quote } from './notifications.js';
 
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const newestFirst = (list) => [...list].reverse().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -56,6 +57,12 @@ export function registerFeedbackRoutes(route, db) {
     f.updates.push({ at: new Date().toISOString(), by: user.name, status: status !== f.status ? status : null, note });
     f.status = status;
     f.updatedAt = new Date().toISOString();
+    // The sender hears of it. Their Feedback page says "Administrator", not who: neither does this.
+    notify(db, [f.userId], {
+      module: 'system', kind: 'feedback.reply',
+      title: note ? `An administrator replied to your feedback ${f.number}` : `An administrator marked your feedback ${f.number} as ${FEEDBACK_STATUS[status]}`,
+      body: note ? `${f.subject}: ${quote(note, 200)}` : f.subject, link: `#/feedback?open=${f.id}`,
+    }, { actorId: user.id, anonymous: true });
     db.save();
     return f;
   });

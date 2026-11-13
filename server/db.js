@@ -56,6 +56,7 @@ export function emptyData() {
     pmNotifications: [], // "For you" on My work: one row per person and event
     pmViews: [], // saved filters of a project's Board or List
     pm: emptyPm(),
+    notifications: [], // the bell: one row per person and event, from every module (server/notifications.js)
     // Admin panel (server/config.js): the company's changes to the account types, which modules are
     // on, the history of settings changes, and when a backup was last downloaded.
     roleOverrides: {}, // { role: { add: [permission…], remove: [permission…] } }

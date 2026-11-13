@@ -1,7 +1,7 @@
 ---
 id: getting-started
 title: Getting started with CORE
-summary: Sign in, find your way around the modules, change your password, turn on 2-step verification, use CORE on a phone, and get help.
+summary: Sign in, find your way around the modules, see your notifications, change your password, turn on 2-step verification, use CORE on a phone, and get help.
 roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
 apps: home, system
 order: 1
@@ -45,16 +45,20 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![A module: the side menu on the left, and the top bar](getting-started-module.jpg)
 
-5. Look at the top bar. On the right are, in order: the **modules** button (the grid of squares), **Help** (the question mark), the **dark mode** button (the moon) and your name.
+5. Look at the top bar. On the right are, in order: the **modules** button (the grid of squares), the **notifications** bell, **Help** (the question mark), the **dark mode** button (the moon) and your name. On a phone the dark mode button is in the menu under your name.
 6. Choose the **modules** button. The menu lists **CORE modules** you can open; choose one to switch to it, or **All modules** for the CORE home.
 
 ![The modules menu](getting-started-modules.jpg)
 
-7. Choose your name at the top right. The menu shows your picture (or your initials), username and account type, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
+7. Choose the **bell**. The red number on it is how many notifications Juan has not read: requests from his team waiting for his approval, and comments and a task on the LMS project. Unread ones are in bold with a dot. Press Escape (or choose the bell again) to close it. See [See your notifications](#see-your-notifications).
+
+![The notifications panel, open from the bell](getting-started-notifications.jpg)
+
+8. Choose your name at the top right. The menu shows your picture (or your initials), username and account type, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
 
 ![The menu under your name](getting-started-user-menu.jpg)
 
-8. Choose **Sign out**. You are back on the sign-in page.
+9. Choose **Sign out**. You are back on the sign-in page.
 
 ## How to…
 
@@ -78,6 +82,30 @@ If your company requires 2-step verification and you have not set it up, CORE sh
 2. The module opens on its first page. Its pages are in the side menu on the left.
 
 To go back to the CORE home, choose the CORE logo at the top left, or **All modules** in the modules menu.
+
+### See your notifications
+
+The **bell** in the top bar tells you when someone did something that concerns you, in any module. The red number on it counts the ones you have not read (*99+* above 99); it updates by itself every minute, and when you come back to CORE's tab.
+
+1. Choose the **bell**. The panel lists your latest notifications, newest first, under **Today**, **Yesterday** and **Earlier**. Each shows who did it (their picture or initials, or the module's icon), what happened, a line of detail, the module and when (*5 min ago*, *Yesterday*). Unread ones are in bold with a dot.
+2. Choose one to open what it is about: the request, payslip, ticket, task or record. Opening it marks it read.
+3. To mark one read without opening it, choose its tick (**Mark as read**). **Mark all read** clears them all; **Unread only** hides the ones you have read.
+4. **See all** opens the **Notifications** page: every notification of the last 60 days, with a **Module** filter, **Unread only** and **Show more**.
+
+With the keyboard: the first notification is selected when the panel opens, the up and down arrows move between them, Enter opens one and Escape closes the panel. On a phone the panel fills the width of the screen; **×** closes it.
+
+What you are told about:
+
+| Module | You hear when… |
+|---|---|
+| HR & Payroll | a request needs your approval (as a supervisor, a named approver or HR); a request that waited for you was withdrawn or cancelled; your own request was approved, rejected, returned for revision or cancelled by someone else; your payslip is ready |
+| IT Assets | equipment is assigned to you, or supplies are issued to you |
+| Service Desk | a ticket is assigned to you, or its requester replies (agents); an agent replies to your ticket, or resolves or closes it |
+| Sales & CRM | someone makes you the owner of a lead, deal, account, contact, bid or contract |
+| Projects | the same as **For you** on **My work**: a task assigned to you, a mention, a comment, a task done or cancelled, being added to a project |
+| System | an administrator answers your feedback |
+
+You are never told about your own actions. A notification says only what the page it opens would show you: an approver sees who asked for which days, not the reason. Notifications from a module your company has turned off are hidden. Project notifications are the same ones as **For you** on **My work**: reading one in either place reads it in both, and the number next to **My work** follows.
 
 ### See your project tasks (My work)
 
@@ -147,7 +175,7 @@ If you see a device you do not recognize, sign it out and change your password.
 
 ### Switch between light and dark
 
-Choose the **moon** button in the top bar for dark mode, and the **sun** to go back. CORE remembers the choice on this browser. The Help pages follow it too.
+Choose the **moon** button in the top bar for dark mode, and the **sun** to go back. On a phone, choose your name at the top right, then **Dark mode** (or **Light mode**). CORE remembers the choice on this browser. The Help pages follow it too.
 
 ### Use CORE on a phone
 
@@ -158,6 +186,7 @@ CORE works in the phone's browser; there is nothing to install. On a narrow scre
 - **Tabs and chips** that do not fit scroll sideways: a fade at the edge shows there is more, and the tab you are on is always in view.
 - **Forms**: when something is missing, every field to fix is outlined with a message under it, and CORE takes you to the first one. When only one field is wrong, its message is under it. On long forms (an employee, an asset, Payroll Setup) the **Save** button (and **Cancel**) stays at the bottom of a phone's or tablet's screen.
 - **Messages** such as *Saved.* appear at the top of a phone's or tablet's screen, so they never cover a button. On a computer they rise above a bar at the bottom of the page.
+- **The top bar** keeps the menu, the CORE mark, the modules button, the bell, Help and your picture; **Dark mode** moves into the menu under your name. The notifications panel fills the width of the screen.
 - Turned sideways, the top bar is shorter and windows use the whole height, with their title at the top and their buttons at the bottom.
 
 ![CORE on a phone](getting-started-phone.jpg)
@@ -206,8 +235,10 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | CORE home | Your modules in a sliding row (the ones you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
 | Admin panel | For administrators: users, roles, modules, settings, records and backups (see [the administrator's guide](admin)) |
 | Modules menu (grid button) | Switching modules from anywhere |
+| Notifications (the bell) | What others did that concerns you, from every module; the number of unread ones; open one to go to it |
+| Notifications page (**See all**) | All your notifications of the last 60 days, by module, unread only, with **Show more** |
 | Help & guides (question mark) | The guide for your job, search, and what's new |
-| Your name (top right) | Add or change your picture, Send feedback, My security, Change password, Sign out |
+| Your name (top right) | Add or change your picture, Send feedback, My security, Change password, Sign out; on a phone, Dark mode |
 | My security | Change password, 2-step verification and recovery codes, where you are signed in |
 | Send feedback | A message to the administrators about CORE |
 
@@ -232,6 +263,12 @@ Your sign-in account is not linked to your employee record. An administrator lin
 
 **Is my data private?**
 Each account sees only what its job needs. Pay, government ID numbers and bank details are shown only to HR, payroll and administrators, and the numbers are masked until someone chooses to show them. Who viewed or changed personal data is recorded in an audit log, as the Data Privacy Act (RA 10173) expects.
+
+**Does CORE email me my notifications, or show them on my phone's lock screen?**
+No. Notifications are in CORE only: the bell's number updates while CORE is open, with no sound and no pop-ups. Project Management's daily digest is the only email (see [Get the daily digest by email](#get-the-daily-digest-by-email)). Notifications older than 60 days are removed, and CORE keeps your latest 200.
+
+**I opened a notification but the page says I cannot open it.**
+What it is about may have changed since: the request was deleted, you were taken off the project, or your account type changed. The notification stays in your list; mark it read.
 
 **Which browsers work?**
 Any current Chrome, Edge, Firefox or Safari, on a computer or a phone.

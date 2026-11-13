@@ -72,7 +72,7 @@ The asset opens with the status *In stock*. A serial number can be registered on
 3. Add an **Expected return** date for a loan, and **Notes** such as a ticket number.
 4. Click **Assign**.
 
-Employees are picked from the HR employee list. An asset assigned to an employee shows in their **My Assets** and on their employee record. When the expected return date has passed, the asset shows *Overdue* and is listed on the **Overview**.
+Employees are picked from the HR employee list. An asset assigned to an employee shows in their **My Assets** and on their employee record, and an employee with a CORE account is told by the **bell** in the top bar (*Ivan assigned LTDC-IT-0012 Dell Latitude 5440 to you*). Issuing stock to an employee tells them the same way. When the expected return date has passed, the asset shows *Overdue* and is listed on the **Overview**.
 
 ### Transfer an asset to someone else
 

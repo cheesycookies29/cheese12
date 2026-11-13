@@ -60,7 +60,7 @@ A first tour with the demo data. It takes about ten minutes.
 4. Under **Then**, choose the next status. For a *New* or *Open* ticket it suggests *Waiting on requester*. Choose *Resolved* if your reply fixes it.
 5. Click **Send reply**.
 
-The reply shows in the requester's **My tickets**. If outgoing email is set up and the requester has an email address, it is also emailed, and the conversation shows *Emailed to …*. Otherwise it shows *Not emailed* with the reason. If the ticket was unassigned, it is assigned to you.
+The reply shows in the requester's **My tickets**, and a requester with a CORE account is told by the **bell** in the top bar (internal notes never). If outgoing email is set up and the requester has an email address, it is also emailed, and the conversation shows *Emailed to …*. Otherwise it shows *Not emailed* with the reason. If the ticket was unassigned, it is assigned to you.
 
 ### Add an internal note
 
@@ -74,6 +74,8 @@ Notes are for agents only. The requester never sees them, in CORE or by email.
 1. Open the ticket.
 2. In **Ticket** on the right, change **Status**, **Priority**, **Category** or **Assignee**. Each change is saved at once and noted in the conversation. Status changes are shown to the requester too; the other changes are for agents only.
 3. To link the ticket to a piece of equipment, pick it under **Related asset**. **Open asset** then takes you to it.
+
+When you assign a ticket to another agent, the **bell** in the top bar tells them; after that, it tells the assignee each time the requester replies (the queue is not told: an unassigned ticket shows in **Tickets**). A requester with a CORE account is told when the ticket is resolved or closed.
 
 The statuses are *New*, *Open*, *Waiting on requester*, *On hold*, *Resolved* and *Closed*. Changing the priority changes the due times. If another agent has the same ticket open, a notice says so at the top.
 

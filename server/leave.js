@@ -4,8 +4,9 @@ import { HttpError, localDate } from './util.js';
 import { isDayOff, HOLIDAY_TYPES } from '../shared/holidays.js';
 import { workDates, genderAllows, needsCertificate, certificateReason, priorFilings, CERTIFICATE_COUNTED, CERTIFICATE_PERIODS, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, PORTIONS, portionDays, OPEN_REQUEST, REQUEST_KINDS, APPROVER_TYPES, APPROVAL_FLOWS } from '../shared/leave.js';
 import { parseUpload } from './attachments.js';
-import { routeRequest, decideStep, addHistory, canDecide, isCurrentApprover, isOnRoute, directReports, approvalSettings } from './approvals.js';
+import { routeRequest, decideStep, addHistory, canDecide, isCurrentApprover, isOnRoute, directReports, approvalSettings, currentLevels } from './approvals.js';
 import { userCan } from '../shared/roles.js';
+import { notify, accountOfEmployee, fmtRange, daysText } from './notifications.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_REQUEST_DAYS = 180;
@@ -244,6 +245,57 @@ function buildRequest(db, employee, user, body, upload, { existingId = null, byH
   };
 }
 
+// ----- Notifications (the bell) -----
+// Approvers see the employee's name, the kind of request, the dates and the days (never the
+// reason: the approvals list does not show it either); the employee sees the decision and the
+// remarks the approver gave them.
+const employeeName = (db, id) => {
+  const e = db.data.employees.find((x) => x.id === id);
+  return e ? `${e.firstName} ${e.lastName}` : 'An employee';
+};
+// "2 days of Vacation Leave", "1 day of work from home", "half a day of official business".
+export function requestPhrase(db, req) {
+  const what = req.kind === 'leave' ? db.data.leaveTypes.find((t) => t.id === req.leaveTypeId)?.name || 'leave' : (REQUEST_KINDS[req.kind] || 'Work from home').toLowerCase();
+  return `${daysText(req.days)} of ${what}`;
+}
+// The accounts whose decision the request waits for now.
+export const approverIdsOf = (req) => new Set(currentLevels(req).flatMap((l) => l.approverIds));
+// Tells the approvers now up (and not already waiting on it before) that it needs their decision.
+// how: 'filed' | 'resubmitted' | 'next' (the previous level approved).
+export function tellApprovers(db, req, actor, how, before = new Set(), { at, demo } = {}) {
+  const who = employeeName(db, req.employeeId);
+  const fresh = [...approverIdsOf(req)].filter((id) => !before.has(id));
+  if (!fresh.length) return [];
+  const title = how === 'next' ? `${actor.name} approved ${who}'s request for ${requestPhrase(db, req)}`
+    : how === 'resubmitted' ? `${who} revised and resubmitted a request for ${requestPhrase(db, req)}`
+      : `${who} asked for ${requestPhrase(db, req)}`;
+  return notify(db, fresh, { module: 'hr', kind: 'request.waiting', title, body: `${fmtRange(req.startDate, req.endDate)} · ${how === 'next' ? 'Now waiting for your approval' : 'Waiting for your approval'}`, link: `#/approvals?open=${req.id}` }, { actorId: actor?.id || null, at, demo });
+}
+// Tells the employee about a decision on their request (or someone else cancelling it).
+export function tellRequester(db, req, actor, outcome, { at, demo } = {}) {
+  const acct = accountOfEmployee(db, req.employeeId);
+  if (!acct) return [];
+  const phrase = `your request for ${requestPhrase(db, req)}`;
+  const range = fmtRange(req.startDate, req.endDate);
+  const words = {
+    approved: [`${actor.name} approved ${phrase}`, `${range}. The days are in your attendance.${req.decisionNote ? ` Remarks: ${req.decisionNote}` : ''}`],
+    rejected: [`${actor.name} rejected ${phrase}`, `${range} · Reason: ${req.decisionNote || ''}`],
+    returned: [`${actor.name} returned ${phrase} for revision`, `${range} · ${req.returnNote || ''}`],
+    cancelled: [`${actor.name} cancelled ${phrase}`, `${range}${req.cancelReason ? ` · Reason: ${req.cancelReason}` : ''}`],
+  }[outcome];
+  if (!words) return [];
+  return notify(db, [acct.id], { module: 'hr', kind: `request.${outcome}`, title: words[0], body: words[1], link: `#/me/requests?open=${req.id}` }, { actorId: actor?.id || null, at, demo });
+}
+// A request withdrawn or cancelled while it waited for `waiting`: they need not decide any more.
+function tellCancelled(db, req, actor, waiting) {
+  const who = employeeName(db, req.employeeId);
+  const own = Boolean(actor.employeeId) && actor.employeeId === req.employeeId;
+  notify(db, [...waiting], {
+    module: 'hr', kind: 'request.cancelled', title: own ? `${who} withdrew a request for ${requestPhrase(db, req)}` : `${actor.name} cancelled ${who}'s request for ${requestPhrase(db, req)}`,
+    body: `${fmtRange(req.startDate, req.endDate)} · It no longer needs your approval`, link: `#/approvals?open=${req.id}`,
+  }, { actorId: actor.id });
+}
+
 // Approving writes the request into the DTR: one leave entry per whole day, a half-day mark on the
 // day's work entry, or one work-from-home / official-business entry per scheduled day.
 function approve(db, req, user) {
@@ -309,6 +361,7 @@ function approve(db, req, user) {
 // Undo what approval wrote. Days the employee already clocked are kept as normal work days.
 function cancel(db, req, user, note) {
   if (!['pending', 'returned', 'approved'].includes(req.status)) throw new HttpError(400, `This request is already ${req.status}.`);
+  const waiting = approverIdsOf(req);
   if (req.status === 'approved') {
     db.data.timeEntries = db.data.timeEntries.filter((e) => {
       if (e.requestId === req.id && (e.type === 'leave' || !e.timeIn)) return false;
@@ -326,10 +379,19 @@ function cancel(db, req, user, note) {
   for (const l of req.approvals || []) if (l.status === 'pending' || l.status === 'waiting') l.status = 'skipped';
   Object.assign(req, { status: 'cancelled', cancelledAt: new Date().toISOString(), cancelledBy: user.id, cancelledByName: user.name, cancelReason: String(note || '').trim().slice(0, 500) });
   addHistory(req, user, `Cancelled${req.cancelReason ? `: ${req.cancelReason}` : ''}`);
+  tellCancelled(db, req, user, waiting);
+  if (user.employeeId !== req.employeeId) tellRequester(db, req, user, 'cancelled');
 }
 
 // One step of the approval route; on the final approval the days go into the DTR.
 function act(db, req, user, action, note) {
+  const before = approverIdsOf(req);
+  const result = decide(db, req, user, action, note);
+  if (result === 'pending') tellApprovers(db, req, user, 'next', before);
+  else tellRequester(db, req, user, result);
+  return result;
+}
+function decide(db, req, user, action, note) {
   if (action === 'approve') {
     const snapshot = structuredClone({ approvals: req.approvals, history: req.history });
     const result = decideStep(req, user, 'approve', note);
@@ -656,6 +718,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
     addHistory(req, user, 'Filed');
     if (upload) req.attachment = files.save(upload);
     db.data.requests.push(req);
+    tellApprovers(db, req, user, 'filed');
     db.save();
     return withEmployee(db, req);
   });
@@ -673,10 +736,12 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
     const upload = body.kind === 'leave' && body.attachment ? parseUpload(body.attachment) : null;
     const fields = buildRequest(db, emp, user, { ...body, kind: body.kind || req.kind }, upload || (req.attachment ? true : null), { existingId: req.id });
     const wasReturned = req.status === 'returned';
+    const before = approverIdsOf(req);
     Object.assign(req, fields, { status: 'pending', resubmittedAt: new Date().toISOString() });
     delete req.returnNote;
     routeRequest(db, req, emp, user.id);
     addHistory(req, user, wasReturned ? 'Revised and resubmitted' : 'Edited and resubmitted');
+    tellApprovers(db, req, user, 'resubmitted', before);
     if (upload) {
       const old = req.attachment;
       req.attachment = files.save(upload);

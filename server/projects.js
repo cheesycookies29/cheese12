@@ -1638,7 +1638,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const p = open(n.projectId);
       const t = n.taskId && d().pmTasks.find((x) => x.id === n.taskId);
       return {
-        id: n.id, kind: n.kind, text: n.text, at: n.at, readAt: n.readAt, actorName: userName(n.actorId) || 'Someone',
+        id: n.id, kind: n.kind, text: n.text, at: n.at, readAt: n.readAt, actorId: n.actorId || null, actorName: userName(n.actorId) || 'Someone',
         projectId: p.id, projectCode: p.code, projectName: p.name, taskId: t ? t.id : null, taskKey: t?.key || null, taskTitle: t?.title || null,
       };
     });
@@ -1659,12 +1659,26 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const ids = new Set(body.ids.map(idOf).filter(Boolean));
       pick = (n) => ids.has(n.id);
     }
-    const at = now();
-    let marked = 0;
-    for (const n of d().pmNotifications) if (n.userId === u.id && !n.readAt && pick(n)) (n.readAt = at), marked++;
+    const marked = markRead(u, pick);
     if (marked) db.save();
     return { marked, unread: myNotifications(u).filter((n) => !n.readAt).length };
   });
+  // Also used by the bell (server/notifications.js): the same records, so reading one in either
+  // place marks it read in both. The caller saves.
+  function markRead(u, pick) {
+    const at = now();
+    let marked = 0;
+    for (const n of d().pmNotifications) if (n.userId === u.id && !n.readAt && pick(n)) (n.readAt = at), marked++;
+    return marked;
+  }
+  const notifications = {
+    list: (u) => myNotifications(u),
+    markRead: (u, ids) => {
+      if (ids === 'all') return markRead(u, () => true);
+      const set = new Set(ids.map(idOf).filter(Boolean));
+      return markRead(u, (n) => set.has(n.id));
+    },
+  };
 
   // ===== Saved views of a project's Board or List =====
   // Mine (anyone who can open the project) or shared with the project (its managers). I see my own
@@ -1965,5 +1979,5 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   });
 
   // For tests: send the digests now (with a clock), and a person's digest.
-  return { runDigest, digestOf: (userId) => digestOf(user(userId)) };
+  return { runDigest, digestOf: (userId) => digestOf(user(userId)), notifications };
 }

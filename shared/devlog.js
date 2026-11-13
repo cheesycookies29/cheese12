@@ -28,6 +28,24 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.23.0-alpha',
+    date: '2026-11-13',
+    title: 'Notifications for every account',
+    modules: ['system', 'hr', 'assets', 'crm', 'projects'],
+    notes: 'A bell in the top bar tells everyone what others did that concerns them, in every module, and opens the record it is about.',
+    changes: [
+      ['new', 'system', 'Notifications (server/notifications.js): db.data.notifications, one row per person and event { id, userId, module, kind, title, body, link, actorId, at, readAt }, with a migration for older databases. notify(db, userIds, entry, { actorId }) skips the actor, missing or disabled accounts and repeated ids, keeps title and body to one line (160 and 300 characters), takes only "#/" links, and keeps each person\'s newest 200 for 60 days. A deleted account takes its notifications and is no longer named in others\'.'],
+      ['new', 'system', 'API, for the signed-in account only: GET /api/notifications (limit, offset, unread=1, module) returns { unread, items, more }, newest first, with Project Management\'s "For you" merged in (ids n:… and pm:…); GET /api/notifications/count, which does not keep an idle session alive; PUT /api/notifications/read with { ids } or { all: true }, marking both stores, ignoring anyone else\'s ids and kept out of the audit log. Items of a module the company turned off are hidden, except from administrators.'],
+      ['new', 'system', 'The bell, before Help: the unread count (99+), aria-label "Notifications, N unread". Its panel groups the latest under Today, Yesterday and Earlier, with the actor\'s picture or the module\'s icon, the title, a line of detail, the module and a relative time; unread ones bold with a dot. Opening one marks it read and goes to its link; the tick marks it read; Mark all read; Unread only; See all opens #/notifications (module filter, unread only, Show more). Escape closes and gives focus back to the bell, the first item has focus on open, arrow keys move between items. Polled every 60 s while the tab is shown, and refreshed on focus, after navigation and after actions; no sound or browser notifications. All text escaped; only "#/" links are followed.'],
+      ['new', 'hr', 'Requests: the approvers of the current step are told when a request is filed, resubmitted or approved at the level before theirs (name, kind, days and dates, never the reason); the employee when it is approved, rejected (with the reason), returned (with the remarks) or cancelled by someone else; the approvers it waited for when it is withdrawn or cancelled. Payroll: finalizing a run tells each employee in it with an account that their payslip is ready (no amounts). Links open the request (#/approvals?open=…, #/me/requests?open=…) or the payslip.'],
+      ['new', 'assets', 'An asset assigned or transferred to an employee, or stock issued to one, tells their account; the link opens My Assets.'],
+      ['new', 'system', 'Service Desk: a ticket assigned to an agent by someone else tells the agent; the requester\'s replies (portal, email, public form) tell the assignee only; an agent\'s public reply, and resolving or closing a ticket, tell a requester with a CORE account (internal notes never). Feedback: an administrator\'s answer or status change tells the sender, without naming the administrator; #/feedback?open=… opens it.'],
+      ['new', 'crm', 'A lead, deal, account, contact, bid or contract given a new owner by someone else (new or edited) tells the new owner, with a link to the record.'],
+      ['improved', 'projects', 'Project Management notifications are in the bell too; reading one there or on My work marks the same record read, and the My work badge follows.'],
+      ['improved', 'system', 'Phones: the theme button moves into the menu under your name (Dark mode / Light mode) so the top bar fits the bell at 360 px with 44 px buttons; the panel is a full-width sheet under the top bar. Demo data: notifications for the demo accounts (requests waiting for Juan, the HR decision on Andrea\'s leave, Juan\'s laptop).'],
+    ],
+  },
+  {
     version: '0.22.0-alpha',
     date: '2026-11-13',
     title: 'Profile pictures',

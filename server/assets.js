@@ -4,6 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate } from './util.js';
 import { ASSET_STATUS, ASSET_CONDITIONS, ISSUE_TYPES, ISSUE_IMPACT, ISSUE_STATUS, ACTIVE_ISSUE } from '../shared/assets.js';
+import { notify, accountOfEmployee, fmtDay } from './notifications.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
@@ -101,6 +102,12 @@ function validateItem(input, db, existingId) {
 }
 
 export function registerAssetRoutes(route, db, { linkedEmployee }) {
+  // An employee given equipment or supplies hears of it, on their account (if they have one).
+  const tellHolder = (to, user, kind, title, body) => {
+    if (to?.type !== 'employee') return;
+    const acct = accountOfEmployee(db, to.id);
+    if (acct) notify(db, [acct.id], { module: 'assets', kind, title, body, link: '#/assets/mine' }, { actorId: user.id });
+  };
   const log = (asset, user, action, detail, extra = {}) => {
     db.data.assetHistory.push({
       id: randomUUID(), assetId: asset.id, assetTag: asset.assetTag, assetName: asset.name,
@@ -187,6 +194,8 @@ export function registerAssetRoutes(route, db, { linkedEmployee }) {
     log(asset, user, previous ? 'transferred' : 'assigned', previous ? `Transferred from ${previous.name} to ${to.name}` : `Assigned to ${to.name}`, {
       assignee: to, previousAssignee: previous || null, notes: str(body.notes, 500),
     });
+    tellHolder(to, user, 'asset.assigned', `${user.name} assigned ${asset.assetTag} ${asset.name} to you`,
+      `${asset.category}${asset.expectedReturn ? ` · Return by ${fmtDay(asset.expectedReturn)}` : ''} · See it under My Assets`);
     db.save();
     return { ...asset, history: historyOf(asset.id) };
   });
@@ -265,6 +274,7 @@ export function registerAssetRoutes(route, db, { linkedEmployee }) {
       if (body.type === 'out') {
         if (qty > item.quantity) throw new HttpError(400, `Only ${item.quantity} ${item.unit} in stock.`);
         m = move(item, user, 'out', -qty, { ...extra, issuedTo: resolveAssignee(db, body.issuedTo) });
+        tellHolder(m.issuedTo, user, 'stock.issued', `${user.name} issued you ${qty} ${item.unit} of ${item.name}`, `${extra.reference ? `Reference ${extra.reference} · ` : ''}See it under My Assets, Supplies issued to you`);
       } else {
         m = move(item, user, 'in', qty, extra);
       }

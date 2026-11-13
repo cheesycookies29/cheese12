@@ -177,6 +177,8 @@ The person can no longer sign in. Their employee record is not affected, and the
 
 A module that is off disappears from the CORE home, the modules menu and the side menus of everyone except administrators, and CORE refuses it even if someone types its address. Administrators still see it, marked **Off**, and can open it and its settings. Nothing is deleted: turning it back on shows everything again. While it is off its background work waits (reading the service desk mailbox; the Projects daily digest), and the service desk's public form (`/support`) is closed.
 
+While a module is off, its notifications are hidden from the bell of everyone except administrators; they come back when it is turned on again.
+
 Self-service belongs to the module it is part of. With **HR & Payroll** off, employees no longer clock in or out, file leave or see their payslips in CORE (**My Home**, **My Attendance**, **My Requests**, **My Payslips** and **My Profile** go with it); **My Assets** stays with IT Asset Management and **My tickets** with the service desk. The holiday calendar can still be read, because Projects counts working days by it. Buttons that lead into a module that is off (*Add to a project* or *Send to Sales & CRM* on a ticket, *Start project* on a deal) are hidden.
 
 ![Modules](admin-modules.jpg)
@@ -303,7 +305,7 @@ Each update of CORE adds its own entries (*built-in*). **Edit** and **Delete** a
 2. Click a row to read it, then click **Respond**.
 3. Pick the **Status** (*Under review*, *Planned*, *Resolved*, *Closed*), write a **Response** if you like, and click **Save response**.
 
-The person sees the status and your response under **Send feedback**. **Delete** removes the feedback for them too. The number next to **Feedback inbox** counts new feedback; the **Dashboard** counts feedback still awaiting a reply.
+The person sees the status and your response under **Send feedback**, and the **bell** in the top bar tells them *An administrator replied to your feedback FB-0003* (or marked it *Planned*, and so on). Like the Feedback page, it does not say which administrator. **Delete** removes the feedback for them too. The number next to **Feedback inbox** counts new feedback; the **Dashboard** counts feedback still awaiting a reply.
 
 ![The feedback inbox](admin-feedback-inbox.jpg)
 

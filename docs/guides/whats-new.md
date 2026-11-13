@@ -9,6 +9,11 @@ order: 2
 
 ## November 2026
 
+### Notifications (0.23)
+- A **bell** in the top bar, for everyone: its red number counts what you have not read. Choose it for your latest notifications, under *Today*, *Yesterday* and *Earlier*; choose one to open the request, payslip, ticket, task or record it is about. **Mark all read**, **Unread only**, and **See all** for the full list with a module filter. See [Getting started](getting-started#see-your-notifications).
+- You are told when a request needs your approval and when yours is decided; when your payslip is ready; when equipment is assigned or supplies are issued to you; when a ticket is assigned to you, its requester replies, or an agent replies to or resolves your ticket; when you are made the owner of a sales record; when an administrator answers your feedback. Project Management's **For you** is in the bell too, and reading one in either place reads it in both.
+- On a phone the panel fills the screen's width, and **Dark mode** moves into the menu under your name.
+
 ### Profile pictures (0.22)
 - Everyone can add a small profile picture: choose your name at the top right, then **Add my picture**, and frame the photo. It shows instead of your initials across CORE. See [Getting started](getting-started#add-your-profile-picture). Administrators can remove one from **Users & Access** (see [the administrator's guide](admin#remove-someones-profile-picture)).
 

@@ -4,6 +4,7 @@
   {"file": "getting-started-module.jpg", "user": "employee.demo", "url": "/#/me", "wait": 1200},
   {"file": "getting-started-modules.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#mod-btn"], "wait": 900},
   {"file": "getting-started-user-menu.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#user-btn"], "wait": 900},
+  {"file": "getting-started-notifications.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#notif-btn"], "wait": 1200},
   {"file": "getting-started-phone.jpg", "user": "employee.demo", "url": "/#/launcher", "viewport": "phone", "wait": 1200},
   {"file": "getting-started-security.jpg", "user": "employee.demo", "url": "/#/account/security", "wait": 1000},
   {"file": "getting-started-picture.jpg", "user": "employee.demo", "url": "/#/launcher", "click": ["#user-btn", "#my-picture"], "files": {".avatar-dialog input[type=file]": "scripts/fixtures/profile-sample.jpg"}, "wait": 700},

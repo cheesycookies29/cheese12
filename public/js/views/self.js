@@ -343,5 +343,12 @@ export async function meRequestsView(el, _params, query) {
     history.replaceState(null, '', '#/me/requests');
     el.querySelector('#new-request').click();
   }
+  // From a notification: the request's details.
+  if (query.open) {
+    history.replaceState(null, '', '#/me/requests');
+    const row = [...el.querySelectorAll('tr[data-open]')].find((tr) => tr.dataset.open === query.open);
+    if (row) row.querySelector('td').click();
+    else toast('That request is no longer there.', 'error');
+  }
 }
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;

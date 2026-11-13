@@ -407,7 +407,7 @@ Project Managers and Sales Managers see every project here; others see the proje
 2. Several of the same kind on one task are one line, such as *3 comments on PRJ-0001-7*.
 3. Click a line to open the task; it is marked read. Click the tick to mark it read without opening it, or **Mark all read**.
 
-Your own actions never notify you. The number next to **My work** includes the unread ones. CORE keeps your newest 200 for 60 days, and shows only those of projects you can still open. They are in CORE; the **daily digest** email counts the unread ones.
+Your own actions never notify you. The number next to **My work** includes the unread ones. The same notifications are in the **bell** in the top bar, with those of the other modules: reading one in either place marks it read in both. See [See your notifications](getting-started#see-your-notifications). CORE keeps your newest 200 for 60 days, and shows only those of projects you can still open. They are in CORE; the **daily digest** email counts the unread ones.
 
 ### Get the daily digest
 

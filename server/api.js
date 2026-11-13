@@ -10,6 +10,7 @@ import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
 import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects, timesheetAccess } from './projects.js';
+import { registerNotificationRoutes, migrateNotifications, notify, forgetUser, accountOfEmployee, fmtRange } from './notifications.js';
 import { migrateApprovals, isApprover } from './approvals.js';
 import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
 import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS } from './audit.js';
@@ -394,6 +395,7 @@ function replaceData(db, next, { keepAdmin = false } = {}) {
   setRoleOverrides(db.data.roleOverrides);
   migrateCrm(db);
   migratePm(db);
+  migrateNotifications(db);
   syncDevlog(db);
   migrateLeaveTypes(db);
   const ids = new Set(db.data.employees.map((e) => e.id));
@@ -477,7 +479,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const files = createAttachments(path.join(db.dir, 'attachments'));
   // What each account type may do, with the company's changes (Admin panel → Roles & permissions).
   setRoleOverrides(db.data.roleOverrides);
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migratePm(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migratePm(db), migrateNotifications(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
@@ -847,6 +849,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     for (const k of ['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts', 'crmActivities']) for (const x of db.data[k] || []) if (x.ownerId === user.id) x.ownerId = null;
     // Off every project; their tasks are unassigned.
     removeUserFromProjects(db, user.id);
+    // Their notifications go; others' no longer name them.
+    forgetUser(db, user.id);
     sessions.destroyForUser(user.id);
     db.save();
     audit.record('user.delete', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username}, ${user.role})` });
@@ -1093,6 +1097,15 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     computeRun(db, run);
     Object.assign(run, { status: 'finalized', finalizedAt: new Date().toISOString(), finalizedBy: user.name });
     postRun(db, run);
+    // Each employee in it who has an account: their payslip is ready in My Payslips.
+    for (const slip of run.payslips) {
+      const acct = accountOfEmployee(db, slip.employeeId);
+      if (!acct || !userCan(acct, 'self')) continue;
+      notify(db, [acct.id], {
+        module: 'hr', kind: 'payslip', title: `Your payslip for ${fmtRange(run.periodStart, run.periodEnd)} is ready`,
+        body: `${run.payDate ? `Pay date ${fmtRange(run.payDate)}. ` : ''}Open it under My Payslips.`, link: `#/me/payslips/${run.id}`,
+      }, { actorId: user.id });
+    }
     db.save();
     audit.record('payroll.run.finalize', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: `${run.payslips.length} payslips, net pay ₱${Number(run.totals?.netPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` });
     return run;
@@ -1167,6 +1180,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const projects = registerProjectRoutes(route, db, { audit, files, mailer: helpdesk.mailer, ...(digestMail ? { sendMail: digestMail } : {}), ...(digestClock ? { clock: digestClock } : {}) });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });
+  // ----- Notifications: the bell in the top bar (server/notifications.js) -----
+  registerNotificationRoutes(route, db, { pm: projects.notifications });
   // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
   const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length });
   // ----- Audit log (Administrators) -----
@@ -1220,7 +1235,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   // Returns { data, headers }. handle.helpdesk exposes the mail poller (used by tests).
   async function handle(req, url, body) {
     const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
-    const session = sessions.get(token);
+    // The bell's count is polled in the background: it does not keep an idle session alive.
+    const session = sessions.get(token, { touch: !(req.method === 'GET' && url.pathname === '/api/notifications/count') });
     const user = session && users().find((u) => u.id === session.userId && u.active);
     const ip = clientIp(req);
     const client = { ip, ua: String(req.headers?.['user-agent'] || '').slice(0, 300), https: isHttps(req) };

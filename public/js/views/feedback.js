@@ -83,7 +83,7 @@ function openOwnFeedback(f) {
   });
 }
 
-export async function feedbackView(el) {
+export async function feedbackView(el, _params, query = {}) {
   async function render() {
     const mine = await api.get('/api/me/feedback');
     const open = mine.filter((f) => OPEN_FEEDBACK.includes(f.status)).length;
@@ -107,8 +107,16 @@ export async function feedbackView(el) {
       const id = e.target.closest('[data-open-feedback]')?.dataset.openFeedback;
       if (id) openOwnFeedback(mine.find((f) => f.id === id));
     });
+    return mine;
   }
-  await render();
+  const mine = await render();
+  // From a notification: the answer, in the feedback's details.
+  if (query.open) {
+    history.replaceState(null, '', '#/feedback');
+    const f = mine.find((x) => x.id === query.open);
+    if (f) openOwnFeedback(f);
+    else toast('That feedback is no longer there.', 'error');
+  }
 }
 
 // ---------- Administrators: inbox ----------

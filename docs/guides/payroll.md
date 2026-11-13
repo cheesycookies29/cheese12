@@ -128,7 +128,7 @@ The **Attendance** box lists each holiday in the period, marked *(worked)* or *(
 
 After finalizing:
 
-- each employee sees the payslip under **My Payslips**;
+- each employee sees the payslip under **My Payslips**, and each one with a CORE account is told by the **bell** in the top bar (*Your payslip for Nov 1, 2026 to Nov 15, 2026 is ready*, with no amounts);
 - the payslips are posted to **Year to date**;
 - the run cannot be changed or deleted.
 

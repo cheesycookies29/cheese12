@@ -6,6 +6,7 @@ import { MODULES, SWITCHABLE } from './modules.js';
 import { redirectOf } from '/shared/redirects.js';
 import { nextInTrap } from './phone.js';
 import { avatar, loadAvatars, editMyAvatar } from './avatars.js';
+import { mountBell, startBell, stopBell, refreshCount, notificationsView } from './notifications.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
 import { clockView, dtrView } from './views/time.js';
@@ -134,6 +135,7 @@ const routes = [
   // Your own pages ('user'): shown inside whichever module is open.
   ['/feedback', feedbackView, 'auth', 'user'],
   ['/account/security', mySecurityView, 'auth', 'user'],
+  ['/notifications', notificationsView, 'auth', 'user'],
 ].map(([pattern, view, permission, module]) => {
   const keys = [];
   const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
@@ -282,20 +284,34 @@ function renderThemeButton() {
   themeBtn.title = isDark() ? 'Light mode' : 'Dark mode';
   themeBtn.setAttribute('aria-label', themeBtn.title);
 }
-themeBtn.addEventListener('click', () => {
+function toggleTheme() {
   if (isDark()) delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = 'dark';
   try {
     localStorage.setItem('core-theme', isDark() ? 'dark' : 'light');
   } catch {}
   renderThemeButton();
-});
+  const item = document.getElementById('theme-item');
+  if (item) mount(item, themeItem());
+}
+// On phones the theme button is in the menu under your name (the top bar keeps room for the bell).
+const themeItem = () => html`${icon(isDark() ? 'sun' : 'moon')} ${isDark() ? 'Light mode' : 'Dark mode'}`;
+themeBtn.addEventListener('click', toggleTheme);
 renderThemeButton();
 
 // Help & guides: opens the guide for this person's job in the module they are in (shared/help.js).
 themeBtn.insertAdjacentHTML('beforebegin', `<a class="round-btn" id="help-btn" href="/help/" target="_blank" rel="noopener" title="Help & guides" aria-label="Help and guides">${iconSvg('help')}</a>`);
 document.getElementById('help-btn').addEventListener('click', (e) => {
   e.currentTarget.href = `/help/?from=${encodeURIComponent(body.classList.contains('launcher-mode') ? 'home' : ctx.module || 'home')}`;
+});
+
+// Notifications: the bell, before Help (public/js/notifications.js).
+document.getElementById('help-btn').insertAdjacentHTML('beforebegin', '<div class="notif-box" id="notif-box"></div>');
+const closeBell = mountBell(document.getElementById('notif-box'), {
+  onOpen: () => {
+    pops.forEach((close) => close());
+    setMenu(false);
+  },
 });
 
 // A drop-down opened from a top-bar button; closes on outside click or Escape.
@@ -316,7 +332,10 @@ function popover(root, btn, pop) {
   pops.push(close);
 }
 const pops = [];
-const closePops = () => pops.forEach((close) => close());
+const closePops = () => {
+  pops.forEach((close) => close());
+  closeBell();
+};
 document.addEventListener('click', (e) => !e.target.closest('.user-menu, .mod-switch') && closePops());
 
 // The grid button: jump between modules without going back to the launcher.
@@ -350,6 +369,7 @@ function renderUserBox() {
     <div class="menu-pop" id="user-pop" role="menu" hidden>
       <div class="who who-pic">${avatar(u.id, u.name, { size: 'lg' })}<div><strong>${u.name}</strong><small>${u.username}</small><small>${roleLabel(u.role)}</small></div></div>
       <button type="button" role="menuitem" id="my-picture">${icon('image')} ${ctx.avatars?.[u.id] ? 'Change my picture' : 'Add my picture'}</button>
+      <button type="button" role="menuitem" id="theme-item" class="phone-only">${themeItem()}</button>
       <a role="menuitem" href="#/feedback">${icon('comment')} Send feedback</a>
       <a role="menuitem" href="#/account/security">${icon('shield')} My security</a>
       <button type="button" role="menuitem" id="change-pw">${icon('key')} Change password</button>
@@ -357,6 +377,7 @@ function renderUserBox() {
     </div>`);
   popover(box, box.querySelector('#user-btn'), box.querySelector('#user-pop'));
   box.querySelector('#change-pw').addEventListener('click', openChangePassword);
+  box.querySelector('#theme-item').addEventListener('click', toggleTheme);
   // After a new picture: the top bar, and the page (its lists show the new one).
   box.querySelector('#my-picture').addEventListener('click', () => editMyAvatar(() => {
     renderUserBox();
@@ -499,6 +520,7 @@ async function navigate() {
 
   runCleanup();
   refreshBadge();
+  refreshCount();
   // A fresh container per page, so listeners a view attached to it can't fire on the next page.
   const old = document.getElementById('app');
   const el = old.cloneNode(false);
@@ -548,6 +570,7 @@ async function boot({ fresh = false } = {}) {
   pops.length = 0;
   renderUserBox();
   renderModuleSwitch();
+  startBell();
   if (fresh || !location.hash || location.hash === '#/') location.hash = `#${homeRoute()}`;
   navigate();
 }
@@ -555,6 +578,7 @@ async function boot({ fresh = false } = {}) {
 async function signOut() {
   await api.post('/api/auth/logout').catch(() => {});
   ctx.user = null;
+  stopBell();
   history.replaceState(null, '', location.pathname);
   boot();
 }
@@ -572,6 +596,9 @@ window.addEventListener('feedback:changed', refreshBadge);
 window.addEventListener('helpdesk:changed', refreshBadge);
 window.addEventListener('crm:changed', refreshBadge);
 window.addEventListener('pm:changed', refreshBadge);
+// The bell: read there, My work's badge follows; something done here may change its count.
+window.addEventListener('notifications:changed', refreshBadge);
+for (const ev of ['requests:changed', 'reports:changed', 'feedback:changed', 'helpdesk:changed', 'crm:changed', 'pm:changed']) window.addEventListener(ev, () => refreshCount());
 // A module turned on or off, or roles changed, here: the menus follow at once.
 window.addEventListener('modules:changed', () => {
   if (!ctx.user) return;
@@ -587,6 +614,7 @@ window.addEventListener('modules:changed', () => {
 window.addEventListener('auth:expired', () => {
   if (!ctx.user) return;
   ctx.user = null;
+  stopBell();
   toast('Your session has ended. Please sign in again.', 'error');
   boot();
 });
