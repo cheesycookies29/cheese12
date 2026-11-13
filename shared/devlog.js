@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.20.0-alpha',
+    date: '2026-11-13',
+    title: 'Project icons',
+    modules: ['projects'],
+    notes: 'A project can have its own icon, shown beside its name wherever the name appears.',
+    changes: [
+      ['new', 'projects', 'Project icon: in the project form, one of 30 pictures from CORE\'s icon set on one of 8 colours, or Letter (the default: the first letter of the name on a colour taken from the project\'s code). Shown on Projects and Templates, Milestones, My work, the Timesheet, the project header and the task page. Stored as { glyph, color } and checked against the lists on the server (anything else is refused); an edit that leaves it out keeps it; a copy or a project from a template takes the source\'s icon unless one is picked. Most demo projects have one.'],
+    ],
+  },
+  {
     version: '0.19.0-alpha',
     date: '2026-11-13',
     title: 'Compact project lists',

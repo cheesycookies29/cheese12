@@ -31,7 +31,7 @@ import {
   validHours, RANK_STEP, weekStart, shiftWorkDays, mentionedUsernames, cleanViewQuery, VIEW_TABS, MAX_DAY_HOURS,
   isSize, sizeName, sizeWeight, sizeFromHours, cleanSizeNotes, DEFAULT_SIZE_NOTES, SIZE_KEYS,
   NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup, addWorkDays, DIGEST_DEFAULTS, validDigestTime, digestDue, digestFor, billingAmount, billingForecast,
-  IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan,
+  IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan, parseProjectIcon,
 } from '../shared/projects.js';
 import { addStarterTemplates } from './pm-templates.js';
 
@@ -220,7 +220,7 @@ const idOf = (v) => (typeof v === 'string' && v.length <= 64 ? v : '');
 // Only the fields a form may change: anything else in the body is ignored.
 const pickFields = (body, keys) => Object.fromEntries(keys.filter((k) => body && typeof body === 'object' && Object.hasOwn(body, k)).map((k) => [k, body[k]]));
 
-const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours', 'accountId', 'dealId', 'contractId'];
+const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours', 'accountId', 'dealId', 'contractId', 'icon'];
 const TASK_FIELDS = ['title', 'description', 'statusId', 'priority', 'assigneeId', 'startDate', 'dueDate', 'size', 'milestoneId', 'parentId', 'blockedBy'];
 const MILESTONE_FIELDS = ['name', 'dueDate', 'deliverable', 'billingPercent', 'submittedAt', 'acceptedAt', 'acceptanceNote'];
 const LEVEL = { read: 1, comment: 2, work: 3, manage: 4 };
@@ -484,7 +484,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
 
   // ===== Templates: the list "+ New project" starts from (pm.edit), and the portfolio's Templates =====
   const templateOut = (p, u) => ({
-    id: p.id, code: p.code, name: p.name, type: p.type, description: p.description, starter: p.starter || null, access: levelOf(p, u),
+    id: p.id, code: p.code, name: p.name, icon: p.icon || null, type: p.type, description: p.description, starter: p.starter || null, access: levelOf(p, u),
     milestones: d().pmMilestones.filter((m) => m.projectId === p.id).length, tasks: d().pmTasks.filter((t) => t.projectId === p.id).length,
     deliverables: d().pmMilestones.filter((m) => m.projectId === p.id && m.deliverable).length, updatedAt: p.updatedAt,
   });
@@ -520,7 +520,14 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     if (managerId !== rec.managerId && !activeUser(managerId)) throw new HttpError(400, 'Pick the project manager from the list of active accounts.');
     // Hours only on a project that tracks time: without it, no budget in hours either.
     const timeTracking = bool(b.timeTracking, 'Track time on this project', Boolean(rec.timeTracking));
+    let icon;
+    try {
+      icon = parseProjectIcon(b.icon);
+    } catch (e) {
+      throw new HttpError(400, e.message);
+    }
     return {
+      icon,
       name, type, description: str(b.description, 8000), status: oneOf(b.status, PROJECT_STATUS, 'Status', rec.status || 'planning'),
       startDate, endDate, managerId, timeTracking, budgetHours: timeTracking ? optNum(b.budgetHours, 'Budget (hours)', 0, 1000000) : null, ...crmLinks(b, u, rec),
     };
@@ -642,6 +649,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const fields = validProject({
       ...pickFields(body, ['managerId', 'accountId', 'dealId', 'contractId']), name, type: src.type, description: src.description, status: 'planning',
       startDate, endDate: move(src.endDate), timeTracking: Boolean(src.timeTracking), budgetHours: src.timeTracking ? src.budgetHours ?? null : null,
+      icon: Object.hasOwn(body || {}, 'icon') ? body.icon : src.icon ?? null,
     }, u, { type: src.type });
     const p = createProject(fields, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
     if (src.isTemplate) track(p, u, 'template', '', `${src.code} ${src.name}`);
@@ -944,7 +952,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const parent = t.parentId && ctx.byId.get(t.parentId);
     return {
       ...taskOut(t, p, ctx), history: historyOut(t.history || []), access: levelOf(p, u),
-      project: { id: p.id, code: p.code, name: p.name, statuses: p.statuses, members: membersOut(p), timeTracking: ctx.time, isTemplate: Boolean(p.isTemplate) },
+      project: { id: p.id, code: p.code, name: p.name, icon: p.icon || null, statuses: p.statuses, members: membersOut(p), timeTracking: ctx.time, isTemplate: Boolean(p.isTemplate) },
       parent: parent ? { id: parent.id, key: parent.key, title: parent.title } : null,
       subtaskList: ctx.tasks.filter((x) => x.parentId === t.id).sort(byRank).map((x) => taskOut(x, p, ctx)),
       blockedByList: t.blockedBy.map((id) => ctx.byId.get(id)).filter(Boolean).map((x) => taskOut(x, p, ctx)),
@@ -1452,7 +1460,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const out = projects.map((p) => {
       const used = new Set([...rows.values()].filter((r) => r.projectId === p.id && r.taskId).map((r) => r.taskId));
       return {
-        id: p.id, code: p.code, name: p.name, manage: levelOf(p, u) === 'manage',
+        id: p.id, code: p.code, name: p.name, icon: p.icon || null, manage: levelOf(p, u) === 'manage',
         tasks: tasksOf(p).filter((t) => used.has(t.id) || isOpenCategory(categoryOf(p, t))).sort(byRank).map((t) => ({ id: t.id, key: t.key, title: t.title, size: isSize(t.size) ? t.size : null })),
       };
     });
@@ -1546,7 +1554,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const p = d().pmProjects.find((x) => x.id === t.projectId);
       if (!p || p.isTemplate || !levelOf(p, u) || !isOpenCategory(categoryOf(p, t))) continue;
       if (!ctxs.has(p.id)) ctxs.set(p.id, taskCtx(p));
-      groups[myWorkGroup(t, t0)].push({ ...taskOut(t, p, ctxs.get(p.id)), project: { id: p.id, code: p.code, name: p.name, statuses: p.statuses }, access: levelOf(p, u) });
+      groups[myWorkGroup(t, t0)].push({ ...taskOut(t, p, ctxs.get(p.id)), project: { id: p.id, code: p.code, name: p.name, icon: p.icon || null, statuses: p.statuses }, access: levelOf(p, u) });
     }
     for (const list of Object.values(groups)) list.sort((a, b) => (a.dueDate || '9').localeCompare(b.dueDate || '9') || byRank(a, b));
     return groups;
@@ -1658,7 +1666,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
           id: m.id, name: m.name, dueDate: m.dueDate, deliverable: Boolean(m.deliverable), billingPercent: m.deliverable ? m.billingPercent ?? null : null,
           submittedAt: m.submittedAt || null, acceptedAt: m.acceptedAt || null, finished: done, overdue: !done && m.dueDate < t0,
           health: done || p.status === 'completed' ? null : s.value, reason: done ? null : s.reasons[0] || null, progress: s.progress.percent, files: (m.attachments || []).length,
-          projectId: p.id, projectCode: p.code, projectName: p.name, projectStatus: p.status, accountId: p.accountId || null, accountName: accountName(p.accountId),
+          projectId: p.id, projectCode: p.code, projectName: p.name, projectIcon: p.icon || null, projectStatus: p.status, accountId: p.accountId || null, accountName: accountName(p.accountId),
         };
         if (money) Object.assign(row, { amount: billingAmount(m, value), valueFrom: value == null ? null : Number(contract?.value) > 0 ? `contract ${contract.code}` : `deal ${deal.code}` });
         rows.push(row);

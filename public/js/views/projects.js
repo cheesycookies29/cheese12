@@ -18,7 +18,7 @@ import {
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
   QUICK_FILTERS, parseFilters, taskMatches, VIEW_TABS, groupNotifications,
   billingForecast, forecastCsvRows, IMPORT_FIELDS, IMPORT_TEMPLATE, IMPORT_MAX_ROWS, DIGEST_MAX,
-  SIZES, SIZE_KEYS, sizeName, sizeEffort, LIST_SORTS,
+  SIZES, SIZE_KEYS, sizeName, sizeEffort, LIST_SORTS, PROJECT_ICONS, PROJECT_ICON_COLORS, letterTile,
 } from '/shared/projects.js';
 
 // ---------- Small helpers ----------
@@ -115,6 +115,15 @@ const sizeChip = (s, notes) => (SIZES[s] ? html`<span class="pm-size pm-size-${s
 // short: "M · Medium" without what it means (in a table cell).
 const sizeOptions = (selected, notes, none = 'No size', short = false) => html`<option value="">${none}</option>${SIZE_KEYS.map((k) => option(k, short ? sizeName(k) : `${sizeName(k)} (${sizeEffort(k, notes)})`, selected))}`;
 const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task in progress and the burn-up.';
+// A project's mark beside its name: its icon on a coloured tile, or its first letter. Decorative (the
+// name is always next to it). p: { icon, name, code }; size: sm (in a line of text) | md | lg (title).
+const ICON_PX = { sm: 12, md: 16, lg: 22 };
+export function projectIcon(p, size = 'md') {
+  const ic = p?.icon;
+  if (ic && Object.hasOwn(PROJECT_ICONS, ic.glyph) && Object.hasOwn(PROJECT_ICON_COLORS, ic.color)) return html`<span class="pm-picon pm-picon-${size} pm-pc-${ic.color}" aria-hidden="true">${icon(ic.glyph, ICON_PX[size])}</span>`;
+  const t = letterTile(p?.name, p?.code);
+  return html`<span class="pm-picon pm-picon-${size} pm-pc-${t.color} letter" aria-hidden="true">${t.letter}</span>`;
+}
 const priorityBadge = (p) => (p === 'urgent' ? badge('Urgent', 'red') : p === 'high' ? badge('High', 'amber') : '');
 function dueChip(t, { long = false } = {}) {
   if (!t.dueDate) return '';
@@ -258,6 +267,18 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       ${templates.length ? html`<label class="field span-2"><span>Start from</span><select name="from"><option value="">A blank project</option>${options(templates.map((t) => [t.id, `Template: ${t.name}`]), templateId)}</select>
         <small class="hint" id="from-hint">A template brings its board statuses, milestones (with deliverables and billing %), tasks, subtasks, checklists and sizes, and whether it tracks time, with the dates moved to your start date in working days. No assignees, time or comments.</small></label>` : ''}
       <label class="field span-2"><span>Project name<em>*</em></span><input name="name" value="${rec.name || ''}" required /></label>
+      <fieldset class="field span-2 pm-icon-pick">
+        <legend>Icon</legend>
+        <div class="pm-icon-row"><span class="pm-icon-preview">${projectIcon(rec, 'lg')}</span>
+          <small class="hint" id="icon-hint">Shown beside the project's name in every list. <strong>Letter</strong> uses the first letter of the name.</small></div>
+        <div class="pm-glyphs" role="radiogroup" aria-label="Icon" aria-describedby="icon-hint">
+          <label class="pm-glyph" title="Letter"><input type="radio" name="iconGlyph" value="" ${rec.icon ? '' : 'checked'} aria-label="Letter" /><span class="pm-glyph-letter" aria-hidden="true">Aa</span></label>
+          ${Object.entries(PROJECT_ICONS).map(([k, label]) => html`<label class="pm-glyph" title="${label}"><input type="radio" name="iconGlyph" value="${k}" ${rec.icon?.glyph === k ? 'checked' : ''} aria-label="${label}" />${icon(k, 18)}</label>`)}
+        </div>
+        <div class="pm-swatches" role="radiogroup" aria-label="Colour">
+          ${Object.entries(PROJECT_ICON_COLORS).map(([k, label], i) => html`<label class="pm-swatch pm-pc-${k}" title="${label}"><input type="radio" name="iconColor" value="${k}" ${(rec.icon?.color || 'blue') === k ? 'checked' : ''} aria-label="${label}" /><i aria-hidden="true"></i></label>`)}
+        </div>
+      </fieldset>
       <label class="field ${blank()}"><span>Type</span><select name="type">${options([...new Set([...m.types, ...(rec.type ? [rec.type] : [])])].map((t) => [t, t]), rec.type || m.types[0])}</select></label>
       <label class="field ${blank()}"><span>Status</span><select name="status">${options(Object.entries(PROJECT_STATUS), rec.status || 'planning')}</select></label>
       <label class="field"><span>Start<em>*</em></span><input type="date" name="startDate" value="${rec.startDate || today()}" required /></label>
@@ -276,10 +297,14 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
     onSubmit: async (f) => {
       const v = Object.fromEntries(new FormData(f));
       if (!crm) for (const k of ['accountId', 'dealId', 'contractId']) delete v[k];
+      v.icon = v.iconGlyph ? { glyph: v.iconGlyph, color: v.iconColor || 'blue' } : null;
+      delete v.iconGlyph;
+      delete v.iconColor;
       let saved;
       if (v.from) {
         const pick = (keys) => Object.fromEntries(keys.filter((k) => k in v).map((k) => [k, v[k]]));
-        saved = await api.post(`/api/pm/projects/${v.from}/copy`, pick(['name', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId']));
+        // The template's icon, unless one was picked here.
+        saved = await api.post(`/api/pm/projects/${v.from}/copy`, pick(['name', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId', ...(iconTouched ? ['icon'] : [])]));
       } else {
         delete v.from;
         v.timeTracking = f.timeTracking.checked;
@@ -292,6 +317,19 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       after?.(saved);
     },
   });
+  // The icon preview follows the picks (and the name, for the letter); the colour needs a picture.
+  let iconTouched = false;
+  const preview = () => {
+    const glyph = form.elements.iconGlyph.value;
+    form.querySelector('.pm-swatches').classList.toggle('off', !glyph);
+    mount(form.querySelector('.pm-icon-preview'), projectIcon({ name: form.elements.name.value || rec.name, code: rec.code || form.elements.name.value, icon: glyph ? { glyph, color: form.elements.iconColor.value || 'blue' } : null }, 'lg'));
+  };
+  form.querySelector('.pm-icon-pick').addEventListener('change', () => {
+    iconTouched = true;
+    preview();
+  });
+  form.elements.name.addEventListener('input', preview);
+  preview();
   // From a template: only the fields a template does not bring. The budget only with time tracking.
   const from = form.elements.from;
   const sync = () => {
@@ -431,7 +469,7 @@ export async function portfolioView(el, _params, query) {
       ${rows.length ? html`<table class="table clickable pm-portfolio pm-templates">
       <thead><tr><th>Template</th><th>Type</th><th class="num">Milestones</th><th class="num">Deliverables</th><th class="num">Tasks</th><th></th></tr></thead>
       <tbody>${rows.map((t) => html`<tr data-href="#/projects/${t.id}">
-        <td><a href="#/projects/${t.id}"><strong>${t.name}</strong></a><small><span class="mono">${t.code}</span>${t.starter ? ' · starter template' : ''}</small></td>
+        <td><div class="pm-named">${projectIcon(t)}<div><a href="#/projects/${t.id}"><strong>${t.name}</strong></a><small><span class="mono">${t.code}</span>${t.starter ? ' · starter template' : ''}</small></div></div></td>
         <td>${t.type}</td>
         <td class="num">${t.milestones}</td>
         <td class="num">${t.deliverables || '—'}</td>
@@ -454,7 +492,7 @@ export async function portfolioView(el, _params, query) {
     mount(el.querySelector('#list'), rows.length ? html`<table class="table clickable pm-portfolio">
       <thead><tr><th>Project</th><th>Client</th><th>Manager</th><th>Dates</th><th>Progress</th><th>Health</th><th>Next milestone</th></tr></thead>
       <tbody>${rows.map((p) => html`<tr data-href="#/projects/${p.id}">
-        <td><a href="#/projects/${p.id}"><strong>${p.name}</strong></a><small><span class="mono">${p.code}</span> · ${p.type} · ${PROJECT_STATUS[p.status]}</small></td>
+        <td><div class="pm-named">${projectIcon(p)}<div><a href="#/projects/${p.id}"><strong>${p.name}</strong></a><small><span class="mono">${p.code}</span> · ${p.type} · ${PROJECT_STATUS[p.status]}</small></div></div></td>
         <td>${p.accountName || html`<span class="muted">Internal</span>`}</td>
         <td>${p.managerName || '—'}</td>
         <td class="nowrap">${short(p.startDate)} – ${p.endDate ? short(p.endDate) : '…'}</td>
@@ -515,7 +553,7 @@ export async function portfolioMilestonesView(el, _params, query) {
     mount(el.querySelector('#ms-list'), rows.length ? html`<table class="table clickable pm-milestones">
       <thead><tr><th>Milestone</th><th>Client</th><th>Due</th><th>Health</th><th>Deliverable</th><th>Submitted / accepted</th>${data.amounts ? html`<th class="num">Amount</th>` : ''}</tr></thead>
       <tbody>${rows.map((r) => html`<tr data-href="#/projects/${r.projectId}" class="${r.overdue ? 'pm-late' : ''}">
-        <td><span class="pm-diamond ${r.deliverable ? 'deliverable' : ''}" aria-hidden="true"></span><a href="#/projects/${r.projectId}"><strong>${r.name}</strong></a><small><span class="mono">${r.projectCode}</span> · ${r.projectName}${r.files ? html` · ${icon('paperclip', 12)} ${plural(r.files, 'file')}` : ''}</small></td>
+        <td><span class="pm-diamond ${r.deliverable ? 'deliverable' : ''}" aria-hidden="true"></span><a href="#/projects/${r.projectId}"><strong>${r.name}</strong></a><small>${projectIcon({ icon: r.projectIcon, name: r.projectName, code: r.projectCode }, 'sm')} <span class="mono">${r.projectCode}</span> · ${r.projectName}${r.files ? html` · ${icon('paperclip', 12)} ${plural(r.files, 'file')}` : ''}</small></td>
         <td>${clientOf(r)}</td>
         <td class="nowrap">${r.overdue ? html`<span class="crm-due bad">${icon('calendar', 12)} Overdue · ${fmtDate(r.dueDate)}</span>` : fmtDate(r.dueDate)}</td>
         <td>${r.finished ? html`<span class="muted small">Done</span>` : healthChip(r.health, r.reason || '')}${r.reason && !r.finished ? html`<small>${r.reason}</small>` : ''}</td>
@@ -552,7 +590,7 @@ function projectHeader(p, tab, actions = '') {
   return html`
     <header class="page-head pm-head">
       <div><a class="back" href="#/projects${p.isTemplate ? '?status=templates' : ''}">← ${p.isTemplate ? 'Templates' : 'Projects'}</a>
-        <h1>${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</h1>
+        <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</span></h1>
         <p class="muted"><span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
       ${actions ? html`<div class="actions">${actions}</div>` : ''}
     </header>
@@ -1559,7 +1597,7 @@ export async function taskView(el, { projectId, id }) {
       <p class="pre">${mentionParts(c.body, usernames).map((x) => (x.mention ? html`<mark class="pm-mention">@${x.mention}</mark>` : x.text))}</p></div></li>`;
     mount(el, html`<div class="pm-task-page">
       <header class="page-head">
-        <div><a class="back" href="#/projects/${p.id}/board">← ${p.code} · ${p.name}</a>
+        <div><a class="back pm-back-proj" href="#/projects/${p.id}/board">← ${projectIcon(p, 'sm')} ${p.code} · ${p.name}</a>
           <p class="tag-line mono">${t.key}${t.parent ? html` · subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}">${t.parent.key}</a>` : ''}</p>
           <h1>${t.title} ${statusChip(status)}</h1>
           <p class="muted">${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} Added ${when(t.createdAt)}</p></div>
@@ -1837,7 +1875,7 @@ export async function myWorkView(el, _params, query = {}) {
   const all = query.notes === 'all';
   const row = (t) => html`<li class="${t.overdue ? 'pm-late' : ''}">
       <span class="grow"><a href="#/projects/${t.project.id}/tasks/${t.id}"><strong>${t.title}</strong></a>
-        <small><span class="mono">${t.key}</span> · <a href="#/projects/${t.project.id}">${t.project.name}</a>${t.blocked ? ' · blocked' : ''}${t.checklist.length ? ` · ${t.checklistDone}/${t.checklist.length} checked` : ''}</small></span>
+        <small><span class="mono">${t.key}</span> · <a href="#/projects/${t.project.id}" class="pm-proj-link">${projectIcon(t.project, 'sm')} ${t.project.name}</a>${t.blocked ? ' · blocked' : ''}${t.checklist.length ? ` · ${t.checklistDone}/${t.checklist.length} checked` : ''}</small></span>
       ${dueChip(t)}
       ${may(t.access, 'work') ? html`<select data-status="${t.id}" aria-label="Status of ${t.key}">${options(t.project.statuses.map((s) => [s.id, s.name]), t.statusId)}</select>` : statusChip(t.project.statuses.find((s) => s.id === t.statusId))}
     </li>`;
@@ -1937,7 +1975,7 @@ export async function timesheetView(el, _params, query) {
   const rowHead = (r, i) => {
     const p = projectOf(r.projectId);
     const t = taskOf(r);
-    return html`<th scope="row"><span class="pm-ts-proj"><span class="mono">${p.code}</span> ${p.name}</span>
+    return html`<th scope="row"><span class="pm-ts-proj">${projectIcon(p, 'sm')} <span class="mono">${p.code}</span> ${p.name}</span>
       ${edit ? taskSelect(r, i) : html`<span class="pm-ts-task">${t ? html`<a href="#/projects/${p.id}/tasks/${t.id}">${t.key}</a> ${t.title}` : html`<span class="muted">No task (project work)</span>`}</span>`}
       ${r.notes?.length ? html`<small class="muted" title="${r.notes.join('; ')}">${r.notes[0]}${r.notes.length > 1 ? ` and ${r.notes.length - 1} more` : ''}</small>` : ''}</th>`;
   };
@@ -1964,7 +2002,7 @@ export async function timesheetView(el, _params, query) {
         <div class="pm-ts-dayhead"><h2>${DAY_LONG[day]}, ${short(d)}</h2><span class="muted small">Week: ${num(total)} h</span></div>
         <ul class="pm-ts-rows">${byProject.map(({ p, list }) => html`${list.map(({ r, i }) => {
           const t = taskOf(r);
-          return html`<li><div class="pm-ts-row-head"><span class="pm-ts-proj"><span class="mono">${p.code}</span> ${p.name}</span>
+          return html`<li><div class="pm-ts-row-head"><span class="pm-ts-proj">${projectIcon(p, 'sm')} <span class="mono">${p.code}</span> ${p.name}</span>
             ${edit ? taskSelect(r, i) : html`<span class="pm-ts-task">${t ? html`<a href="#/projects/${p.id}/tasks/${t.id}">${t.key}</a> ${t.title}` : html`<span class="muted">No task (project work)</span>`}</span>`}
             <small>Week: ${num(r.hours.reduce((n, h) => n + (Number(h) || 0), 0))} h</small></div>${input(r, i)}</li>`;
         })}${edit && list.length <= p.tasks.length ? html`<li class="pm-ts-add-row"><button type="button" class="link" data-add="${p.id}">${icon('plus', 14)} Another task on ${p.code}</button></li>` : ''}`)}</ul>

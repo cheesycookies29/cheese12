@@ -32,6 +32,37 @@ export const DEFAULT_STATUSES = [
   { id: 'cancelled', name: 'Cancelled', category: 'cancelled', color: 'gray' },
 ];
 export const DEFAULT_TYPES = ['Client', 'Government', 'Internal'];
+
+// A project's icon, shown beside its name: a picture from CORE's icon set on a coloured tile.
+// Without one, the tile shows the first letter of the name in a colour taken from the project's code,
+// so every project still has a recognizable mark.
+export const PROJECT_ICONS = {
+  folder: 'Folder', building: 'Building', laptop: 'Laptop', code: 'Code', database: 'Database', shield: 'Shield',
+  chart: 'Chart', dashboard: 'Dashboard', cap: 'School', book: 'Book', users: 'People', headset: 'Support',
+  ticket: 'Ticket', box: 'Box', wallet: 'Money', receipt: 'Invoice', megaphone: 'Campaign', calendar: 'Calendar',
+  flag: 'Flag', sparkle: 'Idea', heart: 'Heart', mapPin: 'Place', mail: 'Mail', layers: 'Layers',
+  clipboard: 'Checklist', settings: 'Settings', key: 'Key', video: 'Video', slides: 'Slides', activity: 'Health',
+};
+export const PROJECT_ICON_COLORS = { gray: 'Grey', blue: 'Blue', teal: 'Teal', green: 'Green', amber: 'Amber', red: 'Red', violet: 'Violet', brand: 'Maroon' };
+// null (the letter tile) or { glyph, color }. Anything else is refused with a message (an HttpError
+// on the server: Error with a status is made by the caller).
+export function parseProjectIcon(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v !== 'object' || Array.isArray(v)) throw new Error('Pick the icon from the list.');
+  const glyph = typeof v.glyph === 'string' && Object.hasOwn(PROJECT_ICONS, v.glyph) ? v.glyph : null;
+  const color = typeof v.color === 'string' && Object.hasOwn(PROJECT_ICON_COLORS, v.color) ? v.color : null;
+  if (!glyph) throw new Error('Pick the icon from the list.');
+  if (!color) throw new Error('Pick the icon\'s colour from the list.');
+  return { glyph, color };
+}
+// The letter tile of a project without an icon: its first letter or digit, and a colour from its code.
+export function letterTile(name, code) {
+  const letter = (String(name || '').match(/[\p{L}\p{N}]/u)?.[0] || '?').toLocaleUpperCase();
+  const keys = Object.keys(PROJECT_ICON_COLORS).filter((k) => k !== 'gray');
+  let h = 0;
+  for (const ch of String(code || name || '')) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return { letter, color: keys[h % keys.length] };
+}
 export const DEFAULT_PM = { statuses: DEFAULT_STATUSES, types: DEFAULT_TYPES };
 
 export const DUE_SOON_DAYS = 3; // working days

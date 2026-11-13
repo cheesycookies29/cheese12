@@ -2768,3 +2768,51 @@ body.pm-compact .pm-mywork .card-head { margin-bottom: 4px; }
   .pm-density button { min-height: 44px; padding-left: 14px; padding-right: 14px; }
   body.pm-compact .pm-list select, body.pm-compact .pm-list input[type='date'], body.pm-compact .pm-mywork select { padding-top: 5px; padding-bottom: 5px; font-size: 16px; }
 }
+
+/* ----- Project icons: a picture or a letter on a coloured tile, beside the project's name ----- */
+.pm-pc-gray { --pc: #64748b; }
+.pm-pc-blue { --pc: #2563eb; }
+.pm-pc-teal { --pc: #0f766e; }
+.pm-pc-green { --pc: #15803d; }
+.pm-pc-amber { --pc: #b45309; }
+.pm-pc-red { --pc: #b91c1c; }
+.pm-pc-violet { --pc: #6d28d9; }
+.pm-pc-brand { --pc: var(--brand); }
+.pm-picon { display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: 7px; background: var(--pc); color: #fff; font-weight: 700; line-height: 1; vertical-align: middle; }
+.pm-picon .ic { width: 62%; height: 62%; }
+.pm-picon-sm { width: 18px; height: 18px; border-radius: 5px; font-size: 10.5px; vertical-align: -4px; }
+.pm-picon-md { width: 30px; height: 30px; font-size: 14px; }
+.pm-picon-lg { width: 38px; height: 38px; border-radius: 9px; font-size: 18px; }
+:root[data-theme='dark'] .pm-picon { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%); }
+h1.pm-title { display: flex; align-items: flex-start; flex-wrap: nowrap; gap: 12px; }
+h1.pm-title > .pm-picon { margin-top: 1px; }
+.pm-title-text { min-width: 0; }
+@media (max-width: 760px) { h1.pm-title > .pm-picon-lg { width: 32px; height: 32px; border-radius: 8px; font-size: 15px; margin-top: 2px; } }
+.pm-named { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.pm-named > div { min-width: 0; }
+.pm-named > .pm-picon { margin-top: 1px; }
+body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size: 11.5px; border-radius: 5px; }
+.pm-proj-link { white-space: nowrap; }
+/* The picker in the project form */
+.pm-icon-pick { border: 0; padding: 0; margin: 0; min-width: 0; }
+.pm-icon-pick legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; padding: 0; }
+.pm-icon-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.pm-glyphs { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; }
+.pm-glyph, .pm-swatch { position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.pm-glyph { height: 38px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text-2); background: var(--surface); }
+.pm-glyph input, .pm-swatch input { position: absolute; inset: 0; opacity: 0; margin: 0; width: 100%; height: 100%; cursor: pointer; }
+.pm-glyph:hover { background: var(--surface-2); }
+.pm-glyph:has(input:checked) { border-color: var(--brand); background: var(--brand-softer); color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.pm-glyph:has(input:focus-visible), .pm-swatch:has(input:focus-visible) { outline: 2px solid var(--gold-bright, var(--brand)); outline-offset: 2px; }
+.pm-glyph-letter { font-weight: 700; font-size: 13px; }
+.pm-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pm-swatches.off { opacity: 0.45; }
+.pm-swatch { width: 30px; height: 30px; }
+.pm-swatch i { width: 24px; height: 24px; border-radius: 50%; background: var(--pc); }
+.pm-swatch:has(input:checked) i { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--pc); }
+@media (pointer: coarse) {
+  .pm-glyphs { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+  .pm-glyph { height: 44px; }
+  .pm-swatch { width: 44px; height: 44px; }
+  .pm-swatch i { width: 28px; height: 28px; }
+}

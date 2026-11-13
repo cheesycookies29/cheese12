@@ -150,12 +150,22 @@ The three starter templates are under **Templates** in the filter.
 ### Start a project
 
 1. On **Overview**, click **+ New project**.
-2. Enter the **Project name**, the **Type** (*Client*, *Government* or *Internal*), the **Status**, the **Start** date (required) and the **End** date.
+2. Enter the **Project name** and, if you like, pick its **Icon** (see [Give a project its icon](projects#give-a-project-its-icon)). Then the **Type** (*Client*, *Government* or *Internal*), the **Status**, the **Start** date (required) and the **End** date.
 3. Pick the **Project manager**. Tick **Track time on this project** only for time-and-materials work or when the client asks for a timesheet (see [Turn time tracking on for a project](projects#turn-time-tracking-on-for-a-project)); then enter the **Budget (hours)** if there is one.
 4. If you have Sales & CRM access, pick the **Client**, the **Deal** and the **Contract**. A deliverable due after the contract's end date is flagged.
 5. Click **Save**.
 
 The project opens. Its board starts with the statuses from the Projects setup. From a won deal or a contract, **Start project** in Sales & CRM fills all of this in (see [the sales guide](sales#start-a-project-from-a-won-deal)).
+
+### Give a project its icon
+
+1. Open the project and click **Edit** (or start a new one with **+ New project**).
+2. Under **Icon**, click a picture, then a colour. The tile above them shows how it will look.
+3. Click **Save**.
+
+![Picking a project's icon](projects-icon.jpg)
+
+The icon is shown beside the project's name on Projects, Milestones, My work, the Timesheet, the project's own pages and its tasks. **Letter** (the first box) goes back to the first letter of the name on a colour CORE picks; that is how a project starts. A project copied or started from a template takes the template's icon unless you pick another. Only those who manage the project can change it.
 
 ### Start a project from a template
 

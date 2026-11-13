@@ -318,7 +318,7 @@ function seedProjects(data, c) {
   const won = data.crmDeals[6];
   const lmsContract = data.crmContracts.find((x) => x.dealId === won.id);
   const lms = project(1, {
-    name: 'Learning management system, phase 2', type: 'Client', status: 'active', startDate: wd(-42), endDate: wd(50), managerId: pmU,
+    name: 'Learning management system, phase 2', icon: { glyph: 'cap', color: 'blue' }, type: 'Client', status: 'active', startDate: wd(-42), endDate: wd(50), managerId: pmU,
     members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
     accountId: nsu.id, dealId: won.id, contractId: lmsContract.id,
     description: 'Gradebook and parent portal for the LMS delivered in phase 1, with faculty training. Billing: 30% on design sign-off, 70% on acceptance.',
@@ -386,7 +386,7 @@ function seedProjects(data, c) {
 
   // 2. The provincial helpdesk: a government bid being planned, deliverables from the terms of reference.
   project(2, {
-    name: 'Provincial helpdesk and asset tracking', type: 'Government', status: 'planning', startDate: wd(21), endDate: wd(140), managerId: pmU,
+    name: 'Provincial helpdesk and asset tracking', icon: { glyph: 'headset', color: 'teal' }, type: 'Government', status: 'planning', startDate: wd(21), endDate: wd(140), managerId: pmU,
     members: [{ userId: pmU, role: 'manager' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
     accountId: islaVerde.id, dealId: data.crmDeals[4].id,
     description: 'If the bid is awarded: an ICT helpdesk and asset management system for 12 provincial offices, about 1,400 devices.',
@@ -404,7 +404,7 @@ function seedProjects(data, c) {
 
   // 3. A small internal IT project.
   project(3, {
-    name: 'Office network refresh', type: 'Internal', status: 'active', startDate: wd(-10), endDate: wd(20), managerId: it,
+    name: 'Office network refresh', icon: { glyph: 'laptop', color: 'violet' }, type: 'Internal', status: 'active', startDate: wd(-10), endDate: wd(20), managerId: it,
     members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
     description: 'New PoE switches and cabling on the 3rd floor; Wi-Fi in the meeting rooms.',
   }, [['New switches live', 10, false]], [
@@ -431,7 +431,7 @@ function seedProjects(data, c) {
   // In progress column has a WIP limit of 3 (four tasks are in it, so the board warns), and the
   // manager's reading is "off track", worse than what the tasks alone show.
   const meridianRollout = project(4, {
-    name: 'Warehouse HR and payroll rollout', type: 'Client', status: 'active', startDate: wd(-14), endDate: wd(75), managerId: pmU,
+    name: 'Warehouse HR and payroll rollout', icon: { glyph: 'box', color: 'amber' }, type: 'Client', status: 'active', startDate: wd(-14), endDate: wd(75), managerId: pmU,
     members: [{ userId: pmU, role: 'manager' }, { userId: payU, role: 'member' }, { userId: hrU, role: 'member' }, { userId: juan, role: 'member' }, { userId: sales, role: 'viewer' }],
     accountId: meridian.id, dealId: data.crmDeals[2].id, contractId: meridianContract.id,
     description: 'HR records, attendance and payroll for 420 warehouse staff in two sites. Billing: 50% on signing (paid), 50% on go-live.',
@@ -465,7 +465,7 @@ function seedProjects(data, c) {
   // (Backlog, In progress, Client sign-off, Released), two releases a year, ending in 40 days. It
   // tracks time: the support hours go into the renewal discussion.
   const sis = project(5, {
-    name: 'SIS support and maintenance, 2025–2026', type: 'Client', status: 'active', startDate: wd(-325), endDate: wd(40), managerId: it, createdDaysAgo: 325,
+    name: 'SIS support and maintenance, 2025–2026', icon: { glyph: 'database', color: 'green' }, type: 'Client', status: 'active', startDate: wd(-325), endDate: wd(40), managerId: it, createdDaysAgo: 325,
     members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }, { userId: sales, role: 'viewer' }],
     accountId: nsu.id, contractId: sisContract.id, timeTracking: true, budgetHours: 300,
     description: '8x5 support for the student information system and two releases a year, under contract NSU-2025-118. Renewal is being discussed in Sales & CRM.',
@@ -517,7 +517,7 @@ function seedProjects(data, c) {
 
   // 7. Internal, off track: year-end payroll work whose first milestone has passed with work open.
   const yearEnd = project(7, {
-    name: 'Year-end payroll and 2027 tax tables', type: 'Internal', status: 'active', startDate: wd(-30), endDate: wd(45), managerId: payU,
+    name: 'Year-end payroll and 2027 tax tables', icon: { glyph: 'wallet', color: 'brand' }, type: 'Internal', status: 'active', startDate: wd(-30), endDate: wd(45), managerId: payU,
     members: [{ userId: payU, role: 'manager' }, { userId: hrU, role: 'member' }, { userId: pmU, role: 'viewer' }],
     description: 'Get payroll ready for the year-end: contribution checks, 2027 tax tables in Payroll Setup, the 13th month pay and the annual reports to the BIR.',
   }, [
@@ -537,7 +537,7 @@ function seedProjects(data, c) {
 
   // 8. On hold, with the manager's note.
   project(8, {
-    name: 'Data privacy compliance review (RA 10173)', type: 'Internal', status: 'on_hold', startDate: wd(-50), endDate: wd(60), managerId: hrU,
+    name: 'Data privacy compliance review (RA 10173)', icon: { glyph: 'shield', color: 'red' }, type: 'Internal', status: 'on_hold', startDate: wd(-50), endDate: wd(60), managerId: hrU,
     members: [{ userId: hrU, role: 'manager' }, { userId: it, role: 'member' }, { userId: pmU, role: 'viewer' }],
     description: 'Annual review of how the company keeps personal data. On hold until the new Data Protection Officer is appointed.',
     healthOverride: { value: 'amber', note: 'Paused on purpose: waiting for the DPO appointment from management, expected next month.', by: hrU, at: at(-12) },
