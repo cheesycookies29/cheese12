@@ -16,6 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
 import { parseUpload } from './attachments.js';
+import { imageIdsOf } from '../shared/richtext.js';
 import { sendMail as smtpSend } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
 import { digestEmail } from './pm-digest.js';
@@ -227,9 +228,11 @@ const LEVEL = { read: 1, comment: 2, work: 3, manage: 4 };
 const MAX_HISTORY = 200;
 
 // The files of tasks and milestones of a project (to remove with it).
-export const projectFiles = (data, projectId) => [...(data.pmTasks || []), ...(data.pmMilestones || [])].filter((x) => x.projectId === projectId).flatMap((x) => x.attachments || []);
+export const projectFiles = (data, projectId) => [...(data.pmTasks || []), ...(data.pmMilestones || [])].filter((x) => x.projectId === projectId).flatMap((x) => [...(x.attachments || []), ...(x.images || [])]);
 
 const MAX_FILES = 5; // per task or milestone
+const MAX_IMAGES = 20; // pictures in a task's description
+const IMAGE_GRACE_MS = 2 * 3600 * 1000; // a picture not (yet) in the description is kept this long: someone may be writing
 const BULK_MAX = 200; // tasks per bulk change
 const BULK_FIELDS = ['statusId', 'assigneeId', 'milestoneId', 'priority', 'size'];
 const TIMESHEET_MAX_CELLS = 500; // per save
@@ -335,7 +338,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       // Hours logged on the task: only on a project that tracks time.
       ...(ctx.time ? { loggedHours: Math.round((ctx.logged.get(t.id) || 0) * 100) / 100 } : {}),
       assigneeName: userName(t.assigneeId), subtasks: ctx.children.get(t.id) || 0, checklistDone: t.checklist.filter((i) => i.done).length,
-      milestoneIdEffective: milestoneOfTask(t, ctx.byId), watchers: watchersOf(t), files: (t.attachments || []).length, attachments: undefined,
+      milestoneIdEffective: milestoneOfTask(t, ctx.byId), watchers: watchersOf(t), files: (t.attachments || []).length, attachments: undefined, images: undefined,
       ticket: ticket ? { id: ticket.id, ref: ticket.ref, status: ticket.status, statusName: TICKET_STATUS[ticket.status] || ticket.status } : null,
     };
   }
@@ -438,6 +441,40 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   // A file to save: plain bytes, with a name the browser keeps, and nothing it would open in the page.
   const disposition = (name) => `attachment; filename="${String(name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
   const download = (a) => ({ data: files.buffer(a), headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': disposition(a.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Download-Options': 'noopen' } });
+  // ----- Pictures in a task's description -----
+  // Uploaded from the description editor (button, paste or drop), shown in the page by <img>. Only
+  // JPEG, PNG and WebP whose first bytes say so (never SVG or HTML), sent with that type, nosniff and
+  // a sandbox policy, so a picture can only ever be displayed. Anyone who can open the project sees
+  // them; anyone who works on it adds them. A picture the description no longer uses is removed when
+  // the description is saved (after a grace period, for someone still writing), or with the task.
+  const imagesOf = (t) => (Array.isArray(t.images) ? t.images : (t.images = []));
+  const imageOut = (x) => ({ id: x.id, name: x.name, type: x.type, size: x.size });
+  const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const showImage = (x) => ({ data: files.buffer(x), headers: { 'Content-Type': x.type, 'Content-Disposition': `inline; filename="${String(x.name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"`, 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=86400' } });
+  function pruneImages(t, nowMs = Date.now()) {
+    const used = new Set(imageIdsOf(t.description));
+    const [keep, drop] = [[], []];
+    for (const x of imagesOf(t)) (used.has(x.id) || nowMs - Date.parse(x.uploadedAt) < IMAGE_GRACE_MS ? keep : drop).push(x);
+    if (drop.length) {
+      t.images = keep;
+      removeFiles(drop);
+    }
+  }
+  // A copied task gets its own copies of the pictures, and its description points at them.
+  function copyImages(src, dest) {
+    if (!files || !imagesOf(src).length) return;
+    const used = new Set(imageIdsOf(src.description));
+    const ids = new Map();
+    dest.images = [];
+    for (const x of imagesOf(src).filter((y) => used.has(y.id))) {
+      try {
+        const saved = files.save({ name: x.name, type: x.type, buffer: files.buffer(x) });
+        ids.set(x.id, saved.id);
+        dest.images.push({ ...saved, by: x.by || null });
+      } catch {} // a picture missing on disk: the copy shows "Picture not found" for it
+    }
+    dest.description = String(dest.description || '').replace(/\(img:([0-9a-f-]{36})\)/g, (all, id) => (ids.has(id) ? `(img:${ids.get(id)})` : all));
+  }
   // People who became members (not by being assigned a task: that has its own notification).
   function notifyAdded(p, u, beforeIds) {
     const added = p.members.filter((m) => !beforeIds.includes(m.userId));
@@ -670,6 +707,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
         blockedBy: (t.blockedBy || []).map((x) => taskIds.get(x)).filter(Boolean), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null, watchers: [],
         version: 1, createdAt: now(), createdBy: u.id, updatedAt: now(), updatedBy: u.id, history: [{ at: now(), by: u.id, field: 'created', from: '', to: `copied from ${t.key}` }],
       });
+      copyImages(t, d().pmTasks[d().pmTasks.length - 1]);
     });
     db.save();
     return summaryOf(p, u);
@@ -962,6 +1000,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       milestones: milestonesOf(p).map((m) => ({ id: m.id, name: m.name, dueDate: m.dueDate })),
       ...(ctx.time ? { time: logs.map((x) => ({ ...x, userName: userName(x.userId) })), loggedHours: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100 } : { time: null }),
       watching: watchersOf(t).includes(u.id), watcherList: watcherList(t), attachments: filesOf(t).map((a) => fileOut(a, p, u)), maxFiles: MAX_FILES,
+      images: imagesOf(t).map(imageOut), maxImages: MAX_IMAGES,
     };
   });
   route('PUT', '/api/pm/tasks/:id', 'auth', ({ params, body, user: u }) => {
@@ -969,6 +1008,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     fresh(t, body);
     const before = { ...t };
     Object.assign(t, validTask({ ...t, ...pickFields(body, TASK_FIELDS) }, p, u, levelOf(p, u), t));
+    if (before.description !== t.description) pruneImages(t);
     if (before.statusId !== t.statusId) t.rank = nextRank(p, t.statusId);
     addAssignee(p, t);
     setCompleted(t, p);
@@ -1025,7 +1065,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   // the project. Returns the ids removed.
   function removeTasks(p, rootIds) {
     const ids = new Set([...rootIds, ...tasksOf(p).filter((x) => rootIds.includes(x.parentId)).map((x) => x.id)]);
-    removeFiles(tasksOf(p).filter((x) => ids.has(x.id)).flatMap((x) => x.attachments || []));
+    removeFiles(tasksOf(p).filter((x) => ids.has(x.id)).flatMap((x) => [...(x.attachments || []), ...(x.images || [])]));
     d().pmTasks = d().pmTasks.filter((x) => !ids.has(x.id));
     for (const x of tasksOf(p)) if (x.blockedBy.some((id) => ids.has(id))) x.blockedBy = x.blockedBy.filter((id) => !ids.has(id));
     d().pmComments = d().pmComments.filter((c) => !ids.has(c.taskId));
@@ -1113,6 +1153,28 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     bump(t, u);
     db.save();
     return { attachments: filesOf(t).map((x) => fileOut(x, p, u)), version: t.version };
+  });
+
+  // ===== Pictures in a task's description =====
+  route('GET', '/api/pm/tasks/:id/images/:imageId', 'auth', ({ params, user: u }) => {
+    const { t } = findTask(params.id, u);
+    const x = imagesOf(t).find((y) => y.id === params.imageId);
+    if (!x) throw new HttpError(404, 'Picture not found.');
+    return showImage(x);
+  });
+  // Adds a picture; the description that shows it is saved separately (the version is not bumped,
+  // so the open editor can still save).
+  route('POST', '/api/pm/tasks/:id/images', 'auth', ({ params, body, user: u }) => {
+    const { t } = findTask(params.id, u, 'work');
+    if (!files) throw new HttpError(500, 'Files cannot be stored here.');
+    pruneImages(t);
+    if (imagesOf(t).length >= MAX_IMAGES) throw new HttpError(400, `This task has ${MAX_IMAGES} pictures, the most it can have. Remove one from the description and save it first.`);
+    const up = parseUpload(body?.file);
+    if (!IMAGE_TYPES.includes(up.type)) throw new HttpError(400, 'Insert a picture: JPEG, PNG or WebP.');
+    const x = { ...files.save(up), by: u.id };
+    imagesOf(t).push(x);
+    db.save();
+    return imageOut(x);
   });
 
   // ===== Files on a milestone (for a deliverable: the acceptance document) =====

@@ -13,6 +13,7 @@ import { html, mount, badge, toast, modal, confirmDialog, fmtDate, today, downlo
 import { icon } from '../icons.js';
 import { defaultDay, dayTotals } from '../phone.js';
 import { ACCEPT, prepareUpload, sizeLabel } from '../attachments.js';
+import { richEditor, wireRichEditor, richView } from '../richeditor.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, MY_WORK_GROUPS,
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
@@ -409,7 +410,7 @@ export async function addTicketToProject(ticket, after) {
 async function newTask(p, tasks, preset = {}, after) {
   const top = tasks.filter((t) => !t.parentId);
   const [assignees, m] = await Promise.all([assigneeOptions(p, p.access, preset.assigneeId), meta()]);
-  modal({
+  const { form } = modal({
     title: preset.parentId ? 'New subtask' : 'New task', wide: true, submitLabel: 'Add task',
     body: html`<div class="grid two">
       <label class="field span-2"><span>Title<em>*</em></span><input name="title" required /></label>
@@ -421,7 +422,7 @@ async function newTask(p, tasks, preset = {}, after) {
       <label class="field"><span>Due</span><input type="date" name="dueDate" /></label>
       <label class="field"><span>Milestone</span><select name="milestoneId"><option value="">None</option>${options(p.milestones.map((m) => [m.id, `${m.name} (${short(m.dueDate)})`]), preset.milestoneId)}</select></label>
       <label class="field"><span>Subtask of</span><select name="parentId"><option value="">None (a task)</option>${options(top.map((t) => [t.id, `${t.key} · ${t.title}`]), preset.parentId)}</select></label>
-      <label class="field span-2"><span>Description</span><textarea name="description" rows="3"></textarea></label>
+      ${richEditor({ rows: 5 })}
     </div>`,
     onSubmit: async (f) => {
       const t = await api.post(`/api/pm/projects/${p.id}/tasks`, Object.fromEntries(new FormData(f)));
@@ -430,6 +431,7 @@ async function newTask(p, tasks, preset = {}, after) {
       after?.(t);
     },
   });
+  wireRichEditor(form);
 }
 
 // ---------- Portfolio ----------
@@ -1605,7 +1607,7 @@ export async function taskView(el, { projectId, id }) {
       </header>
       <div class="pm-task">
         <div class="stack">
-          <section class="card"><h2>Description</h2>${t.description ? html`<p class="pre">${t.description}</p>` : html`<p class="muted">No description.</p>`}</section>
+          <section class="card pm-desc"><div class="card-head"><h2>Description</h2>${work ? html`<button type="button" class="btn small-btn" id="edit-desc">${icon('edit', 14)} Edit</button>` : ''}</div>${t.description ? richView(t.description, t.id, t.images) : html`<p class="muted">No description.</p>`}</section>
           <section class="card"><div class="card-head"><h2>${icon('check')} Checklist</h2><span class="muted small">${t.checklist.length ? `${t.checklistDone}/${t.checklist.length} done` : ''}</span></div>
             ${t.checklist.length ? html`<ul class="crm-checklist">${t.checklist.map((i) => html`<li class="${i.done ? 'done' : ''}"><label><input type="checkbox" data-item="${i.id}" ${i.done ? 'checked' : ''} ${work ? '' : 'disabled'} /><span>${i.text}</span></label>${work ? html`<button type="button" class="icon-btn" data-rm-item="${i.id}" aria-label="Remove ${i.text}">${icon('x', 14)}</button>` : ''}</li>`)}</ul>` : html`<p class="muted small">No checklist.</p>`}
             ${work ? html`<form id="add-item" class="crm-add-item"><input name="text" maxlength="300" placeholder="Add a checklist item…" aria-label="Checklist item" /><button class="btn" type="submit">Add</button></form>` : ''}</section>
@@ -1732,15 +1734,25 @@ export async function taskView(el, { projectId, id }) {
     }, () => reload()));
     const filesBox = el.querySelector('#files');
     if (filesBox) wireFiles(filesBox, `/api/pm/tasks/${id}/attachments`, t.attachments, async () => reload('#files [data-add-file]'));
-    el.querySelector('#edit')?.addEventListener('click', () => modal({
-      title: `Edit ${t.key}`, wide: true,
-      body: html`<div class="grid two"><label class="field span-2"><span>Title</span><input name="title" maxlength="200" value="${t.title}" /></label><label class="field span-2"><span>Description</span><textarea name="description" rows="8">${t.description || ''}</textarea></label></div>`,
-      onSubmit: async (f) => {
-        await api.put(`/api/pm/tasks/${id}`, { title: f.title.value, description: f.description.value, version: t.version });
-        toast('Saved.');
-        await reload();
-      },
-    }));
+    // Title and description; the description in the formatting editor, with pictures.
+    const editTask = (focusDescription) => {
+      const { form } = modal({
+        title: `Edit ${t.key}`, wide: true, className: 'pm-edit-task',
+        body: html`<div class="grid two"><label class="field span-2"><span>Title<em>*</em></span><input name="title" maxlength="200" value="${t.title}" required /></label>${richEditor({ value: t.description || '', taskId: t.id })}</div>`,
+        onSubmit: async (f) => {
+          await api.put(`/api/pm/tasks/${id}`, { title: f.title.value, description: f.description.value, version: t.version });
+          toast('Saved.');
+          await reload();
+        },
+      });
+      const ed = wireRichEditor(form, { images: [...(t.images || [])] });
+      if (focusDescription) {
+        ed.textarea.focus();
+        ed.textarea.setSelectionRange(ed.textarea.value.length, ed.textarea.value.length);
+      }
+    };
+    el.querySelector('#edit')?.addEventListener('click', () => editTask(false));
+    el.querySelector('#edit-desc')?.addEventListener('click', () => editTask(true));
     el.querySelector('#del')?.addEventListener('click', async () => {
       if (!(await confirmDialog(`Delete ${t.key} ${t.title}?${t.subtasks ? ` Its ${plural(t.subtasks, 'subtask')} go with it.` : ''} Comments and files go too; time logged on it stays on the project.`, { title: 'Delete task' }))) return;
       await api.del(`/api/pm/tasks/${id}`).then(() => {

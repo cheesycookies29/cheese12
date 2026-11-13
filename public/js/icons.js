@@ -2,6 +2,14 @@
 import { raw } from './ui.js';
 
 const P = {
+  bold: '<path d="M7 5h6a3.5 3.5 0 010 7H7z"/><path d="M7 12h7a3.5 3.5 0 010 7H7z"/>',
+  italic: '<path d="M14 5h-4M14 19h-4M14 5l-4 14"/>',
+  strike: '<path d="M4 12h16"/><path d="M16 7.5C15.4 5.9 13.9 5 12 5c-2.5 0-4 1.3-4 3 0 1.4.9 2.4 3 3"/><path d="M8 16.5c.6 1.6 2.1 2.5 4 2.5 2.5 0 4-1.3 4-3 0-.6-.2-1.2-.5-1.6"/>',
+  heading: '<path d="M6 5v14M18 5v14M6 12h12"/>',
+  listBullet: '<path d="M10 6h10M10 12h10M10 18h10"/><circle cx="5" cy="6" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="18" r="1" fill="currentColor"/>',
+  listNumber: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5l1.5-1V9M3.5 13.5a1.5 1.5 0 012.6 1L3.5 17.5h3"/>',
+  quote: '<path d="M7 7h4v4c0 3-1.5 5-4 6"/><path d="M15 7h4v4c0 3-1.5 5-4 6"/>',
+  divider: '<path d="M3 12h18"/><path d="M8 6h8M8 18h8" opacity=".45"/>',
   home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/>',
   book: '<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19V5"/><path d="M8 7h7"/>',
   cap: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/>',

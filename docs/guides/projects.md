@@ -97,7 +97,7 @@ The three starter templates are under **Templates** in the filter.
 
 ### A task
 
-1. Click *Gradebook: import class lists from the SIS*. The task page has its description, **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, **Watchers** and the linked service desk ticket on the right.
+1. Click *Gradebook: import class lists from the SIS*. The task page has its description (with headings, steps and a link: see [Write a task's description](projects#write-a-tasks-description)), **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, **Watchers** and the linked service desk ticket on the right.
 2. Tick *Test with the College of Engineering lists* in the checklist.
 3. Under **Details**, change **Status** to *For review*. Each change is saved at once and written in the history.
 4. **Size** says how big the task is: *S · Small (about a day)*. Pick another to change it; the line under it says what the size means. On a project that tracks time, a **Time** box under it shows the hours logged on the task and lets you log more.
@@ -211,6 +211,17 @@ The project manager is always a manager. Open tasks of someone taken off the pro
 4. When a task cannot start before another is done, open it and pick that task under **Blocked by**. The card shows *Blocked* until the other task is done; nothing is rescheduled.
 
 Progress counts the subtasks, not their parent. When most tasks (60% or more) have a size, progress is weighed by size (a task without one counts at the average); otherwise every task counts the same. Cancelled tasks do not count.
+
+### Write a task's description
+
+1. Open the task and click **Edit** next to **Description** (or **Edit title and description**).
+2. Type the description. To format it, select words and use the toolbar: **Heading**, **Bold**, *Italic*, ~~Strikethrough~~, `Code`, **Link**, a bulleted or numbered list, a quote and a line. **Ctrl+B**, **Ctrl+I** and **Ctrl+K** (on a Mac ⌘) do bold, italic and a link; in a list, Enter starts the next item, and Enter on an empty item ends the list.
+3. To add a picture, click the picture button and choose one, or paste a screenshot (Ctrl+V) or drag a picture into the text. It is added where the cursor is.
+4. Click **Preview** to see how it will look, then **Save**.
+
+![Editing a task's description](projects-description.jpg)
+
+The toolbar writes simple marks into the text (`**bold**`, `- item`, `![caption](img:…)` for a picture), so you can also type them. Pictures can be JPEG, PNG or WebP, up to 5 MB (a large photo is made smaller before it is sent), and 20 per task; the words in brackets are the caption. Everyone who can open the project sees them; click one to open it full size. A picture you take out of the description is deleted when the description is saved. Pictures are added once the task exists: in **New task** the description can be formatted, and pictures come after **Add task**. Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab.
 
 ### Size a task
 

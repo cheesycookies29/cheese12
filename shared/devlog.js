@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.21.0-alpha',
+    date: '2026-11-13',
+    title: 'Task descriptions: formatting and pictures',
+    modules: ['projects'],
+    notes: 'Task descriptions can be formatted and can show pictures.',
+    changes: [
+      ['new', 'projects', 'Description editor (public/js/richeditor.js) in Edit title and description and in New task: a toolbar (heading, bold, italic, strikethrough, code, link, bulleted and numbered lists, quote, line, picture) over the text box, Write and Preview tabs, Ctrl/⌘+B, I and K, lists continued on Enter, a link dialog that takes only https, http and mailto addresses. The text stays a small Markdown (shared/richtext.js); edits go through the browser\'s own editing, so Ctrl+Z undoes them.'],
+      ['new', 'projects', 'Pictures in a description: from the toolbar, pasted or dropped; JPEG, PNG or WebP by content (never SVG), 5 MB (larger photos shrunk in the browser), 20 per task. Served from /api/pm/tasks/:id/images/:imageId to those who can open the project, with their own type, nosniff and a sandbox policy. Pictures no longer in the description are removed when it is saved (after two hours, for someone still writing) and with the task; a copied project gets its own copies.'],
+      ['improved', 'projects', 'The task page shows the description formatted. Everything is escaped before formatting: no HTML, styles or scripts; links only to web and mail addresses, opened in a new tab; pictures only the task\'s own. Descriptions written before keep their line breaks. A demo task shows the formatting.'],
+    ],
+  },
+  {
     version: '0.20.0-alpha',
     date: '2026-11-13',
     title: 'Project icons',

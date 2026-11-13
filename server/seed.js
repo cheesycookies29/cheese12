@@ -334,7 +334,7 @@ function seedProjects(data, c) {
     ['wire', 'Parent portal wireframes', 0, 'done', juan, -33, -27, 'M'],
     ['sign', 'Design sign-off with the VP for Administration', 0, 'done', pmU, -24, -22, 'XS'],
     ['weights', 'Gradebook: grading periods and weights', 1, 'done', juan, -20, -10, 'L'],
-    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 'S', { priority: 'high', checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
+    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 'S', { priority: 'high', description: '## What it does\nEach night, the gradebook reads the **class lists** from the SIS export and adds or drops students in each section.\n\n## How\n1. The registrar saves the export as CSV (see the [SIS export guide](https://example.com/sis-export)).\n2. The import maps each `course_code` to a gradebook section.\n3. Students in two sections (*cross-enrolled*) appear in both.\n\n> Ask the registrar before changing the export columns: other offices read the same file.', checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
     ['login', 'Parent portal: sign-in and linking to students', 1, 'doing', juan, -8, 3, 'S'],
     ['grades', 'Parent portal: grades and attendance pages', 1, 'todo', juan, 1, 5, 'M', { blockedBy: ['login'] }],
     ['staging', 'Set up the staging server', 1, 'done', it, -18, -14, 'S'],

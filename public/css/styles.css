@@ -2816,3 +2816,58 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
   .pm-swatch { width: 44px; height: 44px; }
   .pm-swatch i { width: 28px; height: 28px; }
 }
+
+/* ----- Formatted text: the task description editor and how it reads ----- */
+.rich-ed { gap: 0; }
+.rich-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.rich-head label { font-weight: 600; font-size: 13px; color: var(--text-2); }
+.rich-tabs { display: inline-flex; gap: 2px; }
+.rich-tabs button { border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.rich-tabs button[aria-selected='true'] { color: var(--brand); background: var(--brand-softer); }
+.rich-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--border-strong); border-bottom: 0; border-radius: 8px 8px 0 0; background: var(--surface-2); }
+.rich-bar.off { opacity: 0.5; }
+.rich-tool { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 30px; border: 0; border-radius: 6px; background: none; color: var(--text-2); cursor: pointer; }
+.rich-tool:hover:not(:disabled) { background: var(--surface); color: var(--text); }
+.rich-tool:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.rich-tool:disabled { opacity: 0.4; cursor: default; }
+.rich-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border-strong); }
+.rich-ed textarea { border-radius: 0 0 8px 8px; min-height: 180px; resize: vertical; font-size: 14px; line-height: 1.55; }
+.rich-ed.drop textarea { outline: 2px dashed var(--brand); outline-offset: -4px; background: var(--brand-softer); }
+.rich-preview { min-height: 180px; max-height: 60vh; overflow: auto; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 0 0 8px 8px; background: var(--surface); }
+.rich-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.rich-foot .hint { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; font-size: 12px; }
+.rich-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.pm-edit-task .grid.two { grid-template-columns: 1fr; }
+/* How formatted text reads (the task page, the preview) */
+.rich { font-size: 14.5px; line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
+.rich > :first-child { margin-top: 0; }
+.rich > :last-child { margin-bottom: 0; }
+.rich p, .rich ul, .rich ol, .rich blockquote, .rich pre, .rich figure { margin: 0 0 12px; }
+.rich h3, .rich h4, .rich h5 { margin: 18px 0 8px; line-height: 1.3; color: var(--text); }
+.rich h3 { font-size: 18px; }
+.rich h4 { font-size: 16px; }
+.rich h5 { font-size: 14.5px; text-transform: none; letter-spacing: 0; }
+.rich ul, .rich ol { padding-left: 24px; }
+.rich li + li { margin-top: 4px; }
+.rich a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
+.rich code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; font-size: 0.9em; padding: 1px 5px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); }
+.rich pre { padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); overflow-x: auto; }
+.rich pre code { padding: 0; border: 0; background: none; font-size: 13px; white-space: pre; }
+.rich blockquote { padding: 2px 0 2px 14px; border-left: 3px solid var(--border-strong); color: var(--text-2); }
+.rich blockquote p { margin: 0; }
+.rich hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+.rich del { color: var(--muted); }
+.rich-img a { display: inline-block; max-width: 100%; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; background: var(--surface-2); line-height: 0; }
+.rich-img img { display: block; max-width: 100%; max-height: 520px; width: auto; height: auto; object-fit: contain; }
+.rich-img figcaption { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.rich-missing { font-size: 13px; color: var(--muted); font-style: italic; }
+.pm-desc .card-head { margin-bottom: 8px; }
+@media (pointer: coarse) {
+  .rich-tool { width: 44px; height: 44px; }
+  .rich-tabs button { min-height: 44px; padding: 0 14px; }
+  .rich-ed textarea { font-size: 16px; }
+}
+@media (max-width: 760px) {
+  .rich-foot .hint { display: none; }
+  .rich-img img { max-height: 360px; }
+}

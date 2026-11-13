@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Formatted task descriptions with pictures (0.21)
+- A task's description has a formatting toolbar: headings, bold, italic, strikethrough, code, links, lists, quotes and lines, with **Preview**. Add pictures with the toolbar, by pasting a screenshot or by dragging one in. See [the projects guide](projects#write-a-tasks-description).
+
 ### Project icons (0.20)
 - Each project can have its own icon: a picture from CORE's set on a colour, shown beside its name in every list, on its pages and on its tasks. Without one, a project shows the first letter of its name. See [the projects guide](projects#give-a-project-its-icon).
 
