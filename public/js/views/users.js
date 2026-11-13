@@ -2,6 +2,7 @@ import { api } from '../api.js';
 import { ctx, roleLabel } from '../state.js';
 import { ROLES } from '/shared/roles.js';
 import { html, mount, badge, toast, modal, confirmDialog } from '../ui.js';
+import { avatar, loadAvatars } from '../avatars.js';
 
 const ROLE_BADGE = { admin: 'maroon', hr: 'blue', payroll: 'amber', it: 'green', support: 'maroon-soft', sales: 'brand', salesmgr: 'brand', pm: 'green', employee: 'gray' };
 
@@ -46,7 +47,7 @@ function wireRoleHints(form) {
 }
 
 export async function usersView(el) {
-  const [users, employees] = await Promise.all([api.get('/api/users'), api.get('/api/employees')]);
+  const [users, employees] = await Promise.all([api.get('/api/users'), api.get('/api/employees'), loadAvatars()]);
   employees.sort((a, b) => a.lastName.localeCompare(b.lastName));
   const empById = new Map(employees.map((e) => [e.id, e]));
   const reload = () => usersView(el);
@@ -63,7 +64,7 @@ export async function usersView(el) {
         <tbody>${users.map((u) => {
           const emp = empById.get(u.employeeId);
           return html`<tr>
-            <td><div class="person"><span class="avatar">${u.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
+            <td><div class="person">${avatar(u.id, u.name)}
               <div><strong>${u.name}${u.id === ctx.user.id ? html` <span class="muted you">(you)</span>` : ''}</strong><small>${u.username}</small></div></div></td>
             <td>${badge(roleLabel(u.role), ROLE_BADGE[u.role])}${u.role !== 'admin' && typeof u.helpdeskAgent === 'boolean' ? html`<small><a href="#/admin/access">${u.helpdeskAgent ? '+ Helpdesk agent' : 'Helpdesk agent access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.crmAccess === 'boolean' ? html`<small><a href="#/admin/access">${u.crmAccess ? '+ Sales & CRM' : 'Sales & CRM access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.pmAccess === 'boolean' ? html`<small><a href="#/admin/access">${u.pmAccess ? '+ Projects' : 'Projects access removed'}</a></small>` : ''}</td>
             <td>${emp ? html`<a href="#/employees/${emp.id}">${emp.firstName} ${emp.lastName}</a>` : html`<span class="muted">—</span>`}</td>
@@ -75,6 +76,7 @@ export async function usersView(el) {
               <button class="link" data-reset="${u.id}">Reset password</button>
               ${u.sessions && u.id !== ctx.user.id ? html`<button class="link" data-signout="${u.id}">Sign out everywhere</button>` : ''}
               ${u.twoFactorEnabled && u.id !== ctx.user.id ? html`<button class="link" data-tfa="${u.id}">Reset 2-step</button>` : ''}
+              ${u.avatar && u.id !== ctx.user.id ? html`<button class="link" data-pic="${u.id}">Remove picture</button>` : ''}
               ${u.id === ctx.user.id ? '' : html`<button class="link danger" data-delete="${u.id}">Delete</button>`}
             </td>
           </tr>`;
@@ -109,7 +111,7 @@ export async function usersView(el) {
 
   el.querySelector('tbody').addEventListener('click', async (e) => {
     const t = e.target;
-    const user = users.find((u) => u.id === (t.dataset.edit || t.dataset.reset || t.dataset.delete || t.dataset.signout || t.dataset.tfa));
+    const user = users.find((u) => u.id === (t.dataset.edit || t.dataset.reset || t.dataset.delete || t.dataset.signout || t.dataset.tfa || t.dataset.pic));
     if (!user) return;
 
     if (t.dataset.signout && (await confirmDialog(`Sign ${user.name} out of CORE on every device? They can sign in again with their password.`, { title: 'Sign out everywhere', confirmLabel: 'Sign out', danger: false }))) {
@@ -121,6 +123,17 @@ export async function usersView(el) {
       try {
         await api.post(`/api/users/${user.id}/2fa/reset`);
         toast('2-step verification was reset.');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+      reload();
+    }
+
+    // A picture that should not be there (theirs to change: My picture in their menu).
+    if (t.dataset.pic && (await confirmDialog(`Remove ${user.name}'s profile picture? Their initials show instead; they can add another one. This is noted in the audit log.`, { title: 'Remove picture', confirmLabel: 'Remove picture' }))) {
+      try {
+        await api.del(`/api/users/${user.id}/avatar`);
+        toast('Picture removed.');
       } catch (err) {
         toast(err.message, 'error');
       }

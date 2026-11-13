@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.22.0-alpha',
+    date: '2026-11-13',
+    title: 'Profile pictures',
+    modules: ['system', 'projects', 'crm', 'hr'],
+    notes: 'Everyone can have a small profile picture, shown instead of their initials.',
+    changes: [
+      ['new', 'system', 'Profile picture: Add my picture (Change my picture) in the menu under your name, and on My Profile. The photo is framed with zoom and position, cut to a 256 × 256 square in the browser and saved as JPEG (PUT /api/me/avatar; DELETE removes it). The server takes JPEG, PNG or WebP by content (never SVG), at most 300 KB, and replaces or deletes the file with the picture and with the account.'],
+      ['new', 'system', 'Shown to everyone signed in (GET /api/users/:id/avatar, with its own type, nosniff and a sandbox policy; the address carries the picture\'s date, so browsers keep it until it changes; GET /api/avatars lists who has one). Administrators remove someone\'s picture under Users & Access (Remove picture, in the audit log as user.avatar-remove).'],
+      ['improved', 'system', 'Pictures replace initials in the top bar and its menu, Users & Access, project members, task cards, comments and watchers, Sales & CRM record owners and pipeline cards, and My Profile.'],
+    ],
+  },
+  {
     version: '0.21.0-alpha',
     date: '2026-11-13',
     title: 'Task descriptions: formatting and pictures',

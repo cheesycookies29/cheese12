@@ -14,6 +14,7 @@ import { icon } from '../icons.js';
 import { defaultDay, dayTotals } from '../phone.js';
 import { ACCEPT, prepareUpload, sizeLabel } from '../attachments.js';
 import { richEditor, wireRichEditor, richView } from '../richeditor.js';
+import { avatar as personAvatar } from '../avatars.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, MY_WORK_GROUPS,
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
@@ -133,7 +134,8 @@ function dueChip(t, { long = false } = {}) {
   if (t.dueSoon) return html`<span class="crm-due warn">${icon('calendar', 12)} ${t.dueDate === today() ? 'Today' : text}</span>`;
   return html`<span class="crm-due">${icon('calendar', 12)} ${text}</span>`;
 }
-const avatar = (name) => (name ? html`<span class="avatar xs" title="${name}">${initials(name)}</span>` : html`<span class="avatar xs pm-nobody" title="Unassigned">?</span>`);
+// A person's picture (or initials), small; a grey question mark for nobody.
+const avatar = (name, userId = null) => (name ? personAvatar(userId, name, { size: 'xs', title: name }) : html`<span class="avatar xs pm-nobody" title="Unassigned">?</span>`);
 
 // ---------- Data ----------
 let metaCache = null;
@@ -664,7 +666,7 @@ export async function projectOverviewView(el, { id }) {
       </div>
       <div class="stack">
         <section class="card"><div class="card-head"><h2>${icon('users')} Members</h2>${manage ? html`<button class="btn small-btn" id="members">Manage</button>` : ''}</div>
-          <ul class="crm-mini">${p.members.map((x) => html`<li>${avatar(x.name)}<span class="grow"><strong>${x.name}</strong><small>${MEMBER_ROLES[x.role]}${x.active ? '' : ' · account disabled'}</small></span></li>`)}</ul></section>
+          <ul class="crm-mini">${p.members.map((x) => html`<li>${avatar(x.name, x.userId)}<span class="grow"><strong>${x.name}</strong><small>${MEMBER_ROLES[x.role]}${x.active ? '' : ' · account disabled'}</small></span></li>`)}</ul></section>
         <section class="card"><h2>${icon('link')} Links</h2><dl class="info-grid">
           ${info('Client', p.accountName ? (can('crm.view') ? html`<a href="#/crm/accounts/${p.accountId}">${p.accountName}</a>` : p.accountName) : 'Internal')}
           ${info('Deal', p.deal ? (can('crm.view') ? html`<a href="#/crm/deals/${p.deal.id}">${p.deal.code} · ${p.deal.title}</a>` : `${p.deal.code} · ${p.deal.title}`) : '')}
@@ -1000,7 +1002,7 @@ export async function boardView(el, { id }, query) {
         ${work ? html`<button type="button" class="icon-btn pm-move-btn" data-move="${t.id}" aria-haspopup="menu" aria-label="Move ${t.key} to…" title="Move to…">${icon('chevronDown', 16)}</button>` : ''}</div>
       <a class="pm-card-title" href="#/projects/${p.id}/tasks/${t.id}">${t.title}</a>
       ${t.parentId ? html`<small class="muted">Subtask of ${tasks.find((x) => x.id === t.parentId)?.key || ''}</small>` : ''}
-      <div class="pm-card-foot">${sizeChip(t.size, m.sizes)}${dueChip(t)}${t.checklist.length ? html`<span class="pm-meta" title="Checklist">${icon('check', 12)} ${t.checklistDone}/${t.checklist.length}</span>` : ''}${t.subtasks ? html`<span class="pm-meta" title="Subtasks">${icon('layers', 12)} ${t.subtasks}</span>` : ''}${t.ticket ? html`<span class="pm-meta" title="Service desk ticket ${t.ticket.ref}">${icon('ticket', 12)}</span>` : ''}<span class="spacer"></span>${avatar(t.assigneeName)}</div>
+      <div class="pm-card-foot">${sizeChip(t.size, m.sizes)}${dueChip(t)}${t.checklist.length ? html`<span class="pm-meta" title="Checklist">${icon('check', 12)} ${t.checklistDone}/${t.checklist.length}</span>` : ''}${t.subtasks ? html`<span class="pm-meta" title="Subtasks">${icon('layers', 12)} ${t.subtasks}</span>` : ''}${t.ticket ? html`<span class="pm-meta" title="Service desk ticket ${t.ticket.ref}">${icon('ticket', 12)}</span>` : ''}<span class="spacer"></span>${avatar(t.assigneeName, t.assigneeId)}</div>
     </article>`;
   function draw(focusId) {
     const list = shown();
@@ -1594,7 +1596,7 @@ export async function taskView(el, { projectId, id }) {
     const canDelete = may(t.access, 'manage') || (work && t.createdBy === ctx.user.id);
     const blockedChoices = t.others.filter((x) => !t.blockedBy.includes(x.id));
     const hist = (h) => html`<li><strong>${h.byName}</strong> ${h.field === 'created' ? html`added the task${h.to ? ` (${h.to})` : ''}` : html`${h.field}: ${h.from || '—'} → ${h.to || '—'}`}<small class="muted">${when(h.at)}</small></li>`;
-    const comment = (c) => html`<li class="pm-comment"><span class="avatar xs">${initials(c.userName)}</span><div class="grow"><div><strong>${c.userName}</strong> <small class="muted">${when(c.createdAt)}</small>
+    const comment = (c) => html`<li class="pm-comment">${avatar(c.userName, c.userId)}<div class="grow"><div><strong>${c.userName}</strong> <small class="muted">${when(c.createdAt)}</small>
       ${c.canDelete ? html`<button type="button" class="icon-btn danger" data-del-c="${c.id}" aria-label="Delete comment">${icon('trash', 14)}</button>` : ''}</div>
       <p class="pre">${mentionParts(c.body, usernames).map((x) => (x.mention ? html`<mark class="pm-mention">@${x.mention}</mark>` : x.text))}</p></div></li>`;
     mount(el, html`<div class="pm-task-page">
@@ -1643,7 +1645,7 @@ export async function taskView(el, { projectId, id }) {
             ${t.blocking.length ? html`<p class="small muted">${t.blocking.map((b) => b.key).join(', ')} ${t.blocking.length === 1 ? 'waits' : 'wait'} for this task.</p>` : ''}
           </section>
           ${p.isTemplate ? '' : html`<section class="card"><h2>${icon('eye')} Watchers</h2>
-            ${t.watcherList.length ? html`<ul class="pm-watchers">${t.watcherList.map((w) => html`<li>${avatar(w.name)}<span>${w.name}${w.userId === ctx.user.id ? ' (you)' : ''}</span></li>`)}</ul>` : html`<p class="muted small">Nobody is watching this task.</p>`}
+            ${t.watcherList.length ? html`<ul class="pm-watchers">${t.watcherList.map((w) => html`<li>${avatar(w.name, w.userId)}<span>${w.name}${w.userId === ctx.user.id ? ' (you)' : ''}</span></li>`)}</ul>` : html`<p class="muted small">Nobody is watching this task.</p>`}
             <p class="muted small">Watchers hear of comments and when the task is done or cancelled. Who added it, its assignee and whoever comments watch it.</p></section>`}
           ${t.ticket ? html`<section class="card"><h2>${icon('ticket')} Service desk ticket</h2><p>${can('helpdesk.agent') ? html`<a href="#/helpdesk/tickets/${t.ticket.id}" class="mono">${t.ticket.ref}</a>` : html`<span class="mono">${t.ticket.ref}</span>`} ${badge(t.ticket.statusName, ['resolved', 'closed'].includes(t.ticket.status) ? 'green' : 'blue')}</p><p class="muted small">Closing one does not close the other.</p></section>` : ''}
           ${t.time ? html`<section class="card"><div class="card-head"><h2>${icon('clock')} Time</h2><span class="muted small">${hrs(t.loggedHours)} logged</span></div>

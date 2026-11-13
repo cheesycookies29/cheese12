@@ -106,6 +106,11 @@ try {
         await page.click(sel, { timeout: 8000 });
         await page.waitForTimeout(wait);
       }
+      // "files": { selector: "path from the repo" }: a file chosen in a file box (e.g. a sample photo).
+      for (const [sel, file] of Object.entries(s.files || {})) {
+        await page.setInputFiles(sel, path.join(ROOT, file));
+        await page.waitForTimeout(wait);
+      }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();
       const text = await page.$eval('#app', (e) => e.innerText).catch(() => '');
       if (/Something went wrong|Not found\.|It may have been deleted|does not have access/.test(text)) throw new Error(text.slice(0, 160));

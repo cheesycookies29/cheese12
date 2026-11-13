@@ -29,6 +29,7 @@ export const AUDIT_ACTIONS = {
   'auth.recovery-used': 'Signed in with a recovery code',
   'auth.recovery-new': 'Made new recovery codes',
   'auth.sessions': 'Signed out other sessions',
+  'user.avatar-remove': 'Profile picture removed',
   'user.2fa-reset': 'Reset 2-step verification',
   'user.sign-out': 'Signed a user out everywhere',
   'settings.security': 'Changed sign-in and security settings',

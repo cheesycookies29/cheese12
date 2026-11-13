@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Profile pictures (0.22)
+- Everyone can add a small profile picture: choose your name at the top right, then **Add my picture**, and frame the photo. It shows instead of your initials across CORE. See [Getting started](getting-started#add-your-profile-picture). Administrators can remove one from **Users & Access** (see [the administrator's guide](admin#remove-someones-profile-picture)).
+
 ### Formatted task descriptions with pictures (0.21)
 - A task's description has a formatting toolbar: headings, bold, italic, strikethrough, code, links, lists, quotes and lines, with **Preview**. Add pictures with the toolbar, by pasting a screenshot or by dragging one in. See [the projects guide](projects#write-a-tasks-description).
 

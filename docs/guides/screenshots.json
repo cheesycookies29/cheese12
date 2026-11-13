@@ -6,6 +6,7 @@
   {"file": "getting-started-user-menu.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#user-btn"], "wait": 900},
   {"file": "getting-started-phone.jpg", "user": "employee.demo", "url": "/#/launcher", "viewport": "phone", "wait": 1200},
   {"file": "getting-started-security.jpg", "user": "employee.demo", "url": "/#/account/security", "wait": 1000},
+  {"file": "getting-started-picture.jpg", "user": "employee.demo", "url": "/#/launcher", "click": ["#user-btn", "#my-picture"], "files": {".avatar-dialog input[type=file]": "scripts/fixtures/profile-sample.jpg"}, "wait": 700},
   {"file": "getting-started-help.jpg", "user": "employee.demo", "url": "/help/#/", "wait": 1200},
   {"file": "approver-flow.jpg", "user": "admin", "url": "/#/payroll", "api": [["POST", "/api/payroll-runs", {"periodStart": "2026-10-16", "periodEnd": "2026-10-31", "payDate": "2026-10-30"}]], "click": ["tr[data-href] >> nth=0", "#finalize", ".modal button[type=submit]", "#nav a[href='#/leave']", "text=Approval flow"], "wait": 2000, "fresh": true},
   {"file": "employee-home.jpg", "user": "employee.demo", "url": "/#/me", "wait": 1000},

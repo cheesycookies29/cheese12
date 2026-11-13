@@ -5,6 +5,7 @@ import { icon, iconSvg } from './icons.js';
 import { MODULES, SWITCHABLE } from './modules.js';
 import { redirectOf } from '/shared/redirects.js';
 import { nextInTrap } from './phone.js';
+import { avatar, loadAvatars, editMyAvatar } from './avatars.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
 import { clockView, dtrView } from './views/time.js';
@@ -339,16 +340,16 @@ function markModuleSwitch() {
 
 function renderUserBox() {
   const u = ctx.user;
-  const initials = u.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const box = document.getElementById('user-box');
   mount(box, html`
     <button type="button" class="user-btn" id="user-btn" aria-haspopup="menu" aria-expanded="false">
-      <span class="avatar">${initials}</span>
+      ${avatar(u.id, u.name)}
       <span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}</small></span>
       ${icon('chevronDown', 16)}
     </button>
     <div class="menu-pop" id="user-pop" role="menu" hidden>
-      <div class="who"><strong>${u.name}</strong><small>${u.username}</small><small>${roleLabel(u.role)}</small></div>
+      <div class="who who-pic">${avatar(u.id, u.name, { size: 'lg' })}<div><strong>${u.name}</strong><small>${u.username}</small><small>${roleLabel(u.role)}</small></div></div>
+      <button type="button" role="menuitem" id="my-picture">${icon('image')} ${ctx.avatars?.[u.id] ? 'Change my picture' : 'Add my picture'}</button>
       <a role="menuitem" href="#/feedback">${icon('comment')} Send feedback</a>
       <a role="menuitem" href="#/account/security">${icon('shield')} My security</a>
       <button type="button" role="menuitem" id="change-pw">${icon('key')} Change password</button>
@@ -356,6 +357,11 @@ function renderUserBox() {
     </div>`);
   popover(box, box.querySelector('#user-btn'), box.querySelector('#user-pop'));
   box.querySelector('#change-pw').addEventListener('click', openChangePassword);
+  // After a new picture: the top bar, and the page (its lists show the new one).
+  box.querySelector('#my-picture').addEventListener('click', () => editMyAvatar(() => {
+    renderUserBox();
+    navigate();
+  }));
   box.querySelector('#sign-out').addEventListener('click', signOut);
 }
 
@@ -535,7 +541,7 @@ async function boot({ fresh = false } = {}) {
   if (ctx.user.mustChangePassword) return showAuth(forcePasswordView);
   if (ctx.user.twoFactorSetupRequired) return showAuth(forceTwoFactorView);
 
-  await Promise.all([ctx.refreshSettings(), mayUseModule('hr') ? ctx.refreshLeaveTypes() : (ctx.leaveTypes = []), ctx.refreshHolidays()]);
+  await Promise.all([ctx.refreshSettings(), mayUseModule('hr') ? ctx.refreshLeaveTypes() : (ctx.leaveTypes = []), ctx.refreshHolidays(), loadAvatars()]);
   setMode(null);
   mount(document.getElementById('auth'), '');
   ctx.module = null;

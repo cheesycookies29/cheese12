@@ -4,7 +4,7 @@ import { computePayslip, toMinutes } from '../shared/calc.js';
 import { DAY_TYPES } from '../shared/holidays.js';
 import { HttpError, localDate, localTime } from './util.js';
 import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
-import { createAttachments } from './attachments.js';
+import { createAttachments, parseUpload } from './attachments.js';
 import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
@@ -733,6 +733,53 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     return { ...next, policies: TWO_FACTOR_POLICIES };
   });
 
+  // ----- Profile pictures -----
+  // Everyone's own small picture, shown instead of their initials. A square JPEG, PNG or WebP (by its
+  // first bytes, never SVG), made small in the browser, at most 300 KB. Set and removed by its owner;
+  // an administrator can remove anyone's. Shown to everyone signed in, with its own type, nosniff and
+  // a sandbox policy; the address carries the picture's date, so a new one is not hidden by the cache.
+  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const AVATAR_MAX = 300 * 1024;
+  const avatarList = () => Object.fromEntries(users().filter((u) => u.avatar?.id).map((u) => [u.id, u.avatar.at]));
+  function setAvatar(user, file) {
+    const up = parseUpload(file);
+    if (!AVATAR_TYPES.includes(up.type)) throw new HttpError(400, 'Use a photo: JPEG, PNG or WebP.');
+    if (up.buffer.length > AVATAR_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${AVATAR_MAX / 1024} KB.`);
+    const old = user.avatar;
+    const saved = files.save({ ...up, name: 'profile' });
+    user.avatar = { id: saved.id, type: saved.type, size: saved.size, at: saved.uploadedAt };
+    if (old?.id) files.remove(old);
+  }
+  function dropAvatar(user) {
+    if (!user.avatar) return false;
+    files.remove(user.avatar);
+    delete user.avatar;
+    return true;
+  }
+  route('GET', '/api/avatars', 'auth', () => avatarList());
+  route('GET', '/api/users/:id/avatar', 'auth', ({ params }) => {
+    const user = users().find((u) => u.id === params.id);
+    if (!user?.avatar?.id) throw new HttpError(404, 'No picture.');
+    return { data: files.buffer(user.avatar), headers: { 'Content-Type': user.avatar.type, 'Content-Disposition': 'inline; filename="profile"', 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=31536000, immutable' } };
+  });
+  route('PUT', '/api/me/avatar', 'auth', ({ user, body }) => {
+    setAvatar(user, body?.file);
+    db.save();
+    return { avatar: user.avatar.at, avatars: avatarList() };
+  });
+  route('DELETE', '/api/me/avatar', 'auth', ({ user }) => {
+    dropAvatar(user);
+    db.save();
+    return { avatar: null, avatars: avatarList() };
+  });
+  route('DELETE', '/api/users/:id/avatar', 'users.manage', ({ params }) => {
+    const user = findUser(db, params.id);
+    if (!dropAvatar(user)) throw new HttpError(400, `${user.name} has no picture.`);
+    db.save();
+    audit.record('user.avatar-remove', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, note: 'Profile picture removed by an administrator' });
+    return publicUser(user);
+  });
+
   // ----- User accounts -----
   route('GET', '/api/users', 'users.manage', () => users().map((u) => ({ ...publicUser(u), sessions: sessions.list(u.id).length, twoFactorRequired: twoFactorRequired(sec(), u) })));
   route('POST', '/api/users', 'users.manage', ({ body }) => {
@@ -795,6 +842,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     if (user.id === me.id) throw new HttpError(400, 'You cannot delete your own account.');
     if (user.role === 'admin' && user.active && activeAdmins().length === 1) throw new HttpError(400, 'There must be at least one active administrator.');
     db.data.users = users().filter((u) => u.id !== user.id);
+    dropAvatar(user);
     // Sales & CRM records they owned now have no owner (shown as such), not a dangling id.
     for (const k of ['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts', 'crmActivities']) for (const x of db.data[k] || []) if (x.ownerId === user.id) x.ownerId = null;
     // Off every project; their tasks are unassigned.

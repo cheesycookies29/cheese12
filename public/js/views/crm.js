@@ -7,6 +7,7 @@ import { ctx, can, roleLabel, mayUseModule } from '../state.js';
 import { html, mount, formErrors, badge, toast, modal, confirmDialog, money, fmtDate, today, downloadFile, toCsv } from '../ui.js';
 import { icon } from '../icons.js';
 import { startProject } from './projects.js';
+import { avatar } from '../avatars.js';
 import {
   ACCOUNT_TYPES, SECTORS, LEAD_STATUS, OPEN_LEAD, BID_STATUS, OPEN_BID, BID_MODES, CONTRACT_STATUS, ACTIVITY_TYPES,
   stageList, isOpenDeal, daysBetween,
@@ -42,7 +43,7 @@ const guard = (fn, after) => async (...args) => {
 const reloadPage = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
 const initials = (name) => (name || '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-const ownerChip = (name) => (name ? html`<span class="crm-owner" title="${name}"><span class="avatar xs">${initials(name)}</span>${name}</span>` : html`<span class="muted">No owner</span>`);
+const ownerChip = (name, id = null) => (name ? html`<span class="crm-owner" title="${name}">${avatar(id, name, { size: 'xs' })}${name}</span>` : html`<span class="muted">No owner</span>`);
 const info = (label, value) => html`<div class="info"><dt>${label}</dt><dd>${value || value === 0 ? value : html`<span class="muted">—</span>`}</dd></div>`;
 const canEdit = () => can('crm.edit');
 const canManage = () => can('crm.manage');
@@ -570,7 +571,7 @@ export async function pipelineView(el, _params, query) {
       <span class="crm-card-acct">${x.accountName}</span>
       <div class="crm-card-foot"><strong>${short(x.value)}</strong>
         ${x.expectedClose ? html`<span class="crm-due ${isOpenDeal(x) && x.expectedClose < today() ? 'bad' : ''}">${icon('calendar', 12)} ${fmtDate(x.expectedClose, { month: 'short', day: 'numeric' })}</span>` : ''}
-        <span class="avatar xs" title="${x.ownerName || ''}">${initials(x.ownerName)}</span></div>
+        ${avatar(x.ownerId, x.ownerName, { size: 'xs', title: x.ownerName || '' })}</div>
       ${x.nextStep && isOpenDeal(x) ? html`<small class="crm-card-next">${icon('chevronRight', 12)} ${x.nextStep}</small>` : ''}
     </article>`;
   function draw() {
@@ -702,7 +703,7 @@ export async function dealView(el, { id }) {
         <section class="card"><h2>Details</h2><dl class="info-grid">
           ${info('Value', money(x.value))}${info('Weighted', html`${money(x.weighted)} <small class="muted">(${x.probability}%)</small>`)}
           ${info('Expected close', x.expectedClose ? html`${fmtDate(x.expectedClose)}${isOpenDeal(x) && x.expectedClose < today() ? html` ${badge('Overdue', 'amber')}` : ''}` : '')}
-          ${info('Owner', ownerChip(x.ownerName))}${info('Source', x.source)}${info('Next step', x.nextStep)}${x.renews ? info('Renews', html`<a href="#/crm/contracts/${x.renews.id}">${x.renews.code} · ${x.renews.title}</a>`) : ''}
+          ${info('Owner', ownerChip(x.ownerName, x.ownerId))}${info('Source', x.source)}${info('Next step', x.nextStep)}${x.renews ? info('Renews', html`<a href="#/crm/contracts/${x.renews.id}">${x.renews.code} · ${x.renews.title}</a>`) : ''}
           ${x.closedAt ? info(x.stage === 'won' ? 'Won on' : 'Lost on', fmtDate(x.closedAt.slice(0, 10))) : ''}${x.lostReason ? info('Lost reason', x.lostReason) : ''}
         </dl>${x.description ? html`<p class="pre small crm-desc">${x.description}</p>` : ''}</section>
         <section class="card"><div class="card-head"><h2>Bids</h2>${canEdit() ? html`<button class="btn small-btn" id="add-bid">+ Bid</button>` : ''}</div>
@@ -756,7 +757,7 @@ export async function leadView(el, { id }) {
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <section class="card"><h2>Details</h2><dl class="info-grid">
         ${info('Position', l.title)}${info('Email', l.email ? html`<a href="mailto:${l.email}">${l.email}</a>` : '')}${info('Phone', l.phone)}
-        ${info('Estimated value', l.estimatedValue ? money(l.estimatedValue) : '')}${info('Owner', ownerChip(l.ownerName))}${info('Added', fmtDate(l.createdAt.slice(0, 10)))}
+        ${info('Estimated value', l.estimatedValue ? money(l.estimatedValue) : '')}${info('Owner', ownerChip(l.ownerName, l.ownerId))}${info('Added', fmtDate(l.createdAt.slice(0, 10)))}
         ${l.disqualifiedReason ? info('Disqualified because', l.disqualifiedReason) : ''}${l.ticketId ? info('From', html`<a href="#/helpdesk/tickets/${l.ticketId}">Service desk ticket</a>`) : ''}
       </dl>${l.interest ? html`<h3>What they need</h3><p class="pre small">${l.interest}</p>` : ''}</section>
     </div>`);
@@ -826,7 +827,7 @@ export async function accountView(el, { id }) {
       <section class="card"><h2>Activity</h2><p class="muted small">Includes the activity of its contacts, deals, bids and contracts.</p><div id="timeline"></div></section>
       <div class="stack">
         <section class="card"><h2>Details</h2><dl class="info-grid">
-          ${info('Email', a.email ? html`<a href="mailto:${a.email}">${a.email}</a>` : '')}${info('Phone', a.phone)}${info('Website', a.website)}${info('TIN', a.tin)}${info('Owner', ownerChip(a.ownerName))}
+          ${info('Email', a.email ? html`<a href="mailto:${a.email}">${a.email}</a>` : '')}${info('Phone', a.phone)}${info('Website', a.website)}${info('TIN', a.tin)}${info('Owner', ownerChip(a.ownerName, a.ownerId))}
           ${a.tags?.length ? info('Tags', html`${a.tags.map((t) => html`<span class="badge gray">${t}</span> `)}`) : ''}
         </dl>${a.notes ? html`<p class="pre small crm-desc">${a.notes}</p>` : ''}</section>
         <section class="card"><div class="card-head"><h2>People</h2>${canEdit() ? html`<button class="btn small-btn" id="add-contact">+ Contact</button>` : ''}</div>
@@ -879,7 +880,7 @@ export async function contactView(el, { id }) {
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <div class="stack">
         <section class="card"><h2>Details</h2><dl class="info-grid">
-          ${info('Email', c.email ? html`<a href="mailto:${c.email}">${c.email}</a>` : '')}${info('Mobile', c.mobile ? html`<a href="tel:${c.mobile.replace(/\s+/g, '')}">${c.mobile}</a>` : '')}${info('Office phone', c.phone)}${info('Owner', ownerChip(c.ownerName))}
+          ${info('Email', c.email ? html`<a href="mailto:${c.email}">${c.email}</a>` : '')}${info('Mobile', c.mobile ? html`<a href="tel:${c.mobile.replace(/\s+/g, '')}">${c.mobile}</a>` : '')}${info('Office phone', c.phone)}${info('Owner', ownerChip(c.ownerName, c.ownerId))}
         </dl>${c.notes ? html`<p class="pre small crm-desc">${c.notes}</p>` : ''}</section>
         <section class="card"><h2>Deals</h2>${c.deals.length ? html`<ul class="crm-mini">${c.deals.map((x) => html`<li><span class="grow"><a href="#/crm/deals/${x.id}"><strong>${x.title}</strong></a><small>${x.code}</small></span><span class="crm-amt">${short(x.value)}<small>${stageBadge(x)}</small></span></li>`)}</ul>` : html`<p class="muted small">Not the main contact on any deal.</p>`}</section>
       </div>
@@ -937,7 +938,7 @@ export async function bidView(el, { id }) {
       <div class="stack">
         <section class="card"><h2>Details</h2><dl class="info-grid">
           ${info('Bid opening', b.openingDate ? fmtDate(b.openingDate) : '')}${info('Pre-bid conference', b.preBidDate ? fmtDate(b.preBidDate) : '')}
-          ${info('Submitted', b.submittedAt ? fmtDate(b.submittedAt.slice(0, 10)) : '')}${info('Linked deal', b.dealId ? html`<a href="#/crm/deals/${b.dealId}">Open the deal</a>` : '')}${info('Owner', ownerChip(b.ownerName))}
+          ${info('Submitted', b.submittedAt ? fmtDate(b.submittedAt.slice(0, 10)) : '')}${info('Linked deal', b.dealId ? html`<a href="#/crm/deals/${b.dealId}">Open the deal</a>` : '')}${info('Owner', ownerChip(b.ownerName, b.ownerId))}
         </dl>${b.notes ? html`<p class="pre small crm-desc">${b.notes}</p>` : ''}</section>
         <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       </div>
@@ -1005,7 +1006,7 @@ export async function contractView(el, { id }) {
     <div class="cols wide-left crm-record">
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
       <section class="card"><h2>Details</h2><dl class="info-grid">
-        ${info('Owner', ownerChip(c.ownerName))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}
+        ${info('Owner', ownerChip(c.ownerName, c.ownerId))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}
         ${c.renewals.length ? info('Renewal', html`${c.renewals.map((x) => html`<a href="#/crm/deals/${x.id}">${x.code} · ${x.title}</a> ${stageBadge(x)} `)}`) : ''}
       </dl>${c.terms ? html`<h3>Key terms</h3><p class="pre small">${c.terms}</p>` : ''}</section>
     </div>

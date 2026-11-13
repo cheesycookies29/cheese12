@@ -50,7 +50,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The modules menu](getting-started-modules.jpg)
 
-7. Choose your name at the top right. The menu shows your username and account type, **Send feedback**, **My security**, **Change password** and **Sign out**.
+7. Choose your name at the top right. The menu shows your picture (or your initials), username and account type, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
 
 ![The menu under your name](getting-started-user-menu.jpg)
 
@@ -100,6 +100,17 @@ If you are on a project that tracks time (most do not: they use task sizes, not 
 **Show today's digest** opens the same lists on the page. See [the projects guide](projects#get-the-daily-digest).
 
 Your **My Home** page in HR & Payroll also shows **My project tasks** when you have some. See [the projects guide](projects).
+
+### Add your profile picture
+
+1. Choose your name at the top right, then **Add my picture** (**Change my picture** once you have one).
+2. Choose **Choose a photo…** and pick a photo; on a phone you can also take one.
+3. Move **Zoom**, **Left – right** and **Up – down** until your face sits in the circle.
+4. Choose **Save picture**.
+
+![Choosing a profile picture](getting-started-picture.jpg)
+
+Your picture is shown instead of your initials next to your name: at the top right, in project members, task cards, comments and watchers, record owners in Sales & CRM, and Users & Access. Everyone signed in to CORE can see it, so choose one you are happy for colleagues to see. CORE keeps only a small square of the photo (256 × 256). **Remove my picture** in the same window brings your initials back. Employees also find **Add my picture** on **My Profile**.
 
 ### Change your password
 
@@ -196,7 +207,7 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | Admin panel | For administrators: users, roles, modules, settings, records and backups (see [the administrator's guide](admin)) |
 | Modules menu (grid button) | Switching modules from anywhere |
 | Help & guides (question mark) | The guide for your job, search, and what's new |
-| Your name (top right) | Send feedback, My security, Change password, Sign out |
+| Your name (top right) | Add or change your picture, Send feedback, My security, Change password, Sign out |
 | My security | Change password, 2-step verification and recovery codes, where you are signed in |
 | Send feedback | A message to the administrators about CORE |
 

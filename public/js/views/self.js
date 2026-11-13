@@ -10,6 +10,7 @@ import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
 import { readClockLocation, LOCATION_NOTICE } from '../geo.js';
 import { payslipCard } from './payroll.js';
 import { openChangePassword } from './login.js';
+import { avatar, editMyAvatar } from '../avatars.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -232,10 +233,10 @@ export async function meProfileView(el) {
   const sched = scheduleFor(emp, ctx.settings);
   mount(el, html`
     <header class="page-head">
-      <div class="person big"><span class="avatar">${emp.firstName[0]}${emp.lastName[0]}</span>
+      <div class="person big">${avatar(ctx.user.id, `${emp.firstName} ${emp.lastName}`)}
         <div><h1>${emp.firstName} ${emp.middleName ? emp.middleName + ' ' : ''}${emp.lastName}</h1>
         <p class="muted">${emp.position || 'Employee'} · ${emp.department || '—'} · <span class="nowrap">${emp.employeeNo}</span></p></div></div>
-      <div class="actions"><button class="btn" id="change-pw">Change password</button></div>
+      <div class="actions"><button class="btn" id="my-pic">${ctx.avatars?.[ctx.user.id] ? 'Change my picture' : 'Add my picture'}</button><button class="btn" id="change-pw">Change password</button></div>
     </header>
     <div class="cols">
       <section class="card"><h2>Personal</h2><dl class="info-grid">
@@ -255,6 +256,7 @@ export async function meProfileView(el) {
     </div>
     <p class="muted small">Need to update your details? Contact HR.</p>`);
   el.querySelector('#change-pw').addEventListener('click', openChangePassword);
+  el.querySelector('#my-pic').addEventListener('click', () => editMyAvatar(() => location.reload()));
 }
 
 export async function meRequestsView(el, _params, query) {

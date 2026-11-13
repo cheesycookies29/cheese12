@@ -156,6 +156,13 @@ For someone who lost their phone and their recovery codes. Confirm who they are 
 
 They are signed out, sign in with their password only, and set up 2-step verification again if the company requires it. Your own 2-step verification is changed under your name → **My security**.
 
+### Remove someone's profile picture
+
+1. Open **Admin panel → Users & Access** and click **Remove picture** on the row.
+2. Confirm **Remove picture**.
+
+Their initials show instead, everywhere. They can add another picture themselves; you cannot add one for them. The removal is in the audit log. Your own picture is under your name at the top right, like everyone's. Deleting an account deletes its picture.
+
 ### Delete an account
 
 1. Open **Admin panel → Users & Access** and click **Delete** on the row.
