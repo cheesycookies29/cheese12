@@ -1,5 +1,5 @@
-// Project Management: statuses, labels and the calculations behind progress, health, board
-// order and workload. Shared by the server (validation, reports) and the browser (labels,
+// Project Management: statuses, labels and the calculations behind progress, health and board
+// order. Shared by the server (validation, reports) and the browser (labels,
 // badges), so no Node or DOM APIs here. Everything computed here is worked out when it is read,
 // never stored.
 //
@@ -40,18 +40,16 @@ export const ESTIMATE_SHARE = 0.6; // weigh progress by size when this share of 
 
 // ---------- Effort sizes ----------
 // A task's size: how much work it is, roughly. The weight counts in progress and the burn-up (a
-// Large task is worth five Extra small ones); the days (working days) are only for Workload. The
-// Projects setup may reword the descriptions ("about a day"), never the weights or the days.
+// Large task is worth five Extra small ones). The Projects setup may reword the descriptions
+// ("about a day"), never the weights.
 export const SIZES = {
-  XS: { label: 'Extra small', effort: 'under half a day', weight: 1, days: 0.25 },
-  S: { label: 'Small', effort: 'about a day', weight: 2, days: 1 },
-  M: { label: 'Medium', effort: 'a few days', weight: 3, days: 3 },
-  L: { label: 'Large', effort: 'about a week', weight: 5, days: 5 },
-  XL: { label: 'Extra large', effort: 'two weeks or more', weight: 8, days: 10 },
+  XS: { label: 'Extra small', effort: 'under half a day', weight: 1 },
+  S: { label: 'Small', effort: 'about a day', weight: 2 },
+  M: { label: 'Medium', effort: 'a few days', weight: 3 },
+  L: { label: 'Large', effort: 'about a week', weight: 5 },
+  XL: { label: 'Extra large', effort: 'two weeks or more', weight: 8 },
 };
 export const SIZE_KEYS = Object.keys(SIZES);
-// Workload counts a task without a size as Medium (and says so).
-export const UNSIZED_AS = 'M';
 export const DEFAULT_SIZE_NOTES = Object.fromEntries(SIZE_KEYS.map((k) => [k, SIZES[k].effort]));
 export const isSize = (v) => typeof v === 'string' && Object.hasOwn(SIZES, v);
 // "M · Medium"; '' for no size.
@@ -59,8 +57,6 @@ export const sizeName = (s) => (isSize(s) ? `${s} · ${SIZES[s].label}` : '');
 // What a size means: the company's wording (Projects setup) or the built-in one.
 export const sizeEffort = (s, notes) => (isSize(s) ? (typeof notes?.[s] === 'string' && notes[s].trim()) || SIZES[s].effort : '');
 export const sizeWeight = (s) => (isSize(s) ? SIZES[s].weight : 0);
-// The effort of a task in working days, for Workload only.
-export const effortDays = (t) => SIZES[isSize(t?.size) ? t.size : UNSIZED_AS].days;
 // The size an hour estimate becomes (the 0.17 migration and "Estimate (h)" in an import):
 // up to 2 h XS, up to 8 h S, up to 24 h M, up to 48 h L, more XL. No estimate: no size.
 export function sizeFromHours(h) {
@@ -332,103 +328,6 @@ export function myWorkGroup(task, today) {
   if (task.dueDate === today) return 'today';
   if (task.dueDate <= addDays(weekStart(today), 6)) return 'week';
   return 'later';
-}
-
-// ---------- Workload ----------
-// How busy each person is, week by week, as a level rather than a number of hours: the effort of
-// their open tasks (their sizes, in working days) against the working days they have.
-export const LOAD_LEVELS = {
-  light: { label: 'Light', note: 'under 50% of the days available' },
-  normal: { label: 'Normal', note: '50 to 90%' },
-  busy: { label: 'Busy', note: '90 to 120%' },
-  over: { label: 'Overloaded', note: 'over 120%' },
-  leave: { label: 'On leave', note: 'no days available' },
-  off: { label: 'Days off', note: 'no working days: holidays' },
-};
-export const LOAD_LIMITS = { normal: 0.5, busy: 0.9, over: 1.2 };
-// The level of `planned` days against `available` days (onLeave: some of the week is leave).
-export function loadLevel(planned, available, onLeave = false) {
-  if (!(available > 0)) return onLeave ? 'leave' : 'off';
-  const r = (Number(planned) || 0) / available;
-  if (r < LOAD_LIMITS.normal - 1e-9) return 'light';
-  if (r <= LOAD_LIMITS.busy + 1e-9) return 'normal';
-  if (r <= LOAD_LIMITS.over + 1e-9) return 'busy';
-  return 'over';
-}
-
-// The working days of an open task, by day: its effort (`days`, or its size's days; Medium
-// without a size) spread evenly over its working days from start to due. Days before `from` are
-// past and not counted. Only a due date (or no working day in between): all on the due date. A task
-// already overdue counts whole on `from`: it is still to be done. No due date: not planned.
-export function plannedDays(task, cal, from) {
-  const effort = task.days !== undefined ? Number(task.days) || 0 : effortDays(task);
-  if (!effort || !task.dueDate) return [];
-  if (task.dueDate < from) return [{ date: from, days: effort }];
-  const all = task.startDate && task.startDate <= task.dueDate ? workDatesIn(task.startDate, task.dueDate, cal) : [];
-  if (!all.length) return [{ date: task.dueDate, days: effort }];
-  const each = effort / all.length;
-  const left = all.filter((d) => d >= from);
-  // Due on a day off after its last working day has gone by: what is left of it is today's.
-  if (!left.length) return [{ date: from, days: each }];
-  return left.map((date) => ({ date, days: each }));
-}
-
-// The days a person can work in a week: their working days that are not holidays, minus approved
-// leave (leave: Map date → days off, 1 or 0.5).
-export function weekCapacity(week, person, cal) {
-  const pcal = { workDays: person.workDays || cal.workDays, off: cal.off };
-  let days = 0;
-  for (let i = 0; i < 7; i++) {
-    const d = addDays(week, i);
-    if (!isWorkDay(d, pcal)) continue;
-    days += 1 - Math.min(1, person.leave?.get(d) || 0);
-  }
-  return Math.round(days * 100) / 100;
-}
-
-// Person × week grid of levels, in whole weeks from the week `from` is in (so a week reads the same
-// on Monday and on Friday). people: [{ id, name, workDays?, leave? }]; tasks: open leaf tasks
-// with assigneeId, size, startDate, dueDate (plus whatever the caller wants back). A task due
-// before the first week counts whole in it. Each cell: { week, available (days), planned (days),
-// level, onLeave, tasks: [{ …task, days, unsized, overdue }] }.
-export function workload({ people, tasks, from, weeks, cal }) {
-  const first = weekStart(from);
-  const keys = Array.from({ length: weeks }, (_, i) => addDays(first, i * 7));
-  const end = addDays(first, weeks * 7 - 1);
-  const start = first;
-  const r2 = (n) => Math.round(n * 100) / 100;
-  const rows = people.map((p) => {
-    const cells = keys.map((week) => {
-      const onLeave = [...(p.leave?.keys() || [])].some((d) => d >= week && d <= addDays(week, 6));
-      return { week, available: weekCapacity(week, p, cal), planned: 0, onLeave, tasks: [] };
-    });
-    const unscheduled = [];
-    for (const t of tasks.filter((x) => x.assigneeId === p.id)) {
-      const unsized = !isSize(t.size);
-      if (!t.dueDate) {
-        unscheduled.push({ ...t, days: effortDays(t), unsized });
-        continue;
-      }
-      const byWeek = new Map();
-      for (const { date, days } of plannedDays(t, cal, start)) {
-        if (date > end) continue;
-        const k = weekStart(date);
-        byWeek.set(k, (byWeek.get(k) || 0) + days);
-      }
-      for (const [k, days] of byWeek) {
-        const cell = cells.find((c) => c.week === k);
-        if (!cell) continue;
-        cell.planned += days;
-        cell.tasks.push({ ...t, days: r2(days), unsized, overdue: t.dueDate < start });
-      }
-    }
-    for (const c of cells) {
-      c.planned = r2(c.planned);
-      c.level = loadLevel(c.planned, c.available, c.onLeave);
-    }
-    return { ...p, leave: undefined, cells, unscheduled: { count: unscheduled.length, days: r2(unscheduled.reduce((n, t) => n + t.days, 0)), tasks: unscheduled } };
-  });
-  return { weeks: keys, rows };
 }
 
 // ---------- Comments ----------

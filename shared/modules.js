@@ -34,7 +34,7 @@ export const MODULE_PARTS = {
   assets: 'Assets, inventory and stock, allocations, the activity log and problem reports; and everyone\'s My Assets (with reporting a problem).',
   helpdesk: 'The ticket queue, email in and out, the public support form (/support), saved replies and the service desk settings; and everyone\'s My tickets.',
   crm: 'Leads, accounts, contacts, the pipeline, bids, contracts, activities and the sales setup; "Send to Sales & CRM" on a ticket.',
-  projects: 'Projects, My work, milestones, the workload, the Projects setup and the daily digest; "Add to a project" on a ticket and "Start project" on a deal.',
+  projects: 'Projects, My work, milestones, the Projects setup and the daily digest; "Add to a project" on a ticket and "Start project" on a deal.',
 };
 
 export const defaultModuleConfig = () => Object.fromEntries(SWITCHABLE.map((id) => [id, true]));

@@ -58,7 +58,7 @@ export const SETTINGS = [
   ['modules', 'assets', 'IT Asset Management', 'Assets, stock, allocations and My Assets.', 'bool'],
   ['modules', 'helpdesk', 'IT Service Desk', 'Tickets, email, the public form and My tickets.', 'bool'],
   ['modules', 'crm', 'Sales & CRM', 'Leads, accounts, pipeline, bids and contracts.', 'bool'],
-  ['modules', 'projects', 'Project Management', 'Projects, My work, the workload, timesheets and the digest.', 'bool'],
+  ['modules', 'projects', 'Project Management', 'Projects, My work, timesheets and the digest.', 'bool'],
   ['roles', '', 'Permissions changed from the defaults', 'Which account types were given or lost permissions.', 'roles'],
   // ----- HR & Payroll -----
   ['location', 'officeLabel', 'Office name', 'Shown with each clock-in location.'],

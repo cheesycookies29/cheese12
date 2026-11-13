@@ -248,9 +248,7 @@ function seedCrm(data, c) {
 // Project Management: the LMS phase 2 delivery for Northfield State University (won deal and
 // contract, about six weeks in), the provincial helpdesk bid being planned, and a small internal
 // IT project, among ten. Tasks have sizes (XS to XL), not hours; only the SIS support contract
-// tracks time (its support hours matter for the renewal), so only it has time logged. The sizes
-// and dates are set so Workload shows a mix: mostly Light and Normal, with one Busy and one
-// Overloaded week. People are written as DEMO_USER('pm.demo') and so on; addDemo() swaps in the demo
+// tracks time (its support hours matter for the renewal), so only it has time logged. People are written as DEMO_USER('pm.demo') and so on; addDemo() swaps in the demo
 // accounts' ids once they exist.
 export const DEMO_USER = (username) => `demo-user:${username}`;
 function seedProjects(data, c) {

@@ -232,7 +232,7 @@ label.inline { display: flex; align-items: center; gap: 8px; color: var(--muted)
 .row-actions .btn + .btn { margin-left: 6px; }
 .notes { color: var(--muted); max-width: 240px; }
 .matrix .center { text-align: center; }
-.table.matrix:not(.pm-load-table) td:first-child { min-width: 260px; }
+.table.matrix td:first-child { min-width: 260px; }
 
 /* ===== Badges, stats ===== */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); white-space: nowrap; line-height: 1.5; }
@@ -298,8 +298,6 @@ a.list-item:hover strong { color: var(--brand-text); }
 .feed-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
 .feed-item:last-child { border-bottom: 0; }
 .feed-item small { display: block; color: var(--muted); }
-
-
 
 
 
@@ -444,7 +442,6 @@ a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shado
 .hub-foot { margin-top: auto; padding: 22px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .hub-foot .hub-wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 body.hub .topbar { padding-left: 24px; }
-
 
 
 /* ===== Phones and tablets ===== */
@@ -1219,7 +1216,6 @@ body.launcher-mode main#app { padding: 0; max-width: none; display: flex; flex-d
 .hub-foot .core-foot { display: inline-flex; align-items: center; gap: 8px; }
 .hub-foot .core-foot img { width: 18px; height: 18px; }
 
-
 @media (max-width: 1100px) {
   .admin-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -1681,45 +1677,10 @@ details > summary { cursor: pointer; }
 .pm-log-mini input[name='note'] { grid-column: 1; }
 .pm-log-mini .btn { grid-column: 2; }
 
-/* My work and workload */
+/* My work */
 .pm-mywork li { flex-wrap: wrap; }
 .pm-mywork select { width: auto; max-width: 180px; padding: 5px 8px; font-size: 13px; }
 .pm-mywork.overdue { border-color: color-mix(in srgb, var(--danger) 30%, var(--border)); }
-.pm-load-table th, .pm-load-table td { white-space: nowrap; }
-.pm-load-table td { padding: 8px 6px; }
-.pm-load-table thead th small { display: block; font-weight: 500; text-transform: none; letter-spacing: 0; }
-.pm-load-table tbody th { text-align: left; font-size: 13.5px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); background: var(--surface); position: sticky; left: 0; z-index: 1; padding: 10px 14px; }
-.pm-load-table tbody th small { display: block; color: var(--muted); font-weight: 500; font-size: 12px; }
-.pm-load { display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 108px; min-height: 48px; padding: 7px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-2); font: inherit; font-size: 12.5px; cursor: pointer; text-align: left; }
-.pm-load:hover { border-color: var(--brand-line); }
-.pm-load:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 40%, transparent); outline-offset: 1px; }
-.pm-load.busy { background: color-mix(in srgb, var(--warn-soft) 70%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 35%, var(--surface)); }
-.pm-load.over { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 40%, var(--surface)); }
-.pm-load.leave, .pm-load.off { background: var(--surface-2); }
-
-/* Load levels: a word, a shape and a colour (never colour alone), and a small bar. */
-.pm-level { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; white-space: nowrap; line-height: 1.3; color: var(--c, var(--text-2)); }
-.pm-level i { width: 10px; height: 10px; flex: none; background: currentColor; }
-.pm-level.light { --c: var(--info); }
-.pm-level.light i { background: none; border: 2px solid currentColor; border-radius: 50%; }
-.pm-level.normal { --c: var(--success); }
-.pm-level.normal i { border-radius: 50%; }
-.pm-level.busy { --c: var(--warn); }
-.pm-level.busy i { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
-.pm-level.over { --c: var(--danger); }
-.pm-level.over i { border-radius: 2px; }
-.pm-level.leave, .pm-level.off { --c: var(--muted); }
-.pm-level.leave i, .pm-level.off i { height: 3px; border-radius: 2px; }
-.pm-load-bar { display: block; height: 5px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
-.pm-load-bar i { display: block; height: 100%; border-radius: 999px; background: var(--c, var(--info)); }
-.pm-load.light .pm-load-bar i { background: var(--info); }
-.pm-load.normal .pm-load-bar i { background: var(--success); }
-.pm-load.busy .pm-load-bar i { background: var(--warn); }
-.pm-load.over .pm-load-bar i { background: var(--danger); }
-.pm-level-key { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
-.pm-level-key li { display: inline-flex; align-items: baseline; gap: 6px; }
-.pm-load-list .pm-load-size { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; flex: none; }
-.pm-load-list .pm-load-size small { color: var(--muted); font-size: 11.5px; }
 
 /* Effort sizes: the letters in a small box, the same everywhere (not a colour code). */
 .pm-size { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 20px; padding: 0 5px; border: 1px solid var(--border-strong); border-radius: 5px; background: var(--surface-2); color: var(--text-2); font-size: 11px; font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
@@ -1769,7 +1730,6 @@ details > summary { cursor: pointer; }
   .pm-ts-who select { max-width: none; flex: 1; }
   .pm-ts tbody th, .pm-ts tfoot th { min-width: 150px; max-width: 170px; }
   .pm-ts td input { width: 58px; }
-  .pm-level-key { gap: 6px 12px; }
 }
 
 /* Quick filters, search and saved views (Board and List) */

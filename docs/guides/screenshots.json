@@ -86,8 +86,6 @@
   {"file": "projects-timesheet.jpg", "user": "employee.demo", "url": "/#/projects/timesheet", "wait": 1000},
   {"file": "projects-my-work.jpg", "user": "employee.demo", "url": "/#/projects/my-work", "wait": 1000},
   {"file": "projects-digest.jpg", "user": "employee.demo", "url": "/#/projects/my-work", "click": [".pm-digest-more summary"], "scroll": ".pm-digest", "wait": 1000},
-  {"file": "projects-workload.jpg", "user": "pm.demo", "url": "/#/projects/workload", "wait": 1000},
-  {"file": "projects-workload-detail.jpg", "user": "pm.demo", "url": "/#/projects/workload", "click": ["button.pm-load.over >> nth=0"], "wait": 900},
   {"file": "projects-setup.jpg", "user": "pm.demo", "url": "/#/projects/settings", "wait": 1000},
   {"file": "projects-setup-sizes.jpg", "user": "pm.demo", "url": "/#/projects/settings?tab=sizes", "wait": 1000},
   {"file": "projects-setup-digest.jpg", "user": "pm.demo", "url": "/#/projects/settings?tab=digest", "wait": 1000},

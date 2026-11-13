@@ -12,7 +12,7 @@ import { localDate } from '../server/util.js';
 import { migratePm, pruneNotifications } from '../server/projects.js';
 import { STARTER_KEYS } from '../server/pm-templates.js';
 import {
-  plannedDays, workload, workCalendar, taskMatches, parseFilters, cleanViewQuery, groupNotifications, mentionedUsernames,
+  workCalendar, taskMatches, parseFilters, cleanViewQuery, groupNotifications, mentionedUsernames,
   milestoneBurnup, shiftWorkDays, addWorkDays, addDays, weekStart, DEFAULT_STATUSES, NOTIFY_KEEP,
 } from '../shared/projects.js';
 
@@ -167,28 +167,6 @@ test('sizes on tasks: set by those who work on the project, kept in the history;
   await juan('PUT', `/api/pm/tasks/${t.id}/move`, { statusId: 'doing' });
 });
 
-test('Workload spreads a size over the task\'s working days; the days already past do not count', async () => {
-  const cal = workCalendar({ schedule: { workDays: [1, 2, 3, 4, 5] } }, []);
-  // L (5 days) over Mon 23 to Fri 27 Nov: a day each.
-  const task = { size: 'L', startDate: '2026-11-23', dueDate: '2026-11-27' };
-  assert.deepEqual(plannedDays(task, cal, '2026-11-23').map((x) => x.days), [1, 1, 1, 1, 1]);
-  // Counted from Wednesday: Monday and Tuesday are past, so 3 days are left.
-  assert.deepEqual(plannedDays(task, cal, '2026-11-25').map((x) => [x.date, x.days]), [['2026-11-25', 1], ['2026-11-26', 1], ['2026-11-27', 1]]);
-  // Overdue: whole on the first day planned (the existing rule).
-  assert.deepEqual(plannedDays({ size: 'S', dueDate: '2026-11-02' }, cal, '2026-11-25'), [{ date: '2026-11-25', days: 1 }]);
-  // The grid counts whole weeks: from Wednesday it still shows Monday to Sunday of that week.
-  const grid = workload({ people: [{ id: 'u', name: 'U' }], tasks: [{ ...task, id: 't', assigneeId: 'u' }, { id: 'n', assigneeId: 'u', size: 'XS' }], from: '2026-11-25', weeks: 1, cal });
-  assert.deepEqual([grid.rows[0].cells[0].planned, grid.rows[0].cells[0].available, grid.rows[0].cells[0].level], [5, 5, 'busy']);
-  assert.deepEqual(grid.rows[0].cells[0].tasks.map((x) => [x.days, x.unsized]), [[5, false]]);
-  assert.deepEqual([grid.rows[0].unscheduled.count, grid.rows[0].unscheduled.days], [1, 0.25]);
-  // Through the API: a task with subtasks is planned through them, not twice.
-  const monday = weekStart(day(21));
-  const parent = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'Parent', assigneeId: juan.id, size: 'XL', startDate: monday, dueDate: addDays(monday, 4) });
-  const sub = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'Sub', assigneeId: juan.id, size: 'S', parentId: parent.id, startDate: monday, dueDate: addDays(monday, 4) });
-  const cell = (await pia('GET', `/api/pm/workload?from=${monday}&weeks=1`)).rows.find((r) => r.id === juan.id).cells[0];
-  assert.ok(cell.tasks.some((x) => x.id === sub.id) && !cell.tasks.some((x) => x.id === parent.id));
-});
-
 // ===== Q3. Quick filters and saved views =====
 test('quick filters: each chip, Mine and Unassigned widen each other, the rest narrow; search by key, title or assignee', () => {
   const t0 = '2026-11-11'; // a Wednesday
@@ -261,7 +239,7 @@ test('starter templates: made once (TPL codes, no project code), not made again 
   assert.ok(!db.data.pmTasks.some((t) => t.projectId === internal.id));
 });
 
-test('templates: marking one (managers), left out of the portfolio, My work, Workload and health; a new project from one', async () => {
+test('templates: marking one (managers), left out of the portfolio, My work and health; a new project from one', async () => {
   const src = await pia('POST', '/api/pm/projects', { name: 'Rollout pattern', type: 'Government', startDate: '2026-11-23', endDate: '2026-12-31', timeTracking: true, budgetHours: 120 });
   await pia('PUT', `/api/pm/projects/${src.id}/members`, { version: (await pia('GET', `/api/pm/projects/${src.id}`)).version, members: [{ userId: pia.id, role: 'manager' }, { userId: juan.id, role: 'member' }] });
   const m1 = await pia('POST', `/api/pm/projects/${src.id}/milestones`, { name: 'Inception', dueDate: '2026-12-01', deliverable: true, billingPercent: 15 });
@@ -288,7 +266,6 @@ test('templates: marking one (managers), left out of the portfolio, My work, Wor
     assert.ok(!Object.values(await c2('GET', '/api/pm/my-work')).flat().some((x) => x.projectId === src.id));
   }
   assert.equal((await juan('GET', `/api/pm/projects/${src.id}`)).access, 'work');
-  assert.ok(!(await pia('GET', `/api/pm/workload?from=2026-11-23&weeks=4`)).rows.flatMap((r) => r.cells.flatMap((x) => x.tasks)).some((x) => x.projectId === src.id));
   assert.equal((await nora('GET', '/api/pm/overview')).templates.length, 0, 'not on it, no pm.view: no templates either');
   // From the template: working days from its start (Mon 23 Nov 2026), so weekends and the
   // 30 November holiday (Bonifacio Day) are skipped; the new start is Mon 4 Jan 2027.

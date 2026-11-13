@@ -44,7 +44,7 @@ export const ROLES = {
   },
   pm: {
     label: 'Project Manager',
-    description: 'Runs Project Management: creates and edits any project, its members, milestones and tasks; sees every project, the workload and time; deletes projects and changes the Projects setup. Can view employee records.',
+    description: 'Runs Project Management: creates and edits any project, its members, milestones and tasks; sees every project and its time; deletes projects and changes the Projects setup. Can view employee records.',
     permissions: ['pm.view', 'pm.edit', 'pm.manage', 'employees.view', 'self'],
   },
   employee: {
@@ -88,7 +88,7 @@ export const PERMISSION_LABELS = [
   ['crm.view', 'Sales & CRM: see accounts, contacts, leads, deals, bids and contracts'],
   ['crm.edit', 'Sales & CRM: add and edit records, move deals, log calls, meetings and tasks'],
   ['crm.manage', 'Sales & CRM: delete records and change the sales setup'],
-  ['pm.view', 'Projects: see every project, its tasks, milestones, time and the workload'],
+  ['pm.view', 'Projects: see every project, its tasks, milestones and time'],
   ['pm.edit', 'Projects: create projects and edit any project (details, members, columns, milestones, tasks)'],
   ['pm.manage', 'Projects: delete projects and change the Projects setup'],
   ['feedback.view', 'Read feedback sent by users'],

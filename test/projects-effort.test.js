@@ -1,5 +1,5 @@
 // Project Management 0.17: effort sizes instead of hours. Size weights in progress and the burn-up,
-// load levels in Workload (with leave and holidays), time tracking per project (off by default),
+// time tracking per project (off by default),
 // the weekly Timesheet (upsert, limits, membership, attendance shown for comparison only), the
 // migration of hour estimates, CSV import of Size and Estimate (h), and the wording of the sizes.
 import { test } from 'node:test';
@@ -12,7 +12,7 @@ import { createApi } from '../server/api.js';
 import { localDate } from '../server/util.js';
 import { migratePm, migrateEffort } from '../server/projects.js';
 import {
-  SIZES, SIZE_KEYS, sizeFromHours, parseSize, sizeName, cleanSizeNotes, progressOf, loadLevel, workload, weekCapacity, workCalendar,
+  SIZES, SIZE_KEYS, sizeFromHours, parseSize, sizeName, cleanSizeNotes, progressOf, workCalendar,
   importPlan, guessImportMapping, cleanViewQuery, taskCsvRows, DEFAULT_STATUSES, addDays, weekStart,
 } from '../shared/projects.js';
 
@@ -82,7 +82,6 @@ async function project(name, extra = {}) {
 test('sizes: the table, hours to sizes, reading a size, the wording the setup may change', () => {
   assert.deepEqual(SIZE_KEYS, ['XS', 'S', 'M', 'L', 'XL']);
   assert.deepEqual(SIZE_KEYS.map((k) => SIZES[k].weight), [1, 2, 3, 5, 8]);
-  assert.deepEqual(SIZE_KEYS.map((k) => SIZES[k].days), [0.25, 1, 3, 5, 10]);
   assert.equal(sizeName('M'), 'M · Medium');
   // Up to 2 h XS, up to 8 h S, up to 24 h M, up to 48 h L, more XL; no estimate, no size.
   const cases = [[0.5, 'XS'], [2, 'XS'], [2.25, 'S'], [8, 'S'], [8.5, 'M'], [24, 'M'], [25, 'L'], [48, 'L'], [48.5, 'XL'], [400, 'XL'], [0, null], [null, null], ['', null], [-3, null]];
@@ -115,57 +114,6 @@ test('progress by size weights: the 60% rule, the average for unsized tasks, thr
 });
 
 // ===== Load levels =====
-test('load levels: thresholds, on leave and days off', () => {
-  // Light under 50%; Normal 50–90%; Busy 90–120%; Overloaded over 120%.
-  const at = (planned) => loadLevel(planned, 10);
-  assert.deepEqual([at(0), at(4.9), at(5), at(9), at(9.1), at(12), at(12.1), at(30)], ['light', 'light', 'normal', 'normal', 'busy', 'busy', 'over', 'over']);
-  assert.equal(loadLevel(4.5, 5), 'normal', '90% exactly is Normal');
-  assert.equal(loadLevel(6, 5), 'busy', '120% exactly is Busy');
-  assert.equal(loadLevel(3, 0, true), 'leave', 'no available days: on leave');
-  assert.equal(loadLevel(0, 0, false), 'off', 'no working days without leave: days off (holidays)');
-});
-
-test('workload levels with leave and holidays: the same work is Normal in a full week and Overloaded in a short one', () => {
-  // Week of 21 Dec 2026: Christmas (25) and Rizal Day (30, next week) are holidays.
-  const cal = workCalendar({ schedule: { workDays: [1, 2, 3, 4, 5] } }, [{ date: '2026-12-24', type: 'special' }, { date: '2026-12-25', type: 'regular' }, { date: '2026-12-31', type: 'special' }]);
-  const people = [
-    { id: 'a', name: 'Full' },
-    { id: 'b', name: 'Leave', leave: new Map([['2026-12-14', 1], ['2026-12-15', 1], ['2026-12-16', 0.5]]) },
-    { id: 'c', name: 'Away', leave: new Map(['2026-12-14', '2026-12-15', '2026-12-16', '2026-12-17', '2026-12-18'].map((d) => [d, 1])) },
-  ];
-  assert.equal(weekCapacity('2026-12-14', people[1], cal), 2.5);
-  assert.equal(weekCapacity('2026-12-21', people[0], cal), 3);
-  // An L (5 days) task each week, Monday to Friday.
-  const tasks = people.flatMap((p) => [['2026-12-14', '2026-12-18'], ['2026-12-21', '2026-12-25']].map(([s, d], i) => ({ id: `${p.id}${i}`, assigneeId: p.id, size: 'L', startDate: s, dueDate: d })));
-  const grid = workload({ people, tasks, from: '2026-12-14', weeks: 2, cal });
-  const row = (id) => grid.rows.find((r) => r.id === id).cells;
-  assert.deepEqual(row('a').map((c) => [c.available, c.planned, c.level]), [[5, 5, 'busy'], [3, 5, 'over']], 'holidays: the same work in 3 days');
-  assert.deepEqual(row('b').map((c) => [c.available, c.level, c.onLeave]), [[2.5, 'over', true], [3, 'over', false]]);
-  assert.deepEqual(row('c')[0].level, 'leave', 'a whole week of leave');
-  assert.equal(row('c')[0].planned, 5, 'the work is still shown in the detail');
-  // Work spread more thinly: S (1 day) over the week is Light; M is Normal.
-  const g2 = workload({ people: [people[0]], tasks: [{ id: 's', assigneeId: 'a', size: 'S', startDate: '2026-12-14', dueDate: '2026-12-18' }], from: '2026-12-14', weeks: 1, cal });
-  assert.equal(g2.rows[0].cells[0].level, 'light');
-  const g3 = workload({ people: [people[0]], tasks: [{ id: 'm', assigneeId: 'a', size: 'M', startDate: '2026-12-14', dueDate: '2026-12-18' }], from: '2026-12-14', weeks: 1, cal });
-  assert.equal(g3.rows[0].cells[0].level, 'normal');
-  // No size: counted as M, and marked so the detail can say it.
-  const g4 = workload({ people: [people[0]], tasks: [{ id: 'n', assigneeId: 'a', startDate: '2026-12-14', dueDate: '2026-12-18' }], from: '2026-12-14', weeks: 1, cal });
-  assert.deepEqual([g4.rows[0].cells[0].planned, g4.rows[0].cells[0].tasks[0].unsized], [3, true]);
-});
-
-test('workload through the API: levels for pm.view only, done and cancelled tasks count 0', async () => {
-  const p = await project('Load');
-  const monday = weekStart(day(28));
-  const t1 = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'Busy week', assigneeId: ana.id, size: 'L', startDate: monday, dueDate: addDays(monday, 4) });
-  const t2 = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'Done already', assigneeId: ana.id, size: 'XL', startDate: monday, dueDate: addDays(monday, 4) });
-  await pia('PUT', `/api/pm/tasks/${t2.id}/move`, { statusId: 'done' });
-  const wl = await pia('GET', `/api/pm/workload?from=${monday}&weeks=1`);
-  const cell = wl.rows.find((r) => r.id === ana.id).cells[0];
-  assert.deepEqual(cell.tasks.map((x) => x.id), [t1.id]);
-  assert.ok(['busy', 'over'].includes(cell.level), cell.level);
-  await fails(juan('GET', '/api/pm/workload'), 403);
-});
-
 // ===== Time tracking per project =====
 test('time tracking: off by default; managers turn it on with the budget; off hides the hours but keeps them', async () => {
   const p = await project('Fixed price');

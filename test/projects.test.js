@@ -1,5 +1,5 @@
 // Project Management (MOD-05): who can see and change what, input checks, board order, version
-// conflicts, progress, health, workload, copying, the Sales & CRM and Service Desk hand-offs,
+// conflicts, progress, health, copying, the Sales & CRM and Service Desk hand-offs,
 // CSV safety, demo data, migration and the audit log.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,8 +13,8 @@ import { migratePm, keepPmConfig, emptyPm } from '../server/projects.js';
 import { areaOfPath } from '../shared/audit.js';
 import { toCsv } from '../public/js/ui.js';
 import {
-  DEFAULT_STATUSES, placeInColumn, progressOf, leafTasks, expectedPercent, milestoneStatus, projectStatus, workCalendar, weekCapacity,
-  workload, plannedDays, makesCycle, myWorkGroup, mentionParts, taskCsvRows, statusSetProblem, addDays, weekStart, validHours,
+  DEFAULT_STATUSES, placeInColumn, progressOf, leafTasks, expectedPercent, milestoneStatus, projectStatus, workCalendar,
+  makesCycle, myWorkGroup, mentionParts, taskCsvRows, statusSetProblem, addDays, weekStart, validHours,
 } from '../shared/projects.js';
 
 const db = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'core-pm-')), 'db.json'));
@@ -99,9 +99,8 @@ test('Project Managers create projects; members open theirs by role; everyone el
   await assert.rejects(marco('DELETE', `/api/pm/projects/${base.id}`), /does not have access/);
   await assert.rejects(juan('GET', '/api/pm/settings'), /does not have access/);
   assert.ok((await pia('GET', '/api/pm/settings')).statuses.length);
-  // Workload is for pm.view.
-  await assert.rejects(juan('GET', '/api/pm/workload'), /does not have access/);
-  assert.ok(Array.isArray((await marco('GET', '/api/pm/workload')).rows));
+  // Workload was removed (0.17.1): its route is gone for everyone.
+  await assert.rejects(marco('GET', '/api/pm/workload'), /Not found/);
 });
 
 test('administrators give or remove Projects access per account, like CRM access', async () => {
@@ -345,44 +344,6 @@ test('health through the API: a manager\'s reading is kept next to the computed 
   await assert.rejects(pia('POST', `/api/pm/projects/${p.id}/milestones`, { name: 'D2', dueDate: day(20), deliverable: 'yes' }), /true or false/);
   await assert.rejects(pia('POST', `/api/pm/projects/${p.id}/milestones`, { name: 'D2', dueDate: day(20), submittedAt: day(5), acceptedAt: day(1) }), /before it was submitted/);
   await pia('DELETE', `/api/pm/projects/${p.id}`);
-});
-
-test('workload: sizes spread over working days, days available less holidays and approved leave', async () => {
-  const cal = workCalendar({ schedule: { workDays: [1, 2, 3, 4, 5] } }, [{ date: '2026-11-30', type: 'regular' }]);
-  // Week of 30 Nov: Bonifacio Day off and one day of leave, so 3 working days.
-  assert.equal(weekCapacity('2026-11-30', { leave: new Map([['2026-12-02', 1]]) }, cal), 3);
-  assert.equal(weekCapacity('2026-11-30', { leave: new Map([['2026-12-02', 0.5]]) }, cal), 3.5);
-  assert.equal(weekCapacity('2026-11-30', { workDays: [1, 2, 3, 4, 5, 6] }, cal), 5);
-  // M (3 days) from Thursday 26 Nov to Tuesday 1 Dec: 3 working days (Mon 30 is a holiday), a day each.
-  assert.deepEqual(plannedDays({ size: 'M', startDate: '2026-11-26', dueDate: '2026-12-01' }, cal, '2026-11-23'), [{ date: '2026-11-26', days: 1 }, { date: '2026-11-27', days: 1 }, { date: '2026-12-01', days: 1 }]);
-  // Only a due date: all of it in that week. Already overdue: whole in the first week shown. No size: as M.
-  assert.deepEqual(plannedDays({ size: 'S', dueDate: '2026-12-03' }, cal, '2026-11-23'), [{ date: '2026-12-03', days: 1 }]);
-  assert.deepEqual(plannedDays({ size: 'L', dueDate: '2026-11-02' }, cal, '2026-11-23'), [{ date: '2026-11-23', days: 5 }]);
-  assert.deepEqual(plannedDays({ dueDate: '2026-12-03' }, cal, '2026-11-23'), [{ date: '2026-12-03', days: 3 }]);
-  const grid = workload({ people: [{ id: 'u', name: 'U' }], tasks: [{ id: 't', assigneeId: 'u', size: 'XL', dueDate: '2026-11-27' }, { id: 'n', assigneeId: 'u', size: 'S' }], from: '2026-11-25', weeks: 2, cal });
-  assert.deepEqual(grid.weeks, ['2026-11-23', '2026-11-30']);
-  assert.equal(grid.rows[0].cells[0].planned, 10);
-  assert.equal(grid.rows[0].cells[0].level, 'over');
-  assert.equal(grid.rows[0].cells[1].available, 4);
-  assert.equal(grid.rows[0].cells[1].level, 'light');
-  assert.deepEqual([grid.rows[0].unscheduled.count, grid.rows[0].unscheduled.days], [1, 1]);
-  // Through the API: Juan's approved leave (in the DTR) lowers his days; the level, not hours.
-  const monday = weekStart(day(14));
-  await admin('POST', '/api/time-entries', { employeeId: juan.employeeId, date: addDays(monday, 1), type: 'leave' });
-  await pia('POST', `/api/pm/projects/${base.id}/tasks`, { title: 'Big job', assigneeId: juan.id, size: 'XL', startDate: monday, dueDate: addDays(monday, 4) });
-  const wl = await pia('GET', `/api/pm/workload?from=${monday}&weeks=2`);
-  const row = wl.rows.find((r) => r.name === 'Juan Cruz');
-  const cell = row.cells[0];
-  const holidays = new Set(db.data.holidays.filter((h) => ['regular', 'special'].includes(h.type) && h.date >= monday && h.date <= addDays(monday, 4) && h.date !== addDays(monday, 1)).map((h) => h.date)).size;
-  assert.equal(cell.available, 5 - 1 - holidays);
-  assert.ok(cell.planned >= 10 && cell.level === 'over');
-  assert.ok(cell.onLeave);
-  assert.ok(cell.tasks.some((t) => t.title === 'Big job' && t.size === 'XL'));
-  assert.equal(row.leaveDays, 1);
-  assert.ok(!('capacity' in cell) && !('hours' in cell.tasks[0]), 'no hours in the workload');
-  // A bad date or number of weeks falls back to today and at most 26 weeks.
-  const odd = await pia('GET', '/api/pm/workload?from=<script>&weeks=999');
-  assert.equal(odd.weeks.length, 26);
 });
 
 test('copying a project as a template moves every date by the same number of days', async () => {
@@ -630,11 +591,6 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   assert.ok(db3.data.pmProjects.filter((p) => p.demo && !p.timeTracking).every((p) => p.budgetHours == null));
   assert.ok(db3.data.pmTasks.every((t) => !('estimateHours' in t) && !('remainingHours' in t)), 'sizes, not hours');
   assert.ok(db3.data.pmTasks.filter((t) => t.demo && !t.isTemplate).filter((t) => t.size).length > 60);
-  // The workload shows a mix of levels, not a wall of red.
-  const wl = await pmd('GET', '/api/pm/workload?weeks=6');
-  const levels = wl.rows.flatMap((r) => r.cells.map((c) => c.level));
-  assert.ok(levels.filter((l) => l === 'light' || l === 'normal').length > levels.length / 2);
-  assert.ok(levels.includes('light') && levels.includes('normal') && (levels.includes('busy') || levels.includes('over')));
   const tasks = await pmd('GET', `/api/pm/projects/${lms.id}/tasks`);
   assert.ok(tasks.length >= 25);
   assert.ok(new Set(tasks.map((t) => t.statusId)).size >= 5, 'tasks across the statuses');

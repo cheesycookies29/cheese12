@@ -4,7 +4,7 @@
 // else gets "not found", for the project and for everything in it.
 // Data lives in db.data.pm* collections; the Projects setup (default statuses, project types, the
 // wording of the effort sizes and the code counter) in db.data.pm. A project marked as a template
-// (isTemplate) is left out of the portfolio, My work, Workload and health; "+ New project" can
+// (isTemplate) is left out of the portfolio, My work and health; "+ New project" can
 // start from it.
 // Tasks have watchers (who hears of comments and of the task being done or cancelled), files
 // (tasks and milestones, through server/attachments.js) and can be changed in bulk or imported from
@@ -27,7 +27,7 @@ import { TICKET_STATUS, UNRESOLVED_TICKET } from '../shared/helpdesk.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, DEFAULT_STATUSES, DEFAULT_TYPES,
   workCalendar, statusOf, categoryOf, isOpenCategory, firstStatus, statusSetProblem, taskFlags, milestoneOfTask, leafTasks,
-  projectStatus, placeInColumn, byRank, makesCycle, myWorkGroup, workload, daysBetween, addDays,
+  projectStatus, placeInColumn, byRank, makesCycle, myWorkGroup, daysBetween, addDays,
   validHours, RANK_STEP, weekStart, shiftWorkDays, mentionedUsernames, cleanViewQuery, VIEW_TABS, MAX_DAY_HOURS,
   isSize, sizeName, sizeWeight, sizeFromHours, cleanSizeNotes, DEFAULT_SIZE_NOTES, SIZE_KEYS,
   NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup, addWorkDays, DIGEST_DEFAULTS, validDigestTime, digestDue, digestFor, billingAmount, billingForecast,
@@ -1779,37 +1779,6 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     else u.pmDigest = false;
     db.save();
     return emailStatus(u);
-  });
-
-  // ===== Workload: how busy each person is, per week, as a level =====
-  // The open leaf tasks' sizes (in working days, Medium without a size) against each person's
-  // working days, less holidays and approved leave (shared/projects.js workload).
-  route('GET', '/api/pm/workload', 'pm.view', ({ query }) => {
-    const from = isDate(query.from) ? query.from : today();
-    const weeks = Math.min(26, Math.max(1, Math.round(Number(query.weeks)) || 6));
-    const c = cal();
-    const open = d().pmProjects.filter((p) => OPEN_PROJECT.includes(p.status) && !p.isTemplate);
-    // Leaf tasks only: a task with subtasks is planned through them.
-    const tasks = open.flatMap((p) => leafTasks(tasksOf(p), p).filter((t) => t.assigneeId && isOpenCategory(categoryOf(p, t))).map((t) => ({
-      id: t.id, key: t.key, title: t.title, projectId: p.id, projectCode: p.code, projectName: p.name, assigneeId: t.assigneeId,
-      size: isSize(t.size) ? t.size : null, startDate: t.startDate, dueDate: t.dueDate,
-    })));
-    const ids = new Set([...tasks.map((t) => t.assigneeId), ...open.flatMap((p) => p.members.filter((m) => m.role !== 'viewer').map((m) => m.userId))]);
-    const end = addDays(weekStart(from), weeks * 7);
-    const people = [...ids].map(user).filter((x) => x?.active).map((x) => {
-      const emp = d().employees.find((e) => e.id === x.employeeId);
-      const leave = new Map();
-      if (emp) {
-        for (const e of d().timeEntries) {
-          if (e.employeeId !== emp.id || e.date < weekStart(from) || e.date >= end) continue;
-          if (e.type === 'leave') leave.set(e.date, 1);
-          else if (e.halfLeave) leave.set(e.date, Math.max(leave.get(e.date) || 0, 0.5));
-        }
-      }
-      const schedule = emp ? scheduleFor(emp, d().settings) : null;
-      return { id: x.id, name: x.name, workDays: schedule?.workDays, leave, leaveDays: [...leave.values()].reduce((n, v) => n + v, 0) };
-    }).sort((a, b) => a.name.localeCompare(b.name));
-    return workload({ people, tasks, from, weeks, cal: c });
   });
 
   // ===== From Sales & CRM =====

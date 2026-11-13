@@ -1,7 +1,7 @@
 // Project Management screens: the portfolio (its templates, and milestones with the billing
 // forecast), a project's Overview, Board, List (bulk edit, import), Timeline and Time tabs (Time
 // only on a project that tracks time), the task page (size, watchers, files), My work (with "For
-// you" and the daily digest), the weekly Timesheet, Workload (load levels) and the Projects setup.
+// you" and the daily digest), the weekly Timesheet and the Projects setup.
 // Effort is a task's size (XS to XL), never hours; hours only exist where a project tracks time.
 // Built for dated,
 // contract-bound delivery: milestones (some are deliverables the client accepts), a board of
@@ -17,7 +17,7 @@ import {
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
   QUICK_FILTERS, parseFilters, taskMatches, VIEW_TABS, groupNotifications,
   billingForecast, forecastCsvRows, IMPORT_FIELDS, IMPORT_TEMPLATE, IMPORT_MAX_ROWS, DIGEST_MAX,
-  SIZES, SIZE_KEYS, UNSIZED_AS, sizeName, sizeEffort, LOAD_LEVELS, LIST_SORTS,
+  SIZES, SIZE_KEYS, sizeName, sizeEffort, LIST_SORTS,
 } from '/shared/projects.js';
 
 // ---------- Small helpers ----------
@@ -79,7 +79,7 @@ const progressBar = (pr) => (pr?.percent == null ? html`<span class="muted small
 const sizeChip = (s, notes) => (SIZES[s] ? html`<span class="pm-size pm-size-${s}" title="Size ${sizeName(s)}: ${sizeEffort(s, notes)}"><span aria-hidden="true">${s}</span><span class="sr-only">Size ${sizeName(s)}</span></span>` : '');
 // short: "M · Medium" without what it means (in a table cell).
 const sizeOptions = (selected, notes, none = 'No size', short = false) => html`<option value="">${none}</option>${SIZE_KEYS.map((k) => option(k, short ? sizeName(k) : `${sizeName(k)} (${sizeEffort(k, notes)})`, selected))}`;
-const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task in progress and Workload.';
+const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task in progress and the burn-up.';
 const priorityBadge = (p) => (p === 'urgent' ? badge('Urgent', 'red') : p === 'high' ? badge('High', 'amber') : '');
 function dueChip(t, { long = false } = {}) {
   if (!t.dueDate) return '';
@@ -236,7 +236,7 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
         <label class="field"><span>Deal</span><select name="dealId"></select></label>
         <label class="field span-2"><span>Contract</span><select name="contractId"></select><small class="hint">Deliverables due after the contract's end date are flagged.</small></label>` : ''}
       <label class="field span-2 ${blank()}"><span>Description</span><textarea name="description" rows="3">${rec.description || ''}</textarea></label>
-      ${rec.id && may(rec.access, 'manage') ? html`<label class="field check span-2"><input type="checkbox" name="isTemplate" ${rec.isTemplate ? 'checked' : ''} /><span>Use as a template: hidden from the portfolio, My work and Workload; <strong>+ New project</strong> can start from it</span></label>` : ''}
+      ${rec.id && may(rec.access, 'manage') ? html`<label class="field check span-2"><input type="checkbox" name="isTemplate" ${rec.isTemplate ? 'checked' : ''} /><span>Use as a template: hidden from the portfolio and My work; <strong>+ New project</strong> can start from it</span></label>` : ''}
     </div>`,
     onSubmit: async (f) => {
       const v = Object.fromEntries(new FormData(f));
@@ -390,7 +390,7 @@ export async function portfolioView(el, _params, query) {
   // Templates: their own list, with "Use" to start a project from one.
   const drawTemplates = (q) => {
     const rows = ov.templates.filter((t) => (!state.type || t.type === state.type) && (!q || [t.name, t.code, t.description].some((f) => String(f || '').toLowerCase().includes(q))));
-    mount(el.querySelector('#list'), html`<p class="muted small pad pm-tpl-note">Templates are left out of the other lists, My work and Workload. <strong>+ New project</strong> can start from one; open a template to change its milestones and tasks.</p>
+    mount(el.querySelector('#list'), html`<p class="muted small pad pm-tpl-note">Templates are left out of the other lists and My work. <strong>+ New project</strong> can start from one; open a template to change its milestones and tasks.</p>
       ${rows.length ? html`<table class="table clickable pm-portfolio pm-templates">
       <thead><tr><th>Template</th><th>Type</th><th class="num">Milestones</th><th class="num">Deliverables</th><th class="num">Tasks</th><th></th></tr></thead>
       <tbody>${rows.map((t) => html`<tr data-href="#/projects/${t.id}">
@@ -550,7 +550,7 @@ export async function projectOverviewView(el, { id }) {
       ${manage ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}
       ${can('pm.edit') && !tpl ? html`<button class="btn" id="copy">${icon('copy', 16)} Copy</button>` : ''}
       ${can('pm.manage') ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`)}
-    ${tpl ? html`<p class="notice pm-tpl-notice">${icon('layers', 16)} <span>This is a template: it is not in the portfolio, My work or Workload, and has no health. Change its milestones and tasks here; <strong>New project from this template</strong> copies them with the dates moved to the new start in working days.${manage ? ' To make it a project again, untick Use as a template under Edit.' : ''}</span></p>` : html`
+    ${tpl ? html`<p class="notice pm-tpl-notice">${icon('layers', 16)} <span>This is a template: it is not in the portfolio or My work, and has no health. Change its milestones and tasks here; <strong>New project from this template</strong> copies them with the dates moved to the new start in working days.${manage ? ' To make it a project again, untick Use as a template under Edit.' : ''}</span></p>` : html`
     <section class="card pm-healthbar">
       <div><small class="muted">Health (worked out from the tasks)</small><div class="pm-health-line">${healthChip(p.health)} <span class="muted small">${p.healthReasons.length ? p.healthReasons.join(' · ') : p.health ? 'Nothing late or behind.' : 'The project is closed.'}</span></div></div>
       ${override ? html`<div><small class="muted">Project manager's reading</small><div class="pm-health-line">${healthChip(override.value)} <span class="small">“${override.note}”</span> <span class="muted small">${override.byName}, ${when(override.at)}</span></div></div>` : ''}
@@ -1973,57 +1973,6 @@ export async function timesheetView(el, _params, query) {
   }, () => timesheetView(el, _params, query)));
 }
 
-// ---------- Workload ----------
-// How busy each person is, week by week: a level (a word, a shape and a colour, with a small bar),
-// not a number of hours. A cell opens the tasks behind it, with their sizes.
-const levelChip = (level) => html`<span class="pm-level ${level}"><i aria-hidden="true"></i>${LOAD_LEVELS[level].label}</span>`;
-// Days, roughly: quarter days under one, half days above ("¾ day", "2.5 days").
-const daysText = (n) => {
-  const r = n < 1 ? Math.round(n * 4) / 4 : Math.round(n * 2) / 2;
-  if (n > 0 && !r) return 'under ¼ day';
-  return { 0.25: '¼ day', 0.5: '½ day', 0.75: '¾ day', 1: '1 day' }[r] || `${r} days`;
-};
-export async function workloadView(el, _params, query) {
-  const state = { from: query.from || today(), weeks: Number(query.weeks) || 6 };
-  const [data, m] = await Promise.all([api.get(`/api/pm/workload?from=${encodeURIComponent(state.from)}&weeks=${state.weeks}`), meta()]);
-  const tip = (c) => (c.tasks.length ? c.tasks.map((t) => `${t.key} ${t.title} (${t.size || `no size, as ${UNSIZED_AS}`})`).join('\n') : 'No planned work');
-  const bar = (c) => (c.available ? Math.min(100, Math.round((c.planned / c.available / 1.5) * 100)) : 0);
-  mount(el, html`
-    ${head('Workload', 'How busy each person is, week by week. Each open task counts by its size (in working days: XS a quarter day, S 1, M 3, L 5, XL 10; a task without a size as M), spread over its working days from start to due, against the person\'s working days less holidays and approved leave.')}
-    <div class="toolbar">
-      <label class="field inline"><span>From the week of</span><input type="date" id="from" value="${state.from}" /></label>
-      <select id="weeks" aria-label="Number of weeks">${options([[4, '4 weeks'], [6, '6 weeks'], [8, '8 weeks'], [12, '12 weeks']], state.weeks)}</select>
-    </div>
-    <ul class="pm-level-key" aria-label="Load levels">${['light', 'normal', 'busy', 'over', 'leave'].map((k) => html`<li>${levelChip(k)}<small class="muted">${LOAD_LEVELS[k].note}</small></li>`)}</ul>
-    <section class="card scroll-x">${data.rows.length ? html`<table class="table matrix pm-load-table">
-      <thead><tr><th>Person</th>${data.weeks.map((w) => html`<th class="center">${short(w)}<small>W${isoWeek(w)}</small></th>`)}<th class="center">No due date</th></tr></thead>
-      <tbody>${data.rows.map((r) => html`<tr><th scope="row">${r.name}${r.leaveDays ? html`<small>${r.leaveDays} day${r.leaveDays === 1 ? '' : 's'} of leave</small>` : ''}</th>
-        ${r.cells.map((c, i) => html`<td><button type="button" class="pm-load ${c.level}" data-r="${r.id}" data-c="${i}" title="${tip(c)}" aria-label="${r.name}, week of ${short(c.week)}: ${LOAD_LEVELS[c.level].label}, ${plural(c.tasks.length, 'task')}. Open the list.">
-          ${levelChip(c.level)}<span class="pm-load-bar" aria-hidden="true"><i style="width:${bar(c)}%"></i></span></button></td>`)}
-        <td class="center">${r.unscheduled.count ? html`<button type="button" class="link" data-un="${r.id}">${plural(r.unscheduled.count, 'task')}</button>` : html`<span class="muted">—</span>`}</td></tr>`)}</tbody></table>`
-      : html`<div class="empty"><p>No one has open tasks in open projects.</p></div>`}</section>
-    <p class="muted small">The bar fills at one and a half times the days available. Open a cell for its tasks and the days behind the level.</p>`);
-  const go = () => (location.hash = `#/projects/workload?from=${state.from}&weeks=${state.weeks}`);
-  el.querySelector('#from').addEventListener('change', (e) => e.target.value && ((state.from = e.target.value), go()));
-  el.querySelector('#weeks').addEventListener('change', (e) => ((state.weeks = Number(e.target.value)), go()));
-  const list = (title, sub, tasks) => modal({
-    title, subtitle: sub, submitLabel: null,
-    body: tasks.length ? html`<ul class="crm-mini pm-load-list">${tasks.map((t) => html`<li><span class="grow"><a href="#/projects/${t.projectId}/tasks/${t.id}"><strong>${t.title}</strong></a><small><span class="mono">${t.key}</span> · ${t.projectName}${t.dueDate ? ` · due ${fmtDate(t.dueDate)}` : ''}${t.overdue ? ' · overdue, so counted whole this week' : ''}</small></span>
-        <span class="pm-load-size">${sizeChip(t.size, m.sizes) || html`<span class="pm-size pm-size-none" title="No size: counted as ${sizeName(UNSIZED_AS)}">?</span>`}<small>${t.size ? sizeName(t.size) : `No size: counted as ${UNSIZED_AS}`}${t.days != null ? html`<br />≈ ${daysText(t.days)}${t.dueDate ? ' here' : ''}` : ''}</small></span></li>`)}</ul>
-      ${tasks.some((t) => !t.size) ? html`<p class="muted small">A task without a size counts as ${sizeName(UNSIZED_AS)} (${sizeEffort(UNSIZED_AS, m.sizes)}). Give it a size on the task for a truer picture.</p>` : ''}` : html`<p class="muted">No planned work this week.</p>`,
-  });
-  el.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', () => {
-    const r = data.rows.find((x) => x.id === b.dataset.r);
-    const c = r.cells[Number(b.dataset.c)];
-    const sub = c.available ? `${LOAD_LEVELS[c.level].label}: ≈ ${daysText(c.planned)} of work planned, of ${daysText(c.available)} available${c.onLeave ? ' (leave taken off)' : ''}.` : `${LOAD_LEVELS[c.level].label}: no working days this week${c.planned ? `, yet ≈ ${daysText(c.planned)} of work is planned in it` : ''}.`;
-    list(`${r.name}: week of ${fmtDate(c.week)}`, sub, c.tasks);
-  }));
-  el.querySelectorAll('[data-un]').forEach((b) => b.addEventListener('click', () => {
-    const r = data.rows.find((x) => x.id === b.dataset.un);
-    list(`${r.name}: no due date`, `Tasks without a due date are not planned into a week (≈ ${daysText(r.unscheduled.days)} of work). Give them a due date to see them here.`, r.unscheduled.tasks);
-  }));
-}
-
 // ---------- Projects setup ----------
 export async function pmSettingsView(el, _params, query) {
   const TABS_SET = { statuses: 'Default statuses', types: 'Project types', sizes: 'Effort sizes', digest: 'Daily digest', ...(can('users.manage') ? { access: 'Team access' } : {}) };
@@ -2052,9 +2001,9 @@ export async function pmSettingsView(el, _params, query) {
     }, reload));
   } else if (tab === 'sizes') {
     mount(pane, html`<form id="f"><h2>Effort sizes</h2>
-      <p class="muted small">Every task can have a size instead of an hour estimate: a rough idea of the effort that nobody has to defend to the hour. The size weighs the task in progress and the burn-up (when at least 60% of the tasks have one), and its days count in Workload. You can reword what each size means for your teams; the sizes, their weights and their days stay as they are, so reports compare across projects.</p>
-      <div class="scroll-x"><table class="table compact no-stack pm-size-table"><thead><tr><th>Size</th><th>What it means</th><th class="num">Weight</th><th class="num" title="Working days in Workload">Days</th></tr></thead>
-        <tbody>${SIZE_KEYS.map((k) => html`<tr><td>${sizeChip(k, s.sizes)} <strong>${SIZES[k].label}</strong></td><td><input name="${k}" value="${s.sizes[k]}" maxlength="60" required aria-label="What ${sizeName(k)} means" /></td><td class="num">${SIZES[k].weight}</td><td class="num">${SIZES[k].days}</td></tr>`)}</tbody></table></div>
+      <p class="muted small">Every task can have a size instead of an hour estimate: a rough idea of the effort that nobody has to defend to the hour. The size weighs the task in progress and the burn-up (when at least 60% of the tasks have one) You can reword what each size means for your teams; the sizes and their weights stay as they are, so reports compare across projects.</p>
+      <div class="scroll-x"><table class="table compact no-stack pm-size-table"><thead><tr><th>Size</th><th>What it means</th><th class="num">Weight</th></tr></thead>
+        <tbody>${SIZE_KEYS.map((k) => html`<tr><td>${sizeChip(k, s.sizes)} <strong>${SIZES[k].label}</strong></td><td><input name="${k}" value="${s.sizes[k]}" maxlength="60" required aria-label="What ${sizeName(k)} means" /></td><td class="num">${SIZES[k].weight}</td></tr>`)}</tbody></table></div>
       <div class="actions end"><button type="button" class="btn ghost" id="sizes-reset">Use the built-in wording</button><button class="btn primary" type="submit">Save sizes</button></div></form>`);
     const f = pane.querySelector('#f');
     pane.querySelector('#sizes-reset').addEventListener('click', () => SIZE_KEYS.forEach((k) => (f.elements[k].value = SIZES[k].effort)));

@@ -36,7 +36,7 @@ import { holidaysView } from './views/holidays.js';
 import { ytdView } from './views/ytd.js';
 import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
-import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, workloadView, timesheetView, pmSettingsView, myWorkBadge } from './views/projects.js';
+import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, timesheetView, pmSettingsView, myWorkBadge } from './views/projects.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -105,7 +105,6 @@ const routes = [
   ['/projects', portfolioView, 'projects', 'projects'],
   ['/projects/my-work', myWorkView, 'projects', 'projects'],
   ['/projects/milestones', portfolioMilestonesView, 'projects', 'projects'],
-  ['/projects/workload', workloadView, 'pm.view', 'projects'],
   ['/projects/timesheet', timesheetView, 'timesheet', 'projects'],
   ['/projects/settings', pmSettingsView, 'pm.manage', 'projects'],
   ['/projects/:id/board', boardView, 'projects', 'projects'],
@@ -192,7 +191,6 @@ const NAV = {
     { href: '/projects', label: 'Overview', icon: 'dashboard', permission: 'projects', also: ['/projects/milestones'] },
     { href: '/projects/my-work', label: 'My work', icon: 'task', permission: 'projects', badge: 'pmWork' },
     { href: '/projects/timesheet', label: 'Timesheet', icon: 'clock', permission: 'timesheet' },
-    { href: '/projects/workload', label: 'Workload', icon: 'users', permission: 'pm.view' },
     { href: '/projects/settings', label: 'Projects setup', icon: 'settings', permission: 'pm.manage' },
   ],
   // The Admin panel's own sidebar (ported from Lancaster ATLAS). A heading shows when something under it does.

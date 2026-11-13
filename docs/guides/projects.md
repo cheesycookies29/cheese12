@@ -1,7 +1,7 @@
 ---
 id: projects
 title: Running projects
-summary: For Project Managers and everyone on a project: the portfolio, templates and milestones with the billing forecast, a project's milestones, deliverables and burn-up, the board and list with quick filters, saved views, bulk edit and CSV import, tasks with sizes, watchers and files, time tracking and the weekly Timesheet, My work with For you and the daily digest, Workload and the Projects setup.
+summary: For Project Managers and everyone on a project: the portfolio, templates and milestones with the billing forecast, a project's milestones, deliverables and burn-up, the board and list with quick filters, saved views, bulk edit and CSV import, tasks with sizes, watchers and files, time tracking and the weekly Timesheet, My work with For you and the daily digest, and the Projects setup.
 roles: pm, employee, it, salesmgr
 apps: projects
 order: 55
@@ -133,21 +133,15 @@ The three starter templates are under **Templates** in the filter.
 
 ![The weekly timesheet](projects-timesheet.jpg)
 
-### My work and Workload
+### My work
 
 1. Sign in as `employee.demo` and open **My work** in the side menu. **For you** at the top lists what others did that concerns Juan: Andrea mentioned him, there are *2 comments on* a task of his, a task was assigned to him. Unread ones are in bold; open one or click its tick to mark it read, or **Mark all read**.
 2. Under it, **Daily digest** sums up Juan's day: overdue tasks, tasks due within 3 working days, and unread notifications. **Show today's digest** lists them; **Email me a daily digest** turns the email on or off for him.
 3. Below, the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. Change a task's status right there.
-4. Sign in as `pm.demo` again and open **Workload**. Each row is a person; each column a week. A cell shows how busy that person is that week, as a **level**: *Light*, *Normal*, *Busy*, *Overloaded* or *On leave*, each with its own shape and colour, and a small bar. Most of the demo is *Light* or *Normal*, with a *Busy* and an *Overloaded* week or two (Juan's and the payroll officer's, depending on the day).
-5. Point at a cell to see its tasks, or click it: the list shows each task with its size, and the line at the top says roughly how many days of work that is against the days available (*≈ 4 of 5 days*).
 
 ![My work](projects-my-work.jpg)
 
 ![The daily digest on My work](projects-digest.jpg)
-
-![Workload: load levels by person and week](projects-workload.jpg)
-
-![A Workload cell opened: the tasks and their sizes](projects-workload-detail.jpg)
 
 ## How to…
 
@@ -176,7 +170,7 @@ The new project gets the template's board statuses, milestones (deliverables kee
 1. Open the project (a finished one that went well, or a new one you set up for the purpose) and click **Edit** (project managers).
 2. Tick **Use as a template** and click **Save**.
 
-It leaves the portfolio, My work, Workload and the health counts, and appears under **Templates**. Change its milestones and tasks as in any project. To make it a project again, untick the box. A Project Manager can delete a template, including the starter ones; a deleted starter template does not come back.
+It leaves the portfolio, My work and the health counts, and appears under **Templates**. Change its milestones and tasks as in any project. To make it a project again, untick the box. A Project Manager can delete a template, including the starter ones; a deleted starter template does not come back.
 
 ### Add the milestones and deliverables
 
@@ -211,15 +205,15 @@ Progress counts the subtasks, not their parent. When most tasks (60% or more) ha
 1. Open the task and pick its **Size** under **Details** (or in the **Size** column of the **List**, or when you add it).
 2. Pick by how much work it is, roughly:
 
-| Size | Means (as set up) | Weight in progress | Days in Workload |
-|---|---|---|---|
-| XS · Extra small | under half a day | 1 | ¼ |
-| S · Small | about a day | 2 | 1 |
-| M · Medium | a few days | 3 | 3 |
-| L · Large | about a week | 5 | 5 |
-| XL · Extra large | two weeks or more | 8 | 10 |
+| Size | Means (as set up) | Weight in progress |
+|---|---|---|
+| XS · Extra small | under half a day | 1 |
+| S · Small | about a day | 2 |
+| M · Medium | a few days | 3 |
+| L · Large | about a week | 5 |
+| XL · Extra large | two weeks or more | 8 |
 
-A size is a rough idea, not a promise: pick the nearest and move on. An *XL* task is usually worth splitting into subtasks. To size many tasks at once, tick them on the **List** and use **Size** in the bar. Changes are in the task's history. A Project Manager can reword what each size means under **Projects setup → Effort sizes**; the weights and days stay the same everywhere.
+A size is a rough idea, not a promise: pick the nearest and move on. An *XL* task is usually worth splitting into subtasks. To size many tasks at once, tick them on the **List** and use **Size** in the bar. Changes are in the task's history. A Project Manager can reword what each size means under **Projects setup → Effort sizes**; the weights stay the same everywhere.
 
 ### Change many tasks at once
 
@@ -354,23 +348,6 @@ Each cell is one entry: changing it changes that entry, and emptying it removes 
 
 You see the projects you manage that track time, read only: only the person changes their hours (a manager can still delete a wrong entry on the **Time** tab). You also see their **Clocked in (DTR)** row.
 
-### Read Workload
-
-1. Open **Workload** (Project Managers and Sales Managers).
-2. Pick the week to start from and how many weeks to show.
-3. Read the levels: each open task counts by its size in working days (*XS* a quarter day, *S* 1, *M* 3, *L* 5, *XL* 10; a task without a size as *M*), spread over its working days from start to due. A task with only a due date counts in that week; an overdue one counts whole in the first week shown. That is set against the person's working days that week, less holidays and approved leave.
-
-| Level | Means |
-|---|---|
-| Light (open circle) | under half of the days available are planned |
-| Normal (dot) | 50 to 90% |
-| Busy (triangle) | 90 to 120% |
-| Overloaded (square) | over 120% |
-| On leave (dash) | no days available that week |
-
-4. Point at or click a cell to see its tasks and sizes, and the days behind the level (*≈ 4 of 5 days*). **No due date** lists the tasks that are not planned into a week.
-
-The levels are deliberately rough: a *Busy* or *Overloaded* week is a reason to talk, move a due date or share the work, not a measurement. Done and cancelled tasks, templates and tasks with subtasks (their subtasks count) are left out.
 
 ### Read the milestone burn-up
 
@@ -468,7 +445,6 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 | A task | Details (with the size), checklist, subtasks, files, blocked by, comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
 | My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date |
 | Timesheet | Your hours on the projects that track time, Monday to Sunday, with your DTR next to it for comparison; your members' timesheets, read only (project managers) |
-| Workload | How busy each person is, week by week: *Light*, *Normal*, *Busy*, *Overloaded* or *On leave*, from the sizes of their open tasks and their working days (Project Managers, Sales Managers) |
 | Projects setup | The statuses new projects start with, the project types, what the effort sizes mean, and the daily digest (Project Managers); team access (administrators) |
 
 ## Questions
@@ -480,10 +456,7 @@ You are not on it, and your account does not see every project. Ask its project 
 From the tasks, every time you open the project. A milestone is *Off track* when its date has passed with work still open, and *At risk* with an overdue task, a task due after it, or progress more than 15 points behind the straight line from its start to its due date (counted in working days, so weekends and the holidays in CORE's calendar do not count). The project takes its worst milestone, and is *At risk* while any task is overdue and *Off track* when its end date has passed with work open.
 
 **Why sizes, not hours?**
-An hour estimate looks precise and rarely is: a task "of 16 hours" is really "a couple of days, give or take". Sizes say that honestly, take seconds to set, and are all progress and Workload need. Hours worked are already in the DTR for pay, and clients are billed by milestone, not by the hour, so CORE does not ask everyone to log hours twice. Where hours do matter (time-and-materials work, a client who wants a timesheet), turn on time tracking for that project.
-
-**How does Workload decide a level?**
-From the sizes of the person's open tasks in days (*XS* ¼, *S* 1, *M* 3, *L* 5, *XL* 10; no size counts as *M*), spread over each task's working days from start to due, against their working days that week, less holidays and approved leave: under 50% *Light*, 50 to 90% *Normal*, 90 to 120% *Busy*, over 120% *Overloaded*, no days available *On leave*. Days of a task already past are taken as done; an overdue task counts whole in the first week shown, so move its due date when it is nearly finished. The grid shows only the level; open a cell for the days.
+An hour estimate looks precise and rarely is: a task "of 16 hours" is really "a couple of days, give or take". Sizes say that honestly, take seconds to set, and are all progress and the burn-up need. Hours worked are already in the DTR for pay, and clients are billed by milestone, not by the hour, so CORE does not ask everyone to log hours twice. Where hours do matter (time-and-materials work, a client who wants a timesheet), turn on time tracking for that project.
 
 **What happened to my hour estimates?**
 When CORE was updated to 0.17, each task's estimate became a size (up to 2 h *XS*, up to 8 h *S*, up to 24 h *M*, up to 48 h *L*, more *XL*), with a line in its history: *size from the hour estimate*. Tasks without an estimate have no size. "Hours left" is gone. Projects that had time logged on them track time, so their hours stay visible; the others do not.
@@ -510,7 +483,7 @@ PDFs and photos (JPEG, PNG, WebP), up to 5 MB each and 5 per task or milestone. 
 It is worked out from what each task remembers: when it was added, its status changes and when it was done. A deleted task is not remembered, so it is not in the chart at all; and a task moved from another milestone counts in its current one from the day it was added.
 
 **Do templates count in the figures?**
-No. Templates are not in the portfolio counts, health, My work or Workload, and their tasks are never in anyone's My work.
+No. Templates are not in the portfolio counts, health or My work, and their tasks are never in anyone's My work.
 
 **Can a task have several assignees?**
 No. Give it one assignee, and use subtasks or the checklist to share the work.

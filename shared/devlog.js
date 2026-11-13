@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.17.1-alpha',
+    date: '2026-11-13',
+    title: 'Workload removed from Project Management',
+    modules: ['projects'],
+    notes: 'The Workload page is gone from Project Management.',
+    changes: [
+      ['improved', 'projects', 'Removed Workload (the person-by-week load levels) from Project Management: its menu item, page and route. Sizes still weigh progress and the burn-up; My work, the Timesheet and time tracking are unchanged. The old Workload address opens the projects list.'],
+    ],
+  },
+  {
     version: '0.17.0-alpha',
     date: '2026-11-12',
     title: 'Projects: effort sizes instead of hours',

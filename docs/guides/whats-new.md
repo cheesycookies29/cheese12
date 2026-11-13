@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Workload removed (0.17.1)
+- **Workload** is no longer in Project Management. Task sizes still weigh progress and the burn-up; My work, the Timesheet and time tracking work as before. See [the projects guide](projects).
+
 ### Projects: sizes instead of hours, time tracking only where needed, and the Timesheet (0.17)
 - Tasks have a **size** instead of an hour estimate: *XS*, *S*, *M*, *L* or *XL* (shown as *M · Medium*), a rough idea of the effort. Set it on the task, in the **List** (also for many tasks at once) or when you add a task. Progress and the milestone burn-up weigh tasks by size when most have one, and the burn-up counts *effort points* or tasks, never hours. *Hours left* is gone. See [the projects guide](projects#size-a-task).
 - Your hour estimates became sizes (up to 2 h *XS*, up to 8 h *S*, up to 24 h *M*, up to 48 h *L*, more *XL*), noted in each task's history. See [the projects guide](projects#questions).
