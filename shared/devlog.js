@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.25.0-alpha',
+    date: '2026-11-14',
+    title: 'Projects are for their members',
+    modules: ['projects', 'crm', 'system'],
+    notes: 'A project is seen only by the people on its member list and by administrators.',
+    changes: [
+      ['improved', 'projects', 'Access: projectAccess (shared/projects.js) gives a project to its members by role (manager, member, viewer) and to administrators, and to nobody else: pm.view and pm.edit no longer open every project (Project Managers, Sales Managers, Projects access grants). Templates stay readable to those who start projects (pm.edit). It applies everywhere a project shows: portfolio and counts, Milestones and the forecast, a project\'s pages, tasks, comments, files and views, My work, For you, the digest and the Timesheet.'],
+      ['improved', 'projects', 'Starting a project for someone else keeps you on it as a manager; taking yourself off a project is refused (administrators excepted). Deleting needs pm.manage and managing the project. The Private project switch and badge are gone (every project is members-only); the member list stays in the project form.'],
+      ['improved', 'crm', 'A deal\'s or contract\'s projects are listed only to those on them; a ticket\'s task in a project an agent is not on shows as "A task in a project you are not on".'],
+      ['improved', 'system', 'Account type and Projects access descriptions say what they now give: using Projects and starting projects, not seeing every project.'],
+    ],
+  },
+  {
     version: '0.24.2-alpha',
     date: '2026-11-14',
     title: 'Task description layout fixes',

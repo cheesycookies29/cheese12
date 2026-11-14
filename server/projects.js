@@ -1,7 +1,7 @@
 // Project Management routes: projects with members, milestones (contract deliverables), tasks on
-// a board, comments and time logs. Who sees a project: anyone with pm.view (every project), and
-// the project's own members (manager, member or viewer), whatever their account type. Everyone
-// else gets "not found", for the project and for everything in it.
+// a board, comments and time logs. Who sees a project: the people on its member list (manager,
+// member or viewer), whatever their account type, and administrators (projectAccess in
+// shared/projects.js). Everyone else gets "not found", for the project and for everything in it.
 // Data lives in db.data.pm* collections; the Projects setup (default statuses, project types, the
 // wording of the effort sizes and the code counter) in db.data.pm. A project marked as a template
 // (isTemplate) is left out of the portfolio, My work and health; "+ New project" can
@@ -184,11 +184,11 @@ export function removeUserFromProjects(db, userId) {
 }
 
 // The project tasks linked to a service desk ticket (shown on the ticket).
-// user: who is looking. A task in a private project they cannot open shows only that it exists.
+// user: who is looking. A task in a project they are not on shows only that it exists.
 export function linkedTasks(db, ticketId, user = null) {
   return (db.data.pmTasks || []).filter((t) => t.ticketId === ticketId).map((t) => {
     const p = db.data.pmProjects.find((x) => x.id === t.projectId);
-    if (p?.private && !projectAccess(p, user)) return { id: null, key: '', title: 'A task in a private project', projectId: null, projectCode: '', projectName: '', statusName: '', category: 'todo', hidden: true };
+    if (!p || !projectAccess(p, user)) return { id: null, key: '', title: 'A task in a project you are not on', projectId: null, projectCode: '', projectName: '', statusName: '', category: 'todo', hidden: true };
     const s = p && statusOf(p, t.statusId);
     return { id: t.id, key: t.key, title: t.title, projectId: t.projectId, projectCode: p?.code || '', projectName: p?.name || '', statusName: s?.name || '', category: s?.category || 'todo' };
   });
@@ -224,7 +224,7 @@ const idOf = (v) => (typeof v === 'string' && v.length <= 64 ? v : '');
 // Only the fields a form may change: anything else in the body is ignored.
 const pickFields = (body, keys) => Object.fromEntries(keys.filter((k) => body && typeof body === 'object' && Object.hasOwn(body, k)).map((k) => [k, body[k]]));
 
-const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours', 'accountId', 'dealId', 'contractId', 'icon', 'private'];
+const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours', 'accountId', 'dealId', 'contractId', 'icon'];
 
 const TASK_FIELDS = ['title', 'description', 'statusId', 'priority', 'assigneeId', 'startDate', 'dueDate', 'size', 'milestoneId', 'parentId', 'blockedBy'];
 const MILESTONE_FIELDS = ['name', 'dueDate', 'deliverable', 'billingPercent', 'submittedAt', 'acceptedAt', 'acceptanceNote'];
@@ -253,10 +253,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   const today = () => localDate();
 
   // ----- Who may do what in a project -----
-  // manage: pm.edit or the project's manager; work: a member; comment: a viewer; read: pm.view.
+  // manage: the project's managers (and administrators); work: a member; comment: a viewer.
   const levelOf = projectAccess;
-  // Making a project private, or creating one, must not shut out the person doing it.
-  const PRIVATE_SELF = 'A private project is for its members only: add yourself to its members (or make yourself its manager) first, or you would lose access to it.';
+  // A project is for its members: a change must not shut out the person making it (administrators
+  // open every project anyway).
+  const SELF_OFF = 'A project is open to its members only: keep yourself on the member list (or as its manager), or you would lose access to it.';
   const DENIED = {
     manage: 'Only the project\'s managers can change this.',
     work: 'You can read and comment on this project, but not change its tasks.',
@@ -563,7 +564,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       throw new HttpError(400, e.message);
     }
     return {
-      icon, private: bool(b.private, 'Private project', Boolean(rec.private)),
+      icon,
       name, type, description: str(b.description, 8000), status: oneOf(b.status, PROJECT_STATUS, 'Status', rec.status || 'planning'),
       startDate, endDate, managerId, timeTracking, budgetHours: timeTracking ? optNum(b.budgetHours, 'Budget (hours)', 0, 1000000) : null, ...crmLinks(b, u, rec),
     };
@@ -583,7 +584,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       createdAt: at, createdBy: u.id, updatedAt: at, updatedBy: u.id, history: [{ at, by: u.id, field: 'created', from: '', to: '' }], ...extra,
     };
     keepManager(p);
-    if (p.private && !levelOf(p, u)) throw new HttpError(400, PRIVATE_SELF);
+    // Whoever starts a project for someone else stays on it, as a manager.
+    if (!levelOf(p, u)) p.members.push({ userId: u.id, role: 'manager' });
     d().pmProjects.push(p);
     notifyAdded(p, u, []);
     return p;
@@ -648,11 +650,9 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const next = validProject({ ...p, ...pickFields(body, PROJECT_FIELDS) }, u, p);
     // Members change through their own route (the form saves them first), never with the project.
     checkMembers(p, u, next, null);
-    const wasPrivate = Boolean(p.private);
     Object.assign(p, next);
     p.isTemplate = isTemplate;
     keepManager(p);
-    track(p, u, 'private', wasPrivate ? 'Yes' : 'No', p.private ? 'Yes' : 'No');
     track(p, u, 'status', PROJECT_STATUS[before.status], PROJECT_STATUS[p.status]);
     track(p, u, 'start', before.startDate, p.startDate);
     track(p, u, 'end', before.endDate, p.endDate);
@@ -665,8 +665,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     return summaryOf(p, u);
   });
   route('DELETE', '/api/pm/projects/:id', 'pm.manage', ({ params, user: u }) => {
-    // Deleting needs both: the account type (pm.manage), and managing this project (a private
-    // project's viewer, even a Project Manager, does not).
+    // Deleting needs both: the account type (pm.manage), and managing this project.
     const p = findProject(params.id, u, 'manage');
     removeFiles(projectFiles(d(), p.id));
     removeProject(p.id);
@@ -696,7 +695,6 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       ...pickFields(body, ['managerId', 'accountId', 'dealId', 'contractId']), name, type: src.type, description: src.description, status: 'planning',
       startDate, endDate: move(src.endDate), timeTracking: Boolean(src.timeTracking), budgetHours: src.timeTracking ? src.budgetHours ?? null : null,
       icon: Object.hasOwn(body || {}, 'icon') ? body.icon : src.icon ?? null,
-      private: Object.hasOwn(body || {}, 'private') ? body.private : Boolean(src.private),
     }, u, { type: src.type });
     const p = createProject(fields, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
     if (src.isTemplate) track(p, u, 'template', '', `${src.code} ${src.name}`);
@@ -766,7 +764,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const probe = { ...p, ...fields, members: (members || p.members).map((m) => ({ ...m })) };
     keepManager(probe);
     if (!probe.members.some((m) => m.role === 'manager')) throw new HttpError(400, 'Keep at least one manager on the project.');
-    if (probe.private && !levelOf(probe, u)) throw new HttpError(400, PRIVATE_SELF);
+    if (!levelOf(probe, u)) throw new HttpError(400, SELF_OFF);
   }
   route('PUT', '/api/pm/projects/:id/members', 'auth', ({ params, body, user: u }) => {
     const p = findProject(params.id, u, 'manage');
@@ -1897,7 +1895,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
 
   // ===== From Sales & CRM =====
   function crmStart(kind, rec, body, u, existing) {
-    if (existing && body.force !== true) throw new HttpError(409, levelOf(existing, u) ? `${existing.code} is already the project for this ${kind}. Open it, or start another one anyway.` : `A private project already delivers this ${kind}. Start another one anyway, or ask its manager to add you.`);
+    if (existing && body.force !== true) throw new HttpError(409, levelOf(existing, u) ? `${existing.code} is already the project for this ${kind}. Open it, or start another one anyway.` : `A project you are not on already delivers this ${kind}. Start another one anyway, or ask its manager to add you.`);
     const acct = d().crmAccounts.find((a) => a.id === rec.accountId);
     const types = pm().types;
     const guess = acct?.sector === 'government' && types.includes('Government') ? 'Government' : types.includes('Client') ? 'Client' : types[0];

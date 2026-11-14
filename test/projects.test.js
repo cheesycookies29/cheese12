@@ -90,10 +90,15 @@ test('Project Managers create projects; members open theirs by role; everyone el
   await assert.rejects(vic('POST', `/api/pm/projects/${base.id}/tasks`, { title: 'X' }), /read and comment/);
   await assert.rejects(vic('PUT', `/api/pm/tasks/${t.id}`, { title: 'X' }), /read and comment/);
   await assert.rejects(vic('POST', `/api/pm/projects/${base.id}/time`, { date: today, hours: 1 }), /read and comment/);
-  // The Sales Manager sees every project, read only.
-  assert.equal((await marco('GET', `/api/pm/projects/${base.id}`)).access, 'read');
-  await assert.rejects(marco('POST', `/api/pm/tasks/${t.id}/comments`, { body: 'x' }), /not comment/);
-  await assert.rejects(marco('PUT', `/api/pm/tasks/${t.id}/move`, { statusId: 'done' }), /not change its tasks/);
+  // Nobody off the member list sees it, whatever their account type: the Sales Manager neither, and
+  // another Project Manager neither. Administrators see every project.
+  await assert.rejects(marco('GET', `/api/pm/projects/${base.id}`), /Project not found/);
+  assert.deepEqual((await marco('GET', '/api/pm/overview')).projects, []);
+  const otherPm = await account('pete', 'pm', 'Pete Other');
+  await assert.rejects(otherPm('GET', `/api/pm/projects/${base.id}`), /Project not found/);
+  await assert.rejects(otherPm('PUT', `/api/pm/tasks/${t.id}/move`, { statusId: 'done' }), /not found/);
+  await assert.rejects(otherPm('DELETE', `/api/pm/projects/${base.id}`), /not found/);
+  assert.equal((await admin('GET', `/api/pm/projects/${base.id}`)).access, 'manage');
   await assert.rejects(marco('POST', '/api/pm/projects', { name: 'X', startDate: today }), /does not have access/);
   // Deleting projects and the setup: pm.manage only.
   await assert.rejects(marco('DELETE', `/api/pm/projects/${base.id}`), /does not have access/);
@@ -107,7 +112,7 @@ test('administrators give or remove Projects access per account, like CRM access
   const users = await admin('GET', '/api/users');
   const hanaId = users.find((u) => u.username === 'hana').id;
   await admin('PUT', `/api/pm/access/${hanaId}`, { access: true });
-  assert.equal((await hana('GET', '/api/pm/overview')).projects.length, 1, 'access shows every project');
+  assert.equal((await hana('GET', '/api/pm/overview')).projects.length, 0, 'access opens Projects, not the projects she is not on');
   const own = await hana('POST', '/api/pm/projects', { name: 'HR onboarding revamp', type: 'Internal', startDate: today });
   await assert.rejects(hana('DELETE', `/api/pm/projects/${own.id}`), /does not have access/, 'access does not include deleting');
   assert.equal(db.data.users.find((u) => u.id === hanaId).pmAccess, true);
@@ -394,7 +399,8 @@ test('from Sales & CRM: a won deal or a contract starts a linked project, once',
   const again = await both('POST', `/api/pm/projects/from-deal/${deal.id}`, { force: true, name: 'Laguna HRIS, phase 2' });
   assert.equal(again.dealId, deal.id);
   // The deal and the contract show their projects.
-  assert.equal((await marco('GET', `/api/crm/deals/${deal.id}`)).projects.length, 2);
+  assert.equal((await both('GET', `/api/crm/deals/${deal.id}`)).projects.length, 2, 'its projects, to someone on them');
+  assert.equal((await marco('GET', `/api/crm/deals/${deal.id}`)).projects.length, 0, 'not on them: not listed');
   await assert.rejects(both('POST', `/api/pm/projects/from-contract/${contract.id}`, {}), /already the project for this contract/);
   const c2 = await marco('POST', '/api/crm/contracts', { title: 'Support', accountId: acct.id, startDate: day(-1), endDate: day(10) });
   const fromC = await both('POST', `/api/pm/projects/from-contract/${c2.id}`, {});
@@ -564,7 +570,10 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   assert.equal(me.role, 'pm');
   assert.ok(me.employeeId, 'pm.demo is linked to a demo employee');
   const ov = await pmd('GET', '/api/pm/overview');
-  assert.equal(ov.projects.length, 11, 'the ten demo projects and the real one');
+  const onIt = db3.data.pmProjects.filter((p) => !p.isTemplate && p.members.some((m) => m.userId === me.id)).length;
+  assert.ok(onIt >= 5 && onIt < 10, 'pm.demo is on most demo projects, not all');
+  assert.equal(ov.projects.length, onIt, 'pm.demo sees the projects it is on');
+  assert.equal((await a3('GET', '/api/pm/overview')).projects.length, 11, 'the administrator sees the ten demo projects and the real one');
   // Every project state, both kinds of health reading, a WIP limit, custom statuses and a ticket link.
   assert.deepEqual(new Set(db3.data.pmProjects.filter((p) => p.demo).map((p) => p.status)), new Set(['planning', 'active', 'on_hold', 'completed', 'cancelled']));
   assert.ok(db3.data.pmProjects.some((p) => p.demo && p.healthOverride && db3.data.users.some((u) => u.id === p.healthOverride.by)), 'override by a real account id');
@@ -596,8 +605,9 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   assert.ok(new Set(tasks.map((t) => t.statusId)).size >= 5, 'tasks across the statuses');
   assert.ok(db3.data.pmProjects.every((p) => p.members.every((m) => !String(m.userId).startsWith('demo-user:'))));
   assert.ok(db3.data.pmTasks.every((t) => !String(t.assigneeId || '').startsWith('demo-user:')));
-  assert.ok(ov.projects.some((p) => p.name === 'Provincial helpdesk and asset tracking' && p.status === 'planning' && p.type === 'Government'));
-  assert.ok(ov.projects.some((p) => p.name === 'Office network refresh' && p.type === 'Internal'));
+  const all = (await a3('GET', '/api/pm/overview')).projects;
+  assert.ok(all.some((p) => p.name === 'Provincial helpdesk and asset tracking' && p.status === 'planning' && p.type === 'Government'));
+  assert.ok(all.some((p) => p.name === 'Office network refresh' && p.type === 'Internal'));
   const emp = c3();
   await emp('POST', '/api/auth/login', { username: 'employee.demo', password: 'demo1234' });
   assert.ok(Object.values(await emp('GET', '/api/pm/my-work')).flat().length > 0);

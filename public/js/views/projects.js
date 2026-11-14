@@ -120,8 +120,6 @@ const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task 
 // A project's mark beside its name: its icon on a coloured tile, or its first letter. Decorative (the
 // name is always next to it). p: { icon, name, code }; size: sm (in a line of text) | md | lg (title).
 const ICON_PX = { sm: 12, md: 16, lg: 22 };
-// A private project's mark: a lock and the word, so it is not colour or icon alone.
-const privateBadge = (p) => (p?.private ? html`<span class="pm-private-badge" title="Private: only its members (and administrators) can see it">${icon('lock', 12)} Private</span>` : '');
 export function projectIcon(p, size = 'md') {
   const ic = p?.icon;
   if (ic && Object.hasOwn(PROJECT_ICONS, ic.glyph) && Object.hasOwn(PROJECT_ICON_COLORS, ic.color)) return html`<span class="pm-picon pm-picon-${size} pm-pc-${ic.color}" aria-hidden="true">${icon(ic.glyph, ICON_PX[size])}</span>`;
@@ -297,10 +295,8 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
         <label class="field"><span>Deal</span><select name="dealId"></select></label>
         <label class="field span-2"><span>Contract</span><select name="contractId"></select><small class="hint">Deliverables due after the contract's end date are flagged.</small></label>` : ''}
       <label class="field span-2 ${blank()}"><span>Description</span><textarea name="description" rows="3">${rec.description || ''}</textarea></label>
-      <div class="field span-2 pm-private"><label class="check"><input type="checkbox" name="private" ${rec.private ? 'checked' : ''} aria-describedby="private-hint" /><span>${icon('lock', 14)} Private project</span></label>
-        <small class="hint" id="private-hint">Only the people on its member list below can see it, and administrators. Project Managers and others with access to every project do not see it unless you add them. You must be on the list yourself (or be its manager).</small></div>
       <fieldset class="field span-2 pm-form-members">
-        <legend>Members <small class="muted pm-mem-note"></small></legend>
+        <legend>Members <small class="muted">· only the people on this list (and administrators) can see the project</small></legend>
         <div class="pm-form-mem"></div>
       </fieldset>
       ${rec.id && may(rec.access, 'manage') ? html`<label class="field check span-2"><input type="checkbox" name="isTemplate" ${rec.isTemplate ? 'checked' : ''} /><span>Use as a template: hidden from the portfolio and My work; <strong>+ New project</strong> can start from it</span></label>` : ''}
@@ -316,16 +312,15 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       if (v.from) {
         const pick = (keys) => Object.fromEntries(keys.filter((k) => k in v).map((k) => [k, v[k]]));
         // The template's icon, unless one was picked here.
-        saved = await api.post(`/api/pm/projects/${v.from}/copy`, { ...pick(['name', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId', ...(iconTouched ? ['icon'] : [])]), ...(f.private.checked ? { private: true } : {}) });
+        saved = await api.post(`/api/pm/projects/${v.from}/copy`, { ...pick(['name', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId', ...(iconTouched ? ['icon'] : [])])});
         if (!sameMembers(members, saved.members)) saved = await api.put(`/api/pm/projects/${saved.id}/members`, { version: saved.version, members });
       } else {
         delete v.from;
         v.timeTracking = f.timeTracking.checked;
-        v.private = f.private.checked;
         if (!v.timeTracking) delete v.budgetHours;
         if (rec.id && may(rec.access, 'manage')) v.isTemplate = f.isTemplate.checked;
         if (rec.id) {
-          // The member list first (so someone making the project private can add themselves), then the project.
+          // The member list first, then the project.
           let version = rec.version;
           if (!sameMembers(members, rec.members)) version = (await api.put(`/api/pm/projects/${rec.id}/members`, { version, members })).version;
           saved = await api.put(`/api/pm/projects/${rec.id}`, { ...v, version });
@@ -341,14 +336,7 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
     list: (rec.members || []).filter((x) => x.userId !== rec.managerId).map((x) => ({ userId: x.userId, name: x.name, role: x.role })),
     people, managerId: () => form.elements.managerId.value, timeTracking: Boolean(rec.timeTracking),
   });
-  const memberNote = () => {
-    const priv = form.elements.private.checked;
-    form.querySelector('.pm-form-members').classList.toggle('on', priv);
-    form.querySelector('.pm-mem-note').textContent = priv ? '· only these people (and administrators) can see this private project' : '· anyone on the list can open the project';
-  };
-  form.elements.private.addEventListener('change', memberNote);
   form.elements.managerId.addEventListener('change', () => memberEd.redraw());
-  memberNote();
   // The icon preview follows the picks (and the name, for the letter); the colour needs a picture.
   let iconTouched = false;
   const preview = () => {
@@ -474,7 +462,7 @@ export async function portfolioView(el, _params, query) {
   const managers = [...new Map(ov.projects.filter((p) => p.managerId).map((p) => [p.managerId, p.managerName])).entries()];
   const stat = (label, value, sub, cls = '', href = '') => html`<${href ? 'a' : 'div'} class="card ${cls}" ${href ? html`href="${href}"` : ''}><small>${label}</small><strong>${value}</strong>${sub ? html`<span class="muted small">${sub}</span>` : ''}</${href ? 'a' : 'div'}>`;
   mount(el, html`
-    ${head('Projects', can('pm.view') ? 'Every project: progress, health and the next milestone.' : 'The projects you are a member of.', can('pm.edit') ? html`<button class="btn primary" id="new">+ New project</button>` : '')}
+    ${head('Projects', ctx.user.role === 'admin' ? 'Every project: progress, health and the next milestone.' : 'The projects you are on: progress, health and the next milestone.', can('pm.edit') ? html`<button class="btn primary" id="new">+ New project</button>` : '')}
     ${portfolioTabs('projects')}
     <div class="stats">
       ${stat('Open projects', ov.counts.open, `${ov.counts.active} active`)}
@@ -525,7 +513,7 @@ export async function portfolioView(el, _params, query) {
     mount(el.querySelector('#list'), rows.length ? html`<table class="table clickable pm-portfolio">
       <thead><tr><th>Project</th><th>Client</th><th>Manager</th><th>Dates</th><th>Progress</th><th>Health</th><th>Next milestone</th></tr></thead>
       <tbody>${rows.map((p) => html`<tr data-href="#/projects/${p.id}">
-        <td><div class="pm-named">${projectIcon(p)}<div><a href="#/projects/${p.id}"><strong>${p.name}</strong></a><small><span class="mono">${p.code}</span> · ${p.type} · ${PROJECT_STATUS[p.status]}${p.private ? html` · ${icon('lock', 11)} Private` : ''}</small></div></div></td>
+        <td><div class="pm-named">${projectIcon(p)}<div><a href="#/projects/${p.id}"><strong>${p.name}</strong></a><small><span class="mono">${p.code}</span> · ${p.type} · ${PROJECT_STATUS[p.status]}</small></div></div></td>
         <td>${p.accountName || html`<span class="muted">Internal</span>`}</td>
         <td>${p.managerName || '—'}</td>
         <td class="nowrap">${short(p.startDate)} – ${p.endDate ? short(p.endDate) : '…'}</td>
@@ -623,7 +611,7 @@ function projectHeader(p, tab, actions = '') {
   return html`
     <header class="page-head pm-head">
       <div><a class="back" href="#/projects${p.isTemplate ? '?status=templates' : ''}">← ${p.isTemplate ? 'Templates' : 'Projects'}</a>
-        <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)} ${privateBadge(p)}</span></h1>
+        <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</span></h1>
         <p class="muted"><span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
       ${actions ? html`<div class="actions">${actions}</div>` : ''}
     </header>
@@ -874,7 +862,7 @@ async function editMembers(p, after) {
   const list = p.members.filter((x) => x.userId !== p.managerId).map((x) => ({ userId: x.userId, name: x.name, role: x.role }));
   let ed;
   modal({
-    title: 'Project members', wide: true, subtitle: `Managers change the project; members work on tasks${p.timeTracking ? ' and log time' : ''}; viewers read and comment.${p.private ? ' This project is private: only the people on this list (and administrators) can see it.' : ' Anyone on the list can open the project.'}`,
+    title: 'Project members', wide: true, subtitle: `Managers change the project; members work on tasks${p.timeTracking ? ' and log time' : ''}; viewers read and comment.Only the people on this list (and administrators) can see the project.`,
     body: html`<div id="mem"></div>`,
     onSubmit: async () => {
       const r = await api.put(`/api/pm/projects/${p.id}/members`, { version: p.version, members: ed.members() });
@@ -2252,7 +2240,7 @@ export async function pmSettingsView(el, _params, query) {
   } else {
     const draw = async () => {
       const people = await api.get('/api/pm/access');
-      mount(pane, html`<h2>Who can use Projects</h2><p class="muted small">Project Managers see and edit every project by their account type, and Sales Managers see every project. Give or remove access for anyone else here: access lets them see every project and start and edit projects. Members of a project open it whatever their access. Administrators always have it.</p>
+      mount(pane, html`<h2>Who can use Projects</h2><p class="muted small">A project opens only for the people on its member list, whatever their account type; administrators see every project. Project Managers start projects by their account type, and Sales Managers use Projects too. Give or remove access for anyone else here: access lets them start projects (they manage the ones they start). Members of a project open it whatever their access.</p>
         <table class="table stackable"><thead><tr><th>Account</th><th>Account type</th><th>Access</th><th>Projects</th><th></th></tr></thead><tbody>${people.map((x) => html`<tr>
           <td><strong>${x.name}</strong><small>${x.username}</small></td><td>${roleLabel(x.role)}</td>
           <td>${x.canEdit ? badge('View and edit', 'green') : x.hasAccess ? badge('View', 'blue') : badge('Own projects only', 'gray')}${x.override !== null ? html`<small>${x.override ? 'given here' : 'removed here'}</small>` : x.byRole ? html`<small>by account type</small>` : ''}</td>

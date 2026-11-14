@@ -87,7 +87,7 @@ Give the person their username and temporary password privately. They choose the
 | IT Asset Manager | IT assets and stock; works service desk tickets |
 | Helpdesk Agent | Service desk tickets; views IT assets |
 | Sales Officer | Sales & CRM, without deleting or the sales setup |
-| Sales Manager | Sales & CRM, with deleting and the sales setup; sees every project |
+| Sales Manager | Sales & CRM, with deleting and the sales setup; the projects they are added to |
 | Project Manager | Runs Project Management; views employee records |
 | Employee | Self-service only |
 

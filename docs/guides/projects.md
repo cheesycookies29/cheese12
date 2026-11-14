@@ -15,10 +15,10 @@ Hours come in only where they are needed: a project manager can turn on **time t
 
 Who sees what:
 
-- **Project Manager** (account type): sees every project (except private ones they are not on: see [Keep a project private](projects#keep-a-project-private)), starts and edits any project, deletes projects and changes the **Projects setup**.
-- **Members of a project** open that project, whatever their account type, with a role in it (below).
-- **Sales Managers** see every project that is not private, read only, to follow the delivery of what they sold. Administrators can give **Projects access** to anyone else (see [the administrator's guide](admin)).
-- Everyone else does not see a project at all. Its tasks and comments are hidden too.
+- **A project is for the people on its member list.** Each sees it with their role in it (below), whatever their account type. Nobody else sees it: not in the lists, not in Milestones, My work or the Timesheet, and its address says *not found*. Its tasks and comments are hidden too.
+- **Administrators** see every project, so no project can be lost.
+- **Project Manager** (account type): starts projects and manages the ones they are a manager of; deletes the projects they manage and changes the **Projects setup**. They see only the projects they are on.
+- **Sales Managers** use Projects for the projects they are added to, to follow the delivery of what they sold. Administrators can give **Projects access** to anyone else so they can start projects (see [the administrator's guide](admin)).
 
 | Role in a project | Can |
 |---|---|
@@ -194,20 +194,15 @@ It leaves the portfolio, My work and the health counts, and appears under **Temp
 
 A milestone is *Off track* once its date has passed with work still open; *At risk* when one of its tasks is overdue, a task is due after the milestone, or its progress is more than 15 points behind where it should be by now (counted in working days, without weekends and holidays).
 
-### Keep a project private
-
-For work only some people should see (a salary review, an investigation, a client under a non-disclosure agreement).
+### Choose who sees a project
 
 1. Open the project and click **Edit** (or start one with **+ New project**).
-2. Tick **Private project**. The **Members** box under it is highlighted: only the people on it (and administrators) will see the project.
-3. In **Members**, pick each person who may see it, choose their role (**Member**, **Viewer** or **Manager**) and click **Add**. The project manager is always on it. Take someone off with the bin.
-4. Click **Save**.
+2. In **Members**, pick each person who should see it, choose their role (**Member**, **Viewer** or **Manager**) and click **Add**. The project manager is always on it. Take someone off with the bin.
+3. Click **Save**.
 
-![A private project's members in the project form](projects-private.jpg)
+![The project's members in the project form](projects-private.jpg)
 
-A private project shows a **Private** badge with a lock. Only the people on its member list see it, each with their role, and administrators. Project Managers, Sales Managers and anyone else with access to every project do not see it unless they are on the list: it is not in their lists, Milestones, My work or the Timesheet, and its address says *not found*. On a Sales & CRM deal or contract it is listed only to those who can open it, and a service desk ticket made into one of its tasks shows only *A task in a private project* to agents who are not on it.
-
-You must be on the list yourself (or be its manager) to make a project private, so you never lock yourself out; administrators can always open it and make it open again. A copy of a private project is private too, unless you untick it. Someone taken off the list loses access at once.
+Only the people on the list (and administrators) see the project. If you start a project for someone else (another project manager), you stay on it as a manager. You cannot take yourself off a project, so you never lock yourself out by mistake; another manager or an administrator can. Someone taken off loses access at once. On a Sales & CRM deal or contract, its projects are listed only to the people on them, and a service desk ticket made into a task shows only *A task in a project you are not on* to agents who are not on it.
 
 ### Add the people
 
@@ -412,7 +407,7 @@ The chart counts **effort points** (each task's size weight: *XS* 1, *S* 2, *M* 
 
 With Sales & CRM access, each deliverable shows its **Amount**: its billing % of the value of the contract linked to the project (or of the deal's value when there is no contract). The **Billing forecast** under the list adds them up by month: **Expected** (not accepted yet, in the month it is due, with what is overdue), and **Earned** (accepted, in the month of acceptance). **Export CSV** saves the forecast. Without Sales & CRM access, the amounts and the forecast are not shown, and CORE does not send them to your browser at all.
 
-Project Managers and Sales Managers see every project here except private ones they are not on; others see the projects they are on.
+You see the projects you are on here; administrators see every project.
 
 ![Milestones across projects, with the billing forecast](projects-milestones.jpg)
 
@@ -497,7 +492,7 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 ## Questions
 
 **Why can't I see a project?**
-You are not on it, and your account does not see every project. Ask its project manager to add you.
+You are not on its member list: only the people on it (and administrators) see a project. Ask its project manager to add you.
 
 **How is health worked out?**
 From the tasks, every time you open the project. A milestone is *Off track* when its date has passed with work still open, and *At risk* with an overdue task, a task due after it, or progress more than 15 points behind the straight line from its start to its due date (counted in working days, so weekends and the holidays in CORE's calendar do not count). The project takes its worst milestone, and is *At risk* while any task is overdue and *Off track* when its end date has passed with work open.

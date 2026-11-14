@@ -775,21 +775,17 @@ export function importPlan(rows, mapping, { project, members = [], milestones = 
 }
 
 // What someone may do on a project: manage | work | comment | read, or null (it does not exist for them).
-// Members by their role; besides them, Projects-wide access (pm.edit, pm.view) reads or manages every
-// project. A PRIVATE project is for its members only: Projects-wide access does not reach it, and
-// only administrators (so a project never becomes unreachable) open it without being a member.
+// A project is for the people on its member list, each by their role (manager, member, viewer).
+// Administrators open every project, so none can become unreachable. Nobody else sees a project they
+// are not on, whatever their account type: Project Managers and Sales Managers included.
+// Templates are patterns to start from: anyone who may create projects (pm.edit) reads them.
 export function projectAccess(p, u) {
   if (!p || !u) return null;
+  if (u.role === 'admin') return 'manage';
   const m = p.members.find((x) => x.userId === u.id);
-  if (p.private) {
-    if (u.role === 'admin' || m?.role === 'manager') return 'manage';
-    if (m?.role === 'member') return 'work';
-    if (m?.role === 'viewer') return 'comment';
-    return null;
-  }
-  if (userCan(u, 'pm.edit') || m?.role === 'manager') return 'manage';
+  if (m?.role === 'manager') return 'manage';
   if (m?.role === 'member') return 'work';
   if (m?.role === 'viewer') return 'comment';
-  if (userCan(u, 'pm.view')) return 'read';
+  if (p.isTemplate && userCan(u, 'pm.edit')) return 'read';
   return null;
 }

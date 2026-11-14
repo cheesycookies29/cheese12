@@ -10,7 +10,7 @@ import { pageHead } from './common.js';
 const GRANTS = [
   { id: 'helpdesk', label: 'Service Desk agent', what: 'Works every ticket: replies, internal notes, assignment and status.', list: '/api/helpdesk/agent-access', put: (id) => `/api/helpdesk/agent-access/${id}`, has: (x) => x.agent, home: '#/helpdesk/settings?tab=agents' },
   { id: 'crm', label: 'Sales & CRM', what: 'Sees and edits leads, accounts, deals, bids and contracts. Removing it also removes deleting and the sales setup.', list: '/api/crm/access', put: (id) => `/api/crm/access/${id}`, has: (x) => x.hasAccess, home: '#/crm/settings?tab=access' },
-  { id: 'pm', label: 'Projects', what: 'Sees every project and starts and edits projects. Removing it also removes deleting projects and the Projects setup. Members of a project open it either way.', list: '/api/pm/access', put: (id) => `/api/pm/access/${id}`, has: (x) => x.hasAccess, home: '#/projects/settings?tab=access' },
+  { id: 'pm', label: 'Projects', what: 'Uses Project Management and starts projects (managing the ones they start). Each project opens only for the people on its member list. Removing it also removes deleting projects and the Projects setup. Members of a project open it either way.', list: '/api/pm/access', put: (id) => `/api/pm/access/${id}`, has: (x) => x.hasAccess, home: '#/projects/settings?tab=access' },
 ];
 
 export async function accessView(el) {

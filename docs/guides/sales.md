@@ -143,7 +143,7 @@ A contract shows *Renew in … days* when it ends within the renewal notice (60 
 
 ### Start a project from a won deal
 
-When a deal is won, the work of delivering it is a project in **Project Management**. Starting it needs an account that can edit projects as well as use the CRM: a Project Manager with CRM access, or a sales account an administrator gave **Projects access** (Sales Managers see every project, read only).
+When a deal is won, the work of delivering it is a project in **Project Management**. Starting it needs an account that can edit projects as well as use the CRM: a Project Manager with CRM access, or a sales account an administrator gave **Projects access** (Sales Managers see the projects they are added to; ask the project manager to add you).
 
 1. Open the won deal (or its contract) and click **Start project**.
 2. Check the **Project name**, **Type**, **Project manager**, **Start** and **End** dates. The end date comes from the contract when there is one.

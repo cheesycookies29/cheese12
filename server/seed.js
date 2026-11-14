@@ -539,7 +539,7 @@ function seedProjects(data, c) {
 
   // 8. On hold, with the manager's note.
   project(8, {
-    name: 'Data privacy compliance review (RA 10173)', icon: { glyph: 'shield', color: 'red' }, private: true, type: 'Internal', status: 'on_hold', startDate: wd(-50), endDate: wd(60), managerId: hrU,
+    name: 'Data privacy compliance review (RA 10173)', icon: { glyph: 'shield', color: 'red' }, type: 'Internal', status: 'on_hold', startDate: wd(-50), endDate: wd(60), managerId: hrU,
     members: [{ userId: hrU, role: 'manager' }, { userId: it, role: 'member' }, { userId: pmU, role: 'viewer' }],
     description: 'Annual review of how the company keeps personal data. On hold until the new Data Protection Officer is appointed.',
     healthOverride: { value: 'amber', note: 'Paused on purpose: waiting for the DPO appointment from management, expected next month.', by: hrU, at: at(-12) },

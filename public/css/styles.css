@@ -2969,15 +2969,10 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
   .notif-foot a, .notif-more a { display: inline-flex; align-items: center; min-height: 44px; }
 }
 
-/* ----- Private projects ----- */
-.pm-private-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border-strong); vertical-align: middle; white-space: nowrap; }
-h1 .pm-private-badge { font-size: 12px; }
-.pm-private .check span { display: inline-flex; align-items: center; gap: 6px; }
-/* The member list in the project form; highlighted while the project is private. */
+/* The member list in the project form. */
 .pm-form-members { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 12px; margin: 0; min-width: 0; }
 .pm-form-members legend { font-size: 13px; font-weight: 600; padding: 0 4px; }
 .pm-form-members legend small { font-weight: 500; }
-.pm-form-members.on { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); background: var(--brand-softer); }
 .pm-form-members .pm-members { margin-bottom: 6px; }
 .pm-members td .avatar { margin-right: 6px; vertical-align: middle; }
 .pm-mem-empty { margin: 4px 0 8px; }

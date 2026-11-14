@@ -78,7 +78,7 @@ const fails = async (promise, status, re) => {
 async function project(name, extra = {}) {
   const p = await pia('POST', '/api/pm/projects', { name, type: 'Client', startDate: day(-20), endDate: day(60), ...extra });
   const v = (await pia('GET', `/api/pm/projects/${p.id}`)).version;
-  await pia('PUT', `/api/pm/projects/${p.id}/members`, { version: v, members: [{ userId: pia.id, role: 'manager' }, { userId: juan.id, role: 'member' }, { userId: ana.id, role: 'member' }, { userId: vic.id, role: 'viewer' }] });
+  await pia('PUT', `/api/pm/projects/${p.id}/members`, { version: v, members: [{ userId: pia.id, role: 'manager' }, { userId: juan.id, role: 'member' }, { userId: ana.id, role: 'member' }, { userId: vic.id, role: 'viewer' }, { userId: marco.id, role: 'viewer' }] });
   return p;
 }
 const p = await project('Clinic rollout');
@@ -101,7 +101,7 @@ test('watchers: the creator and the assignee watch; a commenter joins unless the
   assert.ok(!full.unwatchedBy, 'who stopped watching is not sent');
   await vic('PUT', `/api/pm/tasks/${t.id}/watch`, { watching: true });
   assert.equal((await vic('GET', `/api/pm/tasks/${t.id}`)).watching, true);
-  // Marco sees every project (pm.view) without being a member: he can watch too.
+  // Marco is a viewer on the project: he can watch too.
   await marco('PUT', `/api/pm/tasks/${t.id}/watch`, { watching: true });
   // Someone who cannot open the project: not found.
   await fails(nora('PUT', `/api/pm/tasks/${t.id}/watch`, { watching: true }), 404);
@@ -456,7 +456,7 @@ test('milestones across projects: members see their own; amounts only with Sales
   const contract = await admin('POST', '/api/crm/contracts', { title: 'LMS', accountId: acct.id, value: 1000000, startDate: day(-30), endDate: day(200), status: 'active' });
   const q = await admin('POST', '/api/pm/projects', { name: 'Billing project', type: 'Client', startDate: day(-30), endDate: day(120), managerId: pia.id, accountId: acct.id, contractId: contract.id });
   const qv = (await pia('GET', `/api/pm/projects/${q.id}`)).version;
-  await pia('PUT', `/api/pm/projects/${q.id}/members`, { version: qv, members: [{ userId: pia.id, role: 'manager' }, { userId: juan.id, role: 'member' }] });
+  await pia('PUT', `/api/pm/projects/${q.id}/members`, { version: qv, members: [{ userId: pia.id, role: 'manager' }, { userId: juan.id, role: 'member' }, { userId: marco.id, role: 'viewer' }] });
   const m1 = await pia('POST', `/api/pm/projects/${q.id}/milestones`, { name: 'Design sign-off', dueDate: day(-5), deliverable: true, billingPercent: 30 });
   await pia('POST', `/api/pm/projects/${q.id}/milestones`, { name: 'Go-live', dueDate: day(40), deliverable: true, billingPercent: 70 });
   await pia('POST', `/api/pm/projects/${q.id}/milestones`, { name: 'Internal review', dueDate: day(20) });

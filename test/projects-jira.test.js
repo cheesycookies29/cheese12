@@ -201,10 +201,10 @@ test('saved views: mine for anyone on the project, shared ones for managers; oth
   const shared = await pia('POST', url, { tab: 'list', name: 'Overdue for the client', query: 'f=overdue&group=status', shared: true });
   assert.equal(shared.shared, true);
   await assert.rejects(pia('POST', url, { tab: 'list', name: 'overdue FOR the client', query: '', shared: true }), /already a view/);
-  // Juan sees the shared view, not Vic's private one; Marco (reads every project) sees the shared one.
+  // Juan sees the shared view, not Vic's private one; Marco (Sales Manager, not on the project) sees nothing.
   assert.deepEqual((await juan('GET', url)).map((v) => v.name), ['Overdue for the client']);
   assert.deepEqual((await vic('GET', url)).map((v) => v.name), ['Overdue for the client', 'My blocked']);
-  assert.ok((await marco('GET', url)).some((v) => v.id === shared.id));
+  await assert.rejects(marco('GET', url), /Project not found/);
   await assert.rejects(juan('DELETE', `${url}/${v1.id}`), /View not found/);
   await assert.rejects(juan('DELETE', `${url}/${shared.id}`), /Only the person who saved/);
   // Not on the project: not found, for every views route.
@@ -231,9 +231,11 @@ test('starter templates: made once (TPL codes, no project code), not made again 
   const list = await pia('GET', '/api/pm/templates');
   assert.deepEqual(list.map((x) => x.name), ['Client implementation', 'Government contract (with deliverables)', 'Internal IT project']);
   await assert.rejects(juan('GET', '/api/pm/templates'), /does not have access/);
-  // Deleted: not made again by the next migration.
+  // Project Managers start from them but do not change them (nobody is on them); administrators do.
   const internal = starters.find((x) => x.starter === 'internal-it');
-  await pia('DELETE', `/api/pm/projects/${internal.id}`);
+  await assert.rejects(pia('DELETE', `/api/pm/projects/${internal.id}`), /Only the project's managers/);
+  // Deleted: not made again by the next migration.
+  await admin('DELETE', `/api/pm/projects/${internal.id}`);
   assert.equal(migratePm(db), false);
   assert.ok(!db.data.pmProjects.some((x) => x.starter === 'internal-it'));
   assert.ok(!db.data.pmTasks.some((t) => t.projectId === internal.id));
@@ -363,7 +365,7 @@ test('burn-up through the API: members and readers of the project; others get "n
   const b = await juan('GET', `/api/pm/projects/${p.id}/milestones/${ms.id}/burnup`);
   assert.deepEqual([b.name, b.basis, b.scope, b.due], ['Go-live', 'size', 3, day(20)]);
   assert.ok(b.points.length > 2 && b.points.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.date)));
-  assert.ok((await marco('GET', `/api/pm/projects/${p.id}/milestones/${ms.id}/burnup`)).points.length);
+  await assert.rejects(marco('GET', `/api/pm/projects/${p.id}/milestones/${ms.id}/burnup`), /Project not found/, 'a Sales Manager not on the project');
   await assert.rejects(nora('GET', `/api/pm/projects/${p.id}/milestones/${ms.id}/burnup`), /Project not found/);
   await assert.rejects(juan('GET', `/api/pm/projects/${p.id}/milestones/nope/burnup`), /Milestone not found/);
 });

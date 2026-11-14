@@ -9,11 +9,14 @@ order: 2
 
 ## November 2026
 
+### Projects are for their members (0.25)
+- Every project is now seen only by the people on its member list, and by administrators. Project Managers and Sales Managers see the projects they are on, not all of them. Add people under **Members** in the project form, or with **Members** at the top of a project. The **Private project** switch is gone: every project works that way. See [the projects guide](projects#choose-who-sees-a-project).
+
 ### Task descriptions show the right layout (0.24.2)
 - Lists inside lists, lists with empty lines between items, checklists and tables now show as written; bold with italic inside, links with brackets and pictures inside a sentence too. The toolbar has a **Checklist** button, **Heading** goes smaller on a second click, and Enter in a list inside a list goes back to the outer list. See [the projects guide](projects#write-a-tasks-description).
 
 ### Private projects (0.24)
-- A project can be **Private**: only the people on its member list, and administrators, can see it. Pick the members right in the project form (**Members** under **Private project**), or with **Members** at the top of the project. Project Managers and others who see every project do not, unless they are added. See [the projects guide](projects#keep-a-project-private).
+- A project can be **Private**: only the people on its member list, and administrators, can see it. Pick the members right in the project form (**Members** under **Private project**), or with **Members** at the top of the project. Project Managers and others who see every project do not, unless they are added. See [the projects guide](projects#choose-who-sees-a-project).
 
 ### Notifications (0.23)
 - A **bell** in the top bar, for everyone: its red number counts what you have not read. Choose it for your latest notifications, under *Today*, *Yesterday* and *Earlier*; choose one to open the request, payslip, ticket, task or record it is about. **Mark all read**, **Unread only**, and **See all** for the full list with a module filter. See [Getting started](getting-started#see-your-notifications).

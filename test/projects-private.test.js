@@ -1,7 +1,7 @@
-// Private projects (0.24): only the people on the member list (and administrators) can see one.
-// Projects-wide access (Project Managers, pm.view grants) does not reach it, anywhere a project
-// shows: the portfolio, its pages and tasks, My work, Milestones, the timesheet, Sales & CRM and
-// the Service Desk. Nobody makes a project private and shuts themselves out.
+// Members-only projects (0.25): a project is for the people on its member list (and administrators),
+// whatever their account type: Project Managers and Sales Managers see only the projects they are
+// on, anywhere a project shows (the portfolio, its pages and tasks, My work, Milestones, the
+// timesheet, Sales & CRM, the Service Desk). Nobody shuts themselves out of a project.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -48,19 +48,20 @@ await admin('PUT', `/api/pm/access/${bea.id}`, { access: true });
 const day = (n) => addDays(localDate(), n);
 const members = (p, list) => pia('PUT', `/api/pm/projects/${p.id}/members`, { members: list, version: p.version });
 
-test('the rule: members by role; Projects-wide access and pm.edit stop at a private project; administrators keep it', () => {
-  const p = { private: true, members: [{ userId: 'm', role: 'manager' }, { userId: 'w', role: 'member' }, { userId: 'v', role: 'viewer' }] };
+test('the rule: members by role, administrators everything; account types alone open nothing (templates: read to start from)', () => {
+  const p = { members: [{ userId: 'm', role: 'manager' }, { userId: 'w', role: 'member' }, { userId: 'v', role: 'viewer' }] };
   assert.equal(projectAccess(p, { id: 'm', role: 'employee' }), 'manage');
   assert.equal(projectAccess(p, { id: 'w', role: 'employee' }), 'work');
   assert.equal(projectAccess(p, { id: 'v', role: 'employee' }), 'comment');
   assert.equal(projectAccess(p, { id: 'x', role: 'pm' }), null);
+  assert.equal(projectAccess(p, { id: 'x', role: 'salesmgr' }), null);
   assert.equal(projectAccess(p, { id: 'x', role: 'admin' }), 'manage');
-  assert.equal(projectAccess({ ...p, private: false }, { id: 'x', role: 'pm' }), 'manage');
+  assert.equal(projectAccess({ ...p, isTemplate: true }, { id: 'x', role: 'pm' }), 'read', 'a Project Manager starts from a template');
+  assert.equal(projectAccess({ ...p, isTemplate: true }, { id: 'x', role: 'salesmgr' }), null);
 });
 
-test('a private project is hidden from Project Managers who are not on it, and open to its members', async () => {
-  const p = await pia('POST', '/api/pm/projects', { name: 'Board minutes archive', type: 'Internal', startDate: day(0), private: true });
-  assert.equal(p.private, true);
+test('a project is hidden from Project Managers who are not on it, and open to its members and administrators', async () => {
+  const p = await pia('POST', '/api/pm/projects', { name: 'Board minutes archive', type: 'Internal', startDate: day(0) });
   const m = await members(p, [{ userId: pia.id, role: 'manager' }, { userId: juan.id, role: 'member' }]);
   const t = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'Scan the 2019 minutes', assigneeId: juan.id, dueDate: day(2) });
   await pia('POST', `/api/pm/projects/${p.id}/milestones`, { name: 'Scanned', dueDate: day(10) });
@@ -75,67 +76,56 @@ test('a private project is hidden from Project Managers who are not on it, and o
   await fails(pat('GET', `/api/pm/tasks/${t.id}`), 404);
   await fails(pat('PUT', `/api/pm/projects/${p.id}`, { name: 'Taken over', version: m.version }), 404);
   await fails(pat('POST', `/api/pm/projects/${p.id}/copy`, { name: 'Copy', startDate: day(1) }), 404);
+  await fails(pat('DELETE', `/api/pm/projects/${p.id}`), 404);
+  // Bea (Sales Manager with Projects access): the same.
+  await fails(bea('GET', `/api/pm/projects/${p.id}`), 404);
 
   // Juan (member) and the administrator see it.
   assert.ok((await juan('GET', '/api/pm/projects')).some((x) => x.id === p.id));
   assert.ok(Object.values(await juan('GET', '/api/pm/my-work')).flat().some((x) => x.id === t.id));
-  assert.equal((await admin('GET', `/api/pm/projects/${p.id}`)).id, p.id);
+  assert.equal((await admin('GET', `/api/pm/projects/${p.id}`)).access, 'manage');
+  assert.ok((await admin('GET', '/api/pm/overview')).projects.some((x) => x.id === p.id));
 
-  // A Project Manager who is only a viewer of a private project cannot delete it.
+  // A Project Manager who is only a viewer on it cannot delete it.
   const v = await pia('GET', `/api/pm/projects/${p.id}`);
   await members(v, [{ userId: pia.id, role: 'manager' }, { userId: juan.id, role: 'member' }, { userId: pat.id, role: 'viewer' }]);
   assert.equal((await pat('GET', `/api/pm/projects/${p.id}`)).access, 'comment');
   await fails(pat('DELETE', `/api/pm/projects/${p.id}`), 403);
-  assert.ok(db.data.pmProjects.some((x) => x.id === p.id));
-  // Taken off the list: gone for Juan too, My work included.
+
+  // Taken off the list: gone for Juan, My work included.
   const now = await pia('GET', `/api/pm/projects/${p.id}`);
   await members(now, [{ userId: pia.id, role: 'manager' }]);
   await fails(juan('GET', `/api/pm/projects/${p.id}`), 404);
   assert.ok(!Object.values(await juan('GET', '/api/pm/my-work')).flat().some((x) => x.id === t.id));
 });
 
-test('you cannot make a project private and shut yourself out (administrators always keep access)', async () => {
-  // Creating it with someone else as manager, and yourself not on it.
-  await fails(pia('POST', '/api/pm/projects', { name: 'Not mine', type: 'Internal', startDate: day(0), managerId: pat.id, private: true }), 400, /add yourself/);
-  // Turning an open project private while you are not on it.
-  const open = await pat('POST', '/api/pm/projects', { name: 'Open one', type: 'Internal', startDate: day(0) });
-  await fails(pia('PUT', `/api/pm/projects/${open.id}`, { private: true, version: open.version }), 400, /add yourself/);
-  assert.equal(db.data.pmProjects.find((x) => x.id === open.id).private, false, 'nothing changed');
-  // Its manager can, and an administrator can without being on it.
-  const priv = await pat('PUT', `/api/pm/projects/${open.id}`, { private: true, version: open.version });
-  assert.equal(priv.private, true);
-  await fails(pia('GET', `/api/pm/projects/${open.id}`), 404);
-  const back = await admin('PUT', `/api/pm/projects/${open.id}`, { private: false, version: priv.version });
-  assert.equal(back.private, false);
-  assert.deepEqual(db.data.pmProjects.find((x) => x.id === open.id).history.filter((h) => h.field === 'private').map((h) => h.to), ['Yes', 'No']);
-  // Only true or false.
-  await fails(pat('PUT', `/api/pm/projects/${open.id}`, { private: 'yes', version: back.version }), 400);
+test('nobody shuts themselves out: starting a project for someone else keeps you on it as a manager; you cannot take yourself off', async () => {
+  const p = await pia('POST', '/api/pm/projects', { name: 'For Pat', type: 'Internal', startDate: day(0), managerId: pat.id });
+  assert.deepEqual(p.members.map((m) => [m.userId, m.role]).sort(), [[pat.id, 'manager'], [pia.id, 'manager']].sort());
+  assert.equal((await pia('GET', `/api/pm/projects/${p.id}`)).access, 'manage');
+  await fails(pia('PUT', `/api/pm/projects/${p.id}/members`, { version: p.version, members: [{ userId: pat.id, role: 'manager' }] }), 400, /keep yourself/);
+  // Pat (its manager) can take Pia off; an administrator changes anything without being on it.
+  const off = await pat('PUT', `/api/pm/projects/${p.id}/members`, { version: p.version, members: [{ userId: pat.id, role: 'manager' }] });
+  await fails(pia('GET', `/api/pm/projects/${p.id}`), 404);
+  const renamed = await admin('PUT', `/api/pm/projects/${p.id}`, { name: 'For Pat (renamed)', version: off.version });
+  assert.equal(renamed.name, 'For Pat (renamed)');
 });
 
-test('a copy stays private unless told otherwise', async () => {
-  const src = await pia('POST', '/api/pm/projects', { name: 'Salary review', type: 'Internal', startDate: day(0), private: true });
-  const copy = await pia('POST', `/api/pm/projects/${src.id}/copy`, { name: 'Salary review 2027', startDate: day(30) });
-  assert.equal(copy.private, true);
-  const open = await pia('POST', `/api/pm/projects/${src.id}/copy`, { name: 'Salary review (open)', startDate: day(30), private: false });
-  assert.equal(open.private, false);
-});
-
-test('Sales & CRM lists a deal\'s private project only to those who can open it', async () => {
+test('Sales & CRM lists a deal\'s project only to those on it', async () => {
   const acct = await bea('POST', '/api/crm/accounts', { name: 'Province of Quezon', sector: 'government' });
   const deal = await bea('POST', '/api/crm/deals', { title: 'Quezon payroll', accountId: acct.id, value: 500000 });
   await bea('PUT', `/api/crm/deals/${deal.id}/stage`, { stage: 'won' });
   const p = await bea('POST', `/api/pm/projects/from-deal/${deal.id}`, { startDate: day(1) });
-  await bea('PUT', `/api/pm/projects/${p.id}`, { private: true, version: p.version });
   assert.deepEqual((await bea('GET', `/api/crm/deals/${deal.id}`)).projects.map((x) => x.id), [p.id]);
   const marco = await account('marco', 'salesmgr', 'Marco Tan');
   await admin('PUT', `/api/pm/access/${marco.id}`, { access: true });
   assert.deepEqual((await marco('GET', `/api/crm/deals/${deal.id}`)).projects, []);
-  // Starting another project for the deal does not name the private one.
-  await fails(marco('POST', `/api/pm/projects/from-deal/${deal.id}`, {}), 409, /A private project already delivers this deal/);
+  // Starting another project for the deal does not name the one he is not on.
+  await fails(marco('POST', `/api/pm/projects/from-deal/${deal.id}`, {}), 409, /A project you are not on already delivers this deal/);
 });
 
-test('the Service Desk shows a task in a private project only as "a task in a private project"', async () => {
-  const p = await pia('POST', '/api/pm/projects', { name: 'Server room move', type: 'Internal', startDate: day(0), private: true });
+test('the Service Desk shows a task in a project you are not on only as "a task in a project you are not on"', async () => {
+  const p = await pia('POST', '/api/pm/projects', { name: 'Server room move', type: 'Internal', startDate: day(0) });
   await members(p, [{ userId: pia.id, role: 'manager' }, { userId: ivan.id, role: 'member' }]);
   const ticket = await ivan('POST', '/api/helpdesk/tickets', { requesterName: 'Facilities', subject: 'Move the rack', body: 'Before the 20th.', priority: 'normal', category: 'Hardware' });
   const t = await ivan('POST', `/api/pm/tasks/from-ticket/${ticket.id}`, { projectId: p.id });
@@ -143,21 +133,15 @@ test('the Service Desk shows a task in a private project only as "a task in a pr
   const other = await account('olga', 'it', 'Olga Agent');
   const seen = (await other('GET', `/api/helpdesk/tickets/${ticket.id}`)).projectTasks;
   assert.equal(seen.length, 1);
-  assert.deepEqual([seen[0].id, seen[0].key, seen[0].projectName, seen[0].title], [null, '', '', 'A task in a private project']);
+  assert.deepEqual([seen[0].id, seen[0].key, seen[0].projectName, seen[0].title], [null, '', '', 'A task in a project you are not on']);
 });
 
-test('a new project can come with its members: a private one names who may see it from the start', async () => {
-  // Pia makes Pat its manager and stays on it as a member: allowed (she keeps access).
-  const p = await pia('POST', '/api/pm/projects', { name: 'Grievance case 7', type: 'Internal', startDate: day(0), private: true, managerId: pat.id, members: [{ userId: pia.id, role: 'member' }, { userId: juan.id, role: 'viewer' }] });
+test('a new project can come with its members', async () => {
+  const p = await pia('POST', '/api/pm/projects', { name: 'Grievance case 7', type: 'Internal', startDate: day(0), managerId: pat.id, members: [{ userId: pia.id, role: 'member' }, { userId: juan.id, role: 'viewer' }] });
   assert.deepEqual(p.members.map((m) => [m.userId, m.role]).sort(), [[juan.id, 'viewer'], [pat.id, 'manager'], [pia.id, 'member']].sort());
   assert.equal((await juan('GET', `/api/pm/projects/${p.id}`)).access, 'comment');
-  // Bad lists are refused, with nothing created.
   const before = db.data.pmProjects.length;
   await fails(pia('POST', '/api/pm/projects', { name: 'X', type: 'Internal', startDate: day(0), members: [{ userId: 'ghost', role: 'member' }] }), 400, /active accounts/);
   await fails(pia('POST', '/api/pm/projects', { name: 'X', type: 'Internal', startDate: day(0), members: [{ userId: juan.id }, { userId: juan.id }] }), 400, /twice/);
   assert.equal(db.data.pmProjects.length, before);
-  // Taking yourself off a private project's list (not an administrator) is refused.
-  const two = await pat('PUT', `/api/pm/projects/${p.id}/members`, { version: p.version, members: [{ userId: pat.id, role: 'manager' }, { userId: pia.id, role: 'manager' }] });
-  await fails(pia('PUT', `/api/pm/projects/${p.id}/members`, { version: two.version, members: [{ userId: pat.id, role: 'manager' }] }), 400, /add yourself/);
-  assert.ok(db.data.pmProjects.find((x) => x.id === p.id).members.some((m) => m.userId === pia.id));
 });

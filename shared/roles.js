@@ -39,12 +39,12 @@ export const ROLES = {
   },
   salesmgr: {
     label: 'Sales Manager',
-    description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist. Sees every project (read only), to follow the delivery of what was sold.',
+    description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist. Opens Project Management and the projects they are added to, to follow the delivery of what was sold.',
     permissions: ['crm.view', 'crm.edit', 'crm.manage', 'pm.view', 'self'],
   },
   pm: {
     label: 'Project Manager',
-    description: 'Runs Project Management: creates and edits any project, its members, milestones and tasks; sees every project and its time; deletes projects and changes the Projects setup. Can view employee records.',
+    description: 'Runs Project Management: starts projects and manages the ones they are a manager of (members, milestones, tasks, time); sees only the projects they are on; deletes the projects they manage and changes the Projects setup. Can view employee records.',
     permissions: ['pm.view', 'pm.edit', 'pm.manage', 'employees.view', 'self'],
   },
   employee: {
@@ -88,9 +88,9 @@ export const PERMISSION_LABELS = [
   ['crm.view', 'Sales & CRM: see accounts, contacts, leads, deals, bids and contracts'],
   ['crm.edit', 'Sales & CRM: add and edit records, move deals, log calls, meetings and tasks'],
   ['crm.manage', 'Sales & CRM: delete records and change the sales setup'],
-  ['pm.view', 'Projects: see every project, its tasks, milestones and time'],
-  ['pm.edit', 'Projects: create projects and edit any project (details, members, columns, milestones, tasks)'],
-  ['pm.manage', 'Projects: delete projects and change the Projects setup'],
+  ['pm.view', 'Projects: use Project Management (each project only for the people on its member list)'],
+  ['pm.edit', 'Projects: create projects (and start them from templates); they manage the projects they start'],
+  ['pm.manage', 'Projects: delete the projects they manage and change the Projects setup'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
@@ -163,7 +163,7 @@ export const builtInCan = (role, permission) => {
 // user.helpdeskAgent / user.crmAccess / user.pmAccess: true (granted), false (removed) or absent
 // (follow the account type). CRM and Projects access grant viewing and editing; removing it also
 // removes crm.manage / pm.manage. Administrators always keep everything.
-// (Anyone who is a member of a project can open that project without pm.view: see server/projects.js.)
+// (A project opens only for its members and administrators, whatever the account type: see projectAccess.)
 export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent', 'crm.view': 'crmAccess', 'crm.edit': 'crmAccess', 'pm.view': 'pmAccess', 'pm.edit': 'pmAccess' };
 export function userCan(user, permission) {
   if (!user) return false;
