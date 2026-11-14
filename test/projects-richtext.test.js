@@ -203,10 +203,10 @@ test('a picture the description stops using is removed on save (after a grace pe
   assert.ok(!fs.existsSync(path.join(dir, 'attachments', a.id)));
 });
 
-test('at most 20 pictures a task', async () => {
+test('no limit on how many pictures a task has', async () => {
   const t = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'Photo survey' });
-  for (let i = 0; i < 20; i++) await pia('POST', `/api/pm/tasks/${t.id}/images`, { file: png(`${i}.png`) });
-  await fails(pia('POST', `/api/pm/tasks/${t.id}/images`, { file: png() }), 400, /20 pictures/);
+  for (let i = 0; i < 25; i++) await pia('POST', `/api/pm/tasks/${t.id}/images`, { file: png(`${i}.png`) });
+  assert.equal((await pia('GET', `/api/pm/tasks/${t.id}`)).images.length, 25);
 });
 
 test('copying a project copies the pictures its descriptions use, under new ids', async () => {

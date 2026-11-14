@@ -231,7 +231,7 @@ Progress counts the subtasks, not their parent. When most tasks (60% or more) ha
 
 ![Editing a task's description](projects-description.jpg)
 
-The toolbar writes simple marks into the text (`**bold**`, `- item`, `- [ ] to do`, `![caption](img:…)` for a picture), so you can also type them. A table is a line of `| Column | Column |`, then `|---|---|`, then a line per row. The checklist in a description is for reading; tick tasks off in the task's own **Checklist**. Pictures can be JPEG, PNG or WebP, up to 5 MB (a large photo is made smaller before it is sent), and 20 per task; the words in brackets are the caption. Everyone who can open the project sees them; click one to open it full size. A picture you take out of the description is deleted when the description is saved. Pictures are added once the task exists: in **New task** the description can be formatted, and pictures come after **Add task**. Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab.
+The toolbar writes simple marks into the text (`**bold**`, `- item`, `- [ ] to do`, `![caption](img:…)` for a picture), so you can also type them. A table is a line of `| Column | Column |`, then `|---|---|`, then a line per row. The checklist in a description is for reading; tick tasks off in the task's own **Checklist**. Pictures can be JPEG, PNG or WebP, up to 5 MB (a large photo is made smaller before it is sent), as many as you need; the words in brackets are the caption. Everyone who can open the project sees them; click one to open it full size. A picture you take out of the description is deleted when the description is saved. Pictures are added once the task exists: in **New task** the description can be formatted, and pictures come after **Add task**. Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab.
 
 ### Size a task
 
@@ -326,7 +326,7 @@ Watchers hear, under **For you**, of every comment on the task and of it being m
 
 ### Attach files to a task or a deliverable
 
-1. On a task, under **Files**, click **Add files** and pick PDFs or photos (JPEG, PNG or WebP; up to 5 MB each, at most 5 per task). Large photos are made smaller first.
+1. On a task, under **Files**, click **Add files** and pick PDFs or photos (JPEG, PNG or WebP; up to 5 MB each, as many as you need). Large photos are made smaller first.
 2. For a milestone, click **Files** on its card on the project's **Overview** (on a deliverable, **Acceptance document**) and add files the same way.
 3. Click a file's name to download it. The bin removes it.
 
@@ -519,7 +519,7 @@ Amounts come from contract and deal values in Sales & CRM, so only people with S
 No. Like medical certificates and ticket files, they are kept in the `data` folder next to the database, not in the backup file. An administrator copies that folder to keep them.
 
 **Which files can I attach?**
-PDFs and photos (JPEG, PNG, WebP), up to 5 MB each and 5 per task or milestone. CORE checks what the file really is, not just its name. Files are always downloaded, never opened inside CORE.
+PDFs and photos (JPEG, PNG, WebP), up to 5 MB each, with no limit on how many a task or milestone has. CORE checks what the file really is, not just its name. Files are always downloaded, never opened inside CORE.
 
 **How exact is the burn-up?**
 It is worked out from what each task remembers: when it was added, its status changes and when it was done. A deleted task is not remembered, so it is not in the chart at all; and a task moved from another milestone counts in its current one from the day it was added.

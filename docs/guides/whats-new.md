@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### No limit on files in tasks (0.25.1)
+- A task (and a milestone) can have as many files as you need, and a task's description as many pictures: the limits of 5 files and 20 pictures are gone. Each file is still up to 5 MB, PDF or photo. See [the projects guide](projects#attach-files-to-a-task-or-a-deliverable).
+
 ### Projects are for their members (0.25)
 - Every project is now seen only by the people on its member list, and by administrators. Project Managers and Sales Managers see the projects they are on, not all of them. Add people under **Members** in the project form, or with **Members** at the top of a project. The **Private project** switch is gone: every project works that way. See [the projects guide](projects#choose-who-sees-a-project).
 

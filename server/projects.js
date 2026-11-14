@@ -234,8 +234,6 @@ const MAX_HISTORY = 200;
 // The files of tasks and milestones of a project (to remove with it).
 export const projectFiles = (data, projectId) => [...(data.pmTasks || []), ...(data.pmMilestones || [])].filter((x) => x.projectId === projectId).flatMap((x) => [...(x.attachments || []), ...(x.images || [])]);
 
-const MAX_FILES = 5; // per task or milestone
-const MAX_IMAGES = 20; // pictures in a task's description
 const IMAGE_GRACE_MS = 2 * 3600 * 1000; // a picture not (yet) in the description is kept this long: someone may be writing
 const BULK_MAX = 200; // tasks per bulk change
 const BULK_FIELDS = ['statusId', 'assigneeId', 'milestoneId', 'priority', 'size'];
@@ -421,14 +419,13 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   const watcherList = (t) => watchersOf(t).map((id) => ({ userId: id, name: userName(id) || 'Former user' })).sort((a, b) => a.name.localeCompare(b.name));
 
   // ----- Files on tasks and milestones (server/attachments.js) -----
-  // Up to 5 each; anyone who works on the project adds them, the uploader or a manager removes
+  // As many as needed (each up to the size limit); anyone who works on the project adds them, the uploader or a manager removes
   // them, and anyone who can open the project downloads them: as a file to save, never shown in
   // the page (Content-Disposition: attachment, its own sandboxing policy).
   const filesOf = (rec) => (Array.isArray(rec.attachments) ? rec.attachments : (rec.attachments = []));
   const fileOut = (a, p, u) => ({ id: a.id, name: a.name, type: a.type, size: a.size, uploadedAt: a.uploadedAt, by: a.by || null, byName: byName(a.by), canDelete: (a.by === u.id && LEVEL[levelOf(p, u)] >= LEVEL.work) || levelOf(p, u) === 'manage' });
   function addFile(rec, body) {
     if (!files) throw new HttpError(500, 'Files cannot be stored here.');
-    if (filesOf(rec).length >= MAX_FILES) throw new HttpError(400, `There are already ${MAX_FILES} files here, the most there can be. Remove one first.`);
     return { ...files.save(parseUpload(body?.file)) };
   }
   function findFile(rec, fileId) {
@@ -1027,8 +1024,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       others: ctx.tasks.filter((x) => x.id !== t.id).sort(byRank).map((x) => ({ id: x.id, key: x.key, title: x.title, parentId: x.parentId })),
       milestones: milestonesOf(p).map((m) => ({ id: m.id, name: m.name, dueDate: m.dueDate })),
       ...(ctx.time ? { time: logs.map((x) => ({ ...x, userName: userName(x.userId) })), loggedHours: Math.round(logs.reduce((n, x) => n + x.hours, 0) * 100) / 100 } : { time: null }),
-      watching: watchersOf(t).includes(u.id), watcherList: watcherList(t), attachments: filesOf(t).map((a) => fileOut(a, p, u)), maxFiles: MAX_FILES,
-      images: imagesOf(t).map(imageOut), maxImages: MAX_IMAGES,
+      watching: watchersOf(t).includes(u.id), watcherList: watcherList(t), attachments: filesOf(t).map((a) => fileOut(a, p, u)),
+      images: imagesOf(t).map(imageOut),
     };
   });
   route('PUT', '/api/pm/tasks/:id', 'auth', ({ params, body, user: u }) => {
@@ -1196,7 +1193,6 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const { t } = findTask(params.id, u, 'work');
     if (!files) throw new HttpError(500, 'Files cannot be stored here.');
     pruneImages(t);
-    if (imagesOf(t).length >= MAX_IMAGES) throw new HttpError(400, `This task has ${MAX_IMAGES} pictures, the most it can have. Remove one from the description and save it first.`);
     const up = parseUpload(body?.file);
     if (!IMAGE_TYPES.includes(up.type)) throw new HttpError(400, 'Insert a picture: JPEG, PNG or WebP.');
     const x = { ...files.save(up), by: u.id };

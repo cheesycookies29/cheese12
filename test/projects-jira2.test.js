@@ -390,9 +390,9 @@ test('files on a task: PDF and images only (by content), 5 at most, downloaded a
   const full = await pia('GET', `/api/pm/tasks/${t.id}`);
   assert.ok(full.history.some((h) => h.field === 'file added' && h.to === 'Acceptance certificate.pdf'));
   assert.ok((await pia('GET', `/api/pm/projects/${p.id}`)).activity.some((x) => x.field === 'file added'));
-  // At most 5.
-  for (let i = 0; i < 4; i++) await juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: pdf(String(i)) });
-  await fails(juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: pdf() }), 400, /5 files/);
+  // No limit on how many: more than five go on.
+  for (let i = 0; i < 6; i++) await juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: pdf(String(i)) });
+  assert.equal((await juan('GET', `/api/pm/tasks/${t.id}`)).attachments.length, 7);
   // Removing: the uploader or a manager; another member cannot.
   await fails(ana('DELETE', `/api/pm/tasks/${t.id}/attachments/${a.id}`), 403);
   const file = path.join(dir, 'attachments', a.id);

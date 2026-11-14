@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.25.1-alpha',
+    date: '2026-11-14',
+    title: 'No limit on files in tasks',
+    modules: ['projects'],
+    notes: 'Tasks and milestones take as many files, and descriptions as many pictures, as needed.',
+    changes: [
+      ['improved', 'projects', 'The limits of 5 files per task or milestone and 20 pictures per task description are removed (server and screen); Add files uploads everything picked, one file at a time. Each file is still checked by content (PDF, JPEG, PNG, WebP) and limited to 5 MB.'],
+    ],
+  },
+  {
     version: '0.25.0-alpha',
     date: '2026-11-14',
     title: 'Projects are for their members',

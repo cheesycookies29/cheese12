@@ -219,23 +219,20 @@ function popMenu(btn, items, label) {
 // ---------- Files (tasks and milestones) ----------
 // A file opens as a download (the server sends it as an attachment to save), never in the page.
 // base: the files' address, e.g. /api/pm/tasks/<id>/attachments.
-const MAX_FILES = 5;
 function fileBlock(list, base, canAdd) {
   return html`${list.length ? html`<ul class="pm-files">${list.map((a) => html`<li>
       <span class="pm-file-ic" aria-hidden="true">${icon(a.type === 'application/pdf' ? 'file' : 'image', 16)}</span>
       <span class="grow"><a href="${base}/${a.id}" download="${a.name}">${a.name}</a><small>${sizeLabel(a.size)} · ${a.byName} · ${when(a.uploadedAt)}</small></span>
       ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>`
     : html`<p class="muted small">No files yet.</p>`}
-    ${canAdd ? (list.length < MAX_FILES ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${ACCEPT}" multiple data-add-file /></label>
-        <small class="muted">PDF or photos (JPEG, PNG, WebP), up to 5 MB each; at most ${MAX_FILES}.</small></div>`
-      : html`<p class="muted small">${MAX_FILES} files, the most there can be. Remove one to add another.</p>`) : ''}`;
+    ${canAdd ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${ACCEPT}" multiple data-add-file /></label>
+        <small class="muted">PDF or photos (JPEG, PNG, WebP), up to 5 MB each; as many as you need.</small></div>` : ''}`;
 }
-// Uploads what was picked (up to the room left) and removes on request; done(list) gets the new list.
+// Uploads everything picked, one file at a time, and removes on request; done(list) gets the new list.
 function wireFiles(root, base, list, done) {
   root.querySelector('[data-add-file]')?.addEventListener('change', guard(async (e) => {
     const input = e.target;
-    const picked = [...input.files].slice(0, MAX_FILES - list.length);
-    if (input.files.length > picked.length) toast(`Only ${picked.length} more file${picked.length === 1 ? '' : 's'} can be added here.`, 'error');
+    const picked = [...input.files];
     input.disabled = true;
     let out = null;
     try {
@@ -1660,7 +1657,7 @@ export async function taskView(el, { projectId, id }) {
           ${t.parentId ? '' : html`<section class="card"><div class="card-head"><h2>${icon('layers')} Subtasks</h2><span class="muted small">${t.subtaskList.length ? `${t.subtaskList.filter((s) => s.category === 'done').length}/${t.subtaskList.length} done` : ''}</span></div>
             ${t.subtaskList.length ? html`<ul class="crm-mini">${t.subtaskList.map((s) => html`<li><span class="grow"><a href="#/projects/${p.id}/tasks/${s.id}"><strong>${s.title}</strong></a><small><span class="mono">${s.key}</span> · ${s.statusName}${s.assigneeName ? ` · ${s.assigneeName}` : ''}</small></span>${dueChip(s)}</li>`)}</ul>` : html`<p class="muted small">No subtasks. A subtask counts for progress instead of this task.</p>`}
             ${work ? html`<form id="add-sub" class="crm-add-item"><input name="title" maxlength="200" placeholder="Add a subtask…" aria-label="Subtask title" /><button class="btn" type="submit">Add</button></form>` : ''}</section>`}
-          <section class="card" id="files-card"><div class="card-head"><h2>${icon('paperclip')} Files</h2><span class="muted small">${t.attachments.length ? `${t.attachments.length} of ${t.maxFiles}` : ''}</span></div>
+          <section class="card" id="files-card"><div class="card-head"><h2>${icon('paperclip')} Files</h2><span class="muted small">${t.attachments.length ? plural(t.attachments.length, 'file') : ''}</span></div>
             <div id="files">${fileBlock(t.attachments, `/api/pm/tasks/${t.id}/attachments`, work)}</div></section>
           <section class="card"><h2>${icon('comment')} Comments</h2>
             ${comments.length ? html`<ul class="pm-comments">${comments.map(comment)}</ul>` : html`<p class="muted small">No comments yet.</p>`}
