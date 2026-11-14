@@ -12,6 +12,7 @@
 
 import { TICKET_PRIORITY } from './helpdesk.js';
 import { isDayOff } from './holidays.js';
+import { userCan } from './roles.js';
 
 export const PROJECT_STATUS = { planning: 'Planning', active: 'Active', on_hold: 'On hold', completed: 'Completed', cancelled: 'Cancelled' };
 export const OPEN_PROJECT = ['planning', 'active', 'on_hold'];
@@ -771,4 +772,24 @@ export function importPlan(rows, mapping, { project, members = [], milestones = 
     if (!m.dueDate) for (const row of m.rows) out[tasks.findIndex((t) => t.row === row)].errors.push(`The new milestone "${m.name}" needs a due date: give its tasks a due date, or give the project an end date.`);
   }
   return { rows: out, tasks, newMilestones: [...newMs.values()].map(({ name, dueDate, rows: r }) => ({ name, dueDate, tasks: r.length })), errorCount: out.filter((x) => x.errors.length).length, fromHours: out.filter((x) => x.fromHours).length };
+}
+
+// What someone may do on a project: manage | work | comment | read, or null (it does not exist for them).
+// Members by their role; besides them, Projects-wide access (pm.edit, pm.view) reads or manages every
+// project. A PRIVATE project is for its members only: Projects-wide access does not reach it, and
+// only administrators (so a project never becomes unreachable) open it without being a member.
+export function projectAccess(p, u) {
+  if (!p || !u) return null;
+  const m = p.members.find((x) => x.userId === u.id);
+  if (p.private) {
+    if (u.role === 'admin' || m?.role === 'manager') return 'manage';
+    if (m?.role === 'member') return 'work';
+    if (m?.role === 'viewer') return 'comment';
+    return null;
+  }
+  if (userCan(u, 'pm.edit') || m?.role === 'manager') return 'manage';
+  if (m?.role === 'member') return 'work';
+  if (m?.role === 'viewer') return 'comment';
+  if (userCan(u, 'pm.view')) return 'read';
+  return null;
 }

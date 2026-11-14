@@ -15,9 +15,9 @@ Hours come in only where they are needed: a project manager can turn on **time t
 
 Who sees what:
 
-- **Project Manager** (account type): sees every project, starts and edits any project, deletes projects and changes the **Projects setup**.
+- **Project Manager** (account type): sees every project (except private ones they are not on: see [Keep a project private](projects#keep-a-project-private)), starts and edits any project, deletes projects and changes the **Projects setup**.
 - **Members of a project** open that project, whatever their account type, with a role in it (below).
-- **Sales Managers** see every project, read only, to follow the delivery of what they sold. Administrators can give **Projects access** to anyone else (see [the administrator's guide](admin)).
+- **Sales Managers** see every project that is not private, read only, to follow the delivery of what they sold. Administrators can give **Projects access** to anyone else (see [the administrator's guide](admin)).
 - Everyone else does not see a project at all. Its tasks and comments are hidden too.
 
 | Role in a project | Can |
@@ -193,6 +193,19 @@ It leaves the portfolio, My work and the health counts, and appears under **Temp
 5. When the deliverable goes to the client, click its pencil and enter **Submitted to the client on**; when they accept it, **Accepted on** and the **Acceptance note** (for example the certificate of acceptance). Then attach the signed document with **Acceptance document** on the card (see [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable)).
 
 A milestone is *Off track* once its date has passed with work still open; *At risk* when one of its tasks is overdue, a task is due after the milestone, or its progress is more than 15 points behind where it should be by now (counted in working days, without weekends and holidays).
+
+### Keep a project private
+
+For work only some people should see (a salary review, an investigation, a client under a non-disclosure agreement).
+
+1. Open the project and click **Edit** (or start one with **+ New project**).
+2. Tick **Private project**.
+3. Click **Save**.
+4. Under **Members**, add the people who may see it (see [Add the people](projects#add-the-people)).
+
+A private project shows a **Private** badge with a lock. Only the people on its member list see it, each with their role, and administrators. Project Managers, Sales Managers and anyone else with access to every project do not see it unless they are on the list: it is not in their lists, Milestones, My work or the Timesheet, and its address says *not found*. On a Sales & CRM deal or contract it is listed only to those who can open it, and a service desk ticket made into one of its tasks shows only *A task in a private project* to agents who are not on it.
+
+You must be on the list yourself (or be its manager) to make a project private, so you never lock yourself out; administrators can always open it and make it open again. A copy of a private project is private too, unless you untick it. Someone taken off the list loses access at once.
 
 ### Add the people
 
@@ -397,7 +410,7 @@ The chart counts **effort points** (each task's size weight: *XS* 1, *S* 2, *M* 
 
 With Sales & CRM access, each deliverable shows its **Amount**: its billing % of the value of the contract linked to the project (or of the deal's value when there is no contract). The **Billing forecast** under the list adds them up by month: **Expected** (not accepted yet, in the month it is due, with what is overdue), and **Earned** (accepted, in the month of acceptance). **Export CSV** saves the forecast. Without Sales & CRM access, the amounts and the forecast are not shown, and CORE does not send them to your browser at all.
 
-Project Managers and Sales Managers see every project here; others see the projects they are on.
+Project Managers and Sales Managers see every project here except private ones they are not on; others see the projects they are on.
 
 ![Milestones across projects, with the billing forecast](projects-milestones.jpg)
 

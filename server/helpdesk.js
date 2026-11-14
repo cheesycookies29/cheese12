@@ -130,12 +130,12 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       awaitingAgent: last?.author.role === 'requester',
     };
   };
-  const full = (t, { forRequester = false } = {}) => {
+  const full = (t, { forRequester = false, user = null } = {}) => {
     const s = summary(t);
     const visible = (m) => !forRequester || m.kind === 'reply' || (m.kind === 'event' && m.public);
     const messages = t.messages.filter(visible).map(({ emailMessageId, email, ...m }) => (forRequester ? m : { ...m, email }));
     // Agents see the project tasks made from the ticket (Add to a project).
-    return { ...s, ccs: forRequester ? [] : t.ccs, messages, ...(forRequester ? {} : { publicUrl: t.publicUrl || null, projectTasks: linkedTasks(db, t.id) }) };
+    return { ...s, ccs: forRequester ? [] : t.ccs, messages, ...(forRequester ? {} : { publicUrl: t.publicUrl || null, projectTasks: linkedTasks(db, t.id, user) }) };
   };
 
   // ----- Notifications (the bell) -----
@@ -570,7 +570,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     event(t, user, `Logged by ${user.name} on behalf of ${requester.name}`);
     if (t.assigneeId) tellAgent(t, user.id, 'ticket.assigned', `${user.name} assigned ticket ${t.ref} to you`, `${t.subject} · from ${t.requester.name}`);
     db.save();
-    return full(t);
+    return full(t, { user });
   });
   route('GET', '/api/helpdesk/tickets/:id', 'helpdesk.agent', ({ user, params }) => {
     const t = findTicket(params.id);
@@ -578,7 +578,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     seen.set(user.id, { name: user.name, at: Date.now() });
     viewers.set(t.id, seen);
     const others = [...seen.entries()].filter(([id, v]) => id !== user.id && Date.now() - v.at < VIEWER_WINDOW_MS).map(([, v]) => v.name);
-    return { ...full(t), viewers: others };
+    return { ...full(t, { user }), viewers: others };
   });
   route('PUT', '/api/helpdesk/tickets/:id', 'helpdesk.agent', ({ user, params, body }) => {
     const t = findTicket(params.id);
@@ -611,7 +611,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     }
     t.updatedAt = now();
     db.save();
-    return full(t);
+    return full(t, { user });
   });
   route('POST', '/api/helpdesk/tickets/:id/messages', 'helpdesk.agent', async ({ user, params, body }) => {
     const t = findTicket(params.id);
@@ -637,7 +637,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       msg.email = await emailRequester(t, text + (saved.length ? `\n\n(${saved.length} attachment(s) on the ticket: sign in to view.)` : ''));
       db.save();
     }
-    return full(t);
+    return full(t, { user });
   });
   route('DELETE', '/api/helpdesk/tickets/:id', 'helpdesk.manage', ({ params }) => {
     const t = findTicket(params.id);

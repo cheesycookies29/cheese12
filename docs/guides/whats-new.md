@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Private projects (0.24)
+- A project can be **Private**: only the people on its member list, and administrators, can see it. Project Managers and others who see every project do not, unless they are added. See [the projects guide](projects#keep-a-project-private).
+
 ### Notifications (0.23)
 - A **bell** in the top bar, for everyone: its red number counts what you have not read. Choose it for your latest notifications, under *Today*, *Yesterday* and *Earlier*; choose one to open the request, payslip, ticket, task or record it is about. **Mark all read**, **Unread only**, and **See all** for the full list with a module filter. See [Getting started](getting-started#see-your-notifications).
 - You are told when a request needs your approval and when yours is decided; when your payslip is ready; when equipment is assigned or supplies are issued to you; when a ticket is assigned to you, its requester replies, or an agent replies to or resolves your ticket; when you are made the owner of a sales record; when an administrator answers your feedback. Project Management's **For you** is in the bell too, and reading one in either place reads it in both.

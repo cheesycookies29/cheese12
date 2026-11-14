@@ -28,6 +28,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.24.0-alpha',
+    date: '2026-11-14',
+    title: 'Private projects',
+    modules: ['projects', 'crm', 'assets'],
+    notes: 'A project can be private: only its members, and administrators, can see it.',
+    changes: [
+      ['new', 'projects', 'Private project (Edit project): access by the member list only (manager, member, viewer) plus administrators; pm.edit and pm.view (Project Managers, Sales Managers, Projects access grants) no longer reach it. One rule, projectAccess in shared/projects.js, decides access everywhere: portfolio, overview counts, Milestones and the billing forecast, a project\'s pages, tasks, comments and files, My work, For you, the digest and the Timesheet. A Private badge with a lock on the project and in the portfolio; the change is in the project\'s history.'],
+      ['new', 'projects', 'Nobody locks themselves out: making a project private (or creating one) requires being on its member list or its manager, except for administrators. A copy of a private project is private unless unticked. The demo privacy review is private.'],
+      ['fixed', 'projects', 'Deleting a project now also needs managing that project, not only the Project Manager account type; the Delete button shows only then.'],
+      ['improved', 'crm', 'A deal\'s or contract\'s projects list shows a private project only to those who can open it; starting another project for the deal does not name it.'],
+      ['improved', 'assets', 'Service desk tickets: a task made from the ticket in a private project shows to agents who cannot open it as "A task in a private project", without its key, title or project.'],
+    ],
+  },
+  {
     version: '0.23.0-alpha',
     date: '2026-11-13',
     title: 'Notifications for every account',

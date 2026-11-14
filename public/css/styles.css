@@ -2952,3 +2952,8 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
   .notif-tools .check-inline { min-height: 44px; }
   .notif-foot a, .notif-more a { display: inline-flex; align-items: center; min-height: 44px; }
 }
+
+/* ----- Private projects ----- */
+.pm-private-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border-strong); vertical-align: middle; white-space: nowrap; }
+h1 .pm-private-badge { font-size: 12px; }
+.pm-private .check span { display: inline-flex; align-items: center; gap: 6px; }

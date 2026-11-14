@@ -32,8 +32,9 @@ import {
   validHours, RANK_STEP, weekStart, shiftWorkDays, mentionedUsernames, cleanViewQuery, VIEW_TABS, MAX_DAY_HOURS,
   isSize, sizeName, sizeWeight, sizeFromHours, cleanSizeNotes, DEFAULT_SIZE_NOTES, SIZE_KEYS,
   NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup, addWorkDays, DIGEST_DEFAULTS, validDigestTime, digestDue, digestFor, billingAmount, billingForecast,
-  IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan, parseProjectIcon,
+  IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan, parseProjectIcon, projectAccess,
 } from '../shared/projects.js';
+export { projectAccess };
 import { addStarterTemplates } from './pm-templates.js';
 
 // Every collection here has a projectId, so deleting a project (or the demo data) takes its records.
@@ -183,9 +184,11 @@ export function removeUserFromProjects(db, userId) {
 }
 
 // The project tasks linked to a service desk ticket (shown on the ticket).
-export function linkedTasks(db, ticketId) {
+// user: who is looking. A task in a private project they cannot open shows only that it exists.
+export function linkedTasks(db, ticketId, user = null) {
   return (db.data.pmTasks || []).filter((t) => t.ticketId === ticketId).map((t) => {
     const p = db.data.pmProjects.find((x) => x.id === t.projectId);
+    if (p?.private && !projectAccess(p, user)) return { id: null, key: '', title: 'A task in a private project', projectId: null, projectCode: '', projectName: '', statusName: '', category: 'todo', hidden: true };
     const s = p && statusOf(p, t.statusId);
     return { id: t.id, key: t.key, title: t.title, projectId: t.projectId, projectCode: p?.code || '', projectName: p?.name || '', statusName: s?.name || '', category: s?.category || 'todo' };
   });
@@ -221,7 +224,8 @@ const idOf = (v) => (typeof v === 'string' && v.length <= 64 ? v : '');
 // Only the fields a form may change: anything else in the body is ignored.
 const pickFields = (body, keys) => Object.fromEntries(keys.filter((k) => body && typeof body === 'object' && Object.hasOwn(body, k)).map((k) => [k, body[k]]));
 
-const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours', 'accountId', 'dealId', 'contractId', 'icon'];
+const PROJECT_FIELDS = ['name', 'type', 'description', 'status', 'startDate', 'endDate', 'managerId', 'timeTracking', 'budgetHours', 'accountId', 'dealId', 'contractId', 'icon', 'private'];
+
 const TASK_FIELDS = ['title', 'description', 'statusId', 'priority', 'assigneeId', 'startDate', 'dueDate', 'size', 'milestoneId', 'parentId', 'blockedBy'];
 const MILESTONE_FIELDS = ['name', 'dueDate', 'deliverable', 'billingPercent', 'submittedAt', 'acceptedAt', 'acceptanceNote'];
 const LEVEL = { read: 1, comment: 2, work: 3, manage: 4 };
@@ -250,14 +254,9 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
 
   // ----- Who may do what in a project -----
   // manage: pm.edit or the project's manager; work: a member; comment: a viewer; read: pm.view.
-  function levelOf(p, u) {
-    const m = p.members.find((x) => x.userId === u.id);
-    if (userCan(u, 'pm.edit') || m?.role === 'manager') return 'manage';
-    if (m?.role === 'member') return 'work';
-    if (m?.role === 'viewer') return 'comment';
-    if (userCan(u, 'pm.view')) return 'read';
-    return null;
-  }
+  const levelOf = projectAccess;
+  // Making a project private, or creating one, must not shut out the person doing it.
+  const PRIVATE_SELF = 'A private project is for its members only: add yourself to its members (or make yourself its manager) first, or you would lose access to it.';
   const DENIED = {
     manage: 'Only the project\'s managers can change this.',
     work: 'You can read and comment on this project, but not change its tasks.',
@@ -564,7 +563,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       throw new HttpError(400, e.message);
     }
     return {
-      icon,
+      icon, private: bool(b.private, 'Private project', Boolean(rec.private)),
       name, type, description: str(b.description, 8000), status: oneOf(b.status, PROJECT_STATUS, 'Status', rec.status || 'planning'),
       startDate, endDate, managerId, timeTracking, budgetHours: timeTracking ? optNum(b.budgetHours, 'Budget (hours)', 0, 1000000) : null, ...crmLinks(b, u, rec),
     };
@@ -584,6 +583,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       createdAt: at, createdBy: u.id, updatedAt: at, updatedBy: u.id, history: [{ at, by: u.id, field: 'created', from: '', to: '' }], ...extra,
     };
     keepManager(p);
+    if (p.private && !levelOf(p, u)) throw new HttpError(400, PRIVATE_SELF);
     d().pmProjects.push(p);
     notifyAdded(p, u, []);
     return p;
@@ -643,9 +643,17 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     fresh(p, body);
     const before = { status: p.status, startDate: p.startDate, endDate: p.endDate, managerId: p.managerId, isTemplate: Boolean(p.isTemplate), timeTracking: Boolean(p.timeTracking), members: p.members.map((m) => m.userId) };
     const isTemplate = bool(body.isTemplate, 'Use as a template', before.isTemplate);
-    Object.assign(p, validProject({ ...p, ...pickFields(body, PROJECT_FIELDS) }, u, p));
+    const next = validProject({ ...p, ...pickFields(body, PROJECT_FIELDS) }, u, p);
+    if (next.private) {
+      const probe = { ...p, ...next, members: p.members.map((m) => ({ ...m })) };
+      keepManager(probe);
+      if (!levelOf(probe, u)) throw new HttpError(400, PRIVATE_SELF);
+    }
+    const wasPrivate = Boolean(p.private);
+    Object.assign(p, next);
     p.isTemplate = isTemplate;
     keepManager(p);
+    track(p, u, 'private', wasPrivate ? 'Yes' : 'No', p.private ? 'Yes' : 'No');
     track(p, u, 'status', PROJECT_STATUS[before.status], PROJECT_STATUS[p.status]);
     track(p, u, 'start', before.startDate, p.startDate);
     track(p, u, 'end', before.endDate, p.endDate);
@@ -658,7 +666,9 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     return summaryOf(p, u);
   });
   route('DELETE', '/api/pm/projects/:id', 'pm.manage', ({ params, user: u }) => {
-    const p = findProject(params.id, u);
+    // Deleting needs both: the account type (pm.manage), and managing this project (a private
+    // project's viewer, even a Project Manager, does not).
+    const p = findProject(params.id, u, 'manage');
     removeFiles(projectFiles(d(), p.id));
     removeProject(p.id);
     db.save();
@@ -687,6 +697,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       ...pickFields(body, ['managerId', 'accountId', 'dealId', 'contractId']), name, type: src.type, description: src.description, status: 'planning',
       startDate, endDate: move(src.endDate), timeTracking: Boolean(src.timeTracking), budgetHours: src.timeTracking ? src.budgetHours ?? null : null,
       icon: Object.hasOwn(body || {}, 'icon') ? body.icon : src.icon ?? null,
+      private: Object.hasOwn(body || {}, 'private') ? body.private : Boolean(src.private),
     }, u, { type: src.type });
     const p = createProject(fields, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
     if (src.isTemplate) track(p, u, 'template', '', `${src.code} ${src.name}`);
@@ -1867,7 +1878,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
 
   // ===== From Sales & CRM =====
   function crmStart(kind, rec, body, u, existing) {
-    if (existing && body.force !== true) throw new HttpError(409, `${existing.code} is already the project for this ${kind}. Open it, or start another one anyway.`);
+    if (existing && body.force !== true) throw new HttpError(409, levelOf(existing, u) ? `${existing.code} is already the project for this ${kind}. Open it, or start another one anyway.` : `A private project already delivers this ${kind}. Start another one anyway, or ask its manager to add you.`);
     const acct = d().crmAccounts.find((a) => a.id === rec.accountId);
     const types = pm().types;
     const guess = acct?.sector === 'government' && types.includes('Government') ? 'Government' : types.includes('Client') ? 'Client' : types[0];
