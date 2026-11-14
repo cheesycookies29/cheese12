@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.24.2-alpha',
+    date: '2026-11-14',
+    title: 'Task description layout fixes',
+    modules: ['projects'],
+    notes: 'The description editor and the task page now show descriptions as written.',
+    changes: [
+      ['fixed', 'projects', 'Lists: a list inside a list (indented) was flattened into the outer list; an empty line between items split a list in two (bullets) or restarted it; a list starting at 0 showed from 1. Lists now nest, keep together across one empty line, and keep their start.'],
+      ['fixed', 'projects', 'Inline: bold with italic inside (**a *b* c**) and ***bold italic*** were left as marks; links whose address has brackets were cut; a picture written inside a sentence showed as its code. Headings typed with # took the app\'s small upper-case section style.'],
+      ['fixed', 'projects', 'Editor: bold, italic and the other marks over several lines broke the formatting (marks do not reach across lines); now each line is marked. Enter on an empty item in a list inside a list goes back to the outer list\'s next number or bullet; Enter inside a code block no longer adds bullets.'],
+      ['new', 'projects', 'Checklist (- [ ] / - [x]) and simple tables (| a | b |) in descriptions; a Checklist button; Heading goes from ## to ### to plain text on repeated clicks; quotes keep their paragraphs.'],
+    ],
+  },
+  {
     version: '0.24.1-alpha',
     date: '2026-11-14',
     title: 'Members in the project form',

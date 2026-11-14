@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Task descriptions show the right layout (0.24.2)
+- Lists inside lists, lists with empty lines between items, checklists and tables now show as written; bold with italic inside, links with brackets and pictures inside a sentence too. The toolbar has a **Checklist** button, **Heading** goes smaller on a second click, and Enter in a list inside a list goes back to the outer list. See [the projects guide](projects#write-a-tasks-description).
+
 ### Private projects (0.24)
 - A project can be **Private**: only the people on its member list, and administrators, can see it. Pick the members right in the project form (**Members** under **Private project**), or with **Members** at the top of the project. Project Managers and others who see every project do not, unless they are added. See [the projects guide](projects#keep-a-project-private).
 

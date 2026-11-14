@@ -230,13 +230,13 @@ Progress counts the subtasks, not their parent. When most tasks (60% or more) ha
 ### Write a task's description
 
 1. Open the task and click **Edit** next to **Description** (or **Edit title and description**).
-2. Type the description. To format it, select words and use the toolbar: **Heading**, **Bold**, *Italic*, ~~Strikethrough~~, `Code`, **Link**, a bulleted or numbered list, a quote and a line. **Ctrl+B**, **Ctrl+I** and **Ctrl+K** (on a Mac ⌘) do bold, italic and a link; in a list, Enter starts the next item, and Enter on an empty item ends the list.
+2. Type the description. To format it, select words and use the toolbar: **Heading** (click again for a smaller one), **Bold**, *Italic*, ~~Strikethrough~~, `Code`, **Link**, a bulleted or numbered list, a **Checklist**, a quote and a line. Over several lines, bold and italic apply to each line. **Ctrl+B**, **Ctrl+I** and **Ctrl+K** (on a Mac ⌘) do bold, italic and a link; in a list, Enter starts the next item, and Enter on an empty item ends the list. For a list inside a list, type two or three spaces before the `-`; Enter on an empty inner item goes back to the outer list's next item.
 3. To add a picture, click the picture button and choose one, or paste a screenshot (Ctrl+V) or drag a picture into the text. It is added where the cursor is.
 4. Click **Preview** to see how it will look, then **Save**.
 
 ![Editing a task's description](projects-description.jpg)
 
-The toolbar writes simple marks into the text (`**bold**`, `- item`, `![caption](img:…)` for a picture), so you can also type them. Pictures can be JPEG, PNG or WebP, up to 5 MB (a large photo is made smaller before it is sent), and 20 per task; the words in brackets are the caption. Everyone who can open the project sees them; click one to open it full size. A picture you take out of the description is deleted when the description is saved. Pictures are added once the task exists: in **New task** the description can be formatted, and pictures come after **Add task**. Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab.
+The toolbar writes simple marks into the text (`**bold**`, `- item`, `- [ ] to do`, `![caption](img:…)` for a picture), so you can also type them. A table is a line of `| Column | Column |`, then `|---|---|`, then a line per row. The checklist in a description is for reading; tick tasks off in the task's own **Checklist**. Pictures can be JPEG, PNG or WebP, up to 5 MB (a large photo is made smaller before it is sent), and 20 per task; the words in brackets are the caption. Everyone who can open the project sees them; click one to open it full size. A picture you take out of the description is deleted when the description is saved. Pictures are added once the task exists: in **New task** the description can be formatted, and pictures come after **Add task**. Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab.
 
 ### Size a task
 

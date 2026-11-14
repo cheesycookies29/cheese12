@@ -11,7 +11,7 @@ import { renderRich, toggleWrap, toggleLines, insertBlock, makeLink, continueLis
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const KEY = MAC ? '⌘' : 'Ctrl+';
 const TOOLS = [
-  ['heading', 'heading', 'Heading'],
+  ['heading', 'heading', 'Heading (again for a smaller one)'],
   ['bold', 'bold', 'Bold', 'B'],
   ['italic', 'italic', 'Italic', 'I'],
   ['strike', 'strike', 'Strikethrough'],
@@ -20,6 +20,7 @@ const TOOLS = [
   '|',
   ['bullet', 'listBullet', 'Bulleted list'],
   ['number', 'listNumber', 'Numbered list'],
+  ['task', 'checkSquare', 'Checklist'],
   ['quote', 'quote', 'Quote'],
   ['divider', 'divider', 'Line'],
   '|',
@@ -51,7 +52,7 @@ export function richEditor({ name = 'description', value = '', label = 'Descript
     <textarea id="${id}" name="${name}" rows="${rows}" maxlength="${RICH_MAX}" aria-describedby="${id}-help" spellcheck="true">${value}</textarea>
     <div class="rich rich-preview" id="${id}-preview" role="tabpanel" tabindex="0" hidden></div>
     <input type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple hidden data-pick />
-    <div class="rich-foot"><small class="hint" id="${id}-help">${taskId ? 'Paste or drop pictures into the text. ' : ''}**bold**, *italic*, - list, 1. steps, [link](https://…)</small><small class="rich-count" aria-live="polite"></small></div>
+    <div class="rich-foot"><small class="hint" id="${id}-help">${taskId ? 'Paste or drop pictures into the text. ' : ''}**bold**, *italic*, - list, 1. steps, - [ ] to do, two spaces before - for a list inside a list</small><small class="rich-count" aria-live="polite"></small></div>
   </div>`;
 }
 
@@ -114,6 +115,7 @@ export function wireRichEditor(root, { images = [] } = {}) {
     link: askLink,
     bullet: () => apply(toggleLines(state(), 'bullet')),
     number: () => apply(toggleLines(state(), 'number')),
+    task: () => apply(toggleLines(state(), 'task')),
     quote: () => apply(toggleLines(state(), 'quote')),
     divider: () => apply(insertBlock(state(), '---')),
     image: () => pick.click(),

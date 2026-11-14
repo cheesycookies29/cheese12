@@ -231,3 +231,42 @@ test('descriptions keep their length limit', async () => {
   const r = await pia('PUT', `/api/pm/tasks/${t.id}`, { description: 'x'.repeat(RICH_MAX + 50), version: t.version }).catch((e) => e);
   assert.ok(r.status === 400 || (typeof r.description === 'string' && r.description.length <= RICH_MAX));
 });
+
+// ===== 0.24.2: layout fixes =====
+test('lists: nested lists stay nested, an empty line does not split a list, checklists and numbers from 0', () => {
+  assert.equal(renderRich('- a\n  - a1\n  - a2\n- b'), '<ul><li>a<ul><li>a1</li><li>a2</li></ul></li><li>b</li></ul>');
+  assert.equal(renderRich('1. one\n   - sub\n2. two'), '<ol><li>one<ul><li>sub</li></ul></li><li>two</li></ol>');
+  assert.equal(renderRich('- a\n\n- b'), '<ul><li>a</li><li>b</li></ul>');
+  assert.equal(renderRich('1. a\n\n2. b'), '<ol><li>a</li><li>b</li></ol>');
+  assert.equal(renderRich('- a\n\n\n- b'), '<ul><li>a</li></ul>\n<ul><li>b</li></ul>', 'two empty lines end it');
+  assert.equal(renderRich('0. zero\n1. one'), '<ol start="0"><li>zero</li><li>one</li></ol>');
+  assert.match(renderRich('- [ ] todo\n- [x] done'), /<ul class="rich-tasks"><li class="rich-task"><input type="checkbox" disabled aria-label="Not done" \/> todo<\/li><li class="rich-task done"><input type="checkbox" disabled checked aria-label="Done" \/> done<\/li><\/ul>/);
+  assert.equal(renderRich('- a\nNot in the list'), '<ul><li>a</li></ul>\n<p>Not in the list</p>');
+});
+
+test('inline: bold around italic, bold-italic, links with brackets, a picture inside a sentence; tables', () => {
+  assert.equal(renderRich('**bold *inner* bold** and ***both***'), '<p><strong>bold <em>inner</em> bold</strong> and <strong><em>both</em></strong></p>');
+  assert.match(renderRich('[wiki](https://en.wikipedia.org/wiki/Foo_(bar))'), /href="https:\/\/en\.wikipedia\.org\/wiki\/Foo_\(bar\)"/);
+  assert.match(renderRich('see https://x.example/a_(b).'), /href="https:\/\/x\.example\/a_\(b\)"[^>]*>https:\/\/x\.example\/a_\(b\)<\/a>\.<\/p>/);
+  const id = '0f0e0d0c-0b0a-4908-8706-050403020100';
+  assert.match(renderRich(`Before ![icon](img:${id}) after`, { image: () => '/p' }), /<p>Before <img class="rich-inline-img" src="\/p" alt="icon" loading="lazy" \/> after<\/p>/);
+  assert.equal(renderRich('| a | b |\n|---|---|\n| 1 | **2** |'), '<div class="rich-table"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td><strong>2</strong></td></tr></tbody></table></div>');
+  assert.equal(renderRich('> a\n>\n> b'), '<blockquote><p>a</p><p>b</p></blockquote>');
+  // Still no HTML through any of the new paths.
+  for (const a of ['| <b onclick=x> | b |\n|---|---|\n| 1 | 2 |', '- [ ] <script>x</script>', '- a\n  - <img src=x onerror=1>', '[x](https://ok.example/(a"onmouseover="b))']) {
+    assert.doesNotMatch(renderRich(a), /<(script|b |img src=x)|\son\w+="/i, a);
+  }
+});
+
+test('toolbar: marks over several lines go on each line; headings go round; Enter in lists, checklists and code', () => {
+  assert.deepEqual(toggleWrap(at('- one\n- two', 0, 11), '**'), { value: '- **one**\n- **two**', start: 0, end: 19 });
+  assert.deepEqual(toggleWrap(at('- **one**\n- **two**', 0, 19), '**'), { value: '- one\n- two', start: 0, end: 11 });
+  assert.equal(toggleLines(at('Title', 0), 'heading').value, '## Title');
+  assert.equal(toggleLines(at('## Title', 0), 'heading').value, '### Title');
+  assert.equal(toggleLines(at('### Title', 0), 'heading').value, 'Title');
+  assert.equal(toggleLines(at('a\nb', 0, 3), 'task').value, '- [ ] a\n- [ ] b');
+  assert.equal(toggleLines(at('  - a\n  - b', 0, 11), 'number').value, '  1. a\n  2. b', 'a list inside a list keeps its indent');
+  assert.deepEqual(continueList(at('- [ ] a', 7)), { value: '- [ ] a\n- [ ] ', start: 14, end: 14 });
+  assert.deepEqual(continueList(at('1. a\n2. b\n   - x\n   - ', 22)), { value: '1. a\n2. b\n   - x\n3. ', start: 20, end: 20 }, 'an empty inner item goes back out to the next number');
+  assert.equal(continueList(at('```\n- a', 7)), null, 'no bullets inside a code block');
+});
