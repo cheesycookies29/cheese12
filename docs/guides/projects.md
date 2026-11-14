@@ -199,9 +199,11 @@ A milestone is *Off track* once its date has passed with work still open; *At ri
 For work only some people should see (a salary review, an investigation, a client under a non-disclosure agreement).
 
 1. Open the project and click **Edit** (or start one with **+ New project**).
-2. Tick **Private project**.
-3. Click **Save**.
-4. Under **Members**, add the people who may see it (see [Add the people](projects#add-the-people)).
+2. Tick **Private project**. The **Members** box under it is highlighted: only the people on it (and administrators) will see the project.
+3. In **Members**, pick each person who may see it, choose their role (**Member**, **Viewer** or **Manager**) and click **Add**. The project manager is always on it. Take someone off with the bin.
+4. Click **Save**.
+
+![A private project's members in the project form](projects-private.jpg)
 
 A private project shows a **Private** badge with a lock. Only the people on its member list see it, each with their role, and administrators. Project Managers, Sales Managers and anyone else with access to every project do not see it unless they are on the list: it is not in their lists, Milestones, My work or the Timesheet, and its address says *not found*. On a Sales & CRM deal or contract it is listed only to those who can open it, and a service desk ticket made into one of its tasks shows only *A task in a private project* to agents who are not on it.
 
@@ -209,7 +211,7 @@ You must be on the list yourself (or be its manager) to make a project private, 
 
 ### Add the people
 
-1. On the project's **Overview**, click **Manage** under **Members**.
+1. On the project's page, click **Members** at the top (or **Manage** under **Members** on the **Overview**, or use **Members** in **Edit**).
 2. Pick a person and their role (**Manager**, **Member** or **Viewer**) and click **Add**.
 3. Change a role in the list, or remove someone with the bin.
 4. Click **Save**.

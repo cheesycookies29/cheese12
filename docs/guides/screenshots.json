@@ -74,6 +74,7 @@
   {"file": "projects-from-template.jpg", "user": "pm.demo", "url": "/#/projects?status=templates", "click": ["[data-use] >> nth=1"], "wait": 1000},
   {"file": "projects-overview.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system"], "wait": 1000},
   {"file": "projects-icon.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", "button:has-text('Edit') >> nth=0"], "wait": 1000},
+  {"file": "projects-private.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["#new", "input[name=private]", ".pm-form-mem [data-add]"], "scroll": ".pm-form-members", "wait": 700},
   {"file": "projects-burnup.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system"], "scroll": ".pm-burnup", "wait": 1200},
   {"file": "projects-files.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", "[data-ms-files] >> nth=0"], "wait": 1000},
   {"file": "projects-board.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Board')", "[data-chip=overdue]"], "wait": 1000},

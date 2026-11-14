@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.24.1-alpha',
+    date: '2026-11-14',
+    title: 'Members in the project form',
+    modules: ['projects'],
+    notes: 'The member list is in the project form, so a private project gets its people when it is made private.',
+    changes: [
+      ['improved', 'projects', 'New project and Edit project have a Members box under Private project (highlighted when private): the project manager, everyone else with their role, Add and remove. A new project is created with its members (POST /api/pm/projects takes members); on Edit the list is saved first, then the project, so you can add yourself and make it private in one go.'],
+      ['improved', 'projects', 'A Members (n) button at the top of a project for its managers, as well as Manage on the Overview. Taking yourself off a private project\'s list is refused (administrators excepted), like making it private without being on it.'],
+    ],
+  },
+  {
     version: '0.24.0-alpha',
     date: '2026-11-14',
     title: 'Private projects',

@@ -10,7 +10,7 @@ order: 2
 ## November 2026
 
 ### Private projects (0.24)
-- A project can be **Private**: only the people on its member list, and administrators, can see it. Project Managers and others who see every project do not, unless they are added. See [the projects guide](projects#keep-a-project-private).
+- A project can be **Private**: only the people on its member list, and administrators, can see it. Pick the members right in the project form (**Members** under **Private project**), or with **Members** at the top of the project. Project Managers and others who see every project do not, unless they are added. See [the projects guide](projects#keep-a-project-private).
 
 ### Notifications (0.23)
 - A **bell** in the top bar, for everyone: its red number counts what you have not read. Choose it for your latest notifications, under *Today*, *Yesterday* and *Earlier*; choose one to open the request, payslip, ticket, task or record it is about. **Mark all read**, **Unread only**, and **See all** for the full list with a module filter. See [Getting started](getting-started#see-your-notifications).

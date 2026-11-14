@@ -298,7 +298,11 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
         <label class="field span-2"><span>Contract</span><select name="contractId"></select><small class="hint">Deliverables due after the contract's end date are flagged.</small></label>` : ''}
       <label class="field span-2 ${blank()}"><span>Description</span><textarea name="description" rows="3">${rec.description || ''}</textarea></label>
       <div class="field span-2 pm-private"><label class="check"><input type="checkbox" name="private" ${rec.private ? 'checked' : ''} aria-describedby="private-hint" /><span>${icon('lock', 14)} Private project</span></label>
-        <small class="hint" id="private-hint">Only the people on its member list can see it, and administrators. Project Managers and others with access to every project do not see it unless you add them. You must be on the list yourself (or be its manager).</small></div>
+        <small class="hint" id="private-hint">Only the people on its member list below can see it, and administrators. Project Managers and others with access to every project do not see it unless you add them. You must be on the list yourself (or be its manager).</small></div>
+      <fieldset class="field span-2 pm-form-members">
+        <legend>Members <small class="muted pm-mem-note"></small></legend>
+        <div class="pm-form-mem"></div>
+      </fieldset>
       ${rec.id && may(rec.access, 'manage') ? html`<label class="field check span-2"><input type="checkbox" name="isTemplate" ${rec.isTemplate ? 'checked' : ''} /><span>Use as a template: hidden from the portfolio and My work; <strong>+ New project</strong> can start from it</span></label>` : ''}
     </div>`,
     onSubmit: async (f) => {
@@ -307,24 +311,44 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       v.icon = v.iconGlyph ? { glyph: v.iconGlyph, color: v.iconColor || 'blue' } : null;
       delete v.iconGlyph;
       delete v.iconColor;
+      const members = memberEd.members();
       let saved;
       if (v.from) {
         const pick = (keys) => Object.fromEntries(keys.filter((k) => k in v).map((k) => [k, v[k]]));
         // The template's icon, unless one was picked here.
         saved = await api.post(`/api/pm/projects/${v.from}/copy`, { ...pick(['name', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId', ...(iconTouched ? ['icon'] : [])]), ...(f.private.checked ? { private: true } : {}) });
+        if (!sameMembers(members, saved.members)) saved = await api.put(`/api/pm/projects/${saved.id}/members`, { version: saved.version, members });
       } else {
         delete v.from;
         v.timeTracking = f.timeTracking.checked;
         v.private = f.private.checked;
         if (!v.timeTracking) delete v.budgetHours;
         if (rec.id && may(rec.access, 'manage')) v.isTemplate = f.isTemplate.checked;
-        saved = rec.id ? await api.put(`/api/pm/projects/${rec.id}`, { ...v, version: rec.version }) : await api.post('/api/pm/projects', v);
+        if (rec.id) {
+          // The member list first (so someone making the project private can add themselves), then the project.
+          let version = rec.version;
+          if (!sameMembers(members, rec.members)) version = (await api.put(`/api/pm/projects/${rec.id}/members`, { version, members })).version;
+          saved = await api.put(`/api/pm/projects/${rec.id}`, { ...v, version });
+        } else saved = await api.post('/api/pm/projects', { ...v, members });
       }
       toast(rec.id ? 'Saved.' : `Project ${saved.code} created${v.from ? ' from the template' : ''}.`);
       changed();
       after?.(saved);
     },
   });
+  // Members: the manager picked above, then everyone else. Private: the note says only they see it.
+  const memberEd = memberEditor(form.querySelector('.pm-form-mem'), {
+    list: (rec.members || []).filter((x) => x.userId !== rec.managerId).map((x) => ({ userId: x.userId, name: x.name, role: x.role })),
+    people, managerId: () => form.elements.managerId.value, timeTracking: Boolean(rec.timeTracking),
+  });
+  const memberNote = () => {
+    const priv = form.elements.private.checked;
+    form.querySelector('.pm-form-members').classList.toggle('on', priv);
+    form.querySelector('.pm-mem-note').textContent = priv ? '· only these people (and administrators) can see this private project' : '· anyone on the list can open the project';
+  };
+  form.elements.private.addEventListener('change', memberNote);
+  form.elements.managerId.addEventListener('change', () => memberEd.redraw());
+  memberNote();
   // The icon preview follows the picks (and the name, for the letter); the colour needs a picture.
   let iconTouched = false;
   const preview = () => {
@@ -634,6 +658,7 @@ export async function projectOverviewView(el, { id }) {
     ${projectHeader(p, '', html`
       ${tpl ? (can('pm.edit') ? html`<button class="btn primary" id="use">${icon('copy', 16)} New project from this template</button>` : '') : html`<button class="btn" id="print">${icon('file', 16)} Print status report</button>`}
       ${manage ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit</button>` : ''}
+      ${manage ? html`<button class="btn" id="members-top">${icon('users', 16)} Members (${p.members.length})</button>` : ''}
       ${can('pm.edit') && !tpl ? html`<button class="btn" id="copy">${icon('copy', 16)} Copy</button>` : ''}
       ${can('pm.manage') && may(p.access, 'manage') ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}`)}
     ${tpl ? html`<p class="notice pm-tpl-notice">${icon('layers', 16)} <span>This is a template: it is not in the portfolio or My work, and has no health. Change its milestones and tasks here; <strong>New project from this template</strong> copies them with the dates moved to the new start in working days.${manage ? ' To make it a project again, untick Use as a template under Edit.' : ''}</span></p>` : html`
@@ -730,6 +755,7 @@ export async function projectOverviewView(el, { id }) {
   el.querySelectorAll('[data-ms]').forEach((b) => b.addEventListener('click', () => editMilestone(p, p.milestones.find((m) => m.id === b.dataset.ms), reload)));
   el.querySelectorAll('[data-ms-files]').forEach((b) => b.addEventListener('click', () => milestoneFiles(p, p.milestones.find((m) => m.id === b.dataset.msFiles), reload)));
   el.querySelector('#members')?.addEventListener('click', () => editMembers(p, reload));
+  el.querySelector('#members-top')?.addEventListener('click', () => editMembers(p, reload));
 }
 
 // How many of the tasks have a size (progress weighs by size from 60%), and their effort points.
@@ -802,36 +828,61 @@ function editMilestone(p, m, after) {
   });
 }
 
+// The member list, editable: the project manager (fixed, from managerId()), then everyone else with
+// their role, a bin to take them off, and a picker to add someone. list: [{ userId, name, role }]
+// without the manager; changed() after each change.
+function memberEditor(box, { list, people, managerId, timeTracking = false, changed = () => {} }) {
+  const nameOf = (id) => people.find((x) => x.id === id)?.name || list.find((x) => x.userId === id)?.name || 'Former user';
+  const draw = () => {
+    const mid = managerId();
+    for (let i = list.length - 1; i >= 0; i--) if (list[i].userId === mid) list.splice(i, 1); // the manager is the manager
+    const others = people.filter((x) => x.id !== mid && !list.some((y) => y.userId === x.id));
+    mount(box, html`<table class="table compact no-stack pm-members"><thead><tr><th>Person</th><th>Role</th><th><span class="sr-only">Remove</span></th></tr></thead><tbody>
+        ${mid ? html`<tr><td>${personAvatar(mid, nameOf(mid), { size: 'xs' })} <strong>${nameOf(mid)}</strong><small>Project manager</small></td><td><span class="muted">Manager</span></td><td></td></tr>` : ''}
+        ${list.map((x, i) => html`<tr>
+        <td>${personAvatar(x.userId, x.name, { size: 'xs' })} <strong>${x.name}</strong></td>
+        <td><select data-role="${i}" aria-label="Role of ${x.name}">${options(Object.entries(MEMBER_ROLES), x.role)}</select></td>
+        <td class="row-actions"><button type="button" class="icon-btn danger" data-rm="${i}" aria-label="Take ${x.name} off the project">${icon('trash', 16)}</button></td></tr>`)}</tbody></table>
+      ${list.length ? '' : html`<p class="muted small pm-mem-empty">Nobody else yet. Add the people who work on it${timeTracking ? ' (and log time)' : ''} or follow it.</p>`}
+      ${others.length ? html`<div class="pm-add-member"><select data-who aria-label="Person to add">${options(others.map((x) => [x.id, `${x.name} · ${roleLabel(x.role)}`]))}</select><select data-as aria-label="Role of the person to add">${options(Object.entries(MEMBER_ROLES), 'member')}</select><button type="button" class="btn" data-add>Add</button></div>` : ''}`);
+    box.querySelectorAll('[data-role]').forEach((sel) => sel.addEventListener('change', () => {
+      list[Number(sel.dataset.role)].role = sel.value;
+      changed();
+    }));
+    box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => {
+      list.splice(Number(b.dataset.rm), 1);
+      draw();
+      changed();
+      box.querySelector('[data-who], [data-rm]')?.focus();
+    }));
+    box.querySelector('[data-add]')?.addEventListener('click', () => {
+      const who = people.find((x) => x.id === box.querySelector('[data-who]').value);
+      if (!who) return;
+      list.push({ userId: who.id, name: who.name, role: box.querySelector('[data-as]').value });
+      draw();
+      changed();
+      box.querySelector('[data-who]')?.focus();
+    });
+  };
+  draw();
+  return { redraw: draw, members: () => [...(managerId() ? [{ userId: managerId(), role: 'manager' }] : []), ...list.map(({ userId, role }) => ({ userId, role }))] };
+}
+const sameMembers = (a, b) => a.length === b.length && a.every((x) => b.some((y) => y.userId === x.userId && y.role === x.role));
+
 async function editMembers(p, after) {
   const m = await meta(true);
-  const list = p.members.map((x) => ({ ...x }));
-  const { form } = modal({
-    title: 'Project members', wide: true, subtitle: `Managers change the project; members work on tasks${p.timeTracking ? ' and log time' : ''}; viewers read and comment. Anyone on the list can open the project.${p.private ? ' This project is private: only the people on this list (and administrators) can see it.' : ''}`,
+  const list = p.members.filter((x) => x.userId !== p.managerId).map((x) => ({ userId: x.userId, name: x.name, role: x.role }));
+  let ed;
+  modal({
+    title: 'Project members', wide: true, subtitle: `Managers change the project; members work on tasks${p.timeTracking ? ' and log time' : ''}; viewers read and comment.${p.private ? ' This project is private: only the people on this list (and administrators) can see it.' : ' Anyone on the list can open the project.'}`,
     body: html`<div id="mem"></div>`,
     onSubmit: async () => {
-      const r = await api.put(`/api/pm/projects/${p.id}/members`, { version: p.version, members: list.map(({ userId, role }) => ({ userId, role })) });
+      const r = await api.put(`/api/pm/projects/${p.id}/members`, { version: p.version, members: ed.members() });
       toast(r.unassigned ? `Members saved. Open tasks of people taken off were unassigned.` : 'Members saved.');
       after?.();
     },
   });
-  const box = form.querySelector('#mem');
-  const draw = () => {
-    const others = m.people.filter((x) => !list.some((y) => y.userId === x.id));
-    mount(box, html`<table class="table compact no-stack pm-members"><thead><tr><th>Person</th><th>Role</th><th></th></tr></thead><tbody>${list.map((x, i) => html`<tr>
-        <td><strong>${x.name}</strong>${x.userId === p.managerId ? html`<small>Project manager</small>` : ''}</td>
-        <td><select data-role="${i}" aria-label="Role of ${x.name}" ${x.userId === p.managerId ? 'disabled' : ''}>${options(Object.entries(MEMBER_ROLES), x.role)}</select></td>
-        <td class="row-actions">${x.userId === p.managerId ? '' : html`<button type="button" class="icon-btn danger" data-rm="${i}" aria-label="Take ${x.name} off the project">${icon('trash', 16)}</button>`}</td></tr>`)}</tbody></table>
-      ${others.length ? html`<div class="pm-add-member"><select id="who" aria-label="Person to add">${options(others.map((x) => [x.id, `${x.name} · ${roleLabel(x.role)}`]))}</select><select id="as" aria-label="Role">${options(Object.entries(MEMBER_ROLES), 'member')}</select><button type="button" class="btn" id="add">Add</button></div>` : ''}`);
-    box.querySelectorAll('[data-role]').forEach((s) => s.addEventListener('change', () => (list[Number(s.dataset.role)].role = s.value)));
-    box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => (list.splice(Number(b.dataset.rm), 1), draw())));
-    box.querySelector('#add')?.addEventListener('click', () => {
-      const who = m.people.find((x) => x.id === box.querySelector('#who').value);
-      list.push({ userId: who.id, name: who.name, role: box.querySelector('#as').value });
-      draw();
-      box.querySelector('#who')?.focus();
-    });
-  };
-  draw();
+  ed = memberEditor(document.querySelector('.modal-backdrop:last-of-type #mem'), { list, people: m.people, managerId: () => p.managerId, timeTracking: p.timeTracking });
 }
 
 // Milestone burn-up: scope (what the milestone holds), done and the expected line, one point per

@@ -589,7 +589,9 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     return p;
   }
   route('POST', '/api/pm/projects', 'pm.edit', ({ body, user: u }) => {
-    const p = createProject(validProject(pickFields(body, PROJECT_FIELDS), u), u);
+    // The members can come with it (a private project: who may see it, from the start).
+    const members = body?.members === undefined ? [] : parseMembers(null, body.members);
+    const p = createProject(validProject(pickFields(body, PROJECT_FIELDS), u), u, { members });
     db.save();
     return summaryOf(p, u);
   });
@@ -644,11 +646,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const before = { status: p.status, startDate: p.startDate, endDate: p.endDate, managerId: p.managerId, isTemplate: Boolean(p.isTemplate), timeTracking: Boolean(p.timeTracking), members: p.members.map((m) => m.userId) };
     const isTemplate = bool(body.isTemplate, 'Use as a template', before.isTemplate);
     const next = validProject({ ...p, ...pickFields(body, PROJECT_FIELDS) }, u, p);
-    if (next.private) {
-      const probe = { ...p, ...next, members: p.members.map((m) => ({ ...m })) };
-      keepManager(probe);
-      if (!levelOf(probe, u)) throw new HttpError(400, PRIVATE_SELF);
-    }
+    // Members change through their own route (the form saves them first), never with the project.
+    checkMembers(p, u, next, null);
     const wasPrivate = Boolean(p.private);
     Object.assign(p, next);
     p.isTemplate = isTemplate;
@@ -725,39 +724,59 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   });
 
   // Members: the whole list at once. Removing someone unassigns their open tasks.
-  route('PUT', '/api/pm/projects/:id/members', 'auth', ({ params, body, user: u }) => {
-    const p = findProject(params.id, u, 'manage');
-    fresh(p, body);
-    const list = Array.isArray(body.members) ? body.members : null;
-    if (!list || list.length > 100) throw new HttpError(400, 'Send the list of members (at most 100).');
+  // ----- Members -----
+  // The list from a form: [{ userId, role }], active accounts only (someone already on it may stay),
+  // nobody twice. `p`: the project as it is (null for a new one).
+  function parseMembers(p, list) {
+    if (!Array.isArray(list) || list.length > 100) throw new HttpError(400, 'Send the list of members (at most 100).');
     const members = [];
     for (const m of list) {
       const userId = idOf(m?.userId);
       const role = oneOf(m?.role, MEMBER_ROLES, 'Role', 'member');
-      const existing = p.members.some((x) => x.userId === userId);
+      const existing = Boolean(p?.members.some((x) => x.userId === userId));
       if (!userId || (!existing && !activeUser(userId))) throw new HttpError(400, 'Pick members from the list of active accounts.');
       if (members.some((x) => x.userId === userId)) throw new HttpError(400, `${userName(userId)} is on the list twice.`);
       members.push({ userId, role });
     }
-    const next = { ...p, members };
-    keepManager(next);
-    if (!next.members.some((m) => m.role === 'manager')) throw new HttpError(400, 'Keep at least one manager on the project.');
-    const gone = p.members.filter((m) => !next.members.some((x) => x.userId === m.userId)).map((m) => m.userId);
+    return members;
+  }
+  // Puts the new list in place: open tasks of people taken off are unassigned, those who can no
+  // longer open the project stop watching, newcomers are told. Returns how many tasks were unassigned.
+  function applyMembers(p, u, members) {
+    const gone = p.members.filter((m) => !members.some((x) => x.userId === m.userId)).map((m) => m.userId);
+    let unassigned = 0;
     for (const t of tasksOf(p)) if (gone.includes(t.assigneeId) && isOpenCategory(categoryOf(p, t))) {
       track(t, u, 'assignee', userName(t.assigneeId), '');
       t.assigneeId = null;
       bump(t, u);
+      unassigned++;
     }
     // A member who is now a viewer keeps their tasks; they can still read and comment.
     const was = p.members.map((m) => m.userId);
-    p.members = next.members;
+    p.members = members;
+    keepManager(p);
     // Someone who can no longer open the project stops watching its tasks.
     for (const t of tasksOf(p)) if (watchersOf(t).some((id) => !canOpen(p, id))) t.watchers = t.watchers.filter((id) => canOpen(p, id));
     notifyAdded(p, u, was);
     track(p, u, 'members', '', `${p.members.length} member${p.members.length === 1 ? '' : 's'}`);
+    return unassigned;
+  }
+  // The project as it would be with these fields and members: checked before anything changes.
+  function checkMembers(p, u, fields, members) {
+    const probe = { ...p, ...fields, members: (members || p.members).map((m) => ({ ...m })) };
+    keepManager(probe);
+    if (!probe.members.some((m) => m.role === 'manager')) throw new HttpError(400, 'Keep at least one manager on the project.');
+    if (probe.private && !levelOf(probe, u)) throw new HttpError(400, PRIVATE_SELF);
+  }
+  route('PUT', '/api/pm/projects/:id/members', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u, 'manage');
+    fresh(p, body);
+    const members = parseMembers(p, body.members);
+    checkMembers(p, u, {}, members);
+    const unassigned = applyMembers(p, u, members);
     bump(p, u);
     db.save();
-    return { ...summaryOf(p, u), unassigned: gone.length };
+    return { ...summaryOf(p, u), unassigned };
   });
 
   // The project's statuses (board columns). A removed status that still has tasks needs a

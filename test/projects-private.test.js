@@ -145,3 +145,19 @@ test('the Service Desk shows a task in a private project only as "a task in a pr
   assert.equal(seen.length, 1);
   assert.deepEqual([seen[0].id, seen[0].key, seen[0].projectName, seen[0].title], [null, '', '', 'A task in a private project']);
 });
+
+test('a new project can come with its members: a private one names who may see it from the start', async () => {
+  // Pia makes Pat its manager and stays on it as a member: allowed (she keeps access).
+  const p = await pia('POST', '/api/pm/projects', { name: 'Grievance case 7', type: 'Internal', startDate: day(0), private: true, managerId: pat.id, members: [{ userId: pia.id, role: 'member' }, { userId: juan.id, role: 'viewer' }] });
+  assert.deepEqual(p.members.map((m) => [m.userId, m.role]).sort(), [[juan.id, 'viewer'], [pat.id, 'manager'], [pia.id, 'member']].sort());
+  assert.equal((await juan('GET', `/api/pm/projects/${p.id}`)).access, 'comment');
+  // Bad lists are refused, with nothing created.
+  const before = db.data.pmProjects.length;
+  await fails(pia('POST', '/api/pm/projects', { name: 'X', type: 'Internal', startDate: day(0), members: [{ userId: 'ghost', role: 'member' }] }), 400, /active accounts/);
+  await fails(pia('POST', '/api/pm/projects', { name: 'X', type: 'Internal', startDate: day(0), members: [{ userId: juan.id }, { userId: juan.id }] }), 400, /twice/);
+  assert.equal(db.data.pmProjects.length, before);
+  // Taking yourself off a private project's list (not an administrator) is refused.
+  const two = await pat('PUT', `/api/pm/projects/${p.id}/members`, { version: p.version, members: [{ userId: pat.id, role: 'manager' }, { userId: pia.id, role: 'manager' }] });
+  await fails(pia('PUT', `/api/pm/projects/${p.id}/members`, { version: two.version, members: [{ userId: pat.id, role: 'manager' }] }), 400, /add yourself/);
+  assert.ok(db.data.pmProjects.find((x) => x.id === p.id).members.some((m) => m.userId === pia.id));
+});
