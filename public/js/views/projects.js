@@ -117,10 +117,46 @@ const sizeChip = (s, notes) => (SIZES[s] ? html`<span class="pm-size pm-size-${s
 // short: "M · Medium" without what it means (in a table cell).
 const sizeOptions = (selected, notes, none = 'No size', short = false) => html`<option value="">${none}</option>${SIZE_KEYS.map((k) => option(k, short ? sizeName(k) : `${sizeName(k)} (${sizeEffort(k, notes)})`, selected))}`;
 const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task in progress and the burn-up.';
+// Your own project picture: the middle square of the image, 256 × 256, as WebP (PNG where the browser
+// cannot write WebP), keeping transparency for logos.
+const PICTURE_SIDE = 256;
+async function squarePicture(file) {
+  if (!file.type.startsWith('image/')) throw new Error('Choose a picture: JPEG, PNG or WebP.');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('This picture could not be read. Choose a JPEG, PNG or WebP picture.'));
+      i.src = url;
+    });
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    const c = Object.assign(document.createElement('canvas'), { width: PICTURE_SIDE, height: PICTURE_SIDE });
+    const g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, PICTURE_SIDE, PICTURE_SIDE);
+    let blob = await new Promise((r) => c.toBlob(r, 'image/webp', 0.9));
+    if (!blob || blob.type !== 'image/webp') blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+const blobBase64 = (blob) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(',')[1]);
+  r.onerror = () => reject(new Error('The picture could not be read.'));
+  r.readAsDataURL(blob);
+});
+
 // A project's mark beside its name: its icon on a coloured tile, or its first letter. Decorative (the
-// name is always next to it). p: { icon, name, code }; size: sm (in a line of text) | md | lg (title).
+// name is always next to it). p: { id, icon, iconImage, name, code }; size: sm (in a line of text) |
+// md | lg (title). A project's own picture comes first (p.src: a picture not saved yet, in the form).
 const ICON_PX = { sm: 12, md: 16, lg: 22 };
+const pictureOf = (p) => p?.src || (p?.id && p.iconImage?.at ? `/api/pm/projects/${encodeURIComponent(p.id)}/icon?v=${encodeURIComponent(p.iconImage.at)}` : null);
 export function projectIcon(p, size = 'md') {
+  const src = pictureOf(p);
+  if (src) return html`<span class="pm-picon pm-picon-${size} pic" aria-hidden="true"><img src="${src}" alt="" loading="lazy" decoding="async" /></span>`;
   const ic = p?.icon;
   if (ic && Object.hasOwn(PROJECT_ICONS, ic.glyph) && Object.hasOwn(PROJECT_ICON_COLORS, ic.color)) return html`<span class="pm-picon pm-picon-${size} pm-pc-${ic.color}" aria-hidden="true">${icon(ic.glyph, ICON_PX[size])}</span>`;
   const t = letterTile(p?.name, p?.code);
@@ -270,7 +306,10 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       <fieldset class="field span-2 pm-icon-pick">
         <legend>Icon</legend>
         <div class="pm-icon-row"><span class="pm-icon-preview">${projectIcon(rec, 'lg')}</span>
-          <small class="hint" id="icon-hint">Shown beside the project's name in every list. <strong>Letter</strong> uses the first letter of the name.</small></div>
+          <small class="hint" id="icon-hint">Shown beside the project's name in every list. Pick one below, or use your own picture (a logo, for example). <strong>Letter</strong> uses the first letter of the name.</small></div>
+        <div class="pm-icon-own"><label class="btn small-btn pm-icon-upload">${icon('upload', 14)} Upload a picture…<input type="file" name="iconFile" accept="image/jpeg,image/png,image/webp,image/*" class="sr-only" /></label>
+          <button type="button" class="btn small-btn ghost danger" id="icon-remove" ${rec.iconImage ? '' : 'hidden'}>Remove picture</button>
+          <small class="muted pm-icon-own-note">${rec.iconImage ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP; CORE keeps a small square of it.'}</small></div>
         <div class="pm-glyphs" role="radiogroup" aria-label="Icon" aria-describedby="icon-hint">
           <label class="pm-glyph" title="Letter"><input type="radio" name="iconGlyph" value="" ${rec.icon ? '' : 'checked'} aria-label="Letter" /><span class="pm-glyph-letter" aria-hidden="true">Aa</span></label>
           ${Object.entries(PROJECT_ICONS).map(([k, label]) => html`<label class="pm-glyph" title="${label}"><input type="radio" name="iconGlyph" value="${k}" ${rec.icon?.glyph === k ? 'checked' : ''} aria-label="${label}" />${icon(k, 18)}</label>`)}
@@ -323,6 +362,8 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
           saved = await api.put(`/api/pm/projects/${rec.id}`, { ...v, version });
         } else saved = await api.post('/api/pm/projects', { ...v, members });
       }
+      if (picture) saved = await api.put(`/api/pm/projects/${saved.id}/icon`, { file: { name: 'icon', data: await blobBase64(picture.blob) } });
+      else if (dropPicture && rec.id) saved = await api.del(`/api/pm/projects/${saved.id}/icon`);
       toast(rec.id ? 'Saved.' : `Project ${saved.code} created${v.from ? ' from the template' : ''}.`);
       changed();
       after?.(saved);
@@ -335,15 +376,44 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
   });
   form.elements.managerId.addEventListener('change', () => memberEd.redraw());
   // The icon preview follows the picks (and the name, for the letter); the colour needs a picture.
+  // Your own picture: cut to a square here, sent after the project is saved; it comes before the icon.
   let iconTouched = false;
+  let picture = null; // { blob, url } waiting to be saved
+  let dropPicture = false; // remove the saved picture on Save
   const preview = () => {
     const glyph = form.elements.iconGlyph.value;
     form.querySelector('.pm-swatches').classList.toggle('off', !glyph);
-    mount(form.querySelector('.pm-icon-preview'), projectIcon({ name: form.elements.name.value || rec.name, code: rec.code || form.elements.name.value, icon: glyph ? { glyph, color: form.elements.iconColor.value || 'blue' } : null }, 'lg'));
+    const own = picture ? { src: picture.url } : !dropPicture && rec.iconImage ? { id: rec.id, iconImage: rec.iconImage } : {};
+    mount(form.querySelector('.pm-icon-preview'), projectIcon({ ...own, name: form.elements.name.value || rec.name, code: rec.code || form.elements.name.value, icon: glyph ? { glyph, color: form.elements.iconColor.value || 'blue' } : null }, 'lg'));
+    const has = Boolean(picture || (!dropPicture && rec.iconImage));
+    form.querySelector('#icon-remove').hidden = !has;
+    form.querySelector('.pm-icon-own-note').textContent = has ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP; CORE keeps a small square of it.';
   };
-  form.querySelector('.pm-icon-pick').addEventListener('change', () => {
+  form.querySelector('.pm-icon-pick').addEventListener('change', (e) => {
+    if (e.target.name === 'iconFile') return;
     iconTouched = true;
     preview();
+  });
+  form.elements.iconFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const blob = await squarePicture(file);
+      if (picture) URL.revokeObjectURL(picture.url);
+      picture = { blob, url: URL.createObjectURL(blob) };
+      dropPicture = false;
+      preview();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
+  form.querySelector('#icon-remove').addEventListener('click', () => {
+    if (picture) URL.revokeObjectURL(picture.url);
+    picture = null;
+    dropPicture = Boolean(rec.iconImage);
+    preview();
+    form.querySelector('.pm-icon-upload').focus?.();
   });
   form.elements.name.addEventListener('input', preview);
   preview();
@@ -571,7 +641,7 @@ export async function portfolioMilestonesView(el, _params, query) {
     mount(el.querySelector('#ms-list'), rows.length ? html`<table class="table clickable pm-milestones">
       <thead><tr><th>Milestone</th><th>Client</th><th>Due</th><th>Health</th><th>Deliverable</th><th>Submitted / accepted</th>${data.amounts ? html`<th class="num">Amount</th>` : ''}</tr></thead>
       <tbody>${rows.map((r) => html`<tr data-href="#/projects/${r.projectId}" class="${r.overdue ? 'pm-late' : ''}">
-        <td><span class="pm-diamond ${r.deliverable ? 'deliverable' : ''}" aria-hidden="true"></span><a href="#/projects/${r.projectId}"><strong>${r.name}</strong></a><small>${projectIcon({ icon: r.projectIcon, name: r.projectName, code: r.projectCode }, 'sm')} <span class="mono">${r.projectCode}</span> · ${r.projectName}${r.files ? html` · ${icon('paperclip', 12)} ${plural(r.files, 'file')}` : ''}</small></td>
+        <td><span class="pm-diamond ${r.deliverable ? 'deliverable' : ''}" aria-hidden="true"></span><a href="#/projects/${r.projectId}"><strong>${r.name}</strong></a><small>${projectIcon({ id: r.projectId, icon: r.projectIcon, iconImage: r.projectIconImage, name: r.projectName, code: r.projectCode }, 'sm')} <span class="mono">${r.projectCode}</span> · ${r.projectName}${r.files ? html` · ${icon('paperclip', 12)} ${plural(r.files, 'file')}` : ''}</small></td>
         <td>${clientOf(r)}</td>
         <td class="nowrap">${r.overdue ? html`<span class="crm-due bad">${icon('calendar', 12)} Overdue · ${fmtDate(r.dueDate)}</span>` : fmtDate(r.dueDate)}</td>
         <td>${r.finished ? html`<span class="muted small">Done</span>` : healthChip(r.health, r.reason || '')}${r.reason && !r.finished ? html`<small>${r.reason}</small>` : ''}</td>

@@ -2976,3 +2976,10 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
 .pm-form-members .pm-members { margin-bottom: 6px; }
 .pm-members td .avatar { margin-right: 6px; vertical-align: middle; }
 .pm-mem-empty { margin: 4px 0 8px; }
+/* A project's own picture as its icon */
+.pm-picon.pic { background: var(--surface-2); overflow: hidden; box-shadow: inset 0 0 0 1px var(--border); }
+.pm-picon.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pm-icon-own { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 10px; }
+.pm-icon-own .btn { cursor: pointer; }
+.pm-icon-upload:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pm-icon-own-note { flex-basis: 100%; }

@@ -161,11 +161,12 @@ The project opens. Its board starts with the statuses from the Projects setup. F
 
 1. Open the project and click **Edit** (or start a new one with **+ New project**).
 2. Under **Icon**, click a picture, then a colour. The tile above them shows how it will look.
-3. Click **Save**.
+3. Or use your own picture, such as the client's logo: click **Upload a picture…** and choose a JPEG, PNG or WebP. CORE keeps a square from the middle of it (a transparent logo stays transparent).
+4. Click **Save**.
 
 ![Picking a project's icon](projects-icon.jpg)
 
-The icon is shown beside the project's name on Projects, Milestones, My work, the Timesheet, the project's own pages and its tasks. **Letter** (the first box) goes back to the first letter of the name on a colour CORE picks; that is how a project starts. A project copied or started from a template takes the template's icon unless you pick another. Only those who manage the project can change it.
+The icon is shown beside the project's name on Projects, Milestones, My work, the Timesheet, the project's own pages and its tasks. **Letter** (the first box) goes back to the first letter of the name on a colour CORE picks; that is how a project starts. Your own picture comes before the icon: **Remove picture** shows the icon again. Only the people who can open the project see its picture, and a copy of the project gets its own copy of it. A project copied or started from a template takes the template's icon unless you pick another. Only those who manage the project can change it.
 
 ### Start a project from a template
 

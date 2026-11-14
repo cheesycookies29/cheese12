@@ -12,15 +12,18 @@ import { localDate } from '../server/util.js';
 import { parseProjectIcon, letterTile, PROJECT_ICONS, PROJECT_ICON_COLORS, addDays } from '../shared/projects.js';
 import { iconSvg } from '../public/js/icons.js';
 
-const db = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'core-pmicon-')), 'db.json'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-pmicon-'));
+const db = openDb(path.join(dir, 'db.json'));
 const handle = createApi(db);
 const client = () => {
   let cookie = '';
-  return async (method, url, body = {}) => {
+  const c = async (method, url, body = {}) => {
     const res = await handle({ method, headers: { cookie } }, new URL(url, 'http://localhost'), body);
     if (res.headers['Set-Cookie']) cookie = res.headers['Set-Cookie'].split(';')[0];
     return res.data;
   };
+  c.raw = (method, url, body = {}) => handle({ method, headers: { cookie } }, new URL(url, 'http://localhost'), body);
+  return c;
 };
 const admin = client();
 await admin('POST', '/api/auth/setup', { name: 'Admin', username: 'admin', password: 'secret123' });
@@ -96,4 +99,46 @@ test('demo projects come with icons, and some with the letter tile', async () =>
   const demo = db.data.pmProjects.filter((p) => p.code.startsWith('DEMO-'));
   assert.ok(demo.some((p) => p.icon) && demo.some((p) => !p.icon));
   for (const p of demo.filter((x) => x.icon)) assert.deepEqual(parseProjectIcon(p.icon), p.icon);
+});
+
+// ===== 0.26: a project's own picture =====
+const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082', 'hex');
+const pic = (buf = PNG) => ({ file: { name: 'logo.png', data: buf.toString('base64') } });
+
+test('a project\'s own picture: managers set and remove it; members see it; nobody else; images only', async () => {
+  const p = await pia('POST', '/api/pm/projects', { name: 'Logo project', type: 'Client', startDate: day(0), icon: { glyph: 'cap', color: 'teal' } });
+  const withPic = await pia('PUT', `/api/pm/projects/${p.id}/icon`, pic());
+  assert.ok(withPic.iconImage?.at);
+  assert.deepEqual(withPic.icon, { glyph: 'cap', color: 'teal' }, 'the icon from the set is kept underneath');
+  const res = await pia.raw('GET', `/api/pm/projects/${p.id}/icon`);
+  assert.ok(Buffer.isBuffer(res.data) && res.data.equals(PNG));
+  assert.equal(res.headers['Content-Type'], 'image/png');
+  assert.equal(res.headers['X-Content-Type-Options'], 'nosniff');
+  assert.match(res.headers['Content-Security-Policy'], /default-src 'none'; sandbox/);
+  // Lists carry its date, so the address changes with a new picture.
+  const ov = await pia('GET', '/api/pm/overview');
+  assert.equal(ov.projects.find((x) => x.id === p.id).iconImage.at, withPic.iconImage.at);
+  // Only pictures, by content; at most 300 KB.
+  await assert.rejects(pia('PUT', `/api/pm/projects/${p.id}/icon`, pic(Buffer.from('<svg onload="alert(1)"/>'))), (e) => e.status === 400);
+  await assert.rejects(pia('PUT', `/api/pm/projects/${p.id}/icon`, pic(Buffer.from('%PDF-1.4\n'))), /JPEG, PNG or WebP/);
+  await assert.rejects(pia('PUT', `/api/pm/projects/${p.id}/icon`, pic(Buffer.concat([PNG, Buffer.alloc(310 * 1024)]))), /300 KB/);
+  // Someone not on the project: not found; a member who is not a manager cannot change it.
+  const outsider = client();
+  await admin('POST', '/api/users', { name: 'Olga Out', username: 'olga', role: 'pm', password: 'secret123', mustChangePassword: false });
+  await outsider('POST', '/api/auth/login', { username: 'olga', password: 'secret123' });
+  await assert.rejects(outsider.raw('GET', `/api/pm/projects/${p.id}/icon`), (e) => e.status === 404);
+  // A copy brings its own copy of the picture; removing the original's leaves the copy's.
+  const copy = await pia('POST', `/api/pm/projects/${p.id}/copy`, { name: 'Logo project 2', startDate: day(5) });
+  assert.ok(copy.iconImage?.at);
+  const copyFile = db.data.pmProjects.find((x) => x.id === copy.id).iconImage.id;
+  const origFile = db.data.pmProjects.find((x) => x.id === p.id).iconImage.id;
+  assert.notEqual(copyFile, origFile);
+  const removed = await pia('DELETE', `/api/pm/projects/${p.id}/icon`);
+  assert.equal(removed.iconImage, undefined);
+  assert.ok(!fs.existsSync(path.join(dir, 'attachments', origFile)));
+  assert.ok(fs.existsSync(path.join(dir, 'attachments', copyFile)));
+  await assert.rejects(pia('DELETE', `/api/pm/projects/${p.id}/icon`), /no picture/);
+  // Deleting the project deletes its picture.
+  await pia('DELETE', `/api/pm/projects/${copy.id}`);
+  assert.ok(!fs.existsSync(path.join(dir, 'attachments', copyFile)));
 });

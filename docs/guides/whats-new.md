@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Your own project icons (0.26)
+- A project's icon can be your own picture, such as the client's logo: **Edit** the project, then **Upload a picture…** under **Icon**. It shows beside the name everywhere; **Remove picture** goes back to the icon. See [the projects guide](projects#give-a-project-its-icon).
+
 ### No limit on files in tasks (0.25.1)
 - A task (and a milestone) can have as many files as you need, and a task's description as many pictures: the limits of 5 files and 20 pictures are gone. Each file is still up to 5 MB, PDF or photo. See [the projects guide](projects#attach-files-to-a-task-or-a-deliverable).
 

@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.26.0-alpha',
+    date: '2026-11-14',
+    title: 'Your own project icons',
+    modules: ['projects'],
+    notes: 'A project\'s icon can be an uploaded picture, such as a client\'s logo.',
+    changes: [
+      ['new', 'projects', 'Upload a picture… under Icon in the project form: the middle square of the image, 256 × 256, cut in the browser (WebP, PNG where WebP cannot be written, transparency kept), saved with the project (PUT /api/pm/projects/:id/icon; DELETE removes it). The server takes JPEG, PNG or WebP by content, at most 300 KB, for the project\'s managers.'],
+      ['new', 'projects', 'The picture comes before the icon from the set (kept underneath) everywhere a project shows: lists, header, Milestones, My work, the Timesheet and the task page. Served (GET /api/pm/projects/:id/icon) only to those who can open the project, as an image with nosniff and a sandbox policy, at an address that changes with the picture. Copies get their own copy; the file goes with the picture or the project.'],
+    ],
+  },
+  {
     version: '0.25.1-alpha',
     date: '2026-11-14',
     title: 'No limit on files in tasks',

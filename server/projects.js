@@ -232,7 +232,9 @@ const LEVEL = { read: 1, comment: 2, work: 3, manage: 4 };
 const MAX_HISTORY = 200;
 
 // The files of tasks and milestones of a project (to remove with it).
-export const projectFiles = (data, projectId) => [...(data.pmTasks || []), ...(data.pmMilestones || [])].filter((x) => x.projectId === projectId).flatMap((x) => [...(x.attachments || []), ...(x.images || [])]);
+export const projectFiles = (data, projectId) => [
+  ...(data.pmTasks || []), ...(data.pmMilestones || []),
+].filter((x) => x.projectId === projectId).flatMap((x) => [...(x.attachments || []), ...(x.images || [])]).concat((data.pmProjects || []).filter((p) => p.id === projectId && p.iconImage?.id).map((p) => p.iconImage));
 
 const IMAGE_GRACE_MS = 2 * 3600 * 1000; // a picture not (yet) in the description is kept this long: someone may be writing
 const BULK_MAX = 200; // tasks per bulk change
@@ -518,7 +520,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
 
   // ===== Templates: the list "+ New project" starts from (pm.edit), and the portfolio's Templates =====
   const templateOut = (p, u) => ({
-    id: p.id, code: p.code, name: p.name, icon: p.icon || null, type: p.type, description: p.description, starter: p.starter || null, access: levelOf(p, u),
+    id: p.id, code: p.code, name: p.name, icon: p.icon || null, iconImage: p.iconImage ? { at: p.iconImage.at } : null, type: p.type, description: p.description, starter: p.starter || null, access: levelOf(p, u),
     milestones: d().pmMilestones.filter((m) => m.projectId === p.id).length, tasks: d().pmTasks.filter((t) => t.projectId === p.id).length,
     deliverables: d().pmMilestones.filter((m) => m.projectId === p.id && m.deliverable).length, updatedAt: p.updatedAt,
   });
@@ -694,6 +696,13 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       icon: Object.hasOwn(body || {}, 'icon') ? body.icon : src.icon ?? null,
     }, u, { type: src.type });
     const p = createProject(fields, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
+    // The source's own picture comes along (a copy of the file), unless another icon was picked.
+    if (src.iconImage?.id && files && !Object.hasOwn(body || {}, 'icon')) {
+      try {
+        const saved = files.save({ name: 'icon', type: src.iconImage.type, buffer: files.buffer(src.iconImage) });
+        p.iconImage = { id: saved.id, type: saved.type, size: saved.size, at: saved.uploadedAt };
+      } catch {} // the file is missing on disk: the copy shows its icon or letter
+    }
     if (src.isTemplate) track(p, u, 'template', '', `${src.code} ${src.name}`);
     const msIds = new Map();
     for (const m of milestonesOf(src)) {
@@ -1015,7 +1024,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const parent = t.parentId && ctx.byId.get(t.parentId);
     return {
       ...taskOut(t, p, ctx), history: historyOut(t.history || []), access: levelOf(p, u),
-      project: { id: p.id, code: p.code, name: p.name, icon: p.icon || null, statuses: p.statuses, members: membersOut(p), timeTracking: ctx.time, isTemplate: Boolean(p.isTemplate) },
+      project: { id: p.id, code: p.code, name: p.name, icon: p.icon || null, iconImage: p.iconImage ? { at: p.iconImage.at } : null, statuses: p.statuses, members: membersOut(p), timeTracking: ctx.time, isTemplate: Boolean(p.isTemplate) },
       parent: parent ? { id: parent.id, key: parent.key, title: parent.title } : null,
       subtaskList: ctx.tasks.filter((x) => x.parentId === t.id).sort(byRank).map((x) => taskOut(x, p, ctx)),
       blockedByList: t.blockedBy.map((id) => ctx.byId.get(id)).filter(Boolean).map((x) => taskOut(x, p, ctx)),
@@ -1178,6 +1187,43 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     bump(t, u);
     db.save();
     return { attachments: filesOf(t).map((x) => fileOut(x, p, u)), version: t.version };
+  });
+
+  // ===== A project's own picture as its icon =====
+  // Uploaded by its managers (a square cut in the browser): JPEG, PNG or WebP by content, at most
+  // 300 KB. Shown to those who can open the project, as an image only (its type, nosniff, a sandbox
+  // policy); the address carries its date, so a new picture is not hidden by the cache. It takes the
+  // place of the icon from the set (kept, and shown again when the picture is removed).
+  const PICTURE_MAX = 300 * 1024;
+  route('GET', '/api/pm/projects/:id/icon', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    if (!p.iconImage?.id || !files) throw new HttpError(404, 'No picture.');
+    return showImage({ ...p.iconImage, name: 'icon' });
+  });
+  route('PUT', '/api/pm/projects/:id/icon', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u, 'manage');
+    if (!files) throw new HttpError(500, 'Files cannot be stored here.');
+    const up = parseUpload(body?.file);
+    if (!IMAGE_TYPES.includes(up.type)) throw new HttpError(400, 'Use a picture: JPEG, PNG or WebP.');
+    if (up.buffer.length > PICTURE_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${PICTURE_MAX / 1024} KB.`);
+    const old = p.iconImage;
+    const saved = files.save({ ...up, name: 'icon' });
+    p.iconImage = { id: saved.id, type: saved.type, size: saved.size, at: saved.uploadedAt };
+    if (old?.id) removeFiles([old]);
+    track(p, u, 'icon', old ? 'picture' : 'set icon', 'picture');
+    bump(p, u);
+    db.save();
+    return summaryOf(p, u);
+  });
+  route('DELETE', '/api/pm/projects/:id/icon', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u, 'manage');
+    if (!p.iconImage) throw new HttpError(400, 'This project has no picture.');
+    removeFiles([p.iconImage]);
+    delete p.iconImage;
+    track(p, u, 'icon', 'picture', p.icon ? 'set icon' : 'letter');
+    bump(p, u);
+    db.save();
+    return summaryOf(p, u);
   });
 
   // ===== Pictures in a task's description =====
@@ -1546,7 +1592,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const out = projects.map((p) => {
       const used = new Set([...rows.values()].filter((r) => r.projectId === p.id && r.taskId).map((r) => r.taskId));
       return {
-        id: p.id, code: p.code, name: p.name, icon: p.icon || null, manage: levelOf(p, u) === 'manage',
+        id: p.id, code: p.code, name: p.name, icon: p.icon || null, iconImage: p.iconImage ? { at: p.iconImage.at } : null, manage: levelOf(p, u) === 'manage',
         tasks: tasksOf(p).filter((t) => used.has(t.id) || isOpenCategory(categoryOf(p, t))).sort(byRank).map((t) => ({ id: t.id, key: t.key, title: t.title, size: isSize(t.size) ? t.size : null })),
       };
     });
@@ -1640,7 +1686,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const p = d().pmProjects.find((x) => x.id === t.projectId);
       if (!p || p.isTemplate || !levelOf(p, u) || !isOpenCategory(categoryOf(p, t))) continue;
       if (!ctxs.has(p.id)) ctxs.set(p.id, taskCtx(p));
-      groups[myWorkGroup(t, t0)].push({ ...taskOut(t, p, ctxs.get(p.id)), project: { id: p.id, code: p.code, name: p.name, icon: p.icon || null, statuses: p.statuses }, access: levelOf(p, u) });
+      groups[myWorkGroup(t, t0)].push({ ...taskOut(t, p, ctxs.get(p.id)), project: { id: p.id, code: p.code, name: p.name, icon: p.icon || null, iconImage: p.iconImage ? { at: p.iconImage.at } : null, statuses: p.statuses }, access: levelOf(p, u) });
     }
     for (const list of Object.values(groups)) list.sort((a, b) => (a.dueDate || '9').localeCompare(b.dueDate || '9') || byRank(a, b));
     return groups;
@@ -1766,7 +1812,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
           id: m.id, name: m.name, dueDate: m.dueDate, deliverable: Boolean(m.deliverable), billingPercent: m.deliverable ? m.billingPercent ?? null : null,
           submittedAt: m.submittedAt || null, acceptedAt: m.acceptedAt || null, finished: done, overdue: !done && m.dueDate < t0,
           health: done || p.status === 'completed' ? null : s.value, reason: done ? null : s.reasons[0] || null, progress: s.progress.percent, files: (m.attachments || []).length,
-          projectId: p.id, projectCode: p.code, projectName: p.name, projectIcon: p.icon || null, projectStatus: p.status, accountId: p.accountId || null, accountName: accountName(p.accountId),
+          projectId: p.id, projectCode: p.code, projectName: p.name, projectIcon: p.icon || null, projectIconImage: p.iconImage ? { at: p.iconImage.at } : null, projectStatus: p.status, accountId: p.accountId || null, accountName: accountName(p.accountId),
         };
         if (money) Object.assign(row, { amount: billingAmount(m, value), valueFrom: value == null ? null : Number(contract?.value) > 0 ? `contract ${contract.code}` : `deal ${deal.code}` });
         rows.push(row);
