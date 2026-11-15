@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A new description editor (0.27)
+- Task descriptions are written as they will look: no more marks like `**` or `- `. Format with the toolbar, the small menu over selected text, or **/** for headings, lists, checklists, tables, code and pictures. Click **Edit** next to **Description** to write in place on the task page; **Ctrl+Enter** saves. Pasted text keeps its formatting. See [the projects guide](projects#write-a-tasks-description).
+
 ### Your own project icons (0.26)
 - A project's icon can be your own picture, such as the client's logo: **Edit** the project, then **Upload a picture…** under **Icon**. It shows beside the name everywhere; **Remove picture** goes back to the icon. See [the projects guide](projects#give-a-project-its-icon).
 

@@ -2983,3 +2983,69 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
 .pm-icon-own .btn { cursor: pointer; }
 .pm-icon-upload:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
 .pm-icon-own-note { flex-basis: 100%; }
+
+/* ----- The visual description editor (public/js/richeditor.js) ----- */
+.wys .rich-head { margin-bottom: 6px; }
+.wys .rich-label { font-weight: 600; font-size: 13px; color: var(--text-2); }
+.wys-box { position: relative; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); }
+.wys-box:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent); }
+.wys .rich-bar { position: sticky; top: 0; z-index: 2; border: 0; border-bottom: 1px solid var(--border); border-radius: 10px 10px 0 0; gap: 2px; padding: 4px 6px; }
+.wys-style { width: auto; min-width: 0; height: 30px; padding: 2px 26px 2px 8px; font-size: 13px; border-color: transparent; background-color: transparent; }
+.wys-style:hover { background-color: var(--surface); }
+.rich-tool.on { background: var(--brand-softer); color: var(--brand); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 35%, transparent); }
+.wys-area { min-height: 180px; max-height: 60vh; overflow-y: auto; padding: 12px 14px; outline: none; border-radius: 0 0 10px 10px; cursor: text; }
+.wys-area > :first-child { margin-top: 0; }
+.wys-area.is-empty::before { content: attr(data-placeholder); position: absolute; pointer-events: none; color: var(--muted); }
+.wys-area a { cursor: text; }
+.wys-area pre { white-space: pre-wrap; }
+.wys-area li.rich-task > input { cursor: pointer; }
+.wys-area .rich-table td, .wys-area .rich-table th { min-width: 80px; }
+.wys-area figure.rich-img { position: relative; display: inline-block; max-width: 100%; margin: 4px 0 12px; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; line-height: 0; user-select: none; }
+.wys-area figure.rich-img img { display: block; max-width: 100%; max-height: 360px; }
+.wys-area figure.rich-img:hover, .wys-area figure.rich-img:focus-within { box-shadow: 0 0 0 2px var(--brand); }
+.wys-img-del { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgb(0 0 0 / 65%); color: #fff; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.wys-area figure.rich-img:hover .wys-img-del, .wys-img-del:focus-visible { opacity: 1; }
+.wys-area figure.uploading { display: block; padding: 14px; line-height: 1.4; background: var(--surface-2); }
+.wys-uploading { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.wys-uploading .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--brand); animation: wys-spin 0.8s linear infinite; }
+@keyframes wys-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .wys-uploading .spin { animation: none; } }
+.wys.drop .wys-box { outline: 2px dashed var(--brand); outline-offset: -4px; }
+.wys.too-long .wys-box { border-color: var(--danger); }
+.wys.too-long .rich-count { color: var(--danger); font-weight: 600; }
+.wys kbd { font-family: inherit; font-size: 11.5px; padding: 0 5px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; background: var(--surface); }
+.wys .rich-foot .hint { font-family: inherit; }
+/* The menu over selected text */
+.wys-bubble { position: absolute; z-index: 5; display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--text); box-shadow: 0 6px 18px rgb(0 0 0 / 22%); }
+.wys-bubble button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px; border: 0; border-radius: 6px; background: none; color: var(--surface); cursor: pointer; }
+.wys-bubble button:hover, .wys-bubble button.on { background: rgb(255 255 255 / 18%); }
+/* The "/" menu */
+.wys-slash { position: absolute; z-index: 6; width: 260px; max-height: 300px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: 0 10px 28px rgb(0 0 0 / 18%); }
+.wys-slash-item { display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; border-radius: 7px; cursor: pointer; }
+.wys-slash-item strong { font-size: 13.5px; font-weight: 600; }
+.wys-slash-item small { font-size: 12px; color: var(--muted); }
+.wys-slash-item.on, .wys-slash-item:hover { background: var(--brand-softer); }
+/* Editing the description in place on the task page */
+.pm-desc-edit .rich-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.pm-desc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.pm-desc-actions small { margin-left: auto; }
+.pm-desc-empty .link { font-size: 14px; }
+@media (pointer: coarse) {
+  .wys-style { height: 44px; font-size: 16px; }
+  .wys-area { font-size: 16px; }
+  .wys-slash-item { padding: 11px 12px; }
+  .wys-img-del { opacity: 1; width: 36px; height: 36px; }
+}
+@media (max-width: 760px) {
+  .wys-area { max-height: 50vh; }
+  .wys .rich-foot .hint { display: none; }
+}
+/* Inside a form field, em is the red "required" star: not in formatted text. */
+.field .rich em, .rich em { color: inherit; font-style: italic; margin: 0; }
+.rich a { color: var(--brand-text, var(--brand)); }
+@media (max-width: 760px) {
+  /* Phones: the toolbar is one row that scrolls sideways, so the text keeps the screen. */
+  .wys .rich-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .wys .rich-bar::-webkit-scrollbar { display: none; }
+  .wys .rich-bar > * { flex: none; scroll-snap-align: start; }
+}

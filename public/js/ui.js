@@ -157,7 +157,7 @@ export function fitFigures(root) {
 
 // Sideways scrollers (tabs, chips, wide tables, boards) fade on the side where more waits, and the
 // active tab or chip is brought into view when the page opens.
-export const SCROLLERS = '.tabs, .scroll-x, .table-scroll, .pm-chips, .seg-btns, .crm-board, .pm-board, .pm-ms-strip, .pm-tl-scroll, .pm-ts-scroll, .crm-path, .pm-bulk-in, .md-toolbar';
+export const SCROLLERS = '.tabs, .scroll-x, .table-scroll, .pm-chips, .seg-btns, .crm-board, .pm-board, .pm-ms-strip, .pm-tl-scroll, .pm-ts-scroll, .crm-path, .pm-bulk-in, .md-toolbar, .wys .rich-bar';
 const ACTIVE = '.active, .on, .cur, [aria-current="page"], [aria-current="step"], [aria-selected="true"]';
 export function edgeState({ scrollLeft, scrollWidth, clientWidth }) {
   const max = scrollWidth - clientWidth;

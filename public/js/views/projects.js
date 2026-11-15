@@ -1720,7 +1720,7 @@ export async function taskView(el, { projectId, id }) {
       </header>
       <div class="pm-task">
         <div class="stack">
-          <section class="card pm-desc"><div class="card-head"><h2>Description</h2>${work ? html`<button type="button" class="btn small-btn" id="edit-desc">${icon('edit', 14)} Edit</button>` : ''}</div>${t.description ? richView(t.description, t.id, t.images) : html`<p class="muted">No description.</p>`}</section>
+          <section class="card pm-desc"><div class="card-head"><h2>Description</h2>${work ? html`<button type="button" class="btn small-btn" id="edit-desc">${icon('edit', 14)} Edit</button>` : ''}</div>${t.description ? richView(t.description, t.id, t.images) : html`<p class="muted pm-desc-empty">${work ? html`<button type="button" class="link">Add a description…</button>` : 'No description.'}</p>`}</section>
           <section class="card"><div class="card-head"><h2>${icon('check')} Checklist</h2><span class="muted small">${t.checklist.length ? `${t.checklistDone}/${t.checklist.length} done` : ''}</span></div>
             ${t.checklist.length ? html`<ul class="crm-checklist">${t.checklist.map((i) => html`<li class="${i.done ? 'done' : ''}"><label><input type="checkbox" data-item="${i.id}" ${i.done ? 'checked' : ''} ${work ? '' : 'disabled'} /><span>${i.text}</span></label>${work ? html`<button type="button" class="icon-btn" data-rm-item="${i.id}" aria-label="Remove ${i.text}">${icon('x', 14)}</button>` : ''}</li>`)}</ul>` : html`<p class="muted small">No checklist.</p>`}
             ${work ? html`<form id="add-item" class="crm-add-item"><input name="text" maxlength="300" placeholder="Add a checklist item…" aria-label="Checklist item" /><button class="btn" type="submit">Add</button></form>` : ''}</section>
@@ -1853,19 +1853,72 @@ export async function taskView(el, { projectId, id }) {
         title: `Edit ${t.key}`, wide: true, className: 'pm-edit-task',
         body: html`<div class="grid two"><label class="field span-2"><span>Title<em>*</em></span><input name="title" maxlength="200" value="${t.title}" required /></label>${richEditor({ value: t.description || '', taskId: t.id })}</div>`,
         onSubmit: async (f) => {
-          await api.put(`/api/pm/tasks/${id}`, { title: f.title.value, description: f.description.value, version: t.version });
+          await api.put(`/api/pm/tasks/${id}`, { title: f.title.value, description: ed.value(), version: t.version });
           toast('Saved.');
           await reload();
         },
       });
       const ed = wireRichEditor(form, { images: [...(t.images || [])] });
-      if (focusDescription) {
-        ed.textarea.focus();
-        ed.textarea.setSelectionRange(ed.textarea.value.length, ed.textarea.value.length);
-      }
+      if (focusDescription) ed.focus();
+    };
+    // The description edited where it is: the card becomes the editor, with Save and Cancel.
+    const descCard = el.querySelector('.pm-desc');
+    const editInPlace = () => {
+      if (descCard.querySelector('.pm-desc-edit')) return descCard.querySelector('.wys-area')?.focus();
+      const head = descCard.querySelector('.card-head');
+      const shown = [...descCard.children].filter((c) => c !== head);
+      const btn = head.querySelector('#edit-desc');
+      const body = document.createElement('div');
+      body.className = 'pm-desc-edit';
+      mount(body, html`${richEditor({ value: t.description || '', taskId: t.id })}
+        <div class="pm-desc-actions"><button type="button" class="btn primary" data-save>Save</button><button type="button" class="btn" data-cancel>Cancel</button>
+          <small class="muted">${/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl+'}Enter saves · Esc cancels</small></div>`);
+      shown.forEach((c) => (c.hidden = true));
+      if (btn) btn.hidden = true;
+      descCard.append(body);
+      const ed = wireRichEditor(body, { images: [...(t.images || [])] });
+      const original = ed.value();
+      ed.focus();
+      const close = () => {
+        body.remove();
+        shown.forEach((c) => (c.hidden = false));
+        if (btn) {
+          btn.hidden = false;
+          btn.focus();
+        }
+      };
+      const cancel = async () => {
+        if (ed.value() !== original && !(await confirmDialog('Discard your changes to the description?', { title: 'Discard changes', confirmLabel: 'Discard' }))) return ed.focus();
+        close();
+      };
+      const saveBtn = body.querySelector('[data-save]');
+      const save = async () => {
+        saveBtn.disabled = true;
+        try {
+          await api.put(`/api/pm/tasks/${id}`, { description: ed.value(), version: t.version });
+          toast('Description saved.');
+          await reload();
+        } catch (err) {
+          toast(err.message, 'error');
+          saveBtn.disabled = false;
+        }
+      };
+      saveBtn.addEventListener('click', save);
+      body.querySelector('[data-cancel]').addEventListener('click', cancel);
+      body.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          save();
+        } else if (e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('.modal-backdrop')) {
+          e.preventDefault();
+          cancel();
+        }
+      });
     };
     el.querySelector('#edit')?.addEventListener('click', () => editTask(false));
-    el.querySelector('#edit-desc')?.addEventListener('click', () => editTask(true));
+    el.querySelector('#edit-desc')?.addEventListener('click', editInPlace);
+    // "No description." is a place to start writing.
+    if (may(t.access, 'work')) descCard?.querySelector('.pm-desc-empty')?.addEventListener('click', editInPlace);
     el.querySelector('#del')?.addEventListener('click', async () => {
       if (!(await confirmDialog(`Delete ${t.key} ${t.title}?${t.subtasks ? ` Its ${plural(t.subtasks, 'subtask')} go with it.` : ''} Comments and files go too; time logged on it stays on the project.`, { title: 'Delete task' }))) return;
       await api.del(`/api/pm/tasks/${id}`).then(() => {

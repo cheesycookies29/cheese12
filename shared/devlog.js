@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.27.0-alpha',
+    date: '2026-11-15',
+    title: 'A visual description editor',
+    modules: ['projects'],
+    notes: 'Task descriptions are edited as they look, with no Markdown to type.',
+    changes: [
+      ['new', 'projects', 'Description editor (public/js/richeditor.js), rewritten as a visual editor on contenteditable, with no dependencies. Toolbar with Text style and buttons that show what is on at the cursor; a menu over selected text; a "/" menu for blocks; Markdown shortcuts as you type ("- ", "1. ", "[] ", "# ", "> ", ``` and **bold**, *italic*, `code`, ~~struck~~); Tab and Shift+Tab in lists, Tab through table cells; Ctrl/⌘+B, I, K, E, Z; checklists you can tick; tables; pictures uploading in place with a spinner and a remove button.'],
+      ['new', 'projects', 'Edit in place on the task page: the Description card becomes the editor, with Save (Ctrl/⌘+Enter) and Cancel (Esc, which asks before throwing changes away). New task and Edit title and description use the same editor.'],
+      ['improved', 'projects', 'Still stored as the same small Markdown: the editable area is read into a document model of what CORE knows (paragraphs, headings, lists, checklists, quotes, code, tables, pictures, bold, italic, struck, code and links) and written as Markdown (modelToMarkdown in shared/richtext.js); a typed * or # stays text (escaped). Pasted HTML goes through the same model in a detached document, so styles, scripts and unsafe links never get in. Old descriptions open as before.'],
+      ['fixed', 'projects', 'Rendering: backslash escapes (\\*, \\#, \\|); a | escaped inside a table cell; formatting inside a link\'s words no longer garbled; *italic* right next to a letter (from a paste) still shows as italic.'],
+    ],
+  },
+  {
     version: '0.26.0-alpha',
     date: '2026-11-14',
     title: 'Your own project icons',

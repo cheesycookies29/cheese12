@@ -225,14 +225,19 @@ Progress counts the subtasks, not their parent. When most tasks (60% or more) ha
 
 ### Write a task's description
 
-1. Open the task and click **Edit** next to **Description** (or **Edit title and description**).
-2. Type the description. To format it, select words and use the toolbar: **Heading** (click again for a smaller one), **Bold**, *Italic*, ~~Strikethrough~~, `Code`, **Link**, a bulleted or numbered list, a **Checklist**, a quote and a line. Over several lines, bold and italic apply to each line. **Ctrl+B**, **Ctrl+I** and **Ctrl+K** (on a Mac ⌘) do bold, italic and a link; in a list, Enter starts the next item, and Enter on an empty item ends the list. For a list inside a list, type two or three spaces before the `-`; Enter on an empty inner item goes back to the outer list's next item.
-3. To add a picture, click the picture button and choose one, or paste a screenshot (Ctrl+V) or drag a picture into the text. It is added where the cursor is.
-4. Click **Preview** to see how it will look, then **Save**.
+1. Open the task and click **Edit** next to **Description** (or **Add a description…**). The description becomes the editor right where it is; **Edit title and description** at the top does the same in a window.
+2. Type. What you see is what is saved: bold looks bold, a list looks like a list, as you write.
+3. To format, select words and click **B**, *I*, **S** (strikethrough), **Code** or **Link** in the toolbar, or in the small menu that appears over the selection. **Text style** at the left makes the line a **Heading**, **Subheading** or **Small heading**. The other buttons make a bulleted list, a numbered list, a **Checklist**, a quote, a code block, a line, a table or a picture. A button that is on where the cursor is shows highlighted.
+4. Type **/** at the start of an empty line for a menu of everything you can add: headings, lists, a checklist, a quote, a code block, a line, a table or a picture. Keep typing to narrow it (for example */tab*), then press Enter.
+5. Click **Save** (or press **Ctrl+Enter**; on a Mac **⌘+Enter**). **Cancel** or **Esc** leaves without saving; CORE asks first when you changed something.
 
 ![Editing a task's description](projects-description.jpg)
 
-The toolbar writes simple marks into the text (`**bold**`, `- item`, `- [ ] to do`, `![caption](img:…)` for a picture), so you can also type them. A table is a line of `| Column | Column |`, then `|---|---|`, then a line per row. The checklist in a description is for reading; tick tasks off in the task's own **Checklist**. Pictures can be JPEG, PNG or WebP, up to 5 MB (a large photo is made smaller before it is sent), as many as you need; the words in brackets are the caption. Everyone who can open the project sees them; click one to open it full size. A picture you take out of the description is deleted when the description is saved. Pictures are added once the task exists: in **New task** the description can be formatted, and pictures come after **Add task**. Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab.
+Shortcuts, as in most editors: **Ctrl+B** bold, **Ctrl+I** italic, **Ctrl+K** a link, **Ctrl+E** code, **Ctrl+Z** undo (on a Mac ⌘). Typing at the start of a line also works: `- ` or `* ` starts a bulleted list, `1. ` a numbered list, `[] ` a checklist, `# `, `## ` or `### ` a heading, `> ` a quote, and ` ``` ` then Enter a code block. In a list, **Enter** adds the next item, **Tab** puts an item inside the one above (Shift+Tab takes it back out), and **Enter** on an empty item ends the list. In a table, **Tab** moves to the next cell and adds a row at the end. Click a checklist box to tick it; tick tasks off for real in the task's own **Checklist**.
+
+Pictures: click the picture button, or paste a screenshot (Ctrl+V), or drag a picture into the text; it uploads where the cursor is, and its × removes it. JPEG, PNG or WebP, up to 5 MB each (a large photo is made smaller first), as many as you need. Everyone who can open the project sees them; click one on the task page to open it full size. A picture taken out of the description is deleted when the description is saved. In **New task** the description can be written and formatted; pictures come after **Add task**.
+
+Pasting from a web page, Word or an email keeps bold, italic, lists, headings, links and tables, and drops everything else (colours, fonts, scripts). Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab; in the editor, Ctrl+click opens one.
 
 ### Size a task
 
