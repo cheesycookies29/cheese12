@@ -9,11 +9,12 @@
 // (shared/projects.js); nothing here stores a percentage or a health colour.
 import { api } from '../api.js';
 import { ctx, can, roleLabel } from '../state.js';
-import { html, mount, badge, toast, modal, confirmDialog, fmtDate, today, downloadFile, toCsv, money } from '../ui.js';
+import { html, raw, mount, badge, toast, modal, confirmDialog, fmtDate, today, downloadFile, toCsv, money } from '../ui.js';
 import { icon } from '../icons.js';
 import { defaultDay, dayTotals } from '../phone.js';
 import { ACCEPT, prepareUpload, sizeLabel } from '../attachments.js';
 import { richEditor, wireRichEditor, richView } from '../richeditor.js';
+import { renderRich } from '/shared/richtext.js';
 import { avatar as personAvatar } from '../avatars.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, MY_WORK_GROUPS,
@@ -24,6 +25,30 @@ import {
 } from '/shared/projects.js';
 
 // ---------- Small helpers ----------
+const MOD_KEY = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl+';
+const COMMENT_MAX = 4000;
+// A comment, formatted like a description; @mentions of the project's members are highlighted
+// (not inside code or a link). Older comments, written as plain text, read the same as before.
+function commentBody(body, usernames) {
+  const box = document.createElement('div');
+  box.className = 'rich pm-comment-body';
+  box.innerHTML = renderRich(body);
+  const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+  const found = [];
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.nodeValue.includes('@') && !n.parentElement.closest('a, code, pre')) found.push(n);
+  for (const n of found) {
+    const parts = mentionParts(n.nodeValue, usernames);
+    if (!parts.some((x) => x.mention)) continue;
+    n.replaceWith(...parts.map((x) => {
+      if (!x.mention) return document.createTextNode(x.text);
+      const m = document.createElement('mark');
+      m.className = 'pm-mention';
+      m.textContent = `@${x.mention}`;
+      return m;
+    }));
+  }
+  return raw(box.outerHTML);
+}
 const changed = () => window.dispatchEvent(new Event('pm:changed'));
 const plural = (n, w, many = `${w}s`) => `${n} ${n === 1 ? w : many}`;
 const hrs = (n) => `${Math.round((Number(n) || 0) * 100) / 100} h`;
@@ -1772,7 +1797,10 @@ export async function taskView(el, { projectId, id }) {
   if (t.projectId !== projectId) return (location.hash = `#/projects/${t.projectId}/tasks/${t.id}`);
   const p = t.project;
   const from = cameFrom(p.id);
+  // The comment being written stays when the page is drawn again (after a change to the task).
+  let composer = null;
   async function render() {
+    const draft = composer?.area.isConnected ? composer.value() : '';
     const comments = await api.get(`/api/pm/tasks/${id}/comments`);
     const work = may(t.access, 'work');
     const status = p.statuses.find((s) => s.id === t.statusId);
@@ -1783,7 +1811,7 @@ export async function taskView(el, { projectId, id }) {
     const hist = (h) => html`<li><strong>${h.byName}</strong> ${h.field === 'created' ? html`added the task${h.to ? ` (${h.to})` : ''}` : html`${h.field}: ${h.from || '—'} → ${h.to || '—'}`}<small class="muted">${when(h.at)}</small></li>`;
     const comment = (c) => html`<li class="pm-comment">${avatar(c.userName, c.userId)}<div class="grow"><div><strong>${c.userName}</strong> <small class="muted">${when(c.createdAt)}</small>
       ${c.canDelete ? html`<button type="button" class="icon-btn danger" data-del-c="${c.id}" aria-label="Delete comment">${icon('trash', 14)}</button>` : ''}</div>
-      <p class="pre">${mentionParts(c.body, usernames).map((x) => (x.mention ? html`<mark class="pm-mention">@${x.mention}</mark>` : x.text))}</p></div></li>`;
+      ${commentBody(c.body, usernames)}</div></li>`;
     mount(el, html`<div class="pm-task-page">
       <header class="page-head">
         <div>${crumbBar([rootCrumb(p), projectCrumb(p, from.tab), { label: VIEW_LABEL[from.tab], href: from.href, title: `Back to the ${VIEW_LABEL[from.tab]}` },
@@ -1807,8 +1835,10 @@ export async function taskView(el, { projectId, id }) {
             <div id="files">${fileBlock(t.attachments, `/api/pm/tasks/${t.id}/attachments`, work)}</div></section>
           <section class="card"><h2>${icon('comment')} Comments</h2>
             ${comments.length ? html`<ul class="pm-comments">${comments.map(comment)}</ul>` : html`<p class="muted small">No comments yet.</p>`}
-            ${may(t.access, 'comment') ? html`<form id="comment" class="pm-composer"><textarea name="body" rows="3" maxlength="4000" placeholder="Write a comment. Mention someone with @ and their username." aria-label="Comment"></textarea>
-              <div class="crm-composer-foot"><small class="muted">${usernames.length ? `On this project: ${usernames.map((u) => `@${u}`).join(', ')}` : ''}</small><span class="spacer"></span><button class="btn primary" type="submit">Comment</button></div></form>` : ''}
+            ${may(t.access, 'comment') ? html`<form id="comment" class="pm-composer">${richEditor({ name: 'body', label: 'Comment', pictures: false, max: COMMENT_MAX, compact: true,
+              placeholder: 'Write a comment… Type @ to mention someone on the project.',
+              hint: html`Type <kbd>@</kbd> to mention someone on the project, <kbd>/</kbd> for lists, a checklist, code and more. Pictures go under Files.` })}
+              <div class="crm-composer-foot"><small class="muted">${MOD_KEY}Enter posts</small><span class="spacer"></span><button class="btn primary" type="submit">Comment</button></div></form>` : ''}
           </section>
           <section class="card"><details><summary><h2>${icon('activity')} History</h2></summary><ul class="pm-history">${[...t.history].reverse().map(hist)}</ul></details></section>
         </div>
@@ -1844,6 +1874,15 @@ export async function taskView(el, { projectId, id }) {
         </aside>
       </div></div>`);
     wire();
+    const cform = el.querySelector('#comment');
+    composer = cform ? wireRichEditor(cform, { mentions: p.members.filter((x) => x.username && x.active && x.userId !== ctx.user.id).map((x) => ({ username: x.username, name: x.name })) }) : null;
+    if (composer && draft) composer.setValue(draft);
+    cform?.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        cform.requestSubmit();
+      }
+    });
   }
   const reload = async (focus) => {
     t = await api.get(`/api/pm/tasks/${id}`);
@@ -1899,10 +1938,14 @@ export async function taskView(el, { projectId, id }) {
     el.querySelector('#comment')?.addEventListener('submit', guard(async (e) => {
       e.preventDefault();
       const btn = e.target.querySelector('[type=submit]');
-      if (btn.disabled || !e.target.body.value.trim()) return;
+      const body = composer ? composer.value() : e.target.body.value;
+      if (btn.disabled) return;
+      if (!body.trim()) return composer?.focus(false);
+      if (body.length > COMMENT_MAX) return toast(`A comment can be up to ${COMMENT_MAX.toLocaleString('en-PH')} characters. Shorten it, or split it in two.`, 'error');
       btn.disabled = true;
-      await api.post(`/api/pm/tasks/${id}/comments`, { body: e.target.body.value });
-      await reload('#comment textarea');
+      await api.post(`/api/pm/tasks/${id}/comments`, { body });
+      composer?.setValue('');
+      await reload('#comment .wys-area');
     }, () => reload()));
     el.querySelectorAll('[data-del-c]').forEach((b) => b.addEventListener('click', guard(async () => {
       if (!(await confirmDialog('Delete this comment?', { title: 'Delete comment' }))) return;

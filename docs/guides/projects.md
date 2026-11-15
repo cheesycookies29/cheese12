@@ -101,7 +101,7 @@ The three starter templates are under **Templates** in the filter.
 2. Tick *Test with the College of Engineering lists* in the checklist.
 3. Under **Details**, change **Status** to *For review*. Each change is saved at once and written in the history.
 4. **Size** says how big the task is: *S · Small (about a day)*. Pick another to change it; the line under it says what the size means. On a project that tracks time, a **Time** box under it shows the hours logged on the task and lets you log more.
-5. Under **Comments**, write a comment and mention someone with @ and their username, for example `@employee.demo`. The mention is highlighted, and Juan finds it under **For you** on his My work.
+5. Under **Comments**, write a comment and type **@**: a list of the project's people opens. Type *jua* and press Enter to put in `@employee.demo`. Click **Comment** (or press **Ctrl+Enter**). The mention is highlighted, and Juan finds it under **For you** on his My work. See [Comment on a task](projects#comment-on-a-task).
 6. At the top, **Watch** (or **Watching**) shows how many people watch the task; the **Watchers** box lists them. **Files** holds documents and photos for the task.
 7. Above the title, the path shows where you are: *Projects › Learning management system, phase 2 › Board › DEMO-PRJ-0001-7*. Click **Board** to go back to the board, or the project's name for its overview. See [Find your way with the path at the top](projects#find-your-way-with-the-path-at-the-top).
 
@@ -239,6 +239,16 @@ Shortcuts, as in most editors: **Ctrl+B** bold, **Ctrl+I** italic, **Ctrl+K** a 
 Pictures: click the picture button, or paste a screenshot (Ctrl+V), or drag a picture into the text; it uploads where the cursor is, and its × removes it. JPEG, PNG or WebP, up to 5 MB each (a large photo is made smaller first), as many as you need. Everyone who can open the project sees them; click one on the task page to open it full size. A picture taken out of the description is deleted when the description is saved. In **New task** the description can be written and formatted; pictures come after **Add task**.
 
 Pasting from a web page, Word or an email keeps bold, italic, lists, headings, links and tables, and drops everything else (colours, fonts, scripts). Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab; in the editor, Ctrl+click opens one.
+
+### Comment on a task
+
+1. Open the task and scroll to **Comments**. The box is the same editor as the description, a little smaller: type, and format with the toolbar, the small menu over selected text, **/** for lists, a checklist, a quote, code, a table and more, or the same shortcuts (**Ctrl+B**, `- `, `1. `…). See [Write a task's description](projects#write-a-tasks-description).
+2. To mention someone, type **@**: the people on the project are listed. Keep typing their name or username to narrow it, then press Enter or Tab (or click one). They hear of it under **For you**, and the mention is highlighted in the comment.
+3. Click **Comment**, or press **Ctrl+Enter** (on a Mac **⌘+Enter**).
+
+![The comments on a task, with the comment box](projects-comment.jpg)
+
+A comment can be up to 4,000 characters. Pictures do not go in a comment: add them to the task's **Files**. What you are writing stays in the box when you change the task (its status, its assignee…) while you write. You can delete your own comments; a project manager can delete any. Comments written before this editor show as they were written.
 
 ### Change a table's rows and columns
 
@@ -515,7 +525,7 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 | A project: List | Every task in a table grouped by milestone or status, edited in place, with its size; quick filters, search and **Views**; ticked tasks changed together (bulk edit); **Export CSV**; **Import tasks** (managers) |
 | A project: Timeline | Weeks across, milestones and tasks along a line, today, weekends and holidays; a dated list on a phone |
 | A project: Time | Only on a project that tracks time: log hours; your entries this week; the hours by person (open a member's timesheet) and by task, against the budget |
-| A task | Details (with the size), checklist, subtasks, files, blocked by, comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
+| A task | Details (with the size), checklist, subtasks, files, blocked by, formatted comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
 | My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date; **Comfortable** or **Compact** rows |
 | Timesheet | Your hours on the projects that track time, Monday to Sunday, with your DTR next to it for comparison; your members' timesheets, read only (project managers) |
 | Projects setup | The statuses new projects start with, the project types, what the effort sizes mean, and the daily digest (Project Managers); team access (administrators) |

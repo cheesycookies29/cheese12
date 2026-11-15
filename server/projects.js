@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
 import { parseUpload } from './attachments.js';
-import { imageIdsOf } from '../shared/richtext.js';
+import { imageIdsOf, richToText } from '../shared/richtext.js';
 import { sendMail as smtpSend } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
 import { digestEmail } from './pm-digest.js';
@@ -607,7 +607,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     // Recent changes: task history and comments, newest first.
     const activity = [
       ...ctx.tasks.flatMap((t) => (t.history || []).map((h) => ({ ...h, taskId: t.id, key: t.key, title: t.title }))),
-      ...d().pmComments.filter((c) => c.projectId === p.id).map((c) => ({ at: c.createdAt, by: c.userId, field: 'comment', from: '', to: c.body.slice(0, 140), taskId: c.taskId, key: ctx.byId.get(c.taskId)?.key, title: ctx.byId.get(c.taskId)?.title })),
+      ...d().pmComments.filter((c) => c.projectId === p.id).map((c) => ({ at: c.createdAt, by: c.userId, field: 'comment', from: '', to: richToText(c.body).replace(/\s+/g, ' ').trim().slice(0, 140), taskId: c.taskId, key: ctx.byId.get(c.taskId)?.key, title: ctx.byId.get(c.taskId)?.title })),
       ...(p.history || []).map((h) => ({ ...h, project: true })),
     ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 12);
     const horizon = addDays(ctx.today, 14);
@@ -1125,16 +1125,19 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   });
   route('POST', '/api/pm/tasks/:id/comments', 'auth', ({ params, body, user: u }) => {
     const { t, p } = findTask(params.id, u, 'comment');
+    if (typeof body.body === 'string' && body.body.trim().length > 4000) throw new HttpError(400, 'A comment can be up to 4,000 characters. Shorten it, or split it in two.');
     const text = str(body.body, 4000);
-    if (!text) throw new HttpError(400, 'Write the comment.');
+    if (!text || !richToText(text).trim()) throw new HttpError(400, 'Write the comment.');
     const c = { id: randomUUID(), taskId: t.id, projectId: p.id, userId: u.id, body: text, createdAt: now() };
     d().pmComments.push(c);
     // @mentions of the project's members; the task's assignee and the person who added it hear of
     // any other comment (once: a mention is enough).
-    const named = new Set(mentionedUsernames(text, p.members.map((m) => user(m.userId)?.username).filter(Boolean)));
+    // Written in the visual editor: @mentions and the quote come from its plain text.
+    const plain = richToText(text);
+    const named = new Set(mentionedUsernames(plain, p.members.map((m) => user(m.userId)?.username).filter(Boolean)));
     const mentioned = p.members.map((m) => user(m.userId)).filter((x) => x && named.has(x.username.toLowerCase())).map((x) => x.id);
-    notify(mentioned, 'mentioned', p, t, u, `mentioned you on ${t.key}: ${quote(text)}`);
-    notify([t.assigneeId, t.createdBy, ...watchersOf(t)].filter((id) => !mentioned.includes(id)), 'commented', p, t, u, `commented on ${t.key}: ${quote(text)}`);
+    notify(mentioned, 'mentioned', p, t, u, `mentioned you on ${t.key}: ${quote(plain)}`);
+    notify([t.assigneeId, t.createdBy, ...watchersOf(t)].filter((id) => !mentioned.includes(id)), 'commented', p, t, u, `commented on ${t.key}: ${quote(plain)}`);
     // Commenting starts watching (unless you stopped watching this task); a mention does not.
     if (!p.isTemplate) autoWatch(t, [u.id]);
     db.save();

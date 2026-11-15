@@ -236,16 +236,19 @@ const tip = (t) => `${t[2]}${t[3] ? ` (${KEY}${t[3]})` : ''}`;
 
 let seq = 0;
 // The editor, for a form. taskId: pictures can be added (null for a task not saved yet).
-export function richEditor({ name = 'description', value = '', label = 'Description', taskId = null, placeholder = 'Write the description… Type / for headings, lists, tables and more.' } = {}) {
+// pictures: false for writing that takes none (a comment); max: the most characters it keeps;
+// compact: a smaller box (a comment); hint: the line under it.
+export function richEditor({ name = 'description', value = '', label = 'Description', taskId = null, placeholder = 'Write the description… Type / for headings, lists, tables and more.', pictures = true, max = RICH_MAX, compact = false, hint = null } = {}) {
   const id = `rich-${++seq}`;
-  const noPics = !taskId;
-  return html`<div class="field span-2 rich-ed wys" data-rich data-task="${taskId || ''}">
+  const noPics = !taskId || !pictures;
+  const TOOLS_HERE = pictures ? TOOLS : TOOLS.filter((t, k) => t[0] !== 'image' && !(t === '|' && TOOLS[k + 1]?.[0] === 'image'));
+  return html`<div class="field span-2 rich-ed wys ${compact ? 'wys-compact' : ''}" data-rich data-task="${pictures ? taskId || '' : ''}" data-max="${max}" data-pics="${pictures ? '1' : '0'}">
     <div class="rich-head"><span class="rich-label" id="${id}-label">${label}</span></div>
     <div class="wys-box">
       <div class="rich-bar" role="toolbar" aria-label="Formatting" aria-controls="${id}">
         <select class="wys-style" aria-label="Text style" title="Text style">${STYLES.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select>
         <span class="rich-sep" aria-hidden="true"></span>
-        ${TOOLS.map((t) => (t === '|' ? html`<span class="rich-sep" aria-hidden="true"></span>`
+        ${TOOLS_HERE.map((t) => (t === '|' ? html`<span class="rich-sep" aria-hidden="true"></span>`
           : html`<button type="button" class="rich-tool" data-tool="${t[0]}" tabindex="-1" aria-label="${tip(t)}" title="${t[0] === 'image' && noPics ? 'Pictures can be added once the task is saved' : tip(t)}" ${['bold', 'italic', 'strike', 'code', 'link', 'bullet', 'number', 'task', 'quote', 'codeblock'].includes(t[0]) ? 'aria-pressed="false"' : ''} ${t[0] === 'image' && noPics ? 'disabled' : ''}>${icon(t[1], 16)}</button>`))}
       </div>
       <div class="wys-area rich" id="${id}" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="${id}-label" aria-describedby="${id}-help" data-placeholder="${placeholder}" spellcheck="true"></div>
@@ -256,14 +259,15 @@ export function richEditor({ name = 'description', value = '', label = 'Descript
       <div class="wys-tmenu wys-ui" role="menu" aria-label="Table" hidden>${TABLE_MENU.map((group, g) => html`${g ? html`<div class="wys-tmenu-sep" role="separator"></div>` : ''}${group.map(([op, label]) => html`<button type="button" role="${op.startsWith('align') ? 'menuitemradio' : 'menuitem'}" data-top="${op}" tabindex="-1" class="${op.startsWith('del') ? 'danger' : ''}">${label}</button>`)}`)}</div>
     </div>
     <textarea name="${name}" hidden>${value}</textarea>
-    <input type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple hidden data-pick />
-    <div class="rich-foot"><small class="hint" id="${id}-help">Type <kbd>/</kbd> for headings, lists and more.${noPics ? '' : ' Paste or drop pictures in.'} In a list, <kbd>Tab</kbd> indents; in a table, right-click a cell for rows and columns.</small><small class="rich-count" aria-live="polite"></small></div>
+    ${pictures ? html`<input type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple hidden data-pick />` : ''}
+    <div class="rich-foot"><small class="hint" id="${id}-help">${hint ?? html`Type <kbd>/</kbd> for headings, lists and more.${noPics ? '' : ' Paste or drop pictures in.'} In a list, <kbd>Tab</kbd> indents; in a table, right-click a cell for rows and columns.`}</small><small class="rich-count" aria-live="polite"></small></div>
   </div>`;
 }
 
 // ----- Making it work -----
 // root: where the editor's markup is; images: the task's pictures (kept up to date as they are added).
-export function wireRichEditor(root, { images = [] } = {}) {
+// mentions: the people who can be mentioned ([{ username, name }]): typing @ offers them.
+export function wireRichEditor(root, { images = [], mentions = [] } = {}) {
   const box = root.querySelector('[data-rich]');
   if (!box) return null;
   const area = box.querySelector('.wys-area');
@@ -274,6 +278,8 @@ export function wireRichEditor(root, { images = [] } = {}) {
   const bubble = box.querySelector('.wys-bubble');
   const slash = box.querySelector('.wys-slash');
   const taskId = box.dataset.task || null;
+  const MAX = Number(box.dataset.max) || RICH_MAX;
+  const noPicsHere = box.dataset.pics === '0' ? 'Pictures do not go in a comment: add them to the task\'s Files.' : 'Pictures can be added once the task is saved.';
   const tools = [...box.querySelectorAll('.rich-bar .rich-tool')];
   const image = imageUrl(taskId, images);
   tools.find((b) => !b.disabled).tabIndex = 0;
@@ -338,8 +344,8 @@ export function wireRichEditor(root, { images = [] } = {}) {
     }
     area.classList.toggle('is-empty', !md && !area.querySelector('img, hr, table, ul, ol, pre, blockquote, h3, h4, h5'));
     const n = md.length;
-    count.textContent = n > RICH_MAX ? `Too long: ${n.toLocaleString('en-PH')} of ${RICH_MAX.toLocaleString('en-PH')} characters` : n > RICH_MAX * 0.8 ? `${n.toLocaleString('en-PH')} / ${RICH_MAX.toLocaleString('en-PH')}` : '';
-    box.classList.toggle('too-long', n > RICH_MAX);
+    count.textContent = n > MAX ? `Too long: ${n.toLocaleString('en-PH')} of ${MAX.toLocaleString('en-PH')} characters` : n > MAX * 0.8 ? `${n.toLocaleString('en-PH')} / ${MAX.toLocaleString('en-PH')}` : '';
+    box.classList.toggle('too-long', n > MAX);
   }
 
   // -- Where the cursor is --
@@ -750,7 +756,7 @@ export function wireRichEditor(root, { images = [] } = {}) {
     bullet: () => toggleList('bullet'), number: () => toggleList('number'), task: toggleTask,
     quote: toggleQuote, codeblock: () => (closest('pre') ? fromPre(closest('pre')) : toPre()),
     divider: () => insertBlockHtml('<hr><p><br></p>'), table: () => insertBlockHtml(TABLE),
-    image: () => pick.click(), undo: () => exec('undo'), redo: () => exec('redo'),
+    image: () => pick?.click(), undo: () => exec('undo'), redo: () => exec('redo'),
   };
   const run = (name) => {
     if (!ACTIONS[name]) return;
@@ -1018,7 +1024,7 @@ export function wireRichEditor(root, { images = [] } = {}) {
       changed();
     }
   }
-  pick.addEventListener('change', () => {
+  pick?.addEventListener('change', () => {
     addPictures(pick.files);
     pick.value = '';
   });
@@ -1061,7 +1067,7 @@ export function wireRichEditor(root, { images = [] } = {}) {
     if (files.length) {
       e.preventDefault();
       if (taskId) addPictures(files);
-      else toast('Pictures can be added once the task is saved.', 'error');
+      else toast(noPicsHere, 'error');
       return;
     }
     const htmlText = e.clipboardData?.getData('text/html');
@@ -1105,7 +1111,7 @@ export function wireRichEditor(root, { images = [] } = {}) {
       return;
     }
     e.preventDefault();
-    if (!taskId) return toast('Pictures can be added once the task is saved.', 'error');
+    if (!taskId) return toast(noPicsHere, 'error');
     const caret = document.caretRangeFromPoint?.(e.clientX, e.clientY);
     if (caret) {
       sel().removeAllRanges();
@@ -1146,16 +1152,11 @@ export function wireRichEditor(root, { images = [] } = {}) {
     });
     area.setAttribute('aria-activedescendant', `${slash.id}-${slashAt}`);
   }
-  function checkSlash() {
-    const block = blockAt();
-    const r = range();
-    if (!block || !r?.collapsed || !/^(P|DIV)$/.test(block.tagName)) return closeSlash();
-    const m = textBefore(block).match(/^\/([a-z ]{0,20})$/i);
-    if (!m || block.textContent.trim().length !== textBefore(block).trim().length) return closeSlash();
-    const q = m[1].trim().toLowerCase();
-    slashItems = SLASH.filter(([cmd, name, , words]) => (cmd !== 'image' || taskId) && (!q || name.toLowerCase().includes(q) || words.includes(q)));
-    if (!slashItems.length) return closeSlash();
-    slashAt = Math.min(slashAt, slashItems.length - 1);
+  // The same list offers people after "@" (in a comment): their username goes in as text.
+  let menuKind = 'slash';
+  let mentionQ = '';
+  function showMenu(r, block, label) {
+    slash.setAttribute('aria-label', label);
     drawSlash();
     const rect = r.getBoundingClientRect();
     const host = box.querySelector('.wys-box').getBoundingClientRect();
@@ -1165,8 +1166,55 @@ export function wireRichEditor(root, { images = [] } = {}) {
     slash.style.left = `${Math.max(4, Math.min(host.width - slash.offsetWidth - 4, (rect.left || blockRect.left) - host.left))}px`;
     slash.style.top = `${(rect.bottom || blockRect.bottom) - host.top + 6}px`;
   }
+  function checkMention() {
+    const block = blockAt();
+    const r = range();
+    if (!mentions.length || !block || !r?.collapsed || closest('pre, code, a')) return false;
+    const m = textBefore(block).match(/(?:^|[\s(\u00a0])@([a-z0-9._-]{0,32})$/i);
+    if (!m) return false;
+    const q = m[1].toLowerCase();
+    const hits = mentions.filter((x) => x.username.toLowerCase().startsWith(q) || x.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(q))).slice(0, 8);
+    if (!hits.length) return false;
+    if (menuKind !== 'mention' || mentionQ !== m[1]) slashAt = 0;
+    menuKind = 'mention';
+    mentionQ = m[1];
+    slashItems = hits.map((x) => [x.username, x.name, `@${x.username}`]);
+    slashAt = Math.min(slashAt, slashItems.length - 1);
+    showMenu(r, block, 'Mention someone');
+    return true;
+  }
+  function pickMention(item) {
+    closeSlash();
+    const r = range();
+    if (!r || !item) return;
+    const n = mentionQ.length + 1;
+    if (r.startContainer.nodeType === 3 && r.startOffset >= n) {
+      const x = document.createRange();
+      x.setStart(r.startContainer, r.startOffset - n);
+      x.setEnd(r.startContainer, r.startOffset);
+      sel().removeAllRanges();
+      sel().addRange(x);
+    } else for (let k = 0; k < n; k++) exec('delete');
+    exec('insertText', `@${item[0]} `);
+    changed();
+  }
+  function checkSlash() {
+    if (checkMention()) return;
+    menuKind = 'slash';
+    const block = blockAt();
+    const r = range();
+    if (!block || !r?.collapsed || !/^(P|DIV)$/.test(block.tagName)) return closeSlash();
+    const m = textBefore(block).match(/^\/([a-z ]{0,20})$/i);
+    if (!m || block.textContent.trim().length !== textBefore(block).trim().length) return closeSlash();
+    const q = m[1].trim().toLowerCase();
+    slashItems = SLASH.filter(([cmd, name, , words]) => (cmd !== 'image' || taskId) && (!q || name.toLowerCase().includes(q) || words.includes(q)));
+    if (!slashItems.length) return closeSlash();
+    slashAt = Math.min(slashAt, slashItems.length - 1);
+    showMenu(r, block, 'Insert');
+  }
   function pickSlash() {
     const item = slashItems[slashAt];
+    if (menuKind === 'mention') return pickMention(item);
     closeSlash();
     const block = blockAt();
     if (block) {
@@ -1334,5 +1382,8 @@ export function wireRichEditor(root, { images = [] } = {}) {
       if (end) caretIn(area.lastElementChild || area, true);
     },
     value: () => (sync(), ta.value),
+    setValue(md) {
+      load(md || '');
+    },
   };
 }

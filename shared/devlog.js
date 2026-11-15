@@ -28,6 +28,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.30.0-alpha',
+    date: '2026-11-15',
+    title: 'Comments in the visual editor',
+    modules: ['projects'],
+    notes: 'Task comments are written in the same visual editor as descriptions, with @mentions picked from a list.',
+    changes: [
+      ['new', 'projects', 'The comment box on a task is the description editor (public/js/richeditor.js), compact and without pictures: toolbar, menu over selected text, "/" menu, Markdown shortcuts, tables. Ctrl/⌘+Enter posts. A comment being written is kept when the task page is drawn again after a change to the task.'],
+      ['new', 'projects', 'Typing @ lists the project\'s active members (by name or username, up to 8) in the editor\'s menu; Enter, Tab or a click puts in @username as text, Esc closes it.'],
+      ['improved', 'projects', 'Comments are stored as the same small Markdown and shown with renderRich; @mentions of members are highlighted in the text (not inside code or links). Older plain-text comments show as before, line breaks kept.'],
+      ['improved', 'projects', 'Mentions are found in the comment\'s plain text (richToText, which now drops list, quote, table and code marks and undoes escapes, so @ana\\_reyes is ana_reyes); notifications and the project\'s recent activity quote the plain text. A comment over 4,000 characters is refused instead of cut short; the editor counts towards it.'],
+      ['improved', 'projects', 'The editor takes options: pictures, max, compact, hint and mentions; setValue() replaces its content.'],
+    ],
+  },
+  {
     version: '0.29.0-alpha',
     date: '2026-11-15',
     title: 'Breadcrumbs in Project Management',

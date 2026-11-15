@@ -200,16 +200,26 @@ export function renderRich(text, opts = {}) {
   return out.join('\n');
 }
 
-// Plain text of a description (for lists, search and CSV): the formatting marks dropped.
+// Plain text of a description or comment (for notifications, lists, search, CSV and finding
+// @mentions): the formatting marks dropped, escaped marks (\_ in a username) back to themselves.
 export function richToText(text) {
   return String(text || '')
+    .replace(/\u200b/g, '')
+    .replace(/\\([\\*_~`[\]|#>.+!()-])/g, (_, c) => `\ue000${c.charCodeAt(0)}\ue001`)
     .replace(IMAGE_REF, (_, alt) => (alt ? `[${alt}]` : '[picture]'))
     .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, '$1 ($2)')
     .replace(/^#{1,3}\s+/gm, '')
+    .replace(/^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+(?:\[[ xX]\][ \t]+)?/gm, '')
+    .replace(/^[ \t]*>[ \t]?/gm, '')
+    .replace(/^[ \t]*```.*$/gm, '')
+    .replace(/^[ \t]*\|?[ \t]*:?-{2,}:?[ \t]*(\|[ \t]*:?-{2,}:?[ \t]*)*\|?[ \t]*$/gm, '')
+    .replace(/^[ \t]*\|(.*?)\|?[ \t]*$/gm, (_, cells) => cells.split('|').map((c) => c.trim()).join('  '))
+    .replace(/^[ \t]*(-{3,}|\*{3,})[ \t]*$/gm, '')
     .replace(/\*\*([^*\n]+)\*\*/g, '$1')
     .replace(/~~([^~\n]+)~~/g, '$1')
     .replace(/(^|[^\w*])\*([^*\n]+)\*/g, '$1$2')
-    .replace(/`([^`\n]+)`/g, '$1');
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\ue000(\d+)\ue001/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
 // ----- From the visual editor: a document model to Markdown -----

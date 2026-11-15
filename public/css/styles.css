@@ -1687,6 +1687,15 @@ body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
 .pm-mention { background: var(--brand-soft); color: var(--brand-text); border-radius: 4px; padding: 0 3px; font-weight: 600; }
 .pm-composer { display: flex; flex-direction: column; gap: 8px; }
 .pm-composer textarea { min-height: 72px; }
+/* Comments: written in the same editor as descriptions (smaller), shown formatted */
+.pm-composer .rich-ed { margin: 0; }
+.pm-composer .rich-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.wys-compact .wys-area { min-height: 84px; max-height: 40vh; }
+.pm-comment .rich.pm-comment-body { margin-top: 3px; color: var(--text-2); font-size: 14px; }
+.pm-comment .pm-comment-body > * { margin-bottom: 8px; }
+.pm-comment .pm-comment-body > :last-child { margin-bottom: 0; }
+.pm-comment .pm-comment-body p { margin-top: 0; }
+.wys-slash-item strong + small { font-family: inherit; }
 .pm-history { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
 .pm-history small { display: block; }
 details > summary h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; }

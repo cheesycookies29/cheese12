@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Comments in the new editor (0.30)
+- A task's comment box is now the same editor as the description: bold, lists, checklists, quotes, code and tables, as they will look. Type **@** to pick someone on the project to mention. **Ctrl+Enter** posts. See [the projects guide](projects#comment-on-a-task).
+
 ### A path at the top of every project and task (0.29)
 - Above the title of a project's pages and its tasks, a path shows where you are (*Projects › project › Board › parent task › task*); each part is a link. On a task, the view you came from takes you back to it with your filters. The arrow beside the project's name goes to another project. See [the projects guide](projects#find-your-way-with-the-path-at-the-top).
 
