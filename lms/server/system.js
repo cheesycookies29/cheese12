@@ -13,7 +13,8 @@ import { ROLES, roleLabel, permissionsOf, permissionsOfUser, ADMIN_ONLY_PERMISSI
 import { PERMISSION_GROUPS, grantable } from './config.js';
 import { MODULES, MODULE_ROLES, moduleOn } from '../shared/modules.js';
 import { SYSTEMS } from '../shared/systems.js';
-import { publicUser, hashPassword, validatePassword } from './auth.js';
+import { publicUser, hashPasswordAsync, validatePassword } from './auth.js';
+import { t } from './validate.js';
 import { validateUserFields } from './admin.js';
 import { campusName } from './campus.js';
 import { combinedTrail, filterTrail, trailCsv, sideLabel, SYSTEM_LABELS, KIND_LABELS, SOURCE_LABELS } from './audit.js';
@@ -33,10 +34,16 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
     if (user?.role !== 'admin') fail('Users & Access is for administrators.', 403);
   };
   // Every route here: administrators only, and its own entry in the audit trail.
-  const sys = (method, pattern, handler) => route(method, pattern, 'admin', (a) => {
+  // opts: more route options, e.g. { body: { … } } (the fields it accepts; server/validate.js).
+  const sys = (method, pattern, handler, opts = {}) => route(method, pattern, 'admin', (a) => {
     only(a.user);
     return handler(a);
-  }, { audit: false });
+  }, { audit: false, ...opts });
+  // The account fields validateUserFields (server/admin.js) reads.
+  const ACCOUNT_FIELDS = {
+    name: t.str(200), username: t.str(200), email: t.str(320), phone: t.str(60), role: t.str(40), studentNo: t.str(60),
+    programId: t.str(100), yearLevel: t.int(0, 12), department: t.str(200), employeeNo: t.str(60),
+  };
   const log = (a, e) => ctx.audit({ system: 'system', actor: a.user, ip: a.ip, agent: a.agent, ...e });
   const trail = () => ctx.auditLog.entries();
   const everything = () => combinedTrail(data(), trail());
@@ -48,19 +55,21 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   // ----- Sessions and locks, as Control shows them -----
   const allSessions = () => Object.entries(sides).flatMap(([side, s]) => s.list().map((x) => ({ ...x, side })));
   const sessionsOf = (userId) => allSessions().filter((s) => s.userId === userId);
-  // Throttle keys: "side:username" (locked everywhere) or "side:username@address" (locked on that address).
+  // Throttle keys: "user:username" (locked everywhere) or "user:username@address" (locked on that
+  // address), whichever sign-in page was used (server/api.js). Earlier versions kept one per side.
   const parseLock = ({ key, until }) => {
-    const m = key.match(/^(portal|admin|hris):([^@]*)(?:@(.*))?$/);
+    const m = key.match(/^(user|portal|admin|hris):([^@]*)(?:@(.*))?$/);
     if (!m) return null;
     const account = data().users.find((u) => u.username === m[2]);
-    return { key, side: m[1], username: m[2], ip: m[3] ?? null, until: new Date(until).toISOString(), accountId: account?.id || null, name: account?.name || '' };
+    const side = m[1] === 'user' ? ROLES[account?.role]?.side || 'portal' : m[1];
+    return { key, side, username: m[2], ip: m[3] ?? null, until: new Date(until).toISOString(), accountId: account?.id || null, name: account?.name || '' };
   };
   const locks = () => throttle.locked().map(parseLock).filter(Boolean);
   const unlockUsername = (username) => {
     let n = 0;
-    for (const side of Object.keys(sides)) {
-      for (const l of throttle.locked()) if (l.key === `${side}:${username}` || l.key.startsWith(`${side}:${username}@`)) (throttle.reset(l.key), n++);
-      throttle.reset(`${side}:${username}`);
+    for (const prefix of ['user', ...Object.keys(sides)]) {
+      for (const l of throttle.locked()) if (l.key === `${prefix}:${username}` || l.key.startsWith(`${prefix}:${username}@`)) (throttle.reset(l.key), n++);
+      throttle.reset(`${prefix}:${username}`);
     }
     return n;
   };
@@ -178,22 +187,25 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   };
 
   // A staff account: any account type but student and parent.
-  sys('POST', '/api/system/users', (a) => {
+  sys('POST', '/api/system/users', async (a) => {
     const { body } = a;
     if (!STAFF_ROLES.includes(body.role)) fail('Make students and parents in the Admin panel (Students, Parents & guardians).');
+    validateUserFields(body, data());
+    validatePassword(body.password, data().settings.security);
+    const passwordHash = await hashPasswordAsync(body.password);
+    // Checked again after the (slow) hash, then saved without pausing: a username taken meanwhile is refused.
     const fields = validateUserFields(body, data());
     fields.campusIds = campusList(fields.role, body.campusIds);
-    validatePassword(body.password, data().settings.security);
     const u = {
       id: randomUUID(), ...fields, status: 'active',
       mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false,
-      passwordHash: hashPassword(body.password), createdAt: new Date().toISOString(),
+      passwordHash, createdAt: new Date().toISOString(),
     };
     data().users.push(u);
     log(a, { kind: 'account', action: `Made a ${roleLabel(u.role)} account`, target: u, changes: [['name', u.name], ['username', u.username], ['email', u.email], ['account type', roleLabel(u.role)], ['campuses', campusesOf(u).join(', ')]].filter(([, v]) => v).map(([field, to]) => ({ field, from: '', to })) });
     save();
     return publicUser(u);
-  });
+  }, { body: { ...ACCOUNT_FIELDS, campusIds: t.arr(t.str(100), 50), mustChangePassword: t.bool(), password: t.str(1000) } });
 
   sys('PUT', '/api/system/users/:id', (a) => {
     const { body, user } = a;
@@ -275,10 +287,13 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
       .map((p) => ({ field: label[p] || p, from: before.includes(p) ? 'Yes' : 'No', to: after.includes(p) ? 'Yes' : 'No' }));
     if (!changes.length) return detail(u);
     u.updatedAt = new Date().toISOString();
-    log(a, { kind: 'access', action: 'Changed an account\'s own access', target: u, changes, detail: u.access ? '' : 'Now follows the account type.' });
+    // What an account may do changed: its sessions end, so it signs in again with the new access
+    // (a fresh session, never one opened under the old permissions).
+    ctx.signOutEverywhere(u.id);
+    log(a, { kind: 'access', action: 'Changed an account\'s own access', target: u, changes, detail: `${u.access ? '' : 'Now follows the account type. '}Their sessions were ended.` });
     save();
     return detail(u);
-  });
+  }, { body: { permissions: t.arr(t.str(80), 400) } });
 
   // Delete an account nobody has used for records (as in CORE's Users & Access); otherwise disable it,
   // so the records keep who made them.
@@ -307,18 +322,20 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
     return { ok: true };
   });
 
-  sys('POST', '/api/system/users/:id/reset-password', (a) => {
-    const u = found(a.params.id);
-    if (u.id === a.user.id) fail('Change your own password from the menu under your name.');
+  sys('POST', '/api/system/users/:id/reset-password', async (a) => {
+    if (a.params.id === a.user.id) fail('Change your own password from the menu under your name.');
+    found(a.params.id);
     validatePassword(a.body.password, data().settings.security);
-    u.passwordHash = hashPassword(a.body.password);
+    const passwordHash = await hashPasswordAsync(a.body.password);
+    const u = found(a.params.id); // still there after the hash
+    u.passwordHash = passwordHash;
     u.mustChangePassword = true;
     ctx.signOutEverywhere(u.id);
     unlockUsername(u.username);
     log(a, { kind: 'password', action: 'Reset a password', target: u, detail: 'A new password to change at the next sign-in; their sessions were ended and the username unlocked.' });
     save();
     return { ok: true };
-  });
+  }, { body: { password: t.str(1000) } });
   sys('POST', '/api/system/users/:id/require-password-change', (a) => {
     const u = found(a.params.id);
     u.mustChangePassword = true;

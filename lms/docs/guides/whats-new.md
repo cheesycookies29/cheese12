@@ -9,6 +9,15 @@ order: 2
 
 ## November 2026
 
+### Stronger protection for the API
+- **Sign in again after 12 hours**, however busy (and still after 8 idle hours). Administrators can change both in **Sign-in and passwords** (**Sign out after (hours signed in)** is new). See [the administrator's guide](admin#set-the-rules-for-passwords-and-sign-in).
+- **Changing what an account may do signs that person out**, so they continue with the new access, never the old one.
+- **One lock per username.** Wrong passwords lock a username on every sign-in page together, and many guesses sent at once count each one.
+- **Passwords are hashed more strongly**, without slowing ATLAS for everyone else; older ones are upgraded the next time each person signs in.
+- **A change asked for by another website is refused**, and every request is checked for its shape before ATLAS acts on it.
+- **Test connection** for Keycloak is for administrators only, and ATLAS never calls an address on a private network unless the server allows it.
+- Everyone signs in once more after this update.
+
 ### The Admin panel on the home page
 - **Administration**, below your systems on the ATLAS home page, as in CORE: the **Admin panel**, and shortcuts to the pages in it you use most (administrators: **Users & Access**, the **Settings center**, the **Audit log** and **What's new**; registrars: **Enrollment requests** and **Applicants**). For administrators and registrars only. The Learn tile now says **Manage Learn**. See [the administrator's guide](admin).
 

@@ -19,10 +19,13 @@
 // in the environment (OIDC_CLIENT_SECRET). The file, when there is one, wins.
 import fs from 'node:fs';
 import path from 'node:path';
+import { BlockList } from 'node:net';
+import { lookup as dnsLookup } from 'node:dns/promises';
 import { randomBytes, createHash, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { HttpError, text } from './util.js';
 import { ROLES } from '../shared/roles.js';
 import { provisionKeycloakClient } from './keycloak-admin.js';
+import { t } from './validate.js';
 
 export const SSO_SECRET_FILE = 'oidc-client.secret';
 
@@ -51,7 +54,59 @@ function page(title, message, to) {
 <script>location.replace(${JSON.stringify(to)})</script></body></html>`;
 }
 
-export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret = process.env.OIDC_CLIENT_SECRET || '', fetchImpl = (...a) => fetch(...a) }) {
+// ----- Where ATLAS may call Keycloak -----
+// Only addresses on the internet, so the single sign-on settings cannot be used to reach machines
+// on the server's own network (server-side request forgery). Two exceptions, set by whoever runs the
+// server, not in the Admin panel: a Keycloak on this same machine (an issuer at localhost or
+// 127.0.0.1, and then only at that address), and hosts listed in KEYCLOAK_PRIVATE_HOSTS (a campus
+// Keycloak on the school's own network, for ATLAS installed on campus).
+const PRIVATE = new BlockList();
+for (const [net, bits] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['224.0.0.0', 4], ['240.0.0.0', 4]]) PRIVATE.addSubnet(net, bits, 'ipv4');
+for (const [net, bits] of [['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8]]) PRIVATE.addSubnet(net, bits, 'ipv6');
+export const privateAddress = (address, family) => {
+  const a = String(address).toLowerCase();
+  const mapped = a.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return PRIVATE.check(mapped[1], 'ipv4');
+  return PRIVATE.check(a, family === 6 || a.includes(':') ? 'ipv6' : 'ipv4');
+};
+const LOCAL_NAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+const isLocal = (host) => LOCAL_NAMES.has(String(host).toLowerCase());
+
+export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret = process.env.OIDC_CLIENT_SECRET || '', fetchImpl: rawFetch = (...a) => fetch(...a), lookup = dnsLookup, secureCookies = false, privateHosts = String(process.env.KEYCLOAK_PRIVATE_HOSTS || '') }) {
+  const allowedPrivate = new Set(privateHosts.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean));
+  // Before every call to Keycloak (issuer is the realm the call belongs to).
+  async function checkOutbound(url, issuer) {
+    let u;
+    let from;
+    try {
+      u = new URL(url);
+      from = new URL(issuer);
+    } catch {
+      fail('Keycloak gave an address ATLAS cannot use.', 502);
+    }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') fail('Keycloak gave an address ATLAS cannot use.', 502);
+    const host = u.hostname.toLowerCase();
+    if (isLocal(host) || isLocal(from.hostname)) {
+      // A Keycloak on this machine: only its own address, and never a jump from a remote one.
+      if (isLocal(host) && isLocal(from.hostname) && u.port === from.port) return;
+      fail('Keycloak gave an address on this server, which ATLAS does not call.', 502);
+    }
+    if (u.protocol !== 'https:') fail('ATLAS calls Keycloak over https only.', 502);
+    if (allowedPrivate.has(host)) return;
+    let addresses;
+    try {
+      addresses = await lookup(host, { all: true, verbatim: true });
+    } catch {
+      fail(`Could not find Keycloak (${host}).`, 502);
+    }
+    if (!addresses.length || addresses.some((a) => privateAddress(a.address, a.family))) {
+      fail(`Keycloak's address (${host}) is on a private network, which ATLAS does not call from here. Use its address on the internet (or, for a Keycloak on the campus network, ask whoever runs the server to list it in KEYCLOAK_PRIVATE_HOSTS).`, 400);
+    }
+  }
+  const guardedFetch = (issuer) => async (url, opts) => {
+    await checkOutbound(url, issuer);
+    return rawFetch(url, { ...opts, redirect: 'manual' }); // a redirect elsewhere is not followed
+  };
   const data = () => ctx.db.data;
   // The client secret: the file beside the data file (from "Set up for me"), else the environment.
   const secretFile = ctx.db.dir ? path.join(ctx.db.dir, SSO_SECRET_FILE) : null;
@@ -73,23 +128,28 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
   const pending = new Map(); // state → { nonce, verifier, next, redirectUri, at }
   const cache = { discovery: null, discoveryAt: 0, jwks: null, jwksAt: 0, issuer: '' };
 
-  const getJson = async (url, opts = {}) => {
+  // issuer: the realm this call belongs to (the configured one, or the one being tested).
+  // What Keycloak says when it refuses is not passed on (only the standard OAuth error code, such
+  // as "invalid_client"), so these calls cannot be used to read other servers' answers.
+  const getJson = async (url, opts = {}, issuer = cfg().issuer) => {
     let res;
+    await checkOutbound(url, issuer);
     try {
-      res = await fetchImpl(url, { ...opts, signal: AbortSignal.timeout(10000) });
+      res = await rawFetch(url, { ...opts, redirect: 'manual', signal: AbortSignal.timeout(10000) });
     } catch (err) {
-      fail(`Could not reach Keycloak (${new URL(url).host}): ${err.cause?.code || err.message}`, 502);
+      fail(`Could not reach Keycloak (${new URL(url).host}): ${err.cause?.code || err.name || 'no answer'}`, 502);
     }
     const body = await res.json().catch(() => null);
-    if (!res.ok) fail(`Keycloak answered ${res.status}${body?.error_description ? `: ${body.error_description}` : body?.error ? `: ${body.error}` : ''}.`, 502);
-    if (!body) fail('Keycloak did not answer with JSON.', 502);
+    const code = typeof body?.error === 'string' && /^[a-z_]{1,40}$/.test(body.error) ? `: ${body.error}` : '';
+    if (!res.ok) fail(`Keycloak answered ${res.status}${code}.`, 502);
+    if (!body || typeof body !== 'object') fail('Keycloak did not answer with JSON.', 502);
     return body;
   };
 
   async function discovery(issuer = cfg().issuer, fresh = false) {
     if (!issuer) fail('Single sign-on is not set up.', 503);
     if (!fresh && cache.discovery && cache.issuer === issuer && Date.now() - cache.discoveryAt < 10 * 60 * 1000) return cache.discovery;
-    const d = await getJson(`${issuer.replace(/\/$/, '')}/.well-known/openid-configuration`);
+    const d = await getJson(`${issuer.replace(/\/$/, '')}/.well-known/openid-configuration`, {}, issuer);
     for (const k of ['issuer', 'authorization_endpoint', 'token_endpoint', 'jwks_uri']) if (!d[k]) fail(`Keycloak's configuration has no ${k}.`, 502);
     if (d.issuer.replace(/\/$/, '') !== issuer.replace(/\/$/, '')) fail(`The issuer Keycloak reports (${d.issuer}) is not the one configured (${issuer}).`, 502);
     Object.assign(cache, { discovery: d, discoveryAt: Date.now(), issuer, jwks: issuer === cache.issuer ? cache.jwks : null });
@@ -178,7 +238,10 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     return user;
   }
 
-  const stateCookie = (state, maxAge = 600) => `${SSO_STATE_COOKIE}=${state}; HttpOnly; SameSite=Lax; Path=/api/sso; Max-Age=${maxAge}${process.env.COOKIE_SECURE === '1' ? '; Secure' : ''}`;
+  // Over HTTPS the browser keeps this cookie only as "Secure" ("__Secure-": it is for /api/sso only,
+  // so it cannot be a "__Host-" cookie).
+  const STATE_COOKIE = secureCookies ? `__Secure-${SSO_STATE_COOKIE}` : SSO_STATE_COOKIE;
+  const stateCookie = (state, maxAge = 600) => `${STATE_COOKIE}=${state}; HttpOnly; SameSite=Lax; Path=/api/sso; Max-Age=${maxAge}${secureCookies ? '; Secure' : ''}`;
 
   // ----- Routes -----
   route('GET', '/api/sso/start', 'public', async ({ query, origin }) => {
@@ -208,7 +271,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
       if (st) pending.delete(query.state);
       return back(query.error === 'access_denied' ? 'Keycloak sign-in was cancelled.' : `Keycloak said: ${text(query.error_description || query.error, 200)}`);
     }
-    if (!st || cookies[SSO_STATE_COOKIE] !== query.state) return back('This sign-in link has expired or was opened in another browser. Start again.');
+    if (!st || cookies[STATE_COOKIE] !== query.state) return back('This sign-in link has expired or was opened in another browser. Start again.');
     pending.delete(query.state);
     try {
       const d = await discovery();
@@ -246,10 +309,14 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
   // ----- Settings (ATLAS Control → Single sign-on) -----
   const view = (origin) => ({ ...cfg(), secretSet: Boolean(secret), secretSource, redirectUri: `${origin}/api/sso/callback`, postLogoutUri: `${origin}/`, linked: data().users.filter((u) => u.ssoSubject).length });
   route('GET', '/api/admin/sso', 'admin:settings.edit', ({ origin }) => view(origin));
-  route('POST', '/api/admin/sso/test', 'admin:settings.edit', async ({ body }) => {
-    const d = await discovery(text(body.issuer, 300) || cfg().issuer, true);
-    return { ok: true, issuer: d.issuer, authorization: d.authorization_endpoint, token: d.token_endpoint, logout: d.end_session_endpoint || null, keys: (await getJson(d.jwks_uri)).keys?.length || 0 };
-  });
+  // Test connection: administrators only (it makes this server call another one), a few times a
+  // quarter-hour, and only to an address cleanIssuer and checkOutbound accept.
+  route('POST', '/api/admin/sso/test', 'admin:settings.edit', async ({ body, user }) => {
+    if (user.role !== 'admin') fail('Only an administrator can test the Keycloak connection.', 403);
+    const issuer = cleanIssuer(body.issuer) || cfg().issuer;
+    const d = await discovery(issuer, true);
+    return { ok: true, issuer: d.issuer, authorization: d.authorization_endpoint, token: d.token_endpoint, logout: d.end_session_endpoint || null, keys: (await getJson(d.jwks_uri, {}, issuer)).keys?.length || 0 };
+  }, { limit: 'outbound', body: { issuer: t.str(400) } });
   const cleanIssuer = (value) => {
     const issuer = text(value, 300).replace(/\/$/, '');
     if (issuer && !/^https?:\/\/[^\s]+$/.test(issuer)) fail('The issuer is an address like https://sso.school.edu/realms/school.');
@@ -273,7 +340,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     if (!s.enabled) s.allowPasswords = true; // passwords are the only way in without SSO
     ctx.db.save();
     return view(origin);
-  });
+  }, { body: { issuer: t.str(400), clientId: t.str(200), label: t.str(120), matchBy: t.str(20), allowPasswords: t.bool(), enabled: t.bool() } });
 
   // Set up for me: ATLAS creates (or fixes) its client in Keycloak with the admin API, keeps the
   // client secret, saves the connection and, if asked, switches single sign-on on. The Keycloak
@@ -288,7 +355,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     const auth = body.auth || {};
     await discovery(issuer, true); // the realm answers before anything is changed in it
     const out = await provisionKeycloakClient({
-      fetchImpl, issuer, clientId, origin,
+      fetchImpl: guardedFetch(issuer), issuer, clientId, origin,
       redirectUri: `${origin}/api/sso/callback`, postLogoutUri: `${origin}/`,
       auth: { kind: auth.kind, realm: text(auth.realm, 100), username: text(auth.username, 200), password: String(auth.password || '').slice(0, 500), clientId: text(auth.clientId, 200), clientSecret: String(auth.clientSecret || '').slice(0, 500) },
     });
@@ -300,7 +367,10 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     ctx.db.save();
     console.log(`Single sign-on: Keycloak client "${clientId}" in realm "${out.realm}" set up by ${user.username}${out.changes.length ? ` (${out.changes.join(', ')})` : ' (nothing to change)'}.`);
     return { ...view(origin), done: { realm: out.realm, created: out.created, changes: out.changes } };
-  }, { limit: 'password', audit: false });
+  }, {
+    limit: 'password', audit: false,
+    body: { issuer: t.str(400), clientId: t.str(200), enable: t.bool(), auth: t.obj({ kind: t.str(20), realm: t.str(200), username: t.str(400), password: t.str(1000), clientId: t.str(400), clientSecret: t.str(1000) }) },
+  });
 
   return { logoutUrl, publicInfo: () => (cfg().enabled ? { enabled: true, label: cfg().label, passwords: cfg().allowPasswords } : { enabled: false, passwords: true }) };
 }

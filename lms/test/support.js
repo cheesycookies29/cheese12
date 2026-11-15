@@ -1,6 +1,10 @@
 // Test helpers: an API on an in-memory database, and clients that keep their own cookies.
 import { createApi } from '../server/api.js';
 import { memoryDb } from '../server/db.js';
+import { setPasswordCost } from '../server/auth.js';
+
+// Tests make many accounts: hash passwords at a low cost (the server itself uses 2^17).
+setPasswordCost(10);
 
 export const TODAY = '2026-08-10';
 

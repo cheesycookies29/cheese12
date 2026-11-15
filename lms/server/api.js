@@ -17,10 +17,11 @@
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
 import { HttpError, localDate, localDateTime, text } from './util.js';
 import {
-  hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
+  hashPasswordAsync, verifyPasswordAsync, needsRehash, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
   sealAllPasswords, needsSealing, sealHash, readableHash, passwordEncryption,
-  sessionCookie, clearedCookie, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
+  sessionCookie, clearedCookie, cookieName, cookiesSecureByDefault, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
+import { checkStructure, checkBody, t } from './validate.js';
 import { clientIp, createRateLimiter } from './ratelimit.js';
 import { ROLES, can, userCan, setRoleOverrides } from '../shared/roles.js';
 import { MODULES, moduleOn, enabledModules } from '../shared/modules.js';
@@ -58,7 +59,6 @@ import { registerConfigRoutes } from './config.js';
 import { registerCalendarRoutes } from './calendar.js';
 import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
 
-const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
 
 // The largest request body: 20 MB for someone signed in (files travel as base64 in JSON), and
 // 256 KB for anyone else; signing in, applying and first-run setup need only a few hundred bytes.
@@ -76,7 +76,7 @@ const fail = (msg, status = 400) => {
 // options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
 // options.cloudflareFetch / options.cloudflareHelper: fetch for Cloudflare's API and the AWS instance
 // metadata, and where the server's Cloudflare helper is installed, for tests (default: fetch, /usr/local/sbin/ltdc-lms-cloudflare).
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, cloudflareFetch, cloudflareHelper, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true } = {}) {
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, cloudflareFetch, cloudflareHelper, ssoLookup, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true, secureCookies = cookiesSecureByDefault() } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -86,7 +86,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // Settings → Sign-in & passwords: idle sign-out and lockout apply at once.
   const security = () => db.data.settings.security || {};
   const idleMs = () => Math.min(72, Math.max(1, Number(security().idleHours) || 8)) * 3600 * 1000;
-  const sides = { portal: createSessions(idleMs), admin: createSessions(idleMs), hris: createSessions(idleMs) };
+  // However busy, a session ends this long after sign-in (never sooner than the idle time).
+  const maxSessionMs = () => Math.max(idleMs(), Math.min(168, Math.max(1, Number(security().maxSessionHours) || 12)) * 3600 * 1000);
+  const sides = { portal: createSessions(idleMs, maxSessionMs), admin: createSessions(idleMs, maxSessionMs), hris: createSessions(idleMs, maxSessionMs) };
+  // Session cookie names: "__Host-…" when served over HTTPS (server/auth.js).
+  const COOKIES = { portal: cookieName(PORTAL_COOKIE, secureCookies), admin: cookieName(ADMIN_COOKIE, secureCookies), hris: cookieName(HRIS_COOKIE, secureCookies) };
+  const setCookie = (side, token) => sessionCookie(COOKIES[side], token, maxSessionMs(), secureCookies);
+  const clearCookie = (side) => clearedCookie(COOKIES[side], secureCookies);
   const throttle = createThrottle(() => ({ max: Number(security().lockoutAttempts) || 5, lockMs: (Number(security().lockoutMinutes) || 5) * 60 * 1000 }));
   // Rate limits (server/ratelimit.js). Signed in: per person; not signed in: per network address
   // (four times as many, as a whole school may share one address). RATE_LIMITS=off switches them off.
@@ -103,6 +109,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       apply: { limit: 10, windowMs: 60 * MIN }, // applications per address
       setup: { limit: 20, windowMs: 15 * MIN }, // first-administrator attempts per address
       lookup: { limit: 60, windowMs: MIN }, // document checks, calendar feeds and Keycloak sign-ins per address
+      outbound: { limit: 20, windowMs: 15 * MIN }, // tests of the Keycloak connection per address (each makes this server call another)
     };
   });
   const users = () => db.data.users;
@@ -124,11 +131,16 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // limit: a rate-limit rule this route also counts against (see `limits`).
   // audit: false when the route records its own, clearer entry in the audit trail (or nothing worth one);
   // a refused request is recorded either way.
-  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null, audit: logged = true } = {}) => {
+  // body: the fields this route accepts (server/validate.js); others are removed before the handler.
+  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null, audit: logged = true, body = null } = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, pattern, re, keys, access, handler, module, duringPasswordChange, guardians, limit, audit: logged });
+    routes.push({ method, pattern, re, keys, access, handler, module, duringPasswordChange, guardians, limit, audit: logged, body });
   };
+
+  // Bodies of the sign-in, password and setup routes (server/validate.js): only these fields reach them.
+  const LOGIN_BODY = { username: t.str(200), password: t.str(10000) }; // a longer password is refused as wrong (401), before the slow check
+  const PASSWORD_BODY = { currentPassword: t.str(1000), newPassword: t.str(1000) };
 
   const ctx = {
     db,
@@ -146,11 +158,15 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Sign-in (shared logic for both sides) -----
   // Wrong passwords lock a username for this address (so a stranger cannot lock someone out of
   // every computer), for every address after ten times as many, and pause an address that keeps
-  // guessing across many usernames.
-  function signIn(side, body, ip = '', agent = '') {
+  // guessing across many usernames. The lock is the username's, whichever sign-in page is used.
+  //
+  // The password check is slow on purpose and runs off the main thread, so other requests go on
+  // meanwhile. Each attempt is therefore counted as a failure *before* the check (and forgiven if
+  // the password is right): fifty guesses sent at once still lock the username after the fifth.
+  async function signIn(side, body, ip = '', agent = '') {
     const username = String(body.username || '').trim().toLowerCase().slice(0, 120);
     const password = String(body.password || '');
-    const key = `${side}:${username}`;
+    const key = `user:${username}`;
     const here = `${key}@${ip}`;
     const user = users().find((u) => u.username === username);
     // Every refusal is in the audit trail, with the account it was for (a username nobody has is not
@@ -173,16 +189,29 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     // or the account does not exist, so old passwords cannot be tested here.
     const sso = db.data.settings.sso;
     const passwordsOff = Boolean(sso?.enabled && !sso.allowPasswords);
-    const right = password.length <= 200 && verifyPassword(password, user?.passwordHash);
+    throttle.fail(here); // counted now, forgiven below if the password is right
+    throttle.fail(key, 10);
+    const stored = user?.passwordHash;
+    const right = password.length <= 200 && (await verifyPasswordAsync(password, stored));
+    // Everything from here runs without pausing, so it sees one consistent state.
     if (!right || (passwordsOff && user.role !== 'admin')) {
       limits.add('signinFail', ip);
-      throttle.fail(here);
-      throttle.fail(key, 10);
       refuse(!right ? (user ? 'wrong password' : 'no such account') : 'passwords are switched off', () => fail(passwordsOff ? `This school signs in with Keycloak. Choose "${sso.label}".` : 'Incorrect username or password.', 401));
     }
     throttle.reset(here);
     throttle.reset(key);
     if (needsSealing(user.passwordHash)) user.passwordHash = sealHash(user.passwordHash); // saved below
+    // A hash made at a lower cost than today's is redone with this password, in the background. It is
+    // kept only if the account still has the hash it has now (not, say, a password changed meanwhile).
+    if (needsRehash(stored)) {
+      const settled = user.passwordHash;
+      hashPasswordAsync(password).then((next) => {
+        if (user.passwordHash === settled) {
+          user.passwordHash = next;
+          db.save();
+        }
+      }).catch(() => {});
+    }
     refuse('wrong sign-in page', () => {
       if (ROLES[user.role]?.side !== side) {
         fail(ROLES[user.role]?.side === 'hris'
@@ -200,7 +229,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     user.lastLoginAt = new Date().toISOString();
     db.save();
     audit.record({ kind: 'signin', system: SIDE_SYSTEM[side], action: 'Signed in', actor: user, target: user, ip, agent, detail: `${sideLabel(side)} · password` });
-    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(COOKIES[side], sides[side].create(user.id, { ip, agent }), idleMs()) } };
+    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': setCookie(side, sides[side].create(user.id, { ip, agent })) } };
   }
 
   // A session for `user` on their side, ending any other side's session in this browser (single sign-on).
@@ -209,17 +238,20 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (!side) fail('This account type cannot sign in.', 403);
     for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
     user.lastLoginAt = new Date().toISOString();
-    return [sessionCookie(COOKIES[side], sides[side].create(user.id, extra), idleMs()), ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
+    return [setCookie(side, sides[side].create(user.id, extra)), ...Object.keys(sides).filter((n) => n !== side).map(clearCookie)];
   }
 
-  function changePassword(side, { user, token, body, ip, agent }) {
-    if (!verifyPassword(String(body.currentPassword || ''), user.passwordHash)) {
+  async function changePassword(side, { user, token, body, ip, agent }) {
+    const stored = user.passwordHash;
+    if (!(await verifyPasswordAsync(String(body.currentPassword || ''), stored))) {
       audit.record({ kind: 'password', system: SIDE_SYSTEM[side], action: 'Password change failed: wrong current password', actor: user, target: user, ip, agent, outcome: 'failed' });
       fail('Your current password is incorrect.');
     }
     validatePassword(body.newPassword, db.data.settings.security);
     if (body.newPassword === body.currentPassword) fail('Choose a password different from the current one.');
-    user.passwordHash = hashPassword(body.newPassword);
+    const next = await hashPasswordAsync(body.newPassword);
+    if (user.passwordHash !== stored) fail('Your password was changed meanwhile. Sign in again and try once more.', 409);
+    user.passwordHash = next;
     user.mustChangePassword = false;
     for (const [name, sessions] of Object.entries(sides)) sessions.destroyForUser(user.id, name === side ? token : undefined);
     audit.record({ kind: 'password', system: SIDE_SYSTEM[side], action: 'Changed their password', actor: user, target: user, ip, agent, detail: 'Their other sessions were ended.' });
@@ -263,13 +295,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
 
   // ----- Learning portal: sign-in and admissions -----
   route('GET', '/api/auth/status', 'public', ({ portalUser }) => portalInfo(portalUser));
-  route('POST', '/api/auth/login', 'public', ({ body, ip, agent }) => signIn('portal', body, ip, agent), { limit: 'signin' });
+  route('POST', '/api/auth/login', 'public', ({ body, ip, agent }) => signIn('portal', body, ip, agent), { limit: 'signin', body: LOGIN_BODY });
   route('POST', '/api/auth/logout', 'public', ({ portalToken, portalUser, ip, agent }) => {
     if (portalUser) audit.record({ kind: 'signout', system: 'learn', action: 'Signed out', actor: portalUser, target: portalUser, ip, agent });
     sides.portal.destroy(portalToken);
-    return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(PORTAL_COOKIE) } };
+    return { data: { ok: true }, headers: { 'Set-Cookie': clearCookie('portal') } };
   });
-  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, limit: 'password', guardians: true, audit: false });
+  route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, limit: 'password', guardians: true, audit: false, body: PASSWORD_BODY });
   route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body), { guardians: true, audit: false });
   route('POST', '/api/admin/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body), { audit: false });
   route('GET', '/api/auth/campuses', 'public', () => (db.data.settings.registration.open ? db.data.campuses.map((c) => ({ id: c.id, name: c.name })) : []));
@@ -278,20 +310,24 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (!db.data.settings.registration.open) return [];
     return db.data.programs.map((p) => ({ id: p.id, code: p.code, name: p.name }));
   });
-  route('POST', '/api/auth/apply', 'public', ({ body }) => {
+  route('POST', '/api/auth/apply', 'public', async ({ body }) => {
+    if (!db.data.settings.registration.open) fail('Applications are closed. Contact the registrar.', 403);
+    validateUserFields({ ...body, role: 'student', studentNo: '' }, db.data); // the answers first, before the slow hash
+    validatePassword(body.password, db.data.settings.security);
+    const passwordHash = await hashPasswordAsync(body.password);
+    // Checked again after the hash (someone may have taken the username meanwhile), then saved at once.
     if (!db.data.settings.registration.open) fail('Applications are closed. Contact the registrar.', 403);
     const fields = validateUserFields({ ...body, role: 'student', studentNo: '' }, db.data);
     if (!fields.email) fail('Email is required so the registrar can contact you.');
     const campus = db.data.campuses.find((c) => c.id === body.campusId) || (db.data.campuses.length === 1 ? db.data.campuses[0] : null);
     if (!campus) fail('Pick the campus you are applying to.');
     fields.campusIds = [campus.id];
-    validatePassword(body.password, db.data.settings.security);
     const user = {
       id: randomUUID(),
       ...fields,
       status: 'pending',
       mustChangePassword: false,
-      passwordHash: hashPassword(body.password),
+      passwordHash,
       appliedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       applicationNote: text(body.note, 1000),
@@ -299,7 +335,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     users().push(user);
     db.save();
     return { ok: true };
-  }, { limit: 'apply' });
+  }, { limit: 'apply', body: { name: t.str(200), email: t.str(320), username: t.str(200), password: t.str(1000), campusId: t.str(100), programId: t.str(100), yearLevel: t.int(0, 12), phone: t.str(60), note: t.str(4000) } });
 
   // ----- University Portal (/): one sign-in for every system -----
   // The account type decides which session is opened: students and teachers get the
@@ -328,14 +364,14 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   });
   // One person per browser: signing in here ends any other session this browser had.
-  route('POST', '/api/hub/login', 'public', ({ body, tokens, ip, agent }) => {
+  route('POST', '/api/hub/login', 'public', async ({ body, tokens, ip, agent }) => {
     const found = users().find((u) => u.username === String(body.username || '').trim().toLowerCase());
     const side = ROLES[found?.role]?.side || 'portal';
-    const out = signIn(side, body, ip, agent);
+    const out = await signIn(side, body, ip, agent);
     for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
-    out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map((n) => clearedCookie(COOKIES[n]))];
+    out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map(clearCookie)];
     return out;
-  }, { limit: 'signin' });
+  }, { limit: 'signin', body: LOGIN_BODY });
   route('POST', '/api/hub/logout', 'public', ({ tokens, origin, portalUser, adminUser, hrisUser, ip, agent }) => {
     const who = portalUser || adminUser || hrisUser;
     if (who) audit.record({ kind: 'signout', system: 'home', action: 'Signed out', actor: who, target: who, ip, agent });
@@ -343,7 +379,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const ssoSession = Object.entries(sides).map(([name, sessions]) => sessions.get(tokens[name])).find((s) => s?.sso);
     const ssoLogout = sso.logoutUrl(ssoSession, origin);
     for (const [name, sessions] of Object.entries(sides)) sessions.destroy(tokens[name]);
-    return { data: { ok: true, ssoLogout }, headers: { 'Set-Cookie': Object.values(COOKIES).map(clearedCookie) } };
+    return { data: { ok: true, ssoLogout }, headers: { 'Set-Cookie': Object.keys(COOKIES).map(clearCookie) } };
   });
   // School news and upcoming events for the portal home (when News & events is on for the account type).
   route('GET', '/api/hub/feed', 'public', ({ portalUser, adminUser, hrisUser }) => {
@@ -368,7 +404,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     ...campusInfo(adminUser),
     roleOverrides: adminUser ? db.data.roleOverrides || {} : undefined, // the Admin panel's can() (shared/roles.js)
   }));
-  route('POST', '/api/admin/auth/setup', 'public', ({ body, ip, agent }) => {
+  route('POST', '/api/admin/auth/setup', 'public', async ({ body, ip, agent }) => {
     if (!setupRequired()) fail('Setup is already complete. Please sign in.');
     if (setupCode) {
       throttle.check(`setup@${ip}`);
@@ -377,9 +413,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         fail('That setup code is not correct. It is the one chosen when the server was created.', 403);
       }
     }
-    const fields = validateUserFields({ ...body, role: 'admin' }, db.data);
+    validateUserFields({ ...body, role: 'admin' }, db.data);
     validatePassword(body.password, db.data.settings.security);
-    users().push({ id: randomUUID(), ...fields, status: 'active', mustChangePassword: false, passwordHash: hashPassword(body.password), createdAt: new Date().toISOString() });
+    const passwordHash = await hashPasswordAsync(body.password);
+    // Two setups sent at once: only the first makes an administrator.
+    if (!setupRequired()) fail('Setup is already complete. Please sign in.');
+    const fields = validateUserFields({ ...body, role: 'admin' }, db.data);
+    users().push({ id: randomUUID(), ...fields, status: 'active', mustChangePassword: false, passwordHash, createdAt: new Date().toISOString() });
     if (body.schoolName) db.data.settings.schoolName = text(body.schoolName, 120);
     if (text(body.campusName, 80)) {
       db.data.campuses[0].name = text(body.campusName, 80);
@@ -389,14 +429,14 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const first = users().find((u) => u.username === fields.username);
     audit.record({ kind: 'account', system: 'admin', action: 'Set up ATLAS: made the first administrator', actor: first, target: first, ip, agent });
     return signIn('admin', body, ip, agent);
-  }, { limit: 'setup' });
-  route('POST', '/api/admin/auth/login', 'public', ({ body, ip, agent }) => signIn('admin', body, ip, agent), { limit: 'signin' });
+  }, { limit: 'setup', body: { name: t.str(200), username: t.str(200), email: t.str(320), password: t.str(1000), schoolName: t.str(400), campusName: t.str(200), setupCode: t.str(200) } });
+  route('POST', '/api/admin/auth/login', 'public', ({ body, ip, agent }) => signIn('admin', body, ip, agent), { limit: 'signin', body: LOGIN_BODY });
   route('POST', '/api/admin/auth/logout', 'public', ({ adminToken, adminUser, ip, agent }) => {
     if (adminUser) audit.record({ kind: 'signout', system: 'admin', action: 'Signed out', actor: adminUser, target: adminUser, ip, agent });
     sides.admin.destroy(adminToken);
-    return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(ADMIN_COOKIE) } };
+    return { data: { ok: true }, headers: { 'Set-Cookie': clearCookie('admin') } };
   });
-  route('POST', '/api/admin/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/admin/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password', audit: false, body: PASSWORD_BODY });
 
   // ----- Data: backups and demo data -----
   route('GET', '/api/admin/backup', 'admin:data.manage', () => db.data);
@@ -448,7 +488,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   };
   route('GET', '/api/hris/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => hrisStatus(hrisUser || adminUser || portalUser));
-  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false, body: PASSWORD_BODY });
   route('POST', '/api/hris/auth/campus', 'hris', ({ user, body }) => switchCampus(user, body), { audit: false });
   const hris = registerHrisRoutes(route, ctx);
 
@@ -469,7 +509,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       currentTermId: db.data.settings.currentTermId,
     };
   });
-  route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/academic/auth/change-password', 'academic', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false, body: PASSWORD_BODY });
   route('POST', '/api/academic/auth/campus', 'academic', ({ user, body }) => switchCampus(user, body), { audit: false });
   const academic = registerAcademicRoutes(route, ctx);
 
@@ -488,11 +528,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       permissions: allowed ? finance.permissionsFor(user) : [],
     };
   });
-  route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false });
+  route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false, body: PASSWORD_BODY });
   route('POST', '/api/finance/auth/campus', 'finance', ({ user, body }) => switchCampus(user, body), { audit: false });
   const finance = registerFinanceRoutes(route, ctx);
   registerConfigRoutes(route, ctx);
-  const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
+  const sso = registerSsoRoutes(route, ctx, { startSession, secureCookies, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}), ...(ssoLookup ? { lookup: ssoLookup } : {}) });
   registerCloudflareRoutes(route, ctx, { ...(cloudflareFetch ? { fetchImpl: cloudflareFetch } : {}), ...(cloudflareHelper ? { helperPath: cloudflareHelper } : {}) });
 
   ctx.upcomingEvents = registerNewsRoutes(route, ctx).upcoming;
@@ -523,6 +563,45 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Request handling -----
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
 
+  // ----- Where a request comes from -----
+  // The proxy in front of ATLAS (Caddy) runs on this computer: only it may say, in X-Forwarded-Host
+  // and X-Forwarded-Proto, which address the visitor used, and only an address ATLAS answers to.
+  const ALLOWED = String(process.env.ALLOWED_HOSTS || '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+  const fromLocalProxy = (req) => ['127.0.0.1', '::1'].includes(String(req.socket?.remoteAddress || '').replace(/^::ffff:/, ''));
+  const hostAllowed = (h) => {
+    const name = String(h || '').trim().toLowerCase().replace(/:\d+$/, '');
+    return name === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(name) || name.startsWith('[') || ALLOWED.includes(name);
+  };
+  const forwardedHost = (req) => (fromLocalProxy(req) ? String(req.headers['x-forwarded-host'] || '').split(',')[0].trim() : '');
+  // This app's own address as the browser sees it, for the Keycloak redirects: PUBLIC_URL when set.
+  function originOf(req) {
+    const pub = String(process.env.PUBLIC_URL || '').replace(/\/$/, '');
+    if (pub) return pub;
+    const fwd = forwardedHost(req);
+    const host = fwd && hostAllowed(fwd) ? fwd : hostAllowed(req.headers.host) ? String(req.headers.host) : 'localhost';
+    const proto = fromLocalProxy(req) ? String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase() : '';
+    return `${['http', 'https'].includes(proto) ? proto : req.socket?.encrypted ? 'https' : 'http'}://${host}`;
+  }
+  // A change asked for by a page on another website (cross-site request forgery). Browsers say
+  // where a request comes from in Sec-Fetch-Site (or, older ones, in Origin); a request with
+  // neither did not come from a web page (a script or app), and SameSite cookies and JSON-only
+  // bodies already guard it.
+  const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+  function crossSite(req) {
+    if (!UNSAFE.has(req.method)) return false;
+    const site = String(req.headers['sec-fetch-site'] || '').trim().toLowerCase();
+    if (site) return site !== 'same-origin' && site !== 'none';
+    const o = req.headers.origin;
+    if (o == null || o === '') return false;
+    let from;
+    try {
+      from = new URL(o).host.toLowerCase();
+    } catch {
+      return true; // "null" (a sandboxed page or a file) or nonsense
+    }
+    return from !== String(req.headers.host || '').toLowerCase() && from !== forwardedHost(req).toLowerCase();
+  }
+
   // Requests whose rate-limit tally was already taken by prepare() (the web server calls it before
   // reading the body); handle() then does not count them again. A WeakSet so finished requests drop out.
   const counted = new WeakSet();
@@ -538,9 +617,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const u = s && users().find((x) => x.id === s.userId && x.status === 'active');
       return u && ROLES[u.role]?.side === side ? u : null;
     };
-    const portalToken = cookies[PORTAL_COOKIE];
-    const adminToken = cookies[ADMIN_COOKIE];
-    const hrisToken = cookies[HRIS_COOKIE];
+    const portalToken = cookies[COOKIES.portal];
+    const adminToken = cookies[COOKIES.admin];
+    const hrisToken = cookies[COOKIES.hris];
     const portalUser = resolve('portal', portalToken);
     const adminUser = resolve('admin', adminToken);
     const hrisUser = resolve('hris', hrisToken);
@@ -566,8 +645,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       if (signedIn) limits.hit('user', signedIn.id);
       else limits.hit('address', ip);
     }
-    // This app's own address as the browser sees it (behind Caddy: X-Forwarded-*), for the Keycloak redirects.
-    const origin = process.env.PUBLIC_URL?.replace(/\/$/, '') || `${String(req.headers['x-forwarded-proto'] || (req.socket?.encrypted ? 'https' : 'http')).split(',')[0]}://${req.headers['x-forwarded-host'] || req.headers.host || 'localhost'}`;
+    const origin = originOf(req);
+    if (crossSite(req)) fail('This change was asked for by another website, so ATLAS refused it. Open ATLAS itself and try again.', 403);
+    // Every body: an object of sane size and depth, without keys that reach a prototype (server/validate.js).
+    if (UNSAFE.has(req.method)) body = checkStructure(body);
 
     for (const r of routes) {
       if (r.method !== req.method) continue;
@@ -623,7 +704,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         const recordSettings = ctx.settingsWatch?.(req.method, url.pathname);
         let result;
         try {
-          result = await r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies, ip, agent });
+          // A route that declares its body gets only those fields, checked (server/validate.js).
+          const accepted = r.body ? checkBody(body, r.body) : body;
+          result = await r.handler({ params, body: accepted, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies, ip, agent });
         } catch (err) {
           if (finSnap) Object.assign(db.data, finSnap);
           throw err;

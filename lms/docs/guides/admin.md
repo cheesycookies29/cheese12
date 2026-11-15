@@ -106,7 +106,7 @@ The account type decides what someone may do. Sometimes one person needs a littl
 
 1. Under **System → Users & Access**, choose **Access** on the person's row.
 2. Tick a permission to give it to this person, or untick one to take it away. Shaded rows are this person's own, different from the account type. Permissions the account type can never have are not offered, and **Administrators only** ones stay with administrators.
-3. Choose **Save access**. It applies at once.
+3. Choose **Save access**. The person is signed out on every device and has the new access as soon as they sign in again, so nothing keeps running under the old permissions.
 
 The row then shows **+ own access** under the account type. Changing a person's account type clears their own access, as it belonged to the old type. Administrators always have every permission.
 
@@ -133,8 +133,9 @@ The settings under **Sign-in and passwords**:
 | **Shortest password** | 8 to 64 characters, for new and changed passwords |
 | **Passwords mix letters and digits** | A new password needs at least one letter and one digit |
 | **Always change the first password** | New accounts and reset passwords must be changed at the first sign-in, in every system |
-| **Wrong passwords before locking**, **Minutes locked** | A username is locked after this many wrong passwords in a row. The lock is for the network address they came from, so nobody can lock a colleague out from elsewhere; ten times as many lock the username everywhere |
+| **Wrong passwords before locking**, **Minutes locked** | A username is locked after this many wrong passwords in a row. The lock is for the network address they came from, so nobody can lock a colleague out from elsewhere; ten times as many lock the username everywhere. It is one lock for the username, whichever sign-in page is used |
 | **Sign out after (hours idle)** | People are signed out after this long without using ATLAS |
+| **Sign out after (hours signed in)** | 1 to 168, normally 12. However busy, people sign in again this long after signing in, so a session that was copied or left open stops working. Never sooner than the idle time |
 | **Requests per person per minute** | 60 to 3000, normally 300. Above this, ATLAS asks the person to wait a few seconds. A network address that is not signed in gets four times as many |
 | **Wrong passwords per network address** | 10 to 1000 in 15 minutes, normally 30. An address that keeps guessing passwords, for any usernames, has to wait. Raise it if a whole campus reaches the internet through one address and people mistype often |
 
@@ -295,7 +296,9 @@ Single sign-on is under **System**. You need a Keycloak realm and a Keycloak acc
 
 The Keycloak sign-in you type is used for the set-up only: it is not saved anywhere. A Keycloak account with two-step sign-in cannot be used here; use a service account instead. Untick **Switch single sign-on on when done** to connect first and switch it on later. **Set up again** is safe to repeat: it keeps the client's secret and only adds what is missing.
 
-To set it up by hand instead, create the client as listed in **Or by hand, in Keycloak**, put its secret in the server's settings as `OIDC_CLIENT_SECRET` and restart ATLAS, then fill in **Keycloak connection**, choose **Test connection**, tick **Show "Sign in with Keycloak" on the sign-in pages** and choose **Save**. A secret saved by **Set up for me** is used instead of `OIDC_CLIENT_SECRET`.
+To set it up by hand instead, create the client as listed in **Or by hand, in Keycloak**, put its secret in the server's settings as `OIDC_CLIENT_SECRET` and restart ATLAS, then fill in **Keycloak connection**, choose **Test connection** (administrators only), tick **Show "Sign in with Keycloak" on the sign-in pages** and choose **Save**. A secret saved by **Set up for me** is used instead of `OIDC_CLIENT_SECRET`.
+
+ATLAS calls Keycloak only at an address on the internet, over https, or at `localhost` for a Keycloak on the same server. If the school's Keycloak is on the campus network (ATLAS installed on campus), whoever runs the server lists its name in the server setting `KEYCLOAK_PRIVATE_HOSTS`; it cannot be set from the Admin panel. When Keycloak refuses something, ATLAS shows its status and error code (for example `invalid_client`), not Keycloak's own message.
 
 Leave **Keep ATLAS passwords too** ticked while people get used to it. When you untick it, everyone except administrators must sign in with Keycloak; administrators keep their password in case Keycloak is down. Anyone else who types a password is told to use Keycloak, whether the password was right or not.
 

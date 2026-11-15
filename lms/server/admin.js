@@ -2,7 +2,7 @@
 // terms, sections), module switches for students and teachers, settings, dashboard.
 import { randomUUID } from 'node:crypto';
 import { HttpError, DATE_RE, text, localDate } from './util.js';
-import { hashPassword, validatePassword, publicUser, passwordEncryption } from './auth.js';
+import { newPasswordHash, publicUser, passwordEncryption } from './auth.js';
 import { userCan, ROLES, ADMIN_ROLES } from '../shared/roles.js';
 import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
@@ -169,17 +169,19 @@ export function registerAdminRoutes(route, ctx) {
     return out;
   });
 
-  route('POST', '/api/admin/users', 'admin', ({ user, body, campusId }) => {
+  route('POST', '/api/admin/users', 'admin', async ({ user, body, campusId }) => {
     need(user, MANAGES[body.role] || 'admins.manage');
+    validateUserFields(body, data());
+    const passwordHash = await newPasswordHash(body.password, data().settings.security);
+    // Checked again after the (slow) hash, then saved without pausing.
     const fields = validateUserFields(body, data());
     fields.campusIds = campusIdsFrom(data(), user, fields.role, body.campusIds, campusId);
-    validatePassword(body.password, data().settings.security);
     const u = {
       id: randomUUID(),
       ...fields,
       status: 'active',
       mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false,
-      passwordHash: hashPassword(body.password),
+      passwordHash,
       createdAt: now(),
     };
     if (u.role === 'student' && !u.studentNo) u.studentNo = nextStudentNo(data());
@@ -215,12 +217,17 @@ export function registerAdminRoutes(route, ctx) {
     return publicUser(u);
   });
 
-  route('POST', '/api/admin/users/:id/reset-password', 'admin', ({ user, params, body }) => {
-    const u = found(data().users, params.id, 'Account');
-    need(user, MANAGES[u.role]);
-    if (!canReach(data(), user, u)) fail('Account not found.', 404);
-    validatePassword(body.password, data().settings.security);
-    u.passwordHash = hashPassword(body.password);
+  route('POST', '/api/admin/users/:id/reset-password', 'admin', async ({ user, params, body }) => {
+    const reach = () => {
+      const u = found(data().users, params.id, 'Account');
+      need(user, MANAGES[u.role]);
+      if (!canReach(data(), user, u)) fail('Account not found.', 404);
+      return u;
+    };
+    reach();
+    const passwordHash = await newPasswordHash(body.password, data().settings.security);
+    const u = reach(); // checked again after the hash
+    u.passwordHash = passwordHash;
     u.mustChangePassword = true;
     ctx.signOutEverywhere(u.id);
     save();
@@ -637,6 +644,7 @@ export function registerAdminRoutes(route, ctx) {
         lockoutAttempts: whole(v.lockoutAttempts, 3, 20, 'Wrong passwords before locking'),
         lockoutMinutes: whole(v.lockoutMinutes, 1, 120, 'Minutes locked'),
         idleHours: whole(v.idleHours, 1, 72, 'Sign out after (hours idle)'),
+        maxSessionHours: whole(v.maxSessionHours ?? 12, 1, 168, 'Sign out after (hours signed in)'),
         forcePasswordChange: Boolean(v.forcePasswordChange),
         requestsPerMinute: whole(v.requestsPerMinute, 60, 3000, 'Requests per person per minute'),
         signInFailuresPerAddress: whole(v.signInFailuresPerAddress, 10, 1000, 'Wrong passwords per network address'),

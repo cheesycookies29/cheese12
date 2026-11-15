@@ -7,6 +7,7 @@ import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
 import { loadPasswordKeys } from './server/auth.js';
 import { createApi } from './server/api.js';
+import { safeReviver } from './server/validate.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3100; // the ERP uses 3000, so both can run at once
@@ -84,7 +85,7 @@ function readBody(req, MAX_BODY) {
       const raw = Buffer.concat(chunks).toString('utf8');
       let body;
       try {
-        body = raw ? JSON.parse(raw) : {};
+        body = raw ? JSON.parse(raw, safeReviver) : {}; // keys that could reach a prototype are left out (server/validate.js)
       } catch {
         return reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
       }

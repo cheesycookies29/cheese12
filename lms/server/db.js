@@ -42,6 +42,7 @@ export const DEFAULT_SETTINGS = {
     lockoutAttempts: 5, // wrong passwords in a row before the username is locked on that address; ten times as many lock it everywhere (3–20)
     lockoutMinutes: 5, // how long it stays locked (1–120)
     idleHours: 8, // signed out after this long without using ATLAS (1–72)
+    maxSessionHours: 12, // and this long after signing in, however busy (1–168; never shorter than idleHours)
     forcePasswordChange: false, // new accounts always change their password at first sign-in (staff cannot untick it)
     requestsPerMinute: 300, // rate limit: requests per signed-in person per minute; four times as many per address when signed out (60–3000)
     signInFailuresPerAddress: 30, // wrong passwords from one network address, across all usernames, before it pauses 15 minutes (10–1000)

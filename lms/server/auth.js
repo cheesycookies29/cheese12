@@ -1,7 +1,7 @@
 // Passwords, sessions and login throttling.
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomBytes, scryptSync, timingSafeEqual, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
+import { randomBytes, scrypt, scryptSync, timingSafeEqual, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
 import { HttpError } from './util.js';
 
 // ----- Passwords -----
@@ -80,22 +80,99 @@ function unseal(stored) {
   }
 }
 
+// ----- Password hashing -----
+// scrypt at N = 2^17, r = 8, p = 1 (OWASP's minimum; about 0.3 s and 128 MB per hash). The cost is
+// written into the hash ("s2$17$8$1$salt$hash"), so it can be raised later and older hashes are
+// redone at the next sign-in. Hashes from before ("scrypt$salt$hash") are N = 2^14 and still accepted.
+// The hashing runs on Node's thread pool (crypto.scrypt), never on the main thread for a request, and
+// at most HASH_SLOTS at a time: more would need more memory than a small server has. Past
+// HASH_QUEUE waiting, a request is turned away ("busy") rather than queued without end.
+let costLog2 = 17;
+const HASH_R = 8;
+const HASH_P = 1;
+const HASH_SLOTS = 2;
+const HASH_QUEUE = 100;
+// Tests and scripts that make many accounts use a lower cost (2^10 at the least).
+export function setPasswordCost(log2) {
+  costLog2 = Math.min(20, Math.max(10, Math.round(Number(log2)) || 17));
+}
+export const passwordCost = () => costLog2;
+const paramsOf = (inner) => {
+  const parts = String(inner).split('$');
+  if (parts[0] === 's2') return { log2: Number(parts[1]), r: Number(parts[2]), p: Number(parts[3]), salt: parts[4], hash: parts[5] };
+  return { log2: 14, r: 8, p: 1, salt: parts[1], hash: parts[2] }; // "scrypt$salt$hash", Node's defaults
+};
+const scryptOptions = ({ log2, r, p }) => ({ N: 2 ** log2, r, p, maxmem: 160 * r * 2 ** log2 + 32 * 1024 * 1024 });
+const innerHash = (salt, key, log2 = costLog2) => `s2$${log2}$${HASH_R}$${HASH_P}$${salt}$${key.toString('hex')}`;
+const sealed = (inner) => (keyRing.current ? seal(inner) : inner);
+
+// Slots for the slow hashing, shared by every request.
+let busy = 0;
+const waiting = [];
+async function withHashSlot(run) {
+  if (busy >= HASH_SLOTS) {
+    if (waiting.length >= HASH_QUEUE) throw Object.assign(new HttpError(503, 'ATLAS is busy checking passwords. Try again in a moment.'), { headers: { 'Retry-After': '5' } });
+    await new Promise((resolve) => waiting.push(resolve));
+  }
+  busy++;
+  try {
+    return await run();
+  } finally {
+    busy--;
+    waiting.shift()?.();
+  }
+}
+const scryptAsync = (password, salt, opts) => new Promise((resolve, reject) => scrypt(password, salt, 64, opts, (err, key) => (err ? reject(err) : resolve(key))));
+
+// For scripts and the demo school (one hash, made once): the same format, computed in place.
 export function hashPassword(password) {
   const salt = randomBytes(16).toString('hex');
-  const inner = `scrypt$${salt}$${scryptSync(password, salt, 64).toString('hex')}`;
-  return keyRing.current ? seal(inner) : inner;
+  return sealed(innerHash(salt, scryptSync(String(password), salt, 64, scryptOptions({ log2: costLog2, r: HASH_R, p: HASH_P }))));
+}
+// For requests: computed on the thread pool, in a slot.
+export async function hashPasswordAsync(password) {
+  const salt = randomBytes(16).toString('hex');
+  const log2 = costLog2;
+  const key = await withHashSlot(() => scryptAsync(String(password), salt, scryptOptions({ log2, r: HASH_R, p: HASH_P })));
+  return sealed(innerHash(salt, key, log2));
 }
 
-const DUMMY_SALT = randomBytes(16).toString('hex');
-const DUMMY_HASH = `scrypt$${DUMMY_SALT}$${scryptSync(randomBytes(8).toString('hex'), DUMMY_SALT, 64).toString('hex')}`;
+// A made-up hash at the current cost, so an unknown username takes as long to refuse as a known one.
+const dummies = new Map();
+const dummyFor = (log2) => {
+  if (!dummies.has(log2)) dummies.set(log2, innerHash(randomBytes(16).toString('hex'), randomBytes(64), log2));
+  return dummies.get(log2);
+};
+const matches = (expectedHex, actual) => {
+  const expected = Buffer.from(expectedHex || '', 'hex');
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+};
 
 export function verifyPassword(password, stored) {
   const inner = unseal(stored);
-  const [, salt, hash] = (inner || DUMMY_HASH).split('$');
-  const expected = Buffer.from(hash || '', 'hex');
-  const actual = scryptSync(String(password), salt || DUMMY_SALT, 64); // also for unknown accounts, so timing gives nothing away
-  return inner != null && expected.length === actual.length && timingSafeEqual(expected, actual);
+  const q = paramsOf(inner || dummyFor(costLog2));
+  const actual = scryptSync(String(password), q.salt || 'x', 64, scryptOptions(q)); // also for unknown accounts, so timing gives nothing away
+  return inner != null && matches(q.hash, actual);
 }
+export async function verifyPasswordAsync(password, stored) {
+  const inner = unseal(stored);
+  const q = paramsOf(inner || dummyFor(costLog2));
+  const actual = await withHashSlot(() => scryptAsync(String(password), q.salt || 'x', scryptOptions(q)));
+  return inner != null && matches(q.hash, actual);
+}
+// A new password, checked against the policy and hashed (the slow part: call it before changing anything).
+export async function newPasswordHash(password, policy) {
+  validatePassword(password, policy);
+  return hashPasswordAsync(password);
+}
+
+// Made at a lower cost than today's (or in the old format): redo it at the next sign-in.
+export const needsRehash = (stored) => {
+  const inner = unseal(stored);
+  if (inner == null) return false;
+  const q = paramsOf(inner);
+  return !String(inner).startsWith('s2$') || q.log2 < costLog2 || q.r !== HASH_R || q.p !== HASH_P;
+};
 
 // Can this server read the stored value (plain, or encrypted under a key it has)?
 export const readableHash = (stored) => unseal(stored) != null;
@@ -134,10 +211,22 @@ export function publicUser(user) {
   return rest;
 }
 
+// A cookie the browser mangled (e.g. "%E0%A4%A") is skipped, never an error for the whole request.
 export function parseCookies(header = '') {
-  return Object.fromEntries(
-    header.split(';').map((c) => c.trim().split('=')).filter(([k, v]) => k && v).map(([k, v]) => [k, decodeURIComponent(v)]),
-  );
+  const out = {};
+  for (const part of String(header).split(';')) {
+    const i = part.indexOf('=');
+    if (i < 1) continue;
+    const k = part.slice(0, i).trim();
+    const v = part.slice(i + 1).trim();
+    if (!k || !v || Object.hasOwn(out, k)) continue; // the first cookie of a name wins
+    try {
+      out[k] = decodeURIComponent(v);
+    } catch {
+      // not valid percent-encoding: leave it out
+    }
+  }
+  return out;
 }
 
 // Browsers share cookies between ports on the same host, so these names must differ
@@ -146,11 +235,14 @@ export const PORTAL_COOKIE = 'ltdc_lms_sid';
 export const ADMIN_COOKIE = 'ltdc_lms_admin';
 export const HRIS_COOKIE = 'ltdc_hris_sid';
 const SESSION_TTL = 8 * 60 * 60 * 1000; // signed out after 8 idle hours (Settings → Sign-in & passwords can change it)
+const SESSION_MAX = 12 * 60 * 60 * 1000; // and after 12 hours however busy (Settings can change it too)
+const SESSIONS_PER_ACCOUNT = 10; // a new sign-in past this ends that account's oldest session
 
 // Sessions live in memory: restarting the app signs everyone out.
 // (On AWS with more than one server, move these to a shared store such as ElastiCache or DynamoDB.)
-// ttl(): how long a session lasts without use, read on each request so a new setting applies at once.
-export function createSessions(ttl = () => SESSION_TTL) {
+// ttl(): how long a session lasts without use; maxAge(): how long it lasts at most, from sign-in.
+// Both are read on each request, so a new setting applies at once.
+export function createSessions(ttl = () => SESSION_TTL, maxAge = () => SESSION_MAX) {
   const sessions = new Map();
   // Ended sessions are cleared every ten minutes, not only when someone uses them again.
   const sweep = setInterval(() => {
@@ -164,18 +256,22 @@ export function createSessions(ttl = () => SESSION_TTL) {
     create(userId, extra = {}) {
       const token = randomBytes(32).toString('hex');
       const at = Date.now();
-      sessions.set(token, { ...extra, userId, createdAt: at, lastSeen: at, expires: at + ttl() });
+      // At most SESSIONS_PER_ACCOUNT at once: the oldest end first (Map keeps the order they began).
+      const own = [...sessions].filter(([, s]) => s.userId === userId);
+      for (const [old] of own.slice(0, Math.max(0, own.length - SESSIONS_PER_ACCOUNT + 1))) sessions.delete(old);
+      sessions.set(token, { ...extra, userId, createdAt: at, lastSeen: at, expires: Math.min(at + ttl(), at + maxAge()) });
       return token;
     },
     get(token) {
       const s = token && sessions.get(token);
       if (!s) return null;
-      if (s.expires < Date.now()) {
+      const t = Date.now();
+      if (s.expires < t || t - s.createdAt > maxAge()) {
         sessions.delete(token);
         return null;
       }
-      s.lastSeen = Date.now();
-      s.expires = s.lastSeen + ttl();
+      s.lastSeen = t;
+      s.expires = Math.min(t + ttl(), s.createdAt + maxAge());
       return s;
     },
     // Live sessions, each with a short id made from its token (the token itself is never shown).
@@ -201,11 +297,15 @@ export function createSessions(ttl = () => SESSION_TTL) {
 
 const sessionId = (token) => createHash('sha256').update(token).digest('hex').slice(0, 16);
 
-// COOKIE_SECURE=1 when served over HTTPS, so browsers never send the cookie over plain HTTP.
-const SECURE = process.env.COOKIE_SECURE === '1' ? '; Secure' : '';
-
-export const sessionCookie = (name, token, maxAgeMs = SESSION_TTL) => `${name}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.round(maxAgeMs / 1000)}${SECURE}`;
-export const clearedCookie = (name) => `${name}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${SECURE}`;
+// Served over HTTPS (COOKIE_SECURE=1, or a PUBLIC_URL that starts with https:), the session cookies
+// are "Secure" (never sent over plain HTTP) and named with the "__Host-" prefix: the browser then
+// takes them only from this exact host over HTTPS, so no other site or subdomain can plant or
+// overwrite one. Over plain HTTP (a laptop, or the school network through the Windows launcher)
+// neither is possible, and the plain names are used.
+export const cookiesSecureByDefault = (env = process.env) => env.COOKIE_SECURE === '1' || /^https:/i.test(String(env.PUBLIC_URL || ''));
+export const cookieName = (base, secure) => (secure ? `__Host-${base}` : base);
+export const sessionCookie = (name, token, maxAgeMs = SESSION_TTL, secure = false) => `${name}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.round(maxAgeMs / 1000)}${secure ? '; Secure' : ''}`;
+export const clearedCookie = (name, secure = false) => `${name}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure ? '; Secure' : ''}`;
 
 // Lock a username for 5 minutes after 5 wrong passwords in a row. limits: an object, or a
 // function returning { max, lockMs } (read at each attempt, so Settings apply at once).

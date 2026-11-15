@@ -51,6 +51,7 @@ export const SETTINGS = [
   ['security', 'lockoutAttempts', 'Wrong passwords before locking', 'A username is locked on one network address after this many wrong passwords in a row, and everywhere after ten times as many.'],
   ['security', 'lockoutMinutes', 'Minutes locked', 'How long a locked username waits before trying again.'],
   ['security', 'idleHours', 'Sign out after (hours idle)', 'People are signed out after this long without using ATLAS.'],
+  ['security', 'maxSessionHours', 'Sign out after (hours signed in)', 'However busy, people sign in again this long after signing in (1 to 168; never sooner than the idle time).'],
   ['security', 'forcePasswordChange', 'Always change the first password', 'New accounts and reset passwords must be changed at the first sign-in; staff cannot untick it.', 'bool'],
   ['security', 'requestsPerMinute', 'Requests per person per minute', 'Above this, ATLAS asks the person to wait; a signed-out network address gets four times as many (60 to 3000).'],
   ['security', 'signInFailuresPerAddress', 'Wrong passwords per network address', 'Wrong passwords from one address in 15 minutes, across all usernames, before it has to wait (10 to 1000).'],

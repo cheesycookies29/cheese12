@@ -216,7 +216,9 @@ By hand:
 2. Put the client's secret on the server as `OIDC_CLIENT_SECRET` (on EC2: in `/etc/ltdc-lms/app.env`, see the EC2 guide) and restart ATLAS. The secret is never stored in the data file, backups or the admin panel. (If `data/oidc-client.secret` exists, from *Set up for me*, it is used instead.)
 3. In **Admin panel → System → Single sign-on**: the issuer (`https://sso.school.edu/realms/<realm>`), the client ID, the button text and how to match accounts; **Test connection**; then switch it on. ATLAS refuses to switch on if Keycloak does not answer.
 
-If ATLAS shows the wrong address for the redirect URIs (e.g. behind an unusual proxy), set `PUBLIC_URL=https://your-domain` on the server.
+If ATLAS shows the wrong address for the redirect URIs (e.g. behind an unusual proxy), set `PUBLIC_URL=https://your-domain` on the server. ATLAS believes `X-Forwarded-Host` and `X-Forwarded-Proto` only from a proxy on the same computer (Caddy), and only for a name it answers to (`ALLOWED_HOSTS`).
+
+ATLAS calls Keycloak only at internet addresses over https, or at `localhost` for a Keycloak on the same server (and then only at that address). A Keycloak on the campus network has to be listed by name in `KEYCLOAK_PRIVATE_HOSTS` (comma-separated); this is a server setting on purpose, not an Admin-panel one. Keycloak's own error descriptions are not passed on to the browser.
 
 ## Cloudflare
 
@@ -320,6 +322,10 @@ The layout follows the school's current LMS (top bar with the seal and the curre
 
 ## For developers
 
+**Request checks (server/validate.js, server/api.js).** Every POST/PUT/DELETE body must be a JSON object, at most 12 levels deep, with no `__proto__`, `constructor` or `prototype` keys (the JSON reader drops them). A route can declare the fields it accepts: `route('POST', '/api/…', 'admin', handler, { body: { name: t.str(200), units: t.int(0, 12) } })`; the handler then receives only those, type- and size-checked. Changes whose `Sec-Fetch-Site` (or `Origin`) says another website sent them are refused before any route runs.
+
+**Passwords (server/auth.js).** Hash with `await hashPasswordAsync()` / `await newPasswordHash()` (scrypt N=2^17, on the thread pool, at most two at a time) and check with `await verifyPasswordAsync()`. Do the slow hash *first*, then run the handler's checks and changes without another `await`: a pause between a check and the write it guards lets two requests both pass the check. `hashPassword()` (synchronous) is for scripts and the demo school only. Tests run at a lower cost (`setPasswordCost(10)` in test/support.js).
+
 ```
 lms/
   server.js              HTTP server: the portal (/), the LMS (/lms/), the admin panel (/admin), /api, /healthz
@@ -395,7 +401,7 @@ In the HRIS: a shared clock-in kiosk, clock-in location (both in the ERP), holid
 
 Follow **[deploy/aws/EC2.md](deploy/aws/EC2.md)**: one CloudFormation template (`deploy/aws/lms-ec2.yaml`) builds an EC2 server in a few clicks, with HTTPS at a DuckDNS address, a fixed IP, nightly backups, daily disk snapshots, security updates and automatic updates from this branch (installed only if the tests pass on the server, rolled back if they don't start). A **setup code** chosen in the template protects the first administrator account.
 
-The app reads these settings (all set by the template): `COOKIE_SECURE=1`, `ALLOWED_HOSTS` (the site's address), `HOST`, `PORT`, `DB_FILE`, `SETUP_CODE`. `GET /healthz` answers `{ "ok": true }`.
+The app reads these settings (all set by the template): `COOKIE_SECURE=1` (or a `PUBLIC_URL` starting with `https:`: session cookies are then `Secure` and named `__Host-…`), `ALLOWED_HOSTS` (the site's address), `HOST`, `PORT`, `DB_FILE`, `SETUP_CODE`; optionally `KEYCLOAK_PRIVATE_HOSTS`. `GET /healthz` answers `{ "ok": true }`.
 
 **Security in the app** (see [docs/security/VAPT-2026-11.md](docs/security/VAPT-2026-11.md)):
 

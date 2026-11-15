@@ -87,7 +87,7 @@ test('the audit trail has sign-ins, failed sign-ins and changes, and never a pas
   assert.deepEqual(f.trail().slice(-2).map((e) => e.action), ['Changed their password', 'Signed out']);
   // No password or hash, ever.
   const all = JSON.stringify(f.trail());
-  for (const p of [PW, 'wrong-pass', 'another-pass-1', 'rosa-new-pass-2', 'scrypt$', 'enc1$']) assert.equal(all.includes(p), false, p);
+  for (const p of [PW, 'wrong-pass', 'another-pass-1', 'rosa-new-pass-2', 'scrypt$', 's2$', 'enc1$']) assert.equal(all.includes(p), false, p);
 });
 
 test('the combined trail filters, pages and exports to a safe CSV', async () => {
@@ -227,18 +227,22 @@ test('own access: give one account a permission, or take one away, without chang
   const page = await f.admin.get(`/api/system/users/${staff.id}`);
   assert.deepEqual(page.accessGroups.map((g) => g.id), ['people', 'finance'], 'staff: People and Finance permissions; not the Admin panel or Academic');
   assert.ok(page.accessGroups.flatMap((g) => g.permissions).every((p) => !p.byType));
-  // Give Sam Finance's view: it works at once, and Finance's own status shows it.
+  // Give Sam Finance's view. The session he opened under his old access ends; signed in again, it
+  // works, and Finance's own status shows it.
   const after = await f.admin.put(`/api/system/users/${staff.id}/access`, { permissions: ['finance.view'] });
   assert.deepEqual(after.ownAccess, { add: ['finance.view'], remove: [] });
   assert.deepEqual(after.permissions, ['finance.view']);
-  assert.ok(Array.isArray(await sam.get('/api/finance/collectors')));
-  assert.ok((await sam.get('/api/finance/auth/status')).permissions.includes('finance.view'));
-  const entry = f.trail().at(-1);
+  await assert.rejects(sam.get('/api/finance/collectors'), (e) => e.status === 401, 'the old session ended');
+  const sam2 = await f.signIn('sam');
+  assert.ok(Array.isArray(await sam2.get('/api/finance/collectors')));
+  assert.ok((await sam2.get('/api/finance/auth/status')).permissions.includes('finance.view'));
+  const entry = f.trail().filter((e) => e.action === "Changed an account's own access").at(-1);
   assert.deepEqual([entry.action, entry.target, entry.changes], ["Changed an account's own access", 'Sam Staff', [{ field: 'Finance dashboard, books and reports', from: 'No', to: 'Yes' }]]);
+  assert.match(entry.detail, /sessions were ended/);
   // Take approving leave away from one HR manager only.
-  const hana = await f.signIn('hana');
   const hrType = (await f.admin.get(`/api/system/users/${hr.id}`)).permissions;
   await f.admin.put(`/api/system/users/${hr.id}/access`, { permissions: hrType.filter((p) => p !== 'leave.approve') });
+  const hana = await f.signIn('hana');
   await assert.rejects(hana.post('/api/hris/requests/x/approve', {}), (e) => e.status === 403);
   assert.ok(Array.isArray(await hana.get('/api/hris/employees')), 'the rest of HR stays');
   // What cannot be given: Admin-panel permissions to a People account, administrators' own, anything to students.

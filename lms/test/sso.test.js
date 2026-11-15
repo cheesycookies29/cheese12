@@ -231,7 +231,7 @@ test('set up for me: wrong or weak Keycloak accounts are refused clearly, and no
     [asAdmin(f.kc, { realm: 'other' }), /no realm "other"/],
     [{ issuer: f.kc.issuer, auth: { kind: 'client', clientId: 'atlas-setup', clientSecret: 'bad' } }, /did not accept that service account/],
     [{ ...asAdmin(f.kc), issuer: `${f.kc.issuer.replace(/school$/, '')}nowhere` }, /Keycloak answered 404|Could not reach/],
-    [{ ...asAdmin(f.kc), issuer: 'https://sso.example.edu/not-a-realm' }, /Could not reach Keycloak|realm address/],
+    [{ ...asAdmin(f.kc), issuer: 'https://sso.example.edu/not-a-realm' }, /Could not (reach|find) Keycloak|realm address/],
     [{ ...asAdmin(f.kc), clientId: 'bad id' }, /client ID may use/],
     [{ ...asAdmin(f.kc), issuer: 'http://sso.example.edu/realms/x' }, /Use https/],
   ];

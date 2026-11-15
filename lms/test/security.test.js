@@ -214,9 +214,13 @@ test('the server answers malformed requests with 400 and keeps running; security
     const mid = await post(midBody).catch(() => ({ status: 413 }));
     assert.equal(mid.status, 413, 'a 2 MB body from a signed-out client is refused');
     assert.ok((await fetch(`${base}/healthz`)).ok, 'still running after the oversized body');
-    // Letters split across network packets arrive whole.
+    // Letters split across network packets arrive whole: the body is read as valid JSON, and the
+    // over-long username is then refused by the sign-in route's own field limits (not as broken JSON).
     const r = await fetch(`${base}/api/hub/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'ñ'.repeat(70000), password: 'x' }) });
-    assert.equal(r.status, 401);
+    assert.equal(r.status, 400);
+    assert.match((await r.json()).error, /username is too long/);
+    const ok = await fetch(`${base}/api/hub/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'ñ'.repeat(150), password: 'x' }) });
+    assert.equal(ok.status, 401, 'a long but allowed username is just a wrong sign-in');
     assert.ok((await fetch(`${base}/healthz`)).ok, 'still running');
   } finally {
     child.kill();
@@ -273,14 +277,14 @@ test('password hashes are encrypted with the server key: switch-on, key change, 
     const admin = env.client();
     await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
     await admin.post('/api/admin/users', { role: 'teacher', username: 'tess', name: 'Tess', password: PW, mustChangePassword: false });
-    assert.ok(env.db.data.users.every((u) => u.passwordHash.startsWith('scrypt$')));
+    assert.ok(env.db.data.users.every((u) => u.passwordHash.startsWith('s2$')), 'scrypt with its cost written in (s2$log2N$r$p$salt$hash)');
     assert.equal((await admin.get('/api/admin/settings')).passwordEncryption.on, false);
 
     // A key arrives (a restart): every hash is encrypted at once, and sign-in still works.
     auth.setPasswordKeys(K1);
     const api1 = createApi(env.db);
     assert.ok(env.db.data.users.every((u) => /^enc1\$[0-9a-f]{8}\$/.test(u.passwordHash)), 'all encrypted');
-    assert.ok(!JSON.stringify(env.db.data).includes('scrypt$'), 'no plain hash left in the data');
+    assert.ok(!JSON.stringify(env.db.data).includes('s2$'), 'no plain hash left in the data');
     const a1 = clientOf(api1);
     await a1.post('/api/admin/auth/login', { username: 'admin', password: PW });
     assert.equal((await a1.get('/api/admin/settings')).passwordEncryption.on, true);

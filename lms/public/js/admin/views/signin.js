@@ -25,6 +25,7 @@ export async function signInView(el) {
         <label class="field"><span>Wrong passwords before locking</span><input type="number" name="lockoutAttempts" min="3" max="20" value="${v.lockoutAttempts}" /><span class="hint">In a row, for one username from one network address. Ten times as many lock it from everywhere.</span></label>
         <label class="field"><span>Minutes locked</span><input type="number" name="lockoutMinutes" min="1" max="120" value="${v.lockoutMinutes}" /></label>
         <label class="field"><span>Sign out after (hours idle)</span><input type="number" name="idleHours" min="1" max="72" value="${v.idleHours}" /><span class="hint">Without using ATLAS. Shorter is safer on shared computers.</span></label>
+        <label class="field"><span>Sign out after (hours signed in)</span><input type="number" name="maxSessionHours" min="1" max="168" value="${v.maxSessionHours ?? 12}" /><span class="hint">However busy. A stolen session stops working by then. Never sooner than the idle time.</span></label>
       </div>
       <h2>${icon('shield')} Rate limits</h2>
       <div class="grid">
@@ -38,7 +39,7 @@ export async function signInView(el) {
     const f = formData(e.target);
     try {
       await api.put('/api/admin/settings', { security: {
-        minPasswordLength: f.minPasswordLength, lockoutAttempts: f.lockoutAttempts, lockoutMinutes: f.lockoutMinutes, idleHours: f.idleHours,
+        minPasswordLength: f.minPasswordLength, lockoutAttempts: f.lockoutAttempts, lockoutMinutes: f.lockoutMinutes, idleHours: f.idleHours, maxSessionHours: f.maxSessionHours,
         requireLettersAndDigits: Boolean(f.requireLettersAndDigits), forcePasswordChange: Boolean(f.forcePasswordChange),
         requestsPerMinute: f.requestsPerMinute, signInFailuresPerAddress: f.signInFailuresPerAddress,
       } });

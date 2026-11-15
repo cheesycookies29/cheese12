@@ -14,7 +14,7 @@ import { HttpError, localDate, localTime, text } from './util.js';
 import { computePayslip, toMinutes, scheduleFor, dayOfWeek, DEFAULT_SETTINGS as HR_DEFAULTS, DEFAULT_RATES } from '../shared/calc.js';
 import { ROLES, HRIS_ROLES, userCan } from '../shared/roles.js';
 import { nextNumber } from './numbering.js';
-import { hashPassword, validatePassword } from './auth.js';
+import { newPasswordHash } from './auth.js';
 import { campusesFor, campusName } from './campus.js';
 import { validateUserFields } from './admin.js';
 import { registerLeaveRoutes, findLeaveType, leaveBalances, notOwnRecord } from './hris-leave.js';
@@ -502,7 +502,10 @@ export function registerHrisRoutes(route, ctx) {
       .map((u) => ({ id: u.id, name: u.name, username: u.username, role: u.role, roleLabel: ROLES[u.role].label, email: u.email || '', department: u.department || '', employeeNo: u.employeeNo || '' }));
   });
   // Link an existing account, or create an HRIS account (Staff, HR Manager, Payroll Officer).
-  route('POST', '/api/hris/employees/:id/account', 'hris:hris.accounts', ({ params, body, user, campusId }) => {
+  route('POST', '/api/hris/employees/:id/account', 'hris:hris.accounts', async ({ params, body, user, campusId }) => {
+    employeeIn(campusId, params.id);
+    // A new account's password is hashed first (the only pause); everything else runs after it at once.
+    const passwordHash = body.userId ? null : await newPasswordHash(body.password, data().settings.security);
     const emp = employeeIn(campusId, params.id);
     if (body.userId) {
       linkable(user, emp, body.userId).employeeId = emp.id;
@@ -513,16 +516,17 @@ export function registerHrisRoutes(route, ctx) {
     const role = HRIS_ROLES.includes(body.role) ? body.role : fail('Pick an account type (Staff, HR, payroll or a Finance office).');
     notFinanceOffice(user, role, 'creates');
     const fields = validateUserFields({ role, name: `${emp.firstName} ${emp.lastName}`, username: body.username, email: emp.email }, data());
-    validatePassword(body.password, data().settings.security);
     data().users.push({
       id: randomUUID(), ...fields, campusIds: [emp.campusId], employeeId: emp.id, status: 'active',
-      mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: new Date().toISOString(),
+      mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash, createdAt: new Date().toISOString(),
     });
     save();
     return employeeView(emp);
   });
   // Change an HRIS account: type, active/disabled, or a new temporary password.
-  route('PUT', '/api/hris/employees/:id/account', 'hris:hris.accounts', ({ params, body, user, campusId }) => {
+  route('PUT', '/api/hris/employees/:id/account', 'hris:hris.accounts', async ({ params, body, user, campusId }) => {
+    employeeIn(campusId, params.id);
+    const passwordHash = body.password ? await newPasswordHash(body.password, data().settings.security) : null;
     const emp = employeeIn(campusId, params.id);
     const u = data().users.find((x) => x.employeeId === emp.id) || fail('This employee has no account.', 404);
     if (!HRIS_ROLES.includes(u.role)) fail(`${u.name} signs in with their ${ROLES[u.role].label.toLowerCase()} account; change it in the Learn admin panel.`);
@@ -540,9 +544,8 @@ export function registerHrisRoutes(route, ctx) {
       u.status = body.status;
       if (u.status === 'disabled') ctx.signOutEverywhere(u.id);
     }
-    if (body.password) {
-      validatePassword(body.password, data().settings.security);
-      u.passwordHash = hashPassword(body.password);
+    if (passwordHash) {
+      u.passwordHash = passwordHash;
       u.mustChangePassword = true;
       ctx.signOutEverywhere(u.id);
     }

@@ -10,6 +10,7 @@
 // Moodle (config_log, admin search), Canvas (feature flags) and Frappe (Single DocTypes, versions).
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
+import { t } from './validate.js';
 import { DEFAULT_SETTINGS, DEFAULT_ACTIVITY_TYPES } from './db.js';
 import { defaultModuleConfig } from '../shared/modules.js';
 import { defaultSystemSettings } from '../shared/systems.js';
@@ -27,12 +28,30 @@ const fail = (msg, status = 400) => {
 };
 const clone = (v) => (v === undefined ? undefined : structuredClone(v));
 const pick = (o, keys) => Object.fromEntries(keys.map((k) => [k, clone(o?.[k])]));
-const getPath = (o, path) => (path ? path.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o) : o);
+// A setting's path: plain names and list positions joined by dots ("security.idleHours",
+// "fees.0.amount"). A path that could reach an object's prototype (__proto__, constructor,
+// prototype) or that is anything else is refused; only own properties are ever read or written.
+const SEGMENT = /^[A-Za-z0-9_-]{1,80}$/;
+const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
+function segments(path) {
+  const keys = String(path).split('.');
+  if (keys.length > 12 || keys.some((k) => !SEGMENT.test(k) || BLOCKED.has(k))) fail('That setting does not exist.');
+  return keys;
+}
+const getPath = (o, path) => (path ? segments(path).reduce((x, k) => (x != null && typeof x === 'object' && Object.hasOwn(x, k) ? x[k] : undefined), o) : o);
+const hasPath = (o, path) => segments(path).every((k) => {
+  if (o == null || typeof o !== 'object' || !Object.hasOwn(o, k)) return false;
+  o = o[k];
+  return true;
+});
 function setPath(o, path, v) {
   if (!path) return clone(v);
-  const keys = path.split('.');
+  const keys = segments(path);
   let x = o;
-  for (const k of keys.slice(0, -1)) x = x[k] ??= {};
+  for (const k of keys.slice(0, -1)) {
+    if (!Object.hasOwn(x, k) || x[k] == null || typeof x[k] !== 'object') x[k] = {};
+    x = x[k];
+  }
   x[keys.at(-1)] = clone(v);
   return o;
 }
@@ -269,10 +288,11 @@ export function registerConfigRoutes(route, ctx) {
     const d = def(id);
     if (!d.defaults || !d.save) fail(`${areaInfo(id).label} have no built-in defaults to go back to.`);
     const path = String(body.path || '');
+    if (path && !hasPath(d.defaults(), path)) fail('That setting does not exist.'); // only a setting the defaults have
     const value = path ? setPath(d.get(data()), path, getPath(d.defaults(), path)) : d.defaults();
     const entries = atomic(() => apply(user, id, value, path ? 'reset' : 'reset-all'));
     return { ok: true, changes: entries.reduce((n, e) => n + e.changes.length, 0) };
-  });
+  }, { body: { area: t.str(80), path: t.str(400) } });
 
   // ----- History -----
   route('GET', '/api/admin/config/history', 'admin:settings.edit', ({ query }) => {

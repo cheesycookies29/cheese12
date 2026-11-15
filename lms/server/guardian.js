@@ -8,7 +8,7 @@
 // students at their campuses. Students see who is linked to them and what each can see.
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
-import { hashPassword, validatePassword } from './auth.js';
+import { newPasswordHash } from './auth.js';
 import { findById, sectionView, enrollmentView } from './enrollment.js';
 import { attendanceSummary } from './attendance.js';
 import { validateUserFields } from './admin.js';
@@ -244,13 +244,16 @@ export function registerGuardianRoutes(route, ctx, { standing, resultFor, isOpen
   route('GET', '/api/admin/guardians/:id', 'admin:guardians.manage', ({ user, params }) => guardianDetail(user, findGuardian(user, params.id)));
 
   // A new guardian account, usually linked to a student straight away.
-  route('POST', '/api/admin/guardians', 'admin:guardians.manage', ({ user, body, campusId }) => {
+  route('POST', '/api/admin/guardians', 'admin:guardians.manage', async ({ user, body, campusId }) => {
+    validateUserFields({ ...body, role: 'guardian' }, data());
+    if (body.studentId) findStudent(user, body.studentId);
+    const passwordHash = await newPasswordHash(body.password, data().settings.security);
+    // Checked again after the (slow) hash, then saved without pausing.
     const fields = validateUserFields({ ...body, role: 'guardian' }, data());
-    validatePassword(body.password, data().settings.security);
     const student = body.studentId ? findStudent(user, body.studentId) : null;
     const g = {
       id: randomUUID(), ...fields, campusIds: [student?.campusIds?.[0] || campusId].filter(Boolean), status: 'active',
-      mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: iso(),
+      mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash, createdAt: iso(),
     };
     data().users.push(g);
     if (student) addLink(user, g, student, body);

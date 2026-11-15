@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError, text, DATE_RE } from './util.js';
 import { can, userCan, ROLES } from '../shared/roles.js';
-import { hashPassword, validatePassword, publicUser } from './auth.js';
+import { newPasswordHash, publicUser } from './auth.js';
 import { validateUserFields } from './admin.js';
 import {
   DEFAULT_CHART, FUND_CLUSTERS, ALLOTMENT_CLASSES, DEFAULT_TAXES, DEFAULT_NUMBERING, JOURNALS, ACCT, MAJOR, CURRENT_ASSETS,
@@ -435,19 +435,21 @@ export function registerFinanceRoutes(route, ctx) {
   const FIN_ONLY = () => FINANCE_ROLES.filter((r) => r !== 'admin' && ROLES[r].side === 'hris');
   // Only administrators create or change Finance accounts, so no finance officer can give themselves another role's powers (separation of duties).
   const adminOnly = (u) => (u.role === 'admin' ? u : fail('Only an administrator creates or changes Finance accounts.', 403));
-  route('POST', '/api/finance/users', 'finance:finance.settings', ({ user, body, campusId }) => {
+  route('POST', '/api/finance/users', 'finance:finance.settings', async ({ user, body, campusId }) => {
     adminOnly(user);
     if (!FIN_ONLY().includes(body.role)) fail('Pick a Finance account type.');
-    const fields = validateUserFields({ ...body, role: body.role }, data());
-    validatePassword(body.password, data().settings.security);
-    const u = { id: randomUUID(), ...fields, campusIds: [campusId || data().campuses[0]?.id].filter(Boolean), status: 'active', mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash: hashPassword(body.password), createdAt: iso() };
+    validateUserFields({ ...body, role: body.role }, data());
+    const passwordHash = await newPasswordHash(body.password, data().settings.security);
+    const fields = validateUserFields({ ...body, role: body.role }, data()); // again, after the hash
+    const u = { id: randomUUID(), ...fields, campusIds: [campusId || data().campuses[0]?.id].filter(Boolean), status: 'active', mustChangePassword: Boolean(data().settings.security?.forcePasswordChange) || body.mustChangePassword !== false, passwordHash, createdAt: iso() };
     data().users.push(u);
     fx.audit(user, `Created ${ROLES[u.role].label} account ${u.username}`, { kind: 'user', ref: u.id });
     save();
     return financeAccount(u);
   });
-  route('PUT', '/api/finance/users/:id', 'finance:finance.settings', ({ user, params, body }) => {
+  route('PUT', '/api/finance/users/:id', 'finance:finance.settings', async ({ user, params, body }) => {
     adminOnly(user);
+    const passwordHash = body.password ? await newPasswordHash(body.password, data().settings.security) : null;
     const u = byId(data().users, params.id);
     if (!u || !FIN_ONLY().includes(u.role)) fail('Only Finance accounts are changed here. Administrators and other accounts are managed in the admin panel.', 404);
     if (body.role && body.role !== u.role) {
@@ -462,9 +464,8 @@ export function registerFinanceRoutes(route, ctx) {
       u.status = body.status;
       if (u.status === 'disabled') ctx.signOutEverywhere(u.id);
     }
-    if (body.password) {
-      validatePassword(body.password, data().settings.security);
-      u.passwordHash = hashPassword(body.password);
+    if (passwordHash) {
+      u.passwordHash = passwordHash;
       u.mustChangePassword = true;
       ctx.signOutEverywhere(u.id);
     }

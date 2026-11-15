@@ -169,7 +169,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 
 **ATLAS says "Too many requests. Try again in … seconds."** ATLAS limits how many requests one person, or one network before anyone has signed in, can send in a minute. Wait the seconds it says, then reload the page or try again.
 
-**ATLAS took me back to the sign-in page, or says "Your session has ended. Please sign in again."** ATLAS signs you out after 8 hours without any activity (your school may have set another time). You are also signed out when the ATLAS server is restarted, when someone resets your password, and on your other devices when you change your password.
+**ATLAS took me back to the sign-in page, or says "Your session has ended. Please sign in again."** ATLAS signs you out after 8 hours without any activity, and 12 hours after you signed in however busy you are (your school may have set other times). You are also signed out when the ATLAS server is restarted, when someone resets your password or changes what your account may do, and on your other devices when you change your password.
 
 **ATLAS says "This account is disabled."** The registrar or an administrator has switched your account off. Contact the registrar.
 
