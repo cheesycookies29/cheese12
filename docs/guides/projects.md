@@ -233,11 +233,22 @@ Progress counts the subtasks, not their parent. When most tasks (60% or more) ha
 
 ![Editing a task's description](projects-description.jpg)
 
-Shortcuts, as in most editors: **Ctrl+B** bold, **Ctrl+I** italic, **Ctrl+K** a link, **Ctrl+E** code, **Ctrl+Z** undo (on a Mac ⌘). Typing at the start of a line also works: `- ` or `* ` starts a bulleted list, `1. ` a numbered list, `[] ` a checklist, `# `, `## ` or `### ` a heading, `> ` a quote, and ` ``` ` then Enter a code block. In a list, **Enter** adds the next item, **Tab** puts an item inside the one above (Shift+Tab takes it back out), and **Enter** on an empty item ends the list. In a table, **Tab** moves to the next cell and adds a row at the end. Click a checklist box to tick it; tick tasks off for real in the task's own **Checklist**.
+Shortcuts, as in most editors: **Ctrl+B** bold, **Ctrl+I** italic, **Ctrl+K** a link, **Ctrl+E** code, **Ctrl+Z** undo (on a Mac ⌘). Typing at the start of a line also works: `- ` or `* ` starts a bulleted list, `1. ` a numbered list, `[] ` a checklist, `# `, `## ` or `### ` a heading, `> ` a quote, and ` ``` ` then Enter a code block. In a list, **Enter** adds the next item, **Tab** puts an item inside the one above (Shift+Tab takes it back out), and **Enter** on an empty item ends the list. In a table, **Tab** moves to the next cell (Shift+Tab the one before) and adds a row at the end; **Shift+F10** opens the table's menu. Click a checklist box to tick it; tick tasks off for real in the task's own **Checklist**.
 
 Pictures: click the picture button, or paste a screenshot (Ctrl+V), or drag a picture into the text; it uploads where the cursor is, and its × removes it. JPEG, PNG or WebP, up to 5 MB each (a large photo is made smaller first), as many as you need. Everyone who can open the project sees them; click one on the task page to open it full size. A picture taken out of the description is deleted when the description is saved. In **New task** the description can be written and formatted; pictures come after **Add task**.
 
 Pasting from a web page, Word or an email keeps bold, italic, lists, headings, links and tables, and drops everything else (colours, fonts, scripts). Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab; in the editor, Ctrl+click opens one.
+
+### Change a table's rows and columns
+
+1. In the description editor, click in a cell of the table. A small bar shows over the table.
+2. Its buttons add a row **above** or **below** the cell you are in, or a column to its **left** or **right**, and delete that cell's **row** or **column**. The new row or column is empty, with the cursor in it.
+3. For everything, click **…** on the bar, or right-click a cell (or press **Shift+F10**): **Insert** rows and columns, **Move row up** or **down**, **Move column left** or **right**, **Align column** left, center or right (good for amounts), and **Delete row**, **Delete column** or **Delete table**. Choices that cannot apply (moving the last column right) are greyed out.
+4. **Ctrl+Z** (⌘+Z) undoes a change to the table, like any other.
+
+![A table's bar and menu in the description editor](projects-table.jpg)
+
+The first row is the table's header and shows shaded. Adding a row above it, moving another row up into its place or deleting it makes another row the header. Deleting the last row or column deletes the table. On a phone, the bar keeps the buttons that add rows and columns; delete with **…**. Right-click with **Shift** held shows the browser's own menu (to copy or paste).
 
 ### Size a task
 

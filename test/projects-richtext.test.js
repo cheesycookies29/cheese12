@@ -280,3 +280,14 @@ test('Markdown escapes and link words: \\* is a star, \\| inside a table cell, f
   // Old descriptions without escapes read as they did.
   assert.equal(renderRich('snake_case and 2*3*4 stay as they are'), '<p>snake_case and 2*3*4 stay as they are</p>');
 });
+
+test('table columns keep their alignment (0.28): :--- left, :---: center, ---: right, both ways', () => {
+  const md = modelToMarkdown([{ t: 'table', head: [[T('Item')], [T('Qty')], [T('Price')]], rows: [[[T('Pens')], [T('2')], [T('₱30')]]], align: [null, 'center', 'right'] }]);
+  assert.equal(md, '| Item | Qty | Price |\n| --- | :---: | ---: |\n| Pens | 2 | ₱30 |');
+  assert.equal(renderRich(md), '<div class="rich-table"><table><thead><tr><th>Item</th><th class="ta-center">Qty</th><th class="ta-right">Price</th></tr></thead><tbody><tr><td>Pens</td><td class="ta-center">2</td><td class="ta-right">₱30</td></tr></tbody></table></div>');
+  // Written by hand: left is the usual look; only the listed alignments become a class.
+  assert.match(renderRich('| a | b |\n|:---|---:|\n| 1 | 2 |'), /<th>a<\/th><th class="ta-right">b<\/th>/);
+  // Without alignment, the table is written as before; empty cells and a blank header stay a table.
+  assert.equal(modelToMarkdown([{ t: 'table', head: [[], []], rows: [[[T('x')], []]] }]), '|   |   |\n| --- | --- |\n| x |   |');
+  assert.match(renderRich('|   |   |\n| --- | --- |\n| x |   |'), /^<div class="rich-table"><table><thead><tr><th><\/th><th><\/th><\/tr><\/thead><tbody><tr><td>x<\/td><td><\/td><\/tr>/);
+});

@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.28.0-alpha',
+    date: '2026-11-15',
+    title: 'Table rows and columns in the description editor',
+    modules: ['projects'],
+    notes: 'Tables in task descriptions get controls to add, move, align and remove rows and columns.',
+    changes: [
+      ['new', 'projects', 'A bar over the table where the cursor is: insert a row above or below, a column left or right, delete the row or column (the commands of Tiptap\'s table extension). Its … button, a right-click on a cell or Shift+F10 opens a menu (as in quill-better-table) that also moves a row up or down and a column left or right, aligns a column left, center or right, and deletes the table; arrow keys move through it and Esc closes it. Choices that cannot apply are disabled. On phones the bar keeps the insert buttons, at 44 px.'],
+      ['new', 'projects', 'Column alignment is stored in the Markdown (| :---: | for center, | ---: | for right) and shown on the task page; a header cell\'s alignment is read back from the editor.'],
+      ['improved', 'projects', 'A table change is made on the document model and written back as one edit (the table made not editable inside for that moment, so the browser replaces it whole), so Ctrl/⌘+Z undoes it; a browser that cannot do so gets the table swapped directly. Empty cells keep a line break, so the cursor can go in them.'],
+      ['improved', 'projects', 'The demo task "Gradebook: import class lists from the SIS" has a table in its description.'],
+    ],
+  },
+  {
     version: '0.27.0-alpha',
     date: '2026-11-15',
     title: 'A visual description editor',

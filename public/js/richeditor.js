@@ -117,7 +117,10 @@ function readList(n) {
 function readTable(t) {
   const rows = [...t.querySelectorAll('tr')].map((tr) => [...tr.children].filter((c) => c.tagName === 'TD' || c.tagName === 'TH').map((c) => trimRuns(readInline(c))));
   if (!rows.length) return [];
-  return [{ t: 'table', head: rows[0], rows: rows.slice(1) }];
+  // A column's alignment, from its header cell.
+  const first = [...t.querySelector('tr').children].filter((c) => c.tagName === 'TD' || c.tagName === 'TH');
+  const align = first.map((c) => (c.classList.contains('ta-center') ? 'center' : c.classList.contains('ta-right') ? 'right' : null));
+  return [{ t: 'table', head: rows[0], rows: rows.slice(1), ...(align.some(Boolean) ? { align } : {}) }];
 }
 function readBlock(n) {
   const tag = n.tagName;
@@ -216,6 +219,19 @@ const SLASH = [
   ['table', 'Table', 'Rows and columns', 'table grid'],
   ['image', 'Picture', 'Upload a picture', 'image picture photo screenshot'],
 ];
+// The table's own commands (as Tiptap's table extension has them), on a small bar over the table
+// where the cursor is and in a menu (right-click, or Shift+F10), as in quill-better-table.
+const TABLE_BAR = [
+  ['rowAbove', 'rowAbove', 'Insert row above'], ['rowBelow', 'rowBelow', 'Insert row below'],
+  ['colLeft', 'colLeft', 'Insert column left'], ['colRight', 'colRight', 'Insert column right'],
+  '|', ['delRow', 'rowDelete', 'Delete row'], ['delCol', 'colDelete', 'Delete column'],
+];
+const TABLE_MENU = [
+  [['rowAbove', 'Insert row above'], ['rowBelow', 'Insert row below'], ['colLeft', 'Insert column left'], ['colRight', 'Insert column right']],
+  [['rowUp', 'Move row up'], ['rowDown', 'Move row down'], ['colBack', 'Move column left'], ['colFwd', 'Move column right']],
+  [['alignLeft', 'Align column left'], ['alignCenter', 'Align column center'], ['alignRight', 'Align column right']],
+  [['delRow', 'Delete row'], ['delCol', 'Delete column'], ['delTable', 'Delete table']],
+];
 const tip = (t) => `${t[2]}${t[3] ? ` (${KEY}${t[3]})` : ''}`;
 
 let seq = 0;
@@ -235,10 +251,13 @@ export function richEditor({ name = 'description', value = '', label = 'Descript
       <div class="wys-area rich" id="${id}" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="${id}-label" aria-describedby="${id}-help" data-placeholder="${placeholder}" spellcheck="true"></div>
       <div class="wys-bubble wys-ui" role="toolbar" aria-label="Format the selected text" hidden>${BUBBLE.map((t) => html`<button type="button" data-tool="${t[0]}" tabindex="-1" aria-label="${t[2]}" title="${t[2]}" aria-pressed="false">${icon(t[1], 15)}</button>`)}</div>
       <div class="wys-slash wys-ui" role="listbox" id="${id}-slash" aria-label="Insert" hidden></div>
+      <div class="wys-tbar wys-ui" role="toolbar" aria-label="Table" hidden>${TABLE_BAR.map((t) => (t === '|' ? html`<span class="rich-sep" aria-hidden="true"></span>`
+        : html`<button type="button" data-top="${t[0]}" tabindex="-1" aria-label="${t[2]}" title="${t[2]}">${icon(t[1], 16)}</button>`))}<span class="rich-sep" aria-hidden="true"></span><button type="button" data-tmenu tabindex="-1" aria-label="More table options" title="More table options (Shift+F10)" aria-haspopup="menu" aria-expanded="false">${icon('more', 16)}</button></div>
+      <div class="wys-tmenu wys-ui" role="menu" aria-label="Table" hidden>${TABLE_MENU.map((group, g) => html`${g ? html`<div class="wys-tmenu-sep" role="separator"></div>` : ''}${group.map(([op, label]) => html`<button type="button" role="${op.startsWith('align') ? 'menuitemradio' : 'menuitem'}" data-top="${op}" tabindex="-1" class="${op.startsWith('del') ? 'danger' : ''}">${label}</button>`)}`)}</div>
     </div>
     <textarea name="${name}" hidden>${value}</textarea>
     <input type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple hidden data-pick />
-    <div class="rich-foot"><small class="hint" id="${id}-help">Type <kbd>/</kbd> for headings, lists and more.${noPics ? '' : ' Paste or drop pictures in.'} In a list, <kbd>Tab</kbd> indents.</small><small class="rich-count" aria-live="polite"></small></div>
+    <div class="rich-foot"><small class="hint" id="${id}-help">Type <kbd>/</kbd> for headings, lists and more.${noPics ? '' : ' Paste or drop pictures in.'} In a list, <kbd>Tab</kbd> indents; in a table, right-click a cell for rows and columns.</small><small class="rich-count" aria-live="polite"></small></div>
   </div>`;
 }
 
@@ -297,6 +316,10 @@ export function wireRichEditor(root, { images = [] } = {}) {
       a.removeAttribute('rel');
     });
     el.querySelectorAll('ul.rich-tasks').forEach(ensureChecks);
+    // An empty cell holds a line break, so the cursor can go in it.
+    el.querySelectorAll('td, th').forEach((c) => {
+      if (!c.firstChild) c.append(document.createElement('br'));
+    });
     const last = el.lastElementChild;
     if (!last || /^(PRE|TABLE|HR|FIGURE|UL|OL|BLOCKQUOTE)$/.test(last.tagName) || last.classList.contains('rich-table')) el.append(blank());
   }
@@ -392,6 +415,8 @@ export function wireRichEditor(root, { images = [] } = {}) {
       holder.remove();
       moved = true;
     }
+    // A table put back by undo comes back as it was during a row or column change (see tableOp).
+    area.querySelectorAll('[contenteditable="false"]:is(.rich-table, table)').forEach((x) => x.removeAttribute('contenteditable'));
     // Boxes left in a paragraph (a checklist item turned back into text).
     area.querySelectorAll('input[type=checkbox]').forEach((c) => {
       if (!c.closest('ul.rich-tasks > li')) {
@@ -582,6 +607,84 @@ export function wireRichEditor(root, { images = [] } = {}) {
   }
   const TABLE = '<div class="rich-table"><table><thead><tr><th>Column</th><th>Column</th></tr></thead><tbody><tr><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td></tr></tbody></table></div><p><br></p>';
 
+  // -- Table rows and columns --
+  // The table at the cursor: its cell, row and column (row 0 is the header).
+  function tableAt() {
+    const cell = closest('td, th');
+    const table = cell?.closest('table');
+    if (!table || !inArea(table)) return null;
+    const rows = [...table.querySelectorAll('tr')];
+    const tr = cell.closest('tr');
+    const cells = [...tr.children].filter((c) => c.tagName === 'TD' || c.tagName === 'TH');
+    return { cell, table, wrap: table.closest('.rich-table') || table, r: rows.indexOf(tr), c: cells.indexOf(cell), rows: rows.length, cols: Math.max(1, ...rows.map((x) => x.children.length)) };
+  }
+  // A change to the table is made on its model and written back as one edit, so undo takes it back.
+  function tableOp(op) {
+    const at = tableAt();
+    if (!at) return;
+    const [b] = readTable(at.table);
+    if (!b) return;
+    const width = Math.max(1, b.head.length, ...b.rows.map((x) => x.length));
+    let grid = [b.head, ...b.rows].map((row) => Array.from({ length: width }, (_, k) => row[k] || []));
+    const align = Array.from({ length: width }, (_, k) => b.align?.[k] || null);
+    let { r, c } = at;
+    const swap = (list, i, j) => ([list[i], list[j]] = [list[j], list[i]]);
+    const emptyRow = () => Array.from({ length: width }, () => []);
+    switch (op) {
+      case 'rowAbove': grid.splice(r, 0, emptyRow()); break;
+      case 'rowBelow': grid.splice(++r, 0, emptyRow()); break;
+      case 'colLeft': grid.forEach((row) => row.splice(c, 0, [])); align.splice(c, 0, null); break;
+      case 'colRight': c += 1; grid.forEach((row) => row.splice(c, 0, [])); align.splice(c, 0, null); break;
+      case 'rowUp': if (r > 0) swap(grid, r, --r); break;
+      case 'rowDown': if (r < grid.length - 1) swap(grid, r, ++r); break;
+      case 'colBack': if (c > 0) { grid.forEach((row) => swap(row, c, c - 1)); swap(align, c, --c); } break;
+      case 'colFwd': if (c < width - 1) { grid.forEach((row) => swap(row, c, c + 1)); swap(align, c, ++c); } break;
+      case 'alignLeft': align[c] = null; break;
+      case 'alignCenter': align[c] = 'center'; break;
+      case 'alignRight': align[c] = 'right'; break;
+      case 'delRow': grid.splice(r, 1); r = Math.min(r, grid.length - 1); break;
+      case 'delCol': grid.forEach((row) => row.splice(c, 1)); align.splice(c, 1); c = Math.min(c, width - 2); break;
+      case 'delTable': grid = []; break;
+      default: return;
+    }
+    const tables = [...area.querySelectorAll('table')];
+    const index = tables.indexOf(at.table);
+    const place = [...area.children].indexOf(at.wrap);
+    const gone = !grid.length || !grid[0].length;
+    const markup = gone ? '<p><br></p>' : renderRich(modelToMarkdown([{ t: 'table', head: grid[0], rows: grid.slice(1), align }]), { image });
+    const before = area.innerHTML;
+    // Swapped as one edit: the browser replaces the table whole only while it is not editable
+    // inside (otherwise it puts the new table in the old one). Undo brings it back as it was.
+    at.wrap.contentEditable = 'false';
+    const whole = document.createRange();
+    whole.selectNode(at.wrap);
+    sel().removeAllRanges();
+    sel().addRange(whole);
+    exec('insertHTML', markup);
+    if (at.wrap.isConnected || area.querySelectorAll('table').length !== tables.length - (gone ? 1 : 0)) {
+      // A browser that does it another way: swapped directly (undo then skips it).
+      area.innerHTML = before;
+      const old = area.querySelectorAll('table')[index];
+      const t = document.createElement('template');
+      t.innerHTML = markup;
+      (old.closest('.rich-table') || old).replaceWith(t.content);
+      if (gone) caretIn(area.children[Math.max(0, Math.min(place, area.children.length - 1))] || area);
+    }
+    prepare(area);
+    closeTableMenu(false);
+    if (gone) {
+      // The cursor goes to the line where the table was.
+      const p = area.children[Math.max(0, Math.min(place, area.children.length - 1))];
+      if (!range() && p) caretIn(p);
+    } else {
+      const table = area.querySelectorAll('table')[index];
+      const row = table && [...table.querySelectorAll('tr')][Math.max(0, r)];
+      const cell = row && [...row.children][Math.max(0, c)];
+      if (cell) caretIn(cell, true);
+    }
+    changed();
+  }
+
   // -- Inline --
   function toggleCode() {
     const c = closest('code');
@@ -668,6 +771,91 @@ export function wireRichEditor(root, { images = [] } = {}) {
     b.addEventListener('mousedown', (e) => e.preventDefault());
     b.addEventListener('click', () => run(b.dataset.tool));
   });
+  // The table's bar and menu.
+  const tbar = box.querySelector('.wys-tbar');
+  const tmenu = box.querySelector('.wys-tmenu');
+  const tmenuBtn = tbar.querySelector('[data-tmenu]');
+  let menuAt = 0;
+  const menuItems = () => [...tmenu.querySelectorAll('button')].filter((b) => !b.disabled);
+  tbar.querySelectorAll('button').forEach((b) => b.addEventListener('mousedown', (e) => e.preventDefault()));
+  tbar.querySelectorAll('[data-top]').forEach((b) => b.addEventListener('click', () => tableOp(b.dataset.top)));
+  tmenuBtn.addEventListener('click', () => (tmenu.hidden ? openTableMenu({ from: tmenuBtn, focus: true }) : closeTableMenu()));
+  // Where the menu is open from: a cell (the cursor is kept and put back before the command runs).
+  function openTableMenu({ x = null, y = null, from = null, focus = false } = {}) {
+    const at = tableAt();
+    if (!at) return;
+    keep();
+    const { r, c, rows, cols } = at;
+    const [b] = readTable(at.table);
+    const now = b?.align?.[c] || 'left';
+    const off = { rowUp: r === 0, rowDown: r === rows - 1, colBack: c === 0, colFwd: c === cols - 1 };
+    tmenu.querySelectorAll('[data-top]').forEach((m) => {
+      m.disabled = Boolean(off[m.dataset.top]);
+      if (m.getAttribute('role') === 'menuitemradio') m.setAttribute('aria-checked', String(m.dataset.top === `align${now[0].toUpperCase()}${now.slice(1)}`));
+    });
+    tmenu.hidden = false;
+    menuAt = performance.now();
+    tmenuBtn.setAttribute('aria-expanded', 'true');
+    // Under the pointer (or the button, or the cell); above it when it fits there and not under;
+    // otherwise moved up as far as it takes to fit on screen.
+    const rect = x != null ? { left: x, top: y, bottom: y } : (from || at.cell).getBoundingClientRect();
+    const w = tmenu.offsetWidth;
+    const h = tmenu.offsetHeight;
+    const room = window.innerHeight - 8;
+    const vy = rect.bottom + 4 + h <= room ? rect.bottom + 4 : rect.top - 4 - h >= 8 ? rect.top - 4 - h : Math.max(8, room - h);
+    // On the screen itself (fixed), so a dialog's edge does not cut it off.
+    tmenu.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, rect.left))}px`;
+    tmenu.style.top = `${vy}px`;
+    if (focus) menuItems()[0]?.focus({ preventScroll: true });
+  }
+  function closeTableMenu(back = true) {
+    if (tmenu.hidden) return;
+    const had = tmenu.contains(document.activeElement);
+    tmenu.hidden = true;
+    tmenuBtn.setAttribute('aria-expanded', 'false');
+    if (back && had) restore();
+  }
+  tmenu.addEventListener('mousedown', (e) => e.preventDefault());
+  tmenu.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-top]');
+    if (!b || b.disabled) return;
+    if (!range()) restore();
+    tableOp(b.dataset.top);
+  });
+  tmenu.addEventListener('keydown', (e) => {
+    const items = menuItems();
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next]?.focus();
+    } else if (e.key === 'Escape' || e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeTableMenu();
+    }
+  });
+  area.addEventListener('contextmenu', (e) => {
+    if (!e.target.closest?.('td, th')) return;
+    // Right-click puts the cursor in the cell first (the browser's own menu is still there with Shift).
+    if (e.shiftKey) return;
+    e.preventDefault();
+    if (!closest('td, th') || closest('td, th') !== e.target.closest('td, th')) caretIn(e.target.closest('td, th'), true);
+    openTableMenu({ x: e.clientX, y: e.clientY, focus: true });
+  });
+  document.addEventListener('mousedown', function outside(e) {
+    if (!box.isConnected) return document.removeEventListener('mousedown', outside, true);
+    if (!tmenu.hidden && !tmenu.contains(e.target) && e.target !== tmenuBtn && !tmenuBtn.contains(e.target)) closeTableMenu(false);
+  }, true);
+  // Anything scrolling (the text, a dialog, the page) moves the table away from the menu: it closes.
+  window.addEventListener('scroll', function moved(e) {
+    if (!box.isConnected) return window.removeEventListener('scroll', moved, true);
+    // (Not the scroll a phone makes as it puts its keyboard away when the menu opens.)
+    if (tmenu.contains(e.target) || performance.now() - menuAt < 400) return;
+    closeTableMenu(false);
+    if (e.target === area) refresh();
+  }, { capture: true, passive: true });
+
   // The toolbar is one Tab stop; arrow keys move between its buttons.
   box.querySelector('.rich-bar').addEventListener('keydown', (e) => {
     if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key) || e.target === styleSel) return;
@@ -716,6 +904,29 @@ export function wireRichEditor(root, { images = [] } = {}) {
       bubble.style.left = `${Math.max(4, Math.min(host.width - w - 4, rect.left - host.left + rect.width / 2 - w / 2))}px`;
       bubble.style.top = `${Math.max(4, rect.top - host.top - bubble.offsetHeight - 8)}px`;
     } else bubble.hidden = true;
+    placeTableBar();
+  }
+  // The table's bar sits over the table where the cursor is (under it when there is no room above).
+  function placeTableBar() {
+    const at = range() && tableAt();
+    if (!at || !bubble.hidden) {
+      if (!tmenu.contains(document.activeElement)) tbar.hidden = true;
+      return;
+    }
+    const host = box.querySelector('.wys-box').getBoundingClientRect();
+    const view = area.getBoundingClientRect();
+    const t = at.wrap.getBoundingClientRect();
+    if (t.bottom < view.top || t.top > view.bottom) {
+      tbar.hidden = true;
+      return;
+    }
+    tbar.hidden = false;
+    const h = tbar.offsetHeight;
+    const w = tbar.offsetWidth;
+    let top = t.top - h - 6;
+    if (top < view.top) top = t.bottom + 6 + h <= view.bottom ? t.bottom + 6 : view.top + 4;
+    tbar.style.top = `${top - host.top}px`;
+    tbar.style.left = `${Math.max(4, Math.min(host.width - w - 4, t.left - host.left))}px`;
   }
   const onSel = () => {
     if (!box.isConnected) return document.removeEventListener('selectionchange', onSel);
@@ -723,7 +934,11 @@ export function wireRichEditor(root, { images = [] } = {}) {
   };
   document.addEventListener('selectionchange', onSel);
   area.addEventListener('blur', () => setTimeout(() => {
-    if (!box.contains(document.activeElement)) bubble.hidden = true;
+    if (!box.contains(document.activeElement)) {
+      bubble.hidden = true;
+      tbar.hidden = true;
+      closeTableMenu(false);
+    }
   }, 100));
 
   // -- Typing: Markdown shortcuts at the start of a line, and around words --
@@ -993,6 +1208,11 @@ export function wireRichEditor(root, { images = [] } = {}) {
         e.preventDefault();
         return run(map[k]);
       }
+    }
+    if ((e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) && closest('td, th')) {
+      e.preventDefault();
+      openTableMenu({ focus: true });
+      return;
     }
     if (e.key === ' ' && !mod && blockRule()) {
       e.preventDefault();

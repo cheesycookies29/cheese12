@@ -75,6 +75,10 @@ function inline(text, opts = {}) {
 const ITEM = /^(\s*)([-*+]|\d{1,6}[.)])\s+(.*)$/;
 const IMAGE_LINE = /^!\[([^\]\n]*)\]\(img:([0-9a-f-]{36})\)$/;
 const TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+const tableAlign = (c) => {
+  const t = c.trim();
+  return t.startsWith(':') && t.endsWith(':') ? 'center' : t.endsWith(':') ? 'right' : t.startsWith(':') ? 'left' : null;
+};
 const isBlockStart = (l, next = '') => /^(#{1,3}\s|>|```|---+\s*$|\*\*\*+\s*$)/.test(l) || ITEM.test(l) || IMAGE_LINE.test(l.trim()) || (l.trim().startsWith('|') && TABLE_SEP.test(next));
 const indentOf = (l) => l.match(/^\s*/)[0].replace(/\t/g, '    ').length;
 
@@ -174,10 +178,13 @@ export function renderRich(text, opts = {}) {
       // Cells split at | (a \| inside a cell is text).
       const cells = (l) => l.trim().replace(/^\||(?<!\\)\|$/g, '').split(/(?<!\\)\|/).map((c) => c.trim());
       const head = cells(line);
+      // A column's alignment, from its line under the header: :--- left, :---: centre, ---: right.
+      const align = cells(lines[i + 1]).map(tableAlign);
+      const cls = (k) => (align[k] === 'center' || align[k] === 'right' ? ` class="ta-${align[k]}"` : '');
       i += 2;
       const rows = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(cells(lines[i++]));
-      out.push(`<div class="rich-table"><table><thead><tr>${head.map((c) => `<th>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      out.push(`<div class="rich-table"><table><thead><tr>${head.map((c, k) => `<th${cls(k)}>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td${cls(k)}>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
       continue;
     }
     if (ITEM.test(line)) {
@@ -318,7 +325,8 @@ function blockToMarkdown(b, indent) {
       const cell = (c) => inlineToMarkdown(c, { br: ' ' }).trim() || ' ';
       const width = Math.max(1, (b.head || []).length, ...(b.rows || []).map((r) => r.length));
       const row = (cells) => `| ${Array.from({ length: width }, (_, k) => cell(cells[k] || [])).join(' | ')} |`;
-      return [row(b.head || []), `|${' --- |'.repeat(width)}`, ...(b.rows || []).map(row)].join('\n');
+      const rule = (k) => ({ left: ':---', center: ':---:', right: '---:' })[b.align?.[k]] || '---';
+      return [row(b.head || []), `| ${Array.from({ length: width }, (_, k) => rule(k)).join(' | ')} |`, ...(b.rows || []).map(row)].join('\n');
     }
     case 'list': return listToMarkdown(b, indent);
     default: return null;

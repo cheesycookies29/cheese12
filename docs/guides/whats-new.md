@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Tables you can change (0.28)
+- In the description editor, click in a table: a bar over it adds rows above or below and columns left or right, and deletes rows and columns. Its **…** button, or a right-click on a cell, also moves rows and columns, aligns a column left, center or right, and deletes the table. **Ctrl+Z** undoes. See [the projects guide](projects#change-a-tables-rows-and-columns).
+
 ### A new description editor (0.27)
 - Task descriptions are written as they will look: no more marks like `**` or `- `. Format with the toolbar, the small menu over selected text, or **/** for headings, lists, checklists, tables, code and pictures. Click **Edit** next to **Description** to write in place on the task page; **Ctrl+Enter** saves. Pasted text keeps its formatting. See [the projects guide](projects#write-a-tasks-description).
 
