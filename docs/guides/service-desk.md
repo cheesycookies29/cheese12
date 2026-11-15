@@ -46,7 +46,7 @@ A first tour with the demo data. It takes about ten minutes.
 
 ### Answer a new ticket
 
-1. Go back to **Tickets** and open *HD-000004 Cannot open the Finance shared drive*. It is *New* and *High*.
+1. Go back to **Tickets** and open *HD-000004 Cannot open the Projects shared drive*. It is *New* and *High*.
 2. Under **Assignee**, choose yourself. The ticket becomes *Open*.
 3. Type a reply, leave **Then** at *Waiting on requester* and click **Send reply**. The first response is now recorded.
 
@@ -54,13 +54,13 @@ A first tour with the demo data. It takes about ten minutes.
 
 ### Reply to the requester
 
-1. Open the ticket. Leave **Reply to requester** selected.
+1. Open the ticket. Leave **Reply to requester** selected. On a phone or tablet the conversation and the reply box come first; the ticket's status, priority, assignee and the other details are after them.
 2. Type your reply. To use a standard answer, pick it under **Insert saved reply…**; the requester's first name and the ticket number are filled in.
 3. To add screenshots or PDFs, click **Attach** (up to 5 files).
 4. Under **Then**, choose the next status. For a *New* or *Open* ticket it suggests *Waiting on requester*. Choose *Resolved* if your reply fixes it.
 5. Click **Send reply**.
 
-The reply shows in the requester's **My tickets**. If outgoing email is set up and the requester has an email address, it is also emailed, and the conversation shows *Emailed to …*. Otherwise it shows *Not emailed* with the reason. If the ticket was unassigned, it is assigned to you.
+The reply shows in the requester's **My tickets**, and a requester with a CORE account is told by the **bell** in the top bar (internal notes never). If outgoing email is set up and the requester has an email address, it is also emailed, and the conversation shows *Emailed to …*. Otherwise it shows *Not emailed* with the reason. If the ticket was unassigned, it is assigned to you.
 
 ### Add an internal note
 
@@ -74,6 +74,8 @@ Notes are for agents only. The requester never sees them, in CORE or by email.
 1. Open the ticket.
 2. In **Ticket** on the right, change **Status**, **Priority**, **Category** or **Assignee**. Each change is saved at once and noted in the conversation. Status changes are shown to the requester too; the other changes are for agents only.
 3. To link the ticket to a piece of equipment, pick it under **Related asset**. **Open asset** then takes you to it.
+
+When you assign a ticket to another agent, the **bell** in the top bar tells them; after that, it tells the assignee each time the requester replies (the queue is not told: an unassigned ticket shows in **Tickets**). A requester with a CORE account is told when the ticket is resolved or closed.
 
 The statuses are *New*, *Open*, *Waiting on requester*, *On hold*, *Resolved* and *Closed*. Changing the priority changes the due times. If another agent has the same ticket open, a notice says so at the top.
 
@@ -136,6 +138,17 @@ Some tickets, often from the public form, are really sales enquiries.
 
 The button shows only for accounts with Sales & CRM access. If yours does not have it, add an internal note and pass the ticket to an administrator or the sales team.
 
+### Add a ticket to a project
+
+A ticket that is really project work (a change request on a system you are rolling out, a site visit for a project) becomes a task in that project. You need to be a member of the project.
+
+1. Open the ticket and click **Add to a project**.
+2. Pick the **Project** and click **Add task**.
+
+The task gets the ticket's subject, priority and first message, and a link to the ticket. The ticket shows the task under **Project tasks**, and an internal line *Added to project PRJ-… as task PRJ-…-…*. The task shows the ticket's status as it changes. Closing one does not close the other. See [the projects guide](projects).
+
+![Adding a ticket to a project](desk-add-to-project.jpg)
+
 ### My tickets: your own requests
 
 **My tickets** is in the menu for everyone. Use it for your own IT problems.
@@ -152,7 +165,7 @@ A reply to a resolved ticket reopens it. A closed ticket cannot be reopened: ope
 **Service desk settings** is in the menu for **administrators only**. Agents ask an administrator for these changes. It has five tabs:
 
 1. **Receiving email**: the **Helpdesk email address**, the mailbox it is read from (pick the **Email provider** to fill in Gmail, Microsoft 365 or Zoho), the sign-in and app password, **Check every (minutes)**, **Who can open tickets by email**, and the category and priority for emailed tickets. Tick **Receive email at this address** and click **Save**. **Test connection** checks the sign-in; **Check mail now** imports at once.
-2. **Sending email**: the outgoing mail (SMTP) server, usually with **Use the same sign-in as the mailbox**. Tick **Send replies by email** and click **Save**. **Send a test email** checks it.
+2. **Sending email**: the outgoing mail (SMTP) server, usually with **Use the same sign-in as the mailbox**. Tick **Send replies by email** and click **Save**. **Send a test email** checks it. Project Management's **daily digest** goes out through the same server, from the helpdesk address (see [the projects guide](projects#set-up-the-daily-digest-project-managers)).
 3. **Tickets & replies**: the **Categories (one per line)**, the **Service level targets (hours)**, **Close resolved tickets after (days)**, the acknowledgement email, and **Saved replies** (**+ Add**).
 4. **Public form**: **Accept requests from this link**, the page title and introduction, the categories visitors can choose, and the link to share.
 5. **Agents**: who works tickets. Turn **Agent access** on or off for any account.

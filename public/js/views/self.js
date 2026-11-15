@@ -3,13 +3,14 @@ import { api } from '../api.js';
 import { ctx, leaveName } from '../state.js';
 import { computeEntry, scheduleFor, currentPeriod } from '/shared/calc.js';
 import { holidaysOn, dayTag } from './holidays.js';
-import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS, modal, confirmDialog } from '../ui.js';
+import { html, mount, money, fmtDate, fmtTime, fmtMinutes, badge, toast, today, WEEKDAYS, modal, confirmDialog, showClock } from '../ui.js';
 import { statusBadge, kindBadge, dateRange, certificateCell } from './leave.js';
 import { requestForm, requestDetail, progressText } from '../requests.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
 import { readClockLocation, LOCATION_NOTICE } from '../geo.js';
 import { payslipCard } from './payroll.js';
 import { openChangePassword } from './login.js';
+import { avatar, editMyAvatar } from '../avatars.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -38,9 +39,12 @@ export async function meHomeView(el) {
   const period = currentPeriod(today(), ctx.settings.payFrequency);
 
   async function render() {
-    const [all, payslips, requests, balances] = await Promise.all([
+    const [all, payslips, requests, balances, work] = await Promise.all([
       api.get('/api/me/time-entries'), api.get('/api/me/payslips'), api.get('/api/me/requests'), api.get('/api/me/leave-balances'),
+      ctx.user.inProjects ? api.get('/api/pm/my-work').catch(() => null) : null,
     ]);
+    // Project tasks assigned to me: a link to My work, when there are any.
+    const myTasks = work ? Object.values(work).flat() : [];
     const entries = all.filter((e) => e.date >= period.start && e.date <= period.end);
     const open = all.find((e) => e.type === 'work' && e.timeIn && !e.timeOut);
     const todays = all.find((e) => e.date === today());
@@ -60,7 +64,7 @@ export async function meHomeView(el) {
 
     mount(el, html`
       <header class="page-head">
-        <div><h1>${greeting()}, ${emp.firstName}</h1><p class="muted">${emp.position || 'Employee'} · ${emp.employeeNo}</p></div>
+        <div><h1>${greeting()}, ${emp.firstName}</h1><p class="muted">${emp.position || 'Employee'} · <span class="nowrap">${emp.employeeNo}</span></p></div>
       </header>
       <div class="cols">
         <section class="card clock-card">
@@ -87,6 +91,11 @@ export async function meHomeView(el) {
             ${upcoming.length ? html`<ul class="link-list">${upcoming.map((r) => html`<li>${kindBadge(r)} ${dateRange(r)}</li>`)}</ul>` : ''}
             <div class="actions"><a class="btn primary" href="#/me/requests?new=1">File a request</a><a class="btn" href="#/me/requests">My requests</a></div>
           </section>
+          ${myTasks.length ? html`<section class="card">
+            <h2>My project tasks</h2>
+            <p>${myTasks.length} open task${myTasks.length === 1 ? '' : 's'}${work.overdue.length ? html` · ${badge(`${work.overdue.length} overdue`, 'red')}` : ''}${work.today.length ? html` · ${work.today.length} due today` : ''}</p>
+            <a href="#/projects/my-work">Open My work →</a>
+          </section>` : ''}
           <section class="card">
             <h2>Latest payslip</h2>
             ${latest
@@ -106,7 +115,7 @@ export async function meHomeView(el) {
         if (action === 'in') btn.textContent = 'Getting location…';
         const where = action === 'in' ? await readClockLocation() : {};
         const res = await api.post('/api/me/clock', { action, ...where });
-        toast(res.message.replace(emp.firstName, 'You') + (where.locationError ? ' Your location could not be read, so it was recorded without one.' : ''));
+        toast(res.message.replace(emp.firstName, 'You').replace(/\b(\d{2}:\d{2})\b/, (t) => fmtTime(t)) + (where.locationError ? ' Your location could not be read, so it was recorded without one.' : ''));
         render();
       } catch (err) {
         toast(err.message, 'error');
@@ -123,7 +132,7 @@ export async function meHomeView(el) {
     const t = el.querySelector('#clock-time');
     if (!t) return;
     const now = new Date();
-    t.textContent = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    showClock(t, now);
     el.querySelector('#clock-date').textContent = now.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   };
   const timer = setInterval(tick, 1000);
@@ -186,7 +195,7 @@ export async function mePayslipsView(el) {
     <div class="stats">
       <div class="card"><small>Gross pay</small><strong>${money(t.grossPay)}</strong></div>
       <div class="card"><small>Tax withheld</small><strong>${money(t.withholdingTax)}</strong></div>
-      <div class="card"><small>SSS, PhilHealth, Pag-IBIG</small><strong>${money(t.sss + t.philhealth + t.pagibig)}</strong></div>
+      <div class="card"><small>SSS, PhilHealth, Pag&#8209;IBIG</small><strong>${money(t.sss + t.philhealth + t.pagibig)}</strong></div>
       <div class="card"><small>13th month so far</small><strong>${money(t.thirteenthMonthSoFar)}</strong></div>
     </div>` : ''}
     <section class="card">
@@ -224,10 +233,10 @@ export async function meProfileView(el) {
   const sched = scheduleFor(emp, ctx.settings);
   mount(el, html`
     <header class="page-head">
-      <div class="person big"><span class="avatar">${emp.firstName[0]}${emp.lastName[0]}</span>
+      <div class="person big">${avatar(ctx.user.id, `${emp.firstName} ${emp.lastName}`)}
         <div><h1>${emp.firstName} ${emp.middleName ? emp.middleName + ' ' : ''}${emp.lastName}</h1>
-        <p class="muted">${emp.position || 'Employee'} · ${emp.department || '—'} · ${emp.employeeNo}</p></div></div>
-      <div class="actions"><button class="btn" id="change-pw">Change password</button></div>
+        <p class="muted">${emp.position || 'Employee'} · ${emp.department || '—'} · <span class="nowrap">${emp.employeeNo}</span></p></div></div>
+      <div class="actions"><button class="btn" id="my-pic">${ctx.avatars?.[ctx.user.id] ? 'Change my picture' : 'Add my picture'}</button><button class="btn" id="change-pw">Change password</button></div>
     </header>
     <div class="cols">
       <section class="card"><h2>Personal</h2><dl class="info-grid">
@@ -247,6 +256,7 @@ export async function meProfileView(el) {
     </div>
     <p class="muted small">Need to update your details? Contact HR.</p>`);
   el.querySelector('#change-pw').addEventListener('click', openChangePassword);
+  el.querySelector('#my-pic').addEventListener('click', () => editMyAvatar(() => location.reload()));
 }
 
 export async function meRequestsView(el, _params, query) {
@@ -332,6 +342,13 @@ export async function meRequestsView(el, _params, query) {
   if (query.new) {
     history.replaceState(null, '', '#/me/requests');
     el.querySelector('#new-request').click();
+  }
+  // From a notification: the request's details.
+  if (query.open) {
+    history.replaceState(null, '', '#/me/requests');
+    const row = [...el.querySelectorAll('tr[data-open]')].find((tr) => tr.dataset.open === query.open);
+    if (row) row.querySelector('td').click();
+    else toast('That request is no longer there.', 'error');
   }
 }
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;

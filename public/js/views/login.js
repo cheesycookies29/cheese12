@@ -1,30 +1,34 @@
 import { api } from '../api.js';
 import { ctx } from '../state.js';
 import { html, mount, modal, toast } from '../ui.js';
+import { twoFactorSetup } from './security.js';
 
-const MODULES = ['HR & Payroll', 'IT Assets', 'Service Desk', 'Sales & CRM'];
+const MODULES = ['HR & Payroll', 'IT Assets', 'Service Desk', 'Sales & CRM', 'Projects'];
 
-// The sign-in screens: CORE's own ground (deep maroon, the mark drawn large in gold line) beside
-// a cream panel that holds the form. On a phone the ground shrinks to a band above the form.
+// The sign-in screens: CORE's own ground (the brand colour, the mark drawn large in the accent's
+// line) beside a cream panel that holds the form. On a phone the ground shrinks to a band above the
+// form. The colour, the company's logo and the headline come from Admin panel → Settings & branding.
 function authScreen(el, card) {
+  const b = ctx.brand || {};
+  const company = b.companyName || 'Lancaster Technology and Development Corporation';
   mount(el, html`
     <div class="auth-screen">
       <section class="auth-stage">
         <img class="auth-stage-mark" src="/img/core-mark-line.svg" alt="" />
-        <div class="auth-wordmark"><img src="/img/core-mark.svg" alt="" /><span>CORE</span></div>
+        <div class="auth-wordmark"><img src="/img/core-mark.svg" alt="" /><span>CORE</span>${b.logo ? html`<img class="auth-logo" src="${b.logo}" alt="${company}" />` : ''}</div>
         <div class="auth-intro">
           <p class="auth-kicker">ERP by Lancaster</p>
-          <h1>Every part of the company, on one core.</h1>
-          <p>One sign-in for the people, equipment, service and sales work of Lancaster Technology and Development Corporation.</p>
+          <h1>${b.headline || 'Every part of the company, on one core.'}</h1>
+          <p>One sign-in for the people, equipment, service, sales and project work of ${company}.</p>
         </div>
         <ul class="auth-modules" aria-label="Modules">${MODULES.map((m) => html`<li>${m}</li>`)}</ul>
       </section>
       <section class="auth-panel">
         ${card}
-        <p class="auth-legal">© ${new Date().getFullYear()} Lancaster Technology and Development Corporation</p>
+        <p class="auth-legal">© ${new Date().getFullYear()} ${company}</p>
       </section>
     </div>`);
-  const form = el.querySelector('form');
+  const form = el.querySelector('.auth-card');
   form.querySelector('input')?.focus();
   form.querySelectorAll('[data-toggle-pw]').forEach((btn) =>
     btn.addEventListener('click', () => {
@@ -71,9 +75,69 @@ export function loginView(el, { onSignedIn }) {
     </form>`);
   onSubmit(form, async ({ username, password }) => {
     if (!username || !password) throw new Error('Enter your username and password.');
-    await api.post('/api/auth/login', { username, password });
+    const res = await api.post('/api/auth/login', { username, password });
+    // With 2-step verification on, the code from the authenticator app comes next.
+    if (res.twoFactorRequired) return codeView(el, { challenge: res.challenge, onSignedIn });
     onSignedIn();
   });
+}
+
+// The second step of signing in: the 6-digit code from the authenticator app, or a recovery code.
+function codeView(el, { challenge, onSignedIn }) {
+  const form = authScreen(el, html`
+    <form class="auth-card" novalidate>
+      <h2>Enter your code</h2>
+      <p class="muted code-hint">Open your authenticator app and enter the 6&#8209;digit code for <strong>CORE ERP</strong>.</p>
+      <label class="field"><span class="code-label">Code</span><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required /></label>
+      <p class="form-error" hidden></p>
+      <button class="btn primary block" type="submit">Verify and sign in</button>
+      <p class="auth-foot"><button type="button" class="link" id="use-recovery">Lost your phone? Use a recovery code</button></p>
+      <p class="auth-foot"><button type="button" class="link" id="start-over">Back to sign in</button></p>
+    </form>`);
+  const input = form.querySelector('[name=code]');
+  form.querySelector('#use-recovery').addEventListener('click', (e) => {
+    input.setAttribute('inputmode', 'text');
+    input.removeAttribute('maxlength');
+    input.setAttribute('autocomplete', 'off');
+    form.querySelector('.code-label').textContent = 'Recovery code';
+    form.querySelector('.code-hint').textContent = 'Enter one of the recovery codes you saved, for example K7QPM-2XW4D. Each works once.';
+    e.target.hidden = true;
+    // The old error said to use a recovery code: it no longer applies.
+    const err = form.querySelector('.form-error');
+    err.hidden = true;
+    err.textContent = '';
+    input.value = '';
+    input.focus();
+  });
+  form.querySelector('#start-over').addEventListener('click', () => loginView(el, { onSignedIn }));
+  onSubmit(form, async ({ code }) => {
+    if (!String(code || '').trim()) throw new Error('Enter the code.');
+    try {
+      await api.post('/api/auth/2fa', { challenge, code });
+    } catch (err) {
+      // The sign-in expired or too many wrong codes: back to the password.
+      if (/username and password again/.test(err.message)) {
+        loginView(el, { onSignedIn });
+        toast(err.message, 'error');
+        return;
+      }
+      throw err;
+    }
+    onSignedIn();
+  });
+}
+
+// The company requires 2-step verification for this account and it is not set up yet.
+export function forceTwoFactorView(el, { onSignedIn, onSignOut }) {
+  const card = authScreen(el, html`
+    <div class="auth-card">
+      <h2>Set up 2-step verification</h2>
+      <p class="muted">Your company requires 2-step verification for your account. It takes a minute, with an app on your phone.</p>
+      <div class="tfa-box"></div>
+      <p class="auth-foot"><button type="button" class="link" id="sign-out-link">Sign out</button></p>
+    </div>`);
+  card.querySelector('#sign-out-link').addEventListener('click', onSignOut);
+  twoFactorSetup(card.querySelector('.tfa-box'), { onDone: () => onSignedIn() });
 }
 
 export function setupView(el, { onSignedIn }) {

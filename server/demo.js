@@ -6,12 +6,14 @@
 import { randomUUID } from 'node:crypto';
 import { demoData } from './seed.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
-import { DEMO_OWNER } from './seed.js';
+import { DEMO_OWNER, DEMO_USER, seedNotifications } from './seed.js';
 import { CRM_COLLECTIONS } from './crm.js';
+import { PM_COLLECTIONS } from './projects.js';
+import { addStarterTemplates } from './pm-templates.js';
 import { routeRequest, migrateApprovals } from './approvals.js';
 
 // Collections the demo set adds to.
-const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS];
+const COLLECTIONS = ['employees', 'timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments', 'assets', 'assetHistory', 'inventoryItems', 'stockMovements', 'issueReports', 'tickets', ...CRM_COLLECTIONS, ...PM_COLLECTIONS, 'notifications'];
 // Records that belong to an employee and go with a demo employee.
 const BY_EMPLOYEE = ['timeEntries', 'requests', 'leaveCredits', 'leaveAccess', 'leaveAdjustments'];
 
@@ -19,13 +21,16 @@ const highest = (codes, re) => codes.reduce((m, c) => Math.max(m, Number(String(
 
 export const hasDemo = (db) => COLLECTIONS.some((k) => (db.data[k] || []).some((x) => x.demo)) || db.data.users.some((u) => u.demo);
 
+// Projects are counted without templates (the starter templates are not demo projects).
 export function demoCounts(db) {
-  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets', 'crmAccounts', 'crmDeals'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo).length]));
+  return Object.fromEntries(['employees', 'assets', 'inventoryItems', 'tickets', 'crmAccounts', 'crmDeals', 'pmProjects'].map((k) => [k, (db.data[k] || []).filter((x) => x.demo && !(k === 'pmProjects' && x.isTemplate)).length]));
 }
 
 // summarize(run) recomputes a payroll run's totals after demo payslips are taken out of it.
-export function removeDemo(db, { summarize }) {
+// removeFile(meta): removes a stored file (files on the tasks and milestones that go).
+export function removeDemo(db, { summarize, removeFile = () => {} }) {
   const d = db.data;
+  const withFiles = [...d.pmTasks, ...d.pmMilestones].filter((x) => x.attachments?.length);
   const empIds = new Set(d.employees.filter((e) => e.demo).map((e) => e.id));
   const assetIds = new Set(d.assets.filter((a) => a.demo).map((a) => a.id));
   const itemIds = new Set(d.inventoryItems.filter((i) => i.demo).map((i) => i.id));
@@ -54,6 +59,9 @@ export function removeDemo(db, { summarize }) {
       if (demoUsers.has(x.updatedBy)) x.updatedBy = null;
     }
   }
+  removeDemoProjects(d, demoUsers);
+  const kept = new Set([...d.pmTasks, ...d.pmMilestones].map((x) => x.id));
+  for (const x of withFiles) if (!kept.has(x.id)) x.attachments.forEach(removeFile);
   for (const k of BY_EMPLOYEE) d[k] = d[k].filter((x) => !empIds.has(x.employeeId));
   // Real employees who reported to a demo employee no longer have a supervisor on record.
   for (const e of d.employees) if (empIds.has(e.supervisorId)) e.supervisorId = null;
@@ -71,6 +79,9 @@ export function removeDemo(db, { summarize }) {
   d.tickets = d.tickets.filter((t) => !demoUsers.has(t.requester?.userId));
   for (const t of d.tickets) if (demoUsers.has(t.assigneeId)) t.assigneeId = null;
   d.feedback = d.feedback.filter((f) => !demoUsers.has(f.userId));
+  // The bell: demo accounts' notifications go; others' no longer name a demo account.
+  d.notifications = (d.notifications || []).filter((n) => !demoUsers.has(n.userId));
+  for (const n of d.notifications) if (demoUsers.has(n.actorId)) n.actorId = null;
   // Draft payroll runs drop demo employees; finalized runs are a record and stay as they were.
   for (const run of d.payrollRuns) {
     if (run.status !== 'draft') continue;
@@ -82,9 +93,61 @@ export function removeDemo(db, { summarize }) {
   return removed;
 }
 
+// After the demo records are gone: what was inside a demo project goes too; real projects drop
+// demo people, and links to demo CRM records and tickets.
+function removeDemoProjects(d, demoUsers) {
+  const projects = new Set(d.pmProjects.map((p) => p.id));
+  for (const k of PM_COLLECTIONS.slice(1)) d[k] = d[k].filter((x) => projects.has(x.projectId));
+  const tasks = new Set(d.pmTasks.map((t) => t.id));
+  d.pmComments = d.pmComments.filter((c) => tasks.has(c.taskId) && !demoUsers.has(c.userId));
+  d.pmTimeLogs = d.pmTimeLogs.filter((x) => !demoUsers.has(x.userId));
+  for (const x of d.pmTimeLogs) if (x.taskId && !tasks.has(x.taskId)) x.taskId = null;
+  // Demo accounts' notifications and private views go; a demo account's actions on real projects
+  // stay in others' notifications without a name.
+  d.pmNotifications = d.pmNotifications.filter((n) => !demoUsers.has(n.userId) && (!n.taskId || tasks.has(n.taskId)));
+  for (const n of d.pmNotifications) if (demoUsers.has(n.actorId)) n.actorId = null;
+  d.pmViews = d.pmViews.filter((v) => !demoUsers.has(v.userId));
+  for (const v of d.pmViews) if (demoUsers.has(v.createdBy)) v.createdBy = null;
+  const alive = (k) => new Set(d[k].map((x) => x.id));
+  const live = { accountId: alive('crmAccounts'), dealId: alive('crmDeals'), contractId: alive('crmContracts') };
+  for (const p of d.pmProjects) {
+    for (const [field, ids] of Object.entries(live)) if (p[field] && !ids.has(p[field])) p[field] = null;
+    p.members = p.members.filter((m) => !demoUsers.has(m.userId));
+    if (demoUsers.has(p.managerId)) p.managerId = null;
+  }
+  const tickets = alive('tickets');
+  for (const t of d.pmTasks) {
+    if (demoUsers.has(t.assigneeId)) t.assigneeId = null;
+    if (t.watchers?.some((x) => demoUsers.has(x))) t.watchers = t.watchers.filter((x) => !demoUsers.has(x));
+    if (t.ticketId && !tickets.has(t.ticketId)) t.ticketId = null;
+  }
+}
+
+// Demo projects name people by username (seed.js DEMO_USER); these become the accounts' ids, or
+// nobody when the account is not there.
+function linkDemoPeople(d) {
+  const id = (v) => (typeof v === 'string' && v.startsWith(DEMO_USER('')) ? d.users.find((u) => u.username === v.slice(DEMO_USER('').length))?.id || null : v);
+  for (const p of d.pmProjects.filter((x) => x.demo)) {
+    p.members = p.members.map((m) => ({ ...m, userId: id(m.userId) })).filter((m) => m.userId);
+    for (const f of ['managerId', 'createdBy', 'updatedBy']) p[f] = id(p[f]);
+    for (const h of p.history || []) h.by = id(h.by);
+    if (p.healthOverride) p.healthOverride.by = id(p.healthOverride.by);
+  }
+  for (const t of d.pmTasks.filter((x) => x.demo)) {
+    for (const f of ['assigneeId', 'createdBy', 'updatedBy']) t[f] = id(t[f]);
+    t.watchers = [...new Set((t.watchers || []).map(id).filter(Boolean))];
+    for (const h of t.history || []) h.by = id(h.by);
+  }
+  for (const k of ['pmComments', 'pmTimeLogs']) d[k] = d[k].filter((x) => !x.demo || (x.userId = id(x.userId)));
+  d.pmNotifications = d.pmNotifications.filter((n) => !n.demo || ((n.actorId = id(n.actorId)), (n.userId = id(n.userId))));
+  // A private demo view whose account is not there goes (it must never become a shared one).
+  d.pmViews = d.pmViews.filter((v) => !v.demo || v.userId === null || (v.userId = id(v.userId)));
+  for (const v of d.pmViews.filter((x) => x.demo)) v.createdBy = id(v.createdBy);
+}
+
 // Adds a fresh demo set (replacing an earlier one) without touching real records.
-export function addDemo(db, { summarize, demoAccounts }) {
-  if (hasDemo(db)) removeDemo(db, { summarize });
+export function addDemo(db, { summarize, demoAccounts, removeFile }) {
+  if (hasDemo(db)) removeDemo(db, { summarize, removeFile });
   const d = db.data;
   const demo = demoData({
     employeePrefix: 'DEMO-', assetPrefix: 'DEMO-IT-', skuPrefix: 'DEMO-SKU-', serialPrefix: 'DEMO', crmPrefix: 'DEMO-',
@@ -108,5 +171,9 @@ export function addDemo(db, { summarize, demoAccounts }) {
     if (x.ownerId === DEMO_OWNER) x.ownerId = salesOwner?.id || null;
     if (x.createdBy === DEMO_OWNER) x.createdBy = salesOwner?.id || null;
   }
+  linkDemoPeople(d);
+  // The starter templates, if they were deleted: the demo shows "+ New project" from a template.
+  addStarterTemplates(d, { demo: true });
+  seedNotifications(db);
   return demoCounts(db);
 }

@@ -1,14 +1,16 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { computePayslip, toMinutes } from '../shared/calc.js';
 import { DAY_TYPES } from '../shared/holidays.js';
 import { HttpError, localDate, localTime } from './util.js';
 import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
-import { createAttachments } from './attachments.js';
+import { createAttachments, parseUpload } from './attachments.js';
 import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
+import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects, timesheetAccess } from './projects.js';
+import { registerNotificationRoutes, migrateNotifications, notify, forgetUser, accountOfEmployee, fmtRange } from './notifications.js';
 import { migrateApprovals, isApprover } from './approvals.js';
 import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
 import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS } from './audit.js';
@@ -16,10 +18,16 @@ import { registerLedgerRoutes, syncLedger, postRun, voidRunRows, yearTotals } fr
 import { registerGuideRoutes } from './guides.js';
 import { areaOfPath } from '../shared/audit.js';
 import { createSecrets } from './secrets.js';
+import { createRateLimiter } from './ratelimit.js';
+import { securitySettings, validateSecuritySettings, twoFactorRequired, TWO_FACTOR_POLICIES } from './security.js';
+import { newSecret, verifyCode, otpauthUrl, newRecoveryCodes, hashRecovery, looksLikeRecovery } from './totp.js';
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
-import { ROLES, userCan } from '../shared/roles.js';
+import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides } from '../shared/roles.js';
+import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig } from '../shared/modules.js';
+import { registerAdminRoutes } from './config.js';
+import { validateBranding, publicBrand, settingsForBrowser } from './branding.js';
 import {
   hashPassword, verifyPassword, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
   sessionCookie, clearedCookie, SESSION_COOKIE,
@@ -30,7 +38,7 @@ import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Changes that are records in themselves, or not about company data: no generic audit entry.
-const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'mustChangePassword'];
+const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'mustChangePassword'];
 const UNAUDITED = /^\/api\/(me\/clock|clock|auth\/logout|feedback|me\/feedback|public\/)/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -268,13 +276,68 @@ function findUser(db, id) {
   return user;
 }
 
-// The visitor's address. Behind the local HTTPS proxy (Caddy) it comes from X-Forwarded-For;
-// that header is trusted only from this machine, so it can't be faked from outside.
-function clientIp(req) {
+// The visitor's address. Behind the local HTTPS proxy (Caddy) it comes from X-Forwarded-For, and
+// that header is read only when the request comes from this machine. A visitor can send the
+// header too, and a proxy adds the address it saw after theirs: so the last entry, the one the
+// nearest proxy wrote, is the address, and whatever comes before it is ignored.
+export function clientIp(req) {
   const remote = req.socket?.remoteAddress || '';
   const forwarded = req.headers?.['x-forwarded-for'];
-  if (forwarded && /^(127\.|::1$|::ffff:127\.)/.test(remote)) return String(forwarded).split(',')[0].trim();
+  if (forwarded && /^(127\.|::1$|::ffff:127\.)/.test(remote)) {
+    const last = String(forwarded).split(',').pop().trim();
+    if (last) return last;
+  }
   return remote || 'local';
+}
+
+// A user account as a backup may carry it: only the fields CORE itself writes, each of the right
+// kind. Anything else in the file is dropped; a wrong value refuses the whole restore.
+const PASSWORD_HASH_RE = /^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/;
+const isText = (v, max = 400) => typeof v === 'string' && v.length <= max;
+const optional = (v, ok) => v === undefined || v === null || ok(v);
+function validTwoFactor(tf) {
+  if (!tf || typeof tf !== 'object' || Array.isArray(tf)) return null;
+  if (!isText(tf.secret) || !isText(tf.enabledAt, 40) || !optional(tf.lastStep, Number.isInteger) || !Array.isArray(tf.recovery) || tf.recovery.length > 20) return null;
+  if (!tf.recovery.every((r) => r && isText(r.hash, 128) && optional(r.usedAt, (v) => isText(v, 40)))) return null;
+  return { secret: tf.secret, enabledAt: tf.enabledAt, lastStep: tf.lastStep ?? -1, recovery: tf.recovery.map((r) => ({ hash: r.hash, usedAt: r.usedAt ?? null })) };
+}
+function backupUsers(list) {
+  const bad = (i, why) => new HttpError(400, `That backup cannot be restored: user account ${i + 1} ${why}. Nothing was changed.`);
+  const out = [];
+  list.forEach((raw, i) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw bad(i, 'is not an account');
+    if (!isText(raw.id, 64) || !raw.id) throw bad(i, 'has no valid id');
+    if (typeof raw.username !== 'string' || !USERNAME_RE.test(raw.username) || raw.username !== raw.username.toLowerCase()) throw bad(i, 'has an invalid username');
+    if (!isText(raw.name, 200) || !raw.name.trim()) throw bad(i, 'has no name');
+    if (!Object.hasOwn(ROLES, raw.role)) throw bad(i, 'has an unknown account type');
+    if (typeof raw.active !== 'boolean') throw bad(i, 'does not say whether it is active');
+    if (typeof raw.passwordHash !== 'string' || !PASSWORD_HASH_RE.test(raw.passwordHash)) throw bad(i, 'has an invalid password hash');
+    if (!optional(raw.employeeId, (v) => isText(v, 64))) throw bad(i, 'has an invalid employee link');
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'pmDigest', 'demo']) if (!optional(raw[k], (v) => typeof v === 'boolean')) throw bad(i, `has an invalid "${k}"`);
+    for (const k of ['createdAt', 'lastLoginAt']) if (!optional(raw[k], (v) => isText(v, 40))) throw bad(i, `has an invalid "${k}"`);
+    const u = { id: raw.id, username: raw.username, name: raw.name.trim(), role: raw.role, employeeId: raw.employeeId || null, active: raw.active, passwordHash: raw.passwordHash };
+    for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'pmDigest', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
+    if (raw.twoFactor !== undefined && raw.twoFactor !== null) {
+      u.twoFactor = validTwoFactor(raw.twoFactor);
+      if (!u.twoFactor) throw bad(i, 'has invalid 2-step verification details');
+    }
+    if (raw.twoFactorPending !== undefined && raw.twoFactorPending !== null) {
+      const p = raw.twoFactorPending;
+      if (typeof p !== 'object' || !isText(p.secret) || !isText(p.createdAt, 40)) throw bad(i, 'has invalid 2-step verification details');
+      u.twoFactorPending = { secret: p.secret, createdAt: p.createdAt };
+    }
+    if (out.some((x) => x.username === u.username)) throw bad(i, `repeats the username "${u.username}"`);
+    if (out.some((x) => x.id === u.id)) throw bad(i, 'repeats the id of another account');
+    out.push(u);
+  });
+  if (!out.some((u) => u.role === 'admin' && u.active)) throw new HttpError(400, 'That backup cannot be restored: it has no active Administrator account. Nothing was changed.');
+  return out;
+}
+
+// Whether the visitor reached CORE over HTTPS: directly, or through the HTTPS proxy on this computer.
+function isHttps(req) {
+  const local = /^(127\.|::1$|::ffff:127\.)/.test(req.socket?.remoteAddress || '');
+  return Boolean(req.socket?.encrypted) || (local && req.headers?.['x-forwarded-proto'] === 'https');
 }
 
 // The address people use to reach the app, e.g. https://erp.company.com, for links in emails.
@@ -303,11 +366,15 @@ function applyPolicyUpdates(db) {
 }
 
 // Replace all data, then unlink accounts whose employee record no longer exists.
-function replaceData(db, next) {
+// keepAdmin: keep the company's changes to the account types and which modules are on (erasing
+// all data keeps the accounts, so it keeps what they may do).
+function replaceData(db, next, { keepAdmin = false } = {}) {
   // The dev log and user feedback are about the software, not company data: keep them unless a backup
   // brings its own (demo data and "erase all data" start from an empty template and must not wipe them).
   db.replace({
     ...next,
+    // Where the audit log's keyed entries begin belongs to this server's log, not to the backup.
+    settings: { ...next.settings, auditKeyedFrom: db.data.settings.auditKeyedFrom },
     devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog,
     feedback: Array.isArray(next.feedback) && next.feedback.length ? next.feedback : db.data.feedback,
     // So are administrators' edits of the Help guides.
@@ -316,8 +383,19 @@ function replaceData(db, next) {
     helpdesk: keepHelpdeskConfig(db.data.helpdesk, next.helpdesk),
     // So is the sales setup (pipeline stages, sources, checklist); CRM records are company data.
     crm: keepCrmConfig(db.data.crm, next.crm),
+    // So is the Projects setup (default statuses, project types); projects are company data.
+    pm: keepPmConfig(db.data.pm, next.pm),
+    // Roles and modules come from a backup only as CORE writes them (never an admin-only power for
+    // another account type); the settings history and the last backup belong to this server.
+    roleOverrides: keepAdmin || next.roleOverrides === undefined ? db.data.roleOverrides : cleanOverrides(next.roleOverrides),
+    modules: keepAdmin || next.modules === undefined ? db.data.modules : cleanModuleConfig(next.modules),
+    settingsLog: db.data.settingsLog || [],
+    adminState: db.data.adminState,
   });
+  setRoleOverrides(db.data.roleOverrides);
   migrateCrm(db);
+  migratePm(db);
+  migrateNotifications(db);
   syncDevlog(db);
   migrateLeaveTypes(db);
   const ids = new Set(db.data.employees.map((e) => e.id));
@@ -326,20 +404,22 @@ function replaceData(db, next) {
 }
 
 const DEMO_PASSWORD = 'demo1234';
-const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['sales.demo', 'salesmgr', 'Demo Sales Manager'], ['employee.demo', 'employee', null]];
+const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['sales.demo', 'salesmgr', 'Demo Sales Manager'], ['pm.demo', 'pm', null], ['employee.demo', 'employee', null]];
 
 function demoAccounts(db, employees) {
   const taken = new Set(db.data.users.map((u) => u.username));
   const juan = employees.find((e) => e.firstName === 'Juan') || employees[0];
   const maria = employees.find((e) => e.firstName === 'Maria');
+  const andrea = employees.find((e) => e.firstName === 'Andrea') || juan;
   const linked = new Set(db.data.users.map((u) => u.employeeId).filter(Boolean));
   return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => ({
     id: randomUUID(),
     username,
-    name: name || `${juan.firstName} ${juan.lastName}`,
+    name: name || (role === 'pm' ? `${andrea.firstName} ${andrea.lastName}` : `${juan.firstName} ${juan.lastName}`),
     role,
-    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager.
-    employeeId: role === 'employee' ? juan.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null,
+    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager; the
+    // project manager is Andrea, who runs the delivery projects.
+    employeeId: role === 'employee' ? juan.id : role === 'pm' && !linked.has(andrea.id) ? andrea.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null,
     active: true,
     mustChangePassword: false,
     demo: true,
@@ -382,17 +462,49 @@ function clock(db, emp, action, body = {}, source = 'self') {
   throw new HttpError(400, 'Action must be "in" or "out".');
 }
 
-export function createApi(db) {
-  const audit = createAudit(db.dir);
-  const files = createAttachments(path.join(db.dir, 'attachments'));
+// rateLimits: on in the running app (server.js); off where tests call the API directly.
+// digestMail and digestClock: tests replace how the Projects digest sends and what time it is.
+export function createApi(db, { rateLimits = false, digestMail, digestClock } = {}) {
   const secrets = createSecrets(db.dir);
-  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
+  // The audit chain is sealed with a key made from the server key. Where keyed entries begin is
+  // kept in the settings (never taken from a restored backup: see replaceData).
+  const audit = createAudit(db.dir, {
+    key: () => secrets.derive('core-audit-chain-v1'),
+    keyedFrom: () => db.data.settings.auditKeyedFrom,
+    setKeyedFrom: (seq) => {
+      db.data.settings.auditKeyedFrom = seq;
+      db.save();
+    },
+  });
+  const files = createAttachments(path.join(db.dir, 'attachments'));
+  // What each account type may do, with the company's changes (Admin panel → Roles & permissions).
+  setRoleOverrides(db.data.roleOverrides);
+  const migrated = [syncDevlog(db), migrateLeaveTypes(db), purgeOldLocations(db), applyPolicyUpdates(db), migrateHelpdesk(db), migrateCrm(db), migratePm(db), migrateNotifications(db), migrateApprovals(db), migrateHolidays(db), syncLedger(db)];
   if (migrated.some(Boolean)) db.save();
   // Clock-in locations past the retention period are removed while the server runs, too.
   setInterval(() => purgeOldLocations(db) && db.save(), 6 * 60 * 60 * 1000).unref();
   const routes = [];
-  const sessions = createSessions();
+  // Sign-in and security policy (Admin panel → Sign-in & security), read at each use so changes apply at once.
+  const sec = () => securitySettings(db);
+  const sessions = createSessions(() => ({ idleMs: sec().sessionIdleMinutes * 60000, maxMs: sec().sessionMaxHours * 3600000 }));
   const throttle = createThrottle();
+  // Rate limits: everyday use per person (or per network address before signing in), sign-in
+  // attempts and failures per address, password and 2-step changes per person, the public form.
+  const limiter = createRateLimiter(() => {
+    const s = sec();
+    return {
+      'api-user': { limit: s.requestsPerMinute, windowMs: 60000 },
+      'api-anon': { limit: 120, windowMs: 60000 },
+      auth: { limit: 20, windowMs: 60000 },
+      'signin-fail': { limit: s.signInFailuresPerAddress, windowMs: 15 * 60000 },
+      sensitive: { limit: 10, windowMs: 15 * 60000 },
+      'public-write': { limit: 20, windowMs: 60 * 60000 },
+    };
+  });
+  const limits = rateLimits ? limiter : { hit() {}, check() {}, add() {} };
+  // A password that was right, waiting for the 2-step code: challenge id → { userId, expires, attempts }.
+  const challenges = new Map();
+  const TWO_FACTOR_WAIT = 5 * 60000;
   // permission: 'public', 'auth' (any signed-in user) or a permission from shared/roles.js
   const route = (method, pattern, permission, handler, { duringPasswordChange = false } = {}) => {
     const keys = [];
@@ -402,11 +514,44 @@ export function createApi(db) {
   const users = () => db.data.users;
   const activeAdmins = () => users().filter((u) => u.role === 'admin' && u.active);
 
-  function startSession(user) {
+  function startSession(user, client = {}) {
     user.lastLoginAt = new Date().toISOString();
     db.save();
-    return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': sessionCookie(sessions.create(user.id)) } };
+    const token = sessions.create(user.id, client);
+    return { data: { user: authUser(user) }, headers: { 'Set-Cookie': sessionCookie(token, { maxAge: sessions.maxAgeSeconds(), secure: client.https }) } };
   }
+  // The signed-in account as the browser sees it, with whether 2-step verification must be set up first.
+  const authUser = (user) => ({ ...publicUser(user), isApprover: isApprover(db, user), inProjects: isProjectMember(db, user), timesheet: timesheetAccess(db, user), twoFactorSetupRequired: twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt });
+  const requirePassword = (user, password) => {
+    if (!verifyPassword(String(password || ''), user.passwordHash)) throw new HttpError(400, 'Your password is not right.');
+  };
+  // The second step: a code from the authenticator app (each works once), or an unused recovery code.
+  // Returns 'app', 'recovery', or null when it is wrong.
+  function secondFactor(user, code) {
+    const tf = user.twoFactor;
+    if (!tf?.enabledAt) return null;
+    if (looksLikeRecovery(code)) {
+      const hit = (tf.recovery || []).find((r) => r.hash === hashRecovery(code) && !r.usedAt);
+      if (!hit) return null;
+      hit.usedAt = new Date().toISOString();
+      db.save();
+      return 'recovery';
+    }
+    // The secret is sealed with this server's key; a backup restored elsewhere only accepts recovery codes.
+    const secret = secrets.open(tf.secret);
+    const step = secret && verifyCode(secret, code, { lastStep: tf.lastStep ?? -1 });
+    if (step == null || step === false) return null;
+    tf.lastStep = step;
+    db.save();
+    return 'app';
+  }
+  const recoveryLeft = (user) => (user.twoFactor?.recovery || []).filter((r) => !r.usedAt).length;
+  const issueRecovery = (user) => {
+    const codes = newRecoveryCodes();
+    user.twoFactor.recovery = codes.map((c) => ({ hash: hashRecovery(c), usedAt: null }));
+    return codes;
+  };
+  const passwordRules = (who) => [who, sec()];
 
   function linkedEmployee(user) {
     const emp = user.employeeId && db.data.employees.find((e) => e.id === user.employeeId);
@@ -415,37 +560,89 @@ export function createApi(db) {
   }
 
   // ----- Sign in -----
-  route('GET', '/api/auth/status', 'public', ({ user }) => ({ setupRequired: users().length === 0, user: user ? { ...publicUser(user), isApprover: isApprover(db, user) } : null }));
-  route('POST', '/api/auth/setup', 'public', ({ body }) => {
+  // Before sign-in too: the branding (colours, headline, logo) for the sign-in page. Signed in: the
+  // account, the company's changes to the account types and which modules are on, so the browser
+  // shows what the server allows.
+  route('GET', '/api/auth/status', 'public', ({ user }) => ({
+    setupRequired: users().length === 0, user: user ? authUser(user) : null, brand: publicBrand(db.data.settings),
+    ...(user ? { roleOverrides: roleOverrides(), modules: cleanModuleConfig(db.data.modules) } : {}),
+  }));
+  route('POST', '/api/auth/setup', 'public', ({ body, client }) => {
     if (users().length) throw new HttpError(400, 'Setup is already complete. Please sign in.');
     const user = { id: randomUUID(), ...validateUser({ ...body, role: 'admin', active: true }, db), mustChangePassword: false };
-    validatePassword(body.password);
+    validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.createdAt = new Date().toISOString();
     users().push(user);
     audit.record('user.create', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, note: 'First administrator, created at setup', actor: { user, ip: currentActor()?.ip } });
-    return startSession(user);
+    return startSession(user, client);
   });
-  route('POST', '/api/auth/login', 'public', ({ body }) => {
+  // Too many failed sign-ins from one network address (any usernames) stop that address for a while;
+  // too many for one username lock it, for longer each time (server/auth.js).
+  const signInFailed = (username, user, client, note) => {
+    limits.add('signin-fail', client.ip);
+    const locked = throttle.fail(username);
+    audit.record('auth.login-failed', { entity: 'user', entityId: user?.id || '', label: username.slice(0, 64), note, actor: { name: `Unknown (${username.slice(0, 64)})`, ip: client.ip } });
+    if (locked) audit.record('auth.locked', { entity: 'user', entityId: user?.id || '', label: username.slice(0, 64), note: `Locked for ${locked} minutes after 5 failed attempts`, actor: { name: 'CORE', ip: client.ip } });
+  };
+  route('POST', '/api/auth/login', 'public', ({ body, client }) => {
     const username = String(body.username || '').trim().toLowerCase();
+    limits.check('signin-fail', client.ip, 'Too many failed sign-ins from this network.');
     throttle.check(username);
     const user = users().find((u) => u.username === username);
-    if (!verifyPassword(String(body.password || ''), user?.passwordHash) || !user.active) {
-      throttle.fail(username);
-      audit.record('auth.login-failed', { entity: 'user', entityId: user?.id || '', label: username.slice(0, 64), note: user && !user.active ? 'Account disabled' : 'Wrong username or password', actor: { name: `Unknown (${username.slice(0, 64)})`, ip: currentActor()?.ip } });
-      throw new HttpError(401, user && !user.active ? 'This account is disabled. Contact your administrator.' : 'Incorrect username or password.');
+    const rightPassword = verifyPassword(String(body.password || ''), user?.passwordHash);
+    if (!rightPassword || !user.active) {
+      signInFailed(username, user, client, user && !user.active ? 'Account disabled' : 'Wrong username or password');
+      // That an account is disabled is said only to someone who knows its password.
+      throw new HttpError(401, rightPassword ? 'This account is disabled. Contact your administrator.' : 'Incorrect username or password.');
     }
     throttle.reset(username);
-    audit.record('auth.login', { entity: 'user', entityId: user.id, label: user.username, actor: { user, ip: currentActor()?.ip } });
-    return startSession(user);
+    // With 2-step verification on, the password alone does not sign in: the code comes next.
+    if (user.twoFactor?.enabledAt) {
+      const challenge = randomBytes(24).toString('hex');
+      challenges.set(challenge, { userId: user.id, expires: Date.now() + TWO_FACTOR_WAIT, attempts: 0 });
+      for (const [id, c] of challenges) if (c.expires < Date.now()) challenges.delete(id);
+      return { twoFactorRequired: true, challenge };
+    }
+    audit.record('auth.login', { entity: 'user', entityId: user.id, label: user.username, actor: { user, ip: client.ip } });
+    return startSession(user, client);
   });
-  route('POST', '/api/auth/logout', 'auth', ({ token }) => {
+  route('POST', '/api/auth/2fa', 'public', ({ body, client }) => {
+    const id = String(body.challenge || '');
+    const c = challenges.get(id);
+    const user = c && c.expires > Date.now() && users().find((u) => u.id === c.userId && u.active);
+    if (!user || !user.twoFactor?.enabledAt) {
+      challenges.delete(id);
+      throw new HttpError(401, 'The sign-in has expired. Enter your username and password again.');
+    }
+    limits.check('signin-fail', client.ip, 'Too many failed sign-ins from this network.');
+    throttle.check(user.username);
+    const how = secondFactor(user, body.code);
+    if (!how) {
+      c.attempts += 1;
+      limits.add('signin-fail', client.ip);
+      audit.record('auth.2fa-failed', { entity: 'user', entityId: user.id, label: user.username, actor: { name: user.name, ip: client.ip } });
+      if (c.attempts >= 5) {
+        challenges.delete(id);
+        signInFailed(user.username, user, client, 'Five wrong 2-step verification codes');
+        throw new HttpError(401, 'Too many wrong codes. Enter your username and password again.');
+      }
+      throw new HttpError(401, 'That code is not right. Check that the time on your phone is correct, or use a recovery code.');
+    }
+    challenges.delete(id);
+    throttle.reset(user.username);
+    if (how === 'recovery') audit.record('auth.recovery-used', { entity: 'user', entityId: user.id, label: user.username, note: `${recoveryLeft(user)} recovery codes left`, actor: { user, ip: client.ip } });
+    audit.record('auth.login', { entity: 'user', entityId: user.id, label: user.username, note: how === 'recovery' ? 'With a recovery code' : 'With 2-step verification', actor: { user, ip: client.ip } });
+    return startSession(user, client);
+  });
+  route('POST', '/api/auth/logout', 'auth', ({ token, client }) => {
     sessions.destroy(token);
-    return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie } };
+    return { data: { ok: true }, headers: { 'Set-Cookie': clearedCookie(client.https) } };
   }, { duringPasswordChange: true });
   route('POST', '/api/auth/change-password', 'auth', ({ user, token, body }) => {
+    limits.hit('sensitive', user.id, 'Too many password changes.');
     if (!verifyPassword(String(body.currentPassword || ''), user.passwordHash)) throw new HttpError(400, 'Your current password is incorrect.');
-    validatePassword(body.newPassword);
+    validatePassword(body.newPassword, ...passwordRules(user));
     if (body.newPassword === body.currentPassword) throw new HttpError(400, 'Choose a password different from the current one.');
     user.passwordHash = hashPassword(body.newPassword);
     user.mustChangePassword = false;
@@ -455,11 +652,141 @@ export function createApi(db) {
     return { user: publicUser(user) };
   }, { duringPasswordChange: true });
 
+  // ----- My security: 2-step verification and where I am signed in -----
+  const during = { duringPasswordChange: true };
+  route('GET', '/api/me/2fa', 'auth', ({ user }) => ({
+    enabled: Boolean(user.twoFactor?.enabledAt), enabledAt: user.twoFactor?.enabledAt || null,
+    recoveryLeft: recoveryLeft(user), required: twoFactorRequired(sec(), user),
+  }), during);
+  // Step 1: a new secret for the authenticator app (the QR code), after the password is confirmed.
+  route('POST', '/api/me/2fa/setup', 'auth', ({ user, body }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    requirePassword(user, body.password);
+    const secret = newSecret();
+    user.twoFactorPending = { secret: secrets.seal(secret), createdAt: new Date().toISOString() };
+    db.save();
+    return { secret, otpauthUrl: otpauthUrl({ secret, account: user.username, issuer: 'CORE ERP' }) };
+  }, during);
+  // Step 2: the first code from the app proves it is set up; then ten recovery codes, shown once.
+  route('POST', '/api/me/2fa/enable', 'auth', ({ user, body, token }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    const pending = user.twoFactorPending;
+    const secret = pending && Date.now() - Date.parse(pending.createdAt) < 15 * 60000 && secrets.open(pending.secret);
+    if (!secret) throw new HttpError(400, 'Start again: scan a new QR code.');
+    const step = verifyCode(secret, body.code);
+    if (step == null) throw new HttpError(400, 'That code is not right. Enter the 6-digit code the app shows now.');
+    user.twoFactor = { secret: pending.secret, enabledAt: new Date().toISOString(), lastStep: step, recovery: [] };
+    delete user.twoFactorPending;
+    const codes = issueRecovery(user);
+    // Anyone signed in elsewhere signs in again, now with the code.
+    sessions.destroyForUser(user.id, token);
+    db.save();
+    audit.record('auth.2fa-on', { entity: 'user', entityId: user.id, label: user.username });
+    return { recoveryCodes: codes, user: authUser(user) };
+  }, during);
+  route('POST', '/api/me/2fa/disable', 'auth', ({ user, body }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    if (twoFactorRequired(sec(), user)) throw new HttpError(400, 'Your company requires 2-step verification for your account, so it cannot be turned off.');
+    requirePassword(user, body.password);
+    if (!secondFactor(user, body.code)) throw new HttpError(400, 'That code is not right.');
+    delete user.twoFactor;
+    db.save();
+    audit.record('auth.2fa-off', { entity: 'user', entityId: user.id, label: user.username });
+    return { user: authUser(user) };
+  }, during);
+  route('POST', '/api/me/2fa/recovery-codes', 'auth', ({ user, body }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    requirePassword(user, body.password);
+    if (!secondFactor(user, body.code)) throw new HttpError(400, 'That code is not right.');
+    const codes = issueRecovery(user);
+    db.save();
+    audit.record('auth.recovery-new', { entity: 'user', entityId: user.id, label: user.username });
+    return { recoveryCodes: codes };
+  }, during);
+  const sessionRow = (s, currentId) => ({ id: s.id, current: s.id === currentId, device: s.device, ip: s.ip, signedInAt: new Date(s.created).toISOString(), lastSeenAt: new Date(s.lastSeen).toISOString() });
+  route('GET', '/api/me/sessions', 'auth', ({ user, token }) => {
+    const current = sessions.get(token, { touch: false })?.id;
+    return sessions.list(user.id).map((s) => sessionRow(s, current));
+  }, during);
+  route('DELETE', '/api/me/sessions/:id', 'auth', ({ user, params }) => {
+    if (!sessions.destroyById(user.id, params.id)) throw new HttpError(404, 'That session has already ended.');
+    audit.record('auth.sessions', { entity: 'user', entityId: user.id, label: user.username, note: 'One session' });
+    return { ok: true };
+  }, during);
+  route('POST', '/api/me/sessions/sign-out-others', 'auth', ({ user, token }) => {
+    const n = sessions.destroyForUser(user.id, token);
+    audit.record('auth.sessions', { entity: 'user', entityId: user.id, label: user.username, note: `${n} other session${n === 1 ? '' : 's'}` });
+    return { signedOut: n };
+  }, during);
+
+  // ----- Sign-in & security settings (Administrators) -----
+  route('GET', '/api/security-settings', 'users.manage', () => ({ ...sec(), policies: TWO_FACTOR_POLICIES }));
+  route('PUT', '/api/security-settings', 'users.manage', ({ body, user }) => {
+    const before = sec();
+    const next = validateSecuritySettings(body, before);
+    // Requiring 2-step verification of yourself before you have it would lock you out at the next sign-in.
+    if (twoFactorRequired(next, user) && !user.twoFactor?.enabledAt) {
+      throw new HttpError(400, 'Turn on 2-step verification for your own account first (your name → My security), then require it.');
+    }
+    db.data.settings.security = next;
+    db.save();
+    const changes = diff(before, next);
+    if (changes.length) audit.record('settings.security', { entity: 'settings', label: 'Sign-in and security', changes });
+    return { ...next, policies: TWO_FACTOR_POLICIES };
+  });
+
+  // ----- Profile pictures -----
+  // Everyone's own small picture, shown instead of their initials. A square JPEG, PNG or WebP (by its
+  // first bytes, never SVG), made small in the browser, at most 300 KB. Set and removed by its owner;
+  // an administrator can remove anyone's. Shown to everyone signed in, with its own type, nosniff and
+  // a sandbox policy; the address carries the picture's date, so a new one is not hidden by the cache.
+  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const AVATAR_MAX = 300 * 1024;
+  const avatarList = () => Object.fromEntries(users().filter((u) => u.avatar?.id).map((u) => [u.id, u.avatar.at]));
+  function setAvatar(user, file) {
+    const up = parseUpload(file);
+    if (!AVATAR_TYPES.includes(up.type)) throw new HttpError(400, 'Use a photo: JPEG, PNG or WebP.');
+    if (up.buffer.length > AVATAR_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${AVATAR_MAX / 1024} KB.`);
+    const old = user.avatar;
+    const saved = files.save({ ...up, name: 'profile' });
+    user.avatar = { id: saved.id, type: saved.type, size: saved.size, at: saved.uploadedAt };
+    if (old?.id) files.remove(old);
+  }
+  function dropAvatar(user) {
+    if (!user.avatar) return false;
+    files.remove(user.avatar);
+    delete user.avatar;
+    return true;
+  }
+  route('GET', '/api/avatars', 'auth', () => avatarList());
+  route('GET', '/api/users/:id/avatar', 'auth', ({ params }) => {
+    const user = users().find((u) => u.id === params.id);
+    if (!user?.avatar?.id) throw new HttpError(404, 'No picture.');
+    return { data: files.buffer(user.avatar), headers: { 'Content-Type': user.avatar.type, 'Content-Disposition': 'inline; filename="profile"', 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=31536000, immutable' } };
+  });
+  route('PUT', '/api/me/avatar', 'auth', ({ user, body }) => {
+    setAvatar(user, body?.file);
+    db.save();
+    return { avatar: user.avatar.at, avatars: avatarList() };
+  });
+  route('DELETE', '/api/me/avatar', 'auth', ({ user }) => {
+    dropAvatar(user);
+    db.save();
+    return { avatar: null, avatars: avatarList() };
+  });
+  route('DELETE', '/api/users/:id/avatar', 'users.manage', ({ params }) => {
+    const user = findUser(db, params.id);
+    if (!dropAvatar(user)) throw new HttpError(400, `${user.name} has no picture.`);
+    db.save();
+    audit.record('user.avatar-remove', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, note: 'Profile picture removed by an administrator' });
+    return publicUser(user);
+  });
+
   // ----- User accounts -----
-  route('GET', '/api/users', 'users.manage', () => users().map(publicUser));
+  route('GET', '/api/users', 'users.manage', () => users().map((u) => ({ ...publicUser(u), sessions: sessions.list(u.id).length, twoFactorRequired: twoFactorRequired(sec(), u) })));
   route('POST', '/api/users', 'users.manage', ({ body }) => {
     const user = { id: randomUUID(), ...validateUser(body, db) };
-    validatePassword(body.password);
+    validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.mustChangePassword = body.mustChangePassword !== false;
     user.createdAt = new Date().toISOString();
@@ -477,14 +804,15 @@ export function createApi(db) {
     }
     const before = publicUser(user);
     Object.assign(user, next, { updatedAt: new Date().toISOString() });
-    if (!user.active) sessions.destroyForUser(user.id);
+    // A disabled account, or one whose role changed, signs in again (with its new access).
+    if (!user.active || before.role !== user.role) sessions.destroyForUser(user.id);
     db.save();
     audit.record('user.update', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, changes: diff(before, publicUser(user), USER_AUDIT_FIELDS) });
     return publicUser(user);
   });
   route('POST', '/api/users/:id/reset-password', 'users.manage', ({ params, body }) => {
     const user = findUser(db, params.id);
-    validatePassword(body.password);
+    validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.mustChangePassword = true;
     sessions.destroyForUser(user.id);
@@ -492,13 +820,37 @@ export function createApi(db) {
     audit.record('user.reset-password', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})` });
     return publicUser(user);
   });
+  route('POST', '/api/users/:id/sign-out', 'users.manage', ({ params }) => {
+    const user = findUser(db, params.id);
+    const n = sessions.destroyForUser(user.id);
+    audit.record('user.sign-out', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})`, note: `${n} session${n === 1 ? '' : 's'} ended` });
+    return { signedOut: n };
+  });
+  // For someone who lost their phone and their recovery codes: they sign in with the password and,
+  // if the company requires it, set up 2-step verification again.
+  route('POST', '/api/users/:id/2fa/reset', 'users.manage', ({ params, user: me }) => {
+    const user = findUser(db, params.id);
+    if (user.id === me.id) throw new HttpError(400, 'Change your own 2-step verification under My security.');
+    if (!user.twoFactor && !user.twoFactorPending) throw new HttpError(400, `${user.name} does not use 2-step verification.`);
+    delete user.twoFactor;
+    delete user.twoFactorPending;
+    sessions.destroyForUser(user.id);
+    db.save();
+    audit.record('user.2fa-reset', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username})` });
+    return publicUser(user);
+  });
   route('DELETE', '/api/users/:id', 'users.manage', ({ params, user: me }) => {
     const user = findUser(db, params.id);
     if (user.id === me.id) throw new HttpError(400, 'You cannot delete your own account.');
     if (user.role === 'admin' && user.active && activeAdmins().length === 1) throw new HttpError(400, 'There must be at least one active administrator.');
     db.data.users = users().filter((u) => u.id !== user.id);
+    dropAvatar(user);
     // Sales & CRM records they owned now have no owner (shown as such), not a dangling id.
     for (const k of ['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts', 'crmActivities']) for (const x of db.data[k] || []) if (x.ownerId === user.id) x.ownerId = null;
+    // Off every project; their tasks are unassigned.
+    removeUserFromProjects(db, user.id);
+    // Their notifications go; others' no longer name them.
+    forgetUser(db, user.id);
     sessions.destroyForUser(user.id);
     db.save();
     audit.record('user.delete', { entity: 'user', entityId: user.id, label: `${user.name} (${user.username}, ${user.role})` });
@@ -546,18 +898,24 @@ export function createApi(db) {
   registerAssetRoutes(route, db, { linkedEmployee });
 
   // ----- Settings -----
-  route('GET', '/api/settings', 'auth', () => db.data.settings);
-  // Company details and default schedule (Administrator).
+  route('GET', '/api/settings', 'auth', () => settingsForBrowser(db.data.settings));
+  // Company details, default schedule and branding (Admin panel → Settings & branding).
   route('PUT', '/api/settings', 'settings.edit', ({ body }) => {
     const s = db.data.settings;
-    const before = flatten(pick(s, ['companyName', 'companyAddress', 'companyTin', 'schedule']));
-    for (const k of ['companyName', 'companyAddress', 'companyTin']) if (k in body) s[k] = String(body[k] || '').trim();
-    if (!s.companyName) throw new HttpError(400, 'Company name is required.');
-    if (body.schedule) s.schedule = validateSchedule(body.schedule);
+    const brandOf = (x) => ({ ...x.branding, logo: x.branding?.logo ? `(a picture, ${Math.round((x.branding.logo.length * 3) / 4 / 1024)} KB)` : '' });
+    const keys = ['companyName', 'companyAddress', 'companyTin', 'schedule'];
+    const before = flatten({ ...pick(s, keys), branding: brandOf(s) });
+    // Everything is checked before anything is changed.
+    const next = {};
+    for (const k of ['companyName', 'companyAddress', 'companyTin']) if (k in body) next[k] = String(body[k] ?? '').trim().slice(0, k === 'companyAddress' ? 300 : 200);
+    if ('companyName' in next && !next.companyName) throw new HttpError(400, 'Company name is required.');
+    if (body.schedule) next.schedule = validateSchedule(body.schedule);
+    if (body.branding !== undefined) next.branding = validateBranding(body.branding, s.branding);
+    Object.assign(s, next);
     db.save();
-    const changes = diff(before, flatten(pick(s, ['companyName', 'companyAddress', 'companyTin', 'schedule'])));
-    if (changes.length) audit.record('settings.update', { entity: 'settings', label: 'Company details and default schedule', changes });
-    return s;
+    const changes = diff(before, flatten({ ...pick(s, keys), branding: brandOf(s) }));
+    if (changes.length) audit.record('settings.update', { entity: 'settings', label: 'Company details, default schedule and branding', changes });
+    return settingsForBrowser(s);
   });
 
   // Payroll Setup: pay rules, deductions, government rates and tax tables (HR, Payroll, Administrator).
@@ -570,7 +928,7 @@ export function createApi(db) {
     db.save();
     const changes = diff(before, flatten(pick(db.data.settings, keys)));
     if (changes.length) audit.record('payroll.config', { entity: 'settings', label: 'Payroll Setup', changes });
-    return db.data.settings;
+    return settingsForBrowser(db.data.settings);
   });
 
   // ----- Employees -----
@@ -739,6 +1097,15 @@ export function createApi(db) {
     computeRun(db, run);
     Object.assign(run, { status: 'finalized', finalizedAt: new Date().toISOString(), finalizedBy: user.name });
     postRun(db, run);
+    // Each employee in it who has an account: their payslip is ready in My Payslips.
+    for (const slip of run.payslips) {
+      const acct = accountOfEmployee(db, slip.employeeId);
+      if (!acct || !userCan(acct, 'self')) continue;
+      notify(db, [acct.id], {
+        module: 'hr', kind: 'payslip', title: `Your payslip for ${fmtRange(run.periodStart, run.periodEnd)} is ready`,
+        body: `${run.payDate ? `Pay date ${fmtRange(run.payDate)}. ` : ''}Open it under My Payslips.`, link: `#/me/payslips/${run.id}`,
+      }, { actorId: user.id });
+    }
     db.save();
     audit.record('payroll.run.finalize', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: `${run.payslips.length} payslips, net pay ₱${Number(run.totals?.netPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` });
     return run;
@@ -766,31 +1133,42 @@ export function createApi(db) {
   });
 
   // ----- Data management -----
-  route('GET', '/api/admin/export', 'data.manage', () => {
+  route('GET', '/api/admin/export', 'data.manage', ({ user }) => {
     audit.record('data.export', { label: 'Full backup', note: 'All company data, including pay, government IDs and bank accounts' });
+    // When the last backup was downloaded, and by whom (Admin panel → Dashboard).
+    db.data.adminState = { lastBackupAt: new Date().toISOString(), lastBackupBy: user.name };
+    db.save();
     return db.data;
   });
-  route('POST', '/api/admin/import', 'data.manage', ({ body }) => {
-    if (!body || !Array.isArray(body.employees) || !Array.isArray(body.timeEntries) || !Array.isArray(body.payrollRuns)) {
+  // A restore replaces everything, the accounts included: the administrator's password is asked
+  // again, and the accounts in the file are checked before anything is replaced.
+  route('POST', '/api/admin/import', 'data.manage', ({ body, user }) => {
+    limits.hit('sensitive', user.id, 'Too many attempts.');
+    const { password, ...backup } = body || {};
+    if (!password) throw new HttpError(400, 'Enter your password to restore a backup.');
+    requirePassword(user, password);
+    if (!Array.isArray(backup.employees) || !Array.isArray(backup.timeEntries) || !Array.isArray(backup.payrollRuns)) {
       throw new HttpError(400, 'That file is not a valid backup.');
     }
     // Keep the current accounts unless the backup carries its own.
-    replaceData(db, { ...body, users: Array.isArray(body.users) && body.users.length ? body.users : users() });
+    replaceData(db, { ...backup, users: Array.isArray(backup.users) && backup.users.length ? backupUsers(backup.users) : users() });
     syncLedger(db) && db.save();
-    audit.record('data.import', { label: 'Backup restored', note: `${db.data.employees.length} employees, ${db.data.payrollRuns.length} payroll runs` });
+    // The accounts after a restore are on record: an account the backup added shows here.
+    const admins = activeAdmins().map((u) => u.username).join(', ');
+    audit.record('data.import', { label: 'Backup restored', note: `${db.data.employees.length} employees, ${db.data.payrollRuns.length} payroll runs, ${users().length} user accounts (administrators: ${admins})`.slice(0, 500) });
     return { ok: true };
   });
   // Demo data is added next to the real data (server/demo.js); loading again refreshes it.
   route('GET', '/api/admin/demo', 'data.manage', () => ({ loaded: hasDemo(db), counts: demoCounts(db) }));
   route('POST', '/api/admin/demo', 'data.manage', () => {
-    const counts = addDemo(db, { summarize, demoAccounts });
+    const counts = addDemo(db, { summarize, demoAccounts, removeFile: (a) => files.remove(a) });
     syncLedger(db);
     db.save();
     audit.record('data.demo-load', { label: 'Demo data' });
     return { ok: true, counts, demoAccounts: DEMO_ACCOUNTS.map(([username, role]) => ({ username, role })), demoPassword: DEMO_PASSWORD };
   });
   route('DELETE', '/api/admin/demo', 'data.manage', () => {
-    const removed = removeDemo(db, { summarize });
+    const removed = removeDemo(db, { summarize, removeFile: (a) => files.remove(a) });
     db.save();
     audit.record('data.demo-remove', { label: 'Demo data' });
     return { ok: true, removed };
@@ -799,41 +1177,86 @@ export function createApi(db) {
   registerFeedbackRoutes(route, db);
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   registerCrmRoutes(route, db, { audit });
+  const projects = registerProjectRoutes(route, db, { audit, files, mailer: helpdesk.mailer, ...(digestMail ? { sendMail: digestMail } : {}), ...(digestClock ? { clock: digestClock } : {}) });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });
+  // ----- Notifications: the bell in the top bar (server/notifications.js) -----
+  registerNotificationRoutes(route, db, { pm: projects.notifications });
+  // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
+  const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length });
   // ----- Audit log (Administrators) -----
   route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
   route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());
-  route('GET', '/api/system/about', 'devlog.view', () => ({ version: APP_VERSION, node: process.version, ...buildInfo() }));
+  // The build's details (Node version, commit, branch) are for Administrators; others see the version.
+  route('GET', '/api/system/about', 'devlog.view', ({ user }) => (userCan(user, 'users.manage') ? { version: APP_VERSION, node: process.version, ...buildInfo() } : { version: APP_VERSION }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
-    replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) });
+    replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) }, { keepAdmin: true });
     audit.record('data.reset', { label: 'All company data erased', note: 'The audit log is kept' });
     return { ok: true };
   });
 
+  // Whether `user` may use route `r` (null: signed out), or why not. A module the company turned
+  // off is refused for everyone but administrators, and on the public form too.
+  function authorize(r, user, method, pathname) {
+    if (r.permission !== 'public') {
+      if (!user) throw new HttpError(401, 'Please sign in.');
+      if (user.mustChangePassword && !r.duringPasswordChange) throw new HttpError(403, 'Please change your password first.');
+      if (!r.duringPasswordChange && twoFactorRequired(sec(), user) && !user.twoFactor?.enabledAt) throw new HttpError(403, 'Set up 2-step verification first.');
+    }
+    const mod = moduleOfApi(method, pathname);
+    if (mod && !moduleOn(db.data.modules, mod) && user?.role !== 'admin') throw new HttpError(403, `${moduleName(mod)} is turned off for the company. An administrator can turn it on in the Admin panel, under Modules.`);
+    if (r.permission !== 'public' && r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
+  }
+  const paramsOf = (r, m) => {
+    try {
+      return Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+    } catch {
+      throw new HttpError(404, 'Not found.');
+    }
+  };
+
+  // Runs one of CORE's own routes as `user`, inside the request being handled, with the same checks
+  // as a request from the browser (the Settings center saves through each screen's route this way).
+  // Only routes that answer at once are used.
+  function invoke(user, method, pathname, body = {}) {
+    for (const r of routes) {
+      if (r.method !== method) continue;
+      const m = pathname.match(r.re);
+      if (!m) continue;
+      authorize(r, user, method, pathname);
+      const a = currentActor();
+      const result = r.handler({ params: paramsOf(r, m), body: structuredClone(body ?? {}), query: {}, user, token: null, ip: a?.ip || '', client: a?.client || {}, origin: a?.origin });
+      if (result && typeof result.then === 'function') throw new Error(`${method} ${r.pattern} cannot be called from the Settings center.`);
+      return result;
+    }
+    throw new HttpError(404, 'Not found.');
+  }
+
   // Returns { data, headers }. handle.helpdesk exposes the mail poller (used by tests).
   async function handle(req, url, body) {
     const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
-    const session = sessions.get(token);
+    // The bell's count is polled in the background: it does not keep an idle session alive.
+    const session = sessions.get(token, { touch: !(req.method === 'GET' && url.pathname === '/api/notifications/count') });
     const user = session && users().find((u) => u.id === session.userId && u.active);
+    const ip = clientIp(req);
+    const client = { ip, ua: String(req.headers?.['user-agent'] || '').slice(0, 300), https: isHttps(req) };
+    if (user) limits.hit('api-user', user.id);
+    else limits.hit('api-anon', ip);
+    if (req.method === 'POST' && /^\/api\/auth\/(login|setup|2fa)$/.test(url.pathname)) limits.hit('auth', ip, 'Too many sign-in attempts from this network.');
+    if (req.method !== 'GET' && url.pathname.startsWith('/api/public/')) limits.hit('public-write', ip, 'Too many messages from this network.');
+    // Several CORE servers can share one process (the tests): each request uses its own company's roles.
+    setRoleOverrides(db.data.roleOverrides);
     for (const r of routes) {
       if (r.method !== req.method) continue;
       const m = url.pathname.match(r.re);
       if (!m) continue;
-      if (r.permission !== 'public') {
-        if (!user) throw new HttpError(401, 'Please sign in.');
-        if (user.mustChangePassword && !r.duringPasswordChange) throw new HttpError(403, 'Please change your password first.');
-        if (r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
-      }
-      let params;
-      try {
-        params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
-      } catch {
-        throw new HttpError(404, 'Not found.');
-      }
-      const ip = clientIp(req);
-      const actor = { user, ip, before: audit.count() };
-      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, origin: publicOrigin(req) }));
+      authorize(r, user, req.method, url.pathname);
+      const params = paramsOf(r, m);
+      const actor = { user, ip, client, origin: publicOrigin(req), before: audit.count() };
+      // A settings screen's save is recorded in the Settings center's history, before and after.
+      const recordSettings = admin.settingsWatch(req.method, url.pathname);
+      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, client, origin: publicOrigin(req) }));
+      recordSettings?.(user);
       // A change with no entry of its own is still recorded, with its route (never its body).
       if (req.method !== 'GET' && user && audit.count() === actor.before && !UNAUDITED.test(url.pathname)) {
         const data = result && result.headers && 'data' in result ? result.data : result;
@@ -844,5 +1267,15 @@ export function createApi(db) {
     throw new HttpError(404, 'Not found.');
   }
   handle.helpdesk = helpdesk;
+  handle.projects = projects;
+  // Whether the request carries a live session (server.js allows large uploads only then).
+  handle.signedIn = (req) => {
+    try {
+      const session = sessions.get(parseCookies(req.headers?.cookie)[SESSION_COOKIE], { touch: false });
+      return Boolean(session && users().some((u) => u.id === session.userId && u.active));
+    } catch {
+      return false;
+    }
+  };
   return handle;
 }

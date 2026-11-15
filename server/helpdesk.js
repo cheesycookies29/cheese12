@@ -12,6 +12,9 @@ import { withImap } from './mail/imap.js';
 import { sendMail } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
 import { parseUpload, uploadFromBuffer } from './attachments.js';
+import { MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
+import { linkedTasks } from './projects.js';
+import { notify, quote } from './notifications.js';
 
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,6 +31,9 @@ const PUBLIC_PER_EMAIL_PER_DAY = 10;
 const PUBLIC_REPLIES_PER_IP_PER_HOUR = 30;
 const PUBLIC_MIN_FILL_MS = 2500;
 const PUBLIC_MAX_FILES = 3;
+// The largest request the public form can need: its files as base64 (4 bytes for every 3), plus
+// 1 MB for the text around them. server.js reads no more than this from a visitor.
+export const PUBLIC_BODY_BYTES = PUBLIC_MAX_FILES * Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4 + 1024 * 1024;
 
 export function emptyHelpdesk() {
   return {
@@ -124,12 +130,26 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       awaitingAgent: last?.author.role === 'requester',
     };
   };
-  const full = (t, { forRequester = false } = {}) => {
+  const full = (t, { forRequester = false, user = null } = {}) => {
     const s = summary(t);
     const visible = (m) => !forRequester || m.kind === 'reply' || (m.kind === 'event' && m.public);
     const messages = t.messages.filter(visible).map(({ emailMessageId, email, ...m }) => (forRequester ? m : { ...m, email }));
-    return { ...s, ccs: forRequester ? [] : t.ccs, messages, ...(forRequester ? {} : { publicUrl: t.publicUrl || null }) };
+    // Agents see the project tasks made from the ticket (Add to a project).
+    return { ...s, ccs: forRequester ? [] : t.ccs, messages, ...(forRequester ? {} : { publicUrl: t.publicUrl || null, projectTasks: linkedTasks(db, t.id, user) }) };
   };
+
+  // ----- Notifications (the bell) -----
+  // The agent a ticket is assigned to hears of it (when someone else assigns it) and of the
+  // requester's replies; a requester with a CORE account hears of agents' public replies and of the
+  // ticket being resolved or closed. Internal notes are never in them.
+  const tellAgent = (t, actorId, kind, title, body) => {
+    if (t.assigneeId) notify(db, [t.assigneeId], { module: 'helpdesk', kind, title, body, link: `#/helpdesk/tickets/${t.id}` }, { actorId });
+  };
+  const requesterReplied = (t, actorId, name, text) => tellAgent(t, actorId, 'ticket.reply', `${name} replied on ticket ${t.ref}`, `${t.subject}: ${quote(text)}`);
+  const tellRequester = (t, user, kind, title, body) => {
+    if (t.requester?.userId) notify(db, [t.requester.userId], { module: 'helpdesk', kind, title, body, link: `#/helpdesk/mine/${t.id}` }, { actorId: user.id });
+  };
+  const DONE_WORD = { resolved: 'resolved', closed: 'closed' };
 
   // ----- Creating and updating -----
   const nextNumber = () => ++hd().seq;
@@ -249,6 +269,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       existing.messages.push({ id: randomUUID(), kind: 'reply', author, body: str(body + note, MAX_BODY), at: now(), via: 'email', attachments: stored.saved, emailMessageId: msg.messageId });
       if (msg.messageId) existing.emailIds.push(msg.messageId);
       if (['pending', 'resolved'].includes(existing.status)) setStatus(existing, 'open', null);
+      requesterReplied(existing, known?.id || null, author.name, body);
       existing.updatedAt = now();
       remember();
       return { action: 'replied', ticket: existing.ref };
@@ -329,7 +350,9 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
   }
 
   // Background work: poll the mailbox when due, and close old resolved tickets.
+  // Nothing runs while the Service Desk is turned off (Admin panel → Modules); its tickets stay.
   const timer = setInterval(() => {
+    if (db.data.modules?.helpdesk === false) return;
     const b = hd().mailbox;
     if (autoClose()) db.save();
     const last = hd().mailState.lastPollAt ? new Date(hd().mailState.lastPollAt).getTime() : 0;
@@ -371,6 +394,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     const { saved } = saveFiles(Array.isArray(body.attachments) ? body.attachments : []);
     t.messages.push({ id: randomUUID(), kind: 'reply', author: { ...requesterOf(user), role: 'requester' }, body: text, at: now(), via: 'web', attachments: saved });
     if (['pending', 'resolved'].includes(t.status)) setStatus(t, 'open', null);
+    requesterReplied(t, user.id, user.name, text);
     t.updatedAt = now();
     db.save();
     return full(t, { forRequester: true });
@@ -476,6 +500,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     const { saved } = saveFiles(form().allowFiles && Array.isArray(body.attachments) ? body.attachments.slice(0, PUBLIC_MAX_FILES) : []);
     t.messages.push({ id: randomUUID(), kind: 'reply', author: { userId: t.requester.userId, name: t.requester.name, email: t.requester.email, role: 'requester' }, body: text, at: now(), via: 'web', attachments: saved });
     if (['pending', 'resolved'].includes(t.status)) setStatus(t, 'open', null);
+    requesterReplied(t, t.requester.userId || null, t.requester.name, text);
     t.updatedAt = now();
     db.save();
     return publicView(t);
@@ -543,8 +568,9 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       assigneeId: validAgent(body.assigneeId), assetId, author: { userId: user.id, name: user.name, email: null, role: 'agent' }, attachments: saved,
     });
     event(t, user, `Logged by ${user.name} on behalf of ${requester.name}`);
+    if (t.assigneeId) tellAgent(t, user.id, 'ticket.assigned', `${user.name} assigned ticket ${t.ref} to you`, `${t.subject} · from ${t.requester.name}`);
     db.save();
-    return full(t);
+    return full(t, { user });
   });
   route('GET', '/api/helpdesk/tickets/:id', 'helpdesk.agent', ({ user, params }) => {
     const t = findTicket(params.id);
@@ -552,11 +578,13 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     seen.set(user.id, { name: user.name, at: Date.now() });
     viewers.set(t.id, seen);
     const others = [...seen.entries()].filter(([id, v]) => id !== user.id && Date.now() - v.at < VIEWER_WINDOW_MS).map(([, v]) => v.name);
-    return { ...full(t), viewers: others };
+    return { ...full(t, { user }), viewers: others };
   });
   route('PUT', '/api/helpdesk/tickets/:id', 'helpdesk.agent', ({ user, params, body }) => {
     const t = findTicket(params.id);
+    const wasStatus = t.status;
     if ('status' in body && TICKET_STATUS[body.status]) setStatus(t, body.status, user);
+    if (t.status !== wasStatus && DONE_WORD[t.status]) tellRequester(t, user, `ticket.${t.status}`, `${user.name} ${DONE_WORD[t.status]} your ticket ${t.ref}`, t.subject);
     if ('priority' in body && TICKET_PRIORITY[body.priority] && body.priority !== t.priority) {
       event(t, user, `Priority changed from ${TICKET_PRIORITY[t.priority]} to ${TICKET_PRIORITY[body.priority]}`);
       t.priority = body.priority;
@@ -571,6 +599,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       event(t, user, id ? `Assigned to ${agents().find((u) => u.id === id).name}` : 'Unassigned');
       t.assigneeId = id;
       if (id && t.status === 'new') setStatus(t, 'open', user);
+      if (id) tellAgent(t, user.id, 'ticket.assigned', `${user.name} assigned ticket ${t.ref} to you`, `${t.subject} · from ${t.requester.name}`);
     }
     if ('assetId' in body && (body.assetId || null) !== t.assetId) {
       t.assetId = body.assetId && db.data.assets.some((a) => a.id === body.assetId) ? body.assetId : null;
@@ -582,7 +611,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     }
     t.updatedAt = now();
     db.save();
-    return full(t);
+    return full(t, { user });
   });
   route('POST', '/api/helpdesk/tickets/:id/messages', 'helpdesk.agent', async ({ user, params, body }) => {
     const t = findTicket(params.id);
@@ -596,15 +625,19 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       if (!t.firstResponseAt) t.firstResponseAt = msg.at;
       if (!t.assigneeId && agents().some((u) => u.id === user.id)) (t.assigneeId = user.id), event(t, user, `Assigned to ${user.name}`);
     }
+    const wasStatus = t.status;
     const next = TICKET_STATUS[body.status] ? body.status : kind === 'reply' && ['new', 'open'].includes(t.status) ? 'pending' : t.status === 'new' ? 'open' : null;
     if (next) setStatus(t, next, user);
+    const done = t.status !== wasStatus && DONE_WORD[t.status];
+    if (kind === 'reply') tellRequester(t, user, done ? `ticket.${t.status}` : 'ticket.reply', `${user.name} ${done ? `replied and ${done}` : 'replied to'} your ticket ${t.ref}`, `${t.subject}: ${quote(text)}`);
+    else if (done) tellRequester(t, user, `ticket.${t.status}`, `${user.name} ${done} your ticket ${t.ref}`, t.subject);
     t.updatedAt = now();
     db.save();
     if (kind === 'reply' && body.email !== false) {
       msg.email = await emailRequester(t, text + (saved.length ? `\n\n(${saved.length} attachment(s) on the ticket: sign in to view.)` : ''));
       db.save();
     }
-    return full(t);
+    return full(t, { user });
   });
   route('DELETE', '/api/helpdesk/tickets/:id', 'helpdesk.manage', ({ params }) => {
     const t = findTicket(params.id);
@@ -788,6 +821,8 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     return publicSettings();
   });
 
-  // For tests: run the poller now, trust self-signed test certificates.
-  return { pollOnce, ingest, autoClose, setTlsForTests: (o) => ((smtpTls = o), (imapTls = o)) };
+  // For tests: run the poller now, trust self-signed test certificates. `mailer`: the outgoing mail
+  // setup, which the Projects digest sends through (from the helpdesk address).
+  const mailer = { canEmail: () => Boolean(canEmail()), smtpOptions, address: () => hd().mailbox.address };
+  return { pollOnce, ingest, autoClose, mailer, setTlsForTests: (o) => ((smtpTls = o), (imapTls = o)) };
 }

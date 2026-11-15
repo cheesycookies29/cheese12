@@ -37,7 +37,7 @@ A first tour with the demo data, about fifteen minutes. It uses the last full ha
 ### Read the register
 
 1. The cards show the employees, gross pay, total deductions, net pay and the employer contributions.
-2. The register has one line per employee: **Days** (paid days of scheduled days), **Absent**, **Late/UT**, **OT**, **Basic**, **Premiums** (overtime, rest day, holiday and night-shift pay together), **Other earn.**, **Gross**, the SSS, PhilHealth, Pag-IBIG and tax deductions, **Other ded.**, **Allowance** and **Net pay**.
+2. The register has one line per employee: **Days** (paid days of scheduled days), **Absent**, **Late/UT**, **OT**, **Basic**, **Premiums** (overtime, rest day, holiday and night-shift pay together), **Other earn.**, **Gross**, the SSS, PhilHealth, Pag-IBIG and tax deductions, **Other ded.**, **Allowance** and **Net pay**. On a phone each employee is a card with the days, gross and net pay; **Details** shows the rest.
 3. If a notice shows above the register, it lists open records, absences, overtime not yet approved and pending requests in the period.
 
 ![The register of a draft run](payroll-register.jpg)
@@ -128,7 +128,7 @@ The **Attendance** box lists each holiday in the period, marked *(worked)* or *(
 
 After finalizing:
 
-- each employee sees the payslip under **My Payslips**;
+- each employee sees the payslip under **My Payslips**, and each one with a CORE account is told by the **bell** in the top bar (*Your payslip for Nov 1, 2026 to Nov 15, 2026 is ready*, with no amounts);
 - the payslips are posted to **Year to date**;
 - the run cannot be changed or deleted.
 
@@ -177,7 +177,7 @@ To take one back, click **Remove** in **Opening balances** and give a reason.
 2. **Pay rules**: **Pay frequency**, **Work days per year** (the daily-rate factor), **Late grace period** and **Minimum overtime**. Under **Deductions to compute**, tick SSS, PhilHealth, Pag-IBIG and BIR withholding tax.
 3. **Holiday, rest day and night premiums**: the rate for the first 8 hours and for each overtime hour on each kind of day, the **Night shift differential** and its hours. **Restore DOLE premium rates** fills in the defaults below.
 4. **Holidays not worked**: whether a regular holiday needs the employee present, or on paid leave, on the last working day before it, and whether a **Special non-working day, not worked** is *Paid (company policy)* or *Not paid: "no work, no pay"*.
-5. **Government contributions** and **Withholding tax tables** (**+ Add bracket**, **Remove**). **Restore 2025 government rates** fills in the 2025 SSS, PhilHealth and Pag-IBIG rates and the TRAIN tables.
+5. **Government contributions** and **Withholding tax tables** (**+ Add bracket**, **Remove**). **Restore 2025 government rates**, under the tax tables, fills in the 2025 SSS, PhilHealth and Pag-IBIG rates and the TRAIN tables. Nothing is saved until you choose **Save payroll setup**.
 6. Under **Try it**, enter a **Monthly salary ₱** to see one period's deductions with the values on the page, saved or not.
 7. Click **Save payroll setup**.
 

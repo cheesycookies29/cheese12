@@ -2,7 +2,7 @@
 import { api } from '../api.js';
 import { can } from '../state.js';
 import { ASSET_STATUS, ASSET_CONDITIONS, ASSET_CATEGORIES, ASSIGNEE_TYPES, ISSUE_TYPES, ISSUE_IMPACT, ISSUE_STATUS, ACTIVE_ISSUE } from '/shared/assets.js';
-import { html, mount, money, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, addDays } from '../ui.js';
+import { html, mount, formErrors, money, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, addDays } from '../ui.js';
 
 const STATUS_BADGE = { in_stock: 'green', assigned: 'blue', in_repair: 'amber', retired: 'gray', lost: 'gray' };
 export const statusBadge = (s) => badge(ASSET_STATUS[s] || s, STATUS_BADGE[s]);
@@ -139,16 +139,16 @@ export async function assetListView(el, _params, query) {
       <div><h1>Assets</h1><p class="muted" id="count"></p></div>
       <div class="actions"><button class="btn" id="export">Export CSV</button>${can('assets.edit') ? html`<a class="btn primary" href="#/assets/new">+ Register asset</a>` : ''}</div>
     </header>
-    <section class="card">
-      <div class="toolbar">
-        <input type="search" id="q" placeholder="Search tag, name, serial, holder…" value="${state.q}" />
-        <select id="f-status">
+    <section class="card scroll-x">
+      <div class="toolbar pad">
+        <input type="search" id="q" placeholder="Search tag, name, serial, holder…" aria-label="Search assets" value="${state.q}" />
+        <select id="f-status" aria-label="Status">
           <option value="">In service</option>
           ${Object.entries(ASSET_STATUS).map(([k, v]) => html`<option value="${k}" ${state.status === k ? 'selected' : ''}>${v}</option>`)}
           <option value="all" ${state.status === 'all' ? 'selected' : ''}>All, incl. retired and lost</option>
         </select>
-        <select id="f-cat"><option value="">All categories</option>${categories.map((c) => html`<option ${state.category === c ? 'selected' : ''}>${c}</option>`)}</select>
-        <select id="f-holder"><option value="">Any holder</option>${Object.entries(ASSIGNEE_TYPES).map(([k, v]) => html`<option value="${k}">${v}</option>`)}</select>
+        <select id="f-cat" aria-label="Category"><option value="">All categories</option>${categories.map((c) => html`<option ${state.category === c ? 'selected' : ''}>${c}</option>`)}</select>
+        <select id="f-holder" aria-label="Holder"><option value="">Any holder</option>${Object.entries(ASSIGNEE_TYPES).map(([k, v]) => html`<option value="${k}">${v}</option>`)}</select>
       </div>
       <div id="asset-table"></div>
     </section>`);
@@ -175,7 +175,7 @@ export async function assetFormView(el, { id }) {
   const [meta, asset] = await Promise.all([api.get('/api/asset-meta'), isNew ? {} : api.get(`/api/assets/${id}`)]);
   const a = { condition: 'New', location: 'IT Store Room', ...asset };
   const f = (label, name, opts = {}) => html`<label class="field ${opts.span ? `span-${opts.span}` : ''}"><span>${label}${opts.required ? html`<em>*</em>` : ''}</span>
-    <input name="${name}" type="${opts.type || 'text'}" value="${a[name] ?? ''}" list="${opts.list || ''}" placeholder="${opts.placeholder || ''}" ${opts.type === 'number' ? 'min=0 step=0.01' : ''} />
+    <input name="${name}" type="${opts.type || 'text'}" value="${a[name] ?? ''}" list="${opts.list || ''}" placeholder="${opts.placeholder || ''}" ${opts.type === 'number' ? 'min=0 step=0.01' : ''} ${opts.required ? 'required' : ''} />
     ${opts.hint ? html`<small class="muted">${opts.hint}</small>` : ''}</label>`;
 
   mount(el, html`
@@ -206,23 +206,22 @@ export async function assetFormView(el, { id }) {
         </div>
       </section>
       ${datalist('dl-cat', [...new Set([...ASSET_CATEGORIES, ...meta.assetCategories])])}${datalist('dl-sup', meta.suppliers)}${datalist('dl-loc', meta.locations)}
-      <p class="form-error" hidden></p>
-      <div class="actions end"><a class="btn" href="${isNew ? '#/assets/list' : `#/assets/item/${id}`}">Cancel</a><button class="btn primary" type="submit">${isNew ? 'Register asset' : 'Save changes'}</button></div>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="actions end save-bar"><a class="btn" href="${isNew ? '#/assets/list' : `#/assets/item/${id}`}">Cancel</a><button class="btn primary" type="submit">${isNew ? 'Register asset' : 'Save changes'}</button></div>
     </form>`);
 
   const form = el.querySelector('#asset-form');
+  const errors = formErrors(form);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!errors.validate()) return;
     try {
       const body = Object.fromEntries(new FormData(form));
       const saved = isNew ? await api.post('/api/assets', body) : await api.put(`/api/assets/${id}`, body);
       toast(isNew ? `Registered ${saved.assetTag}.` : 'Changes saved.');
       location.hash = `#/assets/item/${saved.id}`;
     } catch (err) {
-      const errEl = form.querySelector('.form-error');
-      errEl.textContent = err.message;
-      errEl.hidden = false;
-      errEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      errors.server(err);
     }
   });
 }

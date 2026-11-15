@@ -17,7 +17,7 @@ const GUIDES = path.join(ROOT, 'docs', 'guides');
 const files = fs.readdirSync(GUIDES).filter((f) => f.endsWith('.md') && f !== 'README.md');
 const guides = files.map((f) => ({ file: f, ...parseGuide(fs.readFileSync(path.join(GUIDES, f), 'utf8')) }));
 const byId = new Map(guides.map((g) => [g.meta.id, g]));
-const MODULES = ['hr', 'assets', 'helpdesk', 'crm', 'system'];
+const MODULES = ['hr', 'assets', 'helpdesk', 'crm', 'projects', 'system'];
 
 // Sidebar labels per module, from the NAV object in public/js/app.js.
 function navLabels() {
@@ -71,11 +71,14 @@ test('every screenshot a guide shows exists and is in screenshots.json (and noth
 test('every screen in every sidebar is covered by a guide for that module', () => {
   const missing = [];
   const labels = navLabels();
-  assert.deepEqual(Object.keys(labels).sort(), [...MODULES].sort());
+  // 'system' is the Admin panel's sidebar; 'common' is shown at the end of every module's menu.
+  assert.deepEqual(Object.keys(labels).sort(), [...MODULES, 'common'].sort());
   for (const mod of MODULES) {
     const text = guides.filter((g) => g.meta.apps.includes(mod)).map((g) => g.body.toLowerCase()).join('\n');
     for (const label of labels[mod]) if (!text.includes(label.toLowerCase())) missing.push(`${mod}: "${label}"`);
   }
+  const everyone = guides.filter((g) => g.meta.apps.includes('home')).map((g) => g.body.toLowerCase()).join('\n');
+  for (const label of labels.common) if (!everyone.includes(label.toLowerCase())) missing.push(`every module: "${label}"`);
   assert.deepEqual(missing, [], `Screens with no guide: describe them in the guide for the people who use them (docs/guides).\n${missing.join('\n')}`);
 });
 
@@ -118,11 +121,11 @@ test('guides: signed-in people read them; administrators edit, keep their versio
     };
   };
   const admin = client();
-  await admin('POST', '/api/auth/setup', { name: 'Ada Admin', username: 'admin', password: 'password123' });
-  await admin('POST', '/api/users', { name: 'Hana HR', username: 'hana', role: 'hr', password: 'password123', mustChangePassword: false });
+  await admin('POST', '/api/auth/setup', { name: 'Ada Admin', username: 'admin', password: 'Guide-Shots-2026' });
+  await admin('POST', '/api/users', { name: 'Hana HR', username: 'hana', role: 'hr', password: 'Guide-Shots-2026', mustChangePassword: false });
   await assert.rejects(client()('GET', '/api/guides'), /sign in/i);
   const hr = client();
-  await hr('POST', '/api/auth/login', { username: 'hana', password: 'password123' });
+  await hr('POST', '/api/auth/login', { username: 'hana', password: 'Guide-Shots-2026' });
   const list = await hr('GET', '/api/guides');
   assert.equal(list.canEdit, false);
   assert.ok(list.guides.find((g) => g.id === 'hr').forYou);

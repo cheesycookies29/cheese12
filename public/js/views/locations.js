@@ -102,7 +102,7 @@ export async function clockLocationsView(el, _params, query) {
         <select id="f-flag" aria-label="Show">${Object.entries(FLAGS).map(([k, v]) => html`<option value="${k}" ${k === state.flag ? 'selected' : ''}>${v}</option>`)}</select>
       </div>
       <div id="summary"></div>
-      <div id="list"></div>
+      <div id="list" class="scroll-x"></div>
       <p class="muted small">Locations come from each device's browser and are recorded at clock-in only. Phone GPS is usually accurate to 5–30 m; laptops on Wi-Fi can be off by a few hundred metres. A location can be faked with special tools, so treat a flag as a reason to check, not as proof. Approved remote-work days are not flagged.</p>
     </section>`);
 

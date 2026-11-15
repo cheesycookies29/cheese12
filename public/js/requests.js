@@ -130,7 +130,7 @@ export async function requestForm({ emp, balances, existing = null, onDone }) {
     const days = dates.reduce((n, d) => n + (kind === 'leave' ? portionDays(portions[d] || 'whole') : 1), 0);
     // Earlier requests of the type in the same year or month, for the "after N requests" certificate rule.
     const filings = type ? balances.find((b) => b.leaveTypeId === type.id)?.filings : [];
-    const prior = type ? priorFilings(type, filings, start, { excludeId: existing?.id, before: existing?.filedAt || null }) : 0;
+    const prior = type ? priorFilings(type, filings, start, { excludeId: existing?.id, before: existing?.filedAt || null, beforeOrder: filings?.find((f) => f.id === existing?.id)?.order ?? null }) : 0;
     return { kind, type, dates, days, start, end, prior };
   }
   function draw() {

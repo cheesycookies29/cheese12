@@ -104,7 +104,9 @@ Two accounts cannot have the same name. A prospect becomes a client by itself wh
 1. Click **+ Deal** on the Overview, the **Pipeline**, or an account page. Add the account first if it is new.
 2. Enter the **Deal name**, **Account**, **Main contact**, **Value (₱)**, **Expected close**, **Stage**, **Owner**, **Source** and the **Next step**. Click **Save**.
 3. To move it, drag its card on the **Pipeline** board, or click a stage in the stage bar on the deal page.
-4. When it is won, click **Won** in the stage bar (or drop the card on **Won**). When it is lost, click **Lost**, pick the **Reason** and click **Mark as lost**. The **Edit** form does not offer Won or Lost: a deal is closed from the stage bar or the board. On a phone, use the stage bar.
+4. When it is won, click **Won** in the stage bar (or drop the card on **Won**) and confirm with **Mark as won**. When it is lost, click **Lost**, pick the **Reason** and click **Mark as lost**. The **Edit** form does not offer Won or Lost: a deal is closed from the stage bar or the board. On a phone, use the stage bar.
+
+Choosing someone else as **Owner** (on any lead, deal, account, contact, bid or contract, new or not) tells them by the **bell** in the top bar: *Sara made you the owner of deal DL-0004 …*, which opens the record. Taking a record yourself tells nobody.
 
 Each move is written in the deal's history. Won and lost deals leave the board and stay in the **List**. Each stage's probability weighs the forecast: a ₱1M deal at *Proposal* (50%) counts ₱500K.
 
@@ -138,6 +140,18 @@ For every government procurement mode (all but *Private RFP*), a bid above the A
 A contract shows *Renew in … days* when it ends within the renewal notice (60 days unless your manager changed it), and appears under **Renewals coming up** on the Overview. To work on the renewal, open the contract and click **Renew**: CORE starts a new deal, *Renewal: …*, with the same account and value and the end date as the expected close. The contract shows it under **Renewal**, and the deal links back to the contract. While that deal is open, the contract shows *Renewal DL-… open* and **Renew** opens the deal instead of starting another. Set the old contract to *Ended* when the term is over.
 
 ![A contract due for renewal](sales-contract.jpg)
+
+### Start a project from a won deal
+
+When a deal is won, the work of delivering it is a project in **Project Management**. Starting it needs an account that can edit projects as well as use the CRM: a Project Manager with CRM access, or a sales account an administrator gave **Projects access** (Sales Managers see the projects they are added to; ask the project manager to add you).
+
+1. Open the won deal (or its contract) and click **Start project**.
+2. Check the **Project name**, **Type**, **Project manager**, **Start** and **End** dates. The end date comes from the contract when there is one.
+3. Click **Start project**.
+
+The project opens, linked to the client, the deal and the contract. The deal and the contract list it under **Projects**; Sales Managers can open it to follow the delivery. A deal starts one project; to start a second one for the same deal, CORE asks first. See [the projects guide](projects).
+
+![Start project on a won deal](sales-start-project.jpg)
 
 ### Log a call, meeting, email, note or task
 
@@ -182,7 +196,7 @@ An account that still has deals, bids or contracts cannot be deleted; delete or 
 | Accounts | Organizations: clients, prospects, partners and suppliers, with their people, deals, bids, contracts and timeline |
 | Contacts | The people at your accounts |
 | Bids | Public tenders and RFPs: ABC, our bid, deadlines and the document checklist |
-| Contracts | What was won: value, term, billing, renewal badges and **Renew** |
+| Contracts | What was won: value, term, billing, renewal badges and **Renew**; the projects delivering it |
 | Activities | Calls, meetings, emails, notes and tasks across the CRM; your open and overdue tasks |
 | Sales setup | Pipeline stages and probabilities, lead sources, lost reasons, industries, renewal notice and the bid checklist (Sales Managers); team access (administrators) |
 
@@ -208,6 +222,9 @@ A service desk agent with CRM access opens the ticket and clicks **Send to Sales
 
 **CORE says the record was changed since I opened it. What do I do?**
 Someone else saved the same record while your form was open. Close the form: the page loads their change. Then make yours again. This keeps one person's save from undoing another's.
+
+**Where do I see how the delivery of a won deal is going?**
+On the deal or contract page, under **Projects**. Sales Managers can open the project to see its progress, health and milestones (read only).
 
 **Can I undo a lost deal?**
 Yes. Open the deal and click another stage in the stage bar. The history keeps both moves.

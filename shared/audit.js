@@ -13,6 +13,7 @@ export const AUDIT_AREAS = {
   assets: 'IT assets',
   helpdesk: 'Service desk',
   crm: 'Sales & CRM',
+  projects: 'Projects',
   system: 'System',
 };
 
@@ -21,6 +22,17 @@ export const AUDIT_ACTIONS = {
   'auth.login-failed': 'Failed sign-in',
   'auth.logout': 'Signed out',
   'auth.password-change': 'Changed own password',
+  'auth.locked': 'Account locked after wrong passwords',
+  'auth.2fa-failed': 'Wrong 2-step verification code',
+  'auth.2fa-on': 'Turned on 2-step verification',
+  'auth.2fa-off': 'Turned off 2-step verification',
+  'auth.recovery-used': 'Signed in with a recovery code',
+  'auth.recovery-new': 'Made new recovery codes',
+  'auth.sessions': 'Signed out other sessions',
+  'user.avatar-remove': 'Profile picture removed',
+  'user.2fa-reset': 'Reset 2-step verification',
+  'user.sign-out': 'Signed a user out everywhere',
+  'settings.security': 'Changed sign-in and security settings',
   'user.create': 'Created a user account',
   'user.update': 'Changed a user account',
   'user.reset-password': 'Reset a password',
@@ -49,6 +61,10 @@ export const AUDIT_ACTIONS = {
   'payroll.opening.remove': 'Removed an opening balance',
   'payroll.config': 'Changed Payroll Setup',
   'settings.update': 'Changed company settings',
+  'settings.center': 'Changed settings in the Settings center',
+  'settings.roles': 'Changed roles and permissions',
+  'settings.modules': 'Turned a module on or off',
+  'settings.export': 'Exported the company\'s settings',
   'holiday.create': 'Added a holiday',
   'holiday.update': 'Changed a holiday',
   'holiday.delete': 'Removed a holiday',
@@ -62,6 +78,10 @@ export const AUDIT_ACTIONS = {
   'assets.change': 'Changed IT assets or inventory',
   'helpdesk.change': 'Changed the service desk',
   'crm.change': 'Changed Sales & CRM',
+  'projects.change': 'Changed a project, its tasks or time',
+  'projects.bulk': 'Changed or deleted tasks in bulk',
+  'projects.import': 'Imported tasks from a CSV file',
+  'projects.digest-failed': 'Projects daily digest not sent',
   'attendance.change': 'Changed attendance settings',
   'payroll.change': 'Changed payroll data',
   'system.change': 'Changed system data',
@@ -77,6 +97,7 @@ export function areaOfPath(pathname) {
   if (/^\/api\/(assets|inventory|stock|issue-reports|me\/assets)/.test(pathname)) return 'assets';
   if (/^\/api\/(helpdesk|tickets|me\/tickets)/.test(pathname)) return 'helpdesk';
   if (/^\/api\/crm/.test(pathname)) return 'crm';
+  if (/^\/api\/pm\//.test(pathname)) return 'projects';
   if (/^\/api\/(time-entries|clock-locations|location-settings)/.test(pathname)) return 'attendance';
   if (/^\/api\/(payroll|employees\/[^/]+\/ytd)/.test(pathname)) return 'payroll';
   return 'system';

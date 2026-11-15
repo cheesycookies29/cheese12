@@ -1,10 +1,10 @@
-// Files attached to records (medical certificates on leave requests). Each file is
-// kept in an "attachments" folder next to the data file, named by its id, so the
-// database itself stays small. Uploads arrive as base64 inside the JSON request.
+// Files attached to records (medical certificates on leave requests, service desk tickets, project
+// tasks and milestones). Each file is kept in an "attachments" folder next to the data file, named
+// by its id, so the database itself stays small. Uploads arrive as base64 inside the JSON request.
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { HttpError } from './util.js';
+import { HttpError, keepPrivate } from './util.js';
 import { ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
 
 const ID_RE = /^[0-9a-f-]{36}$/;
@@ -39,18 +39,31 @@ export function createAttachments(dir) {
     if (!ID_RE.test(id || '')) throw new HttpError(404, 'File not found.');
     return path.join(dir, id);
   };
+  // Files kept by older builds were readable by other accounts on the computer: close them.
+  if (fs.existsSync(dir)) {
+    keepPrivate(dir, 0o700);
+    try {
+      for (const name of fs.readdirSync(dir)) if (ID_RE.test(name)) keepPrivate(path.join(dir, name));
+    } catch {}
+  }
   return {
     // Stores an upload; returns the metadata kept on the record.
     save({ name, type, buffer }) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
       const id = randomUUID();
-      fs.writeFileSync(fileOf(id), buffer);
+      fs.writeFileSync(fileOf(id), buffer, { mode: 0o600 });
       return { id, name, type, size: buffer.length, uploadedAt: new Date().toISOString() };
     },
     read(meta) {
       const file = fileOf(meta?.id);
       if (!fs.existsSync(file)) throw new HttpError(404, 'The file is missing from the server. It may not have been included when data was restored.');
       return { name: meta.name, type: meta.type, size: meta.size, data: fs.readFileSync(file).toString('base64') };
+    },
+    // The file's bytes, for a download (Project Management sends them as a file, not inside JSON).
+    buffer(meta) {
+      const file = fileOf(meta?.id);
+      if (!fs.existsSync(file)) throw new HttpError(404, 'The file is missing from the server. It may not have been included when data was restored.');
+      return fs.readFileSync(file);
     },
     // Files are not removed when data is replaced (demo data, restore), so restoring a backup brings them back.
     remove(meta) {

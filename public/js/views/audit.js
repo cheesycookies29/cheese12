@@ -17,8 +17,10 @@ export async function auditView(el, _params, query) {
       <div class="actions"><button class="btn" id="export">Export CSV</button></div>
     </header>
     ${check.ok
-      ? html`<div class="notice ok"><p><strong>Intact.</strong> All ${check.count} entries check out: none was changed, removed or reordered.</p></div>`
-      : html`<div class="notice bad"><p><strong>The log was altered.</strong> Entry ${check.brokenAt}${check.at ? ` (${when(check.at)})` : ''} does not match the entries before it: the file was edited outside CORE. Keep a copy and investigate.</p></div>`}
+      ? html`<div class="notice ok"><p><strong>Intact.</strong> All ${check.count} entries check out: none was changed, removed or reordered.${check.keyedFrom ? ` Keyed from entry ${check.keyedFrom}: entries from there on are sealed with this server's key.` : ''}</p></div>`
+      : check.keyMissing
+        ? html`<div class="notice bad"><p><strong>The log cannot be checked.</strong> Entries from ${check.keyedFrom} on are sealed with this server's key (<code>data/secret.key</code>), and the key cannot be read. Restore the key file, then open this page again.</p></div>`
+        : html`<div class="notice bad"><p><strong>The log was altered.</strong> Entry ${check.brokenAt}${check.at ? ` (${when(check.at)})` : ''} does not match the entries before it: the file was edited outside CORE. Keep a copy and investigate.</p></div>`}
     <section class="card">
       <div class="toolbar">
         <label class="inline">From <input type="date" id="f-from" value="${state.from}" /></label>

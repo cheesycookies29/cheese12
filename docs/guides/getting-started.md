@@ -1,8 +1,8 @@
 ---
 id: getting-started
 title: Getting started with CORE
-summary: Sign in, find your way around the modules, change your password, use CORE on a phone, and get help.
-roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, employee
+summary: Sign in, find your way around the modules, see your notifications, change your password, turn on 2-step verification, use CORE on a phone, and get help.
+roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
 apps: home, system
 order: 1
 ---
@@ -17,6 +17,7 @@ CORE is the ERP of Lancaster Technology and Development Corporation (LTDC). It i
 | **IT Asset Management** | Laptops, devices and consumable stock: who holds what, and its history. Employees see the equipment assigned to them. |
 | **IT Service Desk** | Support tickets from CORE, by email and from the public form. |
 | **Sales & CRM** | Leads, accounts, contacts, the deal pipeline, public bids and contracts. |
+| **Project Management** | Projects with milestones, a task board with sized tasks, a timeline, and a weekly timesheet for the projects that track time. Anyone who is on a project opens it here, and **My work** lists their tasks. |
 
 You sign in once and move between modules without signing in again. What you see depends on your **account type** (for example *Employee*, *HR Manager* or *Sales Officer*): a module you may not use is shown locked.
 
@@ -35,7 +36,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The CORE sign-in page](getting-started-signin.jpg)
 
-2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. Further down, **On the roadmap** lists the modules in development.
+2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. The cards sit in one row that slides sideways: swipe it on a phone, or use the arrows or dots beside **Your modules** (or the arrow keys once the row is selected). After the modules you may open come the locked ones, then the modules still in development, greyed out and marked *Coming soon*. A module your company has turned off is not shown at all.
 
 ![The CORE home, with a card per module](getting-started-home.jpg)
 
@@ -44,16 +45,20 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![A module: the side menu on the left, and the top bar](getting-started-module.jpg)
 
-5. Look at the top bar. On the right are, in order: the **modules** button (the grid of squares), **Help** (the question mark), the **dark mode** button (the moon) and your name.
+5. Look at the top bar. On the right are, in order: the **modules** button (the grid of squares), the **notifications** bell, **Help** (the question mark), the **dark mode** button (the moon) and your name. On a phone the dark mode button is in the menu under your name.
 6. Choose the **modules** button. The menu lists **CORE modules** you can open; choose one to switch to it, or **All modules** for the CORE home.
 
 ![The modules menu](getting-started-modules.jpg)
 
-7. Choose your name at the top right. The menu shows your username and account type, **Send feedback**, **Change password** and **Sign out**.
+7. Choose the **bell**. The red number on it is how many notifications Juan has not read: requests from his team waiting for his approval, and comments and a task on the LMS project. Unread ones are in bold with a dot. Press Escape (or choose the bell again) to close it. See [See your notifications](#see-your-notifications).
+
+![The notifications panel, open from the bell](getting-started-notifications.jpg)
+
+8. Choose your name at the top right. The menu shows your picture (or your initials), username and account type, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
 
 ![The menu under your name](getting-started-user-menu.jpg)
 
-8. Choose **Sign out**. You are back on the sign-in page.
+9. Choose **Sign out**. You are back on the sign-in page.
 
 ## How to…
 
@@ -63,9 +68,13 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 2. Type your **Username** and **Password**.
 3. Choose **Sign in**.
 
-The CORE home opens. The first time, CORE asks you to choose your own password: type the temporary one, then a new one of at least 8 characters twice, and choose **Save and continue**.
+The CORE home opens. The first time, CORE asks you to choose your own password: type the temporary one, then a new one of at least 8 characters twice, and choose **Save and continue**. CORE refuses common passwords (such as *password123*) and passwords that contain your username or name.
 
-> **Note:** After 5 wrong passwords, your username is locked for 5 minutes. Every sign-in, and every failed one, is recorded in the audit log.
+If you use 2-step verification, CORE then shows **Enter your code**: open your authenticator app, type the 6-digit code it shows for **CORE ERP** and choose **Verify and sign in**. Without your phone, choose **Lost your phone? Use a recovery code** and type one of your recovery codes.
+
+If your company requires 2-step verification and you have not set it up, CORE shows **Set up 2-step verification** right after your password. Follow [Turn on 2-step verification](#turn-on-2-step-verification) from step 3; **Sign out** leaves it for later, but CORE stays closed until it is done.
+
+> **Note:** After 5 wrong passwords, your username is locked for 5 minutes, then 15, then an hour if the wrong passwords continue. Every sign-in, and every failed one, is recorded in the audit log.
 
 ### Open a module
 
@@ -74,25 +83,127 @@ The CORE home opens. The first time, CORE asks you to choose your own password: 
 
 To go back to the CORE home, choose the CORE logo at the top left, or **All modules** in the modules menu.
 
+### See your notifications
+
+The **bell** in the top bar tells you when someone did something that concerns you, in any module. The red number on it counts the ones you have not read (*99+* above 99); it updates by itself every minute, and when you come back to CORE's tab.
+
+1. Choose the **bell**. The panel lists your latest notifications, newest first, under **Today**, **Yesterday** and **Earlier**. Each shows who did it (their picture or initials, or the module's icon), what happened, a line of detail, the module and when (*5 min ago*, *Yesterday*). Unread ones are in bold with a dot.
+2. Choose one to open what it is about: the request, payslip, ticket, task or record. Opening it marks it read.
+3. To mark one read without opening it, choose its tick (**Mark as read**). **Mark all read** clears them all; **Unread only** hides the ones you have read.
+4. **See all** opens the **Notifications** page: every notification of the last 60 days, with a **Module** filter, **Unread only** and **Show more**.
+
+With the keyboard: the first notification is selected when the panel opens, the up and down arrows move between them, Enter opens one and Escape closes the panel. On a phone the panel fills the width of the screen; **×** closes it.
+
+What you are told about:
+
+| Module | You hear when… |
+|---|---|
+| HR & Payroll | a request needs your approval (as a supervisor, a named approver or HR); a request that waited for you was withdrawn or cancelled; your own request was approved, rejected, returned for revision or cancelled by someone else; your payslip is ready |
+| IT Assets | equipment is assigned to you, or supplies are issued to you |
+| Service Desk | a ticket is assigned to you, or its requester replies (agents); an agent replies to your ticket, or resolves or closes it |
+| Sales & CRM | someone makes you the owner of a lead, deal, account, contact, bid or contract |
+| Projects | the same as **For you** on **My work**: a task assigned to you, a mention, a comment, a task done or cancelled, being added to a project |
+| System | an administrator answers your feedback |
+
+You are never told about your own actions. A notification says only what the page it opens would show you: an approver sees who asked for which days, not the reason. Notifications from a module your company has turned off are hidden. Project notifications are the same ones as **For you** on **My work**: reading one in either place reads it in both, and the number next to **My work** follows.
+
+### See your project tasks (My work)
+
+If you are on a project, **Project Management** is one of your modules, whatever your account type.
+
+1. Open **Project Management**. **Overview** lists the projects you are on.
+2. Open **My work** in the side menu. **For you**, at the top, tells you what others did that concerns you: a task assigned to you, an @mention, a comment on your task, your task moved to done or cancelled, being added to a project. New ones are in bold; several on the same task are one line (*3 comments on …*). Open one, or click its tick, to mark it read; **Mark all read** clears them all.
+3. Below are the tasks assigned to you in every project: **Overdue**, **Today**, **This week**, **Later** and **No date**. The number next to **My work** counts the overdue ones, today's and the unread **For you** ones.
+4. Change a task's status in its row, or click it to open it.
+
+If you are on a project that tracks time (most do not: they use task sizes, not hours), **Timesheet** in the same menu is where you enter your hours for the week, separately from clocking in. See [the projects guide](projects#fill-in-your-timesheet).
+
+### Get the daily digest by email
+
+**My work** also has your **Daily digest**: your overdue tasks, those due within 3 working days, milestones at risk in projects you manage, and how many **For you** you have not read. When your company has turned on digest emails and your employee record has an email address, CORE emails it to you once a working day (07:30 unless your company chose another time), only when there is something in it.
+
+1. Open **Project Management → My work**.
+2. Under **Daily digest**, tick or untick **Email me a daily digest**. The line under it says whether, when and where it is emailed, or why not.
+
+**Show today's digest** opens the same lists on the page. See [the projects guide](projects#get-the-daily-digest).
+
+Your **My Home** page in HR & Payroll also shows **My project tasks** when you have some. See [the projects guide](projects).
+
+### Add your profile picture
+
+1. Choose your name at the top right, then **Add my picture** (**Change my picture** once you have one).
+2. Choose **Choose a photo…** and pick a photo; on a phone you can also take one.
+3. Move **Zoom**, **Left – right** and **Up – down** until your face sits in the circle.
+4. Choose **Save picture**.
+
+![Choosing a profile picture](getting-started-picture.jpg)
+
+Your picture is shown instead of your initials next to your name: at the top right, in project members, task cards, comments and watchers, record owners in Sales & CRM, and Users & Access. Everyone signed in to CORE can see it, so choose one you are happy for colleagues to see. CORE keeps only a small square of the photo (256 × 256). **Remove my picture** in the same window brings your initials back. Employees also find **Add my picture** on **My Profile**.
+
 ### Change your password
 
 1. Choose your name at the top right, then **Change password**.
 2. Type your **Current password**, then the **New password** (at least 8 characters) and type it again under **Confirm new password**.
 3. Choose **Change password**.
 
-You stay signed in on this browser and are signed out everywhere else.
+You stay signed in on this browser and are signed out everywhere else. The new password must be at least 8 characters and cannot be a common password or contain your username or name: three unrelated words make a strong one.
+
+### Turn on 2-step verification
+
+With 2-step verification, signing in needs your password and a code from an app on your phone, so a stolen password alone is not enough. You need an authenticator app, for example Google Authenticator, Microsoft Authenticator or 1Password.
+
+1. Choose your name at the top right, then **My security**.
+2. Under **2-step verification**, choose **Set up 2-step verification**, type **Your password** and choose **Continue**.
+3. In the authenticator app, add an account and scan the QR code. If you cannot scan it, choose to enter a setup key in the app and type the key shown under the code.
+4. Type the 6-digit code the app shows under **Code from the app** and choose **Turn on**.
+5. CORE shows ten **recovery codes**. Choose **Copy** or **Download** and keep them somewhere safe, away from your phone. Each one signs you in once if you lose your phone. They are shown only now.
+6. Tick **I have saved my recovery codes** and choose **Done**.
+
+You are signed out on every other device; sign in there again with a code.
+
+![My security](getting-started-security.jpg)
+
+> **Tip:** When few recovery codes are left, choose **New recovery codes** under **My security**. The old ones stop working. **Turn off** asks for your password and a code; it is not offered when your company requires 2-step verification.
+
+### See where you are signed in
+
+1. Choose your name at the top right, then **My security**.
+2. **Where you are signed in** lists each browser with its network address, when it signed in and when it was last used. *This device* is the one you are using.
+3. Choose **Sign out** on a row to end that session, or **Sign out everywhere else** to end all the others.
+
+If you see a device you do not recognize, sign it out and change your password.
 
 ### Switch between light and dark
 
-Choose the **moon** button in the top bar for dark mode, and the **sun** to go back. CORE remembers the choice on this browser. The Help pages follow it too.
+Choose the **moon** button in the top bar for dark mode, and the **sun** to go back. On a phone, choose your name at the top right, then **Dark mode** (or **Light mode**). CORE remembers the choice on this browser. The Help pages follow it too.
 
 ### Use CORE on a phone
 
-CORE works in the phone's browser; there is nothing to install. On a narrow screen the side menu folds away: choose the **menu** button (three lines) at the top left to open it, and tap outside it to close it. Tables become cards, one per row.
+CORE works in the phone's browser; there is nothing to install. On a narrow screen the side menu folds away: choose the **menu** button (three lines) at the top left to open it, and tap outside it to close it. Tables become cards, one per row. On a tablet or a phone turned sideways the wide lists are cards too, with the fields side by side and each label above its value, and the row's buttons at the top right.
+
+- **Filters**: on a phone or a tablet a list's filters (owner, status, stage…) fold into one **Filters** button next to the search. The number on it says how many are on; tap it to see and change them (it stays shaded while they are open). A search hint too long for the box is shortened, such as *Search…*.
+- **Tapping**: a link's tap area grows only into the free space around it, so a tap always opens what is under your finger. In lists such as **My work** the whole row opens the task; the project link in it opens the project.
+- **Tabs and chips** that do not fit scroll sideways: a fade at the edge shows there is more, and the tab you are on is always in view.
+- **Forms**: when something is missing, every field to fix is outlined with a message under it, and CORE takes you to the first one. When only one field is wrong, its message is under it. On long forms (an employee, an asset, Payroll Setup) the **Save** button (and **Cancel**) stays at the bottom of a phone's or tablet's screen.
+- **Messages** such as *Saved.* appear at the top of a phone's or tablet's screen, so they never cover a button. On a computer they rise above a bar at the bottom of the page.
+- **The top bar** keeps the menu, the CORE mark, the modules button, the bell, Help and your picture; **Dark mode** moves into the menu under your name. The notifications panel fills the width of the screen.
+- Turned sideways, the top bar is shorter and windows use the whole height, with their title at the top and their buttons at the bottom.
 
 ![CORE on a phone](getting-started-phone.jpg)
 
 > **Tip:** Clocking in from a phone records where you were, if you allow location. See [the employee guide](employee).
+
+### Open the Admin panel (administrators)
+
+Administrators, and anyone your company gave an administration permission (for example the audit log), have an **Administration** section on the CORE home. It starts with the **Admin panel** card; under it are shortcuts such as **Users & Access**, **Settings center**, **Dev log** and **Feedback inbox**.
+
+1. On the CORE home, choose the **Admin panel** card. Or, inside any module, choose **Admin panel** at the bottom of the side menu, or in the **modules** menu.
+2. The Admin panel has its own side menu: the **Dashboard**, people and roles, the modules and settings, the records (audit log, dev log, feedback) and the data (backups, demo data). You see only the pages your account may open.
+3. To go back, choose **CORE home** at the bottom of its side menu, or the CORE logo.
+
+![The Administration section of the CORE home, with the Admin panel card](getting-started-admin-panel.jpg)
+
+Everything in the Admin panel is described in [the administrator's guide](admin).
 
 ### Get help
 
@@ -114,34 +225,50 @@ Use it for a bug, a wrong figure, a missing feature or a confusing screen.
 
 ### Sign out
 
-Choose your name at the top right, then **Sign out**. You are also signed out after 8 hours without using CORE, or when CORE is restarted.
+Choose your name at the top right, then **Sign out**. You are also signed out after a while without using CORE (8 hours unless your administrator changed it), after the longest session your administrator allows (24 hours unless changed), or when CORE is restarted.
 
 ## Screens at a glance
 
 | Screen | What it is for |
 |---|---|
-| Sign-in page | Your username and password; choosing your own password the first time |
-| CORE home | The modules you may open, with live figures, the roadmap, and shortcuts for administrators |
+| Sign-in page | Your username and password; the 2-step code; choosing your own password the first time |
+| CORE home | Your modules in a sliding row (the ones you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
+| Admin panel | For administrators: users, roles, modules, settings, records and backups (see [the administrator's guide](admin)) |
 | Modules menu (grid button) | Switching modules from anywhere |
+| Notifications (the bell) | What others did that concerns you, from every module; the number of unread ones; open one to go to it |
+| Notifications page (**See all**) | All your notifications of the last 60 days, by module, unread only, with **Show more** |
 | Help & guides (question mark) | The guide for your job, search, and what's new |
-| Your name (top right) | Send feedback, Change password, Sign out |
+| Your name (top right) | Add or change your picture, Send feedback, My security, Change password, Sign out; on a phone, Dark mode |
+| My security | Change password, 2-step verification and recovery codes, where you are signed in |
 | Send feedback | A message to the administrators about CORE |
 
-The screens of each module are described in its guide: [the employee guide](employee), [approving requests](approver), [HR](hr), [payroll](payroll), [IT assets](it-assets), [the service desk](service-desk), [sales](sales) and [administration](admin).
+The screens of each module are described in its guide: [the employee guide](employee), [approving requests](approver), [HR](hr), [payroll](payroll), [IT assets](it-assets), [the service desk](service-desk), [sales](sales), [projects](projects) and [administration](admin).
 
 ## Questions
 
 **I forgot my password. What do I do?**
-Ask an administrator. They set a temporary password in **Users & Access**, and CORE asks you to choose your own when you sign in.
+Ask an administrator. They set a temporary password in **Admin panel → Users & Access**, and CORE asks you to choose your own when you sign in.
+
+**I lost my phone and my recovery codes. How do I sign in?**
+Ask an administrator to reset your 2-step verification in **Admin panel → Users & Access**. You then sign in with your password and, if your company requires it, set it up again on your new phone.
+
+**CORE says the code is not right, but I typed what the app shows.**
+The codes depend on the time. Check that the time on your phone is set automatically, and type the code before it changes. Each code works once.
 
 **A module is locked on the CORE home. Why?**
-Your account type does not include it. If your work needs it, ask an administrator. They can change your account type or, for the service desk and the CRM, give you access to that module only.
+Your account type does not include it. If your work needs it, ask an administrator. They can change your account type, change what your account type may do, or, for the service desk, the CRM and Projects, give you access to that module only. A module your company turned off is not shown. Project Management also opens for anyone a project manager adds to a project.
 
 **Why don't I see My Home or My Payslips?**
-Your sign-in account is not linked to your employee record. An administrator links it in **Users & Access**.
+Your sign-in account is not linked to your employee record. An administrator links it in **Admin panel → Users & Access**.
 
 **Is my data private?**
 Each account sees only what its job needs. Pay, government ID numbers and bank details are shown only to HR, payroll and administrators, and the numbers are masked until someone chooses to show them. Who viewed or changed personal data is recorded in an audit log, as the Data Privacy Act (RA 10173) expects.
+
+**Does CORE email me my notifications, or show them on my phone's lock screen?**
+No. Notifications are in CORE only: the bell's number updates while CORE is open, with no sound and no pop-ups. Project Management's daily digest is the only email (see [Get the daily digest by email](#get-the-daily-digest-by-email)). Notifications older than 60 days are removed, and CORE keeps your latest 200.
+
+**I opened a notification but the page says I cannot open it.**
+What it is about may have changed since: the request was deleted, you were taken off the project, or your account type changed. The notification stays in your list; mark it read.
 
 **Which browsers work?**
 Any current Chrome, Edge, Firefox or Safari, on a computer or a phone.

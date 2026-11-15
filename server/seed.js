@@ -8,11 +8,14 @@ import { DEFAULT_CRM } from '../shared/crm.js';
 const DEFAULT_BID_CHECKLIST = DEFAULT_CRM.bidChecklist;
 import { workDates } from '../shared/leave.js';
 import { ticketRef, slaDue } from '../shared/helpdesk.js';
+import { DEFAULT_STATUSES } from '../shared/projects.js';
+import { notify, accountOfEmployee } from './notifications.js';
+import { tellApprovers, tellRequester } from './leave.js';
 
 const PEOPLE = [
   ['Maria', 'Santos', 'Reyes', 'HR Manager', 'Human Resources', 'monthly', 55000, 'Female', 'Married'],
   ['Juan', 'Dela Cruz', 'Garcia', 'Software Engineer', 'Engineering', 'monthly', 45000, 'Male', 'Single'],
-  ['Andrea', 'Villanueva', 'Lim', 'Accountant', 'Finance', 'monthly', 32000, 'Female', 'Single'],
+  ['Andrea', 'Villanueva', 'Lim', 'Project Manager', 'Delivery', 'monthly', 32000, 'Female', 'Single'],
   ['Mark', 'Bautista', 'Torres', 'Sales Associate', 'Sales', 'monthly', 22000, 'Male', 'Married'],
   ['Kristine', 'Mendoza', 'Aquino', 'Customer Support', 'Operations', 'monthly', 18000, 'Female', 'Single'],
   ['Ramon', 'Castillo', 'Ramos', 'Warehouse Staff', 'Operations', 'daily', 755, 'Male', 'Married'],
@@ -136,6 +139,7 @@ export function demoData(codes = {}) {
   seedAssets(data, c);
   seedTickets(data, c);
   seedCrm(data, c);
+  seedProjects(data, c);
   return data;
 }
 
@@ -184,13 +188,14 @@ function seedCrm(data, c) {
     ['Plant attendance and timekeeping', bayani, 'Victor', 'needs', 780000, 50, 'Event', 'Site visit to the Valenzuela plant'],
     ['Provincial helpdesk and asset tracking', islaVerde, 'Corazon', 'qualify', 2400000, 75, 'Website', 'Get the approved budget and timeline'],
     ['Clinic patient portal', luzon, 'Miguel', 'lost', 1100000, -45, 'Cold outreach', ''],
-    ['Learning management system, phase 2', nsu, 'Teresa', 'proposal', 1650000, 28, 'Existing client', 'Demo the LMS gradebook to the deans'],
+    ['Learning management system, phase 2', nsu, 'Teresa', 'won', 1650000, -46, 'Existing client', ''],
   ];
   const deals = STAGED.map(([title, a, contact, stage, value, closeIn, source, nextStep], i) => {
-    const deal = { ...base(90 - i * 9), code: `${P}DL-${String(i + 1).padStart(4, '0')}`, title, accountId: a.id, contactId: byName(contact).id, stage, value, expectedClose: day(closeIn), source, nextStep, description: '', lostReason: stage === 'lost' ? 'Lost to a competitor' : '' };
+    // The LMS phase 2 deal was won some weeks ago (its project is running: see seedProjects).
+    const deal = { ...base(i === 6 ? 110 : 90 - i * 9), code: `${P}DL-${String(i + 1).padStart(4, '0')}`, title, accountId: a.id, contactId: byName(contact).id, stage, value, expectedClose: day(closeIn), source, nextStep, description: '', lostReason: stage === 'lost' ? 'Lost to a competitor' : '' };
     if (stage === 'won' || stage === 'lost') deal.closedAt = at(closeIn);
-    acts.push(event('deal', deal, 'Deal created in Qualification', 90 - i * 9));
-    if (stage === 'won') acts.push(event('deal', deal, 'Won · Negotiation → Won', -closeIn));
+    acts.push(event('deal', deal, 'Deal created in Qualification', i === 6 ? 110 : 90 - i * 9));
+    if (stage === 'won') acts.push(event('deal', deal, `Won · ${i === 6 ? 'Proposal' : 'Negotiation'} → Won`, -closeIn));
     if (stage === 'lost') acts.push(event('deal', deal, 'Lost (Lost to a competitor) · from Proposal', -closeIn));
     return deal;
   });
@@ -220,6 +225,7 @@ function seedCrm(data, c) {
     { ...base(300), code: `${P}CT-0001`, title: 'Student information system support and maintenance', accountId: nsu.id, dealId: null, bidId: null, number: 'NSU-2025-118', value: 480000, startDate: day(-325), endDate: day(40), status: 'active', autoRenew: false, billing: 'Quarterly', terms: '8x5 support, two releases per year.' },
     { ...base(20), code: `${P}CT-0002`, title: 'Warehouse HR and payroll: licence and implementation', accountId: meridian.id, dealId: deals[2].id, bidId: bids[2].id, number: 'MLI-PO-77812', value: 1320000, startDate: day(-15), endDate: day(350), status: 'active', autoRenew: true, billing: '50% on signing, 50% on go-live', terms: '' },
     { ...base(500), code: `${P}CT-0003`, title: 'Website redesign and hosting', accountId: nsu.id, dealId: null, bidId: null, number: 'NSU-2024-031', value: 210000, startDate: day(-500), endDate: day(-135), status: 'expired', autoRenew: false, billing: 'One-time', terms: '' },
+    { ...base(45), code: `${P}CT-0004`, title: 'Learning management system, phase 2: implementation', accountId: nsu.id, dealId: deals[6].id, bidId: null, number: 'NSU-2026-204', value: 1650000, startDate: day(-42), endDate: day(80), status: 'active', autoRenew: false, billing: '30% on design sign-off, 70% on acceptance', terms: 'Gradebook and parent portal; four batches of faculty training; 90 days of warranty support.' },
   ];
 
   const activity = (type, rel, relType, subject, body, dueIn, done, created) => ({
@@ -233,12 +239,351 @@ function seedCrm(data, c) {
     activity('call', deals[0], 'deal', 'Pricing call with the VP for Administration', 'She wants a 3-year support option and staggered payments.', null, true, 6),
     activity('task', contracts[0], 'contract', 'Prepare the renewal quotation', '', 5, false, 1),
     activity('note', bayani, 'account', 'Background', 'Three plants; about 900 employees on shifting schedules. Currently on spreadsheets.', null, true, 30),
-    activity('email', deals[6], 'deal', 'Sent the phase 2 proposal', 'Proposal v2 with the gradebook and parent portal.', null, true, 9),
+    activity('email', deals[6], 'deal', 'Sent the phase 2 proposal', 'Proposal v2 with the gradebook and parent portal.', null, true, 60),
     activity('task', leads[0], 'lead', 'Call Andres about the seasonal payroll', '', 1, false, 1),
     activity('meeting', deals[4], 'deal', 'Discovery meeting with the Provincial IT Office', 'They have about 1,400 devices and no ticketing.', null, true, 21),
   );
 
   Object.assign(data, { crmAccounts: accounts, crmContacts: contacts, crmLeads: leads, crmDeals: deals, crmBids: bids, crmContracts: contracts, crmActivities: acts });
+}
+
+// Project Management: the LMS phase 2 delivery for Northfield State University (won deal and
+// contract, about six weeks in), the provincial helpdesk bid being planned, and a small internal
+// IT project, among ten. Tasks have sizes (XS to XL), not hours; only the SIS support contract
+// tracks time (its support hours matter for the renewal), so only it has time logged. People are written as DEMO_USER('pm.demo') and so on; addDemo() swaps in the demo
+// accounts' ids once they exist.
+export const DEMO_USER = (username) => `demo-user:${username}`;
+function seedProjects(data, c) {
+  const P = c.crmPrefix ?? '';
+  const now = Date.now();
+  const at = (days) => new Date(now + days * 86400000).toISOString();
+  const day = (days) => localDate(new Date(now + days * 86400000));
+  // A working day: a weekend day or a holiday moves back to the working day before.
+  const off = new Set(data.holidays.filter((h) => h.type === 'regular' || h.type === 'special').map((h) => h.date));
+  const wd = (days) => {
+    for (let n = days; n > days - 10; n--) {
+      const dow = new Date(now + n * 86400000).getDay();
+      if (dow !== 0 && dow !== 6 && !off.has(day(n))) return day(n);
+    }
+    return day(days);
+  };
+  const [pmU, juan, it, sales] = ['pm.demo', 'employee.demo', 'it.demo', 'sales.demo'].map(DEMO_USER);
+  const [nsu, , , , islaVerde] = data.crmAccounts;
+  const statusIn = (p, id) => p.statuses.find((x) => x.id === id);
+  const projects = [];
+  const milestones = [];
+  const tasks = [];
+  const comments = [];
+  const logs = [];
+  const notes = [];
+  const views = [];
+
+  function project(n, fields, ms, rows) {
+    const code = `${P}PRJ-${String(n).padStart(4, '0')}`;
+    const p = {
+      id: randomUUID(), code, statuses: structuredClone(DEFAULT_STATUSES), healthOverride: null, taskSeq: 0, version: 1, timeTracking: false, budgetHours: null,
+      accountId: null, dealId: null, contractId: null, description: '', createdAt: at(-60), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: fields.managerId,
+      history: [{ at: at(fields.createdDaysAgo ? -fields.createdDaysAgo : -60), by: fields.managerId, field: 'created', from: '', to: '' }], ...fields,
+    };
+    if (fields.createdDaysAgo) p.createdAt = at(-fields.createdDaysAgo);
+    delete p.createdDaysAgo;
+    projects.push(p);
+    const mIds = ms.map(([name, due, deliverable, billingPercent, submitted, accepted, note], i) => {
+      const m = { id: randomUUID(), projectId: p.id, name, dueDate: wd(due), deliverable, billingPercent: billingPercent ?? null, submittedAt: submitted == null ? null : wd(submitted), acceptedAt: accepted == null ? null : wd(accepted), acceptanceNote: note || '', order: i, version: 1, createdAt: at(-60), updatedAt: at(-2) };
+      milestones.push(m);
+      return m.id;
+    });
+    const byKey = {};
+    rows.forEach(([ref, title, mi, st, who, start, due, size, extra = {}], i) => {
+      const n2 = ++p.taskSeq;
+      // Added before its start (or as `added` says: a task that came in later, for the burn-up).
+      const added = extra.added ?? Math.min(-45, (start ?? -45) - 3);
+      const t = {
+        id: randomUUID(), projectId: p.id, key: `${code}-${n2}`, title, description: extra.description || '', statusId: st, priority: extra.priority || 'normal',
+        assigneeId: who, startDate: start == null ? null : wd(start), dueDate: due == null ? null : wd(due), size: size ?? null,
+        milestoneId: mi == null ? null : mIds[mi], parentId: extra.parent ? byKey[extra.parent].id : null,
+        checklist: (extra.checklist || []).map(([text, done]) => ({ id: randomUUID(), text, done })), blockedBy: (extra.blockedBy || []).map((k) => byKey[k].id),
+        ticketId: extra.ticketId || null, rank: (i + 1) * 1024, completedAt: statusIn(p, st).category === 'done' ? at(due == null ? -1 : Math.min(-1, due)) : null,
+        version: 1, createdAt: at(added), createdBy: fields.managerId, updatedAt: at(-1), updatedBy: who || fields.managerId,
+        history: [{ at: at(added), by: fields.managerId, field: 'created', from: '', to: '' }],
+        // Watchers: who added it (the manager) and its assignee, as CORE does, plus any named here.
+        watchers: [...new Set([fields.managerId, who, ...(extra.watchers || [])].filter(Boolean))], attachments: [],
+      };
+      if (statusIn(p, st).category !== 'todo') t.history.push({ at: at(Math.min(-1, start ?? -1)), by: who || fields.managerId, field: 'status', from: p.statuses[0].name, to: statusIn(p, st).name });
+      byKey[ref] = t;
+      tasks.push(t);
+    });
+    return { p, byKey };
+  }
+
+  // 1. LMS phase 2 for Northfield State University: active, about six weeks in.
+  const won = data.crmDeals[6];
+  const lmsContract = data.crmContracts.find((x) => x.dealId === won.id);
+  const lms = project(1, {
+    name: 'Learning management system, phase 2', icon: { glyph: 'cap', color: 'blue' }, type: 'Client', status: 'active', startDate: wd(-42), endDate: wd(50), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: nsu.id, dealId: won.id, contractId: lmsContract.id,
+    description: 'Gradebook and parent portal for the LMS delivered in phase 1, with faculty training. Billing: 30% on design sign-off, 70% on acceptance.',
+  }, [
+    ['Design and requirements sign-off', -21, true, 30, -22, -18, 'Signed by the VP for Administration.'],
+    ['Gradebook and parent portal build', 5, false],
+    ['User acceptance testing', 24, false],
+    ['Go-live and acceptance', 45, true, 70],
+  ], [
+    ['kick', 'Kick-off meeting with the deans', 0, 'done', pmU, -42, -41, 'S'],
+    ['req', 'Requirements workshops with the three colleges', 0, 'done', pmU, -40, -33, 'M'],
+    ['gdd', 'Gradebook design document', 0, 'done', juan, -35, -26, 'M'],
+    ['wire', 'Parent portal wireframes', 0, 'done', juan, -33, -27, 'M'],
+    ['sign', 'Design sign-off with the VP for Administration', 0, 'done', pmU, -24, -22, 'XS'],
+    ['weights', 'Gradebook: grading periods and weights', 1, 'done', juan, -20, -10, 'L'],
+    ['import', 'Gradebook: import class lists from the SIS', 1, 'doing', juan, -12, -2, 'S', { priority: 'high', description: '## What it does\nEach night, the gradebook reads the **class lists** from the SIS export and adds or drops students in each section.\n\n## How\n1. The registrar saves the export as CSV (see the [SIS export guide](https://example.com/sis-export)).\n2. The import maps each `course_code` to a gradebook section.\n3. Students in two sections (*cross-enrolled*) appear in both.\n\n> Ask the registrar before changing the export columns: other offices read the same file.', checklist: [['Map SIS course codes', true], ['Handle cross-enrolled students', true], ['Test with the College of Engineering lists', false]] }],
+    ['login', 'Parent portal: sign-in and linking to students', 1, 'doing', juan, -8, 3, 'S'],
+    ['grades', 'Parent portal: grades and attendance pages', 1, 'todo', juan, 1, 5, 'M', { blockedBy: ['login'] }],
+    ['staging', 'Set up the staging server', 1, 'done', it, -18, -14, 'S'],
+    ['ssl', 'SSL certificate and domain for the parent portal', 1, 'waiting', it, -10, -3, 'XS', { added: -12, description: 'Waiting for the university\'s IT office to add the DNS record.' }],
+    ['privacy', 'Data privacy notice for parents', 1, 'review', pmU, -7, 2, 'S', { added: -8, checklist: [['Draft the notice', true], ['Review with the university\'s DPO', false]] }],
+    ['reports', 'Gradebook reports', 1, 'doing', juan, -6, 5, null],
+    ['r1', 'Class record report', null, 'done', juan, -6, -3, 'S', { parent: 'reports' }],
+    ['r2', 'Report card PDF', null, 'doing', juan, -2, 4, 'S', { parent: 'reports' }],
+    ['r3', 'Dean\'s summary of grades', null, 'todo', juan, 3, 5, 'S', { parent: 'reports' }],
+    ['scripts', 'UAT test scripts', 2, 'todo', pmU, 2, 12, 'M'],
+    ['uat', 'UAT sessions with the registrar and two deans', 2, 'todo', pmU, 14, 20, 'M'],
+    ['fixes', 'Fix the UAT findings', 2, 'todo', juan, 18, 23, 'M'],
+    ['load', 'Load test with 3,000 parents', 2, 'todo', it, 10, 16, 'S'],
+    ['train', 'Faculty training, four batches', 3, 'todo', pmU, 28, 38, 'M', { checklist: [['Book the AVR', false], ['Training manual', false], ['Attendance sheets', false]] }],
+    ['announce', 'Parent portal launch announcement', 3, 'todo', pmU, 38, 40, 'S'],
+    ['cutover', 'Go-live cut-over', 3, 'todo', it, 41, 42, 'S', { priority: 'high' }],
+    ['accept', 'Acceptance certificate signed', 3, 'todo', pmU, 43, 45, 'XS', { watchers: [sales] }],
+    ['weekly', 'Weekly status report to the VP', null, 'todo', pmU, null, 2, 'XS'],
+    ['shells', 'Migrate phase 1 course shells', null, 'cancelled', juan, -15, -10, 'S', { description: 'Not needed: the university keeps phase 1 as it is.' }],
+    ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 'XS', { added: -10 }],
+  ]);
+  const k = lms.byKey;
+  comments.push(
+    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: pmU, body: '@employee.demo the Engineering lists have about 40 cross-enrolled students. Can you check them before the build review?', createdAt: at(-3) },
+    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: juan, body: 'Checked 32 of them. The other 8 need the registrar\'s updated list; I asked Teresa for it.', createdAt: at(-2) },
+    { id: randomUUID(), taskId: k.ssl.id, projectId: lms.p.id, userId: it, body: 'Still waiting for Paolo (IT Director) to add the DNS record. Followed up by email today.', createdAt: at(-1) },
+    { id: randomUUID(), taskId: k.login.id, projectId: lms.p.id, userId: it, body: 'The staging server has the parent portal build now; the test parent accounts are ready.', createdAt: at(-1) },
+    { id: randomUUID(), taskId: k.login.id, projectId: lms.p.id, userId: pmU, body: 'Thanks. Can we show the sign-in to the registrar on Friday?', createdAt: at(-0.2) },
+  );
+  // "For you" for Juan (employee.demo): unread mentions, comments and an assignment; older ones read.
+  const note = (userId, kind, proj, task, actorId, text, daysAgo, read = false) => notes.push({ id: randomUUID(), userId, kind, projectId: proj.id, taskId: task?.id || null, actorId, text, at: at(-daysAgo), readAt: read ? at(-daysAgo + 0.1) : null });
+  note(juan, 'mentioned', lms.p, k.import, pmU, `mentioned you on ${k.import.key}: “@employee.demo the Engineering lists have about 40 cross-enrolled students. Can you…”`, 3);
+  note(juan, 'commented', lms.p, k.login, it, `commented on ${k.login.key}: “The staging server has the parent portal build now; the test parent accounts are ready.”`, 1);
+  note(juan, 'commented', lms.p, k.login, pmU, `commented on ${k.login.key}: “Thanks. Can we show the sign-in to the registrar on Friday?”`, 0.2);
+  note(juan, 'assigned', lms.p, k.fixes, pmU, `assigned you ${k.fixes.key} ${k.fixes.title}`, 2);
+  note(juan, 'status', lms.p, k.wire, pmU, `moved ${k.wire.key} to Done`, 27, true);
+  note(juan, 'added', lms.p, null, pmU, `added you to ${lms.p.code} ${lms.p.name} as member`, 42, true);
+  // Saved views shared with the project by its manager.
+  views.push(
+    { id: randomUUID(), projectId: lms.p.id, userId: null, createdBy: pmU, tab: 'board', name: 'Due this week', query: 'f=week', createdAt: at(-20) },
+    { id: randomUUID(), projectId: lms.p.id, userId: null, createdBy: pmU, tab: 'list', name: 'High and urgent, by status', query: 'f=high&group=status', createdAt: at(-20) },
+  );
+  // The last ten working days up to yesterday (time logged on the SIS support contract).
+  const workDays = [];
+  for (let i = 1; workDays.length < 10 && i < 30; i++) {
+    const dow = new Date(now - i * 86400000).getDay();
+    if (dow !== 0 && dow !== 6 && !off.has(day(-i))) workDays.push(i);
+  }
+
+  // 2. The provincial helpdesk: a government bid being planned, deliverables from the terms of reference.
+  project(2, {
+    name: 'Provincial helpdesk and asset tracking', icon: { glyph: 'headset', color: 'teal' }, type: 'Government', status: 'planning', startDate: wd(21), endDate: wd(140), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: islaVerde.id, dealId: data.crmDeals[4].id,
+    description: 'If the bid is awarded: an ICT helpdesk and asset management system for 12 provincial offices, about 1,400 devices.',
+  }, [
+    ['Inception report and work plan', 35, true, 15],
+    ['System installed in the 12 offices', 90, true, 45],
+    ['Training and turnover', 130, true, 40],
+  ], [
+    ['kick', 'Kick-off with the Provincial IT Office', 0, 'todo', pmU, 21, 21, 'S'],
+    ['inv', 'Inventory of devices per office', 0, 'todo', it, 22, 33, 'L'],
+    ['inception', 'Write the inception report', 0, 'todo', pmU, 25, 35, 'M'],
+    ['install', 'Install and configure the service desk', 1, 'todo', it, 40, 85, 'XL'],
+    ['focal', 'Train the office focal persons', 2, 'todo', pmU, 95, 125, 'L'],
+  ]);
+
+  // 3. A small internal IT project.
+  project(3, {
+    name: 'Office network refresh', icon: { glyph: 'laptop', color: 'violet' }, type: 'Internal', status: 'active', startDate: wd(-10), endDate: wd(20), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
+    description: 'New PoE switches and cabling on the 3rd floor; Wi-Fi in the meeting rooms.',
+  }, [['New switches live', 10, false]], [
+    ['survey', 'Survey the 3rd floor cabling', 0, 'done', it, -10, -8, 'S'],
+    ['order', 'Order two PoE switches', 0, 'done', it, -8, -7, 'XS'],
+    ['replace', 'Replace the switches on the 3rd floor', 0, 'doing', it, 2, 4, 'S', { priority: 'high', checklist: [['Schedule after office hours', true], ['Back up the switch configuration', false], ['Label the patch panel', false]] }],
+    ['wifi', 'Wi-Fi access point for meeting room B', 0, 'todo', juan, 5, 9, 'S'],
+    ['diagram', 'Update the network diagram', null, 'todo', juan, 12, 15, 'XS'],
+  ]);
+
+
+  // ----- More projects, so every state and view has something to show -----
+  const [hrU, payU] = ['hr.demo', 'payroll.demo'].map(DEMO_USER);
+  const [, , meridian] = data.crmAccounts;
+  const [sisContract, meridianContract, websiteContract] = data.crmContracts;
+  const say = (proj, task, userId, body, daysAgo) => comments.push({ id: randomUUID(), taskId: task.id, projectId: proj.p.id, userId, body, createdAt: at(-daysAgo) });
+  // Time on the last ten working days (a project that tracks time): rows of [userId, taskRef or
+  // null, hours, note] per day.
+  const logDays = (proj, perDay) => workDays.forEach((ago, i) => {
+    for (const [userId, ref, hours, note] of perDay(i)) logs.push({ id: randomUUID(), projectId: proj.p.id, taskId: ref ? proj.byKey[ref].id : null, userId, date: day(-ago), hours, note: note || '', createdAt: at(-ago) });
+  });
+
+  // 4. Meridian's warehouse HR and payroll rollout: won three weeks ago, early in delivery. The
+  // In progress column has a WIP limit of 3 (four tasks are in it, so the board warns), and the
+  // manager's reading is "off track", worse than what the tasks alone show.
+  const meridianRollout = project(4, {
+    name: 'Warehouse HR and payroll rollout', icon: { glyph: 'box', color: 'amber' }, type: 'Client', status: 'active', startDate: wd(-14), endDate: wd(75), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: payU, role: 'member' }, { userId: hrU, role: 'member' }, { userId: juan, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: meridian.id, dealId: data.crmDeals[2].id, contractId: meridianContract.id,
+    description: 'HR records, attendance and payroll for 420 warehouse staff in two sites. Billing: 50% on signing (paid), 50% on go-live.',
+    statuses: DEFAULT_STATUSES.map((x) => (x.id === 'doing' ? { ...structuredClone(x), wipLimit: 3 } : structuredClone(x))),
+    healthOverride: { value: 'red', note: 'Off track in practice: Meridian\'s HR has not sent the 2026 leave balances, so the parallel run will move a week unless they arrive by Friday.', by: pmU, at: at(-1) },
+  }, [
+    ['Set-up and data migration', 12, false],
+    ['Parallel payroll run', 40, false],
+    ['Go-live and acceptance', 70, true, 50],
+  ], [
+    ['kick', 'Kick-off with Grace Lim and the site supervisors', 0, 'done', pmU, -14, -13, 'S'],
+    ['master', 'Employee master file from Meridian\'s spreadsheet', 0, 'doing', hrU, -10, 3, 'M', { checklist: [['Template sent', true], ['Site A file received', true], ['Site B file received', false], ['Duplicates removed', false]] }],
+    ['sched', 'Shift schedules for both warehouses', 0, 'doing', juan, -6, 5, 'S'],
+    ['leave', 'Opening leave balances for 2026', 0, 'waiting', hrU, -8, 2, 'S', { priority: 'high', description: 'Waiting for Meridian\'s HR to send the balances as of the go-live month.' }],
+    ['rates', 'Pay rules: night differential and holiday premiums', 0, 'doing', payU, -5, 6, 'M'],
+    ['bio', 'Connect the biometric clocks at Site A', 0, 'doing', juan, -3, 8, 'S', { blockedBy: ['sched'] }],
+    ['users', 'User accounts for the site supervisors', 0, 'todo', juan, 7, 10, 'M'],
+    ['parallel1', 'Parallel run: first cut-off', 1, 'todo', payU, 20, 27, 'M', { blockedBy: ['master', 'rates'] }],
+    ['compare', 'Compare against the old payroll and explain each difference', 1, 'todo', payU, 27, 33, 'S'],
+    ['parallel2', 'Parallel run: second cut-off', 1, 'todo', payU, 34, 40, 'M'],
+    ['train', 'Train the payroll and HR staff', 2, 'todo', pmU, 50, 60, 'M'],
+    ['golive', 'Go-live payroll', 2, 'todo', payU, 62, 66, 'S', { priority: 'high' }],
+    ['accept', 'Acceptance and turnover', 2, 'todo', pmU, 66, 70, 'XS'],
+  ]);
+  say(meridianRollout, meridianRollout.byKey.leave, pmU, '@hr.demo can you call Grace tomorrow? Without the balances the parallel run will be off.', 2);
+  note(hrU, 'mentioned', meridianRollout.p, meridianRollout.byKey.leave, pmU, `mentioned you on ${meridianRollout.byKey.leave.key}: “@hr.demo can you call Grace tomorrow? Without the balances the parallel run…”`, 2);
+  say(meridianRollout, meridianRollout.byKey.leave, hrU, 'Called her. Site A is ready; Site B will send theirs on Thursday.', 1);
+  say(meridianRollout, meridianRollout.byKey.bio, juan, 'Site A has 6 devices of the same model as Bayani\'s. The import should work as is.', 1);
+
+  // 5. Support for the student information system: a year-long contract with its own statuses
+  // (Backlog, In progress, Client sign-off, Released), two releases a year, ending in 40 days. It
+  // tracks time: the support hours go into the renewal discussion.
+  const sis = project(5, {
+    name: 'SIS support and maintenance, 2025–2026', icon: { glyph: 'database', color: 'green' }, type: 'Client', status: 'active', startDate: wd(-325), endDate: wd(40), managerId: it, createdDaysAgo: 325,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }, { userId: sales, role: 'viewer' }],
+    accountId: nsu.id, contractId: sisContract.id, timeTracking: true, budgetHours: 300,
+    description: '8x5 support for the student information system and two releases a year, under contract NSU-2025-118. Renewal is being discussed in Sales & CRM.',
+    statuses: [
+      { id: 'backlog', name: 'Backlog', category: 'todo', color: 'gray' },
+      { id: 'doing', name: 'In progress', category: 'active', color: 'blue', wipLimit: 2 },
+      { id: 'signoff', name: 'Client sign-off', category: 'active', color: 'violet' },
+      { id: 'released', name: 'Released', category: 'done', color: 'green' },
+      { id: 'cancelled', name: 'Cancelled', category: 'cancelled', color: 'gray' },
+    ],
+  }, [
+    ['Release 2025.2', -200, true, 50, -203, -196, 'Accepted by Paolo Santiago.'],
+    ['Release 2026.1', 5, true, 50, -2, null],
+    ['Renewal decision', 30, false],
+  ], [
+    ['enrol', 'Online enrolment for second semester', 0, 'released', juan, -260, -205, 'XL'],
+    ['tor', 'Transcript of records PDF', 0, 'released', juan, -240, -206, 'M'],
+    ['perf', 'Speed up the grade encoding page', 1, 'released', juan, -90, -40, 'L'],
+    ['sched', 'Class scheduling conflicts report', 1, 'released', juan, -70, -32, 'M'],
+    ['sso', 'Single sign-on with the LMS', 1, 'signoff', juan, -60, 4, 'S', { description: 'Released; Paolo is checking it with the College of Nursing before signing the release.' }],
+    ['patch', 'Monthly security patches', null, 'doing', it, -5, 3, 'S'],
+    ['backup', 'Restore test of the nightly backup', null, 'backlog', it, 10, 12, 'S'],
+    ['report', 'Support report for the renewal (tickets, response times)', 2, 'backlog', it, 15, 25, 'S', { priority: 'high' }],
+    ['handover', 'Handover notes if the contract is not renewed', 2, 'backlog', it, 28, 38, 'S'],
+    ['mobile', 'Mobile view of the student portal', null, 'cancelled', juan, -150, -120, 'L', { description: 'Moved to the phase 2 proposal instead.' }],
+  ]);
+  say(sis, sis.byKey.sso, it, '@pm.demo Paolo says the Nursing check takes another week. Can the LMS team keep their test accounts open until then?', 3);
+  note(pmU, 'mentioned', sis.p, sis.byKey.sso, it, `mentioned you on ${sis.byKey.sso.key}: “@pm.demo Paolo says the Nursing check takes another week. Can the LMS team…”`, 3);
+  logDays(sis, (i) => [[it, i % 2 ? 'patch' : null, 1, i % 2 ? '' : 'Support tickets'], ...(i < 3 ? [[juan, 'sso', 1.5, 'Fixes from the Nursing check']] : [])]);
+
+  // 6. A finished project: the university website, delivered and accepted, contract expired.
+  project(6, {
+    name: 'University website redesign', type: 'Client', status: 'completed', startDate: wd(-500), endDate: wd(-150), managerId: pmU, createdDaysAgo: 505,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }],
+    accountId: nsu.id, contractId: websiteContract.id,
+    description: 'New public website on the university\'s own hosting, with a news section for each college. Delivered and accepted.',
+  }, [
+    ['Design approved', -430, true, 40, -432, -428, 'Approved by the Office of the President.'],
+    ['Launch and acceptance', -160, true, 60, -165, -158, 'Acceptance certificate NSU-ACC-2025-07.'],
+  ], [
+    ['brief', 'Content inventory and sitemap', 0, 'done', pmU, -500, -480, 'M'],
+    ['design', 'Home and college page designs', 0, 'done', juan, -480, -435, 'XL'],
+    ['build', 'Build the templates', 1, 'done', juan, -425, -300, 'XL'],
+    ['news', 'News section per college', 1, 'done', juan, -300, -240, 'L'],
+    ['migrate', 'Move 1,200 pages from the old site', 1, 'done', pmU, -260, -190, 'L'],
+    ['launch', 'Launch and redirects from the old addresses', 1, 'done', juan, -170, -165, 'S'],
+    ['handover', 'Train the web editors', 1, 'done', pmU, -165, -160, 'S'],
+  ]);
+
+  // 7. Internal, off track: year-end payroll work whose first milestone has passed with work open.
+  const yearEnd = project(7, {
+    name: 'Year-end payroll and 2027 tax tables', icon: { glyph: 'wallet', color: 'brand' }, type: 'Internal', status: 'active', startDate: wd(-30), endDate: wd(45), managerId: payU,
+    members: [{ userId: payU, role: 'manager' }, { userId: hrU, role: 'member' }, { userId: pmU, role: 'viewer' }],
+    description: 'Get payroll ready for the year-end: contribution checks, 2027 tax tables in Payroll Setup, the 13th month pay and the annual reports to the BIR.',
+  }, [
+    ['Contributions reconciled', -3, false],
+    ['13th month pay released', 30, false],
+    ['Annual reports filed', 45, false],
+  ], [
+    ['sss', 'Reconcile SSS, PhilHealth and Pag-IBIG remittances, January to October', 0, 'doing', payU, -25, -6, 'M', { priority: 'high', checklist: [['SSS', true], ['PhilHealth', true], ['Pag-IBIG', false]] }],
+    ['loans', 'Check the salary loan deductions against the SSS statements', 0, 'todo', payU, -10, -4, 'S'],
+    ['tax', 'Enter the 2027 tax tables in Payroll Setup', 1, 'todo', payU, 5, 12, 'S', { description: 'Use the BIR\'s revenue regulations for 2027 once published; check against last year\'s table.' }],
+    ['thirteenth', 'Compute the 13th month pay and check it with HR', 1, 'todo', payU, 15, 25, 'S'],
+    ['separated', 'Final pay for the three separated employees', 1, 'doing', hrU, -4, 8, 'S'],
+    ['alpha', 'Prepare the alphalist of employees', 2, 'todo', payU, 30, 42, 'M'],
+    ['certs', 'Certificates of tax withheld for each employee', 2, 'todo', hrU, 32, 44, 'S'],
+  ]);
+  say(yearEnd, yearEnd.byKey.sss, payU, 'Pag-IBIG\'s statement for September is missing. Requested a copy; the milestone will be a few days late.', 2);
+
+  // 8. On hold, with the manager's note.
+  project(8, {
+    name: 'Data privacy compliance review (RA 10173)', icon: { glyph: 'shield', color: 'red' }, type: 'Internal', status: 'on_hold', startDate: wd(-50), endDate: wd(60), managerId: hrU,
+    members: [{ userId: hrU, role: 'manager' }, { userId: it, role: 'member' }, { userId: pmU, role: 'viewer' }],
+    description: 'Annual review of how the company keeps personal data. On hold until the new Data Protection Officer is appointed.',
+    healthOverride: { value: 'amber', note: 'Paused on purpose: waiting for the DPO appointment from management, expected next month.', by: hrU, at: at(-12) },
+  }, [['Inventory of personal data', -10, false], ['Privacy impact assessment', 40, false]], [
+    ['inventory', 'List the systems and files that hold personal data', 0, 'done', hrU, -50, -30, 'M'],
+    ['access', 'Review who can see pay and government IDs', 0, 'done', it, -40, -25, 'S', { description: 'Done with the Users & Access table and the audit log.' }],
+    ['retention', 'Retention periods for applicant files', 0, 'waiting', hrU, -25, -12, 'XS'],
+    ['pia', 'Privacy impact assessment for the clock-in locations', 1, 'todo', hrU, 20, 35, 'M'],
+    ['notice', 'Update the employee privacy notice', 1, 'todo', hrU, 30, 40, 'S'],
+  ]);
+
+  // 9. Cancelled, with the reason in the description.
+  project(9, {
+    name: 'Move the file server to the cloud', type: 'Internal', status: 'cancelled', startDate: wd(-90), endDate: wd(-20), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
+    description: 'Cancelled: the quote for the internet upgrade came in above budget. Revisit next year with the new lease line.',
+  }, [['Pilot with the Sales folder', -40, false]], [
+    ['quote', 'Quotes for storage and the internet upgrade', 0, 'done', it, -90, -70, 'S'],
+    ['pilot', 'Pilot with the Sales folder', 0, 'cancelled', juan, -60, -40, 'M'],
+    ['policy', 'Folder permissions plan', 0, 'cancelled', it, -60, -45, 'S'],
+  ]);
+
+  // 10. Internal laptop refresh, with a task linked to Juan's service desk ticket.
+  const battery = data.tickets.find((x) => x.subject === 'Laptop battery drains very fast');
+  const laptops = project(10, {
+    name: 'Laptop refresh, engineering team', type: 'Internal', status: 'active', startDate: wd(-7), endDate: wd(30), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: payU, role: 'viewer' }],
+    description: 'Replace the five oldest engineering laptops and re-image them; the old units go to the training room.',
+  }, [['New laptops issued', 21, false]], [
+    ['list', 'List the five oldest units from IT Assets', 0, 'done', it, -7, -6, 'XS'],
+    ['quote', 'Get three quotes and the purchase approval', 0, 'doing', it, -5, 4, 'S'],
+    ['image', 'Prepare the standard image', 0, 'todo', it, 5, 10, 'S'],
+    ['juan', 'Juan\'s laptop: battery first, then a replacement unit', 0, 'doing', it, -1, 2, 'XS', { priority: 'high', ticketId: battery?.id || null }],
+    ['issue', 'Issue the new laptops and record them in IT Assets', 0, 'todo', it, 15, 21, 'S'],
+    ['training', 'Move the old units to the training room', null, 'todo', juan, 22, 28, 'XS'],
+  ]);
+  say(laptops, laptops.byKey.juan, it, 'Battery ordered. Linked to his ticket so the service desk sees where it is.', 1);
+
+  // People who commented on a task watch it, as in CORE.
+  for (const cm of comments) {
+    const t = tasks.find((x) => x.id === cm.taskId);
+    if (t && !t.watchers.includes(cm.userId)) t.watchers.push(cm.userId);
+  }
+  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs, pmNotifications: notes, pmViews: views });
 }
 
 // A few service desk tickets in different states, from the demo employees.
@@ -273,8 +618,8 @@ function seedTickets(data, c) {
     make(c.firstTicket + 2, juan, 'Laptop battery drains very fast', 'Hardware', 'normal', 'open', 5, 'portal', [
       msg(r(juan), 'My laptop goes from 100% to 20% in about an hour, even with only the browser open.', ago(5)),
     ]),
-    make(c.firstTicket + 3, andrea, 'Cannot open the Finance shared drive', 'Account and access', 'high', 'new', 2, 'email', [
-      msg(r(andrea), 'I get "Access denied" when I open \\\\fileserver\\finance since this morning. I need it for the month-end close.', ago(2)),
+    make(c.firstTicket + 3, andrea, 'Cannot open the Projects shared drive', 'Account and access', 'high', 'new', 2, 'email', [
+      msg(r(andrea), 'I get "Access denied" when I open \\\\fileserver\\projects since this morning. I need it for the client status report due today.', ago(2)),
     ]),
   ];
   data.helpdesk.seq = c.firstTicket + data.tickets.length - 1;
@@ -372,4 +717,33 @@ function seedAssets(data, c) {
     move(daysAgo(30 - i * 3), 'out', -qty, { issuedTo: to, reference: `REQ-${2026100 + i}` });
     if (i === 4) move(daysAgo(5), 'out', -2, { issuedTo: { type: 'location', id: null, name: 'BGC Office, 32F' }, reference: 'Printer refill' });
   });
+}
+
+// The bell for the demo accounts (after they exist and the requests have their routes): the
+// requests waiting for Maria (hr.demo) and Juan (employee.demo), the HR decision on Andrea's
+// (pm.demo) leave, and the laptop IT gave Juan. Written as the modules write them, marked demo.
+export function seedNotifications(db) {
+  const d = db.data;
+  const hours = (h) => new Date(Date.now() - h * 3600000).toISOString();
+  const by = (username) => d.users.find((u) => u.username === username && u.demo) || null;
+  const hr = by('hr.demo');
+  const it = by('it.demo');
+  const reqs = d.requests.filter((r) => r.demo);
+  // Newest first: a request filed a few hours ago, the others earlier today or yesterday.
+  reqs.filter((r) => r.status === 'pending').forEach((r, i) => {
+    const asker = accountOfEmployee(db, r.employeeId);
+    const e = d.employees.find((x) => x.id === r.employeeId);
+    tellApprovers(db, r, asker || { id: null, name: `${e.firstName} ${e.lastName}` }, 'filed', new Set(), { at: hours(1.5 + i * 9), demo: true });
+  });
+  for (const r of reqs.filter((x) => x.status === 'rejected')) {
+    if (!hr) continue;
+    for (const n of tellRequester(db, r, hr, 'rejected', { at: hours(40), demo: true })) n.readAt = hours(30);
+  }
+  // Equipment: read, a while ago.
+  const juan = by('employee.demo');
+  const laptop = juan && d.assets.find((a) => a.demo && a.assignedTo?.type === 'employee' && a.assignedTo.id === juan.employeeId);
+  if (laptop && it) {
+    const rows = notify(db, [juan.id], { module: 'assets', kind: 'asset.assigned', title: `${it.name} assigned ${laptop.assetTag} ${laptop.name} to you`, body: `${laptop.category} · See it under My Assets`, link: '#/assets/mine' }, { actorId: it.id, at: hours(24 * 20), demo: true });
+    for (const n of rows) n.readAt = hours(24 * 19);
+  }
 }

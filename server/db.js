@@ -1,12 +1,16 @@
 // Tiny JSON-file database. All data lives in data/db.json next to the app.
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { keepPrivate } from './util.js';
 import { DEFAULT_SETTINGS, DEFAULT_RATES, premiumsOf } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEFAULT_LOCATION_SETTINGS } from '../shared/geo.js';
 import { emptyHelpdesk } from './helpdesk.js';
 import { emptyCrm } from './crm.js';
+import { emptyPm } from './projects.js';
 import { initialHolidays } from './holidays.js';
+import { DEFAULT_BRANDING } from '../shared/brand.js';
 
 export function emptyData() {
   return {
@@ -41,11 +45,41 @@ export function emptyData() {
     crmContracts: [],
     crmActivities: [],
     crm: emptyCrm(),
+    // Project Management (server/projects.js): projects (and templates), milestones, tasks,
+    // comments, time logs, notifications and saved views, and the Projects setup with the code
+    // counter in `pm`.
+    pmProjects: [],
+    pmMilestones: [],
+    pmTasks: [],
+    pmComments: [],
+    pmTimeLogs: [],
+    pmNotifications: [], // "For you" on My work: one row per person and event
+    pmViews: [], // saved filters of a project's Board or List
+    pm: emptyPm(),
+    notifications: [], // the bell: one row per person and event, from every module (server/notifications.js)
+    // Admin panel (server/config.js): the company's changes to the account types, which modules are
+    // on, the history of settings changes, and when a backup was last downloaded.
+    roleOverrides: {}, // { role: { add: [permission…], remove: [permission…] } }
+    modules: {}, // { hr: true, assets: false, … }: a module missing here is on
+    settingsLog: [], // who changed which setting, from what to what (Settings center → Change history)
+    adminState: { lastBackupAt: null, lastBackupBy: null },
   };
 }
 
+// An existing data folder is closed to other accounts too, unless it is plainly not CORE's own:
+// a shared folder such as /tmp, someone else's folder, or the home folder.
+function closeFolder(dir) {
+  try {
+    const st = fs.statSync(dir);
+    const own = typeof process.getuid !== 'function' || st.uid === process.getuid();
+    if (own && !(st.mode & 0o1000) && path.resolve(dir) !== path.resolve(os.homedir())) fs.chmodSync(dir, 0o700);
+  } catch {}
+}
+
 export function openDb(file) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  closeFolder(path.dirname(file));
+  if (fs.existsSync(file)) keepPrivate(file);
   let data = emptyData();
   if (fs.existsSync(file)) {
     data = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -65,11 +99,16 @@ export function openDb(file) {
     data.feedback ||= [];
     data.tickets ||= [];
     data.payrollLedger ||= [];
+    data.roleOverrides ||= {};
+    data.modules ||= {};
+    data.settingsLog ||= [];
+    data.adminState ||= { lastBackupAt: null, lastBackupBy: null };
   }
 
   const db = {
     // Folder holding the data file; uploaded files are kept under it.
     dir: path.dirname(file),
+    file,
     get data() {
       return data;
     },
@@ -79,7 +118,8 @@ export function openDb(file) {
     },
     save() {
       const tmp = `${file}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+      fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
+      keepPrivate(tmp); // a temp file left by an older build keeps its old mode otherwise
       fs.renameSync(tmp, file);
     },
   };
@@ -99,6 +139,7 @@ export function mergeSettings(settings = {}) {
     schedule: { ...DEFAULT_SETTINGS.schedule, ...(settings.schedule || {}) },
     contributions: { ...DEFAULT_SETTINGS.contributions, ...(settings.contributions || {}) },
     location: { ...DEFAULT_LOCATION_SETTINGS, ...(settings.location || {}) },
+    branding: { ...DEFAULT_BRANDING, ...(settings.branding || {}) },
     rates: {
       sss: { ...DEFAULT_RATES.sss, ...(settings.rates?.sss || {}) },
       philhealth: { ...DEFAULT_RATES.philhealth, ...(settings.rates?.philhealth || {}) },

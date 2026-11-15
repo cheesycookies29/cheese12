@@ -94,13 +94,19 @@ export async function approvalsView(el, _params, query) {
     if (btn) return decide(byId(btn.dataset.id), btn.dataset.act, load);
     const row = e.target.closest('tr[data-open]');
     if (!row || e.target.closest('input, button, a')) return;
-    const r = await api.get(`/api/approvals/${row.dataset.open}`);
+    await openRequest(row.dataset.open);
+  });
+  // A request's details, with its actions while it waits for this account (also from a
+  // notification's link: #/approvals?open=<id>).
+  async function openRequest(id) {
+    const byId = (x) => rows.find((r) => r.id === x);
+    const r = await api.get(`/api/approvals/${id}`);
     const { close } = requestDetail({ ...r, hrOverride: byId(r.id)?.hrOverride }, {
       certUrl: `/api/approvals/${r.id}/attachment`, balance: r.balance,
       actions: r.status === 'pending' && r.canDecide ? html`<button type="button" class="btn danger ghost" data-d="reject">Reject</button><button type="button" class="btn" data-d="return">Return for revision</button><button type="button" class="btn primary" data-d="approve">Approve</button>` : '',
     });
     document.querySelectorAll('.req-modal [data-d]').forEach((b) => b.addEventListener('click', () => (close(), decide({ ...r, hrOverride: byId(r.id)?.hrOverride }, b.dataset.d, load))));
-  });
+  }
   el.querySelector('#bulk')?.addEventListener('click', () => {
     const ids = [...selected];
     modal({
@@ -117,4 +123,8 @@ export async function approvalsView(el, _params, query) {
   });
   if (!ctx.user) return;
   await load();
+  if (query.open) {
+    history.replaceState(null, '', `#/approvals${tab === 'pending' ? '' : `?tab=${tab}`}`);
+    await openRequest(String(query.open)).catch((err) => toast(err.status === 404 ? 'That request is no longer there, or no longer yours to see.' : err.message, 'error'));
+  }
 }

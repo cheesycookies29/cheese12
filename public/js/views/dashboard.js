@@ -51,7 +51,7 @@ export async function dashboardView(el) {
       ? html`<section class="card empty welcome">
           <h2>Welcome to <span>LTDC</span> HR &amp; Payroll</h2>
           <p>Start by setting your company details, then add employees. Or load sample data to explore.</p>
-          <div class="actions center">${can('settings.edit') ? html`<a class="btn" href="#/settings">Company settings</a>` : ''}${can('employees.edit') ? html`<a class="btn primary" href="#/employees/new">Add first employee</a>` : ''}</div>
+          <div class="actions center">${can('settings.edit') ? html`<a class="btn" href="#/admin/settings">Company settings</a>` : ''}${can('employees.edit') ? html`<a class="btn primary" href="#/employees/new">Add first employee</a>` : ''}</div>
         </section>`
       : html`
         <div class="stats">

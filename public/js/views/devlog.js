@@ -194,11 +194,11 @@ export async function devlogView(el) {
     </header>
     <section class="buildbar" aria-label="Installed build">
       ${kv('version', html`<strong>${about.version}</strong><span class="flag ${current ? 'ok' : 'warn'}">${current ? 'current' : `client ${APP_VERSION}`}</span>`)}
-      ${kv('commit', about.commit ? about.commit.slice(0, 7) : '—')}
+      ${about.node ? html`${kv('commit', about.commit ? about.commit.slice(0, 7) : '—')}
       ${kv('channel', about.channel || '—')}
       ${kv('installed', about.installedAt ? stamp(about.installedAt) : '—')}
       ${kv('uptime', html`<span title="since ${stamp(about.startedAt)}">${uptime(about.startedAt)}</span>`)}
-      ${kv('node', about.node)}
+      ${kv('node', about.node)}` : '' /* the build's details are sent to Administrators only */}
     </section>
     <div class="log-toolbar">
       <div class="seg-btns" role="group" aria-label="Module">

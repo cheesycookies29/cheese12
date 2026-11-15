@@ -2,7 +2,7 @@
 
 **CORE** is the enterprise resource planning system of Lancaster Technology and Development Corporation (LTDC). It runs on your own computer or a small cloud server and opens in your browser. Its design language is shared with the Lancaster LMS: a white top bar, an icon sidebar that folds to icons, cards on a light grey canvas, one brand colour throughout, and a **dark mode** (the moon button, remembered per browser).
 
-After signing in, everyone lands on the **CORE home page** and picks a module; the grid button in the top bar switches modules from anywhere. Four modules are live:
+After signing in, everyone lands on the **CORE home page** and picks a module; the grid button in the top bar switches modules from anywhere. Five modules are live:
 
 | Module | For |
 | --- | --- |
@@ -10,9 +10,12 @@ After signing in, everyone lands on the **CORE home page** and picks a module; t
 | **IT Asset Management** | IT equipment and consumable stock: who or where it is allocated to, warranty, history, CSV exports |
 | **IT Service Desk** | Support tickets from the portal, email and a public form, with assignment, internal notes and service levels |
 | **Sales & CRM** | Leads, accounts and contacts, a deal pipeline with forecasts, public bids with document checklists, and contract renewals |
+| **Project Management** | Client, government and internal projects: milestones and contract deliverables, a task board with effort sizes, a timeline, My work, and time tracking with a weekly timesheet where a project needs it |
 
-Finance & Accounting, Procurement, Project Management and Document Management are listed under **On the roadmap**.
-A module the user's account cannot use shows **No access**.
+Finance & Accounting, Procurement and Document Management are listed under **On the roadmap**.
+A module the user's account cannot use shows **No access**; a module the company turned off (Admin panel → Modules) is not shown, except to administrators.
+
+Administrators (and accounts given an administration permission) also get the **Admin panel**: see [Admin panel](#admin-panel).
 
 ### HR & Payroll
 
@@ -62,10 +65,53 @@ Built on the model the major CRMs share (accounts, contacts, leads, deals moving
 - **Sales setup** (Sales Managers and Administrators): pipeline stages and probabilities (stages that still have deals cannot be removed), lead sources, lost reasons, industries, the bid checklist and the renewal notice. Administrators give or remove CRM access per account under **Sales setup → Team access**. The setup survives demo data and "erase all data"; CRM records are company data.
 - CSV export on every list. Codes: `LD-0001` leads, `DL-0001` deals, `BID-0001` bids, `CT-0001` contracts.
 
+### Project Management
+
+Opinionated and lean, for dated, contract-bound services delivery (client implementations, government contracts with deliverables, internal IT projects) rather than software sprints.
+
+- **Projects**: code (`PRJ-0001`), type (*Client, Government, Internal*, editable), status (*Planning, Active, On hold, Completed, Cancelled*), dates, project manager, **time tracking** (off unless a manager turns it on; then a budget in hours), and links to the client, deal and contract in Sales & CRM. **Members** have a role in the project: *Manager* (edit everything), *Member* (tasks, board, comments, and time where it is tracked) or *Viewer* (read and comment). Anyone on a project opens it, whatever their account type; to everyone else the project and its tasks do not exist.
+- **Milestones** and **contract deliverables** with their billing %, submitted and accepted dates, acceptance note and the signed **acceptance document**; a deliverable due after the contract's end date is flagged. The portfolio's **Milestones** tab lists them across projects (filter by month, client, health, deliverables), with each deliverable's amount (billing % of the contract's value, or the deal's) and a **billing forecast** by month, expected, overdue and earned, with CSV export: amounts only for people with Sales & CRM access, enforced by the server.
+- **Tasks** (`PRJ-0001-12`): status, priority, one assignee, start and due dates, an **effort size** (*XS, S, M, L, XL*, instead of an hour estimate; the descriptions can be reworded in the Projects setup), milestone, one level of subtasks, a checklist, *blocked by* links (a flag, never automatic rescheduling), comments with @mentions, **watchers**, up to 5 **files** (PDF and photos, checked by content, downloaded as files, never shown inline), a linked service desk ticket and a history.
+- **Bulk edit** on the List: tick tasks (or all shown) and set the status, assignee, milestone, priority or size, move dates by working days, add or remove watchers, or delete; up to 200 at a time, checked first and saved all or nothing. **Import tasks** from a CSV file (project managers): column matching (a Size column, or an Estimate (h) column turned into sizes), a check of every row, then all or nothing; up to 2,000 rows and 2 MB, with a template file.
+- **Views**: a **Board** (drag cards, or the **Move to** menu on the keyboard and phones; WIP limits warn), a **List** grouped by milestone or status with in-place edits and CSV export, a **Timeline** of weeks with milestones and task bars (a dated list on phones), and **Time** on projects that track time. Board and List have **quick filters** (*Mine, Unassigned, Overdue, Due this week, Blocked, High & urgent*), a search and **saved views**, your own or shared with the project. Each project's statuses belong to four fixed categories (*to do, in progress, done, cancelled*), so progress and reports work whatever they are called.
+- **Progress and health are worked out, never typed**: progress over leaf tasks, weighed by size when most have one (*XS* 1, *S* 2, *M* 3, *L* 5, *XL* 8); a milestone is red past its date with open work, amber with overdue tasks, tasks due after it, or progress more than 15 points behind the line (in working days, with the holiday calendar). A project manager can add their own reading with a note; the computed one stays visible. **Print status report** fits one page.
+- **My work** (every member: overdue, today, this week, later, no date).
+- **Time tracking per project**, for time-and-materials work or a client who wants a timesheet: time logs in quarter hours on the project's Time tab and its tasks, against its budget, and a weekly **Timesheet** (a row per project and task, Monday to Sunday) that is separate from attendance: the DTR's hours are shown next to it for comparison only, and a day with more project hours than attended is flagged, never refused. Project managers read their members' timesheets.
+- **For you** on My work: being assigned a task, @mentioned, a comment on your task or one you watch, such a task done or cancelled by someone else, being added to a project. Similar ones are grouped; the number next to My work includes the unread ones.
+- **Daily digest**: overdue tasks, tasks due within 3 working days, milestones at risk in projects you manage and the unread count, on My work, and by email once a working day (Projects setup: on or off, the time, working days only; each person can turn it off). The email goes through the **Service Desk's outgoing mail** (Service desk settings → Sending email), from the helpdesk address; without outgoing mail nothing is emailed and the digest stays on My work.
+- **Milestone burn-up** on a project's Overview: scope, work done and the expected line by working day, drawn from the tasks' history.
+- From **Sales & CRM**, **Start project** on a won deal or a contract; from the **Service Desk**, **Add to a project** turns a ticket into a linked task. **Copy** a project with its dates moved, or mark one as a **template** and start new projects from it (dates moved in working days). Three starter templates come with CORE: *Client implementation*, *Government contract (with deliverables)* and *Internal IT project*.
+- **Projects setup** (Project Managers): the statuses new projects start with, the project types and the daily digest. Administrators give or remove Projects access per account under **Admin panel → Access grants** (or **Projects setup → Team access**). The setup survives demo data and "erase all data".
+
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting CORE online with Amazon EC2](deploy/aws/EC2.md).
 
 > **Sibling project: Lancaster ATLAS**, the Unified Education Management Platform for schools, lives in [`lms/`](lms/README.md): ATLAS Learn (LMS), ATLAS People (HRIS, built from this ERP's HR & Payroll module), and ATLAS Academic, Finance and Facilities (coming soon), behind one sign-in on the ATLAS home page.
 > It is a separate app with its own data file: double-click `lms/Start ATLAS (Windows).bat` or `lms/Start ATLAS (Mac).command` (or run `cd lms && npm start`), then open <http://localhost:3100>. It runs on port 3100, so it can run next to the ERP.
+
+## Admin panel
+
+Everything an administrator looks after, at `#/admin/…` inside CORE's one sign-in (modelled on the admin panel of Lancaster ATLAS). It opens from the **Admin panel** card on the CORE home, the **Admin panel** link at the end of every module's side menu, and the modules menu, for accounts with any administration permission; each page needs its own.
+
+| Page | What it does | Permission |
+| --- | --- | --- |
+| **Dashboard** | Read-only overview: version and build; active accounts by type, signed in now, 2-step adoption, temporary passwords not changed; failed sign-ins and locks in the last 24 h and the audit chain check; modules on or off; feedback awaiting a reply, unopened dev log releases; size of `db.json` and attachments, the last backup download, demo data | any of the below (each part for its own permission) |
+| **Users & Access** | Accounts, passwords, 2-step resets, sign out everywhere | `users.manage` |
+| **Roles & permissions** | Per account type, tick or untick each permission; defaults marked; **Restore defaults** per type | `roles.manage` (administrators only) |
+| **Access grants** | One table of the per-person grants: Service Desk agent, Sales & CRM, Projects | `users.manage` |
+| **Settings center** | Every setting with its value, default and "differs from default", and an **Open** link to its screen; restore a default per setting or per group; the change history (who, what, from, to, when) with undo; export and import of the company's settings | `settings.center`, plus each group's own permission |
+| **Modules** | Turn HR & Payroll, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company | `modules.config` |
+| **Settings & branding** | Company details, default work schedule; brand colour (presets or the company's own, with a contrast check), logo, sign-in headline | `settings.edit` |
+| **Sign-in & security** | 2-step policy, sessions, rate limits, common passwords | `users.manage` (administrators only) |
+| **Help & guides** | The guides and whether the company edited them; links to the editor | `guides.edit` |
+| **Audit log**, **Dev log**, **Feedback inbox** | The records | `audit.view`, `devlog.view`, `feedback.view` |
+| **Backup & restore**, **Demo data** | Download or restore a backup, erase all data; add, reload or remove the demo data | `data.manage` (administrators only) |
+
+Old addresses (`#/users`, `#/settings`, `#/audit`, `#/devlog`, `#/feedback/inbox`) open the page in the Admin panel.
+
+- **Roles & permissions.** The company's changes are kept as `roleOverrides` (`{ role: { add: [], remove: [] } }`) in the data file and applied by `can()` / `userCan()` in `shared/roles.js` on the server and in the browser (which gets them with the sign-in status). Administrators always keep everything; `users.manage`, `roles.manage` and `data.manage` (accounts, sign-in security, roles, backups) can never be given to another account type, whatever a request, a settings file or a backup says; per-person grants still apply on top. Every change is in the Settings center's history and the audit log.
+- **Modules.** A module that is off disappears from the CORE home, the modules menu and the side menus, and the server refuses its API (*403: Sales & CRM is turned off for the company…*) for everyone except administrators, who see it marked *Off* and can open its settings. Turning off never deletes data; its background work (the service desk mailbox, the Projects digest) and the public support form wait. Self-service belongs to its module: clocking in, My Attendance, My Requests, My Payslips and My Profile are HR & Payroll; My Assets is IT Asset Management; My tickets is the Service Desk. The holiday calendar stays readable (Projects counts working days by it).
+- **Settings center.** One catalog (`shared/settings-catalog.js`) of company details, the default schedule, branding, sign-in & security, modules, roles, clock-in locations, leave approvals, leave types and Payroll Setup (summary and link only), the service desk's ticket settings, public form and email (never a password), the sales setup and the Projects setup. Changes made on any settings screen are recorded with their value before and after (`settingsLog`); restore, undo and import save through each screen's own route, as the signed-in person, so the same checks and permissions apply. An import shows its differences first and is all or nothing. Exports carry no people, records, passwords or mail sign-ins.
+- **Branding.** Presets (CORE Maroon `#5D0013` with the gold accent is the default) or the company's own colour, which must give white text a contrast of at least 4.5 : 1; applied as `--brand` / `--accent` in light and dark mode, on every page and the sign-in page. The logo is a PNG, JPEG or WebP of at most 300 KB, checked by its bytes (an SVG or a file that is not what it claims is refused) and served from `/api/public/brand/logo` with `Content-Security-Policy: default-src 'none'; sandbox` and `nosniff`.
 
 ## Run it on your Mac
 
@@ -86,7 +132,7 @@ You don't need to run `npm install`, because the app has no dependencies.
 
 The first time you open the app, it asks you to **create the Administrator account**. After that, everyone starts at the sign-in page.
 
-> To try it out, go to **Settings → Demo data → Add demo data**. This adds 6 sample employees with about six weeks of attendance,
+> To try it out, go to **Admin panel → Demo data → Add demo data**. This adds 6 sample employees with about six weeks of attendance,
 > 16 IT assets, 7 inventory items and 4 helpdesk tickets **next to your own data** (demo records are numbered `DEMO-0001`, `DEMO-IT-0001`…,
 > and nothing you entered is changed), plus demo accounts you can sign in with to see each account type: `hr.demo`, `payroll.demo`, `it.demo` and `employee.demo`
 > (password `demo1234`). Adding it again refreshes the demo set instead of doubling it.
@@ -105,10 +151,10 @@ To use a different port, run `PORT=8080 npm start`.
 2. Double-click it. A window opens showing where your data is kept, and CORE opens in your browser at <http://localhost:3000>. Keep the window open while you use CORE; close it to stop.
 3. The first time, CORE asks you to create the Administrator account.
 
-- **Your data stays on this PC**, in `%LOCALAPPDATA%\CORE ERP\data` (the database `db.json`, uploaded files and the encryption key). Back it up from **Settings → Download backup**, or copy that folder while CORE is closed. Replacing the .exe with a newer one keeps your data.
+- **Your data stays on this PC**, in `%LOCALAPPDATA%\CORE ERP\data` (the database `db.json`, uploaded files and the encryption key). Back it up from **Admin panel → Backup & restore → Download backup**, or copy that folder while CORE is closed. Replacing the .exe with a newer one keeps your data.
 - **Portable mode** (e.g. on a USB drive): make a folder named `CORE-data` next to the .exe and CORE keeps its data there instead.
 - Starting it again while it is running just opens the browser.
-- Options, from a Command Prompt in the file's folder: `CORE-ERP.exe --network` (other PCs on the office network can sign in, at the address it shows), `--port 3001`, `--no-browser`, and `--reset-password <username> <new password>` for a locked-out administrator (close CORE first).
+- Options, from a Command Prompt in the file's folder: `CORE-ERP.exe --network` (other PCs on the office network can sign in, at the address it shows; plain `http`, so passwords travel unencrypted: for a trusted office network only, see [Letting employees sign in from their own computers](#letting-employees-sign-in-from-their-own-computers)), `--port 3001`, `--no-browser`, and `--reset-password <username> <new password>` for a locked-out administrator (close CORE first).
 - The file is not code-signed yet, so the first time Windows may show "Windows protected your PC": click **More info → Run anyway**.
 
 To build it, run `scripts/build-exe.sh` on Linux (`LINUX=1` also builds a Linux copy to test with). It downloads the official Node.js builds, checks them against nodejs.org's checksums, bundles the server with esbuild, embeds it and the web files with Node's single executable application feature, sets the icon and version details, and checks the result.
@@ -122,7 +168,7 @@ To build it, run `scripts/build-exe.sh` on Linux (`LINUX=1` also builds a Linux 
 3. Double-click **`Start CORE ERP.bat`**. The app opens in your browser at <http://localhost:3000>. Keep the black window open while you use it.
 4. Optional: double-click **`Create desktop shortcut.bat`**.
 
-The folder also has **`Start CORE ERP (office network).bat`** (lets other PCs sign in), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
+The folder also has **`Start CORE ERP (office network).bat`** (lets other PCs sign in, over plain `http`: for a trusted office network only), **`Reset a password.bat`** (for a locked-out admin) and **`READ ME FIRST.txt`**.
 To build the package yourself, run `scripts/build-windows.sh` on macOS or Linux. It downloads the official Node.js Windows build, checks it against nodejs.org's checksums, and writes `dist/CORE-ERP-Windows-x64.zip`.
 
 ### From the source code
@@ -141,21 +187,25 @@ The PowerShell way to set options is `$env:PORT=8080; npm start`.
 
 | Account type | Can do |
 | --- | --- |
-| **Administrator** | Everything, including **Users & Access**, company settings, and backup/restore. |
+| **Administrator** | Everything, including the **Admin panel**: accounts, roles and permissions, modules, company settings and branding, and backup/restore. |
 | **HR Manager** | Add and edit employees (including pay, government IDs and bank details), manage attendance and approve overtime, run the shared time clock, **approve leave and remote-work requests**, manage leave credits and the holiday calendar, adjust Payroll Setup. View payroll and IT assets. |
 | **HR Staff** | Day-to-day HR without pay data: view employee records (no pay, government IDs or bank details), manage attendance, the shared time clock, the holiday calendar and leave records. No payroll. |
 | **IT Asset Manager** | IT Asset Management: register, assign, transfer, return and retire assets; receive, issue and count stock; export. No access to HR records. |
 | **Payroll Officer** | Create, adjust, finalize and void payroll, add year-to-date opening balances, adjust Payroll Setup and leave credits. View employees (with pay), attendance and requests (cannot approve them). |
 | **Sales Officer** | Sales & CRM: leads, accounts, contacts, deals, bids, contracts and activities. Cannot delete records or change the sales setup. |
-| **Sales Manager** | Everything a Sales Officer does, plus deleting CRM records and the sales setup (stages, sources, lost reasons, bid checklist). |
-| **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips, profile and assigned equipment. |
+| **Sales Manager** | Everything a Sales Officer does, plus deleting CRM records and the sales setup (stages, sources, lost reasons, bid checklist). Sees every project, read only. |
+| **Project Manager** | Project Management: every project, starting and editing projects, deleting them and the Projects setup. Can view employee records. |
+| **Employee** | Self-service only: clock in and out, file leave and remote-work requests, see their own attendance, leave balances, finalized payslips, profile and assigned equipment. Like every account, opens the projects they are a member of. |
 
-- Admins add accounts in **Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
+- What each account type may do is CORE's default; administrators can change it per account type under **Admin panel → Roles & permissions** (see [Admin panel](#admin-panel)).
+- Admins add accounts in **Admin panel → Users & Access** and give the person a temporary password. They're asked to pick their own password the first time they sign in.
 - **Employee** accounts must be linked to an employee record. HR Managers and Payroll Officers can be linked too, which gives them the "My account" pages.
 - Anyone can change their password from the menu under their name at the top right. Admins can reset anyone's password or disable an account.
-- After 5 wrong passwords, that username is locked for 5 minutes. People are signed out after 8 idle hours, or when the app is restarted.
+- After 5 wrong passwords, that username is locked for 5 minutes, then 15, then an hour while wrong passwords keep coming. New passwords must be 8+ characters, not a common password, and not contain the username or name.
+- **2-step verification**: anyone can turn it on under their name → **My security** (an authenticator app such as Google Authenticator, plus ten one-time recovery codes). Admins can require it for Administrators or everyone, and reset it for someone who lost their phone, in **Admin panel → Sign-in & security** and **Users & Access**. The 2-step secrets are sealed with `data/secret.key`: copy that file with a backup if you move CORE to another computer, or people will need a recovery code.
+- **Sessions and limits** (**Admin panel → Sign-in & security**): signed out after 8 idle hours and 24 hours at most by default, or when the app is restarted; **My security** lists where you are signed in. Requests per person, sign-in attempts and failed sign-ins per network address, and the public support form are rate-limited (answer *429, try again in…*). Pages carry a strict Content-Security-Policy and security headers, and changes sent from other websites are refused.
 - **Personal data.** Government ID numbers and bank accounts are masked everywhere; HR Managers, Payroll Officers and Administrators can click **Show numbers** on a profile, and the edit form and full employee export load them. Each of these is recorded in the audit log. Medical certificates open for HR only, unless **Leave & Requests → Approval flow** lets approvers open them.
-- **Audit log** (Administrators, **System → Audit log**): every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, Payroll Setup, holidays, users and settings (field by field, before and after), views of records with pay or full ID numbers, medical certificate openings, backups and restores. It is kept in `data/audit-log.jsonl`, separate from the data file, so restoring a backup or erasing all data does not touch it. Each entry is chained to the one before by a hash; the page checks the chain and warns if the file was edited.
+- **Audit log** (Administrators, **Admin panel → Audit log**): every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, Payroll Setup, holidays, users and settings (field by field, before and after), views of records with pay or full ID numbers, medical certificate openings, backups and restores. It is kept in `data/audit-log.jsonl`, separate from the data file, so restoring a backup or erasing all data does not touch it. Each entry is chained to the one before by a hash sealed with a key made from the server key (`data/secret.key`), so the chain cannot be rebuilt by someone who only edits the log; the page checks the chain, warns if the file was edited, and says from which entry the log is keyed (entries written before 0.12.1 keep their unkeyed hashes). The data file, the audit log and attached files are readable only by the account that runs the app.
 - **Locked out as the only admin?** Stop the app, open Terminal (Mac) or PowerShell (Windows) in the app folder, run `npm run reset-password -- admin NewPassword123` (use your admin username), then start the app again.
 
 ### Letting employees sign in from their own computers
@@ -168,7 +218,7 @@ By default only the computer running the app can open it. To let others on the s
 
 Others then open `http://192.168.1.20:3000` (using your IP address) in their browser.
 
-The connection is not encrypted (plain `http`), so only do this on a network you trust.
+**The connection is not encrypted (plain `http`)**: passwords and the sign-in cookie travel unencrypted, and anyone on the same network can read them. Only do this on a trusted office network (never on guest or public Wi-Fi, and never open the port to the internet); the app prints this warning when it starts this way. For anything beyond a trusted office LAN, use the HTTPS set-up in [deploy/aws/EC2.md](deploy/aws/EC2.md).
 
 ## How pay is computed
 
@@ -236,7 +286,7 @@ The **?** button in CORE's top bar opens **Help & guides** (`/help/`): a guide f
 
 | Guide | For |
 |---|---|
-| Getting started with CORE | Everyone: signing in, modules, password, phone, help |
+| Getting started with CORE | Everyone: signing in, modules, password, 2-step verification, phone, help |
 | What's new in CORE | Everyone: the changes in each update |
 | Your self-service | Every employee: clock in, attendance, requests, payslips, assets, tickets |
 | Approving requests | Supervisors and named approvers |
@@ -245,6 +295,7 @@ The **?** button in CORE's top bar opens **Help & guides** (`/help/`): a guide f
 | Managing IT assets | IT Asset Managers |
 | Working the IT Service Desk | Helpdesk Agents and IT |
 | Selling with Sales & CRM | Sales Officers and Managers |
+| Running projects | Project Managers and everyone on a project |
 | Administering CORE | Administrators |
 
 Administrators can edit a guide for the company (**Edit this guide**), add the company's own guides (**New guide**), and go back to the built-in guide at any time. Their version is kept when CORE is updated, and CORE says when the built-in guide has changed since.
@@ -255,16 +306,17 @@ To use it 24/7 from any browser over HTTPS, follow [deploy/aws/EC2.md](deploy/aw
 
 ## Backups
 
-Admins can use **Settings → Download backup** to save everything as a single JSON file, and **Restore backup** to load one back.
+Admins can use **Admin panel → Backup & restore → Download backup** to save everything as a single JSON file, and **Restore backup** to load one back.
 The backup includes user accounts (with passwords stored as secure hashes), so keep the file private.
-You can also just copy the `data/` folder. It also holds `attachments/` (medical certificates, ticket files), `audit-log.jsonl` (the audit log, which a backup file does not include) and `secret.key`, which unlocks the saved mailbox passwords; without it, re-enter them under Service desk settings. On the cloud server the audit log is copied each night next to the data backups.
+You can also just copy the `data/` folder. It also holds `attachments/` (medical certificates, ticket files, files on project tasks and milestones), `audit-log.jsonl` (the audit log, which a backup file does not include) and `secret.key`, which unlocks the saved mailbox passwords; without it, re-enter them under Service desk settings. On the cloud server the audit log is copied each night next to the data backups.
 
 ## For developers
 
-- **Dev log:** written by one developer, in the first person. Each build's entry goes at the top of `shared/devlog.js` (version such as `0.2.4-alpha`, date, a short note, the changes, known issues) and `package.json` "version" must match; `npm test` checks both. A server copies each build's entry into its database the first time it runs that build (`server/devlog.js`); after that, administrators edit, add or delete entries and set the author name under **System → Dev log**, and those edits survive updates, demo data and "erase all data". The installed build comes from `build.json`, written by the installers.
+- **Dev log:** written by one developer, in the first person. Each build's entry goes at the top of `shared/devlog.js` (version such as `0.2.4-alpha`, date, a short note, the changes, known issues) and `package.json` "version" must match; `npm test` checks both. A server copies each build's entry into its database the first time it runs that build (`server/devlog.js`); after that, administrators edit, add or delete entries and set the author name under **Admin panel → Dev log**, and those edits survive updates, demo data and "erase all data". The installed build comes from `build.json`, written by the installers.
 
 - `server.js` is a dependency-free Node HTTP server. The JSON API is in `server/api.js` and storage in `server/db.js`.
 - `server/leave.js` and `server/assets.js` hold the leave/request and IT asset routes; `shared/assets.js` the asset statuses and categories.
+- `server/projects.js` holds the Project Management routes (access by membership, checks, history); `shared/projects.js` the statuses and the calculations shared with the browser: effort sizes, progress, health, board order, quick filters, notification grouping, the burn-up, My work, the digest, the billing forecast and the CSV import plan. `server/pm-templates.js` holds the starter templates, `server/pm-digest.js` the digest email and `shared/csv.js` the CSV reader.
 - `public/js/modules.js` lists the modules shown on the CORE home page (`public/js/views/launcher.js`) and in the module switcher. To add a module: add its routes and menu in `public/js/app.js` (each menu item names an icon from `public/js/icons.js`), set it to `live`, and give it a home in `moduleHome()`.
 - **Design:** `public/css/styles.css` follows the Lancaster LMS design system. Colours are tokens on `:root` (`--brand`, `--accent`, `--surface`, `--border`, `--text`, `--muted`…) with dark-mode values under `[data-theme='dark']`; use the tokens, not fixed colours, so every screen follows the theme. The older names (`--maroon`, `--gold`…) are mapped onto them. The CORE mark is `public/img/core-mark.svg` (gold), `core-mark-brand.svg` (maroon) and `core-app-icon.svg` (app tile). Payslips stay on white paper in both themes.
 - `shared/calc.js` holds all the time and payroll math. Both the server and the browser use it.

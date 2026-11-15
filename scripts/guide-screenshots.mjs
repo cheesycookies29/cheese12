@@ -17,7 +17,7 @@ const MANIFEST = process.argv.find((a) => a.startsWith('--manifest='))?.slice(11
 const OUT = path.join(ROOT, 'public', 'help', 'img');
 const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const base = process.argv.find((a) => a.startsWith('--base='))?.slice(7); // use a running server instead
-const ADMIN = { name: 'Ada Admin', username: 'admin', password: 'password123' };
+const ADMIN = { name: 'Ada Admin', username: 'admin', password: 'Guide-Shots-2026' };
 
 let chromium;
 try {
@@ -37,7 +37,7 @@ const freePort = () => new Promise((resolve) => {
 async function startServer() {
   const port = await freePort();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'core-shots-'));
-  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(port), DB_FILE: path.join(dir, 'db.json') }, stdio: 'ignore' });
+  const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(port), DB_FILE: path.join(dir, 'db.json'), RATE_LIMITS: 'off' }, stdio: 'ignore' });
   const url = `http://localhost:${port}`;
   for (let i = 0; i < 50; i++) {
     try {
@@ -104,6 +104,11 @@ try {
       await page.waitForTimeout(wait);
       for (const sel of s.click || []) {
         await page.click(sel, { timeout: 8000 });
+        await page.waitForTimeout(wait);
+      }
+      // "files": { selector: "path from the repo" }: a file chosen in a file box (e.g. a sample photo).
+      for (const [sel, file] of Object.entries(s.files || {})) {
+        await page.setInputFiles(sel, path.join(ROOT, file));
         await page.waitForTimeout(wait);
       }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();

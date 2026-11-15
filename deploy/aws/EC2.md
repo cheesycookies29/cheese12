@@ -220,7 +220,7 @@ Do **not** use **Load demo data** on the live server. It replaces all data.
 
 - EC2 snapshots of the whole disk, kept 7 days (step 8);
 - the nightly data copies in `/opt/ltdc-erp/data/backups`, kept 30 days;
-- **Settings → Download backup** in the app. Do this regularly and keep the file off the server, for example on the company drive.
+- **Admin panel → Backup & restore → Download backup** in the app. Do this regularly and keep the file off the server, for example on the company drive.
 
 To restore one day's data, connect as in step 12 and run this (replace the date):
 
@@ -345,7 +345,7 @@ Set this up once, after the first installation (Parts 1–5). From then on, ever
 
 The server keeps running and AWS starts charging your card at the rates above. Your budget alert emails you first. To stop all charges, you would need to:
 
-1. download a final backup from **Settings → Download backup**;
+1. download a final backup from **Admin panel → Backup & restore → Download backup**;
 2. **terminate** the instance;
 3. **release** the Elastic IP;
 4. delete the snapshots and the Lifecycle Manager policy;

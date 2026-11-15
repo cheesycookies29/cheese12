@@ -115,35 +115,35 @@ export async function payrollRunView(el, { id }) {
           </div>`
         : ''}
       <section class="card scroll-x">
-        <table class="table register">
+        <table class="table register hide-zero">
           <thead><tr>
             <th>Employee</th><th class="num">Days</th><th class="num">Absent</th><th class="num">Late/UT</th><th class="num">OT</th>
             <th class="num">Basic</th><th class="num" title="Overtime, rest day, holiday and night shift pay">Premiums</th><th class="num">Other earn.</th><th class="num">Gross</th>
             <th class="num">SSS</th><th class="num">PhilHealth</th><th class="num">Pag-IBIG</th><th class="num">Tax</th><th class="num">Other ded.</th>
-            <th class="num">Allowance</th><th class="num">Net pay</th><th></th>
+            <th class="num">Allowance</th><th class="num">Net pay</th><th><span class="sr-only">Actions</span></th>
           </tr></thead>
           <tbody>${run.payslips.map((p) => html`<tr>
             <td><strong>${p.employee.name}</strong><small>${p.employee.employeeNo}</small></td>
             <td class="num">${p.attendance.daysPresent + p.attendance.leaveDays + (p.attendance.holidayDays || 0)}/${p.attendance.scheduledDays}</td>
-            <td class="num ${p.attendance.absentDays ? 'warn' : ''}">${p.attendance.absentDays || '—'}</td>
-            <td class="num">${fmtMinutes(p.attendance.lateMinutes + p.attendance.undertimeMinutes)}</td>
-            <td class="num">${fmtMinutes(p.attendance.overtimeMinutes + p.attendance.restDayMinutes)}</td>
-            <td class="num">${amount(p.earnings.basicPay)}</td>
-            <td class="num">${amount(premiumTotal(p))}</td>
-            <td class="num">${amount(p.earnings.otherEarnings)}</td>
+            <td class="ph-detail num ${p.attendance.absentDays ? 'warn' : ''}">${p.attendance.absentDays || '—'}</td>
+            <td class="ph-detail num">${fmtMinutes(p.attendance.lateMinutes + p.attendance.undertimeMinutes)}</td>
+            <td class="ph-detail num">${fmtMinutes(p.attendance.overtimeMinutes + p.attendance.restDayMinutes)}</td>
+            <td class="ph-detail num">${amount(p.earnings.basicPay)}</td>
+            <td class="ph-detail num">${amount(premiumTotal(p))}</td>
+            <td class="ph-detail num">${amount(p.earnings.otherEarnings)}</td>
             <td class="num"><strong>${amount(p.grossPay)}</strong></td>
-            <td class="num">${amount(p.deductions.sss)}</td>
-            <td class="num">${amount(p.deductions.philhealth)}</td>
-            <td class="num">${amount(p.deductions.pagibig)}</td>
-            <td class="num">${amount(p.deductions.withholdingTax)}</td>
-            <td class="num">${amount(p.deductions.otherDeductions)}</td>
-            <td class="num">${amount(p.allowance)}</td>
+            <td class="ph-detail num">${amount(p.deductions.sss)}</td>
+            <td class="ph-detail num">${amount(p.deductions.philhealth)}</td>
+            <td class="ph-detail num">${amount(p.deductions.pagibig)}</td>
+            <td class="ph-detail num">${amount(p.deductions.withholdingTax)}</td>
+            <td class="ph-detail num">${amount(p.deductions.otherDeductions)}</td>
+            <td class="ph-detail num">${amount(p.allowance)}</td>
             <td class="num"><strong>${amount(p.netPay)}</strong></td>
-            <td class="row-actions">${editable ? html`<button class="link" data-adjust="${p.employeeId}">Adjust</button>` : ''}<a class="link" href="#/payroll/${run.id}/payslip/${p.employeeId}">Payslip</a></td>
+            <td class="row-actions"><button type="button" class="link ph-only" data-detail aria-expanded="false">Details</button>${editable ? html`<button class="link" data-adjust="${p.employeeId}">Adjust</button>` : ''}<a class="link" href="#/payroll/${run.id}/payslip/${p.employeeId}">Payslip</a></td>
           </tr>`)}</tbody>
           <tfoot><tr><td><strong>Total</strong></td><td colspan="7"></td><td class="num"><strong>${amount(t.grossPay)}</strong></td>
-            ${['sss', 'philhealth', 'pagibig', 'withholdingTax', 'otherDeductions'].map((k) => html`<td class="num">${amount(run.payslips.reduce((a, p) => a + p.deductions[k], 0))}</td>`)}
-            <td class="num">${amount(run.payslips.reduce((a, p) => a + p.allowance, 0))}</td><td class="num"><strong>${amount(t.netPay)}</strong></td><td></td></tr></tfoot>
+            ${['sss', 'philhealth', 'pagibig', 'withholdingTax', 'otherDeductions'].map((k) => html`<td class="ph-detail num">${amount(run.payslips.reduce((a, p) => a + p.deductions[k], 0))}</td>`)}
+            <td class="ph-detail num">${amount(run.payslips.reduce((a, p) => a + p.allowance, 0))}</td><td class="num"><strong>${amount(t.netPay)}</strong></td><td></td></tr></tfoot>
         </table>
       </section>
       ${!can('payroll.edit') ? '' : draft ? html`<div class="danger-zone"><button class="btn danger ghost" id="delete">Delete payroll run</button></div>`
@@ -152,6 +152,12 @@ export async function payrollRunView(el, { id }) {
   }
 
   function bind() {
+    // Phones: each employee shows days, gross and net pay; Details opens the rest.
+    el.querySelectorAll('[data-detail]').forEach((b) => b.addEventListener('click', () => {
+      const open = b.closest('tr').classList.toggle('show-detail');
+      b.setAttribute('aria-expanded', String(open));
+      b.textContent = open ? 'Less' : 'Details';
+    }));
     el.querySelector('#export').addEventListener('click', () => {
       const data = [REGISTER_COLUMNS.map((c) => c[0]), ...run.payslips.map((p) => REGISTER_COLUMNS.map(([, f]) => f(p)))];
       downloadFile(`payroll-register-${run.periodStart}-to-${run.periodEnd}.csv`, toCsv(data));

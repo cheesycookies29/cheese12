@@ -39,8 +39,13 @@ export const ROLES = {
   },
   salesmgr: {
     label: 'Sales Manager',
-    description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist.',
-    permissions: ['crm.view', 'crm.edit', 'crm.manage', 'self'],
+    description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist. Opens Project Management and the projects they are added to, to follow the delivery of what was sold.',
+    permissions: ['crm.view', 'crm.edit', 'crm.manage', 'pm.view', 'self'],
+  },
+  pm: {
+    label: 'Project Manager',
+    description: 'Runs Project Management: starts projects and manages the ones they are a manager of (members, milestones, tasks, time); sees only the projects they are on; deletes the projects they manage and changes the Projects setup. Can view employee records.',
+    permissions: ['pm.view', 'pm.edit', 'pm.manage', 'employees.view', 'self'],
   },
   employee: {
     label: 'Employee',
@@ -49,7 +54,7 @@ export const ROLES = {
   },
 };
 
-// Rows for the access matrix shown on the Users page.
+// Rows for the access matrix (Admin panel → Roles & permissions).
 export const PERMISSION_LABELS = [
   ['dashboard', 'Company dashboard'],
   ['employees.view', 'View employee records'],
@@ -68,9 +73,12 @@ export const PERMISSION_LABELS = [
   ['leave.adjust', "Change one employee's leave: types offered, credits, adjustments, recorded days"],
   ['assets.view', 'View IT assets, inventory, allocations and problem reports'],
   ['assets.edit', 'Register, assign and return assets; receive and issue stock; respond to problem reports'],
-  ['settings.edit', 'Company details and default schedule'],
-  ['data.manage', 'Backup, restore and erase data'],
-  ['users.manage', 'Manage user accounts'],
+  ['settings.edit', 'Company details, default schedule and branding'],
+  ['settings.center', 'Settings center: every setting in one list, its change history, undo, export and import (changing a setting still needs the permission of its own screen)'],
+  ['modules.config', 'Turn modules on or off for the company'],
+  ['roles.manage', 'Roles & permissions: what each account type may do'],
+  ['data.manage', 'Backup, restore and erase data; demo data'],
+  ['users.manage', 'Manage user accounts and access grants; sign-in & security settings'],
   ['audit.view', 'Audit log: who viewed or changed personal data, payroll and settings'],
   ['devlog.view', 'Dev log: release notes and installed version'],
   ['devlog.edit', 'Write and edit dev log entries'],
@@ -80,27 +88,93 @@ export const PERMISSION_LABELS = [
   ['crm.view', 'Sales & CRM: see accounts, contacts, leads, deals, bids and contracts'],
   ['crm.edit', 'Sales & CRM: add and edit records, move deals, log calls, meetings and tasks'],
   ['crm.manage', 'Sales & CRM: delete records and change the sales setup'],
+  ['pm.view', 'Projects: use Project Management (each project only for the people on its member list)'],
+  ['pm.edit', 'Projects: create projects (and start them from templates); they manage the projects they start'],
+  ['pm.manage', 'Projects: delete the projects they manage and change the Projects setup'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
 ];
 
-export function can(role, permission) {
-  const perms = ROLES[role]?.permissions || [];
-  return perms.includes('*') || perms.includes(permission);
+// The matrix on Roles & permissions, a table per part of CORE.
+export const PERMISSION_GROUPS = [
+  { id: 'hr', label: 'HR & Payroll', permissions: ['dashboard', 'employees.view', 'employees.edit', 'employees.sensitive', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.edit', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'leave.adjust', 'self'] },
+  { id: 'assets', label: 'IT Asset Management', permissions: ['assets.view', 'assets.edit'] },
+  { id: 'helpdesk', label: 'IT Service Desk', permissions: ['helpdesk.agent', 'helpdesk.manage'] },
+  { id: 'crm', label: 'Sales & CRM', permissions: ['crm.view', 'crm.edit', 'crm.manage'] },
+  { id: 'projects', label: 'Project Management', permissions: ['pm.view', 'pm.edit', 'pm.manage'] },
+  { id: 'admin', label: 'Admin panel', permissions: ['settings.edit', 'settings.center', 'modules.config', 'audit.view', 'devlog.view', 'devlog.edit', 'feedback.view', 'feedback.manage', 'guides.edit', 'users.manage', 'roles.manage', 'data.manage'] },
+];
+const KNOWN = new Set(PERMISSION_LABELS.map(([p]) => p));
+
+// Permissions that stay with administrators: given to another account type, it could make itself
+// an administrator (accounts, the security settings, roles) or replace every record (data).
+export const ADMIN_ONLY_PERMISSIONS = ['users.manage', 'roles.manage', 'data.manage'];
+// Any of these opens the Admin panel (each of its pages needs its own).
+export const ADMIN_PANEL_PERMISSIONS = ['users.manage', 'roles.manage', 'settings.edit', 'settings.center', 'modules.config', 'data.manage', 'audit.view', 'devlog.view', 'feedback.view', 'guides.edit'];
+
+// The company's changes to the account types (Admin panel → Roles & permissions):
+// { role: { add: [permission…], remove: [permission…] } }, kept in db.data.roleOverrides. The server
+// sets them at start, after each change and after a restore; the browser gets them with the sign-in
+// status. Only known permissions are kept, administrators are never changed, and admin-only
+// permissions are never added, whatever the saved data says.
+let overrides = {};
+export function cleanOverrides(o) {
+  const out = {};
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return out;
+  for (const [role, v] of Object.entries(o)) {
+    if (role === 'admin' || !Object.hasOwn(ROLES, role) || !v || typeof v !== 'object') continue;
+    const base = ROLES[role].permissions;
+    const list = (x) => (Array.isArray(x) ? [...new Set(x.filter((p) => typeof p === 'string' && KNOWN.has(p)))].sort() : []);
+    const add = list(v.add).filter((p) => !base.includes(p) && !ADMIN_ONLY_PERMISSIONS.includes(p));
+    const remove = list(v.remove).filter((p) => base.includes(p));
+    if (add.length || remove.length) out[role] = { add, remove };
+  }
+  return out;
+}
+export function setRoleOverrides(o) {
+  overrides = cleanOverrides(o);
+  return overrides;
+}
+export const roleOverrides = () => overrides;
+
+// The permissions an account type has: its built-in ones, with the company's changes.
+export function permissionsOf(role) {
+  const base = ROLES[role]?.permissions || [];
+  if (base.includes('*')) return base;
+  const o = overrides[role];
+  if (!o) return base;
+  const remove = new Set(o.remove);
+  return [...new Set([...base.filter((p) => !remove.has(p)), ...o.add])];
 }
 
-// Permissions an administrator can grant or remove per account, on top of the account type.
-// user.helpdeskAgent / user.crmAccess: true (granted), false (removed) or absent (follow the
-// account type). CRM access grants viewing and editing; removing it also removes crm.manage.
-// Administrators always keep everything.
-export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent', 'crm.view': 'crmAccess', 'crm.edit': 'crmAccess' };
+export function can(role, permission) {
+  const perms = permissionsOf(role);
+  return perms.includes('*') || perms.includes(permission);
+}
+// Built-in only, without the company's changes ("Defaults" on Roles & permissions).
+export const builtInCan = (role, permission) => {
+  const perms = ROLES[role]?.permissions || [];
+  return perms.includes('*') || perms.includes(permission);
+};
+
+// Permissions an administrator can grant or remove per account, on top of the account type (and of
+// the company's changes to it: Admin panel → Access grants).
+// user.helpdeskAgent / user.crmAccess / user.pmAccess: true (granted), false (removed) or absent
+// (follow the account type). CRM and Projects access grant viewing and editing; removing it also
+// removes crm.manage / pm.manage. Administrators always keep everything.
+// (A project opens only for its members and administrators, whatever the account type: see projectAccess.)
+export const PER_USER = { 'helpdesk.agent': 'helpdeskAgent', 'crm.view': 'crmAccess', 'crm.edit': 'crmAccess', 'pm.view': 'pmAccess', 'pm.edit': 'pmAccess' };
 export function userCan(user, permission) {
   if (!user) return false;
   if (user.role !== 'admin') {
     const field = PER_USER[permission];
     if (field && typeof user[field] === 'boolean') return user[field];
     if (permission === 'crm.manage' && user.crmAccess === false) return false;
+    if (permission === 'pm.manage' && user.pmAccess === false) return false;
   }
   return can(user.role, permission);
 }
+
+// Whether this account opens the Admin panel at all.
+export const usesAdminPanel = (user) => ADMIN_PANEL_PERMISSIONS.some((p) => userCan(user, p));

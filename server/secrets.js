@@ -3,7 +3,7 @@
 // db.json or in downloaded backups. A backup restored elsewhere needs the passwords re-entered.
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
+import { randomBytes, createCipheriv, createDecipheriv, createHmac } from 'node:crypto';
 
 export function createSecrets(dir) {
   const file = path.join(dir, 'secret.key');
@@ -18,6 +18,11 @@ export function createSecrets(dir) {
     return key;
   };
   return {
+    // A separate key for another purpose (e.g. sealing the audit log's chain), made from the
+    // server key and a label, so the server key itself is only ever used for encryption.
+    derive(label) {
+      return createHmac('sha256', getKey()).update(String(label)).digest();
+    },
     seal(plain) {
       if (!plain) return null;
       const iv = randomBytes(12);

@@ -136,6 +136,9 @@ The new flow applies to requests filed from now on. A notice says how many activ
 
 ## Questions
 
+**How do I know a request is waiting for me?**
+The **bell** in the top bar tells you: *Mark Bautista asked for 1 day of official business*, with the dates. It comes when the request reaches your step: when it is filed, when the level before you approves, or when the employee resubmits it after a revision. Choosing it opens the request in **Approvals**. If the employee withdraws it, or HR cancels it, while it waits for you, the bell tells you too. The employee hears of your decision (approved, rejected with your reason, or returned with your remarks) in their own bell. Notifications do not include the employee's reason; open the request to read it. See [See your notifications](getting-started#see-your-notifications).
+
 **What is the difference between sequential and parallel?**
 Sequential: every level approves in turn, and the request comes to you only when the level before you has approved. Parallel: the request goes to every level at once, and the first approval decides it. In both, a rejection ends it.
 
