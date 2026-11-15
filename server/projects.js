@@ -1194,7 +1194,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
 
   // ===== A project's own picture as its icon =====
   // Uploaded by its managers (a square cut in the browser): JPEG, PNG or WebP by content, at most
-  // 300 KB. Shown to those who can open the project, as an image only (its type, nosniff, a sandbox
+  // 300 KB; or an animated GIF as it is (at most 1 MB and 1024 pixels each way). Shown to those who can open the project, as an image only (its type, nosniff, a sandbox
   // policy); the address carries its date, so a new picture is not hidden by the cache. It takes the
   // place of the icon from the set (kept, and shown again when the picture is removed).
   const PICTURE_MAX = 300 * 1024;
@@ -1206,9 +1206,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   route('PUT', '/api/pm/projects/:id/icon', 'auth', ({ params, body, user: u }) => {
     const p = findProject(params.id, u, 'manage');
     if (!files) throw new HttpError(500, 'Files cannot be stored here.');
-    const up = parseUpload(body?.file);
-    if (!IMAGE_TYPES.includes(up.type)) throw new HttpError(400, 'Use a picture: JPEG, PNG or WebP.');
-    if (up.buffer.length > PICTURE_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${PICTURE_MAX / 1024} KB.`);
+    const up = parseUpload(body?.file, { pictures: [...IMAGE_TYPES, 'image/gif'] });
+    if (up.type !== 'image/gif' && up.buffer.length > PICTURE_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${PICTURE_MAX / 1024} KB.`);
     const old = p.iconImage;
     const saved = files.save({ ...up, name: 'icon' });
     p.iconImage = { id: saved.id, type: saved.type, size: saved.size, at: saved.uploadedAt };

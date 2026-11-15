@@ -737,16 +737,16 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
 
   // ----- Profile pictures -----
   // Everyone's own small picture, shown instead of their initials. A square JPEG, PNG or WebP (by its
-  // first bytes, never SVG), made small in the browser, at most 300 KB. Set and removed by its owner;
+  // first bytes, never SVG), made small in the browser, at most 300 KB; or an animated GIF as it is
+  // (at most 1 MB and 1024 pixels each way: checkGif). Set and removed by its owner;
   // an administrator can remove anyone's. Shown to everyone signed in, with its own type, nosniff and
   // a sandbox policy; the address carries the picture's date, so a new one is not hidden by the cache.
-  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   const AVATAR_MAX = 300 * 1024;
   const avatarList = () => Object.fromEntries(users().filter((u) => u.avatar?.id).map((u) => [u.id, u.avatar.at]));
   function setAvatar(user, file) {
-    const up = parseUpload(file);
-    if (!AVATAR_TYPES.includes(up.type)) throw new HttpError(400, 'Use a photo: JPEG, PNG or WebP.');
-    if (up.buffer.length > AVATAR_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${AVATAR_MAX / 1024} KB.`);
+    const up = parseUpload(file, { pictures: AVATAR_TYPES });
+    if (up.type !== 'image/gif' && up.buffer.length > AVATAR_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${AVATAR_MAX / 1024} KB.`);
     const old = user.avatar;
     const saved = files.save({ ...up, name: 'profile' });
     user.avatar = { id: saved.id, type: saved.type, size: saved.size, at: saved.uploadedAt };

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Moving pictures: GIFs for your picture and project icons (0.31)
+- Your profile picture and a project's own icon can be an animated GIF (up to 1 MB): it is kept as it is and moves wherever it shows. If your device is set to reduce motion, GIFs show standing still. See [Add your profile picture](getting-started#add-your-profile-picture) and [the projects guide](projects#give-a-project-its-icon).
+
 ### Comments in the new editor (0.30)
 - A task's comment box is now the same editor as the description: bold, lists, checklists, quotes, code and tables, as they will look. Type **@** to pick someone on the project to mention. **Ctrl+Enter** posts. See [the projects guide](projects#comment-on-a-task).
 

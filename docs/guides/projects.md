@@ -162,7 +162,7 @@ The project opens. Its board starts with the statuses from the Projects setup. F
 
 1. Open the project and click **Edit** (or start a new one with **+ New project**).
 2. Under **Icon**, click a picture, then a colour. The tile above them shows how it will look.
-3. Or use your own picture, such as the client's logo: click **Upload a picture…** and choose a JPEG, PNG or WebP. CORE keeps a square from the middle of it (a transparent logo stays transparent).
+3. Or use your own picture, such as the client's logo: click **Upload a picture or GIF…** and choose a JPEG, PNG or WebP. CORE keeps a square from the middle of it (a transparent logo stays transparent). An animated GIF of up to 1 MB works too: it is kept as it is and moves beside the project's name (the tile shows its middle; it stands still for people whose device asks for less motion).
 4. Click **Save**.
 
 ![Picking a project's icon](projects-icon.jpg)

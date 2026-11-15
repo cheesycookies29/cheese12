@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.31.0-alpha',
+    date: '2026-11-15',
+    title: 'Animated GIFs for profile pictures and project icons',
+    modules: ['system', 'projects'],
+    notes: 'A profile picture or a project\'s icon can be an animated GIF.',
+    changes: [
+      ['new', 'system', 'Profile pictures take an animated GIF, kept byte for byte (re-drawing it would stop it): no framing, the circle shows its middle (object-fit). The server knows a GIF by its first bytes (GIF87a/GIF89a) and takes it only for pictures, at most 1 MB and 1024 × 1024 pixels (read from its header); served as image/gif with nosniff and a sandbox policy, like the others. Photos stay at 300 KB, cut to 256 × 256 in the browser.'],
+      ['new', 'projects', 'A project\'s own icon takes an animated GIF the same way (Upload a picture or GIF…); a copy of the project gets its own copy. Task files, description pictures and the logo still take no GIF.'],
+      ['new', 'system', 'With prefers-reduced-motion, every profile picture and project icon shows as a still: its first frame, drawn once on a canvas and kept for the page\'s life (pictures marked data-anim).'],
+      ['improved', 'system', 'parseUpload takes the picture types allowed in place of the attachment types (pictures).'],
+    ],
+  },
+  {
     version: '0.30.0-alpha',
     date: '2026-11-15',
     title: 'Comments in the visual editor',

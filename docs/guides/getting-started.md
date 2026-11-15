@@ -132,13 +132,15 @@ Your **My Home** page in HR & Payroll also shows **My project tasks** when you h
 ### Add your profile picture
 
 1. Choose your name at the top right, then **Add my picture** (**Change my picture** once you have one).
-2. Choose **Choose a photo…** and pick a photo; on a phone you can also take one.
+2. Choose **Choose a photo or GIF…** and pick a photo; on a phone you can also take one.
 3. Move **Zoom**, **Left – right** and **Up – down** until your face sits in the circle.
 4. Choose **Save picture**.
 
+An animated GIF works too, so your picture can move: pick one of up to 1 MB (and at most 1024 × 1024 pixels). CORE keeps it as it is, so there is no zoom or framing: the circle shows its middle.
+
 ![Choosing a profile picture](getting-started-picture.jpg)
 
-Your picture is shown instead of your initials next to your name: at the top right, in project members, task cards, comments and watchers, record owners in Sales & CRM, and Users & Access. Everyone signed in to CORE can see it, so choose one you are happy for colleagues to see. CORE keeps only a small square of the photo (256 × 256). **Remove my picture** in the same window brings your initials back. Employees also find **Add my picture** on **My Profile**.
+Your picture is shown instead of your initials next to your name: at the top right, in project members, task cards, comments and watchers, record owners in Sales & CRM, and Users & Access. Everyone signed in to CORE can see it, so choose one you are happy for colleagues to see. CORE keeps only a small square of the photo (256 × 256). People who have asked their device for less motion (*Reduce motion* in its settings) see the first frame of a GIF, standing still. **Remove my picture** in the same window brings your initials back. Employees also find **Add my picture** on **My Profile**.
 
 ### Change your password
 

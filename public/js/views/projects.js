@@ -15,7 +15,7 @@ import { defaultDay, dayTotals } from '../phone.js';
 import { ACCEPT, prepareUpload, sizeLabel } from '../attachments.js';
 import { richEditor, wireRichEditor, richView } from '../richeditor.js';
 import { renderRich } from '/shared/richtext.js';
-import { avatar as personAvatar } from '../avatars.js';
+import { avatar as personAvatar, isGif, gifCheck } from '../avatars.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, MY_WORK_GROUPS,
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
@@ -146,7 +146,12 @@ const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task 
 // cannot write WebP), keeping transparency for logos.
 const PICTURE_SIDE = 256;
 async function squarePicture(file) {
-  if (!file.type.startsWith('image/')) throw new Error('Choose a picture: JPEG, PNG or WebP.');
+  // An animated GIF is kept as it is (cutting it would stop it); the tile shows its middle.
+  if (await isGif(file)) {
+    gifCheck(file);
+    return file.slice(0, file.size, 'image/gif');
+  }
+  if (!file.type.startsWith('image/')) throw new Error('Choose a picture: JPEG, PNG or WebP, or a GIF.');
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((resolve, reject) => {
@@ -181,7 +186,7 @@ const ICON_PX = { sm: 12, md: 16, lg: 22 };
 const pictureOf = (p) => p?.src || (p?.id && p.iconImage?.at ? `/api/pm/projects/${encodeURIComponent(p.id)}/icon?v=${encodeURIComponent(p.iconImage.at)}` : null);
 export function projectIcon(p, size = 'md') {
   const src = pictureOf(p);
-  if (src) return html`<span class="pm-picon pm-picon-${size} pic" aria-hidden="true"><img src="${src}" alt="" loading="lazy" decoding="async" /></span>`;
+  if (src) return html`<span class="pm-picon pm-picon-${size} pic" aria-hidden="true"><img src="${src}" alt="" loading="lazy" decoding="async" data-anim /></span>`;
   const ic = p?.icon;
   if (ic && Object.hasOwn(PROJECT_ICONS, ic.glyph) && Object.hasOwn(PROJECT_ICON_COLORS, ic.color)) return html`<span class="pm-picon pm-picon-${size} pm-pc-${ic.color}" aria-hidden="true">${icon(ic.glyph, ICON_PX[size])}</span>`;
   const t = letterTile(p?.name, p?.code);
@@ -332,9 +337,9 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
         <legend>Icon</legend>
         <div class="pm-icon-row"><span class="pm-icon-preview">${projectIcon(rec, 'lg')}</span>
           <small class="hint" id="icon-hint">Shown beside the project's name in every list. Pick one below, or use your own picture (a logo, for example). <strong>Letter</strong> uses the first letter of the name.</small></div>
-        <div class="pm-icon-own"><label class="btn small-btn pm-icon-upload">${icon('upload', 14)} Upload a picture…<input type="file" name="iconFile" accept="image/jpeg,image/png,image/webp,image/*" class="sr-only" /></label>
+        <div class="pm-icon-own"><label class="btn small-btn pm-icon-upload">${icon('upload', 14)} Upload a picture or GIF…<input type="file" name="iconFile" accept="image/jpeg,image/png,image/webp,image/gif,image/*" class="sr-only" /></label>
           <button type="button" class="btn small-btn ghost danger" id="icon-remove" ${rec.iconImage ? '' : 'hidden'}>Remove picture</button>
-          <small class="muted pm-icon-own-note">${rec.iconImage ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP; CORE keeps a small square of it.'}</small></div>
+          <small class="muted pm-icon-own-note">${rec.iconImage ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP (CORE keeps a small square of it), or an animated GIF up to 1 MB, kept as it is.'}</small></div>
         <div class="pm-glyphs" role="radiogroup" aria-label="Icon" aria-describedby="icon-hint">
           <label class="pm-glyph" title="Letter"><input type="radio" name="iconGlyph" value="" ${rec.icon ? '' : 'checked'} aria-label="Letter" /><span class="pm-glyph-letter" aria-hidden="true">Aa</span></label>
           ${Object.entries(PROJECT_ICONS).map(([k, label]) => html`<label class="pm-glyph" title="${label}"><input type="radio" name="iconGlyph" value="${k}" ${rec.icon?.glyph === k ? 'checked' : ''} aria-label="${label}" />${icon(k, 18)}</label>`)}
@@ -412,7 +417,7 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
     mount(form.querySelector('.pm-icon-preview'), projectIcon({ ...own, name: form.elements.name.value || rec.name, code: rec.code || form.elements.name.value, icon: glyph ? { glyph, color: form.elements.iconColor.value || 'blue' } : null }, 'lg'));
     const has = Boolean(picture || (!dropPicture && rec.iconImage));
     form.querySelector('#icon-remove').hidden = !has;
-    form.querySelector('.pm-icon-own-note').textContent = has ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP; CORE keeps a small square of it.';
+    form.querySelector('.pm-icon-own-note').textContent = has ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP (CORE keeps a small square of it), or an animated GIF up to 1 MB, kept as it is.';
   };
   form.querySelector('.pm-icon-pick').addEventListener('change', (e) => {
     if (e.target.name === 'iconFile') return;

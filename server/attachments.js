@@ -15,21 +15,39 @@ function sniff(buf) {
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
   if (buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
   if (buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  if (/^GIF8[79]a$/.test(buf.subarray(0, 6).toString('latin1'))) return 'image/gif';
   return null;
 }
 
+// Animated pictures (profile pictures and project icons only, never attachments): a GIF of at most
+// GIF_MAX_BYTES, its canvas at most GIF_MAX_SIDE pixels each way (read from its header).
+export const GIF_MAX_BYTES = 1024 * 1024;
+export const GIF_MAX_SIDE = 1024;
+export function checkGif(buffer) {
+  if (buffer.length < 13) throw new HttpError(400, 'This GIF could not be read. Choose it again or use another.');
+  if (buffer.length > GIF_MAX_BYTES) throw new HttpError(400, `The GIF is too large (${(buffer.length / 1048576).toFixed(1)} MB). The limit is 1 MB: use a shorter or smaller one.`);
+  const w = buffer.readUInt16LE(6);
+  const h = buffer.readUInt16LE(8);
+  if (!w || !h) throw new HttpError(400, 'This GIF could not be read. Choose it again or use another.');
+  if (w > GIF_MAX_SIDE || h > GIF_MAX_SIDE) throw new HttpError(400, `The GIF is too big (${w} × ${h} pixels). Use one of at most ${GIF_MAX_SIDE} × ${GIF_MAX_SIDE}.`);
+}
+
 // { name, data: base64 } from the browser -> { name, type, buffer }, or a 400 explaining what's wrong.
-export function parseUpload(input) {
+// pictures: the picture types taken instead of the attachment types (a profile picture, an icon).
+export function parseUpload(input, { pictures = null } = {}) {
   if (!input || typeof input.data !== 'string') throw new HttpError(400, 'The attached file could not be read. Please choose it again.');
-  return uploadFromBuffer(input.name, Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64'));
+  return uploadFromBuffer(input.name, Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64'), { pictures });
 }
 
 // A file from any source (e.g. an email attachment) -> { name, type, buffer }, checked the same way.
-export function uploadFromBuffer(name, buffer) {
+export function uploadFromBuffer(name, buffer, { pictures = null } = {}) {
   if (!buffer.length) throw new HttpError(400, 'The attached file is empty.');
   if (buffer.length > MAX_ATTACHMENT_BYTES) throw new HttpError(400, `The file is too large (${(buffer.length / 1048576).toFixed(1)} MB). The limit is ${MAX_ATTACHMENT_BYTES / 1048576} MB.`);
   const type = sniff(buffer);
-  if (!ATTACHMENT_TYPES[type]) throw new HttpError(400, 'Attach a PDF or a photo (JPEG, PNG or WebP).');
+  if (pictures) {
+    if (!pictures.includes(type)) throw new HttpError(400, `Use a picture: ${pictures.includes('image/gif') ? 'JPEG, PNG, WebP or GIF' : 'JPEG, PNG or WebP'}.`);
+    if (type === 'image/gif') checkGif(buffer);
+  } else if (!ATTACHMENT_TYPES[type]) throw new HttpError(400, 'Attach a PDF or a photo (JPEG, PNG or WebP).');
   const safeName = String(name || 'attachment').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 120) || 'attachment';
   return { name: safeName, type, buffer };
 }

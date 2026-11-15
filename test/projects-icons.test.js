@@ -120,7 +120,7 @@ test('a project\'s own picture: managers set and remove it; members see it; nobo
   assert.equal(ov.projects.find((x) => x.id === p.id).iconImage.at, withPic.iconImage.at);
   // Only pictures, by content; at most 300 KB.
   await assert.rejects(pia('PUT', `/api/pm/projects/${p.id}/icon`, pic(Buffer.from('<svg onload="alert(1)"/>'))), (e) => e.status === 400);
-  await assert.rejects(pia('PUT', `/api/pm/projects/${p.id}/icon`, pic(Buffer.from('%PDF-1.4\n'))), /JPEG, PNG or WebP/);
+  await assert.rejects(pia('PUT', `/api/pm/projects/${p.id}/icon`, pic(Buffer.from('%PDF-1.4\n'))), /JPEG, PNG, WebP or GIF/);
   await assert.rejects(pia('PUT', `/api/pm/projects/${p.id}/icon`, pic(Buffer.concat([PNG, Buffer.alloc(310 * 1024)]))), /300 KB/);
   // Someone not on the project: not found; a member who is not a manager cannot change it.
   const outsider = client();
