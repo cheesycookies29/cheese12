@@ -6,7 +6,7 @@ import { scryptSync, randomBytes } from 'node:crypto';
 import { setup } from './support.js';
 import { checkStructure, checkBody, safeReviver, t } from '../server/validate.js';
 import { parseCookies, createSessions, cookieName, sessionCookie, needsRehash, verifyPassword, hashPassword } from '../server/auth.js';
-import { privateAddress } from '../server/sso.js';
+import { privateAddress, pinnedFetch } from '../server/sso.js';
 
 const PW = 'password123';
 const status = (code) => (e) => e.status === code;
@@ -200,4 +200,22 @@ test('5. Keycloak tests: administrators only, never to a private address, and Ke
   regUser.access = { add: ['settings.edit'], remove: [] };
   await assert.rejects(reg.post('/api/admin/sso/test', { issuer: 'https://kc.public.example/realms/s' }), status(403));
   assert.ok(privateAddress('::ffff:192.168.1.1', 6) && privateAddress('fe80::1', 6) && privateAddress('169.254.169.254', 4) && !privateAddress('93.184.216.34', 4));
+});
+
+test('5. the call to Keycloak checks the address when it connects, and the sign-in page shows only ATLAS\'s words', async () => {
+  // A name that turns private between the check and the call (DNS rebinding) is refused at the connection.
+  const toPrivate = (name, o, cb) => cb(null, [{ address: '10.0.0.7', family: 4 }]);
+  await assert.rejects(pinnedFetch(new Set(), toPrivate)('https://kc.rebind.example/realms/s'), (e) => e.code === 'EPRIVATE');
+  const toMeta = (name, o, cb) => cb(null, [{ address: '93.184.216.34', family: 4 }, { address: '169.254.169.254', family: 4 }]);
+  await assert.rejects(pinnedFetch(new Set(), toMeta)('https://kc.mixed.example/realms/s'), (e) => e.code === 'EPRIVATE');
+  // A campus Keycloak named in KEYCLOAK_PRIVATE_HOSTS gets past the check (and then fails to connect here, as nothing answers).
+  await assert.rejects(pinnedFetch(new Set(['kc.campus.example']), toPrivate)('http://kc.campus.example:9/realms/s'), (e) => e.code !== 'EPRIVATE');
+
+  // A link to the callback with made-up words: the page does not repeat them.
+  const { env } = await school();
+  const res = await raw(env, 'GET', '/api/sso/callback?error=server_error&error_description=Call%20555-0100%20to%20verify%20your%20account', {});
+  const shown = decodeURIComponent(JSON.stringify(res));
+  assert.ok(/did not sign you in \(server_error\)/.test(shown) && !/555-0100/.test(shown), 'ATLAS\'s message with the code, not the description');
+  const odd = decodeURIComponent(JSON.stringify(await raw(env, 'GET', '/api/sso/callback?error=%3Cb%3Ehi%3C%2Fb%3E', {})));
+  assert.ok(!/<b>hi/.test(odd), 'nor an error code that is not a standard one');
 });

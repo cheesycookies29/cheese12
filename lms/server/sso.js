@@ -21,6 +21,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { BlockList } from 'node:net';
 import { lookup as dnsLookup } from 'node:dns/promises';
+import { lookup as dnsLookupCallback } from 'node:dns';
+import http from 'node:http';
+import https from 'node:https';
 import { randomBytes, createHash, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { HttpError, text } from './util.js';
 import { ROLES } from '../shared/roles.js';
@@ -72,8 +75,53 @@ export const privateAddress = (address, family) => {
 const LOCAL_NAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 const isLocal = (host) => LOCAL_NAMES.has(String(host).toLowerCase());
 
-export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret = process.env.OIDC_CLIENT_SECRET || '', fetchImpl: rawFetch = (...a) => fetch(...a), lookup = dnsLookup, secureCookies = false, privateHosts = String(process.env.KEYCLOAK_PRIVATE_HOSTS || '') }) {
+// The calls to Keycloak, made with node:http(s) rather than fetch so the address check happens when
+// the connection is made: the name is looked up once, inside the connection, and refused there if
+// it now points to a private address (a name that answered "public" a moment ago and "private" now,
+// DNS rebinding, gets nowhere). A Keycloak on this machine (localhost) and the hosts in
+// KEYCLOAK_PRIVATE_HOSTS are let through, as checkOutbound decides first. No redirect is followed,
+// and an answer over 2 MB is cut off.
+export function pinnedFetch(allowedPrivate = new Set(), lookupImpl = dnsLookupCallback) {
+  return (url, opts = {}) => new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const trusted = isLocal(host) || allowedPrivate.has(host);
+    const lookup = (name, o, cb) => lookupImpl(name, { ...o, all: true }, (err, addresses) => {
+      if (err) return cb(err);
+      if (!trusted && (!addresses.length || addresses.some((a) => privateAddress(a.address, a.family)))) {
+        return cb(Object.assign(new Error(`${name} points to a private address`), { code: 'EPRIVATE' }));
+      }
+      return o?.all ? cb(null, addresses) : cb(null, addresses[0].address, addresses[0].family);
+    });
+    const lib = u.protocol === 'https:' ? https : http;
+    const req = lib.request(u, { method: opts.method || 'GET', headers: opts.headers || {}, lookup, signal: opts.signal }, (res) => {
+      const chunks = [];
+      let size = 0;
+      res.on('data', (c) => {
+        size += c.length;
+        if (size > 2 * 1024 * 1024) return req.destroy(new Error('Keycloak\'s answer is too large'));
+        chunks.push(c);
+      });
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        resolve({
+          status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300,
+          headers: { get: (n) => res.headers[String(n).toLowerCase()] ?? null },
+          text: async () => body, json: async () => JSON.parse(body),
+        });
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    if (opts.body) req.write(opts.body);
+    req.end();
+  });
+}
+
+export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret = process.env.OIDC_CLIENT_SECRET || '', fetchImpl = null, lookup = dnsLookup, secureCookies = false, privateHosts = String(process.env.KEYCLOAK_PRIVATE_HOSTS || '') }) {
   const allowedPrivate = new Set(privateHosts.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean));
+  // Tests pass a stand-in Keycloak's fetch; the server uses the address-checking one above.
+  const rawFetch = fetchImpl || pinnedFetch(allowedPrivate);
   // Before every call to Keycloak (issuer is the realm the call belongs to).
   async function checkOutbound(url, issuer) {
     let u;
@@ -137,7 +185,8 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     try {
       res = await rawFetch(url, { ...opts, redirect: 'manual', signal: AbortSignal.timeout(10000) });
     } catch (err) {
-      fail(`Could not reach Keycloak (${new URL(url).host}): ${err.cause?.code || err.name || 'no answer'}`, 502);
+      if ((err.code || err.cause?.code) === 'EPRIVATE') fail(`Keycloak's address (${new URL(url).hostname}) is on a private network, which ATLAS does not call from here.`, 400);
+      fail(`Could not reach Keycloak (${new URL(url).host}): ${err.code || err.cause?.code || err.name || 'no answer'}`, 502);
     }
     const body = await res.json().catch(() => null);
     const code = typeof body?.error === 'string' && /^[a-z_]{1,40}$/.test(body.error) ? `: ${body.error}` : '';
@@ -269,7 +318,11 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     const st = pending.get(String(query.state || ''));
     if (query.error) {
       if (st) pending.delete(query.state);
-      return back(query.error === 'access_denied' ? 'Keycloak sign-in was cancelled.' : `Keycloak said: ${text(query.error_description || query.error, 200)}`);
+      // Only ATLAS's own words on this page: the link's error_description is anyone's text (a link
+      // to this page could otherwise show a made-up message on an ATLAS page). The standard OAuth
+      // error code is kept, as it helps whoever runs Keycloak.
+      const code = /^[a-z_]{1,40}$/.test(String(query.error)) ? String(query.error) : 'error';
+      return back(query.error === 'access_denied' ? 'Keycloak sign-in was cancelled.' : `Keycloak did not sign you in (${code}). Try again, or ask the registrar or your administrator.`);
     }
     if (!st || cookies[STATE_COOKIE] !== query.state) return back('This sign-in link has expired or was opened in another browser. Start again.');
     pending.delete(query.state);
