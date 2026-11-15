@@ -208,7 +208,7 @@ function popMenu(btn, items, label) {
   pop.setAttribute('aria-label', label);
   mount(pop, html`${items.map((it, i) => (it.sep ? html`<div class="menu-sep" role="separator"></div>`
     : it.heading ? html`<div class="menu-label">${it.heading}</div>`
-      : html`<button type="button" role="menuitem" data-i="${i}" ${it.disabled ? 'disabled' : ''} ${it.current ? 'aria-current="true" class="on"' : ''}><span class="grow">${it.label}${it.sub ? html`<small class="muted">${it.sub}</small>` : ''}</span></button>`))}`);
+      : html`<button type="button" role="menuitem" data-i="${i}" ${it.disabled ? 'disabled' : ''} aria-current="${it.current ? 'true' : 'false'}" class="${it.current ? 'on' : ''}"><span class="grow">${it.label}${it.sub ? html`<small class="muted">${it.sub}</small>` : ''}</span></button>`))}`);
   document.body.appendChild(pop);
   const place = () => {
     const r = btn.getBoundingClientRect();
@@ -674,10 +674,83 @@ export async function portfolioMilestonesView(el, _params, query) {
 // ---------- A project: header and tabs ----------
 // Time: only on a project that tracks time.
 const TABS = [['', 'Overview', 'dashboard'], ['board', 'Board', 'grid'], ['list', 'List', 'table'], ['timeline', 'Timeline', 'calendar'], ['time', 'Time', 'clock']];
+
+// ---------- Breadcrumbs ----------
+// Where you are, on a project's pages and its tasks: Projects › the project › the view › the parent
+// task › the task. The project's crumb has a menu to go to another project (the same view of it).
+// A task's view crumb is the view it was opened from (Board, List, Timeline…, with the filters
+// that were on), kept for this browser tab; Board when it was opened from elsewhere.
+const VIEW_LABEL = Object.fromEntries(TABS.map(([k, label]) => [k, label]));
+const VIEW_AT = /^#\/projects\/([^/?#]+)(?:\/(board|list|timeline|time))?(?:\?[^#]*)?$/;
+const TASK_AT = /^#\/projects\/([^/?#]+)\/tasks\//;
+const fromKey = (pid) => `core.pm.from.${pid}`;
+addEventListener('hashchange', (e) => {
+  let from = '';
+  try {
+    from = new URL(e.oldURL).hash;
+  } catch {}
+  const view = VIEW_AT.exec(from);
+  const task = TASK_AT.exec(location.hash);
+  if (!view || !task || view[1] !== task[1]) return;
+  try {
+    sessionStorage.setItem(fromKey(view[1]), from);
+  } catch {}
+});
+function cameFrom(pid) {
+  let h = null;
+  try {
+    h = sessionStorage.getItem(fromKey(pid));
+  } catch {}
+  const m = h && VIEW_AT.exec(h);
+  return m && m[1] === pid ? { href: h, tab: m[2] || '' } : { href: `#/projects/${pid}/board`, tab: 'board' };
+}
+// items: [{ label, href, lead (markup before the words), title, mono, switcher: the view to open }],
+// the last one is the page itself. On a phone the ones in the middle fold into "…" (tap to show).
+function crumbBar(items) {
+  const last = items.length - 1;
+  const fold = items.length > 3;
+  const words = (it) => html`${it.lead || ''}<span class="crumb-text ${it.mono ? 'mono' : ''}">${it.label}</span>`;
+  return html`<nav class="pm-crumbs ${fold ? 'can-fold' : ''}" aria-label="Breadcrumb"><ol>${items.map((it, i) => html`${i === 1 && fold ? html`<li class="crumb-more"><button type="button" data-crumbs-more aria-label="Show the ${plural(last - 1, 'level')} in between" title="Show the full path">…</button></li>` : ''}<li class="${fold && i > 0 && i < last - 1 ? 'crumb-mid' : ''}">${i === last
+    ? html`<span class="crumb-cur" aria-current="page" title="${it.title || it.label}">${words(it)}</span>`
+    : html`<a href="${it.href}" title="${it.title || it.label}">${words(it)}</a>`}${it.switcher != null ? html`<button type="button" class="crumb-switch" data-pm-switch="${it.switcher}" data-project="${it.id}" aria-haspopup="menu" aria-expanded="false" aria-label="Go to another project" title="Go to another project">${icon('chevronDown', 14)}</button>` : ''}</li>`)}</ol></nav>`;
+}
+const rootCrumb = (p) => (p.isTemplate ? { label: 'Templates', href: '#/projects?status=templates' } : { label: 'Projects', href: '#/projects' });
+const projectCrumb = (p, tab) => ({ label: p.name, href: `#/projects/${p.id}`, lead: projectIcon(p, 'sm'), title: `${p.code} · ${p.name}`, id: p.id, switcher: p.isTemplate ? null : tab });
+document.addEventListener('click', async (e) => {
+  const more = e.target.closest?.('[data-crumbs-more]');
+  if (more) {
+    const nav = more.closest('.pm-crumbs');
+    nav.classList.add('open');
+    nav.querySelector('.crumb-mid a')?.focus();
+    return;
+  }
+  const b = e.target.closest?.('[data-pm-switch]');
+  if (!b || b.getAttribute('aria-expanded') === 'true') return;
+  let list;
+  try {
+    list = await api.get('/api/pm/projects');
+  } catch (err) {
+    return toast(err.message, 'error');
+  }
+  const tab = b.dataset.pmSwitch;
+  const item = (x) => ({ label: html`<span class="pm-named">${projectIcon(x, 'sm')} <span>${x.name}</span></span>`, sub: html`<span class="mono">${x.code}</span>`, current: x.id === b.dataset.project, onPick: () => {
+    const to = tab === 'time' && !x.timeTracking ? '' : tab;
+    location.hash = `#/projects/${x.id}${to ? `/${to}` : ''}`;
+  } });
+  list = list.filter((x) => !x.isTemplate);
+  const open = list.filter((x) => OPEN_PROJECT.includes(x.status));
+  const closed = list.filter((x) => !OPEN_PROJECT.includes(x.status));
+  const byName = (a, c) => a.name.localeCompare(c.name);
+  popMenu(b, [
+    ...(open.length ? [{ heading: 'Open projects' }, ...open.sort(byName).map(item)] : []),
+    ...(closed.length ? [{ heading: 'Closed' }, ...closed.sort(byName).map(item)] : []),
+  ], 'Go to another project');
+});
+
 function projectHeader(p, tab, actions = '') {
   return html`
     <header class="page-head pm-head">
-      <div><a class="back" href="#/projects${p.isTemplate ? '?status=templates' : ''}">← ${p.isTemplate ? 'Templates' : 'Projects'}</a>
+      <div>${crumbBar([rootCrumb(p), projectCrumb(p, tab), { label: VIEW_LABEL[tab] }])}
         <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</span></h1>
         <p class="muted"><span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
       ${actions ? html`<div class="actions">${actions}</div>` : ''}
@@ -1698,6 +1771,7 @@ export async function taskView(el, { projectId, id }) {
   const queue = saveQueue();
   if (t.projectId !== projectId) return (location.hash = `#/projects/${t.projectId}/tasks/${t.id}`);
   const p = t.project;
+  const from = cameFrom(p.id);
   async function render() {
     const comments = await api.get(`/api/pm/tasks/${id}/comments`);
     const work = may(t.access, 'work');
@@ -1712,8 +1786,10 @@ export async function taskView(el, { projectId, id }) {
       <p class="pre">${mentionParts(c.body, usernames).map((x) => (x.mention ? html`<mark class="pm-mention">@${x.mention}</mark>` : x.text))}</p></div></li>`;
     mount(el, html`<div class="pm-task-page">
       <header class="page-head">
-        <div><a class="back pm-back-proj" href="#/projects/${p.id}/board">← ${projectIcon(p, 'sm')} ${p.code} · ${p.name}</a>
-          <p class="tag-line mono">${t.key}${t.parent ? html` · subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}">${t.parent.key}</a>` : ''}</p>
+        <div>${crumbBar([rootCrumb(p), projectCrumb(p, from.tab), { label: VIEW_LABEL[from.tab], href: from.href, title: `Back to the ${VIEW_LABEL[from.tab]}` },
+          ...(t.parent ? [{ label: t.parent.title, href: `#/projects/${p.id}/tasks/${t.parent.id}`, title: `${t.parent.key} · ${t.parent.title} (the task this is a subtask of)` }] : []),
+          { label: t.key, mono: true, title: `${t.key} · ${t.title}` }])}
+          ${t.parent ? html`<p class="pm-subof">${icon('layers', 14)} Subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}"><span class="mono">${t.parent.key}</span> ${t.parent.title}</a></p>` : ''}
           <h1>${t.title} ${statusChip(status)}</h1>
           <p class="muted">${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} Added ${when(t.createdAt)}</p></div>
         <div class="actions">${p.isTemplate ? '' : html`<button class="btn pm-watch ${t.watching ? 'on' : ''}" id="watch" aria-pressed="${t.watching ? 'true' : 'false'}" title="${t.watching ? 'You hear of its comments and when it is done or cancelled. Click to stop.' : 'Hear of its comments and when it is done or cancelled.'}">${icon('eye', 16)} ${t.watching ? 'Watching' : 'Watch'} <span class="pm-watch-n" aria-label="${plural(t.watcherList.length, 'watcher')}">${t.watcherList.length}</span></button>`}${work ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit title and description</button>` : ''}${canDelete ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}</div>

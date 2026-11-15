@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.29.0-alpha',
+    date: '2026-11-15',
+    title: 'Breadcrumbs in Project Management',
+    modules: ['projects'],
+    notes: 'A project\'s pages and its tasks show the path to where you are, with a menu to go to another project.',
+    changes: [
+      ['new', 'projects', 'Breadcrumbs above the title of a project\'s pages (Projects › project › Overview, Board, List, Timeline or Time) and its tasks (Projects › project › view › parent task › task key), replacing the single back link; Templates for a template. Marked up as a navigation landmark with an ordered list, the page itself as aria-current; long names shortened with an ellipsis and shown in full on hover.'],
+      ['new', 'projects', 'A task\'s view crumb is the view it was opened from, with its filters and search (the address before the task opened, kept in session storage for the browser tab); Board otherwise. The project\'s crumb has a menu of the projects you can open (open ones first, then closed) that opens the same view of another one (its Overview when it does not track time and the view was Time).'],
+      ['improved', 'projects', 'On phones the middle of the path folds into "…" (tap to show it all) and the path stays on one line, with 44 px targets. A subtask shows "Subtask of" with its parent\'s key and title.'],
+      ['fixed', 'projects', 'Menus (saved views, the new project menu) now mark the current item: its attributes were escaped and did not apply.'],
+    ],
+  },
+  {
     version: '0.28.0-alpha',
     date: '2026-11-15',
     title: 'Table rows and columns in the description editor',

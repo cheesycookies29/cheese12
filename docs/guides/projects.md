@@ -103,6 +103,7 @@ The three starter templates are under **Templates** in the filter.
 4. **Size** says how big the task is: *S · Small (about a day)*. Pick another to change it; the line under it says what the size means. On a project that tracks time, a **Time** box under it shows the hours logged on the task and lets you log more.
 5. Under **Comments**, write a comment and mention someone with @ and their username, for example `@employee.demo`. The mention is highlighted, and Juan finds it under **For you** on his My work.
 6. At the top, **Watch** (or **Watching**) shows how many people watch the task; the **Watchers** box lists them. **Files** holds documents and photos for the task.
+7. Above the title, the path shows where you are: *Projects › Learning management system, phase 2 › Board › DEMO-PRJ-0001-7*. Click **Board** to go back to the board, or the project's name for its overview. See [Find your way with the path at the top](projects#find-your-way-with-the-path-at-the-top).
 
 ![A task](projects-task.jpg)
 
@@ -110,7 +111,7 @@ The three starter templates are under **Templates** in the filter.
 
 ### List, timeline and time
 
-1. Click the project's name at the top, then **List**: every task in a table, grouped by milestone (or by status), with the status, assignee, due date and **Size** editable in place. It has the same quick filters, search and **Views** as the board. Click a column title to sort; **Export CSV** saves what is shown.
+1. Click **Board** (or the project's name) in the path at the top, then **List**: every task in a table, grouped by milestone (or by status), with the status, assignee, due date and **Size** editable in place. It has the same quick filters, search and **Views** as the board. Click a column title to sort; **Export CSV** saves what is shown.
 2. Tick two tasks: a bar appears at the bottom with **Status**, **Assignee**, **Milestone**, **Priority**, **Size**, **Move dates**, **Watchers** and **Delete** for all the ticked tasks at once. **Clear selection** closes it. Project managers also have **Import tasks** at the top.
 3. Click **Timeline**: weeks across the top, milestones as diamonds, tasks as bars from their start to their due date (a dot when there is only a due date), a red line for today, and weekends and holidays shaded. It scrolls sideways; on a phone it is a list by date.
 4. Go back to **Overview** and open *SIS support and maintenance, 2025–2026*, the project that tracks time. Its **Time** tab has **Log time**, your entries this week, and the hours by person and by task, against the 300-hour budget.
@@ -249,6 +250,19 @@ Pasting from a web page, Word or an email keeps bold, italic, lists, headings, l
 ![A table's bar and menu in the description editor](projects-table.jpg)
 
 The first row is the table's header and shows shaded. Adding a row above it, moving another row up into its place or deleting it makes another row the header. Deleting the last row or column deletes the table. On a phone, the bar keeps the buttons that add rows and columns; delete with **…**. Right-click with **Shift** held shows the browser's own menu (to copy or paste).
+
+### Find your way with the path at the top
+
+On a project's pages and its tasks, a path above the title shows where you are, for example *Projects › Learning management system, phase 2 › List › Gradebook reports › DEMO-PRJ-0001-15*. Each part is a link:
+
+1. **Projects** goes back to all your projects (**Templates** for a template).
+2. The project's name opens its **Overview**. The small arrow beside it lists your other projects, open ones first: pick one to open the same view of it (its board, its list…).
+3. On a task, the next part is the view you opened the task from (**Board**, **List**, **Timeline**…). It takes you back to it as you left it, with your filters and search; for a task you opened from somewhere else (My work, a link, a notification), it is **Board**.
+4. For a subtask, the task it belongs to comes next. The last part, in bold, is the page you are on: the view, or the task's key.
+
+![The path at the top of a task, with the list of projects open](projects-breadcrumbs.jpg)
+
+On a phone the path is shortened to *Projects › … › the part above › here*: tap **…** to see all of it.
 
 ### Size a task
 

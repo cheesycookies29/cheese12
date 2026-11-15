@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A path at the top of every project and task (0.29)
+- Above the title of a project's pages and its tasks, a path shows where you are (*Projects › project › Board › parent task › task*); each part is a link. On a task, the view you came from takes you back to it with your filters. The arrow beside the project's name goes to another project. See [the projects guide](projects#find-your-way-with-the-path-at-the-top).
+
 ### Tables you can change (0.28)
 - In the description editor, click in a table: a bar over it adds rows above or below and columns left or right, and deletes rows and columns. Its **…** button, or a right-click on a cell, also moves rows and columns, aligns a column left, center or right, and deletes the table. **Ctrl+Z** undoes. See [the projects guide](projects#change-a-tables-rows-and-columns).
 

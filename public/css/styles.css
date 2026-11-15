@@ -3069,3 +3069,40 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
   /* The table's bar keeps to adding rows and columns; deleting is in its menu (the … button). */
   .wys-tbar [data-top^="del"], .wys-tbar .rich-sep:first-of-type { display: none; }
 }
+
+/* Breadcrumbs on a project's pages and its tasks: Projects › project › view › parent › task */
+.pm-crumbs { margin: 0 0 8px; font-size: 13px; }
+.pm-crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; margin: 0; padding: 0; list-style: none; }
+.pm-crumbs li { display: inline-flex; align-items: center; min-width: 0; }
+.pm-crumbs li + li::before { content: ''; flex: none; width: 5px; height: 5px; margin: 0 9px 0 6px; border-top: 1.5px solid var(--muted); border-right: 1.5px solid var(--muted); transform: rotate(45deg); opacity: 0.7; }
+.pm-crumbs a, .pm-crumbs .crumb-cur { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 32ch; padding: 2px 4px; margin: 0 -4px; border-radius: 6px; color: var(--muted); font-weight: 500; }
+.pm-crumbs a:hover { color: var(--brand-text); background: var(--surface-2); text-decoration: none; }
+.pm-crumbs a:focus-visible, .pm-crumbs button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.pm-crumbs .crumb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-crumbs .crumb-text.mono { font-size: 12.5px; }
+.pm-crumbs .crumb-cur { color: var(--text-2); font-weight: 600; margin-right: 0; }
+.pm-crumbs .pm-picon-sm { width: 16px; height: 16px; font-size: 9.5px; border-radius: 4px; vertical-align: 0; }
+.pm-crumbs .crumb-switch, .pm-crumbs .crumb-more button { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; font: inherit; }
+.pm-crumbs .crumb-switch:hover, .pm-crumbs .crumb-switch[aria-expanded='true'], .pm-crumbs .crumb-more button:hover { background: var(--surface-2); color: var(--text); }
+.pm-crumbs .crumb-more { display: none; }
+.pm-crumbs .crumb-more button { width: 28px; margin-left: 0; letter-spacing: 1px; font-weight: 700; }
+@media (max-width: 760px) {
+  /* Phones: Projects › … › the level above › here; tap … for the rest. */
+  .pm-crumbs.can-fold:not(.open) .crumb-mid { display: none; }
+  .pm-crumbs.can-fold:not(.open) .crumb-more { display: inline-flex; }
+  .page-head > div:has(> .pm-crumbs) { min-width: 0; max-width: 100%; }
+  .pm-crumbs ol { flex-wrap: nowrap; }
+  .pm-crumbs.open ol { flex-wrap: wrap; }
+  .pm-crumbs li { flex: 0 1 auto; }
+  .pm-crumbs li:first-child, .pm-crumbs .crumb-more { flex: none; }
+  .pm-crumbs li:first-child a { max-width: none; }
+  .pm-crumbs li:last-child { flex: 0 2 auto; }
+  .pm-crumbs a, .pm-crumbs .crumb-cur { max-width: 100%; }
+}
+@media (pointer: coarse) {
+  .pm-crumbs a, .pm-crumbs .crumb-cur { min-height: 44px; }
+  .pm-crumbs .crumb-switch, .pm-crumbs .crumb-more button { width: 44px; height: 44px; margin-left: 0; }
+  .pm-crumbs { margin-block: -8px 0; }
+}
+.pm-subof { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 4px; font-size: 13px; color: var(--muted); }
+.pm-subof a { font-weight: 500; }
