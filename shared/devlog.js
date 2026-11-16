@@ -28,6 +28,28 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.33.0-alpha',
+    date: '2026-11-16',
+    title: 'Fixes from the second security assessment (VAPT)',
+    modules: ['system', 'hr', 'projects', 'deploy'],
+    notes: 'A second VAPT of the whole app (sign-in and HTTP layer, access control, injection and uploads, business logic and data protection) found no critical or high issues. Five medium and fifteen low findings are fixed, each with a regression test (test/vapt2.test.js).',
+    changes: [
+      ['fixed', 'system', 'B-1 (medium): a ticket belonged to whoever had the requester\'s email on their employee record, so someone who could edit records could read and answer another person\'s tickets. A ticket now belongs to the account it was filed by or matched to when it arrived; older tickets are linked once to the one account with that address. Employee emails are unique.'],
+      ['fixed', 'hr', 'B-2 (medium): payroll runs sent full government ID and bank numbers to every screen. They are masked (last 4) on runs and payslips; the register export has them in full from its own logged address; accounts without employees.sensitive get none.'],
+      ['fixed', 'hr', 'B-3 (medium): staff could approve their own overtime, set their own leave credits and pay. Own time entries, leave credits, leave days and adjustments, pay, schedule and status fields, payslip adjustments and opening balances are refused (administrators excepted). A bad leave-credit value no longer drops the existing credit; credit changes have their own audit entry.'],
+      ['fixed', 'system', 'D1 (medium): lines cut from the end of the audit log passed the chain check. CORE keeps its last entry in a head file sealed with the audit key; the check fails while running, and a start after a cut writes an audit.gap entry and keeps reporting it.'],
+      ['fixed', 'hr', 'D2 (medium): birth dates, home addresses, phones and emergency contacts went to every account with employees.view, and only views with pay were logged. Personal details go to the HR side (employees.edit, employees.sensitive or leave.manage); every list and record view is logged.'],
+      ['fixed', 'projects', 'B-4: a project\'s managers could read members\' DTR hours on the Time tab and the Timesheet. The attendance check is for the person and attendance.view only, and not shown while HR & Payroll is off.'],
+      ['fixed', 'system', 'B-5: a module turned off showed through others: CRM deals, contracts and billing amounts in Projects, "Add to a project" and "Send to Sales & CRM" with the Service Desk off, assets on My tickets with IT Assets off (moduleOpenFor in shared/modules.js). Deal and contract names now go only to people with Sales & CRM access.'],
+      ['fixed', 'system', 'B-6: GET /api/settings sent the sign-in limits, approval routes and office coordinates to everyone; now only to those who manage accounts, approve, or see clock-in locations.'],
+      ['fixed', 'system', 'B-7, B-8: feedback replies no longer name the administrator to the sender; My tickets links only equipment assigned to the person.'],
+      ['fixed', 'hr', 'D4: payroll adjustments must be amounts from 0 to 100 million (1e308 used to blank a whole run\'s totals). D6: the clock-in location details say it is the device\'s report, not proof.'],
+      ['fixed', 'system', 'D5: control characters (terminal escape codes) are stripped from audit entries. C-3: guides escape single quotes like the other renderers.'],
+      ['fixed', 'system', 'A-02: only application/json counts as JSON (not application/jsonx). C-1: signed-in request bodies are limited by route: 50 MB for backups and settings files, what 5 files need for service desk tickets, 12 MB otherwise (was 50 MB for every request). C-2: GIFs are read frame by frame: each frame at most 1024 px, at most 1,000 frames, a whole file.'],
+      ['fixed', 'deploy', 'D7: the AWS deploy role trusted any branch, tag or pull request of the repository; it now trusts only the deploy branch (new DeployBranch parameter; update the CloudFormation stack). D8: the nightly database copy creates its folder first.'],
+    ],
+  },
+  {
     version: '0.32.0-alpha',
     date: '2026-11-16',
     title: 'Everyone\'s profile, with a role in the company',

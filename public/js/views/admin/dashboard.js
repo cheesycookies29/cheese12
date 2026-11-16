@@ -39,7 +39,7 @@ export async function adminDashboardView(el) {
         ${stat('Wrong 2-step codes', s.wrongCodes, '/admin/audit?area=auth')}
         ${stat('Usernames locked', s.locks, '/admin/audit?area=auth', { warn: s.locks > 0 })}
         <a class="card ${s.chain.ok ? '' : 'attention'}" href="#/admin/audit"><small>Audit log check</small><strong class="${s.chain.ok ? 'ok-text' : 'bad-text'}">${s.chain.ok ? 'Intact' : 'Altered'}</strong>
-          <span class="muted small block">${s.chain.ok ? `${plural(s.chain.count, 'entry', 'entries')}, none changed` : `At entry ${s.chain.brokenAt}`}</span></a>
+          <span class="muted small block">${s.chain.ok ? `${plural(s.chain.count, 'entry', 'entries')}, none changed` : s.chain.missingFrom ? `Entries missing from ${s.chain.missingFrom}` : `At entry ${s.chain.brokenAt}`}</span></a>
       </div>
     </section>` : ''}
 

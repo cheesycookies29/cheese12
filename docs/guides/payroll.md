@@ -97,7 +97,9 @@ The run is recomputed. Other earnings are taxable. Do not add holiday, overtime 
 
 1. Open the run and click **Export register**.
 
-The CSV has one row per employee, with overtime, rest-day, holiday and night pay in separate columns, and the bank and account number for the bank's payroll file.
+The CSV has one row per employee, with overtime, rest-day, holiday and night pay in separate columns, and the bank and account number for the bank's payroll file. On screen and on printed payslips, TIN, SSS, PhilHealth, Pag-IBIG and account numbers show only their last four digits; the export has them in full, so each export is in the audit log.
+
+You cannot adjust your own payslip: another Payroll Officer, or an administrator, does it. The same holds for HR and your own attendance, leave and pay.
 
 ### Print payslips
 

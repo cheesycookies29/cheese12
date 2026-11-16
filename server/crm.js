@@ -7,6 +7,7 @@ import { HttpError, localDate } from './util.js';
 import { noAudit } from './audit.js';
 import { notify } from './notifications.js';
 import { can, userCan } from '../shared/roles.js';
+import { moduleOpenFor } from '../shared/modules.js';
 import { projectAccess } from '../shared/projects.js';
 import {
   ACCOUNT_TYPES, SECTORS, LEAD_STATUS, OPEN_LEAD, BID_STATUS, OPEN_BID, BID_MODES, CONTRACT_STATUS, ACTIVITY_TYPES,
@@ -441,6 +442,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   // A service desk ticket (e.g. from the public form) that is really a sales enquiry.
   route('POST', '/api/crm/leads/from-ticket/:ticketId', 'crm.edit', ({ params, user: u }) => {
     if (!userCan(u, 'helpdesk.agent')) throw new HttpError(403, 'Only service desk agents can send a ticket to Sales & CRM.');
+    if (!moduleOpenFor(d().modules, 'helpdesk', u)) throw new HttpError(403, 'The IT Service Desk is turned off for the company.');
     const t = d().tickets.find((x) => x.id === params.ticketId);
     if (!t) throw new HttpError(404, 'Ticket not found.');
     const existing = d().crmLeads.find((l) => l.ticketId === t.id);

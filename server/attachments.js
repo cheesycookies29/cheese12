@@ -23,13 +23,52 @@ function sniff(buf) {
 // GIF_MAX_BYTES, its canvas at most GIF_MAX_SIDE pixels each way (read from its header).
 export const GIF_MAX_BYTES = 1024 * 1024;
 export const GIF_MAX_SIDE = 1024;
+export const GIF_MAX_FRAMES = 1000;
+// The GIF is read block by block (VAPT 0.33): each frame's own size is checked too (not only the
+// canvas in the header), the number of frames is capped, and a file that does not hold together
+// (cut short, an unknown block) is refused before anyone's browser tries to play it.
 export function checkGif(buffer) {
-  if (buffer.length < 13) throw new HttpError(400, 'This GIF could not be read. Choose it again or use another.');
+  const unreadable = () => new HttpError(400, 'This GIF could not be read. Choose it again or use another.');
+  if (buffer.length < 13) throw unreadable();
   if (buffer.length > GIF_MAX_BYTES) throw new HttpError(400, `The GIF is too large (${(buffer.length / 1048576).toFixed(1)} MB). The limit is 1 MB: use a shorter or smaller one.`);
   const w = buffer.readUInt16LE(6);
   const h = buffer.readUInt16LE(8);
-  if (!w || !h) throw new HttpError(400, 'This GIF could not be read. Choose it again or use another.');
-  if (w > GIF_MAX_SIDE || h > GIF_MAX_SIDE) throw new HttpError(400, `The GIF is too big (${w} × ${h} pixels). Use one of at most ${GIF_MAX_SIDE} × ${GIF_MAX_SIDE}.`);
+  if (!w || !h) throw unreadable();
+  const tooBig = (fw, fh) => new HttpError(400, `The GIF is too big (${fw} × ${fh} pixels). Use one of at most ${GIF_MAX_SIDE} × ${GIF_MAX_SIDE}.`);
+  if (w > GIF_MAX_SIDE || h > GIF_MAX_SIDE) throw tooBig(w, h);
+  let at = 13;
+  const packed = buffer[10];
+  if (packed & 0x80) at += 3 * 2 ** ((packed & 7) + 1);
+  const subBlocks = () => {
+    for (;;) {
+      if (at >= buffer.length) throw unreadable();
+      const size = buffer[at];
+      at += 1 + size;
+      if (size === 0) return;
+    }
+  };
+  let frames = 0;
+  for (;;) {
+    if (at >= buffer.length) throw unreadable();
+    const block = buffer[at];
+    if (block === 0x3b) break; // the end
+    if (block === 0x21) {
+      at += 2; // extension: its label, then its data
+      subBlocks();
+    } else if (block === 0x2c) {
+      if (at + 10 > buffer.length) throw unreadable();
+      const fw = buffer.readUInt16LE(at + 5);
+      const fh = buffer.readUInt16LE(at + 7);
+      if (fw > GIF_MAX_SIDE || fh > GIF_MAX_SIDE) throw tooBig(fw, fh);
+      const local = buffer[at + 9];
+      at += 10;
+      if (local & 0x80) at += 3 * 2 ** ((local & 7) + 1);
+      at += 1; // the LZW code size
+      subBlocks();
+      if (++frames > GIF_MAX_FRAMES) throw new HttpError(400, `This GIF has more than ${GIF_MAX_FRAMES} frames. Use a shorter one.`);
+    } else throw unreadable();
+  }
+  if (!frames) throw unreadable();
 }
 
 // { name, data: base64 } from the browser -> { name, type, buffer }, or a 400 explaining what's wrong.

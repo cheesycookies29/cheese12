@@ -4,6 +4,7 @@
 import { randomUUID, randomBytes } from 'node:crypto';
 import { HttpError } from './util.js';
 import { ROLES, can, userCan } from '../shared/roles.js';
+import { moduleOpenFor } from '../shared/modules.js';
 import {
   TICKET_STATUS, TICKET_PRIORITY, UNRESOLVED_TICKET, DEFAULT_CATEGORIES, DEFAULT_SLA, ticketRef, REF_RE, slaDue, slaState,
 } from '../shared/helpdesk.js';
@@ -19,7 +20,7 @@ import { notify, quote } from './notifications.js';
 const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_BODY = 20000;
-const MAX_FILES = 5;
+export const MAX_FILES = 5;
 const SEEN_KEEP = 2000;
 const POLL_BATCH = 25;
 const NEW_TICKETS_PER_SENDER_PER_HOUR = 20;
@@ -67,6 +68,23 @@ export function keepHelpdeskConfig(current, next) {
   return { ...emptyHelpdesk(), ...next };
 }
 
+// A ticket belongs to the account it was filed by, or matched to when it arrived, never to whoever
+// has the same email address later. Tickets that kept only an address (from older builds, a restored
+// older backup, the demo data) are linked here to the one active account whose employee record has
+// that address (to none when two do). which: the tickets to look at.
+export function linkTicketOwners(db, which = () => true) {
+  const byEmail = new Map();
+  for (const u of db.data.users || []) {
+    const e = u.active && u.employeeId && (db.data.employees || []).find((x) => x.id === u.employeeId)?.email;
+    if (!e) continue;
+    const k = e.toLowerCase();
+    byEmail.set(k, byEmail.has(k) ? null : u.id);
+  }
+  for (const t of db.data.tickets || []) {
+    if (which(t) && t.requester && !t.requester.userId && t.requester.email) t.requester.userId = byEmail.get(String(t.requester.email).toLowerCase()) || null;
+  }
+}
+
 export function migrateHelpdesk(db) {
   let changed = false;
   if (!db.data.helpdesk) (db.data.helpdesk = emptyHelpdesk()), (changed = true);
@@ -76,6 +94,12 @@ export function migrateHelpdesk(db) {
   const cats = db.data.helpdesk.categories;
   if (db.data.helpdesk.publicForm.categories.includes('Customer complaint') && !cats.includes('Customer complaint')) {
     cats.splice(Math.max(0, cats.length - 1), 0, 'Customer complaint');
+    changed = true;
+  }
+  // 0.33: tickets from older builds are linked to their accounts once (see linkTicketOwners).
+  if (!db.data.helpdesk.ownersLinked) {
+    linkTicketOwners(db);
+    db.data.helpdesk.ownersLinked = true;
     changed = true;
   }
   return changed;
@@ -100,7 +124,9 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
   };
   const agents = () => db.data.users.filter((u) => u.active && isAgent(u));
   const requesterOf = (user) => ({ userId: user.id, name: user.name, email: employeeEmail(user) });
-  const ownsTicket = (user, t) => t.requester.userId === user.id || (employeeEmail(user) && t.requester.email === employeeEmail(user));
+  // Whose a ticket is: the account it was filed by or matched to when it arrived (see migrateHelpdesk).
+  // Not the email address: anyone who can edit an employee record could copy someone else's.
+  const ownsTicket = (user, t) => Boolean(t.requester?.userId) && t.requester.userId === user.id;
 
   const findTicket = (id) => {
     const t = tickets().find((x) => x.id === id);
@@ -367,7 +393,7 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
       categories: hd().categories,
       mailboxAddress: hd().mailbox.enabled && hd().mailbox.address ? hd().mailbox.address : null,
       myEmail: emp?.email || null,
-      myAssets: emp ? db.data.assets.filter((a) => a.assignedTo?.type === 'employee' && a.assignedTo.id === emp.id).map((a) => ({ id: a.id, tag: a.assetTag, name: a.name })) : [],
+      myAssets: emp && moduleOpenFor(db.data.modules, 'assets', user) ? db.data.assets.filter((a) => a.assignedTo?.type === 'employee' && a.assignedTo.id === emp.id).map((a) => ({ id: a.id, tag: a.assetTag, name: a.name })) : [],
     };
   });
   route('GET', '/api/helpdesk/mine', 'auth', ({ user }) =>
@@ -379,7 +405,9 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
     if (text.length < 10) throw new HttpError(400, 'Describe the problem in a sentence or two.');
     const mine = tickets().filter((t) => t.requester.userId === user.id && Date.now() - new Date(t.createdAt) < 3600000).length;
     if (mine >= NEW_TICKETS_PER_SENDER_PER_HOUR) throw new HttpError(429, 'You have opened many tickets in the last hour. Please add to an existing ticket instead.');
-    const assetId = body.assetId && db.data.assets.some((a) => a.id === body.assetId) ? body.assetId : null;
+    // Only equipment assigned to the person (as My tickets offers it): not any asset in the register (VAPT 0.33).
+    const empId = user.employeeId;
+    const assetId = body.assetId && empId && db.data.assets.some((a) => a.id === body.assetId && a.assignedTo?.type === 'employee' && a.assignedTo.id === empId) ? body.assetId : null;
     const { saved } = saveFiles(Array.isArray(body.attachments) ? body.attachments : []);
     const t = newTicket({ subject, body: text, requester: requesterOf(user), channel: 'portal', priority: body.priority, category: validCategory(body.category), assetId, attachments: saved });
     db.save();

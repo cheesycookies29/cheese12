@@ -219,7 +219,7 @@ test('timesheet: upsert one entry per project, task and day; limits; only your o
   await pia('PUT', `/api/pm/projects/${q.id}`, { isTemplate: false });
 });
 
-test('timesheet: managers read their members\' timesheets; the DTR row is for the person, managers and attendance.view only', async () => {
+test('timesheet: managers read their members\' timesheets; the DTR row is for the person and attendance.view only (not managers, 0.33)', async () => {
   const p = await project('Time and materials', { timeTracking: true });
   // Ana attended 4 hours on `past` (DTR) and logs 6 project hours: saved, flagged for information.
   const ana2 = await account('ana2', 'employee', 'Ana Dos');
@@ -232,9 +232,9 @@ test('timesheet: managers read their members\' timesheets; the DTR row is for th
   assert.equal(r.over[i], true);
   assert.match(r.warnings.join(), /more than the 4 h your attendance shows/);
   assert.ok(db.data.pmTimeLogs.some((l) => l.userId === ana2.id && l.hours === 6), 'nothing is refused or filled in from the DTR');
-  // The project's manager: read only, with the DTR row.
+  // The project's manager: read only, without the DTR row (attendance is for the person and HR).
   const asPia = await pia('GET', `/api/pm/timesheet?week=${week}&user=${ana2.id}`);
-  assert.deepEqual([asPia.self, asPia.editable, asPia.user.id, asPia.attendance[i]], [false, false, ana2.id, 4]);
+  assert.deepEqual([asPia.self, asPia.editable, asPia.user.id, asPia.attendance], [false, false, ana2.id, null]);
   assert.equal(asPia.rows.find((x) => x.projectId === p.id).hours[i], 6);
   assert.ok(asPia.people.some((x) => x.id === ana2.id));
   // Another member, someone not on the project, HR without the project: not found.
@@ -249,7 +249,8 @@ test('timesheet: managers read their members\' timesheets; the DTR row is for th
   const asJuan = await juan('GET', `/api/pm/projects/${p.id}/time`);
   const entry = asJuan.entries.find((x) => x.userId === ana2.id);
   assert.equal(entry.attended, undefined);
-  assert.equal((await pia('GET', `/api/pm/projects/${p.id}/time`)).entries.find((x) => x.userId === ana2.id).attended, 4);
+  assert.equal((await pia('GET', `/api/pm/projects/${p.id}/time`)).entries.find((x) => x.userId === ana2.id).attended, undefined, 'nor its manager');
+  assert.equal((await ana2('GET', `/api/pm/projects/${p.id}/time`)).entries.find((x) => x.userId === ana2.id).attended, 4, 'the person does');
   // Without an employee record, there is no attendance to compare (null), and no flag.
   const sheet = await pia('GET', '/api/pm/timesheet');
   assert.ok(sheet.attendance.every((x) => x === null));

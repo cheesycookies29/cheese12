@@ -294,7 +294,7 @@ Set this up once, after the first installation (Parts 1–5). From then on, ever
 5. Fill in the stack details:
    - **Stack name:** `ltdc-erp-deploy`;
    - **InstanceId:** pick your server from the list;
-   - leave the other two fields as they are.
+   - leave the other three fields as they are (**DeployBranch** is the branch that deploys; only workflow runs on it can use the deploy role).
 
    Click **Next**, then **Next** again.
 6. At the bottom, tick **"I acknowledge that AWS CloudFormation might create IAM resources with custom names"** and click **Submit**.

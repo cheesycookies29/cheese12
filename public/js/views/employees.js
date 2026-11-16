@@ -238,9 +238,10 @@ export async function employeeProfileView(el, { id }) {
       <section class="card">
         <h2>Personal</h2>
         <dl class="info-grid">
+          ${emp.personalHidden ? html`${info('Email', emp.email)}${info('Personal details', html`<span class="muted">Visible to HR only</span>`)}` : html`
           ${info('Birth date', fmtDate(emp.birthDate))}${info('Gender', emp.gender)}${info('Civil status', emp.civilStatus)}
           ${info('Email', emp.email)}${info('Mobile', emp.phone)}${info('Address', emp.address)}
-          ${info('Emergency contact', [emp.emergencyContactName, emp.emergencyContactPhone].filter(Boolean).join(' · '))}
+          ${info('Emergency contact', [emp.emergencyContactName, emp.emergencyContactPhone].filter(Boolean).join(' · '))}`}
         </dl>
       </section>
       <section class="card">

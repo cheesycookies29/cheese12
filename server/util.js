@@ -25,3 +25,11 @@ export function keepPrivate(target, mode = 0o600) {
     fs.chmodSync(target, mode);
   } catch {}
 }
+
+// Separation of duties (VAPT 0.33): nobody changes their own attendance, overtime, leave credits,
+// pay or payslip; another account with the same access does it. Administrators are the exception
+// (someone has to be able to); their changes are in the audit log like everyone's.
+export function notOwnRecord(user, employeeId, what) {
+  if (user?.role === 'admin' || !user?.employeeId || !employeeId || user.employeeId !== employeeId) return;
+  throw new HttpError(403, `You cannot change your own ${what}. Ask a colleague with the same access, or an administrator, to do it.`);
+}

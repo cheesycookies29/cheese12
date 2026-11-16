@@ -59,6 +59,7 @@ export function openLocation(loc, who) {
         ? html`<iframe class="geo-map" src="${mapUrl(loc.lat, loc.lng)}" title="Map of the clock-in location" loading="lazy" referrerpolicy="no-referrer"></iframe>
             <p class="small geo-links"><a href="https://www.google.com/maps?q=${loc.lat},${loc.lng}" target="_blank" rel="noopener">Open in Google Maps</a> · <a href="https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=18/${loc.lat}/${loc.lng}" target="_blank" rel="noopener">OpenStreetMap</a></p>`
         : html`<div class="notice"><p>No location was recorded for this clock-in: ${LOCATION_STATUS[loc.status].toLowerCase()}.</p></div>`}
-      <dl class="fb-meta">${rows.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}</dl>`,
+      <dl class="fb-meta">${rows.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}</dl>
+      ${loc.status === 'ok' ? html`<p class="muted small">The location is what the employee's phone or computer reported. It is a useful sign, not proof: a device can be wrong, or made to report another place. The clock-in time is CORE's own.</p>` : ''}`,
   });
 }

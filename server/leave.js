@@ -1,6 +1,6 @@
 // Leave types, leave credits and balances, and leave / remote-work requests with approval.
 import { randomUUID } from 'node:crypto';
-import { HttpError, localDate } from './util.js';
+import { HttpError, localDate, notOwnRecord } from './util.js';
 import { isDayOff, HOLIDAY_TYPES } from '../shared/holidays.js';
 import { workDates, genderAllows, needsCertificate, certificateReason, priorFilings, CERTIFICATE_COUNTED, CERTIFICATE_PERIODS, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, PORTIONS, portionDays, OPEN_REQUEST, REQUEST_KINDS, APPROVER_TYPES, APPROVAL_FLOWS } from '../shared/leave.js';
 import { parseUpload } from './attachments.js';
@@ -473,18 +473,22 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
       .sort((a, b) => a.lastName.localeCompare(b.lastName))
       .map((e) => ({ employeeId: e.id, employeeNo: e.employeeNo, name: `${e.lastName}, ${e.firstName}`, balances: leaveBalances(db, e.id, year) }));
   });
-  route('PUT', '/api/leave-credits', 'leave.manage', ({ body }) => {
+  route('PUT', '/api/leave-credits', 'leave.manage', ({ body, user }) => {
+    notOwnRecord(user, body?.employeeId, 'leave credits');
     const year = Number(body.year);
     if (!(year >= 2000 && year <= 2100)) throw new HttpError(400, 'Pick a valid year.');
-    if (!db.data.employees.some((e) => e.id === body.employeeId)) throw new HttpError(404, 'Employee not found.');
+    const emp = db.data.employees.find((e) => e.id === body.employeeId);
+    if (!emp) throw new HttpError(404, 'Employee not found.');
     const type = findLeaveType(db, body.leaveTypeId);
+    // Checked before anything changes: a wrong number leaves the credits as they were.
+    const reset = body.credits === null || body.credits === '';
+    const credits = reset ? null : Number(body.credits);
+    if (!reset && !(credits >= 0 && credits <= 366)) throw new HttpError(400, 'Credits must be between 0 and 366.');
+    const before = db.data.leaveCredits.find((c) => c.employeeId === body.employeeId && c.year === year && c.leaveTypeId === type.id)?.credits ?? null;
     db.data.leaveCredits = db.data.leaveCredits.filter((c) => !(c.employeeId === body.employeeId && c.year === year && c.leaveTypeId === type.id));
-    if (body.credits !== null && body.credits !== '') {
-      const credits = Number(body.credits);
-      if (!(credits >= 0 && credits <= 366)) throw new HttpError(400, 'Credits must be between 0 and 366.');
-      db.data.leaveCredits.push({ employeeId: body.employeeId, year, leaveTypeId: type.id, credits, updatedAt: new Date().toISOString() });
-    }
+    if (!reset) db.data.leaveCredits.push({ employeeId: body.employeeId, year, leaveTypeId: type.id, credits, updatedAt: new Date().toISOString() });
     db.save();
+    audit.record('leave.credits', { entity: 'employee', entityId: emp.id, label: `${emp.firstName} ${emp.lastName}`, note: `${type.name} ${year}: ${before ?? 'default'} → ${reset ? 'default' : credits} days` });
     return leaveBalances(db, body.employeeId, year);
   });
 
@@ -519,6 +523,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
 
   // Give or take away a leave type for one employee; offered = null goes back to the type's default.
   route('PUT', '/api/employees/:id/leave-access', 'leave.adjust', ({ params, body, user }) => {
+    notOwnRecord(user, params.id, 'leave');
     const emp = employeeOf(params.id);
     const type = findLeaveType(db, body.leaveTypeId);
     const block = body.offered === true && genderBlock(type, emp);
@@ -533,6 +538,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
 
   // Add or take away days, with a reason (carry-over, correction, offset…).
   route('POST', '/api/employees/:id/leave-adjustments', 'leave.adjust', ({ params, body, user }) => {
+    notOwnRecord(user, params.id, 'leave balance');
     const emp = employeeOf(params.id);
     const type = findLeaveType(db, body.leaveTypeId);
     const year = yearOf(body.year);
@@ -546,7 +552,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
     db.save();
     return employeeLeave(emp, year);
   });
-  route('DELETE', '/api/employees/:id/leave-adjustments/:adjId', 'leave.adjust', ({ params }) => {
+  route('DELETE', '/api/employees/:id/leave-adjustments/:adjId', 'leave.adjust', ({ params, user }) => {
+    notOwnRecord(user, params.id, 'leave balance');
     const emp = employeeOf(params.id);
     const adj = db.data.leaveAdjustments.find((a) => a.id === params.adjId && a.employeeId === emp.id);
     if (!adj) throw new HttpError(404, 'Adjustment not found.');
@@ -557,6 +564,7 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
 
   // Record leave the employee took (e.g. filed on paper): one DTR leave entry per scheduled work day.
   route('POST', '/api/employees/:id/leave-days', 'leave.adjust', ({ params, body, user }) => {
+    notOwnRecord(user, params.id, 'leave days');
     const emp = employeeOf(params.id);
     const type = findLeaveType(db, body.leaveTypeId);
     const block = genderBlock(type, emp);
@@ -587,7 +595,8 @@ export function registerLeaveRoutes(route, db, { linkedEmployee, files, audit })
     const runs = finalizedOn(dates);
     return { ...employeeLeave(emp, year), recorded: dates.length, warning: runs.length ? `Payroll for ${runs.map((r) => `${r.periodStart} to ${r.periodEnd}`).join(', ')} is already finalized, so those payslips are unchanged.` : null };
   });
-  route('DELETE', '/api/employees/:id/leave-days/:entryId', 'leave.adjust', ({ params }) => {
+  route('DELETE', '/api/employees/:id/leave-days/:entryId', 'leave.adjust', ({ params, user }) => {
+    notOwnRecord(user, params.id, 'leave days');
     const emp = employeeOf(params.id);
     const entry = db.data.timeEntries.find((e) => e.id === params.entryId && e.employeeId === emp.id && e.type === 'leave');
     if (!entry) throw new HttpError(404, 'Leave day not found.');

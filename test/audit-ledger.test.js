@@ -84,10 +84,14 @@ test('sign-ins, failed sign-ins and changes without their own entry are logged',
   const failed = (await log('?area=auth')).find((e) => e.action === 'auth.login-failed');
   assert.equal(failed.userName, 'Unknown (ana)');
   assert.ok((await log('?area=auth')).some((e) => e.action === 'auth.login' && e.userName === 'hana'));
-  // Leave credits have no detailed entry: the generic one names the route.
+  // Leave credits have their own entry (0.33): whose, which leave, from and to.
   await hr('PUT', '/api/leave-credits', { employeeId: ana.id, year: 2027, leaveTypeId: 'vl', credits: 16 });
+  const credits = (await log('?area=leave')).find((e) => e.action === 'leave.credits');
+  assert.match(credits.note, /2027: .* → 16 days/);
+  // A change with no entry of its own (a new leave type) still gets the generic one, naming the route.
+  await hr('POST', '/api/leave-types', { code: 'BDAY', name: 'Birthday leave', annualCredits: 1 });
   const generic = (await log('?area=leave')).find((e) => e.action === 'leave.change');
-  assert.equal(generic.label, 'PUT /api/leave-credits');
+  assert.equal(generic.label, 'POST /api/leave-types');
   assert.equal(generic.userName, 'hana');
 });
 

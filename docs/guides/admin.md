@@ -293,9 +293,9 @@ Demo records are numbered *DEMO-…*. Demo employees are included in new payroll
 2. Set **From** and **To**, an area (**Sign-in**, **User accounts**, **Employees**, **Payroll**, **Settings**, **Backup & data** and others) and a person under **Everyone**. Type in the search box to find a name, record or change.
 3. Click **Export CSV** for a file of the entries shown.
 
-The log records every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, payroll setup, holidays, users and settings, field by field; changes to roles and permissions and to modules; views of records with pay or full ID numbers; certificate openings; backups, restores, demo data and erasing; and changes in the other modules. Government ID and bank numbers appear masked. Entries cannot be edited or deleted from CORE.
+The log records every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, payroll setup, holidays, users and settings, field by field; changes to roles and permissions and to modules; views of records with pay or full ID numbers; certificate openings; backups, restores, demo data and erasing; and changes in the other modules. Every look at employee records is logged too, once per person and record in 10 minutes. Government ID and bank numbers appear masked, and names or notes are kept without control characters. Entries cannot be edited or deleted from CORE.
 
-> **Important:** If the notice says **The log was altered**, the file was edited outside CORE at the entry it names. Keep a copy of the `data` folder and find out who had access to the computer or server.
+> **Important:** If the notice says **The log was altered**, the file was edited outside CORE at the entry it names. If it says **Entries are missing**, lines were removed from the end of the file outside CORE (CORE remembers its last entry, sealed with the server's key, so this shows even after a restart). Either way, keep a copy of the `data` folder and find out who had access to the computer or server.
 
 ### Write a dev log entry
 

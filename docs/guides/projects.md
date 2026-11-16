@@ -411,7 +411,7 @@ On a project that tracks time:
 2. Pick the **Date**, enter the **Hours** (quarter hours: 0.25, 0.5, 1.75…), pick the **Task** or *No task* for meetings and project work, and add a **Note**.
 3. Click **Log time**.
 
-Or fill in a whole week at once on your **Timesheet** (below). If the hours you logged on a day are more than your attendance in the DTR shows, CORE saves them and only flags them (*More than attended*). Only you, the project's managers and people who see attendance see that check. You can delete your own entries; a project manager can delete any.
+Or fill in a whole week at once on your **Timesheet** (below). If the hours you logged on a day are more than your attendance in the DTR shows, CORE saves them and only flags them (*More than attended*). Only you and the people who see attendance in HR see that check; a project's managers see the hours logged, not your attendance. You can delete your own entries; a project manager can delete any.
 
 ### Fill in your timesheet
 
@@ -429,7 +429,7 @@ Each cell is one entry: changing it changes that entry, and emptying it removes 
 1. Open **Timesheet**, and pick the person under **Timesheet of**. Or click their name under **By person** on the project's **Time** tab.
 2. Move between weeks as on your own.
 
-You see the projects you manage that track time, read only: only the person changes their hours (a manager can still delete a wrong entry on the **Time** tab). You also see their **Clocked in (DTR)** row.
+You see the projects you manage that track time, read only: only the person changes their hours (a manager can still delete a wrong entry on the **Time** tab). Their **Clocked in (DTR)** row is not shown to you: attendance is for the person and for HR.
 
 
 ### Read the milestone burn-up

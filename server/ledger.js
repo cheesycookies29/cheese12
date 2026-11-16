@@ -3,7 +3,7 @@
 // month pay, year-end tax annualization, BIR 2316 and the alphalist are built from these totals.
 // Rows are written when a run is finalized and never edited; voiding a run marks its rows voided.
 import { randomUUID } from 'node:crypto';
-import { HttpError } from './util.js';
+import { HttpError, notOwnRecord } from './util.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -112,15 +112,17 @@ export function registerLedgerRoutes(route, db, { audit }) {
   });
   route('POST', '/api/payroll-ledger/openings', 'payroll.edit', ({ body, user }) => {
     const { employee, row } = validateOpening(db, body);
+    notOwnRecord(user, employee.id, 'opening balance');
     const r = { id: randomUUID(), ...row, postedAt: new Date().toISOString(), postedBy: user.name };
     db.data.payrollLedger.push(r);
     db.save();
     audit.record('payroll.opening.add', { entity: 'employee', entityId: employee.id, label: `${employee.firstName} ${employee.lastName}`, note: `${r.year} opening balance (${OPENING_SOURCES[r.source]}): gross ${r.grossPay}, tax withheld ${r.withholdingTax}. ${r.note}` });
     return r;
   });
-  route('DELETE', '/api/payroll-ledger/openings/:id', 'payroll.edit', ({ params, body, query }) => {
+  route('DELETE', '/api/payroll-ledger/openings/:id', 'payroll.edit', ({ params, body, query, user }) => {
     const r = (db.data.payrollLedger || []).find((x) => x.id === params.id && x.kind === 'opening' && !x.voided);
     if (!r) throw new HttpError(404, 'Opening balance not found.');
+    notOwnRecord(user, r.employeeId, 'opening balance');
     const reason = String(body?.reason || query.reason || '').trim().slice(0, 300);
     r.voided = true;
     r.voidedAt = new Date().toISOString();

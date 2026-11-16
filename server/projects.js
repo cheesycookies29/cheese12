@@ -12,6 +12,7 @@
 // Effort is a task's size (XS to XL). Hours are only kept on projects that track time
 // (timeTracking, off unless a manager turns it on): the Time tab, logging on tasks, the budget and
 // the weekly Timesheet, which is separate from attendance (the DTR is only shown next to it).
+import { moduleOn, moduleOpenFor } from '../shared/modules.js';
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
@@ -302,6 +303,9 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   };
 
   // ----- Shapes sent to the browser -----
+  // Sales & CRM data (clients' deals and contracts, billing amounts) for people with CRM access, while
+  // Sales & CRM is on for the company (administrators always).
+  const crmFor = (u) => userCan(u, 'crm.view') && moduleOpenFor(d().modules, 'crm', u);
   const accountName = (id) => d().crmAccounts.find((a) => a.id === id)?.name || null;
   const crmRef = (coll, id) => {
     const r = id && d()[coll].find((x) => x.id === id);
@@ -488,7 +492,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       can: { view: userCan(u, 'pm.view'), edit: userCan(u, 'pm.edit'), manage: userCan(u, 'pm.manage') },
       // People to add as members or assignees: for those who can add them.
       people: managesAny ? d().users.filter((x) => x.active).map((x) => ({ id: x.id, name: x.name, username: x.username, role: x.role })).sort((a, b) => a.name.localeCompare(b.name)) : [],
-      crm: userCan(u, 'crm.view') ? {
+      crm: crmFor(u) ? {
         accounts: d().crmAccounts.map((a) => ({ id: a.id, name: a.name, sector: a.sector })).sort((a, b) => a.name.localeCompare(b.name)),
         deals: d().crmDeals.map((x) => ({ id: x.id, code: x.code, title: x.title, accountId: x.accountId, stage: x.stage })),
         contracts: d().crmContracts.map((c) => ({ id: c.id, code: c.code, title: c.title, accountId: c.accountId, endDate: c.endDate, status: c.status })),
@@ -531,7 +535,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const links = { accountId: idOf(b.accountId) || null, dealId: idOf(b.dealId) || null, contractId: idOf(b.contractId) || null };
     const same = links.accountId === (rec.accountId || null) && links.dealId === (rec.dealId || null) && links.contractId === (rec.contractId || null);
     if (same) return links;
-    if (!userCan(u, 'crm.view')) throw new HttpError(403, 'Only people with Sales & CRM access can link a project to a client, deal or contract.');
+    if (!crmFor(u)) throw new HttpError(403, 'Only people with Sales & CRM access can link a project to a client, deal or contract.');
     const acct = links.accountId && d().crmAccounts.find((a) => a.id === links.accountId);
     if (links.accountId && !acct) throw new HttpError(400, 'Pick the client from the list.');
     const deal = links.dealId && d().crmDeals.find((x) => x.id === links.dealId);
@@ -615,8 +619,9 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       ...summaryOf(p, u, ctx.cal),
       history: historyOut(p.history || []),
       healthOverride: p.healthOverride ? { ...p.healthOverride, byName: userName(p.healthOverride.by) } : null,
-      deal: userCan(u, 'crm.view') || p.dealId ? crmRef('crmDeals', p.dealId) : null,
-      contract: crmRef('crmContracts', p.contractId),
+      // The deal and contract behind the project: for people who may open Sales & CRM.
+      deal: crmFor(u) ? crmRef('crmDeals', p.dealId) : null,
+      contract: crmFor(u) ? crmRef('crmContracts', p.contractId) : null,
       milestones: milestones.map((m) => ({ ...m, ...s.milestones.find((x) => x.id === m.id), afterContract: Boolean(m.deliverable && contract?.endDate && m.dueDate > contract.endDate), attachments: (m.attachments || []).map((a) => fileOut(a, p, u)) })),
       // Effort: the leaf tasks' sizes (points: their weights), and how many have one.
       effort: { tasks: leaves.length, sized: leaves.filter((t) => isSize(t.size)).length, points: leaves.reduce((n, t) => n + sizeWeight(t.size), 0) },
@@ -1477,6 +1482,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   // Hours a person attended on a day, from the DTR (null when CORE cannot tell: no linked
   // employee record, or still clocked in). For comparison only: nothing is filled in from it.
   function attendedHours(userId, date) {
+    // HR & Payroll turned off: attendance is not shown anywhere, here neither.
+    if (!moduleOn(d().modules, 'hr')) return null;
     const emp = d().employees.find((e) => e.id === user(userId)?.employeeId);
     if (!emp) return null;
     const entries = d().timeEntries.filter((e) => e.employeeId === emp.id && e.date === date);
@@ -1485,8 +1492,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     return Math.round(entries.reduce((n, e) => n + computeEntry(e, schedule, d().settings).workedMinutes, 0) / 6) / 10;
   }
   const loggedOn = (userId, date) => d().pmTimeLogs.filter((x) => x.userId === userId && x.date === date).reduce((n, x) => n + x.hours, 0);
-  // The check against attendance is shown to the person and to those who may see attendance.
-  const mayCheck = (u, p, userId) => userId === u.id || levelOf(p, u) === 'manage' || userCan(u, 'attendance.view');
+  // The check against attendance is shown to the person and to those who may see attendance
+  // (VAPT 0.33: not to a project's managers, who could otherwise read anyone's DTR hours by adding
+  // them to a project that tracks time).
+  const mayCheck = (u, p, userId) => userId === u.id || userCan(u, 'attendance.view');
   function timeOut(x, u, p, cache) {
     const key = `${x.userId}|${x.date}`;
     if (!cache.has(key)) {
@@ -1796,7 +1805,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   // the contract's value, or of the deal's without a contract) and the forecast by month are only
   // for people with Sales & CRM access: without it the fields are not sent at all.
   route('GET', '/api/pm/milestones', 'auth', ({ user: u }) => {
-    const money = userCan(u, 'crm.view');
+    const money = crmFor(u);
     const c = cal();
     const t0 = today();
     const rows = [];
@@ -1955,14 +1964,14 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     return summaryOf(p, u);
   }
   route('POST', '/api/pm/projects/from-deal/:dealId', 'pm.edit', ({ params, body, user: u }) => {
-    if (!userCan(u, 'crm.view')) throw new HttpError(403, 'Starting a project from a deal needs Sales & CRM access too.');
+    if (!crmFor(u)) throw new HttpError(403, 'Starting a project from a deal needs Sales & CRM access too.');
     const deal = d().crmDeals.find((x) => x.id === params.dealId);
     if (!deal) throw new HttpError(404, 'Deal not found.');
     if (deal.stage !== 'won') throw new HttpError(400, 'Only a won deal can start a project. Mark the deal as won first.');
     return crmStart('deal', deal, body, u, d().pmProjects.find((p) => p.dealId === deal.id));
   });
   route('POST', '/api/pm/projects/from-contract/:contractId', 'pm.edit', ({ params, body, user: u }) => {
-    if (!userCan(u, 'crm.view')) throw new HttpError(403, 'Starting a project from a contract needs Sales & CRM access too.');
+    if (!crmFor(u)) throw new HttpError(403, 'Starting a project from a contract needs Sales & CRM access too.');
     const c = d().crmContracts.find((x) => x.id === params.contractId);
     if (!c) throw new HttpError(404, 'Contract not found.');
     if (c.status === 'expired' || c.status === 'terminated') throw new HttpError(400, 'This contract has ended. Start a project from an active contract.');
@@ -1971,6 +1980,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
 
   // ===== From the Service Desk: a ticket becomes a task (both keep a link) =====
   route('POST', '/api/pm/tasks/from-ticket/:ticketId', 'helpdesk.agent', ({ params, body, user: u }) => {
+    if (!moduleOpenFor(d().modules, 'helpdesk', u)) throw new HttpError(403, 'The IT Service Desk is turned off for the company.');
     const ticket = d().tickets.find((x) => x.id === params.ticketId);
     if (!ticket) throw new HttpError(404, 'Ticket not found.');
     const p = findProject(idOf(body.projectId), u, 'work');

@@ -41,6 +41,10 @@ export const defaultModuleConfig = () => Object.fromEntries(SWITCHABLE.map((id) 
 // config: { id: true | false } as saved by an administrator; a module missing from it is on.
 export const moduleOn = (config, id) => !SWITCHABLE.includes(id) || config?.[id] !== false;
 
+// Whether a module is open for this person: on for the company, or they are an administrator. Used
+// where one module shows another's data (VAPT 0.33), so a module turned off stays off everywhere.
+export const moduleOpenFor = (config, id, user) => moduleOn(config, id) || user?.role === 'admin';
+
 // Only what CORE itself writes: a boolean per switchable module.
 export function cleanModuleConfig(input) {
   const out = defaultModuleConfig();

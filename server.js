@@ -6,7 +6,8 @@ import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
 import { createApi } from './server/api.js';
 import { baseHeaders, pagePolicy, API_POLICY, crossSite } from './server/security.js';
-import { PUBLIC_BODY_BYTES } from './server/helpdesk.js';
+import { PUBLIC_BODY_BYTES, MAX_FILES as HELPDESK_MAX_FILES } from './server/helpdesk.js';
+import { MAX_ATTACHMENT_BYTES } from './shared/leave.js';
 
 // CORE_APP_DIR: where public/ and shared/ live (the single .exe unpacks them there).
 const ROOT = process.env.CORE_APP_DIR || path.dirname(fileURLToPath(import.meta.url));
@@ -35,10 +36,20 @@ function send(res, status, body, type = 'application/json', headers = {}) {
   res.end(type === 'application/json' ? JSON.stringify(body) : body);
 }
 
-// How much of a request is read. Signed in: 50 MB (uploads arrive as base64 inside the JSON).
-// Not signed in: 1 MB, or what the public support form can need with its files.
+// How much of a request is read (uploads arrive as base64 inside the JSON). Signed in (VAPT 0.33:
+// by route, so nobody can make the server hold 50 MB at a time with any request): a backup or
+// settings file 50 MB; a service desk ticket or reply with up to 5 files of 5 MB, what those need;
+// anything else (one file at a time) 12 MB. Not signed in: 1 MB, or what the public support form
+// can need with its files.
 const MB = 1024 * 1024;
-const bodyLimit = (req, url) => (api.signedIn(req) ? 50 * MB : url.pathname.startsWith('/api/public/') ? PUBLIC_BODY_BYTES : MB);
+const HELPDESK_BODY_BYTES = HELPDESK_MAX_FILES * Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4 + MB;
+function bodyLimit(req, url) {
+  const p = url.pathname;
+  if (!api.signedIn(req)) return p.startsWith('/api/public/') ? PUBLIC_BODY_BYTES : MB;
+  if (p === '/api/admin/import' || p.startsWith('/api/admin/config/import')) return 50 * MB;
+  if (p.startsWith('/api/helpdesk/')) return HELPDESK_BODY_BYTES;
+  return 12 * MB;
+}
 
 // A request that says it is too large is refused before any of it is read; one that turns out
 // too large is refused at that point, and the rest is never read.
@@ -133,7 +144,8 @@ const server = http.createServer(async (req, res) => {
   const hostname = (req.headers.host || '').replace(/:\d+$/, '');
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith('[');
   if (hostname !== 'localhost' && !isIp && !ALLOWED_HOSTS.includes(hostname)) return send(res, 403, { error: 'Forbidden host.' });
-  if (['POST', 'PUT', 'DELETE'].includes(req.method) && !(req.headers['content-type'] || '').startsWith('application/json')) {
+  // Exactly application/json (with parameters such as charset), not anything that starts with it.
+  if (['POST', 'PUT', 'DELETE'].includes(req.method) && (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
   // A change must come from CORE's own pages, never from another site (cross-site request forgery).
