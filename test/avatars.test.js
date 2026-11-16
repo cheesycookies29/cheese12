@@ -65,7 +65,7 @@ test('you set your own picture; everyone signed in sees it, with safe headers; n
 
 test('only photos (by content, never SVG or HTML), at most 300 KB', async () => {
   await fails(ivan('PUT', '/api/me/avatar', photo(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'))), 400);
-  await fails(ivan('PUT', '/api/me/avatar', photo(Buffer.from('%PDF-1.4\n'))), 400, /JPEG, PNG or WebP/);
+  await fails(ivan('PUT', '/api/me/avatar', photo(Buffer.from('%PDF-1.4\n'))), 400, /JPEG, PNG, WebP or GIF/);
   await fails(ivan('PUT', '/api/me/avatar', photo(Buffer.concat([JPEG, Buffer.alloc(310 * 1024)]))), 400, /300 KB/);
   await fails(ivan('PUT', '/api/me/avatar', {}), 400);
   assert.deepEqual(Object.keys(await ivan('GET', '/api/avatars')), [pia.id]);

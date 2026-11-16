@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROLES } from '../shared/roles.js';
-import { parseGuide, renderMarkdown, imagesOf } from '../shared/markdown.js';
+import { parseGuide, renderMarkdown, imagesOf, headingsOf } from '../shared/markdown.js';
 import { guideFor } from '../shared/help.js';
 import { openDb } from '../server/db.js';
 import { createApi } from '../server/api.js';
@@ -90,6 +90,18 @@ test('the Help button finds a guide for every account type in every module', () 
     }
     assert.ok(guides.some((g) => g.meta.roles.includes(role)), `no guide is written for ${ROLES[role].label}`);
   }
+});
+
+test('every link to a section of a guide lands on a heading that exists (as the Help app makes its ids)', () => {
+  const ids = new Map(guides.map((g) => [g.meta.id, new Set(headingsOf(g.body).map((h) => h.id))]));
+  const broken = [];
+  for (const g of guides) {
+    for (const m of g.body.matchAll(/\]\(([a-z0-9-]+)?#([a-z0-9-]+)\)/g)) {
+      const target = m[1] || g.meta.id;
+      if (!ids.get(target)?.has(m[2])) broken.push(`${g.file}: ${target}#${m[2]}`);
+    }
+  }
+  assert.deepEqual(broken, []);
 });
 
 test('guides are shown safely: no HTML or scripts, only web, mail and CORE links', () => {

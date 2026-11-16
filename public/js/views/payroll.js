@@ -158,8 +158,11 @@ export async function payrollRunView(el, { id }) {
       b.setAttribute('aria-expanded', String(open));
       b.textContent = open ? 'Less' : 'Details';
     }));
-    el.querySelector('#export').addEventListener('click', () => {
-      const data = [REGISTER_COLUMNS.map((c) => c[0]), ...run.payslips.map((p) => REGISTER_COLUMNS.map(([, f]) => f(p)))];
+    el.querySelector('#export').addEventListener('click', async () => {
+      // The register with full bank accounts comes from its own (logged) address; on screen they are masked.
+      const full = await api.get(`/api/payroll-runs/${id}/register`).catch((err) => (toast(err.message, 'error'), null));
+      if (!full) return;
+      const data = [REGISTER_COLUMNS.map((c) => c[0]), ...full.payslips.map((p) => REGISTER_COLUMNS.map(([, f]) => f(p)))];
       downloadFile(`payroll-register-${run.periodStart}-to-${run.periodEnd}.csv`, toCsv(data));
     });
     el.querySelector('#recompute')?.addEventListener('click', async () => {

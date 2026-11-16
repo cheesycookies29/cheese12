@@ -91,6 +91,10 @@ export function createSessions(policy = () => ({ idleMs: 8 * 60 * MINUTE, maxMs:
       return n;
     },
     maxAgeSeconds: () => Math.round(policy().maxMs / 1000),
+    // Every live session (copies, without the tokens), for the security monitor.
+    active() {
+      return [...sessions.values()].filter((s) => alive(s)).map((s) => ({ ...s }));
+    },
   };
 }
 

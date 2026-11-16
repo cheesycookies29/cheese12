@@ -9,12 +9,13 @@
 // (shared/projects.js); nothing here stores a percentage or a health colour.
 import { api } from '../api.js';
 import { ctx, can, roleLabel } from '../state.js';
-import { html, mount, badge, toast, modal, confirmDialog, fmtDate, today, downloadFile, toCsv, money } from '../ui.js';
+import { html, raw, mount, badge, toast, modal, confirmDialog, fmtDate, today, downloadFile, toCsv, money } from '../ui.js';
 import { icon } from '../icons.js';
 import { defaultDay, dayTotals } from '../phone.js';
 import { ACCEPT, prepareUpload, sizeLabel } from '../attachments.js';
 import { richEditor, wireRichEditor, richView } from '../richeditor.js';
-import { avatar as personAvatar } from '../avatars.js';
+import { renderRich } from '/shared/richtext.js';
+import { avatar as personAvatar, isGif, gifCheck } from '../avatars.js';
 import {
   PROJECT_STATUS, OPEN_PROJECT, CATEGORIES, PRIORITY, MEMBER_ROLES, HEALTH, STATUS_COLORS, MY_WORK_GROUPS,
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
@@ -24,6 +25,30 @@ import {
 } from '/shared/projects.js';
 
 // ---------- Small helpers ----------
+const MOD_KEY = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl+';
+const COMMENT_MAX = 4000;
+// A comment, formatted like a description; @mentions of the project's members are highlighted
+// (not inside code or a link). Older comments, written as plain text, read the same as before.
+function commentBody(body, usernames) {
+  const box = document.createElement('div');
+  box.className = 'rich pm-comment-body';
+  box.innerHTML = renderRich(body);
+  const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+  const found = [];
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.nodeValue.includes('@') && !n.parentElement.closest('a, code, pre')) found.push(n);
+  for (const n of found) {
+    const parts = mentionParts(n.nodeValue, usernames);
+    if (!parts.some((x) => x.mention)) continue;
+    n.replaceWith(...parts.map((x) => {
+      if (!x.mention) return document.createTextNode(x.text);
+      const m = document.createElement('mark');
+      m.className = 'pm-mention';
+      m.textContent = `@${x.mention}`;
+      return m;
+    }));
+  }
+  return raw(box.outerHTML);
+}
 const changed = () => window.dispatchEvent(new Event('pm:changed'));
 const plural = (n, w, many = `${w}s`) => `${n} ${n === 1 ? w : many}`;
 const hrs = (n) => `${Math.round((Number(n) || 0) * 100) / 100} h`;
@@ -121,7 +146,12 @@ const sizeHint = 'A rough idea of the effort, not a promise. It weighs the task 
 // cannot write WebP), keeping transparency for logos.
 const PICTURE_SIDE = 256;
 async function squarePicture(file) {
-  if (!file.type.startsWith('image/')) throw new Error('Choose a picture: JPEG, PNG or WebP.');
+  // An animated GIF is kept as it is (cutting it would stop it); the tile shows its middle.
+  if (await isGif(file)) {
+    gifCheck(file);
+    return file.slice(0, file.size, 'image/gif');
+  }
+  if (!file.type.startsWith('image/')) throw new Error('Choose a picture: JPEG, PNG or WebP, or a GIF.');
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((resolve, reject) => {
@@ -156,7 +186,7 @@ const ICON_PX = { sm: 12, md: 16, lg: 22 };
 const pictureOf = (p) => p?.src || (p?.id && p.iconImage?.at ? `/api/pm/projects/${encodeURIComponent(p.id)}/icon?v=${encodeURIComponent(p.iconImage.at)}` : null);
 export function projectIcon(p, size = 'md') {
   const src = pictureOf(p);
-  if (src) return html`<span class="pm-picon pm-picon-${size} pic" aria-hidden="true"><img src="${src}" alt="" loading="lazy" decoding="async" /></span>`;
+  if (src) return html`<span class="pm-picon pm-picon-${size} pic" aria-hidden="true"><img src="${src}" alt="" loading="lazy" decoding="async" data-anim /></span>`;
   const ic = p?.icon;
   if (ic && Object.hasOwn(PROJECT_ICONS, ic.glyph) && Object.hasOwn(PROJECT_ICON_COLORS, ic.color)) return html`<span class="pm-picon pm-picon-${size} pm-pc-${ic.color}" aria-hidden="true">${icon(ic.glyph, ICON_PX[size])}</span>`;
   const t = letterTile(p?.name, p?.code);
@@ -208,7 +238,7 @@ function popMenu(btn, items, label) {
   pop.setAttribute('aria-label', label);
   mount(pop, html`${items.map((it, i) => (it.sep ? html`<div class="menu-sep" role="separator"></div>`
     : it.heading ? html`<div class="menu-label">${it.heading}</div>`
-      : html`<button type="button" role="menuitem" data-i="${i}" ${it.disabled ? 'disabled' : ''} ${it.current ? 'aria-current="true" class="on"' : ''}><span class="grow">${it.label}${it.sub ? html`<small class="muted">${it.sub}</small>` : ''}</span></button>`))}`);
+      : html`<button type="button" role="menuitem" data-i="${i}" ${it.disabled ? 'disabled' : ''} aria-current="${it.current ? 'true' : 'false'}" class="${it.current ? 'on' : ''}"><span class="grow">${it.label}${it.sub ? html`<small class="muted">${it.sub}</small>` : ''}</span></button>`))}`);
   document.body.appendChild(pop);
   const place = () => {
     const r = btn.getBoundingClientRect();
@@ -307,9 +337,9 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
         <legend>Icon</legend>
         <div class="pm-icon-row"><span class="pm-icon-preview">${projectIcon(rec, 'lg')}</span>
           <small class="hint" id="icon-hint">Shown beside the project's name in every list. Pick one below, or use your own picture (a logo, for example). <strong>Letter</strong> uses the first letter of the name.</small></div>
-        <div class="pm-icon-own"><label class="btn small-btn pm-icon-upload">${icon('upload', 14)} Upload a picture…<input type="file" name="iconFile" accept="image/jpeg,image/png,image/webp,image/*" class="sr-only" /></label>
+        <div class="pm-icon-own"><label class="btn small-btn pm-icon-upload">${icon('upload', 14)} Upload a picture or GIF…<input type="file" name="iconFile" accept="image/jpeg,image/png,image/webp,image/gif,image/*" class="sr-only" /></label>
           <button type="button" class="btn small-btn ghost danger" id="icon-remove" ${rec.iconImage ? '' : 'hidden'}>Remove picture</button>
-          <small class="muted pm-icon-own-note">${rec.iconImage ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP; CORE keeps a small square of it.'}</small></div>
+          <small class="muted pm-icon-own-note">${rec.iconImage ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP (CORE keeps a small square of it), or an animated GIF up to 1 MB, kept as it is.'}</small></div>
         <div class="pm-glyphs" role="radiogroup" aria-label="Icon" aria-describedby="icon-hint">
           <label class="pm-glyph" title="Letter"><input type="radio" name="iconGlyph" value="" ${rec.icon ? '' : 'checked'} aria-label="Letter" /><span class="pm-glyph-letter" aria-hidden="true">Aa</span></label>
           ${Object.entries(PROJECT_ICONS).map(([k, label]) => html`<label class="pm-glyph" title="${label}"><input type="radio" name="iconGlyph" value="${k}" ${rec.icon?.glyph === k ? 'checked' : ''} aria-label="${label}" />${icon(k, 18)}</label>`)}
@@ -387,7 +417,7 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
     mount(form.querySelector('.pm-icon-preview'), projectIcon({ ...own, name: form.elements.name.value || rec.name, code: rec.code || form.elements.name.value, icon: glyph ? { glyph, color: form.elements.iconColor.value || 'blue' } : null }, 'lg'));
     const has = Boolean(picture || (!dropPicture && rec.iconImage));
     form.querySelector('#icon-remove').hidden = !has;
-    form.querySelector('.pm-icon-own-note').textContent = has ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP; CORE keeps a small square of it.';
+    form.querySelector('.pm-icon-own-note').textContent = has ? 'Your picture is used; the icon below shows again if you remove it.' : 'JPEG, PNG or WebP (CORE keeps a small square of it), or an animated GIF up to 1 MB, kept as it is.';
   };
   form.querySelector('.pm-icon-pick').addEventListener('change', (e) => {
     if (e.target.name === 'iconFile') return;
@@ -674,10 +704,83 @@ export async function portfolioMilestonesView(el, _params, query) {
 // ---------- A project: header and tabs ----------
 // Time: only on a project that tracks time.
 const TABS = [['', 'Overview', 'dashboard'], ['board', 'Board', 'grid'], ['list', 'List', 'table'], ['timeline', 'Timeline', 'calendar'], ['time', 'Time', 'clock']];
+
+// ---------- Breadcrumbs ----------
+// Where you are, on a project's pages and its tasks: Projects › the project › the view › the parent
+// task › the task. The project's crumb has a menu to go to another project (the same view of it).
+// A task's view crumb is the view it was opened from (Board, List, Timeline…, with the filters
+// that were on), kept for this browser tab; Board when it was opened from elsewhere.
+const VIEW_LABEL = Object.fromEntries(TABS.map(([k, label]) => [k, label]));
+const VIEW_AT = /^#\/projects\/([^/?#]+)(?:\/(board|list|timeline|time))?(?:\?[^#]*)?$/;
+const TASK_AT = /^#\/projects\/([^/?#]+)\/tasks\//;
+const fromKey = (pid) => `core.pm.from.${pid}`;
+addEventListener('hashchange', (e) => {
+  let from = '';
+  try {
+    from = new URL(e.oldURL).hash;
+  } catch {}
+  const view = VIEW_AT.exec(from);
+  const task = TASK_AT.exec(location.hash);
+  if (!view || !task || view[1] !== task[1]) return;
+  try {
+    sessionStorage.setItem(fromKey(view[1]), from);
+  } catch {}
+});
+function cameFrom(pid) {
+  let h = null;
+  try {
+    h = sessionStorage.getItem(fromKey(pid));
+  } catch {}
+  const m = h && VIEW_AT.exec(h);
+  return m && m[1] === pid ? { href: h, tab: m[2] || '' } : { href: `#/projects/${pid}/board`, tab: 'board' };
+}
+// items: [{ label, href, lead (markup before the words), title, mono, switcher: the view to open }],
+// the last one is the page itself. On a phone the ones in the middle fold into "…" (tap to show).
+function crumbBar(items) {
+  const last = items.length - 1;
+  const fold = items.length > 3;
+  const words = (it) => html`${it.lead || ''}<span class="crumb-text ${it.mono ? 'mono' : ''}">${it.label}</span>`;
+  return html`<nav class="pm-crumbs ${fold ? 'can-fold' : ''}" aria-label="Breadcrumb"><ol>${items.map((it, i) => html`${i === 1 && fold ? html`<li class="crumb-more"><button type="button" data-crumbs-more aria-label="Show the ${plural(last - 1, 'level')} in between" title="Show the full path">…</button></li>` : ''}<li class="${fold && i > 0 && i < last - 1 ? 'crumb-mid' : ''}">${i === last
+    ? html`<span class="crumb-cur" aria-current="page" title="${it.title || it.label}">${words(it)}</span>`
+    : html`<a href="${it.href}" title="${it.title || it.label}">${words(it)}</a>`}${it.switcher != null ? html`<button type="button" class="crumb-switch" data-pm-switch="${it.switcher}" data-project="${it.id}" aria-haspopup="menu" aria-expanded="false" aria-label="Go to another project" title="Go to another project">${icon('chevronDown', 14)}</button>` : ''}</li>`)}</ol></nav>`;
+}
+const rootCrumb = (p) => (p.isTemplate ? { label: 'Templates', href: '#/projects?status=templates' } : { label: 'Projects', href: '#/projects' });
+const projectCrumb = (p, tab) => ({ label: p.name, href: `#/projects/${p.id}`, lead: projectIcon(p, 'sm'), title: `${p.code} · ${p.name}`, id: p.id, switcher: p.isTemplate ? null : tab });
+document.addEventListener('click', async (e) => {
+  const more = e.target.closest?.('[data-crumbs-more]');
+  if (more) {
+    const nav = more.closest('.pm-crumbs');
+    nav.classList.add('open');
+    nav.querySelector('.crumb-mid a')?.focus();
+    return;
+  }
+  const b = e.target.closest?.('[data-pm-switch]');
+  if (!b || b.getAttribute('aria-expanded') === 'true') return;
+  let list;
+  try {
+    list = await api.get('/api/pm/projects');
+  } catch (err) {
+    return toast(err.message, 'error');
+  }
+  const tab = b.dataset.pmSwitch;
+  const item = (x) => ({ label: html`<span class="pm-named">${projectIcon(x, 'sm')} <span>${x.name}</span></span>`, sub: html`<span class="mono">${x.code}</span>`, current: x.id === b.dataset.project, onPick: () => {
+    const to = tab === 'time' && !x.timeTracking ? '' : tab;
+    location.hash = `#/projects/${x.id}${to ? `/${to}` : ''}`;
+  } });
+  list = list.filter((x) => !x.isTemplate);
+  const open = list.filter((x) => OPEN_PROJECT.includes(x.status));
+  const closed = list.filter((x) => !OPEN_PROJECT.includes(x.status));
+  const byName = (a, c) => a.name.localeCompare(c.name);
+  popMenu(b, [
+    ...(open.length ? [{ heading: 'Open projects' }, ...open.sort(byName).map(item)] : []),
+    ...(closed.length ? [{ heading: 'Closed' }, ...closed.sort(byName).map(item)] : []),
+  ], 'Go to another project');
+});
+
 function projectHeader(p, tab, actions = '') {
   return html`
     <header class="page-head pm-head">
-      <div><a class="back" href="#/projects${p.isTemplate ? '?status=templates' : ''}">← ${p.isTemplate ? 'Templates' : 'Projects'}</a>
+      <div>${crumbBar([rootCrumb(p), projectCrumb(p, tab), { label: VIEW_LABEL[tab] }])}
         <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</span></h1>
         <p class="muted"><span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
       ${actions ? html`<div class="actions">${actions}</div>` : ''}
@@ -751,7 +854,7 @@ export async function projectOverviewView(el, { id }) {
       </div>
       <div class="stack">
         <section class="card"><div class="card-head"><h2>${icon('users')} Members</h2>${manage ? html`<button class="btn small-btn" id="members">Manage</button>` : ''}</div>
-          <ul class="crm-mini">${p.members.map((x) => html`<li>${avatar(x.name, x.userId)}<span class="grow"><strong>${x.name}</strong><small>${MEMBER_ROLES[x.role]}${x.active ? '' : ' · account disabled'}</small></span></li>`)}</ul></section>
+          <ul class="crm-mini">${p.members.map((x) => html`<li>${avatar(x.name, x.userId)}<span class="grow"><strong>${x.active ? html`<a class="person-link" href="#/people/${x.userId}">${x.name}</a>` : x.name}</strong><small>${MEMBER_ROLES[x.role]}${x.active ? '' : ' · account disabled'}</small></span></li>`)}</ul></section>
         <section class="card"><h2>${icon('link')} Links</h2><dl class="info-grid">
           ${info('Client', p.accountName ? (can('crm.view') ? html`<a href="#/crm/accounts/${p.accountId}">${p.accountName}</a>` : p.accountName) : 'Internal')}
           ${info('Deal', p.deal ? (can('crm.view') ? html`<a href="#/crm/deals/${p.deal.id}">${p.deal.code} · ${p.deal.title}</a>` : `${p.deal.code} · ${p.deal.title}`) : '')}
@@ -1698,7 +1801,11 @@ export async function taskView(el, { projectId, id }) {
   const queue = saveQueue();
   if (t.projectId !== projectId) return (location.hash = `#/projects/${t.projectId}/tasks/${t.id}`);
   const p = t.project;
+  const from = cameFrom(p.id);
+  // The comment being written stays when the page is drawn again (after a change to the task).
+  let composer = null;
   async function render() {
+    const draft = composer?.area.isConnected ? composer.value() : '';
     const comments = await api.get(`/api/pm/tasks/${id}/comments`);
     const work = may(t.access, 'work');
     const status = p.statuses.find((s) => s.id === t.statusId);
@@ -1707,20 +1814,22 @@ export async function taskView(el, { projectId, id }) {
     const canDelete = may(t.access, 'manage') || (work && t.createdBy === ctx.user.id);
     const blockedChoices = t.others.filter((x) => !t.blockedBy.includes(x.id));
     const hist = (h) => html`<li><strong>${h.byName}</strong> ${h.field === 'created' ? html`added the task${h.to ? ` (${h.to})` : ''}` : html`${h.field}: ${h.from || '—'} → ${h.to || '—'}`}<small class="muted">${when(h.at)}</small></li>`;
-    const comment = (c) => html`<li class="pm-comment">${avatar(c.userName, c.userId)}<div class="grow"><div><strong>${c.userName}</strong> <small class="muted">${when(c.createdAt)}</small>
+    const comment = (c) => html`<li class="pm-comment">${avatar(c.userName, c.userId)}<div class="grow"><div><strong>${c.userId ? html`<a class="person-link" href="#/people/${c.userId}">${c.userName}</a>` : c.userName}</strong> <small class="muted">${when(c.createdAt)}</small>
       ${c.canDelete ? html`<button type="button" class="icon-btn danger" data-del-c="${c.id}" aria-label="Delete comment">${icon('trash', 14)}</button>` : ''}</div>
-      <p class="pre">${mentionParts(c.body, usernames).map((x) => (x.mention ? html`<mark class="pm-mention">@${x.mention}</mark>` : x.text))}</p></div></li>`;
+      ${commentBody(c.body, usernames)}</div></li>`;
     mount(el, html`<div class="pm-task-page">
       <header class="page-head">
-        <div><a class="back pm-back-proj" href="#/projects/${p.id}/board">← ${projectIcon(p, 'sm')} ${p.code} · ${p.name}</a>
-          <p class="tag-line mono">${t.key}${t.parent ? html` · subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}">${t.parent.key}</a>` : ''}</p>
+        <div>${crumbBar([rootCrumb(p), projectCrumb(p, from.tab), { label: VIEW_LABEL[from.tab], href: from.href, title: `Back to the ${VIEW_LABEL[from.tab]}` },
+          ...(t.parent ? [{ label: t.parent.title, href: `#/projects/${p.id}/tasks/${t.parent.id}`, title: `${t.parent.key} · ${t.parent.title} (the task this is a subtask of)` }] : []),
+          { label: t.key, mono: true, title: `${t.key} · ${t.title}` }])}
+          ${t.parent ? html`<p class="pm-subof">${icon('layers', 14)} Subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}"><span class="mono">${t.parent.key}</span> ${t.parent.title}</a></p>` : ''}
           <h1>${t.title} ${statusChip(status)}</h1>
           <p class="muted">${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} Added ${when(t.createdAt)}</p></div>
         <div class="actions">${p.isTemplate ? '' : html`<button class="btn pm-watch ${t.watching ? 'on' : ''}" id="watch" aria-pressed="${t.watching ? 'true' : 'false'}" title="${t.watching ? 'You hear of its comments and when it is done or cancelled. Click to stop.' : 'Hear of its comments and when it is done or cancelled.'}">${icon('eye', 16)} ${t.watching ? 'Watching' : 'Watch'} <span class="pm-watch-n" aria-label="${plural(t.watcherList.length, 'watcher')}">${t.watcherList.length}</span></button>`}${work ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit title and description</button>` : ''}${canDelete ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}</div>
       </header>
       <div class="pm-task">
         <div class="stack">
-          <section class="card pm-desc"><div class="card-head"><h2>Description</h2>${work ? html`<button type="button" class="btn small-btn" id="edit-desc">${icon('edit', 14)} Edit</button>` : ''}</div>${t.description ? richView(t.description, t.id, t.images) : html`<p class="muted">No description.</p>`}</section>
+          <section class="card pm-desc"><div class="card-head"><h2>Description</h2>${work ? html`<button type="button" class="btn small-btn" id="edit-desc">${icon('edit', 14)} Edit</button>` : ''}</div>${t.description ? richView(t.description, t.id, t.images) : html`<p class="muted pm-desc-empty">${work ? html`<button type="button" class="link">Add a description…</button>` : 'No description.'}</p>`}</section>
           <section class="card"><div class="card-head"><h2>${icon('check')} Checklist</h2><span class="muted small">${t.checklist.length ? `${t.checklistDone}/${t.checklist.length} done` : ''}</span></div>
             ${t.checklist.length ? html`<ul class="crm-checklist">${t.checklist.map((i) => html`<li class="${i.done ? 'done' : ''}"><label><input type="checkbox" data-item="${i.id}" ${i.done ? 'checked' : ''} ${work ? '' : 'disabled'} /><span>${i.text}</span></label>${work ? html`<button type="button" class="icon-btn" data-rm-item="${i.id}" aria-label="Remove ${i.text}">${icon('x', 14)}</button>` : ''}</li>`)}</ul>` : html`<p class="muted small">No checklist.</p>`}
             ${work ? html`<form id="add-item" class="crm-add-item"><input name="text" maxlength="300" placeholder="Add a checklist item…" aria-label="Checklist item" /><button class="btn" type="submit">Add</button></form>` : ''}</section>
@@ -1731,8 +1840,10 @@ export async function taskView(el, { projectId, id }) {
             <div id="files">${fileBlock(t.attachments, `/api/pm/tasks/${t.id}/attachments`, work)}</div></section>
           <section class="card"><h2>${icon('comment')} Comments</h2>
             ${comments.length ? html`<ul class="pm-comments">${comments.map(comment)}</ul>` : html`<p class="muted small">No comments yet.</p>`}
-            ${may(t.access, 'comment') ? html`<form id="comment" class="pm-composer"><textarea name="body" rows="3" maxlength="4000" placeholder="Write a comment. Mention someone with @ and their username." aria-label="Comment"></textarea>
-              <div class="crm-composer-foot"><small class="muted">${usernames.length ? `On this project: ${usernames.map((u) => `@${u}`).join(', ')}` : ''}</small><span class="spacer"></span><button class="btn primary" type="submit">Comment</button></div></form>` : ''}
+            ${may(t.access, 'comment') ? html`<form id="comment" class="pm-composer">${richEditor({ name: 'body', label: 'Comment', pictures: false, max: COMMENT_MAX, compact: true,
+              placeholder: 'Write a comment… Type @ to mention someone on the project.',
+              hint: html`Type <kbd>@</kbd> to mention someone on the project, <kbd>/</kbd> for lists, a checklist, code and more. Pictures go under Files.` })}
+              <div class="crm-composer-foot"><small class="muted">${MOD_KEY}Enter posts</small><span class="spacer"></span><button class="btn primary" type="submit">Comment</button></div></form>` : ''}
           </section>
           <section class="card"><details><summary><h2>${icon('activity')} History</h2></summary><ul class="pm-history">${[...t.history].reverse().map(hist)}</ul></details></section>
         </div>
@@ -1756,7 +1867,7 @@ export async function taskView(el, { projectId, id }) {
             ${t.blocking.length ? html`<p class="small muted">${t.blocking.map((b) => b.key).join(', ')} ${t.blocking.length === 1 ? 'waits' : 'wait'} for this task.</p>` : ''}
           </section>
           ${p.isTemplate ? '' : html`<section class="card"><h2>${icon('eye')} Watchers</h2>
-            ${t.watcherList.length ? html`<ul class="pm-watchers">${t.watcherList.map((w) => html`<li>${avatar(w.name, w.userId)}<span>${w.name}${w.userId === ctx.user.id ? ' (you)' : ''}</span></li>`)}</ul>` : html`<p class="muted small">Nobody is watching this task.</p>`}
+            ${t.watcherList.length ? html`<ul class="pm-watchers">${t.watcherList.map((w) => html`<li>${avatar(w.name, w.userId)}<span><a class="person-link" href="#/people/${w.userId}">${w.name}</a>${w.userId === ctx.user.id ? ' (you)' : ''}</span></li>`)}</ul>` : html`<p class="muted small">Nobody is watching this task.</p>`}
             <p class="muted small">Watchers hear of comments and when the task is done or cancelled. Who added it, its assignee and whoever comments watch it.</p></section>`}
           ${t.ticket ? html`<section class="card"><h2>${icon('ticket')} Service desk ticket</h2><p>${can('helpdesk.agent') ? html`<a href="#/helpdesk/tickets/${t.ticket.id}" class="mono">${t.ticket.ref}</a>` : html`<span class="mono">${t.ticket.ref}</span>`} ${badge(t.ticket.statusName, ['resolved', 'closed'].includes(t.ticket.status) ? 'green' : 'blue')}</p><p class="muted small">Closing one does not close the other.</p></section>` : ''}
           ${t.time ? html`<section class="card"><div class="card-head"><h2>${icon('clock')} Time</h2><span class="muted small">${hrs(t.loggedHours)} logged</span></div>
@@ -1768,6 +1879,15 @@ export async function taskView(el, { projectId, id }) {
         </aside>
       </div></div>`);
     wire();
+    const cform = el.querySelector('#comment');
+    composer = cform ? wireRichEditor(cform, { mentions: p.members.filter((x) => x.username && x.active && x.userId !== ctx.user.id).map((x) => ({ username: x.username, name: x.name })) }) : null;
+    if (composer && draft) composer.setValue(draft);
+    cform?.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        cform.requestSubmit();
+      }
+    });
   }
   const reload = async (focus) => {
     t = await api.get(`/api/pm/tasks/${id}`);
@@ -1823,10 +1943,14 @@ export async function taskView(el, { projectId, id }) {
     el.querySelector('#comment')?.addEventListener('submit', guard(async (e) => {
       e.preventDefault();
       const btn = e.target.querySelector('[type=submit]');
-      if (btn.disabled || !e.target.body.value.trim()) return;
+      const body = composer ? composer.value() : e.target.body.value;
+      if (btn.disabled) return;
+      if (!body.trim()) return composer?.focus(false);
+      if (body.length > COMMENT_MAX) return toast(`A comment can be up to ${COMMENT_MAX.toLocaleString('en-PH')} characters. Shorten it, or split it in two.`, 'error');
       btn.disabled = true;
-      await api.post(`/api/pm/tasks/${id}/comments`, { body: e.target.body.value });
-      await reload('#comment textarea');
+      await api.post(`/api/pm/tasks/${id}/comments`, { body });
+      composer?.setValue('');
+      await reload('#comment .wys-area');
     }, () => reload()));
     el.querySelectorAll('[data-del-c]').forEach((b) => b.addEventListener('click', guard(async () => {
       if (!(await confirmDialog('Delete this comment?', { title: 'Delete comment' }))) return;
@@ -1853,19 +1977,72 @@ export async function taskView(el, { projectId, id }) {
         title: `Edit ${t.key}`, wide: true, className: 'pm-edit-task',
         body: html`<div class="grid two"><label class="field span-2"><span>Title<em>*</em></span><input name="title" maxlength="200" value="${t.title}" required /></label>${richEditor({ value: t.description || '', taskId: t.id })}</div>`,
         onSubmit: async (f) => {
-          await api.put(`/api/pm/tasks/${id}`, { title: f.title.value, description: f.description.value, version: t.version });
+          await api.put(`/api/pm/tasks/${id}`, { title: f.title.value, description: ed.value(), version: t.version });
           toast('Saved.');
           await reload();
         },
       });
       const ed = wireRichEditor(form, { images: [...(t.images || [])] });
-      if (focusDescription) {
-        ed.textarea.focus();
-        ed.textarea.setSelectionRange(ed.textarea.value.length, ed.textarea.value.length);
-      }
+      if (focusDescription) ed.focus();
+    };
+    // The description edited where it is: the card becomes the editor, with Save and Cancel.
+    const descCard = el.querySelector('.pm-desc');
+    const editInPlace = () => {
+      if (descCard.querySelector('.pm-desc-edit')) return descCard.querySelector('.wys-area')?.focus();
+      const head = descCard.querySelector('.card-head');
+      const shown = [...descCard.children].filter((c) => c !== head);
+      const btn = head.querySelector('#edit-desc');
+      const body = document.createElement('div');
+      body.className = 'pm-desc-edit';
+      mount(body, html`${richEditor({ value: t.description || '', taskId: t.id })}
+        <div class="pm-desc-actions"><button type="button" class="btn primary" data-save>Save</button><button type="button" class="btn" data-cancel>Cancel</button>
+          <small class="muted">${/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl+'}Enter saves · Esc cancels</small></div>`);
+      shown.forEach((c) => (c.hidden = true));
+      if (btn) btn.hidden = true;
+      descCard.append(body);
+      const ed = wireRichEditor(body, { images: [...(t.images || [])] });
+      const original = ed.value();
+      ed.focus();
+      const close = () => {
+        body.remove();
+        shown.forEach((c) => (c.hidden = false));
+        if (btn) {
+          btn.hidden = false;
+          btn.focus();
+        }
+      };
+      const cancel = async () => {
+        if (ed.value() !== original && !(await confirmDialog('Discard your changes to the description?', { title: 'Discard changes', confirmLabel: 'Discard' }))) return ed.focus();
+        close();
+      };
+      const saveBtn = body.querySelector('[data-save]');
+      const save = async () => {
+        saveBtn.disabled = true;
+        try {
+          await api.put(`/api/pm/tasks/${id}`, { description: ed.value(), version: t.version });
+          toast('Description saved.');
+          await reload();
+        } catch (err) {
+          toast(err.message, 'error');
+          saveBtn.disabled = false;
+        }
+      };
+      saveBtn.addEventListener('click', save);
+      body.querySelector('[data-cancel]').addEventListener('click', cancel);
+      body.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          save();
+        } else if (e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('.modal-backdrop')) {
+          e.preventDefault();
+          cancel();
+        }
+      });
     };
     el.querySelector('#edit')?.addEventListener('click', () => editTask(false));
-    el.querySelector('#edit-desc')?.addEventListener('click', () => editTask(true));
+    el.querySelector('#edit-desc')?.addEventListener('click', editInPlace);
+    // "No description." is a place to start writing.
+    if (may(t.access, 'work')) descCard?.querySelector('.pm-desc-empty')?.addEventListener('click', editInPlace);
     el.querySelector('#del')?.addEventListener('click', async () => {
       if (!(await confirmDialog(`Delete ${t.key} ${t.title}?${t.subtasks ? ` Its ${plural(t.subtasks, 'subtask')} go with it.` : ''} Comments and files go too; time logged on it stays on the project.`, { title: 'Delete task' }))) return;
       await api.del(`/api/pm/tasks/${id}`).then(() => {

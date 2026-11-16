@@ -147,7 +147,7 @@ The **Today** list shows who has clocked in. Someone on approved leave cannot cl
 3. Set the **Radius (metres)** (150 m suits most offices) and **Keep locations for (days)** (365 by default).
 4. Click **Save**.
 
-Clock-ins farther than the radius are flagged *Outside office*. They are never blocked. Leave latitude and longitude blank to record locations without an office check.
+Clock-ins farther than the radius are flagged *Outside office*. They are never blocked. The location is what the employee's device reports: a good sign of where they were, not proof, since a device can be wrong or made to report another place. The time of a clock-in is always CORE's own. Leave latitude and longitude blank to record locations without an office check.
 
 ![The office location](hr-clock-locations.jpg)
 
@@ -236,7 +236,7 @@ HR Managers can change **Payroll Setup**: pay rules, **Work days per year**, the
 | Payroll | Payroll runs, payslips and year to date (view only for HR) |
 | Payroll Setup | Pay rules, premiums, holiday rules, government rates and tax tables |
 | Holidays | The holiday calendar payroll and leave use |
-| My Home, My Attendance, My Requests, My Payslips, My Profile | Your own self-service: see [the self-service guide](employee) |
+| My Home, My Attendance, My Requests, My Payslips, My HR record | Your own self-service: see [the self-service guide](employee) |
 
 ## Questions
 
@@ -256,7 +256,16 @@ No. Another approver or HR Manager decides it.
 HR and the Payroll Officer, who manage leave, and supervisors only when **Approvers can open medical certificates** is on. Certificates are health data under the Data Privacy Act, and every opening is in the audit log.
 
 **Who sees the full government IDs?**
-HR Managers, Payroll Officers and administrators, after **Show numbers**, on the edit form, or in the full export. Each is in the audit log. HR Staff do not see them.
+HR Managers, Payroll Officers and administrators, after **Show numbers**, on the edit form, in the full export or in the payroll register export. Each is in the audit log. HR Staff do not see them; payroll runs and payslips on screen show the last four digits.
+
+**Who sees an employee's birth date, home address and emergency contact?**
+The HR side: HR Managers, HR Staff, Payroll Officers and administrators. A Project Manager, who can look up employees to put them on projects, sees the name, position, department and work email, with *Visible to HR only* for the rest. Every look at employee records is in the audit log.
+
+**Can I change my own attendance, leave credits or pay?**
+No. Your own time entries and overtime, leave credits, leave days and balance adjustments, pay, schedule and status, and your own payslip are changed by a colleague with the same access, or an administrator. CORE says so if you try. Your address and other details you may still correct.
+
+**Can two employees have the same email address?**
+No. Email that comes in to the service desk is matched to the person by it, so each record needs its own address (CORE says whose record already has it).
 
 **Is a local holiday only for that city?**
 CORE pays a holiday on the calendar the same way for every employee. Add a local holiday only if it applies to the people you pay.

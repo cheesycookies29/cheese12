@@ -61,9 +61,16 @@ export function flatten(obj, prefix = '', out = {}) {
 
 // key: () => the audit key (server/secrets.js derive()). keyedFrom / setKeyedFrom: read and store
 // the number of the first keyed entry (kept in the settings). Without a key the chain is unkeyed.
-export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedFrom = () => {} } = {}) {
+// Text without control characters (a newline or tab becomes a space).
+const plain = (v) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ') : v);
+const plainDeep = (v) => (Array.isArray(v) ? v.map(plainDeep) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plainDeep(x)])) : plain(v));
+
+export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedFrom = () => {}, onRecord = null } = {}) {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const file = path.join(dir, 'audit-log.jsonl');
+  // The last entry written, sealed with the audit key (VAPT 0.33): lines cut from the end of the
+  // log, whether CORE was running or stopped, no longer pass the chain check.
+  const headFile = path.join(dir, 'audit-head.json');
   let last = { seq: 0, hash: '' };
   let firstKeyed = null;
   if (fs.existsSync(file)) {
@@ -77,21 +84,72 @@ export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedF
   if (key && !Number.isInteger(keyedFrom())) setKeyedFrom(firstKeyed ?? last.seq + 1);
   let auditKey = null;
   const getKey = () => (auditKey ||= key());
+  const headMac = (h) => createHmac('sha256', getKey()).update(`audit-head:${h.seq}:${h.hash}:${JSON.stringify(h.gaps || [])}`).digest('hex');
+  let gaps = []; // [{ from, to, found }]: entries found missing when CORE started
+  function readHead() {
+    try {
+      return JSON.parse(fs.readFileSync(headFile, 'utf8'));
+    } catch {
+      return null;
+    }
+  }
+  function writeHead() {
+    if (!key) return;
+    try {
+      getKey();
+    } catch {
+      return;
+    }
+    const h = { seq: last.seq, hash: last.hash, gaps };
+    const tmp = `${headFile}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ ...h, mac: headMac(h) }), { mode: 0o600 });
+    fs.renameSync(tmp, headFile);
+  }
   const recentViews = new Map(); // `${user}:${what}` -> time, so repeated views log once in 10 minutes
 
   // action: e.g. 'employee.update'. entity / entityId: the record. label: a readable name for it.
+  // Text is kept without control characters (VAPT 0.33): a name with terminal escape codes cannot
+  // recolour or rewrite what someone reading the file in a console sees.
   function record(action, { entity = '', entityId = '', label = '', changes = [], note = '', actor = currentActor() } = {}) {
     const a = actor || {};
     const entry = {
       seq: last.seq + 1, id: randomUUID(), at: new Date().toISOString(),
-      userId: a.user?.id || null, userName: a.user?.name || a.name || 'System', role: a.user?.role || '', ip: a.ip || '',
-      action, entity, entityId: entityId || '', label: label || '', changes, note: note || '', prev: last.hash,
+      userId: a.user?.id || null, userName: plain(a.user?.name || a.name || 'System'), role: a.user?.role || '', ip: a.ip || '',
+      action, entity, entityId: entityId || '', label: plain(label || ''), changes: plainDeep(changes), note: plain(note || ''), prev: last.hash,
     };
     if (key) entry.k = 1;
     entry.hash = key ? macOf(getKey(), last.hash, entry) : hashOf(last.hash, entry);
     fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
     last = { seq: entry.seq, hash: entry.hash };
+    writeHead();
+    // The security monitor counts each entry (sign-ins, failures, the areas people work in).
+    try {
+      onRecord?.(entry);
+    } catch {}
     return entry;
+  }
+
+  // At start: a log that ends before the last entry CORE wrote lost lines while CORE was stopped.
+  // That is written into the log itself (sealed) and kept in the head, so the check keeps saying so.
+  let keyReadable = Boolean(key);
+  try {
+    if (key) getKey();
+  } catch {
+    keyReadable = false; // the chain check says the key is missing
+  }
+  if (keyReadable) {
+    const h = readHead();
+    if (!h) writeHead(); // the first start with the head (or a new log)
+    else {
+      const valid = typeof h.mac === 'string' && same(h.mac, headMac(h));
+      gaps = valid && Array.isArray(h.gaps) ? h.gaps : [];
+      if (!valid) gaps = [...gaps, { from: null, to: null, found: new Date().toISOString(), changed: true }];
+      else if (h.seq > last.seq || (h.seq === last.seq && h.hash !== last.hash)) gaps = [...gaps, { from: last.seq + 1, to: h.seq, found: new Date().toISOString() }];
+      if (gaps.length !== (valid && Array.isArray(h.gaps) ? h.gaps.length : 0)) {
+        const g = gaps.at(-1);
+        record('audit.gap', { label: 'Audit log', note: g.changed ? 'The record of the last entry was changed outside CORE.' : `Entries ${g.from} to ${g.to} are missing: they were removed from the file while CORE was stopped.`, actor: { name: 'System' } });
+      }
+    }
   }
 
   // Viewing personal data is logged too, but once per user and record in 10 minutes.
@@ -143,6 +201,9 @@ export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedF
       prev = hash;
       seq = e.seq;
     }
+    // Lines cut from the end: the file stops before the last entry CORE wrote.
+    if (seq < last.seq || (seq === last.seq && prev !== last.hash)) return { ok: false, count: seq, brokenAt: seq + 1, missingFrom: seq + 1, missingTo: last.seq, keyedFrom: from };
+    if (gaps.length) return { ok: false, count: seq, brokenAt: gaps[0].from, missingFrom: gaps[0].from, missingTo: gaps[0].to, headChanged: gaps.some((g) => g.changed), keyedFrom: from };
     return { ok: true, count: seq, keyedFrom: from };
   }
 

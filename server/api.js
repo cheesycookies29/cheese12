@@ -2,12 +2,12 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { computePayslip, toMinutes } from '../shared/calc.js';
 import { DAY_TYPES } from '../shared/holidays.js';
-import { HttpError, localDate, localTime } from './util.js';
+import { HttpError, localDate, localTime, notOwnRecord } from './util.js';
 import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
 import { createAttachments, parseUpload } from './attachments.js';
 import { registerFeedbackRoutes } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
-import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig } from './helpdesk.js';
+import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig, linkTicketOwners } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
 import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects, timesheetAccess } from './projects.js';
 import { registerNotificationRoutes, migrateNotifications, notify, forgetUser, accountOfEmployee, fmtRange } from './notifications.js';
@@ -24,7 +24,8 @@ import { newSecret, verifyCode, otpauthUrl, newRecoveryCodes, hashRecovery, look
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
-import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides } from '../shared/roles.js';
+import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides, usesAdminPanel } from '../shared/roles.js';
+import { cleanCompanyRole, companyRoleOf, moduleAccess } from '../shared/profile.js';
 import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig } from '../shared/modules.js';
 import { registerAdminRoutes } from './config.js';
 import { validateBranding, publicBrand, settingsForBrowser } from './branding.js';
@@ -34,11 +35,13 @@ import {
 } from './auth.js';
 import { APP_VERSION } from '../shared/devlog.js';
 import { buildInfo } from './build.js';
+import { createMonitor } from './monitor.js';
+import { registerMonitorRoutes } from './monitor-panel.js';
 import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Changes that are records in themselves, or not about company data: no generic audit entry.
-const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'mustChangePassword'];
+const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'companyRole', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'mustChangePassword'];
 const UNAUDITED = /^\/api\/(me\/clock|clock|auth\/logout|feedback|me\/feedback|public\/)/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -49,12 +52,24 @@ const EMPLOYEE_FIELDS = [
   'emergencyContactName', 'emergencyContactPhone', 'schedule', 'supervisorId', 'workDaysPerYear'];
 
 // Pay, government IDs and bank details: only accounts with employees.sensitive receive them.
+const PAY_ADJUST_MAX = 100_000_000; // per payslip adjustment, in pesos
+// Fields of your own record that someone else changes (see notOwnRecord).
+const OWN_LOCKED_FIELDS = ['rate', 'allowance', 'payType', 'minimumWageEarner', 'workDaysPerYear', 'schedule', 'flexTime', 'status', 'employmentStatus', 'supervisorId'];
 const SENSITIVE_FIELDS = ['rate', 'allowance', 'minimumWageEarner', 'workDaysPerYear', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount'];
 const PRIVATE_FIELDS = ['tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount'];
 // What an account may see of an employee record. Government ID and bank numbers are masked even
 // for HR and payroll; the full numbers come from /private, which is logged.
+// Personal details (birth date, home address, private phone, emergency contact) are for the HR side
+// (VAPT 0.33): accounts that keep records or leave, or see pay. Others who view employee records
+// (a Project Manager choosing people) get the name, position, department and work email.
+const PERSONAL_FIELDS = ['birthDate', 'gender', 'civilStatus', 'address', 'phone', 'emergencyContactName', 'emergencyContactPhone'];
+const seesPersonal = (user) => ['employees.edit', 'employees.sensitive', 'leave.manage'].some((p) => userCan(user, p));
 function employeeFor(user, e) {
   const out = { ...e };
+  if (!seesPersonal(user)) {
+    for (const f of PERSONAL_FIELDS) delete out[f];
+    out.personalHidden = true;
+  }
   if (!userCan(user, 'employees.sensitive')) {
     for (const f of SENSITIVE_FIELDS) delete out[f];
     out.restricted = true;
@@ -103,6 +118,11 @@ function validateEmployee(input, db, existingId) {
   e.schedule = validateSchedule(e.schedule || db.data.settings.schedule);
   const dup = db.data.employees.find((x) => x.employeeNo.toLowerCase() === e.employeeNo.toLowerCase() && x.id !== existingId);
   if (dup) throw new HttpError(400, `Employee number ${e.employeeNo} is already used.`);
+  // One email address per person: email that arrives for the service desk is matched to an account by it.
+  if (e.email) {
+    const same = db.data.employees.find((x) => x.email && x.email.toLowerCase() === e.email.toLowerCase() && x.id !== existingId);
+    if (same) throw new HttpError(400, `The email ${e.email} is already on ${same.firstName} ${same.lastName}'s record. Each employee needs their own.`);
+  }
   // Immediate supervisor: the first approver of this employee's requests. No loops (A → B → A).
   e.supervisorId = e.supervisorId || null;
   if (e.supervisorId) {
@@ -317,6 +337,16 @@ function backupUsers(list) {
     for (const k of ['createdAt', 'lastLoginAt']) if (!optional(raw[k], (v) => isText(v, 40))) throw bad(i, `has an invalid "${k}"`);
     const u = { id: raw.id, username: raw.username, name: raw.name.trim(), role: raw.role, employeeId: raw.employeeId || null, active: raw.active, passwordHash: raw.passwordHash };
     for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'pmDigest', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
+    // The role in the company (0.32): kept as cleaned text.
+    if (raw.companyRole !== undefined && raw.companyRole !== null) {
+      let role;
+      try {
+        role = cleanCompanyRole(raw.companyRole);
+      } catch {
+        throw bad(i, 'has an invalid role in the company');
+      }
+      if (role) u.companyRole = role;
+    }
     if (raw.twoFactor !== undefined && raw.twoFactor !== null) {
       u.twoFactor = validTwoFactor(raw.twoFactor);
       if (!u.twoFactor) throw bad(i, 'has invalid 2-step verification details');
@@ -412,20 +442,27 @@ function demoAccounts(db, employees) {
   const maria = employees.find((e) => e.firstName === 'Maria');
   const andrea = employees.find((e) => e.firstName === 'Andrea') || juan;
   const linked = new Set(db.data.users.map((u) => u.employeeId).filter(Boolean));
-  return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => ({
+  // Their role in the company: the linked employee's position, or the job the account stands for.
+  const TITLES = { hr: 'HR Manager', payroll: 'Payroll Officer', it: 'IT Asset Manager', salesmgr: 'Sales Manager', pm: 'Project Manager', employee: 'Team Lead' };
+  const byId = new Map(employees.map((e) => [e.id, e]));
+  return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => {
+    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager; the
+    // project manager is Andrea, who runs the delivery projects.
+    const employeeId = role === 'employee' ? juan.id : role === 'pm' && !linked.has(andrea.id) ? andrea.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null;
+    return {
     id: randomUUID(),
     username,
     name: name || (role === 'pm' ? `${andrea.firstName} ${andrea.lastName}` : `${juan.firstName} ${juan.lastName}`),
     role,
-    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager; the
-    // project manager is Andrea, who runs the delivery projects.
-    employeeId: role === 'employee' ? juan.id : role === 'pm' && !linked.has(andrea.id) ? andrea.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null,
+    companyRole: cleanCompanyRole(byId.get(employeeId)?.position || TITLES[role]) || undefined,
+    employeeId,
     active: true,
     mustChangePassword: false,
     demo: true,
     passwordHash: hashPassword(DEMO_PASSWORD),
     createdAt: new Date().toISOString(),
-  }));
+    };
+  });
 }
 
 // Clock in / out for the current date and time. Clocking in also records where (see server/geo.js).
@@ -468,7 +505,11 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const secrets = createSecrets(db.dir);
   // The audit chain is sealed with a key made from the server key. Where keyed entries begin is
   // kept in the settings (never taken from a restored backup: see replaceData).
+  // The security monitor's collector (0.34): requests (reported by server.js), audit entries and
+  // the process, in buckets of fixed size (server/monitor.js).
+  const monitor = createMonitor(db.dir, { sessions: () => sessions.active() });
   const audit = createAudit(db.dir, {
+    onRecord: (entry) => monitor.audit(entry),
     key: () => secrets.derive('core-audit-chain-v1'),
     keyedFrom: () => db.data.settings.auditKeyedFrom,
     setKeyedFrom: (seq) => {
@@ -737,16 +778,16 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
 
   // ----- Profile pictures -----
   // Everyone's own small picture, shown instead of their initials. A square JPEG, PNG or WebP (by its
-  // first bytes, never SVG), made small in the browser, at most 300 KB. Set and removed by its owner;
+  // first bytes, never SVG), made small in the browser, at most 300 KB; or an animated GIF as it is
+  // (at most 1 MB and 1024 pixels each way: checkGif). Set and removed by its owner;
   // an administrator can remove anyone's. Shown to everyone signed in, with its own type, nosniff and
   // a sandbox policy; the address carries the picture's date, so a new one is not hidden by the cache.
-  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   const AVATAR_MAX = 300 * 1024;
   const avatarList = () => Object.fromEntries(users().filter((u) => u.avatar?.id).map((u) => [u.id, u.avatar.at]));
   function setAvatar(user, file) {
-    const up = parseUpload(file);
-    if (!AVATAR_TYPES.includes(up.type)) throw new HttpError(400, 'Use a photo: JPEG, PNG or WebP.');
-    if (up.buffer.length > AVATAR_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${AVATAR_MAX / 1024} KB.`);
+    const up = parseUpload(file, { pictures: AVATAR_TYPES });
+    if (up.type !== 'image/gif' && up.buffer.length > AVATAR_MAX) throw new HttpError(400, `The picture is too large (${Math.ceil(up.buffer.length / 1024)} KB). The limit is ${AVATAR_MAX / 1024} KB.`);
     const old = user.avatar;
     const saved = files.save({ ...up, name: 'profile' });
     user.avatar = { id: saved.id, type: saved.type, size: saved.size, at: saved.uploadedAt };
@@ -783,9 +824,64 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   });
 
   // ----- User accounts -----
+  // ----- Profiles -----
+  // Everyone's profile: their picture, name, role in the company and department, for anyone signed
+  // in. Their own profile (and anyone's, for an administrator) adds the account: username, account
+  // type, 2-step sign-in, what they can open in each module, and their employment details. A
+  // disabled account is shown to administrators only. Only administrators change the role.
+  const companyRoleFrom = (body) => {
+    try {
+      return cleanCompanyRole(body?.companyRole ?? null);
+    } catch (err) {
+      throw new HttpError(400, err.message);
+    }
+  };
+  function setCompanyRole(user, role) {
+    if (role) user.companyRole = role;
+    else delete user.companyRole;
+  }
+  function profileOf(u, me) {
+    const full = u.id === me.id || userCan(me, 'users.manage');
+    const hrOn = moduleOn(db.data.modules, 'hr') || me.role === 'admin';
+    const emp = u.employeeId && hrOn ? db.data.employees.find((e) => e.id === u.employeeId) : null;
+    const supervisor = emp?.supervisorId ? db.data.employees.find((e) => e.id === emp.supervisorId) : null;
+    // The projects both are members of (only those the viewer can open anyway).
+    const shared = u.id === me.id || !moduleOn(db.data.modules, 'projects') ? [] : (db.data.pmProjects || [])
+      .filter((p) => !p.isTemplate && p.members.some((m) => m.userId === u.id) && p.members.some((m) => m.userId === me.id))
+      .map((p) => ({ id: p.id, code: p.code, name: p.name })).sort((a, b) => a.code.localeCompare(b.code));
+    const out = { id: u.id, name: u.name, companyRole: companyRoleOf(u), department: emp?.department || null, supervisor: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : null, sharedProjects: shared, active: u.active !== false, self: u.id === me.id, canEditRole: userCan(me, 'users.manage') };
+    if (!full) return out;
+    const approver = isApprover(db, u);
+    return {
+      ...out,
+      username: u.username, accountType: u.role, accountTypeLabel: ROLES[u.role]?.label || u.role,
+      twoFactorEnabled: Boolean(u.twoFactor?.enabledAt), createdAt: u.createdAt || null,
+      modules: moduleAccess(u, { modules: db.data.modules, inProjects: isProjectMember(db, u), isApprover: approver }),
+      adminPanel: usesAdminPanel(u), approver,
+      employee: emp ? { employeeNo: emp.employeeNo, position: emp.position || null, department: emp.department || null, employmentStatus: emp.employmentStatus || null, hireDate: emp.hireDate || null, supervisor: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : null } : null,
+      ...(userCan(me, 'users.manage') ? { roleSuggestions: [...new Set(users().map((x) => x.companyRole).filter(Boolean))].sort((a, b) => a.localeCompare(b)) } : {}),
+    };
+  }
+  route('GET', '/api/people/:id', 'auth', ({ params, user: me }) => {
+    const u = users().find((x) => x.id === params.id);
+    if (!u || (u.active === false && !userCan(me, 'users.manage'))) throw new HttpError(404, 'There is no such person in CORE.');
+    return profileOf(u, me);
+  });
+  route('PUT', '/api/people/:id/company-role', 'users.manage', ({ params, body, user: me }) => {
+    const u = findUser(db, params.id);
+    const before = publicUser(u);
+    setCompanyRole(u, companyRoleFrom(body));
+    u.updatedAt = new Date().toISOString();
+    db.save();
+    audit.record('user.update', { entity: 'user', entityId: u.id, label: `${u.name} (${u.username})`, changes: diff(before, publicUser(u), ['companyRole']) });
+    return profileOf(u, me);
+  });
+
   route('GET', '/api/users', 'users.manage', () => users().map((u) => ({ ...publicUser(u), sessions: sessions.list(u.id).length, twoFactorRequired: twoFactorRequired(sec(), u) })));
   route('POST', '/api/users', 'users.manage', ({ body }) => {
     const user = { id: randomUUID(), ...validateUser(body, db) };
+    const companyRole = companyRoleFrom(body);
+    if (companyRole) user.companyRole = companyRole;
     validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.mustChangePassword = body.mustChangePassword !== false;
@@ -804,6 +900,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     }
     const before = publicUser(user);
     Object.assign(user, next, { updatedAt: new Date().toISOString() });
+    if (Object.hasOwn(body || {}, 'companyRole')) setCompanyRole(user, companyRoleFrom(body));
     // A disabled account, or one whose role changed, signs in again (with its new access).
     if (!user.active || before.role !== user.role) sessions.destroyForUser(user.id);
     db.save();
@@ -898,9 +995,9 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   registerAssetRoutes(route, db, { linkedEmployee });
 
   // ----- Settings -----
-  route('GET', '/api/settings', 'auth', () => settingsForBrowser(db.data.settings));
+  route('GET', '/api/settings', 'auth', ({ user }) => settingsForBrowser(db.data.settings, (p) => userCan(user, p)));
   // Company details, default schedule and branding (Admin panel → Settings & branding).
-  route('PUT', '/api/settings', 'settings.edit', ({ body }) => {
+  route('PUT', '/api/settings', 'settings.edit', ({ body, user }) => {
     const s = db.data.settings;
     const brandOf = (x) => ({ ...x.branding, logo: x.branding?.logo ? `(a picture, ${Math.round((x.branding.logo.length * 3) / 4 / 1024)} KB)` : '' });
     const keys = ['companyName', 'companyAddress', 'companyTin', 'schedule'];
@@ -915,7 +1012,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     db.save();
     const changes = diff(before, flatten({ ...pick(s, keys), branding: brandOf(s) }));
     if (changes.length) audit.record('settings.update', { entity: 'settings', label: 'Company details, default schedule and branding', changes });
-    return settingsForBrowser(s);
+    return settingsForBrowser(s, (p) => userCan(user, p));
   });
 
   // Payroll Setup: pay rules, deductions, government rates and tax tables (HR, Payroll, Administrator).
@@ -928,12 +1025,16 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     db.save();
     const changes = diff(before, flatten(pick(db.data.settings, keys)));
     if (changes.length) audit.record('payroll.config', { entity: 'settings', label: 'Payroll Setup', changes });
-    return settingsForBrowser(db.data.settings);
+    return settingsForBrowser(db.data.settings, (p) => userCan(user, p));
   });
 
   // ----- Employees -----
   const empLabel = (e) => `${e.firstName} ${e.lastName} (${e.employeeNo})`;
-  route('GET', '/api/employees', 'employees.view', ({ user }) => db.data.employees.map((e) => employeeFor(user, e)));
+  // Every look at employee records is logged (once per person and 10 minutes), not only those with pay.
+  route('GET', '/api/employees', 'employees.view', ({ user }) => {
+    audit.view('employee.list', { entity: 'employee', label: `${db.data.employees.length} employees`, note: userCan(user, 'employees.sensitive') ? 'List with pay' : seesPersonal(user) ? 'List' : 'List without personal details' });
+    return db.data.employees.map((e) => employeeFor(user, e));
+  });
   // The full list, with government IDs and bank accounts, for the CSV export (logged).
   route('GET', '/api/employees/export', 'employees.sensitive', () => {
     audit.record('employee.export', { entity: 'employee', label: `${db.data.employees.length} employees`, note: 'Includes pay, government IDs and bank accounts' });
@@ -941,7 +1042,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   });
   route('GET', '/api/employees/:id', 'employees.view', ({ params, user }) => {
     const emp = findEmployee(db, params.id);
-    if (userCan(user, 'employees.sensitive')) audit.view('employee.view', { entity: 'employee', entityId: emp.id, label: empLabel(emp), note: 'Record with pay' });
+    audit.view('employee.view', { entity: 'employee', entityId: emp.id, label: empLabel(emp), note: userCan(user, 'employees.sensitive') ? 'Record with pay' : seesPersonal(user) ? 'Record' : 'Record without personal details' });
     return employeeFor(user, emp);
   });
   // Full government ID numbers and bank account: for the edit form and the "Show" button (logged).
@@ -960,7 +1061,10 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   route('PUT', '/api/employees/:id', 'employees.edit', ({ params, body, user }) => {
     const emp = findEmployee(db, params.id);
     const before = { ...emp };
-    Object.assign(emp, validateEmployee(body, db, emp.id), { updatedAt: new Date().toISOString() });
+    const next = validateEmployee(body, db, emp.id);
+    // Your own pay, schedule and status are changed by someone else.
+    if (OWN_LOCKED_FIELDS.some((f) => JSON.stringify(next[f] ?? null) !== JSON.stringify(emp[f] ?? null))) notOwnRecord(user, emp.id, 'pay, schedule or status');
+    Object.assign(emp, next, { updatedAt: new Date().toISOString() });
     db.save();
     const changes = diff(before, emp, EMPLOYEE_FIELDS);
     if (changes.length) audit.record('employee.update', { entity: 'employee', entityId: emp.id, label: empLabel(emp), changes });
@@ -999,6 +1103,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   };
   const ENTRY_FIELDS = ['date', 'type', 'timeIn', 'timeOut', 'otApproved', 'remote', 'leaveTypeId', 'paid', 'notes'];
   route('POST', '/api/time-entries', 'attendance.edit', ({ body, user }) => {
+    notOwnRecord(user, body?.employeeId, 'attendance or overtime');
     const entry = { id: randomUUID(), ...validateEntry(body, db) };
     db.data.timeEntries.push(entry);
     db.save();
@@ -1011,15 +1116,19 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     const entry = db.data.timeEntries.find((e) => e.id === params.id);
     if (!entry) throw new HttpError(404, 'Time entry not found.');
     const before = { ...entry };
-    Object.assign(entry, validateEntry(body, db, entry.id));
+    notOwnRecord(user, entry.employeeId, 'attendance or overtime');
+    notOwnRecord(user, body?.employeeId, 'attendance or overtime');
+    const next = validateEntry(body, db, entry.id);
+    Object.assign(entry, next);
     db.save();
     const warning = lockNote(lockedRun(before) || lockedRun(entry));
     audit.record('attendance.update', { entity: 'timeEntry', entityId: entry.id, label: entryLabel(entry), changes: diff(before, entry, ENTRY_FIELDS), note: warning });
     return { ...forViewer(user, entry), warning };
   });
-  route('DELETE', '/api/time-entries/:id', 'attendance.edit', ({ params }) => {
+  route('DELETE', '/api/time-entries/:id', 'attendance.edit', ({ params, user }) => {
     const entry = db.data.timeEntries.find((e) => e.id === params.id);
     if (!entry) throw new HttpError(404, 'Time entry not found.');
+    notOwnRecord(user, entry.employeeId, 'attendance or overtime');
     db.data.timeEntries = db.data.timeEntries.filter((e) => e.id !== params.id);
     db.save();
     const warning = lockNote(lockedRun(entry));
@@ -1034,16 +1143,37 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   registerGeoRoutes(route, db);
 
   // ----- Payroll -----
+  // A payroll run as an account may see it (VAPT 0.33): government ID and bank numbers masked on
+  // each payslip, as on employee records, and left out for accounts without employees.sensitive. The
+  // full bank accounts for the bank's payroll file come from the register export below, which is logged.
+  const runOut = (user, run) => ({
+    ...run,
+    payslips: (run.payslips || []).map((p) => {
+      const employee = { ...p.employee };
+      for (const f of PRIVATE_FIELDS) {
+        if (!userCan(user, 'employees.sensitive')) delete employee[f];
+        else if (MASKED_FIELDS.includes(f) && employee[f]) employee[f] = mask(employee[f]);
+      }
+      return { ...p, employee };
+    }),
+  });
   route('GET', '/api/payroll-runs', 'payroll.view', () =>
     db.data.payrollRuns.map(({ payslips, ...run }) => run).sort((a, b) => b.periodStart.localeCompare(a.periodStart)),
   );
   const runLabel = (run) => `${run.periodStart} to ${run.periodEnd} (pay date ${run.payDate})`;
-  route('GET', '/api/payroll-runs/:id', 'payroll.view', ({ params }) => {
+  route('GET', '/api/payroll-runs/:id', 'payroll.view', ({ params, user }) => {
     const run = findRun(db, params.id);
     audit.view('payroll.run.view', { entity: 'payrollRun', entityId: run.id, label: runLabel(run) });
+    return runOut(user, run);
+  });
+  // The register with full bank accounts, for the bank's payroll file (logged).
+  route('GET', '/api/payroll-runs/:id/register', 'payroll.view', ({ params, user }) => {
+    const run = findRun(db, params.id);
+    if (!userCan(user, 'employees.sensitive')) return runOut(user, run);
+    audit.record('payroll.register.export', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: 'Payroll register with bank accounts' });
     return run;
   });
-  route('POST', '/api/payroll-runs', 'payroll.edit', ({ body }) => {
+  route('POST', '/api/payroll-runs', 'payroll.edit', ({ body, user }) => {
     const { periodStart, periodEnd, payDate } = body;
     if (!DATE_RE.test(periodStart || '') || !DATE_RE.test(periodEnd || '')) throw new HttpError(400, 'Pick a valid pay period.');
     if (periodEnd < periodStart) throw new HttpError(400, 'Period end must be on or after period start.');
@@ -1063,32 +1193,40 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     db.data.payrollRuns.push(run);
     db.save();
     audit.record('payroll.run.create', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: `${run.payslips.length} payslips` });
-    return run;
+    return runOut(user, run);
   });
-  route('POST', '/api/payroll-runs/:id/recompute', 'payroll.edit', ({ params }) => {
+  route('POST', '/api/payroll-runs/:id/recompute', 'payroll.edit', ({ params, user }) => {
     const run = findRun(db, params.id);
     assertDraft(run);
     computeRun(db, run);
     db.save();
     audit.record('payroll.run.recompute', { entity: 'payrollRun', entityId: run.id, label: runLabel(run) });
-    return run;
+    return runOut(user, run);
   });
-  route('PUT', '/api/payroll-runs/:id/payslips/:employeeId', 'payroll.edit', ({ params, body }) => {
+  route('PUT', '/api/payroll-runs/:id/payslips/:employeeId', 'payroll.edit', ({ params, body, user }) => {
     const run = findRun(db, params.id);
     assertDraft(run);
+    notOwnRecord(user, params.employeeId, 'payslip');
     const slip = run.payslips.find((p) => p.employeeId === params.employeeId);
     if (!slip) throw new HttpError(404, 'Payslip not found.');
     const before = { ...slip.adjustments };
+    // Amounts are checked (VAPT 0.33): a number that is not finite, or past ₱100 million, is refused
+    // instead of turning the run's totals into nothing.
+    const amount = (v, what) => {
+      const n = v === '' || v == null ? 0 : Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > PAY_ADJUST_MAX) throw new HttpError(400, `${what} must be an amount from 0 to ${PAY_ADJUST_MAX.toLocaleString('en-PH')}.`);
+      return Math.round(n * 100) / 100;
+    };
     slip.adjustments = {
-      otherEarnings: Math.max(0, Number(body.otherEarnings) || 0),
-      otherDeductions: Math.max(0, Number(body.otherDeductions) || 0),
-      remarks: String(body.remarks || '').trim(),
+      otherEarnings: amount(body.otherEarnings, 'Other earnings'),
+      otherDeductions: amount(body.otherDeductions, 'Other deductions'),
+      remarks: String(body.remarks || '').trim().slice(0, 500),
     };
     computeRun(db, run);
     db.save();
     const changes = diff(before, slip.adjustments, ['otherEarnings', 'otherDeductions', 'remarks']);
     if (changes.length) audit.record('payroll.run.adjust', { entity: 'payrollRun', entityId: run.id, label: `${slip.employee.name}, ${runLabel(run)}`, changes });
-    return run;
+    return runOut(user, run);
   });
   // Finalizing locks the run and posts its payslips to the year-to-date ledger.
   route('POST', '/api/payroll-runs/:id/finalize', 'payroll.edit', ({ params, user }) => {
@@ -1108,7 +1246,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     }
     db.save();
     audit.record('payroll.run.finalize', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: `${run.payslips.length} payslips, net pay ₱${Number(run.totals?.netPay || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` });
-    return run;
+    return runOut(user, run);
   });
   // A finalized run is a record: it is voided (with a reason), never deleted or changed. Its
   // payslips leave the year-to-date totals; employees still see them, marked voided.
@@ -1121,7 +1259,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     voidRunRows(db, run, run.voidedAt);
     db.save();
     audit.record('payroll.run.void', { entity: 'payrollRun', entityId: run.id, label: runLabel(run), note: reason });
-    return run;
+    return runOut(user, run);
   });
   route('DELETE', '/api/payroll-runs/:id', 'payroll.edit', ({ params }) => {
     const run = findRun(db, params.id);
@@ -1152,6 +1290,12 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     }
     // Keep the current accounts unless the backup carries its own.
     replaceData(db, { ...backup, users: Array.isArray(backup.users) && backup.users.length ? backupUsers(backup.users) : users() });
+    // A backup from before 0.33: its tickets are linked to their accounts as at startup.
+    if (db.data.helpdesk && !db.data.helpdesk.ownersLinked) {
+      linkTicketOwners(db);
+      db.data.helpdesk.ownersLinked = true;
+      db.save();
+    }
     syncLedger(db) && db.save();
     // The accounts after a restore are on record: an account the backup added shows here.
     const admins = activeAdmins().map((u) => u.username).join(', ');
@@ -1162,6 +1306,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   route('GET', '/api/admin/demo', 'data.manage', () => ({ loaded: hasDemo(db), counts: demoCounts(db) }));
   route('POST', '/api/admin/demo', 'data.manage', () => {
     const counts = addDemo(db, { summarize, demoAccounts, removeFile: (a) => files.remove(a) });
+    // The demo tickets belong to the demo people's accounts.
+    linkTicketOwners(db, (t) => t.demo);
     syncLedger(db);
     db.save();
     audit.record('data.demo-load', { label: 'Demo data' });
@@ -1184,6 +1330,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   registerNotificationRoutes(route, db, { pm: projects.notifications });
   // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
   const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length });
+  // Admin panel → Security monitor, the health check and the metrics export (0.34).
+  registerMonitorRoutes(route, { db, monitor, audit, sec, rateLimits, routes, sessions: () => sessions.active() });
   // ----- Audit log (Administrators) -----
   route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
   route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());
@@ -1235,27 +1383,29 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   // Returns { data, headers }. handle.helpdesk exposes the mail poller (used by tests).
   async function handle(req, url, body) {
     const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+    // The route that answers, known before any check, so the monitor counts a refusal under it.
+    const r = routes.find((x) => x.method === req.method && x.re.test(url.pathname));
+    req.coreRoute = r ? r.pattern : null;
     // The bell's count is polled in the background: it does not keep an idle session alive.
     const session = sessions.get(token, { touch: !(req.method === 'GET' && url.pathname === '/api/notifications/count') });
     const user = session && users().find((u) => u.id === session.userId && u.active);
     const ip = clientIp(req);
     const client = { ip, ua: String(req.headers?.['user-agent'] || '').slice(0, 300), https: isHttps(req) };
+    req.coreUser = user?.id || null;
     if (user) limits.hit('api-user', user.id);
     else limits.hit('api-anon', ip);
     if (req.method === 'POST' && /^\/api\/auth\/(login|setup|2fa)$/.test(url.pathname)) limits.hit('auth', ip, 'Too many sign-in attempts from this network.');
     if (req.method !== 'GET' && url.pathname.startsWith('/api/public/')) limits.hit('public-write', ip, 'Too many messages from this network.');
     // Several CORE servers can share one process (the tests): each request uses its own company's roles.
     setRoleOverrides(db.data.roleOverrides);
-    for (const r of routes) {
-      if (r.method !== req.method) continue;
+    if (r) {
       const m = url.pathname.match(r.re);
-      if (!m) continue;
       authorize(r, user, req.method, url.pathname);
       const params = paramsOf(r, m);
       const actor = { user, ip, client, origin: publicOrigin(req), before: audit.count() };
       // A settings screen's save is recorded in the Settings center's history, before and after.
       const recordSettings = admin.settingsWatch(req.method, url.pathname);
-      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, client, origin: publicOrigin(req) }));
+      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, client, origin: publicOrigin(req), headers: req.headers || {} }));
       recordSettings?.(user);
       // A change with no entry of its own is still recorded, with its route (never its body).
       if (req.method !== 'GET' && user && audit.count() === actor.before && !UNAUDITED.test(url.pathname)) {
@@ -1267,6 +1417,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     throw new HttpError(404, 'Not found.');
   }
   handle.helpdesk = helpdesk;
+  handle.monitor = monitor;
   handle.projects = projects;
   // Whether the request carries a live session (server.js allows large uploads only then).
   handle.signedIn = (req) => {

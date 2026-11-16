@@ -34,21 +34,31 @@ export function imageIdsOf(text) {
 const URL_CHARS = String.raw`(?:[^\s<>"'()]|\([^\s<>"'()]*\))+`;
 const LINK_RE = new RegExp(String.raw`\[([^\]\n]+)\]\((${URL_CHARS})\)`, 'g');
 const BARE_RE = new RegExp(String.raw`(^|[\s(])(https?:\/\/${URL_CHARS})`, 'g');
+// Bold, italic, struck: on text already escaped (held pieces stay as their placeholders).
+const emphasis = (s) => s.replace(/\*\*\*(?=\S)(.+?)(?<=\S)\*\*\*/g, '<strong><em>$1</em></strong>')
+  .replace(/\*\*(?=\S)(.+?)(?<=\S)\*\*/g, '<strong>$1</strong>')
+  .replace(/(^|[^\w*])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?![\w*])/g, '$1<em>$2</em>')
+  .replace(/(^|[^\w*])\*(?=[^\s*])([^*\n]?)\*(?![\w*])/g, (all, pre, t) => (t ? `${pre}<em>${t}</em>` : all))
+  .replace(/(^|[^\w_])_(?=\S)([^_\n]*?\S)_(?![\w_])/g, '$1<em>$2</em>')
+  .replace(/~~(?=\S)(.+?)(?<=\S)~~/g, '<del>$1</del>');
 function inline(text, opts = {}) {
   const keep = [];
   const hold = (h) => `\u0000${keep.push(h) - 1}\u0000`;
   let s = String(text).replace(/\u0000/g, '');
   // Code first: nothing inside it is formatted.
   s = s.replace(/`([^`\n]+)`/g, (_, c) => hold(`<code>${esc(c)}</code>`));
+  // A backslash before a mark keeps the mark as text (the editor writes \* for a typed *).
+  s = s.replace(/\\([\\*_~`[\]|#>.+!()-])/g, (_, ch) => hold(esc(ch)));
   // A picture of the task inside a sentence.
   s = s.replace(/!\[([^\]\n]*)\]\(img:([0-9a-f-]{36})\)/g, (all, alt, id) => {
     const src = UUID.test(id) && opts.image ? opts.image(id) : null;
     return hold(src ? `<img class="rich-inline-img" src="${esc(src)}" alt="${esc(alt)}" loading="lazy" />` : `<span class="rich-missing">${esc(alt ? `Picture not found: ${alt}` : 'Picture not found')}</span>`);
   });
-  // [label](url): a web or mail link (brackets inside the address are kept); anything else stays as the text.
+  // [label](url): a web or mail link (brackets inside the address are kept); anything else stays as
+  // the text. Its words are formatted like the rest (with what is already held inside them).
   s = s.replace(LINK_RE, (all, label, url) => {
     const u = safeUrl(url);
-    return u ? hold(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${inline(label, opts)}</a>`) : all;
+    return u ? hold(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${emphasis(esc(label))}</a>`) : all;
   });
   // Bare web addresses become links (a full stop or comma after one is not part of it).
   s = s.replace(BARE_RE, (_, pre, url) => {
@@ -56,19 +66,19 @@ function inline(text, opts = {}) {
     const u = tail ? url.slice(0, -tail.length) : url;
     return `${pre}${hold(`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>`)}${tail}`;
   });
-  s = esc(s);
-  s = s.replace(/\*\*\*(?=\S)(.+?)(?<=\S)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(?=\S)(.+?)(?<=\S)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[^\w*])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?![\w*])/g, '$1<em>$2</em>')
-    .replace(/(^|[^\w*])\*(?=[^\s*])([^*\n]?)\*(?![\w*])/g, (all, pre, t) => (t ? `${pre}<em>${t}</em>` : all))
-    .replace(/(^|[^\w_])_(?=\S)([^_\n]*?\S)_(?![\w_])/g, '$1<em>$2</em>')
-    .replace(/~~(?=\S)(.+?)(?<=\S)~~/g, '<del>$1</del>');
-  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => keep[i]);
+  s = emphasis(esc(s));
+  // Held pieces back in (a link can hold others: repeat until none is left).
+  for (let n = 0; n < 4 && s.includes('\u0000'); n++) s = s.replace(/\u0000(\d+)\u0000/g, (_, i) => keep[i] ?? '');
+  return s.replace(/\u0000/g, '');
 }
 
 const ITEM = /^(\s*)([-*+]|\d{1,6}[.)])\s+(.*)$/;
 const IMAGE_LINE = /^!\[([^\]\n]*)\]\(img:([0-9a-f-]{36})\)$/;
 const TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+const tableAlign = (c) => {
+  const t = c.trim();
+  return t.startsWith(':') && t.endsWith(':') ? 'center' : t.endsWith(':') ? 'right' : t.startsWith(':') ? 'left' : null;
+};
 const isBlockStart = (l, next = '') => /^(#{1,3}\s|>|```|---+\s*$|\*\*\*+\s*$)/.test(l) || ITEM.test(l) || IMAGE_LINE.test(l.trim()) || (l.trim().startsWith('|') && TABLE_SEP.test(next));
 const indentOf = (l) => l.match(/^\s*/)[0].replace(/\t/g, '    ').length;
 
@@ -165,12 +175,16 @@ export function renderRich(text, opts = {}) {
       continue;
     }
     if (line.trim().startsWith('|') && TABLE_SEP.test(lines[i + 1] || '')) {
-      const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+      // Cells split at | (a \| inside a cell is text).
+      const cells = (l) => l.trim().replace(/^\||(?<!\\)\|$/g, '').split(/(?<!\\)\|/).map((c) => c.trim());
       const head = cells(line);
+      // A column's alignment, from its line under the header: :--- left, :---: centre, ---: right.
+      const align = cells(lines[i + 1]).map(tableAlign);
+      const cls = (k) => (align[k] === 'center' || align[k] === 'right' ? ` class="ta-${align[k]}"` : '');
       i += 2;
       const rows = [];
       while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(cells(lines[i++]));
-      out.push(`<div class="rich-table"><table><thead><tr>${head.map((c) => `<th>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+      out.push(`<div class="rich-table"><table><thead><tr>${head.map((c, k) => `<th${cls(k)}>${inline(c, opts)}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${head.map((_, k) => `<td${cls(k)}>${inline(r[k] || '', opts)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
       continue;
     }
     if (ITEM.test(line)) {
@@ -186,180 +200,161 @@ export function renderRich(text, opts = {}) {
   return out.join('\n');
 }
 
-// Plain text of a description (for lists, search and CSV): the formatting marks dropped.
+// Plain text of a description or comment (for notifications, lists, search, CSV and finding
+// @mentions): the formatting marks dropped, escaped marks (\_ in a username) back to themselves.
 export function richToText(text) {
   return String(text || '')
+    .replace(/\u200b/g, '')
+    .replace(/\\([\\*_~`[\]|#>.+!()-])/g, (_, c) => `\ue000${c.charCodeAt(0)}\ue001`)
     .replace(IMAGE_REF, (_, alt) => (alt ? `[${alt}]` : '[picture]'))
     .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, '$1 ($2)')
     .replace(/^#{1,3}\s+/gm, '')
+    .replace(/^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+(?:\[[ xX]\][ \t]+)?/gm, '')
+    .replace(/^[ \t]*>[ \t]?/gm, '')
+    .replace(/^[ \t]*```.*$/gm, '')
+    .replace(/^[ \t]*\|?[ \t]*:?-{2,}:?[ \t]*(\|[ \t]*:?-{2,}:?[ \t]*)*\|?[ \t]*$/gm, '')
+    .replace(/^[ \t]*\|(.*?)\|?[ \t]*$/gm, (_, cells) => cells.split('|').map((c) => c.trim()).join('  '))
+    .replace(/^[ \t]*(-{3,}|\*{3,})[ \t]*$/gm, '')
     .replace(/\*\*([^*\n]+)\*\*/g, '$1')
     .replace(/~~([^~\n]+)~~/g, '$1')
     .replace(/(^|[^\w*])\*([^*\n]+)\*/g, '$1$2')
-    .replace(/`([^`\n]+)`/g, '$1');
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\ue000(\d+)\ue001/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
-// ----- Editing (the toolbar): pure functions on the text and the selection -----
-// Each takes { value, start, end } and returns the new { value, start, end }.
+// ----- From the visual editor: a document model to Markdown -----
+// The editor (public/js/richeditor.js) reads what is on screen into this model; the model is
+// written as the Markdown above, so what is stored is always the same small, safe format.
+//
+//   Block:  { t: 'p', c: Inline[] } | { t: 'h', level: 1|2|3, c } | { t: 'quote', paras: Inline[][] }
+//           | { t: 'list', ordered, task, start, items: [{ c: Inline[], checked, sub: Block[] }] }
+//           | { t: 'code', text } | { t: 'hr' } | { t: 'img', id, alt }
+//           | { t: 'table', head: Inline[][], rows: Inline[][][] }
+//   Inline: { text, b, i, s, code, href } | { br: true } | { img: id, alt }
 
-// The marks at the start of a line the toolbar puts there: indent, then a bullet, number, checklist
-// box, quote or heading.
-const LINE_MARK = /^(\s*)((?:[-*+]|\d{1,6}[.)])\s+(?:\[[ xX]\]\s+)?|>\s?|#{1,3}\s+)?/;
-const BULLET = /^\s*[-*+]\s+(?!\[[ xX]\]\s)/;
-const NUMBER = /^\s*\d{1,6}[.)]\s+/;
-const TASK = /^\s*[-*+]\s+\[[ xX]\]\s+/;
+// Text as text: the marks are escaped, so a typed * or # stays a * or #.
+export const escapeMd = (s) => String(s).replace(/\\/g, '\\\\').replace(/([*_~`[\]|])/g, '\\$1');
+// A line that would otherwise start a block (# heading, > quote, - list, 1. list, ``` code, ---).
+const escapeLineStart = (line) => line.replace(/^(\s*)(#|>|[-+](?=\s|$)|\d+(?=[.)](?:\s|$))|`{3}|-{3})/, '$1\\$2');
+const sameMarks = (a, b) => !a.br && !b.br && !a.img && !b.img && a.b === b.b && a.i === b.i && a.s === b.s && a.code === b.code && (a.href || '') === (b.href || '');
+const cleanText = (s) => String(s ?? '').replace(/ /g, ' ').replace(/[​﻿]/g, '');
 
-// Wraps the selection in marks (**, *, ~~, `), or removes them when it is already wrapped. Over
-// several lines, each line is wrapped on its own (after its bullet or number), as marks do not reach
-// across lines.
-export function toggleWrap({ value, start, end }, mark, placeholder = 'text') {
-  const before = value.slice(0, start);
-  const sel = value.slice(start, end);
-  const after = value.slice(end);
-  if (sel.includes('\n')) {
-    const lines = sel.split('\n');
-    const parts = lines.map((l) => {
-      const head = l.match(LINE_MARK)[0];
-      return [head, l.slice(head.length)];
-    });
-    const filled = parts.filter(([, t]) => t.trim());
-    const all = filled.length > 0 && filled.every(([, t]) => t.trim().length >= mark.length * 2 && t.trim().startsWith(mark) && t.trim().endsWith(mark));
-    const next = parts.map(([head, t]) => {
-      if (!t.trim()) return head + t;
-      const lead = t.match(/^\s*/)[0];
-      const trail = t.slice(lead.length).match(/\s*$/)[0];
-      const core = t.slice(lead.length, t.length - trail.length);
-      return head + lead + (all ? core.slice(mark.length, -mark.length) : mark + core + mark) + trail;
-    }).join('\n');
-    return { value: before + next + after, start, end: start + next.length };
+// Inline runs -> one line of Markdown (a line break -> "\n", or `br` where given).
+export function inlineToMarkdown(runs, { br = '\n' } = {}) {
+  // Neighbours with the same marks become one run (**ab**, not **a****b**).
+  const merged = [];
+  for (const r of runs || []) {
+    const x = r.br || r.img ? { ...r } : { ...r, text: cleanText(r.text) };
+    const last = merged[merged.length - 1];
+    if (last && sameMarks(last, x) && !x.br && !x.img) last.text += x.text;
+    else if (x.br || x.img || x.text) merged.push(x);
   }
-  if (before.endsWith(mark) && after.startsWith(mark)) {
-    return { value: before.slice(0, -mark.length) + sel + after.slice(mark.length), start: start - mark.length, end: end - mark.length };
-  }
-  if (sel.length >= mark.length * 2 && sel.startsWith(mark) && sel.endsWith(mark)) {
-    const inner = sel.slice(mark.length, -mark.length);
-    return { value: before + inner + after, start, end: start + inner.length };
-  }
-  // Spaces at the ends of a selection stay outside the marks (**word** not ** word**).
-  const lead = sel.match(/^\s*/)[0];
-  const trail = sel.slice(lead.length).match(/\s*$/)[0];
-  const core = sel.slice(lead.length, sel.length - trail.length) || placeholder;
-  const v = before + lead + mark + core + mark + trail + after;
-  const s = start + lead.length + mark.length;
-  return { value: v, start: s, end: s + core.length };
-}
-
-// The whole lines the selection touches.
-function lineRange(value, start, end) {
-  const from = value.lastIndexOf('\n', start - 1) + 1;
-  let to = value.indexOf('\n', end > start && value[end - 1] === '\n' ? end - 1 : end);
-  if (to < 0) to = value.length;
-  return [from, to];
-}
-
-const PREFIX = {
-  bullet: { re: BULLET, make: () => '- ' },
-  number: { re: NUMBER, make: (n) => `${n}. ` },
-  task: { re: TASK, make: () => '- [ ] ' },
-  quote: { re: /^>\s?/, make: () => '> ' },
-};
-// Turns the lines into a list (bullets, numbers, a checklist) or a quote, or back to plain lines when
-// they all already are; indented lines keep their indent (a list inside a list). Headings go round:
-// plain → ## → ### → plain.
-export function toggleLines({ value, start, end }, kind) {
-  const [from, to] = lineRange(value, start, end);
-  const lines = value.slice(from, to).split('\n');
-  const filled = lines.filter((l) => l.trim());
-  const split = (l) => {
-    const m = l.match(LINE_MARK);
-    return { indent: m[1], mark: m[2] || '', text: l.slice(m[0].length) };
-  };
-  let make;
-  if (kind === 'heading') {
-    const level = (l) => (l.match(/^(#{1,3})\s+/) || ['', ''])[1].length;
-    const lv = filled.length ? Math.min(...filled.map(level)) : 0;
-    const allSame = filled.length > 0 && filled.every((l) => level(l) === lv);
-    const nextLevel = !allSame || lv === 0 ? 2 : lv === 2 ? 3 : lv === 1 ? 2 : 0;
-    make = () => (nextLevel ? `${'#'.repeat(nextLevel)} ` : '');
-  } else {
-    const p = PREFIX[kind];
-    const all = filled.length > 0 && filled.every((l) => p.re.test(l));
-    let n = 0;
-    make = () => (all ? '' : p.make(++n));
-  }
-  const next = lines.map((l) => {
-    if (!l.trim() && lines.length > 1) return l;
-    const { indent, text } = split(l);
-    // A heading or a quote starts at the margin; list items keep their indent.
-    return (kind === 'heading' || kind === 'quote' ? '' : indent) + make() + text;
-  }).join('\n');
-  const v = value.slice(0, from) + next + value.slice(to);
-  // One line and no selection: the cursor goes to the end of its marks, ready to type.
-  if (start === end && lines.length === 1) {
-    const pos = from + next.length - split(lines[0]).text.length + Math.max(0, start - from - (lines[0].length - split(lines[0]).text.length));
-    return { value: v, start: Math.min(pos, from + next.length), end: Math.min(pos, from + next.length) };
-  }
-  return { value: v, start: from, end: from + next.length };
-}
-
-// Puts a block (a picture, a line, a code block) on lines of its own at the cursor.
-export function insertBlock({ value, start, end }, block, select = null) {
-  const before = value.slice(0, start);
-  const after = value.slice(end);
-  const pre = !before || before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
-  const post = !after ? '\n' : after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n';
-  const v = before + pre + block + post + after;
-  const at = before.length + pre.length;
-  if (select) {
-    const k = block.indexOf(select);
-    if (k >= 0) return { value: v, start: at + k, end: at + k + select.length };
-  }
-  const pos = at + block.length + post.length;
-  return { value: v, start: pos, end: pos };
-}
-
-// A link: the selection becomes its label (or the address is the label when nothing is selected).
-export function makeLink({ value, start, end }, url) {
-  const u = safeUrl(url);
-  if (!u) return null;
-  const sel = value.slice(start, end).trim();
-  const text = `[${(sel || u).replace(/[[\]]/g, '')}](${u})`;
-  return { value: value.slice(0, start) + text + value.slice(end), start: start + text.length, end: start + text.length };
-}
-
-// Enter inside a list: the next line gets the next bullet, number or checklist box, at the same
-// indent. Enter on an empty item moves it out one level, or ends the list at the margin. Inside a
-// code block, or outside a list, returns null (the text box's own Enter applies).
-export function continueList({ value, start, end }) {
-  if (start !== end) return null;
-  const fences = (value.slice(0, start).match(/^\s*```/gm) || []).length;
-  if (fences % 2) return null;
-  const from = value.lastIndexOf('\n', start - 1) + 1;
-  const line = value.slice(from, start);
-  const q = line.match(/^(>)(\s?)(.*)$/);
-  if (q) {
-    if (!q[3].trim()) return { value: value.slice(0, from) + value.slice(start), start: from, end: from };
-    const ins = '\n> ';
-    return { value: value.slice(0, start) + ins + value.slice(end), start: start + ins.length, end: start + ins.length };
-  }
-  const m = line.match(/^(\s*)([-*+]|\d{1,6}[.)])(\s+)(\[[ xX]\]\s+)?(.*)$/);
-  if (!m) return null;
-  if (!m[5].trim()) {
-    // An empty item in a list inside a list: it becomes the next item of the list around it (the next
-    // number, or a bullet), at that list's indent. At the margin, the list ends.
-    if (m[1].length) {
-      const above = value.slice(0, from).split('\n').reverse();
-      for (const l of above) {
-        const pm = l.match(/^(\s*)([-*+]|\d{1,6}[.)])(\s+)(\[[ xX]\]\s+)?/);
-        if (!pm) continue;
-        if (pm[1].length >= m[1].length) continue;
-        const pn = pm[2].match(/^(\d+)([.)])$/);
-        const repl = `${pm[1]}${pn ? `${Number(pn[1]) + 1}${pn[2]}` : pm[2]}${pm[3]}${pm[4] ? '[ ] ' : ''}`;
-        return { value: value.slice(0, from) + repl + value.slice(start), start: from + repl.length, end: from + repl.length };
-      }
+  // Links take their runs together: [**a** b](url).
+  const out = [];
+  for (let k = 0; k < merged.length; k++) {
+    const r = merged[k];
+    if (r.br) { out.push(br); continue; }
+    if (r.img) { out.push(`![${cleanText(r.alt).replace(/[[\]\n]/g, ' ').trim()}](img:${r.img})`); continue; }
+    const href = r.href && safeUrl(r.href);
+    if (href) {
+      const group = [];
+      while (k < merged.length && !merged[k].br && !merged[k].img && merged[k].href === r.href) group.push({ ...merged[k++], href: null });
+      k--;
+      const label = inlineToMarkdown(group, { br: ' ' }).trim();
+      out.push(label ? `[${label}](${href})` : '');
+      continue;
     }
-    return { value: value.slice(0, from) + value.slice(start), start: from, end: from };
+    out.push(markRun(r));
+    // *italic* right next to a letter (pasted "<i>a</i>b") would not read as italic: an invisible
+    // separator keeps it apart (the editor drops it when reading back).
+    if (r.i && !r.code && !r.b) out[out.length - 1] = { em: out[out.length - 1] };
   }
-  const n = m[2].match(/^(\d+)([.)])$/);
-  const ins = `\n${m[1]}${n ? `${Number(n[1]) + 1}${n[2]}` : m[2]}${m[3]}${m[4] ? '[ ] ' : ''}`;
-  return { value: value.slice(0, start) + ins + value.slice(end), start: start + ins.length, end: start + ins.length };
+  return out.map((x, k) => {
+    if (typeof x === 'string') return x;
+    const prev = typeof out[k - 1] === 'string' ? out[k - 1] : out[k - 1]?.em || '';
+    const next = typeof out[k + 1] === 'string' ? out[k + 1] : out[k + 1]?.em || '';
+    return `${/\w$/.test(prev) && /^\*/.test(x.em) ? '\u200b' : ''}${x.em}${/^\w/.test(next) && /\*$/.test(x.em) ? '\u200b' : ''}`;
+  }).join('');
+}
+// One run with its marks; spaces at its ends stay outside them (**word** , not **word **).
+function markRun(r) {
+  if (r.code) {
+    const t = r.text.replace(/`/g, "'");
+    return t.trim() ? `\`${t}\`` : t;
+  }
+  const lead = r.text.match(/^\s*/)[0];
+  const rest = r.text.slice(lead.length);
+  const trail = rest.match(/\s*$/)[0];
+  const core = rest.slice(0, rest.length - trail.length);
+  if (!core) return r.text;
+  let t = escapeMd(core);
+  if (r.s) t = `~~${t}~~`;
+  if (r.i) t = `*${t}*`;
+  if (r.b) t = `**${t}**`;
+  return lead + t + trail;
+}
+const lines = (md) => md.split('\n');
+// The Markdown of a document model.
+export function modelToMarkdown(blocks) {
+  const out = [];
+  let prev = null;
+  for (const b of blocks || []) {
+    const md = blockToMarkdown(b, '');
+    if (md === null) continue;
+    // Two lists of the same kind one after the other stay two lists (two empty lines end a list).
+    const sep = prev && prev.t === 'list' && b.t === 'list' && prev.ordered === b.ordered ? '\n\n\n' : '\n\n';
+    out.push(out.length ? sep + md : md);
+    prev = b;
+  }
+  return out.join('').replace(/\n{4,}/g, '\n\n\n').trim();
+}
+function blockToMarkdown(b, indent) {
+  switch (b.t) {
+    case 'p': {
+      const md = inlineToMarkdown(b.c);
+      if (!md.trim()) return null;
+      return lines(md).map((l) => indent + escapeLineStart(l)).join('\n');
+    }
+    case 'h': {
+      const md = inlineToMarkdown(b.c, { br: ' ' }).trim();
+      return md ? `${'#'.repeat(Math.min(3, Math.max(1, b.level || 1)))} ${md}` : null;
+    }
+    case 'quote': {
+      const paras = (b.paras || []).map((c) => inlineToMarkdown(c)).filter((x) => x.trim());
+      if (!paras.length) return null;
+      return paras.map((p) => lines(p).map((l) => `> ${escapeLineStart(l)}`.trimEnd()).join('\n')).join('\n>\n');
+    }
+    case 'code': {
+      // Three backticks inside the code would end it: a zero-width joiner keeps them as text.
+      const text = String(b.text ?? '').replace(/\u00a0/g, ' ').replace(/\n+$/, '').replace(/```/g, '``\u200d`');
+      return `\`\`\`\n${text}\n\`\`\``;
+    }
+    case 'hr': return '---';
+    case 'img': return b.id ? `![${cleanText(b.alt).replace(/[[\]\n]/g, ' ').trim()}](img:${b.id})` : null;
+    case 'table': {
+      const cell = (c) => inlineToMarkdown(c, { br: ' ' }).trim() || ' ';
+      const width = Math.max(1, (b.head || []).length, ...(b.rows || []).map((r) => r.length));
+      const row = (cells) => `| ${Array.from({ length: width }, (_, k) => cell(cells[k] || [])).join(' | ')} |`;
+      const rule = (k) => ({ left: ':---', center: ':---:', right: '---:' })[b.align?.[k]] || '---';
+      return [row(b.head || []), `| ${Array.from({ length: width }, (_, k) => rule(k)).join(' | ')} |`, ...(b.rows || []).map(row)].join('\n');
+    }
+    case 'list': return listToMarkdown(b, indent);
+    default: return null;
+  }
+}
+function listToMarkdown(b, indent) {
+  const out = [];
+  let n = Number.isInteger(b.start) ? b.start : 1;
+  for (const item of b.items || []) {
+    const mark = b.ordered ? `${n++}. ` : b.task ? `- [${item.checked ? 'x' : ' '}] ` : '- ';
+    const pad = indent + ' '.repeat(b.ordered ? mark.length : 2);
+    const [first = '', ...more] = lines(inlineToMarkdown(item.c));
+    out.push(`${indent}${mark}${escapeLineStart(first).trimStart()}`.trimEnd() || `${indent}${mark}`.trimEnd());
+    for (const l of more) if (l.trim()) out.push(pad + l.trim());
+    for (const sub of item.sub || []) {
+      const md = blockToMarkdown(sub, pad);
+      if (md) out.push(md);
+    }
+  }
+  return out.join('\n');
 }

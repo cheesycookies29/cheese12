@@ -97,12 +97,13 @@ The three starter templates are under **Templates** in the filter.
 
 ### A task
 
-1. Click *Gradebook: import class lists from the SIS*. The task page has its description (with headings, steps and a link: see [Write a task's description](projects#write-a-tasks-description)), **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, **Watchers** and the linked service desk ticket on the right.
+1. Click *Gradebook: import class lists from the SIS*. The task page has its description (with headings, steps and a link: see [Write a task's description](projects#write-a-task-s-description)), **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, **Watchers** and the linked service desk ticket on the right.
 2. Tick *Test with the College of Engineering lists* in the checklist.
 3. Under **Details**, change **Status** to *For review*. Each change is saved at once and written in the history.
 4. **Size** says how big the task is: *S · Small (about a day)*. Pick another to change it; the line under it says what the size means. On a project that tracks time, a **Time** box under it shows the hours logged on the task and lets you log more.
-5. Under **Comments**, write a comment and mention someone with @ and their username, for example `@employee.demo`. The mention is highlighted, and Juan finds it under **For you** on his My work.
+5. Under **Comments**, write a comment and type **@**: a list of the project's people opens. Type *jua* and press Enter to put in `@employee.demo`. Click **Comment** (or press **Ctrl+Enter**). The mention is highlighted, and Juan finds it under **For you** on his My work. See [Comment on a task](projects#comment-on-a-task).
 6. At the top, **Watch** (or **Watching**) shows how many people watch the task; the **Watchers** box lists them. **Files** holds documents and photos for the task.
+7. Above the title, the path shows where you are: *Projects › Learning management system, phase 2 › Board › DEMO-PRJ-0001-7*. Click **Board** to go back to the board, or the project's name for its overview. See [Find your way with the path at the top](projects#find-your-way-with-the-path-at-the-top).
 
 ![A task](projects-task.jpg)
 
@@ -110,7 +111,7 @@ The three starter templates are under **Templates** in the filter.
 
 ### List, timeline and time
 
-1. Click the project's name at the top, then **List**: every task in a table, grouped by milestone (or by status), with the status, assignee, due date and **Size** editable in place. It has the same quick filters, search and **Views** as the board. Click a column title to sort; **Export CSV** saves what is shown.
+1. Click **Board** (or the project's name) in the path at the top, then **List**: every task in a table, grouped by milestone (or by status), with the status, assignee, due date and **Size** editable in place. It has the same quick filters, search and **Views** as the board. Click a column title to sort; **Export CSV** saves what is shown.
 2. Tick two tasks: a bar appears at the bottom with **Status**, **Assignee**, **Milestone**, **Priority**, **Size**, **Move dates**, **Watchers** and **Delete** for all the ticked tasks at once. **Clear selection** closes it. Project managers also have **Import tasks** at the top.
 3. Click **Timeline**: weeks across the top, milestones as diamonds, tasks as bars from their start to their due date (a dot when there is only a due date), a red line for today, and weekends and holidays shaded. It scrolls sideways; on a phone it is a list by date.
 4. Go back to **Overview** and open *SIS support and maintenance, 2025–2026*, the project that tracks time. Its **Time** tab has **Log time**, your entries this week, and the hours by person and by task, against the 300-hour budget.
@@ -161,7 +162,7 @@ The project opens. Its board starts with the statuses from the Projects setup. F
 
 1. Open the project and click **Edit** (or start a new one with **+ New project**).
 2. Under **Icon**, click a picture, then a colour. The tile above them shows how it will look.
-3. Or use your own picture, such as the client's logo: click **Upload a picture…** and choose a JPEG, PNG or WebP. CORE keeps a square from the middle of it (a transparent logo stays transparent).
+3. Or use your own picture, such as the client's logo: click **Upload a picture or GIF…** and choose a JPEG, PNG or WebP. CORE keeps a square from the middle of it (a transparent logo stays transparent). An animated GIF of up to 1 MB works too: it is kept as it is and moves beside the project's name (the tile shows its middle; it stands still for people whose device asks for less motion).
 4. Click **Save**.
 
 ![Picking a project's icon](projects-icon.jpg)
@@ -225,14 +226,53 @@ Progress counts the subtasks, not their parent. When most tasks (60% or more) ha
 
 ### Write a task's description
 
-1. Open the task and click **Edit** next to **Description** (or **Edit title and description**).
-2. Type the description. To format it, select words and use the toolbar: **Heading** (click again for a smaller one), **Bold**, *Italic*, ~~Strikethrough~~, `Code`, **Link**, a bulleted or numbered list, a **Checklist**, a quote and a line. Over several lines, bold and italic apply to each line. **Ctrl+B**, **Ctrl+I** and **Ctrl+K** (on a Mac ⌘) do bold, italic and a link; in a list, Enter starts the next item, and Enter on an empty item ends the list. For a list inside a list, type two or three spaces before the `-`; Enter on an empty inner item goes back to the outer list's next item.
-3. To add a picture, click the picture button and choose one, or paste a screenshot (Ctrl+V) or drag a picture into the text. It is added where the cursor is.
-4. Click **Preview** to see how it will look, then **Save**.
+1. Open the task and click **Edit** next to **Description** (or **Add a description…**). The description becomes the editor right where it is; **Edit title and description** at the top does the same in a window.
+2. Type. What you see is what is saved: bold looks bold, a list looks like a list, as you write.
+3. To format, select words and click **B**, *I*, **S** (strikethrough), **Code** or **Link** in the toolbar, or in the small menu that appears over the selection. **Text style** at the left makes the line a **Heading**, **Subheading** or **Small heading**. The other buttons make a bulleted list, a numbered list, a **Checklist**, a quote, a code block, a line, a table or a picture. A button that is on where the cursor is shows highlighted.
+4. Type **/** at the start of an empty line for a menu of everything you can add: headings, lists, a checklist, a quote, a code block, a line, a table or a picture. Keep typing to narrow it (for example */tab*), then press Enter.
+5. Click **Save** (or press **Ctrl+Enter**; on a Mac **⌘+Enter**). **Cancel** or **Esc** leaves without saving; CORE asks first when you changed something.
 
 ![Editing a task's description](projects-description.jpg)
 
-The toolbar writes simple marks into the text (`**bold**`, `- item`, `- [ ] to do`, `![caption](img:…)` for a picture), so you can also type them. A table is a line of `| Column | Column |`, then `|---|---|`, then a line per row. The checklist in a description is for reading; tick tasks off in the task's own **Checklist**. Pictures can be JPEG, PNG or WebP, up to 5 MB (a large photo is made smaller before it is sent), as many as you need; the words in brackets are the caption. Everyone who can open the project sees them; click one to open it full size. A picture you take out of the description is deleted when the description is saved. Pictures are added once the task exists: in **New task** the description can be formatted, and pictures come after **Add task**. Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab.
+Shortcuts, as in most editors: **Ctrl+B** bold, **Ctrl+I** italic, **Ctrl+K** a link, **Ctrl+E** code, **Ctrl+Z** undo (on a Mac ⌘). Typing at the start of a line also works: `- ` or `* ` starts a bulleted list, `1. ` a numbered list, `[] ` a checklist, `# `, `## ` or `### ` a heading, `> ` a quote, and ` ``` ` then Enter a code block. In a list, **Enter** adds the next item, **Tab** puts an item inside the one above (Shift+Tab takes it back out), and **Enter** on an empty item ends the list. In a table, **Tab** moves to the next cell (Shift+Tab the one before) and adds a row at the end; **Shift+F10** opens the table's menu. Click a checklist box to tick it; tick tasks off for real in the task's own **Checklist**.
+
+Pictures: click the picture button, or paste a screenshot (Ctrl+V), or drag a picture into the text; it uploads where the cursor is, and its × removes it. JPEG, PNG or WebP, up to 5 MB each (a large photo is made smaller first), as many as you need. Everyone who can open the project sees them; click one on the task page to open it full size. A picture taken out of the description is deleted when the description is saved. In **New task** the description can be written and formatted; pictures come after **Add task**.
+
+Pasting from a web page, Word or an email keeps bold, italic, lists, headings, links and tables, and drops everything else (colours, fonts, scripts). Links open web pages (`https://…`) or an email (`mailto:…`) in a new tab; in the editor, Ctrl+click opens one.
+
+### Comment on a task
+
+1. Open the task and scroll to **Comments**. The box is the same editor as the description, a little smaller: type, and format with the toolbar, the small menu over selected text, **/** for lists, a checklist, a quote, code, a table and more, or the same shortcuts (**Ctrl+B**, `- `, `1. `…). See [Write a task's description](projects#write-a-task-s-description).
+2. To mention someone, type **@**: the people on the project are listed. Keep typing their name or username to narrow it, then press Enter or Tab (or click one). They hear of it under **For you**, and the mention is highlighted in the comment.
+3. Click **Comment**, or press **Ctrl+Enter** (on a Mac **⌘+Enter**).
+
+![The comments on a task, with the comment box](projects-comment.jpg)
+
+A comment can be up to 4,000 characters. Pictures do not go in a comment: add them to the task's **Files**. What you are writing stays in the box when you change the task (its status, its assignee…) while you write. You can delete your own comments; a project manager can delete any. Comments written before this editor show as they were written.
+
+### Change a table's rows and columns
+
+1. In the description editor, click in a cell of the table. A small bar shows over the table.
+2. Its buttons add a row **above** or **below** the cell you are in, or a column to its **left** or **right**, and delete that cell's **row** or **column**. The new row or column is empty, with the cursor in it.
+3. For everything, click **…** on the bar, or right-click a cell (or press **Shift+F10**): **Insert** rows and columns, **Move row up** or **down**, **Move column left** or **right**, **Align column** left, center or right (good for amounts), and **Delete row**, **Delete column** or **Delete table**. Choices that cannot apply (moving the last column right) are greyed out.
+4. **Ctrl+Z** (⌘+Z) undoes a change to the table, like any other.
+
+![A table's bar and menu in the description editor](projects-table.jpg)
+
+The first row is the table's header and shows shaded. Adding a row above it, moving another row up into its place or deleting it makes another row the header. Deleting the last row or column deletes the table. On a phone, the bar keeps the buttons that add rows and columns; delete with **…**. Right-click with **Shift** held shows the browser's own menu (to copy or paste).
+
+### Find your way with the path at the top
+
+On a project's pages and its tasks, a path above the title shows where you are, for example *Projects › Learning management system, phase 2 › List › Gradebook reports › DEMO-PRJ-0001-15*. Each part is a link:
+
+1. **Projects** goes back to all your projects (**Templates** for a template).
+2. The project's name opens its **Overview**. The small arrow beside it lists your other projects, open ones first: pick one to open the same view of it (its board, its list…).
+3. On a task, the next part is the view you opened the task from (**Board**, **List**, **Timeline**…). It takes you back to it as you left it, with your filters and search; for a task you opened from somewhere else (My work, a link, a notification), it is **Board**.
+4. For a subtask, the task it belongs to comes next. The last part, in bold, is the page you are on: the view, or the task's key.
+
+![The path at the top of a task, with the list of projects open](projects-breadcrumbs.jpg)
+
+On a phone the path is shortened to *Projects › … › the part above › here*: tap **…** to see all of it.
 
 ### Size a task
 
@@ -371,7 +411,7 @@ On a project that tracks time:
 2. Pick the **Date**, enter the **Hours** (quarter hours: 0.25, 0.5, 1.75…), pick the **Task** or *No task* for meetings and project work, and add a **Note**.
 3. Click **Log time**.
 
-Or fill in a whole week at once on your **Timesheet** (below). If the hours you logged on a day are more than your attendance in the DTR shows, CORE saves them and only flags them (*More than attended*). Only you, the project's managers and people who see attendance see that check. You can delete your own entries; a project manager can delete any.
+Or fill in a whole week at once on your **Timesheet** (below). If the hours you logged on a day are more than your attendance in the DTR shows, CORE saves them and only flags them (*More than attended*). Only you and the people who see attendance in HR see that check; a project's managers see the hours logged, not your attendance. You can delete your own entries; a project manager can delete any.
 
 ### Fill in your timesheet
 
@@ -389,7 +429,7 @@ Each cell is one entry: changing it changes that entry, and emptying it removes 
 1. Open **Timesheet**, and pick the person under **Timesheet of**. Or click their name under **By person** on the project's **Time** tab.
 2. Move between weeks as on your own.
 
-You see the projects you manage that track time, read only: only the person changes their hours (a manager can still delete a wrong entry on the **Time** tab). You also see their **Clocked in (DTR)** row.
+You see the projects you manage that track time, read only: only the person changes their hours (a manager can still delete a wrong entry on the **Time** tab). Their **Clocked in (DTR)** row is not shown to you: attendance is for the person and for HR.
 
 
 ### Read the milestone burn-up
@@ -485,7 +525,7 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 | A project: List | Every task in a table grouped by milestone or status, edited in place, with its size; quick filters, search and **Views**; ticked tasks changed together (bulk edit); **Export CSV**; **Import tasks** (managers) |
 | A project: Timeline | Weeks across, milestones and tasks along a line, today, weekends and holidays; a dated list on a phone |
 | A project: Time | Only on a project that tracks time: log hours; your entries this week; the hours by person (open a member's timesheet) and by task, against the budget |
-| A task | Details (with the size), checklist, subtasks, files, blocked by, comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
+| A task | Details (with the size), checklist, subtasks, files, blocked by, formatted comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
 | My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date; **Comfortable** or **Compact** rows |
 | Timesheet | Your hours on the projects that track time, Monday to Sunday, with your DTR next to it for comparison; your members' timesheets, read only (project managers) |
 | Projects setup | The statuses new projects start with, the project types, what the effort sizes mean, and the daily digest (Project Managers); team access (administrators) |

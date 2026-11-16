@@ -1,7 +1,8 @@
 // CORE home: the first page after sign-in. A greeting, the modules this account can open
 // (with a few live figures), the roadmap, and administration shortcuts.
 import { api } from '../api.js';
-import { ctx, can, roleLabel, mayUseModule, moduleOn, panelAccess } from '../state.js';
+import { ctx, can, mayUseModule, moduleOn, panelAccess } from '../state.js';
+import { companyRoleOf } from '/shared/profile.js';
 import { MODULES } from '../modules.js';
 import { roleOverrides } from '/shared/roles.js';
 import { unseenCount } from './devlog.js';
@@ -125,7 +126,7 @@ export async function launcherView(el) {
         <p class="hub-kicker">${today}</p>
         <h1>${greeting()}, ${u.name.split(' ')[0]}</h1>
         <p>Welcome to CORE, the ERP of ${ctx.settings.companyName}. Choose a module to continue.</p>
-        <span class="hub-role">${icon('user', 14)} ${roleLabel(u.role)}</span>
+        <a class="hub-role" href="#/profile" title="Your profile">${icon('user', 14)} ${companyRoleOf(u)}</a>
       </div>
     </section>
 

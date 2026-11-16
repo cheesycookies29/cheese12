@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Administering CORE
-summary: For administrators: the Admin panel. User accounts, roles and permissions, access grants, modules, the Settings center, company settings and branding, sign-in security, the audit log, the dev log, feedback, backups and demo data, and editing the Help guides.
+summary: For administrators: the Admin panel. User accounts, roles and permissions, access grants, modules, the Settings center, company settings and branding, sign-in security, the security monitor, the audit log, the dev log, feedback, backups and demo data, and editing the Help guides.
 roles: admin
 apps: system, home
 order: 60
@@ -15,7 +15,7 @@ Everything an administrator looks after is in one place, the **Admin panel**, in
 
 - On the **CORE home**, the **Administration** section starts with the **Admin panel** card, followed by shortcuts to **Users & Access**, the **Settings center**, the **Dev log** and the **Feedback inbox**.
 - In every module, the side menu ends with **Administration → Admin panel** (the number next to it counts new feedback and dev log releases you have not opened). The **modules** button at the top right also lists **Admin panel**.
-- The Admin panel has its own side menu: **Dashboard**; **People** (**Users & Access**, **Roles & permissions**, **Access grants**); **Configuration** (**Settings center**, **Modules**, **Settings & branding**, **Sign-in & security**, **Help & guides**); **Records** (**Audit log**, **Dev log**, **Feedback inbox**); **Data** (**Backup & restore**, **Demo data**); and **Elsewhere** (**CORE home**, **Send feedback**).
+- The Admin panel has its own side menu: **Dashboard**; **People** (**Users & Access**, **Roles & permissions**, **Access grants**); **Configuration** (**Settings center**, **Modules**, **Settings & branding**, **Sign-in & security**, **Help & guides**); **Records** (**Security monitor**, **Audit log**, **Dev log**, **Feedback inbox**); **Data** (**Backup & restore**, **Demo data**); and **Elsewhere** (**CORE home**, **Send feedback**).
 - Old links still work: an address such as `#/settings` or `#/users` opens the page in the Admin panel.
 
 The first administrator is created the first time CORE starts: CORE asks for a name, a username and a password. Keep at least two administrator accounts, so one can help the other. To try things out, load the demo data (see [Load or remove the demo data](#load-or-remove-the-demo-data)). It adds the demo accounts `hr.demo`, `payroll.demo`, `it.demo`, `sales.demo`, `pm.demo` and `employee.demo`, all with the password `demo1234`.
@@ -29,7 +29,7 @@ A first tour of the Admin panel, signed in as `admin` with the demo data loaded.
 1. Sign in and choose the **Admin panel** card under **Administration** on the CORE home. The **Dashboard** opens.
 2. The line under the title is the **version** of CORE and the build it runs.
 3. **People** counts the active accounts (and the disabled ones), the accounts **signed in now**, how many have **2-step verification on** (and how many must still set it up), and **temporary passwords not changed** yet. Below, the active accounts by account type.
-4. **Security, last 24 hours** counts **failed sign-ins**, wrong 2-step codes and **usernames locked**, and shows the **Audit log check**: *Intact* when no entry was changed since it was written.
+4. **Security, last 24 hours** counts **failed sign-ins**, wrong 2-step codes and **usernames locked**, and shows the **Audit log check**: *Intact* when no entry was changed since it was written. **Security monitor**, beside it, opens the full picture (see [Watch the security monitor](#watch-the-security-monitor)).
 5. **Modules** shows which modules are on; **Waiting for you**, feedback awaiting a reply and dev log releases you have not opened; **Data**, the size of the data file and the attached files, when a backup was **last downloaded** and whether the demo data is loaded. Each part links to its page.
 
 ![The Admin panel dashboard](admin-dashboard.jpg)
@@ -72,7 +72,7 @@ A first tour of the Admin panel, signed in as `admin` with the demo data loaded.
 
 1. Open **Admin panel → Users & Access** and click **+ Add user**.
 2. Enter the **Full name** and a **Username** (3 to 32 letters, numbers, dots, dashes or underscores).
-3. Pick the **Account type**. What it may do is shown under it.
+3. Type their **Role in the company**, such as *Software Engineer* (empty means *Employee*), and pick the **Account type**. What the account type may do is shown under it.
 4. Under **Linked employee record**, pick the person's employee record. It is required for an *Employee* account and gives other account types the **My account** pages (their own attendance, payslips and requests).
 5. Type a **Temporary password** of at least 8 characters, leave **Ask them to choose a new password at first sign-in** ticked, and click **Create user**.
 
@@ -92,6 +92,13 @@ Give the person their username and temporary password privately. They choose the
 | Employee | Self-service only |
 
 These are CORE's defaults; your company can change them under **Roles & permissions**.
+
+### Set someone's role in the company
+
+1. Open their profile: click their name in **Admin panel → Users & Access** (or anywhere their name is a link).
+2. Click **Change role in the company**, type the role (CORE suggests the ones already in use) and click **Save role**. Empty means *Employee*.
+
+Or edit the user under **Users & Access**: **Role in the company** is in the same form. Only administrators can change it; the change is in the audit log. Everyone sees it beside the person's name at the top right and on their profile. It is a job title only: what the person can open is still their **account type** and any access grants, and their profile shows both (*What they can open*, for you and for them).
 
 ### Change what an account type may do
 
@@ -179,7 +186,7 @@ A module that is off disappears from the CORE home, the modules menu and the sid
 
 While a module is off, its notifications are hidden from the bell of everyone except administrators; they come back when it is turned on again.
 
-Self-service belongs to the module it is part of. With **HR & Payroll** off, employees no longer clock in or out, file leave or see their payslips in CORE (**My Home**, **My Attendance**, **My Requests**, **My Payslips** and **My Profile** go with it); **My Assets** stays with IT Asset Management and **My tickets** with the service desk. The holiday calendar can still be read, because Projects counts working days by it. Buttons that lead into a module that is off (*Add to a project* or *Send to Sales & CRM* on a ticket, *Start project* on a deal) are hidden.
+Self-service belongs to the module it is part of. With **HR & Payroll** off, employees no longer clock in or out, file leave or see their payslips in CORE (**My Home**, **My Attendance**, **My Requests**, **My Payslips** and **My HR record** go with it); **My Assets** stays with IT Asset Management and **My tickets** with the service desk. The holiday calendar can still be read, because Projects counts working days by it. Buttons that lead into a module that is off (*Add to a project* or *Send to Sales & CRM* on a ticket, *Start project* on a deal) are hidden.
 
 ![Modules](admin-modules.jpg)
 
@@ -286,9 +293,39 @@ Demo records are numbered *DEMO-…*. Demo employees are included in new payroll
 2. Set **From** and **To**, an area (**Sign-in**, **User accounts**, **Employees**, **Payroll**, **Settings**, **Backup & data** and others) and a person under **Everyone**. Type in the search box to find a name, record or change.
 3. Click **Export CSV** for a file of the entries shown.
 
-The log records every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, payroll setup, holidays, users and settings, field by field; changes to roles and permissions and to modules; views of records with pay or full ID numbers; certificate openings; backups, restores, demo data and erasing; and changes in the other modules. Government ID and bank numbers appear masked. Entries cannot be edited or deleted from CORE.
+The log records every sign-in and failed sign-in, every change to employees, pay, attendance, leave, payroll runs, payroll setup, holidays, users and settings, field by field; changes to roles and permissions and to modules; views of records with pay or full ID numbers; certificate openings; backups, restores, demo data and erasing; and changes in the other modules. Every look at employee records is logged too, once per person and record in 10 minutes. Government ID and bank numbers appear masked, and names or notes are kept without control characters. Entries cannot be edited or deleted from CORE.
 
-> **Important:** If the notice says **The log was altered**, the file was edited outside CORE at the entry it names. Keep a copy of the `data` folder and find out who had access to the computer or server.
+> **Important:** If the notice says **The log was altered**, the file was edited outside CORE at the entry it names. If it says **Entries are missing**, lines were removed from the end of the file outside CORE (CORE remembers its last entry, sealed with the server's key, so this shows even after a restart). Either way, keep a copy of the `data` folder and find out who had access to the computer or server.
+
+### Watch the security monitor
+
+**Admin panel → Security monitor** shows how CORE is doing: whether the software is healthy, what the API refused and from where, how much CORE is used and how fast it answers, and who is signed in. It refreshes every minute while it is open. It is for administrators, and for any account type given **Security monitor** under **Roles & permissions**.
+
+1. Open **Admin panel → Security monitor**.
+2. Choose the period above the figures: **Last hour**, **24 hours**, **7 days** or **30 days**. Every figure and chart on the page follows it.
+3. Choose a tab: **Software status**, **API security**, **Traffic** or **User activity**. The four figures at the top sum them up and open them too.
+
+| Tab | What it shows |
+|---|---|
+| Software status | Checks, each marked **Fine**, **Look at this**, **Problem** or **Note**, problems first, with the reason and a link to where it is fixed: the versions of CORE and Node.js (and when Node.js stops getting security fixes), server errors, memory, responsiveness, disk space, the audit log check, the last backup, who can read the data files, demo data left loaded, HTTPS, rate limits, the 2-step policy and administrators without it, temporary passwords, accounts unused for 90 days and common passwords. **This server** shows the build, the system, how long CORE has run and the size of its files; the charts show memory and responsiveness |
+| API security | Refused requests and failed sign-ins over the period; **Addresses to watch** (20 refused requests, 5 failed sign-ins or a locked username); **Refusals by kind**, each with the OWASP API Security Top 10 item it guards against; **Sign-in events**; the **Controls in force**, as set now; the **API inventory**: how many API addresses CORE has, which are open without signing in, how many need a permission |
+| Traffic | Page views, the API's response time (median, p95 and p99), server errors and data sent; the **busiest** and **slowest API routes**; the answers by status |
+| User activity | Who is **signed in now** (device, network address, when they signed in and were last active); how many people used CORE today, this week and this month; sign-ins and actions over the period; **what people worked on**; the **most active** people; the **recent sign-ins**, failed ones included |
+
+Point at a chart, or select it and use the arrow keys, to read each period; **Show the numbers** lists them all.
+
+![The security monitor](admin-monitor.jpg)
+
+> **Tip:** An office shares one network address, so an address to watch is often your own office. Check the audit log for who used it before blocking anything. Block addresses at the firewall or in AWS, not in CORE.
+
+### Connect an uptime checker or a metrics server
+
+For a tool outside CORE that watches it: an uptime checker such as Uptime Kuma or an AWS load balancer, or a metrics server such as Prometheus with Grafana.
+
+1. For an uptime checker, use the **health check** address shown at the bottom of **Security monitor → API security**. It ends in `/api/public/health` and answers `{"status":"ok"}` while CORE runs, with nothing else and without signing in.
+2. For metrics, click **Make a token** under **Monitoring from another tool**. Copy the token at once: CORE keeps only a fingerprint of it and cannot show it again.
+3. Set the metrics server to read the **Metrics** address with the header `Authorization: Bearer` and the token. The answer is in the Prometheus format: requests by route and status, response times, refusals by kind, sign-ins, sessions, the audit log check and each status check. It has no names and no network addresses.
+4. **Replace the token** makes a new one and stops the old one at once; **Revoke** turns metrics off. Both are written in the audit log.
 
 ### Write a dev log entry
 
@@ -355,6 +392,7 @@ Setting these up is described in CORE's README file and in the server set-up ins
 | Settings & branding | Company details printed on payslips, the default work schedule, the brand colour, the logo and the sign-in headline |
 | Sign-in & security | 2-step verification policy, session lengths, request and failed sign-in limits, common passwords |
 | Help & guides | Every guide and whether the company edited it; links to the guide editor |
+| Security monitor | For a period (an hour to 30 days): software status checks; API security (refusals, addresses to watch, controls, the API inventory, the metrics export); traffic and response times; who is signed in and what people worked on |
 | Audit log | Who viewed or changed personal data, payroll, attendance, leave, roles and settings, and every sign-in; the integrity check; CSV export |
 | Dev log | The version installed and every release of CORE; write and edit entries; export CHANGELOG.md |
 | Feedback inbox | Feedback from everyone: read, respond, set the status, export |
@@ -385,6 +423,15 @@ Yes, with one of their recovery codes instead of the app's code. If they have no
 
 **People in the office are told there are too many failed sign-ins from this network.**
 Everyone behind one internet address shares the count. Raise **Failed sign-ins per network address** in **Admin panel → Sign-in & security**, or wait 15 minutes.
+
+**Does the security monitor read what people type, or follow them around?**
+No. It counts what the server already sees: which kind of address was asked for (such as *GET /api/employees/:id*, never the record), whether it was answered or refused, how long it took and from which network address. It never keeps what was sent, searched for or shown. Network addresses are kept for 7 days; the counts for 90 days, in `data/monitor.json`, which is not part of backups. It is there for the same reasons as the audit log: security and accountability under the Data Privacy Act.
+
+**The security monitor says Node.js support ends soon. What do I do?**
+Nothing urgent: it says so six months ahead. Install the version it names when you next update the server (the AWS set-up in `deploy/aws/EC2.md` installs Node.js with the operating system's updates). The Windows app comes with its own Node.js, so a new CORE release brings the new version.
+
+**Why does the security monitor's history start again sometimes?**
+It keeps its counts in `data/monitor.json`, saved every minute and when CORE stops. A copy restored to another server starts its own history, as the counts describe the server, not the company's records.
 
 **Why is the audit log not in the backup?**
 It is kept in its own file, `data/audit-log.jsonl`, so that restoring a backup, loading demo data or erasing all data can never change it. Each entry carries a fingerprint of the one before it, which is how the page can tell when the file was edited. Copy the `data` folder to keep it.

@@ -42,7 +42,8 @@ export function registerFeedbackRoutes(route, db) {
   });
 
   // What this user sent, with the administrators' replies (but not who exactly is behind the "Administrator" label).
-  route('GET', '/api/me/feedback', 'auth', ({ user }) => newestFirst(all().filter((f) => f.userId === user.id)));
+  // (VAPT 0.33: the replies go out without the administrator's name, not only hidden on the page.)
+  route('GET', '/api/me/feedback', 'auth', ({ user }) => newestFirst(all().filter((f) => f.userId === user.id)).map((f) => ({ ...f, updates: (f.updates || []).map(({ at, status, note }) => ({ at, status, note })) })));
 
   route('GET', '/api/feedback', 'feedback.view', () => newestFirst(all()));
   route('GET', '/api/feedback/summary', 'feedback.view', () => ({ new: all().filter((f) => f.status === 'new').length }));

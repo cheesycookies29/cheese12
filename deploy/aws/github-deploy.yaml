@@ -12,6 +12,12 @@ Parameters:
     Type: String
     Default: cheesycookies29/cheese12
     Description: owner/name of the GitHub repository allowed to deploy.
+  DeployBranch:
+    Type: String
+    Default: claude/busy-curie-hfpbg0
+    Description: >-
+      The only branch whose workflow runs may deploy (the branch in .github/workflows/deploy-ec2.yml).
+      Other branches, tags and pull requests of the repository cannot use the deploy role.
   CreateGitHubConnection:
     Type: String
     Default: 'Yes'
@@ -51,8 +57,8 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-              StringLike:
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:*
+                # Only runs on the deploy branch (VAPT 0.33): not other branches, tags or pull requests.
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:ref:refs/heads/${DeployBranch}
       Policies:
         - PolicyName: send-deploy-command
           PolicyDocument:

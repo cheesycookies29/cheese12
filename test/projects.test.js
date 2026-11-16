@@ -464,11 +464,13 @@ test('comments with @mentions, own deletes; time over the attended hours is flag
   await admin('POST', '/api/time-entries', { employeeId: juan.employeeId, date, type: 'work', timeIn: '09:00', timeOut: '13:00' });
   const r = await juan('POST', `/api/pm/projects/${base.id}/time`, { date, hours: 5, note: 'Long day' });
   assert.match(r.warning, /more than the 4 h your attendance shows. It is saved; this is only for your information/);
-  const time = await pia('GET', `/api/pm/projects/${base.id}/time`);
+  const time = await juan('GET', `/api/pm/projects/${base.id}/time`);
   const entry = time.entries.find((x) => x.id === r.id);
   assert.equal(entry.overAttended, true);
   assert.equal(entry.attended, 4);
-  // Another member does not see a colleague's attendance; the entry's owner and managers can delete.
+  // The project's manager sees the hours logged but not the attendance (0.33); nor does another member.
+  assert.equal((await pia('GET', `/api/pm/projects/${base.id}/time`)).entries.find((x) => x.id === r.id).attended, undefined);
+  // The entry's owner and managers can delete.
   const asVic = await vic('GET', `/api/pm/projects/${base.id}/time`);
   assert.equal(asVic.entries.find((x) => x.id === r.id).attended, undefined);
   await assert.rejects(vic('DELETE', `/api/pm/projects/${base.id}/time/${r.id}`), /your own time entries/);

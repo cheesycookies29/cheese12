@@ -33,13 +33,13 @@ export async function adminDashboardView(el) {
     </section>` : ''}
 
     ${s ? html`<section class="dash-section" aria-labelledby="dash-security">
-      <div class="card-head"><h2 id="dash-security">${icon('shield')} Security, last 24 hours</h2><a href="#/admin/audit?area=auth" class="small">Audit log ${icon('chevronRight', 14)}</a></div>
+      <div class="card-head"><h2 id="dash-security">${icon('shield')} Security, last 24 hours</h2><span class="dash-links">${can('security.monitor') ? html`<a href="#/admin/monitor" class="small">Security monitor ${icon('chevronRight', 14)}</a>` : ''}<a href="#/admin/audit?area=auth" class="small">Audit log ${icon('chevronRight', 14)}</a></span></div>
       <div class="stats">
         ${stat('Failed sign-ins', s.failedSignIns, '/admin/audit?area=auth', { warn: s.failedSignIns >= 10 })}
         ${stat('Wrong 2-step codes', s.wrongCodes, '/admin/audit?area=auth')}
         ${stat('Usernames locked', s.locks, '/admin/audit?area=auth', { warn: s.locks > 0 })}
         <a class="card ${s.chain.ok ? '' : 'attention'}" href="#/admin/audit"><small>Audit log check</small><strong class="${s.chain.ok ? 'ok-text' : 'bad-text'}">${s.chain.ok ? 'Intact' : 'Altered'}</strong>
-          <span class="muted small block">${s.chain.ok ? `${plural(s.chain.count, 'entry', 'entries')}, none changed` : `At entry ${s.chain.brokenAt}`}</span></a>
+          <span class="muted small block">${s.chain.ok ? `${plural(s.chain.count, 'entry', 'entries')}, none changed` : s.chain.missingFrom ? `Entries missing from ${s.chain.missingFrom}` : `At entry ${s.chain.brokenAt}`}</span></a>
       </div>
     </section>` : ''}
 

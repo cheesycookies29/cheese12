@@ -9,6 +9,27 @@ order: 2
 
 ## November 2026
 
+### A security monitor for administrators (0.34)
+- **Admin panel → Security monitor** shows, for the last hour up to 30 days: **software status** checks (Node.js support dates, errors, memory, disk, backups, HTTPS, rate limits, 2-step verification), each with what to do; **API security** (refused requests by kind, network addresses to watch, the controls in force, the list of API addresses); **traffic** (requests and response times by route); and **user activity** (who is signed in now, people active today, this week and this month, sign-ins, what people worked on). It refreshes every minute, and a health check and a metrics export let an outside tool watch CORE too. See [the admin guide](admin#watch-the-security-monitor).
+
+### Everyone has a profile, with a role in the company (0.32)
+- **My profile**, under your name at the top right, shows your role in the company (such as *Software Engineer*), your account, your employment and which modules you can open. Click a colleague's name in a project, a task or a comment for their profile. The role is set by administrators and says *Employee* until then; the top bar now shows it instead of the account type. HR's *My Profile* page is now **My HR record**. See [the getting started guide](getting-started#see-your-profile-and-a-colleague-s) and, for administrators, [the admin guide](admin#set-someone-s-role-in-the-company).
+
+### Moving pictures: GIFs for your picture and project icons (0.31)
+- Your profile picture and a project's own icon can be an animated GIF (up to 1 MB): it is kept as it is and moves wherever it shows. If your device is set to reduce motion, GIFs show standing still. See [Add your profile picture](getting-started#add-your-profile-picture) and [the projects guide](projects#give-a-project-its-icon).
+
+### Comments in the new editor (0.30)
+- A task's comment box is now the same editor as the description: bold, lists, checklists, quotes, code and tables, as they will look. Type **@** to pick someone on the project to mention. **Ctrl+Enter** posts. See [the projects guide](projects#comment-on-a-task).
+
+### A path at the top of every project and task (0.29)
+- Above the title of a project's pages and its tasks, a path shows where you are (*Projects › project › Board › parent task › task*); each part is a link. On a task, the view you came from takes you back to it with your filters. The arrow beside the project's name goes to another project. See [the projects guide](projects#find-your-way-with-the-path-at-the-top).
+
+### Tables you can change (0.28)
+- In the description editor, click in a table: a bar over it adds rows above or below and columns left or right, and deletes rows and columns. Its **…** button, or a right-click on a cell, also moves rows and columns, aligns a column left, center or right, and deletes the table. **Ctrl+Z** undoes. See [the projects guide](projects#change-a-table-s-rows-and-columns).
+
+### A new description editor (0.27)
+- Task descriptions are written as they will look: no more marks like `**` or `- `. Format with the toolbar, the small menu over selected text, or **/** for headings, lists, checklists, tables, code and pictures. Click **Edit** next to **Description** to write in place on the task page; **Ctrl+Enter** saves. Pasted text keeps its formatting. See [the projects guide](projects#write-a-task-s-description).
+
 ### Your own project icons (0.26)
 - A project's icon can be your own picture, such as the client's logo: **Edit** the project, then **Upload a picture…** under **Icon**. It shows beside the name everywhere; **Remove picture** goes back to the icon. See [the projects guide](projects#give-a-project-its-icon).
 
@@ -19,7 +40,7 @@ order: 2
 - Every project is now seen only by the people on its member list, and by administrators. Project Managers and Sales Managers see the projects they are on, not all of them. Add people under **Members** in the project form, or with **Members** at the top of a project. The **Private project** switch is gone: every project works that way. See [the projects guide](projects#choose-who-sees-a-project).
 
 ### Task descriptions show the right layout (0.24.2)
-- Lists inside lists, lists with empty lines between items, checklists and tables now show as written; bold with italic inside, links with brackets and pictures inside a sentence too. The toolbar has a **Checklist** button, **Heading** goes smaller on a second click, and Enter in a list inside a list goes back to the outer list. See [the projects guide](projects#write-a-tasks-description).
+- Lists inside lists, lists with empty lines between items, checklists and tables now show as written; bold with italic inside, links with brackets and pictures inside a sentence too. The toolbar has a **Checklist** button, **Heading** goes smaller on a second click, and Enter in a list inside a list goes back to the outer list. See [the projects guide](projects#write-a-task-s-description).
 
 ### Private projects (0.24)
 - A project can be **Private**: only the people on its member list, and administrators, can see it. Pick the members right in the project form (**Members** under **Private project**), or with **Members** at the top of the project. Project Managers and others who see every project do not, unless they are added. See [the projects guide](projects#choose-who-sees-a-project).
@@ -30,10 +51,10 @@ order: 2
 - On a phone the panel fills the screen's width, and **Dark mode** moves into the menu under your name.
 
 ### Profile pictures (0.22)
-- Everyone can add a small profile picture: choose your name at the top right, then **Add my picture**, and frame the photo. It shows instead of your initials across CORE. See [Getting started](getting-started#add-your-profile-picture). Administrators can remove one from **Users & Access** (see [the administrator's guide](admin#remove-someones-profile-picture)).
+- Everyone can add a small profile picture: choose your name at the top right, then **Add my picture**, and frame the photo. It shows instead of your initials across CORE. See [Getting started](getting-started#add-your-profile-picture). Administrators can remove one from **Users & Access** (see [the administrator's guide](admin#remove-someone-s-profile-picture)).
 
 ### Formatted task descriptions with pictures (0.21)
-- A task's description has a formatting toolbar: headings, bold, italic, strikethrough, code, links, lists, quotes and lines, with **Preview**. Add pictures with the toolbar, by pasting a screenshot or by dragging one in. See [the projects guide](projects#write-a-tasks-description).
+- A task's description has a formatting toolbar: headings, bold, italic, strikethrough, code, links, lists, quotes and lines, with **Preview**. Add pictures with the toolbar, by pasting a screenshot or by dragging one in. See [the projects guide](projects#write-a-task-s-description).
 
 ### Project icons (0.20)
 - Each project can have its own icon: a picture from CORE's set on a colour, shown beside its name in every list, on its pages and on its tasks. Without one, a project shows the first letter of its name. See [the projects guide](projects#give-a-project-its-icon).
@@ -61,7 +82,7 @@ order: 2
 ### Projects: sizes instead of hours, time tracking only where needed, and the Timesheet (0.17)
 - Tasks have a **size** instead of an hour estimate: *XS*, *S*, *M*, *L* or *XL* (shown as *M · Medium*), a rough idea of the effort. Set it on the task, in the **List** (also for many tasks at once) or when you add a task. Progress and the milestone burn-up weigh tasks by size when most have one, and the burn-up counts *effort points* or tasks, never hours. *Hours left* is gone. See [the projects guide](projects#size-a-task).
 - Your hour estimates became sizes (up to 2 h *XS*, up to 8 h *S*, up to 24 h *M*, up to 48 h *L*, more *XL*), noted in each task's history. See [the projects guide](projects#questions).
-- **Workload** shows a level for each person and week, *Light*, *Normal*, *Busy*, *Overloaded* or *On leave*, each with its own shape, instead of hours against capacity. Open a cell for its tasks, their sizes and the days behind the level. See [the projects guide](projects#read-workload).
+- **Workload** shows a level for each person and week, *Light*, *Normal*, *Busy*, *Overloaded* or *On leave*, each with its own shape, instead of hours against capacity. Open a cell for its tasks, their sizes and the days behind the level. See [the projects guide](projects).
 - **Time tracking is per project** and off unless a project manager turns it on (**Track time on this project** under **Edit**), for time-and-materials work or a client who asks for a timesheet. Only then does the project have a **Time** tab, logging on its tasks and a budget in hours. Projects that had time logged on them track time already. See [the projects guide](projects#turn-time-tracking-on-for-a-project).
 - A weekly **Timesheet** in the Projects menu for everyone on a project that tracks time: a row per project and task, Monday to Sunday, with your DTR shown under it for comparison only. Project managers open their members' timesheets. See [the projects guide](projects#fill-in-your-timesheet).
 - **Projects setup → Effort sizes**: reword what each size means for your teams. See [the projects guide](projects#change-the-projects-setup-project-managers).
@@ -106,7 +127,7 @@ order: 2
 
 ### Security fixes (0.12.1)
 - **Restore backup** now asks for your password, and refuses a backup whose user accounts are not valid. See [the administrator's guide](admin#back-up-and-restore).
-- The **Audit log** notice says *Keyed from entry N*: entries from there on are sealed with the server's key. See [the administrator's guide](admin#the-audit-log).
+- The **Audit log** notice says *Keyed from entry N*: entries from there on are sealed with the server's key. See [the administrator's guide](admin#check-the-audit-log).
 
 ### Sign-in security (0.12)
 - **2-step verification**: sign in with your password and a code from an authenticator app on your phone. Set it up under your name → **My security**, and keep the ten recovery codes it gives you. See [Getting started](getting-started#turn-on-2-step-verification).

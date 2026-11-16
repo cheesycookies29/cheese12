@@ -73,8 +73,19 @@ export function publicBrand(settings) {
     logo: b.logo ? `/api/public/brand/logo?v=${logoTag(b.logo)}` : null,
   };
 }
-// The settings as the browser gets them: the logo is replaced by its address.
-export const settingsForBrowser = (settings) => ({ ...settings, branding: { ...DEFAULT_BRANDING, ...(settings.branding || {}), logo: publicBrand(settings).logo || '' } });
+// The settings as the browser gets them: the logo is replaced by its address. Everyone signed in gets
+// what their own screens compute with (the schedule, pay rules and rates); since 0.33 (VAPT) the
+// sign-in limits go only to those who manage accounts, the approval routes only to those who
+// approve, the office's coordinates only to those who see clock-in locations, and nobody gets the
+// audit log's internal counter. can(permission): the account's permissions (all, when not given).
+export function settingsForBrowser(settings, can = () => true) {
+  const { security, approvals, auditKeyedFrom, location, ...rest } = settings;
+  const out = { ...rest, branding: { ...DEFAULT_BRANDING, ...(settings.branding || {}), logo: publicBrand(settings).logo || '' } };
+  if (security && can('users.manage')) out.security = security;
+  if (approvals && (can('leave.approve') || can('users.manage'))) out.approvals = approvals;
+  if (location) out.location = can('attendance.location') ? location : { officeLabel: location.officeLabel };
+  return out;
+}
 
 // GET /api/public/brand/logo: the picture, as an image that cannot run anything.
 export function logoResponse(settings) {

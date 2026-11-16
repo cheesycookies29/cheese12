@@ -11,7 +11,7 @@ import { createApi } from '../server/api.js';
 import { localDate } from '../server/util.js';
 import { addDays } from '../shared/projects.js';
 import {
-  renderRich, richToText, imageIdsOf, safeUrl, toggleWrap, toggleLines, insertBlock, makeLink, continueList, RICH_MAX,
+  renderRich, richToText, imageIdsOf, safeUrl, RICH_MAX, modelToMarkdown, inlineToMarkdown, escapeMd,
 } from '../shared/richtext.js';
 
 // ===== The renderer =====
@@ -74,36 +74,8 @@ test('pictures: only the task\'s own, by id, on a line of their own; others say 
   assert.equal(richToText(`**Do** this: ![Plan](img:${id}) [docs](https://d.example)`), 'Do this: [Plan] docs (https://d.example)');
 });
 
-// ===== The toolbar's edits =====
-const at = (value, start, end = start) => ({ value, start, end });
-test('bold, italic and code wrap the selection, and unwrap it the second time', () => {
-  const b = toggleWrap(at('make this bold', 5, 9), '**');
-  assert.deepEqual(b, { value: 'make **this** bold', start: 7, end: 11 });
-  assert.deepEqual(toggleWrap(b, '**'), { value: 'make this bold', start: 5, end: 9 });
-  assert.deepEqual(toggleWrap(at('a  word ', 1, 8), '*'), { value: 'a  *word* ', start: 4, end: 8 }, 'spaces stay outside the marks');
-  assert.deepEqual(toggleWrap(at('', 0), '**', 'bold text'), { value: '**bold text**', start: 2, end: 11 });
-});
 
-test('lists, quotes and headings: on, then off; numbers count up; a new empty line is ready to type', () => {
-  const v = 'one\ntwo\nthree';
-  const l = toggleLines(at(v, 0, v.length), 'number');
-  assert.equal(l.value, '1. one\n2. two\n3. three');
-  assert.equal(toggleLines(at(l.value, 0, l.value.length), 'number').value, v);
-  assert.equal(toggleLines(at(l.value, 0, l.value.length), 'bullet').value, '- one\n- two\n- three', 'numbers become bullets');
-  assert.deepEqual(toggleLines(at('', 0), 'bullet'), { value: '- ', start: 2, end: 2 });
-  assert.equal(toggleLines(at('Title', 2), 'heading').value, '## Title');
-});
 
-test('blocks go on their own lines; links take the selection as their words; Enter continues lists', () => {
-  assert.equal(insertBlock(at('abc', 3), '---').value, 'abc\n\n---\n');
-  assert.equal(insertBlock(at('abc\n\ndef', 4), '---').value, 'abc\n\n---\n\ndef');
-  assert.equal(makeLink(at('see the docs', 8, 12), 'https://d.example').value, 'see the [docs](https://d.example)');
-  assert.equal(makeLink(at('x', 1), 'javascript:alert(1)'), null);
-  assert.deepEqual(continueList(at('- one', 5)), { value: '- one\n- ', start: 8, end: 8 });
-  assert.deepEqual(continueList(at('9. nine', 7)), { value: '9. nine\n10. ', start: 12, end: 12 });
-  assert.deepEqual(continueList(at('- one\n- ', 8)), { value: '- one\n', start: 6, end: 6 }, 'Enter on an empty item ends the list');
-  assert.equal(continueList(at('plain', 5)), null);
-});
 
 // ===== Pictures through the API =====
 function server() {
@@ -258,15 +230,64 @@ test('inline: bold around italic, bold-italic, links with brackets, a picture in
   }
 });
 
-test('toolbar: marks over several lines go on each line; headings go round; Enter in lists, checklists and code', () => {
-  assert.deepEqual(toggleWrap(at('- one\n- two', 0, 11), '**'), { value: '- **one**\n- **two**', start: 0, end: 19 });
-  assert.deepEqual(toggleWrap(at('- **one**\n- **two**', 0, 19), '**'), { value: '- one\n- two', start: 0, end: 11 });
-  assert.equal(toggleLines(at('Title', 0), 'heading').value, '## Title');
-  assert.equal(toggleLines(at('## Title', 0), 'heading').value, '### Title');
-  assert.equal(toggleLines(at('### Title', 0), 'heading').value, 'Title');
-  assert.equal(toggleLines(at('a\nb', 0, 3), 'task').value, '- [ ] a\n- [ ] b');
-  assert.equal(toggleLines(at('  - a\n  - b', 0, 11), 'number').value, '  1. a\n  2. b', 'a list inside a list keeps its indent');
-  assert.deepEqual(continueList(at('- [ ] a', 7)), { value: '- [ ] a\n- [ ] ', start: 14, end: 14 });
-  assert.deepEqual(continueList(at('1. a\n2. b\n   - x\n   - ', 22)), { value: '1. a\n2. b\n   - x\n3. ', start: 20, end: 20 }, 'an empty inner item goes back out to the next number');
-  assert.equal(continueList(at('```\n- a', 7)), null, 'no bullets inside a code block');
+
+// ===== 0.27: the visual editor's model -> Markdown =====
+const T = (text, m = {}) => ({ text, ...m });
+test('the editor\'s document becomes the same Markdown the page shows', () => {
+  const md = modelToMarkdown([
+    { t: 'h', level: 1, c: [T('Plan')] },
+    { t: 'p', c: [T('Hello '), T('bold ', { b: true }), T('and italic', { i: true }), T(' 2*3 # x '), T('code', { code: true }), { br: true }, T('- not a list')] },
+    { t: 'list', ordered: true, start: 1, items: [{ c: [T('one')], sub: [{ t: 'list', ordered: false, items: [{ c: [T('sub')] }] }] }, { c: [T('two')] }] },
+    { t: 'list', ordered: false, task: true, items: [{ c: [T('todo')], checked: false }, { c: [T('done')], checked: true }] },
+    { t: 'quote', paras: [[T('q1')], [T('q2')]] },
+    { t: 'code', text: 'a *b*\n```\n# c' },
+    { t: 'hr' },
+    { t: 'p', c: [T('see '), T('the docs', { href: 'https://d.example', b: true }), T(' and '), T('bad', { href: 'javascript:alert(1)' })] },
+    { t: 'table', head: [[T('a|b')], [T('c')]], rows: [[[T('1')], [T('2')]]] },
+    { t: 'img', id: '0f0e0d0c-0b0a-4908-8706-050403020100', alt: 'Plan [v2]' },
+  ]);
+  const out = renderRich(md, { image: () => '/p' });
+  assert.match(out, /<h3>Plan<\/h3>/);
+  assert.match(out, /<p>Hello <strong>bold<\/strong> <em>and italic<\/em> 2\*3 # x <code>code<\/code><br \/>- not a list<\/p>/, 'typed marks stay text');
+  assert.match(out, /<ol><li>one<ul><li>sub<\/li><\/ul><\/li><li>two<\/li><\/ol>/);
+  assert.match(out, /<li class="rich-task done"><input type="checkbox" disabled checked aria-label="Done" \/> done<\/li>/);
+  assert.match(out, /<blockquote><p>q1<\/p><p>q2<\/p><\/blockquote>/);
+  assert.match(out, /<pre><code>a \*b\*\n``\u200d`\n# c<\/code><\/pre>\n<hr \/>/, 'three backticks inside code do not end it');
+  assert.match(out, /see <a href="https:\/\/d\.example"[^>]*><strong>the docs<\/strong><\/a> and bad<\/p>/, 'an unsafe link becomes text');
+  assert.match(out, /<th>a\|b<\/th><th>c<\/th>/, 'a | inside a cell stays in the cell');
+  assert.match(out, /<figure class="rich-img"><a href="\/p"[^>]*><img src="\/p" alt="Plan  v2"/);
+});
+
+test('inline details: spaces outside marks, neighbours merged, italic next to a letter kept apart, escapes', () => {
+  assert.equal(inlineToMarkdown([T('a '), T(' b ', { b: true }), T('c')]), 'a  **b** c');
+  assert.equal(inlineToMarkdown([T('He', { b: true }), T('llo', { b: true })]), '**Hello**');
+  const md = inlineToMarkdown([T('and '), T('italic', { i: true }), T('bad')]);
+  assert.match(renderRich(md), /<em>italic<\/em>\u200bbad/);
+  assert.equal(escapeMd('a*b_c~d`e[f]g|h\\i'), 'a\\*b\\_c\\~d\\`e\\[f\\]g\\|h\\\\i');
+  // A typed backslash before a mark stays as typed.
+  assert.match(renderRich(modelToMarkdown([{ t: 'p', c: [T('C:\\temp\\*.log')] }])), /<p>C:\\temp\\\*\.log<\/p>/);
+  // Lines that would start a block stay text.
+  for (const line of ['# not a heading', '> not a quote', '- not a list', '1. not a list', '```', '---']) {
+    const html = renderRich(modelToMarkdown([{ t: 'p', c: [T(line)] }]));
+    assert.match(html, /^<p>/, line);
+  }
+});
+
+test('Markdown escapes and link words: \\* is a star, \\| inside a table cell, formatting inside a link', () => {
+  assert.equal(renderRich('2 \\* 3 and \\# x'), '<p>2 * 3 and # x</p>');
+  assert.match(renderRich('[**bold** `code` 2\\*3](https://x.example)'), /<a href="https:\/\/x\.example"[^>]*><strong>bold<\/strong> <code>code<\/code> 2\*3<\/a>/);
+  assert.match(renderRich('| a \\| b | c |\n|---|---|\n| 1 | 2 |'), /<th>a \| b<\/th><th>c<\/th>/);
+  // Old descriptions without escapes read as they did.
+  assert.equal(renderRich('snake_case and 2*3*4 stay as they are'), '<p>snake_case and 2*3*4 stay as they are</p>');
+});
+
+test('table columns keep their alignment (0.28): :--- left, :---: center, ---: right, both ways', () => {
+  const md = modelToMarkdown([{ t: 'table', head: [[T('Item')], [T('Qty')], [T('Price')]], rows: [[[T('Pens')], [T('2')], [T('₱30')]]], align: [null, 'center', 'right'] }]);
+  assert.equal(md, '| Item | Qty | Price |\n| --- | :---: | ---: |\n| Pens | 2 | ₱30 |');
+  assert.equal(renderRich(md), '<div class="rich-table"><table><thead><tr><th>Item</th><th class="ta-center">Qty</th><th class="ta-right">Price</th></tr></thead><tbody><tr><td>Pens</td><td class="ta-center">2</td><td class="ta-right">₱30</td></tr></tbody></table></div>');
+  // Written by hand: left is the usual look; only the listed alignments become a class.
+  assert.match(renderRich('| a | b |\n|:---|---:|\n| 1 | 2 |'), /<th>a<\/th><th class="ta-right">b<\/th>/);
+  // Without alignment, the table is written as before; empty cells and a blank header stay a table.
+  assert.equal(modelToMarkdown([{ t: 'table', head: [[], []], rows: [[[T('x')], []]] }]), '|   |   |\n| --- | --- |\n| x |   |');
+  assert.match(renderRich('|   |   |\n| --- | --- |\n| x |   |'), /^<div class="rich-table"><table><thead><tr><th><\/th><th><\/th><\/tr><\/thead><tbody><tr><td>x<\/td><td><\/td><\/tr>/);
 });
