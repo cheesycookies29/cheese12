@@ -28,6 +28,21 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.32.0-alpha',
+    date: '2026-11-16',
+    title: 'Everyone\'s profile, with a role in the company',
+    modules: ['system', 'hr', 'projects'],
+    notes: 'A profile for every user, a role in the company set by administrators, and the modules each person can open.',
+    changes: [
+      ['new', 'system', 'My profile (#/profile, in the menu under your name) and anyone\'s profile (#/people/:id): picture, name, role in the company, department and supervisor for everyone signed in, with the projects both people are on; the account (username, account type, 2-step sign-in, since when), employment details and "What you can open" for the person and administrators only (GET /api/people/:id). Disabled accounts: administrators only.'],
+      ['new', 'system', 'Role in the company (user.companyRole): one line, up to 60 characters, "Employee" until set; only administrators change it (PUT /api/people/:id/company-role, or the Users & Access form), with suggestions from the roles in use; audited and kept through backup and restore. Demo accounts get one from their employee position.'],
+      ['improved', 'system', 'The top bar, the menu under your name and the CORE home greeting show the role in the company instead of the account type.'],
+      ['improved', 'system', 'Which modules an account opens is one shared function (moduleAccess in shared/profile.js), used by the module switcher, the launcher and the profile, so they always agree; it also says what the person does in each module.'],
+      ['improved', 'projects', 'Names in a project\'s Members, a task\'s Watchers and comments open the person\'s profile; so do names in Users & Access, which also show the role in the company.'],
+      ['improved', 'hr', 'HR\'s My Profile page is now My HR record, beside the new My profile.'],
+    ],
+  },
+  {
     version: '0.31.0-alpha',
     date: '2026-11-15',
     title: 'Animated GIFs for profile pictures and project icons',

@@ -26,11 +26,11 @@ export const SWITCHABLE = MODULES.filter((m) => m.status === 'live').map((m) => 
 export const moduleName = (id) => MODULES.find((m) => m.id === id)?.name || id;
 
 // What turning a module off takes away. Self-service belongs to the module it is part of: clocking
-// in and out, My Attendance, My Requests (leave and remote work), My Payslips and My Profile are
+// in and out, My Attendance, My Requests (leave and remote work), My Payslips and My HR record are
 // HR & Payroll (they live on its records), My Assets is IT Asset Management, My tickets is the
 // Service Desk. The holiday calendar stays readable for everyone (Projects counts working days by it).
 export const MODULE_PARTS = {
-  hr: 'Employees, the time clock, attendance, clock-in locations, leave and approvals, payroll and payroll setup, managing the holiday calendar; and everyone\'s self-service: My Home (clocking in and out), My Attendance, My Requests, My Payslips and My Profile.',
+  hr: 'Employees, the time clock, attendance, clock-in locations, leave and approvals, payroll and payroll setup, managing the holiday calendar; and everyone\'s self-service: My Home (clocking in and out), My Attendance, My Requests, My Payslips and My HR record.',
   assets: 'Assets, inventory and stock, allocations, the activity log and problem reports; and everyone\'s My Assets (with reporting a problem).',
   helpdesk: 'The ticket queue, email in and out, the public support form (/support), saved replies and the service desk settings; and everyone\'s My tickets.',
   crm: 'Leads, accounts, contacts, the pipeline, bids, contracts, activities and the sales setup; "Send to Sales & CRM" on a ticket.',

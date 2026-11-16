@@ -236,7 +236,7 @@ HR Managers can change **Payroll Setup**: pay rules, **Work days per year**, the
 | Payroll | Payroll runs, payslips and year to date (view only for HR) |
 | Payroll Setup | Pay rules, premiums, holiday rules, government rates and tax tables |
 | Holidays | The holiday calendar payroll and leave use |
-| My Home, My Attendance, My Requests, My Payslips, My Profile | Your own self-service: see [the self-service guide](employee) |
+| My Home, My Attendance, My Requests, My Payslips, My HR record | Your own self-service: see [the self-service guide](employee) |
 
 ## Questions
 

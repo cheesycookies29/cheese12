@@ -24,7 +24,8 @@ import { newSecret, verifyCode, otpauthUrl, newRecoveryCodes, hashRecovery, look
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
-import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides } from '../shared/roles.js';
+import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides, usesAdminPanel } from '../shared/roles.js';
+import { cleanCompanyRole, companyRoleOf, moduleAccess } from '../shared/profile.js';
 import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig } from '../shared/modules.js';
 import { registerAdminRoutes } from './config.js';
 import { validateBranding, publicBrand, settingsForBrowser } from './branding.js';
@@ -38,7 +39,7 @@ import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Changes that are records in themselves, or not about company data: no generic audit entry.
-const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'mustChangePassword'];
+const USER_AUDIT_FIELDS = ['name', 'username', 'role', 'companyRole', 'active', 'employeeId', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'mustChangePassword'];
 const UNAUDITED = /^\/api\/(me\/clock|clock|auth\/logout|feedback|me\/feedback|public\/)/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -317,6 +318,16 @@ function backupUsers(list) {
     for (const k of ['createdAt', 'lastLoginAt']) if (!optional(raw[k], (v) => isText(v, 40))) throw bad(i, `has an invalid "${k}"`);
     const u = { id: raw.id, username: raw.username, name: raw.name.trim(), role: raw.role, employeeId: raw.employeeId || null, active: raw.active, passwordHash: raw.passwordHash };
     for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'pmDigest', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
+    // The role in the company (0.32): kept as cleaned text.
+    if (raw.companyRole !== undefined && raw.companyRole !== null) {
+      let role;
+      try {
+        role = cleanCompanyRole(raw.companyRole);
+      } catch {
+        throw bad(i, 'has an invalid role in the company');
+      }
+      if (role) u.companyRole = role;
+    }
     if (raw.twoFactor !== undefined && raw.twoFactor !== null) {
       u.twoFactor = validTwoFactor(raw.twoFactor);
       if (!u.twoFactor) throw bad(i, 'has invalid 2-step verification details');
@@ -412,20 +423,27 @@ function demoAccounts(db, employees) {
   const maria = employees.find((e) => e.firstName === 'Maria');
   const andrea = employees.find((e) => e.firstName === 'Andrea') || juan;
   const linked = new Set(db.data.users.map((u) => u.employeeId).filter(Boolean));
-  return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => ({
+  // Their role in the company: the linked employee's position, or the job the account stands for.
+  const TITLES = { hr: 'HR Manager', payroll: 'Payroll Officer', it: 'IT Asset Manager', salesmgr: 'Sales Manager', pm: 'Project Manager', employee: 'Team Lead' };
+  const byId = new Map(employees.map((e) => [e.id, e]));
+  return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => {
+    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager; the
+    // project manager is Andrea, who runs the delivery projects.
+    const employeeId = role === 'employee' ? juan.id : role === 'pm' && !linked.has(andrea.id) ? andrea.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null;
+    return {
     id: randomUUID(),
     username,
     name: name || (role === 'pm' ? `${andrea.firstName} ${andrea.lastName}` : `${juan.firstName} ${juan.lastName}`),
     role,
-    // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager; the
-    // project manager is Andrea, who runs the delivery projects.
-    employeeId: role === 'employee' ? juan.id : role === 'pm' && !linked.has(andrea.id) ? andrea.id : role === 'hr' && maria && !linked.has(maria.id) ? maria.id : null,
+    companyRole: cleanCompanyRole(byId.get(employeeId)?.position || TITLES[role]) || undefined,
+    employeeId,
     active: true,
     mustChangePassword: false,
     demo: true,
     passwordHash: hashPassword(DEMO_PASSWORD),
     createdAt: new Date().toISOString(),
-  }));
+    };
+  });
 }
 
 // Clock in / out for the current date and time. Clocking in also records where (see server/geo.js).
@@ -783,9 +801,64 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   });
 
   // ----- User accounts -----
+  // ----- Profiles -----
+  // Everyone's profile: their picture, name, role in the company and department, for anyone signed
+  // in. Their own profile (and anyone's, for an administrator) adds the account: username, account
+  // type, 2-step sign-in, what they can open in each module, and their employment details. A
+  // disabled account is shown to administrators only. Only administrators change the role.
+  const companyRoleFrom = (body) => {
+    try {
+      return cleanCompanyRole(body?.companyRole ?? null);
+    } catch (err) {
+      throw new HttpError(400, err.message);
+    }
+  };
+  function setCompanyRole(user, role) {
+    if (role) user.companyRole = role;
+    else delete user.companyRole;
+  }
+  function profileOf(u, me) {
+    const full = u.id === me.id || userCan(me, 'users.manage');
+    const hrOn = moduleOn(db.data.modules, 'hr') || me.role === 'admin';
+    const emp = u.employeeId && hrOn ? db.data.employees.find((e) => e.id === u.employeeId) : null;
+    const supervisor = emp?.supervisorId ? db.data.employees.find((e) => e.id === emp.supervisorId) : null;
+    // The projects both are members of (only those the viewer can open anyway).
+    const shared = u.id === me.id || !moduleOn(db.data.modules, 'projects') ? [] : (db.data.pmProjects || [])
+      .filter((p) => !p.isTemplate && p.members.some((m) => m.userId === u.id) && p.members.some((m) => m.userId === me.id))
+      .map((p) => ({ id: p.id, code: p.code, name: p.name })).sort((a, b) => a.code.localeCompare(b.code));
+    const out = { id: u.id, name: u.name, companyRole: companyRoleOf(u), department: emp?.department || null, supervisor: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : null, sharedProjects: shared, active: u.active !== false, self: u.id === me.id, canEditRole: userCan(me, 'users.manage') };
+    if (!full) return out;
+    const approver = isApprover(db, u);
+    return {
+      ...out,
+      username: u.username, accountType: u.role, accountTypeLabel: ROLES[u.role]?.label || u.role,
+      twoFactorEnabled: Boolean(u.twoFactor?.enabledAt), createdAt: u.createdAt || null,
+      modules: moduleAccess(u, { modules: db.data.modules, inProjects: isProjectMember(db, u), isApprover: approver }),
+      adminPanel: usesAdminPanel(u), approver,
+      employee: emp ? { employeeNo: emp.employeeNo, position: emp.position || null, department: emp.department || null, employmentStatus: emp.employmentStatus || null, hireDate: emp.hireDate || null, supervisor: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : null } : null,
+      ...(userCan(me, 'users.manage') ? { roleSuggestions: [...new Set(users().map((x) => x.companyRole).filter(Boolean))].sort((a, b) => a.localeCompare(b)) } : {}),
+    };
+  }
+  route('GET', '/api/people/:id', 'auth', ({ params, user: me }) => {
+    const u = users().find((x) => x.id === params.id);
+    if (!u || (u.active === false && !userCan(me, 'users.manage'))) throw new HttpError(404, 'There is no such person in CORE.');
+    return profileOf(u, me);
+  });
+  route('PUT', '/api/people/:id/company-role', 'users.manage', ({ params, body, user: me }) => {
+    const u = findUser(db, params.id);
+    const before = publicUser(u);
+    setCompanyRole(u, companyRoleFrom(body));
+    u.updatedAt = new Date().toISOString();
+    db.save();
+    audit.record('user.update', { entity: 'user', entityId: u.id, label: `${u.name} (${u.username})`, changes: diff(before, publicUser(u), ['companyRole']) });
+    return profileOf(u, me);
+  });
+
   route('GET', '/api/users', 'users.manage', () => users().map((u) => ({ ...publicUser(u), sessions: sessions.list(u.id).length, twoFactorRequired: twoFactorRequired(sec(), u) })));
   route('POST', '/api/users', 'users.manage', ({ body }) => {
     const user = { id: randomUUID(), ...validateUser(body, db) };
+    const companyRole = companyRoleFrom(body);
+    if (companyRole) user.companyRole = companyRole;
     validatePassword(body.password, ...passwordRules(user));
     user.passwordHash = hashPassword(body.password);
     user.mustChangePassword = body.mustChangePassword !== false;
@@ -804,6 +877,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     }
     const before = publicUser(user);
     Object.assign(user, next, { updatedAt: new Date().toISOString() });
+    if (Object.hasOwn(body || {}, 'companyRole')) setCompanyRole(user, companyRoleFrom(body));
     // A disabled account, or one whose role changed, signs in again (with its new access).
     if (!user.active || before.role !== user.role) sessions.destroyForUser(user.id);
     db.save();

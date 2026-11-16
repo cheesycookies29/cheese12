@@ -12,7 +12,7 @@ order: 20
 This guide is for **everyone with an employee record**: staff on an Employee account, and HR, payroll, IT and sales people for their own records.
 
 - Sign in to CORE. The home page lists your modules. Your self-service pages are under **My account** in the sidebar of each module.
-- **HR & Payroll** has My Home, My Attendance, My Requests, My Payslips and My Profile.
+- **HR & Payroll** has My Home, My Attendance, My Requests, My Payslips and My HR record.
 - **IT Asset Management** has My Assets, the equipment assigned to you.
 - **IT Service Desk** has My tickets, to ask IT for help.
 - To jump between modules, use the grid button at the top right.
@@ -73,7 +73,7 @@ On a phone, **My Home** shows the same clock at the top. It works the same way.
 1. Open **My Home**.
 2. Click **Clock in** when you start and **Clock out** when you leave.
 
-Times are the server's, not your device's. Your location is recorded when you clock in; only HR and administrators can see it. If the location cannot be read (you said no, or the connection is not secure), you are clocked in without it. Late, undertime and overtime are worked out from your schedule, which is on **My Profile**.
+Times are the server's, not your device's. Your location is recorded when you clock in; only HR and administrators can see it. If the location cannot be read (you said no, or the connection is not secure), you are clocked in without it. Late, undertime and overtime are worked out from your schedule, which is on **My HR record**.
 
 You clock in once a day. After you clock out, **Clock in** stays off until tomorrow. On a day of approved leave you cannot clock in. On an approved work-from-home or official-business day, My Home says *Remote work today*: clock in to record your hours, or leave it as a full day.
 
@@ -147,9 +147,9 @@ The list shows the pay period, pay date, gross pay, deductions and net pay. Your
 
 ![My Payslips with the year-to-date totals](employee-payslips.jpg)
 
-### Check your profile and change your password
+### Check your HR record and change your password
 
-1. Open **My Profile** to see your personal details, employment, schedule, government IDs and bank.
+1. Open **My HR record** to see your personal details, employment, schedule, government IDs and bank.
 2. Click **Change password** to choose a new password.
 
 To change any of your details, contact HR.
@@ -188,7 +188,7 @@ If you work the service desk, your sidebar also has **Log a ticket**, for a call
 | My Attendance | Your daily time records: time in and out, late, undertime, overtime and leave |
 | My Requests | Leave balances; file leave, work from home or official business; attach a certificate; revise, edit or withdraw |
 | My Payslips | Year-to-date totals and your finalized payslips, to print or save as PDF |
-| My Profile | Your record as HR keeps it, and **Change password** |
+| My HR record | Your record as HR keeps it, and **Change password** |
 | Approvals | Only for supervisors and approvers: see [the approver's guide](approver) |
 | My Assets | In IT Asset Management: equipment assigned to you, problem reports, supplies issued to you |
 | My tickets | In IT Service Desk: your support tickets and IT's replies |

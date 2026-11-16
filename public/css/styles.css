@@ -3115,3 +3115,36 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
 }
 .pm-subof { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 4px; font-size: 13px; color: var(--muted); }
 .pm-subof a { font-weight: 500; }
+
+/* Everyone's profile (0.32) */
+.avatar.xl { width: 96px; height: 96px; font-size: 32px; }
+.profile-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 22px; }
+.profile-head .profile-id { flex: 1; min-width: 200px; }
+.profile-head h1 { margin: 0; }
+.profile-role { margin: 4px 0 0; font-size: 16px; font-weight: 600; color: var(--brand-text); }
+.profile-role .muted { font-weight: 400; }
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.profile-grid .profile-access { grid-column: 1 / -1; }
+.profile-grid > .card { margin: 0; }
+.profile-public-note { margin-top: 16px; }
+.profile-grid h2 { display: flex; align-items: center; gap: 8px; }
+.profile-note { margin: 14px 0 0; }
+.profile-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.access-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+.access-list li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.access-list .mod-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); flex: none; }
+.access-list li.shut .mod-ic { background: var(--surface-2); color: var(--muted); }
+.access-list li.shut strong { color: var(--muted); }
+.access-list .grow { min-width: 0; display: flex; flex-direction: column; }
+.access-list small { color: var(--muted); font-size: 12.5px; }
+.profile-public-note { display: flex; align-items: center; gap: 6px; }
+a.person-link { color: inherit; text-decoration: none; }
+a.person-link:hover { color: var(--brand-text); text-decoration: underline; }
+@media (max-width: 760px) {
+  .profile-grid, .access-list { grid-template-columns: minmax(0, 1fr); }
+  .profile-head { gap: 14px; }
+  .avatar.xl { width: 72px; height: 72px; font-size: 24px; }
+  .profile-head .actions { width: 100%; }
+}
+a.hub-role { color: inherit; text-decoration: none; }
+a.hub-role:hover { background: rgba(255, 255, 255, 0.26); }

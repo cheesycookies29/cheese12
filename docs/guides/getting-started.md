@@ -54,7 +54,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The notifications panel, open from the bell](getting-started-notifications.jpg)
 
-8. Choose your name at the top right. The menu shows your picture (or your initials), username and account type, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
+8. Choose your name at the top right. The menu shows your picture (or your initials), your role in the company and username, **My profile**, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
 
 ![The menu under your name](getting-started-user-menu.jpg)
 
@@ -140,7 +140,21 @@ An animated GIF works too, so your picture can move: pick one of up to 1 MB (and
 
 ![Choosing a profile picture](getting-started-picture.jpg)
 
-Your picture is shown instead of your initials next to your name: at the top right, in project members, task cards, comments and watchers, record owners in Sales & CRM, and Users & Access. Everyone signed in to CORE can see it, so choose one you are happy for colleagues to see. CORE keeps only a small square of the photo (256 × 256). People who have asked their device for less motion (*Reduce motion* in its settings) see the first frame of a GIF, standing still. **Remove my picture** in the same window brings your initials back. Employees also find **Add my picture** on **My Profile**.
+Your picture is shown instead of your initials next to your name: at the top right, in project members, task cards, comments and watchers, record owners in Sales & CRM, and Users & Access. Everyone signed in to CORE can see it, so choose one you are happy for colleagues to see. CORE keeps only a small square of the photo (256 × 256). People who have asked their device for less motion (*Reduce motion* in its settings) see the first frame of a GIF, standing still. **Remove my picture** in the same window brings your initials back. Your **My profile** page (in the same menu) has **Add my picture** too.
+
+### See your profile, and a colleague's
+
+1. Choose your name at the top right, then **My profile** (or the role under your name on the CORE home).
+2. At the top: your picture, your name and your **role in the company**, such as *Software Engineer*, with your department. Everyone signed in to CORE sees this part.
+3. **Account**: your username, your account type, whether 2-step sign-in is on, and since when you are in CORE; with **My security** and **Change password**.
+4. **Employment** (if your account is linked to an employee record): employee number, position, department, status, date hired and supervisor. Your personal details, government IDs and bank are on **My HR record** in HR & Payroll.
+5. **What you can open**: each module, what you do in it (for example *Own equipment* or *Agent*) and **Open**; the ones you cannot open show *No access*.
+
+![Your profile](getting-started-profile.jpg)
+
+Click a person's name in a project's **Members**, a task's **Watchers** or a comment to see their profile: their picture, name, role in the company, department and supervisor, and the projects you are both on. Their account and what they can open are not shown to you; only administrators see them.
+
+Your role in the company is set by an administrator; until then it says *Employee*. It is what your colleagues see beside your name, and it does not change what you can open: that is your account type. To change it, ask an administrator.
 
 ### Change your password
 
@@ -240,7 +254,8 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | Notifications (the bell) | What others did that concerns you, from every module; the number of unread ones; open one to go to it |
 | Notifications page (**See all**) | All your notifications of the last 60 days, by module, unread only, with **Show more** |
 | Help & guides (question mark) | The guide for your job, search, and what's new |
-| Your name (top right) | Add or change your picture, Send feedback, My security, Change password, Sign out; on a phone, Dark mode |
+| Your name (top right) | My profile, Add or change your picture, Send feedback, My security, Change password, Sign out; on a phone, Dark mode |
+| My profile | Your role in the company, account, employment and the modules you can open; a colleague's public profile |
 | My security | Change password, 2-step verification and recovery codes, where you are signed in |
 | Send feedback | A message to the administrators about CORE |
 

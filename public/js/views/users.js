@@ -16,6 +16,8 @@ function userForm(user, employees, isNew) {
   return html`
     <div class="grid two">
       <label class="field span-2"><span>Full name</span><input name="name" value="${user.name || ''}" required /></label>
+      <label class="field span-2"><span>Role in the company</span><input name="companyRole" value="${user.companyRole || ''}" maxlength="60" placeholder="Employee" autocomplete="off" />
+        <small class="muted">Shown on their profile and beside their name, e.g. Software Engineer. Empty means Employee. It does not change what they can open.</small></label>
       <label class="field"><span>Username</span><input name="username" value="${user.username || ''}" autocapitalize="none" spellcheck="false" required /></label>
       <label class="field"><span>Account type</span>
         <select name="role" ${user.id === ctx.user.id ? 'disabled' : ''}>${Object.entries(ROLES).map(([key, r]) => html`<option value="${key}" ${key === role ? 'selected' : ''}>${r.label}</option>`)}</select>
@@ -65,7 +67,7 @@ export async function usersView(el) {
           const emp = empById.get(u.employeeId);
           return html`<tr>
             <td><div class="person">${avatar(u.id, u.name)}
-              <div><strong>${u.name}${u.id === ctx.user.id ? html` <span class="muted you">(you)</span>` : ''}</strong><small>${u.username}</small></div></div></td>
+              <div><strong><a class="person-link" href="#/people/${u.id}">${u.name}</a>${u.id === ctx.user.id ? html` <span class="muted you">(you)</span>` : ''}</strong><small>${u.companyRole || 'Employee'} · ${u.username}</small></div></div></td>
             <td>${badge(roleLabel(u.role), ROLE_BADGE[u.role])}${u.role !== 'admin' && typeof u.helpdeskAgent === 'boolean' ? html`<small><a href="#/admin/access">${u.helpdeskAgent ? '+ Helpdesk agent' : 'Helpdesk agent access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.crmAccess === 'boolean' ? html`<small><a href="#/admin/access">${u.crmAccess ? '+ Sales & CRM' : 'Sales & CRM access removed'}</a></small>` : ''}${u.role !== 'admin' && typeof u.pmAccess === 'boolean' ? html`<small><a href="#/admin/access">${u.pmAccess ? '+ Projects' : 'Projects access removed'}</a></small>` : ''}</td>
             <td>${emp ? html`<a href="#/employees/${emp.id}">${emp.firstName} ${emp.lastName}</a>` : html`<span class="muted">—</span>`}</td>
             <td>${u.active ? badge('Active', 'green') : badge('Disabled', 'gray')} ${u.mustChangePassword ? badge('Temp. password', 'amber') : ''} ${u.demo ? badge('Demo', 'gray') : ''}</td>
@@ -93,7 +95,7 @@ export async function usersView(el) {
       onSubmit: async (f) => {
         const fd = new FormData(f);
         await api.post('/api/users', {
-          name: fd.get('name'), username: fd.get('username'), role: fd.get('role'), employeeId: fd.get('employeeId'),
+          name: fd.get('name'), username: fd.get('username'), role: fd.get('role'), employeeId: fd.get('employeeId'), companyRole: fd.get('companyRole'),
           password: fd.get('password'), mustChangePassword: fd.has('mustChangePassword'),
         });
         toast(`User ${fd.get('username')} created.`);
@@ -147,7 +149,7 @@ export async function usersView(el) {
         onSubmit: async (f) => {
           const fd = new FormData(f);
           await api.put(`/api/users/${user.id}`, {
-            name: fd.get('name'), username: fd.get('username'), employeeId: fd.get('employeeId'),
+            name: fd.get('name'), username: fd.get('username'), employeeId: fd.get('employeeId'), companyRole: fd.get('companyRole'),
             role: user.id === ctx.user.id ? user.role : fd.get('role'),
             active: user.id === ctx.user.id ? true : fd.has('active'),
           });

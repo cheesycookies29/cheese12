@@ -72,7 +72,7 @@ A first tour of the Admin panel, signed in as `admin` with the demo data loaded.
 
 1. Open **Admin panel → Users & Access** and click **+ Add user**.
 2. Enter the **Full name** and a **Username** (3 to 32 letters, numbers, dots, dashes or underscores).
-3. Pick the **Account type**. What it may do is shown under it.
+3. Type their **Role in the company**, such as *Software Engineer* (empty means *Employee*), and pick the **Account type**. What the account type may do is shown under it.
 4. Under **Linked employee record**, pick the person's employee record. It is required for an *Employee* account and gives other account types the **My account** pages (their own attendance, payslips and requests).
 5. Type a **Temporary password** of at least 8 characters, leave **Ask them to choose a new password at first sign-in** ticked, and click **Create user**.
 
@@ -92,6 +92,13 @@ Give the person their username and temporary password privately. They choose the
 | Employee | Self-service only |
 
 These are CORE's defaults; your company can change them under **Roles & permissions**.
+
+### Set someone's role in the company
+
+1. Open their profile: click their name in **Admin panel → Users & Access** (or anywhere their name is a link).
+2. Click **Change role in the company**, type the role (CORE suggests the ones already in use) and click **Save role**. Empty means *Employee*.
+
+Or edit the user under **Users & Access**: **Role in the company** is in the same form. Only administrators can change it; the change is in the audit log. Everyone sees it beside the person's name at the top right and on their profile. It is a job title only: what the person can open is still their **account type** and any access grants, and their profile shows both (*What they can open*, for you and for them).
 
 ### Change what an account type may do
 
@@ -179,7 +186,7 @@ A module that is off disappears from the CORE home, the modules menu and the sid
 
 While a module is off, its notifications are hidden from the bell of everyone except administrators; they come back when it is turned on again.
 
-Self-service belongs to the module it is part of. With **HR & Payroll** off, employees no longer clock in or out, file leave or see their payslips in CORE (**My Home**, **My Attendance**, **My Requests**, **My Payslips** and **My Profile** go with it); **My Assets** stays with IT Asset Management and **My tickets** with the service desk. The holiday calendar can still be read, because Projects counts working days by it. Buttons that lead into a module that is off (*Add to a project* or *Send to Sales & CRM* on a ticket, *Start project* on a deal) are hidden.
+Self-service belongs to the module it is part of. With **HR & Payroll** off, employees no longer clock in or out, file leave or see their payslips in CORE (**My Home**, **My Attendance**, **My Requests**, **My Payslips** and **My HR record** go with it); **My Assets** stays with IT Asset Management and **My tickets** with the service desk. The holiday calendar can still be read, because Projects counts working days by it. Buttons that lead into a module that is off (*Add to a project* or *Send to Sales & CRM* on a ticket, *Start project* on a deal) are hidden.
 
 ![Modules](admin-modules.jpg)
 

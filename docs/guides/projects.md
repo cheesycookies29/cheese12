@@ -97,7 +97,7 @@ The three starter templates are under **Templates** in the filter.
 
 ### A task
 
-1. Click *Gradebook: import class lists from the SIS*. The task page has its description (with headings, steps and a link: see [Write a task's description](projects#write-a-tasks-description)), **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, **Watchers** and the linked service desk ticket on the right.
+1. Click *Gradebook: import class lists from the SIS*. The task page has its description (with headings, steps and a link: see [Write a task's description](projects#write-a-task-s-description)), **Checklist**, **Subtasks**, **Comments** and **History** on the left; **Details**, **Blocked by**, **Watchers** and the linked service desk ticket on the right.
 2. Tick *Test with the College of Engineering lists* in the checklist.
 3. Under **Details**, change **Status** to *For review*. Each change is saved at once and written in the history.
 4. **Size** says how big the task is: *S · Small (about a day)*. Pick another to change it; the line under it says what the size means. On a project that tracks time, a **Time** box under it shows the hours logged on the task and lets you log more.
@@ -242,7 +242,7 @@ Pasting from a web page, Word or an email keeps bold, italic, lists, headings, l
 
 ### Comment on a task
 
-1. Open the task and scroll to **Comments**. The box is the same editor as the description, a little smaller: type, and format with the toolbar, the small menu over selected text, **/** for lists, a checklist, a quote, code, a table and more, or the same shortcuts (**Ctrl+B**, `- `, `1. `…). See [Write a task's description](projects#write-a-tasks-description).
+1. Open the task and scroll to **Comments**. The box is the same editor as the description, a little smaller: type, and format with the toolbar, the small menu over selected text, **/** for lists, a checklist, a quote, code, a table and more, or the same shortcuts (**Ctrl+B**, `- `, `1. `…). See [Write a task's description](projects#write-a-task-s-description).
 2. To mention someone, type **@**: the people on the project are listed. Keep typing their name or username to narrow it, then press Enter or Tab (or click one). They hear of it under **For you**, and the mention is highlighted in the comment.
 3. Click **Comment**, or press **Ctrl+Enter** (on a Mac **⌘+Enter**).
 

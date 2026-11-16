@@ -1,11 +1,13 @@
 import { api } from './api.js';
-import { ctx, can, roleLabel, mayUseModule, moduleOn, panelAccess } from './state.js';
+import { ctx, can, mayUseModule, moduleOn, panelAccess } from './state.js';
 import { html, mount, toast, today } from './ui.js';
 import { icon, iconSvg } from './icons.js';
 import { MODULES, SWITCHABLE } from './modules.js';
 import { redirectOf } from '/shared/redirects.js';
 import { nextInTrap } from './phone.js';
 import { avatar, loadAvatars, editMyAvatar } from './avatars.js';
+import { moduleAccess, companyRoleOf } from '/shared/profile.js';
+import { myProfileView, personView } from './views/profile.js';
 import { mountBell, startBell, stopBell, refreshCount, notificationsView } from './notifications.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
@@ -136,6 +138,8 @@ const routes = [
   ['/feedback', feedbackView, 'auth', 'user'],
   ['/account/security', mySecurityView, 'auth', 'user'],
   ['/notifications', notificationsView, 'auth', 'user'],
+  ['/profile', myProfileView, 'auth', 'user'],
+  ['/people/:id', personView, 'auth', 'user'],
 ].map(([pattern, view, permission, module]) => {
   const keys = [];
   const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
@@ -160,7 +164,7 @@ const NAV = {
     { href: '/me/attendance', label: 'My Attendance', icon: 'calendar', permission: 'self' },
     { href: '/me/requests', label: 'My Requests', icon: 'inbox', permission: 'self' },
     { href: '/me/payslips', label: 'My Payslips', icon: 'receipt', permission: 'self' },
-    { href: '/me/profile', label: 'My Profile', icon: 'user', permission: 'self' },
+    { href: '/me/profile', label: 'My HR record', icon: 'user', permission: 'self' },
   ],
   assets: [
     { href: '/assets', label: 'Overview', icon: 'dashboard', permission: 'assets.view', exact: true },
@@ -249,14 +253,9 @@ function allowed(permission) {
 
 // Where each module opens for this user; null = no access (or the module is turned off for the
 // company: then only administrators open it).
+// The same rules give the "What you can open" list on a profile (shared/profile.js).
 function moduleHome(id) {
-  if (SWITCHABLE.includes(id) && !mayUseModule(id)) return null;
-  if (id === 'hr') return can('dashboard') ? '/dashboard' : can('employees.view') ? '/employees' : allowed('self') ? '/me' : allowed('approver') ? '/approvals' : null;
-  if (id === 'assets') return can('assets.view') ? '/assets' : allowed('self') ? '/assets/mine' : null;
-  if (id === 'helpdesk') return can('helpdesk.agent') ? '/helpdesk' : '/helpdesk/mine';
-  if (id === 'crm') return can('crm.view') ? '/crm' : null;
-  if (id === 'projects') return allowed('projects') ? '/projects' : null;
-  return null;
+  return moduleAccess(ctx.user, { modules: ctx.modules, inProjects: ctx.user.inProjects, isApprover: ctx.user.isApprover }).find((m) => m.id === id)?.home || null;
 }
 
 const homeRoute = () => '/launcher';
@@ -363,11 +362,12 @@ function renderUserBox() {
   mount(box, html`
     <button type="button" class="user-btn" id="user-btn" aria-haspopup="menu" aria-expanded="false">
       ${avatar(u.id, u.name)}
-      <span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}</small></span>
+      <span class="who-text"><strong>${u.name}</strong><small>${companyRoleOf(u)}</small></span>
       ${icon('chevronDown', 16)}
     </button>
     <div class="menu-pop" id="user-pop" role="menu" hidden>
-      <div class="who who-pic">${avatar(u.id, u.name, { size: 'lg' })}<div><strong>${u.name}</strong><small>${u.username}</small><small>${roleLabel(u.role)}</small></div></div>
+      <div class="who who-pic">${avatar(u.id, u.name, { size: 'lg' })}<div><strong>${u.name}</strong><small>${companyRoleOf(u)}</small><small>${u.username}</small></div></div>
+      <a role="menuitem" href="#/profile">${icon('user')} My profile</a>
       <button type="button" role="menuitem" id="my-picture">${icon('image')} ${ctx.avatars?.[u.id] ? 'Change my picture' : 'Add my picture'}</button>
       <button type="button" role="menuitem" id="theme-item" class="phone-only">${themeItem()}</button>
       <a role="menuitem" href="#/feedback">${icon('comment')} Send feedback</a>
@@ -599,6 +599,12 @@ window.addEventListener('pm:changed', refreshBadge);
 // The bell: read there, My work's badge follows; something done here may change its count.
 window.addEventListener('notifications:changed', refreshBadge);
 for (const ev of ['requests:changed', 'reports:changed', 'feedback:changed', 'helpdesk:changed', 'crm:changed', 'pm:changed']) window.addEventListener(ev, () => refreshCount());
+// A new picture or role in the company (from the profile page): the top bar shows it.
+window.addEventListener('avatar:changed', () => {
+  if (!ctx.user) return;
+  pops.length = 0;
+  renderUserBox();
+});
 // A module turned on or off, or roles changed, here: the menus follow at once.
 window.addEventListener('modules:changed', () => {
   if (!ctx.user) return;
