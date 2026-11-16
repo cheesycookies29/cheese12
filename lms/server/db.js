@@ -195,6 +195,7 @@ export function openDb(file) {
 
   const db = {
     dir: path.dirname(file),
+    file, // the data file itself (the Security monitor shows its size and checks its permissions)
     get data() {
       return data;
     },
@@ -204,7 +205,7 @@ export function openDb(file) {
     },
     save() {
       const tmp = `${file}.tmp`;
-      fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+      fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o640 }); // not readable by other accounts on the computer
       fs.renameSync(tmp, file);
     },
   };

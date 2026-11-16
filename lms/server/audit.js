@@ -54,7 +54,8 @@ export function describeRoute(method, pattern) {
 
 // db: the database (its folder holds the file; in memory in tests). Returns { record, entries,
 // verify, file }.
-export function createAudit(db) {
+// onRecord(entry): told of each new entry (the Security monitor counts sign-ins and failures).
+export function createAudit(db, { onRecord = null } = {}) {
   const file = db.dir ? path.join(db.dir, AUDIT_FILE) : null;
   const entries = []; // oldest first, as in the file
   if (file && fs.existsSync(file)) {
@@ -107,7 +108,7 @@ export function createAudit(db) {
     record(e) {
       const actor = e.actor || null;
       const target = e.target || null;
-      return append({
+      const entry = append({
         id: randomUUID(),
         at: new Date().toISOString(),
         kind: e.kind || 'change',
@@ -125,6 +126,12 @@ export function createAudit(db) {
         detail: text(e.detail, 400),
         changes: (Array.isArray(e.changes) ? e.changes : []).slice(0, 60).map((c) => ({ field: text(c.field, 120), from: text(c.from, 200), to: text(c.to, 200) })),
       });
+      try {
+        onRecord?.(entry);
+      } catch {
+        // the monitor never stops an entry from being written
+      }
+      return entry;
     },
     entries: () => entries,
     count: () => last.seq,

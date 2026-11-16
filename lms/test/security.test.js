@@ -223,7 +223,8 @@ test('the server answers malformed requests with 400 and keeps running; security
     assert.equal(ok.status, 401, 'a long but allowed username is just a wrong sign-in');
     assert.ok((await fetch(`${base}/healthz`)).ok, 'still running');
   } finally {
-    child.kill();
+    // Stopped, and then its folder removed: on the way out it saves the Security monitor's file.
+    if (child.exitCode === null) await new Promise((resolve) => child.once('exit', resolve).kill());
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

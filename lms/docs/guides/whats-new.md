@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### The Security monitor
+- **System → Security monitor**, for administrators in every system's sidebar, as in CORE. Four tabs for the last hour, day, week or month, updated every minute: **Software status** (checks on the server and the school's settings, each with the reason and a link to the fix), **API security** (requests ATLAS refused, by kind, with their OWASP item; failed sign-ins; addresses to watch; the controls in force; every API address), **Traffic** (requests, response times, the busiest and slowest routes) and **User activity** (who is signed in now, active people, sign-ins and changes). A metrics token lets Prometheus and Grafana collect the same numbers. See [the administrator's guide](admin#watch-the-server-with-the-security-monitor).
+- **The data file is saved readable only by ATLAS** (and the server's own group), like the audit log.
+
 ### Stronger protection for the API
 - **Sign in again after 12 hours**, however busy (and still after 8 idle hours). Administrators can change both in **Sign-in and passwords** (**Sign out after (hours signed in)** is new). See [the administrator's guide](admin#set-the-rules-for-passwords-and-sign-in).
 - **Changing what an account may do signs that person out**, so they continue with the new access, never the old one.

@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Running ATLAS: the Admin panel
-summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, and System (Users & Access, roles and permissions, sign-in rules, single sign-on, Cloudflare and the Audit log), demo data, backups and the guides.
+summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, and System (Users & Access, roles and permissions, sign-in rules, single sign-on, Cloudflare, the Audit log and the Security monitor), demo data, backups and the guides.
 roles: admin
 apps: admin, home
 order: 80
@@ -11,7 +11,7 @@ order: 80
 
 The **Admin panel** is the school side of ATLAS Learn. Administrators and registrars use it; deans work in ATLAS Academic instead. An **Administrator** can do everything in it. A **Registrar** uses most of the same pages: they can change enrollment, students, applicants, parents & guardians, the catalog and news, see teachers, and see the **Configuration** pages read-only. **Settings center** and **Demo data & backup** are for administrators only (an administrator can give registrars more under **Roles & permissions**). Day-to-day enrollment (approving requests, waitlists, adding and dropping students) is explained in [the registrar's guide](registrar).
 
-**System**, at the bottom of the sidebar, is for administrators only, as in CORE: **Users & Access** (every account in every system, and what each account type can do) and the **Audit log** (sign-ins, failed sign-ins and every change). It is in the sidebar of whichever system you have open: the Admin panel, People, Academic and Finance. In the Admin panel it also has **Roles & permissions**, **Sign-in and passwords**, **Single sign-on** and **Cloudflare** (putting ATLAS behind Cloudflare at a name on the school's own domain). Nobody else sees System, whatever their permissions.
+**System**, at the bottom of the sidebar, is for administrators only, as in CORE: **Users & Access** (every account in every system, and what each account type can do) the **Audit log** (sign-ins, failed sign-ins and every change) and the **Security monitor** (the server's health, refused requests, traffic and who is signed in). It is in the sidebar of whichever system you have open: the Admin panel, People, Academic and Finance. In the Admin panel it also has **Roles & permissions**, **Sign-in and passwords**, **Single sign-on** and **Cloudflare** (putting ATLAS behind Cloudflare at a name on the school's own domain). Nobody else sees System, whatever their permissions.
 
 To open it:
 
@@ -120,6 +120,27 @@ The row then shows **+ own access** under the account type. Changing a person's 
 ![The Audit log](system-audit.jpg)
 
 Passwords and what people type into forms are never recorded; a username nobody has is written as *(unknown username)*, as people sometimes type their password there by mistake. The log is kept the way CORE keeps its own: in a file of its own beside the data (`audit-log.jsonl`), every entry numbered and chained to the one before. Entries cannot be edited or deleted in ATLAS, and restoring a backup or removing the demo school does not change them. A backup does not contain the audit log; on the AWS server a copy is kept each night with the other backups.
+
+### Watch the server with the Security monitor
+
+1. Under **System**, choose **Security monitor**. Pick the period at the top: **Last hour**, **24 hours**, **7 days** or **30 days**. The page updates itself every minute while it is open.
+2. The four cards at the top sum up the period; each opens its tab (described below).
+3. Each chart has **Show the numbers** for a table; point at a bar (or use the arrow keys) to read one period.
+
+![The Security monitor](system-monitor.jpg)
+
+The four tabs:
+
+- **Software status**: checks on the server and the school's settings, each **Fine**, **Look at this**, **Problem** or **Note**, with the reason and, where there is one, **Open** to go to the fix. They cover the Node.js version and its support dates, server errors, memory, disk, the Audit log check, backups, who can read the data files, the password key, demo data, HTTPS, rate limits, the number of administrators, temporary passwords, staff accounts unused for 90 days, the password rules and single sign-on.
+- **API security**: requests ATLAS refused, by kind (not signed in, not allowed, too many, from another website, malformed, scanner paths such as `/.env`, calls to a private address…), each with its item in the OWASP API Security Top 10; failed and refused sign-ins; **Addresses to watch** (20 refusals, 5 sign-in problems, or a locked username, in the period); the **Controls in force** as they are set now; and the **API inventory** (every address ATLAS answers, and which are open without signing in).
+- **Traffic**: requests, API response times (median, p95, p99), server errors, the busiest and the slowest API routes.
+- **User activity**: who is signed in now (and where, from which device and address), how many people used ATLAS today, this week and this month, sign-ins and changes over time, where people made changes, the most active people, and the latest sign-ins.
+
+A campus, a computer lab or a dormitory shares one network address, so look before blocking an address: the Audit log shows who used it. Block it at the firewall, in AWS or in Cloudflare, not in ATLAS. To end someone's sessions, use **Users & Access** → the person → **Sign out**.
+
+The monitor counts what the server already sees, by route (never the address with its ids, the query or what was typed), and keeps it in `monitor.json` beside the data: minutes for an hour, hours for a week, days for 90 days, so the file never grows. Network addresses are kept 7 days. It is not part of a backup.
+
+**From another tool.** At the bottom of **API security**, **Monitoring from another tool** gives the health check (`/healthz`, for an uptime checker or a load balancer) and the metrics address for Prometheus and Grafana. Choose **Make a token**, copy it at once (ATLAS keeps only a fingerprint and cannot show it again) and give it to the metrics server as `Authorization: Bearer`. **Replace the token** stops the old one; **Revoke** turns metrics off. Neither shows names or network addresses, and each change of token is in the Audit log.
 
 ### Set the rules for passwords and sign-in
 
@@ -402,6 +423,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | System | Single sign-on | Signing in with the school's Keycloak account |
 | System | Cloudflare | Putting ATLAS behind Cloudflare at a name on the school's own domain; only accepting visitors through Cloudflare; switching it off |
 | System | Audit log | Sign-ins, failed sign-ins, every change (field by field) and refused requests, with a check that the log is intact; export |
+| System | Security monitor | The server's checks, refused requests and addresses to watch, the controls in force, traffic and response times, and who is signed in; the metrics token |
 | Elsewhere | ATLAS home | The ATLAS home page, in a new tab |
 
 ## Questions

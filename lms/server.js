@@ -7,6 +7,7 @@ import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
 import { loadPasswordKeys } from './server/auth.js';
 import { createApi } from './server/api.js';
+import { clientIp } from './server/ratelimit.js';
 import { safeReviver } from './server/validate.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -55,7 +56,30 @@ const SECURITY_HEADERS = {
 function send(res, status, body, type = 'application/json', headers = {}) {
   const textual = /^text\/|json|javascript|svg/.test(type);
   res.writeHead(status, { 'Content-Type': textual && !headers['Content-Disposition'] ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...SECURITY_HEADERS, ...headers });
-  res.end(type === 'application/json' ? JSON.stringify(body) : body);
+  const payload = type === 'application/json' ? JSON.stringify(body) : body;
+  res.atlasType = type;
+  res.atlasBytes = Buffer.isBuffer(payload) ? payload.length : Buffer.byteLength(String(payload ?? ''));
+  res.end(payload);
+}
+
+// System → Security monitor: each answer, once sent, is counted: its route template (never the
+// address with its ids or query), status, time, size and whether it was refused. The health check
+// is left out, as uptime checkers call it all day.
+function observe(req, res, startedAt) {
+  try {
+    const p = (req.url || '').split('?')[0];
+    if (p === '/healthz') return;
+    const isApi = p.startsWith('/api/');
+    api.monitor.observe({
+      method: req.method, route: req.atlasRoute, path: p,
+      kind: isApi ? 'api' : res.atlasType === 'text/html' ? 'page' : 'file',
+      status: res.statusCode, ms: Number(process.hrtime.bigint() - startedAt) / 1e6, out: res.atlasBytes || 0,
+      https: Boolean(req.socket?.encrypted) || (['127.0.0.1', '::1'].includes(String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '')) && String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https'),
+      userId: req.atlasUser, ip: clientIp(req), signal: res.atlasSignal,
+    });
+  } catch (err) {
+    console.error('  Security monitor:', err.message);
+  }
 }
 
 // The JSON body: at most 20 MB for someone signed in (uploads come as base64 in JSON), 256 KB for
@@ -87,9 +111,9 @@ function readBody(req, MAX_BODY) {
       try {
         body = raw ? JSON.parse(raw, safeReviver) : {}; // keys that could reach a prototype are left out (server/validate.js)
       } catch {
-        return reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
+        return reject(Object.assign(new Error('Invalid JSON.'), { status: 400, signal: 'bad-json' }));
       }
-      if (body === null || typeof body !== 'object') return reject(Object.assign(new Error('The request body must be a JSON object.'), { status: 400 }));
+      if (body === null || typeof body !== 'object') return reject(Object.assign(new Error('The request body must be a JSON object.'), { status: 400, signal: 'bad-json' }));
       resolve(body);
     });
     req.on('error', stop);
@@ -146,6 +170,8 @@ function serveStatic(req, url, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  const startedAt = process.hrtime.bigint();
+  res.once('finish', () => observe(req, res, startedAt));
   // A malformed address or Host header is answered with 400, never allowed to stop the server.
   let url;
   try {
@@ -166,7 +192,10 @@ const server = http.createServer(async (req, res) => {
   // requests addressed to localhost, a plain IP address, or a name in ALLOWED_HOSTS.
   const hostname = (req.headers.host || '').replace(/:\d+$/, '');
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith('[');
-  if (hostname !== 'localhost' && !isIp && !ALLOWED_HOSTS.includes(hostname)) return send(res, 403, { error: 'Forbidden host.' });
+  if (hostname !== 'localhost' && !isIp && !ALLOWED_HOSTS.includes(hostname)) {
+    res.atlasSignal = 'wrong-host';
+    return send(res, 403, { error: 'Forbidden host.' });
+  }
   if (['POST', 'PUT', 'DELETE'].includes(req.method) && !(req.headers['content-type'] || '').startsWith('application/json')) {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
@@ -181,6 +210,7 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     if (status === 500) console.error(err);
+    if (err.signal) res.atlasSignal = err.signal;
     if (res.headersSent) return res.destroy();
     send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message }, 'application/json', { ...(err.headers || {}), ...(err.close ? { Connection: 'close' } : {}) });
     if (err.close) res.on('finish', () => req.socket?.destroy()); // stop receiving an upload that is too large
@@ -192,6 +222,13 @@ server.headersTimeout = 20 * 1000;
 server.requestTimeout = 5 * 60 * 1000;
 // Anything that still slips through is logged, and the server keeps serving everyone else.
 process.on('uncaughtException', (err) => console.error('Unexpected error (ATLAS keeps running):', err));
+// On Ctrl+C or a service stop, the Security monitor's last minute is saved before ATLAS exits.
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.once(sig, () => {
+    api.monitor.stop();
+    process.exit(0);
+  });
+}
 process.on('unhandledRejection', (err) => console.error('Unexpected error (ATLAS keeps running):', err));
 
 function openBrowser(url) {

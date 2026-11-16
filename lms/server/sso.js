@@ -137,7 +137,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     if (isLocal(host) || isLocal(from.hostname)) {
       // A Keycloak on this machine: only its own address, and never a jump from a remote one.
       if (isLocal(host) && isLocal(from.hostname) && u.port === from.port) return;
-      fail('Keycloak gave an address on this server, which ATLAS does not call.', 502);
+      throw Object.assign(new HttpError(502, 'Keycloak gave an address on this server, which ATLAS does not call.'), { signal: 'outbound-blocked' });
     }
     if (u.protocol !== 'https:') fail('ATLAS calls Keycloak over https only.', 502);
     if (allowedPrivate.has(host)) return;
@@ -148,7 +148,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
       fail(`Could not find Keycloak (${host}).`, 502);
     }
     if (!addresses.length || addresses.some((a) => privateAddress(a.address, a.family))) {
-      fail(`Keycloak's address (${host}) is on a private network, which ATLAS does not call from here. Use its address on the internet (or, for a Keycloak on the campus network, ask whoever runs the server to list it in KEYCLOAK_PRIVATE_HOSTS).`, 400);
+      throw Object.assign(new HttpError(400, `Keycloak's address (${host}) is on a private network, which ATLAS does not call from here. Use its address on the internet (or, for a Keycloak on the campus network, ask whoever runs the server to list it in KEYCLOAK_PRIVATE_HOSTS).`), { signal: 'outbound-blocked' });
     }
   }
   const guardedFetch = (issuer) => async (url, opts) => {
@@ -185,7 +185,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     try {
       res = await rawFetch(url, { ...opts, redirect: 'manual', signal: AbortSignal.timeout(10000) });
     } catch (err) {
-      if ((err.code || err.cause?.code) === 'EPRIVATE') fail(`Keycloak's address (${new URL(url).hostname}) is on a private network, which ATLAS does not call from here.`, 400);
+      if ((err.code || err.cause?.code) === 'EPRIVATE') throw Object.assign(new HttpError(400, `Keycloak's address (${new URL(url).hostname}) is on a private network, which ATLAS does not call from here.`), { signal: 'outbound-blocked' });
       fail(`Could not reach Keycloak (${new URL(url).host}): ${err.code || err.cause?.code || err.name || 'no answer'}`, 502);
     }
     const body = await res.json().catch(() => null);

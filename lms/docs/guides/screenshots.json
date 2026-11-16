@@ -157,6 +157,12 @@
   "wait": 1200
  },
  {
+  "file": "system-monitor.jpg",
+  "user": "admin",
+  "url": "/admin#/system/monitor?tab=status&range=1h",
+  "wait": 1800
+ },
+ {
   "file": "admin-data.jpg",
   "user": "admin",
   "url": "/admin#/data",

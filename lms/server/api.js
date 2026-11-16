@@ -36,6 +36,8 @@ import { registerGuideRoutes } from './guides.js';
 import { readFileSync } from 'node:fs';
 import { createAudit, systemOf, describeRoute, sideLabel, isStaff, addAuditDemo, removeAuditDemo } from './audit.js';
 import { registerSystemRoutes } from './system.js';
+import { createMonitor } from './monitor.js';
+import { registerMonitorRoutes } from './monitor-panel.js';
 
 // The version of this ATLAS (package.json), shown with the guides.
 const APP_VERSION = (() => {
@@ -113,8 +115,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     };
   });
   const users = () => db.data.users;
-  // The audit trail (server/audit.js, ATLAS Control → Audit trail).
-  const audit = createAudit(db);
+  // System → Security monitor (server/monitor.js): requests (reported by server.js), audit entries
+  // and the process, in buckets of fixed size, kept in monitor.json beside the data.
+  const openSessions = () => Object.entries(sides).flatMap(([side, s]) => s.list().map((x) => ({ ...x, side })));
+  const monitor = createMonitor(db.dir, { sessions: openSessions });
+  // The audit trail (server/audit.js, System → Audit log).
+  const audit = createAudit(db, { onRecord: (entry) => monitor.audit(entry) });
   const SIDE_SYSTEM = { portal: 'learn', admin: 'admin', hris: 'people' };
   // Password hashes are encrypted under the current key (server/auth.js): plain ones, and ones under
   // an old key, are encrypted now; ones under a key this server lacks cannot be used until it has it.
@@ -439,7 +445,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/admin/auth/change-password', 'admin', (a) => changePassword('admin', a), { duringPasswordChange: true, limit: 'password', audit: false, body: PASSWORD_BODY });
 
   // ----- Data: backups and demo data -----
-  route('GET', '/api/admin/backup', 'admin:data.manage', () => db.data);
+  route('GET', '/api/admin/backup', 'admin:data.manage', ({ user }) => {
+    monitor.noteBackup(user.name); // the Security monitor's Backup check
+    return db.data;
+  });
   route('POST', '/api/admin/restore', 'admin:data.manage', ({ body }) => {
     if (!Array.isArray(body.users) || !Array.isArray(body.enrollments)) fail('That file is not an ATLAS backup.');
     const admins = body.users.filter((u) => u.role === 'admin' && u.status === 'active' && u.passwordHash);
@@ -544,6 +553,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   registerCalendarRoutes(route, ctx, classroom);
   // ----- System → Users & Access and Audit log (administrators, in any system's sidebar) -----
   registerSystemRoutes(route, ctx, { sides, throttle });
+  // ----- System → Security monitor (administrators), and its metrics export -----
+  registerMonitorRoutes(route, { db, monitor, audit, record: (e) => audit.record(e), sec: security, rateLimits: rateLimits !== 'off', routes, sessions: openSessions, version: APP_VERSION });
 
   // Call a route as a user, inside the server (demo data is made through the same rules as real work).
   ctx.invoke = (user, method, path, body = {}) => {
@@ -608,6 +619,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   handle.sealPasswords = sealPasswords;
   handle.audit = audit;
   handle.prepare = prepare;
+  handle.monitor = monitor;
   return handle;
   // Who sent a request, from its session cookies (no body needed).
   function whoIs(req) {
@@ -646,9 +658,20 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       else limits.hit('address', ip);
     }
     const origin = originOf(req);
-    if (crossSite(req)) fail('This change was asked for by another website, so ATLAS refused it. Open ATLAS itself and try again.', 403);
+    // For the Security monitor: the route that answers (its template, never the address with ids)
+    // and who asked, known before any check so a refusal is counted under its route.
+    req.atlasRoute = routes.find((x) => x.method === req.method && x.re.test(url.pathname))?.pattern || null;
+    req.atlasUser = signedIn?.id || null;
+    const signal = (name, run) => {
+      try {
+        return run();
+      } catch (err) {
+        throw Object.assign(err, { signal: name });
+      }
+    };
+    signal('cross-site', () => crossSite(req) && fail('This change was asked for by another website, so ATLAS refused it. Open ATLAS itself and try again.', 403));
     // Every body: an object of sane size and depth, without keys that reach a prototype (server/validate.js).
-    if (UNSAFE.has(req.method)) body = checkStructure(body);
+    if (UNSAFE.has(req.method)) body = signal('bad-json', () => checkStructure(body));
 
     for (const r of routes) {
       if (r.method !== req.method) continue;
@@ -706,7 +729,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         try {
           // A route that declares its body gets only those fields, checked (server/validate.js).
           const accepted = r.body ? checkBody(body, r.body) : body;
-          result = await r.handler({ params, body: accepted, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies, ip, agent });
+          result = await r.handler({ params, body: accepted, query: Object.fromEntries(url.searchParams), user, token, portalUser, adminUser, hrisUser, portalToken, adminToken, tokens, campusId, origin, cookies, ip, agent, headers: req.headers || {} });
         } catch (err) {
           if (finSnap) Object.assign(db.data, finSnap);
           throw err;

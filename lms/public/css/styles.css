@@ -1072,3 +1072,81 @@ fieldset.plain { border: 0; padding: 0; margin: 0; }
 @media (max-width: 760px) {
   .users-table .row-actions { text-align: left; }
 }
+
+/* ----- System → Security monitor (public/js/system/monitor.js), after CORE ERP's ----- */
+:root { --chart-1: var(--brand); --chart-grid: #e5e7eb; --chart-base: #c4c8cf; }
+:root[data-theme='dark'] { --chart-1: var(--brand-text); --chart-grid: #243044; --chart-base: #3b4a63; }
+.mon-filter { margin: -4px 0 14px; }
+.mon-stats .card strong { font-size: 22px; }
+.mon-stats .card.attention { border-color: color-mix(in srgb, var(--danger) 40%, var(--surface)); }
+.mon-ok { color: var(--success); }
+.mon-warn { color: var(--warn); }
+.mon-bad { color: var(--danger); }
+.mon-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; align-items: start; margin-bottom: 16px; }
+.mon-checks .card { margin: 0; }
+.mon-checks h2, .mon-checks + .cols h2 { font-size: 15px; }
+.mon-list { list-style: none; margin: 0; padding: 0; }
+.mon-check { display: grid; grid-template-columns: 118px minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--border); }
+.mon-check:first-child { border-top: 0; padding-top: 2px; }
+.mon-check .grow strong { display: block; font-size: 14px; }
+.mon-check .grow small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.mon-check > a { white-space: nowrap; display: inline-flex; align-items: center; gap: 2px; }
+.mon-state { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.mon-state.ok { color: var(--success); }
+.mon-state.warn { color: var(--warn); }
+.mon-state.bad { color: var(--danger); }
+.mon-state.info { color: var(--muted); }
+.mon-check.st-bad { background: var(--danger-soft); margin: 0 -12px; padding-left: 12px; padding-right: 12px; border-radius: 6px; border-top-color: transparent; }
+.mon-check.st-bad + .mon-check { border-top-color: transparent; }
+@media (max-width: 560px) {
+  .mon-check { grid-template-columns: minmax(0, 1fr) auto; }
+  .mon-check .mon-state { grid-column: 1 / -1; }
+}
+.mon-info { display: grid; gap: 10px; margin: 0; }
+.mon-info > div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; }
+.mon-info dt { color: var(--muted); font-size: 13px; font-weight: 600; }
+.mon-info dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .mon-info > div { grid-template-columns: 1fr; gap: 2px; } }
+.mon-areas { list-style: none; margin: 10px 0 0; padding: 0; }
+.mon-areas li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.mon-areas li:first-child { border-top: 0; }
+.mon-sub { font-size: 14px; margin: 18px 0 6px; }
+.mon-rank-table td.mon-bar { width: 32%; min-width: 80px; }
+.mon-rank-table tr.mon-zero td { color: var(--muted); }
+.mc-rank { display: block; height: 8px; border-radius: 0 4px 4px 0; }
+.mc-rank i { display: block; height: 100%; background: var(--chart-1); border-radius: 0 4px 4px 0; }
+.mon-route { font-size: 12px; overflow-wrap: anywhere; }
+.mon-public ul { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; }
+.mon-public summary { cursor: pointer; font-size: 13px; color: var(--brand-text); font-weight: 600; margin-top: 10px; }
+.mon-token { margin: 14px 0; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--warn-soft); display: grid; gap: 8px; }
+.mon-token p { margin: 0; font-size: 13px; }
+.mon-token-value { display: block; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; overflow-wrap: anywhere; user-select: all; }
+.mon-token .btn { justify-self: start; }
+
+/* Small charts (public/js/system/charts.js): one series, one axis, hairline grid. */
+.mchart { margin: 0; }
+.mchart figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 10px; }
+.mchart figcaption strong { font-size: 14px; }
+.mc-plot { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+.mc-y { display: flex; flex-direction: column; justify-content: space-between; height: 150px; font-size: 11px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; min-width: 24px; }
+.mc-y span { line-height: 1; transform: translateY(-1px); }
+.mc-y span:last-child { transform: translateY(1px); }
+.mc-area { position: relative; height: 150px; outline-offset: 4px; border-radius: 2px; cursor: crosshair; }
+.mc-area svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mc-grid { stroke: var(--chart-grid); stroke-width: 1; }
+.mc-base { stroke: var(--chart-base); stroke-width: 1; }
+.mc-bar { fill: var(--chart-1); }
+.mc-bar.on { fill: color-mix(in srgb, var(--chart-1) 70%, var(--surface)); }
+.mc-line { fill: none; stroke: var(--chart-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.mc-wash { fill: var(--chart-1); opacity: 0.1; stroke: none; }
+.mc-cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--text-2); opacity: 0.45; pointer-events: none; }
+.mc-tip { position: absolute; top: -6px; transform: translate(10px, -100%); background: var(--surface); border: 1px solid var(--border-strong); box-shadow: var(--shadow-lg); border-radius: 8px; padding: 6px 10px; font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 3; display: grid; gap: 1px; }
+.mc-tip.flip { transform: translate(calc(-100% - 10px), -100%); }
+.mc-tip strong { font-size: 14px; color: var(--text); }
+.mc-tip span { color: var(--muted); }
+.mc-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; text-align: center; padding: 0 12px; }
+.mc-x { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin: 6px 0 0; padding-left: 32px; font-variant-numeric: tabular-nums; }
+.mc-table { margin-top: 8px; }
+.mc-table summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.mc-table .scroll-x { max-height: 260px; overflow-y: auto; margin-top: 6px; }
+.mchart + .mchart { margin-top: 22px; }
