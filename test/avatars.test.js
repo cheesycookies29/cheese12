@@ -103,3 +103,63 @@ test('an administrator removes someone\'s picture (audited); others cannot; dele
   assert.ok(!fs.existsSync(fileOf(pic.id)));
   assert.deepEqual(await admin('GET', '/api/avatars'), {});
 });
+
+// A restore keeps profile pictures (0.32.1). The picture files are not in the backup file: they stay
+// in the attachments folder, so a reference is kept only when its file is there and is that picture.
+test('restoring a backup keeps everyone\'s picture; a reference without its file, or a broken one, is dropped', async () => {
+  const rosa = await account('rosa', 'hr', 'Rosa Reyes');
+  const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(100, 2)]);
+  const set = await ivan('PUT', '/api/me/avatar', { file: { name: 'me.png', data: PNG.toString('base64') } });
+  const pic = db.data.users.find((u) => u.id === ivan.id).avatar;
+  const backup = structuredClone(await admin('GET', '/api/admin/export')); // as a downloaded file
+  const restore = (file) => admin('POST', '/api/admin/import', { ...structuredClone(file), password: 'secret123' });
+  // After the backup, the picture is removed from the account (its file stays, as after any restore).
+  delete db.data.users.find((u) => u.id === ivan.id).avatar;
+  db.save();
+  assert.deepEqual(await admin('GET', '/api/avatars'), {});
+
+  assert.deepEqual(await restore(backup), { ok: true });
+  assert.deepEqual(db.data.users.find((u) => u.id === ivan.id).avatar, pic);
+  assert.deepEqual(await rosa('GET', '/api/avatars'), { [ivan.id]: set.avatar });
+  const res = await rosa.raw('GET', `/api/users/${ivan.id}/avatar`);
+  assert.ok(Buffer.isBuffer(res.data) && res.data.equals(PNG));
+  assert.equal(res.headers['Content-Type'], 'image/png');
+
+  // Broken references are dropped; the accounts are restored all the same.
+  const ivanIn = (file) => file.users.find((u) => u.id === ivan.id);
+  const rosaIn = (file) => file.users.find((u) => u.id === rosa.id);
+  const broken = [
+    ['an id in another format', { ...pic, id: '../db.json' }],
+    ['a type that is not a picture', { ...pic, type: 'image/svg+xml' }],
+    ['a type that is not the file\'s', { ...pic, type: 'image/jpeg' }],
+    ['a size that is not a positive whole number', { ...pic, size: -1 }],
+    ['a date that is not a date', { ...pic, at: 'yesterday' }],
+    ['a long date', { ...pic, at: `${pic.at}${' '.repeat(40)}` }],
+    ['not a picture at all', 'me.png'],
+  ];
+  for (const [what, avatar] of broken) {
+    const file = structuredClone(backup);
+    ivanIn(file).avatar = avatar;
+    assert.deepEqual(await restore(file), { ok: true }, what);
+    assert.equal(db.data.users.find((u) => u.id === ivan.id).avatar, undefined, what);
+    assert.equal(db.data.users.length, backup.users.length, what);
+  }
+  // A picture whose file is not on this server (a backup from another server without its data folder).
+  const elsewhere = structuredClone(backup);
+  ivanIn(elsewhere).avatar = { ...pic, id: '00000000-0000-4000-8000-000000000000' };
+  await restore(elsewhere);
+  assert.deepEqual(await admin('GET', '/api/avatars'), {});
+  // Another file on the server (a task file, a certificate) is not taken as someone's picture.
+  const pdf = path.join(dir, 'attachments', '11111111-1111-4111-8111-111111111111');
+  fs.writeFileSync(pdf, '%PDF-1.4\n');
+  const other = structuredClone(backup);
+  ivanIn(other).avatar = { ...pic, id: path.basename(pdf), type: 'image/jpeg' };
+  await restore(other);
+  assert.equal(db.data.users.find((u) => u.id === ivan.id).avatar, undefined);
+  // One file is one account's picture: a second account naming the same file gets none.
+  const shared = structuredClone(backup);
+  rosaIn(shared).avatar = { ...pic };
+  await restore(shared);
+  assert.deepEqual(Object.keys(await admin('GET', '/api/avatars')), [ivan.id]);
+  assert.equal(db.data.users.find((u) => u.id === rosa.id).avatar, undefined);
+});

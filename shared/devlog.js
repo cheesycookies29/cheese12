@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.32.1-alpha',
+    date: '2026-11-16',
+    title: 'Profile pictures survive a restore',
+    modules: ['system'],
+    notes: 'Restoring a backup no longer removes everyone\'s profile picture.',
+    changes: [
+      ['fixed', 'system', 'Restoring a backup (Admin panel → Backup & restore) dropped every account\'s profile picture: user.avatar was not among the account fields a restore keeps (backupUsers). It is now kept when well-formed (an attachment id, a picture type, a positive whole size, a date of at most 40 characters) and its file is in this server\'s attachments folder and is that type of picture (by its first bytes: files.typeOf); otherwise it is dropped and the account restores without a picture. The picture files are not in the backup file, so a restore on another server keeps them only when the data folder was copied first. One file is one account\'s picture: a second account naming it gets none.'],
+    ],
+  },
+  {
     version: '0.32.0-alpha',
     date: '2026-11-16',
     title: 'Everyone\'s profile, with a role in the company',

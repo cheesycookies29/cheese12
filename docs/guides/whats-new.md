@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Profile pictures stay after a restore (0.32.1)
+- Restoring a backup in **Admin panel → Backup & restore** no longer takes everyone's profile picture away. The pictures themselves are kept in CORE's `data` folder, not in the backup file: on the same server they come back with the restore; on a new server, copy the `data` folder first, or people add their pictures again. See [the admin guide](admin#back-up-and-restore).
+
 ### Everyone has a profile, with a role in the company (0.32)
 - **My profile**, under your name at the top right, shows your role in the company (such as *Software Engineer*), your account, your employment and which modules you can open. Click a colleague's name in a project, a task or a comment for their profile. The role is set by administrators and says *Employee* until then; the top bar now shows it instead of the account type. HR's *My Profile* page is now **My HR record**. See [the getting started guide](getting-started#see-your-profile-and-a-colleague-s) and, for administrators, [the admin guide](admin#set-someone-s-role-in-the-company).
 

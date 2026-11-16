@@ -83,6 +83,21 @@ export function createAttachments(dir) {
       if (!fs.existsSync(file)) throw new HttpError(404, 'The file is missing from the server. It may not have been included when data was restored.');
       return fs.readFileSync(file);
     },
+    // The real type of a stored file, from its first bytes; null when the file is not on this server.
+    typeOf(meta) {
+      if (!ID_RE.test(meta?.id || '')) return null;
+      try {
+        const fd = fs.openSync(path.join(dir, meta.id), 'r');
+        try {
+          const head = Buffer.alloc(16);
+          return sniff(head.subarray(0, fs.readSync(fd, head, 0, 16, 0)));
+        } finally {
+          fs.closeSync(fd);
+        }
+      } catch {
+        return null;
+      }
+    },
     // Files are not removed when data is replaced (demo data, restore), so restoring a backup brings them back.
     remove(meta) {
       if (meta?.id && ID_RE.test(meta.id)) fs.rmSync(path.join(dir, meta.id), { force: true });

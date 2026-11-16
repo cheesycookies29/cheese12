@@ -302,7 +302,20 @@ function validTwoFactor(tf) {
   if (!tf.recovery.every((r) => r && isText(r.hash, 128) && optional(r.usedAt, (v) => isText(v, 40)))) return null;
   return { secret: tf.secret, enabledAt: tf.enabledAt, lastStep: tf.lastStep ?? -1, recovery: tf.recovery.map((r) => ({ hash: r.hash, usedAt: r.usedAt ?? null })) };
 }
-function backupUsers(list) {
+// A profile picture as a backup may carry it (0.32.1): the picture file is not in the backup, so the
+// reference is kept only when it is well-formed and its file is on this server and is that picture
+// (restoring on the same server, or after copying the data folder); otherwise the account simply has
+// no picture. Never refuses the restore.
+const AVATAR_ID_RE = /^[0-9a-f-]{36}$/;
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+function backupAvatar(a, typeOf) {
+  if (!a || typeof a !== 'object' || Array.isArray(a)) return null;
+  if (typeof a.id !== 'string' || !AVATAR_ID_RE.test(a.id) || !AVATAR_TYPES.includes(a.type)) return null;
+  if (!Number.isInteger(a.size) || a.size <= 0 || !isText(a.at, 40) || Number.isNaN(Date.parse(a.at))) return null;
+  if (typeOf?.(a) !== a.type) return null;
+  return { id: a.id, type: a.type, size: a.size, at: a.at };
+}
+function backupUsers(list, { pictureType } = {}) {
   const bad = (i, why) => new HttpError(400, `That backup cannot be restored: user account ${i + 1} ${why}. Nothing was changed.`);
   const out = [];
   list.forEach((raw, i) => {
@@ -337,6 +350,9 @@ function backupUsers(list) {
       if (typeof p !== 'object' || !isText(p.secret) || !isText(p.createdAt, 40)) throw bad(i, 'has invalid 2-step verification details');
       u.twoFactorPending = { secret: p.secret, createdAt: p.createdAt };
     }
+    // One picture file belongs to one account: removing it from one must not take another's.
+    const avatar = backupAvatar(raw.avatar, pictureType);
+    if (avatar && !out.some((x) => x.avatar?.id === avatar.id)) u.avatar = avatar;
     if (out.some((x) => x.username === u.username)) throw bad(i, `repeats the username "${u.username}"`);
     if (out.some((x) => x.id === u.id)) throw bad(i, 'repeats the id of another account');
     out.push(u);
@@ -759,7 +775,6 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   // (at most 1 MB and 1024 pixels each way: checkGif). Set and removed by its owner;
   // an administrator can remove anyone's. Shown to everyone signed in, with its own type, nosniff and
   // a sandbox policy; the address carries the picture's date, so a new one is not hidden by the cache.
-  const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
   const AVATAR_MAX = 300 * 1024;
   const avatarList = () => Object.fromEntries(users().filter((u) => u.avatar?.id).map((u) => [u.id, u.avatar.at]));
   function setAvatar(user, file) {
@@ -1225,7 +1240,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
       throw new HttpError(400, 'That file is not a valid backup.');
     }
     // Keep the current accounts unless the backup carries its own.
-    replaceData(db, { ...backup, users: Array.isArray(backup.users) && backup.users.length ? backupUsers(backup.users) : users() });
+    replaceData(db, { ...backup, users: Array.isArray(backup.users) && backup.users.length ? backupUsers(backup.users, { pictureType: (meta) => files.typeOf(meta) }) : users() });
     syncLedger(db) && db.save();
     // The accounts after a restore are on record: an account the backup added shows here.
     const admins = activeAdmins().map((u) => u.username).join(', ');
