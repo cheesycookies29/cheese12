@@ -57,7 +57,8 @@ async function startServer() {
   await call('POST', '/api/auth/setup', ADMIN);
   await call('PUT', '/api/settings', { companyName: 'Lancaster Technology and Development Corporation' });
   await call('POST', '/api/admin/demo');
-  return { url, stop: () => { child.kill(); fs.rmSync(dir, { recursive: true, force: true }); } };
+  // The server saves its last minute on the way out (data/monitor.json): remove the folder after it exits.
+  return { url, stop: () => new Promise((resolve) => { child.once('exit', resolve); child.kill(); }).then(() => fs.rmSync(dir, { recursive: true, force: true })) };
 }
 
 const shots = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).filter((s) => !only.length || only.includes(s.file));
@@ -68,13 +69,13 @@ if (!shots.length) {
 fs.mkdirSync(OUT, { recursive: true });
 // A shot marked "fresh" starts a new group: a new server with fresh demo data, so one guide's
 // changes (payroll runs, approvals) do not change another guide's screenshots.
-let server = base ? { url: base, stop() {} } : await startServer();
+let server = base ? { url: base, async stop() {} } : await startServer();
 const browser = await chromium.launch();
 const failed = [];
 try {
   for (const [i, s] of shots.entries()) {
     if (s.fresh && i > 0 && !base) {
-      server.stop();
+      await server.stop();
       server = await startServer();
     }
     const phone = s.viewport === 'phone';
@@ -124,7 +125,7 @@ try {
   }
 } finally {
   await browser.close();
-  server.stop();
+  await server.stop();
 }
 if (failed.length) {
   console.error(`\n${failed.length} screenshot(s) failed:\n${failed.join('\n')}`);

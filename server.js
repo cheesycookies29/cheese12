@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
 import { openDb } from './server/db.js';
-import { createApi } from './server/api.js';
+import { createApi, clientIp } from './server/api.js';
 import { baseHeaders, pagePolicy, API_POLICY, crossSite } from './server/security.js';
 import { PUBLIC_BODY_BYTES, MAX_FILES as HELPDESK_MAX_FILES } from './server/helpdesk.js';
 import { MAX_ATTACHMENT_BYTES } from './shared/leave.js';
@@ -33,7 +33,29 @@ function send(res, status, body, type = 'application/json', headers = {}) {
   // Every answer carries the security headers; CORE's pages get the page policy, data the strictest.
   const policy = type === 'text/html' ? (headers['X-Robots-Tag'] ? {} : { 'Content-Security-Policy': PAGE_POLICY }) : type === 'application/json' ? { 'Content-Security-Policy': API_POLICY } : {};
   res.writeHead(status, { ...baseHeaders({ https: res.viaHttps }), ...policy, 'Content-Type': textual ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...headers });
-  res.end(type === 'application/json' ? JSON.stringify(body) : body);
+  const payload = type === 'application/json' ? JSON.stringify(body) : body;
+  res.coreType = type;
+  res.coreBytes = Buffer.isBuffer(payload) ? payload.length : Buffer.byteLength(String(payload ?? ''));
+  res.end(payload);
+}
+
+// Admin panel → Security monitor (0.34): each answer, once sent, is counted: its route template
+// (never the address with its ids or query), status, time, size and whether it was refused. The
+// health check is left out, as uptime checkers call it all day.
+function observe(req, res, startedAt) {
+  try {
+    const p = (req.url || '').split('?')[0];
+    if (p === '/api/public/health') return;
+    const isApi = p.startsWith('/api/');
+    api.monitor.observe({
+      method: req.method, route: req.coreRoute, path: p,
+      kind: isApi ? 'api' : res.coreType === 'text/html' ? 'page' : 'file',
+      status: res.statusCode, ms: Number(process.hrtime.bigint() - startedAt) / 1e6, out: res.coreBytes || 0,
+      https: res.viaHttps, userId: req.coreUser, ip: clientIp(req), signal: res.coreSignal,
+    });
+  } catch (err) {
+    console.error('Security monitor:', err.message);
+  }
 }
 
 // How much of a request is read (uploads arrive as base64 inside the JSON). Signed in (VAPT 0.33:
@@ -72,10 +94,10 @@ function readBody(req, limit) {
         const raw = Buffer.concat(chunks).toString('utf8');
         const body = raw ? JSON.parse(raw) : {};
         // Every endpoint takes a JSON object; null, a number or a string is a bad request.
-        if (body === null || typeof body !== 'object') return reject(Object.assign(new Error('Send a JSON object.'), { status: 400 }));
+        if (body === null || typeof body !== 'object') return reject(Object.assign(new Error('Send a JSON object.'), { status: 400, signal: 'bad-json' }));
         resolve(body);
       } catch {
-        reject(Object.assign(new Error('Invalid JSON.'), { status: 400 }));
+        reject(Object.assign(new Error('Invalid JSON.'), { status: 400, signal: 'bad-json' }));
       }
     });
     req.on('error', reject);
@@ -122,6 +144,8 @@ function serveStatic(url, res) {
 }
 
 const server = http.createServer(async (req, res) => {
+  const startedAt = process.hrtime.bigint();
+  res.once('finish', () => observe(req, res, startedAt));
   res.viaHttps = viaHttps(req);
   let url;
   try {
@@ -143,13 +167,19 @@ const server = http.createServer(async (req, res) => {
   // requests addressed to localhost or a plain IP address (e.g. 192.168.1.20 on the office network).
   const hostname = (req.headers.host || '').replace(/:\d+$/, '');
   const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith('[');
-  if (hostname !== 'localhost' && !isIp && !ALLOWED_HOSTS.includes(hostname)) return send(res, 403, { error: 'Forbidden host.' });
+  if (hostname !== 'localhost' && !isIp && !ALLOWED_HOSTS.includes(hostname)) {
+    res.coreSignal = 'wrong-host';
+    return send(res, 403, { error: 'Forbidden host.' });
+  }
   // Exactly application/json (with parameters such as charset), not anything that starts with it.
   if (['POST', 'PUT', 'DELETE'].includes(req.method) && (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
   // A change must come from CORE's own pages, never from another site (cross-site request forgery).
-  if (req.method !== 'GET' && req.method !== 'HEAD' && crossSite(req)) return send(res, 403, { error: 'This request came from another site and was refused.' });
+  if (req.method !== 'GET' && req.method !== 'HEAD' && crossSite(req)) {
+    res.coreSignal = 'cross-site';
+    return send(res, 403, { error: 'This request came from another site and was refused.' });
+  }
   try {
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req, bodyLimit(req, url)) : {};
     const { data, headers } = await api(req, url, body);
@@ -158,6 +188,7 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     const status = err.status || 500;
     if (status === 500) console.error(err);
+    if (err.signal) res.coreSignal = err.signal;
     // Too large: answer, then close the connection so the rest of the upload is not received.
     if (status === 413) res.once('finish', () => req.destroy());
     send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message }, 'application/json', status === 413 ? { Connection: 'close' } : err.headers || {});
@@ -167,6 +198,14 @@ const server = http.createServer(async (req, res) => {
 // room for the largest uploads on a slow line.
 server.headersTimeout = 30 * 1000;
 server.requestTimeout = 120 * 1000;
+
+// On Ctrl+C or a service stop, the monitor's last minute is saved before CORE exits.
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.once(sig, () => {
+    api.monitor.stop();
+    process.exit(0);
+  });
+}
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

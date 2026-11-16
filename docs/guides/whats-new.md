@@ -9,8 +9,8 @@ order: 2
 
 ## November 2026
 
-### Security review fixes (0.33)
-- A second security review (VAPT) of the whole of CORE found no critical or high issues; what it did find is fixed. Payroll runs and payslips show ID and bank numbers masked (the register export has them in full, and is logged). Nobody changes their own attendance, leave credits, pay or payslip: a colleague or an administrator does. Birth dates, home addresses and emergency contacts are for the HR side only. A service desk ticket belongs to the person who filed it, and each employee needs their own email. Project managers no longer see members' attendance. The audit log notices entries removed from the end of its file. See [the HR guide](hr) and [the admin guide](admin#check-the-audit-log).
+### A security monitor for administrators (0.34)
+- **Admin panel → Security monitor** shows, for the last hour up to 30 days: **software status** checks (Node.js support dates, errors, memory, disk, backups, HTTPS, rate limits, 2-step verification), each with what to do; **API security** (refused requests by kind, network addresses to watch, the controls in force, the list of API addresses); **traffic** (requests and response times by route); and **user activity** (who is signed in now, people active today, this week and this month, sign-ins, what people worked on). It refreshes every minute, and a health check and a metrics export let an outside tool watch CORE too. See [the admin guide](admin#watch-the-security-monitor).
 
 ### Everyone has a profile, with a role in the company (0.32)
 - **My profile**, under your name at the top right, shows your role in the company (such as *Software Engineer*), your account, your employment and which modules you can open. Click a colleague's name in a project, a task or a comment for their profile. The role is set by administrators and says *Employee* until then; the top bar now shows it instead of the account type. HR's *My Profile* page is now **My HR record**. See [the getting started guide](getting-started#see-your-profile-and-a-colleague-s) and, for administrators, [the admin guide](admin#set-someone-s-role-in-the-company).

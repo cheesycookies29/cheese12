@@ -101,6 +101,7 @@
   {"file": "projects-setup-sizes.jpg", "user": "pm.demo", "url": "/#/projects/settings?tab=sizes", "wait": 1000},
   {"file": "projects-setup-digest.jpg", "user": "pm.demo", "url": "/#/projects/settings?tab=digest", "wait": 1000},
   {"file": "admin-dashboard.jpg", "user": "admin", "url": "/#/admin/dashboard", "wait": 1200, "fresh": true},
+  {"file": "admin-monitor.jpg", "user": "admin", "url": "/#/admin/monitor?tab=status&range=1h", "wait": 1500},
   {"file": "admin-users.jpg", "user": "admin", "url": "/#/admin/users", "wait": 1000},
   {"file": "admin-roles.jpg", "user": "admin", "url": "/#/admin/roles", "api": [["PUT", "/api/admin/roles", {"overrides": {"hr": {"add": ["audit.view"], "remove": []}}}]], "wait": 1000, "scroll": "h2:has-text('Admin panel')"},
   {"file": "admin-access-grants.jpg", "user": "admin", "url": "/#/admin/access", "wait": 1000},

@@ -33,7 +33,7 @@ export async function adminDashboardView(el) {
     </section>` : ''}
 
     ${s ? html`<section class="dash-section" aria-labelledby="dash-security">
-      <div class="card-head"><h2 id="dash-security">${icon('shield')} Security, last 24 hours</h2><a href="#/admin/audit?area=auth" class="small">Audit log ${icon('chevronRight', 14)}</a></div>
+      <div class="card-head"><h2 id="dash-security">${icon('shield')} Security, last 24 hours</h2><span class="dash-links">${can('security.monitor') ? html`<a href="#/admin/monitor" class="small">Security monitor ${icon('chevronRight', 14)}</a>` : ''}<a href="#/admin/audit?area=auth" class="small">Audit log ${icon('chevronRight', 14)}</a></span></div>
       <div class="stats">
         ${stat('Failed sign-ins', s.failedSignIns, '/admin/audit?area=auth', { warn: s.failedSignIns >= 10 })}
         ${stat('Wrong 2-step codes', s.wrongCodes, '/admin/audit?area=auth')}

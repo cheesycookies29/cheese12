@@ -21,6 +21,7 @@ import { configView } from './views/admin/config.js';
 import { modulesView } from './views/admin/modules.js';
 import { dataView, demoView } from './views/admin/data.js';
 import { guidesAdminView } from './views/admin/guides.js';
+import { monitorView } from './views/admin/monitor.js';
 import { usersView } from './views/users.js';
 import { meHomeView, meAttendanceView, mePayslipsView, mePayslipView, meProfileView, meRequestsView } from './views/self.js';
 import { payrollSetupView } from './views/payroll-setup.js';
@@ -129,6 +130,7 @@ const routes = [
   ['/admin/security', securityView, 'users.manage', 'system'],
   ['/admin/guides', guidesAdminView, 'guides.edit', 'system'],
   ['/admin/audit', auditView, 'audit.view', 'system'],
+  ['/admin/monitor', monitorView, 'security.monitor', 'system'],
   ['/admin/devlog', devlogView, 'devlog.view', 'system'],
   ['/admin/feedback', feedbackInboxView, 'feedback.view', 'system'],
   ['/admin/feedback/:id', feedbackDetailView, 'feedback.view', 'system'],
@@ -215,6 +217,7 @@ const NAV = {
     { href: '/admin/security', label: 'Sign-in & security', icon: 'shield', permission: 'users.manage' },
     { href: '/admin/guides', label: 'Help & guides', icon: 'help', permission: 'guides.edit' },
     { heading: 'Records' },
+    { href: '/admin/monitor', label: 'Security monitor', icon: 'eye', permission: 'security.monitor' },
     { href: '/admin/audit', label: 'Audit log', icon: 'activity', permission: 'audit.view' },
     { href: '/admin/devlog', label: 'Dev log', icon: 'code', permission: 'devlog.view', badge: 'devlog' },
     { href: '/admin/feedback', label: 'Feedback inbox', icon: 'message', permission: 'feedback.view', badge: 'feedback' },

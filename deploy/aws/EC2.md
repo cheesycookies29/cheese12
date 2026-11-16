@@ -279,6 +279,15 @@ sudo systemctl start ltdc-erp
 
 **Connecting from a different network.** SSH only accepts your IP from step 2. If `ssh` times out after you change networks, go to **EC2 → Instances → ltdc-erp → Security → Security groups → Edit inbound rules** and set the SSH rule's source to **My IP** again. Staff using the website are not affected.
 
+### Watching the server
+
+**Admin panel → Security monitor** shows the server's status, refused requests, traffic and who is
+signed in. To be told when CORE stops answering, point an uptime checker (Uptime Kuma, UptimeRobot,
+a Route 53 health check) at `https://your-address/api/public/health`, which answers
+`{"status":"ok"}` and nothing else. For graphs over months, make a metrics token on the Security
+monitor page and have Prometheus read `https://your-address/api/admin/monitor/metrics` with the
+header `Authorization: Bearer <token>`. The monitor's own history is kept in `data/monitor.json`.
+
 ## Automatic deployment from GitHub (no terminal)
 
 Set this up once, after the first installation (Parts 1–5). From then on, every new version pushed to the GitHub repository is installed on the server automatically. It all happens in your browser, in the AWS console and on GitHub.

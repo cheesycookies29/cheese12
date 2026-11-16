@@ -35,6 +35,8 @@ import {
 } from './auth.js';
 import { APP_VERSION } from '../shared/devlog.js';
 import { buildInfo } from './build.js';
+import { createMonitor } from './monitor.js';
+import { registerMonitorRoutes } from './monitor-panel.js';
 import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -503,7 +505,11 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const secrets = createSecrets(db.dir);
   // The audit chain is sealed with a key made from the server key. Where keyed entries begin is
   // kept in the settings (never taken from a restored backup: see replaceData).
+  // The security monitor's collector (0.34): requests (reported by server.js), audit entries and
+  // the process, in buckets of fixed size (server/monitor.js).
+  const monitor = createMonitor(db.dir, { sessions: () => sessions.active() });
   const audit = createAudit(db.dir, {
+    onRecord: (entry) => monitor.audit(entry),
     key: () => secrets.derive('core-audit-chain-v1'),
     keyedFrom: () => db.data.settings.auditKeyedFrom,
     setKeyedFrom: (seq) => {
@@ -1324,6 +1330,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   registerNotificationRoutes(route, db, { pm: projects.notifications });
   // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
   const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length });
+  // Admin panel → Security monitor, the health check and the metrics export (0.34).
+  registerMonitorRoutes(route, { db, monitor, audit, sec, rateLimits, routes, sessions: () => sessions.active() });
   // ----- Audit log (Administrators) -----
   route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
   route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());
@@ -1375,27 +1383,29 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   // Returns { data, headers }. handle.helpdesk exposes the mail poller (used by tests).
   async function handle(req, url, body) {
     const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+    // The route that answers, known before any check, so the monitor counts a refusal under it.
+    const r = routes.find((x) => x.method === req.method && x.re.test(url.pathname));
+    req.coreRoute = r ? r.pattern : null;
     // The bell's count is polled in the background: it does not keep an idle session alive.
     const session = sessions.get(token, { touch: !(req.method === 'GET' && url.pathname === '/api/notifications/count') });
     const user = session && users().find((u) => u.id === session.userId && u.active);
     const ip = clientIp(req);
     const client = { ip, ua: String(req.headers?.['user-agent'] || '').slice(0, 300), https: isHttps(req) };
+    req.coreUser = user?.id || null;
     if (user) limits.hit('api-user', user.id);
     else limits.hit('api-anon', ip);
     if (req.method === 'POST' && /^\/api\/auth\/(login|setup|2fa)$/.test(url.pathname)) limits.hit('auth', ip, 'Too many sign-in attempts from this network.');
     if (req.method !== 'GET' && url.pathname.startsWith('/api/public/')) limits.hit('public-write', ip, 'Too many messages from this network.');
     // Several CORE servers can share one process (the tests): each request uses its own company's roles.
     setRoleOverrides(db.data.roleOverrides);
-    for (const r of routes) {
-      if (r.method !== req.method) continue;
+    if (r) {
       const m = url.pathname.match(r.re);
-      if (!m) continue;
       authorize(r, user, req.method, url.pathname);
       const params = paramsOf(r, m);
       const actor = { user, ip, client, origin: publicOrigin(req), before: audit.count() };
       // A settings screen's save is recorded in the Settings center's history, before and after.
       const recordSettings = admin.settingsWatch(req.method, url.pathname);
-      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, client, origin: publicOrigin(req) }));
+      const result = await withActor(actor, () => r.handler({ params, body, query: Object.fromEntries(url.searchParams), user, token, ip, client, origin: publicOrigin(req), headers: req.headers || {} }));
       recordSettings?.(user);
       // A change with no entry of its own is still recorded, with its route (never its body).
       if (req.method !== 'GET' && user && audit.count() === actor.before && !UNAUDITED.test(url.pathname)) {
@@ -1407,6 +1417,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     throw new HttpError(404, 'Not found.');
   }
   handle.helpdesk = helpdesk;
+  handle.monitor = monitor;
   handle.projects = projects;
   // Whether the request carries a live session (server.js allows large uploads only then).
   handle.signedIn = (req) => {

@@ -28,6 +28,21 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.34.0-alpha',
+    date: '2026-11-16',
+    title: 'Security monitor: software status, API security, traffic and user activity',
+    modules: ['system', 'deploy'],
+    notes: 'A new Admin panel page, Security monitor, built on what the server already sees. Ideas from express-status-monitor (one hook per request, rolling windows), Uptime Kuma (checks with a state and a reason), Netdata (tiers of fixed size), Prometheus and OpenTelemetry (RED metrics by route template, the duration buckets and the text format), CrowdSec and Fail2ban (signals counted by address) and OWASP AppSensor (detection where the application refuses). Design notes: docs/security-monitor.md.',
+    changes: [
+      ['new', 'system', 'Admin panel → Security monitor (permission security.monitor, administrators by default): four tabs for a period of an hour to 30 days, refreshed every minute. Software status: up to 19 checks (Node.js support dates, errors, memory, event loop, disk, audit chain, backup age, data file permissions, demo data, HTTPS, rate limits, 2-step policy and administrators, temporary passwords, unused accounts, administrators, common passwords). API security: refusals by kind with their OWASP API Top 10 item, sign-in events, addresses to watch, the controls in force and the route inventory. Traffic: requests, page views, p50/p95/p99, errors, busiest and slowest routes. User activity: signed in now, active people per day, week and month, sign-ins, actions by area, most active people, recent sign-ins.'],
+      ['new', 'system', 'server/monitor.js collects each answer (server.js reports method, route template, status, time, size, HTTPS, account and address when it is sent), each audit entry and a per-minute process sample, in tiers of fixed size: 60 minutes, 168 hours, 90 days; addresses capped at 300 per bucket and kept 7 days. Saved to data/monitor.json (0600, not in backups) every minute and on stop.'],
+      ['new', 'system', 'Signals named where CORE refuses: wrong host, cross-site, malformed JSON (server.js), and 401/403/413/415/429, unknown API addresses and scanner paths (/.env, /wp-admin, .php) by status and path. Failed sign-ins, locks, wrong codes and recovery codes come from the audit log.'],
+      ['new', 'system', 'Registries for later modules: monitor.check(id, fn) and monitor.signal(name, def) add checks and signals that the page shows unchanged.'],
+      ['new', 'deploy', 'GET /api/public/health answers {"status":"ok"} for uptime checkers and load balancers (left out of the traffic counts). GET /api/admin/monitor/metrics answers in the Prometheus text format (http_server_requests_total, http_server_request_duration_seconds by route, core_security_events_total, core_check_status and more) with a bearer token an administrator makes on the page; only its SHA-256 is kept, and making, replacing and revoking it are audited.'],
+      ['improved', 'system', 'The Admin panel dashboard links to the Security monitor from its security section.'],
+    ],
+  },
+  {
     version: '0.33.0-alpha',
     date: '2026-11-16',
     title: 'Fixes from the second security assessment (VAPT)',

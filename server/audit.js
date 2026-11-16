@@ -65,7 +65,7 @@ export function flatten(obj, prefix = '', out = {}) {
 const plain = (v) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ') : v);
 const plainDeep = (v) => (Array.isArray(v) ? v.map(plainDeep) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plainDeep(x)])) : plain(v));
 
-export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedFrom = () => {} } = {}) {
+export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedFrom = () => {}, onRecord = null } = {}) {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const file = path.join(dir, 'audit-log.jsonl');
   // The last entry written, sealed with the audit key (VAPT 0.33): lines cut from the end of the
@@ -122,6 +122,10 @@ export function createAudit(dir, { key = null, keyedFrom = () => null, setKeyedF
     fs.appendFileSync(file, `${JSON.stringify(entry)}\n`, { mode: 0o600 });
     last = { seq: entry.seq, hash: entry.hash };
     writeHead();
+    // The security monitor counts each entry (sign-ins, failures, the areas people work in).
+    try {
+      onRecord?.(entry);
+    } catch {}
     return entry;
   }
 

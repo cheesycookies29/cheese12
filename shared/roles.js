@@ -80,6 +80,7 @@ export const PERMISSION_LABELS = [
   ['data.manage', 'Backup, restore and erase data; demo data'],
   ['users.manage', 'Manage user accounts and access grants; sign-in & security settings'],
   ['audit.view', 'Audit log: who viewed or changed personal data, payroll and settings'],
+  ['security.monitor', 'Security monitor: software status, API security, traffic and who is using CORE (with network addresses)'],
   ['devlog.view', 'Dev log: release notes and installed version'],
   ['devlog.edit', 'Write and edit dev log entries'],
   ['guides.edit', 'Help & guides: edit the guides and add the company\'s own'],
@@ -103,7 +104,7 @@ export const PERMISSION_GROUPS = [
   { id: 'helpdesk', label: 'IT Service Desk', permissions: ['helpdesk.agent', 'helpdesk.manage'] },
   { id: 'crm', label: 'Sales & CRM', permissions: ['crm.view', 'crm.edit', 'crm.manage'] },
   { id: 'projects', label: 'Project Management', permissions: ['pm.view', 'pm.edit', 'pm.manage'] },
-  { id: 'admin', label: 'Admin panel', permissions: ['settings.edit', 'settings.center', 'modules.config', 'audit.view', 'devlog.view', 'devlog.edit', 'feedback.view', 'feedback.manage', 'guides.edit', 'users.manage', 'roles.manage', 'data.manage'] },
+  { id: 'admin', label: 'Admin panel', permissions: ['settings.edit', 'settings.center', 'modules.config', 'audit.view', 'security.monitor', 'devlog.view', 'devlog.edit', 'feedback.view', 'feedback.manage', 'guides.edit', 'users.manage', 'roles.manage', 'data.manage'] },
 ];
 const KNOWN = new Set(PERMISSION_LABELS.map(([p]) => p));
 
@@ -111,7 +112,7 @@ const KNOWN = new Set(PERMISSION_LABELS.map(([p]) => p));
 // an administrator (accounts, the security settings, roles) or replace every record (data).
 export const ADMIN_ONLY_PERMISSIONS = ['users.manage', 'roles.manage', 'data.manage'];
 // Any of these opens the Admin panel (each of its pages needs its own).
-export const ADMIN_PANEL_PERMISSIONS = ['users.manage', 'roles.manage', 'settings.edit', 'settings.center', 'modules.config', 'data.manage', 'audit.view', 'devlog.view', 'feedback.view', 'guides.edit'];
+export const ADMIN_PANEL_PERMISSIONS = ['users.manage', 'roles.manage', 'settings.edit', 'settings.center', 'modules.config', 'data.manage', 'audit.view', 'security.monitor', 'devlog.view', 'feedback.view', 'guides.edit'];
 
 // The company's changes to the account types (Admin panel → Roles & permissions):
 // { role: { add: [permission…], remove: [permission…] } }, kept in db.data.roleOverrides. The server
