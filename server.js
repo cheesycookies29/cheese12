@@ -26,7 +26,7 @@ const PAGE_POLICY = pagePolicy(ROOT);
 const viaHttps = (req) => Boolean(req.socket?.encrypted) || (/^(127\.|::1$|::ffff:127\.)/.test(req.socket?.remoteAddress || '') && req.headers['x-forwarded-proto'] === 'https');
 
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': path.join(ROOT, 'public') };
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ttf': 'font/ttf' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
 
 function send(res, status, body, type = 'application/json', headers = {}) {
   const textual = /^text\/|json|javascript|svg/.test(type);

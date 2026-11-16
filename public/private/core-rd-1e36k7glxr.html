@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow, noarchive" />
+<meta name="theme-color" content="#12030a" />
+<title>CORE · The ERP we built</title>
+<meta name="description" content="CORE · ERP by Lancaster: HR and Philippine payroll, IT assets, the service desk, sales and projects in one system, built in-house by Lancaster R&amp;D, with no licence per user." />
+<link rel="icon" type="image/svg+xml" href="/img/core-app-icon.svg" />
+<style>
+/* Unlisted showcase page (served at /core-rd-1e36k7glxr, kept out of search engines). Fonts are
+   CORE's own files; screens are the Help guides' screenshots of the demo data. */
+@font-face { font-family: 'DM Sans'; src: url('/fonts/DMSans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'DM Sans'; src: url('/fonts/DMSans-Medium.ttf') format('truetype'); font-weight: 500 600; font-display: swap; }
+@font-face { font-family: 'DM Sans'; src: url('/fonts/DMSans-Bold.ttf') format('truetype'); font-weight: 700 800; font-display: swap; }
+@font-face { font-family: 'Big Shoulders'; src: url('/fonts/BigShouldersDisplay-ExtraBold.ttf') format('truetype'); font-weight: 800; font-display: swap; }
+@font-face { font-family: 'Big Shoulders'; src: url('/fonts/BigShouldersDisplay-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Plex Mono'; src: url('/fonts/IBMPlexMono-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Plex Mono'; src: url('/fonts/IBMPlexMono-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+
+:root {
+  --ink: #12030a;
+  --night: #1c040c;
+  --maroon: #4e0a1f;
+  --brand: #5d0013;
+  --wine: #7a1631;
+  --gold: #f2c373;
+  --gold-deep: #c28618;
+  --paper: #f6f1ec;
+  --paper-2: #efe7e0;
+  --text: #1a1014;
+  --muted: #5f5357;
+  --line: #e2d8d1;
+  --on-dark: #f6eee9;
+  --on-dark-muted: #c9b4ba;
+  --on-dark-line: rgba(242, 195, 115, 0.16);
+  --display: 'Big Shoulders', 'DM Sans', system-ui, sans-serif;
+  --mono: 'Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --wrap: 1240px;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { overflow-x: clip; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--ink); color: var(--on-dark); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+img, svg, canvas { display: block; }
+a { color: inherit; }
+::selection { background: var(--gold); color: var(--ink); }
+.wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 28px; }
+.label { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin: 0; }
+.paper .label { color: #8a5a0c; }
+h1, h2, h3 { margin: 0; font-family: var(--display); font-weight: 800; text-transform: uppercase; line-height: .9; letter-spacing: -.005em; }
+h2 { font-size: clamp(54px, 8.2vw, 128px); }
+h3 { font-size: clamp(30px, 3.4vw, 46px); line-height: .95; }
+.lead { font-size: clamp(18px, 1.55vw, 21px); color: var(--on-dark-muted); max-width: 620px; margin: 22px 0 0; }
+.paper { background: var(--paper); color: var(--text); color-scheme: light; }
+.paper .lead { color: var(--muted); }
+.gold { color: var(--gold); }
+.paper .gold { color: var(--brand); }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--gold); color: var(--ink); padding: 10px 14px; border-radius: 8px; z-index: 100; }
+.skip:focus { left: 8px; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.paper :focus-visible { outline-color: var(--brand); }
+
+/* ----- Intro: the mark draws itself ----- */
+.intro { position: fixed; inset: 0; z-index: 90; background: var(--ink); display: grid; place-items: center; transition: clip-path 1s var(--ease), visibility 0s 1s; clip-path: inset(0 0 0 0); }
+.intro.gone { clip-path: inset(0 0 100% 0); visibility: hidden; }
+.intro svg { width: min(28vw, 150px); height: auto; overflow: visible; }
+.intro polygon { fill: transparent; stroke: var(--gold); stroke-width: 6; stroke-linejoin: round; stroke-dasharray: 2600; stroke-dashoffset: 2600; animation: draw 1.1s var(--ease) forwards, fillin .45s .95s ease forwards; }
+.intro polygon + polygon { animation-delay: .18s, 1.05s; }
+.intro .word { position: absolute; bottom: 18vh; font-family: var(--display); font-size: 22px; letter-spacing: .6em; text-indent: .6em; color: var(--on-dark-muted); opacity: 0; animation: fade .6s .7s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes fillin { to { fill: var(--gold); } }
+@keyframes fade { to { opacity: 1; } }
+
+/* ----- Header: a slim bar that becomes a pill ----- */
+.nav { position: fixed; top: 0; left: 0; right: 0; z-index: 50; display: flex; justify-content: center; padding: 14px 16px; pointer-events: none; }
+.nav-in { pointer-events: auto; display: flex; align-items: center; gap: 22px; width: 100%; max-width: var(--wrap); padding: 10px 14px 10px 18px; border-radius: 999px; border: 1px solid transparent; transition: max-width .6s var(--ease), background .4s, border-color .4s, padding .4s; }
+.nav.pill .nav-in { max-width: 760px; background: rgba(18, 3, 10, .78); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-color: var(--on-dark-line); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--display); font-size: 22px; letter-spacing: .22em; }
+.brand svg { width: 26px; height: 26px; }
+.nav-links { display: flex; gap: 4px; margin-left: auto; }
+.nav-links a { text-decoration: none; font-size: 14px; color: var(--on-dark-muted); padding: 8px 12px; border-radius: 999px; transition: color .2s, background .2s; }
+.nav-links a:hover, .nav-links a.on { color: var(--on-dark); background: rgba(242, 195, 115, .1); }
+.nav .open { font-size: 14px; padding: 9px 16px; }
+.progress { position: fixed; top: 0; left: 0; height: 2px; width: 100%; transform-origin: 0 50%; transform: scaleX(0); background: var(--gold); z-index: 60; }
+@media (max-width: 860px) { .nav-links { display: none; } .nav .open { margin-left: auto; } }
+
+/* ----- Buttons (magnetic) ----- */
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 15px 24px; border-radius: 999px; font-weight: 700; font-size: 16px; text-decoration: none; border: 1.5px solid transparent; transition: background .2s, border-color .2s, color .2s; will-change: transform; min-height: 48px; }
+.btn.solid { background: var(--gold); color: var(--ink); }
+.btn.solid:hover { background: #f8d79a; }
+.btn.line { border-color: rgba(242, 195, 115, .45); color: var(--on-dark); }
+.btn.line:hover { border-color: var(--gold); background: rgba(242, 195, 115, .08); }
+.paper .btn.solid { background: var(--brand); color: #fff; }
+.btn svg { width: 18px; height: 18px; transition: transform .3s var(--ease); }
+.btn:hover svg { transform: translateX(3px); }
+
+/* ----- Reveals: each kind of thing moves its own way ----- */
+.js [data-reveal] { opacity: 0; transform: translateY(28px); transition: opacity .9s var(--ease), transform .9s var(--ease); transition-delay: var(--d, 0s); }
+.js [data-reveal].in { opacity: 1; transform: none; }
+.js [data-reveal='wipe'] { opacity: 1; transform: none; clip-path: inset(0 100% 0 0); transition: clip-path 1.1s var(--ease); transition-delay: var(--d, 0s); }
+.js [data-reveal='wipe'].in { clip-path: inset(0 0 0 0); }
+.js .split .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .04em; }
+.js .split .w > span { display: inline-block; transform: translateY(105%); transition: transform 1s var(--ease); transition-delay: calc(var(--i) * 55ms + var(--d, 0s)); }
+.js .split.in .w > span { transform: none; }
+
+/* ----- Hero ----- */
+.hero { position: relative; min-height: 100vh; padding: 140px 0 0; overflow: hidden; }
+.hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(60% 50% at 72% 38%, rgba(122, 22, 49, .55), transparent 70%), radial-gradient(40% 40% at 10% 90%, rgba(78, 10, 31, .6), transparent 70%); pointer-events: none; }
+.hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 24px; align-items: center; }
+.hero h1 { font-size: clamp(60px, 7.6vw, 124px); }
+.hero h1 .gold { position: relative; }
+.underline { position: absolute; left: 0; right: 0; bottom: -.04em; height: .07em; background: var(--gold); transform: scaleX(0); transform-origin: 0 50%; transition: transform 1s .9s var(--ease); }
+.in .underline { transform: scaleX(1); }
+.hero .label { margin-bottom: 22px; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+.orbit { position: relative; aspect-ratio: 1; width: 100%; max-width: 600px; justify-self: end; }
+.orbit canvas { width: 100%; height: 100%; }
+.window { position: relative; margin: 70px auto 0; width: min(1100px, 92vw); perspective: 1600px; }
+.window-in { transform-origin: 50% 0; transform: rotateX(var(--tilt, 22deg)) scale(var(--sc, .92)); border-radius: 16px 16px 0 0; overflow: hidden; border: 1px solid rgba(242, 195, 115, .25); border-bottom: 0; box-shadow: 0 -30px 120px rgba(122, 22, 49, .55); background: #fff; }
+.chrome { display: flex; align-items: center; gap: 7px; padding: 10px 14px; background: #f1ebe6; border-bottom: 1px solid #e3d9d2; }
+.chrome i { width: 10px; height: 10px; border-radius: 50%; background: #d9cdc5; }
+.chrome span { margin-left: 12px; font-family: var(--mono); font-size: 11px; color: #8b7d82; }
+.window img { width: 100%; height: auto; }
+@media (max-width: 900px) {
+  .hero { padding-top: 110px; }
+  .hero-grid { grid-template-columns: 1fr; }
+  .orbit { max-width: 440px; justify-self: center; margin-top: 10px; }
+}
+
+/* ----- Built here: a statement lit word by word ----- */
+.built { position: relative; padding: 150px 0 110px; background: linear-gradient(var(--ink), var(--night)); }
+.statement { font-family: var(--display); font-weight: 800; text-transform: uppercase; font-size: clamp(46px, 7vw, 108px); line-height: .95; margin: 26px 0 0; max-width: 1100px; }
+.statement .sw { color: rgba(246, 238, 233, .14); transition: color .35s; }
+.statement .sw.lit { color: var(--on-dark); }
+.statement .sw.lit.g { color: var(--gold); }
+.ledger { margin: 90px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--on-dark-line); }
+.ledger div { padding: 26px 26px 30px 0; border-bottom: 1px solid var(--on-dark-line); }
+.ledger div:not(:nth-child(3n + 1)) { padding-left: 26px; border-left: 1px solid var(--on-dark-line); }
+.ledger b { display: block; font-family: var(--display); font-size: clamp(60px, 7vw, 104px); line-height: .9; font-weight: 800; color: var(--on-dark); }
+.ledger small { display: block; margin-top: 10px; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--on-dark-muted); }
+.ledger p { margin: 8px 0 0; font-size: 15px; color: var(--on-dark-muted); max-width: 300px; }
+@media (max-width: 760px) {
+  .ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ledger div:not(:nth-child(3n + 1)) { padding-left: 0; border-left: 0; }
+  .ledger div:nth-child(2n) { padding-left: 18px; border-left: 1px solid var(--on-dark-line); }
+}
+
+/* ----- Marquee ----- */
+.marquee { padding: 34px 0; border-block: 1px solid var(--on-dark-line); background: var(--night); overflow: hidden; }
+.mq-row { display: flex; gap: 0; white-space: nowrap; will-change: transform; }
+.mq-row + .mq-row { margin-top: 10px; }
+.mq-row span { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 4vw, 54px); text-transform: uppercase; padding: 0 22px; color: var(--on-dark-muted); }
+.mq-row span::after { content: '◆'; font-size: .38em; vertical-align: .45em; margin-left: 44px; color: var(--gold-deep); }
+.mq-row.alt span { color: transparent; -webkit-text-stroke: 1px rgba(242, 195, 115, .55); }
+
+/* ----- Modules: a film strip pinned while you scroll ----- */
+.modules { position: relative; }
+.mod-head { padding: 130px 0 40px; }
+.strip { position: relative; height: calc(var(--n) * 100vh); }
+.strip-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; display: flex; align-items: center; }
+.strip-track { display: flex; will-change: transform; }
+.panel { flex: 0 0 100vw; padding: 70px max(28px, calc((100vw - var(--wrap)) / 2 + 28px)) 40px; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 54px; align-items: center; }
+.panel .code { font-family: var(--mono); font-size: 13px; color: #8a5a0c; letter-spacing: .14em; }
+.panel h3 { margin-top: 12px; font-size: clamp(46px, 5.6vw, 84px); }
+.panel .tag { margin: 16px 0 0; font-size: 19px; color: var(--muted); max-width: 440px; }
+.facts { list-style: none; margin: 26px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.facts li { padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; display: grid; grid-template-columns: 22px 1fr; gap: 6px; }
+.facts li::before { content: ''; width: 7px; height: 7px; margin-top: 9px; background: var(--brand); transform: rotate(45deg); }
+.shot { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid #ddd1c9; background: #fff; box-shadow: 0 30px 80px -30px rgba(78, 10, 31, .45); transform: translateX(var(--px, 0)) rotate(var(--rot, 0deg)); transition: box-shadow .4s; }
+.shot img { width: 100%; height: auto; }
+.shot::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 40%, rgba(242, 195, 115, .28) 50%, transparent 60%); transform: translateX(-120%); }
+.panel.on .shot::after { animation: sweep 1.6s .2s var(--ease); }
+@keyframes sweep { to { transform: translateX(120%); } }
+.strip-ui { position: absolute; left: 0; right: 0; bottom: 26px; display: flex; justify-content: center; gap: 8px; z-index: 2; }
+.strip-ui button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--paper); font-family: var(--mono); font-size: 11px; color: var(--muted); cursor: pointer; transition: background .2s, color .2s, transform .2s; }
+.strip-ui button.on { background: var(--brand); color: #fff; border-color: var(--brand); transform: scale(1.12); }
+.strip-count { position: absolute; top: 96px; right: max(28px, calc((100vw - var(--wrap)) / 2 + 28px)); font-family: var(--display); font-size: 120px; line-height: 1; color: rgba(93, 0, 19, .07); z-index: 0; pointer-events: none; }
+.everyone { padding: 30px 0 120px; }
+.everyone ul { list-style: none; padding: 0; margin: 30px 0 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.everyone li { padding: 20px 20px 22px 0; border-bottom: 1px solid var(--line); }
+.everyone li + li { padding-left: 20px; border-left: 1px solid var(--line); }
+.everyone li:nth-child(4n + 1) { padding-left: 0; border-left: 0; }
+.everyone b { display: block; font-size: 16px; }
+.everyone span { font-size: 14.5px; color: var(--muted); }
+/* Narrow screens and reduced motion: the panels stack. */
+@media (max-width: 960px) {
+  .strip { height: auto; }
+  .strip-pin { position: static; height: auto; overflow: visible; display: block; }
+  .strip-track { display: block; transform: none !important; }
+  .panel { padding: 40px 28px 50px; grid-template-columns: 1fr; gap: 28px; }
+  .strip-ui, .strip-count { display: none; }
+  .everyone ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .everyone li:nth-child(n) { padding-left: 0; border-left: 0; }
+  .everyone li:nth-child(2n) { padding-left: 18px; border-left: 1px solid var(--line); }
+}
+.no-pin .strip { height: auto; }
+.no-pin .strip-pin { position: static; height: auto; overflow: visible; display: block; }
+.no-pin .strip-track { display: block; }
+.no-pin .strip-ui, .no-pin .strip-count { display: none; }
+
+/* ----- One record, every module: lanes that light as you scroll ----- */
+.flow { padding: 140px 0 120px; background: radial-gradient(70% 60% at 50% 0%, rgba(122, 22, 49, .4), transparent 70%), var(--ink); }
+.lanes { margin-top: 70px; display: grid; gap: 54px; }
+.lane-title { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.lane-title b { font-family: var(--display); font-size: 30px; text-transform: uppercase; }
+.lane-title span { font-family: var(--mono); font-size: 12px; color: var(--on-dark-muted); letter-spacing: .1em; text-transform: uppercase; }
+.lane { position: relative; display: grid; grid-template-columns: repeat(var(--k), minmax(0, 1fr)); gap: 0; }
+.lane::before, .lane .fill { content: ''; position: absolute; left: calc(50% / var(--k)); right: calc(50% / var(--k)); top: 21px; height: 2px; background: rgba(242, 195, 115, .16); }
+.lane .fill { background: var(--gold); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); box-shadow: 0 0 18px rgba(242, 195, 115, .6); }
+.step { position: relative; text-align: center; padding: 0 8px; }
+.step .dot { width: 44px; height: 44px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--night); border: 1.5px solid rgba(242, 195, 115, .3); font-family: var(--mono); font-size: 12px; color: var(--on-dark-muted); transition: background .4s, color .4s, border-color .4s, transform .4s var(--ease); position: relative; z-index: 1; }
+.step.lit .dot { background: var(--gold); color: var(--ink); border-color: var(--gold); transform: scale(1.08); }
+.step b { display: block; margin-top: 14px; font-size: 15.5px; }
+.step small { display: block; font-size: 13px; color: var(--on-dark-muted); margin-top: 3px; line-height: 1.45; }
+.step .mod { display: inline-block; margin-top: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--on-dark-line); color: var(--gold); }
+@media (max-width: 760px) {
+  .lane { grid-template-columns: 1fr; gap: 18px; }
+  .lane::before, .lane .fill { left: 21px; right: auto; top: 22px; bottom: 22px; width: 2px; height: auto; }
+  .lane .fill { transform-origin: 50% 0; transform: scaleY(var(--p, 0)); }
+  .step { display: grid; grid-template-columns: 44px 1fr; gap: 0 16px; text-align: left; padding: 0; }
+  .step .dot { margin: 0; grid-row: span 3; }
+  .step b { margin-top: 0; }
+  .step .mod { justify-self: start; }
+}
+
+/* ----- Payroll: a payslip that works itself out ----- */
+.pay { padding: 140px 0; }
+.pay-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 60px; align-items: start; }
+.rules { list-style: none; padding: 0; margin: 30px 0 0; border-top: 1px solid var(--line); }
+.rules li { display: grid; grid-template-columns: 130px 1fr; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.rules li b { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); padding-top: 2px; }
+.slip { position: sticky; top: 110px; background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 28px 30px; box-shadow: 0 40px 90px -40px rgba(78, 10, 31, .5); }
+.slip-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 14px; }
+.slip-head b { font-family: var(--display); font-size: 30px; text-transform: uppercase; }
+.slip-head span { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
+.chips button { font: inherit; font-size: 14px; padding: 9px 14px; min-height: 44px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); color: var(--text); cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+.chips button[aria-pressed='true'] { background: var(--brand); border-color: var(--brand); color: #fff; }
+.slip table { width: 100%; border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.slip td { padding: 10px 0; border-bottom: 1px solid var(--paper-2); font-size: 15px; }
+.slip td:last-child { text-align: right; font-family: var(--mono); font-size: 14.5px; }
+.slip tr.minus td:last-child { color: var(--wine); }
+.slip tr.row-in td { animation: rowin .6s var(--ease) both; animation-delay: calc(var(--r) * 90ms); }
+@keyframes rowin { from { opacity: 0; transform: translateX(-10px); } }
+.slip .net { display: flex; justify-content: space-between; align-items: baseline; margin-top: 18px; padding-top: 16px; border-top: 2px solid var(--text); }
+.slip .net span { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.slip .net b { font-family: var(--display); font-size: 54px; line-height: 1; color: var(--brand); }
+.slip .note { margin: 14px 0 0; font-size: 12.5px; color: var(--muted); }
+@media (max-width: 900px) { .pay-grid { grid-template-columns: 1fr; } .slip { position: relative; top: 0; } .rules li { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ----- Security: seven plates that separate ----- */
+.sec { padding: 140px 0 130px; background: linear-gradient(var(--night), var(--ink)); }
+.sec-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 50px; align-items: center; margin-top: 50px; }
+.stack { position: relative; height: 560px; perspective: 1400px; }
+.plates { position: absolute; left: 50%; top: 50%; width: 360px; height: 220px; transform-style: preserve-3d; transform: translate(-50%, -50%) rotateX(58deg) rotateZ(-38deg); }
+.plate { position: absolute; inset: 0; border-radius: 18px; border: 1px solid rgba(242, 195, 115, .45); background: linear-gradient(135deg, rgba(122, 22, 49, .92), rgba(28, 4, 12, .92)); transform: translateZ(calc((var(--i) - 3) * var(--gap, 14px))); transition: border-color .3s, background .3s, box-shadow .3s; display: flex; align-items: flex-end; padding: 18px 20px; box-shadow: 0 1px 0 rgba(242, 195, 115, .3) inset; cursor: pointer; }
+.plate span { font-family: var(--display); font-size: 30px; text-transform: uppercase; color: var(--on-dark); opacity: var(--lab, 0); transition: opacity .3s; line-height: 1; }
+.plate small { position: absolute; top: 16px; right: 18px; font-family: var(--mono); font-size: 13px; color: var(--gold); }
+.plate.on, .plate:hover, .plate:focus-visible { border-color: var(--gold); background: linear-gradient(135deg, #a3243b, #4e0a1f); box-shadow: 0 0 40px rgba(242, 195, 115, .35); }
+.layer-info { min-height: 150px; }
+.layer-info h3 { font-size: 44px; }
+.layer-info p { color: var(--on-dark-muted); margin: 12px 0 0; max-width: 480px; }
+.layer-list { list-style: none; padding: 0; margin: 26px 0 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.layer-list button { width: 100%; min-height: 44px; font-family: var(--mono); font-size: 13px; border-radius: 10px; border: 1px solid var(--on-dark-line); background: transparent; color: var(--on-dark-muted); cursor: pointer; transition: background .2s, color .2s; }
+.layer-list button[aria-pressed='true'] { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+.vapt { margin-top: 70px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--on-dark-line); }
+.vapt div { padding: 22px 22px 24px 0; border-bottom: 1px solid var(--on-dark-line); }
+.vapt div + div { padding-left: 22px; border-left: 1px solid var(--on-dark-line); }
+.vapt b { display: block; font-family: var(--display); font-size: 64px; line-height: .9; }
+.vapt small { display: block; margin-top: 8px; font-size: 14px; color: var(--on-dark-muted); }
+@media (max-width: 900px) {
+  .sec-grid { grid-template-columns: 1fr; }
+  .stack { height: 420px; }
+  .plates { width: 260px; height: 160px; }
+  .plate span { font-size: 22px; }
+  .vapt { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vapt div:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+
+/* ----- Cost: what the licences would be ----- */
+.cost { padding: 140px 0 130px; }
+.calc { margin-top: 56px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 56px; align-items: start; }
+.slider-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.slider-row label { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.slider-row output { font-family: var(--display); font-size: 64px; line-height: 1; color: var(--brand); }
+input[type='range'] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; margin: 6px 0 0; cursor: pointer; }
+input[type='range']::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(to right, var(--brand) var(--v, 20%), var(--line) var(--v, 20%)); }
+input[type='range']::-moz-range-track { height: 4px; border-radius: 4px; background: var(--line); }
+input[type='range']::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--brand); }
+input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -11px; border-radius: 50%; background: var(--brand); border: 4px solid #fff; box-shadow: 0 2px 10px rgba(78, 10, 31, .4); }
+input[type='range']::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--brand); border: 4px solid #fff; }
+.bars { margin-top: 34px; display: grid; gap: 22px; }
+.bar-row header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.bar-row header b { font-size: 15px; }
+.bar-row header span { font-family: var(--mono); font-size: 15px; font-variant-numeric: tabular-nums; }
+.bar { height: 24px; border-radius: 0 4px 4px 0; background: var(--paper-2); overflow: hidden; }
+.bar i { display: block; height: 100%; width: var(--w, 0%); border-radius: 0 4px 4px 0; transition: width .9s var(--ease); }
+.bar.vendor i { background: #8f8186; }
+.bar.core i { background: var(--brand); min-width: 4px; }
+.saving { margin-top: 36px; padding: 28px 30px; border-radius: 18px; background: var(--ink); color: var(--on-dark); }
+.saving small { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.saving b { display: block; font-family: var(--display); font-size: clamp(64px, 8vw, 110px); line-height: .9; margin-top: 10px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.saving p { margin: 10px 0 0; color: var(--on-dark-muted); font-size: 15px; }
+.assume { width: 100%; border-collapse: collapse; font-size: 14px; }
+.assume th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 0 8px 10px 0; border-bottom: 1px solid var(--text); }
+.assume td { padding: 10px 8px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.assume td.n { text-align: right; font-family: var(--mono); font-size: 13.5px; white-space: nowrap; }
+.assume td a { color: var(--muted); font-size: 12.5px; }
+.assume input { width: 64px; font: inherit; font-family: var(--mono); font-size: 13.5px; padding: 6px 6px; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: #fff; text-align: right; }
+.assume tr.core-row td { font-weight: 700; color: var(--brand); }
+.fine { margin: 16px 0 0; font-size: 12.5px; color: var(--muted); }
+@media (max-width: 960px) { .calc { grid-template-columns: 1fr; } .assume-wrap { overflow-x: auto; } }
+
+/* ----- Close ----- */
+.close { position: relative; padding: 150px 0 60px; overflow: hidden; text-align: center; }
+.close .huge { font-family: var(--display); font-weight: 800; font-size: clamp(120px, 28vw, 420px); line-height: .8; letter-spacing: .02em; color: transparent; -webkit-text-stroke: 1.5px rgba(242, 195, 115, .5); margin: 0; user-select: none; }
+.close .huge span { display: inline-block; transition: transform 1.2s var(--ease), color .6s; }
+.close .huge.in span { color: rgba(242, 195, 115, .08); }
+.close h2 { margin-top: -0.2em; position: relative; }
+.close .lead { margin-left: auto; margin-right: auto; }
+.close .ctas { justify-content: center; }
+.foot { margin-top: 110px; padding-top: 24px; border-top: 1px solid var(--on-dark-line); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 13px; color: var(--on-dark-muted); text-align: left; }
+
+/* Pointer light on dark sections. */
+.spot { position: fixed; left: 0; top: 0; width: 520px; height: 520px; margin: -260px 0 0 -260px; border-radius: 50%; pointer-events: none; z-index: 1; background: radial-gradient(circle, rgba(242, 195, 115, .09), transparent 65%); transform: translate(var(--x, -999px), var(--y, -999px)); transition: opacity .4s; mix-blend-mode: screen; }
+main > section { position: relative; z-index: 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .intro { display: none; }
+  .spot { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="intro" aria-hidden="true">
+  <svg viewBox="-264 -264 528 528"><polygon points="-154,-262 156,-262 228,-190 -6,-190 -112,-84 -84,-56 16,-156 262,-156 262,156 190,228 190,-6 84,-112 -84,56 -154,-14" /><polygon points="154,262 -156,262 -228,190 6,190 112,84 84,56 -16,156 -262,156 -262,-156 -190,-228 -190,6 -84,112 84,-56 154,14" /></svg>
+  <span class="word">CORE</span>
+</div>
+<div class="progress" aria-hidden="true"></div>
+<div class="spot" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top" aria-label="CORE, back to the top">
+      <svg viewBox="-264 -264 528 528" aria-hidden="true"><g fill="#f2c373"><polygon points="-154,-262 156,-262 228,-190 -6,-190 -112,-84 -84,-56 16,-156 262,-156 262,156 190,228 190,-6 84,-112 -84,56 -154,-14" /><polygon points="154,262 -156,262 -228,190 6,190 112,84 84,56 -16,156 -262,156 -262,-156 -190,-228 -190,6 -84,112 84,-56 154,14" /></g></svg>
+      CORE
+    </a>
+    <nav class="nav-links" aria-label="On this page">
+      <a href="#built">Built here</a>
+      <a href="#modules">Modules</a>
+      <a href="#flow">How it connects</a>
+      <a href="#security">Security</a>
+      <a href="#cost">Cost</a>
+    </nav>
+    <a class="btn solid open" href="/" data-magnetic>Open CORE</a>
+  </div>
+</header>
+
+<main id="main">
+<!-- 1. Hero -->
+<section class="hero" id="top" data-dark>
+  <div class="wrap hero-grid">
+    <div>
+      <p class="label" data-reveal>CORE · ERP by Lancaster · built in-house</p>
+      <h1 class="split" data-split>Every part of the company, on <span class="gold">one core.<i class="underline" aria-hidden="true"></i></span></h1>
+      <p class="lead" data-reveal style="--d:.5s">HR and Philippine payroll, IT assets, the service desk, sales and projects in one system, with one sign-in, one set of permissions and one audit trail. Designed, written and run by our own R&amp;D team, with no licence to pay for each person who uses it.</p>
+      <div class="ctas" data-reveal style="--d:.7s">
+        <a class="btn solid" href="#modules" data-magnetic>See the modules <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></a>
+        <a class="btn line" href="#cost" data-magnetic>What it costs</a>
+      </div>
+    </div>
+    <div class="orbit" data-reveal style="--d:.3s">
+      <canvas id="orbit" role="img" aria-label="CORE at the centre, with HR and Payroll, IT Assets, Service Desk, Sales and CRM, Projects and Administration around it, records moving between them."></canvas>
+    </div>
+  </div>
+  <div class="window" id="hero-window">
+    <div class="window-in">
+      <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span>core · home</span></div>
+      <img src="/help/img/getting-started-home.jpg" alt="CORE home after signing in: a card for each module the person may open, with live figures." width="1280" height="800" />
+    </div>
+  </div>
+</section>
+
+<!-- 2. Built here -->
+<section class="built" id="built" data-dark>
+  <div class="wrap">
+    <p class="label" data-reveal>01 · Built here</p>
+    <p class="statement" id="statement">We did not buy an ERP. We built one, here, in <span class="g">36 days</span>, and we keep shipping it.</p>
+    <div class="ledger">
+      <div data-reveal><b data-count="69">0</b><small>Releases</small><p>From the first, on 12 October 2026, to today. Each one has a dev log entry.</p></div>
+      <div data-reveal style="--d:.08s"><b data-count="36">0</b><small>Days</small><p>From the first line of code to seven modules in use.</p></div>
+      <div data-reveal style="--d:.16s"><b data-count="471">0</b><small>Automated tests</small><p>Run before every deployment. A red test stops the release.</p></div>
+      <div data-reveal style="--d:.24s"><b data-count="320">0</b><small>API addresses</small><p>Each one checks who is asking, and what they may see.</p></div>
+      <div data-reveal style="--d:.32s"><b data-count="33000" data-suffix="+">0</b><small>Lines of our own code</small><p>Server, screens and rules, all of it read and owned by us.</p></div>
+      <div data-reveal style="--d:.4s"><b data-count="0">0</b><small>Third-party packages</small><p>Node.js and nothing else: no library to patch, no supply chain to trust.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="marquee" aria-hidden="true">
+  <div class="mq-row" data-speed="1"><span>Philippine payroll</span><span>Leave &amp; approvals</span><span>Time clock</span><span>IT assets</span><span>Service desk</span><span>Government bids</span><span>Project boards</span><span>Audit trail</span><span>2-step sign-in</span><span>Dark mode</span><span>Phone-ready</span></div>
+  <div class="mq-row alt" data-speed="-1"><span>One sign-in</span><span>39 permissions</span><span>10 account types</span><span>Security monitor</span><span>Backups</span><span>Help guides</span><span>Burn-up charts</span><span>Timesheets</span><span>Email tickets</span><span>Contracts</span><span>Self-service</span></div>
+</div>
+
+<!-- 3. Modules -->
+<section class="modules paper" id="modules">
+  <div class="wrap mod-head">
+    <p class="label" data-reveal>02 · The modules</p>
+    <h2 class="split" data-split>Seven parts. <span class="gold">One system.</span></h2>
+    <p class="lead" data-reveal>Each team works in its own module; the records connect underneath. Scroll through them.</p>
+  </div>
+  <div class="strip" style="--n:6" id="strip">
+    <div class="strip-pin">
+      <span class="strip-count" aria-hidden="true">01</span>
+      <div class="strip-track">
+        <article class="panel" aria-labelledby="m1">
+          <div>
+            <span class="code">MOD-01</span>
+            <h3 id="m1">HR &amp; Payroll</h3>
+            <p class="tag">From the first clock-in to the payslip, on one set of data.</p>
+            <ul class="facts">
+              <li>Employee records with government IDs and bank details masked; every reveal is logged</li>
+              <li>Time clock on the desk or a shared kiosk; times from the server, never the device</li>
+              <li>Leave, work from home and official business, approved on routes of up to three levels</li>
+              <li>Payroll from the attendance: SSS, PhilHealth, Pag-IBIG and BIR, payslips and year to date</li>
+            </ul>
+          </div>
+          <div class="shot" data-par><img src="/help/img/hr-dtr.jpg" alt="The daily time record for a pay period, with late, undertime and overtime worked out per day." loading="lazy" width="1280" height="800" /></div>
+        </article>
+        <article class="panel" aria-labelledby="m2">
+          <div>
+            <span class="code">MOD-02</span>
+            <h3 id="m2">IT Assets</h3>
+            <p class="tag">Every laptop, phone and box of toner, and who has it.</p>
+            <ul class="facts">
+              <li>A register of equipment with tags, serials, warranty and history</li>
+              <li>Assign and return, with the condition and a record of each hand-over</li>
+              <li>Consumable stock received and issued, with low-stock warnings</li>
+              <li>Employees report a broken laptop from their own page</li>
+            </ul>
+          </div>
+          <div class="shot" data-par><img src="/help/img/assets-overview.jpg" alt="IT Asset Management overview: equipment by status and category, low stock and open problem reports." loading="lazy" width="1280" height="800" /></div>
+        </article>
+        <article class="panel" aria-labelledby="m3">
+          <div>
+            <span class="code">MOD-03</span>
+            <h3 id="m3">Service Desk</h3>
+            <p class="tag">Tickets from the portal, an email inbox and a public form, in one queue.</p>
+            <ul class="facts">
+              <li>Its own email engine: reads the desk's mailbox and threads every reply</li>
+              <li>Service levels per priority, with what is close to breaching</li>
+              <li>Saved replies, internal notes, assignment and categories</li>
+              <li>A ticket becomes a project task in one click</li>
+            </ul>
+          </div>
+          <div class="shot" data-par><img src="/help/img/desk-queue.jpg" alt="The service desk queue: tickets with priority, status, assignee and service level." loading="lazy" width="1280" height="800" /></div>
+        </article>
+        <article class="panel" aria-labelledby="m4">
+          <div>
+            <span class="code">MOD-04</span>
+            <h3 id="m4">Sales &amp; CRM</h3>
+            <p class="tag">Leads to deals to contracts, with government bids built in.</p>
+            <ul class="facts">
+              <li>A pipeline board of deals by stage, value and close date</li>
+              <li>Bids with the document checklist government tenders ask for</li>
+              <li>Contracts, accounts, contacts and every call and meeting</li>
+              <li>A deal won starts its delivery project</li>
+            </ul>
+          </div>
+          <div class="shot" data-par><img src="/help/img/sales-pipeline.jpg" alt="The sales pipeline: deals in columns by stage, with values." loading="lazy" width="1280" height="800" /></div>
+        </article>
+        <article class="panel" aria-labelledby="m5">
+          <div>
+            <span class="code">MOD-05</span>
+            <h3 id="m5">Projects</h3>
+            <p class="tag">Boards, timelines and the time it really took.</p>
+            <ul class="facts">
+              <li>Board, list, table and timeline views, with saved filters</li>
+              <li>Milestones, burn-up charts, effort sizes and load per person</li>
+              <li>Timesheets, comments with a visual editor, files and mentions</li>
+              <li>Members-only projects: nobody else sees them</li>
+            </ul>
+          </div>
+          <div class="shot" data-par><img src="/help/img/projects-board.jpg" alt="A project board: tasks in columns by status, with assignees and due dates." loading="lazy" width="1280" height="800" /></div>
+        </article>
+        <article class="panel" aria-labelledby="m6">
+          <div>
+            <span class="code">MOD-06 · 07</span>
+            <h3 id="m6">Admin &amp; Security</h3>
+            <p class="tag">Who may do what, what changed, and how the system is holding up.</p>
+            <ul class="facts">
+              <li>10 account types and 39 permissions, checked on the server for every request</li>
+              <li>A settings center with each change's history and undo</li>
+              <li>A sealed audit log that shows when entries were edited or removed</li>
+              <li>A security monitor: status checks, refused requests, traffic and who is signed in</li>
+            </ul>
+          </div>
+          <div class="shot" data-par><img src="/help/img/admin-monitor.jpg" alt="The security monitor: status checks for the software, data and sign-in, each marked fine or to look at." loading="lazy" width="1280" height="800" /></div>
+        </article>
+      </div>
+      <div class="strip-ui" role="group" aria-label="Go to a module">
+        <button type="button" data-go="0" aria-label="HR and Payroll">01</button><button type="button" data-go="1" aria-label="IT Assets">02</button><button type="button" data-go="2" aria-label="Service Desk">03</button><button type="button" data-go="3" aria-label="Sales and CRM">04</button><button type="button" data-go="4" aria-label="Projects">05</button><button type="button" data-go="5" aria-label="Admin and Security">06</button>
+      </div>
+    </div>
+  </div>
+  <div class="wrap everyone">
+    <p class="label" data-reveal>And for everyone</p>
+    <ul>
+      <li data-reveal><b>One home</b><span>A card for each module a person may open, with live figures.</span></li>
+      <li data-reveal style="--d:.06s"><b>Self-service</b><span>Clock in, file leave, see payslips, report equipment, follow tickets.</span></li>
+      <li data-reveal style="--d:.12s"><b>One bell</b><span>Every module's notifications and approvals in one list.</span></li>
+      <li data-reveal style="--d:.18s"><b>11 guides</b><span>One per kind of user, with 118 screenshots, kept current with each release.</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 4. How it connects -->
+<section class="flow" id="flow" data-dark>
+  <div class="wrap">
+    <p class="label" data-reveal>03 · How it connects</p>
+    <h2 class="split" data-split>One record. <span class="gold">Every module.</span></h2>
+    <p class="lead" data-reveal>Nothing is typed twice. What one team does becomes what the next team starts from.</p>
+    <div class="lanes">
+      <div>
+        <div class="lane-title" data-reveal><b>A leave request</b><span>HR &amp; Payroll</span></div>
+        <div class="lane" style="--k:6" data-lane>
+          <i class="fill" aria-hidden="true"></i>
+          <div class="step"><span class="dot">01</span><b>Filed</b><small>From the employee's phone, with a certificate</small><span class="mod">Self-service</span></div>
+          <div class="step"><span class="dot">02</span><b>Supervisor</b><small>Approves on level one</small><span class="mod">Approvals</span></div>
+          <div class="step"><span class="dot">03</span><b>HR</b><small>Approves on level two</small><span class="mod">Approvals</span></div>
+          <div class="step"><span class="dot">04</span><b>Attendance</b><small>The days are written to the time record</small><span class="mod">HR</span></div>
+          <div class="step"><span class="dot">05</span><b>Payroll run</b><small>Paid leave or leave without pay, worked out</small><span class="mod">Payroll</span></div>
+          <div class="step"><span class="dot">06</span><b>Payslip</b><small>And the year-to-date totals</small><span class="mod">Self-service</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="lane-title" data-reveal><b>A broken laptop</b><span>IT Assets · Service Desk · Projects</span></div>
+        <div class="lane" style="--k:5" data-lane>
+          <i class="fill" aria-hidden="true"></i>
+          <div class="step"><span class="dot">01</span><b>Reported</b><small>From My Assets, on the laptop's record</small><span class="mod">Self-service</span></div>
+          <div class="step"><span class="dot">02</span><b>Ticket</b><small>In the desk's queue, with its service level</small><span class="mod">Service Desk</span></div>
+          <div class="step"><span class="dot">03</span><b>Swap</b><small>A spare assigned, the old one returned</small><span class="mod">IT Assets</span></div>
+          <div class="step"><span class="dot">04</span><b>Task</b><small>The repair added to IT's project</small><span class="mod">Projects</span></div>
+          <div class="step"><span class="dot">05</span><b>Closed</b><small>The reply threads back to the person</small><span class="mod">Service Desk</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="lane-title" data-reveal><b>A deal won</b><span>Sales &amp; CRM · Projects</span></div>
+        <div class="lane" style="--k:5" data-lane>
+          <i class="fill" aria-hidden="true"></i>
+          <div class="step"><span class="dot">01</span><b>Lead</b><small>From a call, an email or a referral</small><span class="mod">CRM</span></div>
+          <div class="step"><span class="dot">02</span><b>Bid</b><small>With the tender's document checklist</small><span class="mod">CRM</span></div>
+          <div class="step"><span class="dot">03</span><b>Won</b><small>The contract and its value recorded</small><span class="mod">CRM</span></div>
+          <div class="step"><span class="dot">04</span><b>Project</b><small>Started from a template, with milestones</small><span class="mod">Projects</span></div>
+          <div class="step"><span class="dot">05</span><b>Billing</b><small>Milestones billed and time tracked</small><span class="mod">Projects</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Payroll -->
+<section class="pay paper" id="payroll">
+  <div class="wrap pay-grid">
+    <div>
+      <p class="label" data-reveal>04 · Made for the Philippines</p>
+      <h2 class="split" data-split>The payslip, <span class="gold">worked out.</span></h2>
+      <p class="lead" data-reveal>Philippine contributions and BIR withholding are built in, and the rates are settings, not code: when the law changes, Payroll Setup changes with it.</p>
+      <ul class="rules">
+        <li data-reveal><b>SSS</b><span>2025 schedule: employee 5%, employer 10% of the monthly salary credit (₱5,000 to ₱35,000)</span></li>
+        <li data-reveal><b>PhilHealth</b><span>5% of basic pay between ₱10,000 and ₱100,000, shared half and half</span></li>
+        <li data-reveal><b>Pag-IBIG</b><span>2% from the employee and 2% from the employer, up to ₱200 each</span></li>
+        <li data-reveal><b>BIR</b><span>TRAIN withholding table effective 2023; minimum wage earners exempt</span></li>
+        <li data-reveal><b>Premiums</b><span>Holidays at 130%, 200% and 300%; rest days; night differential of 10%</span></li>
+        <li data-reveal><b>Calendars</b><span>2026 and 2027 proclaimed holidays loaded; HR adds Eid and local days</span></li>
+      </ul>
+    </div>
+    <div class="slip" data-reveal aria-live="polite">
+      <div class="slip-head"><b>Payslip</b><span>Monthly · illustrative</span></div>
+      <div class="chips" role="group" aria-label="Monthly basic pay">
+        <button type="button" data-pay="20000" aria-pressed="false">₱20,000</button>
+        <button type="button" data-pay="30000" aria-pressed="true">₱30,000</button>
+        <button type="button" data-pay="50000" aria-pressed="false">₱50,000</button>
+        <button type="button" data-pay="90000" aria-pressed="false">₱90,000</button>
+      </div>
+      <table><tbody id="slip-rows"></tbody></table>
+      <div class="net"><span>Net pay</span><b id="net">₱0.00</b></div>
+      <p class="note">Worked out with CORE's built-in rates for a monthly-paid employee with no absences, premiums or other deductions. A real payslip comes from the attendance.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6. Security -->
+<section class="sec" id="security" data-dark>
+  <div class="wrap">
+    <p class="label" data-reveal>05 · Security</p>
+    <h2 class="split" data-split>Seven layers. <span class="gold">Tested by attack.</span></h2>
+    <p class="lead" data-reveal>Each layer assumes the one before it can fail. Two rounds of penetration testing tried to break them; what they found is fixed, each with a test that keeps it fixed.</p>
+    <div class="sec-grid">
+      <div class="stack" id="stack">
+        <div class="plates" id="plates"></div>
+      </div>
+      <div>
+        <div class="layer-info" id="layer-info" aria-live="polite"></div>
+        <ul class="layer-list" id="layer-list" aria-label="Choose a layer"></ul>
+      </div>
+    </div>
+    <div class="vapt">
+      <div data-reveal><b data-count="0">0</b><small>Critical or high findings in the second test</small></div>
+      <div data-reveal style="--d:.08s"><b data-count="19">0</b><small>Fixes shipped from it, each with a regression test</small></div>
+      <div data-reveal style="--d:.16s"><b data-count="10">0</b><small>Fixes from the first test, all re-attacked and holding</small></div>
+      <div data-reveal style="--d:.24s"><b data-count="2">0</b><small>Penetration tests of the whole system</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. Cost -->
+<section class="cost paper" id="cost">
+  <div class="wrap">
+    <p class="label" data-reveal>06 · What it costs</p>
+    <h2 class="split" data-split>No licence <span class="gold">per head.</span></h2>
+    <p class="lead" data-reveal>To get what CORE does from vendors, a company buys several subscriptions, each charged per person, every month. CORE runs on one small cloud server. Move the slider to your headcount.</p>
+    <div class="calc">
+      <div>
+        <div class="slider-row"><label for="heads">People in the company</label><output id="heads-out" for="heads">100</output></div>
+        <input type="range" id="heads" min="20" max="500" step="10" value="100" />
+        <div class="bars">
+          <div class="bar-row"><header><b>Vendor subscriptions, a month</b><span id="vendor-m">US$0</span></header><div class="bar vendor"><i id="vendor-bar"></i></div></div>
+          <div class="bar-row"><header><b>CORE on its cloud server, a month</b><span id="core-m">US$16</span></header><div class="bar core"><i id="core-bar"></i></div></div>
+        </div>
+        <div class="saving">
+          <small>Licence fees a company would not pay, a year</small>
+          <b id="saving">US$0</b>
+          <p id="saving-note">At list prices, before vendor set-up fees and implementation.</p>
+        </div>
+      </div>
+      <div class="assume-wrap">
+        <table class="assume" aria-describedby="fine">
+          <thead><tr><th>Instead of CORE's…</th><th class="n">Seats</th><th class="n">List price</th><th class="n">A month</th></tr></thead>
+          <tbody id="assume-rows"></tbody>
+        </table>
+        <p class="fine" id="fine">US$ list prices billed annually, as published by the vendors and price trackers in November 2026 (sources linked); they vary by region and change. Seats start from the headcount and can be edited. Not included: taxes, vendor onboarding (HubSpot Professional US$1,500) and implementation, which for ERPs such as NetSuite is commonly quoted at US$25,000 to US$150,000. CORE's figure is its AWS server (t3.micro, disk, address and snapshots, Singapore); the R&amp;D team's own time is not included.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. Close -->
+<section class="close" data-dark>
+  <div class="wrap">
+    <p class="huge" aria-hidden="true" id="huge"><span>C</span><span>O</span><span>R</span><span>E</span></p>
+    <h2 class="split" data-split>Built by <span class="gold">Lancaster R&amp;D.</span></h2>
+    <p class="lead" data-reveal>The same team designs, writes, tests, deploys and supports CORE, and builds custom software, web applications and AI systems the same way.</p>
+    <div class="ctas" data-reveal>
+      <a class="btn solid" href="/" data-magnetic>Open CORE <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></a>
+      <a class="btn line" href="/core-rd-bdp3d7xzjh" data-magnetic>Work with Lancaster R&amp;D</a>
+    </div>
+    <div class="foot"><span>© 2026 Lancaster Technology and Development Corporation · CORE · ERP by Lancaster</span><span>Screens show demo data.</span></div>
+  </div>
+</section>
+</main>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.documentElement;
+  root.classList.add('js');
+  if (reduce) root.classList.add('no-pin');
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const easeOut = (t) => 1 - Math.pow(1 - t, 4);
+  const usd = (n) => `US$${Math.round(n).toLocaleString('en-US')}`;
+  const peso = (n) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // ----- Intro -----
+  const intro = $('.intro');
+  if (reduce) intro.classList.add('gone');
+  else setTimeout(() => intro.classList.add('gone'), 1650);
+
+  // ----- Words that rise: split headings into words -----
+  for (const el of $$('[data-split]')) {
+    let i = 0;
+    const walk = (node) => {
+      for (const child of [...node.childNodes]) {
+        if (child.nodeType === 3) {
+          const frag = document.createDocumentFragment();
+          child.textContent.split(/(\s+)/).forEach((part) => {
+            if (!part) return;
+            if (/^\s+$/.test(part)) return frag.append(part);
+            const w = document.createElement('span');
+            w.className = 'w';
+            const inner = document.createElement('span');
+            inner.textContent = part;
+            inner.style.setProperty('--i', i++);
+            w.append(inner);
+            frag.append(w);
+          });
+          child.replaceWith(frag);
+        } else if (child.nodeType === 1 && !child.classList.contains('underline')) walk(child);
+      }
+    };
+    walk(el);
+  }
+
+  // ----- Reveals and counters, once each comes into view -----
+  const count = (el) => {
+    const target = Number(el.dataset.count);
+    const suffix = el.dataset.suffix || '';
+    if (reduce || !target) return (el.textContent = target.toLocaleString('en-US') + suffix);
+    const t0 = performance.now();
+    const dur = 1400 + Math.min(900, target / 30);
+    const tick = (t) => {
+      const p = clamp((t - t0) / dur, 0, 1);
+      el.textContent = Math.round(target * easeOut(p)).toLocaleString('en-US') + (p === 1 ? suffix : '');
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      e.target.classList.add('in');
+      $$('[data-count]', e.target).forEach(count);
+      if (e.target.matches('[data-count]')) count(e.target);
+      io.unobserve(e.target);
+    }
+  }, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
+  $$('[data-reveal], [data-split], #huge').forEach((el) => io.observe(el));
+
+  // ----- The statement, lit word by word as it is read -----
+  const statement = $('#statement');
+  const sWords = [];
+  (function splitStatement(node, gold) {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        child.textContent.split(/(\s+)/).forEach((part) => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) return frag.append(part);
+          const s = document.createElement('span');
+          s.className = `sw${gold ? ' g' : ''}`;
+          s.textContent = part;
+          sWords.push(s);
+          frag.append(s);
+        });
+        child.replaceWith(frag);
+      } else splitStatement(child, child.classList?.contains('g'));
+    }
+  })(statement, false);
+  if (reduce) sWords.forEach((w) => w.classList.add('lit'));
+
+  // ----- Marquee: drifts on its own, faster with the scroll -----
+  const rows = $$('.mq-row').map((row) => {
+    row.innerHTML += row.innerHTML; // two copies, so it loops
+    return { row, dir: Number(row.dataset.speed), x: 0 };
+  });
+  let lastY = scrollY;
+  let velocity = 0;
+
+  // ----- The module strip -----
+  const strip = $('#strip');
+  const track = $('.strip-track', strip);
+  const panels = $$('.panel', strip);
+  const stripCount = $('.strip-count', strip);
+  const dots = $$('[data-go]', strip);
+  const pinned = () => !reduce && innerWidth > 960;
+  dots.forEach((b) => b.addEventListener('click', () => {
+    const top = strip.getBoundingClientRect().top + scrollY;
+    const span = strip.offsetHeight - innerHeight;
+    scrollTo({ top: top + (span * Number(b.dataset.go)) / (panels.length - 1) + 2, behavior: reduce ? 'auto' : 'smooth' });
+  }));
+
+  // ----- Every scroll-linked motion, once per frame -----
+  const nav = $('.nav');
+  const bar = $('.progress');
+  const win = $('#hero-window');
+  const lanes = $$('[data-lane]');
+  const navLinks = $$('.nav-links a');
+  const sections = navLinks.map((a) => $(a.getAttribute('href')));
+  let ticking = false;
+  function frame() {
+    ticking = false;
+    const y = scrollY;
+    const vh = innerHeight;
+    const max = document.documentElement.scrollHeight - vh;
+    bar.style.transform = `scaleX(${max > 0 ? y / max : 0})`;
+    nav.classList.toggle('pill', y > 80);
+    // Which chapter the reader is in.
+    let current = -1;
+    sections.forEach((s, i) => { if (s && s.getBoundingClientRect().top < vh * 0.4) current = i; });
+    navLinks.forEach((a, i) => a.classList.toggle('on', i === current));
+    if (reduce) return;
+    // The hero's window lies back, then stands up as it comes in.
+    const wr = win.getBoundingClientRect();
+    const wp = clamp(1 - (wr.top - vh * 0.25) / (vh * 0.75), 0, 1);
+    win.style.setProperty('--tilt', `${(1 - wp) * 24}deg`);
+    win.style.setProperty('--sc', String(0.9 + wp * 0.1));
+    // The statement lights up word by word.
+    const sr = statement.getBoundingClientRect();
+    const sp = clamp((vh * 0.85 - sr.top) / (sr.height + vh * 0.45), 0, 1);
+    const lit = Math.round(sp * sWords.length);
+    sWords.forEach((w, i) => w.classList.toggle('lit', i < lit));
+    // The strip moves sideways while its section is pinned.
+    if (pinned()) {
+      const r = strip.getBoundingClientRect();
+      const span = strip.offsetHeight - vh;
+      const p = clamp(-r.top / span, 0, 1);
+      const n = panels.length;
+      track.style.transform = `translate3d(${-p * (n - 1) * innerWidth}px, 0, 0)`;
+      const idx = Math.round(p * (n - 1));
+      panels.forEach((el, i) => {
+        el.classList.toggle('on', i === idx);
+        const off = i - p * (n - 1);
+        const shot = $('.shot', el);
+        shot.style.setProperty('--px', `${clamp(off, -1, 1) * 40}px`);
+        shot.style.setProperty('--rot', `${clamp(off, -1, 1) * 1.6}deg`);
+      });
+      dots.forEach((d, i) => d.classList.toggle('on', i === idx));
+      stripCount.textContent = String(idx + 1).padStart(2, '0');
+    } else {
+      track.style.transform = '';
+      panels.forEach((el) => el.classList.add('on'));
+    }
+    // Each lane fills as it crosses the middle of the screen; its steps light in turn.
+    for (const lane of lanes) {
+      const lr = lane.getBoundingClientRect();
+      const lp = clamp((vh * 0.78 - lr.top) / (vh * 0.42), 0, 1);
+      lane.style.setProperty('--p', lp.toFixed(3));
+      const steps = $$('.step', lane);
+      steps.forEach((s, i) => s.classList.toggle('lit', lp >= i / Math.max(1, steps.length - 1) - 0.001 && lp > 0));
+    }
+    // The security plates move apart as the section arrives.
+    const st = $('#stack').getBoundingClientRect();
+    const ep = clamp((vh - st.top) / (vh * 0.9), 0, 1);
+    plates.style.setProperty('--gap', `${12 + easeOut(ep) * 26}px`);
+    plates.style.setProperty('--lab', ep > 0.6 ? 1 : 0);
+    // The big CORE at the end drifts apart.
+    const hr = huge.getBoundingClientRect();
+    const hp = clamp(1 - hr.top / vh, 0, 1.4);
+    $$('span', huge).forEach((s, i) => (s.style.transform = `translateY(${(1 - Math.min(hp, 1)) * (i % 2 ? 40 : -40)}px)`));
+    // Marquee speed follows the scroll.
+    velocity = velocity * 0.85 + (y - lastY) * 0.15;
+    lastY = y;
+  }
+  const onScroll = () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(frame); }
+  };
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll);
+
+  function marquee() {
+    for (const r of rows) {
+      const half = r.row.scrollWidth / 2;
+      r.x -= r.dir * (0.6 + Math.min(14, Math.abs(velocity) * 0.25));
+      if (r.x <= -half) r.x += half;
+      if (r.x > 0) r.x -= half;
+      r.row.style.transform = `translate3d(${r.x}px,0,0)`;
+    }
+    velocity *= 0.95;
+    requestAnimationFrame(marquee);
+  }
+  if (!reduce) requestAnimationFrame(marquee);
+
+  // ----- Magnetic buttons and the pointer light -----
+  if (!reduce && matchMedia('(pointer: fine)').matches) {
+    for (const b of $$('[data-magnetic]')) {
+      b.addEventListener('pointermove', (e) => {
+        const r = b.getBoundingClientRect();
+        b.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.22}px, ${(e.clientY - r.top - r.height / 2) * 0.3}px)`;
+      });
+      b.addEventListener('pointerleave', () => (b.style.transform = ''));
+    }
+    const spot = $('.spot');
+    addEventListener('pointermove', (e) => {
+      spot.style.setProperty('--x', `${e.clientX}px`);
+      spot.style.setProperty('--y', `${e.clientY}px`);
+      const under = document.elementFromPoint(e.clientX, e.clientY)?.closest('section');
+      spot.style.opacity = under && under.hasAttribute('data-dark') ? 1 : 0;
+    }, { passive: true });
+  }
+
+  // ----- The orbit: CORE at the centre, the modules around it, records moving between them -----
+  const canvas = $('#orbit');
+  const ctx = canvas.getContext('2d');
+  const NODES = ['HR & Payroll', 'IT Assets', 'Service Desk', 'Sales & CRM', 'Projects', 'Admin'];
+  const MARK = [[-154,-262,156,-262,228,-190,-6,-190,-112,-84,-84,-56,16,-156,262,-156,262,156,190,228,190,-6,84,-112,-84,56,-154,-14],[154,262,-156,262,-228,190,6,190,112,84,84,56,-16,156,-262,156,-262,-156,-190,-228,-190,6,-84,112,84,-56,154,14]];
+  let W = 0, H = 0, dpr = 1, visible = true, pointer = { x: 0, y: 0 };
+  const particles = [];
+  function size() {
+    dpr = Math.min(2, devicePixelRatio || 1);
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  size();
+  addEventListener('resize', size);
+  canvas.parentElement.addEventListener('pointermove', (e) => {
+    const r = canvas.getBoundingClientRect();
+    pointer = { x: (e.clientX - r.left) / r.width - 0.5, y: (e.clientY - r.top) / r.height - 0.5 };
+  });
+  new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(canvas);
+  const nodePos = (i, t, cx, cy, R) => {
+    const a = -Math.PI / 2 + (i / NODES.length) * Math.PI * 2 + t * 0.00004;
+    return [cx + Math.cos(a) * R, cy + Math.sin(a) * R * 0.92];
+  };
+  function drawOrbit(t) {
+    ctx.clearRect(0, 0, W, H);
+    const cx = W / 2 + pointer.x * 18, cy = H / 2 + pointer.y * 18;
+    const R = Math.min(W, H) * 0.37;
+    // Rings
+    ctx.strokeStyle = 'rgba(242,195,115,0.16)';
+    ctx.lineWidth = 1;
+    for (const k of [1, 0.62]) { ctx.beginPath(); ctx.ellipse(cx, cy, R * k, R * k * 0.92, 0, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.setLineDash([2, 7]);
+    ctx.beginPath(); ctx.ellipse(cx, cy, R * 1.18, R * 1.18 * 0.92, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    const pos = NODES.map((_, i) => nodePos(i, reduce ? 0 : t, cx, cy, R));
+    // Spokes
+    ctx.strokeStyle = 'rgba(242,195,115,0.08)';
+    pos.forEach(([x, y]) => { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke(); });
+    // Records travelling between modules, through the core
+    if (!reduce) {
+      if (particles.length < 34 && Math.random() < 0.09) {
+        const a = Math.floor(Math.random() * NODES.length);
+        let b = Math.floor(Math.random() * (NODES.length - 1)); if (b >= a) b++;
+        particles.push({ a, b, t0: t, dur: 1600 + Math.random() * 1500, trail: [] });
+      }
+      for (let k = particles.length - 1; k >= 0; k--) {
+        const p = particles[k];
+        const u = (t - p.t0) / p.dur;
+        if (u >= 1) { particles.splice(k, 1); continue; }
+        const [x0, y0] = pos[p.a], [x1, y1] = pos[p.b];
+        const mx = cx + (x0 + x1 - 2 * cx) * 0.18, my = cy + (y0 + y1 - 2 * cy) * 0.18;
+        const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+        const x = (1 - e) ** 2 * x0 + 2 * (1 - e) * e * mx + e * e * x1;
+        const y = (1 - e) ** 2 * y0 + 2 * (1 - e) * e * my + e * e * y1;
+        p.trail.push([x, y]); if (p.trail.length > 14) p.trail.shift();
+        ctx.beginPath();
+        p.trail.forEach(([tx, ty], j) => (j ? ctx.lineTo(tx, ty) : ctx.moveTo(tx, ty)));
+        ctx.strokeStyle = 'rgba(242,195,115,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y, 2.6, 0, Math.PI * 2); ctx.fillStyle = '#f2c373'; ctx.fill();
+      }
+    }
+    // The core: CORE's mark, breathing
+    const s = (R * 0.36) / 264 * (reduce ? 1 : 1 + Math.sin(t / 900) * 0.025);
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.6);
+    glow.addColorStop(0, 'rgba(163,36,59,0.55)'); glow.addColorStop(1, 'rgba(163,36,59,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, R * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f2c373';
+    for (const poly of MARK) {
+      ctx.beginPath();
+      for (let k = 0; k < poly.length; k += 2) { const px = cx + poly[k] * s, py = cy + poly[k + 1] * s; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.closePath(); ctx.fill();
+    }
+    // The modules
+    const fs = Math.max(11, Math.min(15, W / 38));
+    ctx.font = `600 ${fs}px "DM Sans", system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    pos.forEach(([x, y], i) => {
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fillStyle = '#12030a'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = '#f2c373'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fillStyle = '#f2c373'; ctx.fill();
+      const below = y > cy;
+      ctx.fillStyle = 'rgba(246,238,233,0.92)';
+      ctx.fillText(NODES[i], x, y + (below ? 22 : -22));
+    });
+  }
+  function loop(t) {
+    if (visible) drawOrbit(t);
+    requestAnimationFrame(loop);
+  }
+  document.fonts?.ready.then(() => drawOrbit(0));
+  if (reduce) drawOrbit(0); else requestAnimationFrame(loop);
+
+  // ----- The payslip -----
+  const SSS_MIN = 5000, SSS_MAX = 35000;
+  function payslip(basic) {
+    const msc = clamp(Math.round(basic / 500) * 500, SSS_MIN, SSS_MAX);
+    const sss = msc * 0.05;
+    const ph = clamp(basic, 10000, 100000) * 0.05 / 2;
+    const hdmf = Math.min(basic * 0.02, 200);
+    const taxable = basic - sss - ph - hdmf;
+    const bands = [[20833, 0, 0], [33332, 0, 0.15, 20833], [66666, 1875, 0.2, 33333], [166666, 8541.8, 0.25, 66667], [666666, 33541.8, 0.3, 166667], [Infinity, 183541.8, 0.35, 666667]];
+    let tax = 0;
+    for (const [top, base, rate, over] of bands) { if (taxable <= top) { tax = rate ? base + (taxable - over) * rate : 0; break; } }
+    tax = Math.max(0, Math.round(tax * 100) / 100);
+    return { rows: [['Basic pay', basic, false], ['SSS', sss, true], ['PhilHealth', ph, true], ['Pag-IBIG', hdmf, true], ['Withholding tax (BIR)', tax, true]], net: basic - sss - ph - hdmf - tax };
+  }
+  const slipRows = $('#slip-rows');
+  const netEl = $('#net');
+  let netShown = 0;
+  function showSlip(basic) {
+    const s = payslip(basic);
+    slipRows.replaceChildren(...s.rows.map(([label, v, minus], r) => {
+      const tr = document.createElement('tr');
+      tr.className = `${minus ? 'minus ' : ''}row-in`;
+      tr.style.setProperty('--r', r);
+      const a = document.createElement('td'); a.textContent = label;
+      const b = document.createElement('td'); b.textContent = (minus ? '− ' : '') + peso(v);
+      tr.append(a, b);
+      return tr;
+    }));
+    const from = netShown, to = s.net, t0 = performance.now();
+    const tick = (t) => {
+      const p = reduce ? 1 : clamp((t - t0) / 900, 0, 1);
+      netShown = from + (to - from) * easeOut(p);
+      netEl.textContent = peso(Math.round(netShown * 100) / 100);
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  for (const b of $$('[data-pay]')) b.addEventListener('click', () => {
+    $$('[data-pay]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    showSlip(Number(b.dataset.pay));
+  });
+  new IntersectionObserver(([e], o) => { if (e.isIntersecting) { showSlip(30000); o.disconnect(); } }, { threshold: 0.3 }).observe($('.slip'));
+
+  // ----- The seven layers -----
+  const LAYERS = [
+    ['Transport', 'Encrypted on the wire', 'HTTPS with automatic certificates and HSTS for a year; the sign-in cookie never travels over plain HTTP.'],
+    ['Request gate', 'Bad requests refused first', 'Host and origin checks against DNS rebinding and cross-site requests, JSON only, size limits by route, timeouts and rate limits per person and address.'],
+    ['Identity', 'Who is asking, proven twice', 'scrypt password hashes, common passwords refused, lockouts that grow, and 2-step sign-in with single-use and recovery codes.'],
+    ['Authorization', 'Decided on the server', '10 account types and 39 permissions checked on every request; members-only projects; nobody changes their own attendance, leave or pay.'],
+    ['Content', 'Nothing typed runs as code', 'Everything escaped before it is shown, a strict Content Security Policy, uploads checked by their bytes and served so they cannot run.'],
+    ['Data protection', 'Personal data to who needs it', 'Government IDs and bank numbers masked, personal details for HR only, under the Data Privacy Act (RA 10173).'],
+    ['Accountability', 'A record that cannot be quietly changed', 'An audit log sealed entry by entry, private data files, sealed secrets, nightly backups and a security monitor watching it all.'],
+  ];
+  const plates = $('#plates');
+  const huge = $('#huge');
+  const info = $('#layer-info');
+  const list = $('#layer-list');
+  LAYERS.forEach(([name], i) => {
+    const p = document.createElement('div');
+    p.className = 'plate';
+    p.style.setProperty('--i', i);
+    p.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span'); label.textContent = name;
+    const num = document.createElement('small'); num.textContent = String(i + 1).padStart(2, '0');
+    p.append(label, num);
+    p.addEventListener('click', () => pick(i));
+    p.addEventListener('pointerenter', () => pick(i));
+    plates.append(p);
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = String(i + 1).padStart(2, '0');
+    b.setAttribute('aria-label', `Layer ${i + 1}: ${name}`);
+    b.addEventListener('click', () => pick(i));
+    li.append(b); list.append(li);
+  });
+  let auto = null;
+  function pick(i, fromAuto) {
+    if (!fromAuto && auto) { clearInterval(auto); auto = null; }
+    $$('.plate', plates).forEach((p, k) => p.classList.toggle('on', k === i));
+    $$('button', list).forEach((b, k) => b.setAttribute('aria-pressed', String(k === i)));
+    const [name, line, text] = LAYERS[i];
+    info.replaceChildren();
+    const lab = document.createElement('p'); lab.className = 'label'; lab.textContent = `Layer ${String(i + 1).padStart(2, '0')} of 07 · ${line}`;
+    const h = document.createElement('h3'); h.textContent = name;
+    const p = document.createElement('p'); p.textContent = text;
+    info.append(lab, h, p);
+  }
+  pick(0, true);
+  if (!reduce) {
+    let k = 0;
+    new IntersectionObserver(([e], o) => {
+      if (!e.isIntersecting) return;
+      o.disconnect();
+      auto = setInterval(() => pick((k = (k + 1) % LAYERS.length), true), 2600);
+    }, { threshold: 0.4 }).observe($('#stack'));
+  }
+
+  // ----- What it costs -----
+  // Seats grow with the headcount; each can be edited. Prices: US$ a seat (or a plan) a month, billed annually.
+  const LINES = [
+    { what: 'ERP for finance, HR and admin users', vendor: 'Microsoft Dynamics 365 Business Central Essentials', price: 80, seats: (n) => Math.max(3, Math.round(n * 0.08)), src: 'https://www.erpresearch.com/en-us/business-central-pricing-costs' },
+    { what: 'Employee self-service in the ERP', vendor: 'Business Central Team Members', price: 8, seats: (n) => n - Math.max(3, Math.round(n * 0.08)), src: 'https://www.auditfriendly.co/software/business-central' },
+    { what: 'Philippine payroll', vendor: 'Sprout Payroll, per employee above 10 (₱500 at ₱58 to the dollar)', price: 500 / 58, seats: (n) => n, src: 'https://sprout.ph/payroll-starter-monthly-5k' },
+    { what: 'IT service desk', vendor: 'Zendesk Suite Professional, per agent', price: 115, seats: (n) => Math.max(2, Math.round(n * 0.03)), src: 'https://www.eesel.ai/blog/zendesk-suite-pricing' },
+    { what: 'Sales & CRM', vendor: 'HubSpot Sales Hub Professional, per seat', price: 90, seats: (n) => Math.max(3, Math.round(n * 0.06)), src: 'https://www.hublead.io/hubspot-pricing-calculator' },
+    { what: 'Project management', vendor: 'Jira Standard, per user', price: 7.91, seats: (n) => Math.round(n * 0.5), src: 'https://www.eesel.ai/blog/jira-pricing-guide' },
+    { what: 'IT asset management', vendor: 'Snipe-IT hosted, Small Business plan', price: 99.99, seats: () => 1, flat: true, src: 'https://www.capterra.com/p/150016/Snipe-IT/' },
+  ];
+  const CORE_MONTH = 16; // deploy/aws/EC2.md: t3.micro, IPv4, 20 GB gp3, snapshots
+  const heads = $('#heads');
+  const headsOut = $('#heads-out');
+  const rowsEl = $('#assume-rows');
+  const manual = new Map(); // edited seats, by line
+  const shown = { vendor: 0, saving: 0 };
+  LINES.forEach((l, i) => {
+    const tr = document.createElement('tr');
+    const a = document.createElement('td');
+    const b1 = document.createElement('b'); b1.textContent = l.what;
+    const br = document.createElement('br');
+    const link = document.createElement('a'); link.href = l.src; link.target = '_blank'; link.rel = 'noopener'; link.textContent = l.vendor;
+    a.append(b1, br, link);
+    const s = document.createElement('td'); s.className = 'n';
+    if (l.flat) s.textContent = 'plan';
+    else {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.max = '5000'; inp.inputMode = 'numeric';
+      inp.setAttribute('aria-label', `Seats for ${l.what}`);
+      inp.addEventListener('input', () => { manual.set(i, clamp(Number(inp.value) || 0, 0, 5000)); update(false); });
+      s.append(inp);
+    }
+    const p = document.createElement('td'); p.className = 'n'; p.textContent = `US$${l.price.toFixed(2)}`;
+    const m = document.createElement('td'); m.className = 'n';
+    tr.append(a, s, p, m);
+    rowsEl.append(tr);
+    l.el = { input: s.querySelector('input'), month: m };
+  });
+  const coreRow = document.createElement('tr');
+  coreRow.className = 'core-row';
+  coreRow.innerHTML = '<td>CORE, all seven modules, everyone</td><td class="n">all</td><td class="n">US$0</td><td class="n">US$16</td>';
+  rowsEl.append(coreRow);
+  function animateTo(key, el, value, fmt) {
+    const from = shown[key], t0 = performance.now();
+    const tick = (t) => {
+      const p = reduce ? 1 : clamp((t - t0) / 700, 0, 1);
+      shown[key] = from + (value - from) * easeOut(p);
+      el.textContent = fmt(shown[key]);
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  function update(resetSeats) {
+    const n = Number(heads.value);
+    headsOut.textContent = n;
+    heads.style.setProperty('--v', `${((n - heads.min) / (heads.max - heads.min)) * 100}%`);
+    if (resetSeats) manual.clear();
+    let vendor = 0;
+    LINES.forEach((l, i) => {
+      const seats = l.flat ? 1 : manual.has(i) ? manual.get(i) : l.seats(n);
+      if (l.el.input && document.activeElement !== l.el.input) l.el.input.value = seats;
+      const month = seats * l.price;
+      vendor += month;
+      l.el.month.textContent = usd(month);
+    });
+    animateTo('vendor', $('#vendor-m'), vendor, usd);
+    animateTo('saving', $('#saving'), (vendor - CORE_MONTH) * 12, usd);
+    $('#vendor-bar').style.setProperty('--w', '100%');
+    $('#core-bar').style.setProperty('--w', `${Math.max(0.4, (CORE_MONTH / vendor) * 100)}%`);
+    $('#saving-note').textContent = `${n} people: about ${Math.round(vendor / CORE_MONTH)} times CORE's server bill, every month, at list prices, before vendor set-up fees and implementation.`;
+  }
+  heads.addEventListener('input', () => update(true));
+  new IntersectionObserver(([e], o) => { if (e.isIntersecting) { update(true); o.disconnect(); } }, { threshold: 0.2 }).observe($('.calc'));
+
+  frame();
+})();
+</script>
+</body>
+</html>
