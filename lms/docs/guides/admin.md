@@ -94,6 +94,8 @@ The person's record opens. Teachers and students sign in on the ATLAS home page.
 | **Unlock** | A username locked after wrong passwords can sign in again at once |
 | **Sign out** | Ends every session of the person |
 | **Audit log** | What they did, and what was done to their account |
+| **Profile** | Their profile as they see it, where you can **Give a title** (their position in the school) |
+| **Remove picture** | Takes away their picture (for one that does not belong on a school system); written in the Audit log |
 | **Delete** | Only for an account with no records (no enrollment, no sections, no changes in any system). Otherwise untick **Account is active**, so the records keep who made them |
 
 You cannot change your own account type or disable, reset or delete your own account, and the last active administrator stays one. Only staff accounts change type: students and parents keep theirs, and a teacher who still has sections keeps the teacher type until their sections go to another teacher.

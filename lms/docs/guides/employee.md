@@ -114,7 +114,7 @@ Payslips appear once payroll for the period is finalized. Your latest one is als
 
 ### Check your profile and change your password
 
-1. Open **My profile** to see your personal details, employment, schedule, government IDs and bank account.
+1. Open **My HR record** to see your personal details, employment, schedule, government IDs and bank account.
 2. Choose **Change password** to choose a new password.
 
 To change any of your details, contact HR. HR managers and payroll officers cannot change their own record, leave or payslip: another officer or an administrator does it.
@@ -141,7 +141,7 @@ You are accountable for the property until it is returned to the supply office o
 | My attendance | Your daily time record: time in and out, late, undertime, overtime and leave |
 | Leave & requests | Your leave balances; file leave or remote work; attach a medical certificate; withdraw a pending request |
 | My payslips | Your finalized payslips, including bonuses, to print or save as PDF |
-| My profile | Your record as HR keeps it, and **Change password** |
+| My HR record | Your record as HR keeps it, and **Change password** |
 | Getting started | Shown when your account is not linked to an employee record yet |
 | My accountabilities | In Finance: property in your custody, cash advances, receipts issued to you |
 | Supply & purchase requests | In Finance: request supplies (RIS) or a purchase (PR), and follow them |

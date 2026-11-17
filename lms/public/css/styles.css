@@ -1150,3 +1150,67 @@ fieldset.plain { border: 0; padding: 0; margin: 0; }
 .mc-table summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 .mc-table .scroll-x { max-height: 260px; overflow-y: auto; margin-top: 6px; }
 .mchart + .mchart { margin-top: 22px; }
+
+/* ----- Your account: pictures, the top bar's quick access, My profile (public/js/account/), after CORE's ----- */
+.avatar.pic { background: var(--surface-2); overflow: hidden; }
+.avatar.pic img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+.avatar.sm { width: 28px; height: 28px; font-size: 11px; }
+.avatar.xl { width: 96px; height: 96px; font-size: 32px; }
+.menu-pop .who.who-pic { display: flex; gap: 12px; align-items: center; }
+.menu-pop .who.who-pic > span { min-width: 0; }
+.menu-pop .who.who-pic small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-pop a[role='menuitem'] { color: var(--text); }
+.phone-only { display: none !important; }
+.top-pop-wrap { position: relative; flex: none; }
+.top-pop { width: min(340px, calc(100vw - 20px)); max-height: min(70vh, 560px); overflow-y: auto; }
+.top-pop .menu-label:first-child, .quick-head + .menu-label { margin-top: 2px; }
+.sys-pop a strong { display: block; font-size: 14px; }
+.sys-pop a small { display: block; font-size: 12px; color: var(--muted); }
+.sys-pop a.on { background: var(--brand-softer); }
+.menu-note { margin: 2px 10px 8px; font-size: 12.5px; color: var(--muted); }
+.quick-head { padding: 8px 10px 6px; font-size: 15px; }
+.quick-list { list-style: none; margin: 0; padding: 0; }
+.quick-list li { display: flex; align-items: center; }
+.quick-list li a { flex: 1; min-width: 0; }
+.quick-list li a .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-x { flex: none; width: 30px !important; height: 30px; padding: 0 !important; justify-content: center; font-size: 18px; color: var(--muted) !important; }
+.quick-x:hover { color: var(--danger) !important; }
+.menu-pop button[disabled] { opacity: 0.55; cursor: not-allowed; }
+a.hub-role { color: inherit; }
+a.hub-role:hover { background: rgba(255, 255, 255, 0.26); text-decoration: none; }
+@media (max-width: 600px) {
+  #theme-btn { display: none; }
+  .phone-only { display: flex !important; }
+  .top-pop-wrap { position: static; }
+  .top-pop { position: fixed; left: 10px; right: 10px; top: calc(var(--topbar) + 4px); width: auto; }
+}
+
+/* My profile and My security */
+.profile-head { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.profile-id { flex: 1 1 220px; min-width: 0; }
+.profile-id h1 { margin: 0; }
+.profile-role { margin: 4px 0 0; font-size: 15px; color: var(--text-2); }
+.profile-head .actions { margin-left: auto; }
+.profile-grid { margin-top: 16px; }
+.profile-dl { display: grid; gap: 10px; margin: 0 0 12px; }
+.profile-dl > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; }
+.profile-dl dt { color: var(--muted); font-size: 13px; font-weight: 600; }
+.profile-dl dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .profile-dl > div { grid-template-columns: 1fr; gap: 2px; } }
+.access-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.access-list li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.access-list li:first-child { border-top: 0; }
+.crumbs + .profile-head { margin-top: 8px; }
+
+/* The picture dialog */
+.avatar-edit { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: start; }
+.avatar-stage { width: 200px; height: 200px; display: grid; place-items: center; border-radius: 50%; overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); }
+.avatar-frame { width: 200px; height: 200px; }
+.avatar-now .avatar.xl { width: 160px; height: 160px; font-size: 48px; }
+.avatar-side { display: grid; gap: 10px; }
+.avatar-pick { justify-self: start; }
+.avatar-sliders { display: grid; gap: 6px; }
+.avatar-sliders input[type='range'] { width: 100%; }
+.avatar-side .btn.danger { justify-self: start; }
+@media (max-width: 560px) { .avatar-edit { grid-template-columns: 1fr; justify-items: center; } .avatar-side { width: 100%; } }
+.access-list .grow { flex: 1; min-width: 0; }

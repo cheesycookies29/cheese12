@@ -84,6 +84,7 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   const campusesOf = (u) => (u.role === 'admin' ? ['All campuses'] : (u.campusIds || []).map((id) => campusName(data(), id)).filter(Boolean));
   const row = (u, sessions, lockedNames) => ({
     id: u.id, name: u.name, username: u.username, email: u.email || '', role: u.role, roleLabel: roleLabel(u.role), side: ROLES[u.role]?.side || '',
+    title: u.title || '', avatar: u.avatar?.at || null,
     status: u.status, campuses: campusesOf(u), lastLoginAt: u.lastLoginAt || null, createdAt: u.createdAt || null,
     sso: Boolean(u.ssoSubject), mustChangePassword: Boolean(u.mustChangePassword), sessions: sessions.get(u.id) || 0, locked: lockedNames.has(u.username),
     studentNo: u.studentNo || '', employeeId: u.employeeId || null, demo: Boolean(u.demo), staff: STAFF_ROLES.includes(u.role),
@@ -312,6 +313,7 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
     ].filter(([yes]) => yes).map(([, what]) => what);
     if (used.length) fail(`This account has ${used.join(', ')}. Disable it instead, so the records keep who made them.`);
     d.users.splice(d.users.indexOf(u), 1);
+    ctx.tidyAvatars?.(); // its picture goes with it
     d.guardianLinks = d.guardianLinks.filter((l) => l.guardianId !== u.id && l.studentId !== u.id);
     d.studentProfiles = d.studentProfiles.filter((p) => p.studentId !== u.id);
     d.documentRequests = d.documentRequests.filter((r) => r.studentId !== u.id);

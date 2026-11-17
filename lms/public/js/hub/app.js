@@ -5,6 +5,7 @@ import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
 import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel, userCan } from '/shared/roles.js';
+import { mountUserMenu, mountQuick, accountHref } from '../account/topbar.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -87,31 +88,27 @@ function applyView(status) {
 }
 
 // ----- Signed in -----
+// The menu under your name and Quick access, as in every system (public/js/account/topbar.js).
 function userMenu(status) {
-  const u = status.user;
-  const box = document.getElementById('user-box');
-  mount(box, html`
-    <button type="button" class="user-btn" id="user-btn" aria-haspopup="menu" aria-expanded="false">
-      <span class="avatar">${initials(u.name)}</span><span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}${status.campusName ? ` · ${status.campusName}` : ''}</small></span>${icon('chevronDown', 16)}
-    </button>
-    <div class="menu-pop" id="user-pop" role="menu" hidden>
-      <div class="who"><strong>${u.name}</strong><small>${u.username}${u.email ? ` · ${u.email}` : ''}</small><small>${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</small></div>
-      <button type="button" id="change-pw">${icon('key')} Change password</button>
-      <button type="button" id="sign-out">${icon('logout')} Sign out</button>
-      ${campusMenu(status)}
-    </div>`);
-  wireCampusMenu(box, status.authBase);
-  const pop = box.querySelector('#user-pop');
-  box.querySelector('#user-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    pop.hidden = !pop.hidden;
+  mountUserMenu(document.getElementById('user-box'), status.user, {
+    info: status,
+    here: '/',
+    onPassword: () => openChangePassword(status.authBase),
+    onSignOut: signOut,
+    onTheme: () => setTheme(!isDark()),
+    campusMenu: campusMenu(status),
+    wireCampus: (root) => wireCampusMenu(root, status.authBase),
   });
-  document.addEventListener('click', (e) => !box.contains(e.target) && (pop.hidden = true));
-  box.querySelector('#change-pw').addEventListener('click', () => {
-    pop.hidden = true;
-    openChangePassword(status.authBase);
+  if (document.getElementById('quick-btn')) return;
+  mountQuick(document.getElementById('help-btn'), {
+    user: status.user,
+    current: () => null, // the home page itself is one click away (the ATLAS mark)
+    suggestions: () => [
+      ...status.systems.filter((s) => s.status === 'live' && s.url && !s.external).map((s) => ({ href: s.url, label: s.product, icon: s.icon })),
+      { href: accountHref(status.user, 'profile'), label: 'My profile', icon: 'user' },
+      { href: accountHref(status.user, 'security'), label: 'My security', icon: 'shield' },
+    ],
   });
-  box.querySelector('#sign-out').addEventListener('click', signOut);
 }
 
 const dateBox = (ymd) => {
@@ -231,7 +228,7 @@ async function homeView(status) {
       <p class="hub-kicker">${new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${status.branding.termName ? ` · ${status.branding.termName}` : ''}</p>
       <h1>${hello}, ${u.name.split(' ')[0]}</h1>
       <p>Welcome to ATLAS, the education platform of ${status.branding.schoolName}. Choose a system to continue.</p>
-      <span class="hub-role">${icon('user', 14)} ${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</span>
+      <a class="hub-role" href="${accountHref(u, 'profile')}" title="My profile">${icon('user', 14)} ${u.title || roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</a>
       ${status.campusName ? html`<span class="hub-role">${icon('building', 14)} ${status.campusName}${status.campuses.length > 1 ? html` · <button type="button" class="link hub-switch" id="hub-switch">switch</button>` : ''}</span>` : ''}
     </div></section>
     <section class="hub-wrap">

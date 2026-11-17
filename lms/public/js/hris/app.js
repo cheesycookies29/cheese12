@@ -52,7 +52,7 @@ function nav() {
     isEmployee() && { href: '/me/attendance', label: 'My attendance', icon: 'calendar' },
     isEmployee() && { href: '/me/requests', label: 'Leave & requests', icon: 'inbox' },
     isEmployee() && { href: '/me/payslips', label: 'My payslips', icon: 'wallet' },
-    isEmployee() && { href: '/me/profile', label: 'My profile', icon: 'user' },
+    isEmployee() && { href: '/me/profile', label: 'My HR record', icon: 'user' },
     !isEmployee() && !hrScreens && { href: '/not-linked', label: 'Getting started', icon: 'flag' },
     hrScreens && { heading: 'Human resources' },
     can('hris.dashboard') && { href: '/dashboard', label: 'HR dashboard', icon: 'chart' },

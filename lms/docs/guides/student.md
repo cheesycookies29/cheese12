@@ -19,7 +19,7 @@ To sign in:
 
 1. Open the ATLAS home page and sign in with the username and password the registrar gave you. If the password was set by someone else, ATLAS asks you to choose a new one first.
 2. Under **Your systems**, choose **Learn**, **Academic** or **Finance**.
-3. To move to another system later, use the grid button (**All systems**) at the top right. The **?** button next to it opens these guides.
+3. To move to another system later, use the grid button (**Systems**) at the top right: it lists your systems and **ATLAS home**. The **?** button opens these guides.
 
 Your name at the top right opens a menu with **Change password** and **Sign out**.
 

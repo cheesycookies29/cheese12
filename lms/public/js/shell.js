@@ -3,7 +3,9 @@
 import { api } from './api.js';
 import { html, mount, modal, toast, initials, formData, raw } from './ui.js';
 import { icon, iconSvg } from './icons.js';
-import { roleLabel, setRoleOverrides } from '/shared/roles.js';
+import { setRoleOverrides } from '/shared/roles.js';
+import { accountRoutes } from './account/profile.js';
+import { mountSystems, mountQuick, mountUserMenu, recordVisit } from './account/topbar.js';
 
 // App-wide state for the current page set (one per app, since each is its own page).
 export const ctx = { user: null, info: null };
@@ -274,7 +276,9 @@ export function openChangePassword(authBase) {
 //   nav(): [{ href, label, icon, heading, badge, exact, also, external }]
 //   home(): default path; signedOutView(el, { status, boot }); badges: { name: () => Promise<number> }
 export function startApp(config) {
-  const routes = config.routes.map(([pattern, view, allowed = () => true]) => {
+  ctx.authBase = config.authBase;
+  // My profile and My security, in every system (public/js/account/).
+  const routes = [...accountRoutes(), ...config.routes].map(([pattern, view, allowed = () => true]) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
     return { re, keys, view, allowed };
@@ -307,40 +311,42 @@ export function startApp(config) {
     document.getElementById('side-foot').textContent = `ATLAS · ${BYLINE}`;
   }
 
+  // This app's address, as Quick access keeps it ('/lms/', '/admin', '/hris/'…).
+  const appPath = () => (location.pathname.replace(/\/+$/, '') === '/admin' ? '/admin' : location.pathname);
+  const productName = () => (config.side === 'admin' && !config.product ? 'Admin panel' : config.product || 'Learn');
+  // The page on screen, for Quick access: its sidebar name (or its heading), with the system's name.
+  function currentPage() {
+    const path = location.hash.replace(/^#/, '').split('?')[0];
+    if (!path || !ctx.user) return null;
+    const own = { '/profile': 'My profile', '/security': 'My security' }[path];
+    const nav = document.querySelector('#nav a.active .label')?.textContent?.trim();
+    const h1 = document.querySelector('#app h1')?.textContent?.trim();
+    const name = own || (nav && h1 && nav !== h1 && h1.length <= 60 ? `${nav} · ${h1}` : nav || h1);
+    if (!name) return null;
+    return { href: `${appPath()}${location.hash}`, label: own ? name : `${productName()} · ${name}`.slice(0, 80) };
+  }
+
   function renderUserBox() {
-    const u = ctx.user;
-    const box = document.getElementById('user-box');
-    mount(box, html`
-      <button type="button" class="user-btn" id="user-btn" aria-haspopup="menu" aria-expanded="false">
-        <span class="avatar">${initials(u.name)}</span>
-        <span class="who-text"><strong>${u.name}</strong><small>${roleLabel(u.role)}${ctx.info.campusName ? ` · ${ctx.info.campusName}` : ''}</small></span>
-        ${icon('chevronDown', 16)}
-      </button>
-      <div class="menu-pop" id="user-pop" role="menu" hidden>
-        <div class="who"><strong>${u.name}</strong><small>${u.username}${u.email ? ` · ${u.email}` : ''}</small><small>${roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</small></div>
-        <button type="button" id="change-pw">${icon('key')} Change password</button>
-        <button type="button" id="sign-out">${icon('logout')} Sign out</button>
-        ${campusMenu(ctx.info)}
-      </div>`);
-    wireCampusMenu(box, config.authBase);
-    const pop = box.querySelector('#user-pop');
-    const btn = box.querySelector('#user-btn');
-    const close = () => {
-      pop.hidden = true;
-      btn.setAttribute('aria-expanded', 'false');
-    };
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setDrawer(false); // on phones the menu drawer would cover it
-      pop.hidden = !pop.hidden;
-      btn.setAttribute('aria-expanded', String(!pop.hidden));
+    mountUserMenu(document.getElementById('user-box'), ctx.user, {
+      info: ctx.info,
+      here: appPath(),
+      onPassword: () => openChangePassword(config.authBase),
+      onSignOut: signOut,
+      onTheme: () => setTheme(!isDark()),
+      campusMenu: campusMenu(ctx.info),
+      wireCampus: (root) => wireCampusMenu(root, config.authBase),
     });
-    document.addEventListener('click', (e) => !box.contains(e.target) && close());
-    box.querySelector('#change-pw').addEventListener('click', () => {
-      close();
-      openChangePassword(config.authBase);
-    });
-    box.querySelector('#sign-out').addEventListener('click', signOut);
+    if (!document.getElementById('quick-btn')) {
+      mountQuick(document.getElementById('help-btn'), {
+        user: ctx.user,
+        current: currentPage,
+        suggestions: () => [
+          ...config.nav().filter((n) => n.href && !n.heading && !n.external).slice(0, 4).map((n) => ({ href: `${appPath()}#${n.href}`, label: `${productName()} · ${n.label}`, icon: n.icon })),
+          { href: '#/profile', label: 'My profile', icon: 'user' },
+          { href: '#/security', label: 'My security', icon: 'shield' },
+        ],
+      });
+    }
   }
 
   async function refreshBadges() {
@@ -375,10 +381,10 @@ export function startApp(config) {
   document.getElementById('sidebar').addEventListener('click', (e) => e.target.closest('a[href]') && setDrawer(false));
   document.addEventListener('keydown', (e) => e.key === 'Escape' && setDrawer(false));
   document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
-  // Back to the University Portal, where the other systems are.
-  document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" href="/" title="All systems" aria-label="All systems">${iconSvg('grid')}</a>`);
   // Help & guides: opens the guide for this person in this system (shared/help.js).
   document.getElementById('theme-btn').insertAdjacentHTML('beforebegin', `<a class="round-btn" id="help-btn" href="/help/?from=${encodeURIComponent(config.side)}" target="_blank" rel="noopener" title="Help & guides" aria-label="Help and guides">${iconSvg('help')}</a>`);
+  // The ATLAS systems you can open, the home page and Help (Quick access joins it once signed in).
+  mountSystems(document.getElementById('help-btn'));
 
   // A view with unsaved work sets ctx.dirty = () => true; leaving it asks first (and the address goes back).
   let lastHash = location.hash;
@@ -423,6 +429,7 @@ export function startApp(config) {
     const loading = setTimeout(() => !el.childElementCount && mount(el, html`<p class="page-loading" role="status">Loading…</p>`), 250);
     try {
       cleanup = await match.view(el, params, query);
+      recordVisit(ctx.user, currentPage()); // Quick access → Recent
     } catch (err) {
       mount(el, failureNotice(err, { page: true }));
     } finally {

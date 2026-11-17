@@ -9,6 +9,7 @@ import { html, mount, modal, toast, confirmDialog, badge, option, formData, init
 import { ctx } from '../shell.js';
 import { icon } from '../icons.js';
 import { ROLES } from '/shared/roles.js';
+import { avatar } from '../account/avatars.js';
 
 const ROLE_BADGE = { admin: 'maroon', registrar: 'blue', dean: 'blue', teacher: 'green', hr: 'amber', payroll: 'amber', accountant: 'brand', budget: 'brand', cashier: 'brand', supply: 'brand', approver: 'brand', staff: 'gray', student: 'gray', guardian: 'gray' };
 const when = (iso) => (iso ? html`<span title="${fmtDateTime(iso)}">${fmtDateTime(iso)}</span>` : html`<span class="muted">Never</span>`);
@@ -36,8 +37,8 @@ export async function usersView(el, params, q) {
       <table class="table users-table">
         <thead><tr><th>User</th><th>Account type</th><th>Linked employee</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
         <tbody>${d.users.length ? d.users.map((u) => html`<tr>
-          <td data-label="User"><div class="person"><span class="avatar">${initials(u.name)}</span>
-            <div><strong>${u.name}${u.id === ctx.user.id ? html` <span class="muted you">(you)</span>` : ''}</strong><small>${u.username}${u.studentNo ? ` · ${u.studentNo}` : ''}</small></div></div></td>
+          <td data-label="User"><div class="person">${avatar(u.id, u.name, { at: u.avatar })}
+            <div><strong><a href="#/profile/${u.id}" title="Profile">${u.name}</a>${u.id === ctx.user.id ? html` <span class="muted you">(you)</span>` : ''}</strong><small>${u.title ? `${u.title} · ` : ''}${u.username}${u.studentNo ? ` · ${u.studentNo}` : ''}</small></div></div></td>
           <td data-label="Account type">${badge(u.roleLabel, ROLE_BADGE[u.role] || 'gray')}${u.ownAccess ? html`<small><a href="#" data-access="${u.id}">+ own access (${u.ownAccess})</a></small>` : ''}</td>
           <td data-label="Linked employee">${u.employee ? html`<a href="/hris/#/employees/${u.employee.id}">${u.employee.name}</a>` : html`<span class="muted">—</span>`}</td>
           <td data-label="Status">${u.status === 'active' ? badge('Active', 'green') : u.status === 'pending' ? badge('Applied', 'amber') : badge(u.status === 'rejected' ? 'Not admitted' : 'Disabled', 'gray')}
@@ -49,6 +50,8 @@ export async function usersView(el, params, q) {
             ${u.id !== ctx.user.id ? html`<button class="link" data-reset="${u.id}">Reset password</button>` : ''}
             ${u.locked ? html`<button class="link" data-unlock="${u.id}">Unlock</button>` : ''}
             ${u.sessions && u.id !== ctx.user.id ? html`<button class="link" data-signout="${u.id}">Sign out</button>` : ''}
+            <a class="link" href="#/profile/${u.id}">Profile</a>
+            ${u.avatar && u.id !== ctx.user.id ? html`<button class="link" data-pic="${u.id}">Remove picture</button>` : ''}
             <a class="link" href="#/system/audit?userId=${u.id}">Audit log</a>
             ${u.id === ctx.user.id ? '' : html`<button class="link danger" data-delete="${u.id}">Delete</button>`}
           </td>
@@ -103,6 +106,7 @@ export async function usersView(el, params, q) {
     if (t.dataset.edit) return editDialog(await api.get(`/api/system/users/${id}`), reload);
     if (t.dataset.access) return accessDialog(await api.get(`/api/system/users/${id}`), reload);
     if (t.dataset.reset) return resetDialog(row, reload);
+    if (t.dataset.pic && (await confirmDialog(`Remove ${row.name}'s picture? Their initials show instead. They can add a picture again.`, { confirmLabel: 'Remove picture', title: 'Remove picture' }))) return run(() => api.del(`/api/system/users/${id}/avatar`), 'Picture removed.');
     if (t.dataset.unlock) return run(() => api.post(`/api/system/users/${id}/unlock`), 'Unlocked.');
     if (t.dataset.signout && (await confirmDialog(`Sign ${row.name} out everywhere? They sign in again.`, { confirmLabel: 'Sign out', title: 'Sign out' }))) return run(() => api.post(`/api/system/users/${id}/sign-out`), 'Signed out everywhere.');
     if (t.dataset.delete && (await confirmDialog(`Delete the account "${row.username}"? They will no longer be able to sign in. An account with records (enrollment, sections, changes in any system) cannot be deleted: disable it instead, so the records keep who made them.`))) return run(() => api.del(`/api/system/users/${id}`), 'User deleted.');
@@ -180,6 +184,7 @@ function editDialog(u, onDone) {
       <label class="field"><span>Username</span><input name="username" value="${u.username}" autocapitalize="none" spellcheck="false" required /></label>
       ${u.canChangeRole ? html`<label class="field"><span>Account type</span><select name="role" ${me ? 'disabled' : ''}>${u.assignableRoles.map((r) => option(r.id, r.label, r.id === u.role))}</select></label>
         <p class="muted small span-2 role-hint"></p>` : html`<label class="field"><span>Account type</span><input value="${u.roleLabel}" disabled /></label>`}
+      <label class="field span-2"><span>Title <small class="muted">(optional)</small></span><input name="title" maxlength="80" value="${u.title || ''}" placeholder="${u.roleLabel}" /><small class="muted">The position in the school, shown beside the name (e.g. University Registrar, Instructor I). It does not change what the account can do.</small></label>
       <label class="field span-2"><span>Email</span><input type="email" name="email" value="${u.email}" /></label>
       ${u.canChangeRole ? html`<label class="field span-2"><span>Linked employee record <small class="muted">(optional)</small></span><select name="employeeId">${option('', '— None —', !u.employeeId)}${u.employees.map((e) => option(e.id, `${e.name}${e.no ? ` (${e.no})` : ''}`, e.id === u.employeeId))}</select>
         <small class="muted">Lets the person see their own attendance, leave and payslips in People. One account per employee.</small></label>` : ''}
@@ -195,6 +200,7 @@ function editDialog(u, onDone) {
       if (form.querySelector('[name=employeeId]')) body.employeeId = v.employeeId || null;
       if (!me && ['active', 'disabled'].includes(u.status)) body.status = form.querySelector('[name=active]').checked ? 'active' : 'disabled';
       await api.put(`/api/system/users/${u.id}`, body);
+      if ((v.title || '').trim() !== (u.title || '')) await api.put(`/api/system/users/${u.id}/title`, { title: v.title || '' });
       toast('User updated.');
       if (me) return location.reload();
       onDone();

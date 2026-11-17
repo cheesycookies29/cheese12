@@ -30,11 +30,11 @@ This tour uses the demo school. Sign in as `teacher.demo` with the password `dem
 3. Scroll down: **Announcements** and **Upcoming events** show the school's latest news and events for your campus.
 4. Choose **Open People** on the People tile. People opens straight away; you do not sign in again.
 
-![A system: the menu button on the left, and the All systems, Help & guides, dark mode and name buttons on the right](getting-started-system.jpg)
+![A system: the menu button on the left, and the Systems, Quick access, Help & guides, dark mode and name buttons on the right](getting-started-system.jpg)
 
-5. Look at the top bar. On the left is the **menu** button (three lines), which folds the side menu. On the right are, in order: **All systems** (the grid of squares), **Help & guides** (the question mark), the **dark mode** button (the moon) and your name.
-6. Choose **All systems**. You are back on the ATLAS home page.
-7. Choose your name at the top right. The menu shows your username, account type, **Change password** and **Sign out**. An account that works at more than one campus also sees **Switch campus** here.
+5. Look at the top bar. On the left is the **menu** button (three lines), which folds the side menu. On the right are, in order: **Systems** (the grid of squares), **Quick access** (the lightning bolt), **Help & guides** (the question mark), the **dark mode** button (the moon) and your name with your picture.
+6. Choose **Systems**. It lists the ATLAS systems you can open, then **ATLAS home** and **Help & guides**. Choose **ATLAS home**: you are back on the home page.
+7. Choose your name at the top right. The menu shows your picture, name and title, then **My profile**, **Add my picture**, **My security**, **Change password** and **Sign out**. An account that works at more than one campus also sees **Switch campus** here.
 
 ![The menu under your name, with Switch campus for an account at two campuses](getting-started-user-menu.jpg)
 
@@ -72,9 +72,45 @@ If your school has also kept ATLAS passwords, the card says **or with your ATLAS
 ### Open a system and come back
 
 1. On the ATLAS home page, choose the tile, for example **Open Learn**.
-2. To come back, choose **All systems** (the grid of squares) in the top bar.
+2. To go to another system, choose **Systems** (the grid of squares) in the top bar, then the system, or **ATLAS home** to come back here.
 
 Administrators and registrars also have **Administration** below their systems: the **Admin panel**, and shortcuts to the pages in it they use most. Their Learn tile says **Manage Learn**, because they run Learn instead of taking classes. A tile marked **Coming soon** cannot be opened yet.
+
+### See your profile
+
+1. Choose your name at the top right, then **My profile**. It opens in the system you sign in to (Learn for teachers, students and parents; the Admin panel for administrators and registrars; People for other staff).
+2. The top shows your picture, name, title and campus. **Account** lists your username, email, account type, campuses, whether you are linked to Keycloak, and when you joined and last signed in. **Studies**, **Work** or **Children** shows your student number and program, your position and department, or your linked children, with a link to your academic record or your HR record. **What you can open** lists your ATLAS systems, each with **Open**.
+
+![My profile](getting-started-profile.jpg)
+
+Your **title** is your position in the school (for example *University Registrar* or *Instructor I*), given by an administrator; until then your account type shows. To correct your name or email, ask the registrar (students and parents) or HR (employees).
+
+### Add or change your picture
+
+1. Choose your name at the top right, then **Add my picture** (or **Change my picture**). You can also choose it on **My profile**.
+2. Choose **Choose a photo** and pick a JPEG, PNG or WebP photo.
+3. Frame it with **Zoom**, **Left and right** and **Up and down**.
+4. Choose **Save picture**.
+
+The picture shows in the top bar and on your profile, and administrators see it in Users & Access. It is cut to a square and made small before it is sent; everyone signed in to ATLAS can see it. To take it away, open the same window and choose **Remove my picture**.
+
+### See where you are signed in
+
+1. Choose your name at the top right, then **My security**.
+2. **Where you are signed in** lists each browser or device with your account: which system, the network address, and when it signed in and was last used. **This device** marks the one you are using.
+3. Choose **Sign out** on a row to end that one, or **Sign out everywhere else** to end all but this one.
+
+A device you do not recognise? Sign it out, then choose **Change password** on the same page.
+
+### Pin the pages you use most
+
+1. Open a page you use often, for example your class list or **My payslips**.
+2. Choose **Quick access** (the lightning bolt) in the top bar, then **Pin this page**.
+3. Next time, choose **Quick access** and the page under **Pinned**, from any system.
+
+![Quick access with two pinned pages](getting-started-quick.jpg)
+
+Pinned pages follow you to any computer or phone; you can pin up to 12, and choose **×** beside one to unpin it. **Recent** shows the pages you opened last in this browser, and until you pin anything, **Suggested** offers a few to start with.
 
 ### Switch campus
 
@@ -87,7 +123,7 @@ The page reloads and says *Switched to …*. Every list in every system now show
 
 ### Turn dark mode on or off
 
-1. Choose the moon button in the top bar. The screen turns dark.
+1. Choose the moon button in the top bar (on a phone: your name, then **Dark mode**). The screen turns dark.
 2. To go back, choose the sun button in the same place.
 
 ![The ATLAS home page in dark mode](getting-started-dark.jpg)
@@ -155,10 +191,13 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Finance tile | The school's accounts for the finance offices, and self-service for employees and students (for example, receipts). Not for parents |
 | Facilities tile | Rooms, bookings, maintenance and property. Shown as **Coming soon** until your school switches it on |
 | REX Bookstore e-Reader tile | E-books for your subjects from the REX Bookstore app's library. For students, teachers, registrars, deans and administrators; shown as **Coming soon** for now |
-| All systems | The grid button in each system's top bar: back to the ATLAS home page |
+| Systems | The grid button in each system's top bar: the ATLAS systems you can open, **ATLAS home** and **Help & guides** |
+| Quick access | The lightning button: pages you pinned, pages you opened recently, and **Pin this page** |
 | Help | The question-mark button in the top bar: the Help & guides page |
 | Dark mode | The moon (or sun) button: dark or light screens |
-| Your name | The menu with **Change password**, **Sign out** and, for some accounts, **Switch campus** |
+| Your name | The menu with your picture and title, **My profile**, **Add my picture**, **My security**, **Change password**, **Sign out** and, for some accounts, **Switch campus** |
+| My profile | Your account, your studies or work, and the systems you can open |
+| My security | Your password, and the browsers and devices signed in with your account |
 | Menu button | The three lines at the top left of each system: folds the side menu to icons on a computer, or opens it on a phone |
 
 ## Questions

@@ -10,6 +10,7 @@
 //   'hris' | 'hris:<permission>'      any signed-in employee (not students), optionally with that permission
 //   'finance' | 'finance:<permission>'    ATLAS Finance: any signed-in employee or student (whichever session the
 //                                    browser has), optionally with that permission
+//   'me'                          whoever is signed in, in any system (their own account: /api/me/…)
 //   'academic' | 'academic:<permission>'  ATLAS Academic: administrators, registrars and deans (admin-panel
 //                                    session), teachers and students (portal session); optionally with that permission
 // Portal routes may also name a module; the call is refused when an administrator
@@ -38,6 +39,7 @@ import { createAudit, systemOf, describeRoute, sideLabel, isStaff, addAuditDemo,
 import { registerSystemRoutes } from './system.js';
 import { createMonitor } from './monitor.js';
 import { registerMonitorRoutes } from './monitor-panel.js';
+import { registerAccountRoutes, createAvatarStore, tidyAvatars } from './account.js';
 
 // The version of this ATLAS (package.json), shown with the guides.
 const APP_VERSION = (() => {
@@ -148,6 +150,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const LOGIN_BODY = { username: t.str(200), password: t.str(10000) }; // a longer password is refused as wrong (401), before the slow check
   const PASSWORD_BODY = { currentPassword: t.str(1000), newPassword: t.str(1000) };
 
+  // Profile pictures (server/account.js): data/avatars/ beside the data, or in memory in tests.
+  const avatars = createAvatarStore(db.dir);
   const ctx = {
     db,
     files: createFileStore(db),
@@ -457,6 +461,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     // The audit log is not part of a backup (it is its own file): an old backup's trail is left out.
     const { auditTrail, ...restored } = body;
     db.replace({ ...emptyData(), ...restored });
+    tidyAvatars(db.data, avatars); // pictures only when their file is on this server (a backup has no files)
     setRoleOverrides(db.data.roleOverrides);
     const { unreadable } = sealPasswords();
     return { ok: true, unreadablePasswords: unreadable };
@@ -474,6 +479,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
     removeAuditDemo(db.data);
+    tidyAvatars(db.data, avatars);
     db.save();
     return demoStatus(db.data);
   });
@@ -552,7 +558,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   registerGuardianRoutes(route, ctx, classroom);
   registerCalendarRoutes(route, ctx, classroom);
   // ----- System → Users & Access and Audit log (administrators, in any system's sidebar) -----
+  ctx.tidyAvatars = () => tidyAvatars(db.data, avatars);
   registerSystemRoutes(route, ctx, { sides, throttle });
+  // ----- Your own account: profile, picture, sessions, quick access (server/account.js) -----
+  registerAccountRoutes(route, { db, sides, avatars, record: (e) => audit.record(e), systemsFor: (u) => portalSystems(u, ROLES[u.role]?.side).filter((x) => x.status === 'live' && x.url).map((x) => ({ id: x.id, name: x.name, url: x.url, tagline: x.tagline || x.description || '' })) });
   // ----- System → Security monitor (administrators), and its metrics export -----
   registerMonitorRoutes(route, { db, monitor, audit, record: (e) => audit.record(e), sec: security, rateLimits: rateLimits !== 'off', routes, sessions: openSessions, version: APP_VERSION });
 
@@ -682,7 +691,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const lastFin = db.data.finAudit.at(-1)?.id;
       const lastAcademic = db.data.auditLog.at(-1)?.id;
       try {
-        if (r.access === 'hris' || r.access.startsWith('hris:')) {
+        if (r.access === 'me') {
+          // Your own account, from whichever system you are signed in to.
+          [user, token] = portalUser ? [portalUser, portalToken] : adminUser ? [adminUser, adminToken] : [hrisUser, hrisToken];
+          if (!user) fail('Please sign in.', 401);
+        } else if (r.access === 'hris' || r.access.startsWith('hris:')) {
           // Whoever is signed in on this browser: an HR/staff account, else an admin-panel or portal account.
           [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
           if (!user) fail('Please sign in.', 401);

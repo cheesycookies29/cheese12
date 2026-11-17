@@ -31,6 +31,24 @@
   "wait": 900
  },
  {
+  "file": "getting-started-profile.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/profile",
+  "wait": 1500
+ },
+ {
+  "file": "getting-started-quick.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/calendar",
+  "api": [
+   ["PUT", "/api/me/quick-links", { "links": [{ "href": "/lms/#/calendar", "label": "Learn · Calendar" }, { "href": "/hris/#/me/payslips", "label": "People · My payslips" }] }]
+  ],
+  "click": [
+   "#quick-btn"
+  ],
+  "wait": 1200
+ },
+ {
   "file": "getting-started-system.jpg",
   "user": "teacher.demo",
   "url": "/hris/",

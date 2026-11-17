@@ -208,7 +208,7 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Payroll | Payroll runs and payslips (view only; the payroll officer prepares them) |
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
 | HR settings | Employer details on payslips, the default work schedule, and who can do what |
-| My day, My attendance, Leave & requests, My payslips, My profile | Your own self-service, as for every employee: see [the employee guide](employee) |
+| My day, My attendance, Leave & requests, My payslips, My HR record | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 
 ## Questions

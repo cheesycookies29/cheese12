@@ -9,6 +9,13 @@ order: 2
 
 ## November 2026
 
+### Your profile, your picture and quick access, as in CORE
+- **My profile**, under your name in every system: your account, your studies or work (with links to your academic or HR record), your children for parents, and the systems you can open. See [getting started](getting-started#see-your-profile).
+- **Your picture**: choose **Add my picture** under your name, frame the photo, and it shows in the top bar and your profile. See [getting started](getting-started#add-or-change-your-picture).
+- **My security**: every browser and device signed in with your account, and **Sign out** on one or **Sign out everywhere else**. See [getting started](getting-started#see-where-you-are-signed-in).
+- **Quick access** (the lightning bolt in the top bar): pin the pages you use most, and they follow you to any device; recent pages too. **Systems** (the grid) now lists the systems you can open, instead of going straight home. See [getting started](getting-started#pin-the-pages-you-use-most).
+- **A title** beside your name (your position in the school), given by administrators in Users & Access, where they also see everyone's picture and can open anyone's profile. People's **My profile** is now **My HR record**. See [the administrator's guide](admin).
+
 ### The Security monitor
 - **System → Security monitor**, for administrators in every system's sidebar, as in CORE. Four tabs for the last hour, day, week or month, updated every minute: **Software status** (checks on the server and the school's settings, each with the reason and a link to the fix), **API security** (requests ATLAS refused, by kind, with their OWASP item; failed sign-ins; addresses to watch; the controls in force; every API address), **Traffic** (requests, response times, the busiest and slowest routes) and **User activity** (who is signed in now, active people, sign-ins and changes). A metrics token lets Prometheus and Grafana collect the same numbers. See [the administrator's guide](admin#watch-the-server-with-the-security-monitor).
 - **The data file is saved readable only by ATLAS** (and the server's own group), like the audit log.

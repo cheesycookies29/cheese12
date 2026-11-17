@@ -19,7 +19,7 @@ Your clock-ins, leave, payslips and Finance self-service (property in your custo
 To sign in:
 
 1. Open the ATLAS home page and sign in with your username and password.
-2. Under **Your systems**, choose **Learn** or **Academic**. The grid button (**All systems**) at the top right takes you back; the **?** button opens these guides.
+2. Under **Your systems**, choose **Learn** or **Academic**. The grid button (**Systems**) at the top right lists your systems and **ATLAS home**; the **?** button opens these guides.
 
 The registrar assigns your sections. If you teach at more than one campus, open the menu under your name at the top right and pick the campus under **Switch campus**; Learn then shows that campus's sections. The same menu has **Change password** and **Sign out**.
 
