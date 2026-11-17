@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Feedback form fixes (0.36)
+- The **New feedback** and **Respond** forms are laid out in one column again, **Esc** while text is selected no longer closes the form, and lists in a response show properly.
+
 ### Formatting in feedback (0.35)
 - **Send feedback** now has the same editor as project comments: write the **Details** with bold, numbered steps, links and small tables, from its bar or by typing **/**. Administrators' **Responses** use it too, and both show formatted. See [Send feedback](getting-started#send-feedback).
 

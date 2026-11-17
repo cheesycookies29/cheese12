@@ -5,7 +5,7 @@ import { HttpError } from './util.js';
 import { ROLES } from '../shared/roles.js';
 import { FEEDBACK_TYPES, FEEDBACK_AREAS, FEEDBACK_STATUS } from '../shared/feedback.js';
 import { notify, quote } from './notifications.js';
-import { richToText } from '../shared/richtext.js';
+import { richToText, richWords } from '../shared/richtext.js';
 
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const newestFirst = (list) => [...list].reverse().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -29,7 +29,7 @@ export function registerFeedbackRoutes(route, db) {
     if (!f.type) throw new HttpError(400, 'Pick what kind of feedback this is.');
     if (!f.subject) throw new HttpError(400, 'Add a short subject.');
     // Written in the visual editor (0.35): stored as CORE's small Markdown; its words are what count.
-    if (richToText(f.message).trim().length < 10) throw new HttpError(400, 'Describe your feedback in a sentence or two.');
+    if (richWords(f.message).length < 10) throw new HttpError(400, 'Describe your feedback in a sentence or two.');
     const recent = all().filter((x) => x.userId === user.id && Date.now() - new Date(x.createdAt) < 60 * 60 * 1000);
     if (recent.length >= 20) throw new HttpError(429, 'You have sent a lot of feedback in the last hour. Please try again later.');
     const now = new Date().toISOString();
@@ -55,7 +55,9 @@ export function registerFeedbackRoutes(route, db) {
   route('POST', '/api/feedback/:id/update', 'feedback.manage', ({ params, body, user }) => {
     const f = find(params.id);
     const status = FEEDBACK_STATUS[body.status] ? body.status : f.status;
-    const note = str(body.note, 2000);
+    // A reply is its words: formatting alone (an empty list) is no reply (0.36).
+    const written = str(body.note, 2000);
+    const note = richWords(written) ? written : '';
     if (status === f.status && !note) throw new HttpError(400, 'Change the status or write a reply.');
     f.updates.push({ at: new Date().toISOString(), by: user.name, status: status !== f.status ? status : null, note });
     f.status = status;

@@ -1347,7 +1347,12 @@ export function wireRichEditor(root, { images = [], mentions = [] } = {}) {
         if (next) caretIn(next, true);
       }
     }
-    if (e.key === 'Escape' && bubble && !bubble.hidden) bubble.hidden = true;
+    // Esc closes the formatting bubble only, never the dialog the editor is in (and its draft).
+    if (e.key === 'Escape' && bubble && !bubble.hidden) {
+      e.preventDefault();
+      e.stopPropagation();
+      bubble.hidden = true;
+    }
   });
   area.addEventListener('input', (e) => {
     if (e.inputType === 'insertText' && /[*_~`]/.test(e.data || '')) inlineRule();

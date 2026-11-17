@@ -222,6 +222,10 @@ export function richToText(text) {
     .replace(/\ue000(\d+)\ue001/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
+// The words of a text, without lines that are only an empty list item or checkbox ("-", "1.",
+// "- [ ]"): what decides whether something was written at all (feedback, 0.36).
+export const richWords = (text) => richToText(text).replace(/^[ \t]*(?:[-*+]|\d{1,9}[.)])?[ \t]*(?:\[[ xX]?\])?[ \t]*$/gm, '').trim();
+
 // ----- From the visual editor: a document model to Markdown -----
 // The editor (public/js/richeditor.js) reads what is on screen into this model; the model is
 // written as the Markdown above, so what is stored is always the same small, safe format.

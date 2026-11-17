@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.36.0-alpha',
+    date: '2026-11-17',
+    title: 'Feedback form fixes from QA',
+    modules: ['system'],
+    notes: 'A QA pass of the feedback module found four problems that came with the visual editor in 0.35; they are fixed here.',
+    changes: [
+      ['fixed', 'system', 'The New feedback and Respond forms are one column again: the editor\'s two-column class made an empty second column, squeezing the type cards, Subject and Status.'],
+      ['fixed', 'system', 'Esc with the formatting bubble open closes the bubble only; it used to close the dialog and lose the draft (any form with the editor).'],
+      ['fixed', 'system', 'Lists in a response show their own bullets and numbers, not the history timeline\'s dots.'],
+      ['fixed', 'system', 'A response that is only formatting (an empty list, bold with no words) is not saved or sent as a reply; the 10-character minimum for feedback ignores empty list items too (richWords in shared/richtext.js).'],
+    ],
+  },
+  {
     version: '0.35.0-alpha',
     date: '2026-11-17',
     title: 'Feedback written in the visual editor',

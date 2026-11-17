@@ -5,7 +5,7 @@ import { ctx, can } from '../state.js';
 import { FEEDBACK_TYPES, FEEDBACK_AREAS, FEEDBACK_STATUS, OPEN_FEEDBACK } from '/shared/feedback.js';
 import { html, raw, mount, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../ui.js';
 import { richEditor, wireRichEditor } from '../richeditor.js';
-import { renderRich, richToText } from '/shared/richtext.js';
+import { renderRich, richToText, richWords } from '/shared/richtext.js';
 
 const STATUS_KIND = { new: 'amber', reviewing: 'blue', planned: 'blue', resolved: 'green', closed: 'gray' };
 const TYPE_KIND = { bug: 'maroon-soft', idea: 'blue', question: 'gray', praise: 'green', other: 'gray' };
@@ -71,7 +71,7 @@ function openNewFeedback(onSent) {
       <p class="muted small fb-privacy">Only system administrators can read feedback. Responses appear under Feedback in your menu.</p>`,
     onSubmit: async (f) => {
       const message = editor.value();
-      if (richToText(message).trim().length < 10) throw new Error('Describe your feedback in a sentence or two.');
+      if (richWords(message).length < 10) throw new Error('Describe your feedback in a sentence or two.');
       if (message.length > MESSAGE_MAX) throw new Error(`The details can be up to ${MESSAGE_MAX.toLocaleString('en-PH')} characters.`);
       const sent = await api.post('/api/feedback', { ...Object.fromEntries(new FormData(f)), message });
       toast(`Feedback ${sent.number} submitted. Thank you.`);
@@ -215,7 +215,7 @@ function openRespond(f, onSaved) {
         placeholder: 'e.g. Thank you. This has been corrected and will be available in the next update.',
         hint: `Visible to ${first} under Feedback, together with the status.` })}`,
     onSubmit: async (fm) => {
-      const note = editor.value();
+      const note = richWords(editor.value()) ? editor.value() : '';
       if (note.length > NOTE_MAX) throw new Error(`A response can be up to ${NOTE_MAX.toLocaleString('en-PH')} characters.`);
       await api.post(`/api/feedback/${f.id}/update`, { ...Object.fromEntries(new FormData(fm)), note });
       toast('Response saved.');

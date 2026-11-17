@@ -893,17 +893,19 @@ h2.spaced { margin-top: 22px; }
 .fb-history blockquote .rich > :first-child { margin-top: 0; }
 .fb-history blockquote .rich > :last-child { margin-bottom: 0; }
 .fb-modal .rich-ed { margin-top: 2px; }
+/* The editor is span-2 for the two-column task form; the feedback forms are one column (0.36). */
+.fb-modal .modal-body > .rich-ed { grid-column: auto; }
 .fb-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 .fb-section h3 { margin: 0 0 10px; font-size: 14px; }
 .fb-history { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--border); display: grid; gap: 14px; }
-.fb-history li { position: relative; font-size: 14px; }
-.fb-history li::before { content: ''; position: absolute; left: -25px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--surface); border: 2px solid var(--gold); }
-.fb-history li.ev-sent::before { border-color: var(--brand); }
-.fb-history li.ev-resolved::before, .fb-history li.ev-closed::before { background: var(--success); border-color: var(--success); }
-.fb-history li.ev-note::before { background: var(--gold-bright); }
+.fb-history > li { position: relative; font-size: 14px; }
+.fb-history > li::before { content: ''; position: absolute; left: -25px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--surface); border: 2px solid var(--gold); }
+.fb-history > li.ev-sent::before { border-color: var(--brand); }
+.fb-history > li.ev-resolved::before, .fb-history > li.ev-closed::before { background: var(--success); border-color: var(--success); }
+.fb-history > li.ev-note::before { background: var(--gold-bright); }
 .fb-ev-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; }
 .fb-ev-head time { font-size: 12px; color: var(--muted); }
-.fb-history li > span { display: block; font-size: 13px; color: var(--muted); }
+.fb-history > li > span { display: block; font-size: 13px; color: var(--muted); }
 .fb-history blockquote { margin: 8px 0 0; padding: 10px 12px; background: var(--surface-2); border-left: 3px solid var(--gold-light); border-radius: 0 6px 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* New feedback form */
 .fb-modal .modal-body { display: grid; gap: 16px; }

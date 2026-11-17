@@ -81,3 +81,11 @@ test('feedback and responses written in the visual editor: kept as Markdown, cou
   assert.match(notes, /Thanks, looking at it now: the guide \(https:\/\/example\.org\)/, 'the bell shows the words, not the marks');
   assert.ok(!notes.includes('**'));
 });
+
+test('a response made only of formatting is no response (QA 0.36)', async () => {
+  const sent = await accounts.payroll('POST', '/api/feedback', { type: 'question', subject: 'Empty reply', message: 'Will an empty list count as a reply?' });
+  await assert.rejects(admin('POST', `/api/feedback/${sent.id}/update`, { status: sent.status, note: '-\n-' }), /Change the status or write a reply/);
+  await assert.rejects(admin('POST', `/api/feedback/${sent.id}/update`, { note: '** **' }), /Change the status or write a reply/);
+  const changed = await admin('POST', `/api/feedback/${sent.id}/update`, { status: 'reviewing', note: '- \n- ' });
+  assert.equal(changed.updates.at(-1).note, '', 'a status change with an empty list saves no response');
+});
