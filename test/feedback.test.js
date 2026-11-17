@@ -89,3 +89,50 @@ test('a response made only of formatting is no response (QA 0.36)', async () => 
   const changed = await admin('POST', `/api/feedback/${sent.id}/update`, { status: 'reviewing', note: '- \n- ' });
   assert.equal(changed.updates.at(-1).note, '', 'a status change with an empty list saves no response');
 });
+
+test('QA 0.37: only listed types, modules and statuses; text fields are text', async () => {
+  const ok = { subject: 'A subject', message: 'A message long enough to count.' };
+  for (const type of ['constructor', 'toString', '__proto__', ['bug'], { bug: 1 }]) {
+    await assert.rejects(accounts.hr('POST', '/api/feedback', { ...ok, type }), /what kind/, JSON.stringify(type));
+  }
+  const odd = await accounts.hr('POST', '/api/feedback', { ...ok, type: 'bug', area: 'toString' });
+  assert.equal(odd.area, 'general', 'an unknown module is General');
+  assert.equal((await accounts.hr('POST', '/api/feedback', { ...ok, type: 'bug', area: ['hr'] })).area, 'general');
+  await assert.rejects(accounts.hr('POST', '/api/feedback', { ...ok, type: 'bug', subject: { a: 1 } }), /subject as text/);
+  await assert.rejects(accounts.hr('POST', '/api/feedback', { ...ok, type: 'bug', message: ['a long', 'enough message'] }), /details as text/);
+  for (const status of ['constructor', ['closed'], 'nope']) {
+    await assert.rejects(admin('POST', `/api/feedback/${odd.id}/update`, { status }), /status from the list/, JSON.stringify(status));
+  }
+  await assert.rejects(admin('POST', `/api/feedback/${odd.id}/update`, { note: { x: 1 } }), /response as text/);
+});
+
+test('QA 0.37: numbers are never given twice; replies, status changes and deletions are audited', async () => {
+  const ok = { type: 'idea', subject: 'Numbering', message: 'Each feedback keeps its own number.' };
+  const a = await accounts.it('POST', '/api/feedback', ok);
+  await admin('DELETE', `/api/feedback/${a.id}`);
+  const b = await accounts.it('POST', '/api/feedback', ok);
+  assert.ok(Number(b.number.slice(3)) > Number(a.number.slice(3)), `${b.number} after deleting ${a.number}`);
+  const replied = await admin('POST', `/api/feedback/${b.id}/update`, { status: 'resolved', note: 'Done in **0.37**.' });
+  assert.equal(replied.status, 'resolved');
+  await admin('DELETE', `/api/feedback/${b.id}`);
+  const log = (await admin('GET', '/api/audit?area=feedback')).entries;
+  const update = log.find((e) => e.action === 'feedback.update' && e.entityId === b.id);
+  assert.deepEqual(update.changes, [{ field: 'status', from: 'New', to: 'Resolved' }]);
+  assert.ok(!JSON.stringify(update).includes('0.37'), 'the text of a response is not in the log');
+  assert.ok(log.some((e) => e.action === 'feedback.delete' && e.entityId === a.id));
+  // The sender is told of both the reply and the new status.
+  const bell = JSON.stringify(await accounts.it('GET', '/api/notifications'));
+  assert.match(bell, new RegExp(`replied to your feedback ${b.number} and marked it Resolved`));
+});
+
+test('QA 0.37: a damaged feedback record in a restored backup does not stop feedback', async () => {
+  const backup = structuredClone(await admin('GET', '/api/admin/export'));
+  backup.feedback = [{ id: 'x1', subject: 's', message: 'm', userId: 'nobody' }, { id: 'x1' }, null, 'junk', { id: 'x2', number: 'FB-0099', status: 'constructor', updates: 'no' }];
+  await admin('POST', '/api/admin/import', { ...backup, password: 'secret123' });
+  const kept = await admin('GET', '/api/feedback');
+  assert.deepEqual(kept.map((f) => f.id).sort(), ['x1', 'x2']);
+  assert.ok(kept.every((f) => Array.isArray(f.updates) && f.status === 'new' && f.createdAt));
+  const next = await accounts.hr('POST', '/api/feedback', { type: 'bug', subject: 'After restore', message: 'Feedback still works after a restore.' });
+  assert.ok(Number(next.number.slice(3)) >= 100, `continues after the highest number: ${next.number}`);
+  await admin('POST', '/api/feedback/x1/update', { status: 'closed' });
+});

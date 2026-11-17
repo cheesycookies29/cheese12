@@ -28,6 +28,24 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.37.0-alpha',
+    date: '2026-11-17',
+    title: 'Feedback: the rest of the QA findings',
+    modules: ['system'],
+    notes: 'The remaining findings of the feedback module QA (API and screens). Each server fix has a test in test/feedback.test.js.',
+    changes: [
+      ['fixed', 'system', 'Type, module and status accept only their listed values: names every object has (constructor, toString) and lists were stored and broke the filters, counts and notifications.'],
+      ['fixed', 'system', 'Subject, details and response must be text; an object or list is refused instead of stored as "[object Object]".'],
+      ['fixed', 'system', 'Feedback numbers only go up: deleting the newest no longer gives its number to the next feedback.'],
+      ['fixed', 'system', 'A damaged feedback record in a restored backup is filled in or left out; it used to stop new feedback for everyone.'],
+      ['new', 'system', 'Responses, status changes and deletions of feedback are in the audit log (who, when, the status change; not the text of the response). New audit areas: Feedback and Security monitor.'],
+      ['improved', 'system', 'A reply that also changes the status says both in the bell: "replied to your feedback FB-0003 and marked it Resolved".'],
+      ['fixed', 'system', 'Inbox search matches phrases across formatting; the table shows from 1180 px wide (cards below), long subjects wrap; the search box has a label.'],
+      ['fixed', 'system', 'Phones: the editor toolbar fades at the edge when it has more buttons; the dialog close button is 44 px; Delete is full width on a feedback page.'],
+      ['fixed', 'system', 'Inserting a table from the / menu puts the cursor in its first heading. Opening a page the account cannot use says so, also when it goes back to CORE home.'],
+    ],
+  },
+  {
     version: '0.36.0-alpha',
     date: '2026-11-17',
     title: 'Feedback form fixes from QA',

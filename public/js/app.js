@@ -500,7 +500,8 @@ async function navigate() {
   if (!allowed(match.permission)) {
     // A link or bookmark to a page this account may not open: stay in the module when possible.
     const home = match.module === 'system' ? (panelAccess() ? '/admin/dashboard' : null) : match.module && match.module !== 'user' && moduleHome(match.module);
-    if (home && home !== path) toast('Your account type cannot open that page.', 'error');
+    // Said even when the way back is CORE home (an inbox link for someone without the Admin panel).
+    if (home !== path) toast('Your account type cannot open that page.', 'error');
     return (location.hash = `#${home && home !== path ? home : homeRoute()}`);
   }
 

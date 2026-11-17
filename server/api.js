@@ -5,7 +5,7 @@ import { DAY_TYPES } from '../shared/holidays.js';
 import { HttpError, localDate, localTime, notOwnRecord } from './util.js';
 import { registerLeaveRoutes, findLeaveType, migrateLeaveTypes } from './leave.js';
 import { createAttachments, parseUpload } from './attachments.js';
-import { registerFeedbackRoutes } from './feedback.js';
+import { registerFeedbackRoutes, cleanFeedback } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig, linkTicketOwners } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
@@ -406,7 +406,8 @@ function replaceData(db, next, { keepAdmin = false } = {}) {
     // Where the audit log's keyed entries begin belongs to this server's log, not to the backup.
     settings: { ...next.settings, auditKeyedFrom: db.data.settings.auditKeyedFrom },
     devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog,
-    feedback: Array.isArray(next.feedback) && next.feedback.length ? next.feedback : db.data.feedback,
+    feedback: Array.isArray(next.feedback) && next.feedback.length ? cleanFeedback(next.feedback) : db.data.feedback,
+    feedbackSeq: Math.max(Number(db.data.feedbackSeq) || 0, Number(next.feedbackSeq) || 0),
     // So are administrators' edits of the Help guides.
     guideEdits: Array.isArray(next.guideEdits) && next.guideEdits.length ? next.guideEdits : db.data.guideEdits || [],
     // The service desk's mail setup and settings are kept; its tickets are company data.
@@ -1320,7 +1321,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     return { ok: true, removed };
   });
   registerDevlogRoutes(route, db);
-  registerFeedbackRoutes(route, db);
+  registerFeedbackRoutes(route, db, { audit });
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
   registerCrmRoutes(route, db, { audit });
   const projects = registerProjectRoutes(route, db, { audit, files, mailer: helpdesk.mailer, ...(digestMail ? { sendMail: digestMail } : {}), ...(digestClock ? { clock: digestClock } : {}) });

@@ -221,7 +221,7 @@ test('System: an administrator\'s answer to feedback tells the sender, without n
   const f = await asAna('POST', '/api/feedback', { type: 'bug', area: 'general', subject: 'Clock button', message: 'The clock button is hard to find.' });
   await admin('POST', `/api/feedback/${f.id}/update`, { status: 'planned', note: 'Thanks, we will move it.' });
   const n = await newest(asAna);
-  assert.equal(n.title, `An administrator replied to your feedback ${f.number}`);
+  assert.equal(n.title, `An administrator replied to your feedback ${f.number} and marked it Planned`, 'a reply with a new status says both (0.37)');
   assert.match(n.body, /Clock button: “Thanks, we will move it.”/);
   assert.equal(n.link, `#/feedback?open=${f.id}`);
   assert.equal(n.actorId, null);

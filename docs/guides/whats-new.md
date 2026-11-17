@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Feedback fixes (0.37)
+- Responses, status changes and deletions of feedback are now in the **Audit log**, numbers are never reused, and a reply that also changes the status says both. The inbox search finds phrases in formatted feedback, and the inbox fits on narrower screens.
+
 ### Feedback form fixes (0.36)
 - The **New feedback** and **Respond** forms are laid out in one column again, **Esc** while text is selected no longer closes the form, and lists in a response show properly.
 

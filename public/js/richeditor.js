@@ -612,6 +612,17 @@ export function wireRichEditor(root, { images = [], mentions = [] } = {}) {
     changed();
   }
   const TABLE = '<div class="rich-table"><table><thead><tr><th>Column</th><th>Column</th></tr></thead><tbody><tr><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td></tr></tbody></table></div><p><br></p>';
+  // A new table: the cursor goes to its first heading, selected, so typing names the column
+  // (it used to stay in the line under the table, QA 0.37).
+  function insertTable() {
+    insertBlockHtml(TABLE);
+    const th = blockAt()?.previousElementSibling?.querySelector('th');
+    if (!th) return;
+    const r = document.createRange();
+    r.selectNodeContents(th);
+    sel().removeAllRanges();
+    sel().addRange(r);
+  }
 
   // -- Table rows and columns --
   // The table at the cursor: its cell, row and column (row 0 is the header).
@@ -755,7 +766,7 @@ export function wireRichEditor(root, { images = [], mentions = [] } = {}) {
     code: toggleCode, link: editLink,
     bullet: () => toggleList('bullet'), number: () => toggleList('number'), task: toggleTask,
     quote: toggleQuote, codeblock: () => (closest('pre') ? fromPre(closest('pre')) : toPre()),
-    divider: () => insertBlockHtml('<hr><p><br></p>'), table: () => insertBlockHtml(TABLE),
+    divider: () => insertBlockHtml('<hr><p><br></p>'), table: insertTable,
     image: () => pick?.click(), undo: () => exec('undo'), redo: () => exec('redo'),
   };
   const run = (name) => {

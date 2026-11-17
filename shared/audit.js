@@ -14,6 +14,8 @@ export const AUDIT_AREAS = {
   helpdesk: 'Service desk',
   crm: 'Sales & CRM',
   projects: 'Projects',
+  feedback: 'Feedback',
+  monitor: 'Security monitor',
   system: 'System',
 };
 
@@ -74,6 +76,9 @@ export const AUDIT_ACTIONS = {
   'data.demo-load': 'Loaded demo data',
   'data.demo-remove': 'Removed demo data',
   'data.reset': 'Erased all data',
+  'feedback.update': 'Answered feedback or changed its status',
+  'feedback.delete': 'Deleted feedback',
+  'monitor.token': 'Made, replaced or revoked the metrics token',
   // Any other change, recorded with the request it came from.
   'assets.change': 'Changed IT assets or inventory',
   'helpdesk.change': 'Changed the service desk',

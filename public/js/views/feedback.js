@@ -144,7 +144,7 @@ export async function feedbackInboxView(el, _params, query) {
     return all.filter((f) =>
       (state.status === 'all' || (state.status === 'open' ? OPEN_FEEDBACK.includes(f.status) : f.status === state.status)) &&
       (!state.type || f.type === state.type) && (!state.area || f.area === state.area) &&
-      (!q || [f.number, f.subject, f.message, f.userName, f.username].join(' ').toLowerCase().includes(q)));
+      (!q || [f.number, f.subject, plain(f.message), f.userName, f.username].join(' ').toLowerCase().includes(q)));
   };
 
   function render() {
@@ -178,7 +178,7 @@ export async function feedbackInboxView(el, _params, query) {
     </header>
     <section class="card scroll-x">
       <div class="toolbar pad fb-filters">
-        <input type="search" id="q" placeholder="Search number, subject, message or name…" />
+        <input type="search" id="q" placeholder="Search number, subject, message or name…" aria-label="Search feedback" />
         <select id="f-status" aria-label="Status">${Object.entries(FILTERS).map(([k, v]) => html`<option value="${k}" ${k === state.status ? 'selected' : ''}>${v}</option>`)}</select>
         <select id="f-type" aria-label="Type"><option value="">All types</option>${Object.entries(FEEDBACK_TYPES).map(([k, v]) => html`<option value="${k}">${v}</option>`)}</select>
         <select id="f-area" aria-label="Module"><option value="">All modules</option>${Object.entries(FEEDBACK_AREAS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}</select>

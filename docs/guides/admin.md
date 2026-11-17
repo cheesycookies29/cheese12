@@ -340,9 +340,9 @@ Each update of CORE adds its own entries (*built-in*). **Edit** and **Delete** a
 
 1. Open **Admin panel → Feedback inbox**. It shows open feedback first; filter by status, type or module, or search.
 2. Click a row to read it, then click **Respond**.
-3. Pick the **Status** (*Under review*, *Planned*, *Resolved*, *Closed*), write a **Response** if you like (with the same editor: bold, lists, links), and click **Save response**.
+3. Pick the **Status** (*New*, *Under review*, *Planned*, *Resolved*, *Closed*), write a **Response** if you like (with the same editor: bold, lists, links), and click **Save response**.
 
-The person sees the status and your response under **Send feedback**, and the **bell** in the top bar tells them *An administrator replied to your feedback FB-0003* (or marked it *Planned*, and so on). Like the Feedback page, it does not say which administrator. **Delete** removes the feedback for them too. The number next to **Feedback inbox** counts new feedback; the **Dashboard** counts feedback still awaiting a reply.
+The person sees the status and your response under **Send feedback**, and the **bell** in the top bar tells them *An administrator replied to your feedback FB-0003* (or marked it *Planned*, and so on). Like the Feedback page, it does not say which administrator. **Delete** removes the feedback for them too. Each response, status change and deletion is written in the **Audit log** (who did it and when; not the text of the response). Numbers are never given twice: after FB-0003 is deleted, the next feedback is FB-0004. The number next to **Feedback inbox** counts new feedback; the **Dashboard** counts feedback still awaiting a reply.
 
 ![The feedback inbox](admin-feedback-inbox.jpg)
 

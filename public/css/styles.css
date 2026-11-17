@@ -881,6 +881,14 @@ h2.spaced { margin-top: 22px; }
 .fb-row-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .fb-row-tags small { color: var(--muted); font-size: 12px; }
 .fb-cards { display: none; }
+/* The inbox table needs about 1180px; below that the cards show (QA 0.37). A long subject wraps. */
+.fb-table td strong { overflow-wrap: anywhere; }
+.fb-table td:nth-child(3) { min-width: 9em; }
+@media (max-width: 1180px) {
+  .fb-table { display: none; }
+  .fb-cards { display: grid; margin: 0; border-radius: 0 0 var(--radius) var(--radius); border-width: 1px 0 0; }
+}
+.fb-row-subject { overflow-wrap: anywhere; }
 /* Details and history */
 .fb-meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: 12px 16px; margin: 0; }
 .fb-meta div { min-width: 0; }
@@ -1067,7 +1075,7 @@ a.fb-row { color: var(--text); }
   .modal::before { content: ''; position: absolute; top: 7px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 4px; background: var(--border-strong); }
   .modal header { flex: none; padding: 20px 16px 12px 20px; border-bottom-width: 2px; align-items: flex-start; }
   .modal header h2 { font-size: 18px; line-height: 1.15; }
-  .modal header .icon-btn { width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--surface-2); font-size: 22px; line-height: 1; }
+  .modal header .icon-btn { width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--surface-2); font-size: 22px; line-height: 1; }
   .modal footer .btn { min-height: 46px; }
   .fb-type { padding: 10px; }
   .fb-meta { grid-template-columns: 1fr 1fr; }
@@ -2268,9 +2276,9 @@ select { max-width: 100%; }
 
 /* T3: sideways scrollers show that there is more (ui.js marks .more-left / .more-right), and the
    active tab or chip is scrolled into view when the page opens. */
-.tabs.more-right, .pm-chips.more-right, .seg-btns.more-right, .crm-path.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
-.tabs.more-left, .pm-chips.more-left, .seg-btns.more-left, .crm-path.more-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
-.tabs.more-left.more-right, .pm-chips.more-left.more-right, .seg-btns.more-left.more-right, .crm-path.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.tabs.more-right, .pm-chips.more-right, .seg-btns.more-right, .crm-path.more-right, .wys .rich-bar.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.tabs.more-left, .pm-chips.more-left, .seg-btns.more-left, .crm-path.more-left, .wys .rich-bar.more-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px); mask-image: linear-gradient(to right, transparent, #000 40px); }
+.tabs.more-left.more-right, .pm-chips.more-left.more-right, .seg-btns.more-left.more-right, .crm-path.more-left.more-right, .wys .rich-bar.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
 /* Tables, boards and strips: a fade on the right edge only (a sticky first column stays crisp). */
 :is(.scroll-x, .table-scroll, .pm-ts-scroll, .crm-board, .pm-board, .pm-ms-strip, .pm-tl-scroll, .pm-bulk-in):not(.card).more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); mask-image: linear-gradient(to right, #000 calc(100% - 32px), rgba(0, 0, 0, 0.15)); }
 /* A card that scrolls keeps its frame (border, corners, shadow): its right edge gets an inner shade. */
@@ -2461,6 +2469,7 @@ input[type='file']::file-selector-button:hover { background: var(--surface-2); }
   .page-head .actions > .seg-btns { grid-column: 1 / -1; justify-self: start; }
   .page-head .actions .btn { width: 100%; min-width: 0; white-space: normal; text-align: center; }
   .fb-page .page-head .actions { grid-auto-flow: row; grid-auto-columns: auto; }
+  .fb-page .page-head .actions > #delete { grid-column: 1 / -1; }
 }
 /* Mailbox and other settings action rows: full width on phones, Save first. */
 @media (max-width: 760px) {
@@ -3079,7 +3088,7 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
 .rich a { color: var(--brand-text, var(--brand)); }
 @media (max-width: 760px) {
   /* Phones: the toolbar is one row that scrolls sideways, so the text keeps the screen. */
-  .wys .rich-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .wys .rich-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; scroll-padding-inline: 6px; }
   .wys .rich-bar::-webkit-scrollbar { display: none; }
   .wys .rich-bar > * { flex: none; scroll-snap-align: start; }
   /* The table's bar keeps to adding rows and columns; deleting is in its menu (the … button). */
