@@ -69,3 +69,15 @@ test('loading demo data or erasing company data keeps feedback', async () => {
   await admin('DELETE', `/api/feedback/${first.id}`);
   assert.equal((await admin('GET', '/api/feedback')).length, 1);
 });
+
+test('feedback and responses written in the visual editor: kept as Markdown, counted and notified as text', async () => {
+  // Marks alone do not make a message.
+  await assert.rejects(accounts.hr('POST', '/api/feedback', { type: 'bug', subject: 'Short', message: '**a** _b_ `c`' }), /sentence or two/);
+  const md = '**Steps**\n\n1. Open *Payroll*\n2. Click **Export**\n\n| Expected | Actual |\n| --- | --- |\n| Rows | Empty |';
+  const sent = await accounts.hr('POST', '/api/feedback', { type: 'bug', area: 'hr', subject: 'Formatted', message: md });
+  assert.equal(sent.message, md, 'stored as written');
+  await admin('POST', `/api/feedback/${sent.id}/update`, { status: 'reviewing', note: 'Thanks, **looking at it** now: [the guide](https://example.org)' });
+  const notes = JSON.stringify(await accounts.hr('GET', '/api/notifications'));
+  assert.match(notes, /Thanks, looking at it now: the guide \(https:\/\/example\.org\)/, 'the bell shows the words, not the marks');
+  assert.ok(!notes.includes('**'));
+});

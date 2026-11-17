@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Formatting in feedback (0.35)
+- **Send feedback** now has the same editor as project comments: write the **Details** with bold, numbered steps, links and small tables, from its bar or by typing **/**. Administrators' **Responses** use it too, and both show formatted. See [Send feedback](getting-started#send-feedback).
+
 ### A security monitor for administrators (0.34)
 - **Admin panel → Security monitor** shows, for the last hour up to 30 days: **software status** checks (Node.js support dates, errors, memory, disk, backups, HTTPS, rate limits, 2-step verification), each with what to do; **API security** (refused requests by kind, network addresses to watch, the controls in force, the list of API addresses); **traffic** (requests and response times by route); and **user activity** (who is signed in now, people active today, this week and this month, sign-ins, what people worked on). It refreshes every minute, and a health check and a metrics export let an outside tool watch CORE too. See [the admin guide](admin#watch-the-security-monitor).
 

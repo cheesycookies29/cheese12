@@ -340,7 +340,7 @@ Each update of CORE adds its own entries (*built-in*). **Edit** and **Delete** a
 
 1. Open **Admin panel → Feedback inbox**. It shows open feedback first; filter by status, type or module, or search.
 2. Click a row to read it, then click **Respond**.
-3. Pick the **Status** (*Under review*, *Planned*, *Resolved*, *Closed*), write a **Response** if you like, and click **Save response**.
+3. Pick the **Status** (*Under review*, *Planned*, *Resolved*, *Closed*), write a **Response** if you like (with the same editor: bold, lists, links), and click **Save response**.
 
 The person sees the status and your response under **Send feedback**, and the **bell** in the top bar tells them *An administrator replied to your feedback FB-0003* (or marked it *Planned*, and so on). Like the Feedback page, it does not say which administrator. **Delete** removes the feedback for them too. The number next to **Feedback inbox** counts new feedback; the **Dashboard** counts feedback still awaiting a reply.
 
@@ -349,7 +349,7 @@ The person sees the status and your response under **Send feedback**, and the **
 ### Send feedback
 
 1. Click **Send feedback** in the side menu (or under your name at the top right) and click **+ New feedback**.
-2. Pick the **Type of feedback**, the **Module**, and enter a **Subject** and **Details**.
+2. Pick the **Type of feedback**, the **Module**, and enter a **Subject** and **Details** (formatted with the editor's bar, or type **/**).
 3. Click **Submit feedback**.
 
 Everyone can send feedback this way; only administrators read it.

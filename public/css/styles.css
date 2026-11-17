@@ -888,6 +888,11 @@ h2.spaced { margin-top: 22px; }
 .fb-meta dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .fb-meta dd small { display: block; color: var(--muted); font-size: 12px; }
 .fb-message { margin: 0; white-space: pre-wrap; line-height: 1.6; overflow-wrap: anywhere; }
+/* Written in the visual editor (0.35): formatted, so no pre-wrap. */
+.rich.fb-message, .fb-history blockquote .rich { white-space: normal; }
+.fb-history blockquote .rich > :first-child { margin-top: 0; }
+.fb-history blockquote .rich > :last-child { margin-bottom: 0; }
+.fb-modal .rich-ed { margin-top: 2px; }
 .fb-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 .fb-section h3 { margin: 0 0 10px; font-size: 14px; }
 .fb-history { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--border); display: grid; gap: 14px; }

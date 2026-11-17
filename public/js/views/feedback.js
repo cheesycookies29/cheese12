@@ -3,7 +3,9 @@
 import { api } from '../api.js';
 import { ctx, can } from '../state.js';
 import { FEEDBACK_TYPES, FEEDBACK_AREAS, FEEDBACK_STATUS, OPEN_FEEDBACK } from '/shared/feedback.js';
-import { html, mount, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../ui.js';
+import { html, raw, mount, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today } from '../ui.js';
+import { richEditor, wireRichEditor } from '../richeditor.js';
+import { renderRich, richToText } from '/shared/richtext.js';
 
 const STATUS_KIND = { new: 'amber', reviewing: 'blue', planned: 'blue', resolved: 'green', closed: 'gray' };
 const TYPE_KIND = { bug: 'maroon-soft', idea: 'blue', question: 'gray', praise: 'green', other: 'gray' };
@@ -20,6 +22,12 @@ const when = (iso) => new Date(iso).toLocaleString('en-PH', { year: 'numeric', m
 const changed = () => window.dispatchEvent(new Event('feedback:changed'));
 const responses = (f) => f.updates.filter((u) => u.note).length;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// Feedback and responses are written in the visual editor (0.35): shown formatted, and as plain
+// text in lists and the CSV. Older plain-text feedback shows as it was written.
+const rich = (text, cls = '') => html`<div class="rich ${cls}">${raw(renderRich(text))}</div>`;
+const plain = (text) => richToText(text).replace(/\s+/g, ' ').trim();
+export const MESSAGE_MAX = 4000;
+export const NOTE_MAX = 2000;
 
 // Submitted, then each status change or response, oldest first.
 const historyList = (f, { staff = false } = {}) => html`<ol class="fb-history">
@@ -28,7 +36,7 @@ const historyList = (f, { staff = false } = {}) => html`<ol class="fb-history">
   ${f.updates.map((u) => html`<li class="ev-${u.status || 'note'}">
     <div class="fb-ev-head"><strong>${u.status ? `Status changed to ${FEEDBACK_STATUS[u.status]}` : 'Response'}</strong><time>${when(u.at)}</time></div>
     <span>${staff ? u.by : 'System administrator'}</span>
-    ${u.note ? html`<blockquote>${u.note}</blockquote>` : ''}</li>`)}
+    ${u.note ? html`<blockquote>${rich(u.note)}</blockquote>` : ''}</li>`)}
 </ol>`;
 
 const metaList = (rows) => html`<dl class="fb-meta">${rows.map(([k, v]) => html`<div><dt>${k}</dt><dd>${v}</dd></div>`)}</dl>`;
@@ -37,7 +45,7 @@ const metaList = (rows) => html`<dl class="fb-meta">${rows.map(([k, v]) => html`
 const row = (f, { staff = false } = {}) => html`<button type="button" class="fb-row ${f.status === 'new' && staff ? 'unread' : ''}" data-open-feedback="${f.id}">
   <span class="fb-row-top"><span class="mono">${f.number}</span><time>${fmtDate(f.createdAt.slice(0, 10))}</time></span>
   <strong class="fb-row-subject">${f.subject}</strong>
-  ${staff ? html`<span class="fb-row-from">${f.userName} · ${f.roleLabel}</span>` : html`<span class="fb-row-excerpt">${f.message}</span>`}
+  ${staff ? html`<span class="fb-row-from">${f.userName} · ${f.roleLabel}</span>` : html`<span class="fb-row-excerpt">${plain(f.message)}</span>`}
   <span class="fb-row-tags">${feedbackStatus(f.status)}${typeBadge(f.type)}<small>${FEEDBACK_AREAS[f.area]}${responses(f) ? ` · ${plural(responses(f), 'response')}` : ''}</small></span>
 </button>`;
 
@@ -57,18 +65,21 @@ function openNewFeedback(onSent) {
       <label class="field"><span>Module</span>
         <select name="area">${Object.entries(FEEDBACK_AREAS).map(([k, v]) => html`<option value="${k}" ${k === area ? 'selected' : ''}>${v}</option>`)}</select></label>
       <label class="field"><span>Subject</span><input name="subject" maxlength="120" required placeholder="e.g. Payslip shows the wrong pay period" /></label>
-      <label class="field"><span class="field-row">Details <small class="muted" data-count>0 / 4000</small></span>
-        <textarea name="message" rows="5" maxlength="4000" required placeholder="Describe the issue or request. For a problem, include the steps taken, the expected result and the actual result."></textarea></label>
+      ${richEditor({ name: 'message', label: 'Details', pictures: false, max: MESSAGE_MAX, compact: true,
+        placeholder: 'Describe the issue or request. For a problem, include the steps taken, the expected result and the actual result.',
+        hint: html`Bold, lists, links and tables from the bar, or type <kbd>/</kbd>.` })}
       <p class="muted small fb-privacy">Only system administrators can read feedback. Responses appear under Feedback in your menu.</p>`,
     onSubmit: async (f) => {
-      const sent = await api.post('/api/feedback', Object.fromEntries(new FormData(f)));
+      const message = editor.value();
+      if (richToText(message).trim().length < 10) throw new Error('Describe your feedback in a sentence or two.');
+      if (message.length > MESSAGE_MAX) throw new Error(`The details can be up to ${MESSAGE_MAX.toLocaleString('en-PH')} characters.`);
+      const sent = await api.post('/api/feedback', { ...Object.fromEntries(new FormData(f)), message });
       toast(`Feedback ${sent.number} submitted. Thank you.`);
       changed();
       onSent();
     },
   });
-  const msg = form.querySelector('[name=message]');
-  msg.addEventListener('input', () => (form.querySelector('[data-count]').textContent = `${msg.value.length} / 4000`));
+  const editor = wireRichEditor(form);
 }
 
 function openOwnFeedback(f) {
@@ -78,7 +89,7 @@ function openOwnFeedback(f) {
     submitLabel: null,
     className: 'fb-modal',
     body: html`${metaList([['Status', feedbackStatus(f.status)], ['Type', typeBadge(f.type)], ['Module', FEEDBACK_AREAS[f.area]]])}
-      <section class="fb-section"><h3>Message</h3><p class="fb-message">${f.message}</p></section>
+      <section class="fb-section"><h3>Message</h3>${rich(f.message, 'fb-message')}</section>
       <section class="fb-section"><h3>History</h3>${historyList(f)}</section>`,
   });
 }
@@ -148,7 +159,7 @@ export async function feedbackInboxView(el, _params, query) {
             <td>${fmtDate(f.createdAt.slice(0, 10))}</td>
             <td>${f.userName}<small>${f.roleLabel}</small></td>
             <td>${typeBadge(f.type)}</td>
-            <td><strong>${f.subject}</strong><small class="clip">${f.message}</small></td>
+            <td><strong>${f.subject}</strong><small class="clip">${plain(f.message)}</small></td>
             <td>${FEEDBACK_AREAS[f.area]}</td>
             <td>${feedbackStatus(f.status)}</td></tr>`)}</tbody>
         </table>
@@ -184,7 +195,7 @@ export async function feedbackInboxView(el, _params, query) {
     downloadFile(`feedback-${today()}.csv`, toCsv([
       ['No', 'Received', 'From', 'Username', 'Account type', 'Type', 'Module', 'Subject', 'Message', 'Status', 'Last update', 'Latest response'],
       ...rows().map((f) => [f.number, f.createdAt.replace('T', ' ').slice(0, 16), f.userName, f.username, f.roleLabel, FEEDBACK_TYPES[f.type], FEEDBACK_AREAS[f.area],
-        f.subject, f.message, FEEDBACK_STATUS[f.status], f.updatedAt.replace('T', ' ').slice(0, 16), [...f.updates].reverse().find((u) => u.note)?.note || '']),
+        f.subject, richToText(f.message), FEEDBACK_STATUS[f.status], f.updatedAt.replace('T', ' ').slice(0, 16), richToText([...f.updates].reverse().find((u) => u.note)?.note || '')]),
     ])),
   );
 }
@@ -200,17 +211,20 @@ function openRespond(f, onSaved) {
     className: 'fb-modal',
     body: html`<label class="field"><span>Status</span>
         <select name="status">${Object.entries(FEEDBACK_STATUS).map(([k, v]) => html`<option value="${k}" ${k === (f.status === 'new' ? 'reviewing' : f.status) ? 'selected' : ''}>${v}</option>`)}</select></label>
-      <label class="field"><span class="field-row">Response <small class="muted">optional</small></span>
-        <textarea name="note" rows="5" maxlength="2000" placeholder="e.g. Thank you. This has been corrected and will be available in the next update."></textarea>
-        <small class="muted">Visible to ${first} under Feedback, together with the status.</small></label>`,
+      ${richEditor({ name: 'note', label: 'Response (optional)', pictures: false, max: NOTE_MAX, compact: true,
+        placeholder: 'e.g. Thank you. This has been corrected and will be available in the next update.',
+        hint: `Visible to ${first} under Feedback, together with the status.` })}`,
     onSubmit: async (fm) => {
-      await api.post(`/api/feedback/${f.id}/update`, Object.fromEntries(new FormData(fm)));
+      const note = editor.value();
+      if (note.length > NOTE_MAX) throw new Error(`A response can be up to ${NOTE_MAX.toLocaleString('en-PH')} characters.`);
+      await api.post(`/api/feedback/${f.id}/update`, { ...Object.fromEntries(new FormData(fm)), note });
       toast('Response saved.');
       changed();
       onSaved();
     },
   });
-  form.querySelector('textarea').focus();
+  const editor = wireRichEditor(form);
+  editor.focus();
 }
 
 export async function feedbackDetailView(el, { id }) {
@@ -228,7 +242,7 @@ export async function feedbackDetailView(el, { id }) {
     <div class="cols wide-left">
       <section class="card">
         <h2>Message</h2>
-        <p class="fb-message">${f.message}</p>
+        ${rich(f.message, 'fb-message')}
       </section>
       <section class="card">
         <h2>Details</h2>

@@ -234,7 +234,7 @@ Each guide has the same parts: **Before you start**, a **Walkthrough** with the 
 ### Send feedback
 
 1. Choose your name at the top right, then **Send feedback**. It is also at the bottom of every side menu.
-2. Choose what kind of feedback it is, the **Module** it is about, and a short **Subject**, then say what happened or what you would like.
+2. Choose what kind of feedback it is, the **Module** it is about, and a short **Subject**, then say what happened or what you would like under **Details**. It is the same editor as project comments: bold, numbered steps, a link or a small table from its bar, or type **/**.
 3. Choose **Submit feedback**. The administrators read it in their **Feedback inbox** and can reply; you see their answer on the same page.
 
 Use it for a bug, a wrong figure, a missing feature or a confusing screen.

@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.35.0-alpha',
+    date: '2026-11-17',
+    title: 'Feedback written in the visual editor',
+    modules: ['system'],
+    notes: 'The feedback form and the administrators\' response use the same visual editor as task descriptions and project comments (public/js/richeditor.js), without pictures.',
+    changes: [
+      ['improved', 'system', 'Send feedback → Details: the visual editor (bold, italic, lists, checklists, links, quotes, code and tables; / for the menu), up to 4,000 characters. Feedback inbox → Respond: the same editor for the response, up to 2,000.'],
+      ['improved', 'system', 'The message and responses show formatted on My feedback, in the inbox and on the feedback page; lists, the CSV export and the bell show them as plain text. Older plain-text feedback shows as it was written.'],
+      ['fixed', 'system', 'The 10-character minimum counts the words of a message, not its formatting marks.'],
+    ],
+  },
+  {
     version: '0.34.0-alpha',
     date: '2026-11-16',
     title: 'Security monitor: software status, API security, traffic and user activity',
