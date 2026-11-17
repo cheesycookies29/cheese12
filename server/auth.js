@@ -25,7 +25,8 @@ export function validatePassword(password, who = {}, settings) {
 // What the browser may see of an account: never the password hash or the 2-step secret or codes.
 export function publicUser(user) {
   if (!user) return null;
-  const { passwordHash, twoFactor, twoFactorPending, ...rest } = user;
+  // Pinned pages (Quick access) are the person's own: only GET /api/me/quick-links returns them.
+  const { passwordHash, twoFactor, twoFactorPending, quickLinks, ...rest } = user;
   return { ...rest, twoFactorEnabled: Boolean(twoFactor?.enabledAt) };
 }
 

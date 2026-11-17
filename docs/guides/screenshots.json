@@ -3,6 +3,7 @@
   {"file": "getting-started-home.jpg", "user": "employee.demo", "url": "/#/launcher", "wait": 1200},
   {"file": "getting-started-module.jpg", "user": "employee.demo", "url": "/#/me", "wait": 1200},
   {"file": "getting-started-modules.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#mod-btn"], "wait": 900},
+  {"file": "getting-started-quick.jpg", "user": "employee.demo", "url": "/#/me", "api": [["PUT", "/api/me/quick-links", {"links": [{"href": "#/me/requests", "label": "HR · My Requests"}, {"href": "#/projects/my-work", "label": "Projects · My work"}]}]], "click": ["#nav a[href='#/me/attendance']", "#nav a[href='#/me/payslips']", "#quick-btn"], "wait": 900},
   {"file": "getting-started-user-menu.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#user-btn"], "wait": 900},
   {"file": "getting-started-notifications.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#notif-btn"], "wait": 1200},
   {"file": "getting-started-phone.jpg", "user": "employee.demo", "url": "/#/launcher", "viewport": "phone", "wait": 1200},

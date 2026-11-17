@@ -13,7 +13,7 @@ import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, remove
 import { registerNotificationRoutes, migrateNotifications, notify, forgetUser, accountOfEmployee, fmtRange } from './notifications.js';
 import { migrateApprovals, isApprover } from './approvals.js';
 import { registerHolidayRoutes, migrateHolidays } from './holidays.js';
-import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS } from './audit.js';
+import { createAudit, withActor, currentActor, diff, flatten, mask, MASKED_FIELDS, noAudit } from './audit.js';
 import { registerLedgerRoutes, syncLedger, postRun, voidRunRows, yearTotals } from './ledger.js';
 import { registerGuideRoutes } from './guides.js';
 import { areaOfPath } from '../shared/audit.js';
@@ -26,6 +26,7 @@ import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides, usesAdminPanel } from '../shared/roles.js';
 import { cleanCompanyRole, companyRoleOf, moduleAccess } from '../shared/profile.js';
+import { cleanQuickLinks } from '../shared/quick.js';
 import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig } from '../shared/modules.js';
 import { registerAdminRoutes } from './config.js';
 import { validateBranding, publicBrand, settingsForBrowser } from './branding.js';
@@ -346,6 +347,16 @@ function backupUsers(list) {
         throw bad(i, 'has an invalid role in the company');
       }
       if (role) u.companyRole = role;
+    }
+    // Quick access (0.35): the pages the person pinned, by the same rules as when they pin one.
+    if (raw.quickLinks !== undefined && raw.quickLinks !== null) {
+      let links;
+      try {
+        links = cleanQuickLinks(raw.quickLinks);
+      } catch {
+        throw bad(i, 'has invalid pinned pages (Quick access)');
+      }
+      if (links.length) u.quickLinks = links;
     }
     if (raw.twoFactor !== undefined && raw.twoFactor !== null) {
       u.twoFactor = validTwoFactor(raw.twoFactor);
@@ -759,6 +770,23 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     audit.record('auth.sessions', { entity: 'user', entityId: user.id, label: user.username, note: `${n} other session${n === 1 ? '' : 's'}` });
     return { signedOut: n };
   }, during);
+
+  // ----- Quick access: the pages each person pinned (the lightning button in the top bar) -----
+  // Only the signed-in account's own; a personal preference, so not in the audit log.
+  route('GET', '/api/me/quick-links', 'auth', ({ user }) => ({ links: user.quickLinks || [] }));
+  route('PUT', '/api/me/quick-links', 'auth', ({ user, body }) => {
+    noAudit(); // a person's own preference, not a change to the company's data
+    let links;
+    try {
+      links = cleanQuickLinks(body?.links);
+    } catch (err) {
+      throw new HttpError(400, err.message);
+    }
+    if (links.length) user.quickLinks = links;
+    else delete user.quickLinks;
+    db.save();
+    return { links };
+  });
 
   // ----- Sign-in & security settings (Administrators) -----
   route('GET', '/api/security-settings', 'users.manage', () => ({ ...sec(), policies: TWO_FACTOR_POLICIES }));

@@ -2978,6 +2978,45 @@ body.pm-compact .pm-named > .pm-picon-md { width: 22px; height: 22px; font-size:
   .notif-foot a, .notif-more a { display: inline-flex; align-items: center; min-height: 44px; }
 }
 
+/* ----- Quick access: the lightning button and its panel (public/js/quick.js) ----- */
+.quick-box { position: relative; }
+.quick-btn[aria-expanded='true'] { background: var(--brand-soft); color: var(--brand-text); border-color: var(--brand-line); }
+.quick-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; width: 340px; max-width: calc(100vw - 20px); display: flex; flex-direction: column; max-height: min(600px, calc(100vh - var(--topbar) - 16px)); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); overflow: hidden; }
+.quick-pop[hidden] { display: none; }
+.quick-inner { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.quick-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px 4px; }
+.quick-head h2 { margin: 0; font-size: 16px; }
+.quick-close { display: none; }
+.quick-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 6px 6px; }
+.quick-sec + .quick-sec { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 2px; }
+.quick-label { margin: 0; padding: 10px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.quick-list { list-style: none; margin: 0; padding: 0; }
+.quick-item { display: flex; align-items: center; gap: 2px; }
+.quick-link { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--text); font-size: 13.5px; }
+.quick-link:hover { background: var(--surface-2); text-decoration: none; }
+.quick-link:focus-visible, .quick-unpin:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.quick-link.on { background: var(--brand-soft); color: var(--brand-text); font-weight: 600; }
+.quick-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none; background: var(--brand-soft); color: var(--brand-text); }
+.quick-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-unpin { flex: none; width: 30px; height: 30px; padding: 0; }
+.quick-empty { margin: 0; padding: 4px 10px 10px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.quick-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 16px; border-top: 1px solid var(--border); }
+.quick-pin { display: inline-flex; align-items: center; gap: 6px; }
+.quick-why { flex-basis: 100%; font-size: 12px; line-height: 1.4; color: var(--muted); }
+/* Phones: a full-width sheet under the top bar, like the notifications panel. The button under
+   your name is the picture alone, so the top bar keeps its buttons in 360 px. */
+@media (max-width: 600px) {
+  .quick-pop { position: fixed; left: 0; right: 0; top: var(--topbar); width: auto; max-width: none; border-radius: 0 0 var(--radius) var(--radius); border-left: 0; border-right: 0; max-height: calc(100vh - var(--topbar)); max-height: calc(100dvh - var(--topbar)); }
+  .quick-close { display: inline-grid; }
+  .user-btn { padding: 4px; gap: 0; }
+  .user-btn > .ic { display: none; }
+  .topbar { gap: 4px; }
+}
+@media (pointer: coarse) {
+  .quick-link { min-height: 44px; }
+  .quick-unpin, .quick-close { min-width: 44px; min-height: 44px; }
+}
+
 /* The member list in the project form. */
 .pm-form-members { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 12px; margin: 0; min-width: 0; }
 .pm-form-members legend { font-size: 13px; font-weight: 600; padding: 0 4px; }

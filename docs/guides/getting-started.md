@@ -1,7 +1,7 @@
 ---
 id: getting-started
 title: Getting started with CORE
-summary: Sign in, find your way around the modules, see your notifications, change your password, turn on 2-step verification, use CORE on a phone, and get help.
+summary: Sign in, find your way around the modules, pin the pages you use most, see your notifications, change your password, turn on 2-step verification, use CORE on a phone, and get help.
 roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
 apps: home, system
 order: 1
@@ -45,20 +45,21 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![A module: the side menu on the left, and the top bar](getting-started-module.jpg)
 
-5. Look at the top bar. On the right are, in order: the **modules** button (the grid of squares), the **notifications** bell, **Help** (the question mark), the **dark mode** button (the moon) and your name. On a phone the dark mode button is in the menu under your name.
+5. Look at the top bar. On the right are, in order: the **modules** button (the grid of squares), **Quick access** (the lightning bolt), the **notifications** bell, **Help** (the question mark), the **dark mode** button (the moon) and your name. On a phone the dark mode button is in the menu under your name.
 6. Choose the **modules** button. The menu lists **CORE modules** you can open; choose one to switch to it, or **All modules** for the CORE home.
 
 ![The modules menu](getting-started-modules.jpg)
 
-7. Choose the **bell**. The red number on it is how many notifications Juan has not read: requests from his team waiting for his approval, and comments and a task on the LMS project. Unread ones are in bold with a dot. Press Escape (or choose the bell again) to close it. See [See your notifications](#see-your-notifications).
+7. Choose **Quick access** (the lightning bolt). **Pinned** lists the pages you pinned, **Recent** the pages you opened last on this computer. Until you pin a page, **Suggested** offers your modules, **My profile** and **My security**. At the bottom, **Pin this page** pins the page you are on. See [Pin the pages you use most](#pin-the-pages-you-use-most).
+8. Choose the **bell**. The red number on it is how many notifications Juan has not read: requests from his team waiting for his approval, and comments and a task on the LMS project. Unread ones are in bold with a dot. Press Escape (or choose the bell again) to close it. See [See your notifications](#see-your-notifications).
 
 ![The notifications panel, open from the bell](getting-started-notifications.jpg)
 
-8. Choose your name at the top right. The menu shows your picture (or your initials), your role in the company and username, **My profile**, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
+9. Choose your name at the top right. The menu shows your picture (or your initials), your role in the company and username, **My profile**, **Add my picture**, **Send feedback**, **My security**, **Change password** and **Sign out**.
 
 ![The menu under your name](getting-started-user-menu.jpg)
 
-9. Choose **Sign out**. You are back on the sign-in page.
+10. Choose **Sign out**. You are back on the sign-in page.
 
 ## How to…
 
@@ -82,6 +83,24 @@ If your company requires 2-step verification and you have not set it up, CORE sh
 2. The module opens on its first page. Its pages are in the side menu on the left.
 
 To go back to the CORE home, choose the CORE logo at the top left, or **All modules** in the modules menu.
+
+### Pin the pages you use most
+
+**Quick access**, the lightning bolt in the top bar, takes you to the pages you use most from anywhere in CORE, whatever module you are in.
+
+1. Open a page you use often, for example **My Requests** in HR & Payroll, a project's board or a saved list.
+2. Choose **Quick access** (the lightning bolt) in the top bar.
+3. Choose **Pin this page** at the bottom. The page is added under **Pinned**, with its module and name (*HR · My Requests*).
+4. From any page, choose **Quick access**, then the pinned page to open it.
+5. To unpin a page, choose the **×** beside it, or open it and choose **Unpin this page**.
+
+![Quick access, with two pinned pages and the pages opened last](getting-started-quick.jpg)
+
+You can pin up to 12 pages; to pin another, unpin one first. The CORE home cannot be pinned: the CORE logo always takes you there. Your pinned pages are kept with your account, so they are there on any computer or phone you sign in on.
+
+**Recent** shows the last 6 pages you opened on this browser, newest first, without the pages you pinned and the one you are on. It is kept in this browser only. Until you pin something, **Suggested** offers the first page of each module you can open, **My profile** and **My security**.
+
+With the keyboard: the up and down arrows move between the pages and buttons, **Home** and **End** go to the first and the last, Enter opens one and Escape closes the panel. On a phone the panel fills the width of the screen; **×** at the top closes it.
 
 ### See your notifications
 
@@ -202,7 +221,7 @@ CORE works in the phone's browser; there is nothing to install. On a narrow scre
 - **Tabs and chips** that do not fit scroll sideways: a fade at the edge shows there is more, and the tab you are on is always in view.
 - **Forms**: when something is missing, every field to fix is outlined with a message under it, and CORE takes you to the first one. When only one field is wrong, its message is under it. On long forms (an employee, an asset, Payroll Setup) the **Save** button (and **Cancel**) stays at the bottom of a phone's or tablet's screen.
 - **Messages** such as *Saved.* appear at the top of a phone's or tablet's screen, so they never cover a button. On a computer they rise above a bar at the bottom of the page.
-- **The top bar** keeps the menu, the CORE mark, the modules button, the bell, Help and your picture; **Dark mode** moves into the menu under your name. The notifications panel fills the width of the screen.
+- **The top bar** keeps the menu, the CORE mark, the modules button, **Quick access**, the bell, Help and your picture; **Dark mode** moves into the menu under your name. The Quick access and notifications panels fill the width of the screen.
 - Turned sideways, the top bar is shorter and windows use the whole height, with their title at the top and their buttons at the bottom.
 
 ![CORE on a phone](getting-started-phone.jpg)
@@ -251,6 +270,7 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | CORE home | Your modules in a sliding row (the ones you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
 | Admin panel | For administrators: users, roles, modules, settings, records and backups (see [the administrator's guide](admin)) |
 | Modules menu (grid button) | Switching modules from anywhere |
+| Quick access (lightning button) | Your pinned pages, the pages you opened last, and **Pin this page** |
 | Notifications (the bell) | What others did that concerns you, from every module; the number of unread ones; open one to go to it |
 | Notifications page (**See all**) | All your notifications of the last 60 days, by module, unread only, with **Show more** |
 | Help & guides (question mark) | The guide for your job, search, and what's new |
@@ -286,6 +306,9 @@ No. Notifications are in CORE only: the bell's number updates while CORE is open
 
 **I opened a notification but the page says I cannot open it.**
 What it is about may have changed since: the request was deleted, you were taken off the project, or your account type changed. The notification stays in your list; mark it read.
+
+**Why are my Recent pages not on my other computer?**
+**Recent** is kept by the browser, so each computer or phone has its own. Pin a page (**Quick access → Pin this page**) to have it everywhere you sign in.
 
 **Which browsers work?**
 Any current Chrome, Edge, Firefox or Safari, on a computer or a phone.

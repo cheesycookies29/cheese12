@@ -9,6 +9,8 @@ import { avatar, loadAvatars, editMyAvatar } from './avatars.js';
 import { moduleAccess, companyRoleOf } from '/shared/profile.js';
 import { myProfileView, personView } from './views/profile.js';
 import { mountBell, startBell, stopBell, refreshCount, notificationsView } from './notifications.js';
+import { mountQuick, recordVisit } from './quick.js';
+import { pageLabel } from '/shared/quick.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
 import { clockView, dtrView } from './views/time.js';
@@ -332,13 +334,14 @@ function popover(root, btn, pop) {
   });
   pop.addEventListener('click', (e) => e.target.closest('a, button') && close());
   pops.push(close);
+  return close;
 }
 const pops = [];
 const closePops = () => {
   pops.forEach((close) => close());
   closeBell();
 };
-document.addEventListener('click', (e) => !e.target.closest('.user-menu, .mod-switch') && closePops());
+document.addEventListener('click', (e) => !e.target.closest('.user-menu, .mod-switch, .quick-box') && closePops());
 
 // The grid button: jump between modules without going back to the launcher.
 function renderModuleSwitch() {
@@ -355,6 +358,27 @@ function renderModuleSwitch() {
     </div>`);
   popover(box, box.querySelector('#mod-btn'), box.querySelector('#mod-pop'));
 }
+// Quick access: the lightning button after the modules button (public/js/quick.js). The page that
+// is open is named by its sidebar item and module, or by its heading (shared/quick.js).
+let pageModule = null;
+// Your own pages whose heading is your name: named as the menu under your name names them.
+const OWN_PAGES = { '/profile': 'My profile', '/account/security': 'My security' };
+function currentPage() {
+  if (body.classList.contains('launcher-mode')) return { href: location.hash || '#/launcher', launcher: true };
+  const path = location.hash.replace(/^#/, '').split('?')[0];
+  if (OWN_PAGES[path]) return { href: location.hash, label: OWN_PAGES[path] };
+  const active = document.querySelector('#nav a.active');
+  const label = pageLabel({ module: pageModule, navLabel: active?.querySelector('.label')?.textContent, exact: active?.dataset.href === path, heading: document.querySelector('#app h1')?.textContent });
+  return { href: location.hash, label };
+}
+function renderQuick() {
+  mountQuick(document.getElementById('quick-box'), {
+    popover,
+    page: currentPage,
+    access: () => moduleAccess(ctx.user, { modules: ctx.modules, inProjects: ctx.user.inProjects, isApprover: ctx.user.isApprover }),
+  });
+}
+
 function markModuleSwitch() {
   document.querySelectorAll('#mod-pop a[data-mod]').forEach((a) => a.classList.toggle('on', !body.classList.contains('launcher-mode') && a.dataset.mod === ctx.module));
 }
@@ -529,8 +553,11 @@ async function navigate() {
   const el = old.cloneNode(false);
   old.replaceWith(el);
   window.scrollTo(0, 0);
+  pageModule = match.module;
   try {
     cleanup = await match.view(el, params, query);
+    // Quick access: this page goes first in Recent (not the CORE home or the notifications page).
+    if (location.hash.replace(/^#/, '').split('?')[0] === path) recordVisit(currentPage());
   } catch (err) {
     // A deleted record or an old link: a way back into the module, not out of CORE.
     const home = (match.module === 'system' ? '/admin/dashboard' : match.module && moduleHome(match.module === 'user' ? ctx.module : match.module)) || homeRoute();
@@ -570,9 +597,11 @@ async function boot({ fresh = false } = {}) {
   setMode(null);
   mount(document.getElementById('auth'), '');
   ctx.module = null;
+  ctx.quickLinks = null; // Quick access: this account's pinned pages, loaded when its panel first opens
   pops.length = 0;
   renderUserBox();
   renderModuleSwitch();
+  renderQuick();
   startBell();
   if (fresh || !location.hash || location.hash === '#/') location.hash = `#${homeRoute()}`;
   navigate();
@@ -606,6 +635,9 @@ for (const ev of ['requests:changed', 'reports:changed', 'feedback:changed', 'he
 window.addEventListener('avatar:changed', () => {
   if (!ctx.user) return;
   pops.length = 0;
+  renderModuleSwitch();
+  markModuleSwitch();
+  renderQuick();
   renderUserBox();
 });
 // A module turned on or off, or roles changed, here: the menus follow at once.
@@ -613,6 +645,7 @@ window.addEventListener('modules:changed', () => {
   if (!ctx.user) return;
   pops.length = 0;
   renderModuleSwitch();
+  renderQuick();
   renderUserBox();
   if (ctx.module) renderNav(ctx.module, true);
   markModuleSwitch();

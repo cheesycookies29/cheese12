@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.35.0-alpha',
+    date: '2026-11-17',
+    title: 'Quick access: pinned and recent pages in the top bar',
+    modules: ['system'],
+    notes: 'A Quick access button (a lightning bolt) in the top bar, after the modules button, for every signed-in account. Its panel lists the pages the person pinned (kept with the account on the server) and the pages they opened last in this browser, with Pin this page at the bottom. The same feature is built in Lancaster ATLAS.',
+    changes: [
+      ['new', 'system', 'Top bar → Quick access (#quick-btn, a dialog opened with the top bar\'s drop-down rules: opening it closes the other menus; Escape or a click outside closes it, Escape returns the focus to the button; arrows, Home and End move between its links and buttons). Pinned: the person\'s pinned pages, each with an Unpin button. Recent: the 6 pages opened last in this browser (localStorage core-recent:<user id>, 12 kept, newest first, each once), without the pinned ones, the page that is open, the CORE home and the notifications page. Suggested, while nothing is pinned: the homes of up to 5 modules the person can open (moduleAccess), My profile and My security. Pin this page / Unpin this page, off on the CORE home and at 12 pins. On phones the panel is a full-width sheet.'],
+      ['new', 'system', 'GET and PUT /api/me/quick-links: the signed-in account\'s own pinned pages, at most 12, each a CORE route (#/…, the notification link rule, up to 300 characters) with a name of 1 to 80 characters (control characters as spaces), each page once; anything else is refused with a 400. Stored as user.quickLinks (removed when empty), not in the audit log (a personal preference), not in the account as the browser and Users & Access see it, and kept through a backup and restore (checked like the other account fields). Rules in shared/quick.js; tests in test/quick-links.test.js.'],
+      ['improved', 'system', 'A page is named by its sidebar item with its module (HR · My Requests), or by its heading on a record\'s page (HR · Juan Dela Cruz). On phones the button under your name is the picture alone, so the top bar keeps its buttons in 360 px.'],
+    ],
+  },
+  {
     version: '0.34.0-alpha',
     date: '2026-11-16',
     title: 'Security monitor: software status, API security, traffic and user activity',

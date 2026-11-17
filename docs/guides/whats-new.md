@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Quick access: pin the pages you use most (0.35)
+- A new **Quick access** button, the lightning bolt in the top bar, lists the pages you pinned and the pages you opened last, from any module. Open a page and choose **Pin this page** to add it (up to 12); the **×** beside a pinned page unpins it. Your pinned pages follow your account to any computer or phone. See [Pin the pages you use most](getting-started#pin-the-pages-you-use-most).
+
 ### A security monitor for administrators (0.34)
 - **Admin panel → Security monitor** shows, for the last hour up to 30 days: **software status** checks (Node.js support dates, errors, memory, disk, backups, HTTPS, rate limits, 2-step verification), each with what to do; **API security** (refused requests by kind, network addresses to watch, the controls in force, the list of API addresses); **traffic** (requests and response times by route); and **user activity** (who is signed in now, people active today, this week and this month, sign-ins, what people worked on). It refreshes every minute, and a health check and a metrics export let an outside tool watch CORE too. See [the admin guide](admin#watch-the-security-monitor).
 

@@ -81,6 +81,7 @@ const P = {
   thumb: '<path d="M7 11v9H4v-9zM7 11l4-8c1.5 0 2.5 1 2.2 2.6L12.7 9H19a2 2 0 012 2.3l-1.2 7A2 2 0 0117.8 20H7"/>',
   party: '<path d="M4 20l5-14 9 9z"/><path d="M14 4l1 2M19 9l2-1M17 3l-1 3"/>',
   comment: '<path d="M4 5h16v11H9l-5 4z"/>',
+  bolt: '<path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/>',
   pin: '<path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v8"/>',
   mapPin: '<path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
