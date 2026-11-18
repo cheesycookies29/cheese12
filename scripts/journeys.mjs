@@ -287,8 +287,14 @@ for (const [who, pw = DEMO_PW] of ROLES) {
 }
 
 await browser.close();
-server.kill();
-fs.rmSync(dir, { recursive: true, force: true });
+// The server saves its last minute on the way out (data/monitor.json): remove its folder after it exits.
+await new Promise((resolve) => {
+  server.once('exit', resolve);
+  server.kill();
+});
+try {
+  fs.rmSync(dir, { recursive: true, force: true });
+} catch {}
 for (const p of passed) console.log(`  ok  ${p}`);
 for (const f of failures) console.log(`  FAILED  ${f}`);
 console.log(`\n${passed.length} passed, ${failures.length} failed.`);
