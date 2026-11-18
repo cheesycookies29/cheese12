@@ -28,6 +28,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.38.0-alpha',
+    date: '2026-11-18',
+    title: 'Release safety and data protection',
+    modules: ['deploy', 'system'],
+    notes: 'From the council review of 0.37: the risk was in how releases reach production and where the data is kept, not in missing features. This release adds a gate before production, browser checks of the critical journeys, hourly off-server backups and a nightly restore drill.',
+    changes: [
+      ['new', 'deploy', 'Deploy workflow: an approve job in the "production" environment between the checks and the install; with required reviewers set on GitHub, each deploy waits for approval (EC2.md, "D. Approve each deploy"). The deploy job keeps its branch-bound AWS role.'],
+      ['new', 'deploy', 'Critical journeys in Chromium before every deploy (scripts/journeys.mjs, npm run journeys): leave through three approval levels, a payroll run and the payslip, a service desk ticket and the public form, feedback in the visual editor and its answer, and every menu page of seven accounts at 390 px with no overflow or errors.'],
+      ['new', 'deploy', 'Hourly off-server backups (server/offsite.js, scripts/offsite-backup.js): the data file, the audit log and its head, and new attached files to a private, encrypted, versioned S3 bucket (30 days), with the server\'s role from IMDSv2 and SigV4 signing, standard library only. The CloudFormation template adds the bucket and a put/get-only server permission.'],
+      ['new', 'deploy', 'Nightly restore drill (server/restore-check.js, scripts/restore-check.js): the latest copy is downloaded, compared with what was sent, restored into a throw-away folder and started; it must open, have an active administrator and pass the audit chain check. Its mailbox and digests stay off. deploy/aws/RESTORE.md is the runbook; scripts/offsite-fetch.js fetches an hour, attached files included, for a restore.'],
+      ['improved', 'system', 'Security monitor: Off-server backup and Restore check under Data and records, and in the metrics export.'],
+    ],
+  },
+  {
     version: '0.37.0-alpha',
     date: '2026-11-17',
     title: 'Feedback: the rest of the QA findings',

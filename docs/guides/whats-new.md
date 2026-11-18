@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Safer updates and backups (0.38)
+- On the AWS server, CORE now copies its data **off the server every hour** and **checks every night** that the latest copy can be restored. **Admin panel → Security monitor** shows both. Before each update, the most-used journeys (leave approvals, payroll, the service desk, feedback, and every page on a phone) are tried in a real browser, and an update can be set to wait for a person's approval. See [Back up and restore](admin#back-up-and-restore).
+
 ### Feedback fixes (0.37)
 - Responses, status changes and deletions of feedback are now in the **Audit log**, numbers are never reused, and a reply that also changes the status says both. The inbox search finds phrases in formatted feedback, and the inbox fits on narrower screens.
 

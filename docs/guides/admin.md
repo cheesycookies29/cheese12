@@ -269,6 +269,8 @@ Download a backup regularly and keep it somewhere safe and private: it holds pay
 
 > **Note:** Restore only backups you downloaded from CORE yourself. The user accounts in the file replace the current ones.
 
+On the AWS server CORE also backs itself up: **every hour** the data file, the audit log and new attached files are copied to a private storage bucket away from the server, and **every night** the latest copy is restored into a throw-away copy and checked (it opens, has an administrator, and its audit log is intact). **Admin panel → Security monitor → Software status** shows both, under **Off-server backup** and **Restore check**: *Fine* when they are current, *Problem* with the reason when not. The steps to restore from these copies, including onto a new server, are in `deploy/aws/RESTORE.md`, for whoever runs the server.
+
 ![Backup & restore](admin-data.jpg)
 
 ### Erase all data
@@ -307,7 +309,7 @@ The log records every sign-in and failed sign-in, every change to employees, pay
 
 | Tab | What it shows |
 |---|---|
-| Software status | Checks, each marked **Fine**, **Look at this**, **Problem** or **Note**, problems first, with the reason and a link to where it is fixed: the versions of CORE and Node.js (and when Node.js stops getting security fixes), server errors, memory, responsiveness, disk space, the audit log check, the last backup, who can read the data files, demo data left loaded, HTTPS, rate limits, the 2-step policy and administrators without it, temporary passwords, accounts unused for 90 days and common passwords. **This server** shows the build, the system, how long CORE has run and the size of its files; the charts show memory and responsiveness |
+| Software status | Checks, each marked **Fine**, **Look at this**, **Problem** or **Note**, problems first, with the reason and a link to where it is fixed: the versions of CORE and Node.js (and when Node.js stops getting security fixes), server errors, memory, responsiveness, disk space, the audit log check, the last backup, the hourly off-server copy and the nightly restore check, who can read the data files, demo data left loaded, HTTPS, rate limits, the 2-step policy and administrators without it, temporary passwords, accounts unused for 90 days and common passwords. **This server** shows the build, the system, how long CORE has run and the size of its files; the charts show memory and responsiveness |
 | API security | Refused requests and failed sign-ins over the period; **Addresses to watch** (20 refused requests, 5 failed sign-ins or a locked username); **Refusals by kind**, each with the OWASP API Security Top 10 item it guards against; **Sign-in events**; the **Controls in force**, as set now; the **API inventory**: how many API addresses CORE has, which are open without signing in, how many need a permission |
 | Traffic | Page views, the API's response time (median, p95 and p99), server errors and data sent; the **busiest** and **slowest API routes**; the answers by status |
 | User activity | Who is **signed in now** (device, network address, when they signed in and were last active); how many people used CORE today, this week and this month; sign-ins and actions over the period; **what people worked on**; the **most active** people; the **recent sign-ins**, failed ones included |

@@ -1,8 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  LTDC ERP automatic deployment. Lets the "Deploy to EC2" GitHub workflow send the
-  install command to one EC2 instance through AWS Systems Manager, and gives the
-  instance the role Systems Manager needs. No SSH or stored AWS keys.
+  LTDC ERP automatic deployment and off-server backups. Lets the "Deploy to EC2" GitHub
+  workflow send the install command to one EC2 instance through AWS Systems Manager,
+  gives the instance the role Systems Manager needs, and a private S3 bucket for its
+  hourly backups. No SSH or stored AWS keys.
 
 Parameters:
   InstanceId:
@@ -73,11 +74,59 @@ Resources:
                 Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations]
                 Resource: '*'
 
+  # Off-server backups (0.38): the server copies its data here every hour (scripts/offsite-backup.js).
+  # Private, encrypted, HTTPS only; hourly copies are kept 30 days, attached files until deleted.
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub ltdc-erp-backups-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      # Versions kept: a copy overwritten (by mistake, or by someone who took over the server) can
+      # still be restored for 30 days.
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      LifecycleConfiguration:
+        Rules:
+          - Id: hourly-copies-30-days
+            Status: Enabled
+            Prefix: hourly/
+            ExpirationInDays: 30
+          - Id: old-versions-30-days
+            Status: Enabled
+            NoncurrentVersionExpiration: { NoncurrentDays: 30 }
+          - Id: abort-incomplete-uploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload: { DaysAfterInitiation: 1 }
+
+  BackupBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BackupBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: HttpsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: [!GetAtt BackupBucket.Arn, !Sub '${BackupBucket.Arn}/*']
+            Condition: { Bool: { aws:SecureTransport: 'false' } }
+
   ServerRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: ltdc-erp-server
-      Description: Lets AWS Systems Manager run the deploy command on the LTDC ERP server.
+      Description: Lets AWS Systems Manager run the deploy command on the LTDC ERP server, and the server copy its backups to S3.
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -86,6 +135,16 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      # Write and read its own backups; it cannot list or delete them, and an overwrite keeps the old
+      # version, so a compromised server cannot wipe the history (old copies expire by the bucket's rules).
+      Policies:
+        - PolicyName: backups
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:PutObject, s3:GetObject]
+                Resource: !Sub '${BackupBucket.Arn}/*'
 
   ServerInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -106,3 +165,6 @@ Outputs:
   ServerIamRole:
     Description: Attach to the instance (EC2 > Actions > Security > Modify IAM role)
     Value: !Ref ServerInstanceProfile
+  BackupBucketName:
+    Description: Where the server copies its data every hour (Admin panel > Security monitor shows the last copy)
+    Value: !Ref BackupBucket

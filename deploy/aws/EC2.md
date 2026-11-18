@@ -216,11 +216,14 @@ Do **not** use **Load demo data** on the live server. It replaces all data.
 
 ## Day-to-day
 
-**Backups.** There are three layers:
+**Backups.** There are four layers:
 
+- **every hour, off the server** (0.38): the data file, the audit log and new attached files are copied to a private S3 bucket, `ltdc-erp-backups-<account id>`, kept 30 days. This needs the CloudFormation stack updated with the current `github-deploy.yaml` ("Update the stack" below);
 - EC2 snapshots of the whole disk, kept 7 days (step 8);
 - the nightly data copies in `/opt/ltdc-erp/data/backups`, kept 30 days;
-- **Admin panel → Backup & restore → Download backup** in the app. Do this regularly and keep the file off the server, for example on the company drive.
+- **Admin panel → Backup & restore → Download backup** in the app.
+
+Every night at 3:40 AM the latest off-server copy is restored into a throw-away folder and checked. **Admin panel → Security monitor** shows the last copy and the last check. **Keep a copy of the server key** (`sudo cat /opt/ltdc-erp/data/secret.key`) in the company's password manager: it is in no backup. The full restore steps, including a lost server, are in [RESTORE.md](RESTORE.md).
 
 To restore one day's data, connect as in step 12 and run this (replace the date):
 
@@ -292,7 +295,7 @@ header `Authorization: Bearer <token>`. The monitor's own history is kept in `da
 
 Set this up once, after the first installation (Parts 1–5). From then on, every new version pushed to the GitHub repository is installed on the server automatically. It all happens in your browser, in the AWS console and on GitHub.
 
-**How it works.** GitHub runs the app's automated tests on each new version. If they pass, it asks AWS Systems Manager to run the install command on your server. The server downloads that exact version, saves a backup of the data, installs it and checks that it starts. If the tests fail, nothing is sent to the server. No SSH keys or AWS passwords are stored anywhere. GitHub gets a short-lived permission that can only send commands to this one server.
+**How it works.** GitHub runs the app's automated tests on each new version, and walks through the journeys people rely on most in a real browser (leave through three approvals, a payroll run, service desk tickets and the public form, feedback, and every menu page at phone width). If they pass, and once someone approves the deploy ("D. Approve each deploy" below), it asks AWS Systems Manager to run the install command on your server. The server downloads that exact version, saves a backup of the data, installs it and checks that it starts. If the tests fail, nothing is sent to the server. No SSH keys or AWS passwords are stored anywhere. GitHub gets a short-lived permission that can only send commands to this one server.
 
 ### A. AWS: create the permissions (CloudFormation)
 
@@ -334,6 +337,35 @@ Set this up once, after the first installation (Parts 1–5). From then on, ever
 - **Deploy again or roll back:** open an earlier run and click **Re-run all jobs** to reinstall that version.
 - **Pause deployments:** **Actions → Deploy to EC2 → ⋯ → Disable workflow**.
 - **Settings it keeps for you:** each deployment also makes sure the server is on Philippine time and that the nightly backup is installed.
+
+### D. Approve each deploy (recommended)
+
+Without this, every version that passes the checks is installed at once. With it, the run stops
+before installing and waits until one of the people you name approves it on GitHub.
+
+1. On GitHub, open **Settings → Environments**. Click **production** (it appears after the first
+   run with 0.38; otherwise **New environment**, name it `production`).
+2. Tick **Required reviewers** and add the people who may approve (one or two). Leave **Prevent
+   self-review** off if the same person both pushes and approves.
+3. Under **Deployment branches and tags**, choose **Selected branches and tags** and add the deploy
+   branch (`claude/busy-curie-hfpbg0`), so no other branch can use the environment.
+4. Click **Save protection rules**.
+
+From then on each run shows **Waiting for review** at the **approve** step. Open it, check the
+summary (tests and browser journeys passed), and click **Review deployments → Approve and deploy**.
+GitHub emails the reviewers when a run is waiting. A newer push replaces a run still waiting.
+
+### Update the stack (after 0.33 and 0.38)
+
+The template changed twice: 0.33 lets only the deploy branch use the deploy role, and 0.38 adds the
+backup bucket and lets the server write to it. To apply both:
+
+1. Open **CloudFormation → Stacks → ltdc-erp-deploy → Update → Replace existing template**.
+2. Upload the current `deploy/aws/github-deploy.yaml` and click **Next**. Keep every parameter as it
+   is (check **DeployBranch** is the branch above) and click **Next**, **Next**.
+3. Tick the IAM acknowledgement and click **Submit**. Wait for **UPDATE_COMPLETE**. The **Outputs**
+   tab now shows **BackupBucketName**.
+4. Within the hour, **Admin panel → Security monitor** shows **Off-server backup: Fine**.
 
 ## Troubleshooting
 

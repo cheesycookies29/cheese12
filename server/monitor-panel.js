@@ -99,6 +99,38 @@ export function registerBuiltInChecks(monitor) {
     if (days === null) return { ...base, state: 'warn', detail: 'No backup has been downloaded from this server. A server set up with deploy/aws keeps its own nightly copy.' };
     return { ...base, state: days > 30 ? 'bad' : days > 7 ? 'warn' : 'ok', detail: `Last downloaded ${days ? `${days} day${days === 1 ? '' : 's'} ago` : 'today'}${db.data.adminState.lastBackupBy ? `, by ${db.data.adminState.lastBackupBy}` : ''}.` };
   });
+  // Off-server backups and the restore drill (0.38): written by scripts/offsite-backup.js and
+  // scripts/restore-check.js on the AWS server (deploy/aws/ltdc-erp-backup.cron).
+  const readJson = (f) => {
+    try {
+      return JSON.parse(fs.readFileSync(f, 'utf8'));
+    } catch {
+      return null;
+    }
+  };
+  const ago = (iso, now) => {
+    const m = Math.round((now - Date.parse(iso)) / 60000);
+    return m < 2 ? 'just now' : m < 120 ? `${m} minutes ago` : m < 48 * 60 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`;
+  };
+  monitor.check('offsite-backup', ({ db, now }) => {
+    const s = readJson(path.join(db.dir, 'backups', 'offsite.json'));
+    const base = { area: 'data', label: 'Off-server backup (hourly)', href: '' };
+    if (!s) return { ...base, state: 'info', detail: 'Not set up on this server. On the AWS server, the data is copied to S3 every hour once the CloudFormation stack is updated (deploy/aws/EC2.md).' };
+    const last = s.lastOk;
+    const hours = last ? (now - Date.parse(last.at)) / 3600000 : Infinity;
+    if (!s.ok) return { ...base, state: hours > 2 ? 'bad' : 'warn', detail: `The last copy failed (${ago(s.at, now)}): ${s.error}${last ? ` The last good copy was ${ago(last.at, now)}.` : ' No copy has been made yet.'}` };
+    const size = (s.files || []).find((f) => f.name === 'db.json')?.bytes || 0;
+    return { ...base, state: hours > 26 ? 'bad' : hours > 2 ? 'warn' : 'ok', detail: `Last copy ${ago(s.at, now)} to s3://${s.bucket}/${s.prefix}/: data file ${fmtBytes(size)}, audit log${s.attachments?.new ? `, ${s.attachments.new} new attached files` : ''}.` };
+  });
+  monitor.check('restore-check', ({ db, now }) => {
+    const s = readJson(path.join(db.dir, 'backups', 'restore-check.json'));
+    const base = { area: 'data', label: 'Restore check (daily)', href: '' };
+    if (!s) return { ...base, state: 'info', detail: 'Not run on this server yet. On the AWS server, the latest backup is restored into a throw-away copy every night and checked (deploy/aws/RESTORE.md).' };
+    const hours = (now - Date.parse(s.at)) / 3600000;
+    if (!s.ok) return { ...base, state: 'bad', detail: `Failed ${ago(s.at, now)}: ${s.error}` };
+    const c = s.counts || {};
+    return { ...base, state: hours > 50 ? 'warn' : 'ok', detail: `Passed ${ago(s.at, now)}: the ${s.source === 's3' ? 'off-server' : 'local'} copy${s.copiedAt ? ` from ${ago(s.copiedAt, now)}` : ''} opens with ${c.admins} administrator${c.admins === 1 ? '' : 's'}, ${c.employees} employees and ${c.payrollRuns} payroll runs${s.audit ? `; audit log intact (${s.audit.entries} entries)` : ''}.${s.note ? ` ${s.note}` : ''}` };
+  });
   monitor.check('file-permissions', ({ db }) => {
     if (process.platform === 'win32') return null;
     const open = [db.file, path.join(db.dir, 'audit-log.jsonl'), path.join(db.dir, 'secret.key'), path.join(db.dir, 'monitor.json')].filter((f) => {

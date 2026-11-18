@@ -1,6 +1,9 @@
 # Tests every push, then installs it on the LTDC ERP server on Amazon EC2
 # through AWS Systems Manager (no SSH, no terminal). One-time setup is in
 # deploy/aws/EC2.md, "Automatic deployment from GitHub".
+# 0.38: the critical user journeys run in a real browser too, and the install waits
+# for approval in the "production" environment when it has required reviewers
+# (Settings > Environments > production; deploy/aws/EC2.md, "Approve each deploy").
 name: Deploy to EC2
 
 on:
@@ -26,8 +29,33 @@ jobs:
           node-version: 22
       - run: npm test
 
+  # The journeys people rely on most, in Chromium at desktop and phone width (scripts/journeys.mjs).
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # Playwright only for these browser checks; CORE itself has no dependencies.
+      - run: npm install --no-save --no-package-lock --ignore-scripts playwright@1.63.0
+      - run: npx playwright install --with-deps chromium
+      - run: npm run journeys
+
+  # The gate: this job runs in the "production" environment, so it waits until a required
+  # reviewer approves it there. With no reviewers set, it passes at once.
+  approve:
+    needs: [test, journeys]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - run: echo "Approved for production — $GITHUB_SHA by $GITHUB_ACTOR." >> "$GITHUB_STEP_SUMMARY"
+
+  # No environment here on purpose: the AWS deploy role trusts this branch's runs (its token
+  # names the branch), so the role's trust does not change with the gate.
   deploy:
-    needs: test
+    needs: approve
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
