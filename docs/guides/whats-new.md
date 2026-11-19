@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A compact modules menu (0.45)
+- The **modules** button at the top now shows every module at a glance, as small tiles: the ones you can open first (pinned ones leading), then the ones coming soon. **C-suite**, the executive dashboard, has a gold accent there and on the CORE home. See [Getting started](getting-started#walkthrough).
+
 ### A fuller projects demo (0.44)
 - The demo data now has **26 projects** with about 260 tasks: most of them deliver the deals and contracts in the sales demo, so the portfolio, **Milestones**, the **Billing forecast**, the workload and **My work** look like a busy company. Three support contracts track time. Reload it under **Admin panel → Demo data**. See [the projects guide](projects#walkthrough).
 

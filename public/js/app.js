@@ -340,20 +340,32 @@ const closePops = () => {
 };
 document.addEventListener('click', (e) => !e.target.closest('.user-menu, .mod-switch') && closePops());
 
-// The grid button: jump between modules without going back to the launcher.
+// The grid button: every module at a glance, as compact tiles (0.45). The ones this account opens
+// come first (pinned ones leading, as on the CORE home), then locked ones and those coming soon,
+// greyed out; C-suite has its gold accent.
 function renderModuleSwitch() {
   const box = document.getElementById('mod-switch');
-  const items = liveModules().map((m) => ({ ...m, home: moduleHome(m.id) })).filter((m) => m.home);
+  const live = liveModules().filter((m) => mayUseModule(m.id)).map((m) => ({ ...m, home: moduleHome(m.id) }));
+  const pins = (ctx.user?.favoriteModules || []).filter((id) => live.some((m) => m.id === id && m.home));
+  const open = [...pins.map((id) => live.find((m) => m.id === id)), ...live.filter((m) => m.home && !pins.includes(m.id))];
+  const locked = live.filter((m) => !m.home);
+  const soon = MODULES.filter((m) => m.status !== 'live');
+  const tile = (m, kind) => {
+    const cls = `mod-tile ${kind}${m.accent ? ` accent-${m.accent}` : ''}`;
+    const inner = html`<span class="mod-ic">${icon(m.glyph, 20)}</span><span class="mod-name">${m.short || m.name}</span>${kind === 'soon' ? html`<span class="mod-tag">Soon</span>` : kind === 'locked' ? html`<span class="mod-tag">${icon('lock', 9)} No access</span>` : pins.includes(m.id) ? html`<span class="mod-pin" aria-hidden="true">${icon('star', 10)}</span>` : ''}`;
+    if (kind === 'open') return html`<a role="menuitem" class="${cls}" href="#${m.home}" data-mod="${m.id}" title="${m.name}: ${moduleOn(m.id) ? m.tagline : 'off for the company, administrators only'}">${inner}</a>`;
+    return html`<span role="menuitem" aria-disabled="true" class="${cls}" title="${m.name}: ${kind === 'soon' ? 'coming soon' : 'no access, ask your administrator'}">${inner}</span>`;
+  };
   mount(box, html`
     <button type="button" class="round-btn" id="mod-btn" title="Modules" aria-label="Modules" aria-haspopup="menu" aria-expanded="false">${icon('grid', 18)}</button>
     <div class="menu-pop mod-pop" id="mod-pop" role="menu" hidden>
       <div class="menu-label">CORE modules</div>
-      ${items.map((m) => html`<a role="menuitem" href="#${m.home}" data-mod="${m.id}"><span class="mod-ic">${icon(m.glyph, 18)}</span><span class="grow"><strong>${m.name}</strong><small>${moduleOn(m.id) ? m.tagline : 'Off for the company · administrators only'}</small></span></a>`)}
-      ${panelAccess() ? html`<div class="menu-sep"></div><a role="menuitem" href="#/admin/dashboard" data-mod="system"><span class="mod-ic">${icon('settings', 18)}</span><span class="grow"><strong>Admin panel</strong><small>Users, roles, modules, settings and data</small></span></a>` : ''}
-      <div class="menu-sep"></div>
-      <a role="menuitem" href="#/launcher">${icon('home')} <span class="grow">All modules</span></a>
+      <div class="mod-grid">${open.map((m) => tile(m, 'open'))}${locked.map((m) => tile(m, 'locked'))}${soon.map((m) => tile(m, 'soon'))}</div>
+      ${panelAccess() ? html`<div class="menu-sep"></div><a role="menuitem" class="mod-row" href="#/admin/dashboard" data-mod="system"><span class="mod-ic">${icon('settings', 16)}</span><span class="grow"><strong>Admin panel</strong></span></a>` : ''}
+      <a role="menuitem" class="mod-row" href="#/launcher"><span class="mod-ic">${icon('home', 16)}</span><span class="grow"><strong>CORE home</strong></span></a>
     </div>`);
   popover(box, box.querySelector('#mod-btn'), box.querySelector('#mod-pop'));
+  markModuleSwitch();
 }
 function markModuleSwitch() {
   document.querySelectorAll('#mod-pop a[data-mod]').forEach((a) => a.classList.toggle('on', !body.classList.contains('launcher-mode') && a.dataset.mod === ctx.module));

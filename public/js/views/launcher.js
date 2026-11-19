@@ -100,8 +100,9 @@ export async function launcherView(el) {
         </div>`;
   };
   // A module still in development: greyed out at the end of the row, as on the ATLAS home.
-  const soonCard = (m) => html`<div class="sys-card soon" data-module="${m.id}" aria-disabled="true" title="${m.name} is coming soon">
-      <span class="sys-top"><span class="sys-ic">${icon(m.glyph, 26)}</span><span class="badge gray">${icon('lock', 12)} Coming soon</span></span>
+  // C-suite (accent: gold) has a gold accent: the executive module.
+  const soonCard = (m) => html`<div class="sys-card soon${m.accent ? ` accent-${m.accent}` : ''}" data-module="${m.id}" aria-disabled="true" title="${m.name} is coming soon">
+      <span class="sys-top"><span class="sys-ic">${icon(m.glyph, 26)}</span><span class="badge ${m.accent === 'gold' ? 'gold' : 'gray'}">${icon('lock', 12)} Coming soon</span></span>${m.tagline ? html`<span class="sys-tagline">${m.tagline}</span>` : ''}
       <strong class="sys-name" style="font-size:20px">${m.name}</strong>
       <p>${m.description}</p>
       <span class="sys-open">Not available yet</span>
@@ -185,6 +186,7 @@ export async function launcherView(el) {
     try {
       const r = await api.put('/api/me/favorite-modules', { modules: next });
       ctx.user.favoriteModules = r.favoriteModules;
+      window.dispatchEvent(new Event('modules:changed')); // the modules menu puts pinned ones first too
     } catch (err) {
       btn.disabled = false;
       toast(err.message || 'Could not save your pinned modules.', 'error');

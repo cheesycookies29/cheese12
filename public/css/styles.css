@@ -25,6 +25,8 @@
   --brand-strong: color-mix(in srgb, var(--brand) 82%, #000);
   --brand-text: var(--brand);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  /* The executive (C-suite) gold: text on light surfaces, and the icon tile's gradient. */
+  --gold-text: #87580a; --gold-tile-from: #b87f1c; --gold-tile-to: #8a5a07;
   --success: #15803d; --success-soft: #dcfce7;
   --warn: #92570a; --warn-soft: #fef3c7;
   --danger: #b91c1c; --danger-soft: #fee2e2;
@@ -54,6 +56,7 @@
   --brand-line: color-mix(in srgb, var(--brand) 50%, var(--surface));
   --brand-text: color-mix(in srgb, var(--brand) 45%, #fff);
   --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  --gold-text: #f2c373; --gold-tile-from: #b87f1c; --gold-tile-to: #8a5a07;
   --success: #4ade80; --success-soft: #14532d55;
   --warn: #fbbf24; --warn-soft: #78350f55;
   --danger: #f87171; --danger-soft: #7f1d1d55;
@@ -1207,13 +1210,38 @@ a.fb-row { color: var(--text); }
 .topbar .brand .core-word em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .topbar .brand small b { color: var(--text-2); font-weight: 600; }
 .mod-switch { position: relative; }
-.mod-pop { min-width: 300px; }
-.mod-pop a .mod-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); flex: none; }
-.mod-pop a span.grow { flex: 1; min-width: 0; }
-.mod-pop a strong { display: block; font-size: 13.5px; }
-.mod-pop a small { display: block; font-size: 12px; color: var(--muted); }
-.mod-pop a.on { background: var(--brand-soft); }
-.mod-pop a.on strong { color: var(--brand-text); }
+/* The modules menu (0.45): every module as a compact tile, three across. */
+.mod-pop { width: 340px; padding: 8px; }
+.mod-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 2px 0 6px; }
+.menu-pop .mod-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; padding: 10px 4px 8px; min-height: 84px; border-radius: 12px; text-align: center; color: var(--text); }
+.mod-tile .mod-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); flex: none; }
+.mod-tile .mod-name { font-size: 12px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.menu-pop a.mod-tile:hover { background: var(--surface-2); }
+.menu-pop a.mod-tile.on { background: var(--brand-soft); }
+.menu-pop a.mod-tile.on .mod-ic { background: var(--brand); color: #fff; }
+.mod-tile.locked, .mod-tile.soon { cursor: default; color: var(--muted); }
+.mod-tile.locked .mod-ic, .mod-tile.soon .mod-ic { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.mod-tile .mod-tag { display: inline-flex; align-items: center; gap: 2px; margin-top: -2px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; line-height: 15px; text-transform: uppercase; }
+.mod-tile .mod-pin { position: absolute; top: 6px; right: 8px; color: var(--accent); }
+.mod-tile .mod-pin .ic { fill: currentColor; }
+.menu-pop .mod-row { gap: 10px; padding: 8px 10px; }
+.mod-row .mod-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); flex: none; }
+.mod-row strong { font-size: 13px; font-weight: 600; }
+.menu-pop a.mod-row.on { background: var(--brand-soft); }
+
+/* C-suite, the executive module: a gold accent, on its tile and on its CORE home card (0.45). */
+.mod-tile.accent-gold { color: var(--gold-text); }
+.mod-tile.accent-gold .mod-ic { background: linear-gradient(135deg, var(--gold-tile-from), var(--gold-tile-to)); color: #fff; border: 0; box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 35%, transparent); }
+.mod-tile.accent-gold .mod-tag { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 45%, var(--surface)); color: var(--gold-text); }
+.sys-card.soon.accent-gold { background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 10%, var(--surface)) 0%, var(--surface) 55%); border-color: color-mix(in srgb, var(--accent) 45%, var(--surface)); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 16%, transparent); cursor: default; }
+.sys-card.soon.accent-gold::before { background: linear-gradient(90deg, var(--gold-tile-from), var(--gold-tile-to), var(--gold-tile-from)); height: 5px; }
+.sys-card.soon.accent-gold .sys-ic { background: linear-gradient(135deg, var(--gold-tile-from), var(--gold-tile-to)); color: #fff; border: 0; filter: none; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
+.sys-card.soon.accent-gold .sys-name { color: var(--gold-text); }
+.sys-card.soon.accent-gold .sys-open { color: var(--gold-text); }
+.sys-card.soon.accent-gold p { color: var(--text-2); }
+.sys-tagline { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.sys-card.accent-gold .sys-tagline { color: var(--gold-text); }
+.badge.gold { background: var(--accent-soft); color: var(--gold-text); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--surface)); }
 .nav-module { display: flex; align-items: center; gap: 10px; margin: 2px 2px 10px; padding: 10px 10px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); }
 .nav-module .mod-ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--brand); color: #fff; flex: none; }
 .nav-module strong { display: block; font-size: 13px; line-height: 1.2; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1257,7 +1285,7 @@ body.launcher-mode main#app { padding: 0; max-width: none; display: flex; flex-d
 }
 @media (max-width: 960px) {
   .hub-hero .hero-mark { width: 140px; height: 140px; right: 4%; }
-  .mod-pop { position: fixed; left: 10px; right: 10px; top: calc(var(--topbar) + 4px); min-width: 0; }
+  .mod-pop { position: fixed; left: 10px; right: 10px; top: calc(var(--topbar) + 4px); min-width: 0; width: auto; }
 }
 @media (max-width: 760px) {
   .table.stackable tr.unread td:first-child, .table.stackable tr.flag-row td:first-child { box-shadow: none; }

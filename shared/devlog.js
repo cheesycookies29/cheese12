@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.45.0-alpha',
+    date: '2026-11-19',
+    title: 'A compact modules menu, and C-suite in gold',
+    modules: ['system'],
+    notes: 'The modules menu listed only the modules you could open, one per line with a description. It now shows all of them at a glance.',
+    changes: [
+      ['improved', 'system', 'Modules menu (the grid button): every module as a compact tile, three across, with a short name (HR & Payroll, IT Assets, Service Desk…). Modules you can open come first, your pinned ones leading with a star and the current one highlighted; then the ones you have no access to and the ones coming soon, greyed out and labelled. Admin panel and CORE home stay below. It follows a pin made on the CORE home at once.'],
+      ['new', 'system', 'C-suite, the executive module, has a gold accent: a gold tile in the menu, and on the CORE home a gold top edge, icon, title and tag on a soft gold card, in light and dark mode (gold text at least 5:1, the icon on gold at least 3:1).'],
+    ],
+  },
+  {
     version: '0.44.0-alpha',
     date: '2026-11-19',
     title: 'A fuller Project Management demo',

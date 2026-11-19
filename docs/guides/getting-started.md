@@ -46,7 +46,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 ![A module: the side menu on the left, and the top bar](getting-started-module.jpg)
 
 5. Look at the top bar. On the right are, in order: the **modules** button (the grid of squares), the **notifications** bell, **Help** (the question mark), the **dark mode** button (the moon) and your name. On a phone the dark mode button is in the menu under your name.
-6. Choose the **modules** button. The menu lists **CORE modules** you can open; choose one to switch to it, or **All modules** for the CORE home.
+6. Choose the **modules** button. The menu shows every CORE module as a small tile, three across: the ones you can open first (your pinned ones leading, with a star), then the ones you have no access to and the ones coming soon, greyed out. **C-suite**, the executive dashboard, has a gold tile. Choose a tile to switch to that module, or **CORE home** at the bottom.
 
 ![The modules menu](getting-started-modules.jpg)
 
@@ -81,7 +81,7 @@ If your company requires 2-step verification and you have not set it up, CORE sh
 1. On the CORE home, choose **Open** on the module's card. Or, from anywhere, choose the **modules** button at the top right and pick the module.
 2. The module opens on its first page. Its pages are in the side menu on the left.
 
-To go back to the CORE home, choose the CORE logo at the top left, or **All modules** in the modules menu.
+To go back to the CORE home, choose the CORE logo at the top left, or **CORE home** in the modules menu.
 
 ### Pin your modules to the front
 
