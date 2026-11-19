@@ -1229,6 +1229,40 @@ a.fb-row { color: var(--text); }
 .mod-row strong { font-size: 13px; font-weight: 600; }
 .menu-pop a.mod-row.on { background: var(--brand-soft); }
 
+/* The CORE home's compact view (0.46): every module at once, as small tiles in a grid. */
+.sys-nav .sys-view { margin-left: 4px; }
+.sys-compact { display: none; }
+.sys-section.compact .sys-carousel, .sys-section.compact .sys-dots, .sys-section.compact .sys-arrows { display: none !important; }
+.sys-section.compact .sys-compact { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.sys-mini-slot { position: relative; display: flex; min-width: 0; }
+.sys-mini-slot > .sys-mini { flex: 1; min-width: 0; padding-right: 44px; }
+.sys-mini { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 68px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); box-shadow: var(--shadow); position: relative; overflow: hidden; transition: border-color 0.14s, box-shadow 0.14s; }
+.sys-mini::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--brand); }
+a.sys-mini:hover, .sys-mini-slot:hover > a.sys-mini { text-decoration: none; border-color: var(--brand-line); box-shadow: var(--shadow-lg); }
+.sys-mini .sys-ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); flex: none; }
+.sys-mini .grow { flex: 1; min-width: 0; }
+.sys-mini strong { display: block; font-size: 14px; line-height: 1.25; color: var(--brand-text); }
+.sys-mini small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sys-mini.locked, .sys-mini.soon { background: var(--surface-2); box-shadow: none; cursor: default; }
+.sys-mini.locked::before, .sys-mini.soon::before { background: var(--border-strong); }
+.sys-mini.locked .sys-ic, .sys-mini.soon .sys-ic { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+.sys-mini.locked strong, .sys-mini.soon strong { color: var(--muted); }
+.sys-mini-slot .sys-pin { top: 50%; right: 8px; transform: translateY(-50%); }
+.sys-mini-slot:hover .sys-pin { transform: translateY(-50%); }
+.sys-mini-slot.pinned > .sys-mini { border-color: var(--brand-line); }
+.sys-mini.soon.accent-gold { background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 12%, var(--surface)) 0%, var(--surface) 70%); border-color: color-mix(in srgb, var(--accent) 45%, var(--surface)); }
+.sys-mini.soon.accent-gold::before { background: linear-gradient(180deg, var(--gold-tile-from), var(--gold-tile-to)); width: 4px; }
+.sys-mini.soon.accent-gold .sys-ic { background: linear-gradient(135deg, var(--gold-tile-from), var(--gold-tile-to)); color: #fff; border: 0; }
+.sys-mini.soon.accent-gold strong, .sys-mini.soon.accent-gold small { color: var(--gold-text); }
+@media (max-width: 560px) {
+  .sys-section.compact .sys-compact { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .sys-mini { padding: 10px; gap: 10px; min-height: 62px; }
+  .sys-mini .sys-ic { width: 34px; height: 34px; }
+  .sys-mini strong { font-size: 13px; }
+  .sys-mini small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .sys-mini-slot > .sys-mini { padding-right: 36px; }
+}
+
 /* C-suite, the executive module: a gold accent, on its tile and on its CORE home card (0.45). */
 .mod-tile.accent-gold { color: var(--gold-text); }
 .mod-tile.accent-gold .mod-ic { background: linear-gradient(135deg, var(--gold-tile-from), var(--gold-tile-to)); color: #fff; border: 0; box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 35%, transparent); }

@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.46.0-alpha',
+    date: '2026-11-19',
+    title: 'Compact view of the modules on the CORE home',
+    modules: ['system'],
+    notes: 'With nine modules the sliding row needs three pages; the compact view shows them all at once.',
+    changes: [
+      ['new', 'system', 'CORE home: a Cards | Compact switch beside Your modules. Compact shows every module as a small tile in a grid (four across on a computer, two on a phone), in the same order as the cards (pinned first, then the others you may open, then no access and coming soon), each with its first live figure or what it is, and its pin star; C-suite keeps its gold accent. The choice is kept in this browser; pinning in either view updates both.'],
+    ],
+  },
+  {
     version: '0.45.0-alpha',
     date: '2026-11-19',
     title: 'A compact modules menu, and C-suite in gold',

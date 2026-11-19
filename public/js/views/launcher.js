@@ -123,6 +123,29 @@ export async function launcherView(el) {
   };
   const trackItems = () => html`${ordered().map((m) => (ctx.moduleHome(m.id) ? slot(m) : card(m)))}${soon.map(soonCard)}`;
 
+  // The compact view (0.46): every module at once as a small tile in a grid, in the same order,
+  // with the same star; the first live figure (or what the module is) under its name.
+  const mini = (m) => {
+    const home = ctx.moduleHome(m.id);
+    const on = pinned().includes(m.id);
+    const soonOne = m.status !== 'live';
+    const off = !soonOne && !moduleOn(m.id);
+    const sub = soonOne ? 'Coming soon' : !home ? 'No access' : off ? 'Off for the company' : (stats[m.id] || [])[0] || m.tagline;
+    const cls = `sys-mini${soonOne ? ' soon' : !home ? ' locked' : ''}${m.accent ? ` accent-${m.accent}` : ''}`;
+    const inner = html`<span class="sys-ic">${icon(m.glyph, 20)}</span><span class="grow"><strong>${m.name}</strong><small>${soonOne || !home ? html`${icon('lock', 11)} ` : ''}${sub}</small></span>`;
+    if (!home) return html`<div class="${cls}" data-module="${m.id}" aria-disabled="true" title="${m.name}: ${soonOne ? 'coming soon' : 'no access, ask your administrator'}">${inner}</div>`;
+    return html`<div class="sys-mini-slot${on ? ' pinned' : ''}" data-module="${m.id}"><a class="${cls}" href="#${home}" title="Open ${m.name}">${inner}</a>
+      <button type="button" class="sys-pin" data-pin="${m.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? `Unpin ${m.name}` : `Pin ${m.name} to the front`}" title="${on ? 'Pinned to the front: click to unpin' : 'Pin to the front'}">${icon('star', 16)}</button></div>`;
+  };
+  const compactItems = () => html`${ordered().map(mini)}${soon.map(mini)}`;
+  // Cards (the sliding row) or Compact (all at once): kept in this browser, like the theme.
+  const VIEW_KEY = 'core-home-view';
+  let view = 'cards';
+  try {
+    if (localStorage.getItem(VIEW_KEY) === 'compact') view = 'compact';
+  } catch {}
+  const viewSwitch = () => html`<div class="seg-btns sys-view" role="group" aria-label="How to show the modules">${[['cards', 'Cards'], ['compact', 'Compact']].map(([k, label]) => html`<button type="button" data-view="${k}" class="${view === k ? 'active' : ''}" aria-pressed="${view === k ? 'true' : 'false'}" title="${k === 'compact' ? 'Every module at once, in a grid' : 'Large cards with live figures, in a sliding row'}">${label}</button>`)}</div>`;
+
   // Administration: the Admin panel first, then shortcuts to the pages used most.
   const admin = [
     can('users.manage') && ['/admin/users', 'users', 'Users & Access', 'Accounts, sign-in and 2-step'],
@@ -144,14 +167,15 @@ export async function launcherView(el) {
       </div>
     </section>
 
-    <section class="hub-wrap">
+    <section class="hub-wrap sys-section${view === 'compact' ? ' compact' : ''}" id="sys-section">
       <div class="card-head"><h2 id="sys-heading">${icon('grid')} Your modules</h2>
-        <div class="sys-nav"><span class="muted small">${open} of ${live.length} available to you${soon.length ? ` · ${soon.length} coming soon` : ''}</span>
+        <div class="sys-nav"><span class="muted small">${open} of ${live.length} available to you${soon.length ? ` · ${soon.length} coming soon` : ''}</span>${viewSwitch()}
           <span class="sys-arrows" hidden><button type="button" class="icon-btn" id="sys-prev" aria-label="Previous modules" aria-controls="sys-track">${icon('chevronLeft', 18)}</button><button type="button" class="icon-btn" id="sys-next" aria-label="More modules" aria-controls="sys-track">${icon('chevronRight', 18)}</button></span></div></div>
       <div class="sys-carousel" id="sys-carousel">
         <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${trackItems()}</div>
       </div>
       <div class="sys-dots" id="sys-dots" hidden></div>
+      <div class="sys-compact" id="sys-compact" role="region" aria-labelledby="sys-heading">${compactItems()}</div>
     </section>
 
     ${panelAccess()
@@ -175,7 +199,21 @@ export async function launcherView(el) {
   // Pin or unpin: saved on the account (so it follows you to other devices), then the row is
   // redrawn in its new order with the focus kept on the same star.
   const track = el.querySelector('#sys-track');
-  track.addEventListener('click', async (e) => {
+  const compact = el.querySelector('#sys-compact');
+  const section = el.querySelector('#sys-section');
+  el.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+    view = b.dataset.view;
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {}
+    section.classList.toggle('compact', view === 'compact');
+    el.querySelectorAll('[data-view]').forEach((x) => {
+      x.classList.toggle('active', x.dataset.view === view);
+      x.setAttribute('aria-pressed', String(x.dataset.view === view));
+    });
+    if (view === 'cards') refresh();
+  }));
+  const onPin = async (e) => {
     const btn = e.target.closest('[data-pin]');
     if (!btn) return;
     e.preventDefault();
@@ -193,12 +231,15 @@ export async function launcherView(el) {
       return;
     }
     mount(track, trackItems());
+    mount(compact, compactItems());
     track.scrollTo({ left: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     refresh();
-    track.querySelector(`[data-pin="${id}"]`)?.focus({ preventScroll: true });
+    (view === 'compact' ? compact : track).querySelector(`[data-pin="${id}"]`)?.focus({ preventScroll: true });
     const name = MODULES.find((m) => m.id === id)?.name || id;
     toast(next.includes(id) ? `${name} is pinned: it comes first on your CORE home.` : `${name} is no longer pinned.`);
-  });
+  };
+  track.addEventListener('click', onPin);
+  compact.addEventListener('click', onPin);
 }
 
 // "Your modules" as a carousel, as on the ATLAS home: the cards scroll sideways and snap into place

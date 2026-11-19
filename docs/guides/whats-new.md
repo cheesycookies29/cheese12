@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Compact view on the CORE home (0.46)
+- **Your modules** has a **Cards | Compact** switch: **Compact** shows every module at once as small tiles in a grid, with the first figure of each and its pin star. See [Getting started](getting-started#walkthrough).
+
 ### A compact modules menu (0.45)
 - The **modules** button at the top now shows every module at a glance, as small tiles: the ones you can open first (pinned ones leading), then the ones coming soon. **C-suite**, the executive dashboard, has a gold accent there and on the CORE home. See [Getting started](getting-started#walkthrough).
 

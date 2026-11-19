@@ -40,6 +40,10 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The CORE home, with a card per module](getting-started-home.jpg)
 
+To see every module at once, choose **Compact** beside **Your modules**: the modules become small tiles in a grid, in the same order, each with its first figure and its star. **Cards** brings back the sliding row. Your choice is kept in this browser.
+
+![The CORE home in the compact view](getting-started-compact.jpg)
+
 3. Choose **Open HR & Payroll**. The module opens on your own page, **My Home**.
 4. Look at the left: the **side menu** of the module. At the top is the module's name and code (*HR & Payroll · MOD-01*). Under **My account** are your own pages. Juan also sees **Approvals**, because he supervises two people. At the bottom is **Send feedback**.
 
@@ -258,7 +262,7 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | Screen | What it is for |
 |---|---|
 | Sign-in page | Your username and password; the 2-step code; choosing your own password the first time |
-| CORE home | Your modules in a sliding row (the ones you pinned first, then the others you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
+| CORE home | Your modules in a sliding row of cards, or all at once in the **Compact** view (the ones you pinned first, then the others you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
 | Admin panel | For administrators: users, roles, modules, settings, records and backups (see [the administrator's guide](admin)) |
 | Modules menu (grid button) | Switching modules from anywhere |
 | Notifications (the bell) | What others did that concerns you, from every module; the number of unread ones; open one to go to it |
