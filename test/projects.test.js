@@ -564,7 +564,7 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   await a3('POST', '/api/auth/setup', { name: 'Admin', username: 'admin', password: 'secret123' });
   const real = await a3('POST', '/api/pm/projects', { name: 'Real project', startDate: today });
   const res = await a3('POST', '/api/admin/demo');
-  assert.equal(res.counts.pmProjects, 10);
+  assert.equal(res.counts.pmProjects, 26);
   assert.ok(res.demoAccounts.some((x) => x.username === 'pm.demo' && x.role === 'pm'));
   const pmd = c3();
   await pmd('POST', '/api/auth/login', { username: 'pm.demo', password: 'demo1234' });
@@ -573,9 +573,10 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   assert.ok(me.employeeId, 'pm.demo is linked to a demo employee');
   const ov = await pmd('GET', '/api/pm/overview');
   const onIt = db3.data.pmProjects.filter((p) => !p.isTemplate && p.members.some((m) => m.userId === me.id)).length;
-  assert.ok(onIt >= 5 && onIt < 10, 'pm.demo is on most demo projects, not all');
+  const demoProjects = db3.data.pmProjects.filter((p) => p.demo && !p.isTemplate).length;
+  assert.ok(onIt >= demoProjects / 2 && onIt < demoProjects, 'pm.demo is on most demo projects, not all');
   assert.equal(ov.projects.length, onIt, 'pm.demo sees the projects it is on');
-  assert.equal((await a3('GET', '/api/pm/overview')).projects.length, 11, 'the administrator sees the ten demo projects and the real one');
+  assert.equal((await a3('GET', '/api/pm/overview')).projects.length, 27, 'the administrator sees the 26 demo projects and the real one');
   // Every project state, both kinds of health reading, a WIP limit, custom statuses and a ticket link.
   assert.deepEqual(new Set(db3.data.pmProjects.filter((p) => p.demo).map((p) => p.status)), new Set(['planning', 'active', 'on_hold', 'completed', 'cancelled']));
   assert.ok(db3.data.pmProjects.some((p) => p.demo && p.healthOverride && db3.data.users.some((u) => u.id === p.healthOverride.by)), 'override by a real account id');
@@ -595,13 +596,23 @@ test('demo data: ten projects with the demo accounts as members, removed cleanly
   assert.equal(full.time, null, 'the LMS project does not track time');
   assert.equal(full.timeTracking, false);
   assert.ok(full.effort.sized > 20 && full.progress.basis === 'size');
-  // Only the SIS support contract tracks time, and only it has time logged.
+  // Only the support contracts track time (0.44: three of them), and only they have time logged.
   const tracked = db3.data.pmProjects.filter((p) => p.demo && p.timeTracking);
-  assert.deepEqual(tracked.map((p) => p.name), ['SIS support and maintenance, 2025–2026']);
-  assert.ok(db3.data.pmTimeLogs.length > 0 && db3.data.pmTimeLogs.every((x) => x.projectId === tracked[0].id));
+  assert.deepEqual(tracked.map((p) => p.name).sort(), ['Guard deployment and payroll: support', 'SIS support and maintenance, 2025–2026', 'School management system: support, year 1']);
+  assert.ok(tracked.every((p) => p.budgetHours > 0));
+  const trackedIds = new Set(tracked.map((p) => p.id));
+  assert.ok(db3.data.pmTimeLogs.length > 30 && db3.data.pmTimeLogs.every((x) => trackedIds.has(x.projectId)));
+  assert.ok(tracked.every((p) => db3.data.pmTimeLogs.some((x) => x.projectId === p.id)), 'each tracked project has time logged');
   assert.ok(db3.data.pmProjects.filter((p) => p.demo && !p.timeTracking).every((p) => p.budgetHours == null));
   assert.ok(db3.data.pmTasks.every((t) => !('estimateHours' in t) && !('remainingHours' in t)), 'sizes, not hours');
-  assert.ok(db3.data.pmTasks.filter((t) => t.demo && !t.isTemplate).filter((t) => t.size).length > 60);
+  assert.ok(db3.data.pmTasks.filter((t) => t.demo && !t.isTemplate).filter((t) => t.size).length > 200, 'a full portfolio (0.44)');
+  // Most delivery projects carry the CRM link, and every link points to a demo record.
+  const linked2 = db3.data.pmProjects.filter((p) => p.demo && p.contractId);
+  assert.ok(linked2.length >= 14);
+  assert.ok(linked2.every((p) => db3.data.crmContracts.some((c) => c.id === p.contractId && c.accountId === p.accountId)), 'a project\'s contract is its account\'s');
+  assert.ok(db3.data.pmProjects.filter((p) => p.demo && p.dealId).every((p) => db3.data.crmDeals.some((d) => d.id === p.dealId && d.accountId === p.accountId)));
+  const taskIds = new Set(db3.data.pmTasks.map((t) => t.id));
+  assert.ok(db3.data.pmTasks.every((t) => (!t.parentId || taskIds.has(t.parentId)) && t.blockedBy.every((b) => taskIds.has(b))));
   const tasks = await pmd('GET', `/api/pm/projects/${lms.id}/tasks`);
   assert.ok(tasks.length >= 25);
   assert.ok(new Set(tasks.map((t) => t.statusId)).size >= 5, 'tasks across the statuses');

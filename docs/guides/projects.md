@@ -48,13 +48,13 @@ A first tour with the demo data. It takes about fifteen minutes.
 
 ![Templates in the portfolio](projects-templates.jpg)
 
-The demo has ten projects, chosen so each part of the module has something to show:
+The demo has 26 projects, most of them delivering the deals and contracts in the Sales & CRM demo. These ten show each part of the module:
 
 | Project | What to look at |
 |---|---|
 | *Learning management system, phase 2* | A client delivery in full swing: deliverables with billing, overdue and blocked tasks, sized tasks, comments. The tour below uses it. |
 | *Warehouse HR and payroll rollout* | The board's **WIP limit**: four tasks in *In progress*, whose limit is 3. The manager's own reading (*Off track*, with a note) next to the computed health. |
-| *SIS support and maintenance, 2025–2026* | The one project that **tracks time**: the support hours count in the renewal talks, so it has a **Time** tab, a budget in hours, and time on Juan's **Timesheet**. It also has **its own statuses** (*Backlog*, *Client sign-off*, *Released*) and a release waiting for the client's sign-off. |
+| *SIS support and maintenance, 2025–2026* | A project that **tracks time**: the support hours count in the renewal talks, so it has a **Time** tab, a budget in hours, and time on Juan's **Timesheet**. It also has **its own statuses** (*Backlog*, *Client sign-off*, *Released*) and a release waiting for the client's sign-off. The two other support contracts (*Guard deployment and payroll: support*, *School management system: support, year 1*) track time too. |
 | *Year-end payroll and 2027 tax tables* | *Off track*: its first milestone has passed with work still open. Run by `payroll.demo`. |
 | *Data privacy compliance review* | **On hold**, with the manager's note on why. |
 | *Laptop refresh, engineering team* | A task linked to a **service desk ticket** (Juan's laptop battery); the ticket shows the task too. |
@@ -62,6 +62,17 @@ The demo has ten projects, chosen so each part of the module has something to sh
 | *University website redesign* | **Completed**, both deliverables accepted. Choose **All** in the filter to see it. |
 | *Move the file server to the cloud* | **Cancelled**, with the reason in its description. |
 | *Office network refresh* | A small internal IT project. |
+
+The other sixteen fill the portfolio, the milestones, the billing forecast and everyone's workload:
+
+| Project | What to look at |
+|---|---|
+| *Hospital HR, timekeeping and payroll*, *Student information system for Dalisay State University*, *City engineering project monitoring* | Large client deliveries with four milestones each, deliverables billed by percentage, subtasks, checklists and comments. |
+| *Project costing and site timekeeping* | The manager's reading (*At risk*: two sites without mobile signal) next to a computed *Off track*: the pilot milestone has passed with the offline clock-in still open. An urgent task in progress, and the roll-out blocked by it. |
+| *Plant maintenance and IT assets* | **Off track**: a deliverable milestone has passed with work still open. |
+| *Branch helpdesk and asset tracking*, *School management system: implementation* | **Completed**, every deliverable accepted. |
+| *City HRIS and payroll (if awarded)*, *Water billing and customer portal (bid)* | **Planning**: government bids from the Sales & CRM demo, one being prepared. |
+| *C-suite executive dashboard (CORE)*, *Security assessment, round 4*, *Service desk knowledge base* (on hold), *Chatbot for the public support form* (cancelled) | Internal work. |
 
 The three starter templates are under **Templates** in the filter.
 

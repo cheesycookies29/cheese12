@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A fuller projects demo (0.44)
+- The demo data now has **26 projects** with about 260 tasks: most of them deliver the deals and contracts in the sales demo, so the portfolio, **Milestones**, the **Billing forecast**, the workload and **My work** look like a busy company. Three support contracts track time. Reload it under **Admin panel → Demo data**. See [the projects guide](projects#walkthrough).
+
 ### Documents on contracts (0.43)
 - A contract in **Sales & CRM** now keeps its documents: upload the signed contract, annexes and amendments (PDF, scans or photos, Word or Excel, up to 8 MB each) under **Documents** on the contract, and download them from there. See [Keep a contract's documents](sales#keep-a-contract-s-documents).
 

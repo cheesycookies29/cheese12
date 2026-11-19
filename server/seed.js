@@ -853,6 +853,309 @@ function seedProjects(data, c) {
   ]);
   say(laptops, laptops.byKey.juan, it, 'Battery ordered. Linked to his ticket so the service desk sees where it is.', 1);
 
+
+  // ----- A fuller portfolio (0.44): sixteen more projects, most of them delivering the sales demo's
+  // won deals and contracts, so the portfolio, milestones, billing forecast, workload, My work and
+  // the timesheet have volume. Tasks come from each project's phases: a phase's tasks are spread
+  // over its dates, and their status follows from today (done before it, in progress or waiting
+  // during it, to do after), with the exceptions written out. The first ten projects stay as they are.
+  const dealNamed = (title) => data.crmDeals.find((x) => x.title === title);
+  const contractOf = (deal) => (deal ? data.crmContracts.find((x) => x.dealId === deal.id) : null);
+  const accountNamed = (name) => data.crmAccounts.find((a) => a.name === name);
+  const SIZES_CYCLE = ['S', 'M', 'S', 'L', 'XS', 'M', 'S'];
+  const ACTIVE_CYCLE = ['doing', 'doing', 'review', 'waiting', 'doing'];
+  function delivery(n, fields, phases) {
+    const workers = fields.members.filter((m) => m.role !== 'viewer').map((m) => m.userId);
+    const ms = phases.map((ph) => {
+      const past = ph.to < -3;
+      return [ph.name, ph.to, Boolean(ph.deliverable), ph.billing ?? null,
+        ph.submitted !== undefined ? ph.submitted : past && ph.deliverable ? ph.to - 2 : null,
+        ph.accepted !== undefined ? ph.accepted : past && ph.deliverable ? ph.to + 1 : null, ph.note || ''];
+    });
+    const rows = [];
+    let active = 0;
+    let seq = 0;
+    const statusFor = (start, due, extra) => {
+      if (extra.status) return extra.status;
+      if (fields.status === 'completed') return 'done';
+      if (fields.status === 'cancelled') return due < -1 ? 'done' : 'cancelled';
+      if (due < -1) return 'done';
+      if (start <= 0) return ACTIVE_CYCLE[active++ % ACTIVE_CYCLE.length];
+      return 'todo';
+    };
+    phases.forEach((ph, mi) => {
+      const span = Math.max(1, ph.to - ph.from);
+      const step = span / ph.tasks.length;
+      let prev = null;
+      ph.tasks.forEach((entry, j) => {
+        const [title, size, extra = {}] = Array.isArray(entry) ? entry : [entry];
+        const start = Math.round(ph.from + j * step);
+        const due = Math.min(ph.to, Math.round(start + Math.max(1, step * (size === 'L' || size === 'XL' ? 2 : 1.2))));
+        const ref = `t${++seq}`;
+        const st = statusFor(start, due, extra);
+        const who = extra.who !== undefined ? extra.who : workers[(seq * 7 + mi) % workers.length];
+        const ex = { ...extra };
+        delete ex.status;
+        delete ex.who;
+        if (ex.after && prev) ex.blockedBy = [prev];
+        delete ex.after;
+        if (!ex.priority && st === 'doing' && seq % 4 === 0) ex.priority = 'high';
+        const subs = ex.subs;
+        delete ex.subs;
+        rows.push([ref, title, mi, st, who, start, due, size || SIZES_CYCLE[seq % SIZES_CYCLE.length], ex]);
+        for (const [k, sub] of (subs || []).entries()) {
+          const ss = Math.round(start + (k * (due - start)) / subs.length);
+          const sd = Math.min(due, ss + Math.max(1, Math.round((due - start) / subs.length)));
+          rows.push([`${ref}s${k}`, sub, null, statusFor(ss, sd, {}), who, ss, sd, 'S', { parent: ref }]);
+        }
+        prev = ref;
+      });
+    });
+    const made = project(n, fields, ms, rows);
+    made.byTitle = (start) => Object.values(made.byKey).find((t) => t.title.startsWith(start));
+    return made;
+  }
+  const all6 = { pmU, juan, it, sales, hrU, payU };
+
+  // 11. Kalayaan Medical Center: hospital HR and payroll, live for six months, now stabilising.
+  const kmcDeal = dealNamed('Hospital HR, timekeeping and payroll');
+  const kmc = delivery(11, {
+    name: 'Hospital HR, timekeeping and payroll', icon: { glyph: 'heart', color: 'red' }, type: 'Client', status: 'active', startDate: wd(-200), endDate: wd(160), managerId: pmU, createdDaysAgo: 205,
+    members: [{ userId: pmU, role: 'manager' }, { userId: hrU, role: 'member' }, { userId: payU, role: 'member' }, { userId: juan, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: kmcDeal?.accountId || null, dealId: kmcDeal?.id || null, contractId: contractOf(kmcDeal)?.id || null,
+    description: 'HR records, 24/7 shift timekeeping and payroll for 640 hospital staff (nurses on three shifts, doctors on retainers). Live since month two; now stabilising night-differential and on-call pay.',
+  }, [
+    { name: 'Set-up and data migration', from: -200, to: -150, deliverable: true, billing: 30, note: 'Signed by the HR and Finance heads.', tasks: ['Kick-off with HR, Finance and the nursing service', 'Employee master file for 640 staff', ['Shift patterns for nursing: 8- and 12-hour', 'L'], 'Opening leave balances', 'Import of government numbers', 'Departments and cost centres', 'Leave approval routes: head nurse, chief nurse, HR'] },
+    { name: 'Parallel payroll and go-live', from: -150, to: -95, deliverable: true, billing: 40, note: 'Go-live accepted after two clean cut-offs.', tasks: ['Night differential and holiday premiums', ['Parallel run, two cut-offs', 'L'], 'Explain each difference to Finance', 'Bank file for payroll credit', 'Withholding tax check with Finance', 'Train the payroll team', 'Go-live payroll'] },
+    { name: 'Stabilisation', from: -30, to: 40, tasks: [
+      ['On-call allowances for doctors', 'M', { description: 'Doctors on call are paid per call-out, not per shift. Rule agreed with Finance on the 3rd.' }],
+      ['Shift swaps approved by the head nurse', 'M', { checklist: [['Swap request form', true], ['Approval by the head nurse', true], ['Payroll picks up the swapped shift', false]] }],
+      ['Biometric clocks at the emergency room entrance', 'S', { status: 'waiting', description: 'Waiting for the hospital engineering office to run power to the new kiosk.' }],
+      ['Monthly reports for the DOH licence renewal', 'M'],
+      ['Overtime caps per department', 'S', { after: true }],
+      ['Payslip on the phone for nurses', 'M'],
+      'Conversion of unused leave credits',
+      'Audit trail review with Internal Audit',
+    ] },
+    { name: 'First-year review', from: 120, to: 158, deliverable: true, billing: 30, tasks: ['Review session with HR and Finance', 'Year-one report and renewal proposal'] },
+  ]);
+  say(kmc, kmc.byTitle('On-call allowances'), payU, 'Finance confirmed ₱1,500 per call-out, ₱2,500 on holidays. Rule entered in Payroll Setup; checking last cut-off.', 2);
+  say(kmc, kmc.byTitle('Biometric clocks'), juan, '@pm.demo engineering says the electrician comes Thursday. I\'ll install the clock the same afternoon.', 1);
+  note(pmU, 'mentioned', kmc.p, kmc.byTitle('Biometric clocks'), juan, `mentioned you on ${kmc.byTitle('Biometric clocks').key}: “@pm.demo engineering says the electrician comes Thursday…”`, 1);
+
+  // 12. Mabini Rural Bank: branch helpdesk and asset tracking, delivered and accepted.
+  const mrbDeal = dealNamed('Branch helpdesk and asset tracking');
+  delivery(12, {
+    name: 'Branch helpdesk and asset tracking', icon: { glyph: 'ticket', color: 'teal' }, type: 'Client', status: 'completed', startDate: wd(-140), endDate: wd(-40), managerId: it, createdDaysAgo: 145,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }],
+    accountId: mrbDeal?.accountId || null, dealId: mrbDeal?.id || null, contractId: contractOf(mrbDeal)?.id || null,
+    description: 'Service desk and IT asset register for 14 branches. Delivered and accepted; the support renewal is in Sales & CRM.',
+  }, [
+    { name: 'Asset inventory of 14 branches', from: -140, to: -105, deliverable: true, billing: 50, note: 'Inventory signed per branch.', tasks: ['Inventory template and tags', ['Visit the 14 branches', 'L'], 'Load the register into IT Assets', 'Warranty dates from the suppliers'] },
+    { name: 'Service desk live', from: -105, to: -45, deliverable: true, billing: 50, note: 'Accepted by the Operations Head.', tasks: ['Ticket categories and service levels', 'Email in for helpdesk@', 'Train the branch custodians', 'Go-live and two weeks of hyper-care', 'Turnover documents'] },
+  ]);
+
+  // 13. Bagong Lakas Construction: project costing and site timekeeping, mid-delivery, at risk.
+  const blcDeal = dealNamed('Project costing and site timekeeping');
+  const blc = delivery(13, {
+    name: 'Project costing and site timekeeping', icon: { glyph: 'building', color: 'amber' }, type: 'Client', status: 'active', startDate: wd(-88), endDate: wd(60), managerId: pmU, createdDaysAgo: 92,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: payU, role: 'member' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: blcDeal?.accountId || null, dealId: blcDeal?.id || null, contractId: contractOf(blcDeal)?.id || null,
+    description: 'Labour cost per construction project: workers clock in at the site with a phone, and their hours are charged to the project. Six sites, about 380 workers.',
+    healthOverride: { value: 'amber', note: 'Two sites have no mobile signal at the gate; the offline clock-in is a week behind.', by: pmU, at: at(-3) },
+  }, [
+    { name: 'Design and site survey', from: -88, to: -60, deliverable: true, billing: 20, note: 'Approved by the VP for Operations.', tasks: ['Site survey: signal and power at six gates', 'Cost codes per project and activity', 'Clock-in by phone: design and geofences'] },
+    { name: 'Pilot at two sites', from: -60, to: -10, deliverable: true, billing: 30, submitted: -9, accepted: null, tasks: ['Pilot at the Taguig tower site', 'Pilot at the Laguna warehouse site', 'Foreman approval of hours', ['Offline clock-in for sites without signal', 'L', { status: 'doing', priority: 'urgent', description: 'Phones keep the clock-ins and send them when back in range. Two sites need it before roll-out.' }]] },
+    { name: 'Roll-out to all sites', from: -5, to: 45, tasks: [['Roll-out to the four other sites', 'L', { after: true }], 'Labour cost report per project', 'Equipment hours per project', 'Subcontractor crews', 'Payroll from site hours', ['Train the foremen', 'M', { subs: ['Taguig and Laguna foremen', 'Cavite and Batangas foremen', 'Bulacan and Pampanga foremen'] }]] },
+    { name: 'Acceptance', from: 45, to: 58, deliverable: true, billing: 50, tasks: ['Acceptance test with Finance', 'Acceptance certificate'] },
+  ]);
+  say(blc, blc.byTitle('Offline clock-in'), juan, 'Offline mode works on the test phones; syncing 2 days of clock-ins took 4 seconds. Testing on the cheap Android models next.', 1);
+  say(blc, blc.byTitle('Offline clock-in'), pmU, 'Good. Let\'s demo it to the Bulacan foreman on Monday before we commit to the roll-out date.', 0.5);
+  note(juan, 'commented', blc.p, blc.byTitle('Offline clock-in'), pmU, `commented on ${blc.byTitle('Offline clock-in').key}: “Good. Let's demo it to the Bulacan foreman on Monday…”`, 0.5);
+
+  // 14. Dalisay State University: the student information system, first semester live.
+  const dsuDeal = dealNamed('Student information system');
+  const dsu = delivery(14, {
+    name: 'Student information system for Dalisay State University', icon: { glyph: 'cap', color: 'violet' }, type: 'Government', status: 'active', startDate: wd(-250), endDate: wd(110), managerId: pmU, createdDaysAgo: 255,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: it, role: 'member' }, { userId: hrU, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: dsuDeal?.accountId || null, dealId: dsuDeal?.id || null, contractId: contractOf(dsuDeal)?.id || null,
+    description: 'Admissions, enrolment, grades and registrar documents for 9,000 students in three campuses, under contract DSU-2025-ITB-09. First semester live; second semester modules in progress.',
+  }, [
+    { name: 'Inception report', from: -250, to: -230, deliverable: true, billing: 15, note: 'Accepted by the BAC and the University Registrar.', tasks: ['Kick-off with the registrar and the three campus directors', 'Inception report and work plan'] },
+    { name: 'Admissions and enrolment live', from: -230, to: -120, deliverable: true, billing: 35, note: 'Enrolment of 9,212 students without queues at the cashier.', tasks: [['Online admission test results', 'M'], ['Enrolment with assessment of fees', 'L'], 'Section offering and class schedules', 'Scholarships and free tuition (UniFAST)', 'Campus-specific fees', 'Cashier: payments and official receipts', ['Data migration of 41,000 student records', 'XL'], 'Enrolment week support at the three campuses'] },
+    { name: 'Grades and registrar documents', from: -40, to: 50, deliverable: true, billing: 30, tasks: [
+      ['Faculty grade encoding', 'L', { checklist: [['Grading sheets per section', true], ['Deadline per college', true], ['Dean\'s approval', false]] }],
+      'Transcript of records and certifications', ['CHED reports', 'M', { status: 'waiting', description: 'Waiting for CHED\'s 2026 template for the enrolment list.' }],
+      ['Graduation evaluation', 'M', { after: true }], 'Dean\'s list and Latin honours', 'Shifting and cross-enrolment rules', 'Student portal: grades and schedule', 'Document requests and payment', 'Registrar dashboard',
+    ] },
+    { name: 'Training and turnover', from: 60, to: 105, deliverable: true, billing: 20, tasks: ['Train the registrar staff of the three campuses', 'Turnover of documentation and source escrow', 'Final acceptance'] },
+  ]);
+  say(dsu, dsu.byTitle('CHED reports'), pmU, '@employee.demo the registrar forwarded last year\'s template. Can you start with that and adjust when CHED releases the new one?', 2);
+  note(juan, 'mentioned', dsu.p, dsu.byTitle('CHED reports'), pmU, `mentioned you on ${dsu.byTitle('CHED reports').key}: “@employee.demo the registrar forwarded last year's template…”`, 2);
+  say(dsu, dsu.byTitle('Faculty grade encoding'), juan, 'Engineering and Education are done. Nursing has 14 sections left; their deadline is Friday.', 1);
+
+  // 15. Kalinga Foundation for Children: donor management, early days.
+  const kfcDeal = dealNamed('Donor management and grants tracking');
+  delivery(15, {
+    name: 'Donor management and grants tracking', icon: { glyph: 'heart', color: 'green' }, type: 'Client', status: 'active', startDate: wd(-30), endDate: wd(70), managerId: hrU,
+    members: [{ userId: hrU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: kfcDeal?.accountId || null, dealId: kfcDeal?.id || null, contractId: contractOf(kfcDeal)?.id || null,
+    description: 'Donors, pledges and grants for a children\'s foundation, with BIR donee receipts and reports to each funder.',
+  }, [
+    { name: 'Requirements', from: -30, to: -12, tasks: ['Workshop with the Executive Director and Finance', 'Donor and grant records: what they keep today', 'Report formats of the three main funders'] },
+    { name: 'Build', from: -12, to: 45, tasks: ['Donor records and pledges', ['Donee receipts (BIR)', 'M', { priority: 'high' }], 'Grant budgets and spending', 'Funder reports', 'Import of 2,300 donors from spreadsheets'] },
+    { name: 'Go-live', from: 45, to: 68, tasks: ['Training for the programme staff', 'Go-live'] },
+  ]);
+
+  // 16. Matatag Security Services: guard deployment and payroll support (time tracked).
+  const mssDeal = dealNamed('Guard deployment and payroll');
+  const mss = delivery(16, {
+    name: 'Guard deployment and payroll: support', icon: { glyph: 'shield', color: 'brand' }, type: 'Client', status: 'active', startDate: wd(-290), endDate: wd(50), managerId: it, createdDaysAgo: 295,
+    members: [{ userId: it, role: 'manager' }, { userId: payU, role: 'member' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }, { userId: sales, role: 'viewer' }],
+    accountId: mssDeal?.accountId || null, dealId: mssDeal?.id || null, contractId: contractOf(mssDeal)?.id || null, timeTracking: true, budgetHours: 240,
+    description: 'Monthly support for guard deployment and payroll (1,100 guards at 85 posts). Ends in 50 days; the second-region deal is in negotiation.',
+  }, [
+    { name: 'Quarter 1 report', from: -290, to: -200, deliverable: true, billing: 25, tasks: ['Post schedules for the new clients', 'Guard licence expiry alerts'] },
+    { name: 'Quarter 2 report', from: -200, to: -110, deliverable: true, billing: 25, tasks: ['13th-month for guards on relievers', 'SSS contribution table update'] },
+    { name: 'Quarter 3 report', from: -110, to: -20, deliverable: true, billing: 25, tasks: ['New posts in Cavite', 'Overtime approval by the detachment commander'] },
+    { name: 'Quarter 4 report', from: -20, to: 48, deliverable: true, billing: 25, tasks: [['Monthly support tickets', 'M'], ['Second region: post list and rates', 'M', { status: 'review' }], 'Year-end payroll check', 'Support report for the renewal'] },
+  ]);
+  logDays(mss, (i) => {
+    const support = Object.keys(mss.byKey).find((r) => mss.byKey[r].title === 'Monthly support tickets');
+    const region = Object.keys(mss.byKey).find((r) => mss.byKey[r].title.startsWith('Second region'));
+    return [[it, support, i % 3 === 0 ? 2 : 1, 'Tickets from the payroll team'], ...(i % 2 ? [[payU, region, 1.5, 'Rates for the new posts']] : []), ...(i < 4 ? [[juan, support, 0.5, '']] : [])];
+  });
+
+  // 17. Pacifica Rim Manufacturing: plant maintenance and IT assets, off track.
+  const prmDeal = dealNamed('Plant maintenance and IT assets');
+  const prm = delivery(17, {
+    name: 'Plant maintenance and IT assets', icon: { glyph: 'settings', color: 'gray' }, type: 'Client', status: 'active', startDate: wd(-165), endDate: wd(30), managerId: it, createdDaysAgo: 170,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: prmDeal?.accountId || null, dealId: prmDeal?.id || null, contractId: contractOf(prmDeal)?.id || null,
+    description: 'Preventive maintenance schedules for 210 machines and the plant\'s IT asset register. Behind: the machine list came late and two milestones slipped.',
+  }, [
+    { name: 'Machine register', from: -165, to: -120, deliverable: true, billing: 30, note: 'Signed by the Plant Manager.', tasks: ['Machine list from the plant engineers', ['Tag 210 machines', 'L'], 'Maintenance intervals per machine type', 'Calibration schedule for the gauges'] },
+    { name: 'Preventive maintenance live', from: -120, to: -25, deliverable: true, billing: 40, submitted: null, accepted: null, tasks: ['Work orders and checklists', ['Spare parts stock', 'M', { status: 'doing' }], ['Technicians\' phone app', 'L', { status: 'doing', priority: 'high' }], ['Downtime report per line', 'M', { status: 'todo' }]] },
+    { name: 'IT assets and turnover', from: -25, to: 28, deliverable: true, billing: 30, tasks: ['IT asset register for the offices', ['Train the maintenance planners', 'M', { after: true }], 'Turnover and acceptance'] },
+  ]);
+  say(prm, prm.byTitle('Technicians\' phone app'), it, 'The plant Wi-Fi drops in the stamping area. Testing offline mode there tomorrow.', 2);
+
+  // 18. Amihan Academy: school management system, delivered last year; support now (time tracked).
+  const aaDeal = dealNamed('School management system');
+  const aaImpl = delivery(18, {
+    name: 'School management system: implementation', icon: { glyph: 'book', color: 'blue' }, type: 'Client', status: 'completed', startDate: wd(-320), endDate: wd(-210), managerId: pmU, createdDaysAgo: 325,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }],
+    accountId: aaDeal?.accountId || null, dealId: aaDeal?.id || null, contractId: contractOf(aaDeal)?.id || null,
+    description: 'Enrolment, grades and billing for a K–12 school of 1,400 learners. Delivered and accepted.',
+  }, [
+    { name: 'Enrolment and billing live', from: -320, to: -260, deliverable: true, billing: 60, note: 'Accepted by the Directress.', tasks: ['Learner records from the old system', 'Fees, discounts and siblings', 'Enrolment with DepEd LIS numbers'] },
+    { name: 'Grades and report cards', from: -260, to: -212, deliverable: true, billing: 40, note: 'Report cards printed for the first quarter.', tasks: ['Grading per DepEd order', 'Report card (SF9) printing', 'Teacher training'] },
+  ]);
+  const aaSupport = delivery(19, {
+    name: 'School management system: support, year 1', icon: { glyph: 'book', color: 'teal' }, type: 'Client', status: 'active', startDate: wd(-205), endDate: wd(20), managerId: it, createdDaysAgo: 205,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }, { userId: sales, role: 'viewer' }],
+    accountId: aaDeal?.accountId || null, contractId: contractOf(aaDeal)?.id || null, timeTracking: true, budgetHours: 120,
+    description: 'Year-one support for the school management system. Ends in 20 days; the renewal deal is in Sales & CRM.',
+  }, [
+    { name: 'Second semester changes', from: -205, to: -100, tasks: ['New fee items for the field trip', 'SF10 permanent record'] },
+    { name: 'School year opening', from: -40, to: 18, tasks: [['Enrolment for the new school year', 'M'], ['Parent portal: online payments', 'L', { status: 'waiting', description: 'Waiting for the school\'s bank to issue the payment gateway keys.' }], 'Support report for the renewal'] },
+  ]);
+  logDays(aaSupport, (i) => {
+    const enrol = Object.keys(aaSupport.byKey).find((r) => aaSupport.byKey[r].title.startsWith('Enrolment for the new'));
+    return [[juan, enrol, i % 2 ? 2 : 1, i % 2 ? 'Sections for Grade 7' : 'Enrolment questions from the registrar'], ...(i % 4 === 0 ? [[it, null, 1, 'Monthly backup check']] : [])];
+  });
+  void aaImpl;
+
+  // 20. City Government of Malaya: engineering project monitoring (government, billing by deliverable).
+  const cemDeal = dealNamed('City engineering project monitoring');
+  const cgm = accountNamed('City Government of Malaya');
+  const cem = delivery(20, {
+    name: 'City engineering project monitoring', icon: { glyph: 'mapPin', color: 'teal' }, type: 'Government', status: 'active', startDate: wd(-58), endDate: wd(150), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: it, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: cemDeal?.accountId || cgm?.id || null, dealId: cemDeal?.id || null, contractId: contractOf(cemDeal)?.id || null,
+    description: 'Status, photos and spending of the city\'s 140 infrastructure projects, with a public dashboard. Billing by deliverable under the contract.',
+  }, [
+    { name: 'Inception report', from: -58, to: -40, deliverable: true, billing: 15, note: 'Accepted by the City Engineer.', tasks: ['Kick-off with the City Engineering Office', 'Inception report'] },
+    { name: 'Project registry and site reports', from: -40, to: 30, deliverable: true, billing: 35, tasks: ['Registry of 140 projects with locations', ['Engineers\' site report with photos', 'L'], ['Map of projects', 'M', { after: true }], 'Project categories and funding sources', 'Engineers\' daily accomplishment report', 'Import from the 2025 project list', ['Accounts for 24 site engineers', 'S', { status: 'waiting', description: 'Waiting for the HR office\'s list of engineers with their positions.' }]] },
+    { name: 'Spending and the public dashboard', from: 30, to: 110, deliverable: true, billing: 30, tasks: ['Link to the city\'s disbursement vouchers', 'Slippage alerts', 'Contractor performance rating', 'Monthly report to the City Council', 'Public dashboard for the city website', 'Data privacy check of the public dashboard'] },
+    { name: 'Training and turnover', from: 110, to: 148, deliverable: true, billing: 20, tasks: ['Train the engineers and the planning office', 'Turnover and final acceptance'] },
+  ]);
+  say(cem, cem.byTitle('Engineers\' site report'), juan, 'Photos are resized on the phone before upload; a report with 8 photos is under 3 MB.', 1);
+
+  // 21–22. Two government bids being planned, if awarded.
+  const hrisDeal = dealNamed('City HRIS and payroll');
+  delivery(21, {
+    name: 'City HRIS and payroll (if awarded)', icon: { glyph: 'users', color: 'blue' }, type: 'Government', status: 'planning', startDate: wd(30), endDate: wd(240), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: hrU, role: 'member' }, { userId: payU, role: 'member' }, { userId: sales, role: 'viewer' }],
+    accountId: hrisDeal?.accountId || cgm?.id || null, dealId: hrisDeal?.id || null,
+    description: 'HRIS and payroll for 2,600 city employees, plantilla and job orders. Bid under evaluation; plan ready for the notice to proceed.',
+  }, [
+    { name: 'Inception report', from: 30, to: 50, deliverable: true, billing: 15, tasks: ['Kick-off with the HRMO and the City Accountant', 'Inception report'] },
+    { name: 'HR records and plantilla', from: 50, to: 120, deliverable: true, billing: 30, tasks: ['Plantilla of positions', 'Service records', 'Leave cards (CSC rules)'] },
+    { name: 'Payroll live', from: 120, to: 200, deliverable: true, billing: 35, tasks: ['GSIS, PhilHealth and Pag-IBIG remittances', 'Job order payroll', 'Parallel run, two cut-offs'] },
+    { name: 'Turnover', from: 200, to: 238, deliverable: true, billing: 20, tasks: ['Training', 'Final acceptance'] },
+  ]);
+  const swdDeal = dealNamed('Billing and customer service portal');
+  delivery(22, {
+    name: 'Water billing and customer portal (bid)', icon: { glyph: 'receipt', color: 'blue' }, type: 'Government', status: 'planning', startDate: wd(60), endDate: wd(200), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: it, role: 'member' }, { userId: sales, role: 'member' }],
+    accountId: swdDeal?.accountId || null, dealId: swdDeal?.id || null,
+    description: 'Bid being prepared: meter reading, billing and an online portal for 38,000 water concessionaires.',
+  }, [
+    { name: 'Bid submission', from: -10, to: 12, tasks: [['Technical proposal', 'L', { who: pmU }], ['Price schedule', 'M', { who: sales }], ['Bid security from the bank', 'S', { who: sales, status: 'waiting' }]] },
+    { name: 'Delivery plan (if awarded)', from: 60, to: 198, tasks: ['Meter reading on phones', 'Billing and penalties', 'Customer portal and online payment'] },
+  ]);
+
+  // 23. Internal product work: the C-suite executive dashboard (CORE's coming module).
+  const exec = delivery(23, {
+    name: 'C-suite executive dashboard (CORE)', icon: { glyph: 'dashboard', color: 'brand' }, type: 'Internal', status: 'active', startDate: wd(-14), endDate: wd(90), managerId: pmU,
+    members: [{ userId: pmU, role: 'manager' }, { userId: juan, role: 'member' }, { userId: it, role: 'member' }, { userId: sales, role: 'member' }, { userId: payU, role: 'member' }],
+    description: 'CORE\'s next module: one page for the executives with revenue and pipeline, headcount and payroll cost, projects at risk and service levels.',
+  }, [
+    { name: 'What the executives want to see', from: -14, to: 5, tasks: ['Interviews with the MD and the VPs', 'List of figures and where each comes from', ['Mock-ups for review', 'M', { status: 'review' }]] },
+    { name: 'First version', from: 5, to: 60, tasks: ['Revenue and pipeline (Sales & CRM)', 'Headcount and payroll cost (HR & Payroll)', 'Projects at risk (Projects)', 'Service levels (Service Desk)', 'Targets and variance for each figure', 'Access for the executives only', 'Monthly PDF for the board'] },
+    { name: 'Release', from: 60, to: 88, tasks: ['Pilot with the MD', 'Release in CORE'] },
+  ]);
+  say(exec, exec.byTitle('Mock-ups for review'), sales, 'For Sales: show the weighted forecast by quarter, not by month. The MD asks by quarter.', 1);
+  views.push({ id: randomUUID(), projectId: exec.p.id, userId: null, createdBy: pmU, tab: 'list', name: 'By assignee', query: 'group=assignee', createdAt: at(-10) });
+
+  // 24. Internal security work, planned.
+  delivery(24, {
+    name: 'Security assessment, round 4', icon: { glyph: 'key', color: 'red' }, type: 'Internal', status: 'planning', startDate: wd(20), endDate: wd(55), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }, { userId: pmU, role: 'viewer' }],
+    description: 'Fourth round of testing of CORE and ATLAS: new modules since round 3, the off-server backups and the deploy pipeline.',
+  }, [
+    { name: 'Testing', from: 20, to: 38, tasks: ['Scope and rules of engagement', 'Test the new modules', 'Test the backups and the restore drill'] },
+    { name: 'Fixes and report', from: 38, to: 53, tasks: ['Fix the findings', 'Report to management'] },
+  ]);
+
+  // 25. Internal, on hold: the service desk knowledge base.
+  delivery(25, {
+    name: 'Service desk knowledge base', icon: { glyph: 'book', color: 'amber' }, type: 'Internal', status: 'on_hold', startDate: wd(-45), endDate: wd(45), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
+    description: 'Answers to the 50 most common tickets, linked from the public support form. On hold until the year-end ticket peak is over.',
+    healthOverride: { value: 'amber', note: 'Paused until January: the team is on the year-end ticket peak.', by: it, at: at(-8) },
+  }, [
+    { name: 'First 25 articles', from: -45, to: 10, tasks: ['Top 50 ticket subjects from the last year', 'Article template', ['Write the first 25 articles', 'L', { status: 'todo' }]] },
+    { name: 'Linked from the support form', from: 10, to: 43, tasks: ['Suggest articles while typing', 'Measure tickets avoided'] },
+  ]);
+
+  // 26. Internal, cancelled.
+  delivery(26, {
+    name: 'Chatbot for the public support form', type: 'Internal', status: 'cancelled', startDate: wd(-80), endDate: wd(-30), managerId: it,
+    members: [{ userId: it, role: 'manager' }, { userId: juan, role: 'member' }],
+    description: 'Cancelled: the knowledge base answers the same questions at a fraction of the cost. Revisit after it is live.',
+  }, [{ name: 'Prototype', from: -80, to: -30, tasks: ['Compare three chatbot services', 'Prototype on the test site', 'Cost estimate per month'] }]);
+
+  // More of "For you" for the demo accounts, and a private saved view.
+  note(pmU, 'assigned', blc.p, blc.byTitle('Roll-out to the four other sites'), pmU, `assigned you ${blc.byTitle('Roll-out to the four other sites').key} Roll-out to the four other sites`, 4, true);
+  note(pmU, 'status', dsu.p, dsu.byTitle('Faculty grade encoding'), juan, `moved ${dsu.byTitle('Faculty grade encoding').key} to For review`, 1);
+  note(juan, 'assigned', exec.p, exec.byTitle('Headcount and payroll cost'), pmU, `assigned you ${exec.byTitle('Headcount and payroll cost').key} Headcount and payroll cost (HR & Payroll)`, 3);
+  note(juan, 'added', cem.p, null, pmU, `added you to ${cem.p.code} ${cem.p.name} as member`, 55, true);
+  note(it, 'commented', prm.p, prm.byTitle('Technicians\' phone app'), juan, `commented on ${prm.byTitle('Technicians\' phone app').key}`, 1);
+  views.push({ id: randomUUID(), projectId: dsu.p.id, userId: juan, createdBy: juan, tab: 'board', name: 'Mine, due this week', query: 'f=mine,week', createdAt: at(-6) });
+  void all6;
+
   // People who commented on a task watch it, as in CORE.
   for (const cm of comments) {
     const t = tasks.find((x) => x.id === cm.taskId);

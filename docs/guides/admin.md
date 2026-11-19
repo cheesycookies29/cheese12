@@ -283,7 +283,7 @@ This removes all employees, attendance, payroll runs, assets, tickets, sales rec
 ### Load or remove the demo data
 
 1. Open **Admin panel → Demo data**.
-2. Click **Add demo data** and confirm. CORE adds sample employees with attendance and leave, IT assets and stock, service desk tickets, a full sales book (30 organizations with their contacts, 47 deals in every stage over the past year and the next six months, leads, public bids, contracts with some due for renewal, and a history of calls, meetings and tasks), ten projects in every state (planning, active, on hold, completed, cancelled) with sized tasks, milestones, comments and one project that tracks time, and the demo accounts, next to your own data.
+2. Click **Add demo data** and confirm. CORE adds sample employees with attendance and leave, IT assets and stock, service desk tickets, a full sales book (30 organizations with their contacts, 47 deals in every stage over the past year and the next six months, leads, public bids, contracts with some due for renewal, and a history of calls, meetings and tasks), 26 projects in every state (planning, active, on hold, completed, cancelled), most of them delivering the sales demo's contracts, with about 260 sized tasks, milestones, comments, and three support contracts that track time, and the demo accounts, next to your own data.
 3. **Reload demo data** replaces the demo records with a fresh set.
 4. **Remove demo data** takes out every demo record and the demo accounts. Your own records stay.
 

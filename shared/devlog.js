@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.44.0-alpha',
+    date: '2026-11-19',
+    title: 'A fuller Project Management demo',
+    modules: ['projects'],
+    notes: 'Ten projects with 83 tasks were too few to try the portfolio, the billing forecast or the workload on. The demo now looks like a busy company.',
+    changes: [
+      ['improved', 'projects', 'Demo data: 16 more projects (26 in all, every state), most of them delivering the won deals and contracts of the sales demo: a hospital HR and payroll roll-out, a state university\'s student information system, a city\'s engineering project monitoring, construction site timekeeping (at risk by the manager\'s note), plant maintenance (off track), two completed deliveries, two government bids being planned, and internal work (the C-suite dashboard, security round 4, a knowledge base on hold, a cancelled chatbot).'],
+      ['improved', 'projects', 'About 260 tasks: a phase\'s tasks are spread over its dates and their status follows from today (done, in progress, waiting on the client, for review, to do), with subtasks, dependencies, checklists, comments with mentions, 69 milestones with billing percentages, notifications and saved views. Three support contracts track time, with hours logged over the last ten working days.'],
+      ['improved', 'projects', 'The first ten projects stay as they were (the guide\'s walkthrough and screenshots use them); the set is the same each time it is loaded, with dates relative to today.'],
+    ],
+  },
+  {
     version: '0.43.0-alpha',
     date: '2026-11-19',
     title: 'Documents on contracts',
