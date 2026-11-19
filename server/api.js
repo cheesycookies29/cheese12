@@ -26,7 +26,7 @@ import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
 import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides, usesAdminPanel } from '../shared/roles.js';
 import { cleanCompanyRole, companyRoleOf, moduleAccess } from '../shared/profile.js';
-import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig } from '../shared/modules.js';
+import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig, cleanFavoriteModules } from '../shared/modules.js';
 import { registerAdminRoutes } from './config.js';
 import { validateBranding, publicBrand, settingsForBrowser } from './branding.js';
 import {
@@ -342,6 +342,9 @@ function backupUsers(list) {
     for (const k of ['createdAt', 'lastLoginAt']) if (!optional(raw[k], (v) => isText(v, 40))) throw bad(i, `has an invalid "${k}"`);
     const u = { id: raw.id, username: raw.username, name: raw.name.trim(), role: raw.role, employeeId: raw.employeeId || null, active: raw.active, passwordHash: raw.passwordHash };
     for (const k of ['mustChangePassword', 'helpdeskAgent', 'crmAccess', 'pmAccess', 'pmDigest', 'demo', 'createdAt', 'lastLoginAt']) if (raw[k] !== undefined && raw[k] !== null) u[k] = raw[k];
+    // Modules pinned to the front of the CORE home (0.40): unknown ones are dropped, not refused.
+    const pinned = cleanFavoriteModules(raw.favoriteModules);
+    if (pinned?.length) u.favoriteModules = pinned;
     // The role in the company (0.32): kept as cleaned text.
     if (raw.companyRole !== undefined && raw.companyRole !== null) {
       let role;
@@ -810,6 +813,15 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     const user = users().find((u) => u.id === params.id);
     if (!user?.avatar?.id) throw new HttpError(404, 'No picture.');
     return { data: files.buffer(user.avatar), headers: { 'Content-Type': user.avatar.type, 'Content-Disposition': 'inline; filename="profile"', 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=31536000, immutable' } };
+  });
+  // Modules pinned to the front of this person's CORE home, in the order pinned (their own choice:
+  // no audit entry). Only live modules; unknown ones are dropped.
+  route('PUT', '/api/me/favorite-modules', 'auth', ({ user, body }) => {
+    const list = cleanFavoriteModules(body?.modules);
+    if (!list) throw new HttpError(400, 'Send the pinned modules as a list.');
+    user.favoriteModules = list;
+    db.save();
+    return { favoriteModules: list };
   });
   route('PUT', '/api/me/avatar', 'auth', ({ user, body }) => {
     setAvatar(user, body?.file);

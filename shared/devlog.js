@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.40.0-alpha',
+    date: '2026-11-19',
+    title: 'Pinned modules, and C-suite on the roadmap',
+    modules: ['system', 'deploy'],
+    notes: 'The CORE home puts each person\'s most-used modules first, and shows the executive dashboard that comes next.',
+    changes: [
+      ['new', 'system', 'Pin modules to the front of the CORE home: a star on each card a person may open (beside the module code) pins it; pinned modules come first in the order pinned, then the others, the locked ones and the roadmap. Saved on the account (PUT /api/me/favorite-modules, live modules only, kept in backups), so pins follow the person to every device; the row is redrawn in place with the focus kept on the star, and a status message says what changed.'],
+      ['new', 'system', 'C-suite (MOD-09) on the roadmap, shown on the CORE home as Coming soon: the executive dashboard, with revenue and pipeline, headcount and payroll cost, projects at risk and service levels from every module on one page.'],
+      ['new', 'deploy', 'The browser journeys before each deploy also pin and unpin a module, and check it stays first after signing in again.'],
+    ],
+  },
+  {
     version: '0.39.0-alpha',
     date: '2026-11-19',
     title: 'Third security assessment (VAPT round 3)',

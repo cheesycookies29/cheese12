@@ -257,7 +257,37 @@ await journey('Feedback written and answered', async (pages) => {
   if (!(await emp.locator('.modal').textContent()).includes('Thanks, fixed in the next update.')) throw new Error('The sender does not see the response.');
 });
 
-// 5. Every page in every role's menu at phone width
+// 5. Pin a module to the front of the CORE home (0.40); it stays first after signing in again
+await journey('Module pinned to the front', async (pages) => {
+  const order = (page) => page.$$eval('#sys-track > [data-module]', (els) => els.map((e) => e.dataset.module));
+  const admin = await signIn(ADMIN.username, ADMIN.password);
+  pages.push(admin);
+  await go(admin, '/launcher');
+  const before = await order(admin);
+  if (!before.includes('csuite')) throw new Error('C-suite is not on the CORE home.');
+  if (!(await admin.locator('.sys-card.soon[data-module=csuite]').count())) throw new Error('C-suite is not marked Coming soon.');
+  if (await admin.locator('[data-module=csuite] [data-pin]').count()) throw new Error('A module coming soon can be pinned.');
+  const pinnable = await admin.$$eval('#sys-track > .sys-slot', (els) => els.map((e) => e.dataset.module));
+  if (pinnable.length < 2) throw new Error('The administrator has fewer than two modules to pin.');
+  const last = pinnable.at(-1);
+  await admin.click(`[data-pin="${last}"]`);
+  await admin.waitForTimeout(700);
+  await noErrorToast(admin, 'Pinning a module');
+  if ((await order(admin))[0] !== last) throw new Error(`${last} is not first after pinning it.`);
+  if ((await admin.getAttribute(`[data-pin="${last}"]`, 'aria-pressed')) !== 'true') throw new Error('The star does not show the module as pinned.');
+  if (!(await admin.evaluate((id) => document.activeElement?.dataset?.pin === id, last))) throw new Error('The focus left the star after pinning.');
+  // Another sign-in (another device): still first.
+  const again = await signIn(ADMIN.username, ADMIN.password);
+  pages.push(again);
+  await go(again, '/launcher');
+  if ((await order(again))[0] !== last) throw new Error(`${last} is not first after signing in again.`);
+  await again.click(`[data-pin="${last}"]`);
+  await again.waitForTimeout(700);
+  await noErrorToast(again, 'Unpinning a module');
+  if ((await order(again)).join() !== before.join()) throw new Error('Unpinning did not put the modules back in their order.');
+});
+
+// 6. Every page in every role's menu at phone width
 const ROLES = [['employee.demo'], ['hr.demo'], ['payroll.demo'], ['it.demo'], ['sales.demo'], ['pm.demo'], [ADMIN.username, ADMIN.password]];
 for (const [who, pw = DEMO_PW] of ROLES) {
   await journey(`Phone pages for ${who}`, async (pages) => {

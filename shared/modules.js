@@ -19,7 +19,16 @@ export const MODULES = [
 
   { id: 'documents', code: 'MOD-08', name: 'Document Management', glyph: 'folder', status: 'soon',
     description: 'Contracts, compliance files, templates and approvals.' },
+  { id: 'csuite', code: 'MOD-09', name: 'C-suite', glyph: 'gauge', status: 'soon', tagline: 'Executive dashboard',
+    description: 'The executive dashboard: revenue and pipeline, headcount and payroll cost, projects at risk and service levels from every module, on one page.' },
 ];
+
+// Modules a person may pin to the front of their CORE home (live ones only), at most this many.
+export const PINNABLE = MODULES.filter((m) => m.status === 'live').map((m) => m.id);
+export function cleanFavoriteModules(list) {
+  if (!Array.isArray(list)) return null;
+  return [...new Set(list.filter((id) => typeof id === 'string' && PINNABLE.includes(id)))];
+}
 
 // The modules an administrator can turn on or off for the company (Admin panel → Modules).
 export const SWITCHABLE = MODULES.filter((m) => m.status === 'live').map((m) => m.id);

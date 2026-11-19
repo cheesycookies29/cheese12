@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### Pinned modules, and C-suite on the way (0.40)
+- **Pin your modules**: the star on a module's card on the CORE home puts it first, and your pins follow you to every device. See [Pin your modules to the front](getting-started#pin-your-modules-to-the-front).
+- **C-suite**, an executive dashboard with the key figures from every module on one page, is on the CORE home as *Coming soon*.
+
 ### Security fixes (0.39)
 - A third security assessment of CORE: the **Security monitor** shows the account checks, devices and addresses only to those who manage accounts, feedback ignores hidden direction characters, and on the AWS server the off-server backups are sealed and checked before a restore, updates need the approved **production** step, and CORE cannot change its own program files. See [Watch the security monitor](admin#watch-the-security-monitor).
 

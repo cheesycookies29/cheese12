@@ -36,7 +36,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The CORE sign-in page](getting-started-signin.jpg)
 
-2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. The cards sit in one row that slides sideways: swipe it on a phone, or use the arrows or dots beside **Your modules** (or the arrow keys once the row is selected). After the modules you may open come the locked ones, then the modules still in development, greyed out and marked *Coming soon*. A module your company has turned off is not shown at all.
+2. The **CORE home** greets you by name, with today's date and your account type. **Your modules** has a card for each module. A module you may open shows a few live figures (for Juan: the equipment assigned to him and his open ticket) and **Open** with its name. A locked card says *No access · ask your administrator*. The cards sit in one row that slides sideways: swipe it on a phone, or use the arrows or dots beside **Your modules** (or the arrow keys once the row is selected). Modules you have pinned come first (see [Pin your modules to the front](#pin-your-modules-to-the-front)), then the other modules you may open, then the locked ones, then the modules still in development, greyed out and marked *Coming soon*, such as **C-suite**, the executive dashboard. A module your company has turned off is not shown at all.
 
 ![The CORE home, with a card per module](getting-started-home.jpg)
 
@@ -82,6 +82,16 @@ If your company requires 2-step verification and you have not set it up, CORE sh
 2. The module opens on its first page. Its pages are in the side menu on the left.
 
 To go back to the CORE home, choose the CORE logo at the top left, or **All modules** in the modules menu.
+
+### Pin your modules to the front
+
+The modules you use most can come first on your CORE home.
+
+1. On the CORE home, choose the **star** at the top right of a module's card, beside its code. The star fills in and the card moves to the front of **Your modules**.
+2. Pin as many as you like: pinned modules come first, in the order you pinned them.
+3. To unpin one, choose its filled star. It goes back to its usual place.
+
+Your pins are kept with your account, so they are the same on your phone and on any computer you sign in on. Only modules you may open can be pinned; one coming soon cannot.
 
 ### See your notifications
 
@@ -248,7 +258,7 @@ Choose your name at the top right, then **Sign out**. You are also signed out af
 | Screen | What it is for |
 |---|---|
 | Sign-in page | Your username and password; the 2-step code; choosing your own password the first time |
-| CORE home | Your modules in a sliding row (the ones you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
+| CORE home | Your modules in a sliding row (the ones you pinned first, then the others you may open, with live figures, then the ones coming soon); for administrators, the **Admin panel** card and shortcuts |
 | Admin panel | For administrators: users, roles, modules, settings, records and backups (see [the administrator's guide](admin)) |
 | Modules menu (grid button) | Switching modules from anywhere |
 | Notifications (the bell) | What others did that concerns you, from every module; the number of unread ones; open one to go to it |

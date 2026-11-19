@@ -12,7 +12,8 @@ After signing in, everyone lands on the **CORE home page** and picks a module; t
 | **Sales & CRM** | Leads, accounts and contacts, a deal pipeline with forecasts, public bids with document checklists, and contract renewals |
 | **Project Management** | Client, government and internal projects: milestones and contract deliverables, a task board with effort sizes, a timeline, My work, and time tracking with a weekly timesheet where a project needs it |
 
-Finance & Accounting, Procurement and Document Management are listed under **On the roadmap**.
+Finance & Accounting, Procurement, Document Management and C-suite (an executive dashboard) are shown on the CORE home as **Coming soon**.
+Each person can pin the modules they use most with the star on the card; pinned modules come first.
 A module the user's account cannot use shows **No access**; a module the company turned off (Admin panel → Modules) is not shown, except to administrators.
 
 Administrators (and accounts given an administration permission) also get the **Admin panel**: see [Admin panel](#admin-panel).

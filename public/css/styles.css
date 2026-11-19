@@ -439,6 +439,21 @@ a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shado
 .sys-card.soon .sys-name, .sys-card.soon .sys-open { color: var(--muted); }
 .sys-card.soon .sys-title { color: var(--text-2); }
 .sys-card.soon .sys-open { font-weight: 500; }
+.sys-track > .sys-slot { scroll-snap-align: start; position: relative; display: flex; min-width: 0; }
+.sys-slot > .sys-card { flex: 1; min-width: 0; }
+.sys-slot .sys-top { padding-right: 42px; }
+.sys-slot:hover > a.sys-card { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--brand-line); }
+.sys-slot.pinned > .sys-card { border-color: var(--brand-line); }
+/* The star that pins a module to the front of the CORE home (0.40). */
+.sys-pin { position: absolute; right: 10px; top: 12px; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; transition: transform 0.14s, color 0.14s, background 0.14s; }
+.sys-pin:hover { background: var(--surface-2); border-color: var(--border); color: var(--accent); }
+.sys-pin:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.sys-pin[aria-pressed="true"] { color: var(--accent); }
+.sys-pin[aria-pressed="true"] .ic { fill: currentColor; }
+.sys-pin:disabled { opacity: 0.5; cursor: progress; }
+.sys-slot:hover .sys-pin { transform: translateY(-2px); }
+@media (pointer: coarse) { .sys-pin { width: 44px; height: 44px; right: 6px; top: 8px; } .sys-slot .sys-top { padding-right: 46px; } }
+@media (prefers-reduced-motion: reduce) { .sys-pin, .sys-slot:hover .sys-pin { transition: none; transform: none; } }
 .hub-foot { margin-top: auto; padding: 22px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .hub-foot .hub-wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 body.hub .topbar { padding-left: 24px; }

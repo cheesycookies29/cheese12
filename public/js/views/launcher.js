@@ -6,7 +6,7 @@ import { companyRoleOf } from '/shared/profile.js';
 import { MODULES } from '../modules.js';
 import { roleOverrides } from '/shared/roles.js';
 import { unseenCount } from './devlog.js';
-import { html, mount } from '../ui.js';
+import { html, mount, toast } from '../ui.js';
 import { icon } from '../icons.js';
 
 function greeting() {
@@ -106,8 +106,21 @@ export async function launcherView(el) {
       <p>${m.description}</p>
       <span class="sys-open">Not available yet</span>
     </div>`;
-  // The ones this account can open come first, then locked ones, then the roadmap.
-  const ordered = [...live.filter((m) => ctx.moduleHome(m.id)), ...live.filter((m) => !ctx.moduleHome(m.id))];
+  // A module this account can open, with its star: pinned ones come first on this page (0.40).
+  const pinned = () => (ctx.user.favoriteModules || []).filter((id) => live.some((m) => m.id === id && ctx.moduleHome(id)));
+  const slot = (m) => {
+    const on = pinned().includes(m.id);
+    return html`<div class="sys-slot${on ? ' pinned' : ''}" data-module="${m.id}">${card(m)}
+      <button type="button" class="sys-pin" data-pin="${m.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? `Unpin ${m.name}` : `Pin ${m.name} to the front`}" title="${on ? 'Pinned to the front: click to unpin' : 'Pin to the front'}">${icon('star', 18)}</button></div>`;
+  };
+  // Pinned modules first (in the order pinned), then the others this account can open, then locked
+  // ones, then the roadmap.
+  const ordered = () => {
+    const openable = live.filter((m) => ctx.moduleHome(m.id));
+    const first = pinned().map((id) => openable.find((m) => m.id === id));
+    return [...first, ...openable.filter((m) => !first.includes(m)), ...live.filter((m) => !ctx.moduleHome(m.id))];
+  };
+  const trackItems = () => html`${ordered().map((m) => (ctx.moduleHome(m.id) ? slot(m) : card(m)))}${soon.map(soonCard)}`;
 
   // Administration: the Admin panel first, then shortcuts to the pages used most.
   const admin = [
@@ -135,7 +148,7 @@ export async function launcherView(el) {
         <div class="sys-nav"><span class="muted small">${open} of ${live.length} available to you${soon.length ? ` · ${soon.length} coming soon` : ''}</span>
           <span class="sys-arrows" hidden><button type="button" class="icon-btn" id="sys-prev" aria-label="Previous modules" aria-controls="sys-track">${icon('chevronLeft', 18)}</button><button type="button" class="icon-btn" id="sys-next" aria-label="More modules" aria-controls="sys-track">${icon('chevronRight', 18)}</button></span></div></div>
       <div class="sys-carousel" id="sys-carousel">
-        <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${ordered.map(card)}${soon.map(soonCard)}</div>
+        <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${trackItems()}</div>
       </div>
       <div class="sys-dots" id="sys-dots" hidden></div>
     </section>
@@ -156,7 +169,34 @@ export async function launcherView(el) {
       <span class="core-foot"><img src="/img/core-mark-brand.svg" alt="" /> CORE · ERP by Lancaster</span>
       <span>© ${new Date().getFullYear()} ${ctx.settings.companyName}</span>
     </div></footer>`);
-  modulesCarousel(el.querySelector('#sys-carousel'));
+  const refresh = modulesCarousel(el.querySelector('#sys-carousel'));
+
+  // Pin or unpin: saved on the account (so it follows you to other devices), then the row is
+  // redrawn in its new order with the focus kept on the same star.
+  const track = el.querySelector('#sys-track');
+  track.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-pin]');
+    if (!btn) return;
+    e.preventDefault();
+    const id = btn.dataset.pin;
+    const was = pinned();
+    const next = was.includes(id) ? was.filter((x) => x !== id) : [...was, id];
+    btn.disabled = true;
+    try {
+      const r = await api.put('/api/me/favorite-modules', { modules: next });
+      ctx.user.favoriteModules = r.favoriteModules;
+    } catch (err) {
+      btn.disabled = false;
+      toast(err.message || 'Could not save your pinned modules.', 'error');
+      return;
+    }
+    mount(track, trackItems());
+    track.scrollTo({ left: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    refresh();
+    track.querySelector(`[data-pin="${id}"]`)?.focus({ preventScroll: true });
+    const name = MODULES.find((m) => m.id === id)?.name || id;
+    toast(next.includes(id) ? `${name} is pinned: it comes first on your CORE home.` : `${name} is no longer pinned.`);
+  });
 }
 
 // "Your modules" as a carousel, as on the ATLAS home: the cards scroll sideways and snap into place
@@ -205,7 +245,7 @@ function modulesCarousel(wrap) {
   });
   // A card reached with Tab is brought fully into view.
   track.addEventListener('focusin', (e) => {
-    const card = e.target.closest('.sys-card');
+    const card = e.target.closest('.sys-slot, .sys-card');
     if (card) card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: smooth() });
   });
   let raf = 0;
@@ -216,4 +256,9 @@ function modulesCarousel(wrap) {
   const ro = new ResizeObserver(() => (track.isConnected ? update() : ro.disconnect()));
   ro.observe(track);
   update();
+  // Called after the cards are redrawn (a module pinned or unpinned): the dots are counted again.
+  return () => {
+    drawn = -1;
+    update();
+  };
 }
