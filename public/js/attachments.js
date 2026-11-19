@@ -49,6 +49,18 @@ export async function prepareUpload(file) {
   return { name, data: await toBase64(blob) };
 }
 
+// A contract's document (0.43): PDF, a photo or scan (large photos shrink to JPEG), Word or Excel.
+export const DOC_ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.heic,.docx,.xlsx,application/pdf,image/*,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+export async function prepareDocument(file, { types, maxBytes }) {
+  let blob = file;
+  let name = file.name;
+  const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+  if (file.type.startsWith('image/') && (file.size > 2 * 1024 * 1024 || !types[file.type])) ({ blob, name } = await shrink(file));
+  else if (!types[file.type] && !['pdf', 'docx', 'xlsx'].includes(ext)) throw new Error(`${name}: add a PDF, a photo or scan, a Word document (.docx) or an Excel workbook (.xlsx).`);
+  if (blob.size > maxBytes) throw new Error(`${name} is too large (${sizeLabel(blob.size)}). The limit is ${sizeLabel(maxBytes)}.`);
+  return { name, data: await toBase64(blob) };
+}
+
 // Fetches a stored file and shows it in a window with a Download button.
 export async function viewAttachment(url, title = 'Medical certificate') {
   const file = await api.get(url);

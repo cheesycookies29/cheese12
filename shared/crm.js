@@ -20,6 +20,12 @@ export const BID_MODES = {
   private: 'Private sector RFP',
 };
 export const CONTRACT_STATUS = { draft: 'Draft', active: 'Active', expired: 'Ended', terminated: 'Terminated' };
+// Documents kept on a contract (0.43): the signed copy, annexes, amendments. PDF, photos or scans,
+// Word and Excel (never macro-enabled); each up to 8 MB.
+export const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+export const CONTRACT_DOC_TYPES = { 'application/pdf': 'PDF', 'image/jpeg': 'JPEG image', 'image/png': 'PNG image', 'image/webp': 'WebP image', [DOCX]: 'Word document', [XLSX]: 'Excel workbook' };
+export const MAX_CONTRACT_DOC_BYTES = 8 * 1024 * 1024;
 export const ACTIVITY_TYPES = { call: 'Call', meeting: 'Meeting', email: 'Email', task: 'Task', note: 'Note' };
 // Won and lost close a deal; every other stage is an open stage from the sales setup.
 export const CLOSED_STAGES = { won: 'Won', lost: 'Lost' };

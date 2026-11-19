@@ -9,9 +9,10 @@ import { notify } from './notifications.js';
 import { can, userCan } from '../shared/roles.js';
 import { moduleOpenFor } from '../shared/modules.js';
 import { projectAccess } from '../shared/projects.js';
+import { parseUpload } from './attachments.js';
 import {
   ACCOUNT_TYPES, SECTORS, LEAD_STATUS, OPEN_LEAD, BID_STATUS, OPEN_BID, BID_MODES, CONTRACT_STATUS, ACTIVITY_TYPES,
-  DEFAULT_CRM, stageList, stageName, isOpenDeal, dealProbability, weightedValue, daysBetween, personName,
+  CONTRACT_DOC_TYPES, MAX_CONTRACT_DOC_BYTES, DEFAULT_CRM, stageList, stageName, isOpenDeal, dealProbability, weightedValue, daysBetween, personName,
 } from '../shared/crm.js';
 
 export const CRM_COLLECTIONS = ['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts', 'crmActivities'];
@@ -101,7 +102,7 @@ export function splitName(full) {
 // The record as stored, with what the request sends on top: a PUT that leaves a field out keeps it.
 const merged = (rec, body) => ({ ...rec, ...(body && typeof body === 'object' ? body : {}) });
 
-export function registerCrmRoutes(route, db, { audit } = {}) {
+export function registerCrmRoutes(route, db, { audit, files = null } = {}) {
   const d = () => db.data;
   const crm = () => db.data.crm;
   const user = (id) => d().users.find((u) => u.id === id);
@@ -207,7 +208,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     lead: (l) => ({ ...l, ownerName: userName(l.ownerId) }),
     deal: (x) => ({ ...x, accountName: accountName(x.accountId), contactName: contactName(x.contactId), ownerName: userName(x.ownerId), stageName: stageName(crm(), x.stage), probability: dealProbability(x, crm()), weighted: weightedValue(x, crm()) }),
     bid: (b) => ({ ...b, accountName: accountName(b.accountId), ownerName: userName(b.ownerId), daysLeft: b.status === 'preparing' ? daysBetween(localDate(), b.deadline?.slice(0, 10)) : null, checklistDone: b.checklist.filter((i) => i.done).length }),
-    contract: (c) => ({ ...c, accountName: accountName(c.accountId), ownerName: userName(c.ownerId), renewalOpen: d().crmDeals.find((x) => x.renewalOf === c.id && isOpenDeal(x))?.code || null, daysLeft: c.status === 'active' ? daysBetween(localDate(), c.endDate) : null }),
+    contract: (c) => ({ ...c, documents: undefined, documentCount: (c.documents || []).length, accountName: accountName(c.accountId), ownerName: userName(c.ownerId), renewalOpen: d().crmDeals.find((x) => x.renewalOf === c.id && isOpenDeal(x))?.code || null, daysLeft: c.status === 'active' ? daysBetween(localDate(), c.endDate) : null }),
     activity: (a) => ({ ...a, ownerName: userName(a.ownerId), createdByName: userName(a.createdBy) || a.byName || null, relatedName: relatedName(a.related) }),
   };
   function relatedName(rel) {
@@ -761,7 +762,43 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
   });
   route('GET', '/api/crm/contracts/:id', 'crm.view', ({ params, user: u }) => {
     const c = find('contract', params.id);
-    return { ...out.contract(c), renewals: d().crmDeals.filter((x) => x.renewalOf === c.id).map(out.deal), projects: projectsOf('contractId', c.id, u) };
+    return { ...out.contract(c), documents: docsOut(c, u), renewals: d().crmDeals.filter((x) => x.renewalOf === c.id).map(out.deal), projects: projectsOf('contractId', c.id, u) };
+  });
+
+  // ----- A contract's documents (0.43): the signed copy, annexes, amendments -----
+  // Everyone in Sales & CRM can open them, as a file to save (never shown in the page); those who
+  // edit add them; the person who added one, or a Sales Manager, removes it. Each is in the history.
+  const docsOf = (c) => (Array.isArray(c.documents) ? c.documents : (c.documents = []));
+  const docsOut = (c, u) => docsOf(c).map((a) => ({ id: a.id, name: a.name, type: a.type, size: a.size, uploadedAt: a.uploadedAt, by: a.by || null, byName: userName(a.by) || a.byName || 'Former user', canDelete: userCan(u, 'crm.edit') && (a.by === u.id || userCan(u, 'crm.manage')) }));
+  const docOf = (c, fileId) => docsOf(c).find((x) => x.id === fileId) || (() => { throw new HttpError(404, 'Document not found.'); })();
+  const disposition = (name) => `attachment; filename="${String(name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+  const DOC_HINT = 'Add a PDF, a photo or scan (JPEG, PNG, WebP), a Word document (.docx) or an Excel workbook (.xlsx), up to 8 MB. Macro-enabled files are not accepted.';
+  route('GET', '/api/crm/contracts/:id/documents/:fileId', 'crm.view', ({ params }) => {
+    const a = docOf(find('contract', params.id), params.fileId);
+    if (!files) throw new HttpError(500, 'Files cannot be read here.');
+    return { data: files.buffer(a), headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': disposition(a.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Download-Options': 'noopen' } };
+  });
+  route('POST', '/api/crm/contracts/:id/documents', 'crm.edit', ({ params, body, user: u }) => {
+    const c = find('contract', params.id);
+    if (!files) throw new HttpError(500, 'Files cannot be stored here.');
+    if (docsOf(c).length >= 50) throw new HttpError(400, 'A contract can keep up to 50 documents. Remove old drafts first.');
+    const a = { ...files.save(parseUpload(body?.file, { documents: { types: CONTRACT_DOC_TYPES, maxBytes: MAX_CONTRACT_DOC_BYTES, hint: DOC_HINT } })), by: u.id, byName: u.name };
+    docsOf(c).push(a);
+    stamp(c, u);
+    history('contract', c, u, `Document added: ${a.name}`);
+    db.save();
+    return { documents: docsOut(c, u), updatedAt: c.updatedAt };
+  });
+  route('DELETE', '/api/crm/contracts/:id/documents/:fileId', 'crm.edit', ({ params, user: u }) => {
+    const c = find('contract', params.id);
+    const a = docOf(c, params.fileId);
+    if (a.by !== u.id && !userCan(u, 'crm.manage')) throw new HttpError(403, 'Only the person who added the document or a Sales Manager can remove it.');
+    c.documents = docsOf(c).filter((x) => x !== a);
+    files?.remove(a);
+    stamp(c, u);
+    history('contract', c, u, `Document removed: ${a.name}`);
+    db.save();
+    return { documents: docsOut(c, u), updatedAt: c.updatedAt };
   });
   route('PUT', '/api/crm/contracts/:id', 'crm.edit', ({ params, body, user: u }) => {
     const c = find('contract', params.id);
@@ -783,7 +820,8 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     return out.contract(c);
   });
   route('DELETE', '/api/crm/contracts/:id', 'crm.manage', ({ params }) => {
-    find('contract', params.id);
+    const gone = find('contract', params.id);
+    for (const a of gone.documents || []) files?.remove(a);
     for (const x of d().crmDeals) if (x.renewalOf === params.id) x.renewalOf = null;
     removeWithActivities('contract', params.id);
     db.save();

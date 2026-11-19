@@ -4,8 +4,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { inflateRawSync } from 'node:zlib';
 import { HttpError, keepPrivate } from './util.js';
 import { ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
+import { DOCX, XLSX } from '../shared/crm.js';
 
 const ID_RE = /^[0-9a-f-]{36}$/;
 
@@ -16,6 +18,43 @@ function sniff(buf) {
   if (buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
   if (buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
   if (/^GIF8[79]a$/.test(buf.subarray(0, 6).toString('latin1'))) return 'image/gif';
+  return null;
+}
+
+// A Word (.docx) or Excel (.xlsx) file: a ZIP whose [Content_Types].xml names the main document part.
+// Macro-enabled files (.docm, .xlsm, anything with a VBA project) and anything else are refused.
+// Only the central directory and that one small part are read; nothing else is unpacked.
+export function sniffOffice(buf) {
+  if (buf.length < 22 || buf.readUInt32LE(0) !== 0x04034b50) return null;
+  let end = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (buf.readUInt32LE(i) === 0x06054b50) { end = i; break; }
+  if (end < 0) return null;
+  const count = buf.readUInt16LE(end + 10);
+  let at = buf.readUInt32LE(end + 16);
+  let types = null;
+  for (let n = 0; n < count; n++) {
+    if (at + 46 > buf.length || buf.readUInt32LE(at) !== 0x02014b50) return null;
+    const method = buf.readUInt16LE(at + 10);
+    const packed = buf.readUInt32LE(at + 20);
+    const size = buf.readUInt32LE(at + 24);
+    const nameLen = buf.readUInt16LE(at + 28);
+    const name = buf.subarray(at + 46, at + 46 + nameLen).toString('utf8');
+    if (/vba/i.test(name)) return null; // a macro project: never
+    if (name === '[Content_Types].xml') types = { method, packed, size, local: buf.readUInt32LE(at + 42) };
+    at += 46 + nameLen + buf.readUInt16LE(at + 30) + buf.readUInt16LE(at + 32);
+  }
+  if (!types || types.size > 1024 * 1024 || types.local + 30 > buf.length || buf.readUInt32LE(types.local) !== 0x04034b50) return null;
+  const start = types.local + 30 + buf.readUInt16LE(types.local + 26) + buf.readUInt16LE(types.local + 28);
+  const raw = buf.subarray(start, start + types.packed);
+  let xml;
+  try {
+    xml = (types.method === 0 ? raw : types.method === 8 ? inflateRawSync(raw, { maxOutputLength: 1024 * 1024 }) : null)?.toString('utf8');
+  } catch {
+    return null;
+  }
+  if (!xml || /macroEnabled|vbaProject/i.test(xml)) return null;
+  if (xml.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml')) return DOCX;
+  if (xml.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml')) return XLSX;
   return null;
 }
 
@@ -73,17 +112,21 @@ export function checkGif(buffer) {
 
 // { name, data: base64 } from the browser -> { name, type, buffer }, or a 400 explaining what's wrong.
 // pictures: the picture types taken instead of the attachment types (a profile picture, an icon).
-export function parseUpload(input, { pictures = null } = {}) {
+// documents: { types, maxBytes, hint } for another set of file types (a contract's documents).
+export function parseUpload(input, { pictures = null, documents = null } = {}) {
   if (!input || typeof input.data !== 'string') throw new HttpError(400, 'The attached file could not be read. Please choose it again.');
-  return uploadFromBuffer(input.name, Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64'), { pictures });
+  return uploadFromBuffer(input.name, Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64'), { pictures, documents });
 }
 
 // A file from any source (e.g. an email attachment) -> { name, type, buffer }, checked the same way.
-export function uploadFromBuffer(name, buffer, { pictures = null } = {}) {
+export function uploadFromBuffer(name, buffer, { pictures = null, documents = null } = {}) {
   if (!buffer.length) throw new HttpError(400, 'The attached file is empty.');
-  if (buffer.length > MAX_ATTACHMENT_BYTES) throw new HttpError(400, `The file is too large (${(buffer.length / 1048576).toFixed(1)} MB). The limit is ${MAX_ATTACHMENT_BYTES / 1048576} MB.`);
-  const type = sniff(buffer);
-  if (pictures) {
+  const max = documents?.maxBytes || MAX_ATTACHMENT_BYTES;
+  if (buffer.length > max) throw new HttpError(400, `The file is too large (${(buffer.length / 1048576).toFixed(1)} MB). The limit is ${max / 1048576} MB.`);
+  const type = sniff(buffer) || (documents ? sniffOffice(buffer) : null);
+  if (documents) {
+    if (!documents.types[type]) throw new HttpError(400, documents.hint);
+  } else if (pictures) {
     if (!pictures.includes(type)) throw new HttpError(400, `Use a picture: ${pictures.includes('image/gif') ? 'JPEG, PNG, WebP or GIF' : 'JPEG, PNG or WebP'}.`);
     if (type === 'image/gif') checkGif(buffer);
   } else if (!ATTACHMENT_TYPES[type]) throw new HttpError(400, 'Attach a PDF or a photo (JPEG, PNG or WebP).');

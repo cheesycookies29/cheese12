@@ -1340,7 +1340,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   registerDevlogRoutes(route, db);
   registerFeedbackRoutes(route, db, { audit });
   const helpdesk = registerHelpdeskRoutes(route, db, { files, secrets, linkedEmployee });
-  registerCrmRoutes(route, db, { audit });
+  registerCrmRoutes(route, db, { audit, files });
   const projects = registerProjectRoutes(route, db, { audit, files, mailer: helpdesk.mailer, ...(digestMail ? { sendMail: digestMail } : {}), ...(digestClock ? { clock: digestClock } : {}) });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });

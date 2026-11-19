@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.43.0-alpha',
+    date: '2026-11-19',
+    title: 'Documents on contracts',
+    modules: ['crm', 'system'],
+    notes: 'The signed contract and its annexes lived in email and shared drives; now they are kept with the contract.',
+    changes: [
+      ['new', 'crm', 'Documents on a contract: upload several at once (PDF; JPEG, PNG or WebP, large photos made smaller; Word .docx; Excel .xlsx), up to 8 MB each and 50 per contract. Each shows its type, size, who added it and when; it opens as a file to save, never in the page. Those who edit the CRM add them; the uploader or a Sales Manager removes them; adding and removing are in the contract\'s history with the person\'s name. The Contracts list shows how many each has.'],
+      ['new', 'system', 'Word and Excel files are recognised from their own parts ([Content_Types].xml in the ZIP), not their name; macro-enabled files and anything with a VBA project are refused. Only the ZIP directory and that one small part are read.'],
+      ['improved', 'crm', 'Deleting a contract, or removing the demo data, deletes the files of the contracts that go. The files are in the hourly off-server backup with the other attached files.'],
+    ],
+  },
+  {
     version: '0.42.0-alpha',
     date: '2026-11-19',
     title: 'Who changed what in the CRM history',

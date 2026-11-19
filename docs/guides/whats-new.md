@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Documents on contracts (0.43)
+- A contract in **Sales & CRM** now keeps its documents: upload the signed contract, annexes and amendments (PDF, scans or photos, Word or Excel, up to 8 MB each) under **Documents** on the contract, and download them from there. See [Keep a contract's documents](sales#keep-a-contract-s-documents).
+
 ### Who changed what, in Sales & CRM (0.42)
 - The **History** of every deal, lead, account, contact, bid and contract now names the person behind each change, and an edit lists each field it changed with the old and new value (for example *Value: ₱2,850,000 → ₱3,100,000*). See [the Sales & CRM guide](sales).
 

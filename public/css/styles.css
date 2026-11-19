@@ -1931,6 +1931,8 @@ details > summary { cursor: pointer; }
 .pm-file-add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .pm-file-add label.btn { position: relative; }
 .pm-file-add label.btn:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+.pm-file-add label.btn.busy { opacity: 0.6; cursor: progress; }
+.crm-doc-count { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; color: var(--muted); font-size: 12px; font-weight: 500; }
 .pm-ms-files { align-self: flex-start; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
 .pm-watch .pm-watch-n { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; line-height: 20px; text-align: center; }
 .pm-watch.on { border-color: var(--brand); color: var(--brand-text); background: var(--brand-softer); }
@@ -2430,7 +2432,7 @@ select { max-width: 100%; }
 @media (max-width: 960px) {
   /* CRM records: the details first, then the activity. */
   .crm-record > .stack { display: contents; }
-  .crm-record > .stack > :first-child, .crm-record > section:nth-child(2) { order: -1; }
+  .crm-record > .stack > :first-child, .crm-record > section:nth-child(2), .crm-record > .stack > #docs-card { order: -1; }
   /* Boards: each column scrolls on its own, so every column starts on the first screen. */
   .pm-col, .crm-col { max-height: max(340px, calc(100vh - var(--topbar) - 110px)); max-height: max(340px, calc(100dvh - var(--topbar) - 110px)); }
 }

@@ -141,6 +141,18 @@ A contract shows *Renew in … days* when it ends within the renewal notice (60 
 
 ![A contract due for renewal](sales-contract.jpg)
 
+### Keep a contract's documents
+
+Keep the signed contract, its annexes, amendments and the notice of award with the contract, so everyone in Sales finds the current version in one place.
+
+1. Open the contract. **Documents** is under **Details**.
+2. Click **Upload documents** and pick one or more files: PDF, scans or photos (JPEG, PNG, WebP; large photos are made smaller), Word (*.docx*) or Excel (*.xlsx*), up to 8 MB each. Macro-enabled files (*.docm*, *.xlsm*) are not accepted.
+3. Each file shows its type, size, who added it and when. Click a file's name to download it.
+
+To remove a document, click the bin next to it and confirm. You can remove what you added; a Sales Manager can remove any. Adding and removing are written in the contract's history with the person's name. Deleting a contract deletes its documents. The **Contracts** list shows a paperclip with the number of documents next to each contract that has some.
+
+![A contract's documents](sales-contract-documents.jpg)
+
 ### Start a project from a won deal
 
 When a deal is won, the work of delivering it is a project in **Project Management**. Starting it needs an account that can edit projects as well as use the CRM: a Project Manager with CRM access, or a sales account an administrator gave **Projects access** (Sales Managers see the projects they are added to; ask the project manager to add you).
@@ -196,7 +208,7 @@ An account that still has deals, bids or contracts cannot be deleted; delete or 
 | Accounts | Organizations: clients, prospects, partners and suppliers, with their people, deals, bids, contracts and timeline |
 | Contacts | The people at your accounts |
 | Bids | Public tenders and RFPs: ABC, our bid, deadlines and the document checklist |
-| Contracts | What was won: value, term, billing, renewal badges and **Renew**; the projects delivering it |
+| Contracts | What was won: value, term, billing, renewal badges and **Renew**; its documents (the signed contract, annexes, amendments); the projects delivering it |
 | Activities | Calls, meetings, emails, notes and tasks across the CRM; your open and overdue tasks |
 | Sales setup | Pipeline stages and probabilities, lead sources, lost reasons, industries, renewal notice and the bid checklist (Sales Managers); team access (administrators) |
 

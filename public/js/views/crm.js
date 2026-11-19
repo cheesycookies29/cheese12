@@ -8,9 +8,10 @@ import { html, mount, formErrors, badge, toast, modal, confirmDialog, money, fmt
 import { icon } from '../icons.js';
 import { startProject } from './projects.js';
 import { avatar } from '../avatars.js';
+import { DOC_ACCEPT, prepareDocument, sizeLabel } from '../attachments.js';
 import {
   ACCOUNT_TYPES, SECTORS, LEAD_STATUS, OPEN_LEAD, BID_STATUS, OPEN_BID, BID_MODES, CONTRACT_STATUS, ACTIVITY_TYPES,
-  stageList, isOpenDeal, daysBetween,
+  stageList, isOpenDeal, daysBetween, CONTRACT_DOC_TYPES, MAX_CONTRACT_DOC_BYTES, DOCX, XLSX,
 } from '/shared/crm.js';
 
 // ---------- Small helpers ----------
@@ -985,7 +986,7 @@ export async function contractsView(el) {
       noun: 'contract', empty: 'No contracts yet. Record one when a deal is won.',
       filter: (c, s) => matchText(s.q, c.title, c.number, c.code, c.accountName) && matchOwner(c, s.owner) && (!s.status || (s.status === 'renew' ? c.status === 'active' && c.daysLeft !== null && c.daysLeft <= m.setup.renewalNoticeDays : c.status === s.status)),
       table: (rows) => html`<table class="table clickable stackable"><thead><tr><th>Contract</th><th>Client</th><th>Status</th><th class="num">Value</th><th>Term</th><th>Owner</th></tr></thead>
-        <tbody>${rows.map((c) => html`<tr data-href="#/crm/contracts/${c.id}"><td><a href="#/crm/contracts/${c.id}"><strong>${c.title}</strong></a><small class="mono">${c.number || c.code}</small></td><td>${c.accountName}</td><td>${contractBadge(c, m.setup.renewalNoticeDays)}</td><td class="num">${money(c.value)}</td><td>${c.startDate ? fmtDate(c.startDate) : '…'} – ${c.endDate ? fmtDate(c.endDate) : 'open-ended'}</td><td>${c.ownerName || '—'}</td></tr>`)}</tbody></table>`,
+        <tbody>${rows.map((c) => html`<tr data-href="#/crm/contracts/${c.id}"><td><a href="#/crm/contracts/${c.id}"><strong>${c.title}</strong></a>${c.documentCount ? html`<span class="crm-doc-count" title="${plural(c.documentCount, 'document')}">${icon('paperclip', 12)} ${c.documentCount}</span>` : ''}<small class="mono">${c.number || c.code}</small></td><td>${c.accountName}</td><td>${contractBadge(c, m.setup.renewalNoticeDays)}</td><td class="num">${money(c.value)}</td><td>${c.startDate ? fmtDate(c.startDate) : '…'} – ${c.endDate ? fmtDate(c.endDate) : 'open-ended'}</td><td>${c.ownerName || '—'}</td></tr>`)}</tbody></table>`,
     },
   });
 }
@@ -1005,10 +1006,13 @@ export async function contractView(el, { id }) {
     </div>
     <div class="cols wide-left crm-record">
       <section class="card"><h2>Activity</h2><div id="timeline"></div></section>
-      <section class="card"><h2>Details</h2><dl class="info-grid">
-        ${info('Owner', ownerChip(c.ownerName, c.ownerId))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}
-        ${c.renewals.length ? info('Renewal', html`${c.renewals.map((x) => html`<a href="#/crm/deals/${x.id}">${x.code} · ${x.title}</a> ${stageBadge(x)} `)}`) : ''}
-      </dl>${c.terms ? html`<h3>Key terms</h3><p class="pre small">${c.terms}</p>` : ''}</section>
+      <div class="stack">
+        <section class="card"><h2>Details</h2><dl class="info-grid">
+          ${info('Owner', ownerChip(c.ownerName, c.ownerId))}${info('From deal', c.dealId ? html`<a href="#/crm/deals/${c.dealId}">Open the deal</a>` : '')}${info('From bid', c.bidId ? html`<a href="#/crm/bids/${c.bidId}">Open the bid</a>` : '')}
+          ${c.renewals.length ? info('Renewal', html`${c.renewals.map((x) => html`<a href="#/crm/deals/${x.id}">${x.code} · ${x.title}</a> ${stageBadge(x)} `)}`) : ''}
+        </dl>${c.terms ? html`<h3>Key terms</h3><p class="pre small">${c.terms}</p>` : ''}</section>
+        <section class="card" id="docs-card" aria-labelledby="docs-h"><div class="card-head"><h2 id="docs-h">${icon('paperclip')} Documents</h2><span class="muted small" id="docs-count">${c.documents.length ? plural(c.documents.length, 'file') : ''}</span></div><div id="docs"></div></section>
+      </div>
     </div>
     ${c.projects.length || can('pm.edit') ? projectsCard(c.projects, 'No project delivers this contract yet.') : ''}`);
   const reload = () => contractView(el, { id });
@@ -1028,7 +1032,64 @@ export async function contractView(el, { id }) {
     const next = (ymd, days) => new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
     editDeal({ title: `Renewal: ${c.title}`, accountId: c.accountId, renewalOf: c.id, value: c.value, expectedClose: start, nextStep: `Renewal of ${c.number || c.code}, term from ${fmtDate(next(start, 1))}` }, (x) => (location.hash = `#/crm/deals/${x.id}`));
   });
+  contractDocs(el.querySelector('#docs'), c, () => timeline(el.querySelector('#timeline'), 'contract', id));
   await timeline(el.querySelector('#timeline'), 'contract', id);
+}
+
+// A contract's documents (0.43): a file to save from each link (sent as a download, never opened in
+// the page); add several at once; remove your own (a Sales Manager removes any). Each change is in
+// the history, so the timeline is refreshed after it.
+function contractDocs(box, c, refreshTimeline) {
+  const base = `/api/crm/contracts/${c.id}/documents`;
+  const iconFor = (t) => (t.startsWith('image/') ? 'image' : t === XLSX ? 'table' : 'file');
+  const kind = (t) => (t === DOCX ? 'Word' : t === XLSX ? 'Excel' : t === 'application/pdf' ? 'PDF' : 'Image');
+  const draw = () => {
+    box.closest('.card').querySelector('#docs-count').textContent = c.documents.length ? plural(c.documents.length, 'file') : '';
+    mount(box, html`${c.documents.length ? html`<ul class="pm-files crm-doc-list">${c.documents.map((a) => html`<li>
+        <span class="pm-file-ic" aria-hidden="true">${icon(iconFor(a.type), 16)}</span>
+        <span class="grow"><a href="${base}/${a.id}" download="${a.name}">${a.name}</a><small>${kind(a.type)} · ${sizeLabel(a.size)} · ${a.byName} · ${when(a.uploadedAt)}</small></span>
+        ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-doc="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>`
+      : html`<p class="muted small">No documents yet.${canEdit() ? ' Add the signed contract, annexes and amendments.' : ''}</p>`}
+      ${canEdit() ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Upload documents<input type="file" class="sr-only" accept="${DOC_ACCEPT}" multiple data-add-doc /></label>
+        <small class="muted">PDF, scans or photos, Word or Excel; up to ${MAX_CONTRACT_DOC_BYTES / 1048576} MB each.</small></div>` : ''}`);
+    box.querySelector('[data-add-doc]')?.addEventListener('change', async (e) => {
+      const input = e.target;
+      const picked = [...input.files];
+      const label = input.closest('label');
+      input.disabled = true;
+      label.classList.add('busy');
+      let added = 0;
+      try {
+        for (const f of picked) {
+          try {
+            const out = await api.post(base, { file: await prepareDocument(f, { types: CONTRACT_DOC_TYPES, maxBytes: MAX_CONTRACT_DOC_BYTES }) });
+            c.documents = out.documents;
+            c.updatedAt = out.updatedAt;
+            added += 1;
+          } catch (err) {
+            toast(err.message, 'error');
+          }
+        }
+      } finally {
+        if (added) {
+          toast(`${plural(added, 'document')} added.`);
+          await refreshTimeline();
+        }
+        draw();
+      }
+    });
+    box.querySelectorAll('[data-del-doc]').forEach((b) => b.addEventListener('click', guard(async () => {
+      const a = c.documents.find((x) => x.id === b.dataset.delDoc);
+      if (!(await confirmDialog(`Remove the document "${a.name}" from this contract? It cannot be brought back.`, { title: 'Remove document', confirmLabel: 'Remove' }))) return;
+      const out = await api.del(`${base}/${a.id}`);
+      c.documents = out.documents;
+      c.updatedAt = out.updatedAt;
+      toast('Document removed.');
+      draw();
+      await refreshTimeline();
+    })));
+  };
+  draw();
 }
 
 // ---------- Activities ----------

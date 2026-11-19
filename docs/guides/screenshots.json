@@ -67,6 +67,7 @@
   {"file": "sales-bid.jpg", "user": "sales.demo", "url": "/#/crm/bids", "click": ["tr[data-href] >> text=e-permit and licensing system"], "wait": 1000},
   {"file": "sales-lost.jpg", "user": "sales.demo", "url": "/#/crm/pipeline", "click": [".crm-card >> text=Plant attendance and timekeeping", ".crm-path button.lost"], "wait": 900},
   {"file": "sales-contract.jpg", "user": "sales.demo", "url": "/#/crm/contracts", "click": ["tr[data-href] >> text=Student information system support"], "wait": 1000},
+  {"file": "sales-contract-documents.jpg", "user": "sales.demo", "url": "/#/crm/contracts", "click": ["tr[data-href] >> text=Student information system support"], "files": {"[data-add-doc]": "scripts/fixtures/Signed contract NSU-2025-118.pdf"}, "scroll": "#docs-card", "wait": 1200},
   {"file": "sales-start-project.jpg", "user": "admin", "url": "/#/crm/pipeline?view=list", "click": ["tr[data-href] >> text=Warehouse HR and payroll rollout", "#start-project"], "wait": 1000},
   {"file": "sales-setup.jpg", "user": "sales.demo", "url": "/#/crm/settings", "wait": 1000},
   {"file": "projects-portfolio.jpg", "user": "pm.demo", "url": "/#/projects", "wait": 1000, "fresh": true},

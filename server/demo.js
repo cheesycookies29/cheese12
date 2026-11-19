@@ -42,8 +42,12 @@ export function removeDemo(db, { summarize, removeFile = () => {} }) {
   const usedByReal = new Set(['crmContacts', 'crmDeals', 'crmBids', 'crmContracts', 'crmLeads'].flatMap((k) => (d[k] || []).filter((x) => !x.demo && x.accountId).map((x) => x.accountId)));
   for (const a of d.crmAccounts || []) if (a.demo && usedByReal.has(a.id)) delete a.demo;
   const crmAccountIds = new Set((d.crmAccounts || []).filter((a) => a.demo).map((a) => a.id));
+  // Documents added to contracts that go (0.43) go with them.
+  const contractsBefore = d.crmContracts || [];
   for (const k of COLLECTIONS) d[k] = (d[k] || []).filter((x) => !x.demo);
   for (const k of ['crmContacts', 'crmDeals', 'crmBids', 'crmContracts']) d[k] = d[k].filter((x) => !crmAccountIds.has(x.accountId));
+  const contractsKept = new Set(d.crmContracts.map((c) => c.id));
+  for (const c of contractsBefore) if (!contractsKept.has(c.id)) (c.documents || []).forEach(removeFile);
   const crmIds = new Set(['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts'].flatMap((k) => d[k].map((x) => x.id)));
   d.crmActivities = d.crmActivities.filter((a) => crmIds.has(a.related?.id));
   // Records owned by demo accounts now belong to nobody.
