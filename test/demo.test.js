@@ -44,8 +44,25 @@ test('loading demo data adds to real data and never reuses its numbers', async (
   assert.ok(db.data.tickets.filter((t) => t.demo).every((t) => t.number > 1));
   assert.ok(db.data.users.some((u) => u.username === 'employee.demo' && u.demo));
   // Sales & CRM: demo organizations, deals in every stage, owned by the demo sales account.
-  assert.equal(res.counts.crmAccounts, 6);
-  assert.equal(res.counts.crmDeals, 7);
+  assert.equal(res.counts.crmAccounts, 30);
+  assert.equal(res.counts.crmDeals, 47);
+  {
+    // A full sales book (0.41): every stage, lead status, bid status and contract status, and every link sound.
+    const mine = (k) => db.data[k].filter((x) => x.demo);
+    const kinds = (k, f) => new Set(mine(k).map((x) => x[f]));
+    for (const st of ['qualify', 'needs', 'proposal', 'negotiation', 'won', 'lost']) assert.ok(kinds('crmDeals', 'stage').has(st), st);
+    for (const st of ['new', 'contacted', 'qualified', 'disqualified', 'converted']) assert.ok(kinds('crmLeads', 'status').has(st), st);
+    for (const st of ['preparing', 'submitted', 'evaluation', 'awarded', 'lost', 'cancelled']) assert.ok(kinds('crmBids', 'status').has(st), st);
+    for (const st of ['draft', 'active', 'expired', 'terminated']) assert.ok(kinds('crmContracts', 'status').has(st), st);
+    const ids = new Set(['crmAccounts', 'crmContacts', 'crmLeads', 'crmDeals', 'crmBids', 'crmContracts'].flatMap((k) => db.data[k].map((x) => x.id)));
+    for (const k of ['crmContacts', 'crmDeals', 'crmBids', 'crmContracts']) assert.ok(mine(k).every((x) => ids.has(x.accountId)), k);
+    assert.ok(mine('crmDeals').every((x) => !x.contactId || db.data.crmContacts.find((c) => c.id === x.contactId).accountId === x.accountId), 'a deal\'s contact is at its account');
+    assert.ok(mine('crmDeals').filter((x) => x.renewalOf).every((x) => db.data.crmContracts.find((c) => c.id === x.renewalOf).accountId === x.accountId));
+    assert.ok(mine('crmActivities').every((a) => ids.has(a.related.id)));
+    assert.ok(mine('crmLeads').filter((l) => l.status === 'converted').every((l) => ids.has(l.accountId) && ids.has(l.dealId)));
+    for (const k of ['crmDeals', 'crmLeads', 'crmBids', 'crmContracts']) assert.equal(new Set(mine(k).map((x) => x.code)).size, mine(k).length, `${k} codes are unique`);
+    assert.ok(mine('crmContracts').some((c) => c.status === 'active' && (new Date(c.endDate) - Date.now()) / 86400000 < 60), 'some contracts are due for renewal');
+  }
   const salesDemo = db.data.users.find((u) => u.username === 'sales.demo');
   assert.ok(db.data.crmDeals.filter((x) => x.demo).every((x) => x.ownerId === salesDemo.id && x.code.startsWith('DEMO-DL-')));
   assert.equal(count('crmDeals', false), 1);

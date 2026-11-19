@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A fuller sales demo (0.41)
+- The demo data now has a full **Sales & CRM** book to try things on: 30 organizations, 56 contacts, 47 deals in every stage, 25 leads, 10 bids, 16 contracts (some due for renewal) and their calls, meetings and tasks. Reload it under **Admin panel → Demo data**. See [Load or remove the demo data](admin#load-or-remove-the-demo-data).
+
 ### Pinned modules, and C-suite on the way (0.40)
 - **Pin your modules**: the star on a module's card on the CORE home puts it first, and your pins follow you to every device. See [Pin your modules to the front](getting-started#pin-your-modules-to-the-front).
 - **C-suite**, an executive dashboard with the key figures from every module on one page, is on the CORE home as *Coming soon*.

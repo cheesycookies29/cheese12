@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.41.0-alpha',
+    date: '2026-11-19',
+    title: 'A fuller Sales & CRM demo',
+    modules: ['crm'],
+    notes: 'The sales demo had six organizations and seven deals: too few to try the pipeline, the forecast, renewals or the reports on. It now has a year of business.',
+    changes: [
+      ['improved', 'crm', 'Demo data: 24 more fictional organizations (30 in all, every account type and sector) with 1–3 contacts each (56); 47 deals in every stage, won and lost ones spread over the past year with varied lost reasons, open ones closing over the next six months, and two renewal deals; 25 leads in every status, three converted into their accounts and deals; 10 bids in every status and procurement mode; 16 contracts (draft, active, ended, terminated; three within the renewal notice period); and about 160 activities: what was done on each open deal and what is next, some of it overdue.'],
+      ['improved', 'crm', 'The original demo records stay first and unchanged (the projects and the guides refer to them); the set is the same every time it is loaded, with dates relative to today. Sales guide screenshots retaken.'],
+    ],
+  },
+  {
     version: '0.40.0-alpha',
     date: '2026-11-19',
     title: 'Pinned modules, and C-suite on the roadmap',

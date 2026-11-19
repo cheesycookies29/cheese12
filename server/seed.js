@@ -244,7 +244,282 @@ function seedCrm(data, c) {
     activity('meeting', deals[4], 'deal', 'Discovery meeting with the Provincial IT Office', 'They have about 1,400 devices and no ticketing.', null, true, 21),
   );
 
+  // A fuller book of business after the records above (which stay first: the projects and the
+  // guides refer to them), so lists, the pipeline, the forecast and the reports have volume.
+  moreCrm({ P, at, day, base, event, activity, checklist, acts, accounts, contacts, leads, deals, bids, contracts });
+
   Object.assign(data, { crmAccounts: accounts, crmContacts: contacts, crmLeads: leads, crmDeals: deals, crmBids: bids, crmContracts: contracts, crmActivities: acts });
+}
+
+// The rest of the CRM demo: 24 more fictional organizations (all names invented), 1–3 contacts
+// each, 38 more deals in every stage (won and lost ones spread over the past year, open ones
+// closing over the next six months), 20 leads, 7 bids, 12 contracts (three due for renewal) and
+// a history of calls, emails, meetings and tasks, some of them overdue. Deterministic: the same
+// set every time (dates move with today).
+function moreCrm({ P, at, day, base, event, activity, checklist, acts, accounts, contacts, leads, deals, bids, contracts }) {
+  let seed = 20261119;
+  const rnd = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  const pick = (list) => list[Math.floor(rnd() * list.length)];
+  const between = (lo, hi) => Math.round(lo + rnd() * (hi - lo));
+  const slug = (name) => name.toLowerCase().replace(/[^a-z]+/g, '');
+
+  const ACCOUNTS = [
+    ['Silangan Water District', 'prospect', 'government', 'Government', 'Antipolo, Rizal'],
+    ['Kalayaan Medical Center', 'client', 'private', 'Healthcare', 'Mandaluyong City'],
+    ['Mabini Rural Bank', 'client', 'private', 'Banking and finance', 'Batangas City'],
+    ['Pinagpala Savings Cooperative', 'prospect', 'ngo', 'Banking and finance', 'Lipa, Batangas'],
+    ['Agos Telecom Services', 'partner', 'private', 'Telecommunications', 'Makati City'],
+    ['City Government of Malaya', 'prospect', 'government', 'Government', 'Malaya City'],
+    ['Sampaguita Polytechnic College', 'prospect', 'education', 'Education', 'Davao City'],
+    ['Bagong Lakas Construction Corp.', 'client', 'private', 'Construction', 'Taguig City'],
+    ['Tindahan Plus Retail Group', 'prospect', 'private', 'Retail', 'Cebu City'],
+    ['Dalisay State University', 'client', 'education', 'Education', 'Iloilo City'],
+    ['Provincial Government of Sierra Alta', 'prospect', 'government', 'Government', 'Sierra Alta Province'],
+    ['Harbor Point Shipping Lines', 'prospect', 'private', 'Logistics', 'Port Area, Manila'],
+    ['Liwanag Solar Energy Inc.', 'prospect', 'private', 'Other', 'Clark, Pampanga'],
+    ['Mindoro Agri-Ventures', 'prospect', 'private', 'Manufacturing', 'Calapan, Oriental Mindoro'],
+    ['Kalinga Foundation for Children', 'client', 'ngo', 'Other', 'Quezon City'],
+    ['Regional Trade Office XIV', 'prospect', 'government', 'Government', 'San Fernando, La Union'],
+    ['Lutong Bahay Restaurants Inc.', 'prospect', 'private', 'Retail', 'Parañaque City'],
+    ['Kidlat IT Supplies Corp.', 'supplier', 'private', 'Other', 'Binondo, Manila'],
+    ['Cloudline Hosting Partners', 'supplier', 'private', 'Telecommunications', 'Ortigas, Pasig City'],
+    ['Matatag Security Services', 'client', 'private', 'Other', 'Caloocan City'],
+    ['Municipality of San Isidro Norte', 'prospect', 'government', 'Government', 'San Isidro Norte, Nueva Ecija'],
+    ['Pacifica Rim Manufacturing Inc.', 'client', 'private', 'Manufacturing', 'Biñan, Laguna'],
+    ['Amihan Academy', 'client', 'education', 'Education', 'Baguio City'],
+    ['Sinag Partners Consulting', 'partner', 'private', 'Other', 'Bonifacio Global City, Taguig'],
+  ];
+  const first = accounts.length;
+  const more = ACCOUNTS.map(([name, type, sector, industry, address], i) => ({
+    ...base(330 - i * 11), name, type, sector, industry, address, tin: `${String(100 + i * 7).slice(-3)}-${between(100, 999)}-${between(100, 999)}-000`,
+    website: `www.${slug(name)}.example`, email: `info@${slug(name)}.example`, phone: `(0${pick([2, 2, 32, 33, 34, 82, 74, 43])}) ${between(200, 899)}-${between(1000, 9999)}`,
+    tags: [...(sector === 'government' ? ['public sector'] : []), ...(type === 'client' && rnd() < 0.4 ? ['key account'] : []), ...(industry === 'Healthcare' ? ['healthcare'] : [])], notes: '',
+  }));
+  accounts.push(...more);
+
+  const FIRST = ['Maria', 'Jose', 'Ana', 'Ramon', 'Cristina', 'Eduardo', 'Rosalinda', 'Antonio', 'Lourdes', 'Francisco', 'Josefina', 'Rogelio', 'Marites', 'Benjamin', 'Imelda', 'Carlo', 'Patricia', 'Jericho', 'Angelica', 'Noel', 'Bea', 'Rafael', 'Kristine', 'Mark', 'Shiela', 'Arnel', 'Divina', 'Raymond', 'Hazel', 'Gilbert'];
+  const LAST = ['Reyes', 'Cruz', 'Bautista', 'Garcia', 'Mendoza', 'Torres', 'Aquino', 'Ramos', 'Castillo', 'Flores', 'Villanueva', 'Gonzales', 'Navarro', 'Pascual', 'Soriano', 'Salazar', 'Dela Peña', 'Manalastas', 'Lacson', 'Tan', 'Sy', 'Chua', 'Panganiban', 'Evangelista', 'Mercado'];
+  const TITLES = {
+    government: ['Municipal Administrator', 'BAC Chairperson', 'Head, Management Information Systems', 'Budget Officer', 'Human Resource Management Officer'],
+    education: ['University President', 'Vice President for Academic Affairs', 'Registrar', 'ICT Office Director', 'Finance Head'],
+    private: ['Chief Executive Officer', 'Chief Financial Officer', 'HR Director', 'IT Manager', 'Operations Manager', 'Procurement Officer'],
+    ngo: ['Executive Director', 'Program Manager', 'Finance and Admin Officer'],
+  };
+  const byAccount = new Map();
+  more.forEach((a, i) => {
+    const n = 1 + (i % 3);
+    for (let k = 0; k < n; k++) {
+      const firstName = FIRST[(i * 3 + k * 7) % FIRST.length];
+      const lastName = LAST[(i * 5 + k * 3) % LAST.length];
+      const c = {
+        ...base(300 - i * 10 - k), firstName, lastName, title: TITLES[a.sector][(i + k) % TITLES[a.sector].length], accountId: a.id,
+        email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/[^a-z]+/g, '')}@${slug(a.name)}.example`, phone: a.phone,
+        mobile: `09${between(15, 99)} ${between(100, 999)} ${between(1000, 9999)}`, notes: '', tags: k === 0 ? ['decision maker'] : [],
+      };
+      contacts.push(c);
+      byAccount.set(a.id, [...(byAccount.get(a.id) || []), c]);
+    }
+  });
+
+  // Deals: [title, account index in `more`, stage, value, days to (or since) close, source]
+  const D = [
+    ['Billing and customer service portal', 0, 'proposal', 3200000, 40, 'PhilGEPS'],
+    ['Hospital HR, timekeeping and payroll', 1, 'won', 2450000, -210, 'Referral'],
+    ['Patient records archive and document scanning', 1, 'negotiation', 1850000, 21, 'Existing client'],
+    ['Branch helpdesk and asset tracking', 2, 'won', 980000, -150, 'Event'],
+    ['Loan officers mobile app', 2, 'needs', 1400000, 95, 'Existing client'],
+    ['Member records and savings system', 3, 'qualify', 650000, 120, 'Website'],
+    ['Reseller agreement: CORE for SMEs', 4, 'proposal', 500000, 55, 'Other'],
+    ['City HRIS and payroll', 5, 'negotiation', 4800000, 30, 'PhilGEPS'],
+    ['Business permit e-payment', 5, 'qualify', 2100000, 160, 'PhilGEPS'],
+    ['Learning management system', 6, 'needs', 1750000, 70, 'Event'],
+    ['Project costing and site timekeeping', 7, 'won', 1600000, -95, 'Cold outreach'],
+    ['Equipment and tools tracking', 7, 'proposal', 720000, 25, 'Existing client'],
+    ['Store operations and HR for 40 branches', 8, 'needs', 3600000, 110, 'Referral'],
+    ['Student information system', 9, 'won', 3900000, -260, 'PhilGEPS'],
+    ['Alumni and tracer study portal', 9, 'proposal', 850000, 45, 'Existing client'],
+    ['Provincial e-governance suite', 10, 'qualify', 6500000, 175, 'PhilGEPS'],
+    ['Crew scheduling and payroll', 11, 'lost', 2300000, -60, 'Website'],
+    ['Fleet maintenance helpdesk', 11, 'needs', 900000, 85, 'Website'],
+    ['Installer field service app', 12, 'proposal', 1150000, 35, 'Event'],
+    ['Farm labor timekeeping', 13, 'lost', 420000, -120, 'Cold outreach'],
+    ['Donor management and grants tracking', 14, 'won', 380000, -40, 'Referral'],
+    ['Exporter registration portal', 15, 'negotiation', 2900000, 14, 'PhilGEPS'],
+    ['Restaurant POS integration and HR', 16, 'qualify', 1300000, 140, 'Public form'],
+    ['Guard deployment and payroll', 19, 'won', 1250000, -300, 'Referral'],
+    ['Guard deployment: second region', 19, 'negotiation', 780000, -5, 'Existing client'],
+    ['Municipal helpdesk and records', 20, 'lost', 1600000, -200, 'PhilGEPS'],
+    ['Plant maintenance and IT assets', 21, 'won', 2150000, -180, 'Event'],
+    ['Quality documents control', 21, 'proposal', 640000, 60, 'Existing client'],
+    ['School management system', 22, 'won', 1100000, -330, 'Website'],
+    ['Parent portal and online enrollment', 22, 'needs', 560000, 50, 'Existing client'],
+    ['Joint bid: provincial hospital system', 23, 'qualify', 5200000, 150, 'Other'],
+    ['Warehouse handheld scanners and inventory', 11, 'lost', 1450000, -20, 'Website'],
+    ['Branch network refresh support', 2, 'lost', 760000, -240, 'Existing client'],
+    ['Cooperative loans module', 3, 'needs', 980000, 100, 'Referral'],
+    ['City engineering project monitoring', 5, 'won', 2600000, -70, 'PhilGEPS'],
+    ['HMO claims tracking', 1, 'qualify', 1900000, 130, 'Service desk'],
+    ['Online admissions', 6, 'negotiation', 690000, 9, 'Event'],
+    ['Solar installation project tracker', 12, 'lost', 880000, -100, 'Referral'],
+  ];
+  const lostReasons = DEFAULT_CRM.lostReasons;
+  const STEPS = {
+    qualify: 'Confirm the budget and who decides',
+    needs: 'Requirements workshop with the users',
+    proposal: 'Send the proposal and price schedule',
+    negotiation: 'Agree the payment terms',
+  };
+  const newDeals = D.map(([title, ai, stage, value, closeIn, source], i) => {
+    const a = more[ai];
+    const people = byAccount.get(a.id);
+    const created = stage === 'won' || stage === 'lost' ? -closeIn + between(30, 90) : between(10, 120);
+    const deal = {
+      ...base(created), code: `${P}DL-${String(deals.length + i + 1).padStart(4, '0')}`, title, accountId: a.id, contactId: people[i % people.length].id, stage, value,
+      expectedClose: day(closeIn), source, nextStep: STEPS[stage] || '', description: '', lostReason: stage === 'lost' ? lostReasons[i % lostReasons.length] : '',
+    };
+    if (stage === 'won' || stage === 'lost') deal.closedAt = at(closeIn);
+    acts.push(event('deal', deal, 'Deal created in Qualification', created));
+    if (stage === 'won') acts.push(event('deal', deal, 'Won · Negotiation → Won', -closeIn));
+    if (stage === 'lost') acts.push(event('deal', deal, `Lost (${deal.lostReason}) · from Proposal`, -closeIn));
+    return deal;
+  });
+  deals.push(...newDeals);
+  const dealOf = (title) => newDeals.find((x) => x.title === title);
+
+  // Contracts: from won deals, and older ones; three end within the renewal notice period.
+  const C = [
+    ['Hospital HR, timekeeping and payroll', 'Hospital HR and payroll: licence and implementation', 'KMC-2026-031', -200, 165, 'active', 'Monthly subscription', true],
+    ['Branch helpdesk and asset tracking', 'Branch helpdesk and asset tracking', 'MRB-PO-2026-118', -140, 35, 'active', '50% on signing, 50% on go-live', false],
+    ['Project costing and site timekeeping', 'Project costing and site timekeeping: implementation', 'BLC-2026-007', -90, 275, 'active', 'Quarterly', false],
+    ['Student information system', 'Student information system: supply and implementation', 'DSU-2025-ITB-09', -250, 115, 'active', 'Per milestone', false],
+    ['Donor management and grants tracking', 'Donor management: subscription', 'KFC-2026-002', -35, 330, 'active', 'Annual, in advance', true],
+    ['Guard deployment and payroll', 'Guard deployment and payroll: support', 'MSS-2025-044', -295, 50, 'active', 'Monthly subscription', true],
+    ['Plant maintenance and IT assets', 'Plant maintenance and IT assets: implementation', 'PRM-2026-019', -170, 195, 'active', '30% down, 70% on acceptance', false],
+    ['School management system', 'School management system: licence and support', 'AA-2025-011', -320, 20, 'active', 'Annual, in advance', false],
+    ['City engineering project monitoring', 'Project monitoring application', 'CGM-2026-ITB-022', -60, 300, 'active', 'Per milestone', false],
+    [null, 'Payroll outsourcing pilot', 'MRB-2024-090', -720, -360, 'expired', 'One-time', false, 2],
+    [null, 'Network cabling and Wi-Fi survey', 'BLC-2025-002', -500, -180, 'terminated', 'One-time', false, 7],
+    [null, 'Online enrollment: design phase', 'SPC-2026-DRAFT', 10, 375, 'draft', 'Per milestone', false, 6],
+  ];
+  const newContracts = C.map(([dealTitle, title, number, start, end, status, billing, autoRenew, ai], i) => {
+    const deal = dealTitle ? dealOf(dealTitle) : null;
+    return {
+      ...base(Math.max(1, -start)), code: `${P}CT-${String(contracts.length + i + 1).padStart(4, '0')}`, title, accountId: deal ? deal.accountId : more[ai].id, dealId: deal?.id || null, bidId: null,
+      number, value: deal ? deal.value : between(15, 60) * 10000, startDate: day(start), endDate: day(end), status, autoRenew, billing,
+      terms: status === 'active' ? pick(['8x5 support; two releases a year.', '24x7 support for priority 1 issues.', 'Warranty support for 90 days, then annual maintenance.', '']) : '',
+    };
+  });
+  contracts.push(...newContracts);
+  // Two renewals already being worked on, as deals.
+  for (const [i, title] of [[1, 'Renewal: branch helpdesk support, year 2'], [7, 'Renewal: school management system, year 2']].map(([ci, t]) => [ci, t])) {
+    const c = newContracts[i];
+    const people = byAccount.get(c.accountId);
+    const deal = { ...base(12), code: `${P}DL-${String(deals.length + 1).padStart(4, '0')}`, title, accountId: c.accountId, contactId: people[0].id, stage: 'proposal', value: Math.round(c.value * 0.22 / 10000) * 10000, expectedClose: c.endDate, source: 'Existing client', nextStep: 'Send the renewal quotation', description: '', lostReason: '', renewalOf: c.id };
+    acts.push(event('deal', deal, 'Deal created in Proposal', 12));
+    acts.push(event('contract', c, `Renewal deal ${deal.code} opened`, 12));
+    deals.push(deal);
+  }
+
+  // Bids for the public-sector and school deals.
+  const B = [
+    ['Billing and customer service portal', 'Supply and implementation of a billing and customer service portal', 'SWD-2026-ITB-005', 'public', 'preparing', 3300000, 3200000, 12, 6],
+    ['City HRIS and payroll', 'Human resource information and payroll system', 'CGM-2026-ITB-031', 'public', 'evaluation', 5000000, 4800000, -9, 10],
+    ['Exporter registration portal', 'Exporter and importer online registration system', 'RTO14-2026-NP-02', 'negotiated', 'submitted', 3000000, 2900000, -2, 10],
+    ['Learning management system', 'Learning management system with faculty training', 'SPC-RFQ-2026-14', 'rfq', 'preparing', 1800000, 1750000, 20, 3],
+    ['Student information system', 'Student information system: supply and implementation', 'DSU-2025-ITB-09', 'public', 'awarded', 4000000, 3900000, -275, 10],
+    ['Municipal helpdesk and records', 'ICT helpdesk and records management system', 'SIN-2026-ITB-003', 'public', 'lost', 1700000, 1600000, -215, 10],
+    ['Business permit e-payment', 'Online business permit payment gateway', 'CGM-2026-SVP-07', 'svp', 'cancelled', 950000, null, -30, 4],
+  ];
+  for (const [i, [dealTitle, title, reference, mode, status, budget, bidAmount, deadlineIn, done]] of B.entries()) {
+    const deal = dealOf(dealTitle);
+    const sent = ['submitted', 'evaluation', 'awarded', 'lost'].includes(status);
+    bids.push({
+      ...base(Math.max(5, -deadlineIn + 20)), code: `${P}BID-${String(bids.length + 1).padStart(4, '0')}`, title, accountId: deal.accountId, dealId: deal.id, reference, mode, status, budget, bidAmount,
+      deadline: `${day(deadlineIn)}T${pick(['09:00', '10:00', '13:30', '17:00'])}`, openingDate: mode === 'public' ? day(deadlineIn) : null, preBidDate: mode === 'public' ? day(deadlineIn - 12) : null,
+      notes: { preparing: 'Bid documents purchased; checklist in progress.', submitted: 'Submitted on time; waiting for the opening.', evaluation: 'Opened; under post-qualification.', awarded: 'Notice of award received.', lost: 'Not the lowest calculated responsive bid.', cancelled: 'Failure of bidding declared; may be re-advertised.' }[status],
+      checklist: checklist(done), ...(sent ? { submittedAt: at(deadlineIn) } : {}),
+    });
+    if (i === 4) newContracts[3].bidId = bids.at(-1).id;
+  }
+
+  // Leads: new ones from the website and events, some worked, a few converted.
+  const L = [
+    ['Liza Gutierrez', 'Batangas Port Services', 'Admin Manager', 'new', 'Website', 600000, 'Gate pass and visitor logs'],
+    ['Engr. Ronaldo Pineda', 'Municipality of Sta. Barbara', 'MIS Head', 'new', 'PhilGEPS', 1800000, 'Online building permits'],
+    ['Precious Ong', 'Little Stars Learning Center', 'Directress', 'new', 'Public form', 180000, 'Enrollment and billing for 300 pupils'],
+    ['Dr. Alvin Macaraeg', 'Northern Luzon Eye Clinic', 'Medical Director', 'new', 'Referral', 750000, 'Clinic HR and payroll'],
+    ['Jasmine Co', 'Co & Sons Trading', 'Finance Officer', 'new', 'Website', 300000, 'Inventory with BIR-ready reports'],
+    ['Rey Valdez', 'Valdez Transport Cooperative', 'Chairperson', 'new', 'Event', 420000, 'Driver scheduling and payroll'],
+    ['Melanie Santos', 'Good Shepherd Parish School', 'Principal', 'contacted', 'Event', 350000, 'Grades and parent portal'],
+    ['Atty. Jun Robles', 'Robles Law Offices', 'Managing Partner', 'contacted', 'Referral', 280000, 'Case and document tracking'],
+    ['Cecilia Yap', 'Yap Hardware Chain', 'Operations Head', 'contacted', 'Cold outreach', 900000, 'Branch inventory and POS link'],
+    ['Edgar Lumbao', 'Province of Mabuhay ICT Office', 'Provincial IT Officer', 'contacted', 'PhilGEPS', 2500000, 'Provincial helpdesk'],
+    ['Faith Domingo', 'Sunrise BPO Inc.', 'HR Director', 'contacted', 'Website', 3200000, 'HRIS for 2,000 agents'],
+    ['Ricardo Aquino', 'Aquino Rice Mills', 'General Manager', 'qualified', 'Referral', 650000, 'Mill timekeeping and payroll'],
+    ['Teodoro Lim', 'Lim Pharmacy Group', 'President', 'qualified', 'Existing client', 1600000, 'Store HR across 25 branches'],
+    ['Nina Fajardo', 'Fajardo Events Co.', 'Owner', 'qualified', 'Public form', 220000, 'Staff scheduling'],
+    ['Oscar Bernardo', 'City Veterinary Office', 'City Veterinarian', 'qualified', 'Service desk', 400000, 'Pet registration portal'],
+    ['Lorna Abad', 'Abad Bakery', 'Owner', 'disqualified', 'Cold outreach', 60000, 'Payroll for 8 staff'],
+    ['Peter Go', 'Go Gadgets Online', 'Founder', 'disqualified', 'Website', 90000, 'E-commerce site'],
+  ];
+  L.forEach(([name, company, title, status, source, estimatedValue, interest], i) => {
+    leads.push({
+      ...base(between(1, 60)), code: `${P}LD-${String(leads.length + 1).padStart(4, '0')}`, name, company, title, status, source, estimatedValue, interest,
+      email: `${name.split(' ').at(-1).toLowerCase()}@${slug(company)}.example`, phone: `09${between(15, 99)} ${between(100, 999)} ${between(1000, 9999)}`,
+      disqualifiedReason: status === 'disqualified' ? pick(['Budget below our minimum engagement', 'Not a fit: needs an online store']) : '',
+    });
+  });
+  // Converted leads: they became the accounts and deals below.
+  for (const [ai, dealTitle] of [[3, 'Member records and savings system'], [16, 'Restaurant POS integration and HR'], [12, 'Installer field service app']]) {
+    const a = more[ai];
+    const deal = dealOf(dealTitle);
+    const c = byAccount.get(a.id)[0];
+    leads.push({
+      ...base(between(60, 150)), code: `${P}LD-${String(leads.length + 1).padStart(4, '0')}`, name: `${c.firstName} ${c.lastName}`, company: a.name, title: c.title, status: 'converted', source: deal.source,
+      estimatedValue: deal.value, interest: deal.title, email: c.email, phone: c.mobile, disqualifiedReason: '', convertedAt: deal.createdAt, accountId: a.id, contactId: c.id, dealId: deal.id,
+    });
+  }
+
+  // Activities: what was done on each open deal, and what is next (some of it overdue).
+  const open = deals.slice(-(newDeals.length + 2)).filter((x) => !['won', 'lost'].includes(x.stage));
+  const DONE = [
+    ['call', 'Discovery call', 'Went through their current process and pain points.'],
+    ['email', 'Sent the product overview and references', ''],
+    ['meeting', 'Product demo', 'Showed CORE on their sample data; good questions on reports.'],
+    ['email', 'Answered the follow-up questions', 'Hosting, data privacy and support hours.'],
+    ['call', 'Check-in with the decision maker', 'Budget is approved for this year.'],
+  ];
+  const NEXT = [
+    ['task', 'Send the revised quotation'],
+    ['meeting', 'Requirements workshop'],
+    ['call', 'Follow up on the proposal'],
+    ['task', 'Prepare the demo environment'],
+    ['task', 'Get the signed NDA back'],
+    ['email', 'Send the implementation timeline'],
+  ];
+  open.forEach((deal, i) => {
+    for (let k = 0; k < 1 + (i % 3); k++) {
+      const [type, subject, body] = DONE[(i + k) % DONE.length];
+      acts.push(activity(type, deal, 'deal', subject, body, null, true, between(3, 40)));
+    }
+    if (i % 4 !== 3) {
+      const [type, subject] = NEXT[i % NEXT.length];
+      acts.push(activity(type, deal, 'deal', subject, '', between(-6, 14), false, between(1, 5)));
+    }
+  });
+  for (const c of newContracts.filter((x) => x.status === 'active')) {
+    const left = (new Date(`${c.endDate}T00:00:00`) - Date.now()) / 86400000;
+    if (left < 60) acts.push(activity('task', c, 'contract', 'Prepare the renewal quotation', '', between(-2, 7), false, 3));
+  }
+  for (const l of leads.slice(-20).filter((x) => ['new', 'contacted', 'qualified'].includes(x.status))) {
+    if (rnd() < 0.7) acts.push(activity(pick(['call', 'task', 'email']), l, 'lead', pick(['Call to qualify', 'Send the brochure', 'Book a discovery call', 'Ask for the headcount and budget']), '', between(-3, 10), false, between(1, 6)));
+  }
+  for (const a of more.filter((x) => x.type === 'client').slice(0, 6)) {
+    acts.push(activity('note', a, 'account', 'Account background', `${pick(['Two sites', 'Head office and branches', 'One campus', 'Three regional offices'])}; ${pick(['about 250', 'about 600', 'over 1,000', 'about 120'])} employees. ${pick(['Happy with support so far.', 'Wants faster report turnaround.', 'Budget planning is in September.', 'Prefers quarterly billing.'])}`, null, true, between(20, 200)));
+  }
 }
 
 // Project Management: the LMS phase 2 delivery for Northfield State University (won deal and
