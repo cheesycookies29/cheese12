@@ -130,7 +130,10 @@ jobs:
           if CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name ltdc-erp-deploy \
               --comment "LTDC ERP deploy ${SHA:0:7}" --parameters "$PARAMS" --query Command.CommandId --output text 2>send.err)"; then
             echo "Sent with the ltdc-erp-deploy command."
-          elif grep -q 'InvalidDocument' send.err; then
+          # A stack without the command: AWS says InvalidDocument, or AccessDenied on the document when
+          # the role's policy predates it (the original stack). The old command then runs only if the
+          # stack still allows it; an updated stack refuses it.
+          elif grep -q 'InvalidDocument' send.err || grep -q 'AccessDenied.*document/ltdc-erp-deploy' send.err; then
             echo "::warning::The CloudFormation stack is older than 0.39 (no ltdc-erp-deploy command). Update it: deploy/aws/EC2.md, \"Update the stack\"."
             read -r -d '' SCRIPT <<'SH' || true
           set -eu
