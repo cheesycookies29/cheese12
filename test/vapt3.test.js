@@ -329,6 +329,10 @@ test('C3-9/C3-12: CORE cannot change its own code or reach the instance metadata
   const update = read('deploy/aws/update.sh');
   assert.match(update, /chown -R root:root "\$APP"/);
   assert.match(update, /chown -R ltdc:ltdc "\$APP\/data"/);
+  // Root-owned code must stay readable by the app: the download folder is private and rsync -a copies
+  // its modes (0.39 deploy: the app could not enter its own folder). Data keeps its private modes.
+  assert.match(update, /find "\$APP" -path "\$APP\/data" -prune -o -exec chmod u\+rwX,go\+rX,go-w \{\} \+/);
+  assert.ok(update.indexOf('reset-failed ltdc-erp') < update.indexOf('systemctl start ltdc-erp'), 'reset before start');
   const drop = read('deploy/aws/ltdc-erp-hardening.conf');
   assert.match(drop, /IPAddressDeny=169\.254\.169\.254/);
   assert.match(drop, /TRUST_PROXY=1/);

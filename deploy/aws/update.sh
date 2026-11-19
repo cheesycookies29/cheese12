@@ -33,9 +33,13 @@ rsync -a --delete --exclude /data/ "$SRC/" "$APP/"
 printf '{"commit":"%s","installedAt":"%s","channel":"server"}\n' "$VERSION" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$APP/build.json"
 # The code belongs to root and only the data folder to the app's account (VAPT 0.39, C3-9): a flaw
 # in the app could change its data, never its own code.
+# Readable by the app (the download folder is private, and rsync -a copies its permissions), never
+# writable by it. The data folder keeps its own, private permissions.
 chown -R root:root "$APP"
-chmod -R go-w "$APP"
+find "$APP" -path "$APP/data" -prune -o -exec chmod u+rwX,go+rX,go-w {} +
 chown -R ltdc:ltdc "$APP/data"
+# A start that failed many times in a row stops systemd from trying again until it is reset.
+systemctl reset-failed ltdc-erp 2>/dev/null || true
 systemctl start ltdc-erp
 
 for _ in 1 2 3 4 5 6 7 8 9 10; do
