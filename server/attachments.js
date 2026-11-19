@@ -118,6 +118,15 @@ export function parseUpload(input, { pictures = null, documents = null } = {}) {
   return uploadFromBuffer(input.name, Buffer.from(input.data.replace(/^data:[^,]*,/, ''), 'base64'), { pictures, documents });
 }
 
+// A long file name is cut to 120 characters before its extension, which it keeps (".pdf",
+// ".docx"), so the file still opens with the right program once downloaded (0.47).
+export function shortName(name, max = 120) {
+  if (name.length <= max) return name;
+  const dot = name.lastIndexOf('.');
+  const ext = dot > 0 && name.length - dot <= 10 ? name.slice(dot) : '';
+  return `${name.slice(0, max - ext.length - 1).trimEnd()}…${ext}`;
+}
+
 // A file from any source (e.g. an email attachment) -> { name, type, buffer }, checked the same way.
 export function uploadFromBuffer(name, buffer, { pictures = null, documents = null } = {}) {
   if (!buffer.length) throw new HttpError(400, 'The attached file is empty.');
@@ -130,7 +139,7 @@ export function uploadFromBuffer(name, buffer, { pictures = null, documents = nu
     if (!pictures.includes(type)) throw new HttpError(400, `Use a picture: ${pictures.includes('image/gif') ? 'JPEG, PNG, WebP or GIF' : 'JPEG, PNG or WebP'}.`);
     if (type === 'image/gif') checkGif(buffer);
   } else if (!ATTACHMENT_TYPES[type]) throw new HttpError(400, 'Attach a PDF or a photo (JPEG, PNG or WebP).');
-  const safeName = String(name || 'attachment').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 120) || 'attachment';
+  const safeName = shortName(String(name || 'attachment').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim()) || 'attachment';
   return { name: safeName, type, buffer };
 }
 

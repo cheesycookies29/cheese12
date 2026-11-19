@@ -194,7 +194,7 @@ export async function payrollSetupView(el) {
     const taxable = Math.max(0, gross - (sss.ee + ph.ee + hd.ee) / div);
     const tax = c.withholdingTax ? withholdingTax(taxable, cfg.payFrequency, cfg.rates.tax) : 0;
     const net = gross - (sss.ee + ph.ee + hd.ee) / div - tax;
-    mount(el.querySelector('#try-result'), html`<table class="table compact try">
+    mount(el.querySelector('#try-result'), html`<div class="scroll-x"><table class="table compact try">
       <thead><tr><th>Per ${cfg.payFrequency === 'monthly' ? 'month' : 'cutoff'}</th><th class="num">Employee</th><th class="num">Employer</th></tr></thead>
       <tbody>
         <tr><td>Basic pay</td><td class="num">${amount(gross)}</td><td></td></tr>
@@ -204,7 +204,7 @@ export async function payrollSetupView(el) {
         <tr><td>Withholding tax <small class="muted">(taxable ${amount(taxable)})</small></td><td class="num">${amount(tax)}</td><td></td></tr>
       </tbody>
       <tfoot><tr><td><strong>Take-home (before allowances and adjustments)</strong></td><td class="num"><strong>${amount(net)}</strong></td><td></td></tr></tfoot>
-    </table>`);
+    </table></div>`);
   }
 
   renderPremiums();

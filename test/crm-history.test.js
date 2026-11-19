@@ -108,7 +108,8 @@ test('owner changes, bid checklists and contract edits are in the history with w
   await mia('PUT', `/api/crm/contracts/${c.id}`, { endDate: '2027-06-30', autoRenew: true, updatedAt: c.updatedAt });
   const ch = await historyOf(sam, 'contract', c.id);
   const ce = ch.find((x) => x.subject.startsWith('Edited'));
-  assert.equal(ce.body, 'End: Dec 31, 2026 → Jun 30, 2027\nRenews automatically: No → Yes');
+  assert.equal(ce.subject, 'Edited end date and renews automatically');
+  assert.equal(ce.body, 'End date: Dec 31, 2026 → Jun 30, 2027\nRenews automatically: No → Yes');
   assert.equal(ce.createdByName, 'Mia Manager');
   handle.monitor.stop();
 });

@@ -28,6 +28,28 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.47.0-alpha',
+    date: '2026-11-19',
+    title: 'Compact on phones; responsive pass on phones, tablets and small laptops',
+    modules: ['system', 'crm', 'projects', 'assets', 'hr'],
+    notes: 'Three testers covered 320px phones to 1440px laptops (about 4,400 page loads). No page scrolled sideways; the findings were clipped parts, squeezed tables and small tap targets.',
+    changes: [
+      ['new', 'system', 'CORE home: a phone starts in the Compact view until the person chooses; the tiles are two a row down to 320px, with the icon on top and the star beside it.'],
+      ['new', 'system', 'Side menu: icons only by default between 961 and 1199px, so the page keeps room for its tables; the menu button unfolds it and the choice is kept.'],
+      ['improved', 'system', 'Dialogs on a computer are no taller than the window, with the form scrolling between the title and the buttons; on a tablet (761–960px) they sit in the middle at 640px instead of a full-width sheet.'],
+      ['improved', 'system', 'Modules menu: arrow keys, Home and End move between the tiles; Escape closes it and returns to its button; opened from the keyboard it starts on the first tile. On a tablet it drops from its button.'],
+      ['fixed', 'system', 'Top bar at 320–360px: 20px too wide on module pages, which made phone browsers zoom the page out; the wordmark and the chevron give way. The journeys check now measures against the device width.'],
+      ['fixed', 'system', 'Focus rings in dark mode used the brand colour and could not be seen; the gold of tags no longer reverts to an older value; menu tags are 10.5px.'],
+      ['fixed', 'system', 'A long upload name is cut before its extension, which it keeps.'],
+      ['fixed', 'crm', 'Contacts list: emails on one line with an ellipsis, phone numbers and contract terms no longer break across lines. The history says Start date and End date.'],
+      ['fixed', 'crm', 'Service Desk: the ticket list keeps its subject readable on a laptop; the Reply | Internal note switch fits a 320px phone.'],
+      ['fixed', 'projects', 'The statuses tables of the projects setup scroll inside their card; long project names wrap in My work; the current breadcrumb keeps its name on a phone.'],
+      ['fixed', 'assets', 'Allocations: the holder cards line up, and their asset tables fit the card.'],
+      ['fixed', 'hr', 'Payroll Setup: the try-it table scrolls inside its card on a phone; the time clock follows the width of its card.'],
+      ['fixed', 'system', 'Touch screens: larger hit areas for back links, the CORE home role link, contract documents, timeline tasks, activity ticks and the sales stage buttons; decorative tags keep their size.'],
+    ],
+  },
+  {
     version: '0.46.0-alpha',
     date: '2026-11-19',
     title: 'Compact view of the modules on the CORE home',

@@ -138,11 +138,13 @@ export async function launcherView(el) {
       <button type="button" class="sys-pin" data-pin="${m.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? `Unpin ${m.name}` : `Pin ${m.name} to the front`}" title="${on ? 'Pinned to the front: click to unpin' : 'Pin to the front'}">${icon('star', 16)}</button></div>`;
   };
   const compactItems = () => html`${ordered().map(mini)}${soon.map(mini)}`;
-  // Cards (the sliding row) or Compact (all at once): kept in this browser, like the theme.
+  // Cards (the sliding row) or Compact (all at once): kept in this browser, like the theme. Until
+  // someone chooses, a phone starts in Compact (0.47) and a larger screen in Cards.
   const VIEW_KEY = 'core-home-view';
-  let view = 'cards';
+  let view = window.matchMedia('(max-width: 760px)').matches ? 'compact' : 'cards';
   try {
-    if (localStorage.getItem(VIEW_KEY) === 'compact') view = 'compact';
+    const chosen = localStorage.getItem(VIEW_KEY);
+    if (chosen === 'compact' || chosen === 'cards') view = chosen;
   } catch {}
   const viewSwitch = () => html`<div class="seg-btns sys-view" role="group" aria-label="How to show the modules">${[['cards', 'Cards'], ['compact', 'Compact']].map(([k, label]) => html`<button type="button" data-view="${k}" class="${view === k ? 'active' : ''}" aria-pressed="${view === k ? 'true' : 'false'}" title="${k === 'compact' ? 'Every module at once, in a grid' : 'Large cards with live figures, in a sliding row'}">${label}</button>`)}</div>`;
 
@@ -169,7 +171,7 @@ export async function launcherView(el) {
 
     <section class="hub-wrap sys-section${view === 'compact' ? ' compact' : ''}" id="sys-section">
       <div class="card-head"><h2 id="sys-heading">${icon('grid')} Your modules</h2>
-        <div class="sys-nav"><span class="muted small">${open} of ${live.length} available to you${soon.length ? ` · ${soon.length} coming soon` : ''}</span>${viewSwitch()}
+        <div class="sys-nav"><span class="muted small sys-count">${open} of ${live.length} available to you${soon.length ? ` · ${soon.length} coming soon` : ''}</span>${viewSwitch()}
           <span class="sys-arrows" hidden><button type="button" class="icon-btn" id="sys-prev" aria-label="Previous modules" aria-controls="sys-track">${icon('chevronLeft', 18)}</button><button type="button" class="icon-btn" id="sys-next" aria-label="More modules" aria-controls="sys-track">${icon('chevronRight', 18)}</button></span></div></div>
       <div class="sys-carousel" id="sys-carousel">
         <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${trackItems()}</div>

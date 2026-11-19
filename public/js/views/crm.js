@@ -867,7 +867,7 @@ export async function contactsView(el) {
       noun: 'contact', empty: 'No contacts yet.',
       filter: (c, s) => matchText(s.q, c.name, c.email, c.phone, c.mobile, c.accountName) && matchOwner(c, s.owner),
       table: (rows) => html`<table class="table clickable stackable stack-md"><thead><tr><th>Name</th><th>Organization</th><th>Email</th><th>Mobile</th><th>Owner</th></tr></thead>
-        <tbody>${rows.map((c) => html`<tr data-href="#/crm/contacts/${c.id}"><td><a href="#/crm/contacts/${c.id}"><strong>${c.name}</strong></a><small>${c.title || ''}</small></td><td>${c.accountId ? html`<a href="#/crm/accounts/${c.accountId}">${c.accountName}</a>` : '—'}</td><td>${c.email ? html`<a href="mailto:${c.email}">${c.email}</a>` : '—'}</td><td>${c.mobile || c.phone || '—'}</td><td>${c.ownerName || '—'}</td></tr>`)}</tbody></table>`,
+        <tbody>${rows.map((c) => html`<tr data-href="#/crm/contacts/${c.id}"><td><a href="#/crm/contacts/${c.id}"><strong>${c.name}</strong></a><small>${c.title || ''}</small></td><td>${c.accountId ? html`<a href="#/crm/accounts/${c.accountId}">${c.accountName}</a>` : '—'}</td><td>${c.email ? html`<a class="cell-clip" href="mailto:${c.email}" title="${c.email}">${c.email}</a>` : '—'}</td><td class="nowrap">${c.mobile || c.phone || '—'}</td><td>${c.ownerName || '—'}</td></tr>`)}</tbody></table>`,
     },
   });
 }
@@ -986,7 +986,7 @@ export async function contractsView(el) {
       noun: 'contract', empty: 'No contracts yet. Record one when a deal is won.',
       filter: (c, s) => matchText(s.q, c.title, c.number, c.code, c.accountName) && matchOwner(c, s.owner) && (!s.status || (s.status === 'renew' ? c.status === 'active' && c.daysLeft !== null && c.daysLeft <= m.setup.renewalNoticeDays : c.status === s.status)),
       table: (rows) => html`<table class="table clickable stackable"><thead><tr><th>Contract</th><th>Client</th><th>Status</th><th class="num">Value</th><th>Term</th><th>Owner</th></tr></thead>
-        <tbody>${rows.map((c) => html`<tr data-href="#/crm/contracts/${c.id}"><td><a href="#/crm/contracts/${c.id}"><strong>${c.title}</strong></a>${c.documentCount ? html`<span class="crm-doc-count" title="${plural(c.documentCount, 'document')}">${icon('paperclip', 12)} ${c.documentCount}</span>` : ''}<small class="mono">${c.number || c.code}</small></td><td>${c.accountName}</td><td>${contractBadge(c, m.setup.renewalNoticeDays)}</td><td class="num">${money(c.value)}</td><td>${c.startDate ? fmtDate(c.startDate) : '…'} – ${c.endDate ? fmtDate(c.endDate) : 'open-ended'}</td><td>${c.ownerName || '—'}</td></tr>`)}</tbody></table>`,
+        <tbody>${rows.map((c) => html`<tr data-href="#/crm/contracts/${c.id}"><td><a href="#/crm/contracts/${c.id}"><strong>${c.title}</strong></a>${c.documentCount ? html`<span class="crm-doc-count" title="${plural(c.documentCount, 'document')}">${icon('paperclip', 12)} ${c.documentCount}</span>` : ''}<small class="mono">${c.number || c.code}</small></td><td>${c.accountName}</td><td>${contractBadge(c, m.setup.renewalNoticeDays)}</td><td class="num">${money(c.value)}</td><td><span class="nowrap">${c.startDate ? fmtDate(c.startDate) : '…'} –</span> <span class="nowrap">${c.endDate ? fmtDate(c.endDate) : 'open-ended'}</span></td><td>${c.ownerName || '—'}</td></tr>`)}</tbody></table>`,
     },
   });
 }

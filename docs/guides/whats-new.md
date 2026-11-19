@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### Phones, tablets and small laptops (0.47)
+- On a phone the CORE home now opens in the **Compact** view, two tiles a row even on the smallest phones. Choose **Cards** to go back to the larger cards; your choice is kept. See [Getting started](getting-started#walkthrough).
+- On a small laptop or a tablet held sideways (up to about 1200 pixels wide) the side menu shows only its icons until you open it with the **menu** button, so lists and tables have more room. See [Open a module](getting-started#open-a-module).
+- Windows (such as **New project**) never grow taller than the screen: the form scrolls and **Save** stays in view. On a tablet they open in the middle of the screen.
+- Fixes for small screens: the top bar fits a 320-pixel phone; the **Reply | Internal note** switch on a ticket, the try-it table in **Payroll Setup** and the statuses table in the projects setup no longer run off the screen; long project names in **My work** wrap; the modules menu answers the arrow keys and **Escape**; contact emails, phone numbers and contract terms no longer break into many lines; a long file name keeps its extension (*.pdf*, *.docx*) when shortened.
+
 ### Compact view on the CORE home (0.46)
 - **Your modules** has a **Cards | Compact** switch: **Compact** shows every module at once as small tiles in a grid, with the first figure of each and its pin star. See [Getting started](getting-started#walkthrough).
 

@@ -1406,7 +1406,7 @@ function editStatuses({ statuses, counts = {}, title, save, after }) {
   const box = form.querySelector('#st');
   const read = () => box.querySelectorAll('tbody tr').forEach((tr, i) => Object.assign(list[i], { name: tr.querySelector('[name=n]').value, category: tr.querySelector('[name=c]').value, color: tr.querySelector('[name=k]').value, wipLimit: tr.querySelector('[name=w]').value }));
   const draw = () => {
-    mount(box, html`<table class="table compact no-stack pm-status-table"><thead><tr><th>Status</th><th>Category</th><th>Colour</th><th class="num">WIP limit</th><th></th></tr></thead><tbody>${list.map((s, i) => html`<tr>
+    mount(box, html`<div class="scroll-x"><table class="table compact no-stack pm-status-table"><thead><tr><th>Status</th><th>Category</th><th>Colour</th><th class="num">WIP limit</th><th></th></tr></thead><tbody>${list.map((s, i) => html`<tr>
         <td><input name="n" value="${s.name}" maxlength="40" aria-label="Status name" /></td>
         <td><select name="c" aria-label="Category">${options(Object.entries(CATEGORIES), s.category)}</select></td>
         <td><select name="k" aria-label="Colour">${options(Object.entries(STATUS_COLORS), s.color)}</select></td>
@@ -1520,7 +1520,7 @@ export async function listView(el, { id }, query) {
     mount(el.querySelector('#list'), gs.length ? html`${work ? html`<div class="pm-selall pad"><label class="check"><input type="checkbox" id="sel-all" /><span>Select all ${plural(shownIds.length, 'task')} shown</span></label></div>` : ''}<table class="table clickable pm-list ${work ? 'pm-selectable' : ''}">
       <thead><tr>${th('title', 'Task')}${th('status', 'Status')}${th('assignee', 'Assignee')}${th('due', 'Due')}${th('priority', 'Priority')}${th('size', 'Size')}</tr></thead>
       ${gs.map((g) => html`<tbody><tr class="pm-group"><th colspan="6" scope="rowgroup">${g.title} <span class="muted small">${plural(g.rows.length, 'task')}</span></th></tr>${g.rows.map(row)}</tbody>`)}
-    </table>` : html`<div class="empty"><p>${tasks.length ? 'No task matches the filters.' : work ? 'No tasks yet. Add one with + Task, or on the board.' : 'No tasks yet.'}</p></div>`);
+    </table></div>` : html`<div class="empty"><p>${tasks.length ? 'No task matches the filters.' : work ? 'No tasks yet. Add one with + Task, or on the board.' : 'No tasks yet.'}</p></div>`);
     el.querySelectorAll('select[data-f="assigneeId"]').forEach((s) => (s.value = tasks.find((t) => t.id === s.dataset.id)?.assigneeId || ''));
     el.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', (e) => !e.target.closest('a, select, input, button, label') && (location.hash = tr.dataset.href)));
     // Selecting rows for a bulk change.
@@ -2430,7 +2430,7 @@ export async function pmSettingsView(el, _params, query) {
   const reload = () => pmSettingsView(el, _params, query);
   if (tab === 'statuses') {
     mount(pane, html`<h2>Statuses for new projects</h2><p class="muted small">Each new project copies these as the columns of its board; a project manager can change a project's own under Board → Edit columns. Progress, overdue and health go by each status's category, so reports work whatever the names.</p>
-      <table class="table compact no-stack pm-status-table"><thead><tr><th>Status</th><th>Category</th><th class="num">WIP limit</th></tr></thead><tbody>${s.statuses.map((x) => html`<tr><td>${statusChip(x)}</td><td>${CATEGORIES[x.category]}</td><td class="num">${x.wipLimit || '—'}</td></tr>`)}</tbody></table>
+      <div class="scroll-x"><table class="table compact no-stack pm-status-table"><thead><tr><th>Status</th><th>Category</th><th class="num">WIP limit</th></tr></thead><tbody>${s.statuses.map((x) => html`<tr><td>${statusChip(x)}</td><td>${CATEGORIES[x.category]}</td><td class="num">${x.wipLimit || '—'}</td></tr>`)}</tbody></table></div>
       <div class="actions pm-after-table"><button class="btn primary" id="edit">Edit statuses</button></div>`);
     pane.querySelector('#edit').addEventListener('click', () => editStatuses({ statuses: s.statuses, title: 'Statuses for new projects', save: (statuses) => api.put('/api/pm/settings', { statuses, types: s.types }), after: reload }));
   } else if (tab === 'types') {

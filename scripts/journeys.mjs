@@ -308,7 +308,9 @@ for (const [who, pw = DEMO_PW] of ROLES) {
     for (const h of hrefs) {
       await p.goto(`${BASE}/${h}`);
       await p.waitForTimeout(500);
-      const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      // Against the phone's own width: a phone browser widens its layout to fit a page that is too
+      // wide (and zooms out), so innerWidth itself grows with the page (0.47).
+      const over = await p.evaluate((w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w, p.viewportSize().width);
       if (over > 1) wide.push(`${h} (${over}px wider)`);
       await noErrorToast(p, h);
     }

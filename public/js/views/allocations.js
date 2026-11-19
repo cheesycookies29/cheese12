@@ -42,9 +42,9 @@ export async function allocationsView(el) {
             <h2>${h.name}</h2><p class="muted small">${[h.employeeNo, h.department].filter(Boolean).join(' · ')}</p></div>
             <div class="holder-count"><strong>${h.assets.length}</strong><span>asset${h.assets.length === 1 ? '' : 's'}</span></div></header>
           ${h.assets.length
-            ? html`<table class="table compact"><thead><tr><th>Tag</th><th>Asset</th><th>Category</th><th>Since</th><th>Return by</th></tr></thead>
+            ? html`<div class="scroll-x holder-assets"><table class="table compact"><thead><tr><th>Tag</th><th>Asset</th><th>Category</th><th>Since</th><th>Return by</th></tr></thead>
                 <tbody>${h.assets.map((a) => html`<tr><td><a class="mono" href="#/assets/item/${a.id}">${a.assetTag}</a></td><td>${a.name}</td><td>${a.category}</td>
-                  <td>${fmtDate(a.assignedAt?.slice(0, 10))}</td><td>${a.expectedReturn ? html`${fmtDate(a.expectedReturn)}${a.expectedReturn < today() ? html` ${badge('Overdue', 'amber')}` : ''}` : html`<span class="muted">—</span>`}</td></tr>`)}</tbody></table>`
+                  <td class="nowrap">${fmtDate(a.assignedAt?.slice(0, 10))}</td><td class="nowrap">${a.expectedReturn ? html`${fmtDate(a.expectedReturn)}${a.expectedReturn < today() ? html` ${badge('Overdue', 'amber')}` : ''}` : html`<span class="muted">—</span>`}</td></tr>`)}</tbody></table></div>`
             : ''}
           ${h.items.size
             ? html`<p class="consumed"><span class="muted small">Consumables issued:</span> ${[...h.items.values()].map((i) => html`<span class="chip">${i.qty} ${i.unit} · ${i.name}</span>`)}</p>`
@@ -172,7 +172,7 @@ export async function myAssetsView(el) {
     <section class="card">
       <h2>Supplies issued to you</h2>
       ${issued.length
-        ? html`<table class="table compact"><thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>Reference</th></tr></thead>
+        ? html`<div class="scroll-x holder-assets"><table class="table compact"><thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>Reference</th></tr></thead>
             <tbody>${issued.map((m) => html`<tr><td>${fmtDate(m.at.slice(0, 10))}</td><td>${m.itemName}</td><td class="num">${-m.quantity} ${m.unit}</td><td>${m.reference}</td></tr>`)}</tbody></table>`
         : html`<p class="muted">None yet.</p>`}
     </section>`);

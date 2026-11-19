@@ -329,8 +329,27 @@ function popover(root, btn, pop) {
     setMenu(false);
     pop.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
+    // Opened from the keyboard (Enter or Space): into the menu, on its first item.
+    if (open && e.detail === 0) items()[0]?.focus();
   });
   pop.addEventListener('click', (e) => e.target.closest('a, button') && close());
+  // In the menu (0.47): the arrow keys, Home and End move between its items; Escape closes it and
+  // goes back to the button that opened it.
+  const items = () => [...pop.querySelectorAll('a[role="menuitem"], button[role="menuitem"]')].filter((x) => x.offsetParent !== null);
+  pop.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      close();
+      btn.focus();
+      return;
+    }
+    const list = items();
+    const at = list.indexOf(document.activeElement);
+    const to = { ArrowDown: at + 1, ArrowRight: at + 1, ArrowUp: at - 1, ArrowLeft: at - 1, Home: 0, End: list.length - 1 }[e.key];
+    if (to === undefined || !list.length) return;
+    e.preventDefault();
+    list[(to + list.length) % list.length].focus();
+  });
   pops.push(close);
 }
 const pops = [];
@@ -457,16 +476,27 @@ function setMenu(open) {
   // The drawer becomes focusable once it is shown: focus its active link a frame later.
   if (open) requestAnimationFrame(() => requestAnimationFrame(() => body.classList.contains('nav-open') && document.querySelector('#nav a.active, #nav a')?.focus({ preventScroll: true })));
 }
+// Until someone folds or unfolds it, the sidebar is icons only on a small laptop or a tablet held
+// sideways (961–1199px), so the page keeps room for its tables; full on a larger screen (0.47).
+const midScreen = matchMedia('(min-width: 961px) and (max-width: 1199px)');
+let navChoice = null;
 try {
-  if (localStorage.getItem('core-nav') === 'mini') body.classList.add('nav-mini');
+  navChoice = localStorage.getItem('core-nav');
 } catch {}
+const applyNav = () => {
+  body.classList.toggle('nav-mini', navChoice === 'mini' || navChoice === 'full' ? navChoice === 'mini' : midScreen.matches);
+  if (!phone()) menuBtn.setAttribute('aria-expanded', String(!body.classList.contains('nav-mini')));
+};
+applyNav();
+midScreen.addEventListener('change', applyNav);
 menuBtn.addEventListener('click', () => {
   closePops();
   if (phone()) return setMenu(!body.classList.contains('nav-open'));
   const mini = body.classList.toggle('nav-mini');
   menuBtn.setAttribute('aria-expanded', String(!mini));
+  navChoice = mini ? 'mini' : 'full';
   try {
-    localStorage.setItem('core-nav', mini ? 'mini' : 'full');
+    localStorage.setItem('core-nav', navChoice);
   } catch {}
 });
 scrim.addEventListener('click', () => setMenu(false));

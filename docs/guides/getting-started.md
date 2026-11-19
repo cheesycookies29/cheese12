@@ -40,7 +40,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The CORE home, with a card per module](getting-started-home.jpg)
 
-To see every module at once, choose **Compact** beside **Your modules**: the modules become small tiles in a grid, in the same order, each with its first figure and its star. **Cards** brings back the sliding row. Your choice is kept in this browser.
+To see every module at once, choose **Compact** beside **Your modules**: the modules become small tiles in a grid, in the same order, each with its first figure and its star. **Cards** brings back the sliding row. On a phone the CORE home starts in **Compact**; on a computer or tablet, in **Cards**. Once you choose, your choice is kept in this browser.
 
 ![The CORE home in the compact view](getting-started-compact.jpg)
 
@@ -84,6 +84,8 @@ If your company requires 2-step verification and you have not set it up, CORE sh
 
 1. On the CORE home, choose **Open** on the module's card. Or, from anywhere, choose the **modules** button at the top right and pick the module.
 2. The module opens on its first page. Its pages are in the side menu on the left.
+
+On a small laptop or a tablet held sideways the side menu shows only its icons, so the page has room for its tables: point at an icon to see its name, or choose the **menu** button (three lines) at the top left to show the names. Choose it again to fold it back. CORE remembers your choice in this browser.
 
 To go back to the CORE home, choose the CORE logo at the top left, or **CORE home** in the modules menu.
 
@@ -216,6 +218,7 @@ CORE works in the phone's browser; there is nothing to install. On a narrow scre
 - **Tabs and chips** that do not fit scroll sideways: a fade at the edge shows there is more, and the tab you are on is always in view.
 - **Forms**: when something is missing, every field to fix is outlined with a message under it, and CORE takes you to the first one. When only one field is wrong, its message is under it. On long forms (an employee, an asset, Payroll Setup) the **Save** button (and **Cancel**) stays at the bottom of a phone's or tablet's screen.
 - **Messages** such as *Saved.* appear at the top of a phone's or tablet's screen, so they never cover a button. On a computer they rise above a bar at the bottom of the page.
+- **The CORE home** shows **Your modules** as compact tiles, all on one screen; choose **Cards** for the larger cards with more figures.
 - **The top bar** keeps the menu, the CORE mark, the modules button, the bell, Help and your picture; **Dark mode** moves into the menu under your name. The notifications panel fills the width of the screen.
 - Turned sideways, the top bar is shorter and windows use the whole height, with their title at the top and their buttons at the bottom.
 

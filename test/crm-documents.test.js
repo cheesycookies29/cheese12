@@ -8,7 +8,7 @@ import path from 'node:path';
 import { deflateRawSync } from 'node:zlib';
 import { openDb } from '../server/db.js';
 import { createApi } from '../server/api.js';
-import { sniffOffice } from '../server/attachments.js';
+import { sniffOffice, shortName } from '../server/attachments.js';
 import { DOCX, XLSX } from '../shared/crm.js';
 
 const PW = 'Correct-Horse-42';
@@ -68,6 +68,15 @@ test('sniffOffice: Word and Excel files are recognised from their parts; macro-e
   assert.equal(sniffOffice(zip([['hello.txt', 'hi']])), null, 'a plain ZIP');
   assert.equal(sniffOffice(Buffer.from('PK\u0003\u0004 not really a zip')), null);
   assert.equal(sniffOffice(pdf), null);
+});
+
+test('a long file name is shortened before its extension, which it keeps (0.47)', () => {
+  const long = `${'Memorandum of agreement '.repeat(8)}signed.docx`;
+  const short = shortName(long);
+  assert.equal(short.length, 120);
+  assert.ok(short.endsWith('….docx'), short);
+  assert.equal(shortName('Annex A.pdf'), 'Annex A.pdf');
+  assert.equal(shortName('x'.repeat(130)).length, 120, 'no extension: cut at 120');
 });
 
 test('contract documents: added by those who edit, opened as a download, removed by the uploader or a Sales Manager, all in the history', async () => {
