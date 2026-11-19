@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exec } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { openDb } from './server/db.js';
 import { createApi, clientIp } from './server/api.js';
 import { baseHeaders, pagePolicy, API_POLICY, crossSite } from './server/security.js';
@@ -92,7 +93,9 @@ function readBody(req, limit) {
     req.on('end', () => {
       try {
         const raw = Buffer.concat(chunks).toString('utf8');
-        const body = raw ? JSON.parse(raw) : {};
+        // Keys no request field is called, which would change how a value turns into text (an object
+        // whose toString is not a function cannot be shown at all): dropped (VAPT 0.39, D3-1).
+        const body = raw ? JSON.parse(raw, (k, v) => (k === 'toString' || k === 'valueOf' || k === '__proto__' ? undefined : v)) : {};
         // Every endpoint takes a JSON object; null, a number or a string is a bad request.
         if (body === null || typeof body !== 'object') return reject(Object.assign(new Error('Send a JSON object.'), { status: 400, signal: 'bad-json' }));
         resolve(body);
@@ -107,11 +110,33 @@ function readBody(req, limit) {
 // Unlisted pages (public/private/<slug>.html) are served at /<slug>, linked from nowhere and
 // kept out of search engines. Only slugs that look like core-rd-<random> are matched.
 const NO_INDEX = { 'X-Robots-Tag': 'noindex, nofollow, noarchive', 'Referrer-Policy': 'no-referrer' };
+// VAPT 0.39 (B3-2): they get a Content-Security-Policy of their own, as strict as their content
+// allows (their inline scripts by hash; Google Fonts for the pages that use it; no framing), and an
+// address that looks like one but is not answers 404, so a guess cannot be told from a miss by headers.
+const privatePolicy = new Map();
+function policyFor(file, body) {
+  const stamp = fs.statSync(file).mtimeMs;
+  const known = privatePolicy.get(file);
+  if (known?.stamp === stamp) return known.policy;
+  const hashes = [...body.toString('utf8').matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`);
+  const policy = [
+    "default-src 'self'", `script-src 'self' ${hashes.join(' ')}`.trim(), "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com", "img-src 'self' data: https:", "media-src 'self' https:", "connect-src 'self'",
+    "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'",
+  ].join('; ');
+  privatePolicy.set(file, { stamp, policy });
+  return policy;
+}
 function servePrivate(url, res) {
   const slug = url.pathname.match(/^\/(core-rd-[a-z0-9]{8,})\/?$/)?.[1];
-  const file = slug && path.join(ROOT, 'public', 'private', `${slug}.html`);
-  if (!file || !fs.existsSync(file)) return false;
-  send(res, 200, fs.readFileSync(file), 'text/html', NO_INDEX);
+  if (!slug) return false;
+  const file = path.join(ROOT, 'public', 'private', `${slug}.html`);
+  if (!fs.existsSync(file)) {
+    send(res, 404, 'Not found', 'text/plain', NO_INDEX);
+    return true;
+  }
+  const body = fs.readFileSync(file);
+  send(res, 200, body, 'text/html', { ...NO_INDEX, 'Content-Security-Policy': policyFor(file, body) });
   return true;
 }
 

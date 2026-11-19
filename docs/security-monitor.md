@@ -151,6 +151,13 @@ network addresses and who used CORE, as the audit log already does, for the same
 - security;
 - accountability (Data Privacy Act, legitimate interest of the company).
 
+Since 0.39 (third security assessment) the parts about accounts are narrower still: the checks
+about accounts and the device and address of each session need **Manage users** as well (so only
+administrators see them), and the recent sign-ins need **Audit log**. Behind the HTTPS proxy CORE reads the visitor's address from
+`X-Forwarded-For` only when it is set up for it (`TRUST_PROXY=1`, set on the AWS server); elsewhere
+the connection's own address is used, so a program on the same computer cannot name another one.
+The metrics address answers 401 whether or not a token was made.
+
 It never shows:
 - request bodies;
 - query strings;

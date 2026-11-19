@@ -12,7 +12,7 @@ export const COMPANY_ROLE_MAX = 60;
 export function cleanCompanyRole(value) {
   if (value == null) return null;
   if (typeof value !== 'string') throw Object.assign(new Error('Write the role in the company as text.'), { status: 400 });
-  const v = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+  const v = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '').replace(/\s+/g, ' ').trim();
   if (v.length > COMPANY_ROLE_MAX) throw Object.assign(new Error(`The role in the company can be up to ${COMPANY_ROLE_MAX} characters.`), { status: 400 });
   return v && v.toLowerCase() !== DEFAULT_COMPANY_ROLE.toLowerCase() ? v : null;
 }

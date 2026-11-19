@@ -2,19 +2,18 @@
 // newest copy on this server), restore it into a throw-away folder, start CORE on it and check it
 // works: the data opens, an administrator can sign in to it, the audit log's chain is intact.
 // The result goes to data/backups/restore-check.json, which the Security monitor shows.
-// Run by cron through scripts/restore-check.js; the steps for a real restore: deploy/aws/RESTORE.md.
+// Run nightly by the ltdc-erp-restore-check systemd timer (private /tmp, removed when it ends)
+// through scripts/restore-check.js; the steps for a real restore: deploy/aws/RESTORE.md.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { openDb } from './db.js';
 import { createApi } from './api.js';
 import { createSecrets } from './secrets.js';
 import { createAudit } from './audit.js';
-import { instanceCredentials, s3Client, statusFile as offsiteStatusFile } from './offsite.js';
+import { instanceCredentials, fetchOffsiteCopy, IntegrityError, statusFile as offsiteStatusFile } from './offsite.js';
 
 export const restoreStatusFile = (dataDir) => path.join(dataDir, 'backups', 'restore-check.json');
-const sha256 = (b) => createHash('sha256').update(b).digest('hex');
 
 // The newest copy kept on this server by the nightly job (data/backups/db-YYYY-MM-DD.json).
 function newestLocal(dataDir) {
@@ -27,8 +26,9 @@ function newestLocal(dataDir) {
   return { name: `backups/${db}`, files: { 'db.json': fs.readFileSync(path.join(dir, db)), ...(fs.existsSync(log) ? { 'audit-log.jsonl': fs.readFileSync(log) } : {}) } };
 }
 
-// The latest good off-server copy, downloaded and compared with what was sent.
-async function latestOffsite(dataDir, { credentials, client }) {
+// The latest good off-server copy, downloaded through fetchOffsiteCopy: the hour's sealed manifest
+// and every file's size and SHA-256 are checked (VAPT 0.39). Attached files are not fetched nightly.
+async function latestOffsite(dataDir, dest, { credentials, client }) {
   let last;
   try {
     last = JSON.parse(fs.readFileSync(offsiteStatusFile(dataDir), 'utf8')).lastOk;
@@ -36,18 +36,9 @@ async function latestOffsite(dataDir, { credentials, client }) {
     return null;
   }
   if (!last?.prefix) return null;
-  let s3 = client;
-  if (!s3) {
-    const id = await credentials();
-    s3 = s3Client({ bucket: process.env.BACKUP_BUCKET || `ltdc-erp-backups-${id.accountId}`, region: id.region, creds: id.creds });
-  }
-  const files = {};
-  for (const f of last.files || []) {
-    const body = await s3.get(`${last.prefix}/${f.name}`);
-    if (f.sha256 && sha256(body) !== f.sha256) throw new Error(`${last.prefix}/${f.name} in S3 is not the file that was sent.`);
-    files[f.name] = body;
-  }
-  return { name: `s3://${s3.bucket}/${last.prefix}/`, copiedAt: last.at, files };
+  const got = await fetchOffsiteCopy({ prefix: last.prefix, dest, dataDir, attachments: false, client, credentials });
+  const files = Object.fromEntries(got.files.map((n) => [n, fs.readFileSync(path.join(dest, n))]));
+  return { name: `${last.prefix}/`, copiedAt: got.at, files };
 }
 
 export async function runRestoreCheck({ dataDir, now = new Date(), credentials = instanceCredentials, client = null, offsite = true } = {}) {
@@ -59,8 +50,11 @@ export async function runRestoreCheck({ dataDir, now = new Date(), credentials =
     let offsiteError = null;
     if (offsite) {
       try {
-        copy = await latestOffsite(dataDir, { credentials, client });
+        copy = await latestOffsite(dataDir, path.join(tmp, 'download'), { credentials, client });
       } catch (err) {
+        // A copy that is not what was sent is the failure this check exists to find: never covered
+        // by the copy on this server (VAPT 0.39, C3-3). Only an unreachable copy falls back.
+        if (err instanceof IntegrityError) throw err;
         offsiteError = err.message;
       }
     }
@@ -77,11 +71,12 @@ export async function runRestoreCheck({ dataDir, now = new Date(), credentials =
     {
       const d0 = JSON.parse(copy.files['db.json'].toString('utf8'));
       if (d0.helpdesk?.mailbox) d0.helpdesk.mailbox.enabled = false;
-      if (d0.settings?.pmDigest) d0.settings.pmDigest.enabled = false;
+      if (d0.helpdesk?.outgoing) d0.helpdesk.outgoing.enabled = false;
+      if (d0.pm?.digest) d0.pm.digest.enabled = false;
       fs.writeFileSync(path.join(tmp, 'db.json'), JSON.stringify(d0), { mode: 0o600 });
     }
     const key = path.join(dataDir, 'secret.key');
-    if (fs.existsSync(key)) fs.copyFileSync(key, path.join(tmp, 'secret.key'));
+    if (fs.existsSync(key)) fs.writeFileSync(path.join(tmp, 'secret.key'), fs.readFileSync(key), { mode: 0o600 });
 
     // The audit chain, checked before CORE starts on the copy (starting adds entries of its own).
     let audit = null;

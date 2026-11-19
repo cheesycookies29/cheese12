@@ -8,6 +8,8 @@ import { openDb } from '../server/db.js';
 import { createApi } from '../server/api.js';
 import { parseMessage } from '../server/mail/mime.js';
 import { fakeSmtp } from './support/mail-servers.js';
+// These tests are of CORE behind its HTTPS proxy, where the forwarded address is read (VAPT 0.39).
+process.env.TRUST_PROXY = '1';
 
 const db = openDb(path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ltdc-public-')), 'db.json'));
 const handle = createApi(db);

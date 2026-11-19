@@ -1,0 +1,20 @@
+# Nightly restore drill (0.38; a systemd timer since 0.39, VAPT C3-7): restores the latest off-server
+# copy into a throw-away folder and checks it (scripts/restore-check.js). The throw-away folder, which
+# holds a copy of the server key, is in this unit's private /tmp: removed when the run ends, crash or not.
+[Unit]
+Description=LTDC ERP nightly restore check
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ltdc
+Group=ltdc
+WorkingDirectory=/opt/ltdc-erp
+ExecStart=/usr/bin/node scripts/restore-check.js
+Nice=10
+MemoryMax=500M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/ltdc-erp/data

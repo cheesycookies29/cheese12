@@ -11,8 +11,11 @@ import { richToText, richWords } from '../shared/richtext.js';
 const str = (v, max, what) => {
   if (v == null) return '';
   if (typeof v !== 'string') throw new HttpError(400, `Write the ${what} as text.`);
-  return v.trim().slice(0, max);
+  // Direction overrides and invisible marks are dropped: they could make a subject or a bell line
+  // read as something else (VAPT 0.39, B3-4).
+  return v.replace(BIDI, '').trim().slice(0, max);
 };
+const BIDI = /[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
 // One of a list's own keys, never a name every object has (constructor, toString) or a list.
 const oneOf = (list, v) => (typeof v === 'string' && Object.hasOwn(list, v) ? v : null);
 const newestFirst = (list) => [...list].reverse().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
@@ -24,9 +27,20 @@ export function cleanFeedback(list) {
   if (!Array.isArray(list)) return [];
   const now = new Date().toISOString();
   const used = new Set();
-  return list.filter((f) => f && typeof f === 'object' && typeof f.id === 'string' && f.id && !used.has(f.id) && used.add(f.id)).map((f) => ({
+  const kept = list.filter((f) => f && typeof f === 'object' && typeof f.id === 'string' && f.id && !used.has(f.id) && used.add(f.id));
+  // A missing, malformed or repeated number gets the next free one (VAPT 0.39, B3-3).
+  const numbers = new Set();
+  let top = Math.max(0, ...kept.map(numberOf));
+  const numberFor = (f) => {
+    const n = numberOf(f);
+    if (n && !numbers.has(n)) return numbers.add(n), f.number;
+    top += 1;
+    numbers.add(top);
+    return `FB-${String(top).padStart(4, '0')}`;
+  };
+  return kept.map((f) => ({
     ...f,
-    number: typeof f.number === 'string' && /^FB-\d+$/.test(f.number) ? f.number : 'FB-0000',
+    number: numberFor(f),
     type: oneOf(FEEDBACK_TYPES, f.type) || 'other',
     area: oneOf(FEEDBACK_AREAS, f.area) || 'general',
     status: oneOf(FEEDBACK_STATUS, f.status) || 'new',

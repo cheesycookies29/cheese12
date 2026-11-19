@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Security fixes (0.39)
+- A third security assessment of CORE: the **Security monitor** shows the account checks, devices and addresses only to those who manage accounts, feedback ignores hidden direction characters, and on the AWS server the off-server backups are sealed and checked before a restore, updates need the approved **production** step, and CORE cannot change its own program files. See [Watch the security monitor](admin#watch-the-security-monitor).
+
 ### Safer updates and backups (0.38)
 - On the AWS server, CORE now copies its data **off the server every hour** and **checks every night** that the latest copy can be restored. **Admin panel → Security monitor** shows both. Before each update, the most-used journeys (leave approvals, payroll, the service desk, feedback, and every page on a phone) are tried in a real browser, and an update can be set to wait for a person's approval. See [Back up and restore](admin#back-up-and-restore).
 

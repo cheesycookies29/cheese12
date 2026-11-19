@@ -17,7 +17,13 @@ import { MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
 import { linkedTasks } from './projects.js';
 import { notify, quote } from './notifications.js';
 
-const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
+// Text fields are text: a number is written out, an object or a list is refused (VAPT 0.39, D3-1).
+const str = (v, max = 200) => {
+  if (v == null) return '';
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v).slice(0, max);
+  if (typeof v !== 'string') throw new HttpError(400, 'Write each field as text.');
+  return v.trim().slice(0, max);
+};
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_BODY = 20000;
 export const MAX_FILES = 5;

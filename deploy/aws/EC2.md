@@ -306,7 +306,7 @@ Set this up once, after the first installation (Parts 1–5). From then on, ever
 5. Fill in the stack details:
    - **Stack name:** `ltdc-erp-deploy`;
    - **InstanceId:** pick your server from the list;
-   - leave the other three fields as they are (**DeployBranch** is the branch that deploys; only workflow runs on it can use the deploy role).
+   - leave the other fields as they are (**DeployEnvironment** is the GitHub environment that deploys, `production`: only the workflow's deploy job, which runs in it, can use the deploy role, and it can only ask the server to install a commit, through the `ltdc-erp-deploy` command the stack makes).
 
    Click **Next**, then **Next** again.
 6. At the bottom, tick **"I acknowledge that AWS CloudFormation might create IAM resources with custom names"** and click **Submit**.
@@ -351,21 +351,29 @@ before installing and waits until one of the people you name approves it on GitH
    branch (`claude/busy-curie-hfpbg0`), so no other branch can use the environment.
 4. Click **Save protection rules**.
 
-From then on each run shows **Waiting for review** at the **approve** step. Open it, check the
+From then on each run shows **Waiting for review** at the **deploy** job. Open it, check the
 summary (tests and browser journeys passed), and click **Review deployments → Approve and deploy**.
 GitHub emails the reviewers when a run is waiting. A newer push replaces a run still waiting.
 
-### Update the stack (after 0.33 and 0.38)
+### Update the stack (after 0.33, 0.38 and 0.39)
 
-The template changed twice: 0.33 lets only the deploy branch use the deploy role, and 0.38 adds the
-backup bucket and lets the server write to it. To apply both:
+The template changed three times: 0.33 limited who may use the deploy role, 0.38 adds the backup
+bucket and lets the server write to it, and 0.39 (third security assessment) trusts only the
+**production** environment's deploy job, lets it send only the `ltdc-erp-deploy` install command
+(a commit to install, nothing else), and makes the bucket refuse any upload that would replace a
+file. To apply them all:
 
 1. Open **CloudFormation → Stacks → ltdc-erp-deploy → Update → Replace existing template**.
 2. Upload the current `deploy/aws/github-deploy.yaml` and click **Next**. Keep every parameter as it
-   is (check **DeployBranch** is the branch above) and click **Next**, **Next**.
+   is (**DeployEnvironment** is `production`; a stack from before 0.39 shows **DeployBranch**
+   instead, which is no longer used) and click **Next**, **Next**.
 3. Tick the IAM acknowledgement and click **Submit**. Wait for **UPDATE_COMPLETE**. The **Outputs**
    tab now shows **BackupBucketName**.
 4. Within the hour, **Admin panel → Security monitor** shows **Off-server backup: Fine**.
+
+Until the stack is updated, deploys still work the old way (the run says the stack is older than
+0.39). After it is updated, only runs of the deploy job in the **production** environment can
+deploy, so do step D's branch limit too.
 
 ## Troubleshooting
 
@@ -397,7 +405,7 @@ An Elastic IP that isn't released keeps costing money even when nothing is using
 ## Security notes
 
 - The app only listens on the server itself (`127.0.0.1:3000`). The internet reaches it only through Caddy over HTTPS.
-- The app runs as the limited `ltdc` user and can write only to its `data` folder. The disk is encrypted.
+- The app runs as the limited `ltdc` user and can write only to its `data` folder; its code belongs to `root` (0.39). It cannot reach the instance's metadata address, so a flaw in it cannot take the server's AWS permissions; the hourly backup and the nightly restore check run as separate, sandboxed services. The disk is encrypted.
 - Sessions use secure, HTTP-only cookies. Five wrong passwords lock that username for 5 minutes.
 - SSH is open only to your IP, and only with the `ltdc-erp.pem` key. Don't share the key, and keep a copy somewhere safe.
 - The server holds employee personal and payroll data covered by the Data Privacy Act of 2012 (RA 10173). Give accounts only to the people who need them and use strong passwords.

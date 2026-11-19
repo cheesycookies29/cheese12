@@ -102,6 +102,7 @@ function validateEmployee(input, db, existingId) {
   for (const f of MASKED_FIELDS) if (typeof e[f] === 'string' && e[f].startsWith('••••')) e[f] = before?.[f] || '';
   for (const f of ['employeeNo', 'firstName', 'lastName', 'hireDate']) {
     if (!e[f]) throw new HttpError(400, `${f} is required.`);
+    if (typeof e[f] !== 'string') throw new HttpError(400, `Write ${f} as text.`);
   }
   if (!DATE_RE.test(e.hireDate)) throw new HttpError(400, 'Hire date must be YYYY-MM-DD.');
   if (e.birthDate && !DATE_RE.test(e.birthDate)) throw new HttpError(400, 'Birth date must be YYYY-MM-DD.');
@@ -300,10 +301,14 @@ function findUser(db, id) {
 // that header is read only when the request comes from this machine. A visitor can send the
 // header too, and a proxy adds the address it saw after theirs: so the last entry, the one the
 // nearest proxy wrote, is the address, and whatever comes before it is ignored.
+// VAPT 0.39 (A3-1): only where CORE is set up behind that proxy (TRUST_PROXY=1, or COOKIE_SECURE=1
+// as the AWS set-up has). Elsewhere (an office PC) any program on the same computer could otherwise
+// name any address, to frame one on the Security monitor or to slip past the per-address limits.
+export const trustsProxy = () => process.env.TRUST_PROXY === '1' || process.env.COOKIE_SECURE === '1';
 export function clientIp(req) {
   const remote = req.socket?.remoteAddress || '';
   const forwarded = req.headers?.['x-forwarded-for'];
-  if (forwarded && /^(127\.|::1$|::ffff:127\.)/.test(remote)) {
+  if (forwarded && trustsProxy() && /^(127\.|::1$|::ffff:127\.)/.test(remote)) {
     const last = String(forwarded).split(',').pop().trim();
     if (last) return last;
   }

@@ -219,7 +219,7 @@ test('health check: nothing but that CORE answers; metrics need a token only adm
   const admin = client();
   await admin('POST', '/api/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
   assert.deepEqual((await anon('GET', '/api/public/health')).data, { status: 'ok' });
-  await fails(anon('GET', '/api/admin/monitor/metrics'), 404);
+  await fails(anon('GET', '/api/admin/monitor/metrics'), 401); // the same with or without a token made (VAPT 0.39, A3-3)
   await admin('POST', '/api/users', { name: 'Hana HR', username: 'hana', role: 'hr', password: PW, mustChangePassword: false });
   const hana = client();
   await hana('POST', '/api/auth/login', { username: 'hana', password: PW });
@@ -238,7 +238,7 @@ test('health check: nothing but that CORE answers; metrics need a token only adm
   const { data: again } = await admin('POST', '/api/admin/monitor/token');
   await fails(scraper(made.token)('GET', '/api/admin/monitor/metrics'), 401);
   await admin('DELETE', '/api/admin/monitor/token');
-  await fails(scraper(again.token)('GET', '/api/admin/monitor/metrics'), 404);
+  await fails(scraper(again.token)('GET', '/api/admin/monitor/metrics'), 401);
   const log = JSON.stringify((await admin('GET', '/api/audit?area=monitor')).data);
   assert.ok(log.includes('Created') && log.includes('Replaced') && log.includes('Revoked'));
   assert.ok(!log.includes(made.token), 'the token itself is never logged');

@@ -301,7 +301,7 @@ The log records every sign-in and failed sign-in, every change to employees, pay
 
 ### Watch the security monitor
 
-**Admin panel → Security monitor** shows how CORE is doing: whether the software is healthy, what the API refused and from where, how much CORE is used and how fast it answers, and who is signed in. It refreshes every minute while it is open. It is for administrators, and for any account type given **Security monitor** under **Roles & permissions**.
+**Admin panel → Security monitor** shows how CORE is doing: whether the software is healthy, what the API refused and from where, how much CORE is used and how fast it answers, and who is signed in. It refreshes every minute while it is open. It is for administrators, and for any account type given **Security monitor** under **Roles & permissions**. Only administrators see the checks about accounts (administrators without 2-step verification, temporary passwords, unused accounts) and the device and address of each session; the recent sign-ins need **Audit log** too.
 
 1. Open **Admin panel → Security monitor**.
 2. Choose the period above the figures: **Last hour**, **24 hours**, **7 days** or **30 days**. Every figure and chart on the page follows it.

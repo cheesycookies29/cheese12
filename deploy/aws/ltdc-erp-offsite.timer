@@ -1,0 +1,10 @@
+# At 5 past every hour (a run missed while the server was off runs when it starts).
+[Unit]
+Description=LTDC ERP hourly off-server backup
+
+[Timer]
+OnCalendar=*-*-* *:05:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

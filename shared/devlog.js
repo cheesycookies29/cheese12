@@ -28,6 +28,24 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.39.0-alpha',
+    date: '2026-11-19',
+    title: 'Third security assessment (VAPT round 3)',
+    modules: ['deploy', 'system'],
+    notes: 'Four testers on local copies only: the Security monitor, feedback and the visual editor, the unlisted pages, the 0.38 deploy pipeline and off-server backups, and a regression sweep of the earlier fixes. One high finding (any job of the workflow could take the deploy role) and the medium and low findings below are fixed, each with a regression test (test/vapt3.test.js).',
+    changes: [
+      ['fixed', 'deploy', 'C3-1 (high): only the deploy job, in the "production" environment, may ask AWS for credentials; every other job is read-only. The deploy role trusts that environment only (DeployEnvironment replaces DeployBranch) and may send only the new ltdc-erp-deploy command, which takes a 40-character commit and a token, each checked against a pattern. A stack from before 0.39 keeps working through the old command until it is updated; a stack that trusts the branch explains what to do.'],
+      ['fixed', 'deploy', 'C3-2, C3-3: off-server uploads never replace a file (If-None-Match, and a bucket policy that refuses any other upload). Each hour has a manifest of its files (size and SHA-256) sealed with a key made from the server key; fetching checks the seal and every file, and the restore check fails on a changed copy instead of falling back to the copy on the server.'],
+      ['fixed', 'deploy', 'C3-5 to C3-12: attached files deleted in CORE leave the list and do not return on a restore; downloads are capped at the size the manifest gives and redirects are refused; the bucket owner is pinned; the restore check turns off the copy\'s mail and digests and keeps its key at 0600; the instance metadata address cannot be changed by an environment variable.'],
+      ['fixed', 'deploy', 'C3-9, C3-12: the program files belong to root and only the data folder to the app\'s account; the app cannot reach the instance metadata address (IPAddressDeny), so the hourly copy and the nightly restore check run as their own sandboxed systemd timers (private /tmp, read-only system, memory cap) instead of cron. Checkouts in the workflow keep no credentials.'],
+      ['fixed', 'system', 'A3-1 (medium): X-Forwarded-For is read only where CORE is set up behind its proxy (TRUST_PROXY=1, or COOKIE_SECURE=1 as on AWS), so a program on the same computer cannot name another address to the Security monitor or the rate limits.'],
+      ['fixed', 'system', 'A3-2, A3-3: the Security monitor shows the account checks and each session\'s device and address only with Manage users, and the recent sign-ins only with Audit log; the metrics address answers 401 whether or not a token was made.'],
+      ['fixed', 'system', 'B3-2 to B3-4: unlisted pages have a Content-Security-Policy of their own (inline scripts by hash, no framing) and an unknown address answers 404 with the same headers; a restored backup cannot bring feedback without a number or two with the same one; direction overrides and invisible characters are removed from feedback and the role in the company. The showcase page no longer names the hosting set-up.'],
+      ['fixed', 'system', 'D3-1 (low): an object where text is expected (a service desk subject or message, an employee number) is answered 400 instead of a server error, and the JSON body parser drops toString and valueOf keys so no route can be made to fail on them. The regression sweep (314 routes, 11 account types, about 3,300 calls) found no other gap: object-level access, separation of duties, masked IDs and module switches hold.'],
+    ],
+    known: ['Until the CloudFormation stack is updated with the 0.39 template, deploys use the old AWS-RunShellScript command and the bucket accepts unconditional uploads (deploy/aws/EC2.md, "Update the stack").'],
+  },
+  {
     version: '0.38.0-alpha',
     date: '2026-11-18',
     title: 'Release safety and data protection',

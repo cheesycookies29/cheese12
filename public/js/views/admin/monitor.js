@@ -239,8 +239,8 @@ export async function monitorView(el, params, q = {}) {
       </div>
       <section class="card" aria-labelledby="mon-live">
         <h2 id="mon-live">${icon('user')} Signed in now</h2>
-        ${a.live.length ? html`<div class="table-scroll"><table class="table"><thead><tr><th>Person</th><th>Account type</th><th>Device</th><th>Network address</th><th>Signed in</th><th>Last active</th></tr></thead>
-          <tbody>${a.live.map((s) => html`<tr><td><a href="#/people/${s.userId}">${s.name}</a></td><td>${s.role}</td><td>${s.device}</td><td class="mono">${s.ip}</td><td>${fmtDateTime(s.signedInAt)}</td><td>${timeAgo(s.lastSeenAt)}</td></tr>`)}</tbody></table></div>
+        ${a.live.length ? html`<div class="table-scroll"><table class="table"><thead><tr><th>Person</th><th>Account type</th>${can('users.manage') ? html`<th>Device</th><th>Network address</th>` : ''}<th>Signed in</th><th>Last active</th></tr></thead>
+          <tbody>${a.live.map((s) => html`<tr><td><a href="#/people/${s.userId}">${s.name}</a></td><td>${s.role}</td>${can('users.manage') ? html`<td>${s.device}</td><td class="mono">${s.ip}</td>` : ''}<td>${fmtDateTime(s.signedInAt)}</td><td>${timeAgo(s.lastSeenAt)}</td></tr>`)}</tbody></table></div>
           ${can('users.manage') ? html`<p class="muted small">To end someone's sessions: Users & Access → the person → Sign out everywhere.</p>` : ''}`
         : html`<p class="muted small">Nobody is signed in.</p>`}
       </section>
@@ -254,12 +254,12 @@ export async function monitorView(el, params, q = {}) {
           ${a.topPeople.length ? html`<table class="table"><thead><tr><th>Person</th><th class="num">Actions</th><th class="num">Requests</th></tr></thead><tbody>${a.topPeople.map((x) => html`<tr><td><a href="#/people/${x.id}">${x.name}</a><small class="block muted">${x.role}</small></td><td class="num">${n(x.actions)}</td><td class="num">${n(x.requests)}</td></tr>`)}</tbody></table>` : html`<p class="muted small">Nobody in this period.</p>`}
         </section>
       </div>
-      <section class="card" aria-labelledby="mon-signins">
+      ${a.signInLog ? html`<section class="card" aria-labelledby="mon-signins">
         <div class="card-head"><h2 id="mon-signins">Recent sign-ins</h2>${can('audit.view') ? html`<a class="small" href="#/admin/audit?area=auth">Audit log ${icon('chevronRight', 14)}</a>` : ''}</div>
         ${a.signInLog.length ? html`<div class="table-scroll"><table class="table"><thead><tr><th>When</th><th>Who</th><th>Network address</th><th>Result</th></tr></thead>
           <tbody>${a.signInLog.map((e) => html`<tr><td>${fmtDateTime(e.at)}</td><td>${e.userId ? html`<a href="#/people/${e.userId}">${e.name}</a>` : html`<span class="mono">${e.name}</span>`}</td><td class="mono">${e.ip || '—'}</td><td>${badge(OUT[e.outcome][0], OUT[e.outcome][1])}${e.note && e.outcome !== 'signed-in' ? html` <small class="muted">${e.note}</small>` : ''}</td></tr>`)}</tbody></table></div>`
         : html`<p class="muted small">No sign-ins recorded yet.</p>`}
-      </section>`;
+      </section>` : ''}`;
   }
 
   await draw();

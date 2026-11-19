@@ -1,0 +1,20 @@
+# Hourly off-server backup (0.38; a systemd timer since 0.39, VAPT C3-7): the data file, the audit log
+# and new attached files to the server's S3 bucket (scripts/offsite-backup.js). Installed by
+# remote-deploy.sh. Runs as ltdc in the same sandbox as the app, with its own private /tmp.
+[Unit]
+Description=LTDC ERP hourly off-server backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=ltdc
+Group=ltdc
+WorkingDirectory=/opt/ltdc-erp
+ExecStart=/usr/bin/node scripts/offsite-backup.js
+Nice=10
+MemoryMax=400M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/ltdc-erp/data

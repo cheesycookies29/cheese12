@@ -7,8 +7,8 @@ this page where you can reach it without the server (it is also in the repositor
 
 | Copy | Where | How often | Kept |
 |---|---|---|---|
-| Off-server copy (0.38) | S3 bucket `ltdc-erp-backups-<account id>`, folder `hourly/<day>/<hour>/` | Every hour, at 5 past | 30 days (and overwritten versions 30 days) |
-| Attached files | the same bucket, folder `attachments/` | Every hour, new files only | Until removed by hand |
+| Off-server copy (0.38) | S3 bucket `ltdc-erp-backups-<account id>`, folder `hourly/<day>/<hour>/` | Every hour, at 5 past | 30 days; never overwritten |
+| Attached files | the same bucket, folder `attachments/` | Every hour, new files only | Until removed by hand (a file deleted in CORE is no longer listed with later hours, so it does not come back on a restore; remove it from the bucket in the S3 console when it must be erased) |
 | Nightly copy | `/opt/ltdc-erp/data/backups/db-<date>.json` on the server | 2:15 AM | 30 days |
 | Before each update | `/opt/ltdc-erp/data/backups/db-before-update-<date>-<time>.json` | Every deployment | 30 days |
 | Disk snapshot | EC2 → Snapshots (Data Lifecycle Manager) | Daily | 7 |
@@ -20,15 +20,23 @@ copy, restores it into a throw-away folder on the server, starts CORE on it and 
 opens, has an administrator and that its audit log passes its check. If it says **Problem**, read
 the reason there and fix it before you need the copy.
 
+Each hour's folder has a `manifest.json` listing every file with its size and fingerprint, sealed
+with a key made from the server key (0.39). A restore checks the seal and every file, so a copy
+changed in the bucket is refused. Uploads can never replace a file already there, so whoever takes
+over the server cannot rewrite the history either.
+
 **The server key is not in any backup.** `/opt/ltdc-erp/data/secret.key` seals the 2-step
-verification secrets and the audit log's chain. It never changes, so keep one copy of it in the
-company's password manager now:
+verification secrets, the audit log's chain and the backup manifests. It never changes, so keep one
+copy of it in the company's password manager now. Show it over SSH (not in a Session Manager window,
+whose session logging may record it), copy it into the password manager, then clear the screen:
 
 ```bash
-sudo cat /opt/ltdc-erp/data/secret.key
+sudo cat /opt/ltdc-erp/data/secret.key; echo
+clear
 ```
 
-Without it, a restored CORE works, but everyone with 2-step verification must have it reset by an
+Without it, a restored CORE works, but the off-server copies cannot be checked or fetched (restore
+a nightly copy or a snapshot instead), everyone with 2-step verification must have it reset by an
 administrator, and the audit log check says the key is missing.
 
 ## 1. Undo a mistake: go back to an earlier hour (server still running)
@@ -42,22 +50,26 @@ tell people what will be redone.
    and fetch that hour into a folder:
 
    ```bash
-   cd /opt/ltdc-erp && sudo -u ltdc node scripts/offsite-fetch.js hourly/2026-11-18/09 /tmp/restore
+   R="$(sudo -u ltdc mktemp -d /opt/ltdc-erp/data/restore-XXXXXX)"
+   cd /opt/ltdc-erp && sudo -u ltdc node scripts/offsite-fetch.js hourly/2026-11-18/09 "$R"
    ```
+
+   It checks the hour's seal and every file; if it says a file "is not the file that was sent", stop
+   and use the hour before, a nightly copy or a snapshot.
 
 3. Put it in place (a copy of the current data is kept first):
 
    ```bash
    sudo systemctl stop ltdc-erp
    sudo cp /opt/ltdc-erp/data/db.json /opt/ltdc-erp/data/backups/db-before-restore-$(date +%F-%H%M).json
-   sudo cp /tmp/restore/db.json /opt/ltdc-erp/data/db.json
-   sudo cp -n /tmp/restore/attachments/* /opt/ltdc-erp/data/attachments/ 2>/dev/null || true
+   sudo cp "$R/db.json" /opt/ltdc-erp/data/db.json
+   sudo cp -n "$R"/attachments/* /opt/ltdc-erp/data/attachments/ 2>/dev/null || true
    sudo chown -R ltdc:ltdc /opt/ltdc-erp/data && sudo systemctl start ltdc-erp
-   sudo rm -rf /tmp/restore
+   sudo rm -rf "$R"
    ```
 
    Keep the current audit log: it records what happened, including the restore. Only replace it
-   (with `/tmp/restore/audit-log.jsonl` and `audit-head.json`) if the log itself was damaged.
+   (with `$R/audit-log.jsonl` and `audit-head.json`) if the log itself was damaged.
 
 4. Sign in, check the records you expected, and say in **Send feedback** or by email what changed.
 
@@ -69,21 +81,23 @@ A nightly copy works the same way: use `/opt/ltdc-erp/data/backups/db-<date>.jso
    point it at the new Elastic IP). Do not create the first administrator yet.
 2. Attach the **ltdc-erp-server** IAM role to it (**EC2 → Actions → Security → Modify IAM role**),
    and update the CloudFormation stack's **InstanceId** to the new server.
-3. Put the server key back first, from the password manager:
+3. Put the server key back first, from the password manager. Type the first line, paste the key,
+   press Enter, then Ctrl-D (the key never appears in a command, the shell history or the logs):
 
    ```bash
-   sudo -u ltdc sh -c 'printf %s "PASTE-THE-KEY" > /opt/ltdc-erp/data/secret.key && chmod 600 /opt/ltdc-erp/data/secret.key'
+   sudo -u ltdc sh -c 'umask 077; cat > /opt/ltdc-erp/data/secret.key'
    ```
 
 4. Fetch the latest hour (S3 shows the newest folder) and put it all in place:
 
    ```bash
-   cd /opt/ltdc-erp && sudo -u ltdc node scripts/offsite-fetch.js hourly/2026-11-18/09 /tmp/restore
+   R="$(sudo -u ltdc mktemp -d /opt/ltdc-erp/data/restore-XXXXXX)"
+   cd /opt/ltdc-erp && sudo -u ltdc node scripts/offsite-fetch.js hourly/2026-11-18/09 "$R"
    sudo systemctl stop ltdc-erp
-   sudo cp /tmp/restore/db.json /tmp/restore/audit-log.jsonl /tmp/restore/audit-head.json /opt/ltdc-erp/data/
-   sudo mkdir -p /opt/ltdc-erp/data/attachments && sudo cp /tmp/restore/attachments/* /opt/ltdc-erp/data/attachments/ 2>/dev/null || true
+   sudo cp "$R/db.json" "$R/audit-log.jsonl" "$R/audit-head.json" /opt/ltdc-erp/data/
+   sudo mkdir -p /opt/ltdc-erp/data/attachments && sudo cp "$R"/attachments/* /opt/ltdc-erp/data/attachments/ 2>/dev/null || true
    sudo chown -R ltdc:ltdc /opt/ltdc-erp/data && sudo systemctl start ltdc-erp
-   sudo rm -rf /tmp/restore
+   sudo rm -rf "$R"
    ```
 
 5. Sign in with an administrator account from the backup. **Admin panel → Security monitor**

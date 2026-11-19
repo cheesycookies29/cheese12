@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import { signV4, instanceCredentials, s3Client, runOffsiteBackup, hourPrefix } from '../server/offsite.js';
+import { signV4, instanceCredentials, s3Client, runOffsiteBackup, hourPrefix, fetchOffsiteCopy } from '../server/offsite.js';
 import { runRestoreCheck } from '../server/restore-check.js';
 import { openDb } from '../server/db.js';
 import { createApi } from '../server/api.js';
@@ -53,15 +53,20 @@ test('instance credentials come from the metadata service (IMDSv2, with its toke
 // A stand-in S3 (path style): keeps what is put; answers AccessDenied when told to.
 async function fakeS3() {
   const objects = new Map();
-  const state = { deny: false, requests: [] };
+  const state = { deny: false, redirect: '', requests: [] };
   const url = await listen((req, res) => {
     const chunks = [];
     req.on('data', (c) => chunks.push(c));
     req.on('end', () => {
-      state.requests.push({ method: req.method, url: req.url, auth: req.headers.authorization || '' });
+      state.requests.push({ method: req.method, url: req.url, auth: req.headers.authorization || '', ifNoneMatch: req.headers['if-none-match'] || '' });
       if (state.deny) return (res.statusCode = 403), res.end('<Error><Code>AccessDenied</Code></Error>');
+      if (state.redirect) return res.writeHead(307, { location: state.redirect }), res.end();
       if (req.method === 'PUT') {
-        objects.set(decodeURIComponent(req.url), Buffer.concat(chunks));
+        const k = decodeURIComponent(req.url);
+        // Like the bucket policy (NoOverwrites): only conditional uploads, and never over a file.
+        if (req.headers['if-none-match'] !== '*') return (res.statusCode = 403), res.end('<Error><Code>AccessDenied</Code></Error>');
+        if (objects.has(k)) return (res.statusCode = 412), res.end('<Error><Code>PreconditionFailed</Code></Error>');
+        objects.set(k, Buffer.concat(chunks));
         return res.end();
       }
       const body = objects.get(decodeURIComponent(req.url));
@@ -107,6 +112,18 @@ test('the hourly copy: data file, audit log and head, attached files once; failu
   // The order matters for the chain check: the head before the log.
   const order = s3.state.requests.map((r) => r.url.split('/').pop());
   assert.ok(order.indexOf('audit-head.json') < order.indexOf('audit-log.jsonl'));
+  // Every upload is conditional; the hour has a sealed manifest of what it holds.
+  assert.ok(s3.state.requests.filter((r) => r.method === 'PUT').every((r) => r.ifNoneMatch === '*'));
+  const manifest = JSON.parse(s3.objects.get(`${bucket}/${prefix}/manifest.json`));
+  assert.equal(manifest.prefix, prefix);
+  assert.match(manifest.mac, /^[0-9a-f]{64}$/);
+  assert.deepEqual(manifest.files.map((f) => f.name), ['db.json', 'audit-head.json', 'audit-log.jsonl']);
+  assert.deepEqual(Object.keys(manifest.attachments), ['cert-1.pdf']);
+  // The same hour again: nothing is replaced.
+  const again = await runOffsiteBackup({ dataDir: dir, now, client: s3.client() });
+  assert.equal(again.ok, false);
+  assert.match(again.error, /already copied/);
+  assert.equal(again.lastOk.prefix, prefix);
   // An attached file goes once.
   const second = await runOffsiteBackup({ dataDir: dir, now: new Date(2026, 10, 18, 10, 5), client: s3.client() });
   assert.equal(second.attachments.new, 0);
@@ -140,17 +157,20 @@ test('the restore check: the latest off-server copy opens, has an administrator 
   // The live data was not touched; nothing is left behind.
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'db.json'), 'utf8')).employees.length, 1);
   assert.ok(!fs.readdirSync(os.tmpdir()).some((f) => f.startsWith('core-restore-check-') && fs.existsSync(path.join(os.tmpdir(), f, 'db.json'))));
-  // A copy that is not what was sent fails, unless a nightly copy on the server can stand in.
+  // An unreachable copy: the nightly copy on the server stands in, and says so.
+  fs.copyFileSync(path.join(dir, 'db.json'), path.join(dir, 'backups', 'db-2026-11-17.json'));
+  s3.state.deny = true;
+  const local = await runRestoreCheck({ dataDir: dir, client: s3.client() });
+  assert.equal(local.ok, true, local.error);
+  assert.equal(local.source, 'local');
+  assert.match(local.note, /off-server copy could not be read/);
+  s3.state.deny = false;
+  // A copy that is not what was sent fails, and the nightly copy never covers it (VAPT3 C3-3).
   const key = [...s3.objects.keys()].find((k) => k.endsWith('/db.json'));
   s3.objects.set(key, Buffer.from('{"users": []}'));
   const tampered = await runRestoreCheck({ dataDir: dir, client: s3.client() });
   assert.equal(tampered.ok, false);
   assert.match(tampered.error, /not the file that was sent/);
-  fs.copyFileSync(path.join(dir, 'db.json'), path.join(dir, 'backups', 'db-2026-11-17.json'));
-  const local = await runRestoreCheck({ dataDir: dir, client: s3.client() });
-  assert.equal(local.ok, true, local.error);
-  assert.equal(local.source, 'local');
-  assert.match(local.note, /off-server copy could not be read/);
 });
 
 test('the restore check fails on a copy without an administrator, and never reads the mailbox', async () => {
@@ -199,11 +219,10 @@ test('a lost server: one hour\'s copy, attached files included, fetched into a f
   const { dir } = await company();
   const now = new Date(2026, 10, 18, 14, 5);
   await runOffsiteBackup({ dataDir: dir, now, client: s3.client() });
-  const { fetchOffsiteCopy } = await import('../server/offsite.js');
   const dest = tmpDir('restore');
-  const r = await fetchOffsiteCopy({ prefix: hourPrefix(now), dest, client: s3.client() });
-  assert.deepEqual(r, { files: ['db.json', 'audit-head.json', 'audit-log.jsonl'], attachments: 1 });
+  const r = await fetchOffsiteCopy({ prefix: hourPrefix(now), dest, dataDir: dir, client: s3.client() });
+  assert.deepEqual(r, { files: ['db.json', 'audit-head.json', 'audit-log.jsonl'], attachments: 1, at: now.toISOString() });
   assert.deepEqual(fs.readFileSync(path.join(dest, 'db.json')), fs.readFileSync(path.join(dir, 'db.json')));
   assert.equal(fs.readFileSync(path.join(dest, 'attachments', 'cert-1.pdf'), 'utf8'), '%PDF-1.4 a certificate');
-  await assert.rejects(fetchOffsiteCopy({ prefix: '../etc', dest, client: s3.client() }), /Give the hour to restore/);
+  await assert.rejects(fetchOffsiteCopy({ prefix: '../etc', dest, dataDir: dir, client: s3.client() }), /Give the hour to restore/);
 });

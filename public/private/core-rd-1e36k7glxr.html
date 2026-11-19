@@ -646,7 +646,7 @@ main > section { position: relative; z-index: 2; }
           <thead><tr><th>Instead of CORE's…</th><th class="n">Seats</th><th class="n">List price</th><th class="n">A month</th></tr></thead>
           <tbody id="assume-rows"></tbody>
         </table>
-        <p class="fine" id="fine">US$ list prices billed annually, as published by the vendors and price trackers in November 2026 (sources linked); they vary by region and change. Seats start from the headcount and can be edited. Not included: taxes, vendor onboarding (HubSpot Professional US$1,500) and implementation, which for ERPs such as NetSuite is commonly quoted at US$25,000 to US$150,000. CORE's figure is its AWS server (t3.micro, disk, address and snapshots, Singapore); the R&amp;D team's own time is not included.</p>
+        <p class="fine" id="fine">US$ list prices billed annually, as published by the vendors and price trackers in November 2026 (sources linked); they vary by region and change. Seats start from the headcount and can be edited. Not included: taxes, vendor onboarding (HubSpot Professional US$1,500) and implementation, which for ERPs such as NetSuite is commonly quoted at US$25,000 to US$150,000. CORE's figure is its one small cloud server, with its disk, address and snapshots; the R&amp;D team's own time is not included.</p>
       </div>
     </div>
   </div>
@@ -1088,7 +1088,7 @@ main > section { position: relative; z-index: 2; }
     { what: 'Project management', vendor: 'Jira Standard, per user', price: 7.91, seats: (n) => Math.round(n * 0.5), src: 'https://www.eesel.ai/blog/jira-pricing-guide' },
     { what: 'IT asset management', vendor: 'Snipe-IT hosted, Small Business plan', price: 99.99, seats: () => 1, flat: true, src: 'https://www.capterra.com/p/150016/Snipe-IT/' },
   ];
-  const CORE_MONTH = 16; // deploy/aws/EC2.md: t3.micro, IPv4, 20 GB gp3, snapshots
+  const CORE_MONTH = 16; // the cloud server's monthly bill (deploy/aws/EC2.md)
   const heads = $('#heads');
   const headsOut = $('#heads-out');
   const rowsEl = $('#assume-rows');

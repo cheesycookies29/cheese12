@@ -4,6 +4,9 @@
 # 0.38: the critical user journeys run in a real browser too, and the install waits
 # for approval in the "production" environment when it has required reviewers
 # (Settings > Environments > production; deploy/aws/EC2.md, "Approve each deploy").
+# 0.39 (VAPT round 3, C3-1): only the deploy job, in the production environment, may ask AWS
+# for credentials, and the AWS role trusts that environment only; the server accepts a commit to
+# install (the ltdc-erp-deploy command), not any command.
 name: Deploy to EC2
 
 on:
@@ -11,9 +14,9 @@ on:
     branches: [claude/busy-curie-hfpbg0]
   workflow_dispatch:
 
+# Read-only for every job; only the deploy job adds id-token (below).
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: deploy-ec2
@@ -24,6 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
@@ -35,6 +40,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
@@ -43,20 +50,16 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run journeys
 
-  # The gate: this job runs in the "production" environment, so it waits until a required
-  # reviewer approves it there. With no reviewers set, it passes at once.
-  approve:
+  # The gate and the install in one job: it runs in the "production" environment, so it waits until
+  # a required reviewer approves it there (none set: it goes at once). Its token names that
+  # environment, which is the only thing the AWS deploy role trusts; no other job can get one.
+  deploy:
     needs: [test, journeys]
     runs-on: ubuntu-latest
     environment: production
-    steps:
-      - run: echo "Approved for production — $GITHUB_SHA by $GITHUB_ACTOR." >> "$GITHUB_STEP_SUMMARY"
-
-  # No environment here on purpose: the AWS deploy role trusts this branch's runs (its token
-  # names the branch), so the role's trust does not change with the gate.
-  deploy:
-    needs: approve
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 15
     steps:
       # Settings may be saved as repository Variables or as Secrets; either works.
@@ -94,37 +97,63 @@ jobs:
           echo "Deploying to $INSTANCE in $REGION."
 
       - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        id: aws
         if: steps.cfg.outputs.configured == 'true'
+        continue-on-error: true
         with:
           role-to-assume: ${{ env.DEPLOY_ROLE }}
           aws-region: ${{ env.DEPLOY_REGION }}
+
+      # A stack that trusts the deploy branch (the 0.33 template) does not trust this job, which runs
+      # in the "production" environment since 0.39: say what to do instead of a bare AWS error.
+      - name: Explain a refused AWS sign-in
+        if: steps.cfg.outputs.configured == 'true' && steps.aws.outcome == 'failure'
+        run: |
+          msg="AWS refused the deploy role. Since 0.39 only the deploy job in the GitHub environment \"production\" may use it: update the CloudFormation stack with deploy/aws/github-deploy.yaml (deploy/aws/EC2.md, \"Update the stack\"), then click Re-run all jobs. The server keeps running the previous version."
+          echo "::error::$msg"
+          { echo "### Not deployed: AWS refused the deploy role"; echo "$msg"; } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
 
       - name: Install the new version on the server
         if: steps.cfg.outputs.configured == 'true'
         env:
           INSTANCE_ID: ${{ env.DEPLOY_INSTANCE }}
-          # Read-only token for this repository; it expires when this job ends.
+          # Read-only for this repository; it expires when this job ends.
           TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
-          # Runs on the server as root (POSIX sh): download this exact commit and install it.
-          read -r -d '' SCRIPT <<'SH' || true
+          # 0.39: the server's own command (ltdc-erp-deploy, made by the CloudFormation stack) takes only
+          # the commit and the download token, each checked against a pattern. A stack from before 0.39
+          # does not have it: then the old way (AWS-RunShellScript) is used until the stack is updated.
+          PARAMS="$(jq -n --arg sha "$SHA" --arg t "$TOKEN" '{Sha: [$sha], Token: [$t]}')"
+          if CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name ltdc-erp-deploy \
+              --comment "LTDC ERP deploy ${SHA:0:7}" --parameters "$PARAMS" --query Command.CommandId --output text 2>send.err)"; then
+            echo "Sent with the ltdc-erp-deploy command."
+          elif grep -q 'InvalidDocument' send.err; then
+            echo "::warning::The CloudFormation stack is older than 0.39 (no ltdc-erp-deploy command). Update it: deploy/aws/EC2.md, \"Update the stack\"."
+            read -r -d '' SCRIPT <<'SH' || true
           set -eu
           DIR="$(mktemp -d)"
           trap 'rm -rf "$DIR"' EXIT
-          curl -fsSL -H "Authorization: Bearer __TOKEN__" -H "Accept: application/vnd.github+json" -o "$DIR/src.tar.gz" "https://api.github.com/repos/__REPO__/tarball/__SHA__"
+          umask 077
+          printf 'Authorization: Bearer %s\n' '__TOKEN__' > "$DIR/auth"
+          curl -fsSL -H @"$DIR/auth" -H "Accept: application/vnd.github+json" -o "$DIR/src.tar.gz" "https://api.github.com/repos/__REPO__/tarball/__SHA__"
           mkdir "$DIR/ltdc-erp"
           tar xzf "$DIR/src.tar.gz" -C "$DIR/ltdc-erp" --strip-components=1
           bash "$DIR/ltdc-erp/deploy/aws/remote-deploy.sh" "$DIR/ltdc-erp" "__SHA__"
           SH
-          SCRIPT="${SCRIPT//__TOKEN__/$TOKEN}"
-          SCRIPT="${SCRIPT//__REPO__/$REPO}"
-          SCRIPT="${SCRIPT//__SHA__/$SHA}"
-          PARAMS="$(jq -n --arg s "$SCRIPT" '{commands: [$s], executionTimeout: ["600"]}')"
-
-          CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
-            --comment "LTDC ERP deploy ${SHA:0:7}" --parameters "$PARAMS" --query Command.CommandId --output text)"
+            SCRIPT="${SCRIPT//__TOKEN__/$TOKEN}"
+            SCRIPT="${SCRIPT//__REPO__/$REPO}"
+            SCRIPT="${SCRIPT//__SHA__/$SHA}"
+            OLD="$(jq -n --arg s "$SCRIPT" '{commands: [$s], executionTimeout: ["600"]}')"
+            CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
+              --comment "LTDC ERP deploy ${SHA:0:7}" --parameters "$OLD" --query Command.CommandId --output text)"
+          else
+            cat send.err >&2
+            exit 1
+          fi
+          rm -f send.err
           echo "Sent to $INSTANCE_ID (command $CMD_ID). Waiting for the server…"
 
           STATUS=Pending

@@ -19,5 +19,14 @@ fi
 # Nightly data backup.
 install -m 644 "$SRC/deploy/aws/ltdc-erp-backup.cron" /etc/cron.d/ltdc-erp-backup
 command -v rsync >/dev/null || apt-get install -y -q rsync >/dev/null
+# Hourly off-server backup and nightly restore check as sandboxed timers (0.39), and the app's own
+# hardening (no instance metadata; behind the proxy).
+for unit in ltdc-erp-offsite.service ltdc-erp-offsite.timer ltdc-erp-restore-check.service ltdc-erp-restore-check.timer; do
+  install -m 644 "$SRC/deploy/aws/$unit" "/etc/systemd/system/$unit"
+done
+install -d -m 755 /etc/systemd/system/ltdc-erp.service.d
+install -m 644 "$SRC/deploy/aws/ltdc-erp-hardening.conf" /etc/systemd/system/ltdc-erp.service.d/hardening.conf
+systemctl daemon-reload
+systemctl enable --now ltdc-erp-offsite.timer ltdc-erp-restore-check.timer >/dev/null
 
 bash "$SRC/deploy/aws/update.sh" "$SRC" "$VERSION"

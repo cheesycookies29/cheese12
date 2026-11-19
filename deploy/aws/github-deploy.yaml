@@ -13,12 +13,14 @@ Parameters:
     Type: String
     Default: cheesycookies29/cheese12
     Description: owner/name of the GitHub repository allowed to deploy.
-  DeployBranch:
+  DeployEnvironment:
     Type: String
-    Default: claude/busy-curie-hfpbg0
+    Default: production
     Description: >-
-      The only branch whose workflow runs may deploy (the branch in .github/workflows/deploy-ec2.yml).
-      Other branches, tags and pull requests of the repository cannot use the deploy role.
+      The GitHub environment whose jobs may deploy (VAPT 0.39): only the deploy job runs in it. On
+      GitHub, limit the environment to the deploy branch and give it required reviewers
+      (deploy/aws/EC2.md, "D. Approve each deploy"); other jobs, branches, tags and pull requests
+      cannot use the deploy role.
   CreateGitHubConnection:
     Type: String
     Default: 'Yes'
@@ -58,21 +60,61 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                # Only runs on the deploy branch (VAPT 0.33): not other branches, tags or pull requests.
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:ref:refs/heads/${DeployBranch}
+                # Only the deploy job, in the protected environment (VAPT 0.39, C3-1): not the test or
+                # browser jobs, not other branches, tags or pull requests.
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:environment:${DeployEnvironment}
       Policies:
         - PolicyName: send-deploy-command
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              # Only the deploy command, which takes a commit and nothing else (VAPT 0.39): not any
+              # shell command as root.
               - Effect: Allow
                 Action: ssm:SendCommand
                 Resource:
                   - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}
-                  - !Sub arn:aws:ssm:${AWS::Region}::document/AWS-RunShellScript
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${DeployDocument}
               - Effect: Allow
                 Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations]
                 Resource: '*'
+
+  # The deploy command: download one commit of the repository with a read-only token and install
+  # it. Both inputs must match their patterns, so nothing else can be run through it.
+  DeployDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Name: ltdc-erp-deploy
+      DocumentType: Command
+      UpdateMethod: NewVersion
+      Content:
+        schemaVersion: '2.2'
+        description: Install one commit of LTDC ERP from GitHub.
+        parameters:
+          Sha:
+            type: String
+            description: The commit to install.
+            allowedPattern: '^[0-9a-f]{40}$'
+          Token:
+            type: String
+            description: The workflow's read-only GitHub token (expires when the job ends).
+            allowedPattern: '^[A-Za-z0-9_]{20,255}$'
+        mainSteps:
+          - action: aws:runShellScript
+            name: install
+            inputs:
+              timeoutSeconds: '600'
+              runCommand:
+                - !Sub |
+                  set -eu
+                  DIR="$(mktemp -d)"
+                  trap 'rm -rf "$DIR"' EXIT
+                  umask 077
+                  printf 'Authorization: Bearer %s\n' '{{ Token }}' > "$DIR/auth"
+                  curl -fsSL -H @"$DIR/auth" -H "Accept: application/vnd.github+json" -o "$DIR/src.tar.gz" "https://api.github.com/repos/${GitHubRepository}/tarball/{{ Sha }}"
+                  mkdir "$DIR/ltdc-erp"
+                  tar xzf "$DIR/src.tar.gz" -C "$DIR/ltdc-erp" --strip-components=1
+                  bash "$DIR/ltdc-erp/deploy/aws/remote-deploy.sh" "$DIR/ltdc-erp" '{{ Sha }}'
 
   # Off-server backups (0.38): the server copies its data here every hour (scripts/offsite-backup.js).
   # Private, encrypted, HTTPS only; hourly copies are kept 30 days, attached files until deleted.
@@ -121,6 +163,14 @@ Resources:
             Action: 's3:*'
             Resource: [!GetAtt BackupBucket.Arn, !Sub '${BackupBucket.Arn}/*']
             Condition: { Bool: { aws:SecureTransport: 'false' } }
+          # No upload may replace an object (VAPT 0.39, C3-2): every PUT must say If-None-Match: *.
+          # With versioning, a server that is taken over cannot rewrite the history it copied.
+          - Sid: NoOverwrites
+            Effect: Deny
+            Principal: '*'
+            Action: s3:PutObject
+            Resource: !Sub '${BackupBucket.Arn}/*'
+            Condition: { 'Null': { 's3:if-none-match': 'true' } }
 
   ServerRole:
     Type: AWS::IAM::Role

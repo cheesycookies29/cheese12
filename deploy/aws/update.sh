@@ -31,7 +31,11 @@ mkdir -p "$APP/data/backups"
 systemctl stop ltdc-erp
 rsync -a --delete --exclude /data/ "$SRC/" "$APP/"
 printf '{"commit":"%s","installedAt":"%s","channel":"server"}\n' "$VERSION" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$APP/build.json"
-chown -R ltdc:ltdc "$APP"
+# The code belongs to root and only the data folder to the app's account (VAPT 0.39, C3-9): a flaw
+# in the app could change its data, never its own code.
+chown -R root:root "$APP"
+chmod -R go-w "$APP"
+chown -R ltdc:ltdc "$APP/data"
 systemctl start ltdc-erp
 
 for _ in 1 2 3 4 5 6 7 8 9 10; do

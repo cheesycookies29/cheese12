@@ -1,0 +1,10 @@
+# Every night at 3:40 AM server time.
+[Unit]
+Description=LTDC ERP nightly restore check
+
+[Timer]
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

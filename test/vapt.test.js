@@ -17,6 +17,8 @@ import { createAttachments } from '../server/attachments.js';
 import { hashPassword } from '../server/auth.js';
 import { PUBLIC_BODY_BYTES } from '../server/helpdesk.js';
 import { ROLES } from '../shared/roles.js';
+// These tests are of CORE behind its HTTPS proxy, where the forwarded address is read (VAPT 0.39).
+process.env.TRUST_PROXY = '1';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PW = 'Correct-Horse-42';

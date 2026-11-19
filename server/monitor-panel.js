@@ -228,7 +228,11 @@ export function monitorView({ db, monitor, audit, sec, rateLimits, routes, sessi
   const refusalsOf = (b) => apiSignals.reduce((a, s) => a + (b.sig[s.name] || 0), 0);
 
   // Software status
-  const checks = monitor.runChecks({ db, monitor, audit, sec, rateLimits, build, sample, now });
+  // Checks about accounts (who has no 2-step verification, unused usernames) only for those who
+  // manage accounts: to others they are a map for an attack (VAPT 0.39, A3-2).
+  const ACCOUNT_CHECKS = ['two-factor-admins', 'unused-accounts', 'admins', 'temp-passwords'];
+  const manages = userCan(user, 'users.manage');
+  const checks = monitor.runChecks({ db, monitor, audit, sec, rateLimits, build, sample, now }).filter((c) => manages || !ACCOUNT_CHECKS.includes(c.id));
   const disk = diskOf(db.dir);
 
   // Addresses to watch: many refusals, or any lock, in the period (the week at most).
@@ -290,11 +294,14 @@ export function monitorView({ db, monitor, audit, sec, rateLimits, routes, sessi
     },
     activity: {
       now: { sessions: open.length, people: new Set(open.map((s) => s.userId)).size },
-      live: open.sort((a, b) => b.lastSeen - a.lastSeen).slice(0, 50).map((s) => ({ userId: s.userId, name: nameOf(s.userId), role: ROLES[byId.get(s.userId)?.role]?.label || '', device: s.device, ip: s.ip, signedInAt: new Date(s.created).toISOString(), lastSeenAt: new Date(s.lastSeen).toISOString() })),
+      // Device and address of each session for those who manage accounts (they can end them).
+      live: open.sort((a, b) => b.lastSeen - a.lastSeen).slice(0, 50).map((s) => ({ userId: s.userId, name: nameOf(s.userId), role: ROLES[byId.get(s.userId)?.role]?.label || '', ...(manages ? { device: s.device, ip: s.ip } : {}), signedInAt: new Date(s.created).toISOString(), lastSeenAt: new Date(s.lastSeen).toISOString() })),
       active: { d1: active24, d7: Object.keys(daysBack(7)).length, d30: Object.keys(daysBack(30)).length },
       signIns: m.signIns, actions: sum(m.act),
       byArea: Object.entries(m.act).map(([area, n]) => ({ area, label: areaLabel(area), n })).sort((a, b) => b.n - a.n),
-      topPeople, signInLog,
+      topPeople,
+      // The sign-in log is the audit log's: for those who may read it.
+      signInLog: userCan(user, 'audit.view') ? signInLog : undefined,
     },
     series: buckets.map((b) => ({
       t: b.t, n: b.n, api: b.api, pages: b.pages, e4: b.s[4], e5: b.s[5], p95: percentile(b.lat, 95),
@@ -381,9 +388,9 @@ export function registerMonitorRoutes(route, { db, monitor, audit: auditLog, sec
   // For uptime checkers and load balancers: nothing about the server but that it answers.
   route('GET', '/api/public/health', 'public', () => ({ status: 'ok' }));
   route('GET', '/api/admin/monitor/metrics', 'public', ({ headers }) => {
+    // The same answer with or without a token made, so nobody can tell whether metrics are on (A3-3).
     const saved = monitor.token();
-    if (!saved) throw new HttpError(404, 'Not found.');
-    if (!tokenMatches(saved, headers?.authorization)) throw new HttpError(401, 'A valid metrics token is needed.');
+    if (!saved || !tokenMatches(saved, headers?.authorization)) throw new HttpError(401, 'A valid metrics token is needed.');
     const text = prometheusText({ monitor, db, audit, sessions, checks: monitor.runChecks(ctx()) });
     return { data: Buffer.from(text), headers: { 'Content-Type': 'text/plain; version=0.0.4; charset=utf-8' } };
   });
