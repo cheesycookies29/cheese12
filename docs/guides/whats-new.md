@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Who changed what, in Sales & CRM (0.42)
+- The **History** of every deal, lead, account, contact, bid and contract now names the person behind each change, and an edit lists each field it changed with the old and new value (for example *Value: ₱2,850,000 → ₱3,100,000*). See [the Sales & CRM guide](sales).
+
 ### A fuller sales demo (0.41)
 - The demo data now has a full **Sales & CRM** book to try things on: 30 organizations, 56 contacts, 47 deals in every stage, 25 leads, 10 bids, 16 contracts (some due for renewal) and their calls, meetings and tasks. Reload it under **Admin panel → Demo data**. See [Load or remove the demo data](admin#load-or-remove-the-demo-data).
 

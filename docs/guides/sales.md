@@ -108,7 +108,7 @@ Two accounts cannot have the same name. A prospect becomes a client by itself wh
 
 Choosing someone else as **Owner** (on any lead, deal, account, contact, bid or contract, new or not) tells them by the **bell** in the top bar: *Sara made you the owner of deal DL-0004 …*, which opens the record. Taking a record yourself tells nobody.
 
-Each move is written in the deal's history. Won and lost deals leave the board and stay in the **List**. Each stage's probability weighs the forecast: a ₱1M deal at *Proposal* (50%) counts ₱500K.
+Each move is written in the deal's history with who made it. Won and lost deals leave the board and stay in the **List**. Each stage's probability weighs the forecast: a ₱1M deal at *Proposal* (50%) counts ₱500K.
 
 ![Marking a deal as lost asks why](sales-lost.jpg)
 
@@ -160,7 +160,7 @@ The project opens, linked to the client, the deal and the contract. The deal and
 3. Type the subject and the details or outcome. For a task, set the **Due** date (it is required); for a call or meeting you can set **Schedule for** a later date. Pick the **Owner**.
 4. Click **Log call**, **Log meeting**, **Log email**, **Add task** or **Save note**.
 
-Anything with a date that is not done shows under **Open and upcoming**; tick it when it is done. Stage and status changes are added to the history automatically. You can delete what you wrote yourself; a Sales Manager can delete any entry.
+Anything with a date that is not done shows under **Open and upcoming**; tick it when it is done. Changes are added to the history automatically, each with the name of the person who made it and when: stage and status moves, a new owner, and every field an edit changed, old and new value (*Value: ₱2,850,000 → ₱3,100,000*; long texts such as notes just say they were edited). On a bid, ticking or unticking a checklist document is recorded too. History entries cannot be deleted. You can delete what you wrote yourself; a Sales Manager can delete any entry.
 
 ### Keep up with your tasks
 

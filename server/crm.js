@@ -140,9 +140,48 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     if (isNew) Object.assign(rec, { id: randomUUID(), createdAt: rec.updatedAt, createdBy: u.id });
     return rec;
   };
-  // Automatic history: shown in the record's timeline with the people's own activities.
-  const history = (kind, rec, u, text) =>
-    d().crmActivities.push({ id: randomUUID(), type: 'event', subject: text, body: '', related: { type: kind, id: rec.id }, ownerId: u?.id || null, createdBy: u?.id || null, createdAt: now(), done: true });
+  // Automatic history: shown in the record's timeline with the people's own activities, always with
+  // who did it (0.42). The name is kept too, so it still shows if the account is later removed.
+  const history = (kind, rec, u, text, body = '') =>
+    d().crmActivities.push({ id: randomUUID(), type: 'event', subject: text, body, related: { type: kind, id: rec.id }, ownerId: u?.id || null, createdBy: u?.id || null, byName: u?.name || '', createdAt: now(), done: true });
+
+  // Every field an edit changed, old → new, in the record's history (0.42). Stage and status
+  // changes have their own entries; long texts say only that they were edited.
+  const CHANGE_FIELDS = {
+    deal: [['title', 'Name'], ['accountId', 'Account', 'account'], ['contactId', 'Main contact', 'contact'], ['value', 'Value', 'money'], ['expectedClose', 'Expected close', 'date'], ['ownerId', 'Owner', 'user'], ['source', 'Source'], ['nextStep', 'Next step'], ['lostReason', 'Lost reason'], ['description', 'Description', 'long']],
+    lead: [['name', 'Name'], ['company', 'Company'], ['title', 'Job title'], ['email', 'Email'], ['phone', 'Phone'], ['source', 'Source'], ['estimatedValue', 'Estimated value', 'money'], ['ownerId', 'Owner', 'user'], ['interest', 'Interested in', 'long']],
+    account: [['name', 'Name'], ['type', 'Type', ACCOUNT_TYPES], ['sector', 'Sector', SECTORS], ['industry', 'Industry'], ['address', 'Address'], ['tin', 'TIN'], ['website', 'Website'], ['email', 'Email'], ['phone', 'Phone'], ['ownerId', 'Owner', 'user'], ['tags', 'Tags', 'list'], ['notes', 'Notes', 'long']],
+    contact: [['firstName', 'First name'], ['lastName', 'Last name'], ['title', 'Job title'], ['accountId', 'Account', 'account'], ['email', 'Email'], ['phone', 'Phone'], ['mobile', 'Mobile'], ['ownerId', 'Owner', 'user'], ['tags', 'Tags', 'list'], ['notes', 'Notes', 'long']],
+    bid: [['title', 'Title'], ['reference', 'Reference'], ['accountId', 'Account', 'account'], ['dealId', 'Deal', 'deal'], ['mode', 'Procurement mode', BID_MODES], ['budget', 'Approved budget', 'money'], ['bidAmount', 'Bid amount', 'money'], ['deadline', 'Deadline', 'datetime'], ['openingDate', 'Bid opening', 'date'], ['preBidDate', 'Pre-bid conference', 'date'], ['ownerId', 'Owner', 'user'], ['notes', 'Notes', 'long']],
+    contract: [['title', 'Title'], ['number', 'Contract number'], ['accountId', 'Account', 'account'], ['dealId', 'Deal', 'deal'], ['bidId', 'Bid', 'bid'], ['value', 'Value', 'money'], ['startDate', 'Start', 'date'], ['endDate', 'End', 'date'], ['autoRenew', 'Renews automatically', 'bool'], ['billing', 'Billing'], ['ownerId', 'Owner', 'user'], ['terms', 'Key terms', 'long']],
+  };
+  const blank = (v) => v == null || v === '' || (Array.isArray(v) && !v.length);
+  const sameValue = (a, b) => (blank(a) && blank(b)) || JSON.stringify(a) === JSON.stringify(b);
+  const showDate = (v) => new Date(`${v.slice(0, 10)}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  function showValue(fmt, v) {
+    if (blank(v)) return '(none)';
+    if (fmt && typeof fmt === 'object') return fmt[v] || v;
+    switch (fmt) {
+      case 'money': return `₱${Number(v).toLocaleString('en-PH')}`;
+      case 'date': return showDate(v);
+      case 'datetime': return `${showDate(v)}${v.length > 10 ? `, ${v.slice(11, 16)}` : ''}`;
+      case 'bool': return v ? 'Yes' : 'No';
+      case 'list': return v.join(', ');
+      case 'user': return userName(v) || 'a removed account';
+      case 'account': return accountName(v) || '(removed)';
+      case 'contact': return personName(d().crmContacts.find((c) => c.id === v)) || '(removed)';
+      case 'deal': case 'bid': return d()[fmt === 'deal' ? 'crmDeals' : 'crmBids'].find((x) => x.id === v)?.code || '(removed)';
+      default: return String(v).length > 80 ? `${String(v).slice(0, 79)}…` : String(v);
+    }
+  }
+  function logChanges(kind, before, rec, u, skip = []) {
+    const changed = CHANGE_FIELDS[kind].filter(([k]) => !skip.includes(k) && !sameValue(before[k], rec[k]));
+    if (!changed.length) return;
+    const lines = changed.map(([k, label, fmt]) => (fmt === 'long' ? `${label} edited` : `${label}: ${showValue(fmt, before[k])} → ${showValue(fmt, rec[k])}`));
+    if (lines.length === 1) return history(kind, rec, u, lines[0]);
+    const names = changed.map(([, label]) => label.toLowerCase());
+    history(kind, rec, u, `Edited ${names.slice(0, -1).join(', ')} and ${names.at(-1)}`, lines.join('\n'));
+  }
 
   // ----- Notifications (the bell): a record given a new owner by someone else -----
   const OWNED = {
@@ -169,7 +208,7 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     deal: (x) => ({ ...x, accountName: accountName(x.accountId), contactName: contactName(x.contactId), ownerName: userName(x.ownerId), stageName: stageName(crm(), x.stage), probability: dealProbability(x, crm()), weighted: weightedValue(x, crm()) }),
     bid: (b) => ({ ...b, accountName: accountName(b.accountId), ownerName: userName(b.ownerId), daysLeft: b.status === 'preparing' ? daysBetween(localDate(), b.deadline?.slice(0, 10)) : null, checklistDone: b.checklist.filter((i) => i.done).length }),
     contract: (c) => ({ ...c, accountName: accountName(c.accountId), ownerName: userName(c.ownerId), renewalOpen: d().crmDeals.find((x) => x.renewalOf === c.id && isOpenDeal(x))?.code || null, daysLeft: c.status === 'active' ? daysBetween(localDate(), c.endDate) : null }),
-    activity: (a) => ({ ...a, ownerName: userName(a.ownerId), createdByName: userName(a.createdBy), relatedName: relatedName(a.related) }),
+    activity: (a) => ({ ...a, ownerName: userName(a.ownerId), createdByName: userName(a.createdBy) || a.byName || null, relatedName: relatedName(a.related) }),
   };
   function relatedName(rel) {
     if (!rel) return null;
@@ -279,8 +318,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const a = find('account', params.id);
     fresh(a, body);
     const owner0 = a.ownerId;
+    const was = structuredClone(a);
     Object.assign(a, validAccount(merged(a, body), u, a));
     stamp(a, u);
+    logChanges('account', was, a, u);
     tellOwner('account', a, owner0, u);
     db.save();
     return out.account(a);
@@ -323,8 +364,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const c = find('contact', params.id);
     fresh(c, body);
     const owner0 = c.ownerId;
+    const was = structuredClone(c);
     Object.assign(c, validContact(merged(c, body), u, c));
     stamp(c, u);
+    logChanges('contact', was, c, u);
     tellOwner('contact', c, owner0, u);
     // Moved to another organization: no longer the main contact on the old one's deals.
     for (const x of d().crmDeals) if (x.contactId === c.id && c.accountId && x.accountId !== c.accountId) {
@@ -375,8 +418,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     fresh(l, body);
     const before = l.status;
     const owner0 = l.ownerId;
+    const was = structuredClone(l);
     Object.assign(l, validLead(merged(l, body), u, l));
     stamp(l, u);
+    logChanges('lead', was, l, u);
     tellOwner('lead', l, owner0, u);
     if (before !== l.status) history('lead', l, u, `Status: ${LEAD_STATUS[before]} → ${LEAD_STATUS[l.status]}${l.disqualifiedReason ? ` (${l.disqualifiedReason})` : ''}`);
     db.save();
@@ -547,9 +592,12 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     const stage = next.stage;
     if (!isOpenDeal(x) && isOpenDeal({ stage })) openRenewalCheck(x);
     const owner0 = x.ownerId;
+    const was = structuredClone(x);
     Object.assign(x, { ...next, stage: x.stage });
     moveStage(x, stage, u, next.lostReason);
     stamp(x, u);
+    // The lost reason given when closing is in the stage entry; an edit of it later is a change.
+    logChanges('deal', was, x, u, was.stage === 'lost' && x.stage === 'lost' ? [] : ['lostReason']);
     tellOwner('deal', x, owner0, u);
     // Moved to another account: its bids and contracts stay with theirs and lose the link.
     for (const k of ['crmBids', 'crmContracts']) for (const r of d()[k]) if (r.dealId === x.id && r.accountId !== x.accountId) {
@@ -633,8 +681,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
       if (missing && bool(body.submitAnyway, 'Submit anyway') !== true) throw new HttpError(409, `${missing} document${missing === 1 ? ' is' : 's are'} not ticked on the checklist.`);
     }
     const owner0 = b.ownerId;
+    const was = structuredClone(b);
     Object.assign(b, next);
     stamp(b, u);
+    logChanges('bid', was, b, u);
     tellOwner('bid', b, owner0, u);
     if (before !== b.status) {
       if (b.status === 'submitted') b.submittedAt = now();
@@ -652,13 +702,18 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
       const label = str(body.add, 200);
       if (!label) throw new HttpError(400, 'Name the document.');
       b.checklist.push({ id: randomUUID(), label, done: false });
+      history('bid', b, u, `Checklist: added "${label}"`);
     } else if (body.remove) {
-      if (!b.checklist.some((i) => i.id === body.remove)) throw new HttpError(404, 'Checklist item not found.');
+      const gone = b.checklist.find((i) => i.id === body.remove);
+      if (!gone) throw new HttpError(404, 'Checklist item not found.');
       b.checklist = b.checklist.filter((i) => i.id !== body.remove);
+      history('bid', b, u, `Checklist: removed "${gone.label}"`);
     } else {
       const item = b.checklist.find((i) => i.id === body.itemId);
       if (!item) throw new HttpError(404, 'Checklist item not found.');
+      const wasDone = item.done;
       item.done = bool(body.done, 'Done');
+      if (wasDone !== item.done) history('bid', b, u, `Checklist: ${item.done ? 'ticked' : 'unticked'} "${item.label}"`);
       item.doneBy = item.done ? u.name : null;
       item.doneAt = item.done ? now() : null;
     }
@@ -713,8 +768,10 @@ export function registerCrmRoutes(route, db, { audit } = {}) {
     fresh(c, body);
     const before = c.status;
     const owner0 = c.ownerId;
+    const was = structuredClone(c);
     Object.assign(c, validContract(merged(c, body), u, c));
     stamp(c, u);
+    logChanges('contract', was, c, u);
     tellOwner('contract', c, owner0, u);
     for (const x of d().crmDeals) if (x.renewalOf === c.id && x.accountId !== c.accountId) {
       x.renewalOf = null;

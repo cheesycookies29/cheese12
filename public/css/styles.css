@@ -1383,6 +1383,8 @@ body:has(.crm-dropbar:not([hidden])) #toast { opacity: 0; }
 .crm-act-ic { width: 32px; height: 32px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--border); color: var(--brand-text); z-index: 1; }
 .crm-act.task .crm-act-ic { color: var(--warn); }
 .crm-act.event .crm-act-ic { color: var(--muted); width: 32px; background: var(--surface-2); }
+.crm-by { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; color: var(--text-2); }
+.crm-by .ic { flex: none; }
 .crm-act.event strong { font-weight: 500; color: var(--text-2); font-size: 13px; }
 .crm-act .grow { flex: 1; min-width: 0; }
 .crm-act-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

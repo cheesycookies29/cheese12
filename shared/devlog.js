@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.42.0-alpha',
+    date: '2026-11-19',
+    title: 'Who changed what in the CRM history',
+    modules: ['crm'],
+    notes: 'The pipeline\'s history recorded stage moves without saying who made them, and edits to a deal (value, close date, owner, contact) were not recorded at all.',
+    changes: [
+      ['new', 'crm', 'Every history entry on a deal, lead, account, contact, bid or contract shows who made the change, with the time; the name is kept on the entry, so it still shows after the account is removed. Entries made by CORE itself say CORE.'],
+      ['new', 'crm', 'An edit records each field it changed, old → new, in one entry (Value: ₱2,850,000 → ₱3,100,000; Expected close: Dec 1, 2026 → Dec 20, 2026; Owner, Main contact, Account and Deal by name). Long texts (description, notes, key terms) say only that they were edited; a save that changes nothing adds nothing. Ticking, unticking, adding or removing a bid checklist document is recorded too.'],
+    ],
+  },
+  {
     version: '0.41.0-alpha',
     date: '2026-11-19',
     title: 'A fuller Sales & CRM demo',

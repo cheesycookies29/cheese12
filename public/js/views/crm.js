@@ -345,7 +345,7 @@ async function timeline(el, type, id) {
             ${a.dueDate && a.type !== 'event' ? html`<span class="crm-due ${overdue ? 'bad' : a.dueDate === today() ? 'warn' : ''}">${a.done ? 'Due' : overdue ? 'Overdue ·' : 'Due'} ${fmtDate(a.dueDate)}${a.dueTime ? `, ${a.dueTime}` : ''}</span>` : ''}
           </div>
           ${a.body ? html`<p class="pre small">${a.body}</p>` : ''}
-          <small class="muted">${a.type === 'event' ? '' : `${a.ownerName || a.createdByName || ''} · `}${when(a.createdAt)}${type === 'account' && a.related.type !== 'account' && a.relatedName ? html` · <a href="#/crm/${a.related.type}s/${a.related.id}">${a.relatedName}</a>` : ''}</small>
+          <small class="muted">${a.type === 'event' ? html`<span class="crm-by">${icon('user', 12)} ${a.createdByName || 'CORE'}</span> · ` : `${a.ownerName || a.createdByName || ''} · `}${when(a.createdAt)}${type === 'account' && a.related.type !== 'account' && a.relatedName ? html` · <a href="#/crm/${a.related.type}s/${a.related.id}">${a.relatedName}</a>` : ''}</small>
         </div>
         ${a.type !== 'event' && (a.createdBy === ctx.user.id || canManage()) ? html`<button type="button" class="icon-btn danger" data-del="${a.id}" aria-label="Delete">${icon('trash', 16)}</button>` : ''}
       </li>`;
