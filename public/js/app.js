@@ -29,7 +29,7 @@ import { leaveView } from './views/leave.js';
 import { loginView, setupView, forcePasswordView, forceTwoFactorView, openChangePassword } from './views/login.js';
 import { securityView as mySecurityView } from './views/security.js';
 import { launcherView } from './views/launcher.js';
-import { assetsDashboardView, assetListView, assetFormView, assetDetailView } from './views/assets.js';
+import { assetsDashboardView, assetListView, assetFormView, assetDetailView, replicationView } from './views/assets.js';
 import { inventoryView, inventoryItemView } from './views/inventory.js';
 import { allocationsView, activityView, myAssetsView } from './views/allocations.js';
 import { reportsView, reportDetailView } from './views/reports.js';
@@ -80,6 +80,7 @@ const routes = [
   ['/assets/inventory/:id', inventoryItemView, 'assets.view', 'assets'],
   ['/assets/allocations', allocationsView, 'assets.view', 'assets'],
   ['/assets/activity', activityView, 'assets.view', 'assets'],
+  ['/assets/replication', replicationView, 'assets.view', 'assets'],
   ['/assets/reports', reportsView, 'assets.view', 'assets'],
   ['/assets/reports/:id', reportDetailView, 'assets.view', 'assets'],
   ['/assets/mine', myAssetsView, 'self', 'assets'],
@@ -175,6 +176,7 @@ const NAV = {
     { href: '/assets/reports', label: 'Problem reports', icon: 'alert', permission: 'assets.view', badge: 'reports' },
     { href: '/assets/allocations', label: 'Allocations', icon: 'userPlus', permission: 'assets.view' },
     { href: '/assets/activity', label: 'Activity log', icon: 'activity', permission: 'assets.view' },
+    { href: '/assets/replication', label: 'Data replication', icon: 'database', permission: 'assets.view', soon: true },
     { heading: 'My account', permission: 'self' },
     { href: '/assets/mine', label: 'My Assets', icon: 'laptop', permission: 'self' },
   ],
@@ -435,7 +437,7 @@ function renderNav(module, force = false) {
     ${items.map((n) =>
       n.heading
         ? html`<div class="nav-heading">${n.heading}</div>`
-        : html`<a href="#${n.href}" title="${n.label}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${icon(n.icon || 'file')}<span class="label">${n.label}</span>${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
+        : html`<a href="#${n.href}" title="${n.soon ? `${n.label} (coming soon)` : n.label}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${icon(n.icon || 'file')}<span class="label">${n.label}</span>${n.soon ? html`<span class="nav-soon">Soon</span>` : ''}${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
     )}`);
   refreshBadge();
 }

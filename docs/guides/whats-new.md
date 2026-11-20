@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Data replication on the roadmap (0.48)
+- **IT Asset Management** has a **Data replication** item in its side menu, marked **Soon**: a second, up-to-date copy of the asset records in another location. It is not available yet; its page says what it will do. See [Data replication](it-assets#data-replication-coming-soon).
+
 ### Phones, tablets and small laptops (0.47)
 - On a phone the CORE home now opens in the **Compact** view, two tiles a row even on the smallest phones. Choose **Cards** to go back to the larger cards; your choice is kept. See [Getting started](getting-started#walkthrough).
 - On a small laptop or a tablet held sideways (up to about 1200 pixels wide) the side menu shows only its icons until you open it with the **menu** button, so lists and tables have more room. See [Open a module](getting-started#open-a-module).

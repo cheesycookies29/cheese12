@@ -1,7 +1,9 @@
-// IT Asset Management: overview, asset register, asset form and asset detail.
+// IT Asset Management: overview, asset register, asset form and asset detail, and Data replication
+// (coming soon).
 import { api } from '../api.js';
 import { can } from '../state.js';
 import { ASSET_STATUS, ASSET_CONDITIONS, ASSET_CATEGORIES, ASSIGNEE_TYPES, ISSUE_TYPES, ISSUE_IMPACT, ISSUE_STATUS, ACTIVE_ISSUE } from '/shared/assets.js';
+import { icon } from '../icons.js';
 import { html, mount, formErrors, money, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, addDays } from '../ui.js';
 
 const STATUS_BADGE = { in_stock: 'green', assigned: 'blue', in_repair: 'amber', retired: 'gray', lost: 'gray' };
@@ -385,4 +387,26 @@ export async function assetDetailView(el, { id }) {
     toast('Asset deleted.');
     location.hash = '#/assets/list';
   });
+}
+
+// Data replication (coming soon, 0.48): on the roadmap of IT Asset Management. The page says what it
+// will do; there is nothing to set up yet.
+export async function replicationView(el) {
+  mount(el, html`
+    <header class="page-head">
+      <div><h1>Data replication <span class="badge gray soon-tag">${icon('lock', 12)} Coming soon</span></h1>
+        <p class="muted">A second, up-to-date copy of the IT asset records, kept somewhere else.</p></div>
+    </header>
+    <section class="card soon-card">
+      <span class="soon-ic" aria-hidden="true">${icon('database', 28)}</span>
+      <div>
+        <h2>What it will do</h2>
+        <ul class="soon-list">
+          <li>Copy the asset register, stock, allocations, problem reports and the activity log to a second location as they change.</li>
+          <li>Keep the asset records available if the main server is down, and bring them back from the copy.</li>
+          <li>Show when the copy was last brought up to date, and warn when it falls behind.</li>
+        </ul>
+        <p class="muted small">This feature is on the roadmap of IT Asset Management and is not available yet; there is nothing to set up. To say what you need from it, use <a href="#/feedback">Send feedback</a>.</p>
+      </div>
+    </section>`);
 }

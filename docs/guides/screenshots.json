@@ -51,6 +51,7 @@
   {"file": "assets-issue.jpg", "user": "it.demo", "url": "/#/assets/inventory", "click": ["text=USB-C to HDMI adapter", "#out"], "wait": 900},
   {"file": "assets-report.jpg", "user": "it.demo", "url": "/#/assets/reports", "click": ["tr[data-id] >> nth=0"], "wait": 900},
   {"file": "assets-allocations.jpg", "user": "it.demo", "url": "/#/assets/allocations", "wait": 900},
+  {"file": "assets-replication.jpg", "user": "it.demo", "url": "/#/assets/replication", "wait": 900},
   {"file": "assets-my-assets.jpg", "user": "employee.demo", "url": "/#/assets/mine", "wait": 900},
   {"file": "desk-overview.jpg", "user": "it.demo", "url": "/#/helpdesk", "wait": 900},
   {"file": "desk-queue.jpg", "user": "it.demo", "url": "/#/helpdesk/tickets", "wait": 900},

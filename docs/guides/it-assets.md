@@ -156,6 +156,11 @@ To take the laptop in for repair, open the asset and use **Return** with *In rep
 2. Change **From** and **To**, and choose *Assets only* or *Inventory only* if you like.
 3. Click a tag or SKU to open the asset or item. **Export CSV** saves the list.
 
+### Data replication (coming soon)
+**Data replication** in the side menu is marked **Soon**: it is on the roadmap of IT Asset Management and not available yet. Its page says what it will do: keep a second, up-to-date copy of the asset register, stock, allocations, problem reports and the activity log in another location, so the asset records stay available if the main server is down. There is nothing to set up for now; to say what you need from it, use **Send feedback**.
+
+![The Data replication page, coming soon](assets-replication.jpg)
+
 ### My Assets: your own equipment
 
 **My Assets** is under **My account** in the menu when your sign-in account is linked to your employee record. It shows the equipment assigned to you, your problem reports and the supplies issued to you. This is the same screen every employee sees.
@@ -177,6 +182,7 @@ If **My Assets** is missing from your menu, ask HR to link your account to your 
 | Problem reports | Equipment problems reported by employees, and your updates to them |
 | Allocations | Every employee, department and location with what it holds; CSV export |
 | Activity log | Every asset and stock event in a date range; CSV export |
+| Data replication | Coming soon: a second, up-to-date copy of the asset records in another location |
 | My Assets | Your own equipment, problem reports and issued supplies |
 
 ## Questions

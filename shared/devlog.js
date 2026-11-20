@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.48.0-alpha',
+    date: '2026-11-20',
+    title: 'Data replication on the IT Asset Management roadmap',
+    modules: ['assets', 'system'],
+    notes: 'A placeholder for a planned feature: the menu item and its page, nothing that copies data yet.',
+    changes: [
+      ['new', 'assets', 'IT Asset Management: Data replication in the side menu, tagged Soon, opening a page that says what it will do (a second, up-to-date copy of the asset register, stock, allocations, problem reports and activity log in another location). Nothing to set up yet.'],
+      ['new', 'system', 'Side menus can mark an item as coming soon: a Soon tag beside it, and (coming soon) in its tooltip.'],
+    ],
+  },
+  {
     version: '0.47.0-alpha',
     date: '2026-11-19',
     title: 'Compact on phones; responsive pass on phones, tablets and small laptops',
