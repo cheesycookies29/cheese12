@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.57.0-alpha',
+    date: '2026-11-21',
+    title: 'Download all files as a ZIP',
+    modules: ['projects', 'system'],
+    notes: 'A task\'s or milestone\'s files in one compressed file.',
+    changes: [
+      ['new', 'projects', 'Download all (.zip) beside Add files when a task or milestone has two files or more: one ZIP named after it ("LEA-12 files.zip", "LEA Go-live files.zip"), for everyone who can open the project. A file missing on the server is left out.'],
+      ['new', 'system', 'server/zip.js: ZIP archives with Node\'s own zlib (no new dependency): text and PDFs compressed, photos and Office files stored; UTF-8 names, no folders, the same name twice numbered; at most 200 MB of files.'],
+    ],
+  },
+  {
     version: '0.56.0-alpha',
     date: '2026-11-21',
     title: 'More kinds of files on tasks',

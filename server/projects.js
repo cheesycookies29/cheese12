@@ -18,6 +18,7 @@ import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
 import { parseUpload, pdfJpegRange, checkGif } from './attachments.js';
 import { PM_FILE_TYPES, MAX_PM_FILE_BYTES, PM_FILE_HINT } from '../shared/files.js';
+import { zipFiles } from './zip.js';
 import { imageIdsOf, richToText } from '../shared/richtext.js';
 import { sendMail as smtpSend } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
@@ -489,6 +490,17 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     } catch {} // the file is missing on disk: no preview
     previews.set(a.id, out);
     return out;
+  }
+  // Every file of a task or milestone as one ZIP to save (0.57). A file missing on disk is left out.
+  function zipDownload(list, name) {
+    const entries = [];
+    for (const a of list) {
+      try {
+        entries.push({ name: a.name, type: a.type, at: a.uploadedAt, buffer: files.buffer(a) });
+      } catch {} // missing from the server (e.g. not restored): the others still come
+    }
+    if (!entries.length) throw new HttpError(404, 'There are no files to download.');
+    return { data: zipFiles(entries), headers: { 'Content-Type': 'application/zip', 'Content-Disposition': disposition(name.replace(/[\\/:*?"<>|]/g, '_')), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Download-Options': 'noopen', 'X-Content-Type-Options': 'nosniff' } };
   }
   function preview(a) {
     const pv = previewOf(a);
@@ -1296,6 +1308,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const { t } = findTask(params.id, u);
     return download(findFile(t, params.fileId));
   });
+  // Download all (0.57): every file of the task in one ZIP, "LEA-7 files.zip".
+  route('GET', '/api/pm/tasks/:id/files.zip', 'auth', ({ params, user: u }) => {
+    const { t } = findTask(params.id, u);
+    return zipDownload(filesOf(t), `${t.key} files.zip`);
+  });
   route('GET', '/api/pm/tasks/:id/attachments/:fileId/preview', 'auth', ({ params, user: u }) => {
     const { t } = findTask(params.id, u);
     return preview(findFile(t, params.fileId));
@@ -1383,6 +1400,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   route('GET', '/api/pm/projects/:id/milestones/:mid/attachments/:fileId', 'auth', ({ params, user: u }) => {
     const p = findProject(params.id, u);
     return download(findFile(findMilestone(p, params.mid), params.fileId));
+  });
+  route('GET', '/api/pm/projects/:id/milestones/:mid/files.zip', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    const m = findMilestone(p, params.mid);
+    return zipDownload(filesOf(m), `${p.key || p.code} ${m.name} files.zip`);
   });
   route('GET', '/api/pm/projects/:id/milestones/:mid/attachments/:fileId/preview', 'auth', ({ params, user: u }) => {
     const p = findProject(params.id, u);

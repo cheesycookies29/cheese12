@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Download all of a task's files as a ZIP (0.57)
+- In **Project Management**, a task or milestone with two files or more has **Download all (.zip)**: every file in one compressed ZIP, named after the task (*LEA-12 files.zip*). See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
+
 ### More kinds of files on tasks (0.56)
 - Tasks and milestones in **Project Management** now take Word, Excel and PowerPoint files (.docx, .xlsx, .pptx), OpenDocument files (.odt, .ods, .odp), GIFs, and text and CSV files, besides PDFs and photos, up to 8 MB each. Each shows its kind on its icon. Programs, web pages, archives and macro-enabled files are still refused. See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
 

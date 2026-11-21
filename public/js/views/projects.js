@@ -378,8 +378,10 @@ function fileBlock(list, base, canAdd) {
       ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>
       ${many ? html`<p class="pm-files-more muted small">${icon('down', 14)} ${list.length} files · scroll the list to see them all</p>` : ''}</div>`
     : html`<p class="muted small">No files yet.</p>`}
-    ${canAdd ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${PM_ACCEPT}" multiple data-add-file /></label>
-        <small class="muted"><span class="pm-drop-hint">or drop them here · </span>PDF, photos, Word, Excel, PowerPoint, OpenDocument, text or CSV, up to 8 MB each; as many as you need.</small></div>
+    ${canAdd || list.length > 1 ? html`<div class="pm-file-add">${canAdd ? html`<label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${PM_ACCEPT}" multiple data-add-file /></label>` : ''}
+        ${list.length > 1 ? html`<a class="btn pm-zip" href="${base.replace(/\/attachments$/, '/files.zip')}" download title="All ${list.length} files in one compressed ZIP file">${icon('download', 16)} Download all (.zip)</a>` : ''}
+        ${canAdd ? html`<small class="muted"><span class="pm-drop-hint">or drop them here · </span>PDF, photos, Word, Excel, PowerPoint, OpenDocument, text or CSV, up to 8 MB each; as many as you need.</small>` : ''}</div>` : ''}
+    ${canAdd ? html`
       <div class="pm-drop-veil" aria-hidden="true">${icon('upload', 22)}<strong>Drop to attach</strong><small>Documents, sheets, slides, photos, up to 8 MB each</small></div>` : ''}`;
 }
 // While files from the computer are dragged over CORE, the places that take them light up
