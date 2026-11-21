@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Export the timeline (0.59)
+- A project's **Timeline** has **Export**: **Report (PDF)**, a landscape report with the Gantt chart and the schedule to print or save as PDF, or **Image (PNG)**, the chart as a picture. See [Export the timeline as a report or an image](projects#export-the-timeline-as-a-report-or-an-image).
+
 ### Replies and emoji reactions on comments (0.58)
 - Comments on a task now read like a conversation: **Reply** keeps an answer under the comment it answers, in a thread; an emoji (👍 ❤️ 🎉 😄 🙏 👀 ✅ 🚀) can be added under any comment; your own comments can be edited. See [Comment on a task](projects#comment-on-a-task).
 

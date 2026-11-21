@@ -14,6 +14,7 @@ import { icon } from '../icons.js';
 import { defaultDay, dayTotals } from '../phone.js';
 import { sizeLabel, PM_ACCEPT, preparePmFile } from '../attachments.js';
 import { fileTag } from '/shared/files.js';
+import { ganttSvg } from '/shared/gantt.js';
 import { richEditor, wireRichEditor, richView } from '../richeditor.js';
 import { renderRich } from '/shared/richtext.js';
 import { avatar as personAvatar, isGif, gifCheck } from '../avatars.js';
@@ -1377,6 +1378,69 @@ function printReport(p) {
   window.print();
 }
 
+// ---------- Timeline export (0.59) ----------
+// The Gantt chart (shared/gantt.js) for the report and the image: the same picture as the Timeline.
+const GANTT_ROWS_PER_PAGE = 26;
+const ganttOf = (p, tasks, opts = {}) => ganttSvg({ project: p, milestones: p.milestones, tasks, cal: workCalendar(ctx.settings, ctx.holidays), today: today(), ...opts });
+const fileStamp = () => today();
+// The report: landscape, one or more pages of chart (a long schedule continues on the next page,
+// with the same dates across), then the schedule as a table. Printed from a copy placed outside
+// the app, like the status report; "Save as PDF" in the print window makes the PDF.
+function printTimeline(p, tasks) {
+  document.getElementById('pm-report')?.remove();
+  const first = ganttOf(p, tasks, { rowCount: GANTT_ROWS_PER_PAGE });
+  const pages = [];
+  for (let start = 0; start < Math.max(1, first.totalRows); start += GANTT_ROWS_PER_PAGE) pages.push(ganttOf(p, tasks, { rowStart: start, rowCount: GANTT_ROWS_PER_PAGE }));
+  const open = tasks.filter((t) => !['done', 'cancelled'].includes(t.category));
+  const done = tasks.filter((t) => t.category === 'done').length;
+  const overdue = tasks.filter((t) => t.overdue).length;
+  const next = p.milestones.filter((m) => !m.acceptedAt && m.dueDate >= today()).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  const msName = new Map(p.milestones.map((m) => [m.id, m.name]));
+  const div = document.createElement('div');
+  div.id = 'pm-report';
+  div.className = 'pm-report pm-gantt-report';
+  mount(div, html`
+    <header><div><h1>${p.name}</h1><p>${p.key ? `${p.key} · ` : ''}${p.code} · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${PROJECT_STATUS[p.status]} · Manager: ${p.managerName || '—'}</p></div>
+      <p class="pm-r-date">Timeline report<br />${fmtDate(today(), { month: 'long', day: 'numeric', year: 'numeric' })}</p></header>
+    <section class="pm-r-head">
+      <div><small>Dates</small><strong>${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'open'}</strong><span>Shown: ${fmtDate(first.from)} to ${fmtDate(first.to)}${first.capped ? ' (the first two years)' : ''}</span></div>
+      <div><small>Progress</small><strong>${p.progress?.percent == null ? '—' : `${p.progress.percent}%`}</strong><span>${done} of ${plural(tasks.length, 'task')} done${p.health ? ` · ${HEALTH[p.health]}` : ''}</span></div>
+      <div><small>Open tasks</small><strong>${open.length}</strong><span>${overdue} overdue</span></div>
+      <div><small>Next milestone</small><strong>${next ? short(next.dueDate) : '—'}</strong><span>${next ? `${next.name}${next.deliverable ? ' (deliverable)' : ''}` : 'None ahead'}</span></div>
+    </section>
+    ${pages.map((g, i) => html`<figure class="pm-g-chart">${raw(g.svg)}${pages.length > 1 ? html`<figcaption>Chart, page ${i + 1} of ${pages.length}</figcaption>` : ''}</figure>`)}
+    <h2>Schedule</h2>
+    <table><thead><tr><th>Key</th><th>Task</th><th>Milestone</th><th>Assignee</th><th>Start</th><th>Due</th><th>Status</th></tr></thead>
+      <tbody>${tasks.slice().sort((a, b) => (a.startDate || a.dueDate || '9').localeCompare(b.startDate || b.dueDate || '9') || byRank(a, b)).map((t) => html`<tr class="${t.overdue ? 'late' : ''}"><td class="mono">${t.key}</td><td>${t.parentId ? '↳ ' : ''}${t.title}</td><td>${msName.get(t.milestoneIdEffective || t.milestoneId) || '—'}</td><td>${t.assigneeName || 'Unassigned'}</td><td>${t.startDate ? fmtDate(t.startDate) : '—'}</td><td>${t.dueDate ? fmtDate(t.dueDate) : '—'}</td><td>${t.statusName}${t.overdue ? ' · overdue' : ''}</td></tr>`)}</tbody></table>
+    <footer>${ctx.settings.companyName} · CORE Project Management · printed by ${ctx.user.name}</footer>`);
+  document.body.appendChild(div);
+  document.body.classList.add('pm-printing');
+  const done2 = () => {
+    document.body.classList.remove('pm-printing');
+    div.remove();
+    window.removeEventListener('afterprint', done2);
+  };
+  window.addEventListener('afterprint', done2);
+  window.print();
+}
+// The chart as a PNG at twice its size (sharp in slides): the SVG drawn on a canvas.
+async function downloadTimelinePng(p, tasks) {
+  const g = ganttOf(p, tasks, { width: 1800 });
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(g.svg)}`;
+  await img.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = g.width * 2;
+  canvas.height = g.height * 2;
+  const c = canvas.getContext('2d');
+  c.scale(2, 2);
+  c.drawImage(img, 0, 0, g.width, g.height);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('The image could not be made in this browser. Use Report (PDF) instead.');
+  downloadFile(`${p.key || p.code} timeline ${fileStamp()}.png`, blob, 'image/png');
+  toast(`Timeline image saved${g.capped ? ' (the first two years)' : ''}.`);
+}
+
 // ---------- Quick filters and saved views (Board and List) ----------
 // The chips: toggle buttons; their state is in the address (f=mine,overdue), like the other filters.
 const chipBar = (on) => html`<div class="chips pm-chips" role="group" aria-label="Quick filters">${Object.entries(QUICK_FILTERS).map(([k, label]) => html`<button type="button" class="chip ${on.includes(k) ? 'on' : ''}" data-chip="${k}" aria-pressed="${on.includes(k) ? 'true' : 'false'}">${label}</button>`)}</div>`;
@@ -2032,7 +2096,11 @@ export async function timelineView(el, { id }) {
   const msRow = (m) => html`<div class="pm-tl-row ms"><div class="pm-tl-label"><strong>${m.name}</strong><small>${m.deliverable ? 'Deliverable · ' : ''}due ${fmtDate(m.dueDate)}</small></div><div class="pm-tl-track">${within(m.dueDate) ? html`<span class="pm-tl-ms ${m.deliverable ? 'deliverable' : ''} ${m.value || ''}" style="grid-column:${col(m.dueDate)}" title="${m.name}: due ${fmtDate(m.dueDate)}" role="img" aria-label="Milestone ${m.name}, due ${fmtDate(m.dueDate)}"></span>` : ''}</div></div>`;
   const dated = [...tasks.filter((t) => t.dueDate).map((t) => ({ date: t.dueDate, t })), ...p.milestones.map((m) => ({ date: m.dueDate, m }))].sort((a, b) => a.date.localeCompare(b.date) || (a.m ? -1 : 1));
   mount(el, html`
-    ${projectHeader(p, 'timeline')}
+    ${projectHeader(p, 'timeline', html`<div class="pm-export"><button class="btn" id="tl-export" aria-haspopup="menu" aria-expanded="false">${icon('download', 16)} Export</button>
+      <div class="menu-pop pm-export-pop" role="menu" hidden>
+        <button type="button" role="menuitem" data-export="report">${icon('file', 16)}<span class="grow"><strong>Report (PDF)</strong><small>Print or save as PDF: the chart and the schedule, landscape</small></span></button>
+        <button type="button" role="menuitem" data-export="png">${icon('image', 16)}<span class="grow"><strong>Image (PNG)</strong><small>The chart as a picture, for slides or an email</small></span></button>
+      </div></div>`)}
     <section class="card pm-tl-card">
       <div class="pm-tl-legend muted small"><span><span class="pm-tl-swatch cat-todo"></span>To do</span><span><span class="pm-tl-swatch cat-active"></span>In progress</span><span><span class="pm-tl-swatch cat-done"></span>Done</span><span><span class="pm-tl-swatch late"></span>Overdue</span><span><span class="pm-diamond"></span>Milestone</span><span><span class="pm-diamond deliverable"></span>Deliverable</span><span><span class="pm-tl-swatch off"></span>Weekend or holiday</span></div>
       ${capped ? html`<p class="notice small">${icon('alert', 16)} <span>The project runs longer than a year; the timeline shows its first 52 weeks.</span></p>` : ''}
@@ -2047,6 +2115,27 @@ export async function timelineView(el, { id }) {
         : html`<span class="grow"><a href="#/projects/${id}/tasks/${t.id}"><strong>${t.title}</strong></a><small><span class="mono">${t.key}</span> · ${t.statusName}${t.startDate ? ` · from ${short(t.startDate)}` : ''}${t.assigneeName ? ` · ${t.assigneeName}` : ''}</small></span>${t.overdue ? badge('Overdue', 'red') : ''}`}</li>`)}</ol>
       ${dated.length ? '' : html`<p class="muted">No dated tasks or milestones yet.</p>`}
     </section>`);
+  // Export (0.59): the chart as a report to print or save as PDF, or as a PNG image.
+  const exBtn = el.querySelector('#tl-export');
+  const exPop = el.querySelector('.pm-export-pop');
+  const setEx = (open) => {
+    exPop.hidden = !open;
+    exBtn.setAttribute('aria-expanded', String(open));
+    if (open) exPop.querySelector('button')?.focus();
+  };
+  exBtn.addEventListener('click', (e) => (e.stopPropagation(), setEx(exPop.hidden)));
+  el.addEventListener('click', (e) => !e.target.closest('.pm-export') && setEx(false));
+  exPop.addEventListener('keydown', (e) => {
+    const items = [...exPop.querySelectorAll('button')];
+    const at = items.indexOf(document.activeElement);
+    if (e.key === 'Escape') (setEx(false), exBtn.focus());
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') (e.preventDefault(), items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus());
+  });
+  exPop.querySelectorAll('[data-export]').forEach((b) => b.addEventListener('click', guard(async () => {
+    setEx(false);
+    if (b.dataset.export === 'report') printTimeline(p, tasks);
+    else await downloadTimelinePng(p, tasks);
+  })));
   // Open on today.
   const scroller = el.querySelector('.pm-tl-scroll');
   const todayMark = el.querySelector('.pm-tl-today');

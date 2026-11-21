@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.59.0-alpha',
+    date: '2026-11-21',
+    title: 'Export the timeline as a report',
+    modules: ['projects'],
+    notes: 'The Gantt chart as a printed or PDF report, or as an image.',
+    changes: [
+      ['new', 'projects', 'Timeline → Export → Report (PDF): a landscape A4 report with the project\'s figures (dates, progress, open and overdue tasks, next milestone), the Gantt chart (split across pages for a long schedule, same dates on each) and the schedule table; printed or saved as PDF from the print window.'],
+      ['new', 'projects', 'Timeline → Export → Image (PNG): the chart at twice its size, named after the project key and the date.'],
+      ['new', 'projects', 'shared/gantt.js draws the chart in SVG from the project, its tasks and the work calendar: months and ISO weeks, weekends and holidays, bars by status (overdue outlined), dots for due dates alone, milestone and deliverable diamonds, today, assignees, a legend.'],
+    ],
+  },
+  {
     version: '0.58.0-alpha',
     date: '2026-11-21',
     title: 'Comment threads and emoji reactions',

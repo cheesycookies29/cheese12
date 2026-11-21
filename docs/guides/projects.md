@@ -543,6 +543,16 @@ The digest goes out through the Service Desk's outgoing email, from the helpdesk
 
 Your reading is shown with your name next to the one CORE works out, which stays visible. Pick *As worked out* to remove it.
 
+### Export the timeline as a report or an image
+
+1. Open the project and click **Timeline**.
+2. Click **Export** at the top right, then:
+   - **Report (PDF)**: the print window opens with a landscape report: the project's name, key, client, status and manager; its dates, progress, open and overdue tasks and next milestone; the Gantt chart (milestones as diamonds, tasks as bars coloured by status, overdue ones outlined in red, weekends and holidays shaded, today as a red dashed line, each bar with its assignee); and the schedule of every task with its milestone, assignee, dates and status. Choose **Save as PDF** as the printer to keep it as a file, or print it. A long schedule continues on the next pages, with the same dates across.
+   - **Image (PNG)**: the chart as a picture, saved as *LEA timeline 2026-11-21.png*, sharp enough for slides or an email.
+3. The export shows the project as it is now. A project longer than two years shows its first two years.
+
+![Export on the timeline](projects-timeline-export.jpg)
+
 ### Print a status report
 
 1. On the project's **Overview**, click **Print status report**.

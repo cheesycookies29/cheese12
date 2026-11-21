@@ -97,6 +97,7 @@
   {"file": "projects-list-compact.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "[data-density=compact]"], "wait": 1000},
   {"file": "projects-bulk.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "[data-sel] >> nth=0", "[data-sel] >> nth=1", "[data-sel] >> nth=2", "[data-bulk=priority]"], "wait": 900},
   {"file": "projects-import.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "#import"], "wait": 900},
+  {"file": "projects-timeline-export.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Timeline')", "#tl-export"], "wait": 1000},
   {"file": "projects-timeline.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Timeline')"], "wait": 1000},
   {"file": "projects-sizes.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "[data-sel] >> nth=3", "[data-sel] >> nth=4", "[data-bulk=size]"], "wait": 900},
   {"file": "projects-time.jpg", "user": "employee.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=SIS support and maintenance", ".pm-tabs a:has-text('Time') >> nth=1"], "wait": 1000},

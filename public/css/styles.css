@@ -3589,3 +3589,24 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
 @media (pointer: coarse) { .pm-react, .pm-react-pick, .pm-c-reply, .pm-more-replies { height: 36px; padding: 0 12px; } .pm-react-pop button { width: 42px; height: 42px; } .pm-c-tools .icon-btn { width: 40px; height: 40px; } }
 @media (max-width: 560px) { .pm-replies { margin-left: 6px; padding-left: 12px; } .pm-reply-slot { margin-left: 0; } .pm-react-pop { left: auto; right: -40px; } }
 @media (prefers-reduced-motion: reduce) { .pm-react-pop button, .pm-c-tools { transition: none; } .pm-react-pop button:hover { transform: none; } }
+
+/* Timeline export (0.59): the Export menu, and the printed report on landscape pages. */
+.pm-export { position: relative; display: inline-flex; }
+.pm-export-pop { min-width: 300px; }
+.pm-export-pop button { align-items: flex-start; }
+.pm-export-pop strong { display: block; font-size: 14px; }
+.pm-export-pop small { display: block; color: var(--muted); font-size: 12px; white-space: normal; }
+.pm-export-pop .ic { margin-top: 2px; flex: none; }
+@media (max-width: 560px) { .pm-export-pop { right: auto; left: 0; min-width: min(300px, calc(100vw - 32px)); } }
+@page gantt { size: A4 landscape; margin: 10mm; }
+@media print {
+  body.pm-printing .pm-gantt-report { page: gantt; font-size: 10px; }
+  .pm-gantt-report .pm-g-chart { margin: 8px 0 10px; break-inside: avoid; page-break-inside: avoid; }
+  .pm-gantt-report .pm-g-chart svg { display: block; width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; }
+  .pm-gantt-report .pm-g-chart figcaption { font-size: 9px; color: #555; margin-top: 2px; text-align: right; }
+  .pm-gantt-report h2 { break-after: avoid; page-break-after: avoid; }
+  .pm-gantt-report tr { break-inside: avoid; page-break-inside: avoid; }
+  .pm-gantt-report tr.late td:last-child { color: #c62828; font-weight: 600; }
+  .pm-gantt-report td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; }
+  .pm-gantt-report thead { display: table-header-group; }
+}
