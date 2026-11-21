@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Recurring tasks and the run log (0.61)
+- A project has a new **Automations** tab. Project managers set up **recurring tasks**: CORE makes the task on a schedule (every working day, every week on the days you tick, a day of the month or its first or last working day), with the same assignee, checklist and due date each time, and skips it while the last one is still open. The **Run log** shows each time one ran: made, skipped or failed (managers are told of a failure). See [Make a task repeat on a schedule](projects#make-a-task-repeat-on-a-schedule-project-managers) and [Read the run log](projects#read-the-run-log).
+
 ### HR & Payroll is now Human Resource Management (0.60)
 - The module is called **Human Resource Management** everywhere: the CORE home, the modules menu, its side menu, the Admin panel, Help and notifications. Nothing else changes: the same pages, records, payroll and permissions. See [the HR guide](hr).
 

@@ -112,6 +112,11 @@ function removeDemoProjects(d, demoUsers) {
   for (const n of d.pmNotifications) if (demoUsers.has(n.actorId)) n.actorId = null;
   d.pmViews = d.pmViews.filter((v) => !demoUsers.has(v.userId));
   for (const v of d.pmViews) if (demoUsers.has(v.createdBy)) v.createdBy = null;
+  for (const r of d.pmRecurring) {
+    if (demoUsers.has(r.assigneeId)) r.assigneeId = null;
+    for (const f of ['createdBy', 'updatedBy']) if (demoUsers.has(r[f])) r[f] = null;
+  }
+  for (const x of d.pmRuns) if (demoUsers.has(x.by)) x.by = null;
   const alive = (k) => new Set(d[k].map((x) => x.id));
   const live = { accountId: alive('crmAccounts'), dealId: alive('crmDeals'), contractId: alive('crmContracts') };
   for (const p of d.pmProjects) {
@@ -149,6 +154,7 @@ function linkDemoPeople(d) {
   // A private demo view whose account is not there goes (it must never become a shared one).
   d.pmViews = d.pmViews.filter((v) => !v.demo || v.userId === null || (v.userId = id(v.userId)));
   for (const v of d.pmViews.filter((x) => x.demo)) v.createdBy = id(v.createdBy);
+  for (const r of d.pmRecurring.filter((x) => x.demo)) for (const f of ['assigneeId', 'createdBy', 'updatedBy']) r[f] = id(r[f]);
 }
 
 // Adds a fresh demo set (replacing an earlier one) without touching real records.

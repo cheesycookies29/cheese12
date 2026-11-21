@@ -8,7 +8,8 @@ import { DEFAULT_CRM } from '../shared/crm.js';
 const DEFAULT_BID_CHECKLIST = DEFAULT_CRM.bidChecklist;
 import { workDates } from '../shared/leave.js';
 import { ticketRef, slaDue } from '../shared/helpdesk.js';
-import { DEFAULT_STATUSES } from '../shared/projects.js';
+import { DEFAULT_STATUSES, workCalendar } from '../shared/projects.js';
+import { cleanSchedule, upcoming, nextOccurrence } from '../shared/pm-recurring.js';
 import { notify, accountOfEmployee } from './notifications.js';
 import { tellApprovers, tellRequester } from './leave.js';
 
@@ -562,6 +563,8 @@ function seedProjects(data, c) {
   const logs = [];
   const notes = [];
   const views = [];
+  const recurring = [];
+  const runs = [];
 
   function project(n, fields, ms, rows) {
     const code = `${P}PRJ-${String(n).padStart(4, '0')}`;
@@ -1133,6 +1136,57 @@ function seedProjects(data, c) {
   say(exec, exec.byTitle('Mock-ups for review'), sales, 'For Sales: show the weighted forecast by quarter, not by month. The MD asks by quarter.', 1);
   views.push({ id: randomUUID(), projectId: exec.p.id, userId: null, createdBy: pmU, tab: 'list', name: 'By assignee', query: 'group=assignee', createdAt: at(-10) });
 
+  // Recurring tasks on the dashboard project (0.61), with the tasks they made and their run log:
+  // a weekly report, a month-end check, and a daily triage that skips while the last one is open.
+  const cal = workCalendar(data.settings, data.holidays);
+  const today = day(0);
+  function repeats(proj, { title, schedule, who, dueIn = null, size = 'S', checklist = [], description = '', open = 1, skipIfOpen = true, createdDaysAgo = 30 }) {
+    const p = proj.p;
+    const r = {
+      id: randomUUID(), projectId: p.id, title, description, schedule: cleanSchedule(schedule).schedule, assigneeId: who, statusId: null, priority: 'normal', size, dueIn, checklist,
+      skipIfOpen, active: true, nextOn: null, lastOn: null, lastTaskId: null, made: 0, version: 1, createdAt: at(-createdDaysAgo), createdBy: pmU, updatedAt: at(-createdDaysAgo), updatedBy: pmU,
+    };
+    const days = upcoming(r.schedule, r.schedule.start, 40, cal).filter((x) => x <= today);
+    let last = null;
+    days.forEach((d, i) => {
+      const daysAgo = Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+      const stamp = at(daysAgo);
+      // The last `open` are still open when skipIfOpen is on: those days are skipped.
+      if (last && skipIfOpen && statusIn(p, last.statusId).category !== 'done') {
+        runs.push({ id: randomUUID(), projectId: p.id, at: stamp, kind: 'recurring', sourceId: r.id, name: title, day: d, result: 'skipped', taskId: last.id, taskKey: last.key, note: 'The task made last time is still open.' });
+        return;
+      }
+      const done = i < days.length - open;
+      const t = {
+        id: randomUUID(), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title, description, statusId: done ? 'done' : 'todo', priority: 'normal', assigneeId: who,
+        startDate: d, dueDate: dueIn == null ? null : addWork(d, dueIn), size, milestoneId: null, parentId: null,
+        checklist: checklist.map((text) => ({ id: randomUUID(), text, done })), blockedBy: [], ticketId: null, rank: (900 + i) * 1024, completedAt: done ? stamp : null,
+        version: 1, createdAt: stamp, createdBy: null, updatedAt: stamp, updatedBy: done ? who : null, recurringId: r.id,
+        history: [{ at: stamp, by: null, field: 'created', from: '', to: `repeats: ${title}` }, ...(done ? [{ at: stamp, by: who, field: 'status', from: 'To do', to: 'Done' }] : [])],
+        watchers: [who], attachments: [],
+      };
+      tasks.push(t);
+      runs.push({ id: randomUUID(), projectId: p.id, at: stamp, kind: 'recurring', sourceId: r.id, name: title, day: d, result: 'done', taskId: t.id, taskKey: t.key, note: '' });
+      Object.assign(r, { lastOn: d, lastTaskId: t.id, made: r.made + 1 });
+      last = t;
+    });
+    // Days skipped while the last one was open still count as passed.
+    if (days.length) r.lastOn = days[days.length - 1];
+    r.nextOn = nextOccurrence(r.schedule, [day(-1), r.lastOn || ''].sort().pop(), cal);
+    recurring.push(r);
+  }
+  const addWork = (d, n) => {
+    let x = d;
+    for (let left = n, i = 0; left > 0 && i < 400; i++) {
+      x = localDate(new Date(Date.parse(`${x}T12:00:00Z`) + 86400000));
+      if (cal.workDays.includes(new Date(`${x}T12:00:00Z`).getUTCDay()) && !cal.off.has(x)) left--;
+    }
+    return x;
+  };
+  repeats(exec, { title: 'Weekly status report to the MD', schedule: { freq: 'weekly', days: [5], start: day(-24) }, who: pmU, dueIn: 0, checklist: ['Progress against the plan', 'Risks and decisions needed', 'Next week\'s priorities'], open: 0, createdDaysAgo: 25 });
+  repeats(exec, { title: 'Check the figures against the source modules', schedule: { freq: 'monthly', monthDay: 'last-work', start: day(-40) }, who: juan, dueIn: 2, size: 'M', description: 'Compare each figure on the dashboard with the module it comes from, and note any difference.', open: 0, createdDaysAgo: 41 });
+  repeats(exec, { title: 'Triage feedback from the pilot', schedule: { freq: 'daily', start: day(-6) }, who: sales, dueIn: 1, open: 3, createdDaysAgo: 7 });
+
   // 24. Internal security work, planned.
   delivery(24, {
     name: 'Security assessment, round 4', icon: { glyph: 'key', color: 'red' }, type: 'Internal', status: 'planning', startDate: wd(20), endDate: wd(55), managerId: it,
@@ -1175,7 +1229,7 @@ function seedProjects(data, c) {
     const t = tasks.find((x) => x.id === cm.taskId);
     if (t && !t.watchers.includes(cm.userId)) t.watchers.push(cm.userId);
   }
-  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs, pmNotifications: notes, pmViews: views });
+  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs, pmNotifications: notes, pmViews: views, pmRecurring: recurring, pmRuns: runs });
 }
 
 // A few service desk tickets in different states, from the demo employees.

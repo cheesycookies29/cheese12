@@ -28,6 +28,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.61.0-alpha',
+    date: '2026-11-21',
+    title: 'Recurring tasks and the run log',
+    modules: ['projects'],
+    notes: 'The first of the automations drawn from the n8n review: tasks made on a schedule, and a log of each run. Automation rules follow.',
+    changes: [
+      ['new', 'projects', 'A project\'s Automations tab. Project managers set up recurring tasks: CORE makes the task every N days (working days only if wanted), every N weeks on chosen weekdays, or every N months on a day or on the first or last working day, from a start date to an optional end date, with its assignee, status, priority, size, due date (working days after it is made), description and checklist. A weekly or monthly date on a weekend or holiday moves to the next working day.'],
+      ['new', 'projects', 'Each recurring task keeps the next day it is due in the database and moves it on when it makes the task, before saving: a restart never loses a day or makes a task twice, and a server that was off makes one task for the latest day it missed. "Skip while the last one is open" (on by default) keeps them from piling up. Pause and resume (paused days are not made later), Make one now, Edit and Delete; up to 30 per project.'],
+      ['new', 'projects', 'The run log: each time an automation ran (made, made with a note, skipped, failed), with the task and why, kept 90 days (the project\'s newest 200). A failure is sent to the project\'s managers (For you and the bell) and recorded in the audit log.'],
+      ['improved', 'projects', 'A task made by a recurring task shows Repeats beside its key, and CORE as the one who added it; its assignee is told by CORE. Copying a project, or making one from a template, brings its recurring tasks without assignees, starting from the new start date. Nothing is made for templates or for projects that are On hold, Completed or Cancelled.'],
+      ['improved', 'projects', 'Demo data: the C-suite executive dashboard project has three recurring tasks (weekly report, month-end check, daily triage) with the tasks they made and their run log.'],
+    ],
+  },
+  {
     version: '0.60.0-alpha',
     date: '2026-11-21',
     title: 'HR & Payroll is now Human Resource Management',

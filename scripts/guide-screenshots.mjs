@@ -112,6 +112,11 @@ try {
         await page.setInputFiles(sel, path.join(ROOT, file));
         await page.waitForTimeout(wait);
       }
+      // "fill": { selector: "text" }: typed into a field (e.g. a form's title, so it is not empty).
+      for (const [sel, value] of Object.entries(s.fill || {})) {
+        await page.fill(sel, value);
+        await page.waitForTimeout(150);
+      }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();
       // "drag": selector: files from the computer held over it, not yet dropped (e.g. a task's Files card).
       if (s.drag) {

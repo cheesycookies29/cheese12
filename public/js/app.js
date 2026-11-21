@@ -43,6 +43,7 @@ import { ytdView } from './views/ytd.js';
 import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
 import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, timesheetView, pmSettingsView, myWorkBadge, projectIcon, taskLinkView } from './views/projects.js';
+import { automationsView } from './views/pm-automations.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -119,6 +120,7 @@ const routes = [
   ['/projects/:id/list', listView, 'projects', 'projects'],
   ['/projects/:id/timeline', timelineView, 'projects', 'projects'],
   ['/projects/:id/time', projectTimeView, 'projects', 'projects'],
+  ['/projects/:id/automations', automationsView, 'projects', 'projects'],
   ['/projects/:projectId/tasks/:id', taskView, 'projects', 'projects'],
   ['/projects/:id', projectOverviewView, 'projects', 'projects'],
   // Admin panel ('system'): its own sidebar. Each page needs its own permission; 'panel' = any of them.

@@ -138,6 +138,14 @@ The three starter templates are under **Templates** in the filter.
 
 ![Logging time](projects-time.jpg)
 
+### Automations
+
+1. Open *C-suite executive dashboard (CORE)* and click **Automations**. The project has three **recurring tasks**: a weekly status report every Friday, a figures check on the last working day of each month, and a feedback triage every working day.
+2. Each one shows its schedule, the next days a task is made, who gets it, and the last task it made (*Open* or *Closed*). The triage's last task is still open, so the days since were **skipped**.
+3. Below, the **Run log** lists each time an automation ran, newest first: **Made**, **Skipped** or **Failed**, with the task and a note.
+
+![A project's Automations: recurring tasks and the run log](projects-automations.jpg)
+
 ### The timesheet
 
 1. Sign in as `employee.demo` and open **Timesheet** in the side menu. It is there for everyone on a project that tracks time.
@@ -543,6 +551,41 @@ The digest goes out through the Service Desk's outgoing email, from the helpdesk
 
 Your reading is shown with your name next to the one CORE works out, which stays visible. Pick *As worked out* to remove it.
 
+### Make a task repeat on a schedule (project managers)
+
+For work that comes back on a schedule, such as a weekly report, a month-end check or a daily triage, CORE can make the task for you.
+
+1. Open the project, click **Automations**, then **New recurring task**.
+2. Give the **Task title**, then under **Repeats** choose:
+   - **Daily**: every N days. **Skip weekends and holidays** makes it every working day.
+   - **Weekly**: every N weeks, on the days you tick (*Mon* to *Sun*).
+   - **Monthly**: every N months, on a day (1 to 31; a shorter month uses its last day), or on its **First working day** or **Last working day**.
+   - For weekly and monthly, a date that falls on a weekend or holiday moves to the next working day, unless you untick that.
+   - **Starts** and, if it should stop, **Ends**.
+   The blue line under the schedule says it in words and shows the next four days a task is made.
+3. Set what each task gets: **Assignee** (a member of the project), **Status** (the first column unless you pick another), **Priority**, **Size**, **Due** (how many working days after it is made: *0* for the same day, empty for no due date), a **Description** and a **Checklist** (one item per line, unticked each time).
+4. **When the last one is still open**: ticked, CORE makes nothing while the task it made last time is not done, so they do not pile up. Untick it to get a new task every time.
+5. Click **Add recurring task**. If today is one of its days, today's task is made at once; otherwise the first one is made on its first day, early in the morning.
+
+A made task says **Repeats** beside its key, and its history says *CORE added the task*. Its assignee is told under **For you**.
+
+On each recurring task, the switch pauses it (nothing is made while it is off, and the days missed are not made later) or turns it back on. **⋯** has **Edit** (changes apply to the tasks made from then on), **Make one now** (a task for today, whatever the schedule; today's scheduled one is then not made again) and **Delete** (the tasks it made stay).
+
+Nothing is made while the project is *On hold*, *Completed* or *Cancelled*, nor in a template: a project made from a template, or a copy, gets its recurring tasks without assignees, starting from its own start date. A project can have up to 30. Members and viewers see them, read only.
+
+![A new recurring task](projects-recurring.jpg)
+
+### Read the run log
+
+The **Run log** at the bottom of **Automations** has a line each time an automation ran, newest first, for the last 90 days (the project's last 200 runs):
+
+- **Made**: a task was made; click its key to open it.
+- **Made, with a note**: made, with something to check, for example *Juan Dela Cruz is no longer a member who can take tasks, so it is unassigned*.
+- **Skipped**: nothing was made, because the task made last time is still open.
+- **Failed**: CORE could not make it. The project's managers are also told under **For you** and in the bell, and it is in the audit log.
+
+If CORE was off for some days, it makes one task for the latest day it missed, not one per day, and says so in the note. Use **All runs** to show only one kind.
+
 ### Export the timeline as a report or an image
 
 1. Open the project and click **Timeline**.
@@ -590,6 +633,7 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 | A project: Board | A column per status; drag cards or use **Move to**; quick add; quick filters, search and **Views**; filters by assignee and milestone; **Edit columns** |
 | A project: List | Every task in a table grouped by milestone or status, edited in place, with its size; quick filters, search and **Views**; ticked tasks changed together (bulk edit); **Export CSV**; **Import tasks** (managers) |
 | A project: Timeline | Weeks across, milestones and tasks along a line, today, weekends and holidays; a dated list on a phone |
+| A project: Automations | Its recurring tasks (schedule, next days, assignee, the last task made; on, paused or ended) and the **Run log** of each time one ran; **New recurring task**, **Edit**, **Make one now** and **Delete** (managers) |
 | A project: Time | Only on a project that tracks time: log hours; your entries this week; the hours by person (open a member's timesheet) and by task, against the budget |
 | A task | Details (with the size), checklist, subtasks, files, blocked by, formatted comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
 | My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date; **Comfortable** or **Compact** rows |
@@ -633,6 +677,9 @@ It is worked out from what each task remembers: when it was added, its status ch
 
 **Do templates count in the figures?**
 No. Templates are not in the portfolio counts, health or My work, and their tasks are never in anyone's My work.
+
+**Why was my recurring task not made today?**
+Look at its **Run log** line and its card under **Automations**: it is paused or has ended; the task from last time is still open (*Skipped*); today is not one of its days (a weekend or holiday moves a weekly or monthly date to the next working day); or the project is *On hold*, *Completed* or *Cancelled*, or a template.
 
 **Can a task have several assignees?**
 No. Give it one assignee, and use subtasks or the checklist to share the work.

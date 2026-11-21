@@ -55,6 +55,8 @@ export function emptyData() {
     pmTimeLogs: [],
     pmNotifications: [], // "For you" on My work: one row per person and event
     pmViews: [], // saved filters of a project's Board or List
+    pmRecurring: [], // tasks made on a schedule (server/pm-automation.js)
+    pmRuns: [], // the run log of automations
     pm: emptyPm(),
     notifications: [], // the bell: one row per person and event, from every module (server/notifications.js)
     // Admin panel (server/config.js): the company's changes to the account types, which modules are

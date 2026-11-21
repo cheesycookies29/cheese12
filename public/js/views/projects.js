@@ -961,8 +961,8 @@ export async function portfolioMilestonesView(el, _params, query) {
 }
 
 // ---------- A project: header and tabs ----------
-// Time: only on a project that tracks time.
-const TABS = [['', 'Overview', 'dashboard'], ['board', 'Board', 'grid'], ['list', 'List', 'table'], ['timeline', 'Timeline', 'calendar'], ['time', 'Time', 'clock']];
+// Time: only on a project that tracks time. Automations (0.61): recurring tasks and the run log.
+const TABS = [['', 'Overview', 'dashboard'], ['board', 'Board', 'grid'], ['list', 'List', 'table'], ['timeline', 'Timeline', 'calendar'], ['time', 'Time', 'clock'], ['automations', 'Automations', 'repeat']];
 
 // ---------- Breadcrumbs ----------
 // Where you are, on a project's pages and its tasks: Projects › the project › the view › the parent
@@ -970,7 +970,7 @@ const TABS = [['', 'Overview', 'dashboard'], ['board', 'Board', 'grid'], ['list'
 // A task's view crumb is the view it was opened from (Board, List, Timeline…, with the filters
 // that were on), kept for this browser tab; Board when it was opened from elsewhere.
 const VIEW_LABEL = Object.fromEntries(TABS.map(([k, label]) => [k, label]));
-const VIEW_AT = /^#\/projects\/([^/?#]+)(?:\/(board|list|timeline|time))?(?:\?[^#]*)?$/;
+const VIEW_AT = /^#\/projects\/([^/?#]+)(?:\/(board|list|timeline|time|automations))?(?:\?[^#]*)?$/;
 const TASK_AT = /^#\/projects\/([^/?#]+)\/tasks\//;
 const fromKey = (pid) => `core.pm.from.${pid}`;
 addEventListener('hashchange', (e) => {
@@ -2198,7 +2198,7 @@ export async function taskView(el, { projectId, id }) {
           { label: t.key, mono: true, title: `${t.key} · ${t.title}` }])}
           ${t.parent ? html`<p class="pm-subof">${icon('layers', 14)} Subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}"><span class="mono">${t.parent.key}</span> ${t.parent.title}</a></p>` : ''}
           <h1>${t.title} ${statusChip(status)}</h1>
-          <p class="muted"><a class="pm-task-key" href="${taskLink(t.key)}" title="Click to copy the link to ${t.key}">${icon('link', 13)} ${t.key}</a> ${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} Added ${when(t.createdAt)}</p></div>
+          <p class="muted"><a class="pm-task-key" href="${taskLink(t.key)}" title="Click to copy the link to ${t.key}">${icon('link', 13)} ${t.key}</a> ${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} ${t.recurringId ? html`<a class="badge blue pm-repeats" href="#/projects/${t.projectId}/automations" title="Made by a recurring task: see the project's Automations">${icon('repeat', 12)} Repeats</a> ` : ''}Added ${when(t.createdAt)}</p></div>
         <div class="actions"><button class="btn" id="copy-link" title="${taskLink(t.key)}">${icon('link', 16)} Copy link</button>${p.isTemplate ? '' : html`<button class="btn pm-watch ${t.watching ? 'on' : ''}" id="watch" aria-pressed="${t.watching ? 'true' : 'false'}" title="${t.watching ? 'You hear of its comments and when it is done or cancelled. Click to stop.' : 'Hear of its comments and when it is done or cancelled.'}">${icon('eye', 16)} ${t.watching ? 'Watching' : 'Watch'} <span class="pm-watch-n" aria-label="${plural(t.watcherList.length, 'watcher')}">${t.watcherList.length}</span></button>`}${work ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit title and description</button>` : ''}${canDelete ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}</div>
       </header>
       <div class="pm-task">
@@ -2601,7 +2601,7 @@ export async function projectTimeView(el, { id }) {
 
 // ---------- My work ----------
 // "For you": what others did that concerns you, similar events on one line ("3 comments on …").
-const NOTE_ICON = { assigned: 'user', mentioned: 'comment', commented: 'comment', status: 'checkCircle', added: 'userPlus' };
+const NOTE_ICON = { assigned: 'user', mentioned: 'comment', commented: 'comment', status: 'checkCircle', added: 'userPlus', automation: 'alert' };
 function noteLine(g) {
   const n = g.latest;
   const who = g.actors.length > 2 ? `${g.actors[0]} and ${g.actors.length - 1} others` : g.actors.join(' and ');
@@ -2614,6 +2614,7 @@ function noteLine(g) {
     commented: many ? html`${g.count} comments on ${task}` : html`${who} commented on ${task}`,
     status: html`${who} moved ${task} to ${/ to (.+)$/.exec(n.text)?.[1] || 'done'}`,
     added: html`${who} added you to ${n.projectName}`,
+    automation: html`${who} ${n.text}`, // CORE could not make a recurring task (0.61)
   }[g.kind] || n.text;
   const quote = /[:]\s(“.*)$/.exec(n.text)?.[1];
   const href = n.taskId ? `#/projects/${n.projectId}/tasks/${n.taskId}` : `#/projects/${n.projectId}`;
@@ -2985,3 +2986,6 @@ export async function pmSettingsView(el, _params, query) {
     await draw();
   }
 }
+
+// For the Automations tab (views/pm-automations.js).
+export { projectHeader, loadProject, guard, options, plural, may, sizeChip, when, short, popMenu };

@@ -40,11 +40,13 @@ import {
 } from '../shared/projects.js';
 export { projectAccess };
 import { addStarterTemplates } from './pm-templates.js';
+import { registerPmAutomation, pruneRuns } from './pm-automation.js';
 
 // Every collection here has a projectId, so deleting a project (or the demo data) takes its records.
 // pmNotifications: "For you" on My work, one row per person and event. pmViews: saved filters of a
 // project's Board or List, a person's own (userId) or shared with the project (userId null).
-export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComments', 'pmTimeLogs', 'pmNotifications', 'pmViews'];
+// pmRecurring: tasks made on a schedule; pmRuns: the run log of automations (server/pm-automation.js).
+export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComments', 'pmTimeLogs', 'pmNotifications', 'pmViews', 'pmRecurring', 'pmRuns'];
 // digest: the company's daily digest (Projects setup), the address links in it open (origin, from
 // where the setup was saved) and, per person, the last day one was sent (sent: { userId: date }).
 export const emptyDigest = () => ({ ...DIGEST_DEFAULTS, origin: null, sent: {}, lastRun: null });
@@ -102,6 +104,8 @@ export function migratePm(db) {
   // The code counter never falls behind the codes in use (e.g. after restoring an older backup).
   const top = db.data.pmProjects.reduce((n, p) => Math.max(n, Number(String(p.code || '').match(/^PRJ-(\d+)$/)?.[1] || 0)), 0);
   if (top > db.data.pm.seq.project) (db.data.pm.seq.project = top), (changed = true);
+  const runs = pruneRuns(db.data.pmRuns);
+  if (runs !== db.data.pmRuns) (db.data.pmRuns = runs), (changed = true);
   const pruned = pruneNotifications(db.data.pmNotifications);
   if (pruned !== db.data.pmNotifications) (db.data.pmNotifications = pruned), (changed = true);
   // The starter templates, once per database (unless it already has templates of its own).
@@ -220,6 +224,7 @@ export function removeUserFromProjects(db, userId) {
   db.data.pmNotifications = (db.data.pmNotifications || []).filter((n) => n.userId !== userId);
   for (const n of db.data.pmNotifications) if (n.actorId === userId) n.actorId = null;
   db.data.pmViews = (db.data.pmViews || []).filter((v) => v.userId !== userId);
+  for (const r of db.data.pmRecurring || []) if (r.assigneeId === userId) r.assigneeId = null;
 }
 
 // The project tasks linked to a service desk ticket (shown on the ticket).
@@ -411,7 +416,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     for (const userId of new Set(userIds)) {
       const x = userId && userId !== u.id && activeUser(userId);
       if (!x || !levelOf(p, x)) continue;
-      d().pmNotifications.push({ id: randomUUID(), userId, kind, projectId: p.id, taskId: t?.id || null, actorId: u.id, text: str(text, 140), at, readAt: null });
+      d().pmNotifications.push({ id: randomUUID(), userId, kind, projectId: p.id, taskId: t?.id || null, actorId: u.id, ...(u.system ? { system: true } : {}), text: str(text, 140), at, readAt: null });
       d().pmNotifications = pruneNotifications(d().pmNotifications, Date.now(), userId);
     }
   }
@@ -860,6 +865,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       });
       copyImages(t, d().pmTasks[d().pmTasks.length - 1]);
     });
+    automation.copyRecurring(src, p, move, u);
     db.save();
     return summaryOf(p, u);
   });
@@ -1936,7 +1942,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const p = open(n.projectId);
       const t = n.taskId && d().pmTasks.find((x) => x.id === n.taskId);
       return {
-        id: n.id, kind: n.kind, text: n.text, at: n.at, readAt: n.readAt, actorId: n.actorId || null, actorName: userName(n.actorId) || 'Someone',
+        id: n.id, kind: n.kind, text: n.text, at: n.at, readAt: n.readAt, actorId: n.actorId || null, actorName: n.system ? 'CORE' : userName(n.actorId) || 'Someone',
         projectId: p.id, projectCode: p.code, projectName: p.name, taskId: t ? t.id : null, taskKey: t?.key || null, taskTitle: t?.title || null,
       };
     });
@@ -2277,6 +2283,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     return access();
   });
 
-  // For tests: send the digests now (with a clock), and a person's digest.
-  return { runDigest, digestOf: (userId) => digestOf(user(userId)), notifications };
+  // ===== Automations: recurring tasks and the run log (server/pm-automation.js) =====
+  const automation = registerPmAutomation(route, db, { findProject, levelOf, newTask, notify, activeUser, userName, cal, clock, audit, tasksOf, nextRank, bump });
+
+  // For tests: send the digests now (with a clock), and a person's digest; make the recurring
+  // tasks that are due.
+  return { runDigest, digestOf: (userId) => digestOf(user(userId)), notifications, runRecurring: automation.runRecurring };
 }
