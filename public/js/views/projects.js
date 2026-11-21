@@ -12,7 +12,8 @@ import { ctx, can, roleLabel } from '../state.js';
 import { html, raw, mount, badge, toast, modal, confirmDialog, fmtDate, today, downloadFile, toCsv, money } from '../ui.js';
 import { icon } from '../icons.js';
 import { defaultDay, dayTotals } from '../phone.js';
-import { ACCEPT, prepareUpload, sizeLabel } from '../attachments.js';
+import { sizeLabel, PM_ACCEPT, preparePmFile } from '../attachments.js';
+import { fileTag } from '/shared/files.js';
 import { richEditor, wireRichEditor, richView } from '../richeditor.js';
 import { renderRich } from '/shared/richtext.js';
 import { avatar as personAvatar, isGif, gifCheck } from '../avatars.js';
@@ -357,12 +358,16 @@ let showNewestFile = false;
 function fileBlock(list, base, canAdd) {
   // Each file's icon is its preview (0.54): the photo itself, or a scanned PDF's first page; a PDF
   // without one shows a page with "PDF" on it. A preview opens larger on click.
-  const isPdf = (a) => a.type === 'application/pdf';
+  // Documents (0.56) show a page with their kind on it, in its colour: DOC, XLS, PPT, CSV, TXT….
   const thumb = (a) => {
-    const inner = html`${a.preview ? html`<img src="${base}/${a.id}/preview" alt="" loading="lazy" decoding="async" />` : icon(isPdf(a) ? 'file' : 'image', 18)}${isPdf(a) ? html`<span class="pm-thumb-tag">PDF</span>` : ''}`;
+    const tag = fileTag(a.type);
+    const page = Boolean(tag) && a.type !== 'image/gif';
+    const glyph = a.type.startsWith('image/') ? 'image' : a.type.includes('sheet') || a.type === 'text/csv' ? 'table' : a.type.includes('presentation') ? 'slides' : 'file';
+    const inner = html`${a.preview ? html`<img src="${base}/${a.id}/preview" alt="" loading="lazy" decoding="async" />` : icon(glyph, 18)}${tag ? html`<span class="pm-thumb-tag tag-${tag[1]}">${tag[0]}</span>` : ''}`;
+    const cls = `pm-file-thumb ${page ? 'pdf' : 'pic'}`;
     return a.preview
-      ? html`<button type="button" class="pm-file-thumb ${isPdf(a) ? 'pdf' : 'pic'}" data-preview="${a.id}" aria-label="Preview ${a.name}" title="Preview">${inner}</button>`
-      : html`<span class="pm-file-thumb ${isPdf(a) ? 'pdf' : 'pic'} none" aria-hidden="true">${inner}</span>`;
+      ? html`<button type="button" class="${cls}" data-preview="${a.id}" aria-label="Preview ${a.name}" title="Preview">${inner}</button>`
+      : html`<span class="${cls} none" aria-hidden="true">${inner}</span>`;
   };
   // Many files (0.55): the list scrolls inside the card, with a fade at the edge where more wait
   // and a line saying how many there are.
@@ -373,9 +378,9 @@ function fileBlock(list, base, canAdd) {
       ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>
       ${many ? html`<p class="pm-files-more muted small">${icon('down', 14)} ${list.length} files · scroll the list to see them all</p>` : ''}</div>`
     : html`<p class="muted small">No files yet.</p>`}
-    ${canAdd ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${ACCEPT}" multiple data-add-file /></label>
-        <small class="muted"><span class="pm-drop-hint">or drop them here · </span>PDF or photos (JPEG, PNG, WebP), up to 5 MB each; as many as you need.</small></div>
-      <div class="pm-drop-veil" aria-hidden="true">${icon('upload', 22)}<strong>Drop to attach</strong><small>PDF or photos, up to 5 MB each</small></div>` : ''}`;
+    ${canAdd ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${PM_ACCEPT}" multiple data-add-file /></label>
+        <small class="muted"><span class="pm-drop-hint">or drop them here · </span>PDF, photos, Word, Excel, PowerPoint, OpenDocument, text or CSV, up to 8 MB each; as many as you need.</small></div>
+      <div class="pm-drop-veil" aria-hidden="true">${icon('upload', 22)}<strong>Drop to attach</strong><small>Documents, sheets, slides, photos, up to 8 MB each</small></div>` : ''}`;
 }
 // While files from the computer are dragged over CORE, the places that take them light up
 // (body.dragging-files, 0.53). A file let go anywhere else is ignored, instead of the browser
@@ -432,7 +437,7 @@ function wireFiles(root, base, list, done) {
       try {
         for (const f of files) {
           try {
-            out = await api.post(base, { file: await prepareUpload(f) });
+            out = await api.post(base, { file: await preparePmFile(f) });
           } catch (err) {
             skipped.push(`${f.name}: ${err.message}`);
           }

@@ -3,6 +3,7 @@
 import { api } from './api.js';
 import { html, modal } from './ui.js';
 import { ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '/shared/leave.js';
+import { PM_FILE_TYPES, PM_FILE_EXTS, MAX_PM_FILE_BYTES } from '/shared/files.js';
 
 const MAX_SIDE = 2000;
 export const ACCEPT = 'application/pdf,image/*';
@@ -58,6 +59,19 @@ export async function prepareDocument(file, { types, maxBytes }) {
   if (file.type.startsWith('image/') && (file.size > 2 * 1024 * 1024 || !types[file.type])) ({ blob, name } = await shrink(file));
   else if (!types[file.type] && !['pdf', 'docx', 'xlsx'].includes(ext)) throw new Error(`${name}: add a PDF, a photo or scan, a Word document (.docx) or an Excel workbook (.xlsx).`);
   if (blob.size > maxBytes) throw new Error(`${name} is too large (${sizeLabel(blob.size)}). The limit is ${sizeLabel(maxBytes)}.`);
+  return { name, data: await toBase64(blob) };
+}
+
+// A file for a project's task or milestone (0.56): the kinds in shared/files.js. Large photos shrink
+// to a JPEG (as does a HEIC from an iPhone); a GIF stays as it is. The server checks the contents.
+export const PM_ACCEPT = `${PM_FILE_EXTS.map((x) => `.${x}`).join(',')},${Object.keys(PM_FILE_TYPES).join(',')},image/*`;
+export async function preparePmFile(file) {
+  let blob = file;
+  let name = file.name;
+  const ext = (name.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+  if (file.type.startsWith('image/') && file.type !== 'image/gif' && (file.size > 2 * 1024 * 1024 || !PM_FILE_TYPES[file.type])) ({ blob, name } = await shrink(file));
+  else if (!PM_FILE_EXTS.includes(ext) && !PM_FILE_TYPES[file.type]) throw new Error('this kind of file is not taken (a PDF, photo, Word, Excel, PowerPoint, OpenDocument, text or CSV file is)');
+  if (blob.size > MAX_PM_FILE_BYTES) throw new Error(`too large (${sizeLabel(blob.size)}); the limit is ${sizeLabel(MAX_PM_FILE_BYTES)}`);
   return { name, data: await toBase64(blob) };
 }
 

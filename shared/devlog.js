@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.56.0-alpha',
+    date: '2026-11-21',
+    title: 'More kinds of files on tasks',
+    modules: ['projects', 'system'],
+    notes: 'Task and milestone files take the documents people work with, each checked by its contents.',
+    changes: [
+      ['new', 'projects', 'Task and milestone files take Word, Excel and PowerPoint (.docx, .xlsx, .pptx), OpenDocument (.odt, .ods, .odp), GIF, text (.txt, .md) and CSV, besides PDF and photos; the limit is 8 MB each (was 5 MB). Each document shows its kind on its icon (DOC, XLS, PPT, ODT, CSV, TXT…) in its colour; a GIF that holds together shows as itself.'],
+      ['new', 'system', 'Checking by contents (server/attachments.js): PowerPoint and OpenDocument files are recognised from their parts (OpenDocument macros refused, as Office ones are); a text or CSV file must be named so and hold readable UTF-8 text. Programs, web pages, SVG, archives and anything that only claims a type are refused.'],
+    ],
+  },
+  {
     version: '0.55.0-alpha',
     date: '2026-11-21',
     title: 'A scrolling list for many files',

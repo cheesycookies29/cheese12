@@ -298,7 +298,7 @@ await journey('Task link opened, files dropped on the task', async (pages) => {
   const dt = await pm.evaluateHandle(() => {
     const d = new DataTransfer();
     d.items.add(new File(['%PDF-1.4\n% acceptance\n'], 'Acceptance.pdf', { type: 'application/pdf' }));
-    d.items.add(new File(['notes'], 'Notes.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+    d.items.add(new File(['MZ program'], 'Setup.exe', { type: 'application/x-msdownload' }));
     return d;
   });
   await pm.dispatchEvent('#files-card', 'dragenter', { dataTransfer: dt });
@@ -306,7 +306,7 @@ await journey('Task link opened, files dropped on the task', async (pages) => {
   await pm.dispatchEvent('#files-card', 'drop', { dataTransfer: dt });
   await pm.waitForFunction((n) => document.querySelectorAll('#files .pm-files li').length === n + 1, before, { timeout: 8000 });
   const toastText = await pm.textContent('#toast');
-  if (!/1 file added\. Not added: Notes\.docx/.test(toastText)) throw new Error(`Unexpected message after the drop: ${toastText}`);
+  if (!/1 file added\. Not added: Setup\.exe/.test(toastText)) throw new Error(`Unexpected message after the drop: ${toastText}`);
   // Clean up: remove the file again.
   pm.once('dialog', (d) => d.accept());
   await pm.click('#files [data-del-file]');

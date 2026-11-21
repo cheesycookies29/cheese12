@@ -364,7 +364,7 @@ test('bulk: watchers (yourself, or anyone for a manager) and delete (managers, o
 });
 
 // ===== Files =====
-test('files on a task: PDF and images only (by content), 5 at most, downloaded as a file, by who may', async () => {
+test('files on a task: documents by content (0.56), 5 at most, downloaded as a file, by who may', async () => {
   const t = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'Site survey', assigneeId: juan.id });
   const up = await juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: pdf('survey') });
   assert.equal(up.attachments.length, 1);
@@ -372,10 +372,10 @@ test('files on a task: PDF and images only (by content), 5 at most, downloaded a
   assert.equal(a.type, 'application/pdf');
   assert.equal(a.byName, 'Juan Cruz');
   // Text pretending to be a PDF, and an empty file, are refused.
-  await fails(juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: { name: 'x.pdf', data: Buffer.from('<html>hi</html>').toString('base64') } }), 400, /PDF or a photo/);
+  await fails(juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: { name: 'x.pdf', data: Buffer.from('<html>hi</html>').toString('base64') } }), 400, /Add a PDF, a photo .* programs and archives are not accepted/);
   await fails(juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: { name: 'x.pdf', data: '' } }), 400);
-  // Over 5 MB.
-  await fails(juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: { name: 'big.pdf', data: Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(5 * 1024 * 1024)]).toString('base64') } }), 400, /too large/);
+  // Over 8 MB (0.56; was 5 MB).
+  await fails(juan('POST', `/api/pm/tasks/${t.id}/attachments`, { file: { name: 'big.pdf', data: Buffer.concat([Buffer.from('%PDF-'), Buffer.alloc(8 * 1024 * 1024)]).toString('base64') } }), 400, /too large/);
   // Viewers download but do not upload; outsiders get not found.
   await fails(vic('POST', `/api/pm/tasks/${t.id}/attachments`, { file: pdf() }), 403);
   const res = await vic.raw('GET', `/api/pm/tasks/${t.id}/attachments/${a.id}`);

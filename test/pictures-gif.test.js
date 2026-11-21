@@ -67,7 +67,7 @@ test('a GIF is refused when too large, too big on screen, or not a GIF inside', 
   await fails(pia('PUT', '/api/me/avatar', file(Buffer.from('GIF89<script>alert(1)</script>'))), 400, /JPEG, PNG, WebP or GIF/);
 });
 
-test('a project\'s icon can be a GIF; files on its tasks and description pictures cannot', async () => {
+test('a project\'s icon can be a GIF, and so can a file on its tasks (0.56); description pictures cannot', async () => {
   const p = await pia('POST', '/api/pm/projects', { name: 'Lively project', type: 'Internal', startDate: '2026-11-02' });
   const g = gifOf({ w: 200, h: 200, pad: 500 * 1024 });
   const saved = await pia('PUT', `/api/pm/projects/${p.id}/icon`, file(g, 'icon.gif'));
@@ -79,8 +79,8 @@ test('a project\'s icon can be a GIF; files on its tasks and description picture
   // A copy of the project gets its own copy of the GIF.
   const copy = await pia('POST', `/api/pm/projects/${p.id}/copy`, { name: 'Lively copy', startDate: '2026-11-09' });
   assert.equal((await pia.raw('GET', `/api/pm/projects/${copy.id}/icon`)).headers['Content-Type'], 'image/gif');
-  // Unchanged elsewhere: a task's files and its description pictures stay PDF and photos.
+  // A task's files take GIFs (0.56); its description pictures stay JPEG, PNG and WebP.
   const t = await pia('POST', `/api/pm/projects/${p.id}/tasks`, { title: 'A task' });
-  await assert.rejects(pia('POST', `/api/pm/tasks/${t.id}/attachments`, file(GIF, 'a.gif')), /PDF or a photo/);
+  assert.equal((await pia('POST', `/api/pm/tasks/${t.id}/attachments`, file(GIF, 'a.gif'))).attachments[0].type, 'image/gif');
   await assert.rejects(pia('POST', `/api/pm/tasks/${t.id}/images`, file(GIF, 'a.gif')), /PDF or a photo|JPEG, PNG or WebP/);
 });

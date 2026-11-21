@@ -16,7 +16,8 @@ import { moduleOn, moduleOpenFor } from '../shared/modules.js';
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
-import { parseUpload, pdfJpegRange } from './attachments.js';
+import { parseUpload, pdfJpegRange, checkGif } from './attachments.js';
+import { PM_FILE_TYPES, MAX_PM_FILE_BYTES, PM_FILE_HINT } from '../shared/files.js';
 import { imageIdsOf, richToText } from '../shared/richtext.js';
 import { sendMail as smtpSend } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
@@ -477,6 +478,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     let out = null;
     try {
       if (PREVIEW_TYPES.includes(a.type)) out = { type: a.type };
+      else if (a.type === 'image/gif' && files) {
+        checkGif(files.buffer(a)); // a GIF is shown only if it holds together and is not too big
+        out = { type: a.type };
+      }
       else if (a.type === 'application/pdf' && files) {
         const r = pdfJpegRange(files.buffer(a));
         if (r) out = { type: 'image/jpeg', range: r };
@@ -493,7 +498,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   }
   function addFile(rec, body) {
     if (!files) throw new HttpError(500, 'Files cannot be stored here.');
-    return { ...files.save(parseUpload(body?.file)) };
+    // Documents of many kinds (0.56): PDF, pictures, Office and OpenDocument files, text and CSV.
+    return { ...files.save(parseUpload(body?.file, { documents: { types: PM_FILE_TYPES, maxBytes: MAX_PM_FILE_BYTES, hint: PM_FILE_HINT, text: true } })) };
   }
   function findFile(rec, fileId) {
     const a = filesOf(rec).find((x) => x.id === fileId);

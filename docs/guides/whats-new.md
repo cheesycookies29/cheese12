@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### More kinds of files on tasks (0.56)
+- Tasks and milestones in **Project Management** now take Word, Excel and PowerPoint files (.docx, .xlsx, .pptx), OpenDocument files (.odt, .ods, .odp), GIFs, and text and CSV files, besides PDFs and photos, up to 8 MB each. Each shows its kind on its icon. Programs, web pages, archives and macro-enabled files are still refused. See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
+
 ### A scrolling list for many files (0.55)
 - In **Project Management**, a task or milestone with more than five files keeps them in a list that scrolls inside the card, so the rest of the page stays close. See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
 

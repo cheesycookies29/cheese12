@@ -407,10 +407,10 @@ Watchers hear, under **For you**, of every comment on the task and of it being m
 
 ### Attach files to a task or a deliverable
 
-1. On a task, under **Files**, click **Add files** and pick PDFs or photos (JPEG, PNG or WebP; up to 5 MB each, as many as you need). Large photos are made smaller first.
-2. Or drag the files from your computer (a folder, the desktop, an email) and drop them on the **Files** card. While you drag, the card has a dashed edge; over it, it says **Drop to attach**. Drop several at once if you like. A file CORE does not take (a Word file, for example, or one too large) is left out and named in the message; the others are added.
+1. On a task, under **Files**, click **Add files** and pick the files, up to 8 MB each, as many as you need: PDFs; photos (JPEG, PNG, WebP or GIF); Word, Excel and PowerPoint files (.docx, .xlsx, .pptx); OpenDocument files from LibreOffice (.odt, .ods, .odp); text and CSV files (.txt, .md, .csv). Large photos are made smaller first.
+2. Or drag the files from your computer (a folder, the desktop, an email) and drop them on the **Files** card. While you drag, the card has a dashed edge; over it, it says **Drop to attach**. Drop several at once if you like. A file CORE does not take (a program, a web page, a ZIP archive, a macro-enabled Office file, or one too large) is left out and named in the message; the others are added.
 3. For a milestone, click **Files** on its card on the project's **Overview** (on a deliverable, **Acceptance document**) and add files the same way: pick them, or drop them on that window.
-4. Each file's icon is a preview: a photo shows as itself, and a scanned or photographed PDF (a signed certificate, for example) shows its first page, with a red **PDF** tag. A PDF typed on a computer shows a page with **PDF** on it. Click a preview to see it larger, with **Download** beside it.
+4. Each file's icon is a preview: a photo shows as itself, and a scanned or photographed PDF (a signed certificate, for example) shows its first page, with a red **PDF** tag. A PDF typed on a computer shows a page with **PDF** on it, and other documents a page with their kind in their colour: **DOC** (blue), **XLS** and **CSV** (green), **PPT** (orange), **ODT**, **ODS**, **ODP** and **TXT**. Click a preview to see it larger, with **Download** beside it.
 5. Click a file's name to download it. The bin removes it.
 6. With more than five files, the list scrolls inside the card: about five show at a time, a fade at the top or bottom says more are there, and the line under it gives how many. After you add files, the list shows the newest, at the end.
 
@@ -607,7 +607,7 @@ Amounts come from contract and deal values in Sales & CRM, so only people with S
 No. Like medical certificates and ticket files, they are kept in the `data` folder next to the database, not in the backup file. An administrator copies that folder to keep them.
 
 **Which files can I attach?**
-PDFs and photos (JPEG, PNG, WebP), up to 5 MB each, with no limit on how many a task or milestone has. CORE checks what the file really is, not just its name. Files are always downloaded, never opened inside CORE.
+PDFs; photos (JPEG, PNG, WebP, GIF); Word, Excel and PowerPoint (.docx, .xlsx, .pptx); OpenDocument (.odt, .ods, .odp); text and CSV (.txt, .md, .csv). Up to 8 MB each, with no limit on how many a task or milestone has. Not taken: programs, web pages, archives (ZIP), older Office files (.doc, .xls, .ppt: save them as .docx, .xlsx or .pptx) and macro-enabled files (.docm, .xlsm, .pptm, or a document with macros). CORE checks what the file really is, not just its name. Files are always downloaded, never opened inside CORE.
 
 **How exact is the burn-up?**
 It is worked out from what each task remembers: when it was added, its status changes and when it was done. A deleted task is not remembered, so it is not in the chart at all; and a task moved from another milestone counts in its current one from the day it was added.

@@ -8,6 +8,7 @@ import { inflateRawSync } from 'node:zlib';
 import { HttpError, keepPrivate } from './util.js';
 import { ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
 import { DOCX, XLSX } from '../shared/crm.js';
+import { PPTX, ODT, ODS, ODP, TEXT_EXTS } from '../shared/files.js';
 
 const ID_RE = /^[0-9a-f-]{36}$/;
 
@@ -32,6 +33,7 @@ export function sniffOffice(buf) {
   const count = buf.readUInt16LE(end + 10);
   let at = buf.readUInt32LE(end + 16);
   let types = null;
+  let mimetype = null;
   for (let n = 0; n < count; n++) {
     if (at + 46 > buf.length || buf.readUInt32LE(at) !== 0x02014b50) return null;
     const method = buf.readUInt16LE(at + 10);
@@ -40,8 +42,17 @@ export function sniffOffice(buf) {
     const nameLen = buf.readUInt16LE(at + 28);
     const name = buf.subarray(at + 46, at + 46 + nameLen).toString('utf8');
     if (/vba/i.test(name)) return null; // a macro project: never
+    if (/^(Basic|Scripts)\//.test(name)) return null; // OpenDocument macros: never
     if (name === '[Content_Types].xml') types = { method, packed, size, local: buf.readUInt32LE(at + 42) };
+    if (name === 'mimetype') mimetype = { method, size, local: buf.readUInt32LE(at + 42) };
     at += 46 + nameLen + buf.readUInt16LE(at + 30) + buf.readUInt16LE(at + 32);
+  }
+  // An OpenDocument file (0.56): a ZIP whose "mimetype" entry, stored as it is, names its kind.
+  if (!types && mimetype) {
+    if (mimetype.method !== 0 || mimetype.size > 100 || buf.readUInt32LE(mimetype.local) !== 0x04034b50) return null;
+    const from = mimetype.local + 30 + buf.readUInt16LE(mimetype.local + 26) + buf.readUInt16LE(mimetype.local + 28);
+    const kind = buf.subarray(from, from + mimetype.size).toString('latin1');
+    return [ODT, ODS, ODP].includes(kind) ? kind : null;
   }
   if (!types || types.size > 1024 * 1024 || types.local + 30 > buf.length || buf.readUInt32LE(types.local) !== 0x04034b50) return null;
   const start = types.local + 30 + buf.readUInt16LE(types.local + 26) + buf.readUInt16LE(types.local + 28);
@@ -55,7 +66,22 @@ export function sniffOffice(buf) {
   if (!xml || /macroEnabled|vbaProject/i.test(xml)) return null;
   if (xml.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml')) return DOCX;
   if (xml.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml')) return XLSX;
+  if (xml.includes('application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml')) return PPTX;
   return null;
+}
+// A text file (0.56): named .txt, .md or .csv, and holding readable text (UTF-8, no control bytes
+// but tabs and line breaks). Its type comes from the name: text/plain, or text/csv.
+export function sniffText(buf, name) {
+  const ext = String(name || '').match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  const type = ext && TEXT_EXTS[ext];
+  if (!type || !buf.length) return null;
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+  } catch {
+    return null;
+  }
+  return /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/.test(text) ? null : type;
 }
 
 // Animated pictures (profile pictures and project icons only, never attachments): a GIF of at most
@@ -132,7 +158,7 @@ export function uploadFromBuffer(name, buffer, { pictures = null, documents = nu
   if (!buffer.length) throw new HttpError(400, 'The attached file is empty.');
   const max = documents?.maxBytes || MAX_ATTACHMENT_BYTES;
   if (buffer.length > max) throw new HttpError(400, `The file is too large (${(buffer.length / 1048576).toFixed(1)} MB). The limit is ${max / 1048576} MB.`);
-  const type = sniff(buffer) || (documents ? sniffOffice(buffer) : null);
+  const type = sniff(buffer) || (documents ? sniffOffice(buffer) || (documents.text ? sniffText(buffer, name) : null) : null);
   if (documents) {
     if (!documents.types[type]) throw new HttpError(400, documents.hint);
   } else if (pictures) {

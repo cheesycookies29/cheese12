@@ -3526,3 +3526,16 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
 .pm-files-more { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; }
 .pm-files-wrap:not(.more-below) .pm-files-more .ic { transform: rotate(180deg); }
 @media (max-width: 760px) { .pm-files-wrap.scrolls .pm-files { max-height: 300px; } }
+
+/* Kinds of files (0.56): the tag on a document's icon in its colour. */
+.pm-thumb-tag.tag-blue { background: #2b5fb8; }
+.pm-thumb-tag.tag-green { background: #1f7a45; }
+.pm-thumb-tag.tag-orange { background: #c4501c; }
+.pm-thumb-tag.tag-gray { background: #5b6472; }
+.pm-file-thumb.none:has(.tag-blue) { color: #2b5fb8; }
+.pm-file-thumb.none:has(.tag-green) { color: #1f7a45; }
+.pm-file-thumb.none:has(.tag-orange) { color: #c4501c; }
+:root[data-theme='dark'] .pm-file-thumb.none:has(.tag-blue) { color: #93b4ef; }
+:root[data-theme='dark'] .pm-file-thumb.none:has(.tag-green) { color: #7fd1a0; }
+:root[data-theme='dark'] .pm-file-thumb.none:has(.tag-orange) { color: #f2a37c; }
+.pm-file-thumb.pdf.none:not(:has(.tag-red)) { background: var(--surface); }
