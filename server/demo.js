@@ -117,6 +117,7 @@ function removeDemoProjects(d, demoUsers) {
     for (const f of ['createdBy', 'updatedBy']) if (demoUsers.has(r[f])) r[f] = null;
   }
   for (const x of d.pmRuns) if (demoUsers.has(x.by)) x.by = null;
+  for (const r of d.pmRules) for (const f of ['createdBy', 'updatedBy']) if (demoUsers.has(r[f])) r[f] = null;
   const alive = (k) => new Set(d[k].map((x) => x.id));
   const live = { accountId: alive('crmAccounts'), dealId: alive('crmDeals'), contractId: alive('crmContracts') };
   for (const p of d.pmProjects) {
@@ -155,6 +156,7 @@ function linkDemoPeople(d) {
   d.pmViews = d.pmViews.filter((v) => !v.demo || v.userId === null || (v.userId = id(v.userId)));
   for (const v of d.pmViews.filter((x) => x.demo)) v.createdBy = id(v.createdBy);
   for (const r of d.pmRecurring.filter((x) => x.demo)) for (const f of ['assigneeId', 'createdBy', 'updatedBy']) r[f] = id(r[f]);
+  for (const r of d.pmRules.filter((x) => x.demo)) for (const f of ['createdBy', 'updatedBy']) r[f] = id(r[f]);
 }
 
 // Adds a fresh demo set (replacing an earlier one) without touching real records.

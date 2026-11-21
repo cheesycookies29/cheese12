@@ -3653,3 +3653,24 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
   .pm-rec-ic { display: none; }
   .pm-day span { min-width: 44px; }
 }
+
+/* ---------- Automation rules (0.62) ---------- */
+#pm-rules { margin-bottom: 16px; }
+.pm-rule-ic { background: var(--accent-soft); color: var(--gold-text, var(--brand-text)); }
+.pm-rule-steps { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 4px; }
+.pm-rule-steps li { display: flex; gap: 8px; align-items: baseline; overflow-wrap: anywhere; }
+.pm-rule-k { flex: none; display: inline-block; min-width: 46px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-size: 12px; font-weight: 600; text-align: center; color: var(--text-2); }
+.pm-rule-part { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px 14px; margin: 0; display: grid; gap: 10px; }
+.pm-rule-part legend { padding: 0 6px; display: flex; align-items: center; gap: 6px; }
+.pm-rule-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pm-rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pm-rule-row select { width: auto; min-width: 140px; max-width: 100%; flex: 0 1 auto; }
+.pm-rule-row input:not([type=checkbox]), .pm-rule-row textarea { flex: 1 1 160px; min-width: 0; }
+.pm-rule-row .pm-rule-wide { flex: 1 1 260px; }
+.pm-rule-row .icon-btn { margin-left: auto; }
+.pm-rule-row .check { min-height: 40px; }
+.pm-rule-form .stack { display: grid; gap: 14px; }
+@media (max-width: 560px) {
+  .pm-rule-row select { flex: 1 1 100%; }
+}
+.pm-rule-part > .btn { justify-self: start; }

@@ -112,6 +112,11 @@ try {
         await page.setInputFiles(sel, path.join(ROOT, file));
         await page.waitForTimeout(wait);
       }
+      // "select": { selector: "value" }: an option picked in a list (e.g. an example to start from).
+      for (const [sel, value] of Object.entries(s.select || {})) {
+        await page.selectOption(sel, value);
+        await page.waitForTimeout(250);
+      }
       // "fill": { selector: "text" }: typed into a field (e.g. a form's title, so it is not empty).
       for (const [sel, value] of Object.entries(s.fill || {})) {
         await page.fill(sel, value);

@@ -2601,7 +2601,7 @@ export async function projectTimeView(el, { id }) {
 
 // ---------- My work ----------
 // "For you": what others did that concerns you, similar events on one line ("3 comments on …").
-const NOTE_ICON = { assigned: 'user', mentioned: 'comment', commented: 'comment', status: 'checkCircle', added: 'userPlus', automation: 'alert' };
+const NOTE_ICON = { assigned: 'user', mentioned: 'comment', commented: 'comment', status: 'checkCircle', added: 'userPlus', automation: 'alert', rule: 'bolt' };
 function noteLine(g) {
   const n = g.latest;
   const who = g.actors.length > 2 ? `${g.actors[0]} and ${g.actors.length - 1} others` : g.actors.join(' and ');
@@ -2615,6 +2615,7 @@ function noteLine(g) {
     status: html`${who} moved ${task} to ${/ to (.+)$/.exec(n.text)?.[1] || 'done'}`,
     added: html`${who} added you to ${n.projectName}`,
     automation: html`${who} ${n.text}`, // CORE could not make a recurring task (0.61)
+    rule: html`${who} ${n.text}`, // a rule's "Notify" (0.62): “CORE about LEA-5: …”
   }[g.kind] || n.text;
   const quote = /[:]\s(“.*)$/.exec(n.text)?.[1];
   const href = n.taskId ? `#/projects/${n.projectId}/tasks/${n.taskId}` : `#/projects/${n.projectId}`;

@@ -28,6 +28,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.62.0-alpha',
+    date: '2026-11-21',
+    title: 'Automation rules',
+    modules: ['projects'],
+    notes: 'The second of the automations drawn from the n8n review: When … If … Then … rules on a project\'s tasks, run by CORE and kept in the run log.',
+    changes: [
+      ['new', 'projects', 'Automation rules under a project\'s Automations (managers; members and viewers read them). When a task is added, moves to a status (or any), is assigned, is commented on, becomes overdue, or its last open subtask is closed; if its priority, assignee, status, milestone, size, title or kind match; then move it, assign it (a member, who added it, the project manager, who made the change, or nobody), set its priority or due date, add a watcher, notify someone, add a comment or checklist items, or create a task or subtask. Up to 6 conditions and 6 actions; up to 30 rules per project; six examples to start from.'],
+      ['new', 'projects', 'Rules run at once, as CORE, saved with the change that set them off: from the task form, the board, bulk changes, CSV import, tickets, recurring tasks and other rules. A rule acts once per task for one change and chains stop at three steps, with a line in the run log, so rules that undo each other cannot loop. Overdue runs once a day per task and due date, not for tasks already late when the rule is added.'],
+      ['improved', 'projects', 'The run log shows rules too (Ran, with what each action did, Skipped, Failed) and filters by kind. A failed rule tells the project\'s managers and the audit log; what it did before stays. Comments and notifications from a rule are by CORE; its comments cannot be edited.'],
+      ['improved', 'projects', 'Copying a project, or a new one from a template, brings the rules that name no one in particular, with milestones mapped. Rules never run in templates.'],
+      ['improved', 'projects', 'Demo data: three rules on the C-suite executive dashboard project.'],
+    ],
+  },
+  {
     version: '0.61.0-alpha',
     date: '2026-11-21',
     title: 'Recurring tasks and the run log',

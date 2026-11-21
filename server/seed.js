@@ -565,6 +565,7 @@ function seedProjects(data, c) {
   const views = [];
   const recurring = [];
   const runs = [];
+  const rules = [];
 
   function project(n, fields, ms, rows) {
     const code = `${P}PRJ-${String(n).padStart(4, '0')}`;
@@ -1186,6 +1187,20 @@ function seedProjects(data, c) {
   repeats(exec, { title: 'Weekly status report to the MD', schedule: { freq: 'weekly', days: [5], start: day(-24) }, who: pmU, dueIn: 0, checklist: ['Progress against the plan', 'Risks and decisions needed', 'Next week\'s priorities'], open: 0, createdDaysAgo: 25 });
   repeats(exec, { title: 'Check the figures against the source modules', schedule: { freq: 'monthly', monthDay: 'last-work', start: day(-40) }, who: juan, dueIn: 2, size: 'M', description: 'Compare each figure on the dashboard with the module it comes from, and note any difference.', open: 0, createdDaysAgo: 41 });
   repeats(exec, { title: 'Triage feedback from the pilot', schedule: { freq: 'daily', start: day(-6) }, who: sales, dueIn: 1, open: 3, createdDaysAgo: 7 });
+  // Automation rules on the same project (0.62), with a few runs in the log.
+  const rule = (name, when, conditions, actions, daysAgo) => {
+    const r = { id: randomUUID(), projectId: exec.p.id, name, active: true, when, conditions, actions, runs: 0, lastRunAt: null, version: 1, createdAt: at(-daysAgo), createdBy: pmU, updatedAt: at(-daysAgo), updatedBy: pmU };
+    rules.push(r);
+    return r;
+  };
+  const doneRule = rule('Tell the managers when a task is done', { event: 'status', statusId: 'done' }, [{ field: 'kind', op: 'is', value: 'top' }], [{ type: 'notify', to: 'managers', text: 'it is done' }], 12);
+  rule('Raise overdue tasks', { event: 'overdue', statusId: null }, [], [{ type: 'priority', priority: 'high' }, { type: 'notify', to: 'assignee', text: 'it is overdue: finish it or agree a new due date' }], 10);
+  rule('Parent to review when its subtasks are done', { event: 'subtasksDone', statusId: null }, [], [{ type: 'status', statusId: 'review' }], 10);
+  const doneTasks = tasks.filter((t) => t.projectId === exec.p.id && t.statusId === 'done' && !t.parentId && !t.recurringId).slice(0, 3);
+  doneTasks.forEach((t, i) => runs.push({ id: randomUUID(), projectId: exec.p.id, at: at(-(9 - i * 3)), kind: 'rule', sourceId: doneRule.id, name: doneRule.name, result: 'done', taskId: t.id, taskKey: t.key, note: 'Notified the project\'s managers' }));
+  Object.assign(doneRule, { runs: doneTasks.length, lastRunAt: doneTasks.length ? at(-(9 - (doneTasks.length - 1) * 3)) : null });
+  // Tasks already late when the overdue rule was added are left alone.
+  for (const t of tasks) if (t.projectId === exec.p.id && t.dueDate && t.dueDate < today && !['done', 'cancelled'].includes(t.statusId)) t.overdueSeen = t.dueDate;
 
   // 24. Internal security work, planned.
   delivery(24, {
@@ -1229,7 +1244,7 @@ function seedProjects(data, c) {
     const t = tasks.find((x) => x.id === cm.taskId);
     if (t && !t.watchers.includes(cm.userId)) t.watchers.push(cm.userId);
   }
-  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs, pmNotifications: notes, pmViews: views, pmRecurring: recurring, pmRuns: runs });
+  Object.assign(data, { pmProjects: projects, pmMilestones: milestones, pmTasks: tasks, pmComments: comments, pmTimeLogs: logs, pmNotifications: notes, pmViews: views, pmRecurring: recurring, pmRuns: runs, pmRules: rules });
 }
 
 // A few service desk tickets in different states, from the demo employees.

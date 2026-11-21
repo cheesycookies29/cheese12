@@ -102,6 +102,8 @@
   {"file": "projects-sizes.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('List')", "[data-sel] >> nth=3", "[data-sel] >> nth=4", "[data-bulk=size]"], "wait": 900},
   {"file": "projects-automations.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=C-suite executive dashboard", ".pm-tabs a:has-text('Automations')"], "wait": 1200},
   {"file": "projects-recurring.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=C-suite executive dashboard", ".pm-tabs a:has-text('Automations')", "#rec-new"], "fill": {"input[name=title]": "Weekly update to the client"}, "wait": 1000},
+  {"file": "projects-rules.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=C-suite executive dashboard", ".pm-tabs a:has-text('Automations')"], "scroll": "#pm-rules", "wait": 1200},
+  {"file": "projects-rule-form.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=C-suite executive dashboard", ".pm-tabs a:has-text('Automations')", "#rule-new"], "select": {"select[name=example]": "1"}, "wait": 1000},
   {"file": "projects-time.jpg", "user": "employee.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=SIS support and maintenance", ".pm-tabs a:has-text('Time') >> nth=1"], "wait": 1000},
   {"file": "projects-timesheet.jpg", "user": "employee.demo", "url": "/#/projects/timesheet", "wait": 1000},
   {"file": "projects-timesheet-phone.jpg", "user": "employee.demo", "url": "/#/projects/timesheet", "viewport": "phone", "wait": 1000},

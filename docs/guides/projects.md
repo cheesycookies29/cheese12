@@ -142,9 +142,12 @@ The three starter templates are under **Templates** in the filter.
 
 1. Open *C-suite executive dashboard (CORE)* and click **Automations**. The project has three **recurring tasks**: a weekly status report every Friday, a figures check on the last working day of each month, and a feedback triage every working day.
 2. Each one shows its schedule, the next days a task is made, who gets it, and the last task it made (*Open* or *Closed*). The triage's last task is still open, so the days since were **skipped**.
-3. Below, the **Run log** lists each time an automation ran, newest first: **Made**, **Skipped** or **Failed**, with the task and a note.
+3. Under **Rules**, three rules do routine follow-up by themselves: when a task moves to *Done*, the managers are told; when a task becomes overdue, its priority goes up and its assignee is reminded; when all the subtasks of a task are done, the task moves to *For review*.
+4. At the bottom, the **Run log** lists each time an automation ran, newest first: **Made** or **Ran**, **Skipped** or **Failed**, with the task and what was done.
 
 ![A project's Automations: recurring tasks and the run log](projects-automations.jpg)
+
+![A project's rules](projects-rules.jpg)
 
 ### The timesheet
 
@@ -575,16 +578,42 @@ Nothing is made while the project is *On hold*, *Completed* or *Cancelled*, nor 
 
 ![A new recurring task](projects-recurring.jpg)
 
+### Set up a rule (project managers)
+
+A rule does routine follow-up for you: **When** something happens to a task, **If** the task is of a certain kind, **Then** CORE does one or more things, at once.
+
+1. Open the project, click **Automations**, then **New rule**.
+2. **Start from an example** fills the form with a ready-made rule to change (*Tell the managers when a task is done*, *Raise overdue tasks*, *New tasks without an assignee go to the project manager*, *Parent to review when its subtasks are done*, *Review checklist*, *Urgent tasks are watched by the manager*), or leave it on **A blank rule**. Give the rule a **Name**: it is how you find its runs in the log.
+3. **When**, what happens to a task:
+   - **A task is added** (also by import, from a ticket, by a recurring task or by another rule).
+   - **A task moves to a status**: pick the column, or *any status*.
+   - **A task is assigned to someone**.
+   - **Someone comments on a task**.
+   - **A task becomes overdue**: once a day, for each open task whose due date has just passed (tasks already late when you add the rule are left alone; a task given a new due date that passes counts again).
+   - **All the subtasks of a task are done**: when its last open subtask is done or cancelled.
+4. **If** (optional): **Add a condition** on the task's **Priority**, **Assignee**, **Status**, **Milestone**, **Size** or **Title** (contains some words), or whether **The task** is a subtask or was made by a recurring task. All the conditions must hold; with none, the rule is for every task.
+5. **Then**, in order (up to six): **Move it to** a status, **Assign it to** someone (a member, *who added the task*, *the project manager*, *who made the change*, or nobody), **Set its priority to**, **Set its due date to** some working days later, **Add as a watcher**, **Notify** someone with a short message (its assignee, its watchers, the project's managers, who added it, or a member), **Add a comment**, **Add checklist items**, or **Create a task** (or a subtask) with a title, an assignee and the days to do it.
+6. Click **Add rule**. It works from then on, not on what happened before.
+
+What a rule does shows as done by **CORE**: in the task's history, in its comments, and in **For you** (*CORE about LEA-5: it is done*). A rule never runs in a template, and does not run while it is off (the switch on its card). **⋯** has **Edit**, **Duplicate** and **Delete** (what it did stays). Members and viewers see the rules, read only. A project can have up to 30.
+
+A rule's change can set off another rule (a task moved to *For review* by one rule gets the checklist of another), up to three steps in a row, and each rule acts once on a task for one change. A longer chain stops there and says so in the run log, so two rules that undo each other cannot run for ever.
+
+A copy of the project, or a project made from a template, gets the rules that name no one in particular (people are not copied).
+
+![A new rule, from the example Raise overdue tasks](projects-rule-form.jpg)
+
 ### Read the run log
 
 The **Run log** at the bottom of **Automations** has a line each time an automation ran, newest first, for the last 90 days (the project's last 200 runs):
 
-- **Made**: a task was made; click its key to open it.
+- **Ran**: a rule did its actions on the task; the note says what (*Moved to For review. Notified Andrea Villanueva*), or why an action had nothing to do (*Already in For review*).
+- **Made**: a recurring task made its task; click its key to open it.
 - **Made, with a note**: made, with something to check, for example *Juan Dela Cruz is no longer a member who can take tasks, so it is unassigned*.
-- **Skipped**: nothing was made, because the task made last time is still open.
-- **Failed**: CORE could not make it. The project's managers are also told under **For you** and in the bell, and it is in the audit log.
+- **Skipped**: a recurring task made nothing, because the task made last time is still open; or a rule did not run because rules set each other off more than three times in a row.
+- **Failed**: CORE could not make the task or finish the rule (what it did before stays). The project's managers are also told under **For you** and in the bell, and it is in the audit log.
 
-If CORE was off for some days, it makes one task for the latest day it missed, not one per day, and says so in the note. Use **All runs** to show only one kind.
+If CORE was off for some days, it makes one task for the latest day it missed, not one per day, and says so in the note. Use **All runs** to show only recurring tasks, only rules, or only what was skipped or failed.
 
 ### Export the timeline as a report or an image
 
@@ -633,7 +662,7 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 | A project: Board | A column per status; drag cards or use **Move to**; quick add; quick filters, search and **Views**; filters by assignee and milestone; **Edit columns** |
 | A project: List | Every task in a table grouped by milestone or status, edited in place, with its size; quick filters, search and **Views**; ticked tasks changed together (bulk edit); **Export CSV**; **Import tasks** (managers) |
 | A project: Timeline | Weeks across, milestones and tasks along a line, today, weekends and holidays; a dated list on a phone |
-| A project: Automations | Its recurring tasks (schedule, next days, assignee, the last task made; on, paused or ended) and the **Run log** of each time one ran; **New recurring task**, **Edit**, **Make one now** and **Delete** (managers) |
+| A project: Automations | Its recurring tasks (schedule, next days, assignee, the last task made; on, paused or ended), its rules (When … If … Then …, on or off) and the **Run log** of each time one ran; **New recurring task**, **New rule**, **Edit**, **Make one now**, **Duplicate** and **Delete** (managers) |
 | A project: Time | Only on a project that tracks time: log hours; your entries this week; the hours by person (open a member's timesheet) and by task, against the budget |
 | A task | Details (with the size), checklist, subtasks, files, blocked by, formatted comments with @mentions, **Watch** and watchers, the hours logged (on a project that tracks time), the linked ticket, history |
 | My work | **For you** (what others did that concerns you), the **Daily digest** and its email setting, then your open tasks in every project: overdue, today, this week, later, no date; **Comfortable** or **Compact** rows |
@@ -680,6 +709,9 @@ No. Templates are not in the portfolio counts, health or My work, and their task
 
 **Why was my recurring task not made today?**
 Look at its **Run log** line and its card under **Automations**: it is paused or has ended; the task from last time is still open (*Skipped*); today is not one of its days (a weekend or holiday moves a weekly or monthly date to the next working day); or the project is *On hold*, *Completed* or *Cancelled*, or a template.
+
+**A rule did not do what I expected. Why?**
+Find it in the **Run log** (show **Rules**): the note says what each action did, or why it had nothing to do (*Already in For review*, *not a member who can take tasks*). No line at all means it did not run: it is off, its **If** did not hold for that task, the event was different (moving a card to *Done* is a status change; adding a task already done is not), the project is a template, or the task was late before the rule was added.
 
 **Can a task have several assignees?**
 No. Give it one assignee, and use subtasks or the checklist to share the work.

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Automation rules (0.62)
+- Under a project's **Automations**, project managers add **rules**: *when* something happens to a task (it is added, moves to a status, is assigned, gets a comment, becomes overdue, or its last subtask is done), *if* it matches some conditions, *then* CORE does it: move it, assign it, set its priority or due date, add a watcher, a comment or checklist items, notify someone, or create a follow-up task. Six examples to start from. Each run is in the **Run log**. See [Set up a rule](projects#set-up-a-rule-project-managers).
+
 ### Recurring tasks and the run log (0.61)
 - A project has a new **Automations** tab. Project managers set up **recurring tasks**: CORE makes the task on a schedule (every working day, every week on the days you tick, a day of the month or its first or last working day), with the same assignee, checklist and due date each time, and skips it while the last one is still open. The **Run log** shows each time one ran: made, skipped or failed (managers are told of a failure). See [Make a task repeat on a schedule](projects#make-a-task-repeat-on-a-schedule-project-managers) and [Read the run log](projects#read-the-run-log).
 

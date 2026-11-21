@@ -1,4 +1,4 @@
-// Project automations (0.61): recurring tasks and the run log.
+// Project automations: recurring tasks and the run log (0.61), automation rules (0.62).
 //
 // Recurring tasks: a project's managers set up a task that CORE makes on a schedule (every working
 // day, every week on Monday, the last working day of the month… see shared/pm-recurring.js). Each
@@ -13,10 +13,18 @@
 // project's newest 200 for 90 days. A failure is also sent to the project's managers (For you) and
 // recorded in the audit log.
 //
+// Automation rules (0.62): "When a task … If … Then …" (shared/pm-rules.js). server/projects.js
+// calls fire() after each change to a task (added, moved, assigned, commented on; a parent whose
+// last subtask closed); a minute timer finds tasks that became overdue. The matching rules run
+// their actions as CORE, at once, saved with the change that set them off. A rule's own changes can
+// set off other rules, at most MAX_DEPTH steps deep, and a rule runs at most once per task for one
+// change: a loop stops there and says so in the run log.
+//
 // Called from registerProjectRoutes (server/projects.js) with its helpers (`h`).
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate } from './util.js';
 import { cleanSchedule, nextOccurrence, upcoming, describeSchedule, MAX_DUE_IN, MAX_RECURRING } from '../shared/pm-recurring.js';
+import { cleanRule, matches, describeRule, MAX_RULES, MAX_DEPTH, WHO } from '../shared/pm-rules.js';
 import { PRIORITY, PROJECT_STATUS, statusOf, firstStatus, categoryOf, isOpenCategory, addDays, addWorkDays, isSize, SIZE_KEYS } from '../shared/projects.js';
 
 export const RUNS_KEEP = 200; // per project
@@ -39,7 +47,7 @@ export function pruneRuns(list, nowMs = Date.now()) {
 }
 
 export function registerPmAutomation(route, db, h) {
-  const { findProject, levelOf, newTask, notify, activeUser, userName, cal, clock, audit, tasksOf, nextRank, bump } = h;
+  const { findProject, levelOf, newTask, notify, activeUser, userName, cal, clock, audit, tasksOf, nextRank, bump, track, setCompleted, notifyStatus, statusChanged, autoWatch, watchersOf, canOpen, quote, milestonesOf } = h;
   const d = () => db.data;
   const today = (at = clock()) => localDate(at);
   const projectOpen = (p) => !p.isTemplate && ['planning', 'active'].includes(p.status); // not On hold, Completed or Cancelled
@@ -141,6 +149,8 @@ export function registerPmAutomation(route, db, h) {
     notify([t.assigneeId], 'assigned', p, t, by, `assigned you ${t.key} ${t.title}`);
     r.lastTaskId = t.id;
     r.made = (r.made || 0) + 1;
+    fire('created', t, p, by);
+    if (t.assigneeId) fire('assigned', t, p, by);
     return { t, note: notes.length ? `Made, but ${notes.join('; ')}.` : '' };
   }
 
@@ -191,6 +201,9 @@ export function registerPmAutomation(route, db, h) {
     try {
       runRecurring();
     } catch {} // a bad record must not stop the timer; the next minute tries again
+    try {
+      runOverdue();
+    } catch {}
   }, 60000);
   timer.unref?.();
 
@@ -203,6 +216,8 @@ export function registerPmAutomation(route, db, h) {
     const c = cal();
     return {
       recurring: recurringOf(p).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map((r) => recurringOut(r, p, day)),
+      rules: rulesOf(p).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map((r) => ruleOut(r, p)),
+      milestones: milestonesOf(p).map((m) => ({ id: m.id, name: m.name })), maxRules: MAX_RULES,
       runs: d().pmRuns.filter((x) => x.projectId === p.id).sort((a, b) => b.at.localeCompare(a.at)).map(runOut),
       canManage: levelOf(p, u) === 'manage', open: projectOpen(p), projectStatus: PROJECT_STATUS[p.status] || p.status, today: day,
       calendar: { workDays: c.workDays, off: [...c.off].filter((x) => x >= addDays(day, -40)).sort() },
@@ -272,5 +287,236 @@ export function registerPmAutomation(route, db, h) {
     }
   }
 
-  return { runRecurring, copyRecurring, logRun, alertManagers };
+  // ===== Automation rules (0.62) =====
+  const rulesOf = (p) => d().pmRules.filter((r) => r.projectId === p.id);
+  function findRule(p, id) {
+    const r = d().pmRules.find((x) => x.id === id && x.projectId === p.id);
+    if (!r) throw new HttpError(404, 'That rule is not in this project any more.');
+    return r;
+  }
+  // What the form may name: this project's statuses, members and milestones.
+  const ruleCtx = (p) => ({
+    statuses: p.statuses, takers: p.members.filter((m) => m.role !== 'viewer').map((m) => m.userId), members: p.members.map((m) => m.userId),
+    milestones: milestonesOf(p).map((m) => m.id),
+  });
+  const names = (p) => ({ person: (id) => userName(id) || 'a former user', milestone: (id) => milestonesOf(p).find((m) => m.id === id)?.name || 'a removed milestone' });
+  function ruleOut(r, p) {
+    return { id: r.id, name: r.name, active: r.active, when: r.when, conditions: r.conditions, actions: r.actions, text: describeRule(r, p, names(p)), runs: r.runs || 0, lastRunAt: r.lastRunAt || null, createdByName: userName(r.createdBy) || 'Former user', createdAt: r.createdAt, version: r.version };
+  }
+
+  // Someone a rule names: a member who can take tasks (or null), from a person or WHO.
+  function who(to, t, p, u) {
+    const id = to === 'creator' ? t.createdBy : to === 'manager' ? p.managerId : to === 'actor' ? u?.id : to;
+    return id || null;
+  }
+  const label = (to, id) => (WHO[to] ? `${WHO[to].toLowerCase()} (${userName(id) || 'nobody'})` : userName(id) || 'a former user');
+  const todayOf = () => localDate(clock());
+
+  // One action on a task. Returns what was done, in a few words, or what stopped it.
+  function act(a, t, p, u, r) {
+    const st = (id) => statusOf(p, id)?.name || '';
+    if (a.type === 'status') {
+      if (!statusOf(p, a.statusId)) return 'Not moved: that status is no longer in the project';
+      if (t.statusId === a.statusId) return `Already in ${st(a.statusId)}`;
+      const from = t.statusId;
+      t.statusId = a.statusId;
+      t.rank = nextRank(p, t.statusId);
+      setCompleted(t, p);
+      track(t, SYSTEM, 'status', st(from), st(t.statusId));
+      notifyStatus(t, p, SYSTEM, from);
+      bump(t, SYSTEM);
+      statusChanged(t, p, SYSTEM, from);
+      return `Moved to ${st(t.statusId)}`;
+    }
+    if (a.type === 'assign') {
+      const id = a.to === 'none' ? null : who(a.to, t, p, u);
+      if (a.to !== 'none' && !assignable(p, id)) return `Not assigned: ${label(a.to, id)} is not a member who can take tasks`;
+      if (t.assigneeId === id) return id ? `Already assigned to ${userName(id)}` : 'Already unassigned';
+      const before = t.assigneeId;
+      t.assigneeId = id;
+      track(t, SYSTEM, 'assignee', userName(before), userName(id));
+      bump(t, SYSTEM);
+      if (!id) return 'Unassigned';
+      autoWatch(t, [id], { force: true });
+      notify([id], 'assigned', p, t, SYSTEM, `assigned you ${t.key} ${t.title}`);
+      fire('assigned', t, p, SYSTEM);
+      return `Assigned to ${userName(id)}`;
+    }
+    if (a.type === 'priority') {
+      if (t.priority === a.priority) return `Already ${PRIORITY[a.priority]} priority`;
+      track(t, SYSTEM, 'priority', PRIORITY[t.priority], PRIORITY[a.priority]);
+      t.priority = a.priority;
+      bump(t, SYSTEM);
+      return `Priority ${PRIORITY[a.priority]}`;
+    }
+    if (a.type === 'due') {
+      const due = addWorkDays(todayOf(), a.days, cal());
+      if (t.dueDate === due) return `Already due ${due}`;
+      track(t, SYSTEM, 'due', t.dueDate, due);
+      t.dueDate = due;
+      if (t.startDate && t.startDate > due) (track(t, SYSTEM, 'start', t.startDate, due), (t.startDate = due));
+      bump(t, SYSTEM);
+      return `Due ${due}`;
+    }
+    if (a.type === 'watch') {
+      const id = who(a.to, t, p, u);
+      if (!id || !canOpen(p, id)) return `No watcher added: ${label(a.to, id)} cannot open the project`;
+      if (watchersOf(t).includes(id)) return `${userName(id)} already watches it`;
+      autoWatch(t, [id], { force: true });
+      return `${userName(id)} watches it`;
+    }
+    if (a.type === 'notify') {
+      const ids = a.to === 'assignee' ? [t.assigneeId] : a.to === 'watchers' ? watchersOf(t) : a.to === 'creator' ? [t.createdBy]
+        : a.to === 'managers' ? [...p.members.filter((m) => m.role === 'manager').map((m) => m.userId), p.managerId] : [a.to];
+      const to = [...new Set(ids.filter(Boolean))].filter((id) => canOpen(p, id));
+      if (!to.length) return 'Nobody to notify';
+      notify(to, 'rule', p, t, SYSTEM, `about ${t.key}: ${a.text}`);
+      return `Notified ${to.map((id) => userName(id)).join(', ')}`;
+    }
+    if (a.type === 'comment') {
+      d().pmComments.push({ id: randomUUID(), taskId: t.id, projectId: p.id, userId: null, system: true, ruleId: r.id, body: a.text, createdAt: now() });
+      notify([t.assigneeId, ...watchersOf(t)], 'commented', p, t, SYSTEM, `commented on ${t.key}: ${quote(a.text)}`);
+      return 'Commented';
+    }
+    if (a.type === 'checklist') {
+      const room = 50 - t.checklist.length;
+      if (room <= 0) return 'No checklist items added: the checklist is full (50)';
+      const items = a.items.slice(0, room);
+      t.checklist.push(...items.map((text) => ({ id: randomUUID(), text, done: false })));
+      bump(t, SYSTEM);
+      return `${items.length} checklist item${items.length === 1 ? '' : 's'} added`;
+    }
+    if (a.type === 'task') {
+      let assigneeId = a.to ? who(a.to, t, p, u) : null;
+      let note = '';
+      if (assigneeId && !assignable(p, assigneeId)) (note = ` (unassigned: ${label(a.to, assigneeId)} is not a member who can take tasks)`), (assigneeId = null);
+      const statusId = firstStatus(p.statuses, 'todo').id;
+      const day = todayOf();
+      const fields = {
+        title: a.title, description: '', statusId, priority: 'normal', assigneeId, startDate: day, dueDate: a.dueIn == null ? null : addWorkDays(day, a.dueIn, cal()),
+        size: null, milestoneId: t.milestoneId || null, parentId: a.subtask ? t.parentId || t.id : null, blockedBy: [],
+      };
+      const nt = newTask(p, SYSTEM, fields, { rank: nextRank(p, statusId), ruleId: r.id });
+      nt.history[0].to = `rule: ${r.name} (after ${t.key})`;
+      notify([assigneeId], 'assigned', p, nt, SYSTEM, `assigned you ${nt.key} ${nt.title}`);
+      fire('created', nt, p, SYSTEM);
+      if (assigneeId) fire('assigned', nt, p, SYSTEM);
+      return `Made ${nt.key}${note}`;
+    }
+    return '';
+  }
+
+  // The rules of a task's project for what just happened to it (u: who did it, or SYSTEM).
+  let chain = null; // { depth, ran: Set of ruleId:taskId } while rules run
+  function fire(event, t, p, u) {
+    if (p.isTemplate || d().modules?.projects === false) return;
+    const rules = rulesOf(p).filter((r) => r.active && r.when.event === event && (event !== 'status' || !r.when.statusId || r.when.statusId === t.statusId));
+    if (!rules.length) return;
+    const outer = !chain;
+    if (outer) chain = { depth: 0, ran: new Set() };
+    try {
+      if (chain.depth >= MAX_DEPTH) {
+        for (const r of rules) if (matches(r, t)) logRun(p, { kind: 'rule', sourceId: r.id, name: r.name, result: 'skipped', taskId: t.id, taskKey: t.key, note: `Not run: rules set each other off more than ${MAX_DEPTH} times in a row. Check the rules for a loop.` });
+        return;
+      }
+      chain.depth++;
+      for (const r of rules) {
+        const key = `${r.id}:${t.id}`;
+        if (chain.ran.has(key) || !matches(r, t)) continue;
+        chain.ran.add(key);
+        const done = [];
+        try {
+          for (const a of r.actions) done.push(act(a, t, p, u, r));
+          r.runs = (r.runs || 0) + 1;
+          r.lastRunAt = now();
+          logRun(p, { kind: 'rule', sourceId: r.id, name: r.name, result: 'done', taskId: t.id, taskKey: t.key, note: done.filter(Boolean).join('. ') });
+        } catch (err) {
+          const reason = String(err?.message || err).slice(0, 200);
+          alertManagers(p, `could not finish the rule “${str(r.name, 60)}” on ${t.key}: ${reason}`);
+          logRun(p, { kind: 'rule', sourceId: r.id, name: r.name, result: 'failed', taskId: t.id, taskKey: t.key, note: `${done.filter(Boolean).join('. ')}${done.length ? '. ' : ''}Stopped: ${reason}` });
+        }
+      }
+      chain.depth--;
+    } finally {
+      if (outer) chain = null;
+    }
+  }
+
+  // Tasks that became overdue (due before today, still open), once per task and due date, in
+  // projects with an overdue rule. Called every minute; tests call it with their own clock.
+  function runOverdue(at = clock()) {
+    const day = localDate(at);
+    const out = { day, tasks: 0 };
+    if (d().modules?.projects === false) return { ...out, reason: 'module off' };
+    for (const p of d().pmProjects) {
+      if (!projectOpen(p) || !rulesOf(p).some((r) => r.active && r.when.event === 'overdue')) continue;
+      for (const t of tasksOf(p)) {
+        if (!t.dueDate || t.dueDate >= day || t.overdueSeen === t.dueDate || !isOpenCategory(categoryOf(p, t))) continue;
+        t.overdueSeen = t.dueDate;
+        out.tasks++;
+        fire('overdue', t, p, SYSTEM);
+      }
+    }
+    if (out.tasks) db.save();
+    return out;
+  }
+  // A new or turned-on overdue rule is for tasks that become overdue from then on, not those
+  // already late (it would flood the log and the assignees).
+  function markOverdue(p) {
+    const day = todayOf();
+    for (const t of tasksOf(p)) if (t.dueDate && t.dueDate < day && isOpenCategory(categoryOf(p, t))) t.overdueSeen = t.dueDate;
+  }
+
+  route('POST', '/api/pm/projects/:id/rules', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u, 'manage');
+    if (rulesOf(p).length >= MAX_RULES) throw new HttpError(400, `A project can have up to ${MAX_RULES} rules. Delete one you no longer need first.`);
+    const c = cleanRule(body, ruleCtx(p));
+    if (c.error) throw new HttpError(400, c.error);
+    const at = now();
+    const r = { id: randomUUID(), projectId: p.id, ...c.rule, runs: 0, lastRunAt: null, version: 1, createdAt: at, createdBy: u.id, updatedAt: at, updatedBy: u.id };
+    d().pmRules.push(r);
+    if (r.active && r.when.event === 'overdue') markOverdue(p);
+    db.save();
+    return ruleOut(r, p);
+  });
+  route('PUT', '/api/pm/projects/:id/rules/:rid', 'auth', ({ params, body, user: u }) => {
+    const p = findProject(params.id, u, 'manage');
+    const r = findRule(p, params.rid);
+    if (body?.version != null && body.version !== r.version) throw new HttpError(409, `This rule was changed by ${userName(r.updatedBy) || 'someone else'} since you opened it. Close the form, reload, and make your change again.`);
+    const onlyActive = body && Object.keys(body).every((k) => ['active', 'version'].includes(k));
+    if (onlyActive) {
+      if (typeof body.active !== 'boolean') throw new HttpError(400, 'Say whether the rule is on.');
+      r.active = body.active;
+    } else {
+      const c = cleanRule(body, ruleCtx(p));
+      if (c.error) throw new HttpError(400, c.error);
+      Object.assign(r, c.rule);
+    }
+    if (r.active && r.when.event === 'overdue') markOverdue(p);
+    bump(r, u);
+    db.save();
+    return ruleOut(r, p);
+  });
+  route('DELETE', '/api/pm/projects/:id/rules/:rid', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u, 'manage');
+    const r = findRule(p, params.rid);
+    d().pmRules = d().pmRules.filter((x) => x !== r);
+    db.save();
+    return { ok: true };
+  });
+
+  // A copy (or a project from a template) gets the rules that name no one in particular (people
+  // are not copied), with milestones mapped to the copy's.
+  function copyRules(src, p, msIds, u) {
+    const namesSomeone = (r) => r.conditions.some((c) => c.field === 'assignee' && c.value) || r.actions.some((a) => (a.to && !['none', 'assignee', 'watchers', 'managers', ...Object.keys(WHO)].includes(a.to)));
+    for (const r of rulesOf(src)) {
+      if (namesSomeone(r)) continue;
+      const copy = structuredClone(r);
+      copy.conditions = copy.conditions.filter((c) => c.field !== 'milestone' || !c.value || msIds.has(c.value)).map((c) => (c.field === 'milestone' && c.value ? { ...c, value: msIds.get(c.value) } : c));
+      const at = now();
+      d().pmRules.push({ ...copy, id: randomUUID(), projectId: p.id, runs: 0, lastRunAt: null, version: 1, createdAt: at, createdBy: u.id, updatedAt: at, updatedBy: u.id });
+    }
+  }
+
+  return { runRecurring, runOverdue, copyRecurring, copyRules, fire, logRun, alertManagers };
 }

@@ -45,8 +45,9 @@ import { registerPmAutomation, pruneRuns } from './pm-automation.js';
 // Every collection here has a projectId, so deleting a project (or the demo data) takes its records.
 // pmNotifications: "For you" on My work, one row per person and event. pmViews: saved filters of a
 // project's Board or List, a person's own (userId) or shared with the project (userId null).
-// pmRecurring: tasks made on a schedule; pmRuns: the run log of automations (server/pm-automation.js).
-export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComments', 'pmTimeLogs', 'pmNotifications', 'pmViews', 'pmRecurring', 'pmRuns'];
+// pmRecurring: tasks made on a schedule; pmRules: automation rules (When … If … Then …); pmRuns: the
+// run log of automations (server/pm-automation.js).
+export const PM_COLLECTIONS = ['pmProjects', 'pmMilestones', 'pmTasks', 'pmComments', 'pmTimeLogs', 'pmNotifications', 'pmViews', 'pmRecurring', 'pmRuns', 'pmRules'];
 // digest: the company's daily digest (Projects setup), the address links in it open (origin, from
 // where the setup was saved) and, per person, the last day one was sent (sent: { userId: date }).
 export const emptyDigest = () => ({ ...DIGEST_DEFAULTS, origin: null, sent: {}, lastRun: null });
@@ -225,6 +226,7 @@ export function removeUserFromProjects(db, userId) {
   for (const n of db.data.pmNotifications) if (n.actorId === userId) n.actorId = null;
   db.data.pmViews = (db.data.pmViews || []).filter((v) => v.userId !== userId);
   for (const r of db.data.pmRecurring || []) if (r.assigneeId === userId) r.assigneeId = null;
+  // Rules that name the account keep it; they skip it when they run (no longer a member).
 }
 
 // The project tasks linked to a service desk ticket (shown on the ticket).
@@ -430,6 +432,18 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   function notifyStatus(t, p, u, fromId) {
     const to = closedBy(t, p, fromId);
     if (to) notify([t.assigneeId, ...watchersOf(t)], 'status', p, t, u, `moved ${t.key} to ${to.name}`);
+  }
+  // ----- Automation rules (0.62): what happened to a task, for the rules of its project -----
+  // `fire` runs the matching rules (server/pm-automation.js); their changes are saved with the change
+  // that set them off. A status change also tells the parent when its last open subtask closes.
+  const fire = (event, t, p, u) => automation.fire(event, t, p, u);
+  function statusChanged(t, p, u, fromId) {
+    if (fromId === t.statusId) return;
+    fire('status', t, p, u);
+    const parent = t.parentId && d().pmTasks.find((x) => x.id === t.parentId);
+    if (!parent || !isOpenCategory(statusOf(p, fromId)?.category || 'todo') || isOpenCategory(categoryOf(p, t))) return;
+    const subs = tasksOf(p).filter((x) => x.parentId === parent.id);
+    if (subs.every((x) => !isOpenCategory(categoryOf(p, x))) && subs.some((x) => categoryOf(p, x) === 'done')) fire('subtasksDone', parent, p, u);
   }
   // Changes to many tasks at once (bulk edit, import): one notification per person for each kind,
   // naming the tasks, instead of one per task. byUser: Map userId → [{ t, … }].
@@ -866,6 +880,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       copyImages(t, d().pmTasks[d().pmTasks.length - 1]);
     });
     automation.copyRecurring(src, p, move, u);
+    automation.copyRules(src, p, msIds, u);
     db.save();
     return summaryOf(p, u);
   });
@@ -1156,6 +1171,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const t = newTask(p, u, fields, { checklist: checklistFrom(body.checklist), rank: nextRank(p, fields.statusId, body.position === 'top') });
     addAssignee(p, t);
     notify([t.assigneeId], 'assigned', p, t, u, `assigned you ${t.key} ${t.title}`);
+    fire('created', t, p, u);
+    if (t.assigneeId) fire('assigned', t, p, u);
     db.save();
     const ctx = taskCtx(p);
     return taskOut(t, p, ctx);
@@ -1193,6 +1210,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     if (t.assigneeId !== before.assigneeId) notify([t.assigneeId], 'assigned', p, t, u, `assigned you ${t.key} ${t.title}`), autoWatch(t, [t.assigneeId], { force: true });
     notifyStatus(t, p, u, before.statusId);
     bump(t, u);
+    statusChanged(t, p, u, before.statusId);
+    if (t.assigneeId && t.assigneeId !== before.assigneeId) fire('assigned', t, p, u);
     db.save();
     return taskOut(t, p, taskCtx(p));
   });
@@ -1213,6 +1232,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     track(t, u, 'status', statusOf(p, from)?.name, status.name);
     notifyStatus(t, p, u, from);
     bump(t, u);
+    statusChanged(t, p, u, from);
     db.save();
     const wip = status.wipLimit && column.length + 1 > status.wipLimit ? `"${status.name}" has ${column.length + 1} tasks; its limit is ${status.wipLimit}.` : null;
     return { ...taskOut(t, p, taskCtx(p)), wipWarning: wip };
@@ -1271,7 +1291,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       return ids.length ? { emoji, count: ids.length, mine: ids.includes(u.id), names: ids.map((id) => userName(id)) } : null;
     }).filter(Boolean);
     if (c.deleted) return { id: c.id, taskId: c.taskId, parentId: null, deleted: true, createdAt: c.createdAt, reactions: [], body: '', userName: '', userId: null, canDelete: false, canEdit: false };
-    return { ...c, parentId: c.parentId || null, userName: userName(c.userId) || 'Former user', reactions, canDelete: c.userId === u.id || mine === 'manage', canEdit: c.userId === u.id };
+    return { ...c, parentId: c.parentId || null, userName: c.system ? 'CORE' : userName(c.userId) || 'Former user', reactions, canDelete: (c.userId === u.id && !c.system) || mine === 'manage', canEdit: c.userId === u.id && !c.system };
   };
   const findComment = (id, u) => {
     const c = d().pmComments.find((x) => x.id === id);
@@ -1319,6 +1339,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     notify([t.assigneeId, t.createdBy, ...watchersOf(t)].filter((id) => !told.includes(id)), 'commented', p, t, u, `${parent ? 'replied' : 'commented'} on ${t.key}: ${quote(plain)}`);
     // Commenting starts watching (unless you stopped watching this task); a mention does not.
     if (!p.isTemplate) autoWatch(t, [u.id]);
+    fire('commented', t, p, u);
     db.save();
     return commentOut(c, u, levelOf(p, u));
   });
@@ -1597,6 +1618,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     if (problems.length) throw new HttpError(400, `Nothing was changed: ${problems.length === 1 ? 'one task cannot' : `${problems.length} tasks cannot`} take this change. ${problems.slice(0, 8).join(' ')}${problems.length > 8 ? ' …' : ''}`);
     const assigned = new Map();
     const closed = new Map();
+    const fired = []; // the rules run once every task has its change
     for (const [t, next] of plans) {
       const before = { ...t };
       Object.assign(t, next);
@@ -1612,6 +1634,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const names = (ids) => ids.map((id) => userName(id) || 'Former user').join(', ');
       if (watching.join() !== watchersOf(t).join()) track(t, u, 'watchers', names(watching), names(t.watchers));
       bump(t, u);
+      fired.push([t, before]);
+    }
+    for (const [t, before] of fired) {
+      statusChanged(t, p, u, before.statusId);
+      if (t.assigneeId && t.assigneeId !== before.assigneeId) fire('assigned', t, p, u);
     }
     notifyGrouped(assigned, 'assigned', p, u, ({ t }) => `assigned you ${t.key} ${t.title}`, (l) => `assigned you ${l.length} tasks in ${p.code}: ${keysOf(l)}`);
     notifyGrouped(closed, 'status', p, u, ({ t, to }) => `moved ${t.key} to ${to.name}`, (l) => `moved ${l.length} tasks to ${[...new Set(l.map((x) => x.to.name))].join(' or ')}: ${keysOf(l)}`);
@@ -1678,6 +1705,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     }
     const rowIds = new Map(plan.tasks.map((t) => [t.row, randomUUID()]));
     const assigned = new Map();
+    const made = [];
     for (const r of plan.tasks) {
       const milestoneId = r.milestone ? r.milestone.id || msIds.get(r.milestone.name.toLowerCase()) : null;
       const fields = {
@@ -1687,6 +1715,11 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       const t = newTask(p, u, fields, { id: rowIds.get(r.row), checklist: r.checklist.map((text) => ({ id: randomUUID(), text, done: false })), rank: nextRank(p, r.statusId) });
       t.history[0].to = 'imported from a CSV file';
       addTo(assigned, t.assigneeId, { t });
+      made.push(t);
+    }
+    for (const t of made) {
+      fire('created', t, p, u);
+      if (t.assigneeId) fire('assigned', t, p, u);
     }
     notifyGrouped(assigned, 'assigned', p, u, ({ t }) => `assigned you ${t.key} ${t.title}`, (l) => `assigned you ${l.length} tasks in ${p.code}: ${keysOf(l)}`);
     const name = str(body.fileName, 120);
@@ -2215,6 +2248,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const fields = validTask({ title: ticket.subject, description: `From service desk ticket ${ticket.ref}.\n\n${first?.body || ''}`.trim().slice(0, 4000), priority: ticket.priority }, p, u, levelOf(p, u));
     const t = newTask(p, u, fields, { ticketId: ticket.id, rank: nextRank(p, fields.statusId) });
     t.history[0].to = `from ticket ${ticket.ref}`;
+    fire('created', t, p, u);
     ticket.messages.push({ id: randomUUID(), kind: 'event', public: false, author: { userId: u.id, name: u.name, role: 'agent' }, body: `Added to project ${p.code} as task ${t.key}`, at: now(), attachments: [] });
     ticket.updatedAt = now();
     db.save();
@@ -2284,9 +2318,12 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   });
 
   // ===== Automations: recurring tasks and the run log (server/pm-automation.js) =====
-  const automation = registerPmAutomation(route, db, { findProject, levelOf, newTask, notify, activeUser, userName, cal, clock, audit, tasksOf, nextRank, bump });
+  const automation = registerPmAutomation(route, db, {
+    findProject, levelOf, newTask, notify, activeUser, userName, cal, clock, audit, tasksOf, nextRank, bump, track, setCompleted, notifyStatus, statusChanged,
+    autoWatch, watchersOf, canOpen, quote, milestonesOf,
+  });
 
   // For tests: send the digests now (with a clock), and a person's digest; make the recurring
   // tasks that are due.
-  return { runDigest, digestOf: (userId) => digestOf(user(userId)), notifications, runRecurring: automation.runRecurring };
+  return { runDigest, digestOf: (userId) => digestOf(user(userId)), notifications, runRecurring: automation.runRecurring, runOverdue: automation.runOverdue };
 }
