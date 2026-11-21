@@ -412,6 +412,7 @@ Watchers hear, under **For you**, of every comment on the task and of it being m
 3. For a milestone, click **Files** on its card on the project's **Overview** (on a deliverable, **Acceptance document**) and add files the same way: pick them, or drop them on that window.
 4. Each file's icon is a preview: a photo shows as itself, and a scanned or photographed PDF (a signed certificate, for example) shows its first page, with a red **PDF** tag. A PDF typed on a computer shows a page with **PDF** on it. Click a preview to see it larger, with **Download** beside it.
 5. Click a file's name to download it. The bin removes it.
+6. With more than five files, the list scrolls inside the card: about five show at a time, a fade at the top or bottom says more are there, and the line under it gives how many. After you add files, the list shows the newest, at the end.
 
 Members and managers add files; everyone who can open the project downloads them; the person who added a file or a project manager removes it. Adding and removing are in the task's (or the project's) history. When you set **Accepted on** for a deliverable that has no document yet, CORE reminds you to attach the signed certificate, and the card says so until you do. Deleting a task, a milestone or the project deletes its files.
 

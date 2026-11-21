@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.55.0-alpha',
+    date: '2026-11-21',
+    title: 'A scrolling list for many files',
+    modules: ['projects'],
+    notes: 'Tasks with many files no longer push the comments far down.',
+    changes: [
+      ['improved', 'projects', 'Files on a task or milestone: past five, the list scrolls inside the card (about five rows; 300px on a phone), with fades at the edges where more wait, a line with the count, keyboard scrolling, and the newest shown after an upload.'],
+    ],
+  },
+  {
     version: '0.54.0-alpha',
     date: '2026-11-21',
     title: 'Previews of attached files',

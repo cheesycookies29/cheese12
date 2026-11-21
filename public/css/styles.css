@@ -3514,3 +3514,15 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
 .pm-preview-big { margin: 0; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
 .pm-preview-big img { max-width: 100%; max-height: 62vh; object-fit: contain; border-radius: 4px; box-shadow: var(--shadow); background: #fff; }
 
+
+/* Many files on a task or a milestone (0.55): about five rows show; the list scrolls inside the
+   card, with a fade at the top or bottom edge where more files wait. */
+.pm-files-wrap { position: relative; }
+.pm-files-wrap.scrolls .pm-files { max-height: 352px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; margin-bottom: 4px; padding-right: 6px; border-radius: var(--radius-sm); }
+.pm-files-wrap.scrolls .pm-files:focus-visible { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+.pm-files-wrap.scrolls.more-below .pm-files { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); }
+.pm-files-wrap.scrolls.more-above .pm-files { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px); mask-image: linear-gradient(to bottom, transparent, #000 40px); }
+.pm-files-wrap.scrolls.more-above.more-below .pm-files { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.pm-files-more { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; }
+.pm-files-wrap:not(.more-below) .pm-files-more .ic { transform: rotate(180deg); }
+@media (max-width: 760px) { .pm-files-wrap.scrolls .pm-files { max-height: 300px; } }

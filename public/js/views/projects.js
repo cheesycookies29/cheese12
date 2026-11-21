@@ -349,6 +349,9 @@ function popMenu(btn, items, label) {
 }
 
 // ---------- Files (tasks and milestones) ----------
+// More files than this: the list scrolls inside its card (0.55).
+const FILES_SHOWN = 5;
+let showNewestFile = false;
 // A file opens as a download (the server sends it as an attachment to save), never in the page.
 // base: the files' address, e.g. /api/pm/tasks/<id>/attachments.
 function fileBlock(list, base, canAdd) {
@@ -361,10 +364,14 @@ function fileBlock(list, base, canAdd) {
       ? html`<button type="button" class="pm-file-thumb ${isPdf(a) ? 'pdf' : 'pic'}" data-preview="${a.id}" aria-label="Preview ${a.name}" title="Preview">${inner}</button>`
       : html`<span class="pm-file-thumb ${isPdf(a) ? 'pdf' : 'pic'} none" aria-hidden="true">${inner}</span>`;
   };
-  return html`${list.length ? html`<ul class="pm-files">${list.map((a) => html`<li>
+  // Many files (0.55): the list scrolls inside the card, with a fade at the edge where more wait
+  // and a line saying how many there are.
+  const many = list.length > FILES_SHOWN;
+  return html`${list.length ? html`<div class="pm-files-wrap${many ? ' scrolls' : ''}"><ul class="pm-files" ${many ? html`tabindex="0" role="region" aria-label="Files (${list.length}), scroll to see them all"` : ''}>${list.map((a) => html`<li>
       ${thumb(a)}
       <span class="grow"><a href="${base}/${a.id}" download="${a.name}">${a.name}</a><small>${sizeLabel(a.size)} · ${a.byName} · ${when(a.uploadedAt)}</small></span>
-      ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>`
+      ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>
+      ${many ? html`<p class="pm-files-more muted small">${icon('down', 14)} ${list.length} files · scroll the list to see them all</p>` : ''}</div>`
     : html`<p class="muted small">No files yet.</p>`}
     ${canAdd ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${ACCEPT}" multiple data-add-file /></label>
         <small class="muted"><span class="pm-drop-hint">or drop them here · </span>PDF or photos (JPEG, PNG, WebP), up to 5 MB each; as many as you need.</small></div>
@@ -399,6 +406,19 @@ window.addEventListener('drop', (e) => {
 // new list. A file CORE does not take (a Word file, one too large) is skipped and named, the others
 // are still added. The drop zone is the card (or window) around `root`.
 function wireFiles(root, base, list, done) {
+  // A scrolling list: the fades follow the scroll; after an upload it shows the newest (the last).
+  const scroller = root.querySelector('.pm-files-wrap.scrolls .pm-files');
+  if (scroller) {
+    const wrap = scroller.parentElement;
+    const edges = () => {
+      wrap.classList.toggle('more-above', scroller.scrollTop > 2);
+      wrap.classList.toggle('more-below', scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 2);
+    };
+    scroller.addEventListener('scroll', edges, { passive: true });
+    if (showNewestFile) scroller.scrollTop = scroller.scrollHeight;
+    edges();
+  }
+  showNewestFile = false;
   const input = root.querySelector('[data-add-file]');
   if (input) {
     let busy = false;
@@ -425,6 +445,7 @@ function wireFiles(root, base, list, done) {
       const added = files.length - skipped.length;
       if (skipped.length) toast(`${added ? `${plural(added, 'file')} added. ` : ''}Not added: ${skipped.join('; ')}`, 'error');
       else toast(`${plural(added, 'file')} added.`);
+      showNewestFile = Boolean(out);
       await done(out ? out.attachments : null);
     };
     input.addEventListener('change', (e) => {

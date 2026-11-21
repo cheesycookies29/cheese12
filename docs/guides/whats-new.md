@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### A scrolling list for many files (0.55)
+- In **Project Management**, a task or milestone with more than five files keeps them in a list that scrolls inside the card, so the rest of the page stays close. See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
+
 ### Previews of attached files (0.54)
 - In **Project Management**, the files on a task or a milestone show a preview as their icon: a photo shows itself, a scanned PDF its first page. Click it to see it larger. See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
 
