@@ -352,8 +352,17 @@ function popMenu(btn, items, label) {
 // A file opens as a download (the server sends it as an attachment to save), never in the page.
 // base: the files' address, e.g. /api/pm/tasks/<id>/attachments.
 function fileBlock(list, base, canAdd) {
+  // Each file's icon is its preview (0.54): the photo itself, or a scanned PDF's first page; a PDF
+  // without one shows a page with "PDF" on it. A preview opens larger on click.
+  const isPdf = (a) => a.type === 'application/pdf';
+  const thumb = (a) => {
+    const inner = html`${a.preview ? html`<img src="${base}/${a.id}/preview" alt="" loading="lazy" decoding="async" />` : icon(isPdf(a) ? 'file' : 'image', 18)}${isPdf(a) ? html`<span class="pm-thumb-tag">PDF</span>` : ''}`;
+    return a.preview
+      ? html`<button type="button" class="pm-file-thumb ${isPdf(a) ? 'pdf' : 'pic'}" data-preview="${a.id}" aria-label="Preview ${a.name}" title="Preview">${inner}</button>`
+      : html`<span class="pm-file-thumb ${isPdf(a) ? 'pdf' : 'pic'} none" aria-hidden="true">${inner}</span>`;
+  };
   return html`${list.length ? html`<ul class="pm-files">${list.map((a) => html`<li>
-      <span class="pm-file-ic" aria-hidden="true">${icon(a.type === 'application/pdf' ? 'file' : 'image', 16)}</span>
+      ${thumb(a)}
       <span class="grow"><a href="${base}/${a.id}" download="${a.name}">${a.name}</a><small>${sizeLabel(a.size)} · ${a.byName} · ${when(a.uploadedAt)}</small></span>
       ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>`
     : html`<p class="muted small">No files yet.</p>`}
@@ -448,6 +457,21 @@ function wireFiles(root, base, list, done) {
       upload([...e.dataTransfer.files]);
     });
   }
+  // A preview, larger, with the file's download beside it.
+  root.querySelectorAll('[data-preview]').forEach((b) => b.addEventListener('click', () => {
+    const a = list.find((x) => x.id === b.dataset.preview);
+    if (!a) return;
+    const pdf = a.type === 'application/pdf';
+    modal({
+      title: a.name, wide: true, className: 'pm-preview-modal', submitLabel: 'Download', cancelLabel: 'Close',
+      subtitle: `${sizeLabel(a.size)} · ${a.byName} · ${when(a.uploadedAt)}${pdf ? ' · the PDF\'s first page, as scanned; download it to read the whole document' : ''}`,
+      body: html`<figure class="pm-preview-big"><img src="${base}/${a.id}/preview" alt="Preview of ${a.name}" /></figure>`,
+      onSubmit: () => {
+        const link = Object.assign(document.createElement('a'), { href: `${base}/${a.id}`, download: a.name });
+        link.click();
+      },
+    });
+  }));
   root.querySelectorAll('[data-del-file]').forEach((b) => b.addEventListener('click', guard(async () => {
     const a = list.find((x) => x.id === b.dataset.delFile);
     if (!(await confirmDialog(`Remove the file "${a.name}"?`, { title: 'Remove file', confirmLabel: 'Remove' }))) return;

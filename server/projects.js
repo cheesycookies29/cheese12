@@ -16,7 +16,7 @@ import { moduleOn, moduleOpenFor } from '../shared/modules.js';
 import { randomUUID } from 'node:crypto';
 import { HttpError, localDate, localTime } from './util.js';
 import { noAudit } from './audit.js';
-import { parseUpload } from './attachments.js';
+import { parseUpload, pdfJpegRange } from './attachments.js';
 import { imageIdsOf, richToText } from '../shared/richtext.js';
 import { sendMail as smtpSend } from './mail/smtp.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
@@ -465,7 +465,32 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   // them, and anyone who can open the project downloads them: as a file to save, never shown in
   // the page (Content-Disposition: attachment, its own sandboxing policy).
   const filesOf = (rec) => (Array.isArray(rec.attachments) ? rec.attachments : (rec.attachments = []));
-  const fileOut = (a, p, u) => ({ id: a.id, name: a.name, type: a.type, size: a.size, uploadedAt: a.uploadedAt, by: a.by || null, byName: byName(a.by), canDelete: (a.by === u.id && LEVEL[levelOf(p, u)] >= LEVEL.work) || levelOf(p, u) === 'manage' });
+  const fileOut = (a, p, u) => ({ id: a.id, name: a.name, type: a.type, size: a.size, uploadedAt: a.uploadedAt, by: a.by || null, byName: byName(a.by), preview: Boolean(previewOf(a)), canDelete: (a.by === u.id && LEVEL[levelOf(p, u)] >= LEVEL.work) || levelOf(p, u) === 'manage' });
+  // A file's preview (0.54), shown as its icon: a photo is its own preview; a PDF, the picture of
+  // its first page when it is a scan or photo (pdfJpegRange). Worked out once per file and kept
+  // while the server runs (a file never changes). Sent like the pictures of a description: shown
+  // by <img>, with its image type, nosniff and a sandbox policy.
+  const PREVIEW_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const previews = new Map();
+  function previewOf(a) {
+    if (previews.has(a.id)) return previews.get(a.id);
+    let out = null;
+    try {
+      if (PREVIEW_TYPES.includes(a.type)) out = { type: a.type };
+      else if (a.type === 'application/pdf' && files) {
+        const r = pdfJpegRange(files.buffer(a));
+        if (r) out = { type: 'image/jpeg', range: r };
+      }
+    } catch {} // the file is missing on disk: no preview
+    previews.set(a.id, out);
+    return out;
+  }
+  function preview(a) {
+    const pv = previewOf(a);
+    if (!pv) throw new HttpError(404, 'This file has no preview.');
+    const buf = files.buffer(a);
+    return { data: pv.range ? buf.subarray(pv.range[0], pv.range[1]) : buf, headers: { 'Content-Type': pv.type, 'Content-Disposition': 'inline; filename="preview"', 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=86400' } };
+  }
   function addFile(rec, body) {
     if (!files) throw new HttpError(500, 'Files cannot be stored here.');
     return { ...files.save(parseUpload(body?.file)) };
@@ -1265,6 +1290,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const { t } = findTask(params.id, u);
     return download(findFile(t, params.fileId));
   });
+  route('GET', '/api/pm/tasks/:id/attachments/:fileId/preview', 'auth', ({ params, user: u }) => {
+    const { t } = findTask(params.id, u);
+    return preview(findFile(t, params.fileId));
+  });
   route('POST', '/api/pm/tasks/:id/attachments', 'auth', ({ params, body, user: u }) => {
     const { t, p } = findTask(params.id, u, 'work');
     const a = { ...addFile(t, body), by: u.id };
@@ -1348,6 +1377,10 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   route('GET', '/api/pm/projects/:id/milestones/:mid/attachments/:fileId', 'auth', ({ params, user: u }) => {
     const p = findProject(params.id, u);
     return download(findFile(findMilestone(p, params.mid), params.fileId));
+  });
+  route('GET', '/api/pm/projects/:id/milestones/:mid/attachments/:fileId/preview', 'auth', ({ params, user: u }) => {
+    const p = findProject(params.id, u);
+    return preview(findFile(findMilestone(p, params.mid), params.fileId));
   });
   route('POST', '/api/pm/projects/:id/milestones/:mid/attachments', 'auth', ({ params, body, user: u }) => {
     const p = findProject(params.id, u, 'work');

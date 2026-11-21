@@ -3498,3 +3498,19 @@ body.dragging-files .pm-dropzone { outline: 2px dashed color-mix(in srgb, var(--
 .pm-dropzone.pm-uploading .pm-file-add .btn { opacity: 0.6; cursor: progress; }
 @media (pointer: coarse) { .pm-drop-hint { display: none; } }
 @media (prefers-reduced-motion: no-preference) { .pm-dropzone { transition: outline-color 0.15s; } }
+
+/* File previews as their icons (0.54): a photo's thumbnail, a scanned PDF's first page (portrait,
+   with a "PDF" tag), or a page drawing for a PDF without one. A preview opens larger on click. */
+.pm-files li { align-items: center; }
+.pm-file-thumb { position: relative; flex: none; width: 48px; height: 48px; display: grid; place-items: center; padding: 0; overflow: hidden; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); }
+.pm-file-thumb.pdf { width: 40px; height: 52px; border-radius: 6px; background: var(--surface); }
+.pm-file-thumb.pdf.none { background: linear-gradient(180deg, var(--surface) 0 70%, color-mix(in srgb, var(--danger) 8%, var(--surface))); }
+.pm-file-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.pm-thumb-tag { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 0; background: color-mix(in srgb, var(--danger) 88%, #000); color: #fff; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; text-align: center; line-height: 12px; }
+button.pm-file-thumb { cursor: zoom-in; transition: border-color 0.14s, box-shadow 0.14s, transform 0.14s; }
+button.pm-file-thumb:hover { border-color: var(--brand-line); box-shadow: var(--shadow); transform: translateY(-1px); }
+button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { button.pm-file-thumb { transition: none; } button.pm-file-thumb:hover { transform: none; } }
+.pm-preview-big { margin: 0; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; }
+.pm-preview-big img { max-width: 100%; max-height: 62vh; object-fit: contain; border-radius: 4px; box-shadow: var(--shadow); background: #fff; }
+

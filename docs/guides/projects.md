@@ -410,7 +410,8 @@ Watchers hear, under **For you**, of every comment on the task and of it being m
 1. On a task, under **Files**, click **Add files** and pick PDFs or photos (JPEG, PNG or WebP; up to 5 MB each, as many as you need). Large photos are made smaller first.
 2. Or drag the files from your computer (a folder, the desktop, an email) and drop them on the **Files** card. While you drag, the card has a dashed edge; over it, it says **Drop to attach**. Drop several at once if you like. A file CORE does not take (a Word file, for example, or one too large) is left out and named in the message; the others are added.
 3. For a milestone, click **Files** on its card on the project's **Overview** (on a deliverable, **Acceptance document**) and add files the same way: pick them, or drop them on that window.
-4. Click a file's name to download it. The bin removes it.
+4. Each file's icon is a preview: a photo shows as itself, and a scanned or photographed PDF (a signed certificate, for example) shows its first page, with a red **PDF** tag. A PDF typed on a computer shows a page with **PDF** on it. Click a preview to see it larger, with **Download** beside it.
+5. Click a file's name to download it. The bin removes it.
 
 Members and managers add files; everyone who can open the project downloads them; the person who added a file or a project manager removes it. Adding and removing are in the task's (or the project's) history. When you set **Accepted on** for a deliverable that has no document yet, CORE reminds you to attach the signed certificate, and the card says so until you do. Deleting a task, a milestone or the project deletes its files.
 
@@ -419,6 +420,8 @@ Members and managers add files; everyone who can open the project downloads them
 ![A deliverable's acceptance document](projects-files.jpg)
 
 ![Files dropped on a task's Files card](projects-drop-files.jpg)
+
+![A scanned PDF on a task, its first page as its icon](projects-file-previews.jpg)
 
 ### Move tasks on the board
 

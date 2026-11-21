@@ -180,3 +180,38 @@ export function createAttachments(dir) {
     },
   };
 }
+
+// The picture inside a PDF, for its preview (0.54): a scanned or photographed document is a PDF
+// holding a JPEG of each page. Returns [start, end) of the first good-sized JPEG image stream (the
+// first page, as a rule), else the largest; null when the PDF has none (a typed document). Only
+// plain DCTDecode streams count (no other filter on top), and the bytes must begin and end as a
+// JPEG does. Looks at most at the first 60 images.
+export function pdfJpegRange(buf) {
+  if (!Buffer.isBuffer(buf) || buf.subarray(0, 5).toString('latin1') !== '%PDF-') return null;
+  const s = buf.toString('latin1');
+  const found = [];
+  let at = 0;
+  for (let n = 0; n < 60; n++) {
+    const i = s.indexOf('/DCTDecode', at);
+    if (i < 0) break;
+    at = i + 10;
+    const dictStart = s.lastIndexOf('<<', i);
+    const head = s.slice(Math.max(dictStart, i - 600), i);
+    const kw = s.indexOf('stream', i);
+    if (kw < 0) break;
+    const dict = head + s.slice(i, kw);
+    if (!/\/Subtype\s*\/Image/.test(dict) || /Flate|LZW|ASCII|RunLength|JBIG|JPX/.test(dict)) continue;
+    let start = kw + 6;
+    if (s[start] === '\r') start++;
+    if (s[start] === '\n') start++;
+    const stop = s.indexOf('endstream', start);
+    if (stop < 0) break;
+    let end = stop;
+    while (end > start && (s[end - 1] === '\n' || s[end - 1] === '\r')) end--;
+    if (buf[start] !== 0xff || buf[start + 1] !== 0xd8 || buf[start + 2] !== 0xff || buf[end - 2] !== 0xff || buf[end - 1] !== 0xd9) continue;
+    found.push([start, end]);
+    at = stop;
+  }
+  if (!found.length) return null;
+  return found.find(([a, b]) => b - a >= 15 * 1024) || found.reduce((x, y) => (y[1] - y[0] > x[1] - x[0] ? y : x));
+}

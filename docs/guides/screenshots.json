@@ -83,6 +83,7 @@
   {"file": "projects-private.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["#new", ".pm-form-mem [data-add]"], "scroll": ".pm-form-members", "wait": 700},
   {"file": "projects-burnup.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system"], "scroll": ".pm-burnup", "wait": 1200},
   {"file": "projects-drop-files.jpg", "user": "pm.demo", "url": "/t/LEA-8", "drag": "#files-card", "wait": 1200},
+  {"file": "projects-file-previews.jpg", "user": "pm.demo", "url": "/t/LEA-9", "files": {"#files [data-add-file]": "scripts/fixtures/Scanned acceptance NSU-2025-118.pdf"}, "scroll": "#files-card", "wait": 1500},
   {"file": "projects-files.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", "[data-ms-files] >> nth=0"], "wait": 1000},
   {"file": "projects-board.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Board')", "[data-chip=overdue]"], "wait": 1000},
   {"file": "projects-views.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", ".pm-tabs a:has-text('Board')", "#views"], "wait": 1000},

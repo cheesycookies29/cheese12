@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.54.0-alpha',
+    date: '2026-11-21',
+    title: 'Previews of attached files',
+    modules: ['projects'],
+    notes: 'A file\'s icon shows what is in it.',
+    changes: [
+      ['new', 'projects', 'Files on tasks and milestones show a preview as their icon: a photo, its thumbnail; a scanned or photographed PDF, its first page (the JPEG inside it), with a PDF tag; a typed PDF, a page drawing. Clicking a preview opens it larger with Download.'],
+      ['new', 'projects', 'GET …/attachments/:fileId/preview for tasks and milestones: an image type, nosniff and a sandbox policy, for those who can open the project; 404 for a file without one. Worked out once per file. The download is unchanged (a file to save).'],
+    ],
+  },
+  {
     version: '0.53.0-alpha',
     date: '2026-11-21',
     title: 'Drag and drop files onto a task',
