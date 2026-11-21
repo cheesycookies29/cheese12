@@ -831,3 +831,9 @@ export function takenProjectKeys(projects, exceptId = null) {
   }
   return taken;
 }
+
+// ---------- Comment reactions (0.58) ----------
+// The emojis anyone on a project can add to a comment (one each per person, a click again removes
+// it). A fixed set: quick to pick, and nothing else can be stored.
+export const REACTIONS = ['👍', '❤️', '🎉', '😄', '🙏', '👀', '✅', '🚀'];
+export const REACTION_NAMES = { '👍': 'Thumbs up', '❤️': 'Heart', '🎉': 'Celebrate', '😄': 'Smile', '🙏': 'Thanks', '👀': 'Looking', '✅': 'Done', '🚀': 'Ship it' };

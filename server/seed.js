@@ -634,12 +634,16 @@ function seedProjects(data, c) {
     ['emails', 'Collect the parents\' email list from the registrar', 1, 'waiting', pmU, -9, -4, 'XS', { added: -10 }],
   ]);
   const k = lms.byKey;
+  // Comments with threads and reactions (0.58): a question answered in its thread, a status update.
+  const ask = randomUUID();
+  const staging = randomUUID();
   comments.push(
-    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: pmU, body: '@employee.demo the Engineering lists have about 40 cross-enrolled students. Can you check them before the build review?', createdAt: at(-3) },
-    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: juan, body: 'Checked 32 of them. The other 8 need the registrar\'s updated list; I asked Teresa for it.', createdAt: at(-2) },
+    { id: ask, taskId: k.import.id, projectId: lms.p.id, userId: pmU, body: '@employee.demo the Engineering lists have about 40 cross-enrolled students. Can you check them before the build review?', createdAt: at(-3), reactions: { '👀': [juan] } },
+    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: juan, parentId: ask, body: 'Checked 32 of them. The other 8 need the registrar\'s updated list; I asked Teresa for it.', createdAt: at(-2), reactions: { '🙏': [pmU] } },
+    { id: randomUUID(), taskId: k.import.id, projectId: lms.p.id, userId: pmU, parentId: ask, body: 'Thanks, Juan. If Teresa sends it by Thursday we keep the review date.', createdAt: at(-1.8), reactions: { '👍': [juan] } },
     { id: randomUUID(), taskId: k.ssl.id, projectId: lms.p.id, userId: it, body: 'Still waiting for Paolo (IT Director) to add the DNS record. Followed up by email today.', createdAt: at(-1) },
-    { id: randomUUID(), taskId: k.login.id, projectId: lms.p.id, userId: it, body: 'The staging server has the parent portal build now; the test parent accounts are ready.', createdAt: at(-1) },
-    { id: randomUUID(), taskId: k.login.id, projectId: lms.p.id, userId: pmU, body: 'Thanks. Can we show the sign-in to the registrar on Friday?', createdAt: at(-0.2) },
+    { id: staging, taskId: k.login.id, projectId: lms.p.id, userId: it, body: 'The staging server has the parent portal build now; the test parent accounts are ready.', createdAt: at(-1), reactions: { '🎉': [pmU, juan], '🚀': [juan] } },
+    { id: randomUUID(), taskId: k.login.id, projectId: lms.p.id, userId: pmU, parentId: staging, body: 'Thanks. Can we show the sign-in to the registrar on Friday?', createdAt: at(-0.2) },
   );
   // "For you" for Juan (employee.demo): unread mentions, comments and an assignment; older ones read.
   const note = (userId, kind, proj, task, actorId, text, daysAgo, read = false) => notes.push({ id: randomUUID(), userId, kind, projectId: proj.id, taskId: task?.id || null, actorId, text, at: at(-daysAgo), readAt: read ? at(-daysAgo + 0.1) : null });

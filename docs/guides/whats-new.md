@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Replies and emoji reactions on comments (0.58)
+- Comments on a task now read like a conversation: **Reply** keeps an answer under the comment it answers, in a thread; an emoji (👍 ❤️ 🎉 😄 🙏 👀 ✅ 🚀) can be added under any comment; your own comments can be edited. See [Comment on a task](projects#comment-on-a-task).
+
 ### Download all of a task's files as a ZIP (0.57)
 - In **Project Management**, a task or milestone with two files or more has **Download all (.zip)**: every file in one compressed ZIP, named after the task (*LEA-12 files.zip*). See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
 

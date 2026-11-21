@@ -22,7 +22,7 @@ import {
   addDays, weekStart, isoWeek, daysBetween, workCalendar, isWorkDay, mentionParts, taskCsvRows, byRank,
   QUICK_FILTERS, parseFilters, taskMatches, VIEW_TABS, groupNotifications,
   billingForecast, forecastCsvRows, IMPORT_FIELDS, IMPORT_TEMPLATE, IMPORT_MAX_ROWS, DIGEST_MAX,
-  SIZES, SIZE_KEYS, sizeName, sizeEffort, LIST_SORTS, PROJECT_ICONS, PROJECT_ICON_COLORS, letterTile,
+  SIZES, SIZE_KEYS, sizeName, sizeEffort, LIST_SORTS, PROJECT_ICONS, PROJECT_ICON_COLORS, letterTile, REACTIONS, REACTION_NAMES,
 } from '/shared/projects.js';
 
 // ---------- Small helpers ----------
@@ -54,6 +54,16 @@ const changed = () => window.dispatchEvent(new Event('pm:changed'));
 const plural = (n, w, many = `${w}s`) => `${n} ${n === 1 ? w : many}`;
 const hrs = (n) => `${Math.round((Number(n) || 0) * 100) / 100} h`;
 const short = (ymd) => (ymd ? fmtDate(ymd, { month: 'short', day: 'numeric' }) : '');
+// "just now", "5 min ago", "3 h ago", "yesterday", or the date and time (comments, 0.58).
+const ago = (iso) => {
+  if (!iso) return '';
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  if (min < 24 * 60) return `${Math.round(min / 60)} h ago`;
+  if (min < 48 * 60) return 'yesterday';
+  return when(iso);
+};
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
 const initials = (name) => (name || '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 const reloadPage = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -2054,7 +2064,7 @@ export async function taskView(el, { projectId, id }) {
   let composer = null;
   async function render() {
     const draft = composer?.area.isConnected ? composer.value() : '';
-    const comments = await api.get(`/api/pm/tasks/${id}/comments`);
+    comments = await api.get(`/api/pm/tasks/${id}/comments`);
     const work = may(t.access, 'work');
     const status = p.statuses.find((s) => s.id === t.statusId);
     const usernames = p.members.map((m) => m.username).filter(Boolean);
@@ -2062,9 +2072,36 @@ export async function taskView(el, { projectId, id }) {
     const canDelete = may(t.access, 'manage') || (work && t.createdBy === ctx.user.id);
     const blockedChoices = t.others.filter((x) => !t.blockedBy.includes(x.id));
     const hist = (h) => html`<li><strong>${h.byName}</strong> ${h.field === 'created' ? html`added the task${h.to ? ` (${h.to})` : ''}` : html`${h.field}: ${h.from || '—'} → ${h.to || '—'}`}<small class="muted">${when(h.at)}</small></li>`;
-    const comment = (c) => html`<li class="pm-comment">${avatar(c.userName, c.userId)}<div class="grow"><div><strong>${c.userId ? html`<a class="person-link" href="#/people/${c.userId}">${c.userName}</a>` : c.userName}</strong> <small class="muted">${when(c.createdAt)}</small>
-      ${c.canDelete ? html`<button type="button" class="icon-btn danger" data-del-c="${c.id}" aria-label="Delete comment">${icon('trash', 14)}</button>` : ''}</div>
-      ${commentBody(c.body, usernames)}</div></li>`;
+    // Comments (0.58): threads (a comment and its replies, one level), emoji reactions, edit and
+    // delete of your own. Oldest first, like a conversation; the newest replies show, earlier ones
+    // fold away past three.
+    const canComment = may(t.access, 'comment') && !p.isTemplate;
+    const ids = new Set(comments.map((c) => c.id));
+    const roots = comments.filter((c) => !c.parentId || !ids.has(c.parentId));
+    const repliesOf = (c) => comments.filter((x) => x.parentId === c.id);
+    const shown = comments.filter((c) => !c.deleted).length;
+    reactBar = (c) => html`<div class="pm-reacts" data-reacts="${c.id}">${c.reactions.map((r) => html`<button type="button" class="pm-react ${r.mine ? 'on' : ''}" data-react="${c.id}" data-emoji="${r.emoji}" aria-pressed="${r.mine ? 'true' : 'false'}" ${canComment ? '' : 'disabled'} title="${r.names.join(', ')}: ${REACTION_NAMES[r.emoji]}" aria-label="${REACTION_NAMES[r.emoji]}: ${r.count}${r.mine ? ', yours included' : ''}"><span class="pm-emoji" aria-hidden="true">${r.emoji}</span>${r.count}</button>`)}
+      ${canComment ? html`<span class="pm-react-add"><button type="button" class="pm-react-pick" data-react-pick="${c.id}" aria-haspopup="true" aria-expanded="false" title="Add a reaction" aria-label="Add a reaction">${icon('smilePlus', 16)}</button>
+        <span class="pm-react-pop" role="group" aria-label="Reactions" hidden>${REACTIONS.map((e) => html`<button type="button" data-react="${c.id}" data-emoji="${e}" title="${REACTION_NAMES[e]}" aria-label="${REACTION_NAMES[e]}">${e}</button>`)}</span></span>` : ''}</div>`;
+    const commentItem = (c, root) => c.deleted
+      ? html`<li class="pm-comment deleted" id="c-${c.id}"><span class="pm-c-gone" aria-hidden="true">${icon('trash', 14)}</span><div class="pm-c-main"><div class="pm-c-bubble"><em class="muted">Comment deleted</em></div></div></li>`
+      : html`<li class="pm-comment ${c.userId === ctx.user.id ? 'own' : ''}" id="c-${c.id}">${avatar(c.userName, c.userId)}<div class="pm-c-main">
+        <div class="pm-c-bubble">
+          <div class="pm-c-head"><strong>${c.userId ? html`<a class="person-link" href="#/people/${c.userId}">${c.userName}</a>` : c.userName}</strong>
+            <time datetime="${c.createdAt}" title="${when(c.createdAt)}">${ago(c.createdAt)}</time>${c.editedAt ? html`<span class="pm-c-edited" title="Edited ${when(c.editedAt)}">· edited</span>` : ''}
+            <span class="pm-c-tools">${c.canEdit ? html`<button type="button" class="icon-btn" data-edit-c="${c.id}" aria-label="Edit your comment" title="Edit">${icon('edit', 14)}</button>` : ''}${c.canDelete ? html`<button type="button" class="icon-btn danger" data-del-c="${c.id}" aria-label="Delete comment" title="Delete">${icon('trash', 14)}</button>` : ''}</span></div>
+          <div class="pm-c-body" data-body="${c.id}">${commentBody(c.body, usernames)}</div>
+        </div>
+        <div class="pm-c-foot">${reactBar(c)}${canComment ? html`<button type="button" class="pm-c-reply" data-reply="${root.id}" aria-label="Reply to ${c.userName}">${icon('reply', 14)} Reply</button>` : ''}</div>
+      </div></li>`;
+    const thread = (c) => {
+      const replies = repliesOf(c);
+      const open = openThreads.has(c.id) || replies.length <= 3;
+      const visible = open ? replies : replies.slice(-2);
+      return html`<li class="pm-thread" data-thread="${c.id}"><ul class="pm-thread-list">${commentItem(c, c)}</ul>
+        ${replies.length ? html`<div class="pm-replies">${open ? '' : html`<button type="button" class="pm-more-replies" data-more="${c.id}">${icon('chevronDown', 14)} Show ${replies.length - 2} earlier ${replies.length - 2 === 1 ? 'reply' : 'replies'}</button>`}<ul>${visible.map((r) => commentItem(r, c))}</ul></div>` : ''}
+        <div class="pm-reply-slot" data-reply-slot="${c.id}"></div></li>`;
+    };
     mount(el, html`<div class="pm-task-page">
       <header class="page-head">
         <div>${crumbBar([rootCrumb(p), projectCrumb(p, from.tab), { label: VIEW_LABEL[from.tab], href: from.href, title: `Back to the ${VIEW_LABEL[from.tab]}` },
@@ -2086,8 +2123,8 @@ export async function taskView(el, { projectId, id }) {
             ${work ? html`<form id="add-sub" class="crm-add-item"><input name="title" maxlength="200" placeholder="Add a subtask…" aria-label="Subtask title" /><button class="btn" type="submit">Add</button></form>` : ''}</section>`}
           <section class="card" id="files-card"><div class="card-head"><h2>${icon('paperclip')} Files</h2><span class="muted small">${t.attachments.length ? plural(t.attachments.length, 'file') : ''}</span></div>
             <div id="files">${fileBlock(t.attachments, `/api/pm/tasks/${t.id}/attachments`, work)}</div></section>
-          <section class="card"><h2>${icon('comment')} Comments</h2>
-            ${comments.length ? html`<ul class="pm-comments">${comments.map(comment)}</ul>` : html`<p class="muted small">No comments yet.</p>`}
+          <section class="card" id="comments-card"><div class="card-head"><h2>${icon('comment')} Comments</h2><span class="muted small">${shown ? plural(shown, 'comment') : ''}</span></div>
+            ${roots.length ? html`<ul class="pm-comments">${roots.map(thread)}</ul>` : html`<p class="muted small pm-no-comments">No comments yet. Start the conversation below.</p>`}
             ${may(t.access, 'comment') ? html`<form id="comment" class="pm-composer">${richEditor({ name: 'body', label: 'Comment', pictures: false, max: COMMENT_MAX, compact: true,
               placeholder: 'Write a comment… Type @ to mention someone on the project.',
               hint: html`Type <kbd>@</kbd> to mention someone on the project, <kbd>/</kbd> for lists, a checklist, code and more. Pictures go under Files.` })}
@@ -2137,6 +2174,115 @@ export async function taskView(el, { projectId, id }) {
       }
     });
   }
+  // ----- Comments: reactions, replies, edits (0.58), wired once per render on the card -----
+  const openThreads = new Set();
+  let comments = [];
+  let reactBar = () => '';
+  const closePickers = (except) => el.querySelectorAll('.pm-react-pop:not([hidden])').forEach((pop) => {
+    if (pop === except) return;
+    pop.hidden = true;
+    pop.parentElement.querySelector('[data-react-pick]')?.setAttribute('aria-expanded', 'false');
+  });
+  const mentionList = () => p.members.filter((x) => x.username && x.active && x.userId !== ctx.user.id).map((x) => ({ username: x.username, name: x.name }));
+  // A small composer in place (a reply, or an edit): the rich editor, Cancel and the button.
+  function miniComposer(slot, { label, value = '', placeholder, button, send }) {
+    mount(slot, html`<form class="pm-mini-composer">${richEditor({ name: 'body', label, value, pictures: false, max: COMMENT_MAX, compact: true, placeholder })}
+      <div class="crm-composer-foot"><small class="muted">${MOD_KEY}Enter · Esc cancels</small><span class="spacer"></span><button type="button" class="btn" data-cancel>Cancel</button><button class="btn primary" type="submit">${button}</button></div></form>`);
+    const form = slot.querySelector('form');
+    const ed = wireRichEditor(form, { mentions: mentionList() });
+    const cancel = () => mount(slot, '');
+    form.querySelector('[data-cancel]').addEventListener('click', cancel);
+    form.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') (e.preventDefault(), form.requestSubmit());
+      if (e.key === 'Escape' && !document.querySelector('.wys-menu:not([hidden]), .wys-mention:not([hidden])')) (e.preventDefault(), cancel());
+    });
+    form.addEventListener('submit', guard(async (e) => {
+      e.preventDefault();
+      const body = ed ? ed.value() : form.body.value;
+      if (!body.trim()) return ed?.focus(false);
+      if (body.length > COMMENT_MAX) return toast(`A comment can be up to ${COMMENT_MAX.toLocaleString('en-PH')} characters. Shorten it, or split it in two.`, 'error');
+      form.querySelector('[type=submit]').disabled = true;
+      await send(body);
+    }, () => reload()));
+    ed?.focus(false);
+    return ed;
+  }
+  function wireComments() {
+    const card = el.querySelector('#comments-card');
+    if (!card) return;
+    card.addEventListener('click', guard(async (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled) return;
+      if (b.dataset.reactPick) {
+        const pop = b.parentElement.querySelector('.pm-react-pop');
+        closePickers(pop);
+        pop.hidden = !pop.hidden;
+        b.setAttribute('aria-expanded', String(!pop.hidden));
+        if (!pop.hidden) pop.querySelector('button')?.focus();
+        return;
+      }
+      if (b.dataset.react) {
+        const c = await api.put(`/api/pm/comments/${b.dataset.react}/reactions`, { emoji: b.dataset.emoji });
+        closePickers();
+        const bar = card.querySelector(`[data-reacts="${c.id}"]`);
+        const idx = comments.findIndex((x) => x.id === c.id);
+        if (idx >= 0) comments[idx] = c;
+        if (bar) {
+          bar.outerHTML = String(reactBar(c));
+          card.querySelector(`[data-reacts="${c.id}"] [data-emoji="${b.dataset.emoji}"]`)?.focus();
+        }
+        return;
+      }
+      if (b.dataset.more) {
+        openThreads.add(b.dataset.more);
+        return render();
+      }
+      if (b.dataset.reply) {
+        const slot = card.querySelector(`[data-reply-slot="${b.dataset.reply}"]`);
+        const root = comments.find((x) => x.id === b.dataset.reply);
+        const ed = miniComposer(slot, {
+          label: 'Reply', button: 'Reply', placeholder: `Reply to ${root?.deleted ? 'the thread' : root?.userName || 'the thread'}…`,
+          send: async (body) => {
+            await api.post(`/api/pm/tasks/${id}/comments`, { body, parentId: b.dataset.reply });
+            openThreads.add(b.dataset.reply);
+            await reload();
+            el.querySelector(`[data-thread="${b.dataset.reply}"] .pm-replies li:last-child`)?.scrollIntoView({ block: 'nearest' });
+          },
+        });
+        return;
+      }
+      if (b.dataset.editC) {
+        const c = comments.find((x) => x.id === b.dataset.editC);
+        const box = card.querySelector(`[data-body="${c.id}"]`);
+        miniComposer(box, {
+          label: 'Edit comment', value: c.body, button: 'Save', placeholder: 'Write the comment…',
+          send: async (body) => {
+            await api.put(`/api/pm/comments/${c.id}`, { body });
+            toast('Comment saved.');
+            await reload();
+          },
+        });
+        // Cancel brings the comment back as it was.
+        box.querySelector('[data-cancel]').addEventListener('click', () => mount(box, commentBody(c.body, p.members.map((m) => m.username).filter(Boolean))));
+        return;
+      }
+      if (b.dataset.delC) {
+        const n = comments.filter((x) => x.parentId === b.dataset.delC).length;
+        if (!(await confirmDialog(n ? `Delete this comment? Its ${plural(n, 'reply', 'replies')} stay, under "Comment deleted".` : 'Delete this comment?', { title: 'Delete comment', confirmLabel: 'Delete' }))) return;
+        await api.del(`/api/pm/comments/${b.dataset.delC}`);
+        toast('Comment deleted.');
+        await reload();
+      }
+    }, () => reload()));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && card.querySelector('.pm-react-pop:not([hidden])')) {
+        const pop = card.querySelector('.pm-react-pop:not([hidden])');
+        closePickers();
+        pop.parentElement.querySelector('[data-react-pick]')?.focus();
+      }
+    });
+  }
+  el.addEventListener('click', (e) => !e.target.closest('.pm-react-add') && closePickers());
   const reload = async (focus) => {
     t = await api.get(`/api/pm/tasks/${id}`);
     await render();
@@ -2200,11 +2346,7 @@ export async function taskView(el, { projectId, id }) {
       composer?.setValue('');
       await reload('#comment .wys-area');
     }, () => reload()));
-    el.querySelectorAll('[data-del-c]').forEach((b) => b.addEventListener('click', guard(async () => {
-      if (!(await confirmDialog('Delete this comment?', { title: 'Delete comment' }))) return;
-      await api.del(`/api/pm/comments/${b.dataset.delC}`);
-      await reload();
-    }, () => reload())));
+    wireComments();
     el.querySelector('#log')?.addEventListener('submit', guard(async (e) => {
       e.preventDefault();
       const f = e.target;

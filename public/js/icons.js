@@ -95,6 +95,8 @@ const P = {
   receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   headset: '<path d="M4 14v-2a8 8 0 0116 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M20 20c0 1-2 2-5 2"/>',
   code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>',
+  smilePlus: '<path d="M20 12.5A8.5 8.5 0 1 1 11.5 4"/><path d="M8.5 14.5s1.2 1.6 3 1.6 3-1.6 3-1.6M9 10h.01M14 10h.01M19 2.5v5M16.5 5h5"/>',
+  reply: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5A5.5 5.5 0 0 1 20 14.5V20"/>',
   message: '<path d="M4 5h16v11H9l-5 4z"/>',
   activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>',

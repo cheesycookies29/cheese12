@@ -143,6 +143,8 @@ function linkDemoPeople(d) {
     for (const h of t.history || []) h.by = id(h.by);
   }
   for (const k of ['pmComments', 'pmTimeLogs']) d[k] = d[k].filter((x) => !x.demo || (x.userId = id(x.userId)));
+  // Reactions on demo comments (0.58) name demo people too.
+  for (const c of d.pmComments.filter((x) => x.demo && x.reactions)) for (const e of Object.keys(c.reactions)) c.reactions[e] = c.reactions[e].map(id).filter(Boolean);
   d.pmNotifications = d.pmNotifications.filter((n) => !n.demo || ((n.actorId = id(n.actorId)), (n.userId = id(n.userId))));
   // A private demo view whose account is not there goes (it must never become a shared one).
   d.pmViews = d.pmViews.filter((v) => !v.demo || v.userId === null || (v.userId = id(v.userId)));

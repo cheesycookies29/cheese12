@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.58.0-alpha',
+    date: '2026-11-21',
+    title: 'Comment threads and emoji reactions',
+    modules: ['projects'],
+    notes: 'Task comments read like a conversation.',
+    changes: [
+      ['new', 'projects', 'Replies: a thread under each comment (one level; a reply to a reply joins it), with an inline reply box (Ctrl+Enter sends, Esc cancels); whoever started the thread and whoever replied hear of a reply. Past three replies, the last two show and Show earlier replies opens the rest.'],
+      ['new', 'projects', 'Emoji reactions on any comment from a set of eight (👍 ❤️ 🎉 😄 🙏 👀 ✅ 🚀): a count per emoji, yours highlighted, who reacted on hover; one each per person, a second click takes it away; no notifications.'],
+      ['new', 'projects', 'Edit your own comment ("edited" shows; nobody is notified again). A deleted comment with replies stays as "Comment deleted" so the thread keeps its place, and goes with its last reply.'],
+      ['improved', 'projects', 'Comment layout: bubbles with the time as "5 min ago" (the exact time on hover), your own tinted, edit and delete on hover, the count of comments in the heading. The demo has threads and reactions.'],
+    ],
+  },
+  {
     version: '0.57.0-alpha',
     date: '2026-11-21',
     title: 'Download all files as a ZIP',

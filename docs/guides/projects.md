@@ -286,9 +286,17 @@ Pasting from a web page, Word or an email keeps bold, italic, lists, headings, l
 2. To mention someone, type **@**: the people on the project are listed. Keep typing their name or username to narrow it, then press Enter or Tab (or click one). They hear of it under **For you**, and the mention is highlighted in the comment.
 3. Click **Comment**, or press **Ctrl+Enter** (on a Mac **⌘+Enter**).
 
-![The comments on a task, with the comment box](projects-comment.jpg)
+Comments read like a conversation, oldest first: each in its own bubble with who wrote it and when (*5 min ago*, *yesterday*; point at it for the exact time). Yours are tinted.
 
-A comment can be up to 4,000 characters. Pictures do not go in a comment: add them to the task's **Files**. What you are writing stays in the box when you change the task (its status, its assignee…) while you write. You can delete your own comments; a project manager can delete any. Comments written before this editor show as they were written.
+**Reply to a comment.** Click **Reply** under it. A small box opens under its thread; write and click **Reply** (or **Ctrl+Enter**; **Esc** cancels). Replies stay together under the comment they answer, along a line; a reply to a reply joins the same thread. Whoever started the thread and whoever replied in it hear of each reply under **For you**. A long thread shows its last two replies, with **Show earlier replies** for the rest.
+
+**React with an emoji.** Click the smiley with a **+** under a comment and pick one: 👍 ❤️ 🎉 😄 🙏 👀 ✅ 🚀. The emoji shows under the comment with how many people chose it; point at it to see who. Click it to add yours too, and again to take yours away. Reactions do not send notifications.
+
+**Edit or delete.** Point at your comment and click the pencil to change it (the comment then says *edited*; nobody is told again), or the bin to delete it. A project manager can delete any comment. A comment that has replies shows *Comment deleted* in its place, so its thread still makes sense; it goes once its replies do.
+
+![The comments on a task: a thread of replies, reactions and the comment box](projects-comment.jpg)
+
+A comment can be up to 4,000 characters. Pictures do not go in a comment: add them to the task's **Files**. What you are writing stays in the box when you change the task (its status, its assignee…) while you write. Comments written before this editor show as they were written.
 
 ### Change a table's rows and columns
 

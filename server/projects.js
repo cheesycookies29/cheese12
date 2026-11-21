@@ -36,7 +36,7 @@ import {
   isSize, sizeName, sizeWeight, sizeFromHours, cleanSizeNotes, DEFAULT_SIZE_NOTES, SIZE_KEYS,
   NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup, addWorkDays, DIGEST_DEFAULTS, validDigestTime, digestDue, digestFor, billingAmount, billingForecast,
   IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan, parseProjectIcon, projectAccess,
-  PROJECT_KEY_RE, cleanProjectKey, suggestProjectKey, parseTaskKey, takenProjectKeys,
+  PROJECT_KEY_RE, cleanProjectKey, suggestProjectKey, parseTaskKey, takenProjectKeys, REACTIONS,
 } from '../shared/projects.js';
 export { projectAccess };
 import { addStarterTemplates } from './pm-templates.js';
@@ -734,7 +734,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     // Recent changes: task history and comments, newest first.
     const activity = [
       ...ctx.tasks.flatMap((t) => (t.history || []).map((h) => ({ ...h, taskId: t.id, key: t.key, title: t.title }))),
-      ...d().pmComments.filter((c) => c.projectId === p.id).map((c) => ({ at: c.createdAt, by: c.userId, field: 'comment', from: '', to: richToText(c.body).replace(/\s+/g, ' ').trim().slice(0, 140), taskId: c.taskId, key: ctx.byId.get(c.taskId)?.key, title: ctx.byId.get(c.taskId)?.title })),
+      ...d().pmComments.filter((c) => c.projectId === p.id && !c.deleted).map((c) => ({ at: c.createdAt, by: c.userId, field: 'comment', from: '', to: richToText(c.body).replace(/\s+/g, ' ').trim().slice(0, 140), taskId: c.taskId, key: ctx.byId.get(c.taskId)?.key, title: ctx.byId.get(c.taskId)?.title })),
       ...(p.history || []).map((h) => ({ ...h, project: true })),
     ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 12);
     const horizon = addDays(ctx.today, 14);
@@ -1254,39 +1254,106 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   });
 
   // ===== Comments =====
+  // A comment can start a thread: replies are one level deep (a reply to a reply joins the same
+  // thread), shown under it in order (0.58). Anyone who may comment adds emoji reactions (REACTIONS,
+  // one each per person); the author edits their own comment ("edited" shows). A comment with
+  // replies, when deleted, stays as "Comment deleted" so its thread keeps its place; it goes once
+  // its last reply does.
+  const commentOut = (c, u, mine) => {
+    const reactions = REACTIONS.map((emoji) => {
+      const ids = (c.reactions?.[emoji] || []).filter((id) => user(id));
+      return ids.length ? { emoji, count: ids.length, mine: ids.includes(u.id), names: ids.map((id) => userName(id)) } : null;
+    }).filter(Boolean);
+    if (c.deleted) return { id: c.id, taskId: c.taskId, parentId: null, deleted: true, createdAt: c.createdAt, reactions: [], body: '', userName: '', userId: null, canDelete: false, canEdit: false };
+    return { ...c, parentId: c.parentId || null, userName: userName(c.userId) || 'Former user', reactions, canDelete: c.userId === u.id || mine === 'manage', canEdit: c.userId === u.id };
+  };
+  const findComment = (id, u) => {
+    const c = d().pmComments.find((x) => x.id === id);
+    const p = c && d().pmProjects.find((x) => x.id === c.projectId);
+    const t = c && d().pmTasks.find((x) => x.id === c.taskId);
+    if (!c || !p || !t || !levelOf(p, u)) throw new HttpError(404, 'Comment not found.');
+    return { c, p, t };
+  };
+  const commentText = (raw) => {
+    if (typeof raw === 'string' && raw.trim().length > 4000) throw new HttpError(400, 'A comment can be up to 4,000 characters. Shorten it, or split it in two.');
+    const text = str(raw, 4000);
+    if (!text || !richToText(text).trim()) throw new HttpError(400, 'Write the comment.');
+    return text;
+  };
   route('GET', '/api/pm/tasks/:id/comments', 'auth', ({ params, user: u }) => {
     const { t, p } = findTask(params.id, u);
     const mine = levelOf(p, u);
-    return d().pmComments.filter((c) => c.taskId === t.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-      .map((c) => ({ ...c, userName: userName(c.userId) || 'Former user', canDelete: c.userId === u.id || mine === 'manage' }));
+    return d().pmComments.filter((c) => c.taskId === t.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map((c) => commentOut(c, u, mine));
   });
   route('POST', '/api/pm/tasks/:id/comments', 'auth', ({ params, body, user: u }) => {
     const { t, p } = findTask(params.id, u, 'comment');
-    if (typeof body.body === 'string' && body.body.trim().length > 4000) throw new HttpError(400, 'A comment can be up to 4,000 characters. Shorten it, or split it in two.');
-    const text = str(body.body, 4000);
-    if (!text || !richToText(text).trim()) throw new HttpError(400, 'Write the comment.');
-    const c = { id: randomUUID(), taskId: t.id, projectId: p.id, userId: u.id, body: text, createdAt: now() };
+    const text = commentText(body.body);
+    // A reply: to a comment of this task; a reply to a reply joins its thread.
+    let parent = null;
+    if (body.parentId != null) {
+      parent = d().pmComments.find((x) => x.id === body.parentId && x.taskId === t.id);
+      if (!parent) throw new HttpError(400, 'The comment you are replying to is not on this task any more.');
+      if (parent.parentId) parent = d().pmComments.find((x) => x.id === parent.parentId) || parent;
+    }
+    const c = { id: randomUUID(), taskId: t.id, projectId: p.id, userId: u.id, body: text, createdAt: now(), ...(parent ? { parentId: parent.id } : {}) };
     d().pmComments.push(c);
-    // @mentions of the project's members; the task's assignee and the person who added it hear of
-    // any other comment (once: a mention is enough).
-    // Written in the visual editor: @mentions and the quote come from its plain text.
+    // @mentions of the project's members; a reply tells the thread (who started it and who replied);
+    // the task's assignee, the person who added it and its watchers hear of any other comment (once:
+    // a mention is enough).
     const plain = richToText(text);
     const named = new Set(mentionedUsernames(plain, p.members.map((m) => user(m.userId)?.username).filter(Boolean)));
     const mentioned = p.members.map((m) => user(m.userId)).filter((x) => x && named.has(x.username.toLowerCase())).map((x) => x.id);
     notify(mentioned, 'mentioned', p, t, u, `mentioned you on ${t.key}: ${quote(plain)}`);
-    notify([t.assigneeId, t.createdBy, ...watchersOf(t)].filter((id) => !mentioned.includes(id)), 'commented', p, t, u, `commented on ${t.key}: ${quote(plain)}`);
+    let told = [...mentioned];
+    if (parent) {
+      const thread = [parent.userId, ...d().pmComments.filter((x) => x.parentId === parent.id).map((x) => x.userId)].filter((id) => id && !told.includes(id));
+      notify(thread, 'commented', p, t, u, `replied on ${t.key}: ${quote(plain)}`);
+      told = [...told, ...thread];
+    }
+    notify([t.assigneeId, t.createdBy, ...watchersOf(t)].filter((id) => !told.includes(id)), 'commented', p, t, u, `${parent ? 'replied' : 'commented'} on ${t.key}: ${quote(plain)}`);
     // Commenting starts watching (unless you stopped watching this task); a mention does not.
     if (!p.isTemplate) autoWatch(t, [u.id]);
     db.save();
-    return { ...c, userName: u.name, canDelete: true };
+    return commentOut(c, u, levelOf(p, u));
+  });
+  // Your own comment, edited: its text changes, "edited" shows; no one is notified again.
+  route('PUT', '/api/pm/comments/:id', 'auth', ({ params, body, user: u }) => {
+    const { c, p } = findComment(params.id, u);
+    if (c.deleted || c.userId !== u.id) throw new HttpError(403, 'You can edit your own comments only.');
+    const text = commentText(body.body);
+    if (text !== c.body) Object.assign(c, { body: text, editedAt: now() });
+    db.save();
+    return commentOut(c, u, levelOf(p, u));
+  });
+  // An emoji on a comment: { emoji } adds yours, or takes it away if you had already added it.
+  route('PUT', '/api/pm/comments/:id/reactions', 'auth', ({ params, body, user: u }) => {
+    const { c, p } = findComment(params.id, u);
+    need(p, u, 'comment');
+    if (!REACTIONS.includes(body?.emoji)) throw new HttpError(400, 'Pick one of the reactions.');
+    if (c.deleted) throw new HttpError(400, 'This comment was deleted.');
+    const list = (c.reactions ||= {})[body.emoji] || [];
+    c.reactions[body.emoji] = list.includes(u.id) ? list.filter((id) => id !== u.id) : [...list, u.id];
+    if (!c.reactions[body.emoji].length) delete c.reactions[body.emoji];
+    if (!Object.keys(c.reactions).length) delete c.reactions;
+    db.save();
+    return commentOut(c, u, levelOf(p, u));
   });
   // Your own comment; a project manager can remove any (to take down something posted by mistake).
   route('DELETE', '/api/pm/comments/:id', 'auth', ({ params, user: u }) => {
-    const c = d().pmComments.find((x) => x.id === params.id);
-    const p = c && d().pmProjects.find((x) => x.id === c.projectId);
-    if (!c || !p || !levelOf(p, u)) throw new HttpError(404, 'Comment not found.');
+    const { c, p } = findComment(params.id, u);
+    if (c.deleted) throw new HttpError(404, 'Comment not found.');
     if (c.userId !== u.id && levelOf(p, u) !== 'manage') throw new HttpError(403, 'You can delete your own comments only.');
-    d().pmComments = d().pmComments.filter((x) => x !== c);
+    const hasReplies = d().pmComments.some((x) => x.parentId === c.id);
+    if (hasReplies) {
+      // The thread stays; the comment that started it reads "Comment deleted".
+      for (const k of Object.keys(c)) if (!['id', 'taskId', 'projectId', 'createdAt'].includes(k)) delete c[k];
+      c.deleted = true;
+    } else {
+      d().pmComments = d().pmComments.filter((x) => x !== c);
+      // The last reply gone: a deleted comment that started the thread goes too.
+      const root = c.parentId && d().pmComments.find((x) => x.id === c.parentId);
+      if (root?.deleted && !d().pmComments.some((x) => x.parentId === root.id)) d().pmComments = d().pmComments.filter((x) => x !== root);
+    }
     db.save();
     return { ok: true };
   });

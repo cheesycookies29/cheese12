@@ -3539,3 +3539,53 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
 :root[data-theme='dark'] .pm-file-thumb.none:has(.tag-green) { color: #7fd1a0; }
 :root[data-theme='dark'] .pm-file-thumb.none:has(.tag-orange) { color: #f2a37c; }
 .pm-file-thumb.pdf.none:not(:has(.tag-red)) { background: var(--surface); }
+
+/* Task comments (0.58): conversation bubbles, threads of replies, emoji reactions, edit in place. */
+.pm-comments { gap: 16px; margin-bottom: 16px; }
+.pm-thread { display: grid; gap: 6px; }
+.pm-thread-list, .pm-replies ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pm-comment { align-items: flex-start; }
+.pm-comment > .avatar { margin-top: 4px; width: 30px; height: 30px; font-size: 11px; }
+.pm-c-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.pm-c-bubble { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; padding: 8px 12px 10px; }
+.pm-comment.own .pm-c-bubble { background: color-mix(in srgb, var(--brand-soft) 55%, var(--surface)); border-color: color-mix(in srgb, var(--brand-line) 55%, var(--border)); }
+.pm-c-head { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.pm-c-head strong { font-size: 13.5px; }
+.pm-c-head time, .pm-c-edited { color: var(--muted); font-size: 12px; }
+.pm-c-tools { margin-left: auto; display: inline-flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
+.pm-comment:hover .pm-c-tools, .pm-comment:focus-within .pm-c-tools { opacity: 1; }
+@media (hover: none) { .pm-c-tools { opacity: 1; } }
+.pm-c-tools .icon-btn { width: 28px; height: 28px; padding: 0; margin: 0; }
+.pm-c-body .rich.pm-comment-body { margin-top: 2px; color: var(--text); }
+.pm-c-body .pm-mini-composer { margin-top: 6px; }
+.pm-comment.deleted .pm-c-bubble { background: transparent; border-style: dashed; padding: 6px 12px; font-size: 13px; }
+.pm-c-gone { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--muted); }
+.pm-c-foot { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; padding-left: 4px; }
+/* Reactions: a chip per emoji with its count (yours highlighted), and + to add one. */
+.pm-reacts { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.pm-react { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.pm-react .pm-emoji { font-size: 14px; line-height: 1; }
+.pm-react:hover:not(:disabled) { border-color: var(--brand-line); }
+.pm-react.on { background: var(--brand-soft); border-color: var(--brand-line); color: var(--brand-text); }
+.pm-react:disabled { cursor: default; }
+.pm-react-add { position: relative; display: inline-flex; }
+.pm-react-pick, .pm-c-reply, .pm-more-replies { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px; border-radius: 999px; border: 1px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.pm-react-pick:hover, .pm-c-reply:hover, .pm-more-replies:hover, .pm-react-pick[aria-expanded='true'] { background: var(--surface-2); border-color: var(--border); color: var(--text); }
+.pm-react-pick:focus-visible, .pm-c-reply:focus-visible, .pm-react:focus-visible, .pm-more-replies:focus-visible, .pm-react-pop button:focus-visible { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+.pm-react-pop { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 20; display: flex; gap: 2px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; box-shadow: var(--shadow-lg); }
+.pm-react-pop[hidden] { display: none; }
+.pm-react-pop button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: none; font-size: 19px; line-height: 1; cursor: pointer; transition: transform 0.12s, background 0.12s; }
+.pm-react-pop button:hover { background: var(--surface-2); transform: scale(1.18); }
+/* A thread: its replies under the first comment, along a line. */
+.pm-replies { margin-left: 15px; padding-left: 21px; border-left: 2px solid var(--border); display: grid; gap: 8px; }
+.pm-replies .pm-comment > .avatar, .pm-replies .pm-c-gone { width: 26px; height: 26px; font-size: 10px; }
+.pm-more-replies { justify-self: start; }
+.pm-reply-slot:empty { display: none; }
+.pm-reply-slot { margin-left: 38px; }
+.pm-mini-composer { display: grid; gap: 6px; }
+.pm-mini-composer .rich-ed { margin: 0; }
+.pm-mini-composer .rich-head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.pm-mini-composer .wys-area { min-height: 60px; }
+@media (pointer: coarse) { .pm-react, .pm-react-pick, .pm-c-reply, .pm-more-replies { height: 36px; padding: 0 12px; } .pm-react-pop button { width: 42px; height: 42px; } .pm-c-tools .icon-btn { width: 40px; height: 40px; } }
+@media (max-width: 560px) { .pm-replies { margin-left: 6px; padding-left: 12px; } .pm-reply-slot { margin-left: 0; } .pm-react-pop { left: auto; right: -40px; } }
+@media (prefers-reduced-motion: reduce) { .pm-react-pop button, .pm-c-tools { transition: none; } .pm-react-pop button:hover { transform: none; } }
