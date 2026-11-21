@@ -9,6 +9,7 @@ import { api } from '../api.js';
 import { html, mount, toast } from '../ui.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel, ROLES } from '/shared/roles.js';
+import { orderSystems, canOpen } from '/shared/systems.js';
 import { avatar, avatarAt, editMyAvatar, loadAvatars } from './avatars.js';
 
 const QUICK_MAX = 12;
@@ -58,22 +59,31 @@ function popover(btn, pop, { onOpen } = {}) {
   return close;
 }
 
-// ----- Systems -----
+// ----- Systems: every ATLAS system as a tile, as CORE's modules menu (0.45) -----
+// Openable first (pinned ones lead, with a star; the one you are in highlighted), then the ones
+// coming soon, greyed; ATLAS home and Help below. Pinned with the star on the ATLAS home.
+const shortName = (s) => (s.product.length > 12 ? s.short || s.product : s.product);
 export function mountSystems(beforeEl) {
   const wrap = document.createElement('div');
   wrap.className = 'top-pop-wrap';
   wrap.innerHTML = `<button type="button" class="round-btn" id="sys-btn" title="ATLAS systems" aria-label="ATLAS systems" aria-haspopup="menu" aria-expanded="false">${iconSvg('grid')}</button><div class="menu-pop top-pop sys-pop" id="sys-pop" role="menu" hidden></div>`;
   beforeEl.before(wrap);
   const pop = wrap.querySelector('#sys-pop');
-  let systems = null;
+  let status = null;
+  window.addEventListener('systems:changed', () => (status = null));
   popover(wrap.querySelector('#sys-btn'), pop, {
     async onOpen() {
-      if (!systems) systems = (await api.get('/api/hub/status').catch(() => ({}))).systems || [];
-      const here = location.pathname;
-      const live = systems.filter((s) => s.status === 'live' && s.url);
+      if (!status) status = await api.get('/api/hub/status').catch(() => ({ systems: [] }));
+      const pins = status.user?.favoriteSystems || [];
+      const here = location.pathname.replace(/\/+$/, '/');
+      const isHere = (s) => s.url && s.url !== '/' && (here === s.url || here.startsWith(s.url) || (s.url === '/admin' && here.startsWith('/admin')));
+      const tile = (s) => {
+        if (!canOpen(s)) return html`<span class="mod-tile soon" role="menuitem" aria-disabled="true" title="${s.product}: coming soon"><span class="mod-ic">${icon(s.icon || 'grid', 20)}</span><span class="mod-name">${shortName(s)}</span><span class="mod-tag">Soon</span></span>`;
+        const on = isHere(s);
+        return html`<a role="menuitem" class="mod-tile${on ? ' on' : ''}" href="${s.url}" ${on ? 'aria-current="page"' : ''} title="${s.name}${pins.includes(s.id) ? ' · pinned' : ''}" ${s.external ? html`target="_blank" rel="noopener"` : ''}>${pins.includes(s.id) ? html`<span class="mod-pin" aria-hidden="true">${icon('star', 12)}</span>` : ''}<span class="mod-ic">${icon(s.icon || 'grid', 20)}</span><span class="mod-name">${shortName(s)}</span></a>`;
+      };
       mount(pop, html`<div class="menu-label">ATLAS systems</div>
-        ${live.map((s) => html`<a role="menuitem" href="${s.url}" class="${here === s.url || (s.url !== '/' && here.startsWith(s.url.replace(/#.*$/, ''))) ? 'on' : ''}" ${s.external ? html`target="_blank" rel="noopener"` : ''}>${icon(s.icon || 'grid')}<span class="grow"><strong>${s.product}</strong><small>${s.title}</small></span></a>`)}
-        ${systems.filter((s) => s.status === 'soon').length ? html`<p class="menu-note">${systems.filter((s) => s.status === 'soon').map((s) => s.product).join(', ')}: coming soon</p>` : ''}
+        <div class="mod-grid">${orderSystems(status.systems || [], pins).map(tile)}</div>
         <div class="menu-sep"></div>
         <a role="menuitem" href="/">${icon('home')}<span class="grow">ATLAS home</span></a>
         <a role="menuitem" href="/help/" target="_blank" rel="noopener">${icon('help')}<span class="grow">Help &amp; guides</span></a>`);

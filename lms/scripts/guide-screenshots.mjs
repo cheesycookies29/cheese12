@@ -55,7 +55,8 @@ async function startServer() {
   };
   await call('POST', '/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: 'password123', schoolName: 'Lancaster Academy', campusName: 'Main Campus' });
   await call('POST', '/api/admin/demo');
-  return { url, stop: () => { child.kill(); fs.rmSync(dir, { recursive: true, force: true }); } };
+  // The server saves the Security monitor's file on the way out: remove its folder once it has exited.
+  return { url, stop: () => new Promise((resolve) => (child.exitCode === null ? child.once('exit', resolve).kill() : resolve())).then(() => fs.rmSync(dir, { recursive: true, force: true })) };
 }
 
 const shots = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).filter((s) => !only.length || only.includes(s.file));
@@ -64,7 +65,7 @@ if (!shots.length) {
   process.exit(1);
 }
 fs.mkdirSync(OUT, { recursive: true });
-const server = base ? { url: base, stop() {} } : await startServer();
+const server = base ? { url: base, stop: async () => {} } : await startServer();
 const browser = await chromium.launch();
 const failed = [];
 try {
@@ -112,7 +113,7 @@ try {
   }
 } finally {
   await browser.close();
-  server.stop();
+  await server.stop();
 }
 if (failed.length) {
   console.error(`\n${failed.length} screenshot(s) failed:\n${failed.join('\n')}`);

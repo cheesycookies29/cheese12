@@ -560,6 +560,75 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- System → Users & Access and Audit log (administrators, in any system's sidebar) -----
   ctx.tidyAvatars = () => tidyAvatars(db.data, avatars);
   registerSystemRoutes(route, ctx, { sides, throttle });
+  // ----- The ATLAS home: a few live figures on each system's card (after CORE's home) -----
+  // Worked out through each system's own routes, as the person (ctx.invoke), so every permission and
+  // campus rule applies unchanged. A figure that cannot be worked out is left out, never an error.
+  const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  async function figuresFor(user) {
+    const ask = async (path) => {
+      try {
+        return await ctx.invoke(user, 'GET', path);
+      } catch {
+        return null;
+      }
+    };
+    const may = (p) => userCan(user, p);
+    const out = { uis: [], lms: [], hris: [], fmis: [] };
+    // Learn
+    if (['teacher', 'student'].includes(user.role)) {
+      const d = await ask('/api/home');
+      if (d && user.role === 'teacher') {
+        out.lms.push(plural(d.classes.length, 'section') + ' you teach');
+        const waiting = d.toGrade.reduce((a, x) => a + x.waiting, 0);
+        if (waiting) out.lms.push(`${waiting} to grade`);
+      } else if (d) {
+        out.lms.push(plural(d.classes.length, 'class', 'classes') + ' this term');
+        if (d.due.length) out.lms.push(`${d.due.length} to do${d.due.some((x) => x.overdue) ? `, ${d.due.filter((x) => x.overdue).length} overdue` : ''}`);
+        if (d.requests?.length) out.lms.push(plural(d.requests.length, 'enrollment request') + ' waiting');
+      }
+    } else if (user.role === 'guardian') {
+      const n = guardianChildren(db.data, user.id).length;
+      out.lms.push(n ? `${plural(n, 'child', 'children')} linked` : 'No child linked yet');
+    } else if (may('enrollment.manage')) {
+      const e = await ask('/api/admin/enrollments/summary');
+      if (e?.pending) out.lms.push(plural(e.pending, 'enrollment request') + ' to review');
+      if (e?.applicants) out.lms.push(plural(e.applicants, 'applicant') + ' to admit');
+    }
+    // Academic
+    if (ACADEMIC_ROLES.includes(user.role) && may('academic.view')) {
+      const a = await ask('/api/academic/dashboard');
+      if (a && may('grades.approve') && a.queue.submitted) out.uis.push(plural(a.queue.submitted, 'grade sheet') + ' to approve');
+      if (a && may('academic.records') && a.queue.approved) out.uis.push(plural(a.queue.approved, 'grade sheet') + ' to post');
+      if (a && may('academic.records') && a.requestsOpen) out.uis.push(plural(a.requestsOpen, 'document request') + ' open');
+      if (a && may('grades.approve') && a.changesPending) out.uis.push(plural(a.changesPending, 'grade change') + ' to decide');
+    }
+    // People
+    if (!['student', 'guardian'].includes(user.role)) {
+      if (may('leave.manage')) {
+        const r = await ask('/api/hris/requests/summary');
+        if (r?.pending) out.hris.push(plural(r.pending, 'leave request') + ' waiting');
+      }
+      const me = hris.employeeSummary(user);
+      if (me?.position) out.hris.push(me.position);
+    }
+    // Finance
+    if (user.role !== 'guardian') {
+      if (may('finance.view')) {
+        const q = (await ask('/api/finance/dashboard'))?.queue;
+        const dv = q ? (may('finance.accounts') ? q.dvToCertify : 0) + (may('finance.approve') ? q.dvToApprove : 0) + (may('finance.disburse') ? q.dvToPay : 0) : 0;
+        if (dv) out.fmis.push(plural(dv, 'voucher') + ' waiting for you');
+        if (q && may('finance.approve') && q.prToApprove) out.fmis.push(plural(q.prToApprove, 'purchase request') + ' to approve');
+        if (q && may('finance.collect') && q.undeposited) out.fmis.push(plural(q.undeposited, 'collection report') + ' to deposit');
+      } else if (user.role === 'student') {
+        const m = await ask('/api/finance/my');
+        if (m) out.fmis.push(m.receipts.length ? plural(m.receipts.length, 'official receipt') : 'No receipts yet');
+      }
+    }
+    for (const k of Object.keys(out)) out[k] = out[k].slice(0, 3);
+    return out;
+  }
+  route('GET', '/api/hub/figures', 'me', ({ user }) => figuresFor(user), { audit: false });
+
   // ----- Your own account: profile, picture, sessions, quick access (server/account.js) -----
   registerAccountRoutes(route, { db, sides, avatars, record: (e) => audit.record(e), systemsFor: (u) => portalSystems(u, ROLES[u.role]?.side).filter((x) => x.status === 'live' && x.url).map((x) => ({ id: x.id, name: x.name, url: x.url, tagline: x.tagline || x.description || '' })) });
   // ----- System → Security monitor (administrators), and its metrics export -----

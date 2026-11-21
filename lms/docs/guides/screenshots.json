@@ -9,7 +9,7 @@
   "file": "getting-started-home.jpg",
   "user": "teacher.demo",
   "url": "/",
-  "wait": 1200
+  "wait": 1800
  },
  {
   "file": "getting-started-user-menu.jpg",
@@ -29,6 +29,18 @@
    "#change-pw"
   ],
   "wait": 900
+ },
+ {
+  "file": "getting-started-compact.jpg",
+  "user": "registrar.demo",
+  "url": "/",
+  "api": [
+   ["PUT", "/api/me/favorite-systems", { "systems": ["hris"] }]
+  ],
+  "click": [
+   "[data-view=compact]"
+  ],
+  "wait": 1500
  },
  {
   "file": "getting-started-profile.jpg",

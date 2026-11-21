@@ -78,3 +78,13 @@ export const SYSTEM_STATUS = ['soon', 'live', 'hidden'];
 export function defaultSystemSettings() {
   return Object.fromEntries(SYSTEMS.filter((s) => !s.builtIn).map((s) => [s.id, { status: 'soon', url: '' }]));
 }
+
+// The order systems are shown in, on the ATLAS home and in the Systems menu (after CORE's home):
+// the ones pinned with the star first, in the order pinned, then the others that can be opened,
+// then the ones coming soon. systems: as /api/hub/status gives them ({ id, status, url }).
+export const canOpen = (s) => s.status === 'live' && Boolean(s.url);
+export function orderSystems(systems, favorites = []) {
+  const open = systems.filter(canOpen);
+  const first = (favorites || []).map((id) => open.find((s) => s.id === id)).filter(Boolean);
+  return [...first, ...open.filter((s) => !first.includes(s)), ...systems.filter((s) => !canOpen(s))];
+}

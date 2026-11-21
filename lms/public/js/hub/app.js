@@ -1,11 +1,12 @@
 // ATLAS home (/): one sign-in, then a card for each system the account may use (Academic,
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
-import { html, mount, option, initials, timeAgo, fmtDate } from '../ui.js';
+import { html, mount, option, initials, timeAgo, fmtDate, toast } from '../ui.js';
 import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel, userCan } from '/shared/roles.js';
-import { mountUserMenu, mountQuick, accountHref } from '../account/topbar.js';
+import { mountUserMenu, mountQuick, mountSystems, accountHref } from '../account/topbar.js';
+import { orderSystems, canOpen } from '/shared/systems.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -100,6 +101,7 @@ function userMenu(status) {
     wireCampus: (root) => wireCampusMenu(root, status.authBase),
   });
   if (document.getElementById('quick-btn')) return;
+  mountSystems(document.getElementById('help-btn'));
   mountQuick(document.getElementById('help-btn'), {
     user: status.user,
     current: () => null, // the home page itself is one click away (the ATLAS mark)
@@ -116,7 +118,7 @@ const dateBox = (ymd) => {
   return html`<div class="date-box"><b>${d.toLocaleDateString('en-PH', { month: 'short' })}</b><span>${d.getDate()}</span></div>`;
 };
 
-function systemCard(s, side) {
+function systemCard(s, side, figures = []) {
   const live = s.status === 'live' && s.url;
   // The admin panel has its own place under Administration; from here it is where Learn is run.
   const openLabel = s.id === 'lms' && side === 'admin' ? 'Manage Learn' : `Open ${s.product}`;
@@ -125,15 +127,27 @@ function systemCard(s, side) {
     <span class="sys-name">${s.product.replace(/-/g, '\u2011')}</span>
     <strong class="sys-title">${s.title}</strong>
     <p>${s.description}</p>
+    ${live && figures.length ? html`<ul class="sys-figs">${figures.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
     <span class="sys-open">${live ? html`${openLabel} ${icon(s.external ? 'external' : 'chevronRight', 16)}` : 'Not available yet'}</span>`;
   return live
-    ? html`<a class="sys-card" href="${s.url}" ${s.external ? html`target="_blank" rel="noopener"` : ''}>${body}</a>`
-    : html`<div class="sys-card soon" aria-disabled="true" title="${s.product} is coming soon">${body}</div>`;
+    ? html`<a class="sys-card" href="${s.url}" data-system="${s.id}" ${s.external ? html`target="_blank" rel="noopener"` : ''}>${body}</a>`
+    : html`<div class="sys-card soon" data-system="${s.id}" aria-disabled="true" title="${s.product} is coming soon">${body}</div>`;
+}
+
+// The star that pins a system to the front (after CORE's home, 0.40).
+const pinButton = (s, on, size = 18) => html`<button type="button" class="sys-pin" data-pin="${s.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? `Unpin ${s.product}` : `Pin ${s.product} to the front`}" title="${on ? 'Pinned to the front: click to unpin' : 'Pin to the front'}">${icon('star', size)}</button>`;
+// A card in the sliding row: a system you can open has its star.
+const cardSlot = (s, side, figures, on) => (canOpen(s) ? html`<div class="sys-slot${on ? ' pinned' : ''}" data-system="${s.id}">${systemCard(s, side, figures)}${pinButton(s, on)}</div>` : systemCard(s, side));
+// A tile in the compact view (CORE 0.46): every system at once, the first figure (or what it is) under its name.
+function miniTile(s, figures, on) {
+  if (!canOpen(s)) return html`<div class="sys-mini soon" data-system="${s.id}" aria-disabled="true" title="${s.product}: coming soon"><span class="sys-ic">${icon(s.icon, 20)}</span><span class="grow"><strong>${s.product}</strong><small>${icon('lock', 11)} Coming soon</small></span></div>`;
+  return html`<div class="sys-mini-slot${on ? ' pinned' : ''}" data-system="${s.id}"><a class="sys-mini" href="${s.url}" title="Open ${s.product}" ${s.external ? html`target="_blank" rel="noopener"` : ''}><span class="sys-ic">${icon(s.icon, 20)}</span><span class="grow"><strong>${s.product}</strong><small>${figures[0] || s.title}</small></span></a>${pinButton(s, on, 16)}</div>`;
 }
 
 // "Your systems" as a carousel: the cards scroll sideways and snap into place (swipe on a phone,
 // arrows or dots elsewhere, or arrow keys once the row has focus). Live systems come first.
 // The arrows and dots only show when some cards are out of view.
+// Returns a function to call after the cards are redrawn (a system pinned or unpinned).
 function systemsCarousel(wrap) {
   const track = wrap.querySelector('#sys-track');
   const arrows = document.querySelector('.sys-arrows');
@@ -176,7 +190,7 @@ function systemsCarousel(wrap) {
   });
   // A card reached with Tab is brought fully into view.
   track.addEventListener('focusin', (e) => {
-    const card = e.target.closest('.sys-card');
+    const card = e.target.closest('.sys-slot, .sys-card');
     if (card && card !== track) card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: smooth() });
   });
   let raf = 0;
@@ -186,6 +200,10 @@ function systemsCarousel(wrap) {
   }, { passive: true });
   new ResizeObserver(update).observe(track);
   update();
+  return () => {
+    drawn = -1;
+    update();
+  };
 }
 
 // Administration, as on CORE's home page: the admin panel, and shortcuts to the pages in it that
@@ -221,8 +239,21 @@ async function homeView(status) {
   const u = status.user;
   const hour = new Date().getHours();
   const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const systems = [...status.systems].sort((a, b) => (b.status === 'live' && b.url ? 1 : 0) - (a.status === 'live' && a.url ? 1 : 0));
-  const live = systems.filter((s) => s.status === 'live' && s.url).length;
+  // Pinned first (in the order pinned), then the others you can open, then coming soon (shared/systems.js).
+  const pinned = () => (u.favoriteSystems || []).filter((id) => status.systems.some((s) => s.id === id && canOpen(s)));
+  const ordered = () => orderSystems(status.systems, pinned());
+  const live = status.systems.filter(canOpen).length;
+  const soon = status.systems.length - live;
+  let figures = {};
+  const trackItems = () => html`${ordered().map((s) => cardSlot(s, status.side, figures[s.id] || [], pinned().includes(s.id)))}`;
+  const compactItems = () => html`${ordered().map((s) => miniTile(s, figures[s.id] || [], pinned().includes(s.id)))}`;
+  // Cards (the sliding row) or Compact (all at once), kept in this browser; a phone starts in Compact.
+  const VIEW_KEY = 'atlas-home-view';
+  let view = matchMedia('(max-width: 760px)').matches ? 'compact' : 'cards';
+  try {
+    const chosen = localStorage.getItem(VIEW_KEY);
+    if (chosen === 'compact' || chosen === 'cards') view = chosen;
+  } catch {}
   mount(appEl, html`
     <section class="hub-hero"><img class="hero-mark" src="/img/brand/atlas-mark-white.svg" alt="" /><div class="hub-wrap">
       <p class="hub-kicker">${new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${status.branding.termName ? ` · ${status.branding.termName}` : ''}</p>
@@ -231,19 +262,71 @@ async function homeView(status) {
       <a class="hub-role" href="${accountHref(u, 'profile')}" title="My profile">${icon('user', 14)} ${u.title || roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</a>
       ${status.campusName ? html`<span class="hub-role">${icon('building', 14)} ${status.campusName}${status.campuses.length > 1 ? html` · <button type="button" class="link hub-switch" id="hub-switch">switch</button>` : ''}</span>` : ''}
     </div></section>
-    <section class="hub-wrap">
+    <section class="hub-wrap sys-section${view === 'compact' ? ' compact' : ''}" id="sys-section">
       <div class="card-head"><h2 id="sys-heading">${icon('grid')} Your systems</h2>
-        <div class="sys-nav"><span class="muted small">${live} of ${systems.length} available</span>
+        <div class="sys-nav"><span class="muted small sys-count">${live} available to you${soon ? ` · ${soon} coming soon` : ''}</span>
+          <div class="seg-btns sys-view" role="group" aria-label="How to show the systems">${[['cards', 'Cards', 'Large cards with live figures, in a sliding row'], ['compact', 'Compact', 'Every system at once, in a grid']].map(([k, label, title]) => html`<button type="button" data-view="${k}" class="${view === k ? 'active' : ''}" aria-pressed="${view === k ? 'true' : 'false'}" title="${title}">${label}</button>`)}</div>
           <span class="sys-arrows" hidden><button type="button" class="icon-btn" id="sys-prev" aria-label="Previous systems" aria-controls="sys-track">${icon('chevronLeft', 18)}</button><button type="button" class="icon-btn" id="sys-next" aria-label="More systems" aria-controls="sys-track">${icon('chevronRight', 18)}</button></span></div></div>
       <div class="sys-carousel" id="sys-carousel">
-        <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${systems.map((s) => systemCard(s, status.side))}</div>
+        <div class="sys-track" id="sys-track" role="region" aria-labelledby="sys-heading" tabindex="0">${trackItems()}</div>
       </div>
       <div class="sys-dots" id="sys-dots" hidden></div>
+      <div class="sys-compact" id="sys-compact" role="region" aria-labelledby="sys-heading">${compactItems()}</div>
     </section>
     ${administration(status)}
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span></div></footer>`);
-  systemsCarousel(appEl.querySelector('#sys-carousel'));
+  const refresh = systemsCarousel(appEl.querySelector('#sys-carousel'));
+  const track = appEl.querySelector('#sys-track');
+  const compact = appEl.querySelector('#sys-compact');
+  const section = appEl.querySelector('#sys-section');
+  const redraw = () => {
+    mount(track, trackItems());
+    mount(compact, compactItems());
+    refresh();
+  };
+  appEl.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+    view = b.dataset.view;
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {}
+    section.classList.toggle('compact', view === 'compact');
+    appEl.querySelectorAll('[data-view]').forEach((x) => {
+      x.classList.toggle('active', x.dataset.view === view);
+      x.setAttribute('aria-pressed', String(x.dataset.view === view));
+    });
+    if (view === 'cards') refresh();
+  }));
+  // Pin or unpin: saved on the account (it follows you), then both views are redrawn in the new
+  // order with the focus kept on the same star.
+  const onPin = async (e) => {
+    const btn = e.target.closest('[data-pin]');
+    if (!btn) return;
+    e.preventDefault();
+    const id = btn.dataset.pin;
+    const was = pinned();
+    const next = was.includes(id) ? was.filter((x) => x !== id) : [...was, id];
+    btn.disabled = true;
+    try {
+      u.favoriteSystems = (await api.put('/api/me/favorite-systems', { systems: next })).favoriteSystems;
+    } catch (err) {
+      btn.disabled = false;
+      return toast(err.message || 'Could not save your pinned systems.', 'error');
+    }
+    redraw();
+    track.scrollTo({ left: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    (view === 'compact' ? compact : track).querySelector(`[data-pin="${id}"]`)?.focus({ preventScroll: true });
+    window.dispatchEvent(new Event('systems:changed')); // the Systems menu puts pinned ones first too
+    const name = status.systems.find((s) => s.id === id)?.product || id;
+    toast(next.includes(id) ? `${name} is pinned: it comes first on your ATLAS home.` : `${name} is no longer pinned.`);
+  };
+  track.addEventListener('click', onPin);
+  compact.addEventListener('click', onPin);
+  // A few live figures on each card, once they are worked out (the page does not wait for them).
+  api.get('/api/hub/figures').then((f) => {
+    figures = f || {};
+    if (appEl.contains(track)) redraw();
+  }).catch(() => {});
   appEl.querySelector('#hub-switch')?.addEventListener('click', (e) => {
     e.stopPropagation();
     document.getElementById('user-pop').hidden = false;

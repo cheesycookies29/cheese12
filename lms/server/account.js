@@ -10,6 +10,9 @@ import { ROLES, roleLabel } from '../shared/roles.js';
 import { campusName } from './campus.js';
 import { guardianChildren } from './guardian.js';
 import { t } from './validate.js';
+import { SYSTEMS } from '../shared/systems.js';
+
+const SYSTEM_IDS = new Set(SYSTEMS.map((x) => x.id));
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -137,6 +140,11 @@ export function tidyAvatars(data, store) {
       } catch {
         delete u.quickLinks;
       }
+    }
+    if (u.favoriteSystems !== undefined) {
+      const ids = Array.isArray(u.favoriteSystems) ? [...new Set(u.favoriteSystems.filter((id) => SYSTEM_IDS.has(id)))] : [];
+      if (ids.length) u.favoriteSystems = ids;
+      else delete u.favoriteSystems;
     }
     if ('title' in u) {
       try {
@@ -273,6 +281,18 @@ export function registerAccountRoutes(route, { db, sides, avatars, record, syste
     if (others.length) record({ kind: 'signout', system: 'home', action: 'Signed out everywhere else', actor: user, target: user, ip, agent, detail: `${others.length} session${others.length === 1 ? '' : 's'}` });
     return { signedOut: others.length };
   }, { audit: false });
+
+  // ----- Systems pinned to the front of the ATLAS home and the Systems menu (after CORE 0.40) -----
+  route('PUT', '/api/me/favorite-systems', 'me', ({ user, body }) => {
+    if (!Array.isArray(body.systems)) fail('Send the pinned systems as a list.');
+    const open = new Set(systemsFor(user).map((x) => x.id));
+    const list = [...new Set(body.systems.map(String))];
+    if (list.some((id) => !open.has(id))) fail('Only a system you can open can be pinned.');
+    if (list.length) user.favoriteSystems = list;
+    else delete user.favoriteSystems;
+    db.save();
+    return { favoriteSystems: list };
+  }, { audit: false, body: { systems: t.arr(t.str(40), 20) } });
 
   // ----- Quick access: the pages you pinned (they follow you to any device) -----
   route('GET', '/api/me/quick-links', 'me', ({ user }) => ({ links: user.quickLinks || [] }), { audit: false });

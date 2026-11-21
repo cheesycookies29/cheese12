@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### Choosing a system, as in CORE
+- **Your systems** on the ATLAS home page shows a few figures from your own work on each card (sections you teach and work to grade, your classes and work to do, requests waiting for you…). See [getting started](getting-started#walkthrough).
+- **Pin a system** with the star on its card: it comes first on the home page and in the **Systems** menu, on every device. See [getting started](getting-started#pin-a-system-to-the-front).
+- **Compact**, beside *Your systems*: every system at once as small tiles; phones start in Compact. See [getting started](getting-started#see-every-system-at-once).
+- The **Systems** menu (the grid in the top bar, now on the home page too) shows every system as a tile, yours first and coming soon greyed.
+
 ### Your profile, your picture and quick access, as in CORE
 - **My profile**, under your name in every system: your account, your studies or work (with links to your academic or HR record), your children for parents, and the systems you can open. See [getting started](getting-started#see-your-profile).
 - **Your picture**: choose **Add my picture** under your name, frame the photo, and it shows in the top bar and your profile. See [getting started](getting-started#add-or-change-your-picture).

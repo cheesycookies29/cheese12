@@ -23,7 +23,7 @@ This guide is for everyone. The guides for your own job are listed on the **Help
 This tour uses the demo school. Sign in as `teacher.demo` with the password `demo1234`.
 
 1. Open the ATLAS home page. Type `teacher.demo` under **Username** and `demo1234` under **Password**, then choose **Sign in**.
-2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a tile for each system your account may use, and how many are available. When there are more tiles than fit across the screen, they move in a row: choose the arrows beside *… available* or the dots under the tiles, swipe the row on a phone or tablet, or press `Tab` until the row itself is selected and then the left and right arrow keys.
+2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a card for each system your account may use, how many are available, and a few figures from your own work on each card (for example *2 sections you teach* and *8 to grade*). When there are more cards than fit across the screen, they move in a row: choose the arrows beside *… available to you* or the dots under the cards, swipe the row on a phone or tablet, or press `Tab` until the row itself is selected and then the left and right arrow keys. Choose **Compact** to see every system at once instead.
 
 ![The ATLAS home page after signing in](getting-started-home.jpg)
 
@@ -33,7 +33,7 @@ This tour uses the demo school. Sign in as `teacher.demo` with the password `dem
 ![A system: the menu button on the left, and the Systems, Quick access, Help & guides, dark mode and name buttons on the right](getting-started-system.jpg)
 
 5. Look at the top bar. On the left is the **menu** button (three lines), which folds the side menu. On the right are, in order: **Systems** (the grid of squares), **Quick access** (the lightning bolt), **Help & guides** (the question mark), the **dark mode** button (the moon) and your name with your picture.
-6. Choose **Systems**. It lists the ATLAS systems you can open, then **ATLAS home** and **Help & guides**. Choose **ATLAS home**: you are back on the home page.
+6. Choose **Systems**. It shows every ATLAS system as a tile: the ones you can open first (the one you are in is highlighted, and pinned ones lead with a star), then the ones coming soon, greyed. Below are **ATLAS home** and **Help & guides**. Choose **ATLAS home**: you are back on the home page.
 7. Choose your name at the top right. The menu shows your picture, name and title, then **My profile**, **Add my picture**, **My security**, **Change password** and **Sign out**. An account that works at more than one campus also sees **Switch campus** here.
 
 ![The menu under your name, with Switch campus for an account at two campuses](getting-started-user-menu.jpg)
@@ -75,6 +75,22 @@ If your school has also kept ATLAS passwords, the card says **or with your ATLAS
 2. To go to another system, choose **Systems** (the grid of squares) in the top bar, then the system, or **ATLAS home** to come back here.
 
 Administrators and registrars also have **Administration** below their systems: the **Admin panel**, and shortcuts to the pages in it they use most. Their Learn tile says **Manage Learn**, because they run Learn instead of taking classes. A tile marked **Coming soon** cannot be opened yet.
+
+### Pin a system to the front
+
+1. On the ATLAS home page, choose the star at the top right of a system's card (or of its tile in **Compact**).
+2. The system moves to the front of **Your systems**, and leads in the **Systems** menu at the top of every system, with a star.
+
+![Your systems in Compact, with People pinned to the front](getting-started-compact.jpg)
+
+Pinned systems come first in the order you pinned them, and follow you to any computer or phone. Choose the star again to unpin. Only a system you can open can be pinned.
+
+### See every system at once
+
+1. Beside **Your systems**, choose **Compact**. Every system shows as a small tile, in the same order, with its first figure (or what it is for) under its name.
+2. Choose **Cards** for the large cards again.
+
+ATLAS remembers your choice in this browser. On a phone, ATLAS starts in **Compact**.
 
 ### See your profile
 
@@ -184,14 +200,14 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Screen or button | What it is for |
 |---|---|
 | Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open; **Help & guides** and **Dark mode** at the top right |
-| ATLAS home page | Your greeting, account type and campus, **Your systems** (a row of tiles with arrows and dots when they do not all fit), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
+| ATLAS home page | Your greeting, account type and campus, **Your systems** (cards with figures from your work and a star to pin, in a row with arrows and dots, or all at once in **Compact**), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
 | Academic tile | Academic records: student records, registration, grades and registrar services. For students, teachers, registrars, deans and administrators |
 | Learn tile | Classes, lessons, quizzes, attendance, grades and enrollment. For students, parents and guardians, and teachers; registrars and administrators open its admin panel |
 | People tile | HR: employee records, time clock, attendance, leave and payslips. For every employee; not for students or parents |
 | Finance tile | The school's accounts for the finance offices, and self-service for employees and students (for example, receipts). Not for parents |
 | Facilities tile | Rooms, bookings, maintenance and property. Shown as **Coming soon** until your school switches it on |
 | REX Bookstore e-Reader tile | E-books for your subjects from the REX Bookstore app's library. For students, teachers, registrars, deans and administrators; shown as **Coming soon** for now |
-| Systems | The grid button in each system's top bar: the ATLAS systems you can open, **ATLAS home** and **Help & guides** |
+| Systems | The grid button in the top bar: every ATLAS system as a tile (yours first, pinned ones with a star, coming soon greyed), **ATLAS home** and **Help & guides** |
 | Quick access | The lightning button: pages you pinned, pages you opened recently, and **Pin this page** |
 | Help | The question-mark button in the top bar: the Help & guides page |
 | Dark mode | The moon (or sun) button: dark or light screens |
