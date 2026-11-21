@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.53.0-alpha',
+    date: '2026-11-21',
+    title: 'Drag and drop files onto a task',
+    modules: ['projects'],
+    notes: 'Files from the computer dropped on a task\'s Files card are attached.',
+    changes: [
+      ['new', 'projects', 'Drag and drop: files dropped on a task\'s Files card, or on a milestone\'s files window, are uploaded one by one, like Add files. While files are dragged over CORE the card shows a dashed edge; over it, "Drop to attach". A file not taken (another type, too large) is skipped and named in the message; the others are added.'],
+      ['improved', 'projects', 'Add files: one file refused no longer stops the rest; a file dropped anywhere else in CORE is ignored instead of the browser leaving CORE to open it.'],
+    ],
+  },
+  {
     version: '0.52.0-alpha',
     date: '2026-11-21',
     title: 'Project keys and task links',

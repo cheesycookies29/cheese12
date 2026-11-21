@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Drag and drop files onto a task (0.53)
+- In **Project Management**, drop files from your computer on a task's **Files** card (or a milestone's files window) to attach them, several at once. A file CORE does not take is left out and named; the others are added. See [Attach files to a task or a deliverable](projects#attach-files-to-a-task-or-a-deliverable).
+
 ### Task keys and links to share (0.52)
 - Each project has a **key** of three letters, its own or the first three letters of its name, and its tasks are named with it: **LEA-1**, **LEA-2**…. Every task has a link to share, `/t/LEA-12`: **Copy link** on the task. Existing tasks were renamed (*PRJ-0001-12* is now, for example, *LEA-12*), and their old names still open them. See [Share a link to a task](projects#share-a-link-to-a-task).
 

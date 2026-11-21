@@ -287,6 +287,33 @@ await journey('Module pinned to the front', async (pages) => {
   if ((await order(again)).join() !== before.join()) throw new Error('Unpinning did not put the modules back in their order.');
 });
 
+await journey('Task link opened, files dropped on the task', async (pages) => {
+  // The task's link (/t/KEY-n) after signing in, then files dropped on its Files card (0.52, 0.53).
+  const pm = await signIn('pm.demo', 'demo1234');
+  pages.push(pm);
+  await pm.goto(`${BASE}/t/lea-8`);
+  await pm.waitForSelector('#files-card.pm-dropzone', { timeout: 10000 });
+  if ((await pm.textContent('.pm-task-key')).trim() !== 'LEA-8') throw new Error('The link /t/lea-8 did not open task LEA-8.');
+  const before = await pm.locator('#files .pm-files li').count();
+  const dt = await pm.evaluateHandle(() => {
+    const d = new DataTransfer();
+    d.items.add(new File(['%PDF-1.4\n% acceptance\n'], 'Acceptance.pdf', { type: 'application/pdf' }));
+    d.items.add(new File(['notes'], 'Notes.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+    return d;
+  });
+  await pm.dispatchEvent('#files-card', 'dragenter', { dataTransfer: dt });
+  if (!(await pm.locator('#files-card.pm-drop-over').count())) throw new Error('The Files card does not show it takes the drop.');
+  await pm.dispatchEvent('#files-card', 'drop', { dataTransfer: dt });
+  await pm.waitForFunction((n) => document.querySelectorAll('#files .pm-files li').length === n + 1, before, { timeout: 8000 });
+  const toastText = await pm.textContent('#toast');
+  if (!/1 file added\. Not added: Notes\.docx/.test(toastText)) throw new Error(`Unexpected message after the drop: ${toastText}`);
+  // Clean up: remove the file again.
+  pm.once('dialog', (d) => d.accept());
+  await pm.click('#files [data-del-file]');
+  await pm.click('.modal footer .btn.primary, .modal footer .btn.danger').catch(() => {});
+  await pm.waitForTimeout(600);
+});
+
 // 6. Every page in every role's menu at phone width
 const ROLES = [['employee.demo'], ['hr.demo'], ['payroll.demo'], ['it.demo'], ['sales.demo'], ['pm.demo'], [ADMIN.username, ADMIN.password]];
 for (const [who, pw = DEMO_PW] of ROLES) {

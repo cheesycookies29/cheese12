@@ -113,6 +113,18 @@ try {
         await page.waitForTimeout(wait);
       }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();
+      // "drag": selector: files from the computer held over it, not yet dropped (e.g. a task's Files card).
+      if (s.drag) {
+        await page.locator(s.drag).first().scrollIntoViewIfNeeded();
+        const dt = await page.evaluateHandle(() => {
+          const d = new DataTransfer();
+          d.items.add(new File(['%PDF-1.4'], 'Signed acceptance.pdf', { type: 'application/pdf' }));
+          return d;
+        });
+        await page.dispatchEvent('main', 'dragenter', { dataTransfer: dt });
+        await page.dispatchEvent(s.drag, 'dragenter', { dataTransfer: dt });
+        await page.waitForTimeout(200);
+      }
       const text = await page.$eval('#app', (e) => e.innerText).catch(() => '');
       if (/Something went wrong|Not found\.|It may have been deleted|does not have access/.test(text)) throw new Error(text.slice(0, 160));
       await page.screenshot({ path: path.join(OUT, s.file), type: 'jpeg', quality: 72, fullPage: Boolean(s.full) });

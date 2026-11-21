@@ -358,25 +358,96 @@ function fileBlock(list, base, canAdd) {
       ${a.canDelete ? html`<button type="button" class="icon-btn danger" data-del-file="${a.id}" aria-label="Remove ${a.name}">${icon('trash', 16)}</button>` : ''}</li>`)}</ul>`
     : html`<p class="muted small">No files yet.</p>`}
     ${canAdd ? html`<div class="pm-file-add"><label class="btn">${icon('upload', 16)} Add files<input type="file" class="sr-only" accept="${ACCEPT}" multiple data-add-file /></label>
-        <small class="muted">PDF or photos (JPEG, PNG, WebP), up to 5 MB each; as many as you need.</small></div>` : ''}`;
+        <small class="muted"><span class="pm-drop-hint">or drop them here · </span>PDF or photos (JPEG, PNG, WebP), up to 5 MB each; as many as you need.</small></div>
+      <div class="pm-drop-veil" aria-hidden="true">${icon('upload', 22)}<strong>Drop to attach</strong><small>PDF or photos, up to 5 MB each</small></div>` : ''}`;
 }
-// Uploads everything picked, one file at a time, and removes on request; done(list) gets the new list.
+// While files from the computer are dragged over CORE, the places that take them light up
+// (body.dragging-files, 0.53). A file let go anywhere else is ignored, instead of the browser
+// leaving CORE to open it.
+let fileDrags = 0;
+const draggingFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+const endFileDrag = () => {
+  fileDrags = 0;
+  document.body.classList.remove('dragging-files');
+};
+window.addEventListener('dragenter', (e) => {
+  if (!draggingFiles(e)) return;
+  fileDrags += 1;
+  document.body.classList.add('dragging-files');
+});
+window.addEventListener('dragleave', (e) => draggingFiles(e) && (fileDrags -= 1) <= 0 && endFileDrag());
+window.addEventListener('dragend', endFileDrag);
+window.addEventListener('dragover', (e) => {
+  if (!draggingFiles(e) || e.defaultPrevented) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'none';
+});
+window.addEventListener('drop', (e) => {
+  if (draggingFiles(e) && !e.defaultPrevented) e.preventDefault();
+  endFileDrag();
+});
+// Uploads the files picked or dropped, one at a time, and removes on request; done(list) gets the
+// new list. A file CORE does not take (a Word file, one too large) is skipped and named, the others
+// are still added. The drop zone is the card (or window) around `root`.
 function wireFiles(root, base, list, done) {
-  root.querySelector('[data-add-file]')?.addEventListener('change', guard(async (e) => {
-    const input = e.target;
-    const picked = [...input.files];
-    input.disabled = true;
-    let out = null;
-    try {
-      for (const f of picked) out = await api.post(base, { file: await prepareUpload(f) });
-    } finally {
-      input.disabled = false;
-      if (out) {
-        toast(`${plural(picked.length, 'file')} added.`);
-        await done(out.attachments);
+  const input = root.querySelector('[data-add-file]');
+  if (input) {
+    let busy = false;
+    const upload = async (files) => {
+      if (busy || !files.length) return;
+      busy = true;
+      input.disabled = true;
+      zone.classList.add('pm-uploading');
+      let out = null;
+      const skipped = [];
+      try {
+        for (const f of files) {
+          try {
+            out = await api.post(base, { file: await prepareUpload(f) });
+          } catch (err) {
+            skipped.push(`${f.name}: ${err.message}`);
+          }
+        }
+      } finally {
+        busy = false;
+        input.disabled = false;
+        zone.classList.remove('pm-uploading');
       }
-    }
-  }, () => done(null)));
+      const added = files.length - skipped.length;
+      if (skipped.length) toast(`${added ? `${plural(added, 'file')} added. ` : ''}Not added: ${skipped.join('; ')}`, 'error');
+      else toast(`${plural(added, 'file')} added.`);
+      await done(out ? out.attachments : null);
+    };
+    input.addEventListener('change', (e) => {
+      const picked = [...e.target.files];
+      e.target.value = '';
+      upload(picked);
+    });
+    // Drag and drop (0.53): files from the computer dropped on the card are added the same way.
+    const zone = root.closest('.card, .modal') || root;
+    zone.classList.add('pm-dropzone');
+    let depth = 0;
+    zone.addEventListener('dragenter', (e) => {
+      if (!draggingFiles(e)) return;
+      depth += 1;
+      zone.classList.add('pm-drop-over');
+    });
+    zone.addEventListener('dragleave', (e) => {
+      if (draggingFiles(e) && (depth -= 1) <= 0) (depth = 0), zone.classList.remove('pm-drop-over');
+    });
+    zone.addEventListener('dragover', (e) => {
+      if (!draggingFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = busy ? 'none' : 'copy';
+    });
+    zone.addEventListener('drop', (e) => {
+      if (!draggingFiles(e)) return;
+      e.preventDefault();
+      depth = 0;
+      zone.classList.remove('pm-drop-over');
+      upload([...e.dataTransfer.files]);
+    });
+  }
   root.querySelectorAll('[data-del-file]').forEach((b) => b.addEventListener('click', guard(async () => {
     const a = list.find((x) => x.id === b.dataset.delFile);
     if (!(await confirmDialog(`Remove the file "${a.name}"?`, { title: 'Remove file', confirmLabel: 'Remove' }))) return;

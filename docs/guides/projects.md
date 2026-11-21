@@ -408,14 +408,17 @@ Watchers hear, under **For you**, of every comment on the task and of it being m
 ### Attach files to a task or a deliverable
 
 1. On a task, under **Files**, click **Add files** and pick PDFs or photos (JPEG, PNG or WebP; up to 5 MB each, as many as you need). Large photos are made smaller first.
-2. For a milestone, click **Files** on its card on the project's **Overview** (on a deliverable, **Acceptance document**) and add files the same way.
-3. Click a file's name to download it. The bin removes it.
+2. Or drag the files from your computer (a folder, the desktop, an email) and drop them on the **Files** card. While you drag, the card has a dashed edge; over it, it says **Drop to attach**. Drop several at once if you like. A file CORE does not take (a Word file, for example, or one too large) is left out and named in the message; the others are added.
+3. For a milestone, click **Files** on its card on the project's **Overview** (on a deliverable, **Acceptance document**) and add files the same way: pick them, or drop them on that window.
+4. Click a file's name to download it. The bin removes it.
 
 Members and managers add files; everyone who can open the project downloads them; the person who added a file or a project manager removes it. Adding and removing are in the task's (or the project's) history. When you set **Accepted on** for a deliverable that has no document yet, CORE reminds you to attach the signed certificate, and the card says so until you do. Deleting a task, a milestone or the project deletes its files.
 
 > **Note:** Files are kept in CORE's `data` folder, not in the backup file from **Admin panel → Backup & restore → Download backup**. Your administrator copies the `data` folder to keep them (see [the administrator's guide](admin)).
 
 ![A deliverable's acceptance document](projects-files.jpg)
+
+![Files dropped on a task's Files card](projects-drop-files.jpg)
 
 ### Move tasks on the board
 
