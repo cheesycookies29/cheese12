@@ -158,14 +158,25 @@ await journey('Leave through three approval levels', async (pages) => {
   if (!req) throw new Error('The filed request is not in My requests.');
   if (req.approvals?.length !== 3) throw new Error(`Expected 3 approval levels, got ${req.approvals?.length}.`);
   // Each level approves on the Approval Center, in turn.
+  // Each approval is waited for on the server before the next approver looks (a slow machine can
+  // take longer than the form's own pause), so the next level is really theirs by then.
+  const approvedLevels = async () => ((await juan('GET', '/api/me/requests')).find((r) => r.id === req.id)?.approvals || []).filter((a) => a.status === 'approved').length;
+  let level = 0;
   for (const [who, pw] of [['hr.demo', DEMO_PW], ['payroll.demo', DEMO_PW], [ADMIN.username, ADMIN.password]]) {
     const p = await signIn(who, pw);
     pages.push(p);
     await go(p, '/approvals');
     const btn = p.locator(`[data-act=approve][data-id="${req.id}"]`);
+    await btn.first().waitFor({ timeout: 8000 }).catch(() => {});
     if (!(await btn.count())) throw new Error(`${who} does not see the request to approve.`);
     await btn.first().click();
     await submitModal(p, `${who} approving`);
+    level += 1;
+    const until = Date.now() + 10000;
+    while ((await approvedLevels()) < level) {
+      if (Date.now() > until) throw new Error(`${who}'s approval was not recorded.`);
+      await p.waitForTimeout(250);
+    }
   }
   const done = (await juan('GET', '/api/me/requests')).find((r) => r.id === req.id);
   if (done.status !== 'approved') throw new Error(`After three approvals the request is "${done.status}".`);
