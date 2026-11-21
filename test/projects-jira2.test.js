@@ -558,7 +558,7 @@ test('import: managers only; preview, check (nothing saved), then all or nothing
   const ok = await pia('POST', `/api/pm/projects/${q.id}/import`, { csv, mapping: pv.mapping, createMilestones: true, fileName: 'plan.csv' });
   assert.deepEqual(ok, { imported: 3, milestones: 1 });
   const tasks = (await pia('GET', `/api/pm/projects/${q.id}/tasks`)).sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
-  assert.deepEqual(tasks.map((t) => t.key), [`${q.code}-1`, `${q.code}-2`, `${q.code}-3`]);
+  assert.deepEqual(tasks.map((t) => t.key), [`${q.key}-1`, `${q.key}-2`, `${q.key}-3`]);
   const [w, mi, f] = tasks;
   assert.equal(w.description, 'With the deans; bring "the" slides');
   assert.deepEqual([w.size, mi.size, f.size], ['S', 'XS', null]);
@@ -578,7 +578,7 @@ test('import: managers only; preview, check (nothing saved), then all or nothing
   assert.ok((await notes(juan)).some((n) => n.projectId === q.id && n.kind === 'assigned'));
   await pia('DELETE', `/api/pm/tasks/${f.id}`);
   const next = await pia('POST', `/api/pm/projects/${q.id}/tasks`, { title: 'After' });
-  assert.equal(next.key, `${q.code}-4`);
+  assert.equal(next.key, `${q.key}-4`);
   // An assignee who is not on the project (or a viewer) is an error; the limits hold.
   const bad = await pia('POST', `/api/pm/projects/${q.id}/import`, { csv: 'Title,Assignee\nA,nora\nB,vic', mapping: { title: 0, assignee: 1 }, dryRun: true });
   assert.equal(bad.errorCount, 2);

@@ -3476,3 +3476,12 @@ a.hub-role:hover { background: rgba(255, 255, 255, 0.26); }
 @media (pointer: coarse) { .pm-fav { width: 44px; height: 44px; } .pm-fav-cell { padding-right: 56px !important; } .pm-fav-main { padding-right: 56px; } }
 @media (prefers-reduced-motion: reduce) { .pm-fav, .pm-fav-card { transition: none; } .pm-fav-card:hover { transform: none; } }
 #pm-favs-h > .ic, .pm-fav-empty > .ic { color: var(--accent); fill: currentColor; }
+
+/* Project keys and task links (0.52). */
+.pm-key-chip { display: inline-block; padding: 0 7px; border-radius: 6px; background: var(--brand-soft); color: var(--brand-text); font: 700 12px/20px var(--mono, ui-monospace, monospace); letter-spacing: 0.06em; vertical-align: 1px; }
+.pm-key-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pm-key-row input { width: 92px; flex: none; text-transform: uppercase; font-family: var(--mono, ui-monospace, monospace); font-weight: 700; letter-spacing: 0.12em; text-align: center; }
+.pm-key-row .hint { flex: 1 1 220px; margin: 0; overflow-wrap: anywhere; }
+.pm-task-key { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--brand-text); font: 600 12.5px/20px var(--mono, ui-monospace, monospace); vertical-align: 1px; }
+.pm-task-key:hover { text-decoration: none; border-color: var(--brand-line); background: var(--brand-softer); }
+@media (pointer: coarse) { .pm-task-key { min-height: 32px; padding: 4px 10px; } }

@@ -142,6 +142,9 @@ function servePrivate(url, res) {
 
 function serveStatic(url, res) {
   if (url.pathname.startsWith('/private/')) return send(res, 404, 'Not found', 'text/plain');
+  // A task's link (0.52): /t/LEA-12 opens task LEA-12 in the app (after signing in).
+  const taskKey = url.pathname.match(/^\/t\/([A-Za-z0-9-]{3,40})\/?$/)?.[1];
+  if (taskKey) return send(res, 302, '', 'text/plain', { Location: `/#/t/${taskKey.toUpperCase()}` });
   if (servePrivate(url, res)) return;
   for (const [prefix, dir] of Object.entries(STATIC_DIRS)) {
     if (!url.pathname.startsWith(prefix)) continue;

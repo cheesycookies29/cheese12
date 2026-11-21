@@ -34,6 +34,7 @@ import {
   isSize, sizeName, sizeWeight, sizeFromHours, cleanSizeNotes, DEFAULT_SIZE_NOTES, SIZE_KEYS,
   NOTIFY_KEEP, NOTIFY_DAYS, milestoneBurnup, addWorkDays, DIGEST_DEFAULTS, validDigestTime, digestDue, digestFor, billingAmount, billingForecast,
   IMPORT_FIELDS, IMPORT_MAX_ROWS, IMPORT_MAX_BYTES, guessImportMapping, importPlan, parseProjectIcon, projectAccess,
+  PROJECT_KEY_RE, cleanProjectKey, suggestProjectKey, parseTaskKey, takenProjectKeys,
 } from '../shared/projects.js';
 export { projectAccess };
 import { addStarterTemplates } from './pm-templates.js';
@@ -114,7 +115,42 @@ export function migratePm(db) {
     changed = true;
   }
   if (migrateEffort(db.data)) changed = true;
+  if (assignProjectKeys(db.data)) changed = true;
   return changed;
+}
+
+// Project keys (0.52), once per project: one without a key gets one (the first three letters of its
+// name, or the next free choice), and its tasks are renamed from CODE-n to KEY-n, keeping their
+// numbers. The old prefix (e.g. PRJ-0001) is kept with the project, so old links still open the
+// task. Notifications and task history that name the old keys are brought up to date.
+export function assignProjectKeys(data) {
+  let changed = false;
+  const taken = takenProjectKeys(data.pmProjects);
+  for (const p of data.pmProjects) {
+    if (PROJECT_KEY_RE.test(p.key || '')) continue;
+    const key = suggestProjectKey(p.name, taken);
+    taken.add(key);
+    const old = p.code;
+    p.key = key;
+    if (old) p.oldPrefixes = [...new Set([...(p.oldPrefixes || []), old])];
+    rekeyTasks(data, p, old, key);
+    changed = true;
+  }
+  return changed;
+}
+// Renames a project's tasks from `from`-n to `to`-n (numbers kept) and the mentions of them in the
+// project's notifications and task history.
+export function rekeyTasks(data, p, from, to) {
+  const esc = String(from || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = from ? new RegExp(`(^|[^A-Za-z0-9-])${esc}-(\\d+)(?![0-9])`, 'g') : null;
+  const swap = (v) => (re && typeof v === 'string' ? v.replace(re, `$1${to}-$2`) : v);
+  for (const t of data.pmTasks) {
+    if (t.projectId !== p.id) continue;
+    const n = String(t.key || '').match(/-(\d+)$/)?.[1];
+    t.key = `${to}-${n || ++p.taskSeq}`;
+    for (const h of t.history || []) (h.from = swap(h.from)), (h.to = swap(h.to));
+  }
+  for (const x of data.pmNotifications || []) if (x.projectId === p.id) x.text = swap(x.text);
 }
 
 // Sizes instead of hours (0.17), once: each task's (and template task's) hour estimate becomes a
@@ -505,6 +541,32 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const c = cal();
     return visibleProjects(u).map((p) => summaryOf(p, u, c)).sort((a, b) => a.code.localeCompare(b.code));
   });
+  // ===== Task keys and links (0.52): /t/LEA-12 opens task LEA-12. A key the project had before (or
+  // its old CODE-n keys) still finds the task. Not found for anyone who cannot open the project. =====
+  route('GET', '/api/pm/tasks/by-key/:key', 'auth', ({ params, user: u }) => {
+    const k = parseTaskKey(params.key);
+    const notFound = () => new HttpError(404, `There is no task ${String(params.key || '').slice(0, 40).toUpperCase()}, or it is in a project you are not on.`);
+    if (!k) throw notFound();
+    const p = d().pmProjects.find((x) => x.key === k.prefix) || d().pmProjects.find((x) => (x.oldKeys || []).includes(k.prefix) || (x.oldPrefixes || []).includes(k.prefix));
+    const t = p && d().pmTasks.find((x) => x.projectId === p.id && x.key === `${p.key}-${k.number}`);
+    if (!t || !levelOf(p, u)) throw notFound();
+    return { projectId: p.id, taskId: t.id, key: t.key };
+  });
+  // The key a new project would get from its name (the form shows it until one is typed).
+  route('GET', '/api/pm/key-suggestion', 'auth', ({ query, user: u }) => {
+    const except = typeof query?.project === 'string' ? query.project : null;
+    return { key: suggestProjectKey(str(query?.name, 160) || 'Project', takenProjectKeys(d().pmProjects, except)) };
+  });
+  // The key chosen in a form, checked; empty: the project's own, or one made from its name.
+  function keyFor(raw, p, name) {
+    const taken = takenProjectKeys(d().pmProjects, p?.id);
+    if (raw === undefined || raw === null || raw === '') return p?.key || suggestProjectKey(name, taken);
+    const k = cleanProjectKey(raw);
+    if (!PROJECT_KEY_RE.test(k)) throw new HttpError(400, 'The project key is three letters, A to Z (for example LMS).');
+    if (taken.has(k)) throw new HttpError(400, `The key ${k} is taken by another project (or was one of its keys). Choose another.`);
+    return k;
+  }
+
   // ===== Favorite projects (0.51): each person stars the projects they want at hand. They lead the
   // Projects overview and are listed in the side menu, in the order starred. Only projects the
   // person can open count (no templates); one they lose access to drops out by itself. =====
@@ -599,7 +661,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   function createProject(fields, u, extra = {}) {
     const at = now();
     const p = {
-      id: randomUUID(), code: `PRJ-${String(++pm().seq.project).padStart(4, '0')}`, ...fields,
+      id: randomUUID(), code: `PRJ-${String(++pm().seq.project).padStart(4, '0')}`, ...fields, key: fields.key || keyFor('', null, fields.name),
       members: [], statuses: structuredClone(pm().statuses), healthOverride: null, taskSeq: 0, version: 1,
       createdAt: at, createdBy: u.id, updatedAt: at, updatedBy: u.id, history: [{ at, by: u.id, field: 'created', from: '', to: '' }], ...extra,
     };
@@ -613,7 +675,8 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   route('POST', '/api/pm/projects', 'pm.edit', ({ body, user: u }) => {
     // The members can come with it (a private project: who may see it, from the start).
     const members = body?.members === undefined ? [] : parseMembers(null, body.members);
-    const p = createProject(validProject(pickFields(body, PROJECT_FIELDS), u), u, { members });
+    const fields = validProject(pickFields(body, PROJECT_FIELDS), u);
+    const p = createProject({ ...fields, key: keyFor(body?.key, null, fields.name) }, u, { members });
     db.save();
     return summaryOf(p, u);
   });
@@ -669,9 +732,18 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const before = { status: p.status, startDate: p.startDate, endDate: p.endDate, managerId: p.managerId, isTemplate: Boolean(p.isTemplate), timeTracking: Boolean(p.timeTracking), members: p.members.map((m) => m.userId) };
     const isTemplate = bool(body.isTemplate, 'Use as a template', before.isTemplate);
     const next = validProject({ ...p, ...pickFields(body, PROJECT_FIELDS) }, u, p);
+    const key = keyFor(body?.key, p, next.name);
     // Members change through their own route (the form saves them first), never with the project.
     checkMembers(p, u, next, null);
     Object.assign(p, next);
+    // A new key renames the tasks (LEA-12 → LMS-12); the old key stays the project's, for old links.
+    if (key !== p.key) {
+      const old = p.key;
+      p.oldKeys = [...new Set([...(p.oldKeys || []), old])].filter((x) => x !== key);
+      p.key = key;
+      rekeyTasks(d(), p, old, key);
+      track(p, u, 'key', old, key);
+    }
     p.isTemplate = isTemplate;
     keepManager(p);
     track(p, u, 'status', PROJECT_STATUS[before.status], PROJECT_STATUS[p.status]);
@@ -717,7 +789,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
       startDate, endDate: move(src.endDate), timeTracking: Boolean(src.timeTracking), budgetHours: src.timeTracking ? src.budgetHours ?? null : null,
       icon: Object.hasOwn(body || {}, 'icon') ? body.icon : src.icon ?? null,
     }, u, { type: src.type });
-    const p = createProject(fields, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
+    const p = createProject({ ...fields, key: keyFor(body?.key, null, fields.name) }, u, { statuses: structuredClone(src.statuses), copiedFrom: src.id });
     // The source's own picture comes along (a copy of the file), unless another icon was picked.
     if (src.iconImage?.id && files && !Object.hasOwn(body || {}, 'icon')) {
       try {
@@ -737,7 +809,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const taskIds = new Map(srcTasks.map((t) => [t.id, randomUUID()]));
     srcTasks.forEach((t, i) => {
       d().pmTasks.push({
-        id: taskIds.get(t.id), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title: t.title, description: t.description, statusId: todo, priority: t.priority,
+        id: taskIds.get(t.id), projectId: p.id, key: `${p.key}-${++p.taskSeq}`, title: t.title, description: t.description, statusId: todo, priority: t.priority,
         assigneeId: null, startDate: move(t.startDate), dueDate: move(t.dueDate), size: isSize(t.size) ? t.size : null, milestoneId: msIds.get(t.milestoneId) || null,
         parentId: taskIds.get(t.parentId) || null, checklist: t.checklist.map((c) => ({ id: randomUUID(), text: c.text, done: false })),
         blockedBy: (t.blockedBy || []).map((x) => taskIds.get(x)).filter(Boolean), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null, watchers: [],
@@ -1015,7 +1087,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   function newTask(p, u, fields, extra = {}) {
     const at = now();
     const t = {
-      id: randomUUID(), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, ...fields, checklist: [], ticketId: null, rank: RANK_STEP, completedAt: null,
+      id: randomUUID(), projectId: p.id, key: `${p.key}-${++p.taskSeq}`, ...fields, checklist: [], ticketId: null, rank: RANK_STEP, completedAt: null,
       watchers: [...new Set([u.id, fields.assigneeId].filter(Boolean))], attachments: [],
       version: 1, createdAt: at, createdBy: u.id, updatedAt: at, updatedBy: u.id, history: [{ at, by: u.id, field: 'created', from: '', to: '' }], ...extra,
     };

@@ -789,3 +789,45 @@ export function projectAccess(p, u) {
   if (p.isTemplate && userCan(u, 'pm.edit')) return 'read';
   return null;
 }
+
+// ---------- Project keys and task keys (0.52) ----------
+// Each project has a key of three capital letters (like Jira's): its tasks are KEY-1, KEY-2 … and
+// /t/KEY-12 is the link to share. The project manager may choose it; otherwise it is the first three
+// letters of the project's name. Keys are unique, and a key a project had before stays reserved for
+// it, so its old links keep working.
+export const PROJECT_KEY_RE = /^[A-Z]{3}$/;
+export const cleanProjectKey = (v) => (typeof v === 'string' ? v.trim().toUpperCase() : '');
+const lettersOf = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z ]+/g, ' ');
+// The key for a new project: the first three letters of its name, or, when taken, its initials,
+// then other letters of its name, then the first two letters with another after them.
+export function suggestProjectKey(name, taken = new Set()) {
+  const words = lettersOf(name).split(/\s+/).filter(Boolean);
+  const all = words.join('');
+  const candidates = [];
+  if (all.length >= 3) candidates.push(all.slice(0, 3));
+  if (words.length >= 3) candidates.push(words.slice(0, 3).map((w) => w[0]).join(''));
+  if (words.length === 2) candidates.push(words[0][0] + words[1].slice(0, 2), words[0].slice(0, 2) + words[1][0]);
+  for (let i = 2; i < all.length; i++) candidates.push(all.slice(0, 2) + all[i]);
+  for (let i = 1; i < all.length; i++) for (let j = i + 1; j < all.length; j++) candidates.push(all[0] + all[i] + all[j]);
+  const AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const head = (all + 'PRJ').slice(0, 2);
+  for (const c of AZ) candidates.push(head + c);
+  for (const a of AZ) for (const b of AZ) candidates.push((all[0] || 'P') + a + b);
+  for (const a of AZ) for (const b of AZ) for (const c of AZ) candidates.push(a + b + c);
+  return candidates.find((k) => PROJECT_KEY_RE.test(k) && !taken.has(k)) || null;
+}
+// "lea-12" → { prefix: 'LEA', number: 12 }; also older keys such as PRJ-0001-12.
+export function parseTaskKey(s) {
+  const m = String(s || '').trim().toUpperCase().match(/^([A-Z0-9][A-Z0-9-]{0,23})-(\d{1,7})$/);
+  return m ? { prefix: m[1], number: Number(m[2]) } : null;
+}
+// Every key in use or reserved (a project's earlier keys), but those of project `exceptId`.
+export function takenProjectKeys(projects, exceptId = null) {
+  const taken = new Set();
+  for (const p of projects || []) {
+    if (p.id === exceptId) continue;
+    if (PROJECT_KEY_RE.test(p.key || '')) taken.add(p.key);
+    for (const k of p.oldKeys || []) if (PROJECT_KEY_RE.test(k)) taken.add(k);
+  }
+  return taken;
+}

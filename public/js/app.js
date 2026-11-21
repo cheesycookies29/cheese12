@@ -42,7 +42,7 @@ import { holidaysView } from './views/holidays.js';
 import { ytdView } from './views/ytd.js';
 import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
-import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, timesheetView, pmSettingsView, myWorkBadge, projectIcon } from './views/projects.js';
+import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, timesheetView, pmSettingsView, myWorkBadge, projectIcon, taskLinkView } from './views/projects.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -110,6 +110,7 @@ const routes = [
   ['/crm/settings', crmSettingsView, 'crm.manage', 'crm'],
   // Project Management ('projects': pm.view, or a member of a project)
   ['/projects', portfolioView, 'projects', 'projects'],
+  ['/t/:key', taskLinkView, 'projects', 'projects'],
   ['/projects/my-work', myWorkView, 'projects', 'projects'],
   ['/projects/milestones', portfolioMilestonesView, 'projects', 'projects'],
   ['/projects/timesheet', timesheetView, 'timesheet', 'projects'],
@@ -645,7 +646,8 @@ async function boot({ fresh = false } = {}) {
   renderUserBox();
   renderModuleSwitch();
   startBell();
-  if (fresh || !location.hash || location.hash === '#/') location.hash = `#${homeRoute()}`;
+  // Just signed in: the CORE home, unless they came by a task's link (/t/LEA-12), which opens it.
+  if ((fresh && !/^#\/t\/[A-Za-z0-9-]+$/.test(location.hash)) || !location.hash || location.hash === '#/') location.hash = `#${homeRoute()}`;
   navigate();
 }
 

@@ -26,7 +26,7 @@ Who sees what:
 | Member | Add and edit tasks, move cards, comment; log time on a project that tracks time |
 | Viewer | Read and comment |
 
-Open it from the CORE home with **Open Project Management**, or from the modules button. It opens on **Overview**, the list of projects. Codes are given automatically: `PRJ-0001` for a project, `PRJ-0001-12` for its 12th task (demo records start with `DEMO-`).
+Open it from the CORE home with **Open Project Management**, or from the modules button. It opens on **Overview**, the list of projects. A project gets a code automatically (`PRJ-0001`; demo projects start with `DEMO-`) and a **key** of three letters, such as `LEA`. Its tasks are named with the key: `LEA-12` is its 12th task, and `/t/LEA-12` is the task's link to share (see [Share a link to a task](#share-a-link-to-a-task)).
 
 To try things out, use the demo data: sign in as `pm.demo` (password `demo1234`), Andrea Villanueva, a Project Manager. `employee.demo` (Juan Dela Cruz) is a member of several of them; `hr.demo`, `payroll.demo` and `it.demo` run or work on the internal ones.
 
@@ -117,7 +117,7 @@ The three starter templates are under **Templates** in the filter.
 4. **Size** says how big the task is: *S · Small (about a day)*. Pick another to change it; the line under it says what the size means. On a project that tracks time, a **Time** box under it shows the hours logged on the task and lets you log more.
 5. Under **Comments**, write a comment and type **@**: a list of the project's people opens. Type *jua* and press Enter to put in `@employee.demo`. Click **Comment** (or press **Ctrl+Enter**). The mention is highlighted, and Juan finds it under **For you** on his My work. See [Comment on a task](projects#comment-on-a-task).
 6. At the top, **Watch** (or **Watching**) shows how many people watch the task; the **Watchers** box lists them. **Files** holds documents and photos for the task.
-7. Above the title, the path shows where you are: *Projects › Learning management system, phase 2 › Board › DEMO-PRJ-0001-7*. Click **Board** to go back to the board, or the project's name for its overview. See [Find your way with the path at the top](projects#find-your-way-with-the-path-at-the-top).
+7. Above the title, the path shows where you are: *Projects › Learning management system, phase 2 › Board › LEA-7*. Click **Board** to go back to the board, or the project's name for its overview. See [Find your way with the path at the top](projects#find-your-way-with-the-path-at-the-top).
 
 ![A task](projects-task.jpg)
 
@@ -165,12 +165,28 @@ The three starter templates are under **Templates** in the filter.
 ### Start a project
 
 1. On **Overview**, click **+ New project**.
-2. Enter the **Project name** and, if you like, pick its **Icon** (see [Give a project its icon](projects#give-a-project-its-icon)). Then the **Type** (*Client*, *Government* or *Internal*), the **Status**, the **Start** date (required) and the **End** date.
+2. Enter the **Project name**. The **Key** under it fills itself in with the first three letters of the name (*LEA* for *Learning management system*), or the next free three letters when that key is taken; type your own three letters instead if you like (*LMS*). Its tasks will be *LMS-1*, *LMS-2*…. Then, if you like, pick its **Icon** (see [Give a project its icon](projects#give-a-project-its-icon)). Then the **Type** (*Client*, *Government* or *Internal*), the **Status**, the **Start** date (required) and the **End** date.
 3. Pick the **Project manager**. Tick **Track time on this project** only for time-and-materials work or when the client asks for a timesheet (see [Turn time tracking on for a project](projects#turn-time-tracking-on-for-a-project)); then enter the **Budget (hours)** if there is one.
 4. If you have Sales & CRM access, pick the **Client**, the **Deal** and the **Contract**. A deliverable due after the contract's end date is flagged.
 5. Click **Save**.
 
 The project opens. Its board starts with the statuses from the Projects setup. From a won deal or a contract, **Start project** in Sales & CRM fills all of this in (see [the sales guide](sales#start-a-project-from-a-won-deal)).
+
+### Share a link to a task
+
+Every task has a key made of its project's key and a number, such as **LEA-12**, and a short link: `https://<your CORE address>/t/LEA-12`.
+
+1. Open the task. Its key is under the title.
+2. Choose **Copy link** at the top (or click the key). *Link to LEA-12 copied* confirms it.
+3. Paste it in a chat, an email or a document. Whoever opens it signs in, if they need to, and lands on the task, if they are on its project. Someone who is not on it is told there is no such task, or that it is in a project they are not on.
+
+To open a task whose key you know, type it after `/t/` in the address: `/t/lea-12` works too.
+
+### Change a project's key (project managers)
+
+1. Open the project and choose **Edit**.
+2. Type three new letters in **Key** and choose **Save**. Another project's key, or one a project had before, cannot be used.
+3. Its tasks are renamed: *LEA-12* becomes *LMS-12*. Links and notes with the old key keep working, and the change is in the project's history.
 
 ### Keep your favorite projects at hand
 
@@ -287,7 +303,7 @@ The first row is the table's header and shows shaded. Adding a row above it, mov
 
 ### Find your way with the path at the top
 
-On a project's pages and its tasks, a path above the title shows where you are, for example *Projects › Learning management system, phase 2 › List › Gradebook reports › DEMO-PRJ-0001-15*. Each part is a link:
+On a project's pages and its tasks, a path above the title shows where you are, for example *Projects › Learning management system, phase 2 › List › Gradebook reports › LEA-15*. Each part is a link:
 
 1. **Projects** goes back to all your projects (**Templates** for a template).
 2. The project's name opens its **Overview**. The small arrow beside it lists your other projects, open ones first: pick one to open the same view of it (its board, its list…).
@@ -479,7 +495,7 @@ You see the projects you are on here; administrators see every project.
 ### Catch up on what concerns you (For you)
 
 1. Open **My work**. **For you** lists, newest first, what others did that concerns you: a task assigned to you, an @mention, a comment on a task assigned to you, that you added or that you watch, a task of yours or one you watch moved to done or cancelled, being added to a project.
-2. Several of the same kind on one task are one line, such as *3 comments on PRJ-0001-7*.
+2. Several of the same kind on one task are one line, such as *3 comments on LEA-7*.
 3. Click a line to open the task; it is marked read. Click the tick to mark it read without opening it, or **Mark all read**.
 
 Your own actions never notify you. The number next to **My work** includes the unread ones. The same notifications are in the **bell** in the top bar, with those of the other modules: reading one in either place marks it read in both. See [See your notifications](getting-started#see-your-notifications). CORE keeps your newest 200 for 60 days, and shows only those of projects you can still open. They are in CORE; the **daily digest** email counts the unread ones.

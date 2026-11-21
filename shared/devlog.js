@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.52.0-alpha',
+    date: '2026-11-21',
+    title: 'Project keys and task links',
+    modules: ['projects'],
+    notes: 'Task keys like Jira\'s: three letters and a number, with a short link to share.',
+    changes: [
+      ['new', 'projects', 'Each project has a key of three letters (A–Z), unique: typed in the project form, or made from its name (the first three letters, or the next free choice, shown as you type). Tasks are KEY-1, KEY-2 … (the project\'s counter).'],
+      ['new', 'projects', 'A link per task, /t/KEY-12: Copy link on the task (or click its key). The server sends it into the app; after signing in it opens the task, for those on its project; anyone else is told there is no such task, or that it is in a project they are not on.'],
+      ['new', 'projects', 'A project manager can change the key: its tasks are renamed (LEA-12 → LMS-12), the change is in the history, and the old key stays the project\'s, so old links keep working.'],
+      ['improved', 'projects', 'Existing projects got their key once, and their tasks were renamed from PRJ-0001-12 to KEY-12 (numbers kept); notifications and task history follow, and the old names still open the tasks.'],
+    ],
+  },
+  {
     version: '0.51.0-alpha',
     date: '2026-11-21',
     title: 'Favorite projects',

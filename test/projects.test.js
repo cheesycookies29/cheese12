@@ -162,7 +162,9 @@ test('inputs are checked: dates, choices, hours, lengths, one level of subtasks,
   // No mass assignment: ids, keys, projects and versions come from the server.
   const sneaky = await pia('POST', `/api/pm/projects/${p}/tasks`, { title: 'Sneaky', id: 'mine', key: 'PRJ-9999-1', projectId: 'other', version: 99, completedAt: 'x', ticketId: 'x' });
   assert.notEqual(sneaky.id, 'mine');
-  assert.match(sneaky.key, /^PRJ-0001-\d+$/);
+  // The key is the project's (three letters, 0.52) and its next number.
+  assert.match(sneaky.key, new RegExp(`^${(await pia('GET', `/api/pm/projects/${p}`)).key}-\\d+$`));
+  assert.match(sneaky.key, /^[A-Z]{3}-\d+$/);
   assert.equal(sneaky.projectId, p);
   assert.equal(sneaky.version, 1);
   assert.equal(sneaky.ticketId, null);

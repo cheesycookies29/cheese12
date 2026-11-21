@@ -8,7 +8,7 @@ import { demoData } from './seed.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
 import { DEMO_OWNER, DEMO_USER, seedNotifications } from './seed.js';
 import { CRM_COLLECTIONS } from './crm.js';
-import { PM_COLLECTIONS } from './projects.js';
+import { PM_COLLECTIONS, assignProjectKeys } from './projects.js';
 import { addStarterTemplates } from './pm-templates.js';
 import { routeRequest, migrateApprovals } from './approvals.js';
 
@@ -178,6 +178,8 @@ export function addDemo(db, { summarize, demoAccounts, removeFile }) {
   linkDemoPeople(d);
   // The starter templates, if they were deleted: the demo shows "+ New project" from a template.
   addStarterTemplates(d, { demo: true });
+  // Each demo project gets its key (LEA, WAR…) and its tasks their KEY-n names (0.52).
+  assignProjectKeys(d);
   seedNotifications(db);
   return demoCounts(db);
 }

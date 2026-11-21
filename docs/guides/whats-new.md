@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Task keys and links to share (0.52)
+- Each project has a **key** of three letters, its own or the first three letters of its name, and its tasks are named with it: **LEA-1**, **LEA-2**…. Every task has a link to share, `/t/LEA-12`: **Copy link** on the task. Existing tasks were renamed (*PRJ-0001-12* is now, for example, *LEA-12*), and their old names still open them. See [Share a link to a task](projects#share-a-link-to-a-task).
+
 ### Favorite projects (0.51)
 - In **Project Management**, choose the **star** beside a project's name to make it a favorite. Your favorites lead the **Overview** as cards with their progress, health and next milestone, and are listed in the side menu. See [Keep your favorite projects at hand](projects#keep-your-favorite-projects-at-hand).
 

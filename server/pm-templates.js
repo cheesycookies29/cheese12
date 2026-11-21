@@ -9,7 +9,7 @@
 // project's start in working days too (shared/projects.js shiftWorkDays).
 import { randomUUID } from 'node:crypto';
 import { localDate } from './util.js';
-import { DEFAULT_STATUSES, workCalendar, weekStart, addWorkDays, firstStatus, RANK_STEP } from '../shared/projects.js';
+import { DEFAULT_STATUSES, workCalendar, weekStart, addWorkDays, firstStatus, RANK_STEP, suggestProjectKey, takenProjectKeys } from '../shared/projects.js';
 
 // [name, working day due, deliverable, billing %]
 // [ref, title, milestone index (null: none, or the parent's), start, due, size (XS to XL), extra]
@@ -114,7 +114,7 @@ export function addStarterTemplates(data, { demo = false } = {}) {
     const wd = (n) => addWorkDays(start, n, cal);
     const tag = demo ? { demo: true } : {};
     const p = {
-      id: randomUUID(), code: nextCode(data.pmProjects), name: s.name, type: s.type, description: s.description, status: 'planning',
+      id: randomUUID(), code: nextCode(data.pmProjects), key: suggestProjectKey(s.name, takenProjectKeys(data.pmProjects)), name: s.name, type: s.type, description: s.description, status: 'planning',
       startDate: start, endDate: wd(s.days), managerId: null, timeTracking: false, budgetHours: null, accountId: null, dealId: null, contractId: null,
       members: [], statuses: structuredClone(statuses), healthOverride: null, taskSeq: 0, version: 1, isTemplate: true, starter: s.starter,
       createdAt: at, createdBy: null, updatedAt: at, updatedBy: null, history: [{ at, by: null, field: 'created', from: '', to: 'starter template' }], ...tag,
@@ -129,7 +129,7 @@ export function addStarterTemplates(data, { demo = false } = {}) {
     const byRef = {};
     s.tasks.forEach(([ref, title, mi, from, to, size, extra = {}], i) => {
       const t = {
-        id: randomUUID(), projectId: p.id, key: `${p.code}-${++p.taskSeq}`, title, description: '', statusId: todo, priority: extra.priority || 'normal',
+        id: randomUUID(), projectId: p.id, key: `${p.key}-${++p.taskSeq}`, title, description: '', statusId: todo, priority: extra.priority || 'normal',
         assigneeId: null, startDate: wd(from), dueDate: wd(to), size: size ?? null, milestoneId: mi == null ? null : msIds[mi],
         parentId: extra.parent ? byRef[extra.parent].id : null, checklist: (extra.checklist || []).map((text) => ({ id: randomUUID(), text, done: false })),
         blockedBy: (extra.blockedBy || []).map((r) => byRef[r].id), ticketId: null, rank: (i + 1) * RANK_STEP, completedAt: null, watchers: [],

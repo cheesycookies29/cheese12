@@ -192,6 +192,31 @@ export function projectIcon(p, size = 'md') {
   const t = letterTile(p?.name, p?.code);
   return html`<span class="pm-picon pm-picon-${size} pm-pc-${t.color} letter" aria-hidden="true">${t.letter}</span>`;
 }
+// ---------- Task links (0.52) ----------
+// Each task has a short link to share, like Jira's: /t/LEA-12 (the project's key and the task's
+// number). Whoever opens it signs in, if needed, and lands on the task, if they are on its project.
+export const taskLink = (key) => `${location.origin}/t/${key}`;
+export async function copyTaskLink(key) {
+  const url = taskLink(key);
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(`Link to ${key} copied: ${url}`);
+  } catch {
+    // No clipboard (an old browser, or not allowed): show the link to copy by hand.
+    modal({ title: `Link to ${key}`, body: html`<label class="field"><span>Copy this link</span><input value="${url}" readonly data-autoselect /></label>`, submitLabel: null });
+    document.querySelector('[data-autoselect]')?.select();
+  }
+}
+// #/t/LEA-12: finds the task and opens it (the address becomes the task's own page).
+export async function taskLinkView(el, { key }) {
+  try {
+    const r = await api.get(`/api/pm/tasks/by-key/${encodeURIComponent(key)}`);
+    location.replace(`#/projects/${r.projectId}/tasks/${r.taskId}`);
+  } catch (err) {
+    mount(el, html`<div class="empty card"><h1>${icon('link', 22)} ${String(key).toUpperCase()}</h1><p>${err.message || 'This task could not be found.'}</p><p><a class="btn" href="#/projects">Go to Projects</a></p></div>`);
+  }
+}
+
 // ---------- Favorite projects (0.51) ----------
 // Each person stars the projects they want at hand: they lead the Projects overview and are listed
 // in the side menu. The star is beside a project's name in the list and on its page; any star for
@@ -374,6 +399,7 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       ${templates.length ? html`<label class="field span-2"><span>Start from</span><select name="from"><option value="">A blank project</option>${options(templates.map((t) => [t.id, `Template: ${t.name}`]), templateId)}</select>
         <small class="hint" id="from-hint">A template brings its board statuses, milestones (with deliverables and billing %), tasks, subtasks, checklists and sizes, and whether it tracks time, with the dates moved to your start date in working days. No assignees, time or comments.</small></label>` : ''}
       <label class="field span-2"><span>Project name<em>*</em></span><input name="name" value="${rec.name || ''}" required /></label>
+      <label class="field span-2 pm-key-field"><span>Key</span><span class="pm-key-row"><input name="key" value="${rec.key || ''}" maxlength="3" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="key-hint" /><small class="hint" id="key-hint"></small></span></label>
       <fieldset class="field span-2 pm-icon-pick">
         <legend>Icon</legend>
         <div class="pm-icon-row"><span class="pm-icon-preview">${projectIcon(rec, 'lg')}</span>
@@ -419,7 +445,7 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
       if (v.from) {
         const pick = (keys) => Object.fromEntries(keys.filter((k) => k in v).map((k) => [k, v[k]]));
         // The template's icon, unless one was picked here.
-        saved = await api.post(`/api/pm/projects/${v.from}/copy`, { ...pick(['name', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId', ...(iconTouched ? ['icon'] : [])])});
+        saved = await api.post(`/api/pm/projects/${v.from}/copy`, { ...pick(['name', 'key', 'startDate', 'managerId', 'accountId', 'dealId', 'contractId', ...(iconTouched ? ['icon'] : [])])});
         if (!sameMembers(members, saved.members)) saved = await api.put(`/api/pm/projects/${saved.id}/members`, { version: saved.version, members });
       } else {
         delete v.from;
@@ -446,6 +472,39 @@ async function editProject(rec = {}, after, { templateId = '' } = {}) {
     people, managerId: () => form.elements.managerId.value, timeTracking: Boolean(rec.timeTracking),
   });
   form.elements.managerId.addEventListener('change', () => memberEd.redraw());
+  // The project key (0.52): three letters that start its task keys and links. A new project's
+  // follows its name (the first three letters, or the next free choice) until one is typed here.
+  const keyBox = form.elements.key;
+  let keyTouched = Boolean(rec.id);
+  const keyHint = () => {
+    const k = keyBox.value || 'ABC';
+    form.querySelector('#key-hint').textContent = rec.id && rec.key && keyBox.value !== rec.key && /^[A-Z]{3}$/.test(keyBox.value)
+      ? `Its tasks become ${k}-1, ${k}-2… (${rec.key}-12 becomes ${k}-12). Links with ${rec.key} keep working.`
+      : `Three letters. Its tasks are ${k}-1, ${k}-2…, each with its own link to share (${location.origin}/t/${k}-1).`;
+  };
+  let keyTimer;
+  const suggestKey = () => {
+    if (keyTouched) return;
+    clearTimeout(keyTimer);
+    keyTimer = setTimeout(async () => {
+      const name = form.elements.name.value.trim();
+      if (!name || keyTouched) return;
+      try {
+        const r = await api.get(`/api/pm/key-suggestion?name=${encodeURIComponent(name)}`);
+        if (!keyTouched && r.key) (keyBox.value = r.key), keyHint();
+      } catch {}
+    }, 250);
+  };
+  keyBox.addEventListener('input', () => {
+    keyTouched = true;
+    const at = keyBox.selectionStart;
+    keyBox.value = keyBox.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+    keyBox.setSelectionRange(at, at);
+    keyHint();
+  });
+  form.elements.name.addEventListener('input', suggestKey);
+  keyHint();
+  suggestKey();
   // The icon preview follows the picks (and the name, for the letter); the colour needs a picture.
   // Your own picture: cut to a square here, sent after the project is saved; it comes before the icon.
   let iconTouched = false;
@@ -848,7 +907,7 @@ function projectHeader(p, tab, actions = '') {
     <header class="page-head pm-head">
       <div>${crumbBar([rootCrumb(p), projectCrumb(p, tab), { label: VIEW_LABEL[tab] }])}
         <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</span>${p.isTemplate ? '' : favButton(p, 20)}</h1>
-        <p class="muted"><span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
+        <p class="muted">${p.key ? html`<span class="pm-key-chip" title="Project key: its tasks are ${p.key}-1, ${p.key}-2…">${p.key}</span> ` : ''}<span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
       ${actions ? html`<div class="actions">${actions}</div>` : ''}
     </header>
     <nav class="tabs pm-tabs" aria-label="Project views">${TABS.filter(([k]) => k !== 'time' || p.timeTracking).map(([k, label, ic]) => html`<a href="#/projects/${p.id}${k ? `/${k}` : ''}" class="${k === tab ? 'active' : ''}" ${k === tab ? 'aria-current="page"' : ''}>${icon(ic, 16)} ${label}</a>`)}</nav>`;
@@ -1890,8 +1949,8 @@ export async function taskView(el, { projectId, id }) {
           { label: t.key, mono: true, title: `${t.key} · ${t.title}` }])}
           ${t.parent ? html`<p class="pm-subof">${icon('layers', 14)} Subtask of <a href="#/projects/${p.id}/tasks/${t.parent.id}"><span class="mono">${t.parent.key}</span> ${t.parent.title}</a></p>` : ''}
           <h1>${t.title} ${statusChip(status)}</h1>
-          <p class="muted">${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} Added ${when(t.createdAt)}</p></div>
-        <div class="actions">${p.isTemplate ? '' : html`<button class="btn pm-watch ${t.watching ? 'on' : ''}" id="watch" aria-pressed="${t.watching ? 'true' : 'false'}" title="${t.watching ? 'You hear of its comments and when it is done or cancelled. Click to stop.' : 'Hear of its comments and when it is done or cancelled.'}">${icon('eye', 16)} ${t.watching ? 'Watching' : 'Watch'} <span class="pm-watch-n" aria-label="${plural(t.watcherList.length, 'watcher')}">${t.watcherList.length}</span></button>`}${work ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit title and description</button>` : ''}${canDelete ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}</div>
+          <p class="muted"><a class="pm-task-key" href="${taskLink(t.key)}" title="Click to copy the link to ${t.key}">${icon('link', 13)} ${t.key}</a> ${t.overdue ? html`${badge('Overdue', 'red')} ` : ''}${t.blocked ? html`${badge('Blocked', 'amber')} ` : ''}${priorityBadge(t.priority)} Added ${when(t.createdAt)}</p></div>
+        <div class="actions"><button class="btn" id="copy-link" title="${taskLink(t.key)}">${icon('link', 16)} Copy link</button>${p.isTemplate ? '' : html`<button class="btn pm-watch ${t.watching ? 'on' : ''}" id="watch" aria-pressed="${t.watching ? 'true' : 'false'}" title="${t.watching ? 'You hear of its comments and when it is done or cancelled. Click to stop.' : 'Hear of its comments and when it is done or cancelled.'}">${icon('eye', 16)} ${t.watching ? 'Watching' : 'Watch'} <span class="pm-watch-n" aria-label="${plural(t.watcherList.length, 'watcher')}">${t.watcherList.length}</span></button>`}${work ? html`<button class="btn" id="edit">${icon('edit', 16)} Edit title and description</button>` : ''}${canDelete ? html`<button class="btn danger ghost" id="del">Delete</button>` : ''}</div>
       </header>
       <div class="pm-task">
         <div class="stack">
@@ -2030,6 +2089,11 @@ export async function taskView(el, { projectId, id }) {
       toast(r.warning || `${hrs(r.hours)} logged.`);
       await reload('#log [name=hours]');
     }, () => reload()));
+    el.querySelector('#copy-link').addEventListener('click', () => copyTaskLink(t.key));
+    el.querySelector('.pm-task-key').addEventListener('click', (e) => {
+      e.preventDefault();
+      copyTaskLink(t.key);
+    });
     el.querySelector('#watch')?.addEventListener('click', guard(async () => {
       const r = await api.put(`/api/pm/tasks/${id}/watch`, { watching: !t.watching });
       toast(r.watching ? `You are watching ${t.key}.` : `You stopped watching ${t.key}.`);
