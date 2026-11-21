@@ -8,6 +8,15 @@ import { INTEGRATIONS, MODULES, PINNABLE, SWITCHABLE } from '../shared/modules.j
 test('the integrations are Microsoft 365, Google Cloud and CodeRabbit, all coming soon', () => {
   assert.deepEqual(INTEGRATIONS.map((i) => i.name), ['Microsoft 365', 'Google Cloud', 'CodeRabbit']);
   assert.ok(INTEGRATIONS.every((i) => i.status === 'soon' && i.description && i.tagline && i.glyph));
+  // Each has its colour and the chips on its card (0.50).
+  assert.deepEqual(INTEGRATIONS.map((i) => i.accent), ['blue', 'teal', 'orange']);
+  assert.ok(INTEGRATIONS.every((i) => Array.isArray(i.features) && i.features.length >= 2));
+  const css = fs.readFileSync(new URL('../public/css/styles.css', import.meta.url), 'utf8');
+  for (const i of INTEGRATIONS) {
+    assert.match(css, new RegExp(`\\.int-${i.accent} \\{ --int:`), `colour for ${i.accent}`);
+    assert.match(css, new RegExp(`:root\\[data-theme='dark'\\] \\.int-${i.accent} \\{ --int-text:`), `dark text colour for ${i.accent}`);
+  }
+  assert.match(css, /prefers-reduced-motion: reduce\) \{ \.int-dot \{ animation: none/, 'the moving dot stops when motion is reduced');
   assert.equal(new Set(INTEGRATIONS.map((i) => i.code)).size, INTEGRATIONS.length, 'codes are unique');
   for (const i of INTEGRATIONS) {
     assert.ok(!MODULES.some((m) => m.id === i.id), `${i.id} is not a module`);

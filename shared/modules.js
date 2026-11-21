@@ -25,13 +25,14 @@ export const MODULES = [
 ];
 
 // Integrations: other services CORE will connect to, shown under Your modules on the CORE home
-// (0.49). All are on the roadmap; none can be turned on yet. `glyph` names an icon in icons.js.
+// (0.49). All are on the roadmap; none can be turned on yet. `glyph` names an icon in icons.js;
+// `accent` colours its card (0.50); `features` are the chips on it.
 export const INTEGRATIONS = [
-  { id: 'microsoft365', code: 'INT-01', name: 'Microsoft 365', glyph: 'mail', status: 'soon', tagline: 'Sign-in, Outlook and Teams',
+  { id: 'microsoft365', code: 'INT-01', name: 'Microsoft 365', glyph: 'mail', status: 'soon', accent: 'blue', features: ['Sign-in', 'Outlook', 'Calendar', 'Teams'], tagline: 'Sign-in, Outlook and Teams',
     description: 'Sign in with Microsoft 365 accounts, send CORE\'s email through Outlook, put leave and project dates on Outlook calendars, and post notifications to Teams.' },
-  { id: 'googlecloud', code: 'INT-02', name: 'Google Cloud', glyph: 'cloud', status: 'soon', tagline: 'Sign-in, Drive and Cloud Storage',
+  { id: 'googlecloud', code: 'INT-02', name: 'Google Cloud', glyph: 'cloud', status: 'soon', accent: 'teal', features: ['Sign-in', 'Drive', 'Cloud Storage'], tagline: 'Sign-in, Drive and Cloud Storage',
     description: 'Sign in with Google accounts, keep contract and project files in Google Drive, and keep CORE\'s backups in Google Cloud Storage.' },
-  { id: 'coderabbit', code: 'INT-03', name: 'CodeRabbit', glyph: 'code', status: 'soon', tagline: 'AI code review',
+  { id: 'coderabbit', code: 'INT-03', name: 'CodeRabbit', glyph: 'code', status: 'soon', accent: 'orange', features: ['Pull requests', 'AI review', 'Project tasks'], tagline: 'AI code review',
     description: 'CodeRabbit\'s AI reviews of pull requests on the project tasks they belong to, so a project manager sees what is reviewed and ready to merge.' },
 ];
 

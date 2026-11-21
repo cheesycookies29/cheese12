@@ -3402,3 +3402,44 @@ a.hub-role:hover { background: rgba(255, 255, 255, 0.26); }
 .int-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 16px; }
 .int-grid .sys-card { min-height: 0; }
 .sys-section.compact .int-grid { display: none; }
+
+/* Integration cards (0.50): each in its own colour, with the link to come drawn at the top (CORE's
+   mark, a dashed wire with a dot travelling along it, the service's icon) and chips for what it
+   will bring. --int is the colour, --int-deep its darker end, --int-text the readable text. */
+.int-blue { --int: #2f6fdb; --int-deep: #1d4fb0; --int-text: #1d4ed8; }
+.int-teal { --int: #13998a; --int-deep: #0b6f64; --int-text: #0f766e; }
+.int-orange { --int: #e8742a; --int-deep: #b9520f; --int-text: #b4480b; }
+:root[data-theme='dark'] .int-blue { --int-text: #93c5fd; }
+:root[data-theme='dark'] .int-teal { --int-text: #5eead4; }
+:root[data-theme='dark'] .int-orange { --int-text: #fdba74; }
+.sys-card.int-card { cursor: default; border-color: color-mix(in srgb, var(--int) 32%, var(--border)); box-shadow: 0 6px 18px color-mix(in srgb, var(--int) 12%, transparent);
+  background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--int) 11%, transparent), transparent 60%), var(--surface); }
+/* A field of small dots in the top corner, fading out. */
+.sys-card.int-card::after { content: ''; position: absolute; top: 4px; right: 0; width: 150px; height: 110px; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--int) 30%, transparent) 1.2px, transparent 1.6px) 0 0 / 12px 12px;
+  -webkit-mask-image: radial-gradient(110% 100% at 100% 0%, #000 20%, transparent 70%); mask-image: radial-gradient(110% 100% at 100% 0%, #000 20%, transparent 70%); }
+.sys-card.int-card > * { position: relative; z-index: 1; }
+.sys-card.int-card::before { height: 4px; background: linear-gradient(90deg, var(--int-deep), var(--int), color-mix(in srgb, var(--int) 45%, var(--surface))); }
+.int-card .sys-top { align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.int-link { display: inline-flex; align-items: center; }
+.int-core { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.int-core img { width: 22px; height: 22px; }
+.int-core .on-dark, :root[data-theme='dark'] .int-core .on-light { display: none; }
+:root[data-theme='dark'] .int-core .on-dark { display: block; }
+.int-wire { position: relative; width: 28px; height: 2px; margin: 0 4px; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--int) 55%, transparent) 0 4px, transparent 4px 8px); }
+.int-dot { position: absolute; top: -3px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--int); box-shadow: 0 0 0 3px color-mix(in srgb, var(--int) 22%, transparent); animation: int-flow 2.6s ease-in-out infinite; }
+@keyframes int-flow { 0% { left: 0; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { left: calc(100% - 8px); opacity: 0; } }
+.sys-card.int-card .sys-ic { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, var(--int), var(--int-deep)); color: #fff; border: 0; filter: none; box-shadow: 0 6px 14px color-mix(in srgb, var(--int) 32%, transparent); }
+.int-card .int-badge { background: color-mix(in srgb, var(--int) 10%, var(--surface)); color: var(--int-text); border-color: color-mix(in srgb, var(--int) 35%, var(--surface)); }
+.sys-card.int-card .sys-name { color: var(--text); }
+.sys-card.int-card p { color: var(--text-2); }
+.int-feats { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.int-feats li { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--int-text); background: color-mix(in srgb, var(--int) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--int) 25%, var(--surface)); }
+.sys-card.int-card .sys-open { color: var(--muted); font-size: 13px; }
+/* The compact tiles keep the colour: its bar on the left and the icon. */
+.sys-mini.int-mini { background: linear-gradient(120deg, color-mix(in srgb, var(--int) 8%, var(--surface)), var(--surface) 70%); border-color: color-mix(in srgb, var(--int) 28%, var(--border)); }
+.sys-mini.int-mini::before { background: linear-gradient(180deg, var(--int), var(--int-deep)); width: 4px; }
+.sys-mini.int-mini .sys-ic { background: linear-gradient(135deg, var(--int), var(--int-deep)); color: #fff; border: 0; }
+.sys-mini.int-mini strong { color: var(--text); }
+.sys-mini.int-mini small { color: var(--int-text); }
+@media (prefers-reduced-motion: reduce) { .int-dot { animation: none; left: calc(50% - 4px); } }

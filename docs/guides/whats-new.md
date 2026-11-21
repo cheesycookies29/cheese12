@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Integration cards with a design (0.50)
+- The **Integrations** cards on the CORE home each have their own colour, show CORE's mark linked to the service, and list what each will bring. See [Getting started](getting-started#walkthrough).
+
 ### Integrations on the CORE home (0.49)
 - Under **Your modules**, a new **Integrations** area shows the services CORE will connect to, all coming soon: **Microsoft 365**, **Google Cloud** and **CodeRabbit**. See [Getting started](getting-started#walkthrough).
 

@@ -140,13 +140,17 @@ export async function launcherView(el) {
   const compactItems = () => html`${ordered().map(mini)}${soon.map(mini)}`;
   // Integrations (0.49): the services CORE will connect to, under Your modules, as cards (or tiles
   // in the compact view) coming soon, like the modules on the roadmap. Nothing to open yet.
-  const intCard = (i) => html`<div class="sys-card soon int-card" data-integration="${i.id}" aria-disabled="true" title="${i.name} is coming soon">
-      <span class="sys-top"><span class="sys-ic">${icon(i.glyph, 26)}</span><span class="badge gray">${icon('lock', 12)} Coming soon</span></span><span class="sys-tagline">${i.tagline}</span>
+  // Each card has its colour (0.50) and shows the link to come: CORE's mark, a dashed wire with a
+  // dot travelling along it, and the service's icon; then what it will bring, as chips (which say
+  // what the tag line says on the compact tile).
+  const intCard = (i) => html`<div class="sys-card soon int-card int-${i.accent}" data-integration="${i.id}" aria-disabled="true" title="${i.name} is coming soon">
+      <span class="sys-top"><span class="int-link" aria-hidden="true"><span class="int-core"><img class="on-light" src="/img/core-mark-brand.svg" alt="" /><img class="on-dark" src="/img/core-mark.svg" alt="" /></span><span class="int-wire"><span class="int-dot"></span></span><span class="sys-ic">${icon(i.glyph, 22)}</span></span><span class="badge int-badge">${icon('lock', 12)} Coming soon</span></span>
       <strong class="sys-name" style="font-size:20px">${i.name}</strong>
       <p>${i.description}</p>
-      <span class="sys-open">Not available yet</span>
+      <ul class="int-feats" aria-label="What it will bring">${i.features.map((f) => html`<li>${f}</li>`)}</ul>
+      <span class="sys-open">${icon('clock', 14)} Not available yet</span>
     </div>`;
-  const intMini = (i) => html`<div class="sys-mini soon" data-integration="${i.id}" aria-disabled="true" title="${i.name}: coming soon"><span class="sys-ic">${icon(i.glyph, 20)}</span><span class="grow"><strong>${i.name}</strong><small>${icon('lock', 11)} Coming soon</small></span></div>`;
+  const intMini = (i) => html`<div class="sys-mini soon int-mini int-${i.accent}" data-integration="${i.id}" aria-disabled="true" title="${i.name}: coming soon"><span class="sys-ic">${icon(i.glyph, 20)}</span><span class="grow"><strong>${i.name}</strong><small>${icon('lock', 11)} Coming soon</small></span></div>`;
   // Cards (the sliding row) or Compact (all at once): kept in this browser, like the theme. Until
   // someone chooses, a phone starts in Compact (0.47) and a larger screen in Cards.
   const VIEW_KEY = 'core-home-view';

@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.50.0-alpha',
+    date: '2026-11-21',
+    title: 'A design for the integration cards',
+    modules: ['system'],
+    notes: 'Each integration card now has its own colour and shows the connection to come.',
+    changes: [
+      ['improved', 'system', 'CORE home, Integrations: each card in its own colour (Microsoft 365 blue, Google Cloud teal, CodeRabbit orange) with a coloured top edge, a soft glow and a field of dots; at the top, CORE\'s mark linked to the service\'s icon by a dashed wire with a dot travelling along it (still when reduced motion is on); chips for what it will bring. The compact tiles keep the colour. Light and dark.'],
+    ],
+  },
+  {
     version: '0.49.0-alpha',
     date: '2026-11-21',
     title: 'Integrations on the CORE home',
