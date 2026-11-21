@@ -2,6 +2,7 @@
   {"file": "getting-started-signin.jpg", "user": "employee.demo", "api": [["POST", "/api/auth/logout"]], "url": "/", "wait": 900},
   {"file": "getting-started-home.jpg", "user": "employee.demo", "url": "/#/launcher", "wait": 1200},
   {"file": "getting-started-compact.jpg", "user": "employee.demo", "url": "/#/launcher", "click": ["[data-view=compact]"], "scroll": "#sys-section", "wait": 1200},
+  {"file": "getting-started-integrations.jpg", "user": "employee.demo", "url": "/#/launcher", "scroll": "#int-section", "wait": 1200},
   {"file": "getting-started-module.jpg", "user": "employee.demo", "url": "/#/me", "wait": 1200},
   {"file": "getting-started-modules.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#mod-btn"], "wait": 900},
   {"file": "getting-started-user-menu.jpg", "user": "employee.demo", "url": "/#/me", "click": ["#user-btn"], "wait": 900},

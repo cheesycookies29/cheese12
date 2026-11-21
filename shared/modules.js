@@ -24,6 +24,17 @@ export const MODULES = [
     description: 'The executive dashboard: revenue and pipeline, headcount and payroll cost, projects at risk and service levels from every module, on one page.' },
 ];
 
+// Integrations: other services CORE will connect to, shown under Your modules on the CORE home
+// (0.49). All are on the roadmap; none can be turned on yet. `glyph` names an icon in icons.js.
+export const INTEGRATIONS = [
+  { id: 'microsoft365', code: 'INT-01', name: 'Microsoft 365', glyph: 'mail', status: 'soon', tagline: 'Sign-in, Outlook and Teams',
+    description: 'Sign in with Microsoft 365 accounts, send CORE\'s email through Outlook, put leave and project dates on Outlook calendars, and post notifications to Teams.' },
+  { id: 'googlecloud', code: 'INT-02', name: 'Google Cloud', glyph: 'cloud', status: 'soon', tagline: 'Sign-in, Drive and Cloud Storage',
+    description: 'Sign in with Google accounts, keep contract and project files in Google Drive, and keep CORE\'s backups in Google Cloud Storage.' },
+  { id: 'coderabbit', code: 'INT-03', name: 'CodeRabbit', glyph: 'code', status: 'soon', tagline: 'AI code review',
+    description: 'CodeRabbit\'s AI reviews of pull requests on the project tasks they belong to, so a project manager sees what is reviewed and ready to merge.' },
+];
+
 // Modules a person may pin to the front of their CORE home (live ones only), at most this many.
 export const PINNABLE = MODULES.filter((m) => m.status === 'live').map((m) => m.id);
 export function cleanFavoriteModules(list) {

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Integrations on the CORE home (0.49)
+- Under **Your modules**, a new **Integrations** area shows the services CORE will connect to, all coming soon: **Microsoft 365**, **Google Cloud** and **CodeRabbit**. See [Getting started](getting-started#walkthrough).
+
 ### Data replication on the roadmap (0.48)
 - **IT Asset Management** has a **Data replication** item in its side menu, marked **Soon**: a second, up-to-date copy of the asset records in another location. It is not available yet; its page says what it will do. See [Data replication](it-assets#data-replication-coming-soon).
 

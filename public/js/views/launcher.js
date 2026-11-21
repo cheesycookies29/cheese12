@@ -3,7 +3,7 @@
 import { api } from '../api.js';
 import { ctx, can, mayUseModule, moduleOn, panelAccess } from '../state.js';
 import { companyRoleOf } from '/shared/profile.js';
-import { MODULES } from '../modules.js';
+import { MODULES, INTEGRATIONS } from '../modules.js';
 import { roleOverrides } from '/shared/roles.js';
 import { unseenCount } from './devlog.js';
 import { html, mount, toast } from '../ui.js';
@@ -138,6 +138,15 @@ export async function launcherView(el) {
       <button type="button" class="sys-pin" data-pin="${m.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? `Unpin ${m.name}` : `Pin ${m.name} to the front`}" title="${on ? 'Pinned to the front: click to unpin' : 'Pin to the front'}">${icon('star', 16)}</button></div>`;
   };
   const compactItems = () => html`${ordered().map(mini)}${soon.map(mini)}`;
+  // Integrations (0.49): the services CORE will connect to, under Your modules, as cards (or tiles
+  // in the compact view) coming soon, like the modules on the roadmap. Nothing to open yet.
+  const intCard = (i) => html`<div class="sys-card soon int-card" data-integration="${i.id}" aria-disabled="true" title="${i.name} is coming soon">
+      <span class="sys-top"><span class="sys-ic">${icon(i.glyph, 26)}</span><span class="badge gray">${icon('lock', 12)} Coming soon</span></span><span class="sys-tagline">${i.tagline}</span>
+      <strong class="sys-name" style="font-size:20px">${i.name}</strong>
+      <p>${i.description}</p>
+      <span class="sys-open">Not available yet</span>
+    </div>`;
+  const intMini = (i) => html`<div class="sys-mini soon" data-integration="${i.id}" aria-disabled="true" title="${i.name}: coming soon"><span class="sys-ic">${icon(i.glyph, 20)}</span><span class="grow"><strong>${i.name}</strong><small>${icon('lock', 11)} Coming soon</small></span></div>`;
   // Cards (the sliding row) or Compact (all at once): kept in this browser, like the theme. Until
   // someone chooses, a phone starts in Compact (0.47) and a larger screen in Cards.
   const VIEW_KEY = 'core-home-view';
@@ -180,6 +189,12 @@ export async function launcherView(el) {
       <div class="sys-compact" id="sys-compact" role="region" aria-labelledby="sys-heading">${compactItems()}</div>
     </section>
 
+    <section class="hub-wrap sys-section int-section${view === 'compact' ? ' compact' : ''}" id="int-section" aria-labelledby="int-heading">
+      <div class="card-head"><h2 id="int-heading">${icon('link')} Integrations</h2><span class="muted small">Services CORE will connect to · ${INTEGRATIONS.length} coming soon</span></div>
+      <div class="int-grid">${INTEGRATIONS.map(intCard)}</div>
+      <div class="sys-compact">${INTEGRATIONS.map(intMini)}</div>
+    </section>
+
     ${panelAccess()
       ? html`<section class="hub-wrap">
           <div class="card-head"><h2>${icon('settings')} Administration</h2><span class="muted small">Applies to every module</span></div>
@@ -209,6 +224,7 @@ export async function launcherView(el) {
       localStorage.setItem(VIEW_KEY, view);
     } catch {}
     section.classList.toggle('compact', view === 'compact');
+    el.querySelector('#int-section').classList.toggle('compact', view === 'compact');
     el.querySelectorAll('[data-view]').forEach((x) => {
       x.classList.toggle('active', x.dataset.view === view);
       x.setAttribute('aria-pressed', String(x.dataset.view === view));

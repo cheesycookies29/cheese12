@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.49.0-alpha',
+    date: '2026-11-21',
+    title: 'Integrations on the CORE home',
+    modules: ['system'],
+    notes: 'Roadmap placeholders: the cards and what each integration will do; nothing connects to these services yet.',
+    changes: [
+      ['new', 'system', 'CORE home: an Integrations area under Your modules with Microsoft 365, Google Cloud and CodeRabbit, each coming soon, as cards or as compact tiles following the Cards | Compact switch.'],
+    ],
+  },
+  {
     version: '0.48.0-alpha',
     date: '2026-11-20',
     title: 'Data replication on the IT Asset Management roadmap',
