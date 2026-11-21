@@ -345,6 +345,11 @@ function backupUsers(list) {
     // Modules pinned to the front of the CORE home (0.40): unknown ones are dropped, not refused.
     const pinned = cleanFavoriteModules(raw.favoriteModules);
     if (pinned?.length) u.favoriteModules = pinned;
+    // Favorite projects (0.51): ids kept as they are; the ones gone or out of reach are skipped on read.
+    if (Array.isArray(raw.favoriteProjects)) {
+      const favs = [...new Set(raw.favoriteProjects.filter((x) => isText(x, 64)))].slice(0, 50);
+      if (favs.length) u.favoriteProjects = favs;
+    }
     // The role in the company (0.32): kept as cleaned text.
     if (raw.companyRole !== undefined && raw.companyRole !== null) {
       let role;

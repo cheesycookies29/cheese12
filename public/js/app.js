@@ -42,7 +42,7 @@ import { holidaysView } from './views/holidays.js';
 import { ytdView } from './views/ytd.js';
 import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
-import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, timesheetView, pmSettingsView, myWorkBadge } from './views/projects.js';
+import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, timesheetView, pmSettingsView, myWorkBadge, projectIcon } from './views/projects.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -204,6 +204,8 @@ const NAV = {
     { href: '/projects/my-work', label: 'My work', icon: 'task', permission: 'projects', badge: 'pmWork' },
     { href: '/projects/timesheet', label: 'Timesheet', icon: 'clock', permission: 'timesheet' },
     { href: '/projects/settings', label: 'Projects setup', icon: 'settings', permission: 'pm.manage' },
+    // The projects this person starred (0.51), filled in once the menu is drawn.
+    { favorites: true, permission: 'projects' },
   ],
   // The Admin panel's own sidebar (ported from Lancaster ATLAS). A heading shows when something under it does.
   system: [
@@ -435,11 +437,42 @@ function renderNav(module, force = false) {
     ${panel ? html`<div class="nav-module" title="Admin panel"><span class="mod-ic">${icon('settings', 18)}</span><span><strong>Admin panel</strong><small>CORE · Administration</small></span></div>` : ''}
     ${m ? html`<div class="nav-module" title="${m.name}"><span class="mod-ic">${icon(m.glyph, 18)}</span><span><strong>${m.name}</strong><small>${m.code}${moduleOn(m.id) ? '' : ' · Off for the company'}</small></span></div>` : ''}
     ${items.map((n) =>
-      n.heading
+      n.favorites
+        ? html`<div id="nav-favs" class="nav-favs"></div>`
+        : n.heading
         ? html`<div class="nav-heading">${n.heading}</div>`
         : html`<a href="#${n.href}" title="${n.soon ? `${n.label} (coming soon)` : n.label}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${icon(n.icon || 'file')}<span class="label">${n.label}</span>${n.soon ? html`<span class="nav-soon">Soon</span>` : ''}${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
     )}`);
   refreshBadge();
+  if (document.getElementById('nav-favs')) loadNavFavorites();
+}
+// Favorite projects in the Projects side menu (0.51), in the order starred, each with its icon.
+async function loadNavFavorites(list) {
+  const box = document.getElementById('nav-favs');
+  if (!box) return;
+  let favs = list;
+  if (!favs) {
+    try {
+      favs = (await api.get('/api/pm/favorites')).favorites;
+    } catch {
+      favs = [];
+    }
+  }
+  if (box !== document.getElementById('nav-favs')) return; // the menu was redrawn meanwhile
+  mount(box, favs.length ? html`<div class="nav-heading">Favorites</div>${favs.map((p) => html`<a href="#/projects/${p.id}" class="nav-fav" title="${p.name}" data-href="/projects/${p.id}" data-also="">${projectIcon(p, 'sm')}<span class="label">${p.name}</span></a>`)}` : '');
+  markNav();
+}
+window.addEventListener('pm-favorites:changed', (e) => loadNavFavorites(e.detail?.favorites));
+// Highlight the most specific nav link that contains the current path.
+function markNav() {
+  const path = location.hash.replace(/^#/, '').split('?')[0] || homeRoute();
+  const links = [...document.querySelectorAll('#nav a[data-href]')];
+  const hits = (a) => {
+    const prefixes = [a.dataset.href, ...a.dataset.also.split(' ').filter(Boolean)];
+    return prefixes.some((p) => path === p || (!a.hasAttribute('data-exact') && path.startsWith(p + '/')));
+  };
+  const best = links.filter(hits).sort((a, b) => b.dataset.href.length - a.dataset.href.length)[0];
+  links.forEach((a) => a.classList.toggle('active', a === best));
 }
 
 // Counts next to menu items: pending leave approvals, new equipment problem reports, unread dev log releases, new feedback.
@@ -557,14 +590,7 @@ async function navigate() {
   if (match.module) renderNav(match.module === 'user' ? (ctx.module && ctx.module !== 'user' ? ctx.module : firstModule()) : match.module);
   renderBrandSub();
   markModuleSwitch();
-  // Highlight the most specific nav link that contains the current path.
-  const links = [...document.querySelectorAll('#nav a[data-href]')];
-  const hits = (a) => {
-    const prefixes = [a.dataset.href, ...a.dataset.also.split(' ').filter(Boolean)];
-    return prefixes.some((p) => path === p || (!a.hasAttribute('data-exact') && path.startsWith(p + '/')));
-  };
-  const best = links.filter(hits).sort((a, b) => b.dataset.href.length - a.dataset.href.length)[0];
-  links.forEach((a) => a.classList.toggle('active', a === best));
+  markNav();
 
   runCleanup();
   refreshBadge();

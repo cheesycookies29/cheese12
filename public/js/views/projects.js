@@ -192,6 +192,47 @@ export function projectIcon(p, size = 'md') {
   const t = letterTile(p?.name, p?.code);
   return html`<span class="pm-picon pm-picon-${size} pm-pc-${t.color} letter" aria-hidden="true">${t.letter}</span>`;
 }
+// ---------- Favorite projects (0.51) ----------
+// Each person stars the projects they want at hand: they lead the Projects overview and are listed
+// in the side menu. The star is beside a project's name in the list and on its page; any star for
+// the same project follows the change.
+const favoriteIds = () => ctx.user?.favoriteProjects || [];
+const isFavorite = (id) => favoriteIds().includes(id);
+const favLabel = (name, on) => (on ? `Remove ${name} from favorites` : `Add ${name} to favorites`);
+function favButton(p, size = 18) {
+  const on = isFavorite(p.id);
+  return html`<button type="button" class="pm-fav" data-fav-project="${p.id}" data-fav-name="${p.name}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${favLabel(p.name, on)}" title="${on ? 'In your favorites: click to remove' : 'Add to your favorites'}">${icon('star', size)}</button>`;
+}
+async function toggleFavorite(btn) {
+  const id = btn.dataset.favProject;
+  const was = favoriteIds();
+  const on = !was.includes(id);
+  const next = on ? [...was, id] : was.filter((x) => x !== id);
+  document.querySelectorAll(`[data-fav-project="${id}"]`).forEach((b) => (b.disabled = true));
+  try {
+    const r = await api.put('/api/pm/favorites', { projects: next });
+    ctx.user.favoriteProjects = r.favoriteProjects;
+    document.querySelectorAll(`[data-fav-project="${id}"]`).forEach((b) => {
+      const now = r.favoriteProjects.includes(id);
+      b.setAttribute('aria-pressed', String(now));
+      b.setAttribute('aria-label', favLabel(b.dataset.favName, now));
+      b.title = now ? 'In your favorites: click to remove' : 'Add to your favorites';
+    });
+    toast(on ? `${btn.dataset.favName} is in your favorites.` : `${btn.dataset.favName} is no longer a favorite.`);
+    window.dispatchEvent(new CustomEvent('pm-favorites:changed', { detail: { favorites: r.favorites } }));
+  } catch (err) {
+    toast(err.message || 'Could not save your favorites.', 'error');
+  } finally {
+    document.querySelectorAll(`[data-fav-project="${id}"]`).forEach((b) => (b.disabled = false));
+  }
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-fav-project]');
+  if (!b || b.disabled) return;
+  e.preventDefault();
+  toggleFavorite(b);
+});
+
 const priorityBadge = (p) => (p === 'urgent' ? badge('Urgent', 'red') : p === 'high' ? badge('High', 'amber') : '');
 function dueChip(t, { long = false } = {}) {
   if (!t.dueDate) return '';
@@ -568,6 +609,7 @@ export async function portfolioView(el, _params, query) {
       ${stat('Overdue tasks', ov.counts.overdueTasks, 'in open projects')}
       ${stat('My open tasks', ov.counts.myOpen, ov.counts.myOverdue ? `${ov.counts.myOverdue} overdue` : 'none overdue', ov.counts.myOverdue ? 'attention' : '', '#/projects/my-work')}
     </div>
+    <section class="pm-favs" id="pm-favs" aria-labelledby="pm-favs-h"></section>
     <section class="card scroll-x">
       <div class="toolbar pad">
         <input type="search" id="q" placeholder="Search name, code or client…" aria-label="Search projects" value="${state.q}" />
@@ -610,7 +652,7 @@ export async function portfolioView(el, _params, query) {
     mount(el.querySelector('#list'), rows.length ? html`<table class="table clickable pm-portfolio">
       <thead><tr><th>Project</th><th>Client</th><th>Manager</th><th>Dates</th><th>Progress</th><th>Health</th><th>Next milestone</th></tr></thead>
       <tbody>${rows.map((p) => html`<tr data-href="#/projects/${p.id}">
-        <td><div class="pm-named">${projectIcon(p)}<div><a href="#/projects/${p.id}"><strong>${p.name}</strong></a><small><span class="mono">${p.code}</span> · ${p.type} · ${PROJECT_STATUS[p.status]}</small></div></div></td>
+        <td class="pm-fav-cell"><div class="pm-named">${projectIcon(p)}<div><a href="#/projects/${p.id}"><strong>${p.name}</strong></a><small><span class="mono">${p.code}</span> · ${p.type} · ${PROJECT_STATUS[p.status]}</small></div></div>${favButton(p, 16)}</td>
         <td>${p.accountName || html`<span class="muted">Internal</span>`}</td>
         <td>${p.managerName || '—'}</td>
         <td class="nowrap">${short(p.startDate)} – ${p.endDate ? short(p.endDate) : '…'}</td>
@@ -619,8 +661,32 @@ export async function portfolioView(el, _params, query) {
         <td>${p.nextMilestone ? html`${p.nextMilestone.deliverable ? html`<span class="pm-diamond deliverable" aria-hidden="true"></span>` : html`<span class="pm-diamond" aria-hidden="true"></span>`}${p.nextMilestone.name}<small>${fmtDate(p.nextMilestone.dueDate)}${p.nextMilestone.deliverable ? ' · deliverable' : ''}</small>` : '—'}</td>
       </tr>`)}</tbody></table>`
       : html`<div class="empty"><p>${ov.projects.length ? 'No project matches the filters.' : can('pm.edit') ? 'No projects yet. Start one with New project, or from a won deal in Sales & CRM.' : 'You are not on any project yet.'}</p></div>`);
-    el.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', (e) => !e.target.closest('a') && (location.hash = tr.dataset.href)));
+    el.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', (e) => !e.target.closest('a, button') && (location.hash = tr.dataset.href)));
   };
+  // Favorites (0.51): the starred projects first, in the order starred, as cards.
+  const favCard = (p) => html`<div class="pm-fav-card">
+      <a class="pm-fav-main" href="#/projects/${p.id}">
+        <span class="pm-named">${projectIcon(p)}<span><strong>${p.name}</strong><small><span class="mono">${p.code}</span> · ${PROJECT_STATUS[p.status]}</small></span></span>
+        ${progressBar(p.progress)}
+        <span class="pm-fav-meta">${p.health ? healthChip(p.health, p.healthReasons.join('; ')) : ''}${p.nextMilestone ? html`<span class="muted small">${icon('flag', 12)} ${p.nextMilestone.name} · ${short(p.nextMilestone.dueDate)}</span>` : ''}</span>
+      </a>
+      ${favButton(p)}
+    </div>`;
+  const drawFavorites = () => {
+    const favs = favoriteIds().map((id) => ov.projects.find((p) => p.id === id)).filter(Boolean);
+    const box = el.querySelector('#pm-favs');
+    if (!box) return;
+    mount(box, favs.length
+      ? html`<div class="card-head"><h2 id="pm-favs-h">${icon('star', 18)} Favorites</h2><span class="muted small">${plural(favs.length, 'project')}, in the order you starred them</span></div>
+        <div class="pm-fav-grid">${favs.map(favCard)}</div>`
+      : ov.projects.length ? html`<p class="pm-fav-empty" id="pm-favs-h">${icon('star', 16)} <span><strong>Favorites:</strong> choose the star beside a project's name to keep it here, and in the side menu.</span></p>` : '');
+  };
+  const onFavorites = () => {
+    if (!el.isConnected) return window.removeEventListener('pm-favorites:changed', onFavorites);
+    drawFavorites();
+  };
+  window.addEventListener('pm-favorites:changed', onFavorites);
+  drawFavorites();
   el.querySelector('#q').addEventListener('input', (e) => ((state.q = e.target.value.trim()), draw()));
   el.querySelector('#f-status').addEventListener('change', (e) => ((state.status = e.target.value), draw()));
   el.querySelector('#f-type').addEventListener('change', (e) => ((state.type = e.target.value), draw()));
@@ -781,7 +847,7 @@ function projectHeader(p, tab, actions = '') {
   return html`
     <header class="page-head pm-head">
       <div>${crumbBar([rootCrumb(p), projectCrumb(p, tab), { label: VIEW_LABEL[tab] }])}
-        <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</span></h1>
+        <h1 class="pm-title">${projectIcon(p, 'lg')}<span class="pm-title-text">${p.name} ${p.isTemplate ? badge('Template', 'blue') : projectBadge(p.status)}</span>${p.isTemplate ? '' : favButton(p, 20)}</h1>
         <p class="muted"><span class="mono">${p.code}</span> · ${p.type}${p.accountName ? ` · ${p.accountName}` : ''} · ${fmtDate(p.startDate)} – ${p.endDate ? fmtDate(p.endDate) : 'no end date'}${p.managerName ? ` · ${p.managerName}` : ''}</p></div>
       ${actions ? html`<div class="actions">${actions}</div>` : ''}
     </header>

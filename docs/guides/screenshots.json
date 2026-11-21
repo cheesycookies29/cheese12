@@ -77,6 +77,7 @@
   {"file": "projects-templates.jpg", "user": "pm.demo", "url": "/#/projects?status=templates", "wait": 1000},
   {"file": "projects-milestones.jpg", "user": "sales.demo", "url": "/#/projects/milestones?deliverables=1", "wait": 1000, "full": true},
   {"file": "projects-from-template.jpg", "user": "pm.demo", "url": "/#/projects?status=templates", "click": ["[data-use] >> nth=1"], "wait": 1000},
+  {"file": "projects-favorites.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tbody tr:nth-child(1) [data-fav-project]", "tbody tr:nth-child(3) [data-fav-project]", "tbody tr:nth-child(4) [data-fav-project]", ".page-head h1"], "scroll": ".page-head", "wait": 1800},
   {"file": "projects-overview.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system"], "wait": 1000},
   {"file": "projects-icon.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["tr[data-href] >> text=Learning management system", "button:has-text('Edit') >> nth=0"], "wait": 1000},
   {"file": "projects-private.jpg", "user": "pm.demo", "url": "/#/projects", "click": ["#new", ".pm-form-mem [data-add]"], "scroll": ".pm-form-members", "wait": 700},

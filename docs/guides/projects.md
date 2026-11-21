@@ -40,9 +40,12 @@ A first tour with the demo data. It takes about fifteen minutes.
 2. The figures at the top count open projects, those at risk and off track, overdue tasks, and your own open tasks.
 3. Change the filter from **Open projects** to **All**, or pick a type or a manager, or tick **Mine**. The filters stay in the address, so a bookmark keeps them.
 4. Pick **Templates** in the same filter. These are patterns for new projects, kept out of the other lists: CORE comes with three starter templates, *Client implementation*, *Government contract (with deliverables)* and *Internal IT project*.
-5. Click the **Milestones** tab next to **Projects**: every milestone of the projects you can open, soonest first, with its client, due date, health, whether it is a deliverable, and when it was submitted and accepted. Sign in as `sales.demo` to see the **Amount** of each deliverable and the **Billing forecast** under the list.
+5. Choose the **star** beside a project's name to make it a favorite. **Favorites** appears above the list with a card for each starred project (progress, health and next milestone), and the projects are listed under **Favorites** in the side menu. See [Keep your favorite projects at hand](#keep-your-favorite-projects-at-hand).
+6. Click the **Milestones** tab next to **Projects**: every milestone of the projects you can open, soonest first, with its client, due date, health, whether it is a deliverable, and when it was submitted and accepted. Sign in as `sales.demo` to see the **Amount** of each deliverable and the **Billing forecast** under the list.
 
 ![The project portfolio](projects-portfolio.jpg)
+
+![Favorite projects at the top of the portfolio and in the side menu](projects-favorites.jpg)
 
 ![Milestones across projects, with the billing forecast](projects-milestones.jpg)
 
@@ -168,6 +171,16 @@ The three starter templates are under **Templates** in the filter.
 5. Click **Save**.
 
 The project opens. Its board starts with the statuses from the Projects setup. From a won deal or a contract, **Start project** in Sales & CRM fills all of this in (see [the sales guide](sales#start-a-project-from-a-won-deal)).
+
+### Keep your favorite projects at hand
+
+Star the projects you open most, so they are one click away.
+
+1. On **Overview**, choose the **star** beside a project's name. Or open the project and choose the star beside its name at the top of its page.
+2. The star fills in. The project gets a card under **Favorites** at the top of **Overview**, with its progress, health and next milestone, and is listed under **Favorites** in the side menu, with its icon.
+3. Favorites are in the order you starred them. To remove one, choose its filled star (on its card, in the list or on its page).
+
+Your favorites are yours alone and kept with your account, so they are the same on any device. Only projects you can open can be favorites; templates cannot. A project you are taken off leaves your favorites by itself.
 
 ### Give a project its icon
 
@@ -529,7 +542,7 @@ Statuses and types apply to new projects; the wording of the sizes applies at on
 
 | Screen | What it is for |
 |---|---|
-| Overview | The portfolio: every project you may see with its progress, health and next milestone; filters; **Templates**; **+ New project** (blank or from a template). Its **Milestones** tab: milestones and deliverables across projects, with amounts and the **Billing forecast** for Sales & CRM users |
+| Overview | The portfolio: your **Favorites** first, then every project you may see with its progress, health and next milestone and a star to make it a favorite; filters; **Templates**; **+ New project** (blank or from a template). Its **Milestones** tab: milestones and deliverables across projects, with amounts and the **Billing forecast** for Sales & CRM users |
 | A project: Overview | Health and why, progress, overdue and blocked tasks, how many tasks are sized, the hours logged (on a project that tracks time), the milestones and deliverables (with their files and acceptance document), the **Milestone burn-up**, members, links to Sales & CRM, open service desk tickets of the client, recent activity, **Print status report** |
 | A template | Like a project's overview, with **New project from this template** instead of health |
 | A project: Board | A column per status; drag cards or use **Move to**; quick add; quick filters, search and **Views**; filters by assignee and milestone; **Edit columns** |

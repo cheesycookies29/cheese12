@@ -3443,3 +3443,36 @@ a.hub-role:hover { background: rgba(255, 255, 255, 0.26); }
 .sys-mini.int-mini strong { color: var(--text); }
 .sys-mini.int-mini small { color: var(--int-text); }
 @media (prefers-reduced-motion: reduce) { .int-dot { animation: none; left: calc(50% - 4px); } }
+
+/* Favorite projects (0.51): the star beside a project's name, the Favorites cards at the top of the
+   Projects overview, and the list in the side menu. */
+.pm-fav { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; transition: color 0.14s, background 0.14s, transform 0.14s; }
+.pm-fav:hover { background: var(--surface-2); border-color: var(--border); color: var(--accent); }
+.pm-fav:focus-visible { outline: 2px solid var(--brand-text); outline-offset: 2px; }
+.pm-fav[aria-pressed='true'] { color: var(--accent); }
+.pm-fav[aria-pressed='true'] .ic { fill: currentColor; }
+.pm-fav:disabled { opacity: 0.5; cursor: progress; }
+.pm-title .pm-fav { margin-left: 4px; align-self: center; }
+.pm-fav-cell { position: relative; padding-right: 48px !important; }
+.pm-fav-cell .pm-fav { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+.pm-favs:empty { display: none; }
+.pm-favs { margin: 16px 0; }
+.pm-fav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(270px, 100%), 1fr)); gap: 12px; }
+.pm-fav-card { position: relative; display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); transition: border-color 0.14s, box-shadow 0.14s, transform 0.14s; overflow: hidden; }
+.pm-fav-card::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 35%, var(--surface))); }
+.pm-fav-card:hover { border-color: var(--brand-line); box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+.pm-fav-main { flex: 1; min-width: 0; display: grid; gap: 10px; padding: 16px 48px 14px 16px; color: var(--text); }
+.pm-fav-main:hover { text-decoration: none; }
+.pm-fav-main strong { display: block; color: var(--brand-text); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-fav-main .pm-named > span { min-width: 0; }
+.pm-fav-main small { display: block; color: var(--muted); font-size: 12px; }
+.pm-fav-meta { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; min-height: 22px; }
+.pm-fav-card > .pm-fav { position: absolute; top: 10px; right: 8px; }
+.pm-fav-empty { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--text-2); font-size: 13px; background: var(--surface); }
+.pm-fav-empty .ic { color: var(--accent); flex: none; }
+/* In the side menu: under Favorites, each project with its icon. */
+#nav a.nav-fav { gap: 10px; }
+#nav a.nav-fav .pm-picon { flex: none; }
+@media (pointer: coarse) { .pm-fav { width: 44px; height: 44px; } .pm-fav-cell { padding-right: 56px !important; } .pm-fav-main { padding-right: 56px; } }
+@media (prefers-reduced-motion: reduce) { .pm-fav, .pm-fav-card { transition: none; } .pm-fav-card:hover { transform: none; } }
+#pm-favs-h > .ic, .pm-fav-empty > .ic { color: var(--accent); fill: currentColor; }

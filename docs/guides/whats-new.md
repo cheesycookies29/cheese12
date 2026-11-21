@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Favorite projects (0.51)
+- In **Project Management**, choose the **star** beside a project's name to make it a favorite. Your favorites lead the **Overview** as cards with their progress, health and next milestone, and are listed in the side menu. See [Keep your favorite projects at hand](projects#keep-your-favorite-projects-at-hand).
+
 ### Integration cards with a design (0.50)
 - The **Integrations** cards on the CORE home each have their own colour, show CORE's mark linked to the service, and list what each will bring. See [Getting started](getting-started#walkthrough).
 

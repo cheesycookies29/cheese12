@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.51.0-alpha',
+    date: '2026-11-21',
+    title: 'Favorite projects',
+    modules: ['projects'],
+    notes: 'Each person stars the projects they want at hand.',
+    changes: [
+      ['new', 'projects', 'A star beside each project\'s name in the portfolio and on the project\'s page. Starred projects lead the Overview as Favorites cards (progress, health, next milestone) and are listed under Favorites in the side menu, in the order starred, with their icons.'],
+      ['new', 'projects', 'PUT and GET /api/pm/favorites: saved on the account (so the same on every device) and kept in backups; only projects the person can open count (no templates), and one they lose access to drops out by itself.'],
+    ],
+  },
+  {
     version: '0.50.0-alpha',
     date: '2026-11-21',
     title: 'A design for the integration cards',

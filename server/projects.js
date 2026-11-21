@@ -505,6 +505,23 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const c = cal();
     return visibleProjects(u).map((p) => summaryOf(p, u, c)).sort((a, b) => a.code.localeCompare(b.code));
   });
+  // ===== Favorite projects (0.51): each person stars the projects they want at hand. They lead the
+  // Projects overview and are listed in the side menu, in the order starred. Only projects the
+  // person can open count (no templates); one they lose access to drops out by itself. =====
+  const MAX_FAVORITES = 50;
+  const favoritesOf = (u) => (Array.isArray(u.favoriteProjects) ? u.favoriteProjects : [])
+    .map((id) => d().pmProjects.find((p) => p.id === id && !p.isTemplate && levelOf(p, u))).filter(Boolean);
+  const favoriteOut = (p) => ({ id: p.id, code: p.code, name: p.name, status: p.status, icon: p.icon || null, iconImage: p.iconImage ? { at: p.iconImage.at } : null });
+  route('GET', '/api/pm/favorites', 'auth', ({ user: u }) => ({ favorites: favoritesOf(u).map(favoriteOut) }));
+  route('PUT', '/api/pm/favorites', 'auth', ({ user: u, body }) => {
+    if (!Array.isArray(body?.projects)) throw new HttpError(400, 'Send the favorite projects as a list.');
+    const ids = [...new Set(body.projects.filter((x) => typeof x === 'string'))];
+    const keep = ids.map((id) => d().pmProjects.find((p) => p.id === id && !p.isTemplate && levelOf(p, u))).filter(Boolean).slice(0, MAX_FAVORITES);
+    u.favoriteProjects = keep.map((p) => p.id);
+    db.save();
+    return { favoriteProjects: u.favoriteProjects, favorites: keep.map(favoriteOut) };
+  });
+
   route('GET', '/api/pm/overview', 'auth', ({ user: u }) => {
     const c = cal();
     const projects = visibleProjects(u).map((p) => summaryOf(p, u, c)).sort((a, b) => a.code.localeCompare(b.code));
@@ -512,7 +529,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
     const open = projects.filter((p) => OPEN_PROJECT.includes(p.status));
     const mine = d().pmTasks.filter((t) => t.assigneeId === u.id).map((t) => ({ t, p: projects.find((x) => x.id === t.projectId) })).filter(({ t, p }) => p && isOpenCategory(categoryOf(p, t)));
     return {
-      projects, templates,
+      projects, templates, favorites: favoritesOf(u).map((p) => p.id),
       counts: {
         open: open.length, active: open.filter((p) => p.status === 'active').length,
         amber: open.filter((p) => p.health === 'amber').length, red: open.filter((p) => p.health === 'red').length,
