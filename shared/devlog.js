@@ -13,7 +13,7 @@
 //   known    known issues in this build (optional)
 
 export const DEVLOG_MODULES = {
-  hr: 'HR & Payroll',
+  hr: 'Human Resource Management',
   assets: 'IT Asset Management',
   crm: 'Sales & CRM',
   projects: 'Project Management',
@@ -27,6 +27,17 @@ export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', crm: 'crm', projects:
 export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' };
 
 export const DEVLOG = [
+  {
+    version: '0.60.0-alpha',
+    date: '2026-11-21',
+    title: 'HR & Payroll is now Human Resource Management',
+    modules: ['hr', 'system'],
+    notes: 'A new name for MOD-01; nothing else changes.',
+    changes: [
+      ['improved', 'hr', 'MOD-01 is called Human Resource Management (HR Management on the modules menu tiles): the CORE home, the side menu, the modules menu, the dashboard, the sign-in page, Admin panel (Modules, Roles & permissions, Settings center), Help & guides, notifications and the feedback form. Its pages, records, payroll and permissions are unchanged; the module\'s id stays hr. Earlier dev log entries keep the name they were written with.'],
+      ['fixed', 'hr', 'Demo data: the demo leave, remote-work and official-business requests fall on working days whatever day the demo is loaded (on a Saturday before a holiday Monday, Kristine\'s leave and Juan\'s sick leave came out empty and were left out).'],
+    ],
+  },
   {
     version: '0.59.0-alpha',
     date: '2026-11-21',

@@ -11,7 +11,7 @@ order: 35
 
 This guide is for **Payroll Officers**. You compute a payroll run for each pay period, check and adjust it, finalize it and print the payslips. You keep the year-to-date totals and, with HR, **Payroll Setup** and the **Holidays** calendar. HR keeps employee records and attendance (see [the HR guide](hr)); you can view them.
 
-- Sign in and open the **HR & Payroll** tile on the CORE home page. You land on the **Dashboard**; open **Payroll** from the menu.
+- Sign in and open the **Human Resource Management** tile on the CORE home page. You land on the **Dashboard**; open **Payroll** from the menu.
 - CORE runs **semi-monthly** payroll (the 1st to the 15th, and the 16th to the end of the month) unless **Payroll Setup** says *Monthly*.
 - To try things out, load the demo data and sign in as `payroll.demo` (password `demo1234`). The demo has about six weeks of attendance and no payroll runs yet.
 

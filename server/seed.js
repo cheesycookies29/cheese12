@@ -128,11 +128,21 @@ export function demoData(codes = {}) {
       ...(status === 'rejected' ? { decidedAt: filedAt, decidedByName: 'Demo HR Manager', decisionNote: 'Quarter-end close; please pick another week.' } : {}),
     };
   };
+  // The working days from `n` days ahead (weekends and holidays skipped), so a request is never
+  // empty, whatever day the demo is loaded on (a Saturday before a holiday Monday, for one).
+  const workdaysFrom = (emp, n, count) => {
+    const out = [];
+    for (let d = n; out.length < count && d < n + 30; d++) if (workDates(emp, data.settings, inDays(d), inDays(d), data.holidays).length) out.push(inDays(d));
+    return out;
+  };
+  const [kFrom, kTo] = workdaysFrom(kristine, 7, 2); // two working days, as the approver's guide says
+  const [juanDay] = workdaysFrom(juan, 1, 1);
+  const [markHome, , markOb] = workdaysFrom(mark, 2, 3); // two different days
   data.requests.push(
-    request(kristine, 'leave', 'vl', inDays(7), inDays(9), 'Family trip to Cebu'),
-    request(mark, 'remote', null, inDays(2), inDays(2), 'Waiting for a home appliance delivery'),
-    request(mark, 'ob', null, inDays(4), inDays(4), 'Product demo and requirements workshop', 'pending', { destination: 'Meridian Logistics, Pasig City' }),
-    request(juan, 'leave', 'sl', inDays(1), inDays(1), 'Medical check-up in the morning', 'pending', { portions: { [inDays(1)]: 'am' } }),
+    request(kristine, 'leave', 'vl', kFrom, kTo, 'Family trip to Cebu'),
+    request(mark, 'remote', null, markHome, markHome, 'Waiting for a home appliance delivery'),
+    request(mark, 'ob', null, markOb, markOb, 'Product demo and requirements workshop', 'pending', { destination: 'Meridian Logistics, Pasig City' }),
+    request(juan, 'leave', 'sl', juanDay, juanDay, 'Medical check-up in the morning', 'pending', { portions: { [juanDay]: 'am' } }),
     request(andrea, 'leave', 'vl', inDays(14), inDays(18), 'Out-of-town wedding', 'rejected'),
   );
   data.requests = data.requests.filter((r) => r.days > 0);
@@ -1117,7 +1127,7 @@ function seedProjects(data, c) {
     description: 'CORE\'s next module: one page for the executives with revenue and pipeline, headcount and payroll cost, projects at risk and service levels.',
   }, [
     { name: 'What the executives want to see', from: -14, to: 5, tasks: ['Interviews with the MD and the VPs', 'List of figures and where each comes from', ['Mock-ups for review', 'M', { status: 'review' }]] },
-    { name: 'First version', from: 5, to: 60, tasks: ['Revenue and pipeline (Sales & CRM)', 'Headcount and payroll cost (HR & Payroll)', 'Projects at risk (Projects)', 'Service levels (Service Desk)', 'Targets and variance for each figure', 'Access for the executives only', 'Monthly PDF for the board'] },
+    { name: 'First version', from: 5, to: 60, tasks: ['Revenue and pipeline (Sales & CRM)', 'Headcount and payroll cost (Human Resource Management)', 'Projects at risk (Projects)', 'Service levels (Service Desk)', 'Targets and variance for each figure', 'Access for the executives only', 'Monthly PDF for the board'] },
     { name: 'Release', from: 60, to: 88, tasks: ['Pilot with the MD', 'Release in CORE'] },
   ]);
   say(exec, exec.byTitle('Mock-ups for review'), sales, 'For Sales: show the weighted forecast by quarter, not by month. The MD asks by quarter.', 1);
@@ -1154,7 +1164,7 @@ function seedProjects(data, c) {
   // More of "For you" for the demo accounts, and a private saved view.
   note(pmU, 'assigned', blc.p, blc.byTitle('Roll-out to the four other sites'), pmU, `assigned you ${blc.byTitle('Roll-out to the four other sites').key} Roll-out to the four other sites`, 4, true);
   note(pmU, 'status', dsu.p, dsu.byTitle('Faculty grade encoding'), juan, `moved ${dsu.byTitle('Faculty grade encoding').key} to For review`, 1);
-  note(juan, 'assigned', exec.p, exec.byTitle('Headcount and payroll cost'), pmU, `assigned you ${exec.byTitle('Headcount and payroll cost').key} Headcount and payroll cost (HR & Payroll)`, 3);
+  note(juan, 'assigned', exec.p, exec.byTitle('Headcount and payroll cost'), pmU, `assigned you ${exec.byTitle('Headcount and payroll cost').key} Headcount and payroll cost (Human Resource Management)`, 3);
   note(juan, 'added', cem.p, null, pmU, `added you to ${cem.p.code} ${cem.p.name} as member`, 55, true);
   note(it, 'commented', prm.p, prm.byTitle('Technicians\' phone app'), juan, `commented on ${prm.byTitle('Technicians\' phone app').key}`, 1);
   views.push({ id: randomUUID(), projectId: dsu.p.id, userId: juan, createdBy: juan, tab: 'board', name: 'Mine, due this week', query: 'f=mine,week', createdAt: at(-6) });

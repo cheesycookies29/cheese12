@@ -23,7 +23,7 @@ export async function modulesView(el) {
       </tr>`)}</tbody>
     </table></div>
     <p class="muted small page-note">Turning a module off never deletes anything: its records, settings and files stay, and turning it back on shows everything again. While it is off, administrators still see it (marked <strong>Off</strong>) and can open its settings; its background work (reading the service desk mailbox, the Projects daily digest) waits. Changes apply the next time someone opens a page.</p>
-    <p class="muted small page-note">Self-service belongs to the module it is part of: with <strong>HR & Payroll</strong> off, employees no longer clock in or out, file leave or see payslips in CORE; My Assets and My tickets stay with their modules. The holiday calendar stays visible, because Projects counts working days by it.</p>`);
+    <p class="muted small page-note">Self-service belongs to the module it is part of: with <strong>Human Resource Management</strong> off, employees no longer clock in or out, file leave or see payslips in CORE; My Assets and My tickets stay with their modules. The holiday calendar stays visible, because Projects counts working days by it.</p>`);
 
   el.querySelectorAll('input[data-module]').forEach((input) => input.addEventListener('change', async () => {
     const m = live.find((x) => x.id === input.dataset.module);

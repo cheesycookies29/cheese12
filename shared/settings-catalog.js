@@ -10,7 +10,7 @@
 
 export const MODULES = [
   ['admin', 'Admin panel'],
-  ['hr', 'HR & Payroll'],
+  ['hr', 'Human Resource Management'],
   ['helpdesk', 'IT Service Desk'],
   ['crm', 'Sales & CRM'],
   ['projects', 'Project Management'],
@@ -54,13 +54,13 @@ export const SETTINGS = [
   ['security', 'requestsPerMinute', 'Requests per minute, per person', 'More than this is refused for a moment.'],
   ['security', 'signInFailuresPerAddress', 'Failed sign-ins per network address', 'In 15 minutes, any usernames; then that address waits.'],
   ['security', 'blockCommonPasswords', 'Refuse common passwords', 'And passwords with the username or name.', 'bool'],
-  ['modules', 'hr', 'HR & Payroll', 'Employees, attendance, leave, payroll and everyone\'s self-service.', 'bool'],
+  ['modules', 'hr', 'Human Resource Management', 'Employees, attendance, leave, payroll and everyone\'s self-service.', 'bool'],
   ['modules', 'assets', 'IT Asset Management', 'Assets, stock, allocations and My Assets.', 'bool'],
   ['modules', 'helpdesk', 'IT Service Desk', 'Tickets, email, the public form and My tickets.', 'bool'],
   ['modules', 'crm', 'Sales & CRM', 'Leads, accounts, pipeline, bids and contracts.', 'bool'],
   ['modules', 'projects', 'Project Management', 'Projects, My work, timesheets and the digest.', 'bool'],
   ['roles', '', 'Permissions changed from the defaults', 'Which account types were given or lost permissions.', 'roles'],
-  // ----- HR & Payroll -----
+  // ----- Human Resource Management -----
   ['location', 'officeLabel', 'Office name', 'Shown with each clock-in location.'],
   ['location', 'officeLat', 'Office latitude', 'Empty: no office check.'],
   ['location', 'officeLng', 'Office longitude', 'Empty: no office check.'],

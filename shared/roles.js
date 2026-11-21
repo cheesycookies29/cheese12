@@ -99,7 +99,7 @@ export const PERMISSION_LABELS = [
 
 // The matrix on Roles & permissions, a table per part of CORE.
 export const PERMISSION_GROUPS = [
-  { id: 'hr', label: 'HR & Payroll', permissions: ['dashboard', 'employees.view', 'employees.edit', 'employees.sensitive', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.edit', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'leave.adjust', 'self'] },
+  { id: 'hr', label: 'Human Resource Management', permissions: ['dashboard', 'employees.view', 'employees.edit', 'employees.sensitive', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.edit', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'leave.adjust', 'self'] },
   { id: 'assets', label: 'IT Asset Management', permissions: ['assets.view', 'assets.edit'] },
   { id: 'helpdesk', label: 'IT Service Desk', permissions: ['helpdesk.agent', 'helpdesk.manage'] },
   { id: 'crm', label: 'Sales & CRM', permissions: ['crm.view', 'crm.edit', 'crm.manage'] },

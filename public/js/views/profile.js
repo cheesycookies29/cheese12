@@ -58,7 +58,7 @@ export async function personView(el, { id }) {
           ${info('Supervisor', p.employee.supervisor)}
         </dl>
         ${p.self ? html`<p class="muted small profile-note">Personal details, government IDs and bank: <a href="#/me/profile">My HR record</a>. To change them, contact HR.</p>` : ''}`
-        : html`<p class="muted small">${p.self ? 'Your account' : 'This account'} is not linked to an employee record${p.self ? '' : ' (or HR & Payroll is off)'}.</p>`}
+        : html`<p class="muted small">${p.self ? 'Your account' : 'This account'} is not linked to an employee record${p.self ? '' : ' (or Human Resource Management is off)'}.</p>`}
       </section>
       <section class="card profile-access">
         <h2>${icon('grid')} What ${p.self ? 'you' : 'they'} can open</h2>

@@ -16,7 +16,7 @@ const appEl = document.getElementById('app');
 const ctx = { user: null };
 // The modules, in the order they appear, with their icons.
 const SYSTEMS = [
-  ['home', 'Getting around', 'grid'], ['hr', 'HR & Payroll', 'users'], ['assets', 'IT Asset Management', 'laptop'],
+  ['home', 'Getting around', 'grid'], ['hr', 'Human Resource Management', 'users'], ['assets', 'IT Asset Management', 'laptop'],
   ['helpdesk', 'IT Service Desk', 'headset'], ['crm', 'Sales & CRM', 'chart'], ['projects', 'Project Management', 'layers'], ['system', 'System', 'settings'],
 ];
 // Dark or light, the same choice as in CORE (stored per browser).
@@ -285,7 +285,7 @@ const TOOLS = [
   ['H2', 'Section heading', (s) => `\n## ${s || 'Heading'}\n`],
   ['H3', 'Task heading', (s) => `\n### ${s || 'Do something'}\n`],
   ['B', 'Bold', (s) => `**${s || 'bold'}**`],
-  ['→', 'Menu path', (s) => `**${s || 'HR & Payroll → Employees'}**`],
+  ['→', 'Menu path', (s) => `**${s || 'Human Resource Management → Employees'}**`],
   ['1.', 'Numbered steps', (s) => `\n${(s || 'First step\nSecond step').split('\n').map((l, i) => `${i + 1}. ${l}`).join('\n')}\n`],
   ['•', 'Bullet list', (s) => `\n${(s || 'One\nTwo').split('\n').map((l) => `- ${l}`).join('\n')}\n`],
   ['Tip', 'Tip', (s) => `\n> **Tip:** ${s || 'A helpful hint.'}\n`],

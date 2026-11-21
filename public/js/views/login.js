@@ -3,7 +3,7 @@ import { ctx } from '../state.js';
 import { html, mount, modal, toast } from '../ui.js';
 import { twoFactorSetup } from './security.js';
 
-const MODULES = ['HR & Payroll', 'IT Assets', 'Service Desk', 'Sales & CRM', 'Projects'];
+const MODULES = ['Human Resource Management', 'IT Assets', 'Service Desk', 'Sales & CRM', 'Projects'];
 
 // The sign-in screens: CORE's own ground (the brand colour, the mark drawn large in the accent's
 // line) beside a cream panel that holds the form. On a phone the ground shrinks to a band above the

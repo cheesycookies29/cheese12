@@ -223,7 +223,7 @@ test('modules: a module that is off is refused (with a clear message) for everyo
   // Administrators still open it and its settings.
   assert.ok((await admin('GET', '/api/crm/overview')).openCount >= 0);
   assert.ok(Array.isArray((await admin('GET', '/api/crm/settings')).stages) || (await admin('GET', '/api/crm/meta')));
-  // HR & Payroll off: the self-service that belongs to it goes too; My Assets, My tickets and the holiday calendar stay.
+  // Human Resource Management off: the self-service that belongs to it goes too; My Assets, My tickets and the holiday calendar stay.
   assert.equal((await emp('POST', '/api/me/clock', { action: 'in' })).status, 403);
   assert.equal((await emp('GET', '/api/me/payslips')).status, 403);
   assert.equal((await emp('GET', '/api/leave-types')).status, 403);

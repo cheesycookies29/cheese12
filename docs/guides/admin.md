@@ -40,7 +40,7 @@ A first tour of the Admin panel, signed in as `admin` with the demo data loaded.
 
 ![Users & Access](admin-users.jpg)
 
-2. Choose **Roles & permissions**. Each account type is listed with its active accounts, then a table per part of CORE (**HR & Payroll**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM**, **Project Management**, **Admin panel**): a tick means that account type may do it. *default* marks what CORE gives it; a shaded box differs from the default.
+2. Choose **Roles & permissions**. Each account type is listed with its active accounts, then a table per part of CORE (**Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM**, **Project Management**, **Admin panel**): a tick means that account type may do it. *default* marks what CORE gives it; a shaded box differs from the default.
 
 ![Roles & permissions](admin-roles.jpg)
 
@@ -180,22 +180,22 @@ The person can no longer sign in. Their employee record is not affected, and the
 ### Turn a module on or off
 
 1. Open **Admin panel → Modules**.
-2. Use the switch of a module: **HR & Payroll**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM** or **Project Management**. Turning one off asks you to confirm; CORE then says, for example, *Sales & CRM is now off for the company.*
+2. Use the switch of a module: **Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM** or **Project Management**. Turning one off asks you to confirm; CORE then says, for example, *Sales & CRM is now off for the company.*
 
 A module that is off disappears from the CORE home, the modules menu and the side menus of everyone except administrators, and CORE refuses it even if someone types its address. Administrators still see it, marked **Off**, and can open it and its settings. Nothing is deleted: turning it back on shows everything again. While it is off its background work waits (reading the service desk mailbox; the Projects daily digest), and the service desk's public form (`/support`) is closed.
 
 While a module is off, its notifications are hidden from the bell of everyone except administrators; they come back when it is turned on again.
 
-Self-service belongs to the module it is part of. With **HR & Payroll** off, employees no longer clock in or out, file leave or see their payslips in CORE (**My Home**, **My Attendance**, **My Requests**, **My Payslips** and **My HR record** go with it); **My Assets** stays with IT Asset Management and **My tickets** with the service desk. The holiday calendar can still be read, because Projects counts working days by it. Buttons that lead into a module that is off (*Add to a project* or *Send to Sales & CRM* on a ticket, *Start project* on a deal) are hidden.
+Self-service belongs to the module it is part of. With **Human Resource Management** off, employees no longer clock in or out, file leave or see their payslips in CORE (**My Home**, **My Attendance**, **My Requests**, **My Payslips** and **My HR record** go with it); **My Assets** stays with IT Asset Management and **My tickets** with the service desk. The holiday calendar can still be read, because Projects counts working days by it. Buttons that lead into a module that is off (*Add to a project* or *Send to Sales & CRM* on a ticket, *Start project* on a deal) are hidden.
 
 ![Modules](admin-modules.jpg)
 
 ### Find any setting and compare it with the default
 
-The **Settings center** lists every setting in CORE (the Admin panel, HR & Payroll, the service desk, Sales & CRM and Projects) in one place.
+The **Settings center** lists every setting in CORE (the Admin panel, Human Resource Management, the service desk, Sales & CRM and Projects) in one place.
 
 1. Open **Admin panel → Settings center**.
-2. Type in **Find a setting**, e.g. *password*, *radius* or *SLA*, or choose a module such as **HR & Payroll**.
+2. Type in **Find a setting**, e.g. *password*, *radius* or *SLA*, or choose a module such as **Human Resource Management**.
 3. Tick **Only changed from the default** to see what your company has changed. Each setting shows its value **Now**, its **Default**, *Differs from default* when they differ, and who changed it last.
 4. To change a setting, choose **Open** on its group: its own screen opens.
 
@@ -390,7 +390,7 @@ Setting these up is described in CORE's README file and in the server set-up ins
 | Roles & permissions | What each account type may do, per part of CORE; defaults marked; **Restore defaults** per account type (administrators only) |
 | Access grants | One table of the access given to (or taken from) one person: Service Desk agent, Sales & CRM, Projects |
 | Settings center | Every setting with its value, its default and whether it differs; restore defaults; the change history with undo; export and import of the company's settings |
-| Modules | Turn HR & Payroll, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company |
+| Modules | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company |
 | Settings & branding | Company details printed on payslips, the default work schedule, the brand colour, the logo and the sign-in headline |
 | Sign-in & security | 2-step verification policy, session lengths, request and failed sign-in limits, common passwords |
 | Help & guides | Every guide and whether the company edited it; links to the guide editor |

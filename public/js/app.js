@@ -47,7 +47,7 @@ import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView,
 // [path, view, permission needed, module]
 const routes = [
   ['/launcher', launcherView, 'auth', null],
-  // HR & Payroll
+  // Human Resource Management
   ['/dashboard', dashboardView, 'dashboard', 'hr'],
   ['/employees', employeeListView, 'employees.view', 'hr'],
   ['/employees/new', employeeFormView, 'employees.edit', 'hr'],

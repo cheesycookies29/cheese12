@@ -12,7 +12,7 @@ order: 20
 This guide is for **everyone with an employee record**: staff on an Employee account, and HR, payroll, IT and sales people for their own records.
 
 - Sign in to CORE. The home page lists your modules. Your self-service pages are under **My account** in the sidebar of each module.
-- **HR & Payroll** has My Home, My Attendance, My Requests, My Payslips and My HR record.
+- **Human Resource Management** has My Home, My Attendance, My Requests, My Payslips and My HR record.
 - **IT Asset Management** has My Assets, the equipment assigned to you.
 - **IT Service Desk** has My tickets, to ask IT for help.
 - To jump between modules, use the grid button at the top right.
@@ -25,7 +25,7 @@ This guide is for **everyone with an employee record**: staff on an Employee acc
 
 ### Clock in
 
-1. Sign in as `employee.demo` and open **HR & Payroll**. **My Home** opens, with the time, today's status and this pay period.
+1. Sign in as `employee.demo` and open **Human Resource Management**. **My Home** opens, with the time, today's status and this pay period.
 2. Click **Clock in**. The first time, your browser asks whether CORE may use your location. Your answer does not stop the clock-in.
 3. At the end of the day, click **Clock out**.
 

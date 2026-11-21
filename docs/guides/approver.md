@@ -12,7 +12,7 @@ order: 25
 This guide is for **anyone who approves requests**: supervisors (even on an Employee account), people HR names as approvers, and HR managers. Your own requests are in [the employee guide](employee).
 
 - You are someone's supervisor when HR sets you as the **Immediate supervisor** on their employee record (**Employees → Edit → Employment**).
-- Open **HR & Payroll**. **Approvals** is in your sidebar, with a count of the requests waiting for you. It appears only when you have a team, are named as an approver, or are HR.
+- Open **Human Resource Management**. **Approvals** is in your sidebar, with a count of the requests waiting for you. It appears only when you have a team, are named as an approver, or are HR.
 - Requests come to you in the order set by the approval flow. By default, the immediate supervisor approves first, then HR.
 - CORE does not send email about requests. Check the count next to **Approvals**.
 - To try things out, use the demo data: sign in as `employee.demo` (password `demo1234`). Juan Dela Cruz leads Mark Bautista and Kristine Mendoza. `hr.demo` is the HR manager.
@@ -21,7 +21,7 @@ This guide is for **anyone who approves requests**: supervisors (even on an Empl
 
 ### See what is waiting for you
 
-1. Sign in as `employee.demo` and open **HR & Payroll**. **Approvals** shows *3*.
+1. Sign in as `employee.demo` and open **Human Resource Management**. **Approvals** shows *3*.
 2. Click **Approvals**. The **For my approval** tab lists Mark's work from home, Mark's official business at Meridian Logistics, and Kristine's vacation leave. Each says *Your turn*.
 
 ![Approvals: requests waiting for Juan](approver-list.jpg)

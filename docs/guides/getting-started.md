@@ -13,7 +13,7 @@ CORE is the ERP of Lancaster Technology and Development Corporation (LTDC). It i
 
 | Module | What it is for |
 |---|---|
-| **HR & Payroll** | Employee records, time and attendance, leave and work-from-home requests, holidays and Philippine payroll. Every employee's self-service is here too: clock in, file a request, see payslips. |
+| **Human Resource Management** | Employee records, time and attendance, leave and work-from-home requests, holidays and Philippine payroll. Every employee's self-service is here too: clock in, file a request, see payslips. |
 | **IT Asset Management** | Laptops, devices and consumable stock: who holds what, and its history. Employees see the equipment assigned to them. |
 | **IT Service Desk** | Support tickets from CORE, by email and from the public form. |
 | **Sales & CRM** | Leads, accounts, contacts, the deal pipeline, public bids and contracts. |
@@ -48,8 +48,8 @@ Under your modules, **Integrations** lists the services CORE will connect to, al
 
 ![Integrations on the CORE home, coming soon](getting-started-integrations.jpg)
 
-3. Choose **Open HR & Payroll**. The module opens on your own page, **My Home**.
-4. Look at the left: the **side menu** of the module. At the top is the module's name and code (*HR & Payroll · MOD-01*). Under **My account** are your own pages. Juan also sees **Approvals**, because he supervises two people. At the bottom is **Send feedback**.
+3. Choose **Open Human Resource Management**. The module opens on your own page, **My Home**.
+4. Look at the left: the **side menu** of the module. At the top is the module's name and code (*Human Resource Management · MOD-01*). Under **My account** are your own pages. Juan also sees **Approvals**, because he supervises two people. At the bottom is **Send feedback**.
 
 ![A module: the side menu on the left, and the top bar](getting-started-module.jpg)
 
@@ -118,7 +118,7 @@ What you are told about:
 
 | Module | You hear when… |
 |---|---|
-| HR & Payroll | a request needs your approval (as a supervisor, a named approver or HR); a request that waited for you was withdrawn or cancelled; your own request was approved, rejected, returned for revision or cancelled by someone else; your payslip is ready |
+| Human Resource Management | a request needs your approval (as a supervisor, a named approver or HR); a request that waited for you was withdrawn or cancelled; your own request was approved, rejected, returned for revision or cancelled by someone else; your payslip is ready |
 | IT Assets | equipment is assigned to you, or supplies are issued to you |
 | Service Desk | a ticket is assigned to you, or its requester replies (agents); an agent replies to your ticket, or resolves or closes it |
 | Sales & CRM | someone makes you the owner of a lead, deal, account, contact, bid or contract |
@@ -147,7 +147,7 @@ If you are on a project that tracks time (most do not: they use task sizes, not 
 
 **Show today's digest** opens the same lists on the page. See [the projects guide](projects#get-the-daily-digest).
 
-Your **My Home** page in HR & Payroll also shows **My project tasks** when you have some. See [the projects guide](projects).
+Your **My Home** page in Human Resource Management also shows **My project tasks** when you have some. See [the projects guide](projects).
 
 ### Add your profile picture
 
@@ -167,7 +167,7 @@ Your picture is shown instead of your initials next to your name: at the top rig
 1. Choose your name at the top right, then **My profile** (or the role under your name on the CORE home).
 2. At the top: your picture, your name and your **role in the company**, such as *Software Engineer*, with your department. Everyone signed in to CORE sees this part.
 3. **Account**: your username, your account type, whether 2-step sign-in is on, and since when you are in CORE; with **My security** and **Change password**.
-4. **Employment** (if your account is linked to an employee record): employee number, position, department, status, date hired and supervisor. Your personal details, government IDs and bank are on **My HR record** in HR & Payroll.
+4. **Employment** (if your account is linked to an employee record): employee number, position, department, status, date hired and supervisor. Your personal details, government IDs and bank are on **My HR record** in Human Resource Management.
 5. **What you can open**: each module, what you do in it (for example *Own equipment* or *Agent*) and **Open**; the ones you cannot open show *No access*.
 
 ![Your profile](getting-started-profile.jpg)

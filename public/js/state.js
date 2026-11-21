@@ -15,7 +15,7 @@ export const ctx = {
     ctx.holidays = await api.get('/api/holidays').catch(() => []);
   },
   async refreshLeaveTypes() {
-    // HR & Payroll may be turned off: then there are no leave types to show.
+    // Human Resource Management may be turned off: then there are no leave types to show.
     ctx.leaveTypes = await api.get('/api/leave-types').catch(() => []);
   },
   // The signed-in status: the company's changes to the account types and which modules are on.

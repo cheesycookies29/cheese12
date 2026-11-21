@@ -10,7 +10,7 @@ import { avatar } from './avatars.js';
 import { SWITCHABLE } from './modules.js';
 import { badgeText, bellLabel, safeLink, relTime, groupByDay } from './notify-format.js';
 
-export const NOTIFY_MODULES = { hr: 'HR & Payroll', assets: 'IT Assets', helpdesk: 'Service Desk', crm: 'Sales & CRM', projects: 'Projects', system: 'System' };
+export const NOTIFY_MODULES = { hr: 'Human Resource Management', assets: 'IT Assets', helpdesk: 'Service Desk', crm: 'Sales & CRM', projects: 'Projects', system: 'System' };
 const MODULE_ICON = { hr: 'users', assets: 'laptop', helpdesk: 'headset', crm: 'chart', projects: 'layers', system: 'settings' };
 const POLL_MS = 60000;
 const PANEL_SIZE = 20;

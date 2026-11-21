@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### HR & Payroll is now Human Resource Management (0.60)
+- The module is called **Human Resource Management** everywhere: the CORE home, the modules menu, its side menu, the Admin panel, Help and notifications. Nothing else changes: the same pages, records, payroll and permissions. See [the HR guide](hr).
+
 ### Export the timeline (0.59)
 - A project's **Timeline** has **Export**: **Report (PDF)**, a landscape report with the Gantt chart and the schedule to print or save as PDF, or **Image (PNG)**, the chart as a picture. See [Export the timeline as a report or an image](projects#export-the-timeline-as-a-report-or-an-image).
 
@@ -238,7 +241,7 @@ order: 2
 - Government ID numbers and bank accounts are masked; **Show numbers** reveals them and is logged. A new **HR Staff** account type works without pay data. Medical certificates open for HR only, unless the approval flow lets approvers open them. See [the HR guide](hr) and [approving requests](approver).
 
 ### Holidays, holiday pay and night shift (0.10)
-- **HR & Payroll → Holidays**: the 2026 and 2027 national holidays as proclaimed, plus Eid and local holidays added by HR. See [the HR guide](hr).
+- **Human Resource Management → Holidays**: the 2026 and 2027 national holidays as proclaimed, plus Eid and local holidays added by HR. See [the HR guide](hr).
 - Payroll pays regular holidays, special days, rest days and double holidays at the DOLE rates, with overtime on each, and a night shift differential from 10 PM to 6 AM. The rates are in **Payroll Setup**. See [the payroll guide](payroll).
 - Leave and work-from-home requests skip holidays, so they use no leave credits on them. See [the employee guide](employee).
 

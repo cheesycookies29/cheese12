@@ -11,7 +11,7 @@ order: 30
 
 This guide is for **HR Managers** and **HR Staff**: the people who keep employee records, watch attendance, decide leave and keep the holiday calendar. Payroll is prepared by the Payroll Officer (see [the payroll guide](payroll)); as HR Manager you can view it and change **Payroll Setup**. Your own clock-ins, requests and payslips are under **My account**, as for every employee (see [the self-service guide](employee)).
 
-- Sign in and open the **HR & Payroll** tile on the CORE home page. HR Managers land on the **Dashboard**.
+- Sign in and open the **Human Resource Management** tile on the CORE home page. HR Managers land on the **Dashboard**.
 - To try things out, load the demo data and sign in as `hr.demo` (password `demo1234`). The account is Maria Santos, HR Manager, who supervises Juan, Andrea and Ramon.
 
 ### What HR Staff see
@@ -27,7 +27,7 @@ HR Staff do day-to-day HR without pay data. Compared with an HR Manager:
 | Dashboard, Clock-in locations, Payroll, Payroll Setup | Yes | No |
 | Approvals | Yes | Only if they supervise someone |
 
-An HR Staff account opens **HR & Payroll** on **Employees**. Link it to the person's own employee record under **Admin panel → Users & Access** so they also get their own self-service (**My Home**, **My Payslips**…).
+An HR Staff account opens **Human Resource Management** on **Employees**. Link it to the person's own employee record under **Admin panel → Users & Access** so they also get their own self-service (**My Home**, **My Payslips**…).
 
 ## Walkthrough
 
@@ -35,7 +35,7 @@ A first tour with the demo data. It takes about ten minutes.
 
 ### The dashboard
 
-1. Sign in as `hr.demo` and open **HR & Payroll**. The **Dashboard** shows active employees, who is working now, late today, on leave today, not in yet, and **Pending requests**.
+1. Sign in as `hr.demo` and open **Human Resource Management**. The **Dashboard** shows active employees, who is working now, late today, on leave today, not in yet, and **Pending requests**.
 2. Read **Today's attendance**. Each person has a status: *Working*, *Done*, a leave type, *Remote work*, a holiday, *Not in yet* or *Rest day*, with the minutes late.
 3. On the right are the **Latest payroll** and **Headcount by department**. Click any count to open the list behind it.
 

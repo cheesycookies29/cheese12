@@ -3,7 +3,7 @@
 // `short` is the name on a tile of the modules menu; `accent: 'gold'` marks the executive module.
 // Shared by the server (which refuses the API of a module that is turned off) and the browser.
 export const MODULES = [
-  { id: 'hr', short: 'HR & Payroll', code: 'MOD-01', name: 'HR & Payroll', glyph: 'users', status: 'live', tagline: 'People, time, leave and pay',
+  { id: 'hr', short: 'HR Management', code: 'MOD-01', name: 'Human Resource Management', glyph: 'users', status: 'live', tagline: 'People, time, leave and pay',
     description: 'Employee records, time and attendance, leave and remote-work approvals, and Philippine payroll.' },
   { id: 'assets', short: 'IT Assets', code: 'MOD-02', name: 'IT Asset Management', glyph: 'laptop', status: 'live', tagline: 'Equipment, stock and allocations',
     description: 'Laptops, devices and consumable stock: who holds what, where it is, its warranty and full history.' },
@@ -49,7 +49,7 @@ export const moduleName = (id) => MODULES.find((m) => m.id === id)?.name || id;
 
 // What turning a module off takes away. Self-service belongs to the module it is part of: clocking
 // in and out, My Attendance, My Requests (leave and remote work), My Payslips and My HR record are
-// HR & Payroll (they live on its records), My Assets is IT Asset Management, My tickets is the
+// Human Resource Management (they live on its records), My Assets is IT Asset Management, My tickets is the
 // Service Desk. The holiday calendar stays readable for everyone (Projects counts working days by it).
 export const MODULE_PARTS = {
   hr: 'Employees, the time clock, attendance, clock-in locations, leave and approvals, payroll and payroll setup, managing the holiday calendar; and everyone\'s self-service: My Home (clocking in and out), My Attendance, My Requests, My Payslips and My HR record.',

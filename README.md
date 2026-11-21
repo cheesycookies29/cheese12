@@ -6,7 +6,7 @@ After signing in, everyone lands on the **CORE home page** and picks a module; t
 
 | Module | For |
 | --- | --- |
-| **HR & Payroll** | Employee records, time and attendance, leave and remote work, Philippine payroll |
+| **Human Resource Management** | Employee records, time and attendance, leave and remote work, Philippine payroll |
 | **IT Asset Management** | IT equipment and consumable stock: who or where it is allocated to, warranty, history, CSV exports |
 | **IT Service Desk** | Support tickets from the portal, email and a public form, with assignment, internal notes and service levels |
 | **Sales & CRM** | Leads, accounts and contacts, a deal pipeline with forecasts, public bids with document checklists, and contract renewals |
@@ -18,7 +18,7 @@ A module the user's account cannot use shows **No access**; a module the company
 
 Administrators (and accounts given an administration permission) also get the **Admin panel**: see [Admin panel](#admin-panel).
 
-### HR & Payroll
+### Human Resource Management
 
 - **Employee records**: personal details, employment, pay rate, work schedule, government IDs (TIN, SSS, PhilHealth, Pag-IBIG) and bank details.
 - **Time tracking**: a time clock where employees clock in and out, and an attendance record (DTR) that works out late, undertime and overtime minutes. You can also add paid leave, fix records by hand and approve overtime.
@@ -86,7 +86,7 @@ Opinionated and lean, for dated, contract-bound services delivery (client implem
 
 All modules share one data file, `data/db.json`. It runs on your own computer, or online on a small cloud server: see [Putting CORE online with Amazon EC2](deploy/aws/EC2.md).
 
-> **Sibling project: Lancaster ATLAS**, the Unified Education Management Platform for schools, lives in [`lms/`](lms/README.md): ATLAS Learn (LMS), ATLAS People (HRIS, built from this ERP's HR & Payroll module), and ATLAS Academic, Finance and Facilities (coming soon), behind one sign-in on the ATLAS home page.
+> **Sibling project: Lancaster ATLAS**, the Unified Education Management Platform for schools, lives in [`lms/`](lms/README.md): ATLAS Learn (LMS), ATLAS People (HRIS, built from this ERP's Human Resource Management module), and ATLAS Academic, Finance and Facilities (coming soon), behind one sign-in on the ATLAS home page.
 > It is a separate app with its own data file: double-click `lms/Start ATLAS (Windows).bat` or `lms/Start ATLAS (Mac).command` (or run `cd lms && npm start`), then open <http://localhost:3100>. It runs on port 3100, so it can run next to the ERP.
 
 ## Admin panel
@@ -100,7 +100,7 @@ Everything an administrator looks after, at `#/admin/…` inside CORE's one sign
 | **Roles & permissions** | Per account type, tick or untick each permission; defaults marked; **Restore defaults** per type | `roles.manage` (administrators only) |
 | **Access grants** | One table of the per-person grants: Service Desk agent, Sales & CRM, Projects | `users.manage` |
 | **Settings center** | Every setting with its value, default and "differs from default", and an **Open** link to its screen; restore a default per setting or per group; the change history (who, what, from, to, when) with undo; export and import of the company's settings | `settings.center`, plus each group's own permission |
-| **Modules** | Turn HR & Payroll, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company | `modules.config` |
+| **Modules** | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company | `modules.config` |
 | **Settings & branding** | Company details, default work schedule; brand colour (presets or the company's own, with a contrast check), logo, sign-in headline | `settings.edit` |
 | **Sign-in & security** | 2-step policy, sessions, rate limits, common passwords | `users.manage` (administrators only) |
 | **Help & guides** | The guides and whether the company edited them; links to the editor | `guides.edit` |
@@ -110,7 +110,7 @@ Everything an administrator looks after, at `#/admin/…` inside CORE's one sign
 Old addresses (`#/users`, `#/settings`, `#/audit`, `#/devlog`, `#/feedback/inbox`) open the page in the Admin panel.
 
 - **Roles & permissions.** The company's changes are kept as `roleOverrides` (`{ role: { add: [], remove: [] } }`) in the data file and applied by `can()` / `userCan()` in `shared/roles.js` on the server and in the browser (which gets them with the sign-in status). Administrators always keep everything; `users.manage`, `roles.manage` and `data.manage` (accounts, sign-in security, roles, backups) can never be given to another account type, whatever a request, a settings file or a backup says; per-person grants still apply on top. Every change is in the Settings center's history and the audit log.
-- **Modules.** A module that is off disappears from the CORE home, the modules menu and the side menus, and the server refuses its API (*403: Sales & CRM is turned off for the company…*) for everyone except administrators, who see it marked *Off* and can open its settings. Turning off never deletes data; its background work (the service desk mailbox, the Projects digest) and the public support form wait. Self-service belongs to its module: clocking in, My Attendance, My Requests, My Payslips and My Profile are HR & Payroll; My Assets is IT Asset Management; My tickets is the Service Desk. The holiday calendar stays readable (Projects counts working days by it).
+- **Modules.** A module that is off disappears from the CORE home, the modules menu and the side menus, and the server refuses its API (*403: Sales & CRM is turned off for the company…*) for everyone except administrators, who see it marked *Off* and can open its settings. Turning off never deletes data; its background work (the service desk mailbox, the Projects digest) and the public support form wait. Self-service belongs to its module: clocking in, My Attendance, My Requests, My Payslips and My Profile are Human Resource Management; My Assets is IT Asset Management; My tickets is the Service Desk. The holiday calendar stays readable (Projects counts working days by it).
 - **Settings center.** One catalog (`shared/settings-catalog.js`) of company details, the default schedule, branding, sign-in & security, modules, roles, clock-in locations, leave approvals, leave types and Payroll Setup (summary and link only), the service desk's ticket settings, public form and email (never a password), the sales setup and the Projects setup. Changes made on any settings screen are recorded with their value before and after (`settingsLog`); restore, undo and import save through each screen's own route, as the signed-in person, so the same checks and permissions apply. An import shows its differences first and is all or nothing. Exports carry no people, records, passwords or mail sign-ins.
 - **Branding.** Presets (CORE Maroon `#5D0013` with the gold accent is the default) or the company's own colour, which must give white text a contrast of at least 4.5 : 1; applied as `--brand` / `--accent` in light and dark mode, on every page and the sign-in page. The logo is a PNG, JPEG or WebP of at most 300 KB, checked by its bytes (an SVG or a file that is not what it claims is refused) and served from `/api/public/brand/logo` with `Content-Security-Policy: default-src 'none'; sandbox` and `nosniff`.
 
@@ -254,7 +254,7 @@ Pay frequency, the daily-rate factor (work days per year; an employee can have t
 
 ### Holidays
 
-**HR & Payroll → Holidays** is the calendar payroll uses. The 2026 holidays (Proclamation No. 1006) and 2027 holidays (Proclamation No. 1427) are loaded already; a year whose list CORE knows can be loaded again with one click if holidays were removed. Add **Eid'l Fitr** and **Eid'l Adha** when they are proclaimed, and any local holiday (with the city or province). Each holiday is a *regular holiday*, a *special non-working day* or a *special working day* (paid as an ordinary day). Leave and work-from-home requests skip regular holidays and special non-working days, so they do not use leave credits. The DTR marks holidays, and payslips list each premium with its hours and rate. Changing the calendar changes draft payroll runs when they are recomputed; finalized runs never change.
+**Human Resource Management → Holidays** is the calendar payroll uses. The 2026 holidays (Proclamation No. 1006) and 2027 holidays (Proclamation No. 1427) are loaded already; a year whose list CORE knows can be loaded again with one click if holidays were removed. Add **Eid'l Fitr** and **Eid'l Adha** when they are proclaimed, and any local holiday (with the city or province). Each holiday is a *regular holiday*, a *special non-working day* or a *special working day* (paid as an ordinary day). Leave and work-from-home requests skip regular holidays and special non-working days, so they do not use leave credits. The DTR marks holidays, and payslips list each premium with its hours and rate. Changing the calendar changes draft payroll runs when they are recomputed; finalized runs never change.
 
 ## Leave, work from home and official business
 

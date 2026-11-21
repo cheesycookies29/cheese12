@@ -42,7 +42,7 @@ Then the body, using only this Markdown (anything else is shown as text):
 - A screenshot on its own line: `![What it shows](hr-dtr.jpg)`. Every image must be listed in
   `screenshots.json` (see below).
 - Callouts: a paragraph starting `> **Tip:**`, `> **Note:**` or `> **Important:**`.
-- Menu paths in bold with arrows: **HR & Payroll → Payroll → New payroll run**.
+- Menu paths in bold with arrows: **Human Resource Management → Payroll → New payroll run**.
 
 ### How a guide is organised
 

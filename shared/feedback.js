@@ -10,7 +10,7 @@ export const FEEDBACK_TYPES = {
 
 export const FEEDBACK_AREAS = {
   general: 'General / whole system',
-  hr: 'HR & Payroll',
+  hr: 'Human Resource Management',
   assets: 'IT Asset Management',
   helpdesk: 'IT Service Desk',
   crm: 'Sales & CRM',

@@ -1699,7 +1699,7 @@ export function registerProjectRoutes(route, db, { audit, files, mailer, sendMai
   // Hours a person attended on a day, from the DTR (null when CORE cannot tell: no linked
   // employee record, or still clocked in). For comparison only: nothing is filled in from it.
   function attendedHours(userId, date) {
-    // HR & Payroll turned off: attendance is not shown anywhere, here neither.
+    // Human Resource Management turned off: attendance is not shown anywhere, here neither.
     if (!moduleOn(d().modules, 'hr')) return null;
     const emp = d().employees.find((e) => e.id === user(userId)?.employeeId);
     if (!emp) return null;
