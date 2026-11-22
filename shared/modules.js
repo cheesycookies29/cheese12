@@ -36,6 +36,16 @@ export const INTEGRATIONS = [
     description: 'CodeRabbit\'s AI reviews of pull requests on the project tasks they belong to, so a project manager sees what is reviewed and ready to merge.' },
 ];
 
+// Tools (0.64): work anyone signed in can do, whatever their module, shown under Integrations on the
+// CORE home. An administrator turns each on or off for the company (Admin panel → Modules), like a
+// module; off, the server refuses it for everyone but administrators.
+export const TOOLS = [
+  { id: 'pdf', code: 'TOOL-01', name: 'PDF Studio', short: 'PDF Studio', glyph: 'filePdf', status: 'live', accent: 'red', home: '/tools/pdf', tagline: 'Documents and pictures to PDF',
+    features: ['Word, Excel, PowerPoint', 'Pictures', 'Merge and arrange', 'Page numbers', 'Watermark'],
+    description: 'Turn Word, Excel, PowerPoint, OpenDocument, text, CSV and pictures into PDF, put PDFs together, arrange, turn and remove pages, then export with page numbers, a header, a footer or a watermark.' },
+];
+export const toolOf = (id) => TOOLS.find((t) => t.id === id) || null;
+
 // Modules a person may pin to the front of their CORE home (live ones only), at most this many.
 export const PINNABLE = MODULES.filter((m) => m.status === 'live').map((m) => m.id);
 export function cleanFavoriteModules(list) {
@@ -44,8 +54,8 @@ export function cleanFavoriteModules(list) {
 }
 
 // The modules an administrator can turn on or off for the company (Admin panel → Modules).
-export const SWITCHABLE = MODULES.filter((m) => m.status === 'live').map((m) => m.id);
-export const moduleName = (id) => MODULES.find((m) => m.id === id)?.name || id;
+export const SWITCHABLE = [...MODULES.filter((m) => m.status === 'live').map((m) => m.id), ...TOOLS.map((t) => t.id)];
+export const moduleName = (id) => MODULES.find((m) => m.id === id)?.name || toolOf(id)?.name || id;
 
 // What turning a module off takes away. Self-service belongs to the module it is part of: clocking
 // in and out, My Attendance, My Requests (leave and remote work), My Payslips and My HR record are
@@ -57,6 +67,7 @@ export const MODULE_PARTS = {
   helpdesk: 'The ticket queue, email in and out, the public support form (/support), saved replies and the service desk settings; and everyone\'s My tickets.',
   crm: 'Leads, accounts, contacts, the pipeline, bids, contracts, activities and the sales setup; "Send to Sales & CRM" on a ticket.',
   projects: 'Projects, My work, milestones, the Projects setup and the daily digest; "Add to a project" on a ticket and "Start project" on a deal.',
+  pdf: 'PDF Studio on the CORE home and in the modules menu: converting documents and pictures to PDF, merging and arranging pages. Nothing is kept: uploads are deleted after a few hours.',
 };
 
 // What is coming soon, which an administrator can show or hide (Admin panel → Modules, 0.63): the
@@ -99,6 +110,7 @@ const MODULE_API = [
   ['helpdesk', /^\/api\/(helpdesk|public\/helpdesk)(\/|$)/],
   ['crm', /^\/api\/crm(\/|$)/],
   ['projects', /^\/api\/pm(\/|$)/],
+  ['pdf', /^\/api\/tools\/pdf(\/|$)/],
 ];
 export function moduleOfApi(method, pathname) {
   if (method === 'GET' && /^\/api\/holidays\/?$/.test(pathname)) return null;

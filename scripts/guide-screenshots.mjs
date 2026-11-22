@@ -109,7 +109,8 @@ try {
       }
       // "files": { selector: "path from the repo" }: a file chosen in a file box (e.g. a sample photo).
       for (const [sel, file] of Object.entries(s.files || {})) {
-        await page.setInputFiles(sel, path.join(ROOT, file));
+        // One file, or several at once (a list).
+        await page.setInputFiles(sel, Array.isArray(file) ? file.map((f) => path.join(ROOT, f)) : path.join(ROOT, file));
         await page.waitForTimeout(wait);
       }
       // "select": { selector: "value" }: an option picked in a list (e.g. an example to start from).

@@ -180,7 +180,7 @@ The person can no longer sign in. Their employee record is not affected, and the
 ### Turn a module on or off
 
 1. Open **Admin panel → Modules**.
-2. Use the switch of a module: **Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM** or **Project Management**. Turning one off asks you to confirm; CORE then says, for example, *Sales & CRM is now off for the company.*
+2. Use the switch of a module: **Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM** or **Project Management**, or of a tool: **PDF Studio** (on the CORE home under **Tools**, for everyone; see [the PDF Studio guide](pdf-studio)). Turning one off asks you to confirm; CORE then says, for example, *Sales & CRM is now off for the company.*
 
 A module that is off disappears from the CORE home, the modules menu and the side menus of everyone except administrators, and CORE refuses it even if someone types its address. Administrators still see it, marked **Off**, and can open it and its settings. Nothing is deleted: turning it back on shows everything again. While it is off its background work waits (reading the service desk mailbox; the Projects daily digest), and the service desk's public form (`/support`) is closed.
 
@@ -401,7 +401,7 @@ Setting these up is described in CORE's README file and in the server set-up ins
 | Roles & permissions | What each account type may do, per part of CORE; defaults marked; **Restore defaults** per account type (administrators only) |
 | Access grants | One table of the access given to (or taken from) one person: Service Desk agent, Sales & CRM, Projects |
 | Settings center | Every setting with its value, its default and whether it differs; restore defaults; the change history with undo; export and import of the company's settings |
-| Modules | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company; show or hide what is coming soon (modules, integrations, Data replication) |
+| Modules | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM, Project Management and PDF Studio on or off for the company; show or hide what is coming soon (modules, integrations, Data replication) |
 | Settings & branding | Company details printed on payslips, the default work schedule, the brand colour, the logo and the sign-in headline |
 | Sign-in & security | 2-step verification policy, session lengths, request and failed sign-in limits, common passwords |
 | Help & guides | Every guide and whether the company edited it; links to the guide editor |

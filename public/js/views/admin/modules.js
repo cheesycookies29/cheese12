@@ -7,13 +7,14 @@ import { api } from '../../api.js';
 import { ctx, can } from '../../state.js';
 import { html, mount, toast, confirmDialog } from '../../ui.js';
 import { icon } from '../../icons.js';
-import { MODULES, SWITCHABLE, MODULE_PARTS, ROADMAP, ROADMAP_KINDS } from '/shared/modules.js';
+import { MODULES, TOOLS, SWITCHABLE, MODULE_PARTS, ROADMAP, ROADMAP_KINDS } from '/shared/modules.js';
 import { pageHead } from './common.js';
 
 export async function modulesView(el) {
   const { config } = await api.get('/api/admin/modules');
   const editable = can('modules.config');
-  const live = MODULES.filter((m) => SWITCHABLE.includes(m.id));
+  // The live modules, then the tools (0.64), each on or off for the company.
+  const live = [...MODULES.filter((m) => SWITCHABLE.includes(m.id)), ...TOOLS];
   mount(el, html`
     ${pageHead('Modules', 'Choose which modules the company uses. A module that is off disappears from the CORE home, the module switcher and the menus, and CORE refuses it, for everyone except administrators.')}
     <div class="card scroll-x"><table class="table">

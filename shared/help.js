@@ -2,7 +2,8 @@
 // (The guides are in docs/guides; ids are their file names.)
 const ROLE_GUIDE = { admin: 'admin', hr: 'hr', hrstaff: 'hr', payroll: 'payroll', it: 'it-assets', support: 'service-desk', sales: 'sales', salesmgr: 'sales', pm: 'projects', employee: 'employee' };
 
-// from: the module the button was pressed in (hr, assets, helpdesk, crm, projects, system) or home.
+// from: the module the button was pressed in (hr, assets, helpdesk, crm, projects, system, a tool such
+// as pdf) or home.
 export function guideFor(from, role) {
   switch (from) {
     case 'hr': return { hr: 'hr', hrstaff: 'hr', payroll: 'payroll', admin: 'hr' }[role] || 'employee';
@@ -12,6 +13,8 @@ export function guideFor(from, role) {
     // Everyone in a project (a member of any account type) uses the projects guide.
     case 'projects': return 'projects';
     case 'system': return role === 'admin' ? 'admin' : 'getting-started';
+    // Tools (0.64): their own guide, for everyone.
+    case 'pdf': return 'pdf-studio';
     default: return ROLE_GUIDE[role] || 'getting-started';
   }
 }

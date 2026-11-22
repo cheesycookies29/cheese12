@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF Studio, the first of the Tools (0.64)
+- The CORE home has a new **Tools** area, under Integrations, for everyone. Its first tool, **PDF Studio**, turns Word, Excel, PowerPoint, OpenDocument, text, Markdown, CSV and HTML files and pictures into PDF, and puts PDFs together. Drop your files, arrange the pages of all of them in one place (drag, turn, remove, add blank pages), set the page size and margins, and download one PDF, or one per file or per page in a ZIP, with page numbers, a header, a footer or a watermark if you like. Your files are yours only and are deleted after 4 hours. See [the PDF Studio guide](pdf-studio).
+
 ### Show or hide what is coming soon (0.63)
 - **Admin panel → Modules** has a **Coming soon** section: a switch for each module on the roadmap (Finance & Accounting, Procurement, Document Management, C-suite), each integration (Microsoft 365, Google Cloud, CodeRabbit) and Data replication. A hidden one is gone from the CORE home, the modules menu and the side menu for everyone until it is shown again; **Hide all** and **Show all** do them all at once. See [Show or hide what is coming soon](admin#show-or-hide-what-is-coming-soon).
 

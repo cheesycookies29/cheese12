@@ -28,6 +28,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.64.0-alpha',
+    date: '2026-11-22',
+    title: 'PDF Studio, and Tools on the CORE home',
+    modules: ['system'],
+    notes: 'A PDF engine written for CORE with Node\'s standard library only (n8n reads PDFs with pdf.js and leaves making them to outside services; CORE now makes, reads and combines them itself).',
+    changes: [
+      ['new', 'system', 'Tools on the CORE home and in the modules menu, under Integrations: work anyone signed in can do, whatever their module. Each tool is turned on or off for the company under Admin panel → Modules (off: refused for everyone but administrators).'],
+      ['new', 'system', 'PDF Studio: drop or choose files (PDF; JPEG and PNG, other pictures converted in the browser; Word, Excel, PowerPoint; OpenDocument text, spreadsheet and presentation; text, Markdown, CSV, HTML), up to 25 MB each. Documents are read into headings, paragraphs with bold, italic, links and colour, lists, tables (header rows repeated on each page), pictures and code, and laid out on A4, Letter, Legal or A5 pages with chosen margins and text size; sheets become tables (2,000 rows a sheet), slides landscape pages.'],
+      ['new', 'system', 'Arrange the pages of all files in one grid: drag or the arrows, turn, remove, select several, blank pages, reverse; page setup per file or for all. Thumbnails of pictures and scanned pages, the first words of typed pages.'],
+      ['new', 'system', 'Export: one PDF, one per file or one per page (ZIP); page numbers (style, position, first number, cover left unnumbered), header and footer with {page}, {pages}, {title}, {date}, {file}, a watermark (text, strength, colour), title and author; preview in a new tab. Stamps are drawn upright on turned pages, under names of their own so they never clash with a page\'s fonts.'],
+      ['improved', 'system', 'Safety: files are checked by what they hold; ZIP parts are unpacked with size limits (no zip bombs), XML without its DOCTYPE (no entity expansion), PDFs read with object and size limits, encrypted PDFs refused; pages are copied without annotations, actions or JavaScript. Files are their owner\'s only, kept 4 hours without use (and never past a restart); uploads are not logged, each export is (pages, files, name; never the contents).'],
+    ],
+  },
+  {
     version: '0.63.0-alpha',
     date: '2026-11-22',
     title: 'Show or hide what is coming soon',

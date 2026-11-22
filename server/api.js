@@ -9,6 +9,7 @@ import { registerFeedbackRoutes, cleanFeedback } from './feedback.js';
 import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from './geo.js';
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig, linkTicketOwners } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
+import { registerPdfStudio } from './tools-pdf.js';
 import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects, timesheetAccess } from './projects.js';
 import { registerNotificationRoutes, migrateNotifications, notify, forgetUser, accountOfEmployee, fmtRange } from './notifications.js';
 import { migrateApprovals, isApprover } from './approvals.js';
@@ -521,6 +522,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   // kept in the settings (never taken from a restored backup: see replaceData).
   // The security monitor's collector (0.34): requests (reported by server.js), audit entries and
   // the process, in buckets of fixed size (server/monitor.js).
+  let handlePdf = null;
   const monitor = createMonitor(db.dir, { sessions: () => sessions.active() });
   const audit = createAudit(db.dir, {
     onRecord: (entry) => monitor.audit(entry),
@@ -1349,6 +1351,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const projects = registerProjectRoutes(route, db, { audit, files, mailer: helpdesk.mailer, ...(digestMail ? { sendMail: digestMail } : {}), ...(digestClock ? { clock: digestClock } : {}) });
   registerHolidayRoutes(route, db, { audit });
   registerGuideRoutes(route, db, { audit });
+  // ----- Tools: PDF Studio (server/tools-pdf.js, 0.64) -----
+  handlePdf = registerPdfStudio(route, db, { audit });
   // ----- Notifications: the bell in the top bar (server/notifications.js) -----
   registerNotificationRoutes(route, db, { pm: projects.notifications });
   // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
@@ -1440,6 +1444,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     throw new HttpError(404, 'Not found.');
   }
   handle.helpdesk = helpdesk;
+  handle.pdfStudio = handlePdf;
   handle.monitor = monitor;
   handle.projects = projects;
   // Whether the request carries a live session (server.js allows large uploads only then).

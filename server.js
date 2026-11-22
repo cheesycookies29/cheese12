@@ -9,6 +9,7 @@ import { createApi, clientIp } from './server/api.js';
 import { baseHeaders, pagePolicy, API_POLICY, crossSite } from './server/security.js';
 import { PUBLIC_BODY_BYTES, MAX_FILES as HELPDESK_MAX_FILES } from './server/helpdesk.js';
 import { MAX_ATTACHMENT_BYTES } from './shared/leave.js';
+import { PDF_LIMITS } from './shared/pdf-studio.js';
 
 // CORE_APP_DIR: where public/ and shared/ live (the single .exe unpacks them there).
 const ROOT = process.env.CORE_APP_DIR || path.dirname(fileURLToPath(import.meta.url));
@@ -71,6 +72,8 @@ function bodyLimit(req, url) {
   if (!api.signedIn(req)) return p.startsWith('/api/public/') ? PUBLIC_BODY_BYTES : MB;
   if (p === '/api/admin/import' || p.startsWith('/api/admin/config/import')) return 50 * MB;
   if (p.startsWith('/api/helpdesk/')) return HELPDESK_BODY_BYTES;
+  // PDF Studio (0.64): one file of up to 25 MB, as base64 inside the JSON.
+  if (p === '/api/tools/pdf/sources') return Math.ceil(PDF_LIMITS.maxFileBytes / 3) * 4 + MB;
   return 12 * MB;
 }
 

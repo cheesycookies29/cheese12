@@ -48,6 +48,10 @@ Under your modules, **Integrations** lists the services CORE will connect to, al
 
 ![Integrations on the CORE home, coming soon](getting-started-integrations.jpg)
 
+Below them, **Tools** holds what anyone can use, whatever their module. **PDF Studio** turns Word, Excel, PowerPoint, OpenDocument, text, CSV files and pictures into PDF, puts PDFs together, and lets you arrange, turn and remove pages before you download the result (see [the PDF Studio guide](pdf-studio)). It is also in the **modules** button at the top right, under **Tools**.
+
+![Tools on the CORE home](getting-started-tools.jpg)
+
 3. Choose **Open Human Resource Management**. The module opens on your own page, **My Home**.
 4. Look at the left: the **side menu** of the module. At the top is the module's name and code (*Human Resource Management · MOD-01*). Under **My account** are your own pages. Juan also sees **Approvals**, because he supervises two people. At the bottom is **Send feedback**.
 

@@ -3,7 +3,7 @@
 import { api } from '../api.js';
 import { ctx, can, mayUseModule, moduleOn, panelAccess, shown } from '../state.js';
 import { companyRoleOf } from '/shared/profile.js';
-import { MODULES, INTEGRATIONS } from '../modules.js';
+import { MODULES, INTEGRATIONS, TOOLS } from '../modules.js';
 import { roleOverrides } from '/shared/roles.js';
 import { unseenCount } from './devlog.js';
 import { html, mount, toast } from '../ui.js';
@@ -78,6 +78,8 @@ export async function launcherView(el) {
   // Coming soon: unless an administrator hid it (0.63).
   const soon = MODULES.filter((m) => m.status !== 'live' && shown(m.id));
   const integrations = INTEGRATIONS.filter((i) => shown(i.id));
+  // Tools (0.64): off for the company, only administrators see them (marked Off).
+  const tools = TOOLS.filter((t) => mayUseModule(t.id));
   const open = live.filter((m) => ctx.moduleHome(m.id)).length;
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -153,6 +155,16 @@ export async function launcherView(el) {
       <span class="sys-open">${icon('clock', 14)} Not available yet</span>
     </div>`;
   const intMini = (i) => html`<div class="sys-mini soon int-mini int-${i.accent}" data-integration="${i.id}" aria-disabled="true" title="${i.name}: coming soon"><span class="sys-ic">${icon(i.glyph, 20)}</span><span class="grow"><strong>${i.name}</strong><small>${icon('lock', 11)} Coming soon</small></span></div>`;
+  // Tools (0.64): work anyone can do, whatever their module (PDF Studio), as cards in their colour
+  // (like the integrations, but they open).
+  const toolCard = (t) => html`<a class="sys-card int-card tool-card int-${t.accent}" href="#${t.home}" data-tool="${t.id}">
+      <span class="sys-top"><span class="sys-ic">${icon(t.glyph, 24)}</span>${moduleOn(t.id) ? html`<span class="badge int-badge">${t.code}</span>` : html`<span class="badge gray" title="Turned off for the company: only administrators see it">${icon('lock', 12)} Off</span>`}</span>
+      <strong class="sys-name" style="font-size:20px">${t.name}</strong>
+      <p>${t.description}</p>
+      <ul class="int-feats" aria-label="What it does">${t.features.map((f) => html`<li>${f}</li>`)}</ul>
+      <span class="sys-open">Open ${t.name} ${icon('chevronRight', 16)}</span>
+    </a>`;
+  const toolMini = (t) => html`<a class="sys-mini int-mini tool-mini int-${t.accent}" href="#${t.home}" data-tool="${t.id}"><span class="sys-ic">${icon(t.glyph, 20)}</span><span class="grow"><strong>${t.name}</strong><small>${moduleOn(t.id) ? t.tagline : 'Off for the company'}</small></span></a>`;
   // Cards (the sliding row) or Compact (all at once): kept in this browser, like the theme. Until
   // someone chooses, a phone starts in Compact (0.47) and a larger screen in Cards.
   const VIEW_KEY = 'core-home-view';
@@ -201,6 +213,12 @@ export async function launcherView(el) {
       <div class="sys-compact">${integrations.map(intMini)}</div>
     </section>` : ''}
 
+    ${tools.length ? html`<section class="hub-wrap sys-section int-section tool-section${view === 'compact' ? ' compact' : ''}" id="tool-section" aria-labelledby="tool-heading">
+      <div class="card-head"><h2 id="tool-heading">${icon('toggles')} Tools</h2><span class="muted small">For everyone, in any module</span></div>
+      <div class="int-grid">${tools.map(toolCard)}</div>
+      <div class="sys-compact">${tools.map(toolMini)}</div>
+    </section>` : ''}
+
     ${panelAccess()
       ? html`<section class="hub-wrap">
           <div class="card-head"><h2>${icon('settings')} Administration</h2><span class="muted small">Applies to every module</span></div>
@@ -231,6 +249,7 @@ export async function launcherView(el) {
     } catch {}
     section.classList.toggle('compact', view === 'compact');
     el.querySelector('#int-section')?.classList.toggle('compact', view === 'compact');
+    el.querySelector('#tool-section')?.classList.toggle('compact', view === 'compact');
     el.querySelectorAll('[data-view]').forEach((x) => {
       x.classList.toggle('active', x.dataset.view === view);
       x.setAttribute('aria-pressed', String(x.dataset.view === view));

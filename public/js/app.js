@@ -2,7 +2,8 @@ import { api } from './api.js';
 import { ctx, can, mayUseModule, moduleOn, panelAccess, shown } from './state.js';
 import { html, mount, toast, today } from './ui.js';
 import { icon, iconSvg } from './icons.js';
-import { MODULES, SWITCHABLE } from './modules.js';
+import { MODULES, SWITCHABLE, TOOLS } from './modules.js';
+import { pdfStudioView } from './views/pdf-studio.js';
 import { redirectOf } from '/shared/redirects.js';
 import { nextInTrap } from './phone.js';
 import { avatar, loadAvatars, editMyAvatar } from './avatars.js';
@@ -123,6 +124,8 @@ const routes = [
   ['/projects/:id/automations', automationsView, 'projects', 'projects'],
   ['/projects/:projectId/tasks/:id', taskView, 'projects', 'projects'],
   ['/projects/:id', projectOverviewView, 'projects', 'projects'],
+  // Tools (0.64)
+  ['/tools/pdf', pdfStudioView, 'auth', 'pdf'],
   // Admin panel ('system'): its own sidebar. Each page needs its own permission; 'panel' = any of them.
   ['/admin/dashboard', adminDashboardView, 'panel', 'system'],
   ['/admin/users', usersView, 'users.manage', 'system'],
@@ -235,6 +238,11 @@ const NAV = {
     { href: '/launcher', label: 'CORE home', icon: 'home', permission: 'auth' },
     { href: '/feedback', label: 'Send feedback', icon: 'comment', permission: 'auth', exact: true },
   ],
+  // Tools (0.64): each has its own short menu.
+  pdf: [
+    { href: '/tools/pdf', label: 'PDF Studio', icon: 'filePdf', permission: 'auth' },
+    { href: '/launcher', label: 'CORE home', icon: 'home', permission: 'auth' },
+  ],
   // At the end of every module's menu: the way into the Admin panel (for accounts with any admin
   // permission), then Send feedback.
   common: [
@@ -270,7 +278,7 @@ function moduleHome(id) {
 
 const homeRoute = () => '/launcher';
 const liveModules = () => MODULES.filter((m) => m.status === 'live');
-const moduleOf = (id) => MODULES.find((m) => m.id === id);
+const moduleOf = (id) => MODULES.find((m) => m.id === id) || TOOLS.find((t) => t.id === id);
 const body = document.body;
 
 let cleanup = null;
@@ -376,6 +384,7 @@ function renderModuleSwitch() {
   const open = [...pins.map((id) => live.find((m) => m.id === id)), ...live.filter((m) => m.home && !pins.includes(m.id))];
   const locked = live.filter((m) => !m.home);
   const soon = MODULES.filter((m) => m.status !== 'live' && shown(m.id));
+  const tools = TOOLS.filter((t) => mayUseModule(t.id));
   const tile = (m, kind) => {
     const cls = `mod-tile ${kind}${m.accent ? ` accent-${m.accent}` : ''}`;
     const inner = html`<span class="mod-ic">${icon(m.glyph, 20)}</span><span class="mod-name">${m.short || m.name}</span>${kind === 'soon' ? html`<span class="mod-tag">Soon</span>` : kind === 'locked' ? html`<span class="mod-tag">${icon('lock', 9)} No access</span>` : pins.includes(m.id) ? html`<span class="mod-pin" aria-hidden="true">${icon('star', 10)}</span>` : ''}`;
@@ -387,6 +396,7 @@ function renderModuleSwitch() {
     <div class="menu-pop mod-pop" id="mod-pop" role="menu" hidden>
       <div class="menu-label">CORE modules</div>
       <div class="mod-grid">${open.map((m) => tile(m, 'open'))}${locked.map((m) => tile(m, 'locked'))}${soon.map((m) => tile(m, 'soon'))}</div>
+      ${tools.length ? html`<div class="menu-label">Tools</div><div class="mod-grid">${tools.map((t) => html`<a role="menuitem" class="mod-tile open" href="#${t.home}" data-mod="${t.id}" title="${t.name}: ${moduleOn(t.id) ? t.tagline : 'off for the company, administrators only'}"><span class="mod-ic">${icon(t.glyph, 20)}</span><span class="mod-name">${t.short || t.name}</span></a>`)}</div>` : ''}
       ${panelAccess() ? html`<div class="menu-sep"></div><a role="menuitem" class="mod-row" href="#/admin/dashboard" data-mod="system"><span class="mod-ic">${icon('settings', 16)}</span><span class="grow"><strong>Admin panel</strong></span></a>` : ''}
       <a role="menuitem" class="mod-row" href="#/launcher"><span class="mod-ic">${icon('home', 16)}</span><span class="grow"><strong>CORE home</strong></span></a>
     </div>`);
