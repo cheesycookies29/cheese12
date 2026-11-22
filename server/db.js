@@ -58,6 +58,7 @@ export function emptyData() {
     pmRecurring: [], // tasks made on a schedule (server/pm-automation.js)
     pmRuns: [], // the run log of automations
     pmRules: [], // automation rules: When … If … Then … (0.62)
+    pdfSignatures: [], // PDF Studio: a record of each PDF signed, by its SHA-256 (0.65)
     pm: emptyPm(),
     notifications: [], // the bell: one row per person and event, from every module (server/notifications.js)
     // Admin panel (server/config.js): the company's changes to the account types, which modules are

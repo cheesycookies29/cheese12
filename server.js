@@ -73,7 +73,9 @@ function bodyLimit(req, url) {
   if (p === '/api/admin/import' || p.startsWith('/api/admin/config/import')) return 50 * MB;
   if (p.startsWith('/api/helpdesk/')) return HELPDESK_BODY_BYTES;
   // PDF Studio (0.64): one file of up to 25 MB, as base64 inside the JSON.
-  if (p === '/api/tools/pdf/sources') return Math.ceil(PDF_LIMITS.maxFileBytes / 3) * 4 + MB;
+  if (p === '/api/tools/pdf/sources' || p === '/api/tools/pdf/verify') return Math.ceil(PDF_LIMITS.maxFileBytes / 3) * 4 + MB;
+  // The export carries the page editor's pictures and signatures (2 MB each at most).
+  if (p === '/api/tools/pdf/export') return 30 * MB;
   return 12 * MB;
 }
 

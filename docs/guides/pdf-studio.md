@@ -1,7 +1,7 @@
 ---
 id: pdf-studio
 title: Making PDFs with PDF Studio
-summary: For everyone: turn Word, Excel, PowerPoint, OpenDocument, text, CSV and pictures into PDF, put PDFs together, arrange, turn and remove pages, and export with page numbers, a header, a footer or a watermark.
+summary: For everyone: turn Word, Excel, PowerPoint, OpenDocument, text, CSV and pictures into PDF, put PDFs together, arrange, turn and remove pages, change and add text, sign, and export with page numbers, a header, a footer or a watermark; check that a signed PDF is unchanged.
 roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
 apps: pdf, home
 order: 15
@@ -27,9 +27,12 @@ Your files are yours only: nobody else sees them, not even administrators. They 
 2. Drag a few files from your computer onto the page, or click **choose files**. Each one is converted as it arrives (*Converting report.docx…*), then its pages appear under **Pages** and the file under **Files**.
 3. In **Pages**, every page of every file is a card, in one row: the first page of a picture or a scanned PDF shows the picture itself; a typed page shows its first words. Drag a card to another place, or use its arrows. **Turn left** and **Turn right** turn it; the bin removes it from the PDF (the file stays under **Files**, with **Add all pages** to put its pages back).
 4. Tick several cards to change them together: turn them, move them **To the start** or **To the end**, or **Remove** them.
-5. On the right, under **Export**, give the file a name, choose **One PDF**, and click **Download PDF**. **Preview** opens it in a new tab first.
+5. Click the pencil on a page (or double-click it) to open the **page editor**: change its text, add text, white-out, highlights, ticks, today's date, a picture or your signature. **Sign**, above the pages, opens it ready to sign.
+6. On the right, under **Export**, give the file a name, choose **One PDF**, and click **Download PDF**. **Preview** opens it in a new tab first.
 
 ![PDF Studio with three files and their pages](pdf-studio.jpg)
+
+![The page editor, with a line of text being changed](pdf-studio-editor.jpg)
 
 ## How to…
 
@@ -61,6 +64,43 @@ Open **Watermark** and type the text (*DRAFT*, *CONFIDENTIAL*, *COPY*). It goes 
 
 Under **Save as**, choose **One PDF per file (ZIP)** or **One PDF per page (ZIP)**, then **Download ZIP**. Each PDF in the ZIP is named after its file (or numbered by page), with its own page numbers.
 
+### Change the text on a page
+
+1. Open the page in the editor (the pencil on its card) and choose **Change text on the page**. Each line of the page's text is outlined in blue.
+2. Click the line to change, and type the new words in the panel on the right. Change the **Size**, the **Font** (*Sans*, *Serif* or *Fixed*), **Bold**, **Italic** or the **Colour** if you need to.
+3. Click **Done**. In the PDF, the old words are taken out of the page itself (they cannot be found or copied any more) and the new ones are written where the old ones began.
+
+The new words are in a standard font close to the original (Helvetica, Times or Courier), so they may look a little different from the rest of the page. A line drawn inside a picture or a drawing on the page cannot be changed (it is outlined in dots): cover it with **White-out** and use **Add text**. A scanned page is a picture: it has no lines of text to change.
+
+### Add text, white-out, highlights, ticks and dates
+
+In the page editor:
+
+- **Add text**: click where it begins, then type it on the right; drag its corner to make it wrap.
+- **White-out**: drag over what to hide. A white box covers it, but whatever is under it stays in the file: to take text out, use **Change text on the page**.
+- **Highlight**: drag over the words.
+- **Tick** and **Cross**: click where they go; **Today's date**: click where it goes (you can edit it afterwards).
+- **Picture**: choose a picture (a logo, a stamp) and click where it goes.
+
+**Select and move** picks anything you added: drag it to move it, drag its corner to resize it, press **Delete** to remove it, use the arrow keys to nudge it. **Undo** (or Ctrl+Z) goes back a step. The arrows at the top go to the previous or next page. A card with changes shows how many; a signed page shows **Signed**.
+
+### Sign a PDF
+
+1. Click **Sign** above the pages (or **Signature** in the page editor).
+2. **Draw** your signature with the mouse, a finger or a pen; or **Type** your name and pick a style; or **Upload** a picture of your signature (CORE makes the paper around it see-through). Tick **Remember it in this browser** to find it under **Saved** next time.
+3. Click **Use this signature**, then click on the page where it goes. Drag its corner to size it. Sign other pages the same way.
+4. Export as **One PDF**. With **Add a signature record page** ticked (it is, unless you untick it), CORE adds a last page saying who signed, when, on which pages, and a record code such as *CORE-7KQ2-M9XA*, and keeps a fingerprint of the file.
+
+This is a signature drawn on the page, with CORE's record of who signed and of the file as it was. It is not a digital certificate signature that PDF readers check by themselves.
+
+### Verify a signed PDF
+
+Click **Verify a signed PDF** at the top and choose the file. CORE compares it with the record it kept when it was signed:
+
+- **Unchanged since it was signed**: the same file, with who signed it and when.
+- **This file was changed after it was signed**: it names a record, but its contents are not the ones that were signed (even one changed character shows). Ask the signer for the original.
+- Otherwise, it was not signed in this CORE's PDF Studio, or its record page was taken out.
+
 ### Start over
 
 Click **Start over** at the top: every file and page goes from PDF Studio (download what you need first).
@@ -69,7 +109,8 @@ Click **Start over** at the top: every file and page goes from PDF Studio (downl
 
 | Screen | What it is for |
 |---|---|
-| PDF Studio | Add files (drop or choose); **Files**: each file with its kind, size and pages, its **Page setup** and remove; **Pages**: every page as a card to drag, turn or remove, with **Select all**, **Blank page** and **Reverse**; **Export**: the file name, one PDF or a ZIP, page numbers, header and footer, watermark, document details, **Download** and **Preview** |
+| PDF Studio | Add files (drop or choose); **Files**: each file with its kind, size and pages, its **Page setup** and remove; **Pages**: every page as a card to drag, turn, edit or remove, with **Select all**, **Sign**, **Blank page** and **Reverse**; **Export**: the file name, one PDF or a ZIP, page numbers, header and footer, watermark, document details, the signature record page, **Download** and **Preview**; **Verify a signed PDF** |
+| Page editor | One page at a time: **Change text on the page**, **Add text**, **White-out**, **Highlight**, **Tick**, **Cross**, **Today's date**, **Signature**, **Picture**; the panel on the right for what is selected; **Undo**, the previous and next page, **Done** |
 | CORE home | **Tools**: the card that opens PDF Studio |
 
 ## Questions
@@ -80,8 +121,11 @@ CORE lays the text out itself, in a standard font, with the document's headings,
 **Why was a picture in my document left out?**
 Only JPEG and PNG pictures can go into the PDF here. Pictures saved as EMF or WMF (common for charts and logos in Office) are left out, and the file's note says how many.
 
-**Why is a page's preview only lines?**
-CORE shows the picture of a page only for pictures and scanned pages. A typed page shows its first words. Use **Preview** to see the whole PDF.
+**Why does a page look slightly different in PDF Studio than in my PDF reader?**
+CORE draws each page itself, with the fonts of your browser in place of the PDF's own, so the letters can differ a little (the words and their places are the same). Use **Preview** to see the PDF exactly as it will be.
+
+**Is a signature made here legally binding?**
+It is a signature you place on the document, with CORE's record of who signed, when, and of the file as it was signed. Whether that is enough for a given document is for your company and its lawyers to say; documents that need a digital certificate signature need one from a certificate provider.
 
 **Can someone else see my files?**
 No. Each person sees only their own files, and they are deleted after 4 hours without use. Administrators see in the audit log that you exported a PDF (how many pages, the file name), never its contents.

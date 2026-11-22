@@ -5,6 +5,9 @@
 // is turned. The result is one PDF, or (split) several: one per source document or one per page.
 import { PdfWriter, Content, Ref, FONTS, ref, textWidth, PAGE_SIZES } from './writer.js';
 import { importPages } from './reader.js';
+import { renderPage, removeTextOps } from './render.js';
+import { drawEdits, drawReplacements } from './edits.js';
+import { embedImage } from './images.js';
 
 export const NUMBER_FORMATS = { n: '1', of: 'Page 1 of 9', slash: '1 / 9' };
 export const NUMBER_POSITIONS = { 'bottom-center': 'Bottom centre', 'bottom-right': 'Bottom right', 'bottom-left': 'Bottom left', 'top-right': 'Top right', 'top-center': 'Top centre' };
@@ -64,14 +67,15 @@ function stamps(c, w, h, s, v) {
 }
 const hasStamps = (s) => Boolean(s.numbers || s.header || s.footer || s.watermark?.text);
 
-// pages: [{ doc, index, rotate } | { blank: { width, height } }] (doc: from readPdf).
+// pages: [{ doc, index, rotate, edits, noStamp } | { blank: { width, height }, edits }] (doc: from
+// readPdf; edits: cleanEdits() of edits.js; noStamp: no page number etc. on it, e.g. a signature record).
 // stamp: { numbers: { format, position, start, skipFirst }, header, headerAlign, footer, footerAlign,
 // watermark: { text, opacity, color } }; meta: { title, author, subject, keywords, file }.
 export function buildPdf(pages, stamp = {}, meta = {}) {
   const writer = new PdfWriter({ title: meta.title || '', author: meta.author || '', subject: meta.subject || '', keywords: meta.keywords || '' });
   const start = Number.isInteger(stamp.numbers?.start) ? stamp.numbers.start : 1;
   const skipFirst = Boolean(stamp.numbers?.skipFirst);
-  const counted = pages.length - (skipFirst ? 1 : 0);
+  const counted = pages.filter((p) => !p.noStamp).length - (skipFirst ? 1 : 0); // a signature record page is not counted
   const date = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', timeZone: process.env.TZ || 'Asia/Manila' });
   // "q" and "Q" around a page's own drawing, so whatever it leaves changed does not move the stamps.
   let qq = null;
@@ -83,27 +87,46 @@ export function buildPdf(pages, stamp = {}, meta = {}) {
     const turn = (((own + (Number(p.rotate) || 0)) % 360) + 360) % 360;
     if (turn) dict.Rotate = turn;
     else delete dict.Rotate;
-    if (hasStamps(stamp)) {
+    // Changes from the page editor (0.65): lines of text changed in the page itself, then what was
+    // added on top (text, white-out, highlights, marks, signatures), then the stamps.
+    const edits = p.edits || [];
+    const replaces = edits.filter((e) => e.type === 'replace');
+    let runs = new Map();
+    if (replaces.length && p.doc) {
+      runs = new Map((renderPage(p.doc, p.index).runs || []).filter((r) => r.editable !== false).map((r) => [r.id, r]));
+      const ids = replaces.map((e) => e.run).filter((id) => runs.has(id));
+      if (ids.length) dict.Contents = ref(writer.stream({}, removeTextOps(p.doc, p.index, ids)));
+    }
+    const stamped = hasStamps(stamp) && !p.noStamp;
+    if (stamped || edits.length) {
       const b = box(writer, dict);
       const sideways = turn === 90 || turn === 270;
       const w = sideways ? b.h : b.w;
       const h = sideways ? b.w : b.h;
       const c = new Content({ prefix: 'Core' });
+      const images = {};
+      let imageNo = 0;
+      drawReplacements(c, replaces, runs, b.x, b.y);
       // From the page as shown (upright) to the page as stored.
       const m = { 0: [1, 0, 0, 1, b.x, b.y], 90: [0, 1, -1, 0, b.x + b.w, b.y], 180: [-1, 0, 0, -1, b.x + b.w, b.y + b.h], 270: [0, -1, 1, 0, b.x, b.y + b.h] }[turn];
       c.save().transform(...m);
+      drawEdits(c, edits, h, (data) => {
+        const key = `Im${++imageNo}`;
+        images[key] = embedImage(writer, data).id;
+        return key;
+      });
       const numbered = !(skipFirst && i === 0);
-      stamps(c, w, h, stamp, { page: start + i - (skipFirst ? 1 : 0), pages: start - 1 + counted, numbered, title: meta.title || '', date, file: meta.file || '' });
+      if (stamped) stamps(c, w, h, stamp, { page: start + i - (skipFirst ? 1 : 0), pages: start - 1 + counted, numbered, title: meta.title || '', date, file: meta.file || '' });
       c.restore();
       if (!qq) qq = { q: writer.stream({}, Buffer.from('q'), { compress: false }), Q: writer.stream({}, Buffer.from('Q'), { compress: false }) };
       const overlay = writer.stream({}, c.toBuffer());
       const contents = deref(writer, dict.Contents);
       const list = Array.isArray(contents) ? contents : dict.Contents ? [dict.Contents] : [];
       dict.Contents = [ref(qq.q), ...list, ref(qq.Q), ref(overlay)];
-      // The page's resources, with the stamps' fonts added under names of their own.
+      // The page's resources, with the stamps' fonts and pictures added under names of their own.
       const res = { ...(deref(writer, dict.Resources) || {}) };
-      for (const k of ['Font', 'ExtGState']) if (res[k]) res[k] = { ...(deref(writer, res[k]) || {}) };
-      dict.Resources = writer.resourcesFor(c, res);
+      for (const k of ['Font', 'ExtGState', 'XObject']) if (res[k]) res[k] = { ...(deref(writer, res[k]) || {}) };
+      dict.Resources = writer.resourcesFor(c, res, images);
     }
     writer.addPage(dict);
   });

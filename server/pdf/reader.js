@@ -1157,3 +1157,17 @@ export function pageText(doc, index, max = 200) {
     return '';
   }
 }
+
+// ---------- For drawing pages (server/pdf/render.js, 0.65) ----------
+// The renderer reads the same objects in the same way, so it borrows the reader's own pieces
+// rather than having a second parser that could disagree with this one.
+// The page at `index` as the reader holds it: the source that resolves its objects, the page with
+// its inherited attributes ({ dict, attrs }), its MediaBox, CropBox (or null) and turn. Null when
+// there is no such page.
+export function pageInternals(doc, index) {
+  const src = sourceOf(doc);
+  const page = src.pages[index];
+  if (!page) return null;
+  return { src, page, ...src.geometry(page) };
+}
+export { Parser, PdfRef, PdfStream, Keyword, isDict, nameOf, toArray, toUnicode, inflate, ascii85, asciiHex, WHITE, isRegular, MAX_CONTENT_BYTES };

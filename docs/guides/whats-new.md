@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Change text and sign PDFs (0.65)
+- **PDF Studio** has a page editor (the pencil on a page): change the text on a page (the old words are taken out of the page, the new ones go where they were), add text, white-out, highlights, ticks, crosses, today's date and pictures, and sign. **Sign** lets you draw, type or upload your signature and place it on any page; the PDF can end with a signature record page, and **Verify a signed PDF** tells whether a file is exactly the one that was signed. Every page now shows as it looks. See [the PDF Studio guide](pdf-studio#change-the-text-on-a-page).
+
 ### PDF Studio, the first of the Tools (0.64)
 - The CORE home has a new **Tools** area, under Integrations, for everyone. Its first tool, **PDF Studio**, turns Word, Excel, PowerPoint, OpenDocument, text, Markdown, CSV and HTML files and pictures into PDF, and puts PDFs together. Drop your files, arrange the pages of all of them in one place (drag, turn, remove, add blank pages), set the page size and margins, and download one PDF, or one per file or per page in a ZIP, with page numbers, a header, a footer or a watermark if you like. Your files are yours only and are deleted after 4 hours. See [the PDF Studio guide](pdf-studio).
 

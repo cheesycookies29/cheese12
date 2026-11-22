@@ -106,14 +106,26 @@ const latinBase = (b) => {
   const base = (b >= 0x80 && b <= 0x9f ? '' : ch.normalize('NFD').replace(/[̀-ͯ]/g, ''));
   return base.length === 1 && base.charCodeAt(0) < 0x7f ? base.charCodeAt(0) : null;
 };
+// Times (0.65, for text edited in a serif document): widths of Times-Roman and Times-Bold; the
+// italic faces are close enough to them for laying out a line.
+const TIMES = [250, 333, 408, 500, 500, 833, 778, 180, 333, 333, 500, 564, 250, 333, 250, 278, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 278, 278, 564, 564, 564, 444, 921, 722, 667, 667, 722, 611, 556, 722, 722, 333, 389, 722, 611, 889, 722, 722, 556, 722, 667, 556, 611, 722, 722, 944, 722, 722, 611, 333, 278, 333, 469, 500, 333, 444, 500, 444, 500, 444, 333, 500, 500, 278, 278, 500, 278, 778, 500, 500, 500, 500, 333, 389, 278, 500, 500, 722, 500, 500, 444, 480, 200, 480, 541];
+const TIMESB = [250, 333, 555, 500, 500, 1000, 833, 278, 333, 333, 500, 570, 250, 333, 250, 278, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 333, 333, 570, 570, 570, 500, 930, 722, 667, 722, 722, 667, 611, 778, 778, 389, 500, 778, 667, 944, 722, 778, 611, 778, 722, 556, 667, 722, 722, 1000, 722, 722, 667, 333, 278, 333, 581, 500, 333, 500, 556, 444, 556, 444, 333, 500, 556, 278, 333, 556, 278, 833, 556, 500, 556, 556, 444, 389, 333, 556, 500, 722, 500, 500, 444, 394, 220, 394, 520];
+// New faces go at the end: a face's resource name (F1, F2…) is its place in this list.
 export const FONTS = {
   regular: 'Helvetica', bold: 'Helvetica-Bold', italic: 'Helvetica-Oblique', boldItalic: 'Helvetica-BoldOblique', mono: 'Courier', monoBold: 'Courier-Bold',
+  serif: 'Times-Roman', serifBold: 'Times-Bold', serifItalic: 'Times-Italic', serifBoldItalic: 'Times-BoldItalic', monoItalic: 'Courier-Oblique', monoBoldItalic: 'Courier-BoldOblique',
 };
+// The face for a family ('sans' | 'serif' | 'mono') with bold and italic.
+export function faceOf(family, bold, italic) {
+  if (family === 'serif') return bold && italic ? FONTS.serifBoldItalic : bold ? FONTS.serifBold : italic ? FONTS.serifItalic : FONTS.serif;
+  if (family === 'mono') return bold && italic ? FONTS.monoBoldItalic : bold ? FONTS.monoBold : italic ? FONTS.monoItalic : FONTS.mono;
+  return bold && italic ? FONTS.boldItalic : bold ? FONTS.bold : italic ? FONTS.italic : FONTS.regular;
+}
 const isBold = (font) => /Bold/.test(font);
 // Width of encoded bytes in a font, in points at `size`.
 export function widthOf(buf, font, size) {
   if (/^Courier/.test(font)) return buf.length * 600 * size / 1000;
-  const table = isBold(font) ? HELVB : HELV;
+  const table = /^Times/.test(font) ? (isBold(font) ? TIMESB : TIMES) : isBold(font) ? HELVB : HELV;
   let w = 0;
   for (const b of buf) {
     if (b >= 32 && b <= 126) w += table[b - 32];

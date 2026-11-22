@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { ctx } from '../state.js';
 import { html, mount, toast, confirmDialog, modal } from '../ui.js';
 import { icon } from '../icons.js';
+import { openPageEditor } from './pdf-editor.js';
 import { PDF_LIMITS, PDF_DIRECT_EXTS, PDF_BROWSER_IMAGES, PDF_ACCEPT, PDF_SIZES, PDF_KIND_TAG } from '/shared/pdf-studio.js';
 
 const MB = 1024 * 1024;
@@ -100,7 +101,7 @@ export async function pdfStudioView(el) {
     if (p.blank) {
       const [w, h] = p.orientation === 'landscape' ? [297, 210] : [210, 297];
       return html`<li class="ps-page ${sel ? 'sel' : ''}" data-key="${p.key}" draggable="true">
-        <div class="ps-paper blank" style="aspect-ratio:${w}/${h}"><span>Blank page</span><small>${PDF_SIZES[p.size] || 'A4'}</small></div>
+        <div class="ps-paper blank" style="aspect-ratio:${w}/${h}"><span>Blank page</span><small>${PDF_SIZES[p.size] || 'A4'}</small>${editBadge(p)}</div>
         ${cardFoot(p, i, 'Blank page', '')}</li>`;
     }
     const s = byId(p.source);
@@ -109,12 +110,22 @@ export async function pdfStudioView(el) {
     const sideways = turn === 90 || turn === 270;
     // The card has the page's shape as shown (turned or not); the picture inside turns with it.
     const ratio = sideways ? `${info.height}/${info.width}` : `${info.width}/${info.height}`;
-    const inner = info.thumb
-      ? html`<img class="${s.kind === 'image' ? 'pic' : ''}" src="/api/tools/pdf/sources/${s.id}/pages/${p.page}/thumb" alt="" loading="lazy" style="transform:rotate(${p.rotate || 0}deg)" />`
-      : html`<span class="ps-lines" style="transform:rotate(${p.rotate || 0}deg)">${info.caption ? html`<b>${info.caption}</b>` : ''}<i></i><i></i><i></i><i></i><i class="short"></i></span>`;
+    // The page as CORE draws it (0.65: every page, typed or scanned), turned as arranged; a picture
+    // shows itself.
+    const turned = `transform:rotate(${turn}deg)${sideways ? `;width:${(info.width / info.height) * 100}%;height:${(info.height / info.width) * 100}%` : ''}`;
+    const inner = s.kind === 'image'
+      ? html`<img class="pic" src="/api/tools/pdf/sources/${s.id}/pages/${p.page}/thumb" alt="" loading="lazy" style="transform:rotate(${p.rotate || 0}deg)" />`
+      : html`<img class="ps-svg" src="/api/tools/pdf/sources/${s.id}/pages/${p.page}/svg${s.version ? `?v=${s.version}` : ''}" alt="" loading="lazy" style="${turned}" />`;
     return html`<li class="ps-page ${sel ? 'sel' : ''}" data-key="${p.key}" draggable="true">
-      <div class="ps-paper" style="aspect-ratio:${ratio}">${inner}${tag(s)}${p.rotate ? html`<span class="ps-turned" title="Turned ${p.rotate}°">${icon('rotateCw', 12)} ${p.rotate}°</span>` : ''}</div>
+      <div class="ps-paper" style="aspect-ratio:${ratio}">${inner}${tag(s)}${p.rotate ? html`<span class="ps-turned" title="Turned ${p.rotate}°">${icon('rotateCw', 12)} ${p.rotate}°</span>` : ''}${editBadge(p)}</div>
       ${cardFoot(p, i, s.name, `page ${p.page + 1} of ${s.pages.length}`)}</li>`;
+  }
+  // How many changes the page editor made on a page, and whether it is signed.
+  function editBadge(p) {
+    const n = (p.edits || []).length;
+    if (!n) return '';
+    const signed = p.edits.some((e) => e.type === 'image' && e.signature);
+    return html`<span class="ps-edited ${signed ? 'signed' : ''}" title="${n} change${n === 1 ? '' : 's'} in the page editor">${icon(signed ? 'pen' : 'edit', 12)} ${signed ? 'Signed' : n}</span>`;
   }
   function cardFoot(p, i, title, sub) {
     const sel = state.selected.has(p.key);
@@ -127,6 +138,7 @@ export async function pdfStudioView(el) {
         <button type="button" class="icon-btn" data-act="left" aria-label="Move page ${i + 1} earlier" title="Move earlier" ${i === 0 ? 'disabled' : ''}>${icon('chevronLeft', 15)}</button>
         <button type="button" class="icon-btn" data-act="ccw" aria-label="Turn page ${i + 1} left" title="Turn left">${icon('rotateCcw', 15)}</button>
         <button type="button" class="icon-btn" data-act="cw" aria-label="Turn page ${i + 1} right" title="Turn right">${icon('rotateCw', 15)}</button>
+        <button type="button" class="icon-btn" data-act="edit" aria-label="Edit or sign page ${i + 1}" title="Edit text, add text, sign">${icon('edit', 15)}</button>
         <button type="button" class="icon-btn danger" data-act="del" aria-label="Remove page ${i + 1}" title="Remove from the PDF">${icon('trash', 15)}</button>
         <button type="button" class="icon-btn" data-act="right" aria-label="Move page ${i + 1} later" title="Move later" ${i === totalPages() - 1 ? 'disabled' : ''}>${icon('chevronRight', 15)}</button>
       </div>`;
@@ -177,6 +189,7 @@ export async function pdfStudioView(el) {
         <label class="field"><span>Title</span><input name="title" value="${x.title}" maxlength="160" /></label>
         <label class="field"><span>Author</span><input name="author" value="${x.author}" maxlength="120" placeholder="${ctx.user?.name || ''}" /></label>
       </details>
+      ${signedCount() ? html`<label class="check ps-record"><input type="checkbox" name="record" ${x.record !== false ? 'checked' : ''} ${x.split === 'none' ? '' : 'disabled'} /><span>Add a signature record page (who signed, when, and a code to verify the file in CORE)${x.split === 'none' ? '' : ' — with one PDF only'}</span></label>` : ''}
       <div class="ps-go">
         <button type="button" class="btn primary" id="ps-export" ${state.pages.length && !state.busy ? '' : 'disabled'}>${icon('download', 16)} ${x.split === 'none' ? 'Download PDF' : 'Download ZIP'}</button>
         <button type="button" class="btn" id="ps-preview" ${state.pages.length && !state.busy && x.split === 'none' ? '' : 'disabled'} title="Open the PDF in a new tab">${icon('eye', 16)} Preview</button>
@@ -196,7 +209,7 @@ export async function pdfStudioView(el) {
       <header class="page-head">
         <div><h1 class="ps-title"><span class="ps-logo">${icon('filePdf', 22)}</span> PDF Studio</h1>
           <p class="muted">Turn documents and pictures into a PDF, put PDFs together, arrange the pages and export. Your files are yours only and are deleted after ${PDF_LIMITS.sourceHours} hours.</p></div>
-        <div class="actions">${state.sources.length ? html`<button type="button" class="btn" id="ps-reset">${icon('trash', 16)} Start over</button>` : ''}</div>
+        <div class="actions"><button type="button" class="btn" id="ps-verify">${icon('shield', 16)} Verify a signed PDF</button>${state.sources.length ? html`<button type="button" class="btn" id="ps-reset">${icon('trash', 16)} Start over</button>` : ''}</div>
       </header>
       <div class="ps-layout">
         <div class="ps-main">
@@ -218,6 +231,7 @@ export async function pdfStudioView(el) {
                   <button type="button" class="btn small-btn danger" data-bulk="del">${icon('trash', 14)} Remove</button>
                   <button type="button" class="btn small-btn ghost" data-bulk="none">Clear</button>`
                 : html`<button type="button" class="btn small-btn ghost" data-bulk="all">Select all</button>
+                  <button type="button" class="btn small-btn primary" id="ps-sign">${icon('pen', 14)} Sign</button>
                   <button type="button" class="btn small-btn" id="ps-blank">${icon('plus', 14)} Blank page</button>
                   <button type="button" class="btn small-btn" id="ps-reverse" title="Last page first">Reverse</button>`}
               </div></div>
@@ -354,7 +368,7 @@ export async function pdfStudioView(el) {
     Object.assign(state.exp, {
       fileName: v('fileName').value, split: f.querySelector('[name=split]:checked')?.value || 'none', numbers: v('numbers').checked, format: v('format').value, position: v('position').value,
       start: Number(v('start').value) || 0, skipFirst: v('skipFirst').checked, header: v('header').value, footer: v('footer').value, watermark: v('watermark').value,
-      opacity: Number(v('opacity').value), color: v('color').value, title: v('title').value, author: v('author').value,
+      opacity: Number(v('opacity').value), color: v('color').value, title: v('title').value, author: v('author').value, record: v('record') ? v('record').checked : state.exp.record,
     });
     save(state);
   }
@@ -362,7 +376,8 @@ export async function pdfStudioView(el) {
     readExport();
     const x = state.exp;
     const body = {
-      pages: state.pages.map((p) => (p.blank ? { blank: true, size: p.size, orientation: p.orientation } : { source: p.source, page: p.page, rotate: p.rotate || 0 })),
+      pages: state.pages.map((p) => ({ ...(p.blank ? { blank: true, size: p.size, orientation: p.orientation } : { source: p.source, page: p.page }), rotate: p.rotate || 0, edits: editsOut(p) })),
+      sign: { record: x.record !== false },
       stamp: {
         ...(x.numbers ? { numbers: { format: x.format, position: x.position, start: x.start, skipFirst: x.skipFirst } } : {}),
         header: x.header, footer: x.footer, ...(x.watermark ? { watermark: { text: x.watermark, opacity: x.opacity, color: x.color } } : {}),
@@ -399,12 +414,43 @@ export async function pdfStudioView(el) {
     }
   }
 
+  // ----- The page editor (0.65) -----
+  const signedCount = () => state.pages.filter((p) => (p.edits || []).some((e) => e.type === 'image' && e.signature)).length;
+  // What the export sends of a page's changes (not what the editor keeps for itself).
+  const editsOut = (p) => (p.edits || []).map(({ id, was, box, ...e }) => e);
+  function editPage(i, signNow = false) {
+    if (i < 0 || !state.pages.length) return;
+    openPageEditor({ pages: state.pages, at: i, source: byId, signNow, onChange: changed });
+  }
+  // Is this file the one that was signed? CORE compares it with the record kept when it was signed.
+  function verify() {
+    modal({
+      title: 'Verify a signed PDF', submitLabel: 'Check', subtitle: 'Choose a PDF signed in CORE\'s PDF Studio. CORE checks that it is exactly the file that was signed.',
+      body: html`<label class="field"><span>The signed PDF</span><input type="file" name="file" accept=".pdf,application/pdf" required /></label><div id="verify-out" aria-live="polite"></div>`,
+      onSubmit: async (f) => {
+        const file = f.file.files[0];
+        if (!file) throw new Error('Choose the PDF.');
+        const r = await api.post('/api/tools/pdf/verify', { file: { name: file.name, data: await readBase64(file) } });
+        const box = f.querySelector('#verify-out');
+        const when = (iso) => new Date(iso).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' });
+        mount(box, r.result === 'valid'
+          ? html`<p class="notice ok">${icon('checkCircle', 18)} <span><strong>Unchanged since it was signed.</strong> Signed by ${r.record.name} on ${when(r.record.at)}, on page${r.record.signedPages.length === 1 ? '' : 's'} ${r.record.signedPages.join(', ')} (record ${r.record.code}).</span></p>`
+          : r.result === 'changed'
+            ? html`<p class="notice bad">${icon('alert', 18)} <span><strong>This file was changed after it was signed.</strong> It names record ${r.record.code} (signed by ${r.record.name} on ${when(r.record.at)}), but its contents are not the ones signed. Ask the signer for the original.</span></p>`
+            : html`<p class="notice">${icon('help', 18)} <span>${r.reason}</span></p>`);
+        throw Object.assign(new Error(''), { keepOpen: true });
+      },
+    });
+  }
+
   // ----- Events -----
   function wire() {
     el.querySelector('#ps-file')?.addEventListener('change', (ev) => {
       add(ev.target.files);
       ev.target.value = '';
     });
+    el.querySelector('#ps-sign')?.addEventListener('click', () => editPage(Math.max(0, state.pages.findIndex((p) => state.selected.has(p.key))), true));
+    el.querySelector('#ps-verify').addEventListener('click', verify);
     el.querySelector('#ps-reset')?.addEventListener('click', async () => {
       if (!(await confirmDialog('Remove all your files from PDF Studio and start over? Download what you need first.', { title: 'Start over', confirmLabel: 'Start over' }))) return;
       await api.del('/api/tools/pdf/sources');
@@ -443,7 +489,15 @@ export async function pdfStudioView(el) {
     if (grid) {
       grid.addEventListener('click', (ev) => {
         const b = ev.target.closest('[data-act]');
-        if (b) act(b.closest('[data-key]').dataset.key, b.dataset.act);
+        if (!b) return;
+        const k = b.closest('[data-key]').dataset.key;
+        if (b.dataset.act === 'edit') return editPage(indexOf(k));
+        act(k, b.dataset.act);
+      });
+      // A double click on a page opens it in the editor.
+      grid.addEventListener('dblclick', (ev) => {
+        const li = ev.target.closest('[data-key]');
+        if (li && !ev.target.closest('button, input, label')) editPage(indexOf(li.dataset.key));
       });
       grid.addEventListener('change', (ev) => {
         const k = ev.target.dataset.sel;

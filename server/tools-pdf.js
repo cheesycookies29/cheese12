@@ -15,7 +15,7 @@
 // files, to which file name; never the contents).
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash, randomInt } from 'node:crypto';
 import { HttpError } from './util.js';
 import { noAudit } from './audit.js';
 import { sniffOffice } from './attachments.js';
@@ -25,6 +25,8 @@ import { toBlocks } from './pdf/office.js';
 import { docToPdf, imageToPdf } from './pdf/layout.js';
 import { readPdf, pageJpeg, pageText } from './pdf/reader.js';
 import { buildPdf, NUMBER_FORMATS, NUMBER_POSITIONS } from './pdf/build.js';
+import { renderPage } from './pdf/render.js';
+import { cleanEdits, hasSignature } from './pdf/edits.js';
 import { isJpeg, isPng } from './pdf/images.js';
 import { PAGE_SIZES } from './pdf/writer.js';
 import { PDF_LIMITS } from '../shared/pdf-studio.js';
@@ -173,6 +175,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     const made = render(s, orig, layout);
     load(s, made.pdf, made.captions);
     s.layout = layout;
+    s.version = (s.version || 0) + 1; // its pages are drawn again
     s.warnings = made.warnings;
     fs.writeFileSync(fileOf(s), made.pdf, { mode: 0o600 });
     s.stored = made.pdf.length + orig.length;
@@ -190,6 +193,43 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     const list = mine(u);
     list.forEach(drop);
     return { removed: list.length };
+  });
+
+  // ----- The page editor (0.65): a page drawn as SVG, and where its lines of text are -----
+  // Drawn by server/pdf/render.js (the browser has no PDF renderer here), kept while in use: the
+  // last RENDERS_KEPT pages drawn, for everyone.
+  const RENDERS_KEPT = 150;
+  const renders = new Map();
+  function rendered(s, n) {
+    const k = `${s.id}:${s.version || 0}:${n}`;
+    if (renders.has(k)) {
+      const r = renders.get(k);
+      renders.delete(k);
+      renders.set(k, r);
+      return r;
+    }
+    if (!s.doc) s.doc = readPdf(fs.readFileSync(fileOf(s)));
+    const r = renderPage(s.doc, n);
+    renders.set(k, r);
+    while (renders.size > RENDERS_KEPT) renders.delete(renders.keys().next().value);
+    return r;
+  }
+  const pageOf = (s, n) => {
+    const i = Number(n);
+    if (!Number.isInteger(i) || i < 0 || i >= s.pages.length) throw new HttpError(404, 'That page is not in this file.');
+    return i;
+  };
+  // The page as a picture (SVG drawn by CORE: no scripts, no links, pictures inside as data).
+  route('GET', '/api/tools/pdf/sources/:id/pages/:n/svg', 'auth', ({ params, user: u }) => {
+    const s = find(params.id, u);
+    const r = rendered(s, pageOf(s, params.n));
+    return { data: Buffer.from(r.svg, 'utf8'), headers: { 'Content-Type': 'image/svg+xml; charset=utf-8', 'Content-Disposition': 'inline; filename="page.svg"', 'Content-Security-Policy': "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox", 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=3600' } };
+  });
+  // Its lines of text, to change them in the editor (invisible text over a scan is left out).
+  route('GET', '/api/tools/pdf/sources/:id/pages/:n/text', 'auth', ({ params, user: u }) => {
+    const s = find(params.id, u);
+    const r = rendered(s, pageOf(s, params.n));
+    return { width: r.width, height: r.height, rotate: r.rotate || 0, runs: (r.runs || []).filter((x) => !x.invisible && x.text.trim()).map((x) => ({ id: x.id, text: x.text, x: x.x, y: x.y, width: x.width, height: x.height, size: x.size, family: x.family, bold: Boolean(x.bold), italic: Boolean(x.italic), color: x.color, editable: x.editable !== false })) };
   });
 
   // A page's thumbnail: the picture itself, or the scan of a scanned PDF page.
@@ -215,10 +255,11 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     if (list.length > MAX_PAGES * 2) throw bad(`An export can have up to ${MAX_PAGES * 2} pages.`);
     const used = new Map();
     const pages = list.map((p, i) => {
+      const edits = cleanEdits(p?.edits);
       if (p?.blank) {
         const size = PAGE_SIZES[p.size] || PAGE_SIZES.a4;
         const landscape = p.orientation === 'landscape';
-        return { blank: { width: landscape ? size[1] : size[0], height: landscape ? size[0] : size[1] } };
+        return { blank: { width: landscape ? size[1] : size[0], height: landscape ? size[0] : size[1] }, edits: edits.filter((e) => e.type !== 'replace'), rotate: Number(p.rotate) || 0 };
       }
       const s = find(p?.source, u);
       const index = Number(p.page);
@@ -227,8 +268,12 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
       if (!ROTATIONS.includes(((rotate % 360) + 360) % 360)) throw bad('Pages turn by 90°, 180° or 270°.');
       if (!s.doc) s.doc = readPdf(fs.readFileSync(fileOf(s)));
       used.set(s.id, s);
-      return { doc: s.doc, index, rotate, source: s };
+      return { doc: s.doc, index, rotate, source: s, edits };
     });
+    // Signed (0.65): pages with a signature drawn, typed or uploaded in the editor. With a record
+    // (one PDF only), a last page says who signed, when, and the code that finds this record.
+    const signedPages = pages.map((p, i) => (hasSignature(p.edits || []) ? i + 1 : null)).filter(Boolean);
+    const record = signedPages.length && body?.sign?.record !== false && body?.split !== 'documents' && body?.split !== 'pages';
     const stamp = cleanStamp(body?.stamp);
     const meta = { title: text(body?.meta?.title, 160), author: text(body?.meta?.author, 120), subject: text(body?.meta?.subject, 200), keywords: text(body?.meta?.keywords, 200) };
     const first = [...used.values()][0];
@@ -237,7 +282,22 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     const split = ['documents', 'pages'].includes(body?.split) ? body.split : 'none';
     let result;
     if (split === 'none') {
+      let sig = null;
+      if (record) {
+        sig = { code: signingCode(), userId: u.id, name: u.name, username: u.username, at: new Date(clock()).toISOString(), fileName: `${base}.pdf`, pages: pages.length + 1, signedPages, signatures: pages.reduce((n, p) => n + (p.edits || []).filter((e) => e.type === 'image' && e.signature).length, 0) };
+        const rec = docToPdf(recordDoc(sig, meta), { size: 'a4', orientation: 'portrait', margin: 20 });
+        pages.push({ doc: readPdf(rec.pdf), index: 0, rotate: 0, noStamp: true });
+      }
       result = { data: buildPdf(pages, stamp, meta), name: `${base}.pdf`, type: 'application/pdf' };
+      if (sig) {
+        sig.sha256 = createHash('sha256').update(result.data).digest('hex');
+        sig.size = result.data.length;
+        db.data.pdfSignatures ||= [];
+        db.data.pdfSignatures.push(sig);
+        if (db.data.pdfSignatures.length > 50000) db.data.pdfSignatures.splice(0, db.data.pdfSignatures.length - 50000);
+        db.save();
+        audit?.record('tools.pdf-signed', { label: 'PDF Studio', note: `${result.name} signed on page${signedPages.length === 1 ? '' : 's'} ${signedPages.join(', ')}; record ${sig.code}` });
+      }
     } else {
       // Several PDFs in a ZIP: one per source document (blank pages go with the pages before them),
       // or one per page. Page numbers start again in each.
@@ -263,7 +323,55 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     return { data: result.data, headers: { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store' } };
   });
 
+  // ----- Is this the PDF that was signed? (0.65) -----
+  // The file's SHA-256 is looked up among the signature records: the same bytes, the same record. A
+  // file whose record page names a code that is known, but whose bytes differ, was changed since.
+  route('POST', '/api/tools/pdf/verify', 'auth', ({ body }) => {
+    noAudit();
+    const f = body?.file;
+    if (!f || typeof f.data !== 'string' || !f.data) throw bad('Choose the signed PDF.');
+    const buf = Buffer.from(f.data, 'base64');
+    if (buf.length > MAX_FILE_BYTES) throw bad(`The file is larger than ${MAX_FILE_BYTES / MB} MB.`);
+    const sha = createHash('sha256').update(buf).digest('hex');
+    const list = db.data.pdfSignatures || [];
+    const show = (r) => ({ code: r.code, name: r.name, at: r.at, fileName: r.fileName, pages: r.pages, signedPages: r.signedPages, signatures: r.signatures });
+    const same = list.find((r) => r.sha256 === sha);
+    if (same) return { result: 'valid', record: show(same) };
+    let code = null;
+    try {
+      const doc = readPdf(buf);
+      for (let i = doc.pageCount - 1; i >= Math.max(0, doc.pageCount - 3) && !code; i--) code = pageText(doc, i, 2000).match(/CORE-[A-Z2-9]{4}-[A-Z2-9]{4}/)?.[0] || null;
+    } catch {
+      return { result: 'unknown', reason: 'This file is not a PDF CORE can read.' };
+    }
+    const named = code && list.find((r) => r.code === code);
+    if (named) return { result: 'changed', record: show(named) };
+    return { result: 'unknown', reason: code ? `This PDF names the record ${code}, which is not in this CORE.` : 'This PDF was not signed in this CORE\'s PDF Studio (or its record page was removed).' };
+  });
+
   return { sweep, sources };
+}
+
+// A signature record's code: CORE-XXXX-XXXX, letters and digits that cannot be mistaken (no 0/O, 1/I).
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const signingCode = () => `CORE-${Array.from({ length: 8 }, (_, i) => (i === 4 ? '-' : '') + CODE_CHARS[randomInt(CODE_CHARS.length)]).join('')}`;
+// The record page added at the end of a signed PDF.
+function recordDoc(sig, meta) {
+  const when = new Date(sig.at).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short', timeZone: process.env.TZ || 'Asia/Manila' });
+  const row = (k, v) => ({ cells: [{ runs: [{ text: k, bold: true }] }, { runs: [{ text: String(v) }] }] });
+  return {
+    title: 'Signature record',
+    blocks: [
+      { type: 'heading', level: 1, runs: [{ text: 'Signature record' }] },
+      { type: 'paragraph', runs: [{ text: 'This page was added by CORE PDF Studio when the document was signed. It records who signed, when, and where.' }] },
+      { type: 'table', widths: [1, 2], rows: [
+        row('Document', meta.title || sig.fileName), row('File', sig.fileName), row('Signed by', `${sig.name} (${sig.username})`), row('Signed on', when),
+        row('Signatures', `${sig.signatures} on page${sig.signedPages.length === 1 ? '' : 's'} ${sig.signedPages.join(', ')} of ${sig.pages}`), row('Record', sig.code),
+      ] },
+      { type: 'paragraph', runs: [{ text: 'To check that this file is the one that was signed, open CORE → PDF Studio → Verify a signed PDF, and choose this file. CORE compares its contents with what it recorded when it was signed: any change to the file since, however small, shows.' }] },
+      { type: 'paragraph', runs: [{ text: `Record ${sig.code}`, mono: true, size: 14 }] },
+    ],
+  };
 }
 
 // Page numbers, header, footer and watermark, as sent by the page.

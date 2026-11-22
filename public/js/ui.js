@@ -651,7 +651,8 @@ export function modal({ title, subtitle = '', body, submitLabel = 'Save', cancel
       await onSubmit(form);
       close();
     } catch (err) {
-      errors.server(err);
+      // keepOpen: the dialog shows a result of its own and stays open (no error to show).
+      if (!err.keepOpen) errors.server(err);
     } finally {
       btn.disabled = false;
     }

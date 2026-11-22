@@ -102,6 +102,8 @@ const P = {
   filePdf: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 17v-4h1.5a1.25 1.25 0 010 2.5H9M14 13v4M14 13h2M14 15h1.5"/>',
   rotateCw: '<path d="M20 12a8 8 0 11-2.34-5.66"/><path d="M20 4v5h-5"/>',
   rotateCcw: '<path d="M4 12a8 8 0 102.34-5.66"/><path d="M4 4v5h5"/>',
+  square: '<rect x="4" y="4" width="16" height="16" rx="2"/>',
+  pen: '<path d="M3 21l3.5-1 11-11a2.1 2.1 0 00-3-3l-11 11z"/><path d="M14 6l3 3"/><path d="M13 21h8"/>',
   repeat: '<path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 014-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 01-4 4H4"/>',
   bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
   alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>',

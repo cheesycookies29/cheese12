@@ -28,6 +28,20 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.65.0-alpha',
+    date: '2026-11-22',
+    title: 'PDF Studio: change text and sign',
+    modules: ['system'],
+    notes: 'A page renderer and a page editor for PDF Studio, still with Node\'s standard library only: the server draws each page as SVG and knows where its lines of text are.',
+    changes: [
+      ['new', 'system', 'Page renderer (server/pdf/render.js): each page drawn as SVG (paths, clipping, text with the PDF\'s own positions and widths, JPEG and Flate pictures with their masks, form XObjects), with every line of text and its place. Every page in PDF Studio now shows as it looks, not only pictures and scans.'],
+      ['new', 'system', 'Page editor: change a line of text on the page (the old words are taken out of the page\'s content, the new ones written where they began, in Helvetica, Times or Courier with size, bold, italic and colour), add text boxes, white-out, highlights, ticks, crosses, today\'s date and pictures; select, move, resize, nudge, delete, undo; previous and next page.'],
+      ['new', 'system', 'Signing: draw (mouse, finger or pen), type (three handwriting styles) or upload a signature (the paper made see-through), remembered in this browser if asked, placed and sized on any page. A signed PDF can end with a signature record page (who signed, when, on which pages, a record code); CORE keeps the file\'s SHA-256 with the record and audits the signing.'],
+      ['new', 'system', 'Verify a signed PDF: the same file is "unchanged since it was signed" with who signed and when; a file that names a record but whose bytes differ is "changed after it was signed".'],
+      ['improved', 'system', 'Edits are checked on the server (kinds, ranges, PNG or JPEG pictures up to 2 MB, 300 changes a page); the page SVG is sent as an image with a sandbox policy, holds no scripts or links, and is kept for the last 150 pages drawn.'],
+    ],
+  },
+  {
     version: '0.64.0-alpha',
     date: '2026-11-22',
     title: 'PDF Studio, and Tools on the CORE home',
