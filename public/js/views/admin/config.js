@@ -21,6 +21,7 @@ export function showValue(v, format) {
   if (v === null || v === undefined || v === '') return '—';
   switch (format) {
     case 'bool': return v ? 'On' : 'Off';
+    case 'shown': return v ? 'Shown' : 'Hidden';
     case 'percent': return `${Math.round(Number(v) * 10000) / 100}%`;
     case 'minutes': return `${v} minutes${v >= 120 ? ` (${Math.round((v / 60) * 10) / 10} hours)` : ''}`;
     case 'picture': return v ? 'A picture' : 'None';

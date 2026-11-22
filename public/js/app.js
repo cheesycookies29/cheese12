@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { ctx, can, mayUseModule, moduleOn, panelAccess } from './state.js';
+import { ctx, can, mayUseModule, moduleOn, panelAccess, shown } from './state.js';
 import { html, mount, toast, today } from './ui.js';
 import { icon, iconSvg } from './icons.js';
 import { MODULES, SWITCHABLE } from './modules.js';
@@ -179,7 +179,7 @@ const NAV = {
     { href: '/assets/reports', label: 'Problem reports', icon: 'alert', permission: 'assets.view', badge: 'reports' },
     { href: '/assets/allocations', label: 'Allocations', icon: 'userPlus', permission: 'assets.view' },
     { href: '/assets/activity', label: 'Activity log', icon: 'activity', permission: 'assets.view' },
-    { href: '/assets/replication', label: 'Data replication', icon: 'database', permission: 'assets.view', soon: true },
+    { href: '/assets/replication', label: 'Data replication', icon: 'database', permission: 'assets.view', soon: 'replication' },
     { heading: 'My account', permission: 'self' },
     { href: '/assets/mine', label: 'My Assets', icon: 'laptop', permission: 'self' },
   ],
@@ -375,7 +375,7 @@ function renderModuleSwitch() {
   const pins = (ctx.user?.favoriteModules || []).filter((id) => live.some((m) => m.id === id && m.home));
   const open = [...pins.map((id) => live.find((m) => m.id === id)), ...live.filter((m) => m.home && !pins.includes(m.id))];
   const locked = live.filter((m) => !m.home);
-  const soon = MODULES.filter((m) => m.status !== 'live');
+  const soon = MODULES.filter((m) => m.status !== 'live' && shown(m.id));
   const tile = (m, kind) => {
     const cls = `mod-tile ${kind}${m.accent ? ` accent-${m.accent}` : ''}`;
     const inner = html`<span class="mod-ic">${icon(m.glyph, 20)}</span><span class="mod-name">${m.short || m.name}</span>${kind === 'soon' ? html`<span class="mod-tag">Soon</span>` : kind === 'locked' ? html`<span class="mod-tag">${icon('lock', 9)} No access</span>` : pins.includes(m.id) ? html`<span class="mod-pin" aria-hidden="true">${icon('star', 10)}</span>` : ''}`;
@@ -434,7 +434,8 @@ function renderNav(module, force = false) {
   const m = moduleOf(module);
   const panel = module === 'system';
   // A heading shows only when something under it does.
-  const visible = (panel ? NAV.system : [...(NAV[module] || []), ...NAV.common]).filter((n) => allowed(n.permission || 'auth'));
+  // A coming-soon page (soon: its roadmap id) an administrator hid is left out (0.63).
+  const visible = (panel ? NAV.system : [...(NAV[module] || []), ...NAV.common]).filter((n) => allowed(n.permission || 'auth') && (!n.soon || shown(n.soon)));
   const items = visible.filter((n, i) => !n.heading || (visible[i + 1] && !visible[i + 1].heading));
   mount(document.getElementById('nav'), html`
     ${panel ? html`<div class="nav-module" title="Admin panel"><span class="mod-ic">${icon('settings', 18)}</span><span><strong>Admin panel</strong><small>CORE · Administration</small></span></div>` : ''}

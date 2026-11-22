@@ -9,7 +9,7 @@ const assets = fs.readFileSync(new URL('../public/js/views/assets.js', import.me
 
 test('Data replication is in the IT Asset Management menu, tagged as coming soon, with its page', () => {
   const nav = app.slice(app.indexOf('  assets: ['), app.indexOf('  helpdesk: ['));
-  assert.match(nav, /\{ href: '\/assets\/replication', label: 'Data replication', icon: 'database', permission: 'assets.view', soon: true \}/);
+  assert.match(nav, /\{ href: '\/assets\/replication', label: 'Data replication', icon: 'database', permission: 'assets.view', soon: 'replication' \}/, 'soon: its id on the roadmap, so an administrator can hide it (0.63)');
   assert.ok(nav.indexOf('Data replication') < nav.indexOf("heading: 'My account'"), 'with the module pages, before My account');
   assert.match(app, /\['\/assets\/replication', replicationView, 'assets\.view', 'assets'\]/);
   assert.match(app, /n\.soon \? html`<span class="nav-soon">Soon<\/span>`/);

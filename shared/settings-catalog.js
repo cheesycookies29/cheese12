@@ -5,8 +5,9 @@
 //
 // area: a group of settings saved together (server/config.js knows how to read, save and reset it).
 // path: where the setting is inside its area ('' = the whole area).
-// format: how to show the value: percent (0.09 → 9%), bool, list, schedule, minutes, json; default: as is.
+// format: how to show the value: percent (0.09 → 9%), bool, shown, list, schedule, minutes, json; default: as is.
 // No secret is listed or kept: mailbox and outgoing-mail passwords never leave their screen.
+import { ROADMAP } from './modules.js';
 
 export const MODULES = [
   ['admin', 'Admin panel'],
@@ -59,6 +60,8 @@ export const SETTINGS = [
   ['modules', 'helpdesk', 'IT Service Desk', 'Tickets, email, the public form and My tickets.', 'bool'],
   ['modules', 'crm', 'Sales & CRM', 'Leads, accounts, pipeline, bids and contracts.', 'bool'],
   ['modules', 'projects', 'Project Management', 'Projects, My work, timesheets and the digest.', 'bool'],
+  // Coming soon: shown or hidden (0.63).
+  ...ROADMAP.map((x) => ['modules', x.id, `${x.name} (coming soon)`, `Shown greyed out in ${x.where.charAt(0).toLowerCase()}${x.where.slice(1)}, or hidden from everyone.`, 'shown']),
   ['roles', '', 'Permissions changed from the defaults', 'Which account types were given or lost permissions.', 'roles'],
   // ----- Human Resource Management -----
   ['location', 'officeLabel', 'Office name', 'Shown with each clock-in location.'],

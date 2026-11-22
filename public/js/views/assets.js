@@ -1,7 +1,7 @@
 // IT Asset Management: overview, asset register, asset form and asset detail, and Data replication
 // (coming soon).
 import { api } from '../api.js';
-import { can } from '../state.js';
+import { can, shown } from '../state.js';
 import { ASSET_STATUS, ASSET_CONDITIONS, ASSET_CATEGORIES, ASSIGNEE_TYPES, ISSUE_TYPES, ISSUE_IMPACT, ISSUE_STATUS, ACTIVE_ISSUE } from '/shared/assets.js';
 import { icon } from '../icons.js';
 import { html, mount, formErrors, money, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, addDays } from '../ui.js';
@@ -392,6 +392,8 @@ export async function assetDetailView(el, { id }) {
 // Data replication (coming soon, 0.48): on the roadmap of IT Asset Management. The page says what it
 // will do; there is nothing to set up yet.
 export async function replicationView(el) {
+  // Hidden by an administrator (Admin panel → Modules, 0.63): as if it were not there.
+  if (!shown('replication')) return (location.hash = '#/assets');
   mount(el, html`
     <header class="page-head">
       <div><h1>Data replication <span class="badge gray soon-tag">${icon('lock', 12)} Coming soon</span></h1>

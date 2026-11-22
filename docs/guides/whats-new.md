@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Show or hide what is coming soon (0.63)
+- **Admin panel → Modules** has a **Coming soon** section: a switch for each module on the roadmap (Finance & Accounting, Procurement, Document Management, C-suite), each integration (Microsoft 365, Google Cloud, CodeRabbit) and Data replication. A hidden one is gone from the CORE home, the modules menu and the side menu for everyone until it is shown again; **Hide all** and **Show all** do them all at once. See [Show or hide what is coming soon](admin#show-or-hide-what-is-coming-soon).
+
 ### Automation rules (0.62)
 - Under a project's **Automations**, project managers add **rules**: *when* something happens to a task (it is added, moves to a status, is assigned, gets a comment, becomes overdue, or its last subtask is done), *if* it matches some conditions, *then* CORE does it: move it, assign it, set its priority or due date, add a watcher, a comment or checklist items, notify someone, or create a follow-up task. Six examples to start from. Each run is in the **Run log**. See [Set up a rule](projects#set-up-a-rule-project-managers).
 

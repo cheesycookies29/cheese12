@@ -27,7 +27,7 @@ import { AREAS, SETTINGS, areaInfo, labelOf } from '../shared/settings-catalog.j
 import {
   ROLES, PERMISSION_LABELS, PERMISSION_GROUPS, ADMIN_ONLY_PERMISSIONS, setRoleOverrides, permissionsOf, userCan, usesAdminPanel, cleanOverrides,
 } from '../shared/roles.js';
-import { SWITCHABLE, cleanModuleConfig, defaultModuleConfig, moduleName } from '../shared/modules.js';
+import { SWITCHABLE, HIDEABLE, cleanModuleConfig, defaultModuleConfig, moduleName, roadmapName } from '../shared/modules.js';
 import { APP_VERSION } from '../shared/devlog.js';
 import { buildInfo } from './build.js';
 import { hasDemo } from './demo.js';
@@ -374,14 +374,18 @@ export function registerAdminRoutes(route, db, { invoke, audit, sessionCount }) 
   route('PUT', '/api/admin/modules', 'modules.config', ({ body }) => {
     const input = isPlain(body.modules) ? body.modules : fail('Send which modules are on.');
     for (const [id, v] of Object.entries(input)) {
-      if (!SWITCHABLE.includes(id)) fail(`There is no module "${String(id).slice(0, 40)}".`);
-      if (typeof v !== 'boolean') fail(`Say whether ${moduleName(id)} is on or off.`);
+      if (!SWITCHABLE.includes(id) && !HIDEABLE.includes(id)) fail(`There is no module "${String(id).slice(0, 40)}".`);
+      if (typeof v !== 'boolean') fail(SWITCHABLE.includes(id) ? `Say whether ${moduleName(id)} is on or off.` : `Say whether ${roadmapName(id)} is shown or hidden.`);
     }
     const before = cleanModuleConfig(data().modules);
     const next = { ...before, ...input };
     data().modules = next;
     save();
-    const changes = SWITCHABLE.filter((id) => before[id] !== next[id]).map((id) => ({ field: moduleName(id), from: before[id] ? 'On' : 'Off', to: next[id] ? 'On' : 'Off' }));
+    const changes = [
+      ...SWITCHABLE.filter((id) => before[id] !== next[id]).map((id) => ({ field: moduleName(id), from: before[id] ? 'On' : 'Off', to: next[id] ? 'On' : 'Off' })),
+      // Coming soon (0.63): shown or hidden.
+      ...HIDEABLE.filter((id) => before[id] !== next[id]).map((id) => ({ field: `${roadmapName(id)} (coming soon)`, from: before[id] ? 'Shown' : 'Hidden', to: next[id] ? 'Shown' : 'Hidden' })),
+    ];
     if (changes.length) audit.record('settings.modules', { entity: 'settings', label: 'Modules', changes });
     return modulesView();
   });

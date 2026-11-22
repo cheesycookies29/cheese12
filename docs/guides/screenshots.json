@@ -118,6 +118,7 @@
   {"file": "admin-roles.jpg", "user": "admin", "url": "/#/admin/roles", "api": [["PUT", "/api/admin/roles", {"overrides": {"hr": {"add": ["audit.view"], "remove": []}}}]], "wait": 1000, "scroll": "h2:has-text('Admin panel')"},
   {"file": "admin-access-grants.jpg", "user": "admin", "url": "/#/admin/access", "wait": 1000},
   {"file": "admin-modules.jpg", "user": "admin", "url": "/#/admin/modules", "api": [["PUT", "/api/admin/modules", {"modules": {"crm": false}}]], "wait": 1000},
+  {"file": "admin-modules-soon.jpg", "user": "admin", "url": "/#/admin/modules", "api": [["PUT", "/api/admin/modules", {"modules": {"procurement": false, "coderabbit": false}}]], "scroll": "#roadmap", "wait": 1000},
   {"file": "admin-config.jpg", "user": "admin", "url": "/#/admin/config?changed=1", "api": [["PUT", "/api/admin/modules", {"modules": {"crm": true}}], ["PUT", "/api/security-settings", {"sessionIdleMinutes": 240}], ["PUT", "/api/location-settings", {"officeLabel": "Taguig office", "officeLat": 14.5547, "officeLng": 121.0244, "radius": 200, "retentionDays": 365}]], "wait": 1200},
   {"file": "admin-config-history.jpg", "user": "admin", "url": "/#/admin/config?tab=history", "wait": 1200},
   {"file": "admin-settings.jpg", "user": "admin", "url": "/#/admin/settings", "wait": 1000},

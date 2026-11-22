@@ -1,7 +1,7 @@
 // CORE home: the first page after sign-in. A greeting, the modules this account can open
 // (with a few live figures), the roadmap, and administration shortcuts.
 import { api } from '../api.js';
-import { ctx, can, mayUseModule, moduleOn, panelAccess } from '../state.js';
+import { ctx, can, mayUseModule, moduleOn, panelAccess, shown } from '../state.js';
 import { companyRoleOf } from '/shared/profile.js';
 import { MODULES, INTEGRATIONS } from '../modules.js';
 import { roleOverrides } from '/shared/roles.js';
@@ -75,7 +75,9 @@ export async function launcherView(el) {
   ]);
   // A module the company turned off is gone, except for administrators, who see it marked Off.
   const live = MODULES.filter((m) => m.status === 'live' && mayUseModule(m.id));
-  const soon = MODULES.filter((m) => m.status !== 'live');
+  // Coming soon: unless an administrator hid it (0.63).
+  const soon = MODULES.filter((m) => m.status !== 'live' && shown(m.id));
+  const integrations = INTEGRATIONS.filter((i) => shown(i.id));
   const open = live.filter((m) => ctx.moduleHome(m.id)).length;
   const today = new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
@@ -193,11 +195,11 @@ export async function launcherView(el) {
       <div class="sys-compact" id="sys-compact" role="region" aria-labelledby="sys-heading">${compactItems()}</div>
     </section>
 
-    <section class="hub-wrap sys-section int-section${view === 'compact' ? ' compact' : ''}" id="int-section" aria-labelledby="int-heading">
-      <div class="card-head"><h2 id="int-heading">${icon('link')} Integrations</h2><span class="muted small">Services CORE will connect to · ${INTEGRATIONS.length} coming soon</span></div>
-      <div class="int-grid">${INTEGRATIONS.map(intCard)}</div>
-      <div class="sys-compact">${INTEGRATIONS.map(intMini)}</div>
-    </section>
+    ${integrations.length ? html`<section class="hub-wrap sys-section int-section${view === 'compact' ? ' compact' : ''}" id="int-section" aria-labelledby="int-heading">
+      <div class="card-head"><h2 id="int-heading">${icon('link')} Integrations</h2><span class="muted small">Services CORE will connect to · ${integrations.length} coming soon</span></div>
+      <div class="int-grid">${integrations.map(intCard)}</div>
+      <div class="sys-compact">${integrations.map(intMini)}</div>
+    </section>` : ''}
 
     ${panelAccess()
       ? html`<section class="hub-wrap">
@@ -228,7 +230,7 @@ export async function launcherView(el) {
       localStorage.setItem(VIEW_KEY, view);
     } catch {}
     section.classList.toggle('compact', view === 'compact');
-    el.querySelector('#int-section').classList.toggle('compact', view === 'compact');
+    el.querySelector('#int-section')?.classList.toggle('compact', view === 'compact');
     el.querySelectorAll('[data-view]').forEach((x) => {
       x.classList.toggle('active', x.dataset.view === view);
       x.setAttribute('aria-pressed', String(x.dataset.view === view));

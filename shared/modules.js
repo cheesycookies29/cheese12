@@ -59,7 +59,22 @@ export const MODULE_PARTS = {
   projects: 'Projects, My work, milestones, the Projects setup and the daily digest; "Add to a project" on a ticket and "Start project" on a deal.',
 };
 
-export const defaultModuleConfig = () => Object.fromEntries(SWITCHABLE.map((id) => [id, true]));
+// What is coming soon, which an administrator can show or hide (Admin panel → Modules, 0.63): the
+// modules on the roadmap, the integrations and the coming-soon pages inside a live module. Hidden:
+// gone from the CORE home, the modules menu and the side menu, for everyone (administrators too);
+// shown again with the same switch. `where`: where it shows.
+export const ROADMAP = [
+  ...MODULES.filter((m) => m.status !== 'live').map((m) => ({ id: m.id, kind: 'module', name: m.name, code: m.code, glyph: m.glyph, accent: m.accent || null, where: 'The CORE home and the modules menu' })),
+  ...INTEGRATIONS.map((i) => ({ id: i.id, kind: 'integration', name: i.name, code: i.code, glyph: i.glyph, accent: i.accent || null, where: 'Integrations on the CORE home' })),
+  { id: 'replication', kind: 'feature', name: 'Data replication', code: 'IT Asset Management', glyph: 'database', accent: null, where: 'The IT Asset Management side menu' },
+];
+export const ROADMAP_KINDS = { module: 'Modules', integration: 'Integrations', feature: 'Pages in a module' };
+export const HIDEABLE = ROADMAP.map((x) => x.id);
+export const roadmapName = (id) => ROADMAP.find((x) => x.id === id)?.name || id;
+// config: as saved by an administrator; something coming soon missing from it is shown.
+export const shownOnRoadmap = (config, id) => config?.[id] !== false;
+
+export const defaultModuleConfig = () => Object.fromEntries([...SWITCHABLE, ...HIDEABLE].map((id) => [id, true]));
 // config: { id: true | false } as saved by an administrator; a module missing from it is on.
 export const moduleOn = (config, id) => !SWITCHABLE.includes(id) || config?.[id] !== false;
 
@@ -67,11 +82,12 @@ export const moduleOn = (config, id) => !SWITCHABLE.includes(id) || config?.[id]
 // where one module shows another's data (VAPT 0.33), so a module turned off stays off everywhere.
 export const moduleOpenFor = (config, id, user) => moduleOn(config, id) || user?.role === 'admin';
 
-// Only what CORE itself writes: a boolean per switchable module.
+// Only what CORE itself writes: a boolean per switchable module (on or off), and per thing coming
+// soon (shown or hidden).
 export function cleanModuleConfig(input) {
   const out = defaultModuleConfig();
   if (!input || typeof input !== 'object' || Array.isArray(input)) return out;
-  for (const id of SWITCHABLE) if (typeof input[id] === 'boolean') out[id] = input[id];
+  for (const id of [...SWITCHABLE, ...HIDEABLE]) if (typeof input[id] === 'boolean') out[id] = input[id];
   return out;
 }
 

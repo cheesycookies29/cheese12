@@ -190,6 +190,17 @@ Self-service belongs to the module it is part of. With **Human Resource Manageme
 
 ![Modules](admin-modules.jpg)
 
+### Show or hide what is coming soon
+
+What is on CORE's roadmap shows greyed out, marked **Coming soon**: the modules **Finance & Accounting**, **Procurement**, **Document Management** and **C-suite** on the CORE home and in the modules menu; the integrations **Microsoft 365**, **Google Cloud** and **CodeRabbit** under **Integrations** on the CORE home; and **Data replication** in the IT Asset Management side menu. Nothing can be opened or set up in them yet.
+
+1. Open **Admin panel → Modules** and scroll to **Coming soon**. They are grouped as **Modules**, **Integrations** and **Pages in a module**, with where each one shows.
+2. Turn a switch off to hide one: CORE says, for example, *Procurement is now hidden from everyone.* Turn it on to show it again. **Hide all** and **Show all** change them all at once; the line under the table counts how many are shown.
+
+A hidden one is gone from the CORE home, the modules menu and the side menu for everyone, administrators included; with all three integrations hidden, the **Integrations** area goes too. Showing it brings it back as it was. Hiding never turns a live module off (that is the switch above), and the change is in the audit log and the Settings center (*Procurement (coming soon): Shown → Hidden*).
+
+![Coming soon, shown or hidden](admin-modules-soon.jpg)
+
 ### Find any setting and compare it with the default
 
 The **Settings center** lists every setting in CORE (the Admin panel, Human Resource Management, the service desk, Sales & CRM and Projects) in one place.
@@ -390,7 +401,7 @@ Setting these up is described in CORE's README file and in the server set-up ins
 | Roles & permissions | What each account type may do, per part of CORE; defaults marked; **Restore defaults** per account type (administrators only) |
 | Access grants | One table of the access given to (or taken from) one person: Service Desk agent, Sales & CRM, Projects |
 | Settings center | Every setting with its value, its default and whether it differs; restore defaults; the change history with undo; export and import of the company's settings |
-| Modules | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company |
+| Modules | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management on or off for the company; show or hide what is coming soon (modules, integrations, Data replication) |
 | Settings & branding | Company details printed on payslips, the default work schedule, the brand colour, the logo and the sign-in headline |
 | Sign-in & security | 2-step verification policy, session lengths, request and failed sign-in limits, common passwords |
 | Help & guides | Every guide and whether the company edited it; links to the guide editor |

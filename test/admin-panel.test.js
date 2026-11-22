@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from '../server/db.js';
 import { createApi } from '../server/api.js';
 import { ROLES, PERMISSION_LABELS, PERMISSION_GROUPS, ADMIN_ONLY_PERMISSIONS, cleanOverrides, setRoleOverrides, userCan, usesAdminPanel } from '../shared/roles.js';
-import { moduleOn, moduleOfApi, SWITCHABLE, cleanModuleConfig } from '../shared/modules.js';
+import { moduleOn, moduleOfApi, SWITCHABLE, cleanModuleConfig, HIDEABLE } from '../shared/modules.js';
 import { AREAS, SETTINGS } from '../shared/settings-catalog.js';
 import { THEMES, contrast, readableOnBrand, themeColors } from '../shared/brand.js';
 import { validateBranding, checkLogo, sniffImage } from '../server/branding.js';
@@ -77,7 +77,8 @@ test('dashboard: accounts, sign-ins, 2-step, temporary passwords, failed sign-in
   assert.equal(d.security.failedSignIns, 5);
   assert.equal(d.security.locks, 1);
   assert.equal(d.security.chain.ok, true);
-  assert.deepEqual(d.modules, { hr: true, assets: true, helpdesk: true, crm: true, projects: true });
+  // Live modules on; what is coming soon shown (0.63).
+  assert.deepEqual(d.modules, { hr: true, assets: true, helpdesk: true, crm: true, projects: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
   assert.equal(d.feedback.awaiting, 1);
   assert.equal(d.data.demo, true);
   assert.equal(d.data.lastBackupAt, null);
@@ -215,7 +216,7 @@ test('modules: a module that is off is refused (with a clear message) for everyo
   assert.ok((await sales('GET', '/api/crm/overview')).openCount >= 0);
 
   const r = await admin('PUT', '/api/admin/modules', { modules: { crm: false, hr: false } });
-  assert.deepEqual(r.config, { hr: false, assets: true, helpdesk: true, crm: false, projects: true });
+  assert.deepEqual(r.config, { hr: false, assets: true, helpdesk: true, crm: false, projects: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
   const refused = await sales('GET', '/api/crm/overview');
   assert.equal(refused.status, 403);
   assert.match(refused.error, /Sales & CRM is turned off for the company/);
@@ -246,9 +247,11 @@ test('modules: a module that is off is refused (with a clear message) for everyo
   assert.ok(Array.isArray(await emp('GET', '/api/me/payslips')));
   // Only modules.config may switch; only known modules and booleans.
   assert.equal((await sales('PUT', '/api/admin/modules', { modules: { crm: false } })).status, 403);
-  assert.match((await admin('PUT', '/api/admin/modules', { modules: { finance: false } })).error, /no module/);
+  assert.match((await admin('PUT', '/api/admin/modules', { modules: { warehouse: false } })).error, /no module/);
+  // A module coming soon is shown or hidden (0.63), never turned on.
+  assert.match((await admin('PUT', '/api/admin/modules', { modules: { finance: 'on' } })).error, /shown or hidden/);
   assert.match((await admin('PUT', '/api/admin/modules', { modules: { crm: 'no' } })).error, /on or off/);
-  assert.deepEqual(cleanModuleConfig({ crm: false, hr: 'x', __proto__: { a: 1 } }), { hr: true, assets: true, helpdesk: true, crm: false, projects: true });
+  assert.deepEqual(cleanModuleConfig({ crm: false, hr: 'x', __proto__: { a: 1 } }), { hr: true, assets: true, helpdesk: true, crm: false, projects: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
   // Every module's API is known; the holiday calendar is readable whatever is off.
   assert.equal(moduleOfApi('GET', '/api/pm/overview'), 'projects');
   assert.equal(moduleOfApi('GET', '/api/clock-locations'), 'hr');

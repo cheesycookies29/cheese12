@@ -28,6 +28,18 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.63.0-alpha',
+    date: '2026-11-22',
+    title: 'Show or hide what is coming soon',
+    modules: ['system'],
+    notes: 'Administrators choose which of the roadmap\'s modules, integrations and pages people see.',
+    changes: [
+      ['new', 'system', 'Admin panel → Modules: a Coming soon section with a Shown / Hidden switch for each module on the roadmap (Finance & Accounting, Procurement, Document Management, C-suite), each integration (Microsoft 365, Google Cloud, CodeRabbit) and Data replication, grouped, with where each shows; Show all and Hide all; a count of those shown.'],
+      ['improved', 'system', 'A hidden one is gone from the CORE home (with all integrations hidden, the Integrations area too), the modules menu and the side menu for everyone, administrators included; a link to a hidden page opens its module instead. Hiding never turns a live module off.'],
+      ['improved', 'system', 'Saved with the module switches (backups, Settings center export and import), listed in the Settings center as Shown / Hidden, and recorded in the audit log (e.g. "Procurement (coming soon): Shown → Hidden").'],
+    ],
+  },
+  {
     version: '0.62.0-alpha',
     date: '2026-11-21',
     title: 'Automation rules',

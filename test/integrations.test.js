@@ -30,8 +30,8 @@ test('the CORE home shows them under Your modules, as cards or compact tiles, wi
   const home = fs.readFileSync(new URL('../public/js/views/launcher.js', import.meta.url), 'utf8');
   assert.match(home, /id="int-section"/);
   assert.ok(home.indexOf('id="sys-section"') < home.indexOf('id="int-section"'), 'below the modules');
-  assert.match(home, /INTEGRATIONS\.map\(intCard\)/);
-  assert.match(home, /INTEGRATIONS\.map\(intMini\)/);
+  assert.match(home, /integrations\.map\(intCard\)/, 'the integrations shown (an administrator can hide them, 0.63)');
+  assert.match(home, /integrations\.map\(intMini\)/);
   const cards = home.slice(home.indexOf('const intCard'), home.indexOf('const intMini') + 400);
   assert.doesNotMatch(cards, /<a |href=/, 'nothing to open yet');
   assert.match(fs.readFileSync(new URL('../public/js/modules.js', import.meta.url), 'utf8'), /INTEGRATIONS/);

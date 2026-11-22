@@ -3674,3 +3674,9 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
   .pm-rule-row select { flex: 1 1 100%; }
 }
 .pm-rule-part > .btn { justify-self: start; }
+
+/* Admin panel → Modules: Coming soon, shown or hidden (0.63) */
+.roadmap-card { margin-top: 20px; }
+.roadmap-card .card-head .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.roadmap-group th { background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-top: 8px; padding-bottom: 8px; }
+.roadmap-card tr.module-row:has(input:not(:checked)) .mod-name { opacity: .6; }

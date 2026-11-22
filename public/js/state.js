@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { userCan, ROLES, setRoleOverrides, usesAdminPanel } from '/shared/roles.js';
-import { moduleOn as isOn } from '/shared/modules.js';
+import { moduleOn as isOn, shownOnRoadmap } from '/shared/modules.js';
 import { HEX_RE, THEMES } from '/shared/brand.js';
 
 // App-wide state shared between views.
@@ -38,6 +38,8 @@ export const can = (permission) => userCan(ctx.user, permission);
 // A module the company turned off is gone for everyone but administrators, who still open it.
 export const moduleOn = (id) => isOn(ctx.modules, id);
 export const mayUseModule = (id) => moduleOn(id) || ctx.user?.role === 'admin';
+// Something coming soon an administrator hid (Admin panel → Modules, 0.63) is gone for everyone.
+export const shown = (id) => shownOnRoadmap(ctx.modules, id);
 // Any admin permission opens the Admin panel.
 export const panelAccess = () => usesAdminPanel(ctx.user);
 
