@@ -294,14 +294,14 @@ test('xlsx: sheets in order, values, dates, percentages, merged cells, limits', 
   assert.deepEqual(rows[0].cells.map((c) => c.runs[0]?.text), ['Name', 'Date', 'Pct', 'Num', undefined, undefined]);
   assert.deepEqual(rows[1].cells, [
     { runs: [{ text: 'Ann', bold: true }] },
-    { runs: [{ text: '2024-01-15' }], align: 'right' },
-    { runs: [{ text: '12.5%' }], align: 'right' },
+    { runs: [{ text: '1/15/2024' }], align: 'right' }, // as Excel shows them, by their number formats (0.65.1)
+    { runs: [{ text: '12.50%' }], align: 'right' },
     { runs: [{ text: '0.3' }], align: 'right' },
     { runs: [{ text: 'TRUE' }] },
     { runs: [{ text: 'Ann!' }] },
   ]);
-  assert.deepEqual(rows[2].cells.map((c) => c.runs[0]?.text), ['Name', '1900-03-01', '50%', '3', '#DIV/0!', undefined], 'empty column G trimmed');
-  assert.deepEqual(rows[3].cells.map((c) => c.runs[0]?.text), [undefined, '1900-02-28', '2024-01-15 12:00', undefined, undefined, undefined]);
+  assert.deepEqual(rows[2].cells.map((c) => c.runs[0]?.text), ['Name', '01/03/1900', '50%', 'Day 3.00', '#DIV/0!', undefined], 'empty column G trimmed');
+  assert.deepEqual(rows[3].cells.map((c) => c.runs[0]?.text), [undefined, '2/28/1900', '1/15/2024 12:00', undefined, undefined, undefined]);
   assert.equal(rows[4].cells.length, 6, 'the empty row 5 is kept inside the range');
   assert.deepEqual(rows[5].cells.slice(0, 2), [{ runs: [{ text: 'Merged' }], colspan: 3 }, { runs: [] }]);
   assert.equal(rows.length, 6);
@@ -322,7 +322,7 @@ test('xlsx: the 1904 date system and a missing workbook', () => {
     ['xl/worksheets/sheet1.xml', '<x:worksheet xmlns:x="m"><x:sheetData><x:row r="1"><x:c r="A1" s="1"><x:v>0</x:v></x:c><x:c r="B1" s="1"><x:v>1</x:v></x:c></x:row></x:sheetData></x:worksheet>'],
   ]);
   const res = toBlocks(buf, 'xlsx');
-  assert.deepEqual(res.blocks[1].rows[0].cells.map((c) => c.runs[0].text), ['1904-01-01', '1904-01-02'], 'prefixed element names are read too');
+  assert.deepEqual(res.blocks[1].rows[0].cells.map((c) => c.runs[0].text), ['1/1/1904', '1/2/1904'], 'prefixed element names are read too');
   assert.equal(res.landscape, false);
   assert.throws(() => toBlocks(zip([['xl/other.xml', '<a/>']]), 'xlsx'), /not an Excel workbook CORE can read/);
 });
@@ -716,4 +716,16 @@ test('parseXml: a 10 MB part parses quickly', () => {
   const nested = (n) => zip([['word/document.xml', `<w:document ${W}><w:body>${'<w:sdt><w:sdtContent>'.repeat(n)}${p(r('deep'))}</w:body></w:document>`]]);
   assert.deepEqual(toBlocks(nested(400), 'docx').blocks, [{ type: 'paragraph', runs: [{ text: 'deep' }] }]);
   assert.ok(Array.isArray(toBlocks(nested(5000), 'docx').blocks), 'past 1,000 levels the rest is flattened, without a crash');
+});
+
+test('xlsx number formats: shown as Excel shows them (QA 0.65.1)', async () => {
+  const { formatExcel } = await import('../server/pdf/xlsx-format.js');
+  const cases = [
+    [0.12345, '0%', '12%'], [1234.5, '#,##0.00', '1,234.50'], [1234.5, '"₱"#,##0.00', '₱1,234.50'], [1234.5, '[$₱-3409]#,##0.00', '₱1,234.50'],
+    [46096, 'dd/mm/yyyy', '15/03/2026'], [46096, 'mmm d, yyyy', 'Mar 15, 2026'], [46096, 'dddd, mmmm d', 'Sunday, March 15'],
+    [46096.5625, 'h:mm AM/PM', '1:30 PM'], [1.5, '[h]:mm', '36:00'], [-1234.5, '#,##0.00;(#,##0.00)', '(1,234.50)'], [-5, '0.0', '-5.0'],
+    [0, '#,##0.00;(#,##0.00);"-"', '-'], [1234567, '#,##0,', '1,235'], [5, '00', '05'], [0.5, '0.0%', '50.0%'],
+  ];
+  for (const [n, code, shown] of cases) assert.equal(formatExcel(n, code), shown, code);
+  for (const code of ['General', '@', '0.00E+00', '# ?/?', '[>100]0']) assert.equal(formatExcel(12, code), null, `${code}: the plain number instead`);
 });

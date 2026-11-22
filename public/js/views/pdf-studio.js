@@ -28,10 +28,17 @@ function load() {
     return null;
   }
 }
+// When the arrangement is too big for the browser to keep (large pictures in the page editor), the
+// person is told once: a reload would lose it (QA 0.65.1: it was lost silently).
+let warnedFull = false;
 function save(state) {
   try {
     sessionStorage.setItem(STORE(), JSON.stringify({ pages: state.pages, layout: state.layout, exp: state.exp }));
-  } catch {}
+    warnedFull = false;
+  } catch {
+    if (!warnedFull) toast('Your changes are too large for this browser to keep if the page reloads (large pictures). Download your PDF before you leave or reload.', 'error');
+    warnedFull = true;
+  }
 }
 
 // A file as base64. Pictures the server does not read (WebP, GIF, HEIC…) are drawn on a canvas and
@@ -288,7 +295,9 @@ export async function pdfStudioView(el) {
       if (f.size > PDF_LIMITS.maxFileBytes) return refused.push(`${f.name} (larger than ${PDF_LIMITS.maxFileBytes / MB} MB)`), false;
       return true;
     });
-    if (refused.length) toast(`Not added: ${refused.join('; ')}.`, 'error');
+    const failed = [...refused];
+    let added = 0;
+    const notes = [];
     state.queue.push(...ok.map((f) => f.name));
     state.busy += ok.length;
     draw();
@@ -299,21 +308,51 @@ export async function pdfStudioView(el) {
         const s = await api.post('/api/tools/pdf/sources', { file: { name: conv.name, type: conv.type, data: await readBase64(conv.blob) }, layout: state.layout });
         state.sources.push(s);
         s.pages.forEach((x, i) => state.pages.push({ key: key(), source: s.id, page: i, rotate: 0 }));
-        if (s.warnings?.length) toast(`${s.name}: ${s.warnings.join(' ')}`);
+        if (s.warnings?.length) notes.push(`${s.name}: ${s.warnings.join(' ')}`);
+        added += 1;
       } catch (err) {
-        toast(`${f.name}: ${err.message}`, 'error');
+        failed.push(`${f.name} (${err.message.replace(/\.$/, '')})`);
       } finally {
         state.busy -= 1;
         state.queue.shift();
         changed();
       }
     }
-    if (ok.length) toast(`${plural(ok.length, 'file')} added.`);
+    // One message for the whole batch: what was added, and each file that was not, with why.
+    if (failed.length) toast(`${added ? `${plural(added, 'file')} added. ` : ''}Not added: ${failed.join('; ')}.`, 'error');
+    else if (added) toast(`${plural(added, 'file')} added.${notes.length ? ` ${notes.join(' ')}` : ''}`);
   }
 
   // ----- Arranging -----
   const indexOf = (k) => state.pages.findIndex((p) => p.key === k);
+  // Turning a page turns what the page editor added with it (QA 0.65.1): each thing keeps its place
+  // on the page's content (a signature stays by its line), and stays upright to read; white-out and
+  // highlights turn their shape with the page. Changed lines are in the page itself: nothing to do.
+  const shownDims = (p) => {
+    if (p.blank) return p.orientation === 'landscape' ? [841.89, 595.28] : [595.28, 841.89];
+    const info = byId(p.source)?.pages[p.page] || { width: 595.28, height: 841.89 };
+    const t = turnOf(p);
+    return t === 90 || t === 270 ? [info.height, info.width] : [info.width, info.height];
+  };
   const turn = (p, by) => {
+    const [W, H] = shownDims(p);
+    const cw = ((by % 360) + 360) % 360 === 90;
+    // A point of the page as shown, after a quarter turn (clockwise or not).
+    const move = (x, y) => (cw ? [H - y, x] : [y, W - x]);
+    for (const e of p.edits || []) {
+      if (e.type === 'replace') continue;
+      if (e.type === 'box' || e.type === 'highlight') {
+        const [a, b] = move(e.x, e.y);
+        const [c, d] = move(e.x + e.w, e.y + e.h);
+        Object.assign(e, { x: Math.min(a, c), y: Math.min(b, d), w: Math.abs(c - a), h: Math.abs(d - b) });
+      } else {
+        const w = e.type === 'image' ? e.w : e.type === 'mark' ? e.size : e.w || (e.size || 12) * 6;
+        const h = e.type === 'image' ? e.h : e.type === 'mark' ? e.size : (e.size || 12) * 1.2;
+        const [cx, cy] = move(e.x + w / 2, e.y + h / 2);
+        e.x = cx - w / 2;
+        e.y = cy - h / 2;
+      }
+    }
     p.rotate = (((p.rotate || 0) + by) % 360 + 360) % 360;
   };
   function act(k, what) {
@@ -370,18 +409,31 @@ export async function pdfStudioView(el) {
         const layout = { size: f.size.value, orientation: f.orientation.value, margin: Number(f.margin.value), fontSize: Number(f.fontSize?.value || l.fontSize), fit: f.fit?.value || l.fit };
         if (!only) state.layout = layout;
         const redo = only ? targets : f.apply?.checked ? targets : [];
+        let lost = 0;
         for (const s of redo) {
           const next = await api.post(`/api/tools/pdf/sources/${s.id}/layout`, { layout: only || s.kind === 'image' || layout.size !== 'auto' ? layout : { ...layout, size: 'a4' } });
-          // Its pages are replaced where the first of them was (turns are kept page by page); a file
-          // whose pages were all removed from the PDF stays out of it.
-          const at = state.pages.findIndex((p) => p.source === s.id);
-          const turns = state.pages.filter((p) => p.source === s.id).map((p) => p.rotate);
-          state.pages = state.pages.filter((p) => p.source !== s.id);
-          if (at >= 0) state.pages.splice(at, 0, ...next.pages.map((x, i) => ({ key: key(), source: s.id, page: i, rotate: turns[i] || 0 })));
+          // The arrangement is kept (QA 0.65.1): each page of the file stays where it was, with its
+          // turn and what was added on it; pages it no longer has go; new ones follow its last page.
+          // Changed lines of text are left behind (the text has moved), and said so.
+          const count = next.pages.length;
+          let dropped = 0;
+          state.pages = state.pages.filter((p) => {
+            if (p.source !== s.id) return true;
+            if (p.page >= count) return false;
+            const before = (p.edits || []).length;
+            p.edits = (p.edits || []).filter((e) => e.type !== 'replace');
+            dropped += before - p.edits.length;
+            return true;
+          });
+          const had = Math.max(-1, ...s.pages.map((x, i) => i));
+          const lastAt = state.pages.reduce((at, p, i) => (p.source === s.id ? i : at), -1);
+          const fresh = next.pages.map((x, i) => i).filter((i) => i > had).map((i) => ({ key: key(), source: s.id, page: i, rotate: 0 }));
+          if (fresh.length && lastAt >= 0) state.pages.splice(lastAt + 1, 0, ...fresh);
+          if (dropped) lost += dropped;
           Object.assign(s, next);
         }
         changed();
-        toast(redo.length ? `${plural(redo.length, 'file')} laid out again.` : 'Saved for the next files.');
+        toast(`${redo.length ? `${plural(redo.length, 'file')} laid out again.` : 'Saved for the next files.'}${lost ? ` ${plural(lost, 'changed line')} of text could not be kept (the text moved): change ${lost === 1 ? 'it' : 'them'} again in the page editor.` : ''}`, lost ? 'error' : 'ok');
       },
     });
   }
@@ -393,7 +445,7 @@ export async function pdfStudioView(el) {
     const v = (n) => f.querySelector(`[name="${n}"]`);
     Object.assign(state.exp, {
       fileName: v('fileName').value, split: f.querySelector('[name=split]:checked')?.value || 'none', numbers: v('numbers').checked, format: v('format').value, position: v('position').value,
-      start: Number(v('start').value) || 0, skipFirst: v('skipFirst').checked, header: v('header').value, footer: v('footer').value, watermark: v('watermark').value,
+      start: v('start').value === '' ? 1 : Math.max(0, Number(v('start').value) || 0), skipFirst: v('skipFirst').checked, header: v('header').value, footer: v('footer').value, watermark: v('watermark').value,
       opacity: Number(v('opacity').value), color: v('color').value, title: v('title').value, author: v('author').value, record: v('record') ? v('record').checked : state.exp.record,
     });
     save(state);
@@ -429,6 +481,7 @@ export async function pdfStudioView(el) {
       const res = await fetch('/api/tools/pdf/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Export failed (${res.status})`);
       const blob = await res.blob();
+      const warning = res.headers.get('X-Core-Warning');
       const name = decodeURIComponent((res.headers.get('Content-Disposition') || '').match(/filename\*=UTF-8''([^;]+)/)?.[1] || 'document.pdf');
       const url = URL.createObjectURL(blob);
       if (preview) {
@@ -439,7 +492,7 @@ export async function pdfStudioView(el) {
         document.body.appendChild(a);
         a.click();
         a.remove();
-        toast(`${name} downloaded (${sizeLabel(blob.size)}).`);
+        toast(`${name} downloaded (${sizeLabel(blob.size)}).${warning ? ` ${decodeURIComponent(warning)}` : ''}`, warning ? 'error' : 'ok');
       }
       setTimeout(() => URL.revokeObjectURL(url), preview ? 30 * 60000 : 60000);
     } catch (err) {
@@ -457,7 +510,7 @@ export async function pdfStudioView(el) {
   const editsOut = (p) => (p.edits || []).map(({ id, was, box, ...e }) => e);
   function editPage(i, signNow = false) {
     if (i < 0 || !state.pages.length) return;
-    openPageEditor({ pages: state.pages, at: i, source: byId, signNow, onChange: changed });
+    openPageEditor({ pages: state.pages, at: i, source: byId, signNow, onChange: changed, onSave: () => save(state) });
   }
   // Is this file the one that was signed? CORE compares it with the record kept when it was signed.
   function verify() {
@@ -512,8 +565,10 @@ export async function pdfStudioView(el) {
       toast(`${s.name} removed.`);
     }));
     el.querySelectorAll('[data-readd]').forEach((b) => b.addEventListener('click', () => {
+      // Only the pages not in the PDF any more, at the end.
       const s = byId(b.dataset.readd);
-      s.pages.forEach((x, i) => state.pages.push({ key: key(), source: s.id, page: i, rotate: 0 }));
+      const there = new Set(state.pages.filter((p) => p.source === s.id).map((p) => p.page));
+      s.pages.forEach((x, i) => !there.has(i) && state.pages.push({ key: key(), source: s.id, page: i, rotate: 0 }));
       changed();
     }));
     el.querySelector('#ps-blank')?.addEventListener('click', () => {

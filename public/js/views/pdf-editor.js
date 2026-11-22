@@ -245,7 +245,7 @@ export function signaturePad() {
 
 // ---------- The editor ----------
 // pages: the arrangement; at: the index to open; sources(id) → source; onChange() saves.
-export function openPageEditor({ pages, at, source, onChange, signNow = false }) {
+export function openPageEditor({ pages, at, source, onChange, onSave = () => {}, signNow = false }) {
   let index = at;
   let tool = signNow ? 'sign' : 'select';
   let selected = null;
@@ -275,11 +275,16 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     return source(p.source).pages[p.page];
   };
   const turn = () => (((info().rotate || 0) + (page().rotate || 0)) % 360 + 360) % 360;
+  // Text boxes left empty are not changes.
+  const tidy = () => pages.forEach((p) => p.edits && (p.edits = p.edits.filter((e) => e.type !== 'text' || e.text.trim() || e.id === selected)));
   const close = () => {
+    selected = null;
+    tidy();
     shell.remove();
     document.body.classList.remove('ps-editing');
     document.removeEventListener('keydown', onKey);
     removeEventListener('resize', layout);
+    removeEventListener('hashchange', close);
     onChange();
     opener?.focus?.();
   };
@@ -382,6 +387,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
   }
 
   // ----- The page and what is on it -----
+  let saveTimer = null;
   let scale = 1;
   let zoom = 1; // × the page's width fitted to the screen
   function layout() {
@@ -402,15 +408,18 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     const item = (e) => {
       const sel = selected === e.id ? 'sel' : '';
       const at = `left:${e.x * k}px;top:${e.y * k}px`;
-      if (e.type === 'text') return html`<div class="ps-ed-item ps-ed-text ${sel}" data-id="${e.id}" style="${at};${e.w ? `width:${e.w * k}px;` : ''}font:${e.italic ? 'italic ' : ''}${e.bold ? '700 ' : ''}${e.size * k}px/${1.2} ${FAMILY_CSS[e.family]};color:${e.color}">${e.text || ' '}${sel ? html`<span class="ps-ed-grip" data-grip="w"></span>` : ''}</div>`;
+      if (e.type === 'text') return html`<div class="ps-ed-item ps-ed-text ${sel}" data-id="${e.id}" style="${at};${e.w ? `width:${e.w * k}px;` : `max-width:${Math.max(20, dw - e.x - 8) * k}px;`}font:${e.italic ? 'italic ' : ''}${e.bold ? '700 ' : ''}${e.size * k}px/${1.2} ${FAMILY_CSS[e.family]};color:${e.color}">${e.text || ' '}${sel ? html`<span class="ps-ed-grip" data-grip="w"></span>` : ''}</div>`;
       if (e.type === 'box' || e.type === 'highlight') return html`<div class="ps-ed-item ps-ed-${e.type} ${sel}" data-id="${e.id}" style="${at};width:${e.w * k}px;height:${e.h * k}px;background:${e.color}">${sel ? html`<span class="ps-ed-grip" data-grip="wh"></span>` : ''}</div>`;
       if (e.type === 'image') return html`<div class="ps-ed-item ps-ed-image ${sel}" data-id="${e.id}" style="${at};width:${e.w * k}px;height:${e.h * k}px"><img src="${e.data.startsWith('data:') ? e.data : `data:image/png;base64,${e.data}`}" alt="${e.signature ? 'Signature' : 'Picture'}" draggable="false" />${sel ? html`<span class="ps-ed-grip" data-grip="ratio"></span>` : ''}</div>`;
       if (e.type === 'mark') return html`<div class="ps-ed-item ps-ed-mark ${sel}" data-id="${e.id}" style="${at};width:${e.size * k}px;height:${e.size * k}px;color:${e.color}">${icon(e.kind === 'cross' ? 'x' : e.kind === 'dot' ? 'circle' : 'check', Math.round(e.size * k))}${sel ? html`<span class="ps-ed-grip" data-grip="size"></span>` : ''}</div>`;
       if (e.type === 'replace') {
         const r = (runs || []).find((x) => x.id === e.run) || e.box;
         if (!r) return '';
-        const b = shownBox(r.width !== undefined ? r : e.box, inf.width, inf.height, t);
-        return html`<div class="ps-ed-item ps-ed-replaced ${sel}" data-id="${e.id}" style="left:${b.x * k}px;top:${(b.y - b.h * 0.15) * k}px;min-width:${b.w * k}px;height:${b.h * 1.3 * k}px;font:${e.italic ? 'italic ' : ''}${e.bold ? '700 ' : ''}${e.size * k}px/${1.25} ${FAMILY_CSS[e.family]};color:${e.color}">${e.text || ' '}</div>`;
+        const rb = r.width !== undefined ? r : e.box;
+        const b = shownBox(rb, inf.width, inf.height, t);
+        // On a turned page the line runs along the page: drawn turned the same way, from its start.
+        const turnCss = t ? `transform-origin:0 0;transform:rotate(${t}deg);left:${(t === 90 ? b.x + b.w : t === 180 ? b.x + b.w : b.x) * k}px;top:${(t === 90 ? b.y : b.y + b.h) * k}px;` : `left:${b.x * k}px;top:${(b.y - b.h * 0.15) * k}px;`;
+        return html`<div class="ps-ed-item ps-ed-replaced ${sel}" data-id="${e.id}" style="${turnCss}min-width:${rb.width * k}px;height:${rb.height * 1.3 * k}px;font:${e.italic ? 'italic ' : ''}${e.bold ? '700 ' : ''}${e.size * k}px/${1.25} ${FAMILY_CSS[e.family]};color:${e.color}">${e.text || ' '}</div>`;
       }
       return '';
     };
@@ -423,6 +432,9 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     }) : '';
     mount(el, html`${bg}${edits().map(item)}${runBoxes}`);
     el.dataset.tool = tool;
+    // Kept as you go (a reload or a closed tab keeps what was done), a moment after the last change.
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(onSave, 600);
   }
 
   // ----- The side panel: what is selected -----
@@ -459,7 +471,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
       ${isText ? html`
         <label class="field"><span>Text</span><textarea name="text" rows="4" maxlength="4000">${e.text}</textarea></label>
         <div class="grid two">
-          <label class="field"><span>Size</span><input type="number" name="size" min="4" max="96" step="0.5" value="${e.size}" /></label>
+          <label class="field"><span>Size</span><input type="number" name="size" min="3" max="200" step="0.5" value="${e.size}" /></label>
           <label class="field"><span>Font</span><select name="family" title="Sans: Helvetica; Serif: Times; Fixed: Courier">${[['sans', 'Sans'], ['serif', 'Serif'], ['mono', 'Fixed']].map(([v, l]) => html`<option value="${v}" ${e.family === v ? 'selected' : ''}>${l}</option>`)}</select></label>
         </div>
         <div class="ps-ed-styles"><label class="check"><input type="checkbox" name="bold" ${e.bold ? 'checked' : ''} /><span><b>Bold</b></span></label><label class="check"><input type="checkbox" name="italic" ${e.italic ? 'checked' : ''} /><span><i>Italic</i></span></label></div>` : ''}
@@ -477,7 +489,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
       if (!f.name) return;
       if (!snapped) (snapshot(), (snapped = true));
       if (f.name === 'text') e.text = f.value;
-      else if (f.name === 'size') e.size = Math.max(4, Math.min(96, Number(f.value) || e.size));
+      else if (f.name === 'size') e.size = Math.max(3, Math.min(200, Number(f.value) || e.size));
       else if (f.name === 'family') e.family = f.value;
       else if (f.name === 'bold' || f.name === 'italic') e[f.name] = f.checked;
       else if (f.name === 'color' || f.name === 'colorPick') e.color = f.value;
@@ -498,7 +510,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     const r = runs.find((x) => x.id === Number(runBtn.dataset.run));
     if (!r?.editable) return toast('This text is inside a drawing on the page and cannot be changed here. Cover it with White-out and add text instead.', 'error');
     snapshot();
-    const e = { id: uid(), type: 'replace', run: r.id, was: r.text, text: r.text, size: Math.round(r.size * 10) / 10, family: r.family, bold: r.bold, italic: r.italic, color: hex(r.color), box: { x: r.x, y: r.y, width: r.width, height: r.height } };
+    const e = { id: uid(), type: 'replace', run: r.id, was: r.text, text: r.text, size: Math.max(3, Math.min(200, Math.round(r.size * 10) / 10)), family: r.family, bold: r.bold, italic: r.italic, color: hex(r.color), box: { x: r.x, y: r.y, width: r.width, height: r.height } };
     edits().push(e);
     selected = e.id;
     layout();
@@ -521,7 +533,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     const runBtn = ev.target.closest('[data-run]');
     if (runBtn) return changeRun(runBtn);
     const itemEl = ev.target.closest('[data-id]');
-    if (itemEl && (tool === 'select' || tool === 'edit' || tool === 'sign' && !pendingSig)) {
+    if (itemEl && !(tool === 'sign' && pendingSig)) {
       const e = edits().find((x) => x.id === itemEl.dataset.id);
       selected = e.id;
       const grip = ev.target.closest('[data-grip]')?.dataset.grip;
@@ -552,6 +564,9 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
       tool = 'select';
     }
     if (!e) return;
+    // The mouse press that follows would move the focus to the page, away from the new text's box
+    // (QA 0.65.1: the first words typed were lost).
+    if (e.type === 'text') ev.preventDefault();
     e.id = uid();
     edits().push(e);
     selected = e.id;
@@ -631,6 +646,8 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
   };
   document.addEventListener('keydown', onKey);
   addEventListener('resize', layout);
+  // Leaving the page (Back, a link) closes the editor (QA 0.65.1: it stayed on top).
+  addEventListener('hashchange', close);
   draw();
   if (signNow) pick('sign');
   shell.querySelector('#ed-done').focus();
@@ -650,9 +667,23 @@ async function pictureData(file) {
     img.onerror = () => rej(new Error('Your browser cannot open this picture.'));
     img.src = url;
   });
-  const s = Math.min(1, 1600 / img.naturalWidth);
-  const c = Object.assign(document.createElement('canvas'), { width: Math.round(img.naturalWidth * s), height: Math.round(img.naturalHeight * s) });
-  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  // Under the server's 2 MB a picture (QA 0.65.1: a large PNG was taken here, then refused at
+  // export): a photo as JPEG; a PNG as it is if small enough, else smaller, and as JPEG at the last.
+  const LIMIT = 1.9 * 1024 * 1024;
+  const bytes = (url) => Math.floor((url.length - url.indexOf(',') - 1) * 0.75);
+  let s = Math.min(1, 1600 / img.naturalWidth);
   const jpeg = /jpe?g/i.test(file.type);
-  return { data: c.toDataURL(jpeg ? 'image/jpeg' : 'image/png', 0.9), width: c.width, height: c.height };
+  for (let tries = 0; tries < 8; tries++) {
+    const c = Object.assign(document.createElement('canvas'), { width: Math.max(1, Math.round(img.naturalWidth * s)), height: Math.max(1, Math.round(img.naturalHeight * s)) });
+    const g = c.getContext('2d');
+    if (jpeg || tries >= 4) {
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+    }
+    g.drawImage(img, 0, 0, c.width, c.height);
+    const data = jpeg || tries >= 4 ? c.toDataURL('image/jpeg', 0.85) : c.toDataURL('image/png');
+    if (bytes(data) <= LIMIT) return { data, width: c.width, height: c.height };
+    s *= 0.75;
+  }
+  throw new Error('This picture is too large even made smaller. Choose a smaller one.');
 }

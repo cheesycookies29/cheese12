@@ -28,6 +28,22 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.65.1-alpha',
+    date: '2026-11-22',
+    title: 'PDF Studio: QA fixes',
+    modules: ['system'],
+    notes: 'Fixes from a functional and a visual QA pass of PDF Studio and its page editor, and the Preview button that opened an empty tab.',
+    changes: [
+      ['fixed', 'system', 'Preview: the tab is opened when the button is clicked (it was opened after the PDF was made, so browsers showed an empty tab or blocked it), then sent to the PDF. A preview is not a signing: it records nothing and its record page says PREVIEW.'],
+      ['fixed', 'system', 'PDFs: form answers, stamps and other annotations with an appearance are drawn into the page when it is imported and when it is shown (they were dropped); hidden ones and pop-ups are left out. Form XObjects without a Subtype are drawn.'],
+      ['fixed', 'system', 'Excel: cells are shown by their number format (sections, quoted text, currency tags, digits, thousands, decimals, percentages, scaling; dates and times with month and minute told apart; elapsed hours) instead of plain numbers and ISO dates. Formats it does not know (fractions, scientific, conditions) show the plain number.'],
+      ['fixed', 'system', 'Page editor: a line of text set in a scaled text matrix keeps its size when changed (it was refused or drawn far too large or small); text boxes wrap at the page edge and hold up to 400 lines; damaged pictures are refused with a message; empty text boxes are dropped; sizes are kept between 3 and 200.'],
+      ['fixed', 'system', 'Turning a page turns what was added in the editor with it (shapes turned, pictures, signatures and text moved and kept upright); Page setup keeps the order and turn of the pages laid out again and says when changed lines of text had to be dropped; re-adding a file adds only the pages that are missing.'],
+      ['fixed', 'system', 'Export: characters the standard PDF fonts cannot show are reported (on the file, and after an export); empty files, oversized typed text, bad page shapes and turns are refused with a message naming the page; leading blank pages go with the first file in a ZIP per file; the cover\'s {page} is empty when it is unnumbered.'],
+      ['improved', 'system', 'Page editor and grid: zoom; tool labels wrap; the side column stays in view; a bar of actions on phones; cards keep one size and show their additions; handwriting fonts for typed signatures are served with CORE (OFL) and loaded before drawing; highlights multiply so the text stays black; keyboard use; dark mode; work is saved as you go and empty text boxes tidied on close.'],
+    ],
+  },
+  {
     version: '0.65.0-alpha',
     date: '2026-11-22',
     title: 'PDF Studio: change text and sign',

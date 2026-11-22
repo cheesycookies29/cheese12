@@ -233,7 +233,7 @@ test('API: upload documents, pictures and PDFs; arrange and export; each person 
   assert.equal(csv.format, 'csv');
   // Refused: a program, an empty file, too large.
   await fails(upload(sam, 'setup.exe', Buffer.from('MZ program')), 400, /cannot turn setup\.exe into a PDF/);
-  await fails(sam('POST', '/api/tools/pdf/sources', { file: { name: 'x.pdf', data: '' } }), 400, /Choose a file/);
+  await fails(sam('POST', '/api/tools/pdf/sources', { file: { name: 'x.pdf', data: '' } }), 400, /x.pdf is empty/);
   // Another person sees nothing of Sam's.
   assert.deepEqual((await ivy('GET', '/api/tools/pdf')).sources, []);
   await fails(ivy('POST', '/api/tools/pdf/export', { pages: [{ source: md.id, page: 0 }] }), 404, /no longer in PDF Studio/);

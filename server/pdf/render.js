@@ -21,7 +21,7 @@
 import { deflateSync, inflateSync } from 'node:zlib';
 import * as zlib from 'node:zlib';
 import { Name, Bytes, widthOf, encodeWinAnsi } from './writer.js';
-import { pageInternals, Parser, PdfStream, Keyword, isDict, nameOf, toArray, toUnicode, inflate, ascii85, asciiHex, WHITE, isRegular, MAX_CONTENT_BYTES } from './reader.js';
+import { pageInternals, pageAnnotations, Parser, PdfStream, Keyword, isDict, nameOf, toArray, toUnicode, inflate, ascii85, asciiHex, WHITE, isRegular, MAX_CONTENT_BYTES } from './reader.js';
 
 const MAX_FORM_DEPTH = 6;
 const LIGHT = [0.85, 0.85, 0.85]; // what a pattern, a gradient or a picture that cannot be shown becomes
@@ -757,7 +757,7 @@ function interpret(ctx, data, resources, level) {
       }
       if (id) out.push(`<use href="#${id}" transform="${matrixAttr(m)}"${opacity('opacity', gs.fa)}/>`);
       else out.push(`<path d="${polygon(gs.ctm, 0, 0, 1, 1)}" fill="${hex(LIGHT)}"/>`);
-    } else if (sub === 'Form' && level < MAX_FORM_DEPTH) {
+    } else if ((sub === 'Form' || (sub === null && xo.dict.BBox !== undefined)) && level < MAX_FORM_DEPTH) {
       let content;
       try { content = decodeStream(ctx.src, xo, MAX_CONTENT_BYTES).data; } catch { return; }
       const matrix = toArray(r(xo.dict.Matrix)).map(r);
@@ -971,6 +971,15 @@ function runPage(doc, index, { maxImagePixels = 4_000_000, maxOps = 400_000, dra
   const resources = src.resolve(page.attrs.Resources);
   interpret(ctx, data, isDict(resources) ? resources : {}, 0);
   for (let i = 0; i < ctx.gs.groups; i++) ctx.out.push('</g>');
+  // What the page's annotations show (filled-in fields, ticks, stamps), as the export draws them.
+  if (draw) {
+    const ann = pageAnnotations(doc, index);
+    if (ann.length) {
+      ctx.gs = newState(IDENTITY);
+      interpret(ctx, Buffer.from(ann.map((a) => a.ops).join('\n'), 'latin1'), { XObject: Object.fromEntries(ann.map((a) => [a.key, a.stream])) }, 0);
+      for (let i = 0; i < ctx.gs.groups; i++) ctx.out.push('</g>');
+    }
+  }
   ctx.runs = intoLines(ctx.runs);
   return { ctx, data, box, rotate };
 }

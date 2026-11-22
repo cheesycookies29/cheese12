@@ -26,9 +26,9 @@ import { docToPdf, imageToPdf } from './pdf/layout.js';
 import { readPdf, pageJpeg, pageText } from './pdf/reader.js';
 import { buildPdf, NUMBER_FORMATS, NUMBER_POSITIONS } from './pdf/build.js';
 import { renderPage } from './pdf/render.js';
-import { cleanEdits, hasSignature } from './pdf/edits.js';
+import { cleanEdits, hasSignature, runScale } from './pdf/edits.js';
 import { isJpeg, isPng } from './pdf/images.js';
-import { PAGE_SIZES } from './pdf/writer.js';
+import { PAGE_SIZES, missingChars, MISSING_NOTE } from './pdf/writer.js';
 import { PDF_LIMITS } from '../shared/pdf-studio.js';
 
 const MB = 1024 * 1024;
@@ -37,6 +37,8 @@ const OFFICE = { [DOCX]: 'docx', [XLSX]: 'xlsx', [PPTX]: 'pptx', [ODT]: 'odt', [
 const TEXT_KINDS = { txt: 'txt', text: 'txt', md: 'md', markdown: 'md', csv: 'csv', html: 'html', htm: 'html' };
 const FORMAT_NAME = { pdf: 'PDF', image: 'Picture', docx: 'Word', xlsx: 'Excel', pptx: 'PowerPoint', odt: 'OpenDocument text', ods: 'OpenDocument spreadsheet', odp: 'OpenDocument presentation', txt: 'Text', md: 'Markdown', csv: 'CSV', html: 'Web page' };
 const ROTATIONS = [0, 90, 180, 270];
+// Titles programs put in a PDF by themselves, which say nothing: the file's name is better.
+const GENERIC_TITLE = /^(untitled|untitled document|document\d*|presentation\d*|book\d*|microsoft (word|excel|powerpoint) - .*|.*\.(docx?|xlsx?|pptx?|pdf))$/i;
 const bad = (msg) => new HttpError(400, msg);
 
 // What a file is, by what it holds (never its name alone, except to tell text kinds apart).
@@ -112,7 +114,18 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
       throw bad(err.message || `CORE could not read this ${FORMAT_NAME[s.format]} file.`);
     }
     const out = docToPdf(doc, layout, { title: doc.title || s.title });
-    if (doc.title && !s.title) s.title = doc.title;
+    if (doc.title && !s.title && !GENERIC_TITLE.test(doc.title.trim())) s.title = doc.title;
+    // Letters the standard fonts lack (Greek, Chinese, emoji…) are said, not silently replaced.
+    const all = [];
+    const walk = (runs) => (runs || []).forEach((r) => all.push(r.text || ''));
+    for (const b of doc.blocks || []) {
+      walk(b.runs);
+      if (b.type === 'code') all.push(b.text || '');
+      (b.items || []).forEach((it) => walk(it.runs));
+      (b.rows || []).forEach((row) => row.cells.forEach((c) => walk(c.runs)));
+    }
+    const missing = missingChars(all.join(' '));
+    if (missing.length) (doc.warnings ||= []).push(MISSING_NOTE(missing));
     return { pdf: out.pdf, captions: out.captions, warnings: doc.warnings || [] };
   }
   // Reads the source's PDF and notes its pages: size, turn, a caption, and whether it has a picture
@@ -132,7 +145,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
       caption: captions ? captions[i] || '' : i < 300 ? pageText(doc, i, 90) : '',
       thumb: s.kind === 'image' || (s.kind === 'pdf' && i < 500 && Boolean(pageJpeg(doc, i))),
     }));
-    if (s.kind === 'pdf' && !s.title && doc.info?.title) s.title = String(doc.info.title).slice(0, 160);
+    if (s.kind === 'pdf' && !s.title && doc.info?.title && !GENERIC_TITLE.test(String(doc.info.title).trim())) s.title = String(doc.info.title).slice(0, 160);
   }
   const out = (s) => ({ id: s.id, name: s.name, kind: s.kind, format: s.format, formatName: FORMAT_NAME[s.format] || s.format, size: s.size, title: s.title || '', layout: s.layout, pages: s.pages, warnings: s.warnings, createdAt: s.createdAt, canLayout: s.kind !== 'pdf' });
   const storedBy = (u) => mine(u).reduce((n, s) => n + s.stored, 0);
@@ -143,8 +156,9 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
   route('POST', '/api/tools/pdf/sources', 'auth', ({ body, user: u }) => {
     noAudit();
     const f = body?.file;
-    if (!f || typeof f.data !== 'string' || !f.data) throw bad('Choose a file.');
+    if (!f || typeof f.data !== 'string') throw bad('Choose a file.');
     const name = text(f.name, 160) || 'file';
+    if (!f.data) throw bad(`${name} is empty.`);
     const orig = Buffer.from(f.data, 'base64');
     if (!orig.length) throw bad(`${name} is empty.`);
     if (orig.length > MAX_FILE_BYTES) throw bad(`${name} is larger than ${MAX_FILE_BYTES / MB} MB. Split it, or make its pictures smaller, and try again.`);
@@ -229,7 +243,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
   route('GET', '/api/tools/pdf/sources/:id/pages/:n/text', 'auth', ({ params, user: u }) => {
     const s = find(params.id, u);
     const r = rendered(s, pageOf(s, params.n));
-    return { width: r.width, height: r.height, rotate: r.rotate || 0, runs: (r.runs || []).filter((x) => !x.invisible && x.text.trim()).map((x) => ({ id: x.id, text: x.text, x: x.x, y: x.y, width: x.width, height: x.height, size: x.size, family: x.family, bold: Boolean(x.bold), italic: Boolean(x.italic), color: x.color, editable: x.editable !== false })) };
+    return { width: r.width, height: r.height, rotate: r.rotate || 0, runs: (r.runs || []).filter((x) => !x.invisible && x.text.trim()).map((x) => ({ id: x.id, text: x.text, x: x.x, y: x.y, width: x.width, height: x.height, size: runScale(x).size, family: x.family, bold: Boolean(x.bold), italic: Boolean(x.italic), color: x.color, editable: x.editable !== false })) };
   });
 
   // A page's thumbnail: the picture itself, or the scan of a scanned PDF page.
@@ -254,8 +268,19 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     if (!list.length) throw bad('Add at least one page.');
     if (list.length > MAX_PAGES * 2) throw bad(`An export can have up to ${MAX_PAGES * 2} pages.`);
     const used = new Map();
+    // Not too much drawing for one export (QA 0.65.1: 20 pages of 300 long text boxes held the
+    // server for half a minute): the text typed in the editor, all pages together.
+    const typed = list.reduce((n, p) => n + (Array.isArray(p?.edits) ? p.edits.reduce((m, e) => m + (typeof e?.text === 'string' ? e.text.length : 0), 0) : 0), 0);
+    if (typed > 200000) throw bad('The page editor\'s text adds up to more than 200,000 characters in this export. Split it into smaller PDFs.');
     const pages = list.map((p, i) => {
-      const edits = cleanEdits(p?.edits);
+      if (!p || typeof p !== 'object' || Array.isArray(p) || (!p.blank && typeof p.source !== 'string')) throw bad(`Page ${i + 1}: not a page of a file or a blank page.`);
+      if (!ROTATIONS.includes((((Number(p.rotate) || 0) % 360) + 360) % 360)) throw bad('Pages turn by 90°, 180° or 270°.');
+      let edits;
+      try {
+        edits = cleanEdits(p.edits);
+      } catch (err) {
+        throw bad(`Page ${i + 1}: ${err.message}`);
+      }
       if (p?.blank) {
         const size = PAGE_SIZES[p.size] || PAGE_SIZES.a4;
         const landscape = p.orientation === 'landscape';
@@ -309,9 +334,13 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
         const bySource = new Map();
         let last = null;
         for (const p of pages) {
-          const key = p.source ? p.source.id : last;
-          if (!key) continue; // blank pages before any document
-          if (!bySource.has(key)) bySource.set(key, { name: safeFileName(p.source?.name.replace(/\.[a-z0-9]+$/i, '') || 'document'), pages: [] });
+          // Blank pages go with the document before them (those before the first, with the first).
+          const key = p.source ? p.source.id : last || pages.find((x) => x.source)?.source.id;
+          if (!key) continue;
+          if (!bySource.has(key)) {
+            const src = p.source || used.get(key);
+            bySource.set(key, { name: safeFileName(src?.name.replace(/\.[a-z0-9]+$/i, '') || 'document'), pages: [] });
+          }
           bySource.get(key).pages.push(p);
           last = key;
         }
@@ -321,8 +350,11 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
       result = { data: zipFiles(files), name: `${base}.zip`, type: 'application/zip' };
     }
     for (const s of used.values()) s.usedAt = Date.now();
+    // Text typed for this export that the standard fonts cannot show: said in a header the page reads.
+    const typedText = [stamp.header, stamp.footer, stamp.watermark?.text, ...pages.flatMap((p) => (p.edits || []).map((e) => e.text || ''))].join(' ');
+    const missing = missingChars(typedText);
     if (!preview) audit?.record('tools.pdf-export', { label: 'PDF Studio', note: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} → ${result.name} (${Math.round(result.data.length / 1024)} KB)` });
-    return { data: result.data, headers: { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store' } };
+    return { data: result.data, headers: { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store', ...(missing.length ? { 'X-Core-Warning': encodeURIComponent(MISSING_NOTE(missing)) } : {}) } };
   });
 
   // ----- Is this the PDF that was signed? (0.65) -----

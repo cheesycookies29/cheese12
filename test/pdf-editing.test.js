@@ -10,7 +10,7 @@ import path from 'node:path';
 import { inflateSync } from 'node:zlib';
 import { openDb } from '../server/db.js';
 import { createApi } from '../server/api.js';
-import { cleanEdits, boxLines, hasSignature } from '../server/pdf/edits.js';
+import { cleanEdits, boxLines, hasSignature, runScale, MAX_BOX_LINES } from '../server/pdf/edits.js';
 import { docToPdf } from '../server/pdf/layout.js';
 import { buildPdf } from '../server/pdf/build.js';
 import { readPdf, pageText } from '../server/pdf/reader.js';
@@ -60,6 +60,15 @@ test('edits: checked and cleaned; unknown kinds, bad pictures and wild positions
   assert.throws(() => cleanEdits(Array(301).fill({ type: 'box', x: 0, y: 0, w: 1, h: 1 })), /up to 300/);
   assert.deepEqual(boxLines('one two three four', FONTS.regular, 10, 40), ['one two', 'three', 'four']);
   assert.deepEqual(boxLines('a\nb', FONTS.regular, 10, null), ['a', 'b']);
+});
+
+test('QA 0.65.1: a damaged picture is refused; a scaled line keeps its size; a text box has a line limit', () => {
+  const broken = Buffer.concat([PNG.subarray(0, 33), Buffer.alloc(40)]); // a PNG header, then nothing
+  assert.throws(() => cleanEdits([{ type: 'image', x: 0, y: 0, w: 1, h: 1, data: broken.toString('base64') }]), /damaged/);
+  // "1 Tf" in a text matrix scaled 30 times is 30 pt on the page, drawn through an unscaled matrix.
+  assert.deepEqual(runScale({ size: 1, matrix: [30, 0, 0, 30, 72, 700] }), { size: 30, matrix: [1, 0, 0, 1, 72, 700] });
+  assert.deepEqual(runScale({ size: 12, matrix: [0, 2, -2, 0, 5, 6] }), { size: 24, matrix: [0, 1, -1, 0, 5, 6] }, 'turned and scaled');
+  assert.equal(boxLines('x\n'.repeat(5000), FONTS.regular, 10, 100).length, MAX_BOX_LINES);
 });
 
 test('export with edits: drawn on top, upright on a turned page; a line of text changed in the page', () => {

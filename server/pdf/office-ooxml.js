@@ -7,6 +7,7 @@ import {
   MAX_ROWS, ReadError, at, dropPrefixes, emuToPt, fail, find, findAll, hexColor, isMonoFont, isOn, kid, kids,
   makeRun, mainPart, propsTitle, readRels, relOfType, safeLink, sheetTable, textOf, xmlPart, blockHasContent,
 } from './office-core.js';
+import { formatExcel, BUILTIN_CODES } from './xlsx-format.js';
 
 const dirOf = (part) => part.slice(0, part.lastIndexOf('/') + 1);
 
@@ -491,7 +492,7 @@ function excelStyles(root) {
   return kids(kid(root, 'cellXfs'), 'xf').map((xf) => {
     const id = Number(xf.attrs.numFmtId) || 0;
     const font = fonts[Number(xf.attrs.fontId) || 0] || {};
-    return { kind: formatKind(id, custom.get(id)), bold: font.bold, italic: font.italic };
+    return { kind: formatKind(id, custom.get(id)), code: custom.get(id) ?? BUILTIN_CODES[id], bold: font.bold, italic: font.italic };
   });
 }
 
@@ -533,7 +534,11 @@ function excelValue(c, ctx) {
       if (raw === null || raw.trim() === '') return { text: '' };
       const n = Number(raw);
       if (!Number.isFinite(n)) return { text: raw };
-      const kind = ctx.styles[Number(c.attrs.s) || 0]?.kind || 'number';
+      const style = ctx.styles[Number(c.attrs.s) || 0];
+      const kind = style?.kind || 'number';
+      // As Excel shows it, by the cell's number format (QA 0.65.1); the plain number otherwise.
+      const shown = style?.code ? formatExcel(n, style.code, ctx.date1904) : null;
+      if (shown !== null && shown !== '') return { text: shown, numeric: true };
       if (kind === 'percent') return { text: `${plainNumber(n * 100)}%`, numeric: true };
       if (kind !== 'number') {
         const d = excelDate(n, kind, ctx.date1904);

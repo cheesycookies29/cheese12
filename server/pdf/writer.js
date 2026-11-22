@@ -95,6 +95,21 @@ export function encodeWinAnsi(s) {
   return Buffer.from(out);
 }
 
+// The characters of a text that the standard fonts cannot show (they come out as "?"), at most
+// `max` of them, each once: for saying so (QA 0.65.1: they were replaced silently).
+export function missingChars(text, max = 8) {
+  const out = new Set();
+  for (const ch of String(text ?? '')) {
+    if (ch === '?' || ch.codePointAt(0) < 0x80) continue;
+    const enc = encodeWinAnsi(ch);
+    if (enc.length === 1 && enc[0] === 0x3f) out.add(ch);
+    if (out.size >= max) break;
+  }
+  return [...out];
+}
+const MISSING_NOTE = (chars) => `Some characters cannot be shown in the PDF's standard fonts and appear as “?”: ${chars.join(' ')}.`;
+export { MISSING_NOTE };
+
 // Glyph widths (per 1000 units of the font size) of Helvetica and Helvetica-Bold for 32–126, from
 // the Adobe font metrics; the oblique faces have the same widths; Courier is 600 throughout.
 const HELV = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];

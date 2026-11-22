@@ -12,6 +12,7 @@
 //              changed: the original is taken out of the page (render.js removeTextOps) and the
 //              new words are drawn where it started, in the page's own space.
 import { faceOf, encodeWinAnsi, widthOf } from './writer.js';
+import { decodePng, jpegInfo } from './images.js';
 
 export const MAX_EDITS = 300; // per page
 export const MAX_EDIT_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -48,9 +49,16 @@ export function cleanEdits(list) {
       const data = typeof e.data === 'string' ? Buffer.from(e.data.replace(/^data:image\/(png|jpeg);base64,/, ''), 'base64') : null;
       if (!data?.length) throw bad('Page editor: a picture or signature is missing.');
       if (data.length > MAX_EDIT_IMAGE_BYTES) throw bad('Page editor: a picture or signature is larger than 2 MB.');
-      const png = data.readUInt32BE(0) === 0x89504e47;
-      const jpeg = data[0] === 0xff && data[1] === 0xd8;
+      const png = data.length > 8 && data.readUInt32BE(0) === 0x89504e47;
+      const jpeg = data.length > 3 && data[0] === 0xff && data[1] === 0xd8;
       if (!png && !jpeg) throw bad('Page editor: a picture or signature must be a PNG or JPEG.');
+      // Read now, so a damaged picture is refused with a message rather than failing the export.
+      try {
+        if (png) decodePng(data);
+        else jpegInfo(data);
+      } catch {
+        throw bad('Page editor: a picture or signature is damaged. Add it again.');
+      }
       return { type: t, ...pos(), ...size(), data, signature: e.signature === true };
     }
     if (t === 'replace') {
@@ -63,9 +71,11 @@ export function cleanEdits(list) {
 }
 
 // Lines of a text box: its own line breaks, then wrapped to `width` (when set).
+export const MAX_BOX_LINES = 400;
 export function boxLines(words, face, size, width) {
   const out = [];
   for (const para of String(words).split('\n')) {
+    if (out.length >= MAX_BOX_LINES) break;
     if (!width) {
       out.push(para);
       continue;
@@ -80,13 +90,14 @@ export function boxLines(words, face, size, width) {
     }
     out.push(line.trimEnd());
   }
-  return out;
+  return out.slice(0, MAX_BOX_LINES);
 }
 
 // Draws the edits that sit on the page as shown (all but replace) into `c`, already turned so that
 // (0, 0) is the bottom-left of the page as shown and it is h tall. image(data) embeds a picture and
-// returns its key.
-export function drawEdits(c, edits, h, image) {
+// returns its key. W: the page's width as shown (a text box without a width wraps at its edge, as
+// the editor shows it).
+export function drawEdits(c, edits, h, image, W = 10000) {
   for (const e of edits) {
     if (e.type === 'replace') continue;
     if (e.type === 'box' || e.type === 'highlight') {
@@ -98,7 +109,7 @@ export function drawEdits(c, edits, h, image) {
       c.image(image(e.data), e.x, h - e.y - e.h, e.w, e.h);
     } else if (e.type === 'text') {
       const face = faceOf(e.family, e.bold, e.italic);
-      const lines = boxLines(e.text, face, e.size, e.w);
+      const lines = boxLines(e.text, face, e.size, e.w || Math.max(20, W - e.x - 8));
       c.save().color(...rgb(e.color));
       lines.forEach((line, i) => c.text(e.x, h - e.y - e.size * 0.85 - i * e.size * 1.2, line, face, e.size));
       c.restore();
@@ -122,6 +133,14 @@ export function drawEdits(c, edits, h, image) {
   }
 }
 
+// A run's size as it looks on the page, and its matrix without that scale: a line set as "1 Tf" in
+// a text matrix scaled 30 times (Quartz, Ghostscript…) is 30 pt, drawn through an unscaled matrix
+// (QA 0.65.1: it was 1 pt, refused, or drawn 30 times too large).
+export function runScale(run) {
+  const [a, b, c, d] = run.matrix || [1, 0, 0, 1];
+  const s = Math.sqrt(Math.abs(a * d - b * c)) || 1;
+  return { size: Math.round(run.size * s * 100) / 100, matrix: [a / s, b / s, c / s, d / s, run.matrix?.[4] || 0, run.matrix?.[5] || 0] };
+}
 // Draws the changed lines of text in the page's own space: each where its original started, through
 // the original's matrix (render.js run.matrix, from the page box's bottom-left), at (bx, by).
 export function drawReplacements(c, edits, runs, bx, by) {
@@ -130,7 +149,7 @@ export function drawReplacements(c, edits, runs, bx, by) {
     const run = runs.get(e.run);
     if (!run) continue;
     const face = faceOf(e.family, e.bold, e.italic);
-    c.save().transform(1, 0, 0, 1, bx, by).transform(...run.matrix).color(...rgb(e.color));
+    c.save().transform(1, 0, 0, 1, bx, by).transform(...runScale(run).matrix).color(...rgb(e.color));
     String(e.text).split('\n').forEach((line, i) => c.text(0, -i * e.size * 1.2, line, face, e.size));
     c.restore();
   }

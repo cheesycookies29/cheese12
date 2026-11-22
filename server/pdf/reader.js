@@ -932,6 +932,7 @@ export function importPages(doc, writer, indexes) {
     }
   };
 
+  const flatten = [];
   const out = indexes.map((index) => {
     const page = src.pages[index];
     if (!page) throw new Error(`This document has no page ${Number(index) + 1}.`);
@@ -954,11 +955,100 @@ export function importPages(doc, writer, indexes) {
       const c = copy(v);
       if (c !== null) dict[k] = c;
     }
+    flatten.push([dict, annotationDrawings(src, page)]);
     return dict;
   });
   drain();
+  // Annotations are not copied (no links, actions or scripts come along), but what they show is:
+  // filled-in form fields, ticked boxes, stamps and comments are drawn into the page as they look
+  // (their appearance streams, as forms), so a filled form keeps its answers (QA 0.65.1).
+  for (const [dict, draws] of flatten) {
+    if (!draws?.list.length) continue;
+    const xobjects = {};
+    for (const d of draws.list) {
+      const r = d.ref instanceof PdfRef ? refTo(d.ref.num) : copy(d.stream);
+      if (!r) continue;
+      xobjects[d.key] = r;
+      d.ok = true;
+    }
+    drain();
+    const ok = draws.list.filter((d) => d.ok);
+    if (!ok.length) continue;
+    for (const k of Object.keys(xobjects)) {
+      const form = writer.objects[xobjects[k].n];
+      if (form instanceof Stream) form.dict = { Type: new Name('XObject'), Subtype: new Name('Form'), ...form.dict };
+    }
+    const deref = (v) => (v instanceof Ref ? writer.objects[v.n] : v);
+    const res = { ...(deref(dict.Resources) || {}) };
+    res.XObject = { ...(deref(res.XObject) || {}), ...xobjects };
+    dict.Resources = res;
+    const q = ref(writer.stream({}, Buffer.from('q'), { compress: false }));
+    const Q = ref(writer.stream({}, Buffer.from('Q'), { compress: false }));
+    const shows = ref(writer.stream({}, Buffer.from(ok.map((d) => d.ops).join('\n'), 'latin1')));
+    const before = Array.isArray(dict.Contents) ? dict.Contents : dict.Contents ? [dict.Contents] : [];
+    dict.Contents = [q, ...before, Q, shows];
+  }
   return out;
 }
+
+// The annotations of a page that show something: each one's appearance (for its state, e.g. a
+// ticked box), and where it goes (its /Rect, the form's /BBox and /Matrix fitted into it).
+// Hidden ones, pop-ups and those without an appearance are left out.
+function annotationDrawings(src, page) {
+  const list = [];
+  const annots = src.resolve(page.dict.Annots);
+  if (!Array.isArray(annots)) return { list };
+  const nums = (v, n) => {
+    const a = src.resolve(v);
+    if (!Array.isArray(a) || a.length !== n) return null;
+    const out = a.map((x) => Number(src.resolve(x)));
+    return out.every(Number.isFinite) ? out : null;
+  };
+  annots.slice(0, 500).forEach((a, i) => {
+    const ad = src.resolve(a);
+    if (!isDict(ad)) return;
+    const flags = Number(src.resolve(ad.F)) || 0;
+    if (flags & (2 | 32)) return; // Hidden, NoView
+    if (nameOf(src.resolve(ad.Subtype)) === 'Popup') return;
+    const ap = src.resolve(ad.AP);
+    if (!isDict(ap)) return;
+    let nRef = ap.N;
+    let n = src.resolve(nRef);
+    if (isDict(n)) {
+      const state = nameOf(src.resolve(ad.AS));
+      nRef = state ? n[state] : undefined;
+      n = src.resolve(nRef);
+    }
+    if (!(n instanceof PdfStream)) return;
+    const rect = nums(ad.Rect, 4);
+    if (!rect) return;
+    const bbox = nums(n.dict.BBox, 4) || [0, 0, 1, 1];
+    const m = nums(n.dict.Matrix, 6) || [1, 0, 0, 1, 0, 0];
+    // The form's box, through its matrix: then scaled and moved onto the annotation's rectangle.
+    const pts = [[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[0], bbox[3]], [bbox[2], bbox[3]]].map(([x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]]);
+    const bx0 = Math.min(...pts.map((p) => p[0]));
+    const by0 = Math.min(...pts.map((p) => p[1]));
+    const bw = Math.max(...pts.map((p) => p[0])) - bx0;
+    const bh = Math.max(...pts.map((p) => p[1])) - by0;
+    const rx = Math.min(rect[0], rect[2]);
+    const ry = Math.min(rect[1], rect[3]);
+    const rw = Math.abs(rect[2] - rect[0]);
+    const rh = Math.abs(rect[3] - rect[1]);
+    if (!(bw > 0 && bh > 0 && rw > 0 && rh > 0)) return;
+    const sx = rw / bw;
+    const sy = rh / bh;
+    const f = (v) => String(Math.round(v * 10000) / 10000);
+    const key = `CoreAnn${i}`;
+    list.push({ key, ref: nRef instanceof PdfRef ? nRef : null, stream: n, ops: `q ${f(sx)} 0 0 ${f(sy)} ${f(rx - bx0 * sx)} ${f(ry - by0 * sy)} cm /${key} Do Q` });
+  });
+  return { list };
+}
+// The appearances of a page's annotations, for drawing it (server/pdf/render.js).
+export const pageAnnotations = (doc, index) => {
+  const src = sourceOf(doc);
+  const page = src.pages[index];
+  return page ? annotationDrawings(src, page).list : [];
+};
 
 // ---------- Thumbnails and captions ----------
 const xobjectsOf = (src, resources) => {

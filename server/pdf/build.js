@@ -83,8 +83,10 @@ export function buildPdf(pages, stamp = {}, meta = {}) {
     let dict;
     if (p.blank) dict = { MediaBox: [0, 0, p.blank.width, p.blank.height], Resources: {}, Contents: ref(writer.stream({}, Buffer.alloc(0), { compress: false })) };
     else [dict] = importPages(p.doc, writer, [p.index]);
-    const own = ((Number(deref(writer, dict.Rotate)) || 0) % 360 + 360) % 360;
-    const turn = (((own + (Number(p.rotate) || 0)) % 360) + 360) % 360;
+    // Quarter turns only (a damaged /Rotate of 45 counts as none).
+    const quarter = (v) => ((Math.round((Number(v) || 0) / 90) * 90) % 360 + 360) % 360;
+    const own = quarter(deref(writer, dict.Rotate));
+    const turn = quarter(own + quarter(p.rotate));
     if (turn) dict.Rotate = turn;
     else delete dict.Rotate;
     // Changes from the page editor (0.65): lines of text changed in the page itself, then what was
@@ -110,13 +112,14 @@ export function buildPdf(pages, stamp = {}, meta = {}) {
       // From the page as shown (upright) to the page as stored.
       const m = { 0: [1, 0, 0, 1, b.x, b.y], 90: [0, 1, -1, 0, b.x + b.w, b.y], 180: [-1, 0, 0, -1, b.x + b.w, b.y + b.h], 270: [0, -1, 1, 0, b.x, b.y + b.h] }[turn];
       c.save().transform(...m);
-      drawEdits(c, edits, h, (data) => {
+      drawEdits(c, edits.filter((e) => e.type !== 'text' || e.text.trim()), h, (data) => {
         const key = `Im${++imageNo}`;
         images[key] = embedImage(writer, data).id;
         return key;
-      });
+      }, w);
       const numbered = !(skipFirst && i === 0);
-      if (stamped) stamps(c, w, h, stamp, { page: start + i - (skipFirst ? 1 : 0), pages: start - 1 + counted, numbered, title: meta.title || '', date, file: meta.file || '' });
+      // A cover left unnumbered has no {page} in its header or footer either.
+      if (stamped) stamps(c, w, h, stamp, { page: numbered ? start + i - (skipFirst ? 1 : 0) : '', pages: start - 1 + counted, numbered, title: meta.title || '', date, file: meta.file || '' });
       c.restore();
       if (!qq) qq = { q: writer.stream({}, Buffer.from('q'), { compress: false }), Q: writer.stream({}, Buffer.from('Q'), { compress: false }) };
       const overlay = writer.stream({}, c.toBuffer());

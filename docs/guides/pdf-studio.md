@@ -13,7 +13,7 @@ order: 15
 
 It takes:
 
-- **PDFs**: their pages as they are.
+- **PDFs**: their pages as they are, with what was filled in or stamped on them (form answers, stamps, comments shown on the page) drawn into the page.
 - **Pictures**: JPEG and PNG; WebP, GIF, BMP and other pictures your browser can show are converted in your browser first. Each picture becomes a page.
 - **Documents**: Word (.docx), Excel (.xlsx), PowerPoint (.pptx), OpenDocument (.odt, .ods, .odp), text (.txt), Markdown (.md), CSV and HTML files. CORE lays their text, headings, lists, tables and pictures out on pages, in its own plain style: they will not look exactly as in Word or Excel, but nothing is left out except what a PDF page cannot hold (fonts, colours of cells, charts, drawings, animations).
 
@@ -42,15 +42,15 @@ Add them all, put the pages in the order you want (drag a whole group: tick its 
 
 ### Turn a Word, Excel or PowerPoint file into a PDF
 
-Add the file. A Word document keeps its headings, paragraphs, bold and italic, lists, tables, links and pictures; an Excel workbook becomes one table per sheet (hidden sheets are left out; a sheet of more than 2,000 rows keeps the first 2,000), with dates and percentages as they are shown; a PowerPoint presentation becomes one landscape page per slide, with its title, text, tables and pictures. A note under the file says what could not go in (for example *2 pictures in a format a PDF cannot hold were left out*).
+Add the file. A Word document keeps its headings, paragraphs, bold and italic, lists, tables, links and pictures; an Excel workbook becomes one table per sheet (hidden sheets are left out; a sheet of more than 2,000 rows keeps the first 2,000), with numbers, amounts, dates, times and percentages as Excel shows them (*₱1,234.50*, *15/03/2026*, *12%*); a PowerPoint presentation becomes one landscape page per slide, with its title, text, tables and pictures. A note under the file says what could not go in (for example *2 pictures in a format a PDF cannot hold were left out*).
 
 ### Change the page size, margins or text size
 
-Click **Page setup** above the files. Choose the **Page size** (A4, Letter, Legal (long) or A5; for pictures also **Picture size**), the **Orientation** (*As the file suits* turns wide sheets, slides and pictures to landscape), the **Margins** in millimetres, the **Text size** of documents, and how **Pictures** fill their page. Tick **Also lay out again…** to apply it to the files already added, or apply it to one file with the gear on its row. PDFs keep their own pages.
+Click **Page setup** above the files. Choose the **Page size** (A4, Letter, Legal (long) or A5; for pictures also **Picture size**), the **Orientation** (*As the file suits* turns wide sheets, slides and pictures to landscape), the **Margins** in millimetres, the **Text size** of documents, and how **Pictures** fill their page. Tick **Also lay out again…** to apply it to the files already added, or apply it to one file with the gear on its row. PDFs keep their own pages. Pages laid out again keep their place in **Pages** and their turn; what you added in the page editor stays, but changes to the text of a page laid out again are dropped (its lines are new), and CORE says so.
 
 ### Remove, turn or reorder pages
 
-Use the buttons on each card, or tick several and use the bar above the pages. **Reverse** puts the last page first (for a stack scanned back to front); **Blank page** adds an empty page at the end, to drag where you need it.
+Use the buttons on each card, or tick several and use the bar above the pages. Turning a page you changed in the page editor turns what you added with it, so it stays on the same words; signatures, pictures and text stay upright. **Reverse** puts the last page first (for a stack scanned back to front); **Blank page** adds an empty page at the end, to drag where you need it.
 
 ### Add page numbers, a header or a footer
 
@@ -70,7 +70,7 @@ Under **Save as**, choose **One PDF per file (ZIP)** or **One PDF per page (ZIP)
 2. Click the line to change, and type the new words in the panel on the right. Change the **Size**, the **Font** (*Sans*, *Serif* or *Fixed*), **Bold**, **Italic** or the **Colour** if you need to.
 3. Click **Done**. In the PDF, the old words are taken out of the page itself (they cannot be found or copied any more) and the new ones are written where the old ones began.
 
-The new words are in a standard font close to the original (Helvetica, Times or Courier), so they may look a little different from the rest of the page. A line drawn inside a picture or a drawing on the page cannot be changed (it is outlined in dots): cover it with **White-out** and use **Add text**. A scanned page is a picture: it has no lines of text to change.
+The new words are in a standard font close to the original (Helvetica, Times or Courier), so they may look a little different from the rest of the page. These fonts have the letters of Western European languages: a character they do not have (for example Chinese, Greek or some symbols) is written as **?**, and CORE warns you when you export. A line drawn inside a picture or a drawing on the page cannot be changed (it is outlined in dots): cover it with **White-out** and use **Add text**. A scanned page is a picture: it has no lines of text to change.
 
 ### Add text, white-out, highlights, ticks and dates
 
@@ -120,6 +120,9 @@ CORE lays the text out itself, in a standard font, with the document's headings,
 
 **Why was a picture in my document left out?**
 Only JPEG and PNG pictures can go into the PDF here. Pictures saved as EMF or WMF (common for charts and logos in Office) are left out, and the file's note says how many.
+
+**Why is a character shown as "?" in my PDF?**
+The text CORE writes (page numbers, header, footer, watermark, the text you add or change) uses the standard PDF fonts, which have the letters of Western European languages only. Characters they do not have become **?**, and CORE tells you which. Documents you add keep theirs only as far as these fonts go too: for other scripts, make the PDF in the program that made the document and add that PDF here.
 
 **Why does a page look slightly different in PDF Studio than in my PDF reader?**
 CORE draws each page itself, with the fonts of your browser in place of the PDF's own, so the letters can differ a little (the words and their places are the same). Use **Preview** to see the PDF exactly as it will be.

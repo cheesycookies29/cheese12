@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF Studio fixes (0.65.1)
+- **Preview** opens the PDF again (it opened an empty tab). Excel numbers, amounts, dates and times now look as they do in Excel. Form answers and stamps on a PDF are kept. Turning a page turns what you added with it; **Page setup** keeps your arrangement; a character the PDF fonts do not have is reported when you export. The page editor zooms, keeps your work if you leave it, and shows typed signatures in their handwriting style. See [the PDF Studio guide](pdf-studio).
+
 ### Change text and sign PDFs (0.65)
 - **PDF Studio** has a page editor (the pencil on a page): change the text on a page (the old words are taken out of the page, the new ones go where they were), add text, white-out, highlights, ticks, crosses, today's date and pictures, and sign. **Sign** lets you draw, type or upload your signature and place it on any page; the PDF can end with a signature record page, and **Verify a signed PDF** tells whether a file is exactly the one that was signed. Every page now shows as it looks. See [the PDF Studio guide](pdf-studio#change-the-text-on-a-page).
 
