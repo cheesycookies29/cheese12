@@ -383,8 +383,18 @@ export async function pdfStudioView(el) {
         header: x.header, footer: x.footer, ...(x.watermark ? { watermark: { text: x.watermark, opacity: x.opacity, color: x.color } } : {}),
       },
       meta: { title: x.title, author: x.author || ctx.user?.name || '' },
-      split: preview ? 'none' : x.split, fileName: x.fileName || defaultName(),
+      split: preview ? 'none' : x.split, fileName: x.fileName || defaultName(), preview,
     };
+    // Preview: the tab is opened now, while the click counts (a tab opened after the PDF is made
+    // would be stopped as a pop-up), and shows the PDF once it is ready.
+    let tab = null;
+    if (preview) {
+      tab = window.open('', '_blank');
+      if (!tab) return toast('Allow pop-ups for CORE to preview, or download the PDF instead.', 'error');
+      tab.document.title = 'Making the PDF…';
+      tab.document.body.style.cssText = 'font: 15px system-ui, sans-serif; color: #555; display: grid; place-items: center; height: 100vh; margin: 0';
+      tab.document.body.textContent = 'Making the PDF…';
+    }
     const btn = el.querySelector(preview ? '#ps-preview' : '#ps-export');
     btn.disabled = true;
     const label = btn.innerHTML;
@@ -396,8 +406,8 @@ export async function pdfStudioView(el) {
       const name = decodeURIComponent((res.headers.get('Content-Disposition') || '').match(/filename\*=UTF-8''([^;]+)/)?.[1] || 'document.pdf');
       const url = URL.createObjectURL(blob);
       if (preview) {
-        const w = window.open(url, '_blank', 'noopener');
-        if (!w) toast('Allow pop-ups for CORE to preview, or download the PDF instead.', 'error');
+        tab.location.replace(url);
+        tab.opener = null;
       } else {
         const a = Object.assign(document.createElement('a'), { href: url, download: name });
         document.body.appendChild(a);
@@ -405,8 +415,9 @@ export async function pdfStudioView(el) {
         a.remove();
         toast(`${name} downloaded (${sizeLabel(blob.size)}).`);
       }
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setTimeout(() => URL.revokeObjectURL(url), preview ? 30 * 60000 : 60000);
     } catch (err) {
+      tab?.close();
       toast(err.message, 'error');
     } finally {
       btn.disabled = false;

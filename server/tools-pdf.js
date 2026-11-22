@@ -274,6 +274,8 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     // (one PDF only), a last page says who signed, when, and the code that finds this record.
     const signedPages = pages.map((p, i) => (hasSignature(p.edits || []) ? i + 1 : null)).filter(Boolean);
     const record = signedPages.length && body?.sign?.record !== false && body?.split !== 'documents' && body?.split !== 'pages';
+    // A preview shows the record page as it will be, but records nothing.
+    const preview = body?.preview === true;
     const stamp = cleanStamp(body?.stamp);
     const meta = { title: text(body?.meta?.title, 160), author: text(body?.meta?.author, 120), subject: text(body?.meta?.subject, 200), keywords: text(body?.meta?.keywords, 200) };
     const first = [...used.values()][0];
@@ -284,12 +286,12 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     if (split === 'none') {
       let sig = null;
       if (record) {
-        sig = { code: signingCode(), userId: u.id, name: u.name, username: u.username, at: new Date(clock()).toISOString(), fileName: `${base}.pdf`, pages: pages.length + 1, signedPages, signatures: pages.reduce((n, p) => n + (p.edits || []).filter((e) => e.type === 'image' && e.signature).length, 0) };
+        sig = { code: preview ? 'PREVIEW (not recorded)' : signingCode(), userId: u.id, name: u.name, username: u.username, at: new Date(clock()).toISOString(), fileName: `${base}.pdf`, pages: pages.length + 1, signedPages, signatures: pages.reduce((n, p) => n + (p.edits || []).filter((e) => e.type === 'image' && e.signature).length, 0) };
         const rec = docToPdf(recordDoc(sig, meta), { size: 'a4', orientation: 'portrait', margin: 20 });
         pages.push({ doc: readPdf(rec.pdf), index: 0, rotate: 0, noStamp: true });
       }
       result = { data: buildPdf(pages, stamp, meta), name: `${base}.pdf`, type: 'application/pdf' };
-      if (sig) {
+      if (sig && !preview) {
         sig.sha256 = createHash('sha256').update(result.data).digest('hex');
         sig.size = result.data.length;
         db.data.pdfSignatures ||= [];
@@ -319,7 +321,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
       result = { data: zipFiles(files), name: `${base}.zip`, type: 'application/zip' };
     }
     for (const s of used.values()) s.usedAt = Date.now();
-    audit?.record('tools.pdf-export', { label: 'PDF Studio', note: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} → ${result.name} (${Math.round(result.data.length / 1024)} KB)` });
+    if (!preview) audit?.record('tools.pdf-export', { label: 'PDF Studio', note: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} → ${result.name} (${Math.round(result.data.length / 1024)} KB)` });
     return { data: result.data, headers: { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store' } };
   });
 
