@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF Studio on your phone (0.66.1)
+- **PDF Studio** works better on phones and small tablets. In the page editor, swipe to move around the page and tap where text, a tick, the date or your signature goes; the page keeps its place when you choose a tool or zoom, and has more room on the screen. Signing with a finger has a larger box. See [the PDF Studio guide](pdf-studio#add-text-white-out-highlights-ticks-and-dates).
+
 ### PDF Studio takes many more files, up to 100 MB (0.66)
 - **PDF Studio** now takes files of up to 100 MB each (25 MB before), sent in pieces with a progress bar, and many more kinds: protected PDFs (it asks for the password; PDFs that only stop printing or copying just open), old Word, Excel and PowerPoint files (.doc, .xls, .ppt), RTF, TIFF scans of several pages, Outlook (.msg) and other e-mails (.eml), e-books (EPUB), code and data files (.json, .xml, .sql, .log…), Office files with macros and templates, and ZIPs of files (each one added). Scanned PDFs made of fax pictures now show instead of grey pages. See [the PDF Studio guide](pdf-studio#before-you-start).
 

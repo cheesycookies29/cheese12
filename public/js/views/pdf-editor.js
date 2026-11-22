@@ -75,6 +75,8 @@ export function signaturePad() {
     // Handwriting faces shipped with CORE (public/fonts, SIL Open Font License), so every computer and
     // phone shows the same three styles.
     const fonts = ['"CORE Sign Vibes", cursive', '"CORE Sign Dancing", cursive', '"CORE Sign Caveat", cursive'];
+    // A phone held upright: a taller box to sign in with a finger (the screen is narrow, not short).
+    const tall = matchMedia('(max-width: 560px) and (min-height: 600px)').matches;
     const { form } = modal({
       title: 'Your signature', wide: true, className: 'ps-sig-modal', submitLabel: 'Use this signature',
       subtitle: 'Draw it, type it, or upload a picture of it. Then click where it goes on the page.',
@@ -85,7 +87,7 @@ export function signaturePad() {
           ${saved ? html`<button type="button" role="tab" data-tab="saved" aria-selected="false">${icon('check', 14)} Saved</button>` : ''}
         </div>
         <div class="ps-sig-pane" data-pane="draw">
-          <canvas class="ps-sig-canvas" width="900" height="300" aria-label="Draw your signature here with the mouse, a finger or a pen"></canvas>
+          <canvas class="ps-sig-canvas ${tall ? 'tall' : ''}" width="900" height="${tall ? 450 : 300}" aria-label="Draw your signature here with the mouse, a finger or a pen"></canvas>
           <div class="ps-sig-row"><span class="muted small">Sign above the line.</span><span class="spacer"></span>
             <label class="ps-ink"><input type="radio" name="ink" value="#111827" checked /><i style="background:#111827"></i><span class="sr-only">Black</span></label>
             <label class="ps-ink"><input type="radio" name="ink" value="#1d3fbf" /><i style="background:#1d3fbf"></i><span class="sr-only">Blue</span></label>
@@ -129,8 +131,8 @@ export function signaturePad() {
       g.strokeStyle = '#c9ced8';
       g.setLineDash([6, 6]);
       g.beginPath();
-      g.moveTo(40, 230);
-      g.lineTo(860, 230);
+      g.moveTo(40, pad.height - 70);
+      g.lineTo(860, pad.height - 70);
       g.stroke();
       g.restore();
     };
@@ -293,12 +295,20 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     ['select', 'Select and move', 'grid'], ['edit', 'Change text on the page', 'edit'], ['text', 'Add text', 'file'], ['box', 'White-out', 'square'],
     ['highlight', 'Highlight', 'sparkle'], ['check', 'Tick', 'check'], ['cross', 'Cross', 'x'], ['date', 'Today\'s date', 'calendar'], ['sign', 'Signature', 'pen'], ['picture', 'Picture', 'image'],
   ];
-  function draw() {
+  // Drawing again keeps where the page and the row of tools were scrolled to (on a phone the page
+  // is larger than its part of the screen: choosing a tool must not jump back to the top). Zooming
+  // keeps the same part of the page in the middle.
+  const SCROLLERS = ['#ed-stage', '.ps-ed-tools'];
+  function draw(keep = true) {
     const p = page();
     const s = p.blank ? null : source(p.source);
+    const was = SCROLLERS.map((q) => {
+      const x = keep && shell.querySelector(q);
+      return x ? { cx: (x.scrollLeft + x.clientWidth / 2) / x.scrollWidth, cy: (x.scrollTop + x.clientHeight / 2) / x.scrollHeight, left: x.scrollLeft, top: x.scrollTop, w: x.scrollWidth, h: x.scrollHeight } : null;
+    });
     mount(shell, html`
       <header class="ps-ed-top">
-        <div class="ps-ed-title"><strong>Edit page ${index + 1} of ${pages.length}</strong><small class="muted">${s ? `${s.name} · page ${p.page + 1}` : 'Blank page'}</small></div>
+        <div class="ps-ed-title"><strong><span class="ps-ed-word">Edit page </span>${index + 1} of ${pages.length}</strong><small class="muted">${s ? `${s.name} · page ${p.page + 1}` : 'Blank page'}</small></div>
         <div class="ps-ed-nav">
           <button type="button" class="icon-btn" id="ed-prev" aria-label="Previous page" ${index === 0 ? 'disabled' : ''}>${icon('chevronLeft', 18)}</button>
           <button type="button" class="icon-btn" id="ed-next" aria-label="Next page" ${index === pages.length - 1 ? 'disabled' : ''}>${icon('chevronRight', 18)}</button>
@@ -309,7 +319,7 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
           <button type="button" class="btn small-btn ghost" data-zoom="0" title="Fit the page's width">${Math.round(zoom * 100)}%</button>
           <button type="button" class="icon-btn" data-zoom="1" aria-label="Zoom in" title="Zoom in">+</button>
         </div>
-        <button type="button" class="btn small-btn ghost" id="ed-undo" ${undo.length ? '' : 'disabled'}>${icon('undo', 14)} Undo</button>
+        <button type="button" class="btn small-btn ghost" id="ed-undo" ${undo.length ? '' : 'disabled'}>${icon('undo', 14)} <span class="ps-ed-word">Undo</span></button>
         <button type="button" class="btn primary" id="ed-done">Done</button>
       </header>
       <div class="ps-ed-tools" role="toolbar" aria-label="Tools">${TOOLS.map(([k, label, ic]) => html`<button type="button" class="ps-ed-tool ${tool === k ? 'on' : ''}" data-tool="${k}" aria-pressed="${tool === k}" title="${label}">${icon(ic, 18)}<span>${label}</span></button>`)}</div>
@@ -334,6 +344,14 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     }));
     layout();
     side();
+    SCROLLERS.forEach((q, i) => {
+      const x = shell.querySelector(q);
+      const o = was[i];
+      if (!x || !o) return;
+      const same = x.scrollWidth === o.w && x.scrollHeight === o.h;
+      x.scrollLeft = same ? o.left : o.cx * x.scrollWidth - x.clientWidth / 2;
+      x.scrollTop = same ? o.top : o.cy * x.scrollHeight - x.clientHeight / 2;
+    });
   }
   function go(i) {
     if (i < 0 || i >= pages.length) return;
@@ -341,7 +359,7 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     selected = null;
     runs = null;
     undo.length = 0;
-    draw();
+    draw(false);
     if (tool === 'edit') loadRuns();
     else loadNote();
   }
@@ -567,6 +585,18 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
       side();
       return;
     }
+    // A finger: these tools place where it taps, when it lifts; a swipe moves the page instead
+    // (styles.css lets the page scroll under them), so the bottom of a page can be reached.
+    if (ev.pointerType === 'touch' && TAP_TOOLS.includes(tool)) {
+      ev.preventDefault(); // no mouse press after the tap: it would take the focus from the new text's box
+      tap = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, pt };
+      return;
+    }
+    place(pt, ev, pageEl);
+  });
+  const TAP_TOOLS = ['text', 'date', 'check', 'cross', 'sign'];
+  let tap = null;
+  function place(pt, ev, pageEl) {
     snapshot();
     let e = null;
     if (tool === 'text') e = { type: 'text', x: pt.x, y: pt.y - 6, w: null, text: '', size: 12, family: 'sans', bold: false, italic: false, color: '#111111' };
@@ -593,7 +623,7 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     }
     if (tool === 'date' || tool === 'check' || tool === 'cross') tool = 'select';
     draw();
-  });
+  }
   shell.addEventListener('pointermove', (ev) => {
     if (!drag) return;
     const pt = pointPt(ev);
@@ -624,8 +654,16 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     layout();
     side();
   };
-  shell.addEventListener('pointerup', endDrag);
-  shell.addEventListener('pointercancel', endDrag);
+  shell.addEventListener('pointerup', (ev) => {
+    const t = tap;
+    tap = null;
+    if (t && t.id === ev.pointerId && Math.hypot(ev.clientX - t.x, ev.clientY - t.y) < 12 && shell.querySelector('#ed-page')) place(t.pt, ev, shell.querySelector('#ed-page'));
+    endDrag();
+  });
+  shell.addEventListener('pointercancel', () => {
+    tap = null; // the browser took the touch, to scroll
+    endDrag();
+  });
 
   // ----- Keys -----
   const onKey = (ev) => {

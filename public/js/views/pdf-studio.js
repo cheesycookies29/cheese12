@@ -294,7 +294,7 @@ export async function pdfStudioView(el) {
             <span class="ps-drop-ic">${icon('upload', 26)}</span>
             <div><span class="ps-drop-words"><strong>Drop files here</strong> or </span><label class="ps-pick">choose files<input type="file" id="ps-file" multiple accept="${PDF_ACCEPT}" class="sr-only" /></label>
               <small>PDF (protected ones too), Word, Excel and PowerPoint (old and new), OpenDocument, RTF, text, CSV, HTML, code, e-books, e-mails, ZIPs and pictures (JPEG, PNG, TIFF, WebP, HEIC…), up to ${PDF_LIMITS.maxFileBytes / MB} MB each.</small></div>
-            ${state.busy ? html`<p class="ps-busy" role="status"><span class="ps-spin" aria-hidden="true"></span> ${state.progress != null ? 'Uploading' : 'Converting'} ${state.queue[0] || ''}${state.busy > 1 ? ` and ${state.busy - 1} more` : ''}…${state.progress != null ? html` <progress max="1" value="${state.progress}" aria-label="Uploaded"></progress>` : ''}</p>` : ''}
+            ${state.busy ? html`<p class="ps-busy" role="status"><span class="ps-spin" aria-hidden="true"></span> <span class="ps-busy-text">${state.progress != null ? 'Uploading' : 'Converting'} ${state.queue[0] || ''}${state.busy > 1 ? ` and ${state.busy - 1} more` : ''}…</span>${state.progress != null ? html` <progress max="1" value="${state.progress}" aria-label="Uploaded"></progress>` : ''}</p>` : ''}
           </section>
           ${state.pages.length ? html`
           <section class="card ps-pages-card" aria-labelledby="ps-pages-h">
@@ -467,7 +467,7 @@ export async function pdfStudioView(el) {
     modal({
       title: only ? `Page setup: ${byId(only).name}` : 'Page setup',
       subtitle: only ? 'Lays this file out again on pages of this size.' : 'For documents, sheets, slides and pictures added from now on, and (ticked) for those already here. PDFs keep their own pages.',
-      submitLabel: 'Apply',
+      submitLabel: 'Apply', className: 'ps-setup-modal',
       body: html`<div class="grid two">
         <label class="field"><span>Page size</span><select name="size">${Object.entries(PDF_SIZES).map(([k, v]) => option(k, v, l.size))}${hasImages ? option('auto', 'Picture size (pictures only)', l.size) : ''}</select></label>
         <label class="field"><span>Orientation</span><select name="orientation">${option('auto', 'As the file suits', l.orientation)}${option('portrait', 'Portrait', l.orientation)}${option('landscape', 'Landscape', l.orientation)}</select></label>

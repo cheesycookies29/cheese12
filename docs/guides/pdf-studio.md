@@ -85,6 +85,8 @@ In the page editor:
 - **Tick** and **Cross**: click where they go; **Today's date**: click where it goes (you can edit it afterwards).
 - **Picture**: choose a picture (a logo, a stamp) and click where it goes.
 
+On a phone or tablet, swipe to move around the page and tap where things go; with **White-out** and **Highlight** a swipe draws, so choose **Select and move** to scroll again.
+
 **Select and move** picks anything you added: drag it to move it, drag its corner to resize it, press **Delete** to remove it, use the arrow keys to nudge it. **Undo** (or Ctrl+Z) goes back a step. The arrows at the top go to the previous or next page. A card with changes shows how many; a signed page shows **Signed**.
 
 ### Sign a PDF

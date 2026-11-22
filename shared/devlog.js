@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.66.1-alpha',
+    date: '2026-11-22',
+    title: 'PDF Studio on phones and small tablets',
+    modules: ['system'],
+    notes: 'A responsive pass of PDF Studio and its page editor at 320–768 px wide, upright and sideways, light and dark, with touch.',
+    changes: [
+      ['fixed', 'system', 'Page editor by touch: a swipe scrolls the page (it did nothing, so the bottom of a page could not be reached); text, dates, ticks, crosses and signatures go where a finger taps. Choosing a tool or zooming keeps the place on the page (it jumped to the top); zoom keeps the middle of the view.'],
+      ['improved', 'system', 'Page editor on phones: one row of buttons at the top, the tools in a sliding row, zoom over the page, a shorter panel (beside the page on a phone held sideways): the page has half as much room again. Small things added are easier to grab, with a larger resize handle.'],
+      ['improved', 'system', 'Signature: a taller box to sign in on an upright phone, larger tabs and ink colours; the dialog fits a phone held sideways.'],
+      ['improved', 'system', 'Pages and export on phones: the selection buttons stay in view while scrolling; the upload status stays on one line in the drop zone; the bottom bar\'s Download fits at 320 px; card buttons fit; tick boxes, radio buttons and section headings are 44 px tall on touch screens; file names on two lines.'],
+    ],
+  },
+  {
     version: '0.66.0-alpha',
     date: '2026-11-22',
     title: 'PDF Studio takes many more kinds of file, and files of up to 100 MB',
