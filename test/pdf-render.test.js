@@ -443,3 +443,33 @@ test('a page of 2,000 lines of text draws quickly', () => {
   assert.ok(ms < 500, `drawn in ${ms} ms`);
   wellFormed(page.svg);
 });
+
+test('a page that is one big picture is shown, not a grey box (QA 0.65.2: a CV exported at 300 dpi)', () => {
+  // 3000 × 3000 pixels (9 million, over the 4 million shown): an RGB Flate picture with a soft
+  // mask, and a JPEG. The Flate one is shown at a lower resolution, the JPEG as it is.
+  const w = 3000;
+  const rgb = Buffer.alloc(w * w * 3);
+  for (let i = 0; i < w * w; i++) rgb[i * 3] = i % w < 1500 ? 200 : 10; // left half red, right half dark
+  const pdf = new HandPdf();
+  pdf.obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  pdf.obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  pdf.obj(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /XObject << /F 4 0 R /J 5 0 R /X 7 0 R >> >> /Contents 8 0 R >>');
+  pdf.stream(4, ` /Type /XObject /Subtype /Image /Width ${w} /Height ${w} /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask 6 0 R /Filter /FlateDecode`, deflateSync(rgb).toString('latin1'));
+  pdf.stream(5, ` /Type /XObject /Subtype /Image /Width ${w} /Height ${w} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`, photo.toString('latin1'));
+  pdf.stream(6, ` /Type /XObject /Subtype /Image /Width ${w} /Height ${w} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode`, deflateSync(Buffer.alloc(w * w, 255)).toString('latin1'));
+  pdf.stream(7, ' /Type /XObject /Subtype /Image /Width 10 /Height 10 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /JPXDecode', 'not really jpx');
+  pdf.stream(8, '', 'q 600 0 0 400 0 400 cm /F Do Q q 600 0 0 400 0 0 cm /J Do Q');
+  const page = renderPage(readPdf(pdf.buffer()), 0);
+  wellFormed(page.svg);
+  assert.doesNotMatch(page.svg, /#d9d9d9/, 'no grey box');
+  assert.equal(page.error, undefined);
+  const [png] = dataUrls(page.svg, 'png').map(readPng);
+  assert.ok(png.width * png.height <= 4_000_000 && png.width >= 1500, `shown at ${png.width} × ${png.height}`);
+  assert.deepEqual([...png.pixels.subarray(0, 4)], [200, 0, 0, 255], 'colour and soft mask kept');
+  assert.equal(dataUrls(page.svg, 'jpeg')[0].length, photo.length, 'the JPEG as it is');
+
+  // A picture CORE cannot show is grey, and the page says why.
+  const jpx = renderPage(readPdf(Buffer.from(pdf.buffer().toString('latin1').replace('/F Do Q q 600 0 0 400 0 0 cm /J Do', '/X Do Q q 600 0 0 400 0 0 cm /X Do'), 'latin1')), 0);
+  assert.match(jpx.svg, /#d9d9d9/);
+  assert.match(jpx.error || '', /A picture on this page .*JPEG 2000/, 'one picture, drawn twice');
+});

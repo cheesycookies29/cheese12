@@ -343,6 +343,20 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     undo.length = 0;
     draw();
     if (tool === 'edit') loadRuns();
+    else loadNote();
+  }
+  // What CORE could not draw on this page (pictures in formats a browser cannot show, too much
+  // drawing): said in the side panel, so a grey area is not taken for a fault.
+  const notes = new Map();
+  async function loadNote() {
+    const p = page();
+    const k = `${p.source}:${p.page}`;
+    if (p.blank || notes.has(k)) return;
+    notes.set(k, '');
+    try {
+      notes.set(k, (await api.get(`/api/tools/pdf/sources/${p.source}/pages/${p.page}/text`)).note || '');
+    } catch { /* the page itself says what went wrong */ }
+    if (shell.isConnected && page() === p && notes.get(k) && !selected) side();
   }
   async function pick(k) {
     if (k === 'sign') {
@@ -377,7 +391,9 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     const p = page();
     if (p.blank) return toast('A blank page has no text to change. Use Add text.', 'error');
     try {
-      runs = (await api.get(`/api/tools/pdf/sources/${p.source}/pages/${p.page}/text`)).runs;
+      const t = await api.get(`/api/tools/pdf/sources/${p.source}/pages/${p.page}/text`);
+      runs = t.runs;
+      notes.set(`${p.source}:${p.page}`, t.note || '');
       if (!runs.length) toast('No text was found on this page (a scan is a picture: use White-out and Add text instead).');
     } catch (err) {
       toast(err.message, 'error');
@@ -456,6 +472,7 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
           check: 'Click where the tick goes.', cross: 'Click where the cross goes.', date: 'Click where today\'s date goes.',
           sign: pendingSig ? `Click on the page where the ${pendingSig.picture ? 'picture' : 'signature'} goes; then drag its corner to size it.` : 'Choose Signature to draw, type or upload it.',
         }[tool] || ''}</p>
+        ${notes.get(`${page().source}:${page().page}`) ? html`<p class="small ps-ed-note">${notes.get(`${page().source}:${page().page}`)}</p>` : ''}
         <p class="small"><strong>${n}</strong> change${n === 1 ? '' : 's'} on this page${signed ? ' · signed' : ''}.</p>
         ${n ? html`<button type="button" class="btn small-btn danger" id="ed-clear">${icon('trash', 14)} Remove all changes on this page</button>` : ''}`);
       box.querySelector('#ed-clear')?.addEventListener('click', () => {
@@ -649,6 +666,7 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
   // Leaving the page (Back, a link) closes the editor (QA 0.65.1: it stayed on top).
   addEventListener('hashchange', close);
   draw();
+  loadNote();
   if (signNow) pick('sign');
   shell.querySelector('#ed-done').focus();
 }

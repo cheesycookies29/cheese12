@@ -124,6 +124,9 @@ Only JPEG and PNG pictures can go into the PDF here. Pictures saved as EMF or WM
 **Why is a character shown as "?" in my PDF?**
 The text CORE writes (page numbers, header, footer, watermark, the text you add or change) uses the standard PDF fonts, which have the letters of Western European languages only. Characters they do not have become **?**, and CORE tells you which. Documents you add keep theirs only as far as these fonts go too: for other scripts, make the PDF in the program that made the document and add that PDF here.
 
+**Why is part of a page a grey box?**
+That part is a picture in a format browsers cannot show (JPEG 2000, JBIG2 or fax, used by some scanners); the page editor says so. It is only how PDF Studio shows it: the picture stays as it is in the PDF you download (use **Preview** to see it).
+
 **Why does a page look slightly different in PDF Studio than in my PDF reader?**
 CORE draws each page itself, with the fonts of your browser in place of the PDF's own, so the letters can differ a little (the words and their places are the same). Use **Preview** to see the PDF exactly as it will be.
 

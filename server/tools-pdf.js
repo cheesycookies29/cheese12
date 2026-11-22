@@ -243,7 +243,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
   route('GET', '/api/tools/pdf/sources/:id/pages/:n/text', 'auth', ({ params, user: u }) => {
     const s = find(params.id, u);
     const r = rendered(s, pageOf(s, params.n));
-    return { width: r.width, height: r.height, rotate: r.rotate || 0, runs: (r.runs || []).filter((x) => !x.invisible && x.text.trim()).map((x) => ({ id: x.id, text: x.text, x: x.x, y: x.y, width: x.width, height: x.height, size: runScale(x).size, family: x.family, bold: Boolean(x.bold), italic: Boolean(x.italic), color: x.color, editable: x.editable !== false })) };
+    return { width: r.width, height: r.height, rotate: r.rotate || 0, note: r.error || null, runs: (r.runs || []).filter((x) => !x.invisible && x.text.trim()).map((x) => ({ id: x.id, text: x.text, x: x.x, y: x.y, width: x.width, height: x.height, size: runScale(x).size, family: x.family, bold: Boolean(x.bold), italic: Boolean(x.italic), color: x.color, editable: x.editable !== false })) };
   });
 
   // A page's thumbnail: the picture itself, or the scan of a scanned PDF page.

@@ -28,6 +28,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.65.2-alpha',
+    date: '2026-11-22',
+    title: 'PDF Studio: pages that are one big picture are shown again',
+    modules: ['system'],
+    notes: 'Pages exported or scanned as one picture (a CV from a design tool, a scan at 300 dpi) were a grey page in PDF Studio and its page editor since 0.65.',
+    changes: [
+      ['fixed', 'system', 'Page renderer: pictures of more than 4 million pixels were drawn as a grey box. A JPEG now goes to the browser as it is, whatever its size; other pictures (Flate, with soft masks, 1-bit scans) are read up to 25 million pixels and shown at up to 4 million. The PDF keeps every picture as it was.'],
+      ['improved', 'system', 'A page with a picture CORE cannot show (JPEG 2000, JBIG2, fax) says so in the page editor, so its grey box is not taken for a fault.'],
+    ],
+  },
+  {
     version: '0.65.1-alpha',
     date: '2026-11-22',
     title: 'PDF Studio: QA fixes',

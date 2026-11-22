@@ -3786,6 +3786,7 @@ body.ps-editing { overflow: hidden; }
 .ps-ed-page[data-tool="text"], .ps-ed-page[data-tool="date"], .ps-ed-page[data-tool="check"], .ps-ed-page[data-tool="cross"], .ps-ed-page[data-tool="sign"] { cursor: crosshair; }
 .ps-ed-page[data-tool="box"], .ps-ed-page[data-tool="highlight"] { cursor: cell; }
 .ps-ed-bg { position: absolute; left: 50%; top: 50%; pointer-events: none; }
+.ps-ed-note { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--warning, #b45309) 12%, transparent); border: 1px solid color-mix(in srgb, var(--warning, #b45309) 35%, transparent); }
 .ps-ed-item { position: absolute; cursor: move; outline: 1px dashed transparent; }
 .ps-ed-item:hover { outline-color: color-mix(in srgb, var(--brand) 50%, transparent); }
 .ps-ed-item.sel { outline: 2px solid var(--brand); outline-offset: 1px; }

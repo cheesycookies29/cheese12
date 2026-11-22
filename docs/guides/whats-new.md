@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF pages that are one picture show again (0.65.2)
+- A PDF page made of one big picture (a CV exported from a design tool, a page scanned at 300 dpi) showed as a grey page in **PDF Studio** and its page editor. It shows again. A picture in a format CORE cannot show (JPEG 2000, JBIG2, fax) is still grey, and the page editor now says so; it stays as it is in your PDF. See [the PDF Studio guide](pdf-studio).
+
 ### PDF Studio fixes (0.65.1)
 - **Preview** opens the PDF again (it opened an empty tab). Excel numbers, amounts, dates and times now look as they do in Excel. Form answers and stamps on a PDF are kept. Turning a page turns what you added with it; **Page setup** keeps your arrangement; a character the PDF fonts do not have is reported when you export. The page editor zooms, keeps your work if you leave it, and shows typed signatures in their handwriting style. See [the PDF Studio guide](pdf-studio).
 

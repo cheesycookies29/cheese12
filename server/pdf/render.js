@@ -24,6 +24,8 @@ import { Name, Bytes, widthOf, encodeWinAnsi } from './writer.js';
 import { pageInternals, pageAnnotations, Parser, PdfStream, Keyword, isDict, nameOf, toArray, toUnicode, inflate, ascii85, asciiHex, WHITE, isRegular, MAX_CONTENT_BYTES } from './reader.js';
 
 const MAX_FORM_DEPTH = 6;
+const MAX_DECODE_PIXELS = 25_000_000; // a picture read to show it (5000 x 5000)
+const MAX_JPEG_BYTES = 20 * 1024 * 1024; // a JPEG passed to the browser as it is
 const LIGHT = [0.85, 0.85, 0.85]; // what a pattern, a gradient or a picture that cannot be shown becomes
 const IDENTITY = [1, 0, 0, 1, 0, 0];
 
@@ -507,8 +509,28 @@ function imageUrl(ctx, stream, resources, fill) {
   const d = stream.dict;
   const w = r(d.Width ?? d.W);
   const h = r(d.Height ?? d.H);
-  if (!Number.isInteger(w) || !Number.isInteger(h) || w <= 0 || h <= 0 || w * h > ctx.maxImagePixels) return null;
+  if (!Number.isInteger(w) || !Number.isInteger(h) || w <= 0 || h <= 0) return null;
   const mask = r(d.ImageMask ?? d.IM) === true;
+  // A JPEG goes to the browser as it is, whatever its size (a page scanned or exported at 300 dpi
+  // is one picture of 8 million pixels or more: QA 0.65.2, such pages were a grey box).
+  const raw = r(d.Filter ?? d.F);
+  const lastFilter = nameOf(Array.isArray(raw) ? r(raw[raw.length - 1]) : raw);
+  if ((lastFilter === 'DCTDecode' || lastFilter === 'DCT') && w * h > ctx.maxImagePixels) {
+    const { data, image } = decodeStream(ctx.src, stream, MAX_JPEG_BYTES, true);
+    return image === 'DCTDecode' && data[0] === 0xff && data[1] === 0xd8 ? `data:image/jpeg;base64,${data.toString('base64')}` : null;
+  }
+  // Other pictures are read up to MAX_DECODE_PIXELS and shown at most ctx.maxImagePixels (every
+  // k-th pixel of every k-th row: enough for the screen; the PDF keeps the picture as it is).
+  if (w * h > MAX_DECODE_PIXELS) return null;
+  const k = Math.max(1, Math.ceil(Math.sqrt((w * h) / ctx.maxImagePixels)));
+  const W = Math.ceil(w / k);
+  const H = Math.ceil(h / k);
+  const shrink = (src, n) => {
+    if (k === 1) return src;
+    const out = Buffer.alloc(W * H * n);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) src.copy(out, (y * W + x) * n, (y * k * w + x * k) * n, (y * k * w + x * k) * n + n);
+    return out;
+  };
   const { data, image } = decodeStream(ctx.src, stream, w * h * 4 * 2 + 1024 * 1024, true);
   if (image === 'DCTDecode') return data[0] === 0xff && data[1] === 0xd8 ? `data:image/jpeg;base64,${data.toString('base64')}` : null;
   if (image) return null; // JPX, JBIG2, CCITT: browsers cannot show them
@@ -516,20 +538,20 @@ function imageUrl(ctx, stream, resources, fill) {
   const invert = decode.length >= 2 && num(decode[0]) > num(decode[1]);
   if (mask) {
     // A stencil: the fill colour where the bit is 0 (or 1 with Decode [1 0]), clear elsewhere.
-    const bits = unpack(data, w, h, 1, 1, false);
-    const px = Buffer.alloc(w * h * 4);
+    const bits = shrink(unpack(data, w, h, 1, 1, false), 1);
+    const px = Buffer.alloc(W * H * 4);
     const rgb = fill.map((c) => Math.round(clamp01(c) * 255));
-    for (let i = 0; i < w * h; i++) {
+    for (let i = 0; i < W * H; i++) {
       const paint = (bits[i] === 0) !== invert;
       if (paint) { px[i * 4] = rgb[0]; px[i * 4 + 1] = rgb[1]; px[i * 4 + 2] = rgb[2]; px[i * 4 + 3] = 255; }
     }
-    return `data:image/png;base64,${encodePng(w, h, 4, px).toString('base64')}`;
+    return `data:image/png;base64,${encodePng(W, H, 4, px).toString('base64')}`;
   }
   const cs = colorSpace(ctx, d.ColorSpace ?? d.CS, resources);
   const bpc = num(r(d.BitsPerComponent ?? d.BPC), 8);
   if (![1, 2, 4, 8, 16].includes(bpc) || cs.kind === 'pattern') return null;
   const n = cs.n || 1;
-  const s = unpack(data, w, h, n, bpc, cs.kind !== 'indexed');
+  const s = shrink(unpack(data, w, h, n, bpc, cs.kind !== 'indexed'), n);
   // To grey or RGB.
   let channels = cs.kind === 'gray' ? 1 : 3;
   let px;
@@ -538,8 +560,8 @@ function imageUrl(ctx, stream, resources, fill) {
     if (invert) for (let i = 0; i < px.length; i++) px[i] = 255 - px[i];
   } else if (cs.kind === 'rgb') px = s;
   else {
-    px = Buffer.alloc(w * h * 3);
-    for (let i = 0; i < w * h; i++) {
+    px = Buffer.alloc(W * H * 3);
+    for (let i = 0; i < W * H; i++) {
       const comps = [];
       for (let k = 0; k < n; k++) comps.push(cs.kind === 'indexed' ? s[i * n + k] : s[i * n + k] / 255);
       // Lab is drawn as the grey of its lightness.
@@ -554,9 +576,9 @@ function imageUrl(ctx, stream, resources, fill) {
   if (sm instanceof PdfStream && r(sm.dict.Width) === w && r(sm.dict.Height) === h) {
     try {
       const md = decodeStream(ctx.src, sm, w * h * 2 + 1024).data;
-      const alpha = unpack(md, w, h, 1, num(r(sm.dict.BitsPerComponent), 8), true);
-      const withAlpha = Buffer.alloc(w * h * (channels + 1));
-      for (let i = 0; i < w * h; i++) {
+      const alpha = shrink(unpack(md, w, h, 1, num(r(sm.dict.BitsPerComponent), 8), true), 1);
+      const withAlpha = Buffer.alloc(W * H * (channels + 1));
+      for (let i = 0; i < W * H; i++) {
         for (let k = 0; k < channels; k++) withAlpha[i * (channels + 1) + k] = px[i * channels + k];
         withAlpha[i * (channels + 1) + channels] = alpha[i];
       }
@@ -564,7 +586,7 @@ function imageUrl(ctx, stream, resources, fill) {
       channels += 1;
     } catch { /* drawn without its mask */ }
   }
-  return `data:image/png;base64,${encodePng(w, h, channels, px).toString('base64')}`;
+  return `data:image/png;base64,${encodePng(W, H, channels, px).toString('base64')}`;
 }
 
 // ---------- Running a content stream ----------
@@ -749,6 +771,7 @@ function interpret(ctx, data, resources, level) {
         try { url = imageUrl(ctx, xo, res, gs.fill); } catch { url = null; }
         if (!url) {
           id = false;
+          ctx.unshown = (ctx.unshown || 0) + 1;
         } else {
           id = `i${ctx.ids++}`;
           out.push(`<defs><image id="${id}" width="1" height="1" preserveAspectRatio="none" href="${url}"/></defs>`);
@@ -928,6 +951,7 @@ function interpret(ctx, data, resources, level) {
           else i += 2;
         }
         p.pos = ei < 0 ? data.length : ei + 2;
+        ctx.unshown = (ctx.unshown || 0) + 1;
         if (draw) out.push(`<path d="${polygon(gs.ctm, 0, 0, 1, 1)}" fill="${hex(LIGHT)}"/>`);
         break;
       }
@@ -1053,6 +1077,7 @@ export function renderPage(doc, index, options = {}) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#ffffff"/><g transform="matrix(1 0 0 -1 ${n3(-box[0])} ${n3(box[3])})">${ctx.out.join('')}</g></svg>`;
     const result = { width: Math.round(width * 1000) / 1000, height: Math.round(height * 1000) / 1000, rotate, svg, runs: ctx.runs };
     if (ctx.stopped) result.error = 'This page has more drawing than can be shown; part of it is missing.';
+    else if (ctx.unshown) result.error = `${ctx.unshown === 1 ? 'A picture on this page is' : `${ctx.unshown} pictures on this page are`} in a format CORE cannot show here (JPEG 2000, JBIG2 or fax), so ${ctx.unshown === 1 ? 'it shows' : 'they show'} as grey. ${ctx.unshown === 1 ? 'It stays' : 'They stay'} as ${ctx.unshown === 1 ? 'it is' : 'they are'} in the PDF.`;
     return result;
   } catch (err) {
     return { width: Math.round(width * 1000) / 1000, height: Math.round(height * 1000) / 1000, rotate, svg: blankSvg(width, height), runs: [], error: err && err.message ? err.message : 'This page could not be drawn.' };
