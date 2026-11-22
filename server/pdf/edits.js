@@ -91,7 +91,7 @@ export function drawEdits(c, edits, h, image) {
     if (e.type === 'replace') continue;
     if (e.type === 'box' || e.type === 'highlight') {
       c.save();
-      if (e.type === 'highlight') c.opacity(0.35);
+      if (e.type === 'highlight') c.opacity(0.85, { multiply: true });
       c.color(...rgb(e.color)).rect(e.x, h - e.y - e.h, e.w, e.h, { fill: true, stroke: false });
       c.restore();
     } else if (e.type === 'image') {

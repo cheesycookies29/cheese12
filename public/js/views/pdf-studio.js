@@ -99,9 +99,9 @@ export async function pdfStudioView(el) {
   function pageCard(p, i) {
     const sel = state.selected.has(p.key);
     if (p.blank) {
-      const [w, h] = p.orientation === 'landscape' ? [297, 210] : [210, 297];
+      const [w, h] = p.orientation === 'landscape' ? [841.89, 595.28] : [595.28, 841.89];
       return html`<li class="ps-page ${sel ? 'sel' : ''}" data-key="${p.key}" draggable="true">
-        <div class="ps-paper blank" style="aspect-ratio:${w}/${h}"><span>Blank page</span><small>${PDF_SIZES[p.size] || 'A4'}</small>${editBadge(p)}</div>
+        <div class="ps-slot"><div class="ps-paper blank" style="--r:${w / h}"><span>Blank page</span><small>${PDF_SIZES[p.size] || 'A4'}</small>${editsShown(p, w, h)}${editBadge(p)}</div></div>
         ${cardFoot(p, i, 'Blank page', '')}</li>`;
     }
     const s = byId(p.source);
@@ -109,7 +109,7 @@ export async function pdfStudioView(el) {
     const turn = ((info.rotate || 0) + (p.rotate || 0)) % 360;
     const sideways = turn === 90 || turn === 270;
     // The card has the page's shape as shown (turned or not); the picture inside turns with it.
-    const ratio = sideways ? `${info.height}/${info.width}` : `${info.width}/${info.height}`;
+    const [dw, dh] = sideways ? [info.height, info.width] : [info.width, info.height];
     // The page as CORE draws it (0.65: every page, typed or scanned), turned as arranged; a picture
     // shows itself.
     const turned = `transform:rotate(${turn}deg)${sideways ? `;width:${(info.width / info.height) * 100}%;height:${(info.height / info.width) * 100}%` : ''}`;
@@ -117,9 +117,29 @@ export async function pdfStudioView(el) {
       ? html`<img class="pic" src="/api/tools/pdf/sources/${s.id}/pages/${p.page}/thumb" alt="" loading="lazy" style="transform:rotate(${p.rotate || 0}deg)" />`
       : html`<img class="ps-svg" src="/api/tools/pdf/sources/${s.id}/pages/${p.page}/svg${s.version ? `?v=${s.version}` : ''}" alt="" loading="lazy" style="${turned}" />`;
     return html`<li class="ps-page ${sel ? 'sel' : ''}" data-key="${p.key}" draggable="true">
-      <div class="ps-paper" style="aspect-ratio:${ratio}">${inner}${tag(s)}${p.rotate ? html`<span class="ps-turned" title="Turned ${p.rotate}°">${icon('rotateCw', 12)} ${p.rotate}°</span>` : ''}${editBadge(p)}</div>
+      <div class="ps-slot"><div class="ps-paper" style="--r:${dw / dh}">${inner}${editsShown(p, dw, dh)}${tag(s)}${p.rotate ? html`<span class="ps-turned" title="Turned ${p.rotate}°">${icon('rotateCw', 12)} ${p.rotate}°</span>` : ''}${editBadge(p)}</div></div>
       ${cardFoot(p, i, s.name, `page ${p.page + 1} of ${s.pages.length}`)}</li>`;
   }
+  // What the page editor added, drawn small on the card (signatures, text, white-out, highlights,
+  // marks; changed lines as white boxes with their new words): the card shows the page as exported.
+  function editsShown(p, dw, dh) {
+    const list = (p.edits || []).filter((e) => e.type !== 'replace' || e.box);
+    if (!list.length) return '';
+    const pct = (v, of) => `${(v / of) * 100}%`;
+    const font = (e) => `font:${e.italic ? 'italic ' : ''}${e.bold ? '700 ' : ''}calc(${e.size / dw} * 100cqw)/1.2 ${{ serif: 'Times, serif', mono: 'Courier, monospace' }[e.family] || 'Helvetica, Arial, sans-serif'};color:${e.color}`;
+    return html`<span class="ps-marks" aria-hidden="true">${list.map((e) => {
+      if (e.type === 'image') return html`<img src="${e.data}" alt="" style="left:${pct(e.x, dw)};top:${pct(e.y, dh)};width:${pct(e.w, dw)};height:${pct(e.h, dh)}" />`;
+      if (e.type === 'box' || e.type === 'highlight') return html`<i class="${e.type}" style="left:${pct(e.x, dw)};top:${pct(e.y, dh)};width:${pct(e.w, dw)};height:${pct(e.h, dh)};background:${e.color}"></i>`;
+      if (e.type === 'text') return html`<b style="left:${pct(e.x, dw)};top:${pct(e.y, dh)};${e.w ? `width:${pct(e.w, dw)};` : ''}${font(e)}">${e.text}</b>`;
+      if (e.type === 'mark') return html`<i class="mark" style="left:${pct(e.x, dw)};top:${pct(e.y, dh)};width:${pct(e.size, dw)};height:${pct(e.size, dh)};color:${e.color}">${icon(e.kind === 'cross' ? 'x' : e.kind === 'dot' ? 'circle' : 'check', 12)}</i>`;
+      // A changed line (its place from the editor, unturned pages only; turned ones show the badge).
+      const t = turnOf(p);
+      if (t) return '';
+      const b = e.box;
+      return html`<b class="replaced" style="left:${pct(b.x, dw)};top:${pct(dh - b.y - b.height * 1.15, dh)};min-width:${pct(b.width, dw)};${font(e)}">${e.text}</b>`;
+    })}</span>`;
+  }
+  const turnOf = (p) => (p.blank ? 0 : ((((byId(p.source)?.pages[p.page]?.rotate || 0) + (p.rotate || 0)) % 360) + 360) % 360);
   // How many changes the page editor made on a page, and whether it is signed.
   function editBadge(p) {
     const n = (p.edits || []).length;
@@ -181,7 +201,7 @@ export async function pdfStudioView(el) {
       <details class="ps-more" ${x.watermark ? 'open' : ''}><summary>Watermark</summary>
         <label class="field"><span>Text across each page</span><input name="watermark" value="${x.watermark}" maxlength="60" placeholder="e.g. DRAFT or CONFIDENTIAL" /></label>
         <div class="grid two">
-          <label class="field"><span>Strength</span><input type="range" name="opacity" min="0.05" max="0.5" step="0.05" value="${x.opacity}" /></label>
+          <label class="field"><span>Strength <output class="muted small" id="ps-opacity">${Math.round(x.opacity * 100)}%</output></span><input type="range" name="opacity" min="0.05" max="0.5" step="0.05" value="${x.opacity}" /></label>
           <label class="field"><span>Colour</span><select name="color">${option('gray', 'Grey', x.color)}${option('red', 'Red', x.color)}${option('blue', 'Blue', x.color)}</select></label>
         </div>
       </details>
@@ -215,9 +235,9 @@ export async function pdfStudioView(el) {
         <div class="ps-main">
           <section class="card ps-drop" id="ps-drop" tabindex="-1">
             <span class="ps-drop-ic">${icon('upload', 26)}</span>
-            <div><strong>Drop files here</strong> or <label class="ps-pick">choose files<input type="file" id="ps-file" multiple accept="${PDF_ACCEPT}" class="sr-only" /></label>
+            <div><span class="ps-drop-words"><strong>Drop files here</strong> or </span><label class="ps-pick">choose files<input type="file" id="ps-file" multiple accept="${PDF_ACCEPT}" class="sr-only" /></label>
               <small>PDF, Word, Excel, PowerPoint, OpenDocument, text, Markdown, CSV, HTML and pictures (JPEG, PNG, WebP, GIF…), up to ${PDF_LIMITS.maxFileBytes / MB} MB each.</small></div>
-            ${state.busy ? html`<p class="ps-busy" role="status">${icon('clock', 14)} Converting ${state.queue[0] || ''}${state.busy > 1 ? ` and ${state.busy - 1} more` : ''}…</p>` : ''}
+            ${state.busy ? html`<p class="ps-busy" role="status"><span class="ps-spin" aria-hidden="true"></span> Converting ${state.queue[0] || ''}${state.busy > 1 ? ` and ${state.busy - 1} more` : ''}…</p>` : ''}
           </section>
           ${state.pages.length ? html`
           <section class="card ps-pages-card" aria-labelledby="ps-pages-h">
@@ -248,9 +268,15 @@ export async function pdfStudioView(el) {
             <li><strong>Arrange</strong> the pages of all the files together: drag them, turn them, remove the ones you do not need, add blank pages.</li>
             <li><strong>Export</strong> one PDF, or one per file or per page in a ZIP, with page numbers, a header, a footer or a watermark if you like.</li></ol></section>`}
         </aside>
-      </div>`);
+      </div>
+      ${state.pages.length ? html`<div class="ps-mobilebar" role="region" aria-label="Download">
+        <span class="muted small">${plural(state.pages.length, 'page')}</span>
+        <button type="button" class="btn" data-export="preview" ${state.busy || x0().split !== 'none' ? 'disabled' : ''}>${icon('eye', 16)} Preview</button>
+        <button type="button" class="btn primary" data-export="download" ${state.busy ? 'disabled' : ''}>${icon('download', 16)} ${x0().split === 'none' ? 'Download PDF' : 'Download ZIP'}</button>
+      </div>` : ''}`);
     wire();
   }
+  const x0 = () => state.exp;
 
   // ----- Uploading -----
   async function add(files) {
@@ -372,7 +398,7 @@ export async function pdfStudioView(el) {
     });
     save(state);
   }
-  async function exportPdf(preview = false) {
+  async function exportPdf(preview = false, from = null) {
     readExport();
     const x = state.exp;
     const body = {
@@ -395,7 +421,7 @@ export async function pdfStudioView(el) {
       tab.document.body.style.cssText = 'font: 15px system-ui, sans-serif; color: #555; display: grid; place-items: center; height: 100vh; margin: 0';
       tab.document.body.textContent = 'Making the PDF…';
     }
-    const btn = el.querySelector(preview ? '#ps-preview' : '#ps-export');
+    const btn = from || el.querySelector(preview ? '#ps-preview' : '#ps-export');
     btn.disabled = true;
     const label = btn.innerHTML;
     btn.textContent = 'Making…';
@@ -449,6 +475,9 @@ export async function pdfStudioView(el) {
           : r.result === 'changed'
             ? html`<p class="notice bad">${icon('alert', 18)} <span><strong>This file was changed after it was signed.</strong> It names record ${r.record.code} (signed by ${r.record.name} on ${when(r.record.at)}), but its contents are not the ones signed. Ask the signer for the original.</span></p>`
             : html`<p class="notice">${icon('help', 18)} <span>${r.reason}</span></p>`);
+        // The result stays; the buttons now say what can be done next.
+        f.querySelector('[type=submit]').textContent = 'Check another';
+        f.querySelector('footer [data-close]').textContent = 'Close';
         throw Object.assign(new Error(''), { keepOpen: true });
       },
     });
@@ -496,6 +525,11 @@ export async function pdfStudioView(el) {
       changed();
     });
     el.querySelectorAll('[data-bulk]').forEach((b) => b.addEventListener('click', () => bulk(b.dataset.bulk)));
+    // The download bar of tablets and phones (where the export panel is below the pages).
+    el.querySelectorAll('[data-export]').forEach((b) => b.addEventListener('click', () => {
+      readExport();
+      exportPdf(b.dataset.export === 'preview', b);
+    }));
     const grid = el.querySelector('#ps-grid');
     if (grid) {
       grid.addEventListener('click', (ev) => {
@@ -564,6 +598,9 @@ export async function pdfStudioView(el) {
       });
       exp.addEventListener('input', () => readExport());
       el.querySelector('#ps-export').addEventListener('click', () => exportPdf(false));
+      exp.addEventListener('input', (ev) => {
+        if (ev.target.name === 'opacity') el.querySelector('#ps-opacity').textContent = `${Math.round(Number(ev.target.value) * 100)}%`;
+      });
       el.querySelector('#ps-preview').addEventListener('click', () => exportPdf(true));
     }
   }

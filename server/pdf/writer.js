@@ -175,8 +175,9 @@ export class Content {
   // Everything after this is drawn through the matrix [a b c d e f] (until restore()).
   transform(a, b, c, d, e, f) { return this.raw(`${fmt(a)} ${fmt(b)} ${fmt(c)} ${fmt(d)} ${fmt(e)} ${fmt(f)} cm`); }
   // See-through fill and stroke (0–1), through an ExtGState.
-  opacity(a) {
-    const key = `GA${Math.round(a * 100)}`;
+  // multiply: the colour darkens what is under it, as a highlighter does (text stays crisp).
+  opacity(a, { multiply = false } = {}) {
+    const key = `${multiply ? 'GM' : 'GA'}${Math.round(a * 100)}`;
     this.states.add(key);
     return this.raw(`/${this.prefix}${key} gs`);
   }
@@ -211,7 +212,7 @@ export class PdfWriter {
   extGState(key) {
     if (!this.stateRefs[key]) {
       const a = Number(key.slice(2)) / 100;
-      this.stateRefs[key] = this.add({ Type: name('ExtGState'), ca: a, CA: a });
+      this.stateRefs[key] = this.add({ Type: name('ExtGState'), ca: a, CA: a, ...(key.startsWith('GM') ? { BM: name('Multiply') } : {}) });
     }
     return ref(this.stateRefs[key]);
   }

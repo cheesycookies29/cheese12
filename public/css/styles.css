@@ -3838,3 +3838,71 @@ body.ps-editing { overflow: hidden; }
 .ps-tools { flex-wrap: wrap; justify-content: center; }
 .ps-tools .icon-btn { width: 28px; height: 28px; }
 @media (max-width: 560px) { .ps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- PDF Studio, after visual QA (0.65.1) ---------- */
+@font-face { font-family: 'CORE Sign Vibes'; src: url('../fonts/GreatVibes-Regular.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'CORE Sign Dancing'; src: url('../fonts/DancingScript-SemiBold.woff2') format('woff2'); font-display: block; }
+@font-face { font-family: 'CORE Sign Caveat'; src: url('../fonts/Caveat-SemiBold.woff2') format('woff2'); font-display: block; }
+/* Cards: each page in a slot of the same height, shaped as the page (no squashing), footers aligned. */
+.ps-page { align-content: start; }
+.ps-slot { height: 210px; display: grid; place-items: center; }
+.ps-paper { width: min(100%, calc(210px * var(--r, 0.707))); aspect-ratio: var(--r, 0.707); max-height: none; container-type: inline-size; }
+.ps-paper img.ps-svg { object-fit: fill; }
+/* What the page editor added, drawn on the card. */
+.ps-marks { position: absolute; inset: 0; pointer-events: none; }
+.ps-marks > * { position: absolute; display: block; }
+.ps-marks img { object-fit: contain; }
+.ps-marks i.highlight { mix-blend-mode: multiply; opacity: .85; }
+.ps-marks b { font-weight: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ps-marks b.replaced { background: #fff; white-space: nowrap; }
+.ps-marks i.mark { display: grid; place-items: center; }
+.ps-marks i.mark svg { width: 100%; height: 100%; }
+.ps-edited { right: auto; left: 6px; top: 6px; bottom: auto; }
+/* Card buttons: one row of six on cards, bigger targets on touch screens. */
+.ps-tools { flex-wrap: nowrap; gap: 0; justify-content: space-between; }
+.ps-tools .icon-btn { width: 26px; height: 28px; }
+@media (pointer: coarse), (max-width: 560px) {
+  .ps-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+  .ps-tools .icon-btn { width: 100%; height: 40px; }
+  .ps-check { min-width: 40px; min-height: 40px; }
+  .ps-check input { width: 20px; height: 20px; }
+  .ps-bar .btn { min-height: 40px; }
+  .ps-drop-words { display: none; }
+  .ps-pick { text-transform: capitalize; }
+}
+/* The side column scrolls by itself, so Download stays in reach. */
+@media (min-width: 1101px) { .ps-side { max-height: calc(100vh - 92px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 4px; } }
+/* Tablets and phones: a download bar along the bottom. */
+.ps-mobilebar { display: none; }
+@media (max-width: 1100px) {
+  .ps-mobilebar { display: flex; align-items: center; gap: 8px; position: sticky; bottom: 0; z-index: 5; margin-top: 16px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); border-radius: 12px 12px 0 0; background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(6px); border-top: 1px solid var(--border); }
+  .ps-mobilebar .muted { flex: 1; }
+}
+/* Busy: a spinner, without moving the page. */
+.ps-drop { position: relative; }
+.ps-busy { position: absolute; left: 22px; right: 22px; bottom: 6px; font-size: 13px; }
+.ps-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--brand) 25%, transparent); border-top-color: var(--brand); animation: ps-spin .8s linear infinite; display: inline-block; }
+@keyframes ps-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ps-spin { animation-duration: 3s; } }
+.ps-export input[type=range] { accent-color: var(--brand); }
+.ps-more:not([open]) { gap: 0; }
+/* The editor: wrapping tool labels on phones, zoom, a shorter side panel. */
+.ps-ed-zoom { display: flex; align-items: center; gap: 2px; }
+.ps-ed-zoom .icon-btn { font-size: 18px; font-weight: 600; }
+.ps-ed-zoom .btn { min-width: 56px; justify-content: center; }
+.ps-ed-stage { justify-content: safe center; }
+.ps-ed-highlight { opacity: .85; mix-blend-mode: multiply; }
+@media (max-width: 900px) {
+  .ps-ed-tool { min-width: 64px; max-width: 76px; }
+  .ps-ed-tool span { white-space: normal; text-align: center; line-height: 1.15; }
+  .ps-ed-side { max-height: 30vh; }
+  .ps-ed-top { gap: 6px; padding: 8px 10px; }
+  .ps-ed-title small { display: none; }
+}
+/* Signature dialog: the typed styles shorter, all three in view. */
+.ps-sig-font canvas { width: auto; max-width: 100%; height: 72px; margin: 0 auto; }
+.ps-ink i, .ps-ed-color i { box-sizing: border-box; border: 1px solid var(--border-strong); }
+/* Dark mode: the chosen tool and the selected card stand out. */
+:root[data-theme='dark'] .ps-ed-tool.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+:root[data-theme='dark'] .ps-page.sel { border-color: var(--brand-text); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-text) 45%, transparent); }
+:root[data-theme='dark'] .ps-drop-ic, :root[data-theme='dark'] .ps-logo { background: var(--brand); color: #fff; }

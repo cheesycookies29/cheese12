@@ -72,7 +72,9 @@ export function signaturePad() {
   return new Promise((resolve) => {
     let done = false;
     const saved = savedSignature();
-    const fonts = ['"Brush Script MT", "Segoe Script", cursive', '"Segoe Script", "Snell Roundhand", "Apple Chancery", cursive', '"Lucida Handwriting", "Comic Sans MS", cursive'];
+    // Handwriting faces shipped with CORE (public/fonts, SIL Open Font License), so every computer and
+    // phone shows the same three styles.
+    const fonts = ['"CORE Sign Vibes", cursive', '"CORE Sign Dancing", cursive', '"CORE Sign Caveat", cursive'];
     const { form } = modal({
       title: 'Your signature', wide: true, className: 'ps-sig-modal', submitLabel: 'Use this signature',
       subtitle: 'Draw it, type it, or upload a picture of it. Then click where it goes on the page.',
@@ -167,7 +169,9 @@ export function signaturePad() {
     });
     guide();
     // Typed: the name in each style.
-    const drawTyped = () => {
+    const drawTyped = async () => {
+      // The faces load when first used: wait for them, so the name is not drawn in a stand-in.
+      await Promise.all(fonts.map((f) => document.fonts?.load(`64px ${f}`).catch(() => null)));
       for (const c of form.querySelectorAll('[data-font]')) {
         const cg = c.getContext('2d');
         cg.clearRect(0, 0, c.width, c.height);
@@ -295,6 +299,11 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
           <button type="button" class="icon-btn" id="ed-next" aria-label="Next page" ${index === pages.length - 1 ? 'disabled' : ''}>${icon('chevronRight', 18)}</button>
         </div>
         <span class="spacer"></span>
+        <div class="ps-ed-zoom" role="group" aria-label="Zoom">
+          <button type="button" class="icon-btn" data-zoom="-1" aria-label="Zoom out" title="Zoom out">−</button>
+          <button type="button" class="btn small-btn ghost" data-zoom="0" title="Fit the page's width">${Math.round(zoom * 100)}%</button>
+          <button type="button" class="icon-btn" data-zoom="1" aria-label="Zoom in" title="Zoom in">+</button>
+        </div>
         <button type="button" class="btn small-btn ghost" id="ed-undo" ${undo.length ? '' : 'disabled'}>${icon('undo', 14)} Undo</button>
         <button type="button" class="btn primary" id="ed-done">Done</button>
       </header>
@@ -313,6 +322,11 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
       draw();
     });
     shell.querySelectorAll('[data-tool]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.tool)));
+    shell.querySelectorAll('[data-zoom]').forEach((b) => b.addEventListener('click', () => {
+      const d = Number(b.dataset.zoom);
+      zoom = d === 0 ? 1 : Math.max(0.5, Math.min(4, zoom * (d > 0 ? 1.25 : 0.8)));
+      draw();
+    }));
     layout();
     side();
   }
@@ -332,7 +346,6 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
       pendingSig = sig;
       tool = 'sign';
       draw();
-      toast('Click on the page where your signature goes.');
       return;
     }
     if (k === 'picture') {
@@ -346,7 +359,6 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
         pendingSig = { ...img, picture: true };
         tool = 'sign';
         draw();
-        toast('Click on the page where the picture goes.');
       });
       input.click();
       return;
@@ -371,6 +383,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
 
   // ----- The page and what is on it -----
   let scale = 1;
+  let zoom = 1; // × the page's width fitted to the screen
   function layout() {
     const stage = shell.querySelector('#ed-stage');
     const el = shell.querySelector('#ed-page');
@@ -379,7 +392,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     const inf = info();
     const t = turn();
     const [dw, dh] = shownSize(inf, t);
-    scale = Math.min((stage.clientWidth - 32) / dw, 2.2);
+    scale = Math.min((stage.clientWidth - 32) / dw, 2.2) * zoom;
     if (scale <= 0) scale = 1;
     el.style.width = `${dw * scale}px`;
     el.style.height = `${dh * scale}px`;
@@ -404,7 +417,9 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     const replaced = new Set(edits().filter((e) => e.type === 'replace').map((e) => e.run));
     const runBoxes = tool === 'edit' && runs ? runs.filter((r) => !replaced.has(r.id)).map((r) => {
       const b = shownBox(r, inf.width, inf.height, t);
-      return html`<button type="button" class="ps-ed-run ${r.editable ? '' : 'locked'}" data-run="${r.id}" style="left:${b.x * k}px;top:${b.y * k}px;width:${Math.max(4, b.w * k)}px;height:${Math.max(6, b.h * k)}px" title="${r.editable ? `Change: ${r.text}` : 'This text is inside a drawing and cannot be changed here'}" aria-label="Change the text ${r.text}"></button>`;
+      // At least 16 px tall, so a finger can hit a line of small text (centred on the line).
+      const hh = Math.max(16, b.h * k);
+      return html`<button type="button" class="ps-ed-run ${r.editable ? '' : 'locked'}" data-run="${r.id}" style="left:${b.x * k}px;top:${b.y * k - (hh - b.h * k) / 2}px;width:${Math.max(8, b.w * k)}px;height:${hh}px" title="${r.editable ? `Change: ${r.text}` : 'This text is inside a drawing and cannot be changed here'}" aria-label="Change the text ${r.text}"></button>`;
     }) : '';
     mount(el, html`${bg}${edits().map(item)}${runBoxes}`);
     el.dataset.tool = tool;
@@ -427,7 +442,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
           box: 'Drag over what to cover: a white box hides it. (The text underneath is still in the file: to take text out, use Change text.)',
           highlight: 'Drag over what to highlight.',
           check: 'Click where the tick goes.', cross: 'Click where the cross goes.', date: 'Click where today\'s date goes.',
-          sign: pendingSig ? 'Click on the page where it goes; drag its corner to size it.' : 'Choose Signature to draw, type or upload it.',
+          sign: pendingSig ? `Click on the page where the ${pendingSig.picture ? 'picture' : 'signature'} goes; then drag its corner to size it.` : 'Choose Signature to draw, type or upload it.',
         }[tool] || ''}</p>
         <p class="small"><strong>${n}</strong> change${n === 1 ? '' : 's'} on this page${signed ? ' · signed' : ''}.</p>
         ${n ? html`<button type="button" class="btn small-btn danger" id="ed-clear">${icon('trash', 14)} Remove all changes on this page</button>` : ''}`);
@@ -445,7 +460,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
         <label class="field"><span>Text</span><textarea name="text" rows="4" maxlength="4000">${e.text}</textarea></label>
         <div class="grid two">
           <label class="field"><span>Size</span><input type="number" name="size" min="4" max="96" step="0.5" value="${e.size}" /></label>
-          <label class="field"><span>Font</span><select name="family">${[['sans', 'Sans (Helvetica)'], ['serif', 'Serif (Times)'], ['mono', 'Fixed (Courier)']].map(([v, l]) => html`<option value="${v}" ${e.family === v ? 'selected' : ''}>${l}</option>`)}</select></label>
+          <label class="field"><span>Font</span><select name="family" title="Sans: Helvetica; Serif: Times; Fixed: Courier">${[['sans', 'Sans'], ['serif', 'Serif'], ['mono', 'Fixed']].map(([v, l]) => html`<option value="${v}" ${e.family === v ? 'selected' : ''}>${l}</option>`)}</select></label>
         </div>
         <div class="ps-ed-styles"><label class="check"><input type="checkbox" name="bold" ${e.bold ? 'checked' : ''} /><span><b>Bold</b></span></label><label class="check"><input type="checkbox" name="italic" ${e.italic ? 'checked' : ''} /><span><i>Italic</i></span></label></div>` : ''}
       ${e.type !== 'image' ? html`<div class="field"><span>Colour</span><div class="ps-ed-colors">${(e.type === 'highlight' ? ['#ffe066', '#a7f3d0', '#bfdbfe', '#fbcfe8'] : e.type === 'box' ? ['#ffffff', '#111111', '#f3f4f6'] : COLORS).map((c) => html`<label class="ps-ed-color" title="${c}"><input type="radio" name="color" value="${c}" ${e.color === c ? 'checked' : ''} /><i style="background:${c}"></i></label>`)}<input type="color" name="colorPick" value="${e.color}" aria-label="Another colour" /></div></div>` : ''}
@@ -478,6 +493,21 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     side();
   }
 
+  // A line of the page's text to change (by pointer, or Enter / Space on its outline).
+  function changeRun(runBtn) {
+    const r = runs.find((x) => x.id === Number(runBtn.dataset.run));
+    if (!r?.editable) return toast('This text is inside a drawing on the page and cannot be changed here. Cover it with White-out and add text instead.', 'error');
+    snapshot();
+    const e = { id: uid(), type: 'replace', run: r.id, was: r.text, text: r.text, size: Math.round(r.size * 10) / 10, family: r.family, bold: r.bold, italic: r.italic, color: hex(r.color), box: { x: r.x, y: r.y, width: r.width, height: r.height } };
+    edits().push(e);
+    selected = e.id;
+    layout();
+    side();
+  }
+  shell.addEventListener('click', (ev) => {
+    const runBtn = ev.detail === 0 && ev.target.closest?.('[data-run]');
+    if (runBtn) changeRun(runBtn);
+  });
   // ----- Pointer: place, select, move, resize -----
   const pointPt = (ev) => {
     const r = shell.querySelector('#ed-page').getBoundingClientRect();
@@ -489,17 +519,7 @@ export function openPageEditor({ pages, at, source, onChange, signNow = false })
     if (!pageEl?.contains(ev.target)) return;
     const pt = pointPt(ev);
     const runBtn = ev.target.closest('[data-run]');
-    if (runBtn) {
-      const r = runs.find((x) => x.id === Number(runBtn.dataset.run));
-      if (!r?.editable) return toast('This text is inside a drawing on the page and cannot be changed here. Cover it with White-out and add text instead.', 'error');
-      snapshot();
-      const e = { id: uid(), type: 'replace', run: r.id, was: r.text, text: r.text, size: Math.round(r.size * 10) / 10, family: r.family, bold: r.bold, italic: r.italic, color: hex(r.color), box: { x: r.x, y: r.y, width: r.width, height: r.height } };
-      edits().push(e);
-      selected = e.id;
-      layout();
-      side();
-      return;
-    }
+    if (runBtn) return changeRun(runBtn);
     const itemEl = ev.target.closest('[data-id]');
     if (itemEl && (tool === 'select' || tool === 'edit' || tool === 'sign' && !pendingSig)) {
       const e = edits().find((x) => x.id === itemEl.dataset.id);
