@@ -11,7 +11,7 @@ import { PdfWriter, Content, FONTS, PAGE_SIZES, Stream, Ref, name, serialize } f
 
 const fixture = (f) => fs.readFileSync(new URL(`../scripts/fixtures/${f}`, import.meta.url));
 const photo = fixture('profile-sample.jpg');
-const ENCRYPTED = /protected with a password or encryption\. Save an unprotected copy and upload that\./;
+const ENCRYPTED = /protected with a certificate or a kind of encryption CORE cannot open\. Open it in a PDF viewer, save an unprotected copy, and upload that\./;
 
 // A PDF put together object by object, keeping each object's offset for the tables.
 class HandPdf {
@@ -371,8 +371,12 @@ test('a broken startxref, a missing table, junk around the file: the table is re
 
 test('encrypted, not a PDF, damaged, too big: plain-English errors', () => {
   const { buf } = writerPdf();
+  // Encryption CORE cannot open: a broken standard dictionary, a certificate (public-key) handler.
+  // Files it can open (with or without a password) are in pdf-encrypted.test.js.
   const encrypted = Buffer.from(buf.toString('latin1').replace('trailer\n<<', 'trailer\n<</Encrypt <</Filter /Standard /V 2>> '), 'latin1');
-  assert.throws(() => readPdf(encrypted), ENCRYPTED);
+  assert.throws(() => readPdf(encrypted), (err) => err.code === 'encrypted' && ENCRYPTED.test(err.message));
+  const pubSec = Buffer.from(buf.toString('latin1').replace('trailer\n<<', 'trailer\n<</Encrypt <</Filter /Adobe.PubSec /SubFilter /adbe.pkcs7.s5 /V 4 /R 4>> '), 'latin1');
+  assert.throws(() => readPdf(pubSec, { password: 'anything' }), (err) => err.code === 'encrypted' && ENCRYPTED.test(err.message));
   // Also when the table must be rebuilt first.
   const noTable = encrypted.toString('latin1').replace(/startxref\n\d+/, 'startxref\n1');
   assert.throws(() => readPdf(Buffer.from(noTable, 'latin1')), ENCRYPTED);

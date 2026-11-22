@@ -2,10 +2,12 @@
 // PDFs together. Anyone signed in can use it while it is on for the company (Admin panel →
 // Modules); off, the server refuses it for everyone but administrators (shared/modules.js).
 //
-// How it works: each file uploaded becomes a *source*, kept as a PDF — a PDF as it came; a picture
-// on a page (server/pdf/layout.js imageToPdf); a Word, Excel, PowerPoint, OpenDocument, text,
-// Markdown, CSV or HTML file read into blocks (server/pdf/office.js) and laid out on pages
-// (docToPdf). The browser arranges the pages of all sources (order, turn, remove, blank pages);
+// How it works: each file uploaded becomes a *source*, kept as a PDF — a PDF as it came (a protected
+// one as a plain copy of its pages); a picture or TIFF scan on pages (server/pdf/layout.js
+// imageToPdf, tiffToPdf); a Word, Excel, PowerPoint (new and 97–2003), OpenDocument, RTF, text,
+// Markdown, CSV, HTML or Outlook file read into blocks (server/pdf/office.js), or an e-book, e-mail
+// or code file (server/pdf/office-extra.js), and laid out on pages (docToPdf). A ZIP adds each file
+// it holds. Files of up to 100 MB arrive in pieces (/uploads) and wait on disk until whole. The browser arranges the pages of all sources (order, turn, remove, blank pages);
 // the export copies those pages into one new PDF (server/pdf/build.js), with page numbers, a header,
 // a footer or a watermark if asked, or splits it into several PDFs in a ZIP.
 //
@@ -16,41 +18,94 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, createHash, randomInt } from 'node:crypto';
-import { HttpError } from './util.js';
 import { noAudit } from './audit.js';
-import { sniffOffice } from './attachments.js';
-import { DOCX, XLSX, PPTX, ODT, ODS, ODP } from '../shared/files.js';
+import { HttpError, FileReply } from './util.js';
 import { zipFiles } from './zip.js';
-import { toBlocks } from './pdf/office.js';
-import { docToPdf, imageToPdf } from './pdf/layout.js';
+import * as office from './pdf/office.js';
+import { readZip } from './pdf/office-core.js';
+import { epubToDoc, emlToDoc, codeToDoc, looksLikeMail } from './pdf/office-extra.js';
+import * as layoutModule from './pdf/layout.js';
 import { readPdf, pageJpeg, pageText } from './pdf/reader.js';
 import { buildPdf, NUMBER_FORMATS, NUMBER_POSITIONS } from './pdf/build.js';
 import { renderPage } from './pdf/render.js';
 import { cleanEdits, hasSignature, runScale } from './pdf/edits.js';
 import { isJpeg, isPng } from './pdf/images.js';
 import { PAGE_SIZES, missingChars, MISSING_NOTE } from './pdf/writer.js';
-import { PDF_LIMITS } from '../shared/pdf-studio.js';
+import { PDF_LIMITS, PDF_DOC_EXTS } from '../shared/pdf-studio.js';
 
 const MB = 1024 * 1024;
-const { maxFileBytes: MAX_FILE_BYTES, maxSources: MAX_SOURCES, maxStoredBytes: MAX_STORED_BYTES, maxPages: MAX_PAGES, sourceHours: SOURCE_HOURS } = PDF_LIMITS;
-const OFFICE = { [DOCX]: 'docx', [XLSX]: 'xlsx', [PPTX]: 'pptx', [ODT]: 'odt', [ODS]: 'ods', [ODP]: 'odp' };
-const TEXT_KINDS = { txt: 'txt', text: 'txt', md: 'md', markdown: 'md', csv: 'csv', html: 'html', htm: 'html' };
-const FORMAT_NAME = { pdf: 'PDF', image: 'Picture', docx: 'Word', xlsx: 'Excel', pptx: 'PowerPoint', odt: 'OpenDocument text', ods: 'OpenDocument spreadsheet', odp: 'OpenDocument presentation', txt: 'Text', md: 'Markdown', csv: 'CSV', html: 'Web page' };
+const { docToPdf, imageToPdf } = layoutModule;
+const { toBlocks } = office;
+const { maxFileBytes: MAX_FILE_BYTES, chunkBytes: CHUNK_BYTES, maxSources: MAX_SOURCES, maxStoredBytes: MAX_STORED_BYTES, maxPages: MAX_PAGES, maxExportBytes: MAX_EXPORT_BYTES, maxArchiveFiles: MAX_ARCHIVE_FILES, sourceHours: SOURCE_HOURS } = PDF_LIMITS;
+// The older way to upload (one request, base64 in JSON) takes files up to this size.
+export const DIRECT_UPLOAD_BYTES = 25 * MB;
+const TEXT_KINDS = { txt: 'txt', text: 'txt', md: 'md', markdown: 'md', csv: 'csv', tsv: 'csv', html: 'html', htm: 'html', xhtml: 'html' };
+const CODE_EXTS = new Set(PDF_DOC_EXTS.text.filter((e) => !TEXT_KINDS[e]));
+const FORMAT_NAME = {
+  pdf: 'PDF', image: 'Picture', tiff: 'TIFF picture', docx: 'Word', doc: 'Word 97–2003', rtf: 'Rich Text', xlsx: 'Excel', xls: 'Excel 97–2003', pptx: 'PowerPoint', ppt: 'PowerPoint 97–2003',
+  odt: 'OpenDocument text', ods: 'OpenDocument spreadsheet', odp: 'OpenDocument presentation', txt: 'Text', md: 'Markdown', csv: 'CSV', html: 'Web page', code: 'Code or data',
+  epub: 'E-book', eml: 'E-mail', msg: 'Outlook e-mail', zip: 'ZIP',
+};
+// Opened PDFs kept in memory, all people together (0.66: files of up to 100 MB on a server with
+// 1 GB): beyond this, the least recently used are closed and read again from disk when needed.
+const OPEN_DOC_BYTES = 256 * MB;
+// Uploads in pieces: a piece arrives within this time of the last, or the upload is dropped.
+const UPLOAD_IDLE_MINUTES = 30;
+// Room kept free on the server's disk.
+const DISK_RESERVE_BYTES = Number(process.env.PDF_DISK_RESERVE_MB || 512) * MB;
+const CFB = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+const isTiffBytes = (b) => b.length > 8 && ((b[0] === 0x49 && b[1] === 0x49 && b[2] === 42 && b[3] === 0) || (b[0] === 0x4d && b[1] === 0x4d && b[2] === 0 && b[3] === 42));
 const ROTATIONS = [0, 90, 180, 270];
+// An export taking more than this from its files is written to disk and sent from there.
+const BIG_EXPORT_BYTES = 24 * MB;
 // Titles programs put in a PDF by themselves, which say nothing: the file's name is better.
 const GENERIC_TITLE = /^(untitled|untitled document|document\d*|presentation\d*|book\d*|microsoft (word|excel|powerpoint) - .*|.*\.(docx?|xlsx?|pptx?|pdf))$/i;
 const bad = (msg) => new HttpError(400, msg);
 
 // What a file is, by what it holds (never its name alone, except to tell text kinds apart).
 export function formatOf(buf, fileName = '') {
+  const ext = String(fileName).match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() || '';
   const head = buf.subarray(0, 1024).toString('latin1');
   if (head.includes('%PDF-')) return 'pdf';
   if (isJpeg(buf) || isPng(buf)) return 'image';
-  const office = sniffOffice(buf);
-  if (office) return OFFICE[office] || null;
-  const ext = String(fileName).match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
-  if (ext && TEXT_KINDS[ext] && buf.length && !buf.subarray(0, 8192).includes(0)) return TEXT_KINDS[ext];
+  if (isTiffBytes(buf)) return 'tiff';
+  // Word, Excel, PowerPoint 97–2003 and Outlook messages: "compound files", told apart by what they hold.
+  if (buf.subarray(0, 8).equals(CFB)) {
+    const kind = office.sniffCompound(buf);
+    // A Word, Excel or PowerPoint file with a password: read as one, which says so.
+    return kind === 'encrypted-ooxml' ? 'docx' : kind || null;
+  }
+  if (/^\s*\{\\rtf/.test(head)) return 'rtf';
+  if (buf.length > 4 && buf.readUInt32LE(0) === 0x04034b50) return zipKind(buf);
+  if (!buf.length || buf.subarray(0, 8192).includes(0)) return null;
+  if (['eml', 'msg', 'mht'].includes(ext)) return looksLikeMail(buf) ? 'eml' : null; // an e-mail saved as text, whatever its name
+  if (TEXT_KINDS[ext]) return TEXT_KINDS[ext];
+  if (CODE_EXTS.has(ext)) return 'code';
   return null;
+}
+// What a ZIP holds: a Word, Excel or PowerPoint file (with macros or a template too: read as the
+// document, the macros never run), an OpenDocument file, an e-book, or other files (an archive).
+function zipKind(buf) {
+  let zip;
+  try {
+    zip = readZip(buf, { maxEntryBytes: 64 * 1024 });
+  } catch {
+    return null;
+  }
+  if (zip.has('word/document.xml') || zip.names.some((n) => /^word\/document\d*\.xml$/i.test(n))) return 'docx';
+  if (zip.has('xl/workbook.xml')) return 'xlsx';
+  if (zip.has('ppt/presentation.xml')) return 'pptx';
+  if (zip.has('mimetype')) {
+    let kind = '';
+    try { kind = zip.read('mimetype').toString('latin1').trim(); } catch { kind = ''; }
+    if (/opendocument\.text/.test(kind)) return 'odt';
+    if (/opendocument\.spreadsheet/.test(kind)) return 'ods';
+    if (/opendocument\.presentation/.test(kind)) return 'odp';
+    if (kind === 'application/epub+zip') return 'epub';
+  }
+  if (zip.has('META-INF/container.xml') && zip.names.some((n) => /\.opf$/i.test(n))) return 'epub';
+  if (zip.has('[Content_Types].xml')) return null; // an Office file of another kind (Visio, XPS…)
+  return 'zip';
 }
 
 // Layout options as sent by the page: page size, orientation, margin (mm), font size, picture fit.
@@ -82,6 +137,8 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
   const mine = (u) => [...sources.values()].filter((s) => s.owner === u.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   function drop(s) {
     sources.delete(s.id);
+    open.delete(s.id);
+    s.doc = null;
     fs.rmSync(fileOf(s), { force: true });
     fs.rmSync(origOf(s), { force: true });
   }
@@ -96,6 +153,8 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
   const sweep = () => {
     const cutoff = Date.now() - SOURCE_HOURS * 3600 * 1000;
     for (const s of [...sources.values()]) if (s.usedAt < cutoff) drop(s);
+    const idle = Date.now() - UPLOAD_IDLE_MINUTES * 60 * 1000;
+    for (const x of [...uploads.values()]) if (x.usedAt < idle) dropUpload(x);
   };
   const timer = setInterval(sweep, 10 * 60 * 1000);
   timer.unref?.();
@@ -103,13 +162,26 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
   // The PDF of a source, made (again) with the layout options.
   function render(s, orig, layout) {
     if (s.kind === 'pdf') return { pdf: orig, captions: null, warnings: [] };
+    if (s.format === 'tiff') {
+      if (!layoutModule.tiffToPdf) throw bad('TIFF pictures cannot be read yet. Save it as JPEG, PNG or PDF and try again.');
+      let out;
+      try {
+        out = layoutModule.tiffToPdf(orig, layout, { title: s.title });
+      } catch (err) {
+        throw bad(err.message || 'This TIFF picture could not be read.');
+      }
+      return { pdf: out.pdf, captions: out.captions || null, warnings: out.warnings || [] };
+    }
     if (s.kind === 'image') {
       const out = imageToPdf(orig, layout, { title: s.title });
       return { pdf: out.pdf, captions: [''], warnings: [] };
     }
     let doc;
     try {
-      doc = toBlocks(orig, s.format, { fileName: s.name });
+      if (s.format === 'epub') doc = epubToDoc(orig, { fileName: s.name });
+      else if (s.format === 'eml') doc = emlToDoc(orig, { fileName: s.name });
+      else if (s.format === 'code') doc = codeToDoc(orig, { fileName: s.name });
+      else doc = toBlocks(orig, s.format, { fileName: s.name });
     } catch (err) {
       throw bad(err.message || `CORE could not read this ${FORMAT_NAME[s.format]} file.`);
     }
@@ -130,29 +202,152 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
   }
   // Reads the source's PDF and notes its pages: size, turn, a caption, and whether it has a picture
   // to show as its thumbnail (a picture; a scanned page).
-  function load(s, pdf, captions) {
+  function load(s, pdf, captions, { password } = {}) {
     let doc;
     try {
-      doc = readPdf(pdf);
+      doc = readPdf(pdf, { maxPages: MAX_PAGES, ...(password ? { password } : {}) });
     } catch (err) {
+      if (err?.code === 'password') throw Object.assign(bad(err.message), { needsPassword: true, wrongPassword: err.reason === 'wrong' || (Boolean(password) && err.reason !== 'needed') });
+      if (err?.code === 'too-many-pages') throw bad(`This file has more than ${MAX_PAGES.toLocaleString('en-US')} pages, more than PDF Studio takes in one file. Split it first.`);
       throw bad(err.message || 'This PDF could not be read.');
     }
     if (!doc.pageCount) throw bad('This PDF has no pages.');
     if (doc.pageCount > MAX_PAGES) throw bad(`This file has ${doc.pageCount} pages; PDF Studio takes files of up to ${MAX_PAGES} pages.`);
+    // A protected PDF (0.66), opened with its password or none (most only restrict printing or
+    // copying): kept as a plain copy of its pages, so nothing later needs the password.
+    if (doc.encrypted) {
+      const title = doc.info?.title;
+      pdf = buildPdf(doc.pages.map((_, index) => ({ doc, index, rotate: 0 })), {}, { title: title || '' });
+      doc = readPdf(pdf, { maxPages: MAX_PAGES });
+      if (title && !doc.info?.title) doc.info = { ...(doc.info || {}), title };
+      s.unlocked = true;
+    }
     s.doc = doc;
+    opened(s);
     s.pages = doc.pages.map((p, i) => ({
       width: Math.round(p.width * 100) / 100, height: Math.round(p.height * 100) / 100, rotate: p.rotate || 0,
       caption: captions ? captions[i] || '' : i < 300 ? pageText(doc, i, 90) : '',
-      thumb: s.kind === 'image' || (s.kind === 'pdf' && i < 500 && Boolean(pageJpeg(doc, i))),
+      // The picture itself (JPEG, PNG), or a page that is one JPEG; others (a TIFF, a fax scan) are drawn.
+      thumb: s.format === 'image' || ((s.kind === 'pdf' || s.format === 'tiff') && i < 500 && Boolean(pageJpeg(doc, i))),
     }));
     if (s.kind === 'pdf' && !s.title && doc.info?.title && !GENERIC_TITLE.test(String(doc.info.title).trim())) s.title = String(doc.info.title).slice(0, 160);
+    return pdf;
+  }
+  // Opened PDFs, least recently used first; beyond OPEN_DOC_BYTES the oldest are closed.
+  const open = new Map();
+  function opened(s) {
+    open.delete(s.id);
+    open.set(s.id, s);
+    let bytes = 0;
+    for (const x of open.values()) bytes += x.stored || x.size || 0;
+    for (const [id, x] of open) {
+      if (bytes <= OPEN_DOC_BYTES || x === s) break;
+      bytes -= x.stored || x.size || 0;
+      x.doc = null;
+      open.delete(id);
+    }
+  }
+  function docOf(s) {
+    if (!s.doc) s.doc = readPdf(fs.readFileSync(fileOf(s)), { maxPages: MAX_PAGES });
+    opened(s);
+    return s.doc;
   }
   const out = (s) => ({ id: s.id, name: s.name, kind: s.kind, format: s.format, formatName: FORMAT_NAME[s.format] || s.format, size: s.size, title: s.title || '', layout: s.layout, pages: s.pages, warnings: s.warnings, createdAt: s.createdAt, canLayout: s.kind !== 'pdf' });
   const storedBy = (u) => mine(u).reduce((n, s) => n + s.stored, 0);
 
   route('GET', '/api/tools/pdf', 'auth', ({ user: u }) => ({ sources: mine(u).map(out), limits: PDF_LIMITS, numberFormats: NUMBER_FORMATS, numberPositions: NUMBER_POSITIONS }));
 
-  // One file: { file: { name, type, data (base64) }, layout }.
+  const UNKNOWN = (name) => `CORE cannot turn ${name} into a PDF. PDF Studio takes PDFs; pictures (JPEG, PNG, TIFF; WebP, GIF, HEIC and others your browser can open); Word, Excel and PowerPoint files, old (.doc, .xls, .ppt) and new; OpenDocument, RTF, text, Markdown, CSV, HTML, code and data files; e-books (EPUB), e-mails (.eml, .msg) and ZIPs of these.`;
+  const roomOnDisk = (bytes) => {
+    try {
+      const st = fs.statfsSync(fs.existsSync(dir) ? dir : db.dir);
+      return Number(st.bavail) * Number(st.bsize) - bytes > DISK_RESERVE_BYTES;
+    } catch {
+      return true;
+    }
+  };
+  // Room for a file of `bytes` more (its PDF and the file itself are kept), or a message why not.
+  function checkRoom(u, bytes, name = 'This file') {
+    if (bytes > MAX_FILE_BYTES) throw bad(`${name} is larger than ${MAX_FILE_BYTES / MB} MB. Split it, or make its pictures smaller, and try again.`);
+    if (mine(u).length + pendingOf(u).length >= MAX_SOURCES) throw bad(`PDF Studio holds up to ${MAX_SOURCES} files at a time. Remove some, or export and start over.`);
+    if (storedBy(u) + pendingOf(u).reduce((n, x) => n + x.size, 0) + bytes * 2 > MAX_STORED_BYTES) throw bad(`Your files in PDF Studio would add up to more than ${MAX_STORED_BYTES / MB} MB. Remove some, or export and start over.`);
+    if (!roomOnDisk(bytes * 3)) throw new HttpError(507, 'The server is short of disk space for this file right now. Try a smaller file, or ask your administrator.');
+  }
+  // A file becomes a source: read by what it holds, laid out, stored. `file`: where it already is
+  // on disk (an upload in pieces), moved into place for a PDF rather than copied.
+  function addSource(u, name, orig, layoutIn, { password, file } = {}) {
+    if (!orig.length) throw bad(`${name} is empty.`);
+    const format = formatOf(orig, name);
+    if (!format) throw bad(UNKNOWN(name));
+    if (format === 'zip') throw bad(`${name} is a ZIP inside a ZIP. Unpack it and add the files.`);
+    const now = new Date(clock()).toISOString();
+    const s = { id: randomUUID(), owner: u.id, name, format, kind: format === 'pdf' ? 'pdf' : format === 'image' || format === 'tiff' ? 'image' : 'doc', size: orig.length, title: '', createdAt: now, usedAt: Date.now(), layout: cleanLayout(layoutIn), warnings: [] };
+    const made = render(s, orig, s.layout);
+    const pdf = load(s, made.pdf, made.captions, { password });
+    s.warnings = made.warnings;
+    if (s.unlocked) s.warnings = [...s.warnings, 'This PDF was protected; PDF Studio keeps an unprotected copy of its pages while you work, and your export is not protected.'];
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    if (file && pdf === orig && s.kind === 'pdf') fs.renameSync(file, fileOf(s));
+    else fs.writeFileSync(fileOf(s), pdf, { mode: 0o600 });
+    if (s.kind !== 'pdf') fs.writeFileSync(origOf(s), orig, { mode: 0o600 });
+    s.stored = pdf.length + (s.kind !== 'pdf' ? orig.length : 0);
+    sources.set(s.id, s);
+    return s;
+  }
+  // A ZIP of files (0.66): each file it holds that PDF Studio takes is added, in name order.
+  function addArchive(u, name, buf, layoutIn) {
+    let zip;
+    try {
+      zip = readZip(buf, { maxEntryBytes: MAX_FILE_BYTES, maxTotalBytes: MAX_STORED_BYTES, maxEntries: 5000 });
+    } catch (err) {
+      throw bad(`${name}: ${err.message}`);
+    }
+    const names = zip.names.filter((n) => !/(^|\/)(__MACOSX|\.)/.test(n)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }));
+    const added = [];
+    const notes = [];
+    const skipped = [];
+    for (const n of names) {
+      const base = n.split('/').pop();
+      if (added.length >= MAX_ARCHIVE_FILES) {
+        notes.push(`Only the first ${MAX_ARCHIVE_FILES} files of ${name} were added.`);
+        break;
+      }
+      try {
+        const data = zip.read(n);
+        const fmt = formatOf(data, base);
+        if (!fmt || fmt === 'zip') {
+          skipped.push(base);
+          continue;
+        }
+        checkRoom(u, data.length, base);
+        added.push(addSource(u, base, data, layoutIn));
+      } catch (err) {
+        if (err?.needsPassword) skipped.push(`${base} (needs a password: add it on its own)`);
+        else if (err?.status === 400 || err?.status === 507 || err?.message) skipped.push(`${base} (${String(err.message).replace(/\.$/, '')})`);
+        if (err?.status === 507) break;
+      }
+    }
+    if (skipped.length) notes.push(`From ${name}, not added: ${skipped.slice(0, 20).join('; ')}${skipped.length > 20 ? ` and ${skipped.length - 20} more` : ''}.`);
+    if (!added.length) throw bad(`${name} holds no files PDF Studio takes.${skipped.length ? ` ${notes[notes.length - 1]}` : ''}`);
+    return { added, notes };
+  }
+  // One upload, whole or from pieces: { sources: [...], notes: [...] }, or { needsPassword }.
+  function finishUpload(u, name, buf, layoutIn, { password, file } = {}) {
+    if (!buf.length) throw bad(`${name} is empty.`);
+    if (formatOf(buf, name) === 'zip') {
+      const { added, notes } = addArchive(u, name, buf, layoutIn);
+      return { sources: added.map(out), notes };
+    }
+    try {
+      return { sources: [out(addSource(u, name, buf, layoutIn, { password, file }))], notes: [] };
+    } catch (err) {
+      if (err?.needsPassword) return { needsPassword: true, wrongPassword: err.wrongPassword, error: err.message };
+      throw err;
+    }
+  }
+
+  // One file in one request: { file: { name, type, data (base64) }, layout } (files up to
+  // DIRECT_UPLOAD_BYTES; larger ones come in pieces, below).
   route('POST', '/api/tools/pdf/sources', 'auth', ({ body, user: u }) => {
     noAudit();
     const f = body?.file;
@@ -161,22 +356,82 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     if (!f.data) throw bad(`${name} is empty.`);
     const orig = Buffer.from(f.data, 'base64');
     if (!orig.length) throw bad(`${name} is empty.`);
-    if (orig.length > MAX_FILE_BYTES) throw bad(`${name} is larger than ${MAX_FILE_BYTES / MB} MB. Split it, or make its pictures smaller, and try again.`);
-    if (mine(u).length >= MAX_SOURCES) throw bad(`PDF Studio holds up to ${MAX_SOURCES} files at a time. Remove some, or export and start over.`);
-    if (storedBy(u) + orig.length * 2 > MAX_STORED_BYTES) throw bad(`Your files in PDF Studio add up to more than ${MAX_STORED_BYTES / MB} MB. Remove some, or export and start over.`);
-    const format = formatOf(orig, name);
-    if (!format) throw bad(`CORE cannot turn ${name} into a PDF. It takes PDFs, pictures (JPEG, PNG; others are converted in your browser), Word, Excel and PowerPoint files (.docx, .xlsx, .pptx), OpenDocument files (.odt, .ods, .odp), text, Markdown, CSV and HTML files. Older Office files (.doc, .xls, .ppt): save them in the newer format first.`);
-    const now = new Date(clock()).toISOString();
-    const s = { id: randomUUID(), owner: u.id, name, format, kind: format === 'pdf' ? 'pdf' : format === 'image' ? 'image' : 'doc', size: orig.length, title: '', createdAt: now, usedAt: Date.now(), layout: cleanLayout(body.layout), warnings: [] };
-    const made = render(s, orig, s.layout);
-    load(s, made.pdf, made.captions);
-    s.warnings = made.warnings;
-    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    fs.writeFileSync(fileOf(s), made.pdf, { mode: 0o600 });
-    if (s.kind !== 'pdf') fs.writeFileSync(origOf(s), orig, { mode: 0o600 });
-    s.stored = made.pdf.length + (s.kind !== 'pdf' ? orig.length : 0);
-    sources.set(s.id, s);
-    return out(s);
+    checkRoom(u, orig.length, name);
+    const r = finishUpload(u, name, orig, body.layout, { password: typeof body.password === 'string' ? body.password.slice(0, 200) : undefined });
+    if (r.needsPassword) throw bad(r.error);
+    // One source back, as before; a ZIP gives its first, and the rest with GET /api/tools/pdf.
+    return r.sources.length === 1 && !r.notes.length ? r.sources[0] : { ...r.sources[0], more: r.sources.slice(1), notes: r.notes };
+  });
+
+  // ----- Uploads in pieces (0.66) -----
+  // POST /uploads { name, size } → { id, chunkBytes }; PUT /uploads/:id { offset, data (base64) },
+  // the pieces in order (one sent again is accepted); POST /uploads/:id/finish { layout, password }
+  // → { sources, notes } or { needsPassword } (the upload is kept, to try again with the password);
+  // DELETE /uploads/:id stops it. Pieces wait in data/pdf-studio/uploads, never in memory.
+  const uploads = new Map();
+  const upDir = path.join(dir, 'uploads');
+  const pendingOf = (u) => [...uploads.values()].filter((x) => x.owner === u.id);
+  const dropUpload = (x) => {
+    uploads.delete(x.id);
+    fs.rmSync(x.path, { force: true });
+  };
+  const findUpload = (id, u) => {
+    const x = uploads.get(String(id || ''));
+    if (!x || x.owner !== u.id) throw new HttpError(404, 'That upload is no longer on the server (it waited too long). Add the file again.');
+    x.usedAt = Date.now();
+    return x;
+  };
+  route('POST', '/api/tools/pdf/uploads', 'auth', ({ body, user: u }) => {
+    noAudit();
+    const name = text(body?.name, 160) || 'file';
+    const size = Number(body?.size);
+    if (!Number.isInteger(size) || size <= 0) throw bad(`${name} is empty.`);
+    if (pendingOf(u).length >= 6) throw bad('Wait for the files being added to finish, then add more.');
+    checkRoom(u, size, name);
+    const x = { id: randomUUID(), owner: u.id, name, size, received: 0, usedAt: Date.now() };
+    x.path = path.join(upDir, `${x.id}.part`);
+    fs.mkdirSync(upDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(x.path, Buffer.alloc(0), { mode: 0o600 });
+    uploads.set(x.id, x);
+    return { id: x.id, chunkBytes: CHUNK_BYTES };
+  });
+  route('PUT', '/api/tools/pdf/uploads/:id', 'auth', ({ params, body, user: u }) => {
+    noAudit();
+    const x = findUpload(params.id, u);
+    const offset = Number(body?.offset);
+    if (typeof body?.data !== 'string' || !Number.isInteger(offset) || offset < 0) throw bad('Send a piece of the file.');
+    const piece = Buffer.from(body.data, 'base64');
+    if (!piece.length || piece.length > CHUNK_BYTES) throw bad(`Send the file in pieces of up to ${CHUNK_BYTES / MB} MB.`);
+    // A piece sent again after its answer was lost: already here.
+    if (offset + piece.length <= x.received) return { received: x.received };
+    if (offset !== x.received) throw new HttpError(409, `The upload of ${x.name} lost its place. Add the file again.`);
+    if (x.received + piece.length > x.size) throw bad(`${x.name} is larger than it said it was. Add the file again.`);
+    fs.appendFileSync(x.path, piece);
+    x.received += piece.length;
+    return { received: x.received };
+  });
+  route('POST', '/api/tools/pdf/uploads/:id/finish', 'auth', ({ params, body, user: u }) => {
+    noAudit();
+    const x = findUpload(params.id, u);
+    if (x.received !== x.size) throw bad(`${x.name} did not arrive whole (${x.received} of ${x.size} bytes). Add it again.`);
+    const buf = fs.readFileSync(x.path);
+    const password = typeof body?.password === 'string' ? body.password.slice(0, 200) : undefined;
+    let r;
+    try {
+      r = finishUpload(u, x.name, buf, body?.layout, { password, file: x.path });
+    } catch (err) {
+      dropUpload(x);
+      throw err;
+    }
+    if (r.needsPassword) return r; // kept, to try again with the password
+    dropUpload(x);
+    return r;
+  });
+  route('DELETE', '/api/tools/pdf/uploads/:id', 'auth', ({ params, user: u }) => {
+    noAudit();
+    const x = uploads.get(String(params.id || ''));
+    if (x && x.owner === u.id) dropUpload(x);
+    return { ok: true };
   });
 
   // A picture or document laid out again with other options (page size, margins…).
@@ -222,8 +477,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
       renders.set(k, r);
       return r;
     }
-    if (!s.doc) s.doc = readPdf(fs.readFileSync(fileOf(s)));
-    const r = renderPage(s.doc, n);
+    const r = renderPage(docOf(s), n);
     renders.set(k, r);
     while (renders.size > RENDERS_KEPT) renders.delete(renders.keys().next().value);
     return r;
@@ -253,10 +507,10 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     if (!Number.isInteger(n) || n < 0 || n >= s.pages.length || !s.pages[n].thumb) throw new HttpError(404, 'This page has no picture to show.');
     let data;
     let type = 'image/jpeg';
-    if (s.kind === 'image') {
+    if (s.format === 'image') {
       data = fs.readFileSync(origOf(s));
       type = isPng(data) ? 'image/png' : 'image/jpeg';
-    } else data = pageJpeg(s.doc || readPdf(fs.readFileSync(fileOf(s))), n);
+    } else data = pageJpeg(docOf(s), n);
     if (!data) throw new HttpError(404, 'This page has no picture to show.');
     return { data, headers: { 'Content-Type': type, 'Content-Disposition': 'inline; filename="page"', 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=3600' } };
   });
@@ -291,10 +545,13 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
       if (!Number.isInteger(index) || index < 0 || index >= s.pages.length) throw bad(`Page ${i + 1}: that page is not in ${s.name}. Reload PDF Studio.`);
       const rotate = Number(p.rotate) || 0;
       if (!ROTATIONS.includes(((rotate % 360) + 360) % 360)) throw bad('Pages turn by 90°, 180° or 270°.');
-      if (!s.doc) s.doc = readPdf(fs.readFileSync(fileOf(s)));
       used.set(s.id, s);
-      return { doc: s.doc, index, rotate, source: s, edits };
+      return { doc: docOf(s), index, rotate, source: s, edits };
     });
+    // What one export may take (0.66): the files its pages come from, together.
+    const takes = [...used.values()].reduce((n, x) => n + (x.stored || 0), 0);
+    if (takes > MAX_EXPORT_BYTES) throw bad(`These pages come from files of ${Math.round(takes / MB)} MB together, more than one export takes (${MAX_EXPORT_BYTES / MB} MB). Export them in two or more parts.`);
+    if (!roomOnDisk(takes * 2)) throw new HttpError(507, 'The server is short of disk space for this export right now. Try fewer pages, or ask your administrator.');
     // Signed (0.65): pages with a signature drawn, typed or uploaded in the editor. With a record
     // (one PDF only), a last page says who signed, when, and the code that finds this record.
     const signedPages = pages.map((p, i) => (hasSignature(p.edits || []) ? i + 1 : null)).filter(Boolean);
@@ -315,10 +572,19 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
         const rec = docToPdf(recordDoc(sig, meta), { size: 'a4', orientation: 'portrait', margin: 20 });
         pages.push({ doc: readPdf(rec.pdf), index: 0, rotate: 0, noStamp: true });
       }
-      result = { data: buildPdf(pages, stamp, meta), name: `${base}.pdf`, type: 'application/pdf' };
+      // A large PDF is written to disk and sent from there (0.66), never held whole in memory twice.
+      if (takes > BIG_EXPORT_BYTES) {
+        fs.mkdirSync(upDir, { recursive: true, mode: 0o700 });
+        const file = path.join(upDir, `${randomUUID()}.export`);
+        const { size, sha256 } = buildPdf(pages, stamp, meta, { file });
+        result = { data: new FileReply(file, { size, remove: true }), size, sha256, name: `${base}.pdf`, type: 'application/pdf' };
+      } else {
+        const data = buildPdf(pages, stamp, meta);
+        result = { data, size: data.length, name: `${base}.pdf`, type: 'application/pdf' };
+      }
       if (sig && !preview) {
-        sig.sha256 = createHash('sha256').update(result.data).digest('hex');
-        sig.size = result.data.length;
+        sig.sha256 = result.sha256 || createHash('sha256').update(result.data).digest('hex');
+        sig.size = result.size;
         db.data.pdfSignatures ||= [];
         db.data.pdfSignatures.push(sig);
         if (db.data.pdfSignatures.length > 50000) db.data.pdfSignatures.splice(0, db.data.pdfSignatures.length - 50000);
@@ -347,24 +613,34 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
         groups.push(...bySource.values());
       }
       const files = groups.map((g) => ({ name: g.name, type: 'application/pdf', at: new Date(clock()).toISOString(), buffer: buildPdf(g.pages, stamp, { ...meta, file: g.name }) }));
-      result = { data: zipFiles(files), name: `${base}.zip`, type: 'application/zip' };
+      const zip = zipFiles(files);
+      result = { data: zip, size: zip.length, name: `${base}.zip`, type: 'application/zip' };
     }
     for (const s of used.values()) s.usedAt = Date.now();
     // Text typed for this export that the standard fonts cannot show: said in a header the page reads.
     const typedText = [stamp.header, stamp.footer, stamp.watermark?.text, ...pages.flatMap((p) => (p.edits || []).map((e) => e.text || ''))].join(' ');
     const missing = missingChars(typedText);
-    if (!preview) audit?.record('tools.pdf-export', { label: 'PDF Studio', note: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} → ${result.name} (${Math.round(result.data.length / 1024)} KB)` });
+    if (!preview) audit?.record('tools.pdf-export', { label: 'PDF Studio', note: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} → ${result.name} (${Math.round(result.size / 1024)} KB)` });
     return { data: result.data, headers: { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store', ...(missing.length ? { 'X-Core-Warning': encodeURIComponent(MISSING_NOTE(missing)) } : {}) } };
   });
 
   // ----- Is this the PDF that was signed? (0.65) -----
   // The file's SHA-256 is looked up among the signature records: the same bytes, the same record. A
   // file whose record page names a code that is known, but whose bytes differ, was changed since.
-  route('POST', '/api/tools/pdf/verify', 'auth', ({ body }) => {
+  route('POST', '/api/tools/pdf/verify', 'auth', ({ body, user: u }) => {
     noAudit();
-    const f = body?.file;
-    if (!f || typeof f.data !== 'string' || !f.data) throw bad('Choose the signed PDF.');
-    const buf = Buffer.from(f.data, 'base64');
+    // The file in the request, or (0.66) an upload in pieces, which goes once it is checked.
+    let buf;
+    if (typeof body?.upload === 'string') {
+      const x = findUpload(body.upload, u);
+      if (x.received !== x.size) throw bad('The file did not arrive whole. Choose it again.');
+      buf = fs.readFileSync(x.path);
+      dropUpload(x);
+    } else {
+      const f = body?.file;
+      if (!f || typeof f.data !== 'string' || !f.data) throw bad('Choose the signed PDF.');
+      buf = Buffer.from(f.data, 'base64');
+    }
     if (buf.length > MAX_FILE_BYTES) throw bad(`The file is larger than ${MAX_FILE_BYTES / MB} MB.`);
     const sha = createHash('sha256').update(buf).digest('hex');
     const list = db.data.pdfSignatures || [];
@@ -383,7 +659,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     return { result: 'unknown', reason: code ? `This PDF names the record ${code}, which is not in this CORE.` : 'This PDF was not signed in this CORE\'s PDF Studio (or its record page was removed).' };
   });
 
-  return { sweep, sources };
+  return { sweep, sources, uploads };
 }
 
 // A signature record's code: CORE-XXXX-XXXX, letters and digits that cannot be mistaken (no 0/O, 1/I).

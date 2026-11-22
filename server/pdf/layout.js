@@ -5,7 +5,8 @@
 // next, repeats a table's header rows on each page, and scales pictures to fit. It also makes the
 // one-page PDF of a picture (imageToPdf).
 import { PdfWriter, Content, FONTS, PAGE_SIZES, encodeWinAnsi, widthOf } from './writer.js';
-import { embedImage, imageSize } from './images.js';
+import { embedImage, embedImageObject, imageSize } from './images.js';
+import { readTiff } from './tiff.js';
 
 // Page geometry from the options: size ('a4' | 'letter' | 'legal' | 'a5'), orientation
 // ('portrait' | 'landscape' | 'auto' with the document's own preference), margin in millimetres.
@@ -336,17 +337,20 @@ export function docToPdf(doc, options = {}, meta = {}) {
 export function imageToPdf(data, { size = 'a4', orientation = 'auto', margin = 10, fit = 'fit' } = {}, meta = {}) {
   const writer = new PdfWriter({ title: meta.title || '', author: meta.author || '' });
   const img = embedImage(writer, data);
-  const wide = img.width > img.height;
+  pictureOnPage(writer, img.id, (img.width * 72) / 96, (img.height * 72) / 96, { size, orientation, margin, fit });
+  return { pdf: writer.toBuffer(), pages: 1, captions: [''], width: img.width, height: img.height };
+}
+
+// A page holding the picture (an XObject drawn in the unit square) whose own size is iw × ih points.
+function pictureOnPage(writer, id, iw, ih, { size, orientation, margin, fit }) {
   let g;
   if (size === 'auto') {
     const m = Math.max(0, Math.min(50, Number(margin) || 0)) * (72 / 25.4);
-    g = { width: (img.width * 72) / 96 + 2 * m, height: (img.height * 72) / 96 + 2 * m, margin: m };
-  } else g = pageGeometry({ size, orientation, margin }, wide);
+    g = { width: iw + 2 * m, height: ih + 2 * m, margin: m };
+  } else g = pageGeometry({ size, orientation, margin }, iw > ih);
   const c = new Content();
   const boxW = g.width - 2 * g.margin;
   const boxH = g.height - 2 * g.margin;
-  const iw = (img.width * 72) / 96;
-  const ih = (img.height * 72) / 96;
   let w;
   let h;
   if (fit === 'fill') {
@@ -361,6 +365,20 @@ export function imageToPdf(data, { size = 'a4', orientation = 'auto', margin = 1
     h = ih * s;
     c.image('Im1', g.margin + (boxW - w) / 2, g.margin + (boxH - h) / 2, w, h);
   }
-  writer.addContentPage(c, [g.width, g.height], { images: { Im1: img.id } });
-  return { pdf: writer.toBuffer(), pages: 1, captions: [''], width: img.width, height: img.height };
+  writer.addContentPage(c, [g.width, g.height], { images: { Im1: id } });
+}
+
+// ---------- A TIFF (0.66): each of its pages on a page ----------
+// The same options as imageToPdf; a page's own size is its physical size from the TIFF's
+// resolution (a 300 dpi A4 scan is A4; fax pages of 204 × 98 dpi are not stretched), or its pixels
+// at 96 dpi when the file does not say. Returns { pdf, pages, captions, warnings }.
+export function tiffToPdf(data, { size = 'a4', orientation = 'auto', margin = 10, fit = 'fit' } = {}, meta = {}) {
+  const tiff = readTiff(Buffer.from(data));
+  const writer = new PdfWriter({ title: meta.title || '', author: meta.author || '' });
+  for (const page of tiff.pages) {
+    const img = embedImageObject(writer, page.image);
+    pictureOnPage(writer, img.id, (page.width * 72) / (page.xDpi || 96), (page.height * 72) / (page.yDpi || 96), { size, orientation, margin, fit });
+  }
+  const n = tiff.pages.length;
+  return { pdf: writer.toBuffer(), pages: n, captions: Array(n).fill(''), warnings: tiff.warnings };
 }

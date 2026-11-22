@@ -13,11 +13,14 @@ order: 15
 
 It takes:
 
-- **PDFs**: their pages as they are, with what was filled in or stamped on them (form answers, stamps, comments shown on the page) drawn into the page.
-- **Pictures**: JPEG and PNG; WebP, GIF, BMP and other pictures your browser can show are converted in your browser first. Each picture becomes a page.
-- **Documents**: Word (.docx), Excel (.xlsx), PowerPoint (.pptx), OpenDocument (.odt, .ods, .odp), text (.txt), Markdown (.md), CSV and HTML files. CORE lays their text, headings, lists, tables and pictures out on pages, in its own plain style: they will not look exactly as in Word or Excel, but nothing is left out except what a PDF page cannot hold (fonts, colours of cells, charts, drawings, animations).
+- **PDFs**: their pages as they are, with what was filled in or stamped on them (form answers, stamps, comments shown on the page) drawn into the page. A PDF protected with a password asks for it (see [Add a protected PDF](#add-a-protected-pdf)); one that only stops printing or copying is added without asking.
+- **Pictures**: JPEG, PNG and TIFF (scans of several pages too, each page a page). WebP, GIF, BMP, HEIC and other pictures your browser can show are converted in your browser first. Each picture becomes a page.
+- **Documents**: Word (.docx, .doc, .rtf, templates and files with macros; the macros are never run), Excel (.xlsx, .xls), PowerPoint (.pptx, .ppt), OpenDocument (.odt, .ods, .odp), text (.txt), Markdown (.md), CSV and TSV, and HTML files. CORE lays their text, headings, lists, tables and pictures out on pages, in its own plain style: they will not look exactly as in Word or Excel, but nothing is left out except what a PDF page cannot hold (fonts, colours of cells, charts, drawings, animations).
+- **Code, data and logs**: .json, .xml, .sql, .log, .yaml, .py, .js and other text files, in a fixed-width font (JSON saved on one line is laid out to be read).
+- **E-books and e-mails**: EPUB e-books without DRM (each chapter on a new page), and e-mails saved from your mail program (.eml, or .msg from Outlook): the subject, who sent it to whom and when, the message and its pictures; other attachments are named.
+- **ZIPs**: every file inside that PDF Studio takes is added, in name order; the note under the upload names the ones that were not.
 
-Older Office files (.doc, .xls, .ppt) and password-protected PDFs are not taken: save them in the newer format, or without the password, first. Each file can be up to 25 MB.
+Each file can be up to 100 MB (2,000 pages). Large files are sent in pieces, with a progress bar; if your connection drops for a moment, the piece is sent again by itself. All your files together can be up to 600 MB, and one export can take pages from up to 400 MB of files.
 
 Your files are yours only: nobody else sees them, not even administrators. They are deleted after 4 hours without use, when you click **Start over**, and whenever CORE restarts. Each export is in the audit log (how many pages, from how many files, and the file name), never what is in it.
 
@@ -101,6 +104,16 @@ Click **Verify a signed PDF** at the top and choose the file. CORE compares it w
 - **This file was changed after it was signed**: it names a record, but its contents are not the ones that were signed (even one changed character shows). Ask the signer for the original.
 - Otherwise, it was not signed in this CORE's PDF Studio, or its record page was taken out.
 
+### Add a protected PDF
+
+Add it like any other file. If it needs a password to open, PDF Studio asks for it: type it and click **Open** (or **Skip this file**). CORE uses the password once, to read the file, and does not keep it. PDF Studio works with an unprotected copy of its pages, and the PDF you export is not protected: keep it as safe as the original.
+
+A PDF that only stops printing or copying (many statements and forms) is added without asking. A PDF protected with a certificate cannot be opened here: save an unprotected copy in the program that opens it.
+
+### Add many files at once
+
+Select them all, or put them in a ZIP and add that: every file in it that PDF Studio takes is added, in name order (folders included). While large files upload, a bar shows how far each one is.
+
 ### Start over
 
 Click **Start over** at the top: every file and page goes from PDF Studio (download what you need first).
@@ -125,7 +138,7 @@ Only JPEG and PNG pictures can go into the PDF here. Pictures saved as EMF or WM
 The text CORE writes (page numbers, header, footer, watermark, the text you add or change) uses the standard PDF fonts, which have the letters of Western European languages only. Characters they do not have become **?**, and CORE tells you which. Documents you add keep theirs only as far as these fonts go too: for other scripts, make the PDF in the program that made the document and add that PDF here.
 
 **Why is part of a page a grey box?**
-That part is a picture in a format browsers cannot show (JPEG 2000, JBIG2 or fax, used by some scanners); the page editor says so. It is only how PDF Studio shows it: the picture stays as it is in the PDF you download (use **Preview** to see it).
+That part is a picture in a format browsers cannot show (JPEG 2000 or JBIG2, used by some scanners); the page editor says so. It is only how PDF Studio shows it: the picture stays as it is in the PDF you download (use **Preview** to see it).
 
 **Why does a page look slightly different in PDF Studio than in my PDF reader?**
 CORE draws each page itself, with the fonts of your browser in place of the PDF's own, so the letters can differ a little (the words and their places are the same). Use **Preview** to see the PDF exactly as it will be.

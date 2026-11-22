@@ -28,6 +28,22 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.66.0-alpha',
+    date: '2026-11-22',
+    title: 'PDF Studio takes many more kinds of file, and files of up to 100 MB',
+    modules: ['system'],
+    notes: 'Files arrive in pieces and wait on disk, opened PDFs are kept within a memory budget, and large exports are written to disk and streamed, so a server with 1 GB of memory handles 100 MB files. All readers are Node\'s standard library only.',
+    changes: [
+      ['new', 'system', 'Uploads in pieces (4 MB at most, smaller on a slow line): each piece one request, sent again by itself if the line drops; a progress bar; files of up to 100 MB (25 MB before) and 2,000 pages, 600 MB per person, 60 files; idle uploads swept after 30 minutes; disk space checked before taking a file or an export.'],
+      ['new', 'system', 'Protected PDFs: those that only restrict printing or copying open as they are; those with an open password ask for it (RC4 40–128, AES-128, AES-256 R5/R6; user or owner password). The password is used once and never kept; PDF Studio works with a plain copy, and exports are not protected. Certificate-protected PDFs are refused with a message.'],
+      ['new', 'system', 'Word, Excel and PowerPoint 97–2003 (.doc, .xls, .ppt and their templates): text, headings, lists, tables, links, formatting, pictures; sheets with their number formats and merged cells; slides in order, one landscape page each. RTF (Word, WordPad, TextEdit; tables, pictures, lists, code pages). Outlook messages (.msg): subject, who, when, the message (HTML, RTF or text) and its pictures.'],
+      ['new', 'system', 'TIFF pictures and scans, read on the server (only Safari could convert them before): several pages, strips and tiles, no compression, PackBits, LZW, Deflate, JPEG and fax (Group 3 and 4, kept as they are in the PDF); black and white, grey, colour, palette, CMYK; turned as saved; each page its real size from its resolution.'],
+      ['new', 'system', 'E-books (EPUB without DRM: chapters in reading order, with pictures), e-mails (.eml: subject, who, when, the message and its pictures; other attachments named), code, data and log files (.json laid out, .xml, .sql, .log, .py, .js and others, in a fixed-width font), TSV, Office files with macros and templates (the macros never run), OpenDocument templates, and ZIPs of any of these (each file added, in name order).'],
+      ['improved', 'system', 'Scanned PDFs whose pages are fax pictures (CCITT) are shown in the grid and the page editor; they were grey boxes. Black-and-white scans shown smaller keep their thin lines.'],
+      ['improved', 'system', 'Opened PDFs are kept within 256 MB of memory for everyone together (the least recently used are closed and read again when needed); an export taking more than 24 MB is written to disk and streamed; one export takes up to 400 MB of files.'],
+    ],
+  },
+  {
     version: '0.65.2-alpha',
     date: '2026-11-22',
     title: 'PDF Studio: pages that are one big picture are shown again',

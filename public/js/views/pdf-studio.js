@@ -49,6 +49,56 @@ const readBase64 = (blob) => new Promise((resolve, reject) => {
   r.onerror = () => reject(new Error('The file could not be read.'));
   r.readAsDataURL(blob);
 });
+// A file sent in pieces (0.66): each piece is one request, sent again on its own if the line drops,
+// and sized to the line (smaller on a slow one, so no request runs long). onProgress(0…1).
+// Returns the upload's id, for /finish (or /verify).
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+async function uploadInPieces(blob, name, onProgress = () => {}) {
+  const { id, chunkBytes } = await api.post('/api/tools/pdf/uploads', { name, size: blob.size });
+  let size = Math.min(chunkBytes, 1024 * 1024);
+  let offset = 0;
+  try {
+    while (offset < blob.size) {
+      const piece = blob.slice(offset, Math.min(blob.size, offset + size));
+      const data = await readBase64(piece);
+      const t0 = performance.now();
+      let r = null;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          r = await api.put(`/api/tools/pdf/uploads/${id}`, { offset, data });
+          break;
+        } catch (err) {
+          // The line dropped or the server was busy: wait and send the same piece again.
+          if (attempt >= 4 || (err.status && err.status < 500 && err.status !== 408 && err.status !== 429)) throw err;
+          await pause([1000, 3000, 6000, 12000][attempt]);
+        }
+      }
+      offset = r.received;
+      onProgress(offset / blob.size);
+      const secs = (performance.now() - t0) / 1000;
+      if (secs < 4 && size < chunkBytes) size = Math.min(chunkBytes, size * 2);
+      else if (secs > 20 && size > 256 * 1024) size = Math.max(256 * 1024, Math.floor(size / 2));
+    }
+  } catch (err) {
+    api.del(`/api/tools/pdf/uploads/${id}`).catch(() => {});
+    throw err;
+  }
+  return id;
+}
+// A protected PDF's password, asked for (null: the person chose not to).
+function askPassword(name, wrong) {
+  return new Promise((resolve) => {
+    let given = null;
+    modal({
+      title: 'This PDF has a password', submitLabel: 'Open', cancelLabel: 'Skip this file',
+      subtitle: wrong ? `That password is not right for ${name}. Try again.` : `Type the password that opens ${name}. CORE uses it once, to read the file, and does not keep it.`,
+      body: html`<label class="field"><span>Password</span><input type="password" name="password" autocomplete="off" required /></label>`,
+      onSubmit: async (f) => { given = f.password.value; },
+      onClose: () => resolve(given),
+    });
+  });
+}
+
 async function toPng(file) {
   const url = await new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -120,7 +170,7 @@ export async function pdfStudioView(el) {
     // The page as CORE draws it (0.65: every page, typed or scanned), turned as arranged; a picture
     // shows itself.
     const turned = `transform:rotate(${turn}deg)${sideways ? `;width:${(info.width / info.height) * 100}%;height:${(info.height / info.width) * 100}%` : ''}`;
-    const inner = s.kind === 'image'
+    const inner = s.kind === 'image' && s.format !== 'tiff' // a TIFF (0.66) is drawn: browsers cannot show one
       ? html`<img class="pic" src="/api/tools/pdf/sources/${s.id}/pages/${p.page}/thumb" alt="" loading="lazy" style="transform:rotate(${p.rotate || 0}deg)" />`
       : html`<img class="ps-svg" src="/api/tools/pdf/sources/${s.id}/pages/${p.page}/svg${s.version ? `?v=${s.version}` : ''}" alt="" loading="lazy" style="${turned}" />`;
     return html`<li class="ps-page ${sel ? 'sel' : ''}" data-key="${p.key}" draggable="true">
@@ -243,8 +293,8 @@ export async function pdfStudioView(el) {
           <section class="card ps-drop" id="ps-drop" tabindex="-1">
             <span class="ps-drop-ic">${icon('upload', 26)}</span>
             <div><span class="ps-drop-words"><strong>Drop files here</strong> or </span><label class="ps-pick">choose files<input type="file" id="ps-file" multiple accept="${PDF_ACCEPT}" class="sr-only" /></label>
-              <small>PDF, Word, Excel, PowerPoint, OpenDocument, text, Markdown, CSV, HTML and pictures (JPEG, PNG, WebP, GIF…), up to ${PDF_LIMITS.maxFileBytes / MB} MB each.</small></div>
-            ${state.busy ? html`<p class="ps-busy" role="status"><span class="ps-spin" aria-hidden="true"></span> Converting ${state.queue[0] || ''}${state.busy > 1 ? ` and ${state.busy - 1} more` : ''}…</p>` : ''}
+              <small>PDF (protected ones too), Word, Excel and PowerPoint (old and new), OpenDocument, RTF, text, CSV, HTML, code, e-books, e-mails, ZIPs and pictures (JPEG, PNG, TIFF, WebP, HEIC…), up to ${PDF_LIMITS.maxFileBytes / MB} MB each.</small></div>
+            ${state.busy ? html`<p class="ps-busy" role="status"><span class="ps-spin" aria-hidden="true"></span> ${state.progress != null ? 'Uploading' : 'Converting'} ${state.queue[0] || ''}${state.busy > 1 ? ` and ${state.busy - 1} more` : ''}…${state.progress != null ? html` <progress max="1" value="${state.progress}" aria-label="Uploaded"></progress>` : ''}</p>` : ''}
           </section>
           ${state.pages.length ? html`
           <section class="card ps-pages-card" aria-labelledby="ps-pages-h">
@@ -293,6 +343,7 @@ export async function pdfStudioView(el) {
       const ext = extOf(f.name);
       if (![...PDF_DIRECT_EXTS, ...PDF_BROWSER_IMAGES].includes(ext) && !/^image\//.test(f.type)) return refused.push(`${f.name} (not a kind of file PDF Studio takes)`), false;
       if (f.size > PDF_LIMITS.maxFileBytes) return refused.push(`${f.name} (larger than ${PDF_LIMITS.maxFileBytes / MB} MB)`), false;
+      if (!f.size) return refused.push(`${f.name} (empty)`), false;
       return true;
     });
     const failed = [...refused];
@@ -304,12 +355,32 @@ export async function pdfStudioView(el) {
     for (const f of ok) {
       try {
         const ext = extOf(f.name);
-        const conv = !PDF_DIRECT_EXTS.includes(ext) ? await toPng(f) : { name: f.name, type: f.type, blob: f };
-        const s = await api.post('/api/tools/pdf/sources', { file: { name: conv.name, type: conv.type, data: await readBase64(conv.blob) }, layout: state.layout });
-        state.sources.push(s);
-        s.pages.forEach((x, i) => state.pages.push({ key: key(), source: s.id, page: i, rotate: 0 }));
-        if (s.warnings?.length) notes.push(`${s.name}: ${s.warnings.join(' ')}`);
-        added += 1;
+        const conv = !PDF_DIRECT_EXTS.includes(ext) && /^image\//.test(f.type || 'image/') ? await toPng(f) : { name: f.name, type: f.type, blob: f };
+        state.progress = 0;
+        const id = await uploadInPieces(conv.blob, conv.name, (p) => {
+          state.progress = p;
+          const bar = el.querySelector('.ps-busy progress');
+          if (bar) bar.value = p;
+          else draw();
+        });
+        state.progress = null;
+        draw();
+        let r = await api.post(`/api/tools/pdf/uploads/${id}/finish`, { layout: state.layout });
+        while (r.needsPassword) {
+          const password = await askPassword(conv.name, r.wrongPassword);
+          if (password === null) {
+            api.del(`/api/tools/pdf/uploads/${id}`).catch(() => {});
+            throw new Error('it needs a password');
+          }
+          r = await api.post(`/api/tools/pdf/uploads/${id}/finish`, { layout: state.layout, password });
+        }
+        for (const s of r.sources) {
+          state.sources.push(s);
+          s.pages.forEach((x, i) => state.pages.push({ key: key(), source: s.id, page: i, rotate: 0 }));
+          if (s.warnings?.length) notes.push(`${s.name}: ${s.warnings.join(' ')}`);
+          added += 1;
+        }
+        notes.push(...(r.notes || []));
       } catch (err) {
         failed.push(`${f.name} (${err.message.replace(/\.$/, '')})`);
       } finally {
@@ -520,7 +591,8 @@ export async function pdfStudioView(el) {
       onSubmit: async (f) => {
         const file = f.file.files[0];
         if (!file) throw new Error('Choose the PDF.');
-        const r = await api.post('/api/tools/pdf/verify', { file: { name: file.name, data: await readBase64(file) } });
+        if (file.size > PDF_LIMITS.maxFileBytes) throw new Error(`The file is larger than ${PDF_LIMITS.maxFileBytes / MB} MB.`);
+        const r = await api.post('/api/tools/pdf/verify', { upload: await uploadInPieces(file, file.name) });
         const box = f.querySelector('#verify-out');
         const when = (iso) => new Date(iso).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' });
         mount(box, r.result === 'valid'

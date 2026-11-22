@@ -2,7 +2,7 @@
 // PNG is unpacked here (node:zlib) and its pixels go in deflated, with its transparency as a soft
 // mask. Other kinds (WebP, GIF, HEIC…) are turned into PNG in the browser before they are sent.
 import { inflateSync } from 'node:zlib';
-import { name, ref } from './writer.js';
+import { name, ref, bytes } from './writer.js';
 
 export const MAX_PIXELS = 60_000_000; // e.g. 10,000 × 6,000
 const fail = (msg) => {
@@ -174,4 +174,52 @@ export function imageSize(data) {
   }
   if (isPng(buf)) return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
   return null;
+}
+
+// ---------- Pictures described by server/pdf/tiff.js (0.66) ----------
+// The PDF matrix that turns the unit square a picture is drawn in by a TIFF Orientation (1–8): the
+// picture's first row is at the top (1), the bottom (3, 4), the right (6, 7) or the left (5, 8).
+const ORIENT = { 1: [1, 0, 0, 1, 0, 0], 2: [-1, 0, 0, 1, 1, 0], 3: [-1, 0, 0, -1, 1, 1], 4: [1, 0, 0, -1, 0, 1], 5: [0, -1, -1, 0, 1, 1], 6: [0, -1, 1, 0, 0, 1], 7: [0, 1, 1, 0, 0, 0], 8: [0, 1, -1, 0, 1, 0] };
+const n6 = (v) => String(Math.round(v * 1e6) / 1e6);
+
+// An image (or form) XObject in the writer from a picture description (see readTiff):
+// { id, width, height }, the width and height being the picture's as it is meant to be seen.
+export function embedImageObject(writer, desc) {
+  const image = { Type: name('XObject'), Subtype: name('Image') };
+  if (desc.type === 'raw') {
+    const cs = desc.colorSpace?.indexed ? [name('Indexed'), name('DeviceRGB'), desc.colorSpace.indexed.length / 3 - 1, bytes(desc.colorSpace.indexed)] : name(desc.colorSpace);
+    const id = writer.stream({ ...image, Width: desc.width, Height: desc.height, ColorSpace: cs, BitsPerComponent: desc.bpc, ...(desc.decode ? { Decode: desc.decode } : {}), Filter: name('FlateDecode') }, desc.data, { compress: false });
+    return { id, width: desc.width, height: desc.height };
+  }
+  if (desc.type === 'jpeg') {
+    const j = jpegInfo(desc.data);
+    const cs = j.components === 1 ? 'DeviceGray' : j.components === 4 ? 'DeviceCMYK' : 'DeviceRGB';
+    const parms = desc.colorTransform !== undefined ? { DecodeParms: { ColorTransform: desc.colorTransform } } : {};
+    const id = writer.stream({ ...image, Width: j.width, Height: j.height, ColorSpace: name(cs), BitsPerComponent: 8, Filter: name('DCTDecode'), ...parms, ...(j.components === 4 && j.adobe ? { Decode: [1, 0, 1, 0, 1, 0, 1, 0] } : {}) }, desc.data, { compress: false });
+    return { id, width: j.width, height: j.height };
+  }
+  if (desc.type === 'ccitt') {
+    const parms = { K: desc.K, Columns: desc.width, Rows: desc.height, ...(desc.blackIs1 ? { BlackIs1: true } : {}), ...(desc.encodedByteAlign ? { EncodedByteAlign: true } : {}), ...(desc.endOfBlock === false ? { EndOfBlock: false } : {}) };
+    const id = writer.stream({ ...image, Width: desc.width, Height: desc.height, ColorSpace: name('DeviceGray'), BitsPerComponent: 1, Filter: name('CCITTFaxDecode'), DecodeParms: parms }, desc.data, { compress: false });
+    return { id, width: desc.width, height: desc.height };
+  }
+  if (desc.type === 'group') {
+    // A form drawing each part into its place in the unit square, turned by the orientation and
+    // clipped to the picture (tiles and strips can reach past its edges).
+    const W = desc.width;
+    const H = desc.height;
+    const ops = [`${(ORIENT[desc.orientation] || ORIENT[1]).join(' ')} cm`, '0 0 1 1 re W n'];
+    const xobjects = {};
+    desc.parts.forEach((p, i) => {
+      const part = embedImageObject(writer, p.image);
+      xobjects[`P${i + 1}`] = ref(part.id);
+      const w = p.w ?? part.width;
+      const h = p.h ?? part.height;
+      ops.push(`q ${n6(w / W)} 0 0 ${n6(h / H)} ${n6(p.x / W)} ${n6(1 - (p.y + h) / H)} cm /P${i + 1} Do Q`);
+    });
+    const id = writer.stream({ Type: name('XObject'), Subtype: name('Form'), BBox: [0, 0, 1, 1], Resources: { XObject: xobjects, ProcSet: [name('PDF'), name('ImageB'), name('ImageC'), name('ImageI')] } }, Buffer.from(ops.join('\n'), 'latin1'));
+    const turned = desc.orientation >= 5;
+    return { id, width: turned ? H : W, height: turned ? W : H };
+  }
+  fail('This picture cannot go into a PDF.');
 }

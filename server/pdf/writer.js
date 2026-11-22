@@ -13,6 +13,8 @@
 // Content (page drawing) is built with Content; text uses the standard 14 fonts (Helvetica,
 // Courier…) with WinAnsiEncoding, so nothing has to be embedded: encodeWinAnsi() maps what it can
 // and replaces the rest.
+import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 
 export class Name { constructor(v) { this.v = String(v); } }
@@ -261,7 +263,25 @@ export class PdfWriter {
     this.pages.push(id);
     return id;
   }
-  toBuffer() {
+  toBuffer() { return Buffer.concat([...this.chunks()]); }
+  // The file written to `file` piece by piece (0.66: a large export never sits in memory twice).
+  // Returns its size and SHA-256.
+  writeTo(file) {
+    const hash = createHash('sha256');
+    const fd = fs.openSync(file, 'w', 0o600);
+    let size = 0;
+    try {
+      for (const chunk of this.chunks()) {
+        fs.writeSync(fd, chunk);
+        hash.update(chunk);
+        size += chunk.length;
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
+    return { size, sha256: hash.digest('hex') };
+  }
+  *chunks() {
     this.set(this.pageTree, { Type: name('Pages'), Kids: this.pages.map(ref), Count: this.pages.length });
     this.set(this.catalog, { Type: name('Catalog'), Pages: ref(this.pageTree) });
     const now = new Date();
@@ -272,8 +292,9 @@ export class PdfWriter {
       ...(this.info.subject ? { Subject: str(this.info.subject) } : {}), ...(this.info.keywords ? { Keywords: str(this.info.keywords) } : {}),
       Creator: str(this.info.creator), Producer: str('CORE PDF Studio (Lancaster)'), CreationDate: bytes(Buffer.from(date)), ModDate: bytes(Buffer.from(date)),
     });
-    const parts = [Buffer.from('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n', 'latin1')];
-    let offset = parts[0].length;
+    const head = Buffer.from('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n', 'latin1');
+    yield head;
+    let offset = head.length;
     const offsets = [0];
     for (let i = 1; i < this.objects.length; i++) {
       const v = this.objects[i];
@@ -283,12 +304,11 @@ export class PdfWriter {
         chunk = Buffer.concat([head, v.data, Buffer.from('\nendstream\nendobj\n', 'latin1')]);
       } else chunk = Buffer.from(`${i} 0 obj\n${serialize(v === undefined ? null : v)}\nendobj\n`, 'latin1');
       offsets.push(offset);
-      parts.push(chunk);
+      yield chunk;
       offset += chunk.length;
     }
     const xref = [`xref\n0 ${this.objects.length}\n0000000000 65535 f \n`, ...offsets.slice(1).map((o) => `${String(o).padStart(10, '0')} 00000 n \n`)].join('');
     const id = Buffer.from(`${now.getTime()}-${this.objects.length}`).toString('hex').slice(0, 32).padEnd(32, '0');
-    parts.push(Buffer.from(`${xref}trailer\n<</Size ${this.objects.length} /Root ${this.catalog} 0 R /Info ${info} 0 R /ID [<${id}> <${id}>]>>\nstartxref\n${offset}\n%%EOF\n`, 'latin1'));
-    return Buffer.concat(parts);
+    yield (Buffer.from(`${xref}trailer\n<</Size ${this.objects.length} /Root ${this.catalog} 0 R /Info ${info} 0 R /ID [<${id}> <${id}>]>>\nstartxref\n${offset}\n%%EOF\n`, 'latin1'));
   }
 }

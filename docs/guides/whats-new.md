@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF Studio takes many more files, up to 100 MB (0.66)
+- **PDF Studio** now takes files of up to 100 MB each (25 MB before), sent in pieces with a progress bar, and many more kinds: protected PDFs (it asks for the password; PDFs that only stop printing or copying just open), old Word, Excel and PowerPoint files (.doc, .xls, .ppt), RTF, TIFF scans of several pages, Outlook (.msg) and other e-mails (.eml), e-books (EPUB), code and data files (.json, .xml, .sql, .log…), Office files with macros and templates, and ZIPs of files (each one added). Scanned PDFs made of fax pictures now show instead of grey pages. See [the PDF Studio guide](pdf-studio#before-you-start).
+
 ### PDF pages that are one picture show again (0.65.2)
 - A PDF page made of one big picture (a CV exported from a design tool, a page scanned at 300 dpi) showed as a grey page in **PDF Studio** and its page editor. It shows again. A picture in a format CORE cannot show (JPEG 2000, JBIG2, fax) is still grey, and the page editor now says so; it stays as it is in your PDF. See [the PDF Studio guide](pdf-studio).
 

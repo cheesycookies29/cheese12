@@ -10,6 +10,8 @@ import { baseHeaders, pagePolicy, API_POLICY, crossSite } from './server/securit
 import { PUBLIC_BODY_BYTES, MAX_FILES as HELPDESK_MAX_FILES } from './server/helpdesk.js';
 import { MAX_ATTACHMENT_BYTES } from './shared/leave.js';
 import { PDF_LIMITS } from './shared/pdf-studio.js';
+import { DIRECT_UPLOAD_BYTES } from './server/tools-pdf.js';
+import { FileReply } from './server/util.js';
 
 // CORE_APP_DIR: where public/ and shared/ live (the single .exe unpacks them there).
 const ROOT = process.env.CORE_APP_DIR || path.dirname(fileURLToPath(import.meta.url));
@@ -39,6 +41,24 @@ function send(res, status, body, type = 'application/json', headers = {}) {
   res.coreType = type;
   res.coreBytes = Buffer.isBuffer(payload) ? payload.length : Buffer.byteLength(String(payload ?? ''));
   res.end(payload);
+}
+
+function sendFile(res, file, headers = {}) {
+  const done = () => { if (file.remove) fs.rm(file.path, { force: true }, () => {}); };
+  let size = file.size;
+  try {
+    size = fs.statSync(file.path).size;
+  } catch {
+    done();
+    return send(res, 500, { error: 'Something went wrong.' });
+  }
+  res.writeHead(200, { ...baseHeaders({ https: res.viaHttps }), 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store', ...headers, 'Content-Length': size });
+  res.coreType = headers['Content-Type'] || 'application/octet-stream';
+  res.coreBytes = size;
+  const stream = fs.createReadStream(file.path);
+  stream.on('error', () => res.destroy());
+  res.on('close', done);
+  stream.pipe(res);
 }
 
 // Admin panel → Security monitor (0.34): each answer, once sent, is counted: its route template
@@ -72,8 +92,10 @@ function bodyLimit(req, url) {
   if (!api.signedIn(req)) return p.startsWith('/api/public/') ? PUBLIC_BODY_BYTES : MB;
   if (p === '/api/admin/import' || p.startsWith('/api/admin/config/import')) return 50 * MB;
   if (p.startsWith('/api/helpdesk/')) return HELPDESK_BODY_BYTES;
-  // PDF Studio (0.64): one file of up to 25 MB, as base64 inside the JSON.
-  if (p === '/api/tools/pdf/sources' || p === '/api/tools/pdf/verify') return Math.ceil(PDF_LIMITS.maxFileBytes / 3) * 4 + MB;
+  // PDF Studio (0.64): one file of up to 25 MB, as base64 inside the JSON; larger files (0.66) in
+  // pieces of PDF_LIMITS.chunkBytes, one request each.
+  if (p === '/api/tools/pdf/sources' || p === '/api/tools/pdf/verify') return Math.ceil(DIRECT_UPLOAD_BYTES / 3) * 4 + MB;
+  if (/^\/api\/tools\/pdf\/uploads\/[^/]+$/.test(p)) return Math.ceil(PDF_LIMITS.chunkBytes / 3) * 4 + 64 * 1024;
   // The export carries the page editor's pictures and signatures (2 MB each at most).
   if (p === '/api/tools/pdf/export') return 30 * MB;
   return 12 * MB;
@@ -216,6 +238,8 @@ const server = http.createServer(async (req, res) => {
   try {
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req, bodyLimit(req, url)) : {};
     const { data, headers } = await api(req, url, body);
+    // A file on disk (a large PDF export) is streamed from there.
+    if (data instanceof FileReply) return sendFile(res, data, headers);
     // A file to download (project attachments) is sent as bytes; everything else as JSON.
     send(res, 200, data, Buffer.isBuffer(data) ? 'application/octet-stream' : 'application/json', headers);
   } catch (err) {

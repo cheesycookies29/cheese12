@@ -3702,6 +3702,7 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
 .ps-pick { color: var(--brand-text); font-weight: 600; text-decoration: underline; cursor: pointer; }
 .ps-pick:focus-within { outline: 2px solid var(--brand-text); outline-offset: 2px; border-radius: 4px; }
 .ps-busy { width: 100%; margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text-2); font-weight: 500; }
+.ps-busy progress { width: 140px; height: 8px; accent-color: var(--brand); }
 .ps-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ps-selected { font-weight: 600; margin-right: 4px; }
 .ps-grid { list-style: none; margin: 0; padding: 4px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }

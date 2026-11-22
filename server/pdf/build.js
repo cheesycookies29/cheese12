@@ -71,7 +71,8 @@ const hasStamps = (s) => Boolean(s.numbers || s.header || s.footer || s.watermar
 // readPdf; edits: cleanEdits() of edits.js; noStamp: no page number etc. on it, e.g. a signature record).
 // stamp: { numbers: { format, position, start, skipFirst }, header, headerAlign, footer, footerAlign,
 // watermark: { text, opacity, color } }; meta: { title, author, subject, keywords, file }.
-export function buildPdf(pages, stamp = {}, meta = {}) {
+// With { file }: written there (returns { size, sha256 }); otherwise returned as a Buffer.
+export function buildPdf(pages, stamp = {}, meta = {}, { file = null } = {}) {
   const writer = new PdfWriter({ title: meta.title || '', author: meta.author || '', subject: meta.subject || '', keywords: meta.keywords || '' });
   const start = Number.isInteger(stamp.numbers?.start) ? stamp.numbers.start : 1;
   const skipFirst = Boolean(stamp.numbers?.skipFirst);
@@ -133,5 +134,5 @@ export function buildPdf(pages, stamp = {}, meta = {}) {
     }
     writer.addPage(dict);
   });
-  return writer.toBuffer();
+  return file ? writer.writeTo(file) : writer.toBuffer();
 }

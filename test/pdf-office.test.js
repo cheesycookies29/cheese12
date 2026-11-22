@@ -136,7 +136,7 @@ function docx(body, { styles = '', numbering = '', extraRels = [], files = [] } 
 }
 
 test('KINDS maps every supported extension', () => {
-  assert.deepEqual(Object.keys(KINDS).sort(), ['csv', 'docx', 'htm', 'html', 'markdown', 'md', 'odp', 'ods', 'odt', 'pptx', 'txt', 'xlsx']);
+  assert.deepEqual(Object.keys(KINDS).sort(), ['csv', 'doc', 'docx', 'dot', 'htm', 'html', 'markdown', 'md', 'msg', 'odp', 'ods', 'odt', 'pot', 'pps', 'ppt', 'pptx', 'rtf', 'txt', 'xls', 'xlsx', 'xlt']);
   assert.equal(KINDS.markdown, 'md');
   assert.equal(KINDS.htm, 'html');
 });

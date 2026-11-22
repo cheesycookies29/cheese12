@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import fs from 'node:fs';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -16,6 +17,18 @@ export class HttpError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+// A file on disk to send as the answer (0.66: a large PDF export), streamed rather than read into
+// memory; removed once sent when `remove` is set.
+export class FileReply {
+  constructor(path, { size = 0, remove = false } = {}) {
+    this.path = path;
+    this.size = size;
+    this.remove = remove;
+  }
+  // The bytes, for callers that want them in memory (tests).
+  read() { return readFileSync(this.path); }
 }
 
 // The data holds pay, government IDs and password hashes: its files are for the app's account

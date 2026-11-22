@@ -9,7 +9,7 @@
 // turns the picture itself). It is a best-effort renderer, not a full one: fonts are not embedded
 // (text is drawn in the browser's sans-serif, serif or monospace face, squeezed or stretched to the
 // width the PDF's own font would take), gradients and patterns are drawn in one flat colour, and
-// pictures in formats a browser cannot show (JPEG 2000, JBIG2, fax) are grey boxes.
+// pictures in formats a browser cannot show (JPEG 2000, JBIG2) are grey boxes; fax (CCITT) pictures are decoded (server/pdf/ccitt.js).
 //
 // The text is also reported as "runs", one a line: its text, where it is, its size and face, and an
 // id, the place of its first text-showing operator (Tj, TJ, ' or ") among the page's. removeTextOps
@@ -21,6 +21,7 @@
 import { deflateSync, inflateSync } from 'node:zlib';
 import * as zlib from 'node:zlib';
 import { Name, Bytes, widthOf, encodeWinAnsi } from './writer.js';
+import { decodeCcitt } from './ccitt.js';
 import { pageInternals, pageAnnotations, Parser, PdfStream, Keyword, isDict, nameOf, toArray, toUnicode, inflate, ascii85, asciiHex, WHITE, isRegular, MAX_CONTENT_BYTES } from './reader.js';
 
 const MAX_FORM_DEPTH = 6;
@@ -520,8 +521,11 @@ function imageUrl(ctx, stream, resources, fill) {
     return image === 'DCTDecode' && data[0] === 0xff && data[1] === 0xd8 ? `data:image/jpeg;base64,${data.toString('base64')}` : null;
   }
   // Other pictures are read up to MAX_DECODE_PIXELS and shown at most ctx.maxImagePixels (every
-  // k-th pixel of every k-th row: enough for the screen; the PDF keeps the picture as it is).
-  if (w * h > MAX_DECODE_PIXELS) return null;
+  // k-th pixel of every k-th row: enough for the screen; the PDF keeps the picture as it is). Fax
+  // pictures (CCITTFaxDecode, 0.66: scanned pages) are decoded here; at one bit a pixel, four
+  // times as many are read.
+  const fax = lastFilter === 'CCITTFaxDecode' || lastFilter === 'CCF';
+  if (w * h > MAX_DECODE_PIXELS * (fax ? 4 : 1)) return null;
   const k = Math.max(1, Math.ceil(Math.sqrt((w * h) / ctx.maxImagePixels)));
   const W = Math.ceil(w / k);
   const H = Math.ceil(h / k);
@@ -531,14 +535,50 @@ function imageUrl(ctx, stream, resources, fill) {
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) src.copy(out, (y * W + x) * n, (y * k * w + x * k) * n, (y * k * w + x * k) * n + n);
     return out;
   };
-  const { data, image } = decodeStream(ctx.src, stream, w * h * 4 * 2 + 1024 * 1024, true);
+  let { data, image } = decodeStream(ctx.src, stream, w * h * 4 * 2 + 1024 * 1024, true);
   if (image === 'DCTDecode') return data[0] === 0xff && data[1] === 0xd8 ? `data:image/jpeg;base64,${data.toString('base64')}` : null;
-  if (image) return null; // JPX, JBIG2, CCITT: browsers cannot show them
+  if (image === 'CCITTFaxDecode') {
+    // The parameters of the last filter (DecodeParms is a dictionary, or an array, one a filter).
+    const all = r(d.DecodeParms ?? d.DP);
+    const p = r(Array.isArray(all) ? all[all.length - 1] : all);
+    const parm = (key, def) => {
+      const v = isDict(p) ? r(p[key]) : undefined;
+      return v === undefined || v === null ? def : v;
+    };
+    data = decodeCcitt(data, {
+      K: num(parm('K', 0)), columns: num(parm('Columns', 1728), 1728), rows: h, blackIs1: parm('BlackIs1', false) === true,
+      encodedByteAlign: parm('EncodedByteAlign', false) === true, endOfBlock: parm('EndOfBlock', true) !== false, endOfLine: parm('EndOfLine', false) === true,
+      maxPixels: MAX_DECODE_PIXELS * 4,
+    }).bits;
+    image = null;
+  }
+  if (image) return null; // JPX, JBIG2: browsers cannot show them
   const decode = toArray(r(d.Decode ?? d.D)).map(r);
   const invert = decode.length >= 2 && num(decode[0]) > num(decode[1]);
+  // One-bit pictures (scans) made smaller: a k × k block is ink when any pixel in it is, so thin
+  // lines and small text survive. The samples come back unpacked: `ink` or 1 - ink.
+  const shrinkInk = (ink) => {
+    const out = Buffer.alloc(W * H, 1 - ink);
+    const stride = Math.ceil(w / 8);
+    const clear = ink ? 0x00 : 0xff; // a byte with no ink in it
+    for (let y = 0; y < h; y++) {
+      const row = y * stride;
+      const at = Math.floor(y / k) * W;
+      for (let xb = 0; xb < stride; xb++) {
+        const byte = data[row + xb] ?? (1 - ink) * 0xff;
+        if (byte === clear) continue;
+        for (let b = 0; b < 8; b++) {
+          const x = xb * 8 + b;
+          if (x >= w) break;
+          if (((byte >> (7 - b)) & 1) === ink) out[at + Math.floor(x / k)] = ink;
+        }
+      }
+    }
+    return out;
+  };
   if (mask) {
     // A stencil: the fill colour where the bit is 0 (or 1 with Decode [1 0]), clear elsewhere.
-    const bits = shrink(unpack(data, w, h, 1, 1, false), 1);
+    const bits = shrinkInk(invert ? 1 : 0);
     const px = Buffer.alloc(W * H * 4);
     const rgb = fill.map((c) => Math.round(clamp01(c) * 255));
     for (let i = 0; i < W * H; i++) {
@@ -548,10 +588,10 @@ function imageUrl(ctx, stream, resources, fill) {
     return `data:image/png;base64,${encodePng(W, H, 4, px).toString('base64')}`;
   }
   const cs = colorSpace(ctx, d.ColorSpace ?? d.CS, resources);
-  const bpc = num(r(d.BitsPerComponent ?? d.BPC), 8);
+  const bpc = fax ? 1 : num(r(d.BitsPerComponent ?? d.BPC), 8);
   if (![1, 2, 4, 8, 16].includes(bpc) || cs.kind === 'pattern') return null;
   const n = cs.n || 1;
-  const s = shrink(unpack(data, w, h, n, bpc, cs.kind !== 'indexed'), n);
+  const s = bpc === 1 && cs.kind === 'gray' ? shrinkInk(invert ? 1 : 0).map((v) => v * 255) : shrink(unpack(data, w, h, n, bpc, cs.kind !== 'indexed'), n);
   // To grey or RGB.
   let channels = cs.kind === 'gray' ? 1 : 3;
   let px;
@@ -1077,7 +1117,7 @@ export function renderPage(doc, index, options = {}) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#ffffff"/><g transform="matrix(1 0 0 -1 ${n3(-box[0])} ${n3(box[3])})">${ctx.out.join('')}</g></svg>`;
     const result = { width: Math.round(width * 1000) / 1000, height: Math.round(height * 1000) / 1000, rotate, svg, runs: ctx.runs };
     if (ctx.stopped) result.error = 'This page has more drawing than can be shown; part of it is missing.';
-    else if (ctx.unshown) result.error = `${ctx.unshown === 1 ? 'A picture on this page is' : `${ctx.unshown} pictures on this page are`} in a format CORE cannot show here (JPEG 2000, JBIG2 or fax), so ${ctx.unshown === 1 ? 'it shows' : 'they show'} as grey. ${ctx.unshown === 1 ? 'It stays' : 'They stay'} as ${ctx.unshown === 1 ? 'it is' : 'they are'} in the PDF.`;
+    else if (ctx.unshown) result.error = `${ctx.unshown === 1 ? 'A picture on this page is' : `${ctx.unshown} pictures on this page are`} in a format CORE cannot show here (JPEG 2000 or JBIG2), so ${ctx.unshown === 1 ? 'it shows' : 'they show'} as grey. ${ctx.unshown === 1 ? 'It stays' : 'They stay'} as ${ctx.unshown === 1 ? 'it is' : 'they are'} in the PDF.`;
     return result;
   } catch (err) {
     return { width: Math.round(width * 1000) / 1000, height: Math.round(height * 1000) / 1000, rotate, svg: blankSvg(width, height), runs: [], error: err && err.message ? err.message : 'This page could not be drawn.' };

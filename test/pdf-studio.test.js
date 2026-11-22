@@ -175,7 +175,14 @@ test('tools-pdf helpers: what a file is, clean options, safe names', () => {
   assert.equal(formatOf(Buffer.from('a,b\n1,2'), 'data.CSV'), 'csv');
   assert.equal(formatOf(Buffer.from('MZ\x90\x00 program'), 'setup.exe'), null);
   assert.equal(formatOf(Buffer.from('text\x00with nul'), 'x.txt'), null);
-  assert.equal(formatOf(zipFiles([{ name: 'a.txt', buffer: Buffer.from('x') }]), 'archive.docx'), null, 'a ZIP that is not an Office file');
+  assert.equal(formatOf(zipFiles([{ name: 'a.txt', buffer: Buffer.from('x') }]), 'archive.docx'), 'zip', 'a ZIP that is not an Office file: an archive of files (0.66)');
+  // 0.66: more kinds, by what they hold.
+  assert.equal(formatOf(Buffer.from('{"a": 1}'), 'data.json'), 'code');
+  assert.equal(formatOf(Buffer.from('SELECT 1;'), 'q.sql'), 'code');
+  assert.equal(formatOf(Buffer.from('a\tb\n1\t2'), 'data.tsv'), 'csv');
+  assert.equal(formatOf(Buffer.from('From: a@b.ph\r\nSubject: Hi\r\n\r\nBody'), 'mail.eml'), 'eml');
+  assert.equal(formatOf(Buffer.from('{\\rtf1\\ansi Hello}'), 'x.doc'), 'rtf', 'RTF saved with a .doc name');
+  assert.equal(formatOf(Buffer.from([0x49, 0x49, 42, 0, 8, 0, 0, 0, 0, 0]), 'scan.tif'), 'tiff');
   assert.deepEqual(cleanLayout({ size: 'tabloid', orientation: 'sideways', margin: 99, fontSize: 3, fit: 'zoom' }), { size: 'a4', orientation: 'auto', margin: 40, fontSize: 8, fit: 'fit' });
   assert.ok(!safeFileName('../../etc/passwd').includes('/'));
   assert.equal(safeFileName('Q3 report.pdf'), 'Q3 report.pdf');

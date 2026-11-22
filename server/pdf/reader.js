@@ -12,9 +12,16 @@
 // dictionaries), except references, which stay the reader's own PdfRef until they are copied:
 // writer.ref(n) always means the writer's numbering, and the two must never be mixed up. Streams are
 // kept as they are in the file (still compressed); importPages copies them byte for byte, so
-// fonts, pictures and drawings come through exactly as they were. Encrypted PDFs are refused, since
-// their strings and streams cannot be read without the password.
+// fonts, pictures and drawings come through exactly as they were.
+//
+// Encrypted PDFs (the standard security handler: RC4 and AES, 40 to 256 bits) are opened when they
+// have no open password (only "no printing / no copying" restrictions, as bank statements and
+// forms often have) or when the right password is given. Each object is decrypted as it is read
+// from the file, before it is kept, so everything else here (and the renderer, and the pages copied
+// into a new, unencrypted PDF) only ever sees plain strings and streams. Certificate security and
+// unknown kinds of encryption are refused with a plain message.
 import { inflateSync, inflateRawSync, constants as zlibConstants } from 'node:zlib';
+import { createHash, createCipheriv, createDecipheriv } from 'node:crypto';
 import { Name, Ref, Bytes, Stream, ref } from './writer.js';
 
 const MB = 1024 * 1024;
@@ -34,7 +41,9 @@ const DEFAULT_BOX = [0, 0, 612, 792];
 
 const MESSAGES = {
   notPdf: 'This file is not a PDF. Choose a PDF file and upload it again.',
-  encrypted: 'This PDF is protected with a password or encryption. Save an unprotected copy and upload that.',
+  encrypted: 'This PDF is protected with a certificate or a kind of encryption CORE cannot open. Open it in a PDF viewer, save an unprotected copy, and upload that.',
+  passwordNeeded: 'This PDF needs a password to open. Type it to add the file.',
+  passwordWrong: 'That password is not right for this PDF.',
   damaged: 'This PDF is damaged and cannot be read. Open it in a PDF viewer, save or print it as a new PDF, and upload that.',
 };
 function fail(code, message) {
@@ -43,13 +52,14 @@ function fail(code, message) {
   return err;
 }
 // The codes of the errors above, which are passed on to the caller as they are.
-const MESSAGE_CODES = new Set(['not-pdf', 'encrypted', 'damaged', 'too-many-pages', 'too-many-objects']);
+const MESSAGE_CODES = new Set(['not-pdf', 'encrypted', 'password', 'damaged', 'too-many-pages', 'too-many-objects']);
 
 // A reference to another object of the file being read ("12 0 R"). It is deliberately not the
 // writer's Ref: a page copied into a new PDF gets new numbers there, so every PdfRef is translated
 // on the way out (see importPages).
 class PdfRef { constructor(num, gen) { this.num = num; this.gen = gen; } }
-// A stream as it is in the file: its dictionary and its bytes, still encoded.
+// A stream as it is in the file: its dictionary and its bytes, still encoded (but decrypted, in
+// an encrypted file: see SealedStream).
 class PdfStream { constructor(dict, raw) { this.dict = dict; this.raw = raw; } }
 // A bare word that is not a value: an operator in page content ("Tj", "re") or a structural word
 // ("endobj", "stream") met where a value was expected.
@@ -430,15 +440,272 @@ function decodeText(v) {
   return s || null;
 }
 
+// ---------- Encryption: the standard security handler (ISO 32000-1 §7.6, ISO 32000-2 for R6) ----------
+// A file is encrypted with one key, made from the password (the "user" password that opens it,
+// often empty) and the /Encrypt dictionary. Up to R4 each object then has a key of its own (the
+// file key with the object's number); from R5 the file key is used as it is. Strings and streams
+// are encrypted with RC4 (V2) or AES-CBC (AESV2, AESV3) with a 16-byte IV in front of the data.
+const EMPTY = Buffer.alloc(0);
+const SALT = Buffer.from('sAlT', 'latin1');
+// The 32 bytes a password shorter than 32 is padded with (R2–R4).
+const PAD = Buffer.from('28bf4e5e4e758a4164004e56fffa01082e2e00b6d0683e802f0ca9fe6453697a', 'hex');
+const NO_CRYPT = { cfm: 'None' };
+
+const digest = (alg, ...parts) => {
+  const h = createHash(alg);
+  for (const p of parts) h.update(p);
+  return h.digest();
+};
+
+// RC4, written out here since OpenSSL 3 may not offer it.
+function rc4(key, data) {
+  const s = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) s[i] = i;
+  for (let i = 0, j = 0; i < 256; i++) {
+    j = (j + s[i] + key[i % key.length]) & 255;
+    const t = s[i]; s[i] = s[j]; s[j] = t;
+  }
+  const out = Buffer.allocUnsafe(data.length);
+  for (let k = 0, i = 0, j = 0; k < data.length; k++) {
+    i = (i + 1) & 255;
+    j = (j + s[i]) & 255;
+    const t = s[i]; s[i] = s[j]; s[j] = t;
+    out[k] = data[k] ^ s[(s[i] + s[j]) & 255];
+  }
+  return out;
+}
+const rc4Xor = (key, i) => Buffer.from(key.map((b) => b ^ i));
+
+// AES-CBC without padding (for the R5/R6 key steps): a zero IV unless one is given.
+function aesRaw(encrypt, key, data, iv = Buffer.alloc(16)) {
+  const alg = `aes-${key.length * 8}-cbc`;
+  const c = encrypt ? createCipheriv(alg, key, iv) : createDecipheriv(alg, key, iv);
+  c.setAutoPadding(false);
+  return Buffer.concat([c.update(data), c.final()]);
+}
+
+// A string or stream encrypted with AES: the IV, then whole blocks ending in PKCS#5 padding. Data
+// cut short is decrypted as far as whole blocks go, and bad padding keeps the data as it is.
+function aesDecrypt(key, data) {
+  const body = data.subarray(16, 16 + Math.floor(Math.max(0, data.length - 16) / 16) * 16);
+  if (!body.length) return EMPTY;
+  const out = aesRaw(false, key, body, data.subarray(0, 16));
+  const pad = out[out.length - 1];
+  if (pad >= 1 && pad <= 16) {
+    let ok = true;
+    for (let i = out.length - pad; i < out.length; i++) if (out[i] !== pad) { ok = false; break; }
+    if (ok) return out.subarray(0, out.length - pad);
+  }
+  return out;
+}
+
+// The R6 password hash (ISO 32000-2, algorithm 2.B): SHA-256, then rounds of AES-128 and
+// SHA-256/384/512 until at least 64 are done and the last byte says to stop.
+function hashR6(pw, salt, udata) {
+  let k = digest('sha256', pw, salt, udata);
+  let e = null;
+  for (let i = 0; i < 64 || e[e.length - 1] > i - 32; i++) {
+    const block = Buffer.concat([pw, k, udata]);
+    const k1 = Buffer.allocUnsafe(block.length * 64);
+    for (let j = 0; j < 64; j++) block.copy(k1, j * block.length);
+    e = aesRaw(true, k.subarray(0, 16), k1, k.subarray(16, 32));
+    let sum = 0;
+    for (let j = 0; j < 16; j++) sum += e[j]; // 256 ≡ 1 (mod 3): the sum's remainder is the number's
+    k = digest(['sha256', 'sha384', 'sha512'][sum % 3], e);
+  }
+  return k.subarray(0, 32);
+}
+
+// A password as R2–R4 use it: PDFDocEncoding bytes, padded (or cut) to 32. `utf8` gives the bytes
+// some careless writers use instead.
+let pdfDocCodes = null;
+function padPassword(pw, utf8 = false) {
+  if (!pdfDocCodes) pdfDocCodes = new Map(Object.entries(PDFDOC).map(([b, c]) => [c, Number(b)]));
+  let bytes;
+  if (utf8) bytes = Buffer.from(pw, 'utf8');
+  else {
+    const list = [];
+    for (const ch of pw) {
+      const c = ch.codePointAt(0);
+      const b = pdfDocCodes.has(c) ? pdfDocCodes.get(c) : c < 256 ? c : undefined;
+      if (b !== undefined) list.push(b);
+    }
+    bytes = Buffer.from(list);
+  }
+  return Buffer.concat([bytes.subarray(0, 32), PAD]).subarray(0, 32);
+}
+
+// Reads the /Encrypt dictionary `trailer` names and finds the file key with the password (or the
+// empty one). Returns null for a file that is not encrypted, or the handler that decrypts its
+// objects: { method, hadOpenPassword, encNum, encryptMetadata, stmf, strf, eff, named(), decrypt() }.
+// Throws 'password' when the file needs a password it was not given (or a wrong one), and
+// 'encrypted' for security CORE cannot open (certificates, unknown or broken encryption).
+function securityHandler(src, trailer, password) {
+  const encValue = trailer.Encrypt;
+  if (encValue === undefined || encValue === null) return null;
+  const unsupported = () => fail('encrypted', MESSAGES.encrypted);
+  const r = (v) => src.resolve(v);
+  const enc = r(encValue);
+  if (!isDict(enc)) throw unsupported();
+  // Public-key security (/Adobe.PubSec) and other handlers need a certificate, not a password.
+  if (nameOf(r(enc.Filter)) !== 'Standard') throw unsupported();
+  const V = r(enc.V);
+  const R = r(enc.R);
+  const bytes = (v) => { const b = r(v); return b instanceof Bytes ? b.b : null; };
+  const O = bytes(enc.O);
+  const U = bytes(enc.U);
+  const modern = V === 5;
+  if (!([1, 2, 4].includes(V) && [2, 3, 4].includes(R)) && !(modern && (R === 5 || R === 6))) throw unsupported();
+  if (!O || !U || O.length < (modern ? 48 : 32) || U.length < (modern ? 48 : 32)) throw unsupported();
+  const ids = r(trailer.ID);
+  const id0 = Array.isArray(ids) && r(ids[0]) instanceof Bytes ? r(ids[0]).b : EMPTY;
+  const encryptMetadata = V >= 4 ? r(enc.EncryptMetadata) !== false : true;
+
+  // The crypt filters: which method strings (StrF), streams (StmF) and embedded files (EFF) use.
+  const cf = r(enc.CF);
+  const named = (n) => {
+    if (!n || n === 'Identity') return NO_CRYPT;
+    const d = isDict(cf) ? r(cf[n]) : null;
+    if (!isDict(d)) throw unsupported();
+    const cfm = nameOf(r(d.CFM)) || 'None';
+    if (!(modern ? ['None', 'AESV3'] : ['None', 'V2', 'AESV2']).includes(cfm)) throw unsupported();
+    return { cfm, length: r(d.Length) };
+  };
+  let stmf;
+  let strf;
+  let eff;
+  if (V < 4) stmf = strf = eff = { cfm: 'V2' };
+  else {
+    stmf = named(nameOf(r(enc.StmF)));
+    strf = named(nameOf(r(enc.StrF)));
+    eff = enc.EFF !== undefined ? named(nameOf(r(enc.EFF))) : stmf;
+  }
+
+  let attempt;
+  if (!modern) {
+    // The key length in bytes: /Length in bits (some writers give bytes), 5 for R2, 16 for AES.
+    const main = stmf.cfm !== 'None' ? stmf : strf;
+    let bits = r(enc.Length);
+    if (!Number.isInteger(bits) || bits <= 0) bits = V === 4 ? (Number.isInteger(main.length) && main.length > 0 ? main.length : 128) : 40;
+    if (bits < 40) bits *= 8;
+    let n = R === 2 ? 5 : Math.min(16, Math.max(5, Math.floor(bits / 8)));
+    if (V === 4 && (stmf.cfm === 'AESV2' || strf.cfm === 'AESV2')) n = 16;
+    const p = Buffer.alloc(4);
+    p.writeUInt32LE(Number(r(enc.P)) >>> 0 || 0);
+    const o32 = O.subarray(0, 32);
+    // Algorithm 2: the key from a padded user password. Algorithms 4 and 5: is it the right one?
+    const asUser = (padded) => {
+      let h = digest('md5', padded, o32, p, id0, R >= 4 && !encryptMetadata ? Buffer.from([255, 255, 255, 255]) : EMPTY);
+      if (R >= 3) for (let i = 0; i < 50; i++) h = digest('md5', h.subarray(0, n));
+      const k = h.subarray(0, n);
+      if (R === 2) return rc4(k, PAD).equals(U.subarray(0, 32)) ? k : null;
+      let x = rc4(k, digest('md5', PAD, id0));
+      for (let i = 1; i <= 19; i++) x = rc4(rc4Xor(k, i), x);
+      return x.equals(U.subarray(0, 16)) ? k : null;
+    };
+    // Algorithm 7: the owner password unlocks the user password kept (encrypted) in /O.
+    const asOwner = (padded) => {
+      let h = digest('md5', padded);
+      if (R >= 3) for (let i = 0; i < 50; i++) h = digest('md5', h);
+      const k = h.subarray(0, n);
+      let x = Buffer.from(o32);
+      if (R === 2) x = rc4(k, x);
+      else for (let i = 19; i >= 0; i--) x = rc4(rc4Xor(k, i), x);
+      return asUser(x);
+    };
+    attempt = (pw) => {
+      for (const utf8 of pw && /[^\x00-\x7f]/.test(pw) ? [false, true] : [false]) {
+        const padded = padPassword(pw, utf8);
+        const k = asUser(padded) || asOwner(padded);
+        if (k) return k;
+      }
+      return null;
+    };
+  } else {
+    // R5 (an Adobe extension, deprecated) and R6: SHA-256 (R6: algorithm 2.B) of the password
+    // with salts kept in /U and /O; the file key itself is kept encrypted in /UE and /OE.
+    const UE = bytes(enc.UE);
+    const OE = bytes(enc.OE);
+    if (!UE || !OE || UE.length < 32 || OE.length < 32) throw unsupported();
+    const hash = R === 5 ? (pw, salt, udata) => digest('sha256', pw, salt, udata) : hashR6;
+    const u = U.subarray(0, 48);
+    const o = O.subarray(0, 48);
+    const check = (pw) => {
+      if (hash(pw, u.subarray(32, 40), EMPTY).equals(u.subarray(0, 32))) return aesRaw(false, hash(pw, u.subarray(40, 48), EMPTY), UE.subarray(0, 32));
+      if (hash(pw, o.subarray(32, 40), u).equals(o.subarray(0, 32))) return aesRaw(false, hash(pw, o.subarray(40, 48), u), OE.subarray(0, 32));
+      return null;
+    };
+    attempt = (pw) => {
+      // UTF-8 after SASLprep (NFKC stands in for it), at most 127 bytes; also as typed.
+      const forms = [...new Set([pw.normalize('NFKC'), pw])];
+      for (const f of forms) {
+        const k = check(Buffer.from(f, 'utf8').subarray(0, 127));
+        if (k) return k;
+      }
+      return null;
+    };
+  }
+
+  let fileKey = attempt('');
+  const hadOpenPassword = !fileKey;
+  if (!fileKey) {
+    const given = password === undefined || password === null ? '' : String(password);
+    if (!given) throw Object.assign(fail('password', MESSAGES.passwordNeeded), { reason: 'needed' });
+    fileKey = attempt(given);
+    if (!fileKey) throw Object.assign(fail('password', MESSAGES.passwordWrong), { reason: 'wrong' });
+  }
+
+  const main = stmf.cfm !== 'None' ? stmf : strf;
+  const method = modern ? 'AES-256' : main.cfm === 'AESV2' ? 'AES-128' : fileKey.length <= 5 ? 'RC4-40' : 'RC4-128';
+  return {
+    method,
+    hadOpenPassword,
+    encryptMetadata,
+    encNum: encValue instanceof PdfRef ? encValue.num : null,
+    stmf,
+    strf,
+    eff,
+    // A crypt filter named by a stream's own /Crypt filter; one that cannot be used leaves the
+    // stream as it is.
+    named: (n) => { try { return named(n); } catch { return NO_CRYPT; } },
+    // The key for object `num` `gen` with crypt filter `f` (algorithm 1; R5/R6 use the file key).
+    objectKey(f, num, gen) {
+      if (f.cfm === 'AESV3') return fileKey;
+      const ext = Buffer.from([num & 255, (num >> 8) & 255, (num >> 16) & 255, gen & 255, (gen >> 8) & 255]);
+      return digest('md5', fileKey, ext, f.cfm === 'AESV2' ? SALT : EMPTY).subarray(0, Math.min(fileKey.length + 5, 16));
+    },
+    decrypt(f, k, data) {
+      if (f.cfm === 'None') return data;
+      return f.cfm === 'V2' ? rc4(k, data) : aesDecrypt(k, data);
+    },
+  };
+}
+
+// A stream of an encrypted file: its bytes are decrypted the first time they are asked for (a
+// picture whose dictionary alone is looked at is never decrypted), then kept.
+class SealedStream extends PdfStream {
+  constructor(dict, open) {
+    super(dict, null);
+    this.open = open;
+  }
+  get raw() {
+    if (this.open) { this.plain = this.open(); this.open = null; }
+    return this.plain;
+  }
+  set raw(v) { this.plain = v; }
+}
+
 // ---------- The document ----------
 // What readPdf knows about a file, kept out of sight of callers (who get the plain handle).
 const internals = new WeakMap();
 
 class Source {
-  constructor(buf, { maxObjects, maxPages }) {
+  constructor(buf, { maxObjects, maxPages, password }) {
     this.buf = buf;
     this.maxObjects = maxObjects;
     this.maxPages = maxPages;
+    this.password = password;
+    this.security = null; // the handler that decrypts objects (securityHandler), for an encrypted file
     this.entries = new Map(); // object number → { type: 1, offset } or { type: 2, stream, index }
     this.trailer = {};
     this.cache = new Map(); // object number → parsed value (null when it cannot be read)
@@ -493,10 +760,73 @@ class Source {
     try {
       const found = new Parser(this.buf, offset, this.buf.length, this).indirect();
       if (!found || found.num !== num) return undefined;
-      return found.value;
+      return this.decrypted(found.value, num, found.gen);
     } catch {
       return null;
     }
+  }
+
+  // ---------- Encryption ----------
+  // Reads the /Encrypt dictionary named by `trailer` (see securityHandler; it may throw the
+  // 'password' or 'encrypted' error). Objects read before were read without the key, so they are
+  // forgotten and read again.
+  secure(trailer) {
+    this.security = null;
+    const security = securityHandler(this, trailer, this.password);
+    this.cache = new Map();
+    this.objStms = new Map();
+    this.objStmBytes = 0;
+    this.security = security;
+  }
+
+  // An object just read from the file (`num` `gen` in its header), with its strings and stream
+  // decrypted. It is called once per object, as it is read: the result is what is kept, so
+  // nothing is decrypted twice. Objects inside object streams are not encrypted on their own (the
+  // object stream was decrypted as a whole), and neither are the /Encrypt dictionary itself,
+  // cross-reference streams, a signature's /Contents, or the metadata when /EncryptMetadata is false.
+  decrypted(value, num, gen) {
+    const sec = this.security;
+    if (!sec || num === sec.encNum) return value;
+    let strKey = null;
+    const walk = (v, depth) => {
+      if (v instanceof Bytes) {
+        if (sec.strf.cfm === 'None') return v;
+        strKey = strKey || sec.objectKey(sec.strf, num, gen);
+        return new Bytes(sec.decrypt(sec.strf, strKey, v.b));
+      }
+      if (depth > MAX_NESTING) return v;
+      if (Array.isArray(v)) return v.map((x) => walk(x, depth + 1));
+      if (isDict(v)) {
+        const signature = Array.isArray(v.ByteRange) && v.Contents instanceof Bytes;
+        const out = {};
+        for (const [k, x] of Object.entries(v)) out[k] = signature && k === 'Contents' ? x : walk(x, depth + 1);
+        return out;
+      }
+      return v;
+    };
+    if (!(value instanceof PdfStream)) return walk(value, 0);
+    const type = nameOf(value.dict.Type);
+    if (type === 'XRef') return value;
+    const dict = walk(value.dict, 0);
+    let f = type === 'EmbeddedFile' ? sec.eff : sec.stmf;
+    if (type === 'Metadata' && !sec.encryptMetadata) f = NO_CRYPT;
+    // A stream may name its own crypt filter, first among its filters. Once applied here it is
+    // taken out, so neither the rest of the reader nor a copied page ever meets it.
+    const filters = dict.Filter;
+    const first = Array.isArray(filters) ? filters[0] : filters;
+    if (nameOf(first) === 'Crypt') {
+      const parms = dict.DecodeParms ?? dict.DP;
+      const p = Array.isArray(parms) ? parms[0] : parms;
+      f = sec.named(isDict(p) ? nameOf(p.Name) : null);
+      const rest = Array.isArray(filters) ? filters.slice(1) : [];
+      const restParms = Array.isArray(parms) ? parms.slice(1) : [];
+      delete dict.DP;
+      if (rest.length) dict.Filter = rest; else delete dict.Filter;
+      if (restParms.some((x) => x !== null && x !== undefined)) dict.DecodeParms = restParms; else delete dict.DecodeParms;
+    }
+    if (f.cfm === 'None') return new PdfStream(dict, value.raw);
+    const raw = value.raw;
+    return new SealedStream(dict, () => sec.decrypt(f, sec.objectKey(f, num, gen), raw));
   }
 
   fromObjStm(stmNum, num) {
@@ -697,17 +1027,14 @@ class Source {
     for (const [num, offset] of found) this.setEntry(num, { type: 1, offset });
     const text = this.text;
     const trailers = [];
+    const objStms = [];
     let catalog = null;
     for (const [num, offset] of found) {
       // The dictionary of an object stream, a cross-reference stream or the catalog is short and
       // comes first; a look at the start of each object is enough to find them.
       const head = text.slice(offset, offset + 512);
-      if (/\/Type\s*\/ObjStm\b/.test(head)) {
-        let s = null;
-        try { s = this.loadObjStm(num); } catch { s = null; }
-        this.objStms.set(num, s);
-        if (s) for (const objNum of s.offsets.keys()) if (!this.entries.has(objNum)) this.setEntry(objNum, { type: 2, stream: num });
-      } else if (/\/Type\s*\/XRef\b/.test(head)) {
+      if (/\/Type\s*\/ObjStm\b/.test(head)) objStms.push(num);
+      else if (/\/Type\s*\/XRef\b/.test(head)) {
         const v = this.get(num);
         if (v instanceof PdfStream) trailers.push({ at: offset, dict: v.dict });
       } else if (/\/Type\s*\/Catalog\b/.test(head)) catalog = num;
@@ -719,9 +1046,19 @@ class Source {
         if (isDict(dict)) trailers.push({ at: m.index, dict });
       } catch { /* not a trailer after all */ }
     }
+    trailers.sort((a, b) => b.at - a.at);
+    // An encrypted file's object streams are encrypted too, so the key comes first: from the
+    // newest trailer that names an /Encrypt dictionary (and the /ID it goes with).
+    const newest = (k) => trailers.find((t) => t.dict[k] !== undefined && t.dict[k] !== null)?.dict[k];
+    this.secure({ Encrypt: newest('Encrypt'), ID: newest('ID') });
+    for (const num of objStms) {
+      let s = null;
+      try { s = this.loadObjStm(num); } catch { s = null; }
+      this.objStms.set(num, s);
+      if (s) for (const objNum of s.offsets.keys()) if (!this.entries.has(objNum)) this.setEntry(objNum, { type: 2, stream: num });
+    }
     // The cache may hold objects read before the object streams were known.
     this.cache = new Map();
-    trailers.sort((a, b) => b.at - a.at);
     for (const { dict } of trailers) {
       for (const [k, v] of Object.entries(dict)) {
         if (k in this.trailer) continue;
@@ -795,8 +1132,12 @@ const tooManyObjects = (max) => fail('too-many-objects', `This PDF is too comple
 const round = (n) => Math.round(n * 1000) / 1000;
 
 // Reads a PDF. Returns a handle for importPages, pageJpeg and pageText, with what the caller shows:
-// { pageCount, pages: [{ width, height, rotate }], info: { title, author }, version }.
-export function readPdf(buffer, { maxObjects = 200000, maxPages = 2000 } = {}) {
+// { pageCount, pages: [{ width, height, rotate }], info: { title, author }, version, encrypted }.
+// `password` opens an encrypted file that needs one (as the user or the owner password); a file
+// that only restricts printing or copying opens without. Errors carry a `code`: 'not-pdf',
+// 'password' (needed: err.reason 'needed'; or not right: 'wrong'), 'encrypted' (certificate or
+// unknown security), 'damaged', 'too-many-pages', 'too-many-objects'.
+export function readPdf(buffer, { maxObjects = 200000, maxPages = 2000, password = null } = {}) {
   let buf;
   if (Buffer.isBuffer(buffer)) buf = buffer;
   else if (ArrayBuffer.isView(buffer)) buf = Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength);
@@ -807,7 +1148,7 @@ export function readPdf(buffer, { maxObjects = 200000, maxPages = 2000 } = {}) {
   if (start < 0) throw fail('not-pdf', MESSAGES.notPdf);
   if (start > 0) buf = buf.subarray(start);
   try {
-    return open(buf, { maxObjects, maxPages });
+    return open(buf, { maxObjects, maxPages, password });
   } catch (err) {
     // The errors above are for the person uploading; anything else this file managed to provoke
     // (a structure no rule here foresaw) means the same to them as damage.
@@ -816,20 +1157,17 @@ export function readPdf(buffer, { maxObjects = 200000, maxPages = 2000 } = {}) {
   }
 }
 
-function open(buf, { maxObjects, maxPages }) {
-  const src = new Source(buf, { maxObjects, maxPages });
+function open(buf, { maxObjects, maxPages, password }) {
+  const src = new Source(buf, { maxObjects, maxPages, password });
 
-  const encrypted = () => {
-    const e = src.trailer.Encrypt;
-    if (e !== undefined && e !== null) throw fail('encrypted', MESSAGES.encrypted);
-  };
   let usable = false;
   try { usable = src.loadXref(); } catch (err) { if (MESSAGE_CODES.has(err?.code)) throw err; usable = false; }
-  encrypted();
+  // An encrypted file: the key (or the 'password' / 'encrypted' error) before any object is read.
+  // A table that cannot be used leaves this to the rebuild, which finds the trailers itself.
+  if (usable) src.secure(src.trailer);
   let root = usable ? src.catalog() : null;
   if (!root) {
     src.rebuild();
-    encrypted();
     root = src.catalog();
   }
   if (!root) throw fail('damaged', MESSAGES.damaged);
@@ -855,6 +1193,9 @@ function open(buf, { maxObjects, maxPages }) {
       author: isDict(info) ? decodeText(src.resolve(info.Author)) : null,
     },
     version,
+    // For an encrypted file, how it was encrypted and whether it took a password to open (rather
+    // than only restricting printing or copying); null for a file that is not encrypted.
+    encrypted: src.security ? { method: src.security.method, hadOpenPassword: src.security.hadOpenPassword } : null,
   };
   internals.set(doc, src);
   return doc;
