@@ -19,7 +19,7 @@
 // The SVG is only ever shapes, text and pictures as data: URLs; nothing in it can run or load
 // anything, whatever the PDF holds.
 import { deflateSync, inflateSync } from 'node:zlib';
-import * as zlib from 'node:zlib';
+import { crc32 } from '../zip.js'; // zlib.crc32, or ATLAS's own on Node 18
 import { Name, Bytes, widthOf, encodeWinAnsi } from './writer.js';
 import { decodeCcitt } from './ccitt.js';
 import { pageInternals, pageAnnotations, Parser, PdfStream, Keyword, isDict, nameOf, toArray, toUnicode, inflate, ascii85, asciiHex, WHITE, isRegular, MAX_CONTENT_BYTES } from './reader.js';
@@ -55,21 +55,6 @@ const xmlText = (s) => String(s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const xmlAttr = (s) => xmlText(s).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-let crcTable = null;
-function crc32(buf) {
-  if (typeof zlib.crc32 === 'function') return zlib.crc32(buf) >>> 0;
-  if (!crcTable) {
-    crcTable = new Uint32Array(256);
-    for (let n = 0; n < 256; n++) {
-      let c = n;
-      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-      crcTable[n] = c >>> 0;
-    }
-  }
-  let c = 0xffffffff;
-  for (let i = 0; i < buf.length; i++) c = crcTable[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
 
 // A PNG of 8-bit pixels with 1 (grey), 2 (grey + alpha), 3 (RGB) or 4 (RGBA) channels.
 function encodePng(width, height, channels, pixels) {

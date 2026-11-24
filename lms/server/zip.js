@@ -11,8 +11,9 @@ export const MAX_ZIP_BYTES = 200 * 1024 * 1024;
 const STORED = /^(image\/|application\/vnd\.openxmlformats|application\/vnd\.oasis|application\/zip)/;
 
 let table = null;
-function crc32(buf) {
-  if (typeof zlib.crc32 === 'function') return zlib.crc32(buf) >>> 0;
+// CRC-32 in plain JavaScript, for Node without zlib.crc32 (it is in Node 22.2 and 20.15 on; servers
+// set up before Node 22 run Ubuntu's Node 18).
+export function crc32Js(buf) {
   if (!table) {
     table = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
@@ -25,6 +26,7 @@ function crc32(buf) {
   for (let i = 0; i < buf.length; i++) c = table[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
+export const crc32 = (buf) => (typeof zlib.crc32 === 'function' ? zlib.crc32(buf) >>> 0 : crc32Js(buf));
 // The DOS date and time a ZIP entry carries (local time, 2-second steps, from 1980).
 function dosTime(when) {
   const d = new Date(when || Date.now());

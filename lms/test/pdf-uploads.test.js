@@ -10,6 +10,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import zlib from 'node:zlib';
 import { pdfSchool } from './support/pdf-api.js';
+import { crc32 } from '../server/zip.js';
 import { FileReply } from '../server/tools-pdf.js';
 import { PdfWriter, name, ref } from '../server/pdf/writer.js';
 import { readPdf, pageText } from '../server/pdf/reader.js';
@@ -24,7 +25,7 @@ function zipWithPaths(files) {
   let offset = 0;
   for (const f of files) {
     const nameBuf = Buffer.from(f.name, 'utf8');
-    const crc = zlib.crc32(f.buffer) >>> 0;
+    const crc = crc32(f.buffer); // not zlib.crc32: Node 18 and early 22 do not have it
     const head = Buffer.alloc(30);
     head.writeUInt32LE(0x04034b50, 0); head.writeUInt16LE(20, 4); head.writeUInt32LE(crc, 14);
     head.writeUInt32LE(f.buffer.length, 18); head.writeUInt32LE(f.buffer.length, 22); head.writeUInt16LE(nameBuf.length, 26);

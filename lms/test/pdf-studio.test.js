@@ -15,7 +15,8 @@ import { docToPdf, imageToPdf, pageGeometry } from '../server/pdf/layout.js';
 import { buildPdf, fillIn } from '../server/pdf/build.js';
 import { readPdf } from '../server/pdf/reader.js';
 import { formatOf, cleanLayout, cleanStamp, safeFileName } from '../server/tools-pdf.js';
-import { zipFiles } from '../server/zip.js';
+import zlib from 'node:zlib';
+import { zipFiles, crc32, crc32Js } from '../server/zip.js';
 import { TOOLS, TOOL_ROLES, defaultToolSettings, toolOpenFor } from '../shared/systems.js';
 
 const JPEG = fs.readFileSync(new URL('../scripts/fixtures/profile-sample.jpg', import.meta.url));
@@ -299,3 +300,13 @@ test('API: files unused for hours are swept; a tool off for an account type is r
 });
 
 test('done', () => done());
+
+// Servers set up before Node 22 run Node 18, which has no zlib.crc32 (Node 20.15 and 22.2 on): ZIPs
+// and page pictures then use ATLAS's own CRC-32, which must give the same answer.
+test('older Node: CRC-32 without zlib.crc32 is the same', () => {
+  const data = [Buffer.alloc(0), Buffer.from('123456789'), zipFiles([{ name: 'a.txt', buffer: Buffer.from('x'.repeat(5000)) }])];
+  assert.equal(crc32Js(data[1]), 0xcbf43926, 'the standard check value of CRC-32');
+  assert.equal(crc32Js(data[0]), 0);
+  if (typeof zlib.crc32 === 'function') assert.deepEqual(data.map(crc32Js), data.map((b) => zlib.crc32(b) >>> 0));
+  assert.deepEqual(data.map(crc32), data.map(crc32Js));
+});
