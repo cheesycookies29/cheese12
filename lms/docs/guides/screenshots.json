@@ -57,6 +57,26 @@
   "wait": 1500
  },
  {
+  "file": "getting-started-notifications.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/home",
+  "click": [
+   "#notif-btn"
+  ],
+  "wait": 1200
+ },
+ {
+  "file": "getting-started-2fa.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/security",
+  "click": [
+   "#tfa-on",
+   "fill:[name=tfa-password]|demo1234",
+   "text=Continue"
+  ],
+  "wait": 1000
+ },
+ {
   "file": "getting-started-quick.jpg",
   "user": "teacher.demo",
   "url": "/lms/#/calendar",
@@ -937,5 +957,11 @@
   "url": "/admin#/systems",
   "scroll": "#tools-form",
   "wait": 1200
+ },
+ {
+  "file": "admin-2fa-policy.jpg",
+  "user": "admin",
+  "url": "/admin#/sign-in",
+  "wait": 1000
  }
 ]

@@ -20,6 +20,7 @@ import { campusName } from './campus.js';
 import { twoFactorRequired } from '../shared/two-factor.js';
 import { hasTwoFactor } from './two-factor.js';
 import { forgetUser } from './notifications.js';
+import { ownPageLink } from '../shared/notifications.js';
 import { combinedTrail, filterTrail, trailCsv, sideLabel, SYSTEM_LABELS, KIND_LABELS, SOURCE_LABELS } from './audit.js';
 
 const fail = (msg, status = 400) => {
@@ -354,7 +355,14 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
     delete u.twoFactor;
     delete u.twoFactorPending;
     ctx.signOutEverywhere(u.id);
-    log(a, { kind: 'password', action: 'Reset 2-step verification', target: u, detail: `Their authenticator app and recovery codes no longer work; their sessions were ended.${twoFactorRequired(data().settings.security, u) ? ' The school requires it, so they set it up again at their next sign-in.' : ''}` });
+    const required = twoFactorRequired(data().settings.security, u);
+    log(a, { kind: 'password', action: 'Reset 2-step verification', target: u, detail: `Their authenticator app and recovery codes no longer work; their sessions were ended.${required ? ' The school requires it, so they set it up again at their next sign-in.' : ''}` });
+    // They are told (the bell), so a reset they did not ask for does not go unnoticed.
+    ctx.notify([u.id], {
+      system: 'account', kind: '2fa-reset', title: `${a.user.name} reset your 2-step verification`,
+      body: required ? 'Your authenticator app and recovery codes no longer work. You set it up again when you sign in. If you did not ask for this, tell the administrator.' : 'Your authenticator app and recovery codes no longer work. Set it up again under My security. If you did not ask for this, tell the administrator.',
+      link: ownPageLink(ROLES[u.role]?.side, 'security'),
+    }, { actorId: a.user.id });
     save();
     return detail(u);
   });

@@ -9,6 +9,11 @@ order: 2
 
 ## November 2026
 
+### Notifications and 2-step verification, from CORE
+- **Notifications**: the bell in the top bar of every system shows what concerns you, such as your enrollment decided, your work graded, a grade sheet to approve, a leave request to decide, your payslip ready, or a voucher or purchase request waiting for your step. **See all notifications** has the full list. See [getting started](getting-started#see-your-notifications).
+- **2-step verification**: sign in with your password and a code from an authenticator app, with recovery codes for a lost phone. Turn it on under **My security**. See [getting started](getting-started#turn-on-2-step-verification).
+- Administrators choose who must use it under **System → Sign-in and passwords**, see who uses it in **Users & Access**, and can **Reset 2-step verification** for someone who lost their phone. See [the administrator's guide](admin#set-the-rules-for-passwords-and-sign-in).
+
 ### The ATLAS home, sized as CORE's home
 - The system cards, the **Admin panel** bar and the shortcuts under **Administration** now have CORE's sizes: system names are a little smaller and in the school colour, and the Admin panel bar and its four shortcuts are more compact. On a phone, the whole Admin panel bar opens it.
 - **Tools** show as cards like the systems (PDF Studio in red, with what it does), and as small tiles in **Compact**.

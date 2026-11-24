@@ -118,6 +118,42 @@ The picture shows in the top bar and on your profile, and administrators see it 
 
 A device you do not recognise? Sign it out, then choose **Change password** on the same page.
 
+### See your notifications
+
+ATLAS tells you when someone did something that concerns you: a request waiting for your decision, or a decision on your own request. Examples include your enrollment approved, your work graded, a grade sheet to approve, a leave request to decide, your payslip ready, or a voucher waiting for your step.
+
+1. Choose the **bell** in the top bar. A red number shows how many you have not read.
+2. The latest ones are listed, newest first, grouped by day. Choose one to open the page it is about; it is marked as read.
+3. Choose the tick on a notification to mark it read without opening it, or **Mark all as read**. Tick **Unread only** to see only those.
+4. Choose **See all notifications** for the full list, where you can filter by system (Learn, Academic, People, Finance or **Your account**) and choose **Show more** for older ones.
+
+![The bell, with the latest notifications](getting-started-notifications.jpg)
+
+You are never told about your own actions. Notifications are kept for 60 days. Parents are told about a child's final grades only when their link to the student shares **Grades**.
+
+### Turn on 2-step verification
+
+With 2-step verification, signing in needs your password and a code from an app on your phone, so a stolen password alone is not enough. You need an authenticator app, such as Google Authenticator, Microsoft Authenticator or 1Password.
+
+1. Choose your name at the top right, then **My security**.
+2. Under **2-step verification**, choose **Set up 2-step verification**, type **Your password** and choose **Continue**.
+3. In the authenticator app, add an account and scan the QR code (or type the key shown under it).
+4. Type the 6-digit code the app shows under **Code from the app**, and choose **Turn on**.
+5. ATLAS shows ten **recovery codes**, once. Choose **Copy** or **Download**, keep them somewhere safe away from your phone, tick **I have saved my recovery codes**, and choose **Done**.
+
+![Setting up 2-step verification on My security](getting-started-2fa.jpg)
+
+Each recovery code signs you in once if you lose your phone. **New recovery codes** makes a fresh set (the old ones stop working). **Turn off** asks for your password and a code; it is not offered when the school requires 2-step verification for your account. If you sign in with Keycloak, Keycloak asks for its own second step instead, and ATLAS does not.
+
+### Sign in with 2-step verification
+
+1. Sign in with your username and password as usual.
+2. ATLAS asks you to **Enter your code**. Open the authenticator app and type the 6-digit code under **Code from the app, or a recovery code**, then choose **Verify and sign in**.
+
+A code works once and changes every 30 seconds. Lost your phone? Type one of your recovery codes instead, then set up 2-step verification again under **My security**. Without your phone and your recovery codes, ask an administrator to reset it.
+
+If the school requires 2-step verification for your account and you have not set it up, ATLAS asks you to set it up right after you sign in, before anything else.
+
 ### Pin the pages you use most
 
 1. Open a page you use often, for example your class list or **My payslips**.
@@ -200,6 +236,8 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Screen or button | What it is for |
 |---|---|
 | Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open; **Help & guides** and **Dark mode** at the top right |
+| Bell (top bar) | Your notifications: the latest, **Mark all as read**, **Unread only** and **See all notifications** |
+| Notifications | The full list, by system and unread, with **Show more** |
 | ATLAS home page | Your greeting, account type and campus, **Your systems** (cards with figures from your work and a star to pin, in a row with arrows and dots, or all at once in **Compact**), **Tools** (PDF Studio, for the account types that have it), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
 | Academic tile | Academic records: student records, registration, grades and registrar services. For students, teachers, registrars, deans and administrators |
 | Learn tile | Classes, lessons, quizzes, attendance, grades and enrollment. For students, parents and guardians, and teachers; registrars and administrators open its admin panel |
@@ -240,3 +278,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 **Can two people use ATLAS in the same browser?** Not at the same time. Signing in ends any other ATLAS session in that browser. Use a private window or another browser for a second person.
 
 **I opened Academic, People or Finance and it says it is not for my account.** Each system says who it is for, for example *People is for school employees* when a student opens it. Choose **Back to ATLAS home**.
+
+**ATLAS asks for a code, and I have lost my phone.** Type one of your recovery codes in the code box. If you have none left, ask an administrator to reset your 2-step verification; you then sign in with your password and set it up again.
+
+**I got a notification that an administrator reset my 2-step verification, but I did not ask.** Tell the administrator at once, change your password (**My security**), and set up 2-step verification again.

@@ -96,9 +96,13 @@ try {
       }
       await page.goto(`${server.url}${s.url}`);
       await page.waitForTimeout(wait);
+      // "click": selectors to click in order; "fill:<selector>|<text>" types into a field instead
+      // (e.g. a password before Continue).
       for (const sel of s.click || []) {
-        await page.click(sel, { timeout: 8000 });
-        await page.waitForTimeout(wait);
+        const fill = /^fill:(.+)\|(.*)$/.exec(sel);
+        if (fill) await page.fill(fill[1], fill[2], { timeout: 8000 });
+        else await page.click(sel, { timeout: 8000 });
+        await page.waitForTimeout(fill ? 100 : wait);
       }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();
       const text = await page.$eval('#app', (e) => e.innerText).catch(() => '');

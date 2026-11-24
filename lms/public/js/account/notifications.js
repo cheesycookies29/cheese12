@@ -198,7 +198,7 @@ function startPolling() {
 // ----- The full list: #/notifications -----
 export async function notificationsView(el, _params, query = {}) {
   const role = ctx.user?.role;
-  const systems = NOTIFY_SYSTEMS.filter((s) => SYSTEMS.find((x) => x.id === s.id)?.audience.includes(role));
+  const systems = NOTIFY_SYSTEMS.filter((s) => s.id === 'account' || SYSTEMS.find((x) => x.id === s.id)?.audience.includes(role));
   const state = { system: systems.some((s) => s.id === query.system) ? query.system : '', unread: query.unread === '1', items: [], more: false, unreadCount: 0 };
   mount(el, html`
     ${pageHead('Notifications', 'What others did that concerns you, from every ATLAS system, newest first. Notifications older than 60 days are removed.', html`<button type="button" class="btn" id="nf-readall" disabled>${icon('check', 16)} Mark all as read</button>`)}

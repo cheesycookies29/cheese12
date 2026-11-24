@@ -340,6 +340,13 @@ test('administrators: who uses it in Users & Access, and Reset 2-step verificati
   assert.equal(entry.kind, 'password', 'like a password reset, it does not keep the administrator from being deleted');
   assert.equal(entry.targetId, id);
   assert.equal(entry.actorId, f.user('admin').id);
+  // They are told on the bell (Your account), with a link to My security in their own system.
+  const told = f.env.db.data.notifications.filter((n) => n.userId === id && n.kind === '2fa-reset');
+  assert.equal(told.length, 1);
+  assert.equal(told[0].system, 'account');
+  assert.match(told[0].title, /^Ada Admin reset your 2-step verification$/);
+  assert.match(told[0].link, /^\/(lms\/|admin|hris\/)#\/security$/);
+  assert.equal(told[0].actorId, f.user('admin').id);
   // The password alone signs in again; with the policy on, they set it up again at once.
   const again = await f.env.client().post('/api/hub/login', { username: 'teacher.demo', password: PW });
   assert.equal(again.user.username, 'teacher.demo');

@@ -1736,3 +1736,12 @@ a.sys-card.tool-card:hover { transform: translateY(-2px); border-color: color-mi
 .sys-mini.tool-mini::before { background: linear-gradient(180deg, var(--int), var(--int-deep)); width: 4px; }
 .sys-mini.tool-mini .sys-ic { background: linear-gradient(135deg, var(--int), var(--int-deep)); color: #fff; }
 .sys-mini.tool-mini strong { color: var(--text); }
+
+/* Admin panel → Sign-in and passwords: room above each section heading in the one card. */
+form#sec .grid + h2 { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+
+/* Phones: with the bell, the top bar holds five round buttons; the ATLAS mark stays, its word goes
+   (it would slide under the buttons). */
+@media (max-width: 480px) {
+  .topbar .brand .atlas-word { display: none; }
+}

@@ -83,8 +83,8 @@ The person's record opens. Teachers and students sign in on the ATLAS home page.
 
 ### Find an account, change it, reset its password or disable it
 
-1. Under **System**, choose **Users & Access**. Search by name, username, email or student number, or narrow the list by **Account type**, status, or **Signed in now**, **Locked**, **Own access**, **Temporary password** or **Linked to Keycloak**.
-2. Each row shows the account type, the **Linked employee**, the status (with **Temp. password**, **Locked**, **Signed in**, **Keycloak** or **Demo** where they apply) and the last sign-in. Choose a link on the row (below).
+1. Under **System**, choose **Users & Access**. Search by name, username, email or student number, or narrow the list by **Account type**, status, or **Signed in now**, **Locked**, **Own access**, **Temporary password**, **Linked to Keycloak** or **Without 2-step verification**.
+2. Each row shows the account type, the **Linked employee**, the status (with **Temp. password**, **Locked**, **Signed in**, **Keycloak**, **2-step on**, **2-step not set up** or **Demo** where they apply) and the last sign-in. Choose a link on the row (below).
 
 | Link | What it does |
 | --- | --- |
@@ -92,6 +92,7 @@ The person's record opens. Teachers and students sign in on the ATLAS home page.
 | **Access** | Give this one person a permission more, or take one away (see the next section) |
 | **Reset password** | Give them the temporary password shown. They are signed out, unlocked, and choose a new password at the next sign-in |
 | **Unlock** | A username locked after wrong passwords can sign in again at once |
+| **Reset 2-step verification** | For someone who lost their phone and their recovery codes: their authenticator app and codes stop working and they are signed out. They sign in with their password alone (and set it up again at once if the school requires it). They are told on the bell. Only once you are sure it is them asking |
 | **Sign out** | Ends every session of the person |
 | **Audit log** | What they did, and what was done to their account |
 | **Profile** | Their profile as they see it, where you can **Give a title** (their position in the school) |
@@ -157,10 +158,13 @@ The settings under **Sign-in and passwords**:
 | **Passwords mix letters and digits** | A new password needs at least one letter and one digit |
 | **Always change the first password** | New accounts and reset passwords must be changed at the first sign-in, in every system |
 | **Wrong passwords before locking**, **Minutes locked** | A username is locked after this many wrong passwords in a row. The lock is for the network address they came from, so nobody can lock a colleague out from elsewhere; ten times as many lock the username everywhere. It is one lock for the username, whichever sign-in page is used |
+| **Who must use 2-step verification** | **Optional for everyone** (the default), **Required for administrators**, **Required for employees and administrators** (everyone but students and parents) or **Required for everyone**. Those it covers set it up right after signing in. Require it for administrators first, and turn it on for your own account before (ATLAS refuses otherwise). Keycloak sign-ins use Keycloak's own second step |
 | **Sign out after (hours idle)** | People are signed out after this long without using ATLAS |
 | **Sign out after (hours signed in)** | 1 to 168, normally 12. However busy, people sign in again this long after signing in, so a session that was copied or left open stops working. Never sooner than the idle time |
 | **Requests per person per minute** | 60 to 3000, normally 300. Above this, ATLAS asks the person to wait a few seconds. A network address that is not signed in gets four times as many |
 | **Wrong passwords per network address** | 10 to 1000 in 15 minutes, normally 30. An address that keeps guessing passwords, for any usernames, has to wait. Raise it if a whole campus reaches the internet through one address and people mistype often |
+
+![Sign-in and passwords, with who must use 2-step verification](admin-2fa-policy.jpg)
 
 Password rules apply to new and changed passwords; nobody has to change a password that is already set.
 
