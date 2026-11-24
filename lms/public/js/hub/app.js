@@ -6,6 +6,7 @@ import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLIN
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel, userCan } from '/shared/roles.js';
 import { mountUserMenu, mountQuick, mountSystems, accountHref } from '../account/topbar.js';
+import { mountBell } from '../account/notifications.js';
 import { orderSystems, canOpen } from '/shared/systems.js';
 
 const authEl = document.getElementById('auth');
@@ -112,6 +113,7 @@ function userMenu(status) {
       { href: accountHref(status.user, 'security'), label: 'My security', icon: 'shield' },
     ],
   });
+  mountBell(document.getElementById('help-btn'), { user: status.user, here: '/' }); // after Quick access
 }
 
 const dateBox = (ymd) => {

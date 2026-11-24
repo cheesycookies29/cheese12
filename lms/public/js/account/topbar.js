@@ -23,9 +23,10 @@ export const accountHref = (user, page, here = null) => {
 };
 
 // ----- Popovers: one open at a time; Escape, a click outside or another page closes -----
+// (The notification bell, public/js/account/notifications.js, is one of them.)
 const open = new Set();
 window.addEventListener('hashchange', () => [...open].forEach((close) => close()));
-function popover(btn, pop, { onOpen } = {}) {
+export function popover(btn, pop, { onOpen } = {}) {
   const close = (focus = false) => {
     pop.hidden = true;
     btn.setAttribute('aria-expanded', 'false');
