@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { workDates, genderAllows, needsCertificate, LEAVE_GENDERS, DEFAULT_LEAVE_TYPES, ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
 import { userCan } from '../shared/roles.js';
+import { decidersFor, accountOfEmployee, fmtRange, plural, EMPLOYEE_ROLES } from './notifications.js';
 
 // Officers cannot change their own leave or pay: another officer or an administrator does (separation of duties).
 export function notOwnRecord(user, employeeId, what) {
@@ -251,6 +252,42 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     if (!req || (campusId !== undefined && !atCampus(campusId).has(req.employeeId))) throw new HttpError(404, 'Request not found.');
     return req;
   };
+  // ----- The bell (server/notifications.js) -----
+  // HR (leave.approve at the employee's campus) hears of a new request, and of one withdrawn while it
+  // waited; the employee hears of the decision. Approvers see the kind, dates and days, never the
+  // reason (the requests list shows it only to them, and the bell can be read over a shoulder).
+  const what = (req) => {
+    const type = req.kind === 'leave' ? data().leaveTypes.find((x) => x.id === req.leaveTypeId)?.name || 'leave' : 'remote work';
+    return `${plural(req.days, 'day')} of ${type}`;
+  };
+  const nameOf = (req) => {
+    const e = data().employees.find((x) => x.id === req.employeeId);
+    return e ? `${e.firstName} ${e.lastName}` : 'An employee';
+  };
+  const approversOf = (req) => {
+    const e = data().employees.find((x) => x.id === req.employeeId);
+    return decidersFor(data(), 'leave.approve', { campusId: e?.campusId || null, exclude: [accountOfEmployee(data(), req.employeeId)?.id], roles: EMPLOYEE_ROLES });
+  };
+  // how: 'filed' (by the employee), 'withdrawn' (by the employee), 'cancelled' (by another approver).
+  const toApprovers = (req, user, how) => ctx.notify?.(approversOf(req), {
+    system: 'hris', kind: `request.${how}`,
+    title: { filed: `${nameOf(req)} asked for ${what(req)}`, withdrawn: `${nameOf(req)} withdrew a request for ${what(req)}`, cancelled: `${user.name} cancelled ${nameOf(req)}'s request for ${what(req)}` }[how],
+    body: `${fmtRange(req.startDate, req.endDate)} · ${how === 'filed' ? 'Waiting for your approval' : 'It no longer needs your approval'}`,
+    link: '/hris/#/leave?tab=requests',
+  }, { actorId: user.id });
+  const toEmployee = (req, user, outcome) => {
+    const acct = accountOfEmployee(data(), req.employeeId);
+    if (!acct) return;
+    const range = fmtRange(req.startDate, req.endDate);
+    const note = req.decisionNote || '';
+    const body = {
+      approved: `${range} · ${req.kind === 'leave' ? 'The days are in your attendance' : 'The days are marked remote in your attendance'}${note ? ` · Remarks: ${note}` : ''}`,
+      rejected: `${range}${note ? ` · Reason: ${note}` : ''}`,
+      cancelled: `${range}${note ? ` · Reason: ${note}` : ''}`,
+    }[outcome];
+    ctx.notify?.([acct.id], { system: 'hris', kind: `request.${outcome}`, title: `${user.name} ${outcome} your request for ${what(req)}`, body, link: '/hris/#/me/requests' }, { actorId: user.id });
+  };
+
   const certificates = {
     save(input, user) {
       const meta = files.save(parseCertificate(input), { owner: user });
@@ -443,6 +480,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
   route('POST', '/api/hris/requests/:id/approve', 'hris:leave.approve', ({ params, body, user, campusId }) => {
     const req = findRequest(params.id, campusId);
     approve(data(), req, user, body.note);
+    toEmployee(req, user, 'approved');
     save();
     return withEmployee(data(), req);
   });
@@ -451,6 +489,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     if (req.status !== 'pending') throw new HttpError(400, `This request is already ${req.status}.`);
     if (user.employeeId && user.employeeId === req.employeeId) throw new HttpError(403, 'You cannot decide on your own request.');
     decide(req, user, 'rejected', body.note);
+    toEmployee(req, user, 'rejected');
     save();
     return withEmployee(data(), req);
   });
@@ -458,7 +497,10 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     const req = findRequest(params.id, campusId);
     // As with approving: another approver handles your own request (withdraw a pending one under Leave & requests).
     if (user.employeeId && user.employeeId === req.employeeId) throw new HttpError(403, 'You cannot cancel your own request here. Another approver must do it.');
+    const waiting = req.status === 'pending';
     cancel(data(), req, user, body.note);
+    toEmployee(req, user, 'cancelled');
+    if (waiting) toApprovers(req, user, 'cancelled');
     save();
     return withEmployee(data(), req);
   });
@@ -475,6 +517,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     const req = buildRequest(data(), emp, user, body, upload);
     if (upload) req.attachment = certificates.save(body.attachment, user);
     data().requests.push(req);
+    toApprovers(req, user, 'filed');
     save();
     return withEmployee(data(), req);
   });
@@ -482,6 +525,7 @@ export function registerLeaveRoutes(route, ctx, { linkedEmployee, employeeIn, ca
     const req = ownRequest(user, params.id);
     if (req.status !== 'pending') throw new HttpError(400, 'Only pending requests can be withdrawn. Ask HR to cancel an approved one.');
     cancel(data(), req, user);
+    toApprovers(req, user, 'withdrawn');
     save();
     return withEmployee(data(), req);
   });

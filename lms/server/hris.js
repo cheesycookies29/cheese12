@@ -18,6 +18,7 @@ import { newPasswordHash } from './auth.js';
 import { campusesFor, campusName } from './campus.js';
 import { validateUserFields } from './admin.js';
 import { registerLeaveRoutes, findLeaveType, leaveBalances, notOwnRecord } from './hris-leave.js';
+import { accountOfEmployee, fmtRange, fmtDay } from './notifications.js';
 import { clockInLocation, forViewer, locationSettings, purgeOldLocations, registerGeoRoutes } from './hris-geo.js';
 import { registerPayrollFinanceRoutes } from './hris-finance.js';
 import { computeGovPayslip, computeGovBonus, DEFAULT_GOV, BONUS_KINDS, APPOINTMENTS, DEDUCTION_TYPES, monthlySalary, salaryFor, stepsIn, isJobOrder } from '../shared/gov-pay.js';
@@ -754,6 +755,14 @@ export function registerHrisRoutes(route, ctx) {
       if (!days) continue;
       data().leaveAdjustments.push({ id: randomUUID(), employeeId: p.employeeId, leaveTypeId: vlId, year: Number(run.periodEnd.slice(0, 4)), days: -days, reason: `Tardiness and undertime, ${run.periodStart} to ${run.periodEnd} (${p.leave.tardinessMinutes} min)`, at: new Date().toISOString(), by: user.name, runId: run.id });
     }
+    // The bell: each employee in the run with an account hears their payslip is out (the payslips
+    // My payslips lists; never the amounts). The officer is not told of their own.
+    const bonus = run.kind && run.kind !== 'regular';
+    const paid = run.payslips.filter((p) => p.grossPay || !bonus).map((p) => accountOfEmployee(data(), p.employeeId)?.id);
+    ctx.notify?.(paid, {
+      system: 'hris', kind: 'payslip.ready', title: bonus ? `Your ${run.name || 'bonus'} payslip is ready` : `Your payslip for ${fmtRange(run.periodStart, run.periodEnd)} is ready`,
+      body: `Pay date ${fmtDay(run.payDate)} · Open it under My payslips`, link: `/hris/#/me/payslips/${run.id}`,
+    }, { actorId: user.id });
     save();
     return run;
   });

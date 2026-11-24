@@ -11,6 +11,7 @@ import { campusName } from './campus.js';
 import { guardianChildren } from './guardian.js';
 import { t } from './validate.js';
 import { SYSTEMS } from '../shared/systems.js';
+import { ATLAS_HREF } from '../shared/notifications.js';
 
 const SYSTEM_IDS = new Set(SYSTEMS.map((x) => x.id));
 
@@ -91,8 +92,9 @@ export function createAvatarStore(dir) {
 
 // ----- Quick access -----
 export const QUICK_MAX = 12;
-// A page in ATLAS: the home page, or a page inside one of its systems (never another site or a script).
-const QUICK_HREF = /^\/(?:(?:lms\/|admin|hris\/|academic\/|finance\/|tools\/)#\/[A-Za-z0-9\-._~/?=&%:,+]*)?$/;
+// A page in ATLAS: the home page, or a page inside one of its systems (never another site or a
+// script). Notifications link to the same pages (shared/notifications.js).
+const QUICK_HREF = ATLAS_HREF;
 export function cleanQuickLinks(list) {
   if (!Array.isArray(list)) fail('Send the pinned pages as a list.');
   if (list.length > QUICK_MAX) fail(`You can pin up to ${QUICK_MAX} pages.`);

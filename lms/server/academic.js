@@ -16,6 +16,7 @@ import {
   equivalent, gwa, docType, termOrder, ACADEMIC_PERMISSION_LABELS, scaleProblems, passingPercent,
 } from '../shared/academic.js';
 import { campusesFor, activeCampusId, canReach } from './campus.js';
+import { decidersFor } from './notifications.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -56,6 +57,13 @@ export function registerAcademicRoutes(route, ctx) {
     data().auditLog.push({ id: randomUUID(), at: iso(), by: user?.name || 'System', byId: user?.id || null, action, ...detail });
     if (data().auditLog.length > 20000) data().auditLog.splice(0, data().auditLog.length - 20000);
   }
+
+  // ----- The bell (server/notifications.js) -----
+  // to: account ids; entry without the system. Deciders: staff with the permission at the campus.
+  const tell = (to, user, entry) => ctx.notify?.(to, { system: 'uis', ...entry }, { actorId: user.id });
+  const deciders = (permission, campusId, exclude = []) => decidersFor(data(), permission, { campusId, exclude, roles: STAFF });
+  const sheetName = (s) => `${courseOf(s.courseId)?.code || '?'} ${s.name}`;
+  const sheetLink = (s) => `/academic/#/grade-sheets/${s.id}`;
 
   // ----- Lookups -----
   const profileOf = (studentId) => data().studentProfiles.find((p) => p.studentId === studentId) || null;
@@ -605,6 +613,7 @@ export function registerAcademicRoutes(route, ctx) {
     sheet.trail.push({ at: iso(), by: user.name, action: 'Submitted' });
     if (!g) data().gradeSheets.push(sheet);
     audit(user, `Submitted grade sheet ${courseOf(s.courseId)?.code} ${s.name}`);
+    tell(deciders('grades.approve', s.campusId), user, { kind: 'gradesheet.submitted', title: `${user.name} ${g ? 'resubmitted' : 'submitted'} the grade sheet for ${sheetName(s)}`, body: `${courseOf(s.courseId)?.title || ''} · ${termName(s.termId)} · Waiting for your approval`, link: sheetLink(s) });
     save();
     return sheetView(s, true);
   });
@@ -619,6 +628,8 @@ export function registerAcademicRoutes(route, ctx) {
     Object.assign(g, { status: 'approved', approvedAt: iso(), approvedBy: user.name });
     g.trail.push({ at: iso(), by: user.name, action: 'Approved' });
     audit(user, `Approved grade sheet ${courseOf(s.courseId)?.code} ${s.name}`);
+    tell([s.teacherId], user, { kind: 'gradesheet.approved', title: `${user.name} approved your grade sheet for ${sheetName(s)}`, body: `${termName(s.termId)} · The registrar posts it to the students' records next`, link: sheetLink(s) });
+    tell(deciders('academic.records', s.campusId, [s.teacherId]), user, { kind: 'gradesheet.approved', title: `${user.name} approved the grade sheet for ${sheetName(s)}`, body: `${termName(s.termId)} · Waiting for you to post it`, link: sheetLink(s) });
     save();
     return sheetView(s, true);
   });
@@ -631,6 +642,7 @@ export function registerAcademicRoutes(route, ctx) {
     Object.assign(g, { status: 'returned', note });
     g.trail.push({ at: iso(), by: user.name, action: 'Returned', note });
     audit(user, `Returned grade sheet ${courseOf(s.courseId)?.code} ${s.name}: ${note}`);
+    tell([s.teacherId], user, { kind: 'gradesheet.returned', title: `${user.name} returned your grade sheet for ${sheetName(s)}`, body: `${termName(s.termId)} · Reason: ${note}`, link: sheetLink(s) });
     save();
     return sheetView(s, true);
   });
@@ -652,6 +664,8 @@ export function registerAcademicRoutes(route, ctx) {
     }
     Object.assign(g, { status: 'posted', postedAt: iso(), postedBy: user.name });
     g.trail.push({ at: iso(), by: user.name, action: 'Posted' });
+    tell([s.teacherId], user, { kind: 'gradesheet.posted', title: `${user.name} posted your grade sheet for ${sheetName(s)}`, body: `${termName(s.termId)} · The grades are on the students' records`, link: sheetLink(s) });
+    tell(g.rows.map((r) => r.studentId), user, { kind: 'grade.posted', title: `Your final grade in ${c.code} is posted`, body: `${c.title} · ${termName(s.termId)} · See it under My grades`, link: '/academic/#/me/grades' });
     save();
     return sheetView(s, true);
   });
@@ -680,6 +694,7 @@ export function registerAcademicRoutes(route, ctx) {
     };
     data().gradeChanges.push(change);
     audit(user, `Requested ${change.kind === 'inc' ? 'INC completion' : 'grade change'} for ${r.courseCode}: ${reason}`, { studentId: r.studentId });
+    tell(deciders('grades.approve', campusOf(byId(data().users, r.studentId) || {}), [user.id]), user, { kind: 'gradechange.requested', title: `${user.name} asked to ${change.kind === 'inc' ? 'complete an INC' : 'change a grade'} in ${r.courseCode}`, body: `${byId(data().users, r.studentId)?.name || 'A student'} · ${r.termName} · Waiting for your approval`, link: '/academic/#/changes' });
     save();
     return change;
   });
@@ -702,6 +717,7 @@ export function registerAcademicRoutes(route, ctx) {
       Object.assign(r, c.to, { source: r.source, incDeadline: null, changedAt: iso() });
     }
     audit(user, `${c.status === 'approved' ? 'Approved' : 'Rejected'} grade change for ${c.courseCode}`, { studentId: c.studentId });
+    tell([c.requestedById], user, { kind: `gradechange.${c.status}`, title: `${user.name} ${c.status} your ${c.kind === 'inc' ? 'INC completion' : 'grade change'} in ${c.courseCode}`, body: [byId(data().users, c.studentId)?.name, c.termName, c.note && (c.status === 'rejected' ? `Reason: ${c.note}` : c.note)].filter(Boolean).join(' · '), link: '/academic/#/changes' });
     save();
     return c;
   });
@@ -751,6 +767,13 @@ export function registerAcademicRoutes(route, ctx) {
     r.updatedAt = iso();
     r.history.push({ at: iso(), by: user.name, status: next, note: body.orNo || body.releasedTo || body.reason || '' });
     audit(user, `${REQUEST_STATUS[next]}: ${docType(r.type)?.label} (${r.refNo})`, { studentId: r.studentId });
+    const doc = `${docType(r.type)?.label || 'document'} (${r.refNo})`;
+    tell([r.studentId], user, {
+      kind: `request.${next}`,
+      title: { paid: `Payment for your ${doc} is recorded`, processing: `The registrar is preparing your ${doc}`, ready: `Your ${doc} is ready for release`, released: `Your ${doc} was released`, cancelled: `${user.name} cancelled your request for a ${doc}` }[next],
+      body: { paid: `O.R. ${r.orNo} · The registrar prepares it next`, processing: 'You are told when it is ready', ready: 'Claim it at the registrar\'s office', released: `Released to ${r.releasedTo}`, cancelled: r.cancelReason ? `Reason: ${r.cancelReason}` : '' }[next],
+      link: '/academic/#/me/requests',
+    });
     save();
     return requestView(r);
   });
@@ -832,7 +855,10 @@ export function registerAcademicRoutes(route, ctx) {
   route('POST', '/api/academic/my/requests', 'academic', ({ user, body }) => {
     if (user.role !== 'student') fail('This is for students.', 403);
     if (!docType(body.type)?.official) fail('Print your Certificate of Registration yourself from My registration.');
-    return requestView(newRequest(user, user, body));
+    const r = newRequest(user, user, body);
+    tell(deciders('academic.records', r.campusId), user, { kind: 'request.filed', title: `${user.name} requested ${r.copies > 1 ? `${r.copies} copies of the` : 'a'} ${docType(r.type)?.label || 'document'}`, body: `${r.refNo} · ${r.status === 'requested' ? 'To be paid at the cashier' : 'Ready to prepare'}`, link: '/academic/#/requests?status=open' });
+    save();
+    return requestView(r);
   });
   route('POST', '/api/academic/my/requests/:id/cancel', 'academic', ({ user, params }) => {
     const r = byId(data().documentRequests, params.id);

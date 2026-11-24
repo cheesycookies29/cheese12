@@ -11,6 +11,7 @@
 import { randomUUID } from 'node:crypto';
 import { text } from './util.js';
 import { userCan } from '../shared/roles.js';
+import { decidersFor, EMPLOYEE_ROLES } from './notifications.js';
 import { PPE_CLASSES, SEMI_CLASSES, SUPPLY_CLASSES, PROCUREMENT_MODES, ACCT, round2, sum, depreciation, classOf } from '../shared/finance.js';
 
 const CATEGORIES = ['supply', 'semi', 'ppe', 'service'];
@@ -97,6 +98,13 @@ export function registerSupplyRoutes(route, fx) {
     return { item: itemView(i), rows };
   });
 
+  // ----- The bell (server/notifications.js) -----
+  // A request waiting for someone's decision tells the officers who decide (never the requester);
+  // a decision on it tells the requester (never the one who decided).
+  const tell = (to, user, entry) => fx.ctx.notify?.(to, { system: 'fmis', ...entry }, { actorId: user.id });
+  const officers = (permission, exclude = []) => decidersFor(D(), permission, { exclude, roles: EMPLOYEE_ROLES });
+  const prSubmitted = (p, user) => tell(officers('finance.approve', [p.requestedBy?.userId]), user, { kind: 'pr.submitted', title: `${p.requestedBy?.name || user.name} submitted purchase request ${p.no}`, body: `${p.purpose} · Waiting for your approval`, link: `/finance/#/prs/${p.id}` });
+
   // ----- Purchase requests -----
   const stockNo = (itemId) => (itemId ? fx.byId(D().finItems, itemId)?.stockNo || '' : '');
   const prView = (p) => ({ ...p, items: p.items.map((i) => ({ ...i, stockNo: stockNo(i.itemId) })), officeName: fx.office(p.office)?.name || p.office, poNos: D().finPos.filter((o) => o.prId === p.id && o.status !== 'cancelled').map((o) => ({ id: o.id, no: o.no })) });
@@ -132,6 +140,7 @@ export function registerSupplyRoutes(route, fx) {
     p.no = fx.nextNo('pr', { date: p.date });
     D().finPrs.push(p);
     fx.audit(user, `Prepared PR ${p.no}: ${p.purpose}`, { kind: 'pr', ref: p.id });
+    if (p.status === 'submitted') prSubmitted(p, user);
     save();
     return prView(p);
   });
@@ -153,6 +162,8 @@ export function registerSupplyRoutes(route, fx) {
       Object.assign(p, { status: 'cancelled', cancelReason: text(body.reason, 300) });
     } else fail('Unknown action.', 404);
     fx.audit(user, `${params.action === 'approve' ? 'Approved' : params.action === 'cancel' ? 'Cancelled' : 'Submitted'} PR ${p.no}`, { kind: 'pr', ref: p.id });
+    if (params.action === 'submit') prSubmitted(p, user);
+    else tell([p.requestedBy?.userId], user, { kind: `pr.${params.action === 'approve' ? 'approved' : 'cancelled'}`, title: `${user.name} ${params.action === 'approve' ? 'approved' : 'cancelled'} your purchase request ${p.no}`, body: params.action === 'approve' ? `${p.purpose} · The supply office orders it next` : `${p.purpose}${p.cancelReason ? ` · Reason: ${p.cancelReason}` : ''}`, link: `/finance/#/prs/${p.id}` });
     save();
     return prView(p);
   });
@@ -335,6 +346,7 @@ export function registerSupplyRoutes(route, fx) {
     const r = { id: randomUUID(), no: fx.nextNo('ris', { date }), date, office: String(body.office || ''), purpose: text(body.purpose, 300) || fail('Purpose is required.'), items, status: 'requested', requestedBy: { userId: user.id, name: user.name }, createdAt: iso() };
     D().finRis.push(r);
     fx.audit(user, `Requested supplies, RIS ${r.no}`, { kind: 'ris', ref: r.id });
+    tell(officers('finance.inventory', [user.id]), user, { kind: 'ris.requested', title: `${user.name} asked for supplies (RIS ${r.no})`, body: `${r.purpose} · Waiting for the supply office`, link: `/finance/#/ris/${r.id}` });
     save();
     return risView(r);
   });
@@ -373,6 +385,12 @@ export function registerSupplyRoutes(route, fx) {
       Object.assign(r, { status: 'cancelled', cancelReason: text(body.reason, 300) });
     } else fail('Unknown action.', 404);
     fx.audit(user, `${{ approve: 'Approved', issue: 'Issued supplies on', cancel: 'Cancelled' }[params.action]} RIS ${r.no}`, { kind: 'ris', ref: r.id });
+    tell([r.requestedBy.userId], user, {
+      kind: `ris.${{ approve: 'approved', issue: 'issued', cancel: 'cancelled' }[params.action]}`,
+      title: { approve: `${user.name} approved your requisition RIS ${r.no}`, issue: `${user.name} issued the supplies on your requisition RIS ${r.no}`, cancel: `${user.name} cancelled your requisition RIS ${r.no}` }[params.action],
+      body: { approve: `${r.purpose} · The supply office issues it next`, issue: `${r.purpose} · Received by ${r.receivedBy}`, cancel: `${r.purpose}${r.cancelReason ? ` · Reason: ${r.cancelReason}` : ''}` }[params.action],
+      link: `/finance/#/ris/${r.id}`,
+    });
     save();
     return risView(r);
   });
