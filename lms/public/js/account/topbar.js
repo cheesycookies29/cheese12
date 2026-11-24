@@ -1,6 +1,6 @@
 // The top bar's quick access, after CORE ERP's top bar (public/js/app.js at the repository root),
 // for every ATLAS system and the home page:
-//   Systems       the grid: the ATLAS systems you can open, the home page and Help
+//   Systems       the grid: the ATLAS systems you can open, the tools (PDF Studio), the home page and Help
 //   Quick access  the lightning: pages you pinned (kept on the server, so they follow you), pages you
 //                 opened recently (this browser), suggestions until you pin any; pin this page
 //   your name     picture, name and title; My profile, Add/Change my picture, My security, Change
@@ -84,6 +84,11 @@ export function mountSystems(beforeEl) {
       };
       mount(pop, html`<div class="menu-label">ATLAS systems</div>
         <div class="mod-grid">${orderSystems(status.systems || [], pins).map(tile)}</div>
+        ${(status.tools || []).length ? html`<div class="menu-label">Tools</div>
+        <div class="mod-grid">${status.tools.map((t) => {
+          const on = here.startsWith('/tools/') && location.hash.startsWith(t.path.replace(/^\/tools\//, ''));
+          return html`<a role="menuitem" class="mod-tile${on ? ' on' : ''}" href="${t.path}" ${on ? 'aria-current="page"' : ''} title="${t.product}: ${t.title}"><span class="mod-ic">${icon(t.icon || 'file', 20)}</span><span class="mod-name">${t.product}</span></a>`;
+        })}</div>` : ''}
         <div class="menu-sep"></div>
         <a role="menuitem" href="/">${icon('home')}<span class="grow">ATLAS home</span></a>
         <a role="menuitem" href="/help/" target="_blank" rel="noopener">${icon('help')}<span class="grow">Help &amp; guides</span></a>`);
@@ -103,7 +108,7 @@ function readRecent(user) {
 }
 // A page just opened (newest first, once each). Only pages inside ATLAS's systems.
 export function recordVisit(user, page) {
-  if (!user || !page?.href || !page.label || !/^\/(lms\/|admin|hris\/|academic\/|finance\/)#\//.test(page.href)) return;
+  if (!user || !page?.href || !page.label || !/^\/(lms\/|admin|hris\/|academic\/|finance\/|tools\/)#\//.test(page.href)) return;
   const list = [page, ...readRecent(user).filter((x) => x.href !== page.href)].slice(0, RECENT_KEEP);
   try {
     localStorage.setItem(recentKey(user), JSON.stringify(list));

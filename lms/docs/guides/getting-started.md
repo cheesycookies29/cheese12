@@ -200,11 +200,12 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Screen or button | What it is for |
 |---|---|
 | Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open; **Help & guides** and **Dark mode** at the top right |
-| ATLAS home page | Your greeting, account type and campus, **Your systems** (cards with figures from your work and a star to pin, in a row with arrows and dots, or all at once in **Compact**), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
+| ATLAS home page | Your greeting, account type and campus, **Your systems** (cards with figures from your work and a star to pin, in a row with arrows and dots, or all at once in **Compact**), **Tools** (PDF Studio, for the account types that have it), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
 | Academic tile | Academic records: student records, registration, grades and registrar services. For students, teachers, registrars, deans and administrators |
 | Learn tile | Classes, lessons, quizzes, attendance, grades and enrollment. For students, parents and guardians, and teachers; registrars and administrators open its admin panel |
 | People tile | HR: employee records, time clock, attendance, leave and payslips. For every employee; not for students or parents |
 | Finance tile | The school's accounts for the finance offices, and self-service for employees and students (for example, receipts). Not for parents |
+| Tools | Under your systems: **PDF Studio**, to make PDFs from documents and pictures, put PDFs together, change text and sign. For the school's employees (an administrator chooses who); also in the **Systems** menu. See [the PDF Studio guide](pdf-studio) |
 | Facilities tile | Rooms, bookings, maintenance and property. Shown as **Coming soon** until your school switches it on |
 | REX Bookstore e-Reader tile | E-books for your subjects from the REX Bookstore app's library. For students, teachers, registrars, deans and administrators; shown as **Coming soon** for now |
 | Systems | The grid button in the top bar: every ATLAS system as a tile (yours first, pinned ones with a star, coming soon greyed), **ATLAS home** and **Help & guides** |

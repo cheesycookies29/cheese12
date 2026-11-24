@@ -92,7 +92,7 @@ export function createAvatarStore(dir) {
 // ----- Quick access -----
 export const QUICK_MAX = 12;
 // A page in ATLAS: the home page, or a page inside one of its systems (never another site or a script).
-const QUICK_HREF = /^\/(?:(?:lms\/|admin|hris\/|academic\/|finance\/)#\/[A-Za-z0-9\-._~/?=&%:,+]*)?$/;
+const QUICK_HREF = /^\/(?:(?:lms\/|admin|hris\/|academic\/|finance\/|tools\/)#\/[A-Za-z0-9\-._~/?=&%:,+]*)?$/;
 export function cleanQuickLinks(list) {
   if (!Array.isArray(list)) fail('Send the pinned pages as a list.');
   if (list.length > QUICK_MAX) fail(`You can pin up to ${QUICK_MAX} pages.`);

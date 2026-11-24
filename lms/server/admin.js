@@ -4,13 +4,14 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, DATE_RE, text, localDate } from './util.js';
 import { newPasswordHash, publicUser, passwordEncryption } from './auth.js';
 import { userCan, ROLES, ADMIN_ROLES } from '../shared/roles.js';
+import { t } from './validate.js';
 import { MODULES } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
 import { mergeSettings } from './db.js';
 import { nextNumber, previewNumber } from './numbering.js';
 import { DEFAULT_NUMBERING, NUMBERING_LABELS, formatProblem } from '../shared/numbering.js';
 import { THEMES, HEX_RE } from '../shared/themes.js';
-import { SYSTEMS, SYSTEM_STATUS } from '../shared/systems.js';
+import { SYSTEMS, SYSTEM_STATUS, TOOLS, TOOL_ROLES } from '../shared/systems.js';
 import { campusesFor, inCampus, canReach, campusIdsFrom, campusName } from './campus.js';
 import {
   findById, sectionView, enrollmentView, seatsTaken, promoteWaitlist, changeStatus, HOLDS_PLACE, termOpen,
@@ -590,6 +591,19 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   // ----- Settings -----
+  // ATLAS Tools: which account types may use each tool (administrators always may).
+  route('GET', '/api/admin/tools', 'admin', () => ({ tools: TOOLS, roles: TOOL_ROLES.map((r) => ({ id: r, label: ROLES[r]?.label || r })), settings: data().settings.tools }));
+  route('PUT', '/api/admin/tools', 'admin:settings.edit', ({ body }) => {
+    const next = {};
+    for (const x of TOOLS) {
+      const roles = Array.isArray(body?.[x.id]?.roles) ? body[x.id].roles.map(String) : data().settings.tools?.[x.id]?.roles || [];
+      if (roles.some((r) => !TOOL_ROLES.includes(r))) fail('Pick account types from the list.');
+      next[x.id] = { roles: [...new Set(roles)] };
+    }
+    data().settings.tools = next;
+    save();
+    return { tools: TOOLS, settings: next };
+  }, { body: { pdf: t.obj({ roles: t.arr(t.str(40), 40) }) } });
   route('GET', '/api/admin/settings', 'admin', ({ user }) => {
     const s = data().settings;
     const { cloudflare, ...rest } = s; // System → Cloudflare is for administrators only (its own screen)

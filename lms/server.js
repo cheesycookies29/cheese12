@@ -8,6 +8,7 @@ import { openDb } from './server/db.js';
 import { loadPasswordKeys } from './server/auth.js';
 import { createApi } from './server/api.js';
 import { clientIp } from './server/ratelimit.js';
+import { FileReply } from './server/tools-pdf.js';
 import { safeReviver } from './server/validate.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -23,7 +24,7 @@ const api = createApi(db, { sealAtStart: false });
 
 const PUBLIC = path.join(ROOT, 'public');
 const STATIC_DIRS = { '/shared/': path.join(ROOT, 'shared'), '/': PUBLIC };
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
 // The pages' small inline scripts (the dark-mode switch before first paint) are allowed by their
 // exact hash; nothing else inline runs. Frames: ATLAS's own files (PDF previews), YouTube links in
 // classes and the clock-in map. Styles stay 'unsafe-inline' for style="" attributes.
@@ -60,6 +61,20 @@ function send(res, status, body, type = 'application/json', headers = {}) {
   res.atlasType = type;
   res.atlasBytes = Buffer.isBuffer(payload) ? payload.length : Buffer.byteLength(String(payload ?? ''));
   res.end(payload);
+}
+
+// A large file made for the person (a PDF Studio export written to disk): streamed from there, then
+// deleted, so it is never held whole in memory.
+function sendFileReply(res, file, type = 'application/octet-stream', headers = {}) {
+  const size = file.size || fs.statSync(file.path).size;
+  res.writeHead(200, { 'Cache-Control': 'no-store', ...SECURITY_HEADERS, 'Content-Type': type, ...headers, 'Content-Length': size });
+  res.atlasType = type;
+  res.atlasBytes = size;
+  const stream = fs.createReadStream(file.path);
+  const done = () => file.remove && fs.rm(file.path, { force: true }, () => {});
+  stream.on('error', () => res.destroy());
+  res.once('close', done);
+  stream.pipe(res);
 }
 
 // System → Security monitor: each answer, once sent, is counted: its route template (never the
@@ -127,7 +142,7 @@ function sendFile(req, res, file) {
   const stat = fs.statSync(file);
   const ext = path.extname(file);
   const etag = `"${stat.size.toString(36)}-${Math.floor(stat.mtimeMs).toString(36)}"`;
-  const cache = ext === '.ttf' ? 'public, max-age=2592000' : ['.png', '.svg', '.ico'].includes(ext) ? 'public, max-age=86400' : 'no-cache';
+  const cache = ['.ttf', '.woff2'].includes(ext) ? 'public, max-age=2592000' : ['.png', '.svg', '.ico'].includes(ext) ? 'public, max-age=86400' : 'no-cache';
   const headers = { ETag: etag, 'Cache-Control': cache };
   if (req.headers['if-none-match'] === etag) {
     res.writeHead(304, { ...headers, ...SECURITY_HEADERS });
@@ -146,6 +161,8 @@ function serveStatic(req, url, res) {
   if (url.pathname === '/academic') return send(res, 302, '', 'text/plain', { Location: '/academic/' });
   if (url.pathname === '/academic/') return sendFile(req, res, path.join(PUBLIC, 'academic', 'index.html'));
   if (url.pathname === '/finance') return send(res, 302, '', 'text/plain', { Location: '/finance/' });
+  if (url.pathname === '/tools') return send(res, 302, '', 'text/plain', { Location: '/tools/' });
+  if (url.pathname === '/tools/') return sendFile(req, res, path.join(PUBLIC, 'tools', 'index.html'));
   if (url.pathname === '/finance/') return sendFile(req, res, path.join(PUBLIC, 'finance', 'index.html'));
   // ATLAS Control was folded into System → Users & Access (in every system's sidebar).
   if (url.pathname === '/control' || url.pathname === '/control/') return send(res, 302, '', 'text/plain', { Location: '/admin#/system/users' });
@@ -205,6 +222,7 @@ const server = http.createServer(async (req, res) => {
     const { maxBody } = api.prepare(req);
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req, maxBody) : {};
     const out = await api(req, url, body);
+    if (out.raw instanceof FileReply) return sendFileReply(res, out.raw, out.type, out.headers);
     if (out.raw != null) return send(res, out.status || 200, out.raw, out.type, out.headers);
     send(res, 200, out.data, 'application/json', out.headers);
   } catch (err) {

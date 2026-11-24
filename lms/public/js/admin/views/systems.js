@@ -17,7 +17,7 @@ const BUILT_IN_NOTE = {
 };
 
 export async function systemsView(el) {
-  const { systems, settings } = await api.get('/api/admin/systems');
+  const [{ systems, settings }, tools] = await Promise.all([api.get('/api/admin/systems'), api.get('/api/admin/tools')]);
   const editable = userCan(ctx.user, 'settings.edit');
   mount(el, html`
     ${pageHead('Home page & systems', html`Everyone signs in once at the <a href="/" target="_blank" rel="noopener">ATLAS home page</a> and sees a tile for each system they may use.`)}
@@ -35,7 +35,31 @@ export async function systemsView(el) {
             </div>`}
       </section>`)}
       ${editable ? html`<div class="actions end"><button class="btn primary" type="submit">Save</button></div>` : html`<div class="notice">${icon('lock')}<p>Only administrators can change these.</p></div>`}
+    </form>
+    <h2 class="tools-title" id="tools">${icon('grid')} Tools</h2>
+    <p class="muted">Tools work beside every system, at <code>/tools/</code>, with a tile on the ATLAS home page and in the Systems menu. Choose the account types that may use each one; administrators always can.</p>
+    <form id="tools-form" class="stack">
+      ${tools.tools.map((t) => html`<section class="card">
+        <div class="card-head"><h2><span class="item-ic">${icon(t.icon)}</span><span>${t.product}<small class="muted" style="display:block;font-size:13px;font-weight:500">${t.title}</small></span></h2></div>
+        <p class="muted" style="margin:-4px 0 12px">${t.description}</p>
+        <fieldset class="role-checks"><legend>Open to</legend>
+          ${tools.roles.map((r) => html`<label class="check-row"><input type="checkbox" name="${t.id}" value="${r.id}" ${tools.settings[t.id]?.roles?.includes(r.id) ? 'checked' : ''} ${editable ? '' : 'disabled'} /><span>${r.label}</span></label>`)}
+        </fieldset>
+        ${t.id === 'pdf' ? html`<p class="hint">Files people add wait on the server only while they work (removed after a few hours unused). Exports and signatures are written to the audit log, without the files' contents.</p>` : ''}
+      </section>`)}
+      ${editable ? html`<div class="actions end"><button class="btn primary" type="submit">Save tools</button></div>` : ''}
     </form>`);
+  el.querySelector('#tools-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    try {
+      await api.put('/api/admin/tools', Object.fromEntries(tools.tools.map((t) => [t.id, { roles: f.getAll(t.id) }])));
+      window.dispatchEvent(new Event('systems:changed'));
+      toast('Saved. People see the change the next time they open the ATLAS home page.');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
   el.querySelector('#systems').addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = Object.fromEntries(new FormData(e.target));

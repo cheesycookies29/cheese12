@@ -35,7 +35,15 @@
   "user": "registrar.demo",
   "url": "/",
   "api": [
-   ["PUT", "/api/me/favorite-systems", { "systems": ["hris"] }]
+   [
+    "PUT",
+    "/api/me/favorite-systems",
+    {
+     "systems": [
+      "hris"
+     ]
+    }
+   ]
   ],
   "click": [
    "[data-view=compact]"
@@ -53,7 +61,22 @@
   "user": "teacher.demo",
   "url": "/lms/#/calendar",
   "api": [
-   ["PUT", "/api/me/quick-links", { "links": [{ "href": "/lms/#/calendar", "label": "Learn · Calendar" }, { "href": "/hris/#/me/payslips", "label": "People · My payslips" }] }]
+   [
+    "PUT",
+    "/api/me/quick-links",
+    {
+     "links": [
+      {
+       "href": "/lms/#/calendar",
+       "label": "Learn · Calendar"
+      },
+      {
+       "href": "/hris/#/me/payslips",
+       "label": "People · My payslips"
+      }
+     ]
+    }
+   ]
   ],
   "click": [
    "#quick-btn"
@@ -811,5 +834,108 @@
   "user": "head.demo",
   "url": "/finance/#/find?q=Agri",
   "wait": 1000
+ },
+ {
+  "file": "pdf-studio.jpg",
+  "user": "teacher.demo",
+  "api": [
+   [
+    "DELETE",
+    "/api/tools/pdf/sources",
+    null
+   ],
+   [
+    "POST",
+    "/api/tools/pdf/sources",
+    {
+     "file": {
+      "name": "Seminar memo.md",
+      "type": "",
+      "data": "IyBGYWN1bHR5IHNlbWluYXIgb24gb3V0Y29tZXMtYmFzZWQgdGVhY2hpbmcKClRvOiBBbGwgZmFjdWx0eSBvZiB0aGUgQ29sbGVnZSBvZiBDb21wdXRpbmcKCkRhdGU6IDIgRGVjZW1iZXIgMjAyNgoKVGhlIGNvbGxlZ2UgaG9sZHMgYSBoYWxmLWRheSBzZW1pbmFyIG9uIG91dGNvbWVzLWJhc2VkIHRlYWNoaW5nIGFuZCBsZWFybmluZyBpbiBSb29tIDIwNC4KCiMjIFByb2dyYW1tZQoKfCBUaW1lIHwgU2Vzc2lvbiB8CnwtLS18LS0tfAp8IDg6MDAgfCBSZWdpc3RyYXRpb24gfAp8IDg6MzAgfCBXcml0aW5nIGNvdXJzZSBvdXRjb21lcyB8CnwgMTA6MDAgfCBBc3Nlc3NtZW50IHRoYXQgbWF0Y2hlcyBvdXRjb21lcyB8CnwgMTE6MzAgfCBPcGVuIGZvcnVtIHwKClBsZWFzZSBjb25maXJtIHlvdXIgYXR0ZW5kYW5jZSB3aXRoIHRoZSBkZWFuJ3Mgb2ZmaWNlIGJ5IDI4IE5vdmVtYmVyLgoKVG90YWwgYnVkZ2V0OiBQSFAgNDUsMDAwLjAwCg=="
+     }
+    }
+   ],
+   [
+    "POST",
+    "/api/tools/pdf/sources",
+    {
+     "file": {
+      "name": "Attendance.csv",
+      "type": "",
+      "data": "TmFtZSxEZXBhcnRtZW50LENvbmZpcm1lZApNYXJpYSBTYW50b3MsQ29sbGVnZSBvZiBDb21wdXRpbmcsWWVzCkpvc2UgUmFtb3MsQ29sbGVnZSBvZiBDb21wdXRpbmcsWWVzCkFuYSBDcnV6LENvbGxlZ2Ugb2YgRWR1Y2F0aW9uLE5vClBlZHJvIEdhcmNpYSxDb2xsZWdlIG9mIEVuZ2luZWVyaW5nLFllcwo="
+     }
+    }
+   ],
+   [
+    "POST",
+    "/api/tools/pdf/sources",
+    {
+     "file": {
+      "name": "Room 204 schedule.txt",
+      "type": "",
+      "data": "Um9vbSAyMDQgc2NoZWR1bGUsIDIgRGVjZW1iZXIgMjAyNgoKNzozMCAgUm9vbSBvcGVuZWQgYnkgdGhlIGJ1aWxkaW5nIGN1c3RvZGlhbgo4OjAwICBTZW1pbmFyIChDb2xsZWdlIG9mIENvbXB1dGluZykKMTI6MDAgUm9vbSBjbG9zZWQK"
+     }
+    }
+   ]
+  ],
+  "url": "/tools/#/pdf",
+  "wait": 1800
+ },
+ {
+  "file": "pdf-studio-editor.jpg",
+  "user": "teacher.demo",
+  "api": [
+   [
+    "DELETE",
+    "/api/tools/pdf/sources",
+    null
+   ],
+   [
+    "POST",
+    "/api/tools/pdf/sources",
+    {
+     "file": {
+      "name": "Seminar memo.md",
+      "type": "",
+      "data": "IyBGYWN1bHR5IHNlbWluYXIgb24gb3V0Y29tZXMtYmFzZWQgdGVhY2hpbmcKClRvOiBBbGwgZmFjdWx0eSBvZiB0aGUgQ29sbGVnZSBvZiBDb21wdXRpbmcKCkRhdGU6IDIgRGVjZW1iZXIgMjAyNgoKVGhlIGNvbGxlZ2UgaG9sZHMgYSBoYWxmLWRheSBzZW1pbmFyIG9uIG91dGNvbWVzLWJhc2VkIHRlYWNoaW5nIGFuZCBsZWFybmluZyBpbiBSb29tIDIwNC4KCiMjIFByb2dyYW1tZQoKfCBUaW1lIHwgU2Vzc2lvbiB8CnwtLS18LS0tfAp8IDg6MDAgfCBSZWdpc3RyYXRpb24gfAp8IDg6MzAgfCBXcml0aW5nIGNvdXJzZSBvdXRjb21lcyB8CnwgMTA6MDAgfCBBc3Nlc3NtZW50IHRoYXQgbWF0Y2hlcyBvdXRjb21lcyB8CnwgMTE6MzAgfCBPcGVuIGZvcnVtIHwKClBsZWFzZSBjb25maXJtIHlvdXIgYXR0ZW5kYW5jZSB3aXRoIHRoZSBkZWFuJ3Mgb2ZmaWNlIGJ5IDI4IE5vdmVtYmVyLgoKVG90YWwgYnVkZ2V0OiBQSFAgNDUsMDAwLjAwCg=="
+     }
+    }
+   ],
+   [
+    "POST",
+    "/api/tools/pdf/sources",
+    {
+     "file": {
+      "name": "Attendance.csv",
+      "type": "",
+      "data": "TmFtZSxEZXBhcnRtZW50LENvbmZpcm1lZApNYXJpYSBTYW50b3MsQ29sbGVnZSBvZiBDb21wdXRpbmcsWWVzCkpvc2UgUmFtb3MsQ29sbGVnZSBvZiBDb21wdXRpbmcsWWVzCkFuYSBDcnV6LENvbGxlZ2Ugb2YgRWR1Y2F0aW9uLE5vClBlZHJvIEdhcmNpYSxDb2xsZWdlIG9mIEVuZ2luZWVyaW5nLFllcwo="
+     }
+    }
+   ],
+   [
+    "POST",
+    "/api/tools/pdf/sources",
+    {
+     "file": {
+      "name": "Room 204 schedule.txt",
+      "type": "",
+      "data": "Um9vbSAyMDQgc2NoZWR1bGUsIDIgRGVjZW1iZXIgMjAyNgoKNzozMCAgUm9vbSBvcGVuZWQgYnkgdGhlIGJ1aWxkaW5nIGN1c3RvZGlhbgo4OjAwICBTZW1pbmFyIChDb2xsZWdlIG9mIENvbXB1dGluZykKMTI6MDAgUm9vbSBjbG9zZWQK"
+     }
+    }
+   ]
+  ],
+  "url": "/tools/#/pdf",
+  "click": [
+   "[data-act=edit]",
+   ".ps-ed-tool[data-tool=edit]"
+  ],
+  "wait": 1500
+ },
+ {
+  "file": "admin-tools.jpg",
+  "user": "admin",
+  "url": "/admin#/systems",
+  "scroll": "#tools-form",
+  "wait": 1200
  }
 ]

@@ -16,7 +16,7 @@ const GUIDES = path.join(ROOT, 'docs', 'guides');
 const files = fs.readdirSync(GUIDES).filter((f) => f.endsWith('.md') && f !== 'README.md');
 const guides = files.map((f) => ({ file: f, ...parseGuide(fs.readFileSync(path.join(GUIDES, f), 'utf8')) }));
 const byId = new Map(guides.map((g) => [g.meta.id, g]));
-const APPS = { portal: 'learn', admin: 'admin', academic: 'academic', hris: 'people', finance: 'finance' };
+const APPS = { portal: 'learn', admin: 'admin', academic: 'academic', hris: 'people', finance: 'finance', tools: 'tools' };
 
 // Sidebar labels of an app (every `label:` in its app.js nav).
 function navLabels(app) {
@@ -73,7 +73,7 @@ test('every screen in every sidebar is covered by a guide for that system', () =
 
 test('the Help button finds a guide for every account type in every system', () => {
   for (const role of Object.keys(ROLES)) {
-    for (const from of ['home', 'portal', 'admin', 'academic', 'hris', 'finance']) {
+    for (const from of ['home', 'portal', 'admin', 'academic', 'hris', 'finance', 'tools']) {
       const id = guideFor(from, role);
       assert.ok(byId.has(id), `${role} in ${from} → "${id}", which is not a guide`);
     }

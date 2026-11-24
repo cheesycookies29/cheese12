@@ -11,6 +11,7 @@
 //   'finance' | 'finance:<permission>'    ATLAS Finance: any signed-in employee or student (whichever session the
 //                                    browser has), optionally with that permission
 //   'me'                          whoever is signed in, in any system (their own account: /api/me/…)
+//   'tool:<id>'                   whoever is signed in and may use that ATLAS tool (shared/systems.js TOOLS)
 //   'academic' | 'academic:<permission>'  ATLAS Academic: administrators, registrars and deans (admin-panel
 //                                    session), teachers and students (portal session); optionally with that permission
 // Portal routes may also name a module; the call is refused when an administrator
@@ -40,6 +41,9 @@ import { registerSystemRoutes } from './system.js';
 import { createMonitor } from './monitor.js';
 import { registerMonitorRoutes } from './monitor-panel.js';
 import { registerAccountRoutes, createAvatarStore, tidyAvatars } from './account.js';
+import { registerPdfStudio, DIRECT_UPLOAD_BYTES } from './tools-pdf.js';
+import { PDF_LIMITS } from '../shared/pdf-studio.js';
+import { TOOLS, toolOpenFor } from '../shared/systems.js';
 
 // The version of this ATLAS (package.json), shown with the guides.
 const APP_VERSION = (() => {
@@ -370,6 +374,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       authBase: AUTH_BASE[side] || '/api/auth',
       sso: sso.publicInfo(),
       systems: portalSystems(user, side),
+      tools: ctx.toolsFor ? ctx.toolsFor(user) : [], // ATLAS Tools this account may use (PDF Studio…)
       ...campusInfo(user),
     };
   });
@@ -629,6 +634,25 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   }
   route('GET', '/api/hub/figures', 'me', ({ user }) => figuresFor(user), { audit: false });
 
+  // ----- ATLAS Tools (/tools/): PDF Studio, ported from CORE (server/tools-pdf.js) -----
+  const toolsFor = (u) => (u ? TOOLS.filter((x) => toolOpenFor(db.data.settings, x.id, u.role)).map(({ defaultRoles, ...x }) => x) : []);
+  route('GET', '/api/tools/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => {
+    const user = portalUser || adminUser || hrisUser;
+    return {
+      ...campusInfo(user),
+      branding: branding(),
+      setupRequired: setupRequired(),
+      user: publicUser(user),
+      side: user ? ROLES[user.role].side : null,
+      authBase: '/api/tools/auth',
+      tools: toolsFor(user),
+    };
+  });
+  route('POST', '/api/tools/auth/change-password', 'me', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false, body: PASSWORD_BODY });
+  route('POST', '/api/tools/auth/campus', 'me', ({ user, body }) => switchCampus(user, body), { audit: false });
+  ctx.toolsFor = toolsFor;
+  const pdfStudio = registerPdfStudio(route, db, { record: (e) => audit.record(e), clock });
+
   // ----- Your own account: profile, picture, sessions, quick access (server/account.js) -----
   registerAccountRoutes(route, { db, sides, avatars, record: (e) => audit.record(e), systemsFor: (u) => portalSystems(u, ROLES[u.role]?.side).filter((x) => x.status === 'live' && x.url).map((x) => ({ id: x.id, name: x.name, url: x.url, tagline: x.tagline || x.description || '' })) });
   // ----- System → Security monitor (administrators), and its metrics export -----
@@ -698,6 +722,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   handle.audit = audit;
   handle.prepare = prepare;
   handle.monitor = monitor;
+  handle.pdfStudio = pdfStudio;
   return handle;
   // Who sent a request, from its session cookies (no body needed).
   function whoIs(req) {
@@ -723,7 +748,14 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (signedIn) limits.hit('user', signedIn.id);
     else limits.hit('address', clientIp(req));
     counted.add(req);
-    return { maxBody: signedIn ? MAX_BODY_SIGNED_IN : MAX_BODY_SIGNED_OUT };
+    if (!signedIn) return { maxBody: MAX_BODY_SIGNED_OUT };
+    // PDF Studio: a file of up to DIRECT_UPLOAD_BYTES as base64 in one request, an export with up to
+    // 30 MB of page edits (pictures, signatures); pieces of larger files fit the usual limit.
+    const p = String(req.url || '').split('?')[0];
+    if (req.method === 'POST' && (p === '/api/tools/pdf/sources' || p === '/api/tools/pdf/verify')) return { maxBody: Math.ceil(DIRECT_UPLOAD_BYTES / 3) * 4 + 1024 * 1024 };
+    if (req.method === 'POST' && p === '/api/tools/pdf/export') return { maxBody: 30 * 1024 * 1024 };
+    if (req.method === 'PUT' && /^\/api\/tools\/pdf\/uploads\/[^/]+$/.test(p)) return { maxBody: Math.ceil(PDF_LIMITS.chunkBytes / 3) * 4 + 64 * 1024 };
+    return { maxBody: MAX_BODY_SIGNED_IN };
   }
 
   async function handle(req, url, body) {
@@ -760,7 +792,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       const lastFin = db.data.finAudit.at(-1)?.id;
       const lastAcademic = db.data.auditLog.at(-1)?.id;
       try {
-        if (r.access === 'me') {
+        if (r.access.startsWith('tool:')) {
+          // An ATLAS tool: anyone signed in whose account type it is switched on for.
+          [user, token] = portalUser ? [portalUser, portalToken] : adminUser ? [adminUser, adminToken] : [hrisUser, hrisToken];
+          if (!user) fail('Please sign in.', 401);
+          const id = r.access.split(':')[1];
+          if (!toolOpenFor(db.data.settings, id, user.role)) fail(`${TOOLS.find((x) => x.id === id)?.product || 'This tool'} is not switched on for your account type. Ask an administrator.`, 403);
+        } else if (r.access === 'me') {
           // Your own account, from whichever system you are signed in to.
           [user, token] = portalUser ? [portalUser, portalToken] : adminUser ? [adminUser, adminToken] : [hrisUser, hrisToken];
           if (!user) fail('Please sign in.', 401);

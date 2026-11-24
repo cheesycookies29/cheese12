@@ -79,6 +79,15 @@ const P = {
   scale: '<path d="M12 3v18M7 21h10M5 7h14"/><path d="M5 7l-3 7a3 3 0 006 0zM19 7l-3 7a3 3 0 006 0z"/>',
   percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
   truck: '<path d="M3 6h11v10H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
+  // PDF Studio (tools/views/pdf-studio.js, pdf-editor.js), the same drawings as CORE's.
+  filePdf: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 17v-4h1.5a1.25 1.25 0 010 2.5H9M14 13v4M14 13h2M14 15h1.5"/>',
+  rotateCw: '<path d="M20 12a8 8 0 11-2.34-5.66"/><path d="M20 4v5h-5"/>',
+  rotateCcw: '<path d="M4 12a8 8 0 102.34-5.66"/><path d="M4 4v5h5"/>',
+  square: '<rect x="4" y="4" width="16" height="16" rx="2"/>',
+  pen: '<path d="M3 21l3.5-1 11-11a2.1 2.1 0 00-3-3l-11 11z"/><path d="M14 6l3 3"/><path d="M13 21h8"/>',
+  alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.01"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/>',
 };
 
 export const iconSvg = (name, size = 18) =>

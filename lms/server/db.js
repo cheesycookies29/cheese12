@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { defaultModuleConfig } from '../shared/modules.js';
-import { defaultSystemSettings } from '../shared/systems.js';
+import { defaultSystemSettings, defaultToolSettings } from '../shared/systems.js';
 import { DEFAULT_NUMBERING } from '../shared/numbering.js';
 import { DEFAULT_SETTINGS as HR_DEFAULTS } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS = {
   numbering: structuredClone(DEFAULT_NUMBERING), // shared/numbering.js
   systems: defaultSystemSettings(), // other systems on the ATLAS home page: { status: soon | live | hidden, url }
   sso: mergeSso(), // single sign-on with Keycloak (server/sso.js); the client secret is in OIDC_CLIENT_SECRET, never here
+  tools: defaultToolSettings(), // ATLAS Tools (shared/systems.js): which account types may use each tool
   cloudflare: mergeCloudflare(), // System → Cloudflare (server/cloudflare.js): the hostname set up and what was done; never the API token
 };
 
@@ -130,6 +131,7 @@ export function emptyData() {
     finDvs: [], finLddaps: [], finLiquidations: [], finRemittances: [], finBankRecons: [], // disbursement
     finBooklets: [], finReceipts: [], finRcds: [], finRevenueTargets: [], // revenue
     finAudit: [], // who did what in Finance
+    pdfSignatures: [], // PDF Studio's signature records: who signed which file (its SHA-256), for Verify a signed PDF
     auditDemo: [], // the demo school's sample audit trail (the real one is in audit-log.jsonl, server/audit.js)
   };
 }
@@ -147,6 +149,7 @@ export function mergeSettings(s = {}) {
     systems: Object.fromEntries(Object.entries(defaultSystemSettings()).map(([id, v]) => [id, { ...v, ...(s.systems?.[id] || {}) }])),
     sso: mergeSso(s.sso),
     cloudflare: mergeCloudflare(s.cloudflare),
+    tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),
   };
 }
 

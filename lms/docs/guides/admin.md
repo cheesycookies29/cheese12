@@ -284,6 +284,18 @@ The **REX Bookstore e-Reader** connects to the REX Bookstore app's library of e-
 
 Each card says which account types see that tile.
 
+### Choose who can use PDF Studio
+
+**PDF Studio** (making, joining, editing and signing PDFs) is a tool in **ATLAS Tools**, under the systems on **Home page & systems**. By default the school's employees have it: teachers, registrars, deans, HR, payroll, the Finance offices and staff. Students and parents do not.
+
+1. Choose **Home page & systems** and go down to **Tools**.
+2. Under **Open to**, tick the account types that may use it, and untick the others.
+3. Choose **Save tools**. People see the change the next time they open the ATLAS home page; someone whose account type is unticked is told *PDF Studio is not switched on for your account type*.
+
+Administrators always have it. Each person's files are their own (administrators do not see them) and are removed after a few hours unused; the **Audit log** records each export and signature (kind *Document*, system *Tools*), never the contents. See [the PDF Studio guide](pdf-studio).
+
+![Tools: the account types that may use PDF Studio](admin-tools.jpg)
+
 ### Post school news and events
 
 1. Choose **News & events → New post**. Type the **Title** and **Message**; tick **Pin to the top** or **Turn comments off** if needed. With more than one campus, tick **For every campus** to post everywhere.
@@ -417,7 +429,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Configuration | Modules | What students, teachers and parents & guardians get in Learn |
 | Configuration | Activity types & grading | Activity types and how much each counts in the running grade |
 | Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, colours, logo, applications, uploads and quizzes, numbering |
-| Configuration | Home page & systems | The tiles on the ATLAS home page, and the address of systems not built in |
+| Configuration | Home page & systems | The tiles on the ATLAS home page, the address of systems not built in, and who may use the **Tools** (PDF Studio) |
 | Configuration | Demo data & backup | Add or remove the demo school; download or restore a backup |
 | System | Users & Access | Every account in every system, with Edit, Access, Reset password, Unlock, Sign out, Audit log and Delete; what each account type can do (administrators only) |
 | System | Roles & permissions | What each account type may do in each system |

@@ -19,8 +19,8 @@ export const AUDIT_FILE = 'audit-log.jsonl';
 const hashOf = (prev, entry) => createHash('sha256').update(`${prev}\n${JSON.stringify(entry)}`).digest('hex');
 const sameStat = (a, b) => Boolean(a && b && a.size === b.size && a.mtimeMs === b.mtimeMs);
 
-export const SYSTEM_LABELS = { home: 'ATLAS home', learn: 'Learn', admin: 'Admin panel', academic: 'Academic', people: 'People', finance: 'Finance', control: 'Users & Access', system: 'Users & Access', help: 'Help' };
-export const KIND_LABELS = { signin: 'Sign-in', signout: 'Sign-out', password: 'Password', account: 'Account', access: 'Access', session: 'Session', settings: 'Settings', change: 'Change', refused: 'Refused', data: 'Data' };
+export const SYSTEM_LABELS = { home: 'ATLAS home', learn: 'Learn', admin: 'Admin panel', academic: 'Academic', people: 'People', finance: 'Finance', control: 'Users & Access', system: 'Users & Access', help: 'Help', tools: 'Tools' };
+export const KIND_LABELS = { signin: 'Sign-in', signout: 'Sign-out', password: 'Password', account: 'Account', access: 'Access', session: 'Session', settings: 'Settings', change: 'Change', refused: 'Refused', data: 'Data', document: 'Document' };
 export const SOURCE_LABELS = { trail: 'Access & changes', settings: 'Settings history', finance: 'Finance audit', academic: 'Academic log' };
 
 // Which system an API address belongs to.
@@ -33,6 +33,7 @@ export function systemOf(pathname) {
   if (p.startsWith('/api/academic/')) return 'academic';
   if (p.startsWith('/api/hub/') || p.startsWith('/api/sso/')) return 'home';
   if (p.startsWith('/api/guides')) return 'help';
+  if (p.startsWith('/api/tools/')) return 'tools';
   return 'learn';
 }
 

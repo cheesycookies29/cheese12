@@ -10,7 +10,7 @@ import { orderSystems, canOpen } from '/shared/systems.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
-const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/', '/help/'], admin: ['/admin', '/hris/', '/academic/', '/finance/', '/help/'], hris: ['/hris/', '/finance/', '/help/'] };
+const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/', '/tools/', '/help/'], admin: ['/admin', '/hris/', '/academic/', '/finance/', '/tools/', '/help/'], hris: ['/hris/', '/finance/', '/tools/', '/help/'] };
 const next = new URLSearchParams(location.search).get('next');
 
 document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));
@@ -107,6 +107,7 @@ function userMenu(status) {
     current: () => null, // the home page itself is one click away (the ATLAS mark)
     suggestions: () => [
       ...status.systems.filter((s) => s.status === 'live' && s.url && !s.external).map((s) => ({ href: s.url, label: s.product, icon: s.icon })),
+      ...(status.tools || []).map((t) => ({ href: t.path, label: t.product, icon: t.icon })),
       { href: accountHref(status.user, 'profile'), label: 'My profile', icon: 'user' },
       { href: accountHref(status.user, 'security'), label: 'My security', icon: 'shield' },
     ],
@@ -235,6 +236,16 @@ function administration(status) {
   </section>`;
 }
 
+// Tools (/tools/): PDF Studio and the like, for the account types an administrator switched them on
+// for (Admin panel → Home page & systems → Tools). One tile each, under the systems.
+function toolsSection(status) {
+  if (!(status.tools || []).length) return '';
+  return html`<section class="hub-wrap" aria-labelledby="tools-heading">
+    <div class="card-head"><h2 id="tools-heading">${icon('file')} Tools</h2><span class="muted small">For any work, in any system</span></div>
+    <div class="admin-tiles">${status.tools.map((t) => html`<a class="admin-tile" href="${t.path}" data-tool="${t.id}"><span class="ic-box">${icon(t.icon || 'file', 20)}</span><span class="grow"><strong>${t.product}</strong><small>${t.title}</small></span>${icon('chevronRight', 16)}</a>`)}</div>
+  </section>`;
+}
+
 async function homeView(status) {
   const u = status.user;
   const hour = new Date().getHours();
@@ -273,6 +284,7 @@ async function homeView(status) {
       <div class="sys-dots" id="sys-dots" hidden></div>
       <div class="sys-compact" id="sys-compact" role="region" aria-labelledby="sys-heading">${compactItems()}</div>
     </section>
+    ${toolsSection(status)}
     ${administration(status)}
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span></div></footer>`);

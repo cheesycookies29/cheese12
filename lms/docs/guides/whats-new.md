@@ -9,6 +9,11 @@ order: 2
 
 ## November 2026
 
+### PDF Studio, from CORE
+- **PDF Studio**, a new tool under **Tools** on the ATLAS home page and in the **Systems** menu: turn Word, Excel, PowerPoint, OpenDocument, text and CSV files and pictures into PDF, put PDFs together, reorder, turn and remove pages, number them, change a line of text, add text, white-out and ticks, and sign. See [the PDF Studio guide](pdf-studio).
+- A signed PDF can have a **signature record page** with a code such as *ATLAS-7KQ2-M9XA*; **Verify a signed PDF** says whether a file is unchanged since it was signed. See [the PDF Studio guide](pdf-studio#verify-a-signed-pdf).
+- Administrators choose which account types may use it, under **Admin panel → Home page & systems → Tools** (employees by default; students and parents when the school switches it on). See [the administrator's guide](admin#choose-who-can-use-pdf-studio).
+
 ### Choosing a system, as in CORE
 - **Your systems** on the ATLAS home page shows a few figures from your own work on each card (sections you teach and work to grade, your classes and work to do, requests waiting for you…). See [getting started](getting-started#walkthrough).
 - **Pin a system** with the star on its card: it comes first on the home page and in the **Systems** menu, on every device. See [getting started](getting-started#pin-a-system-to-the-front).

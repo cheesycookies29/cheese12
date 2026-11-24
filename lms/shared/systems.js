@@ -88,3 +88,24 @@ export function orderSystems(systems, favorites = []) {
   const first = (favorites || []).map((id) => open.find((s) => s.id === id)).filter(Boolean);
   return [...first, ...open.filter((s) => !first.includes(s)), ...systems.filter((s) => !canOpen(s))];
 }
+
+// ATLAS Tools (after CORE's Tools area): utilities anyone may be given, beside the systems. Each is
+// switched on per account type by an administrator (Admin panel → Home page & systems → Tools);
+// administrators always have them. defaultRoles: who has it until an administrator changes it.
+const STAFF = ['registrar', 'dean', 'teacher', 'hr', 'payroll', 'accountant', 'budget', 'cashier', 'supply', 'approver', 'staff'];
+export const TOOLS = [
+  {
+    id: 'pdf',
+    product: 'PDF Studio',
+    short: 'PDF',
+    title: 'Make, join and sign PDFs',
+    description: 'Turn documents, spreadsheets, slides and pictures into PDF; put PDFs together, reorder, turn and number pages; change text and sign.',
+    icon: 'filePdf',
+    path: '/tools/#/pdf',
+    defaultRoles: STAFF,
+  },
+];
+export const TOOL_ROLES = [...STAFF, 'student', 'guardian'];
+export const defaultToolSettings = () => Object.fromEntries(TOOLS.map((x) => [x.id, { roles: [...x.defaultRoles] }]));
+// Whether an account type may use a tool (settings: the school's settings).
+export const toolOpenFor = (settings, id, role) => role === 'admin' || Boolean(settings?.tools?.[id]?.roles?.includes(role));
