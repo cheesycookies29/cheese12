@@ -1,0 +1,99 @@
+# Lancaster ATLAS (lms/): tests every push on each Node.js the servers may run (18, 20, 22), then
+# asks the ATLAS server to install it now and shows the server's answer here (version, Node.js,
+# the result of the update and of the last automatic ones). Through AWS Systems Manager, with the
+# "ltdc-lms-ops" command only (update or status): no SSH, no stored AWS keys.
+# One-time setup: lms/deploy/aws/EC2.md, "Updates from GitHub, with the result shown".
+name: 'ATLAS: test and update the server'
+
+on:
+  push:
+    branches: [claude/compassionate-edison-kc7gd0]
+    paths: ['lms/**', '.github/workflows/atlas-update.yml']
+  workflow_dispatch:
+    inputs:
+      action:
+        description: update (install the newest version now) or status (only report)
+        type: choice
+        options: [update, status]
+        default: status
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atlas-update
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Tests on Node.js ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: npm test (lms)
+        working-directory: lms
+        run: node --version && npm test
+
+  server:
+    name: Update the ATLAS server
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check the settings
+        id: cfg
+        env:
+          ROLE: ${{ vars.ATLAS_AWS_ROLE_ARN }}
+          INSTANCE: ${{ vars.ATLAS_EC2_INSTANCE_ID }}
+          REGION: ${{ vars.ATLAS_AWS_REGION || 'ap-southeast-1' }}
+          ACTION: ${{ inputs.action || 'update' }}
+        run: |
+          trim() { printf '%s' "$1" | tr -d '[:space:]'; }
+          ROLE="$(trim "$ROLE")"; INSTANCE="$(trim "$INSTANCE")"; REGION="$(trim "$REGION")"
+          if [ -z "$ROLE" ] || [ -z "$INSTANCE" ]; then
+            msg="Tests passed. The server was not asked to update: add the repository variables ATLAS_AWS_ROLE_ARN and ATLAS_EC2_INSTANCE_ID (lms/deploy/aws/EC2.md). The server still updates itself within about 10 minutes."
+            echo "::notice::$msg"; echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          [[ "$ROLE" =~ ^arn:aws:iam::[0-9]{12}:role/.+ ]] || { echo "::error::ATLAS_AWS_ROLE_ARN should look like arn:aws:iam::123456789012:role/ltdc-lms-github-ops"; exit 1; }
+          [[ "$INSTANCE" =~ ^i-[0-9a-f]{8,17}$ ]] || { echo "::error::ATLAS_EC2_INSTANCE_ID should look like i-0123456789abcdef0"; exit 1; }
+          [[ "$REGION" =~ ^[a-z]{2}(-[a-z]+)+-[0-9]$ ]] || { echo "::error::ATLAS_AWS_REGION should look like ap-southeast-1"; exit 1; }
+          [[ "$ACTION" =~ ^(update|status)$ ]] || { echo "::error::action is update or status"; exit 1; }
+          { echo "OPS_ROLE=$ROLE"; echo "OPS_INSTANCE=$INSTANCE"; echo "OPS_REGION=$REGION"; echo "OPS_ACTION=$ACTION"; } >> "$GITHUB_ENV"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        if: steps.cfg.outputs.configured == 'true'
+        with:
+          role-to-assume: ${{ env.OPS_ROLE }}
+          aws-region: ${{ env.OPS_REGION }}
+
+      - name: Ask the server (${{ env.OPS_ACTION }})
+        if: steps.cfg.outputs.configured == 'true'
+        run: |
+          id="$(aws ssm send-command --instance-ids "$OPS_INSTANCE" --document-name ltdc-lms-ops \
+            --parameters "action=$OPS_ACTION" --comment "ATLAS ${GITHUB_SHA::7} ($OPS_ACTION) from GitHub" \
+            --timeout-seconds 600 --query Command.CommandId --output text)"
+          echo "Command $id sent to $OPS_INSTANCE."
+          # The server runs its tests before installing: allow up to 20 minutes.
+          for _ in $(seq 1 120); do
+            sleep 10
+            status="$(aws ssm get-command-invocation --command-id "$id" --instance-id "$OPS_INSTANCE" --query Status --output text 2>/dev/null || echo Pending)"
+            case "$status" in Pending|InProgress|Delayed) continue;; *) break;; esac
+          done
+          aws ssm get-command-invocation --command-id "$id" --instance-id "$OPS_INSTANCE" --query StandardOutputContent --output text | tee server.txt
+          err="$(aws ssm get-command-invocation --command-id "$id" --instance-id "$OPS_INSTANCE" --query StandardErrorContent --output text)"
+          [ -n "$err" ] && [ "$err" != "None" ] && printf '%s\n' "$err"
+          { echo "### ATLAS server: $OPS_ACTION ($status)"; echo '```'; cat server.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" != Success ]; then echo "::error::The server answered $status (see above)."; exit 1; fi

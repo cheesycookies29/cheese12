@@ -90,7 +90,7 @@ Students and teachers sign in at the **WebsiteUrl**.
 
 New versions on the branch `claude/compassionate-edison-kc7gd0` are installed automatically within about 10 minutes, but only if all tests pass on the server. A copy of the data is taken before each update (`/opt/ltdc-lms/data/backups/db-before-update-…`).
 
-To see which version is installed, open a console (below) and run `cat /opt/ltdc-lms/build.json`.
+To see which version is installed, open a console (below) and run `cat /opt/ltdc-lms/build.json`, or, with [updates from GitHub](#updates-from-github-with-the-result-shown-optional) set up, open the latest **ATLAS: test and update the server** run in GitHub's **Actions** tab.
 
 ### Who can change what the server runs
 
@@ -99,6 +99,24 @@ The server installs whatever is on the branch it follows, once that version's te
 The server limits the damage a bad version could do before it is installed: the tests run as the account `nobody`, with none of the server's settings, unable to read ATLAS's data, and without a network where the server allows it. Only a version that passes is installed, and it then runs as the app's own account, which can write only to the data folder.
 
 The updater itself (`/usr/local/sbin/ltdc-lms-update`) is **not** replaced by updates, because it runs as root: a new updater is installed only when someone runs `upgrade-server.sh` on the server (next section).
+
+### Updates from GitHub, with the result shown (optional)
+
+The server updates itself every 10 minutes, but if a version is refused (its tests fail on the server) nothing says so outside the server. This optional setup lets GitHub test each push on every Node.js the server may run (18, 20 and 22), then ask the server to install it **now** and show the server's answer in GitHub: the installed version, Node.js, whether the update was installed or refused (with the failing test), and the last automatic attempts. It uses AWS Systems Manager, as the console does: no SSH port, no AWS keys stored anywhere.
+
+GitHub can ask for two things only, through the command document `ltdc-lms-ops`: **status** (read only) and **update** (the server's own updater, which installs the newest version only if its tests pass there). It cannot open a console, run other commands, reach other servers or read data. `upgrade-server.sh` is deliberately not included: it installs root code, so a person runs it from the console.
+
+One-time setup, in the same AWS region as the server:
+
+1. **CloudFormation → Create stack → With new resources → Upload a template file**, and choose `lms/deploy/aws/github-ops.yaml` from the repository. Name the stack `ltdc-lms-github-ops`.
+2. Parameters:
+   - **InstanceId**: the ATLAS server (`ltdc-lms`; also in the `ltdc-lms` stack's **Outputs → InstanceId**).
+   - **DeployBranch**: the branch the server follows (`claude/compassionate-edison-kc7gd0`), or your protected release branch.
+   - **CreateGitHubConnection**: **No** if **IAM → Identity providers** already lists `token.actions.githubusercontent.com` (for example from CORE ERP's deployment), otherwise **Yes**.
+3. Tick *I acknowledge that AWS CloudFormation might create IAM resources with custom names* and choose **Submit**. It takes about a minute.
+4. In GitHub: **Settings → Secrets and variables → Actions → Variables → New repository variable**, three times, with the values from the stack's **Outputs**: `ATLAS_AWS_ROLE_ARN`, `ATLAS_EC2_INSTANCE_ID` and `ATLAS_AWS_REGION`. None of them is a secret.
+
+From the next push, **Actions → ATLAS: test and update the server** shows the tests and the server's answer. Until the variables are added the workflow still runs the tests and says the server was not asked. The server's own 10-minute updates keep running either way.
 
 ## Bringing an older server up to date
 

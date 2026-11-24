@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Lancaster ATLAS updates from GitHub. Lets the "ATLAS: test and update the server" GitHub workflow
+  ask the ATLAS server, through AWS Systems Manager, to install the latest version now and report
+  its status (version, Node.js, result of the last update), so the result shows in GitHub. It can do
+  nothing else: no console, no other commands, no other servers, no data. No SSH and no stored AWS keys.
+
+Parameters:
+  InstanceId:
+    Type: AWS::EC2::Instance::Id
+    Description: The ATLAS server (CloudFormation > ltdc-lms > Outputs > InstanceId, or EC2 > Instances > ltdc-lms).
+  GitHubRepository:
+    Type: String
+    Default: cheesycookies29/cheese12
+    Description: owner/name of the GitHub repository allowed to ask for updates.
+  DeployBranch:
+    Type: String
+    Default: claude/compassionate-edison-kc7gd0
+    Description: >-
+      The only branch whose workflow runs may ask for an update: the branch the server follows
+      (LMS_BRANCH). Other branches, tags and pull requests cannot use the role. For a reviewed release
+      branch (recommended before go-live), protect it on GitHub and put its name here.
+  CreateGitHubConnection:
+    Type: String
+    Default: 'Yes'
+    AllowedValues: ['Yes', 'No']
+    Description: >-
+      Choose No if this AWS account already has an identity provider for
+      token.actions.githubusercontent.com (IAM > Identity providers), for example from CORE ERP's
+      "github-deploy" stack. An account can have only one.
+
+Conditions:
+  CreateProvider: !Equals [!Ref CreateGitHubConnection, 'Yes']
+
+Resources:
+  GitHubProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList: [6938fd4d98bab03faadb97b34396831e3780aea1, 1c58a3a8518e8759bf075b76b750d4f2df264fcd]
+
+  # The only thing the role may run on the server: "status" (read-only) or "update" (the server's
+  # own updater, installed by a person with server-setup.sh or upgrade-server.sh, which installs the
+  # newest version of the branch only if its tests pass there). Not upgrade-server.sh: that installs
+  # root code from the branch, so a person runs it from the AWS console.
+  OpsDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Name: ltdc-lms-ops
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Lancaster ATLAS - install the latest version now, or report status.
+        parameters:
+          action:
+            type: String
+            description: status (read only) or update (install the newest version if its tests pass)
+            allowedValues: [status, update]
+            default: status
+        mainSteps:
+          - action: aws:runShellScript
+            name: atlas
+            inputs:
+              timeoutSeconds: '1200'
+              runCommand:
+                - rc=0
+                - 'if [ "{{ action }}" = "update" ]; then echo "== Update"; /usr/local/sbin/ltdc-lms-update || rc=$?; [ "$rc" = 0 ] && echo "Update: done (or already the newest)." || echo "Update: FAILED (exit $rc). The current version keeps running."; fi'
+                - echo "== Status"
+                - 'echo "Installed: $(cat /opt/ltdc-lms/build.json 2>/dev/null || echo unknown)"'
+                - 'echo "Node.js: $(node --version 2>/dev/null || echo missing)"'
+                - 'case "$(node --version 2>/dev/null)" in v18*|v19*|v20*|v21*) echo "WARNING: Node.js older than 22. Run once from the AWS console: sudo bash /opt/ltdc-lms/deploy/aws/upgrade-server.sh";; esac'
+                - 'echo "ATLAS service: $(systemctl is-active ltdc-lms 2>/dev/null)"'
+                - 'echo "Automatic updates (timer): $(systemctl is-enabled ltdc-lms-update.timer 2>/dev/null || echo off)"'
+                - 'curl -fs -o /dev/null --max-time 5 http://127.0.0.1:3100/healthz && echo "Health check: OK" || echo "Health check: NOT answering"'
+                - echo "== Last automatic update attempts"
+                - 'journalctl -u ltdc-lms-update --since "-1 day" --no-pager -o cat 2>/dev/null | grep -E "Installing|Tests failed|is running|did not start|not ok|# (pass|fail)|Error" | tail -n 20 || true'
+                - exit $rc
+
+  OpsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ltdc-lms-github-ops
+      Description: Assumed by the ATLAS GitHub workflow to ask the ATLAS server to update and report status.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateProvider
+                - !Ref GitHubProvider
+                - !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                # Only workflow runs on this one branch: not other branches, tags or pull requests.
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepository}:ref:refs/heads/${DeployBranch}
+      Policies:
+        - PolicyName: atlas-update-and-status-only
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${InstanceId}
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${OpsDocument}
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations]
+                Resource: '*'
+
+Outputs:
+  AtlasAwsRoleArn:
+    Description: GitHub repository variable ATLAS_AWS_ROLE_ARN
+    Value: !GetAtt OpsRole.Arn
+  AtlasEc2InstanceId:
+    Description: GitHub repository variable ATLAS_EC2_INSTANCE_ID
+    Value: !Ref InstanceId
+  AtlasAwsRegion:
+    Description: GitHub repository variable ATLAS_AWS_REGION
+    Value: !Ref AWS::Region
+  OpsDocumentName:
+    Description: The only command the role may run (Systems Manager > Documents > Owned by me)
+    Value: !Ref OpsDocument
