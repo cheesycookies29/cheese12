@@ -131,7 +131,20 @@ export function manifestKey(dataDir) {
   if (!fs.existsSync(file)) throw new Error(`The server key is missing (${file}). Put it back first: deploy/aws/RESTORE.md.`);
   return hmac(Buffer.from(fs.readFileSync(file, 'utf8').trim(), 'base64'), 'core-offsite-manifest-v1');
 }
-const canonical = (m) => JSON.stringify({ v: m.v, prefix: m.prefix, at: m.at, files: m.files, attachments: m.attachments });
+// Documents (0.67) are listed only by manifests written since; older manifests read as before.
+const canonical = (m) => JSON.stringify({ v: m.v, prefix: m.prefix, at: m.at, files: m.files, attachments: m.attachments, documents: m.documents });
+// A stored document file: documents/<2 hex>/<32 hex> (encrypted with the server's key; server/dms/blobs.js).
+const DOC_NAME = /^[0-9a-f]{2}\/[0-9a-f]{32}$/;
+function documentFiles(dataDir) {
+  const root = path.join(dataDir, 'documents');
+  if (!fs.existsSync(root)) return [];
+  const out = [];
+  for (const sub of fs.readdirSync(root)) {
+    if (!/^[0-9a-f]{2}$/.test(sub)) continue;
+    for (const f of fs.readdirSync(path.join(root, sub))) if (/^[0-9a-f]{32}$/.test(f)) out.push(`${sub}/${f}`);
+  }
+  return out;
+}
 export const sealManifest = (m, key) => ({ ...m, mac: createHmac('sha256', key).update(canonical(m)).digest('hex') });
 export function checkManifest(m, key, prefix) {
   if (!m || m.v !== 1 || typeof m.mac !== 'string' || m.prefix !== prefix || !Array.isArray(m.files) || !m.attachments || typeof m.attachments !== 'object') throw new IntegrityError(`The manifest of ${prefix} is not one CORE wrote.`);
@@ -193,10 +206,31 @@ export async function runOffsiteBackup({ dataDir, now = new Date(), credentials 
       writeStatus(listFile, kept);
     }
     writeStatus(listFile, kept);
-    // The hour's manifest: what it holds and every attached file of that moment, sealed.
-    const manifest = sealManifest({ v: 1, prefix, at: now.toISOString(), files, attachments: kept }, key);
+    // Document files (0.67), the same way: each sent once (they are already encrypted, and never
+    // change once written), under documents/.
+    const docList = path.join(dataDir, 'backups', 'offsite-documents.json');
+    let docSent = {};
+    try {
+      docSent = JSON.parse(fs.readFileSync(docList, 'utf8'));
+    } catch {}
+    const docHere = documentFiles(dataDir);
+    const docKept = Object.fromEntries(Object.entries(docSent).filter(([n, v]) => docHere.includes(n) && v && typeof v === 'object'));
+    let newDocs = 0;
+    for (const name of docHere) {
+      const file = path.join(dataDir, 'documents', name);
+      if (docKept[name]?.bytes === fs.statSync(file).size) continue;
+      const body = fs.readFileSync(file);
+      await s3.put(`documents/${name}`, body);
+      docKept[name] = { bytes: body.length, sha256: sha256(body) };
+      newDocs += 1;
+      newBytes += body.length;
+      writeStatus(docList, docKept);
+    }
+    writeStatus(docList, docKept);
+    // The hour's manifest: what it holds and every attached and document file of that moment, sealed.
+    const manifest = sealManifest({ v: 1, prefix, at: now.toISOString(), files, attachments: kept, documents: docKept }, key);
     await s3.put(`${prefix}/manifest.json`, Buffer.from(JSON.stringify(manifest)), 'application/json');
-    Object.assign(status, { ok: true, prefix, files, attachments: { new: newFiles, newBytes, total: Object.keys(kept).length }, ms: Date.now() - started });
+    Object.assign(status, { ok: true, prefix, files, attachments: { new: newFiles, newBytes, total: Object.keys(kept).length }, documents: { new: newDocs, total: Object.keys(docKept).length }, ms: Date.now() - started });
   } catch (err) {
     Object.assign(status, { ok: false, error: err.message, ms: Date.now() - started });
   }
@@ -244,5 +278,16 @@ export async function fetchOffsiteCopy({ prefix, dest, dataDir, attachments = tr
       count += 1;
     }
   }
-  return { files: got, attachments: count, at: manifest.at };
+  let docs = 0;
+  if (attachments && manifest.documents && typeof manifest.documents === 'object') {
+    for (const [name, a] of Object.entries(manifest.documents)) {
+      if (!DOC_NAME.test(name)) throw new IntegrityError(`The manifest of ${prefix} lists a document file with an unsafe name.`);
+      const body = await s3.get(`documents/${name}`, { maxBytes: a.bytes });
+      if (body.length !== a.bytes || sha256(body) !== a.sha256) throw new IntegrityError(`documents/${name} is not the file that was sent.`);
+      fs.mkdirSync(path.join(dest, 'documents', name.slice(0, 2)), { recursive: true, mode: 0o700 });
+      fs.writeFileSync(path.join(dest, 'documents', name), body, { mode: 0o600 });
+      docs += 1;
+    }
+  }
+  return { files: got, attachments: count, documents: docs, at: manifest.at };
 }

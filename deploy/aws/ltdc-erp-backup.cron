@@ -2,7 +2,8 @@
 # (ltdc-erp-offsite.timer, ltdc-erp-restore-check.timer): sandboxed like the app, with a private /tmp.
 # Nightly copy of the LTDC ERP data file at 2:15 AM server time (set to Asia/Manila in the guide);
 # copies older than 30 days are deleted. At 2:20 AM, attached files (medical certificates) are
-# mirrored to backups/attachments. At 2:25 AM the audit log is copied (kept 30 days like the data). Install: sudo cp ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
+# mirrored to backups/attachments, and stored documents (encrypted, 0.67) to backups/documents. At 2:25 AM the audit log is copied (kept 30 days like the data). Install: sudo cp ltdc-erp-backup.cron /etc/cron.d/ltdc-erp-backup
 15 2 * * * ltdc mkdir -p /opt/ltdc-erp/data/backups && cp -p /opt/ltdc-erp/data/db.json /opt/ltdc-erp/data/backups/db-$(date +\%F).json && find /opt/ltdc-erp/data/backups -name 'db-*.json' -mtime +30 -delete
 20 2 * * * ltdc mkdir -p /opt/ltdc-erp/data/attachments /opt/ltdc-erp/data/backups/attachments && rsync -a /opt/ltdc-erp/data/attachments/ /opt/ltdc-erp/data/backups/attachments/
+22 2 * * * ltdc mkdir -p /opt/ltdc-erp/data/documents /opt/ltdc-erp/data/backups/documents && rsync -a --exclude uploads /opt/ltdc-erp/data/documents/ /opt/ltdc-erp/data/backups/documents/
 25 2 * * * ltdc [ -f /opt/ltdc-erp/data/audit-log.jsonl ] && cp /opt/ltdc-erp/data/audit-log.jsonl /opt/ltdc-erp/data/backups/audit-log-$(date +\%F).jsonl && find /opt/ltdc-erp/data/backups -name 'audit-log-*.jsonl' -mtime +30 -delete

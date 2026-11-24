@@ -9,6 +9,7 @@ this page where you can reach it without the server (it is also in the repositor
 |---|---|---|---|
 | Off-server copy (0.38) | S3 bucket `ltdc-erp-backups-<account id>`, folder `hourly/<day>/<hour>/` | Every hour, at 5 past | 30 days; never overwritten |
 | Attached files | the same bucket, folder `attachments/` | Every hour, new files only | Until removed by hand (a file deleted in CORE is no longer listed with later hours, so it does not come back on a restore; remove it from the bucket in the S3 console when it must be erased) |
+| Documents (0.67) | the same bucket, folder `documents/` | Every hour, new files only | As attached files. They are encrypted with keys made from the server key: without `secret.key` they cannot be read, even from the bucket |
 | Nightly copy | `/opt/ltdc-erp/data/backups/db-<date>.json` on the server | 2:15 AM | 30 days |
 | Before each update | `/opt/ltdc-erp/data/backups/db-before-update-<date>-<time>.json` | Every deployment | 30 days |
 | Disk snapshot | EC2 → Snapshots (Data Lifecycle Manager) | Daily | 7 |
@@ -26,7 +27,8 @@ changed in the bucket is refused. Uploads can never replace a file already there
 over the server cannot rewrite the history either.
 
 **The server key is not in any backup.** `/opt/ltdc-erp/data/secret.key` seals the 2-step
-verification secrets, the audit log's chain and the backup manifests. It never changes, so keep one
+verification secrets, the audit log's chain and the backup manifests, and (0.67) encrypts every stored
+document: **without it, no document can ever be opened again.** It never changes, so keep one
 copy of it in the company's password manager now. Show it over SSH (not in a Session Manager window,
 whose session logging may record it), copy it into the password manager, then clear the screen:
 
@@ -64,6 +66,7 @@ tell people what will be redone.
    sudo cp /opt/ltdc-erp/data/db.json /opt/ltdc-erp/data/backups/db-before-restore-$(date +%F-%H%M).json
    sudo cp "$R/db.json" /opt/ltdc-erp/data/db.json
    sudo cp -n "$R"/attachments/* /opt/ltdc-erp/data/attachments/ 2>/dev/null || true
+   [ -d "$R/documents" ] && sudo cp -rn "$R"/documents/. /opt/ltdc-erp/data/documents/
    sudo chown -R ltdc:ltdc /opt/ltdc-erp/data && sudo systemctl start ltdc-erp
    sudo rm -rf "$R"
    ```
@@ -96,6 +99,7 @@ A nightly copy works the same way: use `/opt/ltdc-erp/data/backups/db-<date>.jso
    sudo systemctl stop ltdc-erp
    sudo cp "$R/db.json" "$R/audit-log.jsonl" "$R/audit-head.json" /opt/ltdc-erp/data/
    sudo mkdir -p /opt/ltdc-erp/data/attachments && sudo cp "$R"/attachments/* /opt/ltdc-erp/data/attachments/ 2>/dev/null || true
+   [ -d "$R/documents" ] && sudo mkdir -p /opt/ltdc-erp/data/documents && sudo cp -r "$R"/documents/. /opt/ltdc-erp/data/documents/
    sudo chown -R ltdc:ltdc /opt/ltdc-erp/data && sudo systemctl start ltdc-erp
    sudo rm -rf "$R"
    ```

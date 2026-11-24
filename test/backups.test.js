@@ -93,6 +93,9 @@ async function company() {
   handle.monitor.stop();
   fs.mkdirSync(path.join(dir, 'attachments'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'attachments', 'cert-1.pdf'), '%PDF-1.4 a certificate');
+  // A stored document (0.67): already encrypted; copied once like an attached file.
+  fs.mkdirSync(path.join(dir, 'documents', 'ab'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'documents', 'ab', 'ab'.padEnd(32, '0')), 'CDM1 sealed bytes');
   return { dir, handle };
 }
 
@@ -221,7 +224,8 @@ test('a lost server: one hour\'s copy, attached files included, fetched into a f
   await runOffsiteBackup({ dataDir: dir, now, client: s3.client() });
   const dest = tmpDir('restore');
   const r = await fetchOffsiteCopy({ prefix: hourPrefix(now), dest, dataDir: dir, client: s3.client() });
-  assert.deepEqual(r, { files: ['db.json', 'audit-head.json', 'audit-log.jsonl'], attachments: 1, at: now.toISOString() });
+  assert.deepEqual(r, { files: ['db.json', 'audit-head.json', 'audit-log.jsonl'], attachments: 1, documents: 1, at: now.toISOString() });
+  assert.equal(fs.readFileSync(path.join(dest, 'documents', 'ab', 'ab'.padEnd(32, '0')), 'utf8'), 'CDM1 sealed bytes', 'document files come back too');
   assert.deepEqual(fs.readFileSync(path.join(dest, 'db.json')), fs.readFileSync(path.join(dir, 'db.json')));
   assert.equal(fs.readFileSync(path.join(dest, 'attachments', 'cert-1.pdf'), 'utf8'), '%PDF-1.4 a certificate');
   await assert.rejects(fetchOffsiteCopy({ prefix: '../etc', dest, dataDir: dir, client: s3.client() }), /Give the hour to restore/);
