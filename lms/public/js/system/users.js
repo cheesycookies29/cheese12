@@ -2,7 +2,8 @@
 // can sign in to ATLAS and what each account type can do, on one page. Administrators see it in the
 // sidebar of whichever system they have open (public/js/system/index.js).
 //   - The accounts: every account in every system, with its type, linked employee, status and last
-//     sign-in, and Edit, Access, Reset password, Unlock, Sign out, Audit log and Delete.
+//     sign-in, whether it uses 2-step verification, and Edit, Access, Reset password, Reset 2-step
+//     verification, Unlock, Sign out, Audit log and Delete.
 //   - Account types: what each may do, by system (changed under Roles & permissions).
 import { api } from '../api.js';
 import { html, mount, modal, toast, confirmDialog, badge, option, formData, initials, fmtDateTime } from '../ui.js';
@@ -31,7 +32,7 @@ export async function usersView(el, params, q) {
         <input type="search" name="q" value="${q.q || ''}" placeholder="Search name, username, email or student number" aria-label="Search users" />
         <select name="role" aria-label="Account type">${option('', 'All account types', !q.role)}${option('staff', 'All staff', q.role === 'staff')}${d.roles.map((r) => option(r.id, r.label, q.role === r.id))}</select>
         <select name="status" aria-label="Status">${[['', 'Any status'], ['active', 'Active'], ['disabled', 'Disabled'], ['pending', 'Applied']].map(([k, l]) => option(k, l, (q.status || '') === k))}</select>
-        <select name="flag" aria-label="Show">${[['', 'Everyone'], ['online', 'Signed in now'], ['locked', 'Locked'], ['own-access', 'Own access'], ['must-change', 'Temporary password'], ['sso', 'Linked to Keycloak']].map(([k, l]) => option(k, l, (q.flag || q.signin || '') === k))}</select>
+        <select name="flag" aria-label="Show">${[['', 'Everyone'], ['online', 'Signed in now'], ['locked', 'Locked'], ['own-access', 'Own access'], ['must-change', 'Temporary password'], ['sso', 'Linked to Keycloak'], ['no-2fa', 'Without 2-step verification']].map(([k, l]) => option(k, l, (q.flag || q.signin || '') === k))}</select>
         <span class="spacer"></span><span class="muted">${d.total.toLocaleString()} user${d.total === 1 ? '' : 's'}</span>
       </form>
       <table class="table users-table">
@@ -42,12 +43,13 @@ export async function usersView(el, params, q) {
           <td data-label="Account type">${badge(u.roleLabel, ROLE_BADGE[u.role] || 'gray')}${u.ownAccess ? html`<small><a href="#" data-access="${u.id}">+ own access (${u.ownAccess})</a></small>` : ''}</td>
           <td data-label="Linked employee">${u.employee ? html`<a href="/hris/#/employees/${u.employee.id}">${u.employee.name}</a>` : html`<span class="muted">—</span>`}</td>
           <td data-label="Status">${u.status === 'active' ? badge('Active', 'green') : u.status === 'pending' ? badge('Applied', 'amber') : badge(u.status === 'rejected' ? 'Not admitted' : 'Disabled', 'gray')}
-            ${u.mustChangePassword ? badge('Temp. password', 'amber') : ''} ${u.locked ? badge('Locked', 'red') : ''} ${u.sessions ? badge('Signed in', 'blue') : ''} ${u.sso ? badge('Keycloak', 'blue') : ''} ${u.demo ? badge('Demo', 'gray') : ''}</td>
+            ${u.mustChangePassword ? badge('Temp. password', 'amber') : ''} ${u.locked ? badge('Locked', 'red') : ''} ${u.sessions ? badge('Signed in', 'blue') : ''} ${u.sso ? badge('Keycloak', 'blue') : ''} ${u.twoFactor ? badge('2-step on', 'green') : u.twoFactorRequired ? badge('2-step not set up', 'amber') : ''} ${u.demo ? badge('Demo', 'gray') : ''}</td>
           <td data-label="Last sign-in">${when(u.lastLoginAt)}</td>
           <td class="row-actions">
             <button class="link" data-edit="${u.id}">Edit</button>
             ${u.staff && u.role !== 'admin' && u.id !== ctx.user.id ? html`<button class="link" data-access="${u.id}">Access</button>` : ''}
             ${u.id !== ctx.user.id ? html`<button class="link" data-reset="${u.id}">Reset password</button>` : ''}
+            ${(u.twoFactor || u.twoFactorPending) && u.id !== ctx.user.id ? html`<button class="link" data-tfa="${u.id}">Reset 2-step verification</button>` : ''}
             ${u.locked ? html`<button class="link" data-unlock="${u.id}">Unlock</button>` : ''}
             ${u.sessions && u.id !== ctx.user.id ? html`<button class="link" data-signout="${u.id}">Sign out</button>` : ''}
             <a class="link" href="#/profile/${u.id}">Profile</a>
@@ -89,10 +91,10 @@ export async function usersView(el, params, q) {
 
   el.querySelector('#add-user').addEventListener('click', () => addUserDialog(d, reload));
   el.querySelector('tbody').addEventListener('click', async (e) => {
-    const t = e.target.closest('[data-edit], [data-access], [data-reset], [data-unlock], [data-signout], [data-delete]');
+    const t = e.target.closest('[data-edit], [data-access], [data-reset], [data-tfa], [data-unlock], [data-signout], [data-delete]');
     if (!t) return;
     e.preventDefault();
-    const id = t.dataset.edit || t.dataset.access || t.dataset.reset || t.dataset.unlock || t.dataset.signout || t.dataset.delete;
+    const id = t.dataset.edit || t.dataset.access || t.dataset.reset || t.dataset.tfa || t.dataset.unlock || t.dataset.signout || t.dataset.delete;
     const row = d.users.find((u) => u.id === id);
     const run = async (fn, done) => {
       try {
@@ -107,6 +109,7 @@ export async function usersView(el, params, q) {
     if (t.dataset.access) return accessDialog(await api.get(`/api/system/users/${id}`), reload);
     if (t.dataset.reset) return resetDialog(row, reload);
     if (t.dataset.pic && (await confirmDialog(`Remove ${row.name}'s picture? Their initials show instead. They can add a picture again.`, { confirmLabel: 'Remove picture', title: 'Remove picture' }))) return run(() => api.del(`/api/system/users/${id}/avatar`), 'Picture removed.');
+    if (t.dataset.tfa && (await confirmDialog(`Reset 2-step verification for ${row.name}? Their authenticator app and recovery codes stop working and they are signed out everywhere. They then sign in with their password alone${row.twoFactorRequired ? ', and set it up again at once, as the school requires it' : ''}. Do this only once you are sure it is them asking (for example, they lost their phone and their recovery codes).`, { confirmLabel: 'Reset 2-step verification', title: 'Reset 2-step verification' }))) return run(() => api.post(`/api/system/users/${id}/reset-2fa`), '2-step verification reset.');
     if (t.dataset.unlock) return run(() => api.post(`/api/system/users/${id}/unlock`), 'Unlocked.');
     if (t.dataset.signout && (await confirmDialog(`Sign ${row.name} out everywhere? They sign in again.`, { confirmLabel: 'Sign out', title: 'Sign out' }))) return run(() => api.post(`/api/system/users/${id}/sign-out`), 'Signed out everywhere.');
     if (t.dataset.delete && (await confirmDialog(`Delete the account "${row.username}"? They will no longer be able to sign in. An account with records (enrollment, sections, changes in any system) cannot be deleted: disable it instead, so the records keep who made them.`))) return run(() => api.del(`/api/system/users/${id}`), 'User deleted.');

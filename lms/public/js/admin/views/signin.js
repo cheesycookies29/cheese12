@@ -1,15 +1,16 @@
 // Admin panel → System → Sign-in and passwords: the password rules, lock-out, idle sign-out and rate
 // limits, for every system.
 import { api } from '../../api.js';
-import { html, mount, toast, formData } from '../../ui.js';
+import { html, mount, toast, formData, option } from '../../ui.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
+import { TWO_FACTOR_POLICIES } from '/shared/two-factor.js';
 
 export async function signInView(el) {
   const s = await api.get('/api/admin/settings');
   const v = s.security;
   mount(el, html`
-    ${pageHead('Sign-in and passwords', 'Password rules, lock-out, idle sign-out and rate limits, for every system. Each change is in the Audit log with its old and new value.')}
+    ${pageHead('Sign-in and passwords', 'Password rules, 2-step verification, lock-out, idle sign-out and rate limits, for every system. Each change is in the Audit log with its old and new value.')}
     <div class="notice ${s.passwordEncryption?.on ? 'ok' : ''}">${icon('lock')}<p>${s.passwordEncryption?.on
       ? html`<strong>Passwords are encrypted.</strong> Each password is stored only as a one-way hash, and that hash is encrypted with the server's key (key ${s.passwordEncryption.keyId}). A copy of the data or a backup cannot be used to guess passwords without the key.`
       : html`<strong>Password hashes are not encrypted.</strong> Passwords are stored only as one-way hashes. Start the server with a key (PASSWORD_KEY) to encrypt them too.`}</p></div>
@@ -19,6 +20,11 @@ export async function signInView(el) {
         <label class="field"><span>Shortest password</span><input type="number" name="minPasswordLength" min="8" max="64" value="${v.minPasswordLength}" /><span class="hint">Characters, 8 to 64. 10 or more is recommended. Applies to new and changed passwords.</span></label>
         <label class="field check span-2"><input type="checkbox" name="requireLettersAndDigits" ${v.requireLettersAndDigits ? 'checked' : ''} /> <span><strong>Passwords mix letters and digits.</strong> A new password needs at least one of each.</span></label>
         <label class="field check span-3"><input type="checkbox" name="forcePasswordChange" ${v.forcePasswordChange ? 'checked' : ''} /> <span><strong>Always change the first password.</strong> New accounts and reset passwords must be changed at the first sign-in, in every system; staff cannot untick it.</span></label>
+      </div>
+      <h2>${icon('shield')} 2-step verification</h2>
+      <div class="grid">
+        <label class="field span-2"><span>Who must use 2-step verification</span><select name="twoFactor">${Object.entries(TWO_FACTOR_POLICIES).map(([k, label]) => option(k, label, (v.twoFactor || 'off') === k))}</select>
+          <span class="hint">A code from an authenticator app after the password, set up under My security. Employees are every account but students and parents. Someone who must use it and has not set it up is asked to, right after signing in. Keycloak sign-ins skip it: Keycloak asks for its own. To require it of administrators, turn it on for your own account first.</span></label>
       </div>
       <h2>${icon('lock')} Lock-out and sessions</h2>
       <div class="grid">
@@ -41,7 +47,7 @@ export async function signInView(el) {
       await api.put('/api/admin/settings', { security: {
         minPasswordLength: f.minPasswordLength, lockoutAttempts: f.lockoutAttempts, lockoutMinutes: f.lockoutMinutes, idleHours: f.idleHours, maxSessionHours: f.maxSessionHours,
         requireLettersAndDigits: Boolean(f.requireLettersAndDigits), forcePasswordChange: Boolean(f.forcePasswordChange),
-        requestsPerMinute: f.requestsPerMinute, signInFailuresPerAddress: f.signInFailuresPerAddress,
+        requestsPerMinute: f.requestsPerMinute, signInFailuresPerAddress: f.signInFailuresPerAddress, twoFactor: f.twoFactor,
       } });
       toast('Saved. The new rules apply now.');
       signInView(el);

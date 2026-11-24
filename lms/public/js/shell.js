@@ -5,6 +5,7 @@ import { html, mount, modal, toast, initials, formData, raw } from './ui.js';
 import { icon, iconSvg } from './icons.js';
 import { setRoleOverrides } from '/shared/roles.js';
 import { accountRoutes } from './account/profile.js';
+import { forceTwoFactorView } from './account/two-factor.js';
 import { mountSystems, mountQuick, mountUserMenu, recordVisit } from './account/topbar.js';
 
 // App-wide state for the current page set (one per app, since each is its own page).
@@ -394,7 +395,7 @@ export function startApp(config) {
     if (ctx.dirty?.()) e.preventDefault();
   });
   async function navigate() {
-    if (!ctx.user || ctx.user.mustChangePassword) return;
+    if (!ctx.user || ctx.user.mustChangePassword || ctx.user.twoFactorSetupRequired) return;
     if (skipNext) {
       skipNext = false;
       return;
@@ -462,6 +463,10 @@ export function startApp(config) {
     if (ctx.user.mustChangePassword && config.passwordView) return showAuth(config.passwordView);
     if (ctx.user.mustChangePassword) {
       return showAuth((el) => forcePasswordView(el, { admin: config.side === 'admin', authBase: config.authBase, onDone: () => boot({ fresh: true }), onSignOut: signOut }));
+    }
+    // The school requires 2-step verification of this account: set it up first (account/two-factor.js).
+    if (ctx.user.twoFactorSetupRequired) {
+      return showAuth((el) => forceTwoFactorView(el, { admin: config.side === 'admin', onDone: () => boot({ fresh: true }), onSignOut: signOut }));
     }
     await config.onSignedIn?.();
     document.body.classList.remove('auth-mode', 'booting');

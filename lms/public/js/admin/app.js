@@ -4,6 +4,7 @@ import { html, toast, mount } from '../ui.js';
 import { icon } from '../icons.js';
 import { ctx, startApp, authScreen, passwordField, onFormSubmit, ssoBlock, passwordFields, showSsoError } from '../shell.js';
 import { userCan } from '/shared/roles.js';
+import { codeStep } from '../account/two-factor.js';
 import { dashboardView } from './views/dashboard.js';
 import { enrollmentQueueView } from './views/enrollment.js';
 import { peopleView, personView } from './views/people.js';
@@ -139,7 +140,11 @@ function signedOutView(el, { status, boot }) {
   showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
     if (!username || !password) throw new Error('Enter your username and password.');
-    await api.post('/api/admin/auth/login', { username, password });
+    const res = await api.post('/api/admin/auth/login', { username, password });
+    // With 2-step verification on, the code from the authenticator app comes next.
+    if (res.twoFactorRequired) {
+      return codeStep({ render: (card) => authScreen(el, { admin: true }, card), verifyUrl: '/api/admin/auth/login/verify', challenge: res.challenge, onSignedIn: boot, onBack: () => signedOutView(el, { status, boot }) });
+    }
     boot();
   });
 }
