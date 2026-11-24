@@ -14,12 +14,19 @@
 import { randomUUID } from 'node:crypto';
 import { text } from './util.js';
 import { userCan } from '../shared/roles.js';
+import { decidersFor, EMPLOYEE_ROLES } from './notifications.js';
 import { ACCT, ADVANCE_TYPES, PAYMENT_MODES, NATURES, round2, sum, withholding, classOf, fundName, tracksCard } from '../shared/finance.js';
 
 export function registerCashRoutes(route, fx) {
   const { data, save, fail, iso } = fx;
   const D = () => data();
   const S = () => fx.S();
+
+  // ----- The bell (server/notifications.js): a voucher waiting for someone's box -----
+  const tell = (to, user, entry) => fx.ctx.notify?.(to, { system: 'fmis', ...entry }, { actorId: user.id });
+  const officers = (permission, exclude = []) => decidersFor(D(), permission, { exclude, roles: EMPLOYEE_ROLES });
+  const dvLink = (d) => `/finance/#/dvs/${d.id}`;
+  const toCertify = (d, user) => tell(officers('finance.accounts', [d.createdById]), user, { kind: 'dv.submitted', title: `${user.name} submitted a disbursement voucher for ${fx.cardName(d.payeeId) || 'a payee'}`, body: 'Waiting for your certification (Box C)', link: dvLink(d) });
 
   // ----- Disbursement vouchers -----
   const advanceAccount = (type) => ADVANCE_TYPES.find(([k]) => k === type)?.[2] || ACCT.advancesOfficers;
@@ -187,14 +194,17 @@ export function registerCashRoutes(route, fx) {
     const d = { id: randomUUID(), no: '', ...dvFields(body, null, user), status: 'draft', submitted: Boolean(body.submit), createdAt: iso(), createdBy: user.name, createdById: user.id };
     D().finDvs.push(d);
     fx.audit(user, `Prepared DV for ${fx.cardName(d.payeeId)}: ₱${d.gross.toLocaleString()}`, { kind: 'dv', ref: d.id });
+    if (d.submitted) toCertify(d, user);
     save();
     return dvView(d);
   });
   route('PUT', '/api/finance/dvs/:id', 'finance:finance.disburse', ({ user, params, body }) => {
     const d = fx.byId(D().finDvs, params.id) || fail('Voucher not found.', 404);
     if (d.status !== 'draft') fail('Only a draft voucher can be changed.');
+    const was = d.submitted;
     Object.assign(d, dvFields({ ...body }, d, user));
     if (body.submit !== undefined) d.submitted = Boolean(body.submit);
+    if (d.submitted && !was) toCertify(d, user);
     save();
     return dvView(d);
   });
@@ -213,6 +223,7 @@ export function registerCashRoutes(route, fx) {
     d.payTo = { bankName: payee.bankName || '', bankAccount: payee.bankAccount || '', at: iso() };
     Object.assign(d, { status: 'certified', no: fx.nextNo('dv', { fund: d.fund, date }), certifiedBy: { id: user.id, name: user.name, title: fx.signatory('accountant').title, at: iso() }, docsComplete: true });
     fx.audit(user, `Certified DV ${d.no} (Box C)`, { kind: 'dv', ref: d.id });
+    tell(officers('finance.approve', [d.createdById, user.id]), user, { kind: 'dv.certified', title: `${user.name} certified DV ${d.no} for ${fx.cardName(d.payeeId) || 'a payee'}`, body: 'Waiting for your approval (Box D)', link: dvLink(d) });
     save();
     return dvView(d);
   });
@@ -223,6 +234,7 @@ export function registerCashRoutes(route, fx) {
     if (d.createdById === user.id || d.certifiedBy?.id === user.id) fail('The approving officer must be someone other than the person who prepared or certified the voucher.');
     Object.assign(d, { status: 'approved', approvedBy: { id: user.id, name: user.name, title: fx.signatory('head').title, at: iso() } });
     fx.audit(user, `Approved DV ${d.no} for payment (Box D)`, { kind: 'dv', ref: d.id });
+    tell([d.createdById], user, { kind: 'dv.approved', title: `${user.name} approved DV ${d.no} for payment`, body: `${fx.cardName(d.payeeId) || 'The payee'} · Ready to pay`, link: dvLink(d) });
     save();
     return dvView(d);
   });

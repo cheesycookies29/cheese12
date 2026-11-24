@@ -7,6 +7,7 @@ import { icon } from '../icons.js';
 import { ctx, openChangePassword } from '../shell.js';
 import { avatar, editMyAvatar, loadAvatars } from './avatars.js';
 import { twoFactorCard, wireTwoFactorCard } from './two-factor.js';
+import { notificationsView } from './notifications.js';
 
 const row = (label, value) => html`<div><dt>${label}</dt><dd>${value || html`<span class="muted">—</span>`}</dd></div>`;
 // The change-password address for this system (each system checks its own session).
@@ -144,4 +145,5 @@ export const accountRoutes = () => [
   ['/profile', profileView],
   ['/profile/:id', profileView, (u) => u.role === 'admin'],
   ['/security', securityView],
+  ['/notifications', notificationsView], // the bell's full list (public/js/account/notifications.js)
 ];

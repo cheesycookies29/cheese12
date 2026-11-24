@@ -68,6 +68,7 @@ import { registerFinanceRoutes } from './finance.js';
 import { registerConfigRoutes } from './config.js';
 import { registerCalendarRoutes } from './calendar.js';
 import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
+import { notify, registerNotificationRoutes, restoreNotifications, addNotificationsDemo, removeNotificationsDemo } from './notifications.js';
 
 
 // The largest request body: 20 MB for someone signed in (files travel as base64 in JSON), and
@@ -186,6 +187,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     },
     audit: (e) => audit.record(e),
     auditLog: audit, // entries() and verify(), for Control
+    // The bell (server/notifications.js): tells accounts about an event, at the server's time.
+    notify: (userIds, entry, opts = {}) => notify(db.data, userIds, entry, { at: clock().toISOString(), nowMs: clock().getTime(), ...opts }),
   };
 
   // ----- Sign-in (shared logic for both sides) -----
@@ -517,15 +520,22 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const droppedTwoFactor = cleanBackupTwoFactor(restored.users);
     db.replace({ ...emptyData(), ...restored });
     tidyAvatars(db.data, avatars); // pictures only when their file is on this server (a backup has no files)
+    restoreNotifications(db.data, clock().getTime()); // valid rows of accounts in the backup only
+    db.save();
     setRoleOverrides(db.data.roleOverrides);
     const { unreadable } = sealPasswords();
     return { ok: true, unreadablePasswords: unreadable, droppedTwoFactor };
   });
   route('GET', '/api/admin/demo', 'admin:data.manage', () => demoStatus(db.data));
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
+    // Making the demo school runs real routes (Finance's), which notify; those go, and the demo
+    // accounts get a set of their own instead (demo: true, removed with the demo).
+    const before = new Set((db.data.notifications || []).map((n) => n.id));
     addDemo(db.data, ctx.today(), ctx.files);
     addFinanceDemo(db.data, ctx);
     addAuditDemo(db.data, clock().getTime());
+    db.data.notifications = db.data.notifications.filter((n) => before.has(n.id));
+    addNotificationsDemo(db.data, clock().getTime());
     db.save();
     return demoStatus(db.data);
   });
@@ -534,6 +544,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
     removeAuditDemo(db.data);
+    removeNotificationsDemo(db.data);
     tidyAvatars(db.data, avatars);
     db.save();
     return demoStatus(db.data);
@@ -706,6 +717,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Your own account: profile, picture, sessions, quick access (server/account.js) -----
   twoFactor.registerRoutes(route); // My security: 2-step verification (/api/me/2fa…)
   registerAccountRoutes(route, { db, sides, avatars, record: (e) => audit.record(e), systemsFor: (u) => portalSystems(u, ROLES[u.role]?.side).filter((x) => x.status === 'live' && x.url).map((x) => ({ id: x.id, name: x.name, url: x.url, tagline: x.tagline || x.description || '' })) });
+  // ----- Notifications: the bell in every system's top bar (server/notifications.js) -----
+  registerNotificationRoutes(route, { db, clock });
   // ----- System → Security monitor (administrators), and its metrics export -----
   registerMonitorRoutes(route, { db, monitor, audit, record: (e) => audit.record(e), sec: security, rateLimits: rateLimits !== 'off', routes, sessions: openSessions, version: APP_VERSION });
 

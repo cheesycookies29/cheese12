@@ -19,6 +19,7 @@ import { validateUserFields } from './admin.js';
 import { campusName } from './campus.js';
 import { twoFactorRequired } from '../shared/two-factor.js';
 import { hasTwoFactor } from './two-factor.js';
+import { forgetUser } from './notifications.js';
 import { combinedTrail, filterTrail, trailCsv, sideLabel, SYSTEM_LABELS, KIND_LABELS, SOURCE_LABELS } from './audit.js';
 
 const fail = (msg, status = 400) => {
@@ -322,6 +323,7 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
     d.guardianLinks = d.guardianLinks.filter((l) => l.guardianId !== u.id && l.studentId !== u.id);
     d.studentProfiles = d.studentProfiles.filter((p) => p.studentId !== u.id);
     d.documentRequests = d.documentRequests.filter((r) => r.studentId !== u.id);
+    forgetUser(d, u.id); // its notifications, and its name on others'
     ctx.signOutEverywhere(u.id);
     unlockUsername(u.username);
     log(a, { kind: 'account', action: 'Deleted an account', targetName: `${u.name} (${u.username}, ${roleLabel(u.role)})` });

@@ -134,6 +134,7 @@ export function emptyData() {
     finAudit: [], // who did what in Finance
     pdfSignatures: [], // PDF Studio's signature records: who signed which file (its SHA-256), for Verify a signed PDF
     auditDemo: [], // the demo school's sample audit trail (the real one is in audit-log.jsonl, server/audit.js)
+    notifications: [], // the bell: one row per person and event, 60 days and 200 per person at most (server/notifications.js)
   };
 }
 

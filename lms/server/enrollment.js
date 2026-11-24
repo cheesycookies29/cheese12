@@ -218,6 +218,19 @@ export function registerEnrollmentRoutes(route, ctx) {
   const data = () => db.data;
   const findEnrollment = (id) => findById(data().enrollments, id) || fail('Enrollment not found.', 404);
   const termOr = (id) => findById(data().terms, id || data().settings.currentTermId) || data().terms.at(-1) || null;
+  // The bell: the student hears of the registrar's decision on their request (My enrollment shows it, with the note).
+  const tellStudent = (e, user, approved, note) => {
+    const section = findById(data().sections, e.sectionId);
+    if (!section) return;
+    const what = sectionLabel(data(), section);
+    const term = findById(data().terms, section.termId)?.name || '';
+    ctx.notify?.([e.studentId], {
+      system: 'lms', kind: approved ? 'enrollment.approved' : 'enrollment.rejected',
+      title: approved ? `${user.name} approved your enrollment in ${what}` : `${user.name} declined your enrollment request for ${what}`,
+      body: [findById(data().courses, section.courseId)?.title, term, note && (approved ? note : `Reason: ${note}`)].filter(Boolean).join(' · '),
+      link: '/lms/#/enroll/mine',
+    }, { actorId: user.id });
+  };
 
   // ----- Students (learning portal) -----
   route('GET', '/api/enrollment/terms', 'student', () => {
@@ -332,6 +345,7 @@ export function registerEnrollmentRoutes(route, ctx) {
     } else if (e.status === 'pending') {
       changeStatus(data(), e, 'enrolled', user, String(body.note || '').trim() || 'Approved.');
     } else fail(`Only pending or waitlisted requests can be approved (this one is ${STATUS_LABELS[e.status].toLowerCase()}).`);
+    tellStudent(e, user, true, String(body.note || '').trim());
     db.save();
     return enrollmentView(data(), e);
   });
@@ -340,6 +354,7 @@ export function registerEnrollmentRoutes(route, ctx) {
     const e = findHere(params.id, campusId);
     if (!['pending', 'waitlisted'].includes(e.status)) fail('Only pending or waitlisted requests can be rejected. Drop an enrolled student instead.');
     changeStatus(data(), e, 'rejected', user, String(body.note || '').trim());
+    tellStudent(e, user, false, String(body.note || '').trim());
     db.save();
     return enrollmentView(data(), e);
   });

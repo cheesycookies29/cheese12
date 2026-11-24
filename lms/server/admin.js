@@ -5,7 +5,7 @@ import { HttpError, DATE_RE, text, localDate } from './util.js';
 import { newPasswordHash, publicUser, passwordEncryption } from './auth.js';
 import { userCan, ROLES, ADMIN_ROLES } from '../shared/roles.js';
 import { t } from './validate.js';
-import { MODULES } from '../shared/modules.js';
+import { MODULES, moduleOn } from '../shared/modules.js';
 import { TIME_RE, toMinutes, meetingsClash, formatMeetings } from '../shared/schedule.js';
 import { mergeSettings } from './db.js';
 import { nextNumber, previewNumber } from './numbering.js';
@@ -15,6 +15,7 @@ import { SYSTEMS, SYSTEM_STATUS, TOOLS, TOOL_ROLES } from '../shared/systems.js'
 import { TWO_FACTOR_POLICIES, twoFactorRequired } from '../shared/two-factor.js';
 import { hasTwoFactor } from './two-factor.js';
 import { campusesFor, inCampus, canReach, campusIdsFrom, campusName } from './campus.js';
+import { forgetUser } from './notifications.js';
 import {
   findById, sectionView, enrollmentView, seatsTaken, promoteWaitlist, changeStatus, HOLDS_PLACE, termOpen,
 } from './enrollment.js';
@@ -250,6 +251,7 @@ export function registerAdminRoutes(route, ctx) {
     data().guardianLinks = data().guardianLinks.filter((l) => l.guardianId !== u.id && l.studentId !== u.id);
     data().studentProfiles = data().studentProfiles.filter((p) => p.studentId !== u.id);
     data().documentRequests = data().documentRequests.filter((r) => r.studentId !== u.id);
+    forgetUser(data(), u.id); // its notifications, and its name on others'
     ctx.signOutEverywhere(u.id);
     save();
     return { ok: true };
@@ -267,6 +269,12 @@ export function registerAdminRoutes(route, ctx) {
     u.status = 'active';
     u.studentNo ||= nextStudentNo(data());
     u.admittedAt = now();
+    // The bell: waiting for them at their first sign-in.
+    const enroll = moduleOn(data().modules, 'enrollment', 'student');
+    ctx.notify?.([u.id], {
+      system: 'lms', kind: 'applicant.admitted', title: `You are admitted to ${data().settings.schoolName || 'the school'}`,
+      body: `Student number ${u.studentNo}${enroll ? ' · You can now ask to enroll in classes' : ''}`, link: enroll ? '/lms/#/enroll' : '/lms/#/home',
+    }, { actorId: user.id });
     save();
     return publicUser(u);
   });

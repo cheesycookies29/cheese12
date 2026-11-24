@@ -4,6 +4,7 @@
 // switched that module off for the caller's account type (shared/modules.js).
 import { randomUUID } from 'node:crypto';
 import { HttpError, DATETIME_RE, text } from './util.js';
+import { quote } from './notifications.js';
 import { findById, sectionView, enrollmentView, STATUS_LABELS } from './enrollment.js';
 import { moduleOn } from '../shared/modules.js';
 import { validateQuestions, quizPoints, scoreAttempt, bestAttempt, registerQuizRoutes } from './quiz.js';
@@ -41,6 +42,21 @@ export function registerClassroomRoutes(route, ctx) {
   };
   const studentsOf = (sectionId, statuses = IN_CLASS) =>
     data().enrollments.filter((e) => e.sectionId === sectionId && statuses.includes(e.status));
+  const classLabel = (section) => `${findById(data().courses, section.courseId)?.code || '?'} ${section.name}`;
+  // The bell: a student's final grade, to the student and to the parents whose link shares grades
+  // (and whose Grades module is on). The grade itself is on the linked page, not in the text.
+  function tellFinalGrade(e, section, teacher, changed) {
+    const what = classLabel(section);
+    const title = findById(data().courses, section.courseId)?.title || '';
+    if (moduleOn(data().modules, 'grades', 'student')) {
+      ctx.notify?.([e.studentId], { system: 'lms', kind: 'grade.final', title: `${teacher.name} ${changed ? 'changed' : 'gave'} your final grade in ${what}`, body: [title, 'See it under Grades'].filter(Boolean).join(' · '), link: '/lms/#/grades' }, { actorId: teacher.id });
+    }
+    if (!moduleOn(data().modules, 'grades', 'guardian')) return;
+    const student = findById(data().users, e.studentId);
+    for (const l of data().guardianLinks.filter((x) => x.studentId === e.studentId && x.status === 'active' && x.views?.grades)) {
+      ctx.notify?.([l.guardianId], { system: 'lms', kind: 'grade.final', title: `${teacher.name} ${changed ? 'changed' : 'gave'} ${student?.name || 'your child'}'s final grade in ${what}`, body: [title, 'See it under Grades'].filter(Boolean).join(' · '), link: `/lms/#/children/${e.studentId}/grades` }, { actorId: teacher.id });
+    }
+  }
 
   // A teacher sees the sections they teach at the campus they have switched to;
   // a student sees their own classes (all at their one campus).
@@ -346,12 +362,23 @@ export function registerClassroomRoutes(route, ctx) {
     const s = findById(data().submissions, params.id) || fail('Submission not found.', 404);
     const x = findAssignment(s.assignmentId);
     teacherOnly(access(user, x.sectionId));
+    const was = { score: s.score, feedback: s.feedback || '' };
     if (body.score === '' || body.score == null) {
       Object.assign(s, { score: null, gradedAt: null, feedback: text(body.feedback, 5000) }); // returned for resubmission
     } else {
       const score = Number(body.score);
       if (!(score >= 0 && score <= x.points)) fail(`Score must be between 0 and ${x.points}.`);
       Object.assign(s, { score, feedback: text(body.feedback, 5000), gradedAt: iso(), gradedBy: user.name });
+    }
+    // The bell: the student hears their work was scored (or returned), when something changed.
+    if (s.score !== was.score || (s.feedback || '') !== was.feedback) {
+      const returned = s.score == null;
+      ctx.notify?.([s.studentId], {
+        system: 'lms', kind: returned ? 'submission.returned' : 'submission.scored',
+        title: returned ? `${user.name} returned your work on ${x.title}` : `${user.name} ${was.score == null ? 'scored' : 'changed the score of'} your work on ${x.title}`,
+        body: returned ? (s.feedback ? quote(s.feedback) : 'You can hand it in again') : `${classLabel(findById(data().sections, x.sectionId))} · See your score and the feedback`,
+        link: `/lms/#/assignments/${x.id}`,
+      }, { actorId: user.id });
     }
     save();
     return submissionView(s);
@@ -424,7 +451,9 @@ export function registerClassroomRoutes(route, ctx) {
       const grade = Number(g.grade);
       if (!(grade >= 0 && grade <= 100)) fail('Final grades must be between 0 and 100.');
       if (e.finalGrade === grade && e.status === 'completed') continue;
+      const changed = e.status === 'completed';
       Object.assign(e, { finalGrade: grade, passed: grade >= pass, status: 'completed', gradedAt: iso(), updatedAt: iso() });
+      tellFinalGrade(e, a.section, user, changed);
       e.history.push({ at: iso(), status: 'completed', by: user.name, note: `Final grade ${grade} (${grade >= pass ? 'passed' : 'failed'}).` });
     }
     save();

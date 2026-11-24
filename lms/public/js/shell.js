@@ -7,6 +7,7 @@ import { setRoleOverrides } from '/shared/roles.js';
 import { accountRoutes } from './account/profile.js';
 import { forceTwoFactorView } from './account/two-factor.js';
 import { mountSystems, mountQuick, mountUserMenu, recordVisit } from './account/topbar.js';
+import { mountBell } from './account/notifications.js';
 
 // App-wide state for the current page set (one per app, since each is its own page).
 export const ctx = { user: null, info: null };
@@ -348,6 +349,7 @@ export function startApp(config) {
         ],
       });
     }
+    mountBell(document.getElementById('help-btn'), { user: ctx.user, here: appPath() }); // after Quick access
   }
 
   async function refreshBadges() {
