@@ -96,12 +96,15 @@ const STAFF = ['registrar', 'dean', 'teacher', 'hr', 'payroll', 'accountant', 'b
 export const TOOLS = [
   {
     id: 'pdf',
+    code: 'TOOL-01',
     product: 'PDF Studio',
     short: 'PDF',
     title: 'Make, join and sign PDFs',
     description: 'Turn documents, spreadsheets, slides and pictures into PDF; put PDFs together, reorder, turn and number pages; change text and sign.',
     icon: 'filePdf',
     path: '/tools/#/pdf',
+    accent: 'red',
+    features: ['Word, Excel, PowerPoint', 'Pictures', 'Merge and arrange', 'Page numbers', 'Sign'],
     defaultRoles: STAFF,
   },
 ];

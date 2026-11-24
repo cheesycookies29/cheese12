@@ -125,8 +125,7 @@ function systemCard(s, side, figures = []) {
   const openLabel = s.id === 'lms' && side === 'admin' ? 'Manage Learn' : `Open ${s.product}`;
   const body = html`
     <span class="sys-top"><span class="sys-ic">${icon(s.icon, 26)}</span>${live ? html`<span class="sys-code">${s.short}</span>` : html`<span class="badge gray">${icon('lock', 12)} Coming soon</span>`}</span>
-    <span class="sys-name">${s.product.replace(/-/g, '\u2011')}</span>
-    <strong class="sys-title">${s.title}</strong>
+    <span class="sys-name" title="${s.title}">${s.product.replace(/-/g, '\u2011')}</span>
     <p>${s.description}</p>
     ${live && figures.length ? html`<ul class="sys-figs">${figures.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
     <span class="sys-open">${live ? html`${openLabel} ${icon(s.external ? 'external' : 'chevronRight', 16)}` : 'Not available yet'}</span>`;
@@ -228,7 +227,7 @@ function administration(status) {
   return html`<section class="hub-wrap" aria-labelledby="admin-heading">
     <div class="card-head"><h2 id="admin-heading">${icon('settings')} Administration</h2><span class="muted small">Applies to every system</span></div>
     <a class="admin-hero" href="/admin">
-      <span class="admin-hero-ic">${icon('shield', 28)}</span>
+      <span class="admin-hero-ic">${icon('shield', 26)}</span>
       <span class="grow"><strong>Admin panel</strong><small>${covers}</small></span>
       <span class="admin-hero-open">Open ${icon('chevronRight', 16)}</span>
     </a>
@@ -238,11 +237,21 @@ function administration(status) {
 
 // Tools (/tools/): PDF Studio and the like, for the account types an administrator switched them on
 // for (Admin panel → Home page & systems → Tools). One tile each, under the systems.
-function toolsSection(status) {
-  if (!(status.tools || []).length) return '';
-  return html`<section class="hub-wrap" aria-labelledby="tools-heading">
-    <div class="card-head"><h2 id="tools-heading">${icon('file')} Tools</h2><span class="muted small">For any work, in any system</span></div>
-    <div class="admin-tiles">${status.tools.map((t) => html`<a class="admin-tile" href="${t.path}" data-tool="${t.id}"><span class="ic-box">${icon(t.icon || 'file', 20)}</span><span class="grow"><strong>${t.product}</strong><small>${t.title}</small></span>${icon('chevronRight', 16)}</a>`)}</div>
+function toolsSection(status, view) {
+  const tools = status.tools || [];
+  if (!tools.length) return '';
+  const card = (t) => html`<a class="sys-card tool-card int-${t.accent || 'red'}" href="${t.path}" data-tool="${t.id}">
+      <span class="sys-top"><span class="sys-ic">${icon(t.icon || 'file', 24)}</span><span class="tool-badge">${t.code}</span></span>
+      <span class="sys-name">${t.product}</span>
+      <p>${t.description}</p>
+      ${(t.features || []).length ? html`<ul class="tool-feats" aria-label="What it does">${t.features.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
+      <span class="sys-open">Open ${t.product} ${icon('chevronRight', 16)}</span>
+    </a>`;
+  const mini = (t) => html`<a class="sys-mini tool-mini int-${t.accent || 'red'}" href="${t.path}" data-tool="${t.id}"><span class="sys-ic">${icon(t.icon || 'file', 20)}</span><span class="grow"><strong>${t.product}</strong><small>${t.title}</small></span></a>`;
+  return html`<section class="hub-wrap sys-section tool-section${view === 'compact' ? ' compact' : ''}" id="tool-section" aria-labelledby="tools-heading">
+    <div class="card-head"><h2 id="tools-heading">${icon('grid')} Tools</h2><span class="muted small">For any work, in any system</span></div>
+    <div class="tool-grid">${tools.map(card)}</div>
+    <div class="sys-compact">${tools.map(mini)}</div>
   </section>`;
 }
 
@@ -284,7 +293,7 @@ async function homeView(status) {
       <div class="sys-dots" id="sys-dots" hidden></div>
       <div class="sys-compact" id="sys-compact" role="region" aria-labelledby="sys-heading">${compactItems()}</div>
     </section>
-    ${toolsSection(status)}
+    ${toolsSection(status, view)}
     ${administration(status)}
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span></div></footer>`);
@@ -303,6 +312,7 @@ async function homeView(status) {
       localStorage.setItem(VIEW_KEY, view);
     } catch {}
     section.classList.toggle('compact', view === 'compact');
+    appEl.querySelector('#tool-section')?.classList.toggle('compact', view === 'compact');
     appEl.querySelectorAll('[data-view]').forEach((x) => {
       x.classList.toggle('active', x.dataset.view === view);
       x.setAttribute('aria-pressed', String(x.dataset.view === view));

@@ -9,7 +9,7 @@ order: 15
 
 ## Before you start
 
-**PDF Studio** is in **ATLAS Tools**: open it from the **Tools** row on the ATLAS home page, or from the **Systems** menu (the grid in the top bar) in any system. It is for the school's employees (teachers, registrars, deans, HR, payroll, Finance offices and staff) and administrators. An administrator chooses which account types may use it, under **Admin panel → Home page & systems → Tools**; students and parents get it only if the school switches it on for them.
+**PDF Studio** is in **ATLAS Tools**: open it from its card under **Tools** on the ATLAS home page (**Open PDF Studio**), or from the **Systems** menu (the grid in the top bar) in any system. It is for the school's employees (teachers, registrars, deans, HR, payroll, Finance offices and staff) and administrators. An administrator chooses which account types may use it, under **Admin panel → Home page & systems → Tools**; students and parents get it only if the school switches it on for them.
 
 To try it with the demo school, sign in as `teacher.demo` (password `demo1234`), Maria Santos.
 
@@ -128,7 +128,7 @@ Choose **Start over** at the top: every file and page goes from PDF Studio (down
 |---|---|
 | PDF Studio | Add files (drop or choose); **Files**: each file with its kind, size and pages, its **Page setup** and remove; **Pages**: every page as a card to drag, turn, edit or remove, with **Select all**, **Sign**, **Blank page** and **Reverse**; **Export**: the file name, one PDF or a ZIP, page numbers, header and footer, watermark, document details, the signature record page, **Download** and **Preview**; **Verify a signed PDF** |
 | Page editor | One page at a time: **Change text on the page**, **Add text**, **White-out**, **Highlight**, **Tick**, **Cross**, **Today's date**, **Signature**, **Picture**; the panel on the right for what is selected; **Undo**, the previous and next page, **Done** |
-| ATLAS home | **Tools**: the tile that opens PDF Studio (also in the **Systems** menu of every system) |
+| ATLAS home | **Tools**: the PDF Studio card (a small tile in **Compact**) that opens it (also in the **Systems** menu of every system) |
 | Admin panel → Home page & systems | **Tools**: the account types that may use PDF Studio (administrators) |
 
 ## Questions

@@ -586,7 +586,7 @@ section.hub-wrap { margin-top: 28px; }
 a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--brand-line); }
 .sys-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
 .sys-ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-text); }
-.sys-name { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.sys-name { font-size: 20px; font-weight: 800; letter-spacing: 0.01em; color: var(--brand-text); line-height: 1.1; }
 .sys-code { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); }
 .sys-title { font-size: 13px; line-height: 1.3; font-weight: 600; color: var(--text-2); }
 .sys-card p { margin: 2px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -598,25 +598,27 @@ a.sys-card:hover { text-decoration: none; transform: translateY(-2px); box-shado
 .sys-card.soon .sys-title { color: var(--text-2); }
 .sys-card.soon .sys-open { font-weight: 500; }
 /* Administration on the home page (as on CORE's): the admin panel, then shortcuts into it. */
-.admin-hero { display: flex; align-items: center; gap: 18px; padding: 22px 24px; background: var(--brand-softer); border: 1px solid var(--brand-line); border-radius: 16px; color: var(--text); box-shadow: var(--shadow); transition: box-shadow 0.14s, border-color 0.14s; }
+.admin-hero { display: flex; align-items: center; gap: 16px; padding: 18px 20px; background: var(--brand-softer); border: 1px solid var(--brand-line); border-radius: var(--radius); color: var(--text); box-shadow: var(--shadow); transition: box-shadow 0.14s, border-color 0.14s; }
 a.admin-hero:hover { text-decoration: none; box-shadow: var(--shadow-lg); border-color: var(--brand); }
-.admin-hero-ic { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; flex: none; background: var(--brand); color: #fff; }
+.admin-hero-ic { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--brand); color: #fff; }
 .admin-hero .grow { flex: 1; min-width: 0; }
-.admin-hero strong { display: block; font-size: 20px; line-height: 1.25; }
-.admin-hero small { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; line-height: 1.45; }
-.admin-hero-open { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--brand-text); flex: none; }
-.admin-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
-.admin-tile { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; color: var(--text); box-shadow: var(--shadow); }
+.admin-hero strong { display: block; font-size: 17px; line-height: 1.3; }
+.admin-hero small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.admin-hero-open { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--brand-text); flex: none; white-space: nowrap; }
+.admin-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+@media (max-width: 1100px) { .admin-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .admin-tiles { grid-template-columns: 1fr; } }
+.admin-tile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); box-shadow: var(--shadow); }
 a.admin-tile:hover { text-decoration: none; border-color: var(--brand-line); background: var(--brand-softer); }
-.admin-tile .ic-box { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--brand-soft); color: var(--brand-text); }
+.admin-tile .ic-box { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--brand-soft); color: var(--brand-text); }
 .admin-tile .grow { flex: 1; min-width: 0; }
-.admin-tile strong { display: block; font-size: 14px; }
-.admin-tile small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.admin-tile strong { display: block; font-size: 13.5px; }
+.admin-tile small { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .admin-tile > svg { color: var(--muted); flex: none; }
 @media (max-width: 560px) {
-  .admin-hero { flex-wrap: wrap; padding: 18px; gap: 14px; }
-  .admin-hero .grow { flex-basis: calc(100% - 70px); }
-  .admin-hero-open { margin-left: 70px; }
+  /* As CORE's Admin panel card on a phone: the whole card opens it, so "Open" goes. */
+  .admin-hero { align-items: flex-start; gap: 14px; padding: 16px; }
+  .admin-hero-open { display: none; }
 }
 .hub-foot { margin-top: auto; padding: 22px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 .hub-foot .hub-wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -1636,3 +1638,30 @@ body.ps-editing { overflow: hidden; }
 .tools-title { display: flex; align-items: center; gap: 8px; margin: 28px 0 4px; font-size: 18px; }
 .role-checks { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 16px; }
 .role-checks legend { font-weight: 600; font-size: 13px; color: var(--text-2); margin-bottom: 6px; padding: 0; }
+
+/* ---------- Tools on the ATLAS home, as on CORE's home (0.64): module-sized cards in the tool's colour ---------- */
+.tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 16px; }
+.tool-grid .sys-card { min-height: 0; }
+.sys-section.compact .tool-grid { display: none; }
+.int-red { --int: #d64545; --int-deep: #a32424; --int-text: #b42323; }
+:root[data-theme='dark'] .int-red { --int-text: #fca5a5; }
+.sys-card.tool-card { border-color: color-mix(in srgb, var(--int) 32%, var(--border)); box-shadow: 0 6px 18px color-mix(in srgb, var(--int) 12%, transparent);
+  background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--int) 11%, transparent), transparent 60%), var(--surface); }
+.sys-card.tool-card::after { content: ''; position: absolute; top: 4px; right: 0; width: 150px; height: 110px; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--int) 30%, transparent) 1.2px, transparent 1.6px) 0 0 / 12px 12px;
+  -webkit-mask-image: linear-gradient(225deg, #000, transparent 70%); mask-image: linear-gradient(225deg, #000, transparent 70%); }
+.sys-card.tool-card > * { position: relative; z-index: 1; }
+.sys-card.tool-card::before { height: 4px; background: linear-gradient(90deg, var(--int-deep), var(--int), color-mix(in srgb, var(--int) 45%, var(--surface))); }
+a.sys-card.tool-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--int) 50%, var(--border)); box-shadow: 0 10px 24px color-mix(in srgb, var(--int) 20%, transparent); }
+.tool-card .sys-top { align-items: center; gap: 10px; margin-bottom: 10px; }
+.sys-card.tool-card .sys-ic { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, var(--int), var(--int-deep)); color: #fff; box-shadow: 0 6px 14px color-mix(in srgb, var(--int) 32%, transparent); }
+.tool-card .tool-badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; background: color-mix(in srgb, var(--int) 10%, var(--surface)); color: var(--int-text); border: 1px solid color-mix(in srgb, var(--int) 35%, var(--surface)); }
+.sys-card.tool-card .sys-name { color: var(--text); }
+.sys-card.tool-card p { color: var(--text-2); }
+.tool-feats { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.tool-feats li { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--int-text); background: color-mix(in srgb, var(--int) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--int) 25%, var(--surface)); }
+.sys-card.tool-card .sys-open { color: var(--int-text); font-weight: 600; }
+.sys-mini.tool-mini { background: linear-gradient(120deg, color-mix(in srgb, var(--int) 8%, var(--surface)), var(--surface) 70%); border-color: color-mix(in srgb, var(--int) 28%, var(--border)); }
+.sys-mini.tool-mini::before { background: linear-gradient(180deg, var(--int), var(--int-deep)); width: 4px; }
+.sys-mini.tool-mini .sys-ic { background: linear-gradient(135deg, var(--int), var(--int-deep)); color: #fff; }
+.sys-mini.tool-mini strong { color: var(--text); }

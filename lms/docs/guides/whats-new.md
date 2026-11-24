@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### The ATLAS home, sized as CORE's home
+- The system cards, the **Admin panel** bar and the shortcuts under **Administration** now have CORE's sizes: system names are a little smaller and in the school colour, and the Admin panel bar and its four shortcuts are more compact. On a phone, the whole Admin panel bar opens it.
+- **Tools** show as cards like the systems (PDF Studio in red, with what it does), and as small tiles in **Compact**.
+
 ### PDF Studio, from CORE
 - **PDF Studio**, a new tool under **Tools** on the ATLAS home page and in the **Systems** menu: turn Word, Excel, PowerPoint, OpenDocument, text and CSV files and pictures into PDF, put PDFs together, reorder, turn and remove pages, number them, change a line of text, add text, white-out and ticks, and sign. See [the PDF Studio guide](pdf-studio).
 - A signed PDF can have a **signature record page** with a code such as *ATLAS-7KQ2-M9XA*; **Verify a signed PDF** says whether a file is unchanged since it was signed. See [the PDF Studio guide](pdf-studio#verify-a-signed-pdf).
