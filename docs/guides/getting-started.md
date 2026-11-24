@@ -18,6 +18,7 @@ CORE is the ERP of Lancaster Technology and Development Corporation (LTDC). It i
 | **IT Service Desk** | Support tickets from CORE, by email and from the public form. |
 | **Sales & CRM** | Leads, accounts, contacts, the deal pipeline, public bids and contracts. |
 | **Project Management** | Projects with milestones, a task board with sized tasks, a timeline, and a weekly timesheet for the projects that track time. Anyone who is on a project opens it here, and **My work** lists their tasks. |
+| **Document Management** | Everyone's own files and the company's folders: versions, check-out, sharing inside the company and by link outside it (see [the Documents guide](documents)). |
 
 You sign in once and move between modules without signing in again. What you see depends on your **account type** (for example *Employee*, *HR Manager* or *Sales Officer*): a module you may not use is shown locked.
 

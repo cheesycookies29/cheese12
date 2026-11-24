@@ -138,8 +138,12 @@ export function registerDocuments(route, db, { secrets, audit, limits, extractTe
       legalHold: Boolean(d.legalHold), trashedAt: d.trashedAt || null, reviewed: d.reviewed !== false, source: d.source || 'upload',
       level: a.level, canDownload: a.download, canShare: a.share && a.level !== 'none', inline: Boolean(v && isInline(v.ext)),
     };
+    // For the people who manage it: whether it is shared, and with how many working links (list badges).
+    if (a.level === 'manage') out.sharing = { grants: (d.acl || []).length, links: D.docLinks.filter((l) => !l.revokedAt && l.target.kind === 'document' && l.target.id === d.id && linkState(l).state === 'active').length };
     if (full) {
       out.description = d.description || '';
+      // Who sent a file in through an upload link (as they typed it), for the "Received" notice.
+      if (d.source === 'link-upload') out.sender = { name: d.sender?.name || '', email: d.sender?.email || '' };
       out.versionList = [...d.versions].reverse().map(versionOut);
       out.path = pathOf(u, d.folderId);
       if (a.level === 'manage') {
@@ -196,7 +200,7 @@ export function registerDocuments(route, db, { secrets, audit, limits, extractTe
     return {
       personalRoot: root.id, manager: can(u.role, 'docs.manage'),
       families: FAMILIES.filter((f) => s.families.includes(f.id)).map((f) => ({ id: f.id, label: f.label, exts: f.exts })),
-      maxUploadMB: s.maxUploadMB, quotaMB: s.quotaMB, usedBytes: usedBy(u.id), chunkBytes: DOCS_CHUNK_BYTES,
+      maxUploadMB: s.maxUploadMB, quotaMB: s.quotaMB, usedBytes: usedBy(u.id), chunkBytes: DOCS_CHUNK_BYTES, trashDays: s.trashDays, checkoutHours: s.checkoutHours,
       classifications: CLASSIFICATIONS, levels: LEVELS,
       sharing: { internal: s.internalSharing, everyone: s.shareWithEveryone, links: s.links && (s.linkCreators === 'all' || can(u.role, 'docs.manage')), uploadLinks: s.uploadLinks,
         passwordRequired: s.linkPasswordRequired, passwordMin: s.linkPasswordMin, defaultDays: s.linkDefaultDays, maxDays: s.linkMaxDays, maxDownloads: s.linkMaxDownloads, classifications: s.linkClassifications },

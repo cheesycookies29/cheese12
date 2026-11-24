@@ -67,6 +67,7 @@ export const MODULE_PARTS = {
   helpdesk: 'The ticket queue, email in and out, the public support form (/support), saved replies and the service desk settings; and everyone\'s My tickets.',
   crm: 'Leads, accounts, contacts, the pipeline, bids, contracts, activities and the sales setup; "Send to Sales & CRM" on a ticket.',
   projects: 'Projects, My work, milestones, the Projects setup and the daily digest; "Add to a project" on a ticket and "Start project" on a deal.',
+  documents: 'Folders and documents, their versions, check-out and sharing, links for people outside the company (/share) and Document control. The stored files stay, encrypted, and come back when it is turned on again.',
   pdf: 'PDF Studio on the CORE home and in the modules menu: converting documents and pictures to PDF, merging and arranging pages. Nothing is kept: uploads are deleted after a few hours.',
 };
 

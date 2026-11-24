@@ -233,7 +233,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 403, { error: 'Forbidden host.' });
   }
   // Exactly application/json (with parameters such as charset), not anything that starts with it.
-  if (['POST', 'PUT', 'DELETE'].includes(req.method) && (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
   // A change must come from CORE's own pages, never from another site (cross-site request forgery).
@@ -242,7 +242,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 403, { error: 'This request came from another site and was refused.' });
   }
   try {
-    const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req, bodyLimit(req, url)) : {};
+    const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req, bodyLimit(req, url)) : {};
     const { data, headers } = await api(req, url, body);
     // A file on disk (a large PDF export) is streamed from there.
     if (data instanceof FileReply) return sendFile(res, data, headers);

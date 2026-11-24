@@ -15,6 +15,8 @@ export function guideFor(from, role) {
     case 'system': return role === 'admin' ? 'admin' : 'getting-started';
     // Tools (0.64): their own guide, for everyone.
     case 'pdf': return 'pdf-studio';
+    // Document Management (0.67): one guide for everyone; administrators have Document control in theirs.
+    case 'documents': return 'documents';
     default: return ROLE_GUIDE[role] || 'getting-started';
   }
 }

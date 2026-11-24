@@ -61,6 +61,33 @@ async function startServer() {
   return { url, stop: () => new Promise((resolve) => { child.once('exit', resolve); child.kill(); }).then(() => fs.rmSync(dir, { recursive: true, force: true })) };
 }
 
+// Placeholders in a shot's url and api steps, for records whose ids are made while the shots run
+// (Documents, 0.67): {doc:Title} a document this user can open, {folder:Name} a folder, {person:Name}
+// an account, {saved:name.field} a field of an api step's answer kept with "save", {link:name} the
+// path of a link outside the company that such a step made (shown only once, so kept here).
+const saved = new Map();
+async function resolve(page, value) {
+  if (Array.isArray(value)) return Promise.all(value.map((v) => resolve(page, v)));
+  if (value && typeof value === 'object') return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([k, v]) => [k, await resolve(page, v)])));
+  if (typeof value !== 'string' || !value.includes('{')) return value;
+  let out = value;
+  for (const m of value.matchAll(/\{(doc|folder|person|saved|link):([^}]+)\}/g)) {
+    const [whole, kind, key] = m;
+    let id = null;
+    if (kind === 'saved') id = key.split('.').slice(1).reduce((o, f) => o?.[f], saved.get(key.split('.')[0]));
+    else if (kind === 'link') id = saved.get(key)?.url ? new URL(saved.get(key).url).pathname : null;
+    else id = await page.evaluate(async ([k, name]) => {
+      const get = (p) => fetch(p).then((r) => r.json());
+      if (k === 'doc') return (await get(`/api/docs/list?view=search&q=${encodeURIComponent(name)}`)).documents.find((d) => d.title === name)?.id || null;
+      if (k === 'folder') return (await get('/api/docs/folders')).folders.find((f) => f.name === name)?.id || null;
+      return (await get('/api/docs/meta')).people.find((p) => p.name === name)?.id || null;
+    }, [kind, key]);
+    if (id == null) throw new Error(`${whole} was not found`);
+    out = out.replace(whole, id);
+  }
+  return out;
+}
+
 const shots = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).filter((s) => !only.length || only.includes(s.file));
 if (!shots.length) {
   console.error(only.length ? `None of ${only.join(', ')} is in screenshots.json.` : 'screenshots.json is empty.');
@@ -91,17 +118,17 @@ try {
       await page.click('button[type=submit]');
       await page.waitForTimeout(900);
       // "api": [[method, path, body], …]: changes made as that user first (e.g. so a list has entries).
-      if (s.api) {
-        const bad = await page.evaluate(async (steps) => {
-          for (const [method, p, body] of steps) {
-            const r = await fetch(p, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-            if (!r.ok) return `${method} ${p}: ${await r.text()}`;
-          }
-          return '';
-        }, s.api);
-        if (bad) throw new Error(bad);
+      // A fourth item names the answer, to be used later as {saved:name.field} or {link:name}.
+      for (const step of s.api || []) {
+        const [method, p, body] = await resolve(page, step.slice(0, 3));
+        const r = await page.evaluate(async ([m, url, b]) => {
+          const res = await fetch(url, { method: m, headers: { 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined });
+          return { ok: res.ok, text: await res.text() };
+        }, [method, p, body]);
+        if (!r.ok) throw new Error(`${method} ${p}: ${r.text}`);
+        if (step[3]) saved.set(step[3], JSON.parse(r.text));
       }
-      await page.goto(`${server.url}${s.url}`);
+      await page.goto(`${server.url}${await resolve(page, s.url)}`);
       await page.waitForTimeout(wait);
       for (const sel of s.click || []) {
         await page.click(sel, { timeout: 8000 });
@@ -122,6 +149,11 @@ try {
       for (const [sel, value] of Object.entries(s.fill || {})) {
         await page.fill(sel, value);
         await page.waitForTimeout(150);
+      }
+      // "after": selectors clicked once the files, picks and typing are done (e.g. a dialog's Upload).
+      for (const sel of s.after || []) {
+        await page.click(sel, { timeout: 8000 });
+        await page.waitForTimeout(wait);
       }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();
       // "drag": selector: files from the computer held over it, not yet dropped (e.g. a task's Files card).

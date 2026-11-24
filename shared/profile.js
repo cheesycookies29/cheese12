@@ -50,6 +50,10 @@ export function moduleAccess(user, { modules = {}, inProjects = false, isApprove
     } else if (m.id === 'projects') {
       home = can('pm.view') || inProjects ? '/projects' : null;
       parts = [can('pm.manage') ? 'starts and manages projects, and the setup' : can('pm.edit') ? 'starts projects' : 'member projects only'];
+    } else if (m.id === 'documents') {
+      // Everyone signed in keeps their own files and opens what is shared with them (0.67).
+      home = '/documents';
+      parts = [can('docs.manage') ? 'every document and folder, and Document control' : 'own files and what is shared with them'];
     }
     const off = !moduleOn(modules, m.id);
     if (off && !admin) home = null;

@@ -27,7 +27,7 @@ id: hr                           # file name without .md; used in links: /help/#
 title: Running HR in CORE
 summary: One sentence: what this guide helps you do.
 roles: hr, hrstaff               # account types it is written for (comma-separated, see shared/roles.js)
-apps: hr                         # modules its screens are in: home, hr, assets, helpdesk, crm, projects, system
+apps: hr                         # modules its screens are in: home, hr, assets, helpdesk, crm, projects, documents, pdf, system
 order: 30                        # place in the list (lower first)
 ---
 ```
@@ -88,6 +88,12 @@ The screenshot script also creates the first administrator, `admin` (password `G
   Shots run in order on one server, so later shots see these changes.
 - `click` (optional): Playwright selectors clicked in order after the page loads, e.g. `text=Approve`,
   `#add`, `tr[data-href] >> nth=0`.
+- `files`, `select`, `fill` (optional): files chosen in a file box (paths from the repo), options picked,
+  text typed, in that order after `click`; then `after` (optional): selectors clicked last, e.g. the
+  **Upload** button of the dialog the chosen files opened.
+- Placeholders in `url` and `api` (Documents, whose ids are made while the shots run): `{doc:Title}`,
+  `{folder:Name}`, `{person:Name}`; an `api` step with a fourth item (`["POST", "/api/docs/links", {…}, "dl"]`)
+  keeps its answer as `{saved:dl.id}`, and `{link:dl}` is the path of the link it made.
 - `wait` (optional, ms): time to settle after each step (default 800).
 - `viewport` (optional): `"phone"` for a 390 × 844 phone; desktop (1280 × 800) otherwise.
 - `dark` (optional): `true` for dark mode.

@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Administering CORE
-summary: For administrators: the Admin panel. User accounts, roles and permissions, access grants, modules, the Settings center, company settings and branding, sign-in security, the security monitor, the audit log, the dev log, feedback, backups and demo data, and editing the Help guides.
+summary: For administrators: the Admin panel. User accounts, roles and permissions, access grants, modules, the Settings center, company settings and branding, sign-in security, Document control, the security monitor, the audit log, the dev log, feedback, backups and demo data, and editing the Help guides.
 roles: admin
 apps: system, home
 order: 60
@@ -15,7 +15,7 @@ Everything an administrator looks after is in one place, the **Admin panel**, in
 
 - On the **CORE home**, the **Administration** section starts with the **Admin panel** card, followed by shortcuts to **Users & Access**, the **Settings center**, the **Dev log** and the **Feedback inbox**.
 - In every module, the side menu ends with **Administration → Admin panel** (the number next to it counts new feedback and dev log releases you have not opened). The **modules** button at the top right also lists **Admin panel**.
-- The Admin panel has its own side menu: **Dashboard**; **People** (**Users & Access**, **Roles & permissions**, **Access grants**); **Configuration** (**Settings center**, **Modules**, **Settings & branding**, **Sign-in & security**, **Help & guides**); **Records** (**Security monitor**, **Audit log**, **Dev log**, **Feedback inbox**); **Data** (**Backup & restore**, **Demo data**); and **Elsewhere** (**CORE home**, **Send feedback**).
+- The Admin panel has its own side menu: **Dashboard**; **People** (**Users & Access**, **Roles & permissions**, **Access grants**); **Configuration** (**Settings center**, **Modules**, **Settings & branding**, **Sign-in & security**, **Help & guides**, **Document control**); **Records** (**Security monitor**, **Audit log**, **Dev log**, **Feedback inbox**); **Data** (**Backup & restore**, **Demo data**); and **Elsewhere** (**CORE home**, **Send feedback**).
 - Old links still work: an address such as `#/settings` or `#/users` opens the page in the Admin panel.
 
 The first administrator is created the first time CORE starts: CORE asks for a name, a username and a password. Keep at least two administrator accounts, so one can help the other. To try things out, load the demo data (see [Load or remove the demo data](#load-or-remove-the-demo-data)). It adds the demo accounts `hr.demo`, `payroll.demo`, `it.demo`, `sales.demo`, `pm.demo` and `employee.demo`, all with the password `demo1234`.
@@ -40,7 +40,7 @@ A first tour of the Admin panel, signed in as `admin` with the demo data loaded.
 
 ![Users & Access](admin-users.jpg)
 
-2. Choose **Roles & permissions**. Each account type is listed with its active accounts, then a table per part of CORE (**Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM**, **Project Management**, **Admin panel**): a tick means that account type may do it. *default* marks what CORE gives it; a shaded box differs from the default.
+2. Choose **Roles & permissions**. Each account type is listed with its active accounts, then a table per part of CORE (**Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM**, **Project Management**, **Document Management**, **Admin panel**): a tick means that account type may do it. *default* marks what CORE gives it; a shaded box differs from the default.
 
 ![Roles & permissions](admin-roles.jpg)
 
@@ -180,7 +180,7 @@ The person can no longer sign in. Their employee record is not affected, and the
 ### Turn a module on or off
 
 1. Open **Admin panel → Modules**.
-2. Use the switch of a module: **Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM** or **Project Management**, or of a tool: **PDF Studio** (on the CORE home under **Tools**, for everyone; see [the PDF Studio guide](pdf-studio)). Turning one off asks you to confirm; CORE then says, for example, *Sales & CRM is now off for the company.*
+2. Use the switch of a module: **Human Resource Management**, **IT Asset Management**, **IT Service Desk**, **Sales & CRM**, **Project Management** or **Document Management**, or of a tool: **PDF Studio** (on the CORE home under **Tools**, for everyone; see [the PDF Studio guide](pdf-studio)). Turning one off asks you to confirm; CORE then says, for example, *Sales & CRM is now off for the company.*
 
 A module that is off disappears from the CORE home, the modules menu and the side menus of everyone except administrators, and CORE refuses it even if someone types its address. Administrators still see it, marked **Off**, and can open it and its settings. Nothing is deleted: turning it back on shows everything again. While it is off its background work waits (reading the service desk mailbox; the Projects daily digest), and the service desk's public form (`/support`) is closed.
 
@@ -192,7 +192,7 @@ Self-service belongs to the module it is part of. With **Human Resource Manageme
 
 ### Show or hide what is coming soon
 
-What is on CORE's roadmap shows greyed out, marked **Coming soon**: the modules **Finance & Accounting**, **Procurement**, **Document Management** and **C-suite** on the CORE home and in the modules menu; the integrations **Microsoft 365**, **Google Cloud** and **CodeRabbit** under **Integrations** on the CORE home; and **Data replication** in the IT Asset Management side menu. Nothing can be opened or set up in them yet.
+What is on CORE's roadmap shows greyed out, marked **Coming soon**: the modules **Finance & Accounting**, **Procurement** and **C-suite** on the CORE home and in the modules menu; the integrations **Microsoft 365**, **Google Cloud** and **CodeRabbit** under **Integrations** on the CORE home; and **Data replication** in the IT Asset Management side menu. Nothing can be opened or set up in them yet.
 
 1. Open **Admin panel → Modules** and scroll to **Coming soon**. They are grouped as **Modules**, **Integrations** and **Pages in a module**, with where each one shows.
 2. Turn a switch off to hide one: CORE says, for example, *Procurement is now hidden from everyone.* Turn it on to show it again. **Hide all** and **Show all** change them all at once; the line under the table counts how many are shown.
@@ -269,6 +269,22 @@ When 2-step verification becomes required, people without it are asked to set it
 ![Sign-in & security](admin-security.jpg)
 
 > **Note:** Always on: the username lock after 5 wrong passwords; a password change, an account type change or turning on 2-step verification signs the account out on other devices; and every sign-in, failed sign-in, lock and 2-step change is in the audit log.
+
+### Set up Document control
+
+**Admin panel → Document control** (also at the end of the **Document Management** side menu) sets the rules of Documents for everyone. It needs the *Documents: Document control* permission, which administrators have; give it to another account type under **Roles & permissions** to let them look after the company's documents (they then also open every document and folder, and place legal holds). How people use Documents is in [the Documents guide](documents). Each tab has **Save** and **Use the defaults on this tab**; every field shows its default, and every change is in the audit log (*Changed Document control*).
+
+![Document control: the kinds of file accepted](documents-control.jpg)
+
+1. **File types**: one switch per kind of file (PDF, Pictures, Word, Excel, PowerPoint, Office 97–2003, OpenDocument, Rich Text, Text, CSV and data, E-mail messages, ZIP archives, Audio, Video, CAD drawings), with its extensions. ZIP, audio, video and CAD are off at first. CORE reads the kind from the file's content and refuses a file whose extension does not match it. The last row, **Programs and scripts, web pages and SVG, and Office files with macros**, is locked: always refused, with its full list of extensions. Turning a kind off stops new uploads of it (people see *Pictures files are not accepted here*); documents already stored stay.
+2. **Uploads & storage**: the **Largest file** (up to 100 MB; 50 MB at first), **Space per person** (2,048 MB; 0 = no limit), **Versions kept per document** (20) and what happens to **The same file twice in a folder** (keep it and say so, or refuse it).
+3. **Sharing**: whether people may share with others inside the company, and with *Everyone signed in*; whether **links outside the company** and **upload links** are allowed (turning links off stops every existing link until you turn them on again); **Who makes links** (anyone who may share, or document managers only); whether **every link needs a password** and the **shortest link password**; how long **a new link lasts** and the **longest a link can last**; the **download limit suggested**; and which **classifications may be shared by link** (*Restricted* is locked off). The **Classification levels** table explains the four levels.
+4. **Retention**: **Days in the trash** before documents are deleted for good (30), and the hours after which a **check-out ends by itself** (72).
+5. **Activity**: the storage used (encrypted), the documents, versions and folders, files received and not reviewed, the trash and legal holds; every **working link** with what it shares, who made it, until when and how much it was used, with **Turn off** for one and **Turn all off**; the **refused uploads** with who, when and why; and the **Integrity check**: **Check every file now** decrypts every stored version and compares it with the fingerprint taken when it was added, and counts stored files no document uses.
+
+![Document control: links, refused uploads and the integrity check](documents-control-activity.jpg)
+
+> **Tip:** If a link was sent to the wrong person, turn it off here or on the document. If you are unsure which links are out there, **Turn all off**: people make new ones when they need them.
 
 ### Back up and restore
 
@@ -401,10 +417,11 @@ Setting these up is described in CORE's README file and in the server set-up ins
 | Roles & permissions | What each account type may do, per part of CORE; defaults marked; **Restore defaults** per account type (administrators only) |
 | Access grants | One table of the access given to (or taken from) one person: Service Desk agent, Sales & CRM, Projects |
 | Settings center | Every setting with its value, its default and whether it differs; restore defaults; the change history with undo; export and import of the company's settings |
-| Modules | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM, Project Management and PDF Studio on or off for the company; show or hide what is coming soon (modules, integrations, Data replication) |
+| Modules | Turn Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM, Project Management, Document Management and PDF Studio on or off for the company; show or hide what is coming soon (modules, integrations, Data replication) |
 | Settings & branding | Company details printed on payslips, the default work schedule, the brand colour, the logo and the sign-in headline |
 | Sign-in & security | 2-step verification policy, session lengths, request and failed sign-in limits, common passwords |
 | Help & guides | Every guide and whether the company edited it; links to the guide editor |
+| Document control | Documents for the whole company: the kinds of file accepted, upload size, space per person and versions kept, sharing inside the company and by link, days in the trash and check-out hours; storage, working links (turn off one or all), refused uploads and the integrity check |
 | Security monitor | For a period (an hour to 30 days): software status checks; API security (refusals, addresses to watch, controls, the API inventory, the metrics export); traffic and response times; who is signed in and what people worked on |
 | Audit log | Who viewed or changed personal data, payroll, attendance, leave, roles and settings, and every sign-in; the integrity check; CSV export |
 | Dev log | The version installed and every release of CORE; write and edit entries; export CHANGELOG.md |
@@ -424,6 +441,9 @@ Wait 5 minutes if you typed the wrong password too often. If you forgot it, clos
 
 **Can a change in Roles & permissions lock me out?**
 No. Administrators always have every permission, their column cannot be changed, and the permissions that manage accounts, roles, sign-in security and data cannot be given to another account type. A data file or backup edited by hand cannot do it either: CORE ignores such entries.
+
+**Are documents in the backup?**
+The backup download holds their details (folders, titles, versions, sharing), not the files. The files are in `data/documents`, encrypted with a key kept in `data/secret.key`: copy the whole `data` folder, with that key, to keep them.
 
 **I turned a module off. Is its data gone?**
 No. Turning a module off only hides it and makes CORE refuse it for everyone but administrators. Its records, settings and files stay; turn it back on under **Modules** and everything is there.

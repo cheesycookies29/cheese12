@@ -45,6 +45,8 @@ import { auditView } from './views/audit.js';
 import { helpdeskHomeView, ticketQueueView, ticketView, newTicketView, myTicketsView, myTicketView, helpdeskSettingsView } from './views/helpdesk.js';
 import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView, listView, timelineView, projectTimeView, taskView, myWorkView, timesheetView, pmSettingsView, myWorkBadge, projectIcon, taskLinkView } from './views/projects.js';
 import { automationsView } from './views/pm-automations.js';
+import { myFilesView, folderView, sharedDocsView, recentDocsView, receivedDocsView, trashDocsView, searchDocsView, documentView, receivedCount } from './views/documents.js';
+import { documentControlView } from './views/admin/documents.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -124,6 +126,15 @@ const routes = [
   ['/projects/:id/automations', automationsView, 'projects', 'projects'],
   ['/projects/:projectId/tasks/:id', taskView, 'projects', 'projects'],
   ['/projects/:id', projectOverviewView, 'projects', 'projects'],
+  // Document Management (0.67): everyone signed in has their own files and what is shared with them.
+  ['/documents', myFilesView, 'auth', 'documents'],
+  ['/documents/folder/:id', folderView, 'auth', 'documents'],
+  ['/documents/shared', sharedDocsView, 'auth', 'documents'],
+  ['/documents/recent', recentDocsView, 'auth', 'documents'],
+  ['/documents/received', receivedDocsView, 'auth', 'documents'],
+  ['/documents/trash', trashDocsView, 'auth', 'documents'],
+  ['/documents/search', searchDocsView, 'auth', 'documents'],
+  ['/documents/doc/:id', documentView, 'auth', 'documents'],
   // Tools (0.64)
   ['/tools/pdf', pdfStudioView, 'auth', 'pdf'],
   // Admin panel ('system'): its own sidebar. Each page needs its own permission; 'panel' = any of them.
@@ -136,6 +147,7 @@ const routes = [
   ['/admin/settings', settingsView, 'settings.edit', 'system'],
   ['/admin/security', securityView, 'users.manage', 'system'],
   ['/admin/guides', guidesAdminView, 'guides.edit', 'system'],
+  ['/admin/documents', documentControlView, 'docs.manage', 'system'],
   ['/admin/audit', auditView, 'audit.view', 'system'],
   ['/admin/monitor', monitorView, 'security.monitor', 'system'],
   ['/admin/devlog', devlogView, 'devlog.view', 'system'],
@@ -213,6 +225,14 @@ const NAV = {
     // The projects this person starred (0.51), filled in once the menu is drawn.
     { favorites: true, permission: 'projects' },
   ],
+  documents: [
+    { href: '/documents', label: 'My files', icon: 'folder', permission: 'auth', also: ['/documents/folder', '/documents/doc'] },
+    { href: '/documents/shared', label: 'Shared with me', icon: 'users', permission: 'auth' },
+    { href: '/documents/recent', label: 'Recent', icon: 'clock', permission: 'auth' },
+    { href: '/documents/received', label: 'Received', icon: 'inbox', permission: 'auth', badge: 'docsReceived' },
+    { href: '/documents/trash', label: 'Trash', icon: 'trash', permission: 'auth' },
+    { href: '/admin/documents', label: 'Document control', icon: 'shield', permission: 'docs.manage' },
+  ],
   // The Admin panel's own sidebar (ported from Lancaster ATLAS). A heading shows when something under it does.
   system: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard', permission: 'panel' },
@@ -226,6 +246,7 @@ const NAV = {
     { href: '/admin/settings', label: 'Settings & branding', icon: 'toggles', permission: 'settings.edit' },
     { href: '/admin/security', label: 'Sign-in & security', icon: 'shield', permission: 'users.manage' },
     { href: '/admin/guides', label: 'Help & guides', icon: 'help', permission: 'guides.edit' },
+    { href: '/admin/documents', label: 'Document control', icon: 'folder', permission: 'docs.manage' },
     { heading: 'Records' },
     { href: '/admin/monitor', label: 'Security monitor', icon: 'eye', permission: 'security.monitor' },
     { href: '/admin/audit', label: 'Audit log', icon: 'activity', permission: 'audit.view' },
@@ -501,6 +522,7 @@ const BADGES = {
   leads: () => api.get('/api/crm/overview').then((r) => r.newLeads),
   crmTasks: () => api.get('/api/crm/activities?mine=1&open=1').then((list) => list.filter((a) => a.dueDate && a.dueDate <= today()).length),
   pmWork: () => myWorkBadge(),
+  docsReceived: () => receivedCount(),
 };
 async function refreshBadge() {
   for (const el of document.querySelectorAll('#nav .nav-badge[data-badge]')) {
@@ -685,6 +707,7 @@ window.addEventListener('feedback:changed', refreshBadge);
 window.addEventListener('helpdesk:changed', refreshBadge);
 window.addEventListener('crm:changed', refreshBadge);
 window.addEventListener('pm:changed', refreshBadge);
+window.addEventListener('documents:changed', refreshBadge);
 // The bell: read there, My work's badge follows; something done here may change its count.
 window.addEventListener('notifications:changed', refreshBadge);
 for (const ev of ['requests:changed', 'reports:changed', 'feedback:changed', 'helpdesk:changed', 'crm:changed', 'pm:changed']) window.addEventListener(ev, () => refreshCount());

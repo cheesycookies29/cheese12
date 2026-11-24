@@ -17,7 +17,7 @@ const ctx = { user: null };
 // The modules, in the order they appear, with their icons.
 const SYSTEMS = [
   ['home', 'Getting around', 'grid'], ['hr', 'Human Resource Management', 'users'], ['assets', 'IT Asset Management', 'laptop'],
-  ['helpdesk', 'IT Service Desk', 'headset'], ['crm', 'Sales & CRM', 'chart'], ['projects', 'Project Management', 'layers'], ['pdf', 'PDF Studio', 'filePdf'], ['system', 'System', 'settings'],
+  ['helpdesk', 'IT Service Desk', 'headset'], ['crm', 'Sales & CRM', 'chart'], ['projects', 'Project Management', 'layers'], ['documents', 'Document Management', 'folder'], ['pdf', 'PDF Studio', 'filePdf'], ['system', 'System', 'settings'],
 ];
 // Dark or light, the same choice as in CORE (stored per browser).
 const isDark = () => document.documentElement.dataset.theme === 'dark';

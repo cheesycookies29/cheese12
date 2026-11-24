@@ -16,9 +16,9 @@ function greeting() {
 
 // A few live figures per module, only from data this user may see (none from a module turned off).
 async function moduleStats() {
-  const MOD = [[/^\/api\/(employees|requests)/, 'hr'], [/^\/api\/(assets|inventory|asset-reports|me\/assets)/, 'assets'], [/^\/api\/helpdesk/, 'helpdesk'], [/^\/api\/crm/, 'crm'], [/^\/api\/pm/, 'projects']];
+  const MOD = [[/^\/api\/(employees|requests)/, 'hr'], [/^\/api\/(assets|inventory|asset-reports|me\/assets)/, 'assets'], [/^\/api\/helpdesk/, 'helpdesk'], [/^\/api\/crm/, 'crm'], [/^\/api\/pm/, 'projects'], [/^\/api\/docs/, 'documents']];
   const get = (url) => (mayUseModule(MOD.find(([re]) => re.test(url))?.[1]) ? api.get(url).catch(() => null) : null);
-  const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm, pm] = await Promise.all([
+  const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm, pm, myDocs, received] = await Promise.all([
     can('employees.view') ? get('/api/employees') : null,
     can('leave.manage') ? get('/api/requests/summary') : null,
     can('assets.view') ? get('/api/assets') : null,
@@ -29,6 +29,8 @@ async function moduleStats() {
     can('helpdesk.agent') ? null : get('/api/helpdesk/mine'),
     can('crm.view') ? get('/api/crm/overview') : null,
     can('pm.view') || ctx.user.inProjects ? get('/api/pm/overview') : null,
+    get('/api/docs/list?view=mine'),
+    get('/api/docs/list?view=received'),
   ]);
   const hr = [];
   if (employees) hr.push(`${employees.filter((e) => e.status === 'Active').length} active employees`);
@@ -58,7 +60,11 @@ async function moduleStats() {
     if (pm.counts.amber + pm.counts.red) projects.push(`${pm.counts.amber + pm.counts.red} at risk or off track`);
     if (pm.counts.myOpen) projects.push(`${pm.counts.myOpen} task${pm.counts.myOpen === 1 ? '' : 's'} of yours${pm.counts.myOverdue ? `, ${pm.counts.myOverdue} overdue` : ''}`);
   }
-  return { hr, assets: assetsOut, helpdesk, crm: sales, projects };
+  // Documents (0.67): your own, and files received through your upload links waiting for review.
+  const documents = [];
+  if (myDocs) documents.push(`${myDocs.documents.length} document${myDocs.documents.length === 1 ? '' : 's'} of yours`);
+  if (received?.documents.length) documents.push(`${received.documents.length} received file${received.documents.length === 1 ? '' : 's'} to review`);
+  return { hr, assets: assetsOut, helpdesk, crm: sales, projects, documents };
 }
 
 export async function launcherView(el) {
