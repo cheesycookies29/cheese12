@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { HttpError } from './util.js';
 import { roleLabel } from '../shared/roles.js';
 import { passwordEncryption, passwordCost } from './auth.js';
+import { TWO_FACTOR_POLICIES } from '../shared/two-factor.js';
 import { demoStatus } from './demo.js';
 import { systemOf, SYSTEM_LABELS } from './audit.js';
 import { DURATION_BOUNDS_MS, percentile, diskOf, hostInfo, OTHERS } from './monitor.js';
@@ -147,6 +148,15 @@ export function registerBuiltInChecks(monitor) {
   monitor.check('unused-accounts', ({ db, now }) => {
     const stale = active(db).filter((u) => !u.demo && now - Date.parse(u.lastLoginAt || u.createdAt || 0) > 90 * DAY && ['admin', 'registrar', 'hr', 'staff', 'teacher'].includes(u.role));
     return { area: 'access', label: 'Unused staff accounts', state: stale.length ? 'warn' : 'ok', detail: stale.length ? `${plural(stale.length, 'active staff account has', 'active staff accounts have')} not signed in for 90 days: ${stale.slice(0, 5).map((u) => u.username).join(', ')}${stale.length > 5 ? '…' : ''}. Disable the ones no longer needed.` : 'Every active staff account signed in within 90 days.', href: LINK.users };
+  });
+  // 2-step verification (server/two-factor.js): administrators without it, while nobody must use it.
+  monitor.check('two-factor', ({ db, sec }) => {
+    const policy = sec.twoFactor || 'off';
+    const base = { area: 'access', label: '2-step verification', href: LINK.signIn };
+    if (policy !== 'off') return { ...base, state: 'ok', detail: `${TWO_FACTOR_POLICIES[policy]}.` };
+    const without = active(db).filter((u) => u.role === 'admin' && !u.twoFactor?.enabledAt);
+    if (!without.length) return { ...base, state: 'ok', detail: 'Optional; every active administrator uses it.' };
+    return { ...base, state: 'warn', detail: `Optional, and ${plural(without.length, 'administrator does', 'administrators do')} not use it: ${without.slice(0, 5).map((u) => u.username).join(', ')}${without.length > 5 ? '…' : ''}. A stolen administrator password opens everything; ask them to set it up under My security, or require it.` };
   });
   monitor.check('password-rules', ({ sec }) => {
     const weak = sec.minPasswordLength < 10 && !sec.requireLettersAndDigits;

@@ -17,9 +17,10 @@
 // Portal routes may also name a module; the call is refused when an administrator
 // has switched that module off for the caller's account type.
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { HttpError, localDate, localDateTime, text } from './util.js';
 import {
-  hashPasswordAsync, verifyPasswordAsync, needsRehash, validatePassword, publicUser, parseCookies, createSessions, createThrottle,
+  hashPasswordAsync, verifyPasswordAsync, needsRehash, validatePassword, publicUser as accountFields, parseCookies, createSessions, createThrottle,
   sealAllPasswords, needsSealing, sealHash, readableHash, passwordEncryption,
   sessionCookie, clearedCookie, cookieName, cookiesSecureByDefault, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
@@ -44,6 +45,7 @@ import { registerAccountRoutes, createAvatarStore, tidyAvatars } from './account
 import { registerPdfStudio, DIRECT_UPLOAD_BYTES } from './tools-pdf.js';
 import { PDF_LIMITS } from '../shared/pdf-studio.js';
 import { TOOLS, toolOpenFor } from '../shared/systems.js';
+import { createTwoFactor, hasTwoFactor, cleanBackupTwoFactor } from './two-factor.js';
 
 // The version of this ATLAS (package.json), shown with the guides.
 const APP_VERSION = (() => {
@@ -131,14 +133,31 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // Password hashes are encrypted under the current key (server/auth.js): plain ones, and ones under
   // an old key, are encrypted now; ones under a key this server lacks cannot be used until it has it.
   function sealPasswords() {
-    const { sealed, unreadable } = sealAllPasswords(users());
-    if (sealed) db.save();
+    const { sealed, unreadable, resealed } = sealAllPasswords(users()); // and the 2-step verification secrets under an old key
+    if (sealed || resealed) db.save();
     if (unreadable) console.warn(`  ${unreadable} account(s) have passwords encrypted with another key, so they cannot sign in. Set PASSWORD_KEY (or PASSWORD_KEY_OLD) to that key, or reset those passwords.`);
     return { sealed, unreadable };
   }
   // server.js waits until the new version has run for a while (sealAtStart: false), so an update
   // that is rolled back never leaves hashes the previous version cannot read.
   if (sealAtStart) sealPasswords();
+
+  // ----- 2-step verification (server/two-factor.js) -----
+  // What a request knows while it runs: which signed-in accounts came through Keycloak (they skip
+  // ATLAS's 2-step verification, as Keycloak asks for its own). Set by handle() for each request.
+  const requestScope = new AsyncLocalStorage();
+  const viaSso = (user) => Boolean(user && requestScope.getStore()?.sso.has(user.id));
+  // An account as it may leave the server (server/auth.js), with whether it must set up 2-step
+  // verification before anything else (the browser then shows only that, as for a forced password change).
+  const publicUser = (user) => {
+    const out = accountFields(user);
+    if (out) out.twoFactorSetupRequired = twoFactor.mustSetUp(user);
+    return out;
+  };
+  const twoFactor = createTwoFactor({
+    db, record: (e) => audit.record(e), throttle, limits, sides, security, viaSso, publicUser,
+    systemOf: (user) => SIDE_SYSTEM[ROLES[user.role]?.side] || 'home', now: () => clock().getTime(),
+  });
 
   // limit: a rate-limit rule this route also counts against (see `limits`).
   // audit: false when the route records its own, clearer entry in the audit trail (or nothing worth one);
@@ -177,7 +196,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // The password check is slow on purpose and runs off the main thread, so other requests go on
   // meanwhile. Each attempt is therefore counted as a failure *before* the check (and forgiven if
   // the password is right): fifty guesses sent at once still lock the username after the fifth.
-  async function signIn(side, body, ip = '', agent = '') {
+  //
+  // With 2-step verification on, a right password opens no session: the answer is a challenge
+  // ({ twoFactorRequired, challenge }) for the code, sent to the verify route of the same sign-in
+  // (`via`: 'hub' for the ATLAS home page, else the side's own sign-in), which opens it.
+  async function signIn(side, body, ip = '', agent = '', via = side) {
     const username = String(body.username || '').trim().toLowerCase().slice(0, 120);
     const password = String(body.password || '');
     const key = `user:${username}`;
@@ -240,10 +263,33 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       if (user.status === 'rejected') fail('Your application was not accepted. Contact the registrar for details.', 403);
       if (user.status !== 'active') fail('This account is disabled. Contact the registrar.', 403);
     });
+    if (hasTwoFactor(user)) {
+      db.save(); // a hash sealed above
+      return { data: { twoFactorRequired: true, challenge: twoFactor.challenge(user, side, via) }, headers: {} };
+    }
+    return openSession(side, user, ip, agent);
+  }
+  // The session at the end of a sign-in. how: 'password', or after the code: 'app' or 'recovery'.
+  function openSession(side, user, ip, agent, how = 'password', recoveryLeft = 0) {
     user.lastLoginAt = new Date().toISOString();
     db.save();
-    audit.record({ kind: 'signin', system: SIDE_SYSTEM[side], action: 'Signed in', actor: user, target: user, ip, agent, detail: `${sideLabel(side)} · password` });
+    const detail = { password: 'password', app: 'password and 2-step verification code', recovery: `password and a recovery code; ${recoveryLeft} recovery code${recoveryLeft === 1 ? '' : 's'} left` }[how];
+    audit.record({ kind: 'signin', system: SIDE_SYSTEM[side], action: how === 'recovery' ? 'Signed in with a recovery code' : 'Signed in', actor: user, target: user, ip, agent, detail: `${sideLabel(side)} · ${detail}` });
     return { data: { user: publicUser(user) }, headers: { 'Set-Cookie': setCookie(side, sides[side].create(user.id, { ip, agent })) } };
+  }
+  // The second step of a sign-in started on `via`: the code, then the session, with the same cookies
+  // that sign-in would have set (the ATLAS home page also ends this browser's other sessions).
+  const CODE_BODY = { challenge: t.str(200), code: t.str(40) };
+  const verifySignIn = (via) => ({ body, tokens, ip, agent }) => {
+    const { user, side, how, left } = twoFactor.verify(via, body, ip, agent);
+    const out = openSession(side, user, ip, agent, how, left);
+    return via === 'hub' ? endOtherSides(out, side, tokens) : out;
+  };
+  // One person per browser: the sessions this browser has on the other sides end, and their cookies go.
+  function endOtherSides(out, side, tokens) {
+    for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
+    out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map(clearCookie)];
+    return out;
   }
 
   // A session for `user` on their side, ending any other side's session in this browser (single sign-on).
@@ -310,6 +356,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Learning portal: sign-in and admissions -----
   route('GET', '/api/auth/status', 'public', ({ portalUser }) => portalInfo(portalUser));
   route('POST', '/api/auth/login', 'public', ({ body, ip, agent }) => signIn('portal', body, ip, agent), { limit: 'signin', body: LOGIN_BODY });
+  route('POST', '/api/auth/login/verify', 'public', verifySignIn('portal'), { limit: 'signin', body: CODE_BODY });
   route('POST', '/api/auth/logout', 'public', ({ portalToken, portalUser, ip, agent }) => {
     if (portalUser) audit.record({ kind: 'signout', system: 'learn', action: 'Signed out', actor: portalUser, target: portalUser, ip, agent });
     sides.portal.destroy(portalToken);
@@ -382,11 +429,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/hub/login', 'public', async ({ body, tokens, ip, agent }) => {
     const found = users().find((u) => u.username === String(body.username || '').trim().toLowerCase());
     const side = ROLES[found?.role]?.side || 'portal';
-    const out = await signIn(side, body, ip, agent);
-    for (const [name, sessions] of Object.entries(sides)) if (name !== side) sessions.destroy(tokens[name]);
-    out.headers['Set-Cookie'] = [out.headers['Set-Cookie'], ...Object.keys(sides).filter((n) => n !== side).map(clearCookie)];
-    return out;
+    const out = await signIn(side, body, ip, agent, 'hub');
+    if (out.data.twoFactorRequired) return out; // the other sessions end once the code is right
+    return endOtherSides(out, side, tokens);
   }, { limit: 'signin', body: LOGIN_BODY });
+  route('POST', '/api/hub/login/verify', 'public', verifySignIn('hub'), { limit: 'signin', body: CODE_BODY });
   route('POST', '/api/hub/logout', 'public', ({ tokens, origin, portalUser, adminUser, hrisUser, ip, agent }) => {
     const who = portalUser || adminUser || hrisUser;
     if (who) audit.record({ kind: 'signout', system: 'home', action: 'Signed out', actor: who, target: who, ip, agent });
@@ -446,6 +493,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     return signIn('admin', body, ip, agent);
   }, { limit: 'setup', body: { name: t.str(200), username: t.str(200), email: t.str(320), password: t.str(1000), schoolName: t.str(400), campusName: t.str(200), setupCode: t.str(200) } });
   route('POST', '/api/admin/auth/login', 'public', ({ body, ip, agent }) => signIn('admin', body, ip, agent), { limit: 'signin', body: LOGIN_BODY });
+  route('POST', '/api/admin/auth/login/verify', 'public', verifySignIn('admin'), { limit: 'signin', body: CODE_BODY });
   route('POST', '/api/admin/auth/logout', 'public', ({ adminToken, adminUser, ip, agent }) => {
     if (adminUser) audit.record({ kind: 'signout', system: 'admin', action: 'Signed out', actor: adminUser, target: adminUser, ip, agent });
     sides.admin.destroy(adminToken);
@@ -465,11 +513,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     if (!admins.some((u) => readableHash(u.passwordHash))) fail('This backup\'s passwords are encrypted with another server\'s key, so nobody could sign in. Start ATLAS with that key as PASSWORD_KEY_OLD, then restore again.');
     // The audit log is not part of a backup (it is its own file): an old backup's trail is left out.
     const { auditTrail, ...restored } = body;
+    // 2-step verification: kept where it has the shape ATLAS writes, dropped where it does not (server/two-factor.js).
+    const droppedTwoFactor = cleanBackupTwoFactor(restored.users);
     db.replace({ ...emptyData(), ...restored });
     tidyAvatars(db.data, avatars); // pictures only when their file is on this server (a backup has no files)
     setRoleOverrides(db.data.roleOverrides);
     const { unreadable } = sealPasswords();
-    return { ok: true, unreadablePasswords: unreadable };
+    return { ok: true, unreadablePasswords: unreadable, droppedTwoFactor };
   });
   route('GET', '/api/admin/demo', 'admin:data.manage', () => demoStatus(db.data));
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
@@ -654,6 +704,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const pdfStudio = registerPdfStudio(route, db, { record: (e) => audit.record(e), clock });
 
   // ----- Your own account: profile, picture, sessions, quick access (server/account.js) -----
+  twoFactor.registerRoutes(route); // My security: 2-step verification (/api/me/2fa…)
   registerAccountRoutes(route, { db, sides, avatars, record: (e) => audit.record(e), systemsFor: (u) => portalSystems(u, ROLES[u.role]?.side).filter((x) => x.status === 'live' && x.url).map((x) => ({ id: x.id, name: x.name, url: x.url, tagline: x.tagline || x.description || '' })) });
   // ----- System → Security monitor (administrators), and its metrics export -----
   registerMonitorRoutes(route, { db, monitor, audit, record: (e) => audit.record(e), sec: security, rateLimits: rateLimits !== 'off', routes, sessions: openSessions, version: APP_VERSION });
@@ -727,9 +778,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // Who sent a request, from its session cookies (no body needed).
   function whoIs(req) {
     const cookies = parseCookies(req.headers.cookie);
+    const sso = new Set(); // accounts whose session here came through Keycloak
     const resolve = (side, token) => {
       const s = sides[side].get(token);
       const u = s && users().find((x) => x.id === s.userId && x.status === 'active');
+      if (u && s.sso) sso.add(u.id);
       return u && ROLES[u.role]?.side === side ? u : null;
     };
     const portalToken = cookies[COOKIES.portal];
@@ -738,7 +791,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const portalUser = resolve('portal', portalToken);
     const adminUser = resolve('admin', adminToken);
     const hrisUser = resolve('hris', hrisToken);
-    return { cookies, portalToken, adminToken, hrisToken, portalUser, adminUser, hrisUser, signedIn: portalUser || adminUser || hrisUser };
+    return { cookies, portalToken, adminToken, hrisToken, portalUser, adminUser, hrisUser, signedIn: portalUser || adminUser || hrisUser, sso };
   }
   // Called by the web server before it reads a request's body: the request is counted against the
   // rate limits first (a flood is refused before any work is done), and the body may be large
@@ -759,7 +812,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   }
 
   async function handle(req, url, body) {
-    const { cookies, portalToken, adminToken, hrisToken, portalUser, adminUser, hrisUser, signedIn } = whoIs(req);
+    const who = whoIs(req);
+    return requestScope.run({ sso: who.sso }, () => answer(req, url, body, who));
+  }
+  async function answer(req, url, body, { cookies, portalToken, adminToken, hrisToken, portalUser, adminUser, hrisUser, signedIn }) {
     const tokens = { portal: portalToken, admin: adminToken, hris: hrisToken };
     const ip = clientIp(req);
     const agent = String(req.headers['user-agent'] || '').slice(0, 160);
@@ -838,6 +894,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
           if (r.module && !moduleOn(db.data.modules, r.module, user.role)) fail(`${MODULE_NAMES[r.module]} is switched off for ${user.role}s.`, 403);
         }
         if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
+        // The school requires 2-step verification of this account and it is not on yet: only setting it up (and signing out).
+        if (!r.duringPasswordChange && twoFactor.mustSetUp(user)) fail('Set up 2-step verification first (My security).', 403);
         if (r.limit) limits.hit(r.limit, r.limit === 'password' ? user.id : ip);
         const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
         const campusId = user ? activeCampusId(db.data, user) : null;
@@ -868,7 +926,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         return result && result.headers && 'data' in result ? result : { data: result, headers: {} };
       } catch (err) {
         // Refused: someone signed in asked for something their account may not do.
-        if (err instanceof HttpError && err.status === 403 && (user || signedIn) && !(user?.mustChangePassword && !r.duringPasswordChange)) {
+        if (err instanceof HttpError && err.status === 403 && (user || signedIn) && !((user?.mustChangePassword || twoFactor.mustSetUp(user)) && !r.duringPasswordChange)) {
           audit.record({ kind: 'refused', system: systemOf(url.pathname), action: `Refused: ${describeRoute(req.method, r.pattern)}`, actor: user || signedIn, ip, agent, outcome: 'refused', detail: `${req.method} ${url.pathname.slice(0, 160)} · ${err.message}`.slice(0, 400) });
         }
         throw err;

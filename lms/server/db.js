@@ -46,6 +46,7 @@ export const DEFAULT_SETTINGS = {
     forcePasswordChange: false, // new accounts always change their password at first sign-in (staff cannot untick it)
     requestsPerMinute: 300, // rate limit: requests per signed-in person per minute; four times as many per address when signed out (60–3000)
     signInFailuresPerAddress: 30, // wrong passwords from one network address, across all usernames, before it pauses 15 minutes (10–1000)
+    twoFactor: 'off', // who must use 2-step verification: off, admins, staff (every account but students and parents) or all (shared/two-factor.js)
   },
   // Learn: uploads, quizzes and what parents are warned about.
   learn: {
