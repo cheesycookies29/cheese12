@@ -50,6 +50,17 @@ export const SYSTEMS = [
     path: '/finance/',
   },
   {
+    id: 'dms',
+    product: 'Documents',
+    short: 'DMS',
+    title: 'Document management',
+    description: 'Your files and the school’s documents: folders, versions, sharing with colleagues and classmates, and safe links for people outside.',
+    icon: 'folder',
+    audience: ['student', 'teacher', 'registrar', 'dean', 'admin', 'hr', 'payroll', 'staff', 'accountant', 'budget', 'cashier', 'supply', 'approver'],
+    builtIn: true,
+    path: '/documents/',
+  },
+  {
     id: 'facilities',
     product: 'Facilities',
     short: '',

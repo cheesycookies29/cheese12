@@ -232,6 +232,8 @@ test('access: 404 for what you cannot see; grants never give more than the giver
   await fails(people.ben('GET', `/api/docs/documents/${doc.id}/file`), 403, /Restricted/);
   const view = await people.ben('GET', `/api/docs/documents/${doc.id}/file?inline=1`);
   assert.match(view.headers['Content-Disposition'], /^inline;/, 'a PDF can be viewed');
+  assert.doesNotMatch(view.headers['Content-Security-Policy'], /sandbox/, 'Chrome\'s PDF viewer does not open in a sandbox');
+  assert.match(view.headers['Content-Security-Policy'], /default-src 'none'/);
   await fails(ben('PUT', `/api/docs/documents/${doc.id}/access`, { grants: [] }), 404, /not there/);
   await fails(ana('POST', '/api/docs/links', { target: { kind: 'document', id: doc.id }, mode: 'view' }), 400, /never shared by link/);
   // Department grants through a folder.

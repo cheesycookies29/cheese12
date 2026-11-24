@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### ATLAS Documents: files and sharing for everyone
+- A new system, **Documents**, on the ATLAS home page for every employee and student (not for parents). Keep your own files in **My files**, work in the folders your office or college shares (**School folders**), and open what others share with you (**Shared with me**). See [the Documents guide](documents).
+- Files go up in pieces with a progress bar, keep every version, can be checked out while you edit them, and are found by their words (text, Word, Excel, PowerPoint and OpenDocument files). ATLAS reads each file to tell what it really is: programs, scripts, web pages, SVG and Office files with macros are never accepted, and a file whose name does not match its content is refused. Every file is encrypted on the server.
+- Share a document or folder with people, account types, departments or everyone signed in, at **Can view**, **Can edit** or **Can manage**; never more than you have. Employees can send links to people outside the school, with a password, an end date and a download limit, and collect files with an upload link. Students share with their teachers and classmates by name only.
+- Administrators set the rules in **Admin panel → Document control**: file types, size and storage, sharing and links, the trash, and the activity (links that work, refused uploads, an integrity check of every file). See [the administrator's guide](admin#set-the-rules-for-documents). Keep the new server key (`server.key` beside the data file) with your backups: see [Questions](admin#questions).
+
 ### Second security review: first fixes
 - **Quizzes:** with *Students see answers: Right after they submit*, a student who still has attempts left now sees their score only. The correct answers show once no attempts are left or the quiz closes, so a second attempt is still the student's own work. See [the teacher's guide](teacher#build-a-quiz-or-exam) and [the student's guide](student#take-a-quiz-or-exam).
 - **Parents:** a link that does not share **Grades** no longer shows final grades under **Enrollment**.

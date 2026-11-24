@@ -28,6 +28,22 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.67.0-alpha',
+    date: '2026-11-24',
+    title: 'Document Management (MOD-08)',
+    modules: ['system'],
+    notes: 'A document management module built on the patterns of n8n (binary data), Paperless-ngx, Mayan EDMS, Seafile, Nextcloud, Teedy and Papermerge (docs/DOCUMENTS-PLAN.md), with Node\'s standard library only. The same engine (server/dms/) runs in ATLAS.',
+    changes: [
+      ['new', 'system', 'Documents: My files, company folders, Shared with me, Recent, Received and Trash; upload in pieces (up to the control panel\'s size), numbered documents (DOC-2026-0001), versions (view, download, restore any), check-out and check-in, tags, status, classification (Public, Internal, Confidential, Restricted), search by title, tags, number and the words inside PDF, Word, Excel, PowerPoint, OpenDocument, RTF and text files.'],
+      ['new', 'system', 'Sharing inside the company with people, account types, departments or everyone, at view, edit or manage, with or without download and re-sharing, until a date; folders pass access down unless told not to; nobody gives more than they hold; anything a person cannot see answers 404.'],
+      ['new', 'system', 'Links outside the company (/share/…): view only, download (with a download limit) or upload (a file drop into a folder; files arrive as Received, not reviewed). Tokens are stored only as SHA-256 hashes; optional or required passwords (scrypt, unlock cookie bound to the password and the link\'s version); expiry within the control panel\'s maximum; every rule re-checked on every use; rate limits per address and link; the creator told at first opening and when files arrive.'],
+      ['new', 'system', 'Security layers: the type of every file read from its bytes (magic numbers, ZIP and compound-file contents) and matched against its name; programs, scripts, web pages, SVG, Office files with macros, password-protected Office files and ZIP bombs always refused; every file encrypted at rest (AES-256-GCM, a key per file wrapped with a key derived from the server key) with its SHA-256 checked on every read; sandboxed, nosniff downloads; Restricted documents never shared by link and downloaded only by their managers; legal hold; trash with retention; an encrypted search index (no document text in db.json); every action in the audit log and the document\'s activity.'],
+      ['new', 'system', 'Admin panel → Document control (docs.manage): accepted file types by family (the always-refused list locked), size, quota per person, versions kept, duplicates, internal sharing and link policy (on/off, upload links, who may make links, passwords, default and maximum days, download limits, classifications), trash days, check-out hours; activity: storage, active links with turn off and turn all off, refused uploads, an integrity check of every stored file.'],
+      ['improved', 'system', 'Backups: the hourly off-server copy, the nightly copy and the restore steps include the encrypted document files; RESTORE.md: without secret.key no document can be opened again.'],
+      ['fixed', 'system', 'PATCH requests: their body is now read, and they must be JSON from CORE\'s own pages like every other change (no earlier route used PATCH).'],
+    ],
+  },
+  {
     version: '0.66.1-alpha',
     date: '2026-11-22',
     title: 'PDF Studio on phones and small tablets',

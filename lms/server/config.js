@@ -21,6 +21,8 @@ import {
   ROLES, PERMISSION_LABELS, HRIS_PERMISSION_LABELS, FINANCE_PERMISSION_LABELS, ADMIN_ONLY_PERMISSIONS, setRoleOverrides, permissionsOf,
 } from '../shared/roles.js';
 import { ACADEMIC_PERMISSION_LABELS } from '../shared/academic.js';
+import { DOCUMENTS_PERMISSION_LABELS } from '../shared/roles.js';
+import { cleanSettings as cleanDocSettings, DEFAULT_SETTINGS as DOC_DEFAULTS } from './dms/policy.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -129,12 +131,18 @@ const DEFS = {
     save: (v) => ['PUT', '/api/finance/settings', v],
     watch: [['PUT', /^\/api\/finance\/settings$/]],
   },
+  documents: {
+    get: (d) => cleanDocSettings(d.docSettings || {}),
+    defaults: () => clone(DOC_DEFAULTS),
+    save: (v) => ['PUT', '/api/docs/settings', { settings: v }],
+    watch: [['PUT', /^\/api\/docs\/settings$/]],
+  },
 };
 const AREA_IDS = AREAS.map(([id]) => id);
 const def = (id) => DEFS[id] || fail('Unknown group of settings.', 404);
 
 // The data each settings area lives in (restored together if an import fails partway).
-const SNAPSHOT_KEYS = ['settings', 'activityTypes', 'modules', 'roleOverrides', 'academicSettings', 'hrSettings', 'leaveTypes', 'finSettings'];
+const SNAPSHOT_KEYS = ['settings', 'activityTypes', 'modules', 'roleOverrides', 'academicSettings', 'hrSettings', 'leaveTypes', 'finSettings', 'docSettings'];
 
 // What changed between two values of an area: [{ path, from, to }]. Objects are compared key by key;
 // a list counts as one setting (its whole value before and after).
@@ -165,6 +173,7 @@ export const PERMISSION_GROUPS = [
   { id: 'academic', label: 'ATLAS Academic', permissions: ACADEMIC_PERMISSION_LABELS, roles: ['registrar', 'dean', 'teacher'] },
   { id: 'people', label: 'ATLAS People', permissions: HRIS_PERMISSION_LABELS, roles: EMPLOYEE_ROLES },
   { id: 'finance', label: 'ATLAS Finance', permissions: FINANCE_PERMISSION_LABELS, roles: EMPLOYEE_ROLES },
+  { id: 'documents', label: 'ATLAS Documents', permissions: DOCUMENTS_PERMISSION_LABELS, roles: EMPLOYEE_ROLES },
 ];
 const grantable = (role, permission) => !ADMIN_ONLY_PERMISSIONS.includes(permission) && PERMISSION_GROUPS.some((g) => g.roles.includes(role) && g.permissions.some(([p]) => p === permission));
 

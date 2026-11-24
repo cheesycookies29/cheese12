@@ -32,9 +32,11 @@ const missing = () => new HttpError(404, NOT_FOUND);
 const text = (v, max) => (v == null || typeof v === 'object' ? '' : String(v)).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 const longText = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, max) : '');
 const disposition = (kind, name) => `${kind}; filename="${String(name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+// Every file is sandboxed, except a PDF shown in the browser: Chrome's PDF viewer does not open in a
+// sandboxed response (as ATLAS's server/files.js). It still may load nothing (default-src 'none').
 const fileHeaders = (v, inline) => ({
   'Content-Type': v.mime, 'Content-Disposition': disposition(inline ? 'inline' : 'attachment', v.name),
-  'Content-Security-Policy': "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox", 'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy': `default-src 'none'; img-src data:; style-src 'unsafe-inline'${inline && v.ext === 'pdf' ? '' : '; sandbox'}`, 'X-Content-Type-Options': 'nosniff',
   'X-Download-Options': 'noopen', 'Cache-Control': 'private, no-store', 'Cross-Origin-Resource-Policy': 'same-origin',
 });
 const parseCookies = (h = '') => Object.fromEntries(String(h).split(';').map((p) => p.trim().split('=')).filter((p) => p[0]).map(([k, ...v]) => [k, decodeURIComponent(v.join('='))]));

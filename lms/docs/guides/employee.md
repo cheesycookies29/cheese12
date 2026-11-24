@@ -14,6 +14,7 @@ This guide is for **everyone with an employee record**: teachers, registrars, de
 - Sign in on the ATLAS home page and open the **People** tile. Teachers and registrars use the sign-in they already have; non-teaching staff get one from HR.
 - If you see **Getting started** instead of **My day**, your account is not linked to your employee record yet. Ask the HR office to link it (they do it from your record under **Employees → Sign-in account**). A Finance office account is linked by an administrator.
 - The **Finance** tile on the ATLAS home page has your accountabilities and your supply and purchase requests. Finance officers find **My accountabilities** at the bottom of the Finance sidebar.
+- The **Documents** tile keeps your files and your office's shared folders, and lets you share documents and send links to people outside the school: see [the Documents guide](documents).
 - To try things out, use the demo school: sign in as `staff.demo` (password `demo1234`), Nestor Abello, the college librarian. `teacher.demo` has the same in People, and property in her custody in Finance.
 
 ## Walkthrough

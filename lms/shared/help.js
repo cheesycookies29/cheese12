@@ -8,6 +8,7 @@ export function guideFor(from, role) {
     case 'hris': return role === 'hr' || role === 'payroll' ? role : role === 'admin' ? 'payroll' : 'employee';
     case 'finance': return FINANCE_GUIDE[role] || (role === 'student' ? 'student' : role === 'admin' ? 'accountant' : 'employee');
     case 'academic': return { registrar: 'registrar', dean: 'dean', student: 'student', teacher: 'teacher', admin: 'registrar' }[role] || ROLE_GUIDE[role] || 'getting-started';
+    case 'documents': return 'documents';
     case 'admin': return { registrar: 'registrar', dean: 'dean' }[role] || 'admin';
     default: return ROLE_GUIDE[role] || 'getting-started';
   }

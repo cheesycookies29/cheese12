@@ -11,6 +11,8 @@
 // The HRIS accepts any employee's session (a teacher or registrar linked to an employee
 // record uses its self-service); the hris.* / employees.* / payroll.* permissions below
 // open its HR screens.
+// ATLAS Documents (/documents/) accepts any of these sessions except parents and guardians; docs.manage
+// (administrators, or as given under Roles & permissions) opens Document control.
 
 export const ROLES = {
   admin: {
@@ -138,6 +140,12 @@ export const HRIS_PERMISSION_LABELS = [
 ];
 
 export { FINANCE_PERMISSION_LABELS } from './finance.js';
+
+// ATLAS Documents (/documents/): everyone but parents uses it without a permission; this one opens
+// Document control (Admin panel → Document control) and manages every document and folder.
+export const DOCUMENTS_PERMISSION_LABELS = [
+  ['docs.manage', 'Document control: manage every document and folder, the settings, links and legal holds'],
+];
 
 // ----- What an administrator changed (Admin panel → Roles & permissions) -----
 // { role: { add: [permission…], remove: [permission…] } }, kept in db.data.roleOverrides. The server

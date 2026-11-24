@@ -259,6 +259,32 @@ Leave **Keep ATLAS passwords too** ticked while people get used to it. When you 
 
 ![Single sign-on settings](admin-sso.jpg)
 
+### Set the rules for documents
+
+**Document control** sets the rules of [ATLAS Documents](documents) for the whole school. Administrators have it; to give it to another account type (for example the records officer's), tick **Document control** under **Roles & permissions → ATLAS Documents**. Those who do not use the Admin panel find the same page in ATLAS Documents.
+
+1. Choose **Document control**.
+2. On **File types**, tick the kinds of file people may add, and choose **Save**. PDF, pictures, Office and OpenDocument files, RTF, text and e-mail are on at first; ZIP archives, audio, video and CAD drawings are off. The list under *Always refused, whatever is ticked* (programs and scripts, web pages and SVG, Office files with macros) cannot be switched on.
+3. On **Uploads & storage**, set the largest file (up to 100 MB), the storage each person may keep (0 = no limit), how many versions of a document are kept, and whether the same file twice in a folder is refused. Choose **Save**.
+4. On **Sharing**, choose whether people may share inside the school, whether staff may share with everyone at once, whether staff may make links for people outside the school and upload links, who makes links, whether every link needs a password, how long links last, and which classifications may be shared by link (never *Restricted*). Choose **Save**.
+5. On **Retention**, set the days in the trash before documents are deleted for good, and the longest check-out. Choose **Save**.
+
+![Document control: the kinds of file ATLAS Documents accepts](admin-document-control.jpg)
+
+Every change applies at once and is recorded in the **Settings center**'s history. Students never make links or share with groups, whatever is set here.
+
+### Watch documents and links
+
+1. Choose **Document control → Activity**.
+2. The figures show the storage used, documents, versions, folders, the trash, legal holds and files received through upload links that are not reviewed yet.
+3. Under **Links that work**, choose **Turn off** for one link, or **Turn all off** (for example after a leak). They stop working at once.
+4. **Refused uploads** lists each file ATLAS refused, who tried, and why.
+5. Choose **Check every file now** under **Integrity check**: ATLAS opens every stored file and compares it with its fingerprint. A file changed or damaged on the disk, or missing after a restore, is listed.
+
+![Document control: activity, links that work, refused uploads and the integrity check](admin-document-activity.jpg)
+
+To keep a document or folder from being deleted (for an audit or a case), open it in ATLAS Documents and choose **Legal hold** (on a folder: **Folder → Place on legal hold**). Only document managers place or lift a hold.
+
 ### Add or remove the demo school
 
 1. Choose **Demo data & backup**.
@@ -313,6 +339,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Configuration | Single sign-on | Signing in with the school's Keycloak account |
 | Configuration | Admins, registrars & deans | Accounts for administrators, registrars and deans |
 | Configuration | Roles & permissions | What each account type may do in each system |
+| Configuration | Document control | The rules of ATLAS Documents: file types, uploads and storage, sharing and links, retention, activity and the integrity check |
 | Configuration | Demo data & backup | Add or remove the demo school; download or restore a backup |
 | Elsewhere | ATLAS home | The ATLAS home page, in a new tab |
 
@@ -340,4 +367,8 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 
 **I am locked out of the only administrator account.** On the server, stop ATLAS and run `npm run reset-password -- <username> <new-password>`, then start it again.
 
-**Does a backup include uploaded files?** No. **Download backup** holds the records only. To keep class resources and handed-in work too, copy the server's whole `data` folder.
+**Does a backup include uploaded files?** No. **Download backup** holds the records only. To keep class resources, handed-in work and ATLAS Documents' files too, copy the server's whole `data` folder.
+
+**What must I keep to restore ATLAS Documents?** The `data/documents` folder and the server key (`server.key` beside the data file, or `SERVER_KEY` on the server). Every document is encrypted under that key: without it, a copy of the files cannot be opened, by anyone. Keep a copy of the key somewhere safe, apart from the backups.
+
+**Can I read a teacher's or student's own files?** An administrator (and anyone with **Document control**) can open any document, so that nothing is lost when someone leaves. Your own lists (**Shared with me**, **Recent**, **Trash**) still show only what was shared with you, and other people's **My files** are not listed with your folders.

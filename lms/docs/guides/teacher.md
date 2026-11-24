@@ -14,7 +14,7 @@ This guide is for teachers. You use two ATLAS systems for teaching:
 - **Learn** for your sections: announcements, lessons, resources, activities and quizzes, attendance, the gradebook and final grades.
 - **Academic** for your **grade sheets**: once your final grades are in, you submit each class's grade sheet there for the dean's approval and the registrar's posting.
 
-Your clock-ins, leave, payslips and Finance self-service (property in your custody, supply requests) are in [the employee guide](employee).
+Your clock-ins, leave, payslips and Finance self-service (property in your custody, supply requests) are in [the employee guide](employee). Your files, your department's shared folders and documents you share with students are in **Documents**: see [the Documents guide](documents).
 
 To sign in:
 

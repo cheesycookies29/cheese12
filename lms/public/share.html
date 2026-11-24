@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Shared documents · ATLAS</title>
+  <link rel="icon" type="image/svg+xml" href="/img/brand/atlas-app-icon.svg" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/documents.css" />
+  <script>
+    // Dark or light, chosen per browser (the moon button), before the page paints.
+    try { var t = localStorage.getItem('lms-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
+</head>
+<body class="share-body">
+  <div class="share-page">
+    <header class="share-top">
+      <img id="share-logo" src="/img/brand/atlas-mark.svg" alt="" />
+      <div><strong id="share-school">ATLAS</strong><small>Shared documents</small></div>
+      <span class="spacer"></span>
+      <button type="button" class="round-btn" id="theme-btn" aria-label="Dark mode"></button>
+    </header>
+    <main class="share-main" id="share"><p class="page-loading" role="status">Loading…</p></main>
+    <footer class="share-foot">Sent to you through ATLAS, the school's platform. Only open files you expected to receive.</footer>
+  </div>
+  <div id="toast"></div>
+  <script type="module" src="/js/share.js"></script>
+</body>
+</html>

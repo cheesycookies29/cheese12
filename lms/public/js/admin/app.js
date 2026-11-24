@@ -19,6 +19,7 @@ import { guardiansView, guardianView } from './views/guardians.js';
 import { configView } from './views/config.js';
 import { rolesView } from './views/roles.js';
 import { schoolCalendarView } from './views/calendar.js';
+import { documentControlView } from './views/documents.js';
 
 const p = (permission) => (user) => can(user.role, permission);
 
@@ -48,6 +49,7 @@ const routes = [
   ['/data', dataView, p('data.manage')],
   ['/config', configView, p('settings.edit')],
   ['/roles', rolesView, (u) => u.role === 'admin'],
+  ['/documents', documentControlView, p('docs.manage')],
   ['/elsewhere', elsewhereView],
 ];
 
@@ -87,6 +89,7 @@ function nav() {
     c('settings.edit') && { href: '/sso', label: 'Single sign-on', icon: 'key' },
     c('admins.manage') && { href: '/staff', label: 'Admins, registrars & deans', icon: 'shield' },
     ctx.user.role === 'admin' && { href: '/roles', label: 'Roles & permissions', icon: 'lock' },
+    c('docs.manage') && { href: '/documents', label: 'Document control', icon: 'folder' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     { heading: 'Elsewhere' },
     { href: '/', label: 'ATLAS home', icon: 'grid', external: true },

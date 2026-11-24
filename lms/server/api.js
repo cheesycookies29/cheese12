@@ -12,6 +12,8 @@
 //                                    browser has), optionally with that permission
 //   'academic' | 'academic:<permission>'  ATLAS Academic: administrators, registrars and deans (admin-panel
 //                                    session), teachers and students (portal session); optionally with that permission
+//   'documents' | 'documents:<permission>'  ATLAS Documents: any signed-in employee or student (whichever session
+//                                    the browser has; not parents and guardians), optionally with that permission
 // Portal routes may also name a module; the call is refused when an administrator
 // has switched that module off for the caller's account type.
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
@@ -54,6 +56,9 @@ import { registerFinanceRoutes } from './finance.js';
 import { registerConfigRoutes } from './config.js';
 import { registerCalendarRoutes } from './calendar.js';
 import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
+import { registerDocuments } from './documents.js';
+import { createSecrets } from './secrets.js';
+import { demoPdf, demoDocx } from './demo.js';
 
 const COOKIES = { portal: PORTAL_COOKIE, admin: ADMIN_COOKIE, hris: HRIS_COOKIE };
 
@@ -65,7 +70,9 @@ const fail = (msg, status = 400) => {
 // options.setupCode (or the SETUP_CODE environment variable): when set, creating the first
 // administrator also needs this code, so nobody else can claim a new server on the internet.
 // options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true } = {}) {
+// options.secrets: the server key (server/secrets.js; default: SERVER_KEY, or server.key beside the data file).
+// options.documentsDir: where ATLAS Documents keeps its encrypted files (default: data/documents).
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true, secrets = createSecrets(db.dir), documentsDir = null } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -92,6 +99,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       apply: { limit: 10, windowMs: 60 * MIN }, // applications per address
       setup: { limit: 20, windowMs: 15 * MIN }, // first-administrator attempts per address
       lookup: { limit: 60, windowMs: MIN }, // document checks, calendar feeds and Keycloak sign-ins per address
+      // ATLAS Documents' links for people outside the school (server/documents.js)
+      shareAccess: { limit: 120, windowMs: MIN }, // requests to links, per address
+      shareLink: { limit: 300, windowMs: MIN }, // requests to one link, from anywhere
+      sharePasswordFail: { limit: 10, windowMs: 15 * MIN }, // wrong link passwords, per address and link
+      shareUpload: { limit: 60, windowMs: 60 * MIN }, // files sent through upload links, per address
     };
   });
   const users = () => db.data.users;
@@ -369,11 +381,13 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/admin/demo', 'admin:data.manage', () => {
     addDemo(db.data, ctx.today(), ctx.files);
     addFinanceDemo(db.data, ctx);
+    documents.addDemo({ pdf: demoPdf, docx: demoDocx });
     db.save();
     return demoStatus(db.data);
   });
   route('DELETE', '/api/admin/demo', 'admin:data.manage', () => {
     for (const u of users().filter((x) => x.demo)) ctx.signOutEverywhere(u.id);
+    documents.removeDemo();
     removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
     db.save();
@@ -442,6 +456,25 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/finance/auth/change-password', 'finance', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
   route('POST', '/api/finance/auth/campus', 'finance', ({ user, body }) => switchCampus(user, body));
   const finance = registerFinanceRoutes(route, ctx);
+
+  // ----- Documents (/documents/): any employee and students, with whichever session the browser has -----
+  route('GET', '/api/docs/auth/status', 'public', ({ adminUser, portalUser, hrisUser }) => {
+    const user = hrisUser || adminUser || portalUser;
+    const allowed = Boolean(user) && user.role !== 'guardian';
+    return {
+      ...campusInfo(allowed ? user : null),
+      branding: branding(),
+      setupRequired: setupRequired(),
+      user: allowed ? publicUser(user) : null,
+      deniedUser: user && !allowed ? { name: user.name, role: user.role } : null,
+      side: allowed ? ROLES[user.role].side : null,
+      authBase: '/api/docs/auth',
+      permissions: allowed ? ['docs.manage'].filter((p) => can(user.role, p)) : [],
+    };
+  });
+  route('POST', '/api/docs/auth/change-password', 'documents', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
+  route('POST', '/api/docs/auth/campus', 'documents', ({ user, body }) => switchCampus(user, body));
+  const documents = registerDocuments(route, db, { secrets, limits, dir: documentsDir, clock: () => clock().getTime() });
   registerConfigRoutes(route, ctx);
   const sso = registerSsoRoutes(route, ctx, { startSession, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}) });
 
@@ -472,6 +505,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const MODULE_NAMES = Object.fromEntries(MODULES.map((m) => [m.id, m.label]));
 
   handle.sealPasswords = sealPasswords;
+  handle.documents = documents;
   return handle;
   async function handle(req, url, body) {
     const cookies = parseCookies(req.headers.cookie);
@@ -518,6 +552,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
         if (!user) fail('Please sign in.', 401);
         if (user.role === 'guardian') fail('Finance is for the school\'s employees and students.', 403);
+        const permission = r.access.split(':')[1];
+        if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
+      } else if (r.access === 'documents' || r.access.startsWith('documents:')) {
+        [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
+        if (!user) fail('Please sign in.', 401);
+        if (user.role === 'guardian') fail('ATLAS Documents is for the school\'s employees and students.', 403);
         const permission = r.access.split(':')[1];
         if (permission && !can(user.role, permission)) fail('Your account does not have access to this.', 403);
       } else if (r.access.startsWith('admin')) {

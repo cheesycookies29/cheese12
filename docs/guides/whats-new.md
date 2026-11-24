@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### Document Management (0.67)
+- A new module, **Document Management**, on the CORE home. Keep files in **My files** and company folders, with every version, check-out while you edit, and search by the words inside PDF and Office files. Share with people, account types, departments or everyone, and send links to people outside the company (view only, download with a limit, or upload links to collect files), with a password and an end date. CORE reads every file to tell what it really is: programs, scripts, web pages and Office files with macros are never accepted, and every file is stored encrypted. See [the Documents guide](documents).
+- Administrators set which kinds of files are accepted, sizes and storage, the sharing and link rules and the trash in **Admin panel → Document control**, and see the links that work and refused uploads there. See [Set up Document control](admin#set-up-document-control).
+
 ### PDF Studio on your phone (0.66.1)
 - **PDF Studio** works better on phones and small tablets. In the page editor, swipe to move around the page and tap where text, a tick, the date or your signature goes; the page keeps its place when you choose a tool or zoom, and has more room on the screen. Signing with a finger has a larger box. See [the PDF Studio guide](pdf-studio#add-text-white-out-highlights-ticks-and-dates).
 
