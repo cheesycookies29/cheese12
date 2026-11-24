@@ -10,6 +10,8 @@ import { clockInLocation, forViewer, purgeOldLocations, registerGeoRoutes } from
 import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig, linkTicketOwners } from './helpdesk.js';
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
 import { registerPdfStudio } from './tools-pdf.js';
+import { registerDocuments } from './documents.js';
+import { documentText } from './documents-text.js';
 import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects, timesheetAccess } from './projects.js';
 import { registerNotificationRoutes, migrateNotifications, notify, forgetUser, accountOfEmployee, fmtRange } from './notifications.js';
 import { migrateApprovals, isApprover } from './approvals.js';
@@ -556,6 +558,10 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
       'signin-fail': { limit: s.signInFailuresPerAddress, windowMs: 15 * 60000 },
       sensitive: { limit: 10, windowMs: 15 * 60000 },
       'public-write': { limit: 20, windowMs: 60 * 60000 },
+      // Document links outside the company (0.67): opening, wrong passwords, files sent in.
+      'share-access': { limit: 120, windowMs: 60000 },
+      'share-password': { limit: 10, windowMs: 15 * 60000 },
+      'share-upload': { limit: 60, windowMs: 60 * 60000 },
     };
   });
   const limits = rateLimits ? limiter : { hit() {}, check() {}, add() {} };
@@ -1353,6 +1359,11 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   registerGuideRoutes(route, db, { audit });
   // ----- Tools: PDF Studio (server/tools-pdf.js, 0.64) -----
   handlePdf = registerPdfStudio(route, db, { audit });
+  // ----- Document Management (server/documents.js, 0.67) -----
+  const docs = registerDocuments(route, db, {
+    secrets, audit, limits, extractText: documentText,
+    departmentOf: (u) => (u.employeeId && db.data.employees.find((e) => e.id === u.employeeId)?.department) || '',
+  });
   // ----- Notifications: the bell in the top bar (server/notifications.js) -----
   registerNotificationRoutes(route, db, { pm: projects.notifications });
   // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
@@ -1445,6 +1456,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   }
   handle.helpdesk = helpdesk;
   handle.pdfStudio = handlePdf;
+  handle.documents = docs;
   handle.monitor = monitor;
   handle.projects = projects;
   // Whether the request carries a live session (server.js allows large uploads only then).

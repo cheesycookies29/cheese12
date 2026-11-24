@@ -92,6 +92,7 @@ export const PERMISSION_LABELS = [
   ['pm.view', 'Projects: use Project Management (each project only for the people on its member list)'],
   ['pm.edit', 'Projects: create projects (and start them from templates); they manage the projects they start'],
   ['pm.manage', 'Projects: delete the projects they manage and change the Projects setup'],
+  ['docs.manage', 'Documents: Document control (accepted file types, sharing and retention rules), every document and folder, legal holds'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
@@ -104,6 +105,7 @@ export const PERMISSION_GROUPS = [
   { id: 'helpdesk', label: 'IT Service Desk', permissions: ['helpdesk.agent', 'helpdesk.manage'] },
   { id: 'crm', label: 'Sales & CRM', permissions: ['crm.view', 'crm.edit', 'crm.manage'] },
   { id: 'projects', label: 'Project Management', permissions: ['pm.view', 'pm.edit', 'pm.manage'] },
+  { id: 'documents', label: 'Document Management', permissions: ['docs.manage'] },
   { id: 'admin', label: 'Admin panel', permissions: ['settings.edit', 'settings.center', 'modules.config', 'audit.view', 'security.monitor', 'devlog.view', 'devlog.edit', 'feedback.view', 'feedback.manage', 'guides.edit', 'users.manage', 'roles.manage', 'data.manage'] },
 ];
 const KNOWN = new Set(PERMISSION_LABELS.map(([p]) => p));

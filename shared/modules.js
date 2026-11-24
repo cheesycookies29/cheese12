@@ -18,8 +18,8 @@ export const MODULES = [
   { id: 'procurement', short: 'Procurement', code: 'MOD-04', name: 'Procurement', glyph: 'receipt', status: 'soon',
     description: 'Purchase requests and approvals, suppliers, purchase orders and deliveries.' },
 
-  { id: 'documents', short: 'Documents', code: 'MOD-08', name: 'Document Management', glyph: 'folder', status: 'soon',
-    description: 'Contracts, compliance files, templates and approvals.' },
+  { id: 'documents', short: 'Documents', code: 'MOD-08', name: 'Document Management', glyph: 'folder', status: 'live', tagline: 'Files, versions and secure sharing',
+    description: 'Contracts, compliance files and templates in folders: versions, check-out, encryption at rest, sharing inside the company and by link outside it, and a control panel for what is accepted.' },
   { id: 'csuite', short: 'C-suite', code: 'MOD-09', name: 'C-suite', glyph: 'gauge', status: 'soon', accent: 'gold', tagline: 'Executive dashboard',
     description: 'The executive dashboard: revenue and pipeline, headcount and payroll cost, projects at risk and service levels from every module, on one page.' },
 ];
@@ -111,6 +111,7 @@ const MODULE_API = [
   ['crm', /^\/api\/crm(\/|$)/],
   ['projects', /^\/api\/pm(\/|$)/],
   ['pdf', /^\/api\/tools\/pdf(\/|$)/],
+  ['documents', /^\/api\/(docs|public\/share)(\/|$)/],
 ];
 export function moduleOfApi(method, pathname) {
   if (method === 'GET' && /^\/api\/holidays\/?$/.test(pathname)) return null;

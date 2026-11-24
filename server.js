@@ -11,6 +11,7 @@ import { PUBLIC_BODY_BYTES, MAX_FILES as HELPDESK_MAX_FILES } from './server/hel
 import { MAX_ATTACHMENT_BYTES } from './shared/leave.js';
 import { PDF_LIMITS } from './shared/pdf-studio.js';
 import { DIRECT_UPLOAD_BYTES } from './server/tools-pdf.js';
+import { DOCS_CHUNK_BYTES } from './server/documents.js';
 import { FileReply } from './server/util.js';
 
 // CORE_APP_DIR: where public/ and shared/ live (the single .exe unpacks them there).
@@ -89,6 +90,8 @@ const MB = 1024 * 1024;
 const HELPDESK_BODY_BYTES = HELPDESK_MAX_FILES * Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4 + MB;
 function bodyLimit(req, url) {
   const p = url.pathname;
+  // A file sent in through a document upload link comes in pieces of 4 MB, like any other.
+  if (!api.signedIn(req) && /^\/api\/public\/share\/[^/]+\/uploads\/[^/]+$/.test(p)) return Math.ceil(DOCS_CHUNK_BYTES / 3) * 4 + 64 * 1024;
   if (!api.signedIn(req)) return p.startsWith('/api/public/') ? PUBLIC_BODY_BYTES : MB;
   if (p === '/api/admin/import' || p.startsWith('/api/admin/config/import')) return 50 * MB;
   if (p.startsWith('/api/helpdesk/')) return HELPDESK_BODY_BYTES;
@@ -96,6 +99,8 @@ function bodyLimit(req, url) {
   // pieces of PDF_LIMITS.chunkBytes, one request each.
   if (p === '/api/tools/pdf/sources' || p === '/api/tools/pdf/verify') return Math.ceil(DIRECT_UPLOAD_BYTES / 3) * 4 + MB;
   if (/^\/api\/tools\/pdf\/uploads\/[^/]+$/.test(p)) return Math.ceil(PDF_LIMITS.chunkBytes / 3) * 4 + 64 * 1024;
+  // Documents (0.67): pieces of 4 MB.
+  if (/^\/api\/docs\/uploads\/[^/]+$/.test(p)) return Math.ceil(DOCS_CHUNK_BYTES / 3) * 4 + 64 * 1024;
   // The export carries the page editor's pictures and signatures (2 MB each at most).
   if (p === '/api/tools/pdf/export') return 30 * MB;
   return 12 * MB;
@@ -192,7 +197,8 @@ function serveStatic(url, res) {
     if (rel.endsWith('/') && fs.existsSync(index)) return send(res, 200, fs.readFileSync(index), 'text/html');
     if (fs.existsSync(index) && !rel.endsWith('/')) return send(res, 302, '', 'text/plain', { Location: `${url.pathname}/${url.search}` });
     // /support and /support/t/<token> are the public helpdesk form; everything else is the app.
-    const page = url.pathname === '/support' || url.pathname.startsWith('/support/') ? 'support.html' : 'index.html';
+    // /share/<token>: a document link for someone outside the company (0.67), a page of its own.
+    const page = url.pathname === '/support' || url.pathname.startsWith('/support/') ? 'support.html' : /^\/share\/[A-Za-z0-9_-]{43}\/?$/.test(url.pathname) ? 'share.html' : 'index.html';
     if (prefix === '/') return send(res, 200, fs.readFileSync(path.join(dir, page)), 'text/html');
     return send(res, 404, 'Not found', 'text/plain');
   }

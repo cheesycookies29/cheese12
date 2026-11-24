@@ -14,6 +14,7 @@ export const AUDIT_AREAS = {
   helpdesk: 'Service desk',
   crm: 'Sales & CRM',
   projects: 'Projects',
+  documents: 'Documents',
   feedback: 'Feedback',
   monitor: 'Security monitor',
   system: 'System',
@@ -91,6 +92,30 @@ export const AUDIT_ACTIONS = {
   'payroll.change': 'Changed payroll data',
   'system.change': 'Changed system data',
   'system.guide': 'Changed a Help guide',
+  // Document Management (0.67).
+  'documents.upload': 'Uploaded a document',
+  'documents.version': 'Added a version of a document',
+  'documents.view': 'Viewed a document',
+  'documents.download': 'Downloaded a document',
+  'documents.change': 'Changed a document',
+  'documents.access': 'Changed who can see a document or folder',
+  'documents.checkout': 'Checked out a document',
+  'documents.checkin': 'Checked in a document',
+  'documents.trash': 'Moved to the trash',
+  'documents.restore': 'Restored from the trash',
+  'documents.purge': 'Deleted for good',
+  'documents.hold': 'Placed a legal hold',
+  'documents.unhold': 'Lifted a legal hold',
+  'documents.folder-create': 'Added a folder',
+  'documents.folder-change': 'Changed a folder',
+  'documents.link': 'Made a link for outside the company',
+  'documents.unlink': 'Turned off a link',
+  'documents.link-view': 'Viewed through a link',
+  'documents.link-download': 'Downloaded through a link',
+  'documents.link-upload': 'Received a file through a link',
+  'documents.refused': 'Refused an upload',
+  'documents.settings': 'Changed Document control',
+  'documents.integrity': 'Checked the stored documents'
 };
 
 export const actionLabel = (a) => AUDIT_ACTIONS[a] || a;
@@ -103,6 +128,7 @@ export function areaOfPath(pathname) {
   if (/^\/api\/(helpdesk|tickets|me\/tickets)/.test(pathname)) return 'helpdesk';
   if (/^\/api\/crm/.test(pathname)) return 'crm';
   if (/^\/api\/pm\//.test(pathname)) return 'projects';
+  if (/^\/api\/(docs|public\/share)\//.test(pathname)) return 'documents';
   if (/^\/api\/(time-entries|clock-locations|location-settings)/.test(pathname)) return 'attendance';
   if (/^\/api\/(payroll|employees\/[^/]+\/ytd)/.test(pathname)) return 'payroll';
   return 'system';
