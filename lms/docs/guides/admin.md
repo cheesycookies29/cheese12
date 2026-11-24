@@ -163,10 +163,26 @@ The settings under **Sign-in and passwords**:
 | **Sign out after (hours signed in)** | 1 to 168, normally 12. However busy, people sign in again this long after signing in, so a session that was copied or left open stops working. Never sooner than the idle time |
 | **Requests per person per minute** | 60 to 3000, normally 300. Above this, ATLAS asks the person to wait a few seconds. A network address that is not signed in gets four times as many |
 | **Wrong passwords per network address** | 10 to 1000 in 15 minutes, normally 30. An address that keeps guessing passwords, for any usernames, has to wait. Raise it if a whole campus reaches the internet through one address and people mistype often |
+| **School networks** | The addresses each campus reaches the internet through (see below). From them, the limits counted per address are multiplied |
+| **Limits on school networks (times)** | 1 to 100, normally 20: how many times those limits a school network gets |
 
 ![Sign-in and passwords, with who must use 2-step verification](admin-2fa-policy.jpg)
 
 Password rules apply to new and changed passwords; nobody has to change a password that is already set.
+
+### List the school's networks
+
+A campus usually reaches the internet through one or two addresses, so to ATLAS a thousand students on the campus Wi-Fi look like one visitor. Without this, thirty mistyped passwords in a quarter of an hour, or sixty sign-ins in a minute, make *everyone* on that campus wait. List the campus addresses, and the limits counted per address (sign-ins, wrong passwords, requests before signing in, applications and Keycloak sign-ins) are multiplied there. Everywhere else they stay as they are, so password guessing from the internet still meets the usual limit, and one username still locks after its own wrong passwords.
+
+1. Under **System**, choose **Sign-in and passwords**, and go down to **School networks**.
+2. The page shows the address you are reaching ATLAS from. If you are on a campus connection, choose **add it**.
+3. **Where people signed in from in the last 7 days** lists the busiest networks, with how many people signed in from each. Choose **Add** beside a campus network. Ask the school's network administrator if you are not sure which addresses are the school's.
+4. Type the campus name under **Campus or note** (for example *Main Campus*). To type an address yourself, choose **Add a network**: one address (`203.0.113.7`) or a range (`203.0.113.0/24`, at most a /16; IPv6 at most a /32).
+5. Leave **Limits on school networks (times)** at 20 unless the Security monitor shows waits at busy times, and choose **Save**.
+
+![School networks, with the busiest networks of the week](admin-school-networks.jpg)
+
+> **Important:** List only addresses that belong to the school. Anyone on a listed network gets the larger limits, so a home or shared public address must never be on the list.
 
 ### Admit or decline applicants
 

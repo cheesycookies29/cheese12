@@ -310,7 +310,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
       state, nonce, code_challenge: b64url(createHash('sha256').update(verifier).digest()), code_challenge_method: 'S256',
     })) u.searchParams.set(k, v);
     return { raw: '', type: 'text/plain', status: 302, headers: { Location: u.toString(), 'Set-Cookie': stateCookie(state) } };
-  }, { limit: 'lookup' });
+  }, { limit: 'sso' });
 
   route('GET', '/api/sso/callback', 'public', async ({ query, cookies, tokens, ip, agent }) => {
     const failed = (msg) => ctx.audit?.({ kind: 'signin', system: 'home', action: 'Keycloak sign-in failed', ip, agent, outcome: 'failed', detail: msg });
@@ -346,7 +346,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
       if (!(err instanceof HttpError) || err.status >= 500 && err.status !== 502 && err.status !== 503) console.error('SSO callback:', err);
       return back(err instanceof HttpError ? err.message : 'Something went wrong while signing in.');
     }
-  }, { limit: 'lookup' });
+  }, { limit: 'sso' });
 
   // Where to send the browser after an ATLAS sign-out, to end the Keycloak session too.
   function logoutUrl(session, origin) {

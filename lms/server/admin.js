@@ -14,6 +14,7 @@ import { THEMES, HEX_RE } from '../shared/themes.js';
 import { SYSTEMS, SYSTEM_STATUS, TOOLS, TOOL_ROLES } from '../shared/systems.js';
 import { TWO_FACTOR_POLICIES, twoFactorRequired } from '../shared/two-factor.js';
 import { hasTwoFactor } from './two-factor.js';
+import { parseNetwork, SCHOOL_NETWORKS_MAX } from './ratelimit.js';
 import { campusesFor, inCampus, canReach, campusIdsFrom, campusName } from './campus.js';
 import { forgetUser } from './notifications.js';
 import {
@@ -89,6 +90,28 @@ function prerequisiteCycle(data, courseId, prereqs) {
     stack.push(...(findById(data.courses, id)?.prerequisites || []));
   }
   return false;
+}
+
+// School networks (Sign-in and passwords): up to SCHOOL_NETWORKS_MAX addresses or ranges, each with a
+// label (the campus), checked by parseNetwork; the same one twice is kept once.
+function cleanSchoolNetworks(list) {
+  if (list == null) return [];
+  if (!Array.isArray(list)) fail('School networks: send a list.');
+  if (list.length > SCHOOL_NETWORKS_MAX) fail(`School networks: up to ${SCHOOL_NETWORKS_MAX} addresses or ranges.`);
+  const out = [];
+  for (const e of list) {
+    const raw = typeof e === 'string' ? e : e?.cidr;
+    let cidr;
+    try {
+      ({ cidr } = parseNetwork(raw));
+    } catch (err) {
+      fail(`School networks: ${err.message}`);
+    }
+    if (out.some((x) => x.cidr === cidr)) continue;
+    const label = String((typeof e === 'object' && e?.label) || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+    out.push({ cidr, label });
+  }
+  return out;
 }
 
 export function registerAdminRoutes(route, ctx) {
@@ -672,6 +695,8 @@ export function registerAdminRoutes(route, ctx) {
         forcePasswordChange: Boolean(v.forcePasswordChange),
         requestsPerMinute: whole(v.requestsPerMinute, 60, 3000, 'Requests per person per minute'),
         signInFailuresPerAddress: whole(v.signInFailuresPerAddress, 10, 1000, 'Wrong passwords per network address'),
+        schoolNetworks: cleanSchoolNetworks(v.schoolNetworks),
+        schoolNetworkFactor: whole(v.schoolNetworkFactor ?? 20, 1, 100, 'Limits on school networks (times)'),
         twoFactor: Object.hasOwn(TWO_FACTOR_POLICIES, v.twoFactor ?? 'off') ? v.twoFactor ?? 'off' : fail('Choose who must use 2-step verification.'),
       };
       // Requiring it of yourself before you have it would lock you out at your next sign-in.

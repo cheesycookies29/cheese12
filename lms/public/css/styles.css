@@ -1745,3 +1745,11 @@ form#sec .grid + h2 { margin-top: 24px; padding-top: 18px; border-top: 1px solid
 @media (max-width: 480px) {
   .topbar .brand .atlas-word { display: none; }
 }
+
+/* Admin panel → Sign-in and passwords → School networks: one row per address or range. */
+.sn-rows { display: grid; gap: 8px; margin: 8px 0; }
+.sn-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+.sn-row .field { margin: 0; }
+.sn-row .sn-remove { margin-bottom: 2px; }
+.sn-sub { font-size: 15px; margin: 18px 0 8px; }
+@media (max-width: 560px) { .sn-row { grid-template-columns: 1fr; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--border); } }

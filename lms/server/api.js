@@ -27,7 +27,7 @@ import {
   sessionCookie, clearedCookie, cookieName, cookiesSecureByDefault, PORTAL_COOKIE, ADMIN_COOKIE, HRIS_COOKIE,
 } from './auth.js';
 import { checkStructure, checkBody, t } from './validate.js';
-import { clientIp, createRateLimiter } from './ratelimit.js';
+import { clientIp, createRateLimiter, networkMatcher, networkOf, parseNetwork } from './ratelimit.js';
 import { ROLES, can, userCan, setRoleOverrides } from '../shared/roles.js';
 import { MODULES, moduleOn, enabledModules } from '../shared/modules.js';
 import { registerEnrollmentRoutes } from './enrollment.js';
@@ -115,19 +115,26 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const throttle = createThrottle(() => ({ max: Number(security().lockoutAttempts) || 5, lockMs: (Number(security().lockoutMinutes) || 5) * 60 * 1000 }));
   // Rate limits (server/ratelimit.js). Signed in: per person; not signed in: per network address
   // (four times as many, as a whole school may share one address). RATE_LIMITS=off switches them off.
+  // School networks (Sign-in and passwords): a campus shares one or two addresses, so the limits
+  // counted per address are multiplied there (`<rule>@school`); everywhere else they are unchanged.
+  const SCHOOL_SCALED = ['signin', 'signinFail', 'address', 'apply', 'sso'];
+  const onSchoolNetwork = networkMatcher();
+  const atSchool = (ip) => onSchoolNetwork(security().schoolNetworks, ip);
+  const byAddress = (name, ip) => (SCHOOL_SCALED.includes(name) && atSchool(ip) ? `${name}@school` : name);
   const limits = createRateLimiter(() => {
     if (rateLimits === 'off') return {};
     const perMinute = Number(security().requestsPerMinute) || 300;
     const MIN = 60 * 1000;
-    return {
+    const rules = {
       user: { limit: perMinute, windowMs: MIN },
       address: { limit: perMinute * 4, windowMs: MIN },
       signin: { limit: 60, windowMs: MIN }, // sign-in attempts per address (each is a slow password check)
+      sso: { limit: 120, windowMs: MIN }, // Keycloak sign-ins per address (each counts twice: on the way out and back)
       signinFail: { limit: Number(security().signInFailuresPerAddress) || 30, windowMs: 15 * MIN }, // wrong passwords per address
       password: { limit: 10, windowMs: 15 * MIN }, // password changes per person (each checks the current password)
       apply: { limit: 10, windowMs: 60 * MIN }, // applications per address
       setup: { limit: 20, windowMs: 15 * MIN }, // first-administrator attempts per address
-      lookup: { limit: 60, windowMs: MIN }, // document checks, calendar feeds and Keycloak sign-ins per address
+      lookup: { limit: 60, windowMs: MIN }, // document checks and calendar feeds per address
       outbound: { limit: 20, windowMs: 15 * MIN }, // tests of the Keycloak connection per address (each makes this server call another)
       // ATLAS Documents' links for people outside the school (server/documents.js)
       shareAccess: { limit: 120, windowMs: MIN }, // requests to links, per address
@@ -135,7 +142,18 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       sharePasswordFail: { limit: 10, windowMs: 15 * MIN }, // wrong link passwords, per address and link
       shareUpload: { limit: 60, windowMs: 60 * MIN }, // files sent through upload links, per address
     };
+    // From a school network: the same rules, multiplied (a campus is many people at one address).
+    const factor = Math.min(100, Math.max(1, Number(security().schoolNetworkFactor) || 20));
+    for (const name of SCHOOL_SCALED) rules[`${name}@school`] = { ...rules[name], limit: rules[name].limit * factor };
+    return rules;
   });
+  // The same limits, counted with the school-network rule where the address is on one (for modules
+  // that count per address themselves, as 2-step verification's wrong codes).
+  const addressLimits = {
+    hit: (name, key, message) => limits.hit(byAddress(name, key), key, message),
+    check: (name, key, message) => limits.check(byAddress(name, key), key, message),
+    add: (name, key) => limits.add(byAddress(name, key), key),
+  };
   const users = () => db.data.users;
   // System → Security monitor (server/monitor.js): requests (reported by server.js), audit entries
   // and the process, in buckets of fixed size, kept in monitor.json beside the data.
@@ -169,7 +187,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     return out;
   };
   const twoFactor = createTwoFactor({
-    db, record: (e) => audit.record(e), throttle, limits, sides, security, viaSso, publicUser,
+    db, record: (e) => audit.record(e), throttle, limits: addressLimits, sides, security, viaSso, publicUser,
     systemOf: (user) => SIDE_SYSTEM[ROLES[user.role]?.side] || 'home', now: () => clock().getTime(),
   });
 
@@ -232,7 +250,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         throw err;
       }
     };
-    refuse('too many wrong passwords from this address', () => limits.check('signinFail', ip, 'Too many wrong passwords from your network.'));
+    refuse('too many wrong passwords from this address', () => limits.check(byAddress('signinFail', ip), ip, 'Too many wrong passwords from your network.'));
     refuse('username locked', () => {
       throttle.check(here);
       throttle.check(key);
@@ -248,7 +266,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const right = password.length <= 200 && (await verifyPasswordAsync(password, stored));
     // Everything from here runs without pausing, so it sees one consistent state.
     if (!right || (passwordsOff && user.role !== 'admin')) {
-      limits.add('signinFail', ip);
+      limits.add(byAddress('signinFail', ip), ip);
       refuse(!right ? (user ? 'wrong password' : 'no such account') : 'passwords are switched off', () => fail(passwordsOff ? `This school signs in with Keycloak. Choose "${sso.label}".` : 'Incorrect username or password.', 401));
     }
     throttle.reset(here);
@@ -748,6 +766,34 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   ctx.toolsFor = toolsFor;
   const pdfStudio = registerPdfStudio(route, db, { record: (e) => audit.record(e), clock });
 
+  // ----- School networks (Sign-in and passwords): where to find a campus's addresses -----
+  // This browser's address as ATLAS sees it, and the addresses most people signed in from in the last
+  // seven days (from the audit trail), each with whether a school network already covers it.
+  // Only what could be saved is offered (not this computer's own address, for one).
+  const listable = (network) => {
+    try {
+      return Boolean(network && parseNetwork(network));
+    } catch {
+      return false;
+    }
+  };
+  route('GET', '/api/admin/school-networks', 'admin:settings.edit', ({ ip }) => {
+    const since = new Date(clock().getTime() - 7 * 86400000).toISOString();
+    const byNet = new Map();
+    for (const e of [...audit.entries(), ...(db.data.auditDemo || [])]) { // the demo school's sample trail too
+      if (e.kind !== 'signin' || e.outcome !== 'ok' || !e.ip || e.at < since) continue;
+      const n = networkOf(e.ip);
+      if (!n) continue;
+      const x = byNet.get(n) || { network: n, sample: e.ip, signIns: 0, people: new Set() };
+      x.signIns += 1;
+      if (e.actorId) x.people.add(e.actorId);
+      byNet.set(n, x);
+    }
+    const busiest = [...byNet.values()].filter((x) => listable(x.network) || atSchool(x.sample)).sort((a, b) => b.people.size - a.people.size || b.signIns - a.signIns).slice(0, 8)
+      .map((x) => ({ network: x.network, signIns: x.signIns, people: x.people.size, covered: atSchool(x.sample), canAdd: listable(x.network) }));
+    return { yourAddress: ip, yourNetwork: networkOf(ip), yourAddressCovered: atSchool(ip), yourNetworkCanAdd: listable(networkOf(ip)), busiest, factor: Number(security().schoolNetworkFactor) || 20 };
+  }, { audit: false });
+
   // ----- Your own account: profile, picture, sessions, quick access (server/account.js) -----
   twoFactor.registerRoutes(route); // My security: 2-step verification (/api/me/2fa…)
   registerAccountRoutes(route, { db, sides, avatars, record: (e) => audit.record(e), systemsFor: (u) => portalSystems(u, ROLES[u.role]?.side).filter((x) => x.status === 'live' && x.url).map((x) => ({ id: x.id, name: x.name, url: x.url, tagline: x.tagline || x.description || '' })) });
@@ -847,7 +893,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   function prepare(req) {
     const { signedIn } = whoIs(req);
     if (signedIn) limits.hit('user', signedIn.id);
-    else limits.hit('address', clientIp(req));
+    else limits.hit(byAddress('address', clientIp(req)), clientIp(req));
     counted.add(req);
     const p = String(req.url || '').split('?')[0];
     // ATLAS Documents: files come in pieces of 4 MB (about 5.4 MB as base64), also from someone
@@ -874,7 +920,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const agent = String(req.headers['user-agent'] || '').slice(0, 160);
     if (!counted.has(req)) {
       if (signedIn) limits.hit('user', signedIn.id);
-      else limits.hit('address', ip);
+      else limits.hit(byAddress('address', ip), ip);
     }
     const origin = originOf(req);
     // For the Security monitor: the route that answers (its template, never the address with ids)
@@ -956,7 +1002,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
         // The school requires 2-step verification of this account and it is not on yet: only setting it up (and signing out).
         if (!r.duringPasswordChange && twoFactor.mustSetUp(user)) fail('Set up 2-step verification first (My security).', 403);
-        if (r.limit) limits.hit(r.limit, r.limit === 'password' ? user.id : ip);
+        if (r.limit) limits.hit(r.limit === 'password' ? r.limit : byAddress(r.limit, ip), r.limit === 'password' ? user.id : ip);
         const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
         const campusId = user ? activeCampusId(db.data, user) : null;
         // A Finance change is all or nothing: if any check fails partway, the books are put back as they were.

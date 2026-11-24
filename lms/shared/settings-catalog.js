@@ -57,6 +57,8 @@ export const SETTINGS = [
   ['security', 'forcePasswordChange', 'Always change the first password', 'New accounts and reset passwords must be changed at the first sign-in; staff cannot untick it.', 'bool'],
   ['security', 'requestsPerMinute', 'Requests per person per minute', 'Above this, ATLAS asks the person to wait; a signed-out network address gets four times as many (60 to 3000).'],
   ['security', 'signInFailuresPerAddress', 'Wrong passwords per network address', 'Wrong passwords from one address in 15 minutes, across all usernames, before it has to wait (10 to 1000).'],
+  ['security', 'schoolNetworks', 'School networks', 'The addresses each campus reaches the internet through; there, the limits counted per address are multiplied, so a whole campus is not treated as one visitor.', 'json'],
+  ['security', 'schoolNetworkFactor', 'Limits on school networks (times)', 'How many times the per-address limits (sign-ins, wrong passwords, signed-out requests, applications, Keycloak sign-ins) a school network gets (1 to 100).'],
   ['security', 'twoFactor', '2-step verification', 'Who must sign in with a code from an authenticator app after the password: optional for everyone (off), administrators, employees and administrators (staff), or everyone (all).'],
   ['numbering', 'studentNo', 'Student numbers', 'The format of new student numbers, e.g. {YYYY}-{N4} gives 2026-0001.'],
   ['numbering', 'employeeNo', 'Employee numbers', 'The format of new employee numbers in People.'],

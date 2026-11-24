@@ -9,6 +9,13 @@ import { TWO_FACTOR_POLICIES } from '/shared/two-factor.js';
 export async function signInView(el) {
   const s = await api.get('/api/admin/settings');
   const v = s.security;
+  // Where a campus's addresses may be found: this browser's, and the busiest of the week.
+  const nets = await api.get('/api/admin/school-networks').catch(() => null);
+  const netRow = (n = {}) => html`<div class="sn-row">
+      <label class="field"><span>Address or range</span><input name="sn-cidr" value="${n.cidr || ''}" placeholder="203.0.113.0/24" autocomplete="off" spellcheck="false" /></label>
+      <label class="field"><span>Campus or note</span><input name="sn-label" value="${n.label || ''}" placeholder="Main Campus" maxlength="60" /></label>
+      <button type="button" class="btn sn-remove" aria-label="Remove this network">${icon('trash', 16)} Remove</button>
+    </div>`;
   mount(el, html`
     ${pageHead('Sign-in and passwords', 'Password rules, 2-step verification, lock-out, idle sign-out and rate limits, for every system. Each change is in the Audit log with its old and new value.')}
     <div class="notice ${s.passwordEncryption?.on ? 'ok' : ''}">${icon('lock')}<p>${s.passwordEncryption?.on
@@ -36,10 +43,37 @@ export async function signInView(el) {
       <h2>${icon('shield')} Rate limits</h2>
       <div class="grid">
         <label class="field"><span>Requests per person per minute</span><input type="number" name="requestsPerMinute" min="60" max="3000" value="${v.requestsPerMinute}" /><span class="hint">60 to 3000. Above this, ATLAS asks the person to wait a moment. Signed out, a network address gets four times as many.</span></label>
-        <label class="field"><span>Wrong passwords per network address</span><input type="number" name="signInFailuresPerAddress" min="10" max="1000" value="${v.signInFailuresPerAddress}" /><span class="hint">In 15 minutes, across all usernames, before that address waits. Raise it if a whole campus shares one internet address.</span></label>
+        <label class="field"><span>Wrong passwords per network address</span><input type="number" name="signInFailuresPerAddress" min="10" max="1000" value="${v.signInFailuresPerAddress}" /><span class="hint">In 15 minutes, across all usernames, before that address waits. For a campus that shares one internet address, list it under School networks below rather than raising this for everyone.</span></label>
+      </div>
+      <h2 id="school-networks">${icon('building')} School networks</h2>
+      <p class="muted">A campus usually reaches the internet through one or two addresses, so everyone there looks like one visitor to the limits above. List those addresses: from them, the limits counted per address (sign-ins, wrong passwords, signed-out requests, applications and Keycloak sign-ins) are multiplied. Everywhere else they stay as they are, so password guessing from the internet still meets the usual limit.</p>
+      ${nets ? html`<div class="notice ${nets.yourAddressCovered ? 'ok' : ''}">${icon('link')}<p>You are reaching ATLAS from <code>${nets.yourAddress}</code>${nets.yourAddressCovered ? ', which is on a school network.' : nets.yourNetworkCanAdd ? html`. If this is a campus connection, <button type="button" class="link" data-add-net="${nets.yourNetwork}">add it</button>.` : ' (this server’s own address: not one to list).'}</p></div>` : ''}
+      <div id="sn-rows" class="sn-rows">${(v.schoolNetworks || []).map(netRow)}</div>
+      ${(v.schoolNetworks || []).length ? '' : html`<p class="muted small" id="sn-none">No school networks listed yet: every campus shares the usual limits.</p>`}
+      <div class="actions"><button type="button" class="btn" id="sn-add">${icon('plus', 16)} Add a network</button></div>
+      ${nets?.busiest?.length ? html`<h3 class="sn-sub">Where people signed in from in the last 7 days</h3>
+        <div class="table-wrap"><table class="table"><thead><tr><th>Network</th><th class="num">People</th><th class="num">Sign-ins</th><th></th></tr></thead><tbody>
+        ${nets.busiest.map((b) => html`<tr><td><code>${b.network}</code></td><td class="num">${b.people}</td><td class="num">${b.signIns}</td><td>${b.covered ? html`<span class="badge green">School network</span>` : b.canAdd ? html`<button type="button" class="link" data-add-net="${b.network}">Add</button>` : ''}</td></tr>`)}
+        </tbody></table></div>
+        <p class="hint">Many people signing in from one network usually means a campus connection. Add only addresses that belong to the school.</p>` : ''}
+      <div class="grid">
+        <label class="field"><span>Limits on school networks (times)</span><input type="number" name="schoolNetworkFactor" min="1" max="100" value="${v.schoolNetworkFactor ?? 20}" /><span class="hint">1 to 100. At ${v.schoolNetworkFactor ?? 20}, a school network may make ${60 * (v.schoolNetworkFactor ?? 20)} sign-ins a minute and have ${(v.signInFailuresPerAddress || 30) * (v.schoolNetworkFactor ?? 20)} wrong passwords in 15 minutes before it waits. One username still locks after its own wrong passwords.</span></label>
       </div>
       <div class="actions end"><button class="btn primary">Save</button></div>
     </form>`);
+  // School networks: add a row (empty, or filled from a suggestion), remove one.
+  const rows = el.querySelector('#sn-rows');
+  const addRow = (cidr = '') => {
+    el.querySelector('#sn-none')?.remove();
+    rows.insertAdjacentHTML('beforeend', String(netRow({ cidr })));
+    rows.lastElementChild.querySelector(cidr ? '[name=sn-label]' : '[name=sn-cidr]').focus();
+  };
+  el.querySelector('#sn-add').addEventListener('click', () => addRow());
+  el.querySelectorAll('[data-add-net]').forEach((b) => b.addEventListener('click', () => {
+    addRow(b.dataset.addNet);
+    b.replaceWith(Object.assign(document.createElement('span'), { className: 'muted', textContent: 'Added below: save to apply' }));
+  }));
+  rows.addEventListener('click', (e) => e.target.closest('.sn-remove')?.closest('.sn-row').remove());
   el.querySelector('#sec').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = formData(e.target);
@@ -48,6 +82,8 @@ export async function signInView(el) {
         minPasswordLength: f.minPasswordLength, lockoutAttempts: f.lockoutAttempts, lockoutMinutes: f.lockoutMinutes, idleHours: f.idleHours, maxSessionHours: f.maxSessionHours,
         requireLettersAndDigits: Boolean(f.requireLettersAndDigits), forcePasswordChange: Boolean(f.forcePasswordChange),
         requestsPerMinute: f.requestsPerMinute, signInFailuresPerAddress: f.signInFailuresPerAddress, twoFactor: f.twoFactor,
+        schoolNetworks: [...el.querySelectorAll('.sn-row')].map((r) => ({ cidr: r.querySelector('[name=sn-cidr]').value.trim(), label: r.querySelector('[name=sn-label]').value.trim() })).filter((n) => n.cidr),
+        schoolNetworkFactor: f.schoolNetworkFactor,
       } });
       toast('Saved. The new rules apply now.');
       signInView(el);

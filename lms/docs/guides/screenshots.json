@@ -965,6 +965,13 @@
   "wait": 1000
  },
  {
+  "file": "admin-school-networks.jpg",
+  "user": "admin",
+  "url": "/admin#/sign-in",
+  "scroll": "#school-networks",
+  "wait": 1200
+ },
+ {
   "file": "documents-my-files.jpg",
   "user": "teacher.demo",
   "url": "/documents/#/files",

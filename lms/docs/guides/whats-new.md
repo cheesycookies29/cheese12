@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### Sign-in at busy times: school networks
+- A campus that reaches the internet through one address is no longer treated as one visitor. Under **System → Sign-in and passwords → School networks**, administrators list the campus addresses (the page suggests the busiest ones), and there the sign-in and request limits are multiplied, so a morning of typos or a rush of sign-ins no longer makes the whole campus wait. See [the administrator's guide](admin#list-the-school-s-networks).
+- Keycloak sign-ins have their own limit, no longer shared with calendar feeds and document checks.
+
 ### ATLAS Documents: files and sharing for everyone
 - A new system, **Documents**, on the ATLAS home page for every employee and student (not for parents). Keep your own files in **My files**, work in the folders your office or college shares (**School folders**), and open what others share with you (**Shared with me**). See [the Documents guide](documents).
 - Files go up in pieces with a progress bar, keep every version, can be checked out while you edit them, and are found by their words (text, Word, Excel, PowerPoint and OpenDocument files). ATLAS reads each file to tell what it really is: programs, scripts, web pages, SVG and Office files with macros are never accepted, and a file whose name does not match its content is refused. Every file is encrypted on the server.
