@@ -193,7 +193,7 @@ test('a real server counts its answers: probes, other websites, bad JSON, wrong 
   const port = await freePort();
   const dir = tmpDir('server');
   const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', DB_FILE: path.join(dir, 'db.json'), RATE_LIMITS: 'off', OPEN_BROWSER: '' }, stdio: 'ignore' });
-  const base = `http://localhost:${port}`;
+  const base = `http://127.0.0.1:${port}`; // not localhost: Node 18 tries ::1 first and the server listens on IPv4
   try {
     for (let i = 0; i < 100; i++) {
       try {

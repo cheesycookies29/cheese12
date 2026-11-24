@@ -5,20 +5,14 @@
 // footnotes, comments, charts, speaker notes, shapes that float over the text) is left out with a
 // warning; text that was deleted with "track changes" on stays deleted.
 import { MAX_ROWS, fail, makeRun, sheetTable, blockHasContent, sniffImage } from './office-core.js';
+import { CP1252_CHARS } from './cp1252.js';
 import { formatExcel, BUILTIN_CODES } from './xlsx-format.js';
 import { plainNumber } from './office-ooxml.js';
 
 const PASSWORD = (label, app, ext) => `${label} is protected with a password: open it in ${app}, remove the password, save it (as ${ext} if you can) and upload it again.`;
 
 // Windows-1252, the code page of 8-bit text in these files.
-const CP1252 = (() => {
-  const all = Uint8Array.from({ length: 256 }, (_, i) => i);
-  try {
-    return new TextDecoder('windows-1252').decode(all);
-  } catch {
-    return Buffer.from(all).toString('latin1');
-  }
-})();
+const CP1252 = CP1252_CHARS; // ATLAS's own table (server/pdf/cp1252.js): Node 20 reads it as Latin-1
 const decode8 = (buf, start, end) => {
   let s = '';
   for (let i = start; i < end; i++) s += CP1252[buf[i]];

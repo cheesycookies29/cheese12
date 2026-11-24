@@ -10,6 +10,7 @@
 // Each returns { title, blocks, landscape, warnings } like office.js toBlocks, and throws an Error
 // whose message is for the person uploading when the file cannot be read at all.
 import { Out, ReadError, STOP, readZip, parseXml, findAll, find, decodeText, dropPrefixes, textOf } from './office-core.js';
+import { decodeAs } from './cp1252.js';
 import { htmlToBlocks, txtToBlocks } from './office-text.js';
 
 const MAX_CODE_LINES = 120_000; // about 2,000 pages
@@ -112,7 +113,7 @@ function splitHeaders(buf) {
 }
 const charsetDecode = (bytes, charset) => {
   try {
-    return new TextDecoder((charset || 'utf-8').toLowerCase().replace(/^(us-ascii|ascii)$/, 'windows-1252')).decode(bytes);
+    return decodeAs((charset || 'utf-8').toLowerCase(), bytes);
   } catch {
     return decodeText(bytes);
   }

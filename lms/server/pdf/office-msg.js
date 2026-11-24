@@ -7,6 +7,7 @@
 // when there is one, else its RTF, else its plain text), the names of the attachments and, after them,
 // the attached JPEG and PNG pictures.
 import { fail, makeRun, sniffImage } from './office-core.js';
+import { decodeAs, decodeCp1252 } from './cp1252.js';
 import { htmlToBlocks, txtToBlocks } from './office-text.js';
 import { rtfToBlocks } from './office-rtf.js';
 
@@ -71,9 +72,9 @@ const ENCODINGS = { 65001: 'utf-8', 1200: 'utf-16le', 20127: 'us-ascii', 28591: 
 function decodeWith(bytes, codepage) {
   const label = ENCODINGS[codepage] || (codepage >= 1250 && codepage <= 1258 ? `windows-${codepage}` : 'windows-1252');
   try {
-    return new TextDecoder(label).decode(bytes);
+    return decodeAs(label, bytes);
   } catch {
-    return bytes.toString('latin1');
+    return decodeCp1252(bytes);
   }
 }
 

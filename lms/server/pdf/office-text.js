@@ -3,6 +3,7 @@
 // on the web are shown by their description, and an HTML page's scripts and styles are dropped unread.
 import { parseCsv, csvSeparator } from '../../shared/csv.js';
 import { MAX_COLS, MAX_ROWS, decodeText, makeRun, safeLink, sheetTable } from './office-core.js';
+import { CP1252_CHARS } from './cp1252.js';
 
 const lines = (buf) => decodeText(buf).replace(/\r\n?/g, '\n');
 
@@ -400,7 +401,7 @@ function decodeHtml(s) {
     const cp = hex ? parseInt(hex, 16) : parseInt(dec, 10);
     if (cp === 0 || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) return '�';
     // Numbers 128–159 mean the Windows-1252 characters (€, “, ”) in HTML.
-    if (cp >= 128 && cp < 160) return new TextDecoder('windows-1252').decode(Uint8Array.of(cp));
+    if (cp >= 128 && cp < 160) return CP1252_CHARS[cp];
     return String.fromCodePoint(cp);
   });
 }

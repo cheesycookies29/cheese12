@@ -5,6 +5,7 @@
 // footers, footnotes, comments, document variables, embedded objects) are read past without
 // keeping their text. Outlook's HTML wrapped in RTF (\fromhtml1) is unwrapped and read as HTML.
 import { MAX_ROWS, fail, makeRun, isMonoFont } from './office-core.js';
+import { decodeCp1252, isCp1252Label } from './cp1252.js';
 import { htmlToBlocks } from './office-text.js';
 
 // Whether a file is Rich Text: it starts with "{\rtf" (after a byte-order mark or blank space).
@@ -40,9 +41,9 @@ function decoder(cp) {
   if (!decoders.has(label)) {
     let d;
     try {
-      d = new TextDecoder(label);
+      d = isCp1252Label(label) ? { decode: (b) => decodeCp1252(b || []) } : new TextDecoder(label);
     } catch {
-      d = new TextDecoder('latin1');
+      d = { decode: (b) => decodeCp1252(b || []) };
     }
     decoders.set(label, d);
   }

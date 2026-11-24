@@ -729,3 +729,15 @@ test('xlsx number formats: shown as Excel shows them (QA 0.65.1)', async () => {
   for (const [n, code, shown] of cases) assert.equal(formatExcel(n, code), shown, code);
   for (const code of ['General', '@', '0.00E+00', '# ?/?', '[>100]0']) assert.equal(formatExcel(12, code), null, `${code}: the plain number instead`);
 });
+
+// Node 20's TextDecoder('windows-1252') reads Latin-1 (0x80-0x9F as control characters): ATLAS
+// decodes Windows-1252 itself, the same on every Node.
+test('Windows-1252 is decoded by ATLAS, the same on every Node.js', async () => {
+  const { decodeCp1252, decodeAs, isCp1252Label } = await import('../server/pdf/cp1252.js');
+  assert.equal(decodeCp1252(Buffer.from([0x80, 0x20, 0x93, 0x51, 0x94, 0x96, 0x97, 0x85, 0x99, 0x8c, 0x9f, 0xe9])), '€ “Q”–—…™ŒŸé');
+  assert.equal(decodeCp1252(Buffer.from([0x81, 0x8d, 0x8f, 0x90, 0x9d])), '\x81\x8d\x8f\x90\x9d', 'the five unassigned bytes stay as they are (WHATWG)');
+  for (const l of ['windows-1252', 'ISO-8859-1', 'latin1', 'us-ascii']) assert.ok(isCp1252Label(l), l);
+  assert.equal(decodeAs('iso-8859-1', Buffer.from([0x80])), '€');
+  assert.equal(decodeAs('utf-8', Buffer.from('é')), 'é');
+  assert.throws(() => decodeAs('no-such-charset', Buffer.from('x')));
+});

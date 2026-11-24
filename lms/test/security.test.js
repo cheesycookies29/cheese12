@@ -180,7 +180,7 @@ test('the server answers malformed requests with 400 and keeps running; security
   const port = await freePort();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-sec-'));
   const child = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(port), DB_FILE: path.join(dir, 'db.json') }, stdio: 'ignore' });
-  const base = `http://localhost:${port}`;
+  const base = `http://127.0.0.1:${port}`; // not localhost: Node 18 tries ::1 first and the server listens on IPv4
   try {
     for (let i = 0; i < 50; i++) {
       try {

@@ -6,6 +6,7 @@
 // that unpack to more than the limits allow (a "zip bomb"); the XML parser never reads a DOCTYPE, so
 // a file cannot define its own entities (no "billion laughs", no reading files from the server).
 import { inflateRawSync } from 'node:zlib';
+import { decodeCp1252 } from './cp1252.js';
 
 export const MAX_BLOCKS = 20000;
 export const MAX_IMAGES = 300;
@@ -670,10 +671,6 @@ export function decodeText(buf) {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(buf);
   } catch {
-    try {
-      return new TextDecoder('windows-1252').decode(buf);
-    } catch {
-      return buf.toString('latin1');
-    }
+    return decodeCp1252(buf);
   }
 }
