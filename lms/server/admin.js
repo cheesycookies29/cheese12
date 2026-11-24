@@ -12,6 +12,8 @@ import { nextNumber, previewNumber } from './numbering.js';
 import { DEFAULT_NUMBERING, NUMBERING_LABELS, formatProblem } from '../shared/numbering.js';
 import { THEMES, HEX_RE } from '../shared/themes.js';
 import { SYSTEMS, SYSTEM_STATUS, TOOLS, TOOL_ROLES } from '../shared/systems.js';
+import { TWO_FACTOR_POLICIES, twoFactorRequired } from '../shared/two-factor.js';
+import { hasTwoFactor } from './two-factor.js';
 import { campusesFor, inCampus, canReach, campusIdsFrom, campusName } from './campus.js';
 import {
   findById, sectionView, enrollmentView, seatsTaken, promoteWaitlist, changeStatus, HOLDS_PLACE, termOpen,
@@ -628,7 +630,7 @@ export function registerAdminRoutes(route, ctx) {
     if (!Number.isInteger(n)) fail(`${label} must be a whole number.`);
     return n;
   };
-  route('PUT', '/api/admin/settings', 'admin:settings.edit', ({ body }) => {
+  route('PUT', '/api/admin/settings', 'admin:settings.edit', ({ body, user }) => {
     const s = mergeSettings(data().settings);
     if ('schoolName' in body) s.schoolName = text(body.schoolName, 120) || fail('Give the school a name.');
     if ('passingGrade' in body) {
@@ -662,7 +664,12 @@ export function registerAdminRoutes(route, ctx) {
         forcePasswordChange: Boolean(v.forcePasswordChange),
         requestsPerMinute: whole(v.requestsPerMinute, 60, 3000, 'Requests per person per minute'),
         signInFailuresPerAddress: whole(v.signInFailuresPerAddress, 10, 1000, 'Wrong passwords per network address'),
+        twoFactor: Object.hasOwn(TWO_FACTOR_POLICIES, v.twoFactor ?? 'off') ? v.twoFactor ?? 'off' : fail('Choose who must use 2-step verification.'),
       };
+      // Requiring it of yourself before you have it would lock you out at your next sign-in.
+      if (s.security.twoFactor !== (data().settings.security?.twoFactor || 'off') && twoFactorRequired(s.security, user) && !hasTwoFactor(user)) {
+        fail('Turn on 2-step verification for your own account first (your name → My security), then require it.');
+      }
     }
     if (body.learn) {
       const v = { ...s.learn, ...body.learn };

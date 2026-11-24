@@ -17,6 +17,8 @@ import { publicUser, hashPasswordAsync, validatePassword } from './auth.js';
 import { t } from './validate.js';
 import { validateUserFields } from './admin.js';
 import { campusName } from './campus.js';
+import { twoFactorRequired } from '../shared/two-factor.js';
+import { hasTwoFactor } from './two-factor.js';
 import { combinedTrail, filterTrail, trailCsv, sideLabel, SYSTEM_LABELS, KIND_LABELS, SOURCE_LABELS } from './audit.js';
 
 const fail = (msg, status = 400) => {
@@ -93,6 +95,8 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
       return e ? { id: e.id, name: e.name || [e.firstName, e.lastName].filter(Boolean).join(' ') } : null;
     })(),
     ownAccess: (u.access?.add?.length || 0) + (u.access?.remove?.length || 0),
+    // 2-step verification: on, and whether the school requires it of this account (never the secret).
+    twoFactor: hasTwoFactor(u), twoFactorRequired: twoFactorRequired(data().settings.security, u), twoFactorPending: Boolean(u.twoFactorPending),
   });
 
 
@@ -111,6 +115,7 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
       && (query.signin !== 'stale' || (u.status === 'active' && STAFF_ROLES.includes(u.role) && u.role !== 'admin' && (!u.lastLoginAt || now - Date.parse(u.lastLoginAt) > 90 * DAY)))
       && (query.signin !== 'online' || sessions.has(u.id))
       && (query.flag !== 'locked' || lockedNames.has(u.username))
+      && (query.flag !== 'no-2fa' || !hasTwoFactor(u))
       && (query.flag !== 'sso' || u.ssoSubject)
       && (query.flag !== 'must-change' || u.mustChangePassword)
       && (query.flag !== 'own-access' || u.access?.add?.length || u.access?.remove?.length));
@@ -338,6 +343,19 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
     save();
     return { ok: true };
   }, { body: { password: t.str(1000) } });
+  // For someone who lost their phone and their recovery codes (after CORE's): they sign in with their
+  // password alone and, if the school requires it, set up 2-step verification again.
+  sys('POST', '/api/system/users/:id/reset-2fa', (a) => {
+    if (a.params.id === a.user.id) fail('Change your own 2-step verification under My security.');
+    const u = found(a.params.id);
+    if (!u.twoFactor && !u.twoFactorPending) fail(`${u.name} does not use 2-step verification.`);
+    delete u.twoFactor;
+    delete u.twoFactorPending;
+    ctx.signOutEverywhere(u.id);
+    log(a, { kind: 'password', action: 'Reset 2-step verification', target: u, detail: `Their authenticator app and recovery codes no longer work; their sessions were ended.${twoFactorRequired(data().settings.security, u) ? ' The school requires it, so they set it up again at their next sign-in.' : ''}` });
+    save();
+    return detail(u);
+  });
   sys('POST', '/api/system/users/:id/require-password-change', (a) => {
     const u = found(a.params.id);
     u.mustChangePassword = true;

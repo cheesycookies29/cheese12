@@ -6,6 +6,7 @@ import { html, mount, badge, toast, modal, confirmDialog, fmtDateTime, fmtDate, 
 import { icon } from '../icons.js';
 import { ctx, openChangePassword } from '../shell.js';
 import { avatar, editMyAvatar, loadAvatars } from './avatars.js';
+import { twoFactorCard, wireTwoFactorCard } from './two-factor.js';
 
 const row = (label, value) => html`<div><dt>${label}</dt><dd>${value || html`<span class="muted">—</span>`}</dd></div>`;
 // The change-password address for this system (each system checks its own session).
@@ -91,17 +92,18 @@ function schoolCard(p) {
 
 // ----- My security -----
 export async function securityView(el) {
-  const sessions = await api.get('/api/me/sessions');
+  const [sessions, tfa] = await Promise.all([api.get('/api/me/sessions'), api.get('/api/me/2fa')]);
   const reload = () => securityView(el);
   const others = sessions.filter((s) => !s.current).length;
   const sso = ctx.user.ssoName || ctx.user.ssoLinkedAt;
   mount(el, html`
-    <header class="page-head"><div><h1>My security</h1><p class="muted">Your password and where you are signed in to ATLAS.</p></div></header>
+    <header class="page-head"><div><h1>My security</h1><p class="muted">Your password, 2-step verification and where you are signed in to ATLAS.</p></div></header>
     <section class="card">
       <div class="card-head"><h2>${icon('key')} Password</h2></div>
       <p class="muted">Use a password you use nowhere else: three unrelated words make a strong one. Changing it signs you out everywhere else.${sso ? ' You can also sign in with Keycloak.' : ''}</p>
       <div class="actions"><button type="button" class="btn" id="sec-password">${icon('key', 16)} Change password</button></div>
     </section>
+    ${twoFactorCard(tfa)}
     <section class="card">
       <div class="card-head"><h2>${icon('laptop')} Where you are signed in</h2>${others ? html`<button type="button" class="btn" id="sign-out-others">Sign out everywhere else</button>` : ''}</div>
       <div class="scroll-x"><table class="table">
@@ -118,6 +120,7 @@ export async function securityView(el) {
       <p class="muted small">You are signed out after a while without using ATLAS, and after the longest time your school allows. A device you do not recognise? Sign it out and change your password.</p>
     </section>`);
   el.querySelector('#sec-password').addEventListener('click', () => openChangePassword(authBase()));
+  wireTwoFactorCard(el, reload);
   el.querySelector('#sign-out-others')?.addEventListener('click', async () => {
     if (!(await confirmDialog(`Sign out of ATLAS on ${others} other device${others === 1 ? '' : 's'}?`, { confirmLabel: 'Sign out', title: 'Sign out everywhere else' }))) return;
     const { signedOut } = await api.post('/api/me/sessions/sign-out-others', {});

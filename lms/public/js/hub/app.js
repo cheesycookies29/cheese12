@@ -7,6 +7,7 @@ import { icon, iconSvg } from '../icons.js';
 import { roleLabel, userCan } from '/shared/roles.js';
 import { mountUserMenu, mountQuick, mountSystems, accountHref } from '../account/topbar.js';
 import { orderSystems, canOpen } from '/shared/systems.js';
+import { codeStep, forceTwoFactorView } from '../account/two-factor.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -49,7 +50,11 @@ function signInView(status) {
   showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
     if (!username || !password) throw new Error('Enter your username and password.');
-    await api.post('/api/hub/login', { username, password });
+    const res = await api.post('/api/hub/login', { username, password });
+    // With 2-step verification on, the code from the authenticator app comes next.
+    if (res.twoFactorRequired) {
+      return codeStep({ render: (card) => hubScreen(card, status.systems, 'ATLAS · Sign in'), verifyUrl: '/api/hub/login/verify', challenge: res.challenge, onSignedIn: boot, onBack: () => signInView(status) });
+    }
     boot();
   });
 }
@@ -384,6 +389,9 @@ async function boot() {
   if (!status.user) return showAuth(() => signInView(status));
   if (status.user.mustChangePassword) {
     return showAuth((el) => forcePasswordView(el, { admin: status.side === 'admin', authBase: status.authBase, onDone: boot, onSignOut: signOut }));
+  }
+  if (status.user.twoFactorSetupRequired) {
+    return showAuth((el) => forceTwoFactorView(el, { render: (card) => hubScreen(card, status.systems, 'ATLAS · 2-step verification'), onDone: boot, onSignOut: signOut }));
   }
   // Came from a system that needed a sign-in: go straight back there.
   if (next && NEXT_OK[status.side]?.includes(next)) return location.replace(next);

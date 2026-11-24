@@ -56,15 +56,15 @@ export function loadPasswordKeys(dir, env = process.env) {
 
 export const passwordEncryption = () => ({ on: Boolean(keyRing.current), keyId: keyRing.current?.id || null });
 
-function seal(inner) {
+function seal(inner, aad = AAD) {
   const iv = randomBytes(12);
   const c = createCipheriv('aes-256-gcm', keyRing.current.key, iv);
-  c.setAAD(AAD);
+  c.setAAD(aad);
   const body = Buffer.concat([c.update(inner, 'utf8'), c.final(), c.getAuthTag()]);
   return `enc1$${keyRing.current.id}$${iv.toString('base64url')}$${body.toString('base64url')}`;
 }
 // The scrypt hash inside a stored value; null if it is encrypted under a key this server does not have.
-function unseal(stored) {
+function unseal(stored, aad = AAD) {
   if (!String(stored || '').startsWith('enc1$')) return stored || null;
   const [, id, iv, body] = stored.split('$');
   const key = keyRing.all.get(id);
@@ -72,12 +72,28 @@ function unseal(stored) {
   try {
     const data = Buffer.from(body, 'base64url');
     const d = createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'base64url'));
-    d.setAAD(AAD);
+    d.setAAD(aad);
     d.setAuthTag(data.subarray(data.length - 16));
     return Buffer.concat([d.update(data.subarray(0, data.length - 16)), d.final()]).toString('utf8');
   } catch {
     return null;
   }
+}
+
+// ----- Other secrets kept in the data: the 2-step verification secret (server/two-factor.js) -----
+// Encrypted with the same key as the password hashes, but bound to their own purpose (another AAD),
+// so one cannot be swapped for the other. Never stored in plain text: without a key, sealSecret
+// gives null and 2-step verification cannot be set up.
+const SECRET_AAD = Buffer.from('atlas-totp-v1');
+export const canSealSecrets = () => Boolean(keyRing.current);
+export const sealSecret = (plain) => (keyRing.current ? seal(String(plain), SECRET_AAD) : null);
+// The secret, or null when it is under a key this server does not have (or is not sealed at all).
+export const openSecret = (stored) => (String(stored || '').startsWith('enc1$') ? unseal(stored, SECRET_AAD) : null);
+// Under an older key: encrypted again under the current one (at start-up and after a restore).
+function resealSecret(stored) {
+  if (!keyRing.current || String(stored || '').startsWith(`enc1$${keyRing.current.id}$`)) return null;
+  const plain = openSecret(stored);
+  return plain ? seal(plain, SECRET_AAD) : null;
 }
 
 // ----- Password hashing -----
@@ -180,11 +196,20 @@ export const readableHash = (stored) => unseal(stored) != null;
 export const needsSealing = (stored) => Boolean(keyRing.current && stored && !String(stored).startsWith(`enc1$${keyRing.current.id}$`) && unseal(stored) != null);
 export const sealHash = (stored) => (needsSealing(stored) ? seal(unseal(stored)) : stored);
 
-// Encrypt every readable hash under the current key (at start-up and after a restore).
+// Encrypt every readable hash under the current key (at start-up and after a restore). The 2-step
+// verification secrets under an old key are encrypted again under the current one too (`resealed`).
 export function sealAllPasswords(users) {
   let sealed = 0;
   let unreadable = 0;
+  let resealed = 0;
   for (const u of users) {
+    for (const tf of [u.twoFactor, u.twoFactorPending]) {
+      const next = tf?.secret && resealSecret(tf.secret);
+      if (next) {
+        tf.secret = next;
+        resealed++;
+      }
+    }
     if (!u.passwordHash) continue;
     if (!readableHash(u.passwordHash)) unreadable++;
     else if (needsSealing(u.passwordHash)) {
@@ -192,7 +217,7 @@ export function sealAllPasswords(users) {
       sealed++;
     }
   }
-  return { sealed, unreadable };
+  return { sealed, unreadable, resealed };
 }
 
 // policy: settings.security (Settings → Sign-in & passwords); without it, the defaults.
@@ -204,11 +229,12 @@ export function validatePassword(password, policy = {}) {
 }
 
 // What may leave the server about an account: never the password hash, the private calendar
-// address (it opens the person's calendar without signing in) or the Keycloak link.
+// address (it opens the person's calendar without signing in), the Keycloak link, or the 2-step
+// verification secret and recovery codes (only whether it is on).
 export function publicUser(user) {
   if (!user) return null;
-  const { passwordHash, calendarToken, ssoSubject, ...rest } = user;
-  return rest;
+  const { passwordHash, calendarToken, ssoSubject, twoFactor, twoFactorPending, ...rest } = user;
+  return { ...rest, twoFactorEnabled: Boolean(twoFactor?.enabledAt) };
 }
 
 // A cookie the browser mangled (e.g. "%E0%A4%A") is skipped, never an error for the whole request.
