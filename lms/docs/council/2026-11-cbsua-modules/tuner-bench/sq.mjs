@@ -1,0 +1,14 @@
+import { DatabaseSync } from 'node:sqlite'; import fs from 'node:fs'; import { randomUUID } from 'node:crypto';
+const f = process.argv[2]; fs.rmSync(f, { force: true }); fs.rmSync(f + '-wal', { force: true });
+const db = new DatabaseSync(f); db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
+db.exec('CREATE TABLE ar(id TEXT PRIMARY KEY, studentId TEXT, termId TEXT, courseId TEXT, grade TEXT, body TEXT); CREATE TABLE kv(k TEXT PRIMARY KEY, v TEXT);');
+const ins = db.prepare('INSERT INTO ar VALUES(?,?,?,?,?,?)'); const body = 'x'.repeat(500);
+const N = 2_000_000, studs = Array.from({ length: 50000 }, () => randomUUID());
+db.exec('BEGIN'); for (let i = 0; i < N; i++) ins.run(randomUUID(), studs[i % 50000], 't' + (i % 20), 'c' + (i % 300), '1.75', body); db.exec('COMMIT');
+db.exec('CREATE INDEX ar_s ON ar(studentId, termId)');
+console.log('rows', N, 'file MB', (fs.statSync(f).size / 1e6).toFixed(0), 'rss MB', (process.memoryUsage().rss / 1e6).toFixed(0));
+const q = db.prepare('SELECT courseId, grade FROM ar WHERE studentId=?');
+let s = performance.now(); for (let i = 0; i < 1000; i++) q.all(studs[i]); console.log('per-student record lookup (40 rows) ms', ((performance.now() - s) / 1000).toFixed(3));
+const blob = 'y'.repeat(5_000_000); const up = db.prepare('INSERT OR REPLACE INTO kv VALUES(?,?)');
+s = performance.now(); for (let i = 0; i < 20; i++) { db.exec('BEGIN'); ins.run(randomUUID(), studs[1], 't1', 'c1', '2.0', body); up.run('legacy', blob); db.exec('COMMIT'); } console.log('txn: 1 row + 5MB legacy blob ms', ((performance.now() - s) / 20).toFixed(1));
+s = performance.now(); for (let i = 0; i < 200; i++) { db.exec('BEGIN'); ins.run(randomUUID(), studs[1], 't1', 'c1', '2.0', body); ins.run(randomUUID(), studs[2], 't1', 'c1', '2.0', body); db.exec('COMMIT'); } console.log('txn: 2 rows durable ms', ((performance.now() - s) / 200).toFixed(3));

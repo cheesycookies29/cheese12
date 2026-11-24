@@ -1,0 +1,5 @@
+TO: Tuner
+Q: You propose migrating "collection by collection" to node:sqlite while other collections stay in the whole-file db.json, but routes like grade-sheet post (sections + academicRecords + auditLog) and Finance writes (finSnap rollback over every fin* collection) mutate several collections in one request. During that hybrid period, how is one request kept atomic across two stores, and do your in-memory Map indexes still hold once academicRecords with alumni history is too large to keep fully in memory?
+
+TO: Guardian
+Q: You require that erasure "also reaches backups and file mirrors", while Operator and Skeptic want S3 Object Lock (WORM) backups and the audit log is an append-only hash chain that by design cannot drop entries. Which mechanism do you accept to reconcile these: per-subject encryption keys destroyed on erasure (crypto-shredding), retention-expiry only, or a documented DPA exemption for COA/NAP-retained records, and does the hash-chained audit log store personal identifiers or only opaque ids?

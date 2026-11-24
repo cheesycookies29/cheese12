@@ -1,0 +1,5 @@
+TO: Architect
+Q: You propose moving collection by collection from db.json to a WAL-mode `node:sqlite` file, but `update.sh` rolls back by restoring only `db-before-update-*.json` and the nightly cron just `cp`s db.json. During the hybrid period, how do we take a consistent point-in-time backup and roll back across db.json plus SQLite (for example `VACUUM INTO` and one snapshot ID for both), so that a rollback cannot pair new enrollments in SQLite with an old `finCounters` in JSON and reuse an OR number?
+
+TO: Strategist
+Q: Your W1 puts Learn, home and System live in January 2027, about six weeks from now, on the current t3.small, and names only the auto-update freeze as an infrastructure item for that wave. Will you make off-site backups (RPO of 1 hour or less), an external uptime alert to a named CBSUA/LTDC person, a protected release branch and the cbsua.edu.ph hostname W1 acceptance criteria, or do you accept a 24-hour RPO with outages reported by students on Facebook for the first semester?
