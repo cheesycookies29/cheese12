@@ -133,10 +133,18 @@ async function journey(name, fn) {
   }
 }
 // A working day about two weeks ahead (the demo company works Monday to Friday).
-const day = (() => {
+// A work day two weeks ahead: not a weekend, and not a holiday on the company's calendar (the form
+// refuses a range with no work days in it; 8 December, for one, is a holiday).
+const day = await (async () => {
   const d = new Date(Date.now() + 14 * 86400000);
-  while ([0, 6].includes(d.getDay())) d.setDate(d.getDate() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const ymd = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  const holidays = new Set();
+  for (const year of [d.getFullYear(), d.getFullYear() + 1]) {
+    const list = await admin('GET', `/api/holidays?year=${year}`).catch(() => []);
+    for (const h of Array.isArray(list) ? list : list?.holidays || []) if (h?.date) holidays.add(h.date);
+  }
+  while ([0, 6].includes(d.getDay()) || holidays.has(ymd(d))) d.setDate(d.getDate() + 1);
+  return ymd(d);
 })();
 
 // 1. Leave through three approval levels
