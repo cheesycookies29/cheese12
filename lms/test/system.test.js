@@ -225,7 +225,7 @@ test('own access: give one account a permission, or take one away, without chang
   await assert.rejects(sam.get('/api/finance/collectors'), (e) => e.status === 403);
   // The account page offers the permission groups for its type, with what the type gives.
   const page = await f.admin.get(`/api/system/users/${staff.id}`);
-  assert.deepEqual(page.accessGroups.map((g) => g.id), ['people', 'finance'], 'staff: People and Finance permissions; not the Admin panel or Academic');
+  assert.deepEqual(page.accessGroups.map((g) => g.id), ['people', 'finance', 'documents'], 'staff: People, Finance and Document control (a records officer); not the Admin panel or Academic');
   assert.ok(page.accessGroups.flatMap((g) => g.permissions).every((p) => !p.byType));
   // Give Sam Finance's view. The session he opened under his old access ends; signed in again, it
   // works, and Finance's own status shows it.

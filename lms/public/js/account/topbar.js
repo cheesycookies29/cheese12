@@ -109,7 +109,7 @@ function readRecent(user) {
 }
 // A page just opened (newest first, once each). Only pages inside ATLAS's systems.
 export function recordVisit(user, page) {
-  if (!user || !page?.href || !page.label || !/^\/(lms\/|admin|hris\/|academic\/|finance\/|tools\/)#\//.test(page.href)) return;
+  if (!user || !page?.href || !page.label || !/^\/(lms\/|admin|hris\/|academic\/|finance\/|tools\/|documents\/)#\//.test(page.href)) return;
   const list = [page, ...readRecent(user).filter((x) => x.href !== page.href)].slice(0, RECENT_KEEP);
   try {
     localStorage.setItem(recentKey(user), JSON.stringify(list));

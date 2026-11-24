@@ -13,6 +13,7 @@ export const MODULES = [
   ['academic', 'ATLAS Academic'],
   ['people', 'ATLAS People'],
   ['finance', 'ATLAS Finance'],
+  ['documents', 'ATLAS Documents'],
 ];
 
 // Areas: [id, module, label, screen]
@@ -35,6 +36,7 @@ export const AREAS = [
   ['locations', 'people', 'Clock-in locations', '/hris/#/clock-locations'],
   ['finance', 'finance', 'Finance: entity, funds, offices and banks', '/finance/#/control'],
   ['financeRules', 'finance', 'Finance: numbering, taxes and rules', '/finance/#/control?tab=taxes'],
+  ['documents', 'documents', 'Document control', '/admin#/documents'],
 ];
 
 // [area, path, label, help, format]
@@ -160,6 +162,25 @@ export const SETTINGS = [
   ['financeRules', 'directAcquisitionLimit', 'Direct acquisition limit', '', 'money'],
   ['financeRules', 'depositDays', 'Days to deposit collections', ''],
   ['financeRules', 'liquidationDays', 'Days to liquidate cash advances', 'By kind of advance.', 'json'],
+  // ----- Documents -----
+  ['documents', 'families', 'File types accepted', 'The kinds of file people may upload. Programs, scripts, web pages and Office files with macros are always refused.', 'list'],
+  ['documents', 'maxUploadMB', 'Largest file (MB)', 'The biggest file anyone can add to ATLAS Documents (1 to 100).'],
+  ['documents', 'quotaMB', 'Storage per person (MB)', 'Documents each person may keep, all versions counted. 0 = no limit.'],
+  ['documents', 'versionsKept', 'Versions kept per document', 'Older versions beyond this are removed (not while on legal hold).'],
+  ['documents', 'duplicates', 'The same file twice in a folder', 'Warn, or refuse it.'],
+  ['documents', 'internalSharing', 'Sharing inside the school', 'People may share their documents and folders with others in ATLAS.', 'bool'],
+  ['documents', 'shareWithEveryone', 'Sharing with everyone signed in', 'Staff may share with everyone at once (never students).', 'bool'],
+  ['documents', 'links', 'Links for people outside the school', 'Staff may make links for people without an ATLAS account.', 'bool'],
+  ['documents', 'uploadLinks', 'Upload links', 'Links through which people outside send files into a folder.', 'bool'],
+  ['documents', 'linkCreators', 'Who makes links', 'All staff, or document managers only.'],
+  ['documents', 'linkPasswordRequired', 'Links need a password', '', 'bool'],
+  ['documents', 'linkPasswordMin', 'Shortest link password', ''],
+  ['documents', 'linkDefaultDays', 'Links last (days, unless changed)', ''],
+  ['documents', 'linkMaxDays', 'Longest a link may last (days)', ''],
+  ['documents', 'linkMaxDownloads', 'Downloads per link (unless changed)', '0 = no limit.'],
+  ['documents', 'linkClassifications', 'Classifications that may be shared by link', 'Restricted documents never are.', 'list'],
+  ['documents', 'trashDays', 'Days in the trash', 'Then removed for good, unless on legal hold.'],
+  ['documents', 'checkoutHours', 'Longest check-out (hours)', 'A check-out ends by itself after this.'],
 ];
 
 export const areaInfo = (id) => {

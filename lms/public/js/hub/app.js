@@ -12,7 +12,7 @@ import { codeStep, forceTwoFactorView } from '../account/two-factor.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
-const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/', '/tools/', '/help/'], admin: ['/admin', '/hris/', '/academic/', '/finance/', '/tools/', '/help/'], hris: ['/hris/', '/finance/', '/tools/', '/help/'] };
+const NEXT_OK = { portal: ['/lms/', '/hris/', '/academic/', '/finance/', '/tools/', '/documents/', '/help/'], admin: ['/admin', '/hris/', '/academic/', '/finance/', '/tools/', '/documents/', '/help/'], hris: ['/hris/', '/finance/', '/tools/', '/documents/', '/help/'] };
 const next = new URLSearchParams(location.search).get('next');
 
 document.getElementById('theme-btn').addEventListener('click', () => setTheme(!isDark()));

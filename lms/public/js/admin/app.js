@@ -23,6 +23,7 @@ import { systemRoutes, systemNav } from '../system/index.js';
 import { guardiansView, guardianView } from './views/guardians.js';
 import { configView } from './views/config.js';
 import { schoolCalendarView } from './views/calendar.js';
+import { documentControlView } from './views/documents.js';
 
 const p = (permission) => (user) => userCan(user, permission);
 
@@ -55,6 +56,7 @@ const routes = [
   ['/config', configView, p('settings.edit')],
   ['/roles', rolesView, (u) => u.role === 'admin'],
   ...systemRoutes(),
+  ['/documents', documentControlView, p('docs.manage')],
   ['/elsewhere', elsewhereView],
 ];
 
@@ -91,6 +93,7 @@ function nav() {
     { href: '/grading', label: 'Activity types & grading', icon: 'chart' },
     { href: '/settings', label: 'Settings & branding', icon: 'settings' },
     { href: '/systems', label: 'Home page & systems', icon: 'grid' },
+    c('docs.manage') && { href: '/documents', label: 'Document control', icon: 'folder' },
     c('data.manage') && { href: '/data', label: 'Demo data & backup', icon: 'database' },
     ...systemNav([
       { href: '/roles', label: 'Roles & permissions', icon: 'lock' },

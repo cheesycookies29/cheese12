@@ -135,6 +135,14 @@ export function emptyData() {
     pdfSignatures: [], // PDF Studio's signature records: who signed which file (its SHA-256), for Verify a signed PDF
     auditDemo: [], // the demo school's sample audit trail (the real one is in audit-log.jsonl, server/audit.js)
     notifications: [], // the bell: one row per person and event, 60 days and 200 per person at most (server/notifications.js)
+    // ----- Documents (server/documents.js); the files themselves are encrypted in data/documents -----
+    docFolders: [], // folders: shared, or a person's own (My files), with their grants
+    documents: [], // documents with their versions, check-out, grants, classification, trash and legal hold
+    docLinks: [], // links for people outside the school (only a hash of each token)
+    docEvents: [], // each document's and folder's activity
+    docRefused: [], // uploads refused, with the reason (Document control)
+    docNotices: [], // "your link was opened", "a file arrived" for the people concerned
+    docSettings: {}, // Document control (server/dms/policy.js)
   };
 }
 

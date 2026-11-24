@@ -9,6 +9,7 @@ export function guideFor(from, role) {
     case 'finance': return FINANCE_GUIDE[role] || (role === 'student' ? 'student' : role === 'admin' ? 'accountant' : 'employee');
     case 'academic': return { registrar: 'registrar', dean: 'dean', student: 'student', teacher: 'teacher', admin: 'registrar' }[role] || ROLE_GUIDE[role] || 'getting-started';
     case 'tools': return 'pdf-studio';
+    case 'documents': return 'documents';
     case 'admin': return { registrar: 'registrar', dean: 'dean' }[role] || 'admin';
     default: return ROLE_GUIDE[role] || 'getting-started';
   }

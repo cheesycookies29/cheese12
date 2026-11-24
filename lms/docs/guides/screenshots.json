@@ -963,5 +963,58 @@
   "user": "admin",
   "url": "/admin#/sign-in",
   "wait": 1000
+ },
+ {
+  "file": "documents-my-files.jpg",
+  "user": "teacher.demo",
+  "url": "/documents/#/files",
+  "wait": 1000
+ },
+ {
+  "file": "documents-document.jpg",
+  "user": "teacher.demo",
+  "url": "/documents/#/folders",
+  "click": [
+   "text=College of Computing",
+   "text=IT 101 course outline"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "documents-share.jpg",
+  "user": "teacher.demo",
+  "url": "/documents/#/folders",
+  "click": [
+   "text=College of Computing",
+   "text=IT 101 course outline",
+   "#share"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "documents-student.jpg",
+  "user": "student.demo",
+  "url": "/documents/#/shared",
+  "viewport": "phone",
+  "wait": 1000
+ },
+ {
+  "file": "admin-document-control.jpg",
+  "user": "admin",
+  "url": "/admin#/documents",
+  "wait": 1000
+ },
+ {
+  "file": "admin-document-activity.jpg",
+  "user": "admin",
+  "api": [
+   [
+    "POST",
+    "/api/docs/admin/integrity",
+    {}
+   ]
+  ],
+  "url": "/admin#/documents?tab=activity",
+  "wait": 1000
  }
 ]

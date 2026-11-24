@@ -231,6 +231,12 @@ sudo cat /opt/ltdc-lms/data/password.key
 - **Changing the key** (e.g. if it may have been seen): add `PASSWORD_KEY_OLD=<the current key>` and `PASSWORD_KEY=<a new key from openssl rand -hex 32>` to `/etc/ltdc-lms/app.env`, then `sudo systemctl restart ltdc-lms`. Every hash is re-encrypted two minutes after the start; nobody changes their password. After that, the old key can be removed.
 - **Lost the key:** reset each password (the table above shows how, for an administrator).
 
+### The server key (ATLAS Documents)
+
+Every file in ATLAS Documents is encrypted with its own key, under the server key: `/opt/ltdc-lms/data/server.key`, made by ATLAS the first time it starts (or `SERVER_KEY=<64 hex characters>` in `/etc/ltdc-lms/app.env`). The documents are mirrored to `/opt/ltdc-lms/data/backups/documents/` every night at 2:25 AM, still encrypted; the key is not in the backups, the daily disk snapshots do contain it.
+
+**Keep a copy of this key with the password key.** Without it, no stored document can be opened, from a backup or from the disk. Moving to a new server: copy `server.key` and the `documents` folder into the new server's `/opt/ltdc-lms/data/` with the data. The key cannot be changed once documents are stored under it.
+
 ## If something goes wrong
 
 | What you see | What to do |

@@ -9,11 +9,12 @@ order: 30
 
 ## Before you start
 
-This guide is for students. You use three ATLAS systems:
+This guide is for students. You use four ATLAS systems:
 
 - **Learn** for your classes: lessons, resources, activities, quizzes, attendance, grades, enrollment and your weekly schedule.
 - **Academic** for your official record: your evaluation against your curriculum, posted grades, your Certificate of Registration (COR) and document requests.
 - **Finance** for the official receipts the cashier issued in your name.
+- **Documents** for your own files, and the files your teachers and the school share with you: see [the Documents guide](documents).
 
 To sign in:
 

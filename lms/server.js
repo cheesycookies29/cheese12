@@ -138,12 +138,12 @@ function readBody(req, MAX_BODY) {
 // Static files: the browser keeps a copy and asks "changed?" each time (ETag → 304 Not Modified),
 // so a new version shows at once but unchanged files are not downloaded again. Fonts never change
 // and images rarely do, so those are kept for a while without asking.
-function sendFile(req, res, file) {
+function sendFile(req, res, file, extra = {}) {
   const stat = fs.statSync(file);
   const ext = path.extname(file);
   const etag = `"${stat.size.toString(36)}-${Math.floor(stat.mtimeMs).toString(36)}"`;
   const cache = ['.ttf', '.woff2'].includes(ext) ? 'public, max-age=2592000' : ['.png', '.svg', '.ico'].includes(ext) ? 'public, max-age=86400' : 'no-cache';
-  const headers = { ETag: etag, 'Cache-Control': cache };
+  const headers = { ETag: etag, 'Cache-Control': cache, ...extra };
   if (req.headers['if-none-match'] === etag) {
     res.writeHead(304, { ...headers, ...SECURITY_HEADERS });
     return res.end();
@@ -152,7 +152,7 @@ function sendFile(req, res, file) {
 }
 
 function serveStatic(req, url, res) {
-  // The single-page apps: the ATLAS home page (/), ATLAS Learn (/lms/), its admin panel (/admin), ATLAS People (/hris/), ATLAS Academic (/academic/), ATLAS Finance (/finance/) and Help (/help/).
+  // The single-page apps: the ATLAS home page (/), ATLAS Learn (/lms/), its admin panel (/admin), ATLAS People (/hris/), ATLAS Academic (/academic/), ATLAS Finance (/finance/), ATLAS Tools (/tools/), ATLAS Documents (/documents/) and Help (/help/).
   if (url.pathname === '/admin' || url.pathname === '/admin/') return sendFile(req, res, path.join(PUBLIC, 'admin', 'index.html'));
   if (url.pathname === '/lms') return send(res, 302, '', 'text/plain', { Location: '/lms/' });
   if (url.pathname === '/lms/') return sendFile(req, res, path.join(PUBLIC, 'lms', 'index.html'));
@@ -166,6 +166,10 @@ function serveStatic(req, url, res) {
   if (url.pathname === '/finance/') return sendFile(req, res, path.join(PUBLIC, 'finance', 'index.html'));
   // ATLAS Control was folded into System → Users & Access (in every system's sidebar).
   if (url.pathname === '/control' || url.pathname === '/control/') return send(res, 302, '', 'text/plain', { Location: '/admin#/system/users' });
+  if (url.pathname === '/documents') return send(res, 302, '', 'text/plain', { Location: '/documents/' });
+  if (url.pathname === '/documents/') return sendFile(req, res, path.join(PUBLIC, 'documents', 'index.html'));
+  // A link to documents for someone outside the school (ATLAS Documents): the page reads the token from its address.
+  if (url.pathname.startsWith('/share/')) return sendFile(req, res, path.join(PUBLIC, 'share.html'), { 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow' });
   if (url.pathname === '/help') return send(res, 302, '', 'text/plain', { Location: '/help/' });
   if (url.pathname === '/help/') return sendFile(req, res, path.join(PUBLIC, 'help', 'index.html'));
   if (/^\/verify\/[A-Za-z0-9-]{4,40}$/.test(url.pathname)) return sendFile(req, res, path.join(PUBLIC, 'verify.html')); // a document's verification page
@@ -273,7 +277,7 @@ server.on('error', (err) => {
 server.listen(PORT, HOST, () => {
   console.log(`\n  Lancaster ATLAS is running.`);
   console.log(`  ATLAS home (everyone signs in here): http://localhost:${PORT}`);
-  console.log(`  ATLAS Learn: http://localhost:${PORT}/lms/   ·   Learn admin panel: http://localhost:${PORT}/admin   ·   ATLAS People: http://localhost:${PORT}/hris/   ·   ATLAS Academic: http://localhost:${PORT}/academic/   ·   ATLAS Finance: http://localhost:${PORT}/finance/`);
+  console.log(`  ATLAS Learn: http://localhost:${PORT}/lms/   ·   Learn admin panel: http://localhost:${PORT}/admin   ·   ATLAS People: http://localhost:${PORT}/hris/   ·   ATLAS Academic: http://localhost:${PORT}/academic/   ·   ATLAS Finance: http://localhost:${PORT}/finance/   ·   ATLAS Tools: http://localhost:${PORT}/tools/   ·   ATLAS Documents: http://localhost:${PORT}/documents/`);
   if (HOST !== '127.0.0.1' && HOST !== 'localhost') console.log('  Other computers on your network can open it using this computer\'s IP address.');
   console.log(`  Data file: ${DB_FILE}`);
   // An old Node.js still runs ATLAS, but no longer gets security fixes.

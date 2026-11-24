@@ -1,6 +1,6 @@
 {
   "name": "ltdc-lms",
-  "version": "0.7.0-alpha",
+  "version": "0.8.0-alpha",
   "description": "Lancaster ATLAS, the Unified Education Management Platform: the ATLAS home page, ATLAS Learn (LMS) and ATLAS People (HRIS). Self-hosted, sibling of the Lancaster ERP (CORE).",
   "type": "module",
   "private": true,

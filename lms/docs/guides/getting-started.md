@@ -9,7 +9,7 @@ order: 1
 
 ## Before you start
 
-ATLAS is your school's platform. It is made of several systems: **Academic** (records and registrar services), **Learn** (classes), **People** (HR, attendance, leave and payslips) and **Finance** (the school's accounts, and your receipts). You sign in once, on the **ATLAS home page**, and open each system from there without signing in again.
+ATLAS is your school's platform. It is made of several systems: **Academic** (records and registrar services), **Learn** (classes), **People** (HR, attendance, leave and payslips), **Finance** (the school's accounts, and your receipts) and **Documents** (your files and the school's shared documents). You sign in once, on the **ATLAS home page**, and open each system from there without signing in again.
 
 You need:
 

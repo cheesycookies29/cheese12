@@ -1,0 +1,139 @@
+/* ATLAS Documents: file lists, uploads, the document page and the Share dialog; Document control
+   (also loaded by the Admin panel); and the page a link opens for someone outside the school.
+   On the design system's colour tokens, so the school's theme and dark mode apply. */
+
+/* ----- Lists ----- */
+.doc-search { position: relative; flex: 1 1 320px; max-width: 520px; }
+.doc-search .search-ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
+.doc-search input { padding-left: 34px; }
+.doc-table .doc-name { display: flex; align-items: center; gap: 12px; color: var(--text); min-width: 0; }
+#app .doc-table a.doc-name, #app .doc-table a.doc-name * { text-decoration: none; }
+.doc-table .doc-name:hover strong { color: var(--brand-text); text-decoration: underline; }
+.doc-table .doc-name > span { min-width: 0; }
+.doc-table .doc-name strong { overflow-wrap: anywhere; }
+.doc-table .doc-name small { overflow-wrap: anywhere; }
+.doc-table .badge { margin-left: 4px; vertical-align: 1px; }
+.doc-ic { width: 34px; height: 34px; border-radius: 9px; }
+.doc-ic.folder { background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 70%, var(--text)); }
+.doc-ic.danger { background: var(--danger-soft); color: var(--danger); }
+.doc-ic.ok { background: var(--success-soft); color: var(--success); }
+.doc-ic.info { background: var(--info-soft); color: var(--info); }
+.doc-ic.warn { background: var(--warn-soft); color: var(--warn); }
+.drop-target { position: relative; border-radius: var(--radius); transition: box-shadow 0.12s; }
+.drop-target.over { box-shadow: 0 0 0 3px var(--brand); background: var(--brand-softer); }
+.drop-target.over::after { content: 'Drop to add the files here'; position: absolute; inset: 0; display: grid; place-items: center; font-weight: 700; color: var(--brand-text); background: color-mix(in srgb, var(--surface) 70%, transparent); border-radius: var(--radius); pointer-events: none; min-height: 120px; }
+.drop-hint { margin: 10px 2px 0; display: flex; align-items: center; gap: 6px; }
+.doc-notices .grow { flex: 1; min-width: 0; }
+.doc-notices ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+main > h3 { margin-top: 26px; }
+
+/* ----- Uploads ----- */
+.upload-panel { margin-bottom: 16px; }
+.upload-list { list-style: none; margin: 0; padding: 0; }
+.upload-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 0.6fr) minmax(0, 1.6fr); gap: 6px 14px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.upload-row:last-child { border-bottom: 0; }
+.upload-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.upload-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-state { font-size: 13px; }
+.upload-state.ok { color: var(--success); font-weight: 600; }
+.upload-state.warn { color: var(--warn); font-weight: 600; }
+.upload-state.bad { color: var(--danger); font-weight: 600; }
+.upload-row.refused .progress i { background: var(--danger); }
+.upload-row.added .progress i { background: var(--success); }
+
+/* ----- The document page ----- */
+.doc-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+.doc-preview-card { padding: 0; overflow: hidden; min-height: 320px; display: flex; }
+.doc-preview { width: 100%; height: min(78vh, 900px); border: 0; display: block; background: var(--surface-2); }
+.doc-preview-img { display: block; max-width: 100%; max-height: 78vh; margin: auto; object-fit: contain; }
+.doc-noprev { margin: auto; padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.doc-noprev p { margin: 4px 0; }
+.doc-noprev .doc-ic { width: 72px; height: 72px; border-radius: 18px; margin-bottom: 8px; }
+.doc-side .tabs { margin-bottom: 12px; }
+.doc-side .card + .card { margin-top: 12px; }
+.doc-info .span-all { grid-column: 1 / -1; }
+.doc-info .sha { font-weight: 400; color: var(--text-2); }
+.doc-desc { margin-bottom: 16px; }
+.doc-detail-actions { margin-top: 18px; }
+.chip.tag { cursor: default; padding: 2px 10px; }
+.doc-events { list-style: none; margin: 0; padding: 0; }
+.doc-events li { padding: 9px 0; border-bottom: 1px solid var(--border); }
+.doc-events li:last-child { border-bottom: 0; }
+.doc-events small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+h2.mt, .card h2.mt { margin-top: 22px; }
+.doc-side .link-list li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* ----- Share dialog ----- */
+.share-section + .share-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+.share-section h3 { margin-top: 0; }
+.grant-list { list-style: none; margin: 0 0 14px; padding: 0; }
+.grant-list li { display: flex; align-items: center; gap: 10px 14px; padding: 8px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.grant-list .grant-who { display: flex; align-items: center; gap: 8px; flex: 1 1 200px; min-width: 0; font-weight: 600; }
+.grant-list .grant-who span { overflow-wrap: anywhere; }
+.grant-list select { width: auto; padding: 6px 10px; }
+.share-add { display: flex; flex-direction: column; gap: 10px; }
+.person-hits { display: flex; flex-direction: column; gap: 4px; }
+.person-hits:empty { display: none; }
+.person-hit { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.person-hit:hover, .person-hit:focus-visible { border-color: var(--brand-line); background: var(--brand-softer); }
+.person-hit > span { flex: 1; min-width: 0; }
+.person-hit small { display: block; color: var(--muted); font-size: 12px; }
+.share-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 10px 14px; align-items: end; }
+.doc-links li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.doc-links li > span { flex: 1 1 240px; min-width: 0; }
+.make-link { margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; }
+.make-link summary { cursor: pointer; font-weight: 600; color: var(--brand-text); display: flex; align-items: center; gap: 6px; }
+.make-link[open] summary { margin-bottom: 12px; }
+.make-link .actions { margin-top: 12px; }
+.link-made .copy-row input { flex: 1 1 240px; font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace; font-size: 13px; }
+.link-made > div { flex: 1; min-width: 0; }
+
+/* ----- Document control ----- */
+.check-grid.doc-families { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px 18px; margin: 14px 0 18px; }
+.notice.locked .mono { margin-top: 6px; color: var(--text-2); overflow-wrap: anywhere; line-height: 1.6; }
+.doc-classes { margin-bottom: 8px; }
+.folder-actions { margin-top: 16px; }
+
+/* ----- The page a link opens (/share/<token>) ----- */
+.share-page { min-height: 100vh; display: flex; flex-direction: column; }
+.share-top { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.share-top img { height: 34px; width: auto; }
+.share-top strong { display: block; font-size: 15px; }
+.share-top small { display: block; color: var(--muted); font-size: 12px; }
+.share-top .spacer { flex: 1; }
+.share-main { flex: 1; width: 100%; max-width: 980px; margin: 0 auto; padding: 28px 16px 56px; }
+.share-main .card + .card { margin-top: 16px; }
+.share-card { max-width: 460px; margin: 6vh auto 0; }
+.share-files .doc-name { cursor: default; }
+.share-preview { margin-top: 16px; padding: 0; overflow: hidden; }
+.share-preview iframe { width: 100%; height: 76vh; border: 0; display: block; }
+.share-preview img { display: block; max-width: 100%; margin: 0 auto; }
+.share-foot { text-align: center; color: var(--muted); font-size: 12px; padding: 18px; }
+
+@media (max-width: 960px) {
+  .doc-layout { grid-template-columns: 1fr; }
+  .doc-preview { height: 62vh; }
+}
+@media (max-width: 760px) {
+  .upload-row { grid-template-columns: 1fr; }
+  .doc-search { max-width: none; }
+  .table.stackable td:first-child .doc-name { text-align: left; }
+  .grant-list li { align-items: flex-start; }
+  .share-top { padding: 12px 16px; }
+  .page-head .actions .btn { flex: 1 1 auto; }
+}
+.share-note { font-style: italic; color: var(--text-2); margin: 8px 0 0; }
+.doc-info { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.toolbar .doc-search input[type='search'] { max-width: none; }
+.share-main .share-card { margin: 6vh auto 0; }
+.share-card .upload-row { grid-template-columns: minmax(0, 1fr) 90px; }
+.share-card .upload-row .upload-state { grid-column: 1 / -1; }
+.scroll-x > .card-head { padding: 16px 20px 0; }
+[data-form] .field.check + .field.check { margin-top: 8px; }
+[data-form] .grid { margin-top: 16px; }
+@media (pointer: coarse) { .drop-hint { display: none; } }
+.share-section > .field.check { margin-top: 12px; }
+.notice.doc-received { flex-wrap: wrap; align-items: center; }
+.notice.doc-received p { flex: 1 1 240px; min-width: 0; }
+.notice.doc-received .btn { flex: none; margin-left: auto; }
+[data-form] > .hint { margin-top: 14px; }
