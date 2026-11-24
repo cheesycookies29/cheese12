@@ -275,15 +275,17 @@ test('2-step verification: set up, sign in with a code, recovery codes, turn off
   assert.equal(first.user, undefined);
   assert.equal(b.cookie(), '');
   assert.match((await b('POST', '/api/auth/2fa', { challenge: first.challenge, code: '123456' })).error, /not right/);
-  // The code used to turn it on was spent; the next one works.
-  const signedIn = await b('POST', '/api/auth/2fa', { challenge: first.challenge, code: appCode(secret, 1) });
+  // The code used to turn it on was spent; the next one works. It is made once and reused below: made
+  // again later, a new 30-second step could give a different (unused, so accepted) code.
+  const next = appCode(secret, 1);
+  const signedIn = await b('POST', '/api/auth/2fa', { challenge: first.challenge, code: next });
   assert.equal(signedIn.user.username, 'admin');
   assert.ok(b.cookie());
-  assert.equal((await b('POST', '/api/auth/2fa', { challenge: first.challenge, code: appCode(secret, 1) })).status, 401, 'a challenge works once');
+  assert.equal((await b('POST', '/api/auth/2fa', { challenge: first.challenge, code: next })).status, 401, 'a challenge works once');
   // The same code again is refused (replay).
   const again = browser(handle, { ip: '10.0.0.11' });
   const second = await again('POST', '/api/auth/login', { username: 'admin', password: PW });
-  assert.match((await again('POST', '/api/auth/2fa', { challenge: second.challenge, code: appCode(secret, 1) })).error, /not right/);
+  assert.match((await again('POST', '/api/auth/2fa', { challenge: second.challenge, code: next })).error, /not right/);
   // A recovery code signs in once.
   const rc = on.recoveryCodes[0];
   assert.equal((await again('POST', '/api/auth/2fa', { challenge: second.challenge, code: rc.toLowerCase() })).user.username, 'admin');
