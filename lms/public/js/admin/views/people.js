@@ -6,11 +6,12 @@ import { userCan, ROLES, roleLabel } from '/shared/roles.js';
 import { lookups, filterRows, sectionTitle } from '../common.js';
 import { enrollmentActions, wireEnrollmentActions, showHistory, addEnrollmentDialog } from './enrollment.js';
 import { studentGuardiansCard } from './guardians.js';
+import { brandHome } from '../../brand.js';
 
 const KINDS = {
-  student: { title: 'Students', role: 'student', url: '/api/admin/users?role=student', manage: 'students.manage', sub: 'Student accounts sign in on the ATLAS home page.' },
+  student: { title: 'Students', role: 'student', url: '/api/admin/users?role=student', manage: 'students.manage', get sub() { return `Student accounts sign in on the ${brandHome()} page.`; } },
   applicant: { title: 'Applicants', role: 'student', url: '/api/admin/users?role=student&status=pending', manage: 'students.manage', sub: 'People who applied from the sign-in page. Admitting gives them a student number and lets them sign in.' },
-  teacher: { title: 'Teachers', role: 'teacher', url: '/api/admin/users?role=teacher', manage: 'teachers.manage', sub: 'Teacher accounts sign in on the ATLAS home page and see the sections assigned to them.' },
+  teacher: { title: 'Teachers', role: 'teacher', url: '/api/admin/users?role=teacher', manage: 'teachers.manage', get sub() { return `Teacher accounts sign in on the ${brandHome()} page and see the sections assigned to them.`; } },
   staff: { title: 'Admins, registrars & deans', role: 'registrar', url: '/api/admin/users?role=staff', manage: 'admins.manage', sub: 'These accounts sign in here, on the admin panel.' },
 };
 
@@ -96,7 +97,7 @@ export async function peopleView(el, { kind }) {
 
   mount(el, html`
     ${pageHead(k.title, k.sub, mayManage && kind !== 'applicant' ? html`<button class="btn primary" id="add">+ Add ${kind === 'staff' ? 'account' : roleLabel(k.role).toLowerCase()}</button>` : '')}
-    ${kind === 'applicant' ? html`<p class="hint" style="margin-bottom:12px">Turn the "Apply for admission" form on the ATLAS home page on or off under <a href="#/settings">Settings & branding → Student applications</a>.</p>` : ''}
+    ${kind === 'applicant' ? html`<p class="hint" style="margin-bottom:12px">Turn the "Apply for admission" form on the ${brandHome()} page on or off under <a href="#/settings">Settings & branding → Student applications</a>.</p>` : ''}
     ${rows.length ? html`
       <div class="toolbar"><input type="search" placeholder="Search" /><span class="spacer"></span><span class="muted" id="shown">${rows.length} shown</span></div>
       <div class="card scroll-x"><table class="table ${kind === 'student' || kind === 'teacher' ? 'clickable' : ''}">${columns[kind]()}</table></div>`

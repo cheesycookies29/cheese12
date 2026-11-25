@@ -34,6 +34,7 @@ import { isJpeg, isPng } from './pdf/images.js';
 import { PAGE_SIZES, missingChars, MISSING_NOTE } from './pdf/writer.js';
 import { convertPdf, pageSvgs, MIME } from './pdf/convert.js';
 import { PDF_LIMITS, PDF_DOC_EXTS, PDF_EXPORT_FORMATS } from '../shared/pdf-studio.js';
+import { brandName, isSchoolBrand } from '../shared/brand.js';
 
 const MB = 1024 * 1024;
 // A file on disk sent as the answer (a large export), streamed by server.js; remove: deleted once sent.
@@ -662,7 +663,7 @@ export function registerPdfStudio(route, db, { record: log = () => {}, clock = (
       let sig = null;
       if (record) {
         sig = { code: preview ? 'PREVIEW (not recorded)' : signingCode(), userId: u.id, name: u.name, username: u.username, at: new Date(clock()).toISOString(), fileName: `${base}.pdf`, pages: pages.length + 1, signedPages, signatures: pages.reduce((n, p) => n + (p.edits || []).filter((e) => e.type === 'image' && e.signature).length, 0) };
-        const rec = docToPdf(recordDoc(sig, meta), { size: 'a4', orientation: 'portrait', margin: 20 });
+        const rec = docToPdf(recordDoc(sig, meta, db.data.settings?.branding), { size: 'a4', orientation: 'portrait', margin: 20 });
         pages.push({ doc: readPdf(rec.pdf), index: 0, rotate: 0, noStamp: true });
       }
       // A large PDF is written to disk and sent from there (0.66), never held whole in memory twice.
@@ -739,20 +740,23 @@ export function registerPdfStudio(route, db, { record: log = () => {}, clock = (
 // A signature record's code: ATLAS-XXXX-XXXX, letters and digits that cannot be mistaken (no 0/O, 1/I).
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const signingCode = () => `ATLAS-${Array.from({ length: 8 }, (_, i) => (i === 4 ? '-' : '') + CODE_CHARS[randomInt(CODE_CHARS.length)]).join('')}`;
-// The record page added at the end of a signed PDF.
-function recordDoc(sig, meta) {
+// The record page added at the end of a signed PDF. When the school's brand leads (Settings →
+// Branding), the page names the school's system, with ATLAS only as "powered by".
+function recordDoc(sig, meta, branding) {
+  const school = isSchoolBrand(branding);
+  const by = school ? `PDF Studio (${brandName(branding)} Tools, powered by ATLAS)` : 'ATLAS PDF Studio';
   const when = new Date(sig.at).toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short', timeZone: process.env.TZ || 'Asia/Manila' });
   const row = (k, v) => ({ cells: [{ runs: [{ text: k, bold: true }] }, { runs: [{ text: String(v) }] }] });
   return {
     title: 'Signature record',
     blocks: [
       { type: 'heading', level: 1, runs: [{ text: 'Signature record' }] },
-      { type: 'paragraph', runs: [{ text: 'This page was added by ATLAS PDF Studio when the document was signed. It records who signed, when, and where.' }] },
+      { type: 'paragraph', runs: [{ text: `This page was added by ${by} when the document was signed. It records who signed, when, and where.` }] },
       { type: 'table', widths: [1, 2], rows: [
         row('Document', meta.title || sig.fileName), row('File', sig.fileName), row('Signed by', `${sig.name} (${sig.username})`), row('Signed on', when),
         row('Signatures', `${sig.signatures} on page${sig.signedPages.length === 1 ? '' : 's'} ${sig.signedPages.join(', ')} of ${sig.pages}`), row('Record', sig.code),
       ] },
-      { type: 'paragraph', runs: [{ text: 'To check that this file is the one that was signed, open ATLAS → Tools → PDF Studio → Verify a signed PDF, and choose this file. ATLAS compares its contents with what it recorded when it was signed: any change to the file since, however small, shows.' }] },
+      { type: 'paragraph', runs: [{ text: `To check that this file is the one that was signed, open ${brandName(branding)} → Tools → PDF Studio → Verify a signed PDF, and choose this file. ${school ? 'PDF Studio' : 'ATLAS'} compares its contents with what it recorded when it was signed: any change to the file since, however small, shows.` }] },
       { type: 'paragraph', runs: [{ text: `Record ${sig.code}`, mono: true, size: 14 }] },
     ],
   };

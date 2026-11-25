@@ -9,6 +9,7 @@ import { icon } from './icons.js';
 import { pageHead } from './shell.js';
 import { formatTime } from '/shared/schedule.js';
 import { addDays, weekday, eachDay, daysBetween } from '/shared/calendar.js';
+import { brand } from './brand.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MAX_CHIPS = 3;
@@ -285,7 +286,7 @@ export async function calendarScreen(el, opts) {
 
   function subscribeDialog() {
     let current = null;
-    const body = () => html`<p>Add your ATLAS calendar to Google Calendar, Outlook or your phone's calendar. It updates on its own every few hours, and shows the same as here, from a month ago to six months ahead.</p>
+    const body = () => html`<p>Add your ${brand()} calendar to Google Calendar, Outlook or your phone's calendar. It updates on its own every few hours, and shows the same as here, from a month ago to six months ahead.</p>
       ${current ? html`<label class="field"><span>Your private calendar address</span><input id="ics-url" value="${current}" readonly /></label>
         <div class="actions"><button type="button" class="btn primary" id="ics-copy">${icon('link', 15)} Copy address</button><a class="btn" href="${current.replace(/^https?:/, 'webcal:')}">Open in my calendar app</a></div>
         <ul class="small muted cal-help-list"><li><strong>Google Calendar:</strong> Other calendars → + → From URL, and paste the address.</li><li><strong>iPhone:</strong> Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar.</li><li><strong>Outlook:</strong> Add calendar → Subscribe from web.</li></ul>

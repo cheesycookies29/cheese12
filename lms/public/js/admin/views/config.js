@@ -7,8 +7,10 @@ import { html, mount, toast, confirmDialog, downloadFile, today, timeAgo, fmtDat
 import { pageHead, ctx } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { MODULES } from '/shared/settings-catalog.js';
+import { brandText } from '../../brand.js';
 
 const MODULE_LABEL = Object.fromEntries(MODULES);
+const moduleLabel = (k) => brandText(MODULE_LABEL[k]); // "ATLAS Learn", or the school's short name in front
 // Groups only administrators change (Sign-in and passwords, Roles and permissions): others see them here, read-only.
 const ADMIN_AREAS = ['security', 'roles'];
 const mayChange = (area) => ctx.user?.role === 'admin' || !ADMIN_AREAS.includes(area);
@@ -73,7 +75,7 @@ function settingsTab(el, head, cfg, q) {
   mount(el, html`${head}
     <div class="toolbar config-toolbar">
       <input type="search" id="cfg-q" placeholder="Find a setting, e.g. password, PERA, waitlist" value="${state.q}" aria-label="Find a setting" />
-      <div class="chips" role="group" aria-label="Module">${[['', 'All'], ...MODULES].map(([k, l]) => html`<button type="button" class="chip ${state.module === k ? 'on' : ''}" data-module="${k}" aria-pressed="${state.module === k}">${l}</button>`)}</div>
+      <div class="chips" role="group" aria-label="Module">${[['', 'All'], ...MODULES].map(([k, l]) => html`<button type="button" class="chip ${state.module === k ? 'on' : ''}" data-module="${k}" aria-pressed="${state.module === k}">${brandText(l)}</button>`)}</div>
       <label class="check-inline"><input type="checkbox" id="cfg-changed" ${state.changed ? 'checked' : ''} /> Only changed from the default</label>
     </div>
     <p class="muted small" id="cfg-count" aria-live="polite"></p>
@@ -85,7 +87,7 @@ function settingsTab(el, head, cfg, q) {
       const a = areaOf[s.area];
       if (state.module && a.module !== state.module) return false;
       if (state.changed && !s.changed) return false;
-      const hay = `${s.label} ${s.help} ${a.label} ${MODULE_LABEL[a.module]} ${showValue(s.value, s.format, s.display)} ${s.path}`.toLowerCase();
+      const hay = `${s.label} ${s.help} ${a.label} ${moduleLabel(a.module)} ${showValue(s.value, s.format, s.display)} ${s.path}`.toLowerCase();
       return words.every((w) => hay.includes(w));
     });
     const changedCount = cfg.settings.filter((s) => s.changed).length;
@@ -96,7 +98,7 @@ function settingsTab(el, head, cfg, q) {
     // Groups open when searching or filtering, or when something in them was changed; else just their heading.
     const filtering = Boolean(words.length || state.changed || state.module);
     mount(el.querySelector('#cfg-list'), groups.length ? html`${groups.map(({ a, rows: list }, i) => html`
-      ${i === 0 || groups[i - 1].a.module !== a.module ? html`<h2 class="module-head">${MODULE_LABEL[a.module]}</h2>` : ''}
+      ${i === 0 || groups[i - 1].a.module !== a.module ? html`<h2 class="module-head">${moduleLabel(a.module)}</h2>` : ''}
       <div class="config-area-wrap">
       <div class="area-actions">${!mayChange(a.id) ? html`<span class="muted small">Administrators change these</span>` : html`${a.resettable && list.some((s) => s.changed) ? html`<button type="button" class="btn sm ghost" data-reset-area="${a.id}">Restore defaults</button>` : ''}
         <a class="btn sm" href="${a.screen}" aria-label="Open ${a.label}">${icon('external', 14)} Open</a>`}</div>
@@ -170,13 +172,13 @@ async function historyTab(el, head, cfg, q) {
   const settingLabel = q.path ? cfg.settings.find((s) => s.area === q.area && s.path === q.path)?.label : '';
   mount(el, html`${head}
     <form class="toolbar" id="h-filter">
-      <select name="module" aria-label="Module">${[['', 'Every module'], ...MODULES].map(([k, l]) => html`<option value="${k}" ${q.module === k ? 'selected' : ''}>${l}</option>`)}</select>
+      <select name="module" aria-label="Module">${[['', 'Every module'], ...MODULES].map(([k, l]) => html`<option value="${k}" ${q.module === k ? 'selected' : ''}>${brandText(l)}</option>`)}</select>
       <input type="search" name="q" value="${q.q || ''}" placeholder="Who, or which setting" aria-label="Search the history" />
       <button class="btn">Filter</button>
       ${q.area ? html`<span class="badge brand">${settingLabel || areaLabel} <a href="#/config?tab=history" aria-label="Show every change">${icon('x', 12)}</a></span>` : ''}
     </form>
     ${h.entries.length ? html`<div class="stack">${h.entries.map((e) => html`<article class="card history-entry">
-      <div class="history-head"><div><strong>${e.areaLabel}</strong> ${badge(MODULE_LABEL[e.module], 'gray')} ${VIA[e.via] ? badge(VIA[e.via], e.via === 'undo' ? 'amber' : 'blue') : ''}
+      <div class="history-head"><div><strong>${e.areaLabel}</strong> ${badge(moduleLabel(e.module), 'gray')} ${VIA[e.via] ? badge(VIA[e.via], e.via === 'undo' ? 'amber' : 'blue') : ''}
         <small class="muted block">${e.by} · <time datetime="${e.at}" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</time></small></div>
         ${e.undoable && mayChange(e.area) ? html`<button class="btn sm" data-undo="${e.id}">Undo</button>` : ''}</div>
       <ul class="change-list">${e.changes.map((c) => html`<li><span class="change-label">${c.label}</span>
@@ -235,7 +237,7 @@ function transferTab(el, head, cfg) {
       mount(el.querySelector('#preview'), html`<section class="card" style="margin-top:16px">
         <div class="card-head"><h2>What importing would change</h2></div>
         <p class="muted small">From ${p.school || 'another ATLAS'}${p.exportedBy ? `, exported by ${p.exportedBy}` : ''}${p.exportedAt ? ` on ${fmtDateTime(p.exportedAt)}` : ''}. ${p.areas.length - withChanges.length ? `${p.areas.length - withChanges.length} group${p.areas.length - withChanges.length === 1 ? ' is' : 's are'} already the same here.` : ''}</p>
-        ${withChanges.length ? html`<form id="import-form" class="stack">${withChanges.map((a) => html`<fieldset class="import-area"><legend><label class="check-inline"><input type="checkbox" name="area" value="${a.id}" ${mayChange(a.id) ? 'checked' : 'disabled'} /> <strong>${a.label}</strong> ${badge(MODULE_LABEL[a.module], 'gray')} <span class="muted">${a.changes.length} change${a.changes.length === 1 ? '' : 's'}${mayChange(a.id) ? '' : ' · administrators import these'}</span></label></legend>
+        ${withChanges.length ? html`<form id="import-form" class="stack">${withChanges.map((a) => html`<fieldset class="import-area"><legend><label class="check-inline"><input type="checkbox" name="area" value="${a.id}" ${mayChange(a.id) ? 'checked' : 'disabled'} /> <strong>${a.label}</strong> ${badge(moduleLabel(a.module), 'gray')} <span class="muted">${a.changes.length} change${a.changes.length === 1 ? '' : 's'}${mayChange(a.id) ? '' : ' · administrators import these'}</span></label></legend>
             <ul class="change-list">${a.changes.slice(0, 12).map((c) => html`<li><span class="change-label">${c.label}</span> <span class="change-from">${showValue(c.from, fmt[`${a.id}|${c.path}`])}</span> → <span class="change-to">${showValue(c.to, fmt[`${a.id}|${c.path}`])}</span></li>`)}${a.changes.length > 12 ? html`<li class="muted">and ${a.changes.length - 12} more</li>` : ''}</ul></fieldset>`)}
           <div class="actions end"><button type="button" class="btn ghost" id="cancel-import">Cancel</button><button class="btn primary">Import the ticked groups</button></div></form>`
           : html`<p>Everything in this file is already the same here. Nothing to import.</p>`}

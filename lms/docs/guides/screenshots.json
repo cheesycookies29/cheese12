@@ -1073,5 +1073,28 @@
   ],
   "url": "/admin#/documents?tab=activity",
   "wait": 1000
+ },
+ {
+  "file": "admin-branding-school.jpg",
+  "user": "admin",
+  "api": [
+   [
+    "PUT",
+    "/api/admin/settings",
+    {
+     "branding": {
+      "mode": "school",
+      "shortName": "LA",
+      "theme": "custom",
+      "color": "#1f4e79",
+      "accent": "#f2c94c",
+      "logo": ""
+     }
+    }
+   ]
+  ],
+  "url": "/admin#/settings",
+  "scroll": ".brand-modes",
+  "wait": 1200
  }
 ]

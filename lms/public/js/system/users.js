@@ -11,6 +11,7 @@ import { ctx } from '../shell.js';
 import { icon } from '../icons.js';
 import { ROLES } from '/shared/roles.js';
 import { avatar } from '../account/avatars.js';
+import { brandProducts } from '../brand.js';
 
 const ROLE_BADGE = { admin: 'maroon', registrar: 'blue', dean: 'blue', teacher: 'green', hr: 'amber', payroll: 'amber', accountant: 'brand', budget: 'brand', cashier: 'brand', supply: 'brand', approver: 'brand', staff: 'gray', student: 'gray', guardian: 'gray' };
 const when = (iso) => (iso ? html`<span title="${fmtDateTime(iso)}">${fmtDateTime(iso)}</span>` : html`<span class="muted">Never</span>`);
@@ -145,7 +146,7 @@ function wireRoleHint(m) {
   const sel = m.querySelector('[name=role]');
   const hint = m.querySelector('.role-hint');
   if (!sel || !hint) return;
-  const sync = () => (hint.textContent = ROLES[sel.value]?.description || '');
+  const sync = () => (hint.textContent = brandProducts(ROLES[sel.value]?.description || ''));
   sel.addEventListener('change', sync);
   sync();
 }

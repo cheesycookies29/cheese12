@@ -2,13 +2,14 @@
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
 import { html, mount, option, initials, timeAgo, fmtDate, toast } from '../ui.js';
-import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
+import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, poweredBy, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel, userCan } from '/shared/roles.js';
 import { mountUserMenu, mountQuick, mountSystems, accountHref } from '../account/topbar.js';
 import { mountBell } from '../account/notifications.js';
 import { orderSystems, canOpen } from '/shared/systems.js';
 import { codeStep, forceTwoFactorView } from '../account/two-factor.js';
+import { schoolBrand, brand, brandHome, brandText } from '../brand.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -46,7 +47,7 @@ function signInView(status) {
       <p class="form-error" hidden></p>
       ${status.registrationOpen ? html`<p class="auth-switch">New student? <button type="button" class="link" id="apply">Apply for admission</button></p>` : ''}
       <p class="auth-foot">${status.sso?.enabled && !status.sso.passwords ? 'Trouble signing in? Ask the registrar or your administrator.' : 'Forgot your password? Ask the registrar or your administrator to reset it.'}</p>
-    </form>`, status.systems, 'ATLAS · Sign in');
+    </form>`, status.systems, brandText('ATLAS · Sign in'));
   form.querySelector('#apply')?.addEventListener('click', () => applyView(status));
   showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
@@ -54,7 +55,7 @@ function signInView(status) {
     const res = await api.post('/api/hub/login', { username, password });
     // With 2-step verification on, the code from the authenticator app comes next.
     if (res.twoFactorRequired) {
-      return codeStep({ render: (card) => hubScreen(card, status.systems, 'ATLAS · Sign in'), verifyUrl: '/api/hub/login/verify', challenge: res.challenge, onSignedIn: boot, onBack: () => signInView(status) });
+      return codeStep({ render: (card) => hubScreen(card, status.systems, brandText('ATLAS · Sign in')), verifyUrl: '/api/hub/login/verify', challenge: res.challenge, onSignedIn: boot, onBack: () => signInView(status) });
     }
     boot();
   });
@@ -77,7 +78,7 @@ function applyView(status) {
       <p class="form-error" hidden></p>
       <button class="btn primary block" type="submit">Send application</button>
       <p class="auth-switch"><button type="button" class="link" id="back">← Back to sign in</button></p>
-    </form>`, status.systems, 'ATLAS · Apply for admission');
+    </form>`, status.systems, brandText('ATLAS · Apply for admission'));
   api.get('/api/auth/programs').then((programs) => {
     form.querySelector('#programs').insertAdjacentHTML('beforeend', String(html`${programs.map((p) => option(p.id, `${p.code} · ${p.name}`))}`));
   });
@@ -110,7 +111,7 @@ function userMenu(status) {
   mountSystems(document.getElementById('help-btn'));
   mountQuick(document.getElementById('help-btn'), {
     user: status.user,
-    current: () => null, // the home page itself is one click away (the ATLAS mark)
+    current: () => null, // the home page itself is one click away (the mark in the top bar)
     suggestions: () => [
       ...status.systems.filter((s) => s.status === 'live' && s.url && !s.external).map((s) => ({ href: s.url, label: s.product, icon: s.icon })),
       ...(status.tools || []).map((t) => ({ href: t.path, label: t.product, icon: t.icon })),
@@ -285,10 +286,10 @@ async function homeView(status) {
     if (chosen === 'compact' || chosen === 'cards') view = chosen;
   } catch {}
   mount(appEl, html`
-    <section class="hub-hero"><img class="hero-mark" src="/img/brand/atlas-mark-white.svg" alt="" /><div class="hub-wrap">
+    <section class="hub-hero">${schoolBrand() ? (status.branding.logo ? html`<img class="hero-mark hero-seal" src="${status.branding.logo}" alt="" />` : '') : html`<img class="hero-mark" src="/img/brand/atlas-mark-white.svg" alt="" />`}<div class="hub-wrap">
       <p class="hub-kicker">${new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${status.branding.termName ? ` · ${status.branding.termName}` : ''}</p>
       <h1>${hello}, ${u.name.split(' ')[0]}</h1>
-      <p>Welcome to ATLAS, the education platform of ${status.branding.schoolName}. Choose a system to continue.</p>
+      <p>${schoolBrand() ? `Welcome to ${brand()}'s online services. Choose a system to continue.` : `Welcome to ATLAS, the education platform of ${status.branding.schoolName}. Choose a system to continue.`}</p>
       <a class="hub-role" href="${accountHref(u, 'profile')}" title="My profile">${icon('user', 14)} ${u.title || roleLabel(u.role)}${u.studentNo ? ` · ${u.studentNo}` : ''}</a>
       ${status.campusName ? html`<span class="hub-role">${icon('building', 14)} ${status.campusName}${status.campuses.length > 1 ? html` · <button type="button" class="link hub-switch" id="hub-switch">switch</button>` : ''}</span>` : ''}
     </div></section>
@@ -306,7 +307,7 @@ async function homeView(status) {
     ${toolsSection(status, view)}
     ${administration(status)}
     <section class="hub-wrap cols wide-left" id="feed"></section>
-    <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span><span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span></div></footer>`);
+    <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span>${schoolBrand() ? html`<span class="atlas-foot">${poweredBy()}</span>` : html`<span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span>`}</div></footer>`);
   const refresh = systemsCarousel(appEl.querySelector('#sys-carousel'));
   const track = appEl.querySelector('#sys-track');
   const compact = appEl.querySelector('#sys-compact');
@@ -350,7 +351,7 @@ async function homeView(status) {
     (view === 'compact' ? compact : track).querySelector(`[data-pin="${id}"]`)?.focus({ preventScroll: true });
     window.dispatchEvent(new Event('systems:changed')); // the Systems menu puts pinned ones first too
     const name = status.systems.find((s) => s.id === id)?.product || id;
-    toast(next.includes(id) ? `${name} is pinned: it comes first on your ATLAS home.` : `${name} is no longer pinned.`);
+    toast(next.includes(id) ? `${name} is pinned: it comes first on your ${brandHome()}.` : `${name} is no longer pinned.`);
   };
   track.addEventListener('click', onPin);
   compact.addEventListener('click', onPin);
@@ -390,13 +391,13 @@ async function boot() {
   ctx.info = status;
   ctx.user = status.user;
   applyBranding(status.branding);
-  document.title = `ATLAS · ${status.branding.schoolName}`;
+  document.title = `${brand()} · ${status.branding.schoolName}`;
   if (!status.user) return showAuth(() => signInView(status));
   if (status.user.mustChangePassword) {
     return showAuth((el) => forcePasswordView(el, { admin: status.side === 'admin', authBase: status.authBase, onDone: boot, onSignOut: signOut }));
   }
   if (status.user.twoFactorSetupRequired) {
-    return showAuth((el) => forceTwoFactorView(el, { render: (card) => hubScreen(card, status.systems, 'ATLAS · 2-step verification'), onDone: boot, onSignOut: signOut }));
+    return showAuth((el) => forceTwoFactorView(el, { render: (card) => hubScreen(card, status.systems, brandText('ATLAS · 2-step verification')), onDone: boot, onSignOut: signOut }));
   }
   // Came from a system that needed a sign-in: go straight back there.
   if (next && NEXT_OK[status.side]?.includes(next)) return location.replace(next);

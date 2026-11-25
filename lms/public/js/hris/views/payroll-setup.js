@@ -7,6 +7,7 @@ import { DEFAULT_RATES, sssContribution, philhealthContribution, pagibigContribu
 import { html, mount, toast, amount, money, confirmDialog, today } from '../../ui.js';
 import { SALARY_SCHEDULES, scheduleOn, salaryFor, DEFAULT_GOV } from '/shared/gov-pay.js';
 import { hr } from '../state.js';
+import { brandProduct } from '../../brand.js';
 
 const pct = (rate) => round2(rate * 100 * 100) / 100; // 0.05 -> 5
 const numField = (label, name, value, { step = 'any', suffix = '', hint } = {}) => html`
@@ -179,7 +180,7 @@ export async function payrollSetupView(el) {
         ${numField('Withholding tax', 'gov.jobOrderEwt', pct(g.jobOrderEwt), { suffix: '%', hint: '0 if the worker gave a sworn declaration' })}
         ${numField('Percentage tax', 'gov.jobOrderPercentageTax', pct(g.jobOrderPercentageTax), { suffix: '%', hint: 'Non-VAT workers' })}
       </div>
-      <h3>ATLAS Finance</h3>
+      <h3>${brandProduct('Finance')}</h3>
       <div class="grid four">
         <label class="field"><span>Payroll fund cluster</span>${pick('gov.payrollFund', g.payrollFund, (s.fundChoices || ['01']).map((f) => [f, `Fund ${f}`]))}<span class="hint">The obligation request and voucher are charged to this fund</span></label>
       </div>`);

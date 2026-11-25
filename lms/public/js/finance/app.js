@@ -18,6 +18,7 @@ import { receiptListView, rcdListView, rcdView, bookletsView, revenueView } from
 import { controlView, auditView } from './views/control.js';
 import { myView, myRequestsView } from './views/self.js';
 import { printView } from './views/print.js';
+import { brandHome, brandProduct } from '../brand.js';
 
 const perm = (p) => () => can(p);
 const staff = () => isStaff();
@@ -135,8 +136,8 @@ const home = () => (isStaff() ? '/dashboard' : '/me');
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
     return authScreen(el, {}, html`<div class="auth-card"><h2>Finance is for the school</h2>
-      <p class="muted">You are signed in as ${status.deniedUser.name}. ATLAS Finance is for the school's employees and students. Your systems are on the ATLAS home page.</p>
-      <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
+      <p class="muted">You are signed in as ${status.deniedUser.name}. ${brandProduct('Finance')} is for the school's employees and students. Your systems are on the ${brandHome()} page.</p>
+      <a class="btn primary block" href="/">Back to ${brandHome()}</a></div>`);
   }
   location.replace(`/?next=${encodeURIComponent('/finance/')}`);
 }

@@ -4,6 +4,8 @@
 // address they run at. Ids stay as they were (hris, lms…) so saved settings keep working.
 // audience: account types that see the tile (students do not see HRIS, for example).
 
+import { productName } from './brand.js';
+
 export const SYSTEMS = [
   {
     id: 'uis',
@@ -83,6 +85,10 @@ export const SYSTEMS = [
     audience: ['student', 'teacher', 'registrar', 'dean', 'admin'],
   },
 ].map((s) => ({ ...s, name: s.name || `ATLAS ${s.product}` }));
+
+// A system's name under the school's brand: "ATLAS Learn", or "<short name> Learn" when the school
+// leads (Settings → Branding → Brand; shared/brand.js). A system with a name of its own keeps it.
+export const systemName = (s, branding) => (s.name === `ATLAS ${s.product}` ? productName(branding, s.product) : s.name);
 
 export const SYSTEM_STATUS = ['soon', 'live', 'hidden'];
 

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Your school as the brand, powered by ATLAS
+- Under **Settings & branding → Branding**, administrators can now choose **Our school, powered by ATLAS**: the school's seal and short name lead every system (*LA Learn*, *LA home*, the sign-in pages, the browser tab) and ATLAS shows only as a small *Powered by ATLAS*. A school colour can now have its own **Accent**, and **Preview** shows the top bar and the sign-in page before saving. ATLAS stays the default. See [the administrator's guide](admin#lead-with-your-school-s-name-and-seal).
+
 ### PDF Studio export: tables, headings and notes
 - **PDF Studio export**: tables with numbers set flush right keep one column per heading in Word, Excel, CSV and the other formats; headings are found page by page; characters you typed that the PDF fonts lack are kept in documents and spreadsheets; notes after a download no longer look like errors and stay under the button; clearer **Save as** choices ("One document for each file added (ZIP)"); touch wording in the page editor on phones. See [the PDF Studio guide](pdf-studio#export-as-word-excel-text-or-pictures).
 

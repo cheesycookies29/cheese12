@@ -29,7 +29,7 @@
 </head>
 <body>
   <main class="verify">
-    <div class="brand-row"><img src="/img/brand/atlas-mark.svg" alt="" /><div><strong>ATLAS</strong><br /><span>Document verification</span></div></div>
+    <div class="brand-row"><img id="brand-mark" src="/img/brand/atlas-mark.svg" alt="" /><div><strong id="brand-name">ATLAS</strong><br /><span>Document verification</span></div></div>
     <section class="card" id="out"><p class="muted">Checking…</p></section>
     <p class="muted small" style="text-align:center">This page shows what the school issued under this code. Compare it with the paper you were given.</p>
   </main>
@@ -37,14 +37,27 @@
     const out = document.getElementById('out');
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const code = decodeURIComponent(location.pathname.split('/').pop() || '').toUpperCase();
+    // The school's brand when it leads (Settings → Branding → "Our school, powered by ATLAS").
+    const b = await fetch('/api/hub/status').then((r) => r.json()).then((s) => s.branding || {}).catch(() => ({}));
+    const school = b.mode === 'school' && b.shortName;
+    if (school) {
+      const mark = document.getElementById('brand-mark');
+      if (b.logo) mark.src = b.logo;
+      else mark.remove();
+      document.getElementById('brand-name').textContent = b.shortName;
+      if (b.brand) document.documentElement.style.setProperty('--brand', b.brand);
+      if (b.accent) document.documentElement.style.setProperty('--accent', b.accent);
+      document.title = `Verify a document · ${b.shortName}`;
+    }
+    const via = school ? '' : ' through ATLAS';
     const form = `<form id="again"><input name="code" placeholder="XXXX-XXXX-XXXX" aria-label="Code" value="${esc(code)}" /><button class="btn primary">Check</button></form>`;
     try {
       const r = await (await fetch(`/api/verify/${encodeURIComponent(code)}`)).json();
       if (r.valid) {
         const rows = [['Document', r.title], ['Issued to', r.student], ['Student no.', r.studentNo], ['Program', r.program], ['Term', r.termName], ['Units', r.units], ['GWA', r.gwa != null ? Number(r.gwa).toFixed(4).replace(/0{1,2}$/, '') : ''], ['School', `${r.school}${r.campus ? `, ${r.campus}` : ''}`], ['Issued on', new Date(r.issuedAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })], ['Code', r.code]].filter(([, v]) => v !== '' && v != null);
-        out.innerHTML = `<div class="result ok"><div class="big">✓</div><h2>Genuine document</h2><p class="muted">Issued by the Office of the Registrar through ATLAS.</p></div><dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+        out.innerHTML = `<div class="result ok"><div class="big">✓</div><h2>Genuine document</h2><p class="muted">Issued by the Office of the Registrar${via}.</p></div><dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
       } else {
-        out.innerHTML = `<div class="result bad"><div class="big">!</div><h2>No document with this code</h2><p class="muted">Check the code on the paper. If it is right, the document was not issued by the school through ATLAS: contact the registrar.</p></div>${form}`;
+        out.innerHTML = `<div class="result bad"><div class="big">!</div><h2>No document with this code</h2><p class="muted">Check the code on the paper. If it is right, the document was not issued by the school${via}: contact the registrar.</p></div>${form}`;
       }
     } catch {
       out.innerHTML = '<p>Could not check right now. Try again later.</p>';

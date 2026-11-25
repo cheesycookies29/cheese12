@@ -16,6 +16,8 @@ You need:
 - The address of your school's ATLAS home page (for example `https://atlas.school.edu`).
 - The username and password your school gave you. Students get theirs from the registrar, employees from the registrar, HR or an administrator. If your school uses Keycloak, you can use your Keycloak account instead.
 
+> **Note:** Your school may show its own name and seal instead of ATLAS, for example *LA home* and *LA Learn*, with a small *Powered by ATLAS*. Everything works the same; where these guides say ATLAS, read your school's name.
+
 This guide is for everyone. The guides for your own job are listed on the **Help & guides** page (see [Get help](#get-help)).
 
 ## Walkthrough

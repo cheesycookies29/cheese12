@@ -15,6 +15,7 @@ import { moduleOn } from '../shared/modules.js';
 import { GUARDIAN_VIEWS } from '../shared/guardians.js';
 import { categoryLabel, kindOfEvent, forAudience, addDays, weekday, eachDay, daysBetween, KINDS } from '../shared/calendar.js';
 import { guardianChildren } from './guardian.js';
+import { productName } from '../shared/brand.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -180,7 +181,7 @@ export function registerCalendarRoutes(route, ctx, { resultFor, isOpen }) {
   route('GET', '/api/calendar/feed/:file', 'public', ({ params, origin }) => {
     const token = String(params.file).replace(/\.ics$/, '');
     const user = /^[0-9a-f]{48}$/.test(token) && data().users.find((u) => u.calendarToken === token && u.status === 'active');
-    if (!user || !moduleOn(data().modules, 'calendar', user.role)) fail('This calendar address is not in use. Copy a new one from Calendar in ATLAS Learn.', 404);
+    if (!user || !moduleOn(data().modules, 'calendar', user.role)) fail(`This calendar address is not in use. Copy a new one from Calendar in ${productName(data().settings.branding, 'Learn')}.`, 404);
     const today = localDate(ctx.now());
     const entries = entriesFor(user, addDays(today, -30), addDays(today, 180), { child: 'all' });
     return { raw: toIcs(entries, { name: `${data().settings.schoolName} · ${user.name}`, now: ctx.now(), domain: new URL(origin || 'http://atlas.invalid').hostname }), type: 'text/calendar; charset=utf-8', headers: { 'Cache-Control': 'no-store', 'Content-Disposition': 'inline; filename="atlas-calendar.ics"' } };

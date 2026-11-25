@@ -8,6 +8,7 @@ import { icon } from '../../icons.js';
 import { html, raw, mount, money, fmtDate, fullName, badge, toast, modal, confirmDialog, downloadFile, toCsv, WEEKDAYS, today, initials, timeAgo, formData } from '../../ui.js';
 import { hr, can, clickableRows } from '../state.js';
 import { APPOINTMENTS, DEDUCTION_TYPES, deductionType, salaryFor, stepsIn, isJobOrder } from '/shared/gov-pay.js';
+import { brandHome } from '../../brand.js';
 
 const isGov = () => hr.settings.payrollSystem === 'government';
 const sgLabel = (e) => (e.salaryGrade ? `SG ${e.salaryGrade}-${e.step || 1}` : '');
@@ -287,7 +288,7 @@ function accountCard(emp) {
       ${info('Username', a.username)}${info('Account type', a.roleLabel)}
       ${info('Status', a.status === 'active' ? badge('Active', 'green') : badge('Disabled', 'gray'))}${info('Last sign-in', a.lastLoginAt ? timeAgo(a.lastLoginAt) : 'Never')}
     </dl>
-    <p class="hint-line">${a.hrisOnly ? 'A staff account: signs in on the ATLAS home page and opens People.' : `Their ${a.roleLabel.toLowerCase()} account in Learn; the same sign-in opens self-service here. Password and status are managed in the Learn admin panel.`}</p>
+    <p class="hint-line">${a.hrisOnly ? `A staff account: signs in on the ${brandHome()} page and opens People.` : `Their ${a.roleLabel.toLowerCase()} account in Learn; the same sign-in opens self-service here. Password and status are managed in the Learn admin panel.`}</p>
     ${manage ? html`<div class="actions" style="margin-top:12px">
       ${a.hrisOnly && FINANCE_OFFICE.includes(a.role) && ctx.user?.role !== 'admin' ? html`<span class="muted small">Only an administrator changes Finance office accounts.</span>` : ''}
       ${a.hrisOnly && (!FINANCE_OFFICE.includes(a.role) || ctx.user?.role === 'admin') ? html`<button class="btn" id="acct-edit">${icon('settings', 16)} Change type or status</button><button class="btn" id="acct-reset">${icon('key', 16)} Reset password</button>` : ''}

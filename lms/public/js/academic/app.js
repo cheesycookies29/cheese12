@@ -15,6 +15,7 @@ import { requestsView, printView } from './views/documents.js';
 import { reportsView } from './views/reports.js';
 import { settingsView } from './views/settings.js';
 import { myEvaluationView, myGradesView, myRegistrationView, myRequestsView } from './views/self.js';
+import { brandHome } from '../brand.js';
 
 const perm = (p) => () => can(p);
 const student = () => isStudent();
@@ -75,8 +76,8 @@ const home = () => (isStudent() ? '/me' : isTeacher() ? '/grade-sheets' : '/dash
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
     return authScreen(el, {}, html`<div class="auth-card"><h2>Academic is for students and the school</h2>
-      <p class="muted">You are signed in as ${status.deniedUser.name}. Academic records are for students, teachers and the registrar's office. Your systems are on the ATLAS home page.</p>
-      <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
+      <p class="muted">You are signed in as ${status.deniedUser.name}. Academic records are for students, teachers and the registrar's office. Your systems are on the ${brandHome()} page.</p>
+      <a class="btn primary block" href="/">Back to ${brandHome()}</a></div>`);
   }
   location.replace(`/?next=${encodeURIComponent('/academic/')}`);
 }

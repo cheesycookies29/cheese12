@@ -67,7 +67,18 @@ The palette lives in `shared/brand.js`; the CSS tokens (`--brand`, `--accent`, `
 
 ## The school's own logo
 
-A school can upload its logo or seal (**Settings & branding**). It replaces the ATLAS mark in the seal of the sign-in pages (on white) and shows at the top of payslips, where the school is the employer. The top bar, browser tab and app icon always show the ATLAS mark.
+A school can upload its logo or seal (**Settings & branding**). It replaces the ATLAS mark in the seal of the sign-in pages (on white) and shows at the top of payslips, where the school is the employer. With the default brand, the top bar, browser tab and app icon show the ATLAS mark.
+
+## The school as the brand ("powered by ATLAS")
+
+**Settings & branding → Branding → Brand** is a setting (`branding.mode`), not a rebrand in the code:
+
+- `atlas` (the default): everything above.
+- `school` ("Our school, powered by ATLAS"): the school's short name (`branding.shortName`, typed by its administrator) takes ATLAS's place in front of the product names (`<short> Learn`, `<short> home`, `<short> systems`, page titles, sign-in screen titles), and its uploaded seal takes the mark's place in the top bar, the sign-in lockup and the browser tab, as uploaded in light and dark. ATLAS appears only as a small *Powered by ATLAS* with the small mark: at the foot of the sign-in card, in the home page's footer and at the foot of the sidebar.
+
+One helper names the brand on the server and in the pages: `brandName()`, `productName()` and `branded()` in `shared/brand.js` (pages: `public/js/brand.js`). Sentences about what the software does ("ATLAS reads every file…") may keep saying ATLAS; the guides, the authenticator app's entry and the signature record codes (`ATLAS-XXXX-XXXX`) stay ATLAS. No school's name or seal is in the code or the demo: the demo shows the made-up *Lancaster Academy* (*LA*).
+
+A school's own colours can have an accent (`branding.accent`, with the custom theme). A light accent (a yellow) gets dark text where it is a background, and a deeper shade where it is text on white, from a contrast check (`inkOn`, `readableOn` in `shared/themes.js`).
 
 ## Unchanged on purpose
 

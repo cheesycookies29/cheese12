@@ -32,8 +32,11 @@ export const DEFAULT_SETTINGS = {
   branding: {
     theme: 'maroon', // a preset from shared/themes.js, or 'custom'
     color: '', // the brand colour when theme is 'custom' (#rrggbb)
+    accent: '', // the accent colour when theme is 'custom' (#rrggbb); empty = ATLAS's gold
     logo: '', // a small image as a data: URL; empty = the ATLAS mark
     tagline: '',
+    mode: 'atlas', // whose brand leads: 'atlas', or 'school' ("<school>, powered by ATLAS"; shared/brand.js)
+    shortName: '', // the school's short name, the brand in school mode (at most 24 characters)
   },
   // Sign-in and passwords (server/auth.js).
   security: {

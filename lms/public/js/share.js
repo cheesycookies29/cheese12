@@ -43,6 +43,11 @@ request('GET', '/api/hub/status').then(({ branding: b }) => {
     document.getElementById('share-school').textContent = b.schoolName;
     document.title = `Shared documents · ${b.schoolName}`;
   }
+  // When the school's brand leads (Settings → Branding), its seal, and ATLAS only as the engine.
+  if (b?.mode === 'school' && b.shortName) {
+    if (b.logo) document.getElementById('share-logo').src = b.logo;
+    document.querySelector('.share-foot').textContent = `Sent to you through ${b.shortName}'s online services, powered by ATLAS. Only open files you expected to receive.`;
+  }
 }).catch(() => {});
 
 const ICON = { pdf: 'file', jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image', xlsx: 'table', csv: 'table', pptx: 'slides', mp4: 'video', mp3: 'music' };

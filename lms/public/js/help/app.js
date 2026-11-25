@@ -12,6 +12,7 @@ import { icon, iconSvg } from '../icons.js';
 import { parseGuide, renderMarkdown, headingsOf } from '/shared/markdown.js';
 import { guideFor } from '/shared/help.js';
 import { ROLES } from '/shared/roles.js';
+import { brand, brandText } from '../brand.js';
 
 const appEl = document.getElementById('app');
 // The systems, in the order they appear, with their icons.
@@ -69,7 +70,7 @@ function sidebar(activeId) {
       ${list.guides.filter((g) => START.includes(g.id)).map((g) => link(g, true))}
       ${mine.length ? html`<p class="side-label">Your guides · ${list.roleLabel}</p>${mine.map((g) => link(g, true))}` : ''}
       ${SYSTEMS.filter(([k]) => by[k]?.length).map(([k, label, ic]) => html`<details class="side-group" ${by[k].some((g) => g.id === activeId) || !mine.length ? 'open' : ''}>
-        <summary>${icon(ic, 16)} ${label}<span class="count">${by[k].length}</span></summary>${by[k].map((g) => link(g))}</details>`)}
+        <summary>${icon(ic, 16)} ${brandText(label)}<span class="count">${by[k].length}</span></summary>${by[k].map((g) => link(g))}</details>`)}
     </nav>
     <div class="side-foot">
       ${list.canEdit ? html`<a class="btn sm" href="#/new">${icon('plus', 14)} New guide</a>` : ''}
@@ -133,11 +134,11 @@ function homeView() {
     .map(([to, ic, title, text]) => html`<a class="guide-card big" href="#/${to}"><span class="guide-ic">${icon(ic, 22)}</span><span class="guide-card-body"><strong>${title}</strong><small>${text}</small></span><span class="guide-go" aria-hidden="true">${icon('chevronRight', 16)}</span></a>`)}</div></section>`}
     <section class="home-block" ${signedIn() ? '' : 'hidden'}><div class="block-head"><h2>Browse by system</h2><span class="muted small">Guides for the people you work with</span></div>
       <div class="system-grid">${SYSTEMS.filter(([k]) => by[k]?.length).map(([k, label, ic]) => html`<div class="system-col">
-        <h3>${icon(ic, 18)} ${label}</h3>
+        <h3>${icon(ic, 18)} ${brandText(label)}</h3>
         ${by[k].map((g) => html`<a class="system-link" href="#/${g.id}"><span>${g.title}</span><small>${g.roles.filter((r) => ROLES[r]).map((r) => ROLES[r].label).slice(0, 3).join(', ')}</small></a>`)}
       </div>`)}</div></section>`, { wide: true });
   wireSearch(appEl.querySelector('#hero-search'));
-  document.title = 'Help & guides · ATLAS';
+  document.title = `Help & guides · ${brand()}`;
   window.scrollTo(0, 0);
 }
 
@@ -165,7 +166,7 @@ async function searchView(q) {
       : html`<div class="empty-state">${icon('search', 32)}<p>Try fewer words, or the name on the screen (for example “enrollment” or “payslip”). ${signedIn() ? 'You can also open the guide for your job from the list.' : html`Only <a href="#/getting-started">Getting started</a> can be searched before you sign in.`}</p><a class="btn" href="#/">Help home</a>${signedIn() ? '' : html` <a class="btn primary" href="${SIGN_IN}">Sign in</a>`}</div>`}
     ${n && !signedIn() ? html`<p class="muted small" style="margin-top:16px">Only Getting started can be searched before you sign in. <a href="${SIGN_IN}">Sign in</a> to search every guide.</p>` : ''}`, { wide: true });
   document.querySelectorAll('.help-search input').forEach((i) => (i.value = q));
-  document.title = `Search: ${q} · Help · ATLAS`;
+  document.title = `Search: ${q} · Help · ${brand()}`;
   window.scrollTo(0, 0);
 }
 
@@ -186,9 +187,9 @@ async function guideView(id, section) {
     <a class="toc-top" href="#/${id}" data-top>${icon('up', 14)} Back to top</a></aside>` : null;
   layout(id, html`
     <article class="guide">
-      <nav class="crumbs-help" aria-label="Breadcrumb"><a href="#/">Help</a> ${icon('chevronRight', 12)} <span>${START.includes(id) ? 'Start here' : sys.label}</span> ${icon('chevronRight', 12)} <span aria-current="page">${meta.title || id}</span></nav>
+      <nav class="crumbs-help" aria-label="Breadcrumb"><a href="#/">Help</a> ${icon('chevronRight', 12)} <span>${START.includes(id) ? 'Start here' : brandText(sys.label)}</span> ${icon('chevronRight', 12)} <span aria-current="page">${meta.title || id}</span></nav>
       <header class="guide-header">
-        <div class="guide-systems">${(meta.apps || []).map((a) => html`<span class="sys-chip">${icon(SYS[a]?.icon || 'grid', 14)} ${SYS[a]?.label || a}</span>`)}</div>
+        <div class="guide-systems">${(meta.apps || []).map((a) => html`<span class="sys-chip">${icon(SYS[a]?.icon || 'grid', 14)} ${brandText(SYS[a]?.label || a)}</span>`)}</div>
         <h1>${meta.title || id}</h1>
         ${meta.summary ? html`<p class="lead">${meta.summary}</p>` : ''}
         <div class="guide-meta">
@@ -213,7 +214,7 @@ async function guideView(id, section) {
       </footer>
     </article>`, { toc: tocEl });
   appEl.querySelector('#print').addEventListener('click', () => window.print());
-  document.title = `${meta.title || id} · Help · ATLAS`;
+  document.title = `${meta.title || id} · Help · ${brand()}`;
   wireShots();
   wireSpy();
   if (section) document.getElementById(section)?.scrollIntoView();

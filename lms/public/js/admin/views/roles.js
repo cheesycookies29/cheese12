@@ -7,6 +7,7 @@ import { html, mount, toast, confirmDialog, badge } from '../../ui.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { setRoleOverrides } from '/shared/roles.js';
+import { brandText, brandProducts } from '../../brand.js';
 
 export async function rolesView(el) {
   const d = await api.get('/api/admin/roles');
@@ -23,16 +24,16 @@ export async function rolesView(el) {
         <div class="table-scroll"><table class="table compact">
           <thead><tr><th>Account type</th><th>Accounts</th><th>Permissions</th><th></th></tr></thead>
           <tbody>${d.roles.filter((r) => !['student', 'guardian'].includes(r.id)).map((r) => html`<tr>
-            <td data-label="Account type"><strong>${r.label}</strong>${r.changed ? html` ${badge('Changed', 'amber')}` : ''}<small class="muted block">${r.description}</small></td>
+            <td data-label="Account type"><strong>${r.label}</strong>${r.changed ? html` ${badge('Changed', 'amber')}` : ''}<small class="muted block">${brandProducts(r.description)}</small></td>
             <td data-label="Accounts">${r.accounts}</td>
             <td data-label="Permissions">${r.fixed ? 'Everything' : ticked[r.id].size}</td>
             <td class="row-actions">${r.changed ? html`<button class="btn sm" data-restore="${r.id}">Restore built-in</button>` : ''}</td></tr>`)}</tbody></table></div>
         <p class="muted small">Students and parents & guardians have no permissions to give: what they see is set under Modules and on each parent's link.</p>
       </section>
       ${d.groups.map((g) => html`<section class="card roles-group">
-        <h2>${g.label}</h2>
+        <h2>${brandText(g.label)}</h2>
         <div class="table-scroll"><table class="table compact no-stack matrix roles-matrix">
-          <caption class="sr-only">${g.label}: which account types have each permission</caption>
+          <caption class="sr-only">${brandText(g.label)}: which account types have each permission</caption>
           <thead><tr><th scope="col">Permission</th><th scope="col" class="center">Administrator</th>${g.roles.map((r) => html`<th scope="col" class="center">${role[r].label}</th>`)}</tr></thead>
           <tbody>${g.permissions.map((p) => html`<tr>
             <th scope="row"><span class="perm-label">${p.label}</span>${p.adminOnly ? html` ${badge('Administrators only', 'gray')}` : ''}<small class="muted block"><code>${p.id}</code></small></th>

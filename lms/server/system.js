@@ -12,7 +12,7 @@ import { HttpError } from './util.js';
 import { ROLES, roleLabel, permissionsOf, permissionsOfUser, ADMIN_ONLY_PERMISSIONS } from '../shared/roles.js';
 import { PERMISSION_GROUPS, grantable } from './config.js';
 import { MODULES, MODULE_ROLES, moduleOn } from '../shared/modules.js';
-import { SYSTEMS } from '../shared/systems.js';
+import { SYSTEMS, systemName } from '../shared/systems.js';
 import { publicUser, hashPasswordAsync, validatePassword } from './auth.js';
 import { t } from './validate.js';
 import { validateUserFields } from './admin.js';
@@ -82,7 +82,7 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   // ones only coming soon do not count).
   const systemsFor = (role) => SYSTEMS.filter((s) => s.audience.includes(role)).map((s) => {
     const cfg = s.builtIn ? { status: 'live' } : data().settings.systems[s.id] || { status: 'soon' };
-    return { id: s.id, name: s.name, product: s.product, status: cfg.status };
+    return { id: s.id, name: systemName(s, data().settings.branding), product: s.product, status: cfg.status };
   }).filter((s) => s.status !== 'hidden');
 
   const campusesOf = (u) => (u.role === 'admin' ? ['All campuses'] : (u.campusIds || []).map((id) => campusName(data(), id)).filter(Boolean));

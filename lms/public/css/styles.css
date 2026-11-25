@@ -3,7 +3,9 @@
    Layout follows the school's current LMS (white top bar with the mark and term, icon sidebar,
    breadcrumbs, class header card, tabbed class page, dark mode) with one brand colour throughout.
    --brand and --accent come from Settings → Branding (set on :root by js/shell.js);
-   every shade is mixed from them, so any school colour works. */
+   every shade is mixed from them, so any school colour works. With the school's own accent,
+   shell.js also sets --accent-ink (text on the accent) and --accent-deep (the accent dark enough
+   for text on white, 4.5:1); without them the presets keep the colours below. */
 
 @font-face { font-family: 'DM Sans'; src: url('../fonts/DMSans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'DM Sans'; src: url('../fonts/DMSans-Medium.ttf') format('truetype'); font-weight: 500 600; font-display: swap; }
@@ -97,7 +99,7 @@ body:not(.auth-mode) #auth { display: none; }
 .topbar .brand img { height: 40px; width: auto; max-width: 140px; object-fit: contain; }
 .topbar .brand strong { display: block; font-size: 15px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar .brand small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.side-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; vertical-align: 2px; }
+.side-chip { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink, #fff); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; vertical-align: 2px; }
 .topbar-spacer { flex: 1; }
 .round-btn { width: 38px; height: 38px; flex: none; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); display: inline-grid; place-items: center; cursor: pointer; position: relative; }
 .round-btn:hover { background: var(--surface-2); }
@@ -130,7 +132,7 @@ body:not(.auth-mode) #auth { display: none; }
 #nav a.active::before { content: ''; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brand); }
 #nav .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .nav-heading { margin: 16px 12px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-.nav-badge { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: #1c1300; font-size: 11px; font-weight: 700; text-align: center; }
+.nav-badge { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--accent-ink, #1c1300); font-size: 11px; font-weight: 700; text-align: center; }
 .side-foot { margin-top: auto; padding: 12px; font-size: 11px; color: var(--muted); }
 /* Desktop: the menu button folds the sidebar to icons only. */
 body.nav-mini .sidebar { width: 68px; }
@@ -178,7 +180,7 @@ main { flex: 1; min-width: 0; padding: 20px 28px 56px; max-width: 1360px; }
 .btn:hover { background: var(--surface-2); text-decoration: none; }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
 .btn.primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
-.btn.gold { background: color-mix(in srgb, var(--accent) 62%, #000); border-color: color-mix(in srgb, var(--accent) 62%, #000); color: #fff; }
+.btn.gold { background: var(--accent-deep, color-mix(in srgb, var(--accent) 62%, #000)); border-color: var(--accent-deep, color-mix(in srgb, var(--accent) 62%, #000)); color: #fff; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.danger.ghost, .btn.ghost.danger { background: var(--surface); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--surface)); }
 .btn.danger.ghost:hover { background: var(--danger-soft); }
@@ -469,13 +471,77 @@ a.list-item:hover strong { color: var(--brand-text); }
 .atlas-foot { display: inline-flex; align-items: center; gap: 8px; }
 .atlas-foot img { height: 16px; width: auto; }
 
+/* ===== The school as the brand (Settings → Branding → "Our school, powered by ATLAS") =====
+   The school's seal (as uploaded, in light and dark) and short name lead; ATLAS is a small credit. */
+.topbar .brand img#brand-logo.seal { height: 38px; max-width: 64px; object-fit: contain; object-position: center; }
+.topbar .brand .atlas-word.school-word strong { letter-spacing: 0.04em; }
+.powered-by { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); letter-spacing: 0.02em; white-space: nowrap; }
+.powered-by img.powered-mark { height: 13px; width: auto; opacity: 0.85; }
+.auth-lockup img.seal { height: 34px; width: auto; max-width: 72px; object-fit: contain; }
+.auth-lockup strong.school-lockup { letter-spacing: 0.12em; font-size: 15px; }
+.plate-initials { color: #fff; font-weight: 800; font-size: 15px; letter-spacing: 0.06em; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-powered { margin: 18px 0 0; text-align: center; line-height: 1; }
+.auth-powered .powered-by { opacity: 0.85; }
+.hub-hero .hero-mark.hero-seal { opacity: 0.16; width: 200px; filter: grayscale(1) brightness(1.8); }
+@media (max-width: 480px) {
+  .topbar .brand img#brand-logo.seal { height: 32px; max-width: 40px; }
+  /* No seal uploaded yet: the short name stays, as nothing else would show. */
+  :root.school-brand .topbar .brand img#brand-logo[hidden] + span .atlas-word { display: flex; }
+}
+
+/* Settings → Branding: whose brand leads, and the preview. */
+.brand-modes { border: 0; padding: 0; margin: 4px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.brand-modes legend { font-size: 14px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; padding: 0; margin: 4px 0 10px; } /* as an h3 */
+.brand-mode { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; }
+.brand-mode:has(input:checked) { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); }
+.brand-mode input { margin-top: 2px; }
+.brand-mode strong { display: block; }
+.brand-mode small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.brand-sub-head { font-size: 14px; margin: 18px 0 8px; }
+.brand-sub-head.first { margin-top: 4px; }
+.brand-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 24px; align-items: start; }
+.brand-top .brand-modes { grid-template-columns: 1fr; }
+@media (max-width: 900px) { .brand-top { grid-template-columns: 1fr; } }
+.bp { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.bp > .hint { grid-column: 1 / -1; margin: 0; }
+.bp-part { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bp-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.bp-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
+.bp-top img { height: 30px; width: auto; max-width: 56px; object-fit: contain; }
+.bp-word { display: flex; align-items: baseline; gap: 6px; }
+.bp-word strong { font-size: 16px; font-weight: 800; letter-spacing: 0.14em; color: var(--brand); }
+:root[data-theme='dark'] .bp-word strong { color: color-mix(in srgb, var(--brand) 45%, #fff); }
+.bp-word.school strong { letter-spacing: 0.04em; }
+.bp-word em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); }
+.bp-school { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.bp-badge { flex: none; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--bp-ink); font-size: 11px; font-weight: 700; text-align: center; }
+.bp-auth { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--radius-sm); background: #efe6d8; border: 1px solid var(--border); color: #1e1e1e; }
+:root[data-theme='dark'] .bp-auth { background: #110c0e; color: #f4ebe0; }
+.bp-lockup { display: flex; align-items: center; gap: 8px; }
+.bp-lockup img { height: 22px; width: auto; max-width: 48px; object-fit: contain; }
+.bp-lockup strong { font-size: 12px; letter-spacing: 0.32em; font-weight: 700; }
+.bp-lockup strong.school { letter-spacing: 0.12em; }
+.bp-plate { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 22px; padding: 30px 12px 12px; background: #fbf8f2; border: 1px solid var(--brand); border-radius: 4px; text-align: center; }
+:root[data-theme='dark'] .bp-plate { background: #1b1416; }
+.bp-plate > strong { font-family: 'Newsreader', Georgia, serif; font-weight: 500; font-size: 18px; line-height: 1.15; }
+.bp-plate > small { font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 700; color: var(--brand); }
+:root[data-theme='dark'] .bp-plate > small { color: color-mix(in srgb, var(--brand) 45%, #fff); }
+.bp-plate-seal { position: absolute; top: -22px; width: 44px; height: 44px; border-radius: 50%; background: var(--brand); display: grid; place-items: center; box-shadow: 0 0 0 3px #fbf8f2, 0 0 0 4px var(--accent); overflow: hidden; }
+.bp-plate-seal.own { background: #fff; }
+.bp-plate-seal img { width: 26px; height: auto; }
+.bp-plate-seal.own img { width: 32px; height: 32px; object-fit: contain; }
+.bp-plate-seal b { color: #fff; font-size: 10px; letter-spacing: 0.04em; max-width: 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bp-powered { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; font-size: 10px; color: #5b6270; }
+:root[data-theme='dark'] .bp-powered { color: #94a3b8; }
+.bp-powered img { height: 11px; width: auto; }
+
 /* ===== Sign-in ===== */
 /* Every sign-in screen is a bookplate on paper (js/shell.js authPlate). The colours follow the
    school's brand and accent; the serif is Newsreader (SIL Open Font License, fonts/Newsreader-OFL.txt). */
 @font-face { font-family: 'Newsreader'; src: url('../fonts/Newsreader-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Newsreader'; src: url('../fonts/Newsreader-Medium.ttf') format('truetype'); font-weight: 500 700; font-display: swap; }
 @font-face { font-family: 'Newsreader'; src: url('../fonts/Newsreader-Italic.ttf') format('truetype'); font-weight: 400; font-style: italic; font-display: swap; }
-.auth-screen { --paper: #fbf8f2; --desk: #efe6d8; --rule: #e2d6c4; --ink: color-mix(in srgb, var(--brand) 55%, #000); --gold: color-mix(in srgb, var(--accent) 82%, #000); --gold-text: color-mix(in srgb, var(--accent) 60%, #000);
+.auth-screen { --paper: #fbf8f2; --desk: #efe6d8; --rule: #e2d6c4; --ink: color-mix(in srgb, var(--brand) 55%, #000); --gold: color-mix(in srgb, var(--accent) 82%, #000); --gold-text: var(--accent-deep, color-mix(in srgb, var(--accent) 60%, #000));
   --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
   min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 20px 28px;
   background: radial-gradient(circle at 50% 0%, #fbf6ec 0%, transparent 60%), repeating-linear-gradient(0deg, color-mix(in srgb, var(--brand) 3%, transparent) 0 1px, transparent 1px 28px), var(--desk); }

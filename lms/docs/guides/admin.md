@@ -244,7 +244,7 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 1. Choose **Settings & branding**.
 2. Under **School**: the **School name**, the **Current term** and the **Passing grade (%)**.
 3. Under **Enrollment rules**: **Requests need approval**, **Waitlists**, **Waitlist size per section** and **Maximum units per term** (0 means no limit).
-4. Under **Branding**: choose a colour theme or **School colour**, **Upload logo** (PNG, JPEG or WebP, under 300 KB; it replaces the ATLAS mark in the round seal on the sign-in pages), and the **Sign-in headline** (an optional line under the school name on the sign-in pages).
+4. Under **Branding**: choose the **Brand** (see [Lead with your school's name and seal](#lead-with-your-school-s-name-and-seal)), a colour theme or **School colour** with its **Accent**, **Upload logo** (PNG, JPEG or WebP, under 300 KB; it replaces the ATLAS mark in the round seal on the sign-in pages), and the **Sign-in headline** (an optional line under the school name on the sign-in pages). **Preview** shows the top bar and the sign-in page as you choose.
 5. Under **Student applications**: whether people may apply from the sign-in page.
 6. **Sign-in and passwords** are under **System** (see [Set the rules for passwords and sign-in](#set-the-rules-for-passwords-and-sign-in)).
 7. Under **Uploads, quizzes and parent alerts**: the **Largest upload (MB)** (1 to 15), the **Quiz grace period (seconds)** that answers sent just after a deadline still count, and from how many absences a parent sees them in red.
@@ -252,6 +252,31 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 9. Choose **Save settings**.
 
 The colour changes on screen as you choose it, so you can try themes before saving. A new numbering format applies to new records only, and never gives a number that is already in use.
+
+### Lead with your school's name and seal
+
+By default ATLAS's mark and name lead every screen, with your school's name beside them. Your school can lead instead, with ATLAS only as a small credit.
+
+1. Choose **Settings & branding**.
+2. Under **Branding → Brand**, choose **Our school, powered by ATLAS**.
+3. Type the **School short name**: the name or initials your school goes by, up to 24 characters (for example `LA` for the demo's *Lancaster Academy*).
+4. **Upload logo** with your school's seal. A square seal on a transparent background works best; it is made at most 400 pixels wide.
+5. Under **Colours**, choose a theme, or **School colour** and its **Accent** for your school's own two colours (for example a green with a gold).
+6. Check **Preview**: the top bar and the sign-in page as everyone will see them. Under it, ATLAS says whether text on the accent is set dark or white, and how readable it is.
+7. Choose **Save settings**. The top bar changes at once; everyone else sees it the next time they open a page.
+
+![Settings & branding with Our school, powered by ATLAS](admin-branding-school.jpg)
+
+What changes, in every system:
+
+- The top bar shows your seal and short name in place of the ATLAS mark and name (*LA* · *Learn*), in light and dark mode.
+- The systems are named after your school: *LA Learn*, *LA Academic*, *LA People*, *LA Finance*, *LA Documents* and *LA Tools*; so are the **LA home** page, the **LA systems** menu, the page titles and the browser tab's icon.
+- The sign-in pages show your seal and short name at the top, your seal and full school name on the card, and a small *Powered by ATLAS* at the foot of the card.
+- The home page says *Welcome to LA's online services*, and its footer and the side menu say *Powered by ATLAS*.
+
+What stays: every screen works the same, printed documents keep your logo and school name as before, and messages about what the software itself does may still name ATLAS. These guides also say ATLAS; read it as your school's name. To go back, choose **ATLAS (default)** and save: the short name is kept for later.
+
+> **Note:** The short name is needed for **Our school, powered by ATLAS**; without one, ATLAS says *Type the school's short name*.
 
 ### Find any setting and compare it with the default
 
@@ -476,10 +501,10 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Configuration | Campuses | Add, rename, remove and switch between campuses |
 | Configuration | Modules | What students, teachers and parents & guardians get in Learn |
 | Configuration | Activity types & grading | Activity types and how much each counts in the running grade |
-| Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, colours, logo, applications, uploads and quizzes, numbering |
+| Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, brand (ATLAS or your school), short name, colours, logo, applications, uploads and quizzes, numbering |
 | Configuration | Home page & systems | The tiles on the ATLAS home page, the address of systems not built in, and who may use the **Tools** (PDF Studio) |
 
-| Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, colours, logo, applications, passwords and sign-in, uploads and quizzes, numbering |
+| Configuration | Settings & branding | School name, current term, passing grade, enrollment rules, brand (ATLAS or your school), short name, colours, logo, applications, passwords and sign-in, uploads and quizzes, numbering |
 | Configuration | Home page & systems | The tiles on the ATLAS home page, and the address of systems not built in |
 | Configuration | Single sign-on | Signing in with the school's Keycloak account |
 | Configuration | Admins, registrars & deans | Accounts for administrators, registrars and deans |
@@ -512,6 +537,8 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 **Why does a registrar see the settings but cannot change them?** Modules, settings, activity types, campuses and systems are for administrators. Registrars see them read-only, with *Only administrators can change these.* (**System**, with **Users & Access**, **Roles & permissions**, **Single sign-on** and **Cloudflare**, is for administrators only.) To let registrars change them, tick the permission for **Registrar** under **Roles & permissions**.
 
 **Everyone was signed out at once.** Sign-ins are kept in the server's memory, so restarting ATLAS signs everyone out. People are also signed out after 8 hours without activity (change it under **System → Sign-in and passwords**). To sign one person out, use **Sign out** on their row in **Users & Access**.
+
+**Can the sign-in pages and the systems show our school instead of ATLAS?** Yes: under **Settings & branding → Branding**, choose **Our school, powered by ATLAS**, type the school's short name and upload its seal. See [Lead with your school's name and seal](#lead-with-your-school-s-name-and-seal).
 
 **Who changed this setting?** Open **Settings center**, find the setting and choose the clock button beside it: its history lists each change with who made it, when, and the value before and after.
 

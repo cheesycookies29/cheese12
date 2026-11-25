@@ -15,6 +15,7 @@ import { payrollListView, payrollRunView, payslipView } from './views/payroll.js
 import { payrollSetupView } from './views/payroll-setup.js';
 import { hrSettingsView } from './views/settings.js';
 import { meHomeView, meAttendanceView, meRequestsView, mePayslipsView, mePayslipView, meProfileView, notLinkedView } from './views/self.js';
+import { brandHome } from '../brand.js';
 
 const perm = (p) => () => can(p);
 const emp = () => isEmployee();
@@ -76,8 +77,8 @@ const home = () => (can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' 
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
     return authScreen(el, {}, html`<div class="auth-card"><h2>People is for school employees</h2>
-      <p class="muted">You are signed in as ${status.deniedUser.name}, a ${status.deniedUser.role === 'guardian' ? 'parent or guardian' : 'student'} account. Your systems are on the ATLAS home page.</p>
-      <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
+      <p class="muted">You are signed in as ${status.deniedUser.name}, a ${status.deniedUser.role === 'guardian' ? 'parent or guardian' : 'student'} account. Your systems are on the ${brandHome()} page.</p>
+      <a class="btn primary block" href="/">Back to ${brandHome()}</a></div>`);
   }
   location.replace(`/?next=${encodeURIComponent('/hris/')}`);
 }

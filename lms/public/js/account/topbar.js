@@ -11,6 +11,7 @@ import { icon, iconSvg } from '../icons.js';
 import { roleLabel, ROLES } from '/shared/roles.js';
 import { orderSystems, canOpen } from '/shared/systems.js';
 import { avatar, avatarAt, editMyAvatar, loadAvatars } from './avatars.js';
+import { brand, brandHome } from '../brand.js';
 
 const QUICK_MAX = 12;
 const RECENT_KEEP = 12;
@@ -67,7 +68,8 @@ const shortName = (s) => (s.product.length > 12 ? s.short || s.product : s.produ
 export function mountSystems(beforeEl) {
   const wrap = document.createElement('div');
   wrap.className = 'top-pop-wrap';
-  wrap.innerHTML = `<button type="button" class="round-btn" id="sys-btn" title="ATLAS systems" aria-label="ATLAS systems" aria-haspopup="menu" aria-expanded="false">${iconSvg('grid')}</button><div class="menu-pop top-pop sys-pop" id="sys-pop" role="menu" hidden></div>`;
+  const label = `${brand()} systems`;
+  wrap.innerHTML = `<button type="button" class="round-btn" id="sys-btn" title="${label}" aria-label="${label}" aria-haspopup="menu" aria-expanded="false">${iconSvg('grid')}</button><div class="menu-pop top-pop sys-pop" id="sys-pop" role="menu" hidden></div>`;
   beforeEl.before(wrap);
   const pop = wrap.querySelector('#sys-pop');
   let status = null;
@@ -83,7 +85,7 @@ export function mountSystems(beforeEl) {
         const on = isHere(s);
         return html`<a role="menuitem" class="mod-tile${on ? ' on' : ''}" href="${s.url}" ${on ? 'aria-current="page"' : ''} title="${s.name}${pins.includes(s.id) ? ' · pinned' : ''}" ${s.external ? html`target="_blank" rel="noopener"` : ''}>${pins.includes(s.id) ? html`<span class="mod-pin" aria-hidden="true">${icon('star', 12)}</span>` : ''}<span class="mod-ic">${icon(s.icon || 'grid', 20)}</span><span class="mod-name">${shortName(s)}</span></a>`;
       };
-      mount(pop, html`<div class="menu-label">ATLAS systems</div>
+      mount(pop, html`<div class="menu-label">${brand()} systems</div>
         <div class="mod-grid">${orderSystems(status.systems || [], pins).map(tile)}</div>
         ${(status.tools || []).length ? html`<div class="menu-label">Tools</div>
         <div class="mod-grid">${status.tools.map((t) => {
@@ -91,7 +93,7 @@ export function mountSystems(beforeEl) {
           return html`<a role="menuitem" class="mod-tile${on ? ' on' : ''}" href="${t.path}" ${on ? 'aria-current="page"' : ''} title="${t.product}: ${t.title}"><span class="mod-ic">${icon(t.icon || 'file', 20)}</span><span class="mod-name">${t.product}</span></a>`;
         })}</div>` : ''}
         <div class="menu-sep"></div>
-        <a role="menuitem" href="/">${icon('home')}<span class="grow">ATLAS home</span></a>
+        <a role="menuitem" href="/">${icon('home')}<span class="grow">${brandHome()}</span></a>
         <a role="menuitem" href="/help/" target="_blank" rel="noopener">${icon('help')}<span class="grow">Help &amp; guides</span></a>`);
     },
   });

@@ -8,19 +8,58 @@ import { accountRoutes } from './account/profile.js';
 import { forceTwoFactorView } from './account/two-factor.js';
 import { mountSystems, mountQuick, mountUserMenu, recordVisit } from './account/topbar.js';
 import { mountBell } from './account/notifications.js';
+import { setBrand, currentBrand, schoolBrand, brand, brandText } from './brand.js';
+import { inkOn, readableOn } from '/shared/themes.js';
 
 // App-wide state for the current page set (one per app, since each is its own page).
 export const ctx = { user: null, info: null };
 
 // ----- Branding and dark mode -----
+// b: the branding the server sends (server/api.js branding()): colours, logo, school name, and
+// whose brand leads (mode, shortName: public/js/brand.js).
 export function applyBranding(b = {}) {
+  setBrand(b);
   const root = document.documentElement.style;
   if (b.brand) root.setProperty('--brand', b.brand);
   if (b.accent) root.setProperty('--accent', b.accent);
+  // A school's own accent may be light (a yellow): the text on it and the accent used as text are
+  // worked out from it, with a contrast check (shared/themes.js). The presets keep their CSS colours.
+  if (b.theme === 'custom' && b.accent) {
+    root.setProperty('--accent-ink', inkOn(b.accent));
+    root.setProperty('--accent-deep', readableOn(b.accent, '#ffffff', 4.5));
+  } else {
+    root.removeProperty('--accent-ink');
+    root.removeProperty('--accent-deep');
+  }
   const meta = document.querySelector('meta[name=theme-color]') || document.head.appendChild(Object.assign(document.createElement('meta'), { name: 'theme-color' }));
   meta.content = b.brand || '#5d0013';
-  const app = document.body.dataset.app || 'ATLAS';
+  const app = brandText(document.body.dataset.app || 'ATLAS');
   document.title = b.schoolName ? `${app} · ${b.schoolName}` : app;
+  document.documentElement.classList.toggle('school-brand', schoolBrand());
+  setIcons(b);
+  const logo = document.getElementById('brand-logo');
+  if (logo) drawTopLogo(logo);
+  const systems = document.getElementById('sys-btn'); // the Systems menu, made before the branding came
+  if (systems) for (const a of ['title', 'aria-label']) systems.setAttribute(a, `${brand()} systems`);
+}
+
+// The browser tab's icon and the phone's home-screen icon: the school's seal when its brand leads,
+// else ATLAS's (the ones in each page's <head>, kept to switch back).
+function setIcons(b) {
+  const seal = schoolBrand() && b.logo ? b.logo : '';
+  for (const link of document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')) {
+    if (link.dataset.atlasHref === undefined) {
+      link.dataset.atlasHref = link.getAttribute('href') || '';
+      link.dataset.atlasType = link.getAttribute('type') || '';
+      link.dataset.atlasSizes = link.getAttribute('sizes') || '';
+    }
+    link.href = seal || link.dataset.atlasHref;
+    if (link.dataset.atlasType) link.type = seal ? seal.slice(5, seal.indexOf(';')) : link.dataset.atlasType;
+    if (link.dataset.atlasSizes) {
+      if (seal) link.removeAttribute('sizes');
+      else link.setAttribute('sizes', link.dataset.atlasSizes);
+    }
+  }
 }
 
 // ----- ATLAS identity (docs/BRAND.md) -----
@@ -31,9 +70,23 @@ export const markSrc = (onDark = false) => `/img/brand/atlas-mark${onDark ? '-da
 // The school's own logo when an administrator uploaded one, else the ATLAS mark.
 export const logoSrc = (b = ctx.info?.branding, onDark = false) => b?.logo || markSrc(onDark);
 // The wordmark in the top bar: ATLAS, then the open product (or the byline on the home page).
-export const atlasWord = (sub = BYLINE) => html`<span class="atlas-word"><strong>ATLAS</strong>${sub ? html`<em>${sub}</em>` : ''}</span>`;
+// When the school's brand leads, its short name instead ("<short> Learn"), and no byline.
+export const atlasWord = (sub) => {
+  const line = sub === undefined ? (schoolBrand() ? '' : BYLINE) : sub;
+  return html`<span class="atlas-word${schoolBrand() ? ' school-word' : ''}"><strong>${brand()}</strong>${line ? html`<em>${line}</em>` : ''}</span>`;
+};
 // The mark in light and dark versions; CSS shows the one that fits the theme.
 const themedMark = (cls = '') => html`<img class="${cls} mark-lt" src="${markSrc(false)}" alt="" /><img class="${cls} mark-dk" src="${markSrc(true)}" alt="" />`;
+// "Powered by ATLAS" with the small mark: the only ATLAS credit when the school's brand leads.
+export const poweredBy = (cls = '') => html`<span class="powered-by ${cls}">${themedMark('powered-mark')}<span>Powered by ATLAS</span></span>`;
+// The top bar's picture: ATLAS's mark (light or dark), or the school's seal as uploaded when its
+// brand leads (none until one is uploaded: the short name stands alone).
+function drawTopLogo(img) {
+  const seal = schoolBrand() ? currentBrand().logo || '' : '';
+  img.src = seal || markSrc(isDark());
+  img.classList.toggle('seal', Boolean(seal));
+  img.hidden = schoolBrand() && !seal;
+}
 
 export const isDark = () => document.documentElement.dataset.theme === 'dark';
 export function setTheme(dark) {
@@ -50,7 +103,7 @@ export function renderThemeButton() {
   btn.innerHTML = iconSvg(isDark() ? 'sun' : 'moon');
   btn.title = isDark() ? 'Light mode' : 'Dark mode';
   const logo = document.getElementById('brand-logo');
-  if (logo) logo.src = markSrc(isDark());
+  if (logo) drawTopLogo(logo);
 }
 
 // ----- Sign-in screens -----
@@ -61,17 +114,25 @@ const ADMIN_POINTS = [['clipboard', 'Enrollment'], ['layers', 'Catalog'], ['togg
 // inside a double rule, and what this sign-in opens along the bottom. Help and dark mode sit above.
 const appLine = () => {
   const app = document.body.dataset.app || 'ATLAS';
-  return app === 'ATLAS' ? 'ATLAS' : app.replace(/^ATLAS /, 'ATLAS · ').replace(/ · Admin$/, ' · Admin panel');
+  return brandText(app === 'ATLAS' ? 'ATLAS' : app.replace(/^ATLAS /, 'ATLAS · ').replace(/ · Admin$/, ' · Admin panel'));
 };
 export function authPlate(el, { line = appLine(), ledger = [], card }) {
   const b = ctx.info?.branding || {};
   const campus = ctx.info?.campusName;
   const open = ledger.filter(([, later]) => !later);
   const soon = ledger.filter(([, later]) => later);
+  // The lockup: ATLAS's mark and name, or the school's seal and short name when its brand leads.
+  const school = schoolBrand();
+  const lockup = school
+    ? html`${b.logo ? html`<img class="auth-bar-mark seal" src="${b.logo}" alt="" />` : ''}<strong class="school-lockup">${brand()}</strong>`
+    : html`${themedMark('auth-bar-mark')}<strong>ATLAS</strong>`;
+  const seal = b.logo
+    ? html`<img src="${b.logo}" alt="" />`
+    : school ? html`<span class="plate-initials">${brand()}</span>` : html`<img src="/img/brand/atlas-mark-white.svg" alt="" />`;
   mount(el, html`
     <div class="auth-screen">
       <header class="auth-bar">
-        <a class="auth-lockup" href="/">${themedMark('auth-bar-mark')}<strong>ATLAS</strong></a>
+        <a class="auth-lockup" href="/">${lockup}</a>
         <nav class="auth-links" aria-label="Help and display">
           <a href="/help/" aria-label="Help and guides">${icon('help', 16)} <span>Help &amp; guides</span></a>
           <button type="button" class="link auth-theme" id="auth-theme"></button>
@@ -79,7 +140,7 @@ export function authPlate(el, { line = appLine(), ledger = [], card }) {
       </header>
       <main class="auth-panel">
         <div class="plate">
-          <div class="plate-seal${b.logo ? ' own' : ''}"><img src="${b.logo || '/img/brand/atlas-mark-white.svg'}" alt="" /></div>
+          <div class="plate-seal${b.logo ? ' own' : ''}">${seal}</div>
           <div class="plate-frame">
             <p class="plate-ex">Ex libris</p>
             <h1 class="plate-school">${b.schoolName || 'ATLAS'}</h1>
@@ -87,6 +148,7 @@ export function authPlate(el, { line = appLine(), ledger = [], card }) {
             <div class="plate-rule" aria-hidden="true"><span></span></div>
             ${b.tagline ? html`<p class="plate-tag">${b.tagline}</p>` : ''}
             ${card}
+            ${school ? html`<p class="auth-powered">${poweredBy()}</p>` : ''}
           </div>
         </div>
       </main>
@@ -190,7 +252,7 @@ window.addEventListener('unhandledrejection', (e) => {
 export function ssoBlock(sso, next = '/') {
   if (!sso?.enabled) return '';
   return html`<a class="btn primary block sso-btn" href="/api/sso/start?next=${encodeURIComponent(next)}">${icon('key', 18)} ${sso.label}</a>
-    ${sso.passwords ? html`<div class="auth-or"><span>or with your ATLAS password</span></div>` : ''}`;
+    ${sso.passwords ? html`<div class="auth-or"><span>or with your ${schoolBrand() ? '' : 'ATLAS '}password</span></div>` : ''}`;
 }
 export const passwordFields = (sso, fields) => (sso?.enabled && !sso.passwords
   ? html`<details class="pw-details"><summary>Administrator sign-in</summary><div class="stack">${fields}</div></details>`
@@ -310,7 +372,15 @@ export function startApp(config) {
           ? html`<a href="${n.href}" target="_blank" rel="noopener" title="${n.label}">${icon(n.icon || 'external')}<span class="label">${n.label}</span></a>`
           : html`<a href="#${n.href}" title="${n.label}" data-href="${n.href}" data-also="${(n.also || []).join(' ')}" ${n.exact ? 'data-exact' : ''}>${icon(n.icon || 'file')}<span class="label">${n.label}</span>${n.badge ? html`<span class="nav-badge" data-badge="${n.badge}" hidden></span>` : ''}</a>`,
     )}`);
-    document.getElementById('side-foot').textContent = `ATLAS · ${BYLINE}`;
+    document.getElementById('side-foot').textContent = schoolBrand() ? 'Powered by ATLAS' : `ATLAS · ${BYLINE}`;
+  }
+
+  // The sidebar item of the page on screen.
+  function highlightNav(path) {
+    const links = [...document.querySelectorAll('#nav a[data-href]')];
+    const hits = (a) => [a.dataset.href, ...a.dataset.also.split(' ').filter(Boolean)].some((p) => path === p || (!a.hasAttribute('data-exact') && path.startsWith(p + '/')));
+    const best = links.filter(hits).sort((a, b) => b.dataset.href.length - a.dataset.href.length)[0];
+    links.forEach((a) => a.classList.toggle('active', a === best));
   }
 
   // This app's address, as Quick access keeps it ('/lms/', '/admin', '/hris/'…).
@@ -417,10 +487,7 @@ export function startApp(config) {
     if (!match || !match.allowed(ctx.user, ctx.info)) return (location.hash = `#${config.home()}`);
     const params = Object.fromEntries(match.keys.map((k, i) => [k, decodeURIComponent(path.match(match.re)[i + 1])]));
 
-    const links = [...document.querySelectorAll('#nav a[data-href]')];
-    const hits = (a) => [a.dataset.href, ...a.dataset.also.split(' ').filter(Boolean)].some((p) => path === p || (!a.hasAttribute('data-exact') && path.startsWith(p + '/')));
-    const best = links.filter(hits).sort((a, b) => b.dataset.href.length - a.dataset.href.length)[0];
-    links.forEach((a) => a.classList.toggle('active', a === best));
+    highlightNav(path);
 
     runCleanup();
     refreshBadges();
@@ -490,6 +557,14 @@ export function startApp(config) {
 
   ctx.refreshBadges = refreshBadges;
   ctx.reload = () => boot();
+  // The top bar and the sidebar again, in new branding (Settings → Branding), the page staying as it is.
+  ctx.redrawFrame = (branding) => {
+    if (branding) ctx.info.branding = branding;
+    renderTop();
+    renderNav();
+    highlightNav(location.hash.replace(/^#/, '').split('?')[0] || config.home());
+    refreshBadges();
+  };
   window.addEventListener('hashchange', navigate);
   window.addEventListener('badges:changed', refreshBadges);
   window.addEventListener('auth:expired', () => {

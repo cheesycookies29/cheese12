@@ -11,6 +11,7 @@ import { mergeSettings } from './db.js';
 import { nextNumber, previewNumber } from './numbering.js';
 import { DEFAULT_NUMBERING, NUMBERING_LABELS, formatProblem } from '../shared/numbering.js';
 import { THEMES, HEX_RE } from '../shared/themes.js';
+import { BRAND_MODES, SHORT_NAME_MAX } from '../shared/brand.js';
 import { SYSTEMS, SYSTEM_STATUS, TOOLS, TOOL_ROLES } from '../shared/systems.js';
 import { TWO_FACTOR_POLICIES, twoFactorRequired } from '../shared/two-factor.js';
 import { hasTwoFactor } from './two-factor.js';
@@ -739,7 +740,17 @@ export function registerAdminRoutes(route, ctx) {
       const logo = b.logo === undefined ? s.branding.logo : String(b.logo || '');
       if (logo && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(logo)) fail('The logo must be a PNG, JPEG or WebP picture.');
       if (logo.length > 400 * 1024) fail('The logo is too large; use a picture under 300 KB.');
-      s.branding = { theme, color: theme === 'custom' ? b.color : '', logo, tagline: text(b.tagline ?? s.branding.tagline, 160) };
+      // The custom theme's accent: optional (ATLAS's gold without one); kept when not sent.
+      const accent = theme !== 'custom' ? '' : String((b.accent === undefined ? s.branding.accent : b.accent) || '');
+      if (accent && !HEX_RE.test(accent)) fail('The accent colour must be a colour like #c28618.');
+      // Whose brand leads: ATLAS (the default), or the school, powered by ATLAS (shared/brand.js).
+      const mode = b.mode === undefined ? s.branding.mode || 'atlas' : b.mode;
+      if (!BRAND_MODES.includes(mode)) fail('Choose whose brand leads: ATLAS, or your school.');
+      const shortName = String(b.shortName === undefined ? s.branding.shortName || '' : b.shortName ?? '').replace(/\s+/g, ' ').trim();
+      if (shortName.length > SHORT_NAME_MAX) fail(`The short name is too long: at most ${SHORT_NAME_MAX} characters, like the initials the school goes by.`);
+      if (/[<>]/.test(shortName)) fail('The short name cannot contain < or >.');
+      if (mode === 'school' && !shortName) fail('Type the school\'s short name: it leads every system in place of ATLAS.');
+      s.branding = { theme, color: theme === 'custom' ? b.color : '', accent, logo, tagline: text(b.tagline ?? s.branding.tagline, 160), mode, shortName };
     }
     data().settings = s;
     save();

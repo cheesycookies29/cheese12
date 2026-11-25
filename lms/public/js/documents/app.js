@@ -11,6 +11,7 @@ import { docs, isStudent, isManager } from './state.js';
 import { folderView, schoolFoldersView, listView, linksView } from './views/files.js';
 import { documentView } from './views/document.js';
 import { documentControlView } from '../admin/views/documents.js';
+import { brandHome, brandProduct } from '../brand.js';
 
 const staff = () => !isStudent();
 const routes = [
@@ -45,8 +46,8 @@ function nav() {
 function signedOutView(el, { status }) {
   if (status.deniedUser) {
     return authScreen(el, {}, html`<div class="auth-card"><h2>Documents is for the school</h2>
-      <p class="muted">You are signed in as ${status.deniedUser.name}. ATLAS Documents is for the school's employees and students. Your systems are on the ATLAS home page.</p>
-      <a class="btn primary block" href="/">Back to ATLAS home</a></div>`);
+      <p class="muted">You are signed in as ${status.deniedUser.name}. ${brandProduct('Documents')} is for the school's employees and students. Your systems are on the ${brandHome()} page.</p>
+      <a class="btn primary block" href="/">Back to ${brandHome()}</a></div>`);
   }
   location.replace(`/?next=${encodeURIComponent('/documents/')}`);
 }

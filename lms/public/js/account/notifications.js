@@ -12,6 +12,7 @@ import { NOTIFY_SYSTEMS, isAtlasLink } from '/shared/notifications.js';
 import { avatar, loadAvatars } from './avatars.js';
 import { popover, accountHref } from './topbar.js';
 import { badgeText, bellLabel, relTime, groupByDay } from './notify-format.js';
+import { brand } from '../brand.js';
 
 const POLL_MS = 60000;
 const PANEL_SIZE = 20;
@@ -201,7 +202,7 @@ export async function notificationsView(el, _params, query = {}) {
   const systems = NOTIFY_SYSTEMS.filter((s) => s.id === 'account' || SYSTEMS.find((x) => x.id === s.id)?.audience.includes(role));
   const state = { system: systems.some((s) => s.id === query.system) ? query.system : '', unread: query.unread === '1', items: [], more: false, unreadCount: 0 };
   mount(el, html`
-    ${pageHead('Notifications', 'What others did that concerns you, from every ATLAS system, newest first. Notifications older than 60 days are removed.', html`<button type="button" class="btn" id="nf-readall" disabled>${icon('check', 16)} Mark all as read</button>`)}
+    ${pageHead('Notifications', 'What others did that concerns you, from every ${brand()} system, newest first. Notifications older than 60 days are removed.', html`<button type="button" class="btn" id="nf-readall" disabled>${icon('check', 16)} Mark all as read</button>`)}
     <section class="card notif-page">
       <div class="toolbar">
         ${systems.length > 1 ? html`<select id="nf-system" aria-label="System"><option value="">All systems</option>${systems.map((s) => html`<option value="${s.id}" ${state.system === s.id ? 'selected' : ''}>${s.label}</option>`)}</select>` : ''}

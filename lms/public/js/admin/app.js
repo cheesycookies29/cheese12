@@ -24,6 +24,7 @@ import { guardiansView, guardianView } from './views/guardians.js';
 import { configView } from './views/config.js';
 import { schoolCalendarView } from './views/calendar.js';
 import { documentControlView } from './views/documents.js';
+import { brandHome, brandProduct } from '../brand.js';
 
 const p = (permission) => (user) => userCan(user, permission);
 
@@ -63,13 +64,13 @@ const routes = [
 // Deans (and anyone else here without the panel's pages) work in ATLAS Academic.
 function elsewhereView(el) {
   mount(el, html`<div class="card empty">${icon('cap', 40)}<h2>The Admin panel is for administrators and registrars</h2>
-    <p>Your work is in ATLAS Academic: grade sheets, grade changes, curricula and your students' records.</p>
-    <a class="btn primary" href="/academic/">Open ATLAS Academic</a> <a class="btn" href="/">ATLAS home</a></div>`);
+    <p>Your work is in ${brandProduct('Academic')}: grade sheets, grade changes, curricula and your students' records.</p>
+    <a class="btn primary" href="/academic/">Open ${brandProduct('Academic')}</a> <a class="btn" href="/">${brandHome()}</a></div>`);
 }
 
 function nav() {
   const c = (perm) => userCan(ctx.user, perm);
-  if (!c('dashboard')) return [{ href: '/elsewhere', label: 'ATLAS Academic', icon: 'cap' }, { href: '/', label: 'ATLAS home', icon: 'grid', external: true }];
+  if (!c('dashboard')) return [{ href: '/elsewhere', label: brandProduct('Academic'), icon: 'cap' }, { href: '/', label: brandHome(), icon: 'grid', external: true }];
   return [
     { href: '/dashboard', label: 'Dashboard', icon: 'home' },
     { heading: 'Enrollment' },
@@ -102,7 +103,7 @@ function nav() {
       { href: '/cloudflare', label: 'Cloudflare', icon: 'cloud' },
     ]),
     { heading: 'Elsewhere' },
-    { href: '/', label: 'ATLAS home', icon: 'grid', external: true },
+    { href: '/', label: brandHome(), icon: 'grid', external: true },
   ].filter(Boolean);
 }
 
@@ -138,7 +139,7 @@ function signedOutView(el, { status, boot }) {
       ${passwordField('Password', 'password', 'current-password')}
       <button class="btn ${status.sso?.enabled ? '' : 'primary'} block" type="submit">Sign in</button>`)}
       <p class="form-error" hidden></p>
-      <p class="auth-switch">Teacher, student or parent? <a href="/">Sign in on the ATLAS home page</a></p>
+      <p class="auth-switch">Teacher, student or parent? <a href="/">Sign in on the ${brandHome()} page</a></p>
     </form>`);
   showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {

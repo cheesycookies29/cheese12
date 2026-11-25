@@ -58,7 +58,8 @@ const APP_VERSION = (() => {
   }
 })();
 import { themeColors } from '../shared/themes.js';
-import { SYSTEMS } from '../shared/systems.js';
+import { brandName, productName, isSchoolBrand } from '../shared/brand.js';
+import { SYSTEMS, systemName } from '../shared/systems.js';
 import { campusesFor, activeCampusId, campusName } from './campus.js';
 import { registerHrisRoutes } from './hris.js';
 import { registerGuardianRoutes, guardianChildren } from './guardian.js';
@@ -297,9 +298,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     refuse('wrong sign-in page', () => {
       if (ROLES[user.role]?.side !== side) {
         fail(ROLES[user.role]?.side === 'hris'
-          ? 'HR and staff accounts sign in on the ATLAS home page and open People.'
+          ? `HR and staff accounts sign in on the ${brandName(db.data.settings.branding)} home page and open People.`
           : side === 'admin'
-            ? 'Teachers and students sign in on the ATLAS home page, not the admin panel.'
+            ? `Teachers and students sign in on the ${brandName(db.data.settings.branding)} home page, not the admin panel.`
             : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
       }
     });
@@ -369,7 +370,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const branding = () => {
     const b = db.data.settings.branding;
     const term = db.data.terms.find((t) => t.id === db.data.settings.currentTermId);
-    return { schoolName: db.data.settings.schoolName, ...themeColors(b), theme: b.theme, logo: b.logo, tagline: b.tagline, termName: term?.name || '' };
+    // mode and shortName: whose brand leads (shared/brand.js); the sign-in pages need them too.
+    return { schoolName: db.data.settings.schoolName, ...themeColors(b), theme: b.theme, logo: b.logo, tagline: b.tagline, termName: term?.name || '', mode: isSchoolBrand(b) ? 'school' : 'atlas', shortName: b.shortName || '', brandName: brandName(b) };
   };
   // The campuses an account can switch between, and the one it is looking at.
   const campusInfo = (user) => {
@@ -449,7 +451,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const portalSystems = (user, side) => SYSTEMS
     .map((s) => {
       const cfg = s.builtIn ? { status: 'live', url: '' } : db.data.settings.systems[s.id] || { status: 'soon', url: '' };
-      return { ...s, status: cfg.status, url: s.builtIn ? (s.id === 'lms' && side === 'admin' ? '/admin' : s.path) : cfg.url, external: !s.builtIn };
+      // A system named after its product ("ATLAS Learn") carries the brand: "<short> Learn" in school mode.
+      return { ...s, name: systemName(s, db.data.settings.branding), status: cfg.status, url: s.builtIn ? (s.id === 'lms' && side === 'admin' ? '/admin' : s.path) : cfg.url, external: !s.builtIn };
     })
     .filter((s) => s.status !== 'hidden' && (!user || s.audience.includes(user.role)))
     .map(({ audience, ...s }) => (user ? s : { ...s, url: '' }));
@@ -1014,7 +1017,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
           // ATLAS Documents (server/documents.js): every employee and student; not parents.
           [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
           if (!user) fail('Please sign in.', 401);
-          if (user.role === 'guardian') fail('ATLAS Documents is for the school\'s employees and students.', 403);
+          if (user.role === 'guardian') fail(`${productName(db.data.settings.branding, 'Documents')} is for the school's employees and students.`, 403);
           const permission = r.access.split(':')[1];
           if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access.startsWith('admin')) {

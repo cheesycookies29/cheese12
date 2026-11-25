@@ -4,6 +4,7 @@
 import { ctx } from '../../shell.js';
 import { html, money, amount, fmtDate, fmtMinutes, badge, downloadFile, toCsv } from '../../ui.js';
 import { BONUS_KINDS } from '/shared/gov-pay.js';
+import { brandProduct } from '../../brand.js';
 
 export const runTitle = (r) => r.name || `${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}`;
 export const isBonusRun = (r) => r.kind && r.kind !== 'regular';
@@ -308,7 +309,7 @@ export function financeView(run, f, { canEdit }) {
   const dv = f.dv && f.dv.status !== 'cancelled' ? f.dv : null;
   const classes = [...new Set(e.lines.map((l) => l.cls))];
   return html`
-    <p class="muted small">How this payroll is paid in ATLAS Finance (COA): the payroll office prepares the obligation request and the voucher (Box A); the budget office obligates (Box B); the accountant certifies (Box C), the head of agency approves (Box D) and the cashier pays by LDDAP-ADA, which posts the journal entry. Then what was withheld is remitted.</p>
+    <p class="muted small">How this payroll is paid in ${brandProduct('Finance')} (COA): the payroll office prepares the obligation request and the voucher (Box A); the budget office obligates (Box B); the accountant certifies (Box C), the head of agency approves (Box D) and the cashier pays by LDDAP-ADA, which posts the journal entry. Then what was withheld is remitted.</p>
     <ol class="fin-steps">
       ${step(1, 'Obligation request', ors
         ? html`<p>${finLink(`/obligations/${ors.id}`, `${ors.form} ${ors.no || '(number given when obligated)'}`)} · ${money(ors.amount)} ${docBadge(ors)}${ors.status === 'draft' ? html` <span class="muted small">with the budget office for Box B</span>` : ''}</p>`

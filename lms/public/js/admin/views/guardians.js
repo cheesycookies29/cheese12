@@ -7,6 +7,7 @@ import { icon } from '../../icons.js';
 import { GUARDIAN_VIEWS, RELATIONSHIPS } from '/shared/guardians.js';
 import { userDialog, resetPasswordDialog } from './people.js';
 import { filterRows } from '../common.js';
+import { brandHome } from '../../brand.js';
 
 const VIEW = Object.fromEntries(GUARDIAN_VIEWS.map((v) => [v.id, v]));
 const sees = (views) => {
@@ -41,7 +42,7 @@ export async function newGuardianDialog({ student = null } = {}, onDone) {
     async onSubmit(form) {
       const v = formData(form);
       const g = await api.post('/api/admin/guardians', { ...v, studentId: student?.id || v.studentId, views: readViews(form), mustChangePassword: true });
-      toast(`${g.name} added. They sign in on the ATLAS home page with the username ${g.username}.`);
+      toast(`${g.name} added. They sign in on the ${brandHome()} page with the username ${g.username}.`);
       onDone(g);
     },
   });
@@ -97,7 +98,7 @@ async function removeLink(link, names, onDone) {
 export async function guardiansView(el) {
   const list = await api.get('/api/admin/guardians');
   mount(el, html`
-    ${pageHead('Parents & guardians', 'Accounts for parents and guardians, the students each one follows, and what each can see. They sign in on the ATLAS home page and open Learn.', html`<button class="btn primary" id="add">${icon('userPlus', 16)} Add parent or guardian</button>`)}
+    ${pageHead('Parents & guardians', `Accounts for parents and guardians, the students each one follows, and what each can see. They sign in on the ${brandHome()} page and open Learn.`, html`<button class="btn primary" id="add">${icon('userPlus', 16)} Add parent or guardian</button>`)}
     ${list.length ? html`<input type="search" placeholder="Search name, username or student" style="margin-bottom:12px" />
       <div class="card scroll-x"><table class="table clickable">
       <thead><tr><th>Parent or guardian</th><th>Students</th><th>Contact</th><th>Status</th><th>Last sign-in</th></tr></thead>

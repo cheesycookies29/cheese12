@@ -1,11 +1,13 @@
 // School details, enrollment rules, student applications; demo data and backups.
 import { api } from '../../api.js';
 import { html, mount, toast, option, formData, confirmDialog, downloadFile, today } from '../../ui.js';
-import { pageHead, ctx, applyBranding, logoSrc } from '../../shell.js';
+import { pageHead, ctx, applyBranding, logoSrc, markSrc, isDark } from '../../shell.js';
 import { userCan } from '/shared/roles.js';
-import { THEMES, themeColors } from '/shared/themes.js';
+import { THEMES, themeColors, inkOn, contrast } from '/shared/themes.js';
 import { icon } from '../../icons.js';
 import { NUMBERING_LABELS } from '/shared/numbering.js';
+import { brandHome, schoolBrand } from '../../brand.js';
+import { isSchoolBrand, brandName } from '/shared/brand.js';
 
 // Resizes a picked logo to at most 400 px wide, as PNG, so it stays small.
 function shrinkLogo(file) {
@@ -24,12 +26,34 @@ function shrinkLogo(file) {
   });
 }
 
+// Settings → Branding: the top bar and the sign-in lockup as they would look with these choices.
+function brandPreview(b) {
+  const school = isSchoolBrand(b);
+  const name = brandName(b);
+  const seal = school ? b.logo : '';
+  const ink = inkOn(b.accent);
+  const mark = html`<img src="${markSrc(isDark())}" alt="" />`;
+  return html`<div class="bp" style="--brand:${b.brand};--accent:${b.accent};--bp-ink:${ink}">
+    <div class="bp-part"><span class="bp-label">Top bar</span>
+      <div class="bp-top">${school ? (seal ? html`<img class="bp-seal-img" src="${seal}" alt="" />` : '') : mark}<span class="bp-word${school ? ' school' : ''}"><strong>${name}</strong><em>Learn</em></span><span class="bp-school">${b.schoolName}</span><span class="bp-badge" title="A count on the accent">3</span></div></div>
+    <div class="bp-part"><span class="bp-label">Sign-in page</span>
+      <div class="bp-auth">
+        <div class="bp-lockup">${school ? html`${seal ? html`<img src="${seal}" alt="" />` : ''}<strong class="school">${name}</strong>` : html`${mark}<strong>ATLAS</strong>`}</div>
+        <div class="bp-plate"><span class="bp-plate-seal${b.logo ? ' own' : ''}">${b.logo ? html`<img src="${b.logo}" alt="" />` : school ? html`<b>${name}</b>` : html`<img src="/img/brand/atlas-mark-white.svg" alt="" />`}</span>
+          <strong>${b.schoolName}</strong><small>${name} · Sign in</small>
+          ${school ? html`<span class="bp-powered"><img src="${markSrc(isDark())}" alt="" />Powered by ATLAS</span>` : ''}</div>
+      </div></div>
+    ${b.mode === 'school' && !school ? html`<p class="hint negative">Type the short name to lead with your school.</p>` : ''}
+    <p class="hint">Text on the accent: ${ink === '#ffffff' ? 'white' : 'dark'} (${contrast(b.accent, ink).toFixed(1)}:1; 4.5:1 or more reads well).</p>
+  </div>`;
+}
+
 export async function settingsView(el) {
   const [s, terms] = await Promise.all([api.get('/api/admin/settings'), api.get('/api/admin/terms')]);
   const editable = userCan(ctx.user, 'settings.edit');
   const dis = editable ? '' : 'disabled';
   mount(el, html`
-    ${pageHead('Settings & branding', 'School details, how ATLAS looks, enrollment rules, sign-in and passwords, uploads and quizzes, and how new numbers look.')}
+    ${pageHead('Settings & branding', `School details, how ${schoolBrand() ? 'the systems look' : 'ATLAS looks'}, enrollment rules, sign-in and passwords, uploads and quizzes, and how new numbers look.`)}
     ${!editable ? html`<div class="notice"><p>Only administrators can change these.</p></div>` : ''}
     <form id="settings" class="stack">
       <section class="card"><h2>School</h2><div class="grid">
@@ -44,20 +68,31 @@ export async function settingsView(el) {
         <label class="field"><span>Maximum units per term</span><input type="number" name="maxUnits" min="0" step="0.5" value="${s.enrollment.maxUnits}" ${dis} /><span class="hint">Counts enrolled, pending and waitlisted classes. 0 = no limit.</span></label>
       </div>
       <p class="hint">Every request is also checked for: the term's enrollment window, the section's enrollment key, prerequisites passed, already passed or already taking the course, and schedule conflicts. The registrar can override these when adding a student by hand.</p></section>
-      <section class="card"><h2>Branding</h2>
-        <p class="muted" style="margin-top:-6px">One colour runs through the portal, the admin panel and the sign-in pages.</p>
+      <section class="card" id="branding"><h2>Branding</h2>
+        <p class="muted" style="margin-top:-6px">How every system looks: whose name and mark lead, the colours, and the school's seal. They show across every system: the home page, Learn, Academic, People, Finance, Documents, Tools, Help and the sign-in pages.</p>
+        <div class="brand-top"><div>
+        <fieldset class="brand-modes" ${dis}><legend>Brand</legend>
+          <label class="brand-mode"><input type="radio" name="brandMode" value="atlas" ${s.branding.mode !== 'school' ? 'checked' : ''} /><span><strong>ATLAS (default)</strong><small>ATLAS's mark and name lead the top bar and the sign-in pages; your school's name shows beside them.</small></span></label>
+          <label class="brand-mode"><input type="radio" name="brandMode" value="school" ${s.branding.mode === 'school' ? 'checked' : ''} /><span><strong>Our school, powered by ATLAS</strong><small>Your seal and short name lead every system ("<span data-short>${s.branding.shortName || 'Short name'}</span> Learn", "<span data-short>${s.branding.shortName || 'Short name'}</span> home") and the browser tab; ATLAS shows only as a small "Powered by ATLAS".</small></span></label>
+        </fieldset>
+        <label class="field" style="margin-top:12px"><span>School short name</span><input name="shortName" value="${s.branding.shortName || ''}" maxlength="24" placeholder="e.g. the school's initials" autocomplete="off" ${dis} /><span class="hint">The name the school goes by, up to 24 characters. Needed for "Our school, powered by ATLAS".</span></label>
+        </div>
+        <div><h3 class="brand-sub-head first">Preview</h3><div class="brand-preview" id="brand-preview"></div></div></div>
+        <h3 class="brand-sub-head">Colours</h3>
         <div class="swatches">${Object.entries(THEMES).map(([k, t]) => html`<label class="swatch"><input type="radio" name="theme" value="${k}" ${s.branding.theme === k ? 'checked' : ''} ${dis} /><i style="background:linear-gradient(135deg, ${t.brand} 60%, ${t.accent} 60%)"></i>${t.label}</label>`)}
-          <label class="swatch"><input type="radio" name="theme" value="custom" ${s.branding.theme === 'custom' ? 'checked' : ''} ${dis} /><i style="background:${s.branding.color || '#888'}" id="custom-dot"></i>School colour <input type="color" name="color" value="${s.branding.color || '#166534'}" ${dis} style="width:56px;height:28px" /></label></div>
+          <label class="swatch"><input type="radio" name="theme" value="custom" ${s.branding.theme === 'custom' ? 'checked' : ''} ${dis} /><i id="custom-dot"></i>School colour <input type="color" name="color" value="${s.branding.color || '#166534'}" aria-label="School colour" ${dis} style="width:56px;height:28px" /></label>
+          <label class="swatch">Accent <input type="color" name="accent" value="${s.branding.accent || '#c28618'}" aria-label="Accent colour (for the school colour)" ${dis} style="width:56px;height:28px" /></label></div>
+        <p class="hint" style="margin-top:8px">The accent (badges, highlights, the gold rule on the sign-in pages) goes with the school colour; the presets have their own. Text on it is set dark or white, whichever reads better.</p>
         <div class="grid" style="margin-top:16px">
           <div class="field span-2"><span>School logo or seal</span>
             <div class="logo-box"><img id="logo-preview" src="${logoSrc(s.branding)}" alt="" />
               <div class="stack tight"><label class="btn sm">${icon('upload', 15)} Upload logo<input type="file" id="logo" accept="image/png,image/jpeg,image/webp" hidden ${dis} /></label>
-                ${s.branding.logo ? html`<button type="button" class="link" id="logo-reset">Remove the school logo</button>` : ''}<span class="hint">Shown on the sign-in pages and on payslips. A square seal or a wide logo both work.</span></div></div></div>
+                ${s.branding.logo ? html`<button type="button" class="link" id="logo-reset">Remove the school logo</button>` : ''}<span class="hint">Shown on the sign-in pages and on payslips; with "Our school, powered by ATLAS", also in the top bar of every system and as the browser tab's icon, as uploaded (light and dark). A square seal on a transparent background works best; a wide logo works too.</span></div></div></div>
           <label class="field"><span>Sign-in headline</span><input name="tagline" value="${s.branding.tagline}" placeholder="Learning, all in one place." maxlength="160" ${dis} /></label>
         </div>
       </section>
       <section class="card"><h2>Student applications</h2>
-        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ATLAS home page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
+        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ${brandHome()} page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
       </section>
       <section class="card" id="security"><h2>Sign-in and passwords</h2>
         <p class="muted">Password rules, lock-out, idle sign-out and rate limits apply to every system, so administrators set them under <strong>System → Sign-in and passwords</strong>.${ctx.user.role === 'admin' ? html` <a href="#/sign-in">Open Sign-in and passwords</a>.` : ''}</p>
@@ -86,19 +121,32 @@ export async function settingsView(el) {
   }));
   let logo = s.branding.logo;
   const form = el.querySelector('#settings');
-  // Preview the colour right away.
+  // The colours as chosen, and the preview of the top bar and the sign-in lockup.
+  const colours = (v = formData(form)) => themeColors({ theme: v.theme, color: v.color, accent: v.accent });
+  const preview = () => {
+    const v = formData(form);
+    const c = colours(v);
+    const b = { ...ctx.info.branding, ...c, theme: v.theme, logo, schoolName: v.schoolName || s.schoolName, mode: v.brandMode, shortName: String(v.shortName || '').trim() };
+    el.querySelector('#custom-dot').style.background = `linear-gradient(135deg, ${v.color} 60%, ${v.accent} 60%)`;
+    el.querySelectorAll('[data-short]').forEach((x) => (x.textContent = b.shortName || 'Short name'));
+    mount(el.querySelector('#brand-preview'), brandPreview(b));
+  };
+  preview();
+  form.addEventListener('input', preview);
   form.addEventListener('change', (e) => {
-    if (e.target.name === 'theme' || e.target.name === 'color') {
+    if (['theme', 'color', 'accent'].includes(e.target.name)) {
+      if (e.target.name !== 'theme') form.querySelector('input[value=custom]').checked = true;
+      // The page itself takes the colours at once, so they can be tried before saving.
       const v = formData(form);
-      if (e.target.name === 'color') form.querySelector('input[value=custom]').checked = true;
-      el.querySelector('#custom-dot').style.background = v.color;
-      applyBranding(themeColors({ theme: formData(form).theme, color: v.color }));
+      applyBranding({ ...ctx.info.branding, ...colours(v), theme: v.theme });
     }
+    preview();
   });
   el.querySelector('#logo')?.addEventListener('change', async (e) => {
     try {
       logo = await shrinkLogo(e.target.files[0]);
       el.querySelector('#logo-preview').src = logo;
+      preview();
       toast('Logo ready. Save settings to use it.');
     } catch (err) {
       toast(err.message, 'error');
@@ -107,6 +155,7 @@ export async function settingsView(el) {
   el.querySelector('#logo-reset')?.addEventListener('click', () => {
     logo = '';
     el.querySelector('#logo-preview').src = logoSrc({});
+    preview();
   });
   el.querySelector('#settings').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -118,14 +167,14 @@ export async function settingsView(el) {
         passingGrade: v.passingGrade,
         enrollment: { requireApproval: Boolean(v.requireApproval), allowWaitlist: Boolean(v.allowWaitlist), waitlistLimit: v.waitlistLimit, maxUnits: v.maxUnits },
         registration: { open: Boolean(v.registrationOpen) },
-        branding: { theme: v.theme, color: v.color, logo, tagline: v.tagline },
+        branding: { theme: v.theme, color: v.color, accent: v.accent, logo, tagline: v.tagline, mode: v.brandMode, shortName: v.shortName },
         learn: { maxUploadMb: v.maxUploadMb, quizGraceSeconds: v.quizGraceSeconds, absenceAlert: v.absenceAlert },
         numbering: Object.fromEntries(Object.keys(NUMBERING_LABELS).map((k) => [k, v[`num-${k}`]])),
       });
-      ctx.info.branding = { ...ctx.info.branding, schoolName: v.schoolName, ...themeColors({ theme: v.theme, color: v.color }), logo, tagline: v.tagline };
-      applyBranding(ctx.info.branding);
+      // The top bar, the sidebar and the tab in the new branding, then this page ("Remove the school logo" after an upload).
+      ctx.redrawFrame((await api.get(`${ctx.authBase}/status`)).branding);
       toast('Settings saved.');
-      settingsView(el); // shows "Remove the school logo" after an upload
+      settingsView(el);
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -141,7 +190,7 @@ export async function dataView(el) {
         and a current term with enrollment open, 21 courses with prerequisites, about 40 sections this term (one full with a waitlist, one with an enrollment key), 18 teachers,
         about 190 students across four campuses, 11 applicants and about 40 parents and guardians: some 260 accounts. Every class has lessons, announcements,
         a course outline, graded work, a quiz most students have taken, and attendance; plus school news and events, and People records, attendance and payroll.</p>
-      <p>Sign in on the ATLAS home page as <code>student.demo</code> (Carlo Reyes) or <code>teacher.demo</code> (Maria Santos), or as <code>registrar.demo</code>. Password <code>demo1234</code>.
+      <p>Sign in on the ${brandHome()} page as <code>student.demo</code> (Carlo Reyes) or <code>teacher.demo</code> (Maria Santos), or as <code>registrar.demo</code>. Password <code>demo1234</code>.
         Other teachers: <code>lmercado.demo</code>, <code>gaquino.demo</code>, <code>rvillareal.demo</code>, <code>lgonzales.demo</code>, <code>mtorres.demo</code>, <code>jdelacruz.demo</code>, <code>aramos.demo</code>, <code>psison.demo</code>, <code>rmanalastas.demo</code>, <code>jcabrera.demo</code>, <code>vbayani.demo</code>. Parents: <code>parent.demo</code>, <code>father.demo</code> and the accounts under Parents & guardians.
         Your own current term stays current; if you have none, the demo term becomes current.</p>
       ${demo.loaded ? html`<p><strong>Demo data is loaded:</strong> ${demo.counts.users} accounts, ${demo.counts.courses} courses, ${demo.counts.sections} sections, ${demo.counts.enrollments} enrollments.</p>` : ''}
