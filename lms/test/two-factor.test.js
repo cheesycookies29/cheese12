@@ -214,8 +214,8 @@ test('wrong codes count as wrong passwords: five end the sign-in and lock the us
   const c = f.env.client();
   const { challenge } = await c.post('/api/hub/login', { username: 'teacher.demo', password: PW });
   for (let i = 1; i <= 4; i++) await assert.rejects(c.post('/api/hub/login/verify', { challenge, code: '000000' }), status(401, /not right/));
-  await assert.rejects(c.post('/api/hub/login/verify', { challenge, code: '000000' }), status(401, /Too many wrong codes/));
-  assert.ok(f.entries().some((e) => e.action === 'Sign-in failed: too many wrong 2-step verification codes'));
+  await assert.rejects(c.post('/api/hub/login/verify', { challenge, code: '000000' }), status(429, /Too many wrong 2-step verification codes/));
+  assert.ok(f.entries().some((e) => e.action === 'Sign-in failed: 2-step verification locked after wrong codes'));
   // The username is locked now (five wrong in a row, as five wrong passwords would), even with the right password.
   await assert.rejects(c.post('/api/hub/login', { username: 'teacher.demo', password: PW }), status(429, /Too many failed attempts/));
   // The challenge is gone: the right code does not help.
@@ -232,6 +232,66 @@ test('wrong codes count as wrong passwords: five end the sign-in and lock the us
   }
   await assert.rejects(d.post('/api/hub/login', { username: 'teacher.demo', password: PW }), status(429, /wrong passwords from your network/));
   assert.ok(t2.secret);
+});
+
+test('wrong codes count for the account from every address; a right password does not forgive them, a right code does', async () => {
+  const f = await school();
+  const { secret, recoveryCodes } = await f.turnOn(await f.as('teacher.demo'));
+  // One wrong code from each of five addresses, typing the right password again before each one.
+  const from = (i) => f.env.client({ ip: `198.51.100.${i}` });
+  const tryOnce = async (ip, code) => {
+    const c = from(ip);
+    const { challenge } = await c.post('/api/hub/login', { username: 'teacher.demo', password: PW });
+    return c.post('/api/hub/login/verify', { challenge, code });
+  };
+  for (let i = 1; i <= 4; i++) await assert.rejects(tryOnce(i, '000000'), status(401, /not right/));
+  // A wrong recovery code counts the same way: the fifth wrong code locks the code step.
+  await assert.rejects(tryOnce(5, 'AAAAA-BBBBB'), status(429, /Too many wrong 2-step verification codes for this account. Try again in 5 minutes/));
+  // Now the right password still asks for a code (it says nothing about the password), but no code works, not even a recovery code.
+  await assert.rejects(tryOnce(6, f.code(secret)), status(429, /Too many wrong 2-step verification codes/));
+  await assert.rejects(tryOnce(7, recoveryCodes[0]), status(429, /Too many wrong 2-step verification codes/));
+  assert.equal(f.user('teacher.demo').twoFactor.recovery.filter((r) => r.usedAt).length, 0, 'the recovery code was not used up');
+  assert.ok(f.entries().some((e) => e.action === 'Sign-in refused: 2-step verification locked after wrong codes'));
+  // The person is told on the bell.
+  const bell = f.env.db.data.notifications.filter((n) => n.userId === f.user('teacher.demo').id && n.kind === '2fa-locked');
+  assert.equal(bell.length, 1);
+  assert.equal(bell[0].system, 'account');
+  assert.equal(bell[0].link, '/lms/#/security');
+  // The wait ends after "Minutes locked"; then the right code signs in, and the count starts again.
+  f.time.now += 5 * 60 * 1000 + 1000;
+  await tryOnce(8, f.code(secret));
+  for (let i = 1; i <= 4; i++) await assert.rejects(tryOnce(10 + i, '000000'), status(401, /not right/));
+  await tryOnce(20, f.code(secret)); // four wrong, then right: not locked
+  for (let i = 1; i <= 4; i++) await assert.rejects(tryOnce(30 + i, '000000'), status(401, /not right/));
+  await assert.rejects(tryOnce(35, '000000'), status(429, /Try again in 5 minutes/));
+  // Locked again without a right code in between: twice as long.
+  f.time.now += 5 * 60 * 1000 + 1000;
+  for (let i = 1; i <= 4; i++) await assert.rejects(tryOnce(40 + i, '000000'), status(401, /not right/));
+  await assert.rejects(tryOnce(45, '000000'), status(429, /Try again in 10 minutes/));
+  f.time.now += 5 * 60 * 1000 + 1000;
+  await assert.rejects(tryOnce(46, f.code(secret)), status(429, /Try again in 5 minutes/));
+  f.time.now += 5 * 60 * 1000;
+  await tryOnce(47, f.code(secret));
+  // The lock follows the school's lock-out settings.
+  await f.turnOn(f.admin, 'password123');
+  await f.admin.put('/api/admin/settings', { security: { lockoutAttempts: 3, lockoutMinutes: 30 } });
+  for (let i = 1; i <= 2; i++) await assert.rejects(tryOnce(50 + i, '000000'), status(401, /not right/));
+  await assert.rejects(tryOnce(53, '000000'), status(429, /Try again in 30 minutes/));
+});
+
+test('wrong codes under My security count towards the same lock', async () => {
+  const f = await school();
+  const teacher = await f.as('teacher.demo');
+  const { secret } = await f.turnOn(teacher);
+  for (let i = 1; i <= 4; i++) await assert.rejects(teacher.post('/api/me/2fa/recovery-codes', { password: PW, code: '000000' }), status(400, /not right/));
+  await assert.rejects(teacher.post('/api/me/2fa/recovery-codes', { password: PW, code: '000000' }), status(429, /Too many wrong 2-step verification codes/));
+  await assert.rejects(teacher.post('/api/me/2fa/recovery-codes', { password: PW, code: f.code(secret) }), status(429));
+  // Signing in waits too.
+  const c = f.env.client({ ip: '203.0.113.9' });
+  const { challenge } = await c.post('/api/hub/login', { username: 'teacher.demo', password: PW });
+  await assert.rejects(c.post('/api/hub/login/verify', { challenge, code: f.code(secret) }), status(429));
+  f.time.now += 5 * 60 * 1000 + 1000;
+  assert.equal((await teacher.post('/api/me/2fa/recovery-codes', { password: PW, code: f.code(secret) })).recoveryCodes.length, 10);
 });
 
 test('My security: turn off and new recovery codes need the password and a code; the policy keeps it on', async () => {
@@ -315,6 +375,74 @@ test('the policy: required of yourself only once you have it; then set up right 
   } finally {
     setPasswordKeys(KEY);
   }
+});
+
+test('the sign-in and password settings: only administrators change them, others with settings.edit read them', async () => {
+  const f = await school();
+  await f.turnOn(f.admin, 'password123');
+  await f.admin.put('/api/admin/settings', { security: { twoFactor: 'staff' } });
+  // A registrar who may change the school's settings, with 2-step verification on.
+  f.user('registrar.demo').access = { add: ['settings.edit'] };
+  const reg = await f.as('registrar.demo');
+  const { secret } = await f.turnOn(reg);
+  for (const security of [{ twoFactor: 'off' }, { lockoutAttempts: 20 }, { lockoutMinutes: 1 }, { signInFailuresPerAddress: 1000 }, { requestsPerMinute: 3000 }, { schoolNetworkFactor: 100 }, { schoolNetworks: [{ cidr: '203.0.113.0/24', label: 'x' }] }, { minPasswordLength: 8, idleHours: 72 }]) {
+    await assert.rejects(reg.put('/api/admin/settings', { security }), status(403, /Only administrators change the sign-in and password settings/), JSON.stringify(security));
+  }
+  const sec = f.env.db.data.settings.security;
+  assert.deepEqual([sec.twoFactor, sec.lockoutAttempts, sec.lockoutMinutes, sec.signInFailuresPerAddress], ['staff', 5, 5, 30]);
+  // Through the Settings center too (restore defaults, undo, import).
+  await assert.rejects(reg.post('/api/admin/config/reset', { area: 'security', path: 'twoFactor' }), status(403));
+  await assert.rejects(reg.post('/api/admin/config/reset', { area: 'security', path: '' }), status(403));
+  const file = await reg.get('/api/admin/config/export');
+  file.areas.security.twoFactor = 'off';
+  await assert.rejects(reg.post('/api/admin/config/import', { file, areas: ['security'] }), status(403));
+  const entry = f.env.db.data.settingsLog.findLast((e) => e.area === 'security');
+  await assert.rejects(reg.post(`/api/admin/config/history/${entry.id}/undo`), status(403));
+  assert.equal(f.env.db.data.settings.security.twoFactor, 'staff');
+  // The same values sent back, and the school's other settings, are fine; reading them is too.
+  await reg.put('/api/admin/settings', { schoolName: 'Lancaster Academy', security: { ...(await reg.get('/api/admin/settings')).security } });
+  assert.equal((await reg.get('/api/admin/settings')).security.twoFactor, 'staff');
+  assert.equal(f.env.db.data.settings.schoolName, 'Lancaster Academy');
+  // Administrators change them.
+  await f.admin.put('/api/admin/settings', { security: { lockoutAttempts: 6 } });
+  assert.equal(f.env.db.data.settings.security.lockoutAttempts, 6);
+  assert.ok(secret);
+});
+
+test('until 2-step verification is set up, only setting it up and signing out answer as that account', async () => {
+  const f = await school();
+  await f.turnOn(f.admin, 'password123');
+  await f.admin.put('/api/admin/settings', { security: { twoFactor: 'staff' } });
+  f.user('registrar.demo').access = { add: ['guides.edit'] };
+  const reg = await f.as('registrar.demo');
+  // The pages' status says what to do; My security works.
+  assert.equal((await reg.get('/api/hub/status')).user.twoFactorSetupRequired, true);
+  assert.equal((await reg.get('/api/admin/auth/status')).user.twoFactorSetupRequired, true);
+  assert.equal((await reg.get('/api/me/2fa')).setupRequired, true);
+  // News and the guides see a signed-out visitor: no news, only the public guide, no editing.
+  await assert.rejects(reg.get('/api/hub/feed'), status(401));
+  const list = await reg.get('/api/guides');
+  assert.equal(list.signedIn, false);
+  assert.deepEqual(list.guides.map((g) => g.id), ['getting-started']);
+  await assert.rejects(reg.get('/api/guides/admin'), status(401));
+  await assert.rejects(reg.put('/api/guides/getting-started', { markdown: '---\ntitle: Changed\n---\n\nChanged.' }), status(401));
+  await assert.rejects(reg.del('/api/guides/getting-started'), status(401));
+  assert.equal((f.env.db.data.guideEdits || []).length, 0);
+  // Once it is set up, they answer as usual.
+  await f.turnOn(reg);
+  assert.ok((await reg.get('/api/hub/feed')).news);
+  assert.equal((await reg.get('/api/guides')).signedIn, true);
+  assert.ok((await reg.get('/api/guides/admin')).markdown);
+  // The same for an account that must change its password first.
+  const student = await f.as('student.demo');
+  f.user('student.demo').mustChangePassword = true;
+  await assert.rejects(student.get('/api/hub/feed'), status(401));
+  assert.equal((await student.get('/api/guides')).signedIn, false);
+  assert.equal((await student.get('/api/auth/status')).user.mustChangePassword, true);
+  // Signing out works.
+  await student.post('/api/hub/logout');
+  assert.equal((await student.get('/api/hub/status')).user, null);
+  assert.ok(f.entries().some((e) => e.action === 'Signed out' && e.actorId === f.user('student.demo').id), 'the sign-out is in the audit log, with who it was');
 });
 
 test('administrators: who uses it in Users & Access, and Reset 2-step verification (audited; not your own)', async () => {

@@ -13,11 +13,12 @@ export const TODAY = '2026-08-10';
 // db: the database (in memory unless given; give one with `dir` to test files kept beside the data).
 export function setup({ today = TODAY, clock = null, options = {}, db = memoryDb() } = {}) {
   const api = createApi(db, { clock: clock || (() => new Date(`${today}T10:00:00`)), ...options });
-  const client = () => {
+  // ip: the network address the client comes from (none given: the same unknown one for every client).
+  const client = ({ ip = null } = {}) => {
     const jar = {};
     const call = async (method, path, body = {}) => {
       const cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
-      const res = await api({ method, headers: { cookie } }, new URL(`http://localhost${path}`), body);
+      const res = await api({ method, headers: { cookie }, ...(ip ? { socket: { remoteAddress: ip } } : {}) }, new URL(`http://localhost${path}`), body);
       const { data, headers } = res;
       for (const set of [headers['Set-Cookie'] || []].flat()) {
         const [pair] = set.split(';');

@@ -108,7 +108,7 @@ Your **title** is your position in the school (for example *University Registrar
 3. Frame it with **Zoom**, **Left and right** and **Up and down**.
 4. Choose **Save picture**.
 
-The picture shows in the top bar and on your profile, and administrators see it in Users & Access. It is cut to a square and made small before it is sent; everyone signed in to ATLAS can see it. To take it away, open the same window and choose **Remove my picture**.
+The picture shows in the top bar and on your profile, and administrators see it in Users & Access. It is cut to a square and made small before it is sent. It is shown only to people with a reason to see you: the school's employees, your family (a parent and their children), the teacher and students of a class you share, and someone told on the bell about something you did. To take it away, open the same window and choose **Remove my picture**.
 
 ### See where you are signed in
 
@@ -151,6 +151,8 @@ Each recovery code signs you in once if you lose your phone. **New recovery code
 2. ATLAS asks you to **Enter your code**. Open the authenticator app and type the 6-digit code under **Code from the app, or a recovery code**, then choose **Verify and sign in**.
 
 A code works once and changes every 30 seconds. Lost your phone? Type one of your recovery codes instead, then set up 2-step verification again under **My security**. Without your phone and your recovery codes, ask an administrator to reset it.
+
+Wrong codes count for your account wherever they are typed, recovery codes too, and typing your password again does not start the count over. After a few in a row (as many as the wrong passwords that lock a username), no code is taken for a few minutes, longer each time it happens again, and you are told on the bell. The right code starts the count again.
 
 If the school requires 2-step verification for your account and you have not set it up, ATLAS asks you to set it up right after you sign in, before anything else.
 
@@ -280,5 +282,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 **I opened Academic, People or Finance and it says it is not for my account.** Each system says who it is for, for example *People is for school employees* when a student opens it. Choose **Back to ATLAS home**.
 
 **ATLAS asks for a code, and I have lost my phone.** Type one of your recovery codes in the code box. If you have none left, ask an administrator to reset your 2-step verification; you then sign in with your password and set it up again.
+
+**ATLAS says there were too many wrong 2-step verification codes for my account.** Wait the minutes it says, then sign in again with a code from the app. If you did not type those codes, someone knows your password: once you are in, change it (**My security**), or ask an administrator to reset it.
 
 **I got a notification that an administrator reset my 2-step verification, but I did not ask.** Tell the administrator at once, change your password (**My security**), and set up 2-step verification again.

@@ -9,6 +9,7 @@ import { HttpError } from './util.js';
 import { ROLES, roleLabel } from '../shared/roles.js';
 import { campusName } from './campus.js';
 import { guardianChildren } from './guardian.js';
+import { isStaff } from './audit.js';
 import { t } from './validate.js';
 import { SYSTEMS } from '../shared/systems.js';
 import { ATLAS_HREF } from '../shared/notifications.js';
@@ -213,10 +214,33 @@ export function registerAccountRoutes(route, { db, sides, avatars, record, syste
   }, { audit: false, body: { title: t.str(400) } });
 
   // ----- Pictures -----
-  route('GET', '/api/avatars', 'me', () => Object.fromEntries(users().filter((u) => u.avatar).map((u) => [u.id, u.avatar.at])), { audit: false });
-  route('GET', '/api/users/:id/avatar', 'me', ({ params }) => {
+  // A picture is shown to the people who have a reason to see that person: themselves, the school's
+  // employees, their family (a parent and a linked child), the people they share a class with (its
+  // teacher and its students), and someone told on the bell about something they did.
+  const STUDENT_IN = new Set(['enrolled', 'completed']);
+  const classesOf = (u) => new Set([
+    ...data().sections.filter((s) => s.teacherId === u.id).map((s) => s.id),
+    ...data().enrollments.filter((e) => e.studentId === u.id && STUDENT_IN.has(e.status)).map((e) => e.sectionId),
+  ]);
+  const family = (a, b) => data().guardianLinks.some((l) => l.status === 'active' && ((l.guardianId === a.id && l.studentId === b.id) || (l.guardianId === b.id && l.studentId === a.id)));
+  const toldAbout = (viewer, u) => (data().notifications || []).some((n) => n.userId === viewer.id && n.actorId === u.id);
+  function maySeePicture(viewer, u) {
+    if (!viewer || !u) return false;
+    if (viewer.id === u.id || isStaff(viewer) || family(viewer, u) || toldAbout(viewer, u)) return true;
+    const mine = classesOf(viewer);
+    return mine.size > 0 && [...classesOf(u)].some((id) => mine.has(id));
+  }
+  // Who has a picture among the people the pages show you (yourself, your family, whoever is on your
+  // bell): never everyone's. Others' pictures come with the page that lists them (Users & Access).
+  route('GET', '/api/avatars', 'me', ({ user }) => {
+    const shown = new Set([user.id]);
+    for (const l of data().guardianLinks) if (l.status === 'active' && (l.guardianId === user.id || l.studentId === user.id)) shown.add(l.guardianId === user.id ? l.studentId : l.guardianId);
+    for (const n of data().notifications || []) if (n.userId === user.id && n.actorId) shown.add(n.actorId);
+    return Object.fromEntries(users().filter((u) => u.avatar && shown.has(u.id) && maySeePicture(user, u)).map((u) => [u.id, u.avatar.at]));
+  }, { audit: false });
+  route('GET', '/api/users/:id/avatar', 'me', ({ user, params }) => {
     const u = users().find((x) => x.id === params.id);
-    const bytes = u?.avatar ? avatars.read(u.avatar.id) : null;
+    const bytes = u?.avatar && maySeePicture(user, u) ? avatars.read(u.avatar.id) : null;
     if (!bytes) fail('No picture.', 404);
     return {
       raw: bytes, type: u.avatar.type,

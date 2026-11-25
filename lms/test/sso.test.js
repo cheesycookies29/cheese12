@@ -249,7 +249,7 @@ test('set up for me: wrong or weak Keycloak accounts are refused clearly, and no
   await f.admin.put('/api/admin/roles', { overrides: { registrar: { add: ['settings.edit'] } } });
   const reg = f.env.client();
   await reg.post('/api/hub/login', { username: 'rosa', password: PW });
-  assert.equal((await reg.get('/api/admin/sso')).enabled, false, 'the registrar now has the settings permission');
+  await assert.rejects(reg.get('/api/admin/sso'), (e) => e.status === 403, 'the settings permission is not enough');
   await assert.rejects(reg.post('/api/admin/sso/provision', asAdmin(f.kc)), (e) => e.status === 403);
 });
 

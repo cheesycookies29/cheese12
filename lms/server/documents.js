@@ -1176,7 +1176,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   }
 
   // For the web server, before it reads a body: may this address send a large upload piece? Only
-  // for an upload link that works now (VAPT-4); anything else gets the small signed-out limit.
+  // for an upload link that works now; anything else gets the small signed-out limit.
   const uploadLinkOpen = (token) => {
     const l = linkFor(token);
     return Boolean(l && l.mode === 'upload' && linkState(l).state === 'active');

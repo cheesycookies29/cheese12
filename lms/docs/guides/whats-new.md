@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### 2-step verification: wrong codes lock the account's code step
+- Wrong 2-step verification codes now count for the account from every address, recovery codes too: after a few, no code is taken for a while and the person is told on the bell; only administrators change **Sign-in and passwords** and Keycloak sign-in, and profile pictures are shown only to people with a reason to see that person. See [getting started](getting-started#sign-in-with-2-step-verification).
+
+### ATLAS Documents: firmer rules for holds, restricted files and links
+- A legal hold on a folder now holds everything inside it: nothing there can be deleted, moved out or lose old versions. *Restricted* documents reach only the people named on them (not groups, nor their folder's sharing), and only those who manage them open the file. Links without a password stop when their document becomes confidential or every link must have a password, folder links without one leave confidential files out, and each view counts against a link's download limit. See [the Documents guide](documents#send-a-link-to-someone-outside-the-school).
+
 ### PDF Studio exports Word, Excel, text and pictures
 - **PDF Studio** now exports more than PDFs. Under **Export → Format**, choose **Word**, **OpenDocument text**, **Rich Text**, **Web page**, **Markdown** or **Plain text** for a document to go on editing (paragraphs, headings, tables and pictures read back from the pages), **Excel** or **CSV** for the text in rows and columns with numbers as numbers, or **PNG**, **JPEG** or **SVG** pictures of each page. Your arrangement, changes and signatures go in. See [the PDF Studio guide](pdf-studio#export-as-word-excel-text-or-pictures).
 

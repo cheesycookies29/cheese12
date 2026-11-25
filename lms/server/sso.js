@@ -361,10 +361,13 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
 
   // ----- Settings (ATLAS Control → Single sign-on) -----
   const view = (origin) => ({ ...cfg(), secretSet: Boolean(secret), secretSource, redirectUri: `${origin}/api/sso/callback`, postLogoutUri: `${origin}/`, linked: data().users.filter((u) => u.ssoSubject).length });
-  route('GET', '/api/admin/sso', 'admin:settings.edit', ({ origin }) => view(origin));
+  // Keycloak is set up by administrators only, as its screen in the Admin panel is.
+  const onlyAdmins = (user) => { if (user?.role !== 'admin') throw new HttpError(403, 'Only administrators set up Keycloak sign-in.'); };
+  route('GET', '/api/admin/sso', 'admin:settings.edit', ({ origin, user }) => (onlyAdmins(user), view(origin)));
   // Test connection: administrators only (it makes this server call another one), a few times a
   // quarter-hour, and only to an address cleanIssuer and checkOutbound accept.
   route('POST', '/api/admin/sso/test', 'admin:settings.edit', async ({ body, user }) => {
+    onlyAdmins(user);
     if (user.role !== 'admin') fail('Only an administrator can test the Keycloak connection.', 403);
     const issuer = cleanIssuer(body.issuer) || cfg().issuer;
     const d = await discovery(issuer, true);
@@ -376,7 +379,8 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
     if (issuer.startsWith('http://') && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(`${issuer}/`)) fail('Use https for Keycloak (http only for a Keycloak on this same machine).');
     return issuer;
   };
-  route('PUT', '/api/admin/sso', 'admin:settings.edit', async ({ body, origin }) => {
+  route('PUT', '/api/admin/sso', 'admin:settings.edit', async ({ body, origin, user }) => {
+    onlyAdmins(user);
     const s = cfg();
     if ('issuer' in body) s.issuer = cleanIssuer(body.issuer);
     if ('clientId' in body) s.clientId = text(body.clientId, 120);
@@ -399,6 +403,7 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
   // client secret, saves the connection and, if asked, switches single sign-on on. The Keycloak
   // credentials in the body are used for this request only: never stored, logged or sent back.
   route('POST', '/api/admin/sso/provision', 'admin:settings.edit', async ({ body, origin, user }) => {
+    onlyAdmins(user);
     if (user.role !== 'admin') fail('Only an administrator can set up Keycloak.', 403);
     if (!origin) fail('ATLAS does not know its own address. Set PUBLIC_URL on the server.');
     const issuer = cleanIssuer(body.issuer);

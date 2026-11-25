@@ -336,42 +336,56 @@ export const clearedCookie = (name, secure = false) => `${name}=; HttpOnly; Same
 
 // Lock a username for 5 minutes after 5 wrong passwords in a row. limits: an object, or a
 // function returning { max, lockMs } (read at each attempt, so Settings apply at once).
-// fail(key, times): this key locks after `times` × max failures (a looser, wider lock).
-// Entries left alone for a day are forgotten, so made-up usernames do not pile up in memory.
-export function createThrottle(limits = {}) {
+// fail(key, times, { growing }): this key locks after `times` × max failures (a looser, wider lock);
+// it returns true when this failure locked it. growing: each lock that follows another without a
+// reset lasts twice as long as the one before, up to 16 times as long (at most a day).
+// check(key, message): throws while the key is locked. reset(key): forgets it (a right answer).
+// Entries left alone for a day are forgotten, so made-up usernames do not pile up in memory, and
+// old failures and locks no longer count. now(): the time in ms (the API's clock, in tests).
+export function createThrottle(limits = {}, { now = () => Date.now() } = {}) {
   const failures = new Map();
   const get = () => ({ max: 5, lockMs: 5 * 60 * 1000, ...(typeof limits === 'function' ? limits() : limits) });
   const DAY = 24 * 3600 * 1000;
+  const stale = (f, t) => f.until < t && t - f.at > DAY;
   const prune = () => {
-    const t = Date.now();
-    for (const [key, f] of failures) if (f.until < t && t - f.at > DAY) failures.delete(key);
+    const t = now();
+    for (const [key, f] of failures) if (stale(f, t)) failures.delete(key);
   };
   const timer = setInterval(prune, 3600 * 1000);
   timer.unref?.();
   return {
-    check(key) {
+    check(key, message = 'Too many failed attempts.') {
       const f = failures.get(limitKey(key));
-      if (f && f.until > Date.now()) {
-        const mins = Math.ceil((f.until - Date.now()) / 60000);
-        throw new HttpError(429, `Too many failed attempts. Try again in ${mins} minute${mins > 1 ? 's' : ''}.`);
+      const t = now();
+      if (f && f.until > t) {
+        const mins = Math.ceil((f.until - t) / 60000);
+        throw new HttpError(429, `${message} Try again in ${mins} minute${mins > 1 ? 's' : ''}.`);
       }
     },
-    fail(key, times = 1) {
+    fail(key, times = 1, { growing = false } = {}) {
       key = limitKey(key);
-      const f = failures.get(key) || { count: 0, until: 0, at: 0 };
+      const t = now();
+      const old = failures.get(key);
+      const f = old && !stale(old, t) ? old : { count: 0, until: 0, at: 0, locks: 0 };
       f.count += 1;
-      f.at = Date.now();
+      f.at = t;
       const { max, lockMs } = get();
-      if (f.count >= max * times) Object.assign(f, { count: 0, until: Date.now() + lockMs });
+      let locked = false;
+      if (f.count >= max * times) {
+        const factor = growing ? 2 ** Math.min(f.locks || 0, 4) : 1;
+        Object.assign(f, { count: 0, until: t + Math.min(lockMs * factor, DAY), locks: (f.locks || 0) + 1 });
+        locked = true;
+      }
       failures.set(key, f);
       if (failures.size > 100000) prune();
+      return locked;
     },
     reset(key) {
       failures.delete(limitKey(key));
     },
     // Keys locked right now, with when they open again (Control → Locked sign-ins).
     locked() {
-      const t = Date.now();
+      const t = now();
       return [...failures].filter(([, f]) => f.until > t).map(([key, f]) => ({ key, until: f.until }));
     },
   };

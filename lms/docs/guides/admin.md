@@ -150,6 +150,8 @@ The monitor counts what the server already sees, by route (never the address wit
 1. Under **System**, choose **Sign-in and passwords**.
 2. Change the settings (see the table below) and choose **Save**. They apply at once, in every system, and the change is in the Audit log with the old and new value.
 
+Only administrators change these settings. Someone else who may change the school's settings sees them in the Settings center, read-only.
+
 The settings under **Sign-in and passwords**:
 
 | Setting | What it does |
@@ -157,8 +159,8 @@ The settings under **Sign-in and passwords**:
 | **Shortest password** | 8 to 64 characters, for new and changed passwords |
 | **Passwords mix letters and digits** | A new password needs at least one letter and one digit |
 | **Always change the first password** | New accounts and reset passwords must be changed at the first sign-in, in every system |
-| **Wrong passwords before locking**, **Minutes locked** | A username is locked after this many wrong passwords in a row. The lock is for the network address they came from, so nobody can lock a colleague out from elsewhere; ten times as many lock the username everywhere. It is one lock for the username, whichever sign-in page is used |
-| **Who must use 2-step verification** | **Optional for everyone** (the default), **Required for administrators**, **Required for employees and administrators** (everyone but students and parents) or **Required for everyone**. Those it covers set it up right after signing in. Require it for administrators first, and turn it on for your own account before (ATLAS refuses otherwise). Keycloak sign-ins use Keycloak's own second step |
+| **Wrong passwords before locking**, **Minutes locked** | A username is locked after this many wrong passwords in a row. The lock is for the network address they came from, so nobody can lock a colleague out from elsewhere; ten times as many lock the username everywhere. It is one lock for the username, whichever sign-in page is used. Wrong 2-step verification codes count as wrong passwords, and also for the account from every address: after this many, the account takes no code for **Minutes locked** (twice as long each time it happens again without a right code), and the person is told on the bell. Typing the right password again does not end that wait, and neither does **Unlock**; if someone else has the password, use **Reset password** |
+| **Who must use 2-step verification** | **Optional for everyone** (the default), **Required for administrators**, **Required for employees and administrators** (everyone but students and parents) or **Required for everyone**. Those it covers set it up right after signing in. Require it for administrators first, and turn it on for your own account before (ATLAS refuses otherwise). Keycloak sign-ins skip ATLAS's code, even for accounts that turned it on: with Keycloak, the second step is Keycloak's to require, so require one (such as OTP) in the school's Keycloak realm |
 | **Sign out after (hours idle)** | People are signed out after this long without using ATLAS |
 | **Sign out after (hours signed in)** | 1 to 168, normally 12. However busy, people sign in again this long after signing in, so a session that was copied or left open stops working. Never sooner than the idle time |
 | **Requests per person per minute** | 60 to 3000, normally 300. Above this, ATLAS asks the person to wait a few seconds. A network address that is not signed in gets four times as many |
@@ -401,12 +403,12 @@ ATLAS uses the token for this one request and does not keep it; you can delete i
 
 ### Set the rules for documents
 
-**Document control** sets the rules of [ATLAS Documents](documents) for the whole school. Administrators have it; to give it to another account type (for example the records officer's), tick **Document control** under **Roles & permissions → ATLAS Documents**. Those who do not use the Admin panel find the same page in ATLAS Documents.
+**Document control** sets the rules of [ATLAS Documents](documents) for the whole school. Administrators have it; to give it to another account type (for example the records officer's), tick **Document control** under **Roles & permissions → ATLAS Documents**, or give it to one account (or take it from one) under **System → Users & Access → Access**. Whoever has it also manages every document and folder. Those who do not use the Admin panel find the same page in ATLAS Documents.
 
 1. Choose **Document control**.
 2. On **File types**, tick the kinds of file people may add, and choose **Save**. PDF, pictures, Office and OpenDocument files, RTF, text and e-mail are on at first; ZIP archives, audio, video and CAD drawings are off. The list under *Always refused, whatever is ticked* (programs and scripts, web pages and SVG, Office files with macros) cannot be switched on.
 3. On **Uploads & storage**, set the largest file (up to 100 MB), the storage each person may keep (0 = no limit), how many versions of a document are kept, and whether the same file twice in a folder is refused. Choose **Save**.
-4. On **Sharing**, choose whether people may share inside the school, whether staff may share with everyone at once, whether staff may make links for people outside the school and upload links, who makes links, whether every link needs a password, how long links last, and which classifications may be shared by link (never *Restricted*). Choose **Save**.
+4. On **Sharing**, choose whether people may share inside the school, whether staff may share with everyone at once, whether staff may make links for people outside the school and upload links, who makes links, whether every link needs a password (switching it on also stops the links already made without one), how long links last, and which classifications may be shared by link (never *Restricted*). Choose **Save**.
 5. On **Retention**, set the days in the trash before documents are deleted for good, and the longest check-out. Choose **Save**.
 
 ![Document control: the kinds of file ATLAS Documents accepts](admin-document-control.jpg)
@@ -423,7 +425,7 @@ Every change applies at once and is recorded in the **Settings center**'s histor
 
 ![Document control: activity, links that work, refused uploads and the integrity check](admin-document-activity.jpg)
 
-To keep a document or folder from being deleted (for an audit or a case), open it in ATLAS Documents and choose **Legal hold** (on a folder: **Folder → Place on legal hold**). Only document managers place or lift a hold.
+To keep a document or folder from being deleted (for an audit or a case), open it in ATLAS Documents and choose **Legal hold** (on a folder: **Folder → Place on legal hold**). Only document managers place or lift a hold. A hold on a folder holds everything inside it, however deep: nothing there is deleted, moved out or loses old versions, and the folders above it cannot be deleted.
 
 ### Add or remove the demo school
 

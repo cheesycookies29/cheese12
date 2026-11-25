@@ -160,8 +160,8 @@ test('administrators only: a registrar given the settings permission is refused,
   await f.admin.put('/api/admin/roles', { overrides: { registrar: { add: ['settings.edit'] } } });
   const reg = f.env.client();
   await reg.post('/api/hub/login', { username: 'rosa', password: PW });
-  assert.ok(await reg.get('/api/admin/sso'), 'the registrar has the settings permission');
-  for (const [m, p] of [['get', '/api/admin/cloudflare'], ['post', '/api/admin/cloudflare/setup'], ['post', '/api/admin/cloudflare/lock'], ['post', '/api/admin/cloudflare/off']]) {
+  // Keycloak sign-in is set up by administrators only as well, whatever the settings permission says.
+  for (const [m, p] of [['get', '/api/admin/sso'], ['put', '/api/admin/sso'], ['post', '/api/admin/sso/test'], ['post', '/api/admin/sso/provision'], ['get', '/api/admin/cloudflare'], ['post', '/api/admin/cloudflare/setup'], ['post', '/api/admin/cloudflare/lock'], ['post', '/api/admin/cloudflare/off']]) {
     await assert.rejects(reg[m](p, body()), (e) => e.status === 403, `${m} ${p}`);
   }
   assert.equal('cloudflare' in (await reg.get('/api/admin/settings')), false, 'not in the registrar\'s settings either');

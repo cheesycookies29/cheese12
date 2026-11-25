@@ -98,7 +98,7 @@ test('title: given by administrators, cleaned, in the audit log, and shown with 
   await assert.rejects(admin.put(`/api/system/users/${u.id}/title`, { title: 'x'.repeat(81) }), status(400));
 });
 
-test('pictures: photos only, checked by content, at most 300 KB, served safely to people signed in', async () => {
+test('pictures: photos only, checked by content, at most 300 KB, served safely to people with a reason to see them', async () => {
   const { env, admin, make, signIn } = await school();
   await make('teacher', 'teach');
   await make('student', 'stud');
@@ -111,10 +111,11 @@ test('pictures: photos only, checked by content, at most 300 KB, served safely t
   await assert.rejects(t.put('/api/me/avatar', { file: { name: 'x', data: '' } }), status(400));
   for (const pic of [PNG, JPEG, WEBP]) await t.put('/api/me/avatar', file(pic));
   const at = (await t.put('/api/me/avatar', file(PNG))).avatar;
-  // Anyone signed in sees it; nobody else.
+  // The school's employees see it; a student with no class with this teacher does not, and nobody signed out.
   const s = await signIn('stud');
-  assert.deepEqual(await s.get('/api/avatars'), { [tid]: at });
-  const img = await s.get(`/api/users/${tid}/avatar`);
+  assert.deepEqual(await s.get('/api/avatars'), {});
+  await assert.rejects(s.get(`/api/users/${tid}/avatar`), status(404));
+  const img = await admin.get(`/api/users/${tid}/avatar`);
   assert.equal(img.type, 'image/png');
   assert.ok(Buffer.from(img.raw).equals(PNG));
   assert.match(img.headers['Content-Security-Policy'], /sandbox/);
@@ -125,8 +126,68 @@ test('pictures: photos only, checked by content, at most 300 KB, served safely t
   await assert.rejects(s.del(`/api/system/users/${tid}/avatar`), (e) => [401, 403].includes(e.status));
   await admin.del(`/api/system/users/${tid}/avatar`);
   assert.ok(env.api.audit.entries().some((e) => e.action === "Removed an account's picture"));
-  assert.deepEqual(await s.get('/api/avatars'), {});
+  assert.deepEqual(await t.get('/api/avatars'), {});
   await t.del('/api/me/avatar'); // nothing to remove: fine
+});
+
+test('pictures: yourself, employees, family, classmates and teachers, and whoever is on your bell; never a list of everyone', async () => {
+  const env = setup();
+  const admin = env.client();
+  await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
+  await admin.post('/api/admin/demo');
+  const by = (n) => env.db.data.users.find((u) => u.username === n);
+  const as = async (username) => {
+    const c = env.client();
+    await c.post('/api/hub/login', { username, password: 'demo1234' });
+    return c;
+  };
+  // Everyone here adds a picture.
+  const names = ['teacher.demo', 'lmercado.demo', 'student.demo', 'bea.demo', 'kevin.demo', 'parent.demo', 'registrar.demo'];
+  const c = {};
+  for (const n of names) {
+    c[n] = await as(n);
+    await c[n].put('/api/me/avatar', file(PNG));
+  }
+  const id = (n) => by(n).id;
+  const sees = async (viewer, n) => {
+    try {
+      await c[viewer].get(`/api/users/${id(n)}/avatar`);
+      return true;
+    } catch (err) {
+      assert.equal(err.status, 404, 'someone not to be seen has no picture, as far as the viewer knows');
+      return false;
+    }
+  };
+  // student.demo is taught by teacher.demo and shares a class with bea.demo; kevin.demo and lmercado.demo
+  // (another teacher) are in none of their classes.
+  assert.ok(await sees('student.demo', 'student.demo'));
+  assert.ok(await sees('student.demo', 'teacher.demo'));
+  assert.ok(await sees('student.demo', 'bea.demo'));
+  assert.ok(await sees('teacher.demo', 'student.demo'));
+  assert.ok(!(await sees('student.demo', 'kevin.demo')));
+  assert.ok(!(await sees('student.demo', 'lmercado.demo')));
+  // A parent sees their children, and the children them; not other people's.
+  assert.ok(await sees('parent.demo', 'student.demo'));
+  assert.ok(await sees('parent.demo', 'kevin.demo'));
+  assert.ok(await sees('kevin.demo', 'parent.demo'));
+  assert.ok(!(await sees('parent.demo', 'bea.demo')));
+  assert.ok(!(await sees('parent.demo', 'teacher.demo')));
+  // Employees see everyone's.
+  assert.ok(await sees('registrar.demo', 'kevin.demo'));
+  assert.ok(await sees('teacher.demo', 'kevin.demo'));
+  // Someone who did something you were told about on the bell (the registrar decided an enrollment).
+  assert.ok(await sees('student.demo', 'registrar.demo'));
+  env.db.data.notifications.push({ id: 'n-share', userId: id('student.demo'), system: 'dms', kind: 'share', title: 'Kevin shared a file with you', body: '', link: '/documents/#/', actorId: id('kevin.demo'), at: new Date().toISOString(), readAt: null });
+  assert.ok(await sees('student.demo', 'kevin.demo'));
+  // The list has the people the pages show you (yourself, your family, your bell), never everyone's.
+  assert.deepEqual(Object.keys(await c['student.demo'].get('/api/avatars')).sort(), ['student.demo', 'parent.demo', 'registrar.demo', 'teacher.demo', 'kevin.demo'].map(id).sort());
+  assert.deepEqual(Object.keys(await c['parent.demo'].get('/api/avatars')).sort(), ['parent.demo', 'student.demo', 'kevin.demo'].map(id).sort());
+  const staffList = Object.keys(await c['registrar.demo'].get('/api/avatars'));
+  assert.ok(staffList.includes(id('registrar.demo')) && !staffList.includes(id('bea.demo')) && !staffList.includes(id('lmercado.demo')));
+  assert.deepEqual(Object.keys(await admin.get('/api/avatars')), []);
+  // Users & Access gives administrators each account's picture date with the row.
+  const rows = await admin.get('/api/system/users?q=kevin.demo');
+  assert.ok((rows.users || rows.items || rows).some?.((u) => u.username === 'kevin.demo' && u.avatar));
 });
 
 test('picture files: replaced and removed with the account; a restore keeps only pictures this server has', async () => {

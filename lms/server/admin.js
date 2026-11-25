@@ -700,6 +700,13 @@ export function registerAdminRoutes(route, ctx) {
         schoolNetworkFactor: whole(v.schoolNetworkFactor ?? 20, 1, 100, 'Limits on school networks (times)'),
         twoFactor: Object.hasOwn(TWO_FACTOR_POLICIES, v.twoFactor ?? 'off') ? v.twoFactor ?? 'off' : fail('Choose who must use 2-step verification.'),
       };
+      // Sign-in and passwords (who must use 2-step verification, the lock-out and the limits) protect
+      // every account, administrators' too: only administrators change them. Saving them unchanged
+      // (another screen, or the Settings center with other areas) is fine.
+      const was = mergeSettings(data().settings).security;
+      if (user.role !== 'admin' && Object.keys(s.security).some((k) => JSON.stringify(s.security[k]) !== JSON.stringify(was[k]))) {
+        fail('Only administrators change the sign-in and password settings (System → Sign-in and passwords).', 403);
+      }
       // Requiring it of yourself before you have it would lock you out at your next sign-in.
       if (s.security.twoFactor !== (data().settings.security?.twoFactor || 'off') && twoFactorRequired(s.security, user) && !hasTwoFactor(user)) {
         fail('Turn on 2-step verification for your own account first (your name → My security), then require it.');

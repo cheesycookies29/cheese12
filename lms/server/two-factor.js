@@ -4,6 +4,10 @@
 //     (server/api.js) asks challenge() for a short-lived challenge instead; verify() checks the code
 //     and the route that started the sign-in opens the session. A challenge lasts 5 minutes and takes
 //     5 codes; each wrong code counts as a wrong password (lock-out and the per-address pause).
+//   - Wrong codes (from the app or recovery codes) also count for the account itself, from every
+//     address (codeLocks): after "Wrong passwords before locking" of them, its code step waits for
+//     "Minutes locked", twice as long each time it happens again, and the person is told on the bell.
+//     Typing the right password again does not forgive them; only a right code (or the wait) does.
 //   - My security: set up (password, then the QR code and the first code, then the recovery codes),
 //     new recovery codes, turn off (/api/me/2fa…). These routes work while the account must still set
 //     it up, as the password change does during a forced password change.
@@ -20,6 +24,7 @@ import { sideLabel } from './audit.js';
 import { newSecret, verifyCode, otpauthUrl, newRecoveryCodes, hashRecovery, looksLikeRecovery, RECOVERY_COUNT } from './totp.js';
 import { twoFactorRequired, TWO_FACTOR_POLICIES } from '../shared/two-factor.js';
 import { ROLES } from '../shared/roles.js';
+import { ownPageLink } from '../shared/notifications.js';
 import { t } from './validate.js';
 
 const fail = (msg, status = 400) => {
@@ -67,9 +72,10 @@ export function cleanBackupTwoFactor(users) {
   return dropped;
 }
 
-// deps: { db, record (an audit entry), throttle, limits, sides, security(), systemOf(user), viaSso(user), publicUser,
+// deps: { db, record (an audit entry), throttle (wrong passwords), codeLocks (wrong codes, per account), limits, sides,
+//   security(), systemOf(user), viaSso(user), publicUser, notify(userIds, entry) (the bell),
 //   now(): the time in ms, for the codes and how long a challenge lasts (the API's clock, so tests can move it) }
-export function createTwoFactor({ db, record, throttle, limits, sides, security, systemOf, viaSso, publicUser, now = () => Date.now() }) {
+export function createTwoFactor({ db, record, throttle, codeLocks, limits, sides, security, systemOf, viaSso, publicUser, notify = () => {}, now = () => Date.now() }) {
   const users = () => db.data.users;
   // Must this account set it up before anything else? (Not for a Keycloak session: Keycloak asked.)
   const mustSetUp = (user) => Boolean(user && twoFactorRequired(security(), user) && !hasTwoFactor(user) && !viaSso(user));
@@ -100,6 +106,23 @@ export function createTwoFactor({ db, record, throttle, limits, sides, security,
     tf.lastStep = step;
     db.save();
     return 'app';
+  }
+
+  // ----- Wrong codes, per account -----
+  // Counted wherever the code is typed (signing in, turning it off, new recovery codes), from any address.
+  const LOCKED = 'Too many wrong 2-step verification codes for this account.';
+  const codeKey = (user) => `2fa:${user.id}`;
+  const checkCodeLock = (user) => codeLocks.check(codeKey(user), LOCKED);
+  // A wrong code: counted; when it locks the code step, the person is told (it may not be them).
+  function wrongCode(user) {
+    if (!codeLocks.fail(codeKey(user), 1, { growing: true })) return false;
+    notify([user.id], {
+      system: 'account', kind: '2fa-locked', title: 'Wrong 2-step verification codes for your account',
+      body: 'Your password was typed, then too many wrong codes, so signing in with a code waits a while. If this was not you, change your password now (My security).',
+      link: ownPageLink(ROLES[user.role]?.side, 'security'),
+    });
+    db.save();
+    return true;
   }
 
   // ----- Signing in -----
@@ -146,24 +169,32 @@ export function createTwoFactor({ db, record, throttle, limits, sides, security,
       challenges.delete(id);
       refused('username locked', err);
     }
+    try {
+      checkCodeLock(user);
+    } catch (err) {
+      challenges.delete(id);
+      refused('2-step verification locked after wrong codes', err);
+    }
     const how = String(body.code || '').trim() ? secondFactor(user, body.code) : null;
     if (!how) {
       // A wrong code counts as a wrong password: the username locks and the address pauses as for those.
+      // It also counts for the account from every address, which a right password does not forgive.
       c.attempts += 1;
       limits.add('signinFail', ip);
       throttle.fail(here);
       throttle.fail(key, 10);
-      const last = c.attempts >= CHALLENGE_ATTEMPTS;
-      record({ kind: 'signin', system, action: last ? 'Sign-in failed: too many wrong 2-step verification codes' : 'Sign-in failed: wrong 2-step verification code', target: user, ip, agent, outcome: 'failed', detail: `${sideLabel(side)} · attempt ${c.attempts} of ${CHALLENGE_ATTEMPTS}` });
-      if (last) {
-        challenges.delete(id);
-        fail('Too many wrong codes. Enter your username and password again.', 401);
-      }
+      const locked = wrongCode(user);
+      const last = locked || c.attempts >= CHALLENGE_ATTEMPTS;
+      record({ kind: 'signin', system, action: locked ? 'Sign-in failed: 2-step verification locked after wrong codes' : last ? 'Sign-in failed: too many wrong 2-step verification codes' : 'Sign-in failed: wrong 2-step verification code', target: user, ip, agent, outcome: 'failed', detail: `${sideLabel(side)} · attempt ${c.attempts} of ${CHALLENGE_ATTEMPTS}` });
+      if (last) challenges.delete(id);
+      if (locked) checkCodeLock(user); // throws: how long it waits
+      if (last) fail('Too many wrong codes. Enter your username and password again.', 401);
       fail('That code is not right. Check that the time on your phone is correct, or use a recovery code.', 401);
     }
     challenges.delete(id);
     throttle.reset(here);
     throttle.reset(key);
+    codeLocks.reset(codeKey(user));
     return { user, side, how, left: recoveryLeft(user) };
   }
 
@@ -175,10 +206,14 @@ export function createTwoFactor({ db, record, throttle, limits, sides, security,
     }
   };
   const requireCode = (user, code, a) => {
+    checkCodeLock(user);
     if (!secondFactor(user, code)) {
-      record({ kind: 'password', system: systemOf(user), action: '2-step verification: wrong code', actor: user, target: user, ip: a.ip, agent: a.agent, outcome: 'failed' });
+      const locked = wrongCode(user);
+      record({ kind: 'password', system: systemOf(user), action: locked ? '2-step verification: wrong code; locked after wrong codes' : '2-step verification: wrong code', actor: user, target: user, ip: a.ip, agent: a.agent, outcome: 'failed' });
+      if (locked) checkCodeLock(user);
       fail('That code is not right. Enter the code your app shows now, or a recovery code.');
     }
+    codeLocks.reset(codeKey(user));
   };
   const status = (user) => ({
     enabled: hasTwoFactor(user),

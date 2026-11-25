@@ -4,11 +4,14 @@
 // administrator finds it, sees what differs, and can restore a default.
 import { api } from '../../api.js';
 import { html, mount, toast, confirmDialog, downloadFile, today, timeAgo, fmtDateTime, badge, raw } from '../../ui.js';
-import { pageHead } from '../../shell.js';
+import { pageHead, ctx } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { MODULES } from '/shared/settings-catalog.js';
 
 const MODULE_LABEL = Object.fromEntries(MODULES);
+// Groups only administrators change (Sign-in and passwords, Roles and permissions): others see them here, read-only.
+const ADMIN_AREAS = ['security', 'roles'];
+const mayChange = (area) => ctx.user?.role === 'admin' || !ADMIN_AREAS.includes(area);
 const VIA = { screen: '', reset: 'Restored the default', 'reset-all': 'Restored the defaults', undo: 'Undone', import: 'Imported' };
 const peso = (n) => `₱${Number(n).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
 
@@ -95,8 +98,8 @@ function settingsTab(el, head, cfg, q) {
     mount(el.querySelector('#cfg-list'), groups.length ? html`${groups.map(({ a, rows: list }, i) => html`
       ${i === 0 || groups[i - 1].a.module !== a.module ? html`<h2 class="module-head">${MODULE_LABEL[a.module]}</h2>` : ''}
       <div class="config-area-wrap">
-      <div class="area-actions">${a.resettable && list.some((s) => s.changed) ? html`<button type="button" class="btn sm ghost" data-reset-area="${a.id}">Restore defaults</button>` : ''}
-        <a class="btn sm" href="${a.screen}" aria-label="Open ${a.label}">${icon('external', 14)} Open</a></div>
+      <div class="area-actions">${!mayChange(a.id) ? html`<span class="muted small">Administrators change these</span>` : html`${a.resettable && list.some((s) => s.changed) ? html`<button type="button" class="btn sm ghost" data-reset-area="${a.id}">Restore defaults</button>` : ''}
+        <a class="btn sm" href="${a.screen}" aria-label="Open ${a.label}">${icon('external', 14)} Open</a>`}</div>
       <details class="card config-area" data-area="${a.id}" ${filtering || open.has(a.id) ? 'open' : ''}>
         <summary><h3>${a.label}</h3>
           <span class="area-meta">${list.length} setting${list.length === 1 ? '' : 's'}${list.some((s) => s.changed) ? html` · ${badge(`${list.filter((s) => s.changed).length} changed`, 'amber')}` : ''}</span></summary>
@@ -107,7 +110,7 @@ function settingsTab(el, head, cfg, q) {
               ${s.lastChange ? html`<small class="muted block">Last changed by ${s.lastChange.by}, ${timeAgo(s.lastChange.at)}</small>` : ''}</td>
             <td data-label="Now" class="config-value">${showValue(s.value, s.format, s.display)}</td>
             <td data-label="Default" class="config-value muted">${s.hasDefault ? showValue(s.default, s.format) : html`<span title="This is the school's own information">The school's own</span>`}</td>
-            <td class="row-actions">${s.changed && s.resettable ? html`<button class="btn sm" data-reset="${s.area}" data-path="${s.path}" data-label="${s.label}">Restore default</button>` : ''}
+            <td class="row-actions">${s.changed && s.resettable && mayChange(s.area) ? html`<button class="btn sm" data-reset="${s.area}" data-path="${s.path}" data-label="${s.label}">Restore default</button>` : ''}
               <a class="btn sm ghost" href="#/config?tab=history&area=${s.area}${s.path ? `&path=${encodeURIComponent(s.path)}` : ''}" aria-label="History of ${s.label}">${icon('clock', 14)}</a></td>
           </tr>`)}</tbody></table></div>
       </details></div>`)}` : html`<div class="card empty">${icon('search', 32)}<p>No setting matches. Try other words, or show every module.</p></div>`);
@@ -175,7 +178,7 @@ async function historyTab(el, head, cfg, q) {
     ${h.entries.length ? html`<div class="stack">${h.entries.map((e) => html`<article class="card history-entry">
       <div class="history-head"><div><strong>${e.areaLabel}</strong> ${badge(MODULE_LABEL[e.module], 'gray')} ${VIA[e.via] ? badge(VIA[e.via], e.via === 'undo' ? 'amber' : 'blue') : ''}
         <small class="muted block">${e.by} · <time datetime="${e.at}" title="${fmtDateTime(e.at)}">${timeAgo(e.at)}</time></small></div>
-        ${e.undoable ? html`<button class="btn sm" data-undo="${e.id}">Undo</button>` : ''}</div>
+        ${e.undoable && mayChange(e.area) ? html`<button class="btn sm" data-undo="${e.id}">Undo</button>` : ''}</div>
       <ul class="change-list">${e.changes.map((c) => html`<li><span class="change-label">${c.label}</span>
         <span class="change-from" title="Before">${showValue(c.from, formatOf(e.area, c.path))}</span> ${raw('<span aria-hidden="true">→</span><span class="sr-only">changed to</span>')}
         <span class="change-to" title="After">${showValue(c.to, formatOf(e.area, c.path))}</span></li>`)}</ul>
@@ -232,7 +235,7 @@ function transferTab(el, head, cfg) {
       mount(el.querySelector('#preview'), html`<section class="card" style="margin-top:16px">
         <div class="card-head"><h2>What importing would change</h2></div>
         <p class="muted small">From ${p.school || 'another ATLAS'}${p.exportedBy ? `, exported by ${p.exportedBy}` : ''}${p.exportedAt ? ` on ${fmtDateTime(p.exportedAt)}` : ''}. ${p.areas.length - withChanges.length ? `${p.areas.length - withChanges.length} group${p.areas.length - withChanges.length === 1 ? ' is' : 's are'} already the same here.` : ''}</p>
-        ${withChanges.length ? html`<form id="import-form" class="stack">${withChanges.map((a) => html`<fieldset class="import-area"><legend><label class="check-inline"><input type="checkbox" name="area" value="${a.id}" checked /> <strong>${a.label}</strong> ${badge(MODULE_LABEL[a.module], 'gray')} <span class="muted">${a.changes.length} change${a.changes.length === 1 ? '' : 's'}</span></label></legend>
+        ${withChanges.length ? html`<form id="import-form" class="stack">${withChanges.map((a) => html`<fieldset class="import-area"><legend><label class="check-inline"><input type="checkbox" name="area" value="${a.id}" ${mayChange(a.id) ? 'checked' : 'disabled'} /> <strong>${a.label}</strong> ${badge(MODULE_LABEL[a.module], 'gray')} <span class="muted">${a.changes.length} change${a.changes.length === 1 ? '' : 's'}${mayChange(a.id) ? '' : ' · administrators import these'}</span></label></legend>
             <ul class="change-list">${a.changes.slice(0, 12).map((c) => html`<li><span class="change-label">${c.label}</span> <span class="change-from">${showValue(c.from, fmt[`${a.id}|${c.path}`])}</span> → <span class="change-to">${showValue(c.to, fmt[`${a.id}|${c.path}`])}</span></li>`)}${a.changes.length > 12 ? html`<li class="muted">and ${a.changes.length - 12} more</li>` : ''}</ul></fieldset>`)}
           <div class="actions end"><button type="button" class="btn ghost" id="cancel-import">Cancel</button><button class="btn primary">Import the ticked groups</button></div></form>`
           : html`<p>Everything in this file is already the same here. Nothing to import.</p>`}
