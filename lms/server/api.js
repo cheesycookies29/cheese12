@@ -134,7 +134,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       password: { limit: 10, windowMs: 15 * MIN }, // password changes per person (each checks the current password)
       apply: { limit: 10, windowMs: 60 * MIN }, // applications per address
       setup: { limit: 20, windowMs: 15 * MIN }, // first-administrator attempts per address
-      lookup: { limit: 60, windowMs: MIN }, // document checks and calendar feeds per address
+      lookup: { limit: 60, windowMs: MIN }, // document checks per address
+      feed: { limit: 20, windowMs: 15 * MIN }, // one calendar feed (calendar apps fetch it every few minutes at most, from shared addresses)
       outbound: { limit: 20, windowMs: 15 * MIN }, // tests of the Keycloak connection per address (each makes this server call another)
       // ATLAS Documents' links for people outside the school (server/documents.js)
       shareAccess: { limit: 120, windowMs: MIN }, // requests to links, per address
@@ -195,10 +196,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // audit: false when the route records its own, clearer entry in the audit trail (or nothing worth one);
   // a refused request is recorded either way.
   // body: the fields this route accepts (server/validate.js); others are removed before the handler.
-  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null, audit: logged = true, body = null } = {}) => {
+  // limitBy({ params, ip }): what the `limit` counts by (default: the network address; 'password': the person).
+  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null, limitBy = null, audit: logged = true, body = null } = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, pattern, re, keys, access, handler, module, duringPasswordChange, guardians, limit, audit: logged, body });
+    routes.push({ method, pattern, re, keys, access, handler, module, duringPasswordChange, guardians, limit, limitBy, audit: logged, body });
   };
 
   // Bodies of the sign-in, password and setup routes (server/validate.js): only these fields reach them.
@@ -745,7 +747,21 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     for (const k of Object.keys(out)) out[k] = out[k].slice(0, 3);
     return out;
   }
-  route('GET', '/api/hub/figures', 'me', ({ user }) => figuresFor(user), { audit: false });
+  // Cached for a minute per person and campus: each home page load would otherwise work out every
+  // card again through several routes, and at 8:00 thousands of people open the home page at once
+  // (council 2026-11: "cached figures"). A figure up to a minute old is fine on a card.
+  const FIGURES_MS = 60 * 1000;
+  const figuresCache = new Map(); // `${userId}|${campusId}` → { at, value }
+  route('GET', '/api/hub/figures', 'me', async ({ user, campusId }) => {
+    const key = `${user.id}|${campusId || ''}`;
+    const hit = figuresCache.get(key);
+    if (hit && Date.now() - hit.at < FIGURES_MS) return hit.value;
+    const value = await figuresFor(user);
+    if (figuresCache.size >= 20000) for (const [k, v] of figuresCache) if (Date.now() - v.at >= FIGURES_MS) figuresCache.delete(k);
+    if (figuresCache.size >= 20000) figuresCache.clear(); // still full: start again rather than grow
+    figuresCache.set(key, { at: Date.now(), value });
+    return value;
+  }, { audit: false });
 
   // ----- ATLAS Tools (/tools/): PDF Studio, ported from CORE (server/tools-pdf.js) -----
   const toolsFor = (u) => (u ? TOOLS.filter((x) => toolOpenFor(db.data.settings, x.id, u.role)).map(({ defaultRoles, ...x }) => x) : []);
@@ -1002,8 +1018,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         if (user?.mustChangePassword && !r.duringPasswordChange) fail('Please change your password first.', 403);
         // The school requires 2-step verification of this account and it is not on yet: only setting it up (and signing out).
         if (!r.duringPasswordChange && twoFactor.mustSetUp(user)) fail('Set up 2-step verification first (My security).', 403);
-        if (r.limit) limits.hit(r.limit === 'password' ? r.limit : byAddress(r.limit, ip), r.limit === 'password' ? user.id : ip);
         const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+        if (r.limit) {
+          if (r.limit === 'password') limits.hit('password', user.id);
+          else if (r.limitBy) limits.hit(r.limit, String(r.limitBy({ params, ip })).slice(0, 200));
+          else limits.hit(byAddress(r.limit, ip), ip);
+        }
         const campusId = user ? activeCampusId(db.data, user) : null;
         // A Finance change is all or nothing: if any check fails partway, the books are put back as they were.
         const finSnap = req.method !== 'GET' && url.pathname.startsWith('/api/finance/') ? Object.fromEntries(Object.keys(db.data).filter((k) => k.startsWith('fin')).map((k) => [k, structuredClone(db.data[k])])) : null;

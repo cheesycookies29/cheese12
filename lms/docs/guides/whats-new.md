@@ -12,6 +12,7 @@ order: 2
 ### Sign-in at busy times: school networks
 - A campus that reaches the internet through one address is no longer treated as one visitor. Under **System → Sign-in and passwords → School networks**, administrators list the campus addresses (the page suggests the busiest ones), and there the sign-in and request limits are multiplied, so a morning of typos or a rush of sign-ins no longer makes the whole campus wait. See [the administrator's guide](admin#list-the-school-s-networks).
 - Keycloak sign-ins have their own limit, no longer shared with calendar feeds and document checks.
+- Calendar apps subscribed to an ATLAS calendar are limited per calendar, not per address, so Google or Outlook fetching many people's calendars is no longer turned away. Phones on IPv6 count as one visitor per home or mobile network for the sign-in limits. Pages load faster behind Cloudflare (files the browser already has are no longer downloaded again), and the figures on the home page's cards are worked out at most once a minute.
 
 ### ATLAS Documents: files and sharing for everyone
 - A new system, **Documents**, on the ATLAS home page for every employee and student (not for parents). Keep your own files in **My files**, work in the folders your office or college shares (**School folders**), and open what others share with you (**Shared with me**). See [the Documents guide](documents).

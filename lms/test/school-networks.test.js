@@ -94,9 +94,9 @@ test('sign-ins per minute: sixty for an address, many more for a school network'
 test('Keycloak sign-ins have their own limit, not shared with calendar feeds and document checks', async () => {
   const f = await school();
   const campus = f.from(HOME);
-  // Sixty calendar-feed fetches (made-up addresses: not found) use up the "lookup" limit…
-  for (let i = 0; i < 60; i++) await assert.rejects(campus('GET', `/api/calendar/feed/${'0'.repeat(47)}${i % 10}.ics`), status(404));
-  await assert.rejects(campus('GET', `/api/calendar/feed/${'1'.repeat(48)}.ics`), status(429));
+  // Sixty document checks (made-up codes: not found) use up the "lookup" limit…
+  for (let i = 0; i < 60; i++) await campus('GET', `/api/verify/NOPE-${i}`).catch(() => {});
+  await assert.rejects(campus('GET', '/api/verify/NOPE-x'), status(429));
   // …but Keycloak sign-in is not refused for it (here it is not set up, so it answers otherwise).
   await assert.rejects(campus('GET', '/api/sso/start'), (e) => e.status !== 429);
   // Its own limit: 120 a minute per address.

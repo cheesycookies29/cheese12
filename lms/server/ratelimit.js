@@ -20,7 +20,7 @@ export function createRateLimiter(rules, { now = () => Date.now(), maxKeys = 500
   const buckets = new Map(); // `${rule}|${key}` → { start, prev, count } (two fixed windows, weighted)
   const ruleOf = (name) => (typeof rules === 'function' ? rules() : rules)[name];
   const state = (name, key, windowMs) => {
-    const id = `${name}|${key}`;
+    const id = `${name}|${limitKey(key)}`;
     const t = now();
     let b = buckets.get(id);
     if (!b) {
@@ -147,4 +147,13 @@ export function networkOf(ip) {
   const t = tail ? tail.split(':') : [];
   const groups = String(ip).includes('::') ? [...h, ...Array(8 - h.length - t.length).fill('0'), ...t] : h;
   return `${groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':')}::/64`;
+}
+
+// What a limit counts by: an IPv6 address counts as its /64, as one home or phone gets a whole /64 and
+// could otherwise send each request from a new address. Keys made of parts ("user:name@<address>",
+// "<address>|<link>") have each address part counted that way; IPv4 and everything else is as given.
+export function limitKey(key) {
+  const s = String(key ?? '');
+  if (!s.includes(':')) return s;
+  return s.split(/([|@])/).map((part) => (net.isIP(part) === 6 ? networkOf(part) : part)).join('');
 }

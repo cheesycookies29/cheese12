@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomBytes, scrypt, scryptSync, timingSafeEqual, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
 import { HttpError } from './util.js';
+import { limitKey } from './ratelimit.js';
 
 // ----- Passwords -----
 // A password is never stored. It is hashed with scrypt (one way: a hash cannot be turned back into
@@ -349,13 +350,14 @@ export function createThrottle(limits = {}) {
   timer.unref?.();
   return {
     check(key) {
-      const f = failures.get(key);
+      const f = failures.get(limitKey(key));
       if (f && f.until > Date.now()) {
         const mins = Math.ceil((f.until - Date.now()) / 60000);
         throw new HttpError(429, `Too many failed attempts. Try again in ${mins} minute${mins > 1 ? 's' : ''}.`);
       }
     },
     fail(key, times = 1) {
+      key = limitKey(key);
       const f = failures.get(key) || { count: 0, until: 0, at: 0 };
       f.count += 1;
       f.at = Date.now();
@@ -365,7 +367,7 @@ export function createThrottle(limits = {}) {
       if (failures.size > 100000) prune();
     },
     reset(key) {
-      failures.delete(key);
+      failures.delete(limitKey(key));
     },
     // Keys locked right now, with when they open again (Control → Locked sign-ins).
     locked() {

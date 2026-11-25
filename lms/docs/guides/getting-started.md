@@ -23,7 +23,7 @@ This guide is for everyone. The guides for your own job are listed on the **Help
 This tour uses the demo school. Sign in as `teacher.demo` with the password `demo1234`.
 
 1. Open the ATLAS home page. Type `teacher.demo` under **Username** and `demo1234` under **Password**, then choose **Sign in**.
-2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a card for each system your account may use, how many are available, and a few figures from your own work on each card (for example *2 sections you teach* and *8 to grade*). When there are more cards than fit across the screen, they move in a row: choose the arrows beside *… available to you* or the dots under the cards, swipe the row on a phone or tablet, or press `Tab` until the row itself is selected and then the left and right arrow keys. Choose **Compact** to see every system at once instead.
+2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a card for each system your account may use, how many are available, and a few figures from your own work on each card (for example *2 sections you teach* and *8 to grade*; they can be up to a minute old). When there are more cards than fit across the screen, they move in a row: choose the arrows beside *… available to you* or the dots under the cards, swipe the row on a phone or tablet, or press `Tab` until the row itself is selected and then the left and right arrow keys. Choose **Compact** to see every system at once instead.
 
 ![The ATLAS home page after signing in](getting-started-home.jpg)
 

@@ -184,7 +184,7 @@ export function registerCalendarRoutes(route, ctx, { resultFor, isOpen }) {
     const today = localDate(ctx.now());
     const entries = entriesFor(user, addDays(today, -30), addDays(today, 180), { child: 'all' });
     return { raw: toIcs(entries, { name: `${data().settings.schoolName} · ${user.name}`, now: ctx.now(), domain: new URL(origin || 'http://atlas.invalid').hostname }), type: 'text/calendar; charset=utf-8', headers: { 'Cache-Control': 'no-store', 'Content-Disposition': 'inline; filename="atlas-calendar.ics"' } };
-  }, { limit: 'lookup' });
+  }, { limit: 'feed', limitBy: ({ params }) => params.file }); // counted per feed: Google and Outlook fetch everyone's feeds from a few shared addresses
 
   // ----- Admin panel: the school calendar of the campus, to plan events on -----
   route('GET', '/api/admin/calendar', 'admin', ({ query, campusId }) => {

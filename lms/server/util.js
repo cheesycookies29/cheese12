@@ -35,3 +35,14 @@ export function required(value, label) {
   if (!value) throw new HttpError(400, `${label} is required.`);
   return value;
 }
+
+// If-None-Match against a file's ETag, compared weakly as HTTP says it must be for this header
+// (RFC 9110 §13.1.2): a W/ prefix is ignored, several tags may be sent, and "*" matches. Proxies that
+// compress a file change its tag on the way out (Cloudflare makes it weak; others add "-gzip",
+// "-br" or "-zstd" inside the quotes), so the tag coming back in is matched without those too.
+export function etagMatches(header, etag) {
+  if (!header || !etag) return false;
+  const core = (tag) => tag.trim().replace(/^W\//, '').replace(/^"|"$/g, '').replace(/-(gzip|br|zstd|deflate)$/, '');
+  const ours = core(etag);
+  return String(header).split(',').some((t) => t.trim() === '*' || core(t) === ours);
+}

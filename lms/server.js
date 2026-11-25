@@ -8,6 +8,7 @@ import { openDb } from './server/db.js';
 import { loadPasswordKeys } from './server/auth.js';
 import { createApi } from './server/api.js';
 import { clientIp } from './server/ratelimit.js';
+import { etagMatches } from './server/util.js';
 import { FileReply } from './server/tools-pdf.js';
 import { safeReviver } from './server/validate.js';
 
@@ -144,7 +145,7 @@ function sendFile(req, res, file, extra = {}) {
   const etag = `"${stat.size.toString(36)}-${Math.floor(stat.mtimeMs).toString(36)}"`;
   const cache = ['.ttf', '.woff2'].includes(ext) ? 'public, max-age=2592000' : ['.png', '.svg', '.ico'].includes(ext) ? 'public, max-age=86400' : 'no-cache';
   const headers = { ETag: etag, 'Cache-Control': cache, ...extra };
-  if (req.headers['if-none-match'] === etag) {
+  if (etagMatches(req.headers['if-none-match'], etag)) { // also after Cloudflare or Caddy compressed it (server/util.js)
     res.writeHead(304, { ...headers, ...SECURITY_HEADERS });
     return res.end();
   }
