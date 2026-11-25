@@ -100,6 +100,65 @@ test('a scan without text: a picture in documents, said in a note; nothing in te
   assert.match(txt.notes[0], /left empty/);
 });
 
+// A table as CSV and Excel files lay it out: headings flush left, numbers flush right, so a heading
+// and the numbers under it do not overlap (and a row with an empty cell has fewer cells).
+const right = (t) => ({ runs: t ? [{ text: t }] : [], align: 'right' });
+const left = (t, o = {}) => ({ runs: t ? [{ text: t, ...o }] : [] });
+const BUDGET = docToPdf({ title: 'Equipment budget', blocks: [
+  { type: 'heading', level: 1, runs: [{ text: 'Equipment budget' }] },
+  { type: 'table', widths: [3, 1, 2, 2], rows: [
+    { cells: [left('Item', { bold: true }), left('Qty', { bold: true }), left('Unit price', { bold: true }), left('Total', { bold: true })] },
+    { cells: [left('Laptop'), right('12'), right('45,000.00'), right('540,000.00')] },
+    { cells: [left('Monitor'), right('12'), right('9,500.00'), right('114,000.00')] },
+    { cells: [left('Installation'), right(''), right('25,000.00'), right('25,000.00')] },
+    { cells: [left('Total', { bold: true }), right(''), right(''), right('679,000.00')] },
+  ] },
+] }, { size: 'a4' }).pdf;
+
+test('a column of numbers flush right is one column, under its heading, in every format', () => {
+  const csv = convertPdf(BUDGET, 'csv', 'budget').files[0].buffer.toString('utf8');
+  assert.match(csv, /\r\nItem,Qty,Unit price,Total\r\nLaptop,12,"45,000\.00","540,000\.00"\r\nMonitor,12,"9,500\.00","114,000\.00"\r\nInstallation,,"25,000\.00","25,000\.00"\r\nTotal,,,"679,000\.00"\r\n/);
+  // Excel: the totals in column D, under "Total", as numbers to add up.
+  const sheet = part(convertPdf(BUDGET, 'xlsx', 'budget').files[0].buffer, 'xl/worksheets/sheet1.xml');
+  assert.match(sheet, /<c r="D2" t="inlineStr"><is><t xml:space="preserve">Total</);
+  for (const [ref, v] of [['D3', 540000], ['D4', 114000], ['D5', 25000], ['D6', 679000], ['B3', 12], ['C5', 25000]]) assert.match(sheet, new RegExp(`<c r="${ref}"[^>]*><v>${v}</v>`), ref);
+  assert.doesNotMatch(sheet, /r="[E-Z]\d+"/);
+  // Documents: a table of four columns.
+  const md = convertPdf(BUDGET, 'md', 'budget').files[0].buffer.toString('utf8');
+  assert.match(md, /\| \*\*Item\*\* \| \*\*Qty\*\* \| \*\*Unit price\*\* \| \*\*Total\*\* \|\n\| --- \| --- \| --- \| --- \|\n\| Laptop \| 12 \| 45,000\.00 \| 540,000\.00 \|\n\| Monitor \| 12 \| 9,500\.00 \| 114,000\.00 \|\n\| Installation \|   \| 25,000\.00 \| 25,000\.00 \|\n\| \*\*Total\*\* \|   \|   \| 679,000\.00 \|/);
+  const doc = part(convertPdf(BUDGET, 'docx', 'budget').files[0].buffer, 'word/document.xml');
+  assert.equal((doc.match(/<w:gridCol /g) || []).length, 4);
+  assert.match(convertPdf(BUDGET, 'html', 'budget').files[0].buffer.toString('utf8'), /<tr><td>Laptop<\/td><td>12<\/td><td>45,000\.00<\/td><td>540,000\.00<\/td><\/tr>/);
+  const rtfRow = convertPdf(BUDGET, 'rtf', 'budget').files[0].buffer.toString('latin1').split('\n').find((l) => l.startsWith('\\trowd'));
+  assert.equal(rtfRow.match(/\\cellx/g).length, 4);
+  assert.equal((part(convertPdf(BUDGET, 'odt', 'budget').files[0].buffer, 'content.xml').match(/number-columns-repeated="(\d+)"/) || [])[1], '4');
+});
+
+test('headings by the body text of their own page: files of other text sizes put together keep theirs', () => {
+  const long = 'This paragraph is set in the body text of its page, and it goes on long enough to be most of the text there. '.repeat(3);
+  const pdf = docToPdf({ title: 'Mixed', blocks: [
+    { type: 'heading', level: 1, runs: [{ text: 'Quarterly report' }] },
+    { type: 'paragraph', runs: [{ text: long }] },
+    { type: 'heading', level: 2, runs: [{ text: 'Budget' }] },
+    { type: 'paragraph', runs: [{ text: long }] },
+    { type: 'pagebreak' },
+    // Another file, with larger text: more of it than of the first.
+    ...Array.from({ length: 6 }, () => ({ type: 'paragraph', runs: [{ text: long, size: 16 }] })),
+  ] }, { size: 'a4' }).pdf;
+  const md = convertPdf(pdf, 'md', 'mixed').files[0].buffer.toString('utf8');
+  assert.match(md, /^# Quarterly report\n/);
+  assert.match(md, /\n## Budget\n/);
+  assert.doesNotMatch(md.split('---')[1], /^#/m);
+});
+
+test('the note on pages without text: one or more, and blank pages left out', async () => {
+  const blank = docToPdf({ title: 'Blank', blocks: [{ type: 'paragraph', runs: [{ text: '' }] }] }, { size: 'a4' }).pdf;
+  assert.deepEqual(convertPdf(blank, 'docx', 'blank').notes, []);
+  assert.deepEqual(convertPdf(blank, 'csv', 'blank').notes, []);
+  assert.equal(convertPdf(SCAN, 'docx', 'scan').notes[0], 'The page has no text to take (a scan, or text drawn as shapes): it is in the file as a picture.');
+  assert.equal(convertPdf(SCAN, 'xlsx', 'scan').notes[0], 'The page has no text to take (a scan, or text drawn as shapes): it is left empty.');
+});
+
 test('numbers as people write them, and text that only looks like one', () => {
   assert.deepEqual(numberOf('1,234.50'), { value: 1234.5, percent: false });
   assert.deepEqual(numberOf('(1,234.50)'), { value: -1234.5, percent: false });
@@ -137,7 +196,11 @@ test('API: export as Word, split into a ZIP, pictures for the browser, stamps on
   assert.match(doc, /<w:pageBreakBefore\/>/);
   // Header and watermark are not written into a document to edit.
   assert.doesNotMatch(doc, /CONFIDENTIAL HEADER|DRAFT/);
-  assert.match(decodeURIComponent(word.headers['X-Atlas-Note']), /1 of 2 pages have no text/);
+  assert.equal(decodeURIComponent(word.headers['X-Atlas-Note']), '1 of 2 pages has no text to take (a scan, or text drawn as shapes): it is in the file as a picture.');
+  assert.equal(word.headers['X-Atlas-Warning'], undefined);
+  // A blank page added in PDF Studio is not a scan.
+  const withBlank = await sam('POST', '/api/tools/pdf/export', { pages: [...pages, { blank: true, size: 'a4', orientation: 'portrait' }, { source: scan.id, page: 0 }], as: 'docx', fileName: 'Bundle' });
+  assert.equal(decodeURIComponent(withBlank.headers['X-Atlas-Note']), '2 of 4 pages have no text to take (a scan, or text drawn as shapes): they are in the file as pictures.');
   // One file per source: a ZIP of two Word files.
   const parts = await sam('POST', '/api/tools/pdf/export', { pages, as: 'docx', split: 'documents', fileName: 'Bundle' });
   assert.equal(parts.headers['Content-Type'], 'application/zip');
@@ -163,6 +226,35 @@ test('API: export as Word, split into a ZIP, pictures for the browser, stamps on
   await fails(sam('POST', '/api/tools/pdf/export', { pages: many, as: 'docx' }), 400, /Word can be made from up to 300 pages/);
   const pics = Array.from({ length: PDF_LIMITS.maxPicturePages + 1 }, () => ({ source: src.id, page: 0 }));
   await fails(sam('POST', '/api/tools/pdf/export', { pages: pics, as: 'jpg' }), 400, /JPEG pictures can be made from up to 100 pages/);
+  // Characters the standard fonts lack, typed in the page editor: "?" in the PDF (said), the real
+  // character in the other formats; one that cannot be told from a question mark is said.
+  const typed = [{ source: src.id, page: 0, edits: [{ type: 'text', x: 60, y: 700, text: 'Approved — Ωmega', size: 12 }] }];
+  const asPdf = await sam('POST', '/api/tools/pdf/export', { pages: typed, fileName: 'T' });
+  assert.match(decodeURIComponent(asPdf.headers['X-Atlas-Warning']), /appear as “\?”: Ω/);
+  const asWord = await sam('POST', '/api/tools/pdf/export', { pages: typed, as: 'docx', fileName: 'T' });
+  assert.match(part(asWord.data, 'word/document.xml'), /Approved — Ωmega/);
+  assert.equal(asWord.headers['X-Atlas-Warning'], undefined);
+  const asCsv = await sam('POST', '/api/tools/pdf/export', { pages: typed, as: 'csv', fileName: 'T' });
+  assert.match(asCsv.data.toString('utf8'), /Approved — Ωmega/);
+  const alone = await sam('POST', '/api/tools/pdf/export', { pages: [{ ...typed[0], edits: [{ ...typed[0].edits[0], text: 'Angle θ = 90°' }] }], as: 'txt', fileName: 'T' });
+  assert.match(alone.data.toString('utf8'), /Angle \? = 90°/);
+  assert.match(decodeURIComponent(alone.headers['X-Atlas-Warning']), /appear as “\?” in this file: θ/);
+  const asSvg = await sam('POST', '/api/tools/pdf/export', { pages: typed, as: 'svg', fileName: 'T' });
+  assert.match(decodeURIComponent(asSvg.headers['X-Atlas-Warning']), /Ω/);
+  const asPng = (await sam('POST', '/api/tools/pdf/export', { pages: typed, as: 'png', fileName: 'T' })).data;
+  assert.match(asPng.warning, /Ω/);
+  // Markdown, one file for each file added: two files of the same name each link to their own picture.
+  const photo = (await sam('POST', '/api/tools/pdf/sources', { file: { name: 'scan.jpg', type: 'image/jpeg', data: fs.readFileSync(new URL('../scripts/fixtures/profile-sample.jpg', import.meta.url)).toString('base64') } })).data;
+  const md = readZip((await sam('POST', '/api/tools/pdf/export', { pages: [{ source: scan.id, page: 0 }, { source: photo.id, page: 0 }], as: 'md', split: 'documents', fileName: 'Both' })).data);
+  const mds = md.names.filter((n) => n.endsWith('.md'));
+  assert.equal(mds.length, 2);
+  const linked = mds.map((n) => {
+    const link = md.read(n).toString('utf8').match(/!\[Picture\]\(([^)]+)\)/)[1];
+    const file = `${n.replace(/[^/]*$/, '')}${link}`;
+    assert.ok(md.names.includes(file), `${n} links to ${file}`);
+    return md.read(file).toString('base64');
+  });
+  assert.notEqual(linked[0], linked[1]);
   // In the audit log, with the format.
   const log = fs.readFileSync(path.join(dir, 'audit-log.jsonl'), 'utf8');
   assert.match(log, /Exported Word from PDF Studio[^\n]*Bundle\.docx[^\n]*2 pages from 2 files/);

@@ -18,6 +18,8 @@ import { createHash } from 'node:crypto';
 import { readPdf } from './reader.js';
 import { renderPage } from './render.js';
 import { runScale } from './edits.js';
+import { encodeWinAnsi, missingChars } from './writer.js';
+import { decodeCp1252 } from './cp1252.js';
 import { zipFiles } from '../zip.js';
 import { PDF_EXPORT_FORMATS } from '../../shared/pdf-studio.js';
 
@@ -50,10 +52,16 @@ export function readPages(pdf, { pictures = true } = {}) {
   const pages = [];
   for (let i = 0; i < doc.pageCount; i++) {
     const r = renderPage(doc, i, { draw: pictures, pictures, lines: false });
-    pages.push(pageOf(r, pictures));
+    const page = pageOf(r, pictures);
+    // A page without text: a scan or text drawn as shapes, or a blank page (nothing drawn on it).
+    if (!page.hasText) page.blank = !drawsAnything((pictures ? r : renderPage(doc, i, { lines: false })).svg);
+    pages.push(page);
   }
   return pages;
 }
+
+// Whether a page's SVG draws anything on its white sheet (a path, a picture or text).
+const drawsAnything = (svg) => /<(path|image|text|use)\b/.test(String(svg || '').replace(/^<svg[^>]*><rect [^>]*\/>/, ''));
 
 function pageOf(r, withPictures) {
   const runs = (r.runs || []).filter((x) => x.text && x.text.trim() && x.height > 0).map((x) => {
@@ -135,7 +143,7 @@ function linesOf(runs) {
 const sameColor = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || []);
 const cellText = (c) => c.pieces.map((p) => p.text).join('');
 
-// The size of most of the text, all pages together: what "body text" is.
+// The size of most of the text: what "body text" is. → { size, chars } (how much text is that size).
 function bodySize(pages) {
   const count = new Map();
   for (const p of pages) for (const l of p.lines) for (const r of l.runs) {
@@ -143,9 +151,24 @@ function bodySize(pages) {
     count.set(k, (count.get(k) || 0) + r.text.length);
   }
   let best = 11;
-  let most = -1;
+  let most = 0;
   for (const [k, n] of count) if (n > most) [best, most] = [k, n];
-  return best || 11;
+  return { size: best || 11, chars: most };
+}
+// The body text of each page, from its own text: pages put together from several files keep the
+// headings of each (larger than its own body text). A page with little text (a title page, a page
+// of a few lines) takes the body text of the nearest page that has enough; else that of all pages.
+const BODY_CHARS = 100;
+function bodySizes(pages) {
+  const all = bodySize(pages).size;
+  const own = pages.map((p) => bodySize([p]));
+  return own.map((b, i) => {
+    if (b.chars >= BODY_CHARS) return b.size;
+    for (let d = 1; d < pages.length; d++) {
+      for (const j of [i - d, i + d]) if (own[j]?.chars >= BODY_CHARS) return own[j].size;
+    }
+    return all;
+  });
 }
 
 // ---------- Lines into blocks: headings, paragraphs, tables and pictures ----------
@@ -155,18 +178,12 @@ export function blocksOf(page, body) {
   const lines = page.lines;
   const usedAsTable = new Set();
   // Tables: two lines or more in a row, each with two cells or more, that line up.
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].cells.length < 2 || !lines[i].upright) continue;
-    let j = i;
-    while (j + 1 < lines.length && lines[j + 1].cells.length >= 2 && lines[j + 1].upright && lines[j].bottom - lines[j + 1].top < 2.5 * Math.max(lines[j].size, lines[j + 1].size)) j++;
-    if (j > i) {
-      const rows = lines.slice(i, j + 1);
-      const table = tableOf(rows);
-      if (table) {
-        rows.forEach((l) => usedAsTable.add(l));
-        blocks.push({ type: 'table', top: rows[0].top, rows: table });
-      }
-      i = j;
+  for (const [i, j] of tableRuns(lines)) {
+    const rows = lines.slice(i, j + 1);
+    const table = tableOf(rows);
+    if (table) {
+      rows.forEach((l) => usedAsTable.add(l));
+      blocks.push({ type: 'table', top: rows[0].top, rows: table });
     }
   }
   let para = null;
@@ -224,8 +241,71 @@ function merge(runs) {
   return out;
 }
 
-// Rows of cells into a grid: each cell under the column whose left edge it is nearest.
-function tableOf(rows) {
+// Lines that may be a table: two or more in a row, each with two cells or more, close together.
+// → [[first, last], …] (indexes into lines).
+function tableRuns(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].cells.length < 2 || !lines[i].upright) continue;
+    let j = i;
+    while (j + 1 < lines.length && lines[j + 1].cells.length >= 2 && lines[j + 1].upright && lines[j].bottom - lines[j + 1].top < 2.5 * Math.max(lines[j].size, lines[j + 1].size)) j++;
+    if (j > i) out.push([i, j]);
+    i = j;
+  }
+  return out;
+}
+
+// The column of each cell of the rows of a table → { count, cols: [[column of each cell] per row] },
+// or null when they are not in columns. The rows that have the most cells (two of them or more) give
+// the columns, cell by cell: a column of numbers set flush right, under a heading set flush left,
+// is one column although the heading and the numbers do not overlap. A row with fewer cells (some
+// are empty) puts each cell in the column it overlaps, else on its side of the edge between two
+// columns: the space between them goes to the one whose text can reach into it (the column on the
+// left when it is flush left, the one on the right when it is flush right or centred), else half
+// to each.
+function columnsOf(rows) {
+  const counts = new Map();
+  for (const l of rows) counts.set(l.cells.length, (counts.get(l.cells.length) || 0) + 1);
+  const repeated = [...counts].filter(([, n]) => n >= 2).map(([k]) => k);
+  const count = repeated.length ? Math.max(...repeated) : Math.max(...counts.keys());
+  if (count < 2 || count > 30) return null;
+  const full = rows.filter((l) => l.cells.length === count);
+  const cols = Array.from({ length: count }, (_, k) => {
+    const cells = full.map((l) => l.cells[k]);
+    // How many cells share an edge (or a middle): the way the column is set.
+    const share = (f) => Math.max(...cells.map((a) => cells.filter((b) => Math.abs(f(a) - f(b)) < 2).length));
+    const left = share((c) => c.x);
+    const right = share((c) => c.right);
+    const centre = share((c) => (c.x + c.right) / 2);
+    // (Cells all as wide as each other share both edges: the column is set either way.)
+    const align = left > right && left >= centre ? 'left' : right > left && right >= centre ? 'right' : centre > left && centre > right ? 'center' : 'both';
+    return { at: Math.min(...cells.map((c) => c.x)), right: Math.max(...cells.map((c) => c.right)), align };
+  });
+  for (let k = 1; k < count; k++) if (cols[k].at < cols[k - 1].right - 1) return columnsByLeft(rows);
+  const edges = cols.slice(1).map((b, k) => {
+    const a = cols[k];
+    const openRight = a.align === 'left' || a.align === 'center';
+    const openLeft = b.align === 'right' || b.align === 'center';
+    return openRight && !openLeft ? b.at : !openRight && openLeft ? a.right : (a.right + b.at) / 2;
+  });
+  const place = (c) => {
+    let best = -1;
+    let most = 0;
+    cols.forEach((col, k) => {
+      const o = Math.min(c.right, col.right) - Math.max(c.x, col.at);
+      if (o > most) [best, most] = [k, o];
+    });
+    if (best >= 0) return best;
+    const mid = (c.x + c.right) / 2;
+    let k = 0;
+    while (k < edges.length && mid >= edges[k]) k++;
+    return k;
+  };
+  return { count, cols: rows.map((l) => (l.cells.length === count ? l.cells.map((_, k) => k) : l.cells.map(place))) };
+}
+// Rows whose cells do not line up cell by cell: each cell under the column whose left edge it is
+// nearest.
+function columnsByLeft(rows) {
   const tol = Math.max(6, ...rows.map((l) => l.size));
   const starts = [];
   for (const l of rows) for (const c of l.cells) {
@@ -237,34 +317,58 @@ function tableOf(rows) {
   }
   starts.sort((a, b) => a.at - b.at);
   if (starts.length < 2 || starts.length > 30) return null;
-  const grid = rows.map((l) => {
-    const row = starts.map(() => []);
-    for (const c of l.cells) {
+  return {
+    count: starts.length,
+    cols: rows.map((l) => l.cells.map((c) => {
       let k = 0;
       for (let i = 0; i < starts.length; i++) if (starts[i].at <= c.x + tol / 2) k = i;
-      row[k].push(...c.pieces);
-    }
-    return row.map((pieces) => merge(pieces.map((p, i) => (i && !/\s$/.test(pieces[i - 1].text) ? { ...p, text: ` ${p.text}` } : p))));
-  });
-  return grid;
+      return k;
+    })),
+  };
 }
 
-// Every line as a row, its cells in columns that line up across the page (for spreadsheets).
+// Rows of cells into a grid of pieces of text.
+function tableOf(rows) {
+  const t = columnsOf(rows);
+  if (!t) return null;
+  return rows.map((l, r) => {
+    const row = Array.from({ length: t.count }, () => []);
+    l.cells.forEach((c, n) => row[t.cols[r][n]].push(...c.pieces));
+    return row.map((pieces) => merge(pieces.map((p, i) => (i && !/\s$/.test(pieces[i - 1].text) ? { ...p, text: ` ${p.text}` } : p))));
+  });
+}
+
+// Every line as a row (for spreadsheets). The lines of a table have its columns, from column A;
+// other lines with text apart put it in columns that line up across the page.
 function sheetRows(page) {
-  const all = page.lines.flatMap((l) => l.cells.map((c) => ({ x: c.x, size: l.size })));
+  const lines = page.lines;
+  const inTable = new Map();
+  for (const [i, j] of tableRuns(lines)) {
+    const rows = lines.slice(i, j + 1);
+    const t = columnsOf(rows);
+    if (t) rows.forEach((l, r) => inTable.set(l, t.cols[r]));
+  }
+  const all = lines.filter((l) => !inTable.has(l)).flatMap((l) => l.cells.map((c) => ({ x: c.x, size: l.size })));
   const tol = Math.max(8, ...all.map((c) => c.size * 1.5));
   const starts = [];
   for (const c of [...all].sort((a, b) => a.x - b.x)) {
     if (!starts.length || c.x - starts.at(-1) > tol) starts.push(c.x);
   }
-  return page.lines.map((l) => {
+  return lines.map((l) => {
     const row = [];
-    for (const c of l.cells) {
+    const at = inTable.get(l);
+    l.cells.forEach((c, n) => {
+      const text = cellText(c).trim();
+      if (at) {
+        const k = at[n];
+        row[k] = row[k] ? `${row[k]} ${text}` : text;
+        return;
+      }
       let k = 0;
       for (let i = 0; i < starts.length; i++) if (starts[i] <= c.x + tol / 2) k = i;
       while (row[k] !== undefined && k < 200) k++;
-      row[k] = cellText(c).trim();
-    }
+      row[k] = text;
+    });
     return Array.from({ length: row.length }, (_, i) => row[i] ?? '');
   });
 }
@@ -283,9 +387,11 @@ export function numberOf(s) {
 }
 
 // ---------- The document: pages of blocks ----------
+// body: the body text size of the whole document (for its styles); each page's headings are found
+// from its own.
 function documentOf(pages) {
-  const body = bodySize(pages);
-  return { body, pages: pages.map((p) => ({ width: p.width, height: p.height, blocks: blocksOf(p, body) })) };
+  const sizes = bodySizes(pages);
+  return { body: bodySize(pages).size, pages: pages.map((p, i) => ({ width: p.width, height: p.height, blocks: blocksOf(p, sizes[i]) })) };
 }
 
 // ---------- Word (.docx) ----------
@@ -559,7 +665,8 @@ export function toMarkdown(d) {
     if (b.type === 'heading') return `${'#'.repeat(b.level)} ${line(b.runs)}`;
     if (b.type === 'paragraph') return line(b.runs);
     if (b.type === 'image') {
-      if (!pictures.has(b.hash)) pictures.set(b.hash, { name: `pictures/picture-${pictures.size + 1}.${b.ext}`, buffer: b.data, type: b.mime });
+      // Named by what it is, too: documents of the same name, in one ZIP, each link to their own.
+      if (!pictures.has(b.hash)) pictures.set(b.hash, { name: `pictures/picture-${pictures.size + 1}-${b.hash.slice(0, 8)}.${b.ext}`, buffer: b.data, type: b.mime });
       return `![Picture](${pictures.get(b.hash).name})`;
     }
     if (b.type === 'table') {
@@ -657,9 +764,76 @@ export function pageSvgs(pdf) {
   return out;
 }
 
+// What the export says of pages without text to take (blank pages are not counted: there is
+// nothing on them to lose). In documents, a scan is in the file as its picture.
+function noTextNote(pages, pictures) {
+  const empty = pages.filter((p) => !p.hasText && !p.blank);
+  const n = empty.length;
+  if (!n) return null;
+  const one = n === 1;
+  const who = n === pages.length ? (one ? 'The page has' : 'The pages have') : `${n} of ${pages.length} pages ${one ? 'has' : 'have'}`;
+  const shown = pictures ? empty.filter((p) => p.pictures.length).length : 0;
+  const what = shown === n ? `${one ? 'it is' : 'they are'} in the file as ${one ? 'a picture' : 'pictures'}`
+    : shown === 0 ? `${one ? 'it is' : 'they are'} left empty`
+      : `${shown} ${shown === 1 ? 'is' : 'are'} in the file as ${shown === 1 ? 'a picture' : 'pictures'}, the other${n - shown === 1 ? ' is' : 's are'} left empty`;
+  return `${who} no text to take (a scan, or text drawn as shapes): ${what}.`;
+}
+
+// Text typed in PDF Studio is written in the PDF's standard fonts, where a character they lack is
+// "?" (server/pdf/writer.js). Read back, each word that has one ("?mega") is put back as it was
+// typed ("Ωmega"): every format but the PDF itself can hold any character. A word that is nothing
+// but "?" (a question mark may be just that), or two typed words that read the same, stay as they
+// are, and the characters in them are said. → { lost: [characters] }
+function restoreTyped(pages, typed) {
+  const words = new Map(); // as read back → { word: as typed (null: two words read the same), chars }
+  const lost = new Set();
+  for (const t of typed) for (const w of String(t || '').normalize('NFC').split(/\s+/)) {
+    const chars = missingChars(w, 1000);
+    if (!chars.length) continue;
+    const shown = decodeCp1252(encodeWinAnsi(w)).trim();
+    if (!/[\p{L}\p{N}]/u.test(shown.replace(/\?/g, ''))) {
+      chars.forEach((c) => lost.add(c));
+      continue;
+    }
+    const v = words.get(shown);
+    if (!v) words.set(shown, { word: w, chars, used: false });
+    else {
+      v.chars.push(...chars);
+      if (v.word !== w) v.word = null;
+    }
+  }
+  const found = [...words].filter(([, v]) => v.word);
+  for (const [, v] of words) if (!v.word) v.chars.forEach((c) => lost.add(c));
+  if (found.length) {
+    const escape = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(^|\\s)(${found.map(([k]) => escape(k)).sort((a, b) => b.length - a.length).join('|')})(?=\\s|$)`, 'g');
+    const back = new Map(found);
+    for (const p of pages) for (const l of p.lines) {
+      let changed = false;
+      for (const c of l.cells) for (const piece of c.pieces) {
+        if (!piece.text.includes('?')) continue;
+        piece.text = piece.text.replace(re, (m, lead, k) => {
+          const v = back.get(k);
+          v.used = true;
+          changed = true;
+          return lead + v.word;
+        });
+      }
+      if (changed) l.text = l.cells.map(cellText).join(' ');
+    }
+  }
+  for (const [, v] of found) if (!v.used) v.chars.forEach((c) => lost.add(c));
+  return { lost: [...lost].slice(0, 8) };
+}
+export const TYPED_NOTE = (chars) => `Some characters you typed are not in the PDF's standard fonts and appear as “?” in this file: ${chars.join(' ')}.`;
+
+const lostNote = (chars) => (chars.length ? [TYPED_NOTE(chars)] : []);
+
 // ---------- One file in the asked format, from the PDF the export made ----------
-// → { files: [{ name, buffer, type }], notes: [] } (more than one file goes in a ZIP).
-export function convertPdf(pdf, as, base, meta = {}) {
+// typed: the text typed for these pages in PDF Studio (what it changed or added on them, and, on
+// pictures of the pages, the header, footer and watermark).
+// → { files: [{ name, buffer, type }], notes: [], warnings: [] } (more than one file goes in a ZIP).
+export function convertPdf(pdf, as, base, meta = {}, { typed = [] } = {}) {
   const f = PDF_EXPORT_FORMATS[as];
   if (!f || as === 'pdf' || f.browser) throw new Error(`ATLAS cannot make ${as} files here.`);
   if (as === 'svg') {
@@ -668,25 +842,24 @@ export function convertPdf(pdf, as, base, meta = {}) {
     return {
       files: pages.map((p, i) => ({ name: pages.length === 1 ? `${base}.svg` : `${base} - page ${String(i + 1).padStart(pad, '0')}.svg`, type: MIME.svg, buffer: Buffer.from(p.svg, 'utf8') })),
       notes: [],
+      warnings: lostNote(missingChars(typed.join(' '))),
     };
   }
   const pictures = ['docx', 'odt', 'rtf', 'html', 'md'].includes(as);
   const pages = readPages(pdf, { pictures });
-  const empty = pages.filter((p) => !p.hasText).length;
   const notes = [];
-  if (empty && pages.length) {
-    const what = pictures ? `${empty === 1 ? 'is' : 'are'} in the file as ${empty === 1 ? 'a picture' : 'pictures'}` : `${empty === 1 ? 'is' : 'are'} left empty`;
-    notes.push(`${empty === pages.length ? (pages.length === 1 ? 'The page has' : 'The pages have') : `${empty} of ${pages.length} pages have`} no text to take (a scan, or text drawn as shapes): ${empty === pages.length && pages.length === 1 ? 'it' : 'they'} ${what}.`);
-  }
-  if (as === 'xlsx') return { files: [{ name: `${base}.xlsx`, type: MIME.xlsx, buffer: toXlsx(pages, meta) }], notes };
-  if (as === 'csv') return { files: [{ name: `${base}.csv`, type: MIME.csv, buffer: toCsv(pages) }], notes };
+  const note = noTextNote(pages, pictures);
+  if (note) notes.push(note);
+  const warnings = lostNote(restoreTyped(pages, typed).lost);
+  if (as === 'xlsx') return { files: [{ name: `${base}.xlsx`, type: MIME.xlsx, buffer: toXlsx(pages, meta) }], notes, warnings };
+  if (as === 'csv') return { files: [{ name: `${base}.csv`, type: MIME.csv, buffer: toCsv(pages) }], notes, warnings };
   const d = documentOf(pages);
-  if (as === 'docx') return { files: [{ name: `${base}.docx`, type: MIME.docx, buffer: toDocx(d, meta) }], notes };
-  if (as === 'odt') return { files: [{ name: `${base}.odt`, type: MIME.odt, buffer: toOdt(d, meta) }], notes };
-  if (as === 'rtf') return { files: [{ name: `${base}.rtf`, type: MIME.rtf, buffer: toRtf(d, meta) }], notes };
-  if (as === 'html') return { files: [{ name: `${base}.html`, type: 'text/html', buffer: toHtml(d, meta) }], notes };
-  if (as === 'txt') return { files: [{ name: `${base}.txt`, type: 'text/plain', buffer: toText(d) }], notes };
+  if (as === 'docx') return { files: [{ name: `${base}.docx`, type: MIME.docx, buffer: toDocx(d, meta) }], notes, warnings };
+  if (as === 'odt') return { files: [{ name: `${base}.odt`, type: MIME.odt, buffer: toOdt(d, meta) }], notes, warnings };
+  if (as === 'rtf') return { files: [{ name: `${base}.rtf`, type: MIME.rtf, buffer: toRtf(d, meta) }], notes, warnings };
+  if (as === 'html') return { files: [{ name: `${base}.html`, type: 'text/html', buffer: toHtml(d, meta) }], notes, warnings };
+  if (as === 'txt') return { files: [{ name: `${base}.txt`, type: 'text/plain', buffer: toText(d) }], notes, warnings };
   // Markdown: its pictures beside it, in a ZIP, when there are any.
   const md = toMarkdown(d);
-  return { files: [{ name: `${base}.md`, type: 'text/markdown', buffer: Buffer.from(md.text, 'utf8') }, ...md.pictures.map((p) => ({ name: p.name, type: p.type, buffer: p.buffer }))], notes, paths: md.pictures.length > 0 };
+  return { files: [{ name: `${base}.md`, type: 'text/markdown', buffer: Buffer.from(md.text, 'utf8') }, ...md.pictures.map((p) => ({ name: p.name, type: p.type, buffer: p.buffer }))], notes, warnings, paths: md.pictures.length > 0 };
 }

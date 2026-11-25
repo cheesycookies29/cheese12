@@ -29,8 +29,8 @@ Your files are yours only: nobody else sees them, not even administrators. They 
 ## Walkthrough
 
 1. Sign in on the ATLAS home page and, under **Tools**, choose **PDF Studio**.
-2. Drag a few files from your computer onto the page, or choose **choose files**. Each one is converted as it arrives (*Converting report.docx…*), then its pages appear under **Pages** and the file under **Files**.
-3. In **Pages**, every page of every file is a card, in one row: the first page of a picture or a scanned PDF shows the picture itself; a typed page shows its first words. Drag a card to another place, or use its arrows. **Turn left** and **Turn right** turn it; the bin removes it from the PDF (the file stays under **Files**, with **Add all pages** to put its pages back).
+2. Drag a few files from your computer onto the page, or choose **choose files** (**Choose files** on a phone). Each one is converted as it arrives (*Converting report.docx…*), then its pages appear under **Pages** and the file under **Files**.
+3. In **Pages**, every page of every file is a card, in rows that wrap to fit your screen: the first page of a picture or a scanned PDF shows the picture itself; a typed page shows its first words. Drag a card to another place, or use its arrows. **Turn left** and **Turn right** turn it; the bin removes it from the PDF (the file stays under **Files**, with **Add all pages** to put its pages back).
 4. Tick several cards to change them together: turn them, move them **To the start** or **To the end**, or **Remove** them.
 5. Choose the pencil on a page (or double-click it) to open the **page editor**: change its text, add text, white-out, highlights, ticks, today's date, a picture or your signature. **Sign**, above the pages, opens it ready to sign.
 6. On the right, under **Export**, give the file a name, choose **One PDF**, and choose **Download PDF**. **Preview** opens it in a new tab first. To get something other than a PDF (a Word file to edit, an Excel sheet, pictures of the pages), choose it under **Format** first.
@@ -67,29 +67,30 @@ Open **Watermark** and type the text (*DRAFT*, *CONFIDENTIAL*, *COPY*). It goes 
 
 ### Get one PDF per file or per page
 
-Under **Save as**, choose **One PDF per file (ZIP)** or **One PDF per page (ZIP)**, then **Download ZIP**. Each PDF in the ZIP is named after its file (or numbered by page), with its own page numbers.
+Under **Save as**, choose **One PDF for each file added (ZIP)** or **One PDF for each page (ZIP)**, then **Download ZIP**. Each PDF in the ZIP is named after its file (or numbered by page), with its own page numbers.
 
 ### Export as Word, Excel, text or pictures
 
-Under **Export**, choose what to make under **Format**, then choose **Download**:
+Under **Export**, choose what to make under **Format**, then choose the download button. Its name says what you get: **Download Word**, **Download Excel**, **Download pictures**, or **Download ZIP** when the export is several files:
 
 | Format | What you get |
 |---|---|
 | **PDF** | The pages exactly as they are, with page numbers, header, footer and watermark if you add them |
-| **Word** (.docx), **OpenDocument text** (.odt), **Rich Text** (.rtf) | A document to go on working on: the text in paragraphs, larger text as headings, text in columns as tables, and the pictures, one page after another with a page break between them |
+| **Word** (.docx), **OpenDocument text** (.odt), **Rich Text** (.rtf) | A document to go on working on: the text in paragraphs, text larger than the page's body text as headings, text in columns as tables, and the pictures, one page after another with a page break between them |
 | **Web page** (.html) | The same, as one web page with its pictures inside |
-| **Markdown** (.md) | The text with its headings, bold and tables marked; with pictures, a ZIP with the pictures beside it |
+| **Markdown** (.md) | The text with its headings, bold and tables marked; with pictures, **Download Markdown** gives a ZIP: the .md file with its pictures in a folder beside it |
 | **Plain text** (.txt) | The words only |
-| **Excel** (.xlsx), **CSV** | Every line a row; text that lines up in columns goes in columns, and numbers (*1,250.00*, *(300.00)*, *15%*) are numbers you can add up. In Excel, each page has its own sheet |
+| **Excel** (.xlsx), **CSV** | Every line a row; text that lines up in columns goes in columns, and numbers (*1,250.00*, *(300.00)*, *15%*) are numbers you can add up, each column of a table under its heading (numbers set flush right too). In Excel, each page has its own sheet, up to 60 pages; with more, every page goes on one sheet, one under another |
 | **PNG pictures**, **JPEG pictures** | A picture of each page, at the **Sharpness** you choose (72 dpi for a screen, 150 for most uses, 300 to print); several pages come in a ZIP. JPEG files are smaller, PNG text is sharper |
 | **SVG pictures** | Each page as a drawing that stays sharp at any size |
 
-Everything you did in PDF Studio goes in: the order of the pages, turned pages, text you changed or added, white-out, ticks and signatures. **Save as** works for documents too: one file, one per file, or one per page in a ZIP.
+Everything you did in PDF Studio goes in: the order of the pages, turned pages, text you changed or added, white-out, ticks and signatures. **Save as** works for documents and spreadsheets too: **One document**, **One document for each file added (ZIP)** or **One document for each page (ZIP)** (*spreadsheet* for Excel and CSV). It is hidden for pictures: each page is its own picture, several in a ZIP.
 
 Good to know:
 
 - A PDF keeps how its pages look, not how its document was made, so ATLAS reads the text back from the pages: check the result, especially tables and columns. For the original Word or Excel file, ask whoever made the PDF.
-- A scanned page is a picture: in Word, OpenDocument, Rich Text, a web page and Markdown it is the picture of the page; in text and spreadsheets it is left empty. ATLAS says so when you download. A scan whose text was recognised (you can select its words in a PDF reader) gives its text.
+- A scanned page is a picture: in Word, OpenDocument, Rich Text, a web page and Markdown it is the picture of the page; in text and spreadsheets it is left empty. ATLAS says so when you download, in a note under the download button that stays until your next download (a blank page is not counted). A scan whose text was recognised (you can select its words in a PDF reader) gives its text.
+- Headings are found page by page, from text larger than the page's own body text, so files with different text sizes put together keep their headings.
 - Page numbers, header, footer and watermark go on PDFs and pictures, not into documents to edit. Only a PDF gets a signature record page.
 - Up to 300 pages at a time for documents, spreadsheets and SVG, and 100 for PNG and JPEG (your browser draws them, so a large export at 300 dpi takes a moment).
 
@@ -101,7 +102,7 @@ Good to know:
 2. Choose the line to change, and type the new words in the panel on the right. Change the **Size**, the **Font** (*Sans*, *Serif* or *Fixed*), **Bold**, **Italic** or the **Colour** if you need to.
 3. Choose **Done**. In the PDF, the old words are taken out of the page itself (they cannot be found or copied any more) and the new ones are written where the old ones began.
 
-The new words are in a standard font close to the original (Helvetica, Times or Courier), so they may look a little different from the rest of the page. These fonts have the letters of Western European languages: a character they do not have (for example Chinese, Greek or some symbols) is written as **?**, and ATLAS warns you when you export. A line drawn inside a picture or a drawing on the page cannot be changed (it is outlined in dots): cover it with **White-out** and use **Add text**. A scanned page is a picture: it has no lines of text to change.
+The new words are in a standard font close to the original (Helvetica, Times or Courier), so they may look a little different from the rest of the page. These fonts have the letters of Western European languages: a character they do not have (for example Chinese, Greek or some symbols) is written as **?** in the PDF and in pictures of the pages, and ATLAS warns you when you export. In Word, Excel and the other documents, ATLAS puts the character you typed back (*Ωmega* stays *Ωmega*); one on its own, with no letters or digits next to it, stays **?**, and ATLAS says so. A line drawn inside a picture or a drawing on the page cannot be changed (it is outlined in dots): cover it with **White-out** and use **Add text**. A scanned page is a picture: it has no lines of text to change.
 
 ### Add text, white-out, highlights, ticks and dates
 
@@ -115,7 +116,7 @@ In the page editor:
 
 On a phone or tablet, swipe to move around the page and tap where things go; with **White-out** and **Highlight** a swipe draws, so choose **Select and move** to scroll again.
 
-**Select and move** picks anything you added: drag it to move it, drag its corner to resize it, press **Delete** to remove it, use the arrow keys to nudge it. **Undo** (or Ctrl+Z) goes back a step. The arrows at the top go to the previous or next page. A card with changes shows how many; a signed page shows **Signed**.
+**Select and move** picks anything you added: drag it to move it, drag its corner to resize it, press **Delete** to remove it, use the arrow keys to nudge it. On a phone or tablet, tap it, then drag it, or choose **Remove** in the panel. **Undo** (or Ctrl+Z) goes back a step. The arrows at the top go to the previous or next page. A card with changes shows how many; a signed page shows **Signed**.
 
 ### Sign a PDF
 
@@ -166,7 +167,7 @@ ATLAS lays the text out itself, in a standard font, with the document's headings
 Only JPEG and PNG pictures can go into the PDF here. Pictures saved as EMF or WMF (common for charts and logos in Office) are left out, and the file's note says how many.
 
 **Why is a character shown as "?" in my PDF?**
-The text ATLAS writes (page numbers, header, footer, watermark, the text you add or change) uses the standard PDF fonts, which have the letters of Western European languages only. Characters they do not have become **?**, and ATLAS tells you which. Documents you add keep theirs only as far as these fonts go too: for other scripts, make the PDF in the program that made the document and add that PDF here.
+The text ATLAS writes (page numbers, header, footer, watermark, the text you add or change) uses the standard PDF fonts, which have the letters of Western European languages only. Characters they do not have become **?**, and ATLAS tells you which (in Word, Excel and the other documents, ATLAS puts back the characters you typed where it can). Documents you add keep theirs only as far as these fonts go too: for other scripts, make the PDF in the program that made the document and add that PDF here.
 
 **Why is part of a page a grey box?**
 That part is a picture in a format browsers cannot show (JPEG 2000 or JBIG2, used by some scanners); the page editor says so. It is only how PDF Studio shows it: the picture stays as it is in the PDF you download (use **Preview** to see it).

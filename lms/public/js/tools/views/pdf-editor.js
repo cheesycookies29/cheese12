@@ -91,7 +91,7 @@ export function signaturePad() {
     const tall = matchMedia('(max-width: 560px) and (min-height: 600px)').matches;
     const { form } = modal({
       title: 'Your signature', wide: true, className: 'ps-sig-modal', submitLabel: 'Use this signature',
-      subtitle: 'Draw it, type it, or upload a picture of it. Then click where it goes on the page.',
+      subtitle: `Draw it, type it, or upload a picture of it. Then ${matchMedia('(pointer: coarse), (max-width: 560px)').matches ? 'tap' : 'click'} where it goes on the page.`,
       body: html`<div class="seg-btns ps-sig-tabs" role="tablist">
           <button type="button" role="tab" data-tab="draw" class="active" aria-selected="true">${icon('edit', 14)} Draw</button>
           <button type="button" role="tab" data-tab="type" aria-selected="false">${icon('file', 14)} Type</button>
@@ -496,15 +496,19 @@ export function openPageEditor({ pages, at, source, onChange, onSave = () => {},
     if (!e) {
       box.oninput = null;
       box.onchange = null;
+      // On a touch screen (or a narrow one): tap, and Remove in place of the keys.
+      const touch = matchMedia('(pointer: coarse), (max-width: 560px)').matches;
+      const Click = touch ? 'Tap' : 'Click';
       mount(box, html`<h3>${icon('help', 16)} ${{ select: 'Select and move', edit: 'Change text', text: 'Add text', box: 'White-out', highlight: 'Highlight', check: 'Tick', cross: 'Cross', date: 'Date', sign: 'Signature' }[tool] || 'Edit'}</h3>
         <p class="muted small">${{
-          select: 'Click something you added to change it; drag it to move it; drag its corner to resize. Delete removes it; the arrow keys nudge it.',
-          edit: 'Click a line of text on the page to change it. The old words are taken out of the page and the new ones are written where they began, in the closest standard font.',
-          text: 'Click on the page where the text begins, then type it here.',
+          select: touch ? 'Tap something you added to change or remove it; drag it to move it; drag its corner to resize.'
+            : 'Click something you added to change it; drag it to move it; drag its corner to resize. Delete removes it; the arrow keys nudge it.',
+          edit: `${Click} a line of text on the page to change it. The old words are taken out of the page and the new ones are written where they began, in the closest standard font.`,
+          text: `${Click} on the page where the text begins, then type it here.`,
           box: 'Drag over what to cover: a white box hides it. (The text underneath is still in the file: to take text out, use Change text.)',
           highlight: 'Drag over what to highlight.',
-          check: 'Click where the tick goes.', cross: 'Click where the cross goes.', date: 'Click where today\'s date goes.',
-          sign: pendingSig ? `Click on the page where the ${pendingSig.picture ? 'picture' : 'signature'} goes; then drag its corner to size it.` : 'Choose Signature to draw, type or upload it.',
+          check: `${Click} where the tick goes.`, cross: `${Click} where the cross goes.`, date: `${Click} where today's date goes.`,
+          sign: pendingSig ? `${Click} on the page where the ${pendingSig.picture ? 'picture' : 'signature'} goes; then drag its corner to size it.` : 'Choose Signature to draw, type or upload it.',
         }[tool] || ''}</p>
         ${notes.get(`${page().source}:${page().page}`) ? html`<p class="small ps-ed-note">${notes.get(`${page().source}:${page().page}`)}</p>` : ''}
         <p class="small"><strong>${n}</strong> change${n === 1 ? '' : 's'} on this page${signed ? ' · signed' : ''}.</p>

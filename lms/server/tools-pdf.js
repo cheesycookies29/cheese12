@@ -607,6 +607,10 @@ export function registerPdfStudio(route, db, { record: log = () => {}, clock = (
     };
     let result;
     const notes = new Set();
+    const warnings = new Set();
+    // Text typed for this export (on pictures of the pages and PDFs, the header, footer and watermark too).
+    const typedList = (list, withStamp) => [...(withStamp ? [stamp.header, stamp.footer, stamp.watermark?.text] : []), ...list.flatMap((p) => (p.edits || []).map((e) => e.text || ''))].filter(Boolean);
+    const typedOf = (list, withStamp) => typedList(list, withStamp).join(' ');
     if (as !== 'pdf') {
       // Another kind of file (0.68): the PDF is made in memory as for a download, then read back
       // and written as a document, a spreadsheet or pictures (server/pdf/convert.js).
@@ -624,7 +628,9 @@ export function registerPdfStudio(route, db, { record: log = () => {}, clock = (
         if (total > MAX_SVG_REPLY) throw bad(`These pages hold too many pictures to draw at once (${Math.round(total / MB)} MB). Export fewer pages at a time.`);
         for (const s of used.values()) s.usedAt = Date.now();
         log({ kind: 'document', system: 'tools', action: `Exported ${fmt.label} from PDF Studio`, actor: u, ip, agent, targetName: base, detail: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'}` });
-        return { base, ext: fmt.ext, pages: list.map((x) => ({ svg: x.svg, width: x.width, height: x.height })) };
+        // Typed text the standard fonts cannot show is drawn as "?" on the pictures: said, as for a PDF.
+        const lost = missingChars(typedOf(pages, true));
+        return { base, ext: fmt.ext, pages: list.map((x) => ({ svg: x.svg, width: x.width, height: x.height })), ...(lost.length ? { warning: MISSING_NOTE(lost) } : {}) };
       }
       const groups = pictures || split === 'none' ? [{ name: base, pages }] : groupsOf();
       const files = [];
@@ -633,11 +639,13 @@ export function registerPdfStudio(route, db, { record: log = () => {}, clock = (
         const pdf = buildPdf(g.pages, pageStamp, { ...meta, file: `${g.name}.pdf` });
         let r;
         try {
-          r = convertPdf(pdf, as, g.name, { ...meta, title: meta.title || g.name });
+          // The text typed on these pages: put back where the standard fonts wrote "?".
+          r = convertPdf(pdf, as, g.name, { ...meta, title: meta.title || g.name }, { typed: typedList(g.pages, pictures) });
         } catch (err) {
           throw bad(`${g.name}: ${fmt.label} could not be made (${err.message}).`);
         }
         r.notes.forEach((n) => notes.add(n));
+        (r.warnings || []).forEach((w) => warnings.add(w));
         // Markdown with its pictures: each document in its own folder when there are several.
         if (r.paths) {
           paths = true;
@@ -683,11 +691,12 @@ export function registerPdfStudio(route, db, { record: log = () => {}, clock = (
     }
     for (const s of used.values()) s.usedAt = Date.now();
     // Text typed for this export that the standard fonts cannot show: said in a header the page reads.
-    const typedText = [stamp.header, stamp.footer, stamp.watermark?.text, ...pages.flatMap((p) => (p.edits || []).map((e) => e.text || ''))].join(' ');
-    const missing = missingChars(typedText);
+    // (Other formats put it back where they can, and say what they could not: `warnings`.)
+    const missing = as === 'pdf' ? missingChars(typedOf(pages, true)) : [];
+    if (missing.length) warnings.add(MISSING_NOTE(missing));
     if (!preview) log({ kind: 'document', system: 'tools', action: as === 'pdf' ? 'Exported a PDF from PDF Studio' : `Exported ${fmt.label} from PDF Studio`, actor: u, ip, agent, targetName: result.name, detail: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} (${Math.round(result.size / 1024)} KB)` });
     // What the reading back could not keep (0.68): said in a header the page shows with the download.
-    return fileAnswer(result.data, { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store', ...(missing.length && as === 'pdf' ? { 'X-Atlas-Warning': encodeURIComponent(MISSING_NOTE(missing)) } : {}), ...(notes.size ? { 'X-Atlas-Note': encodeURIComponent([...notes].join(' ')) } : {}) });
+    return fileAnswer(result.data, { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store', ...(warnings.size ? { 'X-Atlas-Warning': encodeURIComponent([...warnings].join(' ')) } : {}), ...(notes.size ? { 'X-Atlas-Note': encodeURIComponent([...notes].join(' ')) } : {}) });
   });
 
   // ----- Is this the PDF that was signed? (0.65) -----

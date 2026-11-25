@@ -1413,6 +1413,11 @@ a.sys-mini:hover, .sys-mini-slot:hover > a.sys-mini { text-decoration: none; bor
 .ps-src-main small { color: var(--muted); }
 .ps-src-main small b { color: var(--warn); font-weight: 600; }
 .ps-warn { color: var(--warn) !important; display: flex; gap: 4px; align-items: flex-start; }
+.ps-pick-alone { display: none; }
+#ps-result:empty { display: none; }
+.ps-result { margin: 0; font-size: 13px; }
+.ps-result.warn { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 30%, var(--surface)); }
+.ps-result.warn svg { color: var(--warn); }
 .ps-src-act { display: flex; align-items: center; gap: 2px; flex: none; }
 .ps-export { display: grid; gap: 12px; }
 .ps-export h2 { margin: 0; }
@@ -1540,8 +1545,8 @@ body.ps-editing { overflow: hidden; }
   .ps-check { min-width: 40px; min-height: 40px; }
   .ps-check input { width: 20px; height: 20px; }
   .ps-bar .btn { min-height: 40px; }
-  .ps-drop-words { display: none; }
-  .ps-pick { text-transform: capitalize; }
+  .ps-drop-words, .ps-pick-in { display: none; }
+  .ps-pick-alone { display: inline; }
 }
 /* The side column scrolls by itself, so Download stays in reach. */
 @media (min-width: 1101px) { .ps-side { max-height: calc(100vh - 92px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 4px; } }

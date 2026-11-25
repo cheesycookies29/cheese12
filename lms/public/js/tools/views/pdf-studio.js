@@ -27,6 +27,12 @@ const formatOptions = (cur) => {
 };
 // The download button's words.
 const downloadLabel = (x) => (isPictures(x.as) ? 'Download pictures' : x.split === 'none' ? `Download ${FORMAT(x.as).label}` : 'Download ZIP');
+// What one file of the export is called in Save as: "One PDF", "One document for each file added (ZIP)".
+const fileWord = (as) => (as === 'pdf' ? 'PDF' : FORMAT(as).group === 'Spreadsheet' ? 'spreadsheet' : 'document');
+const splitOptions = (as) => [['none', `One ${fileWord(as)}`], ['documents', `One ${fileWord(as)} for each file added (ZIP)`], ['pages', `One ${fileWord(as)} for each page (ZIP)`]];
+// What the format note under Format says.
+const formatNote = (as) => (isPictures(as) ? 'A picture of each page, in a ZIP when there are several.'
+  : `ATLAS reads the text, headings, tables and pictures back from the pages. Check the result: a PDF does not keep how its document was made, and scans without recognised text have no text to take.${as === 'md' ? ' When there are pictures, Download Markdown gives a ZIP: the Markdown file with its pictures in a folder beside it.' : ''}`);
 // The arrangement is kept for this browser tab (a reload keeps it while the files are there).
 const STORE = () => `atlas.pdf.${ctx.user?.id || ''}`;
 const DEFAULT_LAYOUT = { size: 'a4', orientation: 'auto', margin: 15, fontSize: 11, fit: 'fit' };
@@ -250,17 +256,26 @@ export async function pdfStudioView(el, params = {}, query = {}) {
       </span></li>`;
   }
   const e = () => state.exp;
+  // What the last download said (pages without text, characters shown as "?"): kept under Download
+  // until the next one, as the toast goes after a few seconds (the toast is what screen readers hear).
+  // A note is information, a warning in amber.
+  const resultNote = () => (state.result ? html`<p class="notice ps-result ${state.result.warn ? 'warn' : 'info'}">${icon(state.result.warn ? 'alert' : 'help', 16)} <span>${state.result.text}</span></p>` : '');
+  const showResult = (r) => {
+    state.result = r;
+    const box = el.querySelector('#ps-result');
+    if (box) mount(box, resultNote());
+  };
   function exportPanel() {
     const x = e();
     return html`<section class="card ps-export" aria-labelledby="ps-exp-h">
       <h2 id="ps-exp-h">${icon('download')} Export</h2>
       <label class="field"><span>File name</span><input name="fileName" value="${x.fileName}" maxlength="120" placeholder="${defaultName()}" /></label>
       <label class="field"><span>Format</span><select name="as">${formatOptions(x.as)}</select><small class="hint" id="ps-as-hint">${FORMAT(x.as).hint}</small></label>
-      ${x.as !== 'pdf' ? html`<p class="notice ps-as-note">${icon('help', 16)} <span>${isPictures(x.as) ? 'A picture of each page, in a ZIP when there are several.' : 'ATLAS reads the text, headings, tables and pictures back from the pages. Check the result: a PDF does not keep how its document was made, and scans without recognised text have no text to take.'}</span></p>` : ''}
+      ${x.as !== 'pdf' ? html`<p class="notice ps-as-note">${icon('help', 16)} <span>${formatNote(x.as)}</span></p>` : ''}
       ${x.as === 'png' || x.as === 'jpg' ? html`<label class="field"><span>Sharpness</span><select name="dpi">${PDF_PICTURE_DPI.map((d) => option(d, d === 72 ? '72 dpi (screen)' : d === 150 ? '150 dpi (good for most)' : '300 dpi (print)', x.dpi))}</select></label>` : ''}
       <fieldset class="field" ${isPictures(x.as) ? 'hidden' : ''}><legend>Save as</legend>
         <div class="ps-radio">
-          ${[['none', `One ${x.as === 'pdf' ? 'PDF' : 'file'}`], ['documents', `One ${x.as === 'pdf' ? 'PDF' : 'file'} per file (ZIP)`], ['pages', `One ${x.as === 'pdf' ? 'PDF' : 'file'} per page (ZIP)`]].map(([v, l]) => html`<label class="check"><input type="radio" name="split" value="${v}" ${x.split === v ? 'checked' : ''} /><span>${l}</span></label>`)}
+          ${splitOptions(x.as).map(([v, l]) => html`<label class="check"><input type="radio" name="split" value="${v}" ${x.split === v ? 'checked' : ''} /><span>${l}</span></label>`)}
         </div></fieldset>
       ${stamps(x.as) ? '' : html`<p class="muted small">Page numbers, header, footer and watermark go on PDFs and pictures, not into documents to edit.</p>`}
       <details class="ps-more" ${x.numbers || x.header || x.footer ? 'open' : ''} ${stamps(x.as) ? '' : 'hidden'}><summary>Page numbers, header and footer</summary>
@@ -292,6 +307,7 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         <button type="button" class="btn primary" id="ps-export" ${state.pages.length && !state.busy ? '' : 'disabled'}>${icon('download', 16)} ${downloadLabel(x)}</button>
         <button type="button" class="btn" id="ps-preview" ${state.pages.length && !state.busy && x.split === 'none' && x.as === 'pdf' ? '' : 'disabled'} ${x.as === 'pdf' ? '' : 'hidden'} title="Open the PDF in a new tab">${icon('eye', 16)} Preview</button>
       </div>
+      <div id="ps-result">${resultNote()}</div>
       <p class="muted small" id="ps-summary">${plural(state.pages.length, 'page')} from ${plural(new Set(state.pages.filter((p) => !p.blank).map((p) => p.source)).size, 'file')}.</p>
     </section>`;
   }
@@ -313,7 +329,7 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         <div class="ps-main">
           <section class="card ps-drop" id="ps-drop" tabindex="-1">
             <span class="ps-drop-ic">${icon('upload', 26)}</span>
-            <div><span class="ps-drop-words"><strong>Drop files here</strong> or </span><label class="ps-pick">choose files<input type="file" id="ps-file" multiple accept="${PDF_ACCEPT}" class="sr-only" /></label>
+            <div><span class="ps-drop-words"><strong>Drop files here</strong> or </span><label class="ps-pick"><span class="ps-pick-in">choose files</span><span class="ps-pick-alone">Choose files</span><input type="file" id="ps-file" multiple accept="${PDF_ACCEPT}" class="sr-only" /></label>
               <small>PDF (protected ones too), Word, Excel and PowerPoint (old and new), OpenDocument, RTF, text, CSV, HTML, code, e-books, e-mails, ZIPs and pictures (JPEG, PNG, TIFF, WebP, HEIC…), up to ${PDF_LIMITS.maxFileBytes / MB} MB each.</small></div>
             ${state.busy ? html`<p class="ps-busy" role="status"><span class="ps-spin" aria-hidden="true"></span> <span class="ps-busy-text">${state.progress != null ? 'Uploading' : 'Converting'} ${state.queue[0] || ''}${state.busy > 1 ? ` and ${state.busy - 1} more` : ''}…</span>${state.progress != null ? html` <progress max="1" value="${state.progress}" aria-label="Uploaded"></progress>` : ''}</p>` : ''}
           </section>
@@ -567,6 +583,7 @@ export async function pdfStudioView(el, params = {}, query = {}) {
       tab.document.body.textContent = 'Making the PDF…';
     }
     const btn = from || el.querySelector(preview ? '#ps-preview' : '#ps-export');
+    if (!preview) showResult(null);
     btn.disabled = true;
     const label = btn.innerHTML;
     btn.textContent = 'Making…';
@@ -587,11 +604,17 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);
-        toast(`${drawn.name} downloaded (${sizeLabel(drawn.blob.size)}).`, 'ok');
+        const said = drawn.warning ? { text: drawn.warning, warn: true } : null;
+        showResult(said);
+        toast(`${drawn.name} downloaded (${sizeLabel(drawn.blob.size)}).${said ? ` ${said.text}` : ''}`, 'ok');
         return;
       }
       const blob = await res.blob();
-      const warning = res.headers.get('X-Atlas-Warning') || res.headers.get('X-Atlas-Note');
+      // A warning (characters shown as "?") and a note (pages without text) come with a download
+      // that worked: said with it, not as an error.
+      const warning = decodeURIComponent(res.headers.get('X-Atlas-Warning') || '');
+      const note = decodeURIComponent(res.headers.get('X-Atlas-Note') || '');
+      const said = warning || note ? { text: [warning, note].filter(Boolean).join(' '), warn: Boolean(warning) } : null;
       const name = decodeURIComponent((res.headers.get('Content-Disposition') || '').match(/filename\*=UTF-8''([^;]+)/)?.[1] || 'document.pdf');
       const url = URL.createObjectURL(blob);
       if (preview) {
@@ -602,7 +625,8 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         document.body.appendChild(a);
         a.click();
         a.remove();
-        toast(`${name} downloaded (${sizeLabel(blob.size)}).${warning ? ` ${decodeURIComponent(warning)}` : ''}`, warning ? 'error' : 'ok');
+        showResult(said);
+        toast(`${name} downloaded (${sizeLabel(blob.size)}).${said ? ` ${said.text}` : ''}`, 'ok');
       }
       setTimeout(() => URL.revokeObjectURL(url), preview ? 30 * 60000 : 60000);
     } catch (err) {
@@ -642,8 +666,8 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         URL.revokeObjectURL(url);
       }
     }
-    if (files.length === 1) return { name: files[0].name, blob: new Blob([files[0].data], { type }) };
-    return { name: `${r.base}.zip`, blob: zipStore(files) };
+    if (files.length === 1) return { name: files[0].name, blob: new Blob([files[0].data], { type }), warning: r.warning };
+    return { name: `${r.base}.zip`, blob: zipStore(files), warning: r.warning };
   }
 
   // ----- The page editor (0.65) -----

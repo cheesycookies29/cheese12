@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF Studio export: tables, headings and notes
+- **PDF Studio export**: tables with numbers set flush right keep one column per heading in Word, Excel, CSV and the other formats; headings are found page by page; characters you typed that the PDF fonts lack are kept in documents and spreadsheets; notes after a download no longer look like errors and stay under the button; clearer **Save as** choices ("One document for each file added (ZIP)"); touch wording in the page editor on phones. See [the PDF Studio guide](pdf-studio#export-as-word-excel-text-or-pictures).
+
 ### Documents: figures on the home page, and legal holds shown
 - The **Documents** card on the ATLAS home shows figures from your own files, and while a legal hold applies, **Move to trash** and **Delete for good** are greyed out with the reason. See [the Documents guide](documents#delete-or-restore-a-document).
 
