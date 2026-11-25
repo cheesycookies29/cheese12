@@ -197,6 +197,15 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     const under = (folderId) => chain(m, folderId).some((x) => x.id === f.id);
     return D.docFolders.some((x) => x.legalHold && x.id !== f.id && under(x.id)) || D.documents.some((d) => d.legalHold && under(d.folderId));
   };
+  // The hold as the browser sees it, so the pages offer only what a hold allows: null when nothing
+  // holds the item; else whether it has its own hold and the nearest held folder above it (its name
+  // only for someone who can open that folder).
+  function holdOut(u, item, kind) {
+    const above = heldAbove(item, kind)[0] || null;
+    if (!item.legalHold && !above) return null;
+    const seen = above && atLeast(accessOf(u, above, 'folder').level, 'view');
+    return { own: Boolean(item.legalHold), folder: above ? { id: above.id, name: seen ? above.name : '' } : null };
+  }
   // A move (or a restore elsewhere) keeps every held folder above the item above it.
   function keepHold(item, kind, newParentId) {
     const above = heldAbove(item, kind);
@@ -249,7 +258,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       id: d.id, number: d.number, title: d.title, folderId: d.folderId, tags: d.tags || [], classification: d.classification, status: d.status,
       ownerId: d.ownerId, ownerName: nameOf(d.ownerId), name: v?.name, ext: v?.ext, family: v?.family, size: v?.size, version: d.currentVersion,
       versions: d.versions.length, updatedAt: d.updatedAt, createdAt: d.createdAt, checkout: co ? { ...co, name: nameOf(co.userId) } : null,
-      legalHold: Boolean(d.legalHold), trashedAt: d.trashedAt || null, reviewed: d.reviewed !== false, source: d.source || 'upload',
+      legalHold: Boolean(d.legalHold), held: holdOut(u, d, 'document'), trashedAt: d.trashedAt || null, reviewed: d.reviewed !== false, source: d.source || 'upload',
       level: a.level, canDownload: a.download, canOpen: a.open !== false, canShare: a.share && a.level !== 'none', inline: Boolean(v && isInline(v.ext)) && a.open !== false,
     };
     if (full) {
@@ -278,8 +287,11 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     if (g.type === 'role') return `Every ${ROLES[g.id]?.label || g.id} (account type)`;
     return `${g.id} (department)`;
   }
-  function folderOut(u, f, a = accessOf(u, f, 'folder')) {
-    const out = { id: f.id, name: f.name, parentId: f.parentId, kind: f.kind, ownerId: f.ownerId, ownerName: nameOf(f.ownerId), inherit: f.inherit !== false, level: a.level, canShare: a.share, trashedAt: f.trashedAt || null, legalHold: Boolean(f.legalHold), personal: isPersonal(f) };
+  // `detail`: the folder being opened, with whether anything inside it is on hold (which keeps the
+  // folder out of the trash); the lists leave that out.
+  function folderOut(u, f, a = accessOf(u, f, 'folder'), { detail = false } = {}) {
+    const out = { id: f.id, name: f.name, parentId: f.parentId, kind: f.kind, ownerId: f.ownerId, ownerName: nameOf(f.ownerId), inherit: f.inherit !== false, level: a.level, canShare: a.share, trashedAt: f.trashedAt || null, legalHold: Boolean(f.legalHold), held: holdOut(u, f, 'folder'), personal: isPersonal(f) };
+    if (detail) out.holdInside = holdBelow(f);
     if (a.level === 'manage') {
       out.acl = (f.acl || []).map(grantOut);
       out.links = D.docLinks.filter((l) => l.target.kind === 'folder' && l.target.id === f.id && !l.revokedAt).map(linkOut);
@@ -437,7 +449,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       folderId = f.id;
       level = a.level;
       pathOut = pathOf(u, f.id);
-      folder = folderOut(u, f, a);
+      folder = folderOut(u, f, a, { detail: true });
       folders = D.docFolders.filter((x) => x.parentId === f.id && !x.trashedAt).map((x) => [x, accessOf(u, x, 'folder')]).filter(([, xa]) => atLeast(xa.level, 'view')).map(([x, xa]) => folderOut(u, x, xa))
         .sort((x, y) => x.name.localeCompare(y.name, 'en', { numeric: true }));
     }
@@ -584,7 +596,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       if (co && co.userId !== u.id) throw bad(`${nameOf(co.userId)} has this document checked out until ${new Date(co.until).toLocaleString('en-PH')}. Ask them to check it in.`);
       const c = vet(buf, name, u.id, d.ownerId);
       const cur = current(d);
-      if (cur && c.family !== cur.family) refuse(name, u.id, 'mismatch', `A new version must be the same kind of file as the document (${FAMILY[cur.family].label}).`);
+      if (cur && c.family !== cur.family) refuse(name, u.id, 'kind', `A new version must be the same kind of file as the document (${FAMILY[cur.family].label}).`);
       const sha = addVersion(d, buf, c, u.id, body.note);
       if (body.checkin && co) d.checkout = null;
       event('version', { doc: d, by: u.id, ip, note: `Version ${d.currentVersion}: ${c.name}` });
@@ -784,7 +796,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     saveIndex();
     for (const l of D.docLinks) if (l.target.kind === 'document' && l.target.id === d.id && !l.revokedAt) (l.revokedAt = now()), (l.revokedBy = byId);
     D.documents = D.documents.filter((x) => x.id !== d.id);
-    event('purge', { doc: d, by: byId, note: `${d.number} ${d.title}: ${d.versions.length} version(s) removed` });
+    event('purge', { doc: d, by: byId, note: `${d.number} ${d.title}: ${d.versions.length === 1 ? '1 version' : `${d.versions.length} versions`} removed` });
   }
   route('DELETE', '/api/docs/documents/:id/purge', 'documents', ({ params, user: u }) => {
     const { d } = needDoc(u, params.id, 'manage', { trash: true });
@@ -921,12 +933,14 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   // The documents a link serves. A folder link serves the documents in the folder that may go out by
   // link; without a password, never the confidential ones.
   const linkDocs = (l, item) => (l.target.kind === 'document' ? [item] : D.documents.filter((d) => d.folderId === item.id && !d.trashedAt && settings().linkClassifications.includes(d.classification) && (l.passwordHash || d.classification !== 'confidential')));
+  // The first open of a view or download link is on the maker's bell. An upload link says nothing
+  // here: each file that arrives through it has its own bell item ("A file arrived in …").
   function touch(l, field, ip, note) {
     l[field] = (l[field] || 0) + 1;
     const first = !l.lastAccessAt;
     l.lastAccessAt = now();
     event(`link-${field}`, { link: l, by: `link:${l.id}`, ip, note });
-    if (first) notice(l.createdBy, 'Your link was opened for the first time', note, l.target.kind === 'document' ? `#/doc/${l.target.id}` : `#/folder/${l.target.id}`);
+    if (first && l.mode !== 'upload') notice(l.createdBy, 'Your link was opened for the first time', note, l.target.kind === 'document' ? `#/doc/${l.target.id}` : `#/folder/${l.target.id}`);
   }
   route('GET', '/api/public/share/:token', 'public', ({ params, cookies, ip }) => {
     const { l, item, unlockedNow } = openLink(params.token, cookies, ip, { unlocked: false });
@@ -953,7 +967,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     }
     if (wrongTries.size > 5000) wrongTries.clear();
     wrongTries.set(l.id, { at: clock(), n: 0 });
-    event('link-password-wrong', { link: l, by: `link:${l.id}`, ip, note: w?.n ? `${w.n} more wrong password(s) since the last entry` : '' });
+    event('link-password-wrong', { link: l, by: `link:${l.id}`, ip, note: w?.n ? `${w.n} more wrong ${w.n === 1 ? 'password' : 'passwords'} since the last entry` : '' });
   }
   route('POST', '/api/public/share/:token/unlock', 'public', ({ params, body, cookies, ip }) => {
     const { l } = openLink(params.token, cookies, ip, { unlocked: false });
@@ -1181,5 +1195,34 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     const l = linkFor(token);
     return Boolean(l && l.mode === 'upload' && linkState(l).state === 'active');
   };
-  return { sweep, blobs, uploads, settings, addDemo, removeDemo, uploadLinkOpen, flushIndex: () => indexTimer && writeIndex(), dir: docDir };
+  // The figures on the Documents card of the ATLAS home (server/api.js figuresFor, cached a minute per
+  // person): from the person's own work, in one pass over the documents. What waits for them comes
+  // first: files received through their upload links and not reviewed, files checked out to them;
+  // then the documents named people shared with them this week; with none of these, how many
+  // documents they own.
+  const WEEK_MS = 7 * 24 * 3600 * 1000;
+  function figures(u) {
+    const t = clock();
+    let received = 0;
+    let checkedOut = 0;
+    let shared = 0;
+    let own = 0;
+    for (const d of D.documents) {
+      if (d.trashedAt) continue;
+      if (d.ownerId === u.id) {
+        own++;
+        if (d.reviewed === false) received++;
+      }
+      if (d.checkout?.userId === u.id && Date.parse(d.checkout.until) > t) checkedOut++;
+      else if (d.ownerId !== u.id && (d.acl || []).some((g) => g.type === 'user' && g.id === u.id && t - Date.parse(g.at) < WEEK_MS && (!g.until || Date.parse(g.until) > t))) shared++;
+    }
+    const n = (k, one, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
+    const out = [];
+    if (received) out.push(`${n(received, 'file')} received, not reviewed`);
+    if (checkedOut) out.push(`${n(checkedOut, 'file')} checked out to you`);
+    if (shared) out.push(`${n(shared, 'document')} shared with you this week`);
+    if (!out.length) out.push(own ? `${n(own, 'document')} you own` : 'No documents of yours yet');
+    return out;
+  }
+  return { sweep, blobs, uploads, settings, addDemo, removeDemo, uploadLinkOpen, figures, flushIndex: () => indexTimer && writeIndex(), dir: docDir };
 }

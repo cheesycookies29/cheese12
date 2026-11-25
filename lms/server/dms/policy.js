@@ -5,7 +5,7 @@ import { FAMILIES, DEFAULT_FAMILIES } from './types.js';
 
 export const CLASSIFICATIONS = [
   { id: 'public', label: 'Public', help: 'Can be given to anyone.' },
-  { id: 'internal', label: 'Internal', help: 'For people in the organisation.' },
+  { id: 'internal', label: 'Internal', help: 'For people in the school.' },
   { id: 'confidential', label: 'Confidential', help: 'For the people it is shared with; links need a password.' },
   { id: 'restricted', label: 'Restricted', help: 'For named people only: never shared by link, and only managers download it.' },
 ];

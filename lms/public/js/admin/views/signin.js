@@ -47,7 +47,8 @@ export async function signInView(el) {
       </div>
       <h2 id="school-networks">${icon('building')} School networks</h2>
       <p class="muted">A campus usually reaches the internet through one or two addresses, so everyone there looks like one visitor to the limits above. List those addresses: from them, the limits counted per address (sign-ins, wrong passwords, signed-out requests, applications and Keycloak sign-ins) are multiplied. Everywhere else they stay as they are, so password guessing from the internet still meets the usual limit.</p>
-      ${nets ? html`<div class="notice ${nets.yourAddressCovered ? 'ok' : ''}">${icon('link')}<p>You are reaching ATLAS from <code>${nets.yourAddress}</code>${nets.yourAddressCovered ? ', which is on a school network.' : nets.yourNetworkCanAdd ? html`. If this is a campus connection, <button type="button" class="link" data-add-net="${nets.yourNetwork}">add it</button>.` : ' (this server’s own address: not one to list).'}</p></div>` : ''}
+      ${nets ? html`<div class="notice sn-here ${nets.yourAddressCovered ? 'ok' : ''}">${icon('link')}<div class="grow"><p>You are reaching ATLAS from <strong class="mono">${nets.yourAddress}</strong>${nets.yourAddressCovered ? ', which is on a school network.' : nets.yourNetworkCanAdd ? '. If this is a campus connection, add it to the school networks.' : ' (this server’s own address: not one to list).'}</p>
+        ${!nets.yourAddressCovered && nets.yourNetworkCanAdd ? html`<div class="actions" style="margin-top:8px"><button type="button" class="btn sm" data-add-net="${nets.yourNetwork}">${icon('plus', 14)} Add it</button></div>` : ''}</div></div>` : ''}
       <div id="sn-rows" class="sn-rows">${(v.schoolNetworks || []).map(netRow)}</div>
       ${(v.schoolNetworks || []).length ? '' : html`<p class="muted small" id="sn-none">No school networks listed yet: every campus shares the usual limits.</p>`}
       <div class="actions"><button type="button" class="btn" id="sn-add">${icon('plus', 16)} Add a network</button></div>
@@ -61,8 +62,24 @@ export async function signInView(el) {
       </div>
       <div class="actions end"><button class="btn primary">Save</button></div>
     </form>`);
-  // School networks: add a row (empty, or filled from a suggestion), remove one.
+  // School networks: add a row (empty, or filled from a suggestion), remove one. An address is listed
+  // once: a suggestion already in the rows (saved or not) points at its row instead of adding another,
+  // and Save refuses two rows with the same address.
   const rows = el.querySelector('#sn-rows');
+  const rowOf = (cidr) => [...rows.querySelectorAll('.sn-row')].find((r) => sameNetwork(r.querySelector('[name=sn-cidr]').value, cidr));
+  const showRow = (r) => {
+    Object.assign(r.style, { outline: '2px solid var(--accent)', outlineOffset: '4px', borderRadius: '6px' });
+    setTimeout(() => (r.style.outline = ''), 2500);
+    r.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    r.querySelector('[name=sn-label]').focus();
+  };
+  // The suggestions for an address that is in the rows say so, rather than offering Add again.
+  const markAdded = (cidr) => el.querySelectorAll('[data-add-net]').forEach((b) => {
+    if (!sameNetwork(b.dataset.addNet, cidr)) return;
+    const note = Object.assign(document.createElement('span'), { className: 'muted small', textContent: 'In the list below: save to apply' });
+    note.dataset.addedNet = b.dataset.addNet;
+    b.replaceWith(note);
+  });
   const addRow = (cidr = '') => {
     el.querySelector('#sn-none')?.remove();
     rows.insertAdjacentHTML('beforeend', String(netRow({ cidr })));
@@ -70,13 +87,25 @@ export async function signInView(el) {
   };
   el.querySelector('#sn-add').addEventListener('click', () => addRow());
   el.querySelectorAll('[data-add-net]').forEach((b) => b.addEventListener('click', () => {
-    addRow(b.dataset.addNet);
-    b.replaceWith(Object.assign(document.createElement('span'), { className: 'muted', textContent: 'Added below: save to apply' }));
+    const cidr = b.dataset.addNet;
+    const there = rowOf(cidr);
+    if (there) {
+      showRow(there);
+      toast(`${cidr} is already in the list.`);
+    } else addRow(cidr);
+    markAdded(cidr);
   }));
   rows.addEventListener('click', (e) => e.target.closest('.sn-remove')?.closest('.sn-row').remove());
   el.querySelector('#sec').addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = formData(e.target);
+    const netRows = [...el.querySelectorAll('.sn-row')].filter((r) => r.querySelector('[name=sn-cidr]').value.trim());
+    const twice = netRows.find((r, i) => netRows.slice(0, i).some((x) => sameNetwork(x.querySelector('[name=sn-cidr]').value, r.querySelector('[name=sn-cidr]').value)));
+    if (twice) {
+      showRow(twice);
+      toast(`${twice.querySelector('[name=sn-cidr]').value.trim()} is listed twice under School networks. Remove one, then save.`, 'error');
+      return;
+    }
     try {
       await api.put('/api/admin/settings', { security: {
         minPasswordLength: f.minPasswordLength, lockoutAttempts: f.lockoutAttempts, lockoutMinutes: f.lockoutMinutes, idleHours: f.idleHours, maxSessionHours: f.maxSessionHours,
@@ -91,4 +120,14 @@ export async function signInView(el) {
       toast(err.message, 'error');
     }
   });
+}
+
+// Whether two entries name the same network: "203.0.113.7" is "203.0.113.7/32" (as the server keeps it).
+function sameNetwork(a, b) {
+  const norm = (x) => {
+    const t = String(x || '').trim().toLowerCase();
+    if (!t || t.includes('/')) return t;
+    return `${t}/${t.includes(':') ? 128 : 32}`;
+  };
+  return Boolean(norm(a)) && norm(a) === norm(b);
 }

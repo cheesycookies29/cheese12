@@ -702,7 +702,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       }
     };
     const may = (p) => userCan(user, p);
-    const out = { uis: [], lms: [], hris: [], fmis: [] };
+    const out = { uis: [], lms: [], hris: [], fmis: [], dms: [] };
     // Learn
     if (['teacher', 'student'].includes(user.role)) {
       const d = await ask('/api/home');
@@ -753,6 +753,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         if (m) out.fmis.push(m.receipts.length ? plural(m.receipts.length, 'official receipt') : 'No receipts yet');
       }
     }
+    // Documents: employees and students (one pass over the documents, no route)
+    if (user.role !== 'guardian') out.dms = documents.figures(user);
     for (const k of Object.keys(out)) out[k] = out[k].slice(0, 3);
     return out;
   }

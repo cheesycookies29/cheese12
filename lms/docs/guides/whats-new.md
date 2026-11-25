@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Documents: figures on the home page, and legal holds shown
+- The **Documents** card on the ATLAS home shows figures from your own files, and while a legal hold applies, **Move to trash** and **Delete for good** are greyed out with the reason. See [the Documents guide](documents#delete-or-restore-a-document).
+
 ### 2-step verification: wrong codes lock the account's code step
 - Wrong 2-step verification codes now count for the account from every address, recovery codes too: after a few, no code is taken for a while and the person is told on the bell; only administrators change **Sign-in and passwords** and Keycloak sign-in, and profile pictures are shown only to people with a reason to see that person. See [getting started](getting-started#sign-in-with-2-step-verification).
 

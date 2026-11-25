@@ -2,8 +2,9 @@
 // a held folder (moves, versions, the trash and its sweep); docs.manage follows each account's own
 // access; link passwords are checked on every use; restricted documents reach named people only;
 // download limits count views; search keeps to what the person may download; the Activity list,
-// idle uploads, the quota on restored versions, wrong link passwords, repeated share notices and
-// the search index written once for a burst of uploads.
+// idle uploads, the quota on restored versions, wrong link passwords, repeated share notices, the
+// search index written once for a burst of uploads, what the pages are told about a hold, and the
+// figures on the home page's Documents card.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -102,6 +103,31 @@ test('legal hold below a folder: the folder above cannot be trashed, and the tra
   }
   for (const id of [evidence.id, memo.id]) assert.ok(env.db.data.documents.some((d) => d.id === id), 'held documents stay');
   for (const id of [caseFolder.id, deep.id, top.id, other.id]) assert.ok(env.db.data.docFolders.some((x) => x.id === id), 'and the folders around them');
+});
+
+test('the pages are told what a hold refuses: held, through which folder, and a hold inside a folder', async () => {
+  const top = await admin.post('/api/docs/folders', { name: 'Board minutes' });
+  const year = await admin.post('/api/docs/folders', { name: '2026', parentId: top.id });
+  await admin.put(`/api/docs/folders/${top.id}/access`, { grants: [{ type: 'user', id: ids.tess, level: 'manage' }] });
+  const { document: minutes } = await upload(admin, 'minutes.txt', Buffer.from('minutes'), { folderId: year.id });
+  const { document: free } = await upload(admin, 'agenda.txt', Buffer.from('agenda'), { folderId: top.id });
+  assert.equal((await P.tess.get(`/api/docs/documents/${minutes.id}`)).held, null, 'nothing held yet');
+  assert.equal((await P.tess.get(`/api/docs/list?view=folder&folder=${top.id}`)).folder.holdInside, false);
+  // A hold on the document itself.
+  await admin.put(`/api/docs/documents/${minutes.id}`, { legalHold: true });
+  assert.deepEqual((await P.tess.get(`/api/docs/documents/${minutes.id}`)).held, { own: true, folder: null });
+  const opened = await P.tess.get(`/api/docs/list?view=folder&folder=${top.id}`);
+  assert.equal(opened.folder.holdInside, true, 'the folder above knows something inside it is held');
+  assert.equal(opened.folder.held, null);
+  await admin.put(`/api/docs/documents/${minutes.id}`, { legalHold: false });
+  // A hold on a folder reaches the documents and folders below it, in lists too, with its name.
+  await admin.put(`/api/docs/folders/${top.id}`, { legalHold: true });
+  assert.deepEqual((await P.tess.get(`/api/docs/documents/${minutes.id}`)).held, { own: false, folder: { id: top.id, name: 'Board minutes' } });
+  assert.deepEqual((await P.tess.get(`/api/docs/list?view=folder&folder=${year.id}`)).folder.held, { own: false, folder: { id: top.id, name: 'Board minutes' } });
+  assert.ok((await P.tess.get(`/api/docs/list?view=folder&folder=${top.id}`)).documents.find((d) => d.id === free.id).held, 'in a list');
+  await fails(P.tess.del(`/api/docs/documents/${free.id}`), 400, /legal hold/);
+  await admin.put(`/api/docs/folders/${top.id}`, { legalHold: false });
+  assert.equal((await P.tess.get(`/api/docs/documents/${free.id}`)).held, null);
 });
 
 test('docs.manage follows each account\'s own access, as every other permission', async () => {
@@ -297,4 +323,26 @@ test('a burst of uploads writes the search index once', async () => {
   env.api.documents.flushIndex();
   assert.notEqual(env.db.data.docIndexBlob, before);
   assert.equal((await admin.get('/api/docs/list?view=search&q=burst')).documents.length, 4);
+});
+
+test('the Documents card on the ATLAS home: figures from the person\'s own files', async () => {
+  const id = (await admin.post('/api/admin/users', { role: 'teacher', username: 'nina', name: 'Nina Teacher', password: PW, mustChangePassword: false, campusIds })).id;
+  const nina = await signIn('nina');
+  // Something waiting: a file checked out to her, and one shared with her by name this week.
+  const { document: mine } = await upload(nina, 'syllabus.txt', Buffer.from('syllabus'));
+  await nina.post(`/api/docs/documents/${mine.id}/checkout`, {});
+  const { document: theirs } = await upload(P.tess, 'rubric.txt', Buffer.from('rubric'));
+  await P.tess.put(`/api/docs/documents/${theirs.id}/access`, { grants: [{ type: 'user', id, level: 'view' }] });
+  assert.deepEqual((await nina.get('/api/hub/figures')).dms, ['1 file checked out to you', '1 document shared with you this week']);
+  // Nothing waiting: how many documents are hers (worked out by the documents module, uncached here).
+  await nina.post(`/api/docs/documents/${mine.id}/checkout`, { release: true });
+  const later = now;
+  now = new Date(later.getTime() + 8 * 86400000);
+  try {
+    assert.deepEqual(env.api.documents.figures(env.db.data.users.find((u) => u.id === id)), ['1 document you own']);
+  } finally {
+    now = later;
+  }
+  // Someone with no documents at all.
+  assert.deepEqual(env.api.documents.figures({ id: 'nobody' }), ['No documents of yours yet']);
 });

@@ -35,7 +35,19 @@ export function docMarks(d) {
   return html`${classBadge(d.classification)}${d.status === 'final' ? badge('Final', 'blue') : d.status === 'obsolete' ? badge('Obsolete', 'gray') : ''}${d.checkout ? html` <span class="badge amber">${icon('lock', 12)} ${d.checkout.userId === ctx.user.id ? 'Checked out by you' : `Checked out: ${d.checkout.name}`}</span>` : ''}${d.legalHold ? html` ${badge('Legal hold', 'red')}` : ''}${!d.reviewed ? html` ${badge('Received, not reviewed', 'amber')}` : ''}`;
 }
 
+// Why a legal hold keeps a document or folder where it is (the server sends `held`, and for the
+// open folder `holdInside`), or '' when nothing holds it. The pages disable what a hold refuses and
+// show this beside it.
+export function holdNote(x, kind = 'document') {
+  const it = kind === 'folder' ? 'This folder' : 'This document';
+  if (x.held?.own) return `${it} is on legal hold, so it cannot be moved to the trash or deleted${kind === 'folder' ? ', nor anything in it' : ', and all its versions are kept'}.`;
+  if (x.held?.folder) return `${it} is in ${x.held.folder.name ? `the folder “${x.held.folder.name}”` : 'a folder'}, which is on legal hold, so it cannot be moved to the trash or deleted, or moved out of that folder.`;
+  if (kind === 'folder' && x.holdInside) return 'Something in this folder is on legal hold, so the folder cannot be moved to the trash.';
+  return '';
+}
+
 export const fileUrl = (d, { inline = false, v = null } = {}) => `/api/docs/documents/${encodeURIComponent(d.id)}/file${inline || v ? '?' : ''}${inline ? 'inline=1' : ''}${inline && v ? '&' : ''}${v ? `v=${v}` : ''}`;
+export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 export const when = (iso) => (iso ? timeAgo(iso) : '');
 export { fmtSize };
 

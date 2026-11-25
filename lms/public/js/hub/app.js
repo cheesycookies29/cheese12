@@ -126,13 +126,16 @@ const dateBox = (ymd) => {
   return html`<div class="date-box"><b>${d.toLocaleDateString('en-PH', { month: 'short' })}</b><span>${d.getDate()}</span></div>`;
 };
 
+// A name never breaks at its hyphen ("e-Reader" stays whole): the hyphens become non-breaking ones.
+const noBreak = (name) => String(name).replace(/-/g, '\u2011');
+
 function systemCard(s, side, figures = []) {
   const live = s.status === 'live' && s.url;
   // The admin panel has its own place under Administration; from here it is where Learn is run.
   const openLabel = s.id === 'lms' && side === 'admin' ? 'Manage Learn' : `Open ${s.product}`;
   const body = html`
     <span class="sys-top"><span class="sys-ic">${icon(s.icon, 26)}</span>${live ? html`<span class="sys-code">${s.short}</span>` : html`<span class="badge gray">${icon('lock', 12)} Coming soon</span>`}</span>
-    <span class="sys-name" title="${s.title}">${s.product.replace(/-/g, '\u2011')}</span>
+    <span class="sys-name" title="${s.title}">${noBreak(s.product)}</span>
     <p>${s.description}</p>
     ${live && figures.length ? html`<ul class="sys-figs">${figures.map((f) => html`<li>${f}</li>`)}</ul>` : ''}
     <span class="sys-open">${live ? html`${openLabel} ${icon(s.external ? 'external' : 'chevronRight', 16)}` : 'Not available yet'}</span>`;
@@ -147,8 +150,8 @@ const pinButton = (s, on, size = 18) => html`<button type="button" class="sys-pi
 const cardSlot = (s, side, figures, on) => (canOpen(s) ? html`<div class="sys-slot${on ? ' pinned' : ''}" data-system="${s.id}">${systemCard(s, side, figures)}${pinButton(s, on)}</div>` : systemCard(s, side));
 // A tile in the compact view (CORE 0.46): every system at once, the first figure (or what it is) under its name.
 function miniTile(s, figures, on) {
-  if (!canOpen(s)) return html`<div class="sys-mini soon" data-system="${s.id}" aria-disabled="true" title="${s.product}: coming soon"><span class="sys-ic">${icon(s.icon, 20)}</span><span class="grow"><strong>${s.product}</strong><small>${icon('lock', 11)} Coming soon</small></span></div>`;
-  return html`<div class="sys-mini-slot${on ? ' pinned' : ''}" data-system="${s.id}"><a class="sys-mini" href="${s.url}" title="Open ${s.product}" ${s.external ? html`target="_blank" rel="noopener"` : ''}><span class="sys-ic">${icon(s.icon, 20)}</span><span class="grow"><strong>${s.product}</strong><small>${figures[0] || s.title}</small></span></a>${pinButton(s, on, 16)}</div>`;
+  if (!canOpen(s)) return html`<div class="sys-mini soon" data-system="${s.id}" aria-disabled="true" title="${s.product}: coming soon"><span class="sys-ic">${icon(s.icon, 20)}</span><span class="grow"><strong>${noBreak(s.product)}</strong><small>${icon('lock', 11)} Coming soon</small></span></div>`;
+  return html`<div class="sys-mini-slot${on ? ' pinned' : ''}" data-system="${s.id}"><a class="sys-mini" href="${s.url}" title="Open ${s.product}" ${s.external ? html`target="_blank" rel="noopener"` : ''}><span class="sys-ic">${icon(s.icon, 20)}</span><span class="grow"><strong>${noBreak(s.product)}</strong><small>${figures[0] || s.title}</small></span></a>${pinButton(s, on, 16)}</div>`;
 }
 
 // "Your systems" as a carousel: the cards scroll sideways and snap into place (swipe on a phone,

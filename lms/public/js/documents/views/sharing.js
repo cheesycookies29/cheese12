@@ -6,7 +6,7 @@ import { api } from '../../api.js';
 import { ctx } from '../../shell.js';
 import { html, mount, modal, toast, option, fmtDateTime, badge, confirmDialog } from '../../ui.js';
 import { icon } from '../../icons.js';
-import { docs, isStudent, LEVEL_LABEL, MODE_LABEL, LINK_STATE } from '../state.js';
+import { docs, isStudent, plural, LEVEL_LABEL, MODE_LABEL, LINK_STATE } from '../state.js';
 
 const RANK = { view: 1, edit: 2, manage: 3 };
 
@@ -133,7 +133,7 @@ export function openShare(item, kind, onDone) {
       ${links.length ? html`<ul class="link-list doc-links">${links.map((l) => {
         const [st, kindOf] = LINK_STATE[l.state] || [l.state, 'gray'];
         return html`<li><span>${icon('link', 16)} <strong>…${l.hint}</strong> ${MODE_LABEL[l.mode]} ${badge(st, kindOf)}${l.hasPassword ? html` ${badge('Password', 'blue')}` : ''}
-          <small class="muted block">Until ${fmtDateTime(l.expiresAt)} · ${l.opens ? `opened ${l.opens} time(s)` : 'not opened yet'}${l.mode === 'download' ? ` · ${l.downloads}${l.maxDownloads ? ` of ${l.maxDownloads}` : ''} download(s)` : ''}${l.mode === 'upload' ? ` · ${l.uploads} file(s) received` : ''} · by ${l.createdByName}${l.note ? ` · “${l.note}”` : ''}</small></span>
+          <small class="muted block">Until ${fmtDateTime(l.expiresAt)} · ${l.opens ? `opened ${l.opens === 1 ? 'once' : `${l.opens} times`}` : 'not opened yet'}${l.mode === 'download' ? ` · ${l.maxDownloads ? `${l.downloads} of ${plural(l.maxDownloads, 'download')}` : plural(l.downloads, 'download')}` : ''}${l.mode === 'upload' ? ` · ${plural(l.uploads, 'file')} received` : ''} · by ${l.createdByName}${l.note ? ` · “${l.note}”` : ''}</small></span>
           <button type="button" class="btn sm danger ghost" data-revoke="${l.id}">Turn off</button></li>`;
       })}</ul>` : html`<p class="muted small">No links yet.</p>`}
       <details class="make-link" ${made || links.length ? '' : 'open'}><summary>${icon('plus', 14)} Make a link</summary>

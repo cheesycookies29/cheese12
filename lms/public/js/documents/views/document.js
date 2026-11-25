@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { html, mount, modal, toast, formData, option, confirmDialog, badge, fmtDateTime } from '../../ui.js';
 import { icon } from '../../icons.js';
-import { docs, isManager, docIcon, docMarks, classBadge, fileUrl, when, fmtSize, uploadFiles, uploadPanel, CLASS_LABEL, STATUS_LABEL, LEVEL_LABEL } from '../state.js';
+import { docs, isManager, docIcon, docMarks, classBadge, fileUrl, when, fmtSize, uploadFiles, uploadPanel, holdNote, CLASS_LABEL, STATUS_LABEL, LEVEL_LABEL } from '../state.js';
 import { openShare } from './sharing.js';
 
 const ACTION = {
@@ -22,6 +22,7 @@ export async function documentView(el, { id }, query = {}) {
   const manage = d.level === 'manage' && !d.trashedAt;
   const co = d.checkout;
   const blocked = co && co.userId !== ctx.user.id;
+  const hold = holdNote(d);
   const crumbs = d.path.map((p) => [p.id === docs.meta.personalRoot ? '/files' : `/folder/${p.id}`, p.name]);
   const preview = d.inline ? (d.family === 'image'
     ? html`<img class="doc-preview-img" src="${fileUrl(d, { inline: true })}" alt="${d.title}" />`
@@ -36,7 +37,8 @@ export async function documentView(el, { id }, query = {}) {
         ${d.level === 'manage' || d.canShare ? html`<button type="button" class="btn" id="share">${icon('users', 16)} Share</button>` : ''}
         ${canEdit ? html`<button type="button" class="btn" id="new-version" ${blocked ? 'disabled' : ''}>${icon('upload', 16)} New version</button>` : ''}
         ${canEdit ? html`<button type="button" class="btn" id="checkout">${icon('lock', 16)} ${co ? (co.userId === ctx.user.id ? 'Check in' : manage ? 'Check in for them' : 'Checked out') : 'Check out'}</button>` : ''}
-        ${manage ? html`<button type="button" class="btn danger ghost" id="trash" aria-label="Move to trash">${icon('trash', 16)}</button>` : ''}`}`, crumbs.length ? crumbs : '')}
+        ${manage ? html`<button type="button" class="btn danger ghost" id="trash" aria-label="${hold ? 'Move to trash: not while on legal hold' : 'Move to trash'}" ${hold ? html`disabled title="${hold}" aria-describedby="hold-note"` : ''}>${icon('trash', 16)}</button>` : ''}`}`, crumbs.length ? crumbs : '')}
+    ${hold && manage ? html`<div class="notice doc-hold" id="hold-note">${icon('shield')}<p>${hold}</p></div>` : ''}
     ${d.trashedAt ? html`<div class="notice bad">${icon('trash')}<p>In the trash since ${fmtDateTime(d.trashedAt)}. Restore it to use it again.</p></div>` : ''}
     ${co ? html`<div class="notice">${icon('lock')}<p>${co.userId === ctx.user.id ? 'You have it checked out' : `${co.name} has it checked out`} until ${fmtDateTime(co.until)}: ${co.userId === ctx.user.id ? 'others can open it, but only you add a new version. Check it in when you are done.' : 'you can open it, but not add a new version until it is checked in.'}</p></div>` : ''}
     ${!d.reviewed ? html`<div class="notice doc-received">${icon('inbox')}<p><strong>Received through an upload link${d.sender?.name ? ` from ${d.sender.name}` : ''}${d.sender?.email ? ` (${d.sender.email})` : ''}.</strong> ATLAS checked its type; look at it before you share it further.</p>${manage ? html`<button type="button" class="btn sm primary" id="reviewed">${icon('check', 14)} Mark reviewed</button>` : ''}</div>` : ''}
@@ -168,7 +170,17 @@ const TAB_VIEWS = {
 };
 
 async function editDetails(d, { manage }, reload) {
-  const folders = manage ? (await api.get('/api/docs/folders')).folders.filter((f) => ['edit', 'manage'].includes(f.level)) : [];
+  let folders = manage ? (await api.get('/api/docs/folders')).folders.filter((f) => ['edit', 'manage'].includes(f.level)) : [];
+  // Under a folder on legal hold, a document moves only within that folder.
+  const heldIn = d.held?.folder?.id;
+  if (heldIn) {
+    const byId = new Map(folders.map((f) => [f.id, f]));
+    const inside = (f) => {
+      for (let x = f, n = 0; x && n < 64; x = byId.get(x.parentId), n++) if (x.id === heldIn) return true;
+      return false;
+    };
+    folders = folders.filter(inside);
+  }
   modal({
     title: 'Edit details',
     body: html`<div class="stack tight">
@@ -180,7 +192,7 @@ async function editDetails(d, { manage }, reload) {
         <label class="field"><span>Classification</span><select name="classification" ${manage ? '' : 'disabled'}>${Object.entries(CLASS_LABEL).map(([k, l]) => option(k, l, k === d.classification))}</select>${manage ? '' : html`<span class="hint">Only people who manage it change this.</span>`}</label>
       </div>
       <p class="hint">${docs.meta.classifications.map((c) => `${c.label}: ${c.help}`).join(' ')}</p>
-      ${manage && folders.length ? html`<label class="field"><span>Folder</span><select name="folderId">${folders.map((f) => option(f.id, f.personal && !f.parentId ? (f.ownerId === ctx.user.id ? 'My files' : `${f.ownerName}'s files`) : f.name, f.id === d.folderId))}</select></label>` : ''}
+      ${manage && folders.length ? html`<label class="field"><span>Folder</span><select name="folderId">${folders.map((f) => option(f.id, f.personal && !f.parentId ? (f.ownerId === ctx.user.id ? 'My files' : `${f.ownerName}'s files`) : f.name, f.id === d.folderId))}</select>${heldIn ? html`<span class="hint">On legal hold through ${d.held.folder.name ? `“${d.held.folder.name}”` : 'a folder above it'}: it moves only within that folder.</span>` : ''}</label>` : ''}
     </div>`,
     async onSubmit(form) {
       const v = formData(form);

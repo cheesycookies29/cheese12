@@ -5,7 +5,7 @@ import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { html, mount, modal, toast, formData, confirmDialog, badge, fmtDateTime } from '../../ui.js';
 import { icon } from '../../icons.js';
-import { docs, isManager, docIcon, folderIcon, docMarks, fileUrl, when, fmtSize, uploadFiles, uploadPanel, MODE_LABEL, LINK_STATE } from '../state.js';
+import { docs, isManager, docIcon, folderIcon, docMarks, fileUrl, when, fmtSize, uploadFiles, uploadPanel, holdNote, plural, MODE_LABEL, LINK_STATE } from '../state.js';
 import { openShare } from './sharing.js';
 
 const searchBox = (q = '') => html`<form class="doc-search" id="doc-search" role="search"><span class="search-ic">${icon('search', 16)}</span><input type="search" name="q" value="${q}" placeholder="Search documents" aria-label="Search documents" /></form>`;
@@ -36,7 +36,7 @@ function itemsTable({ folders = [], documents = [], trash = false, received = fa
         <td data-label="${trash ? 'Deleted' : 'Updated'}">${when(trash ? d.trashedAt : d.updatedAt)}</td>
         <td class="num" data-label="Size">${fmtSize(d.size)}</td>
         <td class="row-actions">
-          ${trash ? html`<button type="button" class="btn sm" data-restore="${d.id}">${icon('up', 14)} Restore</button> <button type="button" class="btn sm danger ghost" data-purge="${d.id}">Delete for good</button>`
+          ${trash ? html`<button type="button" class="btn sm" data-restore="${d.id}">${icon('up', 14)} Restore</button> <button type="button" class="btn sm danger ghost" data-purge="${d.id}" ${d.held ? html`disabled title="${holdNote(d)}"` : ''}>Delete for good</button>${d.held ? html`<small class="muted">On legal hold: kept</small>` : ''}`
             : received ? html`<button type="button" class="btn sm primary" data-reviewed="${d.id}">${icon('check', 14)} Mark reviewed</button>`
               : d.canDownload ? html`<a class="btn sm quiet" href="${fileUrl(d)}" download aria-label="Download ${d.title}">${icon('download', 16)}</a>` : ''}
         </td>
@@ -178,14 +178,16 @@ function newFolder(parentId, reload) {
 }
 
 function folderMenu(f, reload) {
+  const hold = holdNote(f, 'folder');
   const { form, close } = modal({
     title: `Folder “${f.name}”`,
     submitLabel: 'Rename',
     body: html`<label class="field"><span>Name</span><input name="name" value="${f.name}" maxlength="120" required /></label>
       <div class="actions folder-actions">
         ${isManager() ? html`<button type="button" class="btn" data-hold>${icon('shield', 16)} ${f.legalHold ? 'Lift legal hold' : 'Place on legal hold'}</button>` : ''}
-        <button type="button" class="btn danger ghost" data-trash>${icon('trash', 16)} Move to trash</button>
-      </div>`,
+        <button type="button" class="btn danger ghost" data-trash ${hold ? 'disabled aria-describedby="folder-hold"' : ''}>${icon('trash', 16)} Move to trash</button>
+      </div>
+      ${hold ? html`<p class="hint" id="folder-hold">${icon('shield', 14)} ${hold}</p>` : ''}`,
     async onSubmit(fm) {
       await api.put(`/api/docs/folders/${f.id}`, { name: formData(fm).name });
       toast('Folder renamed.');
@@ -264,7 +266,7 @@ export async function linksView(el) {
         <td><strong>…${l.hint}</strong> ${badge(st, k)}${l.hasPassword ? html` ${badge('Password', 'blue')}` : ''}<small>${MODE_LABEL[l.mode]}${l.note ? ` · “${l.note}”` : ''}</small></td>
         <td data-label="For"><a href="#/${l.target.kind === 'document' ? 'doc' : 'folder'}/${l.target.id}">${icon(l.target.kind === 'document' ? 'file' : 'folder', 14)} ${l.target.name}</a></td>
         <td data-label="Until">${fmtDateTime(l.expiresAt)}</td>
-        <td data-label="Used">${l.mode === 'upload' ? `${l.uploads} file(s) received` : `${l.opens} open(s), ${l.downloads}${l.maxDownloads ? ` of ${l.maxDownloads}` : ''} download(s)`}</td>
+        <td data-label="Used">${l.mode === 'upload' ? `${plural(l.uploads, 'file')} received` : `${plural(l.opens, 'open')}, ${l.maxDownloads ? `${l.downloads} of ${plural(l.maxDownloads, 'download')}` : plural(l.downloads, 'download')}`}</td>
         <td class="row-actions"><button type="button" class="btn sm danger ghost" data-off="${l.id}">Turn off</button></td></tr>`;
       })}</tbody></table></div>` : html`<div class="card empty">${icon('link', 40)}<h2>No links</h2><p>To send a document to someone outside the school, open it and choose Share.</p></div>`}`);
   el.onclick = async (e) => {

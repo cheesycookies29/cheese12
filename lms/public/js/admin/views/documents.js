@@ -10,7 +10,8 @@ import { html, mount, toast, badge, fmtDateTime, fmtSize, confirmDialog, formDat
 
 const TABS = [['types', 'File types'], ['storage', 'Uploads & storage'], ['sharing', 'Sharing'], ['retention', 'Retention'], ['activity', 'Activity']];
 const MODE = { view: 'View only', download: 'View and download', upload: 'Upload only' };
-const CODE = { blocked: 'Never accepted', content: 'Content', mismatch: 'Name and content differ', type: 'Type not accepted', size: 'Too large', quota: 'Over the storage limit', duplicate: 'Duplicate' };
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const CODE = { blocked: 'Never accepted', content: 'Content', mismatch: 'Name and content differ', kind: 'Wrong kind for a new version', type: 'Type not accepted', size: 'Too large', quota: 'Over the storage limit', duplicate: 'Duplicate' };
 
 export async function documentControlView(el, _params = {}, query = {}, { base = '#/documents' } = {}) {
   const tab = TABS.some(([k]) => k === query.tab) ? query.tab : 'types';
@@ -85,7 +86,7 @@ export async function documentControlView(el, _params = {}, query = {}, { base =
         ${act.links.length ? html`<table class="table compact"><thead><tr><th>Link</th><th>For</th><th>Made by</th><th>Until</th><th>Used</th><th></th></tr></thead><tbody>
           ${act.links.map((l) => html`<tr><td><strong>…${l.hint}</strong> ${l.hasPassword ? badge('Password', 'blue') : ''}<small>${MODE[l.mode]}</small></td><td data-label="For">${l.target.name}<small>${l.target.kind === 'folder' ? 'Folder' : 'Document'}</small></td>
             <td data-label="Made by">${l.createdByName}<small>${timeAgo(l.createdAt)}</small></td><td data-label="Until">${fmtDateTime(l.expiresAt)}</td>
-            <td data-label="Used">${l.mode === 'upload' ? `${l.uploads} file(s)` : `${l.opens} open(s), ${l.downloads} download(s)`}${l.lastAccessAt ? html`<small>Last ${timeAgo(l.lastAccessAt)}</small>` : ''}</td>
+            <td data-label="Used">${l.mode === 'upload' ? plural(l.uploads, 'file') : `${plural(l.opens, 'open')}, ${plural(l.downloads, 'download')}`}${l.lastAccessAt ? html`<small>Last ${timeAgo(l.lastAccessAt)}</small>` : ''}</td>
             <td class="row-actions"><button type="button" class="btn sm danger ghost" data-revoke="${l.id}">Turn off</button></td></tr>`)}
         </tbody></table>` : html`<p class="muted" style="padding:0 20px 16px">No link for people outside the school is working.</p>`}
       </section>
@@ -124,16 +125,24 @@ export async function documentControlView(el, _params = {}, query = {}, { base =
     }
   });
   el.querySelector('#integrity')?.addEventListener('click', async (e) => {
-    e.currentTarget.disabled = true;
-    mount(el.querySelector('#integrity-out'), html`<p class="muted">Checking every file…</p>`);
-    const r = await api.post('/api/docs/admin/integrity', {});
-    mount(el.querySelector('#integrity-out'), integrityResult(r));
-    e.currentTarget.disabled = false;
+    // Keep the button: e.currentTarget is null once the handler has awaited.
+    const btn = e.currentTarget;
+    const out = el.querySelector('#integrity-out');
+    btn.disabled = true;
+    mount(out, html`<p class="muted">Checking every file…</p>`);
+    try {
+      mount(out, integrityResult(await api.post('/api/docs/admin/integrity', {})));
+    } catch (err) {
+      mount(out, html`<div class="notice bad">${icon('flag')}<div><p><strong>The check did not finish.</strong> ${err.message}</p></div></div>`);
+      toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
   });
   el.querySelector('#revoke-all')?.addEventListener('click', async () => {
     if (!(await confirmDialog('Turn off every link for people outside the school? They stop working at once; people can make new ones.', { confirmLabel: 'Turn all off' }))) return;
     const r = await api.post('/api/docs/admin/links/revoke-all', {});
-    toast(`${r.revoked} link(s) turned off.`);
+    toast(`${plural(r.revoked, 'link')} turned off.`);
     reload();
   });
   el.querySelectorAll('[data-revoke]').forEach((b) => b.addEventListener('click', async () => {
@@ -146,6 +155,6 @@ export async function documentControlView(el, _params = {}, query = {}, { base =
 function integrityResult(r) {
   if (!r) return html`<p class="muted">Not run yet.</p>`;
   return html`<div class="notice ${r.problems.length ? 'bad' : 'ok'}">${icon(r.problems.length ? 'flag' : 'checkCircle')}<div>
-    <p><strong>${r.problems.length ? `${r.problems.length} problem(s)` : 'Every file is as it was stored.'}</strong> ${r.checked} file version(s) checked ${fmtDateTime(r.at)}${r.byName ? ` by ${r.byName}` : ''}.${r.orphans ? ` ${r.orphans} stored file(s) belong to no document (left from a restore or an interrupted upload).` : ''}</p>
+    <p><strong>${r.problems.length ? plural(r.problems.length, 'problem') : 'Every file is as it was stored.'}</strong> ${plural(r.checked, 'file version')} checked ${fmtDateTime(r.at)}${r.byName ? ` by ${r.byName}` : ''}.${r.orphans ? ` ${r.orphans === 1 ? '1 stored file belongs' : `${r.orphans} stored files belong`} to no document (left from a restore or an interrupted upload).` : ''}</p>
     ${r.problems.length ? html`<ul>${r.problems.map((p) => html`<li><strong>${p.document}</strong>, version ${p.version}: ${p.problem}</li>`)}</ul>` : ''}</div></div>`;
 }

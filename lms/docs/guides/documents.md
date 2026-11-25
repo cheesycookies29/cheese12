@@ -30,7 +30,7 @@ Try this with the demo school: sign in as `teacher.demo` (password `demo1234`). 
 ![My files, with the Upload and New folder buttons](documents-my-files.jpg)
 
 2. Choose **Upload** and pick one or more files from your computer (or drop them anywhere on the page). Each file gets its own line under **Uploads** with a bar while it is sent, then *Added as DOC-2026-0013* or, when it is refused, *Not added:* and the reason.
-3. Choose **School folders** in the sidebar, then **College of Computing**. This folder is shared with everyone in your department, who can add and change files in it.
+3. Choose **School folders** in the sidebar, then **College of Computing**. Maria made this school folder, so it reads *A school folder · you manage it*, and it is shared with everyone in the College of Computing, who can add and change files in it.
 4. Open **IT 101 course outline**. The document page shows a preview (PDFs and pictures open on the page; other files download), and on the right its **Details**, **Versions**, **Access** and **Activity**.
 
 ![A document: actions at the top, details on the right](documents-document.jpg)
@@ -118,7 +118,7 @@ A person you add by name is told on the **bell** in the top bar (*… shared “
 
 The person opens the link without an ATLAS account. With a password, they type it first. **View only** keeps the Download button away, but what is shown in the browser reaches the browser, so send it only to people you trust with a copy.
 
-Confidential documents always need a password: a folder link without a password leaves out the confidential documents in the folder, and a link without one stops working when its document becomes confidential, or when your school starts asking for a password on every link. Restricted documents are never shared by link. A link stops working when it expires, when its downloads are used up (each time a file is viewed in the browser counts too), when you turn it off, when you lose access to the document, or when the document goes to the trash. You are told on **My files** and on the bell the first time someone opens it.
+Confidential documents always need a password: a folder link without a password leaves out the confidential documents in the folder, and a link without one stops working when its document becomes confidential, or when your school starts asking for a password on every link. Restricted documents are never shared by link. A link stops working when it expires, when its downloads are used up (each time a file is viewed in the browser counts too), when you turn it off, when you lose access to the document, or when the document goes to the trash. For a **View only** or **View and download** link, you are told on **My files** and on the bell the first time someone opens it (*Your link was opened for the first time*).
 
 ### Collect files with an upload link
 
@@ -126,7 +126,7 @@ Confidential documents always need a password: a folder link without a password 
 2. Under **Make a link**, pick **Upload only**, add a note (for example *Send your Form 138 and birth certificate*) and choose **Make link**.
 3. Send the link. The person types their name and picks their files.
 
-Their files arrive in the folder marked *Received, not reviewed*, with every check an upload from inside gets. They also appear under **Received**, and you are told on **My files** and on the bell.
+Their files arrive in the folder marked *Received, not reviewed*, with every check an upload from inside gets. They also appear under **Received**, and for each file you are told on **My files** and on the bell (*A file arrived in …*, with the sender's name).
 
 ### Review received files
 
@@ -144,9 +144,9 @@ Their files arrive in the folder marked *Received, not reviewed*, with every che
 1. Open the document and choose the bin button (**Move to trash**), then confirm. For a folder, open it, choose **Folder**, then **Move to trash**.
 2. To bring it back, choose **Trash** in the sidebar and **Restore** on its row.
 
-Items stay in the trash for 30 days (or what your school set), then are deleted for good. **Delete for good** in **Trash** does it at once.
+Items stay in the trash for 30 days (or what your school set), then are deleted for good. To delete a document at once, choose **Delete for good** on its row in **Trash**. Folders have only **Restore** there: a folder in the trash, with everything in it, is deleted for good when its days in the trash are over.
 
-A legal hold on a folder holds everything in it, and in the folders inside it. A document or folder on legal hold, or in a folder on hold, cannot be deleted or moved out of that folder, and all its versions are kept. A folder with anything on legal hold inside it cannot be deleted either.
+A legal hold on a folder holds everything in it, and in the folders inside it. A document or folder on legal hold, or in a folder on hold, cannot be deleted or moved out of that folder, and all its versions are kept. A folder with anything on legal hold inside it cannot be deleted either. While a hold applies, **Move to trash** and **Delete for good** are greyed out, and the page says which hold keeps it; **Edit details** offers only the folders inside the held folder.
 
 ### Change a document's details
 

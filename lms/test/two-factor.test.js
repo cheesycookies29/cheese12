@@ -182,7 +182,10 @@ test('recovery codes, expired challenges, the Learn and Admin panel sign-ins', a
   assert.ok(!JSON.stringify(f.entries()).includes(recoveryCodes[0]));
   assert.equal((await c1.get('/api/me/2fa')).recoveryLeft, 9);
   const b = await f.env.client().post('/api/hub/login', { username: 'student.demo', password: PW });
-  await assert.rejects(f.env.client().post('/api/hub/login/verify', { challenge: b.challenge, code: recoveryCodes[0] }), status(401), 'a recovery code works once');
+  // Used again, it says so, rather than pointing at the phone's clock.
+  await assert.rejects(f.env.client().post('/api/hub/login/verify', { challenge: b.challenge, code: recoveryCodes[0] }), status(401, /^That recovery code was already used\./), 'a recovery code works once');
+  await assert.rejects(f.env.client().post('/api/hub/login/verify', { challenge: b.challenge, code: 'ZZZZZ-ZZZZZ' }), status(401, /^That recovery code is not right\./), 'one that is not on the list');
+  await assert.rejects(f.env.client().post('/api/hub/login/verify', { challenge: b.challenge, code: '000000' }), status(401, /time on your phone/), 'a wrong code from the app');
   // A challenge lasts five minutes.
   const late = f.env.client();
   const c = await late.post('/api/hub/login', { username: 'student.demo', password: PW });

@@ -177,8 +177,8 @@ Password rules apply to new and changed passwords; nobody has to change a passwo
 A campus usually reaches the internet through one or two addresses, so to ATLAS a thousand students on the campus Wi-Fi look like one visitor. Without this, thirty mistyped passwords in a quarter of an hour, or sixty sign-ins in a minute, make *everyone* on that campus wait. List the campus addresses, and the limits counted per address (sign-ins, wrong passwords, requests before signing in, applications and Keycloak sign-ins) are multiplied there. Everywhere else they stay as they are, so password guessing from the internet still meets the usual limit, and one username still locks after its own wrong passwords.
 
 1. Under **System**, choose **Sign-in and passwords**, and go down to **School networks**.
-2. The page shows the address you are reaching ATLAS from. If you are on a campus connection, choose **add it**.
-3. **Where people signed in from in the last 7 days** lists the busiest networks, with how many people signed in from each. Choose **Add** beside a campus network. Ask the school's network administrator if you are not sure which addresses are the school's.
+2. The page shows the address you are reaching ATLAS from. If you are on a campus connection, choose **Add it**.
+3. **Where people signed in from in the last 7 days** lists the busiest networks, with how many people signed in from each. Choose **Add** beside a campus network. Ask the school's network administrator if you are not sure which addresses are the school's. An address is listed once: if it is already in the list, saved or not, ATLAS points at its row instead of adding another, and **Save** refuses two rows with the same address.
 4. Type the campus name under **Campus or note** (for example *Main Campus*). To type an address yourself, choose **Add a network**: one address (`203.0.113.7`) or a range (`203.0.113.0/24`, at most a /16; IPv6 at most a /32).
 5. Leave **Limits on school networks (times)** at 20 unless the Security monitor shows waits at busy times, and choose **Save**.
 
@@ -420,12 +420,12 @@ Every change applies at once and is recorded in the **Settings center**'s histor
 1. Choose **Document control → Activity**.
 2. The figures show the storage used, documents, versions, folders, the trash, legal holds and files received through upload links that are not reviewed yet.
 3. Under **Links that work**, choose **Turn off** for one link, or **Turn all off** (for example after a leak). They stop working at once.
-4. **Refused uploads** lists each file ATLAS refused, who tried, and why.
-5. Choose **Check every file now** under **Integrity check**: ATLAS opens every stored file and compares it with its fingerprint. A file changed or damaged on the disk, or missing after a restore, is listed.
+4. **Refused uploads** lists each file ATLAS refused, who tried, and why (for example *Name and content differ* for a “.pdf” that is not a PDF, or *Wrong kind for a new version* for a new version that is not the same kind of file as the document).
+5. Choose **Check every file now** under **Integrity check**: ATLAS opens every stored file and compares it with its fingerprint. A file changed or damaged on the disk, or missing after a restore, is listed. If the check cannot finish, it says why; choose the button again to retry.
 
 ![Document control: activity, links that work, refused uploads and the integrity check](admin-document-activity.jpg)
 
-To keep a document or folder from being deleted (for an audit or a case), open it in ATLAS Documents and choose **Legal hold** (on a folder: **Folder → Place on legal hold**). Only document managers place or lift a hold. A hold on a folder holds everything inside it, however deep: nothing there is deleted, moved out or loses old versions, and the folders above it cannot be deleted.
+To keep a document or folder from being deleted (for an audit or a case), open it in ATLAS Documents and choose **Legal hold** (on a folder: **Folder → Place on legal hold**). Only document managers place or lift a hold. A hold on a folder holds everything inside it, however deep: nothing there is deleted, moved out or loses old versions, and the folders above it cannot be deleted. While a hold applies, **Move to trash** and **Delete for good** are greyed out, with the reason beside them.
 
 ### Add or remove the demo school
 

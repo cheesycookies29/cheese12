@@ -125,7 +125,7 @@ ATLAS tells you when someone did something that concerns you: a request waiting 
 1. Choose the **bell** in the top bar. A red number shows how many you have not read.
 2. The latest ones are listed, newest first, grouped by day. Choose one to open the page it is about; it is marked as read.
 3. Choose the tick on a notification to mark it read without opening it, or **Mark all as read**. Tick **Unread only** to see only those.
-4. Choose **See all notifications** for the full list, where you can filter by system (Learn, Academic, People, Finance or **Your account**) and choose **Show more** for older ones.
+4. Choose **See all notifications** for the full list, where you can filter by system (Learn, Academic, People, Finance, Documents or **Your account**) and choose **Show more** for older ones.
 
 ![The bell, with the latest notifications](getting-started-notifications.jpg)
 
@@ -150,7 +150,7 @@ Each recovery code signs you in once if you lose your phone. **New recovery code
 1. Sign in with your username and password as usual.
 2. ATLAS asks you to **Enter your code**. Open the authenticator app and type the 6-digit code under **Code from the app, or a recovery code**, then choose **Verify and sign in**.
 
-A code works once and changes every 30 seconds. Lost your phone? Type one of your recovery codes instead, then set up 2-step verification again under **My security**. Without your phone and your recovery codes, ask an administrator to reset it.
+A code works once and changes every 30 seconds. Lost your phone? Type one of your recovery codes instead, then set up 2-step verification again under **My security**. Each recovery code works once: typed again, ATLAS says *That recovery code was already used*, so cross it off your list and use another. Without your phone and your recovery codes, ask an administrator to reset it.
 
 Wrong codes count for your account wherever they are typed, recovery codes too, and typing your password again does not start the count over. After a few in a row (as many as the wrong passwords that lock a username), no code is taken for a few minutes, longer each time it happens again, and you are told on the bell. The right code starts the count again.
 
@@ -245,6 +245,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Learn tile | Classes, lessons, quizzes, attendance, grades and enrollment. For students, parents and guardians, and teachers; registrars and administrators open its admin panel |
 | People tile | HR: employee records, time clock, attendance, leave and payslips. For every employee; not for students or parents |
 | Finance tile | The school's accounts for the finance offices, and self-service for employees and students (for example, receipts). Not for parents |
+| Documents tile | Your files, the school's folders and what people share with you. Its figures are from your own files: received through your upload links and not reviewed, checked out to you, and shared with you this week. For every employee and student; not for parents. See [the Documents guide](documents) |
 | Tools | Under your systems: **PDF Studio**, to make PDFs from documents and pictures, put PDFs together, change text and sign. For the school's employees (an administrator chooses who); also in the **Systems** menu. See [the PDF Studio guide](pdf-studio) |
 | Facilities tile | Rooms, bookings, maintenance and property. Shown as **Coming soon** until your school switches it on |
 | REX Bookstore e-Reader tile | E-books for your subjects from the REX Bookstore app's library. For students, teachers, registrars, deans and administrators; shown as **Coming soon** for now |
@@ -254,7 +255,7 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 | Dark mode | The moon (or sun) button: dark or light screens |
 | Your name | The menu with your picture and title, **My profile**, **Add my picture**, **My security**, **Change password**, **Sign out** and, for some accounts, **Switch campus** |
 | My profile | Your account, your studies or work, and the systems you can open |
-| My security | Your password, and the browsers and devices signed in with your account |
+| My security | Your password, 2-step verification (turn it on or off, and new recovery codes), and the browsers and devices signed in with your account |
 | Menu button | The three lines at the top left of each system: folds the side menu to icons on a computer, or opens it on a phone |
 
 ## Questions

@@ -289,6 +289,8 @@ test('upload in pieces, versions, check-out, download; no content in the data fi
   await fails(P.tess.post('/api/docs/uploads', { name: 'huge.pdf', size: 500 * 1024 * 1024 }), 400, /larger than 50 MB/);
   // A second version of the same kind; a PDF as the next version of a Word file is refused.
   await fails(upload(P.tess, 'other.pdf', PDF, { documentId: doc.id }), 400, /same kind of file/);
+  // Logged as a new version of the wrong kind, not as a name that does not match its content.
+  assert.equal(env.db.data.docRefused.findLast((x) => x.name === 'other.pdf').code, 'kind');
   await upload(P.tess, 'Project proposal KMC v2.docx', DOCX, { documentId: doc.id, note: 'Prices updated' });
   let d = await P.tess.get(`/api/docs/documents/${doc.id}`);
   assert.deepEqual([d.version, d.versionList.map((v) => v.no), d.versionList[0].note], [2, [2, 1], 'Prices updated']);
@@ -481,7 +483,10 @@ test('upload links: files from outside arrive checked and unreviewed', async () 
   await P.lito.put(`/api/docs/documents/${d.id}`, { reviewed: true });
   assert.equal((await P.lito.get('/api/docs/list?view=received')).documents.length, 0);
   assert.ok(env.db.data.docRefused.some((x) => x.name === 'tool.exe'), 'refusals are logged for Document control');
-  assert.ok((await P.lito.get('/api/docs/meta')).notices.some((n) => /arrived in Book donations/.test(n.title)));
+  // One notice per file that arrives; an upload link is not "opened for the first time" by a file.
+  const told = (await P.lito.get('/api/docs/meta')).notices;
+  assert.equal(told.filter((n) => /arrived in Book donations/.test(n.title)).length, 1);
+  assert.ok(!told.some((n) => /opened for the first time/.test(n.title)), 'no first-open notice for an upload link');
   await fails(guest.get(`/api/public/share/${token}/file`), 404); // an upload link shows nothing back
   await fails(P.lito.post('/api/docs/links', { target: { kind: 'document', id: d.id }, mode: 'upload' }), 400, /made for folders/);
 });

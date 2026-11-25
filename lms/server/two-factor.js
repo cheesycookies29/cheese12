@@ -108,6 +108,15 @@ export function createTwoFactor({ db, record, throttle, codeLocks, limits, sides
     return 'app';
   }
 
+  // What to tell someone whose code was refused: a recovery code that was already used says so (the
+  // time on the phone has nothing to do with it); `app` is the hint for a code from the app.
+  function wrongCodeMessage(user, code, app) {
+    if (!looksLikeRecovery(code)) return `That code is not right. ${app}`;
+    const hash = hashRecovery(code);
+    if ((user.twoFactor?.recovery || []).some((r) => r.hash === hash && r.usedAt)) return 'That recovery code was already used. Each one works once: use another recovery code, or the code your app shows.';
+    return 'That recovery code is not right. Check it against your list of recovery codes, or use the code your app shows.';
+  }
+
   // ----- Wrong codes, per account -----
   // Counted wherever the code is typed (signing in, turning it off, new recovery codes), from any address.
   const LOCKED = 'Too many wrong 2-step verification codes for this account.';
@@ -189,7 +198,7 @@ export function createTwoFactor({ db, record, throttle, codeLocks, limits, sides
       if (last) challenges.delete(id);
       if (locked) checkCodeLock(user); // throws: how long it waits
       if (last) fail('Too many wrong codes. Enter your username and password again.', 401);
-      fail('That code is not right. Check that the time on your phone is correct, or use a recovery code.', 401);
+      fail(wrongCodeMessage(user, String(body.code || '').trim(), 'Check that the time on your phone is correct, or use a recovery code.'), 401);
     }
     challenges.delete(id);
     throttle.reset(here);
@@ -211,7 +220,7 @@ export function createTwoFactor({ db, record, throttle, codeLocks, limits, sides
       const locked = wrongCode(user);
       record({ kind: 'password', system: systemOf(user), action: locked ? '2-step verification: wrong code; locked after wrong codes' : '2-step verification: wrong code', actor: user, target: user, ip: a.ip, agent: a.agent, outcome: 'failed' });
       if (locked) checkCodeLock(user);
-      fail('That code is not right. Enter the code your app shows now, or a recovery code.');
+      fail(wrongCodeMessage(user, String(code || '').trim(), 'Enter the code your app shows now, or a recovery code.'));
     }
     codeLocks.reset(codeKey(user));
   };
