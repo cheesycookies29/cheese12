@@ -816,8 +816,17 @@ function interpret(ctx, data, resources, level) {
       }
       else out.push(`<path d="${polygon(gs.ctm, 0, 0, 1, 1)}" fill="${hex(LIGHT)}"/>`);
     } else if ((sub === 'Form' || (sub === null && xo.dict.BBox !== undefined)) && level < MAX_FORM_DEPTH) {
-      let content;
-      try { content = decodeStream(ctx.src, xo, MAX_CONTENT_BYTES).data; } catch { return; }
+      // A form is decoded once per page, and all the forms drawn on a page together may hold no more
+      // than one page's worth of content: a small file that draws one large form many times would
+      // otherwise keep the server busy for seconds.
+      let content = ctx.forms.get(xo);
+      if (content === undefined) {
+        try { content = decodeStream(ctx.src, xo, MAX_CONTENT_BYTES).data; } catch { content = null; }
+        ctx.forms.set(xo, content);
+      }
+      if (!content) return;
+      ctx.formBytes += content.length;
+      if (ctx.formBytes > MAX_CONTENT_BYTES) { ctx.stopped = true; return; }
       const matrix = toArray(r(xo.dict.Matrix)).map(r);
       save();
       if (matrix.length === 6 && matrix.every((x) => typeof x === 'number')) gs.ctm = mul(matrix, gs.ctm);
@@ -1023,7 +1032,7 @@ function runPage(doc, index, { maxImagePixels = 4_000_000, maxOps = 400_000, dra
   const { src, page, media, crop, rotate } = info;
   const box = crop || media;
   const ctx = {
-    src, draw, out: [], runs: [], ops: [], fonts: new Map(), images: new Map(), ids: 0, textOps: 0, formRuns: 0,
+    src, draw, out: [], runs: [], ops: [], fonts: new Map(), images: new Map(), forms: new Map(), formBytes: 0, ids: 0, textOps: 0, formRuns: 0,
     opsLeft: maxOps, stopped: false, maxImagePixels, x0: box[0], y0: box[1], x1: box[2], y1: box[3], gs: newState(IDENTITY),
     pictures: pictures && draw ? [] : null, urls: new Map(),
   };

@@ -1080,5 +1080,11 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     saveIndex();
   }
 
-  return { sweep, blobs, uploads, settings, addDemo, removeDemo, flushIndex: () => indexTimer && writeIndex(), dir: docDir };
+  // For the web server, before it reads a body: may this address send a large upload piece? Only
+  // for an upload link that works now (VAPT-4); anything else gets the small signed-out limit.
+  const uploadLinkOpen = (token) => {
+    const l = linkFor(token);
+    return Boolean(l && l.mode === 'upload' && linkState(l).state === 'active');
+  };
+  return { sweep, blobs, uploads, settings, addDemo, removeDemo, uploadLinkOpen, flushIndex: () => indexTimer && writeIndex(), dir: docDir };
 }

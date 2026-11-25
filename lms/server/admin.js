@@ -641,7 +641,8 @@ export function registerAdminRoutes(route, ctx) {
     const s = data().settings;
     const { cloudflare, ...rest } = s; // System → Cloudflare is for administrators only (its own screen)
     const mine = user.role === 'admin' ? s : rest;
-    const out = userCan(user, 'settings.edit') ? { ...mine } : { ...mine, sso: { enabled: s.sso?.enabled, label: s.sso?.label } };
+    // The campus addresses (School networks) are for those who may change settings, as on their own screen.
+    const out = userCan(user, 'settings.edit') ? { ...mine } : { ...mine, sso: { enabled: s.sso?.enabled, label: s.sso?.label }, security: (({ schoolNetworks, schoolNetworkFactor, ...sec }) => sec)(s.security || {}) };
     return { ...out, passwordEncryption: passwordEncryption(), numberingNext: Object.fromEntries(Object.keys(DEFAULT_NUMBERING).map((k) => [k, previewNumber(data(), k, s.numbering?.[k] || DEFAULT_NUMBERING[k])])) };
   });
   // The next number a format would give (Settings → Numbering, as the administrator types).

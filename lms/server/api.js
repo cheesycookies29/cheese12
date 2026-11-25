@@ -217,6 +217,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     nowLocal: () => localDateTime(clock()),
     signOutEverywhere(userId) {
       for (const side of Object.values(sides)) side.destroyForUser(userId);
+      // Their home figures were worked out under the access they had: not shown again (VAPT-4).
+      for (const k of figuresCache.keys()) if (k.startsWith(`${userId}|`)) figuresCache.delete(k);
     },
     audit: (e) => audit.record(e),
     auditLog: audit, // entries() and verify(), for Control
@@ -915,7 +917,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     // ATLAS Documents: files come in pieces of 4 MB (about 5.4 MB as base64), also from someone
     // outside the school through an upload link (whose own limits count them); nothing else of
     // Documents, or from outside, may be larger than that.
-    if (req.method === 'PUT' && /^\/api\/(docs\/uploads|public\/share\/[^/]+\/uploads)\/[^/]+$/.test(p)) return { maxBody: MAX_DOCS_BODY };
+    // Signed out, only through a link that takes uploads now: a made-up token gets the small limit, so
+    // a large body is never read and parsed for nobody.
+    const piece = req.method === 'PUT' ? /^\/api\/public\/share\/([^/]+)\/uploads\/[^/]+$/.exec(p) : null;
+    if (piece) return { maxBody: (() => { try { return documents.uploadLinkOpen(decodeURIComponent(piece[1])); } catch { return false; } })() ? MAX_DOCS_BODY : MAX_BODY_SIGNED_OUT };
     if (!signedIn) return { maxBody: MAX_BODY_SIGNED_OUT };
     if (p.startsWith('/api/docs/')) return { maxBody: MAX_DOCS_BODY };
     // PDF Studio: a file of up to DIRECT_UPLOAD_BYTES as base64 in one request, an export with up to

@@ -1553,7 +1553,11 @@ function collectText(src, data, resources, out, budget, depth) {
       if (form instanceof PdfStream && nameOf(src.resolve(form.dict.Subtype)) === 'Form') {
         try {
           const inner = src.resolve(form.dict.Resources);
-          collectText(src, src.decode(form, MAX_CONTENT_BYTES), isDict(inner) ? inner : resources, out, budget, 1);
+          // Forms read for a caption together hold no more than one page's worth of content.
+          const data = src.decode(form, MAX_CONTENT_BYTES);
+          out.formBytes = (out.formBytes || 0) + data.length;
+          if (out.formBytes > MAX_CONTENT_BYTES) break;
+          collectText(src, data, isDict(inner) ? inner : resources, out, budget, 1);
         } catch { /* a form that cannot be read adds nothing */ }
       }
     }
