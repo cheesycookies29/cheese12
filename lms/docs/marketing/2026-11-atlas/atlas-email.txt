@@ -1,0 +1,46 @@
+One sign-in for the classroom, the registrar, HR and accounting.
+
+Hi {{FIRST_NAME}},
+
+If {{SCHOOL_NAME}} keeps classes, student records, payroll and accounting
+in separate systems, Lancaster ATLAS is worth thirty minutes. It puts them
+behind one sign-in, and it is built for a state university's rules.
+
+* ACCOUNTING THAT FOLLOWS COA AND DBM
+  ORS/BURS, disbursement vouchers through Boxes A to E, LDDAP-ADA, the RCD
+  and BIR Form 2307. Forms print on A4.
+
+* GOVERNMENT PAYROLL
+  Salary grade and step, PERA, RATA, GSIS, PhilHealth, Pag-IBIG and BIR
+  withholding. A finalized payroll goes to Finance as its ORS and voucher.
+
+* REGISTRAR RECORDS AND CHED REPORTS
+  Curriculum evaluation, grade sheets the dean approves, a TOR with a QR
+  code anyone can check, and the CHED enrollment list.
+
+* ON A SERVER YOU CONTROL
+  Your own server or AWS, with 2-step verification, a tamper-evident audit
+  log and access by account type.
+
+ATLAS is at version 0.8.0-alpha. The product sheet says plainly what is
+live and what is still coming. In the demo we use a demo school, so each
+office sees its own screens with data in them.
+
+Book a 30-minute demo:
+{{DEMO_LINK}}
+
+Or read the two-page technical product sheet first:
+{{PRODUCT_SHEET_LINK}}
+
+{{CONTACT_NAME}}
+Lancaster Technology and Development Corporation
+
+--
+Lancaster Technology and Development Corporation (LTDC)
+{{COMPANY_ADDRESS}}
+
+You are receiving this because of your role at {{SCHOOL_NAME}}. If you
+would rather not hear from us, unsubscribe here and we will stop:
+{{UNSUBSCRIBE_LINK}}
+
+Agencies are named to say which rules ATLAS follows, not as an endorsement.

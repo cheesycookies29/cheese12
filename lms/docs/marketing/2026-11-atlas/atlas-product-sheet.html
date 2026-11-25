@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lancaster ATLAS: technical product sheet</title>
+<meta name="description" content="Lancaster ATLAS, the school platform for Philippine state universities and colleges: Learn, Academic, People, Finance and Documents behind one sign-in.">
+<style>
+  /* Lancaster ATLAS product sheet. Self-contained: no external fonts, scripts or images.
+     Colours from lms/public/css/styles.css and docs/BRAND.md. Prints on two A4 pages. */
+  :root {
+    --brand: #5d0013;
+    --brand-strong: #47000e;
+    --accent: #c28618;
+    --accent-light: #e8b23a;
+    --text: #1e1e1e;
+    --text-2: #374151;
+    --muted: #5b6270;
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --brand-soft: #f6eef0;
+    --brand-line: #d2b8be;
+    --accent-soft: #faf3e3;
+    --success: #15803d;
+    --success-soft: #dcfce7;
+    --warn: #854d0e;
+    --warn-soft: #fef3c7;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, h3, p, ul, dl, dd { margin: 0; }
+  ul { padding: 0; list-style: none; }
+
+  .sheet { max-width: 1080px; margin: 0 auto; padding: 28px 16px 40px; }
+  .page {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  }
+  .pad { padding: 30px 40px 34px; }
+
+  /* Hero */
+  .hero { background: var(--brand); color: #fff; padding: 30px 40px 32px; border-bottom: 4px solid var(--accent); }
+  .lockup { display: flex; align-items: center; gap: 14px; }
+  .mark-tile { flex: none; width: 58px; height: 58px; background: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+  .mark-tile svg { width: 44px; height: auto; display: block; }
+  .word { border-left: 2px solid var(--accent); padding-left: 14px; line-height: 1.15; }
+  .word .co { font-size: 0.68em; letter-spacing: 0.34em; }
+  .word .name { font-size: 1.75em; font-weight: 800; letter-spacing: 0.1em; }
+  .word .tag { font-size: 0.62em; letter-spacing: 0.2em; color: #ecd9a9; }
+  .doc-id { margin-left: auto; text-align: right; font-size: 0.8em; line-height: 1.45; color: #ecd9a9; }
+  .doc-id b { display: block; color: #fff; font-weight: 600; letter-spacing: 0.04em; }
+  .hero h1 { font-size: 2.05em; line-height: 1.16; font-weight: 750; letter-spacing: -0.01em; margin-top: 26px; max-width: 21em; }
+  .hero .lede { margin-top: 12px; max-width: 62em; color: #f3e6e9; font-size: 1.02em; }
+
+  /* Section headings */
+  .sec { margin-top: 26px; }
+  .sec:first-child { margin-top: 0; }
+  .two > .sec:first-child { margin-top: 26px; }
+  .sec > h2 {
+    display: flex; align-items: baseline; gap: 10px;
+    font-size: 1.16em; line-height: 1.25; color: var(--brand); font-weight: 750;
+    padding-bottom: 7px; border-bottom: 1px solid var(--brand-line); margin-bottom: 12px;
+  }
+  .sec > h2 .n { flex: none; font-size: 0.72em; font-weight: 700; letter-spacing: 0.08em; color: var(--warn); }
+  .sec > h2 small { margin-left: auto; font-size: 0.7em; font-weight: 500; color: var(--muted); text-align: right; }
+
+  /* Product family */
+  .prod { display: grid; grid-template-columns: 220px 1fr; gap: 6px 24px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .prod:last-child { border-bottom: 0; padding-bottom: 0; }
+  .prod h3 { font-size: 1.04em; line-height: 1.25; font-weight: 750; }
+  .prod h3 span { font-weight: 500; color: var(--muted); font-size: 0.82em; }
+  .chip { display: inline-block; font-size: 0.68em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 7px; border-radius: 99px; background: var(--success-soft); color: var(--success); vertical-align: 2px; white-space: nowrap; }
+  .chip.soon { background: var(--warn-soft); color: var(--warn); }
+  .who { margin-top: 4px; font-size: 0.86em; line-height: 1.4; color: var(--text-2); }
+  .who b { color: var(--muted); font-weight: 600; font-size: 0.86em; letter-spacing: 0.06em; text-transform: uppercase; display: block; }
+  .caps { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 24px; font-size: 0.9em; line-height: 1.42; align-content: start; }
+  .caps li, .ticks li { position: relative; padding-left: 13px; }
+  .caps li::before, .ticks li::before { content: ""; position: absolute; left: 0; top: 0.58em; width: 5px; height: 5px; background: var(--accent); transform: rotate(45deg); }
+  .caps.one { grid-template-columns: 1fr; }
+
+  /* One front door */
+  .door { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .cell { background: var(--brand-soft); border-top: 3px solid var(--brand); border-radius: 0 0 8px 8px; padding: 11px 13px 12px; font-size: 0.88em; line-height: 1.42; }
+  .cell h3 { font-size: 1.04em; color: var(--brand); margin-bottom: 3px; }
+
+  /* Page 2 */
+  .runner { display: flex; align-items: center; gap: 9px; font-size: 0.8em; color: var(--muted); padding-bottom: 10px; border-bottom: 2px solid var(--accent); margin-bottom: 20px; }
+  .runner svg { width: 26px; height: auto; flex: none; }
+  .runner b { color: var(--brand); letter-spacing: 0.12em; }
+  .runner span { margin-left: auto; text-align: right; }
+
+  .rules { display: grid; grid-template-columns: 1.15fr 1.15fr 0.8fr; gap: 12px; }
+  .card { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px 13px; font-size: 0.88em; line-height: 1.42; }
+  .card h3 { font-size: 1.04em; line-height: 1.25; }
+  .card .agency { display: block; font-size: 0.8em; font-weight: 700; letter-spacing: 0.08em; color: var(--warn); margin-bottom: 6px; }
+  .ticks li + li { margin-top: 3px; }
+  .note { margin-top: 10px; font-size: 0.84em; line-height: 1.42; color: var(--text-2); background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 7px 11px; border-radius: 0 6px 6px 0; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; }
+  .two > .sec { margin-top: 26px; }
+  .plain { font-size: 0.88em; line-height: 1.42; }
+  .plain b { font-weight: 650; }
+  dl.spec { font-size: 0.88em; line-height: 1.42; display: grid; grid-template-columns: 92px 1fr; gap: 5px 12px; }
+  dl.spec dt { font-weight: 700; color: var(--brand); }
+
+  .chip.later { background: #eef0f3; color: var(--text-2); }
+  dl.spec.st { grid-template-columns: 104px 1fr; gap: 8px 12px; }
+  dl.spec.st dt { font-size: 1.08em; }
+
+  .cta { margin-top: 24px; background: var(--brand); color: #fff; border-radius: 10px; padding: 20px 24px; display: grid; grid-template-columns: 1fr auto; gap: 14px 30px; align-items: center; border-bottom: 4px solid var(--accent); }
+  .cta h2 { font-size: 1.36em; line-height: 1.2; font-weight: 750; }
+  .cta p { margin-top: 5px; color: #f3e6e9; font-size: 0.92em; max-width: 40em; }
+  .cta .book { display: inline-block; margin-top: 11px; background: var(--accent-light); color: #2a1500; font-weight: 750; text-decoration: none; padding: 8px 16px; border-radius: 7px; font-size: 0.95em; overflow-wrap: anywhere; }
+  .cta .contact { font-size: 0.9em; line-height: 1.6; border-left: 2px solid var(--accent); padding-left: 18px; overflow-wrap: anywhere; }
+  .cta .contact b { display: block; font-size: 1.06em; }
+  .cta .contact a { color: #fff; text-decoration: none; }
+  .legal { margin-top: 12px; font-size: 0.74em; line-height: 1.4; color: var(--muted); }
+
+  /* Tablets and phones */
+  @media screen and (max-width: 860px) {
+    .door { grid-template-columns: 1fr 1fr; }
+    .rules, .two { grid-template-columns: 1fr; }
+    .prod { grid-template-columns: 1fr; }
+    .who b { display: inline; }
+    .doc-id { display: none; }
+  }
+  @media screen and (max-width: 560px) {
+    .sheet { padding: 0; }
+    .page { border-radius: 0; border-left: 0; border-right: 0; margin-bottom: 14px; }
+    .hero, .pad { padding: 22px 16px 24px; }
+    .hero h1 { font-size: 1.6em; margin-top: 20px; }
+    .mark-tile { width: 50px; height: 50px; }
+    .mark-tile svg { width: 38px; }
+    .word .name { font-size: 1.5em; }
+    .word .tag { letter-spacing: 0.1em; }
+    .caps, .door { grid-template-columns: 1fr; }
+    .sec > h2 { flex-wrap: wrap; }
+    .sec > h2 small { margin-left: 0; text-align: left; flex-basis: 100%; }
+    .runner span { display: none; }
+    dl.spec, dl.spec.st { grid-template-columns: 1fr; gap: 0; }
+    dl.spec dd { margin-bottom: 7px; }
+    .cta { grid-template-columns: 1fr; padding: 20px 16px; }
+    .cta .contact { border-left: 0; border-top: 2px solid var(--accent); padding: 12px 0 0; }
+  }
+
+  /* A4: two pages, full bleed, fixed height so nothing spills onto a third. */
+  @page { size: A4; margin: 0; }
+  @media print {
+    html, body { background: #fff; }
+    body { font-size: 8pt; line-height: 1.34; }
+    .sheet { max-width: none; margin: 0; padding: 0; }
+    .page { width: 210mm; height: 297mm; border: 0; border-radius: 0; margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+    .hero { padding: 9mm 13mm 8mm; border-bottom-width: 1.2mm; }
+    .pad { padding: 6.5mm 13mm 0; }
+    .p2 .pad { padding-top: 8.5mm; }
+    .mark-tile { width: 13.5mm; height: 13.5mm; border-radius: 2.6mm; }
+    .mark-tile svg { width: 10.5mm; }
+    .hero h1 { font-size: 20pt; margin-top: 6mm; }
+    .hero .lede { margin-top: 2.6mm; font-size: 9pt; line-height: 1.42; }
+    .sec, .two > .sec, .two > .sec:first-child { margin-top: 4.2mm; }
+    .sec:first-child { margin-top: 0; }
+    .sec > h2 { font-size: 10.6pt; padding-bottom: 1.3mm; margin-bottom: 2.2mm; }
+    .prod { grid-template-columns: 43mm 1fr; gap: 1mm 5mm; padding: 2.05mm 0; break-inside: avoid; }
+    .caps { gap: 0.5mm 5mm; }
+    .door, .rules { gap: 3mm; }
+    .cell { padding: 2.3mm 3mm 2.6mm; }
+    .card { padding: 2.6mm 3.2mm 2.8mm; }
+    .runner { padding-bottom: 2mm; margin-bottom: 4.2mm; }
+    .runner svg { width: 6.5mm; }
+    .two { gap: 0 7mm; }
+    dl.spec { grid-template-columns: 21mm 1fr; gap: 1mm 3mm; }
+    dl.spec.st { grid-template-columns: 25mm 1fr; gap: 1.6mm 3mm; }
+    .note { margin-top: 2.2mm; padding: 1.6mm 2.6mm; }
+    .cta { margin-top: 4.2mm; padding: 3.8mm 6mm; gap: 3mm 7mm; border-bottom-width: 1.2mm; }
+    .cta h2 { font-size: 12.5pt; }
+    .cta .book { margin-top: 2.4mm; padding: 1.6mm 3.6mm; }
+    .legal { margin-top: 2.4mm; font-size: 6.6pt; }
+    a { color: inherit; }
+  }
+</style>
+</head>
+<body>
+
+<!-- The ATLAS mark (lms/public/img/brand/atlas-mark.svg), inlined once and reused. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="am-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8B23A"/><stop offset=".55" stop-color="#D59A22"/><stop offset="1" stop-color="#B97D12"/></linearGradient>
+    <linearGradient id="am-r" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="#D21E4B"/><stop offset=".45" stop-color="#A30F33"/><stop offset="1" stop-color="#6E0820"/></linearGradient>
+    <linearGradient id="am-w" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3F3F3"/><stop offset="1" stop-color="#C9C9CC"/></linearGradient>
+    <symbol id="atlas-mark" viewBox="0 0 640 470">
+      <path d="M349,19 Q365,18 378,30 L508,292 L414,316 L302,141 Z" fill="url(#am-r)"/>
+      <path d="M262,42 Q300,20 351,16 Q356,17 357,22 L238,322 L136,302 Z" fill="url(#am-w)"/>
+      <path d="M62,328 C132,306 214,298 254,310 C292,322 312,356 322,404 L322,436 C270,384 168,362 38,378 Z" fill="url(#am-g)"/>
+      <path d="M578,328 C508,306 426,298 386,310 C348,322 328,356 318,404 L318,436 C370,384 472,362 602,378 Z" fill="url(#am-g)"/>
+      <path d="M26,412 C150,390 262,408 320,452 C378,408 490,390 614,412 L604,430 C482,414 378,430 320,470 C262,430 158,414 36,430 Z" fill="#1E1E1E"/>
+    </symbol>
+  </defs>
+</svg>
+
+<main class="sheet">
+
+<!-- ============================== PAGE 1 ============================== -->
+<section class="page p1">
+  <header class="hero">
+    <div class="lockup">
+      <div class="mark-tile"><svg viewBox="0 0 640 470" role="img" aria-label="Lancaster ATLAS mark"><use href="#atlas-mark"/></svg></div>
+      <div class="word">
+        <div class="co">LANCASTER</div>
+        <div class="name">ATLAS</div>
+        <div class="tag">UNIFIED EDUCATION MANAGEMENT PLATFORM</div>
+      </div>
+      <div class="doc-id"><b>Technical product sheet</b>Version 0.8.0-alpha · November 2026</div>
+    </div>
+    <h1>One platform for the classroom, the registrar, HR and government accounting.</h1>
+    <p class="lede">Lancaster ATLAS is a school platform for Philippine state universities and colleges. Students, parents, faculty and staff sign in once and open the systems their account may use: Learn, Academic, People, Finance and Documents. Payroll and accounting follow the rules a national government agency works under. The whole platform runs on a server the school controls, either its own or one on AWS.</p>
+  </header>
+
+  <div class="pad">
+    <section class="sec">
+      <h2><span class="n">01</span>The product family <small>One row per product: who uses it and what it does</small></h2>
+
+      <div class="prod">
+        <div>
+          <h3>ATLAS Learn <span>LMS</span> <i class="chip">Live</i></h3>
+          <p class="who"><b>Used by</b> Teachers, students, parents and guardians; the registrar through its admin panel</p>
+        </div>
+        <ul class="caps">
+          <li>Lessons, materials, assignments, and timed quizzes and exams that the server closes on time</li>
+          <li>Enrollment that checks prerequisites, the unit limit and schedule conflicts, with waitlists</li>
+          <li>Attendance, a weighted gradebook and final grades, with CSV export</li>
+          <li>Read-only parent accounts: the registrar chooses what each link shares</li>
+        </ul>
+      </div>
+
+      <div class="prod">
+        <div>
+          <h3>ATLAS Academic <span>UIS</span> <i class="chip">Live · release 1</i></h3>
+          <p class="who"><b>Used by</b> The registrar's office, deans, teachers (grade sheets), students (own record)</p>
+        </div>
+        <ul class="caps">
+          <li>One student record: evaluation against the curriculum, back subjects, units earned and GWA</li>
+          <li>Grade sheets go teacher, dean, registrar; a grade change needs a second person's approval</li>
+          <li>TOR, COR and certificates printed with a QR code that anyone can check</li>
+          <li>CHED enrollment list, FHE billing details, dean's list and candidates for graduation</li>
+        </ul>
+      </div>
+
+      <div class="prod">
+        <div>
+          <h3>ATLAS People <span>HRIS</span> <i class="chip">Live</i></h3>
+          <p class="who"><b>Used by</b> The HR office, the payroll office, and every employee (self-service)</p>
+        </div>
+        <ul class="caps">
+          <li>Employee records, a time clock and the daily time record (DTR), with late, undertime and overtime</li>
+          <li>Leave balances, requests and approvals; HR cannot approve their own leave</li>
+          <li>Government payroll, with the General Payroll (COA GAM Appendix 33) and a remittance summary per agency</li>
+          <li>Self-service for every employee: clock in, file leave, open payslips</li>
+        </ul>
+      </div>
+
+      <div class="prod">
+        <div>
+          <h3>ATLAS Finance <span>FMIS</span> <i class="chip">Live · release 1</i></h3>
+          <p class="who"><b>Used by</b> The accounting, budget, cashier's and supply offices, and the approving officer</p>
+        </div>
+        <ul class="caps">
+          <li>Revised Chart of Accounts, journal entry vouchers, ledgers, trial balance and statements per fund cluster</li>
+          <li>Appropriations, allotments and NCAs; ORS/BURS with Box B checking the allotment</li>
+          <li>Disbursement vouchers through Boxes A to E, checks and LDDAP-ADA, cash advances, BIR Form 2307</li>
+          <li>Official receipts, the RCD and deposits; purchase orders, stock cards, PAR/ICS and depreciation</li>
+        </ul>
+      </div>
+
+      <div class="prod">
+        <div>
+          <h3>ATLAS Documents <i class="chip">Live</i></h3>
+          <p class="who"><b>Used by</b> Every employee and every student</p>
+        </div>
+        <ul class="caps">
+          <li>Your own files, office and college folders, and what others share with you</li>
+          <li>Every version kept, with check-out while a file is being edited</li>
+          <li>Sharing at view, edit or manage; outside links with a password, an end date and a download limit</li>
+          <li>Every file encrypted on the server; programs, scripts and Office files with macros are refused</li>
+        </ul>
+      </div>
+
+      <div class="prod">
+        <div>
+          <h3>PDF Studio <span>Tools</span> <i class="chip">Live</i></h3>
+          <p class="who"><b>Used by</b> The school's employees; an administrator chooses which account types</p>
+        </div>
+        <ul class="caps">
+          <li>Turns Word, Excel, PowerPoint, OpenDocument files and pictures into PDF; files up to 100 MB</li>
+          <li>Puts PDFs together; reorders, turns, removes and numbers pages</li>
+          <li>Changes a line of text, adds text, and signs</li>
+          <li>A signature record page with a code; a check says whether a signed PDF is unchanged</li>
+        </ul>
+      </div>
+
+      <div class="prod">
+        <div>
+          <h3>ATLAS Facilities <i class="chip soon">Coming soon</i></h3>
+        </div>
+        <ul class="caps one">
+          <li>Rooms and venues, bookings, maintenance and property. Not yet available; its tile shows greyed out on the home page.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2><span class="n">02</span>One front door</h2>
+      <div class="door">
+        <div class="cell"><h3>The home page</h3>A card for each system the account may use, with figures from that person's own work, then the school's announcements and upcoming events.</div>
+        <div class="cell"><h3>One sign-in</h3>Sign in once and open each system without signing in again. Sign out anywhere signs out of everything. The school's Keycloak account can be used instead of a password.</div>
+        <div class="cell"><h3>Campuses</h3>Every campus has the same features, catalog and grading, and its own students, teachers, sections, news and events. Staff at more than one campus switch from their name.</div>
+        <div class="cell"><h3>Notifications</h3>A bell in every system: an enrollment decided, a grade sheet to approve, a leave request to decide, a payslip ready, a voucher waiting for your step.</div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ============================== PAGE 2 ============================== -->
+<section class="page p2">
+  <div class="pad">
+    <div class="runner">
+      <svg viewBox="0 0 640 470" aria-hidden="true"><use href="#atlas-mark"/></svg>
+      <b>ATLAS</b> Technical product sheet
+      <span>Version 0.8.0-alpha · Lancaster Technology and Development Corporation</span>
+    </div>
+
+    <section class="sec">
+      <h2><span class="n">03</span>Built for Philippine government rules</h2>
+      <div class="rules">
+        <div class="card">
+          <span class="agency">COA · DBM · BIR</span>
+          <h3>Finance</h3>
+          <ul class="ticks" style="margin-top:5px">
+            <li>COA Government Accounting Manual and Revised Chart of Accounts; one set of books per fund cluster</li>
+            <li>DBM budget execution: ORS for fund 01 and BURS for the others; SAAODB (FAR 1), RAOD and aging of obligations (FAR 3)</li>
+            <li>The server enforces separation of duties: Box D is never signed by the preparer or the certifier</li>
+            <li>BIR withholding on government payments, remittances by TRA, the quarterly alphalist and Form 2307</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="agency">CSC · GSIS · PHILHEALTH · PAG-IBIG · BIR</span>
+          <h3>Payroll, in People</h3>
+          <ul class="ticks" style="margin-top:5px">
+            <li>Salary grade and step under EO 64, s. 2024; the 2026 and 2027 schedules are built in</li>
+            <li>PERA and RATA; GSIS at 9% personal and 12% government share; PhilHealth, Pag-IBIG and BIR withholding tax</li>
+            <li>Tardiness and undertime charged to vacation leave credits first (CSC), the rest from pay</li>
+            <li>Loans held back when net pay would fall below ₱5,000 a month; mid-year and year-end bonus, cash gift, PEI and clothing allowance runs</li>
+            <li>A finalized run goes to Finance: its ORS/BURS, the payroll voucher, then the remittance vouchers</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="agency">CHED</span>
+          <h3>Academic</h3>
+          <ul class="ticks" style="margin-top:5px">
+            <li>CHED enrollment list</li>
+            <li>FHE billing details (UniFAST Form 2), with lecture and laboratory units</li>
+            <li>Enrollment summary by program, year and sex</li>
+            <li>Reports print on A4 and export to CSV</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">Every Finance form prints on A4 after its GAM appendix. Tax rates, contribution tables and the chart of accounts can be edited by the school, and are checked against the documents its accountant and COA auditor use before going live.</p>
+    </section>
+
+    <div class="two">
+      <section class="sec">
+        <h2><span class="n">04</span>Security and privacy controls</h2>
+        <ul class="ticks plain">
+          <li><b>Passwords</b> are stored only as hashes, and each hash is encrypted under a key kept outside the data.</li>
+          <li><b>2-step verification</b> with an authenticator app and recovery codes. Administrators choose who must use it.</li>
+          <li><b>Access by account type.</b> The server refuses what a role may not do; it is not only hidden. One person can be given, or lose, a single permission.</li>
+          <li><b>Tamper-evident audit log.</b> Sign-ins, failed sign-ins and staff changes are numbered and chained by SHA-256, and the page re-checks the chain.</li>
+          <li><b>Security monitor</b> for administrators: refused requests by kind, failed sign-ins, traffic and who is signed in.</li>
+          <li><b>Rate limits</b> per person and per network address. Five wrong passwords lock a username for five minutes.</li>
+          <li><b>Sessions.</b> People are signed out after 8 idle hours, and can see and sign out their other devices.</li>
+          <li><b>Privacy by role.</b> Parents see only what each link shares, and the student sees who is linked. A leave's reason and medical certificate are shown to HR only.</li>
+        </ul>
+      </section>
+
+      <section class="sec">
+        <h2><span class="n">05</span>Architecture and deployment</h2>
+        <dl class="spec">
+          <dt>Software</dt><dd>One Node.js program with no third-party dependencies: a small attack surface, and code that is easy to audit.</dd>
+          <dt>Hosting</dt><dd>The school's own server, or AWS. One CloudFormation template builds the EC2 server with HTTPS and a fixed IP.</dd>
+          <dt>Clients</dt><dd>Any modern browser, on phones too. No app to install.</dd>
+          <dt>Sign-in</dt><dd>Single sign-on with Keycloak or another standard OpenID Connect provider.</dd>
+          <dt>Updates</dt><dd>On the AWS setup, updates install by themselves, and only if the tests pass on the server.</dd>
+          <dt>Backups</dt><dd>On the AWS setup, a copy of the data every night and a snapshot of the disk every day.</dd>
+          <dt>Network</dt><dd>Can sit behind Cloudflare at a name on the school's own domain.</dd>
+          <dt>Data</dt><dd>Records are kept in one data file on the server, with uploaded files beside it. Sized with you for your enrollment during onboarding.</dd>
+        </dl>
+      </section>
+    </div>
+
+    <div class="two">
+      <section class="sec">
+        <h2><span class="n">06</span>What's included</h2>
+        <ul class="ticks plain">
+          <li><b>Built-in guides.</b> A Help button in every system opens the guide for that person's job, with screenshots and how-to steps. Guides are kept current with every release, and the school can edit them.</li>
+          <li><b>Onboarding.</b> First-run setup names the school and its campus and creates the administrator. The school sets its own colour and logo. The server is sized with you for your enrollment.</li>
+          <li><b>Demo school data.</b> A demo school with several campuses, payroll runs and this fiscal year's books. It is added next to your own data and removed again without changing your records.</li>
+        </ul>
+      </section>
+
+      <section class="sec">
+        <h2><span class="n">07</span>Status <small>Version 0.8.0-alpha</small></h2>
+        <dl class="spec st">
+          <dt><i class="chip">Live</i></dt><dd>ATLAS Learn, People, Academic (release 1), Finance (release 1), Documents and PDF Studio; the ATLAS home with single sign-on through Keycloak, notifications and 2-step verification.</dd>
+          <dt><i class="chip soon">Coming soon</i></dt><dd>ATLAS Facilities. The REX Bookstore e-Reader tile is planned only.</dd>
+          <dt><i class="chip later">Not yet built</i></dt><dd>Academic: admissions with entrance exams, fee assessment, scholarships. Finance: petty cash, the Statement of Cash Flows, eNGAS export.</dd>
+        </dl>
+      </section>
+    </div>
+
+    <section class="cta">
+      <div>
+        <h2>See your office's screens in 30 minutes.</h2>
+        <p>We walk through the demo school with the people who would use it: the registrar, HR, accounting and your MIS office.</p>
+        <a class="book" href="{{DEMO_LINK}}">Book a demo: {{DEMO_LINK}}</a>
+      </div>
+      <div class="contact">
+        <b>{{CONTACT_NAME}}</b>
+        <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a><br>
+        {{CONTACT_PHONE}}
+      </div>
+    </section>
+
+    <p class="legal">Lancaster ATLAS is a product of Lancaster Technology and Development Corporation (LTDC). COA, DBM, BIR, CSC, CHED, GSIS, PhilHealth and Pag-IBIG are named to say which rules ATLAS follows; this is not an endorsement or certification by any agency. This sheet describes version 0.8.0-alpha.</p>
+  </div>
+</section>
+
+</main>
+</body>
+</html>
