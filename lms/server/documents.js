@@ -19,7 +19,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { HttpError } from './util.js';
-import { can, ROLES } from '../shared/roles.js';
+import { userCan, ROLES } from '../shared/roles.js';
 import { checkFile, FAMILIES, FAMILY, BLOCKED_EXTS, BLOCKED_LABEL, isInline } from './dms/types.js';
 import { createBlobStore, BlobError } from './dms/blobs.js';
 import { accessTo, atLeast, chain, RANK } from './dms/access.js';
@@ -29,7 +29,9 @@ import { extractText as defaultExtract } from './documents-text.js';
 
 const MB = 1024 * 1024;
 export const DOCS_CHUNK_BYTES = 4 * MB;
-const UPLOAD_IDLE_MS = 30 * 60000;
+const UPLOAD_IDLE_MS = 5 * 60000; // an upload with no piece for this long is dropped, and stops counting
+const RESHARE_QUIET_MS = 60 * 60000; // shared again with the same person within this time: no second notification
+const WRONG_PASSWORD_LOG_MS = 15 * 60000; // at most one "wrong link password" entry per link in this time
 const EVENTS_KEPT = 20000;
 const REFUSED_KEPT = 300;
 const NOTICES_KEPT = 3000;
@@ -85,7 +87,9 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   // Departments come from the HRIS employee record linked to the account (else the account's own).
   const departmentOf = (u) => (u?.employeeId && D.employees.find((e) => e.id === u.employeeId)?.department) || u?.department || '';
   const departments = () => [...new Set([...D.employees.map((e) => e.department), ...D.users.filter(active).map((u) => u.department)].filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  const manager = (u) => can(u.role, 'docs.manage');
+  // docs.manage as every other per-person check in ATLAS: the account type's permissions with this
+  // account's own changes (System → Users & Access → Access), through userCan.
+  const manager = (u) => userCan(u, 'docs.manage');
   const who = (u, asManager = true) => ({ id: u.id, role: u.role, department: departmentOf(u), manager: asManager && manager(u) });
   const folderMap = () => new Map(D.docFolders.map((f) => [f.id, f]));
   const docById = (id) => D.documents.find((d) => d.id === id) || null;
@@ -113,9 +117,11 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     db.save();
     if (old) blobs.remove(old);
   };
+  // Written a few seconds after the first change, and not again until then: a burst of uploads
+  // writes the index once, not once per file.
   const saveIndex = () => {
-    clearTimeout(indexTimer);
-    indexTimer = setTimeout(writeIndex, 1500);
+    if (indexTimer) return;
+    indexTimer = setTimeout(writeIndex, 5000);
     indexTimer.unref?.();
   };
 
@@ -138,12 +144,19 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       console.error('  Documents: notification not written:', err.message);
     }
   }
-  // Shared with someone by name (not a department, a class or everyone): they are told once, when added.
+  // Shared with someone by name (not a department, a class or everyone): they are told once, when
+  // added. Taken off and added again within RESHARE_QUIET_MS, they are not told again.
   const LEVEL_WORDS = { view: 'You can open it', edit: 'You can open and change it', manage: 'You can change and share it' };
+  const toldShared = new Map(); // `${link}|${userId}` → when they were last told
   function tellShared(before, after, u, what, link) {
     const had = new Set((before || []).filter((g) => g.type === 'user').map((g) => g.id));
+    const t = clock();
+    if (toldShared.size > 5000) for (const [k, at] of toldShared) if (t - at > RESHARE_QUIET_MS) toldShared.delete(k);
     for (const g of after || []) {
       if (g.type !== 'user' || had.has(g.id) || g.id === u.id) continue;
+      const key = `${link}|${g.id}`;
+      if (t - (toldShared.get(key) ?? -Infinity) < RESHARE_QUIET_MS) continue;
+      toldShared.set(key, t);
       tell([g.id], { kind: 'docs-shared', title: `${u.name} shared ${what} with you`, body: `${LEVEL_WORDS[g.level] || 'You can open it'}${g.until ? ` until ${String(g.until).slice(0, 10)}` : ''}.`, link }, u.id);
     }
   }
@@ -151,10 +164,18 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   // ----- Access -----
   // asManager false: what the person holds themselves (owner, grants), without docs.manage; used for
   // the lists (Shared with me, Recent, Trash), so a manager's lists are not the whole school's.
+  //
+  // Restricted documents are for named people only: they are reached by their owner, the people
+  // named on the document itself and document managers. Grants to an account type, a department or
+  // everyone, and every grant of the folders above, do not reach them. Only those who manage a
+  // restricted document get its file (shown in the browser or downloaded); the others named on it
+  // see its details. `open` says whether the file reaches the person at all.
   function accessOf(u, item, kind, { asManager = true } = {}) {
-    const a = accessTo(who(u, asManager), item, { folders: folderMap(), now: clock(), kind });
-    // Restricted documents: only managers of the document download them.
-    if (kind === 'document' && item.classification === 'restricted' && a.level !== 'manage') a.download = false;
+    const restricted = kind === 'document' && item.classification === 'restricted';
+    const target = restricted ? { ...item, acl: (item.acl || []).filter((g) => g.type === 'user') } : item;
+    const a = accessTo(who(u, asManager), target, { folders: restricted ? new Map() : folderMap(), now: clock(), kind });
+    if (restricted && a.level !== 'manage') a.download = false;
+    a.open = atLeast(a.level, 'view') && (!restricted || a.level === 'manage');
     // Students never pass a document on outside the people it was shared with.
     if (isStudent(u) && a.level !== 'manage') a.share = false;
     return a;
@@ -164,6 +185,26 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     const start = kind === 'document' ? item.folderId : item.parentId;
     return chain(folderMap(), start).some((f) => f.trashedAt);
   };
+  // ----- Legal hold -----
+  // A hold on a folder holds everything below it, however deep: its documents, its folders and
+  // theirs. Nothing held is deleted (trash, purge, the sweep), loses versions, or is moved out from
+  // under the held folder.
+  const heldAbove = (item, kind) => chain(folderMap(), kind === 'document' ? item.folderId : item.parentId).filter((f) => f.legalHold);
+  const held = (item, kind) => Boolean(item.legalHold) || heldAbove(item, kind).length > 0;
+  // Whether a folder holds, anywhere below it, a folder or a document with its own hold.
+  const holdBelow = (f) => {
+    const m = folderMap();
+    const under = (folderId) => chain(m, folderId).some((x) => x.id === f.id);
+    return D.docFolders.some((x) => x.legalHold && x.id !== f.id && under(x.id)) || D.documents.some((d) => d.legalHold && under(d.folderId));
+  };
+  // A move (or a restore elsewhere) keeps every held folder above the item above it.
+  function keepHold(item, kind, newParentId) {
+    const above = heldAbove(item, kind);
+    if (!above.length) return;
+    const after = new Set(chain(folderMap(), newParentId).map((f) => f.id));
+    if (above.some((f) => !after.has(f.id))) throw bad(`This ${kind === 'document' ? 'document' : 'folder'} is in a folder on legal hold, so it stays inside that folder.`);
+  }
+
   // The document or folder when `u` holds at least `level` on it; 404 otherwise (or while in trash,
   // unless `trash` is asked for).
   function needDoc(u, id, level = 'view', { trash = false } = {}) {
@@ -209,7 +250,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       ownerId: d.ownerId, ownerName: nameOf(d.ownerId), name: v?.name, ext: v?.ext, family: v?.family, size: v?.size, version: d.currentVersion,
       versions: d.versions.length, updatedAt: d.updatedAt, createdAt: d.createdAt, checkout: co ? { ...co, name: nameOf(co.userId) } : null,
       legalHold: Boolean(d.legalHold), trashedAt: d.trashedAt || null, reviewed: d.reviewed !== false, source: d.source || 'upload',
-      level: a.level, canDownload: a.download, canShare: a.share && a.level !== 'none', inline: Boolean(v && isInline(v.ext)),
+      level: a.level, canDownload: a.download, canOpen: a.open !== false, canShare: a.share && a.level !== 'none', inline: Boolean(v && isInline(v.ext)) && a.open !== false,
     };
     if (full) {
       out.description = d.description || '';
@@ -220,10 +261,13 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
         out.acl = (d.acl || []).map(grantOut);
         out.links = D.docLinks.filter((l) => l.target.kind === 'document' && l.target.id === d.id && !l.revokedAt).map(linkOut);
       }
-      out.events = D.docEvents.filter((e) => e.docId === d.id).slice(-60).reverse().map((e) => ({ ...e, byName: nameOf(e.by), ip: a.level === 'manage' ? e.ip : '' }));
+      // Who else has access (the notes of sharing and link entries) is for those who manage it.
+      const mine = a.level === 'manage';
+      out.events = D.docEvents.filter((e) => e.docId === d.id).slice(-60).reverse().map((e) => ({ ...e, byName: nameOf(e.by), ip: mine ? e.ip : '', note: mine || !SHARING_EVENTS.has(e.action) ? e.note : '' }));
     }
     return out;
   }
+  const SHARING_EVENTS = new Set(['access', 'link', 'unlink']);
   const grantOut = (g) => ({ type: g.type, id: g.id, level: g.level, download: g.download !== false, share: Boolean(g.share), until: g.until || null, label: grantLabel(g) });
   function grantLabel(g) {
     if (g.type === 'everyone') return 'Everyone signed in';
@@ -359,6 +403,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       needFolder(u, parentId, 'edit');
       if (chain(folderMap(), parentId).some((x) => x.id === f.id)) throw bad('A folder cannot go inside itself.');
     } else if (!manager(u)) throw bad('Only document managers keep folders at the top level.');
+    keepHold(f, 'folder', parentId);
     f.parentId = parentId;
   }
   route('PUT', '/api/docs/folders/:id/access', 'documents', ({ params, body, user: u }) => {
@@ -413,12 +458,15 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       }
       if (cls && d.classification !== cls) continue;
       if (tag && !(d.tags || []).some((t) => t.toLowerCase() === tag)) continue;
+      const full = personalLists ? accessOf(u, d, 'document') : a;
       if (words.length) {
         const v = current(d);
-        const hay = `${d.number} ${d.title} ${v?.name || ''} ${(d.tags || []).join(' ')} ${d.description || ''} ${idx.get(d.id) || ''}`.toLowerCase();
+        // The words inside the file count only for people who may download it: search never tells
+        // anyone else what a file says.
+        const hay = `${d.number} ${d.title} ${v?.name || ''} ${(d.tags || []).join(' ')} ${d.description || ''} ${full.download ? idx.get(d.id) || '' : ''}`.toLowerCase();
         if (!words.every((w) => hay.includes(w))) continue;
       }
-      out.push(docOut(u, d, personalLists ? accessOf(u, d, 'document') : a));
+      out.push(docOut(u, d, full));
     }
     out.sort(view === 'recent' ? (a, b) => b.updatedAt.localeCompare(a.updatedAt) : view === 'trash' ? (a, b) => (b.trashedAt || '').localeCompare(a.trashedAt || '') : (a, b) => a.title.localeCompare(b.title, 'en', { numeric: true }));
     if (view === 'trash') folders = D.docFolders.filter((f) => f.trashedAt).map((f) => [f, accessOf(u, f, 'folder', { asManager: false })]).filter(([, a]) => a.level === 'manage').map(([f]) => folderOut(u, f));
@@ -436,6 +484,8 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     const s = settings();
     if (!Number.isInteger(size) || size <= 0) throw bad(`${name} is empty.`);
     if (size > s.maxUploadMB * MB) throw bad(`${name} is larger than ${s.maxUploadMB} MB, the most accepted here.`);
+    // Uploads left unfinished (no piece for a few minutes) are dropped here, so they do not hold a place.
+    for (const x of [...uploads.values()]) if (clock() - x.usedAt > UPLOAD_IDLE_MS) dropUpload(x);
     if ([...uploads.values()].filter((x) => x.owner === owner).length >= 8) throw bad('Wait for the files being uploaded to finish, then add more.');
     const x = { id: randomUUID(), owner, name, size, received: 0, usedAt: clock() };
     x.path = path.join(upDir, `${x.id}.part`);
@@ -474,8 +524,12 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     if (buf.length > s.maxUploadMB * MB) refuse(name, byId, 'size', `${name} is larger than ${s.maxUploadMB} MB, the most accepted here.`);
     const c = checkFile(buf, name, s.families);
     if (!c.ok) refuse(name, byId, c.code, atlas(c.reason));
-    if (s.quotaMB && usedBy(ownerId) + buf.length > s.quotaMB * MB) refuse(name, byId, 'quota', `This would go over the ${s.quotaMB} MB of documents each person may keep. Remove old versions or documents, or ask an administrator.`);
+    checkQuota(name, byId, ownerId, buf.length);
     return c;
+  }
+  function checkQuota(name, byId, ownerId, bytes) {
+    const s = settings();
+    if (s.quotaMB && usedBy(ownerId) + bytes > s.quotaMB * MB) refuse(name, byId, 'quota', `This would go over the ${s.quotaMB} MB of documents each person may keep. Remove old versions or documents, or ask an administrator.`);
   }
   function refuse(name, byId, code, reason) {
     D.docRefused.push({ at: now(), name: text(name, 200), by: byId, code, reason });
@@ -489,9 +543,10 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     d.versions.push({ no, blobId, name: c.name, ext: c.ext, family: c.family, mime: c.mime, size, sha256, by: byId, at: now(), note: text(note, 300) });
     d.currentVersion = no;
     d.updatedAt = now();
-    // Old versions beyond what the control panel keeps go (not while on legal hold).
+    // Old versions beyond what the control panel keeps go (never while the document, or a folder
+    // above it, is on legal hold).
     const keep = settings().versionsKept;
-    if (!d.legalHold) while (d.versions.length > keep) blobs.remove(d.versions.shift().blobId);
+    if (!held(d, 'document')) while (d.versions.length > keep) blobs.remove(d.versions.shift().blobId);
     const words = extractSafely(buf, c.ext);
     const idx = loadIndex();
     if (words) idx.set(d.id, words.slice(0, TEXT_KEPT));
@@ -582,12 +637,14 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     if ('classification' in b && b.classification !== d.classification) {
       if (!CLASS_IDS.includes(b.classification)) throw bad('Choose a classification.');
       if (a.level !== 'manage') throw bad('Only people who manage the document change its classification.');
+      if (b.classification === 'restricted' && (d.acl || []).some((g) => g.type !== 'user')) throw bad('Restricted documents are shared with named people only. Under Share, remove the account types, departments and everyone first.');
       changes.push(`classification ${b.classification}`);
       d.classification = b.classification;
     }
     if ('folderId' in b && b.folderId !== d.folderId) {
       if (a.level !== 'manage') throw bad('Only people who manage the document move it.');
       const { f } = needFolder(u, b.folderId, 'edit');
+      keepHold(d, 'document', f.id);
       changes.push(`moved to ${f.name}`);
       d.folderId = f.id;
     }
@@ -608,10 +665,16 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   });
   // The file of a version (the current one unless v= says). inline=1 opens a PDF or picture in the
   // browser; everything else always downloads.
+  //
+  // What "no download" (a grant with Download unticked) promises: no Download button and no
+  // attachment response. Showing a PDF or picture on the page sends the whole file to the browser,
+  // so it cannot stop a viewer saving what they see. Restricted documents go further: their file
+  // reaches only those who manage them, shown or downloaded.
   route('GET', '/api/docs/documents/:id/file', 'documents', ({ params, query, user: u, ip }) => {
     const { d, a } = needDoc(u, params.id, 'view');
     const v = query.v ? d.versions.find((x) => x.no === Number(query.v)) : current(d);
     if (!v) throw missing();
+    if (!a.open) throw new HttpError(403, 'Restricted documents are opened and downloaded only by the people who manage them.');
     const inline = query.inline === '1' && isInline(v.ext);
     if (!inline && !a.download) throw new HttpError(403, d.classification === 'restricted' ? 'Restricted documents are downloaded only by the people who manage them.' : 'You can view this document but not download it.');
     const data = readBlob(v);
@@ -633,6 +696,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     if (!v) throw bad('That version is not kept any more.');
     const co = checkoutOf(d);
     if (co && co.userId !== u.id) throw bad(`${nameOf(co.userId)} has this document checked out.`);
+    checkQuota(v.name, u.id, d.ownerId, v.size);
     const buf = readBlob(v);
     addVersion(d, buf, { name: v.name, ext: v.ext, family: v.family, mime: v.mime }, u.id, `Restored from version ${v.no}`);
     event('version', { doc: d, by: u.id, note: `Version ${d.currentVersion} restored from version ${v.no}` });
@@ -668,7 +732,6 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   });
 
   // ----- Trash, restore, purge -----
-  const held = (item, kind) => item.legalHold || chain(folderMap(), kind === 'document' ? item.folderId : item.id).some((f) => f.legalHold);
   route('DELETE', '/api/docs/documents/:id', 'documents', ({ params, user: u }) => {
     const { d } = needDoc(u, params.id, 'manage');
     if (held(d, 'document')) throw bad('This document is on legal hold, so it cannot be deleted.');
@@ -681,7 +744,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   route('DELETE', '/api/docs/folders/:id', 'documents', ({ params, user: u }) => {
     const { f } = needFolder(u, params.id, 'manage');
     if (f.kind === 'personal' && !f.parentId) throw bad('My files cannot be deleted.');
-    if (held(f, 'folder') || D.documents.some((d) => !d.trashedAt && d.legalHold && chain(folderMap(), d.folderId).some((x) => x.id === f.id))) throw bad('This folder or a document in it is on legal hold, so it cannot be deleted.');
+    if (held(f, 'folder') || holdBelow(f)) throw bad('This folder or a document in it is on legal hold, so it cannot be deleted.');
     f.trashedAt = now();
     f.trashedBy = u.id;
     event('trash', { folder: f, by: u.id });
@@ -694,16 +757,22 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       if (!d.trashedAt) return { ok: true };
       // Back where it was, or into My files when that folder is gone or in the trash.
       const parent = folderById(d.folderId);
-      if (!parent || inTrash(parent, 'folder')) d.folderId = personalRoot(u).id;
+      if (!parent || inTrash(parent, 'folder')) {
+        keepHold(d, 'document', personalRoot(u).id);
+        d.folderId = personalRoot(u).id;
+      }
       d.trashedAt = null;
       d.trashedBy = null;
       event('restore', { doc: d, by: u.id });
     } else {
       const { f } = needFolder(u, body.folderId, 'manage', { trash: true });
+      const parent = f.parentId && folderById(f.parentId);
+      if (f.parentId && (!parent || inTrash(parent, 'folder'))) {
+        keepHold(f, 'folder', personalRoot(u).id);
+        f.parentId = personalRoot(u).id;
+      }
       f.trashedAt = null;
       f.trashedBy = null;
-      const parent = f.parentId && folderById(f.parentId);
-      if (f.parentId && (!parent || inTrash(parent, 'folder'))) f.parentId = personalRoot(u).id;
       event('restore', { folder: f, by: u.id });
     }
     db.save();
@@ -741,7 +810,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
       if (!type) throw bad('Share with a person, an account type, a department or everyone.');
       if (isStudent(u) && type !== 'user') throw bad('Students share with named people only, not with groups or everyone.');
       if (type === 'everyone' && !s.shareWithEveryone) throw bad('Sharing with everyone is turned off in Document control.');
-      if (type === 'everyone' && classification === 'restricted') throw bad('Restricted documents are shared with named people only.');
+      if (type !== 'user' && classification === 'restricted') throw bad('Restricted documents are shared with named people only, not with account types, departments or everyone.');
       const id = type === 'everyone' ? '*' : text(g.id, 80);
       if (type === 'user') {
         const x = userById(id);
@@ -761,6 +830,9 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
   const cleanTags = (v) => [...new Set((Array.isArray(v) ? v : String(v || '').split(',')).map((t) => text(t, 40)).filter(Boolean))].slice(0, 20);
 
   // ----- Links outside the school -----
+  // A download link's limit counts every time a file goes out through it: shown in the browser or
+  // downloaded (a file shown in the browser has reached the person as much as a download has).
+  const linkUses = (l) => (l.downloads || 0) + (l.views || 0);
   // Whether a link works now; every rule is checked again on every use.
   function linkState(l) {
     const s = settings();
@@ -775,7 +847,11 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     const a = accessOf(creator, item, l.target.kind);
     if (!a.share || (l.mode === 'download' && !a.download) || (l.mode === 'upload' && !atLeast(a.level, 'edit'))) return { state: 'creator' };
     if (l.target.kind === 'document' && !s.linkClassifications.includes(item.classification)) return { state: 'classification' };
-    if (l.maxDownloads && (l.downloads || 0) >= l.maxDownloads && l.mode === 'download') return { state: 'used' };
+    // The password rules hold on every use, not only when the link is made: a link without a
+    // password stops when Document control starts asking for one on every link, or when its document
+    // becomes confidential. (A folder link without one leaves the confidential documents out.)
+    if (!l.passwordHash && (s.linkPasswordRequired || (l.target.kind === 'document' && item.classification === 'confidential'))) return { state: 'password' };
+    if (l.mode === 'download' && l.maxDownloads && linkUses(l) >= l.maxDownloads) return { state: 'used' };
     return { state: 'active', item, creator };
   }
   route('POST', '/api/docs/links', 'documents', ({ body, user: u, origin }) => {
@@ -842,7 +918,9 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     if (unlocked && !ok) throw new HttpError(401, 'This link needs its password.');
     return { l, ...st, unlockedNow: ok };
   }
-  const linkDocs = (l, item) => (l.target.kind === 'document' ? [item] : D.documents.filter((d) => d.folderId === item.id && !d.trashedAt && settings().linkClassifications.includes(d.classification)));
+  // The documents a link serves. A folder link serves the documents in the folder that may go out by
+  // link; without a password, never the confidential ones.
+  const linkDocs = (l, item) => (l.target.kind === 'document' ? [item] : D.documents.filter((d) => d.folderId === item.id && !d.trashedAt && settings().linkClassifications.includes(d.classification) && (l.passwordHash || d.classification !== 'confidential')));
   function touch(l, field, ip, note) {
     l[field] = (l[field] || 0) + 1;
     const first = !l.lastAccessAt;
@@ -862,17 +940,31 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     });
     touch(l, 'opens', ip, `${l.target.kind === 'document' ? item.title : item.name} opened through a link`);
     db.save();
-    return { ...base, name: l.target.kind === 'document' ? item.title : item.name, note: l.note, documents: docs, downloadsLeft: l.mode === 'download' && l.maxDownloads ? l.maxDownloads - (l.downloads || 0) : null };
+    return { ...base, name: l.target.kind === 'document' ? item.title : item.name, note: l.note, documents: docs, downloadsLeft: l.mode === 'download' && l.maxDownloads ? Math.max(0, l.maxDownloads - linkUses(l)) : null };
   });
+  // Wrong passwords are counted in memory: the link's activity gets at most one entry per link every
+  // WRONG_PASSWORD_LOG_MS (with how many came since the last), kept with the next save of the data.
+  const wrongTries = new Map(); // link id → { at, n }
+  function wrongPassword(l, ip) {
+    const w = wrongTries.get(l.id);
+    if (w && clock() - w.at < WRONG_PASSWORD_LOG_MS) {
+      w.n++;
+      return;
+    }
+    if (wrongTries.size > 5000) wrongTries.clear();
+    wrongTries.set(l.id, { at: clock(), n: 0 });
+    event('link-password-wrong', { link: l, by: `link:${l.id}`, ip, note: w?.n ? `${w.n} more wrong password(s) since the last entry` : '' });
+  }
   route('POST', '/api/public/share/:token/unlock', 'public', ({ params, body, cookies, ip }) => {
     const { l } = openLink(params.token, cookies, ip, { unlocked: false });
     if (!l.passwordHash) return { ok: true };
+    // The limits (per address, per link, and wrong passwords per address and link) all apply before
+    // the password is checked.
     const key = `${ip}|${l.id}`;
     limits?.check('sharePasswordFail', key, 'Too many wrong passwords.');
     if (!checkLinkPassword(body.password, l.passwordHash)) {
       limits?.add('sharePasswordFail', key);
-      event('link-password-wrong', { link: l, by: `link:${l.id}`, ip });
-      db.save();
+      wrongPassword(l, ip);
       throw bad('That password is not right.');
     }
     return { data: { ok: true }, headers: { 'Set-Cookie': `${cookieName(l.id)}=${unlockValue(cookieKey, l)}; Path=/api/public/share/${params.token}; HttpOnly; SameSite=Strict; Max-Age=${12 * 3600}${process.env.COOKIE_SECURE === '1' ? '; Secure' : ''}` } };
@@ -884,8 +976,10 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     if (!d) throw new HttpError(404, UNAVAILABLE);
     const v = current(d);
     const inline = query.inline === '1' && isInline(v.ext);
+    // A view-only link gives no download, but what it shows in the browser does reach the browser:
+    // it keeps honest people to viewing, it does not stop a copy being kept.
     if (l.mode === 'view' && !inline) throw new HttpError(403, 'This link lets you view the document, not download it.');
-    if (!inline && l.maxDownloads && (l.downloads || 0) >= l.maxDownloads) throw new HttpError(404, UNAVAILABLE);
+    if (l.mode === 'download' && l.maxDownloads && linkUses(l) >= l.maxDownloads) throw new HttpError(404, UNAVAILABLE);
     const data = readBlob(v);
     touch(l, inline ? 'views' : 'downloads', ip, `${d.number} ${d.title}, version ${v.no}`);
     db.save();
@@ -990,9 +1084,10 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     let changed = false;
     for (const d of [...D.documents]) if (d.trashedAt && Date.parse(d.trashedAt) < cutoff && !held(d, 'document')) (purgeDoc(d, null), (changed = true));
     for (const f of [...D.docFolders]) {
-      if (!f.trashedAt || Date.parse(f.trashedAt) >= cutoff || held(f, 'folder') || !folderById(f.id)) continue;
+      // A folder with anything on legal hold in it, or under a held folder, stays whole.
+      if (!f.trashedAt || Date.parse(f.trashedAt) >= cutoff || !folderById(f.id) || held(f, 'folder') || holdBelow(f)) continue;
       const inside = new Set(D.docFolders.filter((x) => chain(folderMap(), x.id).some((y) => y.id === f.id)).map((x) => x.id));
-      for (const d of [...D.documents]) if (inside.has(d.folderId) && !d.legalHold) purgeDoc(d, null);
+      for (const d of [...D.documents]) if (inside.has(d.folderId) && !held(d, 'document')) purgeDoc(d, null);
       if (!D.documents.some((d) => inside.has(d.folderId))) D.docFolders = D.docFolders.filter((x) => !inside.has(x.id));
       changed = true;
     }

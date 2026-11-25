@@ -28,7 +28,7 @@ export const classBadge = (c, always = false) => (c === 'internal' && !always ? 
 export const STATUS_LABEL = { draft: 'Draft', final: 'Final', obsolete: 'Obsolete' };
 export const LEVEL_LABEL = { view: 'Can view', edit: 'Can edit', manage: 'Can manage' };
 export const MODE_LABEL = { view: 'View only', download: 'View and download', upload: 'Upload only' };
-export const LINK_STATE = { active: ['Active', 'green'], used: ['Downloads used up', 'gray'], expired: ['Expired', 'gray'], revoked: ['Turned off', 'gray'], off: ['Links are off', 'amber'], creator: ['Its maker can no longer share it', 'amber'], gone: ['In the trash', 'gray'], classification: ['Not shareable by link', 'amber'] };
+export const LINK_STATE = { active: ['Active', 'green'], used: ['Downloads used up', 'gray'], expired: ['Expired', 'gray'], revoked: ['Turned off', 'gray'], off: ['Links are off', 'amber'], creator: ['Its maker can no longer share it', 'amber'], gone: ['In the trash', 'gray'], classification: ['Not shareable by link', 'amber'], password: ['Needs a password now', 'amber'] };
 
 // The small marks after a document's title: classification, checked out, legal hold, received.
 export function docMarks(d) {

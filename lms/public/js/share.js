@@ -108,7 +108,7 @@ function filesView(info) {
   const one = info.kind === 'document' && info.documents.length === 1;
   mount(el, html`
     <div class="page-head"><div><h1>${icon(info.kind === 'folder' ? 'folder' : 'file', 24)} ${info.name}</h1>
-      <p class="muted">${download ? 'You can view and download' : 'You can view'} ${info.kind === 'folder' ? 'the files in this folder' : 'this document'} until ${fmtDateTime(info.expiresAt)}.${info.downloadsLeft != null ? ` Downloads left: ${info.downloadsLeft}.` : ''}</p>
+      <p class="muted">${download ? 'You can view and download' : 'You can view'} ${info.kind === 'folder' ? 'the files in this folder' : 'this document'} until ${fmtDateTime(info.expiresAt)}.${info.downloadsLeft != null ? ` Views and downloads left: ${info.downloadsLeft}.` : ''}</p>
       ${info.note ? html`<p class="share-note">“${info.note}”</p>` : ''}</div></div>
     ${info.documents.length ? html`<div class="card scroll-x"><table class="table doc-table share-files">
       <thead><tr><th>Name</th><th class="num">Size</th><th>Changed</th><th></th></tr></thead>
@@ -127,7 +127,8 @@ function filesView(info) {
     box.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   el.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
-  if (one && info.documents[0].inline) show(info.documents[0].id);
+  // Not shown by itself on a link with a limit: each view counts against it.
+  if (one && info.documents[0].inline && info.downloadsLeft == null) show(info.documents[0].id);
 }
 
 function uploadView(info) {

@@ -26,7 +26,8 @@ export async function documentView(el, { id }, query = {}) {
   const preview = d.inline ? (d.family === 'image'
     ? html`<img class="doc-preview-img" src="${fileUrl(d, { inline: true })}" alt="${d.title}" />`
     : html`<iframe class="doc-preview" src="${fileUrl(d, { inline: true })}" title="Preview of ${d.title}"></iframe>`)
-    : html`<div class="doc-noprev">${docIcon(d, 40)}<p><strong>${d.name}</strong></p><p class="muted">${fmtSize(d.size)} · this kind of file opens on your computer, not in the browser.</p>${d.canDownload ? html`<a class="btn primary" href="${fileUrl(d)}" download>${icon('download', 16)} Download</a>` : html`<p class="muted">${d.classification === 'restricted' ? 'Restricted: only the people who manage it download it.' : 'You can see its details but not download it.'}</p>`}</div>`;
+    : !d.canOpen ? html`<div class="doc-noprev">${docIcon(d, 40)}<p><strong>${d.name}</strong></p><p class="muted">${fmtSize(d.size)} · Restricted: only the people who manage it open or download the file. You can see its details.</p></div>`
+    : html`<div class="doc-noprev">${docIcon(d, 40)}<p><strong>${d.name}</strong></p><p class="muted">${fmtSize(d.size)} · this kind of file opens on your computer, not in the browser.</p>${d.canDownload ? html`<a class="btn primary" href="${fileUrl(d)}" download>${icon('download', 16)} Download</a>` : html`<p class="muted">You can see its details but not download it.</p>`}</div>`;
   const tabUrl = (k) => `#/doc/${d.id}?tab=${k}`;
   mount(el, html`
     ${pageHead(html`${d.title} ${docMarks(d)}`, html`${d.number} · ${d.name} · version ${d.version} · ${LEVEL_LABEL[d.level].toLowerCase()}`, html`

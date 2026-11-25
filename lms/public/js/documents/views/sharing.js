@@ -34,14 +34,14 @@ export function openShare(item, kind, onDone) {
         <div class="share-add">
           <label class="field"><span>Add a person</span><input type="search" id="person-q" placeholder="Type a name or username" autocomplete="off" /></label>
           <div class="person-hits" id="person-hits" role="listbox" aria-label="People found"></div>
-          ${m.sharing.groups ? html`<div class="share-groups">
+          ${m.sharing.groups && !restricted ? html`<div class="share-groups">
             <label class="field"><span>Or a whole account type</span><select id="add-role"><option value="">Choose…</option>${m.roles.map((r) => option(r.id, r.label))}</select></label>
             ${m.departments.length ? html`<label class="field"><span>Or a department</span><select id="add-dept"><option value="">Choose…</option>${m.departments.map((d) => option(d, d))}</select></label>` : ''}
             ${m.sharing.everyone && !restricted ? html`<button type="button" class="btn" id="add-everyone">${icon('users', 16)} Everyone signed in</button>` : ''}
           </div>` : html`<p class="hint">Students share with named people: your teachers, and classmates in your sections.</p>`}
         </div>
         ${kind === 'folder' && item.parentId ? html`<label class="field check"><input type="checkbox" id="inherit" ${inherit ? 'checked' : ''} /> <span>Also let in the people who have access to the folders above</span></label>` : ''}
-        ${restricted ? html`<p class="hint">${icon('lock', 14)} Restricted: named people only, and only people who manage it can download it.</p>` : ''}
+        ${restricted ? html`<p class="hint">${icon('lock', 14)} Restricted: named people only (sharing the folder it is in does not reach it), and only people who manage it open or download the file.</p>` : ''}
       </section>` : html`<p class="muted">You can see this but not change who has access. ${item.ownerName ? `Ask ${item.ownerName}.` : ''}</p>`}
       <section class="share-section">
         <h3>Links for people outside the school</h3>

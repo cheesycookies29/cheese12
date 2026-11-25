@@ -49,7 +49,7 @@ Try this with the demo school: sign in as `teacher.demo` (password `demo1234`). 
 2. Choose **Upload** and pick the files, or drop them on the page.
 3. Wait for each line under **Uploads** to say *Added as …*.
 
-Files go up in pieces of 4 MB, so a large file survives a short network drop. The largest file allowed is shown under the list (50 MB unless your school changed it). If a file says *Not added*, the reason tells you what to do, for example *The file is called .jpg but it is a PDF file* (upload it with its real name) or *.exe files are never accepted*.
+Files go up in pieces of 4 MB, so a large file survives a short network drop. An upload that sends nothing for five minutes is dropped: add the file again. The largest file allowed is shown under the list (50 MB unless your school changed it). If a file says *Not added*, the reason tells you what to do, for example *The file is called .jpg but it is a PDF file* (upload it with its real name) or *.exe files are never accepted*.
 
 ### Make a folder
 
@@ -63,7 +63,7 @@ Folders at the top of **School folders** are made by document managers (choose *
 1. Type words in the search box at the top of any list and press `Enter`.
 2. Open a result.
 
-ATLAS looks in titles, file names, document numbers (*DOC-2026-0001*), tags, descriptions, and the words inside text, CSV, e-mail, Word, Excel, PowerPoint and OpenDocument files. It does not read the text of PDFs and pictures: give them a clear title and tags.
+ATLAS looks in titles, file names, document numbers (*DOC-2026-0001*), tags, descriptions, and the words inside text, CSV, e-mail, Word, Excel, PowerPoint and OpenDocument files. It does not read the text of PDFs and pictures: give them a clear title and tags. The words inside a file are searched only in files you may download; others are found by their title, tags and description.
 
 ### Open or download a document
 
@@ -77,7 +77,7 @@ To get an older version, open **Versions** and choose the download button on its
 1. Open the document and choose **New version**.
 2. Pick the file. It must be the same kind of file as the document (a Word file for a Word document).
 
-The new version becomes the current one; the earlier ones stay under **Versions**. To go back, choose **Restore** on an older version: it is added again as the newest version, and nothing is lost.
+The new version becomes the current one; the earlier ones stay under **Versions**. To go back, choose **Restore** on an older version: it is added again as the newest version, and nothing is lost. A restored version counts against the owner's storage, like any new version.
 
 ### Check out a document while you edit it
 
@@ -91,11 +91,15 @@ A check-out also ends by itself after 72 hours (or what your school set). The pe
 1. Open the document (or the folder) and choose **Share**.
 2. Under **Add a person**, type at least two letters of a name and choose the person. Staff can also add a whole account type (**Or a whole account type**), a department (**Or a department**) or **Everyone signed in**.
 3. For each one, choose **Can view**, **Can edit** or **Can manage**. Untick **Download** to let someone view a document without downloading it. Tick **Share on** to let them share it further.
+
+> **Note:** Without **Download**, there is no Download button, but a PDF or picture still shows on the page, and what shows on a screen can be kept. For a document that must not be copied, make it *Restricted*.
 4. Choose **Save access**.
 
 You can never give more access than you have. Sharing a folder shares everything in it, and the folders inside it. Departments come from the employee records in ATLAS People.
 
-A person you add by name is told on the **bell** in the top bar (*… shared “…” with you*), with a link straight to it. Adding a department, an account type or everyone does not send notifications.
+A person you add by name is told on the **bell** in the top bar (*… shared “…” with you*), with a link straight to it. Adding a department, an account type or everyone does not send notifications. Taking someone off and adding them again within an hour does not tell them again.
+
+*Restricted* documents are shared with named people only: not with account types, departments or everyone, and sharing the folder they are in does not reach them.
 
 | Level | What it allows |
 |---|---|
@@ -112,7 +116,9 @@ A person you add by name is told on the **bell** in the top bar (*… shared “
 
 > **Important:** The link is shown only once. ATLAS keeps a fingerprint of it, not the link itself, so it cannot show it again: if you lose it, turn it off and make a new one.
 
-The person opens the link without an ATLAS account. With a password, they type it first. Confidential documents always need a password; restricted documents are never shared by link. A link stops working when it expires, when its downloads are used up, when you turn it off, when you lose access to the document, or when the document goes to the trash. You are told on **My files** and on the bell the first time someone opens it.
+The person opens the link without an ATLAS account. With a password, they type it first. **View only** keeps the Download button away, but what is shown in the browser reaches the browser, so send it only to people you trust with a copy.
+
+Confidential documents always need a password: a folder link without a password leaves out the confidential documents in the folder, and a link without one stops working when its document becomes confidential, or when your school starts asking for a password on every link. Restricted documents are never shared by link. A link stops working when it expires, when its downloads are used up (each time a file is viewed in the browser counts too), when you turn it off, when you lose access to the document, or when the document goes to the trash. You are told on **My files** and on the bell the first time someone opens it.
 
 ### Collect files with an upload link
 
@@ -138,7 +144,9 @@ Their files arrive in the folder marked *Received, not reviewed*, with every che
 1. Open the document and choose the bin button (**Move to trash**), then confirm. For a folder, open it, choose **Folder**, then **Move to trash**.
 2. To bring it back, choose **Trash** in the sidebar and **Restore** on its row.
 
-Items stay in the trash for 30 days (or what your school set), then are deleted for good. **Delete for good** in **Trash** does it at once. A document or folder on legal hold cannot be deleted.
+Items stay in the trash for 30 days (or what your school set), then are deleted for good. **Delete for good** in **Trash** does it at once.
+
+A legal hold on a folder holds everything in it, and in the folders inside it. A document or folder on legal hold, or in a folder on hold, cannot be deleted or moved out of that folder, and all its versions are kept. A folder with anything on legal hold inside it cannot be deleted either.
 
 ### Change a document's details
 
@@ -151,7 +159,7 @@ Items stay in the trash for 30 days (or what your school set), then are deleted 
 | Public | Can be given to anyone |
 | Internal | For people in the school (the usual) |
 | Confidential | For the people it is shared with; links need a password |
-| Restricted | Named people only; never shared by link; only those who manage it download it |
+| Restricted | Named people only (sharing its folder, a department or an account type does not reach it); never shared by link; only those who manage it open or download the file |
 
 ### For students: keep your files and hand one to a teacher
 
@@ -188,12 +196,12 @@ What teachers share with you is under **Shared with me**; what the school shares
 
 **Why can't I share this document?** You need **Can manage** to change who has access, and **Share on** (or manage) to make links. Ask the person who manages it, shown as its owner.
 
-**Why can't I download a document I can see?** It was shared with you as view only, or it is *Restricted*: only the people who manage a restricted document download it.
+**Why can't I download a document I can see?** It was shared with you as view only, or it is *Restricted*: only the people who manage a restricted document open or download its file; the others named on it see its details.
 
 **Can students send links outside the school?** No. Students share with named people (teachers, and classmates in their sections), and only inside ATLAS.
 
 **Is my file safe on the server?** Every file is encrypted with its own key, and its fingerprint (SHA-256) is checked each time it is opened. Only the people it is shared with can open it; to anyone else ATLAS says *That document or folder is not there, or you do not have access to it.*
 
-**Someone says my link "is not available".** The link expired, its downloads are used up, it was turned off, the document went to the trash, or you no longer have access to it. Make a new one with **Share**.
+**Someone says my link "is not available".** The link expired, its downloads are used up, it was turned off, the document went to the trash, or you no longer have access to it. A link without a password also stops when its document becomes confidential or your school starts asking for a password on every link (**My links** shows *Needs a password now*). Make a new one with **Share**.
 
 **How much can I keep?** Each person may keep 2 GB of documents (all versions counted) unless your school changed it. **My files** shows how much you use.

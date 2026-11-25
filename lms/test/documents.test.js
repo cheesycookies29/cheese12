@@ -332,9 +332,10 @@ test('access: 404 for what you cannot see; grants never give more than the giver
   await fails(P.tess.put(`/api/docs/documents/${doc.id}/access`, { grants: [{ type: 'everyone', level: 'view' }] }), 400, /named people only/);
   await fails(P.tess.put(`/api/docs/documents/${doc.id}/access`, { grants: [{ type: 'user', id: ids.gina, level: 'view' }] }), 400, /Parents and guardians/);
   await P.tess.put(`/api/docs/documents/${doc.id}/access`, { grants: [{ type: 'user', id: ids.tom, level: 'edit' }] });
-  // Tom edits but cannot download a restricted document, nor share it further.
+  // Tom edits but cannot download a restricted document (nor open its file), nor share it further.
   await fails(P.tom.get(`/api/docs/documents/${doc.id}/file`), 403, /Restricted/);
-  const view = await P.tom.get(`/api/docs/documents/${doc.id}/file?inline=1`);
+  await fails(P.tom.get(`/api/docs/documents/${doc.id}/file?inline=1`), 403, /Restricted/);
+  const view = await P.tess.get(`/api/docs/documents/${doc.id}/file?inline=1`);
   assert.match(view.headers['Content-Disposition'], /^inline;/, 'a PDF can be viewed');
   assert.doesNotMatch(view.headers['Content-Security-Policy'], /sandbox/, 'the PDF viewer needs an unsandboxed response');
   await fails(P.tom.put(`/api/docs/documents/${doc.id}/access`, { grants: [] }), 404, /not there/);
