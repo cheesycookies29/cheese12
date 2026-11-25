@@ -1,6 +1,8 @@
 # Moving ATLAS to another AWS account and a new domain: analysis
 
-Status: **analysis only.** Nothing is built yet. This note lists what the move touches, what has to be
+Status: **analysis only.** Nothing is built yet. **Reviewed by the council on 2026-11-25:** see
+[../council/2026-11-aws-move/README.md](../council/2026-11-aws-move/README.md) for what it adds and changes
+(keys travel apart from the data, a freeze step, a 308 forward, and gaps G9–G17). This note lists what the move touches, what has to be
 decided first, what the code and templates cannot do yet, and the order to do it in.
 
 Today ATLAS runs on one EC2 server made by `deploy/aws/lms-ec2.yaml`:
