@@ -133,13 +133,6 @@
   dl.spec.st { grid-template-columns: 104px 1fr; gap: 8px 12px; }
   dl.spec.st dt { font-size: 1.08em; }
 
-  .cta { margin-top: 24px; background: var(--brand); color: #fff; border-radius: 10px; padding: 20px 24px; display: grid; grid-template-columns: 1fr auto; gap: 14px 30px; align-items: center; border-bottom: 4px solid var(--accent); }
-  .cta h2 { font-size: 1.36em; line-height: 1.2; font-weight: 750; }
-  .cta p { margin-top: 5px; color: #f3e6e9; font-size: 0.92em; max-width: 40em; }
-  .cta .book { display: inline-block; margin-top: 11px; background: var(--accent-light); color: #2a1500; font-weight: 750; text-decoration: none; padding: 8px 16px; border-radius: 7px; font-size: 0.95em; overflow-wrap: anywhere; }
-  .cta .contact { font-size: 0.9em; line-height: 1.6; border-left: 2px solid var(--accent); padding-left: 18px; overflow-wrap: anywhere; }
-  .cta .contact b { display: block; font-size: 1.06em; }
-  .cta .contact a { color: #fff; text-decoration: none; }
   .legal { margin-top: 12px; font-size: 0.74em; line-height: 1.4; color: var(--muted); }
 
   /* Tablets and phones */
@@ -166,8 +159,6 @@
     .runner span { display: none; }
     dl.spec, dl.spec.st { grid-template-columns: 1fr; gap: 0; }
     dl.spec dd { margin-bottom: 7px; }
-    .cta { grid-template-columns: 1fr; padding: 20px 16px; }
-    .cta .contact { border-left: 0; border-top: 2px solid var(--accent); padding: 12px 0 0; }
   }
 
   /* A4: three pages, full bleed, fixed height so nothing spills onto a fourth. */
@@ -205,9 +196,6 @@
     dl.spec { grid-template-columns: 21mm 1fr; gap: 1mm 3mm; }
     dl.spec.st { grid-template-columns: 25mm 1fr; gap: 1.6mm 3mm; }
     .note { margin-top: 2.2mm; padding: 1.6mm 2.6mm; }
-    .cta { margin-top: 4.2mm; padding: 3.8mm 6mm; gap: 3mm 7mm; border-bottom-width: 1.2mm; }
-    .cta h2 { font-size: 12.5pt; }
-    .cta .book { margin-top: 2.4mm; padding: 1.6mm 3.6mm; }
     .legal { margin-top: 2.4mm; font-size: 6.6pt; }
     a { color: inherit; }
   }
@@ -494,18 +482,6 @@
       </section>
     </div>
 
-    <section class="cta">
-      <div>
-        <h2>Find out more.</h2>
-        <p>Write or call with your questions about hosting, your data, or how your office would work in ATLAS.</p>
-        <a class="book" href="{{WEBSITE_LINK}}">{{WEBSITE_LINK}}</a>
-      </div>
-      <div class="contact">
-        <b>{{CONTACT_NAME}}</b>
-        <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a><br>
-        {{CONTACT_PHONE}}
-      </div>
-    </section>
 
     <p class="legal">Lancaster ATLAS is a product of Lancaster Technology and Development Corporation (LTDC). COA, DBM, BIR, CSC, CHED, GSIS, PhilHealth and Pag-IBIG are named to say which rules ATLAS follows; this is not an endorsement or certification by any agency. This sheet describes version 0.8.0-alpha.</p>
   </div>

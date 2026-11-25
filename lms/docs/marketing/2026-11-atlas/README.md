@@ -6,7 +6,7 @@ Marketing materials for Lancaster ATLAS 0.8.0-alpha, written for decision-makers
 | --- | --- |
 | `atlas-product-sheet.html` | Technical product sheet. Three A4 pages; the second shows six screens from the app. One file: no external fonts or scripts, and the screenshots are embedded in it. |
 | `atlas-email.html` | The marketing email: tables, inline CSS, 600px wide, with three screenshots. |
-| `atlas-product-sheet.pdf` | The sheet printed to A4, for reference. Its contact box still shows the `{{…}}` placeholders: fill them in the HTML, then print it again (Chrome: Print, Save as PDF, A4, margins None, background graphics on). |
+| `atlas-product-sheet.pdf` | The sheet printed to A4, for reference. It has no placeholders; print it again from the HTML after any change (Chrome: Print, Save as PDF, A4, margins None, background graphics on). |
 | `atlas-email.txt` | The plain-text version of the same email. |
 | `images/` | The four image files the email needs, ready to upload (see [Images for the email](#images-for-the-email)). |
 
@@ -32,13 +32,11 @@ Every placeholder is written `{{LIKE_THIS}}`. Search each file for `{{` before s
 | `{{FIRST_NAME}}` | email (HTML, text) | The recipient's first name. Most email tools have their own merge tag; replace ours with theirs. |
 | `{{SCHOOL_NAME}}` | email (HTML, text), twice | The recipient's school, as it writes its own name. |
 | `{{PRODUCT_SHEET_LINK}}` | email (the button; the text version) | Where the sheet is hosted: the HTML file, or a PDF printed from it. |
-| `{{WEBSITE_LINK}}` | sheet (contact box), twice | LTDC's web page for ATLAS. Full `https://` address. It is printed, so keep it short. |
 | `{{LOGO_URL}}` | email (HTML) | The address of `images/atlas-logo.png` once uploaded. |
 | `{{SCREEN_1_URL}}` | email (HTML) | The address of `images/screen-1-home.jpg` once uploaded. |
 | `{{SCREEN_2_URL}}` | email (HTML) | The address of `images/screen-2-general-payroll.jpg` once uploaded. |
 | `{{SCREEN_3_URL}}` | email (HTML) | The address of `images/screen-3-disbursement-voucher.jpg` once uploaded. |
-| `{{CONTACT_NAME}}` | email (sign-off), sheet | The person at LTDC who signs the email and answers the replies. |
-| `{{CONTACT_EMAIL}}`, `{{CONTACT_PHONE}}` | sheet | That person's email and phone. |
+| `{{CONTACT_NAME}}` | email (sign-off) | The person at LTDC who signs the email and answers the replies. |
 | `{{COMPANY_ADDRESS}}` | email footer | LTDC's registered postal address. |
 | `{{UNSUBSCRIBE_LINK}}` | email footer | The email tool's unsubscribe link. Do not send without it. |
 
@@ -72,11 +70,11 @@ The email has no JavaScript, forms or background images, and uses a `<style>` bl
 
 ## How to print the product sheet
 
-Open `atlas-product-sheet.html` in Chrome or Edge, fill the four placeholders, then **Print → Save as PDF**, paper size **A4**, margins **None**, background graphics on. It prints on exactly three pages with its colours. It also reads on screen and on a phone, so the HTML itself can be the `{{PRODUCT_SHEET_LINK}}`.
+Open `atlas-product-sheet.html` in Chrome or Edge, then **Print → Save as PDF**, paper size **A4**, margins **None**, background graphics on. It prints on exactly three pages with its colours. It also reads on screen and on a phone, so the HTML itself can be the `{{PRODUCT_SHEET_LINK}}`.
 
 ## Claims table
 
-Every factual claim in the sheet and the email, with the file it comes from. Paths are relative to `lms/`. "Sheet" numbers are the section numbers printed on the sheet (the brief's nine sections map to: headline and positioning = the top band; product family = 01; one front door = 02; government rules = 04; security = 05; architecture = 06; what's included = 07; status = 08; the contact box = the burgundy box. Section 03, the screens, was added later).
+Every factual claim in the sheet and the email, with the file it comes from. Paths are relative to `lms/`. "Sheet" numbers are the section numbers printed on the sheet (the brief's nine sections map to: headline and positioning = the top band; product family = 01; one front door = 02; government rules = 04; security = 05; architecture = 06; what's included = 07; status = 08. Section 03, the screens, was added later; the contact box was removed, so the sheet carries no contact details).
 
 ### Positioning, product family, front door
 
