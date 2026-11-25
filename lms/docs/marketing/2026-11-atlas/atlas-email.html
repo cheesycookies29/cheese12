@@ -6,14 +6,17 @@
 <meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
-<title>Lancaster ATLAS: a 30-minute demo</title>
+<title>Lancaster ATLAS: one sign-in for the whole school</title>
 <style>
   /* Only what cannot be inline: the phone layout and dark-mode hints. */
-  @media only screen and (max-width: 620px) {
+  @media only screen and (max-width: 599px) {
     .wrap { width: 100% !important; }
     .px { padding-left: 20px !important; padding-right: 20px !important; }
     .h1 { font-size: 23px !important; line-height: 29px !important; }
     .btn a { display: block !important; }
+    .col { display: block !important; width: 100% !important; padding-left: 0 !important; padding-right: 0 !important; }
+    .col-gap { padding-top: 18px !important; }
+    .shot { width: 100% !important; height: auto !important; }
   }
   @media (prefers-color-scheme: dark) {
     .bg { background-color: #17181a !important; }
@@ -24,17 +27,18 @@
     .lnk { color: #f0b8c2 !important; }
     .rule { border-color: #3a3b3e !important; }
     .benefit { border-left-color: #e8b23a !important; }
+    .shot { border-color: #3a3b3e !important; }
   }
 </style>
 </head>
 <body class="bg" style="margin:0; padding:0; background-color:#f5f5f5; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
 
 <!-- Preheader: shown beside the subject in the inbox, hidden in the message. -->
-<div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">Classes, student records, payroll and government accounting behind one sign-in. See it on a demo school in 30 minutes.&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
+<div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">Classes, student records, payroll and government accounting behind one sign-in, on a server your school controls.&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
 
 <table role="presentation" class="bg" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f5f5" style="background-color:#f5f5f5;">
   <tr>
-    <td align="center" style="padding:24px 12px;">
+    <td align="center" style="padding:24px 0;">
 
       <table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
 
@@ -50,7 +54,15 @@
           <td class="card px" bgcolor="#ffffff" style="background-color:#ffffff; padding:32px 40px 8px 40px; font-family:Arial, Helvetica, sans-serif;">
             <h1 class="h1 ink" style="margin:0 0 18px 0; font-family:Arial, Helvetica, sans-serif; font-size:26px; line-height:32px; font-weight:bold; color:#1e1e1e;">One sign-in for the classroom, the registrar, HR and accounting.</h1>
             <p class="ink2" style="margin:0 0 14px 0; font-size:16px; line-height:24px; color:#374151;">Hi {{FIRST_NAME}},</p>
-            <p class="ink2" style="margin:0 0 14px 0; font-size:16px; line-height:24px; color:#374151;">If {{SCHOOL_NAME}} keeps classes, student records, payroll and accounting in separate systems, Lancaster ATLAS is worth thirty minutes. It puts them behind one sign-in, and it is built for a state university's rules.</p>
+            <p class="ink2" style="margin:0 0 14px 0; font-size:16px; line-height:24px; color:#374151;">If {{SCHOOL_NAME}} keeps classes, student records, payroll and accounting in separate systems, Lancaster ATLAS puts them behind one sign-in. It is built for a state university's rules.</p>
+          </td>
+        </tr>
+
+        <!-- Screen 1: the home page -->
+        <tr>
+          <td class="card px" bgcolor="#ffffff" style="background-color:#ffffff; padding:8px 24px 20px 24px; font-family:Arial, Helvetica, sans-serif;">
+            <img class="shot" src="{{SCREEN_1_URL}}" width="552" height="345" alt="Screenshot: the ATLAS home page, with a card for Academic, Learn, People and Finance" style="display:block; width:100%; max-width:552px; height:auto; border:1px solid #d1d5db; border-radius:6px; outline:none; text-decoration:none; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:18px; color:#5b6270;">
+            <p class="mute" style="margin:8px 16px 0 16px; font-size:13px; line-height:19px; color:#5b6270;">The ATLAS home page: a card for each system your account may use.</p>
           </td>
         </tr>
 
@@ -89,15 +101,33 @@
           </td>
         </tr>
 
+        <!-- Screens 2 and 3: side by side, stacked on a phone -->
+        <tr>
+          <td class="card px" bgcolor="#ffffff" style="background-color:#ffffff; padding:24px 24px 0 24px; font-family:Arial, Helvetica, sans-serif;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td class="col" width="50%" valign="top" style="width:50%; padding-right:6px; vertical-align:top;">
+                  <img class="shot" src="{{SCREEN_2_URL}}" width="270" height="180" alt="Screenshot: a finalized payroll run and its General Payroll" style="display:block; width:100%; max-width:552px; height:auto; border:1px solid #d1d5db; border-radius:6px; outline:none; text-decoration:none; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:18px; color:#5b6270;">
+                  <p class="mute" style="margin:8px 4px 0 4px; font-size:13px; line-height:19px; color:#5b6270;">People: the General Payroll of a finalized run.</p>
+                </td>
+                <td class="col col-gap" width="50%" valign="top" style="width:50%; padding-left:6px; vertical-align:top;">
+                  <img class="shot" src="{{SCREEN_3_URL}}" width="270" height="180" alt="Screenshot: a disbursement voucher with Boxes A to E and its accounting entry" style="display:block; width:100%; max-width:552px; height:auto; border:1px solid #d1d5db; border-radius:6px; outline:none; text-decoration:none; font-family:Arial, Helvetica, sans-serif; font-size:13px; line-height:18px; color:#5b6270;">
+                  <p class="mute" style="margin:8px 4px 0 4px; font-size:13px; line-height:19px; color:#5b6270;">Finance: a voucher, Boxes A to E.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
         <!-- Close and call to action -->
         <tr>
           <td class="card px" bgcolor="#ffffff" style="background-color:#ffffff; padding:22px 40px 8px 40px; font-family:Arial, Helvetica, sans-serif;">
-            <p class="ink2" style="margin:0 0 22px 0; font-size:16px; line-height:24px; color:#374151;">ATLAS is at version 0.8.0-alpha. The product sheet says plainly what is live and what is still coming. In the demo we use a demo school, so each office sees its own screens with data in them.</p>
+            <p class="ink2" style="margin:0 0 22px 0; font-size:16px; line-height:24px; color:#374151;">ATLAS is at version 0.8.0-alpha. The product sheet says plainly what is live and what is still coming, and shows more screens from each office.</p>
 
             <table role="presentation" class="btn" cellpadding="0" cellspacing="0" border="0" align="left">
               <tr>
                 <td align="center" bgcolor="#5d0013" style="background-color:#5d0013; border-radius:6px;">
-                  <a href="{{DEMO_LINK}}" target="_blank" style="display:inline-block; padding:14px 28px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:20px; font-weight:bold; color:#ffffff; text-decoration:none; border:1px solid #5d0013; border-radius:6px;">Book a 30-minute demo</a>
+                  <a href="{{PRODUCT_SHEET_LINK}}" target="_blank" style="display:inline-block; padding:14px 28px; font-family:Arial, Helvetica, sans-serif; font-size:16px; line-height:20px; font-weight:bold; color:#ffffff; text-decoration:none; border:1px solid #5d0013; border-radius:6px;">See the product sheet</a>
                 </td>
               </tr>
             </table>
@@ -105,7 +135,7 @@
         </tr>
         <tr>
           <td class="card px" bgcolor="#ffffff" style="background-color:#ffffff; padding:14px 40px 30px 40px; font-family:Arial, Helvetica, sans-serif;">
-            <p class="ink2" style="margin:0 0 22px 0; font-size:15px; line-height:22px; color:#374151;">Or read the two-page <a class="lnk" href="{{PRODUCT_SHEET_LINK}}" target="_blank" style="color:#5d0013; font-weight:bold; text-decoration:underline;">technical product sheet</a> first.</p>
+            <p class="ink2" style="margin:0 0 22px 0; font-size:15px; line-height:22px; color:#374151;">Questions about hosting, your data or your office's work? Reply to this email and I will answer them.</p>
             <p class="ink2" style="margin:0; font-size:16px; line-height:24px; color:#374151;">{{CONTACT_NAME}}<br><span class="mute" style="font-size:14px; color:#5b6270;">Lancaster Technology and Development Corporation</span></p>
           </td>
         </tr>

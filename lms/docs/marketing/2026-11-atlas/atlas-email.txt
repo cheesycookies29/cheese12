@@ -3,8 +3,8 @@ One sign-in for the classroom, the registrar, HR and accounting.
 Hi {{FIRST_NAME}},
 
 If {{SCHOOL_NAME}} keeps classes, student records, payroll and accounting
-in separate systems, Lancaster ATLAS is worth thirty minutes. It puts them
-behind one sign-in, and it is built for a state university's rules.
+in separate systems, Lancaster ATLAS puts them behind one sign-in. It is
+built for a state university's rules.
 
 * ACCOUNTING THAT FOLLOWS COA AND DBM
   ORS/BURS, disbursement vouchers through Boxes A to E, LDDAP-ADA, the RCD
@@ -23,14 +23,15 @@ behind one sign-in, and it is built for a state university's rules.
   log and access by account type.
 
 ATLAS is at version 0.8.0-alpha. The product sheet says plainly what is
-live and what is still coming. In the demo we use a demo school, so each
-office sees its own screens with data in them.
+live and what is still coming, and shows screens from each office: the
+home page, the gradebook, a student's evaluation, the General Payroll and
+a disbursement voucher.
 
-Book a 30-minute demo:
-{{DEMO_LINK}}
-
-Or read the two-page technical product sheet first:
+See the product sheet:
 {{PRODUCT_SHEET_LINK}}
+
+Questions about hosting, your data or your office's work? Reply to this
+email and I will answer them.
 
 {{CONTACT_NAME}}
 Lancaster Technology and Development Corporation
