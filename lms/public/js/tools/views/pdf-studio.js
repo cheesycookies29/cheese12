@@ -1,4 +1,4 @@
-// PDF Studio (ported from CORE's PDF Studio 0.66): an ATLAS tool. Drop or choose files (PDFs,
+// PDF Studio (ported from CORE's PDF Studio 0.68): an ATLAS tool. Drop or choose files (PDFs,
 // pictures, Word, Excel, PowerPoint, OpenDocument, text, Markdown, CSV, HTML); each becomes PDF
 // pages on the server (server/tools-pdf.js). Arrange the pages of all of them in one grid (drag, or
 // the arrows; turn, remove, add blank pages), set the page layout of documents and pictures, then
@@ -9,17 +9,28 @@ import { ctx } from '../../shell.js';
 import { html, mount, toast, confirmDialog, modal } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { openPageEditor, whenClosed } from './pdf-editor.js';
-import { PDF_LIMITS, PDF_DIRECT_EXTS, PDF_BROWSER_IMAGES, PDF_ACCEPT, PDF_SIZES, PDF_KIND_TAG } from '/shared/pdf-studio.js';
+import { PDF_LIMITS, PDF_DIRECT_EXTS, PDF_BROWSER_IMAGES, PDF_ACCEPT, PDF_SIZES, PDF_KIND_TAG, PDF_EXPORT_FORMATS, PDF_PICTURE_DPI } from '/shared/pdf-studio.js';
+import { zipStore } from '../../zip-store.js';
 
 const MB = 1024 * 1024;
 const extOf = (name) => String(name).match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() || '';
 const plural = (n, w, many = `${w}s`) => `${n} ${n === 1 ? w : many}`;
 const sizeLabel = (n) => (n >= MB ? `${(n / MB).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const option = (v, l, cur) => html`<option value="${v}" ${String(cur) === String(v) ? 'selected' : ''}>${l}</option>`;
+// What the export makes (0.68): PDF, a document to edit, a spreadsheet, or pictures of the pages.
+const FORMAT = (as) => PDF_EXPORT_FORMATS[as] || PDF_EXPORT_FORMATS.pdf;
+const isPictures = (as) => FORMAT(as).group === 'Pictures of the pages';
+const stamps = (as) => as === 'pdf' || isPictures(as); // page numbers, header, footer, watermark
+const formatOptions = (cur) => {
+  const groups = [...new Set(Object.values(PDF_EXPORT_FORMATS).map((f) => f.group))];
+  return groups.map((g) => html`<optgroup label="${g}">${Object.entries(PDF_EXPORT_FORMATS).filter(([, f]) => f.group === g).map(([k, f]) => option(k, `${f.label} (.${f.ext})`, cur))}</optgroup>`);
+};
+// The download button's words.
+const downloadLabel = (x) => (isPictures(x.as) ? 'Download pictures' : x.split === 'none' ? `Download ${FORMAT(x.as).label}` : 'Download ZIP');
 // The arrangement is kept for this browser tab (a reload keeps it while the files are there).
 const STORE = () => `atlas.pdf.${ctx.user?.id || ''}`;
 const DEFAULT_LAYOUT = { size: 'a4', orientation: 'auto', margin: 15, fontSize: 11, fit: 'fit' };
-const DEFAULT_EXPORT = { fileName: '', split: 'none', numbers: false, format: 'of', position: 'bottom-center', start: 1, skipFirst: false, header: '', footer: '', watermark: '', opacity: 0.15, color: 'gray', title: '', author: '' };
+const DEFAULT_EXPORT = { as: 'pdf', dpi: 150, fileName: '', split: 'none', numbers: false, format: 'of', position: 'bottom-center', start: 1, skipFirst: false, header: '', footer: '', watermark: '', opacity: 0.15, color: 'gray', title: '', author: '' };
 
 function load() {
   try {
@@ -244,11 +255,15 @@ export async function pdfStudioView(el, params = {}, query = {}) {
     return html`<section class="card ps-export" aria-labelledby="ps-exp-h">
       <h2 id="ps-exp-h">${icon('download')} Export</h2>
       <label class="field"><span>File name</span><input name="fileName" value="${x.fileName}" maxlength="120" placeholder="${defaultName()}" /></label>
-      <fieldset class="field"><legend>Save as</legend>
+      <label class="field"><span>Format</span><select name="as">${formatOptions(x.as)}</select><small class="hint" id="ps-as-hint">${FORMAT(x.as).hint}</small></label>
+      ${x.as !== 'pdf' ? html`<p class="notice ps-as-note">${icon('help', 16)} <span>${isPictures(x.as) ? 'A picture of each page, in a ZIP when there are several.' : 'ATLAS reads the text, headings, tables and pictures back from the pages. Check the result: a PDF does not keep how its document was made, and scans without recognised text have no text to take.'}</span></p>` : ''}
+      ${x.as === 'png' || x.as === 'jpg' ? html`<label class="field"><span>Sharpness</span><select name="dpi">${PDF_PICTURE_DPI.map((d) => option(d, d === 72 ? '72 dpi (screen)' : d === 150 ? '150 dpi (good for most)' : '300 dpi (print)', x.dpi))}</select></label>` : ''}
+      <fieldset class="field" ${isPictures(x.as) ? 'hidden' : ''}><legend>Save as</legend>
         <div class="ps-radio">
-          ${[['none', 'One PDF'], ['documents', 'One PDF per file (ZIP)'], ['pages', 'One PDF per page (ZIP)']].map(([v, l]) => html`<label class="check"><input type="radio" name="split" value="${v}" ${x.split === v ? 'checked' : ''} /><span>${l}</span></label>`)}
+          ${[['none', `One ${x.as === 'pdf' ? 'PDF' : 'file'}`], ['documents', `One ${x.as === 'pdf' ? 'PDF' : 'file'} per file (ZIP)`], ['pages', `One ${x.as === 'pdf' ? 'PDF' : 'file'} per page (ZIP)`]].map(([v, l]) => html`<label class="check"><input type="radio" name="split" value="${v}" ${x.split === v ? 'checked' : ''} /><span>${l}</span></label>`)}
         </div></fieldset>
-      <details class="ps-more" ${x.numbers || x.header || x.footer ? 'open' : ''}><summary>Page numbers, header and footer</summary>
+      ${stamps(x.as) ? '' : html`<p class="muted small">Page numbers, header, footer and watermark go on PDFs and pictures, not into documents to edit.</p>`}
+      <details class="ps-more" ${x.numbers || x.header || x.footer ? 'open' : ''} ${stamps(x.as) ? '' : 'hidden'}><summary>Page numbers, header and footer</summary>
         <label class="check"><input type="checkbox" name="numbers" ${x.numbers ? 'checked' : ''} /><span>Number the pages</span></label>
         <div class="grid two ps-num" ${x.numbers ? '' : 'hidden'}>
           <label class="field"><span>Style</span><select name="format">${Object.entries(data.numberFormats).map(([k, v]) => option(k, v, x.format))}</select></label>
@@ -260,7 +275,7 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         <label class="field"><span>Footer</span><input name="footer" value="${x.footer}" maxlength="120" placeholder="e.g. Confidential · {date}" /></label>
         <small class="hint">You can use {page}, {pages}, {title}, {date} and {file}.</small>
       </details>
-      <details class="ps-more" ${x.watermark ? 'open' : ''}><summary>Watermark</summary>
+      <details class="ps-more" ${x.watermark ? 'open' : ''} ${stamps(x.as) ? '' : 'hidden'}><summary>Watermark</summary>
         <label class="field"><span>Text across each page</span><input name="watermark" value="${x.watermark}" maxlength="60" placeholder="e.g. DRAFT or CONFIDENTIAL" /></label>
         <div class="grid two">
           <label class="field"><span>Strength <output class="muted small" id="ps-opacity">${Math.round(x.opacity * 100)}%</output></span><input type="range" name="opacity" min="0.05" max="0.5" step="0.05" value="${x.opacity}" /></label>
@@ -271,10 +286,11 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         <label class="field"><span>Title</span><input name="title" value="${x.title}" maxlength="160" /></label>
         <label class="field"><span>Author</span><input name="author" value="${x.author}" maxlength="120" placeholder="${ctx.user?.name || ''}" /></label>
       </details>
-      ${signedCount() ? html`<label class="check ps-record"><input type="checkbox" name="record" ${x.record !== false ? 'checked' : ''} ${x.split === 'none' ? '' : 'disabled'} /><span>Add a signature record page (who signed, when, and a code to verify the file in ATLAS)${x.split === 'none' ? '' : ' — with one PDF only'}</span></label>` : ''}
+      ${signedCount() && x.as !== 'pdf' ? html`<p class="muted small">Signatures are drawn in, but only a PDF gets a signature record that can be verified.</p>` : ''}
+      ${signedCount() && x.as === 'pdf' ? html`<label class="check ps-record"><input type="checkbox" name="record" ${x.record !== false ? 'checked' : ''} ${x.split === 'none' ? '' : 'disabled'} /><span>Add a signature record page (who signed, when, and a code to verify the file in ATLAS)${x.split === 'none' ? '' : ' — with one PDF only'}</span></label>` : ''}
       <div class="ps-go">
-        <button type="button" class="btn primary" id="ps-export" ${state.pages.length && !state.busy ? '' : 'disabled'}>${icon('download', 16)} ${x.split === 'none' ? 'Download PDF' : 'Download ZIP'}</button>
-        <button type="button" class="btn" id="ps-preview" ${state.pages.length && !state.busy && x.split === 'none' ? '' : 'disabled'} title="Open the PDF in a new tab">${icon('eye', 16)} Preview</button>
+        <button type="button" class="btn primary" id="ps-export" ${state.pages.length && !state.busy ? '' : 'disabled'}>${icon('download', 16)} ${downloadLabel(x)}</button>
+        <button type="button" class="btn" id="ps-preview" ${state.pages.length && !state.busy && x.split === 'none' && x.as === 'pdf' ? '' : 'disabled'} ${x.as === 'pdf' ? '' : 'hidden'} title="Open the PDF in a new tab">${icon('eye', 16)} Preview</button>
       </div>
       <p class="muted small" id="ps-summary">${plural(state.pages.length, 'page')} from ${plural(new Set(state.pages.filter((p) => !p.blank).map((p) => p.source)).size, 'file')}.</p>
     </section>`;
@@ -333,8 +349,8 @@ export async function pdfStudioView(el, params = {}, query = {}) {
       </div>
       ${state.pages.length ? html`<div class="ps-mobilebar" role="region" aria-label="Download">
         <span class="muted small">${plural(state.pages.length, 'page')}</span>
-        <button type="button" class="btn" data-export="preview" ${state.busy || x0().split !== 'none' ? 'disabled' : ''}>${icon('eye', 16)} Preview</button>
-        <button type="button" class="btn primary" data-export="download" ${state.busy ? 'disabled' : ''}>${icon('download', 16)} ${x0().split === 'none' ? 'Download PDF' : 'Download ZIP'}</button>
+        ${x0().as === 'pdf' ? html`<button type="button" class="btn" data-export="preview" ${state.busy || x0().split !== 'none' ? 'disabled' : ''}>${icon('eye', 16)} Preview</button>` : ''}
+        <button type="button" class="btn primary" data-export="download" ${state.busy ? 'disabled' : ''}>${icon('download', 16)} ${downloadLabel(x0())}</button>
       </div>` : ''}`);
     wire();
   }
@@ -520,6 +536,7 @@ export async function pdfStudioView(el, params = {}, query = {}) {
     if (!f) return;
     const v = (n) => f.querySelector(`[name="${n}"]`);
     Object.assign(state.exp, {
+      as: Object.hasOwn(PDF_EXPORT_FORMATS, v('as').value) ? v('as').value : 'pdf', dpi: v('dpi') ? Number(v('dpi').value) || 150 : state.exp.dpi,
       fileName: v('fileName').value, split: f.querySelector('[name=split]:checked')?.value || 'none', numbers: v('numbers').checked, format: v('format').value, position: v('position').value,
       start: v('start').value === '' ? 1 : Math.max(0, Number(v('start').value) || 0), skipFirst: v('skipFirst').checked, header: v('header').value, footer: v('footer').value, watermark: v('watermark').value,
       opacity: Number(v('opacity').value), color: v('color').value, title: v('title').value, author: v('author').value, record: v('record') ? v('record').checked : state.exp.record,
@@ -537,7 +554,7 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         header: x.header, footer: x.footer, ...(x.watermark ? { watermark: { text: x.watermark, opacity: x.opacity, color: x.color } } : {}),
       },
       meta: { title: x.title, author: x.author || ctx.user?.name || '' },
-      split: preview ? 'none' : x.split, fileName: x.fileName || defaultName(), preview,
+      split: preview ? 'none' : x.split, fileName: x.fileName || defaultName(), preview, as: preview ? 'pdf' : x.as || 'pdf',
     };
     // Preview: the tab is opened now, while the click counts (a tab opened after the PDF is made
     // would be stopped as a pop-up), and shows the PDF once it is ready.
@@ -561,8 +578,20 @@ export async function pdfStudioView(el, params = {}, query = {}) {
         if (res.status === 401) window.dispatchEvent(new Event('auth:expired'));
         throw new Error((await res.json().catch(() => ({}))).error || `Export failed (${res.status})`);
       }
+      // PNG and JPEG (0.68): the server sends each page as SVG; this browser draws them.
+      if (!preview && FORMAT(body.as).browser) {
+        const drawn = await drawPictures(await res.json(), body.as, x.dpi, btn);
+        const url = URL.createObjectURL(drawn.blob);
+        const a = Object.assign(document.createElement('a'), { href: url, download: drawn.name });
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        toast(`${drawn.name} downloaded (${sizeLabel(drawn.blob.size)}).`, 'ok');
+        return;
+      }
       const blob = await res.blob();
-      const warning = res.headers.get('X-Atlas-Warning');
+      const warning = res.headers.get('X-Atlas-Warning') || res.headers.get('X-Atlas-Note');
       const name = decodeURIComponent((res.headers.get('Content-Disposition') || '').match(/filename\*=UTF-8''([^;]+)/)?.[1] || 'document.pdf');
       const url = URL.createObjectURL(blob);
       if (preview) {
@@ -583,6 +612,38 @@ export async function pdfStudioView(el, params = {}, query = {}) {
       btn.disabled = false;
       btn.innerHTML = label;
     }
+  }
+
+  // Each page's SVG drawn at `dpi` on a canvas and saved as PNG or JPEG; several go in a ZIP.
+  async function drawPictures(r, as, dpi, btn) {
+    const type = as === 'jpg' ? 'image/jpeg' : 'image/png';
+    const pad = String(r.pages.length).length;
+    const files = [];
+    for (const [i, p] of r.pages.entries()) {
+      btn.textContent = `Drawing page ${i + 1} of ${r.pages.length}…`;
+      // Not more than 40 million dots a page (what browsers draw on one canvas).
+      const k = Math.min(dpi / 72, Math.sqrt(40e6 / Math.max(1, p.width * p.height)));
+      const w = Math.max(1, Math.round(p.width * k));
+      const h = Math.max(1, Math.round(p.height * k));
+      const url = URL.createObjectURL(new Blob([p.svg], { type: 'image/svg+xml' }));
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        const canvas = Object.assign(document.createElement('canvas'), { width: w, height: h });
+        const g = canvas.getContext('2d');
+        g.fillStyle = '#fff';
+        g.fillRect(0, 0, w, h);
+        g.drawImage(img, 0, 0, w, h);
+        const blob = await new Promise((done) => canvas.toBlob(done, type, 0.9));
+        if (!blob) throw new Error(`Page ${i + 1} is too large for this browser to draw. Choose a lower sharpness.`);
+        files.push({ name: r.pages.length === 1 ? `${r.base}.${r.ext}` : `${r.base} - page ${String(i + 1).padStart(pad, '0')}.${r.ext}`, data: new Uint8Array(await blob.arrayBuffer()) });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+    if (files.length === 1) return { name: files[0].name, blob: new Blob([files[0].data], { type }) };
+    return { name: `${r.base}.zip`, blob: zipStore(files) };
   }
 
   // ----- The page editor (0.65) -----
@@ -738,7 +799,7 @@ export async function pdfStudioView(el, params = {}, query = {}) {
     if (exp) {
       exp.addEventListener('change', (ev) => {
         readExport();
-        if (['numbers', 'split'].includes(ev.target.name)) draw();
+        if (['numbers', 'split', 'as'].includes(ev.target.name)) draw();
       });
       exp.addEventListener('input', () => readExport());
       el.querySelector('#ps-export').addEventListener('click', () => exportPdf(false));

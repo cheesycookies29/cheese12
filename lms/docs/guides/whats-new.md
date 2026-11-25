@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF Studio exports Word, Excel, text and pictures
+- **PDF Studio** now exports more than PDFs. Under **Export → Format**, choose **Word**, **OpenDocument text**, **Rich Text**, **Web page**, **Markdown** or **Plain text** for a document to go on editing (paragraphs, headings, tables and pictures read back from the pages), **Excel** or **CSV** for the text in rows and columns with numbers as numbers, or **PNG**, **JPEG** or **SVG** pictures of each page. Your arrangement, changes and signatures go in. See [the PDF Studio guide](pdf-studio#export-as-word-excel-text-or-pictures).
+
 ### Sign-in at busy times: school networks
 - A campus that reaches the internet through one address is no longer treated as one visitor. Under **System → Sign-in and passwords → School networks**, administrators list the campus addresses (the page suggests the busiest ones), and there the sign-in and request limits are multiplied, so a morning of typos or a rush of sign-ins no longer makes the whole campus wait. See [the administrator's guide](admin#list-the-school-s-networks).
 - Keycloak sign-ins have their own limit, no longer shared with calendar feeds and document checks.

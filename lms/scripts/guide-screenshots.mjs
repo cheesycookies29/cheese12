@@ -97,10 +97,12 @@ try {
       await page.goto(`${server.url}${s.url}`);
       await page.waitForTimeout(wait);
       // "click": selectors to click in order; "fill:<selector>|<text>" types into a field instead
-      // (e.g. a password before Continue).
+      // (e.g. a password before Continue), and "select:<selector>|<value>" chooses in a list.
       for (const sel of s.click || []) {
         const fill = /^fill:(.+)\|(.*)$/.exec(sel);
+        const choose = /^select:(.+)\|(.*)$/.exec(sel);
         if (fill) await page.fill(fill[1], fill[2], { timeout: 8000 });
+        else if (choose) await page.selectOption(choose[1], choose[2], { timeout: 8000 });
         else await page.click(sel, { timeout: 8000 });
         await page.waitForTimeout(fill ? 100 : wait);
       }

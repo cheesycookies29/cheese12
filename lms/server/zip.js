@@ -34,10 +34,14 @@ function dosTime(when) {
   return { time: (d.getHours() << 11) | (d.getMinutes() << 5) | Math.floor(d.getSeconds() / 2), date: ((y - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate() };
 }
 // A name safe in an archive: no folders, no characters Windows refuses; each name used once.
-function uniqueNames(names) {
+// With `paths` (0.68: the parts of a Word, OpenDocument or Excel file), folders are kept, each
+// part of the path cleaned the same way (never "..", never from the root).
+// (A part may start with a dot there, as "_rels/.rels" must; a part of dots only may not.)
+const cleanPart = (raw, inPath = false) => String(raw || 'file').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(inPath ? /^\.+$/ : /^\.+/, '_').trim() || 'file';
+function uniqueNames(names, paths = false) {
   const used = new Set();
   return names.map((raw) => {
-    const clean = String(raw || 'file').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\.+/, '_').trim() || 'file';
+    const clean = paths ? String(raw || 'file').split('/').filter(Boolean).map((x) => cleanPart(x, true)).join('/') || 'file' : cleanPart(raw);
     let name = clean;
     for (let n = 2; used.has(name.toLowerCase()); n++) {
       const dot = clean.lastIndexOf('.');
@@ -48,17 +52,17 @@ function uniqueNames(names) {
   });
 }
 
-// files: [{ name, type, at, buffer }] → the ZIP as one Buffer.
-export function zipFiles(files) {
+// files: [{ name, type, at, buffer, store }] → the ZIP as one Buffer.
+export function zipFiles(files, { paths = false } = {}) {
   const total = files.reduce((n, f) => n + f.buffer.length, 0);
   if (total > MAX_ZIP_BYTES) throw new HttpError(413, `These files come to ${(total / 1048576).toFixed(0)} MB, over the ${MAX_ZIP_BYTES / 1048576} MB a download of them all may hold. Download them one by one.`);
-  const names = uniqueNames(files.map((f) => f.name));
+  const names = uniqueNames(files.map((f) => f.name), paths);
   const parts = [];
   const central = [];
   let offset = 0;
   files.forEach((f, i) => {
     const name = Buffer.from(names[i], 'utf8');
-    const store = STORED.test(f.type || '');
+    const store = f.store ?? STORED.test(f.type || '');
     const data = store ? f.buffer : deflateRawSync(f.buffer, { level: 6 });
     const method = store ? 0 : 8;
     const crc = crc32(f.buffer);
