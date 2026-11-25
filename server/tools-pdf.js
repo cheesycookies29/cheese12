@@ -31,11 +31,17 @@ import { renderPage } from './pdf/render.js';
 import { cleanEdits, hasSignature, runScale } from './pdf/edits.js';
 import { isJpeg, isPng } from './pdf/images.js';
 import { PAGE_SIZES, missingChars, MISSING_NOTE } from './pdf/writer.js';
-import { PDF_LIMITS, PDF_DOC_EXTS } from '../shared/pdf-studio.js';
+import { convertPdf, pageSvgs, MIME } from './pdf/convert.js';
+import { PDF_LIMITS, PDF_DOC_EXTS, PDF_EXPORT_FORMATS } from '../shared/pdf-studio.js';
 
 const MB = 1024 * 1024;
 const { docToPdf, imageToPdf } = layoutModule;
 const { toBlocks } = office;
+const { maxConvertPages: MAX_CONVERT_PAGES, maxPicturePages: MAX_PICTURE_PAGES } = PDF_LIMITS;
+// Another kind of file (0.68) is made in memory from pages of files of up to this size together,
+// and pictures for the browser to draw are sent up to this size.
+const CONVERT_BYTES = 150 * 1024 * 1024;
+const MAX_SVG_REPLY = 120 * 1024 * 1024;
 const { maxFileBytes: MAX_FILE_BYTES, chunkBytes: CHUNK_BYTES, maxSources: MAX_SOURCES, maxStoredBytes: MAX_STORED_BYTES, maxPages: MAX_PAGES, maxExportBytes: MAX_EXPORT_BYTES, maxArchiveFiles: MAX_ARCHIVE_FILES, sourceHours: SOURCE_HOURS } = PDF_LIMITS;
 // The older way to upload (one request, base64 in JSON) takes files up to this size.
 export const DIRECT_UPLOAD_BYTES = 25 * MB;
@@ -555,17 +561,87 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     // Signed (0.65): pages with a signature drawn, typed or uploaded in the editor. With a record
     // (one PDF only), a last page says who signed, when, and the code that finds this record.
     const signedPages = pages.map((p, i) => (hasSignature(p.edits || []) ? i + 1 : null)).filter(Boolean);
-    const record = signedPages.length && body?.sign?.record !== false && body?.split !== 'documents' && body?.split !== 'pages';
+    // What to make (0.68): a PDF, or a document, spreadsheet or pictures read back from it.
+    const as = Object.hasOwn(PDF_EXPORT_FORMATS, body?.as) ? body.as : 'pdf';
+    const fmt = PDF_EXPORT_FORMATS[as];
+    const record = as === 'pdf' && signedPages.length && body?.sign?.record !== false && body?.split !== 'documents' && body?.split !== 'pages';
     // A preview shows the record page as it will be, but records nothing.
-    const preview = body?.preview === true;
+    const preview = body?.preview === true && as === 'pdf';
     const stamp = cleanStamp(body?.stamp);
     const meta = { title: text(body?.meta?.title, 160), author: text(body?.meta?.author, 120), subject: text(body?.meta?.subject, 200), keywords: text(body?.meta?.keywords, 200) };
     const first = [...used.values()][0];
     const base = safeFileName(body?.fileName || meta.title || first?.title || first?.name?.replace(/\.[a-z0-9]+$/i, ''), 'document').replace(/\.pdf$/, '');
     meta.file = `${base}.pdf`;
     const split = ['documents', 'pages'].includes(body?.split) ? body.split : 'none';
+    // Several files in a ZIP: one per source document (blank pages go with the pages before them),
+    // or one per page. Page numbers start again in each. Names without their extension.
+    const groupsOf = () => {
+      const groups = [];
+      if (split === 'pages') pages.forEach((p, i) => groups.push({ name: `${base} - page ${String(i + 1).padStart(String(pages.length).length, '0')}`, pages: [p] }));
+      else {
+        const bySource = new Map();
+        let last = null;
+        for (const p of pages) {
+          // Blank pages go with the document before them (those before the first, with the first).
+          const key = p.source ? p.source.id : last || pages.find((x) => x.source)?.source.id;
+          if (!key) continue;
+          if (!bySource.has(key)) {
+            const src = p.source || used.get(key);
+            bySource.set(key, { name: safeFileName(src?.name.replace(/\.[a-z0-9]+$/i, '') || 'document').replace(/\.pdf$/, ''), pages: [] });
+          }
+          bySource.get(key).pages.push(p);
+          last = key;
+        }
+        groups.push(...bySource.values());
+      }
+      return groups;
+    };
     let result;
-    if (split === 'none') {
+    const notes = new Set();
+    if (as !== 'pdf') {
+      // Another kind of file (0.68): the PDF is made in memory as for a download, then read back
+      // and written as a document, a spreadsheet or pictures (server/pdf/convert.js).
+      const pictures = fmt.group === 'Pictures of the pages';
+      const most = fmt.browser ? MAX_PICTURE_PAGES : MAX_CONVERT_PAGES;
+      if (pages.length > most) throw bad(`${fmt.label} can be made from up to ${most} pages at a time; these are ${pages.length}. Export them in parts.`);
+      if (takes > CONVERT_BYTES) throw bad(`These pages come from files of ${Math.round(takes / MB)} MB together; ${fmt.label} can be made from up to ${CONVERT_BYTES / MB} MB at a time. Export them in parts.`);
+      // Page numbers, header, footer and watermark are drawn on pages: on pictures, not in documents.
+      const pageStamp = pictures ? stamp : {};
+      if (fmt.browser) {
+        // PNG and JPEG: the browser draws each page's SVG at the sharpness asked and saves them.
+        const pdf = buildPdf(pages, pageStamp, meta);
+        const list = pageSvgs(pdf);
+        const total = list.reduce((n, x) => n + x.svg.length, 0);
+        if (total > MAX_SVG_REPLY) throw bad(`These pages hold too many pictures to draw at once (${Math.round(total / MB)} MB). Export fewer pages at a time.`);
+        for (const s of used.values()) s.usedAt = Date.now();
+        audit?.record('tools.pdf-export', { label: 'PDF Studio', note: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} → ${fmt.label} (${base})` });
+        return { base, ext: fmt.ext, pages: list.map((x) => ({ svg: x.svg, width: x.width, height: x.height })) };
+      }
+      const groups = pictures || split === 'none' ? [{ name: base, pages }] : groupsOf();
+      const files = [];
+      let paths = false;
+      for (const g of groups) {
+        const pdf = buildPdf(g.pages, pageStamp, { ...meta, file: `${g.name}.pdf` });
+        let r;
+        try {
+          r = convertPdf(pdf, as, g.name, { ...meta, title: meta.title || g.name });
+        } catch (err) {
+          throw bad(`${g.name}: ${fmt.label} could not be made (${err.message}).`);
+        }
+        r.notes.forEach((n) => notes.add(n));
+        // Markdown with its pictures: each document in its own folder when there are several.
+        if (r.paths) {
+          paths = true;
+          if (groups.length > 1) r.files.forEach((f) => { f.name = `${g.name}/${f.name}`; });
+        }
+        files.push(...r.files);
+      }
+      if (files.length === 1) result = { data: files[0].buffer, size: files[0].buffer.length, name: files[0].name, type: MIME[as] || files[0].type };
+      else {
+        const zip = zipFiles(files.map((f) => ({ ...f, at: new Date(clock()).toISOString() })), { paths });
+        result = { data: zip, size: zip.length, name: `${base}.zip`, type: 'application/zip' };
+      }
+    } else if (split === 'none') {
       let sig = null;
       if (record) {
         sig = { code: preview ? 'PREVIEW (not recorded)' : signingCode(), userId: u.id, name: u.name, username: u.username, at: new Date(clock()).toISOString(), fileName: `${base}.pdf`, pages: pages.length + 1, signedPages, signatures: pages.reduce((n, p) => n + (p.edits || []).filter((e) => e.type === 'image' && e.signature).length, 0) };
@@ -592,27 +668,7 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
         audit?.record('tools.pdf-signed', { label: 'PDF Studio', note: `${result.name} signed on page${signedPages.length === 1 ? '' : 's'} ${signedPages.join(', ')}; record ${sig.code}` });
       }
     } else {
-      // Several PDFs in a ZIP: one per source document (blank pages go with the pages before them),
-      // or one per page. Page numbers start again in each.
-      const groups = [];
-      if (split === 'pages') pages.forEach((p, i) => groups.push({ name: `${base} - page ${String(i + 1).padStart(String(pages.length).length, '0')}.pdf`, pages: [p] }));
-      else {
-        const bySource = new Map();
-        let last = null;
-        for (const p of pages) {
-          // Blank pages go with the document before them (those before the first, with the first).
-          const key = p.source ? p.source.id : last || pages.find((x) => x.source)?.source.id;
-          if (!key) continue;
-          if (!bySource.has(key)) {
-            const src = p.source || used.get(key);
-            bySource.set(key, { name: safeFileName(src?.name.replace(/\.[a-z0-9]+$/i, '') || 'document'), pages: [] });
-          }
-          bySource.get(key).pages.push(p);
-          last = key;
-        }
-        groups.push(...bySource.values());
-      }
-      const files = groups.map((g) => ({ name: g.name, type: 'application/pdf', at: new Date(clock()).toISOString(), buffer: buildPdf(g.pages, stamp, { ...meta, file: g.name }) }));
+      const files = groupsOf().map((g) => ({ name: `${g.name}.pdf`, type: 'application/pdf', at: new Date(clock()).toISOString(), buffer: buildPdf(g.pages, stamp, { ...meta, file: `${g.name}.pdf` }) }));
       const zip = zipFiles(files);
       result = { data: zip, size: zip.length, name: `${base}.zip`, type: 'application/zip' };
     }
@@ -621,7 +677,8 @@ export function registerPdfStudio(route, db, { audit, clock = () => new Date() }
     const typedText = [stamp.header, stamp.footer, stamp.watermark?.text, ...pages.flatMap((p) => (p.edits || []).map((e) => e.text || ''))].join(' ');
     const missing = missingChars(typedText);
     if (!preview) audit?.record('tools.pdf-export', { label: 'PDF Studio', note: `${list.length} page${list.length === 1 ? '' : 's'} from ${used.size} file${used.size === 1 ? '' : 's'} → ${result.name} (${Math.round(result.size / 1024)} KB)` });
-    return { data: result.data, headers: { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store', ...(missing.length ? { 'X-Core-Warning': encodeURIComponent(MISSING_NOTE(missing)) } : {}) } };
+    // What the reading back could not keep (0.68): said in a header the page shows with the download.
+    return { data: result.data, headers: { 'Content-Type': result.type, 'Content-Disposition': disposition(result.name), 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'no-store', ...(missing.length && as === 'pdf' ? { 'X-Core-Warning': encodeURIComponent(MISSING_NOTE(missing)) } : {}), ...(notes.size ? { 'X-Core-Note': encodeURIComponent([...notes].join(' ')) } : {}) } };
   });
 
   // ----- Is this the PDF that was signed? (0.65) -----

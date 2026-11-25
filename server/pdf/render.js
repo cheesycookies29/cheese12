@@ -815,10 +815,20 @@ function interpret(ctx, data, resources, level) {
         } else {
           id = `i${ctx.ids++}`;
           out.push(`<defs><image id="${id}" width="1" height="1" preserveAspectRatio="none" href="${url}"/></defs>`);
+          if (ctx.pictures && !isMask) ctx.urls.set(id, url);
         }
         if (!isMask) ctx.images.set(xo, id);
       }
-      if (id) out.push(`<use href="#${id}" transform="${matrixAttr(m)}"${opacity('opacity', gs.fa)}/>`);
+      if (id) {
+        out.push(`<use href="#${id}" transform="${matrixAttr(m)}"${opacity('opacity', gs.fa)}/>`);
+        // Where each picture is (0.68, for exports to Word and other documents): its box on the page.
+        if (ctx.pictures && ctx.urls.has(id) && ctx.pictures.length < 200) {
+          const ps = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => apply(gs.ctm, x, y));
+          const xs = ps.map((q) => q[0] - ctx.x0);
+          const ys = ps.map((q) => q[1] - ctx.y0);
+          ctx.pictures.push({ id, url: ctx.urls.get(id), x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) });
+        }
+      }
       else out.push(`<path d="${polygon(gs.ctm, 0, 0, 1, 1)}" fill="${hex(LIGHT)}"/>`);
     } else if ((sub === 'Form' || (sub === null && xo.dict.BBox !== undefined)) && level < MAX_FORM_DEPTH) {
       let content;
@@ -1022,7 +1032,7 @@ function pageContent(src, page) {
   return Buffer.concat(parts);
 }
 
-function runPage(doc, index, { maxImagePixels = 4_000_000, maxOps = 400_000, draw = true } = {}) {
+function runPage(doc, index, { maxImagePixels = 4_000_000, maxOps = 400_000, draw = true, pictures = false, lines = true } = {}) {
   const info = pageInternals(doc, index);
   if (!info) throw new Error(`This document has no page ${Number(index) + 1}.`);
   const { src, page, media, crop, rotate } = info;
@@ -1030,6 +1040,7 @@ function runPage(doc, index, { maxImagePixels = 4_000_000, maxOps = 400_000, dra
   const ctx = {
     src, draw, out: [], runs: [], ops: [], fonts: new Map(), images: new Map(), ids: 0, textOps: 0, formRuns: 0,
     opsLeft: maxOps, stopped: false, maxImagePixels, x0: box[0], y0: box[1], x1: box[2], y1: box[3], gs: newState(IDENTITY),
+    pictures: pictures && draw ? [] : null, urls: new Map(),
   };
   const data = pageContent(src, page);
   const resources = src.resolve(page.attrs.Resources);
@@ -1044,7 +1055,8 @@ function runPage(doc, index, { maxImagePixels = 4_000_000, maxOps = 400_000, dra
       for (let i = 0; i < ctx.gs.groups; i++) ctx.out.push('</g>');
     }
   }
-  ctx.runs = intoLines(ctx.runs);
+  // Exports to other files (0.68) put lines together themselves, keeping each word's own bold and italic.
+  if (lines) ctx.runs = intoLines(ctx.runs);
   return { ctx, data, box, rotate };
 }
 
@@ -1116,6 +1128,7 @@ export function renderPage(doc, index, options = {}) {
     const h = n3(box[3] - box[1]);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#ffffff"/><g transform="matrix(1 0 0 -1 ${n3(-box[0])} ${n3(box[3])})">${ctx.out.join('')}</g></svg>`;
     const result = { width: Math.round(width * 1000) / 1000, height: Math.round(height * 1000) / 1000, rotate, svg, runs: ctx.runs };
+    if (ctx.pictures) result.pictures = ctx.pictures;
     if (ctx.stopped) result.error = 'This page has more drawing than can be shown; part of it is missing.';
     else if (ctx.unshown) result.error = `${ctx.unshown === 1 ? 'A picture on this page is' : `${ctx.unshown} pictures on this page are`} in a format CORE cannot show here (JPEG 2000 or JBIG2), so ${ctx.unshown === 1 ? 'it shows' : 'they show'} as grey. ${ctx.unshown === 1 ? 'It stays' : 'They stay'} as ${ctx.unshown === 1 ? 'it is' : 'they are'} in the PDF.`;
     return result;

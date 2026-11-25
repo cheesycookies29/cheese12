@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.68.0-alpha',
+    date: '2026-11-25',
+    title: 'PDF Studio: export in other formats',
+    modules: ['system'],
+    notes: 'The PDF the export makes is read back page by page (server/pdf/render.js) and written in the format asked (server/pdf/convert.js), with Node\'s standard library only. PNG and JPEG are drawn by the browser from the server\'s SVG.',
+    changes: [
+      ['new', 'system', 'PDF Studio → Export → Format: Word (.docx), OpenDocument text (.odt), Rich Text (.rtf), web page (.html), Markdown (.md) and plain text: lines joined into paragraphs (hyphens at line ends joined), headings by text size, tables from text that lines up in columns, bold, italic and colour word by word, pictures in reading order, a page break between pages; a scan without text becomes its picture.'],
+      ['new', 'system', 'Excel (.xlsx) and CSV: every line a row, columns found across the page, numbers as people write them (1,234.50, (300.00), 15%, ₱ 1,200) stored as numbers; a sheet per page; CSV cells that would run as formulas start with a quote mark.'],
+      ['new', 'system', 'Pictures of the pages: SVG from the server; PNG and JPEG drawn in the browser at 72, 150 or 300 dpi (up to 40 million dots a page), turned as the page is, in a ZIP when there are several.'],
+      ['improved', 'system', 'One file, one per source file or one per page works for every format; page numbers, header, footer and watermark go on PDFs and pictures only; the signature record page is for PDFs only; limits of 300 pages (documents, spreadsheets, SVG) and 100 (PNG, JPEG) per export; what the reading back could not keep (pages without text) is said with the download; the audit log names the format.'],
+    ],
+  },
+  {
     version: '0.67.0-alpha',
     date: '2026-11-24',
     title: 'Document Management (MOD-08)',

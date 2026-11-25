@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PDF Studio exports Word, Excel, text and pictures (0.68)
+- **PDF Studio** now exports more than PDFs. Under **Export → Format**, choose **Word**, **OpenDocument text**, **Rich Text**, **Web page**, **Markdown** or **Plain text** for a document to go on editing (paragraphs, headings, tables and pictures read back from the pages), **Excel** or **CSV** for the text in rows and columns with numbers as numbers, or **PNG**, **JPEG** or **SVG** pictures of each page. Your arrangement, changes and signatures go in. See [the PDF Studio guide](pdf-studio#export-as-word-excel-text-or-pictures).
+
 ### Document Management (0.67)
 - A new module, **Document Management**, on the CORE home. Keep files in **My files** and company folders, with every version, check-out while you edit, and search by the words inside PDF and Office files. Share with people, account types, departments or everyone, and send links to people outside the company (view only, download with a limit, or upload links to collect files), with a password and an end date. CORE reads every file to tell what it really is: programs, scripts, web pages and Office files with macros are never accepted, and every file is stored encrypted. See [the Documents guide](documents).
 - Administrators set which kinds of files are accepted, sizes and storage, the sharing and link rules and the trash in **Admin panel → Document control**, and see the links that work and refused uploads there. See [Set up Document control](admin#set-up-document-control).

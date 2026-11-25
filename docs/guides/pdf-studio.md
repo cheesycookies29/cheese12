@@ -1,7 +1,7 @@
 ---
 id: pdf-studio
 title: Making PDFs with PDF Studio
-summary: For everyone: turn Word, Excel, PowerPoint, OpenDocument, text, CSV and pictures into PDF, put PDFs together, arrange, turn and remove pages, change and add text, sign, and export with page numbers, a header, a footer or a watermark; check that a signed PDF is unchanged.
+summary: For everyone: turn Word, Excel, PowerPoint, OpenDocument, text, CSV and pictures into PDF, put PDFs together, arrange, turn and remove pages, change and add text, sign, and export with page numbers, a header, a footer or a watermark; export as PDF, Word, OpenDocument, Rich Text, a web page, Markdown, text, Excel, CSV or pictures of the pages; check that a signed PDF is unchanged.
 roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
 apps: pdf, home
 order: 15
@@ -31,7 +31,7 @@ Your files are yours only: nobody else sees them, not even administrators. They 
 3. In **Pages**, every page of every file is a card, in one row: the first page of a picture or a scanned PDF shows the picture itself; a typed page shows its first words. Drag a card to another place, or use its arrows. **Turn left** and **Turn right** turn it; the bin removes it from the PDF (the file stays under **Files**, with **Add all pages** to put its pages back).
 4. Tick several cards to change them together: turn them, move them **To the start** or **To the end**, or **Remove** them.
 5. Click the pencil on a page (or double-click it) to open the **page editor**: change its text, add text, white-out, highlights, ticks, today's date, a picture or your signature. **Sign**, above the pages, opens it ready to sign.
-6. On the right, under **Export**, give the file a name, choose **One PDF**, and click **Download PDF**. **Preview** opens it in a new tab first.
+6. On the right, under **Export**, give the file a name, choose **One PDF**, and click **Download PDF**. **Preview** opens it in a new tab first. To get something other than a PDF (a Word file to edit, an Excel sheet, pictures of the pages), choose it under **Format** first.
 
 ![PDF Studio with three files and their pages](pdf-studio.jpg)
 
@@ -66,6 +66,32 @@ Open **Watermark** and type the text (*DRAFT*, *CONFIDENTIAL*, *COPY*). It goes 
 ### Get one PDF per file or per page
 
 Under **Save as**, choose **One PDF per file (ZIP)** or **One PDF per page (ZIP)**, then **Download ZIP**. Each PDF in the ZIP is named after its file (or numbered by page), with its own page numbers.
+
+### Export as Word, Excel, text or pictures
+
+Under **Export**, choose what to make under **Format**, then click **Download**:
+
+| Format | What you get |
+|---|---|
+| **PDF** | The pages exactly as they are, with page numbers, header, footer and watermark if you add them |
+| **Word** (.docx), **OpenDocument text** (.odt), **Rich Text** (.rtf) | A document to go on working on: the text in paragraphs, larger text as headings, text in columns as tables, and the pictures, one page after another with a page break between them |
+| **Web page** (.html) | The same, as one web page with its pictures inside |
+| **Markdown** (.md) | The text with its headings, bold and tables marked; with pictures, a ZIP with the pictures beside it |
+| **Plain text** (.txt) | The words only |
+| **Excel** (.xlsx), **CSV** | Every line a row; text that lines up in columns goes in columns, and numbers (*1,250.00*, *(300.00)*, *15%*) are numbers you can add up. In Excel, each page has its own sheet |
+| **PNG pictures**, **JPEG pictures** | A picture of each page, at the **Sharpness** you choose (72 dpi for a screen, 150 for most uses, 300 to print); several pages come in a ZIP. JPEG files are smaller, PNG text is sharper |
+| **SVG pictures** | Each page as a drawing that stays sharp at any size |
+
+Everything you did in PDF Studio goes in: the order of the pages, turned pages, text you changed or added, white-out, ticks and signatures. **Save as** works for documents too: one file, one per file, or one per page in a ZIP.
+
+Good to know:
+
+- A PDF keeps how its pages look, not how its document was made, so CORE reads the text back from the pages: check the result, especially tables and columns. For the original Word or Excel file, ask whoever made the PDF.
+- A scanned page is a picture: in Word, OpenDocument, Rich Text, a web page and Markdown it is the picture of the page; in text and spreadsheets it is left empty. CORE says so when you download. A scan whose text was recognised (you can select its words in a PDF reader) gives its text.
+- Page numbers, header, footer and watermark go on PDFs and pictures, not into documents to edit. Only a PDF gets a signature record page.
+- Up to 300 pages at a time for documents, spreadsheets and SVG, and 100 for PNG and JPEG (your browser draws them, so a large export at 300 dpi takes a moment).
+
+![Export with Format set to Word](pdf-studio-export-formats.jpg)
 
 ### Change the text on a page
 
@@ -124,7 +150,7 @@ Click **Start over** at the top: every file and page goes from PDF Studio (downl
 
 | Screen | What it is for |
 |---|---|
-| PDF Studio | Add files (drop or choose); **Files**: each file with its kind, size and pages, its **Page setup** and remove; **Pages**: every page as a card to drag, turn, edit or remove, with **Select all**, **Sign**, **Blank page** and **Reverse**; **Export**: the file name, one PDF or a ZIP, page numbers, header and footer, watermark, document details, the signature record page, **Download** and **Preview**; **Verify a signed PDF** |
+| PDF Studio | Add files (drop or choose); **Files**: each file with its kind, size and pages, its **Page setup** and remove; **Pages**: every page as a card to drag, turn, edit or remove, with **Select all**, **Sign**, **Blank page** and **Reverse**; **Export**: the file name, the **Format** (PDF, Word, OpenDocument, Rich Text, web page, Markdown, text, Excel, CSV, PNG, JPEG or SVG), one file or a ZIP, page numbers, header and footer, watermark, document details, the signature record page, **Download** and **Preview**; **Verify a signed PDF** |
 | Page editor | One page at a time: **Change text on the page**, **Add text**, **White-out**, **Highlight**, **Tick**, **Cross**, **Today's date**, **Signature**, **Picture**; the panel on the right for what is selected; **Undo**, the previous and next page, **Done** |
 | CORE home | **Tools**: the card that opens PDF Studio |
 
@@ -147,6 +173,9 @@ CORE draws each page itself, with the fonts of your browser in place of the PDF'
 
 **Is a signature made here legally binding?**
 It is a signature you place on the document, with CORE's record of who signed, when, and of the file as it was signed. Whether that is enough for a given document is for your company and its lawyers to say; documents that need a digital certificate signature need one from a certificate provider.
+
+**Why are the paragraphs or tables in my Word file not quite right?**
+A PDF only says where each word goes on the page. CORE joins lines into paragraphs, finds headings by their size and tables by text that lines up in columns, which works for most reports, letters and forms. Pages with text in several columns, text boxes or text drawn as shapes can come out in a different order. If you have the original document, use it.
 
 **Can someone else see my files?**
 No. Each person sees only their own files, and they are deleted after 4 hours without use. Administrators see in the audit log that you exported a PDF (how many pages, the file name), never its contents.
