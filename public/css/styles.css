@@ -3686,6 +3686,9 @@ button.pm-file-thumb:focus-visible { outline: 2px solid var(--brand-text); outli
 
 /* ---------- Tools on the CORE home (0.64) ---------- */
 .int-red { --int: #d64545; --int-deep: #a32424; --int-text: #b42323; }
+/* PhilGEPS (0.69): a deep indigo, apart from Microsoft 365's blue. */
+.int-indigo { --int: #4453c9; --int-deep: #2c3592; --int-text: #3730a3; }
+:root[data-theme='dark'] .int-indigo { --int-text: #a5b4fc; }
 :root[data-theme='dark'] .int-red { --int-text: #fca5a5; }
 .sys-card.tool-card { cursor: pointer; text-decoration: none; color: inherit; }
 .sys-card.tool-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px color-mix(in srgb, var(--int) 20%, transparent); }

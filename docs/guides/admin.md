@@ -192,7 +192,7 @@ Self-service belongs to the module it is part of. With **Human Resource Manageme
 
 ### Show or hide what is coming soon
 
-What is on CORE's roadmap shows greyed out, marked **Coming soon**: the modules **Finance & Accounting**, **Procurement** and **C-suite** on the CORE home and in the modules menu; the integrations **Microsoft 365**, **Google Cloud** and **CodeRabbit** under **Integrations** on the CORE home; and **Data replication** in the IT Asset Management side menu. Nothing can be opened or set up in them yet.
+What is on CORE's roadmap shows greyed out, marked **Coming soon**: the modules **Finance & Accounting**, **Procurement** and **C-suite** on the CORE home and in the modules menu; the integrations **Microsoft 365**, **Google Cloud**, **CodeRabbit** and **PhilGEPS** under **Integrations** on the CORE home; and **Data replication** in the IT Asset Management side menu. Nothing can be opened or set up in them yet.
 
 1. Open **Admin panel → Modules** and scroll to **Coming soon**. They are grouped as **Modules**, **Integrations** and **Pages in a module**, with where each one shows.
 2. Turn a switch off to hide one: CORE says, for example, *Procurement is now hidden from everyone.* Turn it on to show it again. **Hide all** and **Show all** change them all at once; the line under the table counts how many are shown.

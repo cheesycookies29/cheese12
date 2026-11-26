@@ -34,6 +34,9 @@ export const INTEGRATIONS = [
     description: 'Sign in with Google accounts, keep contract and project files in Google Drive, and keep CORE\'s backups in Google Cloud Storage.' },
   { id: 'coderabbit', code: 'INT-03', name: 'CodeRabbit', glyph: 'code', status: 'soon', accent: 'orange', features: ['Pull requests', 'AI review', 'Project tasks'], tagline: 'AI code review',
     description: 'CodeRabbit\'s AI reviews of pull requests on the project tasks they belong to, so a project manager sees what is reviewed and ready to merge.' },
+  // PhilGEPS (0.69): the Philippine Government Electronic Procurement System, for Sales & CRM's public bids.
+  { id: 'philgeps', code: 'INT-04', name: 'PhilGEPS', glyph: 'building', status: 'soon', accent: 'indigo', features: ['Bid notices', 'Sales & CRM bids', 'Deadlines', 'Awards'], tagline: 'Government bids into Sales & CRM',
+    description: 'Find PhilGEPS bid notices that match what the company sells, bring them into Sales & CRM as bids with their deadlines and documents, and follow the award notices.' },
 ];
 
 // Tools (0.64): work anyone signed in can do, whatever their module, shown under Integrations on the

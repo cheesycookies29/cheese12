@@ -45,7 +45,7 @@ To see every module at once, choose **Compact** beside **Your modules**: the mod
 
 ![The CORE home in the compact view](getting-started-compact.jpg)
 
-Under your modules, **Integrations** lists the services CORE will connect to, all marked **Coming soon**: **Microsoft 365** (sign-in, Outlook and Teams), **Google Cloud** (sign-in, Google Drive and Cloud Storage) and **CodeRabbit** (AI code review on project tasks). Each card shows CORE's mark linked to the service, in the service's own colour, with what it will bring under the description. They are on the roadmap and cannot be opened or turned on yet. They follow the same **Cards | Compact** choice as your modules.
+Under your modules, **Integrations** lists the services CORE will connect to, all marked **Coming soon**: **Microsoft 365** (sign-in, Outlook and Teams), **Google Cloud** (sign-in, Google Drive and Cloud Storage) **CodeRabbit** (AI code review on project tasks) and **PhilGEPS** (government bid notices brought into Sales & CRM as bids, with their deadlines, documents and awards). Each card shows CORE's mark linked to the service, in the service's own colour, with what it will bring under the description. They are on the roadmap and cannot be opened or turned on yet. They follow the same **Cards | Compact** choice as your modules.
 
 ![Integrations on the CORE home, coming soon](getting-started-integrations.jpg)
 

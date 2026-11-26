@@ -1,15 +1,15 @@
-// Integrations on the CORE home (0.49): Microsoft 365, Google Cloud and CodeRabbit, all coming soon,
+// Integrations on the CORE home (0.49): Microsoft 365, Google Cloud, CodeRabbit and (0.69) PhilGEPS, all coming soon,
 // in their own area under Your modules; none can be opened, pinned or turned on.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { INTEGRATIONS, MODULES, PINNABLE, SWITCHABLE } from '../shared/modules.js';
 
-test('the integrations are Microsoft 365, Google Cloud and CodeRabbit, all coming soon', () => {
-  assert.deepEqual(INTEGRATIONS.map((i) => i.name), ['Microsoft 365', 'Google Cloud', 'CodeRabbit']);
+test('the integrations are Microsoft 365, Google Cloud, CodeRabbit and PhilGEPS, all coming soon', () => {
+  assert.deepEqual(INTEGRATIONS.map((i) => i.name), ['Microsoft 365', 'Google Cloud', 'CodeRabbit', 'PhilGEPS']);
   assert.ok(INTEGRATIONS.every((i) => i.status === 'soon' && i.description && i.tagline && i.glyph));
   // Each has its colour and the chips on its card (0.50).
-  assert.deepEqual(INTEGRATIONS.map((i) => i.accent), ['blue', 'teal', 'orange']);
+  assert.deepEqual(INTEGRATIONS.map((i) => i.accent), ['blue', 'teal', 'orange', 'indigo']);
   assert.ok(INTEGRATIONS.every((i) => Array.isArray(i.features) && i.features.length >= 2));
   const css = fs.readFileSync(new URL('../public/css/styles.css', import.meta.url), 'utf8');
   for (const i of INTEGRATIONS) {

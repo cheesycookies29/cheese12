@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.69.0-alpha',
+    date: '2026-11-26',
+    title: 'PhilGEPS integration, coming soon',
+    modules: ['system'],
+    notes: 'A fourth integration on the roadmap, for Sales & CRM\'s public bids. Nothing connects to PhilGEPS yet.',
+    changes: [
+      ['new', 'system', 'CORE home → Integrations: PhilGEPS (INT-04), coming soon, in its own indigo: bid notices that match what the company sells brought into Sales & CRM as bids, with deadlines, documents and award notices. As a card and as a compact tile; on the Admin panel\'s Coming soon list, so it can be hidden.'],
+    ],
+  },
+  {
     version: '0.68.1-alpha',
     date: '2026-11-26',
     title: 'Compact home tiles of one size',

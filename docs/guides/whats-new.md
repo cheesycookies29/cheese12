@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### PhilGEPS on the roadmap (0.69)
+- **Integrations** on the CORE home has a new card, **PhilGEPS**, marked **Coming soon**: bid notices from the Philippine Government Electronic Procurement System that match what the company sells, brought into **Sales & CRM** as bids with their deadlines and documents, and their award notices. It cannot be opened or set up yet. An administrator can hide it in **Admin panel → Modules → Coming soon**. See [Getting started](getting-started#walkthrough).
+
 ### Compact tiles all the same size (0.68.1)
 - In the **Compact** view of the CORE home, every tile (modules, integrations and tools) is now the same height. Tiles show the module's short name, as the modules menu does (*HR Management*, *Projects*, *Documents*); point at a tile for its full name. See [Getting started](getting-started#walkthrough).
 
