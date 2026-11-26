@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.69.2-alpha',
+    date: '2026-11-26',
+    title: 'Style sheet fix before the smooth side menu went out',
+    modules: ['system'],
+    notes: 'The 0.69.1 deploy stopped at the phone journeys; nothing of 0.69.1 reached the server.',
+    changes: [
+      ['fixed', 'system', 'A stray } left in the style sheet with 0.69.1 made browsers drop the rule after it (the page area\'s min-width: 0), so wide tables and boards (Leave, Service Desk tickets, the CRM pipeline, settings) stretched phone pages up to 638 px. Removed; a test now fails on any style sheet whose braces do not balance.'],
+    ],
+  },
+  {
     version: '0.69.1-alpha',
     date: '2026-11-26',
     title: 'The side menu folds and opens smoothly',

@@ -164,7 +164,6 @@ body.nav-mini #nav a { justify-content: center; padding: 10px; }
   body.nav-anim .sidebar, body.nav-anim .nav-heading, body.nav-anim .nav-module, body.nav-anim .nav-module > span:not(.mod-ic) { transition: none; }
   body.nav-opening #nav .label, body.nav-opening .nav-badge, body.nav-opening .nav-soon, body.nav-opening .side-foot, body.nav-opening .nav-heading, body.nav-opening .nav-module, body.nav-opening .nav-module > span:not(.mod-ic) { animation: none; }
 }
-}
 
 main { flex: 1; min-width: 0; padding: 20px 28px 56px; max-width: 1360px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
