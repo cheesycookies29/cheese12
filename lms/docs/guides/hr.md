@@ -1,7 +1,7 @@
 ---
 id: hr
 title: Running HR in ATLAS People
-summary: For HR managers: employee records and sign-in accounts, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings, applications, rating applicants, the comparative list, applicant profiles and the pool of applicants), and HR settings.
+summary: For HR managers: employee records and sign-in accounts, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings, applications, applicants' documents, selection boards and rating applicants, the comparative list, applicant profiles and the pool of applicants), and HR settings.
 roles: hr
 apps: people
 order: 55
@@ -67,7 +67,7 @@ A first tour with the demo school. It takes about ten minutes.
 ### Job openings and applications
 
 1. Open **Recruitment → Job openings**. Main Campus has three open openings: *Instructor I* and *Laboratory Technician I* are **Open to all**, *Administrative Officer II* is **Internal only**. *Administrative Assistant III* is closed: it was decided weeks ago.
-2. Choose **Instructor I**. **Applications by stage** shows how many applications are at each stage, and the list is grouped by stage: Hazel Ordonez at *Application received*, Paolo Quimbo at *Initial screening*, Carla Mendiola at *Assessment (examination or interview)*, Diego Lumbres and Teresa Malabanan at *Deliberation*, and Bianca Yap *Not qualified*. The **Rating** column shows each applicant's weighted total and rank.
+2. Choose **Instructor I**. **Applications by stage** shows how many applications are at each stage, and the list is grouped by stage: Hazel Ordonez at *Application received*, Paolo Quimbo at *Initial screening*, Carla Mendiola at *Assessment (examination or interview)*, Diego Lumbres and Teresa Malabanan at *Deliberation*, and Bianca Yap *Not qualified*. The **Rating** column shows each applicant's weighted total and rank, how many assessors have rated (*Rated by 2 of 3*), and whether their documents are complete (*Complete* or *Missing 2 required*).
 3. On Paolo Quimbo's row, choose **Move**. Pick **Assessment (examination or interview)**, type a **Note to the applicant** such as *Your examination and interview are on Monday, 9:00, at the HR office.*, and choose **Save and tell the applicant**. Paolo is told on the bell, and the move is in his history and the audit log.
 4. Tick Carla Mendiola and Paolo Quimbo, choose **Move chosen…**, pick **Deliberation** and choose **Move and tell the applicants**: both move with one note.
 5. Choose **History** on Carla's row to see every move, with who made it, the notes to her and HR's internal remarks.
@@ -77,18 +77,23 @@ A first tour with the demo school. It takes about ten minutes.
 
 ![An opening: applications by stage](hr-job-opening.jpg)
 
-### Rating, the comparative list and the pool
+### Rating, documents, the comparative list and the pool
 
-1. On **Instructor I**, Paolo Quimbo is *Not rated*. On his row, choose **Rate**. The page lists the criteria of the opening's template, *Faculty (example)*: Education, Experience, Training, Eligibility, Teaching demonstration and Interview, each with its weight.
-2. Type a **Score** from 0 to 100 for each criterion, for example 88, 75, 80, 100, 85 and 90. **Weighted total** and **Rank at this opening** change as you type: 86.00, rank 3 of 4.
-3. Choose **Save rating**. Back on the opening, his row shows *86.00* and *Rank 3*.
-4. Choose **Comparative list**. The rated applicants are ranked by weighted total, with a column per criterion. Carla Mendiola's examination and interview are still to come, so she is marked *Not every criterion rated*.
-5. Choose **Print** to see it on A4 landscape, with the school header and the signature line for the HRMPSB secretariat.
-6. Choose Carla Mendiola's name on the opening: her **Applicant profile** opens. Tick **Include ratings** and choose **Print**.
-7. Open **Recruitment → Pool of applicants**. Liza Manalastas (not selected for *Administrative Assistant III*) and Bianca Yap (not qualified for *Instructor I*) asked to be kept in the pool.
-8. On Bianca Yap's row, choose **Invite to apply**, pick **Laboratory Technician I** and choose **Send the invitation**. She is told on the bell, with a link to the opening; she applies herself.
+1. On **Instructor I**, go down to **Selection board**: Maria Santos (Chairperson), Juan Dela Cruz and Leo Mercado, faculty of the College of Computing, rate its applicants. Each rates on their own under **Ratings to do** (see [the assessor's guide](assessor)).
+2. On Teresa Malabanan's row, choose **Rating**. **Each assessor's rating** shows Maria's and Juan's scores per criterion and the **Combined** column, their average. Leo's rating is still a draft, so it is not counted: *Rated by 2 of 3 assessors*.
+3. Go back. On Carla Mendiola's row, choose her documents badge, *Missing 2 required*. Her Personal Data Sheet is **Accepted**; her transcript **Needs a new file**, with the note HR wrote her. Choose a file to download it.
+4. On **Training certificates**, choose **Accept**. Carla is told on the bell.
+5. Go back and choose **Comparative list**. The rated applicants are ranked by their combined result, with a column per criterion and how many assessors rated each. Under it, **Each assessor's total** is for HR only. Carla Mendiola's examination and interview are still to come, so she is marked *Not every criterion rated*.
+6. Choose **Print** to see it on A4 landscape, with the school header, a signature line for each assessor and one for the HRMPSB secretariat.
+7. Choose Carla Mendiola's name on the opening: her **Applicant profile** opens, with her documents. Tick **Include ratings** and choose **Print**.
+8. Open **Recruitment → Pool of applicants**. Liza Manalastas (not selected for *Administrative Assistant III*) and Bianca Yap (not qualified for *Instructor I*) asked to be kept in the pool.
+9. On Bianca Yap's row, choose **Invite to apply**, pick **Laboratory Technician I** and choose **Send the invitation**. She is told on the bell, with a link to the opening; she applies herself.
 
-![Rate an applicant: a score per criterion, the weighted total and the rank](hr-rate-applicant.jpg)
+![The selection board of an opening](hr-selection-board.jpg)
+
+![An applicant's rating with each assessor's scores](hr-rate-board.jpg)
+
+![An applicant's documents, for HR to check](hr-applicant-documents.jpg)
 
 ![The comparative list of an opening](hr-comparative-list.jpg)
 
@@ -301,9 +306,10 @@ A leave type that has been used cannot be deleted; untick **Active** instead. Le
 4. Fill in the place of assignment: the **Campus** (when you work at more than one) and the **Office**. Set the **Number of vacancies** and, if you like, a **Description**.
 5. Under **Qualification standards**, fill in **Education**, **Training**, **Experience** and **Eligibility** as the CSC qualification standards for the position say.
 6. Under **Assessment**, pick the **Position category**, for example **Faculty** or **Non-teaching**. The **Assessment template** of that category is filled in; pick another if this opening needs it.
-7. Pick the **Closing date**. Applications are taken through that day.
-8. Under **Who may apply**, choose **Open to all** (job applicants and employees) or **Internal only** (employees only, from People).
-9. Set **Status** to **Draft** to keep working on it, or **Open** to publish it. Choose **Save opening**.
+7. Under **Documents to upload**, check the documents applicants are asked for. The list comes from the position category (**HR settings → Applicant documents**): change a name or the **Short note for the applicant**, tick or untick **Required**, choose **Add a document**, or use the arrows and the bin. **Use the category's list** starts again from the category's. Tick **Required documents must be uploaded before applying** only if applicants may not apply without them (off by default).
+8. Pick the **Closing date**. Applications are taken through that day.
+9. Under **Who may apply**, choose **Open to all** (job applicants and employees) or **Internal only** (employees only, from People).
+10. Set **Status** to **Draft** to keep working on it, or **Open** to publish it. Choose **Save opening**.
 
 For a vacant plantilla item, start from the item instead: **Plantilla →** the item **→ Post a job opening** fills in the item number, title, salary grade, campus and office (see [Post a job opening for a vacant item](#post-a-job-opening-for-a-vacant-item)).
 
@@ -391,45 +397,126 @@ What an applicant gave shows under their name on each application, in **Applican
 
 ### Set up the assessment templates
 
-Applicants are rated with an **assessment template**: a list of criteria, each with a weight. Each **position category** (for example Faculty and Non-teaching) has a default template, because the positions have different criteria. ATLAS comes with two templates, *Faculty (example)* and *Non-teaching (example)*: they are examples, to replace with the criteria and weights of the school's merit selection plan. Both rate education, experience, training and eligibility (EETE); the non-teaching one adds a competency examination, an interview and a work sample, and the faculty one a teaching demonstration and an interview.
+Applicants are rated with an **assessment template**: a list of criteria, each with a weight. Each **position category** (for example Faculty and Non-teaching) has a default template, because the positions have different criteria. ATLAS comes with three templates, *Faculty (example)*, *Non-teaching (example)* and *Promotion, non-teaching (example)*: they are examples, to replace with the criteria and weights of the school's merit selection plan. They rate education, experience, training and eligibility (EETE); the non-teaching one adds a competency examination, an interview and a work sample, the faculty one a teaching demonstration and an interview, and the promotion one a performance rating, a competency examination and an interview.
 
 1. Open **HR settings** and go down to **Assessment templates**.
 2. Under **Position categories**, rename a category, pick its **Default template**, or choose **Add a category**.
-3. Under **Templates**, change a criterion's name, **What it rates** or **Weight (%)**. Use the arrows to reorder, and the bin to remove one. Choose **Add a criterion** or **Add a template** for more.
-4. Check the total under the criteria: it must say *Total 100%*. It turns red when the weights do not add up to 100.
-5. Under **Printed comparative list**, type the **Title**, the **Signature caption**, the **Name on the signature line** (or leave it blank to sign by hand) and the **Title under the line**, for example *HRMPSB Secretariat*.
-6. Choose **Save assessment templates**.
+3. Under **Templates**, change a criterion's name, **What it rates**, **Kind** or **Weight (%)**. Use the arrows to reorder, and the bin to remove one. Choose **Add a criterion** or **Add a template** for more.
+4. Pick how a template's ratings are combined under **Combine the assessors' ratings**: **Average of the assessors** (the default), **Average without the highest and lowest**, or **Board consensus** (see [Choose how the assessors' ratings are combined](#choose-how-the-assessors-ratings-are-combined)).
+5. Check the total under the criteria: it must say *Total 100%*. It turns red when the weights do not add up to 100.
+6. Under **Printed comparative list**, type the **Title**, the **Signature caption**, the **Name on the signature line** (or leave it blank to sign by hand) and the **Title under the line**, for example *HRMPSB Secretariat*. **Caption over the assessors' lines** (*Rated by*) and **Assessor's title under their line** (*Member, HRMPSB*) are for the selection board's signature lines.
+7. Under **Selection board**, tick **Assessors see the combined result (total and rank) after submitting their own rating** if your school wants that. It is off by default: only HR sees the result.
+8. Choose **Save assessment templates**.
 
 ATLAS refuses a template whose weights do not total exactly 100%, and says *the weights total 101%. They must total exactly 100%.* Each criterion is scored from 0 to 100, so a weighted total (score × weight ÷ 100, added up) can never be more than 100. Weights can have two decimals (33.33 + 33.33 + 33.34). Changing a template gives it a new version; an opening already rated keeps the version it was rated with. A template or category that an opening uses cannot be removed: tick **Retired** on the template, or rename the category. Each change is in the Settings center's **Change history**.
 
 ![HR settings → Assessment templates](hr-assessment-templates.jpg)
 
+### Choose how the assessors' ratings are combined
+
+Each template says how the ratings of an opening's selection board become one result, criterion by criterion:
+
+| Rule | What it does |
+|---|---|
+| Average of the assessors (the default) | Each criterion's score is the average of the assessors who have submitted. |
+| Average without the highest and lowest | Each criterion's highest and lowest scores are left out and the rest averaged. Only with 3 or more scores; with 1 or 2 it is the plain average. |
+| Board consensus | The secretariat (HR) enters one agreed score per criterion after the board meets; that is the result. The assessors' own scores stay for reference. |
+
+1. Open **HR settings → Assessment templates**.
+2. On the template, pick the rule under **Combine the assessors' ratings**.
+3. Choose **Save assessment templates**.
+
+Changing the rule gives the template a new version; an opening already rated keeps its own. Drafts never count; only submitted ratings do.
+
+### Add a Performance rating criterion
+
+For promotions, a criterion can be the applicant's performance rating. People has no performance evaluation (IPCR) yet, so each assessor types the score with its **Source** (for example *IPCR Jan–Jun 2026: Very Satisfactory*), or picks the adjectival rating from the template's list, which turns it into a score.
+
+1. In the template, choose **Add a criterion** (or use one you have) and set its **Kind** to **Performance rating**. A template can have one.
+2. Under **Adjectival ratings, out of 100**, check what each rating counts for. The values ATLAS starts with (Outstanding 100, Very Satisfactory 90, Satisfactory 75, Unsatisfactory 50, Poor 25) are *Example values*: replace them with your merit selection plan's.
+3. Under **External applicants**, pick **Not applicable: its weight is spread over the other criteria** (the default) or **A typed score, e.g. a rating from a previous employer**.
+4. Choose **Save assessment templates**.
+
+With the default, an external applicant's rating shows the criterion as *Not applicable*, and the other criteria share its weight in proportion: with Performance rating 20%, Exam 40% and Interview 40%, an external applicant's total is (Exam × 40 + Interview × 40) ÷ 80.
+
+### Name the selection board of an opening
+
+The assessors are the selection board members who rate the applicants. Any active staff account can be one (a teacher, a dean, a staff member), not only HR. Naming them is what lets them see that opening's applicants, applications and documents, and nothing else.
+
+1. Open the opening and go down to **Selection board**.
+2. Choose **Name the assessors** (or **Change**).
+3. Under **Add an assessor**, type a name, position or office and choose the person.
+4. Type a title if you like, for example *Chairperson*. It prints under their signature line.
+5. Choose **Save the board**.
+
+Each new assessor is told on the bell and finds the opening under **Ratings to do**. Someone who applied for the opening cannot be on its board. An assessor who has submitted a rating stays on the board, because their ratings are part of the result; one who has not can be taken off (their drafts go). Every change is in the audit log.
+
+![Name the selection board](hr-name-board.jpg)
+
 ### Rate an applicant
 
-1. Open the opening. The **Rating** column shows each applicant's weighted total and rank, or *Not rated*.
-2. On the applicant's row, choose **Rate** (or **Rating** to change one).
-3. Type a **Score** from 0 to 100 for each criterion you have rated, and a **Comment** if you like. Leave a criterion blank until it has been rated, for example an interview still to come.
-4. Check the **Weighted total** and the **Rank at this opening**: they change as you type.
+When an opening has a selection board, its assessors rate (see [the assessor's guide](assessor)); you follow their progress and, with **Board consensus**, enter the agreed scores. Without a board, HR rates, as the HR office.
+
+1. Open the opening. The **Rating** column shows each applicant's combined total and rank, or *Not rated*, and *Rated by 2 of 3* while the board is rating.
+2. On the applicant's row, choose **Rate** (or **Rating** to see one).
+3. Read **Each assessor's rating**: every assessor's scores per criterion and the combined result. Drafts are not shown and not counted.
+4. To rate for the HR office, type a **Score** from 0 to 100 for each criterion you have rated, and a **Comment** if you like. Leave a criterion blank until it has been rated, for example an interview still to come. On an opening with a board this is optional, and counts as one more assessor's rating.
 5. Choose **Save rating**.
 
-ATLAS keeps who rated and when; a new rating replaces the earlier one, and the earlier totals are listed under the scores. Every rating goes to the audit log (*Rated a job application*, *Changed the rating of a job application*), with each score before and after. The applicant never sees scores, comments or the rank. You cannot rate your own application. The first rating at an opening fixes its template: the opening keeps a copy of that version, so later changes to the template never change its ratings, and its position category and template can no longer be changed.
+ATLAS keeps who rated and when; the HR office's rating is one shared rating, so another HR person's replaces it, with the earlier totals listed under the scores. Every rating goes to the audit log (*Rated a job application*, *Changed the rating of a job application*, *Saved a draft rating of a job application*), with each score before and after. The applicant never sees scores, comments or the rank. You cannot rate your own application. The first rating at an opening (even a draft) fixes its template: the opening keeps a copy of that version, so later changes to the template never change its ratings, and its position category and template can no longer be changed. When the last assessor submits, you are told on the bell.
 
-One person rates each application in this version. Several assessors with an average of their ratings is not available yet.
+![Rate an applicant: a score per criterion, the weighted total and the rank](hr-rate-applicant.jpg)
+
+### Enter the board consensus
+
+For a template that combines by **Board consensus**, the result is the score the board agrees per criterion, entered by the secretariat.
+
+1. Open the opening and choose **Rating** on the applicant's row.
+2. Under **Board consensus**, the boxes start with the average of the assessors who submitted. Type the agreed **Score** for each criterion.
+3. Choose **Save the consensus**.
+
+Until then the applicant is not on the comparative list (it says how many wait for the consensus). You can enter it before every assessor has rated, and change it later; the earlier totals are kept, and each change is in the audit log.
+
+### Review an applicant's documents
+
+Each opening has a checklist of documents (see [Post a job opening](#post-a-job-opening)). Applicants upload against each item, and you check them.
+
+1. Open the opening. The **Rating** column shows *Complete* or *Missing 2 required* for each application, with how many files are waiting for you (*1 to check*). Choose **Incomplete documents** above the list to see only those.
+2. Choose the badge on the applicant's row. **Documents of** the applicant opens.
+3. Choose a file to download it and read it.
+4. Choose **Accept**, or **Needs a new file…**, type a note to the applicant (what is wrong and what to upload instead) and choose **Ask and tell the applicant**.
+
+The applicant is told on the bell, from *HR office*, and sees the status and your note beside the document. A new file they upload makes the item *Uploaded* again, for you to check, and you are told on the bell. **Clear the review** undoes your mark. Until the opening closes the applicant can replace or remove their files; after it closes they can only upload a file you asked for. Every review and every download is in the audit log.
+
+![HR asks for a new file](hr-needs-new-file.jpg)
+
+### Set the applicant upload policy and the default checklists
+
+1. Open **HR settings** and go down to **Applicant documents**.
+2. Under **Upload policy**, tick the **File types allowed** (PDF, Word, Excel and pictures by default), the **Largest file (MB)** (2 by default, 1 to 10) and the **Most files per application** (15 by default).
+3. Change the **Help on compressing and splitting files** if you like: applicants see it beside the upload buttons and with a file that is too large.
+4. Under **Default checklists**, edit each position category's list of documents. The built-in lists are examples.
+5. Choose **Save applicant documents**.
+
+A new opening copies its category's list; an existing opening keeps its own. ATLAS works out what each file is from the file itself, never its name, and always refuses programs, scripts, web pages, Office files with macros and password-protected files.
+
+![HR settings → Applicant documents](hr-applicant-docs-settings.jpg)
 
 ### See and print the comparative list
 
 1. Open the opening and choose **Comparative list**.
-2. Read the rated applicants, ranked by weighted total (equal totals share a rank), with a column per criterion and the stage of each.
-3. Choose **Export CSV** for a spreadsheet, or **Print**.
+2. Read the rated applicants, ranked by their combined result (equal totals share a rank), with a column per criterion, how many assessors rated each, and the stage. *n/a* marks a performance rating that does not apply to an external applicant.
+3. Read **Each assessor's total** under it (HR only; it is not printed).
+4. Choose **Export CSV** for a spreadsheet (with each assessor's total), or **Print**.
 
-The printout is A4 landscape, with the school's name and seal, the title from **Assessment templates**, the opening, the template and *As of* today's date. The headings repeat on every page, and the signature line at the end is for the HRMPSB secretariat. Withdrawn applications are left out; applications not rated yet are counted above the list.
+The printout is A4 landscape, with the school's name and seal, the title from **Assessment templates**, the opening, the template, how ratings are combined and *As of* today's date. The headings repeat on every page. At the end there is a signature line for each assessor on the selection board, with their title, and one for the HRMPSB secretariat. Withdrawn applications are left out; applications not rated yet, or waiting for the board consensus, are counted above the list.
 
 ![The comparative list, printed on A4 landscape](hr-comparative-print.jpg)
 
 ### Open and print an applicant profile
 
 1. Choose an applicant's name on an opening, or **Profile** in **Recruitment → Applicant accounts**, or a name in **Pool of applicants**.
-2. Read the **Applicant profile**: name and contact, what they gave at sign-up, the account's dates, the pool, and every application at your campuses with its opening, stage, outcome and history of notes.
+2. Read the **Applicant profile**: name and contact, what they gave at sign-up, the account's dates, the pool, and every application at your campuses with its opening, stage, outcome, documents and history of notes.
 3. To include them, tick **Include internal remarks** (HR's remarks and the reasons for moving back) and **Include ratings** (the scores, total and rank).
 4. Choose **Print**.
 
@@ -473,7 +560,7 @@ Adding and removing are in the audit log with your reason. The person is told on
 1. Open the opening.
 2. Choose **Export CSV**.
 
-The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), what an applicant gave at sign-up (sex, date of birth, home address, highest educational attainment, preferred campus), the date applied, the stage, its last change, the latest note to the applicant, and the weighted total and rank.
+The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), what an applicant gave at sign-up (sex, date of birth, home address, highest educational attainment, preferred campus), the date applied, the stage, its last change, the latest note to the applicant, the weighted total and rank, how many assessors rated, and whether the documents are complete.
 
 ### Extend or remove an applicant account
 
@@ -498,7 +585,7 @@ An applicant in the pool of applicants keeps their account open until the end of
 5. Under **Applicant sign-up fields**, choose what the sign-up asks (see [Choose what the applicant sign-up asks](#choose-what-the-applicant-sign-up-asks)).
 6. Choose **Save HR settings**.
 
-The **Recruitment stages** and **Assessment templates** below have their own Save buttons (see [Set the recruitment stages](#set-the-recruitment-stages) and [Set up the assessment templates](#set-up-the-assessment-templates)).
+The **Recruitment stages**, **Assessment templates** and **Applicant documents** below have their own Save buttons (see [Set the recruitment stages](#set-the-recruitment-stages), [Set up the assessment templates](#set-up-the-assessment-templates) and [Set the applicant upload policy and the default checklists](#set-the-applicant-upload-policy-and-the-default-checklists)).
 
 A new length applies to applicant accounts made after the change; to give one person more time, extend their account.
 
@@ -524,10 +611,11 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Leave & approvals | Requests to approve, leave balances, one employee's leave, and leave types |
 | Payroll | Payroll runs and payslips (view only; the payroll officer prepares them) |
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
-| Job openings (Recruitment) | Post job openings at the campus, open and close them, and follow the applications to each by stage: **Move** one or several, **Rate**, **History**, the **Comparative list**, each applicant's profile, export them as CSV |
+| Job openings (Recruitment) | Post job openings at the campus with their documents checklist, open and close them, name each one's **Selection board**, and follow the applications to each by stage: **Move** one or several, **Rate** and the board consensus, each applicant's documents, **History**, the **Comparative list**, each applicant's profile, export them as CSV |
 | Applicant accounts | The temporary accounts of job applicants: until when each is open, their **Profile**, **Extend** and **Remove** |
 | Pool of applicants | People who asked to be kept for other vacancies: search and filter them, **Invite to apply**, **Remove** |
-| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last and people stay in the pool, what the applicant sign-up asks, the recruitment stages, the assessment templates, and who can do what |
+| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last and people stay in the pool, what the applicant sign-up asks, the recruitment stages, the assessment templates, the applicant documents (upload policy and default checklists), and who can do what |
+| Ratings to do | Only when HR names you on a selection board: the applicants you rate as an assessor (see [the assessor's guide](assessor)) |
 | My day, My attendance, Leave & requests, My payslips, My HR record, Job openings (Me) | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 
@@ -613,3 +701,20 @@ Only people who ticked *Keep me in the school's pool of applicants* themselves, 
 **Who can use Recruitment?**
 HR managers and administrators (the *Recruitment: job openings, applications and applicant accounts* permission). An administrator can give it to another account type under **Roles & permissions**.
 
+**Can the assessors see each other's scores?**
+Not before they submit their own. After submitting, they see only their own, unless **HR settings → Assessment templates → Assessors see the combined result** is ticked: then they also see the combined total and rank. Only HR ever sees each assessor's scores.
+
+**What does "Average without the highest and lowest" do with two assessors?**
+It is the plain average. The highest and lowest score of a criterion are left out only when 3 or more assessors scored it.
+
+**Who can be an assessor?**
+Any active staff account HR names on an opening's selection board: HR, teachers, deans, staff. Naming them is what gives them access, to that opening only (the *hris.assess* permission, which no account type has built in). An administrator can stop one account from rating anywhere by taking *hris.assess* away from it under **Users & Access → Access**.
+
+**What happened to ratings made before selection boards?**
+Each became the HR office's rating, by the person who rated, submitted when it was made. Totals and ranks are unchanged.
+
+**What happens to applicants' documents later?**
+They go with the applicant's account: when the account is removed after it closes, or when you remove it, its files are deleted. A **Selected** applicant's account, and so their files, is never removed automatically. When someone leaves the pool of applicants, the files of their applications that ended (not selected, not qualified, withdrawn) are deleted. Files uploaded for an opening someone never applied to are deleted once it stops taking applications.
+
+**Where are applicants' documents kept?**
+Encrypted, beside ATLAS's data (*applicant-files*), with a key derived from the server key, as ATLAS Documents keeps its files. They open only for the applicant, HR at the opening's campus and its assessors, through ATLAS; there is no public link.

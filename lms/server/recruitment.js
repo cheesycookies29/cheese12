@@ -23,10 +23,13 @@
 //  - Employees apply with their own account from People self-service (PL-004, the owner's decision:
 //    no second account). The application is Internal and linked to their employee record.
 //
-//  - Ratings with assessment templates per position category, the comparative list, the applicant
-//    profile and the pool of applicants (PL-018, PL-019, PL-020, PL-066): server/recruitment-assess.js.
+//  - Ratings with assessment templates per position category, the selection board (several
+//    assessors, PL-021), the comparative list, the applicant profile and the pool of applicants
+//    (PL-018, PL-019, PL-020, PL-066): server/recruitment-assess.js.
+//  - Each applicant's documents against the opening's requirements checklist, under the applicant
+//    upload policy (PL-022, PL-006, PL-007): server/recruitment-docs.js.
 //
-// Out of scope for now: the PDS, attachments, appointment papers, several assessors per application.
+// Out of scope for now: the PDS, appointment papers.
 // Stage changes are not tied to dates or deadlines (no time limits per stage).
 // Patterns: student registration ("Register account": sign-up, rate limit, validation), leave requests (the
 // bell), Documents' sweep (a timer that is unref'd, so tests and shutdown are not held up).
@@ -40,7 +43,10 @@ import { t } from './validate.js';
 import { salaryFor } from '../shared/gov-pay.js';
 import { brandName } from '../shared/brand.js';
 import { registerAssessmentRoutes, addAssessmentDemo, removeAssessmentDemo } from './recruitment-assess.js';
-import { POOL_MONTHS } from '../shared/recruitment-assess.js';
+import { registerApplicantDocs } from './recruitment-docs.js';
+import { POOL_MONTHS, mergeAssessment } from '../shared/recruitment-assess.js';
+import { mergeApplicantDocs } from '../shared/recruitment-docs.js';
+import { userCan } from '../shared/roles.js';
 import {
   AUDIENCES, OPENING_STATUSES, DECIDED, IN_PROGRESS, MEANINGS, PEOPLE_SETTING_LIMITS, DAY_MS, STAGE_LIMITS,
   SIGNUP_FIELDS, FIXED_SIGNUP_FIELDS, FIELD_RULES, NOT_AT_SIGNUP, SEXES, EDUCATION_LEVELS, ADDRESS_MAX, MIN_APPLICANT_AGE,
@@ -66,6 +72,7 @@ export const OPENING_BODY = {
   education: t.str(2000), training: t.str(2000), experience: t.str(2000), eligibility: t.str(2000),
   vacancies: t.any(), description: t.str(8000), closingDate: t.str(20), audience: t.str(20), status: t.str(20),
   categoryId: t.str(100), templateId: t.str(100),
+  requirements: t.arr(t.obj({ id: t.str(100), name: t.str(400), note: t.str(1000), required: t.any() }), 60), requireDocsBeforeApply: t.bool(),
 };
 
 export function registerRecruitmentRoutes(route, ctx) {
@@ -132,6 +139,7 @@ export function registerRecruitmentRoutes(route, ctx) {
       status: a.status, stage: a.stage, stageLabel: stageLabel(cfg, a.stage), stageSince: tracker.current.since,
       statusNote: a.statusNote || '', createdAt: a.createdAt, updatedAt: a.updatedAt,
       tracker, notes: notesOf(a),
+      documents: o ? docs.summary(a, o) : null, // "complete / missing N required" (PL-022)
       canWithdraw: canWithdraw(a, o), canApplyAgain: a.status === 'withdrawn' && openingAccepts(o, today()),
     };
   };
@@ -156,7 +164,10 @@ export function registerRecruitmentRoutes(route, ctx) {
     const i = o.plantillaItemId ? (data().plantillaItems || []).find((x) => x.id === o.plantillaItemId) : null;
     return i ? { id: i.id, itemNo: i.itemNo, positionTitle: i.positionTitle, status: i.status } : null;
   };
-  const openingHr = (o) => ({ ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o), plantillaItemId: o.plantillaItemId || null, fromItem: itemOfOpening(o), assessment: assess.openingAssessment(o) });
+  const openingHr = (o) => ({
+    ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o), plantillaItemId: o.plantillaItemId || null, fromItem: itemOfOpening(o), assessment: assess.openingAssessment(o),
+    requirements: o.requirements || [], requireDocsBeforeApply: Boolean(o.requireDocsBeforeApply),
+  });
   function nameOf(a) {
     if (a.removed) return REMOVED;
     const emp = a.internal ? employeeById(a.employeeId) : null;
@@ -204,22 +215,31 @@ export function registerRecruitmentRoutes(route, ctx) {
       moves: movesOf(a),
       own: false,
       userId: a.removed ? null : a.userId, // for the applicant profile (HR only)
-      rating: assess.ratingSummary(a, ranks || assess.ranksAt(openings().find((o) => o.id === a.openingId) || { id: a.openingId })),
+      rating: assess.ratingSummary(a, ranks || assess.ranksAt(openingOf(a) || { id: a.openingId })),
+      assessors: openingOf(a) ? assess.progressOf(a, openingOf(a)) : null, // "rated by 2 of 3 assessors"
+      documents: openingOf(a) ? docs.summary(a, openingOf(a)) : null, // "complete / missing N required"
       inPool: Boolean(!a.removed && assess.entryOf(a.userId)),
     };
   }
-
-  // Ratings, the comparative list, the applicant profile and the pool (server/recruitment-assess.js).
-  const assess = registerAssessmentRoutes(route, ctx, {
-    fail, data, save, iso, nowMs, today, people, openings, applications, userById, employeeById, openingForHr, nameOf, hrCampusIds, stages,
-  });
+  const openingOf = (a) => openings().find((o) => o.id === a.openingId) || null;
 
   // ----- Telling people (the bell) -----
   const toHr = (o, entry, actorId) => ctx.notify(decidersFor(data(), 'hris.recruitment', { campusId: o.campusId, exclude: [actorId], roles: EMPLOYEE_ROLES }), { system: 'hris', link: `/hris/#/recruitment/${o.id}`, ...entry }, { actorId });
 
+  // Ratings, the selection board, the comparative list, the applicant profile and the pool
+  // (server/recruitment-assess.js); the applicants' documents (server/recruitment-docs.js).
+  const assessH = { fail, data, save, iso, nowMs, today, people, openings, applications, userById, employeeById, openingForHr, nameOf, hrCampusIds, stages, toHr };
+  const assess = registerAssessmentRoutes(route, ctx, assessH);
+  const docs = registerApplicantDocs(route, ctx, {
+    fail, data, save, iso, nowMs, today, openings, applications, userById, nameOf, openingForHr, seeker, visibleTo, toHr, userCan,
+    assess: () => assess, stageLabel: (id) => stageLabel(stages(), id), categories: () => mergeAssessment(data().settings.assessment).categories,
+  });
+  Object.assign(assessH, { documentsOf: docs.documentsOf, documentsSummary: docs.summary, profileDocuments: docs.profileDocuments, onLeftPool: docs.onLeftPool });
+
   // ----- Removing an applicant: the account goes; their applications stay as "removed applicant" -----
   function removeApplicant(u) {
     assess.onRemoveApplicant(u); // the pool entry goes; ratings keep their scores, without comments
+    docs.onRemoveUser(u.id); // their documents go, files and all
     for (const a of applications().filter((x) => x.userId === u.id)) {
       a.userId = null;
       a.note = '';
@@ -239,6 +259,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     const now = nowMs();
     const s = people();
     let changed = assess.sweepPool(); // first: an account kept open for the pool then closes as usual
+    if (docs.sweep()) changed = true; // documents for openings someone never applied to, once closed
     for (const u of [...data().users]) {
       if (u.role !== 'applicant' || !u.expiresAt) continue;
       const ends = Date.parse(u.expiresAt);
@@ -415,6 +436,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     if (!o || (!visibleTo(me, o) && !prior)) fail('Job opening not found.', 404);
     if (!openingAccepts(o, today())) fail('This opening no longer takes applications.');
     if (prior && prior.status !== 'withdrawn') fail('You have already applied for this opening. See My applications.', 409);
+    docs.checkBeforeApply(o, user); // "required documents must be uploaded before applying" (off by default)
     const at = iso();
     const note = text(body.note, 2000);
     let a = prior;
@@ -489,6 +511,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     if (!(o.vacancies >= 1 && o.vacancies <= 999)) fail('Number of vacancies must be 1 to 999.');
     if (!DATE_RE.test(o.closingDate)) fail('Closing date is required.');
     Object.assign(o, assess.cleanOpeningAssessment(input, existing)); // position category and assessment template
+    Object.assign(o, docs.cleanRequirements(input, existing, o.categoryId)); // the requirements checklist (PL-022)
     if (o.status === 'open') {
       if (!o.education && !o.training && !o.experience && !o.eligibility) fail('Fill in the qualification standards before opening it.');
       if (o.closingDate < today() && (!existing || existing.status !== 'open' || existing.closingDate !== o.closingDate)) fail('The closing date has passed: pick a later date to open it.');
@@ -538,6 +561,7 @@ export function registerRecruitmentRoutes(route, ctx) {
   route('DELETE', '/api/hris/recruitment/openings/:id', 'hris:hris.recruitment', ({ params, user }) => {
     const o = openingForHr(user, params.id);
     if (applications().some((a) => a.openingId === o.id)) fail('This opening has applications: close it instead, so they are kept.');
+    docs.onRemoveOpening(o.id);
     data().jobOpenings = openings().filter((x) => x.id !== o.id);
     save();
     return { ok: true };
@@ -817,7 +841,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     },
   });
 
-  return { sweep, publicCount: () => publicOpenings().length };
+  return { sweep, publicCount: () => publicOpenings().length, docs, assessorSummary: (u) => assess.assessorSummary(u), addDocsDemo: (pdf) => addDocsDemo(data(), docs, pdf) };
 }
 
 // ----- Demo data: three open openings at the main campus (one Internal only), the demo
@@ -905,7 +929,7 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
     note: 'I finished my master\'s in information technology this year and have taught programming part-time for two years.',
   }, [
     ['received', 9],
-    ['screening', 6, 'Thank you for applying. Please send a scanned copy of your transcript of records to the HR office by email.'],
+    ['screening', 6, 'Thank you for applying. Please upload a scanned copy of your transcript of records under Your documents.'],
     ['assessment', 3, `You are invited to the written examination and interview on ${fmt(4)} at 9:00 at the HR office, Administration Building. Please bring a valid ID and your original transcript of records.`, 'Meets the education standard. Ask the college for a teaching demonstration slot.'],
   ]);
   const carla = data.jobApplications.at(-1);
@@ -940,19 +964,71 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
       note: 'I would like to be considered for this promotion. I have kept the library\'s personnel files for five years.',
     }, [['received', 4], ['screening', 2, 'Your service record is complete. We will tell you the date of the interview.']]);
   }
+  // The requirements checklists: each demo opening copies its category's default (HR settings).
+  const lists = mergeApplicantDocs(data.settings?.applicantDocs).checklists;
+  for (const o of [instructor, officer, lab, assistant]) o.requirements = structuredClone(lists[o.categoryId] || []);
+  // An internal opening: the example template with a Performance rating, if the school still has it.
+  if (mergeAssessment(data.settings?.assessment).templates.some((x) => x.id === 'promotion-example' && !x.retired)) officer.templateId = 'promotion-example';
   // Ratings with the example templates (each score 0 to 100; the weighted total is out of 100), and
-  // the two people in the pool, who ticked the box at sign-up.
+  // the two people in the pool, who ticked the box at sign-up. Instructor I has a selection board of
+  // three demo assessors (College of Computing faculty), each rating on their own.
+  const board = ['teacher.demo', 'jdelacruz.demo', 'lmercado.demo'].map((u) => userByName(u));
+  const [maria, juan, leo] = board;
   addAssessmentDemo(data, {
     now,
     stagesCfg: mergeRecruitmentStages(data.settings?.recruitmentStages),
     months: mergePeopleSettings(data.settings?.people).applicantPoolMonths,
     rate: [
-      [diego, [85, 90, 80, 100, 88, 85], HR, 1],
-      [teresa, [90, 70, 85, 100, 92, 80], HR, 1],
-      [carla, [95, 60, 70, 100, null, null], HR, 2], // the examination and interview are still to come
-      [ramon, [80, 85, 70, 100, 88, 90, 85], HR, 50],
-      [lizaApp, [75, 70, 80, 100, 76, 80, 72], HR, 50],
+      [ramon, [80, 85, 70, 100, 88, 90, 85], HR, 50, hrId],
+      [lizaApp, [75, 70, 80, 100, 76, 80, 72], HR, 50, hrId],
     ],
+    panel: {
+      opening: instructor, by: HR,
+      members: [[maria, 'Chairperson'], [juan, 'Member'], [leo, 'Member']],
+      ratings: [
+        [diego, maria, [85, 90, 80, 100, 88, 85], 1, true],
+        [diego, juan, [80, 85, 80, 100, 84, 80], 1, true],
+        [diego, leo, [90, 90, 75, 100, 90, 88], 1, true],
+        [teresa, maria, [90, 70, 85, 100, 92, 80], 1, true],
+        [teresa, juan, [88, 75, 80, 100, 90, 82], 1, true],
+        [teresa, leo, [92, 70, 85, 100, 90, 78], 2, false], // a draft: not counted yet
+        [carla, maria, [95, 60, 70, 100, null, null], 2, true], // the teaching demonstration and interview are still to come
+      ],
+    },
     pooled: [[liza, 40], [bianca, 4]],
+  });
+}
+
+// Demo documents: small generated PDFs (no real documents) for the demo applicant and two others at
+// Instructor I, one accepted and one sent back with a note; called once the demo school exists.
+function addDocsDemo(data, docs, pdf) {
+  const o = (data.jobOpenings || []).find((x) => x.demo && x.title === 'Instructor I');
+  const u = (name) => data.users.find((x) => x.demo && x.username === name);
+  const app = (user) => (o && user ? data.jobApplications.find((a) => a.openingId === o.id && a.userId === user.id) : null);
+  const carla = u('applicant.demo');
+  const diego = u('dlumbres.demo');
+  const teresa = u('tmalabanan.demo');
+  const HR = 'Josefina Dimaculangan';
+  docs.addDemo({
+    pdf,
+    files: [
+      [o, carla, 'pds', 'PDS-Carla-Mendiola.pdf', ['Personal Data Sheet (CS Form 212), demo copy.', 'Name: Carla Mendiola'], 8],
+      [o, carla, 'tor', 'TOR-MIT.pdf', ['Transcript of records, demo copy.', 'Master of Information Technology'], 8],
+      [o, carla, 'training', 'Training-certificates.pdf', ['Training certificates, demo copy.'], 7],
+      [o, diego, 'pds', 'PDS-Diego-Lumbres.pdf', ['Personal Data Sheet (CS Form 212), demo copy.'], 10],
+      [o, diego, 'tor', 'Transcript.pdf', ['Transcript of records, demo copy.'], 10],
+      [o, diego, 'diploma', 'Diploma.pdf', ['Diploma, demo copy.'], 10],
+      [o, diego, 'eligibility', 'PRC-licence.pdf', ['Professional licence, demo copy.'], 10],
+      [o, teresa, 'pds', 'PDS.pdf', ['Personal Data Sheet (CS Form 212), demo copy.'], 11],
+      [o, teresa, 'tor', 'TOR.pdf', ['Transcript of records, demo copy.'], 11],
+      [o, teresa, 'diploma', 'Diploma-MIT.pdf', ['Diploma, demo copy.'], 11],
+    ],
+    reviews: [
+      [app(carla), 'pds', 'accepted', '', HR],
+      [app(carla), 'tor', 'needs-new', 'The scan is cut off at the bottom: the registrar\'s signature does not show. Please upload a full scan of each page.', HR],
+      [app(diego), 'pds', 'accepted', '', HR],
+      [app(diego), 'tor', 'accepted', '', HR],
+      [app(diego), 'diploma', 'accepted', '', HR],
+    ],
   });
 }

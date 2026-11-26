@@ -15,7 +15,9 @@ import {
   SIGNUP_FIELDS, FIXED_SIGNUP_FIELDS, FIELD_RULES, SEXES, ADDRESS_MAX, MIN_APPLICANT_AGE, listInWords,
 } from '/shared/recruitment.js';
 import { applicationBadge, salaryLine, placeLine, qualifications } from './jobs.js';
-import { ratingBadge } from './assess.js';
+import { ratingBadge, progressBadge } from './assess.js';
+import { panelCard, wirePanel, docsBadge } from './board.js';
+import { requirementsEditor } from './documents.js';
 
 const OPENING_KIND = { draft: 'gray', open: 'green', closed: 'gray' };
 const openingBadge = (s) => badge(openingStatusLabel(s), OPENING_KIND[s]);
@@ -57,7 +59,7 @@ export async function openingFormView(el, { id } = {}, query = {}) {
   const fromItem = isNew && query.item ? await api.get(`/api/hris/plantilla/${encodeURIComponent(query.item)}/opening`) : null;
   const o = isNew ? { status: 'draft', audience: 'all', vacancies: 1, closingDate: '', campusId: ctx.info.activeCampusId, ...(fromItem || {}) } : await api.get(`/api/hris/recruitment/openings/${id}`);
   const campuses = ctx.info.campuses || [];
-  const as = await api.get('/api/hris/recruitment/assessment');
+  const [as, docSettings] = await Promise.all([api.get('/api/hris/recruitment/assessment'), api.get('/api/hris/recruitment/documents-settings')]);
   const fixed = Boolean(o.assessment?.frozen);
   const catDefault = (catId) => {
     const c = as.categories.find((x) => x.id === catId);
@@ -108,6 +110,12 @@ export async function openingFormView(el, { id } = {}, query = {}) {
           <label class="field"><span>Assessment template</span><select name="templateId" id="templateId" ${fixed ? 'disabled' : ''}>${tplOptions(startCat, startTpl)}</select><span class="hint" id="tpl-hint">${fixed ? `Fixed: applications have been rated (version ${o.assessment.templateVersion}).` : 'The criteria and weights applicants are rated on.'}</span></label>
         </div>
       </section>
+      <section class="card" id="requirements-card">
+        <div class="card-head"><h2>Documents to upload</h2><button type="button" class="btn sm ghost" id="use-category">${icon('undo', 14)} Use the category's list</button></div>
+        <p class="muted small">What applicants upload with their application, each Required or Optional. A new opening starts with its position category's list${can('hris.settings') ? html` (<a href="#/settings?section=documents">HR settings → Applicant documents</a>)` : ''}. Files: ${docSettings.types.length === 4 ? 'PDF, Word, Excel and pictures' : 'as HR settings allow'}, up to ${docSettings.maxMb} MB each, ${docSettings.maxFiles} per application.</p>
+        <div id="req-editor"></div>
+        <label class="check-row"><input type="checkbox" name="requireDocsBeforeApply" ${o.requireDocsBeforeApply ? 'checked' : ''} /> <span>Required documents must be uploaded before applying<small class="block muted">Off by default: people can apply first and add documents until the closing date.</small></span></label>
+      </section>
       <section class="card">
         <h2>Applications</h2>
         <div class="grid">
@@ -125,18 +133,30 @@ export async function openingFormView(el, { id } = {}, query = {}) {
     </form>`);
   const form = el.querySelector('#opening-form');
   form.querySelector('#sg').addEventListener('change', (e) => (form.querySelector('#sg-hint').textContent = salaryHint(e.target.value)));
-  // A new category: its default template.
+  // The checklist: the category's list for a new opening (until HR changes it), else the opening's own.
+  const listOf = (catId) => (docSettings.checklists[catId] || []).map(({ name, note, required }) => ({ id: '', name, note, required }));
+  let edited = !isNew;
+  const reqs = requirementsEditor(form.querySelector('#req-editor'), isNew ? listOf(startCat) : o.requirements || [], { onEdit: () => (edited = true) });
+  form.querySelector('#use-category').addEventListener('click', () => {
+    const cat = form.querySelector('#categoryId').value;
+    reqs.set(listOf(cat));
+    edited = false;
+    toast(cat ? 'The checklist is the category\'s list again.' : 'Pick a position category first.');
+  });
+  // A new category: its default template, and its checklist if HR has not changed the list.
   form.querySelector('#categoryId').addEventListener('change', (e) => {
     const sel = form.querySelector('#templateId');
     const next = catDefault(e.target.value);
     sel.innerHTML = '';
     sel.insertAdjacentHTML('beforeend', String(tplOptions(e.target.value, next)));
+    if (!edited) reqs.set(listOf(e.target.value));
   });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const errEl = form.querySelector('.form-error');
     try {
-      const saved = await (isNew ? api.post('/api/hris/recruitment/openings', formData(form)) : api.put(`/api/hris/recruitment/openings/${id}`, formData(form)));
+      const body = { ...formData(form), requirements: reqs.get(), requireDocsBeforeApply: form.requireDocsBeforeApply.checked };
+      const saved = await (isNew ? api.post('/api/hris/recruitment/openings', body) : api.put(`/api/hris/recruitment/openings/${id}`, body));
       toast(isNew ? 'Job opening saved.' : 'Changes saved.');
       location.hash = `#/recruitment/${saved.id}`;
     } catch (err) {
@@ -159,6 +179,8 @@ const CSV = [
   ['Highest educational attainment', (a) => a.profile?.educationLabel || ''], ['Preferred campus', (a) => a.profile?.campusName || ''],
   ['Applied', (a) => localDay(a.createdAt)], ['Stage', (a) => a.stageLabel], ['Last change', (a) => localDay(a.updatedAt)], ['Latest note to the applicant', (a) => a.statusNote],
   ['Weighted total', (a) => (a.rating ? a.rating.total.toFixed(2) : '')], ['Rank', (a) => a.rating?.rank || ''],
+  ['Assessors who rated', (a) => (a.assessors?.of ? `${a.assessors.submitted} of ${a.assessors.of}` : '')],
+  ['Documents', (a) => (a.documents ? (a.documents.complete ? 'Complete' : `Missing ${a.documents.missing} required`) : '')],
 ];
 
 // What a job applicant gave at sign-up besides their name, email and mobile (PL-016): one short line,
@@ -262,8 +284,11 @@ export async function openingView(el, { id }, query = {}) {
   const c = o.counts;
   const counts = stageCounts(o);
   const filter = counts.some((x) => x.id === query.stage) ? query.stage : '';
+  const incomplete = query.docs === 'incomplete';
+  const hasDocs = (o.requirements || []).length > 0;
+  const nIncomplete = o.applications.filter((a) => a.documents && !a.documents.complete && a.status !== 'withdrawn').length;
   const order = new Map(counts.map((x, i) => [x.id, i]));
-  const shown = o.applications.filter((a) => !filter || a.stage === filter).sort((a, b) => (order.get(a.stage) ?? 99) - (order.get(b.stage) ?? 99) || a.createdAt.localeCompare(b.createdAt));
+  const shown = o.applications.filter((a) => (!filter || a.stage === filter) && (!incomplete || (a.documents && !a.documents.complete))).sort((a, b) => (order.get(a.stage) ?? 99) - (order.get(b.stage) ?? 99) || a.createdAt.localeCompare(b.createdAt));
   const movable = (a) => !a.removed && a.status !== 'withdrawn' && !a.own;
   const groups = counts.map((x) => ({ ...x, apps: shown.filter((a) => a.stage === x.id) })).filter((g) => g.apps.length);
   const rateable = Boolean(o.assessment.templateName);
@@ -271,8 +296,8 @@ export async function openingView(el, { id }, query = {}) {
     <td class="pick">${movable(a) ? html`<input type="checkbox" data-pick="${a.id}" aria-label="Choose ${a.name}" />` : ''}</td>
     <td class="job-applicant">${who(a)}${a.inPool ? html` ${badge('In the pool', 'gray')}` : ''}${a.note ? html`<p class="small job-note">“${a.note}”</p>` : ''}</td>
     <td>${a.internal ? badge('Internal', 'brand') : badge('External', 'blue')}</td>
-    <td class="nowrap">${fmtDate(localDay(a.createdAt))}<small>Last change ${fmtDate(localDay(a.updatedAt))}</small></td>
-    <td class="job-rating">${ratingBadge(a.rating)}</td>
+    <td class="job-applied"><span class="nowrap">${fmtDate(localDay(a.createdAt))}</span><small>Last change ${fmtDate(localDay(a.updatedAt))}</small></td>
+    <td class="job-rating">${ratingBadge(a.rating)}${progressBadge(a.assessors)}${hasDocs && a.documents ? html`<a class="job-docs" href="#/recruitment/${o.id}/documents/${a.id}" title="Open the documents">${docsBadge(a.documents)}${a.documents.toCheck || a.documents.needsNew ? html`<small class="block muted">${[a.documents.toCheck ? `${a.documents.toCheck} to check` : '', a.documents.needsNew ? `${a.documents.needsNew} sent back` : ''].filter(Boolean).join(' · ')}</small>` : ''}</a>` : ''}</td>
     <td class="row-actions">${movable(a) ? html`<button class="btn sm" data-move="${a.id}">Move</button>` : a.own ? html`<small class="muted">Your own</small>` : ''}${movable(a) && rateable ? html`<a class="btn sm" href="#/recruitment/${o.id}/rate/${a.id}">${a.rating ? 'Rating' : 'Rate'}</a>` : ''}<button class="btn sm ghost" data-history="${a.id}">History</button></td>
   </tr>`;
   mount(el, html`
@@ -289,20 +314,22 @@ export async function openingView(el, { id }, query = {}) {
     <section class="card">
       <div class="card-head"><h2>Applications by stage</h2>${can('hris.settings') ? html`<a class="small" href="#/settings?section=stages">${icon('settings', 14)} Recruitment stages</a>` : ''}</div>
       ${o.applications.length ? html`<div class="stage-strip" role="group" aria-label="Show applications at a stage">
-        <a class="stage-count ${filter ? '' : 'on'}" href="#/recruitment/${o.id}"><strong>${o.applications.length}</strong><span>All</span></a>
+        <a class="stage-count ${filter || incomplete ? '' : 'on'}" href="#/recruitment/${o.id}"><strong>${o.applications.length}</strong><span>All</span></a>
         ${counts.map((x) => html`<a class="stage-count ${x.kind} ${filter === x.id ? 'on' : ''} ${x.count ? '' : 'zero'}" href="#/recruitment/${o.id}?stage=${x.id}" aria-label="${x.label}: ${x.count}"><strong>${x.count}</strong><span>${x.label}</span></a>`)}
+        ${hasDocs ? html`<a class="stage-count docs-filter ${incomplete ? 'on' : ''} ${nIncomplete ? '' : 'zero'}" href="#/recruitment/${o.id}?docs=incomplete" aria-label="Incomplete documents: ${nIncomplete}"><strong>${nIncomplete}</strong><span>Incomplete documents</span></a>` : ''}
       </div>` : ''}
       ${o.applications.length
         ? html`<div class="bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><button class="btn sm primary" id="bulk-move">${icon('chevronRight', 14)} Move chosen…</button><button class="btn sm ghost" id="bulk-clear">Clear</button></div>
           ${shown.length ? html`<div class="scroll-x"><table class="table job-apps" id="apps">
-            <thead><tr><th class="pick"><input type="checkbox" id="pick-all" aria-label="Choose all shown" /></th><th>Applicant and cover note</th><th>Internal / external</th><th>Applied</th><th>Rating</th><th></th></tr></thead>
+            <thead><tr><th class="pick"><input type="checkbox" id="pick-all" aria-label="Choose all shown" /></th><th>Applicant and cover note</th><th>Internal / external</th><th>Applied</th><th>${hasDocs ? html`Rating<span class="sr-only"> and documents</span>` : 'Rating'}</th><th></th></tr></thead>
             ${groups.map((g) => html`<tbody>
               <tr class="group-row"><th colspan="6" scope="colgroup">${g.label} <span class="muted">· ${g.apps.length}</span></th></tr>
               ${g.apps.map(row)}
             </tbody>`)}
-          </table></div>` : html`<p class="muted">No applications at ${stageName(o, filter)}.</p>`}`
+          </table></div>` : html`<p class="muted">${incomplete ? 'Every application has its required documents.' : `No applications at ${stageName(o, filter)}.`}</p>`}`
         : html`<p class="muted">No applications yet.${o.status === 'draft' ? ' This opening is a draft: open it so people can apply.' : ''}</p>`}
     </section>
+    ${panelCard(o)}
     <section class="card">
       <div class="card-head"><h2>The opening</h2><span class="actions">${audienceBadge(o.audience)} <span class="muted small">Closes ${fmtDate(o.closingDate)}</span></span></div>
       <dl class="info info-grid">
@@ -312,6 +339,7 @@ export async function openingView(el, { id }, query = {}) {
         <div><dt>Posted by</dt><dd>${o.createdBy} · ${fmtDate(localDay(o.createdAt))}</dd></div>
         <div><dt>Position category</dt><dd>${o.assessment.categoryLabel || '—'}</dd></div>
         <div><dt>Assessment template</dt><dd>${o.assessment.templateName ? html`${o.assessment.templateName} <small class="muted">v${o.assessment.templateVersion}${o.assessment.frozen ? ' · fixed by the first rating' : ''}</small>${o.assessment.templateExample ? html` ${badge('Example', 'amber')}` : ''}` : html`<span class="muted">None: <a href="#/recruitment/${o.id}/edit">choose one</a> to rate applicants</span>`}</dd></div>
+        <div><dt>Documents asked for</dt><dd>${hasDocs ? html`${o.requirements.map((r) => r.name).join(', ')}${o.requireDocsBeforeApply ? html`<small class="block muted">Required documents before applying</small>` : ''}` : html`<span class="muted">None: <a href="#/recruitment/${o.id}/edit">add a checklist</a></span>`}</dd></div>
       </dl>
       ${o.description ? html`<p class="pre" style="margin-top:14px">${o.description}</p>` : ''}
       <h3 style="margin-top:16px">Qualification standards</h3>
@@ -319,6 +347,7 @@ export async function openingView(el, { id }, query = {}) {
     </section>`);
   const reload = () => openingView(el, { id }, query);
   const find = (aid) => o.applications.find((x) => x.id === aid);
+  wirePanel(el, o, reload);
   el.querySelector('#export').addEventListener('click', () => downloadFile(`applications-${o.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${today()}.csv`, toCsv([CSV.map(([h]) => h), ...o.applications.map((a) => CSV.map(([, f]) => f(a)))])));
   el.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => moveDialog(o, find(b.dataset.move), reload)));
   el.querySelectorAll('[data-history]').forEach((b) => b.addEventListener('click', () => historyDialog(find(b.dataset.history))));

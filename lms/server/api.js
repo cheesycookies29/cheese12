@@ -80,6 +80,7 @@ import { registerRecruitmentRoutes } from './recruitment.js';
 import { registerPlantillaRoutes } from './plantilla.js';
 import { applicantExpired } from '../shared/recruitment.js';
 import { demoPdf, demoDocx } from './demo.js';
+import { MAX_ATTACH_PIECE_BODY } from './recruitment-docs.js';
 
 
 // The largest request body: 20 MB for someone signed in (files travel as base64 in JSON), and
@@ -88,6 +89,11 @@ import { demoPdf, demoDocx } from './demo.js';
 export const MAX_BODY_SIGNED_IN = 20 * 1024 * 1024;
 export const MAX_BODY_SIGNED_OUT = 256 * 1024;
 export const MAX_DOCS_BODY = 6 * 1024 * 1024; // ATLAS Documents: a 4 MB piece as base64, with room
+// People's recruitment: an applicant's document arrives in pieces of 1 MB (server/recruitment-docs.js).
+export { MAX_ATTACH_PIECE_BODY };
+// A job applicant signed in: their own picture (300 KB) is the largest thing they send besides a piece.
+export const MAX_BODY_APPLICANT = 512 * 1024;
+const ATTACH_PIECE = /^\/api\/hris\/jobs\/[^/]+\/documents\/uploads\/[^/]+$/;
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -99,9 +105,10 @@ const fail = (msg, status = 400) => {
 // options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
 // options.secrets: the server key (server/secrets.js; default: SERVER_KEY, or server.key beside the data file).
 // options.documentsDir: where ATLAS Documents keeps its encrypted files (default: data/documents).
+// options.applicantFilesDir: where job applicants' documents are kept, encrypted (default: data/applicant-files).
 // options.cloudflareFetch / options.cloudflareHelper: fetch for Cloudflare's API and the AWS instance
 // metadata, and where the server's Cloudflare helper is installed, for tests (default: fetch, /usr/local/sbin/ltdc-lms-cloudflare).
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, cloudflareFetch, cloudflareHelper, ssoLookup, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true, secrets = createSecrets(db.dir), documentsDir, secureCookies = cookiesSecureByDefault() } = {}) {
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, cloudflareFetch, cloudflareHelper, ssoLookup, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true, secrets = createSecrets(db.dir), documentsDir, applicantFilesDir, secureCookies = cookiesSecureByDefault() } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -236,6 +243,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     },
     audit: (e) => audit.record(e),
     auditLog: audit, // entries() and verify(), for Control
+    secrets, // the server key's derived keys (server/secrets.js): applicants' documents are encrypted with one
+    applicantFilesDir,
     // The bell (server/notifications.js): tells accounts about an event, at the server's time.
     notify: (userIds, entry, opts = {}) => notify(db.data, userIds, entry, { at: clock().toISOString(), nowMs: clock().getTime(), ...opts }),
   };
@@ -668,6 +677,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     addDemo(db.data, ctx.today(), ctx.files);
     addFinanceDemo(db.data, ctx);
     documents.addDemo({ pdf: demoPdf, docx: demoDocx });
+    recruitment.addDocsDemo(demoPdf); // applicants' demo documents (generated PDFs), encrypted like the rest
     addAuditDemo(db.data, clock().getTime());
     db.data.notifications = db.data.notifications.filter((n) => before.has(n.id));
     addNotificationsDemo(db.data, clock().getTime());
@@ -677,6 +687,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('DELETE', '/api/admin/demo', 'admin:data.manage', () => {
     for (const u of users().filter((x) => x.demo)) ctx.signOutEverywhere(u.id);
     documents.removeDemo();
+    recruitment.docs.removeDemo();
     removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
     removeAuditDemo(db.data);
@@ -703,6 +714,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       permissions: allowed ? HRIS_PERMISSION_LABELS.map(([p]) => p).filter((p) => userCan(user, p)) : [],
       employee: allowed ? hris.employeeSummary(user) : null,
       applicant: allowed && user.role === 'applicant' ? { expiresAt: user.expiresAt } : null, // a job applicant: only the jobs area
+      assessor: allowed && user.role !== 'applicant' ? recruitment.assessorSummary(user) : null, // named on a selection board: Ratings to do
     };
   };
   route('GET', '/api/hris/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => hrisStatus(hrisUser || adminUser || portalUser), { duringPasswordChange: true });
@@ -1034,6 +1046,10 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const piece = req.method === 'PUT' ? /^\/api\/public\/share\/([^/]+)\/uploads\/[^/]+$/.exec(p) : null;
     if (piece) return { maxBody: (() => { try { return documents.uploadLinkOpen(decodeURIComponent(piece[1])); } catch { return false; } })() ? MAX_DOCS_BODY : MAX_BODY_SIGNED_OUT };
     if (!signedIn) return { maxBody: MAX_BODY_SIGNED_OUT };
+    // People's recruitment: a piece of an applicant's document (1 MB, as base64), for someone signed in.
+    // A job applicant (someone outside the school) sends nothing else larger than the signed-out limit.
+    if (req.method === 'PUT' && ATTACH_PIECE.test(p)) return { maxBody: MAX_ATTACH_PIECE_BODY };
+    if (signedIn.role === 'applicant') return { maxBody: MAX_BODY_APPLICANT };
     if (p.startsWith('/api/docs/')) return { maxBody: MAX_DOCS_BODY };
     // PDF Studio: a file of up to DIRECT_UPLOAD_BYTES as base64 in one request, an export with up to
     // 30 MB of page edits (pictures, signatures); pieces of larger files fit the usual limit.

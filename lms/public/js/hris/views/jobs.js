@@ -8,6 +8,7 @@ import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, money, fmtDate, fmtDateTime, badge, toast, modal, confirmDialog, today } from '../../ui.js';
 import { poolTickText, poolPrivacyText } from '/shared/recruitment-assess.js';
+import { documentsCard } from './documents.js';
 
 // An application's stage or outcome as a badge, coloured by its fixed meaning.
 const MEANING_KIND = { 'in-progress': 'blue', selected: 'green', 'not-selected': 'gray', withdrawn: 'gray' };
@@ -87,7 +88,10 @@ export async function jobView(el, { id }) {
               <button class="btn primary block" id="apply">${icon('check', 16)} ${mine ? 'Apply again' : 'Apply'}</button>`
             : html`<p class="muted">This opening no longer takes applications.</p>`}
       </section>
-    </div>`);
+    </div>
+    <div id="docs-slot"></div>`);
+  // The documents to upload (PL-022): before applying too, so they can be ready.
+  if (o.accepting || mine) await documentsCard(el.querySelector('#docs-slot'), o.id, { compact: Boolean(mine && mine.status !== 'withdrawn') });
   el.querySelector('#apply')?.addEventListener('click', () => modal({
     title: `Apply for ${o.title}`,
     subtitle: placeLine(o),
@@ -166,6 +170,7 @@ export async function myApplicationsView(el) {
             ${applicationBadge(a)}
           </div>
           ${tracker(a.tracker, { compact: true })}
+          ${a.documents ? html`<p class="small job-latest"><a href="#/jobs/mine/${a.id}">${icon('file', 14)} Your documents</a>: ${badge(a.documents.complete ? 'Complete' : `Missing ${a.documents.missing} required`, a.documents.complete ? 'green' : 'amber')}${a.documents.needsNew ? html` ${badge(`${a.documents.needsNew} needs a new file`, 'amber')}` : ''}</p>` : ''}
           ${a.notes.length ? html`<p class="small job-latest"><strong>Latest note from HR</strong> <span class="muted">(${fmtDate(localDay(a.notes.at(-1).at))})</span>: ${a.notes.at(-1).note}</p>` : ''}
           <div class="actions">
             <a class="btn sm primary" href="#/jobs/mine/${a.id}">${icon('chart', 14)} See its progress</a>
@@ -251,6 +256,8 @@ export async function applicationView(el, { id }) {
         </div>
         ${a.canWithdraw ? html`<p class="muted small">You can withdraw while the opening is not closed and HR has not decided.</p>` : ''}
       </section>
-    </div>`);
+    </div>
+    <div id="docs-slot"></div>`);
+  await documentsCard(el.querySelector('#docs-slot'), a.openingId).catch(() => {});
   el.querySelector('#withdraw')?.addEventListener('click', () => withdraw(a, () => applicationView(el, { id })));
 }

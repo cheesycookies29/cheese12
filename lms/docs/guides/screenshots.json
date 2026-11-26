@@ -1350,6 +1350,96 @@
   "wait": 1000
  },
  {
+  "file": "hr-selection-board.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I"
+  ],
+  "scroll": "#panel-card",
+  "wait": 1000
+ },
+ {
+  "file": "hr-name-board.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Laboratory Technician I",
+   "#edit-panel",
+   "fill:#board-q|Nestor",
+   ".board-pick >> nth=0",
+   "fill:#board-edit li:last-child input[name=title]|Chairperson",
+   "fill:#board-q|Ramon",
+   "#board-q"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "hr-rate-board.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "tr:has-text(\"Teresa Malabanan\") a.btn:text-is(\"Rating\")"
+  ],
+  "scroll": "#breakdown",
+  "wait": 1000
+ },
+ {
+  "file": "hr-applicant-documents.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "tr:has-text(\"Carla Mendiola\") a.job-docs"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "hr-needs-new-file.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "tr:has-text(\"Carla Mendiola\") a.job-docs",
+   "[data-needs=training]",
+   "fill:.modal textarea[name=note]|The certificate is not signed. Please upload the signed copy."
+  ],
+  "wait": 900
+ },
+ {
+  "file": "hr-applicant-docs-settings.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/settings?section=documents",
+  "wait": 1500
+ },
+ {
+  "file": "assessor-ratings-to-do.jpg",
+  "user": "lmercado.demo",
+  "url": "/hris/#/assess",
+  "wait": 1200
+ },
+ {
+  "file": "assessor-rate.jpg",
+  "user": "lmercado.demo",
+  "url": "/hris/#/assess",
+  "click": [
+   ".board-card >> nth=0",
+   "tr:has-text(\"Teresa Malabanan\") a.btn"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "applicant-documents.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs/mine",
+  "click": [
+   "text=See its progress >> nth=0"
+  ],
+  "scroll": "#docs-card",
+  "wait": 1200
+ },
+ {
   "file": "hr-pool.jpg",
   "user": "hr.demo",
   "url": "/hris/#/recruitment/pool",

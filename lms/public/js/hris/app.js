@@ -7,6 +7,7 @@ import { startApp, authScreen } from '../shell.js';
 import { systemRoutes, systemNav } from '../system/index.js';
 import { html } from '../ui.js';
 import { hr, can, isEmployee, isApplicant } from './state.js';
+import { ctx } from '../shell.js';
 import { api } from '../api.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
@@ -21,6 +22,8 @@ import { brandHome } from '../brand.js';
 import { jobsView, jobView, myApplicationsView, applicationView } from './views/jobs.js';
 import { openingsView, openingFormView, openingView, applicantsView } from './views/recruitment.js';
 import { ratingView, comparativeView, profileView, poolView } from './views/assess.js';
+import { ratingsToDoView, boardOpeningView } from './views/board.js';
+import { documentsReviewView } from './views/documents.js';
 import { plantillaListView, plantillaItemView, plantillaFormView, psipopView } from './views/plantilla.js';
 
 const perm = (p) => () => can(p);
@@ -28,6 +31,8 @@ const emp = () => isEmployee();
 // Job openings: employees (self-service) and job applicants.
 const seeker = () => isEmployee() || isApplicant();
 const staffOnly = (check) => () => !isApplicant() && check();
+// Named on a selection board (PL-021): Ratings to do, for any staff account HR names.
+const assessor = () => !isApplicant() && Boolean(ctx.info?.assessor);
 // The plantilla register: HR (hris.plantilla) keeps it; anyone who views employee records reads it.
 const plantilla = () => can('hris.plantilla') || can('employees.view');
 
@@ -60,6 +65,11 @@ const routes = [
   ['/recruitment/:id/edit', openingFormView, perm('hris.recruitment')],
   ['/recruitment/:id/comparative', comparativeView, perm('hris.recruitment')],
   ['/recruitment/:id/rate/:appId', ratingView, perm('hris.recruitment')],
+  ['/recruitment/:id/documents/:appId', documentsReviewView, perm('hris.recruitment')],
+  ['/assess', ratingsToDoView, assessor],
+  ['/assess/:id', boardOpeningView, () => assessor() || can('hris.recruitment')],
+  ['/assess/:id/rate/:appId', (el, params, query) => ratingView(el, params, query, { board: true }), () => assessor() || can('hris.recruitment')],
+  ['/assess/:id/documents/:appId', (el, params, query) => documentsReviewView(el, params, query, { board: true }), () => assessor() || can('hris.recruitment')],
   ['/jobs', jobsView, seeker],
   ['/jobs/mine', myApplicationsView, seeker],
   ['/jobs/mine/:id', applicationView, seeker],
@@ -92,7 +102,7 @@ function nav() {
     isEmployee() && { href: '/me/payslips', label: 'My payslips', icon: 'wallet' },
     isEmployee() && { href: '/me/profile', label: 'My HR record', icon: 'user' },
     isEmployee() && { href: '/jobs', label: 'Job openings', icon: 'briefcase' },
-    !isEmployee() && !hrScreens && { href: '/not-linked', label: 'Getting started', icon: 'flag' },
+    !isEmployee() && !hrScreens && !assessor() && { href: '/not-linked', label: 'Getting started', icon: 'flag' },
     hrScreens && { heading: 'Human resources' },
     can('hris.dashboard') && { href: '/dashboard', label: 'HR dashboard', icon: 'chart' },
     can('employees.view') && { href: '/employees', label: 'Employees', icon: 'users' },
@@ -106,6 +116,8 @@ function nav() {
     can('hris.recruitment') && { href: '/recruitment', label: 'Job openings', icon: 'briefcase' },
     can('hris.recruitment') && { href: '/recruitment/applicants', label: 'Applicant accounts', icon: 'users' },
     can('hris.recruitment') && { href: '/recruitment/pool', label: 'Pool of applicants', icon: 'layers' },
+    assessor() && { heading: 'Selection board' },
+    assessor() && { href: '/assess', label: 'Ratings to do', icon: 'clipboard', badge: 'ratings' },
     (can('payroll.config') || can('hris.settings')) && { heading: 'Setup' },
     can('payroll.config') && { href: '/payroll-setup', label: 'Payroll setup', icon: 'settings' },
     can('hris.settings') && { href: '/settings', label: 'HR settings', icon: 'building' },
@@ -113,7 +125,7 @@ function nav() {
   ].filter(Boolean);
 }
 
-const home = () => (isApplicant() ? '/jobs' : can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' : can('employees.view') ? '/employees' : '/not-linked');
+const home = () => (isApplicant() ? '/jobs' : can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' : can('employees.view') ? '/employees' : assessor() ? '/assess' : '/not-linked');
 
 // Everyone signs in once, on the University Portal (/); it sends them back here.
 // Students have no HRIS: say so instead.
@@ -143,5 +155,7 @@ startApp({
   badges: {
     // Only for those who can act on them (as in the ERP): approvers, not everyone who can see leave.
     requests: async () => (can('leave.approve') ? (await api.get('/api/hris/requests/summary')).pending : 0),
+    // Applicants still to rate on the boards this person is on.
+    ratings: async () => (assessor() ? (await api.get('/api/hris/assess')).openings.filter((o) => o.status !== 'closed').reduce((n, o) => n + o.toDo, 0) : 0),
   },
 });

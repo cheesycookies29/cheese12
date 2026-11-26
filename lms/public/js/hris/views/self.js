@@ -76,6 +76,7 @@ export async function meHomeView(el) {
 
     mount(el, html`
       ${pageHead(`${greeting()}, ${emp.firstName}`, `${emp.position || 'Employee'} · ${emp.department || ''}${emp.department ? ' · ' : ''}${emp.employeeNo} · ${emp.campusName}`)}
+      ${ctx.info?.assessor?.toDo ? html`<a class="notice info board-todo" href="#/assess">${icon('clipboard', 18)}<p><strong>Your ratings to do:</strong> ${ctx.info.assessor.toDo} applicant${ctx.info.assessor.toDo === 1 ? '' : 's'} on ${ctx.info.assessor.openings === 1 ? 'the selection board you are on' : `the ${ctx.info.assessor.openings} selection boards you are on`}. Open Ratings to do.</p></a>` : ''}
       <div class="cols">
         <section class="card clock-card">
           <div class="clock-time" id="clock-time"></div>

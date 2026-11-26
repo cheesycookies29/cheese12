@@ -8,11 +8,18 @@
 //    An opening gets a category and a template in its form. The first rating at an opening freezes
 //    the template: a copy of that version is kept on the opening (o.assessment), so later edits to
 //    the template never change a past rating.
-//  - Rating (PL-018, PL-021 in part): HR scores each criterion 0 to 100 with an optional comment; the
-//    weighted total is Σ score × weight / 100 (never above 100). Who rated and when is kept, and every
-//    rating goes to the audit log. One assessor per application: several assessors with averaging is
-//    not in this build. The applicant never sees scores (a question for the school: some processes
-//    publish comparative assessment results).
+//  - Rating (PL-018, PL-021): each criterion is scored 0 to 100 with an optional comment; the
+//    weighted total is Σ score × weight / 100 (never above 100). HR names a selection board (a panel
+//    of assessors) per opening; each assessor rates each applicant on their own (a draft, then
+//    submitted) and sees nobody else's scores before submitting. The submitted ratings are combined
+//    by the template's rule (average; average without the highest and lowest; board consensus entered
+//    by the secretariat), per criterion. HR can always rate, as the HR office (one shared rating, as
+//    before several assessors existed). Who rated and when is kept, and every rating, draft, consensus
+//    and panel change goes to the audit log. The applicant never sees scores (a question for the
+//    school: some processes publish comparative assessment results).
+//  - A Performance rating criterion: a typed score with its source, or an adjectival rating converted
+//    by the template's table; for external applicants not applicable (its weight spread over the
+//    others) unless the template takes a typed score.
 //  - The comparative list: an opening's rated applicants ranked by total, a column per criterion;
 //    CSV and a printable A4 landscape page.
 //  - The applicant profile (PL-019): one person's details, account dates, every application with its
@@ -30,13 +37,14 @@ import { text, localDate } from './util.js';
 import { t } from './validate.js';
 import { campusName } from './campus.js';
 import { fmtDay } from './notifications.js';
-import { userCan } from '../shared/roles.js';
+import { userCan, NON_STAFF_ROLES, ROLES, roleLabel } from '../shared/roles.js';
 import {
   applicantDetails, stageLabel, stageInfo, meaningLabel, openingAccepts, applicantExpired, EDUCATION_LEVELS, educationLabel, DAY_MS,
 } from '../shared/recruitment.js';
 import {
   mergeAssessment, weightProblem, weightedTotal, ranksOf, scoreProblem, ASSESSMENT_LIMITS, DEFAULT_ASSESSMENT,
-  addMonths, poolMonthsFor,
+  addMonths, poolMonthsFor, skipSet, combineRating, combineLabel, DEFAULT_COMBINE, COMBINE_RULES, EXTERNAL_RULES, NOT_APPLICABLE,
+  DEFAULT_ADJECTIVAL, twoDecimals, DEFAULT_BOARD,
 } from '../shared/recruitment-assess.js';
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -93,11 +101,11 @@ export function registerAssessmentRoutes(route, ctx, h) {
   }
   // The frozen copy once an application to it has been rated; until then the template as it is now.
   function templateFor(o) {
-    if (o.assessment) return { ...structuredClone(o.assessment), frozen: true };
+    if (o.assessment) return { combine: DEFAULT_COMBINE, ...structuredClone(o.assessment), frozen: true };
     const tpl = templateOf(o.templateId);
     if (!tpl) return null;
     return {
-      templateId: tpl.id, name: tpl.name, version: tpl.version, example: Boolean(tpl.example),
+      templateId: tpl.id, name: tpl.name, version: tpl.version, example: Boolean(tpl.example), combine: tpl.combine || DEFAULT_COMBINE,
       categoryId: o.categoryId || '', categoryLabel: categoryLabel(o.categoryId), criteria: structuredClone(tpl.criteria), frozen: false,
     };
   }
@@ -126,104 +134,367 @@ export function registerAssessmentRoutes(route, ctx, h) {
     return {
       categoryId: o.categoryId || '', categoryLabel: categoryLabel(o.categoryId), templateId: o.templateId || '',
       templateName: tpl?.name || '', templateVersion: tpl?.version || null, templateExample: Boolean(tpl?.example),
-      frozen: Boolean(o.assessment), frozenAt: o.assessment?.frozenAt || null,
+      frozen: Boolean(o.assessment), frozenAt: o.assessment?.frozenAt || null, combine: tpl?.combine || DEFAULT_COMBINE,
       rated: applications().filter((a) => a.openingId === o.id && a.rating).length,
+      panel: panelView(o),
     };
   }
 
+  // ----- Who may rate: HR at the opening's campus, and the assessors named on its panel -----
+  // An assessor is any active staff account (not a student, parent or job applicant). Naming them on
+  // an opening's panel is what lets them see and rate that opening's applicants (the permission
+  // hris.assess, given by the panel for that opening only); taking hris.assess away from an account
+  // (Users & Access → Access) stops it rating even where it is named. HR (hris.recruitment) can
+  // always rate, as the HR office.
+  const isHrOf = (user, o) => userCan(user, 'hris.recruitment') && hrCampusIds(user).has(o.campusId);
+  const panelOf = (o) => (Array.isArray(o.panel) ? o.panel : []);
+  const onPanel = (o, user) => panelOf(o).some((p) => p.userId === user.id);
+  const mayAssess = (u) => Boolean(u) && u.status === 'active' && !NON_STAFF_ROLES.includes(u.role) && ROLES[u.role] && !u.access?.remove?.includes('hris.assess');
+  function openingForRater(user, id) {
+    const o = openings().find((x) => x.id === id);
+    if (o && isHrOf(user, o)) return { o, hr: true };
+    if (o && onPanel(o, user) && mayAssess(user)) return { o, hr: false };
+    if (userCan(user, 'hris.recruitment')) fail('Job opening not found at your campuses.', 404);
+    fail('You are not on the selection board of this opening. HR names the assessors of each opening.', 403);
+  }
+  // Whose rating someone makes: their own as a named assessor, else the HR office's (one shared
+  // rating, as before several assessors: another HR person's rating replaces it, with its history).
+  const slotOf = (o, user) => (onPanel(o, user) ? user.id : 'hr');
+  const slotName = (o, r) => r.by || (r.slot === 'hr' ? 'HR office' : nameOfUser(r.slot));
+  const nameOfUser = (id) => userById(id)?.name || 'Former assessor';
+  const ratingsOf = (a) => (Array.isArray(a.ratings) ? a.ratings : []);
+
+  // ----- Combining (shared/recruitment-assess.js) -----
+  // a.rating is the combined result of the submitted ratings (or the consensus), kept with the
+  // application so the lists, the pool and the profile read it as before; null while nothing counts.
+  function recombine(a, o) {
+    const tpl = templateFor(o);
+    if (!tpl) return (a.rating = null);
+    const skip = skipSet(tpl.criteria, a.internal);
+    const rule = tpl.combine || DEFAULT_COMBINE;
+    const c = combineRating(tpl.criteria, ratingsOf(a), rule, a.consensus, skip);
+    if (!c) {
+      a.rating = null;
+      return null;
+    }
+    const sub = ratingsOf(a).filter((r) => r.submittedAt);
+    const single = rule !== 'consensus' && sub.length === 1 ? sub[0] : null;
+    const scores = single ? structuredClone(single.scores) : c.scores; // one rating: its comments too
+    const at = rule === 'consensus' ? a.consensus.at : sub.map((r) => r.submittedAt).sort().at(-1);
+    a.rating = {
+      version: tpl.version, templateId: tpl.templateId, rule, scores, total: c.total, complete: c.complete, count: c.count,
+      by: rule === 'consensus' ? `Board consensus (entered by ${a.consensus.by})` : single ? single.by : `${sub.length} assessors`,
+      byId: single?.byId || (rule === 'consensus' ? a.consensus.byId : null), at,
+      history: single ? structuredClone(single.history || []) : [],
+    };
+    return a.rating;
+  }
+  // "Rated by 2 of 3 assessors": the panel, and anyone else whose rating counts (the HR office).
+  function progressOf(a, o) {
+    const done = new Set(ratingsOf(a).filter((r) => r.submittedAt).map((r) => r.slot));
+    const all = new Set([...panelOf(o).map((p) => p.userId), ...done]);
+    const tpl = templateFor(o);
+    return { submitted: done.size, of: all.size, drafts: ratingsOf(a).filter((r) => !r.submittedAt).length, rule: tpl?.combine || DEFAULT_COMBINE, consensus: Boolean(a.consensus) };
+  }
+
   // ----- Ratings -----
-  // The rated applications of an opening (not withdrawn), and each one's rank by total.
+  // The applications of an opening with a combined rating (not withdrawn), and each one's rank by total.
   function ranked(o) {
     const list = applications().filter((a) => a.openingId === o.id && a.rating && a.status !== 'withdrawn');
     return { list, ranks: ranksOf(list.map((a) => ({ id: a.id, total: a.rating.total }))) };
   }
   const ranksAt = (o) => ranked(o).ranks;
-  // An application's rating as HR reads it: scores, comments, points, total, who and when.
-  function ratingOf(a, tpl) {
-    const r = a.rating;
+  // A rating as HR or its assessor reads it: scores, comments, points, total, who and when.
+  function ratingOf(r, tpl, skip) {
     if (!r) return null;
-    const sum = weightedTotal(tpl?.criteria || [], r.scores);
+    const sum = weightedTotal(tpl?.criteria || [], r.scores, skip);
     return {
-      version: r.version, scores: structuredClone(r.scores), points: sum.points, total: r.total, complete: r.complete,
-      by: r.by, at: r.at, history: (r.history || []).map((x) => ({ total: x.total, by: x.by, at: x.at })),
+      version: r.version, scores: structuredClone(r.scores || {}), points: sum.points, total: r.total ?? sum.total, complete: r.complete ?? sum.complete,
+      by: r.by, at: r.at, submittedAt: r.submittedAt ?? r.at ?? null, draft: Object.hasOwn(r, 'submittedAt') && !r.submittedAt,
+      history: (r.history || []).map((x) => ({ total: x.total, by: x.by, at: x.at })),
+      ...(r.slot ? { slot: r.slot } : {}),
     };
   }
-  function ratingView(a, o, user) {
+  // The breakdown (HR only): each assessor's rating, and the consensus.
+  const breakdownOf = (a, o, tpl, skip) => ratingsOf(a).map((r) => ({ ...ratingOf(r, tpl, skip), slot: r.slot, name: slotName(o, r), title: panelOf(o).find((p) => p.userId === r.slot)?.title || (r.slot === 'hr' ? 'HR office' : '') }));
+  function ratingView(a, o, user, access) {
     const tpl = templateFor(o);
+    const skip = tpl ? skipSet(tpl.criteria, a.internal) : new Set();
     const { list, ranks } = ranked(o);
+    const slot = slotOf(o, user);
+    const mine = ratingsOf(a).find((r) => r.slot === slot) || null;
+    // A named assessor sees nobody else's scores until they submit their own (HR included, when named).
+    const independent = slot !== 'hr' && !mine?.submittedAt;
+    const seesResult = access.hr ? !independent : Boolean(mine?.submittedAt) && cfg().board.assessorsSeeResult;
     return {
-      application: { id: a.id, name: nameOf(a), userId: a.removed ? null : a.userId, internal: a.internal, stage: a.stage, stageLabel: stageLabel(h.stages(), a.stage), status: a.status, removed: Boolean(a.removed), own: a.userId === user.id },
+      application: { id: a.id, name: nameOf(a), userId: a.removed ? null : a.userId, internal: a.internal, stage: a.stage, stageLabel: stageLabel(h.stages(), a.stage), status: a.status, removed: Boolean(a.removed), own: a.userId === user.id, note: a.note || '' },
       opening: { id: o.id, title: o.title, status: o.status, categoryLabel: categoryLabel(o.categoryId) },
-      template: tpl, rating: ratingOf(a, tpl), rank: ranks.get(a.id) || null, rated: list.length,
+      template: tpl, skip: [...skip],
+      rating: ratingOf(mine, tpl, skip), // this person's own (or the HR office's)
+      asAssessor: slot !== 'hr', hr: access.hr,
+      combined: seesResult && a.rating ? { ...ratingOf(a.rating, tpl, skip), rule: a.rating.rule, count: a.rating.count } : null,
+      breakdown: access.hr && !independent ? breakdownOf(a, o, tpl, skip) : null,
+      consensus: access.hr && a.consensus ? ratingOf(a.consensus, tpl, skip) : null,
+      progress: progressOf(a, o), panel: panelOf(o).length,
+      rank: seesResult ? ranks.get(a.id) || null : null, rated: seesResult ? list.length : null,
+      board: { seesResult: cfg().board.assessorsSeeResult, independent },
+      documents: h.documentsOf ? h.documentsOf(a, o) : null,
     };
   }
-  route('GET', '/api/hris/recruitment/applications/:id/rating', 'hris:hris.recruitment', ({ params, user }) => {
-    const a = applications().find((x) => x.id === params.id) || fail('Application not found.', 404);
-    return ratingView(a, openingForHr(user, a.openingId), user);
-  }, { audit: false });
-  route('PUT', '/api/hris/recruitment/applications/:id/rating', 'hris:hris.recruitment', ({ params, body, user, ip, agent }) => {
-    const a = applications().find((x) => x.id === params.id) || fail('Application not found.', 404);
-    const o = openingForHr(user, a.openingId);
-    if (a.userId === user.id) fail('You cannot rate your own application. Another HR person does.', 403);
-    if (a.removed) fail('This applicant was removed. The application is kept only so the counts stay true.');
-    if (a.status === 'withdrawn') fail('The applicant withdrew this application.');
-    const tpl = templateFor(o) || fail('Choose a position category and an assessment template for this opening first: Edit the opening.');
-    const input = body.scores && typeof body.scores === 'object' && !Array.isArray(body.scores) ? body.scores : fail('Send a score for each criterion.');
+  // A rating's scores from the form: 0 to 100 per criterion, with a comment; the performance rating
+  // also with its source and, optionally, the adjectival rating it was converted from.
+  function cleanScores(tpl, a, input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Send a score for each criterion.');
+    const skip = skipSet(tpl.criteria, a.internal);
     const scores = {};
     for (const c of tpl.criteria) {
       const x = input[c.id] && typeof input[c.id] === 'object' ? input[c.id] : {};
-      const problem = scoreProblem(c.label, x.score);
+      const given = !(x.score === '' || x.score === null || x.score === undefined);
+      if (skip.has(c.id)) {
+        if (given || x.adjectival) fail(`${c.label}: ${NOT_APPLICABLE}`);
+        continue;
+      }
+      let score = x.score;
+      let adjectival = '';
+      if (c.type === 'performance' && x.adjectival) {
+        const row = (c.table || []).find((r) => r.label === String(x.adjectival)) || fail(`${c.label}: pick a rating from the template's list (${(c.table || []).map((r) => r.label).join(', ')}).`);
+        adjectival = row.label;
+        score = row.score;
+      }
+      const has = !(score === '' || score === null || score === undefined);
+      const problem = scoreProblem(c.label, score);
       if (problem) fail(problem);
       const comment = text(x.comment, 500);
-      const given = !(x.score === '' || x.score === null || x.score === undefined);
-      if (given || comment) scores[c.id] = { score: given ? Number(x.score) : null, ...(comment ? { comment } : {}) };
+      const source = c.type === 'performance' ? text(x.source, ASSESSMENT_LIMITS.source) : '';
+      if (has || comment || source) scores[c.id] = { score: has ? Number(score) : null, ...(comment ? { comment } : {}), ...(source ? { source } : {}), ...(adjectival ? { adjectival } : {}) };
     }
-    const sum = weightedTotal(tpl.criteria, scores);
+    const sum = weightedTotal(tpl.criteria, scores, skip);
     if (!sum.given) fail('Give a score for at least one criterion.');
-    const at = iso();
-    // The first rating at this opening fixes its template: a copy of this version stays on the opening.
-    if (!o.assessment) {
-      const { frozen, ...copy } = tpl;
-      o.assessment = { ...copy, frozenAt: at, frozenBy: user.name };
-      ctx.audit({ kind: 'change', system: 'people', action: 'Fixed the assessment template of a job opening (first rating)', actor: user, target: { id: o.id, name: o.title }, ip, agent, detail: `${tpl.name}, version ${tpl.version}` });
-    }
-    const before = a.rating || null;
-    a.rating = {
-      version: o.assessment.version, templateId: o.assessment.templateId, scores, total: sum.total, complete: sum.complete, by: user.name, byId: user.id, at,
-      history: before ? [...(before.history || []), { total: before.total, by: before.by, at: before.at }].slice(-20) : [],
-    };
+    return { scores, sum, skip };
+  }
+  // The first rating at an opening (a draft, a submitted one or the consensus) fixes its template.
+  function freeze(o, tpl, user, at, { ip, agent }) {
+    if (o.assessment) return;
+    const { frozen, ...copy } = tpl;
+    o.assessment = { ...copy, frozenAt: at, frozenBy: user.name };
+    ctx.audit({ kind: 'change', system: 'people', action: 'Fixed the assessment template of a job opening (first rating)', actor: user, target: { id: o.id, name: o.title }, ip, agent, detail: `${tpl.name}, version ${tpl.version} · ${combineLabel(tpl.combine)}` });
+  }
+  const scoreChanges = (tpl, before, scores) => {
     const was = (id) => before?.scores?.[id]?.score;
+    return tpl.criteria.filter((c) => was(c.id) !== scores[c.id]?.score && !(was(c.id) == null && scores[c.id]?.score == null)).map((c) => ({ field: `${c.label} (${c.weight}%)`, from: was(c.id) ?? '', to: scores[c.id]?.score ?? '' }));
+  };
+  function checkRateable(a, user) {
+    if (a.userId === user.id) fail('You cannot rate your own application. Another HR person does.', 403);
+    if (a.removed) fail('This applicant was removed. The application is kept only so the counts stay true.');
+    if (a.status === 'withdrawn') fail('The applicant withdrew this application.');
+  }
+  route('GET', '/api/hris/recruitment/applications/:id/rating', 'hris', ({ params, user }) => {
+    const a = applications().find((x) => x.id === params.id) || fail('Application not found.', 404);
+    const access = openingForRater(user, a.openingId);
+    return ratingView(a, access.o, user, access);
+  }, { audit: false });
+  route('PUT', '/api/hris/recruitment/applications/:id/rating', 'hris', ({ params, body, user, ip, agent }) => {
+    const a = applications().find((x) => x.id === params.id) || fail('Application not found.', 404);
+    const access = openingForRater(user, a.openingId);
+    const { o } = access;
+    checkRateable(a, user);
+    const tpl = templateFor(o) || fail('Choose a position category and an assessment template for this opening first: Edit the opening.');
+    const { scores, sum } = cleanScores(tpl, a, body.scores);
+    const slot = slotOf(o, user);
+    const submit = body.submit !== false; // the HR office's rating is always submitted
+    a.ratings = ratingsOf(a);
+    const had = progressOf(a, o).submitted;
+    const before = a.ratings.find((r) => r.slot === slot) || null;
+    if (before?.submittedAt && !submit) fail('You have submitted this rating. Change the scores and submit it again.');
+    const at = iso();
+    freeze(o, tpl, user, at, { ip, agent });
+    const next = {
+      slot, by: user.name, byId: user.id, at, submittedAt: submit ? at : null, version: o.assessment.version, scores, total: sum.total, complete: sum.complete,
+      history: before?.submittedAt ? [...(before.history || []), { total: before.total, by: before.by, at: before.submittedAt }].slice(-20) : before?.history || [],
+    };
+    a.ratings = [...a.ratings.filter((r) => r.slot !== slot), next];
+    const action = before?.submittedAt ? 'Changed the rating of a job application' : submit ? 'Rated a job application' : before ? 'Changed a draft rating of a job application' : 'Saved a draft rating of a job application';
     ctx.audit({
-      kind: 'change', system: 'people', action: before ? 'Changed the rating of a job application' : 'Rated a job application',
-      actor: user, target: { id: a.id, name: `${nameOf(a)} · ${o.title}` }, ip, agent, detail: `${o.assessment.name}, version ${o.assessment.version}`,
-      changes: [
-        ...tpl.criteria.filter((c) => was(c.id) !== scores[c.id]?.score && !(was(c.id) == null && scores[c.id]?.score == null)).map((c) => ({ field: `${c.label} (${c.weight}%)`, from: was(c.id) ?? '', to: scores[c.id]?.score ?? '' })),
-        { field: 'Weighted total', from: before ? before.total : '', to: sum.total },
-      ],
+      kind: 'change', system: 'people', action,
+      actor: user, target: { id: a.id, name: `${nameOf(a)} · ${o.title}` }, ip, agent,
+      detail: `${o.assessment.name}, version ${o.assessment.version} · ${slot === 'hr' ? 'for the HR office' : 'as a member of the selection board'}${submit ? '' : ' · draft, not counted yet'}`,
+      changes: [...scoreChanges(tpl, before, scores), { field: 'Weighted total', from: before ? before.total : '', to: sum.total }],
     });
+    recombine(a, o);
+    // Everyone on the panel has rated: HR is told (once, when the last one submits).
+    const p = progressOf(a, o);
+    if (submit && !before?.submittedAt && panelOf(o).length > 1 && p.submitted === p.of && had < p.of) {
+      h.toHr(o, { kind: 'job.rated', title: `All ${p.of} assessors have rated ${nameOf(a)}`, body: `${o.title}${p.rule === 'consensus' ? ' · enter the board consensus' : ''}`, link: `/hris/#/recruitment/${o.id}/rate/${a.id}` }, user.id);
+    }
     refreshEntry(a.userId);
     save();
-    return ratingView(a, o, user);
+    return ratingView(a, o, user, access);
+  }, { audit: false, body: { scores: t.any(), submit: t.bool() } });
+
+  // Board consensus: the secretariat (HR) enters one agreed score per criterion; it is the result.
+  route('PUT', '/api/hris/recruitment/applications/:id/consensus', 'hris:hris.recruitment', ({ params, body, user, ip, agent }) => {
+    const a = applications().find((x) => x.id === params.id) || fail('Application not found.', 404);
+    const o = openingForHr(user, a.openingId);
+    checkRateable(a, user);
+    const tpl = templateFor(o) || fail('Choose a position category and an assessment template for this opening first: Edit the opening.');
+    if (tpl.combine !== 'consensus') fail(`This opening's template combines the ratings by ${combineLabel(tpl.combine).toLowerCase()}, not by board consensus.`);
+    const { scores, sum } = cleanScores(tpl, a, body.scores);
+    const at = iso();
+    freeze(o, tpl, user, at, { ip, agent });
+    const before = a.consensus || null;
+    a.consensus = {
+      by: user.name, byId: user.id, at, version: o.assessment.version, scores, total: sum.total, complete: sum.complete,
+      history: before ? [...(before.history || []), { total: before.total, by: before.by, at: before.at }].slice(-20) : [],
+    };
+    const p = progressOf(a, o);
+    ctx.audit({
+      kind: 'change', system: 'people', action: before ? 'Changed the board consensus rating of a job application' : 'Entered the board consensus rating of a job application',
+      actor: user, target: { id: a.id, name: `${nameOf(a)} · ${o.title}` }, ip, agent,
+      detail: `${o.assessment.name}, version ${o.assessment.version} · ${p.submitted} of ${p.of} assessors had rated`,
+      changes: [...scoreChanges(tpl, before, scores), { field: 'Weighted total (consensus)', from: before ? before.total : '', to: sum.total }],
+    });
+    recombine(a, o);
+    refreshEntry(a.userId);
+    save();
+    return ratingView(a, o, user, { o, hr: true });
   }, { audit: false, body: { scores: t.any() } });
 
-  // The comparative list of an opening: rated applicants ranked by total, a column per criterion.
+  // ----- The selection board (panel) of an opening -----
+  const panelView = (o) => panelOf(o).map((p) => {
+    const u = userById(p.userId);
+    const rated = applications().filter((a) => a.openingId === o.id && ratingsOf(a).some((r) => r.slot === p.userId && r.submittedAt)).length;
+    return { userId: p.userId, name: u?.name || 'Former account', title: p.title || '', role: u ? roleLabel(u.role) : '', active: mayAssess(u), addedAt: p.addedAt, addedBy: p.addedBy || '', rated };
+  });
+  const rateableApps = (o) => applications().filter((a) => a.openingId === o.id && !a.removed && a.status !== 'withdrawn');
+  route('GET', '/api/hris/recruitment/assessors', 'hris:hris.recruitment', ({ query }) => {
+    const q = String(query.q || '').trim().toLowerCase();
+    const emp = (u) => (u.employeeId ? employeeById(u.employeeId) : null);
+    return data().users.filter((u) => mayAssess(u) && (!q || [u.name, u.username, emp(u)?.position, emp(u)?.department].some((x) => String(x || '').toLowerCase().includes(q))))
+      .sort((x, y) => x.name.localeCompare(y.name)).slice(0, 50)
+      .map((u) => ({ id: u.id, name: u.name, role: roleLabel(u.role), position: emp(u)?.position || '', department: emp(u)?.department || u.department || '' }));
+  }, { audit: false });
+  route('PUT', '/api/hris/recruitment/openings/:id/panel', 'hris:hris.recruitment', ({ params, body, user, ip, agent }) => {
+    const o = openingForHr(user, params.id);
+    const input = Array.isArray(body.assessors) ? body.assessors : fail('Send the list of assessors.');
+    if (input.length > ASSESSMENT_LIMITS.panel) fail(`A selection board has at most ${ASSESSMENT_LIMITS.panel} assessors.`);
+    const seen = new Set();
+    const applied = new Set(applications().filter((a) => a.openingId === o.id && a.status !== 'withdrawn').map((a) => a.userId));
+    const at = iso();
+    const before = panelOf(o);
+    const next = input.map((x) => {
+      const u = userById(text(x?.userId, 100)) || fail('Pick each assessor from the list of accounts.', 404);
+      if (seen.has(u.id)) fail(`${u.name} is on the list twice.`);
+      seen.add(u.id);
+      if (!mayAssess(u)) fail(`${u.name} cannot be an assessor: only active staff accounts can${u.access?.remove?.includes('hris.assess') ? ' (rating applicants was taken away from this account under Users & Access)' : ''}.`);
+      if (applied.has(u.id)) fail(`${u.name} has applied for this opening, so cannot be on its selection board.`);
+      const old = before.find((p) => p.userId === u.id);
+      return { userId: u.id, title: text(x?.title, 80), addedAt: old?.addedAt || at, addedBy: old?.addedBy || user.name };
+    });
+    // Someone who has submitted ratings here stays on the board: their ratings are part of the result.
+    for (const p of before) {
+      if (seen.has(p.userId)) continue;
+      const rated = applications().filter((a) => a.openingId === o.id && ratingsOf(a).some((r) => r.slot === p.userId && r.submittedAt)).length;
+      if (rated) fail(`${nameOfUser(p.userId)} has rated ${rated} applicant${rated === 1 ? '' : 's'} here, so stays on the selection board: those ratings are part of the result.`);
+    }
+    const removed = before.filter((p) => !seen.has(p.userId));
+    const added = next.filter((p) => !before.some((b) => b.userId === p.userId));
+    // Drafts of those taken off the board go.
+    for (const a of applications().filter((x) => x.openingId === o.id)) if (removed.some((p) => ratingsOf(a).some((r) => r.slot === p.userId))) a.ratings = ratingsOf(a).filter((r) => !removed.some((p) => p.userId === r.slot));
+    o.panel = next;
+    const titled = next.filter((p) => before.find((b) => b.userId === p.userId && (b.title || '') !== p.title));
+    if (added.length || removed.length || titled.length) {
+      ctx.audit({
+        kind: 'change', system: 'people', action: 'Changed the selection board of a job opening', actor: user, target: { id: o.id, name: o.title }, ip, agent,
+        detail: `${next.length} assessor${next.length === 1 ? '' : 's'}`,
+        changes: [...added.map((p) => ({ field: 'Assessor added', from: '', to: `${nameOfUser(p.userId)}${p.title ? ` (${p.title})` : ''}` })), ...removed.map((p) => ({ field: 'Assessor removed', from: nameOfUser(p.userId), to: '' })), ...titled.map((p) => ({ field: `Title of ${nameOfUser(p.userId)}`, from: before.find((b) => b.userId === p.userId).title || '', to: p.title }))],
+      });
+    }
+    const n = rateableApps(o).length;
+    if (added.length) {
+      ctx.notify(added.map((p) => p.userId), {
+        system: 'hris', kind: 'assess.panel', title: `You are on the selection board for ${o.title}`,
+        body: `${n ? `${n} applicant${n === 1 ? '' : 's'} to rate. ` : ''}Your ratings to do are under People → Ratings to do. Rate each applicant on your own; you do not see the other assessors' scores before you submit yours.`,
+        link: `/hris/#/assess/${o.id}`,
+      }, { actorId: user.id });
+    }
+    for (const a of applications().filter((x) => x.openingId === o.id)) if (removed.length) recombine(a, o);
+    save();
+    return { panel: panelView(o) };
+  }, { audit: false, body: { assessors: t.arr(t.obj({ userId: t.str(100), title: t.str(200) }), 50) } });
+
+  // ----- An assessor's own screens: Ratings to do, and one opening -----
+  const myPanels = (user) => (mayAssess(user) ? openings().filter((o) => onPanel(o, user)) : []);
+  function toDoAt(o, user) {
+    const apps = rateableApps(o).filter((a) => a.userId !== user.id);
+    const mine = apps.map((a) => ratingsOf(a).find((r) => r.slot === user.id));
+    return { applicants: apps.length, submitted: mine.filter((r) => r?.submittedAt).length, drafts: mine.filter((r) => r && !r.submittedAt).length, toDo: mine.filter((r) => !r?.submittedAt).length };
+  }
+  function assessorSummary(user) {
+    const list = myPanels(user);
+    if (!list.length) return null;
+    return { openings: list.length, toDo: list.reduce((n, o) => n + (o.status === 'draft' ? 0 : toDoAt(o, user).toDo), 0) };
+  }
+  route('GET', '/api/hris/assess', 'hris', ({ user }) => ({
+    openings: myPanels(user).filter((o) => o.status !== 'draft').sort((x, y) => (x.status === y.status ? x.closingDate.localeCompare(y.closingDate) : x.status === 'closed' ? 1 : -1)).map((o) => {
+      const tpl = templateFor(o);
+      return {
+        id: o.id, title: o.title, office: o.office || '', campusName: campusName(data(), o.campusId), closingDate: o.closingDate, status: o.status,
+        templateName: tpl?.name || '', rule: tpl?.combine || DEFAULT_COMBINE, myTitle: panelOf(o).find((p) => p.userId === user.id)?.title || '', ...toDoAt(o, user),
+      };
+    }),
+  }), { audit: false });
+  route('GET', '/api/hris/assess/openings/:id', 'hris', ({ params, user }) => {
+    const { o, hr } = openingForRater(user, params.id);
+    const tpl = templateFor(o);
+    const { ranks } = ranked(o);
+    const show = cfg().board.assessorsSeeResult;
+    return {
+      opening: { id: o.id, title: o.title, office: o.office || '', campusName: campusName(data(), o.campusId), closingDate: o.closingDate, status: o.status, plantillaItem: o.plantillaItem || '', salaryGrade: o.salaryGrade || null, education: o.education, training: o.training, experience: o.experience, eligibility: o.eligibility },
+      template: tpl, onPanel: onPanel(o, user), hr,
+      panel: panelView(o).map(({ name, title, rated }) => ({ name, title, ...(hr ? { rated } : {}) })),
+      applications: rateableApps(o).filter((a) => a.userId !== user.id).sort((x, y) => x.createdAt.localeCompare(y.createdAt)).map((a) => {
+        const mine = ratingsOf(a).find((r) => r.slot === slotOf(o, user));
+        const emp = a.internal ? employeeById(a.employeeId) : null;
+        return {
+          id: a.id, name: nameOf(a), internal: a.internal, createdAt: a.createdAt, note: a.note || '', stageLabel: stageLabel(h.stages(), a.stage),
+          position: emp ? emp.position || '' : '',
+          mine: mine ? { submitted: Boolean(mine.submittedAt), total: mine.total, at: mine.submittedAt || mine.at } : null,
+          combined: a.rating && ((hr && !(onPanel(o, user) && !mine?.submittedAt)) || (show && mine?.submittedAt)) ? { total: a.rating.total, rank: ranks.get(a.id) || null } : null,
+          progress: progressOf(a, o),
+          documents: h.documentsSummary ? h.documentsSummary(a, o) : null,
+        };
+      }),
+    };
+  }, { audit: false });
+
+  // The comparative list of an opening: the combined result, ranked, a column per criterion, and
+  // (HR only) each assessor's rating.
   route('GET', '/api/hris/recruitment/openings/:id/comparative', 'hris:hris.recruitment', ({ params, user }) => {
     const o = openingForHr(user, params.id);
     const tpl = templateFor(o);
     const { list, ranks } = ranked(o);
     const rows = list.map((a) => {
-      const sum = weightedTotal(tpl?.criteria || [], a.rating.scores);
+      const skip = skipSet(tpl?.criteria || [], a.internal);
+      const sum = weightedTotal(tpl?.criteria || [], a.rating.scores, skip);
       return {
         id: a.id, rank: ranks.get(a.id), name: nameOf(a), internal: a.internal, removed: Boolean(a.removed), userId: a.removed ? null : a.userId,
-        stageLabel: stageLabel(h.stages(), a.stage), status: a.status,
+        stageLabel: stageLabel(h.stages(), a.stage), status: a.status, skip: [...skip],
         scores: Object.fromEntries(Object.entries(a.rating.scores).map(([k, v]) => [k, v.score])), points: sum.points,
-        total: a.rating.total, complete: a.rating.complete, by: a.rating.by, at: a.rating.at,
+        total: a.rating.total, complete: a.rating.complete, by: a.rating.by, at: a.rating.at, rule: a.rating.rule || DEFAULT_COMBINE,
+        progress: progressOf(a, o),
+        assessors: breakdownOf(a, o, tpl, skip).filter((r) => !r.draft).map((r) => ({ slot: r.slot, name: r.name, title: r.title, total: r.total, complete: r.complete, submittedAt: r.submittedAt, scores: Object.fromEntries(Object.entries(r.scores).map(([k, v]) => [k, v.score])) })),
+        consensus: Boolean(a.consensus),
       };
     }).sort((x, y) => x.rank - y.rank || x.name.localeCompare(y.name));
     const active = applications().filter((a) => a.openingId === o.id && a.status !== 'withdrawn' && !a.removed);
+    const waiting = active.filter((a) => !a.rating);
+    // Signature lines: each assessor on the panel (and anyone else who rated for the HR office is the secretariat).
     return {
       opening: { id: o.id, title: o.title, plantillaItem: o.plantillaItem || '', salaryGrade: o.salaryGrade || null, office: o.office || '', campusName: campusName(data(), o.campusId), vacancies: o.vacancies, closingDate: o.closingDate, status: o.status, categoryLabel: categoryLabel(o.categoryId) },
-      template: tpl, rows, unrated: active.filter((a) => !a.rating).length, print: { ...cfg().print },
+      template: tpl, rule: tpl?.combine || DEFAULT_COMBINE, rows, unrated: waiting.length,
+      awaitingConsensus: tpl?.combine === 'consensus' ? waiting.filter((a) => ratingsOf(a).some((r) => r.submittedAt)).length : 0,
+      panel: panelView(o).map(({ userId, name, title }) => ({ slot: userId, name, title })),
+      print: { ...cfg().print },
       school: { name: data().settings.schoolName, address: data().hrSettings?.employerAddress || '' }, asOf: today(),
     };
   }, { audit: false });
@@ -248,7 +519,7 @@ export function registerAssessmentRoutes(route, ctx, h) {
     return {
       categories: c.categories.map((x) => ({ ...x, openings: u.cats.get(x.id) || 0 })),
       templates: c.templates.map((x) => ({ ...structuredClone(x), openings: u.live.get(x.id) || 0, fixedOpenings: u.fixed.get(x.id) || 0 })),
-      print: { ...c.print },
+      print: { ...c.print }, board: { ...DEFAULT_BOARD, ...(c.board || {}) },
     };
   }
   const newId = (label, taken, fallback) => {
@@ -323,17 +594,22 @@ export function registerAssessmentRoutes(route, ctx, h) {
         if (!cid) cid = newId(cl, cIds, 'criterion');
         cIds.add(cid);
         const weight = c?.weight === '' || c?.weight === null || c?.weight === undefined ? NaN : Number(c.weight);
-        return { id: cid, label: cl, description, weight };
+        if (c?.type !== 'performance') return { id: cid, label: cl, description, weight };
+        return { id: cid, label: cl, description, weight, type: 'performance', ...cleanTable(name, cl, c, now.templates.find((y) => y.id === text(x?.id, 60))?.criteria.find((y) => y.id === cid)) };
       });
+      if (criteria.filter((c) => c.type === 'performance').length > 1) fail(`${name}: at most one Performance rating criterion.`);
       const problem = weightProblem({ name, criteria });
       if (problem) fail(problem);
+      const combine = x?.combine === undefined ? (now.templates.find((y) => y.id === id)?.combine || DEFAULT_COMBINE) : String(x.combine);
+      if (!COMBINE_RULES.some(([k]) => k === combine)) fail(`${name}: pick how the assessors' ratings are combined.`);
       const old = now.templates.find((y) => y.id === id);
-      const same = old && JSON.stringify(old.criteria) === JSON.stringify(criteria);
+      const sameCriteria = old && JSON.stringify(old.criteria) === JSON.stringify(criteria);
+      const same = sameCriteria && (old.combine || DEFAULT_COMBINE) === combine;
       const changed = !old || !same || old.name !== name || old.categoryId !== categoryId || Boolean(old.retired) !== (x.retired === true);
       return {
-        id, name, categoryId, version: old ? (same ? old.version : old.version + 1) : 1, criteria,
-        // An example stays marked as one until its criteria are changed: then it is the school's own.
-        ...(old?.example && same ? { example: true } : !old && x.example === true ? { example: true } : {}),
+        id, name, categoryId, version: old ? (same ? old.version : old.version + 1) : 1, combine, criteria,
+        // An example stays marked as one until its criteria are changed (not only its rule): then it is the school's own.
+        ...(old?.example && sameCriteria ? { example: true } : !old && x.example === true ? { example: true } : {}),
         ...(x.retired === true ? { retired: true } : {}),
         ...(changed ? { updatedAt: at, updatedBy: user?.name || '' } : old?.updatedAt ? { updatedAt: old.updatedAt, updatedBy: old.updatedBy } : {}),
       };
@@ -352,8 +628,38 @@ export function registerAssessmentRoutes(route, ctx, h) {
       if (s.length > L.caption) fail(`A caption has at most ${L.caption} characters.`);
       return s;
     };
-    const print = { title: caption(p.title, now.print.title) || DEFAULT_ASSESSMENT.print.title, signCaption: caption(p.signCaption, now.print.signCaption), signName: caption(p.signName, now.print.signName), signTitle: caption(p.signTitle, now.print.signTitle) };
-    return { categories, templates, print };
+    const print = {
+      title: caption(p.title, now.print.title) || DEFAULT_ASSESSMENT.print.title, signCaption: caption(p.signCaption, now.print.signCaption), signName: caption(p.signName, now.print.signName), signTitle: caption(p.signTitle, now.print.signTitle),
+      boardCaption: caption(p.boardCaption, now.print.boardCaption), memberTitle: caption(p.memberTitle, now.print.memberTitle),
+    };
+    // The selection board's options.
+    const b = body.board && typeof body.board === 'object' ? body.board : now.board;
+    const board = { assessorsSeeResult: b.assessorsSeeResult === undefined ? Boolean(now.board?.assessorsSeeResult ?? DEFAULT_BOARD.assessorsSeeResult) : b.assessorsSeeResult === true };
+    return { categories, templates, print, board };
+  }
+  // The performance rating's adjectival table (each rating and what it counts for, 0 to 100) and the
+  // rule for external applicants. The built-in table is an example until it is changed.
+  function cleanTable(tplName, label, c, old) {
+    const L = ASSESSMENT_LIMITS;
+    const rows = Array.isArray(c.table) ? c.table : DEFAULT_ADJECTIVAL;
+    if (!rows.length) fail(`${tplName}, ${label}: list at least one adjectival rating.`);
+    if (rows.length > L.table) fail(`${tplName}, ${label}: at most ${L.table} adjectival ratings.`);
+    const seen = new Set();
+    const table = rows.map((r) => {
+      const l = text(r?.label, 200);
+      if (!l) fail(`${tplName}, ${label}: every adjectival rating needs a name.`);
+      if (l.length > L.label) fail(`${tplName}, ${label}: ${l.slice(0, 30)}… has more than ${L.label} characters.`);
+      if (seen.has(l.toLowerCase())) fail(`${tplName}, ${label}: ${l} is listed twice.`);
+      seen.add(l.toLowerCase());
+      const n = Number(r?.score);
+      if (r?.score === '' || r?.score == null || !Number.isFinite(n) || n < 0 || n > 100 || !twoDecimals(n)) fail(`${tplName}, ${label}: ${l} must count for 0 to 100, with at most two decimals.`);
+      return { label: l, score: n };
+    });
+    const external = c.external === undefined ? 'spread' : String(c.external);
+    if (!EXTERNAL_RULES.some(([k]) => k === external)) fail(`${tplName}, ${label}: pick what external applicants get.`);
+    const asDefault = JSON.stringify(table) === JSON.stringify(DEFAULT_ADJECTIVAL);
+    const example = asDefault && (!old || old.tableExample || c.tableExample === true);
+    return { table, ...(example ? { tableExample: true } : {}), external };
   }
   route('GET', '/api/hris/recruitment/assessment', 'hris', ({ user }) => {
     if (!userCan(user, 'hris.recruitment') && !userCan(user, 'hris.settings')) fail('You do not have access to this.', 403);
@@ -363,7 +669,7 @@ export function registerAssessmentRoutes(route, ctx, h) {
     data().settings.assessment = cleanAssessment(body, user);
     save();
     return assessmentView();
-  }, { body: { categories: t.any(), templates: t.any(), print: t.any() } });
+  }, { body: { categories: t.any(), templates: t.any(), print: t.any(), board: t.any() } });
 
   // ----- The pool of applicants -----
   const entryOf = (userId) => pool().find((e) => e.userId === userId) || null;
@@ -427,6 +733,7 @@ export function registerAssessmentRoutes(route, ctx, h) {
       delete u.expiryWarnedAt;
       closes = u.expiresAt;
     }
+    h.onLeftPool?.(e.userId, why); // the pool keeps no files: those of applications that ended go
     const ACTIONS = { ended: 'Left the pool of applicants: the time ended', self: 'Left the pool of applicants (their own choice)', hr: 'Removed an applicant from the pool of applicants', selected: 'Left the pool of applicants: selected for a position', undone: 'Left the pool of applicants: the outcome that put them there was undone', removed: 'Left the pool of applicants: the account was removed' };
     ctx.audit({ kind: 'change', system: 'people', action: ACTIONS[why], actor: by, target: u || { id: e.userId, name: 'Removed applicant' }, ip, agent, detail: [reason, closes ? `account closes ${closes}` : ''].filter(Boolean).join(' · ') });
     if (tell && u && why !== 'removed') {
@@ -460,8 +767,11 @@ export function registerAssessmentRoutes(route, ctx, h) {
   function onRemoveApplicant(u) {
     const e = entryOf(u.id);
     if (e) leave(e, { why: 'removed', tell: false });
-    for (const a of applications().filter((x) => x.userId === u.id && x.rating)) {
-      a.rating.scores = Object.fromEntries(Object.entries(a.rating.scores).map(([k, v]) => [k, { score: v.score }]));
+    const bare = (r) => r && (r.scores = Object.fromEntries(Object.entries(r.scores || {}).map(([k, v]) => [k, { score: v.score }])));
+    for (const a of applications().filter((x) => x.userId === u.id)) {
+      bare(a.rating);
+      bare(a.consensus);
+      ratingsOf(a).forEach(bare);
     }
   }
   // The daily sweep: entries whose time has ended leave the pool (before the accounts are checked).
@@ -638,8 +948,13 @@ export function registerAssessmentRoutes(route, ctx, h) {
           id: a.id, openingId: a.openingId, title: o?.title || '(opening removed)', office: o?.office || '', campusName: o ? campusName(data(), o.campusId) : '', categoryLabel: categoryLabel(o?.categoryId),
           internal: a.internal, note: a.note || '', createdAt: a.createdAt, updatedAt: a.updatedAt,
           stageLabel: stageLabel(cfgStages, a.stage), status: a.status, outcome: here2.kind === 'outcome' ? { label: here2.label, meaning: meaningLabel(here2.meaning) } : null,
-          rating: withRatings && a.rating ? { ...ratingOf(a, tpl), rank: o ? ranksAt(o).get(a.id) || null : null, criteria: tpl?.criteria || [], templateName: tpl?.name || '' } : null,
+          rating: withRatings && a.rating ? {
+            ...ratingOf(a.rating, tpl, skipSet(tpl?.criteria || [], a.internal)), rank: o ? ranksAt(o).get(a.id) || null : null, criteria: tpl?.criteria || [], templateName: tpl?.name || '',
+            rule: a.rating.rule || DEFAULT_COMBINE, skip: [...skipSet(tpl?.criteria || [], a.internal)],
+            assessors: o ? breakdownOf(a, o, tpl, skipSet(tpl?.criteria || [], a.internal)).filter((r) => !r.draft).map((r) => ({ name: r.name, title: r.title, total: r.total, submittedAt: r.submittedAt })) : [],
+          } : null,
           rated: Boolean(a.rating),
+          documents: h.profileDocuments ? h.profileDocuments(a, o) : [],
           history: (a.history || []).map((x) => ({
             stageLabel: stageLabel(cfgStages, x.stage), at: x.at, by: x.self ? 'Applicant' : x.by || '', back: Boolean(x.back), note: x.note || '',
             ...(withRemarks ? { remark: x.remark || '', reason: x.reason || '' } : {}),
@@ -655,31 +970,64 @@ export function registerAssessmentRoutes(route, ctx, h) {
   }, { audit: false });
 
   return {
-    cleanOpeningAssessment, openingAssessment, ranksAt, ratingSummary: (a, ranks) => (a.rating ? { total: a.rating.total, complete: a.rating.complete, rank: ranks.get(a.id) || null, by: a.rating.by, at: a.rating.at } : null),
+    cleanOpeningAssessment, openingAssessment, ranksAt, ratingSummary: (a, ranks) => (a.rating ? { total: a.rating.total, complete: a.rating.complete, rank: ranks.get(a.id) || null, by: a.rating.by, at: a.rating.at, rule: a.rating.rule || DEFAULT_COMBINE } : null),
+    progressOf, openingForRater, onPanel, mayAssess, assessorSummary, panelOf,
     onDecided, onUndecided, onRemoveApplicant, sweepPool, poolSelf, optIn, entryOf, educationLabel,
   };
 }
 
-// ----- Demo data: ratings on the demo openings, and people in the pool -----
+// ----- Demo data: ratings on the demo openings, a selection board, and people in the pool -----
 // Called from addRecruitmentDemo once the applications exist. rate: [[application, scores in the
-// template's order (null: not yet), rater, days ago]]; pooled: [[user, days ago they entered]].
-export function addAssessmentDemo(data, { now, rate, pooled, stagesCfg, months = 12 }) {
+// template's order (null: not yet), rater, days ago, rater's id]] (the HR office's rating);
+// panel: { opening, members: [[user, title]], ratings: [[application, user, scores, days ago, submitted]] };
+// pooled: [[user, days ago they entered]].
+export function addAssessmentDemo(data, { now, rate, panel = null, pooled, stagesCfg, months = 12 }) {
   data.applicantPool ||= [];
   const settings = mergeAssessment(data.settings?.assessment);
-  for (const [a, scores, by, daysAgo] of rate) {
+  const tplOf = (o) => settings.templates.find((x) => x.id === o?.templateId);
+  const freeze = (o, tpl, by, daysAgo) => {
+    o.assessment ||= {
+      templateId: tpl.id, name: tpl.name, version: tpl.version, example: Boolean(tpl.example), combine: tpl.combine || DEFAULT_COMBINE, categoryId: o.categoryId,
+      categoryLabel: settings.categories.find((c) => c.id === o.categoryId)?.label || '', criteria: structuredClone(tpl.criteria),
+      frozenAt: new Date(now - (daysAgo + 1) * DAY_MS).toISOString(), frozenBy: by,
+    };
+  };
+  const scoresOf = (tpl, scores) => Object.fromEntries(tpl.criteria.map((c, i) => [c.id, { score: scores[i] ?? null }]).filter(([, v]) => v.score !== null));
+  const combine = (a, o) => {
+    const tpl = o.assessment;
+    const skip = skipSet(tpl.criteria, a.internal);
+    const c = combineRating(tpl.criteria, a.ratings, tpl.combine, a.consensus, skip);
+    const sub = a.ratings.filter((r) => r.submittedAt);
+    a.rating = c ? {
+      version: tpl.version, templateId: tpl.templateId, rule: tpl.combine, scores: sub.length === 1 ? structuredClone(sub[0].scores) : c.scores, total: c.total, complete: c.complete, count: c.count,
+      by: sub.length === 1 ? sub[0].by : `${sub.length} assessors`, byId: sub.length === 1 ? sub[0].byId : null, at: sub.map((r) => r.submittedAt).sort().at(-1), history: [],
+    } : null;
+  };
+  for (const [a, scores, by, daysAgo, byId = null] of rate) {
     const o = data.jobOpenings.find((x) => x.id === a.openingId);
-    const tpl = settings.templates.find((x) => x.id === o?.templateId);
+    const tpl = tplOf(o);
     if (!tpl) continue;
-    if (!o.assessment) {
-      o.assessment = {
-        templateId: tpl.id, name: tpl.name, version: tpl.version, example: Boolean(tpl.example), categoryId: o.categoryId,
-        categoryLabel: settings.categories.find((c) => c.id === o.categoryId)?.label || '', criteria: structuredClone(tpl.criteria),
-        frozenAt: new Date(now - (daysAgo + 1) * DAY_MS).toISOString(), frozenBy: by,
-      };
-    }
-    const s = Object.fromEntries(tpl.criteria.map((c, i) => [c.id, { score: scores[i] ?? null }]).filter(([, v]) => v.score !== null));
+    freeze(o, tpl, by, daysAgo);
+    const s = scoresOf(tpl, scores);
     const sum = weightedTotal(tpl.criteria, s);
-    a.rating = { version: tpl.version, templateId: tpl.id, scores: s, total: sum.total, complete: sum.complete, by, byId: null, at: new Date(now - daysAgo * DAY_MS).toISOString(), history: [] };
+    const at = new Date(now - daysAgo * DAY_MS).toISOString();
+    a.ratings = [{ slot: 'hr', by, byId, at, submittedAt: at, version: tpl.version, scores: s, total: sum.total, complete: sum.complete, history: [] }];
+    combine(a, o);
+  }
+  // The selection board: three assessors on one opening, each with their own ratings (one still a draft).
+  if (panel?.opening) {
+    const o = panel.opening;
+    const tpl = tplOf(o);
+    o.panel = panel.members.filter(([u]) => u).map(([u, title]) => ({ userId: u.id, title, addedAt: new Date(now - 6 * DAY_MS).toISOString(), addedBy: panel.by, demo: true }));
+    for (const [a, u, scores, daysAgo, submitted] of panel.ratings) {
+      if (!tpl || !u) continue;
+      freeze(o, tpl, panel.by, daysAgo);
+      const s = scoresOf(tpl, scores);
+      const sum = weightedTotal(tpl.criteria, s);
+      const at = new Date(now - daysAgo * DAY_MS).toISOString();
+      a.ratings = [...(a.ratings || []).filter((r) => r.slot !== u.id), { slot: u.id, by: u.name, byId: u.id, at, submittedAt: submitted ? at : null, version: tpl.version, scores: s, total: sum.total, complete: sum.complete, history: [] }];
+      combine(a, o);
+    }
   }
   for (const [u, daysAgo] of pooled) {
     const enteredAt = new Date(now - daysAgo * DAY_MS).toISOString();

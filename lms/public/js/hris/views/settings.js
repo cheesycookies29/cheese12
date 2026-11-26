@@ -1,6 +1,7 @@
 // HR settings: the employer details printed on payslips, the default work schedule for new employee
 // records, job applicants' accounts, the pool of applicants and sign-up fields, the recruitment
-// stages, and the assessment templates (position categories, criteria and weights).
+// stages, the assessment templates (position categories, criteria and weights, how the selection
+// board's ratings are combined), and the applicant documents (upload policy, default checklists).
 import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { html, mount, toast, WEEKDAYS } from '../../ui.js';
@@ -9,6 +10,7 @@ import { hr } from '../state.js';
 import { ROLES, HRIS_PERMISSION_LABELS } from '/shared/roles.js';
 import { recruitmentSettingsCard, recruitmentStagesCard, signupFieldsCard, signupFieldsFrom } from './recruitment.js';
 import { assessmentTemplatesCard } from './assess.js';
+import { applicantDocsCard } from './documents.js';
 
 // Which account types may do what in People (as on the ERP's Users & access page).
 function accessMatrix() {
@@ -58,10 +60,11 @@ export async function hrSettingsView(el, _params = {}, query = {}) {
     </form>
     <div id="stages-card"></div>
     <div id="assessment-card"></div>
+    <div id="applicant-docs-card"></div>
     ${accessMatrix()}`);
   // Recruitment stages: a list with its own Save (HR settings → Recruitment stages; Settings center link).
-  await Promise.all([recruitmentStagesCard(el.querySelector('#stages-card')), assessmentTemplatesCard(el.querySelector('#assessment-card'))]);
-  const section = { stages: '#recruitment-stages', 'signup-fields': '#signup-fields', assessment: '#assessment-templates', pool: '#job-applicants' }[query.section];
+  await Promise.all([recruitmentStagesCard(el.querySelector('#stages-card')), assessmentTemplatesCard(el.querySelector('#assessment-card')), applicantDocsCard(el.querySelector('#applicant-docs-card'))]);
+  const section = { stages: '#recruitment-stages', 'signup-fields': '#signup-fields', assessment: '#assessment-templates', pool: '#job-applicants', documents: '#applicant-documents' }[query.section];
   if (section) el.querySelector(section)?.scrollIntoView({ block: 'start' });
   const form = el.querySelector('#hr-form');
   form.addEventListener('submit', async (e) => {

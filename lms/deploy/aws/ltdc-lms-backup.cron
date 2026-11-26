@@ -6,3 +6,5 @@
 25 2 * * * ltdc-lms [ -f /opt/ltdc-lms/data/audit-log.jsonl ] && cp /opt/ltdc-lms/data/audit-log.jsonl /opt/ltdc-lms/data/backups/audit-log-$(date +\%F).jsonl && find /opt/ltdc-lms/data/backups -name 'audit-log-*.jsonl' -mtime +30 -delete
 20 2 * * * ltdc-lms mkdir -p /opt/ltdc-lms/data/files /opt/ltdc-lms/data/backups/files && rsync -a /opt/ltdc-lms/data/files/ /opt/ltdc-lms/data/backups/files/
 25 2 * * * ltdc-lms mkdir -p /opt/ltdc-lms/data/documents /opt/ltdc-lms/data/backups/documents && rsync -a --exclude uploads /opt/ltdc-lms/data/documents/ /opt/ltdc-lms/data/backups/documents/
+# Job applicants' documents (encrypted under a key derived from the server key) at 2:30 AM.
+30 2 * * * ltdc-lms [ -d /opt/ltdc-lms/data/applicant-files ] && mkdir -p /opt/ltdc-lms/data/backups/applicant-files && rsync -a /opt/ltdc-lms/data/applicant-files/ /opt/ltdc-lms/data/backups/applicant-files/

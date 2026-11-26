@@ -352,12 +352,31 @@ HR rates job applicants with **assessment templates**: criteria with weights, pe
 |---|---|---|
 | Position categories | Faculty, Non-teaching | The kinds of position an opening can be, each with the template a new opening of that kind starts with |
 | Assessment templates | Faculty (example), Non-teaching (example) | The criteria and their weights, which must total exactly 100%; each criterion is scored 0 to 100, so a weighted total is never more than 100 |
-| Comparative list captions | *Comparative assessment of applicants*; *Prepared by*, HRMPSB Secretariat | The title and the signature line of the printed comparative list |
+| Comparative list captions | *Comparative assessment of applicants*; *Prepared by*, HRMPSB Secretariat; *Rated by*, Member, HRMPSB | The title, the secretariat's signature line, and the caption and title of each assessor's signature line on the printed comparative list |
+| Selection board | Off | Whether an assessor who has submitted sees the combined result (total and rank). How the assessors' ratings are combined is set on each template: average (the default), average without the highest and lowest, or board consensus |
 
 1. Choose **Settings center** and find *assessment*.
 2. Choose **Open** on **Assessment templates**: People's **HR settings** opens at them. Change them and choose **Save assessment templates**.
 
 The built-in templates are examples, to replace with the school's merit selection plan. **Restore defaults** puts them back, unless an opening not yet rated uses a template the school added: ATLAS then says which, and nothing changes. An opening already rated keeps its own copy of its template either way. Each change is in the **Change history**.
+
+### Check the applicant documents settings
+
+Applicants upload documents against each opening's checklist (see [the HR guide](hr#set-the-applicant-upload-policy-and-the-default-checklists)). HR managers set the upload policy in People under **HR settings → Applicant documents**; you find it in the **Settings center** under **ATLAS People → Applicant documents**:
+
+| Setting | Default | What it does |
+|---|---|---|
+| File types applicants may upload | PDF, Word (DOC, DOCX), Excel (XLS, XLSX), pictures (JPEG, PNG, GIF) | The kinds of file accepted, worked out from each file's content. Programs, scripts, web pages, Office files with macros and password-protected files are always refused. |
+| Largest file (MB) | 2 | 1 to 10. A larger file is refused with advice on making it smaller or splitting it. |
+| Most files per application | 15 | 1 to 50 |
+| Help on compressing and splitting files | A short text | Shown beside the upload buttons |
+| Default requirements checklists | Examples for Faculty and Non-teaching | The documents a new opening of each position category asks for |
+
+The files are kept encrypted in *applicant-files* beside the data file, under a key derived from the server key (keep the server key safe, as for ATLAS Documents), and are included in neither *db.json* nor its exports.
+
+### Who rates applicants: the permission hris.assess
+
+Selection board members (assessors) can be any active staff account. The permission **Rate applicants as a selection board member** (*hris.assess*) is given by HR naming someone on an opening's selection board, for that opening only: no account type has it built in, and giving it to an account type under **Roles & permissions** adds nothing by itself. To stop one person from rating anywhere, take it away from their account under **Users & Access → Access**; HR can then no longer name them, and they can no longer open the openings they were named on.
 
 ### Restore a default or undo a change
 

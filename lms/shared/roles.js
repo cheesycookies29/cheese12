@@ -151,6 +151,9 @@ export const HRIS_PERMISSION_LABELS = [
   ['payroll.config', 'Payroll setup: pay rules, contributions, tax tables'],
   ['hris.settings', 'Employer details, the default work schedule, how long applicant accounts last and the recruitment stages'],
   ['hris.recruitment', 'Recruitment: job openings, applications and applicant accounts'],
+  // Given by HR's naming on an opening's selection board, for that opening only; no account type has
+  // it built in. Taking it away from one account stops it rating even where it is named.
+  ['hris.assess', 'Rate applicants as a selection board member: only the openings HR names the account on (their applicants, applications and documents)'],
   ['hris.plantilla', 'Plantilla: record items, link incumbents, print the PSIPOP (anyone who views employee records can read it)'],
 ];
 

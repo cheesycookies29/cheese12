@@ -73,7 +73,7 @@ test('the default templates: Faculty and Non-teaching examples, EETE criteria pl
 test('templates: weights must total exactly 100 (PL-066); anything else is refused, with the total', async () => {
   const s = await school();
   const v = await s.hr.get('/api/hris/recruitment/assessment');
-  assert.equal(v.templates.length, 2);
+  assert.equal(v.templates.length, 3); // Faculty, Non-teaching and Promotion (non-teaching): examples
   const put = (templates, extra = {}) => s.hr.put('/api/hris/recruitment/assessment', { categories: v.categories, templates, print: v.print, ...extra });
   const bump = (by) => v.templates.map((t) => (t.id === 'non-teaching-example' ? { ...t, criteria: t.criteria.map((c, i) => (i === 0 ? { ...c, weight: c.weight + by } : c)) } : t));
   await assert.rejects(put(bump(1)), /Non-teaching \(example\): the weights total 101%\. They must total exactly 100%/);
@@ -93,9 +93,9 @@ test('templates: weights must total exactly 100 (PL-066); anything else is refus
   // The Settings center lists them under ATLAS People, with a change history and restore.
   const config = await s.admin.get('/api/admin/config');
   assert.equal(config.areas.find((a) => a.id === 'assessment').module, 'people');
-  assert.deepEqual(config.settings.filter((x) => x.area === 'assessment').map((x) => [x.path, x.changed]), [['categories', false], ['templates', true], ['print', false]]);
+  assert.deepEqual(config.settings.filter((x) => x.area === 'assessment').map((x) => [x.path, x.changed]), [['categories', false], ['templates', true], ['print', false], ['board', false]]);
   await s.admin.post('/api/admin/config/reset', { area: 'assessment', path: 'templates' });
-  assert.equal(s.env.db.data.settings.assessment.templates.length, 2);
+  assert.equal(s.env.db.data.settings.assessment.templates.length, 3);
 });
 
 test('a weighted total is Σ score × weight / 100 and never exceeds 100; scores outside 0 to 100 are refused', async () => {

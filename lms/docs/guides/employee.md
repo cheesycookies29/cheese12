@@ -1,7 +1,7 @@
 ---
 id: employee
 title: Your self-service in ATLAS People
-summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, apply for job openings, and see your property and requests in ATLAS Finance.
+summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, apply for job openings with your documents, and see your property and requests in ATLAS Finance.
 roles: staff, teacher, registrar, dean, hr, payroll, accountant, budget, cashier, supply, approver
 apps: people, finance
 order: 50
@@ -135,7 +135,9 @@ For a promotion or a transfer, you apply with your own account: there is no sepa
 2. Choose an opening to read its salary, vacancies, closing date and qualification standards.
 3. Choose **Apply**, type a **Cover note** if you like, and choose **Send application**.
 
-Your application is marked **Internal** and linked to your employee record: HR sees your current position, salary grade and campus from it, and your note. You can **Withdraw** it while the opening is not closed and HR has not decided, and send it again until the closing date.
+Your application is marked **Internal** and linked to your employee record: HR sees your current position, salary grade and campus from it, your note and your documents. You can **Withdraw** it while the opening is not closed and HR has not decided, and send it again until the closing date.
+
+Under **Your documents** on the opening, upload the documents it asks for, for example your Personal Data Sheet and your latest performance rating (IPCR): choose **Upload** on each and pick the file. They follow the same rules as for applicants from outside: PDF, Word, Excel or pictures, up to 2 MB a file unless the school changed it, and each shows *Uploaded*, *Accepted* or *Needs a new file* with HR's note (see [Upload your documents](applicant#upload-your-documents)).
 
 ![Job openings in your People](employee-job-openings.jpg)
 
@@ -178,6 +180,7 @@ If an application of yours ends *Not selected* or *Not qualified*, you enter the
 | My HR record | Your record as HR keeps it, and **Change password** |
 | Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with the progress of each through the recruitment stages and your place in the pool of applicants |
 | Getting started | Shown when your account is not linked to an employee record yet |
+| Ratings to do | Only when HR names you on a job opening's selection board: the applicants you rate (see [the assessor's guide](assessor)) |
 | My accountabilities | In Finance: property in your custody, cash advances, receipts issued to you |
 | Supply & purchase requests | In Finance: request supplies (RIS) or a purchase (PR), and follow them |
 
