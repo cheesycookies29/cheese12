@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.68.1-alpha',
+    date: '2026-11-26',
+    title: 'Compact home tiles of one size',
+    modules: ['system'],
+    notes: 'QA of the CORE home: the compact tiles took the height of their name, and a grid row the height of its tallest tile.',
+    changes: [
+      ['fixed', 'system', 'CORE home, Compact view: tiles whose full name wrapped onto two lines (Human Resource Management, Document Management, and more on narrower screens) were taller and stretched their whole row (80 px beside 68 px; 100 to 117 px on a phone). Tiles show the short name, as the modules menu does, on one line (the full name in the tooltip), and on a phone keep room for two lines of the figure: every module, integration and tool tile is now one height at every width.'],
+    ],
+  },
+  {
     version: '0.68.0-alpha',
     date: '2026-11-25',
     title: 'PDF Studio: export in other formats',

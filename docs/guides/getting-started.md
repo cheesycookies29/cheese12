@@ -41,7 +41,7 @@ This tour uses the demo data. Sign in as `employee.demo` with the password `demo
 
 ![The CORE home, with a card per module](getting-started-home.jpg)
 
-To see every module at once, choose **Compact** beside **Your modules**: the modules become small tiles in a grid, in the same order, each with its first figure and its star. **Cards** brings back the sliding row. On a phone the CORE home starts in **Compact**; on a computer or tablet, in **Cards**. Once you choose, your choice is kept in this browser.
+To see every module at once, choose **Compact** beside **Your modules**: the modules become small tiles in a grid, all the same size, in the same order, each with its short name (*HR Management*, *IT Assets*, *Documents*; point at a tile for its full name), its first figure and its star. **Cards** brings back the sliding row. On a phone the CORE home starts in **Compact**; on a computer or tablet, in **Cards**. Once you choose, your choice is kept in this browser.
 
 ![The CORE home in the compact view](getting-started-compact.jpg)
 

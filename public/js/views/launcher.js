@@ -134,7 +134,9 @@ export async function launcherView(el) {
   const trackItems = () => html`${ordered().map((m) => (ctx.moduleHome(m.id) ? slot(m) : card(m)))}${soon.map(soonCard)}`;
 
   // The compact view (0.46): every module at once as a small tile in a grid, in the same order,
-  // with the same star; the first live figure (or what the module is) under its name.
+  // with the same star; the first live figure (or what the module is) under its name. The tile shows
+  // the module's short name (as the modules menu does) on one line, so every tile is the same height
+  // (QA 0.68.1: full names wrapped and made their whole row taller); the full name is in its title.
   const mini = (m) => {
     const home = ctx.moduleHome(m.id);
     const on = pinned().includes(m.id);
@@ -142,7 +144,7 @@ export async function launcherView(el) {
     const off = !soonOne && !moduleOn(m.id);
     const sub = soonOne ? 'Coming soon' : !home ? 'No access' : off ? 'Off for the company' : (stats[m.id] || [])[0] || m.tagline;
     const cls = `sys-mini${soonOne ? ' soon' : !home ? ' locked' : ''}${m.accent ? ` accent-${m.accent}` : ''}`;
-    const inner = html`<span class="sys-ic">${icon(m.glyph, 20)}</span><span class="grow"><strong>${m.name}</strong><small>${soonOne || !home ? html`${icon('lock', 11)} ` : ''}${sub}</small></span>`;
+    const inner = html`<span class="sys-ic">${icon(m.glyph, 20)}</span><span class="grow"><strong>${m.short || m.name}</strong><small>${soonOne || !home ? html`${icon('lock', 11)} ` : ''}${sub}</small></span>`;
     if (!home) return html`<div class="${cls}" data-module="${m.id}" aria-disabled="true" title="${m.name}: ${soonOne ? 'coming soon' : 'no access, ask your administrator'}">${inner}</div>`;
     return html`<div class="sys-mini-slot${on ? ' pinned' : ''}" data-module="${m.id}"><a class="${cls}" href="#${home}" title="Open ${m.name}">${inner}</a>
       <button type="button" class="sys-pin" data-pin="${m.id}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? `Unpin ${m.name}` : `Pin ${m.name} to the front`}" title="${on ? 'Pinned to the front: click to unpin' : 'Pin to the front'}">${icon('star', 16)}</button></div>`;
@@ -170,7 +172,7 @@ export async function launcherView(el) {
       <ul class="int-feats" aria-label="What it does">${t.features.map((f) => html`<li>${f}</li>`)}</ul>
       <span class="sys-open">Open ${t.name} ${icon('chevronRight', 16)}</span>
     </a>`;
-  const toolMini = (t) => html`<a class="sys-mini int-mini tool-mini int-${t.accent}" href="#${t.home}" data-tool="${t.id}"><span class="sys-ic">${icon(t.glyph, 20)}</span><span class="grow"><strong>${t.name}</strong><small>${moduleOn(t.id) ? t.tagline : 'Off for the company'}</small></span></a>`;
+  const toolMini = (t) => html`<a class="sys-mini int-mini tool-mini int-${t.accent}" href="#${t.home}" data-tool="${t.id}"><span class="sys-ic">${icon(t.glyph, 20)}</span><span class="grow"><strong>${t.short || t.name}</strong><small>${moduleOn(t.id) ? t.tagline : 'Off for the company'}</small></span></a>`;
   // Cards (the sliding row) or Compact (all at once): kept in this browser, like the theme. Until
   // someone chooses, a phone starts in Compact (0.47) and a larger screen in Cards.
   const VIEW_KEY = 'core-home-view';

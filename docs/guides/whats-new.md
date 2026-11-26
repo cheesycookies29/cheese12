@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Compact tiles all the same size (0.68.1)
+- In the **Compact** view of the CORE home, every tile (modules, integrations and tools) is now the same height. Tiles show the module's short name, as the modules menu does (*HR Management*, *Projects*, *Documents*); point at a tile for its full name. See [Getting started](getting-started#walkthrough).
+
 ### PDF Studio exports Word, Excel, text and pictures (0.68)
 - **PDF Studio** now exports more than PDFs. Under **Export → Format**, choose **Word**, **OpenDocument text**, **Rich Text**, **Web page**, **Markdown** or **Plain text** for a document to go on editing (paragraphs, headings, tables and pictures read back from the pages), **Excel** or **CSV** for the text in rows and columns with numbers as numbers, or **PNG**, **JPEG** or **SVG** pictures of each page. Your arrangement, changes and signatures go in. See [the PDF Studio guide](pdf-studio#export-as-word-excel-text-or-pictures).
 
