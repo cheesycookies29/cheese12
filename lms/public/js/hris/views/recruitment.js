@@ -44,14 +44,19 @@ const field = (label, name, value, { type = 'text', required = false, span = 1, 
   ${type === 'textarea' ? html`<textarea name="${name}" rows="3" ${required ? 'required' : ''}>${value ?? ''}</textarea>` : html`<input type="${type}" name="${name}" value="${value ?? ''}" ${required ? 'required' : ''} ${attrs} />`}
   ${hint ? html`<span class="hint">${hint}</span>` : ''}</label>`;
 
-export async function openingFormView(el, { id } = {}) {
+// query.item: a vacant plantilla item (People → Plantilla → Post a job opening): the form starts with
+// its item number, title, salary grade, campus and office, and the opening keeps which item it is.
+export async function openingFormView(el, { id } = {}, query = {}) {
   const isNew = !id;
-  const o = isNew ? { status: 'draft', audience: 'all', vacancies: 1, closingDate: '', campusId: ctx.info.activeCampusId } : await api.get(`/api/hris/recruitment/openings/${id}`);
+  const fromItem = isNew && query.item ? await api.get(`/api/hris/plantilla/${encodeURIComponent(query.item)}/opening`) : null;
+  const o = isNew ? { status: 'draft', audience: 'all', vacancies: 1, closingDate: '', campusId: ctx.info.activeCampusId, ...(fromItem || {}) } : await api.get(`/api/hris/recruitment/openings/${id}`);
   const campuses = ctx.info.campuses || [];
   const salaryHint = (sg) => (sg ? `${money(salaryFor(Number(sg), 1, today()))} a month (step 1, from the salary schedule)` : 'Leave empty if the position has no salary grade.');
   mount(el, html`
     ${pageHead(isNew ? 'New job opening' : `Edit ${o.title}`, isNew ? `At ${ctx.info.campusName || 'this campus'}.` : '', '', isNew ? BACK : [BACK, [`/recruitment/${id}`, o.title]])}
     <form id="opening-form" class="stack" novalidate>
+      ${o.plantillaItemId ? html`<input type="hidden" name="plantillaItemId" value="${o.plantillaItemId}" />` : ''}
+      ${fromItem ? html`<div class="notice"><p>From the vacant plantilla item <strong>${fromItem.plantillaItem}</strong>: its title, salary grade, campus and office are filled in. Selecting an applicant changes nothing on the item; link the person to it in <a href="#/plantilla/${fromItem.plantillaItemId}">Plantilla</a> when the appointment is made.</p></div>` : ''}
       <section class="card">
         <h2>The position</h2>
         <div class="grid">
@@ -154,7 +159,7 @@ export async function openingView(el, { id }) {
     <section class="card">
       <div class="card-head"><h2>The opening</h2><span class="actions">${audienceBadge(o.audience)} <span class="muted small">Closes ${fmtDate(o.closingDate)}</span></span></div>
       <dl class="info info-grid">
-        <div><dt>Plantilla item no.</dt><dd>${o.plantillaItem || '—'}</dd></div>
+        <div><dt>Plantilla item no.</dt><dd>${o.fromItem ? html`<a href="#/plantilla/${o.fromItem.id}">${o.plantillaItem || o.fromItem.itemNo}</a>` : o.plantillaItem || '—'}</dd></div>
         <div><dt>Salary</dt><dd>${salaryLine(o) || '—'}</dd></div>
         <div><dt>Vacancies</dt><dd>${o.vacancies}</dd></div>
         <div><dt>Posted by</dt><dd>${o.createdBy} · ${fmtDate(localDay(o.createdAt))}</dd></div>

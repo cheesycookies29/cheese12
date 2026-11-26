@@ -38,7 +38,7 @@ const SETTING_LABELS = { applicantAccountDays: 'Applicant accounts last', applic
 const REMOVED = 'Removed applicant';
 
 export const OPENING_BODY = {
-  title: t.str(400), plantillaItem: t.str(200), salaryGrade: t.any(), campusId: t.str(100), office: t.str(400),
+  title: t.str(400), plantillaItem: t.str(200), plantillaItemId: t.str(100), salaryGrade: t.any(), campusId: t.str(100), office: t.str(400),
   education: t.str(2000), training: t.str(2000), experience: t.str(2000), eligibility: t.str(2000),
   vacancies: t.any(), description: t.str(8000), closingDate: t.str(20), audience: t.str(20), status: t.str(20),
 };
@@ -103,7 +103,12 @@ export function registerRecruitmentRoutes(route, ctx) {
     const by = Object.fromEntries([...HR_STATUSES, 'withdrawn'].map((s) => [s, list.filter((a) => a.status === s).length]));
     return { total: list.length, active: list.length - by.withdrawn, internal: list.filter((a) => a.internal).length, external: list.filter((a) => !a.internal).length, byStatus: by };
   };
-  const openingHr = (o) => ({ ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o) });
+  // The plantilla item an opening was posted from (People → Plantilla → Post a job opening), if any.
+  const itemOfOpening = (o) => {
+    const i = o.plantillaItemId ? (data().plantillaItems || []).find((x) => x.id === o.plantillaItemId) : null;
+    return i ? { id: i.id, itemNo: i.itemNo, positionTitle: i.positionTitle, status: i.status } : null;
+  };
+  const openingHr = (o) => ({ ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o), plantillaItemId: o.plantillaItemId || null, fromItem: itemOfOpening(o) });
   function nameOf(a) {
     if (a.removed) return REMOVED;
     const emp = a.internal ? employeeById(a.employeeId) : null;
@@ -324,6 +329,20 @@ export function registerRecruitmentRoutes(route, ctx) {
     const wanted = text(input.campusId, 100) || existing?.campusId || campusId;
     if (!hrCampusIds(user).has(wanted)) fail('Place the opening at one of your own campuses.', 403);
     o.campusId = wanted;
+    // The plantilla item it was posted from (PL-027): a vacant item at one of HR's campuses. The
+    // opening keeps the item number it was published with. Selecting an applicant changes nothing
+    // on the item: HR links the person to it when the appointment is made.
+    o.plantillaItemId = existing?.plantillaItemId || null;
+    if ('plantillaItemId' in input && String(input.plantillaItemId || '') !== String(o.plantillaItemId || '')) {
+      const id = text(input.plantillaItemId, 100);
+      if (!id) o.plantillaItemId = null;
+      else {
+        const item = (data().plantillaItems || []).find((i) => i.id === id && hrCampusIds(user).has(i.campusId)) || fail('Plantilla item not found at your campuses.', 404);
+        if (item.status !== 'vacant') fail(`Plantilla item ${item.itemNo} is not vacant.`);
+        o.plantillaItemId = item.id;
+        if (!o.plantillaItem) o.plantillaItem = item.itemNo;
+      }
+    }
     return o;
   }
   route('GET', '/api/hris/recruitment/openings', 'hris:hris.recruitment', ({ campusId }) => openings()
@@ -458,8 +477,10 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
   data.jobApplications ||= [];
   const plus = (days) => localDate(new Date(new Date(`${today}T00:00:00`).getTime() + days * DAY_MS));
   const at = (daysAgo) => new Date(now - daysAgo * DAY_MS).toISOString();
+  // An opening whose item is in the demo plantilla register is linked to it (Post a job opening).
+  const itemId = (no) => (data.plantillaItems || []).find((i) => i.itemNo === no && i.status === 'vacant')?.id || null;
   const opening = (o) => {
-    const rec = { id: randomUUID(), demo: true, campusId: main.id, createdAt: at(12), createdBy: 'Josefina Dimaculangan', vacancies: 1, description: '', ...o };
+    const rec = { id: randomUUID(), demo: true, campusId: main.id, createdAt: at(12), createdBy: 'Josefina Dimaculangan', vacancies: 1, description: '', plantillaItemId: itemId(o.plantillaItem), ...o };
     data.jobOpenings.push(rec);
     return rec;
   };

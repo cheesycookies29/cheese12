@@ -246,6 +246,7 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
   // ----- Government payroll: salary grades and steps, appointments, RATA, loans -----
   const gov = s.payrollSystem === 'government';
   if (gov) {
+    const itemNos = new Set(data.employees.map((x) => x.plantillaItem).filter(Boolean));
     for (const e of emps) {
       const daily = e.payType === 'daily';
       e.appointment = daily && e.position !== 'Driver' ? 'Job order' : APPOINTMENT[e.employmentStatus] || 'Permanent';
@@ -256,7 +257,12 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
         const years = Math.max(0, Number(today.slice(0, 4)) - Number(e.hireDate.slice(0, 4)));
         Object.assign(e, { salaryGrade: sg, step: Math.min(8, 1 + Math.floor(years / 3)), payType: 'monthly', minimumWageEarner: false });
         e.rate = salaryFor(e.salaryGrade, e.step, today);
-        e.plantillaItem = `${campusCode(e)}-${e.position.replace(/[^A-Z]/g, '') || 'POS'}${sg}-${e.hireDate.slice(0, 4)}`;
+        // A demo item number (DBM issues the real ones), unique within the demo.
+        const base = `DEMO-${campusCode(e)}-${e.position.replace(/[^A-Z]/g, '') || 'POS'}${sg}-${e.hireDate.slice(0, 4)}`;
+        let no = base;
+        for (let k = 2; itemNos.has(no); k++) no = `${base}-${k}`;
+        itemNos.add(no);
+        e.plantillaItem = no;
       }
       e.pera = !['Job order', 'Contract of service'].includes(e.appointment);
       e.allowance = 0;

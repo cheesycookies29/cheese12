@@ -199,6 +199,7 @@ Changes apply to new runs and to drafts when you recompute; finalized runs keep 
 |---|---|
 | HR dashboard | Headcount, today's attendance and the latest payroll for the campus |
 | Employees | Employee records (view only) and each employee's **Loans and deductions** and recent payslips |
+| Plantilla | The plantilla register (view only; HR keeps it): items, incumbents, authorized and actual salaries, fund sources, CSV export and the printable PSIPOP |
 | Attendance (DTR) | Daily time records for the period (view only) |
 | Leave & approvals | Leave requests, balances and leave types (HR approves requests) |
 | Payroll | Payroll and bonus runs: the register, adjustments, payslips, Remittances, General Payroll and Finance |
@@ -207,6 +208,9 @@ Changes apply to new runs and to drafts when you recompute; finalized runs keep 
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 
 ## Questions
+
+**Where is the plantilla item on a payslip from?**
+From the plantilla register (**Plantilla**), which HR keeps: the payslip and the General Payroll print the number of the item the employee holds. You can read the register, export it and print the PSIPOP; HR records items and links incumbents (see [the HR guide](hr#link-or-unlink-an-incumbent)).
 
 **How is government pay worked out?**
 By the national government's rules (EO 64, CSC, DBM, the GAA and BIR), built into ATLAS. Payroll setup holds the amounts and rates.

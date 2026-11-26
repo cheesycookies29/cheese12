@@ -57,8 +57,8 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     side: 'hris',
-    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits, job openings and applications; adjusts payroll setup.',
-    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings', 'hris.recruitment'],
+    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits, job openings and applications, the plantilla register; adjusts payroll setup.',
+    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings', 'hris.recruitment', 'hris.plantilla'],
   },
   payroll: {
     label: 'Payroll Officer',
@@ -151,6 +151,7 @@ export const HRIS_PERMISSION_LABELS = [
   ['payroll.config', 'Payroll setup: pay rules, contributions, tax tables'],
   ['hris.settings', 'Employer details, the default work schedule and how long applicant accounts last'],
   ['hris.recruitment', 'Recruitment: job openings, applications and applicant accounts'],
+  ['hris.plantilla', 'Plantilla: record items, link incumbents, print the PSIPOP (anyone who views employee records can read it)'],
 ];
 
 export { FINANCE_PERMISSION_LABELS } from './finance.js';

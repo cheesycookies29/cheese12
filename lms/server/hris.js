@@ -22,6 +22,8 @@ import { accountOfEmployee, fmtRange, fmtDay } from './notifications.js';
 import { clockInLocation, forViewer, locationSettings, purgeOldLocations, registerGeoRoutes } from './hris-geo.js';
 import { registerPayrollFinanceRoutes } from './hris-finance.js';
 import { computeGovPayslip, computeGovBonus, DEFAULT_GOV, BONUS_KINDS, APPOINTMENTS, DEDUCTION_TYPES, monthlySalary, salaryFor, stepsIn, isJobOrder } from '../shared/gov-pay.js';
+import { itemOf, itemSummary, linkIncumbent, unlinkIncumbent, reconcileEmployee, vacateFor, makeLog, plantillaItems } from './plantilla.js';
+import { offPlantilla } from '../shared/plantilla.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -56,6 +58,9 @@ const EMPLOYEE_FIELDS = [
   'minimumWageEarner', 'flexTime', 'tin', 'sssNo', 'philhealthNo', 'pagibigNo', 'bankName', 'bankAccount',
   'emergencyContactName', 'emergencyContactPhone', 'schedule', 'category',
   // Government service: plantilla item, salary grade and step, appointment, GSIS, PERA and RATA.
+  // The plantilla item is picked from the register (server/plantilla.js), which keeps plantillaItem
+  // as the item's number; a number typed through the API is matched to the register, or recorded
+  // there as a draft to review.
   'salaryGrade', 'step', 'plantillaItem', 'appointment', 'gsisNo', 'pera', 'rataRepresentation', 'rataTransportation', 'separationDate',
 ];
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
@@ -299,6 +304,7 @@ function validatePayrollConfig(s, data, prev) {
 // Everything removed with an employee record (attendance, requests, credits), and accounts unlinked.
 export function deleteEmployees(data, ids, removeFile = () => {}) {
   const gone = new Set(ids);
+  vacateFor(data, gone); // their plantilla items become vacant
   data.timeEntries = data.timeEntries.filter((e) => !gone.has(e.employeeId));
   for (const r of data.requests) if (gone.has(r.employeeId) && r.attachment) removeFile(r.attachment.id);
   data.requests = data.requests.filter((r) => !gone.has(r.employeeId));
@@ -328,7 +334,34 @@ export function registerHrisRoutes(route, ctx) {
     const u = data().users.find((x) => x.employeeId === emp.id);
     return u ? { id: u.id, name: u.name, username: u.username, role: u.role, roleLabel: ROLES[u.role]?.label || u.role, status: u.status, hrisOnly: HRIS_ROLES.includes(u.role), lastLoginAt: u.lastLoginAt || null } : null;
   };
-  const employeeView = (emp) => ({ ...emp, campusName: campusName(data(), emp.campusId), account: accountOf(emp) });
+  // With the plantilla item the employee holds (server/plantilla.js), and a number typed on the
+  // record before the register that could not be linked (it is on the item's "to review" notes).
+  const employeeView = (emp) => {
+    const plantilla = itemSummary(data(), emp.id);
+    return { ...emp, campusName: campusName(data(), emp.campusId), account: accountOf(emp), plantilla, plantillaTyped: !plantilla && emp.plantillaItem ? emp.plantillaItem : '' };
+  };
+  // The plantilla item picked on the employee form (plantillaItemId: an item's id, or '' for none).
+  // Undefined: no change. Checked before anything is saved; linking never changes the appointment.
+  function itemChoice(user, emp, body, merged) {
+    if (!('plantillaItemId' in body)) return { change: false };
+    const want = String(body.plantillaItemId || '');
+    const current = emp ? itemOf(data(), emp.id) : null;
+    if (want === (current?.id || '')) return { change: false };
+    if (!userCan(user, 'hris.plantilla')) fail('Your account cannot change plantilla items. Ask HR (People → Plantilla).', 403);
+    if (!want) return { change: true, item: null, current };
+    const ids = new Set(campusesFor(data(), user).map((c) => c.id));
+    const item = plantillaItems(data()).find((i) => i.id === want && ids.has(i.campusId)) || fail('Plantilla item not found at your campuses.', 404);
+    if (item.status !== 'vacant') fail(`Item ${item.itemNo} is not vacant.`);
+    if (offPlantilla(merged)) fail('Job orders and contracts of service are not on the plantilla: leave the plantilla item empty.');
+    return { change: true, item, current };
+  }
+  function applyItem(choice, emp, log) {
+    if (choice.change) {
+      if (choice.current) unlinkIncumbent(data(), choice.current, log, 'From the employee record');
+      if (choice.item) linkIncumbent(data(), choice.item, emp, log, 'From the employee record');
+    }
+    reconcileEmployee(data(), emp, log); // a number typed through the API, if any
+  }
   // Each campus has its own clock-in location; the screens get the one for the campus they are on.
   const hrSettingsView = (campusId) => {
     const { locations: _all, ...s } = data().hrSettings;
@@ -434,31 +467,43 @@ export function registerHrisRoutes(route, ctx) {
   // ----- Employees -----
   route('GET', '/api/hris/employees', 'hris:employees.view', ({ campusId }) => campusEmployees(campusId).map(employeeView));
   route('GET', '/api/hris/employees/:id', 'hris:employees.view', ({ params, campusId }) => employeeView(employeeIn(campusId, params.id)));
-  route('POST', '/api/hris/employees', 'hris:employees.edit', ({ body, user, campusId }) => {
+  route('POST', '/api/hris/employees', 'hris:employees.edit', ({ body, user, campusId, ip, agent }) => {
     const emp = { id: randomUUID(), ...validateEmployee(body, data()), campusId: targetCampus(user, body.campusId, campusId), createdAt: new Date().toISOString() };
     const linkTo = body.linkUserId ? linkable(user, emp, body.linkUserId) : null;
+    const choice = itemChoice(user, null, body, emp);
+    if (choice.change) emp.plantillaItem = '';
     data().employees.push(emp);
     if (linkTo) linkTo.employeeId = emp.id;
+    applyItem(choice, emp, makeLog(ctx, { user, ip, agent }));
     save();
     return employeeView(emp);
   });
-  route('PUT', '/api/hris/employees/:id', 'hris:employees.edit', ({ params, body, user, campusId }) => {
+  route('PUT', '/api/hris/employees/:id', 'hris:employees.edit', ({ params, body, user, campusId, ip, agent }) => {
     const emp = employeeIn(campusId, params.id);
     notOwnRecord(user, emp.id, 'change pay, position or other HR details');
     const fields = validateEmployee({ ...emp, ...body }, data(), emp.id);
+    // Holding a plantilla item: the record shows its number, and it cannot become a job order.
+    const choice = itemChoice(user, emp, body, fields);
+    const holds = choice.change ? choice.item : itemOf(data(), emp.id);
+    if (holds) fields.plantillaItem = holds.itemNo;
+    else if (choice.change) fields.plantillaItem = '';
+    if (holds && offPlantilla(fields)) fail(`${emp.firstName} ${emp.lastName} holds plantilla item ${holds.itemNo}: unlink it first (People → Plantilla). Job orders and contracts of service are not on the plantilla.`);
     const moveTo = body.campusId ? targetCampus(user, body.campusId, campusId) : emp.campusId;
     if (moveTo !== emp.campusId && data().payrollRuns.some((r) => r.status === 'draft' && r.employeeIds.includes(emp.id))) {
       fail('This employee is in a draft payroll run at this campus. Finalize or delete it before moving them.');
     }
     Object.assign(emp, fields, { campusId: moveTo, updatedAt: new Date().toISOString() });
+    applyItem(choice, emp, makeLog(ctx, { user, ip, agent }));
     // The account follows the employee to the new campus.
     const acct = data().users.find((u) => u.employeeId === emp.id);
     if (acct && HRIS_ROLES.includes(acct.role) && !acct.campusIds?.includes(moveTo)) acct.campusIds = [moveTo];
     save();
     return employeeView(emp);
   });
-  route('DELETE', '/api/hris/employees/:id', 'hris:employees.edit', ({ params, campusId }) => {
+  route('DELETE', '/api/hris/employees/:id', 'hris:employees.edit', ({ params, campusId, user, ip, agent }) => {
     const emp = employeeIn(campusId, params.id);
+    const held = itemOf(data(), emp.id);
+    if (held) unlinkIncumbent(data(), held, makeLog(ctx, { user, ip, agent }), `The employee record of ${emp.firstName} ${emp.lastName} (${emp.employeeNo}) was deleted`);
     deleteEmployees(data(), [emp.id], (id) => ctx.files.remove(id));
     save();
     return { ok: true };

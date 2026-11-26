@@ -518,6 +518,27 @@
   "wait": 1000
  },
  {
+  "file": "hr-plantilla.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/plantilla",
+  "wait": 1200
+ },
+ {
+  "file": "hr-plantilla-item.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/plantilla?status=vacant",
+  "click": [
+   "text=DEMO-ADOF2-0107-2026"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "hr-psipop.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/plantilla/psipop",
+  "wait": 1500
+ },
+ {
   "file": "hr-dtr.jpg",
   "user": "hr.demo",
   "url": "/hris/#/dtr",

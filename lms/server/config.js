@@ -145,6 +145,12 @@ const DEFS = {
     save: (v) => ['PUT', '/api/hris/recruitment/settings', v],
     watch: [['PUT', /^\/api\/hris\/recruitment\/settings$/]],
   },
+  plantilla: {
+    get: (d) => clone(d.settings.plantilla),
+    defaults: () => clone(DEFAULT_SETTINGS.plantilla),
+    save: (v) => ['PUT', '/api/hris/plantilla/settings', v],
+    watch: [['PUT', /^\/api\/hris\/plantilla\/settings$/]],
+  },
   finance: {
     get: (d) => pick(d.finSettings, FINANCE_KEYS),
     save: (v) => ['PUT', '/api/finance/settings', { ...v, fiscalYear: v.fiscalYear ?? undefined }],

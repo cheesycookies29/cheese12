@@ -331,6 +331,8 @@ For example, let deans open Finance's reports (**ATLAS Finance** → *Finance da
 
 Administrators always have every permission, and managing administrator accounts and replacing data (**Administrators only**) cannot be given to anyone else. Admin-panel permissions go only to registrars and deans, who use the Admin panel.
 
+The plantilla register in People is *Plantilla: record items, link incumbents, print the PSIPOP* under **ATLAS People**. HR managers have it; account types that can view employee records (such as the payroll officer) can read the register and print the PSIPOP without it. Tick it for another account type to let it record items and link incumbents. The names on the PSIPOP's signature lines are in the **Settings center** under **ATLAS People → Plantilla: PSIPOP signatories**.
+
 Recruitment in People (job openings, applications and applicant accounts) is *Recruitment: job openings, applications and applicant accounts* under **ATLAS People**. HR managers have it; tick it for another account type to let it post openings and decide on applications. **Job applicants** (people outside the school who signed up from Job openings) can never be given a permission: they see only Job openings, My applications and their own account.
 
 ![Roles & permissions](admin-roles.jpg)

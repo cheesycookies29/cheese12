@@ -91,6 +91,7 @@ def plan(tab, iid, status, full=''):
     return 'Configuration / build', ''
 
 CHANGES = [
+    ('2026-11-27', 'HRIS PL-014 (also PL-027, PL-045)', 'Plantilla register in People: one record per DBM item number (recorded as issued) with position, salary grade, authorized and actual annual salary, office, campus, fund source and status (Filled, Vacant, Unfunded, Abolished); the incumbent is linked to the employee record; filters, totals, CSV and a printable PSIPOP (Legal landscape). Columns to confirm against HR\'s PSIPOP sample. Vacant items can post a job opening (PL-027); items carry a fund source (PL-045 now Partly).'),
     ('2026-11-26', 'HRIS PL-003, PL-004 (also PL-015, 027, 028, 029)', 'Recruitment, first slice in People: HR posts job openings (salary from the salary grade, plantilla item, CSC qualification standards, Internal only or Open to all) and follows applications with a status; outsiders sign up with basic details for a temporary applicant account (365 days by default, warned before, closed, then removed; Selected applicants kept); employees apply internally with their own account (PL-004 redesigned: no second account). PL-003, 004 and 028 now Has; 015, 027 and 029 Partly.'),
     ('2026-11-26', 'UIS PL-16, 37, 49; HRIS PL-026', 'School branding: the whole app can lead with the school (Branding -> "Our school, powered by ATLAS"). Notes added; statuses unchanged.'),
     ('2026-11-25', 'All 269', 'First version: every item mapped against ATLAS and reviewed by the council.'),

@@ -1,7 +1,7 @@
 ---
 id: hr
 title: Running HR in ATLAS People
-summary: For HR managers: employee records and sign-in accounts, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings and applications), and HR settings.
+summary: For HR managers: employee records and sign-in accounts, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings and applications), and HR settings.
 roles: hr
 apps: people
 order: 55
@@ -9,7 +9,7 @@ order: 55
 
 ## Before you start
 
-This guide is for **HR managers**: the people who keep employee records, watch attendance, approve leave, give employees their sign-in accounts and post job openings. Payroll is prepared by the payroll officer (see [the payroll officer's guide](payroll)); you can view it and change payroll setup. Your own time clock, leave and payslips are in [the employee guide](employee).
+This guide is for **HR managers**: the people who keep employee records and the plantilla, watch attendance, approve leave, give employees their sign-in accounts and post job openings. Payroll is prepared by the payroll officer (see [the payroll officer's guide](payroll)); you can view it and change payroll setup. Your own time clock, leave and payslips are in [the employee guide](employee).
 
 - Sign in on the ATLAS home page and open the **People** tile. You land on the **HR dashboard**.
 - Everything you see is for **one campus at a time**: the one named under your name at the top right. If you work at more than one campus, switch from that menu (see [Switch campus](#switch-campus)).
@@ -42,6 +42,17 @@ A first tour with the demo school. It takes about ten minutes.
 2. Go back to **Employees** and open someone whose row says *No account* in the **Sign-in** column, for example the guidance counselor. Their card has **Create a sign-in account** and **Link an existing account**.
 
 ![An employee record with the sign-in account](hr-employee.jpg)
+
+### The plantilla register
+
+1. Open **Plantilla**. Each row is one position (item) as DBM issued it: the item number, position title and salary grade, the office, campus and fund source, the status, the incumbent and the authorized and actual salaries a year. The cards at the top count the **Filled**, **Vacant** and **Unfunded** items and add up the salaries.
+2. Under **Filled, vacant and unfunded**, pick **Vacant**. Four items are left, three of them with a job opening already.
+3. Choose **DEMO-ADOF2-0107-2026** (Administrative Officer II). It has no incumbent, the authorized annual salary comes from the salary schedule (SG 11, step 1, × 12), and its job opening is listed. **Post a job opening** starts another from it.
+4. Go back and choose a filled item. The **Incumbent** card shows the person's name, sex, date of birth, TIN, GSIS no., status of appointment and actual salary, read from their employee record.
+
+![People → Plantilla at Main Campus and Sipocot](hr-plantilla.jpg)
+
+![A vacant item with its job opening](hr-plantilla-item.jpg)
 
 ### Attendance and clock-ins
 
@@ -77,7 +88,7 @@ A first tour with the demo school. It takes about ten minutes.
 1. Open **Employees** and choose **Add employee** (also on the HR dashboard).
 2. If the person already signs in to Learn (a teacher, registrar or dean), pick their account under **Already has an account?**. ATLAS fills in the name, email and department and links the account when you save.
 3. Fill in **Personal information**. Set **Gender**: maternity and paternity leave use it.
-4. Under **Employment**, enter the **Employee no.** (the next free number is suggested), **Category** (teaching or non-teaching), position, office, **Appointment status**, **Date hired** and, if you have more than one campus, the **Campus**.
+4. Under **Employment**, enter the **Employee no.** (the next free number is suggested), **Category** (teaching or non-teaching), position, office, **Appointment status**, **Date hired** and, if you have more than one campus, the **Campus**. Pick the **Plantilla item** from the vacant items in the register, or leave it at *None* (job orders and contracts of service are not on the plantilla).
 5. Under **Compensation**, pick the **Salary grade** and **Step**. The monthly salary from the salary schedule is shown beside them. For someone without a plantilla position (a job order paid by the day), leave the grade at *None (fixed rate)* and enter the **Pay type** and **Rate**. Tick **PERA** and enter RATA only for officials who receive it.
 6. Tick **Flexible time (FLEX)** for someone whose clock-in and clock-out times should not affect pay.
 7. Check the **Work schedule** (it starts as the default from HR settings), enter the government IDs and bank account, and choose **Create employee**.
@@ -112,6 +123,79 @@ Reset password and Change type or status appear only for People accounts. A teac
 4. Choose **Save changes**.
 
 **Delete employee** (at the bottom of the record) removes the record with its attendance and leave. Payslips in past payroll runs are kept. Setting the record to *Inactive* is usually the better choice.
+
+### Record a plantilla item
+
+Record each position as DBM approved it. ATLAS never makes up an item number.
+
+1. Open **Plantilla** and choose **Record an item**.
+2. Type the **Item number** exactly as DBM issued it, and the **Position title**. Each item number can be used once.
+3. Pick the **Salary grade**. The **Authorized annual salary** shows beside it: the grade's step 1 monthly salary, from the salary schedule, × 12.
+4. Pick the **Campus** (when you work at more than one) and the **Office** from Finance's list of offices, or type it when it is not there. Add the **Division** if you like.
+5. Under **Fund source and PSIPOP codes**, pick the **Fund cluster** and the **Program / activity / project**, and type the **Area code**, **Area type** and **Level** as they are on the PSIPOP.
+6. Leave **Status** at **Vacant**, or pick **Unfunded**. Fill in the **Date created** and the **Authority or reference** the item was created under.
+7. Only if the approved item says another amount: type it under **Authorized annual salary** with the **Reason**.
+8. Choose **Record item**.
+
+The item is in the register, and its change history starts. Every change after this is in the audit log, with the value before and after.
+
+### Link or unlink an incumbent
+
+1. Open **Plantilla** and choose the vacant item.
+2. Choose **Link an incumbent**, pick the employee and choose **Link**. The item becomes **Filled**.
+
+The list has the active employees at your campuses who hold no other item. Job orders and contracts of service are not on the plantilla, so they are never listed. To move someone to another item (a promotion), unlink them from the first one, then link them to the new one.
+
+To unlink, open the item and choose **Unlink**, then confirm. The item becomes **Vacant**.
+
+You can also pick the item on the employee record: **Employees →** the person **→ Edit**, then **Plantilla item**. The list has the vacant items and the one they hold.
+
+> **Important:** Linking an item never changes the employee's status of appointment. A temporary, casual or contractual employee on a plantilla item stays as their record says; change the appointment on the record when a new appointment is issued.
+
+### Post a job opening for a vacant item
+
+1. Open **Plantilla** and choose the vacant item.
+2. Choose **Post a job opening**. The opening form opens with the item number, position title, salary grade, campus and office filled in.
+3. Fill in the rest as in [Post a job opening](#post-a-job-opening) and choose **Save opening**.
+
+The opening keeps the item it came from, and the item lists its openings. Marking an applicant **Selected** changes nothing on the item: link the person to it when the appointment is made.
+
+### Mark an item unfunded or abolished
+
+1. Open the item and choose **Edit**.
+2. Pick **Unfunded** or **Abolished** under **Status**. For an abolished item, type why under **Why it is abolished**.
+3. Choose **Save changes**.
+
+An item with an incumbent must be unlinked first. An abolished item is kept for its history but left out of the register's list, its totals and the PSIPOP: pick **Abolished** or **All, with abolished** under the status filter to see it. To bring it back, set it to **Vacant**.
+
+### Review items recorded from employee records
+
+Before the register, the item number was typed on each employee record. ATLAS moved those numbers into the register by itself: a number that matched an item was linked to it; a number not in the register was recorded as a draft item marked **To review**, with the employee linked to it. Nothing typed was lost.
+
+1. Open **Plantilla**. A notice says how many items are to review; choose **Show them**.
+2. Choose an item. The notice on it says where it came from, for example a number typed on two records.
+3. Choose **Edit**, check the item number against DBM's list, and fill in what is missing (office, fund source, date created). Choose **Save changes**.
+4. Choose **Mark as reviewed**.
+
+A draft with no incumbent whose number is not on DBM's list can be removed: **Edit → Remove draft**.
+
+### Print the PSIPOP
+
+1. Open **Plantilla** and pick the filters you want on the form, for example one campus or one fund source.
+2. Choose **Print PSIPOP**.
+3. Pick the **As of** date. The salaries follow the salary schedule in force on that date.
+4. Choose **Print**, and print on **Legal** paper, **landscape**.
+
+The form has the school's name and seal (from **Branding**), the as-of date, the rows by office, the totals, *Nothing follows*, and three signature lines. The table headings repeat on every page. To set the names on the signature lines, choose **Signatories** on the register: leave the Budget Officer and the head of agency blank to use the names in Finance's signatories.
+
+![The PSIPOP, ready to print](hr-psipop.jpg)
+
+### Export the plantilla
+
+1. Open **Plantilla** and pick the filters.
+2. Choose **Export CSV**.
+
+The file has the PSIPOP's columns for every item shown, then its status, campus, office, division, fund cluster, program, date created, authority and whether it is to review.
 
 ### Correct attendance
 
@@ -201,6 +285,8 @@ A leave type that has been used cannot be deleted; untick **Active** instead. Le
 7. Under **Who may apply**, choose **Open to all** (job applicants and employees) or **Internal only** (employees only, from People).
 8. Set **Status** to **Draft** to keep working on it, or **Open** to publish it. Choose **Save opening**.
 
+For a vacant plantilla item, start from the item instead: **Plantilla →** the item **→ Post a job opening** fills in the item number, title, salary grade, campus and office (see [Post a job opening for a vacant item](#post-a-job-opening-for-a-vacant-item)).
+
 An open opening shows on the ATLAS home page (when it is Open to all) and under **Job openings** in every employee's People, until its closing date. To stop applications early, **Edit** it and set **Status** to **Closed**. An opening with no applications can be deleted from **Edit**; one with applications can only be closed, so they are kept.
 
 ### Change an application's status
@@ -259,6 +345,7 @@ The page reloads and every screen follows the campus. The current campus shows i
 |---|---|
 | HR dashboard | Today at a glance: headcount, who is in, late and on leave, requests to review, leave in the next two weeks, the latest payroll, birthdays |
 | Employees | Employee records, CSV export, and each employee's sign-in account |
+| Plantilla | The plantilla register: items as DBM issued them, their incumbents, salaries and fund sources, filters and totals, CSV export, the printable PSIPOP |
 | Attendance (DTR) | Daily time records with late, undertime and overtime; add and correct records; approve overtime; CSV export |
 | Time clock | The shared clock-in computer for the campus |
 | Clock-in locations | Where each clock-in was made, flags for clock-ins away from campus, and the campus location |
@@ -296,6 +383,24 @@ Common Philippine practice: Service Incentive Leave of at least 5 days (Labor Co
 
 **Why is tardiness taken from vacation leave?**
 Under government payroll, tardiness and undertime are charged to vacation leave credits first (CSC Omnibus Rules on Leave) when the payroll run is finalized; what the credits cannot cover is deducted from pay. Payroll setup can change this to *Deducted from pay*.
+
+**Does a plantilla item make an employee permanent?**
+No. The item and the status of appointment are separate: linking an item never changes the appointment, and ATLAS never works out permanence from the item. A temporary or casual appointee can hold an item; the appointment on their record says what it is.
+
+**Where do item numbers come from?**
+From DBM. ATLAS records them exactly as given and never makes one up, and each number can be in the register once. ATLAS says *Item number … is already in the register* when it is typed a second time.
+
+**Why can I not link a job order to an item?**
+Job orders and contracts of service are not on the plantilla. Someone who holds an item cannot be changed to a job order either: unlink them first.
+
+**Why is the authorized salary different from the actual one?**
+The authorized annual salary is the item's: its salary grade at step 1, × 12. The actual annual salary is the incumbent's: their own salary grade and step, from their record, × 12.
+
+**What does "To review" mean on an item?**
+The item was recorded by ATLAS from an item number typed on an employee record before the register, or more than one record names it. Check it against DBM's list and mark it as reviewed (see [Review items recorded from employee records](#review-items-recorded-from-employee-records)).
+
+**Who can use Plantilla?**
+HR managers and administrators keep it (the *Plantilla* permission). Anyone who can view employee records, such as the payroll officer, can read it, export it and print the PSIPOP. An administrator can give the permission to another account type under **Roles & permissions**.
 
 **Who sees an opening?**
 An opening is shown only while its status is **Open** and until its closing date. **Open to all**: people outside the school on the ATLAS home page, and every employee in People. **Internal only**: employees only; applicants never see it, even by its address.

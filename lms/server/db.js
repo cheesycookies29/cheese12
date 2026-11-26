@@ -16,6 +16,7 @@ import { mergeSso } from './sso.js';
 import { mergeCloudflare } from './cloudflare.js';
 import { mergeFinanceSettings, mergeChart } from './finance.js';
 import { DEFAULT_PEOPLE_SETTINGS } from '../shared/recruitment.js';
+import { DEFAULT_PLANTILLA_SETTINGS, mergePlantillaSettings } from '../shared/plantilla.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -65,6 +66,7 @@ export const DEFAULT_SETTINGS = {
   sso: mergeSso(), // single sign-on with Keycloak (server/sso.js); the client secret is in OIDC_CLIENT_SECRET, never here
   tools: defaultToolSettings(), // ATLAS Tools (shared/systems.js): which account types may use each tool
   cloudflare: mergeCloudflare(), // System → Cloudflare (server/cloudflare.js): the hostname set up and what was done; never the API token
+  plantilla: structuredClone(DEFAULT_PLANTILLA_SETTINGS), // ATLAS People → Plantilla: the PSIPOP's signatories (shared/plantilla.js)
   people: { ...DEFAULT_PEOPLE_SETTINGS }, // ATLAS People: how long job applicants' accounts last, the warning, the removal (shared/recruitment.js)
 };
 
@@ -117,6 +119,7 @@ export function emptyData() {
     requests: [], // leave and remote-work requests
     jobOpenings: [], // Recruitment: job openings posted by HR (server/recruitment.js)
     jobApplications: [], // applications to them, from applicant accounts (external) and employees (internal)
+    plantillaItems: [], // the plantilla register: one record per position (item) as DBM issued it (server/plantilla.js)
     guideEdits: [], // administrators' versions of the Help & guides pages (server/guides.js)
     // ----- Academic (server/academic.js) -----
     academicSettings: mergeAcademicSettings(), // grading scale, requirements, document fees, signatories
@@ -169,6 +172,7 @@ export function mergeSettings(s = {}) {
     sso: mergeSso(s.sso),
     cloudflare: mergeCloudflare(s.cloudflare),
     people: { ...DEFAULT_PEOPLE_SETTINGS, ...(s.people || {}) },
+    plantilla: mergePlantillaSettings(s.plantilla),
     tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),
   };
 }

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### The plantilla register and the PSIPOP in People
+- HR managers keep the plantilla under **People → Plantilla**: each item as DBM issued it (item number, position, salary grade, office and campus, fund source, area code, area type and level, date created and authority), filled, vacant, unfunded or abolished, with its incumbent read from their employee record, the authorized and actual salaries from the salary schedule, filters, totals, CSV export and a printable **PSIPOP** on Legal paper. Item numbers typed on employee records before were moved into the register (drafts to review where they did not match). Linking an item never changes the appointment status. A vacant item has **Post a job opening**. See [the HR guide](hr#record-a-plantilla-item); administrators: [the new permission](admin#change-what-an-account-type-may-do).
+
 ### Recruitment in People: job openings, applicant accounts and internal applications
 - HR managers post **job openings** under **People → Recruitment → Job openings** (position, plantilla item, salary grade with the monthly salary, place of assignment, qualification standards, vacancies, closing date, **Open to all** or **Internal only**) and follow the applications to each with a simple status the applicant is told about on the bell. See [the HR guide](hr#post-a-job-opening).
 - People outside the school find the openings on the ATLAS home page (**Job openings**) and sign up with basic information only. Their **applicant account** sees only Job openings and My applications, and closes after 365 days (a setting), with a warning first; closed accounts are removed later. See [the applicant's guide](applicant).

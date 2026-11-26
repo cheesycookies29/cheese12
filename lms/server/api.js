@@ -76,6 +76,7 @@ import { notify, registerNotificationRoutes, restoreNotifications, addNotificati
 import { registerDocuments } from './documents.js';
 import { createSecrets } from './secrets.js';
 import { registerRecruitmentRoutes } from './recruitment.js';
+import { registerPlantillaRoutes } from './plantilla.js';
 import { applicantExpired } from '../shared/recruitment.js';
 import { demoPdf, demoDocx } from './demo.js';
 
@@ -635,6 +636,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const hris = registerHrisRoutes(route, ctx);
   // Recruitment (People → Recruitment; job applicants; server/recruitment.js).
   const recruitment = registerRecruitmentRoutes(route, ctx);
+  // The plantilla register (People → Plantilla; server/plantilla.js).
+  const plantilla = registerPlantillaRoutes(route, ctx);
 
   // ----- Academic (/academic/): staff with their admin-panel session, teachers and students with the portal's -----
   const academicUser = (adminUser, portalUser) => adminUser || portalUser || null;
@@ -916,6 +919,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   handle.pdfStudio = pdfStudio;
   handle.documents = documents;
   handle.recruitment = recruitment;
+  handle.plantilla = plantilla;
   // Every route's method, address and access (tests check who can reach what).
   handle.routes = () => routes.map(({ method, pattern, access, applicants, guardians }) => ({ method, pattern, access, applicants, guardians }));
   return handle;

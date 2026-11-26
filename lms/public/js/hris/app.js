@@ -20,12 +20,15 @@ import { meHomeView, meAttendanceView, meRequestsView, mePayslipsView, mePayslip
 import { brandHome } from '../brand.js';
 import { jobsView, jobView, myApplicationsView } from './views/jobs.js';
 import { openingsView, openingFormView, openingView, applicantsView } from './views/recruitment.js';
+import { plantillaListView, plantillaItemView, plantillaFormView, psipopView } from './views/plantilla.js';
 
 const perm = (p) => () => can(p);
 const emp = () => isEmployee();
 // Job openings: employees (self-service) and job applicants.
 const seeker = () => isEmployee() || isApplicant();
 const staffOnly = (check) => () => !isApplicant() && check();
+// The plantilla register: HR (hris.plantilla) keeps it; anyone who views employee records reads it.
+const plantilla = () => can('hris.plantilla') || can('employees.view');
 
 const routes = [
   ['/dashboard', dashboardView, perm('hris.dashboard')],
@@ -33,6 +36,11 @@ const routes = [
   ['/employees/new', (el) => employeeFormView(el, {}), perm('employees.edit')],
   ['/employees/:id', employeeProfileView, perm('employees.view')],
   ['/employees/:id/edit', employeeFormView, perm('employees.edit')],
+  ['/plantilla', plantillaListView, plantilla],
+  ['/plantilla/new', (el) => plantillaFormView(el, {}), perm('hris.plantilla')],
+  ['/plantilla/psipop', psipopView, plantilla],
+  ['/plantilla/:id', plantillaItemView, plantilla],
+  ['/plantilla/:id/edit', plantillaFormView, perm('hris.plantilla')],
   ['/dtr', dtrView, perm('attendance.view')],
   ['/clock', clockView, perm('clock.kiosk')],
   ['/clock-locations', clockLocationsView, perm('attendance.location')],
@@ -43,7 +51,7 @@ const routes = [
   ['/payroll-setup', payrollSetupView, perm('payroll.config')],
   ['/settings', hrSettingsView, perm('hris.settings')],
   ['/recruitment', openingsView, perm('hris.recruitment')],
-  ['/recruitment/new', (el) => openingFormView(el, {}), perm('hris.recruitment')],
+  ['/recruitment/new', (el, _params, query) => openingFormView(el, {}, query), perm('hris.recruitment')],
   ['/recruitment/applicants', applicantsView, perm('hris.recruitment')],
   ['/recruitment/:id', openingView, perm('hris.recruitment')],
   ['/recruitment/:id/edit', openingFormView, perm('hris.recruitment')],
@@ -69,7 +77,7 @@ function nav() {
       { href: '/jobs/mine', label: 'My applications', icon: 'inbox' },
     ];
   }
-  const hrScreens = ['hris.dashboard', 'employees.view', 'attendance.view', 'clock.kiosk', 'leave.manage', 'payroll.view'].some(can);
+  const hrScreens = ['hris.dashboard', 'employees.view', 'hris.plantilla', 'attendance.view', 'clock.kiosk', 'leave.manage', 'payroll.view'].some(can);
   return [
     isEmployee() && { heading: 'Me' },
     isEmployee() && { href: '/me', label: 'My day', icon: 'clock', exact: true },
@@ -82,6 +90,7 @@ function nav() {
     hrScreens && { heading: 'Human resources' },
     can('hris.dashboard') && { href: '/dashboard', label: 'HR dashboard', icon: 'chart' },
     can('employees.view') && { href: '/employees', label: 'Employees', icon: 'users' },
+    plantilla() && { href: '/plantilla', label: 'Plantilla', icon: 'layers' },
     can('attendance.view') && { href: '/dtr', label: 'Attendance (DTR)', icon: 'clock' },
     can('clock.kiosk') && { href: '/clock', label: 'Time clock', icon: 'grid' },
     can('attendance.location') && { href: '/clock-locations', label: 'Clock-in locations', icon: 'mapPin' },

@@ -96,6 +96,21 @@ function field(label, name, value, { type = 'text', required = false, options, a
   return html`<label class="field span-${span}"><span>${label}${required ? html`<em>*</em>` : ''}</span>${input}${hint ? html`<span class="hint">${hint}</span>` : ''}</label>`;
 }
 
+// The plantilla item, from the register (People → Plantilla): vacant items and the one held now.
+// Without the Plantilla permission it is shown, not changed. Picking an item never changes the
+// appointment status.
+function plantillaField(emp, items) {
+  const held = emp.plantilla;
+  const typed = emp.plantillaTyped ? html` Typed before the register: <strong>${emp.plantillaTyped}</strong> (to review in Plantilla).` : '';
+  if (!can('hris.plantilla')) {
+    return html`<div class="field"><span>Plantilla item</span><output class="sg-out">${held ? `${held.itemNo} · ${held.positionTitle}` : 'None'}</output><span class="hint">HR links items in People → Plantilla.${typed}</span></div>`;
+  }
+  return html`<label class="field"><span>Plantilla item</span><select name="plantillaItemId">
+      <option value="">None${held ? '' : ' (not on the plantilla)'}</option>
+      ${items.map((i) => html`<option value="${i.id}" ${held?.id === i.id ? 'selected' : ''}>${i.itemNo} · ${i.positionTitle || 'to review'}${i.salaryGrade ? ` · SG ${i.salaryGrade}` : ''}${i.id === held?.id ? '' : ' (vacant)'}</option>`)}
+    </select><span class="hint">Vacant items from the register. Job orders and contracts of service are not on the plantilla. The appointment status above stays as you set it.${typed}</span></label>`;
+}
+
 function nextEmployeeNo(employees) {
   const max = employees.reduce((m, e) => Math.max(m, Number((String(e.employeeNo).match(/(\d+)$/) || [])[1]) || 0), 0);
   return `EMP-${String(max + 1).padStart(4, '0')}`;
@@ -104,10 +119,12 @@ function nextEmployeeNo(employees) {
 export async function employeeFormView(el, { id }) {
   const isNew = !id;
   const s = hr.settings;
-  const [emp, linkable] = await Promise.all([
+  const [emp, linkable, items] = await Promise.all([
     isNew ? api.get('/api/hris/employees').then((list) => ({ employeeNo: nextEmployeeNo(list), status: 'Active', employmentStatus: 'Probationary', category: 'non-teaching', payType: 'monthly', hireDate: today(), allowance: 0, schedule: s.schedule }))
       : api.get(`/api/hris/employees/${id}`),
     isNew && can('hris.accounts') ? api.get('/api/hris/accounts/linkable') : [],
+    // The plantilla item: picked from the register (vacant items, and the one held now).
+    isGov() && can('hris.plantilla') ? api.get(`/api/hris/plantilla/choices${id ? `?employeeId=${id}` : ''}`) : [],
   ]);
   const sched = { ...s.schedule, ...(emp.schedule || {}) };
   const campuses = ctx.info.campuses || [];
@@ -147,7 +164,7 @@ export async function employeeFormView(el, { id }) {
           ${isGov()
             ? field('Appointment status', 'employmentStatus', emp.appointment || emp.employmentStatus, { options: APPOINTMENTS, hint: 'Job order and contract of service workers have no GSIS, PERA or bonuses.' })
             : field('Employment status', 'employmentStatus', emp.employmentStatus, { options: ['Probationary', 'Regular', 'Contractual', 'Part-time', 'Job order'] })}
-          ${isGov() ? field('Plantilla item no.', 'plantillaItem', emp.plantillaItem, { hint: 'e.g. CBSUAB-INS1-12-2015' }) : ''}
+          ${isGov() ? plantillaField(emp, items) : ''}
           ${field('Date hired', 'hireDate', emp.hireDate, { type: 'date', required: true })}
           ${campuses.length > 1 ? field('Campus', 'campusId', emp.campusId || ctx.info.activeCampusId, { options: campuses.map((c) => [c.id, c.name]) }) : ''}
           ${field('Record status', 'status', emp.status, { options: ['Active', 'Inactive'], hint: 'Inactive employees are left out of new payroll runs.' })}
@@ -397,8 +414,9 @@ export async function employeeProfileView(el, { id }) {
         <dl class="info-grid">
           ${info('Campus', emp.campusName)}${info('Date hired', fmtDate(emp.hireDate))}${info(isGov() ? 'Appointment' : 'Employment status', emp.appointment || emp.employmentStatus)}
           ${isGov() && emp.salaryGrade
-            ? html`${info('Salary grade', `${sgLabel(emp)}${emp.plantillaItem ? ` · item ${emp.plantillaItem}` : ''}`)}${info('Monthly salary', `${money(salaryFor(emp.salaryGrade, emp.step, today()))}`)}`
+            ? html`${info('Salary grade', sgLabel(emp))}${info('Monthly salary', `${money(salaryFor(emp.salaryGrade, emp.step, today()))}`)}`
             : html`${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}`}
+          ${isGov() ? info('Plantilla item', emp.plantilla ? html`<a href="#/plantilla/${emp.plantilla.id}">${emp.plantilla.itemNo}</a> · ${emp.plantilla.positionTitle}${emp.plantilla.salaryGrade ? ` (SG ${emp.plantilla.salaryGrade})` : ''}` : emp.plantillaTyped ? html`${emp.plantillaTyped} ${badge('To review', 'red')}` : isJobOrder(emp) ? 'Not on the plantilla' : '') : ''}
           ${isGov() && !isJobOrder(emp) ? info('PERA and RATA', [emp.pera !== false ? `PERA ${money(hr.settings.gov.pera)}` : 'No PERA', emp.rataRepresentation || emp.rataTransportation ? `RATA ${money(emp.rataRepresentation)} + ${money(emp.rataTransportation)}` : ''].filter(Boolean).join(' · ')) : ''}
           ${info(isGov() ? 'Other allowance' : 'Allowance', `${money(emp.allowance)} / month`)}
           ${info('Tax', emp.minimumWageEarner ? 'Minimum wage earner (exempt)' : 'Regular withholding')}
