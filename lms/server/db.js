@@ -28,8 +28,13 @@ export const DEFAULT_SETTINGS = {
     waitlistLimit: 10, // per section; 0 = no limit
     maxUnits: 24, // per student per term (enrolled + pending + waitlisted)
   },
+  // Student self-registration ("Register account" on the ATLAS home page; shared/registration.js).
   registration: {
-    open: false, // the portal shows "Apply as a student"; applicants wait for approval
+    open: false, // the sign-in card shows "Register account"; new accounts wait for the registrar
+    termsUrl: '', // the school's Terms of Use: an address, or
+    termsText: '', // its text (neither: the form shows no Terms of Use link)
+    privacyUrl: '', // the Privacy Policy: an address, or
+    privacyText: '', // its text (neither: ATLAS's built-in notice, defaultPrivacyText)
   },
   branding: {
     theme: 'maroon', // a preset from shared/themes.js, or 'custom'

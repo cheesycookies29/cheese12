@@ -117,7 +117,8 @@ const appLine = () => {
   return brandText(app === 'ATLAS' ? 'ATLAS' : app.replace(/^ATLAS /, 'ATLAS · ').replace(/ · Admin$/, ' · Admin panel'));
 };
 // links: more links for the bar at the top (the ATLAS home adds Job openings).
-export function authPlate(el, { line = appLine(), ledger = [], card, links = '' }) {
+// wide: a plate for a longer form with fields side by side (Create student account).
+export function authPlate(el, { line = appLine(), ledger = [], card, links = '', wide = false }) {
   const b = ctx.info?.branding || {};
   const campus = ctx.info?.campusName;
   const open = ledger.filter(([, later]) => !later);
@@ -141,7 +142,7 @@ export function authPlate(el, { line = appLine(), ledger = [], card, links = '' 
         </nav>
       </header>
       <main class="auth-panel">
-        <div class="plate">
+        <div class="plate${wide ? ' wide' : ''}">
           <div class="plate-seal${b.logo ? ' own' : ''}">${seal}</div>
           <div class="plate-frame">
             <p class="plate-ex">Ex libris</p>

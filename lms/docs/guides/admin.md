@@ -188,11 +188,27 @@ A campus usually reaches the internet through one or two addresses, so to ATLAS 
 
 ### Admit or decline applicants
 
-1. Choose **Applicants**. The sidebar badge counts the applications waiting.
-2. To admit, choose **Admit**, check the **Program**, and choose **Admit**. The student gets a student number and can sign in at once.
+New students register themselves with **Register account** on the ATLAS home page: campus, title, first, middle and last name, email, mobile number and a password. Their accounts wait as applicants.
+
+1. Choose **Applicants**. The sidebar badge counts the registrations waiting. Each row shows the name and its parts, the email and mobile number, the date and the preferred campus.
+2. To admit, choose **Admit**, check the details, pick a **Program** if you know it, and choose **Admit**. The student gets a student number and signs in with their email.
 3. To decline, choose **Decline**, type a **Reason (kept on record)** and choose **Decline**.
 
-People can apply only while **Let people apply from the sign-in page** is ticked under **Settings & branding → Student applications**.
+People can register only while **Let new students register from the sign-in page** is ticked under **Settings & branding → Registration** (see [Set up student registration](#set-up-student-registration)).
+
+### Set up student registration
+
+The **Registration** section of **Settings & branding** decides whether the sign-in page shows **Register account**, and what students agree to at the bottom of **Create Student Account**: *By using this service, you understand and agree to the … online services Terms of Use and Privacy Policy* (with your school's short name when your school's brand leads, else its name).
+
+![Settings & branding → Registration: the switch, then the Terms of Use and the Privacy Policy, each an address or a text](admin-registration.jpg)
+
+1. Choose **Settings & branding** and scroll to **Registration**.
+2. Tick **Let new students register from the sign-in page**.
+3. Under **Terms of Use**, type the **Address of the school's page** (starting with `https://`), or write the terms under **Or the text**. Leave both empty if the school has none: students then see no Terms of Use link. ATLAS never writes terms for you; the grey text in the empty box is only a reminder for administrators.
+4. Under **Privacy Policy**, do the same. Left empty, students read ATLAS's built-in notice (**The built-in privacy notice** shows it): what the form collects, that it is used to consider the registration and to contact the student, that it becomes part of the student records, and to ask the registrar. **Start from this text** copies it into the box so you can change it.
+5. Choose **Save settings**.
+
+An address is used when there is both an address and a text. A text opens in a window over the form. The four settings are also in the **Settings center** under **ATLAS Learn → Enrollment and passing** (*Registration: Terms of Use address* and the others), where **Restore default** empties them.
 
 ### Add a parent or guardian
 
@@ -245,7 +261,7 @@ Teachers pick a type for each assignment, quiz or exam. A type that is in use ca
 2. Under **School**: the **School name**, the **Current term** and the **Passing grade (%)**.
 3. Under **Enrollment rules**: **Requests need approval**, **Waitlists**, **Waitlist size per section** and **Maximum units per term** (0 means no limit).
 4. Under **Branding**: choose the **Brand** (see [Lead with your school's name and seal](#lead-with-your-school-s-name-and-seal)), a colour theme or **School colour** with its **Accent**, **Upload logo** (PNG, JPEG or WebP, under 300 KB; it replaces the ATLAS mark in the round seal on the sign-in pages), and the **Sign-in headline** (an optional line under the school name on the sign-in pages). **Preview** shows the top bar and the sign-in page as you choose.
-5. Under **Student applications**: whether people may apply from the sign-in page.
+5. Under **Registration**: whether new students may register from the sign-in page, and the school's **Terms of Use** and **Privacy Policy** (see [Set up student registration](#set-up-student-registration)).
 6. **Sign-in and passwords** are under **System** (see [Set the rules for passwords and sign-in](#set-the-rules-for-passwords-and-sign-in)).
 7. Under **Uploads, quizzes and parent alerts**: the **Largest upload (MB)** (1 to 15), the **Quiz grace period (seconds)** that answers sent just after a deadline still count, and from how many absences a parent sees them in red.
 8. Under **Numbering**: how new student numbers, employee numbers and document request numbers look. `{YYYY}` or `{YY}` is the year, `{MM}` the month and `{N4}` the serial with at least 4 digits; **Next:** shows the number the next record will get as you type.
@@ -529,7 +545,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 |---|---|---|
 | (top) | Dashboard | The campus's current term, enrollment numbers, the fullest sections and recent activity |
 | Enrollment | Enrollment requests | Approve or reject requests, manage waitlists, add or drop students |
-| Enrollment | Applicants | Admit or decline people who applied from the sign-in page |
+| Enrollment | Applicants | Admit or decline new students who registered from the sign-in page (title, name parts, email, mobile number, campus) |
 | Enrollment | Students | Student accounts at this campus; each row opens the student's record |
 | Enrollment | Parents & guardians | Parent and guardian accounts, their students and what each may see |
 | Enrollment | Teachers | Teacher accounts at this campus and their sections |

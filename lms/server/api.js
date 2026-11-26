@@ -49,6 +49,7 @@ import { registerPdfStudio, DIRECT_UPLOAD_BYTES } from './tools-pdf.js';
 import { PDF_LIMITS } from '../shared/pdf-studio.js';
 import { TOOLS, toolOpenFor } from '../shared/systems.js';
 import { createTwoFactor, hasTwoFactor, cleanBackupTwoFactor } from './two-factor.js';
+import { TITLES, checkRegistration, composeName, usernameFromEmail, defaultPrivacyText, PASSWORDS_DIFFER } from '../shared/registration.js';
 
 // The version of this ATLAS (package.json), shown with the guides.
 const APP_VERSION = (() => {
@@ -240,6 +241,21 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   };
 
   // ----- Sign-in (shared logic for both sides) -----
+  // The account a sign-in names. With `byEmail` (the ATLAS home page), something with an "@" is an
+  // email: it names an account only when exactly one account, of any kind, has that email (compared
+  // without regard to capitals). None or several: no account, so the answer is the same "Incorrect
+  // username or password." as for a wrong password, and nobody can learn which emails exist.
+  // Usernames never contain "@" (server/admin.js), so the two cannot be confused.
+  function findAccount(typed, byEmail) {
+    const name = String(typed || '').trim().toLowerCase();
+    if (!name) return null;
+    if (byEmail && name.includes('@')) {
+      const matches = users().filter((u) => String(u.email || '').toLowerCase() === name);
+      return matches.length === 1 ? matches[0] : null;
+    }
+    return users().find((u) => u.username === name) || null;
+  }
+
   // Wrong passwords lock a username for this address (so a stranger cannot lock someone out of
   // every computer), for every address after ten times as many, and pause an address that keeps
   // guessing across many usernames. The lock is the username's, whichever sign-in page is used.
@@ -251,12 +267,16 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // With 2-step verification on, a right password opens no session: the answer is a challenge
   // ({ twoFactorRequired, challenge }) for the code, sent to the verify route of the same sign-in
   // (`via`: 'hub' for the ATLAS home page, else the side's own sign-in), which opens it.
+  //
+  // On the ATLAS home page (`via` 'hub') the account may also be named by its email: see findAccount.
   async function signIn(side, body, ip = '', agent = '', via = side) {
-    const username = String(body.username || '').trim().toLowerCase().slice(0, 120);
+    const typed = String(body.username || '').trim().toLowerCase().slice(0, 200);
     const password = String(body.password || '');
-    const key = `user:${username}`;
+    const user = findAccount(typed, via === 'hub');
+    // Locks count against the account an email names (so typing the email or the username makes no
+    // difference); an email that names no single account is counted on its own, like a username.
+    const key = `user:${user ? user.username : typed.slice(0, 200)}`;
     const here = `${key}@${ip}`;
-    const user = users().find((u) => u.username === username);
     // Every refusal is in the audit trail, with the account it was for (a username nobody has is not
     // written down: people sometimes type their password into the username box).
     const refuse = (reason, run) => {
@@ -424,38 +444,93 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/auth/change-password', 'portal', (a) => changePassword('portal', a), { duringPasswordChange: true, limit: 'password', guardians: true, audit: false, body: PASSWORD_BODY });
   route('POST', '/api/auth/campus', 'portal', ({ user, body }) => switchCampus(user, body), { guardians: true, audit: false });
   route('POST', '/api/admin/auth/campus', 'admin', ({ user, body }) => switchCampus(user, body), { audit: false });
-  route('GET', '/api/auth/campuses', 'public', () => (db.data.settings.registration.open ? db.data.campuses.map((c) => ({ id: c.id, name: c.name })) : []));
-
-  route('GET', '/api/auth/programs', 'public', () => {
-    if (!db.data.settings.registration.open) return [];
-    return db.data.programs.map((p) => ({ id: p.id, code: p.code, name: p.name }));
+  // ----- Student self-registration: "Register account" on the ATLAS home page -----
+  // The form asks for the campus, title, name, email, mobile number and a password
+  // (shared/registration.js). The account waits as an applicant (status "pending") until the
+  // registrar admits it under Admin panel → Applicants; the student then signs in with the email.
+  // Program and year level come later, at admission and enrollment.
+  const registrationClosed = () => {
+    if (!db.data.settings.registration.open) fail('Registration is closed. Contact the registrar.', 403);
+  };
+  // The school's Terms of Use and Privacy Policy for the form: an address, or a text. Terms only when
+  // the school has given some; the privacy notice falls back to ATLAS's built-in one.
+  const policies = () => {
+    const r = db.data.settings.registration;
+    const terms = r.termsUrl || r.termsText ? { url: r.termsUrl || '', text: r.termsUrl ? '' : r.termsText } : null;
+    const privacy = { url: r.privacyUrl || '', text: r.privacyUrl ? '' : r.privacyText || defaultPrivacyText(db.data.settings.schoolName), builtIn: !r.privacyUrl && !r.privacyText };
+    return { terms, privacy };
+  };
+  route('GET', '/api/auth/register', 'public', () => {
+    registrationClosed();
+    const sec = db.data.settings.security || {};
+    return {
+      campuses: db.data.campuses.map((c) => ({ id: c.id, name: c.name })),
+      titles: TITLES,
+      password: { min: Math.max(8, Number(sec.minPasswordLength) || 8), lettersAndDigits: Boolean(sec.requireLettersAndDigits) }, // as validatePassword
+      ...policies(),
+    };
   });
-  route('POST', '/api/auth/apply', 'public', async ({ body }) => {
-    if (!db.data.settings.registration.open) fail('Applications are closed. Contact the registrar.', 403);
-    validateUserFields({ ...body, role: 'student', studentNo: '' }, db.data); // the answers first, before the slow hash
+  // The answers, checked (and the campus and the email against the school's records): the cleaned
+  // fields and the campus, or a refusal with what to fix.
+  const registration = (body) => {
+    const { fields, problem } = checkRegistration(body);
+    if (problem) fail(problem);
+    const campus = db.data.campuses.find((c) => c.id === fields.campusId);
+    if (!campus) fail('That campus is not on the list. Choose your preferred campus again.');
+    // One account per email, compared without regard to capitals, across every kind of account
+    // (students sign in with it, so it must name only them).
+    if (users().some((u) => String(u.email || '').toLowerCase() === fields.email)) fail('An account with this email address already exists. Sign in with it, or ask the registrar for help.', 409);
+    return { fields, campus };
+  };
+  route('POST', '/api/auth/register', 'public', async ({ body, ip, agent }) => {
+    registrationClosed();
+    registration(body); // the answers first, before the slow hash
     validatePassword(body.password, db.data.settings.security);
+    if (body.password !== body.confirmPassword) fail(PASSWORDS_DIFFER);
     const passwordHash = await hashPasswordAsync(body.password);
-    // Checked again after the hash (someone may have taken the username meanwhile), then saved at once.
-    if (!db.data.settings.registration.open) fail('Applications are closed. Contact the registrar.', 403);
-    const fields = validateUserFields({ ...body, role: 'student', studentNo: '' }, db.data);
-    if (!fields.email) fail('Email is required so the registrar can contact you.');
-    const campus = db.data.campuses.find((c) => c.id === body.campusId) || (db.data.campuses.length === 1 ? db.data.campuses[0] : null);
-    if (!campus) fail('Pick the campus you are applying to.');
-    fields.campusIds = [campus.id];
+    // Checked again after the hash (registration may have closed, or someone taken the email
+    // meanwhile), then saved without pausing.
+    registrationClosed();
+    const { fields: f, campus } = registration(body);
+    const at = clock().toISOString();
     const user = {
       id: randomUUID(),
-      ...fields,
+      role: 'student',
+      name: composeName(f),
+      title: f.title,
+      firstName: f.firstName,
+      middleName: f.middleName,
+      lastName: f.lastName,
+      // Not asked: the student signs in with the email. Kept so every screen that shows one works.
+      username: usernameFromEmail(f.email, (name) => users().some((u) => u.username === name)),
+      email: f.email,
+      mobile: f.mobile,
+      programId: null,
+      yearLevel: 1,
+      studentNo: '',
+      campusIds: [campus.id],
       status: 'pending',
       mustChangePassword: false,
       passwordHash,
-      appliedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      applicationNote: text(body.note, 1000),
+      registeredVia: 'self',
+      appliedAt: at,
+      createdAt: at,
     };
     users().push(user);
+    // The student record in Academic (TORs, certificates, the profile) reads the name parts and the
+    // contact number from here.
+    db.data.studentProfiles.push({
+      id: randomUUID(), studentId: user.id, studentType: 'new', requirements: {}, education: [],
+      lastName: f.lastName, firstName: f.firstName, middleName: f.middleName, contactNo: f.mobile, createdAt: at,
+    });
     db.save();
-    return { ok: true };
-  }, { limit: 'apply', body: { name: t.str(200), email: t.str(320), username: t.str(200), password: t.str(1000), campusId: t.str(100), programId: t.str(100), yearLevel: t.int(0, 12), phone: t.str(60), note: t.str(4000) } });
+    audit.record({ kind: 'account', system: 'home', action: 'Registered for a student account (waiting for the registrar)', actor: user, target: user, ip, agent, detail: campus.name });
+    return { ok: true, name: user.name, email: user.email, mobile: user.mobile, campusName: campus.name };
+  }, {
+    limit: 'apply', // registrations per network address (the rule's name is from "Apply for admission")
+    audit: false,
+    body: { campusId: t.str(100), title: t.str(20), firstName: t.str(200), middleName: t.str(200), lastName: t.str(200), email: t.str(320), mobile: t.str(40), password: t.str(1000), confirmPassword: t.str(1000) },
+  });
 
   // ----- University Portal (/): one sign-in for every system -----
   // The account type decides which session is opened: students and teachers get the
@@ -488,7 +563,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   }, { duringPasswordChange: true });
   // One person per browser: signing in here ends any other session this browser had.
   route('POST', '/api/hub/login', 'public', async ({ body, tokens, ip, agent }) => {
-    const found = users().find((u) => u.username === String(body.username || '').trim().toLowerCase());
+    const found = findAccount(body.username, true); // a username, or an email (see findAccount)
     const side = ROLES[found?.role]?.side || 'portal';
     const out = await signIn(side, body, ip, agent, 'hub');
     if (out.data.twoFactorRequired) return out; // the other sessions end once the code is right

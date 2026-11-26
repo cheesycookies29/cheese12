@@ -18,7 +18,7 @@ This guide is for students. You use four ATLAS systems:
 
 To sign in:
 
-1. Open the ATLAS home page and sign in with the username and password the registrar gave you. If the password was set by someone else, ATLAS asks you to choose a new one first.
+1. Open the ATLAS home page and sign in with your username or email and the password the registrar gave you (or the one you chose when you registered). If the password was set by someone else, ATLAS asks you to choose a new one first.
 2. Under **Your systems**, choose **Learn**, **Academic** or **Finance**.
 3. To move to another system later, use the grid button (**Systems**) at the top right: it lists your systems and **ATLAS home**. The **?** button opens these guides.
 
@@ -62,6 +62,16 @@ Try this with the demo school: sign in as `student.demo` (password `demo1234`). 
 ![My payments in Finance](student-payments.jpg)
 
 ## How to…
+
+### Register as a new student
+
+If you do not have an account yet and your school lets new students register, the ATLAS home page shows **Register account** under **Sign in**.
+
+1. Choose **Register account**.
+2. Fill in **Create Student Account**: your **Preferred Campus**, **Title**, **First Name**, **Middle Name** (if you have one), **Last Name**, **Email Address** and **Mobile Number** (`09XXXXXXXXX` or `+639XXXXXXXXX`), and a **Password** typed twice.
+3. Choose **Register student account**.
+
+*Registration received* says what happens next: the registrar reviews your registration and admits you, and you then sign in with your email. Until then, signing in says your application is still being reviewed. The full steps, with pictures, are in [Getting started](getting-started#register-as-a-new-student).
 
 ### Hand in an assignment
 

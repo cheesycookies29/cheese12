@@ -8,6 +8,7 @@ import { icon } from '../../icons.js';
 import { NUMBERING_LABELS } from '/shared/numbering.js';
 import { brandHome, schoolBrand } from '../../brand.js';
 import { isSchoolBrand, brandName } from '/shared/brand.js';
+import { defaultPrivacyText, TERMS_PLACEHOLDER, POLICY_TEXT_MAX, POLICY_URL_MAX } from '/shared/registration.js';
 
 // Resizes a picked logo to at most 400 px wide, as PNG, so it stays small.
 function shrinkLogo(file) {
@@ -48,7 +49,7 @@ function brandPreview(b) {
   </div>`;
 }
 
-export async function settingsView(el) {
+export async function settingsView(el, params, q = {}) {
   const [s, terms] = await Promise.all([api.get('/api/admin/settings'), api.get('/api/admin/terms')]);
   const editable = userCan(ctx.user, 'settings.edit');
   const dis = editable ? '' : 'disabled';
@@ -91,8 +92,21 @@ export async function settingsView(el) {
           <label class="field"><span>Sign-in headline</span><input name="tagline" value="${s.branding.tagline}" placeholder="Learning, all in one place." maxlength="160" ${dis} /></label>
         </div>
       </section>
-      <section class="card"><h2>Student applications</h2>
-        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let people apply from the sign-in page.</strong> The ${brandHome()} page shows "New student? Apply for admission". Applicants appear under Applicants and can sign in once admitted.</span></label>
+      <section class="card" id="registration"><h2>Registration</h2>
+        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let new students register from the sign-in page.</strong> The ${brandHome()} page shows a <strong>Register account</strong> button that opens <strong>Create student account</strong>. New accounts wait under <a href="#/applicants">Applicants</a>; once admitted, students sign in with their email.</span></label>
+        <p class="muted" style="margin:14px 0 6px">The form ends with "By using this service, you understand and agree to the ${schoolBrand() && s.branding.shortName ? s.branding.shortName : s.schoolName} online services <strong>Terms of Use</strong> and <strong>Privacy Policy</strong>." For each, give the address of the school's page, or write the text here (an address is used when there is both).</p>
+        <div class="grid two">
+          <div class="stack tight"><h3 class="brand-sub-head first">Terms of Use</h3>
+            <label class="field"><span>Address of the school's page</span><input type="url" name="termsUrl" value="${s.registration.termsUrl || ''}" maxlength="${POLICY_URL_MAX}" placeholder="https://" ${dis} /></label>
+            <label class="field"><span>Or the text</span><textarea name="termsText" rows="8" maxlength="${POLICY_TEXT_MAX}" placeholder="${TERMS_PLACEHOLDER}" ${dis}>${s.registration.termsText || ''}</textarea>
+              <span class="hint">${s.registration.termsUrl || s.registration.termsText ? 'Students see a Terms of Use link.' : html`<strong>Not set:</strong> students see no Terms of Use link. ATLAS does not write terms for you.`}</span></label></div>
+          <div class="stack tight"><h3 class="brand-sub-head first">Privacy Policy</h3>
+            <label class="field"><span>Address of the school's page</span><input type="url" name="privacyUrl" value="${s.registration.privacyUrl || ''}" maxlength="${POLICY_URL_MAX}" placeholder="https://" ${dis} /></label>
+            <label class="field"><span>Or the text</span><textarea name="privacyText" rows="8" maxlength="${POLICY_TEXT_MAX}" placeholder="Empty: the built-in notice below." ${dis}>${s.registration.privacyText || ''}</textarea>
+              <span class="hint">${s.registration.privacyUrl || s.registration.privacyText ? 'Students see the school\'s own policy.' : 'Empty: students see the built-in notice, which lists exactly what the form collects and why.'}</span></label>
+            <details class="policy-default"><summary>The built-in privacy notice</summary><div class="policy-text small">${defaultPrivacyText(s.schoolName)}</div>
+              ${editable ? html`<button type="button" class="btn sm" id="privacy-copy">Start from this text</button>` : ''}</details></div>
+        </div>
       </section>
       <section class="card" id="security"><h2>Sign-in and passwords</h2>
         <p class="muted">Password rules, lock-out, idle sign-out and rate limits apply to every system, so administrators set them under <strong>System → Sign-in and passwords</strong>.${ctx.user.role === 'admin' ? html` <a href="#/sign-in">Open Sign-in and passwords</a>.` : ''}</p>
@@ -152,6 +166,14 @@ export async function settingsView(el) {
       toast(err.message, 'error');
     }
   });
+  // Settings → Registration: the built-in privacy notice as a start for the school's own.
+  el.querySelector('#privacy-copy')?.addEventListener('click', () => {
+    const box = el.querySelector('[name=privacyText]');
+    if (!box.value.trim()) box.value = defaultPrivacyText(s.schoolName);
+    box.focus();
+  });
+  // Opened from elsewhere at one part (#/settings?section=registration).
+  if (q.section) el.querySelector(`#${CSS.escape(q.section)}`)?.scrollIntoView({ block: 'start' });
   el.querySelector('#logo-reset')?.addEventListener('click', () => {
     logo = '';
     el.querySelector('#logo-preview').src = logoSrc({});
@@ -166,7 +188,7 @@ export async function settingsView(el) {
         currentTermId: v.currentTermId,
         passingGrade: v.passingGrade,
         enrollment: { requireApproval: Boolean(v.requireApproval), allowWaitlist: Boolean(v.allowWaitlist), waitlistLimit: v.waitlistLimit, maxUnits: v.maxUnits },
-        registration: { open: Boolean(v.registrationOpen) },
+        registration: { open: Boolean(v.registrationOpen), termsUrl: v.termsUrl, termsText: v.termsText, privacyUrl: v.privacyUrl, privacyText: v.privacyText },
         branding: { theme: v.theme, color: v.color, accent: v.accent, logo, tagline: v.tagline, mode: v.brandMode, shortName: v.shortName },
         learn: { maxUploadMb: v.maxUploadMb, quizGraceSeconds: v.quizGraceSeconds, absenceAlert: v.absenceAlert },
         numbering: Object.fromEntries(Object.keys(NUMBERING_LABELS).map((k) => [k, v[`num-${k}`]])),

@@ -18,6 +18,7 @@ import { hasTwoFactor } from './two-factor.js';
 import { parseNetwork, SCHOOL_NETWORKS_MAX } from './ratelimit.js';
 import { campusesFor, inCampus, canReach, campusIdsFrom, campusName } from './campus.js';
 import { forgetUser } from './notifications.js';
+import { POLICY_TEXT_MAX, POLICY_URL_MAX } from '../shared/registration.js';
 import {
   findById, sectionView, enrollmentView, seatsTaken, promoteWaitlist, changeStatus, HOLDS_PLACE, termOpen,
 } from './enrollment.js';
@@ -733,7 +734,28 @@ export function registerAdminRoutes(route, ctx) {
       }
       s.numbering = next;
     }
-    if (body.registration) s.registration = { open: Boolean(body.registration.open) };
+    // Registration (student self-registration): open or closed, and the school's Terms of Use and
+    // Privacy Policy, each an address or a text. What is not sent stays as it was.
+    if (body.registration) {
+      const r = body.registration;
+      if (typeof r !== 'object' || Array.isArray(r)) fail('Registration: send the settings as a list of fields.');
+      const next = { ...s.registration };
+      if ('open' in r) next.open = Boolean(r.open);
+      for (const [k, label] of [['termsUrl', 'Terms of Use'], ['privacyUrl', 'Privacy Policy']]) {
+        if (!(k in r)) continue;
+        const url = String(r[k] ?? '').trim();
+        if (url.length > POLICY_URL_MAX) fail(`${label}: the address is too long.`);
+        if (url && !/^https?:\/\/[^\s<>"]+$/i.test(url)) fail(`${label}: type the whole address, starting with https://.`);
+        next[k] = url;
+      }
+      for (const [k, label] of [['termsText', 'Terms of Use'], ['privacyText', 'Privacy Policy']]) {
+        if (!(k in r)) continue;
+        const value = String(r[k] ?? '').replace(/\r\n?/g, '\n').trim();
+        if (value.length > POLICY_TEXT_MAX) fail(`${label}: at most ${POLICY_TEXT_MAX} characters.`);
+        next[k] = value;
+      }
+      s.registration = next;
+    }
     if (body.branding) {
       const b = body.branding;
       const theme = b.theme === 'custom' || THEMES[b.theme] ? b.theme : s.branding.theme;

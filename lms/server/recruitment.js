@@ -25,7 +25,7 @@
 //
 // Out of scope for now: ratings (EETE), the applicant pool, the PDS, attachments, appointment papers.
 // Stage changes are not tied to dates or deadlines (no time limits per stage).
-// Patterns: Academic's "Apply for admission" (sign-up, rate limit, validation), leave requests (the
+// Patterns: student registration ("Register account": sign-up, rate limit, validation), leave requests (the
 // bell), Documents' sweep (a timer that is unref'd, so tests and shutdown are not held up).
 import { randomUUID } from 'node:crypto';
 import { HttpError, text, localDate } from './util.js';
@@ -331,7 +331,7 @@ export function registerRecruitmentRoutes(route, ctx) {
   }
 
   // Basic information only (PL-028): name, email, username, password, and a mobile number if they
-  // like. The same password rules, rate limit and checks as "Apply for admission".
+  // like. The same password rules, rate limit and checks as student registration (Register account).
   function emailInUse(email) {
     const other = data().users.find((u) => String(u.email || '').toLowerCase() === email);
     if (!other) return;

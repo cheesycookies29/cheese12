@@ -361,16 +361,17 @@ test('quiz answers shown "right after they submit" are sent only once the studen
   assert.ok(!hasKey(await s1.get(`/api/quizzes/${open.id}`)));
 });
 
-test('applications for admission are limited per network address', async () => {
+test('student registrations are limited per network address', async () => {
   const env = setup();
   const admin = env.client();
   await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
   await admin.put('/api/admin/settings', { registration: { open: true } });
-  const form = (i) => ({ name: `Kid ${i}`, username: `kid${i}`, email: `kid${i}@example.com`, password: PW });
+  const [campus] = env.db.data.campuses;
+  const form = (i) => ({ campusId: campus.id, title: 'Mr.', firstName: 'Kid', lastName: `Number ${'I'.repeat(i + 1)}`, email: `kid${i}@example.com`, mobile: '09171234567', password: PW, confirmPassword: PW });
   const here = from(env, '203.0.113.40');
-  for (let i = 0; i < 10; i++) await here.post('/api/auth/apply', form(i));
-  await assert.rejects(here.post('/api/auth/apply', form(10)), (e) => e.status === 429 && Boolean(e.headers['Retry-After']));
-  await from(env, '203.0.113.41').post('/api/auth/apply', form(11)); // another address still can
+  for (let i = 0; i < 10; i++) await here.post('/api/auth/register', form(i));
+  await assert.rejects(here.post('/api/auth/register', form(10)), (e) => e.status === 429 && Boolean(e.headers['Retry-After']));
+  await from(env, '203.0.113.41').post('/api/auth/register', form(11)); // another address still can
 });
 
 test('a parent whose link does not share Grades sees no final grades, in the class list or its history', async () => {

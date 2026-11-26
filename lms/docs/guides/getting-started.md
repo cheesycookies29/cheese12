@@ -14,7 +14,7 @@ ATLAS is your school's platform. It is made of several systems: **Academic** (re
 You need:
 
 - The address of your school's ATLAS home page (for example `https://atlas.school.edu`).
-- The username and password your school gave you. Students get theirs from the registrar, employees from the registrar, HR or an administrator. If your school uses Keycloak, you can use your Keycloak account instead.
+- Your username (or your email) and password. Students get theirs from the registrar, or register themselves with **Register account** when the school allows it (see [Register as a new student](#register-as-a-new-student)); employees get theirs from the registrar, HR or an administrator. If your school uses Keycloak, you can use your Keycloak account instead.
 
 > **Note:** Your school may show its own name and seal instead of ATLAS, for example *LA home* and *LA Learn*, with a small *Powered by ATLAS*. Everything works the same; where these guides say ATLAS, read your school's name.
 
@@ -24,7 +24,7 @@ This guide is for everyone. The guides for your own job are listed on the **Help
 
 This tour uses the demo school. Sign in as `teacher.demo` with the password `demo1234`.
 
-1. Open the ATLAS home page. Type `teacher.demo` under **Username** and `demo1234` under **Password**, then choose **Sign in**.
+1. Open the ATLAS home page. Type `teacher.demo` under **Username or email** and `demo1234` under **Password**, then choose **Sign in**.
 2. The home page greets you by name. Under the greeting are your account type (*Teacher*) and your campus (*Main Campus*). Below that, **Your systems** shows a card for each system your account may use, how many are available, and a few figures from your own work on each card (for example *2 sections you teach* and *8 to grade*; they can be up to a minute old). When there are more cards than fit across the screen, they move in a row: choose the arrows beside *… available to you* or the dots under the cards, swipe the row on a phone or tablet, or press `Tab` until the row itself is selected and then the left and right arrow keys. Choose **Compact** to see every system at once instead.
 
 ![The ATLAS home page after signing in](getting-started-home.jpg)
@@ -48,10 +48,12 @@ This tour uses the demo school. Sign in as `teacher.demo` with the password `dem
 
 1. Open the ATLAS home page. The sign-in page shows your school's name at the top, the form under it, and the systems ATLAS opens at the bottom.
 
-![The ATLAS sign-in page: the school's seal and name, then Username, Password and Sign in](getting-started-sign-in.jpg)
+![The ATLAS sign-in page: the school's seal and name, then Username or email, Password, Sign in and Register account](getting-started-sign-in.jpg)
 
-2. Type your **Username** and **Password**. Choose **Show** to see the password you typed.
+2. Under **Username or email**, type your username or the email address on your account (capitals do not matter). Type your **Password**; choose **Show** to see what you typed.
 3. Choose **Sign in**.
+
+Your email works only when no other ATLAS account has the same one; if it is refused, sign in with your username instead, or ask the registrar. Wrong passwords count the same whether you typed your email or your username.
 
 **Help & guides** and **Dark mode** are at the top right of the sign-in page, so you can read this guide or switch to dark mode before you sign in; the other guides open once you are signed in. On a phone they are the question mark and the moon.
 
@@ -224,16 +226,25 @@ Every system has a **Help & guides** button (a question mark) in the top bar, be
 
 Each guide starts with a short walkthrough, then explains each task step by step, lists every screen, and answers common questions. On a wide screen, **On this page** on the right jumps to a section; on a smaller one it is a list at the top of the guide. Choose a screenshot to see it larger.
 
-### Apply for admission
+### Register as a new student
 
-Some schools let new students apply on the ATLAS home page. When this is on, the sign-in card shows **New student? Apply for admission**.
+When your school lets new students register on the ATLAS home page, the sign-in card shows **New student?** and a **Register account** button under **Sign in**.
 
-1. Choose **Apply for admission**.
-2. Fill in your **Full name**, **Email**, the **Campus** (when the school has more than one), **Program** and **Year level**.
-3. Choose a username and a password (at least 8 characters). Add a note for the registrar if you need to.
-4. Choose **Send application**.
+1. Choose **Register account**. **Create Student Account** opens, under your school's seal and name.
 
-The registrar reviews your application. Once you are admitted, you sign in with the username you chose.
+![Create Student Account: Preferred Campus, Title and First Name, Middle Name and Last Name, Email Address and Mobile Number, Password and Confirm Password, then Register student account](getting-started-register.jpg)
+
+2. Pick your **Preferred Campus** (when the school has one campus, it is filled in for you).
+3. Pick your **Title** and type your **First Name**, **Middle Name** (leave it empty if you have none) and **Last Name**, as on your birth certificate.
+4. Type your **Email Address** and your **Mobile Number**, as `09XXXXXXXXX` or `+639XXXXXXXXX`. You will sign in with this email.
+5. Choose a **Password** and type it again under **Confirm Password**. The eye button beside each box shows or hides what you typed.
+6. Read the **Privacy Policy** (and the **Terms of Use**, when your school has them) from the line at the bottom, then choose **Register student account**.
+
+*Registration received* opens and says what happens next.
+
+![Registration received: the registrar reviews the registration, then the student signs in with their email](getting-started-registered.jpg)
+
+The registrar reviews your registration. Until you are admitted, signing in says *Your application is still being reviewed*. Once you are admitted, you get a student number and sign in with your email and the password you chose. Your program and year level are set later, when you are admitted or enroll. Already have an account? Choose **Click here** at the bottom of the form to go back to signing in.
 
 ### Apply for a job at the school
 
@@ -249,7 +260,8 @@ You are signed in and can apply. Your applicant account is temporary. See [the a
 
 | Screen or button | What it is for |
 |---|---|
-| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, **Apply for admission** when applications are open, and **Job openings** when the school has some; **Help & guides** and **Dark mode** at the top right |
+| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card (**Username or email** and **Password**), the Keycloak button when your school uses it, **Register account** when the school lets new students register, and **Job openings** when the school has some; **Help & guides** and **Dark mode** at the top right |
+| Create Student Account | **Register account**: a new student's campus, title, name, email, mobile number and password; then *Registration received* |
 | Bell (top bar) | Your notifications: the latest, **Mark all as read**, **Unread only** and **See all notifications** |
 | Notifications | The full list, by system and unread, with **Show more** |
 | ATLAS home page | Your greeting, account type and campus, **Your systems** (cards with figures from your work and a star to pin, in a row with arrows and dots, or all at once in **Compact**), **Tools** (PDF Studio, for the account types that have it), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
@@ -284,7 +296,13 @@ You are signed in and can apply. Your applicant account is temporary. See [the a
 
 **ATLAS says "Your applicant account closed on …"** You signed up to apply for jobs, and your applicant account was open for a set number of days only. Ask the school's HR office to extend it if you still want to apply.
 
-**ATLAS says "Your application is still being reviewed."** You applied for admission and the registrar has not admitted you yet. You can sign in once you are admitted.
+**ATLAS says "Your application is still being reviewed."** You registered as a new student and the registrar has not admitted you yet. You can sign in once you are admitted, with your email and the password you chose. You do not need to register again.
+
+**ATLAS says "An account with this email address already exists."** Someone already has an ATLAS account with that email, perhaps you. Sign in with it (choose **Click here** to go back), or ask the registrar for help.
+
+**My email does not work for signing in, but my username does.** Signing in with an email works only when exactly one ATLAS account has that email. Sign in with your username, and ask the registrar or an administrator to check the email on your account.
+
+**What do the Terms of Use and the Privacy Policy say?** Choose them in the line at the bottom of **Create Student Account**; they open the school's own page or text. The Privacy Policy lists what the form collects (campus, title, name, email, mobile number and password) and why: to consider your registration and contact you about it. The Terms of Use link shows only when your school has written its own.
 
 **ATLAS says "This school signs in with Keycloak."** Your school has switched ATLAS passwords off. Choose the Keycloak button instead.
 

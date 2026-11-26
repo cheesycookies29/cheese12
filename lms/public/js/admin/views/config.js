@@ -33,6 +33,7 @@ export function showValue(v, format, display) {
     case 'money': return peso(v);
     case 'grade': return Number(v).toFixed(2);
     case 'picture': return v ? 'A picture' : 'None';
+    case 'longText': return String(v).length > 120 ? `${String(v).slice(0, 120)}…` : String(v);
     case 'schedule': {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const w = [...(v.workDays || [])].sort();

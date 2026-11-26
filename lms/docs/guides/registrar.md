@@ -14,7 +14,7 @@ This guide is for registrars and their staff. Your work happens in two places:
 - **The Admin panel of ATLAS Learn**: enrollment requests and waitlists, applicants, student accounts, and the catalog (sections, courses, terms, programs).
 - **ATLAS Academic**: student records, curricula, grade sheets, grade changes, document requests, reports and the academic settings.
 
-To sign in, open the ATLAS home page and sign in with your username and password. On the home page, **Administration** (below your systems) has the **Admin panel**, with shortcuts to **Enrollment requests** and **Applicants**; the **Learn** tile says *Manage Learn* and also opens the Admin panel, and the **Academic** tile says *Open Academic*. You can also sign in to the Admin panel directly at `/admin`.
+To sign in, open the ATLAS home page and sign in with your username (or email) and password. On the home page, **Administration** (below your systems) has the **Admin panel**, with shortcuts to **Enrollment requests** and **Applicants**; the **Learn** tile says *Manage Learn* and also opens the Admin panel, and the **Academic** tile says *Open Academic*. You can also sign in to the Admin panel directly at `/admin`.
 
 If you work at more than one campus, the campus you are on shows in the top bar. To change it, choose your name at the top right and pick a campus under **Switch campus**. Every list (students, sections, enrollment requests, grade sheets, document requests) follows the campus you are on.
 
@@ -113,10 +113,15 @@ The result: the student is enrolled without an approval step. The enrollment win
 
 ### Admit or decline an applicant
 
-1. Open **Admin panel → Applicants**. Each row shows the program the person chose, when they applied, and their note.
-2. Choose **Admit**, check the **Program**, and choose **Admit**. Or choose **Decline**, write the reason (it is kept on record), and choose **Decline**.
+New students register themselves with **Register account** on the ATLAS home page (see [Getting started](getting-started#register-as-a-new-student)). Their accounts wait under **Applicants** until you decide.
 
-The result: an admitted applicant gets a student number and can sign in right away. People can apply only while *Student applications* is switched on under **Settings & branding**, which an administrator controls.
+1. Open **Admin panel → Applicants**. Each row shows the applicant's name, with the parts as they typed them under it (title, last name, first name and middle name); their email and mobile number; when they registered and their preferred campus; and, for older applications, the program and note.
+2. Choose **Admit**. The window shows the **Title**, **Last name**, **First name**, **Middle name**, **Email**, **Mobile number** and **Campus**. Pick a **Program** now if you know it, or leave **None** and set it later.
+3. Choose **Admit**. Or choose **Decline**, write the reason (it is kept on record), and choose **Decline**.
+
+The result: an admitted student gets a student number, is told on the bell at their first sign-in, and signs in with their email (or the username ATLAS made from it). Their last, first and middle names and mobile number are already on their record in **Academic**, ready for the COR and the transcript. People can register only while **Registration** is switched on under **Settings & branding**, which an administrator controls.
+
+> **Note:** Each email can belong to one account only, so a student who registers twice is told the email already has an account. Program and year level are not asked when registering; you set them when admitting or at enrollment.
 
 ### Add a student account
 
@@ -244,7 +249,7 @@ An administrator decides who may change these settings (Admin panel → **Roles 
 |---|---|
 | **Dashboard** | The current term and its enrollment window, pending requests, waitlists, applicants, the fullest sections, recent enrollment activity |
 | **Enrollment requests** | Approve or reject requests, handle waitlists, drop students, add a student to a section, each request's history |
-| **Applicants** | People who applied from the sign-in page: admit or decline |
+| **Applicants** | New students who registered from the sign-in page, with their title, name parts, email, mobile number and campus: admit or decline |
 | **Students** | Student accounts, each with their enrollment record, final grades and linked parents |
 | **Parents & guardians** | Parent and guardian accounts, the students each follows, and what each may see |
 | **Teachers** | Teacher accounts and their sections (view only) |

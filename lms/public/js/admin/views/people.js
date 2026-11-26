@@ -7,10 +7,11 @@ import { lookups, filterRows, sectionTitle } from '../common.js';
 import { enrollmentActions, wireEnrollmentActions, showHistory, addEnrollmentDialog } from './enrollment.js';
 import { studentGuardiansCard } from './guardians.js';
 import { brandHome } from '../../brand.js';
+import { formatMobile } from '/shared/registration.js';
 
 const KINDS = {
   student: { title: 'Students', role: 'student', url: '/api/admin/users?role=student', manage: 'students.manage', get sub() { return `Student accounts sign in on the ${brandHome()} page.`; } },
-  applicant: { title: 'Applicants', role: 'student', url: '/api/admin/users?role=student&status=pending', manage: 'students.manage', sub: 'People who applied from the sign-in page. Admitting gives them a student number and lets them sign in.' },
+  applicant: { title: 'Applicants', role: 'student', url: '/api/admin/users?role=student&status=pending', manage: 'students.manage', sub: 'New students who registered from the sign-in page (Register account). Admitting gives them a student number and lets them sign in with their email.' },
   teacher: { title: 'Teachers', role: 'teacher', url: '/api/admin/users?role=teacher', manage: 'teachers.manage', get sub() { return `Teacher accounts sign in on the ${brandHome()} page and see the sections assigned to them.`; } },
   staff: { title: 'Admins, registrars & deans', role: 'registrar', url: '/api/admin/users?role=staff', manage: 'admins.manage', sub: 'These accounts sign in here, on the admin panel.' },
 };
@@ -76,6 +77,16 @@ export function resetPasswordDialog(user) {
   });
 }
 
+// A registered applicant's name as typed, part by part (title, last, first, middle), for the registrar.
+const nameLine = (u) => (u.lastName ? html`<small>${[u.title, `${u.lastName}, ${u.firstName}`, u.middleName].filter(Boolean).join(' ')}</small>` : html`<small>${u.username}</small>`);
+function applicantDetails(u) {
+  const row = (label, value) => (value ? html`<div class="info"><dt>${label}</dt><dd>${value}</dd></div>` : '');
+  return html`<dl class="info-grid" style="margin-bottom:14px">
+    ${row('Title', u.title)}${row('Last name', u.lastName)}${row('First name', u.firstName)}${row('Middle name', u.lastName ? u.middleName || '—' : '')}
+    ${u.lastName ? '' : row('Name', u.name)}${row('Email', u.email)}${row('Mobile number', u.mobile && formatMobile(u.mobile))}${row('Campus', (u.campusNames || []).join(', '))}
+  </dl>`;
+}
+
 export async function peopleView(el, { kind }) {
   const k = KINDS[kind];
   const mayManage = userCan(ctx.user, k.manage);
@@ -85,8 +96,11 @@ export async function peopleView(el, { kind }) {
   const columns = {
     student: () => html`<thead><tr><th>Student</th><th>Number</th><th>Program</th><th>Units this term</th><th>Status</th><th>Last sign-in</th></tr></thead>
       <tbody>${rows.map((u) => html`<tr data-id="${u.id}"><td><strong>${u.name}</strong><small>${u.username}${u.email ? ` · ${u.email}` : ''}</small></td><td class="mono">${u.studentNo}</td><td>${u.program || '—'}${u.program ? html`<small>Year ${u.yearLevel}</small>` : ''}</td><td>${u.currentUnits || '—'}</td><td>${statusBadge(u.status)}</td><td>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td></tr>`)}</tbody>`,
-    applicant: () => html`<thead><tr><th>Applicant</th><th>Program</th><th>Applied</th><th>Note</th><th></th></tr></thead>
-      <tbody>${rows.map((u) => html`<tr><td><strong>${u.name}</strong><small>${u.username} · ${u.email}</small></td><td>${u.program || '—'}${u.program ? html`<small>Year ${u.yearLevel}</small>` : ''}</td><td>${fmtDate((u.appliedAt || u.createdAt).slice(0, 10))}</td><td class="notes">${u.applicationNote || '—'}</td>
+    applicant: () => html`<thead><tr><th>Applicant</th><th>Contact</th><th>Registered</th><th>Program and note</th><th></th></tr></thead>
+      <tbody>${rows.map((u) => html`<tr><td><strong>${u.name}</strong>${nameLine(u)}</td>
+        <td>${u.email || '—'}${u.mobile ? html`<small>${formatMobile(u.mobile)}</small>` : ''}</td>
+        <td>${fmtDate((u.appliedAt || u.createdAt).slice(0, 10))}${u.campusNames?.length ? html`<small>${u.campusNames.join(', ')}</small>` : ''}</td>
+        <td class="notes">${u.program ? html`${u.program} <small>Year ${u.yearLevel}</small>` : ''}${u.applicationNote ? html`<small>${u.applicationNote}</small>` : ''}${u.program || u.applicationNote ? '' : html`<span class="muted">Not chosen yet</span>`}</td>
         <td class="row-actions">${mayManage ? html`<button class="btn primary" data-admit="${u.id}">Admit</button><button class="btn danger ghost" data-decline="${u.id}">Decline</button>` : ''}</td></tr>`)}</tbody>`,
     teacher: () => html`<thead><tr><th>Teacher</th><th>Department</th><th>Sections this term</th><th>Status</th><th>Last sign-in</th></tr></thead>
       <tbody>${rows.map((u) => html`<tr data-id="${u.id}"><td><strong>${u.name}</strong><small>${u.username}${u.email ? ` · ${u.email}` : ''}</small></td><td>${u.department || '—'}</td><td>${u.sections || '—'}</td><td>${statusBadge(u.status)}</td><td>${u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td></tr>`)}</tbody>`,
@@ -97,11 +111,11 @@ export async function peopleView(el, { kind }) {
 
   mount(el, html`
     ${pageHead(k.title, k.sub, mayManage && kind !== 'applicant' ? html`<button class="btn primary" id="add">+ Add ${kind === 'staff' ? 'account' : roleLabel(k.role).toLowerCase()}</button>` : '')}
-    ${kind === 'applicant' ? html`<p class="hint" style="margin-bottom:12px">Turn the "Apply for admission" form on the ${brandHome()} page on or off under <a href="#/settings">Settings & branding → Student applications</a>.</p>` : ''}
+    ${kind === 'applicant' ? html`<p class="hint" style="margin-bottom:12px">Turn the <strong>Register account</strong> button on the ${brandHome()} page on or off, and set the Terms of Use and Privacy Policy students agree to, under <a href="#/settings?section=registration">Settings & branding → Registration</a>.</p>` : ''}
     ${rows.length ? html`
       <div class="toolbar"><input type="search" placeholder="Search" /><span class="spacer"></span><span class="muted" id="shown">${rows.length} shown</span></div>
       <div class="card scroll-x"><table class="table ${kind === 'student' || kind === 'teacher' ? 'clickable' : ''}">${columns[kind]()}</table></div>`
-      : empty(kind === 'applicant' ? 'No applications waiting' : `No ${k.title.toLowerCase()} yet`, kind === 'applicant' ? 'New applications from the sign-in page appear here.' : '')}`);
+      : empty(kind === 'applicant' ? 'No registrations waiting' : `No ${k.title.toLowerCase()} yet`, kind === 'applicant' ? 'New students who register from the sign-in page appear here.' : '')}`);
 
   const redraw = () => peopleView(el, { kind });
   filterRows(el);
@@ -118,7 +132,9 @@ export async function peopleView(el, { kind }) {
     const u = rows.find((x) => x.id === b.dataset.admit);
     modal({
       title: `Admit ${u.name}`,
-      body: html`<label class="field"><span>Program</span><select name="programId">${option('', 'None')}${programs.map((p) => option(p.id, `${p.code} · ${p.name}`, p.id === u.programId))}</select></label><p class="hint">They get a student number and can sign in right away.</p>`,
+      body: html`${applicantDetails(u)}
+        <label class="field"><span>Program</span><select name="programId">${option('', 'None')}${programs.map((p) => option(p.id, `${p.code} · ${p.name}`, p.id === u.programId))}</select><span class="hint">Optional: the program can also be set later, at enrollment.</span></label>
+        <p class="hint" style="margin-top:10px">They get a student number and can sign in right away${u.email ? `, with their email ${u.email}` : ''}. They are told on the bell at their first sign-in.</p>`,
       submitLabel: 'Admit',
       async onSubmit(form) {
         const s = await api.post(`/api/admin/users/${u.id}/approve`, formData(form));
@@ -158,6 +174,8 @@ export async function personView(el, { id }) {
       ${u.role === 'teacher' ? html`${info('Department', u.department)}${info('Employee number', u.employeeNo)}` : ''}
       ${info('Campus', (u.campusNames || []).join(', '))}
       ${info('Email', u.email)}
+      ${u.mobile ? info('Mobile number', formatMobile(u.mobile)) : ''}
+      ${u.title ? info('Title', u.title) : ''}
       ${info('Last sign-in', u.lastLoginAt ? timeAgo(u.lastLoginAt) : 'Never')}
       ${info('Account created', fmtDate(u.createdAt.slice(0, 10)))}
     </dl></section>

@@ -1,7 +1,7 @@
 // ATLAS home (/): one sign-in, then a card for each system the account may use (Academic,
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
-import { html, mount, option, initials, timeAgo, fmtDate, toast, money, today } from '../ui.js';
+import { html, mount, option, initials, timeAgo, fmtDate, toast, money, today, modal } from '../ui.js';
 import { ctx, applyBranding, failureNotice, authPlate, toastOnNextPage, atlasWord, markSrc, BYLINE, poweredBy, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel, userCan } from '/shared/roles.js';
@@ -11,6 +11,7 @@ import { orderSystems, canOpen } from '/shared/systems.js';
 import { codeStep, forceTwoFactorView } from '../account/two-factor.js';
 import { schoolBrand, brand, brandHome, brandText } from '../brand.js';
 import { SEXES, EDUCATION_LEVELS, ADDRESS_MAX, EARLIEST_BIRTH_DATE, listInWords } from '/shared/recruitment.js';
+import { NAME_MAX, EMAIL_MAX, PASSWORDS_DIFFER, formatMobile } from '/shared/registration.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -28,10 +29,11 @@ function showAuth(render) {
 // ----- Signed out -----
 // jobs: open job openings anyone may apply for; the bar at the top then links to them.
 let jobsOpen = 0;
-function hubScreen(card, systems, line) {
+function hubScreen(card, systems, line, { wide = false } = {}) {
   const form = authPlate(authEl, {
     line,
     card,
+    wide,
     links: jobsOpen ? html`<a href="#jobs" id="jobs-link">${icon('briefcase', 16)} <span>Job openings</span></a>` : '',
     ledger: [...systems.filter((s) => s.status === 'live'), ...systems.filter((s) => s.status !== 'live')].map((s) => [s.product, s.status !== 'live']),
   });
@@ -46,18 +48,22 @@ function signInView(status) {
     <form class="auth-card" novalidate>
       <h2 class="sr-only">Sign in</h2>
       ${ssoBlock(status.sso, next || '/')}
-      ${passwordFields(status.sso, html`<label class="field"><span>Username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
+      ${passwordFields(status.sso, html`<label class="field"><span>Username or email</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
       ${passwordField('Password', 'password', 'current-password')}
       <button class="btn ${status.sso?.enabled ? '' : 'primary'} block" type="submit">Sign in</button>`)}
       <p class="form-error" hidden></p>
-      ${status.registrationOpen ? html`<p class="auth-switch">New student? <button type="button" class="link" id="apply">Apply for admission</button></p>` : ''}
+      ${status.registrationOpen ? html`<div class="auth-or"><span>New student?</span></div>
+      <button type="button" class="btn block register-btn" id="register">${icon('userPlus', 18)} Register account</button>` : ''}
       ${status.jobs ? html`<p class="auth-switch">Looking for a job? <a href="#jobs" id="see-jobs">See job openings</a></p>` : ''}
       <p class="auth-foot">${status.sso?.enabled && !status.sso.passwords ? 'Trouble signing in? Ask the registrar or your administrator.' : 'Forgot your password? Ask the registrar or your administrator to reset it.'}</p>
     </form>`, status.systems, brandText('ATLAS · Sign in'));
-  form.querySelector('#apply')?.addEventListener('click', () => applyView(status));
+  form.querySelector('#register')?.addEventListener('click', () => {
+    history.replaceState(null, '', `${location.pathname}${location.search}#register`);
+    registerView(status);
+  });
   showSsoError(form);
   onFormSubmit(form, async ({ username, password }) => {
-    if (!username || !password) throw new Error('Enter your username and password.');
+    if (!username || !password) throw new Error('Enter your username or email, and your password.');
     const res = await api.post('/api/hub/login', { username, password });
     // With 2-step verification on, the code from the authenticator app comes next.
     if (res.twoFactorRequired) {
@@ -165,38 +171,119 @@ function signUpView(status, jobs) {
   });
 }
 
-function applyView(status) {
-  const back = () => signInView(status);
-  const form = hubScreen(html`
-    <form class="auth-card" novalidate>
-      <h2 class="sr-only">Apply for admission</h2>
-      <p class="muted">The registrar reviews your application; you can sign in once you are admitted.</p>
-      <label class="field"><span>Full name</span><input name="name" autocomplete="name" required /></label>
-      <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required /></label>
-      <label class="field" id="campus-field" hidden><span>Campus</span><select name="campusId" id="campuses"></select></label>
-      <label class="field"><span>Program</span><select name="programId" id="programs">${option('', 'Undecided')}</select></label>
-      <label class="field"><span>Year level</span><select name="yearLevel">${[1, 2, 3, 4, 5].map((y) => option(y, `Year ${y}`))}</select></label>
-      <label class="field"><span>Choose a username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /></label>
-      ${passwordField('Choose a password (at least 8 characters)', 'password', 'new-password')}
-      <label class="field"><span>Anything the registrar should know? (optional)</span><textarea name="note" style="min-height:70px"></textarea></label>
+// ----- Create student account ("Register account" on the sign-in card; shared/registration.js) -----
+// New students register themselves: campus, title, name, email, mobile number and a password. The
+// account waits for the registrar (Admin panel → Applicants); once admitted, they sign in with the email.
+const REG_LINE = 'Create Student Account';
+const regTitle = (what) => `${what} · ${brand()}`; // the short name in school mode (brand.js)
+// What the agreement line calls the school: its short name when its brand leads, else its name.
+const schoolCalled = (b) => (schoolBrand() && b.shortName ? b.shortName : b.schoolName);
+function backToSignIn(status) {
+  history.replaceState(null, '', location.pathname + location.search);
+  document.title = `${brand()} · ${status.branding.schoolName}`;
+  signInView(status);
+}
+// A password box with an eye button that shows or hides what was typed.
+const eyeField = (label, name, hint = '') => html`<label class="field"><span>${label}</span>
+  <div class="pw-wrap eye"><input type="password" name="${name}" autocomplete="new-password" maxlength="200" required /><button type="button" class="pw-eye" data-eye aria-label="Show password" aria-pressed="false" title="Show password">${icon('eye', 18)}</button></div>
+  ${hint ? html`<span class="hint">${hint}</span>` : ''}</label>`;
+// The Terms of Use or Privacy Policy: a link to the school's page, or its text in a window.
+function policyLink(policy, label, id) {
+  if (!policy) return '';
+  return policy.url
+    ? html`<a href="${policy.url}" target="_blank" rel="noopener">${label}</a>`
+    : html`<button type="button" class="link" id="${id}">${label}</button>`;
+}
+function showPolicy(title, policy) {
+  modal({ title, wide: true, submitLabel: null, body: html`<div class="policy-text">${policy.text}</div>` });
+}
+
+async function registerView(status) {
+  const b = status.branding;
+  const plate = (card) => hubScreen(card, status.systems, REG_LINE, { wide: true });
+  document.title = regTitle(REG_LINE);
+  plate(html`<div class="auth-card"><p class="muted">Loading…</p></div>`);
+  let f;
+  try {
+    f = await api.get('/api/auth/register');
+  } catch (err) {
+    plate(html`<div class="auth-card"><h2>Registration is closed</h2><p class="muted">${err.status === 403 ? 'New student accounts cannot be created here right now. Contact the registrar\'s office.' : err.message}</p><button type="button" class="btn primary block" id="back">Back to sign in</button></div>`);
+    return authEl.querySelector('#back').addEventListener('click', () => backToSignIn(status));
+  }
+  const one = f.campuses.length === 1 ? f.campuses[0] : null;
+  const rule = `At least ${f.password.min} characters${f.password.lettersAndDigits ? ', with letters and digits' : ''}.`;
+  const form = plate(html`
+    <form class="auth-card reg-card" novalidate>
+      <h2 class="sr-only">${REG_LINE}</h2>
+      <p class="muted">For new students. The registrar reviews your registration; once you are admitted, you sign in with your email.</p>
+      ${one
+        ? html`<label class="field"><span>Preferred Campus</span><input value="${one.name}" readonly required aria-describedby="campus-hint" /><input type="hidden" name="campusId" value="${one.id}" /><span class="hint" id="campus-hint">The school's only campus.</span></label>`
+        : html`<label class="field"><span>Preferred Campus</span><select name="campusId" required>${option('', 'Select Option')}${f.campuses.map((c) => option(c.id, c.name))}</select></label>`}
+      <div class="reg-pair">
+        <label class="field"><span>Title</span><select name="title" autocomplete="honorific-prefix" required>${option('', 'Select Option')}${f.titles.map((t) => option(t, t))}</select></label>
+        <label class="field"><span>First Name</span><input name="firstName" autocomplete="given-name" maxlength="${NAME_MAX}" required /></label>
+      </div>
+      <div class="reg-pair">
+        <label class="field"><span>Middle Name <span class="muted field-optional">(optional)</span></span><input name="middleName" autocomplete="additional-name" maxlength="${NAME_MAX}" /></label>
+        <label class="field"><span>Last Name</span><input name="lastName" autocomplete="family-name" maxlength="${NAME_MAX}" required /></label>
+      </div>
+      <div class="reg-pair">
+        <label class="field"><span>Email Address</span><input type="email" name="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="${EMAIL_MAX}" required /><span class="hint">You sign in with it.</span></label>
+        <label class="field"><span>Mobile Number</span><input type="tel" name="mobile" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="09XX XXX XXXX" required /><span class="hint">09XXXXXXXXX or +639XXXXXXXXX.</span></label>
+      </div>
+      <div class="reg-pair">
+        ${eyeField('Password', 'password', rule)}
+        ${eyeField('Confirm Password', 'confirmPassword')}
+      </div>
       <p class="form-error" hidden></p>
-      <button class="btn primary block" type="submit">Send application</button>
-      <p class="auth-switch"><button type="button" class="link" id="back">← Back to sign in</button></p>
-    </form>`, status.systems, brandText('ATLAS · Apply for admission'));
-  api.get('/api/auth/programs').then((programs) => {
-    form.querySelector('#programs').insertAdjacentHTML('beforeend', String(html`${programs.map((p) => option(p.id, `${p.code} · ${p.name}`))}`));
-  });
-  api.get('/api/auth/campuses').then((campuses) => {
-    if (campuses.length < 2) return;
-    form.querySelector('#campus-field').hidden = false;
-    form.querySelector('#campuses').innerHTML = String(html`${option('', 'Choose a campus…')}${campuses.map((c) => option(c.id, c.name))}`);
-  });
-  form.querySelector('#back').addEventListener('click', back);
+      <button class="btn primary block" type="submit">Register student account</button>
+      <p class="auth-switch">Already have an account? <button type="button" class="link" id="to-sign-in">Click here</button> to sign in</p>
+      <p class="auth-foot reg-agree">By using this service, you understand and agree to the ${schoolCalled(b)} online services ${f.terms ? html`${policyLink(f.terms, 'Terms of Use', 'terms-link')} and ` : ''}${policyLink(f.privacy, 'Privacy Policy', 'privacy-link')}.</p>
+    </form>`);
+  // The form starts at the top: the first box is the campus (or the title when there is one campus).
+  (one ? form.querySelector('[name=title]') : form.querySelector('[name=campusId]'))?.focus();
+  form.querySelector('#to-sign-in').addEventListener('click', () => backToSignIn(status));
+  form.querySelector('#terms-link')?.addEventListener('click', () => showPolicy('Terms of Use', f.terms));
+  form.querySelector('#privacy-link')?.addEventListener('click', () => showPolicy('Privacy Policy', f.privacy));
+  form.querySelectorAll('[data-eye]').forEach((btn) => btn.addEventListener('click', () => {
+    const input = btn.previousElementSibling;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    const label = show ? 'Hide password' : 'Show password';
+    btn.setAttribute('aria-pressed', String(show));
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+    btn.innerHTML = iconSvg(show ? 'eyeOff' : 'eye', 18);
+  }));
   onFormSubmit(form, async (v) => {
-    await api.post('/api/auth/apply', v);
-    hubScreen(html`<div class="auth-card"><h2>Application sent</h2><p>Thank you, ${v.name}. The registrar will review it; once you are admitted, sign in here with the username <strong>${v.username.toLowerCase()}</strong>.</p><button class="btn primary block" id="ok">Back to sign in</button></div>`, status.systems);
-    authEl.querySelector('#ok').addEventListener('click', back);
+    if (v.password && v.confirmPassword && v.password !== v.confirmPassword) throw new Error(PASSWORDS_DIFFER);
+    const out = await api.post('/api/auth/register', {
+      campusId: v.campusId, title: v.title, firstName: v.firstName, middleName: v.middleName, lastName: v.lastName,
+      email: v.email, mobile: v.mobile, password: v.password, confirmPassword: v.confirmPassword,
+    });
+    registeredView(status, out);
   });
+}
+
+// After registering: what happens next. The account waits for the registrar.
+function registeredView(status, out) {
+  history.replaceState(null, '', location.pathname + location.search);
+  document.title = regTitle('Registration received');
+  hubScreen(html`<div class="auth-card reg-done" role="status">
+      <span class="reg-done-ic" aria-hidden="true">${icon('checkCircle', 30)}</span>
+      <h2>Registration received</h2>
+      <p class="muted">Thank you, ${out.name}. Your student account for ${out.campusName} is registered and waiting for the registrar.</p>
+      <h3>What happens next</h3>
+      <ol class="reg-steps">
+        <li><strong>The registrar reviews your registration.</strong> They may contact you at ${out.email} or ${formatMobile(out.mobile)}. You do not need to register again.</li>
+        <li><strong>You are admitted.</strong> You get a student number, and your account opens.</li>
+        <li><strong>You sign in with your email</strong>, <span class="mono">${out.email}</span>, and the password you chose. Until you are admitted, signing in shows that your registration is still being reviewed.</li>
+      </ol>
+      <p class="auth-foot">Questions about your registration? Contact the registrar's office.</p>
+      <button type="button" class="btn primary block" id="ok">Back to sign in</button>
+    </div>`, status.systems, 'Registration received');
+  authEl.querySelector('#ok').addEventListener('click', () => backToSignIn(status));
+  authEl.querySelector('#ok').focus();
 }
 
 // ----- Signed in -----
@@ -497,7 +584,10 @@ async function boot() {
   applyBranding(status.branding);
   document.title = `${brand()} · ${status.branding.schoolName}`;
   jobsOpen = status.jobs || 0;
-  if (!status.user) return showAuth(() => (location.hash === '#jobs' ? jobsView(status) : signInView(status)));
+  if (!status.user) {
+    const view = location.hash === '#jobs' ? jobsView : location.hash === '#register' && status.registrationOpen ? registerView : signInView;
+    return showAuth(() => view(status));
+  }
   if (status.user.mustChangePassword) {
     return showAuth((el) => forcePasswordView(el, { admin: status.side === 'admin', authBase: status.authBase, onDone: boot, onSignOut: signOut }));
   }
@@ -522,7 +612,10 @@ async function boot() {
 
 window.addEventListener('auth:expired', () => boot());
 // "Job openings" (the bar at the top, the sign-in card, or a link to /#jobs): the openings, signed out.
+// "Register account" (or a link to /#register): Create student account, while registration is open.
 window.addEventListener('hashchange', () => {
-  if (!ctx.user && ctx.info && location.hash === '#jobs') jobsView(ctx.info);
+  if (ctx.user || !ctx.info) return;
+  if (location.hash === '#jobs') jobsView(ctx.info);
+  else if (location.hash === '#register' && ctx.info.registrationOpen) registerView(ctx.info);
 });
 boot();

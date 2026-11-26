@@ -80,20 +80,23 @@ test('modules switched off are hidden and refused for that account type only', a
   await t1.post(`/api/classes/${sections.prog1.id}/assignments`, { title: 'Essay', points: 10, published: true });
 });
 
-test('student applications: closed, apply, reviewed, admitted', async () => {
+test('student registration: closed, registered, reviewed, admitted, signs in with the email', async () => {
   const env = setup();
   const { admin } = await seed(env);
   const visitor = env.client();
-  const form = { name: 'New Kid', username: 'newkid', email: 'new@example.com', password: 'password123' };
-  await assert.rejects(visitor.post('/api/auth/apply', form), /Applications are closed/);
+  const [campus] = env.db.data.campuses;
+  const form = { campusId: campus.id, title: 'Ms.', firstName: 'Nova', lastName: 'Kid', email: 'new@example.com', mobile: '09171234567', password: 'password123', confirmPassword: 'password123' };
+  await assert.rejects(visitor.post('/api/auth/register', form), /Registration is closed/);
   await admin.put('/api/admin/settings', { registration: { open: true } });
-  await visitor.post('/api/auth/apply', form);
-  await assert.rejects(visitor.post('/api/auth/login', { username: 'newkid', password: 'password123' }), /still being reviewed/);
+  await visitor.post('/api/auth/register', form);
+  await assert.rejects(visitor.post('/api/hub/login', { username: 'new@example.com', password: 'password123' }), /still being reviewed/);
   const [applicant] = await admin.get('/api/admin/users?role=student&status=pending');
+  assert.equal(applicant.username, 'new');
   const admitted = await admin.post(`/api/admin/users/${applicant.id}/approve`, {});
   assert.equal(admitted.status, 'active');
   assert.match(admitted.studentNo, /^\d{4}-\d{4}$/);
-  assert.equal((await visitor.post('/api/auth/login', { username: 'newkid', password: 'password123' })).user.role, 'student');
+  assert.equal((await visitor.post('/api/hub/login', { username: 'new@example.com', password: 'password123' })).user.role, 'student');
+  assert.equal((await env.client().post('/api/auth/login', { username: 'new', password: 'password123' })).user.role, 'student');
 });
 
 test('classes, lessons, assignments and grades', async () => {

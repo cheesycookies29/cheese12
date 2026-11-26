@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### New students register with "Register account", and everyone can sign in with their email
+- **Register account** on the ATLAS home page replaces *Apply for admission*. It opens **Create Student Account**: the school's seal and name, then **Preferred Campus**, **Title**, **First Name**, **Middle Name**, **Last Name**, **Email Address**, **Mobile Number** (`09XXXXXXXXX` or `+639XXXXXXXXX`) and a password typed twice with an eye button; program, year level and a username are no longer asked. The account waits under **Applicants** until the registrar admits it, and the student then signs in with the email. The sign-in box is now **Username or email** for every account (an email works when exactly one account has it). Administrators set the **Terms of Use** and **Privacy Policy** students agree to under **Settings & branding → Registration**. See [Getting started](getting-started#register-as-a-new-student), [the registrar's guide](registrar#admit-or-decline-an-applicant) and [the administrator's guide](admin#set-up-student-registration).
+
 ### The sidebar folds smoothly
 - On a computer, the menu button now folds the sidebar to its icons and opens it again with a short, quiet movement instead of a jump. It stays still when your device asks for reduced motion.
 

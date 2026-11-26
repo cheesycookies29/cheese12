@@ -110,7 +110,7 @@ test('Learn: enrollment decisions, scored and returned work, final grades (to pa
 
   // An applicant admitted finds it waiting at the first sign-in.
   f.env.db.data.settings.registration.open = true;
-  await f.env.client().post('/api/auth/apply', { name: 'Nina New', email: 'nina@example.edu', username: 'nina', password: PW });
+  await f.env.client().post('/api/auth/register', { campusId: f.env.db.data.campuses[0].id, title: 'Ms.', firstName: 'Nina', lastName: 'New', email: 'nina@example.edu', mobile: '09171234567', password: PW, confirmPassword: PW });
   const nina = f.env.db.data.users.find((u) => u.username === 'nina');
   await admin.post(`/api/admin/users/${nina.id}/approve`, {});
   const asNina = await f.signIn('nina');

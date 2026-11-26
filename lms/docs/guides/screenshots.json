@@ -1,9 +1,68 @@
 [
  {
   "file": "getting-started-sign-in.jpg",
-  "user": null,
+  "user": "admin",
+  "api": [
+   [
+    "PUT",
+    "/api/admin/settings",
+    {
+     "registration": {
+      "open": true
+     }
+    }
+   ],
+   [
+    "POST",
+    "/api/hub/logout"
+   ]
+  ],
   "url": "/",
   "wait": 900
+ },
+ {
+  "file": "getting-started-register.jpg",
+  "user": null,
+  "url": "/#register",
+  "click": [
+   "select:[name=campusId]|Main Campus",
+   "select:[name=title]|Ms.",
+   "fill:[name=firstName]|Ana",
+   "fill:[name=middleName]|Reyes",
+   "fill:[name=lastName]|Santiago",
+   "fill:[name=email]|ana.santiago@example.com",
+   "fill:[name=mobile]|0917 555 0123",
+   "fill:[name=password]|Register-2026",
+   "fill:[name=confirmPassword]|Register-2026",
+   "[data-eye] >> nth=0"
+  ],
+  "wait": 900,
+  "full": true
+ },
+ {
+  "file": "getting-started-registered.jpg",
+  "user": null,
+  "url": "/#register",
+  "click": [
+   "select:[name=campusId]|Main Campus",
+   "select:[name=title]|Ms.",
+   "fill:[name=firstName]|Ana",
+   "fill:[name=middleName]|Reyes",
+   "fill:[name=lastName]|Santiago",
+   "fill:[name=email]|ana.santiago@example.com",
+   "fill:[name=mobile]|0917 555 0123",
+   "fill:[name=password]|Register-2026",
+   "fill:[name=confirmPassword]|Register-2026",
+   "button[type=submit]"
+  ],
+  "wait": 900,
+  "full": true
+ },
+ {
+  "file": "admin-registration.jpg",
+  "user": "admin",
+  "url": "/admin#/settings?section=registration",
+  "wait": 1200
  },
  {
   "file": "getting-started-home.jpg",
