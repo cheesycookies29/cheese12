@@ -91,6 +91,7 @@ def plan(tab, iid, status, full=''):
     return 'Configuration / build', ''
 
 CHANGES = [
+    ('2026-11-26', 'Owner request (not in the 269)', 'Student self-registration: a Register account button on the sign-in page opens Create Student Account (preferred campus, title, first/middle/last name, email, mobile, password and confirmation, Terms of Use and Privacy Policy). Accounts stay pending until the registrar admits them; everyone can sign in with their username or email. Replaces Apply for admission.'),
     ('2026-11-26', 'HRIS PL-016', 'Applicant sign-up fields: HR shows, hides or requires each optional field (mobile, sex, date of birth, home address, highest education, preferred campus = the "branch"); only the mobile number is shown by default; document uploads and an employee ID are never asked at sign-up. PL-016 now Has.'),
     ('2026-11-26', 'HRIS PL-015', 'Application progress tracker in People: applicants (and employees who applied) see the recruitment stages with dates, what happens at the current stage, HR\'s notes (from "HR office") and the outcome; the bell links to it. Stages are configurable with fixed meanings (HR settings -> Recruitment stages): default Application received, Initial screening, Assessment (examination or interview), Deliberation, Final decision; outcomes Selected, Not qualified, Not selected, Withdrawn. HR moves applications forward, back one stage with a reason, or to an outcome, singly or in bulk, with a note and an internal remark. Earlier statuses migrated. PL-015 now Has; default stages to confirm against the school\'s merit selection plan.'),
     ('2026-11-26', 'HRIS PL-014 (also PL-027, PL-045)', 'Plantilla register in People: one record per DBM item number (recorded as issued) with position, salary grade, authorized and actual annual salary, office, campus, fund source and status (Filled, Vacant, Unfunded, Abolished); the incumbent is linked to the employee record; filters, totals, CSV and a printable PSIPOP (Legal landscape). Columns to confirm against HR\'s PSIPOP sample. Vacant items can post a job opening (PL-027); items carry a fund source (PL-045 now Partly).'),
@@ -105,6 +106,10 @@ UPDATES = {('UIS', 'PL-16'): BRAND_NOTE + ' Several logos on one document still 
 
 # How to use each update, step by step (from the Help guides). Shown in the "How to use it" column.
 BRANDING_FLOW = ('Administrator (Admin panel):\n1. Settings & branding -> Branding -> Brand: choose "Our school, powered by ATLAS".\n2. Type the school short name (e.g. CBSUA).\n3. Upload logo: the school seal (square, transparent background).\n4. Colours: School colour and Accent (e.g. green #126131, gold #EDE344); check the Preview.\n5. Save settings: the top bar, sign-in pages, system names and icons now show the school.\nHelp: Administrator guide -> "Lead with your school\'s name and seal".')
+EXTRA_HOWTO = [
+    ('All', 'Owner request', 'Register account button and Create Student Account page (not in CBSUA\'s list)', 'Built 2026-11-26',
+     'Administrator / registrar (Admin panel):\n1. Settings -> Registration: turn registration open (the Register account button shows only then).\n2. Optionally set the Terms of Use and the Privacy Policy, each as a link or your own text (without Terms, no Terms link is shown; a built-in privacy notice is used until you write one).\nStudent (ATLAS home):\n3. Register account -> Create Student Account: preferred campus, title, first/middle/last name, email, mobile (09XXXXXXXXX), password twice -> Register student account.\n4. The confirmation page says the registrar reviews it.\nRegistrar:\n5. Admin panel -> Applicants -> Admit (or Decline).\nStudent:\n6. Signs in with their email (or username) and password.\nHelp: Getting started -> registering; Registrar guide -> Applicants; Administrator guide -> Registration.'),
+]
 HOW_TO = {
     ('HRIS', 'PL-003'): 'HR (People):\n1. HR settings -> Job applicants: set how many days applicant accounts last (365 by default, 30-1095), the warning days (30) and the removal days after closing (30; 0 = keep).\n2. Save HR settings.\n3. Recruitment -> Applicant accounts: see each account\'s closing date; Extend (days to add) or Remove.\nApplicant: sees "Your applicant account is open until ..." on Job openings and My applications, and a bell notice before it closes.\nHelp: HR guide -> "Extend or remove an applicant account"; Applicant guide -> "Know when your account closes".',
     ('HRIS', 'PL-004'): 'Employee (People, own account):\n1. People -> Job openings (under Me): openings open to everyone and those marked Internal only.\n2. Choose the opening, read the salary and qualification standards.\n3. Apply -> Cover note -> Send application. It is marked Internal and linked to the employee record.\n4. My applications -> See its progress.\nHR: to post an opening for employees only, set Who may apply = Internal only.\nHelp: Employee guide -> "Apply for a job opening".',
@@ -332,6 +337,10 @@ for x in records:
     for j, v in enumerate([x['tab'], x['id'], x['desc'], x['status'], x['howto']], 1):
         c = ws.cell(r, j, v); c.alignment = WRAP; c.border = BORDER
     ws.cell(r, 4).fill = PatternFill('solid', fgColor=STATUS_FILL.get(x['status'], 'FFFFFF'))
+    r += 1
+for tab_, iid_, desc_, status_, flow_ in EXTRA_HOWTO:
+    for j, v in enumerate([tab_, iid_, desc_, status_, flow_], 1):
+        c = ws.cell(r, j, v); c.alignment = WRAP; c.border = BORDER
     r += 1
 ws.freeze_panes = 'C2'
 ws = wb.create_sheet('Change log')
