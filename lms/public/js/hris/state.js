@@ -17,6 +17,8 @@ export const hr = {
 // HRIS permissions come with the sign-in status (shared/roles.js).
 export const can = (permission) => Boolean(ctx.info?.permissions?.includes(permission));
 export const isEmployee = () => Boolean(ctx.info?.employee);
+// A job applicant (someone outside the school): only Job openings and My applications.
+export const isApplicant = () => ctx.user?.role === 'applicant';
 
 // Label for a leave entry, e.g. "Vacation Leave" or "Unpaid leave".
 export function leaveName(entry) {

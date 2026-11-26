@@ -13,6 +13,9 @@
 // open its HR screens.
 // ATLAS Documents (/documents/) accepts any of these sessions except parents and guardians; docs.manage
 // (administrators, or as given under Roles & permissions) opens Document control.
+// Job applicants (people outside the school who signed up from Job openings on the ATLAS home page)
+// have a People session, but reach only its jobs area: openings, their own applications and their
+// own account. Their account closes after settings.people.applicantAccountDays (shared/recruitment.js).
 
 export const ROLES = {
   admin: {
@@ -54,8 +57,8 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     side: 'hris',
-    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits; adjusts payroll setup.',
-    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings'],
+    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits, job openings and applications; adjusts payroll setup.',
+    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings', 'hris.recruitment'],
   },
   payroll: {
     label: 'Payroll Officer',
@@ -99,11 +102,21 @@ export const ROLES = {
     description: 'A non-teaching employee: self-service (time clock, attendance, leave requests, payslips, profile).',
     permissions: [],
   },
+  applicant: {
+    label: 'Job applicant',
+    side: 'hris',
+    external: true, // not an employee: never given permissions, never one of the HR account types
+    description: 'Someone outside the school who signed up to apply for jobs: sees open job openings, applies, and follows their own applications. The account closes after a set number of days.',
+    permissions: [],
+  },
 };
 
 export const ADMIN_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'admin');
 export const PORTAL_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'portal');
-export const HRIS_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'hris');
+// The account types HR makes for employees (not job applicants, who sign up themselves).
+export const HRIS_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'hris' && !ROLES[r].external);
+// Account types of people who are not the school's employees: students, parents and job applicants.
+export const NON_STAFF_ROLES = ['student', 'guardian', 'applicant'];
 
 export const PERMISSION_LABELS = [
   ['dashboard', 'Admin dashboard'],
@@ -136,7 +149,8 @@ export const HRIS_PERMISSION_LABELS = [
   ['payroll.view', 'View payroll runs and payslips'],
   ['payroll.edit', 'Create, adjust and finalize payroll runs'],
   ['payroll.config', 'Payroll setup: pay rules, contributions, tax tables'],
-  ['hris.settings', 'Employer details and the default work schedule'],
+  ['hris.settings', 'Employer details, the default work schedule and how long applicant accounts last'],
+  ['hris.recruitment', 'Recruitment: job openings, applications and applicant accounts'],
 ];
 
 export { FINANCE_PERMISSION_LABELS } from './finance.js';
@@ -166,6 +180,7 @@ export function permissionsOf(role) {
 }
 
 export function can(role, permission) {
+  if (ROLES[role]?.external) return false;
   const perms = permissionsOf(role);
   return perms.includes('*') || perms.includes(permission) || (permission === 'teachers.view' && perms.includes('teachers.manage'));
 }
@@ -176,6 +191,7 @@ export function can(role, permission) {
 // about a person (not an account type) goes through userCan.
 export function userCan(user, permission) {
   if (!user || !ROLES[user.role]) return false;
+  if (ROLES[user.role].external) return false; // a job applicant has no permissions, whatever an override says
   if (user.role !== 'admin') {
     const a = user.access;
     if (a?.remove?.includes(permission)) return false;

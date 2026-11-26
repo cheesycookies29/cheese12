@@ -6,6 +6,7 @@ import { html, mount, toast, WEEKDAYS } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { hr } from '../state.js';
 import { ROLES, HRIS_PERMISSION_LABELS } from '/shared/roles.js';
+import { recruitmentSettingsCard } from './recruitment.js';
 
 // Which account types may do what in People (as on the ERP's Users & access page).
 function accessMatrix() {
@@ -22,7 +23,7 @@ function accessMatrix() {
 }
 
 export async function hrSettingsView(el) {
-  await hr.refreshSettings();
+  const [, people] = await Promise.all([hr.refreshSettings(), api.get('/api/hris/recruitment/settings')]);
   const s = hr.settings;
   mount(el, html`
     ${pageHead('HR settings', 'Used at every campus. Pay rules, contributions and tax tables are under Payroll setup.')}
@@ -47,6 +48,7 @@ export async function hrSettingsView(el) {
           </div>
         </div>
       </section>
+      ${recruitmentSettingsCard(people)}
       ${s.updatedAt ? html`<p class="muted small">Last changed by ${s.updatedBy} on ${new Date(s.updatedAt).toLocaleString('en-PH')}.</p>` : ''}
       <p class="form-error" hidden></p>
       <div class="actions end"><button class="btn primary" type="submit">Save HR settings</button></div>
@@ -62,6 +64,7 @@ export async function hrSettingsView(el) {
         employerAddress: fd.get('employerAddress'), employerTin: fd.get('employerTin'),
         schedule: { shiftStart: fd.get('shiftStart'), shiftEnd: fd.get('shiftEnd'), breakMinutes: fd.get('breakMinutes'), workDays: fd.getAll('workDays').map(Number) },
       });
+      await api.put('/api/hris/recruitment/settings', Object.fromEntries(['applicantAccountDays', 'applicantWarnDays', 'applicantPurgeDays'].map((k) => [k, Number(fd.get(k))])));
       errEl.hidden = true;
       toast('HR settings saved.');
       hrSettingsView(el);

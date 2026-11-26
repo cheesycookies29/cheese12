@@ -9,7 +9,7 @@
 // Administrators only (role 'admin'), whatever Roles & permissions gives other account types.
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
-import { ROLES, roleLabel, permissionsOf, permissionsOfUser, ADMIN_ONLY_PERMISSIONS } from '../shared/roles.js';
+import { ROLES, roleLabel, permissionsOf, permissionsOfUser, ADMIN_ONLY_PERMISSIONS, NON_STAFF_ROLES } from '../shared/roles.js';
 import { PERMISSION_GROUPS, grantable } from './config.js';
 import { MODULES, MODULE_ROLES, moduleOn } from '../shared/modules.js';
 import { SYSTEMS, systemName } from '../shared/systems.js';
@@ -28,7 +28,7 @@ const fail = (msg, status = 400) => {
 };
 const DAY = 24 * 3600 * 1000;
 // Account types made here: everyone but students and parents (the registrar makes those, in the Admin panel).
-export const STAFF_ROLES = Object.keys(ROLES).filter((r) => !['student', 'guardian'].includes(r));
+export const STAFF_ROLES = Object.keys(ROLES).filter((r) => !NON_STAFF_ROLES.includes(r));
 
 export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   const { db } = ctx;
@@ -197,6 +197,7 @@ export function registerSystemRoutes(route, ctx, { sides, throttle }) {
   // A staff account: any account type but student and parent.
   sys('POST', '/api/system/users', async (a) => {
     const { body } = a;
+    if (body.role === 'applicant') fail('Job applicants sign up themselves, from Job openings on the home page.');
     if (!STAFF_ROLES.includes(body.role)) fail('Make students and parents in the Admin panel (Students, Parents & guardians).');
     validateUserFields(body, data());
     validatePassword(body.password, data().settings.security);

@@ -1,7 +1,7 @@
 ---
 id: hr
 title: Running HR in ATLAS People
-summary: For HR managers: employee records and sign-in accounts, attendance and the time clock, clock-in locations, leave approvals and credits, and HR settings.
+summary: For HR managers: employee records and sign-in accounts, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings and applications), and HR settings.
 roles: hr
 apps: people
 order: 55
@@ -9,7 +9,7 @@ order: 55
 
 ## Before you start
 
-This guide is for **HR managers**: the people who keep employee records, watch attendance, approve leave and give employees their sign-in accounts. Payroll is prepared by the payroll officer (see [the payroll officer's guide](payroll)); you can view it and change payroll setup. Your own time clock, leave and payslips are in [the employee guide](employee).
+This guide is for **HR managers**: the people who keep employee records, watch attendance, approve leave, give employees their sign-in accounts and post job openings. Payroll is prepared by the payroll officer (see [the payroll officer's guide](payroll)); you can view it and change payroll setup. Your own time clock, leave and payslips are in [the employee guide](employee).
 
 - Sign in on the ATLAS home page and open the **People** tile. You land on the **HR dashboard**.
 - Everything you see is for **one campus at a time**: the one named under your name at the top right. If you work at more than one campus, switch from that menu (see [Switch campus](#switch-campus)).
@@ -52,6 +52,17 @@ A first tour with the demo school. It takes about ten minutes.
 ![Attendance (DTR) for the pay period](hr-dtr.jpg)
 
 ![Clock-in locations, with clock-ins away from campus flagged](hr-clock-locations.jpg)
+
+### Job openings and applications
+
+1. Open **Recruitment → Job openings**. Main Campus has three open openings: *Instructor I* and *Laboratory Technician I* are **Open to all**, *Administrative Officer II* is **Internal only**.
+2. Choose **Instructor I**. Its **Applications** list has Carla Mendiola, an **External** applicant, *Under review*.
+3. Choose **Change status**, pick **Shortlisted**, type a note such as *Interview on Monday, 9:00, at the HR office.*, and choose **Save and tell the applicant**. Carla is told on the bell, and the change is in the audit log.
+4. Go back and choose **Administrative Officer II**. Nestor Abello applied from his own account: the application is **Internal**, with his current position, salary grade and campus from his record.
+
+![Recruitment → Job openings at Main Campus](hr-job-openings.jpg)
+
+![An opening and its applications](hr-job-opening.jpg)
 
 ### Another campus
 
@@ -179,12 +190,59 @@ Remaining = credits + adjustments − used − pending. Days from an approved re
 
 A leave type that has been used cannot be deleted; untick **Active** instead. Leave types are the same at every campus.
 
+### Post a job opening
+
+1. Open **Recruitment → Job openings** and choose **New opening**.
+2. Type the **Position title** and the **Plantilla item no.** as DBM issued it.
+3. Pick the **Salary grade**. The monthly salary (step 1, from the salary schedule in Payroll setup) shows under it, and applicants see it.
+4. Fill in the place of assignment: the **Campus** (when you work at more than one) and the **Office**. Set the **Number of vacancies** and, if you like, a **Description**.
+5. Under **Qualification standards**, fill in **Education**, **Training**, **Experience** and **Eligibility** as the CSC qualification standards for the position say.
+6. Pick the **Closing date**. Applications are taken through that day.
+7. Under **Who may apply**, choose **Open to all** (job applicants and employees) or **Internal only** (employees only, from People).
+8. Set **Status** to **Draft** to keep working on it, or **Open** to publish it. Choose **Save opening**.
+
+An open opening shows on the ATLAS home page (when it is Open to all) and under **Job openings** in every employee's People, until its closing date. To stop applications early, **Edit** it and set **Status** to **Closed**. An opening with no applications can be deleted from **Edit**; one with applications can only be closed, so they are kept.
+
+### Change an application's status
+
+1. Open **Recruitment → Job openings** and choose the opening.
+2. On the applicant's row, choose **Change status**.
+3. Pick the status: **Received**, **Under review**, **Shortlisted**, **Not selected** or **Selected**.
+4. Type a **Note to the applicant** if you like, for example the date of an interview.
+5. Choose **Save and tell the applicant**.
+
+The applicant sees the status, the date of the change and your note in **My applications**, and is told on the bell. Each change is in the audit log (**People**, *Changed a job application's status*), with the status before and after. You cannot decide on your own application, nor change one the applicant withdrew.
+
+![Change the status of an application](hr-change-status.jpg)
+
+### Export the applications
+
+1. Open the opening.
+2. Choose **Export CSV**.
+
+The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), the date applied, the status and its last change.
+
+### Extend or remove an applicant account
+
+People outside the school apply with a temporary **applicant account** (see [the applicant's guide](applicant)). It closes a set number of days after sign-up (365 unless changed under **HR settings → Job applicants**); the applicant is told on the bell before.
+
+1. Open **Recruitment → Applicant accounts**. Each account shows when it signed up, until when it is open (or when a closed one will be removed), and how many applications it has.
+2. To give someone more time, choose **Extend**, type the **Days to add** and choose **Extend**. The days are added to the closing date (or to today, if it has passed), a closed account opens again, and the applicant is told.
+3. To remove an account now (for example when the person asks), choose **Remove** and confirm.
+
+Removing an account, by hand or by the daily removal after it closed, takes away its sign-in and the personal details in its applications. Each application stays in the opening's list as *Removed applicant*, without a name, so the counts stay true. Extending and removing are in the audit log.
+
+![Recruitment → Applicant accounts](hr-applicant-accounts.jpg)
+
 ### Change HR settings
 
 1. Open **HR settings**.
 2. Enter the employer **Address** and **Employer TIN** printed on payslips. The employer name is the school name set in the Learn admin panel.
 3. Set the **Default work schedule** for new employee records.
-4. Choose **Save HR settings**.
+4. Under **Job applicants**, set how many days applicant accounts last (30 to 1095; 365 by default), how many days before closing the applicant is warned (30 by default), and how many days after closing a closed account is removed (30 by default; 0 keeps it until you remove it).
+5. Choose **Save HR settings**.
+
+A new length applies to applicant accounts made after the change; to give one person more time, extend their account.
 
 The **Who can do what** table below lists which account type has which power in People. It is fixed by the account type; to give someone different powers, change their account type.
 
@@ -207,8 +265,10 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Leave & approvals | Requests to approve, leave balances, one employee's leave, and leave types |
 | Payroll | Payroll runs and payslips (view only; the payroll officer prepares them) |
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
-| HR settings | Employer details on payslips, the default work schedule, and who can do what |
-| My day, My attendance, Leave & requests, My payslips, My HR record | Your own self-service, as for every employee: see [the employee guide](employee) |
+| Job openings (Recruitment) | Post job openings at the campus, open and close them, and follow the applications to each: change their status, export them as CSV |
+| Applicant accounts | The temporary accounts of job applicants: until when each is open, **Extend** and **Remove** |
+| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last, and who can do what |
+| My day, My attendance, Leave & requests, My payslips, My HR record, Job openings (Me) | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 
 ## Questions
@@ -236,3 +296,16 @@ Common Philippine practice: Service Incentive Leave of at least 5 days (Labor Co
 
 **Why is tardiness taken from vacation leave?**
 Under government payroll, tardiness and undertime are charged to vacation leave credits first (CSC Omnibus Rules on Leave) when the payroll run is finalized; what the credits cannot cover is deducted from pay. Payroll setup can change this to *Deducted from pay*.
+
+**Who sees an opening?**
+An opening is shown only while its status is **Open** and until its closing date. **Open to all**: people outside the school on the ATLAS home page, and every employee in People. **Internal only**: employees only; applicants never see it, even by its address.
+
+**How is an internal application different?**
+An employee applies with their own account from **Me → Job openings**: there is no second account. The application is marked **Internal** and linked to their employee record, so you see their current position, salary grade and campus. Employee accounts never close like applicant accounts.
+
+**Why does an opening count a "Removed applicant"?**
+An applicant account is removed some days after it closes (**HR settings → Job applicants**), or when you remove it. An applicant you marked **Selected** is never removed automatically, because their details may become part of a personnel record; remove the account yourself when it is no longer needed. The application stays, without the person's details, so the number of applications stays true.
+
+**Who can use Recruitment?**
+HR managers and administrators (the *Recruitment: job openings, applications and applicant accounts* permission). An administrator can give it to another account type under **Roles & permissions**.
+

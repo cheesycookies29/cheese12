@@ -60,6 +60,9 @@ export function registerGuideRoutes(route, { db, version = '' }) {
     return [...out.values()];
   }
   const forRole = (g, role) => Boolean(role) && g.meta.roles.includes(role);
+  // Signed out: the public guides. A job applicant (someone outside the school): those, and the
+  // guides written for applicants. Everyone else signed in: every guide.
+  const readable = (g, user) => PUBLIC_GUIDES.includes(g.id) || (Boolean(user) && (user.role !== 'applicant' || forRole(g, user.role)));
   const summary = (g, user) => ({
     id: g.id, title: g.meta.title || g.id, summary: g.meta.summary, roles: g.meta.roles, apps: g.meta.apps, order: g.meta.order,
     forYou: forRole(g, user?.role), custom: !g.builtIn, edited: Boolean(g.edit && g.builtIn),
@@ -70,7 +73,7 @@ export function registerGuideRoutes(route, { db, version = '' }) {
   route('GET', '/api/guides', 'public', (args) => {
     const user = visitor(args);
     const q = String(args.query.q || '').trim();
-    const list = all().filter((g) => user || PUBLIC_GUIDES.includes(g.id)).sort((a, b) => a.meta.order - b.meta.order || a.meta.title.localeCompare(b.meta.title));
+    const list = all().filter((g) => readable(g, user)).sort((a, b) => a.meta.order - b.meta.order || a.meta.title.localeCompare(b.meta.title));
     const found = q.length >= 2 ? searchGuides(list.map((g) => ({ id: g.id, title: g.meta.title || g.id, markdown: g.markdown, forYou: forRole(g, user?.role), order: g.meta.order })), q) : null;
     return {
       signedIn: Boolean(user), role: user?.role || null, roleLabel: user ? ROLES[user.role]?.label || user.role : '', canEdit: mayEdit(user), version,
@@ -82,7 +85,7 @@ export function registerGuideRoutes(route, { db, version = '' }) {
   route('GET', '/api/guides/:id', 'public', (args) => {
     const user = visitor(args);
     if (!user && !PUBLIC_GUIDES.includes(args.params.id)) fail('Please sign in to read this guide.', 401);
-    const g = all().find((x) => x.id === args.params.id) || fail('Guide not found.', 404);
+    const g = all().find((x) => x.id === args.params.id && readable(x, user)) || fail('Guide not found.', 404);
     const editor = mayEdit(user);
     return {
       ...summary(g, user), markdown: g.markdown,

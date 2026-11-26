@@ -4,6 +4,7 @@ const FINANCE_GUIDE = { accountant: 'accountant', budget: 'budget-officer', cash
 const ROLE_GUIDE = { student: 'student', guardian: 'parent', teacher: 'teacher', registrar: 'registrar', dean: 'dean', admin: 'admin', hr: 'hr', payroll: 'payroll', staff: 'employee', ...FINANCE_GUIDE };
 
 export function guideFor(from, role) {
+  if (role === 'applicant') return 'applicant'; // job applicants reach only People's jobs area
   switch (from) {
     case 'hris': return role === 'hr' || role === 'payroll' ? role : role === 'admin' ? 'payroll' : 'employee';
     case 'finance': return FINANCE_GUIDE[role] || (role === 'student' ? 'student' : role === 'admin' ? 'accountant' : 'employee');

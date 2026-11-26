@@ -203,3 +203,13 @@ fixed early, because they are wrong today whatever CBSUA asks.
 **Awaiting the owner's approval:** which steps to start, and in particular:
 - whether to fix the defects in section 2;
 - whether to send the answer sheet and requests pack to CBSUA.
+
+## Keeping the matrix current
+
+Whenever a change reaches end users, the owner asked for an updated workbook:
+
+1. Update the item's row in [matrix/](matrix/): its status (with the date, for example "Has (2026-11-26)"), where it is, and what is left.
+2. Add a line to `CHANGES` in `lms/scripts/cbsua-requests-workbook.py`.
+3. Rebuild: `python3 lms/scripts/cbsua-requests-workbook.py <CBSUA's original .xlsx> <out.xlsx>`, and send the workbook to the owner.
+
+The workbook carries the requesters' names from CBSUA's original file, so it is never committed (the repository is public).

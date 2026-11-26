@@ -335,7 +335,7 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
         internal: s.internalSharing || manager(u), everyone: s.shareWithEveryone && !student, groups: !student, links: mayLink(u, s), uploadLinks: s.uploadLinks && mayLink(u, s),
         passwordRequired: s.linkPasswordRequired, passwordMin: s.linkPasswordMin, defaultDays: s.linkDefaultDays, maxDays: s.linkMaxDays, maxDownloads: s.linkMaxDownloads, classifications: s.linkClassifications,
       },
-      roles: student ? [] : Object.entries(ROLES).filter(([id]) => id !== 'guardian').map(([id, r]) => ({ id, label: r.label })),
+      roles: student ? [] : Object.entries(ROLES).filter(([id]) => !['guardian', 'applicant'].includes(id)).map(([id, r]) => ({ id, label: r.label })),
       departments: student ? [] : departments(),
       notices: D.docNotices.filter((n) => n.userId === u.id && !n.readAt).slice(-20).reverse(),
     };

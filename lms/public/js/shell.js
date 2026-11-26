@@ -116,7 +116,8 @@ const appLine = () => {
   const app = document.body.dataset.app || 'ATLAS';
   return brandText(app === 'ATLAS' ? 'ATLAS' : app.replace(/^ATLAS /, 'ATLAS · ').replace(/ · Admin$/, ' · Admin panel'));
 };
-export function authPlate(el, { line = appLine(), ledger = [], card }) {
+// links: more links for the bar at the top (the ATLAS home adds Job openings).
+export function authPlate(el, { line = appLine(), ledger = [], card, links = '' }) {
   const b = ctx.info?.branding || {};
   const campus = ctx.info?.campusName;
   const open = ledger.filter(([, later]) => !later);
@@ -134,6 +135,7 @@ export function authPlate(el, { line = appLine(), ledger = [], card }) {
       <header class="auth-bar">
         <a class="auth-lockup" href="/">${lockup}</a>
         <nav class="auth-links" aria-label="Help and display">
+          ${links}
           <a href="/help/" aria-label="Help and guides">${icon('help', 16)} <span>Help &amp; guides</span></a>
           <button type="button" class="link auth-theme" id="auth-theme"></button>
         </nav>

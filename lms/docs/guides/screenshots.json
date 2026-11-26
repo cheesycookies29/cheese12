@@ -1096,5 +1096,105 @@
   "url": "/admin#/settings",
   "scroll": ".brand-modes",
   "wait": 1200
+ },
+ {
+  "file": "applicant-openings-public.jpg",
+  "user": null,
+  "url": "/#jobs",
+  "click": [
+   ".job-item summary >> nth=0"
+  ],
+  "wait": 900,
+  "full": true
+ },
+ {
+  "file": "applicant-sign-up.jpg",
+  "user": null,
+  "url": "/#jobs",
+  "click": [
+   "#signup"
+  ],
+  "wait": 900,
+  "full": true
+ },
+ {
+  "file": "applicant-job-openings.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs",
+  "wait": 1200
+ },
+ {
+  "file": "applicant-apply.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs",
+  "click": [
+   "text=Laboratory Technician I",
+   "#apply",
+   "fill:textarea[name=note]|I finished a laboratory technology course and assisted in a soils laboratory for a year."
+  ],
+  "wait": 900
+ },
+ {
+  "file": "applicant-my-applications.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs/mine",
+  "wait": 1200
+ },
+ {
+  "file": "applicant-my-applications-phone.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs/mine",
+  "viewport": "phone",
+  "wait": 1200
+ },
+ {
+  "file": "hr-job-openings.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "wait": 1200
+ },
+ {
+  "file": "hr-job-opening.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "hr-change-status.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "[data-status] >> nth=0",
+   "select:.modal select[name=status]|shortlisted",
+   "fill:.modal textarea[name=note]|Interview on Monday, 9:00, at the HR office."
+  ],
+  "wait": 900
+ },
+ {
+  "file": "hr-applicant-accounts.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment/applicants",
+  "wait": 1200
+ },
+ {
+  "file": "employee-job-openings.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/jobs",
+  "wait": 1200
+ },
+ {
+  "file": "employee-apply.jpg",
+  "user": "teacher.demo",
+  "url": "/hris/#/jobs",
+  "click": [
+   "text=Administrative Officer II",
+   "#apply",
+   "fill:textarea[name=note]|I would like to move to the HR office, where I can use my records experience."
+  ],
+  "wait": 900
  }
 ]

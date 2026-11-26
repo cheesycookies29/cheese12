@@ -15,6 +15,7 @@ import { mergeAcademicSettings } from './academic.js';
 import { mergeSso } from './sso.js';
 import { mergeCloudflare } from './cloudflare.js';
 import { mergeFinanceSettings, mergeChart } from './finance.js';
+import { DEFAULT_PEOPLE_SETTINGS } from '../shared/recruitment.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -64,6 +65,7 @@ export const DEFAULT_SETTINGS = {
   sso: mergeSso(), // single sign-on with Keycloak (server/sso.js); the client secret is in OIDC_CLIENT_SECRET, never here
   tools: defaultToolSettings(), // ATLAS Tools (shared/systems.js): which account types may use each tool
   cloudflare: mergeCloudflare(), // System → Cloudflare (server/cloudflare.js): the hostname set up and what was done; never the API token
+  people: { ...DEFAULT_PEOPLE_SETTINGS }, // ATLAS People: how long job applicants' accounts last, the warning, the removal (shared/recruitment.js)
 };
 
 // Activity types and their share of the running grade (weights are percentages;
@@ -113,6 +115,8 @@ export function emptyData() {
     leaveAccess: [], // a leave type given to, or taken from, one employee
     leaveAdjustments: [], // days added or taken away, with a reason
     requests: [], // leave and remote-work requests
+    jobOpenings: [], // Recruitment: job openings posted by HR (server/recruitment.js)
+    jobApplications: [], // applications to them, from applicant accounts (external) and employees (internal)
     guideEdits: [], // administrators' versions of the Help & guides pages (server/guides.js)
     // ----- Academic (server/academic.js) -----
     academicSettings: mergeAcademicSettings(), // grading scale, requirements, document fees, signatories
@@ -164,6 +168,7 @@ export function mergeSettings(s = {}) {
     systems: Object.fromEntries(Object.entries(defaultSystemSettings()).map(([id, v]) => [id, { ...v, ...(s.systems?.[id] || {}) }])),
     sso: mergeSso(s.sso),
     cloudflare: mergeCloudflare(s.cloudflare),
+    people: { ...DEFAULT_PEOPLE_SETTINGS, ...(s.people || {}) },
     tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),
   };
 }
@@ -202,7 +207,7 @@ export function ensureCampuses(data) {
   const first = data.campuses[0].id;
   for (const s of data.sections) s.campusId ||= first;
   for (const k of ['employees', 'payrollRuns']) for (const x of data[k] || []) x.campusId ||= first;
-  for (const u of data.users) if (u.role !== 'admin' && !(u.campusIds?.length)) u.campusIds = [first];
+  for (const u of data.users) if (u.role !== 'admin' && u.role !== 'applicant' && !(u.campusIds?.length)) u.campusIds = [first]; // applicants belong to no campus
   for (const k of ['news', 'events']) for (const x of data[k]) if (x.campusId === undefined) x.campusId = null; // null: every campus
   return data;
 }

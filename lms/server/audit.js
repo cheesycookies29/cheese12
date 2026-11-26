@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { ROLES, roleLabel } from '../shared/roles.js';
+import { ROLES, roleLabel, NON_STAFF_ROLES } from '../shared/roles.js';
 
 export const AUDIT_FILE = 'audit-log.jsonl';
 const hashOf = (prev, entry) => createHash('sha256').update(`${prev}\n${JSON.stringify(entry)}`).digest('hex');
@@ -230,7 +230,7 @@ export function trailCsv(list) {
 }
 
 export const sideLabel = (side) => ({ portal: 'Learn', admin: 'Admin panel', hris: 'People' }[side] || side);
-export const isStaff = (u) => Boolean(u && ROLES[u.role] && !['student', 'guardian'].includes(u.role));
+export const isStaff = (u) => Boolean(u && ROLES[u.role] && !NON_STAFF_ROLES.includes(u.role));
 
 // ----- The demo school's trail (Admin panel → Demo data): a few days of sign-ins, a run of wrong
 // passwords from one address, a refused request and some changes, so Control has something to show.

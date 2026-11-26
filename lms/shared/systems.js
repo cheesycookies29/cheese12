@@ -36,7 +36,7 @@ export const SYSTEMS = [
     title: 'Human resources',
     description: 'Employee records, time clock and attendance, leave requests and credits, payroll and payslips.',
     icon: 'users',
-    audience: ['teacher', 'registrar', 'dean', 'admin', 'hr', 'payroll', 'staff', 'accountant', 'budget', 'cashier', 'supply', 'approver'],
+    audience: ['teacher', 'registrar', 'dean', 'admin', 'hr', 'payroll', 'staff', 'accountant', 'budget', 'cashier', 'supply', 'approver', 'applicant'], // job applicants: its jobs area only
     builtIn: true,
     path: '/hris/',
   },

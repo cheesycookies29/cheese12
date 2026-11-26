@@ -289,6 +289,21 @@ The **Settings center** lists every setting in ATLAS (Admin panel, Learn, Academ
 
 ![The Settings center: every setting, by module](admin-config.jpg)
 
+### Set how long job applicant accounts last
+
+People outside the school apply for jobs with a temporary **applicant account** (see [the applicant's guide](applicant)). Three settings decide its life, in the **Settings center** under **ATLAS People → Job applicants** (HR managers change them in People under **HR settings → Job applicants**):
+
+| Setting | Default | What it does |
+|---|---|---|
+| Applicant accounts last (days) | 365 | An account closes this many days after sign-up (30 to 1095). A change applies to accounts made after it; HR can extend one account. |
+| Warn applicants before closing (days) | 30 | The applicant is told on the bell this many days before, once (1 to 90). |
+| Remove closed applicant accounts after (days) | 30 | A daily check removes a closed account and the personal details in its applications this many days after it closed (0 to 365). 0 keeps it until HR removes it. |
+
+1. Choose **Settings center** and find *applicant*.
+2. Choose **Open** on **Job applicants**: People's **HR settings** opens. Change the numbers and choose **Save HR settings**.
+
+A closed account cannot sign in, and its sessions end when it closes. Removed applicants stay in each opening's list as *Removed applicant*, without a name, so the counts stay true. Employees, students and other accounts never close this way.
+
 ### Restore a default or undo a change
 
 1. In the **Settings center**, find the setting and choose **Restore default**, or **Restore defaults** on its group to put the whole group back.
@@ -315,6 +330,8 @@ If one group fails its checks, nothing is imported. Keep an export before big ch
 For example, let deans open Finance's reports (**ATLAS Finance** → *Finance dashboard, books and reports* for **Dean / Program chair**), or keep the academic settings with administrators only by unticking *Grading scale, requirements, document fees and signatories* (under **ATLAS Academic**) for **Registrar**. **Restore built-in** puts an account type back as ATLAS made it.
 
 Administrators always have every permission, and managing administrator accounts and replacing data (**Administrators only**) cannot be given to anyone else. Admin-panel permissions go only to registrars and deans, who use the Admin panel.
+
+Recruitment in People (job openings, applications and applicant accounts) is *Recruitment: job openings, applications and applicant accounts* under **ATLAS People**. HR managers have it; tick it for another account type to let it post openings and decide on applications. **Job applicants** (people outside the school who signed up from Job openings) can never be given a permission: they see only Job openings, My applications and their own account.
 
 ![Roles & permissions](admin-roles.jpg)
 
@@ -531,6 +548,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | Parent / Guardian | Admin panel → Parents & guardians |
 | HR Manager, Payroll Officer, Staff | ATLAS People, on the employee's record, or System → Users & Access → + Add user |
 | Chief Accountant, Budget Officer, Cashier, Supply & Property Officer, Approving Officer | ATLAS Finance → Control panel, or System → Users & Access → + Add user |
+| Job applicant | Nobody: people outside the school sign up themselves from **Job openings** on the ATLAS home page, while an opening is Open to all. HR extends or removes them in People → Recruitment → Applicant accounts |
 
 **Why can't I delete an account?** Students, teachers and parents are disabled, not deleted, so their records stay. Under **System → Users & Access**, an account with no records can be deleted; you cannot delete your own account or the last active administrator. Disabling works the same way: you cannot disable yourself or the last active administrator.
 

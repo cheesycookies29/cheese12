@@ -8,12 +8,12 @@ export const TWO_FACTOR_POLICIES = {
 };
 
 // Whether the policy (settings.security) requires this account to use 2-step verification.
-// Employees: every account type but students and parents.
+// Employees: every account type but students, parents and job applicants.
 export function twoFactorRequired(security, user) {
   const p = security?.twoFactor || 'off';
   if (!user || p === 'off') return false;
   if (p === 'all') return true;
   if (p === 'admins') return user.role === 'admin';
-  if (p === 'staff') return user.role !== 'student' && user.role !== 'guardian';
+  if (p === 'staff') return !['student', 'guardian', 'applicant'].includes(user.role);
   return false;
 }

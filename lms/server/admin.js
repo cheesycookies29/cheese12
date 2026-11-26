@@ -198,6 +198,7 @@ export function registerAdminRoutes(route, ctx) {
   });
 
   route('POST', '/api/admin/users', 'admin', async ({ user, body, campusId }) => {
+    if (body.role === 'applicant') fail('Job applicants sign up themselves, from Job openings on the home page.');
     need(user, MANAGES[body.role] || 'admins.manage');
     validateUserFields(body, data());
     const passwordHash = await newPasswordHash(body.password, data().settings.security);

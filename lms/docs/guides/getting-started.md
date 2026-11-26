@@ -2,7 +2,7 @@
 id: getting-started
 title: Getting started with ATLAS
 summary: Sign in once, open the systems your account may use, switch campus, change your password and find help.
-roles: student, teacher, guardian, registrar, dean, admin, hr, payroll, accountant, budget, cashier, supply, approver, staff
+roles: student, teacher, guardian, registrar, dean, admin, hr, payroll, accountant, budget, cashier, supply, approver, staff, applicant
 apps: home
 order: 1
 ---
@@ -235,11 +235,21 @@ Some schools let new students apply on the ATLAS home page. When this is on, the
 
 The registrar reviews your application. Once you are admitted, you sign in with the username you chose.
 
+### Apply for a job at the school
+
+When the school has job openings, the sign-in page shows **Job openings** at the top and **Looking for a job? See job openings** under the form.
+
+1. Choose **Job openings** to read the openings without signing in.
+2. Choose **Sign up to apply** and fill in your name, email, a username and a password (your mobile number is optional).
+3. Tick that you have read the privacy notice and choose **Create my applicant account**.
+
+You are signed in and can apply. Your applicant account is temporary. See [the applicant's guide](applicant) once you are signed in. If you already work at the school, do not sign up: apply with your own account from **People → Job openings**.
+
 ## Screens at a glance
 
 | Screen or button | What it is for |
 |---|---|
-| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, and **Apply for admission** when applications are open; **Help & guides** and **Dark mode** at the top right |
+| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card, the Keycloak button when your school uses it, **Apply for admission** when applications are open, and **Job openings** when the school has some; **Help & guides** and **Dark mode** at the top right |
 | Bell (top bar) | Your notifications: the latest, **Mark all as read**, **Unread only** and **See all notifications** |
 | Notifications | The full list, by system and unread, with **Show more** |
 | ATLAS home page | Your greeting, account type and campus, **Your systems** (cards with figures from your work and a star to pin, in a row with arrows and dots, or all at once in **Compact**), **Tools** (PDF Studio, for the account types that have it), **Administration** (administrators and registrars: the Admin panel and shortcuts into it), **Announcements** and **Upcoming events** |
@@ -271,6 +281,8 @@ The registrar reviews your application. Once you are admitted, you sign in with 
 **ATLAS took me back to the sign-in page, or says "Your session has ended. Please sign in again."** ATLAS signs you out after 8 hours without any activity, and 12 hours after you signed in however busy you are (your school may have set other times). You are also signed out when the ATLAS server is restarted, when someone resets your password or changes what your account may do, and on your other devices when you change your password.
 
 **ATLAS says "This account is disabled."** The registrar or an administrator has switched your account off. Contact the registrar.
+
+**ATLAS says "Your applicant account closed on …"** You signed up to apply for jobs, and your applicant account was open for a set number of days only. Ask the school's HR office to extend it if you still want to apply.
 
 **ATLAS says "Your application is still being reviewed."** You applied for admission and the registrar has not admitted you yet. You can sign in once you are admitted.
 

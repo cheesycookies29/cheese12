@@ -7,7 +7,8 @@
 //   'portal' | 'teacher' | 'student' | 'guardian'  signed in to the portal (optionally that type only;
 //                                    parents & guardians reach only 'guardian' routes and those marked guardians: true)
 //   'admin' | 'admin:<permission>'    signed in to the admin panel (optionally with that permission)
-//   'hris' | 'hris:<permission>'      any signed-in employee (not students), optionally with that permission
+//   'hris' | 'hris:<permission>'      any signed-in employee (not students), optionally with that permission;
+//                                    job applicants reach only the routes marked applicants: true (the jobs area)
 //   'finance' | 'finance:<permission>'    ATLAS Finance: any signed-in employee or student (whichever session the
 //                                    browser has), optionally with that permission
 //   'me'                          whoever is signed in, in any system (their own account: /api/me/…)
@@ -71,9 +72,11 @@ import { registerFinanceRoutes } from './finance.js';
 import { registerConfigRoutes } from './config.js';
 import { registerCalendarRoutes } from './calendar.js';
 import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
-import { notify, registerNotificationRoutes, restoreNotifications, addNotificationsDemo, removeNotificationsDemo } from './notifications.js';
+import { notify, registerNotificationRoutes, restoreNotifications, addNotificationsDemo, removeNotificationsDemo, fmtDay } from './notifications.js';
 import { registerDocuments } from './documents.js';
 import { createSecrets } from './secrets.js';
+import { registerRecruitmentRoutes } from './recruitment.js';
+import { applicantExpired } from '../shared/recruitment.js';
 import { demoPdf, demoDocx } from './demo.js';
 
 
@@ -205,10 +208,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // limitBy({ params, ip }): what the `limit` counts by (default: the network address; 'password': the person).
   // duringPasswordChange: also answers an account that must first change its password or set up 2-step
   // verification; an open ('public') route without it sees such an account as signed out.
-  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, limit = null, limitBy = null, audit: logged = true, body = null } = {}) => {
+  // applicants: an 'hris' route job applicants may use too (People's jobs area; server/recruitment.js).
+  const route = (method, pattern, access, handler, { module = null, duringPasswordChange = false, guardians = false, applicants = false, limit = null, limitBy = null, audit: logged = true, body = null } = {}) => {
     const keys = [];
     const re = new RegExp('^' + pattern.replace(/:(\w+)/g, (_, k) => (keys.push(k), '([^/]+)')) + '$');
-    routes.push({ method, pattern, re, keys, access, handler, module, duringPasswordChange, guardians, limit, limitBy, audit: logged, body });
+    routes.push({ method, pattern, re, keys, access, handler, module, duringPasswordChange, guardians, applicants, limit, limitBy, audit: logged, body });
   };
 
   // Bodies of the sign-in, password and setup routes (server/validate.js): only these fields reach them.
@@ -277,7 +281,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const stored = user?.passwordHash;
     const right = password.length <= 200 && (await verifyPasswordAsync(password, stored));
     // Everything from here runs without pausing, so it sees one consistent state.
-    if (!right || (passwordsOff && user.role !== 'admin')) {
+    // Job applicants are outside the school, so they have no Keycloak account: they keep their password.
+    if (!right || (passwordsOff && !['admin', 'applicant'].includes(user.role))) {
       limits.add(byAddress('signinFail', ip), ip);
       refuse(!right ? (user ? 'wrong password' : 'no such account') : 'passwords are switched off', () => fail(passwordsOff ? `This school signs in with Keycloak. Choose "${sso.label}".` : 'Incorrect username or password.', 401));
     }
@@ -302,6 +307,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
           : side === 'admin'
             ? `Teachers and students sign in on the ${brandName(db.data.settings.branding)} home page, not the admin panel.`
             : 'Administrators and registrars sign in on the admin panel at /admin.', 403);
+      }
+    });
+    // A job applicant's account closes after a set number of days (server/recruitment.js).
+    refuse('applicant account closed', () => {
+      if (user.role === 'applicant' && (user.status === 'expired' || applicantExpired(user, clock().getTime()))) {
+        fail(`Your applicant account closed on ${fmtDay(localDate(new Date(user.expiresAt)))}. Ask HR to extend it if you still want to apply.`, 403);
       }
     });
     refuse(`account ${user.status}`, () => {
@@ -470,6 +481,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       sso: sso.publicInfo(),
       systems: portalSystems(user, side),
       tools: ctx.toolsFor ? ctx.toolsFor(user) : [], // ATLAS Tools this account may use (PDF Studio…)
+      jobs: recruitment.publicCount(), // open job openings anyone may apply for (the sign-in page links to them)
       ...campusInfo(user),
     };
   }, { duringPasswordChange: true });
@@ -496,6 +508,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const user = portalUser || adminUser || hrisUser;
     if (!user) fail('Please sign in.', 401);
     if (portalUser && !moduleOn(db.data.modules, 'news', user.role)) return { news: [], events: [] };
+    if (user.role === 'applicant') return { news: [], events: [] }; // the school's news is for its people
     const campusId = activeCampusId(db.data, user);
     const here = (x) => x.campusId == null || x.campusId === campusId;
     const news = db.data.news.filter(here).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.createdAt.localeCompare(a.createdAt)).slice(0, 4)
@@ -613,12 +626,15 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       authBase: '/api/hris/auth',
       permissions: allowed ? HRIS_PERMISSION_LABELS.map(([p]) => p).filter((p) => userCan(user, p)) : [],
       employee: allowed ? hris.employeeSummary(user) : null,
+      applicant: allowed && user.role === 'applicant' ? { expiresAt: user.expiresAt } : null, // a job applicant: only the jobs area
     };
   };
   route('GET', '/api/hris/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => hrisStatus(hrisUser || adminUser || portalUser), { duringPasswordChange: true });
-  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password', audit: false, body: PASSWORD_BODY });
+  route('POST', '/api/hris/auth/change-password', 'hris', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, applicants: true, limit: 'password', audit: false, body: PASSWORD_BODY });
   route('POST', '/api/hris/auth/campus', 'hris', ({ user, body }) => switchCampus(user, body), { audit: false });
   const hris = registerHrisRoutes(route, ctx);
+  // Recruitment (People → Recruitment; job applicants; server/recruitment.js).
+  const recruitment = registerRecruitmentRoutes(route, ctx);
 
   // ----- Academic (/academic/): staff with their admin-panel session, teachers and students with the portal's -----
   const academicUser = (adminUser, portalUser) => adminUser || portalUser || null;
@@ -644,7 +660,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Finance (/finance/): any employee (finance staff by their finance.* permissions) and students (their receipts) -----
   route('GET', '/api/finance/auth/status', 'public', ({ adminUser, portalUser, hrisUser }) => {
     const user = hrisUser || adminUser || portalUser;
-    const allowed = Boolean(user) && user.role !== 'guardian';
+    const allowed = Boolean(user) && user.role !== 'guardian' && user.role !== 'applicant';
     return {
       ...campusInfo(allowed ? user : null),
       branding: branding(),
@@ -663,7 +679,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // ----- Documents (/documents/): any employee and students, with whichever session the browser has -----
   route('GET', '/api/docs/auth/status', 'public', ({ adminUser, portalUser, hrisUser }) => {
     const user = hrisUser || adminUser || portalUser;
-    const allowed = Boolean(user) && user.role !== 'guardian';
+    const allowed = Boolean(user) && user.role !== 'guardian' && user.role !== 'applicant';
     return {
       ...campusInfo(allowed ? user : null),
       branding: branding(),
@@ -697,6 +713,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // campus rule applies unchanged. A figure that cannot be worked out is left out, never an error.
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   async function figuresFor(user) {
+    if (user.role === 'applicant') return { uis: [], lms: [], hris: [], fmis: [], dms: [] }; // the jobs area only
     const ask = async (path) => {
       try {
         return await ctx.invoke(user, 'GET', path);
@@ -898,6 +915,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   handle.monitor = monitor;
   handle.pdfStudio = pdfStudio;
   handle.documents = documents;
+  handle.recruitment = recruitment;
+  // Every route's method, address and access (tests check who can reach what).
+  handle.routes = () => routes.map(({ method, pattern, access, applicants, guardians }) => ({ method, pattern, access, applicants, guardians }));
   return handle;
   // Who sent a request, from its session cookies (no body needed).
   function whoIs(req) {
@@ -905,7 +925,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const sso = new Set(); // accounts whose session here came through Keycloak
     const resolve = (side, token) => {
       const s = sides[side].get(token);
-      const u = s && users().find((x) => x.id === s.userId && x.status === 'active');
+      // A job applicant's session ends when their account closes (server/recruitment.js).
+      const u = s && users().find((x) => x.id === s.userId && x.status === 'active' && !applicantExpired(x, clock().getTime()));
       if (u && s.sso) sso.add(u.id);
       return u && ROLES[u.role]?.side === side ? u : null;
     };
@@ -988,7 +1009,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
           [user, token] = portalUser ? [portalUser, portalToken] : adminUser ? [adminUser, adminToken] : [hrisUser, hrisToken];
           if (!user) fail('Please sign in.', 401);
           const id = r.access.split(':')[1];
-          if (!toolOpenFor(db.data.settings, id, user.role)) fail(`${TOOLS.find((x) => x.id === id)?.product || 'This tool'} is not switched on for your account type. Ask an administrator.`, 403);
+          if (user.role === 'applicant' || !toolOpenFor(db.data.settings, id, user.role)) fail(`${TOOLS.find((x) => x.id === id)?.product || 'This tool'} is not switched on for your account type. Ask an administrator.`, 403);
         } else if (r.access === 'me') {
           // Your own account, from whichever system you are signed in to.
           [user, token] = portalUser ? [portalUser, portalToken] : adminUser ? [adminUser, adminToken] : [hrisUser, hrisToken];
@@ -998,6 +1019,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
           [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
           if (!user) fail('Please sign in.', 401);
           if (user.role === 'student' || user.role === 'guardian') fail('People is for school employees.', 403);
+          if (user.role === 'applicant' && !r.applicants) fail('Job applicants see only Job openings and their applications.', 403);
           const permission = r.access.split(':')[1];
           if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access === 'academic' || r.access.startsWith('academic:')) {
@@ -1010,14 +1032,14 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
         } else if (r.access === 'finance' || r.access.startsWith('finance:')) {
           [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
           if (!user) fail('Please sign in.', 401);
-          if (user.role === 'guardian') fail('Finance is for the school\'s employees and students.', 403);
+          if (user.role === 'guardian' || user.role === 'applicant') fail('Finance is for the school\'s employees and students.', 403);
           const permission = r.access.split(':')[1];
           if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access === 'documents' || r.access.startsWith('documents:')) {
           // ATLAS Documents (server/documents.js): every employee and student; not parents.
           [user, token] = hrisUser ? [hrisUser, hrisToken] : adminUser ? [adminUser, adminToken] : [portalUser, portalToken];
           if (!user) fail('Please sign in.', 401);
-          if (user.role === 'guardian') fail(`${productName(db.data.settings.branding, 'Documents')} is for the school's employees and students.`, 403);
+          if (user.role === 'guardian' || user.role === 'applicant') fail(`${productName(db.data.settings.branding, 'Documents')} is for the school's employees and students.`, 403);
           const permission = r.access.split(':')[1];
           if (permission && !userCan(user, permission)) fail('Your account does not have access to this.', 403);
         } else if (r.access.startsWith('admin')) {

@@ -1,10 +1,12 @@
 // ATLAS People, the HRIS (/hris/): employee self-service for everyone with an employee record, and the
 // HR screens (employees, attendance, leave, payroll) for HR managers, payroll officers
 // and administrators. Screens and rules come from the Lancaster ERP's HR & Payroll module.
+// Recruitment: HR posts job openings; employees and job applicants (people outside the school, with a
+// temporary account) apply. An applicant sees only Job openings, My applications and their account.
 import { startApp, authScreen } from '../shell.js';
 import { systemRoutes, systemNav } from '../system/index.js';
 import { html } from '../ui.js';
-import { hr, can, isEmployee } from './state.js';
+import { hr, can, isEmployee, isApplicant } from './state.js';
 import { api } from '../api.js';
 import { dashboardView } from './views/dashboard.js';
 import { employeeListView, employeeFormView, employeeProfileView } from './views/employees.js';
@@ -16,9 +18,14 @@ import { payrollSetupView } from './views/payroll-setup.js';
 import { hrSettingsView } from './views/settings.js';
 import { meHomeView, meAttendanceView, meRequestsView, mePayslipsView, mePayslipView, meProfileView, notLinkedView } from './views/self.js';
 import { brandHome } from '../brand.js';
+import { jobsView, jobView, myApplicationsView } from './views/jobs.js';
+import { openingsView, openingFormView, openingView, applicantsView } from './views/recruitment.js';
 
 const perm = (p) => () => can(p);
 const emp = () => isEmployee();
+// Job openings: employees (self-service) and job applicants.
+const seeker = () => isEmployee() || isApplicant();
+const staffOnly = (check) => () => !isApplicant() && check();
 
 const routes = [
   ['/dashboard', dashboardView, perm('hris.dashboard')],
@@ -35,17 +42,33 @@ const routes = [
   ['/payroll/:id/payslip/:employeeId', payslipView, perm('payroll.view')],
   ['/payroll-setup', payrollSetupView, perm('payroll.config')],
   ['/settings', hrSettingsView, perm('hris.settings')],
+  ['/recruitment', openingsView, perm('hris.recruitment')],
+  ['/recruitment/new', (el) => openingFormView(el, {}), perm('hris.recruitment')],
+  ['/recruitment/applicants', applicantsView, perm('hris.recruitment')],
+  ['/recruitment/:id', openingView, perm('hris.recruitment')],
+  ['/recruitment/:id/edit', openingFormView, perm('hris.recruitment')],
+  ['/jobs', jobsView, seeker],
+  ['/jobs/mine', myApplicationsView, seeker],
+  ['/jobs/:id', jobView, seeker],
   ['/me', meHomeView, emp],
   ['/me/attendance', meAttendanceView, emp],
   ['/me/requests', meRequestsView, emp],
   ['/me/payslips', mePayslipsView, emp],
   ['/me/payslips/:runId', mePayslipView, emp],
   ['/me/profile', meProfileView, emp],
-  ['/not-linked', notLinkedView, () => !isEmployee()],
+  ['/not-linked', notLinkedView, staffOnly(() => !isEmployee())],
   ...systemRoutes(),
 ];
 
 function nav() {
+  // A job applicant: the jobs area only (and their own account, in the menu under their name).
+  if (isApplicant()) {
+    return [
+      { heading: 'Jobs' },
+      { href: '/jobs', label: 'Job openings', icon: 'briefcase' },
+      { href: '/jobs/mine', label: 'My applications', icon: 'inbox' },
+    ];
+  }
   const hrScreens = ['hris.dashboard', 'employees.view', 'attendance.view', 'clock.kiosk', 'leave.manage', 'payroll.view'].some(can);
   return [
     isEmployee() && { heading: 'Me' },
@@ -54,6 +77,7 @@ function nav() {
     isEmployee() && { href: '/me/requests', label: 'Leave & requests', icon: 'inbox' },
     isEmployee() && { href: '/me/payslips', label: 'My payslips', icon: 'wallet' },
     isEmployee() && { href: '/me/profile', label: 'My HR record', icon: 'user' },
+    isEmployee() && { href: '/jobs', label: 'Job openings', icon: 'briefcase' },
     !isEmployee() && !hrScreens && { href: '/not-linked', label: 'Getting started', icon: 'flag' },
     hrScreens && { heading: 'Human resources' },
     can('hris.dashboard') && { href: '/dashboard', label: 'HR dashboard', icon: 'chart' },
@@ -63,6 +87,9 @@ function nav() {
     can('attendance.location') && { href: '/clock-locations', label: 'Clock-in locations', icon: 'mapPin' },
     can('leave.manage') && { href: '/leave', label: 'Leave & approvals', icon: 'clipboard', badge: 'requests' },
     can('payroll.view') && { href: '/payroll', label: 'Payroll', icon: 'wallet' },
+    can('hris.recruitment') && { heading: 'Recruitment' },
+    can('hris.recruitment') && { href: '/recruitment', label: 'Job openings', icon: 'briefcase' },
+    can('hris.recruitment') && { href: '/recruitment/applicants', label: 'Applicant accounts', icon: 'users' },
     (can('payroll.config') || can('hris.settings')) && { heading: 'Setup' },
     can('payroll.config') && { href: '/payroll-setup', label: 'Payroll setup', icon: 'settings' },
     can('hris.settings') && { href: '/settings', label: 'HR settings', icon: 'building' },
@@ -70,7 +97,7 @@ function nav() {
   ].filter(Boolean);
 }
 
-const home = () => (can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' : can('employees.view') ? '/employees' : '/not-linked');
+const home = () => (isApplicant() ? '/jobs' : can('hris.dashboard') ? '/dashboard' : isEmployee() ? '/me' : can('employees.view') ? '/employees' : '/not-linked');
 
 // Everyone signs in once, on the University Portal (/); it sends them back here.
 // Students have no HRIS: say so instead.
@@ -94,6 +121,7 @@ startApp({
   // A password set by someone else is replaced on the University Portal, which then comes back here.
   passwordView: () => location.replace(`/?next=${encodeURIComponent('/hris/')}`),
   async onSignedIn() {
+    if (isApplicant()) return; // the jobs area needs neither
     await Promise.all([hr.refreshSettings(), hr.refreshLeaveTypes()]);
   },
   badges: {

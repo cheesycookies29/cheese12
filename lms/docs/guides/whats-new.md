@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### Recruitment in People: job openings, applicant accounts and internal applications
+- HR managers post **job openings** under **People → Recruitment → Job openings** (position, plantilla item, salary grade with the monthly salary, place of assignment, qualification standards, vacancies, closing date, **Open to all** or **Internal only**) and follow the applications to each with a simple status the applicant is told about on the bell. See [the HR guide](hr#post-a-job-opening).
+- People outside the school find the openings on the ATLAS home page (**Job openings**) and sign up with basic information only. Their **applicant account** sees only Job openings and My applications, and closes after 365 days (a setting), with a warning first; closed accounts are removed later. See [the applicant's guide](applicant).
+- Employees apply for promotions and transfers with their own account, from **People → Job openings**: the application is marked Internal and linked to their record. See [the employee guide](employee#apply-for-a-job-opening).
+- Administrators: the new settings are under **Settings center → ATLAS People → Job applicants**, and the new permission under **Roles & permissions → ATLAS People**. See [the administrator's guide](admin#set-how-long-job-applicant-accounts-last).
+
 ### Your school as the brand, powered by ATLAS
 - Under **Settings & branding → Branding**, administrators can now choose **Our school, powered by ATLAS**: the school's seal and short name lead every system (*LA Learn*, *LA home*, the sign-in pages, the browser tab) and ATLAS shows only as a small *Powered by ATLAS*. A school colour can now have its own **Accent**, and **Preview** shows the top bar and the sign-in page before saving. ATLAS stays the default. See [the administrator's guide](admin#lead-with-your-school-s-name-and-seal).
 

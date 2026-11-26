@@ -275,6 +275,8 @@ export function registerSsoRoutes(route, ctx, { startSession, secret: envSecret 
       if (user?.ssoSubject && user.ssoSubject !== subject) fail('That ATLAS account is linked to another Keycloak user.', 409);
     }
     const who = cfg().matchBy === 'username' ? claims.preferred_username : claims.email;
+    // Job applicants are outside the school: they sign in with the password they chose, never Keycloak.
+    if (user?.role === 'applicant') fail('Job applicant accounts sign in with their own username and password, not Keycloak.', 403);
     if (!user) fail(`There is no ATLAS account for ${who || 'your Keycloak user'}. Ask the registrar or HR to create one${cfg().matchBy === 'email' ? ' with this email' : ''}.`, 403);
     if (user.status === 'pending') fail('Your application is still being reviewed. You can sign in once the registrar admits you.', 403);
     if (user.status !== 'active') fail('This ATLAS account is disabled. Contact the registrar.', 403);

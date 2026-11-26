@@ -1824,3 +1824,20 @@ form#sec .grid + h2 { margin-top: 24px; padding-top: 18px; border-top: 1px solid
 .sn-row .sn-remove { margin-bottom: 2px; }
 .sn-sub { font-size: 15px; margin: 18px 0 8px; }
 @media (max-width: 560px) { .sn-row { grid-template-columns: 1fr; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--border); } }
+
+/* ===== Job openings on the ATLAS home, signed out (public/js/hub/app.js) ===== */
+.job-list { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+.job-item { border: 1px solid var(--rule); border-radius: 8px; background: color-mix(in srgb, var(--paper) 40%, var(--surface)); padding: 10px 12px; }
+.job-item summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.job-item summary::-webkit-details-marker { display: none; }
+.job-item summary strong { color: var(--ink); }
+.job-item summary small { color: var(--muted); font-size: 12px; }
+.job-item[open] summary { margin-bottom: 8px; }
+.job-item .job-qs { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 8px 0 0; font-size: 13px; }
+.job-item .job-qs dt { color: var(--muted); font-weight: 600; }
+.job-item .job-qs dd { margin: 0; }
+.privacy-notice { border: 1px solid var(--rule); border-left: 3px solid var(--gold); border-radius: 6px; padding: 10px 12px; font-size: 13px; color: var(--text-2); background: color-mix(in srgb, var(--paper) 60%, var(--surface)); }
+.privacy-notice strong { display: flex; align-items: center; gap: 6px; color: var(--ink); margin-bottom: 4px; }
+.privacy-notice p { margin: 4px 0 0; line-height: 1.5; }
+.auth-card .check-row { align-items: flex-start; font-size: 13px; }
+.auth-card .check-row input { margin-top: 3px; }

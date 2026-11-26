@@ -1,8 +1,8 @@
 // ATLAS home (/): one sign-in, then a card for each system the account may use (Academic,
 // Learn, People, Finance, Facilities). Systems that are not built yet show as "Coming soon".
 import { api } from '../api.js';
-import { html, mount, option, initials, timeAgo, fmtDate, toast } from '../ui.js';
-import { ctx, applyBranding, failureNotice, authPlate, atlasWord, markSrc, BYLINE, poweredBy, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
+import { html, mount, option, initials, timeAgo, fmtDate, toast, money, today } from '../ui.js';
+import { ctx, applyBranding, failureNotice, authPlate, toastOnNextPage, atlasWord, markSrc, BYLINE, poweredBy, ssoBlock, passwordFields, showSsoError, passwordField, onFormSubmit, forcePasswordView, openChangePassword, setTheme, isDark, renderThemeButton, campusMenu, wireCampusMenu } from '../shell.js';
 import { icon, iconSvg } from '../icons.js';
 import { roleLabel, userCan } from '/shared/roles.js';
 import { mountUserMenu, mountQuick, mountSystems, accountHref } from '../account/topbar.js';
@@ -25,12 +25,16 @@ function showAuth(render) {
 }
 
 // ----- Signed out -----
+// jobs: open job openings anyone may apply for; the bar at the top then links to them.
+let jobsOpen = 0;
 function hubScreen(card, systems, line) {
-  return authPlate(authEl, {
+  const form = authPlate(authEl, {
     line,
     card,
+    links: jobsOpen ? html`<a href="#jobs" id="jobs-link">${icon('briefcase', 16)} <span>Job openings</span></a>` : '',
     ledger: [...systems.filter((s) => s.status === 'live'), ...systems.filter((s) => s.status !== 'live')].map((s) => [s.product, s.status !== 'live']),
   });
+  return form;
 }
 
 function signInView(status) {
@@ -46,6 +50,7 @@ function signInView(status) {
       <button class="btn ${status.sso?.enabled ? '' : 'primary'} block" type="submit">Sign in</button>`)}
       <p class="form-error" hidden></p>
       ${status.registrationOpen ? html`<p class="auth-switch">New student? <button type="button" class="link" id="apply">Apply for admission</button></p>` : ''}
+      ${status.jobs ? html`<p class="auth-switch">Looking for a job? <a href="#jobs" id="see-jobs">See job openings</a></p>` : ''}
       <p class="auth-foot">${status.sso?.enabled && !status.sso.passwords ? 'Trouble signing in? Ask the registrar or your administrator.' : 'Forgot your password? Ask the registrar or your administrator to reset it.'}</p>
     </form>`, status.systems, brandText('ATLAS · Sign in'));
   form.querySelector('#apply')?.addEventListener('click', () => applyView(status));
@@ -57,6 +62,74 @@ function signInView(status) {
     if (res.twoFactorRequired) {
       return codeStep({ render: (card) => hubScreen(card, status.systems, brandText('ATLAS · Sign in')), verifyUrl: '/api/hub/login/verify', challenge: res.challenge, onSignedIn: boot, onBack: () => signInView(status) });
     }
+    boot();
+  });
+}
+
+// ----- Job openings and signing up as a job applicant (People → Recruitment; server/recruitment.js) -----
+// Signed out, anyone may read the openings that are Open to all, then sign up with basic information
+// only: that makes a temporary applicant account, which opens People's jobs area.
+const localDay = (iso) => today(new Date(iso));
+const jobLine = (o) => [o.office, o.campusName].filter(Boolean).join(' · ');
+const salaryOf = (o) => (o.salaryGrade ? `SG ${o.salaryGrade}${o.monthlySalary ? ` · ${money(o.monthlySalary)} a month` : ''}` : '');
+async function jobsView(status) {
+  const back = () => {
+    history.replaceState(null, '', location.pathname + location.search);
+    signInView(status);
+  };
+  hubScreen(html`<div class="auth-card jobs-card"><h2>Job openings</h2><p class="muted">Loading…</p></div>`, status.systems, brandText('ATLAS · Job openings'));
+  let d;
+  try {
+    d = await api.get('/api/jobs/openings');
+  } catch (err) {
+    d = { openings: [], signUpOpen: false, error: err.message };
+  }
+  hubScreen(html`<div class="auth-card jobs-card">
+      <h2>Job openings</h2>
+      <p class="muted">${d.openings.length ? `Positions open at ${status.branding.schoolName}. Choose one to read its qualification standards.` : d.error || 'There are no openings right now. Please check again later.'}</p>
+      ${d.openings.length ? html`<div class="job-list">${d.openings.map((o) => html`<details class="job-item">
+        <summary><strong>${o.title}</strong><small>${jobLine(o)}</small><small>${[salaryOf(o), `${o.vacancies} vacanc${o.vacancies === 1 ? 'y' : 'ies'}`, `apply by ${fmtDate(o.closingDate)}`].filter(Boolean).join(' · ')}</small></summary>
+        ${o.description ? html`<p class="small pre">${o.description}</p>` : ''}
+        <dl class="job-qs">${[['Education', o.education], ['Training', o.training], ['Experience', o.experience], ['Eligibility', o.eligibility]].map(([k, v]) => html`<dt>${k}</dt><dd>${v || '—'}</dd>`)}</dl>
+      </details>`)}</div>` : ''}
+      ${d.signUpOpen ? html`<button type="button" class="btn primary block" id="signup">Sign up to apply</button>` : ''}
+      <p class="auth-switch">Signed up already, or work at the school? <button type="button" class="link" id="back">Sign in</button></p>
+      <p class="auth-foot">Employees apply with their own account, from People → Job openings.</p>
+    </div>`, status.systems, brandText('ATLAS · Job openings'));
+  authEl.querySelector('#back').addEventListener('click', back);
+  authEl.querySelector('#signup')?.addEventListener('click', () => signUpView(status, d));
+}
+
+function signUpView(status, jobs) {
+  const closes = fmtDate(localDay(new Date(Date.now() + jobs.accountDays * 86400000).toISOString()));
+  const form = hubScreen(html`
+    <form class="auth-card" novalidate>
+      <h2>Sign up to apply</h2>
+      <p class="muted">Basic information only: your name, how to reach you, and a password.</p>
+      <label class="field"><span>Full name</span><input name="name" autocomplete="name" required /></label>
+      <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required /></label>
+      <label class="field"><span>Mobile number (optional)</span><input type="tel" name="phone" autocomplete="tel" placeholder="09xx xxx xxxx" /></label>
+      <label class="field"><span>Choose a username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /><span class="hint">3 to 40 lowercase letters, numbers, dots, dashes or underscores.</span></label>
+      ${passwordField('Choose a password (at least 8 characters)', 'password', 'new-password')}
+      <div class="privacy-notice" role="note">
+        <strong>${icon('shield', 15)} Your privacy</strong>
+        <p>${status.branding.schoolName} keeps what you give here (your name, email, username and mobile number) and your applications, only to consider you for its job openings and to contact you about them. The school's HR staff see them; other applicants never do.</p>
+        <p>Your applicant account is open for ${jobs.accountDays} days, until ${closes}. ${jobs.purgeDays ? `${jobs.purgeDays} days after it closes, the account and the personal details in your applications are removed.` : 'Once it closes, HR removes the account and the personal details in your applications.'} You can ask HR to remove them sooner (Data Privacy Act of 2012).</p>
+      </div>
+      <label class="check-row"><input type="checkbox" name="consent" value="yes" /> <span>I have read this notice and agree to it.</span></label>
+      <p class="form-error" hidden></p>
+      <button class="btn primary block" type="submit">Create my applicant account</button>
+      <p class="auth-switch"><button type="button" class="link" id="back">← Back to job openings</button></p>
+    </form>`, status.systems, brandText('ATLAS · Job openings'));
+  form.querySelector('#back').addEventListener('click', () => jobsView(status));
+  onFormSubmit(form, async (v) => {
+    const out = await api.post('/api/jobs/signup', { name: v.name, email: v.email, phone: v.phone, username: v.username, password: v.password, consent: v.consent === 'yes' });
+    // Signed in at once, and on to People's Job openings (boot sends applicants there).
+    const res = await api.post('/api/hub/login', { username: out.username, password: v.password });
+    if (res.twoFactorRequired) {
+      return codeStep({ render: (card) => hubScreen(card, status.systems, brandText('ATLAS · Sign in')), verifyUrl: '/api/hub/login/verify', challenge: res.challenge, onSignedIn: boot, onBack: () => signInView(status) });
+    }
+    toastOnNextPage('Your applicant account is ready. Choose an opening to apply.', 'ok');
     boot();
   });
 }
@@ -392,13 +465,16 @@ async function boot() {
   ctx.user = status.user;
   applyBranding(status.branding);
   document.title = `${brand()} · ${status.branding.schoolName}`;
-  if (!status.user) return showAuth(() => signInView(status));
+  jobsOpen = status.jobs || 0;
+  if (!status.user) return showAuth(() => (location.hash === '#jobs' ? jobsView(status) : signInView(status)));
   if (status.user.mustChangePassword) {
     return showAuth((el) => forcePasswordView(el, { admin: status.side === 'admin', authBase: status.authBase, onDone: boot, onSignOut: signOut }));
   }
   if (status.user.twoFactorSetupRequired) {
     return showAuth((el) => forceTwoFactorView(el, { render: (card) => hubScreen(card, status.systems, brandText('ATLAS · 2-step verification')), onDone: boot, onSignOut: signOut }));
   }
+  // A job applicant has only People's jobs area (and Help).
+  if (status.user.role === 'applicant') return location.replace(next === '/help/' ? next : '/hris/#/jobs');
   // Came from a system that needed a sign-in: go straight back there.
   if (next && NEXT_OK[status.side]?.includes(next)) return location.replace(next);
   document.body.classList.remove('auth-mode', 'booting');
@@ -414,4 +490,8 @@ async function boot() {
 }
 
 window.addEventListener('auth:expired', () => boot());
+// "Job openings" (the bar at the top, the sign-in card, or a link to /#jobs): the openings, signed out.
+window.addEventListener('hashchange', () => {
+  if (!ctx.user && ctx.info && location.hash === '#jobs') jobsView(ctx.info);
+});
 boot();

@@ -34,6 +34,7 @@ export const AREAS = [
   ['payroll', 'people', 'Payroll setup', '/hris/#/payroll-setup'],
   ['leaveTypes', 'people', 'Leave types', '/hris/#/leave'],
   ['locations', 'people', 'Clock-in locations', '/hris/#/clock-locations'],
+  ['recruitment', 'people', 'Job applicants', '/hris/#/settings'],
   ['finance', 'finance', 'Finance: entity, funds, offices and banks', '/finance/#/control'],
   ['financeRules', 'finance', 'Finance: numbering, taxes and rules', '/finance/#/control?tab=taxes'],
   ['documents', 'documents', 'Document control', '/admin#/documents'],
@@ -146,6 +147,9 @@ export const SETTINGS = [
   ['payroll', 'rates.tax', 'Withholding tax tables', 'BIR brackets, semi-monthly and monthly.', 'json'],
   ['leaveTypes', '', 'Leave types and yearly credits', 'Vacation, sick and other leave, with their credits and rules.', 'list'],
   ['locations', '', 'Clock-in locations', 'Each campus\'s location and radius for clocking in.', 'json'],
+  ['recruitment', 'applicantAccountDays', 'Applicant accounts last (days)', 'A job applicant\'s account closes this many days after they sign up (30 to 1095). Changing it applies to new accounts; HR can extend one account.'],
+  ['recruitment', 'applicantWarnDays', 'Warn applicants before closing (days)', 'The applicant is told on the bell this many days before their account closes, once (1 to 90).'],
+  ['recruitment', 'applicantPurgeDays', 'Remove closed applicant accounts after (days)', 'A closed account and the personal details in its applications are removed this many days after it closed (0 to 365). 0 = keep until HR removes them.'],
   // ----- Finance -----
   ['finance', 'entity.name', 'Entity name', 'On every Finance form; blank uses the school name.'],
   ['finance', 'entity.agencyCode', 'UACS agency code', ''],

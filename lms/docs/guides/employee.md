@@ -1,7 +1,7 @@
 ---
 id: employee
 title: Your self-service in ATLAS People
-summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, and see your property and requests in ATLAS Finance.
+summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, apply for job openings, and see your property and requests in ATLAS Finance.
 roles: staff, teacher, registrar, dean, hr, payroll, accountant, budget, cashier, supply, approver
 apps: people, finance
 order: 50
@@ -127,6 +127,20 @@ To change any of your details, contact HR. HR managers and payroll officers cann
 
 You are accountable for the property until it is returned to the supply office or transferred on a PTR/ITR. If nothing appears and you expect it, your account may not be linked to a card in Finance's card file yet: ask the accounting office.
 
+### Apply for a job opening
+
+For a promotion or a transfer, you apply with your own account: there is no separate applicant account.
+
+1. Open **Job openings** in People (under **Me**). You see the openings open to everyone and those marked **Internal only**, for the school's employees.
+2. Choose an opening to read its salary, vacancies, closing date and qualification standards.
+3. Choose **Apply**, type a **Cover note** if you like, and choose **Send application**.
+
+Your application is marked **Internal** and linked to your employee record: HR sees your current position, salary grade and campus from it, and your note. Follow it under **My applications** (the button on **Job openings**): its status, the date it last changed and any note from HR. You are told on the bell when HR changes it. You can **Withdraw** it while the opening is not closed and HR has not decided, and send it again until the closing date.
+
+![Job openings in your People](employee-job-openings.jpg)
+
+![Apply for an internal opening](employee-apply.jpg)
+
 ### Request supplies or a purchase
 
 1. In Finance, open **Supply & purchase requests**.
@@ -143,6 +157,7 @@ You are accountable for the property until it is returned to the supply office o
 | Leave & requests | Your leave balances; file leave or remote work; attach a medical certificate; withdraw a pending request |
 | My payslips | Your finalized payslips, including bonuses, to print or save as PDF |
 | My HR record | Your record as HR keeps it, and **Change password** |
+| Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with their status |
 | Getting started | Shown when your account is not linked to an employee record yet |
 | My accountabilities | In Finance: property in your custody, cash advances, receipts issued to you |
 | Supply & purchase requests | In Finance: request supplies (RIS) or a purchase (PR), and follow them |
@@ -166,3 +181,6 @@ A loan is not taken when it would bring your net pay below ₱5,000 a month (GAA
 
 **Why can't I see my payslip yet?**
 It appears when the payroll officer finalizes the payroll for that period.
+
+**Do I need a separate account to apply for a promotion or transfer?**
+No. Apply from **Job openings** with your own account. Your application is marked Internal and linked to your employee record. If you see no **Job openings**, your account is not linked to an active employee record: ask HR.

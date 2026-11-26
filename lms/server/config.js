@@ -22,7 +22,7 @@ import {
   ROLES, PERMISSION_LABELS, HRIS_PERMISSION_LABELS, FINANCE_PERMISSION_LABELS, ADMIN_ONLY_PERMISSIONS, setRoleOverrides, permissionsOf,
 } from '../shared/roles.js';
 import { ACADEMIC_PERMISSION_LABELS } from '../shared/academic.js';
-import { DOCUMENTS_PERMISSION_LABELS } from '../shared/roles.js';
+import { DOCUMENTS_PERMISSION_LABELS, NON_STAFF_ROLES } from '../shared/roles.js';
 import { cleanSettings as cleanDocSettings, DEFAULT_SETTINGS as DOC_DEFAULTS } from './dms/policy.js';
 
 const fail = (msg, status = 400) => {
@@ -139,6 +139,12 @@ const DEFS = {
   },
   leaveTypes: { get: (d) => clone(d.leaveTypes), watch: [['POST', /^\/api\/hris\/leave-types$/], ['PUT', /^\/api\/hris\/leave-types\/[^/]+$/], ['DELETE', /^\/api\/hris\/leave-types\/[^/]+$/]] },
   locations: { get: (d) => clone(d.hrSettings.locations || {}), watch: [['PUT', /^\/api\/hris\/location-settings$/]] },
+  recruitment: {
+    get: (d) => clone(d.settings.people),
+    defaults: () => clone(DEFAULT_SETTINGS.people),
+    save: (v) => ['PUT', '/api/hris/recruitment/settings', v],
+    watch: [['PUT', /^\/api\/hris\/recruitment\/settings$/]],
+  },
   finance: {
     get: (d) => pick(d.finSettings, FINANCE_KEYS),
     save: (v) => ['PUT', '/api/finance/settings', { ...v, fiscalYear: v.fiscalYear ?? undefined }],
@@ -186,7 +192,7 @@ const keep = (v) => {
 // Who may give each permission to which account types: Admin-panel permissions only to accounts
 // that use the Admin panel; Academic's to its staff and teachers; People's and Finance's to any
 // employee account. Students and parents get none.
-const EMPLOYEE_ROLES = Object.keys(ROLES).filter((r) => r !== 'admin' && !['student', 'guardian'].includes(r));
+const EMPLOYEE_ROLES = Object.keys(ROLES).filter((r) => r !== 'admin' && !NON_STAFF_ROLES.includes(r));
 export const PERMISSION_GROUPS = [
   { id: 'admin', label: 'Admin panel', permissions: PERMISSION_LABELS, roles: Object.keys(ROLES).filter((r) => r !== 'admin' && ROLES[r].side === 'admin') },
   { id: 'academic', label: 'ATLAS Academic', permissions: ACADEMIC_PERMISSION_LABELS, roles: ['registrar', 'dean', 'teacher'] },
