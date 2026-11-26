@@ -472,3 +472,155 @@ img.att-preview { height: auto; max-height: 70vh; }
 .applicant-profile { margin-top: 2px; }
 /* HR settings opened at a section (?section=…): the card's heading clears the top bar */
 #signup-fields, #recruitment-stages { scroll-margin-top: calc(var(--topbar) + 16px); }
+
+/* ===== Ratings, the comparative list, the applicant profile and the pool (views/assess.js; PL-018–020) ===== */
+.as-tpl-note { align-items: flex-start; }
+.as-tpl-note > div { display: flex; flex-direction: column; gap: 4px; }
+.as-tpl-note p { margin: 0; }
+.as-stats .card strong { font-size: 24px; }
+.as-stats .card strong.as-who { font-size: 16px; overflow-wrap: anywhere; }
+.as-stats .card small { display: block; }
+.as-rate-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.as-rate { display: grid; grid-template-columns: minmax(0, 2.2fr) 110px 84px minmax(0, 2fr); gap: 8px 14px; align-items: end; padding: 12px 0; border-top: 1px solid var(--border); }
+.as-rate:first-child { border-top: 0; }
+.as-rate .field { margin: 0; }
+.as-rate-what { align-self: center; min-width: 0; }
+.as-rate-what small { margin-top: 2px; }
+.as-points { display: flex; flex-direction: column; align-items: flex-end; padding-bottom: 8px; font-variant-numeric: tabular-nums; }
+.as-points strong { font-size: 16px; }
+@media (max-width: 760px) {
+  .as-rate { grid-template-columns: minmax(0, 1fr) 84px; }
+  .as-rate-what, .as-comment { grid-column: 1 / -1; }
+  .as-points { align-items: flex-start; }
+}
+/* A printed document (comparative list, applicant profile), shown on screen as it prints. */
+.as-doc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 18px; color: var(--text); }
+.as-head { display: flex; gap: 14px; align-items: center; justify-content: center; text-align: center; margin-bottom: 14px; }
+.as-head img { width: 56px; height: 56px; object-fit: contain; }
+.as-head > div { display: grid; gap: 2px; font-size: 12px; }
+.as-school { font-size: 14px; text-transform: uppercase; letter-spacing: 0.03em; }
+.as-title { font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; margin: 6px 0 2px; }
+.as-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.as-table th, .as-table td { border: 1px solid var(--border-strong); padding: 5px 7px; vertical-align: top; text-align: left; }
+.as-table th { background: var(--surface-2); font-weight: 600; vertical-align: bottom; }
+.as-table th small { display: block; font-weight: 400; color: var(--muted); }
+.as-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.as-table thead { display: table-header-group; } /* the headings repeat on every printed page */
+.as-table tr { break-inside: avoid; }
+.as-table .as-head-row { display: none; }
+.as-table .as-head-row th { background: none; border: 0; padding: 0 0 6px; font-weight: 400; }
+.as-incomplete { color: var(--warn); font-size: 11px; }
+.as-note { font-size: 11px; color: var(--muted); margin: 8px 0 0; }
+.as-signs { display: flex; justify-content: flex-end; margin-top: 28px; break-inside: avoid; }
+.as-sign { display: flex; flex-direction: column; gap: 3px; min-width: 260px; }
+.as-sign-cap { font-size: 12px; }
+.as-sign-line { border-bottom: 1px solid var(--text); min-height: 34px; display: flex; align-items: flex-end; justify-content: center; font-weight: 700; padding-bottom: 2px; }
+.as-sign-title { text-align: center; font-size: 12px; }
+.as-foot { margin: 14px 0 0; font-size: 10.5px; color: var(--muted); }
+.as-tools { align-items: center; }
+.as-tools .grow { flex: 1; }
+.as-name { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 12px; font-size: 20px; }
+.as-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; }
+.as-cols h3, .as-apps-title { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
+.as-apps-title { margin-top: 18px; }
+.as-dl { display: grid; gap: 4px; margin: 0; font-size: 13px; }
+.as-dl > div { display: grid; grid-template-columns: minmax(110px, 40%) minmax(0, 1fr); gap: 8px; }
+.as-dl dt { color: var(--muted); }
+.as-dl dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.as-app { border-top: 1px solid var(--border); padding: 10px 0; break-inside: avoid; }
+.as-app-head { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; margin-bottom: 6px; }
+.as-mini { margin: 8px 0; font-size: 12px; }
+.as-total-row td { background: var(--surface-2); }
+.as-history { list-style: none; margin: 6px 0 0; padding: 0 0 0 12px; border-left: 2px solid var(--brand-line); font-size: 12.5px; display: grid; gap: 4px; }
+.as-h-when { color: var(--muted); font-variant-numeric: tabular-nums; }
+.as-internal { color: var(--warn); }
+@media (max-width: 760px) {
+  .as-doc { padding: 12px; }
+  .as-head { flex-direction: column; }
+  .as-cols { grid-template-columns: minmax(0, 1fr); }
+  .as-dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .as-signs { justify-content: stretch; }
+  .as-sign { min-width: 0; width: 100%; }
+}
+@media print {
+  .as-doc { border: 0; padding: 0; background: #fff; color: #000; }
+  .as-comparative { page: as-landscape; }
+  .as-profile { page: as-portrait; }
+  @page as-landscape { size: A4 landscape; margin: 10mm; }
+  @page as-portrait { size: A4; margin: 12mm; }
+  .as-comparative .as-screen-head { display: none; }
+  .as-comparative .as-table .as-head-row { display: table-row; }
+  .as-comparative .table-scroll { overflow: visible; }
+  .as-table { font-size: 9.5px; }
+  .as-table th, .as-table td { border-color: #555; padding: 3px 4px; }
+  .as-table th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .as-table .as-head-row th { background: #fff !important; border: 0 !important; }
+  .as-profile .badge { border: 1px solid #999; background: #fff !important; color: #000 !important; }
+  .as-foot, .as-note { color: #444; }
+  .as-profile .as-dl, .as-history { font-size: 10.5px; }
+}
+/* The pool of applicants */
+.as-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr)); gap: 10px 14px; align-items: end; margin-bottom: 16px; }
+.as-filters .field { margin: 0; }
+.as-filters .actions { grid-column: 1 / -1; justify-content: flex-end; }
+.as-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.as-pool td { vertical-align: top; }
+.as-pool .row-actions { white-space: nowrap; }
+@media (max-width: 1100px) { .as-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .as-filters .as-q { grid-column: 1 / -1; } }
+@media (max-width: 640px) { .as-filters { grid-template-columns: minmax(0, 1fr); } }
+/* HR settings → Assessment templates */
+.as-cats { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 8px; }
+.as-cat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px 12px; align-items: end; }
+.as-cat .field, .as-crit .field, .as-tpl-head .field { margin: 0; }
+.as-cat-tools { padding-bottom: 6px; }
+.as-tpls { display: grid; gap: 14px; margin-bottom: 8px; }
+.as-tpl { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--surface-2); }
+.as-tpl.retired { opacity: 0.75; }
+.as-tpl-head { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px 12px; align-items: end; }
+.as-tpl-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding-bottom: 6px; }
+.as-example { color: var(--warn); margin: 8px 0 0; display: flex; gap: 6px; align-items: flex-start; }
+.as-crit-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.as-crit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) 96px auto; gap: 8px 10px; align-items: end; }
+.as-crit-tools { display: flex; gap: 2px; padding-bottom: 4px; }
+.as-tpl-foot { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; margin-top: 10px; }
+.as-sum { font-weight: 700; font-variant-numeric: tabular-nums; padding: 4px 10px; border-radius: 999px; font-size: 13px; }
+.as-sum.ok { background: var(--success-soft); color: var(--success); }
+.as-sum.bad { background: var(--danger-soft); color: var(--danger); }
+@media (max-width: 760px) {
+  .as-cat, .as-tpl-head { grid-template-columns: minmax(0, 1fr); }
+  .as-crit { grid-template-columns: minmax(0, 1fr) 96px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .as-crit > .field:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .as-crit-tools { grid-column: 1 / -1; justify-content: flex-end; }
+}
+.pool-card h2 { display: flex; gap: 8px; align-items: center; }
+.pool-card .check-row { align-items: flex-start; }
+.pool-card .check-row input { margin-top: 3px; }
+/* On a phone, an application's applicant cell reads as a block (label above), so a long email or a
+   badge never pushes the card wider than the screen. */
+@media (max-width: 760px) {
+  .table.stackable.job-apps td.job-applicant { display: block; text-align: left; }
+  .table.stackable.job-apps td.job-applicant::before { display: block; margin-bottom: 4px; }
+  .table.stackable.job-apps td.job-applicant small { overflow-wrap: anywhere; }
+  .table.stackable.job-apps td.job-applicant .cell-v, .table.stackable.job-apps td.job-applicant small { display: block; text-align: left; }
+}
+.as-pair input { min-width: 0; width: 100%; }
+.as-who-col { min-width: 9em; }
+.as-mini-wrap { margin: 8px 0; }
+.as-mini-wrap .as-mini { margin: 0; }
+/* The criteria of a template: the field names over the first row only, on a wide screen. */
+@media (min-width: 761px) {
+  .as-crit + .as-crit .field > span:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+}
+@media print {
+  .as-doc a { color: #000 !important; text-decoration: none !important; }
+  .as-table .as-incomplete { font-size: 8.5px; }
+  .as-profile .small, .as-profile .muted.small { font-size: 10.5px; }
+  .as-mini-wrap { overflow: visible; }
+}
+/* An opening's applications on a wide screen: Move, Rate and History wrap in their cell instead of
+   pushing the table wider than the card. */
+@media (min-width: 761px) {
+  .job-apps td.row-actions { white-space: normal; width: 1%; min-width: 172px; }
+  .job-apps td.row-actions .btn { margin: 2px 0 2px 6px; }
+  .job-apps td.job-rating { min-width: 96px; }
+}

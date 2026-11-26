@@ -48,6 +48,8 @@ export function showValue(v, format, display) {
       return shown.length ? shown.join(', ') : 'Only the fixed fields';
     }
     case 'fieldRule': return fieldRuleLabel(v);
+    case 'categories': return Array.isArray(v) ? v.map((x) => x.label).join(', ') : '—';
+    case 'templates': return Array.isArray(v) ? v.map((x) => `${x.name}${x.retired ? ' (retired)' : ''}: ${(x.criteria || []).map((c) => `${c.label} ${c.weight}%`).join(', ')}`).join('; ') : '—';
     case 'types': return v.map((t) => `${t.name} ${t.weight}%${t.active === false ? ' (off)' : ''}`).join(', ');
     case 'modules': {
       const off = Object.entries(v).flatMap(([m, r]) => Object.entries(r).filter(([, on]) => !on).map(([who]) => `${m} for ${who}s`));

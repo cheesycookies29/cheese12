@@ -1,5 +1,6 @@
 // HR settings: the employer details printed on payslips, the default work schedule for new employee
-// records, job applicants' accounts and sign-up fields, and the recruitment stages.
+// records, job applicants' accounts, the pool of applicants and sign-up fields, the recruitment
+// stages, and the assessment templates (position categories, criteria and weights).
 import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { html, mount, toast, WEEKDAYS } from '../../ui.js';
@@ -7,6 +8,7 @@ import { icon } from '../../icons.js';
 import { hr } from '../state.js';
 import { ROLES, HRIS_PERMISSION_LABELS } from '/shared/roles.js';
 import { recruitmentSettingsCard, recruitmentStagesCard, signupFieldsCard, signupFieldsFrom } from './recruitment.js';
+import { assessmentTemplatesCard } from './assess.js';
 
 // Which account types may do what in People (as on the ERP's Users & access page).
 function accessMatrix() {
@@ -55,10 +57,11 @@ export async function hrSettingsView(el, _params = {}, query = {}) {
       <div class="actions end"><button class="btn primary" type="submit">Save HR settings</button></div>
     </form>
     <div id="stages-card"></div>
+    <div id="assessment-card"></div>
     ${accessMatrix()}`);
   // Recruitment stages: a list with its own Save (HR settings → Recruitment stages; Settings center link).
-  await recruitmentStagesCard(el.querySelector('#stages-card'));
-  const section = { stages: '#recruitment-stages', 'signup-fields': '#signup-fields' }[query.section];
+  await Promise.all([recruitmentStagesCard(el.querySelector('#stages-card')), assessmentTemplatesCard(el.querySelector('#assessment-card'))]);
+  const section = { stages: '#recruitment-stages', 'signup-fields': '#signup-fields', assessment: '#assessment-templates', pool: '#job-applicants' }[query.section];
   if (section) el.querySelector(section)?.scrollIntoView({ block: 'start' });
   const form = el.querySelector('#hr-form');
   form.addEventListener('submit', async (e) => {
@@ -71,7 +74,7 @@ export async function hrSettingsView(el, _params = {}, query = {}) {
         schedule: { shiftStart: fd.get('shiftStart'), shiftEnd: fd.get('shiftEnd'), breakMinutes: fd.get('breakMinutes'), workDays: fd.getAll('workDays').map(Number) },
       });
       await api.put('/api/hris/recruitment/settings', {
-        ...Object.fromEntries(['applicantAccountDays', 'applicantWarnDays', 'applicantPurgeDays'].map((k) => [k, Number(fd.get(k))])),
+        ...Object.fromEntries(['applicantAccountDays', 'applicantWarnDays', 'applicantPurgeDays', 'applicantPoolMonths'].map((k) => [k, Number(fd.get(k))])),
         signupFields: signupFieldsFrom(fd),
       });
       errEl.hidden = true;

@@ -101,7 +101,9 @@ Write for the person doing the job, in plain words, with the names exactly as th
 - `click` (optional): Playwright selectors clicked in order after the page loads, e.g. `text=Grades`,
   `[data-tab=finance]`, `tr[data-href] >> nth=0`.
 - `wait` (optional, ms): time to settle after each step (default 800).
-- `viewport` (optional): `"phone"` for a 390 × 844 phone; desktop (1280 × 800) otherwise.
+- `viewport` (optional): `"phone"` for a 390 × 844 phone, or `{ "width": 1123, "height": 794 }` for another
+  size (that one is A4 landscape); desktop (1280 × 800) otherwise.
+- `media` (optional): `"print"` to photograph the page as it prints, with its print styles.
 - `full` (optional): `true` for the whole page instead of the first screen.
 - `scroll` (optional): a selector to scroll into view before the photo.
 

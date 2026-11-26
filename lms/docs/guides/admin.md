@@ -314,6 +314,7 @@ People outside the school apply for jobs with a temporary **applicant account** 
 | Applicant accounts last (days) | 365 | An account closes this many days after sign-up (30 to 1095). A change applies to accounts made after it; HR can extend one account. |
 | Warn applicants before closing (days) | 30 | The applicant is told on the bell this many days before, once (1 to 90). |
 | Remove closed applicant accounts after (days) | 30 | A daily check removes a closed account and the personal details in its applications this many days after it closed (0 to 365). 0 keeps it until HR removes it. |
+| Keep people in the pool of applicants (months) | 12 | How long someone who ticked *Keep me in the school's pool of applicants* stays in it after an application ends Not selected or Not qualified (1 to 36). Never longer than they agreed to; an applicant account is kept open as long. |
 
 1. Choose **Settings center** and find *applicant*.
 2. Choose **Open** on **Job applicants**: People's **HR settings** opens. Change the numbers and choose **Save HR settings**.
@@ -342,6 +343,21 @@ Job applications go through the school's **recruitment stages**, which the appli
 2. Choose **Open** on **Recruitment stages**: People's **HR settings** opens at the stages. Change them and choose **Save recruitment stages**.
 
 **Restore defaults** puts the built-in stages back, unless a stage the school added has been used by an application: ATLAS then says which, and nothing changes (retire it first in People). Each change is in the **Change history**.
+
+### Check the assessment templates
+
+HR rates job applicants with **assessment templates**: criteria with weights, per **position category** (see [the HR guide](hr#set-up-the-assessment-templates)). HR managers set them in People under **HR settings → Assessment templates**; you find them in the **Settings center** under **ATLAS People → Assessment templates**:
+
+| Setting | Default | What it does |
+|---|---|---|
+| Position categories | Faculty, Non-teaching | The kinds of position an opening can be, each with the template a new opening of that kind starts with |
+| Assessment templates | Faculty (example), Non-teaching (example) | The criteria and their weights, which must total exactly 100%; each criterion is scored 0 to 100, so a weighted total is never more than 100 |
+| Comparative list captions | *Comparative assessment of applicants*; *Prepared by*, HRMPSB Secretariat | The title and the signature line of the printed comparative list |
+
+1. Choose **Settings center** and find *assessment*.
+2. Choose **Open** on **Assessment templates**: People's **HR settings** opens at them. Change them and choose **Save assessment templates**.
+
+The built-in templates are examples, to replace with the school's merit selection plan. **Restore defaults** puts them back, unless an opening not yet rated uses a template the school added: ATLAS then says which, and nothing changes. An opening already rated keeps its own copy of its template either way. Each change is in the **Change history**.
 
 ### Restore a default or undo a change
 

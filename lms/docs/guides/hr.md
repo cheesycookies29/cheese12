@@ -1,7 +1,7 @@
 ---
 id: hr
 title: Running HR in ATLAS People
-summary: For HR managers: employee records and sign-in accounts, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings and applications), and HR settings.
+summary: For HR managers: employee records and sign-in accounts, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings, applications, rating applicants, the comparative list, applicant profiles and the pool of applicants), and HR settings.
 roles: hr
 apps: people
 order: 55
@@ -66,8 +66,8 @@ A first tour with the demo school. It takes about ten minutes.
 
 ### Job openings and applications
 
-1. Open **Recruitment → Job openings**. Main Campus has three open openings: *Instructor I* and *Laboratory Technician I* are **Open to all**, *Administrative Officer II* is **Internal only**.
-2. Choose **Instructor I**. **Applications by stage** shows how many applications are at each stage, and the list is grouped by stage: Hazel Ordonez at *Application received*, Paolo Quimbo at *Initial screening*, Carla Mendiola at *Assessment (examination or interview)*, Diego Lumbres at *Deliberation*, and Bianca Yap *Not qualified*.
+1. Open **Recruitment → Job openings**. Main Campus has three open openings: *Instructor I* and *Laboratory Technician I* are **Open to all**, *Administrative Officer II* is **Internal only**. *Administrative Assistant III* is closed: it was decided weeks ago.
+2. Choose **Instructor I**. **Applications by stage** shows how many applications are at each stage, and the list is grouped by stage: Hazel Ordonez at *Application received*, Paolo Quimbo at *Initial screening*, Carla Mendiola at *Assessment (examination or interview)*, Diego Lumbres and Teresa Malabanan at *Deliberation*, and Bianca Yap *Not qualified*. The **Rating** column shows each applicant's weighted total and rank.
 3. On Paolo Quimbo's row, choose **Move**. Pick **Assessment (examination or interview)**, type a **Note to the applicant** such as *Your examination and interview are on Monday, 9:00, at the HR office.*, and choose **Save and tell the applicant**. Paolo is told on the bell, and the move is in his history and the audit log.
 4. Tick Carla Mendiola and Paolo Quimbo, choose **Move chosen…**, pick **Deliberation** and choose **Move and tell the applicants**: both move with one note.
 5. Choose **History** on Carla's row to see every move, with who made it, the notes to her and HR's internal remarks.
@@ -76,6 +76,23 @@ A first tour with the demo school. It takes about ten minutes.
 ![Recruitment → Job openings at Main Campus](hr-job-openings.jpg)
 
 ![An opening: applications by stage](hr-job-opening.jpg)
+
+### Rating, the comparative list and the pool
+
+1. On **Instructor I**, Paolo Quimbo is *Not rated*. On his row, choose **Rate**. The page lists the criteria of the opening's template, *Faculty (example)*: Education, Experience, Training, Eligibility, Teaching demonstration and Interview, each with its weight.
+2. Type a **Score** from 0 to 100 for each criterion, for example 88, 75, 80, 100, 85 and 90. **Weighted total** and **Rank at this opening** change as you type: 86.00, rank 3 of 4.
+3. Choose **Save rating**. Back on the opening, his row shows *86.00* and *Rank 3*.
+4. Choose **Comparative list**. The rated applicants are ranked by weighted total, with a column per criterion. Carla Mendiola's examination and interview are still to come, so she is marked *Not every criterion rated*.
+5. Choose **Print** to see it on A4 landscape, with the school header and the signature line for the HRMPSB secretariat.
+6. Choose Carla Mendiola's name on the opening: her **Applicant profile** opens. Tick **Include ratings** and choose **Print**.
+7. Open **Recruitment → Pool of applicants**. Liza Manalastas (not selected for *Administrative Assistant III*) and Bianca Yap (not qualified for *Instructor I*) asked to be kept in the pool.
+8. On Bianca Yap's row, choose **Invite to apply**, pick **Laboratory Technician I** and choose **Send the invitation**. She is told on the bell, with a link to the opening; she applies herself.
+
+![Rate an applicant: a score per criterion, the weighted total and the rank](hr-rate-applicant.jpg)
+
+![The comparative list of an opening](hr-comparative-list.jpg)
+
+![Recruitment → Pool of applicants](hr-pool.jpg)
 
 ### Another campus
 
@@ -283,9 +300,10 @@ A leave type that has been used cannot be deleted; untick **Active** instead. Le
 3. Pick the **Salary grade**. The monthly salary (step 1, from the salary schedule in Payroll setup) shows under it, and applicants see it.
 4. Fill in the place of assignment: the **Campus** (when you work at more than one) and the **Office**. Set the **Number of vacancies** and, if you like, a **Description**.
 5. Under **Qualification standards**, fill in **Education**, **Training**, **Experience** and **Eligibility** as the CSC qualification standards for the position say.
-6. Pick the **Closing date**. Applications are taken through that day.
-7. Under **Who may apply**, choose **Open to all** (job applicants and employees) or **Internal only** (employees only, from People).
-8. Set **Status** to **Draft** to keep working on it, or **Open** to publish it. Choose **Save opening**.
+6. Under **Assessment**, pick the **Position category**, for example **Faculty** or **Non-teaching**. The **Assessment template** of that category is filled in; pick another if this opening needs it.
+7. Pick the **Closing date**. Applications are taken through that day.
+8. Under **Who may apply**, choose **Open to all** (job applicants and employees) or **Internal only** (employees only, from People).
+9. Set **Status** to **Draft** to keep working on it, or **Open** to publish it. Choose **Save opening**.
 
 For a vacant plantilla item, start from the item instead: **Plantilla →** the item **→ Post a job opening** fills in the item number, title, salary grade, campus and office (see [Post a job opening for a vacant item](#post-a-job-opening-for-a-vacant-item)).
 
@@ -371,12 +389,91 @@ What an applicant gave shows under their name on each application, in **Applican
 
 ![HR settings → Applicant sign-up fields](hr-signup-fields.jpg)
 
+### Set up the assessment templates
+
+Applicants are rated with an **assessment template**: a list of criteria, each with a weight. Each **position category** (for example Faculty and Non-teaching) has a default template, because the positions have different criteria. ATLAS comes with two templates, *Faculty (example)* and *Non-teaching (example)*: they are examples, to replace with the criteria and weights of the school's merit selection plan. Both rate education, experience, training and eligibility (EETE); the non-teaching one adds a competency examination, an interview and a work sample, and the faculty one a teaching demonstration and an interview.
+
+1. Open **HR settings** and go down to **Assessment templates**.
+2. Under **Position categories**, rename a category, pick its **Default template**, or choose **Add a category**.
+3. Under **Templates**, change a criterion's name, **What it rates** or **Weight (%)**. Use the arrows to reorder, and the bin to remove one. Choose **Add a criterion** or **Add a template** for more.
+4. Check the total under the criteria: it must say *Total 100%*. It turns red when the weights do not add up to 100.
+5. Under **Printed comparative list**, type the **Title**, the **Signature caption**, the **Name on the signature line** (or leave it blank to sign by hand) and the **Title under the line**, for example *HRMPSB Secretariat*.
+6. Choose **Save assessment templates**.
+
+ATLAS refuses a template whose weights do not total exactly 100%, and says *the weights total 101%. They must total exactly 100%.* Each criterion is scored from 0 to 100, so a weighted total (score × weight ÷ 100, added up) can never be more than 100. Weights can have two decimals (33.33 + 33.33 + 33.34). Changing a template gives it a new version; an opening already rated keeps the version it was rated with. A template or category that an opening uses cannot be removed: tick **Retired** on the template, or rename the category. Each change is in the Settings center's **Change history**.
+
+![HR settings → Assessment templates](hr-assessment-templates.jpg)
+
+### Rate an applicant
+
+1. Open the opening. The **Rating** column shows each applicant's weighted total and rank, or *Not rated*.
+2. On the applicant's row, choose **Rate** (or **Rating** to change one).
+3. Type a **Score** from 0 to 100 for each criterion you have rated, and a **Comment** if you like. Leave a criterion blank until it has been rated, for example an interview still to come.
+4. Check the **Weighted total** and the **Rank at this opening**: they change as you type.
+5. Choose **Save rating**.
+
+ATLAS keeps who rated and when; a new rating replaces the earlier one, and the earlier totals are listed under the scores. Every rating goes to the audit log (*Rated a job application*, *Changed the rating of a job application*), with each score before and after. The applicant never sees scores, comments or the rank. You cannot rate your own application. The first rating at an opening fixes its template: the opening keeps a copy of that version, so later changes to the template never change its ratings, and its position category and template can no longer be changed.
+
+One person rates each application in this version. Several assessors with an average of their ratings is not available yet.
+
+### See and print the comparative list
+
+1. Open the opening and choose **Comparative list**.
+2. Read the rated applicants, ranked by weighted total (equal totals share a rank), with a column per criterion and the stage of each.
+3. Choose **Export CSV** for a spreadsheet, or **Print**.
+
+The printout is A4 landscape, with the school's name and seal, the title from **Assessment templates**, the opening, the template and *As of* today's date. The headings repeat on every page, and the signature line at the end is for the HRMPSB secretariat. Withdrawn applications are left out; applications not rated yet are counted above the list.
+
+![The comparative list, printed on A4 landscape](hr-comparative-print.jpg)
+
+### Open and print an applicant profile
+
+1. Choose an applicant's name on an opening, or **Profile** in **Recruitment → Applicant accounts**, or a name in **Pool of applicants**.
+2. Read the **Applicant profile**: name and contact, what they gave at sign-up, the account's dates, the pool, and every application at your campuses with its opening, stage, outcome and history of notes.
+3. To include them, tick **Include internal remarks** (HR's remarks and the reasons for moving back) and **Include ratings** (the scores, total and rank).
+4. Choose **Print**.
+
+The profile prints on A4 with the school header, *Applicant profile*, the date printed and who printed it. For an employee who applied, it shows their position, salary grade, appointment and campus from the employee record, with a link to the record if you may see it. Only people with the Recruitment permission can open a profile.
+
+![An applicant profile with its ratings](hr-applicant-profile.jpg)
+
+### Find people in the pool of applicants
+
+People who ticked *Keep me in the school's pool of applicants* enter the pool when an application of theirs ends **Not selected** or **Not qualified**. They stay 12 months unless the school changed it.
+
+1. Open **Recruitment → Pool of applicants**.
+2. Type a name, an email or an opening in **Search**, or pick a **Position category**, an **Education (at least)**, a **Preferred campus**, a **Best rating** range or the dates they **Entered the pool**.
+3. Choose **Filter**.
+
+Each row shows the qualifications they gave, the openings they applied to with how each ended, their best rating per position category, and since when and until when they are in the pool.
+
+### Invite someone in the pool to apply
+
+1. In **Pool of applicants**, choose **Invite to apply** on their row.
+2. Pick the **Opening**: an open opening at your campuses (an internal-only one only for employees).
+3. Type a **Note** if you like.
+4. Choose **Send the invitation**.
+
+They are told on the bell, from *HR office*, with a link to the opening, and apply themselves; you never apply for them. Each invitation is in the audit log, and the opening is listed on their row.
+
+![Invite to apply](hr-pool-invite.jpg)
+
+### Add someone to the pool or remove them
+
+Only the person can agree to be kept in the pool; you cannot tick it for them.
+
+1. Open their **Applicant profile**.
+2. If they agreed and are not in the pool, choose **Add to the pool**. If they are in it, choose **Remove from the pool** (also on their row in **Pool of applicants**).
+3. Type the reason and confirm.
+
+Adding and removing are in the audit log with your reason. The person is told on the bell. Someone who is **Selected** for an opening leaves the pool by themselves.
+
 ### Export the applications
 
 1. Open the opening.
 2. Choose **Export CSV**.
 
-The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), what an applicant gave at sign-up (sex, date of birth, home address, highest educational attainment, preferred campus), the date applied, the stage, its last change and the latest note to the applicant.
+The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), what an applicant gave at sign-up (sex, date of birth, home address, highest educational attainment, preferred campus), the date applied, the stage, its last change, the latest note to the applicant, and the weighted total and rank.
 
 ### Extend or remove an applicant account
 
@@ -386,7 +483,9 @@ People outside the school apply with a temporary **applicant account** (see [the
 2. To give someone more time, choose **Extend**, type the **Days to add** and choose **Extend**. The days are added to the closing date (or to today, if it has passed), a closed account opens again, and the applicant is told.
 3. To remove an account now (for example when the person asks), choose **Remove** and confirm.
 
-Removing an account, by hand or by the daily removal after it closed, takes away its sign-in and the personal details in its applications. Each application stays in the opening's list as *Removed applicant*, without a name, so the counts stay true. Extending and removing are in the audit log.
+Removing an account, by hand or by the daily removal after it closed, takes away its sign-in and the personal details in its applications. Each application stays in the opening's list as *Removed applicant*, without a name, so the counts stay true; its rating keeps its scores (without comments) so the comparative list stays true, and the person leaves the pool. Extending and removing are in the audit log.
+
+An applicant in the pool of applicants keeps their account open until the end of their time in the pool, and is told so on the bell. When that time ends, they leave the pool and the account closes and is removed as usual.
 
 ![Recruitment → Applicant accounts](hr-applicant-accounts.jpg)
 
@@ -395,11 +494,11 @@ Removing an account, by hand or by the daily removal after it closed, takes away
 1. Open **HR settings**.
 2. Enter the employer **Address** and **Employer TIN** printed on payslips. The employer name is the school name set in the Learn admin panel.
 3. Set the **Default work schedule** for new employee records.
-4. Under **Job applicants**, set how many days applicant accounts last (30 to 1095; 365 by default), how many days before closing the applicant is warned (30 by default), and how many days after closing a closed account is removed (30 by default; 0 keeps it until you remove it).
+4. Under **Job applicants**, set how many days applicant accounts last (30 to 1095; 365 by default), how many days before closing the applicant is warned (30 by default), how many days after closing a closed account is removed (30 by default; 0 keeps it until you remove it), and how many months people stay in the pool of applicants (**Keep in the pool of applicants (months)**: 1 to 36; 12 by default).
 5. Under **Applicant sign-up fields**, choose what the sign-up asks (see [Choose what the applicant sign-up asks](#choose-what-the-applicant-sign-up-asks)).
 6. Choose **Save HR settings**.
 
-The **Recruitment stages** below have their own **Save recruitment stages** button (see [Set the recruitment stages](#set-the-recruitment-stages)).
+The **Recruitment stages** and **Assessment templates** below have their own Save buttons (see [Set the recruitment stages](#set-the-recruitment-stages) and [Set up the assessment templates](#set-up-the-assessment-templates)).
 
 A new length applies to applicant accounts made after the change; to give one person more time, extend their account.
 
@@ -425,9 +524,10 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Leave & approvals | Requests to approve, leave balances, one employee's leave, and leave types |
 | Payroll | Payroll runs and payslips (view only; the payroll officer prepares them) |
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
-| Job openings (Recruitment) | Post job openings at the campus, open and close them, and follow the applications to each by stage: **Move** one or several, **History**, export them as CSV |
-| Applicant accounts | The temporary accounts of job applicants: until when each is open, **Extend** and **Remove** |
-| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last, what the applicant sign-up asks, the recruitment stages, and who can do what |
+| Job openings (Recruitment) | Post job openings at the campus, open and close them, and follow the applications to each by stage: **Move** one or several, **Rate**, **History**, the **Comparative list**, each applicant's profile, export them as CSV |
+| Applicant accounts | The temporary accounts of job applicants: until when each is open, their **Profile**, **Extend** and **Remove** |
+| Pool of applicants | People who asked to be kept for other vacancies: search and filter them, **Invite to apply**, **Remove** |
+| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last and people stay in the pool, what the applicant sign-up asks, the recruitment stages, the assessment templates, and who can do what |
 | My day, My attendance, Leave & requests, My payslips, My HR record, Job openings (Me) | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 
@@ -492,6 +592,23 @@ They follow the usual public-sector merit selection flow: application received, 
 
 **What happened to Received, Under review and Shortlisted?**
 Applications from before the recruitment stages were moved to them: *Received* to the first stage, *Under review* to the second (*Initial screening*), *Shortlisted* to *Assessment (examination or interview)*, and *Selected*, *Not selected* and *Withdrawn* to the same outcomes. Their history, with the dates, the names and the notes, came with them.
+
+**Can the applicant see their scores?**
+No. Applicants see the stages, your notes and the outcome, never scores, comments, totals or ranks. Some merit selection processes publish the results of the comparative assessment to the applicants; if your school's does, give them the results the way your merit selection plan says.
+
+**Where do the default assessment templates come from?**
+They are examples, with plausible criteria and weights, so you can try ATLAS. Replace them under **HR settings → Assessment templates** with the criteria and weights of your school's merit selection plan, for faculty and for non-teaching positions.
+
+**ATLAS says "the weights total 101%. They must total exactly 100%."** The weights of a template must add up to exactly 100. Change one of them so the total under the criteria says *Total 100%*, then save again.
+
+**Why can't I change the template of this opening?**
+An application to it has been rated. The opening keeps the template version it was rated with, so every applicant to it is rated the same way.
+
+**Can several board members rate the same applicant?**
+Not yet: one rating per application, by one person. Record the board's agreed scores.
+
+**Who is in the pool of applicants?**
+Only people who ticked *Keep me in the school's pool of applicants* themselves, at sign-up or under **My applications**, and whose application then ended **Not selected** or **Not qualified** (or whom you added by hand, with a reason). It is never ticked for them. They stay the months set under **HR settings → Job applicants** (12 unless changed), never longer than they agreed to, and can leave at any time.
 
 **Who can use Recruitment?**
 HR managers and administrators (the *Recruitment: job openings, applications and applicant accounts* permission). An administrator can give it to another account type under **Roles & permissions**.

@@ -16,6 +16,7 @@ import { mergeSso } from './sso.js';
 import { mergeCloudflare } from './cloudflare.js';
 import { mergeFinanceSettings, mergeChart } from './finance.js';
 import { DEFAULT_RECRUITMENT_STAGES, mergePeopleSettings, mergeRecruitmentStages, migrateApplications } from '../shared/recruitment.js';
+import { mergeAssessment } from '../shared/recruitment-assess.js';
 import { DEFAULT_PLANTILLA_SETTINGS, mergePlantillaSettings } from '../shared/plantilla.js';
 
 export const DEFAULT_SETTINGS = {
@@ -74,6 +75,7 @@ export const DEFAULT_SETTINGS = {
   plantilla: structuredClone(DEFAULT_PLANTILLA_SETTINGS), // ATLAS People → Plantilla: the PSIPOP's signatories (shared/plantilla.js)
   people: mergePeopleSettings(), // ATLAS People: how long job applicants' accounts last, the warning, the removal, the sign-up fields (shared/recruitment.js)
   recruitmentStages: structuredClone(DEFAULT_RECRUITMENT_STAGES), // ATLAS People: the stages an application goes through, and the final outcomes (PL-015)
+  assessment: mergeAssessment(), // ATLAS People: position categories, assessment templates and the comparative list's captions (PL-018, PL-066; shared/recruitment-assess.js)
 };
 
 // Activity types and their share of the running grade (weights are percentages;
@@ -179,6 +181,7 @@ export function mergeSettings(s = {}) {
     cloudflare: mergeCloudflare(s.cloudflare),
     people: mergePeopleSettings(s.people),
     recruitmentStages: mergeRecruitmentStages(s.recruitmentStages),
+    assessment: mergeAssessment(s.assessment),
     plantilla: mergePlantillaSettings(s.plantilla),
     tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),
   };

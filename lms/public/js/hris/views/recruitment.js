@@ -15,6 +15,7 @@ import {
   SIGNUP_FIELDS, FIXED_SIGNUP_FIELDS, FIELD_RULES, SEXES, ADDRESS_MAX, MIN_APPLICANT_AGE, listInWords,
 } from '/shared/recruitment.js';
 import { applicationBadge, salaryLine, placeLine, qualifications } from './jobs.js';
+import { ratingBadge } from './assess.js';
 
 const OPENING_KIND = { draft: 'gray', open: 'green', closed: 'gray' };
 const openingBadge = (s) => badge(openingStatusLabel(s), OPENING_KIND[s]);
@@ -56,6 +57,21 @@ export async function openingFormView(el, { id } = {}, query = {}) {
   const fromItem = isNew && query.item ? await api.get(`/api/hris/plantilla/${encodeURIComponent(query.item)}/opening`) : null;
   const o = isNew ? { status: 'draft', audience: 'all', vacancies: 1, closingDate: '', campusId: ctx.info.activeCampusId, ...(fromItem || {}) } : await api.get(`/api/hris/recruitment/openings/${id}`);
   const campuses = ctx.info.campuses || [];
+  const as = await api.get('/api/hris/recruitment/assessment');
+  const fixed = Boolean(o.assessment?.frozen);
+  const catDefault = (catId) => {
+    const c = as.categories.find((x) => x.id === catId);
+    const named = as.templates.find((t) => t.id === c?.templateId && !t.retired);
+    return named?.id || as.templates.find((t) => t.categoryId === catId && !t.retired)?.id || '';
+  };
+  const tplOptions = (catId, chosen) => {
+    const usable = as.templates.filter((t) => !t.retired || t.id === chosen);
+    const mine = usable.filter((t) => t.categoryId === catId);
+    const rest = usable.filter((t) => t.categoryId !== catId);
+    return html`${option('', 'None yet', !chosen)}${mine.length ? html`<optgroup label="${as.categories.find((c) => c.id === catId)?.label || 'This category'}">${mine.map((t) => option(t.id, t.name, t.id === chosen))}</optgroup>` : ''}${rest.length ? html`<optgroup label="Other templates">${rest.map((t) => option(t.id, t.name, t.id === chosen))}</optgroup>` : ''}`;
+  };
+  const startCat = o.assessment?.categoryId ?? '';
+  const startTpl = o.assessment?.templateId ?? '';
   const salaryHint = (sg) => (sg ? `${money(salaryFor(Number(sg), 1, today()))} a month (step 1, from the salary schedule)` : 'Leave empty if the position has no salary grade.');
   mount(el, html`
     ${pageHead(isNew ? 'New job opening' : `Edit ${o.title}`, isNew ? `At ${ctx.info.campusName || 'this campus'}.` : '', '', isNew ? BACK : [BACK, [`/recruitment/${id}`, o.title]])}
@@ -84,6 +100,14 @@ export async function openingFormView(el, { id } = {}, query = {}) {
           ${field('Eligibility', 'eligibility', o.eligibility, { type: 'textarea' })}
         </div>
       </section>
+      <section class="card" id="assessment-card">
+        <h2>Assessment</h2>
+        <p class="muted small">How applicants to this opening are rated. The template comes from the position category; you can pick another.${can('hris.settings') ? html` Templates are in <a href="#/settings?section=assessment">HR settings → Assessment templates</a>.` : ''}</p>
+        <div class="grid two">
+          <label class="field"><span>Position category</span><select name="categoryId" id="categoryId" ${fixed ? 'disabled' : ''}>${option('', 'Not set', !startCat)}${as.categories.map((c) => option(c.id, c.label, c.id === startCat))}</select><span class="hint">For example Faculty or Non-teaching: they have different criteria.</span></label>
+          <label class="field"><span>Assessment template</span><select name="templateId" id="templateId" ${fixed ? 'disabled' : ''}>${tplOptions(startCat, startTpl)}</select><span class="hint" id="tpl-hint">${fixed ? `Fixed: applications have been rated (version ${o.assessment.templateVersion}).` : 'The criteria and weights applicants are rated on.'}</span></label>
+        </div>
+      </section>
       <section class="card">
         <h2>Applications</h2>
         <div class="grid">
@@ -101,6 +125,13 @@ export async function openingFormView(el, { id } = {}, query = {}) {
     </form>`);
   const form = el.querySelector('#opening-form');
   form.querySelector('#sg').addEventListener('change', (e) => (form.querySelector('#sg-hint').textContent = salaryHint(e.target.value)));
+  // A new category: its default template.
+  form.querySelector('#categoryId').addEventListener('change', (e) => {
+    const sel = form.querySelector('#templateId');
+    const next = catDefault(e.target.value);
+    sel.innerHTML = '';
+    sel.insertAdjacentHTML('beforeend', String(tplOptions(e.target.value, next)));
+  });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const errEl = form.querySelector('.form-error');
@@ -127,6 +158,7 @@ const CSV = [
   ['Sex', (a) => a.profile?.sexLabel || ''], ['Date of birth', (a) => a.profile?.birthDate || ''], ['Home address', (a) => a.profile?.address || ''],
   ['Highest educational attainment', (a) => a.profile?.educationLabel || ''], ['Preferred campus', (a) => a.profile?.campusName || ''],
   ['Applied', (a) => localDay(a.createdAt)], ['Stage', (a) => a.stageLabel], ['Last change', (a) => localDay(a.updatedAt)], ['Latest note to the applicant', (a) => a.statusNote],
+  ['Weighted total', (a) => (a.rating ? a.rating.total.toFixed(2) : '')], ['Rank', (a) => a.rating?.rank || ''],
 ];
 
 // What a job applicant gave at sign-up besides their name, email and mobile (PL-016): one short line,
@@ -139,8 +171,9 @@ export function profileLines(p) {
 
 function who(a) {
   if (a.removed) return html`<strong class="muted">Removed applicant</strong><small class="block muted">Account removed; kept for the count</small>`;
-  if (a.internal && a.employee) return html`<strong>${a.name}</strong><small class="block muted">${a.employee.position || 'Employee'}${a.employee.salaryGrade ? ` · SG ${a.employee.salaryGrade}-${a.employee.step || 1}` : ''} · ${a.employee.campusName}</small>`;
-  return html`<strong>${a.name}</strong><small class="block muted">${[a.email, a.phone].filter(Boolean).join(' · ')}${a.accountClosed ? ' · account closed' : ''}</small>${profileLines(a.profile)}`;
+  const name = a.userId ? html`<a href="#/recruitment/profile/${a.userId}" title="Applicant profile"><strong>${a.name}</strong></a>` : html`<strong>${a.name}</strong>`;
+  if (a.internal && a.employee) return html`${name}<small class="block muted">${a.employee.position || 'Employee'}${a.employee.salaryGrade ? ` · SG ${a.employee.salaryGrade}-${a.employee.step || 1}` : ''} · ${a.employee.campusName}</small>`;
+  return html`${name}<small class="block muted">${[a.email, a.phone].filter(Boolean).join(' · ')}${a.accountClosed ? ' · account closed' : ''}</small>${profileLines(a.profile)}`;
 }
 
 // The stages and outcomes of the school, in order, with how many of this opening's applications are at each.
@@ -233,16 +266,19 @@ export async function openingView(el, { id }, query = {}) {
   const shown = o.applications.filter((a) => !filter || a.stage === filter).sort((a, b) => (order.get(a.stage) ?? 99) - (order.get(b.stage) ?? 99) || a.createdAt.localeCompare(b.createdAt));
   const movable = (a) => !a.removed && a.status !== 'withdrawn' && !a.own;
   const groups = counts.map((x) => ({ ...x, apps: shown.filter((a) => a.stage === x.id) })).filter((g) => g.apps.length);
+  const rateable = Boolean(o.assessment.templateName);
   const row = (a) => html`<tr data-app="${a.id}">
     <td class="pick">${movable(a) ? html`<input type="checkbox" data-pick="${a.id}" aria-label="Choose ${a.name}" />` : ''}</td>
-    <td class="job-applicant">${who(a)}${a.note ? html`<p class="small job-note">“${a.note}”</p>` : ''}</td>
+    <td class="job-applicant">${who(a)}${a.inPool ? html` ${badge('In the pool', 'gray')}` : ''}${a.note ? html`<p class="small job-note">“${a.note}”</p>` : ''}</td>
     <td>${a.internal ? badge('Internal', 'brand') : badge('External', 'blue')}</td>
     <td class="nowrap">${fmtDate(localDay(a.createdAt))}<small>Last change ${fmtDate(localDay(a.updatedAt))}</small></td>
-    <td class="row-actions">${movable(a) ? html`<button class="btn sm" data-move="${a.id}">Move</button>` : a.own ? html`<small class="muted">Your own</small>` : ''}<button class="btn sm ghost" data-history="${a.id}">History</button></td>
+    <td class="job-rating">${ratingBadge(a.rating)}</td>
+    <td class="row-actions">${movable(a) ? html`<button class="btn sm" data-move="${a.id}">Move</button>` : a.own ? html`<small class="muted">Your own</small>` : ''}${movable(a) && rateable ? html`<a class="btn sm" href="#/recruitment/${o.id}/rate/${a.id}">${a.rating ? 'Rating' : 'Rate'}</a>` : ''}<button class="btn sm ghost" data-history="${a.id}">History</button></td>
   </tr>`;
   mount(el, html`
     ${pageHead(html`${o.title} ${openingBadge(o.status)}`, placeLine(o), html`
       <button class="btn" id="export" ${o.applications.length ? '' : 'disabled'}>${icon('download', 16)} Export CSV</button>
+      <a class="btn" href="#/recruitment/${o.id}/comparative">${icon('table', 16)} Comparative list</a>
       <a class="btn" href="#/recruitment/${o.id}/edit">${icon('edit', 16)} Edit</a>`, BACK)}
     <div class="stats">
       <div class="card"><small>Applications</small><strong>${c.active}</strong></div>
@@ -259,9 +295,9 @@ export async function openingView(el, { id }, query = {}) {
       ${o.applications.length
         ? html`<div class="bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><button class="btn sm primary" id="bulk-move">${icon('chevronRight', 14)} Move chosen…</button><button class="btn sm ghost" id="bulk-clear">Clear</button></div>
           ${shown.length ? html`<div class="scroll-x"><table class="table job-apps" id="apps">
-            <thead><tr><th class="pick"><input type="checkbox" id="pick-all" aria-label="Choose all shown" /></th><th>Applicant and cover note</th><th>Internal / external</th><th>Applied</th><th></th></tr></thead>
+            <thead><tr><th class="pick"><input type="checkbox" id="pick-all" aria-label="Choose all shown" /></th><th>Applicant and cover note</th><th>Internal / external</th><th>Applied</th><th>Rating</th><th></th></tr></thead>
             ${groups.map((g) => html`<tbody>
-              <tr class="group-row"><th colspan="5" scope="colgroup">${g.label} <span class="muted">· ${g.apps.length}</span></th></tr>
+              <tr class="group-row"><th colspan="6" scope="colgroup">${g.label} <span class="muted">· ${g.apps.length}</span></th></tr>
               ${g.apps.map(row)}
             </tbody>`)}
           </table></div>` : html`<p class="muted">No applications at ${stageName(o, filter)}.</p>`}`
@@ -274,6 +310,8 @@ export async function openingView(el, { id }, query = {}) {
         <div><dt>Salary</dt><dd>${salaryLine(o) || '—'}</dd></div>
         <div><dt>Vacancies</dt><dd>${o.vacancies}</dd></div>
         <div><dt>Posted by</dt><dd>${o.createdBy} · ${fmtDate(localDay(o.createdAt))}</dd></div>
+        <div><dt>Position category</dt><dd>${o.assessment.categoryLabel || '—'}</dd></div>
+        <div><dt>Assessment template</dt><dd>${o.assessment.templateName ? html`${o.assessment.templateName} <small class="muted">v${o.assessment.templateVersion}${o.assessment.frozen ? ' · fixed by the first rating' : ''}</small>${o.assessment.templateExample ? html` ${badge('Example', 'amber')}` : ''}` : html`<span class="muted">None: <a href="#/recruitment/${o.id}/edit">choose one</a> to rate applicants</span>`}</dd></div>
       </dl>
       ${o.description ? html`<p class="pre" style="margin-top:14px">${o.description}</p>` : ''}
       <h3 style="margin-top:16px">Qualification standards</h3>
@@ -320,11 +358,11 @@ export async function applicantsView(el) {
       ? html`<section class="card scroll-x"><table class="table">
           <thead><tr><th>Applicant</th><th>Signed up</th><th>Account</th><th class="num">Applications</th><th></th></tr></thead>
           <tbody>${applicants.map((u) => html`<tr>
-            <td><strong>${u.name}</strong><small class="block muted">${[u.email, u.phone].filter(Boolean).join(' · ')}</small>${profileLines(u.profile)}</td>
+            <td><a href="#/recruitment/profile/${u.id}"><strong>${u.name}</strong></a>${u.pool === 'in' ? html` ${badge('In the pool', 'gray')}` : u.pool === 'opted-in' ? html` ${badge('Agreed to the pool', 'gray')}` : ''}<small class="block muted">${[u.email, u.phone].filter(Boolean).join(' · ')}</small>${profileLines(u.profile)}</td>
             <td>${fmtDate(localDay(u.createdAt))}</td>
             <td>${u.status === 'open' ? html`${badge('Open', 'green')} <small class="block muted">until ${fmtDate(localDay(u.expiresAt))}</small>` : html`${badge('Closed', 'gray')} <small class="block muted">${u.removeAfter ? `removed on ${fmtDate(localDay(u.removeAfter))}` : 'kept until removed'}</small>`}</td>
             <td class="num">${u.applications}</td>
-            <td class="row-actions"><button class="btn sm" data-extend="${u.id}">Extend</button><button class="btn sm danger ghost" data-remove="${u.id}">Remove</button></td>
+            <td class="row-actions"><a class="btn sm ghost" href="#/recruitment/profile/${u.id}">Profile</a><button class="btn sm" data-extend="${u.id}">Extend</button><button class="btn sm danger ghost" data-remove="${u.id}">Remove</button></td>
           </tr>`)}</tbody></table></section>`
       : html`<div class="card empty">${icon('users', 40)}<h2>No applicant accounts</h2><p>People sign up from Job openings on the home page while an opening is Open to all.</p></div>`}`);
   const find = (id) => applicants.find((u) => u.id === id);
@@ -359,6 +397,7 @@ export const recruitmentSettingsCard = (s) => html`<section class="card" id="job
     <label class="field"><span>Applicant accounts last (days)</span><input type="number" name="applicantAccountDays" min="30" max="1095" value="${s.applicantAccountDays}" /><span class="hint">30 to 1095; 365 by default.</span></label>
     <label class="field"><span>Warn before closing (days)</span><input type="number" name="applicantWarnDays" min="1" max="90" value="${s.applicantWarnDays}" /><span class="hint">A notice on the applicant's bell, once.</span></label>
     <label class="field"><span>Remove after closing (days)</span><input type="number" name="applicantPurgeDays" min="0" max="365" value="${s.applicantPurgeDays}" /><span class="hint">0 = keep until HR removes it.</span></label>
+    <label class="field"><span>Keep in the pool of applicants (months)</span><input type="number" name="applicantPoolMonths" min="1" max="36" value="${s.applicantPoolMonths}" /><span class="hint">1 to 36; 12 by default. Only people who ticked it themselves.</span></label>
   </div>
 </section>`;
 

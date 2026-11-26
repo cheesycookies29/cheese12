@@ -71,7 +71,9 @@ const failed = [];
 try {
   for (const s of shots) {
     const phone = s.viewport === 'phone';
-    const context = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+    // viewport: "phone", a { width, height } (e.g. an A4 page for a print view), or the desktop default.
+    const size = s.viewport && typeof s.viewport === 'object' ? s.viewport : { width: 1280, height: 800 };
+    const context = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: size, deviceScaleFactor: 1 });
     const page = await context.newPage();
     const wait = s.wait ?? 800;
     try {
@@ -107,6 +109,11 @@ try {
         await page.waitForTimeout(fill ? 100 : wait);
       }
       if (s.scroll) await page.locator(s.scroll).first().scrollIntoViewIfNeeded();
+      // "media": "print" shows the page as it prints (its print styles), e.g. a form on A4.
+      if (s.media) {
+        await page.emulateMedia({ media: s.media });
+        await page.waitForTimeout(300);
+      }
       const text = await page.$eval('#app', (e) => e.innerText).catch(() => '');
       if (/Something went wrong/.test(text)) throw new Error(text.slice(0, 160));
       await page.screenshot({ path: path.join(OUT, s.file), type: 'jpeg', quality: 72, fullPage: Boolean(s.full) });

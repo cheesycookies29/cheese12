@@ -7,6 +7,7 @@ import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, money, fmtDate, fmtDateTime, badge, toast, modal, confirmDialog, today } from '../../ui.js';
+import { poolTickText, poolPrivacyText } from '/shared/recruitment-assess.js';
 
 // An application's stage or outcome as a badge, coloured by its fixed meaning.
 const MEANING_KIND = { 'in-progress': 'blue', selected: 'green', 'not-selected': 'gray', withdrawn: 'gray' };
@@ -171,8 +172,54 @@ export async function myApplicationsView(el) {
             ${a.canWithdraw ? html`<button class="btn sm" data-withdraw="${a.id}">Withdraw</button>` : a.canApplyAgain ? html`<a class="btn sm" href="#/jobs/${a.openingId}">Apply again</a>` : ''}
           </div>
         </section>`)}</div>`
-      : html`<div class="card empty">${icon('inbox', 40)}<h2>No applications yet</h2><p>Choose an opening under <a href="#/jobs">Job openings</a> to apply.</p></div>`}`);
+      : html`<div class="card empty">${icon('inbox', 40)}<h2>No applications yet</h2><p>Choose an opening under <a href="#/jobs">Job openings</a> to apply.</p></div>`}
+    ${poolCard(d.pool, d.applicant)}`);
   el.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', () => withdraw(d.applications.find((x) => x.id === b.dataset.withdraw), () => myApplicationsView(el))));
+  wirePool(el, d.pool, () => myApplicationsView(el));
+}
+
+// ----- The pool of applicants (PL-020): the person's own choice, never ticked for them -----
+// Not ticked: the tick box with its privacy note. Ticked: what it means, and Leave the pool.
+function poolCard(p, applicant) {
+  if (!p) return '';
+  const months = p.months;
+  if (p.inPool) {
+    return html`<section class="card pool-card" id="pool-card">
+      <h2>${icon('users')} Pool of applicants</h2>
+      <p>You are in the school's pool of applicants until <strong>${fmtDate(localDay(p.until))}</strong>. HR may invite you to apply for other openings; you are told on the bell, and you apply yourself.${applicant ? ' Your applicant account stays open until then.' : ''}</p>
+      ${p.invites.length ? html`<p class="small"><strong>Invited to apply:</strong> ${p.invites.map((x, i) => html`${i ? ', ' : ''}<a href="#/jobs/${x.openingId}">${x.title}</a> <span class="muted">(${fmtDate(localDay(x.at))})</span>`)}</p>` : ''}
+      <div class="actions"><button class="btn sm" id="pool-leave">Leave the pool</button></div>
+    </section>`;
+  }
+  if (p.optedIn) {
+    return html`<section class="card pool-card" id="pool-card">
+      <h2>${icon('users')} Pool of applicants</h2>
+      <p>You asked to be kept in the school's pool of applicants for ${months} month${months === 1 ? '' : 's'}. If an application of yours ends <em>Not selected</em> or <em>Not qualified</em>, you enter the pool and are told on the bell.</p>
+      <div class="actions"><button class="btn sm" id="pool-leave">Leave the pool</button></div>
+    </section>`;
+  }
+  return html`<section class="card pool-card" id="pool-card">
+    <h2>${icon('users')} Pool of applicants</h2>
+    <label class="check-row"><input type="checkbox" id="pool-tick" /> <span>${poolTickText(months)}</span></label>
+    <p class="muted small">${poolPrivacyText(months)}</p>
+    <div class="actions"><button class="btn sm primary" id="pool-join" disabled>Save my choice</button></div>
+  </section>`;
+}
+function wirePool(el, p, done) {
+  const tick = el.querySelector('#pool-tick');
+  const join = el.querySelector('#pool-join');
+  tick?.addEventListener('change', () => (join.disabled = !tick.checked));
+  join?.addEventListener('click', async () => {
+    const r = await api.put('/api/hris/my-pool', { optIn: true });
+    toast(r.inPool ? `You are in the pool of applicants until ${fmtDate(localDay(r.until))}.` : 'Saved. You are kept in the pool if an application ends Not selected or Not qualified.');
+    done();
+  });
+  el.querySelector('#pool-leave')?.addEventListener('click', async () => {
+    if (!(await confirmDialog(p.inPool ? 'Leave the pool of applicants? HR will no longer invite you to other openings. If your applicant account was kept open for the pool, it closes on its own date, or now if that has passed.' : 'Withdraw your agreement to be kept in the pool of applicants?', { confirmLabel: 'Leave the pool', title: 'Leave the pool of applicants' }))) return;
+    await api.put('/api/hris/my-pool', { optIn: false });
+    toast('You are no longer in the pool of applicants.');
+    done();
+  });
 }
 
 // One application: the tracker, what happens now, the notes from HR, and the application itself.

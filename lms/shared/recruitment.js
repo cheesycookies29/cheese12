@@ -150,6 +150,7 @@ export const DEFAULT_PEOPLE_SETTINGS = {
   applicantWarnDays: 30, // the applicant is told on the bell this many days before it closes, once
   applicantPurgeDays: 30, // a closed account and its applications' personal data are removed this many days later; 0 = when HR removes them
   signupFields: DEFAULT_SIGNUP_FIELDS, // what sign-up asks besides name, email, username and password (PL-016)
+  applicantPoolMonths: 12, // how long someone who opted in stays in the pool of applicants (PL-020; 1 to 36)
 };
 // The settings as stored, with anything missing filled from the defaults (always a fresh object).
 export const mergePeopleSettings = (v) => ({ ...DEFAULT_PEOPLE_SETTINGS, ...(v || {}), signupFields: mergeSignupFields(v?.signupFields) });

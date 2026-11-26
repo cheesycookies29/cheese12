@@ -1291,6 +1291,91 @@
   "wait": 1200
  },
  {
+  "file": "hr-assessment-templates.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/settings?section=assessment",
+  "wait": 1500
+ },
+ {
+  "file": "hr-rate-applicant.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "tr:has-text(\"Paolo Quimbo\") a.btn:text-is(\"Rate\")",
+   "fill:#rate-form [data-c=education] [name=score]|88",
+   "fill:#rate-form [data-c=experience] [name=score]|75",
+   "fill:#rate-form [data-c=training] [name=score]|80",
+   "fill:#rate-form [data-c=eligibility] [name=score]|100",
+   "fill:#rate-form [data-c=teaching-demo] [name=score]|85",
+   "fill:#rate-form [data-c=interview] [name=score]|90",
+   "fill:#rate-form [data-c=education] [name=comment]|MS Computer Science; strong portfolio of student projects."
+  ],
+  "wait": 1000,
+  "scroll": ".page-head"
+ },
+ {
+  "file": "hr-comparative-list.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "text=Comparative list"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "hr-comparative-print.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "text=Comparative list"
+  ],
+  "viewport": {
+   "width": 1123,
+   "height": 794
+  },
+  "media": "print",
+  "wait": 1000
+ },
+ {
+  "file": "hr-applicant-profile.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment/applicants",
+  "click": [
+   "tr:has-text(\"Carla Mendiola\") a.btn:text-is(\"Profile\")",
+   "#opt-ratings"
+  ],
+  "wait": 1000
+ },
+ {
+  "file": "hr-pool.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment/pool",
+  "wait": 1200
+ },
+ {
+  "file": "hr-pool-invite.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment/pool",
+  "click": [
+   "tr:has-text(\"Bianca Yap\") [data-invite]",
+   "fill:.modal textarea[name=note]|Your graduate studies fit this laboratory post. We would welcome your application."
+  ],
+  "wait": 900
+ },
+ {
+  "file": "applicant-pool.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs/mine",
+  "click": [
+   "#pool-tick"
+  ],
+  "scroll": "#pool-card",
+  "wait": 1200
+ },
+ {
   "file": "employee-job-openings.jpg",
   "user": "staff.demo",
   "url": "/hris/#/jobs",

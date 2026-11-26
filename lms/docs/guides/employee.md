@@ -151,6 +151,15 @@ You see the same tracker as applicants from outside the school. You are told on 
 
 ![Your internal application's progress](employee-application-progress.jpg)
 
+### Stay in the pool of applicants
+
+Like applicants from outside, you can ask to be kept in the school's **pool of applicants**, so HR may invite you to apply for other vacancies.
+
+1. Open **Job openings** in People and choose **My applications**.
+2. Under **Pool of applicants**, tick **Keep me in the school's pool of applicants for other vacancies for …** and choose **Save my choice**.
+
+If an application of yours ends *Not selected* or *Not qualified*, you enter the pool for the months shown (12 unless the school changed it), and are told on the bell. HR may then invite you to apply for an opening, internal-only ones included; you apply yourself. Your account never closes because of the pool. Choose **Leave the pool** to leave at any time.
+
 ### Request supplies or a purchase
 
 1. In Finance, open **Supply & purchase requests**.
@@ -167,7 +176,7 @@ You see the same tracker as applicants from outside the school. You are told on 
 | Leave & requests | Your leave balances; file leave or remote work; attach a medical certificate; withdraw a pending request |
 | My payslips | Your finalized payslips, including bonuses, to print or save as PDF |
 | My HR record | Your record as HR keeps it, and **Change password** |
-| Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with the progress of each through the recruitment stages |
+| Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with the progress of each through the recruitment stages and your place in the pool of applicants |
 | Getting started | Shown when your account is not linked to an employee record yet |
 | My accountabilities | In Finance: property in your custody, cash advances, receipts issued to you |
 | Supply & purchase requests | In Finance: request supplies (RIS) or a purchase (PR), and follow them |
@@ -194,3 +203,6 @@ It appears when the payroll officer finalizes the payroll for that period.
 
 **Do I need a separate account to apply for a promotion or transfer?**
 No. Apply from **Job openings** with your own account. Your application is marked Internal and linked to your employee record. If you see no **Job openings**, your account is not linked to an active employee record: ask HR.
+
+**Does HR see my rating if I apply internally?**
+HR rates every applicant to an opening the same way, with the opening's assessment template. You do not see the scores. If you stay in the pool of applicants, HR sees your best rating to find you for other openings.

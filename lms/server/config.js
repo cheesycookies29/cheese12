@@ -151,6 +151,12 @@ const DEFS = {
     save: (v) => ['PUT', '/api/hris/recruitment/stages', v],
     watch: [['PUT', /^\/api\/hris\/recruitment\/stages$/]],
   },
+  assessment: {
+    get: (d) => clone(d.settings.assessment),
+    defaults: () => clone(DEFAULT_SETTINGS.assessment),
+    save: (v) => ['PUT', '/api/hris/recruitment/assessment', v],
+    watch: [['PUT', /^\/api\/hris\/recruitment\/assessment$/]],
+  },
   plantilla: {
     get: (d) => clone(d.settings.plantilla),
     defaults: () => clone(DEFAULT_SETTINGS.plantilla),

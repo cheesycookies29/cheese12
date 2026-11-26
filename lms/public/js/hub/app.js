@@ -11,6 +11,7 @@ import { orderSystems, canOpen } from '/shared/systems.js';
 import { codeStep, forceTwoFactorView } from '../account/two-factor.js';
 import { schoolBrand, brand, brandHome, brandText } from '../brand.js';
 import { SEXES, EDUCATION_LEVELS, ADDRESS_MAX, EARLIEST_BIRTH_DATE, listInWords } from '/shared/recruitment.js';
+import { poolTickText, poolPrivacyText } from '/shared/recruitment-assess.js';
 import { NAME_MAX, EMAIL_MAX, PASSWORDS_DIFFER, formatMobile } from '/shared/registration.js';
 
 const authEl = document.getElementById('auth');
@@ -146,13 +147,17 @@ function signUpView(status, jobs) {
         <strong>${icon('shield', 15)} Your privacy</strong>
         <p>${status.branding.schoolName} keeps what you give here (your ${listInWords(form.collects)}) and your applications, only to consider you for its job openings and to contact you about them. The school's HR staff see them; other applicants never do.</p>
         <p>Your applicant account is open for ${jobs.accountDays} days, until ${closes}. ${jobs.purgeDays ? `${jobs.purgeDays} days after it closes, the account and the personal details in your applications are removed.` : 'Once it closes, HR removes the account and the personal details in your applications.'} You can ask HR to remove them sooner (Data Privacy Act of 2012).</p>
+        <p id="pool-notice" hidden><strong>Pool of applicants:</strong> ${poolPrivacyText(jobs.poolMonths)}</p>
       </div>
+      <label class="check-row"><input type="checkbox" name="pool" value="yes" id="pool-tick" /> <span>${poolTickText(jobs.poolMonths)} <span class="muted">(optional)</span></span></label>
       <label class="check-row"><input type="checkbox" name="consent" value="yes" /> <span>I have read this notice and agree to it.</span></label>
       <p class="form-error" hidden></p>
       <button class="btn primary block" type="submit">Create my applicant account</button>
       <p class="auth-switch"><button type="button" class="link" id="back">← Back to job openings</button></p>
     </form>`, status.systems, brandText('ATLAS · Job openings'));
   el.querySelector('#back').addEventListener('click', () => jobsView(status));
+  // The privacy notice names the pool only when the box is ticked.
+  el.querySelector('#pool-tick').addEventListener('change', (e) => (el.querySelector('#pool-notice').hidden = !e.target.checked));
   // The date as ATLAS shows it, under the date box: the box itself follows the browser's language.
   const dob = el.querySelector('[name=birthDate]');
   dob?.addEventListener('change', () => {
@@ -160,7 +165,7 @@ function signUpView(status, jobs) {
   });
   onFormSubmit(el, async (v) => {
     const answers = Object.fromEntries(form.fields.map((f) => [f.id, v[f.id] ?? '']));
-    const out = await api.post('/api/jobs/signup', { name: v.name, email: v.email, username: v.username, password: v.password, ...answers, consent: v.consent === 'yes' });
+    const out = await api.post('/api/jobs/signup', { name: v.name, email: v.email, username: v.username, password: v.password, ...answers, pool: v.pool === 'yes', consent: v.consent === 'yes' });
     // Signed in at once, and on to People's Job openings (boot sends applicants there).
     const res = await api.post('/api/hub/login', { username: out.username, password: v.password });
     if (res.twoFactorRequired) {

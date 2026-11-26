@@ -23,7 +23,10 @@
 //  - Employees apply with their own account from People self-service (PL-004, the owner's decision:
 //    no second account). The application is Internal and linked to their employee record.
 //
-// Out of scope for now: ratings (EETE), the applicant pool, the PDS, attachments, appointment papers.
+//  - Ratings with assessment templates per position category, the comparative list, the applicant
+//    profile and the pool of applicants (PL-018, PL-019, PL-020, PL-066): server/recruitment-assess.js.
+//
+// Out of scope for now: the PDS, attachments, appointment papers, several assessors per application.
 // Stage changes are not tied to dates or deadlines (no time limits per stage).
 // Patterns: student registration ("Register account": sign-up, rate limit, validation), leave requests (the
 // bell), Documents' sweep (a timer that is unref'd, so tests and shutdown are not held up).
@@ -36,6 +39,8 @@ import { decidersFor, EMPLOYEE_ROLES, fmtDay, forgetUser } from './notifications
 import { t } from './validate.js';
 import { salaryFor } from '../shared/gov-pay.js';
 import { brandName } from '../shared/brand.js';
+import { registerAssessmentRoutes, addAssessmentDemo, removeAssessmentDemo } from './recruitment-assess.js';
+import { POOL_MONTHS } from '../shared/recruitment-assess.js';
 import {
   AUDIENCES, OPENING_STATUSES, DECIDED, IN_PROGRESS, MEANINGS, PEOPLE_SETTING_LIMITS, DAY_MS, STAGE_LIMITS,
   SIGNUP_FIELDS, FIXED_SIGNUP_FIELDS, FIELD_RULES, NOT_AT_SIGNUP, SEXES, EDUCATION_LEVELS, ADDRESS_MAX, MIN_APPLICANT_AGE,
@@ -60,6 +65,7 @@ export const OPENING_BODY = {
   title: t.str(400), plantillaItem: t.str(200), plantillaItemId: t.str(100), salaryGrade: t.any(), campusId: t.str(100), office: t.str(400),
   education: t.str(2000), training: t.str(2000), experience: t.str(2000), eligibility: t.str(2000),
   vacancies: t.any(), description: t.str(8000), closingDate: t.str(20), audience: t.str(20), status: t.str(20),
+  categoryId: t.str(100), templateId: t.str(100),
 };
 
 export function registerRecruitmentRoutes(route, ctx) {
@@ -150,7 +156,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     const i = o.plantillaItemId ? (data().plantillaItems || []).find((x) => x.id === o.plantillaItemId) : null;
     return i ? { id: i.id, itemNo: i.itemNo, positionTitle: i.positionTitle, status: i.status } : null;
   };
-  const openingHr = (o) => ({ ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o), plantillaItemId: o.plantillaItemId || null, fromItem: itemOfOpening(o) });
+  const openingHr = (o) => ({ ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o), plantillaItemId: o.plantillaItemId || null, fromItem: itemOfOpening(o), assessment: assess.openingAssessment(o) });
   function nameOf(a) {
     if (a.removed) return REMOVED;
     const emp = a.internal ? employeeById(a.employeeId) : null;
@@ -178,7 +184,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     }
     return firstStage(cfg);
   }
-  function applicationHr(a) {
+  function applicationHr(a, ranks = null) {
     const u = a.removed ? null : userById(a.userId);
     const emp = a.internal ? employeeById(a.employeeId) : null;
     const cfg = stages();
@@ -197,14 +203,23 @@ export function registerRecruitmentRoutes(route, ctx) {
       })),
       moves: movesOf(a),
       own: false,
+      userId: a.removed ? null : a.userId, // for the applicant profile (HR only)
+      rating: assess.ratingSummary(a, ranks || assess.ranksAt(openings().find((o) => o.id === a.openingId) || { id: a.openingId })),
+      inPool: Boolean(!a.removed && assess.entryOf(a.userId)),
     };
   }
+
+  // Ratings, the comparative list, the applicant profile and the pool (server/recruitment-assess.js).
+  const assess = registerAssessmentRoutes(route, ctx, {
+    fail, data, save, iso, nowMs, today, people, openings, applications, userById, employeeById, openingForHr, nameOf, hrCampusIds, stages,
+  });
 
   // ----- Telling people (the bell) -----
   const toHr = (o, entry, actorId) => ctx.notify(decidersFor(data(), 'hris.recruitment', { campusId: o.campusId, exclude: [actorId], roles: EMPLOYEE_ROLES }), { system: 'hris', link: `/hris/#/recruitment/${o.id}`, ...entry }, { actorId });
 
   // ----- Removing an applicant: the account goes; their applications stay as "removed applicant" -----
   function removeApplicant(u) {
+    assess.onRemoveApplicant(u); // the pool entry goes; ratings keep their scores, without comments
     for (const a of applications().filter((x) => x.userId === u.id)) {
       a.userId = null;
       a.note = '';
@@ -223,7 +238,7 @@ export function registerRecruitmentRoutes(route, ctx) {
   function sweep() {
     const now = nowMs();
     const s = people();
-    let changed = false;
+    let changed = assess.sweepPool(); // first: an account kept open for the pool then closes as usual
     for (const u of [...data().users]) {
       if (u.role !== 'applicant' || !u.expiresAt) continue;
       const ends = Date.parse(u.expiresAt);
@@ -262,6 +277,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     openings: publicOpenings().sort((a, b) => a.closingDate.localeCompare(b.closingDate)).map(openingPublic),
     accountDays: people().applicantAccountDays,
     purgeDays: people().applicantPurgeDays,
+    poolMonths: people().applicantPoolMonths,
     signUpOpen: publicOpenings().length > 0,
     signUp: signUpForm(),
   }), { audit: false });
@@ -358,15 +374,17 @@ export function registerRecruitmentRoutes(route, ctx) {
     const user = {
       id: randomUUID(), ...fields, status: 'active', mustChangePassword: false, passwordHash, campusIds: [],
       createdAt: iso(at), expiresAt: iso(at + people().applicantAccountDays * DAY_MS), consentAt: iso(at),
+      // The pool of applicants (PL-020): only when they tick it themselves; never by default.
+      ...(body.pool === true ? { poolOptIn: assess.optIn() } : {}),
     };
     data().users.push(user);
     save();
-    ctx.audit({ kind: 'account', system: 'people', action: 'Signed up as a job applicant', actor: user, target: user, ip, agent, detail: `Open until ${user.expiresAt}` });
+    ctx.audit({ kind: 'account', system: 'people', action: 'Signed up as a job applicant', actor: user, target: user, ip, agent, detail: `Open until ${user.expiresAt}${user.poolOptIn ? ` · agreed to the pool of applicants for ${user.poolOptIn.months} months` : ''}` });
     return { ok: true, username: user.username, expiresAt: user.expiresAt };
   }, {
     limit: 'apply', audit: false,
     body: {
-      name: t.str(200), email: t.str(320), username: t.str(200), password: t.str(1000), phone: t.str(60), consent: t.bool(),
+      name: t.str(200), email: t.str(320), username: t.str(200), password: t.str(1000), phone: t.str(60), consent: t.bool(), pool: t.bool(),
       sex: t.str(20), birthDate: t.str(20), address: t.str(2000), education: t.str(40), campus: t.str(100),
     },
   });
@@ -421,6 +439,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     return {
       applications: applications().filter((a) => a.userId === user.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(myView),
       applicant: me.external ? { expiresAt: user.expiresAt, purgeDays: people().applicantPurgeDays } : null,
+      pool: assess.poolSelf(user), // their own opt-in and place in the pool (never their ratings)
     };
   }, { applicants: true, audit: false });
   // One application with its tracker (People → My applications → the application). Only the
@@ -469,6 +488,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     if (o.salaryGrade != null && !(o.salaryGrade >= 1 && o.salaryGrade <= 33)) fail('Salary grade must be 1 to 33.');
     if (!(o.vacancies >= 1 && o.vacancies <= 999)) fail('Number of vacancies must be 1 to 999.');
     if (!DATE_RE.test(o.closingDate)) fail('Closing date is required.');
+    Object.assign(o, assess.cleanOpeningAssessment(input, existing)); // position category and assessment template
     if (o.status === 'open') {
       if (!o.education && !o.training && !o.experience && !o.eligibility) fail('Fill in the qualification standards before opening it.');
       if (o.closingDate < today() && (!existing || existing.status !== 'open' || existing.closingDate !== o.closingDate)) fail('The closing date has passed: pick a later date to open it.');
@@ -506,7 +526,8 @@ export function registerRecruitmentRoutes(route, ctx) {
   route('GET', '/api/hris/recruitment/openings/:id', 'hris:hris.recruitment', ({ params, user }) => {
     const o = openingForHr(user, params.id);
     const list = applications().filter((a) => a.openingId === o.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    return { ...openingHr(o), applications: list.map((a) => ({ ...applicationHr(a), own: a.userId === user.id })), stages: stagesView() };
+    const ranks = assess.ranksAt(o);
+    return { ...openingHr(o), applications: list.map((a) => ({ ...applicationHr(a, ranks), own: a.userId === user.id })), stages: stagesView() };
   });
   route('PUT', '/api/hris/recruitment/openings/:id', 'hris:hris.recruitment', ({ params, body, user, campusId }) => {
     const o = openingForHr(user, params.id);
@@ -581,6 +602,10 @@ export function registerRecruitmentRoutes(route, ctx) {
         ...(remark ? [{ field: 'Internal remark', from: '', to: remark }] : []),
       ],
     });
+    // The pool of applicants: Not selected or Not qualified puts someone who opted in there; Selected
+    // takes them out; undoing a decision undoes what it did.
+    if (plan.kind === 'outcome') assess.onDecided(a, to.meaning, user, { ip, agent });
+    else if (plan.kind === 'back' && here.kind === 'outcome') assess.onUndecided(a, user, { ip, agent });
   }
   // `status` (the names before the stages: received, review, shortlisted, selected…) still works, mapped
   // as the migration maps them, for callers written before PL-015.
@@ -639,6 +664,7 @@ export function registerRecruitmentRoutes(route, ctx) {
       applications: applications().filter((a) => a.userId === u.id).length,
       warned: Boolean(u.expiryWarnedAt),
       profile: applicantDetails(u, (id) => campusName(data(), id)),
+      pool: assess.entryOf(u.id) ? 'in' : u.poolOptIn ? 'opted-in' : '',
     };
   };
   route('GET', '/api/hris/recruitment/applicants', 'hris:hris.recruitment', () => ({
@@ -652,6 +678,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     const from = u.expiresAt;
     u.expiresAt = iso(Math.max(Date.parse(u.expiresAt) || 0, nowMs()) + days * DAY_MS);
     delete u.expiryWarnedAt; // a new warning comes before the new date
+    delete u.poolExtendedFrom; // HR chose this date: leaving the pool later does not shorten it
     if (u.status === 'expired') {
       u.status = 'active';
       delete u.closedAt;
@@ -680,11 +707,17 @@ export function registerRecruitmentRoutes(route, ctx) {
       next[k] = n;
     }
     if (next.applicantWarnDays >= next.applicantAccountDays) fail('Warn applicants fewer days before closing than their accounts last.');
+    if (body.applicantPoolMonths !== undefined && body.applicantPoolMonths !== null) {
+      const n = Number(body.applicantPoolMonths);
+      const [min, max] = POOL_MONTHS;
+      if (body.applicantPoolMonths === '' || !Number.isInteger(n) || n < min || n > max) fail(`Keep people in the pool of applicants for: ${min} to ${max} months.`);
+      next.applicantPoolMonths = n;
+    }
     if (body.signupFields !== undefined && body.signupFields !== null) next.signupFields = cleanSignupFields(body.signupFields, next.signupFields);
     data().settings.people = next;
     save();
     return next;
-  }, { body: { applicantAccountDays: t.any(), applicantWarnDays: t.any(), applicantPurgeDays: t.any(), signupFields: t.any() } });
+  }, { body: { applicantAccountDays: t.any(), applicantWarnDays: t.any(), applicantPurgeDays: t.any(), signupFields: t.any(), applicantPoolMonths: t.any() } });
   // The sign-up field list (PL-016): only the optional fields, each Hidden, Optional or Required; the
   // fixed ones are always required, and documents and an employee ID are never asked at sign-up.
   // Fields left out keep what they were. Values applicants already gave are never touched.
@@ -794,6 +827,7 @@ export function registerRecruitmentRoutes(route, ctx) {
 export function removeRecruitmentDemo(data) {
   const demoUsers = new Set(data.users.filter((u) => u.demo).map((u) => u.id));
   const demoOpenings = new Set((data.jobOpenings || []).filter((o) => o.demo).map((o) => o.id));
+  removeAssessmentDemo(data, demoUsers); // the demo pool entries
   data.jobApplications = (data.jobApplications || []).filter((a) => !a.demo && !demoOpenings.has(a.openingId) && !demoUsers.has(a.userId));
   data.jobOpenings = (data.jobOpenings || []).filter((o) => !o.demo);
 }
@@ -813,16 +847,27 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
     title: 'Instructor I', plantillaItem: 'DEMO-INST1-0412-2026', salaryGrade: 12, office: 'College of Computing', vacancies: 2,
     education: "Master's degree in Information Technology, Computer Science or a related field", training: 'None required', experience: 'None required', eligibility: 'None required (RA 1080 for a licensed profession, where it applies)',
     description: 'Teaches undergraduate programming and laboratory courses, advises students and takes part in extension work.', closingDate: plus(21), audience: 'all', status: 'open',
+    categoryId: 'faculty', templateId: 'faculty-example',
   });
   const officer = opening({
     title: 'Administrative Officer II', plantillaItem: 'DEMO-ADOF2-0107-2026', salaryGrade: 11, office: 'Human Resources', vacancies: 1,
     education: "Bachelor's degree relevant to the job", training: 'None required', experience: 'None required', eligibility: 'Career Service (Professional) or second-level eligibility',
     description: 'Open to the school\'s employees for promotion or transfer: keeps personnel records, prepares appointments and service records.', closingDate: plus(14), audience: 'internal', status: 'open',
+    categoryId: 'non-teaching', templateId: 'non-teaching-example',
   });
   const lab = opening({
     title: 'Laboratory Technician I', plantillaItem: 'DEMO-LABT1-0033-2026', salaryGrade: 6, office: 'College of Agriculture',
     education: 'Completion of two years of college studies', training: 'None required', experience: 'None required', eligibility: 'Career Service (Subprofessional) or first-level eligibility',
     closingDate: plus(30), audience: 'all', status: 'open', createdAt: at(2),
+    categoryId: 'non-teaching', templateId: 'non-teaching-example',
+  });
+  // A closed opening, decided weeks ago: its applicants were rated, and one who was not selected is
+  // in the pool of applicants.
+  const assistant = opening({
+    title: 'Administrative Assistant III', plantillaItem: 'DEMO-ADAS3-0215-2026', salaryGrade: 9, office: 'Accounting Office',
+    education: 'Completion of two years of college studies', training: '4 hours of relevant training', experience: '1 year of relevant experience', eligibility: 'Career Service (Subprofessional) or first-level eligibility',
+    description: 'Keeps the accounting office\'s files and vouchers, and prepares routine reports.', closingDate: plus(-45), audience: 'all', status: 'closed', createdAt: at(80),
+    categoryId: 'non-teaching', templateId: 'non-teaching-example',
   });
   // The demo applicant: signed up ten days ago, so the account is open for 355 more days.
   const created = now - 10 * DAY_MS;
@@ -848,10 +893,10 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
     return a;
   };
   // More demo job applicants (outsiders), each with their own temporary account.
-  const outsider = (username, name, daysAgo) => {
+  const outsider = (username, name, daysAgo, extra = {}) => {
     const made = now - daysAgo * DAY_MS;
     return person('applicant', username, name, {
-      email: `${username.replace('.demo', '')}@example.com`, campusIds: [], createdAt: new Date(made).toISOString(), expiresAt: new Date(made + days * DAY_MS).toISOString(), consentAt: new Date(made).toISOString(),
+      email: `${username.replace('.demo', '')}@example.com`, campusIds: [], createdAt: new Date(made).toISOString(), expiresAt: new Date(made + days * DAY_MS).toISOString(), consentAt: new Date(made).toISOString(), ...extra,
     });
   };
   const fmt = (d) => fmtDay(plus(d));
@@ -863,14 +908,27 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
     ['screening', 6, 'Thank you for applying. Please send a scanned copy of your transcript of records to the HR office by email.'],
     ['assessment', 3, `You are invited to the written examination and interview on ${fmt(4)} at 9:00 at the HR office, Administration Building. Please bring a valid ID and your original transcript of records.`, 'Meets the education standard. Ask the college for a teaching demonstration slot.'],
   ]);
-  application({ openingId: instructor.id, userId: outsider('dlumbres.demo', 'Diego Lumbres', 11).id, note: 'Licensed professional teacher with five years of teaching computer subjects in senior high school.' }, [
+  const carla = data.jobApplications.at(-1);
+  const diego = application({ openingId: instructor.id, userId: outsider('dlumbres.demo', 'Diego Lumbres', 11).id, note: 'Licensed professional teacher with five years of teaching computer subjects in senior high school.' }, [
     ['received', 11], ['screening', 8], ['assessment', 5, `Your examination and interview are on ${fmt(-2)} at 9:00 at the HR office.`], ['deliberation', 1],
+  ]);
+  const teresa = application({ openingId: instructor.id, userId: outsider('tmalabanan.demo', 'Teresa Malabanan', 12).id, note: 'I teach programming part-time at a private college and finished my master\'s last year.' }, [
+    ['received', 12], ['screening', 9], ['assessment', 5, `Your teaching demonstration and interview are on ${fmt(-2)} at 13:00 at the College of Computing.`], ['deliberation', 1],
   ]);
   application({ openingId: instructor.id, userId: outsider('pquimbo.demo', 'Paolo Quimbo', 7).id, note: 'I am a software developer and would like to teach.' }, [
     ['received', 7], ['screening', 2, 'Please send a copy of your certificate of employment showing your work as a developer.'],
   ]);
-  application({ openingId: instructor.id, userId: outsider('byap.demo', 'Bianca Yap', 8).id, note: 'I am finishing my master\'s thesis this semester.' }, [
+  const bianca = outsider('byap.demo', 'Bianca Yap', 8, { applicantProfile: { education: 'graduate', campusId: main.id } });
+  application({ openingId: instructor.id, userId: bianca.id, note: 'I am finishing my master\'s thesis this semester.' }, [
     ['received', 8], ['screening', 5], ['not-qualified', 4, 'The position needs a completed master\'s degree. You are welcome to apply again once you have finished it.'],
+  ]);
+  // The closed opening: one selected, one not selected (in the pool of applicants).
+  const ramon = application({ openingId: assistant.id, userId: outsider('resguerra.demo', 'Ramon Esguerra', 75).id, note: 'Three years as a records clerk in a municipal treasurer\'s office.' }, [
+    ['received', 75], ['screening', 70], ['assessment', 60], ['deliberation', 50], ['final-decision', 45], ['selected', 40, 'Congratulations. Please come to the HR office on Monday for your appointment papers.'],
+  ]);
+  const liza = outsider('lmanalastas.demo', 'Liza Manalastas', 74, { applicantProfile: { education: 'college', campusId: main.id } });
+  const lizaApp = application({ openingId: assistant.id, userId: liza.id, note: 'I keep the files of a cooperative and am taking accounting units.' }, [
+    ['received', 74], ['screening', 70], ['assessment', 60], ['deliberation', 50], ['final-decision', 45], ['not-selected', 40, 'Another applicant was chosen. Thank you for applying; we keep you in our pool of applicants as you asked.'],
   ]);
   application({ openingId: instructor.id, userId: outsider('hordonez.demo', 'Hazel Ordonez', 1).id, note: '' }, [['received', 1]]);
   application({ openingId: lab.id, userId: outsider('jbustamante.demo', 'Jun Bustamante', 2).id, note: 'Two years as a laboratory aide in a soils testing laboratory.' }, [['received', 2]]);
@@ -882,4 +940,19 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
       note: 'I would like to be considered for this promotion. I have kept the library\'s personnel files for five years.',
     }, [['received', 4], ['screening', 2, 'Your service record is complete. We will tell you the date of the interview.']]);
   }
+  // Ratings with the example templates (each score 0 to 100; the weighted total is out of 100), and
+  // the two people in the pool, who ticked the box at sign-up.
+  addAssessmentDemo(data, {
+    now,
+    stagesCfg: mergeRecruitmentStages(data.settings?.recruitmentStages),
+    months: mergePeopleSettings(data.settings?.people).applicantPoolMonths,
+    rate: [
+      [diego, [85, 90, 80, 100, 88, 85], HR, 1],
+      [teresa, [90, 70, 85, 100, 92, 80], HR, 1],
+      [carla, [95, 60, 70, 100, null, null], HR, 2], // the examination and interview are still to come
+      [ramon, [80, 85, 70, 100, 88, 90, 85], HR, 50],
+      [lizaApp, [75, 70, 80, 100, 76, 80, 72], HR, 50],
+    ],
+    pooled: [[liza, 40], [bianca, 4]],
+  });
 }

@@ -1,7 +1,7 @@
 ---
 id: applicant
 title: Applying for a job
-summary: For people outside the school: find the job openings, sign up for an applicant account, apply, and follow each application through the recruitment stages.
+summary: For people outside the school: find the job openings, sign up for an applicant account, apply, follow each application through the recruitment stages, and choose whether to stay in the school's pool of applicants.
 roles: applicant
 apps: home, people
 order: 45
@@ -33,7 +33,8 @@ A first tour with the demo school. It takes about five minutes.
 1. Choose **Sign up to apply**.
 2. Fill in your **Full name**, **Email**, **Mobile number (optional)**, a username and a password. Fields marked with a red asterisk are required.
 3. Read **Your privacy**: what the school keeps, why, and how long your account stays open.
-4. Tick **I have read this notice and agree to it**, then choose **Create my applicant account**. You are signed in and **Job openings** opens.
+4. If you like, tick **Keep me in the school's pool of applicants for other vacancies for 12 months**. It is not ticked unless you tick it; **Your privacy** then says what it means.
+5. Tick **I have read this notice and agree to it**, then choose **Create my applicant account**. You are signed in and **Job openings** opens.
 
 ![Sign up to apply, with the privacy notice](applicant-sign-up.jpg)
 
@@ -67,7 +68,8 @@ The list shows only openings that are open now and that anyone may apply for. Wh
 4. Choose a username: 3 to 40 lowercase letters, numbers, dots, dashes or underscores.
 5. Choose a password: at least 8 characters (your school may ask for more).
 6. Read **Your privacy**: it lists exactly what this form keeps.
-7. Tick **I have read this notice and agree to it** and choose **Create my applicant account**.
+7. If you want to be considered for other vacancies later, tick **Keep me in the school's pool of applicants for other vacancies for …** (see [Stay in the pool of applicants](#stay-in-the-pool-of-applicants)). You can also do it later.
+8. Tick **I have read this notice and agree to it** and choose **Create my applicant account**.
 
 The details your school may ask:
 
@@ -130,12 +132,30 @@ The application ends with an outcome: *Selected* (HR tells you the next steps), 
 
 You can withdraw while the opening is not closed and HR has not decided. You can also withdraw from the application's page (**See its progress**). Until the closing date, you can send it again: choose **Apply again**. Withdrawing does not close your account.
 
+### Stay in the pool of applicants
+
+The school keeps a **pool of applicants**: people it may invite to apply when another position opens. You are in it only if you ask to be.
+
+1. Open **My applications** and go down to **Pool of applicants**.
+2. Read the note under the box: what HR keeps and for how long.
+3. Tick **Keep me in the school's pool of applicants for other vacancies for …** and choose **Save my choice**.
+
+If an application of yours then ends *Not selected* or *Not qualified*, you enter the pool, and you are told on the bell until when. While you are in it:
+
+- HR keeps your name, contact details, what you gave at sign-up, the openings you applied to and your best rating, to find you for other openings. You never see the ratings.
+- HR may invite you to apply for an opening: a notice on the bell, from *HR office*, with a link to it. You decide whether to apply, and you apply yourself.
+- Your applicant account stays open until the end of your time in the pool (12 months unless the school chose another number), even if it would have closed sooner.
+
+When the time ends, you leave the pool, and your account closes and is removed as the sign-up notice said. To leave sooner, choose **Leave the pool** under **My applications** and confirm; if your account was kept open only for the pool, it then closes on its own date, or at once if that has passed.
+
+![The pool of applicants under My applications](applicant-pool.jpg)
+
 ### Know when your account closes
 
 1. Open **Job openings** or **My applications**.
 2. Read *Your applicant account is open until …* at the top.
 
-You are told on the bell before that date. Applying again does not move it. If you still need your account after it, ask the school's HR office to extend it before it is removed.
+You are told on the bell before that date. Applying again does not move it. If you are in the pool of applicants, it stays open until your time in the pool ends. If you still need your account after it, ask the school's HR office to extend it before it is removed.
 
 ## Screens at a glance
 
@@ -143,7 +163,7 @@ You are told on the bell before that date. Applying again does not move it. If y
 |---|---|
 | Job openings (home page, signed out) | The openings anyone may apply for, their qualification standards, and **Sign up to apply** |
 | Job openings | The openings you may apply for, the date your account closes, and each opening with **Apply** |
-| My applications | Your applications, where each is in the recruitment stages, the latest note from HR, **Withdraw** and **Apply again** |
+| My applications | Your applications, where each is in the recruitment stages, the latest note from HR, **Withdraw** and **Apply again**; and **Pool of applicants**: stay in the pool, or **Leave the pool** |
 | An application (**See its progress**) | Its progress through the stages with dates, what happens now, the notes from HR, the outcome, **Withdraw** |
 | My profile, My security | Your own account: your details, your password, 2-step verification and where you are signed in |
 
@@ -175,6 +195,12 @@ HR can move an application past a stage that is not needed for it. The skipped s
 **Can I upload my documents or fill in a PDS here?** Not at sign-up, and not yet with an application. HR tells you what to bring or send, for example in a note on your application.
 
 **Why is there no employee ID or branch on the form?** Employees of the school apply with their own account, not an applicant account, so the form never asks for an employee ID. The campus you would like to work at (the branch) is asked only if the school chose to: it is then **Preferred campus or place of assignment**.
+
+**What is the pool of applicants, and do I have to join it?** A list of people the school may invite to apply for other openings. You join only if you tick the box yourself; it is never ticked for you, and HR cannot tick it for you. You can leave it at any time under **My applications**.
+
+**HR invited me to apply. Have I applied?** No. The invitation is a notice on the bell with a link to the opening. Read it, and choose **Apply** if you are interested.
+
+**Can I see my rating?** No. HR rates applicants for the selection board, and the scores are not shown to applicants. Ask the school's HR office if you have a question about your application.
 
 **Why don't I see an opening I heard about?** Some openings are for the school's employees only, and an opening is shown only while it is open, until its closing date.
 

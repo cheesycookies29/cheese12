@@ -20,6 +20,7 @@ import { meHomeView, meAttendanceView, meRequestsView, mePayslipsView, mePayslip
 import { brandHome } from '../brand.js';
 import { jobsView, jobView, myApplicationsView, applicationView } from './views/jobs.js';
 import { openingsView, openingFormView, openingView, applicantsView } from './views/recruitment.js';
+import { ratingView, comparativeView, profileView, poolView } from './views/assess.js';
 import { plantillaListView, plantillaItemView, plantillaFormView, psipopView } from './views/plantilla.js';
 
 const perm = (p) => () => can(p);
@@ -53,8 +54,12 @@ const routes = [
   ['/recruitment', openingsView, perm('hris.recruitment')],
   ['/recruitment/new', (el, _params, query) => openingFormView(el, {}, query), perm('hris.recruitment')],
   ['/recruitment/applicants', applicantsView, perm('hris.recruitment')],
+  ['/recruitment/pool', poolView, perm('hris.recruitment')],
+  ['/recruitment/profile/:userId', profileView, perm('hris.recruitment')],
   ['/recruitment/:id', openingView, perm('hris.recruitment')],
   ['/recruitment/:id/edit', openingFormView, perm('hris.recruitment')],
+  ['/recruitment/:id/comparative', comparativeView, perm('hris.recruitment')],
+  ['/recruitment/:id/rate/:appId', ratingView, perm('hris.recruitment')],
   ['/jobs', jobsView, seeker],
   ['/jobs/mine', myApplicationsView, seeker],
   ['/jobs/mine/:id', applicationView, seeker],
@@ -100,6 +105,7 @@ function nav() {
     can('hris.recruitment') && { heading: 'Recruitment' },
     can('hris.recruitment') && { href: '/recruitment', label: 'Job openings', icon: 'briefcase' },
     can('hris.recruitment') && { href: '/recruitment/applicants', label: 'Applicant accounts', icon: 'users' },
+    can('hris.recruitment') && { href: '/recruitment/pool', label: 'Pool of applicants', icon: 'layers' },
     (can('payroll.config') || can('hris.settings')) && { heading: 'Setup' },
     can('payroll.config') && { href: '/payroll-setup', label: 'Payroll setup', icon: 'settings' },
     can('hris.settings') && { href: '/settings', label: 'HR settings', icon: 'building' },

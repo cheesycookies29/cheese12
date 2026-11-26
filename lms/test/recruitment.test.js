@@ -409,7 +409,7 @@ test('the hris.recruitment permission: HR managers have it; Roles & permissions 
 
 test('the settings: defaults, limits, the Settings center and its history', async () => {
   const s = await school();
-  assert.deepEqual(DEFAULT_PEOPLE_SETTINGS, { applicantAccountDays: 365, applicantWarnDays: 30, applicantPurgeDays: 30, signupFields: DEFAULT_SIGNUP_FIELDS });
+  assert.deepEqual(DEFAULT_PEOPLE_SETTINGS, { applicantAccountDays: 365, applicantWarnDays: 30, applicantPurgeDays: 30, signupFields: DEFAULT_SIGNUP_FIELDS, applicantPoolMonths: 12 });
   assert.deepEqual(await s.hr.get('/api/hris/recruitment/settings'), DEFAULT_PEOPLE_SETTINGS);
   await assert.rejects(s.hr.put('/api/hris/recruitment/settings', { applicantAccountDays: 29 }), /Applicant accounts last: 30 to 1095 days/);
   await assert.rejects(s.hr.put('/api/hris/recruitment/settings', { applicantAccountDays: 1096 }), /30 to 1095/);
@@ -425,7 +425,7 @@ test('the settings: defaults, limits, the Settings center and its history', asyn
   const area = config.areas.find((a) => a.id === 'recruitment');
   assert.equal(area.module, 'people');
   const rows = config.settings.filter((x) => x.area === 'recruitment');
-  assert.deepEqual(rows.map((r) => [r.path, r.value, r.default, r.changed]), [['applicantAccountDays', 1095, 365, true], ['applicantWarnDays', 30, 30, false], ['applicantPurgeDays', 0, 30, true], ['signupFields', DEFAULT_SIGNUP_FIELDS, DEFAULT_SIGNUP_FIELDS, false]]);
+  assert.deepEqual(rows.map((r) => [r.path, r.value, r.default, r.changed]), [['applicantAccountDays', 1095, 365, true], ['applicantWarnDays', 30, 30, false], ['applicantPurgeDays', 0, 30, true], ['signupFields', DEFAULT_SIGNUP_FIELDS, DEFAULT_SIGNUP_FIELDS, false], ['applicantPoolMonths', 12, 12, false]]);
   const history = await s.admin.get('/api/admin/config/history?area=recruitment');
   assert.equal(history.entries[0].by, 'Hana Reyes');
   await s.admin.post('/api/admin/config/reset', { area: 'recruitment', path: 'applicantAccountDays' });
@@ -436,8 +436,9 @@ test('demo data: openings (one Internal only), the demo applicant with an applic
   const s = await school();
   await s.admin.post('/api/admin/demo');
   const demo = s.env.db.data.jobOpenings.filter((o) => o.demo);
-  assert.equal(demo.length, 3);
+  assert.equal(demo.length, 4);
   assert.equal(demo.filter((o) => o.audience === 'internal').length, 1);
+  assert.equal(demo.filter((o) => o.status === 'closed').length, 1, 'a closed opening, decided weeks ago');
   const c = s.env.client();
   await c.post('/api/hub/login', { username: 'applicant.demo', password: 'demo1234' });
   const mine = (await c.get('/api/hris/my-applications')).applications;
