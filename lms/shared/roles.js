@@ -17,6 +17,8 @@
 // have a People session, but reach only its jobs area: openings, their own applications and their
 // own account. Their account closes after settings.people.applicantAccountDays (shared/recruitment.js).
 
+import { FORMS_DEFAULT_MANAGERS } from './forms.js';
+
 export const ROLES = {
   admin: {
     label: 'Administrator',
@@ -111,6 +113,10 @@ export const ROLES = {
   },
 };
 
+// Document circulation (shared/forms.js): the registrar keeps Academic's and Learn's forms, the HR
+// Manager People's, the Chief Accountant Finance's, until an administrator changes it.
+for (const [role, list] of Object.entries(FORMS_DEFAULT_MANAGERS)) ROLES[role].permissions.push(...list);
+
 export const ADMIN_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'admin');
 export const PORTAL_ROLES = Object.keys(ROLES).filter((r) => ROLES[r].side === 'portal');
 // The account types HR makes for employees (not job applicants, who sign up themselves).
@@ -167,6 +173,10 @@ export { FINANCE_PERMISSION_LABELS } from './finance.js';
 export const DOCUMENTS_PERMISSION_LABELS = [
   ['docs.manage', 'Document control: manage every document and folder, the settings, links and legal holds'],
 ];
+
+// Document circulation (Admin panel → System → Document circulation): forms.manage for every module's
+// forms, forms.<module> for one module's (shared/forms.js).
+export { FORMS_PERMISSION_LABELS } from './forms.js';
 
 // ----- What an administrator changed (ATLAS Control → Roles & permissions) -----
 // { role: { add: [permission…], remove: [permission…] } }, kept in db.data.roleOverrides. The server

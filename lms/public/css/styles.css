@@ -1828,6 +1828,8 @@ body.ps-editing { overflow: hidden; }
 .sys-section.compact .tool-grid { display: none; }
 .int-red { --int: #d64545; --int-deep: #a32424; --int-text: #b42323; }
 :root[data-theme='dark'] .int-red { --int-text: #fca5a5; }
+.int-blue { --int: #2f6fcf; --int-deep: #1d4f9c; --int-text: #1f5bb5; } /* Document circulation */
+:root[data-theme='dark'] .int-blue { --int-text: #93c5fd; }
 .sys-card.tool-card { border-color: color-mix(in srgb, var(--int) 32%, var(--border)); box-shadow: 0 6px 18px color-mix(in srgb, var(--int) 12%, transparent);
   background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--int) 11%, transparent), transparent 60%), var(--surface); }
 .sys-card.tool-card::after { content: ''; position: absolute; top: 4px; right: 0; width: 150px; height: 110px; pointer-events: none;

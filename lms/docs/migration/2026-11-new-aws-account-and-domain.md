@@ -41,6 +41,7 @@ GitHub updates go through `deploy/aws/github-ops.yaml`, which is optional.
 | Uploaded class files | `/opt/ltdc-lms/data/files/` | |
 | ATLAS Documents | `/opt/ltdc-lms/data/documents/` | Encrypted. The `uploads/` part-uploads can be left behind. |
 | Job applicants' documents | `/opt/ltdc-lms/data/applicant-files/` | Encrypted under a key derived from `server.key` (no key of its own). Added 2026-11-26. |
+| Document circulation's forms | `/opt/ltdc-lms/data/forms/` | Every version of every downloadable form; encrypted under a key derived from `server.key` (no key of its own). Added 2026-11-26. |
 | **Password key** | `/opt/ltdc-lms/data/password.key`, or `PASSWORD_KEY` in `app.env` | **Not in the nightly backups.** Without it, no password works, and every 2-step verification secret is lost, because those secrets are sealed under the same key. |
 | **Server key** | `/opt/ltdc-lms/data/server.key`, or `SERVER_KEY` in `app.env` | **Not in the nightly backups.** Without it, no document in ATLAS Documents can be opened, ever. It cannot be changed or recovered. |
 | Keycloak client secret | `OIDC_CLIENT_SECRET` in `/etc/ltdc-lms/app.env` | Only if Keycloak is used. It is kept only on the server. |

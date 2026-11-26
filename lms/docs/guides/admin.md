@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Running ATLAS: the Admin panel
-summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, and System (Users & Access, roles and permissions, sign-in rules, single sign-on, Cloudflare, the Audit log and the Security monitor), demo data, backups and the guides.
+summary: Set up and look after ATLAS as an administrator: accounts, campuses, the catalog, modules, settings in every system, and System (Users & Access, Document circulation, roles and permissions, sign-in rules, single sign-on, Cloudflare, the Audit log and the Security monitor), demo data, backups and the guides.
 roles: admin
 apps: admin, home
 order: 80
@@ -11,7 +11,7 @@ order: 80
 
 The **Admin panel** is the school side of ATLAS Learn. Administrators and registrars use it; deans work in ATLAS Academic instead. An **Administrator** can do everything in it. A **Registrar** uses most of the same pages: they can change enrollment, students, applicants, parents & guardians, the catalog and news, see teachers, and see the **Configuration** pages read-only. **Settings center** and **Demo data & backup** are for administrators only (an administrator can give registrars more under **Roles & permissions**). Day-to-day enrollment (approving requests, waitlists, adding and dropping students) is explained in [the registrar's guide](registrar).
 
-**System**, at the bottom of the sidebar, is for administrators only, as in CORE: **Users & Access** (every account in every system, and what each account type can do) the **Audit log** (sign-ins, failed sign-ins and every change) and the **Security monitor** (the server's health, refused requests, traffic and who is signed in). It is in the sidebar of whichever system you have open: the Admin panel, People, Academic and Finance. In the Admin panel it also has **Roles & permissions**, **Sign-in and passwords**, **Single sign-on** and **Cloudflare** (putting ATLAS behind Cloudflare at a name on the school's own domain). Nobody else sees System, whatever their permissions.
+**System**, at the bottom of the sidebar, is for administrators only, as in CORE: **Users & Access** (every account in every system, and what each account type can do), **Document circulation** (every form and file the systems give their people to download, with its versions), the **Audit log** (sign-ins, failed sign-ins and every change) and the **Security monitor** (the server's health, refused requests, traffic and who is signed in). It is in the sidebar of whichever system you have open: the Admin panel, People, Academic and Finance. In the Admin panel it also has **Roles & permissions**, **Sign-in and passwords**, **Single sign-on** and **Cloudflare** (putting ATLAS behind Cloudflare at a name on the school's own domain). Nobody else sees System, whatever their permissions, except **Document circulation**: the people who keep a module's forms (the registrar, HR and the Chief Accountant, by default) see **System → Document circulation** alone in their systems.
 
 To open it:
 
@@ -563,6 +563,77 @@ Every change applies at once and is recorded in the **Settings center**'s histor
 
 To keep a document or folder from being deleted (for an audit or a case), open it in ATLAS Documents and choose **Legal hold** (on a folder: **Folder → Place on legal hold**). Only document managers place or lift a hold. A hold on a folder holds everything inside it, however deep: nothing there is deleted, moved out or loses old versions, and the folders above it cannot be deleted. While a hold applies, **Move to trash** and **Delete for good** are greyed out, with the reason beside them.
 
+### Keep the school's forms: Document circulation
+
+**Document circulation** is one place to upload and keep every form and file the systems give their people to download: a leave application, a clearance, an enrollment form, a request for quotation. It covers the ATLAS home (school-wide forms), Learn, Academic, People, Finance and Tools. ATLAS Documents is not in it: Documents keeps its own files. The printouts ATLAS makes itself (payslips, the PSIPOP, a transcript) are not forms here either.
+
+Open it from either place:
+
+- **Admin panel → System → Document circulation** (also under **System** in People, Academic, Finance and Tools).
+- **Tools** on the ATLAS home page: the **Document circulation** card beside **PDF Studio** (and **Tools → Document circulation** in the Tools sidebar). Only the people who keep forms see this card.
+
+![Document circulation: forms per module, the filters, and each form's current version with who uploaded it and when](admin-document-circulation.jpg)
+
+![Tools on the ATLAS home page: Document circulation beside PDF Studio, for the people who keep forms](home-tools-circulation.jpg)
+
+The boxes at the top count each module's forms (published, draft, retired); choose one to show only that module. The table lists every form with its **form code**, module, category, who it is for, status, the **current version** (who uploaded it and when, and the change note), its size, and **Versions**: every earlier version. Search, or pick a module, category, status or account type, to narrow it.
+
+What users see: on each system's **Forms & downloads** page, the current version of the **Published** forms for their account type, by category. They never see earlier versions. **Public** forms are also on **Forms** at the top of the sign-in page, for people without an account. The **Forms** link shows only when there are public forms.
+
+### Upload a form
+
+1. Open **Document circulation** and choose **Upload a form**.
+2. Choose the **File**: PDF, Word, Excel, PowerPoint, OpenDocument, a picture or a ZIP, up to 20 MB.
+3. Type the **Title**, pick the **Module** and type a **Category** (for example *Leave*, *Enrollment* or *Procurement*; the ones in use are offered).
+4. Type the **Form code / revision** if your school numbers its forms, for example `HR-F-012 Rev. 3`.
+5. Under **Who may see and download it**, tick the account types. Tick **Public** for a form people need before they have an account, such as a blank application form.
+6. Choose **Keep as a draft** (only the people who keep forms see it) or **Publish now**, then choose **Upload**.
+
+ATLAS checks the file by what is inside it, not its name. It refuses programs, scripts, web pages, Office files with macros and password-protected files, and says why. The file is stored encrypted, outside the data file. A draft is published later with **More → Publish**.
+
+### Upload a new version of a form
+
+1. On the form's row, choose **New version** (the arrow button).
+2. Choose the file and type a short **Change note**, for example *Signatories updated*.
+3. Choose **Upload version**.
+
+The new file becomes the current version at once: users get it on their next download. Its row shows you as the uploader, with the date and time. The version before it moves to **Versions**.
+
+### Download or restore an earlier version
+
+1. On the form's row, open **Versions**. Each earlier version shows its number, date, who uploaded it and its note.
+2. Choose one: it downloads.
+3. To make it current again, choose **More → Restore a version**, pick the version and choose **Restore**.
+
+Restoring makes a new version that copies the old one (for example *v3 (from v1)*), so nothing in the history is changed or lost.
+
+### Retire, bring back or delete a form
+
+1. On the form's row, choose **More**.
+2. Choose **Retire** to hide a published form from users. It stays here with its versions; **Bring back** publishes it again.
+3. Choose **Delete draft** to remove a draft that was never published, with its files.
+
+A form that was ever published cannot be deleted: retire it instead.
+
+### Choose who keeps each module's forms
+
+Administrators keep every module's forms. By default the **Registrar** keeps Academic's and Learn's, the **HR Manager** People's and the **Chief Accountant** Finance's; the ATLAS home's and Tools' stay with administrators. Each sees only the modules they keep.
+
+1. Choose **Roles & permissions** and go to **Document circulation**.
+2. Tick **Document circulation: the forms of ATLAS People** (or another module) for an account type, or **Document circulation: upload and keep the forms of every module, and its settings** for all of them.
+3. Choose **Save**.
+
+To give it to one person only, use **System → Users & Access → Access** on their account. Everything done in Document circulation is in the **Audit log** (system *Document circulation*): uploads, new versions, restores, changes of details, publishing, retiring, deletes, downloads of versions and refused files.
+
+### Set the largest form file and the file types
+
+1. In **Document circulation**, choose **Settings**.
+2. Set the **Largest file (MB)**, from 1 to 100 (20 at first).
+3. Tick the **File types accepted**: PDF, Word, Excel, PowerPoint, Office 97–2003, OpenDocument, pictures and ZIP are on at first.
+4. Choose **Save**.
+
+Both settings are also in the **Settings center** (*Document circulation*), with their history and **Restore default**.
+
 ### Add or remove the demo school
 
 1. Choose **Demo data & backup**.
@@ -627,6 +698,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | System | Sign-in and passwords | Password rules, lock-out, idle sign-out and rate limits, for every system |
 | System | Single sign-on | Signing in with the school's Keycloak account |
 | System | Cloudflare | Putting ATLAS behind Cloudflare at a name on the school's own domain; only accepting visitors through Cloudflare; switching it off |
+| System | Document circulation | Every downloadable form of every system but Documents: upload, new versions with who and when, **Versions** to download an earlier one, restore, publish, retire; also on the ATLAS home under **Tools** |
 | System | Audit log | Sign-ins, failed sign-ins, every change (field by field) and refused requests, with a check that the log is intact; export |
 | System | Security monitor | The server's checks, refused requests and addresses to watch, the controls in force, traffic and response times, and who is signed in; the metrics token |
 | Elsewhere | ATLAS home | The ATLAS home page, in a new tab |
@@ -653,6 +725,10 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 **Can the sign-in pages and the systems show our school instead of ATLAS?** Yes: under **Settings & branding → Branding**, choose **Our school, powered by ATLAS**, type the school's short name and upload its seal. See [Lead with your school's name and seal](#lead-with-your-school-s-name-and-seal).
 
 **Who changed this setting?** Open **Settings center**, find the setting and choose the clock button beside it: its history lists each change with who made it, when, and the value before and after.
+
+**Why is ATLAS Documents not in Document circulation?** Documents is the document management system itself: its files, folders and versions are kept in Documents. Document circulation is for the forms the other systems hand out.
+
+**Can a new version of a form wait for someone's approval before users get it?** Not yet: a new version is current as soon as it is uploaded. To prepare one quietly, upload it as a new form kept as a draft, check it, then upload it as the next version of the real form. An approval step for new versions may come in a later update.
 
 **I gave an account type a permission, but its people do not see the new screen.** Permissions apply at their next page load; ask them to reload, or sign out and in again.
 

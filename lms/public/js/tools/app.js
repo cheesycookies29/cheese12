@@ -7,18 +7,24 @@ import { systemRoutes, systemNav } from '../system/index.js';
 import { html, mount } from '../ui.js';
 import { pdfStudioView } from './views/pdf-studio.js';
 import { brandHome } from '../brand.js';
+import { formsView } from '../forms.js';
 
 const has = (id) => (ctx.info?.tools || []).some((t) => t.id === id);
 
 const routes = [
   ['/pdf', (el, p) => (has('pdf') ? pdfStudioView(el, p) : offView(el))],
+  ['/forms', (el) => formsView(el, 'tools')], // Forms & downloads: the files Tools gives its users
   ...systemRoutes(),
 ];
 
 const nav = () => [
   { heading: 'Tools' },
   { href: '/pdf', label: 'PDF Studio', icon: 'filePdf' },
-  ...systemNav(),
+  // Document circulation (the management screen, System → Document circulation): for those who keep forms.
+  has('forms') && { href: '/system/forms', label: 'Document circulation', icon: 'folder' },
+  { heading: 'Help' },
+  { href: '/forms', label: 'Forms & downloads', icon: 'download' },
+  ...systemNav([], { forms: false }),
 ].filter(Boolean);
 
 function signedOutView() {
@@ -38,7 +44,7 @@ startApp({
   product: 'Tools',
   routes,
   nav,
-  home: () => '/pdf',
+  home: () => (!has('pdf') && has('forms') ? '/system/forms' : '/pdf'),
   signedOutView,
   passwordView: () => location.replace(`/?next=${encodeURIComponent('/tools/')}`),
 });

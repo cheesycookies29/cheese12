@@ -202,12 +202,15 @@ Open **Finance → My payments** and choose **View** next to the O.R. number to 
 | Learn | Grades | Running scores and final grades, term by term |
 | Learn | News & events | School news (react and comment) and upcoming events |
 | Learn | Parents & guardians | Who is linked to your records and what each can see |
+| Learn | Forms & downloads | Forms for students, such as the excuse letter template, to download (see [Get a form](getting-started#get-a-form)) |
 | Academic | Evaluation | Your curriculum, units earned, GWA, what you can take next and back subjects; **Print** |
 | Academic | Grades | Your posted grades by term and your general weighted average |
 | Academic | Registration (COR) | This term's subjects; **Print my COR** |
 | Academic | Document requests | Request official documents and follow them until release |
 | Academic | Curricula | The posted curriculum (prospectus) of each program |
+| Academic | Forms & downloads | The registrar's forms for students, such as a request for a document |
 | Finance | My payments | Official receipts issued in your name |
+| Finance | Forms & downloads | Finance's forms for students, to download |
 
 ## Questions
 

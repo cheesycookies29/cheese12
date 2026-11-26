@@ -1612,5 +1612,42 @@
   ],
   "url": "/hris/#/settings?section=appointment-papers",
   "wait": 1500
+ },
+ {
+  "file": "admin-document-circulation.jpg",
+  "user": "admin",
+  "url": "/admin#/system/forms",
+  "wait": 1200
+ },
+ {
+  "file": "home-tools-circulation.jpg",
+  "user": "registrar.demo",
+  "url": "/",
+  "scroll": "#tool-section",
+  "wait": 1500
+ },
+ {
+  "file": "registrar-document-circulation.jpg",
+  "user": "registrar.demo",
+  "url": "/admin#/system/forms",
+  "wait": 1200
+ },
+ {
+  "file": "hr-document-circulation.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/system/forms",
+  "wait": 1200
+ },
+ {
+  "file": "accountant-document-circulation.jpg",
+  "user": "accountant.demo",
+  "url": "/finance/#/system/forms",
+  "wait": 1200
+ },
+ {
+  "file": "forms-downloads.jpg",
+  "user": "teacher.demo",
+  "url": "/lms/#/forms",
+  "wait": 1000
  }
 ]

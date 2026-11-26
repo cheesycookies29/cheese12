@@ -44,6 +44,7 @@ export const AREAS = [
   ['finance', 'finance', 'Finance: entity, funds, offices and banks', '/finance/#/control'],
   ['financeRules', 'finance', 'Finance: numbering, taxes and rules', '/finance/#/control?tab=taxes'],
   ['documents', 'documents', 'Document control', '/admin#/documents'],
+  ['forms', 'admin', 'Document circulation', '/admin#/system/forms'],
 ];
 
 // [area, path, label, help, format]
@@ -225,6 +226,9 @@ export const SETTINGS = [
   ['documents', 'linkClassifications', 'Classifications that may be shared by link', 'Restricted documents never are.', 'list'],
   ['documents', 'trashDays', 'Days in the trash', 'Then removed for good, unless on legal hold.'],
   ['documents', 'checkoutHours', 'Longest check-out (hours)', 'A check-out ends by itself after this.'],
+  // ----- Document circulation (every module's downloadable forms; server/forms.js) -----
+  ['forms', 'maxUploadMB', 'Largest form file (MB)', 'The biggest file a form or download may be in Document circulation (1 to 100).'],
+  ['forms', 'families', 'Form file types accepted', 'The kinds of file a form may be: PDF, Word, Excel, PowerPoint, Office 97–2003, OpenDocument, pictures and ZIP. Programs, scripts, web pages, Office files with macros and password-protected files are always refused.', 'list'],
 ];
 
 // Names for the parts of a setting whose own label is not enough in the change history

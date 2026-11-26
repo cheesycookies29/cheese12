@@ -8,3 +8,5 @@
 25 2 * * * ltdc-lms mkdir -p /opt/ltdc-lms/data/documents /opt/ltdc-lms/data/backups/documents && rsync -a --exclude uploads /opt/ltdc-lms/data/documents/ /opt/ltdc-lms/data/backups/documents/
 # Job applicants' documents (encrypted under a key derived from the server key) at 2:30 AM.
 30 2 * * * ltdc-lms [ -d /opt/ltdc-lms/data/applicant-files ] && mkdir -p /opt/ltdc-lms/data/backups/applicant-files && rsync -a /opt/ltdc-lms/data/applicant-files/ /opt/ltdc-lms/data/backups/applicant-files/
+# Document circulation's forms (encrypted under a key derived from the server key) at 2:35 AM.
+35 2 * * * ltdc-lms [ -d /opt/ltdc-lms/data/forms ] && mkdir -p /opt/ltdc-lms/data/backups/forms && rsync -a /opt/ltdc-lms/data/forms/ /opt/ltdc-lms/data/backups/forms/

@@ -16,6 +16,7 @@ import { reportsView } from './views/reports.js';
 import { settingsView } from './views/settings.js';
 import { myEvaluationView, myGradesView, myRegistrationView, myRequestsView } from './views/self.js';
 import { brandHome } from '../brand.js';
+import { formsView } from '../forms.js';
 
 const perm = (p) => () => can(p);
 const student = () => isStudent();
@@ -38,6 +39,7 @@ const routes = [
   ['/me/grades', myGradesView, student],
   ['/me/registration', myRegistrationView, student],
   ['/me/requests', myRequestsView, student],
+  ['/forms', (el) => formsView(el, 'uis')], // Forms & downloads (Document circulation)
   ...systemRoutes(),
 ];
 
@@ -51,9 +53,10 @@ function nav() {
       { href: '/me/requests', label: 'Document requests', icon: 'file' },
       { heading: 'Programs' },
       { href: '/curricula', label: 'Curricula', icon: 'layers' },
+      { href: '/forms', label: 'Forms & downloads', icon: 'download' },
     ];
   }
-  if (isTeacher()) return [{ heading: 'Teaching' }, { href: '/grade-sheets', label: 'Grade sheets', icon: 'clipboard' }];
+  if (isTeacher()) return [{ heading: 'Teaching' }, { href: '/grade-sheets', label: 'Grade sheets', icon: 'clipboard' }, { href: '/forms', label: 'Forms & downloads', icon: 'download' }, ...systemNav()];
   return [
     { heading: ctx.user?.role === 'dean' ? 'College' : 'Registrar' },
     { href: '/dashboard', label: 'Dashboard', icon: 'chart' },
@@ -64,6 +67,7 @@ function nav() {
     { heading: 'Programs' },
     { href: '/curricula', label: 'Curricula', icon: 'layers' },
     { href: '/reports', label: 'Reports', icon: 'download' },
+    { href: '/forms', label: 'Forms & downloads', icon: 'download' },
     (can('academic.settings') || can('academic.curricula')) && { heading: 'Setup' },
     (can('academic.settings') || can('academic.curricula')) && { href: '/settings', label: 'Settings', icon: 'settings' },
     ...systemNav(),

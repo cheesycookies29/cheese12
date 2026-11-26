@@ -13,6 +13,7 @@ import { gradesView } from './views/grades.js';
 import { quizView, quizResultsView, attemptGradeView, quizEditView } from './views/quiz.js';
 import { newsView } from './views/news.js';
 import { guardianHomeView, childView, myGuardiansView } from './views/guardian.js';
+import { formsView } from '../forms.js';
 
 const student = (u) => u.role === 'student';
 const guardian = (u) => u.role === 'guardian';
@@ -39,6 +40,7 @@ const routes = [
   ['/schedule', scheduleView, mod('schedule', learner)],
   ['/calendar', calendarView, mod('calendar')],
   ['/grades', gradesView, mod('grades', student)],
+  ['/forms', (el) => formsView(el, 'lms')], // Forms & downloads (Document circulation)
 ];
 
 function nav() {
@@ -52,6 +54,7 @@ function nav() {
       (has('news') || has('calendar')) && { heading: 'School' },
       has('calendar') && { href: '/calendar', label: 'School calendar', icon: 'calendar' },
       has('news') && { href: '/news', label: 'News & events', icon: 'megaphone' },
+      { href: '/forms', label: 'Forms & downloads', icon: 'download' },
     ].filter(Boolean);
   }
   return [
@@ -63,6 +66,7 @@ function nav() {
     isStudent && has('grades') && { href: '/grades', label: 'Grades', icon: 'chart' },
     has('news') && { href: '/news', label: 'News & events', icon: 'megaphone' },
     isStudent && { href: '/guardians', label: 'Parents & guardians', icon: 'users' },
+    { href: '/forms', label: 'Forms & downloads', icon: 'download' },
   ].filter(Boolean);
 }
 
