@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### The sidebar folds smoothly
+- On a computer, the menu button now folds the sidebar to its icons and opens it again with a short, quiet movement instead of a jump. It stays still when your device asks for reduced motion.
+
 ### Choose what the applicant sign-up asks
 - HR managers choose what people outside the school are asked when they sign up to apply, under **HR settings → Applicant sign-up fields**: mobile number, sex, date of birth, home address, highest educational attainment and preferred campus, each **Hidden**, **Optional** or **Required**. Only the mobile number is asked by default; full name, email, username and password are always asked; documents and an employee ID never are. The privacy notice lists exactly what is asked, and HR sees the answers on each application and in **Applicant accounts**. See [the HR guide](hr#choose-what-the-applicant-sign-up-asks), [the applicant's guide](applicant#sign-up-for-an-applicant-account) and [the administrator's guide](admin#check-what-the-applicant-sign-up-asks).
 

@@ -134,10 +134,22 @@ body:not(.auth-mode) #auth { display: none; }
 .nav-heading { margin: 16px 12px 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 .nav-badge { min-width: 20px; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--accent-ink, #1c1300); font-size: 11px; font-weight: 700; text-align: center; }
 .side-foot { margin-top: auto; padding: 12px; font-size: 11px; color: var(--muted); }
-/* Desktop: the menu button folds the sidebar to icons only. */
+/* Desktop: the menu button folds the sidebar to icons only. The icons keep their place while the
+   width eases and the words fade, so folding and unfolding is a short, quiet movement (only when the
+   button is used: body.nav-anim, never on page load; none with reduced motion). */
+.sidebar { overflow-x: hidden; }
+.nav-heading { max-height: 40px; overflow: hidden; white-space: nowrap; }
+.side-foot { white-space: nowrap; overflow: hidden; }
 body.nav-mini .sidebar { width: 68px; }
-body.nav-mini #nav .label, body.nav-mini .nav-heading, body.nav-mini .nav-badge, body.nav-mini .side-foot { display: none; }
-body.nav-mini #nav a { justify-content: center; padding: 10px; }
+body.nav-mini #nav .label, body.nav-mini .nav-badge, body.nav-mini .side-foot { opacity: 0; pointer-events: none; }
+body.nav-mini .nav-heading { opacity: 0; max-height: 0; margin-top: 6px; margin-bottom: 6px; }
+body.nav-mini #nav a { padding: 10px 14px; }
+body.nav-anim .sidebar { transition: width 0.24s cubic-bezier(0.2, 0.7, 0.2, 1); }
+body.nav-anim #nav a { transition: padding 0.24s cubic-bezier(0.2, 0.7, 0.2, 1); }
+body.nav-anim #nav .label, body.nav-anim .nav-badge, body.nav-anim .side-foot { transition: opacity 0.16s ease; }
+body.nav-anim .nav-heading { transition: opacity 0.16s ease, max-height 0.24s ease, margin 0.24s ease; }
+body.nav-anim:not(.nav-mini) #nav .label, body.nav-anim:not(.nav-mini) .nav-badge, body.nav-anim:not(.nav-mini) .side-foot, body.nav-anim:not(.nav-mini) .nav-heading { transition-delay: 0.08s; }
+@media (prefers-reduced-motion: reduce) { body.nav-anim .sidebar, body.nav-anim #nav a, body.nav-anim #nav .label, body.nav-anim .nav-badge, body.nav-anim .side-foot, body.nav-anim .nav-heading { transition: none; } }
 
 main { flex: 1; min-width: 0; padding: 20px 28px 56px; max-width: 1360px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
@@ -728,7 +740,9 @@ body.hub .topbar { padding-left: 24px; }
   .sidebar { position: fixed; top: var(--topbar); left: 0; bottom: 0; height: auto; z-index: 55; width: min(84vw, 290px); transform: translateX(-102%); transition: transform 0.2s ease, visibility 0.2s; visibility: hidden; box-shadow: var(--shadow-lg); }
   body.nav-open .sidebar { transform: none; visibility: visible; }
   body.nav-mini .sidebar { width: min(84vw, 290px); }
-  body.nav-mini #nav .label, body.nav-mini .nav-heading { display: initial; }
+  body.nav-mini #nav .label, body.nav-mini .nav-badge, body.nav-mini .side-foot, body.nav-mini .nav-heading { opacity: 1; pointer-events: auto; }
+  body.nav-mini .nav-heading { max-height: 40px; margin: 16px 12px 6px; }
+  body.nav-mini #nav a { padding: 9px 12px; }
   .nav-scrim { display: block; position: fixed; inset: var(--topbar) 0 0 0; z-index: 50; background: rgba(15, 23, 42, 0.45); }
   .nav-scrim[hidden] { display: none; }
   main { padding: 16px 16px 48px; }

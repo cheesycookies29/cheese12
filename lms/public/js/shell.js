@@ -445,8 +445,13 @@ export function startApp(config) {
   try {
     if (localStorage.getItem('lms-nav') === 'mini') document.body.classList.add('nav-mini');
   } catch {}
+  let navAnimTimer = 0;
   menuBtn.addEventListener('click', () => {
     if (phone()) return setDrawer(!document.body.classList.contains('nav-open'));
+    // A short transition only when the button is used (not when the page opens folded).
+    document.body.classList.add('nav-anim');
+    clearTimeout(navAnimTimer);
+    navAnimTimer = setTimeout(() => document.body.classList.remove('nav-anim'), 400);
     const mini = document.body.classList.toggle('nav-mini');
     try {
       localStorage.setItem('lms-nav', mini ? 'mini' : 'full');
