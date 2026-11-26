@@ -1,14 +1,15 @@
 // Recruitment → Job openings and Applicant accounts (HR, permission hris.recruitment;
-// server/recruitment.js): post openings at the campus HR is looking at, follow the applications to
-// each with a simple status (the applicant is told on the bell), and extend or remove the temporary
-// accounts of job applicants.
+// server/recruitment.js): post openings at the campus HR is looking at, move the applications to each
+// through the recruitment stages (one at a time or several at once, with a note to the applicant and
+// an internal remark; the applicant is told on the bell), and extend or remove the temporary accounts
+// of job applicants. Also the Recruitment stages card of HR settings (PL-015).
 import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
-import { html, mount, money, fmtDate, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, option, formData } from '../../ui.js';
-import { clickableRows } from '../state.js';
+import { html, mount, money, fmtDate, fmtDateTime, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, option, formData } from '../../ui.js';
+import { clickableRows, can } from '../state.js';
 import { salaryFor } from '/shared/gov-pay.js';
-import { AUDIENCES, OPENING_STATUSES, HR_STATUSES, applicationStatusLabel, openingStatusLabel } from '/shared/recruitment.js';
+import { AUDIENCES, OPENING_STATUSES, STAGE_LIMITS, openingStatusLabel } from '/shared/recruitment.js';
 import { applicationBadge, salaryLine, placeLine, qualifications } from './jobs.js';
 
 const OPENING_KIND = { draft: 'gray', open: 'green', closed: 'gray' };
@@ -119,7 +120,7 @@ export async function openingFormView(el, { id } = {}, query = {}) {
 const CSV = [
   ['Name', (a) => a.name], ['Internal or external', (a) => (a.internal ? 'Internal' : 'External')], ['Email', (a) => a.email], ['Mobile', (a) => a.phone],
   ['Current position', (a) => a.employee?.position || ''], ['Salary grade', (a) => (a.employee?.salaryGrade ? `${a.employee.salaryGrade}-${a.employee.step || 1}` : '')], ['Campus', (a) => a.employee?.campusName || ''],
-  ['Applied', (a) => localDay(a.createdAt)], ['Status', (a) => applicationStatusLabel(a.status)], ['Last change', (a) => localDay(a.updatedAt)], ['Note to the applicant', (a) => a.statusNote],
+  ['Applied', (a) => localDay(a.createdAt)], ['Stage', (a) => a.stageLabel], ['Last change', (a) => localDay(a.updatedAt)], ['Latest note to the applicant', (a) => a.statusNote],
 ];
 
 function who(a) {
@@ -128,9 +129,103 @@ function who(a) {
   return html`<strong>${a.name}</strong><small class="block muted">${[a.email, a.phone].filter(Boolean).join(' · ')}${a.accountClosed ? ' · account closed' : ''}</small>`;
 }
 
-export async function openingView(el, { id }) {
+// The stages and outcomes of the school, in order, with how many of this opening's applications are at each.
+function stageCounts(o) {
+  const by = o.counts.byStage || {};
+  const live = [...o.stages.stages.filter((x) => !x.retired || by[x.id]), ...o.stages.outcomes.filter((x) => !x.retired || by[x.id])];
+  return live.map((x) => ({ ...x, kind: o.stages.stages.includes(x) ? 'stage' : 'outcome', count: by[x.id] || 0 }));
+}
+const stageName = (o, id) => [...o.stages.stages, ...o.stages.outcomes].find((x) => x.id === id)?.label || id;
+
+// Move one application: a later stage, a final outcome, back one stage (with a reason), or a note at
+// the same stage. The note goes to the applicant; the internal remark and the reason never do.
+function moveDialog(o, a, done) {
+  const m = a.moves;
+  const forward = m.forward.map((id) => option(id, stageName(o, id), false));
+  const outcomes = m.outcomes.map((id) => option(id, stageName(o, id), false));
+  const { form } = modal({
+    title: 'Move application',
+    subtitle: `${a.name} · ${o.title} · now at ${a.stageLabel}`,
+    submitLabel: 'Save and tell the applicant',
+    body: html`<div class="stack tight">
+      <label class="field"><span>Move to</span><select name="stage">
+        ${m.forward.length ? html`<optgroup label="Next stages">${forward}</optgroup>` : ''}
+        ${m.outcomes.length ? html`<optgroup label="Final outcome">${outcomes}</optgroup>` : ''}
+        ${m.back ? html`<optgroup label="Back one stage">${option(m.back, `Back to ${stageName(o, m.back)}`, false)}</optgroup>` : ''}
+        <optgroup label="No change">${option(a.stage, `Stay at ${a.stageLabel} (a note only)`, !m.forward.length && !m.outcomes.length)}</optgroup>
+      </select><span class="hint">Any later stage, or a final outcome. Going back is one stage at a time, with a reason.</span></label>
+      <label class="field" id="reason-field" hidden><span>Reason for moving it back<em>*</em></span><textarea name="reason" maxlength="500" rows="2" placeholder="e.g. Moved by mistake: the interview has not been held yet."></textarea><span class="hint">Kept in the history and the audit log. Not shown to the applicant.</span></label>
+      <label class="field"><span>Note to the applicant (optional)</span><textarea name="note" maxlength="1000" rows="3" placeholder="e.g. Your interview is on Monday, 9:00, at the HR office. Please bring a valid ID."></textarea><span class="hint">The applicant reads it on the bell and on their application, from "HR office".</span></label>
+      <label class="field internal-field"><span>${icon('lock', 14)} Internal remark (HR only)</span><textarea name="remark" maxlength="1000" rows="2" placeholder="e.g. References checked by phone."></textarea><span class="hint">Never shown to the applicant. Kept in the history for HR.</span></label>
+    </div>`,
+    async onSubmit(f) {
+      await api.put(`/api/hris/recruitment/applications/${a.id}`, formData(f));
+      toast('Saved. The applicant was told.');
+      done();
+    },
+  });
+  const sync = () => {
+    const back = form.stage.value === m.back && m.back !== a.stage;
+    form.querySelector('#reason-field').hidden = !back;
+  };
+  form.stage.addEventListener('change', sync);
+  sync();
+}
+
+// Move several (ticked) applications to one stage or outcome, with one note.
+function bulkDialog(o, picked, done) {
+  const targets = [...o.stages.stages.filter((x) => !x.retired), ...o.stages.outcomes.filter((x) => !x.retired && !x.applicantOnly)];
+  modal({
+    title: `Move ${picked.length} application${picked.length === 1 ? '' : 's'}`,
+    subtitle: `${o.title} · ${picked.map((a) => a.name).slice(0, 4).join(', ')}${picked.length > 4 ? ` and ${picked.length - 4} more` : ''}`,
+    submitLabel: 'Move and tell the applicants',
+    body: html`<div class="stack tight">
+      <label class="field"><span>Move to</span><select name="stage">
+        <optgroup label="Stages">${o.stages.stages.filter((x) => !x.retired).map((x) => option(x.id, x.label, false))}</optgroup>
+        <optgroup label="Final outcome">${targets.filter((x) => !o.stages.stages.includes(x)).map((x) => option(x.id, x.label, false))}</optgroup>
+      </select><span class="hint">Each must be at an earlier stage. If one cannot move, none are moved and ATLAS says which. Moving back is one at a time.</span></label>
+      <label class="field"><span>Note to the applicants (optional)</span><textarea name="note" maxlength="1000" rows="3" placeholder="e.g. The written examination is on Friday, 9:00, at the Administration Building."></textarea><span class="hint">Each applicant reads the same note, from "HR office".</span></label>
+      <label class="field internal-field"><span>${icon('lock', 14)} Internal remark (HR only)</span><textarea name="remark" maxlength="1000" rows="2"></textarea><span class="hint">Never shown to the applicants.</span></label>
+    </div>`,
+    async onSubmit(f) {
+      const r = await api.post(`/api/hris/recruitment/openings/${o.id}/move`, { ids: picked.map((a) => a.id), ...formData(f) });
+      toast(`${r.moved} application${r.moved === 1 ? '' : 's'} moved to ${r.stage}. The applicants were told.`);
+      done();
+    },
+  });
+}
+
+// Everything that happened to an application, for HR: who, when, the notes, remarks and reasons.
+function historyDialog(a) {
+  modal({
+    title: 'History',
+    subtitle: a.name,
+    submitLabel: null,
+    body: html`<ol class="job-history">${[...a.history].reverse().map((h) => html`<li class="${h.back ? 'back' : ''}">
+      <div class="job-note-head"><strong>${h.back ? `Back to ${h.stageLabel}` : h.stageLabel}</strong><span class="muted small">${fmtDateTime(h.at)} · ${h.by || (h.migrated ? 'Carried over from the earlier status' : '')}${h.bulk ? ' · moved with others' : ''}</span></div>
+      ${h.reason ? html`<p class="small"><strong>Reason:</strong> ${h.reason}</p>` : ''}
+      ${h.note ? html`<p class="small"><strong>Note to the applicant:</strong> ${h.note}</p>` : ''}
+      ${h.remark ? html`<p class="small internal-remark">${icon('lock', 12)} <strong>Internal remark:</strong> ${h.remark}</p>` : ''}
+    </li>`)}</ol>`,
+  });
+}
+
+export async function openingView(el, { id }, query = {}) {
   const o = await api.get(`/api/hris/recruitment/openings/${id}`);
   const c = o.counts;
+  const counts = stageCounts(o);
+  const filter = counts.some((x) => x.id === query.stage) ? query.stage : '';
+  const order = new Map(counts.map((x, i) => [x.id, i]));
+  const shown = o.applications.filter((a) => !filter || a.stage === filter).sort((a, b) => (order.get(a.stage) ?? 99) - (order.get(b.stage) ?? 99) || a.createdAt.localeCompare(b.createdAt));
+  const movable = (a) => !a.removed && a.status !== 'withdrawn' && !a.own;
+  const groups = counts.map((x) => ({ ...x, apps: shown.filter((a) => a.stage === x.id) })).filter((g) => g.apps.length);
+  const row = (a) => html`<tr data-app="${a.id}">
+    <td class="pick">${movable(a) ? html`<input type="checkbox" data-pick="${a.id}" aria-label="Choose ${a.name}" />` : ''}</td>
+    <td class="job-applicant">${who(a)}${a.note ? html`<p class="small job-note">“${a.note}”</p>` : ''}</td>
+    <td>${a.internal ? badge('Internal', 'brand') : badge('External', 'blue')}</td>
+    <td class="nowrap">${fmtDate(localDay(a.createdAt))}<small>Last change ${fmtDate(localDay(a.updatedAt))}</small></td>
+    <td class="row-actions">${movable(a) ? html`<button class="btn sm" data-move="${a.id}">Move</button>` : a.own ? html`<small class="muted">Your own</small>` : ''}<button class="btn sm ghost" data-history="${a.id}">History</button></td>
+  </tr>`;
   mount(el, html`
     ${pageHead(html`${o.title} ${openingBadge(o.status)}`, placeLine(o), html`
       <button class="btn" id="export" ${o.applications.length ? '' : 'disabled'}>${icon('download', 16)} Export CSV</button>
@@ -138,22 +233,24 @@ export async function openingView(el, { id }) {
     <div class="stats">
       <div class="card"><small>Applications</small><strong>${c.active}</strong></div>
       <div class="card"><small>Internal / external</small><strong>${c.internal} / ${c.external}</strong></div>
-      <div class="card"><small>Shortlisted</small><strong>${c.byStatus.shortlisted}</strong></div>
+      <div class="card"><small>In progress</small><strong>${c.byStatus['in-progress']}</strong></div>
       <div class="card"><small>Selected</small><strong>${c.byStatus.selected} of ${o.vacancies}</strong></div>
     </div>
     <section class="card">
-      <h2>Applications</h2>
+      <div class="card-head"><h2>Applications by stage</h2>${can('hris.settings') ? html`<a class="small" href="#/settings?section=stages">${icon('settings', 14)} Recruitment stages</a>` : ''}</div>
+      ${o.applications.length ? html`<div class="stage-strip" role="group" aria-label="Show applications at a stage">
+        <a class="stage-count ${filter ? '' : 'on'}" href="#/recruitment/${o.id}"><strong>${o.applications.length}</strong><span>All</span></a>
+        ${counts.map((x) => html`<a class="stage-count ${x.kind} ${filter === x.id ? 'on' : ''} ${x.count ? '' : 'zero'}" href="#/recruitment/${o.id}?stage=${x.id}" aria-label="${x.label}: ${x.count}"><strong>${x.count}</strong><span>${x.label}</span></a>`)}
+      </div>` : ''}
       ${o.applications.length
-        ? html`<div class="scroll-x"><table class="table" id="apps">
-            <thead><tr><th>Applicant and cover note</th><th>Internal / external</th><th>Applied</th><th>Status</th><th>Last change</th><th></th></tr></thead>
-            <tbody>${o.applications.map((a) => html`<tr>
-              <td class="job-applicant">${who(a)}${a.note ? html`<p class="small job-note">“${a.note}”</p>` : ''}</td>
-              <td>${a.internal ? badge('Internal', 'brand') : badge('External', 'blue')}</td>
-              <td class="nowrap">${fmtDate(localDay(a.createdAt))}</td>
-              <td>${applicationBadge(a.status)}</td>
-              <td class="nowrap">${fmtDate(localDay(a.updatedAt))}</td>
-              <td class="row-actions">${a.removed || a.status === 'withdrawn' ? '' : html`<button class="btn sm" data-status="${a.id}">Change status</button>`}</td>
-            </tr>`)}</tbody></table></div>`
+        ? html`<div class="bulk-bar" id="bulk-bar" hidden><span id="bulk-count"></span><button class="btn sm primary" id="bulk-move">${icon('chevronRight', 14)} Move chosen…</button><button class="btn sm ghost" id="bulk-clear">Clear</button></div>
+          ${shown.length ? html`<div class="scroll-x"><table class="table job-apps" id="apps">
+            <thead><tr><th class="pick"><input type="checkbox" id="pick-all" aria-label="Choose all shown" /></th><th>Applicant and cover note</th><th>Internal / external</th><th>Applied</th><th></th></tr></thead>
+            ${groups.map((g) => html`<tbody>
+              <tr class="group-row"><th colspan="5" scope="colgroup">${g.label} <span class="muted">· ${g.apps.length}</span></th></tr>
+              ${g.apps.map(row)}
+            </tbody>`)}
+          </table></div>` : html`<p class="muted">No applications at ${stageName(o, filter)}.</p>`}`
         : html`<p class="muted">No applications yet.${o.status === 'draft' ? ' This opening is a draft: open it so people can apply.' : ''}</p>`}
     </section>
     <section class="card">
@@ -168,24 +265,36 @@ export async function openingView(el, { id }) {
       <h3 style="margin-top:16px">Qualification standards</h3>
       ${qualifications(o)}
     </section>`);
+  const reload = () => openingView(el, { id }, query);
+  const find = (aid) => o.applications.find((x) => x.id === aid);
   el.querySelector('#export').addEventListener('click', () => downloadFile(`applications-${o.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${today()}.csv`, toCsv([CSV.map(([h]) => h), ...o.applications.map((a) => CSV.map(([, f]) => f(a)))])));
-  el.querySelectorAll('[data-status]').forEach((b) => b.addEventListener('click', () => {
-    const a = o.applications.find((x) => x.id === b.dataset.status);
-    modal({
-      title: 'Change status',
-      subtitle: `${a.name} · ${o.title}`,
-      submitLabel: 'Save and tell the applicant',
-      body: html`<div class="stack tight">
-        <label class="field"><span>Status</span><select name="status">${HR_STATUSES.map((s) => option(s, applicationStatusLabel(s), s === a.status))}</select></label>
-        <label class="field"><span>Note to the applicant (optional)</span><textarea name="note" maxlength="500" rows="3" placeholder="e.g. Interview on Monday, 9:00, at the HR office."></textarea><span class="hint">The applicant sees it on the bell and in My applications.</span></label>
-      </div>`,
-      async onSubmit(form) {
-        await api.put(`/api/hris/recruitment/applications/${a.id}`, formData(form));
-        toast('Status saved. The applicant was told.');
-        openingView(el, { id });
-      },
-    });
-  }));
+  el.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => moveDialog(o, find(b.dataset.move), reload)));
+  el.querySelectorAll('[data-history]').forEach((b) => b.addEventListener('click', () => historyDialog(find(b.dataset.history))));
+  // Choosing several: the bar with "Move chosen…" shows while any is ticked.
+  const picks = [...el.querySelectorAll('[data-pick]')];
+  const bar = el.querySelector('#bulk-bar');
+  const sync = () => {
+    const n = picks.filter((x) => x.checked).length;
+    if (bar) {
+      bar.hidden = !n;
+      el.querySelector('#bulk-count').textContent = `${n} chosen`;
+    }
+    const all = el.querySelector('#pick-all');
+    if (all) {
+      all.checked = n > 0 && n === picks.length;
+      all.indeterminate = n > 0 && n < picks.length;
+    }
+  };
+  picks.forEach((x) => x.addEventListener('change', sync));
+  el.querySelector('#pick-all')?.addEventListener('change', (e) => {
+    picks.forEach((x) => (x.checked = e.target.checked));
+    sync();
+  });
+  el.querySelector('#bulk-clear')?.addEventListener('click', () => {
+    picks.forEach((x) => (x.checked = false));
+    sync();
+  });
+  el.querySelector('#bulk-move')?.addEventListener('click', () => bulkDialog(o, picks.filter((x) => x.checked).map((x) => find(x.dataset.pick)), reload));
 }
 
 export async function applicantsView(el) {
@@ -238,3 +347,108 @@ export const recruitmentSettingsCard = (s) => html`<section class="card" id="job
     <label class="field"><span>Remove after closing (days)</span><input type="number" name="applicantPurgeDays" min="0" max="365" value="${s.applicantPurgeDays}" /><span class="hint">0 = keep until HR removes it.</span></label>
   </div>
 </section>`;
+
+// ----- HR settings → Recruitment stages (PL-015) -----
+// The in-progress stages, in order (add, rename, describe, move up or down, retire; a used stage can
+// only be retired), and the final outcomes (labels and descriptions only; their meaning is fixed).
+export async function recruitmentStagesCard(el) {
+  const v = await api.get('/api/hris/recruitment/stages');
+  let rows = v.stages.map((x) => ({ ...x }));
+  const outcomes = v.outcomes.map((x) => ({ ...x }));
+  const stageRow = (x, i) => html`<li class="stage-row ${x.retired ? 'retired' : ''}" data-i="${i}">
+    <span class="stage-no" aria-hidden="true">${i + 1}</span>
+    <div class="stage-fields">
+      <label class="field"><span>Label</span><input name="label" value="${x.label}" maxlength="${STAGE_LIMITS.label}" required /></label>
+      <label class="field"><span>What the applicant reads</span><textarea name="description" rows="3" maxlength="${STAGE_LIMITS.description}" placeholder="What happens at this stage, and what the applicant may be asked to do.">${x.description}</textarea></label>
+      <small class="muted">${x.used ? `${x.current} at this stage now · used by ${x.used} application${x.used === 1 ? '' : 's'}` : x.id ? 'Not used yet' : 'New'}${x.retired ? ' · retired: no new moves to it' : ''}</small>
+    </div>
+    <div class="stage-tools">
+      <button type="button" class="icon-btn" data-up aria-label="Move ${x.label} up" ${i === 0 ? 'disabled' : ''}>${icon('up', 16)}</button>
+      <button type="button" class="icon-btn" data-down aria-label="Move ${x.label} down" ${i === rows.length - 1 ? 'disabled' : ''}>${icon('down', 16)}</button>
+      <label class="check-inline"><input type="checkbox" name="retired" ${x.retired ? 'checked' : ''} /> Retired</label>
+      ${x.used ? '' : html`<button type="button" class="btn sm danger ghost" data-remove>${icon('trash', 14)} Remove</button>`}
+    </div>
+  </li>`;
+  const draw = () => mount(el, html`<section class="card" id="recruitment-stages">
+    <div class="card-head"><h2>Recruitment stages</h2><span class="muted small">Applicants see these on their application</span></div>
+    <p class="muted small">The stages a job application goes through, in order. A new application starts at the first stage that is not retired. HR can move an application to any later stage, back one stage with a reason, or to a final outcome. A stage an application has been at cannot be removed, only retired, so every history keeps its meaning.</p>
+    <form id="stages-form" novalidate>
+      <ol class="stage-list">${rows.map(stageRow)}</ol>
+      <p><button type="button" class="btn sm" id="add-stage">${icon('plus', 14)} Add a stage</button></p>
+      <h3>Final outcomes</h3>
+      <p class="muted small">Fixed: their meaning never changes, so you can rename them and change what the applicant reads.</p>
+      <ul class="stage-list outcomes">${outcomes.map((x, i) => html`<li class="stage-row ${x.retired ? 'retired' : ''}" data-o="${i}">
+        <span class="stage-no" aria-hidden="true">${icon(x.meaning === 'selected' ? 'star' : x.meaning === 'withdrawn' ? 'undo' : 'flag', 14)}</span>
+        <div class="stage-fields">
+          <label class="field"><span>Label</span><input name="label" value="${x.label}" maxlength="${STAGE_LIMITS.label}" required /></label>
+          <label class="field"><span>What the applicant reads</span><textarea name="description" rows="3" maxlength="${STAGE_LIMITS.description}">${x.description}</textarea></label>
+          <small class="muted">Means: <strong>${x.meaningLabel}</strong>${x.applicantOnly ? ' · set only by the applicant' : ''}${x.used ? ` · used by ${x.used}` : ''}</small>
+        </div>
+        <div class="stage-tools">${x.optional ? html`<label class="check-inline"><input type="checkbox" name="retired" ${x.retired ? 'checked' : ''} /> Not offered</label>` : html`<span class="badge gray">Fixed</span>`}</div>
+      </li>`)}</ul>
+      <p class="form-error" hidden></p>
+      <div class="actions end"><button class="btn primary" type="submit">Save recruitment stages</button></div>
+    </form>
+  </section>`);
+  // Keep what was typed before redrawing (moving, adding, removing).
+  const read = () => {
+    const form = el.querySelector('#stages-form');
+    form.querySelectorAll('[data-i]').forEach((li) => {
+      const x = rows[Number(li.dataset.i)];
+      x.label = li.querySelector('[name=label]').value;
+      x.description = li.querySelector('[name=description]').value;
+      x.retired = li.querySelector('[name=retired]').checked;
+    });
+    form.querySelectorAll('[data-o]').forEach((li) => {
+      const x = outcomes[Number(li.dataset.o)];
+      x.label = li.querySelector('[name=label]').value;
+      x.description = li.querySelector('[name=description]').value;
+      x.retired = Boolean(li.querySelector('[name=retired]')?.checked);
+    });
+  };
+  const wire = () => {
+    const form = el.querySelector('#stages-form');
+    const at = (b) => Number(b.closest('[data-i]').dataset.i);
+    const swap = (i, j) => {
+      read();
+      [rows[i], rows[j]] = [rows[j], rows[i]];
+      redraw();
+    };
+    form.querySelectorAll('[data-up]').forEach((b) => b.addEventListener('click', () => swap(at(b), at(b) - 1)));
+    form.querySelectorAll('[data-down]').forEach((b) => b.addEventListener('click', () => swap(at(b), at(b) + 1)));
+    form.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
+      read();
+      rows.splice(at(b), 1);
+      redraw();
+    }));
+    form.querySelector('#add-stage').addEventListener('click', () => {
+      read();
+      rows.push({ id: '', label: '', description: '', used: 0, current: 0 });
+      redraw();
+      el.querySelector(`[data-i="${rows.length - 1}"] [name=label]`)?.focus();
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      read();
+      const errEl = form.querySelector('.form-error');
+      try {
+        const saved = await api.put('/api/hris/recruitment/stages', {
+          stages: rows.map(({ id, label, description, retired }) => ({ ...(id ? { id } : {}), label, description, retired })),
+          outcomes: outcomes.map(({ id, label, description, retired }) => ({ id, label, description, retired })),
+        });
+        rows = saved.stages.map((x) => ({ ...x }));
+        saved.outcomes.forEach((x, i) => Object.assign(outcomes[i], x));
+        redraw();
+        toast('Recruitment stages saved.');
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.hidden = false;
+      }
+    });
+  };
+  const redraw = () => {
+    draw();
+    wire();
+  };
+  redraw();
+}

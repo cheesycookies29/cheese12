@@ -14,24 +14,22 @@ export const AUDIENCES = [
   ['all', 'Open to all'],
   ['internal', 'Internal only'],
 ];
-// An application's status (a simple tracker; full stages come with PL-015). HR sets all but Withdrawn,
-// which only the applicant sets.
-export const APPLICATION_STATUSES = [
-  ['received', 'Received'],
-  ['review', 'Under review'],
-  ['shortlisted', 'Shortlisted'],
-  ['not-selected', 'Not selected'],
+// An application's status is its fixed internal meaning (PL-015): in progress at one of the school's
+// stages, or one of the final outcomes. HR moves it through the stages; only the applicant withdraws.
+export const MEANINGS = [
+  ['in-progress', 'In progress'],
   ['selected', 'Selected'],
+  ['not-selected', 'Not selected'],
   ['withdrawn', 'Withdrawn'],
 ];
-export const HR_STATUSES = APPLICATION_STATUSES.map(([k]) => k).filter((k) => k !== 'withdrawn');
+export const IN_PROGRESS = 'in-progress';
 // Decided: the applicant can no longer withdraw.
 export const DECIDED = ['not-selected', 'selected'];
 
 const label = (list, k) => list.find(([id]) => id === k)?.[1] || k;
 export const openingStatusLabel = (k) => label(OPENING_STATUSES, k);
 export const audienceLabel = (k) => label(AUDIENCES, k);
-export const applicationStatusLabel = (k) => label(APPLICATION_STATUSES, k);
+export const meaningLabel = (k) => label(MEANINGS, k);
 
 // settings.people (Settings center → ATLAS People → Job applicants; HR settings in People).
 export const DEFAULT_PEOPLE_SETTINGS = {
@@ -52,3 +50,142 @@ export const applicantExpired = (user, nowMs = Date.now()) => Boolean(user && us
 // Whether an opening takes applications on `today` (YYYY-MM-DD, the school's local date): open, and
 // its closing date not yet passed (applications are taken through the closing date itself).
 export const openingAccepts = (o, today) => Boolean(o && o.status === 'open' && (!o.closingDate || today <= o.closingDate));
+
+// ----- Recruitment stages (PL-015): a lookup list with fixed meanings -----
+// settings.recruitmentStages (HR settings → Recruitment stages; Settings center → ATLAS People).
+//  - stages: the in-progress stages, in order. HR adds, renames, reorders and retires them; each has
+//    a short description the applicant reads (what happens now, what they may be asked to do). A stage
+//    an application has been at is never deleted, only retired: its id, label and place stay, so
+//    every application's history keeps its meaning.
+//  - outcomes: the final outcomes. Their ids and meanings are fixed in the code (OUTCOME_MEANING);
+//    only their labels and descriptions change. "Not qualified" is an optional outcome with the
+//    meaning Not selected (it can be retired); Withdrawn is set only by the applicant.
+// The defaults follow the usual public-sector merit selection flow; each school confirms them
+// against its own merit selection plan.
+export const DEFAULT_STAGES = [
+  { id: 'received', label: 'Application received', description: 'HR has your application and checks that it is complete. You may be asked for a missing document.' },
+  { id: 'screening', label: 'Initial screening', description: 'HR compares your application with the qualification standards of the position: education, training, experience and eligibility. You may be asked to send or bring documents.' },
+  { id: 'assessment', label: 'Assessment (examination or interview)', description: 'Qualified applicants are assessed, for example by a written examination, a skills test or an interview. HR tells you the date, time and place, and what to bring.' },
+  { id: 'deliberation', label: 'Deliberation', description: 'The selection board compares the assessed applicants and recommends whom to appoint. There is nothing you need to do at this stage.' },
+  { id: 'final-decision', label: 'Final decision', description: 'The appointing authority chooses from the applicants the board recommended. You are told the outcome here and on the bell.' },
+];
+export const OUTCOME_MEANING = { selected: 'selected', 'not-qualified': 'not-selected', 'not-selected': 'not-selected', withdrawn: 'withdrawn' };
+export const OPTIONAL_OUTCOMES = ['not-qualified'];
+export const DEFAULT_OUTCOMES = [
+  { id: 'selected', label: 'Selected', description: 'You were chosen for this position. HR tells you the next steps for your appointment.' },
+  { id: 'not-qualified', label: 'Not qualified', description: 'Your application does not meet the qualification standards of this position. You may apply for other openings.' },
+  { id: 'not-selected', label: 'Not selected', description: 'Another applicant was chosen for this position. Thank you for applying; you may apply for other openings.' },
+  { id: 'withdrawn', label: 'Withdrawn', description: 'You withdrew this application.' },
+];
+export const DEFAULT_RECRUITMENT_STAGES = { stages: DEFAULT_STAGES, outcomes: DEFAULT_OUTCOMES };
+export const STAGE_LIMITS = { stages: 20, label: 60, description: 400 };
+
+// The stage list as stored, with anything missing filled from the defaults: every outcome is there,
+// in the fixed order, with its fixed id.
+export function mergeRecruitmentStages(v) {
+  const stages = Array.isArray(v?.stages) && v.stages.length
+    ? v.stages.filter((s) => s && typeof s.id === 'string' && s.id).map((s) => ({ id: s.id, label: String(s.label || s.id), description: String(s.description || ''), ...(s.retired ? { retired: true } : {}) }))
+    : structuredClone(DEFAULT_STAGES);
+  const saved = Object.fromEntries((Array.isArray(v?.outcomes) ? v.outcomes : []).filter((o) => o && OUTCOME_MEANING[o.id]).map((o) => [o.id, o]));
+  const outcomes = DEFAULT_OUTCOMES.map((d) => {
+    const o = saved[d.id] || d;
+    return { id: d.id, label: String(o.label || d.label), description: String(o.description ?? d.description), ...(o.retired && OPTIONAL_OUTCOMES.includes(d.id) ? { retired: true } : {}) };
+  });
+  return { stages, outcomes };
+}
+
+// One stage or outcome by its id: its label, description, kind, meaning and place.
+export function stageInfo(cfg, id) {
+  const i = cfg.stages.findIndex((s) => s.id === id);
+  if (i >= 0) return { ...cfg.stages[i], kind: 'stage', meaning: IN_PROGRESS, index: i };
+  const o = cfg.outcomes.find((x) => x.id === id);
+  if (o) return { ...o, kind: 'outcome', meaning: OUTCOME_MEANING[o.id], index: cfg.stages.length };
+  return { id, label: id || '—', description: '', kind: 'unknown', meaning: IN_PROGRESS, index: -1 };
+}
+export const stageLabel = (cfg, id) => stageInfo(cfg, id).label;
+export const meaningOf = (cfg, id) => stageInfo(cfg, id).meaning;
+export const activeStages = (cfg) => cfg.stages.filter((s) => !s.retired);
+// The stage an application starts at when it is sent (or sent again after withdrawing).
+export const firstStage = (cfg) => activeStages(cfg)[0] || cfg.stages[0];
+// The stage before `id` in the order, skipping retired ones (null at the first).
+export function previousStage(cfg, id) {
+  const i = cfg.stages.findIndex((s) => s.id === id);
+  for (let j = i - 1; j >= 0; j--) if (!cfg.stages[j].retired) return cfg.stages[j];
+  return null;
+}
+
+// ----- Moving to the stages: the statuses before PL-015, mapped to the stages (kept in the code) -----
+// received → the first stage; review (Under review) → the second; shortlisted → the assessment stage;
+// the final ones → the same final outcomes.
+export const LEGACY_STATUSES = {
+  received: (cfg) => cfg.stages[0]?.id,
+  review: (cfg) => (cfg.stages[1] || cfg.stages[0])?.id,
+  shortlisted: (cfg) => (cfg.stages.find((s) => s.id === 'assessment') || cfg.stages[2] || cfg.stages.at(-1))?.id,
+  selected: () => 'selected',
+  'not-selected': () => 'not-selected',
+  withdrawn: () => 'withdrawn',
+};
+export const legacyStage = (cfg, status) => (Object.hasOwn(LEGACY_STATUSES, status) ? LEGACY_STATUSES[status] : LEGACY_STATUSES.received)(cfg);
+
+// Applications from before the stages: each gets its stage from its old status, and its history
+// (already kept on the application, the same changes the audit log has) is carried over entry by
+// entry: who, when, and the note to the applicant. One without a history starts it here, with its
+// current state. Applications already on the stages are left as they are. Returns how many moved.
+export function migrateApplications(data, at = new Date().toISOString()) {
+  const cfg = mergeRecruitmentStages(data.settings?.recruitmentStages);
+  let n = 0;
+  for (const a of data.jobApplications || []) {
+    if (a.stage) continue;
+    const from = a.status;
+    a.stage = legacyStage(cfg, from);
+    a.status = meaningOf(cfg, a.stage);
+    a.legacyStatus = from; // what it was, for the record
+    const old = Array.isArray(a.history) ? a.history : [];
+    a.history = old.length
+      ? old.map((h) => ({
+        stage: h.stage || legacyStage(cfg, h.status), at: h.at,
+        ...(h.self ? { self: true, ...(h.status === 'received' ? { applied: true } : {}) } : { by: h.by || '' }),
+        ...(h.note ? { note: h.note } : {}),
+      }))
+      : [{ stage: a.stage, at: a.updatedAt || a.createdAt || at, migrated: true, ...(a.statusNote ? { note: a.statusNote } : {}) }];
+    n++;
+  }
+  return n;
+}
+
+// ----- What the applicant sees: the tracker -----
+// The stages of the application's current round (since it was last sent), each done, current, to
+// come or skipped, with the date it was reached; retired stages only where the application has been.
+// Once decided (or withdrawn), the stages it never reached are left out and the outcome ends the list.
+export function trackerOf(cfg, a) {
+  const hist = a.history || [];
+  let start = 0;
+  hist.forEach((h, i) => {
+    if (h.applied) start = i;
+  });
+  const round = hist.slice(start);
+  const reached = new Map();
+  for (const h of round) reached.set(h.stage, h.at);
+  const here = stageInfo(cfg, a.stage);
+  const decided = here.kind === 'outcome';
+  // A retired stage only where it is the current one, or was reached before it (never "to come").
+  const at = cfg.stages.findIndex((s) => s.id === a.stage);
+  const list = cfg.stages.filter((s, i) => !s.retired || s.id === a.stage || (reached.has(s.id) && (decided || i < at)));
+  const current = list.findIndex((s) => s.id === a.stage);
+  const last = decided ? Math.max(-1, ...list.map((s, i) => (reached.has(s.id) ? i : -1))) : current;
+  const steps = [];
+  list.forEach((s, i) => {
+    if (decided && i > last) return;
+    const state = decided || i < current ? (reached.has(s.id) ? 'done' : 'skipped') : i === current ? 'current' : 'next';
+    steps.push({ id: s.id, label: s.label, description: s.description, state, at: state === 'next' || state === 'skipped' ? null : reached.get(s.id) || null });
+  });
+  const since = [...round].reverse().find((h) => h.stage === a.stage)?.at || a.updatedAt || null;
+  if (decided) steps.push({ id: here.id, label: here.label, description: here.description, state: 'outcome', meaning: here.meaning, at: since });
+  return {
+    steps,
+    current: { id: here.id, label: here.label, description: here.description, kind: here.kind, meaning: here.meaning, since },
+    outcome: decided ? { id: here.id, label: here.label, description: here.description, meaning: here.meaning, at: since } : null,
+    step: decided ? null : steps.findIndex((s) => s.state === 'current') + 1,
+    of: decided ? null : steps.length,
+  };
+}

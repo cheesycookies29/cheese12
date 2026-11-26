@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Follow a job application through the recruitment stages
+- Applicants (and employees who applied) follow each application under **My applications → See its progress**: the school's recruitment stages with dates, what happens now, HR's notes (from *HR office*) and the outcome, opened from the bell. HR managers **Move** applications to a later stage, back one with a reason, or to an outcome (one or several at once, with a note and an internal remark), see the counts per stage, and set the stages under **HR settings → Recruitment stages**; earlier statuses moved to the stages with their history. See [the applicant's guide](applicant#follow-your-application), [the HR guide](hr#move-an-application-to-another-stage) and [the administrator's guide](admin#check-the-recruitment-stages).
+
 ### The plantilla register and the PSIPOP in People
 - HR managers keep the plantilla under **People → Plantilla**: each item as DBM issued it (item number, position, salary grade, office and campus, fund source, area code, area type and level, date created and authority), filled, vacant, unfunded or abolished, with its incumbent read from their employee record, the authorized and actual salaries from the salary schedule, filters, totals, CSV export and a printable **PSIPOP** on Legal paper. Item numbers typed on employee records before were moved into the register (drafts to review where they did not match). Linking an item never changes the appointment status. A vacant item has **Post a job opening**. See [the HR guide](hr#record-a-plantilla-item); administrators: [the new permission](admin#change-what-an-account-type-may-do).
 

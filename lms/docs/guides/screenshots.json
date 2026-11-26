@@ -1162,9 +1162,21 @@
   "wait": 1200
  },
  {
+  "file": "applicant-application-progress.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs/mine",
+  "click": [
+   "text=See its progress >> nth=0"
+  ],
+  "wait": 1200
+ },
+ {
   "file": "applicant-my-applications-phone.jpg",
   "user": "applicant.demo",
   "url": "/hris/#/jobs/mine",
+  "click": [
+   "text=See its progress >> nth=0"
+  ],
   "viewport": "phone",
   "wait": 1200
  },
@@ -1189,11 +1201,29 @@
   "url": "/hris/#/recruitment",
   "click": [
    "text=Instructor I",
-   "[data-status] >> nth=0",
-   "select:.modal select[name=status]|shortlisted",
-   "fill:.modal textarea[name=note]|Interview on Monday, 9:00, at the HR office."
+   "tr:has-text(\"Paolo Quimbo\") [data-move]",
+   "select:.modal select[name=stage]|assessment",
+   "fill:.modal textarea[name=note]|Your examination and interview are on Monday, 9:00, at the HR office. Please bring a valid ID.",
+   "fill:.modal textarea[name=remark]|Certificate of employment received by email."
   ],
   "wait": 900
+ },
+ {
+  "file": "hr-bulk-move.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Instructor I",
+   "tr:has-text(\"Carla Mendiola\") [data-pick]",
+   "tr:has-text(\"Paolo Quimbo\") [data-pick]"
+  ],
+  "wait": 900
+ },
+ {
+  "file": "hr-recruitment-stages.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/settings?section=stages",
+  "wait": 1500
  },
  {
   "file": "hr-applicant-accounts.jpg",
@@ -1217,5 +1247,14 @@
    "fill:textarea[name=note]|I would like to move to the HR office, where I can use my records experience."
   ],
   "wait": 900
+ },
+ {
+  "file": "employee-application-progress.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/jobs/mine",
+  "click": [
+   "text=See its progress >> nth=0"
+  ],
+  "wait": 1200
  }
 ]

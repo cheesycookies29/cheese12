@@ -149,7 +149,7 @@ export const HRIS_PERMISSION_LABELS = [
   ['payroll.view', 'View payroll runs and payslips'],
   ['payroll.edit', 'Create, adjust and finalize payroll runs'],
   ['payroll.config', 'Payroll setup: pay rules, contributions, tax tables'],
-  ['hris.settings', 'Employer details, the default work schedule and how long applicant accounts last'],
+  ['hris.settings', 'Employer details, the default work schedule, how long applicant accounts last and the recruitment stages'],
   ['hris.recruitment', 'Recruitment: job openings, applications and applicant accounts'],
   ['hris.plantilla', 'Plantilla: record items, link incumbents, print the PSIPOP (anyone who views employee records can read it)'],
 ];

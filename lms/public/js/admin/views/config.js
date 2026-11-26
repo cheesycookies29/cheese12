@@ -35,6 +35,8 @@ export function showValue(v, format, display) {
       return `${v.shiftStart}–${v.shiftEnd}, ${v.breakMinutes}-minute break, ${run}`;
     }
     case 'scale': return `${v.length} bands: ${[...v].sort((a, b) => b.min - a.min).map((b) => `${b.min}%→${Number(b.grade).toFixed(2)}`).join(', ')}`;
+    case 'stages': return Array.isArray(v) ? v.map((x) => `${x.label}${x.retired ? ' (retired)' : ''}`).join(' → ') : '—';
+    case 'outcomes': return Array.isArray(v) ? v.map((x) => `${x.label}${x.retired ? ' (not offered)' : ''}`).join(', ') : '—';
     case 'types': return v.map((t) => `${t.name} ${t.weight}%${t.active === false ? ' (off)' : ''}`).join(', ');
     case 'modules': {
       const off = Object.entries(v).flatMap(([m, r]) => Object.entries(r).filter(([, on]) => !on).map(([who]) => `${m} for ${who}s`));

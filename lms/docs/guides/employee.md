@@ -135,11 +135,21 @@ For a promotion or a transfer, you apply with your own account: there is no sepa
 2. Choose an opening to read its salary, vacancies, closing date and qualification standards.
 3. Choose **Apply**, type a **Cover note** if you like, and choose **Send application**.
 
-Your application is marked **Internal** and linked to your employee record: HR sees your current position, salary grade and campus from it, and your note. Follow it under **My applications** (the button on **Job openings**): its status, the date it last changed and any note from HR. You are told on the bell when HR changes it. You can **Withdraw** it while the opening is not closed and HR has not decided, and send it again until the closing date.
+Your application is marked **Internal** and linked to your employee record: HR sees your current position, salary grade and campus from it, and your note. You can **Withdraw** it while the opening is not closed and HR has not decided, and send it again until the closing date.
 
 ![Job openings in your People](employee-job-openings.jpg)
 
 ![Apply for an internal opening](employee-apply.jpg)
+
+### Follow your application
+
+1. Open **Job openings** in People and choose **My applications**.
+2. Each application shows the school's recruitment stages, with a tick and a date on each stage it has passed. Choose **See its progress**.
+3. Under **Progress**, read where it is now, since when, and what happens at that stage. Under **Notes from HR**, read what HR wrote to you, oldest first.
+
+You see the same tracker as applicants from outside the school. You are told on the bell each time HR moves your application or writes to you; choose the notice to open the application. The notes come from *HR office*; HR's own remarks are not shown. Once HR decides, the outcome (for example *Selected*) ends the tracker. See [the applicant's guide](applicant#follow-your-application) for what each stage means.
+
+![Your internal application's progress](employee-application-progress.jpg)
 
 ### Request supplies or a purchase
 
@@ -157,7 +167,7 @@ Your application is marked **Internal** and linked to your employee record: HR s
 | Leave & requests | Your leave balances; file leave or remote work; attach a medical certificate; withdraw a pending request |
 | My payslips | Your finalized payslips, including bonuses, to print or save as PDF |
 | My HR record | Your record as HR keeps it, and **Change password** |
-| Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with their status |
+| Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with the progress of each through the recruitment stages |
 | Getting started | Shown when your account is not linked to an employee record yet |
 | My accountabilities | In Finance: property in your custody, cash advances, receipts issued to you |
 | Supply & purchase requests | In Finance: request supplies (RIS) or a purchase (PR), and follow them |

@@ -1,14 +1,16 @@
-// Job openings and My applications (server/recruitment.js): for job applicants (people outside the
-// school, with a temporary applicant account) and for employees applying internally from
-// self-service with their own account (request PL-004: no second account).
+// Job openings, My applications and each application's progress (server/recruitment.js): for job
+// applicants (people outside the school, with a temporary applicant account) and for employees
+// applying internally from self-service with their own account (request PL-004: no second account).
+// The progress tracker (PL-015): the school's recruitment stages, done, current and to come, with
+// dates; what happens at the current stage; the notes HR wrote to the applicant; the outcome.
 import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
-import { html, mount, money, fmtDate, badge, toast, modal, confirmDialog, today } from '../../ui.js';
-import { applicationStatusLabel } from '/shared/recruitment.js';
+import { html, mount, money, fmtDate, fmtDateTime, badge, toast, modal, confirmDialog, today } from '../../ui.js';
 
-const STATUS_KIND = { received: 'blue', review: 'amber', shortlisted: 'brand', 'not-selected': 'gray', selected: 'green', withdrawn: 'gray' };
-export const applicationBadge = (s) => badge(applicationStatusLabel(s), STATUS_KIND[s] || '');
+// An application's stage or outcome as a badge, coloured by its fixed meaning.
+const MEANING_KIND = { 'in-progress': 'blue', selected: 'green', 'not-selected': 'gray', withdrawn: 'gray' };
+export const applicationBadge = (a) => badge(a.stageLabel || a.stage, MEANING_KIND[a.status] || '');
 export const salaryLine = (o) => (o.salaryGrade ? `SG ${o.salaryGrade}${o.monthlySalary ? ` · ${money(o.monthlySalary)} a month` : ''}` : '');
 export const placeLine = (o) => [o.office, o.campusName].filter(Boolean).join(' · ');
 const localDay = (iso) => today(new Date(iso));
@@ -28,7 +30,7 @@ function openingCard(o) {
     <div class="job-card-head">
       <span class="item-ic">${icon('briefcase')}</span>
       <span class="grow"><strong>${o.title}</strong><small>${placeLine(o)}</small></span>
-      ${o.mine ? applicationBadge(o.mine.status) : ''}
+      ${o.mine ? applicationBadge(o.mine) : ''}
     </div>
     <div class="job-facts">
       ${salaryLine(o) ? html`<span>${icon('wallet', 14)} ${salaryLine(o)}</span>` : ''}
@@ -73,9 +75,9 @@ export async function jobView(el, { id }) {
       <section class="card" id="apply-card">
         <h2>${icon('briefcase')} Your application</h2>
         ${mine && mine.status !== 'withdrawn'
-          ? html`<p>${applicationBadge(mine.status)} <span class="muted small">since ${fmtDate(localDay(mine.updatedAt))}</span></p>
-              ${mine.statusNote ? html`<p class="small"><strong>Note from HR:</strong> ${mine.statusNote}</p>` : ''}
-              <a class="btn" href="#/jobs/mine">My applications</a>`
+          ? html`<p>${applicationBadge(mine)} <span class="muted small">since ${fmtDate(localDay(mine.stageSince || mine.updatedAt))}</span></p>
+              ${tracker(mine.tracker, { compact: true })}
+              <a class="btn" href="#/jobs/mine/${mine.id}">${icon('chart', 16)} See its progress</a>`
           : can
             ? html`<p class="muted small">${o.internal
                 ? 'HR sees your name, your current position, salary grade and campus from your employee record, and your note.'
@@ -99,29 +101,109 @@ export async function jobView(el, { id }) {
   }));
 }
 
+// ----- The progress tracker -----
+// A stepper of the stages: done (a tick and the date), the current one (and since when), to come,
+// skipped, and the outcome once decided. Across the page on a wide screen; a list down the page on
+// a phone (hris.css). compact: the dots and labels only, for My applications.
+const STEP_TEXT = { done: 'Done', current: 'Now', next: 'To come', skipped: 'Skipped', outcome: 'Outcome' };
+function stepMark(s, i) {
+  if (s.state === 'done') return icon('check', 14);
+  if (s.state === 'outcome') return icon(s.meaning === 'selected' ? 'star' : s.meaning === 'withdrawn' ? 'undo' : 'flag', 14);
+  if (s.state === 'skipped') return '–';
+  return String(i + 1);
+}
+export function tracker(t, { compact = false } = {}) {
+  if (!t?.steps?.length) return '';
+  return html`<ol class="tracker ${compact ? 'compact' : ''}" aria-label="Progress of the application">
+    ${t.steps.map((s, i) => html`<li class="step ${s.state} ${s.meaning ? `meaning-${s.meaning}` : ''}" ${s.state === 'current' || s.state === 'outcome' ? 'aria-current="step"' : ''}>
+      <span class="step-mark" aria-hidden="true">${stepMark(s, i)}</span>
+      <span class="step-text">
+        <strong>${s.label}</strong>
+        <small><span class="sr-only">${STEP_TEXT[s.state]}: </span>${s.at ? (s.state === 'current' ? `Since ${fmtDate(localDay(s.at))}` : fmtDate(localDay(s.at))) : s.state === 'skipped' ? 'Skipped' : s.state === 'next' ? 'To come' : ''}</small>
+      </span>
+    </li>`)}
+  </ol>`;
+}
+
+// What happens now (the current stage's description), or the outcome once decided.
+function nowBox(a) {
+  const t = a.tracker;
+  if (t.outcome) {
+    const kind = t.outcome.meaning === 'selected' ? 'ok' : 'info';
+    return html`<div class="notice ${kind} job-now">${icon(t.outcome.meaning === 'selected' ? 'star' : 'flag', 18)}<div><p><strong>${t.outcome.label}</strong> <span class="muted small">· ${fmtDate(localDay(t.outcome.at))}</span></p>${t.outcome.description ? html`<p>${t.outcome.description}</p>` : ''}</div></div>`;
+  }
+  return html`<div class="notice info job-now">${icon('clock', 18)}<div><p><strong>Now: ${t.current.label}</strong> <span class="muted small">· step ${t.step} of ${t.of}, since ${fmtDate(localDay(t.current.since))}</span></p>${t.current.description ? html`<p>${t.current.description}</p>` : ''}</div></div>`;
+}
+
+// The notes HR wrote to the applicant, oldest first. Always from "HR office", never a person's name.
+function notesList(notes) {
+  if (!notes.length) return html`<p class="muted">No notes from HR yet. When HR writes to you about this application, the note shows here and on the bell.</p>`;
+  return html`<ol class="job-notes">${notes.map((n) => html`<li>
+    <div class="job-note-head"><strong>${n.from}</strong><span class="muted small">${fmtDateTime(n.at)} · ${n.stage}</span></div>
+    <p class="pre">${n.note}</p>
+  </li>`)}</ol>`;
+}
+
+const withdraw = async (a, done) => {
+  if (!(await confirmDialog(`Withdraw your application for ${a.title}? You can send it again until the opening closes.`, { confirmLabel: 'Withdraw', title: 'Withdraw application' }))) return;
+  await api.post(`/api/hris/my-applications/${a.id}/withdraw`);
+  toast('Application withdrawn.');
+  done();
+};
+const placeOf = (a) => [a.office, a.campusName].filter(Boolean).join(' · ');
+
 export async function myApplicationsView(el) {
   const d = await api.get('/api/hris/my-applications');
   const removal = d.applicant ? (d.applicant.purgeDays ? `After that you cannot sign in, and ${d.applicant.purgeDays} days later your account and applications are removed.` : 'After that you cannot sign in, and HR removes your account and applications.') : '';
   mount(el, html`
-    ${pageHead('My applications', 'Each application, its status and when it last changed. You are told on the bell when HR changes it.', html`<a class="btn" href="#/jobs">${icon('briefcase', 16)} Job openings</a>`)}
+    ${pageHead('My applications', 'Where each application is in the school\'s recruitment stages. You are told on the bell when HR moves it or writes to you.', html`<a class="btn" href="#/jobs">${icon('briefcase', 16)} Job openings</a>`)}
     ${applicantNotice(d.applicant, removal)}
     ${d.applications.length
-      ? html`<section class="card scroll-x"><table class="table">
-          <thead><tr><th>Position</th><th>Applied</th><th>Status</th><th>Last change</th><th>Note from HR</th><th></th></tr></thead>
-          <tbody>${d.applications.map((a) => html`<tr>
-            <td><a href="#/jobs/${a.openingId}"><strong>${a.title}</strong></a><small class="block muted">${[a.office, a.campusName].filter(Boolean).join(' · ')}${a.internal ? ' · Internal' : ''}</small></td>
-            <td>${fmtDate(localDay(a.createdAt))}</td>
-            <td>${applicationBadge(a.status)}</td>
-            <td>${fmtDate(localDay(a.updatedAt))}</td>
-            <td class="notes">${a.statusNote || html`<span class="muted">—</span>`}</td>
-            <td class="row-actions">${a.canWithdraw ? html`<button class="btn sm" data-withdraw="${a.id}">Withdraw</button>` : a.canApplyAgain ? html`<a class="btn sm" href="#/jobs/${a.openingId}">Apply again</a>` : ''}</td>
-          </tr>`)}</tbody></table></section>`
+      ? html`<div class="stack">${d.applications.map((a) => html`<section class="card job-app">
+          <div class="job-app-head">
+            <span class="grow"><a href="#/jobs/mine/${a.id}"><strong>${a.title}</strong></a><small class="block muted">${placeOf(a)}${a.internal ? ' · Internal' : ''} · applied ${fmtDate(localDay(a.createdAt))}</small></span>
+            ${applicationBadge(a)}
+          </div>
+          ${tracker(a.tracker, { compact: true })}
+          ${a.notes.length ? html`<p class="small job-latest"><strong>Latest note from HR</strong> <span class="muted">(${fmtDate(localDay(a.notes.at(-1).at))})</span>: ${a.notes.at(-1).note}</p>` : ''}
+          <div class="actions">
+            <a class="btn sm primary" href="#/jobs/mine/${a.id}">${icon('chart', 14)} See its progress</a>
+            ${a.canWithdraw ? html`<button class="btn sm" data-withdraw="${a.id}">Withdraw</button>` : a.canApplyAgain ? html`<a class="btn sm" href="#/jobs/${a.openingId}">Apply again</a>` : ''}
+          </div>
+        </section>`)}</div>`
       : html`<div class="card empty">${icon('inbox', 40)}<h2>No applications yet</h2><p>Choose an opening under <a href="#/jobs">Job openings</a> to apply.</p></div>`}`);
-  el.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', async () => {
-    const a = d.applications.find((x) => x.id === b.dataset.withdraw);
-    if (!(await confirmDialog(`Withdraw your application for ${a.title}? You can send it again until the opening closes.`, { confirmLabel: 'Withdraw', title: 'Withdraw application' }))) return;
-    await api.post(`/api/hris/my-applications/${a.id}/withdraw`);
-    toast('Application withdrawn.');
-    myApplicationsView(el);
-  }));
+  el.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', () => withdraw(d.applications.find((x) => x.id === b.dataset.withdraw), () => myApplicationsView(el))));
+}
+
+// One application: the tracker, what happens now, the notes from HR, and the application itself.
+// The bell's notice on each change opens this page.
+export async function applicationView(el, { id }) {
+  const a = await api.get(`/api/hris/my-applications/${id}`);
+  mount(el, html`
+    ${pageHead(a.title, html`${placeOf(a)}${a.internal ? ' · Internal application' : ''}`, applicationBadge(a), ['/jobs/mine', 'My applications'])}
+    ${applicantNotice(a.applicant)}
+    <section class="card">
+      <div class="card-head"><h2>${icon('chart')} Progress</h2>${a.tracker.of ? html`<span class="muted small">Step ${a.tracker.step} of ${a.tracker.of}</span>` : ''}</div>
+      ${tracker(a.tracker)}
+      ${nowBox(a)}
+    </section>
+    <div class="cols wide-left">
+      <section class="card">
+        <h2>${icon('comment')} Notes from HR</h2>
+        ${notesList(a.notes)}
+      </section>
+      <section class="card">
+        <h2>${icon('briefcase')} Your application</h2>
+        <dl class="info job-app-info">
+          <div><dt>Sent</dt><dd>${fmtDate(localDay(a.createdAt))}</dd></div>
+          <div><dt>Opening</dt><dd><a href="#/jobs/${a.openingId}">${a.title}</a>${a.closingDate ? html`<small class="block muted">Applications until ${fmtDate(a.closingDate)}</small>` : ''}</dd></div>
+          <div><dt>Your cover note</dt><dd class="pre">${a.note || html`<span class="muted">None</span>`}</dd></div>
+        </dl>
+        <div class="actions">
+          ${a.canWithdraw ? html`<button class="btn" id="withdraw">Withdraw</button>` : a.canApplyAgain ? html`<a class="btn primary" href="#/jobs/${a.openingId}">Apply again</a>` : ''}
+        </div>
+        ${a.canWithdraw ? html`<p class="muted small">You can withdraw while the opening is not closed and HR has not decided.</p>` : ''}
+      </section>
+    </div>`);
+  el.querySelector('#withdraw')?.addEventListener('click', () => withdraw(a, () => applicationView(el, { id })));
 }

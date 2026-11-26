@@ -18,7 +18,7 @@ import { payrollSetupView } from './views/payroll-setup.js';
 import { hrSettingsView } from './views/settings.js';
 import { meHomeView, meAttendanceView, meRequestsView, mePayslipsView, mePayslipView, meProfileView, notLinkedView } from './views/self.js';
 import { brandHome } from '../brand.js';
-import { jobsView, jobView, myApplicationsView } from './views/jobs.js';
+import { jobsView, jobView, myApplicationsView, applicationView } from './views/jobs.js';
 import { openingsView, openingFormView, openingView, applicantsView } from './views/recruitment.js';
 import { plantillaListView, plantillaItemView, plantillaFormView, psipopView } from './views/plantilla.js';
 
@@ -57,6 +57,7 @@ const routes = [
   ['/recruitment/:id/edit', openingFormView, perm('hris.recruitment')],
   ['/jobs', jobsView, seeker],
   ['/jobs/mine', myApplicationsView, seeker],
+  ['/jobs/mine/:id', applicationView, seeker],
   ['/jobs/:id', jobView, seeker],
   ['/me', meHomeView, emp],
   ['/me/attendance', meAttendanceView, emp],

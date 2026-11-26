@@ -1,6 +1,7 @@
 // Recruitment in People (HRIS requests PL-003, PL-004): job openings, temporary applicant accounts that
 // expire (warning, close, removal after the purge days), internal applications by employees from their
-// own account, and HR's simple status, with the bell and the audit log.
+// own account, and HR moving applications through the stages, with the bell and the audit log.
+// The stages themselves, the tracker and the migration: test/recruitment-stages.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setup } from './support.js';
@@ -218,7 +219,7 @@ test('expiry: set from the setting, warned once, sign-in refused and sessions en
   assert.equal(detail.counts.total, 1);
   assert.deepEqual(detail.applications.map((a) => [a.name, a.email, a.phone, a.note, a.removed]), [['Removed applicant', '', '', '', true]]);
   assert.ok(!JSON.stringify(s.env.db.data.jobApplications).includes('Carla'), 'no personal details left in the applications');
-  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${detail.applications[0].id}`, { status: 'shortlisted' }), /removed/);
+  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${detail.applications[0].id}`, { stage: 'assessment' }), /removed/);
 
   // 0 = kept until HR removes it.
   await s.hr.put('/api/hris/recruitment/settings', { applicantPurgeDays: 0 });
@@ -296,9 +297,9 @@ test('one application per person per opening; withdraw and apply again before th
   assert.deepEqual((await c.get('/api/hris/jobs')).openings.map((o) => o.title), ['Instructor I']);
   await assert.rejects(c.post(`/api/hris/jobs/${draft.id}/apply`, {}), status(404));
   const a = await c.post(`/api/hris/jobs/${job.id}/apply`, { note: 'First' });
-  assert.equal(a.status, 'received');
+  assert.deepEqual([a.stage, a.status, a.stageLabel], ['received', 'in-progress', 'Application received'], 'the first stage is assigned on applying');
   await assert.rejects(c.post(`/api/hris/jobs/${job.id}/apply`, { note: 'Twice' }), (e) => e.status === 409 && /already applied/.test(e.message));
-  assert.equal((await c.get('/api/hris/jobs')).openings[0].mine.status, 'received');
+  assert.equal((await c.get('/api/hris/jobs')).openings[0].mine.stage, 'received');
   const w = await c.post(`/api/hris/my-applications/${a.id}/withdraw`);
   assert.equal(w.status, 'withdrawn');
   assert.equal(w.canApplyAgain, true);
@@ -306,7 +307,7 @@ test('one application per person per opening; withdraw and apply again before th
   await assert.rejects(c.post(`/api/hris/my-applications/${a.id}/withdraw`), /already withdrawn/);
   const again = await c.post(`/api/hris/jobs/${job.id}/apply`, { note: 'Second' });
   assert.equal(again.id, a.id, 'the same application, sent again');
-  assert.equal(again.status, 'received');
+  assert.equal(again.stage, 'received');
   assert.equal(s.env.db.data.jobApplications.length, 1);
   // After the closing date: not shown, and no more applications (the one sent stays in My applications).
   await c.post(`/api/hris/my-applications/${a.id}/withdraw`);
@@ -325,7 +326,7 @@ test('one application per person per opening; withdraw and apply again before th
   await s.hr.del(`/api/hris/recruitment/openings/${draft.id}`);
 });
 
-test('HR: openings are checked, applications get a status with a note, on the bell and in the audit log', async () => {
+test('HR: openings are checked, applications move to a stage with a note, on the bell and in the audit log', async () => {
   const s = await school();
   await assert.rejects(s.opening({ title: '' }), /Position title is required/);
   await assert.rejects(s.opening({ salaryGrade: 40 }), /Salary grade must be 1 to 33/);
@@ -340,40 +341,41 @@ test('HR: openings are checked, applications get a status with a note, on the be
   assert.ok(s.env.api.audit.entries().some((e) => e.system === 'people' && e.action === 'Added · recruitment › openings' && e.target === 'Instructor I'));
   const c = await s.signUp();
   const a = await c.post(`/api/hris/jobs/${job.id}/apply`, { note: 'Hello' });
-  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${a.id}`, { status: 'withdrawn' }), /Pick a status/);
-  const changed = await s.hr.put(`/api/hris/recruitment/applications/${a.id}`, { status: 'shortlisted', note: 'Interview on Nov 12, 9:00 at the HR office.' });
-  assert.equal(changed.status, 'shortlisted');
-  assert.deepEqual(changed.history.map((h) => h.status), ['received', 'shortlisted']);
-  // The applicant: on the bell, and in My applications with the date of the change.
+  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${a.id}`, { stage: 'withdrawn' }), /Only the applicant can withdraw/);
+  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${a.id}`, { stage: 'nonsense' }), /Pick a stage/);
+  const changed = await s.hr.put(`/api/hris/recruitment/applications/${a.id}`, { stage: 'assessment', note: 'Interview on Nov 12, 9:00 at the HR office.' });
+  assert.equal(changed.stage, 'assessment');
+  assert.deepEqual(changed.history.map((h) => h.stage), ['received', 'assessment']);
+  // The applicant: on the bell, linked to their tracker, and in My applications with the date of the change.
   const told = s.bell('carla').find((n) => n.kind === 'job.status');
-  assert.equal(told.title, 'Your application for Instructor I: Shortlisted');
+  assert.equal(told.title, 'Your application for Instructor I: Assessment (examination or interview)');
   assert.equal(told.body, 'Note from HR: Interview on Nov 12, 9:00 at the HR office.');
-  assert.equal(told.link, '/hris/#/jobs/mine');
+  assert.equal(told.link, `/hris/#/jobs/mine/${a.id}`);
   const mine = (await c.get('/api/hris/my-applications')).applications[0];
-  assert.deepEqual([mine.status, mine.statusNote, mine.updatedAt], ['shortlisted', 'Interview on Nov 12, 9:00 at the HR office.', changed.updatedAt]);
+  assert.deepEqual([mine.stage, mine.statusNote, mine.updatedAt], ['assessment', 'Interview on Nov 12, 9:00 at the HR office.', changed.updatedAt]);
   // The audit log: who, what, from and to.
-  const entry = s.env.api.audit.entries().find((e) => e.action === 'Changed a job application\'s status');
+  const entry = s.env.api.audit.entries().find((e) => e.action === 'Moved a job application to another stage');
   assert.equal(entry.actor, 'Hana Reyes');
   assert.equal(entry.system, 'people');
-  assert.deepEqual(entry.changes[0], { field: 'Status', from: 'Received', to: 'Shortlisted' });
-  await s.hr.put(`/api/hris/recruitment/applications/${a.id}`, { status: 'selected' });
+  assert.deepEqual(entry.changes[0], { field: 'Stage', from: 'Application received', to: 'Assessment (examination or interview)' });
+  await s.hr.put(`/api/hris/recruitment/applications/${a.id}`, { stage: 'selected' });
   await assert.rejects(c.post(`/api/hris/my-applications/${a.id}/withdraw`), /decided/);
   // HR never decides on their own application.
   const internal = await s.opening({ title: 'HR Officer III', audience: 'internal' });
   const own = await s.hr.post(`/api/hris/jobs/${internal.id}/apply`, {});
-  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${own.id}`, { status: 'shortlisted' }), /own application/);
+  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${own.id}`, { stage: 'assessment' }), /own application/);
   // A withdrawn application is the applicant's: HR cannot change it.
   const b = await (await s.signUp('2')).post(`/api/hris/jobs/${job.id}/apply`, {});
   const c2 = await s.signIn('carla2', 'longenough1');
   await c2.post(`/api/hris/my-applications/${b.id}/withdraw`);
-  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${b.id}`, { status: 'review' }), /withdrew/);
+  await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${b.id}`, { stage: 'screening' }), /withdrew/);
   const detail = await s.hr.get(`/api/hris/recruitment/openings/${job.id}`);
   assert.deepEqual(detail.counts.byStatus.withdrawn, 1);
   assert.deepEqual(detail.counts.active, 1);
   // Staff without the permission are kept out of HR's screens.
   const eli = await s.signIn('eli');
   await assert.rejects(eli.get('/api/hris/recruitment/openings'), status(403));
-  await assert.rejects(eli.put(`/api/hris/recruitment/applications/${a.id}`, { status: 'review' }), status(403));
+  await assert.rejects(eli.put(`/api/hris/recruitment/applications/${a.id}`, { stage: 'screening' }), status(403));
 });
 
 test('the hris.recruitment permission: HR managers have it; Roles & permissions can move it; never applicants', async () => {
@@ -432,7 +434,7 @@ test('demo data: openings (one Internal only), the demo applicant with an applic
   await c.post('/api/hub/login', { username: 'applicant.demo', password: 'demo1234' });
   const mine = (await c.get('/api/hris/my-applications')).applications;
   assert.equal(mine.length, 1);
-  assert.equal(mine[0].status, 'review');
+  assert.equal(mine[0].stage, 'assessment');
   assert.ok((await c.get('/api/hris/jobs')).openings.every((o) => o.audience === 'all'));
   assert.ok(s.env.db.data.jobApplications.some((a) => a.internal && a.demo), 'an internal application by a demo employee');
   await s.admin.del('/api/admin/demo');
@@ -448,7 +450,7 @@ test('a selected outsider is never removed automatically: their details may beco
   const carla = await s.signUp();
   await carla.post(`/api/hris/jobs/${job.id}/apply`, {});
   const app = (await s.hr.get(`/api/hris/recruitment/openings/${job.id}`)).applications[0];
-  await s.hr.put(`/api/hris/recruitment/applications/${app.id}`, { status: 'selected' });
+  await s.hr.put(`/api/hris/recruitment/applications/${app.id}`, { stage: 'selected' });
   s.clock.add(31);
   s.sweep();
   assert.equal(s.user('carla').status, 'expired');

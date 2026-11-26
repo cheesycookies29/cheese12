@@ -295,8 +295,8 @@ img.att-preview { height: auto; max-height: 70vh; }
 .job-card { display: flex; flex-direction: column; gap: 12px; color: var(--text); }
 .job-card:hover { text-decoration: none; border-color: var(--brand-line); }
 .job-card:hover strong { color: var(--brand-text); }
-.job-card-head { display: flex; gap: 12px; align-items: flex-start; }
-.job-card-head .grow { flex: 1; min-width: 0; }
+.job-card-head { display: flex; gap: 8px 12px; align-items: flex-start; flex-wrap: wrap; }
+.job-card-head .grow { flex: 1 1 180px; min-width: 0; }
 .job-card-head small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
 .job-facts { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; color: var(--text-2); font-size: 13px; }
 .job-facts > span { display: inline-flex; align-items: center; gap: 6px; }
@@ -361,4 +361,97 @@ img.att-preview { height: auto; max-height: 70vh; }
   .psipop-table th, .psipop-table td { padding: 2px 3px; }
   .psipop-office td { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .psipop-foot { color: #444; }
+}
+
+/* ===== The application progress tracker (views/jobs.js; PL-015) =====
+   Across the page on a wide screen, a list down the page on a phone. Done: a tick on the brand
+   colour; the current stage: a ring; to come: a number on grey; skipped: a dash; the outcome last. */
+.tracker { list-style: none; margin: 4px 0 16px; padding: 0; display: flex; gap: 0; counter-reset: none; }
+.tracker .step { flex: 1 1 0; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 0 6px; }
+.tracker .step::before { content: ''; position: absolute; top: 15px; left: calc(-50% + 18px); right: calc(50% + 18px); height: 2px; background: var(--border-strong); }
+.tracker .step:first-child::before { display: none; }
+.tracker .step.done::before, .tracker .step.current::before, .tracker .step.outcome::before, .tracker .step.skipped::before { background: var(--brand-text); }
+.tracker .step-mark { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; position: relative; z-index: 1;
+  background: var(--surface-2, var(--bg)); color: var(--muted); border: 2px solid var(--border-strong); }
+.tracker .done .step-mark { background: var(--brand); border-color: var(--brand-text); color: var(--brand-ink); }
+.tracker .current .step-mark { background: var(--surface); border-color: var(--brand-text); color: var(--brand-text); box-shadow: 0 0 0 4px var(--brand-soft); }
+.tracker .skipped .step-mark { background: var(--surface); border-style: dashed; }
+.tracker .outcome .step-mark { background: var(--info); border-color: var(--info); color: var(--surface); }
+.tracker .outcome.meaning-selected .step-mark { background: var(--success); border-color: var(--success); }
+.tracker .outcome.meaning-withdrawn .step-mark, .tracker .outcome.meaning-not-selected .step-mark { background: var(--muted); border-color: var(--muted); }
+.tracker .step-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tracker .step-text strong { font-size: 13px; line-height: 1.3; color: var(--text); overflow-wrap: anywhere; }
+.tracker .step-text small { font-size: 12px; color: var(--muted); }
+.tracker .next .step-text strong, .tracker .skipped .step-text strong { color: var(--muted); font-weight: 600; }
+.tracker .current .step-text strong { color: var(--brand-text); }
+.tracker .current .step-text small { color: var(--text-2); font-weight: 600; }
+.tracker.compact { margin: 12px 0; }
+.tracker.compact .step-mark { width: 24px; height: 24px; font-size: 11px; }
+.tracker.compact .step::before { top: 11px; left: calc(-50% + 14px); right: calc(50% + 14px); }
+.tracker.compact .current .step-mark { box-shadow: 0 0 0 3px var(--brand-soft); }
+.tracker.compact .step-text strong { font-size: 12px; font-weight: 600; }
+.tracker.compact .step-text small { font-size: 11px; }
+@media (max-width: 640px) {
+  .tracker { flex-direction: column; }
+  .tracker .step { flex-direction: row; align-items: flex-start; text-align: left; gap: 12px; padding: 0 0 18px; }
+  .tracker .step:last-child { padding-bottom: 0; }
+  .tracker .step::before { display: none; }
+  .tracker .step:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 34px; bottom: 2px; width: 2px; background: var(--border-strong); }
+  .tracker .step.done:not(:last-child)::after, .tracker .step.skipped:not(:last-child)::after { background: var(--brand-text); }
+  .tracker .step-text { padding-top: 6px; }
+  .tracker.compact .step { padding-bottom: 10px; }
+  .tracker.compact .step:not(:last-child)::after { left: 11px; top: 26px; }
+  .tracker.compact .step-text { padding-top: 3px; flex-direction: row; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; }
+}
+.job-now { margin: 0; }
+.job-app-info > div + div { margin-top: 12px; }
+.job-app-info dd { margin: 2px 0 0; }
+.job-now > div { display: flex; flex-direction: column; gap: 6px; }
+.job-app .job-app-head { display: flex; gap: 12px; align-items: flex-start; }
+.job-app .job-app-head .grow { flex: 1; min-width: 0; }
+.job-app .job-latest { margin: 0 0 12px; color: var(--text-2); }
+.job-notes, .job-history { list-style: none; margin: 0; padding: 0; }
+.job-notes li, .job-history li { padding: 12px 0 12px 16px; border-left: 2px solid var(--brand-line); position: relative; }
+.job-notes li::before, .job-history li::before { content: ''; position: absolute; left: -6px; top: 17px; width: 10px; height: 10px; border-radius: 50%; background: var(--brand); }
+.job-history li.back::before { background: var(--warn); }
+.job-notes li + li, .job-history li + li { border-top: 1px solid var(--border); }
+.job-notes p, .job-history p { margin: 6px 0 0; }
+.job-note-head { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; justify-content: space-between; }
+.internal-remark { color: var(--warn); }
+.internal-field > span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--warn); }
+.internal-field textarea { border-style: dashed; }
+
+/* HR: applications by stage (views/recruitment.js) */
+.stage-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.stage-count { display: flex; flex-direction: column; gap: 2px; min-width: 96px; max-width: 180px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.stage-count:hover { text-decoration: none; border-color: var(--brand-line); }
+.stage-count strong { font-size: 20px; font-weight: 800; line-height: 1.1; color: var(--brand-text); font-variant-numeric: tabular-nums; }
+.stage-count span { font-size: 12px; color: var(--muted); line-height: 1.3; }
+.stage-count.outcome { background: var(--surface-2, var(--bg)); }
+.stage-count.zero strong { color: var(--muted); }
+.stage-count.on { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); background: var(--brand-softer); }
+.bulk-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 10px; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--brand) 9%, var(--surface)); border: 1px solid var(--brand-line); position: sticky; top: calc(var(--topbar) + 8px); z-index: 5; box-shadow: var(--shadow-lg); }
+.bulk-bar span { font-weight: 600; margin-right: auto; }
+.bulk-bar[hidden] { display: none; }
+.job-apps th.pick, .job-apps td.pick { width: 34px; padding-right: 0; }
+.job-apps td.pick input, .job-apps th.pick input { width: 18px; height: 18px; }
+.job-apps .group-row th { background: var(--surface-2, var(--bg)); font-size: 12.5px; text-transform: none; color: var(--text-2); padding-top: 8px; padding-bottom: 8px; }
+.job-apps .row-actions { white-space: nowrap; }
+
+/* HR settings → Recruitment stages */
+.stage-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.stage-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) 112px; gap: 12px; align-items: start; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.stage-row.retired { background: var(--surface-2, var(--bg)); border-style: dashed; }
+.stage-row.retired .stage-no { opacity: 0.55; }
+.stage-no { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: var(--brand-text); background: var(--brand-soft); border: 1px solid var(--brand-line); margin-top: 22px; }
+.stage-fields { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 1.5fr); gap: 4px 12px; }
+.stage-fields textarea { min-height: 84px; }
+#recruitment-stages { scroll-margin-top: calc(var(--topbar) + 12px); }
+.stage-fields > small { grid-column: 1 / -1; }
+.stage-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; padding-top: 18px; }
+.stage-tools > .icon-btn { border: 1px solid var(--border); }
+@media (max-width: 760px) {
+  .stage-row { grid-template-columns: 28px minmax(0, 1fr); }
+  .stage-fields { grid-template-columns: 1fr; }
+  .stage-tools { grid-column: 2; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; padding-top: 0; }
 }

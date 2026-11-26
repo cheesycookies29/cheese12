@@ -15,7 +15,7 @@ import { mergeAcademicSettings } from './academic.js';
 import { mergeSso } from './sso.js';
 import { mergeCloudflare } from './cloudflare.js';
 import { mergeFinanceSettings, mergeChart } from './finance.js';
-import { DEFAULT_PEOPLE_SETTINGS } from '../shared/recruitment.js';
+import { DEFAULT_PEOPLE_SETTINGS, DEFAULT_RECRUITMENT_STAGES, mergeRecruitmentStages, migrateApplications } from '../shared/recruitment.js';
 import { DEFAULT_PLANTILLA_SETTINGS, mergePlantillaSettings } from '../shared/plantilla.js';
 
 export const DEFAULT_SETTINGS = {
@@ -68,6 +68,7 @@ export const DEFAULT_SETTINGS = {
   cloudflare: mergeCloudflare(), // System → Cloudflare (server/cloudflare.js): the hostname set up and what was done; never the API token
   plantilla: structuredClone(DEFAULT_PLANTILLA_SETTINGS), // ATLAS People → Plantilla: the PSIPOP's signatories (shared/plantilla.js)
   people: { ...DEFAULT_PEOPLE_SETTINGS }, // ATLAS People: how long job applicants' accounts last, the warning, the removal (shared/recruitment.js)
+  recruitmentStages: structuredClone(DEFAULT_RECRUITMENT_STAGES), // ATLAS People: the stages an application goes through, and the final outcomes (PL-015)
 };
 
 // Activity types and their share of the running grade (weights are percentages;
@@ -172,6 +173,7 @@ export function mergeSettings(s = {}) {
     sso: mergeSso(s.sso),
     cloudflare: mergeCloudflare(s.cloudflare),
     people: { ...DEFAULT_PEOPLE_SETTINGS, ...(s.people || {}) },
+    recruitmentStages: mergeRecruitmentStages(s.recruitmentStages),
     plantilla: mergePlantillaSettings(s.plantilla),
     tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),
   };
@@ -195,6 +197,7 @@ function normalize(data) {
   out.finCounters = { ...(data.finCounters || {}) };
   if (!Array.isArray(data.leaveTypes)) out.leaveTypes = structuredClone(DEFAULT_LEAVE_TYPES);
   migrateLeaveTypes(out);
+  migrateApplications(out); // job applications from before the recruitment stages (PL-015)
   ensureCampuses(out);
   // Assignments from before quizzes and activity types: tasks of the default type.
   for (const a of out.assignments) {

@@ -67,13 +67,15 @@ A first tour with the demo school. It takes about ten minutes.
 ### Job openings and applications
 
 1. Open **Recruitment → Job openings**. Main Campus has three open openings: *Instructor I* and *Laboratory Technician I* are **Open to all**, *Administrative Officer II* is **Internal only**.
-2. Choose **Instructor I**. Its **Applications** list has Carla Mendiola, an **External** applicant, *Under review*.
-3. Choose **Change status**, pick **Shortlisted**, type a note such as *Interview on Monday, 9:00, at the HR office.*, and choose **Save and tell the applicant**. Carla is told on the bell, and the change is in the audit log.
-4. Go back and choose **Administrative Officer II**. Nestor Abello applied from his own account: the application is **Internal**, with his current position, salary grade and campus from his record.
+2. Choose **Instructor I**. **Applications by stage** shows how many applications are at each stage, and the list is grouped by stage: Hazel Ordonez at *Application received*, Paolo Quimbo at *Initial screening*, Carla Mendiola at *Assessment (examination or interview)*, Diego Lumbres at *Deliberation*, and Bianca Yap *Not qualified*.
+3. On Paolo Quimbo's row, choose **Move**. Pick **Assessment (examination or interview)**, type a **Note to the applicant** such as *Your examination and interview are on Monday, 9:00, at the HR office.*, and choose **Save and tell the applicant**. Paolo is told on the bell, and the move is in his history and the audit log.
+4. Tick Carla Mendiola and Paolo Quimbo, choose **Move chosen…**, pick **Deliberation** and choose **Move and tell the applicants**: both move with one note.
+5. Choose **History** on Carla's row to see every move, with who made it, the notes to her and HR's internal remarks.
+6. Go back and choose **Administrative Officer II**. Nestor Abello applied from his own account: the application is **Internal**, with his current position, salary grade and campus from his record.
 
 ![Recruitment → Job openings at Main Campus](hr-job-openings.jpg)
 
-![An opening and its applications](hr-job-opening.jpg)
+![An opening: applications by stage](hr-job-opening.jpg)
 
 ### Another campus
 
@@ -289,24 +291,67 @@ For a vacant plantilla item, start from the item instead: **Plantilla →** the 
 
 An open opening shows on the ATLAS home page (when it is Open to all) and under **Job openings** in every employee's People, until its closing date. To stop applications early, **Edit** it and set **Status** to **Closed**. An opening with no applications can be deleted from **Edit**; one with applications can only be closed, so they are kept.
 
-### Change an application's status
+### Move an application to another stage
+
+Every application goes through the school's **recruitment stages** (see [Set the recruitment stages](#set-the-recruitment-stages)). A new one starts at the first stage, *Application received*.
 
 1. Open **Recruitment → Job openings** and choose the opening.
-2. On the applicant's row, choose **Change status**.
-3. Pick the status: **Received**, **Under review**, **Shortlisted**, **Not selected** or **Selected**.
-4. Type a **Note to the applicant** if you like, for example the date of an interview.
-5. Choose **Save and tell the applicant**.
+2. On the applicant's row, choose **Move**. The window says which stage the application is at.
+3. Under **Move to**, pick a stage under **Next stages** (any later stage; you can skip one), or an outcome under **Final outcome**: **Selected**, **Not qualified** or **Not selected**.
+4. Type a **Note to the applicant** if you like, for example the date and place of an examination.
+5. Type an **Internal remark** if you like. Only HR sees it.
+6. Choose **Save and tell the applicant**.
 
-The applicant sees the status, the date of the change and your note in **My applications**, and is told on the bell. Each change is in the audit log (**People**, *Changed a job application's status*), with the status before and after. You cannot decide on your own application, nor change one the applicant withdrew.
+The applicant sees the new stage, its date and your note on their application, from *HR office* (never your name), and is told on the bell with a link to it. Each move is kept in the application's **History** and in the audit log (**People**, *Moved a job application to another stage*), with the stage before and after. To write to the applicant without moving the application, pick **Stay at …** and type the note. You cannot move your own application, nor one the applicant withdrew; only the applicant can withdraw.
 
-![Change the status of an application](hr-change-status.jpg)
+![Move an application, with a note to the applicant and an internal remark](hr-change-status.jpg)
+
+### Move an application back a stage
+
+1. On the applicant's row, choose **Move**.
+2. Under **Back one stage**, pick **Back to …**.
+3. Type the **Reason for moving it back**, for example *Moved by mistake: the interview has not been held yet.* It is required.
+4. Choose **Save and tell the applicant**.
+
+An application goes back one stage at a time. A decided one (Selected, Not qualified or Not selected) can go back only to the stage it was at before the decision. The reason is kept in the history and the audit log (*Moved a job application back a stage*); the applicant does not see it, only the stage it is at now and any note you add.
+
+### Move several applications at once
+
+1. Open the opening. To see only the applications at one stage, choose that stage under **Applications by stage**.
+2. Tick the applications to move, or tick the box in the heading for all of them shown.
+3. Choose **Move chosen…**.
+4. Pick the stage or final outcome, type one **Note to the applicants** if you like (each reads the same note) and an **Internal remark**.
+5. Choose **Move and tell the applicants**.
+
+Each must be at an earlier stage. If one of them cannot move (it is already at that stage, or past it), nothing moves and ATLAS says which and why: untick it and try again. Moving back is one application at a time, each with its reason.
+
+![Several applications chosen, with Move chosen…](hr-bulk-move.jpg)
+
+### See an application's history
+
+1. On the applicant's row, choose **History**.
+
+Each move shows its stage, the date and time, who moved it (or *Applicant* for their own steps), the note to the applicant, the internal remark and, for a move back, the reason. Applications sent before the recruitment stages came keep their earlier history, carried over to the stages.
+
+### Set the recruitment stages
+
+1. Open **HR settings** and go down to **Recruitment stages**.
+2. Change a stage's **Label**, or **What the applicant reads**: what happens at that stage, and what the applicant may be asked to do.
+3. To add a stage, choose **Add a stage** and fill it in. Use the arrows to move a stage up or down.
+4. To stop using a stage, tick **Retired**. A stage no application has used yet can also be removed with **Remove**.
+5. Under **Final outcomes**, change their labels and what the applicant reads if you like. To stop offering *Not qualified*, tick **Not offered**.
+6. Choose **Save recruitment stages**.
+
+The stages are the same at every campus and for every opening. A stage an application has been at cannot be removed, only retired, so every history keeps its meaning: a retired stage stays in the histories, takes no new moves, and is left out of the tracker of applications that never reached it. The final outcomes are fixed (*Selected*, *Not qualified*, *Not selected*, *Withdrawn*): their meaning never changes, only their labels and descriptions. *Withdrawn* is set only by the applicant.
+
+![HR settings → Recruitment stages](hr-recruitment-stages.jpg)
 
 ### Export the applications
 
 1. Open the opening.
 2. Choose **Export CSV**.
 
-The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), the date applied, the status and its last change.
+The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), the date applied, the stage, its last change and the latest note to the applicant.
 
 ### Extend or remove an applicant account
 
@@ -327,6 +372,8 @@ Removing an account, by hand or by the daily removal after it closed, takes away
 3. Set the **Default work schedule** for new employee records.
 4. Under **Job applicants**, set how many days applicant accounts last (30 to 1095; 365 by default), how many days before closing the applicant is warned (30 by default), and how many days after closing a closed account is removed (30 by default; 0 keeps it until you remove it).
 5. Choose **Save HR settings**.
+
+The **Recruitment stages** below have their own **Save recruitment stages** button (see [Set the recruitment stages](#set-the-recruitment-stages)).
 
 A new length applies to applicant accounts made after the change; to give one person more time, extend their account.
 
@@ -352,9 +399,9 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Leave & approvals | Requests to approve, leave balances, one employee's leave, and leave types |
 | Payroll | Payroll runs and payslips (view only; the payroll officer prepares them) |
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
-| Job openings (Recruitment) | Post job openings at the campus, open and close them, and follow the applications to each: change their status, export them as CSV |
+| Job openings (Recruitment) | Post job openings at the campus, open and close them, and follow the applications to each by stage: **Move** one or several, **History**, export them as CSV |
 | Applicant accounts | The temporary accounts of job applicants: until when each is open, **Extend** and **Remove** |
-| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last, and who can do what |
+| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last, the recruitment stages, and who can do what |
 | My day, My attendance, Leave & requests, My payslips, My HR record, Job openings (Me) | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 
@@ -410,6 +457,15 @@ An employee applies with their own account from **Me → Job openings**: there i
 
 **Why does an opening count a "Removed applicant"?**
 An applicant account is removed some days after it closes (**HR settings → Job applicants**), or when you remove it. An applicant you marked **Selected** is never removed automatically, because their details may become part of a personnel record; remove the account yourself when it is no longer needed. The application stays, without the person's details, so the number of applications stays true.
+
+**What does the applicant see of an application?**
+The stages (done, current and to come, with their dates), what happens at the current stage (the description you set in **Recruitment stages**), the notes you wrote to them in time order, and the outcome once decided. Every note comes from *HR office*. They never see internal remarks, the reasons for moving back, or who in HR moved it.
+
+**Are the default stages the school's merit selection plan?**
+They follow the usual public-sector merit selection flow: application received, initial screening against the qualification standards, assessment (examination or interview), deliberation by the selection board, and the appointing authority's final decision. Check them against your school's own merit selection plan, and rename, add or retire stages under **HR settings → Recruitment stages** to match it.
+
+**What happened to Received, Under review and Shortlisted?**
+Applications from before the recruitment stages were moved to them: *Received* to the first stage, *Under review* to the second (*Initial screening*), *Shortlisted* to *Assessment (examination or interview)*, and *Selected*, *Not selected* and *Withdrawn* to the same outcomes. Their history, with the dates, the names and the notes, came with them.
 
 **Who can use Recruitment?**
 HR managers and administrators (the *Recruitment: job openings, applications and applicant accounts* permission). An administrator can give it to another account type under **Roles & permissions**.

@@ -304,6 +304,20 @@ People outside the school apply for jobs with a temporary **applicant account** 
 
 A closed account cannot sign in, and its sessions end when it closes. Removed applicants stay in each opening's list as *Removed applicant*, without a name, so the counts stay true. Employees, students and other accounts never close this way.
 
+### Check the recruitment stages
+
+Job applications go through the school's **recruitment stages**, which the applicant follows on their application (see [the applicant's guide](applicant#follow-your-application)). HR managers set them in People under **HR settings → Recruitment stages** (see [the HR guide](hr#set-the-recruitment-stages)); you find them in the **Settings center** under **ATLAS People → Recruitment stages**:
+
+| Setting | Default | What it does |
+|---|---|---|
+| Recruitment stages | Application received → Initial screening → Assessment (examination or interview) → Deliberation → Final decision | The stages, in order, each with what the applicant reads. A stage an application has used can be retired, never removed. |
+| Final outcomes of an application | Selected, Not qualified, Not selected, Withdrawn | Fixed meanings; only their labels and descriptions change. *Not qualified* can be turned off. |
+
+1. Choose **Settings center** and find *stages*.
+2. Choose **Open** on **Recruitment stages**: People's **HR settings** opens at the stages. Change them and choose **Save recruitment stages**.
+
+**Restore defaults** puts the built-in stages back, unless a stage the school added has been used by an application: ATLAS then says which, and nothing changes (retire it first in People). Each change is in the **Change history**.
+
 ### Restore a default or undo a change
 
 1. In the **Settings center**, find the setting and choose **Restore default**, or **Restore defaults** on its group to put the whole group back.

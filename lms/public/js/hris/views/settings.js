@@ -6,7 +6,7 @@ import { html, mount, toast, WEEKDAYS } from '../../ui.js';
 import { icon } from '../../icons.js';
 import { hr } from '../state.js';
 import { ROLES, HRIS_PERMISSION_LABELS } from '/shared/roles.js';
-import { recruitmentSettingsCard } from './recruitment.js';
+import { recruitmentSettingsCard, recruitmentStagesCard } from './recruitment.js';
 
 // Which account types may do what in People (as on the ERP's Users & access page).
 function accessMatrix() {
@@ -22,7 +22,7 @@ function accessMatrix() {
   </section>`;
 }
 
-export async function hrSettingsView(el) {
+export async function hrSettingsView(el, _params = {}, query = {}) {
   const [, people] = await Promise.all([hr.refreshSettings(), api.get('/api/hris/recruitment/settings')]);
   const s = hr.settings;
   mount(el, html`
@@ -53,7 +53,11 @@ export async function hrSettingsView(el) {
       <p class="form-error" hidden></p>
       <div class="actions end"><button class="btn primary" type="submit">Save HR settings</button></div>
     </form>
+    <div id="stages-card"></div>
     ${accessMatrix()}`);
+  // Recruitment stages: a list with its own Save (HR settings → Recruitment stages; Settings center link).
+  await recruitmentStagesCard(el.querySelector('#stages-card'));
+  if (query.section === 'stages') el.querySelector('#recruitment-stages')?.scrollIntoView({ block: 'start' });
   const form = el.querySelector('#hr-form');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -67,7 +71,7 @@ export async function hrSettingsView(el) {
       await api.put('/api/hris/recruitment/settings', Object.fromEntries(['applicantAccountDays', 'applicantWarnDays', 'applicantPurgeDays'].map((k) => [k, Number(fd.get(k))])));
       errEl.hidden = true;
       toast('HR settings saved.');
-      hrSettingsView(el);
+      hrSettingsView(el, _params, query);
     } catch (err) {
       errEl.textContent = err.message;
       errEl.hidden = false;
