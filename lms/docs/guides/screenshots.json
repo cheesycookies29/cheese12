@@ -1256,5 +1256,35 @@
    "text=See its progress >> nth=0"
   ],
   "wait": 1200
+ },
+ {
+  "file": "hr-signup-fields.jpg",
+  "user": "hr.demo",
+  "api": [
+   [
+    "PUT",
+    "/api/hris/recruitment/settings",
+    {
+     "signupFields": {
+      "birthDate": "required",
+      "campus": "optional"
+     }
+    }
+   ]
+  ],
+  "url": "/hris/#/settings?section=signup-fields",
+  "wait": 1500
+ },
+ {
+  "file": "applicant-sign-up-fields.jpg",
+  "user": null,
+  "url": "/#jobs",
+  "click": [
+   "#signup",
+   "fill:input[name=birthDate]|1996-04-17",
+   "input[name=name]"
+  ],
+  "wait": 900,
+  "full": true
  }
 ]

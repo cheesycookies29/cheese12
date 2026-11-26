@@ -346,18 +346,43 @@ The stages are the same at every campus and for every opening. A stage an applic
 
 ![HR settings → Recruitment stages](hr-recruitment-stages.jpg)
 
+### Choose what the applicant sign-up asks
+
+People outside the school sign up before they apply (see [the applicant's guide](applicant#sign-up-for-an-applicant-account)). **Full name**, **Email**, **Username** and **Password** are always asked and required. You choose the rest.
+
+1. Open **HR settings** and go down to **Applicant sign-up fields**.
+2. For each field, choose **Hidden** (not asked), **Optional** (asked, may be left blank) or **Required** (see the table below).
+3. Choose **Save HR settings**.
+
+| Field | Default | What applicants pick or type |
+|---|---|---|
+| Mobile number | Optional | A mobile number |
+| Sex | Hidden | Male or Female, as on the Personal Data Sheet |
+| Date of birth | Hidden | A date: a real date in the past, and the applicant at least 18 |
+| Home address | Hidden | Up to 300 characters |
+| Highest educational attainment | Hidden | Elementary, Secondary, Vocational or trade course, College or Graduate studies |
+| Preferred campus or place of assignment | Hidden | One of the school's campuses (the "branch") |
+
+The sign-up form shows the Optional and Required fields, marks the required ones with a red asterisk, and its privacy notice lists exactly what it collects. ATLAS checks the same rules when the form is sent: a Hidden field is ignored even if sent, and a Required one that is missing is refused.
+
+Ask only what you need (Data Privacy Act of 2012): by default only the mobile number is asked. Document uploads are never asked at sign-up, because documents come with each application; nor is an employee ID, because employees apply with their own account.
+
+What an applicant gave shows under their name on each application, in **Applicant accounts** and in the CSV export, dates in ATLAS's usual form (*Apr 17, 1996*). Hiding a field later deletes nothing already given. The details go with the account when it is removed. Each change is in the Settings center's **Change history**.
+
+![HR settings → Applicant sign-up fields](hr-signup-fields.jpg)
+
 ### Export the applications
 
 1. Open the opening.
 2. Choose **Export CSV**.
 
-The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), the date applied, the stage, its last change and the latest note to the applicant.
+The file has each applicant's name, Internal or External, email and mobile, current position, salary grade and campus (for employees), what an applicant gave at sign-up (sex, date of birth, home address, highest educational attainment, preferred campus), the date applied, the stage, its last change and the latest note to the applicant.
 
 ### Extend or remove an applicant account
 
 People outside the school apply with a temporary **applicant account** (see [the applicant's guide](applicant)). It closes a set number of days after sign-up (365 unless changed under **HR settings → Job applicants**); the applicant is told on the bell before.
 
-1. Open **Recruitment → Applicant accounts**. Each account shows when it signed up, until when it is open (or when a closed one will be removed), and how many applications it has.
+1. Open **Recruitment → Applicant accounts**. Each account shows what the applicant gave at sign-up, when they signed up, until when it is open (or when a closed one will be removed), and how many applications it has.
 2. To give someone more time, choose **Extend**, type the **Days to add** and choose **Extend**. The days are added to the closing date (or to today, if it has passed), a closed account opens again, and the applicant is told.
 3. To remove an account now (for example when the person asks), choose **Remove** and confirm.
 
@@ -371,7 +396,8 @@ Removing an account, by hand or by the daily removal after it closed, takes away
 2. Enter the employer **Address** and **Employer TIN** printed on payslips. The employer name is the school name set in the Learn admin panel.
 3. Set the **Default work schedule** for new employee records.
 4. Under **Job applicants**, set how many days applicant accounts last (30 to 1095; 365 by default), how many days before closing the applicant is warned (30 by default), and how many days after closing a closed account is removed (30 by default; 0 keeps it until you remove it).
-5. Choose **Save HR settings**.
+5. Under **Applicant sign-up fields**, choose what the sign-up asks (see [Choose what the applicant sign-up asks](#choose-what-the-applicant-sign-up-asks)).
+6. Choose **Save HR settings**.
 
 The **Recruitment stages** below have their own **Save recruitment stages** button (see [Set the recruitment stages](#set-the-recruitment-stages)).
 
@@ -401,7 +427,7 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
 | Job openings (Recruitment) | Post job openings at the campus, open and close them, and follow the applications to each by stage: **Move** one or several, **History**, export them as CSV |
 | Applicant accounts | The temporary accounts of job applicants: until when each is open, **Extend** and **Remove** |
-| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last, the recruitment stages, and who can do what |
+| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last, what the applicant sign-up asks, the recruitment stages, and who can do what |
 | My day, My attendance, Leave & requests, My payslips, My HR record, Job openings (Me) | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
 

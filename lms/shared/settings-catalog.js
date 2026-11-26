@@ -6,6 +6,7 @@
 // area: a group of settings saved together (server/config.js knows how to read, save and reset it).
 // path: where the setting is inside its area ('' = the whole area).
 // format: how to show the value: percent (0.09 → 9%), money, bool, list, json; default: as is.
+import { SIGNUP_FIELDS } from './recruitment.js';
 
 export const MODULES = [
   ['admin', 'Admin panel'],
@@ -152,6 +153,7 @@ export const SETTINGS = [
   ['recruitment', 'applicantAccountDays', 'Applicant accounts last (days)', 'A job applicant\'s account closes this many days after they sign up (30 to 1095). Changing it applies to new accounts; HR can extend one account.'],
   ['recruitment', 'applicantWarnDays', 'Warn applicants before closing (days)', 'The applicant is told on the bell this many days before their account closes, once (1 to 90).'],
   ['recruitment', 'applicantPurgeDays', 'Remove closed applicant accounts after (days)', 'A closed account and the personal details in its applications are removed this many days after it closed (0 to 365). 0 = keep until HR removes them.'],
+  ['recruitment', 'signupFields', 'Applicant sign-up fields', 'What the job applicant sign-up asks besides full name, email, username and password (always asked and required): mobile number, sex, date of birth, home address, highest educational attainment and preferred campus, each Hidden, Optional or Required. Only the mobile number is asked by default (Data Privacy Act: ask only what is needed). A date of birth must be real and in the past, and the applicant at least 18. Documents are never asked at sign-up (they come with each application), nor an employee ID (employees apply with their own account). Hiding a field deletes nothing applicants already gave.', 'signupFields'],
   ['recruitmentStages', 'stages', 'Recruitment stages', 'The stages a job application goes through, in order, each with the description the applicant reads. A stage an application has used can be retired, never deleted.', 'stages'],
   ['recruitmentStages', 'outcomes', 'Final outcomes of an application', 'Selected, Not qualified, Not selected and Withdrawn: their labels and descriptions can change, their meaning cannot.', 'outcomes'],
   ['plantilla', 'hrOfficer.name', 'PSIPOP: HR officer', 'Printed on the PSIPOP\'s first signature line (Prepared by).'],
@@ -202,6 +204,12 @@ export const SETTINGS = [
   ['documents', 'checkoutHours', 'Longest check-out (hours)', 'A check-out ends by itself after this.'],
 ];
 
+// Names for the parts of a setting whose own label is not enough in the change history
+// ("Applicant sign-up fields (Date of birth)", not "(birthDate)").
+const PART_LABELS = {
+  'recruitment|signupFields': Object.fromEntries(SIGNUP_FIELDS.map((f) => [f.id, f.label])),
+};
+
 export const areaInfo = (id) => {
   const a = AREAS.find(([k]) => k === id);
   return a ? { id: a[0], module: a[1], label: a[2], screen: a[3] } : null;
@@ -214,7 +222,10 @@ export function labelOf(area, path) {
   let p = path;
   for (;;) {
     const hit = SETTINGS.find(([a, q]) => a === area && q === p);
-    if (hit) return hit[2] + (p !== path ? ` (${path.slice(p.length + (p ? 1 : 0))})` : '');
+    if (hit) {
+      const rest = path.slice(p.length + (p ? 1 : 0));
+      return hit[2] + (p !== path ? ` (${PART_LABELS[`${area}|${p}`]?.[rest] || rest})` : '');
+    }
     if (!p) return path;
     p = p.includes('.') ? p.slice(0, p.lastIndexOf('.')) : '';
   }

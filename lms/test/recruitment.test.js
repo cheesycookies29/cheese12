@@ -6,7 +6,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setup } from './support.js';
 import { ROLES, userCan, HRIS_ROLES } from '../shared/roles.js';
-import { DEFAULT_PEOPLE_SETTINGS } from '../shared/recruitment.js';
+import {
+  DEFAULT_PEOPLE_SETTINGS, DEFAULT_SIGNUP_FIELDS, SIGNUP_FIELDS, collectedFields, listInWords, birthDateProblem, ageOn, latestBirthDate, mergePeopleSettings,
+} from '../shared/recruitment.js';
 import { twoFactorRequired } from '../shared/two-factor.js';
 import { guideFor } from '../shared/help.js';
 
@@ -163,10 +165,15 @@ test('an applicant reaches only the jobs area: every other route of every system
 
 test('expiry: set from the setting, warned once, sign-in refused and sessions ended, HR extends, removed after the purge days', async () => {
   const s = await school();
-  await s.hr.put('/api/hris/recruitment/settings', { applicantAccountDays: 100, applicantWarnDays: 30, applicantPurgeDays: 30 });
+  // Every sign-up field asked (PL-016), so the removal is seen to take them too.
+  await s.hr.put('/api/hris/recruitment/settings', {
+    applicantAccountDays: 100, applicantWarnDays: 30, applicantPurgeDays: 30,
+    signupFields: { phone: 'optional', sex: 'optional', birthDate: 'optional', address: 'optional', education: 'optional', campus: 'optional' },
+  });
   const job = await s.opening({ closingDate: '2027-12-31' });
-  const c = await s.signUp();
+  const c = await s.signUp('', { sex: 'Female', birthDate: '1996-04-17', address: '12 Rizal Street, Barangay San Roque, Pili', education: 'graduate', campus: s.main.id });
   const carla = s.user('carla');
+  assert.deepEqual(carla.applicantProfile, { sex: 'Female', birthDate: '1996-04-17', address: '12 Rizal Street, Barangay San Roque, Pili', education: 'graduate', campusId: s.main.id });
   assert.equal(carla.expiresAt, new Date(s.clock.at() + 100 * DAY).toISOString());
   const applied = await c.post(`/api/hris/jobs/${job.id}/apply`, { note: 'I teach programming.' });
   // 69 days on: nothing yet. 70 days on (30 before): one notice on the bell, only once.
@@ -219,6 +226,7 @@ test('expiry: set from the setting, warned once, sign-in refused and sessions en
   assert.equal(detail.counts.total, 1);
   assert.deepEqual(detail.applications.map((a) => [a.name, a.email, a.phone, a.note, a.removed]), [['Removed applicant', '', '', '', true]]);
   assert.ok(!JSON.stringify(s.env.db.data.jobApplications).includes('Carla'), 'no personal details left in the applications');
+  for (const given of ['0917 123 4567', '1996-04-17', 'Rizal Street', 'carla@example.com']) assert.ok(!JSON.stringify(s.env.db.data).includes(given), `${given}: removed with the account`);
   await assert.rejects(s.hr.put(`/api/hris/recruitment/applications/${detail.applications[0].id}`, { stage: 'assessment' }), /removed/);
 
   // 0 = kept until HR removes it.
@@ -401,7 +409,7 @@ test('the hris.recruitment permission: HR managers have it; Roles & permissions 
 
 test('the settings: defaults, limits, the Settings center and its history', async () => {
   const s = await school();
-  assert.deepEqual(DEFAULT_PEOPLE_SETTINGS, { applicantAccountDays: 365, applicantWarnDays: 30, applicantPurgeDays: 30 });
+  assert.deepEqual(DEFAULT_PEOPLE_SETTINGS, { applicantAccountDays: 365, applicantWarnDays: 30, applicantPurgeDays: 30, signupFields: DEFAULT_SIGNUP_FIELDS });
   assert.deepEqual(await s.hr.get('/api/hris/recruitment/settings'), DEFAULT_PEOPLE_SETTINGS);
   await assert.rejects(s.hr.put('/api/hris/recruitment/settings', { applicantAccountDays: 29 }), /Applicant accounts last: 30 to 1095 days/);
   await assert.rejects(s.hr.put('/api/hris/recruitment/settings', { applicantAccountDays: 1096 }), /30 to 1095/);
@@ -417,7 +425,7 @@ test('the settings: defaults, limits, the Settings center and its history', asyn
   const area = config.areas.find((a) => a.id === 'recruitment');
   assert.equal(area.module, 'people');
   const rows = config.settings.filter((x) => x.area === 'recruitment');
-  assert.deepEqual(rows.map((r) => [r.path, r.value, r.default, r.changed]), [['applicantAccountDays', 1095, 365, true], ['applicantWarnDays', 30, 30, false], ['applicantPurgeDays', 0, 30, true]]);
+  assert.deepEqual(rows.map((r) => [r.path, r.value, r.default, r.changed]), [['applicantAccountDays', 1095, 365, true], ['applicantWarnDays', 30, 30, false], ['applicantPurgeDays', 0, 30, true], ['signupFields', DEFAULT_SIGNUP_FIELDS, DEFAULT_SIGNUP_FIELDS, false]]);
   const history = await s.admin.get('/api/admin/config/history?area=recruitment');
   assert.equal(history.entries[0].by, 'Hana Reyes');
   await s.admin.post('/api/admin/config/reset', { area: 'recruitment', path: 'applicantAccountDays' });
@@ -457,4 +465,167 @@ test('a selected outsider is never removed automatically: their details may beco
   s.clock.add(60);
   s.sweep();
   assert.ok(s.user('carla'), 'kept until an HR person removes it');
+});
+
+// ----- The sign-up field list (PL-016): HR shows, hides or requires the optional fields -----
+const ALL_SHOWN = { phone: 'required', sex: 'required', birthDate: 'required', address: 'optional', education: 'optional', campus: 'required' };
+const NOTHING = { sex: '', birthDate: '', address: '', education: '', campus: '' };
+
+test('sign-up fields: by default only the mobile number is asked (optional); fields sent anyway are ignored', async () => {
+  const s = await school({ options: { rateLimits: 'off' } });
+  // Data minimisation: the fixed fields, and the mobile number as optional; nothing else.
+  assert.deepEqual(DEFAULT_SIGNUP_FIELDS, { phone: 'optional', sex: 'hidden', birthDate: 'hidden', address: 'hidden', education: 'hidden', campus: 'hidden' });
+  assert.deepEqual((await s.hr.get('/api/hris/recruitment/settings')).signupFields, DEFAULT_SIGNUP_FIELDS);
+  await s.opening();
+  const { signUp } = await s.env.client().get('/api/jobs/openings');
+  assert.deepEqual(signUp.fields, [{ id: 'phone', label: 'Mobile number', required: false }]);
+  assert.deepEqual(signUp.campuses, [], 'no campus list unless the preferred campus is asked');
+  assert.deepEqual(signUp.collects, ['name', 'email', 'mobile number', 'username']);
+  // Hidden fields sent anyway never reach the account; the optional mobile number may be left out.
+  await s.env.client().post('/api/jobs/signup', s.form('', { phone: '', sex: 'Female', birthDate: '1990-01-01', address: 'Somewhere', education: 'college', campus: s.main.id, employeeId: 'E-1', documents: ['x'] }));
+  const carla = s.user('carla');
+  assert.equal(carla.phone, '');
+  assert.equal(carla.applicantProfile, undefined);
+  assert.equal(carla.employeeId, undefined);
+  assert.equal((await s.hr.get('/api/hris/recruitment/applicants')).applicants[0].profile, null);
+});
+
+test('sign-up fields: the setting is checked, partial changes keep the rest, and it is in the Settings center with its history', async () => {
+  const s = await school();
+  const put = (signupFields) => s.hr.put('/api/hris/recruitment/settings', { signupFields });
+  await assert.rejects(put({ sex: 'maybe' }), /Sex: pick Hidden, Optional or Required/);
+  await assert.rejects(put({ birthDate: true }), /Date of birth: pick Hidden, Optional or Required/);
+  await assert.rejects(put({ documents: 'optional' }), /Documents are not asked for at sign-up: the applicant attaches them to each application/);
+  await assert.rejects(put({ employeeId: 'required' }), /employees apply with their own ATLAS account/);
+  await assert.rejects(put({ name: 'optional' }), /Full name is always asked at sign-up, and required/);
+  await assert.rejects(put({ password: 'hidden' }), /Password is always asked/);
+  await assert.rejects(put({ branch: 'optional' }), /Sign-up has no field called branch/);
+  await assert.rejects(put(['phone']), /Send the sign-up fields/);
+  await assert.rejects(put('sex'), /Send the sign-up fields/);
+  assert.deepEqual(s.env.db.data.settings.people.signupFields, DEFAULT_SIGNUP_FIELDS, 'nothing saved by a refused change');
+  // The fixed fields may be sent as they are (required); a partial change keeps the other fields.
+  const saved = await put({ email: 'required', birthDate: 'required', campus: 'optional' });
+  assert.deepEqual(saved.signupFields, { ...DEFAULT_SIGNUP_FIELDS, birthDate: 'required', campus: 'optional' });
+  assert.deepEqual(Object.keys(saved.signupFields), SIGNUP_FIELDS.map((f) => f.id), 'always every field, in the order of the form');
+  assert.equal(saved.applicantAccountDays, 365, 'the other settings are kept');
+  // Only HR settings may change it.
+  await assert.rejects((await s.signIn('eli')).put('/api/hris/recruitment/settings', { signupFields: { sex: 'required' } }), status(403));
+  // A stored list with a bad or missing value reads as the defaults for that field.
+  assert.deepEqual(mergePeopleSettings({ signupFields: { sex: 'always', address: 'required' } }).signupFields, { ...DEFAULT_SIGNUP_FIELDS, address: 'required' });
+
+  // The Settings center: the setting under ATLAS People → Job applicants, changed from its default,
+  // and each field's change in the history, with its own label, who and before → after.
+  const row = (await s.admin.get('/api/admin/config')).settings.find((x) => x.area === 'recruitment' && x.path === 'signupFields');
+  assert.equal(row.label, 'Applicant sign-up fields');
+  assert.equal(row.format, 'signupFields');
+  assert.equal(row.changed, true);
+  assert.deepEqual(row.default, DEFAULT_SIGNUP_FIELDS);
+  assert.match(row.help, /at least 18/);
+  assert.match(row.help, /Documents are never asked at sign-up \(they come with each application\), nor an employee ID \(employees apply with their own account\)/);
+  const [entry] = (await s.admin.get('/api/admin/config/history?area=recruitment')).entries;
+  assert.equal(entry.by, 'Hana Reyes');
+  assert.deepEqual(entry.changes.map((c) => [c.path, c.label, c.from, c.to]), [
+    ['signupFields.birthDate', 'Applicant sign-up fields (Date of birth)', 'hidden', 'required'],
+    ['signupFields.campus', 'Applicant sign-up fields (Preferred campus or place of assignment)', 'hidden', 'optional'],
+  ]);
+  // Undo, and restore the default, through the same checks.
+  await s.admin.post(`/api/admin/config/history/${entry.id}/undo`);
+  assert.deepEqual(s.env.db.data.settings.people.signupFields, DEFAULT_SIGNUP_FIELDS);
+  await put({ sex: 'optional' });
+  await s.admin.post('/api/admin/config/reset', { area: 'recruitment', path: 'signupFields' });
+  assert.deepEqual(s.env.db.data.settings.people.signupFields, DEFAULT_SIGNUP_FIELDS);
+});
+
+test('sign-up fields: Required ones are enforced by the server; date of birth, age, sex, address, education and campus are checked', async () => {
+  const s = await school({ options: { rateLimits: 'off' } });
+  await s.admin.post('/api/admin/campuses', { name: 'North Campus', code: 'NC' });
+  const north = (await s.admin.get('/api/admin/campuses')).find((c) => c.name === 'North Campus');
+  await s.hr.put('/api/hris/recruitment/settings', { signupFields: ALL_SHOWN });
+  await s.opening();
+  const { signUp } = await s.env.client().get('/api/jobs/openings');
+  // The form: the shown fields in order, which are required, the campus choices and the date limits.
+  assert.deepEqual(signUp.fields.map((f) => [f.id, f.required]), [['phone', true], ['sex', true], ['birthDate', true], ['address', false], ['education', false], ['campus', true]]);
+  assert.deepEqual(signUp.campuses.map((c) => c.name).sort(), ['Main Campus', 'North Campus']);
+  assert.equal(signUp.today, '2026-11-03');
+  assert.equal(signUp.minAge, 18);
+  assert.equal(signUp.latestBirthDate, '2008-11-03', 'someone born on this day turns 18 today');
+  const send = (extra) => s.env.client().post('/api/jobs/signup', s.form('', { sex: 'Male', birthDate: '1999-06-30', campus: north.id, ...extra }));
+  // Required: refused when missing, whatever the form did.
+  await assert.rejects(send({ phone: '' }), /Mobile number is required/);
+  await assert.rejects(send({ sex: '' }), /Sex is required/);
+  await assert.rejects(send({ sex: undefined }), /Sex is required/);
+  await assert.rejects(send({ birthDate: '' }), /Date of birth is required/);
+  await assert.rejects(send({ campus: '' }), /Preferred campus or place of assignment is required/);
+  // Each answer is checked.
+  await assert.rejects(send({ sex: 'Other' }), /Sex: pick Male or Female/);
+  await assert.rejects(send({ birthDate: '2000-02-30' }), /Date of birth: pick a real date/);
+  await assert.rejects(send({ birthDate: '30/06/1999' }), /Date of birth: pick a real date/);
+  await assert.rejects(send({ birthDate: '2030-01-01' }), /Date of birth must be in the past/);
+  await assert.rejects(send({ birthDate: '2026-11-03' }), /Date of birth must be in the past/);
+  await assert.rejects(send({ birthDate: '1899-12-31' }), /check the year/);
+  await assert.rejects(send({ birthDate: '2008-11-04' }), /Applicants must be at least 18 years old/);
+  await assert.rejects(send({ address: 'x'.repeat(301) }), /Home address: at most 300 characters/);
+  await assert.rejects(send({ education: 'doctorate' }), /Highest educational attainment: pick one from the list/);
+  await assert.rejects(send({ campus: 'no-such-campus' }), /Preferred campus: pick one from the list/);
+  await assert.rejects(send({ campus: 42 }), /Preferred campus: pick one from the list/);
+  assert.equal(s.env.db.data.users.filter((u) => u.role === 'applicant').length, 0, 'nothing refused was kept');
+  // Exactly 18 today is old enough; optional ones may be left blank; the address is kept on one line.
+  await send({ birthDate: '2008-11-03', address: '  Purok 3,\n  Barangay Cadlan,   Pili  ', education: '' });
+  assert.deepEqual(s.user('carla').applicantProfile, { sex: 'Male', birthDate: '2008-11-03', address: 'Purok 3, Barangay Cadlan, Pili', campusId: north.id });
+  // A field hidden since is ignored when sent, and no longer required.
+  await s.hr.put('/api/hris/recruitment/settings', { signupFields: { address: 'hidden', sex: 'hidden' } });
+  await s.env.client().post('/api/jobs/signup', s.form('2', { sex: '', birthDate: '1980-02-29', campus: s.main.id, address: 'Not asked any more' }));
+  assert.deepEqual(s.user('carla2').applicantProfile, { birthDate: '1980-02-29', campusId: s.main.id });
+
+  // The rules themselves (shared by the form and the server).
+  assert.equal(ageOn('2008-02-29', '2026-02-28'), 17);
+  assert.equal(ageOn('2008-02-29', '2026-03-01'), 18);
+  assert.equal(latestBirthDate('2028-02-29'), '2010-02-28', 'a 29 February birthday counts from 1 March in a common year');
+  assert.equal(birthDateProblem('1990-13-01', '2026-11-03'), 'Date of birth: pick a real date.');
+  assert.equal(birthDateProblem('1990-12-01', '2026-11-03'), '');
+});
+
+test('sign-up fields: the privacy notice lists exactly the fields collected, in the order of the form', async () => {
+  assert.deepEqual(collectedFields(DEFAULT_SIGNUP_FIELDS), ['name', 'email', 'mobile number', 'username']);
+  assert.equal(listInWords(collectedFields(DEFAULT_SIGNUP_FIELDS)), 'name, email, mobile number and username');
+  assert.deepEqual(collectedFields({ ...DEFAULT_SIGNUP_FIELDS, phone: 'hidden' }), ['name', 'email', 'username']);
+  assert.equal(listInWords(collectedFields(ALL_SHOWN)), 'name, email, mobile number, sex, date of birth, home address, highest educational attainment, preferred campus and username');
+  assert.deepEqual(collectedFields({ ...DEFAULT_SIGNUP_FIELDS, education: 'optional' }), ['name', 'email', 'mobile number', 'highest educational attainment', 'username']);
+  // The home page builds its notice from what the server says the form asks.
+  const s = await school();
+  await s.hr.put('/api/hris/recruitment/settings', { signupFields: { birthDate: 'optional', phone: 'hidden' } });
+  await s.opening();
+  const { signUp } = await s.env.client().get('/api/jobs/openings');
+  assert.deepEqual(signUp.collects, ['name', 'email', 'date of birth', 'username']);
+  assert.deepEqual(signUp.fields.map((f) => f.id), ['birthDate']);
+});
+
+test('sign-up fields: HR sees the values on the application, in Applicant accounts and the applicant on My profile; hiding a field later deletes nothing', async () => {
+  const s = await school({ options: { rateLimits: 'off' } });
+  await s.hr.put('/api/hris/recruitment/settings', { signupFields: ALL_SHOWN });
+  const job = await s.opening();
+  const c = await s.signUp('', { sex: 'Female', birthDate: '1996-04-17', address: '12 Rizal Street, Pili', education: 'graduate', campus: s.main.id });
+  await c.post(`/api/hris/jobs/${job.id}/apply`, { note: 'I teach programming.' });
+  const want = { sex: 'Female', sexLabel: 'Female', birthDate: '1996-04-17', address: '12 Rizal Street, Pili', education: 'graduate', educationLabel: 'Graduate studies', campusId: s.main.id, campusName: 'Main Campus' };
+  const seen = async () => ({
+    application: (await s.hr.get(`/api/hris/recruitment/openings/${job.id}`)).applications[0].profile,
+    account: (await s.hr.get('/api/hris/recruitment/applicants')).applicants[0].profile,
+    own: (await c.get('/api/me/profile')).applicant,
+  });
+  assert.deepEqual(await seen(), { application: want, account: want, own: want });
+  // Every field hidden again: the values given stay, and HR still sees them.
+  await s.hr.put('/api/hris/recruitment/settings', { signupFields: { ...DEFAULT_SIGNUP_FIELDS, phone: 'hidden' } });
+  assert.deepEqual(await seen(), { application: want, account: want, own: want });
+  assert.equal(s.user('carla').phone, '0917 123 4567');
+  // Others never see them: not another applicant, not an employee's own application view.
+  const other = await s.signUp('2', { sex: '', birthDate: '', campus: '' });
+  assert.equal((await other.get('/api/me/profile')).applicant, null);
+  await assert.rejects(other.get('/api/hris/recruitment/applicants'), status(403));
+  const mine = await c.get('/api/hris/my-applications');
+  assert.equal(JSON.stringify(mine).includes('1996-04-17'), false, 'not repeated in the applicant\'s application view');
+  // An internal application (an employee) has no applicant profile.
+  const eli = await s.signIn('eli');
+  await eli.post(`/api/hris/jobs/${job.id}/apply`, {});
+  const internal = (await s.hr.get(`/api/hris/recruitment/openings/${job.id}`)).applications.find((a) => a.internal);
+  assert.equal(internal.profile, null);
 });

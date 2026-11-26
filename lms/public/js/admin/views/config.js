@@ -7,6 +7,7 @@ import { html, mount, toast, confirmDialog, downloadFile, today, timeAgo, fmtDat
 import { pageHead, ctx } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { MODULES } from '/shared/settings-catalog.js';
+import { SIGNUP_FIELDS, fieldRuleLabel } from '/shared/recruitment.js';
 import { brandText } from '../../brand.js';
 
 const MODULE_LABEL = Object.fromEntries(MODULES);
@@ -16,6 +17,10 @@ const ADMIN_AREAS = ['security', 'roles'];
 const mayChange = (area) => ctx.user?.role === 'admin' || !ADMIN_AREAS.includes(area);
 const VIA = { screen: '', reset: 'Restored the default', 'reset-all': 'Restored the defaults', undo: 'Undone', import: 'Imported' };
 const peso = (n) => `₱${Number(n).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
+
+// The format of a changed path: its own, or for one field of the sign-up field list, the rule.
+const PART_FORMATS = { signupFields: 'fieldRule' };
+const formatIn = (fmt, area, path) => fmt[`${area}|${path}`] ?? (path.includes('.') ? PART_FORMATS[fmt[`${area}|${path.slice(0, path.lastIndexOf('.'))}`]] : null) ?? null;
 
 // A setting's value, in words.
 export function showValue(v, format, display) {
@@ -37,6 +42,11 @@ export function showValue(v, format, display) {
     case 'scale': return `${v.length} bands: ${[...v].sort((a, b) => b.min - a.min).map((b) => `${b.min}%→${Number(b.grade).toFixed(2)}`).join(', ')}`;
     case 'stages': return Array.isArray(v) ? v.map((x) => `${x.label}${x.retired ? ' (retired)' : ''}`).join(' → ') : '—';
     case 'outcomes': return Array.isArray(v) ? v.map((x) => `${x.label}${x.retired ? ' (not offered)' : ''}`).join(', ') : '—';
+    case 'signupFields': {
+      const shown = SIGNUP_FIELDS.filter((f) => v[f.id] && v[f.id] !== 'hidden').map((f) => `${f.label} (${fieldRuleLabel(v[f.id]).toLowerCase()})`);
+      return shown.length ? shown.join(', ') : 'Only the fixed fields';
+    }
+    case 'fieldRule': return fieldRuleLabel(v);
     case 'types': return v.map((t) => `${t.name} ${t.weight}%${t.active === false ? ' (off)' : ''}`).join(', ');
     case 'modules': {
       const off = Object.entries(v).flatMap(([m, r]) => Object.entries(r).filter(([, on]) => !on).map(([who]) => `${m} for ${who}s`));
@@ -169,7 +179,7 @@ async function historyTab(el, head, cfg, q) {
   const qs = new URLSearchParams(Object.entries({ module: q.module, area: q.area, path: q.path, q: q.q }).filter(([, v]) => v));
   const h = await api.get(`/api/admin/config/history?${qs}`);
   const fmt = Object.fromEntries(cfg.settings.map((s) => [`${s.area}|${s.path}`, s.format]));
-  const formatOf = (area, path) => fmt[`${area}|${path}`] ?? null;
+  const formatOf = (area, path) => formatIn(fmt, area, path);
   const areaLabel = q.area ? cfg.areas.find((a) => a.id === q.area)?.label : '';
   const settingLabel = q.path ? cfg.settings.find((s) => s.area === q.area && s.path === q.path)?.label : '';
   mount(el, html`${head}
@@ -240,7 +250,7 @@ function transferTab(el, head, cfg) {
         <div class="card-head"><h2>What importing would change</h2></div>
         <p class="muted small">From ${p.school || 'another ATLAS'}${p.exportedBy ? `, exported by ${p.exportedBy}` : ''}${p.exportedAt ? ` on ${fmtDateTime(p.exportedAt)}` : ''}. ${p.areas.length - withChanges.length ? `${p.areas.length - withChanges.length} group${p.areas.length - withChanges.length === 1 ? ' is' : 's are'} already the same here.` : ''}</p>
         ${withChanges.length ? html`<form id="import-form" class="stack">${withChanges.map((a) => html`<fieldset class="import-area"><legend><label class="check-inline"><input type="checkbox" name="area" value="${a.id}" ${mayChange(a.id) ? 'checked' : 'disabled'} /> <strong>${a.label}</strong> ${badge(moduleLabel(a.module), 'gray')} <span class="muted">${a.changes.length} change${a.changes.length === 1 ? '' : 's'}${mayChange(a.id) ? '' : ' · administrators import these'}</span></label></legend>
-            <ul class="change-list">${a.changes.slice(0, 12).map((c) => html`<li><span class="change-label">${c.label}</span> <span class="change-from">${showValue(c.from, fmt[`${a.id}|${c.path}`])}</span> → <span class="change-to">${showValue(c.to, fmt[`${a.id}|${c.path}`])}</span></li>`)}${a.changes.length > 12 ? html`<li class="muted">and ${a.changes.length - 12} more</li>` : ''}</ul></fieldset>`)}
+            <ul class="change-list">${a.changes.slice(0, 12).map((c) => html`<li><span class="change-label">${c.label}</span> <span class="change-from">${showValue(c.from, formatIn(fmt, a.id, c.path))}</span> → <span class="change-to">${showValue(c.to, formatIn(fmt, a.id, c.path))}</span></li>`)}${a.changes.length > 12 ? html`<li class="muted">and ${a.changes.length - 12} more</li>` : ''}</ul></fieldset>`)}
           <div class="actions end"><button type="button" class="btn ghost" id="cancel-import">Cancel</button><button class="btn primary">Import the ticked groups</button></div></form>`
           : html`<p>Everything in this file is already the same here. Nothing to import.</p>`}
       </section>`);

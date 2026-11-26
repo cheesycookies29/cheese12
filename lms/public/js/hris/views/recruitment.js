@@ -2,14 +2,18 @@
 // server/recruitment.js): post openings at the campus HR is looking at, move the applications to each
 // through the recruitment stages (one at a time or several at once, with a note to the applicant and
 // an internal remark; the applicant is told on the bell), and extend or remove the temporary accounts
-// of job applicants. Also the Recruitment stages card of HR settings (PL-015).
+// of job applicants. Also the Job applicants, Applicant sign-up fields (PL-016) and Recruitment stages
+// (PL-015) cards of HR settings.
 import { api } from '../../api.js';
 import { ctx, pageHead } from '../../shell.js';
 import { icon } from '../../icons.js';
 import { html, mount, money, fmtDate, fmtDateTime, badge, toast, modal, confirmDialog, downloadFile, toCsv, today, option, formData } from '../../ui.js';
 import { clickableRows, can } from '../state.js';
 import { salaryFor } from '/shared/gov-pay.js';
-import { AUDIENCES, OPENING_STATUSES, STAGE_LIMITS, openingStatusLabel } from '/shared/recruitment.js';
+import {
+  AUDIENCES, OPENING_STATUSES, STAGE_LIMITS, openingStatusLabel,
+  SIGNUP_FIELDS, FIXED_SIGNUP_FIELDS, FIELD_RULES, SEXES, ADDRESS_MAX, MIN_APPLICANT_AGE, listInWords,
+} from '/shared/recruitment.js';
 import { applicationBadge, salaryLine, placeLine, qualifications } from './jobs.js';
 
 const OPENING_KIND = { draft: 'gray', open: 'green', closed: 'gray' };
@@ -120,13 +124,23 @@ export async function openingFormView(el, { id } = {}, query = {}) {
 const CSV = [
   ['Name', (a) => a.name], ['Internal or external', (a) => (a.internal ? 'Internal' : 'External')], ['Email', (a) => a.email], ['Mobile', (a) => a.phone],
   ['Current position', (a) => a.employee?.position || ''], ['Salary grade', (a) => (a.employee?.salaryGrade ? `${a.employee.salaryGrade}-${a.employee.step || 1}` : '')], ['Campus', (a) => a.employee?.campusName || ''],
+  ['Sex', (a) => a.profile?.sexLabel || ''], ['Date of birth', (a) => a.profile?.birthDate || ''], ['Home address', (a) => a.profile?.address || ''],
+  ['Highest educational attainment', (a) => a.profile?.educationLabel || ''], ['Preferred campus', (a) => a.profile?.campusName || ''],
   ['Applied', (a) => localDay(a.createdAt)], ['Stage', (a) => a.stageLabel], ['Last change', (a) => localDay(a.updatedAt)], ['Latest note to the applicant', (a) => a.statusNote],
 ];
+
+// What a job applicant gave at sign-up besides their name, email and mobile (PL-016): one short line,
+// and the address on its own. Shown whatever the sign-up asks now: hiding a field deletes nothing.
+export function profileLines(p) {
+  if (!p) return '';
+  const line = [p.sexLabel, p.birthDate ? `Born ${fmtDate(p.birthDate)}` : '', p.educationLabel, p.campusName ? `Prefers ${p.campusName}` : ''].filter(Boolean).join(' · ');
+  return html`${line ? html`<small class="block muted applicant-profile">${line}</small>` : ''}${p.address ? html`<small class="block muted applicant-profile">${p.address}</small>` : ''}`;
+}
 
 function who(a) {
   if (a.removed) return html`<strong class="muted">Removed applicant</strong><small class="block muted">Account removed; kept for the count</small>`;
   if (a.internal && a.employee) return html`<strong>${a.name}</strong><small class="block muted">${a.employee.position || 'Employee'}${a.employee.salaryGrade ? ` · SG ${a.employee.salaryGrade}-${a.employee.step || 1}` : ''} · ${a.employee.campusName}</small>`;
-  return html`<strong>${a.name}</strong><small class="block muted">${[a.email, a.phone].filter(Boolean).join(' · ')}${a.accountClosed ? ' · account closed' : ''}</small>`;
+  return html`<strong>${a.name}</strong><small class="block muted">${[a.email, a.phone].filter(Boolean).join(' · ')}${a.accountClosed ? ' · account closed' : ''}</small>${profileLines(a.profile)}`;
 }
 
 // The stages and outcomes of the school, in order, with how many of this opening's applications are at each.
@@ -306,7 +320,7 @@ export async function applicantsView(el) {
       ? html`<section class="card scroll-x"><table class="table">
           <thead><tr><th>Applicant</th><th>Signed up</th><th>Account</th><th class="num">Applications</th><th></th></tr></thead>
           <tbody>${applicants.map((u) => html`<tr>
-            <td><strong>${u.name}</strong><small class="block muted">${[u.email, u.phone].filter(Boolean).join(' · ')}</small></td>
+            <td><strong>${u.name}</strong><small class="block muted">${[u.email, u.phone].filter(Boolean).join(' · ')}</small>${profileLines(u.profile)}</td>
             <td>${fmtDate(localDay(u.createdAt))}</td>
             <td>${u.status === 'open' ? html`${badge('Open', 'green')} <small class="block muted">until ${fmtDate(localDay(u.expiresAt))}</small>` : html`${badge('Closed', 'gray')} <small class="block muted">${u.removeAfter ? `removed on ${fmtDate(localDay(u.removeAfter))}` : 'kept until removed'}</small>`}</td>
             <td class="num">${u.applications}</td>
@@ -347,6 +361,31 @@ export const recruitmentSettingsCard = (s) => html`<section class="card" id="job
     <label class="field"><span>Remove after closing (days)</span><input type="number" name="applicantPurgeDays" min="0" max="365" value="${s.applicantPurgeDays}" /><span class="hint">0 = keep until HR removes it.</span></label>
   </div>
 </section>`;
+
+// ----- HR settings → Applicant sign-up fields (PL-016) -----
+// What the sign-up asks besides the fixed fields: each optional field Hidden, Optional or Required.
+// Saved with the rest of HR settings (settings.people.signupFields).
+const FIELD_HINTS = {
+  phone: 'So HR can call or text the applicant.',
+  sex: `${SEXES.map(([, l]) => l).join(' or ')}, as on the Personal Data Sheet.`,
+  birthDate: `Must be a real date in the past; the applicant must be at least ${MIN_APPLICANT_AGE}.`,
+  address: `At most ${ADDRESS_MAX} characters.`,
+  education: 'Elementary, secondary, vocational, college or graduate studies; can be left blank unless required.',
+  campus: 'The "branch": the choices are the school\'s campuses.',
+};
+export const signupFieldsCard = (s) => html`<section class="card" id="signup-fields">
+  <h2>Applicant sign-up fields</h2>
+  <p class="muted small">What people outside the school are asked when they sign up to apply. Ask only what HR needs to consider and contact them (Data Privacy Act of 2012): by default only the mobile number is asked, and it is optional. The privacy notice on the sign-up lists exactly the fields asked.</p>
+  <p class="small"><strong>Always asked, and required:</strong> ${listInWords(FIXED_SIGNUP_FIELDS.map(([, l]) => l))}.</p>
+  <ul class="sf-list">${SIGNUP_FIELDS.map((f) => html`<li>
+    <span class="sf-name"><strong id="sf-${f.id}-label">${f.label}</strong><small>${FIELD_HINTS[f.id]}</small></span>
+    <span class="seg sf-seg" role="radiogroup" aria-labelledby="sf-${f.id}-label">${FIELD_RULES.map(([k, l]) => html`<label class="rule-${k}"><input type="radio" name="sf-${f.id}" value="${k}" ${s.signupFields?.[f.id] === k ? 'checked' : ''} /> ${l}</label>`)}</span>
+  </li>`)}</ul>
+  <p class="muted small"><strong>Not offered at sign-up:</strong> document uploads, because documents come with each application; and an employee ID, because employees apply with their own account, not an applicant account.</p>
+  <p class="muted small">Hiding a field later deletes nothing applicants already gave: HR still sees it on their applications and in Applicant accounts.</p>
+</section>`;
+// The field list from the HR settings form.
+export const signupFieldsFrom = (fd) => Object.fromEntries(SIGNUP_FIELDS.map((f) => [f.id, fd.get(`sf-${f.id}`) || 'hidden']));
 
 // ----- HR settings → Recruitment stages (PL-015) -----
 // The in-progress stages, in order (add, rename, describe, move up or down, retire; a used stage can

@@ -15,7 +15,7 @@ import { mergeAcademicSettings } from './academic.js';
 import { mergeSso } from './sso.js';
 import { mergeCloudflare } from './cloudflare.js';
 import { mergeFinanceSettings, mergeChart } from './finance.js';
-import { DEFAULT_PEOPLE_SETTINGS, DEFAULT_RECRUITMENT_STAGES, mergeRecruitmentStages, migrateApplications } from '../shared/recruitment.js';
+import { DEFAULT_RECRUITMENT_STAGES, mergePeopleSettings, mergeRecruitmentStages, migrateApplications } from '../shared/recruitment.js';
 import { DEFAULT_PLANTILLA_SETTINGS, mergePlantillaSettings } from '../shared/plantilla.js';
 
 export const DEFAULT_SETTINGS = {
@@ -67,7 +67,7 @@ export const DEFAULT_SETTINGS = {
   tools: defaultToolSettings(), // ATLAS Tools (shared/systems.js): which account types may use each tool
   cloudflare: mergeCloudflare(), // System → Cloudflare (server/cloudflare.js): the hostname set up and what was done; never the API token
   plantilla: structuredClone(DEFAULT_PLANTILLA_SETTINGS), // ATLAS People → Plantilla: the PSIPOP's signatories (shared/plantilla.js)
-  people: { ...DEFAULT_PEOPLE_SETTINGS }, // ATLAS People: how long job applicants' accounts last, the warning, the removal (shared/recruitment.js)
+  people: mergePeopleSettings(), // ATLAS People: how long job applicants' accounts last, the warning, the removal, the sign-up fields (shared/recruitment.js)
   recruitmentStages: structuredClone(DEFAULT_RECRUITMENT_STAGES), // ATLAS People: the stages an application goes through, and the final outcomes (PL-015)
 };
 
@@ -172,7 +172,7 @@ export function mergeSettings(s = {}) {
     systems: Object.fromEntries(Object.entries(defaultSystemSettings()).map(([id, v]) => [id, { ...v, ...(s.systems?.[id] || {}) }])),
     sso: mergeSso(s.sso),
     cloudflare: mergeCloudflare(s.cloudflare),
-    people: { ...DEFAULT_PEOPLE_SETTINGS, ...(s.people || {}) },
+    people: mergePeopleSettings(s.people),
     recruitmentStages: mergeRecruitmentStages(s.recruitmentStages),
     plantilla: mergePlantillaSettings(s.plantilla),
     tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Choose what the applicant sign-up asks
+- HR managers choose what people outside the school are asked when they sign up to apply, under **HR settings → Applicant sign-up fields**: mobile number, sex, date of birth, home address, highest educational attainment and preferred campus, each **Hidden**, **Optional** or **Required**. Only the mobile number is asked by default; full name, email, username and password are always asked; documents and an employee ID never are. The privacy notice lists exactly what is asked, and HR sees the answers on each application and in **Applicant accounts**. See [the HR guide](hr#choose-what-the-applicant-sign-up-asks), [the applicant's guide](applicant#sign-up-for-an-applicant-account) and [the administrator's guide](admin#check-what-the-applicant-sign-up-asks).
+
 ### Follow a job application through the recruitment stages
 - Applicants (and employees who applied) follow each application under **My applications → See its progress**: the school's recruitment stages with dates, what happens now, HR's notes (from *HR office*) and the outcome, opened from the bell. HR managers **Move** applications to a later stage, back one with a reason, or to an outcome (one or several at once, with a note and an internal remark), see the counts per stage, and set the stages under **HR settings → Recruitment stages**; earlier statuses moved to the stages with their history. See [the applicant's guide](applicant#follow-your-application), [the HR guide](hr#move-an-application-to-another-stage) and [the administrator's guide](admin#check-the-recruitment-stages).
 

@@ -79,6 +79,14 @@ function schoolCard(p) {
   const t = p.teacher;
   const e = p.employee;
   const kids = p.children;
+  const a = p.applicant; // a job applicant: what they gave at sign-up (PL-016)
+  if (a) {
+    return html`<section class="card" aria-labelledby="pf-school">
+      <h2 id="pf-school">${icon('briefcase')} Given at sign-up</h2>
+      <dl class="profile-dl">${a.sexLabel ? row('Sex', a.sexLabel) : ''}${a.birthDate ? row('Date of birth', fmtDate(a.birthDate)) : ''}${a.address ? row('Home address', a.address) : ''}${a.educationLabel ? row('Highest educational attainment', a.educationLabel) : ''}${a.campusName ? row('Preferred campus', a.campusName) : ''}</dl>
+      <p class="muted small">Only the school's HR staff see these. To correct them, or to have them removed, ask the HR office.</p>
+    </section>`;
+  }
   if (!s && !t && !e && !kids) return '';
   return html`<section class="card" aria-labelledby="pf-school">
     <h2 id="pf-school">${icon(s ? 'cap' : kids ? 'users' : 'building')} ${s ? 'Studies' : kids ? 'Children' : 'Work'}</h2>

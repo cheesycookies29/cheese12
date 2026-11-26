@@ -31,12 +31,128 @@ export const openingStatusLabel = (k) => label(OPENING_STATUSES, k);
 export const audienceLabel = (k) => label(AUDIENCES, k);
 export const meaningLabel = (k) => label(MEANINGS, k);
 
+// ----- Applicant sign-up fields (PL-016, PL-028): a field list HR shows, hides or requires -----
+// settings.people.signupFields: { field id: 'hidden' | 'optional' | 'required' }.
+//  - Always asked, always required (not in the list): full name, email, username and password.
+//  - The optional fields below, in the order the sign-up form shows them. By default only the mobile
+//    number is asked (and optional): data minimisation under the Data Privacy Act of 2012 (RA 10173,
+//    s. 11): a school asks at sign-up only what it needs to consider and contact an applicant.
+//  - Never at sign-up: document uploads (they come with each application, PL-022) and an employee ID
+//    (employees apply with their own account, PL-004).
+// The values are kept on the applicant's account (user.phone, user.applicantProfile) and go with it
+// when it is removed. Hiding a field later deletes nothing already given.
+export const FIELD_RULES = [
+  ['hidden', 'Hidden'],
+  ['optional', 'Optional'],
+  ['required', 'Required'],
+];
+export const FIXED_SIGNUP_FIELDS = [
+  ['name', 'Full name'],
+  ['email', 'Email'],
+  ['username', 'Username'],
+  ['password', 'Password'],
+];
+export const SIGNUP_FIELDS = [
+  { id: 'phone', label: 'Mobile number', notice: 'mobile number', default: 'optional' },
+  { id: 'sex', label: 'Sex', notice: 'sex', default: 'hidden' },
+  { id: 'birthDate', label: 'Date of birth', notice: 'date of birth', default: 'hidden' },
+  { id: 'address', label: 'Home address', notice: 'home address', default: 'hidden' },
+  { id: 'education', label: 'Highest educational attainment', notice: 'highest educational attainment', default: 'hidden' },
+  { id: 'campus', label: 'Preferred campus or place of assignment', notice: 'preferred campus', default: 'hidden' },
+];
+// Asked for by name in the request (PL-016) and refused with the reason.
+export const NOT_AT_SIGNUP = {
+  documents: 'Documents are not asked for at sign-up: the applicant attaches them to each application.',
+  employeeId: 'An employee ID is not asked for at sign-up: employees apply with their own ATLAS account, not an applicant account.',
+};
+export const SEXES = [
+  ['Male', 'Male'],
+  ['Female', 'Female'],
+]; // as on the CSC Personal Data Sheet, and the same values as employee records
+export const EDUCATION_LEVELS = [
+  ['elementary', 'Elementary'],
+  ['secondary', 'Secondary'],
+  ['vocational', 'Vocational or trade course'],
+  ['college', 'College'],
+  ['graduate', 'Graduate studies'],
+]; // the levels of the PDS's educational background
+export const ADDRESS_MAX = 300;
+export const MIN_APPLICANT_AGE = 18;
+export const EARLIEST_BIRTH_DATE = '1900-01-01';
+export const DEFAULT_SIGNUP_FIELDS = Object.freeze(Object.fromEntries(SIGNUP_FIELDS.map((f) => [f.id, f.default])));
+export const fieldRuleLabel = (k) => FIELD_RULES.find(([id]) => id === k)?.[1] || k;
+export const sexLabel = (k) => SEXES.find(([id]) => id === k)?.[1] || '';
+export const educationLabel = (k) => EDUCATION_LEVELS.find(([id]) => id === k)?.[1] || '';
+export const signupFieldLabel = (id) => SIGNUP_FIELDS.find((f) => f.id === id)?.label || FIXED_SIGNUP_FIELDS.find(([k]) => k === id)?.[1] || id;
+
+// The field list as stored, every field in the fixed order (unknown or bad values take the default).
+export function mergeSignupFields(v) {
+  const rules = new Set(FIELD_RULES.map(([k]) => k));
+  return Object.fromEntries(SIGNUP_FIELDS.map((f) => [f.id, v && rules.has(v[f.id]) ? v[f.id] : f.default]));
+}
+// The optional fields the sign-up form shows (Optional or Required), in order.
+export const shownSignupFields = (cfg) => SIGNUP_FIELDS.filter((f) => (cfg?.[f.id] || f.default) !== 'hidden').map((f) => ({ id: f.id, label: f.label, required: cfg?.[f.id] === 'required' }));
+// What the privacy notice says is collected: exactly the fields on the form, in its order.
+export function collectedFields(cfg) {
+  const shown = new Set(shownSignupFields(cfg).map((f) => f.id));
+  return ['name', 'email', ...SIGNUP_FIELDS.filter((f) => shown.has(f.id)).map((f) => f.notice), 'username'];
+}
+// "a, b and c"
+export const listInWords = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
+
+// Date of birth: a real YYYY-MM-DD date, in the past, and the applicant at least 18 on `today`.
+// Returns what is wrong, or '' when it is fine.
+export const isRealDate = (s) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s))) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+};
+export function ageOn(birthDate, today) {
+  const [by, bm, bd] = birthDate.split('-').map(Number);
+  const [ty, tm, td] = today.split('-').map(Number);
+  return ty - by - (tm < bm || (tm === bm && td < bd) ? 1 : 0);
+}
+// The latest date of birth of someone who is `MIN_APPLICANT_AGE` on `today` (a 29 February birthday
+// counts from 1 March in a common year).
+export function latestBirthDate(today, age = MIN_APPLICANT_AGE) {
+  const [y, m, d] = today.split('-').map(Number);
+  const dt = new Date(Date.UTC(y - age, m - 1, d));
+  if (dt.getUTCMonth() !== m - 1) dt.setUTCDate(0); // 29 Feb in a common year: 28 Feb
+  return dt.toISOString().slice(0, 10);
+}
+export function birthDateProblem(value, today) {
+  if (!isRealDate(value)) return 'Date of birth: pick a real date.';
+  if (value >= today) return 'Date of birth must be in the past.';
+  if (value < EARLIEST_BIRTH_DATE) return 'Date of birth: check the year.';
+  if (ageOn(value, today) < MIN_APPLICANT_AGE) return `Applicants must be at least ${MIN_APPLICANT_AGE} years old.`;
+  return '';
+}
+
+// What a job applicant gave at sign-up besides their name, email and mobile number, as HR and the
+// applicant read it (campusNameOf: a campus id to its name). Kept even if the field has been hidden
+// since. null when nothing was given.
+export function applicantDetails(u, campusNameOf = () => '') {
+  const p = u?.role === 'applicant' ? u.applicantProfile : null;
+  if (!p || !Object.keys(p).length) return null;
+  return {
+    sex: p.sex || '', sexLabel: sexLabel(p.sex),
+    birthDate: p.birthDate || '',
+    address: p.address || '',
+    education: p.education || '', educationLabel: educationLabel(p.education),
+    campusId: p.campusId || '', campusName: p.campusId ? campusNameOf(p.campusId) || '(a campus since removed)' : '',
+  };
+}
+
 // settings.people (Settings center → ATLAS People → Job applicants; HR settings in People).
 export const DEFAULT_PEOPLE_SETTINGS = {
   applicantAccountDays: 365, // an applicant account closes this many days after sign-up (PL-003)
   applicantWarnDays: 30, // the applicant is told on the bell this many days before it closes, once
   applicantPurgeDays: 30, // a closed account and its applications' personal data are removed this many days later; 0 = when HR removes them
+  signupFields: DEFAULT_SIGNUP_FIELDS, // what sign-up asks besides name, email, username and password (PL-016)
 };
+// The settings as stored, with anything missing filled from the defaults (always a fresh object).
+export const mergePeopleSettings = (v) => ({ ...DEFAULT_PEOPLE_SETTINGS, ...(v || {}), signupFields: mergeSignupFields(v?.signupFields) });
 export const PEOPLE_SETTING_LIMITS = {
   applicantAccountDays: [30, 1095],
   applicantWarnDays: [1, 90],

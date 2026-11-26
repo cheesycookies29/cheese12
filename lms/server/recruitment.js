@@ -12,7 +12,10 @@
 //    the current one, the notes HR wrote to them and the outcome; never HR's internal remarks or who
 //    in HR moved it ("HR office").
 //  - People outside the school sign up from Job openings on the ATLAS home page, with basic
-//    information only (PL-028). That makes a temporary **applicant** account (shared/roles.js), which
+//    information only (PL-028): name, email, username and password, plus the fields HR shows or
+//    requires in the sign-up field list (PL-016, settings.people.signupFields; only the mobile number
+//    by default). Hidden fields sent anyway are ignored; required ones are checked here, not only in
+//    the form. The answers are kept on the account (user.phone, user.applicantProfile). That makes a temporary **applicant** account (shared/roles.js), which
 //    reaches only the jobs area of People. It closes settings.people.applicantAccountDays after
 //    sign-up (365 by default), with a bell notice applicantWarnDays before; once closed it cannot sign
 //    in, and a daily sweep removes it and the personal details in its applications
@@ -34,7 +37,9 @@ import { t } from './validate.js';
 import { salaryFor } from '../shared/gov-pay.js';
 import { brandName } from '../shared/brand.js';
 import {
-  AUDIENCES, OPENING_STATUSES, DECIDED, IN_PROGRESS, MEANINGS, DEFAULT_PEOPLE_SETTINGS, PEOPLE_SETTING_LIMITS, DAY_MS, STAGE_LIMITS,
+  AUDIENCES, OPENING_STATUSES, DECIDED, IN_PROGRESS, MEANINGS, PEOPLE_SETTING_LIMITS, DAY_MS, STAGE_LIMITS,
+  SIGNUP_FIELDS, FIXED_SIGNUP_FIELDS, FIELD_RULES, NOT_AT_SIGNUP, SEXES, EDUCATION_LEVELS, ADDRESS_MAX, MIN_APPLICANT_AGE,
+  mergePeopleSettings, shownSignupFields, collectedFields, birthDateProblem, latestBirthDate, applicantDetails,
   OUTCOME_MEANING, OPTIONAL_OUTCOMES, DEFAULT_RECRUITMENT_STAGES,
   applicantExpired, openingAccepts, mergeRecruitmentStages, legacyStage, stageInfo, stageLabel, firstStage, previousStage, trackerOf, meaningLabel,
 } from '../shared/recruitment.js';
@@ -64,7 +69,7 @@ export function registerRecruitmentRoutes(route, ctx) {
   const nowMs = () => ctx.now().getTime();
   const iso = (ms = nowMs()) => new Date(ms).toISOString();
   const today = () => ctx.today();
-  const people = () => ({ ...DEFAULT_PEOPLE_SETTINGS, ...(data().settings.people || {}) });
+  const people = () => mergePeopleSettings(data().settings.people);
   const openings = () => (data().jobOpenings ||= []);
   const applications = () => (data().jobApplications ||= []);
   const userById = (id) => (id ? data().users.find((u) => u.id === id) : null);
@@ -183,6 +188,7 @@ export function registerRecruitmentRoutes(route, ctx) {
       // Internal: where the employee is now, from their record (PL-004).
       employee: emp ? { employeeNo: emp.employeeNo, position: emp.position || '', department: emp.department || '', salaryGrade: emp.salaryGrade || null, step: emp.step || null, campusName: campusName(data(), emp.campusId) } : null,
       accountClosed: Boolean(!a.internal && u && (u.status !== 'active' || applicantExpired(u, nowMs()))),
+      profile: a.removed || a.internal ? null : applicantDetails(u, (id) => campusName(data(), id)),
       note: a.note || '', status: a.status, stage: a.stage, stageLabel: stageLabel(cfg, a.stage), statusNote: a.statusNote || '', createdAt: a.createdAt, updatedAt: a.updatedAt,
       // Everything, for HR: the applicant's own steps carry no name; remarks and reasons are HR's own.
       history: (a.history || []).map((h) => ({
@@ -257,7 +263,72 @@ export function registerRecruitmentRoutes(route, ctx) {
     accountDays: people().applicantAccountDays,
     purgeDays: people().applicantPurgeDays,
     signUpOpen: publicOpenings().length > 0,
+    signUp: signUpForm(),
   }), { audit: false });
+
+  // ----- The sign-up field list (PL-016): what the form asks besides name, email, username, password -----
+  // The optional fields HR shows (Optional or Required), in order; the words the privacy notice uses
+  // for what is collected; the campus choices when the preferred campus is asked; the date limits.
+  function signUpForm() {
+    const cfg = people().signupFields;
+    const fields = shownSignupFields(cfg);
+    const day = today();
+    return {
+      fields,
+      collects: collectedFields(cfg),
+      campuses: fields.some((f) => f.id === 'campus') ? data().campuses.map((c) => ({ id: c.id, name: c.name })) : [],
+      today: day, minAge: MIN_APPLICANT_AGE, latestBirthDate: latestBirthDate(day),
+    };
+  }
+  // One answer, checked as the form says; '' when it was left empty.
+  function cleanSignUpField(f, raw) {
+    const v = typeof raw === 'string' ? raw.trim() : '';
+    if (!v) return '';
+    switch (f.id) {
+      case 'phone':
+        if (v.length > 40 || !PHONE_RE.test(v)) fail('That mobile number does not look right.');
+        return v;
+      case 'sex':
+        if (!SEXES.some(([k]) => k === v)) fail(`Sex: pick ${SEXES.map(([, l]) => l).join(' or ')}.`);
+        return v;
+      case 'birthDate': {
+        const problem = birthDateProblem(v, today());
+        if (problem) fail(problem);
+        return v;
+      }
+      case 'address': {
+        const one = v.replace(/\s+/g, ' ');
+        if (one.length > ADDRESS_MAX) fail(`Home address: at most ${ADDRESS_MAX} characters.`);
+        return one;
+      }
+      case 'education':
+        if (!EDUCATION_LEVELS.some(([k]) => k === v)) fail('Highest educational attainment: pick one from the list.');
+        return v;
+      case 'campus':
+        if (!data().campuses.some((c) => c.id === v)) fail('Preferred campus: pick one from the list.');
+        return v;
+      default:
+        return '';
+    }
+  }
+  // The optional fields of a sign-up: a Hidden one is ignored even when sent, a Required one must be
+  // there. Returns the mobile number and the rest of the profile (only what was given).
+  function signUpProfile(body) {
+    const cfg = people().signupFields;
+    let phone = '';
+    const profile = {};
+    for (const f of SIGNUP_FIELDS) {
+      if (cfg[f.id] === 'hidden') continue;
+      const value = cleanSignUpField(f, body[f.id]);
+      if (!value) {
+        if (cfg[f.id] === 'required') fail(`${f.label} is required.`);
+        continue;
+      }
+      if (f.id === 'phone') phone = value;
+      else profile[f.id === 'campus' ? 'campusId' : f.id] = value;
+    }
+    return { phone, profile };
+  }
 
   // Basic information only (PL-028): name, email, username, password, and a mobile number if they
   // like. The same password rules, rate limit and checks as "Apply for admission".
@@ -274,10 +345,9 @@ export function registerRecruitmentRoutes(route, ctx) {
     const fields = validateUserFields({ ...body, role: 'applicant' }, data());
     if (!fields.email) fail('Email is required so HR can contact you.');
     emailInUse(fields.email);
-    const phone = text(body.phone, 40);
-    if (phone && !PHONE_RE.test(phone)) fail('That mobile number does not look right.');
+    const { phone, profile } = signUpProfile(body);
     if (body.consent !== true) fail('Tick the box to say you have read the privacy notice.');
-    return { ...fields, phone };
+    return { ...fields, phone, ...(Object.keys(profile).length ? { applicantProfile: profile } : {}) };
   }
   route('POST', '/api/jobs/signup', 'public', async ({ body, ip, agent }) => {
     signUpFields(body); // the answers first, before the slow hash
@@ -295,7 +365,10 @@ export function registerRecruitmentRoutes(route, ctx) {
     return { ok: true, username: user.username, expiresAt: user.expiresAt };
   }, {
     limit: 'apply', audit: false,
-    body: { name: t.str(200), email: t.str(320), username: t.str(200), password: t.str(1000), phone: t.str(60), consent: t.bool() },
+    body: {
+      name: t.str(200), email: t.str(320), username: t.str(200), password: t.str(1000), phone: t.str(60), consent: t.bool(),
+      sex: t.str(20), birthDate: t.str(20), address: t.str(2000), education: t.str(40), campus: t.str(100),
+    },
   });
 
   // ----- Job applicants and employees (People → Job openings, My applications) -----
@@ -565,6 +638,7 @@ export function registerRecruitmentRoutes(route, ctx) {
       removeAfter: closed && s.applicantPurgeDays > 0 ? iso(Date.parse(u.expiresAt) + s.applicantPurgeDays * DAY_MS) : null,
       applications: applications().filter((a) => a.userId === u.id).length,
       warned: Boolean(u.expiryWarnedAt),
+      profile: applicantDetails(u, (id) => campusName(data(), id)),
     };
   };
   route('GET', '/api/hris/recruitment/applicants', 'hris:hris.recruitment', () => ({
@@ -606,10 +680,30 @@ export function registerRecruitmentRoutes(route, ctx) {
       next[k] = n;
     }
     if (next.applicantWarnDays >= next.applicantAccountDays) fail('Warn applicants fewer days before closing than their accounts last.');
+    if (body.signupFields !== undefined && body.signupFields !== null) next.signupFields = cleanSignupFields(body.signupFields, next.signupFields);
     data().settings.people = next;
     save();
     return next;
-  }, { body: { applicantAccountDays: t.any(), applicantWarnDays: t.any(), applicantPurgeDays: t.any() } });
+  }, { body: { applicantAccountDays: t.any(), applicantWarnDays: t.any(), applicantPurgeDays: t.any(), signupFields: t.any() } });
+  // The sign-up field list (PL-016): only the optional fields, each Hidden, Optional or Required; the
+  // fixed ones are always required, and documents and an employee ID are never asked at sign-up.
+  // Fields left out keep what they were. Values applicants already gave are never touched.
+  function cleanSignupFields(input, current) {
+    if (typeof input !== 'object' || Array.isArray(input)) fail('Send the sign-up fields as each field and Hidden, Optional or Required.');
+    const out = { ...current };
+    for (const [k, v] of Object.entries(input)) {
+      if (Object.hasOwn(NOT_AT_SIGNUP, k)) fail(NOT_AT_SIGNUP[k]);
+      const fixed = FIXED_SIGNUP_FIELDS.find(([id]) => id === k);
+      if (fixed) {
+        if (v === 'required') continue;
+        fail(`${fixed[1]} is always asked at sign-up, and required.`);
+      }
+      const f = SIGNUP_FIELDS.find((x) => x.id === k) || fail(`Sign-up has no field called ${String(k).slice(0, 40)}.`);
+      if (!FIELD_RULES.some(([r]) => r === v)) fail(`${f.label}: pick Hidden, Optional or Required.`);
+      out[k] = v;
+    }
+    return Object.fromEntries(SIGNUP_FIELDS.map((f) => [f.id, out[f.id]]));
+  }
 
   // ----- Recruitment stages (HR settings → Recruitment stages; Settings center → ATLAS People) -----
   // Each with how many applications are at it now and have ever been at it (a used one is never deleted).
@@ -732,7 +826,7 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
   });
   // The demo applicant: signed up ten days ago, so the account is open for 355 more days.
   const created = now - 10 * DAY_MS;
-  const days = { ...DEFAULT_PEOPLE_SETTINGS, ...(data.settings?.people || {}) }.applicantAccountDays;
+  const days = mergePeopleSettings(data.settings?.people).applicantAccountDays;
   const applicant = person('applicant', 'applicant.demo', 'Carla Mendiola', {
     email: 'carla.mendiola@example.com', campusIds: [], phone: '09171234567', createdAt: new Date(created).toISOString(), expiresAt: new Date(created + days * DAY_MS).toISOString(), consentAt: new Date(created).toISOString(),
   });

@@ -455,3 +455,20 @@ img.att-preview { height: auto; max-height: 70vh; }
   .stage-fields { grid-template-columns: 1fr; }
   .stage-tools { grid-column: 2; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; padding-top: 0; }
 }
+
+/* HR settings → Applicant sign-up fields (PL-016): each field Hidden, Optional or Required */
+.sf-list { list-style: none; margin: 10px 0; padding: 0; border-top: 1px solid var(--border); }
+.sf-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.sf-name { flex: 1 1 260px; min-width: 0; }
+.sf-name strong { display: block; }
+.sf-name small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.sf-seg label:has(input:checked).rule-hidden { background: var(--surface-2); color: var(--text); box-shadow: inset 0 -2px 0 var(--border-strong); }
+.sf-seg label:has(input:checked).rule-optional { background: var(--info-soft); color: var(--info); }
+.sf-seg label:has(input:checked).rule-optional { box-shadow: inset 0 -2px 0 var(--info); }
+.sf-seg label:has(input:checked).rule-required { background: var(--brand-soft); color: var(--brand-text); box-shadow: inset 0 -2px 0 var(--brand-text); }
+:root[data-theme='dark'] .sf-seg label:has(input:checked).rule-required { color: var(--text); }
+.sf-seg label:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: -2px; }
+@media (max-width: 560px) { .sf-seg { display: flex; width: 100%; } .sf-seg label { flex: 1 1 0; justify-content: center; } }
+.applicant-profile { margin-top: 2px; }
+/* HR settings opened at a section (?section=…): the card's heading clears the top bar */
+#signup-fields, #recruitment-stages { scroll-margin-top: calc(var(--topbar) + 16px); }

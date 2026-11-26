@@ -304,6 +304,15 @@ People outside the school apply for jobs with a temporary **applicant account** 
 
 A closed account cannot sign in, and its sessions end when it closes. Removed applicants stay in each opening's list as *Removed applicant*, without a name, so the counts stay true. Employees, students and other accounts never close this way.
 
+### Check what the applicant sign-up asks
+
+The same group has **Applicant sign-up fields**: what the job applicant sign-up asks besides the full name, email, username and password (always asked and required). Each optional field is **Hidden**, **Optional** or **Required**; by default only the **Mobile number** is asked, and it is optional, so the school asks only what it needs (Data Privacy Act of 2012). HR managers change it in People under **HR settings → Applicant sign-up fields** (see [the HR guide](hr#choose-what-the-applicant-sign-up-asks)).
+
+1. Choose **Settings center** and find *sign-up*. **Now** lists the fields asked besides the fixed ones.
+2. Choose **Open** on **Job applicants** to change them in People, or **Restore default** to ask only the mobile number again.
+
+Each field's change is in the **Change history**, for example *Applicant sign-up fields (Date of birth)*, *Hidden* → *Required*. Document uploads and an employee ID are never asked at sign-up: documents come with each application, and employees apply with their own account. Hiding a field deletes nothing applicants already gave.
+
 ### Check the recruitment stages
 
 Job applications go through the school's **recruitment stages**, which the applicant follows on their application (see [the applicant's guide](applicant#follow-your-application)). HR managers set them in People under **HR settings → Recruitment stages** (see [the HR guide](hr#set-the-recruitment-stages)); you find them in the **Settings center** under **ATLAS People → Recruitment stages**:

@@ -10,6 +10,7 @@ import { mountBell } from '../account/notifications.js';
 import { orderSystems, canOpen } from '/shared/systems.js';
 import { codeStep, forceTwoFactorView } from '../account/two-factor.js';
 import { schoolBrand, brand, brandHome, brandText } from '../brand.js';
+import { SEXES, EDUCATION_LEVELS, ADDRESS_MAX, EARLIEST_BIRTH_DATE, listInWords } from '/shared/recruitment.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -100,20 +101,44 @@ async function jobsView(status) {
   authEl.querySelector('#signup')?.addEventListener('click', () => signUpView(status, d));
 }
 
+// The sign-up form: the fixed fields (always required), then the fields HR shows (PL-016), each marked
+// required or optional, and a privacy notice that lists exactly what this form collects.
+const req = (required) => (required ? html`<em aria-hidden="true">*</em>` : html` <span class="muted">(optional)</span>`);
+const flag = (required) => (required ? 'required' : '');
+function signUpField(f, form) {
+  switch (f.id) {
+    case 'phone':
+      return html`<label class="field"><span>Mobile number${req(f.required)}</span><input type="tel" name="phone" autocomplete="tel" placeholder="09xx xxx xxxx" ${flag(f.required)} /></label>`;
+    case 'sex':
+      return html`<label class="field"><span>Sex${req(f.required)}</span><select name="sex" ${flag(f.required)}>${option('', f.required ? 'Choose…' : '—')}${SEXES.map(([k, l]) => option(k, l))}</select></label>`;
+    case 'birthDate':
+      return html`<label class="field"><span>Date of birth${req(f.required)}</span><input type="date" name="birthDate" autocomplete="bday" min="${EARLIEST_BIRTH_DATE}" max="${form.latestBirthDate}" ${flag(f.required)} /><span class="hint" id="dob-hint">You must be at least ${form.minAge} years old.</span></label>`;
+    case 'address':
+      return html`<label class="field"><span>Home address${req(f.required)}</span><textarea name="address" rows="2" maxlength="${ADDRESS_MAX}" autocomplete="street-address" placeholder="House no., street, barangay, town or city, province" ${flag(f.required)}></textarea></label>`;
+    case 'education':
+      return html`<label class="field"><span>Highest educational attainment${req(f.required)}</span><select name="education" ${flag(f.required)}>${option('', f.required ? 'Choose…' : '—')}${EDUCATION_LEVELS.map(([k, l]) => option(k, l))}</select><span class="hint">The highest level you have reached, finished or not.</span></label>`;
+    case 'campus':
+      return html`<label class="field"><span>Preferred campus or place of assignment${req(f.required)}</span><select name="campus" ${flag(f.required)}>${option('', f.required ? 'Choose…' : 'No preference')}${form.campuses.map((c) => option(c.id, c.name))}</select></label>`;
+    default:
+      return '';
+  }
+}
 function signUpView(status, jobs) {
   const closes = fmtDate(localDay(new Date(Date.now() + jobs.accountDays * 86400000).toISOString()));
-  const form = hubScreen(html`
+  const form = jobs.signUp;
+  const aboutYou = form.fields.some((f) => f.id !== 'phone');
+  const el = hubScreen(html`
     <form class="auth-card" novalidate>
       <h2>Sign up to apply</h2>
-      <p class="muted">Basic information only: your name, how to reach you, and a password.</p>
-      <label class="field"><span>Full name</span><input name="name" autocomplete="name" required /></label>
-      <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required /></label>
-      <label class="field"><span>Mobile number (optional)</span><input type="tel" name="phone" autocomplete="tel" placeholder="09xx xxx xxxx" /></label>
-      <label class="field"><span>Choose a username</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /><span class="hint">3 to 40 lowercase letters, numbers, dots, dashes or underscores.</span></label>
-      ${passwordField('Choose a password (at least 8 characters)', 'password', 'new-password')}
+      <p class="muted">Basic information only: your name, how to reach you${aboutYou ? ', a few details about you' : ''} and a password. Documents come later, with each application. Fields marked <em class="req">*</em> are required.</p>
+      <label class="field"><span>Full name${req(true)}</span><input name="name" autocomplete="name" required /></label>
+      <label class="field"><span>Email${req(true)}</span><input type="email" name="email" autocomplete="email" required /></label>
+      ${form.fields.map((f) => signUpField(f, form))}
+      <label class="field"><span>Choose a username${req(true)}</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required /><span class="hint">3 to 40 lowercase letters, numbers, dots, dashes or underscores.</span></label>
+      ${passwordField(html`Choose a password (at least 8 characters)${req(true)}`, 'password', 'new-password')}
       <div class="privacy-notice" role="note">
         <strong>${icon('shield', 15)} Your privacy</strong>
-        <p>${status.branding.schoolName} keeps what you give here (your name, email, username and mobile number) and your applications, only to consider you for its job openings and to contact you about them. The school's HR staff see them; other applicants never do.</p>
+        <p>${status.branding.schoolName} keeps what you give here (your ${listInWords(form.collects)}) and your applications, only to consider you for its job openings and to contact you about them. The school's HR staff see them; other applicants never do.</p>
         <p>Your applicant account is open for ${jobs.accountDays} days, until ${closes}. ${jobs.purgeDays ? `${jobs.purgeDays} days after it closes, the account and the personal details in your applications are removed.` : 'Once it closes, HR removes the account and the personal details in your applications.'} You can ask HR to remove them sooner (Data Privacy Act of 2012).</p>
       </div>
       <label class="check-row"><input type="checkbox" name="consent" value="yes" /> <span>I have read this notice and agree to it.</span></label>
@@ -121,9 +146,15 @@ function signUpView(status, jobs) {
       <button class="btn primary block" type="submit">Create my applicant account</button>
       <p class="auth-switch"><button type="button" class="link" id="back">← Back to job openings</button></p>
     </form>`, status.systems, brandText('ATLAS · Job openings'));
-  form.querySelector('#back').addEventListener('click', () => jobsView(status));
-  onFormSubmit(form, async (v) => {
-    const out = await api.post('/api/jobs/signup', { name: v.name, email: v.email, phone: v.phone, username: v.username, password: v.password, consent: v.consent === 'yes' });
+  el.querySelector('#back').addEventListener('click', () => jobsView(status));
+  // The date as ATLAS shows it, under the date box: the box itself follows the browser's language.
+  const dob = el.querySelector('[name=birthDate]');
+  dob?.addEventListener('change', () => {
+    el.querySelector('#dob-hint').textContent = dob.value ? `${fmtDate(dob.value)}. You must be at least ${form.minAge} years old.` : `You must be at least ${form.minAge} years old.`;
+  });
+  onFormSubmit(el, async (v) => {
+    const answers = Object.fromEntries(form.fields.map((f) => [f.id, v[f.id] ?? '']));
+    const out = await api.post('/api/jobs/signup', { name: v.name, email: v.email, username: v.username, password: v.password, ...answers, consent: v.consent === 'yes' });
     // Signed in at once, and on to People's Job openings (boot sends applicants there).
     const res = await api.post('/api/hub/login', { username: out.username, password: v.password });
     if (res.twoFactorRequired) {

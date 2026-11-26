@@ -1840,4 +1840,5 @@ form#sec .grid + h2 { margin-top: 24px; padding-top: 18px; border-top: 1px solid
 .privacy-notice strong { display: flex; align-items: center; gap: 6px; color: var(--ink); margin-bottom: 4px; }
 .privacy-notice p { margin: 4px 0 0; line-height: 1.5; }
 .auth-card .check-row { align-items: flex-start; font-size: 13px; }
+.auth-card em.req { color: var(--danger); font-style: normal; }
 .auth-card .check-row input { margin-top: 3px; }

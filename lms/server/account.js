@@ -13,6 +13,7 @@ import { isStaff } from './audit.js';
 import { t } from './validate.js';
 import { SYSTEMS } from '../shared/systems.js';
 import { ATLAS_HREF } from '../shared/notifications.js';
+import { applicantDetails } from '../shared/recruitment.js';
 
 const SYSTEM_IDS = new Set(SYSTEMS.map((x) => x.id));
 
@@ -189,6 +190,7 @@ export function registerAccountRoutes(route, { db, sides, avatars, record, syste
       mustChangePassword: Boolean(u.mustChangePassword),
       student: u.role === 'student' ? { studentNo: u.studentNo || '', program: program ? `${program.code} · ${program.name}` : '', yearLevel: u.yearLevel || null } : null,
       teacher: u.role === 'teacher' ? { department: u.department || '', employeeNo: u.employeeNo || '' } : null,
+      applicant: u.role === 'applicant' ? applicantDetails(u, (id) => campusName(data(), id)) : null, // what they gave at sign-up (PL-016)
       children: u.role === 'guardian' ? guardianChildren(data(), u.id).map(({ link, student }) => ({ name: student.name, relationship: link.relationship || '' })) : null,
       employee: emp ? { employeeNo: emp.employeeNo || '', position: emp.position || '', department: emp.department || '', status: emp.employmentStatus || '', hireDate: emp.hireDate || '', campus: campusName(data(), emp.campusId) } : null,
       systems: systemsFor(u),
