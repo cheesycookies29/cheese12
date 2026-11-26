@@ -171,6 +171,12 @@ const DEFS = {
     save: (v) => ['PUT', '/api/hris/appointment-papers/settings', v],
     watch: [['PUT', /^\/api\/hris\/appointment-papers\/settings$/]],
   },
+  dueDates: {
+    get: (d) => clone(d.settings.dueDates),
+    defaults: () => clone(DEFAULT_SETTINGS.dueDates),
+    save: (v) => ['PUT', '/api/hris/due-dates/settings', v],
+    watch: [['PUT', /^\/api\/hris\/due-dates\/settings$/]],
+  },
   plantilla: {
     get: (d) => clone(d.settings.plantilla),
     defaults: () => clone(DEFAULT_SETTINGS.plantilla),

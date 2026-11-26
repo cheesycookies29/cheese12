@@ -24,6 +24,8 @@ import { registerPayrollFinanceRoutes } from './hris-finance.js';
 import { computeGovPayslip, computeGovBonus, DEFAULT_GOV, BONUS_KINDS, APPOINTMENTS, DEDUCTION_TYPES, monthlySalary, salaryFor, stepsIn, isJobOrder } from '../shared/gov-pay.js';
 import { itemOf, itemSummary, linkIncumbent, unlinkIncumbent, reconcileEmployee, vacateFor, makeLog, plantillaItems } from './plantilla.js';
 import { offPlantilla } from '../shared/plantilla.js';
+import { RECORD_DATE_FIELDS, RECORD_DATE_KEYS, isDate } from '../shared/due-dates.js';
+import { recordDatesView, dueSummary } from './due-dates.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -62,6 +64,9 @@ const EMPLOYEE_FIELDS = [
   // as the item's number; a number typed through the API is matched to the register, or recorded
   // there as a draft to review.
   'salaryGrade', 'step', 'plantillaItem', 'appointment', 'gsisNo', 'pera', 'rataRepresentation', 'rataTransportation', 'separationDate',
+  // Due dates (PL-053; shared/due-dates.js): the appointment's end, the original appointment and the last
+  // step increment. Blank stays blank: the Due dates list then works from the appointment history, if any.
+  ...RECORD_DATE_KEYS,
 ];
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => k in obj).map((k) => [k, obj[k]]));
 function trimStrings(obj) {
@@ -106,6 +111,13 @@ export function validateEmployee(input, data, existingId) {
   // Date of separation (resignation, retirement, end of contract): bonuses look at service on their cut-off date.
   e.separationDate = e.separationDate || null;
   if (e.separationDate && (!DATE_RE.test(e.separationDate) || e.separationDate < e.hireDate)) fail('Date separated must be a date after the date hired.');
+  // The due-date fields: a real date, or blank (left as it was when not sent).
+  for (const [k, label] of RECORD_DATE_FIELDS) {
+    if (!(k in e)) continue;
+    e[k] = e[k] == null ? '' : String(e[k]).trim();
+    if (e[k] && !isDate(e[k])) fail(`${label}: pick a real date, or leave it blank.`);
+  }
+  if (e.appointmentEndDate && e.appointmentEndDate < e.hireDate) fail('Appointment ends on: a date after the date hired.');
   e.pera = e.pera !== false && e.pera !== 'false';
   for (const k of ['rataRepresentation', 'rataTransportation']) {
     e[k] = Math.max(0, Number(e[k]) || 0);
@@ -339,7 +351,7 @@ export function registerHrisRoutes(route, ctx) {
   // record before the register that could not be linked (it is on the item's "to review" notes).
   const employeeView = (emp) => {
     const plantilla = itemSummary(data(), emp.id);
-    return { ...emp, campusName: campusName(data(), emp.campusId), account: accountOf(emp), plantilla, plantillaTyped: !plantilla && emp.plantillaItem ? emp.plantillaItem : '' };
+    return { ...emp, campusName: campusName(data(), emp.campusId), account: accountOf(emp), plantilla, plantillaTyped: !plantilla && emp.plantillaItem ? emp.plantillaItem : '', dueBasis: recordDatesView(data(), emp) };
   };
   // The plantilla item picked on the employee form (plantillaItemId: an item's id, or '' for none).
   // Undefined: no change. Checked before anything is saved; linking never changes the appointment.
@@ -461,6 +473,8 @@ export function registerHrisRoutes(route, ctx) {
       upcoming,
       birthdays: active.filter((e) => e.birthDate?.slice(5, 7) === month).sort((a, b) => a.birthDate.slice(8).localeCompare(b.birthDate.slice(8))).map((e) => ({ id: e.id, name: `${e.firstName} ${e.lastName}`, day: e.birthDate.slice(5) })),
       unlinked: active.filter((e) => !data().users.some((u) => u.employeeId === e.id)).length,
+      // People → Due dates: overdue, and due in the next 30 days, at this campus (PL-053).
+      due: userCan(user, 'hris.due') ? dueSummary(data(), date, all) : null,
       latestRun: runs[0] ? { id: runs[0].id, periodStart: runs[0].periodStart, periodEnd: runs[0].periodEnd, payDate: runs[0].payDate, status: runs[0].status, totals: runs[0].totals } : null,
     };
   });

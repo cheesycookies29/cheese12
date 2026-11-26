@@ -81,6 +81,7 @@ export async function appointView(el, { id, appId }) {
         ${input('dateSigned', 'Date of signing', f.dateSigned, { type: 'date', req: true })}
         ${input('effectiveDate', 'Effective date', f.effectiveDate, { type: 'date', req: true, hintText: 'Also the date hired on a new employee record.' })}
         <div class="field"><span>Date of assumption</span><output class="sg-out">${f.assumptionDate ? longDate(f.assumptionDate) : 'Recorded later (step 4)'}</output></div>
+        ${input('endDate', 'Appointment ends on', f.endDate, { type: 'date', hintText: 'Only for a temporary, casual, contractual, substitute or coterminous appointment with an end date. People → Due dates reminds HR before it ends.' })}
         ${input('publicationFrom', 'Published or posted from', f.publicationFrom, { type: 'date' })}
         ${input('publicationTo', 'Published or posted until', f.publicationTo, { type: 'date' })}
         ${input('publicationPlace', 'Where it was published or posted', f.publicationPlace)}
@@ -141,7 +142,7 @@ export async function appointView(el, { id, appId }) {
   const form = el.querySelector('#ap-form');
   const collect = () => {
     const fd = new FormData(form);
-    const body = Object.fromEntries(['lastName', 'firstName', 'middleName', 'suffix', 'address', 'position', 'plantillaItemId', 'itemNo', 'salaryGrade', 'step', 'monthlySalary', 'nature', 'status', 'vice', 'viceEmployeeId', 'viceReason', 'campusId', 'office', 'agency', 'place', 'dateSigned', 'effectiveDate', 'publicationFrom', 'publicationTo', 'publicationPlace', 'deliberationDate'].map((k) => [k, fd.get(k) ?? '']));
+    const body = Object.fromEntries(['lastName', 'firstName', 'middleName', 'suffix', 'address', 'position', 'plantillaItemId', 'itemNo', 'salaryGrade', 'step', 'monthlySalary', 'nature', 'status', 'vice', 'viceEmployeeId', 'viceReason', 'campusId', 'office', 'agency', 'place', 'dateSigned', 'effectiveDate', 'endDate', 'publicationFrom', 'publicationTo', 'publicationPlace', 'deliberationDate'].map((k) => [k, fd.get(k) ?? '']));
     if (body.vice !== (f.vice || '')) body.viceEmployeeId = '';
     body.assumptionDate = f.assumptionDate || '';
     body.signatories = Object.fromEntries(SIGNATORIES.map((s) => [s.key, { name: fd.get(`sig-${s.key}-name`) || '', title: fd.get(`sig-${s.key}-title`) || '' }]));
@@ -241,7 +242,7 @@ export async function appointView(el, { id, appId }) {
 function reissueDialog(appt, p, c, done) {
   const f = appt.fields;
   const fieldsFor = {
-    appointment: [['position', 'Position title'], ['office', 'Office or unit'], ['effectiveDate', 'Effective date', 'date'], ['dateSigned', 'Date of signing', 'date'], ['viceReason', 'Why the position is vacant']],
+    appointment: [['position', 'Position title'], ['office', 'Office or unit'], ['effectiveDate', 'Effective date', 'date'], ['endDate', 'Appointment ends on', 'date'], ['dateSigned', 'Date of signing', 'date'], ['viceReason', 'Why the position is vacant']],
     'oath-fil': [['address', 'Home address'], ['place', 'Place']],
     'oath-en': [['address', 'Home address'], ['place', 'Place']],
     assumption: [['assumptionDate', 'Date of assumption', 'date'], ['place', 'Place']],

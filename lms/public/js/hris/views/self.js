@@ -13,6 +13,7 @@ import { payslipCard } from './payroll.js';
 import { readClockLocation, LOCATION_NOTICE } from '../geo.js';
 import { workExperienceCard } from '../work-experience.js';
 import { myAppointmentPapersCard } from './appointment.js';
+import { myDueDatesCard } from './due-dates.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -239,10 +240,13 @@ export async function meProfileView(el) {
     <p class="muted small">Need to update your details? Contact HR.</p>
     <section class="card" id="wx"></section>
     <section class="card" id="my-papers"></section>`);
+  // Coming up (PL-053): only when HR set a rule to tell the employee; shown first.
+  el.querySelector('.cols').insertAdjacentHTML('beforebegin', '<section class="card due-coming" id="my-due" hidden></section>');
   el.querySelector('#change-pw').addEventListener('click', () => openChangePassword('/api/hris/auth'));
   await Promise.all([
     workExperienceCard(el.querySelector('#wx'), { base: '/api/hris/me/work-experience', own: true, sheetHref: '/me/profile/sheet' }),
     myAppointmentPapersCard(el.querySelector('#my-papers')),
+    myDueDatesCard(el.querySelector('#my-due')),
   ]);
 }
 

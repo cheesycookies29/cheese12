@@ -20,6 +20,7 @@ import { mergeAssessment, migrateRatings } from '../shared/recruitment-assess.js
 import { mergeApplicantDocs } from '../shared/recruitment-docs.js';
 import { DEFAULT_PLANTILLA_SETTINGS, mergePlantillaSettings } from '../shared/plantilla.js';
 import { mergeAppointmentSettings } from '../shared/appointment.js';
+import { mergeDueSettings } from '../shared/due-dates.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -79,6 +80,7 @@ export const DEFAULT_SETTINGS = {
   recruitmentStages: structuredClone(DEFAULT_RECRUITMENT_STAGES), // ATLAS People: the stages an application goes through, and the final outcomes (PL-015)
   assessment: mergeAssessment(), // ATLAS People: position categories, assessment templates and the comparative list's captions (PL-018, PL-066; shared/recruitment-assess.js)
   appointmentPapers: mergeAppointmentSettings(), // ATLAS People: the signatories and wording of the appointment papers (PL-025; shared/appointment.js)
+  dueDates: mergeDueSettings(), // ATLAS People: the due-date rules (renewal, probation, step increment, retirement), their lead days and who is told (PL-053; shared/due-dates.js)
   applicantDocs: mergeApplicantDocs(), // ATLAS People: the applicant upload policy and the default requirements checklists (PL-006, PL-007, PL-022; shared/recruitment-docs.js)
 };
 
@@ -133,6 +135,8 @@ export function emptyData() {
     jobApplications: [], // applications to them, from applicant accounts (external) and employees (internal)
     jobDocuments: [], // applicants' documents against each opening's checklist; the files themselves are encrypted in data/applicant-files (server/recruitment-docs.js)
     plantillaItems: [], // the plantilla register: one record per position (item) as DBM issued it (server/plantilla.js)
+    dueMarks: [], // Due dates: an occurrence marked done, snoozed or reopened, with who, when and the note (server/due-dates.js)
+    dueAlertsSent: {}, // Due dates: the lead days already sent to the bell, per occurrence ({ key: [days] }); pruned when it is done or gone
     guideEdits: [], // administrators' versions of the Help & guides pages (server/guides.js)
     // ----- Academic (server/academic.js) -----
     academicSettings: mergeAcademicSettings(), // grading scale, requirements, document fees, signatories
@@ -189,6 +193,7 @@ export function mergeSettings(s = {}) {
     assessment: mergeAssessment(s.assessment),
     applicantDocs: mergeApplicantDocs(s.applicantDocs),
     appointmentPapers: mergeAppointmentSettings(s.appointmentPapers),
+    dueDates: mergeDueSettings(s.dueDates),
     plantilla: mergePlantillaSettings(s.plantilla),
     tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),
   };
@@ -201,6 +206,7 @@ function normalize(data) {
   out.settings = mergeSettings(data.settings);
   out.modules = { ...defaultModuleConfig(), ...(data.modules || {}) };
   out.counters = { studentNo: {}, employeeNo: {}, documentRequest: {}, appointment: {}, ...(data.counters || {}) };
+  if (!out.dueAlertsSent || typeof out.dueAlertsSent !== 'object' || Array.isArray(out.dueAlertsSent)) out.dueAlertsSent = {}; // records from before due dates: nothing sent yet
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
   out.hrSettings = mergeHrSettings(data.hrSettings);
   // A school that already ran (private, SSS) payroll before government payroll existed stays private

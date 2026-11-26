@@ -2,7 +2,7 @@
 // records, job applicants' accounts, the pool of applicants and sign-up fields, the recruitment
 // stages, the assessment templates (position categories, criteria and weights, how the selection
 // board's ratings are combined), the applicant documents (upload policy, default checklists), and the
-// appointment papers (signatories, wording with merge fields; PL-025).
+// appointment papers (signatories, wording with merge fields; PL-025), and the alerts and due dates (PL-053).
 import { api } from '../../api.js';
 import { pageHead } from '../../shell.js';
 import { html, mount, toast, WEEKDAYS } from '../../ui.js';
@@ -13,6 +13,7 @@ import { recruitmentSettingsCard, recruitmentStagesCard, signupFieldsCard, signu
 import { assessmentTemplatesCard } from './assess.js';
 import { applicantDocsCard } from './documents.js';
 import { appointmentPapersCard } from './appointment.js';
+import { dueSettingsCard } from './due-dates.js';
 
 // Which account types may do what in People (as on the ERP's Users & access page).
 function accessMatrix() {
@@ -64,10 +65,11 @@ export async function hrSettingsView(el, _params = {}, query = {}) {
     <div id="assessment-card"></div>
     <div id="applicant-docs-card"></div>
     <div id="appointment-papers-card"></div>
+    <div id="due-dates-card"></div>
     ${accessMatrix()}`);
   // Recruitment stages: a list with its own Save (HR settings → Recruitment stages; Settings center link).
-  await Promise.all([recruitmentStagesCard(el.querySelector('#stages-card')), assessmentTemplatesCard(el.querySelector('#assessment-card')), applicantDocsCard(el.querySelector('#applicant-docs-card')), appointmentPapersCard(el.querySelector('#appointment-papers-card'))]);
-  const section = { stages: '#recruitment-stages', 'signup-fields': '#signup-fields', assessment: '#assessment-templates', pool: '#job-applicants', documents: '#applicant-documents', 'appointment-papers': '#appointment-papers' }[query.section];
+  await Promise.all([recruitmentStagesCard(el.querySelector('#stages-card')), assessmentTemplatesCard(el.querySelector('#assessment-card')), applicantDocsCard(el.querySelector('#applicant-docs-card')), appointmentPapersCard(el.querySelector('#appointment-papers-card')), dueSettingsCard(el.querySelector('#due-dates-card'))]);
+  const section = { stages: '#recruitment-stages', 'signup-fields': '#signup-fields', assessment: '#assessment-templates', pool: '#job-applicants', documents: '#applicant-documents', 'appointment-papers': '#appointment-papers', 'due-dates': '#due-dates' }[query.section];
   if (section) el.querySelector(section)?.scrollIntoView({ block: 'start' });
   const form = el.querySelector('#hr-form');
   form.addEventListener('submit', async (e) => {

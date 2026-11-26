@@ -871,3 +871,27 @@ img.att-preview { height: auto; max-height: 70vh; }
 .wx-form #wx-acc-add { align-self: flex-start; }
 .ap-tpl .field { margin-bottom: 12px; }
 .ap-sigs { margin-bottom: 12px; }
+
+/* ----- People → Due dates (PL-053) ----- */
+.due-stats button.card { text-align: left; font: inherit; cursor: pointer; }
+.due-stats button.card:hover { border-color: var(--brand-line); }
+.due-table .due-state { color: var(--muted); margin-top: 2px; }
+.due-table .due-state svg { vertical-align: -2px; }
+.due-empty { padding: 28px 12px; text-align: center; }
+.due-empty svg { color: var(--success); }
+.due-missing > summary { cursor: pointer; }
+.due-missing .link-list { margin-top: 10px; }
+.due-rule { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px 14px; margin: 0 0 14px; }
+.due-rule legend { padding: 0 6px; }
+.due-rule > p { margin: 0 0 10px; }
+.due-coming { border-color: var(--brand-line); }
+.due-coming .card-head { margin-bottom: 6px; }
+.print-only { display: none; }
+@media print {
+  .print-only { display: block; }
+  .due-table tr.muted-row td { color: #555; }
+}
+.due-missing-h { font-size: 13px; margin: 12px 0 2px; }
+.due-missing-h + p { margin: 0; }
+.due-table td .block .badge { margin-top: 3px; }
+@media (min-width: 761px) { .due-table td.row-actions { width: 1%; } .due-table td.row-actions .btn { display: flex; width: 100%; justify-content: center; } .due-table td.row-actions .btn + .btn { margin: 6px 0 0; } }

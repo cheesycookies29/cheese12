@@ -10,6 +10,7 @@ import { addHrisDemo, removeHrisDemo } from './hris-demo.js';
 import { addAcademicDemo, removeAcademicDemo } from './academic-demo.js';
 import { addRecruitmentDemo, removeRecruitmentDemo } from './recruitment.js';
 import { addPlantillaDemo, removePlantillaDemo } from './plantilla.js';
+import { addDueDatesDemo } from './due-dates.js';
 
 export const DEMO_PASSWORD = 'demo1234';
 const COLLECTIONS = ['guardianLinks', 'campuses', 'programs', 'terms', 'courses', 'sections', 'enrollments', 'lessons', 'announcements', 'assignments', 'submissions', 'attempts', 'resources', 'attendance', 'news', 'events', 'users', 'employees', 'timeEntries', 'requests', 'payrollRuns', 'curricula', 'academicRecords', 'gradeSheets', 'documentRequests'];
@@ -662,6 +663,8 @@ export function addDemo(data, today, files = null) {
   addPlantillaDemo(data, today, { main, sipocot });
   // ----- Recruitment: job openings, the demo job applicant (applicant.demo) and applications -----
   addRecruitmentDemo(data, today, { main, person, userByName });
+  // ----- Due dates: a renewal, a probation evaluation, an overdue step increment and a retirement -----
+  addDueDatesDemo(data, today);
 
   // ----- Academic: colleges, curricula, student records, last term's grade sheets, documents -----
   addAcademicDemo(data, { P, C, past, S, crowd, person, main, rand });

@@ -1649,5 +1649,34 @@
   "user": "teacher.demo",
   "url": "/lms/#/forms",
   "wait": 1000
+ },
+ {
+  "file": "hr-due-dates.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/due-dates?window=180",
+  "wait": 1200
+ },
+ {
+  "file": "hr-due-dates-settings.jpg",
+  "user": "hr.demo",
+  "api": [
+   [
+    "PUT",
+    "/api/hris/due-dates/settings",
+    {
+     "retirement": {
+      "tellEmployee": true
+     }
+    }
+   ]
+  ],
+  "url": "/hris/#/settings?section=due-dates",
+  "wait": 1500
+ },
+ {
+  "file": "employee-coming-up.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me/profile",
+  "wait": 1200
  }
 ]

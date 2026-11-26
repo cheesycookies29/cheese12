@@ -28,6 +28,7 @@ import { plantillaListView, plantillaItemView, plantillaFormView, psipopView } f
 import { appointView, paperView, myPaperView } from './views/appointment.js';
 import { myWorkExperienceView, workExperienceSheetView } from './work-experience.js';
 import { formsView } from '../forms.js';
+import { dueDatesView } from './views/due-dates.js';
 
 const perm = (p) => () => can(p);
 const emp = () => isEmployee();
@@ -46,6 +47,7 @@ const routes = [
   ['/employees/:id', employeeProfileView, perm('employees.view')],
   ['/employees/:id/edit', employeeFormView, perm('employees.edit')],
   ['/employees/:id/sheet', (el, { id }) => workExperienceSheetView(el, { url: `/api/hris/employees/${id}/work-experience/sheet`, back: [['/employees', 'Employees'], [`/employees/${id}`, 'Employee record']], edit: `/employees/${id}` }), perm('employees.view')],
+  ['/due-dates', dueDatesView, perm('hris.due')],
   ['/plantilla', plantillaListView, plantilla],
   ['/plantilla/new', (el) => plantillaFormView(el, {}), perm('hris.plantilla')],
   ['/plantilla/psipop', psipopView, plantilla],
@@ -107,7 +109,7 @@ function nav() {
       { href: '/jobs/experience', label: 'My work experience', icon: 'layers' },
     ];
   }
-  const hrScreens = ['hris.dashboard', 'employees.view', 'hris.plantilla', 'attendance.view', 'clock.kiosk', 'leave.manage', 'payroll.view'].some(can);
+  const hrScreens = ['hris.dashboard', 'employees.view', 'hris.due', 'hris.plantilla', 'attendance.view', 'clock.kiosk', 'leave.manage', 'payroll.view'].some(can);
   return [
     isEmployee() && { heading: 'Me' },
     isEmployee() && { href: '/me', label: 'My day', icon: 'clock', exact: true },
@@ -121,6 +123,7 @@ function nav() {
     hrScreens && { heading: 'Human resources' },
     can('hris.dashboard') && { href: '/dashboard', label: 'HR dashboard', icon: 'chart' },
     can('employees.view') && { href: '/employees', label: 'Employees', icon: 'users' },
+    can('hris.due') && { href: '/due-dates', label: 'Due dates', icon: 'bell', badge: 'due' },
     plantilla() && { href: '/plantilla', label: 'Plantilla', icon: 'layers' },
     can('attendance.view') && { href: '/dtr', label: 'Attendance (DTR)', icon: 'clock' },
     can('clock.kiosk') && { href: '/clock', label: 'Time clock', icon: 'grid' },
@@ -170,6 +173,8 @@ startApp({
   badges: {
     // Only for those who can act on them (as in the ERP): approvers, not everyone who can see leave.
     requests: async () => (can('leave.approve') ? (await api.get('/api/hris/requests/summary')).pending : 0),
+    // Due dates: overdue and due in the next 30 days at their campuses (PL-053).
+    due: async () => (can('hris.due') ? (await api.get('/api/hris/due-dates/summary')).soon : 0),
     // Applicants still to rate on the boards this person is on.
     ratings: async () => (assessor() ? (await api.get('/api/hris/assess')).openings.filter((o) => o.status !== 'closed').reduce((n, o) => n + o.toDo, 0) : 0),
   },

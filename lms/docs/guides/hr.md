@@ -1,7 +1,7 @@
 ---
 id: hr
 title: Running HR in ATLAS People
-summary: For HR managers: employee records and sign-in accounts, work experience and the Work Experience Sheet, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings, applications, applicants' documents, selection boards and rating applicants, the comparative list, applicant profiles and the pool of applicants), appointing a selected applicant with the appointment papers, and HR settings.
+summary: For HR managers: employee records and sign-in accounts, due dates (renewals, probation evaluations, step increments and retirements) with their alerts, work experience and the Work Experience Sheet, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings, applications, applicants' documents, selection boards and rating applicants, the comparative list, applicant profiles and the pool of applicants), appointing a selected applicant with the appointment papers, and HR settings.
 roles: hr
 apps: people
 order: 55
@@ -111,6 +111,16 @@ A first tour with the demo school. It takes about ten minutes.
 ![Work experience on an employee record](hr-work-experience.jpg)
 
 ![The appointment of a selected applicant](hr-appoint.jpg)
+
+### Due dates
+
+1. On the **HR dashboard**, read the card **Due in the next 30 days**. It counts the renewals, probation evaluations, step increments and retirements coming up at the campus, and the overdue ones. Choose it.
+2. **Due dates** opens. Paolo Ilagan's contractual appointment ends in 20 days, Dolores Bautista's probation evaluation is due in 15 days, and Arlene Sarmiento's step increment is 5 days overdue (in red).
+3. Under **When**, pick **Overdue and next 180 days**. Nestor Abello's compulsory retirement, 150 days away, joins the list.
+4. Choose the bell at the top right. HR is told on the bell at each lead day: each of these is there once.
+5. On Arlene's row, choose **Mark done**, type `Step increment granted` as the note, and choose **Mark done**. The row leaves the list.
+
+![People → Due dates](hr-due-dates.jpg)
 
 ### Another campus
 
@@ -622,6 +632,8 @@ For an employee, their record gets the new position, salary grade, step and stat
 
 The person is linked to the plantilla item (Filled). The opening's vacancies count down; when all are filled, ATLAS offers to close the opening. Fill in what the record still needs (for example the TIN and the schedule) under **Employees → Edit**.
 
+The record's **Appointment ends on** becomes the appointment's (blank for an appointment without one), and an open renewal of the appointment it replaces is marked done in **Due dates**.
+
 ### Record the date of assumption
 
 1. When the person assumes the duties, open the appointment.
@@ -649,6 +661,70 @@ The old paper is kept, marked *Cancelled* with the reason and the number of the 
 A merge field ATLAS does not know is refused, and nothing is saved. Each change makes a new version; papers already issued keep theirs. **Put back the built-in wording** returns a paper's text to ATLAS's starting point.
 
 ![HR settings → Appointment papers](hr-appointment-settings.jpg)
+
+### See who is due for a renewal, evaluation, step increment or retirement
+
+You need the **Due dates** permission (HR managers have it).
+
+1. Open **Due dates**, under **Human resources**.
+2. Pick a rule (for example **Renewal of appointment**), a campus, an office, or the window under **When**: **Overdue only**, or overdue and the next 30, 60, 90 or 180 days or 12 months. The cards at the top (**Overdue**, **Due in the next 30 days**, **In 31 to 90 days**) pick the window too.
+3. Type a name, employee number or position in **Search** to find one person.
+
+Each row shows who, what is due, the **Due date**, the **Days left** (red when overdue or today, amber within 30 days), their current appointment and status, and their office and campus. Choose **Export CSV** for a spreadsheet of what is shown, or **Print** for a paper copy. Tick **Show snoozed and done** to see those too.
+
+What each rule counts from:
+
+| Rule | Who | Due date |
+|---|---|---|
+| Renewal of appointment | A temporary, casual, contractual, substitute or coterminous appointment with an **Appointment ends on** date | The day the appointment ends |
+| Probation evaluation | An original permanent appointment (a **Date of original appointment** on the record, or an original permanent appointment in the appointment history) | 6 months after that date |
+| Step increment | Someone with a salary grade below its last step | 3 years after the later of the **Date of last step increment** and the last appointment |
+| Compulsory retirement | Everyone with a birth date | The birthday at 65 |
+| Optional retirement eligibility | Everyone with a birth date (off unless turned on) | The birthday at 60 |
+
+Inactive and separated employees, job orders and contracts of service are left out. When a date is missing (a contractual appointment without an end date, no birth date), the person is listed under **dates are missing** at the bottom: add the date on their record (see [Record the dates on an employee record](#record-the-dates-on-an-employee-record)).
+
+### Mark a due date done
+
+1. Open **Due dates** and, on the row, choose **Mark done**.
+2. Pick the date it was done under **Done on** (today unless you change it).
+3. Type a **Note**, for example `Evaluated: satisfactory` or `Renewed with a new appointment until June 30, 2027`.
+4. For a step increment, keep **Record this date on the employee record as the date of last step increment** ticked: the next step increment then counts from it.
+5. Choose **Mark done**.
+
+The row leaves the list and the bell says nothing more about it. The date, note and your name are kept and are in the audit log. Marking a step increment done never changes the step or the salary: edit the record for that. To undo a mark made by mistake, tick **Show snoozed and done** and choose **Reopen** on the row.
+
+A renewal is also marked done by itself when you confirm a new appointment of that person (see [Confirm the appointment](#confirm-the-appointment)): the record then has the new appointment's end date, if it has one.
+
+### Snooze a due date
+
+1. Open **Due dates** and, on the row, choose **Snooze**.
+2. Pick how long under **Snooze for**: 7, 14, 30, 60 or 90 days.
+3. Type a **Note**, for example `Waiting for the performance rating from the office`.
+4. Choose **Snooze**.
+
+The row leaves the list and the bell until then, and comes back by itself. **Reopen** brings it back sooner. Snoozing is in the audit log.
+
+### Record the dates on an employee record
+
+1. Open **Employees**, choose the person and choose **Edit**.
+2. Under **Dates for due-date alerts**, pick **Appointment ends on** for an appointment that has an end, **Date of original appointment** for an original permanent appointment (its assumption to duty), and **Date of last step increment** when they last had one.
+3. Choose **Save changes**.
+
+Leave a date blank when it does not apply. ATLAS never guesses a date: when **Date of original appointment** is blank, it uses an original permanent appointment in the appointment history, and the step increment counts from the last appointment when that is later. Confirming an appointment fills **Appointment ends on** from the appointment (pick it under **Dates** on the appointment) and, for an original permanent appointment, the date of original appointment.
+
+### Set the alerts and due dates
+
+1. Open **HR settings** and go down to **Alerts and due dates**.
+2. For each rule, tick or untick it to turn it on or off, and change its **Name on the list and the bell** if you like.
+3. Type the **Lead days**: the days before the date when the bell tells people, for example `60, 30, 7` (0 is the day itself).
+4. Change the rule's number if your office's rule differs: the **Probation period (months)**, the **Years in the same position** between step increments, or the retirement **Age**. For renewals, tick the **Statuses of appointment** that are renewed.
+5. Under **Who is told on the bell**, tick **HR**, and for renewals and retirements **The employee** if they should be told too (they then also see the date on their **My HR record**).
+6. Choose **Save alert settings**.
+
+**HR** means the accounts with the **Due dates** permission at the employee's campus (the HR manager by default). The bell tells each of them once per lead day; a restart of ATLAS never sends the same alert twice. The defaults are a starting point, marked **To confirm**: check them against the CSC rules and your school's policy. The rules are also in the Settings center, under **ATLAS People → Alerts and due dates**.
+
+![HR settings → Alerts and due dates](hr-due-dates-settings.jpg)
 
 ### Find people in the pool of applicants
 
@@ -711,7 +787,7 @@ An applicant in the pool of applicants keeps their account open until the end of
 5. Under **Applicant sign-up fields**, choose what the sign-up asks (see [Choose what the applicant sign-up asks](#choose-what-the-applicant-sign-up-asks)).
 6. Choose **Save HR settings**.
 
-The **Recruitment stages**, **Assessment templates** and **Applicant documents** below have their own Save buttons (see [Set the recruitment stages](#set-the-recruitment-stages), [Set up the assessment templates](#set-up-the-assessment-templates) and [Set the applicant upload policy and the default checklists](#set-the-applicant-upload-policy-and-the-default-checklists)).
+The **Recruitment stages**, **Assessment templates**, **Applicant documents**, **Appointment papers** and **Alerts and due dates** below have their own Save buttons (see [Set the recruitment stages](#set-the-recruitment-stages), [Set up the assessment templates](#set-up-the-assessment-templates), [Set the applicant upload policy and the default checklists](#set-the-applicant-upload-policy-and-the-default-checklists) and [Set the alerts and due dates](#set-the-alerts-and-due-dates)).
 
 A new length applies to applicant accounts made after the change; to give one person more time, extend their account.
 
@@ -728,7 +804,8 @@ The page reloads and every screen follows the campus. The current campus shows i
 
 | Screen | What it is for |
 |---|---|
-| HR dashboard | Today at a glance: headcount, who is in, late and on leave, requests to review, leave in the next two weeks, the latest payroll, birthdays |
+| HR dashboard | Today at a glance: headcount, who is in, late and on leave, requests to review, what is due in the next 30 days, leave in the next two weeks, the latest payroll, birthdays |
+| Due dates | Renewals of appointments, probation evaluations, step increments and retirements coming up or overdue at your campuses: filters, **Mark done**, **Snooze**, CSV export and print |
 | Employees | Employee records, CSV export, each employee's sign-in account, their **Work experience** (verify, import a CSV, the Work Experience Sheet) and **Appointment history** |
 | Plantilla | The plantilla register: items as DBM issued them, their incumbents, salaries and fund sources, filters and totals, CSV export, the printable PSIPOP |
 | Attendance (DTR) | Daily time records with late, undertime and overtime; add and correct records; approve overtime; CSV export |
@@ -740,7 +817,7 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Job openings (Recruitment) | Post job openings at the campus with their documents checklist, open and close them, name each one's **Selection board**, and follow the applications to each by stage: **Move** one or several, **Rate** and the board consensus, each applicant's documents, **History**, the **Comparative list**, each applicant's profile and Work Experience Sheet, **Appoint** a selected applicant (the appointment papers, confirming, the assumption), export them as CSV |
 | Applicant accounts | The temporary accounts of job applicants: until when each is open, their **Profile**, **Extend** and **Remove** |
 | Pool of applicants | People who asked to be kept for other vacancies: search and filter them, **Invite to apply**, **Remove** |
-| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last and people stay in the pool, what the applicant sign-up asks, the recruitment stages, the assessment templates, the applicant documents (upload policy and default checklists), the appointment papers (signatories and wording), and who can do what |
+| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last and people stay in the pool, what the applicant sign-up asks, the recruitment stages, the assessment templates, the applicant documents (upload policy and default checklists), the appointment papers (signatories and wording), the alerts and due dates (rules, lead days and who is told), and who can do what |
 | Ratings to do | Only when HR names you on a selection board: the applicants you rate as an assessor (see [the assessor's guide](assessor)) |
 | My day, My attendance, Leave & requests, My payslips, My HR record, Job openings (Me) | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
@@ -865,3 +942,18 @@ They go with the applicant's account: when the account is removed after it close
 
 **Where are applicants' documents kept?**
 Encrypted, beside ATLAS's data (*applicant-files*), with a key derived from the server key, as ATLAS Documents keeps its files. They open only for the applicant, HR at the opening's campus and its assessors, through ATLAS; there is no public link.
+
+**Does ATLAS change the step or the salary when a step increment is due?**
+No. **Due dates** only reminds you. Give the step on the employee record (**Employees → Edit → Step**) once it is approved; marking the step increment done can record its date as the **Date of last step increment**.
+
+**Why is an employee missing from Due dates?**
+Their record has no date for that rule (an end date for a renewal, a birth date for retirement, a date of original appointment for probation), or they are inactive, separated, a job order or a contract of service. The ones with a missing date are listed under **dates are missing** at the bottom of **Due dates**.
+
+**Why did the bell not tell me again about a renewal?**
+The bell tells HR once at each lead day (60, 30 and 7 days before, unless changed). A due date marked done or snoozed is not on the bell until it is reopened or the snooze ends.
+
+**Can the bell tell an employee's head of office?**
+Not yet: ATLAS does not link an employee to a head of office or supervisor. HR is told, and for renewals and retirements the employee too if you tick it under **HR settings → Alerts and due dates**.
+
+**Where do the 6 months, 3 years and age 65 come from?**
+They are ATLAS's starting points, from the CSC rules on probation, step increments and compulsory retirement as generally applied, marked **To confirm**. Change them under **HR settings → Alerts and due dates** to your school's policy. Someone born on February 29 reaches an age on February 28 in a year without February 29.

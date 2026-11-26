@@ -59,8 +59,8 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     side: 'hris',
-    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits, job openings and applications, appointments and their papers, the plantilla register; adjusts payroll setup.',
-    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings', 'hris.recruitment', 'hris.plantilla', 'hris.appoint'],
+    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits, job openings and applications, appointments and their papers, the plantilla register, due dates (renewals, probation evaluations, step increments, retirements); adjusts payroll setup.',
+    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings', 'hris.recruitment', 'hris.plantilla', 'hris.appoint', 'hris.due'],
   },
   payroll: {
     label: 'Payroll Officer',
@@ -164,6 +164,8 @@ export const HRIS_PERMISSION_LABELS = [
   // With hris.recruitment: appoint a Selected applicant, issue, reprint, cancel and reissue the
   // appointment papers, and make the person an employee (server/appointment.js).
   ['hris.appoint', 'Appoint selected applicants: the appointment papers (issue, reprint, cancel and reissue) and making the person an employee (with Recruitment)'],
+  // People → Due dates (server/due-dates.js): the list, mark done and snooze, and the bell's alerts.
+  ['hris.due', 'Due dates: renewals of appointments, probation evaluations, step increments and retirements (the list, mark done, snooze, and the alerts on the bell)'],
 ];
 
 export { FINANCE_PERMISSION_LABELS } from './finance.js';

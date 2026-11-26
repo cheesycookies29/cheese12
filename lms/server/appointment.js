@@ -33,6 +33,7 @@ import { nextNumber } from './numbering.js';
 import { validateEmployee } from './hris.js';
 import { itemOf, linkIncumbent, unlinkIncumbent, makeLog, plantillaItems } from './plantilla.js';
 import { moveEntries } from './work-experience.js';
+import { closeRenewals } from './due-dates.js';
 import { ROLES, HRIS_ROLES, userCan } from '../shared/roles.js';
 import { APPOINTMENTS, salaryFor, stepsIn } from '../shared/gov-pay.js';
 import {
@@ -61,7 +62,7 @@ export const FIELDS_BODY = {
   position: t.str(400), plantillaItemId: t.str(100), itemNo: t.str(200), salaryGrade: t.any(), step: t.any(), monthlySalary: t.any(),
   nature: t.str(40), status: t.str(60), vice: t.str(400), viceEmployeeId: t.str(100), viceReason: t.str(400),
   campusId: t.str(100), office: t.str(400), agency: t.str(400), place: t.str(400),
-  dateSigned: t.str(20), effectiveDate: t.str(20), assumptionDate: t.str(20),
+  dateSigned: t.str(20), effectiveDate: t.str(20), assumptionDate: t.str(20), endDate: t.str(20),
   publicationFrom: t.str(20), publicationTo: t.str(20), publicationPlace: t.str(400), deliberationDate: t.str(20),
   signatories: t.obj(Object.fromEntries(SIGNATORIES.map((s) => [s.key, SIG_BODY]))),
 };
@@ -69,7 +70,7 @@ const FIELD_LABELS = {
   lastName: 'Last name', firstName: 'First name', middleName: 'Middle name', suffix: 'Name extension', address: 'Home address', position: 'Position title',
   itemNo: 'Plantilla item no.', salaryGrade: 'Salary grade', step: 'Step', monthlySalary: 'Monthly salary', nature: 'Nature of appointment', status: 'Status of appointment',
   vice: 'Vice (the person replaced)', viceReason: 'Why the position is vacant', campusName: 'Campus', office: 'Office or unit', agency: 'Agency', place: 'Place',
-  dateSigned: 'Date of signing', effectiveDate: 'Effective date', assumptionDate: 'Date of assumption', publicationFrom: 'Published from', publicationTo: 'Published until',
+  dateSigned: 'Date of signing', effectiveDate: 'Effective date', assumptionDate: 'Date of assumption', endDate: 'Appointment ends on', publicationFrom: 'Published from', publicationTo: 'Published until',
   publicationPlace: 'Where it was published', deliberationDate: 'Deliberation of the selection board',
 };
 
@@ -111,6 +112,7 @@ const historyRow = (appt, f, { by, at, source = 'appointment' }) => ({
   id: randomUUID(), from: f.effectiveDate, to: '', position: f.position, salaryGrade: f.salaryGrade || null, step: f.salaryGrade ? f.step || 1 : null, monthlySalary: f.monthlySalary ?? null,
   status: f.status, nature: f.nature, itemNo: f.itemNo || '', office: f.office || '', campusId: f.campusId, appointmentId: appt?.id || null, source, recordedAt: at, recordedBy: by,
 });
+const originalPermanent = (f) => f.nature === 'original' && f.status === 'Permanent';
 const dayBefore = (ymd) => new Date(Date.parse(`${ymd}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
 
 export function registerAppointmentRoutes(route, ctx, h) {
@@ -164,7 +166,7 @@ export function registerAppointmentRoutes(route, ctx, h) {
       nature, status: '', // never inferred (PL-052): HR picks it
       vice: prev?.name || '', viceEmployeeId: prev?.employeeId || '', viceReason: prev?.reason || '',
       campusId: o.campusId, office: o.office || item?.office || '', agency: s.agency || data().finSettings?.entity?.name || data().settings.schoolName, place: s.place || data().hrSettings?.employerAddress || '',
-      dateSigned: date, effectiveDate: date, assumptionDate: '',
+      dateSigned: date, effectiveDate: date, assumptionDate: '', endDate: '',
       publicationFrom: o.openedAt ? localDate(new Date(o.openedAt)) : localDate(new Date(o.createdAt)), publicationTo: o.closingDate || '', publicationPlace: '', deliberationDate: deliberationOf(o),
       signatories: Object.fromEntries(SIGNATORIES.map((x) => [x.key, { name: s.signatories[x.key].name, title: s.signatories[x.key].title || x.defaultTitle }])),
     };
@@ -213,6 +215,14 @@ export function registerAppointmentRoutes(route, ctx, h) {
       if (!isReal(f.assumptionDate)) fail('Date of assumption: pick a real date, or leave it empty until the person assumes.');
       if (f.assumptionDate < f.dateSigned) fail('The date of assumption cannot be before the date of signing.');
       if (f.assumptionDate > today()) fail('The date of assumption cannot be in the future: record it once the person has assumed.');
+    }
+    // The end of the appointment (PL-053): for a temporary, casual, contractual, substitute or
+    // coterminous appointment that has one; the record's "Appointment ends on" and the renewal alert.
+    f.endDate = str('endDate', 10);
+    if (f.endDate) {
+      if (!isReal(f.endDate)) fail('Appointment ends on: pick a real date, or leave it empty.');
+      if (f.endDate <= f.effectiveDate) fail('The appointment must end after its effective date.');
+      if (f.status === 'Permanent') fail('A permanent appointment has no end date: leave "Appointment ends on" empty.');
     }
     if (gov) {
       if (sg == null) fail('Salary grade is required.');
@@ -451,6 +461,9 @@ export function registerAppointmentRoutes(route, ctx, h) {
     if (currentPaper(appt, 'assumption')) fail('The certificate of assumption is already issued: to change the date, use Cancel and reissue on it.');
     const from = appt.fields.assumptionDate || '';
     appt.fields.assumptionDate = date;
+    // An original permanent appointment already confirmed: its probation counts from the assumption (PL-053).
+    const emp = appt.confirmed && originalPermanent(appt.fields) ? employeeById(appt.employeeId) : null;
+    if (emp && (!emp.originalAppointmentDate || emp.originalAppointmentDate === appt.fields.effectiveDate)) emp.originalAppointmentDate = date;
     appt.updatedAt = iso();
     appt.updatedBy = user.name;
     const out = body.issue === true ? issuePaper(data(), appt, 'assumption', { by: user.name, byId: user.id, at: iso(), date: today() }) : null;
@@ -479,6 +492,9 @@ export function registerAppointmentRoutes(route, ctx, h) {
     const rec = {
       position: f.position, department: f.office, salaryGrade: f.salaryGrade, step: f.step, appointment: gov ? f.status : '', employmentStatus: f.status,
       payType: 'monthly', rate: f.monthlySalary,
+      // Due dates (PL-053): the new appointment's end (none: blank), and the start of probation of an original permanent appointment.
+      appointmentEndDate: f.endDate || '',
+      ...(originalPermanent(f) ? { originalAppointmentDate: f.assumptionDate || f.effectiveDate } : {}),
     };
     // Check everything first: nothing changes unless all of it can.
     if (item?.incumbentId && item.incumbentId !== emp?.id && item.incumbentId !== f.viceEmployeeId) fail(`Plantilla item ${item.itemNo} is held by someone else now. Change the item (Cancel and reissue the appointment form).`);
@@ -513,6 +529,10 @@ export function registerAppointmentRoutes(route, ctx, h) {
       const moved = moveEntries(data(), { kind: 'applicant', id: u.id }, { kind: 'employee', id: emp.id }, at);
       if (moved) audit(user, appt, `moved ${moved} work experience entr${moved === 1 ? 'y' : 'ies'} to the employee record`, { ip, agent });
     } else {
+      // A renewal alert of the appointment this one replaces is done (People → Due dates).
+      for (const o of closeRenewals(data(), emp, { by: user.name, byId: user.id, at, on: f.effectiveDate, note: `New appointment confirmed: ${f.position}, effective ${f.effectiveDate}` })) {
+        ctx.audit({ kind: 'change', system: 'people', action: 'Due dates: renewal marked done (a new appointment was confirmed)', actor: user, target: { id: emp.id, name: `${emp.firstName} ${emp.lastName} (${emp.employeeNo})` }, ip, agent, detail: `Appointment ended ${o.due} · new appointment effective ${f.effectiveDate}` });
+      }
       const hist = (emp.appointmentHistory ||= []);
       // Before the first appointment row: the record as it was, so the service record starts at the date hired.
       if (!hist.length) {

@@ -1,7 +1,7 @@
 ---
 id: employee
 title: Your self-service in ATLAS People
-summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, keep your work experience and print your Work Experience Sheet, see your appointment papers, apply for job openings with your documents, and see your property and requests in ATLAS Finance.
+summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, keep your work experience and print your Work Experience Sheet, see your appointment papers and when your appointment ends, apply for job openings with your documents, and see your property and requests in ATLAS Finance.
 roles: staff, teacher, registrar, dean, hr, payroll, accountant, budget, cashier, supply, approver
 apps: people, finance
 order: 50
@@ -159,6 +159,15 @@ You see the papers HR issued for your appointment, each with its number and date
 
 ![Your appointment papers in My HR record](employee-appointment-papers.jpg)
 
+### See when your appointment ends or you reach retirement age
+
+1. Open **My HR record**.
+2. Read **Coming up** at the top, for example *Your appointment ends on …* or *You reach the compulsory retirement age (65) on …*, with how many days are left.
+
+**Coming up** shows only when HR has chosen to tell employees about that date, and only from the first alert (for example 60 days before an appointment ends): the bell tells you too. The dates come from your HR record; if one is wrong, or to ask about a renewal or your retirement, contact HR.
+
+![Coming up on My HR record](employee-coming-up.jpg)
+
 ### See your property and cash advances
 
 1. Open the **Finance** tile on the ATLAS home page.
@@ -216,7 +225,7 @@ If an application of yours ends *Not selected* or *Not qualified*, you enter the
 | My attendance | Your daily time record: time in and out, late, undertime, overtime and leave |
 | Leave & requests | Your leave balances; file leave or remote work; attach a medical certificate; withdraw a pending request |
 | My payslips | Your finalized payslips, including bonuses, to print or save as PDF |
-| My HR record | Your record as HR keeps it, **Change password**, your **Work experience** with the Work Experience Sheet, and your **Appointment papers** and appointment history |
+| My HR record | Your record as HR keeps it, **Coming up** (when your appointment ends or you reach retirement age, if HR tells employees), **Change password**, your **Work experience** with the Work Experience Sheet, and your **Appointment papers** and appointment history |
 | Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with the progress of each through the recruitment stages and your place in the pool of applicants |
 | Getting started | Shown when your account is not linked to an employee record yet |
 | Ratings to do | Only when HR names you on a job opening's selection board: the applicants you rate (see [the assessor's guide](assessor)) |

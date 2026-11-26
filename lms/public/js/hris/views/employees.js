@@ -11,6 +11,15 @@ import { APPOINTMENTS, DEDUCTION_TYPES, deductionType, salaryFor, stepsIn, isJob
 import { brandHome } from '../../brand.js';
 import { workExperienceCard } from '../work-experience.js';
 import { employeeAppointmentsCard } from './appointment.js';
+import { RECORD_DATE_FIELDS } from '/shared/due-dates.js';
+
+// What the Due dates list uses when a date field is blank (from the appointment history), if anything.
+function derivedHint(emp, k) {
+  const b = emp.dueBasis || {};
+  if (k === 'originalAppointmentDate' && !emp[k] && b.originalAppointmentDate?.from === 'history') return ` Now: ${fmtDate(b.originalAppointmentDate.value)}, from the appointment history.`;
+  if (k === 'lastStepIncrementDate' && b.stepBase?.value && b.stepBase.from === 'history') return ` Now counted from ${fmtDate(b.stepBase.value)}, the last appointment.`;
+  return '';
+}
 
 const isGov = () => hr.settings.payrollSystem === 'government';
 const sgLabel = (e) => (e.salaryGrade ? `SG ${e.salaryGrade}-${e.step || 1}` : '');
@@ -171,6 +180,13 @@ export async function employeeFormView(el, { id }) {
           ${campuses.length > 1 ? field('Campus', 'campusId', emp.campusId || ctx.info.activeCampusId, { options: campuses.map((c) => [c.id, c.name]) }) : ''}
           ${field('Record status', 'status', emp.status, { options: ['Active', 'Inactive'], hint: 'Inactive employees are left out of new payroll runs.' })}
           ${field('Date separated', 'separationDate', emp.separationDate, { type: 'date', hint: 'Resigned, retired or contract ended. Bonuses look at service on their cut-off date.' })}
+        </div>
+      </section>
+      <section class="card" id="due-fields">
+        <h2>Dates for due-date alerts</h2>
+        <p class="muted small">People → Due dates works out renewals, probation evaluations, step increments and retirements from these dates and the birth date. Leave a date blank when it does not apply.</p>
+        <div class="grid">
+          ${RECORD_DATE_FIELDS.map(([k, label, hint]) => field(label, k, emp[k], { type: 'date', hint: `${hint}${derivedHint(emp, k)}` }))}
         </div>
       </section>
       <section class="card">
@@ -415,6 +431,9 @@ export async function employeeProfileView(el, { id }) {
         <h2>Employment &amp; pay</h2>
         <dl class="info-grid">
           ${info('Campus', emp.campusName)}${info('Date hired', fmtDate(emp.hireDate))}${info(isGov() ? 'Appointment' : 'Employment status', emp.appointment || emp.employmentStatus)}
+          ${emp.dueBasis?.appointmentEndDate?.value ? info('Appointment ends on', fmtDate(emp.dueBasis.appointmentEndDate.value)) : ''}
+          ${emp.dueBasis?.originalAppointmentDate?.value ? info('Date of original appointment', html`${fmtDate(emp.dueBasis.originalAppointmentDate.value)}${emp.dueBasis.originalAppointmentDate.from === 'history' ? html` <small class="muted">from the appointment history</small>` : ''}`) : ''}
+          ${emp.lastStepIncrementDate ? info('Last step increment', fmtDate(emp.lastStepIncrementDate)) : ''}
           ${isGov() && emp.salaryGrade
             ? html`${info('Salary grade', sgLabel(emp))}${info('Monthly salary', `${money(salaryFor(emp.salaryGrade, emp.step, today()))}`)}`
             : html`${info('Pay type', emp.payType === 'daily' ? 'Daily-rated' : 'Monthly-rated')}${info('Rate', `${money(emp.rate)} / ${emp.payType === 'daily' ? 'day' : 'month'}`)}`}

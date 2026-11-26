@@ -81,6 +81,7 @@ import { createSecrets } from './secrets.js';
 import { registerRecruitmentRoutes } from './recruitment.js';
 import { registerPlantillaRoutes } from './plantilla.js';
 import { registerWorkExperienceRoutes } from './work-experience.js';
+import { registerDueDateRoutes } from './due-dates.js';
 import { applicantExpired } from '../shared/recruitment.js';
 import { demoPdf, demoDocx } from './demo.js';
 import { MAX_ATTACH_PIECE_BODY } from './recruitment-docs.js';
@@ -689,6 +690,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     addAuditDemo(db.data, clock().getTime());
     db.data.notifications = db.data.notifications.filter((n) => before.has(n.id));
     addNotificationsDemo(db.data, clock().getTime());
+    dueDates.sweep(); // the demo's due dates on HR's bell (demo: true, removed with it)
     db.save();
     return demoStatus(db.data);
   });
@@ -736,6 +738,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const plantilla = registerPlantillaRoutes(route, ctx);
   // Work experience and the Work Experience Sheet (People; server/work-experience.js).
   registerWorkExperienceRoutes(route, ctx);
+  // Due dates: renewals, probation evaluations, step increments and retirements (People → Due dates; server/due-dates.js).
+  const dueDates = registerDueDateRoutes(route, ctx);
 
   // ----- Academic (/academic/): staff with their admin-panel session, teachers and students with the portal's -----
   const academicUser = (adminUser, portalUser) => adminUser || portalUser || null;
@@ -1026,6 +1030,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   handle.forms = forms;
   handle.recruitment = recruitment;
   handle.plantilla = plantilla;
+  handle.dueDates = dueDates;
   // Every route's method, address and access (tests check who can reach what).
   handle.routes = () => routes.map(({ method, pattern, access, applicants, guardians }) => ({ method, pattern, access, applicants, guardians }));
   return handle;
