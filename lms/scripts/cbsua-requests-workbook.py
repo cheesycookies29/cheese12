@@ -102,6 +102,24 @@ BRAND_NOTE = 'Update 2026-11-26: the whole app can now lead with the school (Adm
 UPDATES = {('UIS', 'PL-16'): BRAND_NOTE + ' Several logos on one document still wait for document templates.',
            ('UIS', 'PL-37'): BRAND_NOTE, ('UIS', 'PL-49'): BRAND_NOTE,
            ('HRIS', 'PL-026'): BRAND_NOTE + ' Letterhead lines still wait for document templates.'}
+
+# How to use each update, step by step (from the Help guides). Shown in the "How to use it" column.
+BRANDING_FLOW = ('Administrator (Admin panel):\n1. Settings & branding -> Branding -> Brand: choose "Our school, powered by ATLAS".\n2. Type the school short name (e.g. CBSUA).\n3. Upload logo: the school seal (square, transparent background).\n4. Colours: School colour and Accent (e.g. green #126131, gold #EDE344); check the Preview.\n5. Save settings: the top bar, sign-in pages, system names and icons now show the school.\nHelp: Administrator guide -> "Lead with your school\'s name and seal".')
+HOW_TO = {
+    ('HRIS', 'PL-003'): 'HR (People):\n1. HR settings -> Job applicants: set how many days applicant accounts last (365 by default, 30-1095), the warning days (30) and the removal days after closing (30; 0 = keep).\n2. Save HR settings.\n3. Recruitment -> Applicant accounts: see each account\'s closing date; Extend (days to add) or Remove.\nApplicant: sees "Your applicant account is open until ..." on Job openings and My applications, and a bell notice before it closes.\nHelp: HR guide -> "Extend or remove an applicant account"; Applicant guide -> "Know when your account closes".',
+    ('HRIS', 'PL-004'): 'Employee (People, own account):\n1. People -> Job openings (under Me): openings open to everyone and those marked Internal only.\n2. Choose the opening, read the salary and qualification standards.\n3. Apply -> Cover note -> Send application. It is marked Internal and linked to the employee record.\n4. My applications -> See its progress.\nHR: to post an opening for employees only, set Who may apply = Internal only.\nHelp: Employee guide -> "Apply for a job opening".',
+    ('HRIS', 'PL-014'): 'HR (People -> Plantilla):\n1. Record an item: item number exactly as DBM issued it, position title, salary grade (authorized annual salary fills in), campus and office, fund source and PSIPOP codes, status, date created and authority. Record item.\n2. Open a vacant item -> Link an incumbent -> pick the employee -> Link (the item becomes Filled).\n3. Filters (campus, office, fund source, status, salary grade) and totals; Export CSV.\n4. Print PSIPOP -> choose the As of date -> Print on Legal paper, landscape.\n5. Items brought over from employee records: "Show them" -> check against DBM\'s list -> Mark as reviewed.\nHelp: HR guide -> "The plantilla register", "Record a plantilla item", "Print the PSIPOP".',
+    ('HRIS', 'PL-015'): 'HR (People -> Recruitment -> Job openings -> an opening):\n1. On an applicant\'s row choose Move -> pick the next stage or a final outcome -> Note to the applicant (optional) -> Internal remark (optional, HR only) -> Save and tell the applicant.\n2. Several at once: tick them -> Move chosen... -> stage -> one note -> Move and tell the applicants.\n3. Back one stage: Move -> Back to ... -> reason (required).\n4. Stages themselves: HR settings -> Recruitment stages (label, what the applicant reads, order, retire) -> Save recruitment stages.\nApplicant / employee: My applications -> See its progress: the stages with dates, what happens now, and the notes from HR. Each change arrives on the bell.\nHelp: HR guide -> "Move an application to another stage", "Set the recruitment stages"; Applicant guide -> "Follow your application".',
+    ('HRIS', 'PL-016'): 'HR (People):\n1. HR settings -> Applicant sign-up fields.\n2. For each field (mobile, sex, date of birth, home address, highest education, preferred campus) choose Hidden, Optional or Required.\n3. Save HR settings. The sign-up form and its privacy notice follow at once.\nDocument uploads and an employee ID are never asked at sign-up.\nHelp: HR guide -> "Choose what the applicant sign-up asks".',
+    ('HRIS', 'PL-028'): 'Applicant (ATLAS home):\n1. Job openings -> Sign up to apply.\n2. Full name, email, (mobile and any field HR turned on), username, password.\n3. Read Your privacy -> tick I have read this notice -> Create my applicant account.\nHR chooses the extra fields: see PL-016.\nHelp: Applicant guide -> "Sign up for an applicant account".',
+    ('HRIS', 'PL-027'): 'HR (People):\n1. Recruitment -> Job openings -> New opening, or Plantilla -> a vacant item -> Post a job opening (item no., title, salary grade, campus and office filled in).\n2. Salary grade: the monthly salary shows and applicants see it. Fill in the qualification standards, vacancies, closing date, Who may apply.\n3. Status Open -> Save opening.\nStill to come: the CSC publication print format.\nHelp: HR guide -> "Post a job opening".',
+    ('HRIS', 'PL-029'): 'Applicant flow today: ATLAS home -> Job openings -> Sign up to apply -> choose an opening -> Apply -> My applications -> See its progress. To be reviewed with HR and real applicants.\nHelp: Applicant guide (Walkthrough).',
+    ('HRIS', 'PL-045'): 'HR (People -> Plantilla): each item\'s fund source (fund cluster and program/activity/project) is set when recording or editing it; filter the register and the PSIPOP by fund source. Still to come: payroll filtering and the ORS split by fund.',
+    ('HRIS', 'PL-026'): BRANDING_FLOW,
+    ('UIS', 'PL-16'): BRANDING_FLOW,
+    ('UIS', 'PL-37'): BRANDING_FLOW,
+    ('UIS', 'PL-49'): BRANDING_FLOW,
+}
 # ---------- read the original workbook ----------
 wb_in = openpyxl.load_workbook(SRC, data_only=True)
 COLS_STD = ('A', 'B', 'C', 'D', 'E', 'F')  # id, module, user, category, description, priority
@@ -123,7 +141,7 @@ for ws in wb_in.worksheets:
         p, note = plan(tab, str(iid).strip(), status, m['status'])
         upd = UPDATES.get((tab, str(iid).strip()))
         if upd: note = (note + ' ' if note else '') + upd
-        records.append(dict(tab=tab, id=str(iid).strip(), module=module or '', user=user or '', cat=cat or '', desc=str(desc or '').strip(), prio=prio or '',
+        records.append(dict(howto=HOW_TO.get((tab, str(iid).strip()), ''), tab=tab, id=str(iid).strip(), module=module or '', user=user or '', cat=cat or '', desc=str(desc or '').strip(), prio=prio or '',
                             status=status, status_full=m['status'], where=m['where'], meet=m['meet'], effort=m['effort'], plan=p, note=note, area=m['area']))
 
 # ---------- styles ----------
@@ -211,7 +229,7 @@ ws.sheet_view.showGridLines = False
 
 # ---------- item sheets ----------
 COLS = [('Tab', 11), ('Item ID', 10), ('Module / topic', 22), ('Requested by', 20), ('Original request', 48), ('Priority', 10),
-        ('ATLAS area', 20), ('ATLAS covers it?', 14), ('Where in ATLAS today', 48), ('What is needed', 52), ('Effort', 8), ('Council note', 44), ('Council plan', 20),
+        ('ATLAS area', 20), ('ATLAS covers it?', 14), ('Where in ATLAS today', 48), ('What is needed', 52), ('Effort', 8), ('Council note', 44), ('Council plan', 20), ('How to use it (updates)', 60),
         ('CBSUA comments', 30), ('LTDC response / target', 30)]
 
 def item_sheet(name, recs):
@@ -222,12 +240,13 @@ def item_sheet(name, recs):
     # Column order in the sheet: Tab, ID, Module, User, Request, Priority, Area, Status, Where, Meet, Effort, Note, Plan, comments...
     for i, x in enumerate(recs, 2):
         module = ' / '.join(v for v in (str(x['module']), str(x['cat'])) if v and v not in ('None',))
-        vals = [x['tab'], x['id'], module, x['user'], x['desc'], x['prio'], x['area'], x['status'], x['where'], x['meet'], x['effort'], x['note'], x['plan'], '', '']
+        vals = [x['tab'], x['id'], module, x['user'], x['desc'], x['prio'], x['area'], x['status'], x['where'], x['meet'], x['effort'], x['note'], x['plan'], x['howto'], '', '']
         for j, v in enumerate(vals, 1):
             c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
         for j in (2, 6, 8, 11): ws.cell(i, j).alignment = CENTER
         s = ws.cell(i, 8); s.fill = PatternFill('solid', fgColor=STATUS_FILL.get(x['status'], 'FFFFFF')); s.font = Font(bold=True)
         p = ws.cell(i, 13); p.fill = PatternFill('solid', fgColor=PLAN_FILL.get(x['plan'], 'FFFFFF'))
+        if x['howto']: ws.cell(i, 14).fill = PatternFill('solid', fgColor='E2EFDA')
     ws.freeze_panes = 'C2'
     last = len(recs) + 1
     tname = re.sub(r'[^A-Za-z]', '', name) or 'Items'
@@ -303,6 +322,18 @@ for area, md in (('HRIS', 'hris.md'), ('FMIS', 'fmis.md'), ('LMS / UIS', 'academ
         i += 1
 ws.freeze_panes = 'A2'
 
+ws = wb.create_sheet('How to use the updates')
+for j, (h, w) in enumerate([('Tab', 11), ('Item ID', 10), ('Original request', 50), ('ATLAS now', 12), ('How to use it, step by step', 110)], 1):
+    c = ws.cell(1, j, h); c.font = HEAD; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER
+    ws.column_dimensions[get_column_letter(j)].width = w
+r = 2
+for x in records:
+    if not x['howto']: continue
+    for j, v in enumerate([x['tab'], x['id'], x['desc'], x['status'], x['howto']], 1):
+        c = ws.cell(r, j, v); c.alignment = WRAP; c.border = BORDER
+    ws.cell(r, 4).fill = PatternFill('solid', fgColor=STATUS_FILL.get(x['status'], 'FFFFFF'))
+    r += 1
+ws.freeze_panes = 'C2'
 ws = wb.create_sheet('Change log')
 for j, (h, w) in enumerate([('Date', 12), ('Items', 26), ('What changed for end users', 110)], 1):
     c = ws.cell(1, j, h); c.font = HEAD; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER
@@ -311,7 +342,7 @@ for i, row in enumerate(CHANGES, 2):
     for j, v in enumerate(row, 1):
         c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
 ws.freeze_panes = 'A2'
-order = ['Summary', 'Change log', 'All items', 'HRIS', 'FMIS', 'LMS', 'UIS', 'Cross-System', 'Declined & decisions', 'ATLAS issues found', 'Questions for CBSUA']
+order = ['Summary', 'Change log', 'How to use the updates', 'All items', 'HRIS', 'FMIS', 'LMS', 'UIS', 'Cross-System', 'Declined & decisions', 'ATLAS issues found', 'Questions for CBSUA']
 wb._sheets = [wb[n] for n in order]
 wb.active = 0
 for w in wb.worksheets:
