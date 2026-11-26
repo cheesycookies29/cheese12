@@ -241,6 +241,19 @@ Open **Academic → Settings**:
 
 An administrator decides who may change these settings (Admin panel → **Roles & permissions**), and sees every change you make in the Settings center's history.
 
+### Keep Academic's and Learn's forms
+
+You keep the forms Academic and Learn give their people to download (an enrollment form, a request for a document, an excuse letter template) in **Document circulation**. Open it from **Admin panel → System → Document circulation** (also under **System** in Academic), or from its card under **Tools** on the ATLAS home page. You see only Academic and Learn.
+
+![Document circulation for the registrar: Academic's and Learn's forms](registrar-document-circulation.jpg)
+
+1. To add a form, choose **Upload a form**, choose the file, type the **Title**, pick the **Module** and **Category**, type the **Form code / revision** your office uses, tick who may see it (tick **Public** for one new students need before they have an account), and choose **Publish now** or **Keep as a draft**. Choose **Upload**.
+2. When a form changes, choose **New version** on its row, choose the new file, type a **Change note** and choose **Upload version**. Students and teachers get the new one at once, on **Forms & downloads**.
+3. To get an earlier version back, pick it under **Versions** to download it, or choose **More → Restore a version**.
+4. To take a form out of use, choose **More → Retire**; it stays in the list with its versions.
+
+Each row shows who uploaded the current version and when. See [Keep the school's forms](admin#keep-the-school-s-forms-document-circulation) for the details.
+
 ## Screens at a glance
 
 ### Admin panel (ATLAS Learn)
@@ -264,6 +277,7 @@ An administrator decides who may change these settings (Admin panel → **Roles 
 | **Activity types & grading** | Activity types and grade weights (view only) |
 | **Settings & branding** | School details, passing grade, enrollment rules, student applications (view only) |
 | **Home page & systems** | The tiles on the ATLAS home page (view only) |
+| **System → Document circulation** | Academic's and Learn's forms: upload, new versions, **Versions**, restore, retire (also under **Tools** on the ATLAS home page) |
 | **ATLAS home** | Back to the ATLAS home page and its tiles |
 
 ### ATLAS Academic
@@ -278,6 +292,7 @@ An administrator decides who may change these settings (Admin panel → **Roles 
 | **Curricula** | Each program's prospectus by series: draft, posted, retired |
 | **Reports** | Enrollment list (CHED and FHE CSV), summary, failing and INC, dean's list, graduation |
 | **Settings** | Grading scale, INC and dean's list rules, document fees and signatory, admission requirements, colleges |
+| **Forms & downloads** | The published forms of Academic for your account type, to download |
 
 ## Questions
 

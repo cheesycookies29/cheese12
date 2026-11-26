@@ -18,6 +18,7 @@ import { receiptListView, rcdListView, rcdView, bookletsView, revenueView } from
 import { controlView, auditView } from './views/control.js';
 import { myView, myRequestsView } from './views/self.js';
 import { printView } from './views/print.js';
+import { formsView } from '../forms.js';
 import { brandHome, brandProduct } from '../brand.js';
 
 const perm = (p) => () => can(p);
@@ -73,16 +74,19 @@ const routes = [
   ['/me', myView],
   ['/me/requests', myRequestsView, employee],
   ['/print/:kind/:id', printView],
+  ['/forms', (el) => formsView(el, 'fmis')], // Forms & downloads (Document circulation)
   ...systemRoutes(),
 ];
 
 function nav() {
-  if (isStudent()) return [{ heading: 'Finance' }, { href: '/me', label: 'My payments', icon: 'receipt' }];
+  if (isStudent()) return [{ heading: 'Finance' }, { href: '/me', label: 'My payments', icon: 'receipt' }, { href: '/forms', label: 'Forms & downloads', icon: 'download' }];
   if (!isStaff()) {
     return [
       { heading: 'Self-service' },
       { href: '/me', label: 'My accountabilities', icon: 'shield', exact: true },
       { href: '/me/requests', label: 'Supply & purchase requests', icon: 'cart', also: ['/ris', '/prs'] },
+      { href: '/forms', label: 'Forms & downloads', icon: 'download' },
+      ...systemNav(),
     ];
   }
   // Each page has one name, used in the sidebar, its title and its breadcrumb.
@@ -127,6 +131,7 @@ function nav() {
     { href: '/audit', label: 'Audit trail', icon: 'shield' },
     { heading: 'Me' },
     { href: '/me', label: 'My accountabilities', icon: 'user', exact: true },
+    { href: '/forms', label: 'Forms & downloads', icon: 'download' },
     ...systemNav(),
   ].filter(Boolean);
 }

@@ -256,11 +256,25 @@ When the school has job openings, the sign-in page shows **Job openings** at the
 
 You are signed in and can apply. Your applicant account is temporary. See [the applicant's guide](applicant) once you are signed in. If you already work at the school, do not sign up: apply with your own account from **People → Job openings**.
 
+### Get a form
+
+The forms and files the school gives you to download (a leave application, a clearance, an enrollment form) are on a **Forms & downloads** page in each system, always in their latest version.
+
+1. Open the system the form belongs to, for example Learn, Academic, People or Finance.
+2. In the side menu, choose **Forms & downloads**. The forms for your account type are listed by category, each with its form code, what it is for, when it was last updated and its size.
+3. Type in **Search forms** to find one, then choose **Download**.
+
+School-wide forms are on the ATLAS home page itself, under **Forms & downloads** below your systems. Without an account, choose **Forms** at the top of the sign-in page (it shows only when the school has forms for everyone), then **Download**.
+
+![Forms & downloads in Learn: the forms for teachers, by category, with Download](forms-downloads.jpg)
+
+Fill the form in and hand it in where it says. A form you cannot find may not be for your account type, or not out yet: ask the office it comes from (the registrar, HR or the accounting office).
+
 ## Screens at a glance
 
 | Screen or button | What it is for |
 |---|---|
-| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card (**Username or email** and **Password**), the Keycloak button when your school uses it, **Register account** when the school lets new students register, and **Job openings** when the school has some; **Help & guides** and **Dark mode** at the top right |
+| Sign-in page | The ATLAS home page before you sign in: the **Sign in** card (**Username or email** and **Password**), the Keycloak button when your school uses it, **Register account** when the school lets new students register, **Job openings** when the school has some, and **Forms** when the school has forms for everyone; **Help & guides** and **Dark mode** at the top right |
 | Create Student Account | **Register account**: a new student's campus, title, name, email, mobile number and password; then *Registration received* |
 | Bell (top bar) | Your notifications: the latest, **Mark all as read**, **Unread only** and **See all notifications** |
 | Notifications | The full list, by system and unread, with **Show more** |
@@ -270,7 +284,8 @@ You are signed in and can apply. Your applicant account is temporary. See [the a
 | People tile | HR: employee records, time clock, attendance, leave and payslips. For every employee; not for students or parents |
 | Finance tile | The school's accounts for the finance offices, and self-service for employees and students (for example, receipts). Not for parents |
 | Documents tile | Your files, the school's folders and what people share with you. Its figures are from your own files: received through your upload links and not reviewed, checked out to you, and shared with you this week. For every employee and student; not for parents. See [the Documents guide](documents) |
-| Tools | Under your systems: **PDF Studio**, to make PDFs from documents and pictures, put PDFs together, change text and sign. For the school's employees (an administrator chooses who); also in the **Systems** menu. See [the PDF Studio guide](pdf-studio) |
+| Tools | Under your systems: **PDF Studio**, to make PDFs from documents and pictures, put PDFs together, change text and sign. For the school's employees (an administrator chooses who); also in the **Systems** menu. See [the PDF Studio guide](pdf-studio). The people who keep the school's forms also see **Document circulation** there |
+| Forms & downloads | The forms and files a system gives you, latest version only: in the side menu of Learn, Academic, People, Finance and Tools, and on the ATLAS home page for school-wide forms. See [Get a form](#get-a-form) |
 | Facilities tile | Rooms, bookings, maintenance and property. Shown as **Coming soon** until your school switches it on |
 | REX Bookstore e-Reader tile | E-books for your subjects from the REX Bookstore app's library. For students, teachers, registrars, deans and administrators; shown as **Coming soon** for now |
 | Systems | The grid button in the top bar: every ATLAS system as a tile (yours first, pinned ones with a star, coming soon greyed), **ATLAS home** and **Help & guides** |
@@ -283,6 +298,8 @@ You are signed in and can apply. Your applicant account is temporary. See [the a
 | Menu button | The three lines at the top left of each system: folds the side menu to icons on a computer, or opens it on a phone |
 
 ## Questions
+
+**Where do I download a form, such as a leave application or a clearance?** In the system it belongs to, under **Forms & downloads** in the side menu; school-wide forms are on the ATLAS home page. See [Get a form](#get-a-form).
 
 **I forgot my password.** Ask the registrar or your administrator to reset it; employees can also ask HR. They give you a temporary password, and ATLAS asks you to choose your own the next time you sign in. If your school signs in with Keycloak, reset your password in Keycloak.
 

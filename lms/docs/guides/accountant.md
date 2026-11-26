@@ -145,11 +145,26 @@ A fund cluster, office, PAP, bank account or ATC that documents already use cann
 
 When the payroll office sends a finalized government payroll to Finance, its voucher arrives already submitted, in **For certification (Box C)**: gross is the obligation, the deductions go to Due to BIR, GSIS, Pag-IBIG, PhilHealth and Other Payables, and the net is the General Payroll's take-home pay. Certify it like any voucher. After it is paid, the remittance vouchers to GSIS, PhilHealth, Pag-IBIG and BIR come the same way, without an obligation request.
 
+### Keep Finance's forms
+
+You keep the forms Finance gives its people to download (a request for quotation, a cash advance request) in **Document circulation**: **Finance → System → Document circulation**, or its card under **Tools** on the ATLAS home page. You see only Finance.
+
+![Document circulation for the Chief Accountant: Finance's forms](accountant-document-circulation.jpg)
+
+1. To add a form, choose **Upload a form**, choose the file, type the **Title**, a **Category** (for example *Procurement*) and the **Form code / revision**, tick the account types that use it, and choose **Publish now**. Choose **Upload**.
+2. When a form changes, choose **New version** on its row, choose the file, type a **Change note** and choose **Upload version**.
+3. Pick an earlier version under **Versions** to download it; **More → Restore a version** makes it current again as a new version.
+4. **More → Retire** hides a form from users and keeps it.
+
+Employees and students find the published forms under **Finance → Forms & downloads**. Everything you do here is in the audit log.
+
 ## Screens at a glance
 
 | Screen | What it is for |
 |---|---|
 | Dashboard | Cash by fund, budget utilization, collections, and **Waiting for you**: vouchers to certify, draft entries, overdue advances |
+| Forms & downloads | Finance's published forms for your account type, to download |
+| System → Document circulation | Finance's forms: upload, new versions with who and when, **Versions**, restore, retire (also under **Tools** on the ATLAS home page) |
 | Find a document | Type any document number (DV, JEV, ORS/BURS, PR, PO, IAR, RIS, O.R., RCD, LDDAP-ADA, property, PAR/ICS), a check number or a name |
 | Card file | Suppliers, employees, accountable officers, agencies and individuals; each card's subsidiary ledgers, documents, taxes withheld and property. Only you (or an administrator) change an existing card's name, bank details, status or fidelity bond; **History** keeps the old and new value |
 | Journal entries | Every JEV by journal; new entries, posting, reversing |

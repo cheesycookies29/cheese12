@@ -11,6 +11,8 @@ order: 15
 
 **PDF Studio** is in **ATLAS Tools**: open it from its card under **Tools** on the ATLAS home page (**Open PDF Studio**), or from the **Systems** menu (the grid in the top bar) in any system. It is for the school's employees (teachers, registrars, deans, HR, payroll, Finance offices and staff) and administrators. An administrator chooses which account types may use it, under **Admin panel → Home page & systems → Tools**; students and parents get it only if the school switches it on for them.
 
+Beside PDF Studio, the people who keep the school's forms (administrators, and by default the registrar, HR and the Chief Accountant) also see **Document circulation** under **Tools**: where they upload and keep the forms each system offers for download. It is the same screen as **System → Document circulation** in their systems; see [Keep the school's forms](admin#keep-the-school-s-forms-document-circulation). **Forms & downloads** in the Tools sidebar is different: it lists the files Tools gives you to download, such as a scanning guide.
+
 To try it with the demo school, sign in as `teacher.demo` (password `demo1234`), Maria Santos.
 
 It takes:
@@ -157,6 +159,8 @@ Choose **Start over** at the top: every file and page goes from PDF Studio (down
 | Page editor | One page at a time: **Change text on the page**, **Add text**, **White-out**, **Highlight**, **Tick**, **Cross**, **Today's date**, **Signature**, **Picture**; the panel on the right for what is selected; **Undo**, the previous and next page, **Done** |
 | ATLAS home | **Tools**: the PDF Studio card (a small tile in **Compact**) that opens it (also in the **Systems** menu of every system) |
 | Admin panel → Home page & systems | **Tools**: the account types that may use PDF Studio (administrators) |
+| Document circulation | For the people who keep forms: every form of the modules they keep, with versions (the same screen as **System → Document circulation**) |
+| Forms & downloads | The files Tools gives you to download (for example a scanning guide), latest version only |
 
 ## Questions
 

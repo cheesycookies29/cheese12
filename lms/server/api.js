@@ -75,6 +75,8 @@ import { registerCalendarRoutes } from './calendar.js';
 import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
 import { notify, registerNotificationRoutes, restoreNotifications, addNotificationsDemo, removeNotificationsDemo, fmtDay } from './notifications.js';
 import { registerDocuments } from './documents.js';
+import { registerForms } from './forms.js';
+import { FORMS_TOOL } from '../shared/forms.js';
 import { createSecrets } from './secrets.js';
 import { registerRecruitmentRoutes } from './recruitment.js';
 import { registerPlantillaRoutes } from './plantilla.js';
@@ -105,10 +107,11 @@ const fail = (msg, status = 400) => {
 // options.ssoSecret / options.ssoFetch: the Keycloak client secret and fetch, for tests (default: OIDC_CLIENT_SECRET, fetch).
 // options.secrets: the server key (server/secrets.js; default: SERVER_KEY, or server.key beside the data file).
 // options.documentsDir: where ATLAS Documents keeps its encrypted files (default: data/documents).
+// options.formsDir: where Document circulation keeps its encrypted form files (default: data/forms).
 // options.applicantFilesDir: where job applicants' documents are kept, encrypted (default: data/applicant-files).
 // options.cloudflareFetch / options.cloudflareHelper: fetch for Cloudflare's API and the AWS instance
 // metadata, and where the server's Cloudflare helper is installed, for tests (default: fetch, /usr/local/sbin/ltdc-lms-cloudflare).
-export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, cloudflareFetch, cloudflareHelper, ssoLookup, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true, secrets = createSecrets(db.dir), documentsDir, applicantFilesDir, secureCookies = cookiesSecureByDefault() } = {}) {
+export function createApi(db, { clock = () => new Date(), setupCode = process.env.SETUP_CODE || '', ssoSecret, ssoFetch, cloudflareFetch, cloudflareHelper, ssoLookup, rateLimits = process.env.RATE_LIMITS || '', sealAtStart = true, secrets = createSecrets(db.dir), documentsDir, formsDir, applicantFilesDir, secureCookies = cookiesSecureByDefault() } = {}) {
   const sameCode = (given) => {
     const a = createHash('sha256').update(String(given ?? '')).digest();
     const b = createHash('sha256').update(setupCode).digest();
@@ -159,6 +162,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       shareLink: { limit: 300, windowMs: MIN }, // requests to one link, from anywhere
       sharePasswordFail: { limit: 10, windowMs: 15 * MIN }, // wrong link passwords, per address and link
       shareUpload: { limit: 60, windowMs: 60 * MIN }, // files sent through upload links, per address
+      publicForms: { limit: 60, windowMs: MIN }, // Document circulation: the public Forms page and its downloads, per address
     };
     // From a school network: the same rules, multiplied (a campus is many people at one address).
     const factor = Math.min(100, Math.max(1, Number(security().schoolNetworkFactor) || 20));
@@ -202,6 +206,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const publicUser = (user) => {
     const out = accountFields(user);
     if (out) out.twoFactorSetupRequired = twoFactor.mustSetUp(user);
+    if (out) out.manageForms = ctx.forms ? ctx.forms.managed(user) : []; // Document circulation: the modules whose forms this account keeps
     return out;
   };
   const twoFactor = createTwoFactor({
@@ -567,6 +572,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       systems: portalSystems(user, side),
       tools: ctx.toolsFor ? ctx.toolsFor(user) : [], // ATLAS Tools this account may use (PDF Studio…)
       jobs: recruitment.publicCount(), // open job openings anyone may apply for (the sign-in page links to them)
+      publicForms: forms.publicCount(), // public forms (Document circulation): the sign-in page links to them
       ...campusInfo(user),
     };
   }, { duringPasswordChange: true });
@@ -678,6 +684,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     addFinanceDemo(db.data, ctx);
     documents.addDemo({ pdf: demoPdf, docx: demoDocx });
     recruitment.addDocsDemo(demoPdf); // applicants' demo documents (generated PDFs), encrypted like the rest
+    forms.addDemo(demoPdf); // Document circulation: a few made-up forms per module (generated PDFs)
     addAuditDemo(db.data, clock().getTime());
     db.data.notifications = db.data.notifications.filter((n) => before.has(n.id));
     addNotificationsDemo(db.data, clock().getTime());
@@ -688,6 +695,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     for (const u of users().filter((x) => x.demo)) ctx.signOutEverywhere(u.id);
     documents.removeDemo();
     recruitment.docs.removeDemo();
+    forms.removeDemo();
     removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
     removeAuditDemo(db.data);
@@ -784,6 +792,9 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   route('POST', '/api/docs/auth/change-password', 'documents', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
   route('POST', '/api/docs/auth/campus', 'documents', ({ user, body }) => switchCampus(user, body));
   const documents = registerDocuments(route, db, { secrets, limits, dir: documentsDir, clock: () => clock().getTime(), notify: (ids, entry, opts) => ctx.notify(ids, entry, opts) });
+  // ----- Document circulation: every module's downloadable forms (server/forms.js) -----
+  const forms = registerForms(route, ctx, { secrets, dir: formsDir, clock, audit: (e) => audit.record(e) });
+  ctx.forms = forms;
   registerConfigRoutes(route, ctx);
   const sso = registerSsoRoutes(route, ctx, { startSession, secureCookies, ...(ssoSecret !== undefined ? { secret: ssoSecret } : {}), ...(ssoFetch ? { fetchImpl: ssoFetch } : {}), ...(ssoLookup ? { lookup: ssoLookup } : {}) });
   registerCloudflareRoutes(route, ctx, { ...(cloudflareFetch ? { fetchImpl: cloudflareFetch } : {}), ...(cloudflareHelper ? { helperPath: cloudflareHelper } : {}) });
@@ -885,7 +896,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   }, { audit: false });
 
   // ----- ATLAS Tools (/tools/): PDF Studio, ported from CORE (server/tools-pdf.js) -----
-  const toolsFor = (u) => (u ? TOOLS.filter((x) => toolOpenFor(db.data.settings, x.id, u.role)).map(({ defaultRoles, ...x }) => x) : []);
+  // Document circulation sits beside PDF Studio for the people who keep forms (shared/forms.js FORMS_TOOL).
+  const toolsFor = (u) => (u ? [
+    ...TOOLS.filter((x) => toolOpenFor(db.data.settings, x.id, u.role)).map(({ defaultRoles, ...x }) => x),
+    ...(forms.managed(u).length ? [FORMS_TOOL] : []),
+  ] : []);
   route('GET', '/api/tools/auth/status', 'public', ({ hrisUser, adminUser, portalUser }) => {
     const user = portalUser || adminUser || hrisUser;
     return {
@@ -1005,6 +1020,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   handle.monitor = monitor;
   handle.pdfStudio = pdfStudio;
   handle.documents = documents;
+  handle.forms = forms;
   handle.recruitment = recruitment;
   handle.plantilla = plantilla;
   // Every route's method, address and access (tests check who can reach what).

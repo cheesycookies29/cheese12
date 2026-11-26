@@ -25,6 +25,7 @@ import { ratingView, comparativeView, profileView, poolView } from './views/asse
 import { ratingsToDoView, boardOpeningView } from './views/board.js';
 import { documentsReviewView } from './views/documents.js';
 import { plantillaListView, plantillaItemView, plantillaFormView, psipopView } from './views/plantilla.js';
+import { formsView } from '../forms.js';
 
 const perm = (p) => () => can(p);
 const emp = () => isEmployee();
@@ -81,6 +82,7 @@ const routes = [
   ['/me/payslips/:runId', mePayslipView, emp],
   ['/me/profile', meProfileView, emp],
   ['/not-linked', notLinkedView, staffOnly(() => !isEmployee())],
+  ['/forms', (el) => formsView(el, 'hris')], // Forms & downloads (Document circulation)
   ...systemRoutes(),
 ];
 
@@ -102,6 +104,7 @@ function nav() {
     isEmployee() && { href: '/me/payslips', label: 'My payslips', icon: 'wallet' },
     isEmployee() && { href: '/me/profile', label: 'My HR record', icon: 'user' },
     isEmployee() && { href: '/jobs', label: 'Job openings', icon: 'briefcase' },
+    { href: '/forms', label: 'Forms & downloads', icon: 'download' },
     !isEmployee() && !hrScreens && !assessor() && { href: '/not-linked', label: 'Getting started', icon: 'flag' },
     hrScreens && { heading: 'Human resources' },
     can('hris.dashboard') && { href: '/dashboard', label: 'HR dashboard', icon: 'chart' },

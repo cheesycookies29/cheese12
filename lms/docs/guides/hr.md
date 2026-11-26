@@ -298,6 +298,18 @@ Remaining = credits + adjustments − used − pending. Days from an approved re
 
 A leave type that has been used cannot be deleted; untick **Active** instead. Leave types are the same at every campus.
 
+### Keep People's forms
+
+You keep the forms People gives employees to download (the leave application form, a job application form) in **Document circulation**: **People → System → Document circulation**, or its card under **Tools** on the ATLAS home page. You see only People.
+
+![Document circulation for HR: People's forms](hr-document-circulation.jpg)
+
+1. Choose **Upload a form** for a new one, or **New version** on a form's row when it changes; type a **Change note** and choose **Upload**.
+2. Tick who may see it; tick **Public** for a form people outside the school need, such as a blank job application form.
+3. Pick an earlier version under **Versions** to download it, or choose **More → Restore a version** or **More → Retire**.
+
+Employees download the published forms under **People → Forms & downloads**. See [Keep the school's forms](admin#keep-the-school-s-forms-document-circulation).
+
 ### Post a job opening
 
 1. Open **Recruitment → Job openings** and choose **New opening**.

@@ -13,6 +13,7 @@ import { schoolBrand, brand, brandHome, brandText } from '../brand.js';
 import { SEXES, EDUCATION_LEVELS, ADDRESS_MAX, EARLIEST_BIRTH_DATE, listInWords } from '/shared/recruitment.js';
 import { poolTickText, poolPrivacyText } from '/shared/recruitment-assess.js';
 import { NAME_MAX, EMAIL_MAX, PASSWORDS_DIFFER, formatMobile } from '/shared/registration.js';
+import { formsCss, formGroups, wireSearch } from '../forms.js';
 
 const authEl = document.getElementById('auth');
 const appEl = document.getElementById('app');
@@ -29,13 +30,15 @@ function showAuth(render) {
 
 // ----- Signed out -----
 // jobs: open job openings anyone may apply for; the bar at the top then links to them.
+// publicForms: forms anyone may download (Document circulation); the bar then links to them.
 let jobsOpen = 0;
+let publicForms = 0;
 function hubScreen(card, systems, line, { wide = false } = {}) {
   const form = authPlate(authEl, {
     line,
     card,
     wide,
-    links: jobsOpen ? html`<a href="#jobs" id="jobs-link">${icon('briefcase', 16)} <span>Job openings</span></a>` : '',
+    links: html`${jobsOpen ? html`<a href="#jobs" id="jobs-link">${icon('briefcase', 16)} <span>Job openings</span></a>` : ''}${publicForms ? html`<a href="#forms" id="forms-link">${icon('download', 16)} <span>Forms</span></a>` : ''}`,
     ledger: [...systems.filter((s) => s.status === 'live'), ...systems.filter((s) => s.status !== 'live')].map((s) => [s.product, s.status !== 'live']),
   });
   return form;
@@ -56,6 +59,7 @@ function signInView(status) {
       ${status.registrationOpen ? html`<div class="auth-or"><span>New student?</span></div>
       <button type="button" class="btn block register-btn" id="register">${icon('userPlus', 18)} Register account</button>` : ''}
       ${status.jobs ? html`<p class="auth-switch">Looking for a job? <a href="#jobs" id="see-jobs">See job openings</a></p>` : ''}
+      ${status.publicForms ? html`<p class="auth-switch">Need a form? <a href="#forms" id="see-forms">Download forms</a> without signing in.</p>` : ''}
       <p class="auth-foot">${status.sso?.enabled && !status.sso.passwords ? 'Trouble signing in? Ask the registrar or your administrator.' : 'Forgot your password? Ask the registrar or your administrator to reset it.'}</p>
     </form>`, status.systems, brandText('ATLAS · Sign in'));
   form.querySelector('#register')?.addEventListener('click', () => {
@@ -71,6 +75,32 @@ function signInView(status) {
       return codeStep({ render: (card) => hubScreen(card, status.systems, brandText('ATLAS · Sign in')), verifyUrl: '/api/hub/login/verify', challenge: res.challenge, onSignedIn: boot, onBack: () => signInView(status) });
     }
     boot();
+  });
+}
+
+// ----- Forms anyone may download (Document circulation, server/forms.js): signed out, no account -----
+async function publicFormsView(status) {
+  formsCss();
+  const line = brandText('ATLAS · Forms');
+  hubScreen(html`<div class="auth-card forms-card"><h2>Forms</h2><p class="muted">Loading…</p></div>`, status.systems, line);
+  let d;
+  try {
+    d = await api.get('/api/public/forms');
+  } catch (err) {
+    d = { total: 0, modules: [], error: err.message };
+  }
+  hubScreen(html`<div class="auth-card forms-card">
+      <h2>Forms</h2>
+      <p class="muted">${d.total ? `Forms of ${status.branding.schoolName} you can download without an account, always the latest version.` : d.error || 'There are no forms to download here right now.'}</p>
+      ${d.total > 6 ? html`<input type="search" data-form-search placeholder="Search forms…" aria-label="Search forms" />` : ''}
+      ${d.modules.map((m) => html`${d.modules.length > 1 ? html`<h3 class="form-module">${m.name}</h3>` : ''}<div class="form-groups">${formGroups(m.categories, (f) => `/api/public/forms/${f.id}/file`)}</div>`)}
+      <p class="muted" data-form-none hidden>No form matches.</p>
+      <p class="auth-switch">Have an account? <button type="button" class="link" id="back">Sign in</button> for the forms of your systems.</p>
+    </div>`, status.systems, line);
+  wireSearch(authEl);
+  authEl.querySelector('#back').addEventListener('click', () => {
+    history.replaceState(null, '', location.pathname + location.search);
+    signInView(status);
   });
 }
 
@@ -501,6 +531,7 @@ async function homeView(status) {
       <div class="sys-compact" id="sys-compact" role="region" aria-labelledby="sys-heading">${compactItems()}</div>
     </section>
     ${toolsSection(status, view)}
+    <section class="hub-wrap hub-forms" id="hub-forms" aria-labelledby="forms-heading" hidden></section>
     ${administration(status)}
     <section class="hub-wrap cols wide-left" id="feed"></section>
     <footer class="hub-foot"><div class="hub-wrap"><span>© ${new Date().getFullYear()} ${status.branding.schoolName}</span>${schoolBrand() ? html`<span class="atlas-foot">${poweredBy()}</span>` : html`<span class="atlas-foot"><img src="${markSrc(isDark())}" alt="" />ATLAS · ${BYLINE}</span>`}</div></footer>`);
@@ -560,6 +591,15 @@ async function homeView(status) {
     e.stopPropagation();
     document.getElementById('user-pop').hidden = false;
   });
+  // Forms & downloads: the school-wide forms for this person (Document circulation), when there are any.
+  api.get('/api/forms?module=home').then((d) => {
+    const box = appEl.querySelector('#hub-forms');
+    if (!box || !d.total) return;
+    formsCss();
+    mount(box, html`<div class="card-head"><h2 id="forms-heading">${icon('download')} Forms &amp; downloads</h2><span class="muted small">School-wide forms, always the latest version</span></div>
+      <div class="form-groups">${formGroups(d.categories, (f) => `/api/forms/${f.id}/file`)}</div>`);
+    box.hidden = false;
+  }).catch(() => {});
   const feed = await api.get('/api/hub/feed').catch(() => ({ news: [], events: [] }));
   if (!feed.news.length && !feed.events.length) return appEl.querySelector('#feed').remove();
   mount(appEl.querySelector('#feed'), html`
@@ -589,8 +629,9 @@ async function boot() {
   applyBranding(status.branding);
   document.title = `${brand()} · ${status.branding.schoolName}`;
   jobsOpen = status.jobs || 0;
+  publicForms = status.publicForms || 0;
   if (!status.user) {
-    const view = location.hash === '#jobs' ? jobsView : location.hash === '#register' && status.registrationOpen ? registerView : signInView;
+    const view = location.hash === '#jobs' ? jobsView : location.hash === '#forms' && publicForms ? publicFormsView : location.hash === '#register' && status.registrationOpen ? registerView : signInView;
     return showAuth(() => view(status));
   }
   if (status.user.mustChangePassword) {
@@ -621,6 +662,7 @@ window.addEventListener('auth:expired', () => boot());
 window.addEventListener('hashchange', () => {
   if (ctx.user || !ctx.info) return;
   if (location.hash === '#jobs') jobsView(ctx.info);
+  else if (location.hash === '#forms' && publicForms) publicFormsView(ctx.info);
   else if (location.hash === '#register' && ctx.info.registrationOpen) registerView(ctx.info);
 });
 boot();

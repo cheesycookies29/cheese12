@@ -180,7 +180,9 @@ Open the class and choose **Class list**. It lists students by status: *Enrolled
 | Learn | Calendar | Your sections' meetings and due dates, exams, holidays, school events and term dates; subscribe from your phone |
 | Learn | Schedule | Your weekly teaching timetable |
 | Learn | News & events | School news (react and comment) and upcoming events |
+| Learn | Forms & downloads | Forms for teachers, such as the class observation form and the excuse letter template, to download (see [Get a form](getting-started#get-a-form)) |
 | Academic | Grade sheets | Submit each class's final grades and follow them through approval and posting |
+| Academic | Forms & downloads | Academic's forms for teachers, to download |
 
 ## Questions
 
