@@ -554,7 +554,33 @@ let navChoice = null;
 try {
   navChoice = localStorage.getItem('core-nav');
 } catch {}
+// Folding or unfolding by the menu button (0.70): the sidebar glides to its new width while its words
+// fade (styles.css, body.nav-anim); icons only once it has folded. With reduced motion, at once.
+const NAV_MS = 240;
+let navTimer = 0;
+const navFolded = () => body.classList.contains('nav-mini') || body.classList.contains('nav-closing');
+function foldNav(mini) {
+  clearTimeout(navTimer);
+  body.classList.remove('nav-closing', 'nav-opening');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    body.classList.remove('nav-anim');
+    body.classList.toggle('nav-mini', mini);
+    return;
+  }
+  body.classList.add('nav-anim');
+  if (mini) body.classList.add('nav-closing');
+  else {
+    body.classList.remove('nav-mini');
+    body.classList.add('nav-opening');
+  }
+  navTimer = setTimeout(() => {
+    body.classList.toggle('nav-mini', mini);
+    body.classList.remove('nav-anim', 'nav-closing', 'nav-opening');
+  }, NAV_MS);
+}
 const applyNav = () => {
+  clearTimeout(navTimer);
+  body.classList.remove('nav-anim', 'nav-closing', 'nav-opening');
   body.classList.toggle('nav-mini', navChoice === 'mini' || navChoice === 'full' ? navChoice === 'mini' : midScreen.matches);
   if (!phone()) menuBtn.setAttribute('aria-expanded', String(!body.classList.contains('nav-mini')));
 };
@@ -563,7 +589,8 @@ midScreen.addEventListener('change', applyNav);
 menuBtn.addEventListener('click', () => {
   closePops();
   if (phone()) return setMenu(!body.classList.contains('nav-open'));
-  const mini = body.classList.toggle('nav-mini');
+  const mini = !navFolded();
+  foldNav(mini);
   menuBtn.setAttribute('aria-expanded', String(!mini));
   navChoice = mini ? 'mini' : 'full';
   try {

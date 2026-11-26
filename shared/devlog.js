@@ -28,6 +28,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.69.1-alpha',
+    date: '2026-11-26',
+    title: 'The side menu folds and opens smoothly',
+    modules: ['system'],
+    notes: 'A subtle motion for the menu button on screens wider than 960 px (phones already slide the menu in as a drawer).',
+    changes: [
+      ['improved', 'system', 'Folding the sidebar to icons and opening it again: the width glides over 0.22 s, the words fade out as it folds and in as it opens, and the section headings and the module box shrink and grow with it, so the links below move with it rather than jumping when it ends. A second click during the move turns it back. With reduced motion, it changes at once.'],
+    ],
+  },
+  {
     version: '0.69.0-alpha',
     date: '2026-11-26',
     title: 'PhilGEPS integration, coming soon',

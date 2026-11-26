@@ -135,6 +135,36 @@ body:not(.auth-mode) #auth { display: none; }
 body.nav-mini .sidebar { width: 68px; }
 body.nav-mini #nav .label, body.nav-mini .nav-heading, body.nav-mini .nav-badge, body.nav-mini .side-foot { display: none; }
 body.nav-mini #nav a { justify-content: center; padding: 10px; }
+/* Folding and unfolding it (0.70): the width glides; the words fade out as it folds and in as it
+   opens, and what folding takes away (the section headings, the module's name in its box) shrinks
+   with it, so nothing below jumps when the move ends (public/js/app.js foldNav adds these classes
+   for the length of the move only). */
+@media (min-width: 961px) {
+  body.nav-anim .sidebar { transition: width 0.22s cubic-bezier(0.2, 0.7, 0.2, 1); overflow-x: hidden; }
+  body.nav-anim #nav .label, body.nav-anim .nav-badge, body.nav-anim .nav-soon, body.nav-anim .side-foot { transition: opacity 0.12s ease; }
+  body.nav-anim #nav .label, body.nav-anim .nav-heading, body.nav-anim .side-foot { white-space: nowrap; overflow: hidden; }
+  body.nav-anim .nav-heading { max-height: 20px; transition: max-height 0.22s ease, margin 0.22s ease, opacity 0.12s ease; }
+  body.nav-anim .nav-module { transition: padding 0.22s ease, background-color 0.22s ease, border-color 0.22s ease; }
+  body.nav-anim .nav-module > span:not(.mod-ic) { max-height: 52px; overflow: hidden; transition: max-height 0.22s ease, opacity 0.12s ease; }
+  body.nav-closing .sidebar { width: 68px; }
+  body.nav-closing #nav .label, body.nav-closing .nav-badge, body.nav-closing .nav-soon, body.nav-closing .side-foot { opacity: 0; }
+  body.nav-closing .nav-heading { max-height: 0; margin-top: 0; margin-bottom: 0; opacity: 0; }
+  body.nav-closing .nav-module { padding: 6px; background-color: transparent; border-color: transparent; }
+  body.nav-closing .nav-module > span:not(.mod-ic) { max-height: 0; opacity: 0; }
+  body.nav-opening #nav .label, body.nav-opening .nav-badge, body.nav-opening .nav-soon, body.nav-opening .side-foot { animation: nav-words-in 0.2s ease 0.05s both; }
+  body.nav-opening .nav-heading { animation: nav-heading-in 0.22s ease both; }
+  body.nav-opening .nav-module { animation: nav-module-in 0.22s ease both; }
+  body.nav-opening .nav-module > span:not(.mod-ic) { animation: nav-module-words-in 0.22s ease both; }
+}
+@keyframes nav-words-in { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+@keyframes nav-heading-in { from { max-height: 0; margin-top: 0; margin-bottom: 0; opacity: 0; } to { max-height: 20px; margin-top: 16px; margin-bottom: 6px; opacity: 1; } }
+@keyframes nav-module-in { from { padding: 6px; background-color: transparent; border-color: transparent; } }
+@keyframes nav-module-words-in { from { max-height: 0; opacity: 0; } to { max-height: 52px; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  body.nav-anim .sidebar, body.nav-anim .nav-heading, body.nav-anim .nav-module, body.nav-anim .nav-module > span:not(.mod-ic) { transition: none; }
+  body.nav-opening #nav .label, body.nav-opening .nav-badge, body.nav-opening .nav-soon, body.nav-opening .side-foot, body.nav-opening .nav-heading, body.nav-opening .nav-module, body.nav-opening .nav-module > span:not(.mod-ic) { animation: none; }
+}
+}
 
 main { flex: 1; min-width: 0; padding: 20px 28px 56px; max-width: 1360px; }
 .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }

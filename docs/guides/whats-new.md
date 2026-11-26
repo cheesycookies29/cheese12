@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### The side menu folds smoothly (0.69.1)
+- On a computer or tablet, the **menu** button now folds the side menu to its icons, and opens it again, with a short, smooth movement instead of a jump; the words fade as it goes. If your computer is set to reduce motion, it changes at once as before. See [Open a module](getting-started#open-a-module).
+
 ### PhilGEPS on the roadmap (0.69)
 - **Integrations** on the CORE home has a new card, **PhilGEPS**, marked **Coming soon**: bid notices from the Philippine Government Electronic Procurement System that match what the company sells, brought into **Sales & CRM** as bids with their deadlines and documents, and their award notices. It cannot be opened or set up yet. An administrator can hide it in **Admin panel → Modules → Coming soon**. See [Getting started](getting-started#walkthrough).
 
