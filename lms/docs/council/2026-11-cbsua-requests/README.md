@@ -209,7 +209,7 @@ fixed early, because they are wrong today whatever CBSUA asks.
 Whenever a change reaches end users, the owner asked for an updated workbook:
 
 1. Update the item's row in [matrix/](matrix/): its status (with the date, for example "Has (2026-11-26)"), where it is, and what is left.
-2. Add a line to `CHANGES` in `lms/scripts/cbsua-requests-workbook.py`, and the step-by-step flow for using it to `HOW_TO` (shown in the "How to use it" column and sheet).
+2. Add a line to `CHANGES` in `lms/scripts/cbsua-requests-workbook.py`, and the step-by-step flow for using it to `HOW_TO` (shown in the "How to use it" column and sheet), and any question it raises for CBSUA to `BUILD_QUESTIONS` (sheet "Questions for CBSUA"); decisions for LTDC go to `OWNER_DECISIONS` (sheet "Open decisions (LTDC)", removed before sharing).
 3. Rebuild: `python3 lms/scripts/cbsua-requests-workbook.py <CBSUA's original .xlsx> <out.xlsx>`, and send the workbook to the owner.
 
 The workbook carries the requesters' names from CBSUA's original file, so it is never committed (the repository is public).

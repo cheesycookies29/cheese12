@@ -302,16 +302,60 @@ for i, row in enumerate(issues, 2):
 ws.freeze_panes = 'A2'
 
 # ---------- Questions for CBSUA ----------
+# Raised while building (newest first), then those in the council's maps. Answers are filled in by hand.
+BUILD_QUESTIONS = [
+    # (area, item, ask whom, question)
+    ('Academic', 'Student registration', 'Registrar', 'Titles on the registration form: is Mr., Ms., Mrs. the full list, or should Dr., Engr., Atty. or a neutral option be added?'),
+    ('Academic', 'Student registration', 'Legal office / DPO', 'Terms of Use and Privacy Policy: will the university give a link or text for each? Is the built-in privacy notice acceptable until then (it lists what the form collects and why)?'),
+    ('Academic', 'Student registration', 'Registrar', 'Mobile numbers: Philippine mobiles only (09XXXXXXXXX / +639XXXXXXXXX), or also landlines and foreign numbers for international applicants?'),
+    ('Academic', 'Student registration', 'Registrar', 'Should the middle name be required? Is a separate suffix field (Jr., III) needed for TORs?'),
+    ('Academic', 'Student registration', 'Registrar', 'Should registrars get a bell notice for each new registration? Today they see the Applicants count only.'),
+    ('HRIS', 'PL-016', 'HR office', 'Which applicant sign-up fields should be asked, and which required? (Suggested: all hidden except the mobile number; the rest with the application or the PDS.)'),
+    ('HRIS', 'PL-016', 'HR office', 'Is 18 the right minimum age for applicants, or does it depend on the position?'),
+    ('HRIS', 'PL-016', 'HR office / DPO', 'Sex at sign-up: is Male / Female (as on the PDS) enough, or should there be "prefer not to say" when the field is optional?'),
+    ('HRIS', 'PL-016', 'HR office', 'Should "preferred campus" also allow an office or college?'),
+    ('HRIS', 'PL-030', 'HR office', 'Which PDS revision and date format (dd/mm/yyyy?) apply? Dates currently show as "Apr 17, 1996".'),
+    ('HRIS', 'PL-022', 'HR office', 'Which documents should each application ask for, and are they per position?'),
+    ('HRIS', 'PL-015', 'HR office', 'Do the five default recruitment stages (Application received, Initial screening, Assessment, Deliberation, Final decision) match the merit selection plan? Are others needed (background check, posting of comparative assessment results, pre-employment requirements)?'),
+    ('HRIS', 'PL-015 / PL-020', 'HR office', 'Should "qualified but not appointed" be its own outcome (an applicant pool), and for how long does a pooled applicant stay eligible?'),
+    ('HRIS', 'PL-015', 'HR office', 'Keep the "Not qualified" outcome? Is its wording to applicants right?'),
+    ('HRIS', 'PL-015 / PL-018', 'HR office', 'Do faculty and non-teaching positions follow different recruitment stages?'),
+    ('HRIS', 'PL-015', 'HR office', 'How should notes to applicants be signed: "HR office", "Human Resource Management Office", or another name?'),
+    ('HRIS', 'PL-015', 'HR office', 'When HR moves an application back a stage, should the applicant see the reason (today they see the new stage, not the reason)?'),
+    ('HRIS', 'PL-015', 'HR office', 'Should examination and interview dates be fields on the tracker rather than written in a note?'),
+    ('HRIS', 'PL-014', 'HR office / Budget Officer', 'Please send the PSIPOP sample and the current plantilla item list with fund sources, to check the printed columns.'),
+    ('HRIS', 'PL-014', 'HR office / Budget Officer', 'What values do Area code, Area type and Level take on the PSIPOP?'),
+    ('HRIS', 'PL-014', 'HR office', 'Date of original appointment: government-wide or at the school? Should the employee record carry date of last promotion and eligibility (they print blank now)?'),
+    ('HRIS', 'PL-014', 'HR office / Budget Officer', 'Exact PSIPOP signature captions and signatories (now: Prepared by HR officer, Certified correct Budget Officer, Approved by head of agency).'),
+    ('HRIS', 'PL-014', 'HR office / Budget Officer', 'Should the Budget Officer be able to read the plantilla register? (That role cannot see employee records today.)'),
+    ('HRIS', 'PL-014', 'Budget Officer', 'Print the PSIPOP per fund cluster or per campus? Group rows by office or by program/activity/project?'),
+    ('HRIS', 'PL-014', 'Budget Officer', 'Do internally generated fund (fund 05) items go on the PSIPOP or on a separate list?'),
+    ('HRIS', 'PL-014', 'HR office', 'Should vacant rows on the PSIPOP say "VACANT"?'),
+    ('HRIS', 'PL-003 / PL-004', 'HR office', 'Students and parents cannot apply for job openings today (only outsiders and employees). Should they be able to?'),
+    ('HRIS', 'PL-003', 'HR office / DPO', 'Applicant accounts last 365 days and are removed 30 days after closing (selected applicants are kept). Are these periods right under the records retention schedule?'),
+    ('All', 'Branding', 'University', 'Official files: the CBSUA seal (SVG, or PNG of 1,000 px or more, transparent), the Bagong Pilipinas logo, the ISO certification mark with its usage rules, campus/college logos, and a current letterhead sample.'),
+    ('All', 'Council', 'University', 'Name one focal person per office (Registrar, HR, Accounting, Budget, Cashier, Supply/BAC, a faculty group) for walkthroughs and sign-off of each configured form.'),
+    ('All', 'Council', 'DPO / legal office', 'Decisions pack: SALN in ATLAS; holds on grades or documents; masterlist exports with personal data; applicant pool retention; exam page-leave logs; ID photos on TORs; whether the public document check should show the GWA; the signed records retention matrix.'),
+]
 ws = wb.create_sheet('Questions for CBSUA')
-hdr = [('Area', 14), ('Question / sample needed', 110), ('CBSUA answer', 40)]
+hdr = [('#', 5), ('Area', 11), ('Item', 18), ('Ask', 20), ('Question / sample needed', 95), ('Source', 16), ('CBSUA answer', 40), ('Date answered', 14)]
 for j, (h, w) in enumerate(hdr, 1):
     c = ws.cell(1, j, h); c.font = HEAD; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER
     ws.column_dimensions[get_column_letter(j)].width = w
 i = 2
+def qrow(area, item, who, txt, source):
+    global i
+    for j, v in enumerate([i - 1, area, item, who, txt, source, '', ''], 1):
+        c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
+    i += 1
+for area, item, who, txt in BUILD_QUESTIONS:
+    qrow(area, item, who, txt, 'Raised while building')
 for area, md in (('HRIS', 'hris.md'), ('FMIS', 'fmis.md'), ('LMS / UIS', 'academic-lms.md')):
     sec = section(md, 'Questions for CBSUA')
-    for line in sec.splitlines():
-        line = line.strip()
+    parent = ''
+    for raw in sec.splitlines():
+        indent = len(raw) - len(raw.lstrip())
+        line = raw.strip()
         m = re.match(r'^(?:[-*]|\d+\.)\s+(.*)$', line)
         if not m:
             if line.startswith('|') and not line.startswith('|---') and not re.match(r'^\|\s*(#|Question|Area|ID)\b', line):
@@ -322,10 +366,38 @@ for area, md in (('HRIS', 'hris.md'), ('FMIS', 'fmis.md'), ('LMS / UIS', 'academ
         else:
             txt = clean(m.group(1))
         if not txt: continue
-        for j, v in enumerate([area, txt, ''], 1):
-            c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
-        i += 1
-ws.freeze_panes = 'A2'
+        if m and indent == 0: parent = txt
+        if m and indent > 0 and parent: txt = parent.rstrip(':') + ': ' + txt
+        ids = ', '.join(list(dict.fromkeys(re.findall(r'(?:UIS-|LMS-|X-)?PL-\d+', txt)))[:4])
+        qrow(area, ids, '', txt, 'Council map (' + md + ')')
+ws.freeze_panes = 'E2'
+ws.auto_filter.ref = f'A1:H{i - 1}'
+
+# ---------- Open decisions for LTDC (internal: remove this sheet before sharing with CBSUA) ----------
+OWNER_DECISIONS = [
+    ('ATLAS today', 'Fix the problems found in ATLAS (council F1-F9): legal pay rates editable by admins; flexi time never charged undertime; grace period; SPL leave clash, Forced/Wellness leave, monthly accrual; Finance reprints show today\'s signatories; two numbering engines; ADA journal and App. 80 missing; DTR printout; public check shows the GWA.'),
+    ('CBSUA', 'Send CBSUA the answer sheet and the request for samples and decisions (drafted by Claude for review)?'),
+    ('CBSUA', 'Accept the council\'s order of work: AWS move, then the storage move to node:sqlite, then the configuration features (templates, number series, lookup lists, routes, grading, imports, reports)?'),
+    ('CBSUA', 'Agree to decline the six requests, each offered with an alternative: separate LMS accounts, lockdown browser, MERF auto-approval, deleting posted entries, admin inside the grade route, hiding grades for unmet requirements.'),
+    ('AWS move', 'D9: who owns the new AWS account (council recommends the university, with LTDC access through IAM Identity Center)?'),
+    ('AWS move', 'D1: the new domain (e.g. atlas.cbsua.edu.ph) and who runs its DNS.'),
+    ('AWS move', 'D2: keep the old DuckDNS name for printed QR codes, under school custody (recommended).'),
+    ('AWS move', 'D3: region (stay in ap-southeast-1, recommended); D4: how long the old account\'s data is kept (target 30 days, at most 60).'),
+    ('AWS move', 'D5: does the new account already have CORE ERP or a GitHub OIDC provider? D6: does Keycloak move or change address? D7: Cloudflare during the move (recommended: no)? D8: the maintenance window (book 3 hours).'),
+    ('CORE ERP', 'Port the security fixes to CORE ERP (PDF engine page budget; Documents legal hold, docs.manage per account, confidential links, restricted documents)?'),
+    ('Demo data', 'Replace demo addresses and campus names that point to real places near CBSUA (e.g. "San Jose, Pili, Camarines Sur", Sipocot, Pasacao, Calabanga) with made-up ones?'),
+    ('Tests', 'Investigate the one-time test failure on Node 22 in GitHub (run for c7185db; the next run passed)?'),
+    ('Server', 'A local test server may still run on port 3981 in Claude\'s session container (its stop command was blocked); stop it?'),
+]
+ws = wb.create_sheet('Open decisions (LTDC)')
+for j, (h, w) in enumerate([('#', 5), ('Area', 14), ('Decision for LTDC (internal; remove before sharing)', 110), ('Decision', 30), ('Date', 14)], 1):
+    c = ws.cell(1, j, h); c.font = HEAD; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER
+    ws.column_dimensions[get_column_letter(j)].width = w
+for n, (area, txt) in enumerate(OWNER_DECISIONS, 2):
+    for j, v in enumerate([n - 1, area, txt, '', ''], 1):
+        c = ws.cell(n, j, v); c.alignment = WRAP; c.border = BORDER
+ws.freeze_panes = 'C2'
+ws.sheet_properties.tabColor = 'C00000'
 
 ws = wb.create_sheet('How to use the updates')
 for j, (h, w) in enumerate([('Tab', 11), ('Item ID', 10), ('Original request', 50), ('ATLAS now', 12), ('How to use it, step by step', 110)], 1):
@@ -351,7 +423,7 @@ for i, row in enumerate(CHANGES, 2):
     for j, v in enumerate(row, 1):
         c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
 ws.freeze_panes = 'A2'
-order = ['Summary', 'Change log', 'How to use the updates', 'All items', 'HRIS', 'FMIS', 'LMS', 'UIS', 'Cross-System', 'Declined & decisions', 'ATLAS issues found', 'Questions for CBSUA']
+order = ['Summary', 'Change log', 'How to use the updates', 'All items', 'HRIS', 'FMIS', 'LMS', 'UIS', 'Cross-System', 'Declined & decisions', 'ATLAS issues found', 'Questions for CBSUA', 'Open decisions (LTDC)']
 wb._sheets = [wb[n] for n in order]
 wb.active = 0
 for w in wb.worksheets:
@@ -366,4 +438,4 @@ from collections import Counter
 print('records', len(records))
 print(Counter((x['tab'], x['status']) for x in records))
 print(Counter(x['plan'] for x in records))
-print('questions rows', i - 2)
+print('questions', wb['Questions for CBSUA'].max_row - 1)
