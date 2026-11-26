@@ -1,0 +1,73 @@
+/* Tokens: Furrow (Hallmark theme), dressed in the ATLAS brand: the alternative direction for the home page.
+ * --brand is ATLAS Burgundy (#5D0013): the one colour type may wear (links, the next date) and the focus ring.
+ * --brand-gold is ATLAS Gold (#C28618): Furrow's fill-with-ink-on-it, the primary key and the selected tab.
+ * A school with its own colours sets these two; everything else derives. Faces: DM Sans (the brand's) throughout,
+ * Red Hat Mono (Furrow's) for figures and dates only. */
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --brand: oklch(30.3% 0.122 19.7);
+  --brand-gold: oklch(66.4% 0.134 75.6);
+  --color-paper: oklch(95.5% 0.012 85); --color-paper-2: oklch(99.5% 0.005 85); --color-paper-3: oklch(92% 0.016 85);
+  --color-sheet: oklch(99.3% 0.004 85);
+  --color-ink: oklch(18% 0.006 60); --color-ink-2: oklch(28% 0.008 60); --color-muted: oklch(44% 0.012 60);
+  --color-rule: oklch(87% 0.014 85); --color-grid: oklch(91% 0.013 85);
+  --color-accent: var(--brand-gold);
+  --color-accent-2: oklch(from var(--brand-gold) calc(l - 0.05) c h);
+  --color-accent-ink: oklch(18% 0.006 60);
+  --color-accent-soft: oklch(from var(--brand-gold) 92% 0.05 h);
+  --color-accent-text: var(--brand);
+  --color-focus: oklch(from var(--brand) 42% 0.19 h);
+  --color-error: oklch(48% 0.19 27);
+  --font-display: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: "Red Hat Mono", ui-monospace, monospace;
+  --radius-card: 10px; --radius-entry: 14px; --radius-pill: 6px; --rule-hair: 1px;
+  --shadow-card: 0 1px 2px oklch(18% 0.006 60 / 0.08), 0 14px 28px -16px oklch(18% 0.006 60 / 0.28);
+  --shadow-lift: 0 1px 1px oklch(18% 0.006 60 / 0.1), 0 2px 4px -1px oklch(18% 0.006 60 / 0.1), 0 24px 44px -20px oklch(18% 0.006 60 / 0.42);
+  --key-edge: inset 0 1px 0 oklch(100% 0 0 / 0.7), 0 1px 1px oklch(18% 0.006 60 / 0.12);
+  --color-band: var(--color-ink); --color-band-ink: var(--color-paper); --color-band-muted: var(--color-paper-3);
+  --tracking-display: -0.035em; --display-weight: 600;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(17% 0.01 85); --color-paper-2: oklch(21% 0.01 85); --color-paper-3: oklch(24% 0.012 85);
+  --color-sheet: oklch(20% 0.01 85);
+  --color-ink: oklch(94% 0.008 85); --color-ink-2: oklch(86% 0.01 85); --color-muted: oklch(72% 0.012 85);
+  --color-rule: oklch(31% 0.012 85); --color-grid: oklch(24% 0.012 85);
+  --color-accent: oklch(from var(--brand-gold) calc(l + 0.04) calc(c - 0.01) h);
+  --color-accent-2: oklch(from var(--brand-gold) calc(l + 0.09) calc(c - 0.01) h);
+  --color-accent-soft: oklch(from var(--brand-gold) 28% 0.05 h);
+  --color-accent-text: oklch(from var(--brand) 76% 0.1 h);
+  --color-focus: oklch(from var(--brand) 66% 0.17 h);
+  --color-error: oklch(70% 0.15 27);
+  --shadow-card: inset 0 0 0 1px oklch(31% 0.012 85);
+  --shadow-lift: inset 0 0 0 1px oklch(36% 0.012 85);
+  --key-edge: inset 0 1px 0 oklch(100% 0 0 / 0.06);
+  --color-band: oklch(26% 0.012 85); --color-band-ink: oklch(94% 0.008 85); --color-band-muted: oklch(78% 0.01 85);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-paper: oklch(17% 0.01 85); --color-paper-2: oklch(21% 0.01 85); --color-paper-3: oklch(24% 0.012 85);
+    --color-sheet: oklch(20% 0.01 85);
+    --color-ink: oklch(94% 0.008 85); --color-ink-2: oklch(86% 0.01 85); --color-muted: oklch(72% 0.012 85);
+    --color-rule: oklch(31% 0.012 85); --color-grid: oklch(24% 0.012 85);
+    --color-accent: oklch(from var(--brand-gold) calc(l + 0.04) calc(c - 0.01) h);
+    --color-accent-2: oklch(from var(--brand-gold) calc(l + 0.09) calc(c - 0.01) h);
+    --color-accent-soft: oklch(from var(--brand-gold) 28% 0.05 h);
+    --color-accent-text: oklch(from var(--brand) 76% 0.1 h);
+    --color-focus: oklch(from var(--brand) 66% 0.17 h);
+    --color-error: oklch(70% 0.15 27);
+    --shadow-card: inset 0 0 0 1px oklch(31% 0.012 85);
+    --shadow-lift: inset 0 0 0 1px oklch(36% 0.012 85);
+    --key-edge: inset 0 1px 0 oklch(100% 0 0 / 0.06);
+  --color-band: oklch(26% 0.012 85); --color-band-ink: oklch(94% 0.008 85); --color-band-muted: oklch(78% 0.01 85);
+  }
+}

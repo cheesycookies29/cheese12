@@ -1,0 +1,65 @@
+/* Tokens: Almanac (Hallmark theme), dressed in the ATLAS brand.
+ * The brand: --brand is ATLAS Burgundy (#5D0013) and --brand-gold ATLAS Gold (#C28618), from
+ * lms/shared/brand.js and lms/public/css/styles.css :root. A school that switches to its own colour
+ * (Admin panel, Settings & branding) sets --brand alone: the accent, its hover, its ink, its wash and
+ * the focus ring all derive from it, in light and in dark. Faces: DM Sans and Newsreader, the brand's
+ * own (bundled in lms/public/fonts); IBM Plex Mono for figures and form codes only. */
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --brand: oklch(30.3% 0.122 19.7);
+  --brand-gold: oklch(66.4% 0.134 75.6);
+  --color-paper: oklch(84% 0.012 245); --color-paper-2: oklch(81% 0.012 245); --color-paper-3: oklch(77% 0.012 245);
+  --color-sheet: oklch(93.5% 0.008 245); --color-sheet-2: oklch(90.5% 0.009 245);
+  --color-ink: oklch(16% 0.020 245); --color-ink-2: oklch(24% 0.018 245); --color-muted: oklch(38% 0.016 245);
+  --color-rule: oklch(73% 0.013 240); --color-rule-2: oklch(32% 0.018 240);
+  --color-accent: var(--brand);
+  --color-accent-2: oklch(from var(--brand) calc(l - 0.06) c h);
+  --color-accent-text: var(--brand);
+  --color-accent-ink: oklch(from var(--brand) clamp(0.16, (0.62 - l) * 100, 0.97) 0.006 245);
+  --color-accent-wash: oklch(from var(--brand) 91% 0.03 h);
+  --color-focus: oklch(from var(--brand) 42% 0.19 h);
+  --color-seal: var(--brand-gold);
+  --color-error: oklch(48% 0.19 27); --color-error-wash: oklch(92% 0.04 27);
+  --font-display: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Newsreader", ui-serif, Georgia, serif;
+  --font-outlier: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 0; --radius-pill: 2px; --rule-hair: 1px; --rule-bar: 2px; --shadow-card: none;
+  --tracking-display: -0.02em; --display-weight: 600;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: oklch(16% 0.014 245); --color-paper-2: oklch(19% 0.014 245); --color-paper-3: oklch(22% 0.014 245);
+  --color-sheet: oklch(20% 0.014 245); --color-sheet-2: oklch(23% 0.014 245);
+  --color-ink: oklch(94% 0.008 245); --color-ink-2: oklch(86% 0.010 245); --color-muted: oklch(72% 0.014 245);
+  --color-rule: oklch(31% 0.014 240); --color-rule-2: oklch(78% 0.012 240);
+  --color-accent: oklch(from var(--brand) calc(l + 0.12) c h);
+  --color-accent-2: oklch(from var(--brand) calc(l + 0.18) c h);
+  --color-accent-text: oklch(from var(--brand) 76% 0.1 h);
+  --color-accent-ink: oklch(97% 0.006 245);
+  --color-accent-wash: oklch(from var(--brand) 24% 0.04 h);
+  --color-focus: oklch(from var(--brand) 66% 0.17 h);
+  --color-error: oklch(70% 0.15 27); --color-error-wash: oklch(24% 0.05 27);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-paper: oklch(16% 0.014 245); --color-paper-2: oklch(19% 0.014 245); --color-paper-3: oklch(22% 0.014 245);
+    --color-sheet: oklch(20% 0.014 245); --color-sheet-2: oklch(23% 0.014 245);
+    --color-ink: oklch(94% 0.008 245); --color-ink-2: oklch(86% 0.010 245); --color-muted: oklch(72% 0.014 245);
+    --color-rule: oklch(31% 0.014 240); --color-rule-2: oklch(78% 0.012 240);
+    --color-accent: oklch(from var(--brand) calc(l + 0.12) c h);
+    --color-accent-2: oklch(from var(--brand) calc(l + 0.18) c h);
+    --color-accent-text: oklch(from var(--brand) 76% 0.1 h);
+    --color-accent-ink: oklch(97% 0.006 245);
+    --color-accent-wash: oklch(from var(--brand) 24% 0.04 h);
+    --color-focus: oklch(from var(--brand) 66% 0.17 h);
+    --color-error: oklch(70% 0.15 27); --color-error-wash: oklch(24% 0.05 27);
+  }
+}

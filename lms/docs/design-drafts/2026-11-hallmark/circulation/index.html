@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document circulation, ATLAS Learn admin</title>
+<meta name="description" content="Every form and file the systems give their people to download, with the current version, the earlier ones and who uploaded each.">
+<script>try { var t = localStorage.getItem('lms-theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {} document.documentElement.classList.add('js');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · shape: app screen · genre: editorial · theme: Almanac (deal 2/3, seed school-records-platform-state-1863·b6c5370e·2026-11-26·r0), brand kept: ATLAS Burgundy, ATLAS Gold, DM Sans, Newsreader
+ * nav: the project's shell, top bar and the Admin panel's sidebar (more than seven destinations, a menu under 60rem) · signature: the issue line, every form's versions on one shared August to November axis beside its Versions list · states: full, loading, empty, no match, error
+ * axes: mid/grotesk-sans/chromatic-red · posture: restrained · modes: light+dark · contrast: pass · redesign: from scratch, beside lms/public/js/system/forms.js · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V4 · weakest: H, nine columns at 1040px; module and category share one column, the actions go to icons with names, and the issue line carries the dates the eye compares */
+/* Hallmark · finish-review: in-thread (this session had no subagent tool) · fix · 3 findings · 2 resolved (the issue line had no axis on a phone; the count under the table showed in the error state) · 1 partial (rows still run three lines where the For column wraps at 1280) */
+/* Hallmark · dismissed 49 · the two module buttons are filters that carry their counts on a second line by design, the name itself never wraps */
+@import url("./tokens.css");
+@import url("./base.css");
+
+html { background: var(--color-paper); }
+body { color: var(--color-ink-2); font-size: var(--text-md); }
+.icon { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.icon--sm { width: 16px; height: 16px; }
+.num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
+.mark-dk { display: none; }
+[data-theme="dark"] .mark-lt { display: none; } [data-theme="dark"] .mark-dk { display: block; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .mark-lt { display: none; } :root:not([data-theme]) .mark-dk { display: block; } }
+
+/* The top bar. */
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky-nav); display: flex; align-items: center; gap: var(--space-md); min-height: 64px; padding-inline: var(--space-md) var(--space-lg); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-rule-2); }
+.lockup { display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; min-width: 0; color: var(--color-ink); text-decoration: none; }
+.lockup img { width: 42px; height: auto; flex-shrink: 0; }
+.lockup__rule { align-self: stretch; width: var(--rule-hair); margin-block: var(--space-xs); background: var(--color-seal); flex-shrink: 0; }
+.lockup__words { display: grid; gap: var(--space-3xs); min-width: 0; }
+.wordmark { font: 600 1rem/1 var(--font-display); letter-spacing: 0.2em; white-space: nowrap; }
+.wordmark small { margin-left: var(--space-xs); font: 500 var(--text-sm)/1 var(--font-display); letter-spacing: 0; color: var(--color-ink-2); }
+.context { display: flex; gap: var(--space-xs); font: 400 var(--text-xs)/1.2 var(--font-display); color: var(--color-muted); white-space: nowrap; }
+.context span + span { padding-left: var(--space-xs); border-left: var(--rule-hair) solid var(--color-rule); }
+.context strong { font-weight: 500; color: var(--color-ink-2); }
+.tools { display: flex; align-items: center; gap: var(--space-2xs); margin-left: auto; }
+.tool { position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: var(--radius-pill); background: none; color: var(--color-ink-2); cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.tool::before { content: ""; position: absolute; inset: -2px; }
+.tool:hover { background: var(--color-paper-2); }
+.tool:active { background: var(--color-paper-3); }
+.tool:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.tool .count { position: absolute; top: 2px; right: 0; min-width: 18px; padding: 0 var(--space-2xs); background: var(--color-accent); color: var(--color-accent-ink); font: 500 var(--text-xs)/18px var(--font-outlier); text-align: center; }
+.menu-btn { display: none; }
+.me { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; padding: 0 var(--space-xs); border: 0; background: none; color: var(--color-ink); text-align: left; cursor: pointer; }
+.me:hover { background: var(--color-paper-2); }
+.me:active { background: var(--color-paper-3); }
+.me:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.me__initials { display: inline-grid; place-items: center; width: 36px; height: 36px; background: var(--color-ink); color: var(--color-paper); font: 500 var(--text-sm)/1 var(--font-display); }
+.me__who { display: grid; gap: var(--space-3xs); font: 500 var(--text-sm)/1.1 var(--font-display); }
+.me__who small { font-weight: 400; font-size: var(--text-xs); color: var(--color-muted); }
+
+/* The shell: the Admin panel's index on the left, the page on the right. */
+.shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: calc(100dvh - 64px); }
+.side { position: sticky; top: 64px; align-self: start; max-height: calc(100dvh - 64px); overflow-y: auto; padding: var(--space-lg) var(--space-md) var(--space-xl); background: var(--color-paper-2); border-right: var(--rule-hair) solid var(--color-rule); }
+.side h2 { margin: var(--space-lg) 0 var(--space-2xs); padding-inline: var(--space-sm); font: 500 var(--text-sm)/1.3 var(--font-body); letter-spacing: 0; color: var(--color-muted); }
+.side ul { margin: 0; padding: 0; list-style: none; }
+.side a { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); min-height: 36px; padding: 0 var(--space-sm); color: var(--color-ink-2); font: 400 var(--text-sm)/1.2 var(--font-display); text-decoration: none; border-left: var(--rule-bar) solid transparent; }
+.side a:hover { background: var(--color-paper-3); color: var(--color-ink); }
+.side a:active { color: var(--color-accent-text); }
+.side a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.side a[aria-current="page"] { border-left-color: var(--color-accent); background: var(--color-sheet); color: var(--color-ink); font-weight: 500; }
+.side .n { font: 500 var(--text-xs)/1 var(--font-outlier); color: var(--color-ink); }
+.side__foot { margin-top: var(--space-xl); padding: var(--space-md) var(--space-sm) 0; border-top: var(--rule-hair) solid var(--color-rule); color: var(--color-muted); font-size: var(--text-xs); }
+
+.page { display: grid; gap: var(--space-lg); align-content: start; padding: var(--space-xl) var(--space-xl) var(--space-2xl); min-width: 0; }
+.page__head { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: var(--space-md) var(--space-xl); }
+.page__head h1 { color: var(--color-ink); }
+.page__head p { margin-top: var(--space-xs); max-width: 72ch; }
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: 40px; padding: 0 var(--space-md); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-pill); background: transparent; color: var(--color-ink); font: 500 var(--text-sm)/1 var(--font-display); white-space: nowrap; text-decoration: none; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.btn::before { content: ""; position: absolute; inset: -2px; }
+.btn:hover { background: var(--color-paper-2); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; transform: none; }
+.btn[aria-busy="true"] { cursor: progress; }
+.btn--primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
+.btn--primary:hover { background: var(--color-accent-2); }
+.btn--icon { width: 36px; min-height: 36px; padding: 0; }
+.btn--icon::before { inset: -4px; }
+
+/* Modules: a ruled pair of filters with their counts. */
+.modules { display: grid; grid-template-columns: repeat(2, minmax(0, 18rem)); gap: var(--space-md); }
+.module { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: var(--space-sm); padding: var(--space-sm) var(--space-md); border: 0; border-top: var(--rule-bar) solid var(--color-rule); background: var(--color-paper-2); color: var(--color-ink-2); text-align: left; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.module:hover { background: var(--color-paper-3); }
+.module:active { color: var(--color-ink); }
+.module:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.module[aria-pressed="true"] { border-top-color: var(--color-accent); background: var(--color-sheet); }
+.module strong { white-space: nowrap; grid-column: 1 / -1; font: 500 var(--text-sm)/1.3 var(--font-display); color: var(--color-ink); }
+.module b { font: 500 var(--text-2xl)/1.1 var(--font-outlier); color: var(--color-ink); }
+.module span { font-size: var(--text-sm); color: var(--color-muted); }
+
+/* The sheet: filters, then the table. */
+.sheet { min-width: 0; padding: var(--space-md) var(--space-lg) var(--space-lg); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); }
+.filters { display: grid; grid-template-columns: minmax(14rem, 2fr) repeat(4, minmax(0, 1fr)); gap: var(--space-sm); margin-bottom: var(--space-md); }
+.search { position: relative; }
+.search .icon { position: absolute; left: var(--space-sm); top: 50%; transform: translateY(-50%); color: var(--color-muted); pointer-events: none; }
+.input, .select { width: 100%; min-height: 40px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); background: var(--color-sheet); color: var(--color-ink); font: 400 var(--text-sm)/1 var(--font-display); outline: 2px solid transparent; outline-offset: -3px; transition: background-color var(--dur-short) var(--ease-out); }
+.search .input { padding-left: calc(var(--space-sm) + var(--space-lg)); }
+.input:hover, .select:hover { background: var(--color-sheet-2); }
+.input:focus-visible, .select:focus-visible { outline-color: var(--color-focus); border-color: var(--color-ink-2); }
+.input:disabled, .select:disabled { opacity: 0.55; cursor: not-allowed; }
+.input::placeholder { color: var(--color-muted); }
+.select { appearance: none; padding-right: var(--space-xl); background-image: linear-gradient(45deg, transparent 50%, var(--color-ink-2) 50%), linear-gradient(135deg, var(--color-ink-2) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px; background-repeat: no-repeat; cursor: pointer; }
+.select--sm { min-height: 32px; width: auto; max-width: 9rem; font-size: var(--text-xs); }
+
+.scroll-x { overflow-x: auto; }
+.forms { width: 100%; border-collapse: collapse; }
+.forms thead th { padding: 0 var(--space-sm) var(--space-xs) 0; border-bottom: var(--rule-bar) solid var(--color-rule-2); font: 500 var(--text-sm)/1.3 var(--font-body); color: var(--color-muted); text-align: left; white-space: nowrap; vertical-align: bottom; }
+.forms td { padding: var(--space-sm) var(--space-sm) var(--space-sm) 0; border-bottom: var(--rule-hair) solid var(--color-rule); vertical-align: top; font-size: var(--text-sm); line-height: 1.4; }
+.forms tbody tr { transition: background-color var(--dur-short) var(--ease-out); }
+.forms tbody tr:hover { background: var(--color-sheet-2); }
+.forms th:last-child, .forms td:last-child { padding-right: 0; }
+.c-form { min-width: 10.5rem; }
+.c-filed { white-space: nowrap; }
+.c-for { min-width: 8.5rem; }
+.c-form strong { display: block; font: 500 var(--text-md)/1.3 var(--font-display); color: var(--color-ink); }
+.fm-code { white-space: nowrap; display: block; margin-top: var(--space-3xs); font: 400 var(--text-xs)/1.3 var(--font-outlier); color: var(--color-muted); }
+.c-filed span, .c-for span:not(.tag) { display: block; color: var(--color-muted); }
+.c-filed span { color: var(--color-ink-2); }
+.c-for span:not(.tag) { max-width: 22ch; }
+.tag { display: inline-block; margin-bottom: var(--space-2xs); padding: 0 var(--space-xs); border: var(--rule-hair) solid var(--color-ink-2); font: 500 var(--text-xs)/1.5 var(--font-display); color: var(--color-ink); }
+.status { font: 500 var(--text-sm)/1.3 var(--font-display); color: var(--color-ink); }
+.status--draft { padding: 0 var(--space-xs); border: var(--rule-hair) solid var(--color-accent-text); color: var(--color-accent-text); }
+.c-cur { min-width: 10rem; }
+.c-cur .v { font-weight: 500; color: var(--color-ink); margin-right: var(--space-xs); }
+.c-cur .size { font-size: var(--text-xs); color: var(--color-muted); }
+.c-cur .by { display: block; color: var(--color-ink); font-weight: 500; }
+.c-cur time, .c-cur .note { display: block; color: var(--color-muted); }
+.c-size { white-space: nowrap; text-align: right; font-size: var(--text-xs); }
+.forms th.c-size { text-align: right; }
+.c-versions { width: 9rem; }
+.c-versions .none { display: block; color: var(--color-muted); font-size: var(--text-xs); }
+.issue-line { display: block; margin: var(--space-2xs) 0 var(--space-xs); overflow: visible; }
+.il-axis { stroke: var(--color-rule-2); stroke-width: 1; }
+.il-tick { stroke: var(--color-rule-2); stroke-width: 1; }
+.il-old { fill: var(--color-sheet); stroke: var(--color-ink-2); stroke-width: 1.5; }
+.il-cur { fill: var(--color-accent-text); }
+.il-draft { fill: var(--color-sheet); stroke: var(--color-accent-text); stroke-width: 1.5; }
+.il-months text { fill: var(--color-muted); font: 400 11px var(--font-outlier); }
+.acts { display: flex; gap: var(--space-2xs); justify-content: end; }
+.fm-more { position: relative; }
+.fm-more summary { list-style: none; }
+.fm-more summary::-webkit-details-marker { display: none; }
+.fm-more[open] summary { background: var(--color-paper-2); }
+.menu { position: absolute; right: 0; top: calc(100% + var(--space-2xs)); z-index: var(--z-dropdown); display: grid; min-width: 14rem; padding: var(--space-2xs) 0; background: var(--color-sheet); border: var(--rule-hair) solid var(--color-rule-2); border-top: var(--rule-bar) solid var(--color-ink); }
+.menu button { min-height: 40px; padding: 0 var(--space-md); border: 0; background: none; color: var(--color-ink); font: 400 var(--text-sm)/1 var(--font-display); text-align: left; cursor: pointer; }
+.menu button:hover { background: var(--color-sheet-2); }
+.menu button:active { color: var(--color-accent-text); }
+.menu button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.menu .danger { color: var(--color-error); }
+.foot-note { max-width: 90ch; color: var(--color-muted); font-size: var(--text-sm); }
+.foot-note strong { font-weight: 500; color: var(--color-ink-2); }
+
+/* The table's other states. */
+.skeleton td { padding-block: var(--space-md); }
+.bar-s { display: block; height: 12px; background: var(--color-sheet-2); }
+.bar-s + .bar-s { margin-top: var(--space-xs); }
+.state-note { display: grid; gap: var(--space-sm); justify-items: start; padding: var(--space-xl) 0 var(--space-lg); border-top: var(--rule-bar) solid var(--color-rule-2); }
+.state-note strong { font: 500 var(--text-lg)/1.3 var(--font-display); color: var(--color-ink); }
+.state-note p { max-width: 60ch; color: var(--color-muted); }
+.state-note--error strong { color: var(--color-error); }
+.draft-states { display: flex; flex-wrap: wrap; gap: var(--space-md); font-size: var(--text-sm); color: var(--color-muted); }
+.draft-states a { color: var(--color-muted); }
+.draft-states a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+@media (max-width: 72rem) {
+  .filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .filters .search { grid-column: 1 / -1; }
+}
+@media (max-width: 60rem) {
+  .filters .search { grid-column: 1 / -1; }
+  .js .menu-btn { display: inline-grid; }
+  .context, .me__who { display: none; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .side { position: static; max-height: none; border-right: 0; border-bottom: var(--rule-hair) solid var(--color-rule); }
+  .js .side { position: fixed; top: 64px; left: 0; bottom: 0; z-index: var(--z-modal); width: min(20rem, 85%); border-right: var(--rule-hair) solid var(--color-rule-2); transform: translateX(-100%); visibility: hidden; transition: transform var(--dur-long) var(--ease-out), visibility var(--dur-long); }
+  .js .side.is-open { transform: none; visibility: visible; }
+  .page { padding: var(--space-lg) var(--space-lg) var(--space-xl); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .forms thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .forms, .forms tbody { display: block; }
+  .forms tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-md); padding: var(--space-md) 0; border-bottom: var(--rule-hair) solid var(--color-rule); }
+  .forms td { padding: var(--space-2xs) 0; border: 0; }
+  .forms td[data-label]:not(.c-form):not(.c-status)::before { content: attr(data-label); display: block; font: 500 var(--text-xs)/1.4 var(--font-body); color: var(--color-muted); }
+  .c-form { grid-column: 1; grid-row: 1; }
+  .c-status { grid-column: 2; grid-row: 1; text-align: right; }
+  .forms tbody tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .c-form { grid-column: 1; }
+  .c-filed { grid-column: 1; white-space: normal; }
+  .c-for { grid-column: 2; min-width: 0; }
+  .c-cur { grid-column: 1 / -1; }
+  .c-versions { grid-column: 1; align-self: end; }
+  .c-act { grid-column: 2; align-self: end; }
+  .c-for span:not(.tag) { max-width: none; }
+  .scroll-x { overflow-x: visible; }
+  .menu { left: 0; right: auto; }
+}
+@media (max-width: 40rem) {
+  .topbar { padding-inline: var(--space-2xs) var(--space-md); gap: var(--space-xs); }
+  .wordmark small, .me > .icon, #quick-btn, #theme-btn { display: none; }
+  .tools { gap: 0; }
+  .page { padding: var(--space-md) var(--space-md) var(--space-xl); gap: var(--space-md); }
+  .page__head .btn--primary { width: 100%; }
+  .modules { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); }
+  .sheet { padding: var(--space-sm) var(--space-md) var(--space-md); margin-inline: calc(-1 * var(--space-md)); }
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); }
+  .input, .select { min-height: 44px; font-size: var(--text-md); }
+  .select--sm { min-height: 36px; font-size: var(--text-sm); }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.8-1.6l9.9-10.2a.5.5 0 0 1 .9.5l-1.9 6A1 1 0 0 0 13 10h7a1 1 0 0 1 .8 1.6l-9.9 10.2a.5.5 0 0 1-.9-.5l1.9-6A1 1 0 0 0 11 14z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+</svg>
+
+<header class="topbar">
+  <button type="button" class="tool menu-btn" id="menu-btn" aria-label="Admin panel menu" aria-controls="side" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
+  <a class="lockup" href="/" aria-label="ATLAS home">
+    <img class="mark-lt" src="../../../../public/img/brand/atlas-mark.svg" width="42" height="31" alt="">
+    <img class="mark-dk" src="../../../../public/img/brand/atlas-mark-dark.svg" width="42" height="31" alt="">
+    <span class="lockup__rule" aria-hidden="true"></span>
+    <span class="lockup__words">
+      <span class="wordmark">ATLAS<small>Learn admin</small></span>
+      <span class="context"><span>Lancaster Academy</span><span><strong>Main Campus</strong></span><span>Demo: Current Term</span></span>
+    </span>
+  </a>
+  <div class="tools">
+    <button type="button" class="tool" id="apps-btn" aria-label="Systems"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></button>
+    <button type="button" class="tool" id="quick-btn" aria-label="Quick links"><svg class="icon" aria-hidden="true"><use href="#i-zap"/></svg></button>
+    <button type="button" class="tool" id="notif-btn" aria-label="Notifications, 3 unread"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg><span class="count num" aria-hidden="true">3</span></button>
+    <a class="tool" href="/help/" aria-label="Help and guides"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg></a>
+    <button type="button" class="tool" id="theme-btn" aria-label="Dark mode"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+    <button type="button" class="me" id="user-btn" aria-haspopup="menu" aria-expanded="false">
+      <span class="me__initials" aria-hidden="true">RV</span>
+      <span class="me__who">Rosa Villanueva<small>Registrar, Main Campus</small></span>
+      <svg class="icon icon--sm" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+      <span class="visually-hidden">Account menu for Rosa Villanueva</span>
+    </button>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="side" id="side" aria-label="Admin panel">
+    <ul><li><a href="/admin#/dashboard">Dashboard</a></li></ul>
+    <h2>Enrollment</h2>
+    <ul>
+      <li><a href="/admin#/enrollment">Enrollment requests <span class="n">57</span></a></li>
+      <li><a href="/admin#/applicants">Applicants <span class="n">11</span></a></li>
+      <li><a href="/admin#/students">Students</a></li>
+      <li><a href="/admin#/guardians">Parents &amp; guardians</a></li>
+      <li><a href="/admin#/teachers">Teachers</a></li>
+    </ul>
+    <h2>Catalog</h2>
+    <ul>
+      <li><a href="/admin#/sections">Sections</a></li>
+      <li><a href="/admin#/courses">Courses</a></li>
+      <li><a href="/admin#/terms">Terms</a></li>
+      <li><a href="/admin#/programs">Programs</a></li>
+    </ul>
+    <h2>Communication</h2>
+    <ul>
+      <li><a href="/admin#/calendar">School calendar</a></li>
+      <li><a href="/admin#/news">News &amp; events</a></li>
+    </ul>
+    <h2>Configuration</h2>
+    <ul>
+      <li><a href="/admin#/campuses">Campuses</a></li>
+      <li><a href="/admin#/modules">Modules</a></li>
+      <li><a href="/admin#/grading">Activity types &amp; grading</a></li>
+      <li><a href="/admin#/settings">Settings &amp; branding</a></li>
+      <li><a href="/admin#/systems">Home page &amp; systems</a></li>
+    </ul>
+    <h2>System</h2>
+    <ul><li><a href="/admin#/system/forms" aria-current="page">Document circulation</a></li></ul>
+    <h2>Elsewhere</h2>
+    <ul><li><a href="/">ATLAS home</a></li></ul>
+    <p class="side__foot">ATLAS, education platform by Lancaster</p>
+  </nav>
+
+  <main class="page" id="main">
+    <div class="page__head">
+      <div>
+        <h1>Document circulation</h1>
+        <p>Every form and file the systems give their people to download, in one place. Upload a new version whenever a form changes: users always get the latest, and the earlier ones stay here.</p>
+      </div>
+      <button type="button" class="btn btn--primary" id="fm-upload"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-upload"/></svg>Upload a form</button>
+    </div>
+
+    <div class="modules" aria-label="Forms per module">
+      <button type="button" class="module" data-module="uis" aria-pressed="false"><strong>ATLAS Academic</strong><b>2</b><span>published, 1 draft, 0 retired</span></button>
+      <button type="button" class="module" data-module="lms" aria-pressed="false"><strong>ATLAS Learn</strong><b>2</b><span>published, 0 draft, 0 retired</span></button>
+    </div>
+
+    <section class="sheet" aria-label="Forms">
+      <form class="filters" id="fm-filter" role="search">
+        <div class="search"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-search"/></svg><input class="input" type="search" name="q" placeholder="Title, form code, file, uploader…" aria-label="Search forms"></div>
+        <select class="select" name="module" aria-label="Module"><option value="">All modules</option><option value="uis">ATLAS Academic</option><option value="lms">ATLAS Learn</option></select>
+        <select class="select" name="category" aria-label="Category"><option value="">All categories</option><option>Attendance</option><option>Enrollment</option><option>Records</option><option>Teaching</option></select>
+        <select class="select" name="status" aria-label="Status"><option value="">Any status</option><option value="published">Published</option><option value="draft">Draft</option><option value="retired">Retired</option></select>
+        <select class="select" name="audience" aria-label="Who it is for"><option value="">Anyone</option><option value="public">Public (signed out)</option><option value="student">Student</option><option value="teacher">Teacher</option><option value="registrar">Registrar</option><option value="dean">Dean / Program chair</option><option value="admin">Administrator</option><option value="guardian">Parent / Guardian</option></select>
+      </form>
+
+      <div id="fm-list">
+      <div data-state="full" class="scroll-x">
+      <table class="forms">
+        <thead>
+          <tr>
+            <th scope="col">Form</th>
+            <th scope="col">Module, category</th>
+            <th scope="col">For</th>
+            <th scope="col">Status</th>
+            <th scope="col">Current version, size</th>
+            <th scope="col">Versions
+              <svg class="issue-line il-months" viewBox="0 0 120 16" width="120" height="16" role="img" aria-label="The time axis of the version lines: August to November 2026"><line class="il-tick" x1="4" y1="0" x2="4" y2="4"/><line class="il-tick" x1="32.7" y1="0" x2="32.7" y2="4"/><line class="il-tick" x1="60.5" y1="0" x2="60.5" y2="4"/><line class="il-tick" x1="89.2" y1="0" x2="89.2" y2="4"/><line class="il-tick" x1="116" y1="0" x2="116" y2="4"/><text x="8" y="15">Aug</text><text x="36" y="15">Sep</text><text x="64" y="15">Oct</text><text x="93" y="15">Nov</text></svg>
+            </th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-id="enroll">
+            <td class="c-form" data-label="Form"><strong>Enrollment form</strong><span class="fm-code">REG-F-001 Rev. 1</span></td>
+            <td class="c-filed" data-label="Module and category">ATLAS Academic<span>Enrollment</span></td>
+            <td class="c-for" data-label="For"><span class="tag">Public</span><span>Student, Registrar, Administrator</span></td>
+            <td class="c-status" data-label="Status"><span class="status">Published</span></td>
+            <td class="c-cur" data-label="Current version"><span class="v num">v2</span><span class="size num">863 B</span><span class="by">Rosa Villanueva</span><time datetime="2026-11-06T15:05">Nov 6, 2026, 3:05 PM</time><span class="note">Guardian contact added</span></td>
+            <td class="c-versions" data-label="Versions, August to November 2026"><svg class="issue-line" viewBox="0 0 120 16" width="120" height="16" role="img" aria-label="Versions, August to November 2026: v1 Aug 28, 2026; v2 Nov 6, 2026, current"><line class="il-axis" x1="4" y1="8" x2="116" y2="8"/><circle class="il-old" cx="29.0" cy="8" r="3"/><rect class="il-cur" x="90.3" y="4.5" width="7" height="7"/></svg><select class="select select--sm fm-versions" data-versions="enroll" aria-label="Earlier versions of Enrollment form: choose one to download it"><option value="">1 earlier</option><option value="1">v1, Aug 28, 2026, 3:05 PM, Rosa Villanueva, First issue</option></select></td>
+            <td class="c-act"><div class="acts"><button type="button" class="btn btn--icon" data-act="version" data-id="enroll" aria-label="Upload a new version of Enrollment form" title="Upload a new version"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-upload"/></svg></button><details class="fm-more"><summary class="btn btn--icon" aria-label="More for Enrollment form" title="More: edit, restore, publish or retire"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-more"/></svg></summary><div class="menu" role="menu"><button type="button" role="menuitem" data-act="edit" data-id="enroll">Edit details</button><button type="button" role="menuitem" data-act="download" data-id="enroll">Download current version</button><button type="button" role="menuitem" data-act="restore" data-id="enroll">Restore a version</button><button type="button" role="menuitem" data-act="retire" data-id="enroll">Retire</button></div></details></div></td>
+          </tr>
+          <tr data-id="shift">
+            <td class="c-form" data-label="Form"><strong>Shifting form</strong><span class="fm-code">REG-F-010</span></td>
+            <td class="c-filed" data-label="Module and category">ATLAS Academic<span>Enrollment</span></td>
+            <td class="c-for" data-label="For"><span>Student, Registrar, Administrator</span></td>
+            <td class="c-status" data-label="Status"><span class="status status--draft">Draft</span></td>
+            <td class="c-cur" data-label="Current version"><span class="v num">v1</span><span class="size num">804 B</span><span class="by">Rosa Villanueva</span><time datetime="2026-11-24T15:05">Nov 24, 2026, 3:05 PM</time><span class="note">Draft for review</span></td>
+            <td class="c-versions" data-label="Versions, August to November 2026"><svg class="issue-line" viewBox="0 0 120 16" width="120" height="16" role="img" aria-label="Versions, August to November 2026: v1 Nov 24, 2026, current"><line class="il-axis" x1="4" y1="8" x2="116" y2="8"/><rect class="il-cur il-draft" x="106.9" y="4.5" width="7" height="7"/></svg><span class="none">None yet</span></td>
+            <td class="c-act"><div class="acts"><button type="button" class="btn btn--icon" data-act="version" data-id="shift" aria-label="Upload a new version of Shifting form" title="Upload a new version"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-upload"/></svg></button><details class="fm-more"><summary class="btn btn--icon" aria-label="More for Shifting form" title="More: edit, restore, publish or retire"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-more"/></svg></summary><div class="menu" role="menu"><button type="button" role="menuitem" data-act="edit" data-id="shift">Edit details</button><button type="button" role="menuitem" data-act="download" data-id="shift">Download current version</button><button type="button" role="menuitem" data-act="publish" data-id="shift">Publish</button><button type="button" role="menuitem" data-act="delete" data-id="shift" class="danger">Delete draft</button></div></details></div></td>
+          </tr>
+          <tr data-id="docreq">
+            <td class="c-form" data-label="Form"><strong>Request for a document</strong><span class="fm-code">REG-F-007</span></td>
+            <td class="c-filed" data-label="Module and category">ATLAS Academic<span>Records</span></td>
+            <td class="c-for" data-label="For"><span>Student, Registrar, Administrator</span></td>
+            <td class="c-status" data-label="Status"><span class="status">Published</span></td>
+            <td class="c-cur" data-label="Current version"><span class="v num">v1</span><span class="size num">788 B</span><span class="by">Rosa Villanueva</span><time datetime="2026-10-27T15:05">Oct 27, 2026, 3:05 PM</time><span class="note">First issue</span></td>
+            <td class="c-versions" data-label="Versions, August to November 2026"><svg class="issue-line" viewBox="0 0 120 16" width="120" height="16" role="img" aria-label="Versions, August to November 2026: v1 Oct 27, 2026, current"><line class="il-axis" x1="4" y1="8" x2="116" y2="8"/><rect class="il-cur" x="81.0" y="4.5" width="7" height="7"/></svg><span class="none">None yet</span></td>
+            <td class="c-act"><div class="acts"><button type="button" class="btn btn--icon" data-act="version" data-id="docreq" aria-label="Upload a new version of Request for a document" title="Upload a new version"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-upload"/></svg></button><details class="fm-more"><summary class="btn btn--icon" aria-label="More for Request for a document" title="More: edit, restore, publish or retire"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-more"/></svg></summary><div class="menu" role="menu"><button type="button" role="menuitem" data-act="edit" data-id="docreq">Edit details</button><button type="button" role="menuitem" data-act="download" data-id="docreq">Download current version</button><button type="button" role="menuitem" data-act="retire" data-id="docreq">Retire</button></div></details></div></td>
+          </tr>
+          <tr data-id="excuse">
+            <td class="c-form" data-label="Form"><strong>Excuse letter template</strong><span class="fm-code">LRN-F-002</span></td>
+            <td class="c-filed" data-label="Module and category">ATLAS Learn<span>Attendance</span></td>
+            <td class="c-for" data-label="For"><span>Student, Parent / Guardian, Teacher</span></td>
+            <td class="c-status" data-label="Status"><span class="status">Published</span></td>
+            <td class="c-cur" data-label="Current version"><span class="v num">v1</span><span class="size num">806 B</span><span class="by">Rosa Villanueva</span><time datetime="2026-10-07T15:05">Oct 7, 2026, 3:05 PM</time><span class="note">First issue</span></td>
+            <td class="c-versions" data-label="Versions, August to November 2026"><svg class="issue-line" viewBox="0 0 120 16" width="120" height="16" role="img" aria-label="Versions, August to November 2026: v1 Oct 7, 2026, current"><line class="il-axis" x1="4" y1="8" x2="116" y2="8"/><rect class="il-cur" x="62.5" y="4.5" width="7" height="7"/></svg><span class="none">None yet</span></td>
+            <td class="c-act"><div class="acts"><button type="button" class="btn btn--icon" data-act="version" data-id="excuse" aria-label="Upload a new version of Excuse letter template" title="Upload a new version"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-upload"/></svg></button><details class="fm-more"><summary class="btn btn--icon" aria-label="More for Excuse letter template" title="More: edit, restore, publish or retire"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-more"/></svg></summary><div class="menu" role="menu"><button type="button" role="menuitem" data-act="edit" data-id="excuse">Edit details</button><button type="button" role="menuitem" data-act="download" data-id="excuse">Download current version</button><button type="button" role="menuitem" data-act="retire" data-id="excuse">Retire</button></div></details></div></td>
+          </tr>
+          <tr data-id="observe">
+            <td class="c-form" data-label="Form"><strong>Class observation form</strong><span class="fm-code">LRN-F-011</span></td>
+            <td class="c-filed" data-label="Module and category">ATLAS Learn<span>Teaching</span></td>
+            <td class="c-for" data-label="For"><span>Teacher, Registrar, Administrator</span></td>
+            <td class="c-status" data-label="Status"><span class="status">Published</span></td>
+            <td class="c-cur" data-label="Current version"><span class="v num">v1</span><span class="size num">812 B</span><span class="by">Rosa Villanueva</span><time datetime="2026-10-12T15:05">Oct 12, 2026, 3:05 PM</time><span class="note">First issue</span></td>
+            <td class="c-versions" data-label="Versions, August to November 2026"><svg class="issue-line" viewBox="0 0 120 16" width="120" height="16" role="img" aria-label="Versions, August to November 2026: v1 Oct 12, 2026, current"><line class="il-axis" x1="4" y1="8" x2="116" y2="8"/><rect class="il-cur" x="67.1" y="4.5" width="7" height="7"/></svg><span class="none">None yet</span></td>
+            <td class="c-act"><div class="acts"><button type="button" class="btn btn--icon" data-act="version" data-id="observe" aria-label="Upload a new version of Class observation form" title="Upload a new version"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-upload"/></svg></button><details class="fm-more"><summary class="btn btn--icon" aria-label="More for Class observation form" title="More: edit, restore, publish or retire"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-more"/></svg></summary><div class="menu" role="menu"><button type="button" role="menuitem" data-act="edit" data-id="observe">Edit details</button><button type="button" role="menuitem" data-act="download" data-id="observe">Download current version</button><button type="button" role="menuitem" data-act="retire" data-id="observe">Retire</button></div></details></div></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div data-state="loading" hidden aria-busy="true">
+        <table class="forms skeleton" aria-label="Loading the forms">
+          <tbody>
+            <tr><td style="width:22%"><span class="bar-s" style="width:80%"></span><span class="bar-s" style="width:45%"></span></td><td style="width:14%"><span class="bar-s" style="width:70%"></span></td><td style="width:16%"><span class="bar-s" style="width:85%"></span></td><td style="width:10%"><span class="bar-s" style="width:70%"></span></td><td style="width:20%"><span class="bar-s" style="width:60%"></span><span class="bar-s" style="width:90%"></span></td><td><span class="bar-s" style="width:70%"></span></td></tr>
+            <tr><td><span class="bar-s" style="width:60%"></span><span class="bar-s" style="width:35%"></span></td><td><span class="bar-s" style="width:70%"></span></td><td><span class="bar-s" style="width:85%"></span></td><td><span class="bar-s" style="width:55%"></span></td><td><span class="bar-s" style="width:60%"></span><span class="bar-s" style="width:80%"></span></td><td><span class="bar-s" style="width:70%"></span></td></tr>
+            <tr><td><span class="bar-s" style="width:75%"></span><span class="bar-s" style="width:40%"></span></td><td><span class="bar-s" style="width:70%"></span></td><td><span class="bar-s" style="width:85%"></span></td><td><span class="bar-s" style="width:70%"></span></td><td><span class="bar-s" style="width:60%"></span><span class="bar-s" style="width:85%"></span></td><td><span class="bar-s" style="width:70%"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div data-state="empty" hidden class="state-note">
+        <strong>No forms yet.</strong>
+        <p>Choose Upload a form to add the first one. Its users get it on their system’s Forms &amp; downloads page as soon as it is published.</p>
+      </div>
+
+      <div data-state="nomatch" hidden class="state-note">
+        <strong>No form matches these filters.</strong>
+        <p>5 forms are kept here; the search and the four lists above narrow them.</p>
+        <button type="button" class="btn" id="fm-clear">Clear the filters</button>
+      </div>
+
+      <div data-state="error" hidden class="state-note state-note--error" role="alert">
+        <strong>The forms could not be loaded.</strong>
+        <p>ATLAS did not answer. Nothing was changed; try again, and if it keeps failing, tell your administrator.</p>
+        <button type="button" class="btn" id="fm-retry">Try again</button>
+      </div>
+      </div>
+    </section>
+
+    <p class="foot-note"><span data-count>5 forms. </span>Users see only the current version of published forms, on each system’s <strong>Forms &amp; downloads</strong> page; public forms also on the sign-in page’s <strong>Forms</strong>. Retired forms are hidden from users and kept here.</p>
+    <nav class="draft-states" aria-label="Draft states of the table">Draft states: <a href="#full">Full</a><a href="#loading">Loading</a><a href="#empty">Empty</a><a href="#nomatch">No match</a><a href="#error">Error</a></nav>
+  </main>
+</div>
+
+<script>
+(() => {
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('theme-btn');
+  const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const drawTheme = () => {
+    themeBtn.querySelector('use').setAttribute('href', isDark() ? '#i-sun' : '#i-moon');
+    themeBtn.setAttribute('aria-label', isDark() ? 'Light mode' : 'Dark mode');
+  };
+  themeBtn.addEventListener('click', () => {
+    root.dataset.theme = isDark() ? 'light' : 'dark';
+    try { localStorage.setItem('lms-theme', root.dataset.theme); } catch (e) {}
+    drawTheme();
+  });
+  drawTheme();
+
+  const side = document.getElementById('side');
+  const menuBtn = document.getElementById('menu-btn');
+  menuBtn.addEventListener('click', () => {
+    const open = !side.classList.contains('is-open');
+    side.classList.toggle('is-open', open);
+    menuBtn.setAttribute('aria-expanded', String(open));
+  });
+
+  // One More menu open at a time; a click elsewhere closes it (as lms/public/js/system/forms.js does).
+  const menus = [...document.querySelectorAll('details.fm-more')];
+  menus.forEach((d) => d.addEventListener('toggle', () => { if (d.open) menus.forEach((o) => o !== d && (o.open = false)); }));
+  document.addEventListener('click', (e) => { if (!e.target.closest('details.fm-more')) menus.forEach((o) => (o.open = false)); });
+  document.querySelectorAll('[data-module]').forEach((b) => b.addEventListener('click', () => {
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    document.querySelectorAll('[data-module]').forEach((x) => x.setAttribute('aria-pressed', String(x === b && on)));
+  }));
+  // The draft downloads nothing: choosing a version only resets the list, as ATLAS does after it starts the download.
+  document.querySelectorAll('[data-versions]').forEach((s) => s.addEventListener('change', () => { s.value = ''; }));
+
+  // Draft only: the hash picks the table's state.
+  const show = () => {
+    const want = (location.hash || '#full').slice(1);
+    const state = ['full', 'loading', 'empty', 'nomatch', 'error'].includes(want) ? want : 'full';
+    document.querySelectorAll('#fm-list > [data-state]').forEach((el) => { el.hidden = el.dataset.state !== state; });
+    document.querySelector('[data-count]').hidden = state !== 'full';
+  };
+  addEventListener('hashchange', show);
+  show();
+})();
+</script>
+</body>
+</html>

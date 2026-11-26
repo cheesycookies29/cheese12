@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in, Lancaster Academy</title>
+<meta name="description" content="Sign in to ATLAS at Lancaster Academy, register as a new student, see job openings or download forms without signing in.">
+<script>try { var t = localStorage.getItem('lms-theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {} document.documentElement.classList.add('js');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · shape: Index-First (front desk, swapped from Long Document) · genre: editorial · theme: Almanac (deal 2/3, seed school-records-platform-state-1863·b6c5370e·2026-11-26·r0), brand kept: ATLAS Burgundy, ATLAS Gold, DM Sans, Newsreader · job: sign in · draw: 420917
+ * hero: Counter (swapped from Corridor) · nav: edge-aligned, the lockup and four links · footer: colophon block · imagery: none (the brand mark only) · signature: the door index, every way in as one ruled row beside the sign-in sheet
+ * axes: mid/grotesk-sans/chromatic-red · posture: restrained · modes: light+dark · contrast: pass · fold: pass · redesign: from scratch, beside lms/public/js/hub/app.js signInView · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4 · weakest: S, a sign-in is every sign-in; the doors are the school's own (register, jobs, forms) and the lead names the five systems the one sign-in opens */
+/* Hallmark · finish-review: in-thread (this session had no subagent tool) · fix · 2 findings · 2 answered (the visible Required word stays, the interaction rules ask for it; on a phone the masthead is kept, Sign in still lands in the first screen) · old page did better: nothing a visitor could do is harder */
+@import url("./tokens.css");
+@import url("./base.css");
+
+html { background: var(--color-paper); }
+body { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; color: var(--color-ink-2); }
+.icon { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+/* The bar: the lockup left, the four ways out right. */
+.bar { border-bottom: var(--rule-hair) solid var(--color-rule); }
+.bar > .container { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); min-height: 72px; }
+.lockup { display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; color: var(--color-ink); text-decoration: none; }
+.lockup img { width: 46px; height: auto; }
+.lockup__rule { align-self: stretch; width: var(--rule-hair); margin-block: var(--space-xs); background: var(--color-seal); }
+.wordmark { font: 600 1.125rem/1 var(--font-display); letter-spacing: 0.2em; }
+.mark-dk { display: none; }
+.ways { display: flex; align-items: center; gap: var(--space-lg); }
+.ways a, .ways button { display: inline-flex; align-items: center; gap: var(--space-xs); min-height: 44px; padding: 0; border: 0; background: none; color: var(--color-ink-2); font: 500 var(--text-sm)/1 var(--font-display); white-space: nowrap; text-decoration: none; cursor: pointer; transition: color var(--dur-short) var(--ease-out); }
+.ways a:hover, .ways button:hover { color: var(--color-ink); text-decoration: underline; text-decoration-color: var(--color-accent-text); }
+.ways a:active, .ways button:active { color: var(--color-accent-text); }
+.ways a:focus-visible, .ways button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+/* The desk: the masthead and the doors on the left, the sheet on the right. */
+.desk { display: grid; align-items: center; padding-block: var(--space-2xl); }
+.desk__grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap-columns); row-gap: var(--space-xl); align-items: start; }
+.masthead { grid-column: 1 / span 6; grid-row: 1; display: grid; gap: var(--space-lg); }
+.masthead h1 { max-width: 9ch; color: var(--color-ink); letter-spacing: -0.035em; line-height: 0.98; }
+.masthead .lead { max-width: 34ch; color: var(--color-ink-2); }
+.sheet { grid-column: 8 / span 5; grid-row: 1 / span 2; display: grid; gap: var(--space-lg); padding: var(--space-xl); background: var(--color-sheet); border-top: var(--rule-bar) solid var(--color-ink); }
+.sheet h2 { font-size: var(--text-title); letter-spacing: -0.01em; color: var(--color-ink); padding-bottom: var(--space-md); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.doors { grid-column: 1 / span 6; grid-row: 2; margin: 0; padding: 0; list-style: none; border-top: var(--rule-bar) solid var(--color-rule-2); }
+.doors li { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); align-items: center; gap: var(--space-md); min-height: 64px; padding-block: var(--space-xs); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.doors__ask { color: var(--color-muted); font-size: var(--text-md); }
+.doors__go { color: var(--color-ink); }
+.doors__go small { color: var(--color-muted); font-size: var(--text-sm); }
+
+/* Fields: square, a constant 1px edge, the ring inset. */
+.field { display: grid; gap: var(--space-xs); }
+.field__label { display: flex; justify-content: space-between; align-items: baseline; font: 500 var(--text-sm)/1.3 var(--font-display); color: var(--color-ink); }
+.field__label small { font: 400 var(--text-sm)/1.3 var(--font-body); color: var(--color-muted); }
+.input-wrap { position: relative; }
+.input { width: 100%; min-height: 48px; padding: 0 var(--space-md); border: var(--rule-hair) solid var(--color-muted); border-radius: var(--radius-pill); background: var(--color-sheet); color: var(--color-ink); font: 400 var(--text-md)/1 var(--font-display); outline: 2px solid transparent; outline-offset: -3px; transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out); }
+.input--pw { padding-right: calc(var(--space-3xl) - var(--space-xs)); }
+.input:hover { background: var(--color-sheet-2); }
+.input:focus-visible { outline-color: var(--color-focus); border-color: var(--color-ink-2); }
+.input:disabled { opacity: 0.55; cursor: not-allowed; }
+.input[aria-invalid="true"] { border-color: var(--color-error); }
+.reveal-pw { position: absolute; top: 0; right: 0; min-width: 64px; min-height: 48px; padding: 0 var(--space-md); border: 0; background: none; color: var(--color-accent-text); font: 500 var(--text-sm)/1 var(--font-display); cursor: pointer; }
+.reveal-pw:hover { text-decoration: underline; }
+.reveal-pw:active { color: var(--color-ink); }
+.reveal-pw:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -4px; }
+
+.form-error { min-height: 1lh; margin-top: calc(-1 * var(--space-sm)); color: var(--color-error); font-size: var(--text-sm); }
+.form-error:empty { display: none; }
+
+/* Controls: one filled primary (Sign in), one quiet (Register account). */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: 48px; padding: 0 var(--space-lg); border: var(--rule-hair) solid var(--color-ink); border-radius: var(--radius-pill); background: transparent; color: var(--color-ink); font: 500 var(--text-md)/1 var(--font-display); white-space: nowrap; text-decoration: none; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.btn:hover { background: var(--color-paper-2); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; transform: none; }
+.btn[aria-busy="true"] { cursor: progress; }
+.btn--primary { width: 100%; background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-ink); }
+.btn--primary:hover { background: var(--color-accent-2); }
+.btn--quiet { justify-self: start; min-height: 44px; padding: 0 var(--space-md); border-color: var(--color-rule-2); }
+.link { color: var(--color-ink); font: 500 var(--text-md)/1.3 var(--font-display); text-decoration: underline; text-decoration-color: var(--color-accent-text); text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+.link:hover { text-decoration-thickness: 2px; }
+.link:active { color: var(--color-accent-text); }
+.link:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.sheet__foot { color: var(--color-muted); font-size: var(--text-sm); line-height: 1.5; }
+
+/* The colophon. */
+.colophon { border-top: var(--rule-hair) solid var(--color-rule); }
+.colophon > .container { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-xs) var(--space-lg); padding-block: var(--space-lg); color: var(--color-muted); font-size: var(--text-sm); }
+
+@media (max-width: 60rem) {
+  .desk { align-items: start; padding-block: var(--space-xl) var(--space-2xl); }
+  .desk__grid { grid-template-columns: minmax(0, 1fr); }
+  .masthead, .sheet, .doors { grid-column: 1; grid-row: auto; }
+  .ways { gap: var(--space-md); }
+}
+@media (max-width: 40rem) {
+  .bar > .container { min-height: 64px; }
+  .ways { gap: 0; }
+  .ways a, .ways button { min-width: 44px; justify-content: center; }
+  .ways .way-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .ways .icon { width: 20px; height: 20px; }
+  .lockup img { width: 40px; }
+  .masthead { gap: var(--space-md); }
+  .masthead h1 { font-size: 2.75rem; }
+  .sheet { padding: var(--space-lg) var(--space-md); }
+  .doors li { grid-template-columns: minmax(0, 1fr); gap: var(--space-2xs); padding-block: var(--space-sm); }
+}
+[data-theme="dark"] .mark-lt { display: none; }
+[data-theme="dark"] .mark-dk { display: block; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .mark-lt { display: none; } :root:not([data-theme]) .mark-dk { display: block; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></symbol>
+</svg>
+
+<header class="bar">
+  <div class="container">
+    <a class="lockup" href="/" aria-label="ATLAS, sign-in page">
+      <img class="mark-lt" src="../../../../public/img/brand/atlas-mark.svg" width="46" height="34" alt="">
+      <img class="mark-dk" src="../../../../public/img/brand/atlas-mark-dark.svg" width="46" height="34" alt="">
+      <span class="lockup__rule" aria-hidden="true"></span>
+      <span class="wordmark">ATLAS</span>
+    </a>
+    <nav class="ways" aria-label="Help and display">
+      <a href="#jobs" id="jobs-link"><svg class="icon" aria-hidden="true"><use href="#i-briefcase"/></svg><span class="way-label">Job openings</span></a>
+      <a href="#forms" id="forms-link"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span class="way-label">Forms</span></a>
+      <a href="/help/"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg><span class="way-label">Help &amp; guides</span></a>
+      <button type="button" id="auth-theme" aria-label="Dark mode"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg><span class="way-label">Dark mode</span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="desk" id="main">
+  <div class="container desk__grid">
+    <div class="masthead">
+      <h1>Lancaster Academy</h1>
+      <p class="lead">This sign-in opens Academic, Learn, People, Finance and Documents.</p>
+    </div>
+
+    <form class="sheet" novalidate data-endpoint="" aria-labelledby="signin-h">
+      <h2 id="signin-h">Sign in to ATLAS</h2>
+      <div class="field">
+        <label class="field__label" for="username">Username or email <small>Required</small></label>
+        <input class="input" id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required aria-required="true">
+      </div>
+      <div class="field">
+        <label class="field__label" for="password">Password <small>Required</small></label>
+        <div class="input-wrap">
+          <input class="input input--pw" id="password" name="password" type="password" autocomplete="current-password" required aria-required="true">
+          <button class="reveal-pw" type="button" data-toggle-pw aria-controls="password" aria-pressed="false">Show</button>
+        </div>
+      </div>
+      <p class="form-error" id="form-error" role="alert"></p>
+      <button class="btn btn--primary" type="submit">Sign in</button>
+      <p class="sheet__foot">Forgot your password? Ask the registrar or your administrator to reset it.</p>
+    </form>
+
+    <ul class="doors" aria-label="Other ways in">
+      <li><span class="doors__ask">New student?</span><button type="button" class="btn btn--quiet register-btn" id="register"><svg class="icon" aria-hidden="true"><use href="#i-user-plus"/></svg>Register account</button></li>
+      <li><span class="doors__ask">Looking for a job?</span><span class="doors__go"><a class="link" href="#jobs" id="see-jobs">See job openings</a></span></li>
+      <li><span class="doors__ask">Need a form?</span><span class="doors__go"><a class="link" href="#forms" id="see-forms">Download forms</a> <small>without signing in</small></span></li>
+    </ul>
+  </div>
+</main>
+
+<footer class="colophon">
+  <div class="container">
+    <p>Coming soon: Facilities, REX Bookstore e&#8209;Reader</p>
+    <p>&copy; 2026 Lancaster Academy</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('auth-theme');
+  const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const drawTheme = () => {
+    const label = isDark() ? 'Light mode' : 'Dark mode';
+    themeBtn.querySelector('use').setAttribute('href', isDark() ? '#i-sun' : '#i-moon');
+    themeBtn.querySelector('.way-label').textContent = label;
+    themeBtn.setAttribute('aria-label', label);
+  };
+  themeBtn.addEventListener('click', () => {
+    root.dataset.theme = isDark() ? 'light' : 'dark';
+    try { localStorage.setItem('lms-theme', root.dataset.theme); } catch (e) {}
+    drawTheme();
+  });
+  drawTheme();
+
+  document.querySelectorAll('[data-toggle-pw]').forEach((btn) => btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.getAttribute('aria-controls'));
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
+    btn.setAttribute('aria-pressed', String(show));
+  }));
+
+  // The draft posts nowhere: it checks the fields as ATLAS does and says plainly that nothing was sent.
+  const form = document.querySelector('form.sheet');
+  const error = document.getElementById('form-error');
+  const fields = [form.username, form.password];
+  const fail = (text) => {
+    error.textContent = text;
+    fields.forEach((f) => { f.setAttribute('aria-invalid', 'true'); f.setAttribute('aria-describedby', 'form-error'); });
+  };
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!form.username.value.trim() || !form.password.value) { fail('Enter your username or email, and your password.'); (form.username.value.trim() ? form.password : form.username).focus(); return; }
+    fields.forEach((f) => f.removeAttribute('aria-invalid'));
+    error.textContent = form.dataset.endpoint ? '' : 'Nothing was sent: this draft is not connected to ATLAS.';
+  });
+  // #error shows the state ATLAS answers a wrong password with.
+  if (location.hash === '#error') { form.username.value = 'registrar.demo'; fail('Incorrect username or password.'); }
+})();
+</script>
+</body>
+</html>

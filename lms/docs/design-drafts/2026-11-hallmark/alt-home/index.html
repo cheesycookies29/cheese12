@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATLAS home (alternative), Lancaster Academy</title>
+<meta name="description" content="An alternative direction for the registrar's ATLAS home: today's counts as one notebook entry, the dates ahead beside it, the systems as keys.">
+<script>try { var t = localStorage.getItem('lms-theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t; } catch (e) {} document.documentElement.classList.add('js');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Furrow (deal 1/3, seed school-records-platform-state-1863·b6c5370e·2026-11-26·r0), brand kept: ATLAS Burgundy for type and focus, ATLAS Gold as the filled key, DM Sans
+ * nav: the project's top bar (lockup, five tools, the account) · signature: today's entry, the registrar's counts as one notebook page on an 8px grid with the two keys that act on them · states: full (this direction is for comparison; its states follow the main draft)
+ * axes: light/grotesk-sans/warm · posture: committed (manila paper carries the page, gold is a fill with ink on it) · modes: light+dark · contrast: pass · redesign: from scratch, alternative to ../home · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V5 · weakest: S, keys and a notebook could suit any records tool; the cells hold only the registrar's real counts and the dates are the school calendar's */
+/* Hallmark · finish-review: in-thread (this session had no subagent tool) · fix · 2 findings · 1 resolved (the dark entry head was a light band) · 1 open for the owner (gold, not burgundy, fills the primary key in this direction) */
+@import url("./tokens.css");
+@import url("./base.css");
+
+html { background: var(--color-paper); }
+body { color: var(--color-ink-2); }
+.icon { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.icon--sm { width: 16px; height: 16px; }
+.num { font-family: var(--font-outlier); font-variant-numeric: tabular-nums; }
+.mark-dk { display: none; }
+[data-theme="dark"] .mark-lt { display: none; } [data-theme="dark"] .mark-dk { display: block; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .mark-lt { display: none; } :root:not([data-theme]) .mark-dk { display: block; } }
+
+/* The top bar. */
+.topbar { position: sticky; top: 0; z-index: var(--z-sticky-nav); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-ink); }
+.topbar > .container { display: flex; align-items: center; gap: var(--space-md); min-height: 64px; }
+.lockup { display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; min-width: 0; color: var(--color-ink); text-decoration: none; }
+.lockup img { width: 42px; height: auto; flex-shrink: 0; }
+.lockup__words { display: grid; gap: var(--space-3xs); min-width: 0; }
+.wordmark { font: 600 1rem/1 var(--font-display); letter-spacing: 0.2em; white-space: nowrap; }
+.context { font: 400 var(--text-xs)/1.2 var(--font-body); color: var(--color-muted); white-space: nowrap; }
+.tools { display: flex; align-items: center; gap: var(--space-2xs); margin-left: auto; }
+.tool { position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: var(--radius-pill); background: none; color: var(--color-ink-2); cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.tool::before { content: ""; position: absolute; inset: -2px; }
+.tool:hover { background: var(--color-paper-3); }
+.tool:active { transform: translateY(1px); }
+.tool:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.tool .count { position: absolute; top: 2px; right: 0; min-width: 18px; padding: 0 var(--space-2xs); border-radius: var(--radius-pill); background: var(--color-accent); color: var(--color-accent-ink); font: 500 var(--text-xs)/18px var(--font-outlier); text-align: center; }
+.me { display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; padding: 0 var(--space-xs); border: 0; border-radius: var(--radius-pill); background: none; color: var(--color-ink); text-align: left; white-space: nowrap; cursor: pointer; }
+.me:hover { background: var(--color-paper-3); }
+.me:active { transform: translateY(1px); }
+.me:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.me__initials { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--color-ink); color: var(--color-paper); font: 500 var(--text-sm)/1 var(--font-display); }
+.me__who { display: grid; gap: var(--space-3xs); font: 500 var(--text-sm)/1.1 var(--font-display); }
+.me__who small { font-weight: 400; font-size: var(--text-xs); color: var(--color-muted); }
+
+main { padding-block: var(--space-xl) var(--space-2xl); }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap-columns); row-gap: var(--space-2xl); align-items: start; }
+.region { display: grid; gap: var(--space-sm); align-content: start; }
+.region h2 { font-size: var(--text-section); color: var(--color-ink); }
+.ruled { margin: 0; padding: 0; list-style: none; border-top: var(--rule-hair) solid var(--color-ink); }
+.ruled > li { border-bottom: var(--rule-hair) solid var(--color-rule); }
+
+/* Today's entry: the signature. */
+.entry { grid-column: 1 / span 7; border-radius: var(--radius-entry); background: var(--color-paper-2); box-shadow: 0 0 0 1px var(--color-ink), var(--shadow-lift); overflow: hidden; }
+.entry__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-xs) var(--space-md); padding: var(--space-md) var(--space-lg); background: var(--color-band); color: var(--color-band-ink); }
+.entry__head h1 { font-size: var(--text-xl); color: var(--color-band-ink); }
+.entry__head time { font: 400 var(--text-sm)/1.3 var(--font-outlier); color: var(--color-band-muted); }
+.notebook { background: linear-gradient(var(--color-grid) 1px, transparent 1px) 0 0 / 8px 8px, linear-gradient(90deg, var(--color-grid) 1px, transparent 1px) 0 0 / 8px 8px, var(--color-paper-2); }
+.cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.cell { position: relative; display: grid; gap: var(--space-2xs); align-content: start; min-height: 112px; padding: var(--space-md) var(--space-lg); border-bottom: var(--rule-hair) solid var(--color-ink); color: var(--color-ink); text-decoration: none; transition: background-color var(--dur-short) var(--ease-out); }
+.cell:nth-child(odd) { border-right: var(--rule-hair) solid var(--color-ink); }
+.cell dt { font: 500 var(--text-xs)/1.3 var(--font-body); color: var(--color-muted); }
+.cell dd { margin: 0; display: flex; align-items: baseline; gap: var(--space-sm); }
+.cell b { font: 500 2.75rem/1 var(--font-outlier); letter-spacing: -0.04em; color: var(--color-ink); }
+.cell a { color: var(--color-ink); font: 500 var(--text-md)/1.3 var(--font-body); text-decoration: none; }
+.cell a::after { content: ""; position: absolute; inset: 0; }
+.cell:hover { background: var(--color-sheet); }
+.cell:hover a { text-decoration: underline; text-decoration-color: var(--color-accent-text); }
+.cell a:focus-visible { outline: none; }
+.cell:has(a:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: -3px; }
+.cell a:active { color: var(--color-accent-text); }
+.cell--facts dd { display: grid; gap: var(--space-3xs); font: 400 var(--text-sm)/1.4 var(--font-body); color: var(--color-ink-2); }
+.cell--facts a { position: relative; z-index: 1; font-size: var(--text-sm); color: var(--color-accent-text); text-decoration: underline; }
+.cell--facts a::after { display: none; }
+.entry__keys { display: flex; flex-wrap: wrap; gap: var(--space-sm); padding: var(--space-md) var(--space-lg); }
+
+/* Keys: moulded, 6px. */
+.key { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: 48px; padding: 0 var(--space-lg); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-pill); background: var(--color-paper-2); color: var(--color-ink); box-shadow: var(--key-edge); font: 500 var(--text-md)/1 var(--font-display); white-space: nowrap; text-decoration: none; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.key:hover { background: var(--color-sheet); border-color: var(--color-muted); }
+.key:active { transform: translateY(1px); }
+.key:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.key:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+.key--primary { background: var(--color-accent); border-color: var(--color-accent-2); color: var(--color-accent-ink); }
+.key--primary:hover { background: var(--color-accent-2); border-color: var(--color-accent-2); }
+.key--sm { min-height: 36px; padding: 0 var(--space-md); font-size: var(--text-sm); }
+
+/* The dates ahead. */
+.ahead { grid-column: 9 / span 4; }
+.ahead li { display: grid; grid-template-columns: 7.75rem minmax(0, 1fr); gap: var(--space-sm); padding: var(--space-sm) 0; }
+.ahead time { align-self: start; justify-self: start; padding: var(--space-3xs) var(--space-xs); border-radius: var(--radius-pill); background: var(--color-paper-3); font: 500 var(--text-sm)/1.3 var(--font-outlier); color: var(--color-ink); white-space: nowrap; }
+.ahead li.next time { background: var(--color-accent); color: var(--color-accent-ink); }
+.ahead strong { display: block; font: 500 var(--text-md)/1.35 var(--font-display); color: var(--color-ink); }
+.ahead span { color: var(--color-muted); font-size: var(--text-sm); }
+
+/* Systems as keys. */
+.systems { grid-column: 1 / -1; }
+.systems__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); }
+.tabs { display: inline-flex; gap: var(--space-2xs); padding: var(--space-2xs); border-radius: var(--radius-pill); background: var(--color-paper-3); }
+.tabs button { min-height: 32px; padding: 0 var(--space-md); border: 0; border-radius: var(--radius-pill); background: none; color: var(--color-ink-2); font: 500 var(--text-sm)/1 var(--font-body); cursor: pointer; }
+.tabs button:hover { background: var(--color-paper-2); }
+.tabs button:active { transform: translateY(1px); }
+.tabs button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.tabs button[aria-pressed="true"] { background: var(--color-accent); color: var(--color-accent-ink); }
+.sys-keys { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-sm); margin: 0; padding: 0; list-style: none; }
+.sys-keys li { position: relative; display: grid; }
+.sys-key { display: grid; gap: var(--space-xs); align-content: start; min-height: 132px; padding: var(--space-md); border: var(--rule-hair) solid var(--color-rule); border-radius: var(--radius-card); background: var(--color-paper-2); box-shadow: var(--key-edge); color: var(--color-ink); text-decoration: none; transition: background-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.sys-key:hover { background: var(--color-sheet); border-color: var(--color-muted); }
+.sys-key:active { transform: translateY(1px); }
+.sys-key:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.sys-key strong { font: 600 var(--text-xl)/1.1 var(--font-display); letter-spacing: -0.02em; }
+.sys-key span { color: var(--color-muted); font-size: var(--text-sm); }
+.sys-key .pos { color: var(--color-ink); font-weight: 500; }
+.sys-key small { margin-top: auto; font: 500 var(--text-sm)/1.3 var(--font-body); color: var(--color-accent-text); }
+.pin { position: absolute; top: var(--space-xs); right: var(--space-xs); display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--radius-pill); background: none; color: var(--color-muted); cursor: pointer; }
+.pin::before { content: ""; position: absolute; inset: -4px; }
+.pin:hover { color: var(--color-ink); background: var(--color-paper-3); }
+.pin:active { transform: translateY(1px); }
+.pin:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.pin[aria-pressed="true"] { color: var(--color-ink); }
+.pin[aria-pressed="true"] .icon { fill: var(--color-accent); }
+.soon { color: var(--color-muted); font-size: var(--text-sm); }
+.compact .sys-key .pos, .compact .sys-key span, .compact .sys-key small { display: none; }
+.compact .sys-key { min-height: 0; }
+
+/* Forms, tools, news, administration. */
+.forms-r { grid-column: 1 / span 7; }
+.tools-r { grid-column: 9 / span 4; }
+.news { grid-column: 1 / span 7; }
+.admin-r { grid-column: 9 / span 4; }
+.sheet { border-radius: var(--radius-card); background: var(--color-sheet); box-shadow: var(--shadow-card); }
+.sheet li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-xs) var(--space-lg); align-items: start; padding: var(--space-md) var(--space-lg); }
+.sheet li:last-child { border-bottom: 0; }
+.sheet strong { font: 500 var(--text-md)/1.3 var(--font-display); color: var(--color-ink); }
+.sheet p { margin-top: var(--space-2xs); color: var(--color-muted); font-size: var(--text-sm); }
+.meta { display: block; margin-top: var(--space-xs); font: 400 var(--text-xs)/1.4 var(--font-outlier); color: var(--color-ink-2); }
+.tool-row { display: grid; gap: var(--space-xs); padding: var(--space-md) 0; }
+.tool-row a { font: 600 var(--text-lg)/1.2 var(--font-display); color: var(--color-ink); text-decoration: none; }
+.tool-row a:hover { text-decoration: underline; text-decoration-color: var(--color-accent-text); }
+.tool-row a:active { color: var(--color-accent-text); }
+.tool-row a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.tool-row p { color: var(--color-muted); font-size: var(--text-sm); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); margin: 0; padding: 0; list-style: none; }
+.chips li { padding: var(--space-3xs) var(--space-xs); border-radius: var(--radius-pill); background: var(--color-paper-3); font: 500 var(--text-xs)/1.3 var(--font-body); color: var(--color-ink-2); }
+.code { font: 400 var(--text-xs)/1 var(--font-outlier); color: var(--color-muted); }
+.news article { display: grid; gap: var(--space-2xs); padding: var(--space-md) 0; }
+.news h3 { font-size: var(--text-lg); color: var(--color-ink); }
+.byline { color: var(--color-muted); font-size: var(--text-sm); }
+.news p:not(.byline) { max-width: 66ch; line-height: 1.6; }
+.admin-r a { display: grid; gap: var(--space-3xs); padding: var(--space-sm) 0; color: var(--color-ink); text-decoration: none; }
+.admin-r a strong { font: 500 var(--text-md)/1.3 var(--font-display); }
+.admin-r a span { color: var(--color-muted); font-size: var(--text-sm); }
+.admin-r a:hover strong { text-decoration: underline; text-decoration-color: var(--color-accent-text); }
+.admin-r a:active strong { color: var(--color-accent-text); }
+.admin-r a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.colophon { border-top: var(--rule-hair) solid var(--color-ink); }
+.colophon > .container { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-xs) var(--space-lg); padding-block: var(--space-lg); color: var(--color-muted); font-size: var(--text-sm); }
+
+@media (max-width: 75rem) {
+  .entry, .forms-r, .news { grid-column: 1 / span 8; }
+  .ahead, .tools-r, .admin-r { grid-column: 9 / span 4; }
+  .sys-keys { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 60rem) {
+  .context, .me__who { display: none; }
+  .entry, .ahead, .forms-r, .tools-r, .news, .admin-r { grid-column: 1 / -1; }
+  .sys-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 40rem) {
+  main { padding-block: var(--space-md) var(--space-xl); }
+  .grid { row-gap: var(--space-xl); }
+  .me > .icon, #theme-btn { display: none; }
+  .tools { gap: 0; }
+  .entry__head, .entry__keys { padding-inline: var(--space-md); }
+  .cell { min-height: 96px; padding: var(--space-sm) var(--space-md); }
+  .cell b { font-size: 2rem; }
+  .cell a { font-size: var(--text-sm); }
+  .entry__keys .key { flex: 1 1 100%; }
+  .sys-key { min-height: 112px; }
+  .sheet li { grid-template-columns: minmax(0, 1fr); padding-inline: var(--space-md); }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.8-1.6l9.9-10.2a.5.5 0 0 1 .9.5l-1.9 6A1 1 0 0 0 13 10h7a1 1 0 0 1 .8 1.6l-9.9 10.2a.5.5 0 0 1-.9-.5l1.9-6A1 1 0 0 0 11 14z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2-6.2 3.2L7 14.2 2 9.3l6.9-1z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="container">
+    <a class="lockup" href="/" aria-label="ATLAS home">
+      <img class="mark-lt" src="../../../../public/img/brand/atlas-mark.svg" width="42" height="31" alt="">
+      <img class="mark-dk" src="../../../../public/img/brand/atlas-mark-dark.svg" width="42" height="31" alt="">
+      <span class="lockup__words"><span class="wordmark">ATLAS</span><span class="context">Lancaster Academy, Main Campus</span></span>
+    </a>
+    <div class="tools">
+      <button type="button" class="tool" id="apps-btn" aria-label="Systems"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg></button>
+      <button type="button" class="tool" id="quick-btn" aria-label="Quick links"><svg class="icon" aria-hidden="true"><use href="#i-zap"/></svg></button>
+      <button type="button" class="tool" id="notif-btn" aria-label="Notifications, 3 unread"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg><span class="count num" aria-hidden="true">3</span></button>
+      <a class="tool" href="/help/" aria-label="Help and guides"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg></a>
+      <button type="button" class="tool" id="theme-btn" aria-label="Dark mode"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <button type="button" class="me" id="user-btn" aria-haspopup="menu" aria-expanded="false">
+        <span class="me__initials" aria-hidden="true">RV</span>
+        <span class="me__who">Rosa Villanueva<small>Registrar, Main Campus</small></span>
+        <svg class="icon icon--sm" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+        <span class="visually-hidden">Account menu for Rosa Villanueva</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="container grid">
+    <section class="entry" aria-labelledby="day-h">
+      <div class="entry__head">
+        <h1 id="day-h">Good afternoon, Rosa</h1>
+        <time datetime="2026-11-26">Thu 26 Nov 2026</time>
+      </div>
+      <dl class="cells notebook">
+        <div class="cell"><dt>Learn</dt><dd><b>57</b><a href="/admin#/enrollment">enrollment requests to review</a></dd></div>
+        <div class="cell"><dt>Learn</dt><dd><b>11</b><a href="/admin#/applicants">applicants to admit</a></dd></div>
+        <div class="cell"><dt>Academic</dt><dd><b>8</b><a href="/academic/">document requests open</a></dd></div>
+        <div class="cell"><dt>Academic</dt><dd><b>1</b><a href="/academic/">grade sheet to post</a></dd></div>
+        <div class="cell"><dt>Documents</dt><dd><b>1</b><a href="/documents/">file received, not reviewed</a></dd></div>
+        <div class="cell cell--facts"><dt>Registrar</dt><dd><span>Main Campus <a href="#campus" id="campus-switch">switch</a></span><span>Demo: Current Term</span></dd></div>
+      </dl>
+      <div class="entry__keys">
+        <a class="key key--primary" href="/admin#/enrollment">Enrollment requests</a>
+        <a class="key" href="/admin">Admin panel</a>
+      </div>
+    </section>
+
+    <section class="region ahead" aria-labelledby="ahead-h">
+      <h2 id="ahead-h">Upcoming events</h2>
+      <ul class="ruled">
+        <li class="next"><time datetime="2026-11-30">Nov 30</time><div><strong>Bonifacio Day</strong></div></li>
+        <li><time datetime="2026-12-05">Dec 5 to 7</time><div><strong>University intramurals</strong><span>Main grounds</span></div></li>
+        <li><time datetime="2026-12-08">Dec 8</time><div><strong>Feast of the Immaculate Conception</strong></div></li>
+        <li><time datetime="2026-12-10">Dec 10 to 14</time><div><strong>Midterm examinations week</strong></div></li>
+        <li><time datetime="2026-12-16">Dec 16</time><div><strong>Last day to request sections</strong><span>Learning portal</span></div></li>
+      </ul>
+    </section>
+
+    <section class="region systems" id="systems" aria-labelledby="systems-h">
+      <div class="systems__head">
+        <h2 id="systems-h">Your systems</h2>
+        <div class="tabs" role="group" aria-label="View"><button type="button" data-view="cards" aria-pressed="true">Keys</button><button type="button" data-view="compact" aria-pressed="false">Compact</button></div>
+      </div>
+      <ul class="sys-keys" id="sys-track">
+        <li data-system="uis"><a class="sys-key" href="/academic/"><strong>Academic</strong><span>Admissions, student records, registration, grades and registrar services.</span><small>Open Academic</small></a><button type="button" class="pin" data-pin="uis" aria-pressed="false" aria-label="Pin Academic to the front"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-star"/></svg></button></li>
+        <li data-system="lms"><a class="sys-key" href="/admin"><strong>Learn</strong><span>Classes, lessons and resources, quizzes and exams, attendance, grades and enrollment.</span><small>Manage Learn</small></a><button type="button" class="pin" data-pin="lms" aria-pressed="false" aria-label="Pin Learn to the front"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-star"/></svg></button></li>
+        <li data-system="hris"><a class="sys-key" href="/hris/"><strong>People</strong><span>Employee records, time clock and attendance, leave requests and credits, payroll and payslips.</span><span class="pos">University Registrar</span><small>Open People</small></a><button type="button" class="pin" data-pin="hris" aria-pressed="false" aria-label="Pin People to the front"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-star"/></svg></button></li>
+        <li data-system="fmis"><a class="sys-key" href="/finance/"><strong>Finance</strong><span>Government accounting: budget, procurement, inventory and property, disbursements, collections and financial reports.</span><small>Open Finance</small></a><button type="button" class="pin" data-pin="fmis" aria-pressed="false" aria-label="Pin Finance to the front"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-star"/></svg></button></li>
+        <li data-system="dms"><a class="sys-key" href="/documents/"><strong>Documents</strong><span>Your files and the school’s documents: folders, versions, sharing with colleagues and classmates, and safe links for people outside.</span><small>Open Documents</small></a><button type="button" class="pin" data-pin="dms" aria-pressed="false" aria-label="Pin Documents to the front"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-star"/></svg></button></li>
+      </ul>
+      <p class="soon">Coming soon: Facilities, REX Bookstore e&#8209;Reader</p>
+    </section>
+
+    <section class="region forms-r" aria-labelledby="forms-h">
+      <h2 id="forms-h">Forms &amp; downloads</h2>
+      <ul class="ruled sheet">
+        <li><div><strong>Clearance form</strong> <span class="code">GEN-F-001 Rev. 2</span><p>For students leaving or graduating and employees leaving or retiring: have each office sign its block, then hand it to the registrar or HR.</p><span class="meta">Updated Nov 17, 2026. PDF, 829 B</span></div><a class="key key--sm" href="#download-clearance" download><svg class="icon icon--sm" aria-hidden="true"><use href="#i-download"/></svg>Download</a></li>
+        <li><div><strong>Request for ID replacement</strong> <span class="code">GEN-F-004</span><p>For a lost or damaged school ID. Attach an affidavit of loss for a lost ID.</p><span class="meta">Updated Oct 17, 2026. PDF, 791 B</span></div><a class="key key--sm" href="#download-id" download><svg class="icon icon--sm" aria-hidden="true"><use href="#i-download"/></svg>Download</a></li>
+      </ul>
+    </section>
+
+    <section class="region tools-r" id="tool-section" aria-labelledby="tools-h">
+      <h2 id="tools-h">Tools</h2>
+      <ul class="ruled">
+        <li class="tool-row" data-tool="pdf"><a href="/tools/#/pdf">PDF Studio</a><p>Turn documents, spreadsheets, slides and pictures into PDF; put PDFs together, reorder, turn and number pages; change text and sign.</p><ul class="chips"><li>Word, Excel, PowerPoint</li><li>Pictures</li><li>Merge and arrange</li><li>Page numbers</li><li>Sign</li></ul></li>
+        <li class="tool-row" data-tool="forms"><a href="/tools/#/system/forms">Document circulation</a><p>Upload and keep the forms and files each system offers its people for download, with every earlier version and who uploaded it.</p><ul class="chips"><li>Every module</li><li>Versions</li><li>Who and when</li><li>Public forms</li></ul></li>
+      </ul>
+    </section>
+
+    <section class="region news" aria-labelledby="news-h">
+      <h2 id="news-h">Announcements</h2>
+      <div class="ruled">
+        <article><h3>Enrollment for the current term is open</h3><p class="byline">Pinned. Office of the Registrar, Oct 27, 2026. 2 comments</p><p>Request your sections under Enrollment in Learn. Requests are reviewed by the registrar within two working days. Full sections take a waitlist: you move up automatically when a seat frees up.</p></article>
+        <article><h3>Library hours extended during exams</h3><p class="byline">Rosa Villanueva, 2 days ago</p><p>The library is open until 9 PM on weekdays for the next three weeks.</p></article>
+        <article><h3>Midterm examinations schedule</h3><p class="byline">Office of the Registrar, 3 days ago. 1 comment</p><p>Midterm examinations run for one week, starting in two weeks. Check each class for the exact time and room. Bring your school ID and a blue or black pen.</p></article>
+        <article><h3>Scholarship applications now open</h3><p class="byline">Office of Student Affairs, Nov 17, 2026. 2 comments</p><p>Students with a general weighted average of 85 or higher may apply for the academic scholarship. Forms are at the Office of Student Affairs until the end of the month.</p></article>
+      </div>
+    </section>
+
+    <section class="region admin-r" aria-labelledby="admin-heading">
+      <h2 id="admin-heading">Administration</h2>
+      <ul class="ruled">
+        <li><a href="/admin"><strong>Admin panel</strong><span>Enrollment, applicants and students, the catalog, terms and sections, news and the school calendar</span></a></li>
+        <li><a href="/admin#/enrollment"><strong>Enrollment requests</strong><span>Waiting for the registrar</span></a></li>
+        <li><a href="/admin#/applicants"><strong>Applicants</strong><span>Applications for admission</span></a></li>
+        <li><a href="/help/#/whats-new"><strong>What’s new</strong><span>What changed in each update</span></a></li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<footer class="colophon">
+  <div class="container"><span>&copy; 2026 Lancaster Academy</span><span>ATLAS, education platform by Lancaster</span></div>
+</footer>
+
+<script>
+(() => {
+  const root = document.documentElement;
+  const themeBtn = document.getElementById('theme-btn');
+  const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const drawTheme = () => {
+    themeBtn.querySelector('use').setAttribute('href', isDark() ? '#i-sun' : '#i-moon');
+    themeBtn.setAttribute('aria-label', isDark() ? 'Light mode' : 'Dark mode');
+  };
+  themeBtn.addEventListener('click', () => {
+    root.dataset.theme = isDark() ? 'light' : 'dark';
+    try { localStorage.setItem('lms-theme', root.dataset.theme); } catch (e) {}
+    drawTheme();
+  });
+  drawTheme();
+  const systems = document.getElementById('systems');
+  document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+    systems.classList.toggle('compact', b.dataset.view === 'compact');
+    document.querySelectorAll('[data-view]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+  document.querySelectorAll('[data-pin]').forEach((b) => b.addEventListener('click', () => b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'))));
+})();
+</script>
+</body>
+</html>

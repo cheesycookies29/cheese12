@@ -1,0 +1,102 @@
+[
+ {
+  "shape": "app screen",
+  "theme": "furrow",
+  "axes": "light/grotesk-sans/warm",
+  "hero": "none",
+  "nav": "project top bar",
+  "footer": "colophon",
+  "imagery": "none",
+  "photos": [],
+  "entry": "alt-home",
+  "fingerprint": "app: notebook entry card, keys grid, ruled lists",
+  "sections": [
+   "entry",
+   "events",
+   "system keys",
+   "forms",
+   "tools",
+   "announcements",
+   "administration"
+  ],
+  "signature": "today’s entry as a notebook page with its keys",
+  "waived": [],
+  "prompt": "ATLAS home, registrar, alternative",
+  "scope": "app",
+  "date": "2026-11-26",
+  "mode": "build"
+ },
+ {
+  "shape": "app screen",
+  "theme": "almanac",
+  "axes": "mid/grotesk-sans/chromatic-red",
+  "hero": "none",
+  "nav": "project top bar and sidebar",
+  "footer": "none",
+  "imagery": "none",
+  "photos": [],
+  "entry": "circulation",
+  "fingerprint": "app: filters on sheet, dense table, issue lines",
+  "sections": [
+   "page head",
+   "module filters",
+   "forms table"
+  ],
+  "signature": "the issue line beside the Versions list",
+  "waived": [],
+  "prompt": "ATLAS Document circulation",
+  "scope": "app",
+  "date": "2026-11-26",
+  "mode": "build"
+ },
+ {
+  "shape": "app screen",
+  "theme": "almanac",
+  "axes": "mid/grotesk-sans/chromatic-red",
+  "hero": "none",
+  "nav": "project top bar",
+  "footer": "colophon",
+  "imagery": "none",
+  "photos": [],
+  "entry": "home",
+  "fingerprint": "app: day sheet docket, ruled index, rows",
+  "sections": [
+   "day sheet",
+   "events",
+   "administration",
+   "systems index",
+   "tools",
+   "forms",
+   "announcements"
+  ],
+  "signature": "the day sheet docket",
+  "waived": [],
+  "prompt": "ATLAS home, registrar",
+  "scope": "app",
+  "date": "2026-11-26",
+  "mode": "build"
+ },
+ {
+  "shape": "Index-First (front desk)",
+  "theme": "almanac",
+  "axes": "mid/grotesk-sans/chromatic-red",
+  "hero": "Counter",
+  "nav": "edge-aligned",
+  "footer": "colophon block",
+  "imagery": "none",
+  "photos": [],
+  "entry": "signin",
+  "fingerprint": "heading: hanging masthead · body: two-column asymmetric · divider: hairline and bar rule · button: one solid · image: none · reveal: none",
+  "sections": [
+   "counter",
+   "door index",
+   "colophon"
+  ],
+  "signature": "the door index beside the sign-in sheet",
+  "waived": [],
+  "prompt": "ATLAS sign-in page, Lancaster Academy (built from scratch beside the old screen)",
+  "scope": "page",
+  "date": "2026-11-26",
+  "mode": "build"
+ }
+]
