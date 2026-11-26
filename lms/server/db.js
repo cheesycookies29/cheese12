@@ -19,6 +19,7 @@ import { DEFAULT_RECRUITMENT_STAGES, mergePeopleSettings, mergeRecruitmentStages
 import { mergeAssessment, migrateRatings } from '../shared/recruitment-assess.js';
 import { mergeApplicantDocs } from '../shared/recruitment-docs.js';
 import { DEFAULT_PLANTILLA_SETTINGS, mergePlantillaSettings } from '../shared/plantilla.js';
+import { mergeAppointmentSettings } from '../shared/appointment.js';
 
 export const DEFAULT_SETTINGS = {
   schoolName: 'Lancaster Academy',
@@ -77,6 +78,7 @@ export const DEFAULT_SETTINGS = {
   people: mergePeopleSettings(), // ATLAS People: how long job applicants' accounts last, the warning, the removal, the sign-up fields (shared/recruitment.js)
   recruitmentStages: structuredClone(DEFAULT_RECRUITMENT_STAGES), // ATLAS People: the stages an application goes through, and the final outcomes (PL-015)
   assessment: mergeAssessment(), // ATLAS People: position categories, assessment templates and the comparative list's captions (PL-018, PL-066; shared/recruitment-assess.js)
+  appointmentPapers: mergeAppointmentSettings(), // ATLAS People: the signatories and wording of the appointment papers (PL-025; shared/appointment.js)
   applicantDocs: mergeApplicantDocs(), // ATLAS People: the applicant upload policy and the default requirements checklists (PL-006, PL-007, PL-022; shared/recruitment-docs.js)
 };
 
@@ -114,7 +116,7 @@ export function emptyData() {
     events: [], // school events
     roleOverrides: {}, // ATLAS Control → Roles & permissions: { role: { add: [...], remove: [...] } } (shared/roles.js)
     settingsLog: [], // Settings center: who changed which setting, when, from what to what (server/config.js)
-    counters: { studentNo: {}, employeeNo: {}, documentRequest: {} }, // last number issued in each series (per year when the format has one)
+    counters: { studentNo: {}, employeeNo: {}, documentRequest: {}, appointment: {} }, // last number issued in each series (per year when the format has one)
     guardianLinks: [], // a parent or guardian account linked to a student, with what it may see (server/guardian.js)
     // ----- HRIS (server/hris.js) -----
     hrSettings: structuredClone(HR_DEFAULTS), // pay rules, contributions, tax tables, default schedule
@@ -186,6 +188,7 @@ export function mergeSettings(s = {}) {
     recruitmentStages: mergeRecruitmentStages(s.recruitmentStages),
     assessment: mergeAssessment(s.assessment),
     applicantDocs: mergeApplicantDocs(s.applicantDocs),
+    appointmentPapers: mergeAppointmentSettings(s.appointmentPapers),
     plantilla: mergePlantillaSettings(s.plantilla),
     tools: Object.fromEntries(Object.entries(defaultToolSettings()).map(([id, v]) => [id, { ...v, ...(s.tools?.[id] || {}) }])),
   };
@@ -197,7 +200,7 @@ function normalize(data) {
   for (const k of Object.keys(base)) if (Array.isArray(base[k]) && !Array.isArray(out[k])) out[k] = [];
   out.settings = mergeSettings(data.settings);
   out.modules = { ...defaultModuleConfig(), ...(data.modules || {}) };
-  out.counters = { studentNo: {}, employeeNo: {}, documentRequest: {}, ...(data.counters || {}) };
+  out.counters = { studentNo: {}, employeeNo: {}, documentRequest: {}, appointment: {}, ...(data.counters || {}) };
   if (!Array.isArray(data.activityTypes)) out.activityTypes = structuredClone(DEFAULT_ACTIVITY_TYPES);
   out.hrSettings = mergeHrSettings(data.hrSettings);
   // A school that already ran (private, SSS) payroll before government payroll existed stays private

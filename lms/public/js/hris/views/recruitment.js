@@ -294,11 +294,11 @@ export async function openingView(el, { id }, query = {}) {
   const rateable = Boolean(o.assessment.templateName);
   const row = (a) => html`<tr data-app="${a.id}">
     <td class="pick">${movable(a) ? html`<input type="checkbox" data-pick="${a.id}" aria-label="Choose ${a.name}" />` : ''}</td>
-    <td class="job-applicant">${who(a)}${a.inPool ? html` ${badge('In the pool', 'gray')}` : ''}${a.note ? html`<p class="small job-note">“${a.note}”</p>` : ''}</td>
+    <td class="job-applicant">${who(a)}${a.inPool ? html` ${badge('In the pool', 'gray')}` : ''}${a.appointment?.confirmed ? html` ${badge('Appointed', 'green')}` : ''}${a.note ? html`<p class="small job-note">“${a.note}”</p>` : ''}${a.removed ? '' : html`<a class="small job-wes" href="#/recruitment/${o.id}/wes/${a.id}">${icon('file', 12)} Work Experience Sheet</a>`}</td>
     <td>${a.internal ? badge('Internal', 'brand') : badge('External', 'blue')}</td>
     <td class="job-applied"><span class="nowrap">${fmtDate(localDay(a.createdAt))}</span><small>Last change ${fmtDate(localDay(a.updatedAt))}</small></td>
     <td class="job-rating">${ratingBadge(a.rating)}${progressBadge(a.assessors)}${hasDocs && a.documents ? html`<a class="job-docs" href="#/recruitment/${o.id}/documents/${a.id}" title="Open the documents">${docsBadge(a.documents)}${a.documents.toCheck || a.documents.needsNew ? html`<small class="block muted">${[a.documents.toCheck ? `${a.documents.toCheck} to check` : '', a.documents.needsNew ? `${a.documents.needsNew} sent back` : ''].filter(Boolean).join(' · ')}</small>` : ''}</a>` : ''}</td>
-    <td class="row-actions">${movable(a) ? html`<button class="btn sm" data-move="${a.id}">Move</button>` : a.own ? html`<small class="muted">Your own</small>` : ''}${movable(a) && rateable ? html`<a class="btn sm" href="#/recruitment/${o.id}/rate/${a.id}">${a.rating ? 'Rating' : 'Rate'}</a>` : ''}<button class="btn sm ghost" data-history="${a.id}">History</button></td>
+    <td class="row-actions">${movable(a) ? html`<button class="btn sm" data-move="${a.id}">Move</button>` : a.own ? html`<small class="muted">Your own</small>` : ''}${movable(a) && rateable ? html`<a class="btn sm" href="#/recruitment/${o.id}/rate/${a.id}">${a.rating ? 'Rating' : 'Rate'}</a>` : ''}${a.status === 'selected' && !a.removed && can('hris.appoint') ? html`<a class="btn sm ${a.appointment ? '' : 'primary'}" href="#/recruitment/${o.id}/appoint/${a.id}">${a.appointment ? 'Appointment' : 'Appoint'}</a>` : ''}<button class="btn sm ghost" data-history="${a.id}">History</button></td>
   </tr>`;
   mount(el, html`
     ${pageHead(html`${o.title} ${openingBadge(o.status)}`, placeLine(o), html`
@@ -309,7 +309,7 @@ export async function openingView(el, { id }, query = {}) {
       <div class="card"><small>Applications</small><strong>${c.active}</strong></div>
       <div class="card"><small>Internal / external</small><strong>${c.internal} / ${c.external}</strong></div>
       <div class="card"><small>In progress</small><strong>${c.byStatus['in-progress']}</strong></div>
-      <div class="card"><small>Selected</small><strong>${c.byStatus.selected} of ${o.vacancies}</strong></div>
+      <div class="card"><small>Selected</small><strong>${c.byStatus.selected} of ${o.vacancies}</strong>${o.filled ? html`<small>${o.filled} appointed</small>` : ''}</div>
     </div>
     <section class="card">
       <div class="card-head"><h2>Applications by stage</h2>${can('hris.settings') ? html`<a class="small" href="#/settings?section=stages">${icon('settings', 14)} Recruitment stages</a>` : ''}</div>

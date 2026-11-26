@@ -57,8 +57,8 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     side: 'hris',
-    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits, job openings and applications, the plantilla register; adjusts payroll setup.',
-    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings', 'hris.recruitment', 'hris.plantilla'],
+    description: 'Runs HR at their campuses: employee records and sign-in accounts, attendance, clock-in locations and the time clock, leave approvals and credits, job openings and applications, appointments and their papers, the plantilla register; adjusts payroll setup.',
+    permissions: ['hris.dashboard', 'employees.view', 'employees.edit', 'hris.accounts', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'leave.manage', 'leave.approve', 'leave.adjust', 'payroll.view', 'payroll.config', 'hris.settings', 'hris.recruitment', 'hris.plantilla', 'hris.appoint'],
   },
   payroll: {
     label: 'Payroll Officer',
@@ -155,6 +155,9 @@ export const HRIS_PERMISSION_LABELS = [
   // it built in. Taking it away from one account stops it rating even where it is named.
   ['hris.assess', 'Rate applicants as a selection board member: only the openings HR names the account on (their applicants, applications and documents)'],
   ['hris.plantilla', 'Plantilla: record items, link incumbents, print the PSIPOP (anyone who views employee records can read it)'],
+  // With hris.recruitment: appoint a Selected applicant, issue, reprint, cancel and reissue the
+  // appointment papers, and make the person an employee (server/appointment.js).
+  ['hris.appoint', 'Appoint selected applicants: the appointment papers (issue, reprint, cancel and reissue) and making the person an employee (with Recruitment)'],
 ];
 
 export { FINANCE_PERMISSION_LABELS } from './finance.js';

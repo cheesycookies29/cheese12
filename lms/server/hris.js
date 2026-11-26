@@ -81,7 +81,7 @@ export function nextEmployeeNo(data) {
   return nextNumber(data, 'employeeNo');
 }
 
-function validateEmployee(input, data, existingId) {
+export function validateEmployee(input, data, existingId) {
   const e = trimStrings(pick(input, EMPLOYEE_FIELDS));
   if (!e.employeeNo && !existingId) e.employeeNo = nextEmployeeNo(data);
   for (const [f, label] of [['employeeNo', 'Employee number'], ['firstName', 'First name'], ['lastName', 'Last name'], ['hireDate', 'Date hired']]) {
@@ -305,6 +305,7 @@ function validatePayrollConfig(s, data, prev) {
 export function deleteEmployees(data, ids, removeFile = () => {}) {
   const gone = new Set(ids);
   vacateFor(data, gone); // their plantilla items become vacant
+  data.workExperience = (data.workExperience || []).filter((e) => !(e.ownerKind === 'employee' && gone.has(e.ownerId))); // their work experience entries
   data.timeEntries = data.timeEntries.filter((e) => !gone.has(e.employeeId));
   for (const r of data.requests) if (gone.has(r.employeeId) && r.attachment) removeFile(r.attachment.id);
   data.requests = data.requests.filter((r) => !gone.has(r.employeeId));

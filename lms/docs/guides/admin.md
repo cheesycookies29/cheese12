@@ -378,6 +378,24 @@ The files are kept encrypted in *applicant-files* beside the data file, under a 
 
 Selection board members (assessors) can be any active staff account. The permission **Rate applicants as a selection board member** (*hris.assess*) is given by HR naming someone on an opening's selection board, for that opening only: no account type has it built in, and giving it to an account type under **Roles & permissions** adds nothing by itself. To stop one person from rating anywhere, take it away from their account under **Users & Access → Access**; HR can then no longer name them, and they can no longer open the openings they were named on.
 
+### Check the appointment papers settings
+
+When HR appoints a selected applicant, ATLAS People makes the appointment form, the Oath of Office (Panunumpa sa Katungkulan, Filipino and English) and the Certificate of Assumption to Duty. HR managers set them in People under **HR settings → Appointment papers**; you find them in the **Settings center** under **ATLAS People → Appointment papers**:
+
+| Setting | Default | What it does |
+|---|---|---|
+| Appointment signatories | Blank names; titles *Appointing Officer*, *Human Resource Management Officer*, *Chairperson, HRMPSB*, *Head of Office* | Filled in on each new appointment, where HR can change them; an issued paper keeps the names it was issued with |
+| Agency on the appointment papers | Blank: Finance's entity name, else the school name | The agency the papers name |
+| Place on the appointment papers | Blank: the employer address | For "Done this … in …" and where oaths are sworn |
+| Wording of the appointment papers | ATLAS's starting wording | Each paper's text, with merge fields such as `{name}` and `{position}`; an unknown merge field is refused. Replace it with the wording of the CSC form the school uses |
+| Form numbers printed on the papers | Blank | Printed only when typed, as on the school's copy of the form |
+
+Each paper gets a number when it is issued, from **Settings & branding → Numbering → Appointment paper numbers** (`APT{YYYY}-{N4}` by default, so *APT2026-0001*). A number is never given twice, even when the format changes.
+
+### Who appoints: the permission hris.appoint
+
+**Appoint selected applicants** (*hris.appoint*) lets an account, together with **Recruitment** (*hris.recruitment*), appoint an applicant whose outcome is *Selected*: issue, reprint, cancel and reissue the appointment papers, and make the person an employee, which turns an applicant account into a staff account. HR Manager has it built in. Change it under **Roles & permissions**, or for one account under **Users & Access → Access**. Only an administrator can make the new account a Finance office account.
+
 ### Restore a default or undo a change
 
 1. In the **Settings center**, find the setting and choose **Restore default**, or **Restore defaults** on its group to put the whole group back.

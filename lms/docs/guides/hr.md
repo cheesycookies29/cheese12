@@ -1,7 +1,7 @@
 ---
 id: hr
 title: Running HR in ATLAS People
-summary: For HR managers: employee records and sign-in accounts, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings, applications, applicants' documents, selection boards and rating applicants, the comparative list, applicant profiles and the pool of applicants), and HR settings.
+summary: For HR managers: employee records and sign-in accounts, work experience and the Work Experience Sheet, the plantilla register and the PSIPOP, attendance and the time clock, clock-in locations, leave approvals and credits, recruitment (job openings, applications, applicants' documents, selection boards and rating applicants, the comparative list, applicant profiles and the pool of applicants), appointing a selected applicant with the appointment papers, and HR settings.
 roles: hr
 apps: people
 order: 55
@@ -98,6 +98,19 @@ A first tour with the demo school. It takes about ten minutes.
 ![The comparative list of an opening](hr-comparative-list.jpg)
 
 ![Recruitment → Pool of applicants](hr-pool.jpg)
+
+### Work experience and an appointment
+
+1. Open **Employees** and choose **Nestor Abello**. Go down to **Work experience**: his position as *College Librarian* is **Verified**; his earlier work as *Librarian I* is *Not verified*.
+2. On *Librarian I*, choose **Verify**. It shows *Verified*, with your name, and the change is in the audit log.
+3. Choose **Work Experience Sheet** to see the sheet as it prints on A4, newest first.
+4. Open **Recruitment → Job openings** and choose **Administrative Assistant III**. Ramon Esguerra was **Selected** and is **Appointed**.
+5. On his row, choose **Appointment**. The four steps are at the top: *Details*, *Papers*, *Confirm* and *Assumption*. The appointment form and the Panunumpa sa Katungkulan were issued, and he was made an employee; his assumption is still to be recorded.
+6. Under **2. Papers**, choose **View and print** on the **Appointment form**. It shows as it prints, from the copy kept when it was issued, marked as a reprint.
+
+![Work experience on an employee record](hr-work-experience.jpg)
+
+![The appointment of a selected applicant](hr-appoint.jpg)
 
 ### Another campus
 
@@ -524,6 +537,107 @@ The profile prints on A4 with the school header, *Applicant profile*, the date p
 
 ![An applicant profile with its ratings](hr-applicant-profile.jpg)
 
+### Verify an employee's work experience
+
+Employees keep their own work experience under **My HR record**, the work-experience section of the Personal Data Sheet. You check each entry against the certificate of employment or service record.
+
+1. Open **Employees** and choose the employee.
+2. Go down to **Work experience**. Each entry shows its dates, position, office and agency, supervisor, status of appointment, government service, salary grade and step, salary, duties and accomplishments.
+3. Choose **Verify** on an entry that matches the documents. It shows *Verified*, with your name and the date.
+4. To take a verification back, choose **Mark not verified**.
+
+When the employee changes a verified entry, it shows *Changed: not verified* until you verify it again. You can also add, change, reorder and remove entries yourself with **Add another entry**, **Edit**, the arrows and **Remove**. You cannot verify entries on your own record: another HR person does. Every change is in the audit log, with the values before and after.
+
+### Import work experience from a CSV file
+
+For an employee with a long history, add the entries from a spreadsheet.
+
+1. Open the employee and go down to **Work experience**.
+2. Choose **Import CSV**, then **Download the template**.
+3. Fill in one row per position: **From** and **To** as `YYYY-MM-DD` (`Present` for the position held now), **Position title**, **Agency or organization**, and the other columns as far as you know them. Separate accomplishments with `;`.
+4. Save the file as CSV, choose it under **CSV file**, and read the check under it.
+5. Choose **Import**.
+
+Every row must be right, or nothing is imported: ATLAS says which rows to fix, for example *Row 3: To cannot be before From.* The imported entries come after the ones already there and are not verified.
+
+### Print a Work Experience Sheet
+
+1. Choose **Work Experience Sheet** on the employee's **Work experience**, on an applicant's profile, or under the applicant's name on an opening.
+2. Untick an entry to leave it off this copy, for example work not relevant to the position.
+3. Choose **Print**.
+
+The sheet prints on A4 with the school's name and seal at the top of every page, the person's name, and each entry newest first: its duration, position, office or unit, immediate supervisor, agency and location, accomplishments and contributions, and summary of actual duties. *Nothing follows* closes the list, with a signature line and a date for the person.
+
+### Appoint a selected applicant
+
+You need the **Recruitment** and **Appoint selected applicants** permissions (HR managers have both).
+
+1. Open the opening. On the row of an application whose outcome is **Selected**, choose **Appoint**.
+2. Check every field under **1. The details**. ATLAS fills in what it knows: the name (from the employee record, or the applicant's name split into first and last: check it), the position and the opening's plantilla item, the salary grade and step with the monthly salary from the salary schedule, the nature (*Original* for an outside applicant, *Promotion* for a higher grade), the person replaced (**Vice**) from the item's previous incumbent, the campus and office, today as the date of signing and effective date, the publication dates from the opening, the deliberation date from the application's history, and the signatories from **HR settings → Appointment papers**.
+3. Pick the **Status of appointment**. ATLAS never fills it in: a plantilla item does not make an appointment permanent.
+4. Choose **Save and continue**.
+
+The plantilla item must be vacant, or already the person's own. If the person being replaced is still linked to it, name them as **Vice**: ATLAS warns you, and unlinks them from that item only when you confirm. An opening takes as many appointments as it has vacancies.
+
+![The details of an appointment](hr-appoint.jpg)
+
+### Issue the appointment papers
+
+1. On the appointment, under **2. Papers**, choose **Issue papers**.
+2. Tick the papers: **Appointment form** and **Panunumpa sa Katungkulan (Oath of Office in Filipino)** are ticked; tick **Oath of Office (English)** too if the person takes the oath in English.
+3. Choose **Issue**.
+
+Each paper gets its own number (for example *APT2026-0001*) and is frozen as it is now: its text, the version of the wording and the signatories as printed. After that, the details are locked: to change one, use [Cancel and reissue](#cancel-and-reissue-a-paper). The **Certificate of Assumption to Duty** is issued once the date of assumption is recorded.
+
+### Print or reprint an appointment paper
+
+1. On the appointment, choose **View and print** on the paper.
+2. Choose **Print**.
+
+The paper prints on A4 from the copy kept when it was issued, with the school's name and seal as they were then, its number, and the signatories' names and titles. A later change to the wording, the signatories or the school's details never changes it. Every print after the first, or on a later day, says *Reprint of the document issued on …, reprinted on … by …*. Each print is in the audit log.
+
+![An appointment form, as it prints](hr-appointment-paper.jpg)
+
+### Confirm the appointment
+
+1. On the appointment, read **3. Confirm the appointment**: what will happen, and any warning.
+2. For someone from outside the school, pick the **Account type** (usually **Staff**).
+3. Choose **Confirm the appointment**, then confirm.
+
+For an applicant from outside, ATLAS makes an **employee record** from the appointment (position, salary grade, step, status, office, campus, and the effective date as the date hired), their account (name, email, mobile) and what they gave at sign-up (sex, date of birth, address), and moves their work experience to it. Their applicant account becomes a staff account with the **same username and password**: it no longer closes or is removed, and they sign in again to open People as an employee. Their documents and applications stay with the application.
+
+For an employee, their record gets the new position, salary grade, step and status, and a dated row is added to their **Appointment history**: the earlier rows stay as they were, and the first appointment in ATLAS adds a row for the record as it was before. If they held another item, it is released (Vacant).
+
+The person is linked to the plantilla item (Filled). The opening's vacancies count down; when all are filled, ATLAS offers to close the opening. Fill in what the record still needs (for example the TIN and the schedule) under **Employees → Edit**.
+
+### Record the date of assumption
+
+1. When the person assumes the duties, open the appointment.
+2. Under **4. Assumption to duty**, pick the **Date of assumption**.
+3. Leave **Issue the certificate now** ticked and choose **Record the date of assumption**.
+
+The date fills the **Certificate of Assumption to Duty**, issued then with its own number. It cannot be before the date of signing, or in the future.
+
+### Cancel and reissue a paper
+
+1. On the appointment, choose **Cancel and reissue** on the paper.
+2. Type the **Reason**, for example *The middle name was misspelled.*
+3. Correct the fields that need it, and choose **Cancel and reissue**.
+
+The old paper is kept, marked *Cancelled* with the reason and the number of the one that replaced it; the new one gets a new number. Other papers already issued keep what they say: reissue each one that must change. If the change affects the employee record (for example the step), edit the record too.
+
+### Set the appointment signatories and wording
+
+1. Open **HR settings** and go down to **Appointment papers**.
+2. Under **Appointment signatories**, type the names and titles of the appointing officer, the HRMO who certifies, the chairperson of the selection board and the head of office who certifies the assumption.
+3. Under **Wording**, open each paper and replace the text with the wording of the CSC form your office uses. Write merge fields in braces, for example `{name}`, `{position}`, `{item_no}`, `{salary_grade}`, `{monthly_salary}`, `{office}`, `{agency}`, `{date_signed}`, `{effective_date}` and `{appointing_officer}`; **Merge fields** lists them all.
+4. Type a **Form number to print** only as it is on your office's copy of the form.
+5. Choose **Save appointment papers**.
+
+A merge field ATLAS does not know is refused, and nothing is saved. Each change makes a new version; papers already issued keep theirs. **Put back the built-in wording** returns a paper's text to ATLAS's starting point.
+
+![HR settings → Appointment papers](hr-appointment-settings.jpg)
+
 ### Find people in the pool of applicants
 
 People who ticked *Keep me in the school's pool of applicants* enter the pool when an application of theirs ends **Not selected** or **Not qualified**. They stay 12 months unless the school changed it.
@@ -603,7 +717,7 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Screen | What it is for |
 |---|---|
 | HR dashboard | Today at a glance: headcount, who is in, late and on leave, requests to review, leave in the next two weeks, the latest payroll, birthdays |
-| Employees | Employee records, CSV export, and each employee's sign-in account |
+| Employees | Employee records, CSV export, each employee's sign-in account, their **Work experience** (verify, import a CSV, the Work Experience Sheet) and **Appointment history** |
 | Plantilla | The plantilla register: items as DBM issued them, their incumbents, salaries and fund sources, filters and totals, CSV export, the printable PSIPOP |
 | Attendance (DTR) | Daily time records with late, undertime and overtime; add and correct records; approve overtime; CSV export |
 | Time clock | The shared clock-in computer for the campus |
@@ -611,10 +725,10 @@ The page reloads and every screen follows the campus. The current campus shows i
 | Leave & approvals | Requests to approve, leave balances, one employee's leave, and leave types |
 | Payroll | Payroll runs and payslips (view only; the payroll officer prepares them) |
 | Payroll setup | Pay rules, contributions, tax tables and the salary schedule, shared with the payroll officer |
-| Job openings (Recruitment) | Post job openings at the campus with their documents checklist, open and close them, name each one's **Selection board**, and follow the applications to each by stage: **Move** one or several, **Rate** and the board consensus, each applicant's documents, **History**, the **Comparative list**, each applicant's profile, export them as CSV |
+| Job openings (Recruitment) | Post job openings at the campus with their documents checklist, open and close them, name each one's **Selection board**, and follow the applications to each by stage: **Move** one or several, **Rate** and the board consensus, each applicant's documents, **History**, the **Comparative list**, each applicant's profile and Work Experience Sheet, **Appoint** a selected applicant (the appointment papers, confirming, the assumption), export them as CSV |
 | Applicant accounts | The temporary accounts of job applicants: until when each is open, their **Profile**, **Extend** and **Remove** |
 | Pool of applicants | People who asked to be kept for other vacancies: search and filter them, **Invite to apply**, **Remove** |
-| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last and people stay in the pool, what the applicant sign-up asks, the recruitment stages, the assessment templates, the applicant documents (upload policy and default checklists), and who can do what |
+| HR settings | Employer details on payslips, the default work schedule, how long applicant accounts last and people stay in the pool, what the applicant sign-up asks, the recruitment stages, the assessment templates, the applicant documents (upload policy and default checklists), the appointment papers (signatories and wording), and who can do what |
 | Ratings to do | Only when HR names you on a selection board: the applicants you rate as an assessor (see [the assessor's guide](assessor)) |
 | My day, My attendance, Leave & requests, My payslips, My HR record, Job openings (Me) | Your own self-service, as for every employee: see [the employee guide](employee) |
 | My accountabilities, Supply & purchase requests | Your own self-service in ATLAS Finance: see [the employee guide](employee) |
@@ -697,6 +811,27 @@ Not yet: one rating per application, by one person. Record the board's agreed sc
 
 **Who is in the pool of applicants?**
 Only people who ticked *Keep me in the school's pool of applicants* themselves, at sign-up or under **My applications**, and whose application then ended **Not selected** or **Not qualified** (or whom you added by hand, with a reason). It is never ticked for them. They stay the months set under **HR settings → Job applicants** (12 unless changed), never longer than they agreed to, and can leave at any time.
+
+**Who can verify work experience?**
+Whoever can edit employee records (HR managers): on the employee record, and on an applicant's profile with the Recruitment permission. Nobody verifies their own.
+
+**Why can an applicant no longer change their work experience?**
+Once an application of theirs is **Selected**, the entries are what the appointment is made from, so HR keeps them. The applicant sees *HR has selected you for a position…* and asks you to correct an entry. An applicant who was not selected can keep changing theirs for the next opening.
+
+**Is this the full Personal Data Sheet?**
+No. Only its work-experience section is in ATLAS, with the Work Experience Sheet printed from it. The rest of the PDS is still uploaded as a file.
+
+**Are these the official CSC forms?**
+No. The appointment form, the oath of office and the certificate of assumption follow the structure of the CSC forms, and their wording is the school's to set under **HR settings → Appointment papers**. Until you replace it, ATLAS shows *The built-in wording is in use* on the appointment. No form number prints unless you type the one on your office's copy.
+
+**ATLAS says "{pangalan} is not a merge field."** The wording uses a field ATLAS does not know. Use one from **Merge fields**, written exactly, for example `{name}`.
+
+**ATLAS says "Papers have been issued for this appointment."** An issued paper is frozen. Use **Cancel and reissue** on the paper, with the reason.
+
+**ATLAS says "Plantilla item … is not vacant."** Someone else holds it. If they have left it, name them as the person replaced (**Vice**), or unlink them in **Plantilla** first; otherwise pick a vacant item.
+
+**Why did the new employee have to sign in again?**
+Their account type changed from job applicant to staff, so their sessions ended. They sign in with the same username and password.
 
 **Who can use Recruitment?**
 HR managers and administrators (the *Recruitment: job openings, applications and applicant accounts* permission). An administrator can give it to another account type under **Roles & permissions**.

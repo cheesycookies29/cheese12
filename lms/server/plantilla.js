@@ -111,6 +111,8 @@ export function linkIncumbent(data, item, emp, log, detail = '') {
 export function unlinkIncumbent(data, item, log, detail = '') {
   if (!item.incumbentId) return false;
   const emp = employeeById(data, item.incumbentId);
+  // Kept for the appointment of whoever fills it next ("vice …", server/appointment.js).
+  if (emp) item.previousIncumbent = { employeeId: emp.id, name: `${emp.firstName} ${emp.lastName}`, until: iso().slice(0, 10), reason: emp.separationDate ? 'was separated from the service' : '' };
   item.incumbentId = null;
   item.status = 'vacant';
   item.updatedAt = iso();
@@ -504,6 +506,9 @@ export function addPlantillaDemo(data, today, { main, sipocot }) {
   const year = today.slice(0, 4);
   add({ itemNo: 'DEMO-INST1-0412-2026', positionTitle: 'Instructor I', salaryGrade: 12, campusId: main.id, office: 'College of Computing', pap: HIGHER_ED, dateCreated: `${year}-01-02` });
   add({ itemNo: 'DEMO-ADOF2-0107-2026', positionTitle: 'Administrative Officer II', salaryGrade: 11, campusId: main.id, office: 'Human Resources', pap: GASS, dateCreated: `${year}-01-02` });
+  // The demo's closed opening (Administrative Assistant III): its item fell vacant when the incumbent retired.
+  const adas = add({ itemNo: 'DEMO-ADAS3-0215-2026', positionTitle: 'Administrative Assistant III', salaryGrade: 9, campusId: main.id, office: 'Accounting Office', pap: GASS, dateCreated: `${Number(year) - 6}-01-02` });
+  if (adas) adas.previousIncumbent = { employeeId: null, name: 'Rosalinda Pascual', until: `${year}-06-30`, reason: 'retired' };
   add({ itemNo: 'DEMO-LABT1-0033-2026', positionTitle: 'Laboratory Technician I', salaryGrade: 6, campusId: main.id, office: 'College of Agriculture', pap: HIGHER_ED, dateCreated: `${year}-01-02` });
   if (sipocot) add({ itemNo: 'DEMO-ASP1-0215-2026', positionTitle: 'Assistant Professor I', salaryGrade: 15, campusId: sipocot.id, office: 'Faculty', pap: HIGHER_ED, dateCreated: `${year}-01-02` });
   add({ itemNo: 'DEMO-ASCP1-0301-2026', positionTitle: 'Associate Professor I', salaryGrade: 19, campusId: main.id, office: 'College of Computing', pap: HIGHER_ED, status: 'unfunded', dateCreated: `${year}-01-02` });

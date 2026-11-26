@@ -29,7 +29,10 @@
 //  - Each applicant's documents against the opening's requirements checklist, under the applicant
 //    upload policy (PL-022, PL-006, PL-007): server/recruitment-docs.js.
 //
-// Out of scope for now: the PDS, appointment papers.
+//  - Appointing a Selected applicant and the appointment papers (PL-025): server/appointment.js.
+//    Work experience and the Work Experience Sheet (PL-023): server/work-experience.js.
+//
+// Out of scope for now: the rest of the PDS (PL-017).
 // Stage changes are not tied to dates or deadlines (no time limits per stage).
 // Patterns: student registration ("Register account": sign-up, rate limit, validation), leave requests (the
 // bell), Documents' sweep (a timer that is unref'd, so tests and shutdown are not held up).
@@ -44,6 +47,8 @@ import { salaryFor } from '../shared/gov-pay.js';
 import { brandName } from '../shared/brand.js';
 import { registerAssessmentRoutes, addAssessmentDemo, removeAssessmentDemo } from './recruitment-assess.js';
 import { registerApplicantDocs } from './recruitment-docs.js';
+import { registerAppointmentRoutes, addAppointmentDemo, removeAppointmentDemo } from './appointment.js';
+import { forgetEntries, addWorkExperienceDemo, removeWorkExperienceDemo } from './work-experience.js';
 import { POOL_MONTHS, mergeAssessment } from '../shared/recruitment-assess.js';
 import { mergeApplicantDocs } from '../shared/recruitment-docs.js';
 import { userCan } from '../shared/roles.js';
@@ -167,6 +172,7 @@ export function registerRecruitmentRoutes(route, ctx) {
   const openingHr = (o) => ({
     ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o), plantillaItemId: o.plantillaItemId || null, fromItem: itemOfOpening(o), assessment: assess.openingAssessment(o),
     requirements: o.requirements || [], requireDocsBeforeApply: Boolean(o.requireDocsBeforeApply),
+    filled: appoint.filledOn(o), // vacancies filled by a confirmed appointment (PL-025)
   });
   function nameOf(a) {
     if (a.removed) return REMOVED;
@@ -219,6 +225,7 @@ export function registerRecruitmentRoutes(route, ctx) {
       assessors: openingOf(a) ? assess.progressOf(a, openingOf(a)) : null, // "rated by 2 of 3 assessors"
       documents: openingOf(a) ? docs.summary(a, openingOf(a)) : null, // "complete / missing N required"
       inPool: Boolean(!a.removed && assess.entryOf(a.userId)),
+      appointment: appoint.summaryOf(a), // Appoint (PL-025): started, papers issued, confirmed
     };
   }
   const openingOf = (a) => openings().find((o) => o.id === a.openingId) || null;
@@ -234,12 +241,15 @@ export function registerRecruitmentRoutes(route, ctx) {
     fail, data, save, iso, nowMs, today, openings, applications, userById, nameOf, openingForHr, seeker, visibleTo, toHr, userCan,
     assess: () => assess, stageLabel: (id) => stageLabel(stages(), id), categories: () => mergeAssessment(data().settings.assessment).categories,
   });
+  // Appointing a Selected applicant, and the appointment papers (server/appointment.js).
+  const appoint = registerAppointmentRoutes(route, ctx, { data, save, iso, today, openings, applications, userById, employeeById, openingForHr, nameOf });
   Object.assign(assessH, { documentsOf: docs.documentsOf, documentsSummary: docs.summary, profileDocuments: docs.profileDocuments, onLeftPool: docs.onLeftPool });
 
   // ----- Removing an applicant: the account goes; their applications stay as "removed applicant" -----
   function removeApplicant(u) {
     assess.onRemoveApplicant(u); // the pool entry goes; ratings keep their scores, without comments
     docs.onRemoveUser(u.id); // their documents go, files and all
+    forgetEntries(data(), 'applicant', [u.id]); // and their work experience entries
     for (const a of applications().filter((x) => x.userId === u.id)) {
       a.userId = null;
       a.note = '';
@@ -852,6 +862,8 @@ export function removeRecruitmentDemo(data) {
   const demoUsers = new Set(data.users.filter((u) => u.demo).map((u) => u.id));
   const demoOpenings = new Set((data.jobOpenings || []).filter((o) => o.demo).map((o) => o.id));
   removeAssessmentDemo(data, demoUsers); // the demo pool entries
+  removeAppointmentDemo(data);
+  removeWorkExperienceDemo(data);
   data.jobApplications = (data.jobApplications || []).filter((a) => !a.demo && !demoOpenings.has(a.openingId) && !demoUsers.has(a.userId));
   data.jobOpenings = (data.jobOpenings || []).filter((o) => !o.demo);
 }
@@ -997,6 +1009,41 @@ export function addRecruitmentDemo(data, today, { main, person, userByName, now 
     },
     pooled: [[liza, 40], [bianca, 4]],
   });
+  // Work experience (PL-023): a few demo employees, the demo applicant and the selected applicant.
+  const empOf = (username) => {
+    const u = userByName(username);
+    return u?.employeeId ? data.employees.find((e) => e.id === u.employeeId) : null;
+  };
+  const ramonUser = data.users.find((x) => x.id === ramon.userId);
+  // The position each holds now comes from their record (its date hired, grade and office).
+  const heldNow = (emp, duties, accomplishments = []) => ({
+    from: emp.hireDate, present: true, position: emp.position.replace(/\s*\(.*\)$/, ''), office: emp.department || '', agency: data.settings.schoolName, location: campusName(data, emp.campusId),
+    supervisor: '', appointmentStatus: emp.appointment || emp.employmentStatus || '', government: true, salaryGrade: emp.salaryGrade || '', step: emp.salaryGrade ? emp.step || 1 : '', duties, accomplishments,
+  });
+  const staffEmp = empOf('staff.demo');
+  const teacherEmp = empOf('teacher.demo');
+  const hrEmp = empOf('hr.demo');
+  const before = (emp, years) => `${Number(emp.hireDate.slice(0, 4)) - years}${emp.hireDate.slice(4)}`;
+  const dayBefore = (ymd) => localDate(new Date(new Date(`${ymd}T00:00:00`).getTime() - DAY_MS));
+  addWorkExperienceDemo(data, today, {
+    applicant,
+    employees: [
+      [staffEmp, staffEmp && [
+        { ...heldNow(staffEmp, 'Runs the library\'s collection, circulation and reference services; supervises the library aides and prepares the monthly report.', ['Set up the barcode check-out of the reserve section', 'Kept the personnel files of the library complete']), supervisor: 'Vice President for Academic Affairs' },
+        { from: before(staffEmp, 4), to: dayBefore(staffEmp.hireDate), position: 'Librarian I', office: 'Municipal Library', agency: 'Municipality of Example (demo)', location: 'Camarines Sur', supervisor: 'Municipal Administrator', appointmentStatus: 'Casual', government: true, salaryGrade: 11, step: 1, monthlySalary: 27000, duties: 'Catalogued new books and ran the reading programs for schools.', accomplishments: [], verified: false },
+      ]],
+      [teacherEmp, teacherEmp && [heldNow(teacherEmp, 'Teaches programming and database courses; advises capstone projects.', ['Prepared the course syllabi for the curriculum review'])]],
+      [hrEmp, hrEmp && [heldNow(hrEmp, 'Heads recruitment, appointments and personnel records.')], ''],
+    ].filter(([emp, rows]) => emp && rows),
+  });
+  if (ramonUser) {
+    data.workExperience.push(...[
+      { from: '2021-03-01', to: plus(-80), position: 'Records Clerk', office: 'Municipal Treasurer\'s Office', agency: 'Municipality of Example (demo)', location: 'Camarines Sur', supervisor: 'Municipal Treasurer', appointmentStatus: 'Casual', government: true, salaryGrade: 3, step: 1, monthlySalary: 13000, duties: 'Kept the treasurer\'s files, logbooks and vouchers; prepared routine reports.', accomplishments: ['Indexed eight years of vouchers for the COA audit'] },
+    ].map((e, i) => ({ id: randomUUID(), demo: true, ownerKind: 'applicant', ownerId: ramonUser.id, order: i + 1, present: false, ...e, verified: { at: at(55), by: HR, byId: hrId }, createdAt: at(74), createdBy: ramonUser.name })));
+    // Appointed (PL-025): the appointment form and the oath issued, made an employee; the
+    // assumption is still to be recorded.
+    addAppointmentDemo(data, today, { application: ramon, opening: assistant, user: ramonUser, by: HR, at });
+  }
 }
 
 // Demo documents: small generated PDFs (no real documents) for the demo applicant and two others at

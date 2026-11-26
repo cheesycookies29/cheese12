@@ -78,6 +78,7 @@ import { registerDocuments } from './documents.js';
 import { createSecrets } from './secrets.js';
 import { registerRecruitmentRoutes } from './recruitment.js';
 import { registerPlantillaRoutes } from './plantilla.js';
+import { registerWorkExperienceRoutes } from './work-experience.js';
 import { applicantExpired } from '../shared/recruitment.js';
 import { demoPdf, demoDocx } from './demo.js';
 import { MAX_ATTACH_PIECE_BODY } from './recruitment-docs.js';
@@ -725,6 +726,8 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   const recruitment = registerRecruitmentRoutes(route, ctx);
   // The plantilla register (People → Plantilla; server/plantilla.js).
   const plantilla = registerPlantillaRoutes(route, ctx);
+  // Work experience and the Work Experience Sheet (People; server/work-experience.js).
+  registerWorkExperienceRoutes(route, ctx);
 
   // ----- Academic (/academic/): staff with their admin-panel session, teachers and students with the portal's -----
   const academicUser = (adminUser, portalUser) => adminUser || portalUser || null;

@@ -9,6 +9,8 @@ import { html, raw, mount, money, fmtDate, fullName, badge, toast, modal, confir
 import { hr, can, clickableRows } from '../state.js';
 import { APPOINTMENTS, DEDUCTION_TYPES, deductionType, salaryFor, stepsIn, isJobOrder } from '/shared/gov-pay.js';
 import { brandHome } from '../../brand.js';
+import { workExperienceCard } from '../work-experience.js';
+import { employeeAppointmentsCard } from './appointment.js';
 
 const isGov = () => hr.settings.payrollSystem === 'government';
 const sgLabel = (e) => (e.salaryGrade ? `SG ${e.salaryGrade}-${e.step || 1}` : '');
@@ -439,6 +441,8 @@ export async function employeeProfileView(el, { id }) {
           ? html`<ul class="link-list">${relevantRuns.map((r) => html`<li><a href="#/payroll/${r.id}/payslip/${emp.id}">${r.name || `${fmtDate(r.periodStart)} – ${fmtDate(r.periodEnd)}`}</a> ${r.status === 'draft' ? badge('Draft', 'amber') : ''}</li>`)}</ul>`
           : html`<p class="muted">No payroll runs include this employee yet.</p>`}
       </section>` : ''}
+      <section class="card span-all" id="wx"></section>
+      <section class="card span-all" id="appointments"></section>
     </div>
     ${can('employees.edit') ? html`<div class="danger-zone">
       <button class="btn danger ghost" id="delete">${icon('trash', 16)} Delete employee</button>
@@ -447,6 +451,8 @@ export async function employeeProfileView(el, { id }) {
 
   wireAccount(el, emp, () => employeeProfileView(el, { id }));
   if (el.querySelector('#loans')) loansCard(el.querySelector('#loans'), emp);
+  workExperienceCard(el.querySelector('#wx'), { base: `/api/hris/employees/${emp.id}/work-experience`, sheetHref: `/employees/${emp.id}/sheet`, importable: true });
+  employeeAppointmentsCard(el.querySelector('#appointments'), emp);
   el.querySelector('#delete')?.addEventListener('click', async () => {
     if (!(await confirmDialog(`Delete ${fullName(emp)} and all of their attendance and leave records? Payslips in past payroll runs are kept, and their sign-in account is only unlinked.`))) return;
     await api.del(`/api/hris/employees/${id}`);

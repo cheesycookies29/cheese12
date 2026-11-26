@@ -163,6 +163,12 @@ const DEFS = {
     save: (v) => ['PUT', '/api/hris/recruitment/documents-settings', v],
     watch: [['PUT', /^\/api\/hris\/recruitment\/documents-settings$/]],
   },
+  appointmentPapers: {
+    get: (d) => clone(d.settings.appointmentPapers),
+    defaults: () => clone(DEFAULT_SETTINGS.appointmentPapers),
+    save: (v) => ['PUT', '/api/hris/appointment-papers/settings', v],
+    watch: [['PUT', /^\/api\/hris\/appointment-papers\/settings$/]],
+  },
   plantilla: {
     get: (d) => clone(d.settings.plantilla),
     defaults: () => clone(DEFAULT_SETTINGS.plantilla),

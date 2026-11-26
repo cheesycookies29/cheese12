@@ -25,6 +25,8 @@ import { ratingView, comparativeView, profileView, poolView } from './views/asse
 import { ratingsToDoView, boardOpeningView } from './views/board.js';
 import { documentsReviewView } from './views/documents.js';
 import { plantillaListView, plantillaItemView, plantillaFormView, psipopView } from './views/plantilla.js';
+import { appointView, paperView, myPaperView } from './views/appointment.js';
+import { myWorkExperienceView, workExperienceSheetView } from './work-experience.js';
 
 const perm = (p) => () => can(p);
 const emp = () => isEmployee();
@@ -42,6 +44,7 @@ const routes = [
   ['/employees/new', (el) => employeeFormView(el, {}), perm('employees.edit')],
   ['/employees/:id', employeeProfileView, perm('employees.view')],
   ['/employees/:id/edit', employeeFormView, perm('employees.edit')],
+  ['/employees/:id/sheet', (el, { id }) => workExperienceSheetView(el, { url: `/api/hris/employees/${id}/work-experience/sheet`, back: [['/employees', 'Employees'], [`/employees/${id}`, 'Employee record']], edit: `/employees/${id}` }), perm('employees.view')],
   ['/plantilla', plantillaListView, plantilla],
   ['/plantilla/new', (el) => plantillaFormView(el, {}), perm('hris.plantilla')],
   ['/plantilla/psipop', psipopView, plantilla],
@@ -66,6 +69,10 @@ const routes = [
   ['/recruitment/:id/comparative', comparativeView, perm('hris.recruitment')],
   ['/recruitment/:id/rate/:appId', ratingView, perm('hris.recruitment')],
   ['/recruitment/:id/documents/:appId', documentsReviewView, perm('hris.recruitment')],
+  ['/recruitment/:id/appoint/:appId', appointView, () => can('hris.recruitment') && can('hris.appoint')],
+  ['/recruitment/:id/wes/:appId', (el, { id, appId }) => workExperienceSheetView(el, { url: `/api/hris/recruitment/applications/${appId}/work-experience/sheet`, back: [['/recruitment', 'Job openings'], [`/recruitment/${id}`, 'The opening']] }), perm('hris.recruitment')],
+  ['/recruitment/profile/:userId/wes', (el, { userId }) => workExperienceSheetView(el, { url: `/api/hris/recruitment/people/${userId}/work-experience/sheet`, back: [['/recruitment/applicants', 'Applicant accounts'], [`/recruitment/profile/${userId}`, 'Applicant profile']], edit: `/recruitment/profile/${userId}` }), perm('hris.recruitment')],
+  ['/appointments/:apptId/paper/:paperId', paperView, () => can('hris.recruitment') && can('hris.appoint')],
   ['/assess', ratingsToDoView, assessor],
   ['/assess/:id', boardOpeningView, () => assessor() || can('hris.recruitment')],
   ['/assess/:id/rate/:appId', (el, params, query) => ratingView(el, params, query, { board: true }), () => assessor() || can('hris.recruitment')],
@@ -73,6 +80,8 @@ const routes = [
   ['/jobs', jobsView, seeker],
   ['/jobs/mine', myApplicationsView, seeker],
   ['/jobs/mine/:id', applicationView, seeker],
+  ['/jobs/experience', myWorkExperienceView, isApplicant],
+  ['/jobs/experience/sheet', (el) => workExperienceSheetView(el, { url: '/api/hris/me/work-experience/sheet', back: [['/jobs/experience', 'My work experience']], edit: '/jobs/experience' }), isApplicant],
   ['/jobs/:id', jobView, seeker],
   ['/me', meHomeView, emp],
   ['/me/attendance', meAttendanceView, emp],
@@ -80,6 +89,8 @@ const routes = [
   ['/me/payslips', mePayslipsView, emp],
   ['/me/payslips/:runId', mePayslipView, emp],
   ['/me/profile', meProfileView, emp],
+  ['/me/profile/sheet', (el) => workExperienceSheetView(el, { url: '/api/hris/me/work-experience/sheet', back: [['/me/profile', 'My HR record']], edit: '/me/profile' }), emp],
+  ['/me/papers/:paperId', myPaperView, emp],
   ['/not-linked', notLinkedView, staffOnly(() => !isEmployee())],
   ...systemRoutes(),
 ];
@@ -91,6 +102,7 @@ function nav() {
       { heading: 'Jobs' },
       { href: '/jobs', label: 'Job openings', icon: 'briefcase' },
       { href: '/jobs/mine', label: 'My applications', icon: 'inbox' },
+      { href: '/jobs/experience', label: 'My work experience', icon: 'layers' },
     ];
   }
   const hrScreens = ['hris.dashboard', 'employees.view', 'hris.plantilla', 'attendance.view', 'clock.kiosk', 'leave.manage', 'payroll.view'].some(can);

@@ -1,7 +1,7 @@
 ---
 id: employee
 title: Your self-service in ATLAS People
-summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, apply for job openings with your documents, and see your property and requests in ATLAS Finance.
+summary: For every employee: clock in and out, check your attendance, file leave and remote work, get your payslips, keep your work experience and print your Work Experience Sheet, see your appointment papers, apply for job openings with your documents, and see your property and requests in ATLAS Finance.
 roles: staff, teacher, registrar, dean, hr, payroll, accountant, budget, cashier, supply, approver
 apps: people, finance
 order: 50
@@ -53,6 +53,13 @@ On a phone, **My day** shows the same clock. It works the same way.
 2. Choose **Print / Save as PDF** to print it or keep a copy.
 
 ![A payslip under My payslips](employee-payslip.jpg)
+
+### Your work experience
+
+1. Open **My HR record** and go down to **Work experience**. Nestor Abello's position as *College Librarian* is **Verified** by HR; his earlier work as *Librarian I* is not verified yet.
+2. Choose **Add another entry** at the bottom of the list to add a position, or **Work Experience Sheet** to see the sheet as it prints.
+
+![Your work experience in My HR record](employee-work-experience.jpg)
 
 ### Your accountabilities in Finance
 
@@ -120,6 +127,38 @@ Payslips appear once payroll for the period is finalized. Your latest one is als
 
 To change any of your details, contact HR. HR managers and payroll officers cannot change their own record, leave or payslip: another officer or an administrator does it.
 
+### Keep your work experience
+
+Your work experience is the work-experience section of your Personal Data Sheet. HR checks each entry, and your Work Experience Sheet is printed from it.
+
+1. Open **My HR record** and go down to **Work experience**.
+2. Choose **Add an entry** (or **Add another entry**, at the bottom of the list).
+3. Pick **From** and **To**, or tick **Present** for the position you hold now. Type the **Position title** in full and the **Agency or organization**; fill in the office or unit, its location, your immediate supervisor, the status of appointment, whether it was government service, and the salary grade, step and monthly salary as far as you know them.
+4. Write a **Summary of actual duties**, and each accomplishment on its own line; choose **Add another accomplishment** for the next one.
+5. Choose **Add**.
+
+To change an entry, choose **Edit**; to change the order of the list, use the arrows; to take one out, choose **Remove**. HR marks each entry *Verified* once they have checked it; if you change a verified entry, it shows *Changed: not verified* until HR checks it again.
+
+### Print your Work Experience Sheet
+
+1. Open **My HR record** and choose **Work Experience Sheet** under **Work experience**.
+2. Untick any entry you want to leave off this copy, for example work not relevant to a position you apply for.
+3. Choose **Print**, then sign and date it.
+
+The sheet is A4, with the school's name at the top of every page and your entries newest first, ending with *Nothing follows*.
+
+![Your Work Experience Sheet, as it prints](employee-wes.jpg)
+
+### See and print your appointment papers
+
+1. Open **My HR record** and go down to **Appointment papers**.
+2. Choose a paper, for example the **Appointment form** or the **Panunumpa sa Katungkulan**.
+3. Choose **Print**.
+
+You see the papers HR issued for your appointment, each with its number and date; a paper HR cancelled shows *Cancelled* with the number of the one that replaced it. Your print is a copy of what HR issued and says so. **Appointment history** lists your appointments with their dates, position, salary grade and status.
+
+![Your appointment papers in My HR record](employee-appointment-papers.jpg)
+
 ### See your property and cash advances
 
 1. Open the **Finance** tile on the ATLAS home page.
@@ -177,7 +216,7 @@ If an application of yours ends *Not selected* or *Not qualified*, you enter the
 | My attendance | Your daily time record: time in and out, late, undertime, overtime and leave |
 | Leave & requests | Your leave balances; file leave or remote work; attach a medical certificate; withdraw a pending request |
 | My payslips | Your finalized payslips, including bonuses, to print or save as PDF |
-| My HR record | Your record as HR keeps it, and **Change password** |
+| My HR record | Your record as HR keeps it, **Change password**, your **Work experience** with the Work Experience Sheet, and your **Appointment papers** and appointment history |
 | Job openings | Openings you may apply for (including those for employees only), **Apply**, and **My applications** with the progress of each through the recruitment stages and your place in the pool of applicants |
 | Getting started | Shown when your account is not linked to an employee record yet |
 | Ratings to do | Only when HR names you on a job opening's selection board: the applicants you rate (see [the assessor's guide](assessor)) |
@@ -188,6 +227,15 @@ If an application of yours ends *Not selected* or *Not qualified*, you enter the
 
 **Why does it say I was absent?**
 A scheduled work day with no attendance record counts as an absence. If you worked, ask HR to correct your record.
+
+**Who sees my work experience?**
+You, and HR (who verifies it). The selection board of an opening you apply for may read your Work Experience Sheet.
+
+**Why does an entry say "Changed: not verified"?**
+You changed it after HR verified it. HR checks it again; nothing else is needed from you.
+
+**I was an applicant before I was appointed. Where is my work experience?**
+It moved to your employee record when HR confirmed your appointment: it is under **My HR record → Work experience**. Sign in with the same username and password you used as an applicant.
 
 **Can someone else see where I clocked in?**
 Only HR managers and administrators. Your payroll officer and other employees cannot.

@@ -1520,5 +1520,97 @@
   ],
   "wait": 900,
   "full": true
+ },
+ {
+  "file": "employee-work-experience.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me/profile",
+  "scroll": "#wx",
+  "wait": 1200
+ },
+ {
+  "file": "employee-wes.jpg",
+  "user": "staff.demo",
+  "url": "/hris/#/me/profile/sheet",
+  "viewport": {
+   "width": 794,
+   "height": 1123
+  },
+  "media": "print",
+  "wait": 1200
+ },
+ {
+  "file": "employee-appointment-papers.jpg",
+  "user": "resguerra.demo",
+  "url": "/hris/#/me/profile",
+  "scroll": "#my-papers",
+  "wait": 1200
+ },
+ {
+  "file": "applicant-work-experience.jpg",
+  "user": "applicant.demo",
+  "url": "/hris/#/jobs/experience",
+  "wait": 1200
+ },
+ {
+  "file": "hr-work-experience.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/employees",
+  "click": [
+   "tr[data-href]:has-text(\"Abello\")"
+  ],
+  "scroll": "#wx",
+  "wait": 1200
+ },
+ {
+  "file": "hr-appoint.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Administrative Assistant III",
+   "a:has-text(\"Appointment\")"
+  ],
+  "wait": 1200
+ },
+ {
+  "file": "hr-appointment-paper.jpg",
+  "user": "hr.demo",
+  "url": "/hris/#/recruitment",
+  "click": [
+   "text=Administrative Assistant III",
+   "a:has-text(\"Appointment\")",
+   "a:has-text(\"View and print\") >> nth=0"
+  ],
+  "viewport": {
+   "width": 794,
+   "height": 1123
+  },
+  "media": "print",
+  "wait": 1200
+ },
+ {
+  "file": "hr-appointment-settings.jpg",
+  "user": "hr.demo",
+  "api": [
+   [
+    "PUT",
+    "/api/hris/appointment-papers/settings",
+    {
+     "signatories": {
+      "appointingOfficer": {
+       "name": "Dr. Ernesto Villaflor",
+       "title": "University President"
+      },
+      "hrmo": {
+       "name": "Josefina Dimaculangan",
+       "title": "Human Resource Management Officer III"
+      }
+     },
+     "place": "Pili, Camarines Sur"
+    }
+   ]
+  ],
+  "url": "/hris/#/settings?section=appointment-papers",
+  "wait": 1500
  }
 ]

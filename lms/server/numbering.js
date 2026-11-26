@@ -1,5 +1,5 @@
 // The next number in a series an administrator can format (Settings → Numbering):
-// student numbers, employee numbers and document requests. A series restarts each year
+// student numbers, employee numbers, document requests and appointment papers. A series restarts each year
 // (or month) when its format has {YYYY}/{YY} ({MM}); numbers already in use are skipped,
 // so changing the format never hands out a number twice.
 import { DEFAULT_NUMBERING, formatSerial, seriesKey } from '../shared/numbering.js';
@@ -14,6 +14,11 @@ const SERIES = {
   employeeNo: (data) => ({ used: new Set(data.employees.map((e) => e.employeeNo).filter(Boolean)), seed: () => data.employees.reduce((m, e) => Math.max(m, trailing(e.employeeNo)), 0) }),
   // Continues after this year's requests.
   documentRequest: (data, date) => ({ used: new Set(data.documentRequests.map((r) => r.refNo)), seed: () => data.documentRequests.filter((r) => String(r.refNo || '').includes(date.slice(0, 4))).length }),
+  // Appointment papers (People, server/appointment.js): each issued paper has its own number.
+  appointment: (data, date) => {
+    const refs = (data.appointments || []).flatMap((a) => (a.papers || []).map((p) => p.refNo)).filter(Boolean);
+    return { used: new Set(refs), seed: () => refs.filter((r) => String(r).includes(date.slice(0, 4))).length };
+  },
 };
 
 export function nextNumber(data, kind, { date = localDate(), format = data.settings?.numbering?.[kind] || DEFAULT_NUMBERING[kind] } = {}) {

@@ -1,7 +1,7 @@
 ---
 id: applicant
 title: Applying for a job
-summary: For people outside the school: find the job openings, sign up for an applicant account, apply, upload your documents, follow each application through the recruitment stages, and choose whether to stay in the school's pool of applicants.
+summary: For people outside the school: find the job openings, sign up for an applicant account, keep your work experience, apply, upload your documents, follow each application through the recruitment stages, and choose whether to stay in the school's pool of applicants.
 roles: applicant
 apps: home, people
 order: 45
@@ -45,6 +45,8 @@ A first tour with the demo school. It takes about five minutes.
 3. Open **My applications**. Carla's application for Instructor I has passed *Application received* and *Initial screening*, and is now at *Assessment (examination or interview)*.
 4. Choose **See its progress**. Read what happens at this stage, and the two notes HR wrote to Carla: what to upload, and when and where her examination and interview are.
 5. Go down to **Your documents**. Her Personal Data Sheet is *Accepted*; HR asks for a new file for her transcript, with a note saying why. Choose **Upload the new file** and pick a PDF.
+
+6. Open **My work experience**. Carla lists her part-time teaching and her earlier work as a web developer. Choose **Work Experience Sheet** to see it as it prints.
 
 ![Job openings for an applicant](applicant-job-openings.jpg)
 
@@ -101,6 +103,26 @@ You are signed in at once. Next time, sign in on the ATLAS home page with your u
 Your application shows as *Received*. HR sees your name, email and mobile number from your account, your note and your documents. You can apply once to each opening.
 
 ![Apply for an opening](applicant-apply.jpg)
+
+### Keep your work experience
+
+Your work experience is what the Personal Data Sheet asks about each position you held. HR reads it with your applications, and prints your Work Experience Sheet from it.
+
+1. Open **My work experience**.
+2. Choose **Add an entry** (or **Add another entry**, at the bottom of the list).
+3. Pick **From** and **To**, or tick **Present** for work you do now. Type the **Position title** in full and the **Agency or organization**, then the rest as far as you know it: office or unit, location, immediate supervisor, status of appointment, government service, salary.
+4. Write a **Summary of actual duties**, and each accomplishment on its own line (**Add another accomplishment** adds a line).
+5. Choose **Add**.
+
+Change an entry with **Edit**, reorder the list with the arrows, and take one out with **Remove**. HR may mark an entry *Verified* after checking it. Once HR selects you for a position, the list is locked: HR keeps it for your appointment, and you ask HR to correct an entry.
+
+![My work experience](applicant-work-experience.jpg)
+
+### Print your Work Experience Sheet
+
+1. Open **My work experience** and choose **Work Experience Sheet**.
+2. Untick any entry you want to leave off, for example work not relevant to the position.
+3. Choose **Print**, then sign and date it.
 
 ### Upload your documents
 
@@ -190,6 +212,7 @@ You are told on the bell before that date. Applying again does not move it. If y
 | Job openings | The openings you may apply for, the date your account closes, and each opening with **Apply** |
 | My applications | Your applications, where each is in the recruitment stages, the latest note from HR, **Withdraw** and **Apply again**; and **Pool of applicants**: stay in the pool, or **Leave the pool** |
 | An application (**See its progress**) | Its progress through the stages with dates, what happens now, the notes from HR, the outcome, **Withdraw**, and **Your documents**: upload, replace and remove files, and each document's status |
+| My work experience | Your work experience, as the Personal Data Sheet asks it, with **Add another entry**, and your Work Experience Sheet to print |
 | My profile, My security | Your own account: your details, your password, 2-step verification and where you are signed in |
 
 ## Questions
@@ -217,7 +240,11 @@ HR can move an application past a stage that is not needed for it. The skipped s
 
 **How do I correct a detail I gave at sign-up?** Ask the school's HR office. You can see what you gave under **My profile → Given at sign-up**.
 
-**Can I upload my documents or fill in a PDS here?** Not at sign-up: documents go with each application, under **Your documents** on the opening and on your application. The PDS is uploaded as a file (for example a signed PDF); it cannot be filled in here yet.
+**Can I upload my documents or fill in a PDS here?** Not at sign-up: documents go with each application, under **Your documents** on the opening and on your application. Of the PDS, only the work experience is kept here (**My work experience**); upload the whole PDS as a file (for example a signed PDF).
+
+**Why can I no longer change my work experience?** HR has selected you for a position, and keeps your entries for your appointment. Ask the HR office to correct an entry.
+
+**What happens to my account if I am appointed?** HR makes it a staff account: you sign in with the same username and password, it no longer closes, and your work experience moves to your employee record.
 
 **ATLAS says "This file is 3.4 MB; the limit is 2 MB."** The file is larger than the school accepts. Save it as PDF with a smaller size (in the print or export window, choose *smaller size* or *minimum size*), scan it again at 150 dpi in black and white or greyscale, or split it into parts and upload each part under the same document. The help under **Your documents** says how.
 

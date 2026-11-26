@@ -11,6 +11,8 @@ import { statusBadge, kindBadge, dateRange, certificateCell } from './leave.js';
 import { ACCEPT, prepareUpload, viewAttachment } from '../attachments.js';
 import { payslipCard } from './payroll.js';
 import { readClockLocation, LOCATION_NOTICE } from '../geo.js';
+import { workExperienceCard } from '../work-experience.js';
+import { myAppointmentPapersCard } from './appointment.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -234,8 +236,14 @@ export async function meProfileView(el) {
         ${info('Bank', emp.bankName)}${info('Account no.', emp.bankAccount)}
       </dl></section>
     </div>
-    <p class="muted small">Need to update your details? Contact HR.</p>`);
+    <p class="muted small">Need to update your details? Contact HR.</p>
+    <section class="card" id="wx"></section>
+    <section class="card" id="my-papers"></section>`);
   el.querySelector('#change-pw').addEventListener('click', () => openChangePassword('/api/hris/auth'));
+  await Promise.all([
+    workExperienceCard(el.querySelector('#wx'), { base: '/api/hris/me/work-experience', own: true, sheetHref: '/me/profile/sheet' }),
+    myAppointmentPapersCard(el.querySelector('#my-papers')),
+  ]);
 }
 
 export async function meRequestsView(el, _params, query) {

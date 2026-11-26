@@ -1,16 +1,18 @@
 // Numbering formats an administrator can change (student numbers, employee numbers, document
-// requests). Shared with the browser for the "next number" preview. Same tokens as Finance:
+// requests, appointment papers). Shared with the browser for the "next number" preview. Same tokens as Finance:
 // {YYYY} or {YY} year, {MM} month, {N} the serial ({N4} = at least 4 digits).
 export const DEFAULT_NUMBERING = {
   studentNo: '{YYYY}-{N4}',
   employeeNo: 'EMP-{N4}',
   documentRequest: 'DR{YYYY}-{N5}',
+  appointment: 'APT{YYYY}-{N4}',
 };
 
 export const NUMBERING_LABELS = {
   studentNo: 'Student numbers',
   employeeNo: 'Employee numbers',
   documentRequest: 'Document request numbers',
+  appointment: 'Appointment paper numbers',
 };
 
 export function formatSerial(format, { date, serial }) {

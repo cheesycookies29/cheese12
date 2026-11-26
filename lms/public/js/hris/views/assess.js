@@ -20,6 +20,7 @@ import {
 } from '/shared/recruitment-assess.js';
 import { sizeText, docStatusKind } from '/shared/recruitment-docs.js';
 import { applicationBadge } from './jobs.js';
+import { workExperienceCard } from '../work-experience.js';
 
 const BACK = ['/recruitment', 'Job openings'];
 const localDay = (iso) => today(new Date(iso));
@@ -321,7 +322,9 @@ export async function profileView(el, { userId }, query = {}) {
       ${p.applications.length ? p.applications.map(appBlock) : html`<p class="muted">No applications at your campuses.</p>`}
       ${p.elsewhere ? html`<p class="muted small">${p.elsewhere} more application${p.elsewhere === 1 ? '' : 's'} at other campuses.</p>` : ''}
       <p class="as-foot">Applicant profile from ${brandProduct('People')}. Confidential: for the school's HR office and selection board (Data Privacy Act of 2012).${remarks ? ' Includes internal remarks.' : ''}${ratings ? ' Includes ratings.' : ''}</p>
-    </article>`);
+    </article>
+    <section class="card no-print" id="wx"></section>`);
+  workExperienceCard(el.querySelector('#wx'), { base: `/api/hris/recruitment/people/${userId}/work-experience`, sheetHref: `/recruitment/profile/${userId}/wes` }).catch(() => el.querySelector('#wx')?.remove());
   const go = () => {
     const q = new URLSearchParams();
     if (el.querySelector('#opt-remarks').checked) q.set('remarks', '1');
