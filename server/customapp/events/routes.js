@@ -11,12 +11,16 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError } from '../../util.js';
 import { userCan, ROLES } from '../../../shared/roles.js';
-import { tableCounts, claimsByTable, classOK, takenSeats, isConfirmed, isReserved } from '../../../shared/customapp/seating.js';
+import { tableCounts, classOK, takenSeats, isConfirmed, isReserved, recommend } from '../../../shared/customapp/seating.js';
+import { randomBytes } from 'node:crypto';
 import { checkInvariants } from '../../../shared/customapp/invariants.js';
 import { commit, createEvent } from './commit.js';
-import { mustEvent, eventsOf, stateOf, roleOf, guestView, refusal, bad, canonSurname, changesOf, coll, guestLabel } from './model.js';
+import { mustEvent, eventsOf, stateOf, roleOf, guestView, refusal, bad, canonSurname, guestLabel } from './model.js';
+import { roomOf, queueBoard, pollReply, queueOf, superQueue, isWaiting } from './board.js';
+import { referralFor, qrKeyHashOf } from './public.js';
+import { eventCan } from './engine.js';
 import { historyOf } from './changes.js';
-import { rowsOfUpload, previewImport, importIssues, exportEvent, exportCsv, planHtml, IMPORT_LIMITS } from './io.js';
+import { rowsOfUpload, previewImport, importIssues, eventExport, exportCsv, planHtml, IMPORT_LIMITS } from './io.js';
 
 export function mutation(handler) {
   if (typeof handler !== 'function' || handler.constructor?.name === 'AsyncFunction') throw new Error('An event write must be a synchronous function (see mutation() in server/customapp/events/routes.js).');
@@ -27,22 +31,12 @@ export function mutation(handler) {
   };
 }
 
-// The counts on Event control: invited, checked in, not yet arrived, waiting for a table, seated,
-// reserved, seats left. Recounted from the guests every time (never stored).
-export function eventCounts(state) {
-  const guests = state.guests.filter((g) => g.active !== false);
-  const capacity = state.tables.filter((t) => t.active).reduce((n, t) => n + t.capacity, 0);
-  const claims = state.guests.filter((g) => g.seat).length;
-  const here = guests.filter((g) => g.arrival?.state === 'checked_in');
-  return {
-    invited: guests.length, checkedIn: here.length, notArrived: guests.filter((g) => g.arrival?.state === 'expected').length,
-    waiting: here.filter((g) => !g.seat).length, seated: guests.filter((g) => isConfirmed(g.seat)).length, reserved: guests.filter((g) => isReserved(g.seat)).length,
-    capacity, seatsLeft: Math.max(0, capacity - claims), released: guests.filter((g) => g.released && !g.seat).length,
-  };
-}
+// The counts on Event control (counts.js), here too for the older imports.
+export { eventCounts } from './counts.js';
+import { eventCounts } from './counts.js';
 
 // opts: { ctx (commit context), audit, requirePassword(user, password), limits }
-export function registerEventRoutes(route, db, { ctx, audit, requirePassword = () => {}, limits = { hit() {} } }) {
+export function registerEventRoutes(route, db, { ctx, audit, requirePassword = () => {}, limits = { hit() {} }, gate = null, safety = null, clock = () => Date.now() }) {
   const users = () => db.data.users || [];
   const nameOf = (id) => users().find((u) => u.id === id)?.name || '';
   const canManage = (u) => userCan(u, 'customapp.manage');
@@ -77,6 +71,14 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
       tables: state.tables.sort((a, b) => a.number - b.number).map((t) => tableOut(t, state.guests, role, user.id)),
       issues: role === 'super' ? (({ total, ambiguous, noContact, duplicates, unknownIndustry }) => ({ total, ambiguous: ambiguous.length, noContact: noContact.length, duplicates: duplicates.length, unknownIndustry: unknownIndustry.length }))(importIssues(state)) : null,
       importAck: role === 'super' ? ev.importAck || null : null,
+      ...(role === 'super' ? {
+        // Event control (Tier 1): who has how many waiting, the guest page alarm, the safety nets.
+        workload: [...(ev.staff || []).filter((x) => x.active !== false).map((x) => x.userId), ev.superAdminUserId].map((uid) => {
+          const q = uid === ev.superAdminUserId ? superQueue(state).filter((x) => isWaiting(x.guest)).map((x) => x.guest) : queueOf(state, uid);
+          return { userId: uid, name: nameOf(uid), isSuper: uid === ev.superAdminUserId, waiting: q.length, longestSince: q[0]?.arrival?.at || null, guests: state.guests.filter((g) => g.ownerUserId === uid).length, tables: state.tables.filter((t) => t.ownerUserId === uid).map((t) => t.number).sort((a, b) => a - b) };
+        }),
+        alarm: gate?.alarmOf(ev.id) || null, health: safety ? safety.health(ev.id) : null, qrKey: Boolean(ev.qrKeyHash),
+      } : {}),
     };
   }
 
@@ -157,9 +159,17 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
     const g = state.guests.find((x) => x.id === params.guestId);
     if (!g) throw new HttpError(404, 'That guest is not on this event\'s list.');
     const v = view(g, ev, state, role, user);
-    const options = state.tables.filter((t) => t.active && classOK(t.classification, g, ev.settings?.mixedTables)).sort((a, b) => a.number - b.number).map((t) => tableOut(t, state.guests, role, user.id));
+    // The tables this guest may sit at, ranked (US-018): recommended ones first with why, then the
+    // rest (full ones too, shown as Full) by number.
+    const ranked = new Map(recommend([g], ev, state.tables, state.guests).map((r, i) => [r.tableId, { rank: i + 1, tier: r.tier, reasons: r.reasons }]));
+    const options = state.tables.filter((t) => t.active && classOK(t.classification, g, ev.settings?.mixedTables))
+      .map((t) => ({ ...tableOut(t, state.guests, role, user.id), ...(ranked.get(t.id) || { rank: null, tier: null, reasons: [] }) }))
+      .sort((a, b) => (a.rank ?? 1e9) - (b.rank ?? 1e9) || a.number - b.number);
     return {
       guest: v, options, seatNumbers: ev.settings?.seatNumbers || 'all',
+      capped: Boolean(gate && (g.lookup?.surnames || []).some((sk) => gate.isCapped(ev.id, sk))),
+      flags: v.mine ? (g.flags || []) : [], devices: v.mine ? (g.statusTokens || []).length : 0, role,
+      staff: role === 'super' ? (ev.staff || []).filter((x) => x.active !== false).map((x) => ({ userId: x.userId, name: nameOf(x.userId) })) : [],
       history: v.mine ? historyOf(db, ev.id, g.id, { users: users() }) : [],
       canSeat: Boolean(v.mine), canRelease: role === 'super' || (Boolean(ev.settings?.releaseDelegable) && Boolean(v.mine)),
       releasedNeedsSuper: Boolean(g.released && g.classification === 'preferred' && !g.seat),
@@ -170,7 +180,7 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
   route('POST', `${base}/commands`, 'customapp.use', mutation(({ user, params, body }) => {
     const ev = mustEvent(db, params.id);
     if (!roleOf(ev, user, canManage(user))) throw new HttpError(404, 'That event is not there, or you do not have access to it.');
-    if (body?.type === 'setSuperAdmin' || body?.type === 'import' || body?.type === 'selfCheckIn') throw bad('Use the screen made for that.');
+    if (['setSuperAdmin', 'import', 'selfCheckIn', 'setQrKey'].includes(body?.type)) throw bad('Use the screen made for that.');
     const r = commit(ctx, ev.id, user, body);
     const now = mustEvent(db, ev.id);
     const state = stateOf(db, now);
@@ -222,7 +232,7 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
   });
 
   // ----- Exports (the Super Administrator): JSON customapp.event/1, CSV, printable plan -----
-  const theExport = (ev) => exportEvent({ ...stateOf(db, ev), changes: changesOf(db, ev.id), outbox: coll(db, 'caOutbox').filter((m) => m.eventId === ev.id) }, { now: ctx.now() });
+  const theExport = (ev) => eventExport(db, ev, ctx.now());
   const names = () => Object.fromEntries(users().map((u) => [u.id, u.name]));
   const fileName = (ev, ext) => `${ev.code}-${ctx.now().slice(0, 16).replace(/[:T]/g, '')}.${ext}`;
   const download = (body, type, name) => ({ data: Buffer.from(body), headers: { 'Content-Type': type, 'Content-Disposition': `attachment; filename="${name}"`, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } });
@@ -250,4 +260,77 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
     const { ev } = access(user, params.id, 'super');
     return { seq: ev.seq || 0, violations: checkInvariants(stateOf(db, ev)) };
   });
+
+  // ----- Tier 1 (0.72) -----
+  // The Super Administrator's extras on the board: the failure alarm, the 5-minute copy and the
+  // 60 s rules check (the health strip).
+  const superExtra = (ev) => ({ alarm: gate?.alarmOf(ev.id) || null, health: safety ? safety.health(ev.id) : null, qrKey: Boolean(ev.qrKeyHash) });
+
+  // Live sync (US-019): changes?since=<seq>. Unchanged: { seq, pollMs, unchanged } with no board
+  // built; otherwise { seq, pollMs, board } for the screen (tab=room: the room plan; else My queue).
+  route('GET', `${base}/changes`, 'customapp.use', ({ user, params, query }) => {
+    const { ev, role } = access(user, params.id, 'staff');
+    return pollReply(ev, query.since, () => {
+      const state = stateOf(db, ev);
+      if (query.tab === 'room') return roomOf(state, { role, userId: user.id, users: users() });
+      return queueBoard(db, state, { role, user, users: users(), now: clock(), extra: role === 'super' ? superExtra(ev) : {} });
+    });
+  });
+
+  // The room plan (US-031): every table where it stands, its chairs and who holds each.
+  route('GET', `${base}/room`, 'customapp.use', ({ user, params }) => {
+    const { ev, role } = access(user, params.id, 'staff');
+    return roomOf(stateOf(db, ev), { role, userId: user.id, users: users() });
+  });
+
+  // Recommendations (US-018): eligible tables for these guests, best first, split into the ones
+  // this account may use and the others (read only). Nothing anywhere: refer to the Super
+  // Administrator.
+  route('GET', `${base}/recommend`, 'customapp.use', ({ user, params, query }) => {
+    const { ev, role } = access(user, params.id, 'staff');
+    const state = stateOf(db, ev);
+    const ids = String(query.guestIds || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 50);
+    const group = ids.map((id) => state.guests.find((g) => g.id === id && g.active !== false));
+    if (!group.length || group.some((g) => !g)) throw bad('Choose guests of this event.');
+    const actor = { id: user.id, role };
+    const all = recommend(group, ev, state.tables, state.guests).map((r) => {
+      const t = state.tables.find((x) => x.id === r.tableId);
+      const selectable = group.every((g) => eventCan(actor, 'write', g)) && eventCan(actor, 'write', t);
+      return { tableId: r.tableId, number: r.number, tier: r.tier, free: r.free, claims: r.claims, confirmed: r.confirmed, reserved: r.reserved, left: r.left, reasons: r.reasons, selectable, classification: t.classification, ownerName: nameOf(t.ownerUserId), taken: [...takenSeats(t.id, state.guests)].sort((a, b) => a - b) };
+    });
+    const mine = all.filter((r) => r.selectable);
+    const othersReadOnly = all.filter((r) => !r.selectable);
+    if (!mine.length) return { none: true, refer: 'super_admin', mine, othersReadOnly };
+    return { mine, othersReadOnly };
+  });
+
+  // A referral code from the guest page (US-014): the real reason, what the guest typed (masked)
+  // and the guests it could be, so the desk checks them in.
+  route('GET', `${base}/referral/:code`, 'customapp.use', ({ user, params }) => {
+    const { ev, role } = access(user, params.id, 'staff');
+    const r = gate && referralFor(gate, db, ev, params.code);
+    if (!r) throw new HttpError(404, 'No guest page attempt has that code (codes are kept for 3 hours, and until CORE restarts).');
+    const state = stateOf(db, ev);
+    return { ...r, surnameKey: undefined, guests: r.guests.map((g) => view(g, ev, state, role, user)) };
+  });
+  // Clear a surname's soft cap at the desk (one tap; in memory, nothing saved).
+  route('POST', `${base}/caps/clear`, 'customapp.use', mutation(({ user, params, body }) => {
+    const { ev } = access(user, params.id, 'staff');
+    if (!gate) return { cleared: 0 };
+    let keys = [];
+    if (body?.code) keys = [referralFor(gate, db, ev, body.code)?.surnameKey].filter(Boolean);
+    else if (body?.guestId) keys = stateOf(db, ev).guests.find((g) => g.id === body.guestId)?.lookup?.surnames || [];
+    const cleared = gate.clearCap(ev.id, keys);
+    if (cleared) audit?.record('customapp.cap-clear', { entity: 'caEvent', entityId: ev.id, label: ev.name, note: 'Guest page cap cleared at the desk' });
+    return { cleared };
+  }));
+  // The presence key on the reception QR (US-016, off by default): a new key, shown once for the QR
+  // sheet, kept only as its hash; or off.
+  route('POST', `${base}/qr-key`, 'customapp.use', mutation(({ user, params, body, origin }) => {
+    const { ev } = access(user, params.id, 'super');
+    const key = body?.on ? randomBytes(18).toString('base64url') : null;
+    const r = commit(ctx, ev.id, user, { type: 'setQrKey', keyHash: key ? qrKeyHashOf(key) : null, opId: body?.opId });
+    const url = `${origin || ''}/event/${ev.code}${key ? `#k=${key}` : ''}`;
+    return { ok: true, seq: r.seq, qrKey: Boolean(key), key, url };
+  }));
 }

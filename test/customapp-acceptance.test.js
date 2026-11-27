@@ -138,3 +138,68 @@ describe('US-013: Tier 0 proof suite: fuzz, race and the Tier 0 acceptance rows'
     await clean(c, e);
   });
 });
+
+// Tier 1 (3 Dec) rows: regular guest / no match, unauthorised cross-scope action, ownership
+// reallocation / staff absent.
+describe('US-017 and US-018: Tier 1 acceptance rows', () => {
+  const ROWS = [
+    ['B1', 'Ana', 'Cruz', 'Northbay Bank', 'Banking', 'b1@example.com', '0917 000 0001', 'regular', 'sam', '', ''],
+    ['B2', 'Ben', 'Lim', 'Isla Savings', 'Banking', 'b2@example.com', '0917 000 0002', 'regular', 'sam', '', ''],
+    ['I1', 'Cora', 'Tan', 'Harbor Life', 'Insurance', 'i1@example.com', '0917 000 0003', 'regular', 'sam', '', ''],
+    ['X1', 'Dan', 'Uy', 'Palengke', 'Retail', 'x1@example.com', '0917 000 0004', 'regular', 'tess', '', ''],
+    ['T1', 'Eva', 'Go', 'Palengke', 'Retail', 't1@example.com', '0917 000 0005', 'regular', 'tess', '', ''],
+  ];
+  test('GIVEN a regular guest from Banking with and without Banking guests seated WHEN recommendations are requested THEN several eligible industry-ranked tables are offered, and other eligible tables when nothing matches', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS, room: { rows: 2, cols: 4, chairsPerTable: 10, stageSide: 'right' } });
+    for (const r of ['B1', 'B2', 'I1']) await e.cmd('sam', { type: 'checkIn', guestId: e.guest(r).id });
+    // No Banking guest seated anywhere: every eligible table is offered, in a stable order.
+    const before = await c.as.lead('GET', `${e.base}/recommend?guestIds=${e.guest('B2').id}`);
+    assert.ok(before.mine.length >= 3, 'several eligible tables');
+    assert.ok(before.mine.every((r) => r.tier === 3), 'no industry match yet: the other eligible tables');
+    // Seat a Banking guest at 4 and an Insurance guest (related) at 3: the ranking follows.
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('B1').id, tableId: e.tables[4], seatNo: 1 });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('I1').id, tableId: e.tables[3], seatNo: 1 });
+    const after = await c.as.lead('GET', `${e.base}/recommend?guestIds=${e.guest('B2').id}`);
+    assert.deepEqual(after.mine.slice(0, 2).map((r) => [r.number, r.tier]), [[4, 1], [3, 2]]);
+    assert.ok(after.mine.length > 2, 'other eligible tables are still offered');
+    await clean(c, e);
+  });
+
+  test('GIVEN a staffer acting on a guest and a table outside their scope WHEN they assign THEN it is rejected, the Super Administrator can act or delegate, and no guest or table ever has two owners', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    await e.cmd('tess', { type: 'checkIn', guestId: e.guest('X1').id });
+    const bad = await e.cmd('sam', { type: 'assign', guestId: e.guest('X1').id, tableId: e.tables[3], seatNo: 1 });
+    assert.deepEqual([bad.status, bad.code], [403, 'out_of_scope']);
+    const bad2 = await e.cmd('sam', { type: 'assign', guestId: e.guest('B1').id, tableId: e.tables[5], seatNo: 1 });
+    assert.equal(bad2.code, 'not_eligible', 'B1 is not checked in');
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('B1').id });
+    assert.equal((await e.cmd('sam', { type: 'assign', guestId: e.guest('B1').id, tableId: e.tables[5], seatNo: 1 })).code, 'out_of_scope', 'Tess\'s table');
+    // The Super Administrator can act…
+    assert.ok((await e.cmd('lead', { type: 'assign', guestId: e.guest('X1').id, tableId: e.tables[3], seatNo: 1 })).ok);
+    // …or delegate: then the staffer can.
+    await e.cmd('lead', { type: 'delegateTables', ids: [e.tables[5]], ownerUserId: c.ids.sam });
+    assert.ok((await e.cmd('sam', { type: 'assign', guestId: e.guest('B1').id, tableId: e.tables[5], seatNo: 1 })).ok);
+    const owners = [...c.db.data.caGuests, ...c.db.data.caTables].map((r) => r.ownerUserId);
+    assert.ok(owners.every((o) => o === null || typeof o === 'string'), 'one owner field per guest and table');
+    await clean(c, e);
+  });
+
+  test('GIVEN staffer A is absent with pending guests and confirmed seats WHEN the Super Administrator reallocates A\'s scope to B THEN B receives the pending queue, A loses write access and confirmed assignments are intact', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    for (const r of ['B1', 'B2', 'I1']) await e.cmd('sam', { type: 'checkIn', guestId: e.guest(r).id });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('B1').id, tableId: e.tables[3], seatNo: 1 });
+    const seat = JSON.stringify(e.guest('B1').seat);
+    await e.cmd('lead', { type: 'delegateGuests', fromUserId: c.ids.sam, ownerUserId: c.ids.tess, reason: 'Sam is absent' });
+    await e.cmd('lead', { type: 'delegateTables', fromUserId: c.ids.sam, ownerUserId: c.ids.tess, reason: 'Sam is absent' });
+    const tq = (await c.as.tess('GET', `${e.base}/changes`)).board;
+    assert.deepEqual(tq.waiting.map((g) => g.ref).sort(), [e.guest('B2').ref, e.guest('I1').ref].sort(), 'B receives the pending queue');
+    assert.deepEqual((await c.as.sam('GET', `${e.base}/changes`)).board.waiting, []);
+    assert.equal((await e.cmd('sam', { type: 'assign', guestId: e.guest('B2').id, tableId: e.tables[3], seatNo: 2 })).code, 'out_of_scope', 'A loses write access');
+    assert.ok((await e.cmd('tess', { type: 'assign', guestId: e.guest('B2').id, tableId: e.tables[3], seatNo: 2 })).ok);
+    assert.equal(JSON.stringify(e.guest('B1').seat), seat, 'the confirmed assignment is intact');
+    await clean(c, e);
+  });
+});

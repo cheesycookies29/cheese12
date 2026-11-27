@@ -3,11 +3,15 @@
 // ("events"): events, guests, tables, check-in and seating, with the a client's year-end party the first event
 // loaded into it as data. Everything is keyed by event; no client's names are in this code.
 //
-// Tier 0 (released dark, 1 Dec 2026): staff-only seating. The guest QR page, delegated queues,
-// recommendations, live sync, the room plan, groups, email and the dashboard are later tiers; the
-// data is shaped for them (design.md, council session custom-app-yep-2026-registration-20261127-0748).
+// Tier 0 (released dark, 1 Dec 2026): staff-only seating. Tier 1 (0.72, 3 Dec): the guest page
+// (/event/<code>: verify, status token, presence key), delegated queues (My queue), recommendations,
+// live sync by short poll, the room plan, and the safety nets (5-minute copies, 60 s rules check).
+// Groups, unlisted guests, email and the dashboard are Tier 2 (design.md, council session
+// custom-app-yep-2026-registration-20261127-0748).
 import { createCommitContext } from './events/commit.js';
 import { registerEventRoutes } from './events/routes.js';
+import { registerPublicRoutes, createPublicGate } from './events/public.js';
+import { createSafety } from './events/safety.js';
 import { eventsOf } from './events/model.js';
 
 export const APPS = Object.freeze([
@@ -27,14 +31,19 @@ export function windowOpen(ev, nowMs = Date.now()) {
   return nowMs >= opens - WINDOW_LEAD_MS && nowMs <= closes;
 }
 
-// opts: { audit, requirePassword(user, password), limits, clock () → ms }
-export function registerCustomApp(route, db, { audit = null, requirePassword, limits, clock = () => Date.now() } = {}) {
+// opts: { audit, requirePassword(user, password), limits, monitor, clock () → ms, safetyTimers }
+export function registerCustomApp(route, db, { audit = null, requirePassword, limits, monitor = null, clock = () => Date.now(), safetyTimers = true } = {}) {
   const ctx = createCommitContext(db, { audit, now: () => new Date(clock()).toISOString() });
+  const gate = createPublicGate({ now: clock, limits, audit });
+  const safety = createSafety(db, { now: clock, audit });
+  if (safetyTimers) safety.start();
+  monitor?.check('customapp-events', () => safety.monitorCheck());
   route('GET', '/api/customapp/apps', 'customapp.use', () => ({ apps: APPS }));
-  registerEventRoutes(route, db, { ctx, audit, requirePassword, limits });
+  registerEventRoutes(route, db, { ctx, audit, requirePassword, limits, gate, safety, clock });
+  registerPublicRoutes(route, db, { ctx, gate, limits, clock });
   const openEvents = () => eventsOf(db).filter((ev) => windowOpen(ev, clock()));
   return {
-    ctx,
+    ctx, gate, safety,
     // For the rate limits (server/api.js): true while any event's window is open.
     eventWindowOpen: () => openEvents().length > 0,
     openEvents,

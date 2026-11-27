@@ -9,14 +9,23 @@
 //    plan, the rule check, and handing over the Super Administrator.
 //  - eventSetupView (/customapp/setup): event details, the room, tables, industries, staff, the guest list
 //    import and the import check.
+// Tier 1 (0.72):
+//  - myQueueView (/customapp/queue): where Event staff land. The guests waiting for this staff member
+//    (oldest first, with a wait timer), those checked in and seated, and Find guest; kept live by the
+//    short poll, with a bar that says how old it is. The Super Administrator's queue is everyone with
+//    no owner, released preferred guests who arrived, and guests flagged for a look.
+//  - roomPlanView (/customapp/room): the room plan (customapp-room.js), also on Event control.
 // Every change is one command to the server (server/customapp/events), which decides: nothing is
 // shown as done before it answers, and a refusal redraws the sheet from the state in its reply.
 import { api } from '../api.js';
 import { ctx, can } from '../state.js';
-import { html, mount, modal, toast, confirmDialog, badge } from '../ui.js';
+import { html, raw, mount, modal, toast, confirmDialog, badge } from '../ui.js';
 import { icon } from '../icons.js';
-import { CLASS_LABELS, FLAG_LABELS, STAGE_SIDES } from '/shared/customapp/statuses.js';
+import { CLASS_LABELS, FLAG_LABELS, STAGE_SIDES, GUEST_FLAGS } from '/shared/customapp/statuses.js';
 import { fmtManila, toManilaInput } from '/shared/customapp/time.js';
+import { livePoll } from './customapp-live.js';
+import { mountRoomPlan } from './customapp-room.js';
+import qrcode from '../vendor/qrcode.js';
 
 const STORE = 'core-ca-event';
 const opId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -99,6 +108,172 @@ export async function customappHomeView(el) {
   }));
 }
 
+// ----- My queue (Tier 1) -----
+const minutesSince = (iso) => (iso ? Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60000)) : 0);
+// The wait timer: amber from 4 minutes, red from 8, and the same in words.
+const waitTimer = (iso) => {
+  const m = minutesSince(iso);
+  return html`<span class="ca-wait ${m >= 8 ? 'red' : m >= 4 ? 'amber' : ''}" data-since="${iso || ''}">Waiting ${m < 1 ? 'under a minute' : `${m} min`}</span>`;
+};
+const WHY = { no_owner: 'No owner', released: 'Reservation released', unlisted: 'Unlisted, to approve', flagged: 'Flagged' };
+export async function myQueueView(el, params, query) {
+  const { events, canCreate, id } = await pickEvent(query);
+  if (!id) return mount(el, noEvent(canCreate));
+  const ev = await api.get(`/api/customapp/events/${id}`);
+  if (ev.role === 'manager') return mount(el, html`${head(html`${icon('inbox', 22)} My queue`, ev, events)}<div class="card empty">${icon('lock', 40)}<h2>Not on this event's staff</h2><p>My queue is for the event's staff and its Super Administrator.</p></div>`);
+  const base = `/api/customapp/events/${id}`;
+  const sa = ev.role === 'super';
+  mount(el, html`<div class="ca-sticky" data-bar role="status"><span class="grow"><strong>${ev.name}</strong> · ${ctx.user?.name || ''}</span><span data-age>Loading…</span></div>
+    ${head(html`${icon('inbox', 22)} My queue`, ev, events, sa ? 'every guest with no owner' : 'the guests and tables given to you')}
+    <section class="card ca-q-sec" data-attn hidden></section>
+    <section class="card ca-q-sec" aria-labelledby="ca-q-w"><h2 id="ca-q-w">Waiting for table <span class="ca-n" data-nw></span></h2><div data-waiting><p class="muted">Loading…</p></div></section>
+    <section class="card ca-q-sec" aria-labelledby="ca-q-s"><h2 id="ca-q-s">Checked in and seated <span class="ca-n" data-ns></span></h2><div data-seated></div></section>
+    <section class="card ca-q-sec" aria-labelledby="ca-q-f"><h2 id="ca-q-f">Find guest</h2>
+      <div class="ca-search"><input type="search" data-find placeholder="Name, company, ref or a code (R-1234)" aria-label="Find a guest by name, company, ref or referral code" autocomplete="off" enterkeyhint="search" /></div>
+      <div data-found aria-live="polite"></div></section>`);
+  wireSwitcher(el, '/customapp/queue');
+  const greyed = new Map(); // guestId → { until, text, card }
+  let board = null;
+  const card = (g, extra = '') => html`<li><button type="button" class="ca-qcard" data-guest="${g.id}">
+      <span class="grow"><strong>${g.displayName}</strong><small>${g.company || ''}</small></span>
+      <span class="ca-tags">${g.industry ? html`<span class="ca-chip">${g.industry}</span>` : ''}${badge(g.classLabel, g.classification === 'preferred' ? 'brand' : '')}${extra}</span></button></li>`;
+  function draw() {
+    if (!board) return;
+    const now = Date.now();
+    for (const m of board.movedAway) {
+      if (!greyed.has(m.guestId) && now - Date.parse(m.at) < 120000) greyed.set(m.guestId, { until: now + 10000, text: `Moved to ${m.toName ? `${m.toName}'s` : 'the Super Administrator\'s'} queue by ${m.byName ? 'the Super Administrator' : 'the Super Administrator'}, ${fmtManila(m.at, { date: false })}`, guest: shown.get(m.guestId) });
+    }
+    for (const [gid, x] of greyed) if (x.until < now || !x.guest) greyed.delete(gid);
+    const ids = new Set(board.waiting.map((g) => g.id));
+    const gone = [...greyed].filter(([gid]) => !ids.has(gid));
+    el.querySelector('[data-nw]').textContent = `(${board.waiting.length})`;
+    el.querySelector('[data-ns]').textContent = `(${board.seated.length})`;
+    const tablesText = board.tables.length ? `Your tables: ${board.tables.map((t) => t.number).join(', ')} (${plural(board.freeSeats, 'seat')} left).` : sa ? '' : 'You have no tables yet: the Super Administrator gives them.';
+    mount(el.querySelector('[data-waiting]'), board.waiting.length || gone.length ? html`<ul class="ca-qlist">${board.waiting.map((g) => card(g, html`${(g.why || []).map((w) => badge(WHY[w] || w, 'amber'))}${waitTimer(g.waitingSince)}`))}
+        ${gone.map(([gid, x]) => html`<li class="ca-moved" data-moved="${gid}" aria-live="polite"><span class="grow"><strong>${x.guest.displayName}</strong><small>${x.text}</small></span></li>`)}</ul>`
+      : html`<p class="ca-empty-q">No one is waiting for you.${tablesText ? ` ${tablesText}` : ''}</p>`);
+    // The latest 6, the rest folded (Find guest is right below).
+    const seatedCard = (g) => card(g, badge(`${g.seat.status === 'reserved' ? 'Reserved' : 'Seated'}: T${g.seat.number}${g.seat.seatNo ? ` S${g.seat.seatNo}` : ''}`, g.seat.status === 'reserved' ? 'blue' : 'green'));
+    const openMore = el.querySelector('[data-seated] details')?.open;
+    mount(el.querySelector('[data-seated]'), board.seated.length ? html`<ul class="ca-qlist">${board.seated.slice(0, 6).map(seatedCard)}</ul>
+      ${board.seated.length > 6 ? html`<details class="ca-others" ${openMore ? 'open' : ''}><summary>${plural(board.seated.length - 6, 'more guest')}</summary><ul class="ca-qlist">${board.seated.slice(6).map(seatedCard)}</ul></details>` : ''}` : html`<p class="muted">Nobody yet.</p>`);
+    const attn = el.querySelector('[data-attn]');
+    attn.hidden = !(sa && board.attention?.length) && !(sa && board.alarm);
+    if (!attn.hidden) {
+      mount(attn, html`${board.alarm ? html`<p class="ca-notice" role="alert">${icon('alert', 16)} ${board.alarm.failures} failed guest page checks in 5 minutes. Nobody is locked out: guests with a code are helped at the desk (Find guest, type the code).</p>` : ''}
+        ${board.attention?.length ? html`<h2>Needs a look (${board.attention.length})</h2><ul class="ca-qlist">${board.attention.map((g) => card(g, html`${(g.why || []).map((w) => badge(WHY[w] || w, 'amber'))}${(g.flags || []).slice(-1).map((f) => html`<small class="muted">${GUEST_FLAGS[f.kind] || f.kind}, ${fmtManila(f.at, { date: false })}</small>`)}`))}</ul>` : ''}`);
+    }
+    for (const g of [...board.waiting, ...board.seated, ...(board.attention || [])]) shown.set(g.id, g);
+    el.querySelectorAll('[data-guest]').forEach((b) => b.addEventListener('click', () => openGuest(id, b.dataset.guest, () => poll.reset())));
+  }
+  const shown = new Map();
+  const poll = livePoll(`${base}/changes?tab=queue`, {
+    bar: el.querySelector('[data-bar]'),
+    onBoard: (b, reply) => {
+      if (!b) return mount(el.querySelector('[data-waiting]'), html`<p class="ca-notice">${reply.error?.message || 'Not available.'}</p>`);
+      board = b;
+      draw();
+    },
+  });
+  // The wait timers and the greyed-out moves age by themselves between polls.
+  const ticker = setInterval(() => {
+    el.querySelectorAll('.ca-wait[data-since]').forEach((w) => {
+      const m = minutesSince(w.dataset.since);
+      w.classList.toggle('amber', m >= 4 && m < 8);
+      w.classList.toggle('red', m >= 8);
+      w.textContent = `Waiting ${m < 1 ? 'under a minute' : `${m} min`}`;
+    });
+    if ([...greyed.values()].some((x) => x.until < Date.now())) draw();
+  }, 5000);
+  wireFind(el, id, () => poll.reset());
+  return () => {
+    poll.stop();
+    clearInterval(ticker);
+  };
+}
+
+// ----- Room plan (Tier 1) -----
+export async function roomPlanView(el, params, query) {
+  const { events, canCreate, id } = await pickEvent(query);
+  if (!id) return mount(el, noEvent(canCreate));
+  const ev = await api.get(`/api/customapp/events/${id}`);
+  if (ev.role === 'manager') return mount(el, html`${head(html`${icon('mapPin', 22)} Room plan`, ev, events)}<div class="card empty">${icon('lock', 40)}<h2>Not on this event's staff</h2><p>The room plan is for the event's staff and its Super Administrator.</p></div>`);
+  mount(el, html`${head(html`${icon('mapPin', 22)} Room plan`, ev, events, ev.room ? `${ev.room.rows} × ${ev.room.cols} tables, stage on the ${ev.room.stageSide}` : '')}<div data-plan-host></div>`);
+  wireSwitcher(el, '/customapp/room');
+  return mountRoomPlan(el.querySelector('[data-plan-host]'), id);
+}
+
+// Find guest inside My queue: by name, company or ref, or a guest page referral code (R-1234), which
+// shows what the guest typed and the real reason, with Clear cap and check in.
+function wireFind(el, eventId, onChange) {
+  const input = el.querySelector('[data-find]');
+  const out = el.querySelector('[data-found]');
+  let timer = 0;
+  let n = 0;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const k = ++n;
+      const q = input.value.trim();
+      if (!q) return mount(out, '');
+      const r = await findOrReferral(eventId, q);
+      if (k !== n) return;
+      mount(out, r.html);
+      wireFound(out, eventId, r, () => {
+        input.dispatchEvent(new Event('input'));
+        onChange();
+      });
+    }, 220);
+  });
+}
+const REF_RE = /^r-?\s?(\d{4})$/i;
+async function findOrReferral(eventId, q) {
+  const base = `/api/customapp/events/${eventId}`;
+  const m = q.match(REF_RE);
+  if (m) {
+    const code = `R-${m[1]}`;
+    try {
+      const ref = await api.get(`${base}/referral/${code}`);
+      const t = ref.typed;
+      return {
+        ref, guests: ref.guests,
+        html: html`<div class="ca-ref" data-ref="${code}"><p><strong>${code}</strong> · ${fmtManila(ref.at, { date: false })}</p>
+          <p>${ref.reasonText}</p><p class="small">They typed: surname <strong>“${t.surname || '–'}”</strong>${t.last4 ? html`, last 4 digits <strong>${t.last4}</strong>` : ''}${t.email ? html`, email <strong>${t.email}</strong>` : ''}.</p>
+          ${ref.guests.length ? html`<ul class="ca-list">${ref.guests.map((g) => html`<li class="ca-ref-g"><button type="button" class="ca-guest" data-guest="${g.id}"><span class="grow"><strong>${g.displayName}</strong><small>${[g.company, g.mine ? g.mobile : ''].filter(Boolean).join(' · ')}</small></span><span class="ca-tags">${statusBadge(g)}</span></button>
+              ${g.arrival.state !== 'checked_in' ? html`<button type="button" class="btn primary ca-big" data-clear-checkin="${g.id}">${icon('check', 18)} ${ref.capped ? 'Clear cap and check in' : 'Check in'}</button>` : ref.capped ? html`<button type="button" class="btn ca-big" data-clear="${g.id}">Clear cap</button>` : ''}</li>`)}</ul>`
+            : html`<p class="muted">No guest on the list has that surname. Ask for the name as on the invitation, or refer them to the Super Administrator (a walk-in).</p>`}</div>`,
+      };
+    } catch (err) {
+      return { guests: [], html: html`<p class="ca-notice">${icon('alert', 16)} ${err.message}</p>` };
+    }
+  }
+  const r = await api.get(`${base}/guests?q=${encodeURIComponent(q)}&limit=20`);
+  return { guests: r.guests, html: r.guests.length ? html`<ul class="ca-list">${r.guests.map((g) => html`<li><button type="button" class="ca-guest" data-guest="${g.id}"><span class="grow"><strong>${g.displayName}</strong><small>${[g.company, g.industry].filter(Boolean).join(' · ')}</small></span><span class="ca-tags">${badge(g.classLabel, g.classification === 'preferred' ? 'brand' : '')}${statusBadge(g)}</span></button></li>`)}</ul>` : html`<p class="muted ca-none">No guest matches “${q}”.</p>` };
+}
+function wireFound(box, eventId, r, onChange) {
+  const base = `/api/customapp/events/${eventId}`;
+  box.querySelectorAll('[data-guest]').forEach((b) => b.addEventListener('click', () => openGuest(eventId, b.dataset.guest, onChange)));
+  // One tap at the desk: the cap goes (in memory) and the guest is checked in.
+  box.querySelectorAll('[data-clear-checkin]').forEach((b) => b.addEventListener('click', async () => {
+    const g = r.guests.find((x) => x.id === b.dataset.clearCheckin);
+    b.disabled = true;
+    try {
+      await api.post(`${base}/caps/clear`, { guestId: g.id });
+      await api.post(`${base}/commands`, { type: 'checkIn', guestId: g.id, opId: opId() });
+      toast(`${g.displayName} checked in.`);
+      onChange();
+    } catch (err) {
+      b.disabled = false;
+      toast(err.message, 'error');
+    }
+  }));
+  box.querySelectorAll('[data-clear]').forEach((b) => b.addEventListener('click', async () => {
+    await api.post(`${base}/caps/clear`, { guestId: b.dataset.clear });
+    toast('Cap cleared: the guest can use the guest page again.');
+    onChange();
+  }));
+}
+
 // ----- Find guest, and the guest sheet -----
 export async function findGuestView(el, params, query) {
   const { events, canCreate, id } = await pickEvent(query);
@@ -109,7 +284,7 @@ export async function findGuestView(el, params, query) {
   let mine = false;
   mount(el, html`${head(html`${icon('search', 22)} Find guest`, ev, events)}
     <div class="stats small ca-strip" id="ca-strip"></div>
-    <div class="ca-search"><input type="search" id="ca-q" placeholder="Name, company or ref" aria-label="Find a guest by name, company or ref" autocomplete="off" enterkeyhint="search" /></div>
+    <div class="ca-search"><input type="search" id="ca-q" placeholder="Name, company, ref or code (R-1234)" aria-label="Find a guest by name, company, ref or referral code" autocomplete="off" enterkeyhint="search" /></div>
     <div class="chips ca-chips" role="group" aria-label="Show">
       ${[['', 'Everyone'], ['waiting', 'Waiting for a table'], ['expected', 'Not arrived'], ['seated', 'Seated'], ['reserved', 'Reserved']].map(([v, l]) => html`<button type="button" class="chip ${v === status ? 'on' : ''}" data-status="${v}" aria-pressed="${v === status}">${l}</button>`)}
       ${ev.role === 'staff' ? html`<button type="button" class="chip" data-mine aria-pressed="false">Mine only</button>` : ''}
@@ -123,6 +298,16 @@ export async function findGuestView(el, params, query) {
   async function search() {
     const n = ++seq;
     const q = el.querySelector('#ca-q').value.trim();
+    // A guest page referral code (R-1234): what the guest typed, the real reason, Clear cap and check in.
+    if (REF_RE.test(q)) {
+      const found = await findOrReferral(id, q);
+      if (n !== seq) return;
+      mount(el.querySelector('#ca-results'), found.html);
+      return wireFound(el.querySelector('#ca-results'), id, found, async () => {
+        search();
+        strip((await api.get(`/api/customapp/events/${id}`)).counts);
+      });
+    }
     const r = await api.get(`/api/customapp/events/${id}/guests?q=${encodeURIComponent(q)}&status=${status}${mine ? '&mine=1' : ''}&limit=60`);
     if (n !== seq) return;
     mount(el.querySelector('#ca-results'), r.guests.length ? html`<ul class="ca-list">${r.guests.map((g) => html`<li><button type="button" class="ca-guest" data-guest="${g.id}">
@@ -180,7 +365,10 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
       // Refused: the sheet is drawn again from the state as it is now, saying what happened.
       if (!err.code) throw err;
       const t = err.fresh?.tables?.find((x) => x.id === cmd.tableId);
-      notice = err.code === 'table_full' && t ? `Table ${t.number} just filled. Updated options:` : err.code === 'seat_taken' && t ? `Seat ${cmd.seatNo} at table ${t.number} was just taken. Choose another seat.` : err.message;
+      notice = err.code === 'table_full' && t ? `Table ${t.number} just filled. Updated options:`
+        : err.code === 'seat_taken' && t ? `Seat ${cmd.seatNo} at table ${t.number} was just taken. Choose another seat.`
+        : err.code === 'out_of_scope' ? 'This guest or table is no longer yours: the Super Administrator gave it to someone else. Nothing was changed; ask them, or the Super Administrator.'
+        : err.message;
       chosen = null;
       onChange();
       await load();
@@ -194,6 +382,10 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
     const tables = d.options;
     const mineT = tables.filter((t) => t.mine);
     const othersT = tables.filter((t) => !t.mine);
+    // Up to three recommendations (ranked by the server, with why), then the other eligible tables
+    // of this staff member (collapsed), then other people's tables, read only.
+    const recT = mineT.filter((t) => t.rank != null).slice(0, 3);
+    const restT = mineT.filter((t) => !recT.includes(t));
     const pickT = chosen && tables.find((t) => t.id === chosen.tableId);
     const choosing = d.canSeat && ((here && !g.seat && !d.releasedNeedsSuper) || mode === 'transfer');
     // The chosen table opens in place: its chairs (the first free one chosen) and Confirm, right under it.
@@ -205,7 +397,7 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
     const tableBtn = (t) => {
       const full = t.free < 1 && !(g.seat && g.seat.tableId === t.id);
       return html`<li><button type="button" class="ca-table ${chosen?.tableId === t.id ? 'on' : ''}" data-table="${t.id}" ${full || !t.mine ? 'disabled' : ''} aria-pressed="${chosen?.tableId === t.id}">
-        <span class="ca-tno">Table ${t.number}</span><span class="grow">${meter(t)}<small>${CLASS_LABELS[t.classification]}${t.ownerName ? ` · ${t.ownerName}` : ''}${full ? ' · Full' : !t.mine ? ' · Not yours' : ''}</small></span></button>${pickT === t ? chairs(t) : ''}</li>`;
+        <span class="ca-tno">Table ${t.number}</span><span class="grow">${meter(t)}${t.reasons?.length && !full ? html`<small class="ca-why">${t.reasons.join(' · ')}</small>` : ''}<small>${CLASS_LABELS[t.classification]}${t.ownerName ? ` · ${t.ownerName}` : ''}${full ? ' · Full' : !t.mine ? ' · Not yours' : ''}</small></span></button>${pickT === t ? chairs(t) : ''}</li>`;
     };
     mount(box, html`
       <div class="ca-who"><span>${badge(g.classLabel, g.classification === 'preferred' ? 'brand' : '')} <span class="muted">${g.ref}</span></span>
@@ -225,13 +417,34 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
         : !here ? html`<p class="muted">Check the guest in first, then choose their table.</p>`
         : !d.canSeat ? html`<p class="muted">Waiting for a table. Their owner or the Super Administrator seats them.</p>` : ''}
         ${choosing ? html`<p class="small">${mode === 'transfer' ? 'Choose the new table, then the chair.' : 'Choose a table, then confirm the chair.'}</p>
-          ${mineT.length ? html`<ul class="ca-tables">${mineT.map(tableBtn)}</ul>` : html`<p class="muted">None of your tables can take this guest. Refer them to the Super Administrator.</p>`}
+          ${recT.length ? html`<h4 class="ca-sub">Recommended</h4><ul class="ca-tables" data-recs>${recT.map(tableBtn)}</ul>` : html`<p class="muted">None of your tables can take this guest. Refer them to the Super Administrator.</p>`}
+          ${restT.length ? html`<details class="ca-others" data-other-eligible ${restT.includes(pickT) ? 'open' : ''}><summary>Other eligible tables: ${restT.length}</summary><ul class="ca-tables">${restT.map(tableBtn)}</ul></details>` : ''}
           ${mode === 'transfer' ? html`<button type="button" class="btn ghost" data-cancel-move>Keep the current seat</button>` : ''}
-          ${othersT.length ? html`<details class="ca-others"><summary>Other tables (not yours): ${othersT.length}</summary><ul class="ca-tables">${othersT.map(tableBtn)}</ul></details>` : ''}` : ''}
+          ${othersT.length ? html`<details class="ca-others" data-not-yours><summary>Not yours: ${othersT.length}</summary><ul class="ca-tables">${othersT.map(tableBtn)}</ul></details>` : ''}` : ''}
       </section>
+      ${d.capped || d.flags.length || d.devices || (d.role === 'super' && d.staff.length) ? html`<section class="ca-step"><h3>Guest page and owner</h3>
+        ${d.capped ? html`<p class="ca-notice">${icon('lock', 16)} The guest page is paused for this surname (too many different wrong numbers in 15 minutes).</p><button type="button" class="btn ${here ? '' : 'primary'} ca-big" data-clear-cap>${here ? 'Clear cap' : html`${icon('check', 18)} Clear cap and check in`}</button>` : ''}
+        ${d.flags.map((f) => html`<p class="small">${icon('flag', 14)} ${GUEST_FLAGS[f.kind] || f.kind}, ${fmtManila(f.at)}</p>`)}
+        ${d.flags.length && d.role === 'super' ? html`<button type="button" class="btn small-btn" data-flags-seen>Seen</button>` : ''}
+        ${d.devices ? html`<p class="small">Guest page open on ${plural(d.devices, 'device')}. <button type="button" class="link-btn" data-revoke>End it on every device</button></p>` : ''}
+        ${d.role === 'super' && d.staff.length ? html`<label class="field ca-give"><span>Owner</span><select data-owner><option value="">No owner (your queue)</option>${d.staff.map((x) => option(x.userId, x.name, x.userId === g.ownerUserId))}</select></label>` : ''}
+      </section>` : ''}
       ${d.history.length ? html`<details class="ca-history"><summary>History (${d.history.length})</summary><ul>${d.history.map((h) => html`<li><span class="muted">${fmtManila(h.at)}</span> ${HISTORY[h.type] || h.type}, by ${h.by}${h.reason ? ` (${h.reason})` : ''}</li>`)}</ul></details>` : ''}`);
     const on = (sel, fn) => box.querySelectorAll(sel).forEach((b) => b.addEventListener('click', fn));
     on('[data-checkin]', () => send({ type: 'checkIn', guestId }, `${g.displayName} checked in.`));
+    on('[data-clear-cap]', async () => {
+      await api.post(`/api/customapp/events/${eventId}/caps/clear`, { guestId });
+      if (here) {
+        toast('Cap cleared: the guest can use the guest page again.');
+        return load();
+      }
+      send({ type: 'checkIn', guestId }, `${g.displayName} checked in.`);
+    });
+    on('[data-flags-seen]', () => send({ type: 'guest.update', guestId, clearFlags: true }, 'Marked as seen.'));
+    on('[data-revoke]', async () => {
+      if (await confirmDialog(`End ${g.displayName}'s guest page on ${plural(d.devices, 'device')}? Their phone shows "Please see the registration desk" until they check in again.`, { confirmLabel: 'End guest page', danger: false })) send({ type: 'revokeTokens', guestId }, 'Guest page ended.');
+    });
+    box.querySelector('[data-owner]')?.addEventListener('change', (e) => send({ type: 'delegateGuests', ids: [guestId], ownerUserId: e.target.value || null }, e.target.value ? `${g.displayName} given to ${d.staff.find((x) => x.userId === e.target.value)?.name}.` : `${g.displayName} is in your queue.`));
     on('[data-undo]', async () => {
       if (await confirmDialog(`Undo ${g.displayName}'s check-in? They show as not arrived again${g.seat ? '; their chair stays reserved for them' : ''}.`, { confirmLabel: 'Undo check-in', danger: false })) send({ type: 'undoCheckIn', guestId, reason: 'Checked in by mistake' }, 'Check-in undone.');
     });
@@ -347,6 +560,20 @@ export async function eventControlView(el, params, query) {
       <div class="card"><small>Seated · reserved</small><strong>${c.seated} · ${c.reserved}</strong></div>
       <div class="card"><small>Seats left</small><strong>${c.seatsLeft} of ${c.capacity}</strong></div>
     </div>
+    ${sa && ev.alarm ? html`<p class="ca-notice" role="alert">${icon('alert', 16)} <span><strong>${ev.alarm.failures} failed guest page checks in the last 5 minutes.</strong> Nobody is locked out. Guests who show a code (R-1234) are helped at the desk: Find guest, type the code.</span></p>` : ''}
+    ${sa ? html`<section class="card ca-health" aria-label="Health"><h2>${icon('activity')} Health</h2><div class="ca-health-row">
+      <span><small>Change number</small><strong>${ev.seq}</strong></span>
+      <span><small>Newest 5-minute copy</small><strong>${ev.health?.copy?.at ? ageText(ev.health.copy.at) : ev.status === 'live' ? 'Not yet' : 'Only while live'}</strong></span>
+      <span><small>Seating rules (every minute)</small><strong>${ev.health?.check ? (ev.health.check.violations.length ? html`<span class="badge red">${plural(ev.health.check.violations.length, 'problem')}</span>` : html`<span class="badge green">All hold</span>`) : ev.status === 'live' ? 'Not checked yet' : 'Only while live'}</strong></span>
+      <span><small>Presence key on the QR</small><strong>${ev.qrKey ? 'On' : 'Off'}</strong></span></div>
+      ${ev.health?.check?.violations.length ? html`<p class="ca-notice" role="alert">${icon('alert', 16)} ${ev.health.check.violations.map((v) => v.detail).join(' ')}</p>` : ''}</section>` : ''}
+    <section class="card ca-room-card"><h2>${icon('mapPin')} Room plan</h2><div data-plan-host></div></section>
+    ${sa && ev.workload ? html`<section class="card"><h2>${icon('users')} Staff and their queues</h2>
+      <p class="muted small">Who has how many guests waiting. <strong>Move to…</strong> gives all of one person's guests and tables to someone else at once (an absent staffer); seats and check-ins stay as they are.</p>
+      <div class="table-scroll"><table class="table ca-work"><thead><tr><th>Staff</th><th>Waiting</th><th>Longest wait</th><th>Guests</th><th>Tables</th><th>Move to…</th></tr></thead><tbody>
+        ${ev.workload.map((w) => html`<tr><td>${w.name}${w.isSuper ? ' (you)' : ''}</td><td>${w.waiting}</td><td>${w.longestSince ? `${minutesSince(w.longestSince)} min` : '–'}</td><td>${w.guests}</td><td>${w.tables.join(', ') || '–'}</td>
+          <td>${w.guests || w.tables.length ? html`<select data-move-from="${w.userId}" aria-label="Move ${w.name}'s guests and tables to"><option value="">Choose…</option>${ev.workload.filter((x) => x.userId !== w.userId).map((x) => option(x.userId, x.isSuper ? `${x.name} (no owner)` : x.name))}</select>` : ''}</td></tr>`)}
+      </tbody></table></div></section>` : ''}
     <section class="card"><h2>${icon('shield')} Super Administrator</h2>
       <p><strong>${ev.superAdmin.name || 'Nobody'}</strong>: the one account with authority over every guest and table of this event. Staff work on the guests and tables given to them.</p>
       ${can('customapp.manage') ? html`<button type="button" class="btn" id="ca-handover">${icon('key', 16)} Hand over the Super Administrator…</button>` : ''}
@@ -358,7 +585,9 @@ export async function eventControlView(el, params, query) {
         const held = f === 'registrationOpen' && !ev.flags[f] && blockedIssues;
         return html`<li><label class="switch"><input type="checkbox" data-flag="${f}" ${ev.flags[f] ? 'checked' : ''} ${sa && !held ? '' : 'disabled'} /> <span>${FLAG_LABELS[f]}: <strong class="state">${ev.flags[f] ? 'On' : 'Off'}</strong>${held ? html` <small class="muted">· ${plural(blockedIssues, 'issue')} to resolve (<a href="#/customapp/setup?e=${id}">Setup → Import check</a>)</small>` : ''}</span></label></li>`;
       })}
-        <li><label class="field ca-poll"><span>${FLAG_LABELS.pollMs}</span><input type="number" min="1000" max="30000" step="500" value="${ev.flags.pollMs}" data-poll ${sa ? '' : 'disabled'} /></label></li></ul>
+        <li><label class="field ca-poll"><span>${FLAG_LABELS.pollMs}</span><input type="number" min="1000" max="30000" step="500" value="${ev.flags.pollMs}" data-poll ${sa ? '' : 'disabled'} /></label><small class="muted">Staff screens ask this often; a guest's page waiting for a table twice as often, once seated five times.</small></li>
+        <li><label class="switch"><input type="checkbox" data-qrkey ${ev.qrKey ? 'checked' : ''} ${sa ? '' : 'disabled'} /> <span>Presence key on the reception QR: <strong class="state">${ev.qrKey ? 'On' : 'Off'}</strong> <small class="muted">· only after load test 1 passes</small></span></label></li></ul>
+      ${sa ? html`<p><button type="button" class="btn" id="ca-qr">${icon('grid', 16)} Reception QR sheet</button> <a class="small" href="/event/${ev.code}" target="_blank" rel="noopener">Guest page: /event/${ev.code}</a></p>` : ''}
       ${ev.window?.opensAt ? html`<p class="small">Window: ${fmtManila(ev.window.opensAt)} to ${ev.window.closesAt ? fmtManila(ev.window.closesAt) : 'the end of the day'} (Manila time) · status ${ev.status}</p>` : html`<p class="small muted">No window set yet (Setup).</p>`}
     </section>
     ${sa ? html`<section class="card"><h2>${icon('download')} Exports and the printed plan</h2>
@@ -370,6 +599,51 @@ export async function eventControlView(el, params, query) {
       <section class="card"><h2>${icon('checkCircle')} Seating rules check</h2><p class="muted small">Checks every rule at once: no table over its chairs, no chair held twice, no guest with two seats, one Super Administrator, owners who are staff.</p>
         <button type="button" class="btn" id="ca-check">Check now</button> <span id="ca-check-out" aria-live="polite"></span></section>` : ''}`);
   wireSwitcher(el, '/customapp/control');
+  const stopPlan = mountRoomPlan(el.querySelector('[data-plan-host]'), id);
+  el.querySelectorAll('[data-move-from]').forEach((sel) => sel.addEventListener('change', async () => {
+    const from = ev.workload.find((w) => w.userId === sel.dataset.moveFrom);
+    const to = ev.workload.find((w) => w.userId === sel.value);
+    if (!to) return;
+    if (!(await confirmDialog(`Give all of ${from.name}'s guests (${from.guests}) and tables (${from.tables.join(', ') || 'none'}) to ${to.isSuper ? 'nobody (your queue)' : to.name}? Their seats and check-ins stay as they are; ${from.name} can no longer seat them.`, { confirmLabel: 'Move', danger: false, title: 'Move to…' }))) return (sel.value = '');
+    try {
+      const owner = to.isSuper ? null : to.userId;
+      if (from.guests) await api.post(`${base}/commands`, { type: 'delegateGuests', fromUserId: from.userId, ownerUserId: owner, reason: 'Moved on Event control', opId: opId() });
+      if (from.tables.length) await api.post(`${base}/commands`, { type: 'delegateTables', fromUserId: from.userId, ownerUserId: owner, reason: 'Moved on Event control', opId: opId() });
+      toast(`${from.name}'s guests and tables are ${to.isSuper ? 'in your queue' : `${to.name}'s`} now.`);
+      stopPlan();
+      eventControlView(el, params, query);
+    } catch (err) {
+      sel.value = '';
+      toast(err.message, 'error');
+    }
+  }));
+  const qrSheet = (url, fresh) => {
+    const q = qrcode(0, 'M');
+    q.addData(url);
+    q.make();
+    modal({
+      title: 'Reception QR sheet',
+      subtitle: fresh ? 'Print it now: the presence key is shown only this once (only its fingerprint is kept). Turning the key off and on again makes a new one.' : 'The guest page address. With the presence key on, print the sheet when you turn the key on.',
+      body: html`<div class="ca-qr">${raw(q.createSvgTag({ cellSize: 6, margin: 2, scalable: true, alt: 'QR code for the guest page' }))}<p><strong>${ev.name}</strong>: scan to check in.</p><p class="small muted">If this page doesn't open, please go to the registration desk.</p><p class="small mono">${url.replace(/#k=.*/, '#k=…')}</p></div>`,
+      submitLabel: 'Print',
+      onSubmit: () => window.print(),
+    });
+  };
+  el.querySelector('#ca-qr')?.addEventListener('click', () => qrSheet(`${location.origin}/event/${ev.code}`, false));
+  el.querySelector('[data-qrkey]')?.addEventListener('change', async (e) => {
+    const on = e.target.checked;
+    const msg = on ? 'Turn on the presence key? Only phones that scanned the new reception QR can check in; a guest who types the address gets the desk. Turn it on only after load test 1 passed, and print the new QR sheet now.' : 'Turn off the presence key? Anyone with the guest page address can check in while self check-in is open.';
+    if (!(await confirmDialog(msg, { confirmLabel: 'Confirm', danger: false, title: 'Presence key' }))) return (e.target.checked = !on);
+    try {
+      const r = await api.post(`${base}/qr-key`, { on, opId: opId() });
+      e.target.closest('label').querySelector('.state').textContent = on ? 'On' : 'Off';
+      toast(`Presence key ${on ? 'on' : 'off'}.`);
+      if (on) qrSheet(`${location.origin}${new URL(r.url, location.origin).pathname}#k=${r.key}`, true);
+    } catch (err) {
+      e.target.checked = !on;
+      toast(err.message, 'error');
+    }
+  });
   const setFlag = async (flag, value) => {
     await api.post(`${base}/commands`, { type: 'setFlag', flag, value, opId: opId() });
     toast(`${FLAG_LABELS[flag]}: ${flag === 'pollMs' ? `${value} ms` : value ? 'on' : 'off'}.`);
@@ -410,11 +684,17 @@ export async function eventControlView(el, params, query) {
       onSubmit: async (f) => {
         const r = await api.post(`${base}/super-admin`, { userId: f.userId.value, reason: f.reason.value, password: f.password.value, opId: opId() });
         toast(`${r.superAdmin.name} is now the Super Administrator.`);
+        stopPlan();
         eventControlView(el, params, query);
       },
     });
   });
+  return stopPlan;
 }
+const ageText = (iso) => {
+  const m = minutesSince(iso);
+  return m < 1 ? 'under a minute ago' : `${m} min ago`;
+};
 
 // ----- Setup -----
 export async function eventSetupView(el, params, query) {

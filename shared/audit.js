@@ -146,6 +146,13 @@ export const AUDIT_ACTIONS = {
   'customapp.reserve': 'Reserved an event seat',
   'customapp.release': 'Released an event reservation',
   'customapp.export': 'Exported an event (JSON, CSV or printable plan)',
+  'customapp.reverify': 'An event guest verified again on the guest page',
+  'customapp.delegate': 'Gave event guests or tables to a staff member',
+  'customapp.tokens': 'Ended an event guest\'s guest page on their devices',
+  'customapp.qr-key': 'Turned the event QR presence key on or off',
+  'customapp.cap-clear': 'Cleared a guest page cap at the desk',
+  'customapp.alarm': 'Many failed guest page checks for an event',
+  'customapp.selfcheck': 'The event seating rules check found a problem',
   'customapp.change': 'Changed CUSTOM APP',
   'data.export-events': 'Downloaded a full backup with event guest lists',
 };

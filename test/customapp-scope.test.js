@@ -21,7 +21,7 @@ describe('US-005: CUSTOM APP module shell and the Event staff account type', () 
     assert.equal(guideFor('home', 'eventstaff'), 'custom-app-events');
     // Where each module opens: CUSTOM APP only (Documents and the service desk open for everyone else).
     const homes = moduleAccess({ role: 'eventstaff', id: 'x' }, { modules: { customapp: true } }).filter((m) => m.home);
-    assert.deepEqual(homes.map((m) => [m.id, m.home]), [['customapp', '/customapp']]);
+    assert.deepEqual(homes.map((m) => [m.id, m.home]), [['customapp', '/customapp/queue']], 'Event staff land on My queue (Tier 1)');
     assert.ok(moduleAccess({ role: 'employee', employeeId: 'e' }, { modules: { customapp: true } }).some((m) => m.id === 'documents' && m.home), 'others still open Documents');
     const c = await company();
     const sam = c.as.sam;
@@ -67,5 +67,90 @@ describe('US-003 (wired in 0.71): the staff sign-in allowance follows the events
     assert.equal(windowOpen({ status: 'live', window: {} }, opens), false);
     const src = (await import('node:fs')).readFileSync(new URL('../server/api.js', import.meta.url), 'utf8');
     assert.match(src, /eventWindowOpen = customapp\.eventWindowOpen;/, 'the rate limits read it');
+  });
+});
+
+describe('US-017: Delegation, scope enforcement and My queue', () => {
+  const ROWS = [
+    ['A1', 'Ana', 'Cruz', 'Acme', '', 'a1@example.com', '0917 000 0001', 'regular', 'sam', '', ''],
+    ['A2', 'Ben', 'Lim', 'Acme', '', 'a2@example.com', '0917 000 0002', 'regular', 'sam', '', ''],
+    ['B1', 'Cora', 'Tan', 'Acme', '', 'b1@example.com', '0917 000 0003', 'regular', 'tess', '', ''],
+    ['N1', 'Dan', 'Uy', 'Acme', '', 'n1@example.com', '0917 000 0004', 'regular', '', '', ''],
+  ];
+  test('GIVEN guests and tables WHEN the Super Administrator delegates them and a staffer tries to delegate THEN each has at most one active owner, only the Super Administrator can delegate and no seat changes', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('A1').id });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('A1').id, tableId: e.tables[3], seatNo: 2 });
+    const seat = { ...e.guest('A1').seat };
+    assert.equal((await e.cmd('sam', { type: 'delegateGuests', ids: [e.guest('B1').id], ownerUserId: c.ids.sam })).code, 'needs_super_admin');
+    assert.equal((await e.cmd('sam', { type: 'delegateTables', ids: [e.tables[5]], ownerUserId: c.ids.sam })).code, 'needs_super_admin');
+    assert.equal((await e.cmd('lead', { type: 'delegateGuests', ids: [e.guest('A1').id], ownerUserId: c.ids.hana })).status, 400, 'only active event staff can own');
+    const r = await e.cmd('lead', { type: 'delegateGuests', ids: [e.guest('A1').id, e.guest('N1').id], ownerUserId: c.ids.tess });
+    assert.equal(r.moved, 2);
+    assert.deepEqual(e.guest('A1').seat, seat, 'the seat is not touched');
+    assert.equal(e.guest('A1').ownerUserId, c.ids.tess);
+    assert.ok((await e.cmd('lead', { type: 'delegateTables', ids: [e.tables[3]], ownerUserId: c.ids.tess })).ok);
+    assert.equal(c.db.data.caTables.find((t) => t.id === e.tables[3]).ownerUserId, c.ids.tess, 'one owner field: never two');
+    assert.deepEqual((await c.as.lead('GET', `${e.base}/invariants`)).violations, []);
+  });
+
+  test('GIVEN a transfer whose destination table belongs to another staffer WHEN the plan is checked THEN eventCan rejects the whole plan with out_of_scope or needs_super_admin', async () => {
+    const { eventCan } = await import('../server/customapp/events/engine.js');
+    const sam = { id: 'u-sam', role: 'staff' };
+    assert.equal(eventCan(sam, 'write', { ownerUserId: 'u-sam' }), true);
+    assert.equal(eventCan(sam, 'write', { ownerUserId: 'u-tess' }), false);
+    assert.equal(eventCan(sam, 'checkIn', { ownerUserId: 'u-tess' }), true, 'any staffer checks anyone in');
+    assert.equal(eventCan(sam, 'delegate'), false);
+    assert.equal(eventCan({ id: 'u-ada', role: 'manager' }, 'write', { ownerUserId: null }), false, 'a CORE administrator is not the Super Administrator');
+    assert.equal(eventCan({ id: 'x', role: 'super' }, 'delegate'), true);
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('A1').id });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('A1').id, tableId: e.tables[3], seatNo: 1 });
+    const t = await e.cmd('sam', { type: 'transfer', guestId: e.guest('A1').id, tableId: e.tables[5], seatNo: 1 });
+    assert.equal(t.code, 'out_of_scope', 'Tess\'s table 5');
+    assert.equal(e.guest('A1').seat.tableId, e.tables[3], 'nothing of the plan applied');
+    // A group with one guest out of scope: the whole plan is refused.
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('A2').id });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('B1').id });
+    const g = await e.cmd('sam', { type: 'assign', placements: [{ guestId: e.guest('A2').id, tableId: e.tables[4], seatNo: 1 }, { guestId: e.guest('B1').id, tableId: e.tables[4], seatNo: 2 }] });
+    assert.equal(g.code, 'out_of_scope');
+    assert.equal(e.guest('A2').seat, null);
+  });
+
+  test('GIVEN staffer A owns guests and tables WHEN the Super Administrator reallocates them to B THEN A\'s next write gets 403, B can write and confirmed claims stay intact', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('A1').id });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('A1').id, tableId: e.tables[3], seatNo: 1 });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('A2').id });
+    await e.cmd('lead', { type: 'delegateGuests', fromUserId: c.ids.sam, ownerUserId: c.ids.tess });
+    await e.cmd('lead', { type: 'delegateTables', fromUserId: c.ids.sam, ownerUserId: c.ids.tess });
+    const a = await e.cmd('sam', { type: 'assign', guestId: e.guest('A2').id, tableId: e.tables[4], seatNo: 1 });
+    assert.deepEqual([a.status, a.code], [403, 'out_of_scope'], 'the very next request');
+    assert.ok((await e.cmd('tess', { type: 'assign', guestId: e.guest('A2').id, tableId: e.tables[4], seatNo: 1 })).ok);
+    assert.deepEqual([e.guest('A1').seat.tableId, e.guest('A1').seat.seatNo, e.guest('A1').seat.status], [e.tables[3], 1, 'confirmed']);
+  });
+
+  test('GIVEN owned and unowned guests, an unlisted pending guest, a flagged guest and a released preferred guest who arrived WHEN queues are derived THEN owned guests are in their owner\'s queue and the rest in the Super Administrator\'s queue', async () => {
+    const { queueOf, superQueue } = await import('../server/customapp/events/board.js');
+    const at = (m) => `2026-12-09T10:${String(m).padStart(2, '0')}:00.000Z`;
+    const here = (m) => ({ state: 'checked_in', at: at(m) });
+    const g = (id, extra) => ({ id, ref: id, eventId: 'e', active: true, classification: 'regular', arrival: { state: 'expected' }, seat: null, ...extra });
+    const state = {
+      event: { id: 'e', superAdminUserId: 'lead', staff: [{ userId: 'sam', active: true }, { userId: 'gone', active: false }] },
+      tables: [],
+      guests: [
+        g('s2', { ownerUserId: 'sam', arrival: here(20) }), g('s1', { ownerUserId: 'sam', arrival: here(5) }),
+        g('seated', { ownerUserId: 'sam', arrival: here(1), seat: { tableId: 't', status: 'confirmed' } }),
+        g('none', { arrival: here(3) }), g('orphan', { ownerUserId: 'gone', arrival: here(4) }),
+        g('unl', { classification: 'unlisted', approval: { state: 'pending' } }),
+        g('flag', { ownerUserId: 'sam', arrival: here(6), seat: { tableId: 't', status: 'confirmed' }, flags: [{ kind: 'reverified_other_device', at: at(7) }] }),
+        g('rel', { classification: 'preferred', ownerUserId: 'sam', arrival: here(8), released: { at: at(2) } }),
+      ],
+    };
+    assert.deepEqual(queueOf(state, 'sam').map((x) => x.id), ['s1', 's2'], 'oldest first; the released preferred guest is not theirs to seat');
+    assert.deepEqual(superQueue(state).map((x) => [x.guest.id, x.why.join()]), [['unl', 'unlisted'], ['none', 'no_owner'], ['orphan', 'no_owner'], ['flag', 'flagged'], ['rel', 'released']]);
   });
 });

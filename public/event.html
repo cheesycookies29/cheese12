@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Event check-in</title>
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <meta name="theme-color" content="#5d0013" />
+  <script>
+    try { var t = localStorage.getItem('core-theme'); if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; } catch (e) {}
+  </script>
+  <style>
+    /* An event's guest page (CUSTOM APP, 0.72): standalone and small, no web fonts. CORE's colour
+       tokens (the same as the app's), light and dark. */
+    :root {
+      --brand: #5d0013; --accent: #c28618; --bg: #f5f6f8; --surface: #fff; --surface-2: #f9fafb; --border: #e5e7eb; --border-strong: #d1d5db;
+      --text: #111827; --text-2: #374151; --muted: #636a76; --brand-ink: #fff; --brand-text: var(--brand);
+      --brand-soft: color-mix(in srgb, var(--brand) 9%, var(--surface)); --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+      --warn: #92570a; --warn-soft: #fef3c7; --success: #15803d; --success-soft: #dcfce7; --radius: 12px;
+      color-scheme: light; font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: var(--text);
+    }
+    :root[data-theme='dark'] {
+      --bg: #0b1120; --surface: #111827; --surface-2: #162032; --border: #243044; --border-strong: #334155; --text: #e5e7eb; --text-2: #cbd5e1; --muted: #94a3b8;
+      --brand-text: color-mix(in srgb, var(--brand) 45%, #fff); --brand-soft: color-mix(in srgb, var(--brand) 26%, var(--surface)); --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--surface));
+      --warn: #fbbf24; --warn-soft: #78350f55; --success: #4ade80; --success-soft: #14532d55; color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); }
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 16px; }
+    header .in, main, footer { width: 100%; max-width: 520px; margin: 0 auto; }
+    header strong { display: block; font-size: 17px; overflow-wrap: anywhere; }
+    header small { color: var(--muted); font-size: 14px; }
+    main { flex: 1; padding: 20px 16px 32px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    h1 { font-size: 24px; line-height: 1.25; margin: 0 0 10px; outline: none; overflow-wrap: anywhere; }
+    p { margin: 8px 0; color: var(--text-2); }
+    label { display: block; font-weight: 600; margin: 14px 0 6px; }
+    input { display: block; width: 100%; font: inherit; font-size: 18px; min-height: 52px; padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--text); }
+    input:focus-visible, button:focus-visible, .link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    button { font: inherit; font-weight: 700; min-height: 52px; width: 100%; margin-top: 18px; border-radius: 10px; border: 1px solid var(--brand); background: var(--brand); color: var(--brand-ink); cursor: pointer; font-size: 18px; }
+    button[disabled] { opacity: 0.7; cursor: progress; }
+    .link { background: none; border: 0; color: var(--brand-text); text-decoration: underline; font-weight: 600; width: auto; min-height: 48px; margin: 6px 0 0; padding: 0; font-size: 16px; }
+    .trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .big { display: block; font-size: 64px; font-weight: 800; line-height: 1.05; color: var(--brand-text); margin: 6px 0; font-variant-numeric: tabular-nums; }
+    .seat { font-size: 28px; font-weight: 700; color: var(--text); margin: 0 0 8px; }
+    .code { display: inline-block; font-size: 32px; font-weight: 800; letter-spacing: 0.04em; padding: 6px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--text); margin: 6px 0; }
+    .note { background: var(--warn-soft); color: var(--text); border-radius: 10px; padding: 10px 14px; }
+    .ok { background: var(--success-soft); color: var(--text); border-radius: 10px; padding: 10px 14px; }
+    .status { color: var(--muted); font-size: 14px; margin-top: 14px; }
+    footer { padding: 12px 16px 24px; color: var(--muted); font-size: 14px; text-align: center; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body>
+  <header><div class="in"><strong id="ev-name">Event check-in</strong><small id="ev-date"></small></div></header>
+  <main><div class="card" id="box" aria-live="polite"><p>Loading…</p></div><p class="status" id="updated" aria-live="off"></p></main>
+  <footer>If this page does not work, please go to the registration desk.</footer>
+  <script type="module" src="/js/event.js"></script>
+</body>
+</html>

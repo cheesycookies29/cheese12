@@ -90,7 +90,7 @@ export function baseHeaders({ https = false } = {}) {
 // CORE itself, blob: (PDF previews) and the OpenStreetMap embed that shows a clock-in location.
 export function pagePolicy(root) {
   const hashes = new Set();
-  for (const page of ['index.html', 'support.html', 'share.html', path.join('help', 'index.html')]) {
+  for (const page of ['index.html', 'support.html', 'share.html', 'event.html', path.join('help', 'index.html')]) {
     const file = path.join(root, 'public', page);
     if (!fs.existsSync(file)) continue;
     const html = fs.readFileSync(file, 'utf8');

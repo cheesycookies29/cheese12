@@ -44,7 +44,12 @@ describe('US-005: CUSTOM APP module shell and the Event staff account type', asy
     // The guest pages (/api/public/event/…, Tier 1) belong to the module, so they are refused with it.
     const { moduleOfApi } = await import('../shared/modules.js');
     assert.equal(moduleOfApi('POST', '/api/public/event/some-code/verify'), 'customapp');
-    assert.ok([403, 404].includes((await c.client()('GET', '/api/public/event/some-code')).status));
+    // With the guest page's routes in place (Tier 1), it is a 403 with the module's message, never a 404.
+    for (const [m, u] of [['GET', '/api/public/event/some-code'], ['POST', '/api/public/event/some-code/verify'], ['GET', '/api/public/event/some-code/status']]) {
+      const r = await c.client()(m, u, { surname: 'x', last4: '1234' });
+      assert.equal(r.status, 403, `${m} ${u}`);
+      assert.match(r.error, /CUSTOM APP is turned off/);
+    }
     assert.ok((await c.admin('GET', '/api/customapp/apps')).apps, 'administrators still open a module that is off');
     await c.admin('PUT', '/api/admin/modules', { modules: { customapp: true } });
     assert.ok((await c.as.sam('GET', '/api/customapp/apps')).apps);

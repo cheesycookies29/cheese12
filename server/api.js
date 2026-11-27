@@ -1411,7 +1411,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     opensModule: (u, id) => Boolean(moduleAccess(u, { modules: db.data.modules, inProjects: isProjectMember(db, u), isApprover: isApprover(db, u) }).find((m) => m.id === id)?.home),
   });
   // ----- CUSTOM APP (server/customapp, 0.71): events, check-in and seating -----
-  const customapp = registerCustomApp(route, db, { audit, limits, requirePassword });
+  const customapp = registerCustomApp(route, db, { audit, limits, requirePassword, monitor });
   // The rate limits give staff sign-in more room while an event's doors are open (0.70.1).
   eventWindowOpen = customapp.eventWindowOpen;
   // ----- Notifications: the bell in the top bar (server/notifications.js) -----
@@ -1517,6 +1517,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   handle.documents = docs;
   handle.forms = forms;
   handle.monitor = monitor;
+  // CUSTOM APP's guest-page gate and safety nets (tests read them).
+  handle.customapp = customapp;
   handle.projects = projects;
   // Whether the request carries a live session (server.js allows large uploads only then).
   handle.signedIn = (req) => {

@@ -280,11 +280,41 @@ describe('US-009: Seat commands: check-in, preferred retrieval, reservations, as
     const db = fixture({ guests: [{ ref: 'A' }] });
     const ctx = newCtx(db);
     const self = (cmd) => commitAs(ctx, 'ev1', { synthetic: 'self' }, cmd);
-    assert.equal(codeOf(() => self({ type: 'selfCheckIn', guestId: 'g-A' })), 'registration_closed');
+    const tokenHash = (n) => String(n).repeat(64);
+    assert.equal(codeOf(() => self({ type: 'selfCheckIn', guestId: 'g-A', tokenHash: tokenHash(1) })), 'registration_closed');
     db.data.caEvents[0].flags.registrationOpen = true;
-    self({ type: 'selfCheckIn', guestId: 'g-A' });
+    assert.equal(codeOf(() => self({ type: 'selfCheckIn', guestId: 'g-A' })), 'http400', 'the guest page always sends a status token');
+    self({ type: 'selfCheckIn', guestId: 'g-A', tokenHash: tokenHash(1) });
     assert.equal(db.data.caGuests[0].arrival.via, 'qr');
-    assert.equal(self({ type: 'selfCheckIn', guestId: 'g-A' }).unchanged, true, 'a second check-in from a phone changes nothing');
+    const at = db.data.caGuests[0].arrival.at;
+    // Tier 1: a second phone keeps its own token and flags the guest; it is never a second check-in.
+    assert.equal(self({ type: 'selfCheckIn', guestId: 'g-A', tokenHash: tokenHash(2) }).already, true, 'a second check-in from a phone checks in nobody again');
+    assert.equal(db.data.caGuests[0].arrival.at, at);
+    assert.deepEqual(db.data.caGuests[0].flags.map((f) => f.kind), ['reverified_other_device']);
     assert.equal(codeOf(() => self({ type: 'assign', guestId: 'g-A', tableId: 't1' })), 'http400', 'the guest page can only check in');
+  });
+});
+
+describe('US-018: Recommendation engine', () => {
+  test('GIVEN a recommended table and a lower-ranked eligible table in scope WHEN the staffer assigns to the lower-ranked one THEN commit() accepts it, and an ineligible table is refused by the same eligible()', async () => {
+    const { recommend } = await import('../shared/customapp/seating.js');
+    const db = fixture({ tables: [{ n: 1, owner: 'sam' }, { n: 2, owner: 'sam' }, { n: 3, owner: 'sam', cls: 'employee' }], guests: [{ ref: 'A', arrived: true, owner: 'sam' }, { ref: 'B', arrived: true, owner: 'sam', seat: [1, 1] }] });
+    db.data.caEvents[0].industries = [{ id: 'bank', name: 'Banking', related: [] }];
+    for (const g of db.data.caGuests) g.industryId = 'bank';
+    const { sam, g } = run(db);
+    const ranked = recommend([g('A')], db.data.caEvents[0], db.data.caTables, db.data.caGuests);
+    assert.deepEqual(ranked.map((r) => r.number), [1, 2], 'table 1 (a Banking guest) is recommended first');
+    sam({ type: 'assign', guestId: 'g-A', tableId: 't2', seatNo: 3 });
+    assert.equal(g('A').seat.tableId, 't2', 'the ranking is advice: a lower-ranked eligible table is accepted');
+    // The same rule refuses an ineligible table (an employee table, or one with a "no:" tag).
+    const db2 = fixture({ tables: [{ n: 3, owner: 'sam', cls: 'employee' }, { n: 4, owner: 'sam' }], guests: [{ ref: 'A', arrived: true, owner: 'sam' }] });
+    db2.data.caTables[1].tags = ['no:press'];
+    db2.data.caGuests[0].tags = ['press'];
+    const r2 = run(db2);
+    assert.equal(codeOf(() => r2.sam({ type: 'assign', guestId: 'g-A', tableId: 't3', seatNo: 1 })), 'not_eligible');
+    assert.equal(codeOf(() => r2.sam({ type: 'assign', guestId: 'g-A', tableId: 't4', seatNo: 1 })), 'not_eligible');
+    const src = fs.readFileSync(new URL('../server/customapp/events/engine.js', import.meta.url), 'utf8');
+    assert.match(src, /whyNot\(table, \[guest\], state\.event, others\)/, 'commit()\'s constraint is the shared whyNot()/eligible()');
+    clean(db);
   });
 });

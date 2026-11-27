@@ -88,6 +88,8 @@ function observe(req, res, startedAt) {
 // anything else (one file at a time) 12 MB. Not signed in: 1 MB, or what the public support form
 // can need with its files.
 const MB = 1024 * 1024;
+// An event guest page check is a surname and four digits or an email: about 1 KB is plenty.
+const EVENT_VERIFY_BYTES = 1024;
 const HELPDESK_BODY_BYTES = HELPDESK_MAX_FILES * Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4 + MB;
 function bodyLimit(req, url) {
   const p = url.pathname;
@@ -199,8 +201,10 @@ function serveStatic(url, res) {
     if (fs.existsSync(index) && !rel.endsWith('/')) return send(res, 302, '', 'text/plain', { Location: `${url.pathname}/${url.search}` });
     // /support and /support/t/<token> are the public helpdesk form; everything else is the app.
     // /share/<token>: a document link for someone outside the company (0.67), a page of its own.
-    const page = url.pathname === '/support' || url.pathname.startsWith('/support/') ? 'support.html' : /^\/share\/[A-Za-z0-9_-]{43}\/?$/.test(url.pathname) ? 'share.html' : 'index.html';
-    if (prefix === '/') return send(res, 200, fs.readFileSync(path.join(dir, page)), 'text/html');
+    // /event/<code>: an event's guest page (CUSTOM APP, 0.72), standalone, kept out of search engines.
+    const eventPage = /^\/event\/[a-z0-9-]{3,60}\/?$/.test(url.pathname);
+    const page = url.pathname === '/support' || url.pathname.startsWith('/support/') ? 'support.html' : /^\/share\/[A-Za-z0-9_-]{43}\/?$/.test(url.pathname) ? 'share.html' : eventPage ? 'event.html' : 'index.html';
+    if (prefix === '/') return send(res, 200, fs.readFileSync(path.join(dir, page)), 'text/html', eventPage ? { ...NO_INDEX, 'Content-Security-Policy': PAGE_POLICY } : {});
     return send(res, 404, 'Not found', 'text/plain');
   }
 }
@@ -233,8 +237,12 @@ const server = http.createServer(async (req, res) => {
     res.coreSignal = 'wrong-host';
     return send(res, 403, { error: 'Forbidden host.' });
   }
+  // An event's guest page check (CUSTOM APP, 0.72): whatever is wrong with the request (not JSON,
+  // larger than 1 KB, not readable) gets the same answer as any other failed check, from the API.
+  const eventVerify = req.method === 'POST' && /^\/api\/public\/event\/[^/]+\/verify$/.test(url.pathname);
+  const isJson = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() === 'application/json';
   // Exactly application/json (with parameters such as charset), not anything that starts with it.
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !isJson && !eventVerify) {
     return send(res, 415, { error: 'Requests must be JSON.' });
   }
   // A change must come from CORE's own pages, never from another site (cross-site request forgery).
@@ -243,7 +251,13 @@ const server = http.createServer(async (req, res) => {
     return send(res, 403, { error: 'This request came from another site and was refused.' });
   }
   try {
-    const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req, bodyLimit(req, url)) : {};
+    let body = {};
+    if (eventVerify) {
+      body = await readBody(req, EVENT_VERIFY_BYTES).then((b) => (isJson ? b : { __malformed: true }), (err) => {
+        if (err.status === 413) res.once('finish', () => req.destroy());
+        return { __malformed: true };
+      });
+    } else if (['POST', 'PUT', 'PATCH'].includes(req.method)) body = await readBody(req, bodyLimit(req, url));
     const { data, headers } = await api(req, url, body);
     // A file on disk (a large PDF export) is streamed from there.
     if (data instanceof FileReply) return sendFile(res, data, headers);

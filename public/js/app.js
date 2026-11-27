@@ -8,6 +8,7 @@ import { redirectOf } from '/shared/redirects.js';
 import { nextInTrap } from './phone.js';
 import { avatar, loadAvatars, editMyAvatar } from './avatars.js';
 import { moduleAccess, companyRoleOf } from '/shared/profile.js';
+import { confinedTo } from '/shared/roles.js';
 import { myProfileView, personView } from './views/profile.js';
 import { mountBell, startBell, stopBell, refreshCount, notificationsView } from './notifications.js';
 import { dashboardView } from './views/dashboard.js';
@@ -49,7 +50,7 @@ import { myFilesView, folderView, sharedDocsView, recentDocsView, receivedDocsVi
 import { documentControlView } from './views/admin/documents.js';
 import { formsView, formsAdminView } from './views/forms.js';
 import { managedModules } from '/shared/forms.js';
-import { customappHomeView, findGuestView, tablesView, eventControlView, eventSetupView } from './views/customapp.js';
+import { customappHomeView, myQueueView, roomPlanView, findGuestView, tablesView, eventControlView, eventSetupView } from './views/customapp.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -140,6 +141,8 @@ const routes = [
   ['/documents/doc/:id', documentView, 'auth', 'documents'],
   // CUSTOM APP (0.71): Events. What an account may do in an event is the event's own data.
   ['/customapp', customappHomeView, 'customapp.use', 'customapp'],
+  ['/customapp/queue', myQueueView, 'customapp.use', 'customapp'],
+  ['/customapp/room', roomPlanView, 'customapp.use', 'customapp'],
   ['/customapp/find', findGuestView, 'customapp.use', 'customapp'],
   ['/customapp/tables', tablesView, 'customapp.use', 'customapp'],
   ['/customapp/control', eventControlView, 'customapp.use', 'customapp'],
@@ -260,6 +263,8 @@ const NAV = {
   ],
   customapp: [
     { href: '/customapp', label: 'Events', icon: 'party', permission: 'customapp.use', exact: true },
+    { href: '/customapp/queue', label: 'My queue', icon: 'inbox', permission: 'customapp.use' },
+    { href: '/customapp/room', label: 'Room plan', icon: 'mapPin', permission: 'customapp.use' },
     { href: '/customapp/find', label: 'Find guest', icon: 'search', permission: 'customapp.use' },
     { href: '/customapp/tables', label: 'Tables', icon: 'grid', permission: 'customapp.use' },
     { href: '/customapp/control', label: 'Event control', icon: 'toggles', permission: 'customapp.use' },
@@ -335,7 +340,13 @@ function moduleHome(id) {
   return moduleAccess(ctx.user, { modules: ctx.modules, inProjects: ctx.user.inProjects, isApprover: ctx.user.isApprover }).find((m) => m.id === id)?.home || null;
 }
 
-const homeRoute = () => '/launcher';
+// Where CORE opens after signing in: the CORE home, except for an account type confined to one
+// module (Event staff: CUSTOM APP), which lands on that module's home (My queue).
+const homeRoute = () => {
+  const only = confinedTo(ctx.user);
+  const home = only?.length === 1 && ctx.user ? moduleHome(only[0]) : null;
+  return home || '/launcher';
+};
 const liveModules = () => MODULES.filter((m) => m.status === 'live');
 const moduleOf = (id) => MODULES.find((m) => m.id === id) || TOOLS.find((t) => t.id === id);
 const body = document.body;

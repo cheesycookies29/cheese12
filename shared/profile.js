@@ -52,7 +52,8 @@ export function moduleAccess(user, { modules = {}, inProjects = false, isApprove
       parts = [can('pm.manage') ? 'starts and manages projects, and the setup' : can('pm.edit') ? 'starts projects' : 'member projects only'];
     } else if (m.id === 'customapp') {
       // CUSTOM APP (0.71): event staff and those who manage events.
-      home = can('customapp.use') ? '/customapp' : null;
+      // Event staff land on My queue (0.72); those who manage events on the list of events.
+      home = can('customapp.use') ? (can('customapp.manage') ? '/customapp' : '/customapp/queue') : null;
       parts = [can('customapp.manage') ? 'creates events and hands over their Super Administrator' : 'the events they are staff of'];
     } else if (m.id === 'documents') {
       // Everyone signed in keeps their own files and opens what is shared with them (0.67).

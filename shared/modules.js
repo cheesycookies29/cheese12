@@ -76,7 +76,7 @@ export const MODULE_PARTS = {
   crm: 'Leads, accounts, contacts, the pipeline, bids, contracts, activities and the sales setup; "Send to Sales & CRM" on a ticket.',
   projects: 'Projects, My work, milestones, the Projects setup and the daily digest; "Add to a project" on a ticket and "Start project" on a deal.',
   documents: 'Folders and documents, their versions, check-out and sharing, links for people outside the company (/share) and Document control. The stored files stay, encrypted, and come back when it is turned on again.',
-  customapp: 'Events: the guest lists, check-in at the desk, seating by table and chair, the import check, exports and printable plans, and the guest page (/event/…, from Tier 1). Event data stays as it is and comes back when it is turned on again. While an event\'s doors are open it is switched off only with its Super Administrator\'s confirmation.',
+  customapp: 'Events: the guest lists, check-in at the desk, seating by table and chair, the import check, exports and printable plans, the guest page (/event/…), My queue and the room plan. Event data stays as it is and comes back when it is turned on again. While an event\'s doors are open it is switched off only with its Super Administrator\'s confirmation.',
   pdf: 'PDF Studio on the CORE home and in the modules menu: converting documents and pictures to PDF, merging and arranging pages. Nothing is kept: uploads are deleted after a few hours.',
 };
 

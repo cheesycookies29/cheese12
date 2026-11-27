@@ -27,6 +27,19 @@ export const FLAG_LABELS = Object.freeze({
   pollMs: 'Refresh interval (ms)',
 });
 export const POLL_MS = Object.freeze({ min: 1000, max: 30000, staff: 2000 });
+// How often each screen asks for changes (design A9), from the one pollMs switch (the staff
+// interval): staff boards at pollMs (2 s), a guest page waiting for a table at twice that (4 s), a
+// seated guest's page at five times (10 s). Raising the switch to 4000 gives staff 4 s and waiting
+// guests 8 s on their next reply, with no deploy. Each reply adds up to 10% jitter, so a ballroom of
+// phones does not ask in step.
+export const POLL_FACTOR = Object.freeze({ staff: 1, pending: 2, seated: 5 });
+export const POLL_JITTER = 0.1;
+export function pollFor(flags, kind = 'staff', rand = Math.random) {
+  const base = Math.min(POLL_MS.max * POLL_FACTOR.seated, Math.max(POLL_MS.min, Number(flags?.pollMs) || POLL_MS.staff) * (POLL_FACTOR[kind] || 1));
+  return Math.round(base * (1 + POLL_JITTER * rand()));
+}
+// The flags on a guest record for the Super Administrator to look at.
+export const GUEST_FLAGS = Object.freeze({ reverified_other_device: 'Verified again from another device' });
 
 // Every kind of change recorded in caChanges (the history, the sync cursor and the idempotency
 // store). A closed set, so a later push transport can reuse the records as they are.
@@ -34,6 +47,8 @@ export const CHANGE_TYPES = Object.freeze([
   'event.create', 'event.update', 'room.set', 'setSuperAdmin', 'setFlag', 'importAck', 'import',
   'table.add', 'table.update', 'table.relocate', 'guest.update',
   'checkIn', 'undoCheckIn', 'selfCheckIn', 'assign', 'transfer', 'swap', 'unseat', 'reserve', 'release',
+  // Tier 1 (0.72): delegation, the guest page's status tokens and the QR presence key.
+  'delegateGuests', 'delegateTables', 'revokeTokens', 'setQrKey',
 ]);
 
 // The hard limit per table (spec s.1): a table's capacity is 1 to this, whatever an event says.

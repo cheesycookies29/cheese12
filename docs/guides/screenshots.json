@@ -152,5 +152,9 @@
   {"file": "custom-app-events-sheet.jpg", "user": "eventlead.demo", "url": "/#/customapp/find?status=waiting", "viewport": "phone", "click": ["[data-guest] >> nth=0", ".ca-table:not([disabled]) >> nth=0"], "wait": 1000},
   {"file": "custom-app-events-tables.jpg", "user": "event.demo", "url": "/#/customapp/tables", "wait": 1200},
   {"file": "custom-app-events-control.jpg", "user": "eventlead.demo", "url": "/#/customapp/control", "wait": 1200},
-  {"file": "custom-app-events-setup.jpg", "user": "eventlead.demo", "url": "/#/customapp/setup", "wait": 1200}
+  {"file": "custom-app-events-setup.jpg", "user": "eventlead.demo", "url": "/#/customapp/setup", "wait": 1200},
+  {"file": "custom-app-events-queue.jpg", "user": "event.demo", "url": "/#/customapp/queue", "viewport": "phone", "wait": 1500},
+  {"file": "custom-app-events-room.jpg", "user": "eventlead.demo", "url": "/#/customapp/room", "click": ["[data-guest] >> nth=0"], "wait": 1500},
+  {"file": "custom-app-events-room-table.jpg", "user": "event.demo", "url": "/#/customapp/room", "viewport": "phone", "click": ["[data-guest] >> nth=0", "[data-rec] >> nth=0"], "scroll": ".ca-dial", "wait": 1500},
+  {"file": "custom-app-events-guest.jpg", "user": "eventlead.demo", "viewport": "phone", "fresh": true, "api": [["GET", "/api/customapp/events", null, "evs"], ["POST", "/api/customapp/events/{saved:evs.events.0.id}/commands", {"type": "event.update", "status": "live", "window": {"opensAt": "2026-01-01T00:00", "closesAt": "2030-12-31T23:00"}}], ["POST", "/api/customapp/events/{saved:evs.events.0.id}/commands", {"type": "importAck"}], ["POST", "/api/customapp/events/{saved:evs.events.0.id}/commands", {"type": "setFlag", "flag": "registrationOpen", "value": true}], ["GET", "/api/customapp/events/{saved:evs.events.0.id}", null, "ev"]], "url": "/event/{saved:ev.code}", "fill": {"#surname": "Santos", "#last4": "8190"}, "after": ["#go"], "wait": 1700}
 ]

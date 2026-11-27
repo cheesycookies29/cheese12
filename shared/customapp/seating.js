@@ -68,23 +68,72 @@ export function classOK(tableClass, guest, mixedTables = false) {
   return tableClass === cls;
 }
 
-// Whether a table can take `size` more of these guests now: in use, the right type, and room left.
-// `exclude`: guest ids whose own claims do not count (a guest moving within the same table).
-export function eligible(table, guest, event, guests, { size = 1, exclude = null } = {}) {
-  if (!table || !table.active) return false;
-  if (!classOK(table.classification, guest, event?.settings?.mixedTables)) return false;
-  const others = exclude ? guests.filter((g) => !exclude.has(g.id)) : guests;
-  return table.capacity - claimsAt(table.id, others) >= size;
+// A table tag "no:<tag>" keeps guests tagged <tag> away from it (for example "no:press").
+export function excluded(tableTags, guestTags) {
+  const tags = new Set(guestTags || []);
+  return (tableTags || []).some((t) => typeof t === 'string' && t.startsWith('no:') && tags.has(t.slice(3)));
 }
 
-// Tables a guest could be seated at, by number, with their counts: the "options" a refusal carries
-// (Tier 0 lists them in table order; Tier 1 ranks them by industry).
+// Why a table cannot take these guests now, or null when it can: 'inactive', 'class', 'excluded'
+// or 'full'. The one rule, used by commit() as a constraint (engine.js) and by recommend() below.
+// `group`: the guests to seat together (one or more); `others`: the guests whose claims count.
+export function whyNot(table, group, event, others) {
+  const list = Array.isArray(group) ? group : [group];
+  if (!table || !table.active) return 'inactive';
+  if (!list.every((g) => classOK(table.classification, g, event?.settings?.mixedTables))) return 'class';
+  if (list.some((g) => excluded(table.tags, g.tags))) return 'excluded';
+  if (table.capacity - claimsAt(table.id, others) < list.length) return 'full';
+  return null;
+}
+
+// Whether a table can take `size` more of these guests now: in use, the right type, not excluded by
+// a tag, and room left. `exclude`: guest ids whose own claims do not count (a guest moving within
+// the same table).
+export function eligible(table, guest, event, guests, { size = 1, exclude = null } = {}) {
+  const others = exclude ? guests.filter((g) => !exclude.has(g.id)) : guests;
+  const group = Array.isArray(guest) ? guest : Array.from({ length: size }, () => guest);
+  return whyNot(table, group, event, others) === null;
+}
+
+// The ranking (design A10, US-018): every eligible table for these guests, best first.
+//   tier 1: a guest of the same industry already sits there; tier 2: a related industry; tier 3: any
+//   other eligible table. Within a tier: fits the whole group, then more same-industry (or related)
+//   companions, then fewer seats left after placing them (fills gaps without filling tables in
+//   order), then the table number (so the order is always the same).
+// Each result says why, in words: "Same industry: Banking, 3 of 6 seated", "Related: Insurance",
+// "4 seats left". Advisory only: commit() accepts any eligible table in scope.
+export function recommend(group, event, tables, guests) {
+  const list = (Array.isArray(group) ? group : [group]).filter(Boolean);
+  if (!list.length) return [];
+  const ids = new Set(list.map((g) => g.id));
+  const others = guests.filter((g) => !ids.has(g.id));
+  const industries = new Map((event?.industries || []).map((i) => [i.id, i]));
+  const mine = new Set(list.map((g) => g.industryId).filter(Boolean));
+  const related = new Set();
+  for (const id of mine) for (const r of industries.get(id)?.related || []) if (!mine.has(r)) related.add(r);
+  const out = [];
+  for (const t of tables) {
+    if (whyNot(t, list, event, others) !== null) continue;
+    const at = others.filter((g) => g.seat?.tableId === t.id);
+    const same = at.filter((g) => g.industryId && mine.has(g.industryId)).length;
+    const rel = at.filter((g) => g.industryId && related.has(g.industryId)).length;
+    const counts = tableCounts(t, others);
+    const left = counts.free - list.length;
+    const tier = same ? 1 : rel ? 2 : 3;
+    const name = (id) => industries.get(id)?.name || '';
+    const reasons = [];
+    if (same) reasons.push(`Same industry: ${[...mine].map(name).filter(Boolean).join(', ')}, ${same} of ${counts.claims} seated`);
+    if (rel) reasons.push(`Related: ${[...new Set(at.filter((g) => related.has(g.industryId)).map((g) => name(g.industryId)))].filter(Boolean).join(', ')}`);
+    if (!same && !rel) reasons.push(at.length ? 'No industry match' : 'Empty table');
+    reasons.push(`${left} seat${left === 1 ? '' : 's'} left`);
+    out.push({ tableId: t.id, number: t.number, classification: t.classification, ownerUserId: t.ownerUserId || null, tier, same, related: rel, fits: true, left, ...counts, reasons });
+  }
+  return out.sort((a, b) => a.tier - b.tier || Number(b.fits) - Number(a.fits) || (b.same + b.related) - (a.same + a.related) || a.left - b.left || a.number - b.number);
+}
+
+// Tables a guest could be seated at, best first, with their counts: the "options" a refusal carries.
 export function optionsFor(guest, event, tables, guests) {
-  return tables
-    .filter((t) => t.active && classOK(t.classification, guest, event?.settings?.mixedTables))
-    .map((t) => ({ tableId: t.id, number: t.number, ...tableCounts(t, guests), ownerUserId: t.ownerUserId || null }))
-    .filter((o) => o.free > 0)
-    .sort((a, b) => a.number - b.number);
+  return recommend([guest], event, tables, guests).map(({ tableId, number, claims, confirmed, reserved, free, ownerUserId, tier, reasons }) => ({ tableId, number, claims, confirmed, reserved, free, ownerUserId, tier, reasons }));
 }
 
 // Whether a seat number must be chosen for this guest (spec s.22: always for preferred guests).

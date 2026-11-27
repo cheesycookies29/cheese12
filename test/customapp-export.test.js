@@ -88,3 +88,46 @@ describe('US-012: Export JSON v1, CSV and printable plan', () => {
     assert.match(audit, /"action":"customapp.export"/, 'every export is in the audit log');
   });
 });
+
+describe('US-020: Safety nets: 5-minute export copies and the 60 s invariant self-check', () => {
+  test('GIVEN a live event WHEN the 5-minute writer runs 30 times THEN it writes the export v1 with the same function into data/backups/events/ and keeps the last 24', async () => {
+    const path = await import('node:path');
+    const { createSafety, SAFETY } = await import('../server/customapp/events/safety.js');
+    const { eventExport } = await import('../server/customapp/events/io.js');
+    const db = fixture({ tables: [{ n: 1 }], guests: [{ ref: 'A', arrived: true, seat: [1, 1] }] });
+    db.dir = fs.mkdtempSync(path.join((await import('node:os')).tmpdir(), 'core-ca-safety-'));
+    let t = Date.parse('2026-12-09T11:00:00.000Z');
+    const safety = createSafety(db, { now: () => t });
+    assert.equal(SAFETY.copyEveryMs, 5 * 60000);
+    for (let i = 0; i < 30; i++) {
+      db.data.caEvents[0].seq = i + 1;
+      safety.writeCopies();
+      t += SAFETY.copyEveryMs;
+    }
+    const dir = path.join(db.dir, 'backups', 'events');
+    const files = fs.readdirSync(dir).sort();
+    assert.equal(files.length, 24, 'the last 24 kept');
+    assert.match(files.at(-1), /^test-gala-abcd-20261209T132500000Z-seq30\.json$/);
+    assert.match(files[0], /-seq7\.json$/, 'the oldest six went');
+    const exp = JSON.parse(fs.readFileSync(path.join(dir, files.at(-1)), 'utf8'));
+    assert.equal(exp.format, EXPORT_FORMAT);
+    assert.equal(exp.sha256, exportHash(exp));
+    assert.deepEqual(exp, eventExport(db, db.data.caEvents[0], exp.exportedAt), 'the same function as the download');
+    assert.equal(safety.health('ev1').copy.seq, 30);
+    // A draft event is not copied.
+    db.data.caEvents[0].status = 'draft';
+    assert.deepEqual(safety.writeCopies(), []);
+  });
+
+  test('GIVEN a clean event and one with a forced violation WHEN GET .../invariants is called THEN it returns [] and the violation respectively', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: [['A1', 'Ana', 'Cruz', 'Acme', '', 'a@example.com', '0917 000 0001', 'regular', '', '', '']] });
+    assert.deepEqual((await c.as.lead('GET', `${e.base}/invariants`)).violations, []);
+    // Forced by hand (never possible through commit()): a table smaller than its claims.
+    const g = c.db.data.caGuests.find((x) => x.externalKey === 'A1');
+    g.seat = { tableId: e.tables[3], seatNo: 11, status: 'confirmed' };
+    const v = (await c.as.lead('GET', `${e.base}/invariants`)).violations;
+    assert.deepEqual(v.map((x) => x.rule), ['I3']);
+    assert.equal((await c.as.sam('GET', `${e.base}/invariants`)).code, 'needs_super_admin');
+  });
+});

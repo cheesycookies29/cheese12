@@ -122,3 +122,27 @@ export function fixture({ tables = [], guests = [], settings = {}, flags = {} } 
   const data = { users: Object.values(USERS).map((u) => ({ ...u })), caEvents: [ev], caTables, caGuests, caChanges: [], caOutbox: [] };
   return memoryDb(data);
 }
+
+// Tier 1: make an event live with its window open now, the import check acknowledged and self
+// check-in open (the guest page answers). Returns the event's code.
+export async function openForGuests(c, e, { opensAgoMs = 3600000, closesInMs = 5 * 3600000 } = {}) {
+  let ev = await c.as.lead('GET', e.base);
+  const now = Date.now();
+  ev = await c.as.lead('PATCH', e.base, { rev: ev.rev, status: 'live', window: { opensAt: new Date(now - opensAgoMs).toISOString(), closesAt: new Date(now + closesInMs).toISOString() } });
+  assert.equal(ev.status, 'live', JSON.stringify(ev));
+  await e.cmd('lead', { type: 'importAck' });
+  const r = await e.cmd('lead', { type: 'setFlag', flag: 'registrationOpen', value: true });
+  assert.ok(r.ok, JSON.stringify(r));
+  return ev.code;
+}
+
+// A signed-out request to the guest page's API, as a phone at the venue: { status, body, headers }.
+export async function pub(c, method, url, body = {}, { headers = {}, ip = '10.0.0.50', remote = '10.0.0.50' } = {}) {
+  try {
+    const res = await c.handle({ method, headers: { 'user-agent': 'Mozilla/5.0 (iPhone)', ...headers }, socket: { remoteAddress: remote } }, new URL(url, 'http://localhost'), body);
+    return { status: 200, body: res.data, headers: res.headers, ip };
+  } catch (err) {
+    if (!err.status) throw err;
+    return { status: err.status, body: { error: err.message, code: err.code }, headers: err.headers || {} };
+  }
+}

@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import { refusal, bad, cleanText, lookupOf, guestLabel } from './model.js';
 import { TABLE_CLASSES, GUEST_CLASSES, SEAT_NUMBERS, FLAGS, POLL_MS, HARD_LIMIT, EVENT_STATUSES } from '../../../shared/customapp/statuses.js';
-import { claimsAt, classOK, takenSeats, tableCounts, optionsFor, seatNoRequired, seatStatusFor, isReserved, isConfirmed } from '../../../shared/customapp/seating.js';
+import { classOK, takenSeats, tableCounts, optionsFor, seatNoRequired, seatStatusFor, isReserved, isConfirmed, whyNot } from '../../../shared/customapp/seating.js';
 import { cleanRoom, roomTables } from '../../../shared/customapp/room.js';
 import { toUtc } from '../../../shared/customapp/time.js';
 import { importIssues } from './io.js';
@@ -21,7 +21,22 @@ import { importIssues } from './io.js';
 const guestOf = (state, id) => state.guests.find((g) => g.id === String(id || '')) || null;
 const tableOf = (state, id) => state.tables.find((t) => t.id === String(id || '')) || null;
 const isStaff = (actor) => actor.role === 'super' || actor.role === 'staff';
-const owns = (actor, rec) => actor.role === 'super' || (actor.role === 'staff' && rec.ownerUserId === actor.id);
+
+// Event authority (design R1, US-017): what an account may do in this event comes from the event's
+// own data, its Super Administrator and its delegations, read again on every command (a change of
+// owner applies to the very next request). A CORE administrator's '*' is not part of it.
+//   'checkIn'  any active staff member, for any guest (spec s.4: assisted check-in)
+//   'write'    seat, move, unseat a guest; use a table: its owner, or the Super Administrator
+//   anything else (delegate, release unless the event allows owners, setup, switches): the Super
+//   Administrator only
+export function eventCan(actor, action, target = null) {
+  if (actor?.role === 'super') return true;
+  if (actor?.role !== 'staff') return false;
+  if (action === 'checkIn' || action === 'view') return true;
+  if (action === 'write') return Boolean(target) && target.ownerUserId === actor.id;
+  return false;
+}
+const owns = (actor, rec) => eventCan(actor, 'write', rec);
 const seatText = (state, seat) => (seat ? `Table ${tableOf(state, seat.tableId)?.number ?? '?'}${seat.seatNo ? `, seat ${seat.seatNo}` : ''}` : 'no seat');
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 
@@ -55,11 +70,11 @@ const needStaff = (actor, state, gid) => {
 const needSuper = (actor, state, gid) => {
   if (actor.role !== 'super') throw refuse('needs_super_admin', state, gid ? [gid] : []);
 };
-// Seating writes: the actor must own the guest and every table touched (spec s.12), re-read here on
-// every command so a change of owner applies at once.
+// Seating writes: eventCan on every guest and every table the plan touches (spec s.12); one
+// element out of scope refuses the whole plan. Re-read on every command.
 function needScope(actor, state, guests, tables) {
   if (!isStaff(actor)) throw refuse('out_of_scope', state, guests.map((g) => g.id), tables.map((t) => t.id));
-  for (const r of [...guests, ...tables]) if (!owns(actor, r)) throw refuse('out_of_scope', state, guests.map((g) => g.id), tables.map((t) => t.id));
+  for (const r of [...guests, ...tables]) if (!eventCan(actor, 'write', r)) throw refuse('out_of_scope', state, guests.map((g) => g.id), tables.map((t) => t.id));
 }
 const writeOf = (actor, guests, tables) => ({ actor: { id: actor.id, role: actor.role }, guests: guests.map((g) => ({ id: g.id, ownerUserId: g.ownerUserId || null })), tables: tables.map((t) => ({ id: t.id, ownerUserId: t.ownerUserId || null })) });
 
@@ -81,13 +96,14 @@ function seatNoFor(state, guest, table, input, taken) {
 
 // Whether a guest can sit at a table right now; the refusal says why not. `others`: the guests that
 // count (the guest's own claim left out when they move within the table, earlier placements in).
+// The same rule as the recommendations (shared/customapp/seating.js whyNot), as a constraint.
 function checkFit(state, guest, table, others) {
-  if (!table.active || !classOK(table.classification, guest, state.event.settings?.mixedTables)) throw refuse('not_eligible', state, [guest.id], [table.id]);
-  if (claimsAt(table.id, others) >= table.capacity) {
-    // Full: another eligible table with room means "choose another"; none anywhere means refer.
-    const anyRoom = state.tables.some((t) => t.id !== table.id && t.active && classOK(t.classification, guest, state.event.settings?.mixedTables) && claimsAt(t.id, others) < t.capacity);
-    throw refuse(anyRoom ? 'table_full' : 'no_eligible_seat', state, [guest.id], [table.id]);
-  }
+  const why = whyNot(table, [guest], state.event, others);
+  if (!why) return;
+  if (why !== 'full') throw refuse('not_eligible', state, [guest.id], [table.id]);
+  // Full: another eligible table with room means "choose another"; none anywhere means refer.
+  const anyRoom = state.tables.some((t) => t.id !== table.id && !whyNot(t, [guest], state.event, others));
+  throw refuse(anyRoom ? 'table_full' : 'no_eligible_seat', state, [guest.id], [table.id]);
 }
 
 const seatRecord = (table, seatNo, status, actor, now) => ({ tableId: table.id, seatNo, status, at: now, by: actor.id });
@@ -110,15 +126,28 @@ const COMMANDS = {
   },
 
   // The guest page (Tier 1) checks a guest in through the same commit, as a synthetic actor that can
-  // do nothing else; refused while self check-in is closed or outside the event's window.
+  // do nothing else; refused while self check-in is closed or outside the event's window. It also
+  // keeps the device's status token (its SHA-256 only; at most 5 per guest, the oldest dropped).
+  // Verifying again (another phone) never checks in twice: the status is the same, the new device's
+  // token is kept, and staff see "verified again from another device".
   selfCheckIn(state, cmd, actor, now) {
     const ev = state.event;
     const g = mustGuest(state, cmd.guestId);
     const w = ev.window || {};
     const open = ev.status === 'live' && ev.flags?.registrationOpen && (!w.opensAt || now >= w.opensAt) && (!w.closesAt || now <= w.closesAt);
     if (!open) throw refusal('registration_closed', undefined);
-    if (g.arrival?.state === 'checked_in') return { type: 'selfCheckIn', noop: true, changes: [], guestIds: [g.id], tableIds: [], result: { guestId: g.id, already: true } };
-    const patch = { arrival: { state: 'checked_in', at: now, by: null, via: 'qr' } };
+    if (!/^[0-9a-f]{64}$/.test(String(cmd.tokenHash || ''))) throw bad('The guest page sends a status token.');
+    const statusTokens = [...(g.statusTokens || []), { hash: cmd.tokenHash, issuedAt: now }].slice(-STATUS_TOKENS_MAX);
+    if (g.arrival?.state === 'checked_in') {
+      const patch = { statusTokens };
+      if ((g.statusTokens || []).length) patch.flags = [...(g.flags || []), { kind: 'reverified_other_device', at: now }].slice(-10);
+      return {
+        type: 'selfCheckIn', changes: [setGuest(g, patch)], guestIds: [g.id], tableIds: [], diff: [{ id: g.id, f: 'statusTokens', from: (g.statusTokens || []).length, to: statusTokens.length }],
+        audit: { action: 'reverify', entityId: g.id, label: guestLabel(g), note: patch.flags ? 'Verified again on another device' : 'Verified on the guest page (already checked in)' },
+        result: { guestId: g.id, already: true },
+      };
+    }
+    const patch = { arrival: { state: 'checked_in', at: now, by: null, via: 'qr' }, statusTokens };
     if (isReserved(g.seat)) patch.seat = { ...g.seat, status: 'confirmed' };
     return arrivalPlan(state, g, patch, 'selfCheckIn', actor);
   },
@@ -262,6 +291,41 @@ const COMMANDS = {
       guestIds: [g.id], tableIds: [t.id], write: writeOf(actor, [g], [t]), reason,
       audit: { action: 'release', entityId: g.id, label: guestLabel(g), note: `${seatText(state, g.seat)}. ${reason}`.slice(0, 400) },
       result: { guestId: g.id },
+    };
+  },
+
+  // ----- Delegation (US-017): the Super Administrator gives guests and tables to staff -----
+  // Only the owner changes: seats, reservations and check-ins stay exactly as they are, so a
+  // reallocation never disturbs a confirmed seat. `ids`, or everything one person owns (`from`);
+  // `ownerUserId` null gives them back to the Super Administrator's queue.
+  delegateGuests(state, cmd, actor) {
+    return delegate(state, cmd, actor, 'caGuests');
+  },
+  delegateTables(state, cmd, actor) {
+    return delegate(state, cmd, actor, 'caTables');
+  },
+
+  // The guest page's status tokens for one guest end (a lost phone): the page asks at the desk.
+  revokeTokens(state, cmd, actor) {
+    const g = mustGuest(state, cmd.guestId);
+    if (!eventCan(actor, 'write', g)) throw refuse(isStaff(actor) ? 'out_of_scope' : 'needs_super_admin', state, [g.id]);
+    const n = (g.statusTokens || []).length;
+    if (!n) throw bad('This guest has no guest page open on any device.');
+    return {
+      type: 'revokeTokens', changes: [setGuest(g, { statusTokens: [] })], guestIds: [g.id], tableIds: [], diff: [{ id: g.id, f: 'statusTokens', from: n, to: 0 }], write: writeOf(actor, [g], []),
+      audit: { action: 'tokens', entityId: g.id, label: guestLabel(g), note: `Guest page ended on ${n} device${n === 1 ? '' : 's'}` }, result: { guestId: g.id, revoked: n },
+    };
+  },
+
+  // The zero-typing presence key on the reception QR (US-016, off by default): only its SHA-256 is
+  // kept; the route makes the key and shows it once, for the QR sheet. keyHash null turns it off.
+  setQrKey(state, cmd, actor) {
+    needSuper(actor, state);
+    const hash = cmd.keyHash == null ? null : String(cmd.keyHash);
+    if (hash !== null && !/^[0-9a-f]{64}$/.test(hash)) throw bad('Send the key\'s hash.');
+    return {
+      type: 'setQrKey', changes: [setEvent(state.event, { qrKeyHash: hash })], guestIds: [], tableIds: [], diff: [{ id: state.event.id, f: 'qrKeyHash', from: Boolean(state.event.qrKeyHash), to: Boolean(hash) }],
+      audit: { action: 'qr-key', entityId: state.event.id, label: state.event.name, note: hash ? 'Presence key on the reception QR: on (new key)' : 'Presence key on the reception QR: off' }, result: { qrKey: Boolean(hash) },
     };
   },
 
@@ -443,6 +507,7 @@ const COMMANDS = {
       if (!cmd.active && g.seat) throw refuse('table_has_claims', state, [g.id], [], 'Release or move the guest\'s seat first.');
       patch.active = Boolean(cmd.active);
     }
+    if (cmd.clearFlags && (g.flags || []).length) patch.flags = [];
     if (!Object.keys(patch).length) throw bad('Nothing to change.');
     if (patch.mobile !== undefined || patch.altSurnames !== undefined) patch.lookup = lookupOf({ ...g, ...patch });
     return { type: 'guest.update', changes: [setGuest(g, patch)], guestIds: [g.id], tableIds: [], audit: { action: 'guest', entityId: g.id, label: guestLabel(g), note: `Changed: ${Object.keys(patch).filter((k) => k !== 'lookup').join(', ')}` }, result: { guestId: g.id } };
@@ -485,6 +550,35 @@ function needReleaser(actor, state, g, t) {
   if (!state.event.settings?.releaseDelegable) throw refuse('needs_super_admin', state, [g.id], [t.id]);
   needScope(actor, state, [g], [t]);
 }
+
+// Who owns what: guests or tables (coll) given to one active staff member, or back to nobody.
+function delegate(state, cmd, actor, coll) {
+  needSuper(actor, state);
+  const isGuests = coll === 'caGuests';
+  const all = isGuests ? state.guests : state.tables;
+  const owner = cmd.ownerUserId || null;
+  if (owner && !activeStaffIds(state.event).has(owner)) throw bad('Give them to an active member of the event\'s staff.');
+  let list;
+  if (cmd.fromUserId !== undefined) list = all.filter((r) => (r.ownerUserId || null) === (cmd.fromUserId || null) && r.active !== false);
+  else {
+    const ids = Array.isArray(cmd.ids) ? cmd.ids.map(String) : [];
+    if (!ids.length || ids.length > 500) throw bad(`Choose the ${isGuests ? 'guests' : 'tables'} to give.`);
+    list = ids.map((id) => all.find((r) => r.id === id) || (() => { throw bad(`That ${isGuests ? 'guest' : 'table'} is not in this event.`); })());
+  }
+  list = list.filter((r) => (r.ownerUserId || null) !== owner);
+  if (!list.length) throw bad('Nothing to move: they already belong there.');
+  const name = (id) => (state.users || []).find((u) => u.id === id)?.name || 'the Super Administrator\'s queue';
+  const what = isGuests ? `${list.length} guest${list.length === 1 ? '' : 's'}` : `table${list.length === 1 ? '' : 's'} ${list.map((t) => t.number).sort((a, b) => a - b).join(', ')}`;
+  return {
+    type: isGuests ? 'delegateGuests' : 'delegateTables',
+    changes: list.map((r) => ({ op: 'set', coll, id: r.id, patch: { ownerUserId: owner } })),
+    guestIds: isGuests ? list.map((r) => r.id) : [], tableIds: isGuests ? [] : list.map((r) => r.id), reason: cleanText(cmd.reason, 200),
+    audit: { action: 'delegate', entityId: state.event.id, label: state.event.name, note: `${what} → ${owner ? name(owner) : 'the Super Administrator'}`.slice(0, 400) },
+    result: { moved: list.length, ownerUserId: owner },
+  };
+}
+
+export const STATUS_TOKENS_MAX = 5;
 
 const activeStaffIds = (ev) => new Set([ev.superAdminUserId, ...(ev.staff || []).filter((s) => s.active !== false).map((s) => s.userId)].filter(Boolean));
 

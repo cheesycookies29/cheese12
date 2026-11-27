@@ -86,3 +86,28 @@ describe('US-007: commit() unit of work, claimsAt(), invariants and typed refusa
     assert.deepEqual(rules(base(), { write: { actor: { id: 'u-lead', role: 'super' }, guests: [{ id: 'g-C', ownerUserId: null }] } }), [], 'the Super Administrator writes any');
   });
 });
+
+describe('US-020: Safety nets: 5-minute export copies and the 60 s invariant self-check', () => {
+  test('GIVEN the 60 s self-check WHEN a violation is introduced THEN the next run records it to the monitor for the health strip banner', async () => {
+    const { createSafety, SAFETY } = await import('../server/customapp/events/safety.js');
+    assert.equal(SAFETY.checkEveryMs, 60000);
+    const db = fixture({ tables: [{ n: 1, cap: 2 }], guests: [{ ref: 'A', arrived: true, seat: [1, 1] }, { ref: 'B', arrived: true, seat: [1, 2] }] });
+    const audit = [];
+    const safety = createSafety(db, { audit: { record: (action, e) => audit.push([action, e.note]) } });
+    safety.selfCheck();
+    assert.deepEqual(safety.monitorCheck().map((x) => x.state), ['ok']);
+    assert.deepEqual(safety.health('ev1').check.violations, []);
+    db.data.caTables[0].capacity = 1; // broken by hand: two claims at a table of one
+    safety.selfCheck();
+    const [m] = safety.monitorCheck();
+    assert.equal(m.state, 'bad');
+    assert.match(m.detail, /2 claims for 1 chairs/);
+    assert.ok(safety.health('ev1').check.violations.some((v) => v.rule === 'I1'), 'the health strip has it');
+    safety.selfCheck();
+    assert.deepEqual(audit.map((a) => a[0]), ['customapp.selfcheck'], 'in the audit log once, not every minute');
+    // Wired: CORE's Security monitor runs the check (server/customapp/index.js).
+    const src = fs.readFileSync(path.join(ROOT, 'server/customapp/index.js'), 'utf8');
+    assert.match(src, /monitor\?\.check\('customapp-events', \(\) => safety\.monitorCheck\(\)\)/);
+    assert.match(src, /safety\.start\(\)/);
+  });
+});

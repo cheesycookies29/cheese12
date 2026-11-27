@@ -72,6 +72,7 @@ export function rowsOfUpload({ format, data }) {
 const HEADERS = {
   externalKey: ['ref', 'id', 'guestid', 'guestno', 'guestnumber', 'externalkey', 'key', 'refno', 'reference'],
   first: ['firstname', 'first', 'givenname'],
+  salutation: ['salutation', 'honorific', 'prefix', 'mrms'],
   last: ['lastname', 'surname', 'last', 'familyname'],
   full: ['name', 'fullname', 'guest', 'guestname'],
   designation: ['designation', 'title', 'position', 'jobtitle'],
@@ -139,7 +140,7 @@ export function previewImport(state, rows, { users = [], now = new Date().toISOS
     if (seen.has(key)) report.repeatedKey.push({ line, value: key });
     seen.add(key);
     const rec = {
-      line, externalKey: key, name: { first, last, display: `${first} ${last}`.trim() },
+      line, externalKey: key, name: { first, last, display: `${first} ${last}`.trim(), ...(cell('salutation', 12) ? { title: cell('salutation', 12) } : {}) },
       designation: cell('designation'), company: cell('company', 160), industryId: industry?.id || null, industryText: industry ? '' : industryText,
       email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email : '', mobile: cell('mobile', 40), classification: classification || 'regular',
       rsvp: cell('rsvp', 40), ownerUserId: owner?.id || null, altSurnames: cell('altSurnames', 200).split(/[;,]/).map((s) => cleanText(s, 80)).filter(Boolean).slice(0, 5),
@@ -267,6 +268,8 @@ export function exportEvent({ event, tables, guests, changes = [], outbox = [] }
   out.sha256 = exportHash(out);
   return out;
 }
+// The event's export as the routes and the 5-minute copies make it (the same function for both).
+export const eventExport = (db, ev, now) => exportEvent({ event: ev, tables: (db.data.caTables || []).filter((t) => t.eventId === ev.id), guests: (db.data.caGuests || []).filter((g) => g.eventId === ev.id), changes: (db.data.caChanges || []).filter((c) => c.eventId === ev.id), outbox: (db.data.caOutbox || []).filter((m) => m.eventId === ev.id) }, { now });
 export const exportHash = (exp) => createHash('sha256').update(JSON.stringify({ ...exp, sha256: '' })).digest('hex');
 
 // ----- CSV, from the export -----

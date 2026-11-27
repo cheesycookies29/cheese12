@@ -11,7 +11,7 @@
 // everything is put back as it was and the answer is 503 not_saved. Then one audit entry.
 import { createHash, randomUUID } from 'node:crypto';
 import { cleanRoom, roomTables, DEFAULT_ROOM } from '../../../shared/customapp/room.js';
-import { HARD_LIMIT } from '../../../shared/customapp/statuses.js';
+import { HARD_LIMIT, CHANGE_TYPES } from '../../../shared/customapp/statuses.js';
 import { toUtc } from '../../../shared/customapp/time.js';
 import { cleanText, newEventCode } from './model.js';
 import { cleanIndustries } from './engine.js';
@@ -111,6 +111,8 @@ export function commit(ctx, eventId, user, cmd) {
   const state = { ...stateOf(db, ev), users: (db.data.users || []).map((u) => ({ id: u.id, name: u.name, active: u.active !== false, canUse: userCan(u, 'customapp.use') })) };
   const p = plan(state, cmd, actor, now);
   if (p.noop) return { ...(p.result || {}), seq: ev.seq || 0, unchanged: true };
+  // Change records are of a closed set of kinds (a later push transport reuses them as they are).
+  if (!CHANGE_TYPES.includes(p.type)) throw new Error(`CUSTOM APP: "${p.type}" is not in CHANGE_TYPES (shared/customapp/statuses.js).`);
 
   // The revisions the screen saw: a record changed since is refused, with how it is now.
   const expect = cmd.expect && typeof cmd.expect === 'object' && !Array.isArray(cmd.expect) ? cmd.expect : {};

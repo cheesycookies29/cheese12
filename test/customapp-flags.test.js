@@ -34,12 +34,12 @@ describe('US-011: Event Super Administrator and runtime flags', () => {
     // the outbox (Tier 2) and pollMs is returned with the event (and in every poll reply, Tier 1).
     const db = fixture({ guests: [{ ref: 'A' }] });
     const self = (cmd) => commitAs(newCtx(db), 'ev1', { synthetic: 'self' }, cmd);
-    assert.equal(codeOf(() => self({ type: 'selfCheckIn', guestId: 'g-A' })), 'registration_closed');
+    assert.equal(codeOf(() => self({ type: 'selfCheckIn', guestId: 'g-A', tokenHash: 'a'.repeat(64) })), 'registration_closed');
     db.data.caEvents[0].flags.registrationOpen = true;
-    self({ type: 'selfCheckIn', guestId: 'g-A' });
+    self({ type: 'selfCheckIn', guestId: 'g-A', tokenHash: 'a'.repeat(64) });
     // A window that has not opened yet keeps it closed even when the switch is on.
     const db2 = fixture({ guests: [{ ref: 'A' }], flags: { registrationOpen: true } });
-    assert.equal(codeOf(() => commitAs(newCtx(db2, () => '2026-12-09T09:00:00.000Z'), 'ev1', { synthetic: 'self' }, { type: 'selfCheckIn', guestId: 'g-A' })), 'registration_closed');
+    assert.equal(codeOf(() => commitAs(newCtx(db2, () => '2026-12-09T09:00:00.000Z'), 'ev1', { synthetic: 'self' }, { type: 'selfCheckIn', guestId: 'g-A', tokenHash: 'a'.repeat(64) })), 'registration_closed');
   });
 
   test('GIVEN readOnly is on WHEN staff post any command, the Super Administrator posts a reconcile command and anyone reads THEN commands get 409 read_only, the reconcile command is accepted and reads are served', () => {
