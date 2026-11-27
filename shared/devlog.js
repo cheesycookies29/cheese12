@@ -29,6 +29,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.73.3-alpha',
+    date: '2026-11-27',
+    title: 'Web address: the new address is ltdc-core.com',
+    modules: ['deploy'],
+    notes: 'Corrects 0.73.1: the new address is ltdc-core.com (on Cloudflare), not ltdc-erp.com. ltdc-erp.com was never registered, so the server never used it.',
+    changes: [
+      ['fixed', 'deploy', 'deploy/aws/site-address lists ltdc-core.com, www.ltdc-core.com and the old ltdc-erp.duckdns.org; the EC2 guide\'s "Changing the web address" names the same records.'],
+    ],
+  },
+  {
     version: '0.73.2-alpha',
     date: '2026-11-27',
     title: 'Web address: the Caddy settings are readable by Caddy',

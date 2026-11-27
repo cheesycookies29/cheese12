@@ -378,27 +378,27 @@ deploy, so do step D's branch limit too.
 ## Changing the web address
 
 The addresses the server answers to are listed in `deploy/aws/site-address`, one per line, the main
-one first (since 0.73.1: `ltdc-erp.com`, then `www.ltdc-erp.com` and the old `ltdc-erp.duckdns.org`).
+one first (since 0.73.1: `ltdc-core.com`, then `www.ltdc-core.com` and the old `ltdc-erp.duckdns.org`).
 Every deploy applies that list with `ltdc-erp-address`, which writes Caddy's settings and the app's
 `ALLOWED_HOSTS`. You never edit `/etc/caddy/Caddyfile` or the service file by hand for this.
 
-1. **DNS first.** Where the new domain is managed (Cloudflare for `ltdc-erp.com`), add:
+1. **DNS first.** Where the new domain is managed (Cloudflare for `ltdc-core.com`), add:
 
    | Type | Name | Value | Proxy status |
    |---|---|---|---|
    | A | `@` (the domain itself) | the Elastic IP | **DNS only** (grey cloud) |
-   | CNAME | `www` | `ltdc-erp.com` | **DNS only** (grey cloud) |
+   | CNAME | `www` | `ltdc-core.com` | **DNS only** (grey cloud) |
 
    Keep the old address (DuckDNS) pointing at the server: it keeps old links, bookmarks, Service Desk
    tracking links and QR codes working by sending them on to the new address.
 
-2. **Check it** on your Mac: `dig +short ltdc-erp.com` prints the Elastic IP.
+2. **Check it** on your Mac: `dig +short ltdc-core.com` prints the Elastic IP.
 
 3. **Deploy** (any push, or **Re-run all jobs** on the last deploy). The log shows what happened:
    - an address with no DNS record yet, or one behind Cloudflare's proxy (orange cloud), is left out
      and the reason printed; the other addresses go on as before;
    - when the main address points here, Caddy gets its certificate (up to about a minute), and the
-     other addresses then send visitors to it with the same path (`Main address: https://ltdc-erp.com.`).
+     other addresses then send visitors to it with the same path (`Main address: https://ltdc-core.com.`).
 
    Without a deploy, on the server: `sudo ltdc-erp-address`.
 
@@ -420,7 +420,7 @@ SSL mode Full (strict)).
 |---|---|
 | Browser says the site can't be reached | Check that `dig +short erp.lancastertechdev.com` shows your Elastic IP, and that the security group allows HTTP (80) and HTTPS (443) from anywhere. |
 | Certificate or "not secure" warning | Wait one minute, then run `sudo journalctl -u caddy -n 50 --no-pager`. Usually DNS isn't pointing at the server yet, or Cloudflare's proxy (orange cloud) is on. |
-| The new address shows "not secure" or doesn't open | Check `dig +short ltdc-erp.com` shows the Elastic IP, and that the Cloudflare record is **DNS only** (grey cloud). Then run `sudo ltdc-erp-address` on the server and read what it prints. |
+| The new address shows "not secure" or doesn't open | Check `dig +short ltdc-core.com` shows the Elastic IP, and that the Cloudflare record is **DNS only** (grey cloud). Then run `sudo ltdc-erp-address` on the server and read what it prints. |
 | "Forbidden host" | The address in the browser isn't in `deploy/aws/site-address`. Add it there and deploy (or run `sudo ltdc-erp-address` on the server). |
 | Signing in does nothing / you're signed out immediately | Open the site with `https://`, not `http://`. The login cookie is HTTPS-only. |
 | "502 Bad Gateway" | The app isn't running. Check it with `sudo journalctl -u ltdc-erp -n 50 --no-pager`. |

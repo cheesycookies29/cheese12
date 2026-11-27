@@ -7,6 +7,6 @@
 #
 # Applied on every deploy (remote-deploy.sh), or at any time on the server with: sudo ltdc-erp-address
 # See "Changing the web address" in deploy/aws/EC2.md.
-ltdc-erp.com
-www.ltdc-erp.com
+ltdc-core.com
+www.ltdc-core.com
 ltdc-erp.duckdns.org
