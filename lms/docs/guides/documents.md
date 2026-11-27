@@ -19,7 +19,7 @@ What you can do depends on who you are:
 - **Students** keep their own files, share them with their teachers and classmates by name, and open what is shared with them. Students do not make links for people outside the school, and do not share with whole groups.
 - **Administrators** (and anyone given **Document control** under **Roles & permissions**) also manage every document and folder, set the rules in **Document control**, and place legal holds.
 
-Every file is checked when it arrives: ATLAS reads the file itself to tell what it is, whatever it is called. Programs, scripts, web pages, SVG drawings, Office files with macros and password-protected Office files are never accepted. Every file is kept encrypted on the server.
+Every file is checked when it arrives: ATLAS reads the file itself to tell what it is, whatever it is called. Programs, scripts, web pages, SVG drawings, Office files with macros, password-protected (encrypted) Office files and PDFs, PDFs with JavaScript or actions that run when they are opened, and ZIP or Office files that carry a program or script are never accepted. Every file is kept encrypted on the server.
 
 ## Walkthrough
 
@@ -187,6 +187,10 @@ What teachers share with you is under **Shared with me**; what the school shares
 ## Questions
 
 **ATLAS says "Not added: … files are never accepted".** Programs, scripts, web pages, SVG drawings and Office files with macros are never accepted, whatever they are called, because they can run code on a computer or in a browser. Save the document as PDF, or as a Word, Excel or PowerPoint file without macros (.docx, .xlsx, .pptx), and upload that.
+
+**ATLAS says "The PDF is encrypted", "The PDF contains JavaScript or actions" or that a file "could not be checked".** ATLAS cannot look inside a locked PDF, and never keeps one that runs something when it is opened. Print it to a new PDF (in the print window, choose *Save as PDF*) and upload that copy. A file that could not be checked whole is damaged or stored in an unusual way: open it, save it again and upload that copy. A ZIP file may hold other ZIP files, 3 levels deep, but not programs, scripts or archives such as .7z or .rar.
+
+**Too many downloads at once.** If ATLAS says *Many files are being downloaded right now* or *You are downloading … files already*, wait a few seconds and try again.
 
 **ATLAS says the file "is called .pdf but it is" something else.** ATLAS reads the file to tell what it really is. The name must match: rename the file with its real extension, or check that it is the right file.
 

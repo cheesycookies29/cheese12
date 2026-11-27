@@ -21,15 +21,19 @@
 //    never earlier versions; managers download those in the tool. Public forms can be listed and
 //    downloaded signed out, with a rate limit per address. Every file goes out as an attachment with
 //    nosniff and a sandbox; there is no listing of the stored files.
-//  - Everything is in the audit log: uploads, restores, detail changes, publishing, retiring, deletes,
-//    managers' downloads of versions, and the settings.
+//  - Everything is in the audit log: uploads (started, cancelled, refused), restores, detail changes,
+//    publishing, retiring, deletes (and refused ones), managers' downloads of versions, users'
+//    downloads, public downloads (counted per form and hour), a manager reaching for another module's
+//    form, and the settings.
+//  - A restore is checked like an upload, against today's settings. Downloads running at once are
+//    capped (server/download-gate.js), as each holds its whole file in memory until it is sent.
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { userCan, ROLES, roleLabel } from '../shared/roles.js';
 import { createBlobStore, BlobError } from './dms/blobs.js';
-import { checkFile, cleanName, extOf, BLOCKED_EXTS, BLOCKED_LABEL, FAMILY } from './dms/types.js';
+import { checkFile, cleanName, extOf, contentDisposition, BLOCKED_EXTS, BLOCKED_LABEL, FAMILY } from './dms/types.js';
 import {
   FORM_MODULES, FORM_MODULE_IDS, formModule, formModuleName, managedModules, FORMS_ALL, LIMITS, FORM_FAMILIES,
   mergeFormSettings, statusLabel, MAX_UPLOAD_RANGE,
@@ -37,9 +41,13 @@ import {
 
 const MB = 1024 * 1024;
 export const FORMS_CHUNK_BYTES = 4 * MB; // a piece of an upload (about 5.4 MB as base64, under the signed-in body limit)
-const UPLOAD_IDLE_MS = 5 * 60000;
+const UPLOAD_IDLE_MS = 5 * 60000; // an upload no accepted piece reached in this time is dropped
+const UPLOAD_LIFE_MS = 30 * 60000; // and every upload after this, however active
 const MAX_UPLOADS_EACH = 3;
+const MAX_UPLOADS_ALL = 24;
 const MAX_IN_FLIGHT = 320 * MB; // every unfinished upload together, in memory
+const MAX_IN_FLIGHT_EACH = Math.floor(MAX_IN_FLIGHT / 3); // one person's share of it (a 100 MB file fits)
+const PUBLIC_TALLY_MS = 60 * 60000; // public downloads go to the audit log as one entry per form per hour
 const BLOCKED = new Set(BLOCKED_EXTS);
 const NOT_FOUND = 'That form is not there, or you do not have access to it.';
 
@@ -50,13 +58,14 @@ const longText = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').
 // The engine's messages name CORE and Document control; here they name ATLAS and this screen's settings.
 const atlas = (s) => String(s).replace(/\bCORE\b/g, 'ATLAS').replace(/web pages and svg, and office files/, 'web pages and SVG, and Office files')
   .replace(/ An administrator can allow them in Document control\./, ' An administrator can allow them in the Document circulation settings.');
-const disposition = (name) => `attachment; filename="${String(name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 // A stored file as a download: always an attachment, never sniffed, never run, never cached.
-const fileResponse = (v, data) => ({
+// release: gives back the download's place (server/download-gate.js) once the answer is sent.
+const fileResponse = (v, data, release) => ({
   raw: data,
   type: v.mime,
+  release,
   headers: {
-    'Content-Disposition': disposition(v.name),
+    'Content-Disposition': contentDisposition('attachment', v.name),
     'Content-Security-Policy': "sandbox; default-src 'none'",
     'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'private, no-store', 'Cross-Origin-Resource-Policy': 'same-origin',
   },
@@ -119,19 +128,25 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
     }
     return [...groups].map(([name, list]) => ({ name, forms: list }));
   };
-  const formFor = (u, id) => {
+  // A form the manager keeps. A form of another module answers as if it were not there, and the
+  // attempt is recorded.
+  const formFor = (a, id) => {
     const f = forms().find((x) => x.id === String(id || ''));
-    if (!f || !mayManage(u, f.module)) throw missing();
+    if (f && !mayManage(a.user, f.module)) log(a, 'Refused: a form of a module they do not keep', f, moduleName(f.module), 'refused');
+    if (!f || !mayManage(a.user, f.module)) throw missing();
     return f;
   };
 
   // ----- Uploads in pieces: start, pieces, finish (kept in memory until whole) -----
+  // An upload is kept while accepted pieces arrive (at most UPLOAD_LIFE_MS in all); abandoned ones are
+  // dropped by a timer as well as by every upload request, so their memory does not wait for the next.
   const uploads = new Map();
-  const inFlight = () => [...uploads.values()].reduce((n, x) => n + x.size, 0);
+  const inFlight = (owner = null) => [...uploads.values()].filter((x) => !owner || x.owner === owner).reduce((n, x) => n + x.size, 0);
   const sweep = () => {
     const t = clock().getTime();
-    for (const x of [...uploads.values()]) if (t - x.usedAt > UPLOAD_IDLE_MS) uploads.delete(x.id);
+    for (const x of [...uploads.values()]) if (t - x.usedAt > UPLOAD_IDLE_MS || t - x.startedAt > UPLOAD_LIFE_MS) uploads.delete(x.id);
   };
+  setInterval(sweep, 60000).unref?.();
   const tooBig = (name, s) => `${name} is larger than ${s.maxUploadMB} MB, the most a form may be. Make the file smaller (save it as PDF, or with smaller pictures), or ask an administrator.`;
   const managerOnly = (u) => {
     if (!managed(u).length) throw new HttpError(403, 'Document circulation is for the people who keep the school\'s forms. Ask an administrator.');
@@ -142,7 +157,9 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
     return handler(a);
   }, { audit: false, ...opts });
 
-  manage('POST', '/api/forms/manage/uploads', ({ user, body }) => {
+  const busy = (message) => Object.assign(new HttpError(429, message), { headers: { 'Retry-After': '60' } });
+  manage('POST', '/api/forms/manage/uploads', (a) => {
+    const { user, body } = a;
     const s = settings();
     const name = cleanName(clean(body.name, 200) || 'file');
     const size = Number(body.size);
@@ -150,16 +167,20 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
     if (size > s.maxUploadMB * MB) throw bad(tooBig(name, s));
     if (BLOCKED.has(extOf(name))) throw bad(`.${extOf(name)} files are never accepted (${BLOCKED_LABEL.charAt(0).toLowerCase()}${BLOCKED_LABEL.slice(1)}).`);
     sweep();
-    if ([...uploads.values()].filter((x) => x.owner === user.id).length >= MAX_UPLOADS_EACH) throw bad('Wait for the files being uploaded to finish, then add more.');
-    if (inFlight() + size > MAX_IN_FLIGHT) throw new HttpError(429, 'Many large files are being uploaded right now. Try again in a minute.');
-    const x = { id: randomUUID(), owner: user.id, name, size, pieces: [], received: 0, usedAt: clock().getTime() };
+    const mine = [...uploads.values()].filter((x) => x.owner === user.id);
+    if (mine.length >= MAX_UPLOADS_EACH) throw busy(`You have ${mine.length} files being uploaded already. Wait for them to finish, then add more.`);
+    if (mine.length && inFlight(user.id) + size > MAX_IN_FLIGHT_EACH) throw busy('Your files being uploaded are as large as one person may send at once. Wait for them to finish, then add this one.');
+    if (uploads.size >= MAX_UPLOADS_ALL || inFlight() + size > MAX_IN_FLIGHT) throw busy('Many large files are being uploaded right now. Try again in a minute.');
+    const t = clock().getTime();
+    const x = { id: randomUUID(), owner: user.id, name, size, pieces: [], received: 0, startedAt: t, usedAt: t };
     uploads.set(x.id, x);
+    log(a, 'Upload started', null, `${name} (${Math.max(1, Math.round(size / 1024))} KB)`);
     return { id: x.id, chunkBytes: FORMS_CHUNK_BYTES };
   });
   manage('PUT', '/api/forms/manage/uploads/:id', ({ user, params, body }) => {
+    sweep();
     const x = uploads.get(String(params.id || ''));
     if (!x || x.owner !== user.id) throw new HttpError(404, 'That upload is no longer on the server. Add the file again.');
-    x.usedAt = clock().getTime();
     const offset = Number(body.offset);
     if (typeof body.data !== 'string' || !Number.isInteger(offset) || offset < 0) throw bad('Send a piece of the file.');
     const piece = Buffer.from(body.data, 'base64');
@@ -169,19 +190,25 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
     if (x.received + piece.length > x.size) throw bad(`${x.name} is larger than it said it was.`);
     x.pieces.push(piece);
     x.received += piece.length;
+    x.usedAt = clock().getTime(); // only an accepted piece keeps the upload alive
     return { received: x.received };
   });
-  manage('DELETE', '/api/forms/manage/uploads/:id', ({ user, params }) => {
-    const x = uploads.get(String(params.id || ''));
-    if (x && x.owner === user.id) uploads.delete(x.id);
+  manage('DELETE', '/api/forms/manage/uploads/:id', (a) => {
+    sweep();
+    const x = uploads.get(String(a.params.id || ''));
+    if (x && x.owner === a.user.id) {
+      uploads.delete(x.id);
+      log(a, 'Upload cancelled', null, `${x.name} (${Math.round(x.received / 1024)} of ${Math.max(1, Math.round(x.size / 1024))} KB)`);
+    }
     return { ok: true };
   });
-  // The file is checked before anything is kept: its kind from its bytes, against the settings.
-  function vet(a, buf, name, f = null) {
+  // The file is checked before anything is kept: its kind from its bytes, against the settings. A
+  // restored version is checked the same way, against today's settings.
+  function vet(a, buf, name, f = null, { action = 'Upload refused', prefix = '' } = {}) {
     const s = settings();
     const refuse = (reason) => {
-      log(a, 'Upload refused', f, `${name}: ${reason}`, 'refused');
-      throw bad(reason);
+      log(a, action, f, `${name}: ${reason}`, 'refused');
+      throw bad(`${prefix}${reason}`);
     };
     if (buf.length > s.maxUploadMB * MB) refuse(tooBig(name, s));
     const c = checkFile(buf, name, s.families);
@@ -234,13 +261,14 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
   // draft or published, note).
   manage('POST', '/api/forms/manage/uploads/:id/finish', (a) => {
     const { user, params, body } = a;
+    sweep();
     const x = uploads.get(String(params.id || ''));
     if (!x || x.owner !== user.id) throw new HttpError(404, 'That upload is no longer on the server. Add the file again.');
     if (x.received !== x.size) throw bad(`${x.name} did not arrive whole. Add it again.`);
     uploads.delete(x.id);
     const buf = Buffer.concat(x.pieces);
     if (body.formId) {
-      const f = formFor(user, body.formId);
+      const f = formFor(a, body.formId);
       const c = vet(a, buf, x.name, f);
       const v = addVersion(f, buf, c, user.id, body.note);
       db.save();
@@ -273,7 +301,7 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
         };
       }),
       forms: list.map(manageRow).sort((a, b) => FORM_MODULE_IDS.indexOf(a.module) - FORM_MODULE_IDS.indexOf(b.module) || a.category.localeCompare(b.category) || a.title.localeCompare(b.title, 'en', { numeric: true })),
-      categories: [...new Set(forms().map((f) => f.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+      categories: [...new Set(list.map((f) => f.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), // of their modules' forms only
       roles: [...new Set(FORM_MODULES.filter((m) => mine.includes(m.id)).flatMap((m) => m.audience))].map((r) => ({ id: r, label: roleLabel(r) })),
       settings: { ...s, chunkBytes: FORMS_CHUNK_BYTES, familyLabels: FORM_FAMILIES.map((id) => ({ id, label: FAMILY[id].label, exts: FAMILY[id].exts })), range: MAX_UPLOAD_RANGE },
       accept: s.families.flatMap((id) => FAMILY[id].exts.map((e) => `.${e}`)).join(','),
@@ -283,7 +311,7 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
 
   // ----- One form: details, publish, retire, restore, delete -----
   manage('PUT', '/api/forms/manage/:id', (a) => {
-    const f = formFor(a.user, a.params.id);
+    const f = formFor(a, a.params.id);
     const next = details(a, a.body, f);
     const changes = describeChanges(f, next);
     if (!changes.length) return manageRow(f);
@@ -293,7 +321,7 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
     return manageRow(f);
   });
   const setStatus = (to, verb) => (a) => {
-    const f = formFor(a.user, a.params.id);
+    const f = formFor(a, a.params.id);
     const from = f.status;
     if (to === 'published' && from === 'published') return manageRow(f);
     if (to === 'retired' && from !== 'published') throw bad(from === 'retired' ? 'This form is retired already.' : 'Only a published form can be retired. A draft that was never published can be deleted.');
@@ -312,20 +340,23 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
   manage('POST', '/api/forms/manage/:id/unretire', setStatus('published', () => 'Brought back a retired form'));
   // Restore: an earlier version becomes current again as a new version that copies it.
   manage('POST', '/api/forms/manage/:id/restore', (a) => {
-    const f = formFor(a.user, a.params.id);
+    const f = formFor(a, a.params.id);
     const no = Number(a.body.no);
     const v = f.versions.find((x) => x.no === no) || (() => { throw bad('That version is not there.'); })();
     if (v.no === f.currentVersion) throw bad(`Version ${v.no} is the current version already.`);
     const buf = readBlob(v);
-    const c = { name: v.name, ext: v.ext, family: v.family, mime: v.mime };
+    const c = vet(a, buf, v.name, f, { action: 'Restore refused', prefix: `Version ${v.no} cannot be restored: ` });
     const made = addVersion(f, buf, c, a.user.id, clean(a.body.note, LIMITS.note) || `Restored from version ${v.no}`, { restoredFrom: v.no });
     db.save();
     log(a, `Restored version ${v.no} as version ${made.no}`, f, `${v.name} · ${moduleName(f.module)}`);
     return manageRow(f);
   });
   manage('DELETE', '/api/forms/manage/:id', (a) => {
-    const f = formFor(a.user, a.params.id);
-    if (f.status !== 'draft' || f.everPublished) throw bad('Only a draft that was never published can be deleted. Retire this form instead: it is kept, with its versions, and hidden from users.');
+    const f = formFor(a, a.params.id);
+    if (f.status !== 'draft' || f.everPublished) {
+      log(a, 'Delete refused', f, `${statusLabel(f.status)}${f.everPublished ? ', published before' : ''} · ${moduleName(f.module)}`, 'refused');
+      throw bad('Only a draft that was never published can be deleted. Retire this form instead: it is kept, with its versions, and hidden from users.');
+    }
     for (const v of f.versions) blobs.remove(v.blobId);
     db.data.forms = forms().filter((x) => x !== f);
     db.save();
@@ -340,13 +371,24 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
       throw err;
     }
   }
+  // A version as a download, holding a place among the downloads that run at once (each holds the
+  // whole file in memory until it is sent; server/download-gate.js).
+  function download(a, v) {
+    const release = ctx.downloads ? ctx.downloads.enter({ user: a.user, ip: a.ip }, v.size) : () => {};
+    try {
+      return fileResponse(v, readBlob(v), release);
+    } catch (err) {
+      release();
+      throw err;
+    }
+  }
   // Any version, for managers (the Versions list in the tool). Recorded in the audit log.
   manage('GET', '/api/forms/manage/:id/versions/:no/file', (a) => {
-    const f = formFor(a.user, a.params.id);
+    const f = formFor(a, a.params.id);
     const v = f.versions.find((x) => x.no === Number(a.params.no)) || (() => { throw missing(); })();
-    const data = readBlob(v);
+    const out = download(a, v);
     log(a, v.no === f.currentVersion ? `Downloaded version ${v.no} (current)` : `Downloaded an earlier version (${v.no})`, f, `${v.name} · ${moduleName(f.module)}`);
-    return fileResponse(v, data);
+    return out;
   });
 
   // ----- Settings (also in the Settings center) -----
@@ -384,11 +426,13 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
     const rows = forms().filter((f) => f.module === m && visibleTo(f, user)).map(userRow);
     return { module: m, moduleName: moduleName(m), total: rows.length, categories: byCategory(rows) };
   }, { audit: false });
-  route('GET', '/api/forms/:id/file', 'me', ({ user, params }) => {
-    const f = forms().find((x) => x.id === String(params.id || ''));
-    if (!f || !visibleTo(f, user)) throw missing();
+  route('GET', '/api/forms/:id/file', 'me', (a) => {
+    const f = forms().find((x) => x.id === String(a.params.id || ''));
+    if (!f || !visibleTo(f, a.user)) throw missing();
     const v = current(f);
-    return fileResponse(v, readBlob(v));
+    const out = download(a, v);
+    log(a, 'Downloaded a form', f, `Version ${v.no} · ${v.name} · ${moduleName(f.module)}`);
+    return out;
   }, { audit: false });
   // Signed out: the public forms (the ATLAS home's Forms page), rate-limited per address.
   const publicForms = () => forms().filter((f) => f.public && visibleTo(f, null));
@@ -399,12 +443,35 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
       modules: FORM_MODULES.map((m) => ({ id: m.id, name: moduleName(m.id), categories: byCategory(rows.filter((r) => r.module === m.id)) })).filter((m) => m.categories.length),
     };
   }, { limit: 'publicForms', audit: false });
-  route('GET', '/api/public/forms/:id/file', 'public', ({ params }) => {
-    const f = publicForms().find((x) => x.id === String(params.id || ''));
+  route('GET', '/api/public/forms/:id/file', 'public', (a) => {
+    const f = publicForms().find((x) => x.id === String(a.params.id || ''));
     if (!f) throw missing();
     const v = current(f);
-    return fileResponse(v, readBlob(v));
+    const out = download({ ip: a.ip }, v);
+    tallyPublic(f, a.ip);
+    return out;
   }, { limit: 'publicForms', audit: false });
+  // Public downloads are counted rather than recorded one by one (anyone may fetch them, as often as
+  // the rate limit allows, which would flood the audit log): one entry per form and hour, with how
+  // many downloads from how many addresses.
+  const publicTally = new Map(); // form id → { name, since, count, addresses }
+  function tallyPublic(f, ip) {
+    flushPublicDownloads();
+    const x = publicTally.get(f.id) || { name: f.title, since: clock().getTime(), count: 0, addresses: new Set() };
+    x.count += 1;
+    if (x.addresses.size < 10000) x.addresses.add(String(ip || 'unknown'));
+    publicTally.set(f.id, x);
+  }
+  function flushPublicDownloads(all = false) {
+    const t = clock().getTime();
+    for (const [id, x] of publicTally) {
+      if (!all && t - x.since < PUBLIC_TALLY_MS) continue;
+      publicTally.delete(id);
+      const n = x.addresses.size;
+      log({ user: null, ip: null, agent: '' }, 'Downloaded by the public', { id, title: x.name }, `${x.count} download${x.count === 1 ? '' : 's'} from ${n}${n >= 10000 ? '+' : ''} address${n === 1 ? '' : 'es'} since ${new Date(x.since).toISOString()}`);
+    }
+  }
+  setInterval(() => flushPublicDownloads(), 5 * 60000).unref?.();
 
   // ----- Demo forms: small generated PDFs, never real forms (marked demo, removed with the demo) -----
   function addDemo(pdf) {
@@ -517,7 +584,7 @@ export function registerForms(route, ctx, { secrets, dir = null, clock = () => n
   }
 
   return {
-    blobs, dir: formsDir, settings, managed, addDemo, removeDemo,
+    blobs, dir: formsDir, settings, managed, addDemo, removeDemo, flushPublicDownloads,
     publicCount: () => publicForms().length,
   };
 }

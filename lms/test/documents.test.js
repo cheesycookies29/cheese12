@@ -20,9 +20,10 @@ import { cleanSettings } from '../server/dms/policy.js';
 import { newToken, tokenHash, hashLinkPassword, checkLinkPassword, unlockValue, checkUnlock } from '../server/dms/links.js';
 import { extractText } from '../server/documents-text.js';
 import { createSecrets } from '../server/secrets.js';
+import { writeCfb } from './support/cfb-writer.js';
 
 const LMS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ENGINE = ['types.js', 'blobs.js', 'access.js', 'links.js', 'policy.js'];
+const ENGINE = ['types.js', 'cfb.js', 'blobs.js', 'access.js', 'links.js', 'policy.js'];
 
 const PDF = demoPdf('Quarterly report', ['Enrollment rose in Kalayaan campus.']);
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16]), Buffer.from('JFIF\0'), randomBytes(200), Buffer.from([0xff, 0xd9])]);
@@ -32,6 +33,14 @@ const ooxml = (main, types = 'application/vnd.openxmlformats-officedocument.word
   { name: '[Content_Types].xml', data: `<Types><Override PartName="/${main}" ContentType="${types}"/></Types>` }, { name: main, data: '<w:document/>' }, ...extra,
 ]);
 const cfb = (names) => Buffer.concat([Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), Buffer.alloc(504), ...names.map((n) => Buffer.from(n, 'utf16le'))]);
+// A real Word 97–2003 compound file: a WordDocument stream that starts with Word's file header
+// (FIB: 0xA5EC; flags at 0x0A, 0x0100 = encrypted).
+const wordDoc = ({ encrypted = false } = {}) => {
+  const fib = Buffer.alloc(1024);
+  fib.writeUInt16LE(0xa5ec, 0);
+  fib.writeUInt16LE(encrypted ? 0x0100 : 0, 0x0a);
+  return writeCfb({ WordDocument: fib, '1Table': Buffer.alloc(64) });
+};
 // A ZIP entry that says it unpacks to almost 4 GB.
 function bomb() {
   const z = storedZip([{ name: 'big.bin', data: 'x' }]);
@@ -47,7 +56,7 @@ const FIXTURES = [
   ['page.txt', Buffer.from('<!DOCTYPE html><script>alert(1)</script>')], ['logo.txt', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>')],
   ['memo.docx', ooxml('word/document.xml', 'application/vnd.ms-word.document.macroEnabled.main+xml')], ['memo2.docx', ooxml('word/document.xml', undefined, [{ name: 'word/vbaProject.bin', data: 'x' }])],
   ['bundle.zip', storedZip([{ name: 'payload/run.exe', data: 'MZ' }]), [...DEFAULT_FAMILIES, 'archive']], ['bomb.zip', bomb(), [...DEFAULT_FAMILIES, 'archive']],
-  ['notes.zip', storedZip([{ name: 'a.txt', data: 'x' }])], ['photo.jpg', PDF], ['scan.jpg', JPEG, ['pdf']], ['old.doc', cfb(['WordDocument'])], ['old2.doc', cfb(['WordDocument', '_VBA_PROJECT'])],
+  ['notes.zip', storedZip([{ name: 'a.txt', data: 'x' }])], ['photo.jpg', PDF], ['scan.jpg', JPEG, ['pdf']], ['old.doc', wordDoc()], ['old2.doc', cfb(['WordDocument', '_VBA_PROJECT'])],
   ['secret.docx', cfb(['EncryptedPackage'])], ['mail.eml', Buffer.from('From: a@b.c\nSubject: Hi\n\nHello')], ['sheet.xlsx', ooxml('xl/workbook.xml', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml')],
   ['../../etc/pa<ss>wd.txt', Buffer.from('x')], ['empty.pdf', Buffer.alloc(0)],
 ];
@@ -245,6 +254,24 @@ const { env, admin, people: P, ids } = S;
 const docsDir = env.api.documents.dir;
 test.after(() => fs.rmSync(docsDir, { recursive: true, force: true }));
 
+test('the engine\'s checks in Documents: encrypted PDFs (as password-protected Office files), PDF scripts, archives inside archives, Office files carrying programs, legacy encryption', async () => {
+  const pdf = (body) => Buffer.from(`%PDF-1.7\n${body}\ntrailer<</Root 1 0 R>>\n%%EOF\n`, 'latin1');
+  const inner = storedZip([{ name: 'tools/run.exe', data: 'MZ' }]);
+  const cases = [
+    ['locked.pdf', pdf('1 0 obj<</Filter/Standard/V 2/R 3>>endobj\ntrailer<</Encrypt 1 0 R>>'), /encrypted/],
+    ['script.pdf', pdf('1 0 obj<</Type/Catalog/OpenAction<</S/JavaScript/JS(app.alert(1))>>>>endobj'), /JavaScript/],
+    ['page.pdf', Buffer.from('<html><script>alert(1)</script></html>\n%PDF-1.4\n%%EOF'), /web page/],
+    ['bundle.zip', storedZip([{ name: 'inner.zip', data: inner }]), /run\.exe/],
+    ['memo.docx', ooxml('word/document.xml', undefined, [{ name: 'word/embeddings/setup.exe', data: 'MZ' }]), /setup\.exe/],
+    ['locked.doc', wordDoc({ encrypted: true }), /password/],
+  ];
+  // The content is checked before the kinds ticked in Document control: refused whatever is ticked.
+  for (const [name, buf, re] of cases) {
+    assert.match(checkFile(buf, name, [...DEFAULT_FAMILIES, 'archive']).reason || '', re, name);
+    await fails(upload(P.tess, name, buf, { title: name }), 400, re);
+  }
+});
+
 test('who opens ATLAS Documents: employees and students, with whichever session they have; parents never', async () => {
   for (const u of ['tess', 'sam', 'rita', 'hana', 'lito']) {
     const st = await P[u].get('/api/docs/auth/status');
@@ -277,6 +304,7 @@ test('upload in pieces, versions, check-out, download; no content in the data fi
   assert.equal(file.headers['X-Content-Type-Options'], 'nosniff');
   assert.match(file.headers['Content-Security-Policy'], /sandbox/);
   assert.equal(file.headers['Cache-Control'], 'private, no-store');
+  assert.equal(typeof file.release, 'function', 'a download holds a place among those running at once until it is sent (server/download-gate.js)');
   // A big file in several pieces arrives whole.
   const big = Buffer.concat([Buffer.from('a,b\n'), Buffer.alloc(9 * 1024 * 1024, 'x,y\n')]);
   const bigDoc = (await upload(P.tess, 'big.csv', big)).document;

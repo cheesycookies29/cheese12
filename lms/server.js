@@ -55,7 +55,13 @@ const SECURITY_HEADERS = {
   'Cross-Origin-Resource-Policy': 'same-origin',
 };
 
+// An answer the visitor stops reading is dropped after this long without progress, so a slow or
+// stalled reader cannot keep a large file (and its memory) on the server.
+const RESPONSE_IDLE_MS = Number(process.env.RESPONSE_IDLE_MS) || 60 * 1000;
+const dropWhenIdle = (res) => res.setTimeout(RESPONSE_IDLE_MS, () => res.destroy());
+
 function send(res, status, body, type = 'application/json', headers = {}) {
+  dropWhenIdle(res);
   const textual = /^text\/|json|javascript|svg/.test(type);
   res.writeHead(status, { 'Content-Type': textual && !headers['Content-Disposition'] ? `${type}; charset=utf-8` : type, 'Cache-Control': 'no-store', ...SECURITY_HEADERS, ...headers });
   const payload = type === 'application/json' ? JSON.stringify(body) : body;
@@ -68,6 +74,7 @@ function send(res, status, body, type = 'application/json', headers = {}) {
 // deleted, so it is never held whole in memory.
 function sendFileReply(res, file, type = 'application/octet-stream', headers = {}) {
   const size = file.size || fs.statSync(file.path).size;
+  dropWhenIdle(res);
   res.writeHead(200, { 'Cache-Control': 'no-store', ...SECURITY_HEADERS, 'Content-Type': type, ...headers, 'Content-Length': size });
   res.atlasType = type;
   res.atlasBytes = size;
@@ -227,6 +234,8 @@ const server = http.createServer(async (req, res) => {
     const { maxBody } = api.prepare(req);
     const body = ['POST', 'PUT'].includes(req.method) ? await readBody(req, maxBody) : {};
     const out = await api(req, url, body);
+    // A stored file's download holds a place until its answer is finished or the connection closes.
+    if (typeof out.release === 'function') res.once('close', out.release);
     if (out.raw instanceof FileReply) return sendFileReply(res, out.raw, out.type, out.headers);
     if (out.raw != null) return send(res, out.status || 200, out.raw, out.type, out.headers);
     send(res, 200, out.data, 'application/json', out.headers);
@@ -240,7 +249,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 // Slow clients: the headers must arrive within 20 seconds (a "slowloris" cannot hold connections
-// open by trickling them); a whole request, uploads included, within 5 minutes.
+// open by trickling them); a whole request, uploads included, within 5 minutes; an answer that makes
+// no progress for RESPONSE_IDLE_MS is dropped (dropWhenIdle).
 server.headersTimeout = 20 * 1000;
 server.requestTimeout = 5 * 60 * 1000;
 // Anything that still slips through is logged, and the server keeps serving everyone else.

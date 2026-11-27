@@ -252,6 +252,8 @@ HR can move an application past a stage that is not needed for it. The skipped s
 
 **ATLAS says "The file contains macros" or "The file is protected with a password."** Save the document again without macros (as .docx or .xlsx), or remove the password, and upload it again.
 
+**ATLAS says "The PDF is encrypted" or "The PDF contains JavaScript or actions".** The PDF is locked (with a password, or against printing or copying) or runs something when it is opened. Print it to a new PDF (in the print window, choose *Save as PDF* or *Microsoft Print to PDF*) and upload that copy. If ATLAS says a file *could not be checked*, open it, save it again and upload that copy.
+
 **ATLAS says "An application can have at most 15 files."** Remove a file you no longer need, or combine pages into one PDF.
 
 **I cannot replace a file any more.** The opening has closed, so its documents stay as they are; you can still upload a file HR asked for. Contact the HR office if something is wrong.
