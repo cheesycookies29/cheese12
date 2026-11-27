@@ -11,7 +11,7 @@
 // everything is put back as it was and the answer is 503 not_saved. Then one audit entry.
 import { createHash, randomUUID } from 'node:crypto';
 import { cleanRoom, roomTables, DEFAULT_ROOM } from '../../../shared/customapp/room.js';
-import { HARD_LIMIT, CHANGE_TYPES } from '../../../shared/customapp/statuses.js';
+import { HARD_LIMIT, CHANGE_TYPES, RSVP_ACTOR } from '../../../shared/customapp/statuses.js';
 import { toUtc } from '../../../shared/customapp/time.js';
 import { cleanText, newEventCode } from './model.js';
 import { cleanIndustries } from './engine.js';
@@ -91,15 +91,25 @@ function autoDiff(state, changes) {
   return out.slice(0, 60);
 }
 
-// user: the signed-in account, or { synthetic: 'self' } for the guest page (Tier 1).
+// user: the signed-in account, { synthetic: 'self' } for the guest page's check-in (Tier 1), or
+// { synthetic: 'rsvp' } for a guest's own invitation link (0.74: the system actor RSVP_ACTOR,
+// 'system:rsvp', recorded as the actor in caChanges and the audit log; it can only record that the
+// link was opened and the guest's answer, which seats them on Yes). The door check-in by the same
+// link is the guest page's selfCheckIn, with the link's token hash as its proof.
+const SYSTEM_COMMANDS = new Set(['rsvp', 'inviteOpened']);
 export function commit(ctx, eventId, user, cmd) {
   if (!cmd || typeof cmd !== 'object' || Array.isArray(cmd)) throw bad('Send a command.');
   const { db } = ctx;
   const ev = mustEvent(db, eventId);
   const self = user?.synthetic === 'self';
-  const canManage = !self && userCan(user, 'customapp.manage');
-  const actor = { id: self ? null : user?.id || null, name: self ? 'Guest page' : user?.name || '', role: self ? 'self' : roleOf(ev, user, canManage), canManage };
+  const sys = user?.synthetic === 'rsvp';
+  const canManage = !self && !sys && userCan(user, 'customapp.manage');
+  const actor = self ? { id: null, name: 'Guest page', role: 'self', canManage }
+    : sys ? { id: RSVP_ACTOR, name: 'Invitation reply', role: 'system', canManage }
+      : { id: user?.id || null, name: user?.name || '', role: roleOf(ev, user, canManage), canManage };
   if (self !== (cmd.type === 'selfCheckIn')) throw bad(self ? 'The guest page can only check a guest in.' : 'Use checkIn.');
+  if (sys && !SYSTEM_COMMANDS.has(cmd.type)) throw bad('An invitation link can only record the guest\'s reply.');
+  if (!sys && cmd.type === 'inviteOpened') throw bad('Only the guest\'s own link records that it was opened.');
   const reconcile = cmd.via === 'reconcile';
   if (ev.flags?.readOnly && !READ_ONLY_EXEMPT.has(cmd.type) && !(reconcile && actor.role === 'super')) throw refusal('read_only', { seq: ev.seq || 0 });
   if (reconcile && actor.role !== 'super') throw refusal('needs_super_admin', { seq: ev.seq || 0 }, 'Paper reconciliation is entered by the Super Administrator.');
@@ -178,7 +188,7 @@ export function commit(ctx, eventId, user, cmd) {
   d.caEvents = d.caEvents.map((x) => (x.id === ev.id ? evNext : x));
   const change = {
     seq, eventId: ev.id, at: now, ...(reconcile && cmd.occurredAt ? { occurredAt: String(cmd.occurredAt).slice(0, 40) } : {}),
-    actorId: actor.id, via: self ? 'self' : reconcile ? 'reconcile' : 'staff', type: p.type, opId, h,
+    actorId: actor.id, via: self ? 'self' : sys ? 'invite' : reconcile ? 'reconcile' : 'staff', type: p.type, opId, h,
     guestIds: p.guestIds, tableIds: p.tableIds, diff: p.diff || autoDiff(state, p.changes), reason: p.reason || '', result: p.result || null,
   };
   d.caChanges.push(change);
@@ -197,7 +207,7 @@ export function commit(ctx, eventId, user, cmd) {
   // After the save: the audit log (its own file), once per change.
   if (ctx.audit && p.audit) {
     try {
-      ctx.audit.record(`customapp.${p.audit.action}`, { entity: 'caEvent', entityId: p.audit.entityId || ev.id, label: p.audit.label || ev.name, note: p.audit.note || '' });
+      ctx.audit.record(`customapp.${p.audit.action}`, { entity: 'caEvent', entityId: p.audit.entityId || ev.id, label: p.audit.label || ev.name, note: p.audit.note || '', ...(p.audit.actor ? { actor: p.audit.actor } : {}) });
     } catch (err) {
       console.error('CUSTOM APP: audit entry not written:', err.message);
     }
@@ -240,7 +250,9 @@ export function createEvent(ctx, user, input = {}) {
   const ev = {
     id: randomUUID(), app: 'events', code: newEventCode(name), name, venue: cleanText(input.venue, 160), date: input.date ? String(input.date) : '', status: 'draft',
     superAdminUserId, staff: [], industries: cleanIndustries(Array.isArray(input.industries) ? input.industries : []),
-    settings: { hardLimit: HARD_LIMIT, seatNumbers, mixedTables: Boolean(input.settings?.mixedTables), releaseDelegable: Boolean(input.settings?.releaseDelegable), emailFrom: '', replyTo: '' },
+    // autoSeatOnConfirm (0.74): a guest who says Yes on their invitation is seated at once; on unless the
+    // event's Super Administrator turns it off (model.js seatsOnYes; an event made before 0.74 seats on Yes too).
+    settings: { hardLimit: HARD_LIMIT, seatNumbers, mixedTables: Boolean(input.settings?.mixedTables), releaseDelegable: Boolean(input.settings?.releaseDelegable), emailFrom: '', replyTo: '', autoSeatOnConfirm: input.settings?.autoSeatOnConfirm !== false, invitation: {} },
     window, flags: { registrationOpen: false, emailPaused: true, readOnly: false, pollMs: 2000 }, room, refPrefix, importAck: null,
     seq: 1, rev: 0, createdAt: now, createdBy: user.id, ...(input.demo ? { demo: true } : {}),
   };

@@ -1,7 +1,7 @@
 ---
 id: admin
 title: Administering CORE
-summary: For administrators: the Admin panel. User accounts, roles and permissions, access grants, modules, the Settings center, company settings and branding, sign-in security, Document control, the security monitor, the audit log, the dev log, feedback, backups and demo data, and editing the Help guides.
+summary: For administrators: the Admin panel. User accounts, roles and permissions, access grants, modules, the Settings center, company settings and branding, sign-in security, Document control, the security monitor, the audit log, the dev log, feedback, backups and demo data, editing the Help guides, and setting up CORE's email with Amazon SES.
 roles: admin
 apps: system, home
 order: 60
@@ -400,6 +400,22 @@ Your company's version is shown to everyone from then on and is kept when CORE i
 - **To go back to the guide that comes with CORE**, open the editor and click **Restore the built-in guide**.
 
 ![Editing a Help guide](admin-guide-editor.jpg)
+
+### Set up email with Amazon SES
+
+CORE sends email (helpdesk replies, the Projects digest, event invitations and seat emails) through one outgoing mail server, set under **IT Service Desk → Settings → Sending email**. For CORE on AWS, use **Amazon Simple Email Service (SES)** in the same region as the server, **Asia Pacific (Singapore), ap-southeast-1**. Allow a day: new SES accounts need AWS to grant production access, and DNS changes take a while to be seen.
+
+1. **Verify the domain.** In the AWS console, open **Amazon SES** (region *ap-southeast-1*) → **Configuration → Identities → Create identity** → **Domain**: *ltdc-core.com*. Keep **Easy DKIM** with **RSA 2048-bit**, and create it. SES shows **three CNAME records** (*xxxx._domainkey.ltdc-core.com* pointing to *xxxx.dkim.amazonses.com*).
+2. **Add them in Cloudflare.** Cloudflare → *ltdc-core.com* → **DNS → Records → Add record**, three times: type **CNAME**, the name (the part before *.ltdc-core.com*), the target, and **Proxy status: DNS only** (the grey cloud; a proxied record breaks the check). Within an hour SES shows the domain as *Verified* and DKIM as *Successful*. Every address on the domain (*events@ltdc-core.com*, *helpdesk@ltdc-core.com*) can then send.
+3. **SPF.** Add a **TXT** record on *ltdc-core.com* with `v=spf1 include:amazonses.com ~all` (DNS only). A domain has one SPF record: if there is one already, add `include:amazonses.com` to it instead of making a second. For the best result also set a **custom MAIL FROM domain** on the identity (for example *mail.ltdc-core.com*): SES shows an **MX** record and a **TXT** record with the same `v=spf1 include:amazonses.com ~all`; add both in Cloudflare, DNS only.
+4. **DMARC.** Add a **TXT** record named `_dmarc` with `v=DMARC1; p=none; rua=mailto:dmarc@ltdc-core.com` (any address you read). Gmail and Yahoo expect one from senders of many emails. Once the tests below pass for a few weeks, it can be made stricter (`p=quarantine`).
+5. **Request production access.** A new SES account is in the *sandbox*: it sends only to addresses you verified, 200 a day. **SES → Account dashboard → Request production access**: mail type **Transactional**, the website *https://ltdc-core.com*, and a short description (invitations and seat confirmations to an event's invited guests, who asked for them; bounces and complaints handled). AWS usually answers within 24 hours. Until it does, invitations to guests fail with *Email address is not verified*.
+6. **Create SMTP credentials.** **SES → SMTP settings → Create SMTP credentials**. AWS makes an IAM user and shows an **SMTP user name** (it starts *AKIA*) and an **SMTP password**, once: download them. They are not the AWS console password, nor an access key's secret.
+7. **Enter them in CORE.** **IT Service Desk → Settings → Receiving email**: the **Helpdesk email address** must be set first (on the verified domain, for example *helpdesk@ltdc-core.com*: CORE sends helpdesk replies from it). Then **Sending email**: **Outgoing mail server (SMTP)** `email-smtp.ap-southeast-1.amazonaws.com`, **Port** `587`, **Security** *STARTTLS*, untick **Use the same sign-in as the mailbox**, **Sign-in name**: the SMTP user name, **Password**: the SMTP password, tick **Send replies by email**, **Save**, then **Send a test email**.
+8. **The event's own address.** In CUSTOM APP, the event's Super Administrator sets **Setup → Event → Email from** to an address on the verified domain, for example *events@ltdc-core.com*, never the helpdesk address (guests' replies would become tickets). SES only sends; for **Reply-To**, use an address someone reads (for example one Cloudflare **Email Routing** forwards to a mailbox).
+9. **Test before inviting the guests.** **Event control → Invitations → Send a test…** to a **Gmail**, an **Outlook.com** and a **Yahoo** address. Each should arrive in the inbox (not spam), from the event's address, with the QR code showing. In Gmail, **Show original** should say *PASS* for SPF, DKIM and DMARC. Then send the invitations (see [Send the invitations](custom-app-events#send-the-invitations-super-administrator)).
+
+> **Important:** Keep the SMTP password out of email and chat: enter it only in CORE (it is kept encrypted). If it leaks, delete the IAM user in AWS and create new SMTP credentials. In SES, watch **Reputation metrics**: AWS pauses sending when bounces pass 5% or complaints 0.1%.
 
 ### Let someone else help with administration
 

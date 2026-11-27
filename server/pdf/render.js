@@ -72,7 +72,8 @@ function crc32(buf) {
 }
 
 // A PNG of 8-bit pixels with 1 (grey), 2 (grey + alpha), 3 (RGB) or 4 (RGBA) channels.
-function encodePng(width, height, channels, pixels) {
+// Exported for the event invitations' QR codes (server/customapp/qr.js): one PNG writer in CORE.
+export function encodePng(width, height, channels, pixels) {
   const chunk = (type, data) => {
     const head = Buffer.alloc(8);
     head.writeUInt32BE(data.length, 0);

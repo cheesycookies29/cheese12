@@ -5,7 +5,13 @@
 // window never opens the venue allowances or blocks switching the module off.
 import { randomUUID } from 'node:crypto';
 import { createEvent } from './commit.js';
-import { lookupOf, CA_COLLECTIONS } from './model.js';
+import { lookupOf, CA_COLLECTIONS, inviteHashOf } from './model.js';
+import { RSVP_ACTOR } from '../../../shared/customapp/statuses.js';
+
+// The one demo guest whose invitation link is known, for the guides (Help → Running an event):
+// /event/<demo code>#i=<this>. It answers only while the demo event is live; a real guest's link is
+// 32 random bytes that CORE never keeps.
+export const DEMO_INVITE_TOKEN = 'demo-invitation-link-for-the-guides-0000001';
 import { cleanIndustries } from './engine.js';
 
 const FIRST = ['Maria', 'Jose', 'Ana', 'Juan', 'Carmela', 'Ramon', 'Liza', 'Paolo', 'Grace', 'Miguel', 'Teresa', 'Rafael', 'Joy', 'Carlo', 'Bea', 'Enrique', 'Patricia', 'Andres', 'Kristine', 'Marco'];
@@ -117,9 +123,27 @@ export function addDemoEvent(db, { lead, staff, now = new Date() }) {
   guests.push(extra(1, 'Lorna', 'Bautista', 'Northbay Bank (demo)', { state: 'pending', kind: 'walkin', requestedBy: staff?.id || lead.id, requestedAt: at(6), note: 'Says she is with Northbay Bank; not on the list' }));
   const absent = pref[20];
   guests.push(extra(1, 'Rafael', absent.name.last, absent.company, { state: 'pending', kind: 'substitute', requestedBy: staff?.id || lead.id, requestedAt: at(4), note: `Here instead of ${absent.name.first}, who is unwell` }, { substituteFor: absent.id, ownerUserId: absent.ownerUserId || null, industryId: absent.industryId }));
+  // Invitations (0.74): the regular guests who have not arrived were invited three days ago. 15
+  // said Yes and hold the chair their Yes reserved (tables 10 and 11), 4 said No, 11 opened their
+  // link without answering yet, the rest have not answered; those with no address were not invited.
+  const notHere = regular.slice(30).filter((g) => g.email);
+  notHere.forEach((g, k) => {
+    g.invite = { hash: inviteHashOf(k === 15 ? DEMO_INVITE_TOKEN : randomUUID() + randomUUID()), state: 'sent', issuedAt: at(3 * 1440), sentAt: at(3 * 1440 - 2), openedAt: k < 30 ? at(2 * 1440 - k * 7) : null, by: lead.id, base: '', count: 1, lastError: null, messageId: null };
+    if (k < 15) {
+      g.rsvp = 'yes';
+      g.rsvpReply = { answer: 'yes', at: at(2 * 1440 - k * 7 + 1), via: 'link', by: RSVP_ACTOR };
+      g.seat = { tableId: tables[9 + Math.floor(k / 10)].id, seatNo: (k % 10) + 1, status: 'reserved', at: g.rsvpReply.at, by: RSVP_ACTOR, via: 'rsvp' };
+    } else if (k >= 16 && k < 20) {
+      g.rsvp = 'no';
+      g.rsvpReply = { answer: 'no', at: at(2 * 1440 - k * 7 + 1), via: 'link', by: RSVP_ACTOR };
+    }
+  });
   db.data.caGuests = [...(db.data.caGuests || []), ...guests];
   // Email stays paused in the demo; the event's own sender is set, as it would be for a real one.
-  ev.settings = { ...ev.settings, emailFrom: 'gala.events@example.com', replyTo: 'gala.events@example.com' };
+  ev.settings = {
+    ...ev.settings, emailFrom: 'gala.events@example.com', replyTo: 'gala.events@example.com', autoSeatOnConfirm: true,
+    invitation: { subject: 'Invitation: Demo Gala', intro: 'You are invited to Demo Gala, our year-end evening with clients and friends.', time: '6:00 PM', dressCode: 'Smart casual', rsvpDeadline: new Date(Date.parse(`${day}T18:00:00+08:00`) - 3 * 86400000).toISOString() },
+  };
   ev.seq = 1;
   marks.clear();
   return ev;

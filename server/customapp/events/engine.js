@@ -7,13 +7,15 @@
 //   guestIds, tableIds, diff?, reason, write (what a non-Super-Administrator wrote, for I10),
 //   audit: { action, entityId, label, note }, result, noop? }
 // state: { event, tables, guests, users: [{ id, name, active, canUse }] }
-// actor: { id, name, role: 'super' | 'staff' | 'manager' | 'self' | null, canManage }
+// actor: { id, name, role: 'super' | 'staff' | 'manager' | 'self' | 'system' | null, canManage }
+//   'self' is the guest page's surname check-in; 'system' (id RSVP_ACTOR, 'system:rsvp') is a guest's
+//   own invitation link: it can only record their reply (seating them on Yes) and that they opened it.
 // Refusals come only from shared/customapp/refusals.js (model.refusal); 400s are input mistakes.
 import { randomUUID } from 'node:crypto';
-import { refusal, bad, cleanText, lookupOf, guestLabel } from './model.js';
-import { seatMessage } from './message.js';
-import { TABLE_CLASSES, GUEST_CLASSES, SEAT_NUMBERS, FLAGS, POLL_MS, HARD_LIMIT, EVENT_STATUSES } from '../../../shared/customapp/statuses.js';
-import { classOK, takenSeats, tableCounts, optionsFor, seatNoRequired, seatStatusFor, isReserved, isConfirmed, whyNot } from '../../../shared/customapp/seating.js';
+import { refusal, bad, cleanText, lookupOf, guestLabel, seatsOnYes } from './model.js';
+import { seatMessage, invitationMessage, rsvpMessage, rsvpClosesAt } from './message.js';
+import { TABLE_CLASSES, GUEST_CLASSES, SEAT_NUMBERS, FLAGS, POLL_MS, HARD_LIMIT, EVENT_STATUSES, RSVP_ANSWERS, RSVP_ACTOR } from '../../../shared/customapp/statuses.js';
+import { classOK, takenSeats, tableCounts, optionsFor, seatNoRequired, seatStatusFor, isReserved, isConfirmed, whyNot, recommend, firstFreeSeat } from '../../../shared/customapp/seating.js';
 import { cleanRoom, roomTables } from '../../../shared/customapp/room.js';
 import { toUtc } from '../../../shared/customapp/time.js';
 import { importIssues } from './io.js';
@@ -141,6 +143,17 @@ const COMMANDS = {
     const w = ev.window || {};
     const open = ev.status === 'live' && ev.flags?.registrationOpen && (!w.opensAt || now >= w.opensAt) && (!w.closesAt || now <= w.closesAt);
     if (!open) throw refusal('registration_closed', undefined);
+    // At the door by the personal invitation (0.74): the link's token proves who it is (its hash is
+    // the one on the guest now), so no surname is asked and no status token is kept.
+    if (cmd.inviteHash !== undefined) {
+      needInvite(g, cmd.inviteHash);
+      if (g.arrival?.state === 'checked_in') return { type: 'selfCheckIn', noop: true, changes: [], guestIds: [g.id], tableIds: [], result: { guestId: g.id, already: true } };
+      const patch = { arrival: { state: 'checked_in', at: now, by: null, via: 'qr' } };
+      if (isReserved(g.seat)) patch.seat = { ...g.seat, status: 'confirmed' };
+      const p = arrivalPlan(state, g, patch, 'selfCheckIn', actor);
+      p.audit.note = `${p.audit.note} (personal invitation link)`;
+      return p;
+    }
     if (!/^[0-9a-f]{64}$/.test(String(cmd.tokenHash || ''))) throw bad('The guest page sends a status token.');
     const statusTokens = [...(g.statusTokens || []), { hash: cmd.tokenHash, issuedAt: now }].slice(-STATUS_TOKENS_MAX);
     if (g.arrival?.state === 'checked_in') {
@@ -455,6 +468,144 @@ const COMMANDS = {
     };
   },
 
+  // ----- Invitations and replies (0.74) -----
+  // Send personal invitations (the Super Administrator): for each guest, a new token's hash replaces
+  // the one before (an earlier link stops working) and the invitation is queued in the outbox with
+  // the token sealed (the route makes the tokens and seals them; the outbox opens the seal only to
+  // put the link in the email, then removes it). The outbox sends outside commit(), one at a time,
+  // and only while email is not paused.
+  invite(state, cmd, actor, now) {
+    needSuper(actor, state);
+    const ev = state.event;
+    if (ev.status !== 'live') throw bad('Set the event to Live first (Setup → Event → Status): the invitation links answer only while the event is live.');
+    const from = String(ev.settings?.emailFrom || '').toLowerCase();
+    if (!from) throw bad('Set the event\'s own From address first (Setup → Event → Email from).');
+    if (state.helpdeskAddress && from === state.helpdeskAddress) throw bad('The event\'s From address is the IT Service Desk mailbox. Use the event\'s own address (Setup → Event → Email from).');
+    const base = String(cmd.base || '');
+    if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/.test(base)) throw bad('The address for the links is not a web address (https://…).');
+    const issues = Array.isArray(cmd.issues) ? cmd.issues : [];
+    if (!issues.length || issues.length > 500) throw bad('Choose the guests to invite (1 to 500).');
+    if (new Set(issues.map((x) => x?.guestId)).size !== issues.length) throw bad('A guest is in the list twice.');
+    const changes = [];
+    const guests = [];
+    let again = 0;
+    for (const x of issues) {
+      const g = mustGuest(state, x?.guestId);
+      if (!g.email) throw bad(`${guestLabel(g)} has no email address.`);
+      if (g.classification === 'unlisted' || g.substitutedBy) throw bad(`${guestLabel(g)} is a walk-in or substitute, or was replaced by one: they are not invited.`);
+      if (!/^[0-9a-f]{64}$/.test(String(x.hash || '')) || typeof x.sealed !== 'string' || !x.sealed || x.sealed.length > 400) throw bad('Each invitation needs its token\'s hash and sealed token.');
+      if (g.invite?.hash) again++;
+      const record = { id: randomUUID(), eventId: ev.id, ...invitationMessage(ev, g), state: 'queued', attempts: 0, lastError: null, createdAt: now, sentAt: null, by: actor.id, tokenSealed: x.sealed, linkBase: base };
+      changes.push({ op: 'add', coll: 'caOutbox', record });
+      changes.push(setGuest(g, { invite: { hash: x.hash, state: 'queued', issuedAt: now, by: actor.id, messageId: record.id, base, sentAt: null, openedAt: null, lastError: null, count: (g.invite?.count || 0) + 1 } }));
+      guests.push(g);
+    }
+    return {
+      type: 'invite', changes, guestIds: guests.map((g) => g.id), tableIds: [],
+      diff: guests.map((g) => ({ id: g.id, f: 'invite', from: g.invite?.state || 'none', to: 'queued' })),
+      audit: { action: 'invite', entityId: ev.id, label: ev.name, note: `Invitations queued: ${guests.length}${again ? ` (${again} sent again with a new link; the earlier links stop working)` : ''}. Links on ${base}` },
+      result: { queued: guests.length, again },
+    };
+  },
+  // A guest's link stops working (sent to a wrong address, forwarded): their answer and seat stay.
+  revokeInvite(state, cmd, actor, now) {
+    needSuper(actor, state);
+    const g = mustGuest(state, cmd.guestId);
+    if (!g.invite?.hash) throw bad('This guest has no invitation link that works.');
+    return {
+      type: 'revokeInvite', changes: [setGuest(g, { invite: { ...g.invite, hash: null, state: 'revoked', revokedAt: now, revokedBy: actor.id } })], guestIds: [g.id], tableIds: [],
+      diff: [{ id: g.id, f: 'invite', from: g.invite.state || 'sent', to: 'revoked' }], reason: cleanText(cmd.reason, 200),
+      audit: { action: 'invite-revoke', entityId: g.id, label: guestLabel(g), note: 'Invitation link revoked' }, result: { guestId: g.id },
+    };
+  },
+  // The guest opened their link (the first time only): the RSVP status "Opened" for staff.
+  inviteOpened(state, cmd, actor, now) {
+    if (actor.role !== 'system') throw refuse('needs_super_admin', state, [cmd.guestId]);
+    const g = mustGuest(state, cmd.guestId);
+    needInvite(g, cmd.inviteHash);
+    if (g.invite.openedAt) return { type: 'inviteOpened', noop: true, changes: [], guestIds: [], tableIds: [], result: { guestId: g.id } };
+    return { type: 'inviteOpened', changes: [setGuest(g, { invite: { ...g.invite, openedAt: now } })], guestIds: [g.id], tableIds: [], diff: [{ id: g.id, f: 'invite', from: 'sent', to: 'opened' }], result: { guestId: g.id } };
+  },
+  // A guest's answer (US: seat on confirmation). From their link (actor 'system', id RSVP_ACTOR,
+  // its token's hash checked again here), or recorded by the Super Administrator for a guest who
+  // answered another way. Before replies close the answer can be changed, any number of times.
+  //   Yes: rsvp = yes. A guest who holds a seat keeps it (a preferred guest's reservation is never
+  //        touched: they are confirmed to attend, not checked in). Anyone else, when the event seats
+  //        on confirmation, gets recommend()'s top table (shared/customapp/seating.js, the same rules
+  //        as staff) and its lowest open chair, as a reservation (reserved, via 'rsvp') that holds
+  //        the chair until the night. No eligible seat, a preferred guest without a reservation, or
+  //        seating on confirmation off: no seat, "We will email your table", and the Super
+  //        Administrator's exceptions inbox.
+  //   No:  rsvp = no. A reservation made by a Yes is released; any other reservation (a preferred
+  //        guest's, one staff made) is kept and flagged for the Super Administrator, who releases it
+  //        by hand if right (design: reservations are never released automatically).
+  // The seat is one field on the guest, so Yes, No, Yes never holds two chairs; two guests asking for
+  // the last chair are two commits, one after the other: the second finds it taken.
+  // On Yes (with an email address) the reply email is queued here: the table and chair, or that the
+  // table follows, with the personal QR code when the link's token came with the request (sealed).
+  rsvp(state, cmd, actor, now) {
+    const ev = state.event;
+    const sys = actor.role === 'system';
+    if (!sys) needSuper(actor, state, cmd.guestId);
+    const g = mustGuest(state, cmd.guestId);
+    const answer = String(cmd.answer || '');
+    if (!RSVP_ANSWERS.includes(answer)) throw bad('Answer yes or no.');
+    if (sys) needInvite(g, cmd.inviteHash);
+    if (g.classification === 'unlisted' || g.substitutedBy) throw refuse('guest_moved', state, [g.id], [], 'A substitute took this invitee\'s place, or this is not an invited guest.');
+    if (g.arrival?.state === 'checked_in') throw refuse('already_checked_in', state, [g.id]);
+    const closes = rsvpClosesAt(ev);
+    if (sys && closes && now > closes) throw refusal('rsvp_closed', { seq: ev.seq || 0 });
+    const prev = g.rsvpReply?.answer || null;
+    const patch = {};
+    let flags = g.flags || [];
+    let outcome;
+    if (answer === 'yes') {
+      flags = flags.filter((f) => f.kind !== 'rsvp_no_with_seat');
+      if (g.seat) outcome = 'kept';
+      else if (g.classification === 'preferred') outcome = 'preferred_waiting';
+      else if (!seatsOnYes(ev)) outcome = 'manual';
+      else {
+        const top = recommend([g], ev, state.tables.filter((t) => t.active !== false), state.guests)[0];
+        if (!top) outcome = 'no_seat';
+        else {
+          const t = tableOf(state, top.tableId);
+          const others = state.guests.filter((x) => x.id !== g.id);
+          const seatNo = ev.settings?.seatNumbers === 'none' ? null : firstFreeSeat(t, others);
+          patch.seat = { tableId: t.id, seatNo, status: 'reserved', at: now, by: actor.id, via: 'rsvp' };
+          outcome = 'seated';
+        }
+      }
+    } else if (isReserved(g.seat) && g.seat.via === 'rsvp') {
+      patch.seat = null;
+      outcome = 'released';
+    } else if (g.seat) {
+      outcome = 'kept_flagged';
+      if (!flags.some((f) => f.kind === 'rsvp_no_with_seat')) flags = [...flags, { kind: 'rsvp_no_with_seat', at: now }].slice(-10);
+    } else outcome = 'none';
+    const flagsChanged = flags.length !== (g.flags || []).length;
+    const seat = patch.seat !== undefined ? patch.seat : g.seat || null;
+    const t = seat ? tableOf(state, seat.tableId) : null;
+    const result = { guestId: g.id, answer, outcome, seat: seat ? { tableId: seat.tableId, number: t?.number ?? null, seatNo: seat.seatNo ?? null, status: seat.status } : null };
+    // The same answer again with nothing new to do: no write (a double tap, a reload).
+    if (prev === answer && patch.seat === undefined && !flagsChanged) return { type: 'rsvp', noop: true, changes: [], guestIds: [], tableIds: [], result };
+    Object.assign(patch, { rsvp: answer, rsvpReply: { answer, at: now, via: sys ? 'link' : 'staff', by: actor.id } });
+    if (flagsChanged) patch.flags = flags;
+    const changes = [];
+    if (answer === 'yes' && g.email) {
+      const after = { ...g, ...patch };
+      const record = { id: randomUUID(), eventId: ev.id, ...rsvpMessage(ev, after, t, { withLink: Boolean(cmd.tokenSealed) }), state: 'queued', attempts: 0, lastError: null, createdAt: now, sentAt: null, by: actor.id, ...(cmd.tokenSealed ? { tokenSealed: String(cmd.tokenSealed).slice(0, 400), linkBase: g.invite?.base || '' } : {}) };
+      changes.push({ op: 'add', coll: 'caOutbox', record });
+      patch.notify = { ...(g.notify || {}), state: 'queued', lastAt: now, messageId: record.id };
+    }
+    changes.unshift(setGuest(g, patch));
+    const words = { seated: `reserved ${seatText(state, seat)}`, kept: `keeps ${seatText(state, g.seat)}`, preferred_waiting: 'preferred guest without a reservation: for the Super Administrator to seat', manual: 'to be seated by staff (seating on confirmation is off)', no_seat: 'no eligible seat left: for the Super Administrator', released: `${seatText(state, g.seat)} released (made by their Yes)`, kept_flagged: `${seatText(state, g.seat)} kept for the Super Administrator to release by hand`, none: 'no seat to change' }[outcome];
+    return {
+      type: 'rsvp', changes, guestIds: [g.id], tableIds: [...new Set([g.seat?.tableId, seat?.tableId].filter(Boolean))], reason: sys ? '' : cleanText(cmd.reason, 200),
+      audit: { action: 'rsvp', entityId: g.id, label: guestLabel(g), note: `${answer === 'yes' ? 'Yes' : 'No'}${sys ? ' on the invitation link' : ', recorded by the Super Administrator'}${prev && prev !== answer ? ` (was ${prev})` : ''}: ${words}`, ...(sys ? { actor: { name: RSVP_ACTOR } } : {}) },
+      result,
+    };
+  },
+
   // ----- Tables and the room (Super Administrator) -----
   'table.add'(state, cmd, actor) {
     needSuper(actor, state);
@@ -572,7 +723,8 @@ const COMMANDS = {
       const s = cmd.settings || {};
       const next = { ...ev.settings };
       if (s.seatNumbers !== undefined) next.seatNumbers = SEAT_NUMBERS.includes(s.seatNumbers) ? s.seatNumbers : (() => { throw bad('Seat numbers are for all guests, preferred guests or none.'); })();
-      for (const k of ['mixedTables', 'releaseDelegable']) if (s[k] !== undefined) next[k] = Boolean(s[k]);
+      for (const k of ['mixedTables', 'releaseDelegable', 'autoSeatOnConfirm']) if (s[k] !== undefined) next[k] = Boolean(s[k]);
+      if (s.invitation !== undefined) next.invitation = cleanInvitation(s.invitation, ev.settings?.invitation || {});
       // The event's own sender and reply address (US-023): never the IT Service Desk's mailbox, or a
       // guest's reply would become a helpdesk ticket.
       for (const k of ['emailFrom', 'replyTo']) {
@@ -676,6 +828,12 @@ function arrivalPlan(state, g, patch, type, actor) {
     audit: { action: type === 'undoCheckIn' ? 'undo-check-in' : 'check-in', entityId: g.id, label: guestLabel(g), note: `${label}${patch.seat ? `; ${seatText(state, patch.seat)} retrieved` : ''}` },
     result: { guestId: g.id, route, seat: patch.seat ? { tableId: patch.seat.tableId, number: tableOf(state, patch.seat.tableId)?.number, seatNo: patch.seat.seatNo } : null, by: actor.id },
   };
+}
+
+// The invitation token's hash a request proves (the guest page, actor 'system' or 'self'): the one
+// on the guest now. A revoked or re-issued link no longer matches.
+function needInvite(g, hash) {
+  if (!/^[0-9a-f]{64}$/.test(String(hash || '')) || !g.invite?.hash || g.invite.hash !== hash) throw bad('That invitation link is not this guest\'s current one.');
 }
 
 function needReleaser(actor, state, g, t) {
@@ -793,6 +951,32 @@ function delegate(state, cmd, actor, coll) {
 }
 
 export const STATUS_TOKENS_MAX = 5;
+
+// The invitation's own settings (Event control → Invitations): the subject, the opening text (a few
+// paragraphs), the time and dress code shown with the date and venue, when replies close, and the
+// address the links use when it is not the one the Super Administrator works on.
+const multiline = (v, max) => (v == null || typeof v === 'object' ? '' : String(v)).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g, ' ').replace(/[​-‏‪-‮⁦-⁩﻿]/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, max);
+export function cleanInvitation(input, before = {}) {
+  const s = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const out = { ...before };
+  if (s.subject !== undefined) out.subject = cleanText(s.subject, 160);
+  if (s.intro !== undefined) out.intro = multiline(s.intro, 1500);
+  if (s.time !== undefined) out.time = cleanText(s.time, 60);
+  if (s.dressCode !== undefined) out.dressCode = cleanText(s.dressCode, 80);
+  if (s.rsvpDeadline !== undefined) {
+    try {
+      out.rsvpDeadline = toUtc(s.rsvpDeadline);
+    } catch (err) {
+      throw bad(`Reply by: ${err.message}`);
+    }
+  }
+  if (s.publicUrl !== undefined) {
+    const v = cleanText(s.publicUrl, 120).replace(/\/+$/, '');
+    if (v && !/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?$/.test(v)) throw bad('The public address is a web address without a path, for example https://ltdc-core.com.');
+    out.publicUrl = v;
+  }
+  return out;
+}
 
 const activeStaffIds = (ev) => new Set([ev.superAdminUserId, ...(ev.staff || []).filter((s) => s.active !== false).map((s) => s.userId)].filter(Boolean));
 

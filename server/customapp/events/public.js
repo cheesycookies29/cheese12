@@ -56,6 +56,8 @@ export const REASONS = Object.freeze({
   unlisted: 'This guest is unlisted and waits for the Super Administrator\'s approval.',
   substituted: 'A substitute took this invitee\'s place (approved by the Super Administrator). Refer them to the Super Administrator.',
   not_saved: 'The check-in could not be saved at that moment. Check the guest in here.',
+  // The personal invitation link (0.74, invite.js).
+  invite_invalid: 'The invitation link is not one that works: it was revoked, or sent again (only the newest link works), or it was copied wrongly. Find the guest by name and check them in here, or send their invitation again.',
 });
 
 const sha256 = (s) => createHash('sha256').update(String(s)).digest('hex');

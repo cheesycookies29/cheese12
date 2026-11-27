@@ -2,10 +2,11 @@
 // event's next seq; the log is the approval and change history the spec asks for (s.7, s.13), the
 // opId store (commit.js) and, from Tier 1, the live-sync cursor (changes?since=<seq>).
 import { changesOf } from './model.js';
+import { RSVP_ACTOR } from '../../../shared/customapp/statuses.js';
 
 // What happened to one guest, newest first: who, when, what (the diff is already safe to show).
 export function historyOf(db, eventId, guestId, { users = [], limit = 30 } = {}) {
-  const name = (id) => users.find((u) => u.id === id)?.name || (id ? 'Former account' : 'Guest page');
+  const name = (id) => users.find((u) => u.id === id)?.name || (id === RSVP_ACTOR ? 'The guest\'s invitation link' : id ? 'Former account' : 'Guest page');
   return changesOf(db, eventId)
     .filter((c) => (c.guestIds || []).includes(guestId))
     .slice(-limit)

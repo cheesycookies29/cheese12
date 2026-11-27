@@ -9,13 +9,15 @@
 // Tier 2 (0.73, 5 Dec): group arrivals, walk-ins and substitutes for the Super Administrator to
 // decide, the email outbox (outbox.js), the Event control dashboard with the exceptions inbox, and
 // the printed offline pack with paper reconciliation through commit() (the council design, A11, U4,
-// U7).
+// U7). 0.74: personal invitations by email (a link, a button and a QR code), the guest's Yes or No on
+// that link with the seat reserved at once on Yes, and the door check-in by the same link (invite.js).
 import { createCommitContext } from './events/commit.js';
 import { registerEventRoutes } from './events/routes.js';
 import { registerPublicRoutes, createPublicGate } from './events/public.js';
 import { createSafety } from './events/safety.js';
 import { eventsOf } from './events/model.js';
-import { createOutbox } from './events/outbox.js';
+import { createOutbox, memoryVault } from './events/outbox.js';
+import { registerInviteRoutes } from './events/invite.js';
 
 export const APPS = Object.freeze([
   Object.freeze({ id: 'events', name: 'Events', glyph: 'party', status: 'live', description: 'Guest lists, check-in at the desk and seating by table and chair, for one event at a time.' }),
@@ -35,9 +37,11 @@ export function windowOpen(ev, nowMs = Date.now()) {
 }
 
 // opts: { audit, requirePassword(user, password), limits, monitor, clock () → ms, safetyTimers,
-// transport (CORE's outgoing mail, server/mail/transport.js), outbox: { send, backoffMs, saveEveryMs, timers } }
-export function registerCustomApp(route, db, { audit = null, requirePassword, limits, monitor = null, clock = () => Date.now(), safetyTimers = true, transport = null, outbox: outboxOpts = {} } = {}) {
-  const outbox = createOutbox(db, { transport, now: clock, ...outboxOpts });
+// transport (CORE's outgoing mail, server/mail/transport.js), outbox: { send, backoffMs, saveEveryMs, timers },
+// secrets (server/secrets.js: seals the invitation links while their email waits) }
+export function registerCustomApp(route, db, { audit = null, requirePassword, limits, monitor = null, clock = () => Date.now(), safetyTimers = true, transport = null, outbox: outboxOpts = {}, secrets = null } = {}) {
+  const vault = secrets ? { seal: (s) => secrets.seal(s), open: (s) => secrets.open(s) } : memoryVault();
+  const outbox = createOutbox(db, { transport, now: clock, vault, ...outboxOpts });
   const ctx = createCommitContext(db, { audit, now: () => new Date(clock()).toISOString(), afterCommit: outbox.afterCommit });
   if (outboxOpts.timers !== false) outbox.start();
   // 429s on an event's routes in the last 15 minutes, per event (the health strip).
@@ -60,6 +64,7 @@ export function registerCustomApp(route, db, { audit = null, requirePassword, li
   route('GET', '/api/customapp/apps', 'customapp.use', () => ({ apps: APPS }));
   registerEventRoutes(route, db, { ctx, audit, requirePassword, limits, gate, safety, clock, outbox, count429 });
   registerPublicRoutes(route, db, { ctx, gate, limits, clock });
+  registerInviteRoutes(route, db, { ctx, gate, limits, clock, vault: outbox.vault, outbox, audit, ...(outboxOpts.send ? { send: outboxOpts.send } : {}) });
   const openEvents = () => eventsOf(db).filter((ev) => windowOpen(ev, clock()));
   return {
     ctx, gate, safety, outbox, note429, count429,

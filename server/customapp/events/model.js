@@ -4,10 +4,10 @@
 // Collections in db.json (design A2): caEvents, caTables, caGuests (the aggregate root: the seat is
 // on the guest, so a guest can never hold two), caChanges (append-only history, sync cursor and
 // idempotency store) and caOutbox (email, Tier 2). Only server/customapp reads or writes them.
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { HttpError } from '../../util.js';
 import { REFUSALS } from '../../../shared/customapp/refusals.js';
-import { CLASS_LABELS, SEAT_LABELS } from '../../../shared/customapp/statuses.js';
+import { CLASS_LABELS, SEAT_LABELS, RSVP_LABELS } from '../../../shared/customapp/statuses.js';
 
 export const CA_COLLECTIONS = ['caEvents', 'caTables', 'caGuests', 'caChanges', 'caOutbox'];
 
@@ -69,6 +69,26 @@ export function newEventCode(name) {
   return `${slug}-${suffix}`;
 }
 
+// ----- Invitations (0.74) -----
+// A guest's personal invitation token: 32 random bytes (base64url, 43 characters), kept only as this
+// SHA-256 on the guest (guest.invite.hash). The link is https://<host>/event/<code>#i=<token>: the
+// token is after #, which browsers never send, and the API reads it from the X-Event-Invite header.
+export const INVITE_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
+export const newInviteToken = () => randomBytes(32).toString('base64url');
+export const inviteHashOf = (token) => createHash('sha256').update(`customapp-invite:${token}`).digest('hex');
+export const inviteLink = (base, code, token) => `${String(base || '').replace(/\/+$/, '')}/event/${code}#i=${token}`;
+
+// A guest's RSVP status as staff see it (RSVP_STATUSES): their answer on the invitation link (or
+// one the Super Administrator recorded), else whether the invitation was opened or sent. A value
+// that came with the import ("Yes", "Maybe") is shown beside it, never taken as an answer.
+export function rsvpStatusOf(g) {
+  const answer = g.rsvpReply?.answer;
+  if (answer === 'yes' || answer === 'no') return answer;
+  const inv = g.invite || {};
+  if (!inv.state || inv.state === 'none' || inv.state === 'revoked') return 'not_invited';
+  return inv.openedAt ? 'opened' : 'invited';
+}
+
 // ----- What leaves the server about a guest -----
 // The audit log names a guest by reference and a masked name ("G-0012 Maria S."), never the
 // mobile or email (design R1).
@@ -105,6 +125,7 @@ export function guestView(g, { role, userId, tables, industries, full = false })
     seat: g.seat ? { tableId: g.seat.tableId, number: t?.number ?? null, seatNo: g.seat.seatNo ?? null, status: g.seat.status, label: seatLabel(g.seat) } : null,
     ownerUserId: g.ownerUserId || null, active: g.active !== false, rev: g.rev,
     released: g.released ? { at: g.released.at } : null,
+    rsvpStatus: rsvpStatusOf(g), rsvpLabel: RSVP_LABELS[rsvpStatusOf(g)],
   };
   const mine = role === 'super' || (role === 'staff' && g.ownerUserId === userId);
   if (!mine) return { ...base, limited: true };
@@ -113,5 +134,12 @@ export function guestView(g, { role, userId, tables, industries, full = false })
     mobile: maskMobile(g.mobile), email: full && role === 'super' ? g.email || '' : maskEmail(g.email),
     hasMobile: Boolean(last4(g.mobile)), hasEmail: Boolean(g.email), altSurnames: g.altSurnames || [],
     externalKey: g.externalKey || '',
+    // Invitations (0.74): the RSVP status, the answer and the invitation's delivery (no token hash).
+    rsvpAt: g.rsvpReply?.at || null, rsvpWaiting: Boolean(g.rsvpReply?.answer === 'yes' && !g.seat),
+    invite: g.invite ? { state: g.invite.state || 'none', issuedAt: g.invite.issuedAt || null, sentAt: g.invite.sentAt || null, openedAt: g.invite.openedAt || null, count: g.invite.count || 0, lastError: g.invite.lastError || '' } : { state: 'none' },
   };
 }
+
+// Seat on Yes (0.74): on unless the event's Super Administrator turned it off. An event made before
+// 0.74 has no such setting and seats on Yes too: that is what was decided for every event.
+export const seatsOnYes = (ev) => ev?.settings?.autoSeatOnConfirm !== false;

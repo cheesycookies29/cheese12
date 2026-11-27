@@ -1,7 +1,7 @@
 ---
 id: custom-app-events
 title: Running an event in CUSTOM APP
-summary: For event staff, the event's Super Administrator and administrators: My queue, the guest page guests check in on, the room plan, finding and checking in a guest (also by the code the guest page gives), seating at a table and chair with recommended tables, seating a group together, walk-ins and substitutes, seat emails, Event control (the exceptions inbox, health, staff and their queues, switches, the reception QR, exports, the printed plan and the offline pack, reconciling paper seating, handing over the Super Administrator), Setup (the room, tables, staff, the guest list import and its check), and what to do on the night if something fails.
+summary: For event staff, the event's Super Administrator and administrators: personal invitations by email with a QR code, the guest's Yes or No with the seat reserved at once on Yes, check-in at the door by the same link, My queue, the guest page guests check in on, the room plan, finding and checking in a guest (also by the code the guest page gives), seating at a table and chair with recommended tables, seating a group together, walk-ins and substitutes, seat emails, Event control (the exceptions inbox, health, staff and their queues, switches, the reception QR, exports, the printed plan and the offline pack, reconciling paper seating, handing over the Super Administrator), Setup (the room, tables, staff, the guest list import and its check), and what to do on the night if something fails.
 roles: eventstaff, admin
 apps: customapp
 order: 45
@@ -12,7 +12,7 @@ order: 45
 **CUSTOM APP** is CORE's module for apps made for a client. Its first app, **Events**, runs the registration desk of an event: the guest list, check-in, and seating by table and chair, within each table's limit of 10.
 
 - **Event staff** sign in with a CORE account of the type *Event staff*. It opens CUSTOM APP and nothing else, on **My queue**. Your administrator makes the account; the event's Super Administrator puts you on the event's staff and gives you your tables and guests.
-- **Guests** check themselves in on their phone: they scan the reception QR code, which opens the event's **guest page** (*/event/…*), type their surname and the last 4 digits of their mobile (or their full email), and see their table as soon as it is chosen. Nobody needs an account for it.
+- **Guests** get a personal **invitation** by email, with their own link and QR code. They answer **Yes** or **No** on it; on Yes their seat is reserved at once and emailed to them. On the night the same link (or its QR code) checks them in at the door. Guests can also check themselves in on their phone: they scan the reception QR code, which opens the event's **guest page** (*/event/…*), type their surname and the last 4 digits of their mobile (or their full email), and see their table as soon as it is chosen. Nobody needs an account for any of it.
 - Each event has **exactly one Super Administrator**. They can do everything in that event: seat anyone anywhere, release reservations, set up the event and change its switches. Staff check in anyone, and seat only the guests and tables given to them.
 - **Administrators** create events (CUSTOM APP → **Events** → **New event**) and can hand the Super Administrator over to someone else, with their password and a reason. That is their only power inside an event: being a CORE administrator does not let you seat guests.
 - CUSTOM APP starts **off** for the company. An administrator turns it on under **Admin panel → Modules**.
@@ -56,7 +56,7 @@ To try it with the demo data (**Admin panel → Demo data**), sign in as `eventl
 
    ![Three guests ticked in My queue, with the tables that fit them together](custom-app-events-group.jpg)
 
-9. **Event control** (`eventlead.demo`) has the counts (*Invited · Checked in · Not yet arrived · Waiting for table · Needs approval · Seats left*), the health of the event, the **Exceptions** inbox, the room plan, who has how many guests waiting, the switches, the reception QR sheet, the exports, the printable seating plan, the offline pack and **Reconcile paper seating**. It updates by itself, like My queue.
+9. **Event control** (`eventlead.demo`) has the counts (*Invited · Checked in · Not yet arrived · Waiting for table · Needs approval · RSVP · Seats left*), the health of the event, the **Exceptions** inbox, the room plan, who has how many guests waiting, the switches, the reception QR sheet, the exports, the printable seating plan, the offline pack and **Reconcile paper seating**. It updates by itself, like My queue.
 
    ![Event control](custom-app-events-control.jpg)
 
@@ -68,7 +68,21 @@ To try it with the demo data (**Admin panel → Demo data**), sign in as `eventl
 
    ![The guest page on a phone, with the table](custom-app-events-guest.jpg)
 
-11. **Setup** is where the Super Administrator imports the guest list, clears the import check, and sets up the event, its room, tables, industries and staff.
+11. **Invitations**, on Event control (`eventlead.demo`): how many invitations wait, went or failed, how many were opened, and the answers (*Yes*, *No*, *No reply*). Above the buttons, anything that would stop or spoil the invitations is said in words (here: the demo has no outgoing email, and its links would point to the demo computer). **Preview** shows the email as a guest gets it, with the QR code; **Send invitations** sends one to every guest with an email address who has none yet.
+
+   ![Invitations on Event control](custom-app-events-invitations.jpg)
+
+   ![The invitation, previewed](custom-app-events-invite-preview.jpg)
+
+   The guest opens their link: their name, the event, and **Yes, I will attend** or **No, I can't attend**. To try it, make the demo event *Live* (**Setup → Event → Status**) and open */event/* and the demo event's code followed by *#i=demo-invitation-link-for-the-guides-0000001* (the one demo guest whose link is known).
+
+   ![A guest's invitation on their phone](custom-app-events-invite.jpg)
+
+   On **Yes** their seat is reserved at once, and the page (and an email) gives the table and seat. Until replies close they can change their answer.
+
+   ![After Yes: the seat reserved](custom-app-events-invite-yes.jpg)
+
+12. **Setup** is where the Super Administrator imports the guest list, clears the import check, and sets up the event, its room, tables, industries and staff.
 
    ![Setup: the guest list and the import check](custom-app-events-setup.jpg)
 
@@ -109,9 +123,51 @@ The Super Administrator sees both in **Event control → Exceptions** (a substit
 
 Every step is in the guest's **History** with who did it and when, and in the audit log. As the Super Administrator, **Record substitute** approves it at once.
 
+### Send the invitations (Super Administrator)
+
+Each guest gets their own invitation by email: a button and the address of their personal link, and the same link as a QR code. The link is */event/* and the event's code, then *#i=* and a long code that is theirs alone. CORE keeps only a fingerprint of it, so nobody (staff included) can read a guest's link back.
+
+Before the first invitation:
+
+1. Outgoing email is set up for CORE under **IT Service Desk → Settings → Sending email** (with Amazon SES: see [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses)).
+2. **Setup → Event**: **Email from** is the event's own address on the domain set up for email (for example *events@ltdc-core.com*), never the IT Service Desk's mailbox, and **Status** is *Live* (the links answer only while the event is live).
+3. **Event control → Invitations → Invitation settings…**: the **Subject**, the **Opening text**, the **Time**, **Venue** and **Dress code** shown with the date, **Reply by** (Manila time), and **Seat on Yes** (on unless you turn it off). Leave **Public address for the links** empty to use the address you are using CORE on (*https://ltdc-core.com*); the links then point there.
+4. **Preview** shows the email as a guest gets it. **Send a test…** sends one now, from the event's address, to any address you type: try a Gmail, an Outlook and a Yahoo address, and check it arrives in the inbox with the QR code showing. The test's link does not work.
+5. Turn email on: **Event control → Switches → Email paused: Off**.
+
+Then **Send invitations (N)**: one invitation for every guest with an email address who has none yet. They go one at a time through the outbox; the counts move from *Waiting to go* to *Sent* (or *Failed*). While email is paused they wait.
+
+- The box above the buttons says what would stop or spoil the invitations: no From address, the helpdesk mailbox as From, or an event not *Live* stop **Send invitations**; a From address on another domain than the site, or links that would point to an address guests cannot open (*http://localhost…*), are warnings.
+- Guests with **no email address** are listed under the buttons. **Add email**, then send theirs; or tell them by phone.
+- **Every guest's RSVP** lists each guest with their answer, their invitation and their seat. **Send again** (or **Send invitation again (new link)** on the guest's sheet) sends a new invitation with a **new link**: the link in the earlier email stops working, and their answer and seat stay as they are. **Revoke link** on the sheet stops a link at once (sent to a wrong address, forwarded).
+- A failed invitation shows in **Exceptions** (*Invitation to … failed*): check the address, then send it again.
+
+### The guest's answer, and seat on Yes
+
+On their link the guest sees their name, the event (date and time, venue, dress code), the opening text and two buttons: **Yes, I will attend** and **No, I can't attend**. Until replies close (at **Reply by**, or when self check-in opens if that is earlier) they can **Change my answer** as often as they like.
+
+- **Yes**, with **Seat on Yes** on: CORE gives them a seat at once, by the same rules as the recommendations (their industry first), at the best table for them and its lowest open chair. It is a **reservation**: it holds the chair until the night, counts toward the table's 10, and shows as *Reserved* (*Reserved: said Yes* on the room plan). The page says *Your seat is reserved: Table 12, seat 4*, and an email gives the table, the seat and the QR code again.
+- A **preferred guest** keeps the seat reserved for them; Yes only records that they are coming. A preferred guest without a reservation is not placed by CORE: they are in **Exceptions** for you.
+- **No eligible seat left** (or **Seat on Yes** off): the page says *We will email your table*, and the guest is in **Exceptions** (*… said Yes and has no seat yet*). Open them and **Reserve a seat…**: CORE emails them the table.
+- **No**: a seat their own Yes reserved is released at once. Any other reservation (a preferred guest's, or one you made) is **never released by CORE**: the guest is in **Exceptions** (*… said No and still holds …*) for you to release by hand if they are really not coming.
+- Yes, then No, then Yes again never holds two chairs, and two guests saying Yes to the last chair at the same moment never both get it: one has it, the other is told the table follows.
+- A guest who answered by phone: open them and **Record Yes** or **Record No** (the same rules).
+- A guest's owner stays as it is; the seat is CORE's, recorded in their **History** as *Answered the invitation, by The guest's invitation link*.
+
+**Find guest** filters by the answer: **Said Yes**, **Said No**, **No reply**, **Not invited**. The counts on Event control add *RSVP: N yes* once invitations have gone.
+
+### Check in at the door with the invitation
+
+On the night, while **Self check-in open** is on and the window is open, the guest's link offers **Check in**, with no surname to type: the link proves who they are. Then it shows their table in large type, and their seat, as the guest page does. The usher can also scan the QR code in the guest's email with any phone: the same page opens, with **Check in**.
+
+- A reserved seat becomes *Seated* at check-in. A guest with no seat yet waits for a table as usual.
+- Checking in twice changes nothing. Before the doors open the link says check-in opens on the night.
+- Everyone else uses the reception QR and their surname as before; a guest does not need to have answered to be checked in.
+- A link that is revoked, replaced or mistyped gives the same desk code as the guest page (*Please contact the organisers and quote this code: R-1234*); type it in **Find guest** to see why.
+
 ### Seat emails
 
-When a guest with an email address is seated, CORE emails them their table and chair, and emails them again if it changes. The email goes from the event's own address (**Setup → Event → Email from**), never from the IT Service Desk's mailbox, through CORE's outgoing email (set up under **IT Service Desk → Settings → Outgoing email**).
+When a guest with an email address is seated, CORE emails them their table and chair, and emails them again if it changes. The email goes from the event's own address (**Setup → Event → Email from**), never from the IT Service Desk's mailbox, through CORE's outgoing email (set up under **IT Service Desk → Settings → Sending email**).
 
 - Email is **paused** for a new event. The Super Administrator turns it on under **Event control → Switches** (*Email paused: Off*), once the From address is set.
 - The email is sent after the seat is saved, one at a time. A failed email never changes the seat or the check-in: the guest's sheet says *Seat email failed* and the seat is safe. **Resend** on the sheet (the guest's owner or the Super Administrator) sends it again; a failure also shows in **Exceptions** with **Resend**.
@@ -189,7 +245,9 @@ Each event has its own guest page, */event/* and the event's code (shown on **Ev
 
 Event control updates by itself, like My queue: the bar at the top says how old it is.
 
-The **counts**: *Invited* (the guest list), *Checked in*, *Not yet arrived*, *Waiting for table*, *Needs approval* (walk-ins and substitutes to decide) and *Seats left* (with how many are seated and reserved).
+The **counts**: *Invited* (the guest list), *Checked in*, *Not yet arrived*, *Waiting for table*, *Needs approval* (walk-ins and substitutes to decide), *RSVP* (once invitations have gone: yes, no, no reply, opened) and *Seats left* (with how many are seated and reserved).
+
+**Invitations**: see **Send the invitations**.
 
 **Health** shows the change number, the **save time** (how long the last saves took, the 95th percentile: act if it is above 250 ms), the **email outbox** (how many seat emails wait or failed), the age of the newest **5-minute copy** of the event (written on the server every 5 minutes while the event is live, the last 24 kept), **too many requests** (how often the event's screens or the guest page were slowed down in the last 15 minutes) and the **seating rules** check (run every minute while live). A problem with the rules shows as a red banner here and in the Security monitor: call the on-call developer. A banner also appears when the guest page has had more than 30 failed checks in 5 minutes: nobody is locked out, but guests with a code will come to the desk.
 
@@ -205,6 +263,9 @@ The **counts**: *Invited* (the guest list), *Checked in*, *Not yet arrived*, *Wa
 | *Seat together (3): …* | A group sent by staff whose guests have different owners. **Seat together** |
 | *Guest page paused for the surname …* | Too many different wrong numbers for one surname. **Clear**, or clear it at the desk |
 | *Seat email to … failed* | The seat is safe. Tell the guest, or **Resend** |
+| *… said Yes and has no seat yet* | No eligible chair was left, a preferred guest has no reservation, or **Seat on Yes** is off. **Open**, then **Reserve a seat…**: CORE emails them the table |
+| *… said No and still holds …* | A reservation CORE never releases by itself. **Open** and **Release reservation** if they are not coming |
+| *Invitation to … failed* | Check the address, then **Send again** |
 | *… failed guest page checks in 5 minutes* | Nobody is locked out; guests with a code are helped at the desk |
 
 The **room plan** on Event control works as on **Room plan**, for every table: choose a seated chair, then **Move** and an open chair to **transfer** the guest (*Move here*), or a seated guest's chair to **swap** them (*Swap seats*), **Back to waiting**, or, for a reserved chair, **Release reservation** (the confirm names the guest, the table and the chair). Every change shows on every device within a few seconds.
@@ -234,7 +295,7 @@ The **room plan** on Event control works as on **Room plan**, for every table: c
 1. **Room and tables**: the event's tables were made from its room when it was created (for example 5 rows × 5 columns of 10 chairs, stage on the right). Table 1 is nearest the stage, and tables run top to bottom, column by column, away from it; chair 1 faces the stage, and chairs run clockwise. **Edit** a table to set its type (*Preferred*, *Regular*, *Employee*, *Mixed*), chairs (1 to 10) and owner. A table with guests cannot be made smaller than them or taken out of use until they are moved. **Lay out the room again** works only while nobody has a seat.
 2. **Staff**: tick the accounts on the event's staff and **Save staff**.
 3. **Industries**: one per line, related ones after a colon (*Banking: Insurance, Real estate*); a relation is kept both ways.
-4. **Event**: name, date, venue, the self check-in window (in Manila time), status, and **Chair numbers** (every guest, preferred guests only, or tables only). **Mixed tables in use** lets anyone sit at tables marked *Mixed*. **Owners may release reservations** lets a table's owner release a reservation at their table; otherwise only you can.
+4. **Event**: name, date, venue, the self check-in window (in Manila time), status (invitation links answer only while it is *Live*), **Email from** and **Reply-To** (the event's own address), and **Chair numbers** (every guest, preferred guests only, or tables only). **Mixed tables in use** lets anyone sit at tables marked *Mixed*. **Owners may release reservations** lets a table's owner release a reservation at their table; otherwise only you can.
 
 ### Import the guest list (Super Administrator)
 
@@ -283,10 +344,10 @@ On the day (for the Super Administrator and the on-call developer):
 | **Events** | The events you are part of, with their counts; **New event** for administrators |
 | **My queue** | Where Event staff start: your guests waiting for a table (oldest first, with how long; tick several to **Seat together**), those seated, Find guest and **Add walk-in**; it updates by itself |
 | **Room plan** | The room with every table and chair; choose a waiting guest to see their best tables, then a chair, then **Seat here** |
-| **Find guest** | Search by name, company or ref, filter by who is waiting, not arrived, seated or reserved; tap a guest to check them in, seat them or record a substitute; **Add walk-in** |
+| **Find guest** | Search by name, company or ref, filter by who is waiting, not arrived, seated or reserved, and by the answer to the invitation (**Said Yes**, **Said No**, **No reply**, **Not invited**); tap a guest to check them in, seat them, reserve a seat or record a substitute; **Add walk-in** |
 | **Tables** | Every table with its type, owner and meter of chairs; tap one for its chairs and who sits on them |
-| **Event control** | The counts, health, the **Exceptions** inbox (walk-ins, substitutes, groups, guests with no seat, failed emails), the room plan (move, swap, release), staff and their queues (**All to…**, **One by one…**), tables out of use, the switches and the reception QR, the exports, the printable seating plan and the offline pack, **Reconcile paper seating**, the seating rules check, handing over the Super Administrator |
-| **Guest page** (*/event/…*) | Guests check themselves in on their phone and see their table; no account |
+| **Event control** | The counts, health, the **Exceptions** inbox (walk-ins, substitutes, groups, guests with no seat, failed emails, answers that need you), **Invitations** (settings, preview, test, send, every guest's RSVP), the room plan (move, swap, release), staff and their queues (**All to…**, **One by one…**), tables out of use, the switches and the reception QR, the exports, the printable seating plan and the offline pack, **Reconcile paper seating**, the seating rules check, handing over the Super Administrator |
+| **Guest page** (*/event/…*) | Guests check themselves in on their phone and see their table; with their invitation link (*…#i=…*) they answer Yes or No, see their reserved seat, and check in at the door; no account |
 | **Setup** | The guest list import and the import check, the event's details and window, the room and tables, industries and staff (the Super Administrator's) |
 
 ## Questions
@@ -323,3 +384,15 @@ No. A walk-in or a substitute is not checked in, and no table takes them, until 
 
 **Can paper seating overbook a table?**
 No. The Super Administrator enters the paper sheets through the same rules as the screens; a line that would put an eleventh guest at a table (or a second guest on a chair) is not entered and comes back as a card to resolve.
+
+**A guest lost their invitation email. Can I send them the same link?**
+No: CORE keeps only a fingerprint of each link, never the link itself, so nobody can read it back. **Send again** sends a new link and QR code; the old one stops working. Their answer and seat stay as they are.
+
+**Does a seat reserved by a Yes run out?**
+No. It is a reservation like any other: it holds the chair until the guest arrives, they say No (a seat their own Yes made is released then), or you release it. A preferred guest's reservation is never released by CORE, whatever they answer.
+
+**Two guests said Yes to the last chair at once. Who got it?**
+The one whose answer reached CORE first; the other was told *We will email your table* and is in **Exceptions**. A table never goes over its chairs.
+
+**Does a guest have to answer the invitation to be let in?**
+No. The answer is for planning. On the night anyone on the list is checked in, by their invitation link or by the surname check-in or at the desk.

@@ -251,8 +251,8 @@ export function importIssues(state) {
 
 // ----- Export customapp.event/1 -----
 // Everything about the event that a recovery needs: the event, its tables, every guest with their
-// seat claim (reserved and confirmed), the change log and the outbox. Status tokens, lookup keys
-// and per-device flags are left out. sha256 is the SHA-256 of this JSON with sha256 set to "".
+// seat claim (reserved and confirmed), the change log and the outbox. Status tokens, lookup keys,
+// per-device flags and invitation link hashes (and sealed links waiting in the outbox) are left out. sha256 is the SHA-256 of this JSON with sha256 set to "".
 const GUEST_EXPORT = ['id', 'ref', 'externalKey', 'name', 'designation', 'company', 'industryId', 'industryText', 'email', 'mobile', 'classification', 'tags', 'rsvp', 'ownerUserId', 'arrival', 'approval', 'substituteFor', 'substitutedBy', 'groupId', 'seat', 'released', 'notify', 'deskOnly', 'altSurnames', 'active', 'rev'];
 const EVENT_EXPORT = ['id', 'app', 'code', 'name', 'venue', 'date', 'status', 'superAdminUserId', 'staff', 'industries', 'settings', 'window', 'flags', 'room', 'refPrefix', 'importAck', 'seq', 'rev', 'demo'];
 const only = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
@@ -262,9 +262,11 @@ export function exportEvent({ event, tables, guests, changes = [], outbox = [] }
     format: EXPORT_FORMAT, exportedAt: now, eventId: event.id, seq: event.seq || 0, sha256: '',
     event: only(event, EVENT_EXPORT),
     tables: [...tables].sort((a, b) => a.number - b.number).map((t) => only(t, ['id', 'number', 'classification', 'capacity', 'ownerUserId', 'tags', 'active', 'row', 'col', 'rev'])),
-    guests: [...guests].sort((a, b) => String(a.ref).localeCompare(String(b.ref))).map((g) => only(g, GUEST_EXPORT)),
+    // The invitation's state and the guest's answer (0.74, optional fields), never the link's hash.
+    guests: [...guests].sort((a, b) => String(a.ref).localeCompare(String(b.ref))).map((g) => ({ ...only(g, GUEST_EXPORT), ...(g.rsvpReply ? { rsvpReply: g.rsvpReply } : {}), ...(g.invite ? { invite: (({ hash, ...rest }) => rest)(g.invite) } : {}) })),
     changes: changes.map((c) => ({ ...c })),
-    outbox: outbox.map((m) => ({ ...m })),
+    // A sealed invitation link waiting to be emailed never leaves the server (0.74).
+    outbox: outbox.map(({ tokenSealed, ...m }) => ({ ...m })),
   };
   out.sha256 = exportHash(out);
   return out;

@@ -10,6 +10,13 @@
 // The status token: the server's answer to a check-in. It is kept in the address after # (#s=…,
 // which browsers never send to a server) and in this browser's storage, and sent only in the
 // X-Event-Token header. The reception QR may carry a presence key (#k=…), sent with the check-in.
+//
+// A personal invitation (0.74) opens this page as /event/<code>#i=<token>: the guest's name, the
+// event, and "Yes, I will attend" / "No, I can't attend" (changeable until replies close); a Yes
+// shows the seat reserved for them, or that their table follows by email. On the night the same
+// link offers Check in, with no surname to type, then shows the table. The invitation token stays
+// in the address after # (so a reload works), is sent only in the X-Event-Invite header, and is
+// never put in this browser's storage (an usher's phone may open many guests' links).
 const code = (location.pathname.match(/^\/event\/([a-z0-9-]+)/) || [])[1] || '';
 const api = `/api/public/event/${code}`;
 const box = document.getElementById('box');
@@ -32,7 +39,8 @@ if (frag.get('k')) {
   store.set(KEY, frag.get('k'), sessionStorage);
   history.replaceState(null, '', location.pathname);
 }
-let token = frag.get('s') || store.get(STORE) || '';
+const invite = /^[A-Za-z0-9_-]{43}$/.test(frag.get('i') || '') ? frag.get('i') : '';
+let token = invite ? '' : frag.get('s') || store.get(STORE) || '';
 let last = null; // the last status shown
 let timer = 0;
 let seq = null;
@@ -161,6 +169,85 @@ function verifyForm(useEmail = false) {
   });
 }
 
+// ----- A personal invitation (#i=…) -----
+const fmtWhen = (iso) => new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso));
+let inviteTimer = 0;
+async function inviteCall(method, path, body) {
+  const r = await fetch(`${api}/${path}`, { method, headers: { 'X-Event-Invite': invite, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store', referrerPolicy: 'no-referrer' });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+const seatLine = (s) => `Table ${esc(s.table)}${s.seat ? `, seat ${esc(s.seat)}` : ''}`;
+function renderInvite(v, { focus = true, changing = false } = {}) {
+  clearTimeout(inviteTimer);
+  if (v.state !== 'invite') {
+    show(`<h1 tabindex="-1">Please contact the organisers and quote this code: <span class="code">${esc(v.referral || '')}</span></h1><p>At the event, show this code at the registration desk.</p>`, { focus });
+    return;
+  }
+  document.getElementById('ev-name').textContent = v.event.name;
+  document.title = `${v.event.name}: your invitation`;
+  const name = v.guest.name || v.guest.firstName || '';
+  const details = v.event.details?.length ? `<ul class="details" id="ev-details">${v.event.details.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : '';
+  const notice = { closed: '<p class="note" id="notice">Replies have closed. Please contact the organisers.</p>', door_closed: '<p class="note" id="notice">Check-in opens at the door on the night.</p>', checked_in: '' }[v.notice] || '';
+  // At the door, or already in.
+  if (v.door.checkedIn) {
+    if (v.seat) show(`<h1 tabindex="-1">Welcome${name ? `, ${esc(name)}` : ''}.</h1><p>Your seat is</p><span class="big" id="table-no">Table ${esc(v.seat.table)}</span>${v.seat.seat ? `<p class="seat">Seat ${esc(v.seat.seat)}</p>` : ''}<p class="ok">You're checked in. Show this screen to the usher.</p>`, { focus });
+    else {
+      show(`<h1 tabindex="-1">You're checked in${name ? `, ${esc(name)}` : ''}.</h1><p>We're choosing your table. This page updates by itself.</p>`, { focus });
+      inviteTimer = setTimeout(() => inviteCall('GET', 'invite').then((x) => renderInvite(x, { focus: Boolean(x.seat) })).catch(() => {}), v.pollMs || 4000);
+    }
+    stamp();
+    return;
+  }
+  if (v.door.open) {
+    show(`<h1 tabindex="-1">Welcome${name ? `, ${esc(name)}` : ''}.</h1>${v.seat ? `<p>Your seat: <strong id="seat-line">${seatLine(v.seat)}</strong></p>` : ''}<p>Tap Check in when you arrive at the door.</p><button type="button" id="checkin">Check in</button>${notice}`, { focus });
+    document.getElementById('checkin').addEventListener('click', async (e) => {
+      e.currentTarget.disabled = true;
+      e.currentTarget.textContent = 'Checking in…';
+      try {
+        renderInvite(await inviteCall('POST', 'checkin', {}));
+      } catch {
+        show('<h1 tabindex="-1">No connection</h1><p>Please try again in a moment, or go to the registration desk.</p><button type="button" id="again">Try again</button>');
+        document.getElementById('again').addEventListener('click', () => inviteStart());
+      }
+    });
+    stamp();
+    return;
+  }
+  // Before the night: the invitation and the answer.
+  const head = v.rsvp === 'yes' ? 'Thank you: you are coming.' : v.rsvp === 'no' ? 'Thank you for letting us know.' : `You're invited${name ? `, ${esc(name)}` : ''}.`;
+  let status = '';
+  if (v.rsvp === 'yes' && v.seat) status = `<p class="ok" id="rsvp-status">Your seat is reserved: <strong id="seat-line">${seatLine(v.seat)}</strong>.${v.emailed ? ' We have emailed it to you.' : ''}</p><p>On the night, show the QR code in your invitation email at the door, or open this page and tap Check in.</p>`;
+  else if (v.rsvp === 'yes') status = `<p class="ok" id="rsvp-status">We will email your table.</p><p>On the night, show the QR code in your invitation email at the door, or open this page and tap Check in.</p>`;
+  else if (v.rsvp === 'no') status = '<p class="ok" id="rsvp-status">We\'re sorry you can\'t make it.</p>';
+  const ask = v.canAnswer && (!v.rsvp || changing);
+  const buttons = ask ? `${v.event.rsvpClosesAt ? `<p class="small-print">Please reply by ${esc(fmtWhen(v.event.rsvpClosesAt))}.</p>` : ''}<button type="button" id="rsvp-yes">Yes, I will attend</button><button type="button" class="secondary" id="rsvp-no">No, I can't attend</button>`
+    : v.canAnswer ? `<button type="button" class="link" id="rsvp-change">Change my answer</button>` : !v.rsvp ? '<p class="note">Replies are closed. Please contact the organisers.</p>' : '';
+  show(`<h1 tabindex="-1">${head}</h1>${!v.rsvp && v.event.intro ? `<p>${esc(v.event.intro).replace(/\n+/g, '</p><p>')}</p>` : ''}<p class="ev-title"><strong>${esc(v.event.name)}</strong></p>${details}${status}${notice}${buttons}`, { focus });
+  const send = async (answer, b) => {
+    b.disabled = true;
+    b.textContent = 'Sending…';
+    try {
+      renderInvite(await inviteCall('POST', 'rsvp', { answer }));
+    } catch {
+      show('<h1 tabindex="-1">No connection</h1><p>Your answer was not sent. Please try again in a moment.</p><button type="button" id="again">Try again</button>');
+      document.getElementById('again').addEventListener('click', () => inviteStart());
+    }
+  };
+  document.getElementById('rsvp-yes')?.addEventListener('click', (e) => send('yes', e.currentTarget));
+  document.getElementById('rsvp-no')?.addEventListener('click', (e) => send('no', e.currentTarget));
+  document.getElementById('rsvp-change')?.addEventListener('click', () => renderInvite(v, { changing: true }));
+  stamp();
+}
+async function inviteStart() {
+  try {
+    renderInvite(await inviteCall('GET', 'invite'));
+  } catch {
+    show('<h1 tabindex="-1">No connection</h1><p>Please try again in a moment.</p><button type="button" id="again">Try again</button>');
+    document.getElementById('again').addEventListener('click', () => inviteStart());
+  }
+}
+
 // ----- Start -----
 async function start() {
   let ev = null;
@@ -173,6 +260,7 @@ async function start() {
     document.title = `${ev.name}: check-in`;
     if (ev.date) document.getElementById('ev-date').textContent = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${ev.date}T12:00:00+08:00`));
   }
+  if (invite) return inviteStart();
   if (token) {
     if (frag.get('s') && !store.get(STORE)) store.set(STORE, token);
     if (!location.hash.includes('s=')) history.replaceState(null, '', `${location.pathname}#s=${token}`);

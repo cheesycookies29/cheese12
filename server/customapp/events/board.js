@@ -10,7 +10,7 @@
 // guest's record (contact details masked); other staff see name, company, industry and table only.
 import { isConfirmed, isReserved, tableCounts, whyNot, seatClassOf } from '../../../shared/customapp/seating.js';
 import { pollFor, CLASS_LABELS } from '../../../shared/customapp/statuses.js';
-import { guestView, changesOf } from './model.js';
+import { guestView, changesOf, seatsOnYes } from './model.js';
 import { eventCounts, pendingApproval } from './counts.js';
 
 const here = (g) => g.active !== false && g.arrival?.state === 'checked_in';
@@ -73,6 +73,8 @@ export function roomOf(state, { role, userId, users = [] }) {
   const person = (g) => ({
     guestId: g.id, initials: initials(g), name: g.name?.display || `${g.name?.first || ''} ${g.name?.last || ''}`.trim(), company: g.company || '', industry: ind.get(g.industryId) || g.industryText || '',
     industryId: g.industryId || null, classification: g.classification, status: isReserved(g.seat) ? 'reserved' : 'confirmed', rev: g.rev || 0,
+    // A reservation made by the guest's own Yes on their invitation (0.74): shown as reserved.
+    rsvp: g.seat?.via === 'rsvp',
     mine: role === 'super' || g.ownerUserId === userId,
   });
   const tables = [...state.tables].sort((a, b) => a.number - b.number).map((t) => {
@@ -140,6 +142,10 @@ export function pollReply(ev, since, build, kind = 'staff') {
 //   group             guests sent to seat together (their owners differ)
 //   capped            a surname whose guest page is paused (too many different wrong numbers)
 //   email_failed      a seat email that could not be sent (Resend is on the guest's sheet)
+//   rsvp_no_seat      a guest who said Yes on their invitation and has no seat: no eligible chair was
+//                     left, a preferred guest without a reservation, or seating on Yes is off (0.74)
+//   rsvp_no_reserved  a guest who said No and holds a reservation nobody releases automatically
+//   invite_failed     an invitation that could not be sent
 //   alarm             many failed guest page checks in 5 minutes
 const nameOfG = (g) => g?.name?.display || `${g?.name?.first || ''} ${g?.name?.last || ''}`.trim();
 const seatWords = (state, seat) => {
@@ -178,6 +184,21 @@ export function exceptionsOf(state, { gate = null, users = [], outbox = [] } = {
         else if (owner && !state.tables.some((t) => t.ownerUserId === owner && !whyNot(t, [g], ev, others))) items.push({ kind: 'no_seat_in_scope', at: g.arrival?.at || '', guestIds: [g.id], guest: brief(g), ownerUserId: owner, title: `No seat in scope: ${nameOfG(g)}`, detail: `${userName(owner) || 'Their owner'} has no table that can take them now. Seat them yourself, or give them (or a table) to someone else.` });
       }
     }
+  }
+  // Invitations (0.74): a Yes with no seat, a No that still holds a reservation, a failed invitation.
+  for (const g of state.guests) {
+    if (g.active === false || g.classification === 'unlisted' || g.arrival?.state === 'checked_in') continue;
+    const answer = g.rsvpReply?.answer;
+    if (answer === 'yes' && !g.seat) {
+      const others = state.guests.filter((x) => x.id !== g.id);
+      const why = g.classification === 'preferred' ? 'A preferred guest with no reservation: reserve their table and chair.'
+        : !seatsOnYes(ev) ? 'Seat on Yes is off: reserve their seat.'
+          : state.tables.some((t) => !whyNot(t, [g], ev, others)) ? 'A seat is free again: reserve one for them.' : `Every ${CLASS_LABELS[seatClassOf(g)]?.toLowerCase() || ''} table is full. Open or change a table, then reserve their seat.`.replace('  ', ' ');
+      items.push({ kind: 'rsvp_no_seat', at: g.rsvpReply.at, guestIds: [g.id], guest: brief(g), title: `${nameOfG(g)} said Yes and has no seat yet`, detail: `${why} They were told "We will email your table"; CORE emails it when you reserve their seat.` });
+    } else if (answer === 'no' && g.seat) {
+      items.push({ kind: 'rsvp_no_reserved', at: g.rsvpReply.at, guestIds: [g.id], guest: brief(g), title: `${nameOfG(g)} said No and still holds ${seatWords(state, g.seat).toLowerCase()}`, detail: 'Reservations are never released automatically. Release it on their sheet if they are really not coming.' });
+    }
+    if (g.invite?.state === 'failed') items.push({ kind: 'invite_failed', at: g.invite.issuedAt || '', guestIds: [g.id], guest: brief(g), title: `Invitation to ${nameOfG(g)} failed`, detail: `${g.invite.lastError || 'Not sent.'} Check the address, then Send again (a new link).` });
   }
   // Groups sent to seat together, one item per group.
   const groups = new Map();

@@ -4607,6 +4607,27 @@ a.dm-main:hover strong { color: var(--brand-text); }
 .ca-inbox-item small { display: block; color: var(--text-2); font-size: 13px; overflow-wrap: anywhere; }
 .ca-inbox-item .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .ca-inbox-item .small-btn { min-height: 40px; }
+/* Invitations on Event control (0.74): counts, warnings, the guests' RSVP and the email preview. */
+.ca-inv-counts { margin: 6px 0 10px; }
+.ca-inv-counts strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.ca-inv-warn ul { margin: 2px 0 0; padding-left: 18px; }
+.ca-inv-warn li + li { margin-top: 4px; }
+.ca-inv-info { display: flex; gap: 6px; align-items: flex-start; margin: 4px 0; }
+.ca-inv-noemail, .ca-inv-list { margin-top: 12px; }
+.ca-inv-noemail > summary, .ca-inv-list > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.ca-inv-table td { vertical-align: top; }
+.ca-inv-noemail li { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.ca-inv-noemail .grow { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.ca-inv-noemail .grow small { color: var(--muted); }
+.ca-inv-table .link-btn { font-weight: 600; text-align: left; }
+.ca-rsvp-chips { margin-top: -4px; }
+.ca-mailhead { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 12px; font-size: 14px; }
+.ca-mailhead dt { color: var(--muted); }
+.ca-mailhead dd { margin: 0; overflow-wrap: anywhere; }
+.ca-mail-preview { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; align-items: start; }
+.ca-mail-text { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.5 system-ui, sans-serif; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin: 0; }
+.ca-mail-qr svg { width: 200px; }
+@media (max-width: 640px) { .ca-mail-preview { grid-template-columns: 1fr; } }
 .ca-banner { border: 1px solid var(--danger); background: var(--danger-soft); }
 .ca-banner svg { color: var(--danger); }
 .ca-tables-card > summary { cursor: pointer; list-style: none; }

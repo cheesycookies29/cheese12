@@ -19,6 +19,7 @@ export const REFUSALS = Object.freeze({
   op_replay_mismatch: R(409, 'This request was already used for a different change. Reload and try again.'),
   read_only: R(409, 'The event is read only for now. The Super Administrator turns this off.'),
   registration_closed: R(409, 'Self check-in is closed. Please see the registration desk.'),
+  rsvp_closed: R(409, 'Replies to the invitation are closed. Please contact the organisers.'),
   out_of_scope: R(403, 'This guest or table is not yours. Ask its owner or the Super Administrator.'),
   needs_super_admin: R(403, 'Only the event\'s Super Administrator can do this.'),
   not_saved: R(503, 'Not saved. Nothing changed; try again.'),

@@ -39,13 +39,32 @@ export function pollFor(flags, kind = 'staff', rand = Math.random) {
   return Math.round(base * (1 + POLL_JITTER * rand()));
 }
 // The flags on a guest record for the Super Administrator to look at.
-export const GUEST_FLAGS = Object.freeze({ reverified_other_device: 'Verified again from another device', referred_group: 'Sent to the Super Administrator to seat with their group' });
+export const GUEST_FLAGS = Object.freeze({
+  reverified_other_device: 'Verified again from another device', referred_group: 'Sent to the Super Administrator to seat with their group',
+  // Invitations (0.74): a guest who said No but holds a reservation that only a person releases.
+  rsvp_no_with_seat: 'Said No to the invitation but holds a reserved seat (release it if right)',
+});
+
+// Invitations and replies (0.74). A guest's invitation (guest.invite) and their answer (guest.rsvp)
+// are kept apart from their arrival, seat and seat email.
+//   invite.state  none (never sent) | queued | sent | failed | revoked (the link no longer works)
+//   rsvp          '' (no reply) | 'yes' | 'no'; an imported value ("Confirmed", "Maybe") is kept as
+//                 it came and counts as no reply until the guest answers on their link
+// The RSVP status staff see is one of RSVP_STATUSES, derived (counts.js rsvpStatusOf).
+export const INVITE_STATES = Object.freeze(['none', 'queued', 'sent', 'failed', 'revoked']);
+export const RSVP_ANSWERS = Object.freeze(['yes', 'no']);
+export const RSVP_STATUSES = Object.freeze(['not_invited', 'invited', 'opened', 'yes', 'no']);
+export const RSVP_LABELS = Object.freeze({ not_invited: 'Not invited yet', invited: 'Invited, no reply', opened: 'Opened, no reply', yes: 'Yes', no: 'No' });
+// The actor of a seat made by a guest's own Yes (recorded in caChanges and the audit log).
+export const RSVP_ACTOR = 'system:rsvp';
 
 // Email to a guest (Tier 2, US-023): a guest's notify.state, tracked apart from their check-in and
 // seat (a failed email never changes either). none: nothing sent yet; not_applicable: no address.
 export const NOTIFY = Object.freeze(['none', 'not_applicable', 'queued', 'sending', 'sent', 'failed']);
 export const NOTIFY_LABELS = Object.freeze({ none: 'No email yet', not_applicable: 'No email address', queued: 'Email waiting to go', sending: 'Email sending', sent: 'Email sent', failed: 'Email failed' });
-export const OUTBOX_KINDS = Object.freeze(['assignment', 'update', 'resend']);
+// invitation: the personal invitation (link, button and QR); rsvp: the reply to a Yes (the table and
+// seat reserved, or that the table follows) and a later change of that reserved seat.
+export const OUTBOX_KINDS = Object.freeze(['assignment', 'update', 'resend', 'invitation', 'rsvp']);
 export const OUTBOX_STATES = Object.freeze(['queued', 'sending', 'sent', 'failed']);
 
 // Every kind of change recorded in caChanges (the history, the sync cursor and the idempotency
@@ -60,6 +79,9 @@ export const CHANGE_TYPES = Object.freeze([
   // the Super Administrator, and a manual email resend (paper reconciliation reuses the commands
   // above, with via: 'reconcile').
   'createUnlisted', 'approve', 'reject', 'substitute', 'refer', 'notify',
+  // Invitations (0.74): sent (a new personal link each time), a link revoked, and a guest's reply
+  // (seated at once on Yes, by the system actor RSVP_ACTOR).
+  'invite', 'revokeInvite', 'inviteOpened', 'rsvp',
 ]);
 
 // The hard limit per table (spec s.1): a table's capacity is 1 to this, whatever an event says.

@@ -125,7 +125,7 @@ describe('US-007: commit() unit of work, claimsAt(), invariants and typed refusa
   });
   test('GIVEN the frozen refusal catalogue WHEN the suite runs THEN every code in shared/customapp/refusals.js is produced by at least one test with its catalogue status', async () => {
     assert.ok(Object.isFrozen(REFUSALS));
-    assert.deepEqual(REFUSAL_CODES, ['stale', 'table_full', 'seat_taken', 'not_eligible', 'no_eligible_seat', 'already_checked_in', 'guest_moved', 'table_has_claims', 'op_replay_mismatch', 'read_only', 'registration_closed', 'out_of_scope', 'needs_super_admin', 'not_saved']);
+    assert.deepEqual(REFUSAL_CODES, ['stale', 'table_full', 'seat_taken', 'not_eligible', 'no_eligible_seat', 'already_checked_in', 'guest_moved', 'table_has_claims', 'op_replay_mismatch', 'read_only', 'registration_closed', 'rsvp_closed', 'out_of_scope', 'needs_super_admin', 'not_saved']);
     // The codes not produced above, through the API, each by the situation that should produce it.
     const t = e.tables;
     const p1 = e.guest('P1');
@@ -167,6 +167,17 @@ describe('US-007: commit() unit of work, claimsAt(), invariants and typed refusa
     const { createCommitContext } = await import('../server/customapp/events/commit.js');
     try {
       commit(createCommitContext(c.db), e.id, { synthetic: 'self' }, { type: 'selfCheckIn', guestId: e.guest('R2').id });
+    } catch (err) {
+      saw({ code: err.code, status: err.status });
+    }
+    // rsvp_closed (0.74): a reply on an invitation link after replies closed (the deadline passed).
+    const { inviteHashOf } = await import('../server/customapp/events/model.js');
+    const r4 = c.db.data.caGuests.find((g) => g.eventId === e.id && g.arrival?.state !== 'checked_in' && g.classification !== 'unlisted');
+    const ev0 = await c.as.lead('GET', e.base);
+    await c.as.lead('PATCH', e.base, { rev: ev0.rev, settings: { invitation: { rsvpDeadline: '2026-01-01T09:00' } } });
+    c.db.data.caGuests = c.db.data.caGuests.map((g) => (g.id === r4.id ? { ...g, invite: { hash: inviteHashOf('t'.repeat(43)), state: 'sent' } } : g));
+    try {
+      commit(createCommitContext(c.db), e.id, { synthetic: 'rsvp' }, { type: 'rsvp', guestId: r4.id, answer: 'yes', inviteHash: inviteHashOf('t'.repeat(43)) });
     } catch (err) {
       saw({ code: err.code, status: err.status });
     }

@@ -17,7 +17,7 @@ import { createHash } from 'node:crypto';
 import { randomBytes } from 'node:crypto';
 import { checkInvariants } from '../../../shared/customapp/invariants.js';
 import { commit, createEvent, saveP95 } from './commit.js';
-import { mustEvent, eventsOf, stateOf, roleOf, guestView, refusal, bad, canonSurname, guestLabel } from './model.js';
+import { mustEvent, eventsOf, stateOf, roleOf, guestView, refusal, bad, canonSurname, guestLabel, rsvpStatusOf } from './model.js';
 import { roomOf, queueBoard, pollReply, exceptionsOf, workloadOf, substituteLine } from './board.js';
 import { referralFor, qrKeyHashOf } from './public.js';
 import { eventCan } from './engine.js';
@@ -144,6 +144,7 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
     const num = query.table ? Number(query.table) : null;
     const t = num ? state.tables.find((x) => x.number === num) : null;
     const status = String(query.status || '');
+    const rsvp = ['yes', 'no', 'noreply', 'opened', 'invited', 'not_invited'].includes(query.rsvp) ? query.rsvp : '';
     const list = state.guests.filter((g) => g.active !== false).filter((g) => {
       if (q && !(`${g.name?.display} ${g.company} ${g.ref}`.toLowerCase().includes(q) || (qc && (g.lookup?.surnames || []).some((s) => s.includes(qc))))) return false;
       if (query.class && g.classification !== query.class) return false;
@@ -154,6 +155,11 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
       if (status === 'waiting' && !(g.arrival?.state === 'checked_in' && !g.seat)) return false;
       if (status === 'seated' && !isConfirmed(g.seat)) return false;
       if (status === 'reserved' && !isReserved(g.seat)) return false;
+      // RSVP (0.74): yes, no, noreply (invited or opened, no answer), not_invited.
+      if (rsvp) {
+        const st = rsvpStatusOf(g);
+        if (rsvp === 'noreply' ? !['invited', 'opened'].includes(st) : st !== rsvp) return false;
+      }
       return true;
     });
     list.sort((a, b) => (a.name?.last || '').localeCompare(b.name?.last || '') || (a.name?.first || '').localeCompare(b.name?.first || ''));
@@ -199,7 +205,7 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
   route('POST', `${base}/commands`, 'customapp.use', mutation(({ user, params, body }) => {
     const ev = mustEvent(db, params.id);
     if (!roleOf(ev, user, canManage(user))) throw new HttpError(404, 'That event is not there, or you do not have access to it.');
-    if (['setSuperAdmin', 'import', 'selfCheckIn', 'setQrKey'].includes(body?.type)) throw bad('Use the screen made for that.');
+    if (['setSuperAdmin', 'import', 'selfCheckIn', 'setQrKey', 'invite', 'inviteOpened'].includes(body?.type)) throw bad('Use the screen made for that.');
     const r = commit(ctx, ev.id, user, body);
     const now = mustEvent(db, ev.id);
     const state = stateOf(db, now);

@@ -1412,7 +1412,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock, eve
   });
   // ----- CUSTOM APP (server/customapp, 0.71): events, check-in and seating -----
   // The event outbox sends through the helpdesk's outgoing mail transport (one place for SMTP).
-  const customapp = registerCustomApp(route, db, { audit, limits, requirePassword, monitor, transport: helpdesk.transport, ...(eventOutbox ? { outbox: eventOutbox } : {}) });
+  const customapp = registerCustomApp(route, db, { audit, limits, requirePassword, monitor, transport: helpdesk.transport, secrets, ...(eventOutbox ? { outbox: eventOutbox } : {}) });
   // The rate limits give staff sign-in more room while an event's doors are open (0.70.1).
   eventWindowOpen = customapp.eventWindowOpen;
   // ----- Notifications: the bell in the top bar (server/notifications.js) -----

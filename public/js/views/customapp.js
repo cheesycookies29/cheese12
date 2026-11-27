@@ -21,7 +21,7 @@ import { api } from '../api.js';
 import { ctx, can } from '../state.js';
 import { html, raw, mount, modal, toast, confirmDialog, badge } from '../ui.js';
 import { icon } from '../icons.js';
-import { CLASS_LABELS, FLAG_LABELS, STAGE_SIDES, GUEST_FLAGS } from '/shared/customapp/statuses.js';
+import { CLASS_LABELS, FLAG_LABELS, STAGE_SIDES, GUEST_FLAGS, RSVP_LABELS } from '/shared/customapp/statuses.js';
 import { fmtManila, toManilaInput } from '/shared/customapp/time.js';
 import { livePoll } from './customapp-live.js';
 import { mountRoomPlan } from './customapp-room.js';
@@ -285,6 +285,7 @@ export async function findGuestView(el, params, query) {
   const ev = await api.get(`/api/customapp/events/${id}`);
   if (ev.role === 'manager') return mount(el, html`${head(html`${icon('search', 22)} Find guest`, ev, events)}<div class="card empty">${icon('lock', 40)}<h2>Not on this event's staff</h2><p>As an administrator you can hand over the Super Administrator under Event control; guests and tables are the event staff's.</p></div>`);
   let status = query.status || '';
+  let rsvp = query.rsvp || '';
   let mine = false;
   mount(el, html`${head(html`${icon('search', 22)} Find guest`, ev, events)}
     <div class="stats small ca-strip" id="ca-strip"></div>
@@ -292,6 +293,9 @@ export async function findGuestView(el, params, query) {
     <div class="chips ca-chips" role="group" aria-label="Show">
       ${[['', 'Everyone'], ['waiting', 'Waiting for a table'], ['expected', 'Not arrived'], ['seated', 'Seated'], ['reserved', 'Reserved']].map(([v, l]) => html`<button type="button" class="chip ${v === status ? 'on' : ''}" data-status="${v}" aria-pressed="${v === status}">${l}</button>`)}
       ${ev.role === 'staff' ? html`<button type="button" class="chip" data-mine aria-pressed="false">Mine only</button>` : ''}
+    </div>
+    <div class="chips ca-chips ca-rsvp-chips" role="group" aria-label="RSVP">
+      ${[['', 'Any RSVP'], ['yes', 'Said Yes'], ['no', 'Said No'], ['noreply', 'No reply'], ['not_invited', 'Not invited']].map(([v, l]) => html`<button type="button" class="chip ${v === rsvp ? 'on' : ''}" data-rsvp-f="${v}" aria-pressed="${v === rsvp}">${l}</button>`)}
     </div>
     <div id="ca-results" class="card ca-results" aria-live="polite"></div>
     <div class="ca-groupbar" data-groupbar hidden role="region" aria-label="Group"></div>
@@ -317,12 +321,12 @@ export async function findGuestView(el, params, query) {
         strip((await api.get(`/api/customapp/events/${id}`)).counts);
       });
     }
-    const r = await api.get(`/api/customapp/events/${id}/guests?q=${encodeURIComponent(q)}&status=${status}${mine ? '&mine=1' : ''}&limit=60`);
+    const r = await api.get(`/api/customapp/events/${id}/guests?q=${encodeURIComponent(q)}&status=${status}${rsvp ? `&rsvp=${rsvp}` : ''}${mine ? '&mine=1' : ''}&limit=60`);
     if (n !== seq) return;
     lastGuests = r.guests;
     mount(el.querySelector('#ca-results'), r.guests.length ? html`<ul class="ca-list">${r.guests.map((g) => html`<li class="${g.arrival?.state === 'checked_in' && !g.seat ? 'ca-qli' : ''}">${g.arrival?.state === 'checked_in' && !g.seat ? pickBox(g) : ''}<button type="button" class="ca-guest" data-guest="${g.id}">
         <span class="grow"><strong>${g.displayName}</strong><small>${[g.company, g.industry].filter(Boolean).join(' · ')}</small></span>
-        <span class="ca-tags">${badge(g.classLabel, g.classification === 'preferred' ? 'brand' : '')}${statusBadge(g)}</span>
+        <span class="ca-tags">${badge(g.classLabel, g.classification === 'preferred' ? 'brand' : '')}${statusBadge(g)}${rsvp || g.rsvpStatus === 'yes' || g.rsvpStatus === 'no' ? badge(`RSVP: ${g.rsvpLabel}`, RSVP_BADGE[g.rsvpStatus] || 'gray') : ''}</span>
       </button></li>`)}</ul>${r.total > r.guests.length ? html`<p class="muted small">${r.total - r.guests.length} more: type more of the name.</p>` : ''}`
       : html`<p class="muted ca-none">${q ? `No guest matches “${q}”. Check the spelling, try the company, or ask the Super Administrator about a walk-in.` : 'Nobody here.'}</p>`);
     el.querySelectorAll('[data-guest]').forEach((b) => b.addEventListener('click', () => openGuest(id, b.dataset.guest, async () => {
@@ -338,6 +342,14 @@ export async function findGuestView(el, params, query) {
   el.querySelectorAll('[data-status]').forEach((b) => b.addEventListener('click', () => {
     status = b.dataset.status;
     el.querySelectorAll('[data-status]').forEach((x) => {
+      x.classList.toggle('on', x === b);
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    search();
+  }));
+  el.querySelectorAll('[data-rsvp-f]').forEach((b) => b.addEventListener('click', () => {
+    rsvp = b.dataset.rsvpF;
+    el.querySelectorAll('[data-rsvp-f]').forEach((x) => {
       x.classList.toggle('on', x === b);
       x.setAttribute('aria-pressed', String(x === b));
     });
@@ -398,13 +410,15 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
     const recT = mineT.filter((t) => t.rank != null).slice(0, 3);
     const restT = mineT.filter((t) => !recT.includes(t));
     const pickT = chosen && tables.find((t) => t.id === chosen.tableId);
-    const choosing = d.canSeat && ((here && !g.seat && !d.releasedNeedsSuper) || mode === 'transfer');
+    // The Super Administrator reserves a chair ahead of arrival (a guest who said Yes on their
+    // invitation and is waiting for a table, a preferred guest): mode 'reserve'.
+    const choosing = d.canSeat && ((here && !g.seat && !d.releasedNeedsSuper) || mode === 'transfer' || mode === 'reserve');
     // The chosen table opens in place: its chairs (the first free one chosen) and Confirm, right under it.
     const chairs = (t) => html`<div class="ca-chairs" role="group" aria-label="Chairs at table ${t.number}">${Array.from({ length: t.capacity }, (_, i) => i + 1).map((n) => {
         const taken = t.taken.includes(n) && !(g.seat?.tableId === t.id && g.seat.seatNo === n);
         return html`<button type="button" class="ca-chair ${chosen.seatNo === n ? 'on' : ''}" data-chair="${n}" ${taken ? 'disabled' : ''} aria-pressed="${chosen.seatNo === n}" aria-label="Seat ${n}${taken ? ', taken' : ''}">${n}</button>`;
       })}</div>
-      <button type="button" class="btn primary ca-big" data-confirm ${chosen.seatNo || d.seatNumbers === 'none' ? '' : 'disabled'}>${mode === 'transfer' ? 'Move' : 'Seat'} at Table ${t.number}${chosen.seatNo ? `, seat ${chosen.seatNo}` : ''}</button>`;
+      <button type="button" class="btn primary ca-big" data-confirm ${chosen.seatNo || d.seatNumbers === 'none' ? '' : 'disabled'}>${mode === 'transfer' ? 'Move' : mode === 'reserve' ? 'Reserve' : 'Seat'} at Table ${t.number}${chosen.seatNo ? `, seat ${chosen.seatNo}` : ''}</button>`;
     const tableBtn = (t) => {
       const full = t.free < 1 && !(g.seat && g.seat.tableId === t.id);
       return html`<li><button type="button" class="ca-table ${chosen?.tableId === t.id ? 'on' : ''}" data-table="${t.id}" ${full || !t.mine ? 'disabled' : ''} aria-pressed="${chosen?.tableId === t.id}">
@@ -436,14 +450,23 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
               ${g.seat.status === 'confirmed' ? html`<button type="button" class="btn" data-unseat>Send back to waiting</button>` : ''}
               ${g.seat.status === 'reserved' && d.canRelease ? html`<button type="button" class="btn danger ghost" data-release>Release reservation</button>` : ''}</div>` : ''}`
         : d.releasedNeedsSuper ? html`<p class="ca-notice">${icon('flag', 16)} This guest's reservation was released. Refer them to the Super Administrator to be seated.</p>`
-        : !here ? html`<p class="muted">Check the guest in first, then choose their table.</p>`
+        : !here && mode !== 'reserve' ? html`<p class="muted">Check the guest in first, then choose their table.</p>${d.role === 'super' && d.canSeat && g.classification !== 'unlisted' ? html`<button type="button" class="btn small-btn" data-reserve>${icon('mapPin', 14)} Reserve a seat…</button> <small class="muted">${g.rsvpWaiting ? 'They said Yes: CORE emails them the table.' : 'Ahead of arrival; kept until they come or you release it.'}</small>` : ''}`
         : !d.canSeat ? html`<p class="muted">Waiting for a table. Their owner or the Super Administrator seats them.</p>` : ''}
         ${choosing ? html`<p class="small">${mode === 'transfer' ? 'Choose the new table, then the chair.' : 'Choose a table, then confirm the chair.'}</p>
           ${recT.length ? html`<h4 class="ca-sub">Recommended</h4><ul class="ca-tables" data-recs>${recT.map(tableBtn)}</ul>` : html`<p class="muted">None of your tables can take this guest. Refer them to the Super Administrator.</p>`}
           ${restT.length ? html`<details class="ca-others" data-other-eligible ${restT.includes(pickT) ? 'open' : ''}><summary>Other eligible tables: ${restT.length}</summary><ul class="ca-tables">${restT.map(tableBtn)}</ul></details>` : ''}
-          ${mode === 'transfer' ? html`<button type="button" class="btn ghost" data-cancel-move>Keep the current seat</button>` : ''}
+          ${mode === 'transfer' ? html`<button type="button" class="btn ghost" data-cancel-move>Keep the current seat</button>` : mode === 'reserve' ? html`<button type="button" class="btn ghost" data-cancel-move>Cancel</button>` : ''}
           ${othersT.length ? html`<details class="ca-others" data-not-yours><summary>Not yours: ${othersT.length}</summary><ul class="ca-tables">${othersT.map(tableBtn)}</ul></details>` : ''}` : ''}
       </section>
+      ${g.mine && g.classification !== 'unlisted' ? html`<section class="ca-step" data-invite-step><h3>Invitation</h3>
+        <p>${badge(g.rsvpLabel || 'Not invited yet', RSVP_BADGE[g.rsvpStatus] || 'gray')}${g.rsvpAt ? html` <small class="muted">answered ${fmtManila(g.rsvpAt)}</small>` : ''}
+          <small class="muted"> · ${INVITE_TEXT[g.invite?.state || 'none']}${g.invite?.sentAt ? `, ${fmtManila(g.invite.sentAt)}` : ''}${g.invite?.openedAt ? ` · opened ${fmtManila(g.invite.openedAt)}` : ''}${g.invite?.state === 'failed' && g.invite.lastError ? `: ${g.invite.lastError}` : ''}</small></p>
+        ${g.rsvpWaiting ? html`<p class="ca-notice">${icon('flag', 16)} Said Yes and has no seat yet: they were told "We will email your table". Reserve a seat above; CORE emails it to them.</p>` : ''}
+        ${d.role === 'super' ? html`<div class="actions ca-actions">
+          ${g.hasEmail ? html`<button type="button" class="btn small-btn" data-invite>${icon('mail', 14)} ${g.invite?.state && g.invite.state !== 'none' && g.invite.state !== 'revoked' ? 'Send again (new link)' : 'Send invitation'}</button>` : html`<small class="muted">No email address: add one under Setup → Import check, or tell them by phone.</small>`}
+          ${g.invite?.state && !['none', 'revoked'].includes(g.invite.state) ? html`<button type="button" class="btn ghost small-btn" data-invite-revoke>Revoke link</button>` : ''}
+          ${!here ? html`<button type="button" class="btn ghost small-btn" data-rsvp="yes">Record Yes</button><button type="button" class="btn ghost small-btn" data-rsvp="no">Record No</button>` : ''}</div>` : ''}
+      </section>` : ''}
       ${d.capped || d.flags.length || d.devices || (d.role === 'super' && d.staff.length) ? html`<section class="ca-step"><h3>Guest page and owner</h3>
         ${d.capped ? html`<p class="ca-notice">${icon('lock', 16)} The guest page is paused for this surname (too many different wrong numbers in 15 minutes).</p><button type="button" class="btn ${here ? '' : 'primary'} ca-big" data-clear-cap>${here ? 'Clear cap' : html`${icon('check', 18)} Clear cap and check in`}</button>` : ''}
         ${d.flags.map((f) => html`<p class="small">${icon('flag', 14)} ${GUEST_FLAGS[f.kind] || f.kind}, ${fmtManila(f.at)}</p>`)}
@@ -498,12 +521,38 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
     on('[data-confirm]', () => {
       const t = tables.find((x) => x.id === chosen.tableId);
       if (mode === 'transfer') send({ type: 'transfer', guestId, tableId: t.id, seatNo: chosen.seatNo, expect: { [g.id]: g.rev } }, `${g.displayName} moved to table ${t.number}.`);
+      else if (mode === 'reserve') send({ type: 'reserve', guestId, tableId: t.id, seatNo: chosen.seatNo, reason: g.rsvpWaiting ? 'Said Yes on the invitation' : 'Reserved ahead of arrival', expect: { [g.id]: g.rev } }, `${g.displayName}: table ${t.number}${chosen.seatNo ? `, seat ${chosen.seatNo}` : ''} reserved.`);
       else send({ type: 'assign', guestId, tableId: t.id, seatNo: chosen.seatNo, expect: { [g.id]: g.rev } }, `${g.displayName}: table ${t.number}${chosen.seatNo ? `, seat ${chosen.seatNo}` : ''}.`);
     });
     on('[data-move]', () => {
       mode = 'transfer';
       chosen = null;
       load();
+    });
+    on('[data-reserve]', () => {
+      mode = 'reserve';
+      chosen = null;
+      load();
+    });
+    // Invitations (0.74, the Super Administrator).
+    on('[data-invite]', async () => {
+      const again = g.invite?.state && !['none', 'revoked'].includes(g.invite.state);
+      if (again && !(await confirmDialog(`Send ${g.displayName}'s invitation again? It goes with a new personal link and QR code; the link in the earlier email stops working. Their answer and seat stay as they are.`, { confirmLabel: 'Send again', danger: false, title: 'Send again' }))) return;
+      try {
+        await api.post(`/api/customapp/events/${eventId}/invitations/send`, { guestIds: [guestId], opId: opId() });
+        toast(`Invitation to ${g.displayName} queued.`);
+        onChange();
+        load();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+    on('[data-invite-revoke]', async () => {
+      if (await confirmDialog(`Revoke ${g.displayName}'s invitation link? It stops working at once (their answer and seat stay). Send it again to give them a new one.`, { confirmLabel: 'Revoke link', danger: false })) send({ type: 'revokeInvite', guestId, reason: 'Revoked on the guest sheet' }, 'Invitation link revoked.');
+    });
+    on('[data-rsvp]', async (e) => {
+      const answer = e.currentTarget.dataset.rsvp;
+      if (await confirmDialog(answer === 'yes' ? `Record that ${g.displayName} will attend? With seat on Yes on, CORE reserves their seat now and emails them the table.` : `Record that ${g.displayName} cannot attend? A seat their own Yes reserved is released; any other reservation is kept for you to release.`, { confirmLabel: answer === 'yes' ? 'Record Yes' : 'Record No', danger: false })) send({ type: 'rsvp', guestId, answer, reason: 'Answer given to staff' }, `Answer recorded: ${answer === 'yes' ? 'Yes' : 'No'}.`);
     });
     on('[data-cancel-move]', () => {
       mode = null;
@@ -528,8 +577,10 @@ export function openGuest(eventId, guestId, onChange = () => {}) {
   load().catch((err) => mount(box, html`<p class="form-error">${err.message}</p>`));
   return close;
 }
+const RSVP_BADGE = { yes: 'green', no: 'red', opened: 'blue', invited: 'amber', not_invited: 'gray' };
+const INVITE_TEXT = { none: 'Invitation not sent', queued: 'Invitation waiting to go', sending: 'Invitation sending', sent: 'Invitation sent', failed: 'Invitation failed', revoked: 'Invitation link revoked' };
 const EMAIL_TEXT = { none: 'No email sent yet', not_applicable: 'No email address', queued: 'Seat email waiting to go', sending: 'Seat email sending', sent: 'Seat email sent', failed: 'Seat email failed' };
-const HISTORY = { createUnlisted: 'Walk-in recorded', approve: 'Approved', reject: 'Not admitted', substitute: 'Substitute recorded', refer: 'Sent to the Super Administrator', notify: 'Seat email sent again', checkIn: 'Checked in', selfCheckIn: 'Checked in on their phone', undoCheckIn: 'Check-in undone', assign: 'Seated', transfer: 'Moved', swap: 'Seats swapped', unseat: 'Sent back to waiting', reserve: 'Seat reserved', release: 'Reservation released', 'guest.update': 'Details changed', import: 'Imported', 'table.relocate': 'Moved with their table' };
+const HISTORY = { invite: 'Invitation sent', revokeInvite: 'Invitation link revoked', inviteOpened: 'Opened their invitation', rsvp: 'Answered the invitation', createUnlisted: 'Walk-in recorded', approve: 'Approved', reject: 'Not admitted', substitute: 'Substitute recorded', refer: 'Sent to the Super Administrator', notify: 'Seat email sent again', checkIn: 'Checked in', selfCheckIn: 'Checked in on their phone', undoCheckIn: 'Check-in undone', assign: 'Seated', transfer: 'Moved', swap: 'Seats swapped', unseat: 'Sent back to waiting', reserve: 'Seat reserved', release: 'Reservation released', 'guest.update': 'Details changed', import: 'Imported', 'table.relocate': 'Moved with their table' };
 
 // ----- Groups (Tier 2, US-021) -----
 // A group arriving together: only tables with room for all of them are offered ("Seat together at
@@ -777,7 +828,7 @@ const FLAG_EFFECT = {
   emailPaused: ['Pause email? Assignments are shown on screen and told by staff; messages wait and go when email is on again.', 'Turn email on? Waiting seat emails go out now, from the event\'s own address.'],
   readOnly: ['Make the event read only? Nobody can check in or seat anyone until it is turned off (use it while reconciling paper).', 'Turn read only off? Check-in and seating work again.'],
 };
-const INBOX_KIND = { alarm: 'Guest page alarm', walkin: 'Walk-in', substitute: 'Substitute', no_seat_in_scope: 'No seat in scope', no_seat: 'No eligible seat', released_arrived: 'Released, arrived', group: 'Group', capped: 'Guest page paused', email_failed: 'Email failed' };
+const INBOX_KIND = { alarm: 'Guest page alarm', walkin: 'Walk-in', substitute: 'Substitute', no_seat_in_scope: 'No seat in scope', no_seat: 'No eligible seat', released_arrived: 'Released, arrived', group: 'Group', capped: 'Guest page paused', email_failed: 'Email failed', rsvp_no_seat: 'Yes, no seat', rsvp_no_reserved: 'No, seat held', invite_failed: 'Invitation failed' };
 // Event control (US-024): the counts, the exceptions inbox, the health strip, the room plan, the
 // staff and their queues, the switches, the exports, the offline pack and paper reconciliation. The
 // counts, inbox, health and workload refresh by the same short poll as every screen (tab=control).
@@ -793,7 +844,10 @@ export async function eventControlView(el, params, query) {
     <div class="stats ca-stats" data-counts aria-label="Counts"></div>
     <div data-alarm></div>
     ${sa ? html`<section class="card ca-health" aria-label="Health" data-health></section>
-      <section class="card ca-inbox" aria-labelledby="ca-inbox-h"><h2 id="ca-inbox-h">${icon('inbox')} Exceptions <span class="ca-n" data-ninbox></span></h2><div data-inbox><p class="muted">Loading…</p></div></section>` : ''}
+      <section class="card ca-inbox" aria-labelledby="ca-inbox-h"><h2 id="ca-inbox-h">${icon('inbox')} Exceptions <span class="ca-n" data-ninbox></span></h2><div data-inbox><p class="muted">Loading…</p></div></section>
+      <section class="card ca-invites" id="ca-invites" aria-labelledby="ca-inv-h"><h2 id="ca-inv-h">${icon('mail')} Invitations</h2>
+        <p class="muted small">Each guest gets their own link by email (a button, the address, and a QR code). They answer Yes or No on it; on Yes their seat is reserved at once and emailed to them. On the night the same link, or its QR code, checks them in at the door.</p>
+        <div data-invites><p class="muted">Loading…</p></div></section>` : ''}
     <section class="card ca-room-card"><h2>${icon('mapPin')} Room plan</h2><p class="muted small">${sa ? 'Choose a seated chair to move a guest (choose an open chair for a transfer, or a taken one to swap), send them back to waiting, or release a reservation.' : 'Your tables, and everyone else\'s to look at.'}</p><div data-plan-host></div></section>
     ${sa ? html`<section class="card"><h2>${icon('users')} Staff and their queues</h2>
       <p class="muted small">Who has how many guests waiting, for how long, and when they last did anything. <strong>Move to…</strong> gives all of one person's guests and tables to someone else at once (an absent staffer); <strong>One by one…</strong> moves single guests or tables. Seats and check-ins stay as they are.</p>
@@ -849,6 +903,7 @@ export async function eventControlView(el, params, query) {
       <div class="card"><small>Not yet arrived</small><strong>${c.notArrived}</strong></div>
       <div class="card ${c.waiting ? 'attention' : ''}"><small>Waiting for table</small><strong>${c.waiting}</strong></div>
       <div class="card ${c.needsApproval ? 'attention' : ''}"><small>Needs approval</small><strong>${c.needsApproval ?? 0}</strong></div>
+      ${c.rsvp && c.rsvp.sent + c.rsvp.queued + c.rsvp.failed ? html`<div class="card" data-rsvp-card><small>RSVP</small><strong>${c.rsvp.yes} yes</strong><small class="muted">${c.rsvp.no} no · ${c.rsvp.noReply} no reply · ${c.rsvp.opened} opened</small></div>` : ''}
       <div class="card"><small>Seats left</small><strong>${c.seatsLeft} of ${c.capacity}</strong><small class="muted">${c.seated} seated · ${c.reserved} reserved</small></div>`);
     mount(el.querySelector('[data-alarm]'), sa && board.alarm ? html`<p class="ca-notice" role="alert">${icon('alert', 16)} <span><strong>${board.alarm.failures} failed guest page checks in the last 5 minutes.</strong> Nobody is locked out. Guests who show a code (R-1234) are helped at the desk: Find guest, type the code.</span></p>` : '');
   }
@@ -872,12 +927,13 @@ export async function eventControlView(el, params, query) {
     if (!box) return;
     const items = board.exceptions || [];
     el.querySelector('[data-ninbox]').textContent = `(${items.length})`;
-    mount(box, items.length ? html`<ul class="ca-inbox-list">${items.map((it, i) => html`<li class="ca-inbox-item ca-k-${it.kind}" data-item="${i}"><span class="badge ${it.kind === 'alarm' || it.kind === 'no_seat' ? 'red' : 'amber'}">${INBOX_KIND[it.kind] || it.kind}</span>
+    mount(box, items.length ? html`<ul class="ca-inbox-list">${items.map((it, i) => html`<li class="ca-inbox-item ca-k-${it.kind}" data-item="${i}"><span class="badge ${it.kind === 'alarm' || it.kind === 'no_seat' || it.kind === 'rsvp_no_seat' ? 'red' : 'amber'}">${INBOX_KIND[it.kind] || it.kind}</span>
         <span class="grow"><strong>${it.title}</strong><small>${it.detail}${it.at ? ` · ${fmtManila(it.at, { date: false })}` : ''}</small></span>
         <span class="actions">${it.kind === 'walkin' || it.kind === 'substitute' ? html`<button type="button" class="btn primary small-btn" data-ia="approve">Approve…</button><button type="button" class="btn small-btn" data-ia="reject">Do not admit…</button>`
           : it.kind === 'group' ? html`<button type="button" class="btn primary small-btn" data-ia="group">Seat together</button>`
           : it.kind === 'capped' ? html`<button type="button" class="btn small-btn" data-ia="clear">Clear</button>`
           : it.kind === 'email_failed' ? html`<button type="button" class="btn small-btn" data-ia="resend">Resend</button>`
+          : it.kind === 'invite_failed' ? html`<button type="button" class="btn small-btn" data-ia="open">Open</button>`
           : it.guestIds?.length ? html`<button type="button" class="btn small-btn" data-ia="open">Open</button>` : ''}</span></li>`)}</ul>`
       : html`<p class="ca-empty-q">${icon('checkCircle', 16)} Nothing needs you right now.</p>`);
     box.querySelectorAll('[data-ia]').forEach((b) => b.addEventListener('click', async () => {
@@ -964,11 +1020,134 @@ export async function eventControlView(el, params, query) {
       }));
     }));
   }
+  // ----- Invitations (0.74) -----
+  let invites = null;
+  let invitesAt = 0;
+  async function loadInvites() {
+    if (!sa) return;
+    invitesAt = Date.now();
+    try {
+      invites = await api.get(`${base}/invitations`);
+      drawInvites();
+    } catch (err) {
+      mount(el.querySelector('[data-invites]'), html`<p class="form-error">${err.message}</p>`);
+    }
+  }
+  const sentLike = (st) => ['queued', 'sending', 'sent', 'failed'].includes(st);
+  function drawInvites() {
+    const box = el.querySelector('[data-invites]');
+    const d = invites;
+    if (!box || !d) return;
+    const c = d.counts;
+    const blocks = d.warnings.filter((w) => w.level === 'block');
+    const warns = d.warnings.filter((w) => w.level === 'warn');
+    const infos = d.warnings.filter((w) => w.level === 'info');
+    const closes = d.rsvpClosesAt ? (d.settings.rsvpDeadline && d.settings.rsvpDeadline <= d.rsvpClosesAt ? `replies close ${fmtManila(d.rsvpClosesAt)}` : `replies close when self check-in opens, ${fmtManila(d.rsvpClosesAt)}`) : 'no reply deadline';
+    mount(box, html`<div class="ca-health-row ca-inv-counts" data-inv-counts>
+        ${[['Not invited yet', c.notInvited], ['Waiting to go', c.queued], ['Sent', c.sent], ['Failed', c.failed], ['Opened', c.opened], ['Yes', c.yes], ['No', c.no], ['No reply', c.noReply], ['Yes, no seat yet', c.waitingTable], ['No email address', c.noEmail]].map(([l, n]) => html`<span><small>${l}</small><strong>${n}</strong></span>`)}</div>
+      ${blocks.length ? html`<div class="ca-notice ca-inv-warn" role="alert">${icon('alert', 16)} <div><strong>Before sending:</strong><ul>${blocks.map((w) => html`<li data-warn="${w.code}">${w.text}</li>`)}</ul></div></div>` : ''}
+      ${warns.length ? html`<div class="ca-notice ca-inv-warn">${icon('alert', 16)} <ul>${warns.map((w) => html`<li data-warn="${w.code}">${w.text}</li>`)}</ul></div>` : ''}
+      ${infos.map((w) => html`<p class="small muted ca-inv-info" data-warn="${w.code}">${icon('flag', 14)} ${w.text}</p>`)}
+      <p class="small">From <strong>${d.from || 'no address yet'}</strong>${d.replyTo ? ` · replies to ${d.replyTo}` : ''} · links on <strong>${d.linkBase}</strong> · ${closes} · seat on Yes <strong>${d.settings.autoSeatOnConfirm ? 'on' : 'off'}</strong></p>
+      <div class="actions ca-actions">
+        <button type="button" class="btn primary" data-inv-send ${blocks.length || !c.notInvited ? 'disabled' : ''}>${icon('mail', 16)} Send invitations (${c.notInvited})</button>
+        <button type="button" class="btn" data-inv-preview>${icon('eye', 16)} Preview</button>
+        <button type="button" class="btn" data-inv-test>Send a test…</button>
+        <button type="button" class="btn" data-inv-settings>${icon('settings', 16)} Invitation settings…</button></div>
+      ${c.noEmail ? html`<details class="ca-inv-noemail"><summary>No email address (${c.noEmail}): tell them another way, or add an address</summary><ul class="ca-list">${d.guests.filter((g) => !g.hasEmail).map((g) => html`<li><span class="grow"><strong>${g.name}</strong><small>${g.ref}${g.company ? ` · ${g.company}` : ''}</small></span><button type="button" class="btn small-btn" data-inv-email="${g.id}">Add email</button></li>`)}</ul></details>` : ''}
+      <details class="ca-inv-list"><summary>Every guest's RSVP (${d.guests.length})</summary><div class="table-scroll"><table class="table ca-inv-table"><thead><tr><th>Guest</th><th>RSVP</th><th>Invitation</th><th>Seat</th><th></th></tr></thead><tbody>
+        ${d.guests.map((g) => html`<tr data-inv-row="${g.id}"><td><button type="button" class="link-btn" data-inv-open="${g.id}">${g.name}</button><br><small class="muted">${g.ref}${g.listRsvp ? ` · list says ${g.listRsvp}` : ''}</small></td>
+          <td>${badge(g.rsvpLabel, RSVP_BADGE[g.rsvpStatus] || 'gray')}</td>
+          <td>${g.hasEmail ? INVITE_TEXT[g.invite.state] || g.invite.state : 'No email address'}${g.invite.state === 'failed' && g.invite.lastError ? html`<br><small class="muted">${g.invite.lastError}</small>` : ''}</td>
+          <td>${g.seat ? `Table ${g.seat.number}${g.seat.seatNo ? `, seat ${g.seat.seatNo}` : ''}${g.seat.status === 'reserved' ? ' (reserved)' : ''}` : '–'}</td>
+          <td>${g.hasEmail ? html`<button type="button" class="btn small-btn" data-inv-one="${g.id}">${sentLike(g.invite.state) ? 'Send again' : 'Send'}</button>` : ''}</td></tr>`)}
+      </tbody></table></div></details>`);
+    const on = (sel, fn) => box.querySelectorAll(sel).forEach((b) => b.addEventListener('click', fn));
+    const sendTo = async (guestIds, what) => {
+      try {
+        const r = await api.post(`${base}/invitations/send`, { ...(guestIds ? { guestIds } : {}), opId: opId() });
+        toast(`${plural(r.queued, 'invitation')} queued${d.emailPaused ? ': email is paused, so they wait until you turn it on' : ''}.${r.again ? ` ${r.again} with a new link.` : ''}`);
+        loadInvites();
+        poll.reset();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+      return what;
+    };
+    on('[data-inv-send]', async () => {
+      if (!(await confirmDialog(`Send ${plural(c.notInvited, 'invitation')} from ${d.from}, with links on ${d.linkBase}? Each guest gets their own link and QR code.${d.emailPaused ? ' Email is paused: they wait in the outbox until you turn it on.' : ''}`, { confirmLabel: 'Send invitations', danger: false, title: 'Send invitations' }))) return;
+      sendTo(null);
+    });
+    on('[data-inv-one]', async (e) => {
+      const g = d.guests.find((x) => x.id === e.currentTarget.dataset.invOne);
+      if (sentLike(g.invite.state) && !(await confirmDialog(`Send ${g.name}'s invitation again? It goes with a new link and QR code; the link in the earlier email stops working. Their answer and seat stay.`, { confirmLabel: 'Send again', danger: false, title: 'Send again' }))) return;
+      sendTo([g.id]);
+    });
+    on('[data-inv-open]', (e) => openGuest(id, e.currentTarget.dataset.invOpen, () => {
+      loadInvites();
+      poll.reset();
+    }));
+    on('[data-inv-email]', (e) => {
+      const gid = e.currentTarget.dataset.invEmail;
+      modal({
+        title: 'Add an email address',
+        body: html`<label class="field"><span>Email</span><input name="v" type="email" required maxlength="254" /></label>`,
+        onSubmit: async (f) => {
+          await cmd({ type: 'guest.update', guestId: gid, email: f.v.value });
+          toast('Saved. Send their invitation from the list.');
+          loadInvites();
+        },
+      });
+    });
+    on('[data-inv-preview]', async () => {
+      try {
+        const p = await api.post(`${base}/invitations/preview`, {});
+        modal({
+          title: 'Invitation preview', wide: true, submitLabel: null,
+          subtitle: `As ${p.guest || 'a guest'} gets it. The link here is a sample that does not work.`,
+          body: html`<dl class="ca-mailhead"><dt>From</dt><dd>${d.from || 'no address yet'}</dd>${p.replyTo ? html`<dt>Reply-To</dt><dd>${p.replyTo}</dd>` : ''}<dt>To</dt><dd>${p.to || 'the guest'}</dd><dt>Subject</dt><dd data-preview-subject>${p.subject}</dd></dl>
+            <div class="ca-mail-preview"><pre class="ca-mail-text" data-preview-text>${p.text}</pre><div class="ca-qr ca-mail-qr">${raw(p.qrSvg)}<p class="small muted">The QR code is in the email itself, with a button for the link.</p></div></div>`,
+        });
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+    on('[data-inv-test]', () => modal({
+      title: 'Send a test invitation',
+      subtitle: `From ${d.from || '(no From address yet)'}, now, with a sample link that does not work. Try a Gmail, an Outlook and a Yahoo address before inviting the guests: it should arrive in the inbox (not spam) with the QR code showing.`,
+      body: html`<label class="field"><span>Send to <em>*</em></span><input name="to" type="email" required maxlength="254" placeholder="you@gmail.com" /></label>`,
+      submitLabel: 'Send test',
+      onSubmit: async (f) => toast((await api.post(`${base}/invitations/test`, { to: f.to.value })).message),
+    }));
+    on('[data-inv-settings]', () => {
+      const st = d.settings;
+      modal({
+        title: 'Invitation settings',
+        subtitle: 'What the invitation says, when replies close, and whether a Yes reserves a seat at once.',
+        body: html`<label class="field"><span>Subject</span><input name="subject" value="${st.subject || ''}" maxlength="160" placeholder="Invitation: ${ev.name}" /></label>
+          <label class="field"><span>Opening text</span><textarea name="intro" rows="4" maxlength="1500" placeholder="You are invited to ${ev.name}.">${st.intro || ''}</textarea></label>
+          <div class="ca-pair"><label class="field"><span>Time</span><input name="time" value="${st.time || ''}" maxlength="60" placeholder="6:00 PM" /></label><label class="field"><span>Dress code</span><input name="dressCode" value="${st.dressCode || ''}" maxlength="80" placeholder="Cocktail" /></label></div>
+          <label class="field"><span>Venue</span><input name="venue" value="${d.venue || ''}" maxlength="160" /></label>
+          <label class="field"><span>Reply by (Manila time)</span><input type="datetime-local" name="rsvpDeadline" value="${toManilaInput(st.rsvpDeadline)}" /><small class="muted">Replies also close when self check-in opens. Until then a guest can change their answer.</small></label>
+          <label class="field"><span>Public address for the links</span><input name="publicUrl" value="${st.publicUrl || ''}" maxlength="120" placeholder="${d.origin || 'https://ltdc-core.com'}" /><small class="muted">Empty: the address you are using CORE on now (${d.origin}).</small></label>
+          <label class="field check"><input type="checkbox" name="autoSeat" ${st.autoSeatOnConfirm ? 'checked' : ''} /><span>Seat on Yes: a guest who says Yes gets the best table for them and its lowest open chair at once, held until the night (preferred guests keep their reserved seats)</span></label>`,
+        submitLabel: 'Save',
+        onSubmit: async (f) => {
+          await api.patch(base, { rev: d.rev, venue: f.venue.value, settings: { autoSeatOnConfirm: f.autoSeat.checked, invitation: { subject: f.subject.value, intro: f.intro.value, time: f.time.value, dressCode: f.dressCode.value, rsvpDeadline: f.rsvpDeadline.value, publicUrl: f.publicUrl.value } } });
+          toast('Invitation settings saved.');
+          loadInvites();
+        },
+      });
+    });
+  }
+
   const drawAll = () => {
     drawCounts();
     drawHealth();
     drawInbox();
     drawWork();
+    // The invitations list follows the board, at most every 5 seconds.
+    if (sa && Date.now() - invitesAt > 5000) loadInvites();
   };
   drawAll();
   const poll = sa ? livePoll(`${base}/changes?tab=control`, {
@@ -1163,7 +1342,7 @@ export async function eventSetupView(el, params, query) {
         <label class="field check"><input type="checkbox" name="mixedTables" ${s.mixedTables ? 'checked' : ''} /><span>Mixed tables in use (any guest may sit at a table marked Mixed)</span></label>
         <label class="field check"><input type="checkbox" name="releaseDelegable" ${s.releaseDelegable ? 'checked' : ''} /><span>Owners may release reservations at their tables (otherwise only the Super Administrator)</span></label>
         <div class="ca-pair"><label class="field"><span>Email from (the event's own address)</span><input type="email" name="emailFrom" value="${s.emailFrom || ''}" maxlength="254" placeholder="events@yourcompany.com" /></label><label class="field"><span>Reply-To</span><input type="email" name="replyTo" value="${s.replyTo || ''}" maxlength="254" /></label></div>
-        <p class="muted small">Seat emails go from this address through CORE's outgoing email (IT Service Desk → Settings → Outgoing email), never from the IT Service Desk's own mailbox, so a guest's reply never becomes a ticket. The mail account must be allowed to send as it. Email stays paused until the Super Administrator turns it on under Event control.</p>
+        <p class="muted small">Seat emails go from this address through CORE's outgoing email (IT Service Desk → Settings → Sending email), never from the IT Service Desk's own mailbox, so a guest's reply never becomes a ticket. The mail account must be allowed to send as it. Email stays paused until the Super Administrator turns it on under Event control.</p>
         <div class="actions"><button type="submit" class="btn primary">Save</button></div>
       </form></section>
     <section class="card"><h2>${icon('grid')} Room and tables</h2>

@@ -407,7 +407,7 @@ export function mountRoomPlan(el, eventId, { onChange = () => {} } = {}) {
         <p class="hint">${!t.active ? 'Not in use.' : yours ? (sa ? (t.ownerName ? `Given to ${t.ownerName}` : 'No owner: yours') : 'Yours') : `${t.ownerName || 'The Super Administrator'}'s table: you can look, not seat.`}</p>
         <div class="ca-dial" role="group" aria-label="Chairs at table ${t.number}">${dial}<div class="ca-dial-top"><span><strong>${t.number}</strong>${t.free < 1 ? 'FULL' : `${t.claims}/${t.capacity}`}</span></div></div>
         ${t.industries.length ? html`<div class="ca-inds">${t.industries.map((x) => html`<span class="ca-pill ${g && x === g.industry ? 'same' : ''}">${x}</span>`)}</div>` : ''}
-        ${t.chairs.some((c) => c.taken) || t.unnumbered.length ? html`<ul class="ca-who">${t.chairs.filter((c) => c.taken).map((c) => html`<li><span class="ca-cn">${c.seatNo}</span><span><strong>${c.name}</strong><br><span class="ca-gm">${[c.company, c.industry].filter(Boolean).join(' · ')}</span></span><span class="ca-pill">${c.status === 'reserved' ? 'Reserved' : 'Seated'}</span></li>`)}
+        ${t.chairs.some((c) => c.taken) || t.unnumbered.length ? html`<ul class="ca-who">${t.chairs.filter((c) => c.taken).map((c) => html`<li><span class="ca-cn">${c.seatNo}</span><span><strong>${c.name}</strong><br><span class="ca-gm">${[c.company, c.industry].filter(Boolean).join(' · ')}</span></span><span class="ca-pill">${c.status === 'reserved' ? (c.rsvp ? 'Reserved: said Yes' : 'Reserved') : 'Seated'}</span></li>`)}
           ${t.unnumbered.map((c) => html`<li><span class="ca-cn">–</span><span><strong>${c.name}</strong></span><span class="ca-pill">No chair number</span></li>`)}</ul>` : ''}
         ${confirmBox(g, t)}</div>`);
     }
@@ -442,7 +442,7 @@ export function mountRoomPlan(el, eventId, { onChange = () => {} } = {}) {
     }
     const sa = st.data.role === 'super';
     const can = c.mine && t.mine;
-    return html`<div class="ca-confirm"><span><strong>${c.name}</strong>${c.company ? `, ${c.company}` : ''}: chair ${c.seatNo}. ${c.status === 'reserved' ? 'Reserved before the event; not arrived yet.' : 'Seated.'}</span>
+    return html`<div class="ca-confirm"><span><strong>${c.name}</strong>${c.company ? `, ${c.company}` : ''}: chair ${c.seatNo}. ${c.status === 'reserved' ? (c.rsvp ? 'Reserved when they said Yes to their invitation; not arrived yet.' : 'Reserved before the event; not arrived yet.') : 'Seated.'}</span>
       ${can ? html`<div class="actions">${c.status === 'reserved'
         ? html`<button type="button" class="btn primary ca-48" data-act="arrive" ${busy}>Arrived: seat now</button>${sa || st.data.settings?.releaseDelegable ? html`<button type="button" class="btn danger ghost ca-48" data-act="release" ${busy}>Release reservation</button>` : ''}`
         : html`<button type="button" class="btn ca-48" data-act="move" ${busy}>${icon('repeat', 16)} Move</button><button type="button" class="btn ca-48" data-act="unseat" ${busy}>Back to waiting</button>`}</div>` : html`<p class="hint">${c.mine ? 'This table is not yours.' : 'Not your guest: their owner or the Super Administrator changes their seat.'}</p>`}</div>`;

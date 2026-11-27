@@ -8,7 +8,8 @@
 //   5. Every page in every role's menu at phone width: no page wider than the screen, no errors
 //   CUSTOM APP (0.72): the guest page in each state, the presence key, the event night on four
 //   devices, the seating sheet, the room plan, and the import check blocking self check-in;
-//   (0.73) groups, walk-ins and substitutes, email cut, and Event control
+//   (0.73) groups, walk-ins and substitutes, email cut, and Event control; (0.74) an invitation sent,
+//   opened, answered Yes with the seat reserved at once, both emails, and the door check-in by the link
 // Needs Playwright (the CI job installs it; never part of CORE itself). Exit code 1 on a failure;
 // screenshots of failures go to journeys-output/.
 import { spawn } from 'node:child_process';
@@ -1067,6 +1068,82 @@ await journey('Event control: tables, workload moves, confirms, transfer, swap a
   await s.waitForFunction(([sel]) => document.querySelector(sel)?.textContent === '0/10', [`[data-plan] [data-table="${C.t(1).id}"] .ca-t-count`], { timeout: 8000 });
   // The counts on Event control follow on their next poll.
   await d.waitForFunction(() => /Seats left\s*\d+ of \d+/.test(document.querySelector('[data-counts]')?.textContent || ''), null, { timeout: 5000 });
+});
+
+// ----- CUSTOM APP (0.74): invitations, the guest's Yes, seat on confirmation, the door -----
+// CORE's outgoing email pointed at a fake SMTP server (test/support/mail-servers.js) for this one
+// journey, then turned off again.
+await journey('Event invitation: invite, open the link, Yes, seated at once, emails, door check-in by the link', async (pages) => {
+  const { fakeSmtp } = await import('../test/support/mail-servers.js');
+  const { parseMessage } = await import('../server/mail/mime.js');
+  const smtp = await fakeSmtp();
+  try {
+    await admin('PUT', '/api/helpdesk/settings/mailbox', { enabled: false, address: 'helpdesk@company.com', displayName: 'IT Service Desk', host: '127.0.0.1', port: 993, security: 'none', user: 'helpdesk@company.com', password: 'app-pass', pollMinutes: 5, defaultCategory: 'Other' });
+    await admin('PUT', '/api/helpdesk/settings/outgoing', { enabled: true, host: '127.0.0.1', port: smtp.port, security: 'none', sameLogin: true });
+    // A live event whose doors open in two hours: replies are open, the door is not yet.
+    const I = await journeyEvent('Invite Gala', [evRow('I1', 'Isabel', 'Invitado', 'event.demo', { company: 'Northbay Bank' }), evRow('I2', 'Ignacio', 'Invitado', 'maria.staff'), evRow('I3', 'Iris', 'Sinemail', '', { email: '' })], { opensInMs: 2 * 3600000 });
+    let ev = await lead('GET', I.base);
+    ev = await lead('PATCH', I.base, { rev: ev.rev, settings: { emailFrom: 'invite.gala@example.com', autoSeatOnConfirm: true, invitation: { subject: 'Invite Gala: you are invited', dressCode: 'Cocktail', time: '7:00 PM' } } });
+    await I.cmd(lead, { type: 'setFlag', flag: 'emailPaused', value: false });
+    // The Super Administrator sends the invitations from Event control.
+    const d = await signIn('eventlead.demo');
+    pages.push(d);
+    await d.goto(`${BASE}/#/customapp/control?e=${I.id}`);
+    await d.waitForSelector('[data-inv-send]:not([disabled])', { timeout: 10000 });
+    if (!/Send invitations \(2\)/.test(await textOf(d, '[data-inv-send]'))) throw new Error(`Send button: ${await textOf(d, '[data-inv-send]')}`);
+    if (!/No email address \(1\)/.test(await textOf(d, '#ca-invites'))) throw new Error('The guest without an email is not listed.');
+    await d.click('[data-inv-send]');
+    await d.waitForSelector('.modal-backdrop:last-child button[type=submit]');
+    await submitModal(d, 'Send invitations');
+    const mailTo = async (addr, n, what) => {
+      for (let i = 0; i < 100 && smtp.sent.filter((m) => m.to.includes(addr)).length < n; i++) await d.waitForTimeout(100);
+      const m = smtp.sent.filter((x) => x.to.includes(addr))[n - 1];
+      if (!m) throw new Error(`No ${what} email to ${addr}.`);
+      return m;
+    };
+    const invitation = await mailTo('i1@example.com', 1, 'invitation');
+    if (invitation.from !== 'invite.gala@example.com') throw new Error(`From ${invitation.from}`);
+    if (!/multipart\/related/.test(invitation.raw) || !/Content-ID: <qr\./.test(invitation.raw)) throw new Error('The invitation has no inline QR code.');
+    const link = parseMessage(invitation.raw).text.match(/https?:\/\/\S+#i=[A-Za-z0-9_-]{43}/)?.[0];
+    if (!link || !link.startsWith(`${BASE}/event/${I.code}#i=`)) throw new Error(`Link: ${link}`);
+    // The guest opens their link on their phone and says Yes: seated at once.
+    const ph = await guestPhone();
+    pages.push(ph);
+    await ph.goto(link);
+    await ph.waitForSelector('#rsvp-yes', { timeout: 8000 });
+    if (!/You're invited, Isabel Invitado\./.test(await textOf(ph, '#box h1'))) throw new Error(`Invite page: ${await textOf(ph, '#box h1')}`);
+    if (!/Dress code: Cocktail/.test(await textOf(ph, '#ev-details'))) throw new Error('No event details.');
+    await ph.click('#rsvp-yes');
+    await ph.waitForSelector('#seat-line', { timeout: 8000 });
+    const seatText = (await textOf(ph, '#seat-line')).trim();
+    if (!/^Table \d+, seat \d+$/.test(seatText)) throw new Error(`Seat line: ${seatText}`);
+    const g1 = await guestOf(I, 'I1');
+    if (g1.seat?.status !== 'reserved' || g1.arrival.state !== 'expected') throw new Error(`After Yes: ${JSON.stringify(g1.seat)} ${g1.arrival.state}`);
+    if (`Table ${g1.seat.number}, seat ${g1.seat.seatNo}` !== seatText) throw new Error('The page and the seat differ.');
+    // The confirmation email: the table and seat, and the same QR code.
+    const reply = await mailTo('i1@example.com', 2, 'confirmation');
+    const replyText = parseMessage(reply.raw).text;
+    if (!replyText.includes(seatText) || !replyText.includes(link) || !/Content-ID: <qr\./.test(reply.raw)) throw new Error(`Confirmation email: ${replyText.slice(0, 200)}`);
+    // Staff see it: Find guest's RSVP filter and the counts.
+    await d.goto(`${BASE}/#/customapp/find?e=${I.id}&rsvp=yes`);
+    await d.waitForSelector('#ca-results [data-guest]', { timeout: 8000 });
+    if (!/Isabel Invitado/.test(await textOf(d, '#ca-results')) || /Ignacio/.test(await textOf(d, '#ca-results'))) throw new Error(`RSVP filter: ${await textOf(d, '#ca-results')}`);
+    // The night: the doors open; the same link checks the guest in, with no surname to type.
+    ev = await lead('GET', I.base);
+    await lead('PATCH', I.base, { rev: ev.rev, window: { opensAt: new Date(Date.now() - 600000).toISOString(), closesAt: new Date(Date.now() + 4 * 3600000).toISOString() } });
+    await ph.reload();
+    await ph.waitForSelector('#checkin', { timeout: 8000 });
+    if (await ph.locator('#surname').count()) throw new Error('The door asked for a surname.');
+    await ph.click('#checkin');
+    await ph.waitForSelector('#table-no', { timeout: 8000 });
+    if ((await textOf(ph, '#table-no')).trim() !== `Table ${g1.seat.number}`) throw new Error(`Door: ${await textOf(ph, '#box')}`);
+    const after = await guestOf(I, 'I1');
+    if (after.arrival.state !== 'checked_in' || after.seat.status !== 'confirmed') throw new Error(`After the door: ${after.arrival.state} ${after.seat.status}`);
+    if (GUEST_NEVER.test(await textOf(ph))) throw new Error(`The guest page said: ${(await textOf(ph)).match(GUEST_NEVER)[0]}`);
+  } finally {
+    smtp.server.close();
+    await admin('PUT', '/api/helpdesk/settings/outgoing', { enabled: false, host: '', port: 587, security: 'starttls', sameLogin: true }).catch(() => {});
+  }
 });
 
 // 6. Every page in every role's menu at phone width

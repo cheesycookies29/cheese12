@@ -45,7 +45,7 @@ describe('US-012: Export JSON v1, CSV and printable plan', () => {
     assert.deepEqual(exp.guests.filter((g) => g.seat).map((g) => [g.ref, g.seat.status]), [['TG-0001', 'confirmed'], ['TG-0002', 'reserved']]);
     const text = JSON.stringify(exp);
     for (const gone of ['secret-token-hash', 'statusTokens', 'lookup', '"flags":[{']) assert.ok(!text.includes(gone), gone);
-    const allowed = ['id', 'ref', 'externalKey', 'name', 'designation', 'company', 'industryId', 'industryText', 'email', 'mobile', 'classification', 'tags', 'rsvp', 'ownerUserId', 'arrival', 'approval', 'substituteFor', 'substitutedBy', 'groupId', 'seat', 'released', 'notify', 'deskOnly', 'altSurnames', 'active', 'rev'];
+    const allowed = ['id', 'ref', 'externalKey', 'name', 'designation', 'company', 'industryId', 'industryText', 'email', 'mobile', 'classification', 'tags', 'rsvp', 'ownerUserId', 'arrival', 'approval', 'substituteFor', 'substitutedBy', 'groupId', 'seat', 'released', 'notify', 'deskOnly', 'altSurnames', 'active', 'rev', 'rsvpReply', 'invite'];
     for (const g of exp.guests) for (const k of Object.keys(g)) assert.ok(allowed.includes(k), `guest field ${k}`);
     assert.ok(!('qrKeyHash' in exp.event));
   });
