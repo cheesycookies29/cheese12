@@ -1776,6 +1776,92 @@ Tier: Ops (readiness) · Due: 8 Dec 2026 (code freeze 7 Dec 18:00; event 9 Dec; 
 - **Evidence:** —
 - **Verified-by:** —
 
+### US-031: Interactive room model
+
+#### AC-205: The room is event data (rows, cols, chairsPerTable, stageSide, boothSide, numbering); YEP 2026 creates tables 1-25 from it
+- **Method:** unit-test
+- **Test:** `test/customapp-room.test.js` > "the room is event data and makes the tables"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-206: Tables numbered from the stage, chairs 1-10 clockwise from the one facing the stage; print and exports agree
+- **Method:** unit-test
+- **Test:** `test/customapp-room.test.js` > "numbering from the stage"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-207: The plan is drawn from GET /room and refreshed by the short poll; another device's seat shows within one pollMs
+- **Method:** e2e-test
+- **Test:** `scripts/journeys.mjs` > "Room model: two devices"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-208: Chair and table states by fill and shape as well as colour, with a legend; full tables say FULL
+- **Method:** e2e-test
+- **Test:** `scripts/journeys.mjs` > "Room model: states and legend"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-209: Choosing a waiting guest ranks the top three tables on the plan and dims ineligible ones
+- **Method:** e2e-test
+- **Test:** `scripts/journeys.mjs` > "Room model: recommendations"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-210: Seat here sends one assign with tableId, seatNo and expectedRev; a 409 redraws from fresh state and says why
+- **Method:** integration-test
+- **Test:** `test/customapp-room.test.js` > "assign a chair; last chair race"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-211: Personnel choose chairs only at delegated tables; others are "Not yours" and a forged request gets 403 out_of_scope
+- **Method:** integration-test
+- **Test:** `test/customapp-room.test.js` > "scope on the plan"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-212: Occupied chair: who sits there; reserved: Arrived / Release (Super Administrator); seated: move or back to waiting
+- **Method:** integration-test
+- **Test:** `test/customapp-room.test.js` > "occupied chair actions"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-213: Fit / zoom buttons, + - 1 keys, pan by scroll or drag, Ctrl+scroll zoom, arrow keys between tables, Enter opens
+- **Method:** e2e-test
+- **Test:** `scripts/journeys.mjs` > "Room model: keyboard and zoom"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-214: A table's ten chairs as labelled 48 px buttons: keyboard, screen reader and 390 px phone
+- **Method:** e2e-test
+- **Test:** `scripts/journeys.mjs` > "Room model: phone and keyboard"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-215: Light and dark, no sideways scroll at 390 px, load and redraw under 300 ms with 250 chairs
+- **Method:** metric
+- **Test:** `scripts/journeys.mjs` > "Room model: timing"
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
+#### AC-216: The plan replaces the occupancy grid on Event control; the printed pack draws the same room in black and white
+- **Method:** manual-check
+- **Test:** dress rehearsal checklist (US-029)
+- **Status:** pending
+- **Evidence:** —
+- **Verified-by:** —
+
 ## Verification Summary
 
 | Story | Tier | Due | ACs | unit | integration | e2e | manual | metric | Verified |
@@ -1810,6 +1896,7 @@ Tier: Ops (readiness) · Due: 8 Dec 2026 (code freeze 7 Dec 18:00; event 9 Dec; 
 | US-028 Staging restore drill, warm standby and load test 1 | Ops (readiness) | 4 Dec 2026 | 7 | 1 | 0 | 0 | 1 | 5 | 0/7 |
 | US-029 Load test 2 with the kill -9 drill and the dress rehearsal | Ops (readiness) | 6 Dec 2026 | 8 | 1 | 1 | 0 | 1 | 5 | 0/8 |
 | US-030 Freeze, event-day runbook and close-out | Ops (readiness) | 8 Dec 2026 | 7 | 0 | 0 | 0 | 6 | 1 | 0/7 |
-| **Total** | | | **204** | 84 | 61 | 24 | 20 | 15 | **0/204** |
+| US-031 Interactive room model | 1 | 3 Dec 2026 | 12 | 2 | 3 | 5 | 1 | 1 | 0/12 |
+| **Total** | | | **216** | 86 | 64 | 29 | 21 | 16 | **0/216** |
 
-Progress: 0/204 verified
+Progress: 0/216 verified

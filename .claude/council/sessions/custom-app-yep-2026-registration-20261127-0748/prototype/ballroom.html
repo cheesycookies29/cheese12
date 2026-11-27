@@ -1,0 +1,523 @@
+<title>YEP 2026 Ballroom</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap">
+<style>
+/* Layout: the ballroom plan fills the main column (tech booth left, 5x5 tables, stage right); a side
+   panel holds who is waiting, the recommended tables and the chosen table's ten chairs. CORE's own
+   palette (maroon brand, gold accent), so the prototype previews the module inside CORE. */
+:root {
+  --brand: #5d0013;
+  --accent: #b87f1c;
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f6f4f2;
+  --border: #e3e0dd;
+  --border-strong: #c9c4bf;
+  --text: #17121a;
+  --text-2: #3b3540;
+  --muted: #6b6470;
+  --brand-soft: color-mix(in srgb, var(--brand) 9%, var(--surface));
+  --brand-line: color-mix(in srgb, var(--brand) 30%, var(--surface));
+  --brand-text: var(--brand);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  --accent-text: #87580a;
+  --seat: var(--brand);
+  --seat-ink: #ffffff;
+  --floor: #fbfaf8;
+  --floor-line: #ebe7e3;
+  --ok: #15803d;
+  --ok-soft: #dcfce7;
+  --font: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e0b10; --surface: #17131a; --surface-2: #1e1922; --border: #2e2733; --border-strong: #463d4c;
+    --text: #ece8ee; --text-2: #cfc8d3; --muted: #9a92a0;
+    --brand-soft: color-mix(in srgb, var(--brand) 30%, var(--surface)); --brand-line: color-mix(in srgb, var(--brand) 60%, var(--surface));
+    --brand-text: #e29aa8; --accent-soft: color-mix(in srgb, var(--accent) 24%, var(--surface)); --accent-text: #f0c27a;
+    --seat: #b33a52; --seat-ink: #ffffff; --floor: #141017; --floor-line: #241e28; --ok: #4ade80; --ok-soft: #14532d55;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e0b10; --surface: #17131a; --surface-2: #1e1922; --border: #2e2733; --border-strong: #463d4c;
+  --text: #ece8ee; --text-2: #cfc8d3; --muted: #9a92a0;
+  --brand-soft: color-mix(in srgb, var(--brand) 30%, var(--surface)); --brand-line: color-mix(in srgb, var(--brand) 60%, var(--surface));
+  --brand-text: #e29aa8; --accent-soft: color-mix(in srgb, var(--accent) 24%, var(--surface)); --accent-text: #f0c27a;
+  --seat: #b33a52; --seat-ink: #ffffff; --floor: #141017; --floor-line: #241e28; --ok: #4ade80; --ok-soft: #14532d55;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--font); }
+.wrap { max-width: 1440px; margin: 0 auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
+header.top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+.eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+h1 { margin: 2px 0 0; font-size: 24px; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 2px 0 0; max-width: 70ch; }
+.view-as { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+select, input[type=search] { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; min-height: 38px; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; min-width: 104px; }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: 12px; color: var(--muted); }
+.note { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); color: var(--text); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; }
+.note strong { color: var(--accent-text); }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+/* ----- The room ----- */
+.room { position: relative; overflow: hidden; }
+.room-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--text-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend svg { flex: none; }
+.zoom { display: flex; gap: 4px; }
+.btn { font: inherit; font-weight: 600; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); min-height: 38px; padding: 0 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--brand-line); }
+.btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.btn.primary:hover { filter: brightness(1.1); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.sq { width: 38px; padding: 0; justify-content: center; }
+.btn:focus-visible, select:focus-visible, input:focus-visible, .chair-btn:focus-visible, .guest:focus-visible, .rec:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.plan { display: block; width: 100%; height: auto; aspect-ratio: 1000 / 640; max-height: 74vh; background: var(--floor); touch-action: none; cursor: grab; user-select: none; }
+.plan:active { cursor: grabbing; }
+.plan:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.floorline { stroke: var(--floor-line); stroke-width: 1; }
+.zone { fill: var(--surface-2); stroke: var(--border-strong); stroke-width: 1.5; }
+.stage { fill: var(--brand-soft); stroke: var(--brand-line); stroke-width: 2; }
+.zone-label { fill: var(--text-2); font: 700 13px var(--font); letter-spacing: 0.14em; text-transform: uppercase; }
+.zone-sub { fill: var(--muted); font: 500 10px var(--font); letter-spacing: 0.04em; }
+.tbl { cursor: pointer; }
+.tbl-top { fill: var(--surface); stroke: var(--border-strong); stroke-width: 1.5; transition: stroke .12s; }
+.tbl.type-preferred .tbl-top { fill: var(--accent-soft); stroke: color-mix(in srgb, var(--accent) 70%, var(--surface)); }
+.tbl.type-employee .tbl-top { stroke-dasharray: 4 3; }
+.tbl-num { fill: var(--text); font: 700 15px var(--font); }
+.tbl-count { fill: var(--muted); font: 500 9.5px var(--font); font-variant-numeric: tabular-nums; }
+.tbl.full .tbl-count { fill: var(--brand-text); font-weight: 700; }
+.tbl.selected .tbl-top { stroke: var(--brand); stroke-width: 3; }
+.tbl.kbd .tbl-ring { stroke: var(--accent); stroke-width: 3; fill: none; }
+.tbl.rec .tbl-top { stroke: var(--accent); stroke-width: 3; }
+.tbl.out { opacity: 0.32; }
+.rank { fill: var(--accent); }
+.rank-t { fill: #fff; font: 700 11px var(--font); }
+.lock-t { fill: var(--muted); font: 700 8px var(--font); letter-spacing: 0.06em; }
+.chair { stroke-width: 1.5; }
+.chair.empty { fill: var(--surface); stroke: var(--border-strong); }
+.chair.reserved { fill: url(#hatch); stroke: var(--accent); }
+.chair.seated { fill: var(--seat); stroke: var(--seat); }
+.chair.pick { stroke: var(--accent); stroke-width: 3.5; }
+.chair-x { fill: var(--seat-ink); font: 700 7px var(--font); pointer-events: none; }
+.chairhit { fill: transparent; cursor: pointer; }
+/* ----- Side panel ----- */
+.side { display: grid; gap: 14px; }
+.panel { padding: 14px; display: grid; gap: 10px; }
+.panel h2 { margin: 0; font-size: 15px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.panel h2 small { font-weight: 500; color: var(--muted); font-size: 12px; }
+.guests { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 300px; overflow: auto; }
+.guest { width: 100%; text-align: left; font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; cursor: pointer; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 2px 10px; align-items: center; }
+.guest:hover { border-color: var(--brand-line); }
+.guest[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-soft); }
+.avatar { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border); font-weight: 700; font-size: 12px; color: var(--text-2); }
+.g-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-meta { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 8px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); white-space: nowrap; }
+.chip.same { background: var(--ok-soft); border-color: transparent; color: var(--ok); }
+.chip.rel { background: var(--accent-soft); border-color: transparent; color: var(--accent-text); }
+.recs { display: grid; gap: 6px; }
+.rec { width: 100%; font: inherit; color: inherit; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; cursor: pointer; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.rec:hover { border-color: var(--accent); }
+.rec .n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 12px; }
+.rec .why { font-size: 12px; color: var(--muted); }
+.rec .left { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+/* The chosen table, its ten chairs as large buttons around it */
+.tview { display: grid; gap: 10px; }
+.tview-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tview-head b { font-size: 16px; }
+.dial { position: relative; width: 100%; max-width: 300px; aspect-ratio: 1; margin: 0 auto; }
+.dial .top { position: absolute; inset: 30%; border-radius: 50%; background: var(--surface-2); border: 1.5px solid var(--border-strong); display: grid; place-items: center; text-align: center; font-size: 12px; color: var(--muted); }
+.dial .top b { display: block; font-size: 22px; color: var(--text); }
+.chair-btn { position: absolute; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; border: 2px solid var(--border-strong); background: var(--surface); color: var(--text-2); display: grid; place-items: center; }
+.chair-btn.seated { background: var(--seat); border-color: var(--seat); color: var(--seat-ink); }
+.chair-btn.reserved { background: repeating-linear-gradient(45deg, var(--accent-soft) 0 4px, var(--surface) 4px 8px); border-color: var(--accent); color: var(--accent-text); }
+.chair-btn.pick { box-shadow: 0 0 0 3px var(--accent); }
+.chair-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+.who { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.who li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; }
+.who .cn { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.who .gm { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inds { display: flex; flex-wrap: wrap; gap: 4px; }
+.confirm { position: sticky; bottom: 0; display: grid; gap: 8px; background: var(--brand-soft); border: 1px solid var(--brand-line); border-radius: var(--radius-sm); padding: 10px 12px; }
+.confirm .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: var(--radius-sm); font-weight: 600; max-width: calc(100% - 32px); z-index: 20; }
+.foot { color: var(--muted); font-size: 12px; }
+@media (max-width: 1020px) { .layout { grid-template-columns: minmax(0, 1fr); } .plan { max-height: none; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CUSTOM APP · Event seating · Prototype</div>
+      <h1>Legati Group Year-End Party 2026 · Ballroom</h1>
+      <p class="sub">9 December 2026. Choose a guest who is waiting, pick one of the recommended tables, then the chair. Example guests only.</p>
+    </div>
+    <label class="view-as" for="view-as">Viewing as
+      <select id="view-as">
+        <option value="super">Super Administrator · every table</option>
+        <option value="ana">Ana Reyes · tables 6–13</option>
+        <option value="ben">Ben Cruz · tables 14–20</option>
+        <option value="carla">Carla Lim · employee tables 21–25</option>
+      </select>
+    </label>
+  </header>
+
+  <div class="stats" id="stats" aria-live="polite"></div>
+  <p class="note" id="cap-note"></p>
+
+  <div class="layout">
+    <section class="card room" aria-label="Ballroom plan">
+      <div class="room-bar">
+        <div class="legend" aria-label="Legend">
+          <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5"/></svg>Open chair</span>
+          <span><svg width="16" height="16" aria-hidden="true"><defs><pattern id="hatch-l" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="var(--surface)"/><rect width="2" height="4" fill="var(--accent)"/></pattern></defs><circle cx="8" cy="8" r="6.5" fill="url(#hatch-l)" stroke="var(--accent)" stroke-width="1.5"/></svg>Reserved (preferred, not arrived)</span>
+          <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="var(--seat)"/><text x="8" y="10.5" text-anchor="middle" font-size="7" font-weight="700" fill="var(--seat-ink)">AB</text></svg>Seated</span>
+          <span><svg width="22" height="16" aria-hidden="true"><circle cx="11" cy="8" r="7" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/></svg>Preferred table</span>
+          <span><svg width="22" height="16" aria-hidden="true"><circle cx="11" cy="8" r="7" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>Employee table</span>
+        </div>
+        <div class="zoom" role="group" aria-label="Zoom">
+          <button class="btn sq" id="z-out" type="button" title="Zoom out (−)" aria-label="Zoom out">−</button>
+          <button class="btn sq" id="z-in" type="button" title="Zoom in (+)" aria-label="Zoom in">+</button>
+          <button class="btn" id="z-fit" type="button" title="Fit the room (1)">Fit</button>
+        </div>
+      </div>
+      <svg class="plan" id="plan" viewBox="0 0 1000 640" tabindex="0" role="application" aria-label="Ballroom: 25 tables in 5 rows, tech booth on the left, stage on the right. Arrow keys move between tables, Enter opens a table, plus and minus zoom, 1 fits the room." aria-describedby="kbd-help">
+        <defs>
+          <pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="var(--surface)"/><rect width="2" height="4" fill="var(--accent)"/></pattern>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" class="floorline"/></pattern>
+        </defs>
+        <g id="world"></g>
+      </svg>
+      <p id="kbd-help" hidden>Use the arrow keys to move between tables and Enter to open one.</p>
+    </section>
+
+    <aside class="side">
+      <section class="card panel" id="queue-panel" aria-labelledby="q-h"></section>
+      <section class="card panel" id="detail-panel" aria-live="polite"></section>
+    </aside>
+  </div>
+  <p class="foot">Prototype for review: the seats, guests and staff are examples, and nothing here is saved to CORE. In CORE, every seat change is checked on the server against the 10-per-table limit and the person's delegated tables before it is kept.</p>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+  // ----- The room: 5 x 5 round tables, 10 chairs each. Stage on the right, tech booth on the left.
+  // Tables are numbered from the stage: column nearest the stage is 1-5 (top to bottom).
+  const COLS = 5, ROWS = 5, CHAIRS = 10;
+  const X0 = 830, DX = 160, Y0 = 72, DY = 124, TABLE_R = 30, CHAIR_D = 47, CHAIR_R = 9.5;
+  const INDUSTRY_REL = {
+    Banking: ['Insurance', 'Fintech'], Insurance: ['Banking', 'Fintech'], Fintech: ['Banking', 'Insurance', 'Technology'],
+    Technology: ['Telecom', 'Fintech'], Telecom: ['Technology', 'Media'], Media: ['Telecom'],
+    'Real estate': ['Construction'], Construction: ['Real estate'], Manufacturing: ['Logistics'], Logistics: ['Manufacturing', 'Retail'],
+    Retail: ['Food & beverage', 'Logistics'], 'Food & beverage': ['Retail'], Healthcare: ['Pharma'], Pharma: ['Healthcare'], Government: [], 'Legati Group': [],
+  };
+  const OWNERS = { super: { name: 'Super Administrator', tables: null }, ana: { name: 'Ana Reyes', tables: [6, 13] }, ben: { name: 'Ben Cruz', tables: [14, 20] }, carla: { name: 'Carla Lim', tables: [21, 25] } };
+  const ownerOfTable = (n) => (n <= 5 ? 'super' : n <= 13 ? 'ana' : n <= 20 ? 'ben' : 'carla');
+  const typeOfTable = (n) => (n <= 5 ? 'preferred' : n >= 21 ? 'employee' : 'regular');
+  const TYPE_LABEL = { preferred: 'Preferred', regular: 'Regular', employee: 'Employee' };
+
+  // A small seeded random, so the example looks the same on every load.
+  let seed = 20261209;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const FIRST = ['Maria', 'Jose', 'Ana', 'Mark', 'Grace', 'Paolo', 'Liza', 'Ramon', 'Trish', 'Carlo', 'Bea', 'Miguel', 'Joy', 'Rico', 'Celine', 'Nico', 'Aira', 'Dante', 'Kim', 'Leo', 'Faye', 'Gino', 'Hazel', 'Ivan'];
+  const LAST = ['Santos', 'Reyes', 'Cruz', 'Bautista', 'Ocampo', 'Garcia', 'Mendoza', 'Torres', 'Tan', 'dela Cruz', 'Villanueva', 'Aquino', 'Ramos', 'Lim', 'Castillo', 'Navarro', 'Flores', 'Gonzales', 'Sy', 'Uy'];
+  const COMPANIES = {
+    Banking: ['BDO Unibank', 'Metrobank', 'Security Bank'], Insurance: ['Sun Life', 'Pru Life UK'], Fintech: ['GCash', 'PayMongo'], Technology: ['Accenture PH', 'Globe Labs', 'Sprout'],
+    Telecom: ['PLDT', 'Converge'], Media: ['ABS-CBN', 'Rappler'], 'Real estate': ['Ayala Land', 'Megaworld'], Construction: ['DMCI', 'EEI Corp'], Manufacturing: ['Universal Robina', 'Pilipinas Kao'],
+    Logistics: ['2GO', 'LBC Express'], Retail: ['SM Retail', 'Robinsons'], 'Food & beverage': ['Jollibee Foods', 'San Miguel'], Healthcare: ['The Medical City', "St. Luke's"], Pharma: ['Unilab'], Government: ['DTI', 'BOI'],
+  };
+  const OUTSIDE = Object.keys(COMPANIES);
+  const person = (industry, cls) => {
+    const first = pick(FIRST), last = pick(LAST);
+    return { id: `g${Math.floor(rnd() * 1e9).toString(36)}`, name: `${first} ${last}`, initials: `${first[0]}${last.replace('dela ', '')[0]}`, industry, company: industry === 'Legati Group' ? 'Legati Group' : pick(COMPANIES[industry]), cls };
+  };
+
+  const tables = [];
+  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
+    const n = c * ROWS + r + 1;
+    tables.push({ n, x: X0 - c * DX, y: Y0 + r * DY, type: typeOfTable(n), owner: ownerOfTable(n), chairs: Array(CHAIRS).fill(null) });
+  }
+  const byNum = (n) => tables[n - 1];
+  // Example seating: preferred tables mostly reserved before arrival, the rest partly seated by industry.
+  for (const t of tables) {
+    const theme = t.type === 'employee' ? 'Legati Group' : pick(OUTSIDE);
+    const fill = t.type === 'preferred' ? 6 + Math.floor(rnd() * 4) : t.type === 'employee' ? 3 + Math.floor(rnd() * 5) : Math.floor(rnd() * 8);
+    for (let i = 0; i < fill; i++) {
+      const ind = t.type === 'employee' ? 'Legati Group' : rnd() < 0.6 ? theme : pick([...(INDUSTRY_REL[theme] || []), pick(OUTSIDE)]);
+      const g = person(ind, t.type === 'preferred' ? 'Preferred' : t.type === 'employee' ? 'Employee' : 'Regular');
+      g.status = t.type === 'preferred' && rnd() < 0.55 ? 'reserved' : 'seated';
+      t.chairs[i] = g;
+    }
+    if (t.n === 9 || t.n === 16) t.chairs.fill(null).forEach((_, i) => { const g = person(theme, 'Regular'); g.status = 'seated'; t.chairs[i] = g; }); // two full tables
+  }
+  const waiting = [
+    ['Banking', 'Regular', 'ana'], ['Technology', 'Regular', 'ana'], ['Real estate', 'Regular', 'ben'], ['Insurance', 'Regular', 'ana'], ['Retail', 'Regular', 'ben'],
+    ['Legati Group', 'Employee', 'carla'], ['Healthcare', 'Regular', 'ben'], ['Legati Group', 'Employee', 'carla'], ['Fintech', 'Regular', 'ana'], ['Manufacturing', 'Regular', 'ben'],
+    ['Telecom', 'Regular', 'ana'], ['Construction', 'Regular', 'ben'], ['Government', 'Regular', 'super'], ['Legati Group', 'Employee', 'carla'],
+  ].map(([ind, cls, owner]) => Object.assign(person(ind, cls), { owner, status: 'waiting', arrived: `${6 + Math.floor(rnd() * 2)}:${String(Math.floor(rnd() * 60)).padStart(2, '0')} PM` }));
+
+  // ----- State -----
+  const state = { viewAs: 'super', guestId: null, table: null, chair: null, kbd: 1, scale: 1, tx: 0, ty: 0 };
+  try { const v = localStorage.getItem('yep-view-as'); if (v && OWNERS[v]) state.viewAs = v; } catch {}
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const mine = (t) => state.viewAs === 'super' || t.owner === state.viewAs;
+  const guestById = (id) => waiting.find((g) => g.id === id) || null;
+  const used = (t) => t.chairs.filter(Boolean).length; // seated and reserved both count toward 10
+  const eligible = (g, t) => (g.cls === 'Employee' ? t.type === 'employee' : g.cls === 'Preferred' ? t.type === 'preferred' : t.type === 'regular');
+  const industriesAt = (t) => [...new Set(t.chairs.filter(Boolean).map((g) => g.industry))];
+
+  // Recommendations: eligible tables with room, same industry first, then related, then the rest;
+  // within each, the table that keeps the most seats free after this guest (so groups still fit).
+  function recommend(g) {
+    return tables.filter((t) => eligible(g, t) && used(t) < CHAIRS).map((t) => {
+      const inds = industriesAt(t);
+      const same = t.chairs.filter((x) => x && x.industry === g.industry).length;
+      const rel = t.chairs.filter((x) => x && (INDUSTRY_REL[g.industry] || []).includes(x.industry)).length;
+      const tier = same ? 0 : rel ? 1 : 2;
+      return { t, tier, same, rel, inds, left: CHAIRS - used(t) };
+    }).sort((a, b) => a.tier - b.tier || (b.same + b.rel) - (a.same + a.rel) || b.left - a.left || a.t.n - b.t.n);
+  }
+
+  // ----- Drawing the room -----
+  const world = $('#world');
+  const chairPos = (t, i) => { const a = (-90 + i * 36) * Math.PI / 180; return [t.x + CHAIR_D * Math.cos(a), t.y + CHAIR_D * Math.sin(a)]; };
+  function drawRoom() {
+    const g = state.guestId ? guestById(state.guestId) : null;
+    const recs = g ? recommend(g) : [];
+    const rank = new Map(recs.slice(0, 3).map((r, i) => [r.t.n, i + 1]));
+    let s = `<rect x="0" y="0" width="1000" height="640" fill="url(#grid)"/>`;
+    s += `<rect class="zone" x="14" y="230" width="82" height="180" rx="8"/><text class="zone-label" x="55" y="314" text-anchor="middle" transform="rotate(-90 55 320)">Tech booth</text><text class="zone-sub" x="55" y="430" text-anchor="middle">Sound · lights</text>`;
+    s += `<rect class="stage" x="918" y="30" width="70" height="580" rx="10"/><text class="zone-label" x="953" y="320" text-anchor="middle" transform="rotate(90 953 320)">Stage</text>`;
+    for (const t of tables) {
+      const out = (!mine(t)) || (g && !eligible(g, t));
+      const cls = ['tbl', `type-${t.type}`, used(t) >= CHAIRS ? 'full' : '', state.table === t.n ? 'selected' : '', rank.has(t.n) ? 'rec' : '', out ? 'out' : '', state.kbd === t.n && document.activeElement === plan ? 'kbd' : ''].join(' ');
+      s += `<g class="${cls}" data-table="${t.n}">`;
+      s += `<circle class="tbl-ring" cx="${t.x}" cy="${t.y}" r="${CHAIR_D + CHAIR_R + 4}" fill="none"/>`;
+      t.chairs.forEach((c, i) => {
+        const [cx, cy] = chairPos(t, i);
+        const st = c ? c.status : 'empty';
+        const pickd = state.table === t.n && state.chair === i;
+        s += `<circle class="chair ${st}${pickd ? ' pick' : ''}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${CHAIR_R}"/>`;
+        if (c && c.status === 'seated') s += `<text class="chair-x" x="${cx.toFixed(1)}" y="${(cy + 2.5).toFixed(1)}" text-anchor="middle">${esc(c.initials)}</text>`;
+        s += `<circle class="chairhit" data-chair="${t.n}:${i}" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${CHAIR_R + 3}"/>`;
+      });
+      s += `<circle class="tbl-top" cx="${t.x}" cy="${t.y}" r="${TABLE_R}"/>`;
+      s += `<text class="tbl-num" x="${t.x}" y="${t.y + 2}" text-anchor="middle">${t.n}</text>`;
+      s += `<text class="tbl-count" x="${t.x}" y="${t.y + 15}" text-anchor="middle">${used(t) >= CHAIRS ? 'FULL' : `${used(t)}/10`}</text>`;
+      if (rank.has(t.n)) s += `<circle class="rank" cx="${t.x + 24}" cy="${t.y - 24}" r="10"/><text class="rank-t" x="${t.x + 24}" y="${t.y - 20}" text-anchor="middle">${rank.get(t.n)}</text>`;
+      if (!mine(t)) s += `<text class="lock-t" x="${t.x}" y="${t.y - 12}" text-anchor="middle">NOT YOURS</text>`;
+      s += `</g>`;
+    }
+    world.innerHTML = s;
+    applyView();
+  }
+
+  // ----- Zoom and pan (after n8n's canvas: fit, +/−, 0/1 keys, drag or scroll to pan, Ctrl+scroll to zoom) -----
+  const plan = $('#plan');
+  function applyView() { world.setAttribute('transform', `translate(${state.tx} ${state.ty}) scale(${state.scale})`); }
+  function zoomAt(f, cx = 500, cy = 320) {
+    const s = Math.min(4, Math.max(1, state.scale * f));
+    state.tx = cx - (cx - state.tx) * (s / state.scale);
+    state.ty = cy - (cy - state.ty) * (s / state.scale);
+    state.scale = s;
+    clampPan();
+    applyView();
+  }
+  function clampPan() {
+    const minX = 1000 - 1000 * state.scale, minY = 640 - 640 * state.scale;
+    state.tx = Math.min(0, Math.max(minX, state.tx));
+    state.ty = Math.min(0, Math.max(minY, state.ty));
+  }
+  const fit = () => { state.scale = 1; state.tx = 0; state.ty = 0; applyView(); };
+  const focusTable = (n) => { const t = byNum(n); if (state.scale > 1) { state.tx = 500 - t.x * state.scale; state.ty = 320 - t.y * state.scale; clampPan(); applyView(); } };
+  $('#z-in').onclick = () => zoomAt(1.35);
+  $('#z-out').onclick = () => zoomAt(1 / 1.35);
+  $('#z-fit').onclick = fit;
+  const toSvg = (e) => { const r = plan.getBoundingClientRect(); return [(e.clientX - r.left) * 1000 / r.width, (e.clientY - r.top) * 640 / r.height]; };
+  plan.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) { const [x, y] = toSvg(e); zoomAt(e.deltaY < 0 ? 1.12 : 1 / 1.12, x, y); }
+    else if (state.scale > 1) { state.tx -= e.deltaX; state.ty -= e.deltaY; clampPan(); applyView(); }
+  }, { passive: false });
+  let drag = null;
+  plan.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, tx: state.tx, ty: state.ty, moved: false }; });
+  window.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const r = plan.getBoundingClientRect();
+    const dx = (e.clientX - drag.x) * 1000 / r.width, dy = (e.clientY - drag.y) * 640 / r.height;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    if (drag.moved && state.scale > 1) { state.tx = drag.tx + dx; state.ty = drag.ty + dy; clampPan(); applyView(); }
+  });
+  window.addEventListener('pointerup', (e) => {
+    const d = drag; drag = null;
+    if (!d || d.moved) return;
+    const hit = e.target.closest?.('[data-chair]');
+    if (hit) { const [n, i] = hit.dataset.chair.split(':').map(Number); return chooseChair(n, i); }
+    const tg = e.target.closest?.('[data-table]');
+    if (tg) chooseTable(Number(tg.dataset.table));
+  });
+  // Keyboard: arrows move to the nearest table in that direction (as n8n moves between nodes).
+  plan.addEventListener('keydown', (e) => {
+    const t = byNum(state.kbd);
+    const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (dir) {
+      e.preventDefault();
+      // The nearest table in the same row (left/right) or the same column (up/down).
+      const next = tables.filter((o) => (dir[0]
+        ? Math.abs(o.y - t.y) < 10 && Math.sign(o.x - t.x) === dir[0]
+        : Math.abs(o.x - t.x) < 10 && Math.sign(o.y - t.y) === dir[1]));
+      if (next.length) { next.sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y)); state.kbd = next[0].n; focusTable(state.kbd); drawRoom(); announce(`Table ${state.kbd}, ${used(next[0])} of 10 taken`); }
+    } else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chooseTable(state.kbd); }
+    else if (e.key === '+' || e.key === '=') zoomAt(1.35);
+    else if (e.key === '-' || e.key === '_') zoomAt(1 / 1.35);
+    else if (e.key === '1' || e.key === '0') fit();
+  });
+  plan.addEventListener('focus', drawRoom);
+  plan.addEventListener('blur', drawRoom);
+
+  // ----- Choosing -----
+  function chooseTable(n) { state.table = n; state.kbd = n; state.chair = null; render(); }
+  function chooseChair(n, i) {
+    const t = byNum(n);
+    state.table = n; state.kbd = n;
+    state.chair = i;
+    render();
+  }
+  function canSeat(g, t, i) {
+    if (!mine(t)) return `Table ${t.n} is ${OWNERS[t.owner].name}'s. Ask them, or the Super Administrator, to seat this guest.`;
+    if (!eligible(g, t)) return `Table ${t.n} is a ${TYPE_LABEL[t.type].toLowerCase()} table; ${g.name} is a ${g.cls.toLowerCase()} guest.`;
+    if (t.chairs[i]) return `Chair ${i + 1} at table ${t.n} is taken.`;
+    if (used(t) >= CHAIRS) return `Table ${t.n} is full.`;
+    return '';
+  }
+  function seat() {
+    const g = guestById(state.guestId), t = byNum(state.table), i = state.chair;
+    const why = canSeat(g, t, i);
+    if (why) return toast(why);
+    // In CORE this is one server-side commit: the limit and the delegation are checked again there.
+    t.chairs[i] = Object.assign(g, { status: 'seated' });
+    waiting.splice(waiting.indexOf(g), 1);
+    toast(`${g.name} is seated at table ${t.n}, chair ${i + 1}.`);
+    state.guestId = null; state.chair = null;
+    render();
+  }
+  function unseat() {
+    const t = byNum(state.table), g = t.chairs[state.chair];
+    if (!g || !mine(t)) return;
+    if (g.status === 'reserved' && state.viewAs !== 'super') return toast('Only the Super Administrator releases a preferred reservation.');
+    t.chairs[state.chair] = null;
+    if (g.status === 'seated') waiting.unshift(Object.assign(g, { status: 'waiting', owner: t.owner, arrived: 'now' }));
+    toast(g.status === 'reserved' ? `Reservation released: chair ${state.chair + 1} at table ${t.n} is open.` : `${g.name} is back in the waiting list.`);
+    state.chair = null;
+    render();
+  }
+  function checkInReserved() {
+    const t = byNum(state.table), g = t.chairs[state.chair];
+    if (!g || g.status !== 'reserved') return;
+    g.status = 'seated';
+    toast(`${g.name} has arrived: table ${t.n}, chair ${state.chair + 1}.`);
+    render();
+  }
+
+  // ----- Side panels -----
+  function renderQueue() {
+    const list = waiting.filter((g) => state.viewAs === 'super' || g.owner === state.viewAs);
+    const q = ($('#q-search')?.value || '').toLowerCase();
+    const shown = list.filter((g) => !q || `${g.name} ${g.company} ${g.industry}`.toLowerCase().includes(q));
+    $('#queue-panel').innerHTML = `<h2 id="q-h">Waiting for a seat <small>${list.length} checked in</small></h2>
+      <input type="search" id="q-search" placeholder="Search name, company, industry" aria-label="Search guests waiting" value="${esc(q)}">
+      ${shown.length ? `<ul class="guests">${shown.map((g) => `<li><button type="button" class="guest" data-guest="${g.id}" aria-pressed="${state.guestId === g.id}">
+          <span class="avatar" aria-hidden="true">${esc(g.initials)}</span><span class="g-name">${esc(g.name)}</span>
+          <span class="g-meta">${esc(g.company)} · ${esc(g.industry)} · ${g.cls}${state.viewAs === 'super' ? ` · ${esc(OWNERS[g.owner].name)}` : ''} · in ${esc(g.arrived)}</span></button></li>`).join('')}</ul>`
+        : `<p class="hint">${list.length ? 'No guest matches.' : 'Nobody is waiting for you right now.'}</p>`}`;
+    const s = $('#q-search');
+    s.oninput = () => { const pos = s.selectionStart; renderQueue(); const n = $('#q-search'); n.focus(); n.setSelectionRange(pos, pos); };
+    document.querySelectorAll('[data-guest]').forEach((b) => (b.onclick = () => { state.guestId = state.guestId === b.dataset.guest ? null : b.dataset.guest; state.chair = null; render(); }));
+  }
+  function renderDetail() {
+    const box = $('#detail-panel');
+    const g = state.guestId ? guestById(state.guestId) : null;
+    let h = '';
+    if (g) {
+      const recs = recommend(g).filter((r) => mine(r.t));
+      h += `<h2>Recommended for ${esc(g.name)} <small>${esc(g.industry)}</small></h2>`;
+      h += recs.length ? `<div class="recs">${recs.slice(0, 3).map((r, i) => `<button type="button" class="rec" data-rec="${r.t.n}"><span class="n">${i + 1}</span>
+          <span><b>Table ${r.t.n}</b> <span class="why">${r.tier === 0 ? `<span class="chip same">${r.same} same industry</span>` : r.tier === 1 ? `<span class="chip rel">${r.rel} related</span>` : '<span class="chip">No match, open seats</span>'}</span><br><span class="why">${esc(r.inds.slice(0, 3).join(', ') || 'Empty table')}</span></span>
+          <span class="left">${r.left} open</span></button>`).join('')}</div>
+          ${recs.length > 3 ? `<p class="hint">${recs.length - 3} other eligible table${recs.length - 3 === 1 ? '' : 's'} with open seats. Any of them can be chosen on the plan.</p>` : ''}`
+        : `<p class="hint">None of your ${g.cls.toLowerCase()} tables has an open chair. Refer ${esc(g.name)} to the Super Administrator.</p>`;
+    }
+    if (state.table) {
+      const t = byNum(state.table);
+      const yours = mine(t);
+      h += `<div class="tview"><div class="tview-head"><b>Table ${t.n}</b><span class="chip">${TYPE_LABEL[t.type]} table · ${CHAIRS - used(t)} of 10 open</span></div>
+        <div class="hint">${yours ? (state.viewAs === 'super' ? `Delegated to ${esc(OWNERS[t.owner].name)}` : 'Yours') : `${esc(OWNERS[t.owner].name)}'s table: you can look, not seat`}</div>
+        <div class="dial" role="group" aria-label="Chairs at table ${t.n}">${t.chairs.map((c, i) => {
+          const a = (-90 + i * 36) * Math.PI / 180; const x = 50 + 41 * Math.cos(a), y = 50 + 41 * Math.sin(a);
+          const st = c ? c.status : 'empty';
+          const label = c ? `Chair ${i + 1}: ${c.name}, ${c.company}${c.status === 'reserved' ? ' (reserved, not arrived)' : ''}` : `Chair ${i + 1}: open`;
+          return `<button type="button" class="chair-btn ${st}${state.chair === i ? ' pick' : ''}" style="left:${x}%;top:${y}%" data-dchair="${i}" aria-label="${esc(label)}" aria-pressed="${state.chair === i}" title="${esc(label)}">${c ? esc(c.initials) : i + 1}</button>`;
+        }).join('')}<div class="top"><span><b>${t.n}</b>${used(t)}/10</span></div></div>
+        <div class="inds">${industriesAt(t).map((x) => `<span class="chip${g && x === g.industry ? ' same' : g && (INDUSTRY_REL[g.industry] || []).includes(x) ? ' rel' : ''}">${esc(x)}</span>`).join('') || '<span class="hint">Nobody yet</span>'}</div>
+        <ul class="who">${t.chairs.map((c, i) => (c ? `<li><span class="cn">${i + 1}</span><span><b>${esc(c.name)}</b><br><span class="gm">${esc(c.company)} · ${esc(c.industry)}</span></span><span class="chip">${c.status === 'reserved' ? 'Reserved' : 'Seated'}</span></li>` : '')).join('')}</ul>`;
+      if (state.chair !== null) {
+        const c = t.chairs[state.chair];
+        if (g && !c) {
+          const why = canSeat(g, t, state.chair);
+          h += `<div class="confirm">${why ? `<span>${esc(why)}</span>` : `<span>Seat <b>${esc(g.name)}</b> at table ${t.n}, chair ${state.chair + 1}?</span><div class="row"><button type="button" class="btn primary" id="do-seat">Seat here</button><button type="button" class="btn" id="do-cancel">Cancel</button></div>`}</div>`;
+        } else if (c) {
+          h += `<div class="confirm"><span><b>${esc(c.name)}</b>, chair ${state.chair + 1}. ${c.status === 'reserved' ? 'Reserved before the event; not arrived yet.' : 'Seated.'}</span>
+            ${yours ? `<div class="row">${c.status === 'reserved' ? '<button type="button" class="btn primary" id="do-arrive">Arrived: seat now</button><button type="button" class="btn" id="do-unseat">Release reservation</button>' : '<button type="button" class="btn" id="do-unseat">Back to waiting</button>'}</div>` : ''}</div>`;
+        } else {
+          h += `<div class="confirm"><span>Chair ${state.chair + 1} is open. Choose a guest from <b>Waiting for a seat</b> to seat them here.</span></div>`;
+        }
+      }
+      h += `</div>`;
+    }
+    if (!g && !state.table) h = `<h2>How to seat a guest</h2><p class="hint">1. Choose a guest under <b>Waiting for a seat</b>. Their best tables get a gold ring and a number on the plan: same industry first, then related industries, then any table with room.</p><p class="hint">2. Choose a table, then an open chair, and confirm. Each table holds 10; a full table shows FULL and takes nobody.</p>`;
+    box.innerHTML = h;
+    box.querySelectorAll('[data-rec]').forEach((b) => (b.onclick = () => { chooseTable(Number(b.dataset.rec)); focusTable(state.table); }));
+    box.querySelectorAll('[data-dchair]').forEach((b) => (b.onclick = () => { state.chair = Number(b.dataset.dchair); render(); box.querySelector(`[data-dchair="${b.dataset.dchair}"]`)?.focus(); }));
+    $('#do-seat') && ($('#do-seat').onclick = seat);
+    $('#do-cancel') && ($('#do-cancel').onclick = () => { state.chair = null; render(); });
+    $('#do-unseat') && ($('#do-unseat').onclick = unseat);
+    $('#do-arrive') && ($('#do-arrive').onclick = checkInReserved);
+  }
+  function renderStats() {
+    const all = tables.flatMap((t) => t.chairs);
+    const seated = all.filter((c) => c && c.status === 'seated').length;
+    const reserved = all.filter((c) => c && c.status === 'reserved').length;
+    const open = all.length - seated - reserved;
+    const full = tables.filter((t) => used(t) >= CHAIRS).length;
+    $('#stats').innerHTML = [[seated, 'Seated'], [reserved, 'Reserved, not arrived'], [open, 'Open chairs'], [full, 'Full tables'], [waiting.length, 'Waiting for a seat']]
+      .map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+    $('#cap-note').innerHTML = `<span><strong>250 chairs in this room</strong> (25 tables of 10). The guest list is planned for about 300, so confirm the final count and table inventory with the venue before guests are imported.</span>`;
+  }
+  let toastTimer = 0;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3200); }
+  function announce(msg) { plan.setAttribute('aria-label', `Ballroom plan. ${msg}`); }
+  function render() { drawRoom(); renderQueue(); renderDetail(); renderStats(); }
+  const viewAs = $('#view-as');
+  viewAs.value = state.viewAs;
+  viewAs.onchange = () => { state.viewAs = viewAs.value; state.guestId = null; state.chair = null; try { localStorage.setItem('yep-view-as', state.viewAs); } catch {} render(); };
+  // Opens with a guest chosen, so the first view shows recommendations on the plan.
+  state.guestId = waiting[0].id;
+  render();
+})();
+</script>

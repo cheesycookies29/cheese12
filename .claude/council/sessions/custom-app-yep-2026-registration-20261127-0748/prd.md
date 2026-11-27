@@ -71,7 +71,7 @@ Decision Log). None of it is to be built for YEP 2026.
 | **SSE or WebSocket push**, and long-poll | Short poll with `pollMs`; the `wait` parameter is reserved and ignored. SSE is on Hold until after 9 Dec (push would carry only `{seq}`). |
 | **An event-only import or restore endpoint** | Won't before 9 Dec. The export format `customapp.event/1` is frozen with a golden test; a v1.1 reader comes after the event. Recovery = standby plus replaying commands through `commit()`. |
 | **Persisted staff sessions** | Not changing the VAPT-hardened `auth.js` 12 days out. Mitigated by the freeze, the crash logger, the event sign-in allowance, staff on 4G and a rehearsed re-login. |
-| **A graphical floor plan / ballroom layout** | The occupancy grid with text counts covers spec s.14 ("make counts and reservations clear even without a floor-plan graphic"). |
+| ~~A graphical floor plan / ballroom layout~~ | **Moved into scope on 27 Nov at the user's request: see US-031 (interactive room model).** |
 | **SMS** | Email (Tier 2, go/no-go 3 Dec), on-screen display and verbal notice only. |
 | **Detailed analytics** | Only the S4 success metrics and the post-event report from `caChanges`. |
 | **A QR redirect host** for guests to the standby | The standby is for staff only; guests are sent to the desk. |
@@ -575,6 +575,27 @@ Thirty stories in tier order: the 28 Nov operations items, Tier 0 (1 Dec), Tier 
 - [ ] Close: `registrationOpen` off, final CSV and JSON export, manual offsite backup, retention date set. *(AC-203, manual-check)*
 - [ ] 10 Dec 09:00: the freeze file and timer drop-in are removed, the instance is resized back, staging is snapshotted and decommissioned, the export archive is handed to the client and the PII purge clock starts (covering `ca*`, the nightly copies, the event exports and the offsite lifecycle). *(AC-204, manual-check)*
 
+### US-031: Interactive room model: choose a table and chair on the ballroom plan
+**Description:** As the Super Administrator or a registration personnel member, I want a live plan of the ballroom (a 5 x 5 grid of round tables with 10 chairs each, the stage on the right and the tech booth on the left) so that I can see every table and chair at a glance and choose the exact chair for each guest.
+**Tier:** 1 (with the delegated queues); the Tier 0 list-based seating stays as the fallback.
+**Due:** 3 Dec 2026
+**Agent:** Advocate (screens), Architect (room data and commands)
+**Size:** M (about 2 dev-days)
+**Prototype:** https://claude.ai/artifact/R5M9UuLqJZpRJYkQypgZqd (reviewed 27 Nov; example data only)
+**Acceptance Criteria:**
+- [ ] The room is event data, not code: `caEvents.room = { rows, cols, chairsPerTable, stageSide: left|right|top|bottom, boothSide, numbering: 'from-stage' }`; YEP 2026 is `{5, 5, 10, 'right', 'left'}`, and setting up the event creates tables 1-25 with positions derived from it (a second event with another room needs no code). *(AC-205, unit-test)*
+- [ ] Tables are numbered from the stage (the column nearest the stage is 1-5, top to bottom) and chairs 1-10 clockwise from the one facing the stage; the printed pack and exports use the same numbers. *(AC-206, unit-test)*
+- [ ] The plan is an inline SVG drawn from `GET /api/customapp/events/:id/room` (tables, chairs, claims, owners) and refreshed by the same short poll as the queues; a chair taken on another device changes within one `pollMs`. *(AC-207, e2e-test)*
+- [ ] Every chair shows its state by fill and shape as well as colour (open: hollow ring; reserved: hatched; seated: solid with initials; the chosen chair: thick ring), with a legend; table type is shown by tint and line style (preferred: gold; employee: dashed); full tables say FULL. *(AC-208, e2e-test)*
+- [ ] Choosing a waiting guest marks the top three recommended tables on the plan (ring and rank 1-3, from the same `recommend()` as the list) and dims tables the guest is not eligible for. *(AC-209, e2e-test)*
+- [ ] Choosing a chair, then **Seat here**, sends one `assign` command with `tableId`, `seatNo` and `expectedRev`; the server's `commit()` decides. On a 409 (the chair or table was taken, or the scope changed) the plan redraws from the fresh state in the reply and says what happened, never silently. *(AC-210, integration-test)*
+- [ ] A personnel member sees every table but can only choose chairs at their delegated tables; other tables are dimmed and marked "Not yours", and the server refuses a forged request with 403 `out_of_scope`. *(AC-211, integration-test)*
+- [ ] Choosing an occupied chair shows who sits there; for a reserved preferred seat it offers **Arrived: seat now** and, for the Super Administrator only (while `releaseDelegable` is false), **Release reservation**; a seated guest can be moved or sent back to waiting through the same commands as the list. *(AC-212, integration-test)*
+- [ ] After n8n's canvas: Fit, zoom in and zoom out buttons; keys + and - zoom, 1 fits; scroll or drag pans when zoomed and Ctrl+scroll zooms; arrow keys move between tables in the same row or column and Enter opens one. *(AC-213, e2e-test)*
+- [ ] Opening a table shows its ten chairs as 48 px buttons around the table (labelled "Chair 4: Maria Santos, BDO Unibank"), so seating works with a keyboard, a screen reader and a 390 px phone where the full plan is small. *(AC-214, e2e-test)*
+- [ ] The plan reads in light and dark mode, never scrolls the page sideways at 390 px, and the room page loads and redraws in under 300 ms with 250 chairs on the event laptop. *(AC-215, metric)*
+- [ ] The room plan replaces the occupancy grid on the Event control screen; the printable plan in the offline pack draws the same room in black and white with table and chair numbers. *(AC-216, manual-check)*
+
 ## Acceptance Scenario Coverage (spec section 07)
 
 Each of the spec's 12 scenarios has a named test in `test/customapp-acceptance.test.js` (the 5 Dec
@@ -852,7 +873,8 @@ design's proposed default (used if no answer arrives) and the date the build nee
 
 | # | Decision | Proposed default (design / spec) | Needed by |
 |---|---|---|---|
-| 1 | **Seat numbers for non-preferred guests**: will chairs be physically numbered, so regular and employee guests get a seat number too? | `settings.seatNumbers = 'preferred'`: seat numbers mandatory for preferred guests only; others are told the table only. The non-preferred seat picker is a Should and fourth in the fallback order. | 1 Dec |
+| 1 | **Seat numbers for every guest** (changed 27 Nov): the admins choose a chair for each guest on the room model, so chairs 1-10 must be numbered on every table. | `settings.seatNumbers = 'all'`; chair 1 faces the stage and numbers run clockwise. The venue numbers the physical chairs to match (or ushers seat by the printed plan). | 1 Dec |
+| 1a | **Room capacity (new 27 Nov)**: the room is 5 x 5 round tables of 10 = **250 chairs**, against a planning figure of about 300 guests. Is 250 the real inventory, or are more tables or a sixth row needed? | Build for the configured room (rows, columns and chairs are event settings); the import's capacity check refuses a list larger than the room until the Super Administrator adds tables. | 1 Dec |
 | 2 | **Mixed tables**: which tables may seat regular guests alongside preferred guests (and is `mixedTables` enabled)? | Dedicated preferred, regular and employee tables; `mixedTables` off unless the Super Administrator enables it; only tables the client names are classified `mixed`. | 1 Dec |
 | 3 | **Delegated no-show release**: may a table owner release a no-show preferred reservation within their scope? | No: `releaseDelegable = false`, so only the Super Administrator releases, always with a reason; nothing expires automatically. | 1 Dec |
 | 4 | **Industry categories and relationships**: who supplies and owns the industry list and the related-sector map; are affinity or exclusion tags needed? | ICD supplies the classifications and related-sector mappings; the Super Administrator maintains them in Setup; no tags or exclusions unless supplied. | 1 Dec (list), with the final data on 3 Dec |
@@ -866,3 +888,7 @@ design's proposed default (used if no answer arrives) and the date the build nee
 | 12 | **Venue connectivity and devices**: 4G hotspot for staff, guest Wi-Fi, power, printer and a laptop at the desk. | Staff devices on a 4G hotspot (not the venue NAT); guests on venue Wi-Fi or their own data; the pack printed on site. | 6 Dec (dress rehearsal) |
 | 13 | **Client acceptance demo**: who attends on 5 Dec, with which devices, and who signs off. | Legati/ICD event leads watch all 12 scenarios on several devices and sign off in the session. | 3 Dec (to schedule the 5 Dec demo) |
 | 14 | **Personal-data retention and purge date** after the post-event archive is handed over. | The purge clock starts 10 Dec and covers `ca*`, nightly copies, event exports and the offsite lifecycle; the retention date is set at close (Guardian sets the date). | 9 Dec (set at close) |
+
+
+## Change log
+- **27 Nov 2026, after the scope review:** the user asked for an interactive model of the room (a 5 x 5 grid of round tables with 10 chairs each, stage on the right, tech booth on the left) where admins choose the chair for each guest. Added US-031 (about 2 dev-days, Tier 1), moved the floor plan out of the Non-Goals, changed client decision 1 to numbered chairs for every guest, added decision 1a (250 chairs against about 300 guests), and dropped "the non-preferred seat picker" from the cut order. Patterns from n8n's editor canvas (fit, zoom and pan controls with keyboard shortcuts, arrow keys between neighbouring nodes, status icons as well as colour) and the Taste Engine's colour-blindness rule (meaning never depends on colour alone). Prototype: https://claude.ai/artifact/R5M9UuLqJZpRJYkQypgZqd. The total is now about 17.5 dev-days against 9 build days, so the cut order matters more; see plan.md.

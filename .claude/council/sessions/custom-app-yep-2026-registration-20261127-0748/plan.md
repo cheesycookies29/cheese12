@@ -98,8 +98,10 @@ From the design (S3), applied **one at a time, at the first missed tier date**:
 2. **The dashboard becomes counts plus the occupancy list** (US-024 trimmed; the exceptions inbox
    stays, it is a Must).
 3. **Groups become one-by-one assignment with a capacity hint** (US-021).
-4. **The seat picker for non-preferred guests is dropped**; seats stay mandatory for preferred guests.
-5. **The presence key is dropped** (US-016).
+4. **The presence key is dropped** (US-016).
+5. **The room model's extras go first, never the chair choice** (US-031): keep the plan, the chair buttons and the server checks; drop the zoom and pan and the arrow-key moves before anything else in it.
+
+(27 Nov: the seat picker is no longer in this list. Admins choose a chair for every guest on the room model, US-031, so it is a Must.)
 
 **Never dropped (Must):** `commit()` + `claimsAt()`; reserved seats; the `replaceData()` carve-out;
 event-scoped rate-limit buckets; the guest page with uniform replies, status token, window and soft
@@ -111,3 +113,11 @@ contingency pack; the exceptions inbox; the 28 Nov ops half-day.
 Not in scope at any date: holds, SSE/WebSocket, an event import/restore endpoint, persisted sessions,
 a QR redirect host, a graphical floor plan, SMS, analytics, a generic app framework, queue mode or
 workers (prd.md Non-Goals).
+
+
+## Addendum (27 Nov): the room model (US-031)
+
+- **Where it lands:** Tier 1, 2-3 Dec, beside the delegated queues (US-017), after the room data in Tier 0 (US-006 creates tables from `caEvents.room`; add this to US-006 on 30 Nov).
+- **Depends on:** US-006 (tables and room), US-007 (`commit()`), US-009 (`assign` with `seatNo`), US-017 (scope), US-018 (`recommend()`), US-019 (short poll).
+- **Effort:** about 2 dev-days. The plan was about 15.5 dev-days; it is now about 17.5 against 9 build days, so either a second developer joins from 1 Dec or the cut order above is applied from the 3 Dec gate.
+- **Client inputs:** numbered chairs on every table (decision 1) and the real room size (decision 1a: 250 chairs against about 300 guests), both by 1 Dec.
