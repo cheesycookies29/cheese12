@@ -7,7 +7,25 @@ set -euo pipefail
 
 SRC="${1:?new version folder}"
 VERSION="${2:-unknown}"
-APP=/opt/ltdc-erp
+APP="${LTDC_APP:-/opt/ltdc-erp}" # LTDC_APP: tests only
+
+# Deploy freeze (0.71, for events such as YEP 2026): while $APP/data/DEPLOY_FREEZE exists and its
+# end time has not passed, nothing is installed or restarted. The file holds the end time (ISO 8601,
+# first line) and the reason (second line); CORE writes it from Event control, or an operator with
+# `sudo bash -c 'printf "2026-12-10T01:00:00Z\nYEP 2026" > /opt/ltdc-erp/data/DEPLOY_FREEZE'`.
+# To deploy during a freeze anyway, an operator removes the file first (sudo rm ...DEPLOY_FREEZE).
+# This runs before anything else, so a frozen deploy changes nothing on the server.
+FREEZE="$APP/data/DEPLOY_FREEZE"
+if [ -f "$FREEZE" ]; then
+  UNTIL="$(head -n 1 "$FREEZE" | tr -d '[:space:]')"
+  REASON="$(sed -n 2p "$FREEZE" | tr -cd '[:print:]' | cut -c1-120)"
+  if [ -z "$UNTIL" ] || [ "$(date -u +%s)" -lt "$(date -u -d "$UNTIL" +%s 2>/dev/null || echo 9999999999)" ]; then
+    echo "Deploys are frozen until ${UNTIL:-further notice} (${REASON:-no reason given}). Nothing was changed."
+    echo "To deploy anyway, an operator removes $FREEZE on the server, then deploys again."
+    exit 3
+  fi
+  echo "The deploy freeze ended at $UNTIL; continuing."
+fi
 
 if [ ! -f "$APP/server.js" ] || ! systemctl cat ltdc-erp >/dev/null 2>&1; then
   echo "LTDC ERP is not installed on this server yet. Do the first installation with the EC2 guide (Parts 1-5), then deploy again."
@@ -28,5 +46,8 @@ install -d -m 755 /etc/systemd/system/ltdc-erp.service.d
 install -m 644 "$SRC/deploy/aws/ltdc-erp-hardening.conf" /etc/systemd/system/ltdc-erp.service.d/hardening.conf
 systemctl daemon-reload
 systemctl enable --now ltdc-erp-offsite.timer ltdc-erp-restore-check.timer >/dev/null
+
+# One command back to the release before this one (0.71): sudo ltdc-erp-rollback.
+install -m 755 "$SRC/deploy/aws/ltdc-erp-rollback" /usr/local/sbin/ltdc-erp-rollback
 
 bash "$SRC/deploy/aws/update.sh" "$SRC" "$VERSION"

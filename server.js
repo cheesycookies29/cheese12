@@ -6,6 +6,7 @@ import { exec } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { openDb } from './server/db.js';
 import { createApi, clientIp } from './server/api.js';
+import { installProcessGuards, processCheck } from './server/process-guard.js';
 import { baseHeaders, pagePolicy, API_POLICY, crossSite } from './server/security.js';
 import { PUBLIC_BODY_BYTES, MAX_FILES as HELPDESK_MAX_FILES } from './server/helpdesk.js';
 import { MAX_ATTACHMENT_BYTES } from './shared/leave.js';
@@ -261,6 +262,11 @@ const server = http.createServer(async (req, res) => {
 // room for the largest uploads on a slow line.
 server.headersTimeout = 30 * 1000;
 server.requestTimeout = 120 * 1000;
+
+// Errors nobody caught (0.71): a stray promise rejection is logged and CORE keeps serving; an uncaught
+// exception is logged, the monitor's minute saved, and CORE exits for systemd to restart it.
+const processErrors = installProcessGuards({ beforeExit: () => api.monitor.stop() });
+api.monitor.check('process-errors', processCheck(processErrors));
 
 // On Ctrl+C or a service stop, the monitor's last minute is saved before CORE exits.
 for (const sig of ['SIGINT', 'SIGTERM']) {

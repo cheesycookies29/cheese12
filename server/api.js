@@ -551,13 +551,24 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const throttle = createThrottle();
   // Rate limits: everyday use per person (or per network address before signing in), sign-in
   // attempts and failures per address, password and 2-step changes per person, the public form.
+  // Event allowance (0.71): while an event's doors are open (CUSTOM APP), everyone at the venue comes
+  // from one network address, so staff sign-in gets more room. Set by server/customapp once it loads.
+  let eventWindowOpen = () => false;
   const limiter = createRateLimiter(() => {
     const s = sec();
+    const venue = eventWindowOpen();
     return {
       'api-user': { limit: s.requestsPerMinute, windowMs: 60000 },
       'api-anon': { limit: 120, windowMs: 60000 },
-      auth: { limit: 20, windowMs: 60000 },
-      'signin-fail': { limit: s.signInFailuresPerAddress, windowMs: 15 * 60000 },
+      auth: { limit: venue ? 120 : 20, windowMs: 60000 },
+      'signin-fail': { limit: venue ? Math.max(s.signInFailuresPerAddress, 60) : s.signInFailuresPerAddress, windowMs: 15 * 60000 },
+      // An event's guest pages (/api/public/event/…, 0.71): a ballroom of phones behind one venue
+      // address. Not the generic signed-out buckets (they would stop check-in at about the 20th
+      // guest); a high ceiling per address against a runaway script, the guest's own poll per
+      // status token, and attempts per event. Wrong answers are capped per surname in the engine.
+      'event-ip': { limit: 12000, windowMs: 60000 },
+      'event-token': { limit: 90, windowMs: 60000 },
+      'event-verify': { limit: 900, windowMs: 60000 },
       sensitive: { limit: 10, windowMs: 15 * 60000 },
       'public-write': { limit: 20, windowMs: 60 * 60000 },
       // Document links outside the company (0.67): opening, wrong passwords, files sent in.
@@ -1441,10 +1452,12 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     const ip = clientIp(req);
     const client = { ip, ua: String(req.headers?.['user-agent'] || '').slice(0, 300), https: isHttps(req) };
     req.coreUser = user?.id || null;
+    const eventPublic = url.pathname.startsWith('/api/public/event/');
     if (user) limits.hit('api-user', user.id);
+    else if (eventPublic) limits.hit('event-ip', ip, 'Too many requests from this network. Wait a minute, then try again.');
     else limits.hit('api-anon', ip);
     if (req.method === 'POST' && /^\/api\/auth\/(login|setup|2fa)$/.test(url.pathname)) limits.hit('auth', ip, 'Too many sign-in attempts from this network.');
-    if (req.method !== 'GET' && url.pathname.startsWith('/api/public/')) limits.hit('public-write', ip, 'Too many messages from this network.');
+    if (req.method !== 'GET' && url.pathname.startsWith('/api/public/') && !eventPublic) limits.hit('public-write', ip, 'Too many messages from this network.');
     // Several CORE servers can share one process (the tests): each request uses its own company's roles.
     setRoleOverrides(db.data.roleOverrides);
     if (r) {

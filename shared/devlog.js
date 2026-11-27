@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.70.1-alpha',
+    date: '2026-11-27',
+    title: 'Event-day safety: deploy freeze, rollback, crash handling, venue limits',
+    modules: ['system', 'deploy'],
+    notes: 'The first safety items for CUSTOM APP and the YEP 2026 event (council plan US-001 and US-003), before any event code: a push must not restart production during an event, and a stray error must not sign every staffer out.',
+    changes: [
+      ['new', 'deploy', 'Deploy freeze: while data/DEPLOY_FREEZE exists on the server and its end time has not passed, a deploy stops before it changes anything (exit 3, the GitHub deploy fails with the reason). An operator removes the file to deploy anyway.'],
+      ['new', 'deploy', 'Every deploy keeps the release it replaces in /opt/ltdc-erp-prev; sudo ltdc-erp-rollback puts it back in about a minute (data folder untouched), and checks that CORE answers again.'],
+      ['new', 'system', 'Errors nobody caught: an unhandled promise rejection is logged and counted (Security monitor → Unhandled errors) and CORE keeps serving, where Node used to stop the process; an uncaught exception is logged, then CORE exits for systemd to restart it.'],
+      ['fixed', 'system', 'Rate limits: an event\'s guest pages (/api/public/event/…) no longer use the signed-out limits (120 reads a minute, 20 posts an hour per address), which would have stopped check-in at about the 20th guest on the venue Wi-Fi; they get their own limits per address, per status token and per event. Staff sign-in gets more room while an event\'s doors are open.'],
+    ],
+  },
+  {
     version: '0.70.0-alpha',
     date: '2026-11-27',
     title: 'Document circulation: every downloadable form in one place',

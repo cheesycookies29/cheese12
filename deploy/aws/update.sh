@@ -28,6 +28,12 @@ STAMP="$(date +%F-%H%M)"
 mkdir -p "$APP/data/backups"
 [ -f "$APP/data/db.json" ] && cp "$APP/data/db.json" "$APP/data/backups/db-before-update-$STAMP.json"
 
+# The release being replaced is kept in $PREV (0.71), so `sudo ltdc-erp-rollback` can put it back in
+# a minute without a new deploy. The data folder is never part of it.
+PREV=/opt/ltdc-erp-prev
+mkdir -p "$PREV"
+rsync -a --delete --exclude /data/ "$APP/" "$PREV/"
+
 systemctl stop ltdc-erp
 rsync -a --delete --exclude /data/ "$SRC/" "$APP/"
 printf '{"commit":"%s","installedAt":"%s","channel":"server"}\n' "$VERSION" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$APP/build.json"

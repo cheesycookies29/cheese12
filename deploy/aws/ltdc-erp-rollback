@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Put back the LTDC ERP release that was running before the last deploy (0.71). update.sh keeps it
+# in /opt/ltdc-erp-prev on every deploy; the data folder is never touched. Installed by
+# remote-deploy.sh as /usr/local/sbin/ltdc-erp-rollback.
+# Usage (on the server): sudo ltdc-erp-rollback
+set -euo pipefail
+
+APP=/opt/ltdc-erp
+PREV=/opt/ltdc-erp-prev
+[ "$(id -u)" = 0 ] || { echo "Run it with sudo: sudo ltdc-erp-rollback"; exit 1; }
+[ -f "$PREV/server.js" ] || { echo "There is no earlier release in $PREV to go back to. Nothing was changed."; exit 1; }
+
+WAS="$(sed -n 's/.*"commit":"\([^"]*\)".*/\1/p' "$APP/build.json" 2>/dev/null || true)"
+BACK="$(sed -n 's/.*"commit":"\([^"]*\)".*/\1/p' "$PREV/build.json" 2>/dev/null || true)"
+echo "Going back from ${WAS:0:7} to ${BACK:0:7}."
+systemctl stop ltdc-erp
+rsync -a --delete --exclude /data/ "$PREV/" "$APP/"
+# The same ownership as update.sh: the code belongs to root, only the data folder to the app.
+chown -R root:root "$APP"
+find "$APP" -path "$APP/data" -prune -o -exec chmod u+rwX,go+rX,go-w {} +
+chown -R ltdc:ltdc "$APP/data"
+systemctl reset-failed ltdc-erp 2>/dev/null || true
+systemctl start ltdc-erp
+
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if curl -fs -o /dev/null http://127.0.0.1:3000/api/auth/status; then
+    echo "LTDC ERP is back on ${BACK:0:7} and running."
+    exit 0
+  fi
+  sleep 1
+done
+echo "The app did not start after the rollback. Recent log:"
+journalctl -u ltdc-erp -n 30 --no-pager
+exit 1
