@@ -120,4 +120,4 @@ workers (prd.md Non-Goals).
 - **Where it lands:** Tier 1, 2-3 Dec, beside the delegated queues (US-017), after the room data in Tier 0 (US-006 creates tables from `caEvents.room`; add this to US-006 on 30 Nov).
 - **Depends on:** US-006 (tables and room), US-007 (`commit()`), US-009 (`assign` with `seatNo`), US-017 (scope), US-018 (`recommend()`), US-019 (short poll).
 - **Effort:** about 2 dev-days. The plan was about 15.5 dev-days; it is now about 17.5 against 9 build days, so either a second developer joins from 1 Dec or the cut order above is applied from the 3 Dec gate.
-- **Client inputs:** numbered chairs on every table (decision 1) and the real room size (decision 1a: 250 chairs against about 300 guests), both by 1 Dec.
+- **Client inputs:** numbered chairs on every table (decision 1), by 1 Dec. Room size is decided (1a): 5 x 5 tables of 10, a **maximum of 250 guests**; Legati's list must be 250 or fewer for the 3 Dec import.

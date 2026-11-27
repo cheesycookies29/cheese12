@@ -507,7 +507,7 @@ select, input[type=search] { font: inherit; color: var(--text); background: var(
     const full = tables.filter((t) => used(t) >= CHAIRS).length;
     $('#stats').innerHTML = [[seated, 'Seated'], [reserved, 'Reserved, not arrived'], [open, 'Open chairs'], [full, 'Full tables'], [waiting.length, 'Waiting for a seat']]
       .map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
-    $('#cap-note').innerHTML = `<span><strong>250 chairs in this room</strong> (25 tables of 10). The guest list is planned for about 300, so confirm the final count and table inventory with the venue before guests are imported.</span>`;
+    $('#cap-note').innerHTML = `<span><strong>Maximum 250 guests</strong>: 25 tables of 10 chairs. The guest list is imported only if it has 250 people or fewer, and an unlisted guest or substitute is refused once every chair is claimed.</span>`;
   }
   let toastTimer = 0;
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3200); }
