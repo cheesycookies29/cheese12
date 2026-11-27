@@ -1,7 +1,7 @@
 // Everyone's profile (0.32): the role a person has in the company (a job title such as "Software
 // Engineer", set by administrators; "Employee" until then), and which CORE modules they can open.
 // Shared by the server (the profile page's data) and the browser (the module switcher, the launcher).
-import { userCan, usesAdminPanel } from './roles.js';
+import { userCan, usesAdminPanel, confinedTo } from './roles.js';
 import { MODULES, moduleOn } from './modules.js';
 
 export const DEFAULT_COMPANY_ROLE = 'Employee';
@@ -50,11 +50,18 @@ export function moduleAccess(user, { modules = {}, inProjects = false, isApprove
     } else if (m.id === 'projects') {
       home = can('pm.view') || inProjects ? '/projects' : null;
       parts = [can('pm.manage') ? 'starts and manages projects, and the setup' : can('pm.edit') ? 'starts projects' : 'member projects only'];
+    } else if (m.id === 'customapp') {
+      // CUSTOM APP (0.71): event staff and those who manage events.
+      home = can('customapp.use') ? '/customapp' : null;
+      parts = [can('customapp.manage') ? 'creates events and hands over their Super Administrator' : 'the events they are staff of'];
     } else if (m.id === 'documents') {
       // Everyone signed in keeps their own files and opens what is shared with them (0.67).
       home = '/documents';
       parts = [can('docs.manage') ? 'every document and folder, and Document control' : 'own files and what is shared with them'];
     }
+    // An account type confined to some modules (Event staff) opens nothing else.
+    const only = confinedTo(user);
+    if (only && !only.includes(m.id)) home = null;
     const off = !moduleOn(modules, m.id);
     if (off && !admin) home = null;
     const text = parts.join(', ');

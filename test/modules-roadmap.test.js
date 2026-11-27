@@ -94,3 +94,16 @@ test('API: administrators show and hide; everyone signed in gets the setting; it
   if (row) assert.equal(row.value, true);
   handle.monitor.stop();
 });
+
+test('GIVEN shared/modules.js WHEN the module list is read THEN customapp is registered with MODULE_API ^/api/(customapp|public/event)(/|$) and its MODULE_PARTS', async () => {
+  const { moduleOfApi, MODULE_PARTS, DEFAULT_OFF, PINNABLE } = await import('../shared/modules.js');
+  assert.ok(MODULES.some((m) => m.id === 'customapp' && m.status === 'live'));
+  assert.ok(!ROADMAP.some((x) => x.id === 'customapp'), 'live, not on the roadmap');
+  for (const p of ['/api/customapp', '/api/customapp/events/x/commands', '/api/public/event/yep-k3f9', '/api/public/event/yep-k3f9/status']) assert.equal(moduleOfApi('GET', p), 'customapp', p);
+  for (const p of ['/api/customappx', '/api/public/events', '/api/public/eventful']) assert.notEqual(moduleOfApi('GET', p), 'customapp', p);
+  assert.match(MODULE_PARTS.customapp, /guest lists/);
+  assert.deepEqual(DEFAULT_OFF, ['customapp'], 'released dark');
+  assert.equal(defaultModuleConfig().customapp, false);
+  assert.ok(PINNABLE.includes('customapp'));
+  assert.ok(SETTINGS.some(([area, p]) => area === 'modules' && p === 'customapp'));
+});

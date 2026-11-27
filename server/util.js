@@ -12,11 +12,29 @@ export function localTime(d = new Date()) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// extra (0.71, CUSTOM APP): { code, fresh }, a stable code from a refusal catalogue and the state
+// as it is now, so the browser can show what happened without asking again. Optional: two-argument
+// callers are unchanged.
 export class HttpError extends Error {
-  constructor(status, message) {
+  constructor(status, message, { code, fresh } = {}) {
     super(message);
     this.status = status;
+    if (code) this.code = code;
+    if (fresh !== undefined) this.fresh = fresh;
   }
+}
+
+// The JSON body of an error answer: { error }, plus { code, fresh } when CORE's own HttpError
+// carries them. Anything unexpected (a 500) says nothing about itself.
+export function errorBody(err) {
+  const status = err?.status || 500;
+  if (status === 500) return { error: 'Something went wrong. Check the terminal for details.' };
+  const out = { error: err.message };
+  if (err instanceof HttpError) {
+    if (err.code) out.code = err.code;
+    if (err.fresh !== undefined) out.fresh = err.fresh;
+  }
+  return out;
 }
 
 // A file on disk to send as the answer (0.66: a large PDF export), streamed rather than read into

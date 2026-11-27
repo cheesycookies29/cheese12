@@ -67,6 +67,14 @@ export function emptyData() {
     modules: {}, // { hr: true, assets: false, … }: a module missing here is on
     settingsLog: [], // who changed which setting, from what to what (Settings center → Change history)
     adminState: { lastBackupAt: null, lastBackupBy: null },
+    // CUSTOM APP → events (server/customapp, 0.71): events, their tables, guests (each with their seat
+    // claim), the append-only change log and the email outbox. A restore keeps the live ones while
+    // the live data holds an event (replaceData in server/api.js).
+    caEvents: [],
+    caTables: [],
+    caGuests: [],
+    caChanges: [],
+    caOutbox: [],
   };
 }
 
@@ -107,6 +115,7 @@ export function openDb(file) {
     data.modules ||= {};
     data.settingsLog ||= [];
     data.adminState ||= { lastBackupAt: null, lastBackupBy: null };
+    for (const k of ['caEvents', 'caTables', 'caGuests', 'caChanges', 'caOutbox']) if (!Array.isArray(data[k])) data[k] = [];
   }
 
   const db = {

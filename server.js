@@ -13,7 +13,7 @@ import { MAX_ATTACHMENT_BYTES } from './shared/leave.js';
 import { PDF_LIMITS } from './shared/pdf-studio.js';
 import { DIRECT_UPLOAD_BYTES } from './server/tools-pdf.js';
 import { DOCS_CHUNK_BYTES } from './server/documents.js';
-import { FileReply } from './server/util.js';
+import { FileReply, errorBody } from './server/util.js';
 
 // CORE_APP_DIR: where public/ and shared/ live (the single .exe unpacks them there).
 const ROOT = process.env.CORE_APP_DIR || path.dirname(fileURLToPath(import.meta.url));
@@ -255,7 +255,7 @@ const server = http.createServer(async (req, res) => {
     if (err.signal) res.coreSignal = err.signal;
     // Too large: answer, then close the connection so the rest of the upload is not received.
     if (status === 413) res.once('finish', () => req.destroy());
-    send(res, status, { error: status === 500 ? 'Something went wrong. Check the terminal for details.' : err.message }, 'application/json', status === 413 ? { Connection: 'close' } : err.headers || {});
+    send(res, status, errorBody(err), 'application/json', status === 413 ? { Connection: 'close' } : err.headers || {});
   }
 });
 // A connection that sends its headers or its request too slowly is closed. Two minutes leaves

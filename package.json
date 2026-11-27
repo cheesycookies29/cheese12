@@ -1,12 +1,13 @@
 {
   "name": "ltdc-erp",
-  "version": "0.70.1-alpha",
+  "version": "0.71.0-alpha",
   "description": "CORE · ERP by Lancaster: Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management, self-hosted.",
   "type": "module",
   "private": true,
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
+    "test:event": "node --test test/customapp-*.test.js",
     "reset-password": "node scripts/reset-password.js",
     "create-admin": "node scripts/create-admin.js",
     "guides:screenshots": "node scripts/guide-screenshots.mjs",

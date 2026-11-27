@@ -16,6 +16,7 @@ export const AUDIT_AREAS = {
   projects: 'Projects',
   documents: 'Documents',
   forms: 'Document circulation',
+  customapp: 'CUSTOM APP',
   feedback: 'Feedback',
   monitor: 'Security monitor',
   system: 'System',
@@ -126,7 +127,27 @@ export const AUDIT_ACTIONS = {
   'documents.link-upload': 'Received a file through a link',
   'documents.refused': 'Refused an upload',
   'documents.settings': 'Changed Document control',
-  'documents.integrity': 'Checked the stored documents'
+  'documents.integrity': 'Checked the stored documents',
+  // CUSTOM APP (0.71): every event change is one entry, naming the guest by reference and a masked name.
+  'customapp.event': 'Created or changed an event',
+  'customapp.room': 'Laid out an event\'s room',
+  'customapp.table': 'Changed an event\'s tables',
+  'customapp.flag': 'Changed an event switch',
+  'customapp.super-admin': 'Handed over an event\'s Super Administrator',
+  'customapp.import': 'Imported or acknowledged an event guest list',
+  'customapp.import-preview': 'Checked an event guest list before import',
+  'customapp.guest': 'Changed an event guest',
+  'customapp.check-in': 'Checked in an event guest',
+  'customapp.undo-check-in': 'Undid an event check-in',
+  'customapp.seat': 'Seated an event guest',
+  'customapp.transfer': 'Moved an event guest to another seat',
+  'customapp.swap': 'Swapped two event guests\' seats',
+  'customapp.unseat': 'Sent an event guest back to waiting',
+  'customapp.reserve': 'Reserved an event seat',
+  'customapp.release': 'Released an event reservation',
+  'customapp.export': 'Exported an event (JSON, CSV or printable plan)',
+  'customapp.change': 'Changed CUSTOM APP',
+  'data.export-events': 'Downloaded a full backup with event guest lists',
 };
 
 export const actionLabel = (a) => AUDIT_ACTIONS[a] || a;
@@ -141,6 +162,7 @@ export function areaOfPath(pathname) {
   if (/^\/api\/pm\//.test(pathname)) return 'projects';
   if (/^\/api\/(docs|public\/share)\//.test(pathname)) return 'documents';
   if (/^\/api\/forms(\/|$)/.test(pathname)) return 'forms';
+  if (/^\/api\/(customapp|public\/event)(\/|$)/.test(pathname)) return 'customapp';
   if (/^\/api\/(time-entries|clock-locations|location-settings)/.test(pathname)) return 'attendance';
   if (/^\/api\/(payroll|employees\/[^/]+\/ytd)/.test(pathname)) return 'payroll';
   return 'system';

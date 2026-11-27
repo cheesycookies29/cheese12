@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { userCan, ROLES, setRoleOverrides, usesAdminPanel } from '/shared/roles.js';
+import { userCan, ROLES, setRoleOverrides, usesAdminPanel, confinedTo } from '/shared/roles.js';
 import { moduleOn as isOn, shownOnRoadmap } from '/shared/modules.js';
 import { HEX_RE, THEMES } from '/shared/brand.js';
 
@@ -37,7 +37,8 @@ export const ctx = {
 export const can = (permission) => userCan(ctx.user, permission);
 // A module the company turned off is gone for everyone but administrators, who still open it.
 export const moduleOn = (id) => isOn(ctx.modules, id);
-export const mayUseModule = (id) => moduleOn(id) || ctx.user?.role === 'admin';
+// An account type confined to some modules (Event staff: CUSTOM APP, 0.71) sees no others at all.
+export const mayUseModule = (id) => (moduleOn(id) || ctx.user?.role === 'admin') && (!confinedTo(ctx.user) || confinedTo(ctx.user).includes(id));
 // Something coming soon an administrator hid (Admin panel → Modules, 0.63) is gone for everyone.
 export const shown = (id) => shownOnRoadmap(ctx.modules, id);
 // Any admin permission opens the Admin panel.

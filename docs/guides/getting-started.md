@@ -2,7 +2,7 @@
 id: getting-started
 title: Getting started with CORE
 summary: Sign in, find your way around the modules, see your notifications, change your password, turn on 2-step verification, use CORE on a phone, and get help.
-roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
+roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee, eventstaff
 apps: home, system
 order: 1
 ---

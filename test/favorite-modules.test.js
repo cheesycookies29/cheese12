@@ -85,3 +85,11 @@ test('pinned modules survive a backup and restore; unknown ones in a backup are 
   assert.deepEqual(db.data.users[0].favoriteModules, ['crm', 'assets']);
   handle.monitor.stop();
 });
+
+test('GIVEN the customapp module WHEN favourite modules are computed THEN customapp is handled like every other module', () => {
+  const m = MODULES.find((x) => x.id === 'customapp');
+  assert.deepEqual([m.name, m.code, m.status, m.glyph], ['CUSTOM APP', 'MOD-10', 'live', 'party']);
+  assert.ok(PINNABLE.includes('customapp'));
+  assert.ok(SWITCHABLE.includes('customapp'));
+  assert.deepEqual(cleanFavoriteModules(['customapp', 'hr', 'customapp']), ['customapp', 'hr']);
+});

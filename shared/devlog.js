@@ -17,16 +17,36 @@ export const DEVLOG_MODULES = {
   assets: 'IT Asset Management',
   crm: 'Sales & CRM',
   projects: 'Project Management',
+  customapp: 'CUSTOM APP',
   system: 'System & access',
   deploy: 'Deployment & hosting',
 };
 
 // Short module keys shown as scopes, e.g. "Fixed  system  …".
-export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', crm: 'crm', projects: 'projects', system: 'system', deploy: 'deploy' };
+export const MODULE_SCOPES = { hr: 'hr', assets: 'assets', crm: 'crm', projects: 'projects', customapp: 'customapp', system: 'system', deploy: 'deploy' };
 
 export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' };
 
 export const DEVLOG = [
+  {
+    version: '0.71.0-alpha',
+    date: '2026-11-27',
+    title: 'CUSTOM APP (MOD-10), Tier 0: event check-in and seating for staff',
+    modules: ['customapp', 'system'],
+    notes: 'Tier 0 of the council plan for CUSTOM APP and the YEP 2026 event (US-002, US-005 to US-013, the Tier 0 part of US-026, the room data of US-031), released dark: the module is off until an administrator turns it on. Staff-only seating; the guest QR page, delegated queues, recommendations, live sync, the room plan, groups, email and the dashboard are the next tiers. server/customapp, shared/customapp, public/js/views/customapp.js.',
+    changes: [
+      ['new', 'customapp', 'CUSTOM APP (MOD-10) with an app registry; its first app, Events: events with settings, a self check-in window (UTC, shown in Manila time), switches, one Super Administrator, staff and industries (related ones kept both ways); the room as data (rows, columns, chairs per table, stage and booth sides) from which the tables are made, numbered from the stage, chairs 1 to N clockwise from the one facing the stage.'],
+      ['new', 'customapp', 'One synchronous commit() for every change (nothing awaited between the checks and the save): the actor\'s role read again, the read-only switch, opId replays answered without a second write (rebuilt from the change log at start), revisions (409 stale with the state as it is now), the ten invariants checked on the state the change would make, copy-on-write so a failed save puts everything back (503 not_saved), one change-log entry per change (seq) and one audit entry naming the guest by ref and masked name. Refusals from one frozen catalogue (409, 403, 503) with { error, code, fresh }; HttpError takes an optional { code, fresh }.'],
+      ['new', 'customapp', 'Seat commands: check-in (any staffer; a preferred guest\'s reservation retrieved and confirmed), undo check-in, assign (one guest or several, all or none), transfer (the old seat kept until the new one is saved), swap (both or neither), unseat, reserve and release (the Super Administrator, or owners when the event allows it; a reason; nothing ever expires). A table\'s count is every claim whatever its status (seat statuses are exactly reserved and confirmed); a full table answers table_full with where there is room, and no_eligible_seat when there is none.'],
+      ['new', 'customapp', 'Screens, phone first: Events, Find guest (by part of a name, company or ref, with filters), the guest sheet (Check in, then a table and its first free chair: two taps; Move, Send back to waiting, Release reservation; a refusal redraws the sheet with what happened), Tables with a meter of each table\'s chairs in dots and words, Event control (counts, switches, exports, the seating rules check, handing over the Super Administrator) and Setup (event, room, tables, industries, staff, import, import check).'],
+      ['new', 'customapp', 'Guest list import from CSV or Excel (.xlsx, read with CORE\'s own Office reader): usual header names, surnames normalised (accents, spaces, hyphens, Jr./III), last 4 digits of the mobile; a preview with what must be fixed in the file and the import check (same surname and last 4, no mobile or email, possible duplicates, unknown industries) before one commit; at most 2 MB, 2,000 rows and the room\'s seats (250 for a 5 x 5 room of 10); re-imports merge by Ref and never touch a live event\'s check-ins, seats or owners. Self check-in cannot open while the import check has issues, unless acknowledged.'],
+      ['new', 'customapp', 'Exports (the Super Administrator, audited): JSON customapp.event/1 with seq and sha256 (no status tokens), CSV of guests and of seating (formula-safe), and a printable seating plan with the room grid and every table\'s chairs, stamped with its time.'],
+      ['new', 'system', 'Account type Event staff (customapp.use only, confined to CUSTOM APP: every other module\'s API answers 403, whatever is added to the account type); permissions customapp.use and customapp.manage. A CORE administrator\'s * gives no guest or table writes in an event, only the audited handover of its Super Administrator, with the password asked again; the old holder is revoked in the same commit.'],
+      ['new', 'system', 'Restores and events: while the server holds an event, Restore a backup, Erase all data and demo data keep the live event data as it is (a server with none, a standby, takes the backup\'s); the restore screen says so while an event is live; the full backup leaves a live event\'s guest list out unless Include is ticked (audited); RESTORE.md section 1 says it is forbidden while an event is live; Admin panel → Modules refuses to switch CUSTOM APP off while an event\'s window is open unless its Super Administrator confirms. The staff sign-in allowance of 0.70.1 now follows the events\' windows.'],
+      ['new', 'system', 'Demo data: a Demo Gala event (5 x 5 tables of 10, 120 made-up guests, some seated, some waiting, preferred guests with reserved chairs) with two demo accounts, eventlead.demo and event.demo; never added beside a real event. Guide: Running an event in CUSTOM APP (also the event-day runbook).'],
+      ['improved', 'system', 'Tests: 68 new (npm run test:event runs the 66 in test/customapp-*): the engine, invariants with each rule broken by hand, the closed set of seat statuses, the refusal catalogue, the API, scope, flags, import, export against a golden file, restore, a fuzz of 200 seeded sequences, a race over real sockets (ten requests for the last chair: one 200, nine 409), and the five Tier 0 acceptance scenarios.'],
+    ],
+  },
   {
     version: '0.70.1-alpha',
     date: '2026-11-27',

@@ -57,6 +57,8 @@ async function startServer() {
   await call('POST', '/api/auth/setup', ADMIN);
   await call('PUT', '/api/settings', { companyName: 'Lancaster Technology and Development Corporation' });
   await call('POST', '/api/admin/demo');
+  // CUSTOM APP is released dark (off until turned on, 0.71); its guide shows it on, with the demo event.
+  await call('PUT', '/api/admin/modules', { modules: { customapp: true } });
   // The server saves its last minute on the way out (data/monitor.json): remove the folder after it exits.
   return { url, stop: () => new Promise((resolve) => { child.once('exit', resolve); child.kill(); }).then(() => fs.rmSync(dir, { recursive: true, force: true })) };
 }

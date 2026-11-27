@@ -78,7 +78,7 @@ test('dashboard: accounts, sign-ins, 2-step, temporary passwords, failed sign-in
   assert.equal(d.security.locks, 1);
   assert.equal(d.security.chain.ok, true);
   // Live modules on; what is coming soon shown (0.63).
-  assert.deepEqual(d.modules, { hr: true, assets: true, helpdesk: true, crm: true, projects: true, documents: true, pdf: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
+  assert.deepEqual(d.modules, { hr: true, assets: true, helpdesk: true, crm: true, projects: true, documents: true, customapp: false, pdf: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
   assert.equal(d.feedback.awaiting, 1);
   assert.equal(d.data.demo, true);
   assert.equal(d.data.lastBackupAt, null);
@@ -216,7 +216,7 @@ test('modules: a module that is off is refused (with a clear message) for everyo
   assert.ok((await sales('GET', '/api/crm/overview')).openCount >= 0);
 
   const r = await admin('PUT', '/api/admin/modules', { modules: { crm: false, hr: false } });
-  assert.deepEqual(r.config, { hr: false, assets: true, helpdesk: true, crm: false, projects: true, documents: true, pdf: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
+  assert.deepEqual(r.config, { hr: false, assets: true, helpdesk: true, crm: false, projects: true, documents: true, customapp: false, pdf: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
   const refused = await sales('GET', '/api/crm/overview');
   assert.equal(refused.status, 403);
   assert.match(refused.error, /Sales & CRM is turned off for the company/);
@@ -251,14 +251,19 @@ test('modules: a module that is off is refused (with a clear message) for everyo
   // A module coming soon is shown or hidden (0.63), never turned on.
   assert.match((await admin('PUT', '/api/admin/modules', { modules: { finance: 'on' } })).error, /shown or hidden/);
   assert.match((await admin('PUT', '/api/admin/modules', { modules: { crm: 'no' } })).error, /on or off/);
-  assert.deepEqual(cleanModuleConfig({ crm: false, hr: 'x', __proto__: { a: 1 } }), { hr: true, assets: true, helpdesk: true, crm: false, projects: true, documents: true, pdf: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
+  assert.deepEqual(cleanModuleConfig({ crm: false, hr: 'x', __proto__: { a: 1 } }), { hr: true, assets: true, helpdesk: true, crm: false, projects: true, documents: true, customapp: false, pdf: true, ...Object.fromEntries(HIDEABLE.map((id) => [id, true])) });
   // Every module's API is known; the holiday calendar is readable whatever is off.
   assert.equal(moduleOfApi('GET', '/api/pm/overview'), 'projects');
   assert.equal(moduleOfApi('GET', '/api/clock-locations'), 'hr');
   assert.equal(moduleOfApi('POST', '/api/holidays'), 'hr');
   assert.equal(moduleOfApi('GET', '/api/holidays'), null);
   assert.equal(moduleOfApi('GET', '/api/settings'), null);
-  assert.deepEqual(SWITCHABLE, ['hr', 'assets', 'helpdesk', 'crm', 'projects', 'documents', 'pdf'], 'the live modules, then the tools (0.64)');
+  assert.deepEqual(SWITCHABLE, ['hr', 'assets', 'helpdesk', 'crm', 'projects', 'documents', 'customapp', 'pdf'], 'the live modules, then the tools (0.64)');
+  // CUSTOM APP (0.71) is released dark: off until an administrator turns it on.
+  assert.equal(moduleOn({}, 'customapp'), false);
+  assert.equal(moduleOn({ customapp: true }, 'customapp'), true);
+  assert.equal(moduleOfApi('GET', '/api/customapp/events'), 'customapp');
+  assert.equal(moduleOfApi('POST', '/api/public/event/x/verify'), 'customapp');
   // Recorded in the audit log.
   assert.ok(audited(db).some((e) => e.action === 'settings.modules' && e.changes.some((c) => c.field === 'Sales & CRM' && c.to === 'Off')));
 });

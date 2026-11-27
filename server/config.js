@@ -139,7 +139,7 @@ const permLabel = (p) => PERMISSION_LABELS.find(([x]) => x === p)?.[1] || p;
 
 // invoke(user, method, path, body): runs one of CORE's routes as `user` (server/api.js).
 // sessionCount(userId): how many sessions an account has now. audit: the audit log.
-export function registerAdminRoutes(route, db, { invoke, audit, sessionCount }) {
+export function registerAdminRoutes(route, db, { invoke, audit, sessionCount, openEvents = () => [] }) {
   const data = () => db.data;
   const save = () => db.save();
   const DEFS = definitions(db);
@@ -371,13 +371,23 @@ export function registerAdminRoutes(route, db, { invoke, audit, sessionCount }) 
   // ----- Modules on or off for the company -----
   const modulesView = () => ({ config: cleanModuleConfig(data().modules) });
   route('GET', '/api/admin/modules', 'modules.config', modulesView);
-  route('PUT', '/api/admin/modules', 'modules.config', ({ body }) => {
+  route('PUT', '/api/admin/modules', 'modules.config', ({ body, user }) => {
     const input = isPlain(body.modules) ? body.modules : fail('Send which modules are on.');
     for (const [id, v] of Object.entries(input)) {
       if (!SWITCHABLE.includes(id) && !HIDEABLE.includes(id)) fail(`There is no module "${String(id).slice(0, 40)}".`);
       if (typeof v !== 'boolean') fail(SWITCHABLE.includes(id) ? `Say whether ${moduleName(id)} is on or off.` : `Say whether ${roadmapName(id)} is shown or hidden.`);
     }
     const before = cleanModuleConfig(data().modules);
+    // CUSTOM APP (0.71): while an event's doors are open, switching it off would stop the desk. Only
+    // that event's Super Administrator can, by confirming (an administrator who must do it first takes
+    // the Super Administrator over, which is audited).
+    if (before.customapp && input.customapp === false) {
+      const open = openEvents();
+      const blocked = open.filter((ev) => !(body.confirmEventOff === true && ev.superAdminUserId === user?.id));
+      if (blocked.length) {
+        throw new HttpError(409, `${blocked.map((e) => e.name).join(', ')} ${blocked.length === 1 ? 'is' : 'are'} open now. CUSTOM APP can be switched off only by ${blocked.length === 1 ? 'its' : 'their'} Super Administrator, who confirms it.`, { code: 'event_window_open' });
+      }
+    }
     const next = { ...before, ...input };
     data().modules = next;
     save();

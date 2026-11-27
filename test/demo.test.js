@@ -102,7 +102,7 @@ test('removing demo data takes out demo records and what hangs off them, and kee
   assert.deepEqual(db.data.crmDeals.map((x) => x.title).sort(), ['Deal on a demo account', 'Real deal', 'Second real deal']);
   assert.ok(db.data.crmActivities.some((a) => a.subject === 'Follow up'));
   assert.ok(db.data.crmActivities.every((a) => db.data.crmDeals.some((x) => x.id === a.related.id) || db.data.crmAccounts.some((x) => x.id === a.related.id)));
-  assert.equal(res.removed.accounts, 6);
+  assert.equal(res.removed.accounts, 8, 'six demo accounts, and the two of the demo event (CUSTOM APP, 0.71)');
   assert.equal(res.removed.pmProjects, 26);
   assert.equal(db.data.pmProjects.filter((p) => !p.isTemplate).length, 0, 'only the starter templates are left');
   assert.equal(count('employees', true), 0);

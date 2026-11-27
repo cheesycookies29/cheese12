@@ -8,7 +8,7 @@ async function request(method, url, body) {
   if (!res.ok) {
     // Session expired or signed out elsewhere: send the user back to the login page.
     if (res.status === 401 && !url.startsWith('/api/auth/')) window.dispatchEvent(new Event('auth:expired'));
-    throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status });
+    throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status, code: data.code, fresh: data.fresh });
   }
   return data;
 }

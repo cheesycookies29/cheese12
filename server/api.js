@@ -29,7 +29,7 @@ import { newSecret, verifyCode, otpauthUrl, newRecoveryCodes, hashRecovery, look
 import { addDemo, removeDemo, hasDemo, demoCounts } from './demo.js';
 import { registerAssetRoutes } from './assets.js';
 import { emptyData, mergeSettings } from './db.js';
-import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides, usesAdminPanel } from '../shared/roles.js';
+import { ROLES, userCan, setRoleOverrides, cleanOverrides, roleOverrides, usesAdminPanel, confinedTo } from '../shared/roles.js';
 import { cleanCompanyRole, companyRoleOf, moduleAccess } from '../shared/profile.js';
 import { moduleOfApi, moduleOn, moduleName, cleanModuleConfig, cleanFavoriteModules } from '../shared/modules.js';
 import { registerAdminRoutes } from './config.js';
@@ -43,6 +43,9 @@ import { buildInfo } from './build.js';
 import { createMonitor } from './monitor.js';
 import { registerMonitorRoutes } from './monitor-panel.js';
 import { syncDevlog, registerDevlogRoutes } from './devlog.js';
+import { registerCustomApp } from './customapp/index.js';
+import { CA_COLLECTIONS } from './customapp/events/model.js';
+import { addDemoEvent, removeDemoEvents } from './customapp/events/demo.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Changes that are records in themselves, or not about company data: no generic audit entry.
@@ -416,11 +419,22 @@ function applyPolicyUpdates(db) {
 // Replace all data, then unlink accounts whose employee record no longer exists.
 // keepAdmin: keep the company's changes to the account types and which modules are on (erasing
 // all data keeps the accounts, so it keeps what they may do).
+// Event data (CUSTOM APP, 0.71): while this server holds an event (not just the demo one), its event
+// collections are always kept as they are: a restore, "Erase all data" or demo data must never roll a
+// check-in or a seat back. Deliberately not the "the backup's if it has any" rule used above for the
+// dev log, which would bring back an older event. A server with no event of its own (a standby being
+// built) takes the backup's.
+export function eventDataFor(live, next) {
+  const holds = (live.caEvents || []).some((e) => !e.demo);
+  return Object.fromEntries(CA_COLLECTIONS.map((k) => [k, holds ? live[k] || [] : Array.isArray(next[k]) ? next[k] : []]));
+}
+
 function replaceData(db, next, { keepAdmin = false } = {}) {
   // The dev log and user feedback are about the software, not company data: keep them unless a backup
   // brings its own (demo data and "erase all data" start from an empty template and must not wipe them).
   db.replace({
     ...next,
+    ...eventDataFor(db.data, next),
     // Where the audit log's keyed entries begin belongs to this server's log, not to the backup.
     settings: { ...next.settings, auditKeyedFrom: db.data.settings.auditKeyedFrom },
     devlog: next.devlog?.entries?.length ? next.devlog : db.data.devlog,
@@ -453,7 +467,7 @@ function replaceData(db, next, { keepAdmin = false } = {}) {
 }
 
 const DEMO_PASSWORD = 'demo1234';
-const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['sales.demo', 'salesmgr', 'Demo Sales Manager'], ['pm.demo', 'pm', null], ['employee.demo', 'employee', null]];
+const DEMO_ACCOUNTS = [['hr.demo', 'hr', 'Demo HR Manager'], ['payroll.demo', 'payroll', 'Demo Payroll Officer'], ['it.demo', 'it', 'Demo IT Asset Manager'], ['sales.demo', 'salesmgr', 'Demo Sales Manager'], ['pm.demo', 'pm', null], ['employee.demo', 'employee', null], ['eventlead.demo', 'eventstaff', 'Demo Event Lead'], ['event.demo', 'eventstaff', 'Demo Event Staff']];
 
 function demoAccounts(db, employees) {
   const taken = new Set(db.data.users.map((u) => u.username));
@@ -462,7 +476,7 @@ function demoAccounts(db, employees) {
   const andrea = employees.find((e) => e.firstName === 'Andrea') || juan;
   const linked = new Set(db.data.users.map((u) => u.employeeId).filter(Boolean));
   // Their role in the company: the linked employee's position, or the job the account stands for.
-  const TITLES = { hr: 'HR Manager', payroll: 'Payroll Officer', it: 'IT Asset Manager', salesmgr: 'Sales Manager', pm: 'Project Manager', employee: 'Team Lead' };
+  const TITLES = { hr: 'HR Manager', payroll: 'Payroll Officer', it: 'IT Asset Manager', salesmgr: 'Sales Manager', pm: 'Project Manager', employee: 'Team Lead', eventstaff: 'Event Staff' };
   const byId = new Map(employees.map((e) => [e.id, e]));
   return DEMO_ACCOUNTS.filter(([username]) => !taken.has(username)).map(([username, role, name]) => {
     // The employee account is Juan (a team lead); the HR account is Maria, the HR Manager; the
@@ -1315,12 +1329,18 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   });
 
   // ----- Data management -----
-  route('GET', '/api/admin/export', 'data.manage', ({ user }) => {
-    audit.record('data.export', { label: 'Full backup', note: 'All company data, including pay, government IDs and bank accounts' });
+  route('GET', '/api/admin/export', 'data.manage', ({ user, query }) => {
+    // While an event is live (CUSTOM APP), its guest list stays out of the download unless "include
+    // events" is ticked, so a backup on someone's laptop is not a second copy of it; the event's own
+    // export is its recovery copy. Ticking it is in the audit log.
+    const live = customapp.liveEvents();
+    const withEvents = !live.length || query.includeEvents === '1';
+    audit.record(withEvents && live.length ? 'data.export-events' : 'data.export', { label: 'Full backup', note: `All company data, including pay, government IDs and bank accounts${live.length ? (withEvents ? '; including the guest lists of live events (CUSTOM APP)' : '; live events left out (CUSTOM APP)') : ''}` });
     // When the last backup was downloaded, and by whom (Admin panel → Dashboard).
     db.data.adminState = { lastBackupAt: new Date().toISOString(), lastBackupBy: user.name };
     db.save();
-    return db.data;
+    if (withEvents) return db.data;
+    return { ...db.data, ...Object.fromEntries(CA_COLLECTIONS.map((k) => [k, []])), eventsOmitted: { at: new Date().toISOString(), events: live.map((e) => e.name), note: 'Live event data is not in this backup. Each event has its own export (CUSTOM APP → Event control).' } };
   });
   // A restore replaces everything, the accounts included: the administrator's password is asked
   // again, and the accounts in the file are checked before anything is replaced.
@@ -1349,7 +1369,10 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   // Demo data is added next to the real data (server/demo.js); loading again refreshes it.
   route('GET', '/api/admin/demo', 'data.manage', () => ({ loaded: hasDemo(db), counts: demoCounts(db) }));
   route('POST', '/api/admin/demo', 'data.manage', () => {
+    removeDemoEvents(db);
     const counts = addDemo(db, { summarize, demoAccounts, removeFile: (a) => files.remove(a) });
+    // The demo event (CUSTOM APP), unless the server holds a real event: demo data never touches one.
+    if (!db.data.caEvents.some((e) => !e.demo)) addDemoEvent(db, { lead: users().find((u) => u.username === 'eventlead.demo'), staff: users().find((u) => u.username === 'event.demo') });
     // Demo forms in Document circulation: small generated PDFs, marked demo.
     forms.addDemo((title, lines) => docToPdf({ title, blocks: [{ type: 'heading', level: 1, runs: [{ text: title }] }, ...lines.map((t) => ({ type: 'paragraph', runs: [{ text: t }] }))] }, { size: 'a4' }).pdf);
     // The demo tickets belong to the demo people's accounts.
@@ -1361,6 +1384,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   });
   route('DELETE', '/api/admin/demo', 'data.manage', () => {
     const removed = removeDemo(db, { summarize, removeFile: (a) => files.remove(a) });
+    removeDemoEvents(db);
     forms.removeDemo();
     db.save();
     audit.record('data.demo-remove', { label: 'Demo data' });
@@ -1386,10 +1410,14 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     blobs: docs.blobs, audit,
     opensModule: (u, id) => Boolean(moduleAccess(u, { modules: db.data.modules, inProjects: isProjectMember(db, u), isApprover: isApprover(db, u) }).find((m) => m.id === id)?.home),
   });
+  // ----- CUSTOM APP (server/customapp, 0.71): events, check-in and seating -----
+  const customapp = registerCustomApp(route, db, { audit, limits, requirePassword });
+  // The rate limits give staff sign-in more room while an event's doors are open (0.70.1).
+  eventWindowOpen = customapp.eventWindowOpen;
   // ----- Notifications: the bell in the top bar (server/notifications.js) -----
   registerNotificationRoutes(route, db, { pm: projects.notifications });
   // ----- Admin panel: Settings center, Roles & permissions, Modules, Dashboard (server/config.js) -----
-  const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length });
+  const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length, openEvents: customapp.openEvents });
   // Admin panel → Security monitor, the health check and the metrics export (0.34).
   registerMonitorRoutes(route, { db, monitor, audit, sec, rateLimits, routes, sessions: () => sessions.active() });
   // ----- Audit log (Administrators) -----
@@ -1399,6 +1427,9 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   route('GET', '/api/system/about', 'devlog.view', ({ user }) => (userCan(user, 'users.manage') ? { version: APP_VERSION, node: process.version, ...buildInfo() } : { version: APP_VERSION }));
   route('POST', '/api/admin/reset', 'data.manage', () => {
     replaceData(db, { ...emptyData(), users: users().filter((u) => !u.demo) }, { keepAdmin: true });
+    // The demo event goes with the demo accounts; a real event stays as it is (see replaceData).
+    removeDemoEvents(db);
+    db.save();
     audit.record('data.reset', { label: 'All company data erased', note: 'The audit log is kept' });
     return { ok: true };
   });
@@ -1413,6 +1444,9 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     }
     const mod = moduleOfApi(method, pathname);
     if (mod && !moduleOn(db.data.modules, mod) && user?.role !== 'admin') throw new HttpError(403, `${moduleName(mod)} is turned off for the company. An administrator can turn it on in the Admin panel, under Modules.`);
+    // An account type confined to some modules (Event staff: CUSTOM APP only) gets no other module's API.
+    const only = confinedTo(user);
+    if (mod && only && !only.includes(mod)) throw new HttpError(403, `Your account type opens ${only.map(moduleName).join(', ')} only.`);
     if (r.permission !== 'public' && r.permission !== 'auth' && !userCan(user, r.permission)) throw new HttpError(403, 'Your account does not have access to this.');
   }
   const paramsOf = (r, m) => {

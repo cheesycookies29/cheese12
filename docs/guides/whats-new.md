@@ -2,12 +2,17 @@
 id: whats-new
 title: What's new in CORE
 summary: The changes in each update, newest first, and which guide explains them.
-roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee
+roles: admin, hr, hrstaff, payroll, it, support, sales, salesmgr, pm, employee, eventstaff
 apps: home
 order: 2
 ---
 
 ## November 2026
+
+### CUSTOM APP: events, check-in and seating (0.71)
+- A new module, **CUSTOM APP**, for apps made for a client. Its first app, **Events**, runs an event's registration desk: **Find guest** (by name, company or ref), **Check in**, then a table and a chair in two taps on a phone; **Tables** with a meter of each table's chairs (*6 seated · 2 reserved · 2 free*); **Event control** with the counts, the switches, the exports (JSON, CSV) and a printable seating plan; **Setup** with the guest list import from CSV or Excel and its import check. A table never seats more than 10, and a preferred guest's reserved chair is kept until they arrive or the Super Administrator releases it. See [the events guide](custom-app-events).
+- A new account type, **Event staff**, opens CUSTOM APP only. Each event has exactly one **Super Administrator**; being a CORE administrator gives no seating powers, only handing the Super Administrator over, with your password and a reason. CUSTOM APP starts off: an administrator turns it on under **Admin panel → Modules**. See [Turn a module on or off](admin#turn-a-module-on-or-off).
+- **Backup & restore** keeps a live event's data as it is through a restore, **Erase all data** and the demo data, and a full backup leaves a live event's guest list out unless you tick to include it. See [Back up and restore](admin#back-up-and-restore).
 
 ### Document circulation: every downloadable form in one place (0.70)
 - The company's downloadable forms (a leave application, a clearance, an equipment request, a quotation template) are now kept in **Document circulation**, with their form code, every earlier version and who uploaded each one. Each module has **Forms & downloads** in its side menu with the latest version of its forms, and the company-wide ones are at the bottom of the **CORE home**. See [Get a form](getting-started#get-a-form).

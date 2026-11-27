@@ -17,9 +17,9 @@ function greeting() {
 
 // A few live figures per module, only from data this user may see (none from a module turned off).
 async function moduleStats() {
-  const MOD = [[/^\/api\/(employees|requests)/, 'hr'], [/^\/api\/(assets|inventory|asset-reports|me\/assets)/, 'assets'], [/^\/api\/helpdesk/, 'helpdesk'], [/^\/api\/crm/, 'crm'], [/^\/api\/pm/, 'projects'], [/^\/api\/docs/, 'documents']];
+  const MOD = [[/^\/api\/(employees|requests)/, 'hr'], [/^\/api\/(assets|inventory|asset-reports|me\/assets)/, 'assets'], [/^\/api\/helpdesk/, 'helpdesk'], [/^\/api\/crm/, 'crm'], [/^\/api\/pm/, 'projects'], [/^\/api\/docs/, 'documents'], [/^\/api\/customapp/, 'customapp']];
   const get = (url) => (mayUseModule(MOD.find(([re]) => re.test(url))?.[1]) ? api.get(url).catch(() => null) : null);
-  const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm, pm, myDocs, received] = await Promise.all([
+  const [employees, requests, assets, inventory, mine, reports, desk, myTickets, crm, pm, myDocs, received, events] = await Promise.all([
     can('employees.view') ? get('/api/employees') : null,
     can('leave.manage') ? get('/api/requests/summary') : null,
     can('assets.view') ? get('/api/assets') : null,
@@ -32,6 +32,7 @@ async function moduleStats() {
     can('pm.view') || ctx.user.inProjects ? get('/api/pm/overview') : null,
     get('/api/docs/list?view=mine'),
     get('/api/docs/list?view=received'),
+    can('customapp.use') ? get('/api/customapp/events') : null,
   ]);
   const hr = [];
   if (employees) hr.push(`${employees.filter((e) => e.status === 'Active').length} active employees`);
@@ -65,7 +66,10 @@ async function moduleStats() {
   const documents = [];
   if (myDocs) documents.push(`${myDocs.documents.length} document${myDocs.documents.length === 1 ? '' : 's'} of yours`);
   if (received?.documents.length) documents.push(`${received.documents.length} received file${received.documents.length === 1 ? '' : 's'} to review`);
-  return { hr, assets: assetsOut, helpdesk, crm: sales, projects, documents };
+  // CUSTOM APP (0.71): the events this account is part of.
+  const customapp = [];
+  if (events?.events.length) customapp.push(`${events.events.length} event${events.events.length === 1 ? '' : 's'}`, ...events.events.filter((e) => e.status === 'live').map((e) => `${e.name}: ${e.counts.checkedIn} checked in`));
+  return { hr, assets: assetsOut, helpdesk, crm: sales, projects, documents, customapp };
 }
 
 export async function launcherView(el) {

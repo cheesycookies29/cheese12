@@ -84,7 +84,14 @@ export async function modulesView(el) {
       return;
     }
     try {
-      const saved = await api.put('/api/admin/modules', { modules: { [m.id]: input.checked } });
+      let saved;
+      try {
+        saved = await api.put('/api/admin/modules', { modules: { [m.id]: input.checked } });
+      } catch (err) {
+        // CUSTOM APP while an event's doors are open (0.71): only its Super Administrator, confirming.
+        if (err.code !== 'event_window_open' || !(await confirmDialog(`${err.message} If you are that Super Administrator, confirm to switch it off now: the desk stops until it is turned on again.`, { confirmLabel: 'Switch off during the event', title: 'An event is open' }))) throw err;
+        saved = await api.put('/api/admin/modules', { modules: { [m.id]: input.checked }, confirmEventOff: true });
+      }
       Object.assign(config, saved.config);
       ctx.modules = saved.config;
       input.closest('label').querySelector('.state').textContent = input.checked ? 'On' : 'Off';

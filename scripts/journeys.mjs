@@ -65,6 +65,8 @@ function apiAs() {
 const admin = apiAs();
 await admin('POST', '/api/auth/setup', { name: 'Ada Admin', ...ADMIN });
 await admin('POST', '/api/admin/demo');
+// CUSTOM APP (0.71) starts off; on here, so its pages (with the demo event) are checked too.
+await admin('PUT', '/api/admin/modules', { modules: { customapp: true } });
 const users = await admin('GET', '/api/users');
 const idOf = (u) => users.find((x) => x.username === u).id;
 // Three approval levels: the immediate supervisor, a named approver (the payroll officer), then HR.
@@ -334,7 +336,7 @@ await journey('Task link opened, files dropped on the task', async (pages) => {
 });
 
 // 6. Every page in every role's menu at phone width
-const ROLES = [['employee.demo'], ['hr.demo'], ['payroll.demo'], ['it.demo'], ['sales.demo'], ['pm.demo'], [ADMIN.username, ADMIN.password]];
+const ROLES = [['employee.demo'], ['hr.demo'], ['payroll.demo'], ['it.demo'], ['sales.demo'], ['pm.demo'], ['eventlead.demo'], ['event.demo'], [ADMIN.username, ADMIN.password]];
 for (const [who, pw = DEMO_PW] of ROLES) {
   await journey(`Phone pages for ${who}`, async (pages) => {
     const p = await signIn(who, pw, PHONE);

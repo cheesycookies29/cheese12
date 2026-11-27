@@ -47,6 +47,17 @@ export const ROLES = {
     description: 'Runs Project Management: starts projects and manages the ones they are a manager of (members, milestones, tasks, time); sees only the projects they are on; deletes the projects they manage and changes the Projects setup. Can view employee records.',
     permissions: ['pm.view', 'pm.edit', 'pm.manage', 'employees.view', 'forms.projects', 'self'],
   },
+  // Event staff (0.71): registration personnel for an event in CUSTOM APP, on a CORE account (sign-in,
+  // 2-step verification and the audit log as everyone's). `modules` confines the account type: it
+  // opens CUSTOM APP and nothing else, and every other module's API answers 403 for it, whatever
+  // permissions the company adds. What they may do in an event (their guests and tables, or all of
+  // it as the Super Administrator) is the event's own data, not a permission.
+  eventstaff: {
+    label: 'Event staff',
+    description: 'Registration personnel for events in CUSTOM APP: finds and checks in guests, and seats the guests and tables delegated to them (all of an event as its Super Administrator). Opens CUSTOM APP only.',
+    permissions: ['customapp.use'],
+    modules: ['customapp'],
+  },
   employee: {
     label: 'Employee',
     description: 'Self-service only: clock in and out, file leave and remote-work requests, see own attendance, payslips, profile and assigned IT equipment; report malfunctioning or damaged equipment.',
@@ -100,6 +111,8 @@ export const PERMISSION_LABELS = [
   ['forms.helpdesk', 'Document circulation: the forms of IT Service Desk'],
   ['forms.crm', 'Document circulation: the forms of Sales & CRM'],
   ['forms.projects', 'Document circulation: the forms of Project Management'],
+  ['customapp.use', 'CUSTOM APP: open the events they are staff of (what they may do in each is set by its Super Administrator)'],
+  ['customapp.manage', 'CUSTOM APP: create events and hand over an event\'s Super Administrator (password asked again; no guest or table changes)'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
@@ -113,6 +126,7 @@ export const PERMISSION_GROUPS = [
   { id: 'crm', label: 'Sales & CRM', permissions: ['crm.view', 'crm.edit', 'crm.manage'] },
   { id: 'projects', label: 'Project Management', permissions: ['pm.view', 'pm.edit', 'pm.manage'] },
   { id: 'documents', label: 'Document Management', permissions: ['docs.manage'] },
+  { id: 'customapp', label: 'CUSTOM APP', permissions: ['customapp.use', 'customapp.manage'] },
   { id: 'forms', label: 'Document circulation (downloadable forms)', permissions: ['forms.manage', 'forms.home', 'forms.hr', 'forms.assets', 'forms.helpdesk', 'forms.crm', 'forms.projects'] },
   { id: 'admin', label: 'Admin panel', permissions: ['settings.edit', 'settings.center', 'modules.config', 'audit.view', 'security.monitor', 'devlog.view', 'devlog.edit', 'feedback.view', 'feedback.manage', 'guides.edit', 'users.manage', 'roles.manage', 'data.manage'] },
 ];
@@ -186,6 +200,9 @@ export function userCan(user, permission) {
   }
   return can(user.role, permission);
 }
+
+// The modules an account type is confined to (Event staff: CUSTOM APP only), or null for no limit.
+export const confinedTo = (user) => (user && Array.isArray(ROLES[user.role]?.modules) ? ROLES[user.role].modules : null);
 
 // Whether this account opens the Admin panel at all.
 export const usesAdminPanel = (user) => ADMIN_PANEL_PERMISSIONS.some((p) => userCan(user, p));

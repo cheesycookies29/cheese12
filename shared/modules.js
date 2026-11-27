@@ -20,6 +20,11 @@ export const MODULES = [
 
   { id: 'documents', short: 'Documents', code: 'MOD-08', name: 'Document Management', glyph: 'folder', status: 'live', tagline: 'Files, versions and secure sharing',
     description: 'Contracts, compliance files and templates in folders: versions, check-out, encryption at rest, sharing inside the company and by link outside it, and a control panel for what is accepted.' },
+  // CUSTOM APP (0.71): client-specific apps behind one registry (server/customapp); the first is a
+  // generic event-registration engine (guest lists, check-in and seating). Released dark: off for the
+  // company until an administrator turns it on (DEFAULT_OFF).
+  { id: 'customapp', short: 'CUSTOM APP', code: 'MOD-10', name: 'CUSTOM APP', glyph: 'party', status: 'live', tagline: 'Client apps: event registration and seating',
+    description: 'Apps made for a client. Events: the guest list, check-in at the desk, and seating by table and chair within each table\'s limit, with one Super Administrator per event.' },
   { id: 'csuite', short: 'C-suite', code: 'MOD-09', name: 'C-suite', glyph: 'gauge', status: 'soon', accent: 'gold', tagline: 'Executive dashboard',
     description: 'The executive dashboard: revenue and pipeline, headcount and payroll cost, projects at risk and service levels from every module, on one page.' },
 ];
@@ -71,6 +76,7 @@ export const MODULE_PARTS = {
   crm: 'Leads, accounts, contacts, the pipeline, bids, contracts, activities and the sales setup; "Send to Sales & CRM" on a ticket.',
   projects: 'Projects, My work, milestones, the Projects setup and the daily digest; "Add to a project" on a ticket and "Start project" on a deal.',
   documents: 'Folders and documents, their versions, check-out and sharing, links for people outside the company (/share) and Document control. The stored files stay, encrypted, and come back when it is turned on again.',
+  customapp: 'Events: the guest lists, check-in at the desk, seating by table and chair, the import check, exports and printable plans, and the guest page (/event/…, from Tier 1). Event data stays as it is and comes back when it is turned on again. While an event\'s doors are open it is switched off only with its Super Administrator\'s confirmation.',
   pdf: 'PDF Studio on the CORE home and in the modules menu: converting documents and pictures to PDF, merging and arranging pages. Nothing is kept: uploads are deleted after a few hours.',
 };
 
@@ -89,9 +95,13 @@ export const roadmapName = (id) => ROADMAP.find((x) => x.id === id)?.name || id;
 // config: as saved by an administrator; something coming soon missing from it is shown.
 export const shownOnRoadmap = (config, id) => config?.[id] !== false;
 
-export const defaultModuleConfig = () => Object.fromEntries([...SWITCHABLE, ...HIDEABLE].map((id) => [id, true]));
-// config: { id: true | false } as saved by an administrator; a module missing from it is on.
-export const moduleOn = (config, id) => !SWITCHABLE.includes(id) || config?.[id] !== false;
+// Modules that start turned off until an administrator turns them on (CUSTOM APP is released dark,
+// 0.71): a company that never chose stays as it was.
+export const DEFAULT_OFF = ['customapp'];
+export const defaultModuleConfig = () => Object.fromEntries([...SWITCHABLE, ...HIDEABLE].map((id) => [id, !DEFAULT_OFF.includes(id)]));
+// config: { id: true | false } as saved by an administrator; a module missing from it is on (off for
+// the DEFAULT_OFF ones).
+export const moduleOn = (config, id) => !SWITCHABLE.includes(id) || (DEFAULT_OFF.includes(id) ? config?.[id] === true : config?.[id] !== false);
 
 // Whether a module is open for this person: on for the company, or they are an administrator. Used
 // where one module shows another's data (VAPT 0.33), so a module turned off stays off everywhere.
@@ -116,6 +126,7 @@ const MODULE_API = [
   ['projects', /^\/api\/pm(\/|$)/],
   ['pdf', /^\/api\/tools\/pdf(\/|$)/],
   ['documents', /^\/api\/(docs|public\/share)(\/|$)/],
+  ['customapp', /^\/api\/(customapp|public\/event)(\/|$)/],
 ];
 export function moduleOfApi(method, pathname) {
   if (method === 'GET' && /^\/api\/holidays\/?$/.test(pathname)) return null;

@@ -49,6 +49,7 @@ import { myFilesView, folderView, sharedDocsView, recentDocsView, receivedDocsVi
 import { documentControlView } from './views/admin/documents.js';
 import { formsView, formsAdminView } from './views/forms.js';
 import { managedModules } from '/shared/forms.js';
+import { customappHomeView, findGuestView, tablesView, eventControlView, eventSetupView } from './views/customapp.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -137,6 +138,12 @@ const routes = [
   ['/documents/trash', trashDocsView, 'auth', 'documents'],
   ['/documents/search', searchDocsView, 'auth', 'documents'],
   ['/documents/doc/:id', documentView, 'auth', 'documents'],
+  // CUSTOM APP (0.71): Events. What an account may do in an event is the event's own data.
+  ['/customapp', customappHomeView, 'customapp.use', 'customapp'],
+  ['/customapp/find', findGuestView, 'customapp.use', 'customapp'],
+  ['/customapp/tables', tablesView, 'customapp.use', 'customapp'],
+  ['/customapp/control', eventControlView, 'customapp.use', 'customapp'],
+  ['/customapp/setup', eventSetupView, 'customapp.use', 'customapp'],
   // Tools (0.64)
   ['/tools/pdf', pdfStudioView, 'auth', 'pdf'],
   // Document circulation (0.70): a module's Forms & downloads, and the screen of those who keep its
@@ -250,6 +257,13 @@ const NAV = {
     { href: '/documents/received', label: 'Received', icon: 'inbox', permission: 'auth', badge: 'docsReceived' },
     { href: '/documents/trash', label: 'Trash', icon: 'trash', permission: 'auth' },
     { href: '/admin/documents', label: 'Document control', icon: 'shield', permission: 'docs.manage' },
+  ],
+  customapp: [
+    { href: '/customapp', label: 'Events', icon: 'party', permission: 'customapp.use', exact: true },
+    { href: '/customapp/find', label: 'Find guest', icon: 'search', permission: 'customapp.use' },
+    { href: '/customapp/tables', label: 'Tables', icon: 'grid', permission: 'customapp.use' },
+    { href: '/customapp/control', label: 'Event control', icon: 'toggles', permission: 'customapp.use' },
+    { href: '/customapp/setup', label: 'Setup', icon: 'settings', permission: 'customapp.use' },
   ],
   // The Admin panel's own sidebar (ported from Lancaster ATLAS). A heading shows when something under it does.
   system: [
@@ -673,7 +687,7 @@ async function navigate() {
   // The launcher has no sidebar; the Admin panel has its own; your own pages (feedback, security)
   // keep the menu of the module they were opened from.
   body.classList.toggle('launcher-mode', !match.module);
-  const firstModule = () => ['hr', 'assets', 'crm', 'projects', 'helpdesk'].find((m) => moduleHome(m)) || (panelAccess() ? 'system' : 'helpdesk');
+  const firstModule = () => ['hr', 'assets', 'crm', 'projects', 'helpdesk', 'customapp'].find((m) => moduleHome(m)) || (panelAccess() ? 'system' : 'helpdesk');
   if (match.module) renderNav(match.module === 'user' ? (ctx.module && ctx.module !== 'user' ? ctx.module : firstModule()) : match.module);
   renderBrandSub();
   markModuleSwitch();

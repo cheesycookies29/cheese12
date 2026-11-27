@@ -11,8 +11,8 @@ import { MODULES } from './modules.js';
 import { ROLES } from './roles.js';
 
 // The modules covered: the CORE home (company-wide forms) and every live module except Document
-// Management, which keeps its own files.
-export const EXCLUDED_MODULES = ['documents'];
+// Management, which keeps its own files, and CUSTOM APP (0.71), whose event staff have no forms.
+export const EXCLUDED_MODULES = ['documents', 'customapp'];
 export const FORM_MODULES = [
   { id: 'home', name: 'CORE home', short: 'Company-wide', glyph: 'home', path: '/launcher' },
   ...MODULES.filter((m) => m.status === 'live' && !EXCLUDED_MODULES.includes(m.id)).map((m) => ({ id: m.id, name: m.name, short: m.short || m.name, glyph: m.glyph })),

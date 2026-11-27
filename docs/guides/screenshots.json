@@ -146,5 +146,11 @@
   {"file": "documents-upload-link.jpg", "user": "admin", "url": "{link:up}", "api": [["POST", "/api/docs/links", {"target": {"kind": "folder", "id": "{folder:Contracts}"}, "mode": "upload", "days": 7, "note": ""}, "up"]], "files": {"#sh-file": ["scripts/fixtures/Equipment budget.xls", "scripts/fixtures/Site photo.jpg"]}, "wait": 1500},
   {"file": "documents-received.jpg", "user": "admin", "url": "/#/documents/received", "click": [".dm-row a >> nth=0"], "wait": 1000},
   {"file": "documents-control-activity.jpg", "user": "admin", "url": "/#/admin/documents?tab=activity", "wait": 1000},
-  {"file": "documents-phone.jpg", "user": "employee.demo", "url": "/#/documents/folder/{folder:Contracts}", "viewport": "phone", "wait": 1000}
+  {"file": "documents-phone.jpg", "user": "employee.demo", "url": "/#/documents/folder/{folder:Contracts}", "viewport": "phone", "wait": 1000},
+  {"file": "custom-app-events-events.jpg", "user": "eventlead.demo", "url": "/#/customapp", "wait": 1200, "fresh": true},
+  {"file": "custom-app-events-find.jpg", "user": "eventlead.demo", "url": "/#/customapp/find?status=waiting", "viewport": "phone", "wait": 1200},
+  {"file": "custom-app-events-sheet.jpg", "user": "eventlead.demo", "url": "/#/customapp/find?status=waiting", "viewport": "phone", "click": ["[data-guest] >> nth=0", ".ca-table:not([disabled]) >> nth=0"], "wait": 1000},
+  {"file": "custom-app-events-tables.jpg", "user": "event.demo", "url": "/#/customapp/tables", "wait": 1200},
+  {"file": "custom-app-events-control.jpg", "user": "eventlead.demo", "url": "/#/customapp/control", "wait": 1200},
+  {"file": "custom-app-events-setup.jpg", "user": "eventlead.demo", "url": "/#/customapp/setup", "wait": 1200}
 ]

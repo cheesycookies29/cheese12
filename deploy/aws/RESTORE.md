@@ -43,6 +43,13 @@ administrator, and the audit log check says the key is missing.
 
 ## 1. Undo a mistake: go back to an earlier hour (server still running)
 
+> **FORBIDDEN WHILE AN EVENT IS LIVE (CUSTOM APP).** Never run this section while any event in
+> CUSTOM APP has the status *Live* (the YEP 2026 party on 9 December, for one). Copying an earlier
+> hour's `db.json` over the running one rolls back every check-in and seat made since, and no button
+> brings them back. On the night, recover through the event itself: its JSON export (Event control),
+> the printed seating plan and the warm standby, then enter what changed as commands. CORE's own
+> *Restore a backup* screen is safe: it keeps the live event data as it is.
+
 Everything after the hour you go back to is lost, so pick the latest hour before the mistake and
 tell people what will be redone.
 

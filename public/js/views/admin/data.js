@@ -9,6 +9,9 @@ import { pageHead, timeAgo, fmtDateTime } from './common.js';
 export async function dataView(el) {
   const d = await api.get('/api/admin/dashboard');
   const last = d.data?.lastBackupAt;
+  // CUSTOM APP (0.71): an event that is live keeps its own data through a restore, and its guest list
+  // stays out of the download unless asked for.
+  const live = ((await api.get('/api/customapp/events').catch(() => null))?.events || []).filter((e) => e.status === 'live' && !e.demo);
   mount(el, html`
     ${pageHead('Backup & restore', 'Download all the company\'s data as one file, put a backup back, or erase everything.')}
     <section class="card">
@@ -16,6 +19,8 @@ export async function dataView(el) {
       <p>Everything is stored on the computer CORE runs on, in <code>data/db.json</code>. Download a backup regularly and keep it somewhere safe and private: it holds pay, government IDs, bank accounts and the user accounts (passwords as secure hashes).</p>
       <p class="muted small">Attached files (medical certificates, ticket and project files) are kept in <code>data/attachments</code>, and the audit log in <code>data/audit-log.jsonl</code>: they are not in the backup file, so copy the <code>data</code> folder too.</p>
       <p class="small">Last backup downloaded: ${last ? html`<strong title="${fmtDateTime(last)}">${timeAgo(last)}</strong>${d.data.lastBackupBy ? `, by ${d.data.lastBackupBy}` : ''}` : html`<strong class="warn">never, from this server</strong>`}</p>
+      ${live.length ? html`<p class="ca-notice" role="note">${icon('alert', 16)} <span><strong>Event data is not part of a CORE restore.</strong> ${live.map((e) => e.name).join(', ')} ${live.length === 1 ? 'is' : 'are'} live: restoring a backup, erasing all data or loading demo data leaves ${live.length === 1 ? 'its' : 'their'} guests, check-ins and seats as they are now. Each event's own export (CUSTOM APP → Event control) is its recovery copy.</span></p>
+        <label class="field check"><input type="checkbox" id="include-events" /><span>Include the live events' guest lists in the download (recorded in the audit log)</span></label>` : ''}
       <div class="actions">
         <button type="button" class="btn primary" id="backup">${icon('download', 16)} Download backup</button>
         <label class="btn">${icon('upload', 16)} Restore backup… <input type="file" id="restore" accept="application/json,.json" hidden /></label>
@@ -28,7 +33,7 @@ export async function dataView(el) {
     </section>`);
 
   el.querySelector('#backup').addEventListener('click', async () => {
-    const data = await api.get('/api/admin/export');
+    const data = await api.get(`/api/admin/export${el.querySelector('#include-events')?.checked ? '?includeEvents=1' : ''}`);
     downloadFile(`core-backup-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
     toast('Backup downloaded.');
     dataView(el);

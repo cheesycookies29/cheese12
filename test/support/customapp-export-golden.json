@@ -1,0 +1,212 @@
+{
+  "format": "customapp.event/1",
+  "exportedAt": "2026-12-09T12:34:00.000Z",
+  "eventId": "ev1",
+  "seq": 7,
+  "sha256": "8dd08a5c422c2eaab6d72cd82f32655d17002a4fbb162c3dc0c8f9fd16623cdc",
+  "event": {
+    "id": "ev1",
+    "app": "events",
+    "code": "test-gala-abcd",
+    "name": "Test Gala",
+    "status": "live",
+    "superAdminUserId": "u-lead",
+    "staff": [
+      {
+        "userId": "u-sam",
+        "role": "staff",
+        "active": true
+      },
+      {
+        "userId": "u-tess",
+        "role": "staff",
+        "active": true
+      }
+    ],
+    "industries": [],
+    "settings": {
+      "hardLimit": 10,
+      "seatNumbers": "all",
+      "mixedTables": false,
+      "releaseDelegable": false
+    },
+    "window": {
+      "opensAt": "2026-12-09T10:00:00.000Z",
+      "closesAt": "2026-12-09T15:00:00.000Z"
+    },
+    "flags": {
+      "registrationOpen": false,
+      "emailPaused": true,
+      "readOnly": false,
+      "pollMs": 2000
+    },
+    "room": {
+      "rows": 1,
+      "cols": 2,
+      "chairsPerTable": 10,
+      "stageSide": "right",
+      "boothSide": "left",
+      "numbering": "from-stage"
+    },
+    "refPrefix": "TG",
+    "seq": 7,
+    "rev": 0
+  },
+  "tables": [
+    {
+      "id": "t1",
+      "number": 1,
+      "classification": "preferred",
+      "capacity": 10,
+      "ownerUserId": "u-sam",
+      "tags": [],
+      "active": true,
+      "row": 0,
+      "col": 1,
+      "rev": 0
+    },
+    {
+      "id": "t2",
+      "number": 2,
+      "classification": "regular",
+      "capacity": 10,
+      "ownerUserId": null,
+      "tags": [],
+      "active": true,
+      "row": 0,
+      "col": 0,
+      "rev": 0
+    }
+  ],
+  "guests": [
+    {
+      "id": "g-TG-0001",
+      "ref": "TG-0001",
+      "externalKey": "TG-0001",
+      "name": {
+        "first": "Maria",
+        "last": "Santos",
+        "display": "Maria Santos"
+      },
+      "company": "Acme",
+      "email": "TG-0001@example.com",
+      "mobile": "09170001000",
+      "classification": "preferred",
+      "ownerUserId": "u-sam",
+      "arrival": {
+        "state": "checked_in",
+        "at": "2026-12-09T10:30:00.000Z",
+        "by": "u-lead",
+        "via": "desk"
+      },
+      "approval": {
+        "state": "none"
+      },
+      "seat": {
+        "tableId": "t1",
+        "seatNo": 4,
+        "status": "confirmed",
+        "at": "2026-12-09T09:00:00.000Z",
+        "by": "u-lead"
+      },
+      "released": null,
+      "active": true,
+      "rev": 0
+    },
+    {
+      "id": "g-TG-0002",
+      "ref": "TG-0002",
+      "externalKey": "TG-0002",
+      "name": {
+        "first": "Jose",
+        "last": "Reyes",
+        "display": "Jose Reyes"
+      },
+      "company": "Acme",
+      "email": "TG-0002@example.com",
+      "mobile": "09170001001",
+      "classification": "preferred",
+      "ownerUserId": null,
+      "arrival": {
+        "state": "expected",
+        "at": null,
+        "by": null,
+        "via": null
+      },
+      "approval": {
+        "state": "none"
+      },
+      "seat": {
+        "tableId": "t1",
+        "seatNo": 5,
+        "status": "reserved",
+        "at": "2026-12-09T09:00:00.000Z",
+        "by": "u-lead"
+      },
+      "released": null,
+      "active": true,
+      "rev": 0
+    },
+    {
+      "id": "g-TG-0003",
+      "ref": "TG-0003",
+      "externalKey": "TG-0003",
+      "name": {
+        "first": "Ana",
+        "last": "Cruz",
+        "display": "Ana Cruz"
+      },
+      "company": "=HYPERLINK(\"x\")",
+      "email": "TG-0003@example.com",
+      "mobile": "09170001002",
+      "classification": "regular",
+      "ownerUserId": null,
+      "arrival": {
+        "state": "checked_in",
+        "at": "2026-12-09T10:30:00.000Z",
+        "by": "u-lead",
+        "via": "desk"
+      },
+      "approval": {
+        "state": "none"
+      },
+      "seat": null,
+      "released": null,
+      "active": true,
+      "rev": 0
+    }
+  ],
+  "changes": [
+    {
+      "seq": 7,
+      "eventId": "ev1",
+      "at": "2026-12-09T12:34:00.000Z",
+      "actorId": "u-lead",
+      "via": "staff",
+      "type": "assign",
+      "opId": "op-7",
+      "h": "abc",
+      "guestIds": [
+        "g-TG-0001"
+      ],
+      "tableIds": [
+        "t1"
+      ],
+      "diff": [
+        {
+          "id": "g-TG-0001",
+          "f": "seat",
+          "from": null,
+          "to": {
+            "t": "t1",
+            "s": 4,
+            "st": "confirmed"
+          }
+        }
+      ],
+      "reason": "",
+      "result": null
+    }
+  ],
+  "outbox": []
+}

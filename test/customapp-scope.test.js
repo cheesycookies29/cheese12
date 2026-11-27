@@ -1,0 +1,71 @@
+// CUSTOM APP → events: who may do what (Tier 0 part): the Event staff account type opens CUSTOM APP
+// only (US-005), and a CORE administrator's '*' gives no guest or table writes (US-011).
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { company, eventWith } from './support/customapp-kit.js';
+import { ROLES, can, PERMISSION_LABELS, PERMISSION_GROUPS, confinedTo } from '../shared/roles.js';
+import { moduleAccess } from '../shared/profile.js';
+import { guideFor } from '../shared/help.js';
+
+describe('US-005: CUSTOM APP module shell and the Event staff account type', () => {
+  test('GIVEN an eventstaff user WHEN they call other module APIs and open the app THEN they see only CUSTOM APP and other modules answer 403', async () => {
+    assert.deepEqual(ROLES.eventstaff.permissions, ['customapp.use']);
+    assert.equal(ROLES.eventstaff.label, 'Event staff');
+    assert.deepEqual(confinedTo({ role: 'eventstaff' }), ['customapp']);
+    assert.equal(confinedTo({ role: 'admin' }), null);
+    const labels = new Set(PERMISSION_LABELS.map(([p]) => p));
+    assert.ok(labels.has('customapp.use') && labels.has('customapp.manage'));
+    assert.deepEqual(PERMISSION_GROUPS.find((g) => g.id === 'customapp').permissions, ['customapp.use', 'customapp.manage']);
+    assert.ok(can('admin', 'customapp.manage') && !can('eventstaff', 'customapp.manage') && !can('hr', 'customapp.use'));
+    assert.equal(guideFor('customapp', 'eventstaff'), 'custom-app-events');
+    assert.equal(guideFor('home', 'eventstaff'), 'custom-app-events');
+    // Where each module opens: CUSTOM APP only (Documents and the service desk open for everyone else).
+    const homes = moduleAccess({ role: 'eventstaff', id: 'x' }, { modules: { customapp: true } }).filter((m) => m.home);
+    assert.deepEqual(homes.map((m) => [m.id, m.home]), [['customapp', '/customapp']]);
+    assert.ok(moduleAccess({ role: 'employee', employeeId: 'e' }, { modules: { customapp: true } }).some((m) => m.id === 'documents' && m.home), 'others still open Documents');
+    const c = await company();
+    const sam = c.as.sam;
+    for (const url of ['/api/employees', '/api/me/profile', '/api/assets', '/api/helpdesk/mine', '/api/crm/overview', '/api/pm/overview', '/api/docs/list?view=mine', '/api/tools/pdf']) {
+      const r = await sam('GET', url);
+      assert.equal(r.status, 403, `${url}: ${JSON.stringify(r).slice(0, 120)}`);
+    }
+    assert.ok((await sam('GET', '/api/customapp/apps')).apps);
+    // Even a permission the company adds to Event staff does not open another module.
+    await c.admin('PUT', '/api/admin/roles', { overrides: { eventstaff: { add: ['crm.view'] } } });
+    assert.equal((await sam('GET', '/api/crm/overview')).status, 403);
+    // What the browser is told: the account type, so the launcher and menus show CUSTOM APP only.
+    assert.equal((await sam('GET', '/api/auth/status')).user.role, 'eventstaff');
+  });
+});
+
+describe('US-011: Event Super Administrator and runtime flags', () => {
+  test('GIVEN a CORE admin with * who is not the event\'s superAdminUserId WHEN they post a seat command THEN it is refused with 403', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: [['A1', 'Ana', 'Cruz', 'Acme', '', 'ana@example.com', '0917 000 1111', 'regular', '', '', '']] });
+    const g = e.guest('A1');
+    for (const cmd of [{ type: 'checkIn', guestId: g.id }, { type: 'reserve', guestId: g.id, tableId: e.tables[3], seatNo: 1 }, { type: 'table.update', tableId: e.tables[3], capacity: 8 }]) {
+      const r = await e.cmd('admin', cmd);
+      assert.equal(r.status, 403, cmd.type);
+      assert.ok(['out_of_scope', 'needs_super_admin'].includes(r.code), cmd.type);
+    }
+    assert.equal(c.db.data.caEvents[0].superAdminUserId, c.ids.lead, 'exactly one Super Administrator, and it is not the CORE administrator');
+    assert.equal(g.seat, null);
+  });
+});
+
+describe('US-003 (wired in 0.71): the staff sign-in allowance follows the events\' windows', () => {
+  test('GIVEN events in every state WHEN windowOpen is asked THEN only a live event from 6 hours before it opens until it closes counts', async () => {
+    const { windowOpen, WINDOW_LEAD_MS } = await import('../server/customapp/index.js');
+    const opens = Date.parse('2026-12-09T10:00:00.000Z');
+    const ev = { status: 'live', window: { opensAt: '2026-12-09T10:00:00.000Z', closesAt: '2026-12-09T15:00:00.000Z' } };
+    assert.equal(WINDOW_LEAD_MS, 6 * 3600000);
+    assert.equal(windowOpen(ev, opens - WINDOW_LEAD_MS - 1), false);
+    assert.equal(windowOpen(ev, opens - WINDOW_LEAD_MS), true);
+    assert.equal(windowOpen(ev, Date.parse('2026-12-09T15:00:00.000Z')), true);
+    assert.equal(windowOpen(ev, Date.parse('2026-12-09T15:00:01.000Z')), false);
+    assert.equal(windowOpen({ ...ev, status: 'draft' }, opens), false);
+    assert.equal(windowOpen({ status: 'live', window: {} }, opens), false);
+    const src = (await import('node:fs')).readFileSync(new URL('../server/api.js', import.meta.url), 'utf8');
+    assert.match(src, /eventWindowOpen = customapp\.eventWindowOpen;/, 'the rate limits read it');
+  });
+});
