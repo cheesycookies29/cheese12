@@ -326,6 +326,14 @@ export function deleteEmployees(data, ids, removeFile = () => {}) {
   data.employees = data.employees.filter((e) => !gone.has(e.id));
 }
 
+// Finance office accounts (Chief Accountant, Budget Officer, Cashier, Supply, Approving Officer)
+// are made and changed by an administrator only, as in Finance's own Control panel: otherwise an
+// HR manager could give an account they control the power to approve payments (separation of duties).
+const FINANCE_OFFICE = HRIS_ROLES.filter((r) => (ROLES[r].permissions || []).some((p) => p.startsWith('finance.')));
+// The account types a user may give an employee's sign-in account (Employees → Account, and
+// Confirm the appointment): none without hris.accounts; Finance office types by an administrator only.
+export const assignableRoles = (caller) => (!userCan(caller, 'hris.accounts') ? [] : caller.role === 'admin' ? HRIS_ROLES : HRIS_ROLES.filter((r) => !FINANCE_OFFICE.includes(r)));
+
 export function registerHrisRoutes(route, ctx) {
   const { db } = ctx;
   const data = () => db.data;
@@ -535,11 +543,6 @@ export function registerHrisRoutes(route, ctx) {
   // Accounts at this campus that an employee record can be linked to: teachers and
   // registrars (their LMS account), and HRIS accounts. Students never; administrators
   // only by an administrator.
-  // Finance office accounts (Chief Accountant, Budget Officer, Cashier, Supply, Approving Officer)
-  // are made and changed by an administrator only, as in Finance's own Control panel: otherwise an
-  // HR manager could give an account they control the power to approve payments (separation of duties).
-  const FINANCE_OFFICE = HRIS_ROLES.filter((r) => (ROLES[r].permissions || []).some((p) => p.startsWith('finance.')));
-  const assignableRoles = (caller) => (caller.role === 'admin' ? HRIS_ROLES : HRIS_ROLES.filter((r) => !FINANCE_OFFICE.includes(r)));
   const notFinanceOffice = (caller, role, what) => {
     if (caller.role !== 'admin' && FINANCE_OFFICE.includes(role)) fail(`Only an administrator ${what} Finance office accounts.`, 403);
   };

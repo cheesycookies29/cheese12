@@ -150,8 +150,13 @@ export function registerAssessmentRoutes(route, ctx, h) {
   const panelOf = (o) => (Array.isArray(o.panel) ? o.panel : []);
   const onPanel = (o, user) => panelOf(o).some((p) => p.userId === user.id);
   const mayAssess = (u) => Boolean(u) && u.status === 'active' && !NON_STAFF_ROLES.includes(u.role) && ROLES[u.role] && !u.access?.remove?.includes('hris.assess');
+  // A board member who is also an applicant to the same opening has a conflict of interest: they
+  // neither rate its applicants nor open their documents (applying is refused while on the board).
+  const appliedTo = (o, user) => applications().some((a) => a.openingId === o.id && a.userId === user.id && a.status !== 'withdrawn' && !a.removed);
+  const conflicted = (o, user) => onPanel(o, user) && appliedTo(o, user);
   function openingForRater(user, id) {
     const o = openings().find((x) => x.id === id);
+    if (o && conflicted(o, user)) fail('You have applied for this opening, so you cannot rate its applicants or open their documents while you are on its selection board. Ask HR.', 403);
     if (o && isHrOf(user, o)) return { o, hr: true };
     if (o && onPanel(o, user) && mayAssess(user)) return { o, hr: false };
     if (userCan(user, 'hris.recruitment')) fail('Job opening not found at your campuses.', 404);
@@ -163,6 +168,10 @@ export function registerAssessmentRoutes(route, ctx, h) {
   const slotName = (o, r) => r.by || (r.slot === 'hr' ? 'HR office' : nameOfUser(r.slot));
   const nameOfUser = (id) => userById(id)?.name || 'Former assessor';
   const ratingsOf = (a) => (Array.isArray(a.ratings) ? a.ratings : []);
+  // A named assessor sees nobody else's scores of an application until they submit their own, on
+  // every screen (HR included, when named): the rating page, the comparative list, the opening's list
+  // of applications and the applicant profile.
+  const resultHidden = (a, o, user) => Boolean(o) && onPanel(o, user) && !ratingsOf(a).some((r) => r.slot === user.id && r.submittedAt);
 
   // ----- Combining (shared/recruitment-assess.js) -----
   // a.rating is the combined result of the submitted ratings (or the consensus), kept with the
@@ -473,7 +482,9 @@ export function registerAssessmentRoutes(route, ctx, h) {
     const o = openingForHr(user, params.id);
     const tpl = templateFor(o);
     const { list, ranks } = ranked(o);
-    const rows = list.map((a) => {
+    // A board member's list leaves out the applicants they have not rated (and submitted) yet.
+    const hidden = list.filter((a) => resultHidden(a, o, user)).length;
+    const rows = list.filter((a) => !resultHidden(a, o, user)).map((a) => {
       const skip = skipSet(tpl?.criteria || [], a.internal);
       const sum = weightedTotal(tpl?.criteria || [], a.rating.scores, skip);
       return {
@@ -491,7 +502,7 @@ export function registerAssessmentRoutes(route, ctx, h) {
     // Signature lines: each assessor on the panel (and anyone else who rated for the HR office is the secretariat).
     return {
       opening: { id: o.id, title: o.title, plantillaItem: o.plantillaItem || '', salaryGrade: o.salaryGrade || null, office: o.office || '', campusName: campusName(data(), o.campusId), vacancies: o.vacancies, closingDate: o.closingDate, status: o.status, categoryLabel: categoryLabel(o.categoryId) },
-      template: tpl, rule: tpl?.combine || DEFAULT_COMBINE, rows, unrated: waiting.length,
+      template: tpl, rule: tpl?.combine || DEFAULT_COMBINE, rows, unrated: waiting.length, hiddenUntilRated: hidden,
       awaitingConsensus: tpl?.combine === 'consensus' ? waiting.filter((a) => ratingsOf(a).some((r) => r.submittedAt)).length : 0,
       panel: panelView(o).map(({ userId, name, title }) => ({ slot: userId, name, title })),
       print: { ...cfg().print },
@@ -948,7 +959,7 @@ export function registerAssessmentRoutes(route, ctx, h) {
           id: a.id, openingId: a.openingId, title: o?.title || '(opening removed)', office: o?.office || '', campusName: o ? campusName(data(), o.campusId) : '', categoryLabel: categoryLabel(o?.categoryId),
           internal: a.internal, note: a.note || '', createdAt: a.createdAt, updatedAt: a.updatedAt,
           stageLabel: stageLabel(cfgStages, a.stage), status: a.status, outcome: here2.kind === 'outcome' ? { label: here2.label, meaning: meaningLabel(here2.meaning) } : null,
-          rating: withRatings && a.rating ? {
+          rating: withRatings && a.rating && !resultHidden(a, o, user) ? {
             ...ratingOf(a.rating, tpl, skipSet(tpl?.criteria || [], a.internal)), rank: o ? ranksAt(o).get(a.id) || null : null, criteria: tpl?.criteria || [], templateName: tpl?.name || '',
             rule: a.rating.rule || DEFAULT_COMBINE, skip: [...skipSet(tpl?.criteria || [], a.internal)],
             assessors: o ? breakdownOf(a, o, tpl, skipSet(tpl?.criteria || [], a.internal)).filter((r) => !r.draft).map((r) => ({ name: r.name, title: r.title, total: r.total, submittedAt: r.submittedAt })) : [],
@@ -970,7 +981,7 @@ export function registerAssessmentRoutes(route, ctx, h) {
   }, { audit: false });
 
   return {
-    cleanOpeningAssessment, openingAssessment, ranksAt, ratingSummary: (a, ranks) => (a.rating ? { total: a.rating.total, complete: a.rating.complete, rank: ranks.get(a.id) || null, by: a.rating.by, at: a.rating.at, rule: a.rating.rule || DEFAULT_COMBINE } : null),
+    cleanOpeningAssessment, openingAssessment, ranksAt, resultHidden, ratingSummary: (a, ranks) => (a.rating ? { total: a.rating.total, complete: a.rating.complete, rank: ranks.get(a.id) || null, by: a.rating.by, at: a.rating.at, rule: a.rating.rule || DEFAULT_COMBINE } : null),
     progressOf, openingForRater, onPanel, mayAssess, assessorSummary, panelOf,
     onDecided, onUndecided, onRemoveApplicant, sweepPool, poolSelf, optIn, entryOf, educationLabel,
   };

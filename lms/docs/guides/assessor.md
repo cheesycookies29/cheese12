@@ -80,6 +80,9 @@ No. Before you submit, you see only your own. After you submit, you may see the 
 **How is the result worked out?**
 By the rule of the opening's template: the average of the assessors' scores per criterion (the usual rule), the average without the highest and lowest score, or the board's consensus, entered by the secretariat after the board meets. Only submitted ratings count.
 
+**Can I apply for an opening whose selection board I am on?**
+No. ATLAS says *You are on this opening's selection board, so you cannot apply for it.* Ask HR to take you off the board first; once you have submitted a rating there, you stay on the board.
+
 **I cannot find an opening I was told about.**
 Ask HR to name you on its selection board. You see only the openings you are named on, and HR may also have closed it.
 

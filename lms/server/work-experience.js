@@ -17,7 +17,7 @@
 import { randomUUID } from 'node:crypto';
 import { HttpError } from './util.js';
 import { t } from './validate.js';
-import { campusName } from './campus.js';
+import { campusName, campusesFor } from './campus.js';
 import { notOwnRecord } from './hris-leave.js';
 import { userCan } from '../shared/roles.js';
 import { parseCsv } from '../shared/csv.js';
@@ -223,6 +223,10 @@ export function registerWorkExperienceRoutes(route, ctx) {
 
   // ----- HR: an applicant's entries (applicant profile, applications) -----
   // A job applicant's own list; for an employee who applied (Internal), the list on their record.
+  // An employee's list is campus-scoped like the employee record: HR reads it when the employee is at
+  // one of HR's campuses or applied to an opening there, and verifies it only at the employee's campus.
+  const hrCampusIds = (user) => new Set(campusesFor(data(), user).map((c) => c.id));
+  const mayVerifyEmployee = (user, emp) => userCan(user, 'employees.edit') && hrCampusIds(user).has(emp.campusId);
   function personOwner(user, userId) {
     const u = userById(userId);
     const apps = (data().jobApplications || []).filter((a) => a.userId === userId);
@@ -230,24 +234,26 @@ export function registerWorkExperienceRoutes(route, ctx) {
     if (u.role === 'applicant') return applicantOwner(u);
     const emp = u.employeeId && data().employees.find((e) => e.id === u.employeeId);
     if (!emp) fail('Applicant not found.', 404);
+    const ids = hrCampusIds(user);
+    const appliedHere = apps.some((a) => !a.removed && ids.has((data().jobOpenings || []).find((o) => o.id === a.openingId)?.campusId));
+    if (!ids.has(emp.campusId) && !appliedHere) fail('Applicant not found.', 404);
     return employeeOwner(emp);
   }
   route('GET', '/api/hris/recruitment/people/:userId/work-experience', 'hris:hris.recruitment', ({ user, params }) => {
     const owner = personOwner(user, params.userId);
-    return listView(owner, { canEdit: false, canVerify: owner.kind === 'applicant' || userCan(user, 'employees.edit') });
+    return listView(owner, { canEdit: false, canVerify: owner.kind === 'applicant' || mayVerifyEmployee(user, owner.emp) });
   }, { audit: false });
   route('GET', '/api/hris/recruitment/people/:userId/work-experience/sheet', 'hris:hris.recruitment', ({ user, params }) => sheet(personOwner(user, params.userId), user), { audit: false });
   route('POST', '/api/hris/recruitment/people/:userId/work-experience/:entryId/verify', 'hris:hris.recruitment', (a) => {
     const owner = personOwner(a.user, a.params.userId);
-    if (owner.kind === 'employee' && !userCan(a.user, 'employees.edit')) fail('Verify an employee\'s entries on their employee record.', 403);
+    if (owner.kind === 'employee' && !mayVerifyEmployee(a.user, owner.emp)) fail('Verify an employee\'s entries on their employee record.', 403);
     return verify(a.user, owner, a.params.entryId, a.body.verified !== false, meta(a));
   }, { audit: false, body: { verified: t.bool() } });
   // From an application (People → Recruitment → an opening): the applicant's sheet.
   route('GET', '/api/hris/recruitment/applications/:id/work-experience/sheet', 'hris:hris.recruitment', ({ user, params }) => {
     const a = (data().jobApplications || []).find((x) => x.id === params.id) || fail('Application not found.', 404);
     const o = (data().jobOpenings || []).find((x) => x.id === a.openingId);
-    const ids = new Set((user.role === 'admin' ? data().campuses : data().campuses.filter((c) => (user.campusIds || []).includes(c.id))).map((c) => c.id));
-    if (!o || !ids.has(o.campusId) || a.removed) fail('Application not found.', 404);
+    if (!o || !hrCampusIds(user).has(o.campusId) || a.removed) fail('Application not found.', 404);
     if (a.internal && a.employeeId) {
       const emp = data().employees.find((e) => e.id === a.employeeId) || fail('Application not found.', 404);
       return sheet(employeeOwner(emp), user);

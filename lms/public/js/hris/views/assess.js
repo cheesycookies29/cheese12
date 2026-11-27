@@ -228,6 +228,7 @@ export async function comparativeView(el, { id }) {
         <button class="btn" id="export" ${v.rows.length ? '' : 'disabled'}>${icon('download', 16)} Export CSV</button>
         <button class="btn primary" id="do-print" ${v.rows.length ? '' : 'disabled'}>${icon('file', 16)} Print</button>`, [BACK, [`/recruitment/${o.id}`, o.title]])}
       ${v.unrated ? html`<div class="notice info"><p>${v.unrated} application${v.unrated === 1 ? ' is' : 's are'} not on the list yet${v.awaitingConsensus ? `: ${v.awaitingConsensus} rated by assessors, waiting for the board consensus` : ': not rated yet'}. ${rule === 'consensus' ? 'Enter the consensus on each one\'s rating page.' : 'Rate them from the opening.'}</p></div>` : ''}
+      ${v.hiddenUntilRated ? html`<div class="notice info"><p>You are on this opening's selection board: ${v.hiddenUntilRated} applicant${v.hiddenUntilRated === 1 ? ' is' : 's are'} left off this list until you submit your own rating of ${v.hiddenUntilRated === 1 ? 'them' : 'each'}.</p></div>` : ''}
       ${v.template?.example ? html`<div class="notice warn"><p><strong>${v.template.name}</strong> is an example template. ${EXAMPLE_NOTE}</p></div>` : ''}
     </div>
     ${v.rows.length ? html`<article class="as-doc as-comparative">

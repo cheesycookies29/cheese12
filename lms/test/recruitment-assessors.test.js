@@ -318,6 +318,53 @@ test('the comparative list: the combined total and rank, each assessor (HR only)
   assert.equal(prof.applications[0].rating.total, 85);
 });
 
+test('conflict of interest: a board member cannot apply for the opening, and never rates or reads documents while an applicant to it', async () => {
+  const s = await school();
+  const job = await s.opening();
+  const a = await s.apply(await s.signUp('Carla Mendiola'), job);
+  await s.panel(job, [['ana'], ['ben']]);
+  const ana = await s.signIn('ana');
+  await assert.rejects(s.apply(ana, job), (e) => e.status === 403 && /You are on this opening's selection board/.test(e.message));
+  assert.ok(!s.env.db.data.jobApplications.some((x) => x.userId === s.user('ana').id), 'no application made');
+  const crit = (await ana.get(`/api/hris/recruitment/applications/${a.id}/rating`)).template.criteria;
+  // HR on the board cannot apply either.
+  await s.panel(job, [['ana'], ['ben'], ['hana']]);
+  await assert.rejects(s.apply(s.hr, job), /selection board/);
+  // Should a board member be an applicant all the same (older data), they cannot rate or open documents.
+  s.env.db.data.jobApplications.push({ ...structuredClone(s.stored(a.id)), id: 'conflict', userId: s.user('ana').id, internal: true, ratings: [], rating: null });
+  await assert.rejects(ana.get(`/api/hris/recruitment/applications/${a.id}/rating`), (e) => e.status === 403 && /applied for this opening/.test(e.message));
+  await assert.rejects(s.rate(ana, a.id, s.all(crit, 5)), status(403));
+  await assert.rejects(ana.get(`/api/hris/recruitment/applications/${a.id}/documents`), status(403));
+  await assert.rejects(ana.get(`/api/hris/assess/openings/${job.id}`), status(403));
+  assert.ok(!s.stored(a.id).rating, 'nothing rated');
+  // Ben, on the same board without applying, still rates.
+  assert.equal((await s.rate(await s.signIn('ben'), a.id, s.all(crit, 80))).rating.total, 80);
+});
+
+test('an HR account on the board sees no other assessor\'s scores on the comparative list, the opening or the profile before its own rating', async () => {
+  const s = await school();
+  const job = await s.opening();
+  const a = await s.apply(await s.signUp('Carla Mendiola'), job);
+  await s.panel(job, [['ana'], ['hana']]);
+  const ana = await s.signIn('ana');
+  const crit = (await ana.get(`/api/hris/recruitment/applications/${a.id}/rating`)).template.criteria;
+  await s.rate(ana, a.id, s.all(crit, 90));
+  const cmp = await s.hr.get(`/api/hris/recruitment/openings/${job.id}/comparative`);
+  assert.deepEqual([cmp.rows.length, cmp.hiddenUntilRated], [0, 1]);
+  const detail = await s.hr.get(`/api/hris/recruitment/openings/${job.id}`);
+  assert.deepEqual([detail.applications[0].rating, detail.applications[0].ratingHidden], [null, true]);
+  const prof = await s.hr.get(`/api/hris/recruitment/profiles/${s.stored(a.id).userId}?ratings=1`);
+  assert.equal(prof.applications[0].rating, null);
+  for (const v of [cmp, detail, prof]) assert.doesNotMatch(JSON.stringify(v), /"total":90\b|"by":"Ana Lopez"/, 'nothing of Ana\'s rating');
+  // Someone not on the board sees it all.
+  assert.equal((await s.admin.get(`/api/hris/recruitment/openings/${job.id}/comparative`)).rows[0].total, 90);
+  // Once HR submits its own rating, the result shows.
+  await s.rate(s.hr, a.id, s.all(crit, 70));
+  const after = await s.hr.get(`/api/hris/recruitment/openings/${job.id}/comparative`);
+  assert.deepEqual([after.rows[0].total, after.rows[0].assessors.map((x) => x.name).sort(), after.hiddenUntilRated], [80, ['Ana Lopez', 'Hana Reyes'], 0]);
+  assert.equal((await s.hr.get(`/api/hris/recruitment/openings/${job.id}`)).applications[0].rating.total, 80);
+});
+
 test('the Performance rating criterion: the adjectival table (examples), a source, not applicable for external applicants', async () => {
   const s = await school();
   const crit = [

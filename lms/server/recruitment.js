@@ -201,7 +201,8 @@ export function registerRecruitmentRoutes(route, ctx) {
     }
     return firstStage(cfg);
   }
-  function applicationHr(a, ranks = null) {
+  // user: who reads it; a board member does not see the rating of an applicant they have not rated yet.
+  function applicationHr(a, ranks = null, user = null) {
     const u = a.removed ? null : userById(a.userId);
     const emp = a.internal ? employeeById(a.employeeId) : null;
     const cfg = stages();
@@ -221,7 +222,9 @@ export function registerRecruitmentRoutes(route, ctx) {
       moves: movesOf(a),
       own: false,
       userId: a.removed ? null : a.userId, // for the applicant profile (HR only)
-      rating: assess.ratingSummary(a, ranks || assess.ranksAt(openingOf(a) || { id: a.openingId })),
+      ...(user && assess.resultHidden(a, openingOf(a), user)
+        ? { rating: null, ratingHidden: true }
+        : { rating: assess.ratingSummary(a, ranks || assess.ranksAt(openingOf(a) || { id: a.openingId })) }),
       assessors: openingOf(a) ? assess.progressOf(a, openingOf(a)) : null, // "rated by 2 of 3 assessors"
       documents: openingOf(a) ? docs.summary(a, openingOf(a)) : null, // "complete / missing N required"
       inPool: Boolean(!a.removed && assess.entryOf(a.userId)),
@@ -379,13 +382,12 @@ export function registerRecruitmentRoutes(route, ctx) {
 
   // Basic information only (PL-028): name, email, username, password, and a mobile number if they
   // like. The same password rules, rate limit and checks as student registration (Register account).
+  // An email already in use gets one answer, whatever kind of account has it (an open or closed
+  // applicant account, an employee's or a student's), so the answer does not tell what it is.
   function emailInUse(email) {
-    const other = data().users.find((u) => String(u.email || '').toLowerCase() === email);
-    if (!other) return;
+    if (!data().users.some((u) => String(u.email || '').toLowerCase() === email)) return;
     const home = `${brandName(data().settings.branding)} home page`;
-    if (other.role === 'applicant' && other.status === 'active' && !applicantExpired(other, nowMs())) fail(`You already have an applicant account with this email. Sign in with it on the ${home}.`, 409);
-    if (other.role === 'applicant') fail('Your applicant account with this email has closed. Ask HR to extend it if you still want to apply.', 409);
-    fail(`This email belongs to an account you already have. Sign in with it on the ${home} instead: employees apply from People → Job openings.`, 409);
+    fail(`This email cannot be used for a new applicant account. If you already have an account with it, sign in with it on the ${home} (employees apply from People → Job openings). If you cannot sign in, ask the school's HR office.`, 409);
   }
   function signUpFields(body) {
     if (!publicOpenings().length) fail('There are no job openings right now, so sign-up is closed.', 403);
@@ -446,6 +448,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     if (!o || (!visibleTo(me, o) && !prior)) fail('Job opening not found.', 404);
     if (!openingAccepts(o, today())) fail('This opening no longer takes applications.');
     if (prior && prior.status !== 'withdrawn') fail('You have already applied for this opening. See My applications.', 409);
+    if (assess.onPanel(o, user)) fail('You are on this opening\'s selection board, so you cannot apply for it. Ask HR to take you off the board first.', 403);
     docs.checkBeforeApply(o, user); // "required documents must be uploaded before applying" (off by default)
     const at = iso();
     const note = text(body.note, 2000);
@@ -560,7 +563,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     const o = openingForHr(user, params.id);
     const list = applications().filter((a) => a.openingId === o.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const ranks = assess.ranksAt(o);
-    return { ...openingHr(o), applications: list.map((a) => ({ ...applicationHr(a, ranks), own: a.userId === user.id })), stages: stagesView() };
+    return { ...openingHr(o), applications: list.map((a) => ({ ...applicationHr(a, ranks, user), own: a.userId === user.id })), stages: stagesView() };
   });
   route('PUT', '/api/hris/recruitment/openings/:id', 'hris:hris.recruitment', ({ params, body, user, campusId }) => {
     const o = openingForHr(user, params.id);
@@ -653,7 +656,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     if (plan.kind === 'note' && !m.note && !m.remark) fail('Pick another stage, or write a note to the applicant or an internal remark.');
     doMove(user, a, o, plan, { ...m, ip, agent });
     save();
-    return applicationHr(a);
+    return applicationHr(a, null, user);
   }, { audit: false, body: { stage: t.str(60), status: t.str(40), note: t.str(4000), remark: t.str(4000), reason: t.str(2000) } });
 
   // Several applications to one opening, to one stage or outcome, with one note: all of them or none

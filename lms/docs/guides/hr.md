@@ -484,7 +484,7 @@ The assessors are the selection board members who rate the applicants. Any activ
 4. Type a title if you like, for example *Chairperson*. It prints under their signature line.
 5. Choose **Save the board**.
 
-Each new assessor is told on the bell and finds the opening under **Ratings to do**. Someone who applied for the opening cannot be on its board. An assessor who has submitted a rating stays on the board, because their ratings are part of the result; one who has not can be taken off (their drafts go). Every change is in the audit log.
+Each new assessor is told on the bell and finds the opening under **Ratings to do**. Someone who applied for the opening cannot be on its board, and someone on its board cannot apply for it (ATLAS says *You are on this opening's selection board…*): take them off the board first if they want to apply. An assessor who has submitted a rating stays on the board, because their ratings are part of the result; one who has not can be taken off (their drafts go). Every change is in the audit log.
 
 ![Name the selection board](hr-name-board.jpg)
 
@@ -543,6 +543,8 @@ A new opening copies its category's list; an existing opening keeps its own. ATL
 2. Read the rated applicants, ranked by their combined result (equal totals share a rank), with a column per criterion, how many assessors rated each, and the stage. *n/a* marks a performance rating that does not apply to an external applicant.
 3. Read **Each assessor's total** under it (HR only; it is not printed).
 4. Choose **Export CSV** for a spreadsheet (with each assessor's total), or **Print**.
+
+If you are on the opening's selection board yourself, you rate on your own like the other assessors: the comparative list, the opening's list of applications and the applicant profile leave out an applicant's result until you have submitted your own rating of them, and the list says how many it leaves out.
 
 The printout is A4 landscape, with the school's name and seal, the title from **Assessment templates**, the opening, the template, how ratings are combined and *As of* today's date. The headings repeat on every page. At the end there is a signature line for each assessor on the selection board, with their title, and one for the HRMPSB secretariat. Withdrawn applications are left out; applications not rated yet, or waiting for the board consensus, are counted above the list.
 
@@ -625,6 +627,8 @@ The paper prints on A4 from the copy kept when it was issued, with the school's 
 1. On the appointment, read **3. Confirm the appointment**: what will happen, and any warning.
 2. For someone from outside the school, pick the **Account type** (usually **Staff**).
 3. Choose **Confirm the appointment**, then confirm.
+
+The **Account type** list has only the types you may give, as under **Employees → Account**: never a Finance office account unless you are an administrator. Making someone from outside an employee turns their applicant account into an employee's sign-in account, so it needs the right to manage sign-in accounts (**Sign-in accounts for employees**) as well as **Appoint selected applicants**. Without it, the appointment says so and **Confirm the appointment** stays off: ask an HR manager or an administrator who has it to confirm. Confirming the appointment of an employee does not change their account, so it does not need that right.
 
 For an applicant from outside, ATLAS makes an **employee record** from the appointment (position, salary grade, step, status, office, campus, and the effective date as the date hired), their account (name, email, mobile) and what they gave at sign-up (sex, date of birth, address), and moves their work experience to it. Their applicant account becomes a staff account with the **same username and password**: it no longer closes or is removed, and they sign in again to open People as an employee. Their documents and applications stay with the application.
 
@@ -902,7 +906,7 @@ Not yet: one rating per application, by one person. Record the board's agreed sc
 Only people who ticked *Keep me in the school's pool of applicants* themselves, at sign-up or under **My applications**, and whose application then ended **Not selected** or **Not qualified** (or whom you added by hand, with a reason). It is never ticked for them. They stay the months set under **HR settings → Job applicants** (12 unless changed), never longer than they agreed to, and can leave at any time.
 
 **Who can verify work experience?**
-Whoever can edit employee records (HR managers): on the employee record, and on an applicant's profile with the Recruitment permission. Nobody verifies their own.
+Whoever can edit employee records (HR managers): on the employee record, and on an applicant's profile with the Recruitment permission. An employee's entries are verified only by HR at the employee's campus; HR at another campus sees them only when the employee applied for an opening there. Nobody verifies their own.
 
 **Why can an applicant no longer change their work experience?**
 Once an application of theirs is **Selected**, the entries are what the appointment is made from, so HR keeps them. The applicant sees *HR has selected you for a position…* and asks you to correct an entry. An applicant who was not selected can keep changing theirs for the next opening.

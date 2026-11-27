@@ -94,9 +94,18 @@ test('sign-up: basic information only, validated as admissions are; duplicates r
 
   // Usernames and emails are unique, whatever their case.
   await assert.rejects(visitor.post('/api/jobs/signup', s.form('2', { username: 'CARLA' })), /already taken/);
-  await assert.rejects(visitor.post('/api/jobs/signup', s.form('2', { email: 'Carla@Example.com' })), (e) => e.status === 409 && /already have an applicant account/.test(e.message));
-  // Someone who already has an ATLAS account (an employee, a teacher) signs in with it instead.
-  await assert.rejects(visitor.post('/api/jobs/signup', s.form('3', { email: 'TESS@example.edu' })), (e) => e.status === 409 && /Sign in with it on the ATLAS home page/.test(e.message));
+  // An email in use gets one answer, whatever has it: an open applicant account, a closed one, or
+  // someone's other ATLAS account (an employee, a teacher), who signs in with it instead. (The body
+  // of a refusal is { error: message }, so the status and the message are the whole answer.)
+  const inUse = (email) => visitor.post('/api/jobs/signup', s.form('2', { email })).then(() => assert.fail('signed up'), (e) => [e.status, e.message]);
+  const answer = await inUse('Carla@Example.com');
+  assert.equal(answer[0], 409);
+  assert.match(answer[1], /cannot be used for a new applicant account.*sign in with it on the ATLAS home page/);
+  assert.deepEqual(await inUse('TESS@example.edu'), answer);
+  const was = carla.expiresAt;
+  carla.expiresAt = new Date(s.clock.at() - DAY).toISOString();
+  assert.deepEqual(await inUse('carla@example.com'), answer);
+  carla.expiresAt = was;
   assert.equal(s.env.db.data.users.filter((u) => u.role === 'applicant').length, 1);
 
   // The applicant signs in on the home page and lands in People's jobs area.
@@ -199,7 +208,7 @@ test('expiry: set from the setting, warned once, sign-in refused and sessions en
   assert.equal(s.user('carla').status, 'expired');
   assert.ok(s.env.api.audit.entries().some((e) => e.action === 'Applicant account closed: its time ran out' && e.targetId === carla.id));
   // A closed account's email cannot sign up again: HR extends it instead.
-  await assert.rejects(s.env.client().post('/api/jobs/signup', s.form('', { username: 'carla2' })), /has closed\. Ask HR to extend it/);
+  await assert.rejects(s.env.client().post('/api/jobs/signup', s.form('', { username: 'carla2' })), /cannot be used for a new applicant account.*ask the school's HR office/);
   const accounts = (await s.hr.get('/api/hris/recruitment/applicants')).applicants;
   assert.equal(accounts[0].status, 'closed');
   assert.equal(accounts[0].removeAfter, new Date(Date.parse(carla.expiresAt) + 30 * DAY).toISOString());

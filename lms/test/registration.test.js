@@ -145,13 +145,22 @@ test('registration: one account per email, without regard to capitals, across ev
   const { env, admin, form } = await school();
   const visitor = env.client();
   await admin.post('/api/admin/users', { role: 'teacher', username: 'teach1', name: 'Tess Teacher', email: 'Tess@School.test', password: PW });
-  await assert.rejects(visitor.post('/api/auth/register', form({ email: 'tess@school.TEST' })), status(409, /already exists/));
-  await assert.rejects(visitor.post('/api/auth/register', form({ email: 'ADMIN@school.test' })), status(409, /already exists/));
-  await visitor.post('/api/auth/register', form());
-  await assert.rejects(visitor.post('/api/auth/register', form({ email: 'Juan.DelaCruz@Mail.Test' })), status(409, /already exists/));
+  const count = () => env.db.data.users.length;
+  // A new registration, and the answer to an email that has an account: the same status and body
+  // (a teacher's, an administrator's, a pending student's), and no second account.
+  const fresh = await visitor.post('/api/auth/register', form());
+  const before = count();
+  for (const email of ['tess@school.TEST', 'ADMIN@school.test', 'Juan.DelaCruz@Mail.Test']) {
+    const res = await env.client().post('/api/auth/register', form({ email })); // 200: a refusal would throw
+    assert.deepEqual(res, { ...fresh, email: email.toLowerCase() }, email);
+  }
+  assert.equal(count(), before, 'no account made for an email in use');
+  assert.equal(env.db.data.users.filter((u) => u.email === 'tess@school.test').length, 1);
+  assert.ok(env.api.audit.entries().some((e) => e.action === 'Registration with an email already in use (no account made)'));
   // Two sent at once with the same email: the check after the slow password hash keeps it to one.
   const both = await Promise.allSettled([1, 2].map(() => env.client().post('/api/auth/register', form({ email: 'twice@mail.test' }))));
-  assert.deepEqual(both.map((r) => r.status).sort(), ['fulfilled', 'rejected']);
+  assert.deepEqual(both.map((r) => r.status), ['fulfilled', 'fulfilled']);
+  assert.deepEqual(both[0].value, both[1].value);
   assert.equal(env.db.data.users.filter((u) => u.email === 'twice@mail.test').length, 1);
   // Closed while the hash was worked out: refused.
   const late = env.client().post('/api/auth/register', form({ email: 'late@mail.test' }));

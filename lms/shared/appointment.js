@@ -14,6 +14,9 @@
 
 export const DEFAULT_NOTE = 'Replace with the wording of the CSC form your office uses.';
 export const CONFIRM_NOTE = 'To confirm with the HR office';
+// Confirming for an external applicant turns their applicant account into an employee's account, so it
+// needs the right to manage sign-in accounts (hris.accounts) as well as hris.appoint.
+export const NEEDS_ACCOUNTS_NOTE = 'Confirming turns the applicant account into an employee\'s sign-in account, which needs the right to manage sign-in accounts (Sign-in accounts for employees). Ask an HR manager or an administrator who has it to confirm this appointment.';
 
 // ----- The papers -----
 export const PAPERS = [

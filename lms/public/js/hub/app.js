@@ -307,14 +307,14 @@ function registeredView(status, out) {
   hubScreen(html`<div class="auth-card reg-done" role="status">
       <span class="reg-done-ic" aria-hidden="true">${icon('checkCircle', 30)}</span>
       <h2>Registration received</h2>
-      <p class="muted">Thank you, ${out.name}. Your student account for ${out.campusName} is registered and waiting for the registrar.</p>
+      <p class="muted">Thank you, ${out.name}. If this email can be used for a new student account at ${out.campusName}, the registrar will review your request.</p>
       <h3>What happens next</h3>
       <ol class="reg-steps">
         <li><strong>The registrar reviews your registration.</strong> They may contact you at ${out.email} or ${formatMobile(out.mobile)}. You do not need to register again.</li>
         <li><strong>You are admitted.</strong> You get a student number, and your account opens.</li>
         <li><strong>You sign in with your email</strong>, <span class="mono">${out.email}</span>, and the password you chose. Until you are admitted, signing in shows that your registration is still being reviewed.</li>
       </ol>
-      <p class="auth-foot">Questions about your registration? Contact the registrar's office.</p>
+      <p class="auth-foot">Already have an ATLAS account with this email? No second account is made: sign in with the one you have. Questions about your registration? Contact the registrar's office.</p>
       <button type="button" class="btn primary block" id="ok">Back to sign in</button>
     </div>`, status.systems, 'Registration received');
   authEl.querySelector('#ok').addEventListener('click', () => backToSignIn(status));

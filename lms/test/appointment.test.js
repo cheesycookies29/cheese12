@@ -270,6 +270,47 @@ test('an external applicant becomes an employee: the same sign-in as a staff acc
   assert.ok(s.trail().some((e) => e.action === `Appointment: made Carla Reyes Mendiola an employee (${emp.employeeNo})`));
 });
 
+test('Confirm the appointment needs hris.accounts to change an account, and the type is one the confirming user may give', async () => {
+  const s = await school();
+  // A staff account given only Recruitment and Appoint selected applicants (no sign-in accounts right).
+  const recEmp = await s.employee({ firstName: 'Rico', lastName: 'Santos', position: 'Clerk' });
+  await s.admin.post(`/api/hris/employees/${recEmp.id}/account`, { role: 'staff', username: 'rico', password: PW, mustChangePassword: false });
+  s.user('rico').access = { add: ['hris.recruitment', 'hris.appoint'] };
+  const rico = await s.signIn('rico');
+  const { app } = await selected(s);
+  const v = await rico.get(`/api/hris/recruitment/applications/${app.id}/appointment`);
+  assert.deepEqual([v.choices.roles, v.choices.mayMakeAccounts], [[], false], 'no account type to pick without hris.accounts');
+  const appt = await appoint(s, app.id);
+  await s.hr.post(`/api/hris/appointments/${appt.id}/issue`, { kinds: ['appointment'] });
+  for (const role of ['hr', 'payroll', 'staff', undefined]) {
+    await assert.rejects(rico.post(`/api/hris/appointments/${appt.id}/confirm`, role ? { role } : {}), (e) => e.status === 403 && /manage sign-in accounts/.test(e.message), String(role));
+  }
+  assert.deepEqual([s.user('carlamendiola').role, s.data.employees.some((e) => e.fromApplicantId === s.user('carlamendiola').id)], ['applicant', false], 'nothing changed');
+  // An HR Manager picks only the types they may give: never a Finance office account or an administrator.
+  const hv = await s.hr.get(`/api/hris/recruitment/applications/${app.id}/appointment`);
+  assert.deepEqual([hv.choices.roles.map((r) => r.id), hv.choices.mayMakeAccounts], [['hr', 'payroll', 'staff'], true]);
+  for (const role of ['accountant', 'approver', 'admin', 'applicant']) await assert.rejects(s.hr.post(`/api/hris/appointments/${appt.id}/confirm`, { role }), status(403), role);
+  // Without hris.accounts, an HR Manager cannot either.
+  s.user('iris').access = { remove: ['hris.accounts'] };
+  await assert.rejects((await s.signIn('iris')).post(`/api/hris/appointments/${appt.id}/confirm`, { role: 'hr' }), status(403));
+  const done = await s.hr.post(`/api/hris/appointments/${appt.id}/confirm`, { role: 'payroll' });
+  assert.equal(s.user('carlamendiola').role, 'payroll');
+  assert.equal(done.confirmed.role, 'payroll');
+  // An administrator's list includes the Finance office types.
+  assert.ok((await s.admin.get(`/api/hris/recruitment/applications/${app.id}/appointment`)).choices.roles.some((r) => r.id === 'accountant'));
+  // The staff appointer still confirms an internal applicant, whose account does not change.
+  const it = await s.item({ itemNo: 'ADO2-001', positionTitle: 'Administrative Officer II', salaryGrade: 11 });
+  const o = await s.opening(it, { audience: 'internal' });
+  const eli = await s.signIn('eli');
+  const own = await eli.post(`/api/hris/jobs/${o.id}/apply`, { note: '' });
+  await s.select(own.id);
+  const iv = await rico.get(`/api/hris/recruitment/applications/${own.id}/appointment`);
+  const ia = await rico.post(`/api/hris/recruitment/applications/${own.id}/appointment`, { ...iv.draft, status: 'Permanent' });
+  await rico.post(`/api/hris/appointments/${ia.id}/issue`, { kinds: ['appointment'] });
+  const ok = await rico.post(`/api/hris/appointments/${ia.id}/confirm`, { role: 'hr' });
+  assert.deepEqual([ok.confirmed.created, ok.confirmed.role, s.user('eli').role], [false, null, 'staff']);
+});
+
 test('an internal applicant: the record updated, a dated history row added, the old item released, nothing overwritten', async () => {
   const s = await school();
   const oldItem = await s.item({ itemNo: 'ADA4-009', positionTitle: 'Administrative Aide IV', salaryGrade: 4 });

@@ -12,7 +12,8 @@ import { icon } from '../../icons.js';
 import { html, mount, money, fmtDate, fmtDateTime, badge, toast, modal, confirmDialog, today } from '../../ui.js';
 import { can } from '../state.js';
 import { brandProduct } from '../../brand.js';
-import { NATURES, natureLabel, paperLabel, CONFIRM_NOTE, SIGNATORIES } from '/shared/appointment.js';
+import { NATURES, natureLabel, paperLabel, CONFIRM_NOTE, NEEDS_ACCOUNTS_NOTE, SIGNATORIES } from '/shared/appointment.js';
+import { ROLES } from '/shared/roles.js';
 
 const BACK = ['/recruitment', 'Job openings'];
 const localDay = (iso) => today(new Date(iso));
@@ -35,6 +36,8 @@ export async function appointView(el, { id, appId }) {
   const input = (name, lbl, value, { type = 'text', req = false, hintText = '', span = '', attrs = '' } = {}) => html`<label class="field ${span}"><span>${lbl}</span><input type="${type}" name="${name}" value="${value ?? ''}" ${req ? 'required' : ''} ${locked ? 'disabled' : ''} ${attrs} />${hintText ? html`<span class="hint">${hintText}</span>` : ''}</label>`;
   const itemChoices = c.items.filter((i) => i.status === 'vacant' || i.id === f.plantillaItemId || i.incumbentId === v.plan.employee?.id);
   const defaults = c.papers.filter((p) => p.defaultWording);
+  // Making an external applicant an employee changes their sign-in account: that needs hris.accounts.
+  const noAccounts = v.plan.kind === 'create' && !c.mayMakeAccounts;
   mount(el, html`
     ${pageHead(html`Appointment ${appt?.confirmed ? badge('Confirmed', 'green') : appt ? badge('In progress', 'blue') : ''}`, `${v.application.name} · ${v.opening.title} · ${v.application.internal ? 'Internal' : 'External'} applicant`, '', [BACK, [`/recruitment/${id}`, v.opening.title]])}
     <ol class="ap-steps" aria-label="Steps">${steps.map(([t, s], i) => html`<li class="${i + 1 < step ? 'done' : i + 1 === step ? 'current' : ''}"><span class="ap-n">${i + 1 < step ? icon('check', 14) : i + 1}</span><span><strong>${t}</strong><small>${s}</small></span></li>`)}</ol>
@@ -111,7 +114,7 @@ export async function appointView(el, { id, appId }) {
     </section>
     <section class="card" id="ap-confirm-card">
       <div class="card-head"><h2>${icon('userPlus')} 3. Confirm the appointment</h2>${appt.confirmed ? badge(`Confirmed ${fmtDate(localDay(appt.confirmed.at))}`, 'green') : ''}</div>
-      ${appt.confirmed ? html`<p>Confirmed by ${appt.confirmed.by}. ${appt.confirmed.created ? html`A new employee record (${appt.confirmed.employeeNo}) was made; the applicant account is now a ${c.roles.find((r) => r.id === appt.confirmed.role)?.label || appt.confirmed.role} account with the same sign-in.` : 'The employee record has the new position, salary grade, step and status, with a row in the appointment history.'}${appt.confirmed.itemNo ? ` Plantilla item ${appt.confirmed.itemNo} is Filled.` : ''}${appt.confirmed.releasedItem ? ` Item ${appt.confirmed.releasedItem} was released.` : ''}</p>
+      ${appt.confirmed ? html`<p>Confirmed by ${appt.confirmed.by}. ${appt.confirmed.created ? html`A new employee record (${appt.confirmed.employeeNo}) was made; the applicant account is now a ${ROLES[appt.confirmed.role]?.label || appt.confirmed.role} account with the same sign-in.` : 'The employee record has the new position, salary grade, step and status, with a row in the appointment history.'}${appt.confirmed.itemNo ? ` Plantilla item ${appt.confirmed.itemNo} is Filled.` : ''}${appt.confirmed.releasedItem ? ` Item ${appt.confirmed.releasedItem} was released.` : ''}</p>
         ${can('employees.view') ? html`<p><a class="btn sm" href="#/employees/${appt.confirmed.employeeId}">${icon('user', 14)} Open the employee record</a></p>` : ''}`
         : html`<ul class="ap-plan">
           ${v.plan.kind === 'create'
@@ -122,9 +125,10 @@ export async function appointView(el, { id, appId }) {
           <li>The opening has ${v.plan.vacancies} vacanc${v.plan.vacancies === 1 ? 'y' : 'ies'}, ${v.plan.filled} filled; after this, ${v.plan.leftAfter} left.</li>
         </ul>
         ${v.plan.warnings.map((w) => html`<div class="notice">${icon('alert', 16)}<p>${w}</p></div>`)}
+        ${noAccounts ? html`<div class="notice" id="ap-needs-accounts">${icon('lock', 16)}<p>${NEEDS_ACCOUNTS_NOTE}</p></div>` : ''}
         <div class="actions ap-confirm">
-          ${v.plan.kind === 'create' ? html`<label class="field"><span>Account type</span><select id="ap-role">${c.roles.map((r) => opt(r.id, r.label, 'staff'))}</select></label>` : ''}
-          <button class="btn primary" id="ap-confirm" ${issued('appointment') ? '' : 'disabled'}>${icon('check', 16)} Confirm the appointment</button>
+          ${v.plan.kind === 'create' && !noAccounts ? html`<label class="field"><span>Account type</span><select id="ap-role">${c.roles.map((r) => opt(r.id, r.label, 'staff'))}</select></label>` : ''}
+          <button class="btn primary" id="ap-confirm" ${issued('appointment') && !noAccounts ? '' : 'disabled'}>${icon('check', 16)} Confirm the appointment</button>
           ${issued('appointment') ? '' : html`<span class="muted small">Issue the appointment form first.</span>`}
         </div>`}
     </section>

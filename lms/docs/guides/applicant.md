@@ -217,9 +217,7 @@ You are told on the bell before that date. Applying again does not move it. If y
 
 ## Questions
 
-**ATLAS says "You already have an applicant account with this email."** You signed up before. Sign in with that username on the ATLAS home page. If you have forgotten the password, ask the school's HR office.
-
-**ATLAS says "This email belongs to an account you already have."** You already have an ATLAS account, for example as an employee or a student. Sign in with it instead; employees apply from **People → Job openings**.
+**ATLAS says "This email cannot be used for a new applicant account."** An ATLAS account already has that email: perhaps an applicant account you made before, or your account as an employee or a student. Sign in with it on the ATLAS home page; employees apply from **People → Job openings**. If you cannot sign in (you forgot the password, or your applicant account has closed), ask the school's HR office.
 
 **ATLAS says "Your applicant account closed on …"** Your applicant account stays open for a set number of days. Ask the school's HR office to extend it if you still want to apply. Once it is removed, your details are gone and you can sign up again.
 

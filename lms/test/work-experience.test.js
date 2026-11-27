@@ -187,6 +187,41 @@ test('applicants keep theirs until an application is Selected; HR sees and verif
   assert.equal(s.env.db.data.workExperience.filter((x) => x.ownerId === danId).length, 0);
 });
 
+test('an employee\'s entries are campus-scoped on the recruitment routes: HR at another campus gets 404', async () => {
+  const s = await school();
+  const north = await s.admin.post('/api/admin/campuses', { name: 'North Campus', code: 'NOR' });
+  // HR at the other campus only.
+  const ninaEmp = await s.admin.post('/api/hris/employees', { firstName: 'Nina', lastName: 'Norte', hireDate: '2020-01-06', payType: 'monthly', rate: 26100, position: 'HRMO II' });
+  await s.admin.post(`/api/hris/employees/${ninaEmp.id}/account`, { role: 'hr', username: 'nina', password: PW, mustChangePassword: false });
+  s.env.db.data.employees.find((e) => e.id === ninaEmp.id).campusId = north.id;
+  s.env.db.data.users.find((u) => u.username === 'nina').campusIds = [north.id];
+  const nina = await s.signIn('nina');
+  // Eli (Main) applies to a Main opening and keeps an entry.
+  const eli = await s.signIn('eli');
+  const e = await eli.post('/api/hris/me/work-experience', entry());
+  const app = await eli.post(`/api/hris/jobs/${(await s.opening()).id}/apply`, { note: '' });
+  const userId = s.env.db.data.users.find((u) => u.username === 'eli').id;
+  const base = `/api/hris/recruitment/people/${userId}/work-experience`;
+  await assert.rejects(nina.get(`/api/hris/employees/${s.eliEmp.id}/work-experience`), status(404), 'as on the employee record');
+  await assert.rejects(nina.get(base), status(404));
+  await assert.rejects(nina.get(`${base}/sheet`), status(404));
+  await assert.rejects(nina.post(`${base}/${e.id}/verify`, {}), status(404));
+  await assert.rejects(nina.get(`/api/hris/recruitment/applications/${app.id}/work-experience/sheet`), status(404));
+  assert.equal(s.env.db.data.workExperience.find((x) => x.id === e.id).verified, null, 'nothing verified');
+  // HR at the employee's campus still reads and verifies.
+  assert.deepEqual([(await s.hr.get(base)).entries.length, (await s.hr.get(base)).canVerify], [1, true]);
+  assert.equal((await s.hr.post(`${base}/${e.id}/verify`, {})).verified.by, 'Hana Reyes');
+  // Applying to an opening at the other campus lets its HR read the list for that application, not verify it.
+  const no = await nina.post('/api/hris/recruitment/openings', {
+    title: 'Clerk II', salaryGrade: 6, office: 'Registrar', education: 'Two years of college', training: 'None required',
+    experience: 'None required', eligibility: 'None required', vacancies: 1, closingDate: '2026-11-20', audience: 'all', status: 'open', campusId: north.id,
+  });
+  await eli.post(`/api/hris/jobs/${no.id}/apply`, { note: '' });
+  const seen = await nina.get(base);
+  assert.deepEqual([seen.entries.length, seen.canVerify], [1, false]);
+  await assert.rejects(nina.post(`${base}/${e.id}/verify`, { verified: false }), status(403));
+});
+
 test('the Work Experience Sheet: the person, newest first, every WES column', async () => {
   const s = await school();
   const eli = await s.signIn('eli');

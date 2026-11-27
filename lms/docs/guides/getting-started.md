@@ -240,7 +240,7 @@ When your school lets new students register on the ATLAS home page, the sign-in 
 5. Choose a **Password** and type it again under **Confirm Password**. The eye button beside each box shows or hides what you typed.
 6. Read the **Privacy Policy** (and the **Terms of Use**, when your school has them) from the line at the bottom, then choose **Register student account**.
 
-*Registration received* opens and says what happens next.
+*Registration received* opens and says what happens next. If the email can be used for a new account, the registrar reviews your request; if you already have an account with it, no second one is made.
 
 ![Registration received: the registrar reviews the registration, then the student signs in with their email](getting-started-registered.jpg)
 
@@ -315,7 +315,7 @@ Fill the form in and hand it in where it says. A form you cannot find may not be
 
 **ATLAS says "Your application is still being reviewed."** You registered as a new student and the registrar has not admitted you yet. You can sign in once you are admitted, with your email and the password you chose. You do not need to register again.
 
-**ATLAS says "An account with this email address already exists."** Someone already has an ATLAS account with that email, perhaps you. Sign in with it (choose **Click here** to go back), or ask the registrar for help.
+**I registered, but I already had an account with that email.** No second account is made. *Registration received* shows either way, so the form never tells anyone whether an email has an account. Sign in with the account you have (choose **Click here** at the bottom of the form to go back), or ask the registrar for help.
 
 **My email does not work for signing in, but my username does.** Signing in with an email works only when exactly one ATLAS account has that email. Sign in with your username, and ask the registrar or an administrator to check the email on your account.
 

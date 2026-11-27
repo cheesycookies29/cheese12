@@ -494,9 +494,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     const campus = db.data.campuses.find((c) => c.id === fields.campusId);
     if (!campus) fail('That campus is not on the list. Choose your preferred campus again.');
     // One account per email, compared without regard to capitals, across every kind of account
-    // (students sign in with it, so it must name only them).
-    if (users().some((u) => String(u.email || '').toLowerCase() === fields.email)) fail('An account with this email address already exists. Sign in with it, or ask the registrar for help.', 409);
-    return { fields, campus };
+    // (students sign in with it, so it must name only them). An email in use is not refused here:
+    // the answer is the same as for a new registration, so it does not tell whether the email has an
+    // account; no account is made (below).
+    const taken = users().find((u) => String(u.email || '').toLowerCase() === fields.email) || null;
+    return { fields, campus, taken };
   };
   route('POST', '/api/auth/register', 'public', async ({ body, ip, agent }) => {
     registrationClosed();
@@ -507,7 +509,12 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     // Checked again after the hash (registration may have closed, or someone taken the email
     // meanwhile), then saved without pausing.
     registrationClosed();
-    const { fields: f, campus } = registration(body);
+    const { fields: f, campus, taken } = registration(body);
+    const received = { ok: true, name: composeName(f), email: f.email, mobile: f.mobile, campusName: campus.name };
+    if (taken) {
+      audit.record({ kind: 'account', system: 'home', action: 'Registration with an email already in use (no account made)', actor: null, target: taken, ip, agent, detail: campus.name });
+      return received;
+    }
     const at = clock().toISOString();
     const user = {
       id: randomUUID(),
@@ -541,7 +548,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     });
     db.save();
     audit.record({ kind: 'account', system: 'home', action: 'Registered for a student account (waiting for the registrar)', actor: user, target: user, ip, agent, detail: campus.name });
-    return { ok: true, name: user.name, email: user.email, mobile: user.mobile, campusName: campus.name };
+    return received;
   }, {
     limit: 'apply', // registrations per network address (the rule's name is from "Apply for admission")
     audit: false,

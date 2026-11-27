@@ -30,14 +30,14 @@ import { HttpError, text, localDate } from './util.js';
 import { t } from './validate.js';
 import { campusName, campusesFor } from './campus.js';
 import { nextNumber } from './numbering.js';
-import { validateEmployee } from './hris.js';
+import { validateEmployee, assignableRoles } from './hris.js';
 import { itemOf, linkIncumbent, unlinkIncumbent, makeLog, plantillaItems } from './plantilla.js';
 import { moveEntries } from './work-experience.js';
 import { closeRenewals } from './due-dates.js';
 import { ROLES, HRIS_ROLES, userCan } from '../shared/roles.js';
 import { APPOINTMENTS, salaryFor, stepsIn } from '../shared/gov-pay.js';
 import {
-  PAPERS, paperInfo, paperLabel, NATURES, natureLabel, VICE_REASONS, SIGNATORIES, MERGE_FIELDS, TEMPLATE_PARTS, LIMITS, DEFAULT_NOTE,
+  PAPERS, paperInfo, paperLabel, NATURES, natureLabel, VICE_REASONS, SIGNATORIES, MERGE_FIELDS, TEMPLATE_PARTS, LIMITS, DEFAULT_NOTE, NEEDS_ACCOUNTS_NOTE,
   mergeAppointmentSettings, isDefaultWording, templateProblems, mergeValues, renderPart, plainText, statusSuggestions, writeDate,
 } from '../shared/appointment.js';
 
@@ -309,14 +309,15 @@ export function registerAppointmentRoutes(route, ctx, h) {
   function choices(user) {
     const ids = campusIds(user);
     const s = settings();
-    const roles = HRIS_ROLES.filter((r) => user.role === 'admin' || !(ROLES[r].permissions || []).some((p) => p.startsWith('finance.')));
+    // The account types this user may give (as on Employees → Account): none without hris.accounts.
+    const roles = assignableRoles(user);
     return {
       natures: NATURES, statuses: statusChoices(data()), viceReasons: VICE_REASONS, government: government(data()),
       campuses: campusesFor(data(), user).map((c) => ({ id: c.id, name: c.name })),
       items: plantillaItems(data()).filter((i) => ids.has(i.campusId) && !['abolished', 'unfunded'].includes(i.status))
         .map((i) => ({ id: i.id, itemNo: i.itemNo, positionTitle: i.positionTitle, salaryGrade: i.salaryGrade, status: i.status, office: i.office, incumbentId: i.incumbentId || null, campusName: campusName(data(), i.campusId) })),
       papers: PAPERS.map((p) => ({ ...p, defaultWording: isDefaultWording(p.id, s.templates[p.id]) })), defaultNote: DEFAULT_NOTE,
-      roles: roles.map((r) => ({ id: r, label: ROLES[r].label })), signatories: SIGNATORIES,
+      roles: roles.map((r) => ({ id: r, label: ROLES[r].label })), mayMakeAccounts: userCan(user, 'hris.accounts'), signatories: SIGNATORIES,
     };
   }
   const salaryTable = (sg) => (sg ? Array.from({ length: stepsIn(sg) }, (_, i) => salaryFor(sg, i + 1, today())) : []);
@@ -502,8 +503,11 @@ export function registerAppointmentRoutes(route, ctx, h) {
     if (created) {
       if (!u || a.removed) fail('The applicant\'s account was removed: add the employee record by hand (Employees → Add employee).');
       if (u.role !== 'applicant') fail('This account is not a job applicant\'s account any more.');
-      role = HRIS_ROLES.includes(body.role) ? body.role : 'staff';
-      if (user.role !== 'admin' && (ROLES[role].permissions || []).some((p) => p.startsWith('finance.'))) fail('Only an administrator makes Finance office accounts.', 403);
+      // The applicant account becomes an employee's account: that needs the right to manage
+      // sign-in accounts (hris.accounts), and the type is one this user may give.
+      if (!userCan(user, 'hris.accounts')) fail(NEEDS_ACCOUNTS_NOTE, 403);
+      role = body.role || 'staff';
+      if (!assignableRoles(user).includes(role)) fail(HRIS_ROLES.includes(role) ? 'Only an administrator makes Finance office accounts.' : 'Pick an account type you may give (Staff, HR or payroll).', 403);
       const p = u.applicantProfile || {};
       const fields = validateEmployee({
         firstName: f.firstName, middleName: f.middleName, lastName: f.lastName, email: u.email || '', phone: u.phone || '', birthDate: p.birthDate || '', gender: p.sex || '', address: f.address || p.address || '',
