@@ -174,6 +174,7 @@ test('the size cap (2 MB by default) and its message; the count cap (15 by defau
 
 test('checklist statuses and the bell: uploaded, accepted, needs a new file (with HR\'s note), uploaded again', async () => {
   const s = await school();
+  const d = () => s.env.db.data;
   const job = await s.opening();
   const carla = await s.signUp('Carla Mendiola');
   let v = await s.docsOf(carla, job);
@@ -201,13 +202,22 @@ test('checklist statuses and the bell: uploaded, accepted, needs a new file (wit
   // A needs-new item counts as missing until a new file comes.
   detail = await s.hr.get(`/api/hris/recruitment/openings/${job.id}`);
   assert.deepEqual([detail.applications[0].documents.missing, detail.applications[0].documents.needsNew], [2, 1]);
-  // The new file: Uploaded again (for HR to check), and HR is told.
+  // The new file (Upload the new file) replaces the one HR sent back: Uploaded again (for HR to check),
+  // one current file, and HR is told.
+  const files = d().jobDocuments.length;
   v = await s.upload(carla, job, 'tor', 'TOR-full.pdf', PDF);
-  assert.deepEqual([s.item(v, 'tor').status, s.item(v, 'tor').review], ['uploaded', null]);
+  assert.deepEqual([s.item(v, 'tor').status, s.item(v, 'tor').review, s.item(v, 'tor').files.map((f) => f.name)], ['uploaded', null, ['TOR-full.pdf']]);
+  assert.equal(d().jobDocuments.length, files, 'replaced, not added');
+  detail = await s.hr.get(`/api/hris/recruitment/openings/${job.id}`);
+  assert.deepEqual([detail.applications[0].documents.toCheck, detail.applications[0].documents.files], [1, 2], 'HR checks one file');
   assert.ok((await s.hr.get('/api/me/notifications')).items.some((x) => x.kind === 'job.document' && /uploaded a new file for Transcript of records/.test(x.title)));
+  // A second file after that is added next to it (the review was cleared by the new file).
+  v = await s.upload(carla, job, 'tor', 'TOR-page2.pdf', PDF);
+  assert.deepEqual(s.item(v, 'tor').files.map((f) => f.name), ['TOR-full.pdf', 'TOR-page2.pdf']);
   // Audit.
-  const log = s.env.api.audit.entries().filter((e) => e.targetId === app.id).map((e) => e.action);
-  assert.deepEqual(log, ['Accepted a document of a job application', 'Asked for a new file for a job application', 'Uploaded a document to a job application']);
+  const log = s.env.api.audit.entries().filter((e) => e.targetId === app.id);
+  assert.deepEqual(log.map((e) => e.action), ['Accepted a document of a job application', 'Asked for a new file for a job application', 'Replaced a document of a job application', 'Uploaded a document to a job application']);
+  assert.match(log[2].detail, /TOR-full\.pdf .* replaces TOR\.pdf/);
 });
 
 test('the applicant replaces or removes files before the opening closes, not after (except a file HR asked for)', async () => {
@@ -232,7 +242,7 @@ test('the applicant replaces or removes files before the opening closes, not aft
   await assert.rejects(s.upload(carla, job, 'diploma', 'Diploma.pdf', PDF), status(403));
   await assert.rejects(carla.del(`/api/hris/jobs/${job.id}/documents/files/${s.item(v, 'pds').files[0].id}`), status(403));
   v = await s.upload(carla, job, 'tor', 'TOR-signed.pdf', PDF);
-  assert.deepEqual(s.item(v, 'tor').files.map((f) => f.name), ['TOR.pdf', 'TOR-signed.pdf']);
+  assert.deepEqual(s.item(v, 'tor').files.map((f) => f.name), ['TOR-signed.pdf'], 'the file HR sent back is replaced');
   assert.ok(s.env.api.audit.entries().some((e) => e.targetId === app.id && /after the closing date, as HR asked/.test(e.detail)));
   // Once uploaded, that item is closed too.
   await assert.rejects(s.upload(carla, job, 'tor', 'third.pdf', PDF), status(403));
@@ -445,4 +455,80 @@ test('demo documents: small generated PDFs, encrypted, marked demo, one accepted
   assert.match(Buffer.from(f.raw).toString('latin1'), /not a real document/);
   await s.admin.del('/api/admin/demo');
   assert.equal(s.env.db.data.jobDocuments.length, 0);
+});
+
+test('Refresh demo data: the applicants\' demo documents and HR\'s review marks come back with the new demo openings; the sweep deletes nothing', async () => {
+  const s = await school();
+  const d = s.env.db.data;
+  const carlaReview = () => {
+    const carla = s.user('applicant.demo');
+    const o = d.jobOpenings.find((x) => x.demo && x.title === 'Instructor I');
+    return d.jobApplications.find((a) => a.openingId === o.id && a.userId === carla.id).docReview;
+  };
+  await s.admin.post('/api/admin/demo');
+  const first = d.jobDocuments.length;
+  for (let i = 0; i < 2; i++) {
+    await s.admin.post('/api/admin/demo'); // refresh, twice
+    const live = new Set(d.jobOpenings.map((o) => o.id));
+    const users = new Set(d.users.map((u) => u.id));
+    assert.equal(d.jobDocuments.length, first, 'the same demo files, not doubled');
+    assert.ok(d.jobDocuments.every((x) => x.demo && live.has(x.openingId) && users.has(x.userId)), 'every demo file is on a live demo opening, of a live account');
+    assert.deepEqual(Object.entries(carlaReview()).map(([k, v]) => [k, v.status]), [['pds', 'accepted'], ['tor', 'needs-new']]);
+  }
+  // The files are there to open, and the next sweep (server start, daily) deletes none of them.
+  s.env.api.recruitment.sweep();
+  assert.equal(d.jobDocuments.length, first);
+  const carla = await s.signIn('applicant.demo', 'demo1234');
+  const app = (await carla.get('/api/hris/my-applications')).applications.find((a) => a.title === 'Instructor I');
+  const v = await s.docsOf(carla, { id: app.openingId });
+  assert.deepEqual([s.item(v, 'pds').status, s.item(v, 'tor').status, s.item(v, 'training').status], ['accepted', 'needs-new', 'uploaded']);
+  const f = await carla.get(`/api/hris/jobs/${app.openingId}/documents/files/${s.item(v, 'pds').files[0].id}`);
+  assert.match(Buffer.from(f.raw).toString('latin1'), /^%PDF/);
+});
+
+test('refreshing or removing the demo keeps the demo openings the school\'s own records use: real applications, files and appointments never point at nothing', async () => {
+  const s = await school();
+  const d = s.env.db.data;
+  await s.admin.post('/api/admin/demo');
+  const lab = d.jobOpenings.find((o) => o.demo && o.title === 'Laboratory Technician I');
+  const instr = d.jobOpenings.find((o) => o.demo && o.title === 'Instructor I');
+  // A real person applies to a demo opening and uploads a file; a demo applicant's own (non-demo) file too.
+  const quentin = await s.signUp('Quentin Real');
+  await s.upload(quentin, lab, 'pds', 'pds.pdf', PDF);
+  const qApp = await quentin.post(`/api/hris/jobs/${lab.id}/apply`, { note: '' });
+  const carla = await s.signIn('applicant.demo', 'demo1234');
+  await s.upload(carla, instr, 'diploma', 'diploma.pdf', PDF);
+  // HR selects and appoints him: a real appointment on a demo opening and its demo plantilla item.
+  await s.hr.put(`/api/hris/recruitment/applications/${qApp.id}`, { stage: 'selected', note: '' });
+  const draft = (await s.hr.get(`/api/hris/recruitment/applications/${qApp.id}/appointment`)).draft;
+  const appt = await s.hr.post(`/api/hris/recruitment/applications/${qApp.id}/appointment`, { ...draft, status: 'Temporary' });
+  await s.hr.post(`/api/hris/appointments/${appt.id}/issue`, { kinds: ['appointment'] });
+  await s.hr.post(`/api/hris/appointments/${appt.id}/confirm`, {});
+  assert.deepEqual((await s.admin.get('/api/admin/demo')).realOnDemo, { applications: 1, appointments: 1, openings: 1 });
+  // Refresh: the opening Quentin applied to is kept as an ordinary record, with his application and file.
+  const r = await s.admin.post('/api/admin/demo');
+  assert.deepEqual(r.kept, ['Laboratory Technician I']);
+  const kept = d.jobOpenings.find((o) => o.id === lab.id);
+  assert.ok(kept && !kept.demo && kept.keptFromDemo?.note, 'kept, marked');
+  assert.ok(d.jobApplications.some((a) => a.id === qApp.id));
+  const live = new Set(d.jobOpenings.map((o) => o.id));
+  const users = new Set(d.users.map((u) => u.id));
+  assert.ok(d.jobDocuments.every((x) => live.has(x.openingId) && users.has(x.userId)), 'no file of a deleted account or opening');
+  assert.equal(d.jobDocuments.filter((x) => !x.demo).length, 1, 'Quentin\'s file stays; the demo account\'s own file went with the account');
+  // Its plantilla item is kept too (the opening points at it), and a second demo opening of that title is made fresh.
+  if (kept.plantillaItemId) assert.ok(d.plantillaItems.some((i) => i.id === kept.plantillaItemId && !i.demo && i.keptFromDemo));
+  assert.equal(d.jobOpenings.filter((o) => o.title === 'Laboratory Technician I').length, 2);
+  // Removing the demo: the kept opening stays (it is no longer demo data), so does everything on it.
+  await s.admin.del('/api/admin/demo');
+  assert.ok(d.jobOpenings.some((o) => o.id === lab.id));
+  assert.ok(d.jobApplications.some((a) => a.id === qApp.id));
+  assert.equal(d.jobDocuments.length, 1);
+  assert.equal((await s.hr.get(`/api/hris/recruitment/applications/${qApp.id}/documents`)).application.id, qApp.id, 'HR opens it: no "Application not found"');
+  const page = await s.hr.get(`/api/hris/recruitment/applications/${qApp.id}/appointment`);
+  assert.equal(page.appointment.id, appt.id, 'HR\'s appointment page opens');
+  const emp = d.employees.find((e) => e.id === page.appointment.employeeId);
+  const item = d.plantillaItems.find((i) => i.id === page.appointment.fields.plantillaItemId);
+  assert.ok(emp && item && item.incumbentId === emp.id && emp.plantillaItem === item.itemNo, 'his record and the item he holds are kept, linked');
+  s.env.api.recruitment.sweep();
+  assert.equal(d.jobDocuments.length, 1);
 });

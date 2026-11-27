@@ -9,7 +9,7 @@ import { forceTwoFactorView } from './account/two-factor.js';
 import { mountSystems, mountQuick, mountUserMenu, recordVisit } from './account/topbar.js';
 import { mountBell } from './account/notifications.js';
 import { setBrand, currentBrand, schoolBrand, brand, brandText } from './brand.js';
-import { inkOn, readableOn } from '/shared/themes.js';
+import { inkOn, readableOn, buttonColours, BUTTON_VARS } from '/shared/themes.js';
 
 // App-wide state for the current page set (one per app, since each is its own page).
 export const ctx = { user: null, info: null };
@@ -22,6 +22,7 @@ export function applyBranding(b = {}) {
   const root = document.documentElement.style;
   if (b.brand) root.setProperty('--brand', b.brand);
   if (b.accent) root.setProperty('--accent', b.accent);
+  setButtonColours(root, b.brand);
   // A school's own accent may be light (a yellow): the text on it and the accent used as text are
   // worked out from it, with a contrast check (shared/themes.js). The presets keep their CSS colours.
   if (b.theme === 'custom' && b.accent) {
@@ -41,6 +42,14 @@ export function applyBranding(b = {}) {
   if (logo) drawTopLogo(logo);
   const systems = document.getElementById('sys-btn'); // the Systems menu, made before the branding came
   if (systems) for (const a of ['title', 'aria-label']) systems.setAttribute(a, `${brand()} systems`);
+}
+
+// Primary buttons, by contrast (shared/themes.js): the text on the school colour (white, or dark on a
+// light colour), and in dark mode the lifted colour and its text, at 4.5:1 or more.
+export function setButtonColours(root, brandHex) {
+  const vars = buttonColours(brandHex);
+  for (const k of BUTTON_VARS) if (vars[k]) root.setProperty(k, vars[k]);
+  else root.removeProperty(k);
 }
 
 // The browser tab's icon and the phone's home-screen icon: the school's seal when its brand leads,

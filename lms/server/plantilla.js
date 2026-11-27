@@ -68,13 +68,21 @@ export function itemView(data, item, date) {
       id: emp.id, employeeNo: emp.employeeNo, name: fullName(emp), lastName: emp.lastName, firstName: emp.firstName, middleName: emp.middleName || '',
       sex: emp.gender || '', birthDate: emp.birthDate || '', tin: emp.tin || '', gsisNo: emp.gsisNo || '',
       appointment: emp.appointment || emp.employmentStatus || '',
-      // The record's date hired is its date of original appointment; it has no date of last
-      // promotion nor eligibility yet, so those cells stay blank until it does.
-      originalAppointment: emp.hireDate || '', lastPromotion: emp.lastPromotionDate || '', eligibility: emp.eligibility || '',
+      // The record's date hired is its date of original appointment. The date of last promotion is
+      // the effective date of the latest confirmed Promotion in the appointment history (as of the
+      // date), or a later date typed on the record; eligibility stays blank until the record has it.
+      originalAppointment: emp.hireDate || '', lastPromotion: lastPromotionOf(emp, date), eligibility: emp.eligibility || '',
       position: emp.position || '', salaryGrade: emp.salaryGrade || null, step: emp.salaryGrade ? Number(emp.step) || 1 : null,
       actualAnnual: actualSalary(emp, date), campusId: emp.campusId, campusName: campusName(data, emp.campusId), status: emp.status,
     } : null,
   };
+}
+// The date of last promotion: the latest of the date typed on the record (never overwritten) and the
+// effective dates of the Promotion rows of the appointment history, up to `date`.
+export function lastPromotionOf(emp, date = '9999-12-31') {
+  const dates = (emp.appointmentHistory || []).filter((r) => r.nature === 'promotion' && r.from && r.from <= date).map((r) => r.from);
+  if (emp.lastPromotionDate) dates.push(emp.lastPromotionDate);
+  return dates.sort().at(-1) || '';
 }
 // The short form on an employee record.
 export function itemSummary(data, employeeId) {
@@ -476,8 +484,24 @@ export function registerPlantillaRoutes(route, ctx) {
 
 // ----- Demo data: one item per demo employee with a government appointment and an item number,
 // a few vacant items (three of them the demo job openings' items) and one unfunded. All demo: true.
-export function removePlantillaDemo(data) {
-  data.plantillaItems = (data.plantillaItems || []).filter((i) => !i.demo);
+// A demo item the school's own records use (a job opening kept from the demo, a real appointment,
+// a real employee holding it or naming it) is kept as the school's own record, marked keptFromDemo;
+// a demo employee holding it is unlinked (it becomes Vacant). The rest go.
+export function removePlantillaDemo(data, at = new Date().toISOString()) {
+  const items = data.plantillaItems || [];
+  const demoEmployees = new Set((data.employees || []).filter((e) => e.demo).map((e) => e.id));
+  const realEmployees = (data.employees || []).filter((e) => !e.demo);
+  const used = new Set([
+    ...(data.jobOpenings || []).filter((o) => !o.demo).map((o) => o.plantillaItemId),
+    ...(data.appointments || []).filter((x) => !x.demo).map((x) => x.fields?.plantillaItemId),
+    ...realEmployees.map((e) => items.find((i) => i.incumbentId === e.id || (e.plantillaItem && i.itemNo === e.plantillaItem))?.id),
+  ].filter(Boolean));
+  for (const i of items.filter((x) => x.demo && used.has(x.id))) {
+    delete i.demo;
+    i.keptFromDemo = { at, note: 'Kept when the demo data was refreshed or removed: your own records use it. It is an ordinary record now; edit or abolish it as needed.' };
+    if (i.incumbentId && demoEmployees.has(i.incumbentId)) Object.assign(i, { incumbentId: null, status: i.status === 'filled' ? 'vacant' : i.status });
+  }
+  data.plantillaItems = items.filter((i) => !i.demo);
 }
 // Offices of the demo Finance (server/finance-demo.js) by the demo employees' departments.
 const DEMO_OFFICES = { 'College of Computing': 'CCS', 'College of Agriculture': 'CA', 'College of Business': 'CBM', "Registrar's Office": 'REG', 'Accounting Office': 'ACCT', Library: 'LIB', 'Human Resources': 'ADM' };

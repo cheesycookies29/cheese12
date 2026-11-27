@@ -47,7 +47,7 @@ import { salaryFor } from '../shared/gov-pay.js';
 import { brandName } from '../shared/brand.js';
 import { registerAssessmentRoutes, addAssessmentDemo, removeAssessmentDemo } from './recruitment-assess.js';
 import { registerApplicantDocs } from './recruitment-docs.js';
-import { registerAppointmentRoutes, addAppointmentDemo, removeAppointmentDemo } from './appointment.js';
+import { registerAppointmentRoutes, addAppointmentDemo, removeAppointmentDemo, addAppointmentSettingsDemo } from './appointment.js';
 import { forgetEntries, addWorkExperienceDemo, removeWorkExperienceDemo } from './work-experience.js';
 import { POOL_MONTHS, mergeAssessment } from '../shared/recruitment-assess.js';
 import { mergeApplicantDocs } from '../shared/recruitment-docs.js';
@@ -173,6 +173,7 @@ export function registerRecruitmentRoutes(route, ctx) {
     ...openingPublic(o), campusId: o.campusId, status: o.status, createdAt: o.createdAt, createdBy: o.createdBy, updatedAt: o.updatedAt || null, counts: countsOf(o), plantillaItemId: o.plantillaItemId || null, fromItem: itemOfOpening(o), assessment: assess.openingAssessment(o),
     requirements: o.requirements || [], requireDocsBeforeApply: Boolean(o.requireDocsBeforeApply),
     filled: appoint.filledOn(o), // vacancies filled by a confirmed appointment (PL-025)
+    keptFromDemo: o.keptFromDemo || null, // a demo opening the school's own records use, kept when the demo went
   });
   function nameOf(a) {
     if (a.removed) return REMOVED;
@@ -861,11 +862,33 @@ export function registerRecruitmentRoutes(route, ctx) {
 // applicant (applicant.demo) and five more job applicants with applications at every stage, HR's notes,
 // and an internal application by a demo employee.
 // Every record has demo: true and goes with the demo school.
-export function removeRecruitmentDemo(data) {
+//
+// The school's own records are never left pointing at nothing: a demo opening that a real person's
+// application or appointment uses is kept, as the school's own record (keptFromDemo, with a note),
+// with those applications; its demo assessors leave its board. Appointments of demo people go
+// with them (removeAppointmentDemo). The plantilla items such records use are kept the same way
+// (server/plantilla.js removePlantillaDemo).
+export const KEPT_FROM_DEMO_NOTE = 'Kept when the demo data was refreshed or removed: your own records use it. It is an ordinary record now; delete it when you no longer need it.';
+export function realRecordsOnDemo(data) {
   const demoUsers = new Set(data.users.filter((u) => u.demo).map((u) => u.id));
+  const demoEmployees = new Set((data.employees || []).filter((e) => e.demo).map((e) => e.id));
+  const demoOpenings = new Set((data.jobOpenings || []).filter((o) => o.demo).map((o) => o.id));
+  const applications = (data.jobApplications || []).filter((a) => !a.demo && !demoUsers.has(a.userId) && demoOpenings.has(a.openingId));
+  const appointments = (data.appointments || []).filter((x) => !x.demo && !demoUsers.has(x.userId) && !demoEmployees.has(x.employeeId) && demoOpenings.has(x.openingId));
+  return { applications, appointments, openings: new Set([...applications, ...appointments].map((x) => x.openingId)) };
+}
+export function removeRecruitmentDemo(data, at = new Date().toISOString()) {
+  const demoUsers = new Set(data.users.filter((u) => u.demo).map((u) => u.id));
+  const demoEmployees = new Set((data.employees || []).filter((e) => e.demo).map((e) => e.id));
+  const { openings: keep } = realRecordsOnDemo(data);
+  for (const o of (data.jobOpenings || []).filter((x) => x.demo && keep.has(x.id))) {
+    delete o.demo;
+    o.keptFromDemo = { at, note: KEPT_FROM_DEMO_NOTE };
+    if (Array.isArray(o.panel)) o.panel = o.panel.filter((p) => !demoUsers.has(p.userId));
+  }
   const demoOpenings = new Set((data.jobOpenings || []).filter((o) => o.demo).map((o) => o.id));
   removeAssessmentDemo(data, demoUsers); // the demo pool entries
-  removeAppointmentDemo(data);
+  removeAppointmentDemo(data, { users: demoUsers, employees: demoEmployees });
   removeWorkExperienceDemo(data);
   data.jobApplications = (data.jobApplications || []).filter((a) => !a.demo && !demoOpenings.has(a.openingId) && !demoUsers.has(a.userId));
   data.jobOpenings = (data.jobOpenings || []).filter((o) => !o.demo);
@@ -873,6 +896,7 @@ export function removeRecruitmentDemo(data) {
 export function addRecruitmentDemo(data, today, { main, person, userByName, now = Date.parse(`${today}T09:00:00`) }) {
   data.jobOpenings ||= [];
   data.jobApplications ||= [];
+  addAppointmentSettingsDemo(data); // the signatories HR settings → Appointment papers fills in (made-up names)
   const plus = (days) => localDate(new Date(new Date(`${today}T00:00:00`).getTime() + days * DAY_MS));
   const at = (daysAgo) => new Date(now - daysAgo * DAY_MS).toISOString();
   // An opening whose item is in the demo plantilla register is linked to it (Post a job opening).

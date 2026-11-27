@@ -156,8 +156,12 @@ test('applicants keep theirs until an application is Selected; HR sees and verif
   const o = await s.opening();
   const carla = await s.signUp('Carla Mendiola');
   const dan = await s.signUp('Dan Ocampo');
-  const e = await carla.post('/api/hris/me/work-experience', entry({ government: false, salaryGrade: '', step: '', agency: 'Example Private College' }));
+  // Government service has no default: a new entry must say Yes or No.
+  for (const government of [undefined, '', null]) await assert.rejects(carla.post('/api/hris/me/work-experience', entry({ government, salaryGrade: '', step: '', agency: 'Example Private College' })), /Government service: choose Yes or No/);
+  const e = await carla.post('/api/hris/me/work-experience', entry({ government: 'false', salaryGrade: '', step: '', agency: 'Example Private College' }));
   assert.equal(e.government, false);
+  const kept = await carla.put(`/api/hris/me/work-experience/${e.id}`, { ...entry({ salaryGrade: '', step: '', agency: 'Example Private College', duties: 'Taught.' }), government: undefined });
+  assert.equal(kept.government, false, 'a change that leaves it out keeps it');
   assert.equal(e.salaryGrade, null);
   await assert.rejects(dan.put(`/api/hris/me/work-experience/${e.id}`, entry()), status(404), 'another applicant\'s entry');
   const app = await carla.post(`/api/hris/jobs/${o.id}/apply`, { note: '' });

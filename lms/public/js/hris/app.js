@@ -174,7 +174,7 @@ startApp({
     // Only for those who can act on them (as in the ERP): approvers, not everyone who can see leave.
     requests: async () => (can('leave.approve') ? (await api.get('/api/hris/requests/summary')).pending : 0),
     // Due dates: overdue and due in the next 30 days at their campuses (PL-053).
-    due: async () => (can('hris.due') ? (await api.get('/api/hris/due-dates/summary')).soon : 0),
+    due: async () => (can('hris.due') ? (await api.get('/api/hris/due-dates/summary')).total : 0),
     // Applicants still to rate on the boards this person is on.
     ratings: async () => (assessor() ? (await api.get('/api/hris/assess')).openings.filter((o) => o.status !== 'closed').reduce((n, o) => n + o.toDo, 0) : 0),
   },

@@ -102,7 +102,8 @@ export async function workExperienceCard(box, opts) {
 // The form for one entry: the dates (or Present), the position and where, the PDS columns, the
 // duties, and the accomplishments one per line with "Add another accomplishment" at the end.
 function entryForm(base, e, done, day) {
-  const x = e || { from: '', to: '', present: false, government: true, accomplishments: [] };
+  // Government service has no default (an applicant's private-sector job is not "Yes"): it is chosen.
+  const x = e || { from: '', to: '', present: false, government: null, accomplishments: [] };
   const sg = (k, n, val) => html`<select name="${k}"><option value="">—</option>${Array.from({ length: n }, (_, i) => html`<option value="${i + 1}" ${Number(val) === i + 1 ? 'selected' : ''}>${k === 'salaryGrade' ? `SG ${i + 1}` : `Step ${i + 1}`}</option>`)}</select>`;
   const line = (val = '') => html`<li class="wx-acc"><input name="acc" value="${val}" maxlength="${LIMITS.accomplishment}" aria-label="Accomplishment" /><button type="button" class="icon-btn" data-drop aria-label="Remove this accomplishment">${icon('x', 14)}</button></li>`;
   const { form } = modal({
@@ -120,7 +121,7 @@ function entryForm(base, e, done, day) {
       <label class="field"><span>${label('location')}</span><input name="location" value="${x.location || ''}" maxlength="${LIMITS.text}" /><span class="hint">${hint('location')}</span></label>
       <label class="field"><span>${label('supervisor')}</span><input name="supervisor" value="${x.supervisor || ''}" maxlength="${LIMITS.text}" /><span class="hint">${hint('supervisor')}</span></label>
       <label class="field"><span>${label('appointmentStatus')}</span><input name="appointmentStatus" value="${x.appointmentStatus || ''}" maxlength="${LIMITS.text}" list="wx-statuses" /><datalist id="wx-statuses">${STATUS_SUGGESTIONS.map((s) => html`<option value="${s}"></option>`)}</datalist></label>
-      <div class="field"><span>${label('government')}</span><span class="seg" role="radiogroup" aria-label="${label('government')}"><label><input type="radio" name="government" value="true" ${x.government ? 'checked' : ''} /> Yes</label><label><input type="radio" name="government" value="false" ${x.government ? '' : 'checked'} /> No</label></span></div>
+      <div class="field"><span>${label('government')}<em>*</em></span><span class="seg" role="radiogroup" aria-label="${label('government')}" aria-required="true"><label><input type="radio" name="government" value="true" required ${x.government === true ? 'checked' : ''} /> Yes</label><label><input type="radio" name="government" value="false" ${x.government === false ? 'checked' : ''} /> No</label></span><span class="hint">Yes for work in a government office or agency.</span></div>
       <label class="field"><span>${label('salaryGrade')} ${confirmTag}</span>${sg('salaryGrade', 33, x.salaryGrade)}<span class="hint">Optional. Government positions only.</span></label>
       <label class="field"><span>${label('step')}</span>${sg('step', 8, x.step)}</label>
       <label class="field"><span>${label('monthlySalary')}</span><input type="number" name="monthlySalary" min="0" step="0.01" value="${x.monthlySalary ?? ''}" /><span class="hint">Optional.</span></label>
@@ -135,7 +136,7 @@ function entryForm(base, e, done, day) {
       const fd = new FormData(f);
       const body = {
         from: fd.get('from'), to: fd.get('to') || '', present: f.present.checked, position: fd.get('position'), office: fd.get('office'), agency: fd.get('agency'), location: fd.get('location'),
-        supervisor: fd.get('supervisor'), appointmentStatus: fd.get('appointmentStatus'), government: fd.get('government') === 'true', salaryGrade: fd.get('salaryGrade'), step: fd.get('step'),
+        supervisor: fd.get('supervisor'), appointmentStatus: fd.get('appointmentStatus'), government: fd.get('government') ?? '', salaryGrade: fd.get('salaryGrade'), step: fd.get('step'),
         monthlySalary: fd.get('monthlySalary'), duties: fd.get('duties'), accomplishments: fd.getAll('acc').map((s) => s.trim()).filter(Boolean),
       };
       if (e) await api.put(`${base}/${e.id}`, body);
@@ -232,13 +233,15 @@ export async function workExperienceSheetView(el, opts) {
         </td></tr></thead>
         <tbody>
           ${s.entries.map(entryRow)}
-          <tr class="wes-end-row"><td><p class="wes-end">— Nothing follows —</p></td></tr>
           <tr class="wes-sign-row"><td>
-            <div class="wes-signs">
-              <div class="as-sign"><span class="as-sign-line">${s.person.name}</span><span class="as-sign-title">Signature over printed name</span></div>
-              <div class="as-sign wes-date"><span class="as-sign-line"></span><span class="as-sign-title">Date</span></div>
+            <div class="wes-close">
+              <p class="wes-end">— Nothing follows —</p>
+              <div class="wes-signs">
+                <div class="as-sign"><span class="as-sign-line">${s.person.name}</span><span class="as-sign-title">Signature over printed name</span></div>
+                <div class="as-sign wes-date"><span class="as-sign-line"></span><span class="as-sign-title">Date</span></div>
+              </div>
+              <p class="as-foot">Work Experience Sheet from ${brandProduct('People')}, printed ${fmtDateTime(s.printedAt)} by ${s.printedBy}. Layout to confirm against CSC's current form.</p>
             </div>
-            <p class="as-foot">Work Experience Sheet from ${brandProduct('People')}, printed ${fmtDateTime(s.printedAt)} by ${s.printedBy}. Layout to confirm against CSC's current form.</p>
           </td></tr>
         </tbody>
       </table>

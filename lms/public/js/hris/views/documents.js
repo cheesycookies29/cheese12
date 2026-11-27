@@ -25,12 +25,12 @@ const toBase64 = (buf) => {
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
 };
-async function uploadFile(openingId, reqId, file, { replace = null, policy, count }) {
+async function uploadFile(openingId, reqId, file, { replace = null, renew = false, policy, count }) {
   // The same checks as the server, first, so a big file is not sent for nothing.
   if (file.size > policy.maxMb * MB) throw new Error(sizeMessage(file.size, policy.maxMb));
   const ext = (file.name.match(/\.([A-Za-z0-9]{1,12})$/)?.[1] || '').toLowerCase();
   if (ext && !allowedExts(policy).includes(ext)) throw new Error(`${file.name}: ${typeMessage(policy)}`);
-  if (!replace && count >= policy.maxFiles) throw new Error(countMessage(policy.maxFiles));
+  if (!replace && !renew && count >= policy.maxFiles) throw new Error(countMessage(policy.maxFiles));
   const base = `/api/hris/jobs/${openingId}/documents/uploads`;
   const up = await api.post(base, { reqId, name: file.name, size: file.size, ...(replace ? { replace } : {}) });
   try {
@@ -64,7 +64,9 @@ export async function documentsCard(el, openingId, { onChange = () => {}, compac
       <div class="doc-head"><span class="grow"><strong>${it.name}</strong> ${it.required ? badge('Required', 'brand') : badge('Optional', 'gray')}${it.note ? html`<small class="block muted">${it.note}</small>` : ''}</span>${statusBadge(it)}</div>
       ${it.status === 'needs-new' && it.review?.note ? html`<p class="doc-hr-note">${icon('comment', 14)} <strong>Note from ${it.review.from || 'HR office'}</strong> (${fmtDate(localDay(it.review.at))}): ${it.review.note}</p>` : ''}
       ${it.files.length ? html`<ul class="doc-files">${it.files.map((f) => fileRow(it, f))}</ul>` : ''}
-      ${it.canUpload ? html`<label class="btn sm ${it.files.length ? '' : 'primary'} doc-upload">${icon('upload', 14)} ${it.status === 'needs-new' ? 'Upload the new file' : it.files.length ? 'Add another file' : 'Upload'}<input type="file" class="sr-only" multiple data-upload="${it.id}" accept="${v.policy.accept}" aria-label="Upload ${it.name}" /></label>` : ''}
+      ${it.canUpload ? (it.status === 'needs-new'
+        ? html`<label class="btn sm primary doc-upload">${icon('upload', 14)} Upload the new file<input type="file" class="sr-only" data-upload="${it.id}" data-renew="1" accept="${v.policy.accept}" aria-label="Upload the new file for ${it.name}" /></label><small class="block muted doc-renew-hint">It replaces the file${it.files.length === 1 ? '' : 's'} HR sent back.</small>`
+        : html`<label class="btn sm ${it.files.length ? '' : 'primary'} doc-upload">${icon('upload', 14)} ${it.files.length ? 'Add another file' : 'Upload'}<input type="file" class="sr-only" multiple data-upload="${it.id}" accept="${v.policy.accept}" aria-label="Upload ${it.name}" /></label>`) : ''}
       <p class="doc-progress small muted" data-progress="${it.id}" hidden></p>
       ${errors[it.id] ? html`<div class="notice error doc-error" role="alert">${icon('alert', 16)}<div><p>${errors[it.id]}</p>${/ MB|files\b.*at most|combine/.test(errors[it.id]) && v.policy.help ? html`<details open><summary>How to make a file smaller or split it</summary><p class="small">${v.policy.help}</p></details>` : ''}</div></div>` : ''}
     </li>`)}</ul>
@@ -80,13 +82,13 @@ export async function documentsCard(el, openingId, { onChange = () => {}, compac
     const p = el.querySelector(`[data-progress="${reqId}"]`);
     if (p) Object.assign(p, { hidden: !text, textContent: text || '' });
   };
-  const send = async (reqId, files, replace = null) => {
+  const send = async (reqId, files, replace = null, renew = false) => {
     delete errors[reqId];
     let next = null;
     for (const file of files) {
       busy(reqId, `Uploading ${file.name} (${sizeText(file.size)})…`);
       try {
-        next = await uploadFile(openingId, reqId, file, { replace, policy: v.policy, count: (next || v).count });
+        next = await uploadFile(openingId, reqId, file, { replace, renew: renew && !next, policy: v.policy, count: (next || v).count });
         toast(`${file.name} uploaded.`);
       } catch (err) {
         errors[reqId] = err.message;
@@ -97,7 +99,7 @@ export async function documentsCard(el, openingId, { onChange = () => {}, compac
     refresh(next || v);
   };
   const wire = () => {
-    el.querySelectorAll('[data-upload]').forEach((inp) => inp.addEventListener('change', () => send(inp.dataset.upload, [...inp.files])));
+    el.querySelectorAll('[data-upload]').forEach((inp) => inp.addEventListener('change', () => send(inp.dataset.upload, inp.dataset.renew ? [...inp.files].slice(0, 1) : [...inp.files], null, Boolean(inp.dataset.renew))));
     el.querySelectorAll('[data-replace]').forEach((inp) => inp.addEventListener('change', () => send(inp.dataset.req, [...inp.files].slice(0, 1), inp.dataset.replace)));
     el.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', async () => {
       const it = v.requirements.find((x) => x.files.some((f) => f.id === b.dataset.remove));

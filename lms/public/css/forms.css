@@ -41,6 +41,9 @@
 .fm-table .fm-cur { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
 .fm-table .fm-aud small { color: var(--text-2); }
 .fm-versions { width: 112px; max-width: 100%; font-size: 13px; padding: 5px 6px; }
+/* Versions: pick one, then Download (the choice alone downloads nothing). */
+.fm-ver-pick { display: inline-flex; gap: 4px; align-items: center; max-width: 100%; }
+.fm-ver-pick .btn { flex: none; gap: 6px; }
 /* New version over More, in a narrow column (the cell's content is wrapped in .cell-v on phones: ui.js). */
 .fm-actions { white-space: nowrap; }
 .fm-actions .btn, .fm-actions .fm-more { display: flex; width: 100%; justify-content: center; }
@@ -70,7 +73,9 @@
 @media (max-width: 760px) {
   /* The table becomes one card per form (ui.js labelTables): the list of versions takes the row. */
   .fm-table td .fm-versions { width: 100%; }
-  .fm-table td[data-label='Versions'] .cell-v, .fm-table td[data-label='Versions'] > select { flex: 1; min-width: 0; max-width: 240px; }
+  .fm-table td[data-label='Versions'] .cell-v, .fm-table td[data-label='Versions'] > select { flex: 1; min-width: 0; max-width: 300px; }
+  .fm-ver-pick { display: flex; width: 100%; }
+  .fm-ver-pick .fm-versions { flex: 1; min-width: 0; width: auto; }
   .fm-actions .cell-v { display: flex; gap: 8px; justify-content: flex-end; }
   .fm-actions .btn, .fm-actions .fm-more { display: inline-flex; width: auto; }
   .fm-actions .fm-more { margin: 0; }

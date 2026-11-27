@@ -8,8 +8,14 @@
 //    appointment of that person is confirmed (server/appointment.js).
 //  - The bell: a sweep, when the server starts and every six hours, tells HR (the accounts with
 //    hris.due at the employee's campus) once per occurrence and lead day, and the employee too where
-//    the rule says so. What was sent is kept in db.data.dueAlertsSent ({ key: [lead days] }), so a
-//    restart never sends again; an entry goes when its occurrence is done or no longer exists.
+//    the rule says so. What was sent is kept in db.data.dueAlertsSent, per recipient group
+//    ({ key: { hr: [lead days], employee: [lead days] } }), so a restart never sends again and the
+//    employee turned on later still gets their bell once; an entry goes when its occurrence is done
+//    or no longer exists.
+//  - Marks (done, snooze, reopen) stay with the occurrence they were made on (its key has the due
+//    date), as long as the employee exists: when the date moves on (a step increment recorded, a new
+//    appointment confirmed), the done mark stays in the history (Show snoozed and done) and the next
+//    occurrence is new and open. Reopen undoes a step increment date it recorded.
 //  - HR settings → Alerts and due dates (hris.settings), also in the Settings center.
 //  - My HR record: the employee sees their own upcoming date for the rules that tell the employee.
 //  - Mark done, snooze and reopen are in the audit log; settings changes in the Settings history.
@@ -66,6 +72,8 @@ export function markOf(data, key) {
 const stateOf = (m, today) => (!m ? 'open' : m.action === 'done' ? 'done' : m.action === 'snooze' && m.until > today ? 'snoozed' : 'open');
 
 // The open occurrences of the rules that are on, with days left: for the bell, the list and the dashboard.
+// withClosed: snoozed and done too, and the history (done occurrences whose date has since moved on,
+// history: true).
 export function dueRows(data, today, { employees = data.employees, days = LIST_DAYS, withClosed = false } = {}) {
   const { list, settings } = allOccurrences(data, employees);
   const out = [];
@@ -79,20 +87,45 @@ export function dueRows(data, today, { employees = data.employees, days = LIST_D
     if (state !== 'open' && !withClosed) continue;
     out.push({ ...o, daysLeft, state, mark: m, rule });
   }
+  if (withClosed) {
+    const live = new Set(list.map((o) => o.key));
+    const ids = new Set(employees.map((e) => e.id));
+    const seen = new Set();
+    for (let i = marks(data).length - 1; i >= 0; i--) {
+      const m = marks(data)[i];
+      if (seen.has(m.key)) continue;
+      seen.add(m.key);
+      const rule = settings[m.kind];
+      if (live.has(m.key) || m.action !== 'done' || !ids.has(m.employeeId) || !rule?.on || !isDate(m.due)) continue;
+      const daysLeft = daysBetween(today, m.due);
+      if (daysLeft > Math.max(days, ...rule.leadDays)) continue;
+      out.push({ key: m.key, kind: m.kind, employeeId: m.employeeId, due: m.due, base: m.base || '', detail: m.detail || '', daysLeft, state: 'done', mark: m, rule, history: true });
+    }
+  }
   return out.sort((a, b) => a.due.localeCompare(b.due) || a.kind.localeCompare(b.kind));
 }
-// Overdue and due within 30 days, for the HR dashboard and the sidebar.
+// For the HR dashboard and the Due dates page: due in the next 30 days (today included, overdue not
+// counted) and overdue, apart; total is both (the sidebar's badge).
 export function dueSummary(data, today, employees) {
   const rows = dueRows(data, today, { employees, days: 30 }).filter((r) => r.daysLeft <= 30);
-  return { soon: rows.length, overdue: rows.filter((r) => r.daysLeft < 0).length };
+  const overdue = rows.filter((r) => r.daysLeft < 0).length;
+  return { soon: rows.length - overdue, overdue, total: rows.length };
 }
 
-// A mark (done, snooze, reopen): kept in db.data.dueMarks; done takes the occurrence off the bell for good.
+// A mark (done, snooze, reopen): kept in db.data.dueMarks with what the occurrence was (its date,
+// base and detail, for the history); done takes the occurrence off the bell for good.
 function addMark(data, o, mark) {
-  const m = { id: randomUUID(), key: o.key, kind: o.kind, employeeId: o.employeeId, due: o.due, ...mark };
+  const m = { id: randomUUID(), key: o.key, kind: o.kind, employeeId: o.employeeId, due: o.due, base: o.base || '', detail: o.detail || '', ...mark };
   marks(data).push(m);
   if (m.action === 'done') delete sentMap(data)[o.key];
   return m;
+}
+// Who an occurrence's alerts were sent to: { hr: [lead days], employee: [lead days] }. A record from
+// before (a plain list of lead days) went to HR, and to the employee if the rule tells them now.
+function sentTo(sent, key, rule) {
+  const v = sent[key];
+  if (Array.isArray(v)) return { hr: [...v], employee: rule.tellEmployee ? [...v] : [] };
+  return { hr: Array.isArray(v?.hr) ? v.hr : [], employee: Array.isArray(v?.employee) ? v.employee : [] };
 }
 
 // A new appointment of this person was confirmed (server/appointment.js): an open renewal of the
@@ -101,7 +134,8 @@ export function closeRenewals(data, emp, { by, byId = null, at, on, note }) {
   const settings = dueSettings(data);
   const st = statusOf(emp);
   if (!isDate(emp.appointmentEndDate) || !settings.renewal.statuses.includes(st)) return [];
-  const o = { key: `renewal:${emp.id}:${emp.appointmentEndDate}`, kind: 'renewal', employeeId: emp.id, due: emp.appointmentEndDate };
+  const key = `renewal:${emp.id}:${emp.appointmentEndDate}`;
+  const o = allOccurrences(data, [emp]).list.find((x) => x.key === key) || { key, kind: 'renewal', employeeId: emp.id, due: emp.appointmentEndDate };
   const m = markOf(data, o.key);
   if (m?.action === 'done') return [];
   addMark(data, o, { action: 'done', on, note, at, by, byId, auto: true });
@@ -136,11 +170,12 @@ export function sweepDueDates(data, today, { notify }) {
   const { list, settings } = allOccurrences(data);
   const live = new Set(list.map((o) => o.key));
   let changed = false;
-  // Markers of occurrences that no longer exist (a date changed, the employee left) go; so do marks.
+  // Markers of occurrences that no longer exist (a date changed, the employee left) go. Marks stay
+  // with their occurrence as its history while the employee exists.
   for (const k of Object.keys(sent)) if (!live.has(k)) (delete sent[k], (changed = true));
-  const kept = marks(data).filter((m) => live.has(m.key));
-  if (kept.length !== marks(data).length) (data.dueMarks = kept), (changed = true);
   const byId = new Map(data.employees.map((e) => [e.id, e]));
+  const kept = marks(data).filter((m) => byId.has(m.employeeId));
+  if (kept.length !== marks(data).length) (data.dueMarks = kept), (changed = true);
   for (const o of list) {
     const rule = settings[o.kind];
     if (!rule.on) continue;
@@ -152,15 +187,21 @@ export function sweepDueDates(data, today, { notify }) {
     if (state === 'snoozed') continue;
     const daysLeft = daysBetween(today, o.due);
     const { crossed, current } = leadsCrossed(rule.leadDays, daysLeft);
-    if (current == null || (sent[o.key] || []).includes(current)) continue;
+    if (current == null) continue;
     const emp = byId.get(o.employeeId);
     const msg = bellText(rule, o, emp, daysLeft, data);
+    const acct = rule.tellEmployee && msg.employee ? accountOfEmployee(data, emp.id) : null;
+    // Each group once per lead day: HR, and the employee (also when the rule is set to tell them later).
+    const was = sentTo(sent, o.key, rule);
+    const due = { hr: rule.tellHr && !was.hr.includes(current), employee: Boolean(acct) && !was.employee.includes(current) };
+    if (Array.isArray(sent[o.key])) (sent[o.key] = was), (changed = true);
+    if (!due.hr && !due.employee) continue;
     const demo = Boolean(emp.demo);
     const kind = `due.${o.kind}`.slice(0, 40);
-    if (rule.tellHr) notify(decidersFor(data, 'hris.due', { campusId: emp.campusId, roles: EMPLOYEE_ROLES }), { system: 'hris', kind, ...msg.hr }, { demo });
-    const acct = rule.tellEmployee && msg.employee ? accountOfEmployee(data, emp.id) : null;
-    if (acct) notify([acct.id], { system: 'hris', kind, ...msg.employee }, { demo });
-    sent[o.key] = [...new Set([...(sent[o.key] || []), ...crossed])].sort((a, b) => b - a);
+    const merge = (x) => [...new Set([...x, ...crossed])].sort((a, b) => b - a);
+    if (due.hr) notify(decidersFor(data, 'hris.due', { campusId: emp.campusId, roles: EMPLOYEE_ROLES }), { system: 'hris', kind, ...msg.hr }, { demo });
+    if (due.employee) notify([acct.id], { system: 'hris', kind, ...msg.employee }, { demo });
+    sent[o.key] = { hr: due.hr ? merge(was.hr) : was.hr, employee: due.employee ? merge(was.employee) : was.employee };
     changed = true;
   }
   return changed;
@@ -200,6 +241,19 @@ export function cleanDueSettings(body, statuses, current = mergeDueSettings({}))
 }
 const RULE_BODY = t.obj({ on: t.bool(), name: t.str(400), leadDays: t.any(), tellHr: t.bool(), tellEmployee: t.bool(), months: t.any(), years: t.any(), age: t.any(), statuses: t.arr(t.str(60), 30) });
 
+// Reopening a done step increment whose date was recorded on the record: the date it puts back,
+// while the record still has the date the mark recorded (else null: someone changed it since).
+function reopenRestore(r, emp) {
+  const back = r.mark?.action === 'done' ? r.mark.restore : null;
+  if (!back || !emp || back.from === back.to || (emp[back.field] || '') !== back.to) return null;
+  return back;
+}
+function reopenRefusal(r, emp) {
+  if (r.kind === 'renewal') return r.mark?.auto ? `This renewal was closed when a new appointment was confirmed; the record now ends on ${emp?.appointmentEndDate || 'no date'}. It cannot be reopened: if the date is wrong, edit the employee record.` : 'The appointment end date on the record has changed since, so this renewal cannot be reopened. Edit the employee record if the date is wrong.';
+  if (r.kind === 'step' && r.mark?.restore) return `The date of last step increment on the record has changed since (it is ${emp?.lastStepIncrementDate || 'empty'} now), so this cannot be reopened. Edit the employee record instead.`;
+  return 'The date on the employee record has changed since, so this cannot be reopened. Edit the employee record if the date is wrong.';
+}
+
 // ----- The routes -----
 export function registerDueDateRoutes(route, ctx) {
   const { db } = ctx;
@@ -224,7 +278,9 @@ export function registerDueDateRoutes(route, ctx) {
   // A row of the list: the person, the rule, the date and the current appointment.
   const rowView = (r, emp) => ({
     key: r.key, kind: r.kind, ruleName: r.rule.name, due: r.due, base: r.base, detail: r.detail, daysLeft: r.daysLeft, state: r.state,
-    mark: r.mark ? { action: r.mark.action, on: r.mark.on || '', until: r.mark.until || '', note: r.mark.note || '', at: r.mark.at, by: r.mark.by, auto: Boolean(r.mark.auto) } : null,
+    mark: r.mark ? { action: r.mark.action, on: r.mark.on || '', until: r.mark.until || '', note: r.mark.note || '', at: r.mark.at, by: r.mark.by, auto: Boolean(r.mark.auto), recorded: Boolean(r.mark.restore) } : null,
+    // A done occurrence whose date has moved on since (the next one is a row of its own).
+    history: Boolean(r.history), canReopen: r.state !== 'open' && (!r.history || Boolean(reopenRestore(r, emp))),
     employee: {
       id: emp.id, name: `${emp.lastName}, ${emp.firstName}`, employeeNo: emp.employeeNo, position: emp.position || '', status: statusOf(emp),
       salaryGrade: emp.salaryGrade || null, step: emp.salaryGrade ? emp.step || 1 : null, office: emp.department || '', campusId: emp.campusId, campusName: campusName(data(), emp.campusId),
@@ -273,16 +329,18 @@ export function registerDueDateRoutes(route, ctx) {
     if (on > today()) fail('The date it was done cannot be in the future.');
     const note = text(body.note, LIMITS.note);
     const changes = [];
+    let restore = null;
     // A step increment given: its date can become the record's date of last step increment (never the step or the pay).
     if (r.kind === 'step' && body.recordStep === true) {
       const emp = data().employees.find((e) => e.id === r.employeeId);
       if (!userCan(user, 'employees.edit')) fail('Recording the date on the employee record needs Add and edit employee records. Untick it, or ask HR.', 403);
       if (user.employeeId === emp.id) fail('You cannot change your own HR record. Another HR person does.', 403);
       changes.push({ field: 'Date of last step increment', from: emp.lastStepIncrementDate || '', to: on });
+      restore = { field: 'lastStepIncrementDate', from: emp.lastStepIncrementDate || '', to: on };
       emp.lastStepIncrementDate = on;
       emp.updatedAt = new Date(ctx.now()).toISOString();
     }
-    addMark(data(), r, { action: 'done', on, note, at: new Date(ctx.now()).toISOString(), by: user.name, byId: user.id });
+    addMark(data(), r, { action: 'done', on, note, at: new Date(ctx.now()).toISOString(), by: user.name, byId: user.id, ...(restore ? { restore } : {}) });
     audit(user, r, 'marked done', { ip, agent, detail: `Done on ${on}${note ? ` · ${note}` : ''}`, changes });
     save();
     return { ok: true };
@@ -299,14 +357,26 @@ export function registerDueDateRoutes(route, ctx) {
     save();
     return { ok: true, until };
   }, { audit: false, body: { key: t.str(200), days: t.any(), note: t.str(2000) } });
-  // Reopen: a mark made by mistake is undone (it stays in the audit log).
+  // Reopen: a mark made by mistake is undone (it stays in the audit log). A step increment marked
+  // done with its date recorded gets the record's earlier date back, so the occurrence is open again.
   route('POST', '/api/hris/due-dates/reopen', 'hris:hris.due', ({ user, body, ip, agent }) => {
     const r = occurrenceFor(user, body.key);
     if (r.state === 'open') fail('This one is open already.');
+    const emp = data().employees.find((e) => e.id === r.employeeId);
+    const back = r.state === 'done' ? reopenRestore(r, emp) : null;
+    if (r.history && !back) fail(reopenRefusal(r, emp), 409);
+    const changes = [];
+    if (back) {
+      if (!userCan(user, 'employees.edit')) fail('Reopening puts back the date of last step increment on the employee record, which needs Add and edit employee records. Ask HR.', 403);
+      if (user.employeeId === emp.id) fail('You cannot change your own HR record. Another HR person does.', 403);
+      changes.push({ field: 'Date of last step increment', from: emp[back.field] || '', to: back.from });
+      emp[back.field] = back.from;
+      emp.updatedAt = new Date(ctx.now()).toISOString();
+    }
     addMark(data(), r, { action: 'reopen', at: new Date(ctx.now()).toISOString(), by: user.name, byId: user.id, note: '' });
-    audit(user, r, r.state === 'done' ? 'reopened (it was marked done)' : 'reopened (it was snoozed)', { ip, agent });
+    audit(user, r, r.state === 'done' ? 'reopened (it was marked done)' : 'reopened (it was snoozed)', { ip, agent, changes });
     save();
-    return { ok: true };
+    return { ok: true, restored: Boolean(back) };
   }, { audit: false, body: { key: t.str(200) } });
 
   // ----- Settings -----

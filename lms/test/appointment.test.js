@@ -333,6 +333,21 @@ test('an internal applicant: the record updated, a dated history row added, the 
   assert.deepEqual(h1.map((r) => [r.from, r.to, r.position, r.salaryGrade, r.source]), [['2020-01-06', '2026-11-15', 'Administrative Aide IV', 4, 'record'], ['2026-11-16', '', 'Administrative Officer II', 11, 'appointment']]);
   assert.equal((await s.hr.get(`/api/hris/plantilla/${oldItem.id}`)).status, 'vacant');
   assert.equal((await s.hr.get(`/api/hris/plantilla/${oldItem.id}`)).previousIncumbent.name, 'Eli Cruz');
+  // A confirmed Promotion is the date of last promotion on the PSIPOP (the record's own typed date is
+  // never overwritten, and wins when it is later).
+  assert.equal(done.fields.nature, 'promotion');
+  assert.equal((await s.hr.get(`/api/hris/plantilla/${it.id}`)).incumbent.lastPromotion, '', 'not as of today: it takes effect on Nov 16');
+  assert.equal((await s.hr.get(`/api/hris/plantilla/${it.id}?asOf=2026-11-16`)).incumbent.lastPromotion, '2026-11-16');
+  const psipop = await s.hr.get('/api/hris/plantilla/psipop?asOf=2026-12-31');
+  assert.equal(psipop.rows.find((r) => r.incumbent?.id === s.eliEmp.id).incumbent.lastPromotion, '2026-11-16');
+  const rec = s.data.employees.find((e) => e.id === s.eliEmp.id);
+  assert.equal(rec.lastPromotionDate, undefined, 'nothing typed on the record');
+  rec.lastPromotionDate = '2026-11-20';
+  assert.equal((await s.hr.get(`/api/hris/plantilla/${it.id}?asOf=2026-12-31`)).incumbent.lastPromotion, '2026-11-20');
+  rec.lastPromotionDate = '2019-01-01';
+  assert.equal((await s.hr.get(`/api/hris/plantilla/${it.id}?asOf=2026-12-31`)).incumbent.lastPromotion, '2026-11-16', 'an older typed date gives way to the later promotion');
+  assert.equal(rec.lastPromotionDate, '2019-01-01', 'and stays as typed');
+  delete rec.lastPromotionDate;
   // A later appointment adds a row; the earlier ones stay as they were.
   const it2 = await s.item({ itemNo: 'ADO3-001', positionTitle: 'Administrative Officer III', salaryGrade: 14 });
   s.clock.add(30);
@@ -413,4 +428,76 @@ test('demo data: a selected demo applicant appointed with papers issued, marked 
   // Removing the demo removes it.
   addDemo(data, '2026-11-26');
   assert.equal(data.appointments.length, 1, 'adding again refreshes instead of doubling');
+});
+
+test('before the papers: what would make Confirm refuse is shown from the details step (a draft payroll run on a move to another campus); the dates of signing are checked', async () => {
+  const s = await school();
+  const north = await s.admin.post('/api/admin/campuses', { name: 'North Campus', code: 'NORTH' });
+  s.user('hana').campusIds.push(north.id);
+  const it = await s.item({ itemNo: 'ADO2-002', positionTitle: 'Administrative Officer II', salaryGrade: 11 });
+  const o = await s.opening(it, { audience: 'internal', closingDate: '2026-11-20' });
+  const eli = await s.signIn('eli');
+  const app = await eli.post(`/api/hris/jobs/${o.id}/apply`, { note: '' });
+  await s.select(app.id);
+  s.data.payrollRuns.push({ id: 'run1', status: 'draft', kind: 'regular', campusId: s.main.id, periodStart: '2026-11-01', periodEnd: '2026-11-15', employeeIds: [s.eliEmp.id], payslips: [] });
+  // At the opening's campus: nothing blocks. The opening still takes applications (until Nov 20) and
+  // the date of signing (today, Nov 3) is before the publication ends: two warnings, not refusals.
+  let v = await s.hr.get(`/api/hris/recruitment/applications/${app.id}/appointment`);
+  assert.deepEqual(v.plan.blockers, []);
+  assert.equal(v.plan.signing.length, 2);
+  assert.match(v.plan.signing[0], /date of signing \(November 3, 2026\) is on or before the last day of publication \(November 20, 2026\)/);
+  assert.match(v.plan.signing[1], /still taking applications \(until November 20, 2026\)/);
+  // Saved for another campus: the draft run is named at once, before any paper is issued.
+  const appt = await s.hr.post(`/api/hris/recruitment/applications/${app.id}/appointment`, { ...v.draft, status: 'Permanent', campusId: north.id });
+  assert.equal(appt.papers.length, 0, 'saving is not refused');
+  v = await s.hr.get(`/api/hris/recruitment/applications/${app.id}/appointment`);
+  assert.equal(v.plan.blockers.length, 1);
+  assert.match(v.plan.blockers[0], /Eli Cruz is in a draft payroll run at Main Campus \(November 1, 2026 to November 15, 2026\)\. This appointment moves them to North Campus, and Confirm is refused until that run is finalized or deleted/);
+  // The rule itself is unchanged: Confirm is refused while the run is a draft, and works once it is gone.
+  await s.hr.post(`/api/hris/appointments/${appt.id}/issue`, { kinds: ['appointment'] });
+  await assert.rejects(s.hr.post(`/api/hris/appointments/${appt.id}/confirm`, {}), /draft payroll run/);
+  s.data.payrollRuns = s.data.payrollRuns.filter((r) => r.id !== 'run1');
+  assert.deepEqual((await s.hr.get(`/api/hris/recruitment/applications/${app.id}/appointment`)).plan.blockers, []);
+  const done = await s.hr.post(`/api/hris/appointments/${appt.id}/confirm`, {});
+  assert.equal(done.employeeId, s.eliEmp.id);
+  const after = await s.hr.get(`/api/hris/recruitment/applications/${app.id}/appointment`);
+  assert.deepEqual([after.plan.blockers, after.plan.signing], [[], []], 'nothing to warn about once confirmed');
+  // Signed after the publication ended, the opening closed: no warning.
+  s.clock.add(20);
+  const it2 = await s.item({ itemNo: 'ADO2-003', positionTitle: 'Administrative Officer II', salaryGrade: 11 });
+  const o2 = await s.opening(it2, { closingDate: '2026-11-25' });
+  const b = await s.signUp('Bea Santos');
+  const app2 = await b.post(`/api/hris/jobs/${o2.id}/apply`, { note: '' });
+  await s.select(app2.id);
+  s.clock.add(5);
+  await s.hr.put(`/api/hris/recruitment/openings/${o2.id}`, { status: 'closed' });
+  assert.deepEqual((await s.hr.get(`/api/hris/recruitment/applications/${app2.id}/appointment`)).plan.signing, []);
+});
+
+test('demo data: the signatories of HR settings → Appointment papers are filled with made-up names (where empty), and go with the demo', async () => {
+  const env = setup({ clock: () => new Date('2026-11-27T10:00:00') });
+  const admin = env.client();
+  await admin.post('/api/admin/auth/setup', { name: 'Ada Admin', username: 'admin', password: PW });
+  await admin.post('/api/admin/demo');
+  const sig = () => env.db.data.settings.appointmentPapers.signatories;
+  assert.deepEqual([sig().appointingOfficer.name, sig().hrmo.name], ['Dr. Ernesto Villaflor', 'Josefina Dimaculangan']);
+  // A new demo appointment: the details are pre-filled with them, so Save and continue works.
+  const hr = env.client();
+  await hr.post('/api/hub/login', { username: 'hr.demo', password: 'demo1234' });
+  const d = env.db.data;
+  const o = d.jobOpenings.find((x) => x.title === 'Instructor I');
+  const a = d.jobApplications.find((x) => x.openingId === o.id && x.status === 'in-progress');
+  await hr.put(`/api/hris/recruitment/applications/${a.id}`, { stage: 'selected', note: '' });
+  const v = await hr.get(`/api/hris/recruitment/applications/${a.id}/appointment`);
+  assert.equal(v.draft.signatories.appointingOfficer.name, 'Dr. Ernesto Villaflor');
+  const appt = await hr.post(`/api/hris/recruitment/applications/${a.id}/appointment`, { ...v.draft, status: 'Temporary' });
+  assert.ok(appt.id);
+  // HR changes one; removing the demo clears the others and keeps HR's.
+  await hr.put('/api/hris/appointment-papers/settings', { signatories: { hrmo: { name: 'Hana Reyes', title: 'HRMO III' } } });
+  await admin.del('/api/admin/demo');
+  assert.deepEqual([sig().appointingOfficer.name, sig().boardChair.name, sig().hrmo.name], ['', '', 'Hana Reyes']);
+  // A school with its own signatories keeps them when the demo is added.
+  await admin.post('/api/admin/demo');
+  assert.equal(sig().hrmo.name, 'Hana Reyes');
+  assert.equal(sig().appointingOfficer.name, 'Dr. Ernesto Villaflor');
 });

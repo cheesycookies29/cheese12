@@ -111,9 +111,9 @@ export async function formsAdminView(el, params, query) {
         <td>${f.current ? html`<span class="fm-cur">${icon(kindOf(f.current.ext)[1], 15)} v${f.current.no}${f.current.restoredFrom ? html` <small class="muted">(from v${f.current.restoredFrom})</small>` : ''}</span>
           <small class="block"><strong>${f.current.byName}</strong> · ${when(f.current.at)}</small>${f.current.note ? html`<small class="block muted">${f.current.note}</small>` : ''}` : '—'}</td>
         <td class="nowrap">${f.current ? fmtSize(f.current.size) : '—'}</td>
-        <td>${f.versions.length ? html`<select class="fm-versions" data-versions="${f.id}" aria-label="Earlier versions of ${f.title}: choose one to download it">
-            <option value="">${f.versions.length} earlier</option>
-            ${f.versions.map((v) => html`<option value="${v.no}">v${v.no} · ${when(v.at)} · ${v.byName}${v.note ? ` · ${v.note}` : ''}</option>`)}</select>`
+        <td>${f.versions.length ? html`<span class="fm-ver-pick"><select class="fm-versions" data-versions="${f.id}" aria-label="Earlier versions of ${f.title} (${f.versions.length})">
+            ${f.versions.map((v) => html`<option value="${v.no}">v${v.no} · ${when(v.at)} · ${v.byName}${v.note ? ` · ${v.note}` : ''}</option>`)}</select>
+            <button type="button" class="btn sm" data-dlver="${f.id}" aria-label="Download the chosen earlier version of ${f.title}">${icon('download', 14)}<span class="fm-act-label">Download</span></button></span>`
           : html`<span class="muted small">None yet</span>`}</td>
         <td class="fm-actions"><button type="button" class="btn sm" data-act="version" data-id="${f.id}" title="Upload a new version" aria-label="Upload a new version of ${f.title}">${icon('upload', 14)}<span class="fm-act-label">New version</span></button>
           <details class="fm-more"><summary class="btn sm" title="More: edit, restore, publish or retire" aria-label="More for ${f.title}">${icon('chevronDown', 14)}<span class="fm-act-label">More</span></summary>
@@ -127,12 +127,13 @@ export async function formsAdminView(el, params, query) {
               ${f.deletable ? html`<button type="button" role="menuitem" class="danger-text" data-act="delete" data-id="${f.id}">${icon('trash')} Delete draft</button>` : ''}
             </div></details></td>
       </tr>`)}</tbody></table></div>`);
-    box.querySelectorAll('[data-versions]').forEach((s) => s.addEventListener('change', () => {
-      if (!s.value) return;
-      const f = d.forms.find((x) => x.id === s.dataset.versions);
+    // Choosing a version only chooses it (arrowing through the list downloads nothing); Download does.
+    box.querySelectorAll('[data-dlver]').forEach((b) => b.addEventListener('click', () => {
+      const s = box.querySelector(`[data-versions="${b.dataset.dlver}"]`);
+      const f = d.forms.find((x) => x.id === b.dataset.dlver);
+      if (!s?.value || !f) return;
       download(versionUrl(f, s.value));
       toast(`Downloading version ${s.value} of ${f.title}.`);
-      s.value = '';
     }));
     // One "More" menu open at a time; a click elsewhere closes it.
     box.querySelectorAll('details.fm-more').forEach((dt) => dt.addEventListener('toggle', () => {

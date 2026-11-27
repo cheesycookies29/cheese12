@@ -78,11 +78,11 @@ export function resetPasswordDialog(user) {
 }
 
 // A registered applicant's name as typed, part by part (title, last, first, middle), for the registrar.
-const nameLine = (u) => (u.lastName ? html`<small>${[u.title, `${u.lastName}, ${u.firstName}`, u.middleName].filter(Boolean).join(' ')}</small>` : html`<small>${u.username}</small>`);
+const nameLine = (u) => (u.lastName ? html`<small>${[u.nameTitle, `${u.lastName}, ${u.firstName}`, u.middleName].filter(Boolean).join(' ')}</small>` : html`<small>${u.username}</small>`);
 function applicantDetails(u) {
   const row = (label, value) => (value ? html`<div class="info"><dt>${label}</dt><dd>${value}</dd></div>` : '');
   return html`<dl class="info-grid" style="margin-bottom:14px">
-    ${row('Title', u.title)}${row('Last name', u.lastName)}${row('First name', u.firstName)}${row('Middle name', u.lastName ? u.middleName || '—' : '')}
+    ${row('Title', u.nameTitle)}${row('Last name', u.lastName)}${row('First name', u.firstName)}${row('Middle name', u.lastName ? u.middleName || '—' : '')}
     ${u.lastName ? '' : row('Name', u.name)}${row('Email', u.email)}${row('Mobile number', u.mobile && formatMobile(u.mobile))}${row('Campus', (u.campusNames || []).join(', '))}
   </dl>`;
 }

@@ -38,8 +38,9 @@ import { ROLES, HRIS_ROLES, userCan } from '../shared/roles.js';
 import { APPOINTMENTS, salaryFor, stepsIn } from '../shared/gov-pay.js';
 import {
   PAPERS, paperInfo, paperLabel, NATURES, natureLabel, VICE_REASONS, SIGNATORIES, MERGE_FIELDS, TEMPLATE_PARTS, LIMITS, DEFAULT_NOTE, NEEDS_ACCOUNTS_NOTE,
-  mergeAppointmentSettings, isDefaultWording, templateProblems, mergeValues, renderPart, plainText, statusSuggestions, writeDate,
+  mergeAppointmentSettings, isDefaultWording, templateProblems, mergeValues, renderPart, plainText, statusSuggestions, writeDate, signingNotes,
 } from '../shared/appointment.js';
+import { openingAccepts } from '../shared/recruitment.js';
 
 const fail = (msg, status = 400) => {
   throw new HttpError(status, msg);
@@ -278,14 +279,29 @@ export function registerAppointmentRoutes(route, ctx, h) {
     if (held && item && held.id !== item.id) warnings.push(`${emp.firstName} ${emp.lastName} holds item ${held.itemNo} now. Confirming releases it (it becomes Vacant) and links them to item ${item.itemNo}: one employee holds one item.`);
     if (!item) warnings.push('No plantilla item from the register: the record gets no item. Pick the item if the position has one.');
     const left = Math.max(0, (o.vacancies || 1) - filledOn(o) - (appt?.confirmed ? 0 : 1));
+    // What would make Confirm refuse, known now: shown from the details step on, before the papers are
+    // issued (the rule itself is at Confirm).
+    const blockers = appt?.confirmed ? [] : confirmBlockers(f, a, emp, u);
     return {
       kind: emp ? 'update' : 'create',
       employee: emp ? { id: emp.id, employeeNo: emp.employeeNo, name: `${emp.firstName} ${emp.lastName}`, position: emp.position || '', salaryGrade: emp.salaryGrade || null, step: emp.step || null, appointment: emp.appointment || '' } : null,
       account: !emp && u ? { username: u.username, role: u.role, roleLabel: ROLES[u.role]?.label || u.role, expiresAt: u.expiresAt || null } : null,
       item: item ? { id: item.id, itemNo: item.itemNo, status: item.status } : null,
       releases: held && item && held.id !== item.id ? { id: held.id, itemNo: held.itemNo } : null,
-      vacancies: o.vacancies || 1, filled: filledOn(o), leftAfter: left, warnings,
+      vacancies: o.vacancies || 1, filled: filledOn(o), leftAfter: left, warnings, blockers,
+      signing: appt?.confirmed ? [] : signingNotes(f, { accepting: openingAccepts(o, today()), closingDate: o.closingDate }),
     };
+  }
+  // The conditions Confirm refuses, worded for before it: [] when none.
+  function confirmBlockers(f, a, emp, u) {
+    const out = [];
+    if (emp) {
+      const run = emp.campusId !== f.campusId && data().payrollRuns.find((r) => r.status === 'draft' && r.employeeIds.includes(emp.id));
+      if (run) out.push(`${emp.firstName} ${emp.lastName} is in a draft payroll run at ${campusName(data(), emp.campusId)}${run.periodStart ? ' ' : ''}${run.periodStart ? `(${writeDate(run.periodStart)} to ${writeDate(run.periodEnd)})` : ''}. This appointment moves them to ${campusName(data(), f.campusId)}, and Confirm is refused until that run is finalized or deleted (Payroll). You can issue the papers meanwhile.`);
+      if (emp.status !== 'Active') out.push(`${emp.firstName} ${emp.lastName}'s employee record is inactive: Confirm is refused until it is active again.`);
+    } else if (!u || a.removed) out.push('The applicant\'s account was removed: Confirm cannot make the employee record. Add it by hand (Employees → Add employee).');
+    else if (u.role !== 'applicant') out.push('This account is not a job applicant\'s account any more: Confirm cannot turn it into an employee\'s account.');
+    return out;
   }
 
   // ----- What the screens get -----
@@ -330,7 +346,7 @@ export function registerAppointmentRoutes(route, ctx, h) {
     if (!appt && a.status !== 'selected') fail('Only an application whose outcome is Selected can be appointed.');
     return {
       application: { id: a.id, name: nameOf(a), internal: a.internal, status: a.status, userId: a.removed ? null : a.userId },
-      opening: { id: o.id, title: o.title, vacancies: o.vacancies || 1, filled: filledOn(o), status: o.status, plantillaItem: o.plantillaItem || '' },
+      opening: { id: o.id, title: o.title, vacancies: o.vacancies || 1, filled: filledOn(o), status: o.status, plantillaItem: o.plantillaItem || '', closingDate: o.closingDate || '', keptFromDemo: Boolean(o.keptFromDemo) },
       appointment: appt ? view(appt) : null, draft: appt ? null : prefill(a, o), plan: planOf(appt, a, o), choices: choices(user), salaries: salaryTable(appt?.fields.salaryGrade || prefill(a, o).salaryGrade),
     };
   }, { audit: false });
@@ -690,6 +706,20 @@ export function registerAppointmentRoutes(route, ctx, h) {
   };
 }
 
+// ----- Demo: the signatories of HR settings → Appointment papers (made-up names), where HR has typed none -----
+// Removed with the demo (removeAppointmentDemo) unless HR changed them since.
+export const DEMO_SIGNATORIES = {
+  appointingOfficer: { name: 'Dr. Ernesto Villaflor', title: 'University President' },
+  hrmo: { name: 'Josefina Dimaculangan', title: 'Human Resource Management Officer III' },
+  boardChair: { name: 'Dr. Cecilia Ramirez', title: 'Chairperson, HRMPSB' },
+  headOfOffice: { name: 'Teodoro Malabuyoc', title: 'Chief Accountant' },
+};
+export function addAppointmentSettingsDemo(data) {
+  const s = appointmentSettings(data);
+  for (const [k, v] of Object.entries(DEMO_SIGNATORIES)) if (!s.signatories[k].name) s.signatories[k] = { ...v };
+  data.settings.appointmentPapers = s;
+}
+
 // ----- Demo: the selected applicant of the closed demo opening, appointed with papers issued -----
 // (server/recruitment.js addRecruitmentDemo). Runs the same steps as HR does, with demo: true.
 export function addAppointmentDemo(data, today, { application, opening, user, by, at }) {
@@ -706,12 +736,7 @@ export function addAppointmentDemo(data, today, { application, opening, user, by
     campusId: opening.campusId, campusName: campusName(data, opening.campusId), office: opening.office, agency: s.agency || data.settings.schoolName, place: s.place || data.hrSettings?.employerAddress || 'Pili, Camarines Sur',
     dateSigned: signed, effectiveDate: day(-28), assumptionDate: '',
     publicationFrom: localDate(new Date(opening.createdAt)), publicationTo: opening.closingDate, publicationPlace: 'the school\'s website, bulletin boards and the CSC job portal (demo)', deliberationDate: day(-50),
-    signatories: {
-      appointingOfficer: { name: s.signatories.appointingOfficer.name || 'Dr. Ernesto Villaflor', title: s.signatories.appointingOfficer.title || 'University President' },
-      hrmo: { name: s.signatories.hrmo.name || by, title: s.signatories.hrmo.title || 'Human Resource Management Officer III' },
-      boardChair: { name: s.signatories.boardChair.name || 'Dr. Cecilia Ramirez', title: s.signatories.boardChair.title || 'Chairperson, HRMPSB' },
-      headOfOffice: { name: s.signatories.headOfOffice.name || 'Teodoro Malabuyoc', title: s.signatories.headOfOffice.title || 'Chief Accountant' },
-    },
+    signatories: Object.fromEntries(Object.entries(DEMO_SIGNATORIES).map(([k, v]) => [k, { name: s.signatories[k].name || v.name, title: s.signatories[k].title || v.title }])),
   };
   const appt = { id: randomUUID(), demo: true, applicationId: application.id, openingId: opening.id, userId: user.id, internal: false, employeeId: null, campusId: opening.campusId, fields, papers: [], confirmed: null, createdAt: at(31), createdBy: by };
   appointments(data).push(appt);
@@ -741,6 +766,15 @@ export function addAppointmentDemo(data, today, { application, opening, user, by
   appt.confirmed = { at: at(28), by, byId: null, created: true, role: 'staff', employeeId: emp.id, employeeNo: emp.employeeNo, itemNo: item?.itemNo || '', releasedItem: null, unlinkedVice: '' };
   return { appt, emp };
 }
-export function removeAppointmentDemo(data) {
-  data.appointments = appointments(data).filter((x) => !x.demo);
+// Demo appointments, and appointments made of demo people (their records go with the demo).
+// Demo signatories in HR settings go too, unless HR has changed them since.
+export function removeAppointmentDemo(data, { users = new Set(), employees = new Set() } = {}) {
+  data.appointments = appointments(data).filter((x) => !x.demo && !users.has(x.userId) && !employees.has(x.employeeId));
+  const s = data.settings?.appointmentPapers;
+  if (s?.signatories) {
+    for (const [k, v] of Object.entries(DEMO_SIGNATORIES)) {
+      const now = s.signatories[k];
+      if (now && now.name === v.name && now.title === v.title) s.signatories[k] = { name: '', title: '' };
+    }
+  }
 }

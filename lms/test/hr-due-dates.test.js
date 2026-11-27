@@ -110,7 +110,7 @@ test('the bell: one alert per occurrence and lead day, never again after a resta
   assert.match(first[0].title, /^Renewal of appointment: Ren Tal's appointment ends in 60 days$/);
   assert.match(first[0].body, /Jan 2, 2027 · Contractual · ICT Office/);
   assert.equal(first[0].link, '/hris/#/due-dates?rule=renewal');
-  assert.deepEqual(s.data.dueAlertsSent[`renewal:${ren.id}:2027-01-02`], [60]);
+  assert.deepEqual(s.data.dueAlertsSent[`renewal:${ren.id}:2027-01-02`], { hr: [60], employee: [] }, 'what was sent, per recipient group');
   s.sweep();
   s.clock.add(29); // 31 days left
   s.sweep();
@@ -123,16 +123,24 @@ test('the bell: one alert per occurrence and lead day, never again after a resta
   again.dueDates.sweep();
   assert.equal(s.bell('hana', 'due.renewal').length, 2, 'the markers survive a restart');
   assert.equal(s.bell('ren').length, 0, 'the employee is not told by default');
-  // HR asks for the employee to be told too: from the next lead day.
+  // HR asks for the employee to be told too, after HR was told of the 30-day lead: the employee gets
+  // that lead day's bell once (the save sweeps at once), HR is not told again; then the next lead day.
   const st = await s.hr.get('/api/hris/due-dates/settings');
   await s.hr.put('/api/hris/due-dates/settings', { ...st.rules, renewal: { ...st.rules.renewal, tellEmployee: true } });
+  assert.equal(s.bell('hana', 'due.renewal').length, 2, 'HR is not told twice');
+  let mine = s.bell('ren', 'due.renewal');
+  assert.equal(mine.length, 1, 'the employee turned on later gets the bell of the lead day already reached');
+  assert.equal(mine[0].title, 'Your appointment ends on Jan 2, 2027');
+  assert.equal(mine[0].link, '/hris/#/me/profile');
+  assert.deepEqual(s.data.dueAlertsSent[`renewal:${ren.id}:2027-01-02`], { hr: [60, 30], employee: [60, 30] });
+  s.sweep();
+  createApi(s.env.db, { clock: s.clock.fn }).dueDates.sweep();
+  assert.equal(s.bell('ren', 'due.renewal').length, 1, 'once, across a restart');
   s.clock.add(23); // 7 days left
   s.sweep();
   assert.equal(s.bell('hana', 'due.renewal').length, 3);
-  const mine = s.bell('ren', 'due.renewal');
-  assert.equal(mine.length, 1);
-  assert.equal(mine[0].title, 'Your appointment ends on Jan 2, 2027');
-  assert.equal(mine[0].link, '/hris/#/me/profile');
+  mine = s.bell('ren', 'due.renewal');
+  assert.equal(mine.length, 2);
   s.clock.add(10); // overdue: every lead day has been sent
   s.sweep();
   assert.equal(s.bell('hana', 'due.renewal').length, 3);
@@ -142,7 +150,13 @@ test('the bell: one alert per occurrence and lead day, never again after a resta
   const lia = s.bell('hana', 'due.renewal').filter((n) => n.title.includes('Lia Ong'));
   assert.equal(lia.length, 1);
   assert.match(lia[0].title, /in 20 days/);
-  assert.deepEqual(s.data.dueAlertsSent[`renewal:${late.id}:2027-01-25`], [60, 30]);
+  assert.deepEqual(s.data.dueAlertsSent[`renewal:${late.id}:2027-01-25`], { hr: [60, 30], employee: [] }, 'Lia has no account: nothing sent to her');
+  // A marker from before the groups (a plain list): sent to HR, and to the employee when the rule tells them now.
+  s.clock.add(-10);
+  s.data.dueAlertsSent[`renewal:${ren.id}:2027-01-02`] = [60, 30];
+  s.sweep();
+  assert.equal(s.bell('ren', 'due.renewal').length, 3, 'the 7-day lead day only');
+  assert.deepEqual(s.data.dueAlertsSent[`renewal:${ren.id}:2027-01-02`], { hr: [60, 30, 7], employee: [60, 30, 7] });
 });
 
 test('a rule turned off: no alerts and not on the list; lead days and names are HR\'s; bad values refused; Settings center', async () => {
@@ -211,6 +225,32 @@ test('mark done, snooze and reopen: off the list and the bell, in the audit log;
   const a = await s.admin.get(`/api/hris/employees/${arl.id}`);
   assert.deepEqual([a.lastStepIncrementDate, a.step, a.salaryGrade], ['2026-11-02', 3, 11]);
   assert.ok((await s.list()).rows.every((r) => r.kind !== 'step' || r.employee.id !== arl.id || r.due === '2029-11-02' || r.state === 'done'));
+  // The date moved on (the next one, 2029-11-02, is new and open, beyond the list's year). The done
+  // mark stays with the old occurrence, across sweeps: Show snoozed and done lists it.
+  s.sweep();
+  s.sweep();
+  let hist = (await s.list()).rows.find((r) => r.key === step.key);
+  assert.deepEqual([hist.state, hist.history, hist.canReopen, hist.mark.note, hist.mark.recorded, hist.due], ['done', true, true, 'Granted', true, '2026-10-29']);
+  assert.ok(hist.detail, 'what the occurrence was is kept with the mark');
+  assert.equal((await s.hr.get('/api/hris/due-dates/summary')).total, 1, 'the history is not counted (the probation is)');
+  // Reopen puts the record's earlier date back, so the occurrence is open again.
+  const r1 = await s.hr.post('/api/hris/due-dates/reopen', { key: step.key });
+  assert.equal(r1.restored, true);
+  assert.equal((await s.admin.get(`/api/hris/employees/${arl.id}`)).lastStepIncrementDate, '2023-10-29');
+  hist = (await s.list()).rows.find((r) => r.key === step.key);
+  assert.deepEqual([hist.state, hist.history], ['open', false]);
+  assert.deepEqual(s.trail().at(-1).changes, [{ field: 'Date of last step increment', from: '2026-11-02', to: '2023-10-29' }]);
+  // Done again with the date; then someone edits the record's date: Reopen is refused, with why.
+  await s.hr.post('/api/hris/due-dates/done', { key: step.key, on: '2026-11-02', note: 'Granted', recordStep: true });
+  await s.admin.put(`/api/hris/employees/${arl.id}`, { lastStepIncrementDate: '2026-11-01' });
+  s.sweep();
+  hist = (await s.list()).rows.find((r) => r.key === step.key);
+  assert.deepEqual([hist.state, hist.canReopen], ['done', false]);
+  await assert.rejects(s.hr.post('/api/hris/due-dates/reopen', { key: step.key }), (err) => err.status === 409 && /has changed since \(it is 2026-11-01 now\)/.test(err.message));
+  // An employee removed: their marks go with them at the next sweep.
+  s.data.employees = s.data.employees.filter((e) => e.id !== arl.id);
+  s.sweep();
+  assert.equal(s.data.dueMarks.filter((m) => m.employeeId === arl.id).length, 0);
   // Snooze the probation 7 days: hidden from the bell's next lead; back after 7 days.
   await assert.rejects(s.hr.post('/api/hris/due-dates/snooze', { key: prob.key, days: 0 }), /1 to 365 days/);
   const out = await s.hr.post('/api/hris/due-dates/snooze', { key: prob.key, days: 7, note: 'Waiting for the rating' });
@@ -222,7 +262,7 @@ test('mark done, snooze and reopen: off the list and the bell, in the audit log;
   s.sweep();
   assert.equal((await s.list()).rows.find((r) => r.key === prob.key).state, 'open', 'it comes back by itself');
   // The audit log.
-  assert.deepEqual(s.trail().map((e) => e.action), ['Due dates: marked done', 'Due dates: reopened (it was marked done)', 'Due dates: marked done', 'Due dates: snoozed for 7 days']);
+  assert.deepEqual(s.trail().map((e) => e.action), ['Due dates: marked done', 'Due dates: reopened (it was marked done)', 'Due dates: marked done', 'Due dates: reopened (it was marked done)', 'Due dates: marked done', 'Due dates: snoozed for 7 days']);
   const last = s.trail().find((e) => e.action === 'Due dates: snoozed for 7 days');
   assert.match(last.detail, /Probation evaluation · due 2026-11-18 · Until 2026-11-10 · Waiting for the rating/);
   assert.equal(s.trail()[2].changes[0].field, 'Date of last step increment');
@@ -257,11 +297,16 @@ test('a renewal is done by itself when a new appointment of that person is confi
   assert.deepEqual([old.action, old.auto, old.on, old.by], ['done', true, '2026-12-01', 'Hana Reyes']);
   assert.match(old.note, /New appointment confirmed: Administrative Aide IV/);
   const rows = (await s.list()).rows.filter((r) => r.employee.id === eliEmp.id && r.kind === 'renewal');
-  assert.deepEqual(rows.map((r) => [r.due, r.state]), [['2027-05-31', 'open']], 'the old end is off the list; the new appointment\'s end is next');
+  assert.deepEqual(rows.map((r) => [r.due, r.state, r.history]), [['2026-11-30', 'done', true], ['2027-05-31', 'open', false]], 'the old end stays as done (the history); the new appointment\'s end is next, open');
   assert.ok(s.trail().some((e) => e.action === 'Due dates: renewal marked done (a new appointment was confirmed)'));
-  // The next sweep tidies the old occurrence away (its date is no longer on the record).
+  // The next sweep keeps the done mark (Show snoozed and done lists it), and it cannot be reopened:
+  // the record's end date is the new appointment's.
   s.sweep();
-  assert.equal(s.data.dueMarks.filter((m) => m.key === key).length, 0);
+  assert.equal(s.data.dueMarks.filter((m) => m.key === key).length, 1, 'the done mark is kept');
+  const hist = (await s.list()).rows.find((r) => r.key === key);
+  assert.deepEqual([hist.state, hist.history, hist.canReopen, hist.mark.auto, hist.detail !== ''], ['done', true, false, true, true]);
+  await assert.rejects(s.hr.post('/api/hris/due-dates/reopen', { key }), (err) => err.status === 409 && /closed when a new appointment was confirmed; the record now ends on 2027-05-31/.test(err.message));
+  assert.equal((await s.hr.get('/api/hris/due-dates/summary')).soon, 0, 'the history is not counted');
 });
 
 test('separated or inactive employees are left out; the employee record\'s dates are checked', async () => {
@@ -297,7 +342,7 @@ test('who sees what: HR sees the list, a plain employee does not; the employee s
   assert.deepEqual([row.due, row.daysLeft], ['2027-04-02', 150]);
   // The HR dashboard card.
   const dash = await s.hr.get('/api/hris/dashboard');
-  assert.deepEqual(dash.due, { soon: 0, overdue: 0 });
+  assert.deepEqual(dash.due, { soon: 0, overdue: 0, total: 0 });
   assert.equal((await s.admin.get('/api/hris/dashboard')).due.soon, 0);
   // The employee's own: nothing until HR ticks "the employee" on the rule.
   assert.deepEqual((await me.get('/api/hris/me/due-dates')).items, []);
@@ -362,8 +407,12 @@ test('the demo school: a renewal in 20 days, a probation evaluation in 15, a ste
   const bell = env.db.data.notifications.filter((n) => n.userId === hrUser.id && n.kind.startsWith('due.'));
   assert.ok(bell.length >= 4 && bell.every((n) => n.demo), 'demo alerts, removed with the demo');
   assert.ok(v.missing.some((m) => m.kind === 'renewal'), 'a contractual employee without an end date is listed as missing');
+  // The dashboard and the Due dates page agree: due in the next 30 days, overdue apart.
+  assert.deepEqual((await hr.get('/api/hris/dashboard')).due, { soon: 2, overdue: 1, total: 3 });
+  await hr.post('/api/hris/due-dates/done', { key: pick('step', 'Sarmiento, Arlene').key, note: 'Granted', recordStep: true });
   await admin.del('/api/admin/demo');
   assert.equal(env.db.data.notifications.filter((n) => n.kind?.startsWith('due.')).length, 0);
+  assert.deepEqual([env.db.data.dueMarks, env.db.data.dueAlertsSent], [[], {}], 'the demo employees\' marks and markers go at once');
 });
 
 test('settings: a part left out keeps its value (one rule, or one field of a rule)', async () => {

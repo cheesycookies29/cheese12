@@ -195,7 +195,8 @@ export function registerApplicantDocs(route, ctx, h) {
     quickCheck(p, name, Number(body.size));
     const replace = body.replace ? text(body.replace, 100) : null;
     if (replace && !filesFor(o.id, user.id).some((d) => d.id === replace)) fail('That file is no longer there. Upload the new one again.', 404);
-    if (!replace && filesFor(o.id, user.id).length >= p.maxFiles) fail(countMessage(p.maxFiles));
+    // The new file HR asked for replaces the item's files (renewsItem), so it never adds to the count.
+    if (!replace && !renewsItem(o, user, reqId) && filesFor(o.id, user.id).length >= p.maxFiles) fail(countMessage(p.maxFiles));
     dropIdle();
     if ([...uploads.values()].filter((x) => x.owner === user.id).length >= MAX_UPLOADS_EACH) fail('Wait for the files being uploaded to finish, then add more.');
     if (inFlight() + Number(body.size) > MAX_IN_FLIGHT) fail('Many files are being uploaded right now. Try again in a minute.', 503);
@@ -203,6 +204,10 @@ export function registerApplicantDocs(route, ctx, h) {
     uploads.set(x.id, x);
     return { id: x.id, chunkBytes: ATTACH_CHUNK_BYTES };
   }, { applicants: true, audit: false, body: { reqId: t.str(100), name: t.str(400), size: t.num(), replace: t.str(100) } });
+  // An item HR marked "Needs a new file": the next file uploaded for it (Upload the new file)
+  // replaces the files HR sent back, so HR sees one current file. ATLAS keeps no older versions of an
+  // applicant's file; the audit log names the file replaced.
+  const renewsItem = (o, user, reqId) => reviewOf(applicationOf(o, user.id), reqId)?.status === 'needs-new' && filesFor(o.id, user.id).some((d) => d.reqId === reqId);
   const uploadOf = (user, o, id) => {
     const x = uploads.get(String(id || ''));
     if (!x || x.owner !== user.id || x.openingId !== o.id) fail('That upload is no longer on the server. Add the file again.', 404);
@@ -248,12 +253,15 @@ export function registerApplicantDocs(route, ctx, h) {
     const old = x.replace ? filesFor(o.id, user.id).find((d) => d.id === x.replace) : null;
     if (x.replace && !old) fail('That file is no longer there. Upload the new one again.', 404);
     if (old && old.reqId !== x.reqId) fail('Replace a file with one for the same document.');
-    if (!old && filesFor(o.id, user.id).length >= p.maxFiles) fail(countMessage(p.maxFiles));
+    const sentBack = !old && renewsItem(o, user, x.reqId) ? filesFor(o.id, user.id).filter((d) => d.reqId === x.reqId) : [];
+    if (!old && !sentBack.length && filesFor(o.id, user.id).length >= p.maxFiles) fail(countMessage(p.maxFiles));
     const stored = blobs.put(buf);
     const rec = { id: randomUUID(), openingId: o.id, userId: user.id, reqId: x.reqId, blobId: stored.blobId, sha256: stored.sha256, name: c.name, ext: c.ext, mime: c.mime, size: stored.size, at: iso() };
-    if (old) {
-      blobs.remove(old.blobId);
-      data().jobDocuments = docs().filter((d) => d.id !== old.id);
+    const gone = old ? [old] : sentBack;
+    if (gone.length) {
+      for (const g of gone) blobs.remove(g.blobId);
+      const ids = new Set(gone.map((g) => g.id));
+      data().jobDocuments = docs().filter((d) => !ids.has(d.id));
     }
     docs().push(rec);
     // A new file undoes HR's review of the item: it is Uploaded again, for HR to check.
@@ -266,7 +274,7 @@ export function registerApplicantDocs(route, ctx, h) {
     }
     if (a && a.status !== 'withdrawn') {
       if (before?.status === 'needs-new') toHr(o, { kind: 'job.document', title: `${nameOf(a)} uploaded a new file for ${req.name}`, body: `${o.title} · you asked for a new file`, link: `/hris/#/recruitment/${o.id}/documents/${a.id}` }, user.id);
-      ctx.audit({ kind: 'document', system: 'people', action: old ? 'Replaced a document of a job application' : 'Uploaded a document to a job application', actor: user, target: { id: a.id, name: `${nameOf(a)} · ${o.title}` }, ip, agent, detail: `${req.name}: ${rec.name} (${Math.max(1, Math.round(rec.size / 1024))} KB)${rule.late ? ' · after the closing date, as HR asked' : ''}` });
+      ctx.audit({ kind: 'document', system: 'people', action: gone.length ? 'Replaced a document of a job application' : 'Uploaded a document to a job application', actor: user, target: { id: a.id, name: `${nameOf(a)} · ${o.title}` }, ip, agent, detail: `${req.name}: ${rec.name} (${Math.max(1, Math.round(rec.size / 1024))} KB)${gone.length ? ` · replaces ${gone.map((g) => g.name).join(', ')}` : ''}${rule.late ? ' · after the closing date, as HR asked' : ''}` });
     }
     save();
     return myView(o, user);
@@ -450,7 +458,7 @@ export function registerApplicantDocs(route, ctx, h) {
   function sweep() {
     const stale = docs().filter((d) => {
       const o = openings().find((x) => x.id === d.openingId);
-      return !o || (!openingAccepts(o, today()) && !applicationOf(o, d.userId));
+      return !o || !userById(d.userId) || (!openingAccepts(o, today()) && !applicationOf(o, d.userId));
     });
     return removeFiles(stale) > 0;
   }
@@ -469,8 +477,9 @@ export function registerApplicantDocs(route, ctx, h) {
 
   // ----- Demo data: a few small generated PDFs (no real documents), marked demo -----
   // files: [[opening, user, reqId, name, lines]]; reviews: [[application, reqId, status, note, by]].
+  // Adding again replaces the demo files (the demo openings and applications are new each time).
   function addDemo({ pdf, files = [], reviews = [] } = {}) {
-    if (docs().some((d) => d.demo)) return;
+    removeFiles(docs().filter((d) => d.demo));
     for (const [o, u, reqId, name, lines, daysAgo = 3] of files) {
       if (!o || !u || !requirementsOf(o).some((r) => r.id === reqId)) continue;
       const buf = pdf(`DEMO · ${name.replace(/\.pdf$/, '')}`, ['This is a generated demo file, not a real document.', ...lines]);
@@ -482,10 +491,13 @@ export function registerApplicantDocs(route, ctx, h) {
       a.docReview = { ...(a.docReview || {}), [reqId]: { status, note, by, byId: null, at: new Date(nowMs() - 86400000).toISOString() } };
     }
   }
+  // Once the demo records are gone (server/demo.js removeDemo): the demo files, and every file of an
+  // account or an opening that no longer exists (a real person's file on a demo opening they applied
+  // to stays: that opening is kept, server/recruitment.js removeRecruitmentDemo).
   function removeDemo() {
-    const demoUsers = new Set(data().users.filter((u) => u.demo).map((u) => u.id));
-    const demoOpenings = new Set(openings().filter((o) => o.demo).map((o) => o.id));
-    removeFiles(docs().filter((d) => d.demo || demoUsers.has(d.userId) || demoOpenings.has(d.openingId)));
+    const users = new Set(data().users.map((u) => u.id));
+    const live = new Set(openings().map((o) => o.id));
+    removeFiles(docs().filter((d) => d.demo || !users.has(d.userId) || !live.has(d.openingId)));
   }
 
   return {

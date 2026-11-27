@@ -117,7 +117,8 @@ test('registration: a pending student account with the name parts, title, mobile
   assert.equal(u.role, 'student');
   assert.equal(u.status, 'pending');
   assert.equal(u.name, 'Juan S. Dela Cruz');
-  assert.deepEqual([u.title, u.firstName, u.middleName, u.lastName], ['Mr.', 'Juan', 'Santos', 'Dela Cruz']);
+  assert.deepEqual([u.nameTitle, u.firstName, u.middleName, u.lastName], ['Mr.', 'Juan', 'Santos', 'Dela Cruz']);
+  assert.equal(u.title, undefined, 'the honorific is not a job title (the home page and the top bar show the account type)');
   assert.equal(u.mobile, '+639171234567');
   assert.equal(u.username, 'juan.delacruz');
   assert.deepEqual(u.campusIds, [main.id]);
@@ -135,7 +136,7 @@ test('registration: a pending student account with the name parts, title, mobile
   assert.equal(user((x) => x.email === 'juan.delacruz@other.test').username, 'juan.delacruz2');
   // The registrar sees them under Applicants with the new fields, and the audit trail has it.
   const list = await admin.get('/api/admin/users?role=student&status=pending');
-  assert.deepEqual(list.map((x) => [x.name, x.title, x.lastName, x.mobile, x.campusNames.join()]), [['Juan S. Dela Cruz', 'Mr.', 'Dela Cruz', '+639171234567', 'Main Campus'], ['Juan S. Dela Cruz', 'Mr.', 'Dela Cruz', '+639181112222', 'Main Campus']]);
+  assert.deepEqual(list.map((x) => [x.name, x.nameTitle, x.lastName, x.mobile, x.campusNames.join()]), [['Juan S. Dela Cruz', 'Mr.', 'Dela Cruz', '+639171234567', 'Main Campus'], ['Juan S. Dela Cruz', 'Mr.', 'Dela Cruz', '+639181112222', 'Main Campus']]);
   assert.ok(list.every((x) => !('passwordHash' in x)));
   assert.ok(env.api.audit.entries().some((e) => /Registered for a student account/.test(e.action)));
   assert.equal((await admin.get('/api/admin/enrollments/summary')).applicants, 2);
@@ -195,6 +196,7 @@ test('admission: the registrar admits a registered student, who then signs in wi
   const res = await student.post('/api/hub/login', { username: 'Juan.DelaCruz@mail.test', password: 'Secret-2026' });
   assert.equal(res.user.id, u.id);
   assert.equal(res.user.role, 'student');
+  assert.equal(res.user.title, undefined, 'no job title: the account type (Student) shows');
   const [bell] = (await student.get('/api/me/notifications')).items;
   assert.match(bell.title, /^You are admitted to /);
   // Declining another works as before.
@@ -292,4 +294,14 @@ test('Terms of Use and Privacy Policy: an address or a text the school writes; n
   c = await admin.get('/api/admin/config');
   assert.equal(find('registration.termsUrl').value, '');
   assert.deepEqual((await visitor.get('/api/auth/register')).terms, { url: '', text: 'Our terms.\n\nSecond part.' });
+});
+
+test('registration: a student registered before the honorific had its own field gets it moved out of the job title', async () => {
+  const { memoryDb, emptyData } = await import('../server/db.js');
+  const d = memoryDb({ ...emptyData(), users: [
+    { id: 'u1', role: 'student', name: 'Rosa Q', title: 'Ms.', registeredVia: 'self', campusIds: [] },
+    { id: 'u2', role: 'teacher', name: 'Tess', title: 'Ms.', campusIds: [] }, // typed by an administrator: kept
+    { id: 'u3', role: 'student', name: 'Rex', title: 'Class president', registeredVia: 'self', campusIds: [] },
+  ] }).data;
+  assert.deepEqual(d.users.map((u) => [u.title, u.nameTitle]), [[undefined, 'Ms.'], ['Ms.', undefined], ['Class president', undefined]]);
 });

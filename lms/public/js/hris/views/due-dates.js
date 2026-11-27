@@ -41,16 +41,18 @@ export async function dueDatesView(el, _params = {}, query = {}) {
   const who = (e) => (e.campusId === ctx.info.activeCampusId ? html`<a href="#/employees/${e.id}"><strong>${e.name}</strong></a>` : html`<strong>${e.name}</strong>`);
   const stateLine = (r) => {
     if (!r.mark || r.state === 'open') return '';
-    if (r.state === 'done') return html`<small class="block due-state">${icon('checkCircle', 12)} Done ${fmtDate(r.mark.on)} · ${r.mark.auto ? 'by itself: ' : `${r.mark.by}${r.mark.note ? ': ' : ''}`}${r.mark.note}</small>`;
+    if (r.state === 'done') {
+      return html`<small class="block due-state">${icon('checkCircle', 12)} Done ${fmtDate(r.mark.on)} · ${r.mark.auto ? 'by itself: ' : `${r.mark.by}${r.mark.note ? ': ' : ''}`}${r.mark.note}</small>${r.history ? html`<small class="block muted">${r.mark.recorded ? 'The date was recorded on the employee record, so the next one counts from it (a row of its own when it comes up).' : 'The date on the employee record has moved on since: the next one is a row of its own.'}</small>` : ''}`;
+    }
     return html`<small class="block due-state">${icon('clock', 12)} Snoozed until ${fmtDate(r.mark.until)} · ${r.mark.by}${r.mark.note ? `: ${r.mark.note}` : ''}</small>`;
   };
   const actions = (r) => (r.state === 'done'
-    ? html`<button class="btn sm ghost" data-reopen="${r.key}">${icon('undo', 14)} Reopen</button>`
+    ? (r.canReopen ? html`<button class="btn sm ghost" data-reopen="${r.key}">${icon('undo', 14)} Reopen</button>` : html`<span class="muted small">${r.mark.auto ? 'Closed by the new appointment' : 'The record\'s date has changed since'}</span>`)
     : html`<button class="btn sm primary" data-done="${r.key}">${icon('check', 14)} Mark done</button>${r.state === 'snoozed' ? html`<button class="btn sm ghost" data-reopen="${r.key}">Reopen</button>` : html`<button class="btn sm" data-snooze="${r.key}">${icon('clock', 14)} Snooze</button>`}`);
   const rowHtml = (r) => html`<tr class="${r.state !== 'open' ? 'muted-row' : ''}">
     <td><div class="cell-v">${who(r.employee)}<small class="block muted">${r.employee.employeeNo}</small></div></td>
     <td data-label="What"><div class="cell-v"><strong>${r.ruleName}</strong><small class="block muted">${r.detail}</small>${stateLine(r)}</div></td>
-    <td data-label="Due"><div class="cell-v"><span class="nowrap">${fmtDate(r.due)}</span><span class="block">${daysBadge(r.daysLeft)}</span></div></td>
+    <td data-label="Due"><div class="cell-v"><span class="nowrap">${fmtDate(r.due)}</span><span class="block">${r.state === 'done' ? badge('Done', 'green') : daysBadge(r.daysLeft)}</span></div></td>
     <td data-label="Appointment"><div class="cell-v">${r.employee.position || '—'}<small class="block muted">${[r.employee.status, sgText(r.employee)].filter(Boolean).join(' · ') || 'No status'}</small></div></td>
     <td data-label="Office and campus"><div class="cell-v">${r.employee.office || '—'}<small class="block muted">${r.employee.campusName}</small></div></td>
     <td class="row-actions no-print">${actions(r)}</td>
@@ -61,7 +63,7 @@ export async function dueDatesView(el, _params = {}, query = {}) {
     const open = res.rows.filter((r) => r.state === 'open' && (!f.campusId || r.employee.campusId === f.campusId));
     mount(el.querySelector('#due-stats'), html`
       <button type="button" class="card ${open.some((r) => r.daysLeft < 0) ? 'accent' : ''}" data-window="overdue"><small>Overdue</small><strong>${open.filter((r) => r.daysLeft < 0).length}</strong></button>
-      <button type="button" class="card" data-window="30"><small>Due in the next 30 days</small><strong>${open.filter((r) => r.daysLeft >= 0 && r.daysLeft <= 30).length}</strong></button>
+      <button type="button" class="card" data-window="30"><small>Due in the next 30 days</small><strong>${open.filter((r) => r.daysLeft >= 0 && r.daysLeft <= 30).length}</strong><span class="muted small">Not counting overdue</span></button>
       <button type="button" class="card" data-window="90"><small>In 31 to 90 days</small><strong>${open.filter((r) => r.daysLeft > 30 && r.daysLeft <= 90).length}</strong></button>
       <div class="card"><small>Snoozed</small><strong>${res.rows.filter((r) => r.state === 'snoozed').length}</strong></div>`);
     mount(el.querySelector('#due-table'), list.length
@@ -177,9 +179,13 @@ function snoozeDialog(r, reload) {
   });
 }
 async function reopen(r, reload) {
-  await api.post('/api/hris/due-dates/reopen', { key: r.key });
-  toast('Reopened.');
-  reload();
+  try {
+    const out = await api.post('/api/hris/due-dates/reopen', { key: r.key });
+    toast(out.restored ? `Reopened. The employee record's date of last step increment is back to what it was.` : 'Reopened.');
+    reload();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 const addDaysLocal = (ymd, n) => {
   const d = new Date(`${ymd}T00:00:00`);

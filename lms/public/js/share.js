@@ -3,6 +3,7 @@
 // document or folder (view, or view and download), or, for an upload link, a form to send files in.
 // Everything is checked again by the server on every request; this page only shows its answers.
 import { html, mount, toast, fmtSize, fmtDateTime } from './ui.js';
+import { buttonColours } from '/shared/themes.js';
 import { icon, iconSvg } from './icons.js';
 import { sendInPieces } from './documents/upload.js';
 
@@ -38,6 +39,7 @@ drawTheme();
 // The school's name and colours.
 request('GET', '/api/hub/status').then(({ branding: b }) => {
   if (b?.brand) document.documentElement.style.setProperty('--brand', b.brand);
+  for (const [k, v] of Object.entries(buttonColours(b?.brand))) document.documentElement.style.setProperty(k, v);
   if (b?.accent) document.documentElement.style.setProperty('--accent', b.accent);
   if (b?.schoolName) {
     document.getElementById('share-school').textContent = b.schoolName;

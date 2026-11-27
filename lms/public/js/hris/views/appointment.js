@@ -12,7 +12,7 @@ import { icon } from '../../icons.js';
 import { html, mount, money, fmtDate, fmtDateTime, badge, toast, modal, confirmDialog, today } from '../../ui.js';
 import { can } from '../state.js';
 import { brandProduct } from '../../brand.js';
-import { NATURES, natureLabel, paperLabel, CONFIRM_NOTE, NEEDS_ACCOUNTS_NOTE, SIGNATORIES } from '/shared/appointment.js';
+import { NATURES, natureLabel, paperLabel, CONFIRM_NOTE, NEEDS_ACCOUNTS_NOTE, SIGNATORIES, signingNotes } from '/shared/appointment.js';
 import { ROLES } from '/shared/roles.js';
 
 const BACK = ['/recruitment', 'Job openings'];
@@ -21,6 +21,9 @@ const longDate = (ymd) => (ymd ? fmtDate(ymd, { month: 'long', day: 'numeric', y
 const nameOf = (f) => [f.firstName, f.middleName, f.lastName].filter(Boolean).join(' ') + (f.suffix ? ` ${f.suffix}` : '');
 const confirmTag = html`<span class="badge amber" title="${CONFIRM_NOTE}">To confirm</span>`;
 const paperStatus = (p) => (p.status === 'issued' ? badge('Issued', 'green') : badge('Cancelled', 'gray'));
+
+// Warnings on the date of signing (shared/appointment.js signingNotes): not refusals.
+const signingBox = (notes) => (notes.length ? html`<div class="notice ap-signing">${icon('alert', 16)}<div>${notes.map((n) => html`<p>${n}</p>`)}</div></div>` : '');
 
 // ----- The Appoint page -----
 export async function appointView(el, { id, appId }) {
@@ -38,9 +41,16 @@ export async function appointView(el, { id, appId }) {
   const defaults = c.papers.filter((p) => p.defaultWording);
   // Making an external applicant an employee changes their sign-in account: that needs hris.accounts.
   const noAccounts = v.plan.kind === 'create' && !c.mayMakeAccounts;
+  // What would make Confirm refuse, known before the papers are issued (a draft payroll run on a move
+  // to another campus, an inactive record): said at the top, from the details step on.
+  const blockers = v.plan.blockers || [];
+  const blockersNotice = blockers.length ? html`<div class="notice bad ap-blockers" role="status">${icon('alert', 18)}<div><p><strong>Confirm the appointment will be refused until this is sorted out.</strong>${appt?.papers.some((p) => p.status === 'issued') ? '' : ' Best sorted out before you issue the papers (their numbers are final).'}</p><ul>${blockers.map((b) => html`<li>${b}</li>`)}</ul></div></div>` : '';
+  // The other employee record of a move to another campus opens after switching to that campus.
+  const otherCampus = appt?.confirmed && ctx.info.activeCampusId && appt.fields.campusId !== ctx.info.activeCampusId ? appt.fields.campusName || 'the other campus' : '';
   mount(el, html`
     ${pageHead(html`Appointment ${appt?.confirmed ? badge('Confirmed', 'green') : appt ? badge('In progress', 'blue') : ''}`, `${v.application.name} · ${v.opening.title} · ${v.application.internal ? 'Internal' : 'External'} applicant`, '', [BACK, [`/recruitment/${id}`, v.opening.title]])}
     <ol class="ap-steps" aria-label="Steps">${steps.map(([t, s], i) => html`<li class="${i + 1 < step ? 'done' : i + 1 === step ? 'current' : ''}"><span class="ap-n">${i + 1 < step ? icon('check', 14) : i + 1}</span><span><strong>${t}</strong><small>${s}</small></span></li>`)}</ol>
+    ${blockersNotice}
     ${defaults.length ? html`<div class="notice">${icon('alert', 18)}<p><strong>The built-in wording is in use</strong> for ${defaults.map((p) => p.label).join(', ')}. ${c.defaultNote}${can('hris.settings') ? html` <a href="#/settings?section=appointment-papers">HR settings → Appointment papers</a>` : ''}</p></div>` : ''}
     <form class="card" id="ap-form" novalidate>
       <div class="card-head"><h2>${icon('clipboard')} 1. The details</h2>${locked ? html`<span class="muted small">${icon('lock', 12)} Papers are issued: to change a detail, use <strong>Cancel and reissue</strong> on the paper.</span>` : html`<span class="muted small">Pre-filled from the application, the opening and the plantilla item. Check every field.</span>`}</div>
@@ -90,6 +100,7 @@ export async function appointView(el, { id, appId }) {
         ${input('publicationPlace', 'Where it was published or posted', f.publicationPlace)}
         ${input('deliberationDate', 'Deliberation of the selection board', f.deliberationDate, { type: 'date' })}
       </div>
+      <div id="ap-signing" aria-live="polite">${signingBox(v.plan.signing || [])}</div>
       <h3 class="ap-h">Signatories</h3>
       <div class="grid ap-sigs">${SIGNATORIES.map((s) => html`
         <label class="field"><span>${s.label}</span><input name="sig-${s.key}-name" ${s.key === 'appointingOfficer' || s.key === 'hrmo' ? 'required' : ''} value="${f.signatories?.[s.key]?.name || ''}" ${locked ? 'disabled' : ''} placeholder="Name" /></label>
@@ -115,7 +126,9 @@ export async function appointView(el, { id, appId }) {
     <section class="card" id="ap-confirm-card">
       <div class="card-head"><h2>${icon('userPlus')} 3. Confirm the appointment</h2>${appt.confirmed ? badge(`Confirmed ${fmtDate(localDay(appt.confirmed.at))}`, 'green') : ''}</div>
       ${appt.confirmed ? html`<p>Confirmed by ${appt.confirmed.by}. ${appt.confirmed.created ? html`A new employee record (${appt.confirmed.employeeNo}) was made; the applicant account is now a ${ROLES[appt.confirmed.role]?.label || appt.confirmed.role} account with the same sign-in.` : 'The employee record has the new position, salary grade, step and status, with a row in the appointment history.'}${appt.confirmed.itemNo ? ` Plantilla item ${appt.confirmed.itemNo} is Filled.` : ''}${appt.confirmed.releasedItem ? ` Item ${appt.confirmed.releasedItem} was released.` : ''}</p>
-        ${can('employees.view') ? html`<p><a class="btn sm" href="#/employees/${appt.confirmed.employeeId}">${icon('user', 14)} Open the employee record</a></p>` : ''}`
+        ${can('employees.view') ? (otherCampus
+          ? html`<p class="small">The employee record is at <strong>${otherCampus}</strong> now. <button type="button" class="btn sm" id="ap-open-record">${icon('user', 14)} Switch to ${otherCampus} and open the employee record</button></p>`
+          : html`<p><a class="btn sm" href="#/employees/${appt.confirmed.employeeId}">${icon('user', 14)} Open the employee record</a></p>`) : ''}`
         : html`<ul class="ap-plan">
           ${v.plan.kind === 'create'
             ? html`<li>A <strong>new employee record</strong> from the details above, the applicant's account and sign-up details, and their work experience (which moves to the record). Date hired: <strong>${longDate(f.effectiveDate)}</strong>.</li>
@@ -162,6 +175,9 @@ export async function appointView(el, { id, appId }) {
   };
   if (!locked) {
     for (const n of ['salaryGrade', 'step', 'effectiveDate']) form[n]?.addEventListener('change', salary);
+    // The date-of-signing warnings follow the dates as they are typed.
+    const accepting = (v.plan.signing || []).some((x) => /still taking applications/.test(x));
+    for (const n of ['dateSigned', 'publicationTo']) form[n]?.addEventListener('change', () => mount(el.querySelector('#ap-signing'), signingBox(signingNotes({ dateSigned: form.dateSigned.value, publicationTo: form.publicationTo.value }, { accepting, closingDate: v.opening.closingDate }))));
     form.plantillaItemId.addEventListener('change', () => {
       const it = c.items.find((i) => i.id === form.plantillaItemId.value);
       form.itemNo.disabled = Boolean(it);
@@ -191,13 +207,23 @@ export async function appointView(el, { id, appId }) {
     });
   }
   if (!appt) return;
+  el.querySelector('#ap-open-record')?.addEventListener('click', async () => {
+    try {
+      const r = await api.post('/api/hris/auth/campus', { campusId: appt.fields.campusId });
+      sessionStorage.setItem('lms-campus-toast', `Switched to ${r.campusName}.`);
+      location.hash = `#/employees/${appt.confirmed.employeeId}`;
+      location.reload(); // every list follows the campus
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
   el.querySelector('#ap-issue').addEventListener('click', () => {
     const open = c.papers.filter((p) => !issued(p.id));
     modal({
       title: 'Issue papers',
       subtitle: `${nameOf(f)} · ${f.position}`,
       submitLabel: 'Issue',
-      body: open.length ? html`<p class="small">Each paper gets its number and is frozen as it is now.</p>
+      body: open.length ? html`${blockers.length && !issued('appointment') ? html`<div class="notice bad">${icon('alert', 16)}<div><p><strong>Confirm will be refused until:</strong></p><ul>${blockers.map((b) => html`<li>${b}</li>`)}</ul><p class="small">You can issue the papers now; Confirm waits until that is sorted out.</p></div></div>` : ''}<p class="small">Each paper gets its number and is frozen as it is now.</p>
         <ul class="ap-pick">${open.map((p) => html`<li><label class="check-inline"><input type="checkbox" name="kind" value="${p.id}" ${p.id === 'assumption' && !f.assumptionDate ? 'disabled' : ['appointment', 'oath-fil'].includes(p.id) ? 'checked' : ''} /> ${p.label}${p.defaultWording ? html` <span class="badge amber">Built-in wording</span>` : ''}${p.id === 'assumption' && !f.assumptionDate ? html` <span class="muted small">(after the date of assumption is recorded)</span>` : ''}</label></li>`)}</ul>`
         : html`<p>Every paper is issued. To change one, use <strong>Cancel and reissue</strong>.</p>`,
       async onSubmit(fm) {

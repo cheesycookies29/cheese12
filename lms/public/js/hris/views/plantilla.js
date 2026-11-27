@@ -50,13 +50,13 @@ export async function plantillaListView(el, _params, query) {
       <div class="card"><small>Filled</small><strong>${t.filled}</strong></div>
       <div class="card"><small>Vacant</small><strong>${t.vacant}</strong></div>
       <div class="card"><small>Unfunded</small><strong>${t.unfunded}</strong>${t.authorizedUnfunded ? html`<span class="muted small">${pesos(t.authorizedUnfunded)} a year</span>` : ''}</div>
-      <div class="card"><small>Authorized a year</small><strong class="amount-stat">${pesos(t.authorized)}</strong><span class="muted small">Filled and vacant items</span></div>
+      <div class="card"><small>Authorized a year, funded</small><strong class="amount-stat">${pesos(t.authorized)}</strong><span class="muted small">Filled and vacant items${t.authorizedUnfunded ? html`; ${pesos(t.authorized + t.authorizedUnfunded)} with the unfunded (the table's total)` : ''}</span></div>
       <div class="card accent"><small>Actual a year</small><strong class="amount-stat">${pesos(t.actual)}</strong><span class="muted small">Incumbents' own grade and step</span></div>`);
     mount(el.querySelector('#pl-table'), list.length
       ? html`<table class="table clickable">
           <thead><tr><th>Item and position</th><th>Office, campus and fund</th><th>Status</th><th>Incumbent</th><th class="num">Authorized a year</th><th class="num">Actual a year</th></tr></thead>
           <tbody>${list.map(rowHtml)}</tbody>
-          <tfoot><tr><td><strong>Total</strong> · ${t.items} item${t.items === 1 ? '' : 's'}</td><td></td><td></td><td></td><td class="num" data-label="Authorized a year"><strong>${money(t.authorized + t.authorizedUnfunded)}</strong></td><td class="num" data-label="Actual a year"><strong>${money(t.actual)}</strong></td></tr></tfoot>
+          <tfoot><tr><td><strong>Total, all items</strong> · ${t.items} item${t.items === 1 ? '' : 's'}${t.unfunded ? html`<small class="block muted">Unfunded included</small>` : ''}</td><td></td><td></td><td></td><td class="num" data-label="Authorized a year, all items"><strong>${money(t.authorized + t.authorizedUnfunded)}</strong></td><td class="num" data-label="Actual a year"><strong>${money(t.actual)}</strong></td></tr></tfoot>
         </table>`
       : html`<p class="muted" style="margin:12px 0">No items match.${f.status === '' && all.some((r) => r.status === 'abolished') ? ' Abolished items are hidden: pick Abolished or All under status to see them.' : ''}</p>`);
     el.querySelector('#pl-count').textContent = `${list.length} of ${all.filter((r) => r.status !== 'abolished').length} items${all.some((r) => r.status === 'abolished') ? ` (and ${all.filter((r) => r.status === 'abolished').length} abolished)` : ''}`;

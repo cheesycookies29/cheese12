@@ -278,7 +278,7 @@ By default ATLAS's mark and name lead every screen, with your school's name besi
 3. Type the **School short name**: the name or initials your school goes by, up to 24 characters (for example `LA` for the demo's *Lancaster Academy*).
 4. **Upload logo** with your school's seal. A square seal on a transparent background works best; it is made at most 400 pixels wide.
 5. Under **Colours**, choose a theme, or **School colour** and its **Accent** for your school's own two colours (for example a green with a gold).
-6. Check **Preview**: the top bar and the sign-in page as everyone will see them. Under it, ATLAS says whether text on the accent is set dark or white, and how readable it is.
+6. Check **Preview**: the top bar, the sign-in page and the buttons as everyone will see them. Under it, ATLAS says whether text on the accent and on the buttons (in light and dark mode) is white or dark, and how readable it is. ATLAS keeps the buttons' text at 4.5:1 or more by itself: in dark mode the school colour is lifted only as far as white text stays readable, or the text turns dark.
 7. Choose **Save settings**. The top bar changes at once; everyone else sees it the next time they open a page.
 
 ![Settings & branding with Our school, powered by ATLAS](admin-branding-school.jpg)
@@ -603,8 +603,8 @@ The new file becomes the current version at once: users get it on their next dow
 
 ### Download or restore an earlier version
 
-1. On the form's row, open **Versions**. Each earlier version shows its number, date, who uploaded it and its note.
-2. Choose one: it downloads.
+1. On the form's row, open the list under **Versions**. Each earlier version shows its number, date, who uploaded it and its note.
+2. Pick one, then choose **Download** beside the list. Picking alone downloads nothing, so you can move through the list with the arrow keys.
 3. To make it current again, choose **More → Restore a version**, pick the version and choose **Restore**.
 
 Restoring makes a new version that copies the old one (for example *v3 (from v1)*), so nothing in the history is changed or lost.
@@ -642,7 +642,9 @@ Both settings are also in the **Settings center** (*Document circulation*), with
 2. Choose **Add demo data** (or **Refresh demo data** when it is already there).
 3. To take it out, choose **Remove demo data** and confirm.
 
-The demo school is added next to your own data, at your first campus and three demo campuses. Removing it removes every demo record and signs the demo accounts out; your own records stay.
+The demo school is added next to your own data, at your first campus and three demo campuses. Removing it removes every demo record and signs the demo accounts out; your own records stay. **Refresh demo data** puts the demo school back as it was first added, with its applicants' documents and HR's review of them.
+
+If your own records use a demo job opening (a real person applied to it, or HR appointed someone real on it), refreshing or removing the demo keeps that opening, and the plantilla item it uses, as your own records, marked *Kept from the demo data*, so nothing of yours points at a deleted record. **Demo data & backup** says so before you choose, and the message after names what was kept. Delete or close them yourself when you no longer need them.
 
 ![Demo data & backup](admin-data.jpg)
 
@@ -700,7 +702,7 @@ Everyone now sees your school's version, marked *Edited by the school*. It is ke
 | System | Sign-in and passwords | Password rules, lock-out, idle sign-out and rate limits, for every system |
 | System | Single sign-on | Signing in with the school's Keycloak account |
 | System | Cloudflare | Putting ATLAS behind Cloudflare at a name on the school's own domain; only accepting visitors through Cloudflare; switching it off |
-| System | Document circulation | Every downloadable form of every system but Documents: upload, new versions with who and when, **Versions** to download an earlier one, restore, publish, retire; also on the ATLAS home under **Tools** |
+| System | Document circulation | Every downloadable form of every system but Documents: upload, new versions with who and when, **Versions** to pick an earlier one and **Download** it, restore, publish, retire; also on the ATLAS home under **Tools** |
 | System | Audit log | Sign-ins, failed sign-ins, every change (field by field) and refused requests, with a check that the log is intact; export |
 | System | Security monitor | The server's checks, refused requests and addresses to watch, the controls in force, traffic and response times, and who is signed in; the metrics token |
 | Elsewhere | ATLAS home | The ATLAS home page, in a new tab |

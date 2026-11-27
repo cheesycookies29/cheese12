@@ -158,6 +158,17 @@ const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July
 const MONTHS_FIL = ['Enero', 'Pebrero', 'Marso', 'Abril', 'Mayo', 'Hunyo', 'Hulyo', 'Agosto', 'Setyembre', 'Oktubre', 'Nobyembre', 'Disyembre'];
 const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 // "November 26, 2026"; in Filipino "ika-26 ng Nobyembre, 2026".
+// Warnings (not refusals) about the date of signing, for the details step: signed before the
+// opening's publication or posting ends, or while the opening still takes applications. Some schools
+// close an opening early, so HR may go ahead. opening: { accepting, closingDate }.
+export function signingNotes(f = {}, opening = {}) {
+  const out = [];
+  if (isDate(f.dateSigned) && isDate(f.publicationTo) && f.dateSigned <= f.publicationTo) {
+    out.push(`The date of signing (${writeDate(f.dateSigned)}) is on or before the last day of publication (${writeDate(f.publicationTo)}): the appointment would be signed while the vacancy is still published. Check the dates, or go ahead if the publication was closed early.`);
+  }
+  if (opening.accepting) out.push(`The opening is still taking applications${isDate(opening.closingDate) ? ` (until ${writeDate(opening.closingDate)})` : ''}. Close it first (Edit the opening) unless you mean to appoint before it closes.`);
+  return out;
+}
 export function writeDate(ymd, lang = 'en') {
   if (!isDate(ymd)) return '';
   const [y, m, d] = ymd.split('-').map(Number);

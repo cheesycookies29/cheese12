@@ -133,7 +133,7 @@ Your work experience is the work-experience section of your Personal Data Sheet.
 
 1. Open **My HR record** and go down to **Work experience**.
 2. Choose **Add an entry** (or **Add another entry**, at the bottom of the list).
-3. Pick **From** and **To**, or tick **Present** for the position you hold now. Type the **Position title** in full and the **Agency or organization**; fill in the office or unit, its location, your immediate supervisor, the status of appointment, whether it was government service, and the salary grade, step and monthly salary as far as you know them.
+3. Pick **From** and **To**, or tick **Present** for the position you hold now. Type the **Position title** in full and the **Agency or organization**, and choose **Yes** or **No** under **Government service** (it has no default). Fill in the office or unit, its location, your immediate supervisor, the status of appointment, and the salary grade, step and monthly salary as far as you know them.
 4. Write a **Summary of actual duties**, and each accomplishment on its own line; choose **Add another accomplishment** for the next one.
 5. Choose **Add**.
 
@@ -164,7 +164,7 @@ You see the papers HR issued for your appointment, each with its number and date
 1. Open **My HR record**.
 2. Read **Coming up** at the top, for example *Your appointment ends on …* or *You reach the compulsory retirement age (65) on …*, with how many days are left.
 
-**Coming up** shows only when HR has chosen to tell employees about that date, and only from the first alert (for example 60 days before an appointment ends): the bell tells you too. The dates come from your HR record; if one is wrong, or to ask about a renewal or your retirement, contact HR.
+**Coming up** shows only when HR has chosen to tell employees about that date, and only from the first alert (for example 60 days before an appointment ends): the bell tells you too, once at each lead day, even when HR chose to tell employees after the first alert went to HR. The dates come from your HR record; if one is wrong, or to ask about a renewal or your retirement, contact HR.
 
 ![Coming up on My HR record](employee-coming-up.jpg)
 

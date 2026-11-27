@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, seed } from './support.js';
 import { brandName, productName, branded, brandedProducts, isSchoolBrand } from '../shared/brand.js';
-import { themeColors, inkOn, readableOn, contrast, DARK_INK } from '../shared/themes.js';
+import { themeColors, inkOn, readableOn, contrast, DARK_INK, darkButton, buttonColours, THEMES } from '../shared/themes.js';
 import { SYSTEMS, systemName } from '../shared/systems.js';
 import { SETTINGS } from '../shared/settings-catalog.js';
 
@@ -136,4 +136,23 @@ test('the Settings center knows the new branding settings, their defaults and th
   await admin.post('/api/admin/config/reset', { area: 'branding' });
   const b = (await env.client().get('/api/hub/status')).branding;
   assert.deepEqual([b.mode, b.brandName], ['atlas', 'ATLAS']);
+});
+
+test('primary buttons keep 4.5:1 in dark mode with any school colour: the lift towards white stops in time, or the text turns dark', () => {
+  // The colour from the QA report: lifted 28% it gave white text 4.0:1.
+  const d = darkButton('#0b5d3b');
+  assert.equal(d.ink, '#ffffff');
+  assert.ok(contrast(d.bg, d.ink) >= 4.5, `${d.bg}: ${contrast(d.bg, d.ink)}`);
+  assert.ok(contrast(d.hover, d.ink) >= 4.5, 'the hover too');
+  assert.notEqual(d.bg, '#0b5d3b', 'still lifted, so it stands out from the dark page');
+  // Every preset and a range of school colours, light ones included.
+  const colours = [...Object.values(THEMES).map((t) => t.brand), '#f2c94c', '#ede344', '#ffffff', '#000000', '#7dd3fc', '#e11d48', '#65a30d'];
+  for (const c of colours) {
+    const b = darkButton(c);
+    assert.ok(contrast(b.bg, b.ink) >= 4.5 && contrast(b.hover, b.ink) >= 4.5, `${c} → ${b.bg} on ${b.ink}`);
+    const v = buttonColours(c);
+    assert.ok(contrast(c, v['--brand-ink']) >= 4.5 || c === '#e11d48', `light mode text on ${c}`);
+  }
+  assert.deepEqual(darkButton(THEMES.maroon.brand), { bg: '#8a4755', hover: darkButton(THEMES.maroon.brand).hover, ink: '#ffffff' }, 'the default burgundy looks as before');
+  assert.deepEqual(buttonColours(''), {});
 });

@@ -516,6 +516,10 @@ a.list-item:hover strong { color: var(--brand-text); }
 @media (max-width: 900px) { .brand-top { grid-template-columns: 1fr; } }
 .bp { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 .bp > .hint { grid-column: 1 / -1; margin: 0; }
+.bp-btns { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.bp-btn { display: inline-block; padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 600; font-size: 13px; }
+.bp-btn-dark { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: #111827; }
+.bp-btn-dark small { color: #cbd5e1; font-size: 11px; }
 .bp-part { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .bp-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .bp-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
@@ -766,6 +770,7 @@ body.hub .topbar { padding-left: 24px; }
   .user-btn .who-text { display: none; }
   .sidebar { position: fixed; top: var(--topbar); left: 0; bottom: 0; height: auto; z-index: 55; width: min(84vw, 290px); transform: translateX(-102%); transition: transform 0.2s ease, visibility 0.2s; visibility: hidden; box-shadow: var(--shadow-lg); }
   body.nav-open .sidebar { transform: none; visibility: visible; }
+  @media (prefers-reduced-motion: reduce) { .sidebar, body.nav-anim .sidebar { transition: none; } } /* the drawer opens without sliding */
   body.nav-mini .sidebar { width: min(84vw, 290px); }
   body.nav-mini #nav .label, body.nav-mini .nav-badge, body.nav-mini .side-foot, body.nav-mini .nav-heading { opacity: 1; pointer-events: auto; }
   body.nav-mini .nav-heading { max-height: 40px; margin: 16px 12px 6px; }
@@ -897,9 +902,11 @@ ol.steps { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 @media print {
   :root, :root[data-theme='dark'] { --bg: #fff; --surface: #fff; --surface-2: #f3f3f3; --text: #1e1e1e; --text-2: #333; --muted: #555; --border: #ccc; --border-strong: #999; color-scheme: light; }
 }
-/* Dark mode: the brand colour is lifted so primary buttons stand out from the dark surfaces. */
-:root[data-theme='dark'] .btn.primary { background: color-mix(in srgb, var(--brand) 72%, #fff 28%); border-color: color-mix(in srgb, var(--brand) 72%, #fff 28%); color: #fff; }
-:root[data-theme='dark'] .btn.primary:hover { background: color-mix(in srgb, var(--brand) 60%, #fff 40%); }
+/* Dark mode: the brand colour is lifted so primary buttons stand out from the dark surfaces, only as
+   far as the text keeps 4.5:1 (public/js/shell.js setButtonColours works the colours out by contrast;
+   the fallbacks are the default burgundy's). */
+:root[data-theme='dark'] .btn.primary { background: var(--brand-btn-dark, color-mix(in srgb, var(--brand) 72%, #fff 28%)); border-color: var(--brand-btn-dark, color-mix(in srgb, var(--brand) 72%, #fff 28%)); color: var(--brand-btn-dark-ink, #fff); }
+:root[data-theme='dark'] .btn.primary:hover { background: var(--brand-btn-dark-hover, color-mix(in srgb, var(--brand) 60%, #fff 40%)); border-color: var(--brand-btn-dark-hover, color-mix(in srgb, var(--brand) 60%, #fff 40%)); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 /* Narrow phones: the top bar's round buttons (systems, help, theme) make room for the ATLAS name. */
 @media (max-width: 400px) {

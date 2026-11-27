@@ -90,7 +90,7 @@ export const SETTINGS = [
   ['enrollment', 'enrollment.allowWaitlist', 'Waitlists', 'A full section puts students in line instead of refusing them.', 'bool'],
   ['enrollment', 'enrollment.waitlistLimit', 'Waitlist size per section', '0 = no limit.'],
   ['enrollment', 'enrollment.maxUnits', 'Maximum units per term', 'Enrolled, pending and waitlisted classes together. 0 = no limit.'],
-  ['enrollment', 'registration.open', 'Let new students register from the sign-in page', 'Shows "Register account" on the ATLAS home page, which opens Create student account; new accounts wait under Applicants.', 'bool'],
+  ['enrollment', 'registration.open', 'Let new students register from the sign-in page', 'Shows "Register account" on the ATLAS home page, which opens Create Student Account; new accounts wait under Applicants.', 'bool'],
   ['enrollment', 'registration.termsUrl', 'Registration: Terms of Use address', 'The school\'s Terms of Use page, linked from the registration form. Neither this nor the text: no Terms of Use link.'],
   ['enrollment', 'registration.termsText', 'Registration: Terms of Use text', 'The school\'s own Terms of Use, shown in a window from the registration form when there is no address. ATLAS writes none.', 'longText'],
   ['enrollment', 'registration.privacyUrl', 'Registration: Privacy Policy address', 'The school\'s Privacy Policy page, linked from the registration form.'],

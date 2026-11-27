@@ -9,6 +9,7 @@ import { defaultSystemSettings, defaultToolSettings } from '../shared/systems.js
 import { DEFAULT_NUMBERING } from '../shared/numbering.js';
 import { DEFAULT_SETTINGS as HR_DEFAULTS } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
+import { TITLES } from '../shared/registration.js';
 import { mergeHrSettings } from './hris.js';
 import { migrateLeaveTypes } from './hris-leave.js';
 import { mergeAcademicSettings } from './academic.js';
@@ -135,8 +136,8 @@ export function emptyData() {
     jobApplications: [], // applications to them, from applicant accounts (external) and employees (internal)
     jobDocuments: [], // applicants' documents against each opening's checklist; the files themselves are encrypted in data/applicant-files (server/recruitment-docs.js)
     plantillaItems: [], // the plantilla register: one record per position (item) as DBM issued it (server/plantilla.js)
-    dueMarks: [], // Due dates: an occurrence marked done, snoozed or reopened, with who, when and the note (server/due-dates.js)
-    dueAlertsSent: {}, // Due dates: the lead days already sent to the bell, per occurrence ({ key: [days] }); pruned when it is done or gone
+    dueMarks: [], // Due dates: an occurrence marked done, snoozed or reopened, with who, when and the note; kept while the employee exists (server/due-dates.js)
+    dueAlertsSent: {}, // Due dates: the lead days already sent to the bell, per occurrence and recipient group ({ key: { hr: [days], employee: [days] } }); pruned when it is done or gone
     guideEdits: [], // administrators' versions of the Help & guides pages (server/guides.js)
     // ----- Academic (server/academic.js) -----
     academicSettings: mergeAcademicSettings(), // grading scale, requirements, document fees, signatories
@@ -217,6 +218,8 @@ function normalize(data) {
   out.finAccounts = mergeChart(data.finAccounts);
   out.finCounters = { ...(data.finCounters || {}) };
   if (!Array.isArray(data.leaveTypes)) out.leaveTypes = structuredClone(DEFAULT_LEAVE_TYPES);
+  // Self-registered students from before nameTitle: their honorific was kept as the job title.
+  for (const u of out.users) if (u.registeredVia === 'self' && TITLES.includes(u.title) && !u.nameTitle) (u.nameTitle = u.title), delete u.title;
   migrateLeaveTypes(out);
   migrateApplications(out); // job applications from before the recruitment stages (PL-015)
   migrateRatings(out); // single ratings from before several assessors become the HR office's rating (PL-021)

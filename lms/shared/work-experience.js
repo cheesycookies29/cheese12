@@ -58,8 +58,9 @@ const str = (v, max = LIMITS.text) => String(v ?? '').replace(/\s+/g, ' ').trim(
 const longText = (v, max) => String(v ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, max + 1);
 
 // One entry as typed: the clean entry, or the first thing wrong with it (`today`: YYYY-MM-DD).
-// Returns { entry } or { error }.
-export function cleanEntry(input = {}, today) {
+// requireGovernment: Government service must be answered Yes or No (the form has no default); a CSV
+// row left blank is No. Returns { entry } or { error }.
+export function cleanEntry(input = {}, today, { requireGovernment = false } = {}) {
   const e = {};
   const bad = (error) => ({ error });
   e.from = str(input.from, 10);
@@ -82,6 +83,7 @@ export function cleanEntry(input = {}, today) {
   if (!e.position) return bad('Position title is required.');
   if (!e.agency) return bad('Agency or organization is required.');
   const g = input.government;
+  if (requireGovernment && !(typeof g === 'boolean' || /^(true|false|y|yes|oo|n|no|hindi)$/i.test(String(g ?? '').trim()))) return bad('Government service: choose Yes or No.');
   e.government = g === true || g === 'true' || g === 'on' || /^(y|yes|oo)$/i.test(String(g ?? '').trim());
   // Salary grade and step: optional, whole numbers (1 to 33, step 1 to 8).
   const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(/[,₱\s]/g, '')));

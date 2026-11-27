@@ -51,3 +51,34 @@ export function readableOn(hex, bg = '#ffffff', ratio = 4.5, toWhite = false) {
   }
   return toWhite ? '#ffffff' : '#000000';
 }
+
+// A mix of two colours (like CSS color-mix in srgb): `share` of b in a.
+export function mix(a, b, share) {
+  const x = rgb(a);
+  const y = rgb(b);
+  return toHex(x.map((v, i) => v + (y[i] - v) * share));
+}
+// Primary buttons in dark mode: the brand colour lifted towards white (28%) so they stand out from the
+// dark surfaces, but never so far that their text drops under 4.5:1 (WCAG AA). White text is kept
+// and the lift made smaller while that works; a colour too light for white text gets dark text.
+// Returns { bg, hover, ink } for the CSS variables --brand-btn-dark, --brand-btn-dark-hover and
+// --brand-btn-dark-ink.
+export const BUTTON_LIFT = 0.28;
+export function darkButton(hex) {
+  if (!HEX_RE.test(hex || '')) return null;
+  for (let i = 0; i <= 28; i++) {
+    const share = BUTTON_LIFT - i / 100;
+    const bg = mix(hex, '#ffffff', Math.max(0, share));
+    if (contrast(bg, '#ffffff') >= 4.5) return { bg, hover: mix(bg, '#000000', 0.12), ink: '#ffffff' };
+  }
+  const bg = mix(hex, '#ffffff', BUTTON_LIFT);
+  const ink = inkOn(bg);
+  return { bg, hover: mix(bg, ink === '#ffffff' ? '#000000' : '#ffffff', 0.12), ink };
+}
+// The CSS variables for primary buttons of a brand colour (public/css/styles.css): the text on it in
+// light mode, and the dark-mode button. {} for no colour (the stylesheet's defaults apply).
+export const BUTTON_VARS = ['--brand-ink', '--brand-btn-dark', '--brand-btn-dark-hover', '--brand-btn-dark-ink'];
+export function buttonColours(hex) {
+  const d = darkButton(hex);
+  return d ? { '--brand-ink': inkOn(hex), '--brand-btn-dark': d.bg, '--brand-btn-dark-hover': d.hover, '--brand-btn-dark-ink': d.ink } : {};
+}

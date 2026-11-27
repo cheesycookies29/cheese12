@@ -117,7 +117,7 @@ export function registerWorkExperienceRoutes(route, ctx) {
   // ----- Changing -----
   function add(user, owner, body, meta) {
     if (list(owner).length >= LIMITS.entries) fail(`At most ${LIMITS.entries} entries.`);
-    const { entry, error } = cleanEntry(body, today());
+    const { entry, error } = cleanEntry(body, today(), { requireGovernment: true });
     if (error) fail(error);
     const at = iso();
     const order = list(owner).reduce((m, e) => Math.max(m, e.order), 0) + 1;
@@ -129,7 +129,7 @@ export function registerWorkExperienceRoutes(route, ctx) {
   }
   function change(user, owner, id, body, meta) {
     const e = entryOf(owner, id);
-    const { entry, error } = cleanEntry(body, today());
+    const { entry, error } = cleanEntry({ ...body, government: body.government === undefined ? e.government : body.government }, today(), { requireGovernment: true });
     if (error) fail(error);
     const changes = entryChanges(e, entry);
     if (!changes.length) return entryView(e, today());

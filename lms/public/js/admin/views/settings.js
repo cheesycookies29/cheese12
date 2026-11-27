@@ -3,7 +3,7 @@ import { api } from '../../api.js';
 import { html, mount, toast, option, formData, confirmDialog, downloadFile, today } from '../../ui.js';
 import { pageHead, ctx, applyBranding, logoSrc, markSrc, isDark } from '../../shell.js';
 import { userCan } from '/shared/roles.js';
-import { THEMES, themeColors, inkOn, contrast } from '/shared/themes.js';
+import { THEMES, themeColors, inkOn, contrast, darkButton } from '/shared/themes.js';
 import { icon } from '../../icons.js';
 import { NUMBERING_LABELS } from '/shared/numbering.js';
 import { brandHome, schoolBrand } from '../../brand.js';
@@ -33,6 +33,10 @@ function brandPreview(b) {
   const name = brandName(b);
   const seal = school ? b.logo : '';
   const ink = inkOn(b.accent);
+  // Primary buttons, light and dark mode, as public/js/shell.js colours them (by contrast).
+  const btnInk = inkOn(b.brand);
+  const dark = darkButton(b.brand) || { bg: b.brand, ink: '#ffffff' };
+  const word = (c) => (c === '#ffffff' ? 'white' : 'dark');
   const mark = html`<img src="${markSrc(isDark())}" alt="" />`;
   return html`<div class="bp" style="--brand:${b.brand};--accent:${b.accent};--bp-ink:${ink}">
     <div class="bp-part"><span class="bp-label">Top bar</span>
@@ -45,7 +49,9 @@ function brandPreview(b) {
           ${school ? html`<span class="bp-powered"><img src="${markSrc(isDark())}" alt="" />Powered by ATLAS</span>` : ''}</div>
       </div></div>
     ${b.mode === 'school' && !school ? html`<p class="hint negative">Type the short name to lead with your school.</p>` : ''}
-    <p class="hint">Text on the accent: ${ink === '#ffffff' ? 'white' : 'dark'} (${contrast(b.accent, ink).toFixed(1)}:1; 4.5:1 or more reads well).</p>
+    <div class="bp-part"><span class="bp-label">Buttons</span>
+      <div class="bp-btns"><span class="bp-btn" style="background:${b.brand};color:${btnInk}">Save</span><span class="bp-btn-dark"><span class="bp-btn" style="background:${dark.bg};color:${dark.ink}">Save</span><small>dark mode</small></span></div></div>
+    <p class="hint">Text on the accent: ${word(ink)} (${contrast(b.accent, ink).toFixed(1)}:1). Text on the buttons: ${word(btnInk)} (${contrast(b.brand, btnInk).toFixed(1)}:1), and ${word(dark.ink)} in dark mode (${contrast(dark.bg, dark.ink).toFixed(1)}:1). 4.5:1 or more reads well.</p>
   </div>`;
 }
 
@@ -93,7 +99,7 @@ export async function settingsView(el, params, q = {}) {
         </div>
       </section>
       <section class="card" id="registration"><h2>Registration</h2>
-        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let new students register from the sign-in page.</strong> The ${brandHome()} page shows a <strong>Register account</strong> button that opens <strong>Create student account</strong>. New accounts wait under <a href="#/applicants">Applicants</a>; once admitted, students sign in with their email.</span></label>
+        <label class="field check"><input type="checkbox" name="registrationOpen" ${s.registration.open ? 'checked' : ''} ${dis} /> <span><strong>Let new students register from the sign-in page.</strong> The ${brandHome()} page shows a <strong>Register account</strong> button that opens <strong>Create Student Account</strong>. New accounts wait under <a href="#/applicants">Applicants</a>; once admitted, students sign in with their email.</span></label>
         <p class="muted" style="margin:14px 0 6px">The form ends with "By using this service, you understand and agree to the ${schoolBrand() && s.branding.shortName ? s.branding.shortName : s.schoolName} online services <strong>Terms of Use</strong> and <strong>Privacy Policy</strong>." For each, give the address of the school's page, or write the text here (an address is used when there is both).</p>
         <div class="grid two">
           <div class="stack tight"><h3 class="brand-sub-head first">Terms of Use</h3>
@@ -219,20 +225,22 @@ export async function dataView(el) {
       <div class="actions"><button class="btn primary" id="add-demo">${demo.loaded ? 'Refresh demo data' : 'Add demo data'}</button>
         ${demo.loaded ? html`<button class="btn danger ghost" id="remove-demo">Remove demo data</button>` : ''}</div>
       <p class="hint">Removing takes out every demo record, and enrollments of real students in demo sections, and leaves everything else as it was.</p>
+      ${demo.realOnDemo?.openings ? html`<div class="notice info">${icon('help', 16)}<p>Your own records use ${demo.realOnDemo.openings === 1 ? 'a demo job opening' : `${demo.realOnDemo.openings} demo job openings`} (${[demo.realOnDemo.applications ? `${demo.realOnDemo.applications} application${demo.realOnDemo.applications === 1 ? '' : 's'}` : '', demo.realOnDemo.appointments ? `${demo.realOnDemo.appointments} appointment${demo.realOnDemo.appointments === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ')}). Refreshing or removing the demo keeps ${demo.realOnDemo.openings === 1 ? 'that opening' : 'those openings'}, and the plantilla items they use, as your own records (marked <em>Kept from the demo data</em>), so nothing of yours points at a deleted record.</p></div>` : ''}
     </section>
     <section class="card"><h2>Backup</h2>
       <p>Records are stored in <code>data/db.json</code>, and uploaded files (class resources, handed-in work) in <code>data/files/</code>. The download below holds the records only; to keep the files too, copy the whole <code>data</code> folder. The backup includes accounts (passwords as secure hashes), so keep it private.</p>
       <div class="actions"><button class="btn" id="backup">Download backup</button><label class="btn">Restore from backup…<input type="file" id="restore" accept="application/json" hidden /></label></div>
     </section>`);
+  const keptText = (r) => (r.kept?.length ? ` Kept as your own records, because your records use ${r.kept.length === 1 ? 'it' : 'them'}: ${r.kept.join(', ')}.` : '');
   el.querySelector('#add-demo').addEventListener('click', async () => {
-    await api.post('/api/admin/demo');
-    toast('Demo data added.');
+    const r = await api.post('/api/admin/demo');
+    toast(`${demo.loaded ? 'Demo data refreshed.' : 'Demo data added.'}${keptText(r)}`);
     dataView(el);
   });
   el.querySelector('#remove-demo')?.addEventListener('click', async () => {
     if (!(await confirmDialog('Remove all demo data? Your own records stay as they are.', { confirmLabel: 'Remove demo data' }))) return;
-    await api.del('/api/admin/demo');
-    toast('Demo data removed.');
+    const r = await api.del('/api/admin/demo');
+    toast(`Demo data removed.${keptText(r)}`);
     dataView(el);
   });
   el.querySelector('#backup').addEventListener('click', async () => {

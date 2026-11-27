@@ -45,7 +45,7 @@ A first tour with the demo school. It takes about ten minutes.
 
 ### The plantilla register
 
-1. Open **Plantilla**. Each row is one position (item) as DBM issued it: the item number, position title and salary grade, the office, campus and fund source, the status, the incumbent and the authorized and actual salaries a year. The cards at the top count the **Filled**, **Vacant** and **Unfunded** items and add up the salaries.
+1. Open **Plantilla**. Each row is one position (item) as DBM issued it: the item number, position title and salary grade, the office, campus and fund source, the status, the incumbent and the authorized and actual salaries a year. The cards at the top count the **Filled**, **Vacant** and **Unfunded** items and add up the salaries: **Authorized a year, funded** counts the filled and vacant items, and says what it comes to with the unfunded ones, which is the table's **Total, all items** and the PSIPOP's total.
 2. Under **Filled, vacant and unfunded**, pick **Vacant**. Four items are left, three of them with a job opening already.
 3. Choose **DEMO-ADOF2-0107-2026** (Administrative Officer II). It has no incumbent, the authorized annual salary comes from the salary schedule (SG 11, step 1, × 12), and its job opening is listed. **Post a job opening** starts another from it.
 4. Go back and choose a filled item. The **Incumbent** card shows the person's name, sex, date of birth, TIN, GSIS no., status of appointment and actual salary, read from their employee record.
@@ -114,11 +114,12 @@ A first tour with the demo school. It takes about ten minutes.
 
 ### Due dates
 
-1. On the **HR dashboard**, read the card **Due in the next 30 days**. It counts the renewals, probation evaluations, step increments and retirements coming up at the campus, and the overdue ones. Choose it.
-2. **Due dates** opens. Paolo Ilagan's contractual appointment ends in 20 days, Dolores Bautista's probation evaluation is due in 15 days, and Arlene Sarmiento's step increment is 5 days overdue (in red).
-3. Under **When**, pick **Overdue and next 180 days**. Nestor Abello's compulsory retirement, 150 days away, joins the list.
+1. On the **HR dashboard**, read the card **Due in the next 30 days**. It counts the renewals, probation evaluations, step increments and retirements coming up at the campus in the next 30 days (2), and says how many are overdue apart (*and 1 overdue*). Choose it.
+2. **Due dates** opens. Paolo Ilagan's contractual appointment ends in 20 days, Dolores Bautista's probation evaluation is due in 15 days, and Arlene Sarmiento's step increment is 5 days overdue (in red). The cards at the top count them the same way: **Overdue** 1, **Due in the next 30 days** 2.
+3. Under **When**, pick **Overdue and next 180 days**. Nestor Abello's compulsory retirement, 150 days away, joins the list, and so does Ramon Esguerra's probation evaluation (he was appointed a month ago).
 4. Choose the bell at the top right. HR is told on the bell at each lead day: each of these is there once.
 5. On Arlene's row, choose **Mark done**, type `Step increment granted` as the note, and choose **Mark done**. The row leaves the list.
+6. Tick **Show snoozed and done**. Arlene's step increment is back on the list as *Done*, with your note: her next one counts from today, three years on.
 
 ![People → Due dates](hr-due-dates.jpg)
 
@@ -329,7 +330,7 @@ You keep the forms People gives employees to download (the leave application for
 
 1. Choose **Upload a form** for a new one, or **New version** on a form's row when it changes; type a **Change note** and choose **Upload**.
 2. Tick who may see it; tick **Public** for a form people outside the school need, such as a blank job application form.
-3. Pick an earlier version under **Versions** to download it, or choose **More → Restore a version** or **More → Retire**.
+3. Pick an earlier version under **Versions** and choose **Download** beside it, or choose **More → Restore a version** or **More → Retire**.
 
 Employees download the published forms under **People → Forms & downloads**. See [Keep the school's forms](admin#keep-the-school-s-forms-document-circulation).
 
@@ -599,7 +600,10 @@ You need the **Recruitment** and **Appoint selected applicants** permissions (HR
 1. Open the opening. On the row of an application whose outcome is **Selected**, choose **Appoint**.
 2. Check every field under **1. The details**. ATLAS fills in what it knows: the name (from the employee record, or the applicant's name split into first and last: check it), the position and the opening's plantilla item, the salary grade and step with the monthly salary from the salary schedule, the nature (*Original* for an outside applicant, *Promotion* for a higher grade), the person replaced (**Vice**) from the item's previous incumbent, the campus and office, today as the date of signing and effective date, the publication dates from the opening, the deliberation date from the application's history, and the signatories from **HR settings → Appointment papers**.
 3. Pick the **Status of appointment**. ATLAS never fills it in: a plantilla item does not make an appointment permanent.
-4. Choose **Save and continue**.
+4. Read the notes under **Dates**. ATLAS warns you when the **Date of signing** is on or before the last day of publication (**Published or posted until**), or when the opening is still taking applications. It is a warning, not a refusal: check the dates, or go ahead if the publication was closed early.
+5. Choose **Save and continue**.
+
+If something would make **Confirm the appointment** refuse later, ATLAS says so at the top of the appointment as soon as the details are saved, before you issue the numbered papers: for example, an employee moving to another of your campuses who is in a draft payroll run at their campus. Finalize or delete that run (Payroll) first; you can still issue the papers meanwhile, and **Issue papers** repeats the warning.
 
 The plantilla item must be vacant, or already the person's own. If the person being replaced is still linked to it, name them as **Vice**: ATLAS warns you, and unlinks them from that item only when you confirm. An opening takes as many appointments as it has vacancies.
 
@@ -636,7 +640,9 @@ For an employee, their record gets the new position, salary grade, step and stat
 
 The person is linked to the plantilla item (Filled). The opening's vacancies count down; when all are filled, ATLAS offers to close the opening. Fill in what the record still needs (for example the TIN and the schedule) under **Employees → Edit**.
 
-The record's **Appointment ends on** becomes the appointment's (blank for an appointment without one), and an open renewal of the appointment it replaces is marked done in **Due dates**.
+The record's **Appointment ends on** becomes the appointment's (blank for an appointment without one), and an open renewal of the appointment it replaces is marked done in **Due dates** (with **Show snoozed and done** ticked, it stays there as *Done*, and the new appointment's end is a row of its own). For a **Promotion**, its effective date becomes the **Date of last promotion** on the PSIPOP.
+
+When the appointment moved the person to another campus, the confirmed appointment says where their record is now: choose **Switch to … and open the employee record** to open it there.
 
 ### Record the date of assumption
 
@@ -671,7 +677,7 @@ A merge field ATLAS does not know is refused, and nothing is saved. Each change 
 You need the **Due dates** permission (HR managers have it).
 
 1. Open **Due dates**, under **Human resources**.
-2. Pick a rule (for example **Renewal of appointment**), a campus, an office, or the window under **When**: **Overdue only**, or overdue and the next 30, 60, 90 or 180 days or 12 months. The cards at the top (**Overdue**, **Due in the next 30 days**, **In 31 to 90 days**) pick the window too.
+2. Pick a rule (for example **Renewal of appointment**), a campus, an office, or the window under **When**: **Overdue only**, or overdue and the next 30, 60, 90 or 180 days or 12 months. The cards at the top (**Overdue**, **Due in the next 30 days**, **In 31 to 90 days**) pick the window too. **Due in the next 30 days** does not count the overdue ones, here and on the HR dashboard: they are counted apart.
 3. Type a name, employee number or position in **Search** to find one person.
 
 Each row shows who, what is due, the **Due date**, the **Days left** (red when overdue or today, amber within 30 days), their current appointment and status, and their office and campus. Choose **Export CSV** for a spreadsheet of what is shown, or **Print** for a paper copy. Tick **Show snoozed and done** to see those too.
@@ -696,7 +702,9 @@ Inactive and separated employees, job orders and contracts of service are left o
 4. For a step increment, keep **Record this date on the employee record as the date of last step increment** ticked: the next step increment then counts from it.
 5. Choose **Mark done**.
 
-The row leaves the list and the bell says nothing more about it. The date, note and your name are kept and are in the audit log. Marking a step increment done never changes the step or the salary: edit the record for that. To undo a mark made by mistake, tick **Show snoozed and done** and choose **Reopen** on the row.
+The row leaves the list and the bell says nothing more about it. The date, note and your name are kept and are in the audit log, and with **Show snoozed and done** ticked the row stays on the list as *Done*, even after the date on the record moves on (the next step increment, three years later, is a new row of its own). Marking a step increment done never changes the step or the salary: edit the record for that.
+
+To undo a mark made by mistake, tick **Show snoozed and done** and choose **Reopen** on the row. For a step increment whose date you recorded, **Reopen** also puts the record's earlier **Date of last step increment** back. A renewal marked done by a confirmed appointment cannot be reopened, nor can a mark whose date someone has since changed on the record: edit the employee record instead.
 
 A renewal is also marked done by itself when you confirm a new appointment of that person (see [Confirm the appointment](#confirm-the-appointment)): the record then has the new appointment's end date, if it has one.
 
@@ -726,7 +734,7 @@ Leave a date blank when it does not apply. ATLAS never guesses a date: when **Da
 5. Under **Who is told on the bell**, tick **HR**, and for renewals and retirements **The employee** if they should be told too (they then also see the date on their **My HR record**).
 6. Choose **Save alert settings**.
 
-**HR** means the accounts with the **Due dates** permission at the employee's campus (the HR manager by default). The bell tells each of them once per lead day; a restart of ATLAS never sends the same alert twice. The defaults are a starting point, marked **To confirm**: check them against the CSC rules and your school's policy. The rules are also in the Settings center, under **ATLAS People → Alerts and due dates**.
+**HR** means the accounts with the **Due dates** permission at the employee's campus (the HR manager by default). The bell tells each of them once per lead day; a restart of ATLAS never sends the same alert twice. HR and the employee are counted apart: if you tick **The employee** after HR was already told, the employee gets the bell for the lead day already reached, once, when you save. The defaults are a starting point, marked **To confirm**: check them against the CSC rules and your school's policy. The rules are also in the Settings center, under **ATLAS People → Alerts and due dates**.
 
 ![HR settings → Alerts and due dates](hr-due-dates-settings.jpg)
 
@@ -923,6 +931,15 @@ No. The appointment form, the oath of office and the certificate of assumption f
 
 **ATLAS says "Plantilla item … is not vacant."** Someone else holds it. If they have left it, name them as the person replaced (**Vice**), or unlink them in **Plantilla** first; otherwise pick a vacant item.
 
+**ATLAS warns that the date of signing is before the publication closes.** The **Date of signing** is on or before the last day under **Published or posted until**, or the opening still takes applications. CSC rules generally want the vacancy published for its full period before an appointment is signed. It is only a warning: correct the dates, or go ahead if the publication was closed early.
+
+**ATLAS says Confirm the appointment will be refused until something is sorted out.** Something would stop **Confirm the appointment**: for example, the employee moves to another campus and is in a draft payroll run at their campus. Finalize or delete that run under **Payroll** before you confirm. You can issue the papers meanwhile; the warning shows before they are issued so that their numbers are not used in vain.
+
+**I open the employee record after an appointment and it says "Employee not found at this campus".** The appointment moved the person to another of your campuses, so their record is there now. On the confirmed appointment, choose **Switch to … and open the employee record**, or switch campus under your name at the top right.
+
+**Where does the PSIPOP's date of last promotion come from?**
+From the latest confirmed appointment whose nature is **Promotion** (its effective date), or a later date already on the record. Nothing typed on the record is overwritten.
+
 **Why did the new employee have to sign in again?**
 Their account type changed from job applicant to staff, so their sessions ended. They sign in with the same username and password.
 
@@ -955,6 +972,12 @@ Their record has no date for that rule (an end date for a renewal, a birth date 
 
 **Why did the bell not tell me again about a renewal?**
 The bell tells HR once at each lead day (60, 30 and 7 days before, unless changed). A due date marked done or snoozed is not on the bell until it is reopened or the snooze ends.
+
+**Where did a due date I marked done go?**
+Tick **Show snoozed and done**: it is there as *Done*, with the date, your note and your name, even after the record's date moved on. The next one (a step increment three years later, the end of the new appointment) is a row of its own.
+
+**Why can't I reopen a renewal?**
+It was marked done by itself when a new appointment of that person was confirmed, and the record now has the new appointment's end date. If that date is wrong, edit the employee record.
 
 **Can the bell tell an employee's head of office?**
 Not yet: ATLAS does not link an employee to a head of office or supervisor. HR is told, and for renewals and retirements the employee too if you tick it under **HR settings → Alerts and due dates**.

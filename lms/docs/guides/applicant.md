@@ -14,7 +14,7 @@ This guide is for **people who want to work at the school** and do not have an A
 - The openings are on the ATLAS home page: choose **Job openings** at the top of the sign-in page, or **See job openings** under the sign-in form. You can read them without signing in.
 - To apply, you sign up for an **applicant account** with your name, email, a username, a password and, if you like, your mobile number. The school may also ask a few details about you, such as your date of birth or the campus you would like to work at; the form shows which, and marks the required ones with a red asterisk. Documents are never asked at sign-up: they come with each application.
 - An applicant account is **temporary**. It stays open for a set number of days (365 unless the school chose another number). You are told on the bell before it closes; after that you cannot sign in, and a while later the account and the personal details in your applications are removed.
-- Your account opens only **Job openings**, **My applications** and your own account (**My profile**, **My security**). It is not an employee account.
+- Your account opens only **Job openings**, **My applications**, **My work experience** and your own account (**My profile**, **My security**). It is not an employee account.
 - To try things out, use the demo school: sign in as `applicant.demo` (password `demo1234`), Carla Mendiola, who applied to be an Instructor I.
 
 ## Walkthrough
@@ -44,8 +44,7 @@ A first tour with the demo school. It takes about five minutes.
 2. Choose **Laboratory Technician I**, then **Apply**. Type a cover note if you like and choose **Send application**. It starts at *Application received*.
 3. Open **My applications**. Carla's application for Instructor I has passed *Application received* and *Initial screening*, and is now at *Assessment (examination or interview)*.
 4. Choose **See its progress**. Read what happens at this stage, and the two notes HR wrote to Carla: what to upload, and when and where her examination and interview are.
-5. Go down to **Your documents**. Her Personal Data Sheet is *Accepted*; HR asks for a new file for her transcript, with a note saying why. Choose **Upload the new file** and pick a PDF.
-
+5. Go down to **Your documents**. Her Personal Data Sheet is *Accepted*; HR asks for a new file for her transcript, with a note saying why. Choose **Upload the new file** and pick a PDF. It replaces the file HR sent back, and the transcript shows *Uploaded* again for HR to check.
 6. Open **My work experience**. Carla lists her part-time teaching and her earlier work as a web developer. Choose **Work Experience Sheet** to see it as it prints.
 
 ![Job openings for an applicant](applicant-job-openings.jpg)
@@ -100,7 +99,7 @@ You are signed in at once. Next time, sign in on the ATLAS home page with your u
 4. Type a **Cover note** if you like: why you are applying and what HR should know.
 5. Choose **Send application**.
 
-Your application shows as *Received*. HR sees your name, email and mobile number from your account, your note and your documents. You can apply once to each opening.
+Your application shows as *Application received*. HR sees your name, email and mobile number from your account, your note and your documents. You can apply once to each opening.
 
 ![Apply for an opening](applicant-apply.jpg)
 
@@ -110,7 +109,7 @@ Your work experience is what the Personal Data Sheet asks about each position yo
 
 1. Open **My work experience**.
 2. Choose **Add an entry** (or **Add another entry**, at the bottom of the list).
-3. Pick **From** and **To**, or tick **Present** for work you do now. Type the **Position title** in full and the **Agency or organization**, then the rest as far as you know it: office or unit, location, immediate supervisor, status of appointment, government service, salary.
+3. Pick **From** and **To**, or tick **Present** for work you do now. Type the **Position title** in full and the **Agency or organization**, and choose **Yes** or **No** under **Government service** (Yes only for work in a government office or agency; it has no default). Then fill in the rest as far as you know it: office or unit, location, immediate supervisor, status of appointment, salary.
 4. Write a **Summary of actual duties**, and each accomplishment on its own line (**Add another accomplishment** adds a line).
 5. Choose **Add**.
 
@@ -142,7 +141,7 @@ Each document then shows what HR made of it:
 | Not yet uploaded | No file yet. |
 | Uploaded | HR has not checked it yet. |
 | Accepted | HR checked it. Nothing to do. |
-| Needs a new file | HR asks for another file; their note says why. Upload the new one. |
+| Needs a new file | HR asks for another file; their note says why. Choose **Upload the new file**: it replaces the file HR sent back. |
 
 You are told on the bell when HR accepts a document or asks for a new file. After the closing date you can no longer replace or remove files, but you can still upload a file HR asked for.
 

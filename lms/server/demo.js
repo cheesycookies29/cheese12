@@ -8,7 +8,7 @@ import { scoreAttempt, quizPoints } from './quiz.js';
 import { meetingsClash } from '../shared/schedule.js';
 import { addHrisDemo, removeHrisDemo } from './hris-demo.js';
 import { addAcademicDemo, removeAcademicDemo } from './academic-demo.js';
-import { addRecruitmentDemo, removeRecruitmentDemo } from './recruitment.js';
+import { addRecruitmentDemo, removeRecruitmentDemo, realRecordsOnDemo } from './recruitment.js';
 import { addPlantillaDemo, removePlantillaDemo } from './plantilla.js';
 import { addDueDatesDemo } from './due-dates.js';
 
@@ -17,7 +17,17 @@ const COLLECTIONS = ['guardianLinks', 'campuses', 'programs', 'terms', 'courses'
 
 export function demoStatus(data) {
   const counts = Object.fromEntries(COLLECTIONS.map((k) => [k, data[k].filter((x) => x.demo).length]));
-  return { loaded: counts.users > 0 || counts.courses > 0, counts, accounts: data.users.filter((u) => u.demo && u.status === 'active' && u.role !== 'student').map((u) => u.username).concat(data.users.some((u) => u.username === 'student.demo') ? ['student.demo'] : []) };
+  const real = realRecordsOnDemo(data);
+  return {
+    loaded: counts.users > 0 || counts.courses > 0, counts, accounts: data.users.filter((u) => u.demo && u.status === 'active' && u.role !== 'student').map((u) => u.username).concat(data.users.some((u) => u.username === 'student.demo') ? ['student.demo'] : []),
+    // The school's own applications and appointments on demo job openings: those openings are kept.
+    realOnDemo: { applications: real.applications.length, appointments: real.appointments.length, openings: real.openings.size },
+  };
+}
+// What a refresh or a removal keeps: the demo job openings the school's own records use (by title).
+export function keptFromDemo(data) {
+  const { openings } = realRecordsOnDemo(data);
+  return (data.jobOpenings || []).filter((o) => openings.has(o.id)).map((o) => o.title);
 }
 
 // files: the file store, so uploaded files in demo sections are deleted too.

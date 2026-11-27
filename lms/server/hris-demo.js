@@ -66,6 +66,8 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
     return no;
   };
   const birth = (age, monthDay) => `${Number(today.slice(0, 4)) - age}-${monthDay}`;
+  // An age that fits the date hired: 22 to 33 when hired (so at least 21 on that day), at most 57 now.
+  const ageFor = (hireDate, r) => Math.min(57, Number(today.slice(0, 4)) - Number(String(hireDate || today).slice(0, 4)) + 22 + Math.floor(r * 12));
   const thisMonth = today.slice(5, 7);
   const OFFICE = { shiftStart: '08:00', shiftEnd: '17:00', breakMinutes: 60, workDays: [1, 2, 3, 4, 5] };
   const GUARD = { shiftStart: '06:00', shiftEnd: '15:00', breakMinutes: 60, workDays: [1, 2, 3, 4, 5, 6] };
@@ -124,8 +126,8 @@ export function addHrisDemo(data, today, { campuses, userByName, person, rand, f
     const emp = add('employees', {
       employeeNo: nextNo(), firstName, middleName: '', lastName, gender, civilStatus: rand() < 0.6 ? 'Married' : 'Single',
       email: `${firstName}.${lastName}`.toLowerCase().replace(/\s+/g, '') + '@example.edu', phone: `09${String(Math.floor(rand() * 1e9)).padStart(9, '0')}`,
-      birthDate: birth(25 + Math.floor(rand() * 30), `${pad(1 + Math.floor(rand() * 12))}-${pad(1 + Math.floor(rand() * 28))}`),
-      address: `${campus.name.replace(/ Campus.*/, '')}, Camarines Sur`, position, department, category,
+      birthDate: birth(ageFor(extra.hireDate, rand()), `${pad(1 + Math.floor(rand() * 12))}-${pad(1 + Math.floor(rand() * 28))}`),
+      address: `${campus === main ? 'Naga City' : campus.name.replace(/ Campus.*/, '')}, Camarines Sur`, position, department, category,
       employmentStatus: 'Regular', status: 'Active', payType, rate, allowance: payType === 'monthly' ? 2000 : 0,
       minimumWageEarner: false, flexTime: false, campusId: campus.id, schedule: OFFICE,
       tin: `${100 + Math.floor(rand() * 900)}-${100 + Math.floor(rand() * 900)}-${100 + Math.floor(rand() * 900)}-000`,

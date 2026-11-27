@@ -213,6 +213,11 @@ test('demo data adds HR records for the demo school and removes them again', asy
   const maria = d.users.find((u) => u.username === 'teacher.demo');
   assert.ok(d.employees.some((e) => e.id === maria.employeeId));
   for (const u of ['hr.demo', 'payroll.demo', 'staff.demo']) assert.ok(d.users.some((x) => x.username === u && x.employeeId));
+  // Birth dates fit the dates hired (21 or older when hired); addresses name a town.
+  const ageAtHire = (e) => (Date.parse(e.hireDate) - Date.parse(e.birthDate)) / (365.2425 * 86400000);
+  const young = d.employees.filter((e) => e.demo && e.birthDate && e.hireDate && ageAtHire(e) < 21).map((e) => `${e.firstName} ${e.lastName}`);
+  assert.deepEqual(young, []);
+  assert.ok(d.employees.filter((e) => e.demo).every((e) => !/^Main\b/.test(e.address || '')));
   await admin.del('/api/admin/demo');
   assert.equal(env.db.data.employees.length, before);
   assert.equal(env.db.data.timeEntries.length, 0);

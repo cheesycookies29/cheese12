@@ -305,6 +305,7 @@ export async function openingView(el, { id }, query = {}) {
       <button class="btn" id="export" ${o.applications.length ? '' : 'disabled'}>${icon('download', 16)} Export CSV</button>
       <a class="btn" href="#/recruitment/${o.id}/comparative">${icon('table', 16)} Comparative list</a>
       <a class="btn" href="#/recruitment/${o.id}/edit">${icon('edit', 16)} Edit</a>`, BACK)}
+    ${o.keptFromDemo ? html`<div class="notice info">${icon('help', 16)}<p><strong>Kept from the demo data.</strong> ${o.keptFromDemo.note}</p></div>` : ''}
     <div class="stats">
       <div class="card"><small>Applications</small><strong>${c.active}</strong></div>
       <div class="card"><small>Internal / external</small><strong>${c.internal} / ${c.external}</strong></div>

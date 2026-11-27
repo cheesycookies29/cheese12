@@ -760,6 +760,8 @@ img.att-preview { height: auto; max-height: 70vh; }
 .wes-sub p { margin: 2px 0 0; }
 .wes-end { text-align: center; font-style: italic; font-size: 12px; margin: 14px 0 0; }
 .wes-signs { display: flex; gap: 24px 40px; justify-content: space-between; flex-wrap: wrap; margin-top: 28px; break-inside: avoid; }
+/* "Nothing follows", the signatures and the printed-from line stay together: never the line alone on a page. */
+.wes-sign-row, .wes-close { break-inside: avoid; page-break-inside: avoid; }
 .wes-signs .as-sign { min-width: 240px; }
 .wes-signs .wes-date { min-width: 160px; }
 @media (max-width: 760px) {
@@ -895,3 +897,10 @@ img.att-preview { height: auto; max-height: 70vh; }
 .due-missing-h + p { margin: 0; }
 .due-table td .block .badge { margin-top: 3px; }
 @media (min-width: 761px) { .due-table td.row-actions { width: 1%; } .due-table td.row-actions .btn { display: flex; width: 100%; justify-content: center; } .due-table td.row-actions .btn + .btn { margin: 6px 0 0; } }
+/* Appoint: what would make Confirm refuse (shown before the papers), and the date-of-signing warnings. */
+.ap-blockers ul, .notice.bad ul { margin: 4px 0 0; padding-left: 18px; }
+.ap-blockers p, .ap-signing p { margin: 0; }
+.ap-signing p + p { margin-top: 6px; }
+#ap-signing .notice { margin: 12px 0 0; }
+/* HR dashboard: the overdue due dates, counted apart from "Due in the next 30 days". */
+.stats .card .due-overdue { color: var(--danger); font-weight: 700; }

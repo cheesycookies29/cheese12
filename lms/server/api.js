@@ -34,7 +34,7 @@ import { MODULES, moduleOn, enabledModules } from '../shared/modules.js';
 import { registerEnrollmentRoutes } from './enrollment.js';
 import { registerAdminRoutes, validateUserFields } from './admin.js';
 import { registerClassroomRoutes } from './classroom.js';
-import { addDemo, removeDemo, demoStatus } from './demo.js';
+import { addDemo, removeDemo, demoStatus, keptFromDemo } from './demo.js';
 import { emptyData } from './db.js';
 import { createFileStore } from './files.js';
 import { registerNewsRoutes } from './news.js';
@@ -527,7 +527,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       id: randomUUID(),
       role: 'student',
       name: composeName(f),
-      title: f.title,
+      nameTitle: f.title, // the honorific (Mr., Ms., Mrs.); user.title is a job title (server/account.js)
       firstName: f.firstName,
       middleName: f.middleName,
       lastName: f.lastName,
@@ -696,6 +696,11 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     // Making the demo school runs real routes (Finance's), which notify; those go, and the demo
     // accounts get a set of their own instead (demo: true, removed with the demo).
     const before = new Set((db.data.notifications || []).map((n) => n.id));
+    const kept = keptFromDemo(db.data);
+    // The demo goes first (addDemo would also do it), then the applicants' files of what went: the
+    // new demo's openings and applications are new records, with new demo files and reviews.
+    removeDemo(db.data, ctx.files);
+    recruitment.docs.removeDemo();
     addDemo(db.data, ctx.today(), ctx.files);
     addFinanceDemo(db.data, ctx);
     documents.addDemo({ pdf: demoPdf, docx: demoDocx });
@@ -706,20 +711,22 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     addNotificationsDemo(db.data, clock().getTime());
     dueDates.sweep(); // the demo's due dates on HR's bell (demo: true, removed with it)
     db.save();
-    return demoStatus(db.data);
+    return { ...demoStatus(db.data), kept };
   });
   route('DELETE', '/api/admin/demo', 'admin:data.manage', () => {
     for (const u of users().filter((x) => x.demo)) ctx.signOutEverywhere(u.id);
+    const kept = keptFromDemo(db.data);
     documents.removeDemo();
-    recruitment.docs.removeDemo();
     forms.removeDemo();
     removeFinanceDemo(db.data);
     removeDemo(db.data, ctx.files);
+    recruitment.docs.removeDemo(); // after the demo accounts and openings are gone
     removeAuditDemo(db.data);
     removeNotificationsDemo(db.data);
     tidyAvatars(db.data, avatars);
+    dueDates.sweep(); // the bell's markers and the due-date marks of the demo employees go
     db.save();
-    return demoStatus(db.data);
+    return { ...demoStatus(db.data), kept };
   });
 
   // ----- HRIS (/hris/): sign-in status for any employee -----

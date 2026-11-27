@@ -153,7 +153,7 @@ You keep the forms Finance gives its people to download (a request for quotation
 
 1. To add a form, choose **Upload a form**, choose the file, type the **Title**, a **Category** (for example *Procurement*) and the **Form code / revision**, tick the account types that use it, and choose **Publish now**. Choose **Upload**.
 2. When a form changes, choose **New version** on its row, choose the file, type a **Change note** and choose **Upload version**.
-3. Pick an earlier version under **Versions** to download it; **More → Restore a version** makes it current again as a new version.
+3. Pick an earlier version under **Versions** and choose **Download** beside it; **More → Restore a version** makes it current again as a new version.
 4. **More → Retire** hides a form from users and keeps it.
 
 Employees and students find the published forms under **Finance → Forms & downloads**. Everything you do here is in the audit log.
