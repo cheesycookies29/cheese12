@@ -129,27 +129,43 @@ const system = {
   reloadCaddy: () => run('systemctl', ['reload', 'caddy']),
   daemonReload: () => run('systemctl', ['daemon-reload']),
   restartApp: () => run('systemctl', ['restart', 'ltdc-erp']),
+  caddyLog: () => run('journalctl', ['-u', 'caddy', '-n', '8', '--no-pager', '-o', 'cat']).trim(),
 };
 
 const readOr = (file, fallback) => { try { return fs.readFileSync(file, 'utf8'); } catch { return fallback; } };
 const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Files Caddy (its own account) and systemd read: always 0644, whatever the umask of the process that
+// runs this (the deploy runs with umask 077, which would make them unreadable to Caddy).
+function writeReadable(file, text) {
+  fs.writeFileSync(file, text, { mode: 0o644 });
+  fs.chmodSync(file, 0o644);
+}
+
 // Installs a Caddyfile: validated first, the old one kept, put back if Caddy refuses it.
 function installCaddyfile(file, text, sys, log) {
   const old = readOr(file, null);
-  if (old === text) return false;
+  let unreadable = false;
+  try { unreadable = (fs.statSync(file).mode & 0o044) !== 0o044; } catch { /* no file yet */ }
+  if (old === text) {
+    // The same settings, but a file Caddy may not be able to read (0.73.1's first deploy): fix that.
+    if (unreadable) { fs.chmodSync(file, 0o644); log(`${file} is readable by Caddy again.`); return true; }
+    return false;
+  }
   const tmp = `${file}.new`;
-  fs.writeFileSync(tmp, text);
+  writeReadable(tmp, text);
   try { sys.validate(tmp); } catch (e) {
     fs.rmSync(tmp, { force: true });
     throw new Error(`Caddy refused the new settings, so nothing was changed. ${String(e.stderr || e.message).trim()}`);
   }
-  if (old !== null) fs.writeFileSync(`${file}.before-${stamp()}`, old);
+  if (old !== null) writeReadable(`${file}.before-${stamp()}`, old);
   fs.renameSync(tmp, file);
   try { sys.reloadCaddy(); } catch (e) {
-    if (old !== null) { fs.writeFileSync(file, old); try { sys.reloadCaddy(); } catch { /* reported below */ } }
-    throw new Error(`Caddy did not reload, so the previous settings were put back. ${String(e.stderr || e.message).trim()}`);
+    if (old !== null) { writeReadable(file, old); try { sys.reloadCaddy(); } catch { /* reported below */ } }
+    let why = '';
+    try { why = sys.caddyLog ? `\nCaddy's last messages:\n${sys.caddyLog()}` : ''; } catch { /* none */ }
+    throw new Error(`Caddy did not reload, so the previous settings were put back. ${String(e.stderr || e.message).trim()}${why}`);
   }
   log(`HTTPS settings updated (${file}).`);
   return true;
@@ -175,7 +191,7 @@ async function apply(opts = {}) {
   const want = renderDropIn(addresses);
   if (readOr(dropIn, null) !== want) {
     fs.mkdirSync(path.dirname(dropIn), { recursive: true });
-    fs.writeFileSync(dropIn, want);
+    writeReadable(dropIn, want);
     sys.daemonReload();
     if (opts.restart) sys.restartApp();
     appChanged = true;

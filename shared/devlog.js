@@ -29,6 +29,16 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.73.2-alpha',
+    date: '2026-11-27',
+    title: 'Web address: the Caddy settings are readable by Caddy',
+    modules: ['deploy'],
+    notes: 'On 0.73.1\'s deploy, ltdc-erp-address wrote the Caddyfile under the deploy\'s umask 077, so Caddy (its own account) could not read it: the reload was refused and the previous settings were put back, as designed. The site was not affected, but the restored file was readable by root only, which would have stopped Caddy at its next start.',
+    changes: [
+      ['fixed', 'deploy', 'ltdc-erp-address writes the Caddyfile, its kept copy and the address.conf drop-in as 0644 whatever the umask, also when it puts the previous settings back, and makes an unreadable Caddyfile readable again when its settings are already up to date. A refused reload now shows Caddy\'s last log lines in the deploy log.'],
+    ],
+  },
+  {
     version: '0.73.1-alpha',
     date: '2026-11-27',
     title: 'The new web address, ltdc-erp.com, set from the repository on every deploy',

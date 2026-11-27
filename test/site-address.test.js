@@ -144,3 +144,32 @@ test('every deploy installs and runs it before update.sh, and a problem with it 
   assert.match(src.slice(run), /^node .*\\\n\s+\|\| echo "The web address step did not finish/m);
   assert.ok(src.indexOf('DEPLOY_FREEZE') < run, 'a frozen deploy changes no address either');
 });
+
+test('the deploy runs with umask 077: the files Caddy and systemd read are still 0644, also when put back', async () => {
+  const was = process.umask(0o077);
+  try {
+    const s = server({ 'ltdc-erp.duckdns.org': [SERVER] });
+    await s.go();
+    assert.equal(fs.statSync(s.caddyfile).mode & 0o777, 0o644);
+    assert.equal(fs.statSync(path.join(s.dir, 'ltdc-erp.service.d', 'address.conf')).mode & 0o777, 0o644);
+
+    let first = true;
+    const t = server({ 'ltdc-erp.duckdns.org': [SERVER] }, { reload: () => { if (first) { first = false; throw new Error('reload failed'); } } });
+    await assert.rejects(t.go(), /previous settings were put back/);
+    assert.equal(fs.statSync(t.caddyfile).mode & 0o777, 0o644, 'the old settings, readable');
+
+    // The state 0.73.1's first deploy left: the old settings in a file only root can read. The next
+    // run puts the new settings in a readable file.
+    const u = server({ 'ltdc-erp.duckdns.org': [SERVER] });
+    fs.chmodSync(u.caddyfile, 0o600);
+    await u.go();
+    assert.equal(fs.statSync(u.caddyfile).mode & 0o777, 0o644);
+    // And with the settings already up to date, only the permissions are fixed (no reload needed).
+    fs.chmodSync(u.caddyfile, 0o600);
+    u.calls.length = 0;
+    const r = await u.go();
+    assert.equal(r.changed, true);
+    assert.equal(fs.statSync(u.caddyfile).mode & 0o777, 0o644);
+    assert.deepEqual(u.calls, []);
+  } finally { process.umask(was); }
+});
