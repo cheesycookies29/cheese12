@@ -87,7 +87,7 @@ Check current prices with the [AWS Pricing Calculator](https://calculator.aws/).
    3. In the **current ip** box next to it, enter your Elastic IP and click **update ip**. An Elastic IP never changes, so nothing else is needed.
    4. Use `ltdc-erp.duckdns.org` wherever this guide says `erp.lancastertechdev.com`.
 
-   To move to your own address later, add the DNS record above, then repeat steps 14, 19 and 20 with the new address.
+   To move to your own address later, see **Changing the web address** below.
 
 10. On your Mac, wait until this prints your Elastic IP. It usually takes a few minutes and can take up to an hour.
 
@@ -375,13 +375,53 @@ Until the stack is updated, deploys still work the old way (the run says the sta
 0.39). After it is updated, only runs of the deploy job in the **production** environment can
 deploy, so do step D's branch limit too.
 
+## Changing the web address
+
+The addresses the server answers to are listed in `deploy/aws/site-address`, one per line, the main
+one first (since 0.73.1: `ltdc-erp.com`, then `www.ltdc-erp.com` and the old `ltdc-erp.duckdns.org`).
+Every deploy applies that list with `ltdc-erp-address`, which writes Caddy's settings and the app's
+`ALLOWED_HOSTS`. You never edit `/etc/caddy/Caddyfile` or the service file by hand for this.
+
+1. **DNS first.** Where the new domain is managed (Cloudflare for `ltdc-erp.com`), add:
+
+   | Type | Name | Value | Proxy status |
+   |---|---|---|---|
+   | A | `@` (the domain itself) | the Elastic IP | **DNS only** (grey cloud) |
+   | CNAME | `www` | `ltdc-erp.com` | **DNS only** (grey cloud) |
+
+   Keep the old address (DuckDNS) pointing at the server: it keeps old links, bookmarks, Service Desk
+   tracking links and QR codes working by sending them on to the new address.
+
+2. **Check it** on your Mac: `dig +short ltdc-erp.com` prints the Elastic IP.
+
+3. **Deploy** (any push, or **Re-run all jobs** on the last deploy). The log shows what happened:
+   - an address with no DNS record yet, or one behind Cloudflare's proxy (orange cloud), is left out
+     and the reason printed; the other addresses go on as before;
+   - when the main address points here, Caddy gets its certificate (up to about a minute), and the
+     other addresses then send visitors to it with the same path (`Main address: https://ltdc-erp.com.`).
+
+   Without a deploy, on the server: `sudo ltdc-erp-address`.
+
+4. Sign in again at the new address (sign-ins are kept per address), and tell staff the new address.
+
+Safety: the new Caddy settings are checked before they are used, the previous file is kept as
+`/etc/caddy/Caddyfile.before-<time>`, and if Caddy refuses to reload the previous settings are put
+back. If no listed address points at the server (a DNS outage), nothing is changed.
+
+**Why "DNS only".** Behind Cloudflare's proxy every visitor would reach CORE from a Cloudflare
+address, so CORE's per-address limits (sign-in lockout, the event guest pages at a venue) and the
+Security monitor would see many people as one. Turning the proxy on needs a different Caddy setup
+first (the visitor's address from `CF-Connecting-IP`, trusted only from Cloudflare's ranges, and
+SSL mode Full (strict)).
+
 ## Troubleshooting
 
 | What you see | What to do |
 |---|---|
 | Browser says the site can't be reached | Check that `dig +short erp.lancastertechdev.com` shows your Elastic IP, and that the security group allows HTTP (80) and HTTPS (443) from anywhere. |
 | Certificate or "not secure" warning | Wait one minute, then run `sudo journalctl -u caddy -n 50 --no-pager`. Usually DNS isn't pointing at the server yet, or Cloudflare's proxy (orange cloud) is on. |
-| "Forbidden host" | The address in `/etc/systemd/system/ltdc-erp.service` (`ALLOWED_HOSTS`) doesn't match the one in the browser. Fix it, then run `sudo systemctl daemon-reload && sudo systemctl restart ltdc-erp`. |
+| The new address shows "not secure" or doesn't open | Check `dig +short ltdc-erp.com` shows the Elastic IP, and that the Cloudflare record is **DNS only** (grey cloud). Then run `sudo ltdc-erp-address` on the server and read what it prints. |
+| "Forbidden host" | The address in the browser isn't in `deploy/aws/site-address`. Add it there and deploy (or run `sudo ltdc-erp-address` on the server). |
 | Signing in does nothing / you're signed out immediately | Open the site with `https://`, not `http://`. The login cookie is HTTPS-only. |
 | "502 Bad Gateway" | The app isn't running. Check it with `sudo journalctl -u ltdc-erp -n 50 --no-pager`. |
 | `ssh` times out | Your IP changed. See "Connecting from a different network" above. |

@@ -50,4 +50,11 @@ systemctl enable --now ltdc-erp-offsite.timer ltdc-erp-restore-check.timer >/dev
 # One command back to the release before this one (0.71): sudo ltdc-erp-rollback.
 install -m 755 "$SRC/deploy/aws/ltdc-erp-rollback" /usr/local/sbin/ltdc-erp-rollback
 
+# The web addresses (0.73.1): Caddy's sites and the app's ALLOWED_HOSTS, from deploy/aws/site-address.
+# Before update.sh, so the app's restart picks up a new address. A problem here never stops the deploy:
+# the tool changes nothing it cannot check, and says why.
+install -m 755 "$SRC/deploy/aws/ltdc-erp-address.cjs" /usr/local/sbin/ltdc-erp-address
+node "$SRC/deploy/aws/ltdc-erp-address.cjs" --deploy "$SRC/deploy/aws/site-address" \
+  || echo "The web address step did not finish (see above); the address settings were left as they were."
+
 bash "$SRC/deploy/aws/update.sh" "$SRC" "$VERSION"

@@ -29,6 +29,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.73.1-alpha',
+    date: '2026-11-27',
+    title: 'The new web address, ltdc-erp.com, set from the repository on every deploy',
+    modules: ['deploy'],
+    notes: 'CORE moves from ltdc-erp.duckdns.org to ltdc-erp.com (Cloudflare DNS, "DNS only"). The addresses are listed in deploy/aws/site-address and applied on every deploy by deploy/aws/ltdc-erp-address.cjs (installed as /usr/local/sbin/ltdc-erp-address), so no one edits the Caddyfile or the service file by hand. Nothing moves until the new address points at the server and its certificate works. deploy/aws/EC2.md, "Changing the web address".',
+    changes: [
+      ['new', 'deploy', 'ltdc-erp-address: writes Caddy\'s sites and the app\'s ALLOWED_HOSTS (a systemd drop-in, address.conf) from deploy/aws/site-address, the main address first. An address is used only when its DNS points at this server (the Elastic IP from the instance metadata); one with no record, or behind Cloudflare\'s proxy, is left out and the fix printed. All addresses are served until the main address has a trusted certificate (checked on the server itself), then the others redirect to it with a 308 and the same path, so old links, Service Desk tracking links and QR codes keep working. The new Caddyfile is validated first, the previous one kept as Caddyfile.before-<time> and put back if Caddy refuses the reload; with no address pointing here (a DNS outage) nothing changes. remote-deploy.sh runs it before update.sh, after the deploy freeze check, and a problem with it never stops a deploy.'],
+      ['improved', 'deploy', 'EC2 guide: "Changing the web address" (the Cloudflare records, why DNS only, what the deploy log says) and two troubleshooting rows.'],
+    ],
+  },
+  {
     version: '0.73.0-alpha',
     date: '2026-11-27',
     title: 'CUSTOM APP Tier 2: group arrivals, walk-ins and substitutes, the email outbox, Event control and the offline pack',

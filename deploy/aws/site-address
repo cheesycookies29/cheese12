@@ -1,0 +1,12 @@
+# The web addresses of this server (0.73.1), one per line. The first is the main address.
+#
+# The others go on working and, once the main address's HTTPS certificate works, send visitors to it
+# (with the same path, so old links and old QR codes keep working). Until then every address is served
+# as it is. An address is used only when its DNS points at this server; in Cloudflare, set its record
+# to "DNS only" (grey cloud).
+#
+# Applied on every deploy (remote-deploy.sh), or at any time on the server with: sudo ltdc-erp-address
+# See "Changing the web address" in deploy/aws/EC2.md.
+ltdc-erp.com
+www.ltdc-erp.com
+ltdc-erp.duckdns.org
