@@ -11,6 +11,7 @@
 // Refusals come only from shared/customapp/refusals.js (model.refusal); 400s are input mistakes.
 import { randomUUID } from 'node:crypto';
 import { refusal, bad, cleanText, lookupOf, guestLabel } from './model.js';
+import { seatMessage } from './message.js';
 import { TABLE_CLASSES, GUEST_CLASSES, SEAT_NUMBERS, FLAGS, POLL_MS, HARD_LIMIT, EVENT_STATUSES } from '../../../shared/customapp/statuses.js';
 import { classOK, takenSeats, tableCounts, optionsFor, seatNoRequired, seatStatusFor, isReserved, isConfirmed, whyNot } from '../../../shared/customapp/seating.js';
 import { cleanRoom, roomTables } from '../../../shared/customapp/room.js';
@@ -119,6 +120,10 @@ const COMMANDS = {
     const g = mustGuest(state, cmd.guestId);
     needStaff(actor, state, g.id);
     if (g.arrival?.state === 'checked_in') throw refuse('already_checked_in', state, [g.id]);
+    // A walk-in or substitute is admitted only by the Super Administrator's approval (spec s.4); an
+    // invitee whose substitute was approved is not coming (their seat changed hands).
+    if (g.classification === 'unlisted' && g.approval?.state !== 'approved') throw refuse('needs_super_admin', state, [g.id], [], 'A walk-in or substitute is checked in when the Super Administrator approves them.');
+    if (g.substitutedBy) throw refuse('guest_moved', state, [g.id], [], 'A substitute took this invitee\'s place. Refer them to the Super Administrator.');
     const via = cmd.via === 'reconcile' ? 'reconcile' : 'desk';
     const patch = { arrival: { state: 'checked_in', at: cmd.via === 'reconcile' && cmd.occurredAt ? String(cmd.occurredAt) : now, by: actor.id, via } };
     if (isReserved(g.seat)) patch.seat = { ...g.seat, status: 'confirmed' };
@@ -167,11 +172,24 @@ const COMMANDS = {
   },
 
   // Seat checked-in guests: one placement, or a group all or nothing (one commit). Constraints, not
-  // the ranking: any eligible table in scope is accepted (spec s.9).
+  // the ranking: any eligible table in scope is accepted (spec s.9). A group (US-021, spec s.10):
+  //  - members with different owners are seated only by the Super Administrator (needs_super_admin;
+  //    a staffer sends the group to them with refer);
+  //  - a group placed at more than one table is a split, which needs allowSplit: true (the screen's
+  //    explicit "Split group" confirm); without it nothing is seated;
+  //  - each member keeps their own check-in and seat; the group is remembered as groupId.
   assign(state, cmd, actor, now) {
     const placements = Array.isArray(cmd.placements) ? cmd.placements : [{ guestId: cmd.guestId, tableId: cmd.tableId, seatNo: cmd.seatNo }];
     if (!placements.length || placements.length > 50) throw bad('Send one to 50 guests to seat.');
     if (new Set(placements.map((p) => p.guestId)).size !== placements.length) throw bad('A guest is in the list twice.');
+    const group = placements.length > 1;
+    if (group) {
+      const members = placements.map((p) => mustGuest(state, p.guestId));
+      const owners = new Set(members.map((g) => g.ownerUserId || null));
+      if (actor.role !== 'super' && owners.size > 1) throw refuse('needs_super_admin', state, members.map((g) => g.id), [], 'These guests have different owners: the Super Administrator seats the group (Send group to Super Administrator).');
+      if (new Set(placements.map((p) => String(p.tableId))).size > 1 && cmd.allowSplit !== true) throw bad('The group would sit at more than one table. Confirm Split group to seat it that way.');
+    }
+    const groupId = group ? cleanText(cmd.groupId, 60) || randomUUID() : null;
     const changes = [];
     const guests = [];
     const tables = [];
@@ -188,16 +206,20 @@ const COMMANDS = {
       const seatNo = seatNoFor(state, g, t, p.seatNo, takenSeats(t.id, others));
       const seat = seatRecord(t, seatNo, 'confirmed', actor, now);
       others = others.map((x) => (x.id === g.id ? { ...x, seat } : x));
-      changes.push(setGuest(g, { seat }));
+      const patch = { seat };
+      if (groupId) patch.groupId = groupId;
+      // Seated: a "send to the Super Administrator" flag has done its job.
+      if ((g.flags || []).some((f) => f.kind === 'referred_group')) patch.flags = g.flags.filter((f) => f.kind !== 'referred_group');
+      changes.push(setGuest(g, patch));
       guests.push(g);
       if (!tables.includes(t)) tables.push(t);
     }
     const one = guests.length === 1;
     return {
       type: 'assign', changes, guestIds: guests.map((g) => g.id), tableIds: tables.map((t) => t.id),
-      write: writeOf(actor, guests, tables),
-      audit: { action: 'seat', entityId: guests[0].id, label: one ? guestLabel(guests[0]) : `${guests.length} guests`, note: placements.map((p) => `${guestLabel(guestOf(state, p.guestId))}: ${seatText(state, { tableId: p.tableId, seatNo: changes.find((c) => c.id === p.guestId).patch.seat.seatNo })}`).join('; ').slice(0, 480) },
-      result: { seats: changes.map((c) => ({ guestId: c.id, tableId: c.patch.seat.tableId, seatNo: c.patch.seat.seatNo })) },
+      write: writeOf(actor, guests, tables), reason: group && tables.length > 1 ? `Group split over tables ${tables.map((t) => t.number).join(', ')}` : '',
+      audit: { action: 'seat', entityId: guests[0].id, label: one ? guestLabel(guests[0]) : `${guests.length} guests${tables.length > 1 ? ' (group split)' : ' (group)'}`, note: placements.map((p) => `${guestLabel(guestOf(state, p.guestId))}: ${seatText(state, { tableId: p.tableId, seatNo: changes.find((c) => c.id === p.guestId).patch.seat.seatNo })}`).join('; ').slice(0, 480) },
+      result: { seats: changes.map((c) => ({ guestId: c.id, tableId: c.patch.seat.tableId, seatNo: c.patch.seat.seatNo })), ...(groupId ? { groupId, split: tables.length > 1 } : {}) },
     };
   },
 
@@ -329,6 +351,110 @@ const COMMANDS = {
     };
   },
 
+  // ----- Walk-ins and substitutes (US-022, spec s.4, s.5, s.7) -----
+  // Anyone on the staff records a guest who is not on the list. They are not admitted: they wait,
+  // not checked in, in the Super Administrator's inbox, and sit nowhere until approved (classOK).
+  createUnlisted(state, cmd, actor, now) {
+    needStaff(actor, state);
+    const record = newGuest(state, cmd.guest || cmd, actor, now, 'walkin', cmd.note);
+    return {
+      type: 'createUnlisted', changes: [{ op: 'add', coll: 'caGuests', record }], guestIds: [record.id], tableIds: [], reason: record.approval.note,
+      diff: [{ id: record.id, f: 'approval', from: null, to: 'pending' }],
+      audit: { action: 'walkin', entityId: record.id, label: guestLabel(record), note: `Walk-in recorded for approval${record.company ? ` (${record.company})` : ''}` },
+      result: { guestId: record.id, ref: record.ref, approval: 'pending' },
+    };
+  },
+
+  // A representative for an invitee who is not coming. A staffer records it for the Super
+  // Administrator to approve; the Super Administrator records it already approved. On approval the
+  // invitee's seat changes hands in the same commit (or is released, as decided), so the two never
+  // both hold a seat (I6); the records link both ways (substituteFor, substitutedBy).
+  substitute(state, cmd, actor, now) {
+    needStaff(actor, state);
+    const o = mustGuest(state, cmd.originalId);
+    if (o.substitutedBy || (o.classification === 'unlisted' && o.approval?.state !== 'approved')) throw refuse('guest_moved', state, [o.id], [], 'This invitee already has a substitute, or is not approved yet.');
+    if (o.arrival?.state === 'checked_in') throw refuse('already_checked_in', state, [o.id], [], 'The invitee is already checked in: they are here.');
+    if (state.guests.some((g) => g.substituteFor === o.id && g.approval?.state === 'pending')) throw refuse('guest_moved', state, [o.id], [], 'A substitute for this invitee is already waiting for approval.');
+    const record = newGuest(state, cmd.newGuest || cmd.guest || {}, actor, now, 'substitute', cmd.note, o);
+    const add = { op: 'add', coll: 'caGuests', record };
+    const audit = { action: 'substitute', entityId: o.id, label: `${guestLabel(record)} for ${guestLabel(o)}` };
+    if (actor.role !== 'super') {
+      return {
+        type: 'substitute', changes: [add], guestIds: [record.id, o.id], tableIds: [], reason: record.approval.note,
+        diff: [{ id: record.id, f: 'substituteFor', from: null, to: o.ref }, { id: record.id, f: 'approval', from: null, to: 'pending' }],
+        audit: { ...audit, note: `Substitute recorded for approval${o.seat ? ` (${seatText(state, o.seat)})` : ''}` },
+        result: { guestId: record.id, ref: record.ref, approval: 'pending', originalId: o.id },
+      };
+    }
+    // The Super Administrator: recorded and approved at once.
+    const p = approvePlan(state, record, o, cmd, actor, now);
+    return { ...p, type: 'substitute', changes: [add, ...p.changes], audit: { ...audit, note: p.audit.note } };
+  },
+
+  // The Super Administrator's decision on a walk-in or a substitute: identity, classification and
+  // industry recorded with who, when and why ({ state, by, at, note }). An approved walk-in is
+  // checked in (they are at the desk) and waits for a table; an approved substitute takes the
+  // invitee's seat (seat: 'transfer', the default) or the seat is released ('release').
+  approve(state, cmd, actor, now) {
+    needSuper(actor, state);
+    const g = mustGuest(state, cmd.guestId);
+    if (g.classification !== 'unlisted' || g.approval?.state !== 'pending') throw refuse('stale', state, [g.id], [], 'This guest is not waiting for approval.');
+    const o = g.substituteFor ? mustGuest(state, g.substituteFor) : null;
+    return approvePlan(state, g, o, cmd, actor, now);
+  },
+  reject(state, cmd, actor, now) {
+    needSuper(actor, state);
+    const g = mustGuest(state, cmd.guestId);
+    if (g.classification !== 'unlisted' || g.approval?.state !== 'pending') throw refuse('stale', state, [g.id], [], 'This guest is not waiting for approval.');
+    const note = cleanText(cmd.note, 300);
+    if (!note) throw bad('Say why the guest is not admitted.');
+    return {
+      type: 'reject', changes: [setGuest(g, { approval: { ...g.approval, state: 'rejected', by: actor.id, at: now, note }, arrival: { state: 'cancelled', at: null, by: null, via: null } })],
+      guestIds: [g.id, ...(g.substituteFor ? [g.substituteFor] : [])], tableIds: [], reason: note,
+      diff: [{ id: g.id, f: 'approval', from: 'pending', to: 'rejected' }],
+      audit: { action: 'reject', entityId: g.id, label: guestLabel(g), note: `${g.substituteFor ? 'Substitute' : 'Walk-in'} not admitted. ${note}`.slice(0, 400) },
+      result: { guestId: g.id, approval: 'rejected' },
+    };
+  },
+
+  // A group whose members have different owners (or tables of no one owner) goes to the Super
+  // Administrator to seat together: a flag on each member, nothing else changes. Any staffer.
+  refer(state, cmd, actor, now) {
+    needStaff(actor, state);
+    const ids = Array.isArray(cmd.guestIds) ? [...new Set(cmd.guestIds.map(String))] : [];
+    if (ids.length < 1 || ids.length > 50) throw bad('Choose the guests to send.');
+    const list = ids.map((id) => mustGuest(state, id));
+    const reason = cleanText(cmd.reason, 200) || 'Seat together';
+    const key = list.map((g) => g.id).sort()[0];
+    const changes = list.filter((g) => !(g.flags || []).some((f) => f.kind === 'referred_group' && f.group === key)).map((g) => setGuest(g, { flags: [...(g.flags || []), { kind: 'referred_group', at: now, by: actor.id, group: key, size: list.length, note: reason }].slice(-10) }));
+    if (!changes.length) return { type: 'refer', noop: true, changes: [], guestIds: [], tableIds: [], result: { sent: 0 } };
+    return {
+      type: 'refer', changes, guestIds: list.map((g) => g.id), tableIds: [], reason,
+      diff: list.map((g) => ({ id: g.id, f: 'flags', from: null, to: 'referred_group' })),
+      audit: { action: 'refer', entityId: list[0].id, label: `${list.length} guests`, note: `Sent to the Super Administrator to seat together: ${list.map(guestLabel).join(', ')}`.slice(0, 400) },
+      result: { sent: list.length },
+    };
+  },
+
+  // ----- Email (US-023) -----
+  // Resend a guest's table and seat by email: a new message (a new attempt) in the outbox, whatever
+  // happened to the last one. The guest's owner or the Super Administrator. The outbox sends it
+  // outside commit(); a failure never touches the seat or the check-in.
+  notify(state, cmd, actor, now) {
+    const g = mustGuest(state, cmd.guestId);
+    if (!eventCan(actor, 'write', g)) throw refuse(isStaff(actor) ? 'out_of_scope' : 'needs_super_admin', state, [g.id]);
+    if (!isConfirmed(g.seat)) throw refuse('guest_moved', state, [g.id], [], 'The guest has no confirmed seat to send.');
+    if (!g.email) throw bad('This guest has no email address: tell them their table, or show them this screen.');
+    const t = tableOf(state, g.seat.tableId);
+    const record = { id: randomUUID(), eventId: state.event.id, ...seatMessage(state.event, g, t, 'resend'), state: 'queued', attempts: 0, lastError: null, createdAt: now, sentAt: null, by: actor.id };
+    return {
+      type: 'notify', changes: [{ op: 'add', coll: 'caOutbox', record }, setGuest(g, { notify: { ...(g.notify || {}), state: 'queued', lastAt: now, messageId: record.id } })],
+      guestIds: [g.id], tableIds: [t?.id].filter(Boolean), diff: [{ id: g.id, f: 'notify', from: g.notify?.state || 'none', to: 'queued' }],
+      audit: { action: 'notify', entityId: g.id, label: guestLabel(g), note: `Seat email sent again (${seatText(state, g.seat)})` },
+      result: { guestId: g.id, messageId: record.id },
+    };
+  },
+
   // ----- Tables and the room (Super Administrator) -----
   'table.add'(state, cmd, actor) {
     needSuper(actor, state);
@@ -447,7 +573,15 @@ const COMMANDS = {
       const next = { ...ev.settings };
       if (s.seatNumbers !== undefined) next.seatNumbers = SEAT_NUMBERS.includes(s.seatNumbers) ? s.seatNumbers : (() => { throw bad('Seat numbers are for all guests, preferred guests or none.'); })();
       for (const k of ['mixedTables', 'releaseDelegable']) if (s[k] !== undefined) next[k] = Boolean(s[k]);
-      for (const k of ['emailFrom', 'replyTo']) if (s[k] !== undefined) next[k] = cleanText(s[k], 254);
+      // The event's own sender and reply address (US-023): never the IT Service Desk's mailbox, or a
+      // guest's reply would become a helpdesk ticket.
+      for (const k of ['emailFrom', 'replyTo']) {
+        if (s[k] === undefined) continue;
+        const v = cleanText(s[k], 254).toLowerCase();
+        if (v && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw bad(`The ${k === 'emailFrom' ? 'From' : 'Reply-To'} address is not a valid email address.`);
+        if (v && state.helpdeskAddress && v === state.helpdeskAddress) throw bad('Use the event\'s own address, not the IT Service Desk mailbox: guests\' replies would become helpdesk tickets.');
+        next[k] = v;
+      }
       if (ev.settings?.mixedTables && !next.mixedTables && state.guests.some((g) => g.seat && tableOf(state, g.seat.tableId)?.classification === 'mixed')) throw refuse('table_has_claims', state, [], [], 'Guests sit at mixed tables. Move them before turning mixed tables off.');
       patch.settings = next;
     }
@@ -549,6 +683,86 @@ function needReleaser(actor, state, g, t) {
   if (!isStaff(actor)) throw refuse('out_of_scope', state, [g.id], [t.id]);
   if (!state.event.settings?.releaseDelegable) throw refuse('needs_super_admin', state, [g.id], [t.id]);
   needScope(actor, state, [g], [t]);
+}
+
+
+// A guest who is not on the imported list (a walk-in, or a substitute for `original`), waiting for
+// the Super Administrator: not checked in, classification 'unlisted', approval pending. Desk only
+// (the guest page refers them), so they never count in the import check.
+function newGuest(state, input, actor, now, kind, note, original = null) {
+  const first = cleanText(input.first ?? input.firstName, 80);
+  const last = cleanText(input.last ?? input.surname ?? input.lastName, 80);
+  if (!last) throw bad('Write the guest\'s surname.');
+  const email = cleanText(input.email, 254).toLowerCase();
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw bad('That email address is not valid.');
+  const industryId = input.industryId ? String(input.industryId) : original?.industryId || null;
+  if (industryId && !(state.event.industries || []).some((i) => i.id === industryId)) throw bad('Choose an industry of this event.');
+  const n = state.guests.filter((g) => g.classification === 'unlisted').length + 1;
+  const prefix = state.event.refPrefix || 'G';
+  let ref = `${prefix}-${kind === 'substitute' ? 'S' : 'W'}${String(n).padStart(3, '0')}`;
+  for (let k = n + 1; state.guests.some((g) => g.ref === ref); k++) ref = `${prefix}-${kind === 'substitute' ? 'S' : 'W'}${String(k).padStart(3, '0')}`;
+  const rec = {
+    id: randomUUID(), eventId: state.event.id, ref, externalKey: null,
+    name: { first, last, display: `${first} ${last}`.trim() }, designation: cleanText(input.designation, 120),
+    company: cleanText(input.company, 160) || original?.company || '', industryId, industryText: '',
+    email, mobile: cleanText(input.mobile, 40), classification: 'unlisted', tags: [], rsvp: '',
+    ownerUserId: original ? original.ownerUserId || null : null,
+    arrival: { state: 'expected', at: null, by: null, via: null },
+    approval: { state: 'pending', kind, requestedBy: actor.id, requestedAt: now, note: cleanText(note, 300) },
+    ...(original ? { substituteFor: original.id } : {}),
+    seat: null, statusTokens: [], flags: [], notify: { state: 'none' }, deskOnly: true, altSurnames: [], active: true, rev: 0,
+  };
+  rec.lookup = lookupOf(rec);
+  return rec;
+}
+
+// Approving g (a walk-in, or the substitute for o): one plan, used by approve and by the Super
+// Administrator's own substitute (where g is added in the same commit).
+function approvePlan(state, g, o, cmd, actor, now) {
+  const ev = state.event;
+  const note = cleanText(cmd.note, 300);
+  const seatClass = o ? (o.classification === 'unlisted' ? o.approval?.classification : o.classification) : cmd.classification;
+  if (!['preferred', 'regular', 'employee'].includes(seatClass)) throw bad('Choose the class the guest sits as: preferred, regular or employee.');
+  const industryId = cmd.industryId !== undefined ? cmd.industryId || null : g.industryId || o?.industryId || null;
+  if (industryId && !(ev.industries || []).some((i) => i.id === industryId)) throw bad('Choose an industry of this event.');
+  const owner = cmd.ownerUserId !== undefined ? cmd.ownerUserId || null : g.ownerUserId || o?.ownerUserId || null;
+  if (owner && !activeStaffIds(ev).has(owner)) throw bad('The owner must be active event staff.');
+  const patch = {
+    approval: { ...(g.approval || {}), state: 'approved', by: actor.id, at: now, note, classification: seatClass, industryId, identity: { name: g.name?.display || '', company: g.company || '' } },
+    arrival: { state: 'checked_in', at: now, by: actor.id, via: cmd.via === 'reconcile' ? 'reconcile' : 'desk' }, industryId, ownerUserId: owner,
+  };
+  if (cmd.company !== undefined) patch.company = cleanText(cmd.company, 160);
+  const changes = [];
+  const tableIds = [];
+  let note2 = '';
+  if (o) {
+    if (o.arrival?.state === 'checked_in') throw refuse('already_checked_in', state, [o.id, g.id], [], 'The invitee checked in meanwhile: they are here, so there is no substitute.');
+    if (o.substitutedBy && o.substitutedBy !== g.id) throw refuse('guest_moved', state, [o.id, g.id]);
+    const oPatch = { substitutedBy: g.id, arrival: { state: 'cancelled', at: null, by: null, via: null } };
+    if (o.seat) {
+      const t = tableOf(state, o.seat.tableId);
+      tableIds.push(o.seat.tableId);
+      if (cmd.seat === 'release') {
+        oPatch.seat = null;
+        oPatch.released = { at: now, by: actor.id, reason: `Substitute ${g.name?.display || ''} approved; the seat is released`.trim(), tableId: o.seat.tableId, seatNo: o.seat.seatNo ?? null };
+        note2 = `; ${seatText(state, o.seat)} released`;
+      } else {
+        // The seat changes hands: the substitute is here, so it is confirmed.
+        oPatch.seat = null;
+        patch.seat = { ...o.seat, status: 'confirmed', at: now, by: actor.id };
+        note2 = `; ${seatText(state, o.seat)} now theirs`;
+        if (!t) throw bad('The invitee\'s table is not in this event.');
+      }
+    }
+    changes.push(setGuest(o, oPatch));
+  }
+  changes.unshift(setGuest(g, patch));
+  return {
+    type: 'approve', changes, guestIds: [g.id, ...(o ? [o.id] : [])], tableIds, reason: note,
+    diff: [{ id: g.id, f: 'approval', from: 'pending', to: 'approved' }, { id: g.id, f: 'classification', from: 'unlisted', to: seatClass }, ...(o ? [{ id: o.id, f: 'substitutedBy', from: null, to: g.ref }, ...(o.seat ? [{ id: o.id, f: 'seat', from: { t: o.seat.tableId, s: o.seat.seatNo ?? null, st: o.seat.status }, to: null }, ...(patch.seat ? [{ id: g.id, f: 'seat', from: null, to: { t: patch.seat.tableId, s: patch.seat.seatNo ?? null, st: 'confirmed' } }] : [])] : [])] : [])],
+    audit: { action: 'approve', entityId: g.id, label: guestLabel(g), note: `${o ? `Substitute for ${guestLabel(o)}` : 'Walk-in'} approved as ${seatClass}${note2}${note ? `. ${note}` : ''}`.slice(0, 400) },
+    result: { guestId: g.id, approval: 'approved', classification: seatClass, ...(o ? { originalId: o.id, seat: patch.seat ? { tableId: patch.seat.tableId, seatNo: patch.seat.seatNo ?? null } : null } : {}) },
+  };
 }
 
 // Who owns what: guests or tables (coll) given to one active staff member, or back to nobody.

@@ -24,9 +24,16 @@ import { mustEvent, stateOf, roleOf, refusal, bad, maskEmail, maskMobile } from 
 // Super Administrator (break-glass), and the Super Administrator's paper reconciliation.
 const READ_ONLY_EXEMPT = new Set(['setFlag', 'setSuperAdmin']);
 
-// ctx: { db, audit, now () → ISO time }; the opId map is kept on it.
-export function createCommitContext(db, { audit = null, now = () => new Date().toISOString() } = {}) {
-  return { db, audit, now, idem: { list: null, length: 0, map: new Map() } };
+// ctx: { db, audit, now () → ISO time, afterCommit (ev, plan, before) }; the opId map and the last
+// save times (the health strip's save p95) are kept on it. afterCommit runs after the save, with
+// nothing awaited: the outbox queues the seat emails there (outbox.js), and sends them later.
+export function createCommitContext(db, { audit = null, now = () => new Date().toISOString(), afterCommit = null } = {}) {
+  return { db, audit, now, afterCommit, saveMs: [], idem: { list: null, length: 0, map: new Map() } };
+}
+// The 95th percentile of the last saves, in ms (null before the first).
+export function saveP95(ctx) {
+  const xs = [...(ctx.saveMs || [])].sort((a, b) => a - b);
+  return xs.length ? Math.round(xs[Math.min(xs.length - 1, Math.floor(xs.length * 0.95))] * 10) / 10 : null;
 }
 
 // A command's fingerprint for opId replays: the command without its opId, keys in order.
@@ -54,6 +61,7 @@ function project(state, changes) {
   const guests = new Map(state.guests.map((g) => [g.id, g]));
   const maps = { caTables: tables, caGuests: guests };
   for (const c of changes) {
+    if (c.coll === 'caOutbox') continue; // email: no rule depends on it
     if (c.coll === 'caEvents') event = { ...event, ...c.patch };
     else if (c.op === 'add') maps[c.coll].set(c.record.id, c.record);
     else if (c.op === 'remove') maps[c.coll].delete(c.id);
@@ -108,7 +116,7 @@ export function commit(ctx, eventId, user, cmd) {
   }
 
   const now = ctx.now();
-  const state = { ...stateOf(db, ev), users: (db.data.users || []).map((u) => ({ id: u.id, name: u.name, active: u.active !== false, canUse: userCan(u, 'customapp.use') })) };
+  const state = { ...stateOf(db, ev), users: (db.data.users || []).map((u) => ({ id: u.id, name: u.name, active: u.active !== false, canUse: userCan(u, 'customapp.use') })), helpdeskAddress: String(db.data.helpdesk?.mailbox?.address || '').toLowerCase() };
   const p = plan(state, cmd, actor, now);
   if (p.noop) return { ...(p.result || {}), seq: ev.seq || 0, unchanged: true };
   // Change records are of a closed set of kinds (a later push transport reuses them as they are).
@@ -137,12 +145,15 @@ export function commit(ctx, eventId, user, cmd) {
 
   // Apply, copy-on-write: the arrays as they were are kept, so an undo is putting them back.
   const d = db.data;
-  const saved = { caEvents: d.caEvents, caTables: d.caTables, caGuests: d.caGuests, caChanges: d.caChanges };
+  const saved = { caEvents: d.caEvents, caTables: d.caTables, caGuests: d.caGuests, caChanges: d.caChanges, caOutbox: d.caOutbox };
   const seq = (ev.seq || 0) + 1;
   const revs = {};
   d.caTables = [...(d.caTables || [])];
   d.caGuests = [...(d.caGuests || [])];
   d.caChanges = [...(d.caChanges || [])];
+  if (p.changes.some((c) => c.coll === 'caOutbox')) d.caOutbox = [...(d.caOutbox || [])];
+  // The seats before the change, for the emails afterCommit queues.
+  const seatsBefore = new Map(p.guestIds.map((id) => [id, state.guests.find((g) => g.id === id)?.seat || null]));
   let evNext = { ...ev, seq };
   for (const c of p.changes) {
     if (c.coll === 'caEvents') {
@@ -152,7 +163,7 @@ export function commit(ctx, eventId, user, cmd) {
     const arr = d[c.coll];
     if (c.op === 'add') {
       arr.push(c.record);
-      revs[c.record.id] = c.record.rev || 0;
+      if (c.coll !== 'caOutbox') revs[c.record.id] = c.record.rev || 0;
     } else if (c.op === 'remove') {
       const i = arr.findIndex((x) => x.id === c.id);
       if (i >= 0) arr.splice(i, 1);
@@ -171,6 +182,7 @@ export function commit(ctx, eventId, user, cmd) {
     guestIds: p.guestIds, tableIds: p.tableIds, diff: p.diff || autoDiff(state, p.changes), reason: p.reason || '', result: p.result || null,
   };
   d.caChanges.push(change);
+  const t0 = performance.now();
   try {
     db.save();
   } catch (err) {
@@ -178,12 +190,25 @@ export function commit(ctx, eventId, user, cmd) {
     console.error('CUSTOM APP: the change was not saved:', err.message);
     throw refusal('not_saved', { seq: ev.seq || 0 });
   }
+  if (ctx.saveMs) {
+    ctx.saveMs.push(performance.now() - t0);
+    if (ctx.saveMs.length > 200) ctx.saveMs.splice(0, ctx.saveMs.length - 200);
+  }
   // After the save: the audit log (its own file), once per change.
   if (ctx.audit && p.audit) {
     try {
       ctx.audit.record(`customapp.${p.audit.action}`, { entity: 'caEvent', entityId: p.audit.entityId || ev.id, label: p.audit.label || ev.name, note: p.audit.note || '' });
     } catch (err) {
       console.error('CUSTOM APP: audit entry not written:', err.message);
+    }
+  }
+  // After the save: the seat emails (queued here, sent later by the outbox, outside commit()). A
+  // failure here never undoes the change.
+  if (ctx.afterCommit) {
+    try {
+      ctx.afterCommit(evNext, p, seatsBefore);
+    } catch (err) {
+      console.error('CUSTOM APP: after the change:', err.message);
     }
   }
   return { ...(p.result || {}), seq, revs, guestIds: p.guestIds, tableIds: p.tableIds };

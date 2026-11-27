@@ -60,7 +60,7 @@ export function lookupOf(g) {
   return { surnames, m4: last4(g.mobile) };
 }
 
-// An event's code: its name as a slug with a random suffix ("year-end-party-k3f9"), so the guest page
+// An event's code: its name as a slug with a random suffix ("spring-gala-k3f9"), so the guest page
 // address cannot be guessed before the QR code is shown.
 export function newEventCode(name) {
   const slug = cleanText(name, 80).normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'event';

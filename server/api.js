@@ -534,7 +534,7 @@ function clock(db, emp, action, body = {}, source = 'self') {
 
 // rateLimits: on in the running app (server.js); off where tests call the API directly.
 // digestMail and digestClock: tests replace how the Projects digest sends and what time it is.
-export function createApi(db, { rateLimits = false, digestMail, digestClock } = {}) {
+export function createApi(db, { rateLimits = false, digestMail, digestClock, eventOutbox } = {}) {
   const secrets = createSecrets(db.dir);
   // The audit chain is sealed with a key made from the server key. Where keyed entries begin is
   // kept in the settings (never taken from a restored backup: see replaceData).
@@ -1411,7 +1411,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     opensModule: (u, id) => Boolean(moduleAccess(u, { modules: db.data.modules, inProjects: isProjectMember(db, u), isApprover: isApprover(db, u) }).find((m) => m.id === id)?.home),
   });
   // ----- CUSTOM APP (server/customapp, 0.71): events, check-in and seating -----
-  const customapp = registerCustomApp(route, db, { audit, limits, requirePassword, monitor });
+  // The event outbox sends through the helpdesk's outgoing mail transport (one place for SMTP).
+  const customapp = registerCustomApp(route, db, { audit, limits, requirePassword, monitor, transport: helpdesk.transport, ...(eventOutbox ? { outbox: eventOutbox } : {}) });
   // The rate limits give staff sign-in more room while an event's doors are open (0.70.1).
   eventWindowOpen = customapp.eventWindowOpen;
   // ----- Notifications: the bell in the top bar (server/notifications.js) -----
@@ -1487,9 +1488,15 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
     const client = { ip, ua: String(req.headers?.['user-agent'] || '').slice(0, 300), https: isHttps(req) };
     req.coreUser = user?.id || null;
     const eventPublic = url.pathname.startsWith('/api/public/event/');
-    if (user) limits.hit('api-user', user.id);
-    else if (eventPublic) limits.hit('event-ip', ip, 'Too many requests from this network. Wait a minute, then try again.');
-    else limits.hit('api-anon', ip);
+    try {
+      if (user) limits.hit('api-user', user.id);
+      else if (eventPublic) limits.hit('event-ip', ip, 'Too many requests from this network. Wait a minute, then try again.');
+      else limits.hit('api-anon', ip);
+    } catch (err) {
+      // An event's health strip counts its 429s (CUSTOM APP, 0.73).
+      if (err.status === 429) customapp.note429(url.pathname);
+      throw err;
+    }
     if (req.method === 'POST' && /^\/api\/auth\/(login|setup|2fa)$/.test(url.pathname)) limits.hit('auth', ip, 'Too many sign-in attempts from this network.');
     if (req.method !== 'GET' && url.pathname.startsWith('/api/public/') && !eventPublic) limits.hit('public-write', ip, 'Too many messages from this network.');
     // Several CORE servers can share one process (the tests): each request uses its own company's roles.

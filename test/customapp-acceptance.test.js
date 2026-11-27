@@ -1,10 +1,14 @@
 // CUSTOM APP → events: the client's acceptance scenarios (spec section 07), one named test each, the
 // evidence pack for the 5 Dec demo. Tier 0 (1 Dec) rows: preferred guest / no-show, manual
 // alternative / all tables full, duplicate / simultaneous check-in, last available seat, and
-// transfer / swap / release. The other seven rows land with Tier 1 and Tier 2.
+// transfer / swap / release. Tier 1 (3 Dec): regular guest / no match, unauthorised cross-scope,
+// ownership reallocation. Tier 2 (5 Dec): employee / group arrivals, unlisted / substitute, email
+// failure / no email, connectivity / recovery. All twelve are listed at the end.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { company, eventWith } from './support/customapp-kit.js';
+import { packHtml } from '../server/customapp/events/io.js';
 
 const counts = async (c, e) => Object.fromEntries((await c.as.lead('GET', e.base)).tables.map((t) => [t.number, { claims: t.claims, confirmed: t.confirmed, reserved: t.reserved, free: t.free }]));
 const clean = async (c, e) => assert.deepEqual((await c.as.lead('GET', `${e.base}/invariants`)).violations, []);
@@ -201,5 +205,155 @@ describe('US-017 and US-018: Tier 1 acceptance rows', () => {
     assert.ok((await e.cmd('tess', { type: 'assign', guestId: e.guest('B2').id, tableId: e.tables[3], seatNo: 2 })).ok);
     assert.equal(JSON.stringify(e.guest('B1').seat), seat, 'the confirmed assignment is intact');
     await clean(c, e);
+  });
+});
+
+// Tier 2 (5 Dec) rows.
+describe('US-021 to US-025: Tier 2 acceptance rows', () => {
+  test('GIVEN employees and a group arriving together WHEN they are recommended and seated THEN employees get eligible employee tables, the group gets group-fit tables, and alternatives appear when it cannot fit', async () => {
+    const c = await company();
+    // Tables 1-2 preferred, 3-5 regular (Sam owns 3 and 4, Tess 5), 6 employee; 4 chairs each.
+    const e = await eventWith(c, { room: { rows: 2, cols: 3, chairsPerTable: 4, stageSide: 'right' }, rows: [
+      ['E1', 'Paolo', 'Tan', 'Host Co', '', 'e1@example.com', '0917 000 0001', 'employee', '', '', ''],
+      ...['G1', 'G2', 'G3', 'G4', 'G5'].map((r, i) => [r, `Guest${i}`, `Family${i}`, 'Isla Savings', 'Banking', `${r}@example.com`, `0917 000 001${i}`, 'regular', 'sam', '', '']),
+    ] });
+    await e.cmd('lead', { type: 'checkIn', guestId: e.guest('E1').id });
+    const emp = await c.as.lead('GET', `${e.base}/recommend?guestIds=${e.guest('E1').id}`);
+    assert.deepEqual(emp.mine.map((t) => t.number), [6], 'an employee gets the employee table, nothing else');
+    for (const r of ['G1', 'G2', 'G3', 'G4', 'G5']) await e.cmd('sam', { type: 'checkIn', guestId: e.guest(r).id });
+    const three = ['G1', 'G2', 'G3'].map((r) => e.guest(r).id);
+    const fit = await c.as.sam('GET', `${e.base}/recommend?guestIds=${three.join(',')}`);
+    assert.deepEqual(fit.mine.map((t) => t.number), [3, 4], 'Sam\'s regular tables with 3 free chairs');
+    assert.ok(fit.mine.every((t) => t.free >= 3));
+    assert.ok((await e.cmd('sam', { type: 'assign', placements: three.map((id, i) => ({ guestId: id, tableId: e.tables[3], seatNo: i + 1 })) })).ok);
+    // A group of 2 now: table 3 has one chair left, so only table 4 fits them together.
+    const two = ['G4', 'G5'].map((r) => e.guest(r).id);
+    assert.deepEqual((await c.as.sam('GET', `${e.base}/recommend?guestIds=${two.join(',')}`)).mine.map((t) => t.number), [4]);
+    // Fill table 4 to 3 of 4: the pair cannot sit together anywhere of Sam's; alternatives (a split) are offered.
+    await c.as.lead('POST', `${e.base}/import`, { format: 'csv', data: 'Ref,First name,Surname,Classification,Personnel\nZ1,Z,One,regular,sam\nZ2,Z,Two,regular,sam\nZ3,Z,Three,regular,sam' }).then((pv) => c.as.lead('POST', `${e.base}/import/${pv.jobId}/apply`, {}));
+    for (const [i, r] of ['Z1', 'Z2', 'Z3'].entries()) {
+      await e.cmd('sam', { type: 'checkIn', guestId: e.guest(r).id });
+      await e.cmd('sam', { type: 'assign', guestId: e.guest(r).id, tableId: e.tables[4], seatNo: i + 1 });
+    }
+    const alt = await c.as.sam('GET', `${e.base}/recommend?guestIds=${two.join(',')}`);
+    assert.equal(alt.none, true, 'no table of Sam\'s fits both');
+    assert.deepEqual(alt.group.split.map((p) => [p.number, p.size]), [[3, 1], [4, 1]], 'the alternative: one at table 3, one at table 4');
+    assert.equal((await e.cmd('sam', { type: 'assign', placements: [{ guestId: two[0], tableId: e.tables[3], seatNo: 4 }, { guestId: two[1], tableId: e.tables[4], seatNo: 4 }] })).status, 400, 'split only with the Split group confirm');
+    assert.ok((await e.cmd('sam', { type: 'assign', allowSplit: true, placements: [{ guestId: two[0], tableId: e.tables[3], seatNo: 4 }, { guestId: two[1], tableId: e.tables[4], seatNo: 4 }] })).ok);
+    await clean(c, e);
+  });
+
+  test('GIVEN an unlisted guest and a substitute for a reserved invitee WHEN they are approved and seated THEN approval, classification and audit are recorded and the original reservation is handled without a double allocation', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: [
+      ['P1', 'Pedro', 'Reyes', 'Northbay Bank', 'Banking', 'p1@example.com', '0917 000 0001', 'preferred', 'sam', '1', '4'],
+      ['R1', 'Ana', 'Cruz', 'Acme', 'Retail', 'r1@example.com', '0917 000 0002', 'regular', 'sam', '', ''],
+    ] });
+    const counts0 = await counts(c, e);
+    // A walk-in: recorded by staff, approved (with class and industry) by the Super Administrator, then seated.
+    const w = await e.cmd('tess', { type: 'createUnlisted', guest: { first: 'Lorna', last: 'Bautista', company: 'Northbay Bank' }, note: 'Vouched by Pedro' });
+    assert.equal((await e.cmd('tess', { type: 'approve', guestId: w.guestId, classification: 'regular' })).code, 'needs_super_admin');
+    const ind = (await c.as.lead('GET', e.base)).industries.find((i) => i.name === 'Banking').id;
+    await e.cmd('lead', { type: 'approve', guestId: w.guestId, classification: 'regular', industryId: ind, ownerUserId: c.ids.sam, note: 'Host confirmed' });
+    const lorna = () => c.db.data.caGuests.find((g) => g.id === w.guestId);
+    assert.deepEqual([lorna().approval.state, lorna().approval.classification, lorna().approval.industryId, lorna().approval.by], ['approved', 'regular', ind, c.ids.lead]);
+    assert.ok((await e.cmd('sam', { type: 'assign', guestId: w.guestId, tableId: e.tables[3], seatNo: 1 })).ok);
+    // A substitute for Pedro, whose reserved seat 1-4 is the only claim at table 1.
+    const s = await e.cmd('sam', { type: 'substitute', originalId: e.guest('P1').id, newGuest: { first: 'Juan', last: 'Reyes' }, note: 'Pedro is unwell' });
+    await e.cmd('lead', { type: 'approve', guestId: s.guestId, note: 'OK' });
+    const juan = c.db.data.caGuests.find((g) => g.id === s.guestId);
+    assert.deepEqual([juan.seat.tableId, juan.seat.seatNo, juan.seat.status], [e.tables[1], 4, 'confirmed']);
+    assert.equal(e.guest('P1').seat, null);
+    const after = await counts(c, e);
+    assert.equal(after[1].claims, counts0[1].claims, 'table 1 still has one claim for seat 4: no double allocation');
+    assert.deepEqual([after[1].confirmed, after[1].reserved], [1, 0]);
+    // The audit trail and the change history.
+    const audit = fs.readFileSync(`${c.dir}/audit-log.jsonl`, 'utf8');
+    for (const a of ['customapp.walkin', 'customapp.approve', 'customapp.substitute']) assert.match(audit, new RegExp(`"action":"${a.replace('.', '\\.')}"`));
+    assert.deepEqual(c.db.data.caChanges.filter((x) => x.guestIds.includes(s.guestId)).map((x) => x.type), ['substitute', 'approve']);
+    await clean(c, e);
+  });
+
+  test('GIVEN a confirmed seat WHEN the email fails and when the guest has no email THEN the assignment stays valid, the display works and a retry is available', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: [
+      ['A1', 'Ana', 'Cruz', 'Acme', '', 'ana@guest.example', '0917 000 0001', 'regular', 'sam', '', ''],
+      ['N1', 'Noel', 'Uy', 'Acme', '', '', '0917 000 0002', 'regular', 'sam', '', ''],
+    ] });
+    let ev = await c.as.lead('GET', e.base);
+    ev = await c.as.lead('PATCH', e.base, { rev: ev.rev, settings: { emailFrom: 'gala@events.example' } });
+    await e.cmd('lead', { type: 'setFlag', flag: 'emailPaused', value: false });
+    for (const [i, r] of ['A1', 'N1'].entries()) {
+      await e.cmd('sam', { type: 'checkIn', guestId: e.guest(r).id });
+      await e.cmd('sam', { type: 'assign', guestId: e.guest(r).id, tableId: e.tables[3], seatNo: i + 1 });
+    }
+    // No outgoing email set up in this CORE: the email fails.
+    await c.handle.customapp.outbox.drain();
+    assert.equal(e.guest('A1').notify.state, 'failed');
+    assert.equal(e.guest('N1').notify.state, 'not_applicable', 'no address: not applicable');
+    for (const r of ['A1', 'N1']) assert.deepEqual([e.guest(r).seat.status, e.guest(r).arrival.state], ['confirmed', 'checked_in'], `${r}: the assignment stays valid`);
+    // The display works: the staff screens show the seat, and the exceptions inbox offers a retry.
+    const sheet = await c.as.sam('GET', `${e.base}/guests/${e.guest('A1').id}`);
+    assert.deepEqual([sheet.guest.seat.number, sheet.guest.seat.seatNo, sheet.email.state, sheet.email.canResend], [3, 1, 'failed', true]);
+    assert.ok((await c.as.lead('GET', `${e.base}/exceptions`)).items.some((i) => i.kind === 'email_failed' && i.guestIds[0] === e.guest('A1').id));
+    assert.ok((await e.cmd('sam', { type: 'notify', guestId: e.guest('A1').id })).ok, 'a retry is available');
+    assert.equal(c.db.data.caOutbox.filter((m) => m.guestId === e.guest('A1').id).length, 2);
+    // If email is cut, the email surfaces are hidden (the guest page says "Screenshot this screen").
+    await e.cmd('lead', { type: 'setFlag', flag: 'emailPaused', value: true });
+    assert.deepEqual((await c.as.sam('GET', `${e.base}/guests/${e.guest('A1').id}`)).email, { paused: true });
+    await clean(c, e);
+  });
+
+  test('GIVEN an export and paper changes made while offline WHEN they are reconciled THEN the printed pack covers every claim and re-entry by opId creates no duplicate allocation', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: [
+      ['P1', 'Pia', 'Santos', 'Acme', '', 'p1@example.com', '0917 000 0001', 'preferred', 'sam', '1', '3'],
+      ['R1', 'Ana', 'Cruz', 'Acme', '', 'r1@example.com', '0917 000 0002', 'regular', 'sam', '', ''],
+      ['R2', 'Ben', 'Lim', 'Acme', '', 'r2@example.com', '0917 000 0003', 'regular', 'tess', '', ''],
+    ] });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('R1').id });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('R1').id, tableId: e.tables[3], seatNo: 1 });
+    // The pack printed before the outage covers every claim (the reservation and the seat).
+    const exp = await c.as.lead('GET', `${e.base}/export.json`);
+    const pack = packHtml(exp, {});
+    for (const g of exp.guests.filter((x) => x.seat)) {
+      const t = exp.tables.find((x) => x.id === g.seat.tableId);
+      assert.ok(new RegExp(`data-sheet="table-${t.number}">[\\s\\S]*?<td class="n">${g.seat.seatNo}</td><td>${g.name.display}</td>`).test(pack), `${g.ref} on table ${t.number}'s sheet`);
+    }
+    assert.equal((pack.match(/<strong>as of /g) || []).length, (pack.match(/<section class="sheet/g) || []).length, 'every sheet stamped');
+    // Offline, on paper: Pia arrives (her reserved chair), Ben is seated by Tess at table 5.
+    await e.cmd('lead', { type: 'setFlag', flag: 'readOnly', value: true });
+    const paper = '20:01, P1\n20:03, R2, 5, 2';
+    const r1 = await c.as.lead('POST', `${e.base}/reconcile`, { text: paper });
+    assert.deepEqual([r1.applied, r1.cards.length], [3, 0]);
+    const once = JSON.stringify(c.db.data.caGuests.map((g) => [g.id, g.arrival.state, g.seat]));
+    const r2 = await c.as.lead('POST', `${e.base}/reconcile`, { text: paper });
+    assert.deepEqual([r2.applied, r2.cards.length], [0, 0], 'the same sheet again: nothing new');
+    assert.equal(JSON.stringify(c.db.data.caGuests.map((g) => [g.id, g.arrival.state, g.seat])), once, 'no duplicate allocation');
+    assert.deepEqual([e.guest('P1').seat.status, e.guest('R2').seat.seatNo], ['confirmed', 2]);
+    await e.cmd('lead', { type: 'setFlag', flag: 'readOnly', value: false });
+    await clean(c, e);
+  });
+
+  test('GIVEN the 12 named spec scenarios WHEN customapp-acceptance runs THEN all 12 are green', () => {
+    // The evidence pack for the 5 Dec demo: one named test per scenario of spec section 07, in this
+    // file (node --test reports each one; this checks none is missing or renamed).
+    const src = fs.readFileSync(new URL(import.meta.url), 'utf8');
+    const SCENARIOS = {
+      'Preferred guest / no-show': 'GIVEN a preferred guest with a reservation WHEN they arrive',
+      'Regular guest / no match': 'GIVEN a regular guest from Banking with and without Banking guests seated',
+      'Employee / group arrivals': 'GIVEN employees and a group arriving together',
+      'Manual alternative / all tables full': 'GIVEN a staffer choosing a non-recommended eligible table',
+      'Unlisted / substitute': 'GIVEN an unlisted guest and a substitute for a reserved invitee',
+      'Duplicate / simultaneous check-in': 'GIVEN one guest WHEN two devices check them in',
+      'Last available seat': 'GIVEN one seat left WHEN two staff assign different guests at once',
+      'Unauthorized cross-scope action': 'GIVEN a staffer acting on a guest and a table outside their scope',
+      'Ownership reallocation / staff absent': 'GIVEN staffer A is absent with pending guests and confirmed seats',
+      'Transfer / swap / release': 'GIVEN seated and reserved guests WHEN transfer, swap and release run',
+      'Email failure / no email': 'GIVEN a confirmed seat WHEN the email fails and when the guest has no email',
+      'Connectivity / recovery': 'GIVEN an export and paper changes made while offline',
+    };
+    assert.equal(Object.keys(SCENARIOS).length, 12);
+    for (const [name, title] of Object.entries(SCENARIOS)) assert.ok(src.split(`test('${title}`).length === 2 || src.split(`test(\`${title}`).length === 2 || src.includes(`test('${title.replace(/'/g, "\\'")}`), `${name}: one named test`);
   });
 });

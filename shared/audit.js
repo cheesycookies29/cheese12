@@ -153,6 +153,13 @@ export const AUDIT_ACTIONS = {
   'customapp.cap-clear': 'Cleared a guest page cap at the desk',
   'customapp.alarm': 'Many failed guest page checks for an event',
   'customapp.selfcheck': 'The event seating rules check found a problem',
+  'customapp.walkin': 'Recorded an event walk-in for approval',
+  'customapp.substitute': 'Recorded an event substitute',
+  'customapp.approve': 'Approved an event walk-in or substitute',
+  'customapp.reject': 'Did not admit an event walk-in or substitute',
+  'customapp.refer': 'Sent event guests to the Super Administrator to seat together',
+  'customapp.notify': 'Sent an event guest\'s seat email again',
+  'customapp.reconcile': 'Entered paper seating for an event',
   'customapp.change': 'Changed CUSTOM APP',
   'data.export-events': 'Downloaded a full backup with event guest lists',
 };

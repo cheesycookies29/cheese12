@@ -111,12 +111,17 @@ describe('US-017: Delegation, scope enforcement and My queue', () => {
     const t = await e.cmd('sam', { type: 'transfer', guestId: e.guest('A1').id, tableId: e.tables[5], seatNo: 1 });
     assert.equal(t.code, 'out_of_scope', 'Tess\'s table 5');
     assert.equal(e.guest('A1').seat.tableId, e.tables[3], 'nothing of the plan applied');
-    // A group with one guest out of scope: the whole plan is refused.
+    // A group with one guest out of scope: the whole plan is refused (members of different owners:
+    // only the Super Administrator seats the group, Tier 2, AC-140).
     await e.cmd('sam', { type: 'checkIn', guestId: e.guest('A2').id });
     await e.cmd('sam', { type: 'checkIn', guestId: e.guest('B1').id });
     const g = await e.cmd('sam', { type: 'assign', placements: [{ guestId: e.guest('A2').id, tableId: e.tables[4], seatNo: 1 }, { guestId: e.guest('B1').id, tableId: e.tables[4], seatNo: 2 }] });
-    assert.equal(g.code, 'out_of_scope');
+    assert.equal(g.code, 'needs_super_admin');
     assert.equal(e.guest('A2').seat, null);
+    // One owner, a table not theirs: out of scope, nothing seated.
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('A1').id }).catch(() => {});
+    const g2 = await e.cmd('sam', { type: 'assign', placements: [{ guestId: e.guest('A2').id, tableId: e.tables[5], seatNo: 1 }] });
+    assert.equal(g2.code, 'out_of_scope');
   });
 
   test('GIVEN staffer A owns guests and tables WHEN the Super Administrator reallocates them to B THEN A\'s next write gets 403, B can write and confirmed claims stay intact', async () => {
@@ -152,5 +157,28 @@ describe('US-017: Delegation, scope enforcement and My queue', () => {
     };
     assert.deepEqual(queueOf(state, 'sam').map((x) => x.id), ['s1', 's2'], 'oldest first; the released preferred guest is not theirs to seat');
     assert.deepEqual(superQueue(state).map((x) => [x.guest.id, x.why.join()]), [['unl', 'unlisted'], ['none', 'no_owner'], ['orphan', 'no_owner'], ['flag', 'flagged'], ['rel', 'released']]);
+  });
+});
+
+describe('US-021: Group arrivals', () => {
+  test('GIVEN a group whose members have different owners WHEN a staffer tries to seat it THEN it is refused with needs_super_admin and the Super Administrator can seat it', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: [
+      ['A1', 'Ana', 'Cruz', 'Acme', '', 'a1@example.com', '0917 000 0001', 'regular', 'sam', '', ''],
+      ['B1', 'Cora', 'Tan', 'Acme', '', 'b1@example.com', '0917 000 0003', 'regular', 'tess', '', ''],
+    ] });
+    for (const r of ['A1', 'B1']) await e.cmd('sam', { type: 'checkIn', guestId: e.guest(r).id });
+    const placements = [{ guestId: e.guest('A1').id, tableId: e.tables[3], seatNo: 1 }, { guestId: e.guest('B1').id, tableId: e.tables[3], seatNo: 2 }];
+    for (const who of ['sam', 'tess']) assert.equal((await e.cmd(who, { type: 'assign', placements })).code, 'needs_super_admin', who);
+    const rec = await c.as.sam('GET', `${e.base}/recommend?guestIds=${placements.map((p) => p.guestId).join(',')}`);
+    assert.deepEqual([rec.group.mixedOwners, rec.group.canSeat], [true, false], 'the screen offers Send group to Super Administrator');
+    // Sent to the Super Administrator: their exceptions inbox has the group, and they seat it.
+    assert.ok((await e.cmd('sam', { type: 'refer', guestIds: placements.map((p) => p.guestId) })).ok);
+    const inbox = (await c.as.lead('GET', `${e.base}/exceptions`)).items;
+    assert.deepEqual(inbox.filter((i) => i.kind === 'group').map((i) => i.guestIds.length), [2]);
+    assert.ok((await e.cmd('lead', { type: 'assign', placements })).ok);
+    assert.deepEqual([e.guest('A1').seat.tableId, e.guest('B1').seat.tableId], [e.tables[3], e.tables[3]]);
+    assert.equal(e.guest('A1').flags.length, 0, 'the group flag goes once they are seated');
+    assert.deepEqual((await c.as.lead('GET', `${e.base}/exceptions`)).items.filter((i) => i.kind === 'group'), []);
   });
 });

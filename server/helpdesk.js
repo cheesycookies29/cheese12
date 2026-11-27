@@ -11,6 +11,7 @@ import {
 import { parseMessage, isAutomated, stripQuoted, REPLY_MARKER } from './mail/mime.js';
 import { withImap } from './mail/imap.js';
 import { sendMail } from './mail/smtp.js';
+import { mailTransport } from './mail/transport.js';
 import { composeMessage, newMessageId } from './mail/compose.js';
 import { parseUpload, uploadFromBuffer } from './attachments.js';
 import { MAX_ATTACHMENT_BYTES } from '../shared/leave.js';
@@ -237,16 +238,16 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
   // ----- Outgoing email -----
   let smtpTls; // test hooks only: trust a self-signed test server
   let imapTls;
+  // The connection is CORE's one mail transport (server/mail/transport.js), shared with CUSTOM
+  // APP's event outbox; the helpdesk sends from its own mailbox address.
+  const transport = mailTransport(db, { secrets, tls: () => smtpTls });
   const loginFor = (kind) => {
     const cfg = hd()[kind];
     if (kind === 'outgoing' && cfg.sameLogin) return { user: hd().mailbox.user, password: secrets.open(hd().mailbox.passwordSealed) };
     return { user: cfg.user, password: secrets.open(cfg.passwordSealed) };
   };
-  const smtpOptions = () => {
-    const o = hd().outgoing;
-    return { host: o.host, port: o.port, secure: o.security === 'tls', starttls: o.security === 'starttls', ...loginFor('outgoing'), tlsOptions: smtpTls };
-  };
-  const canEmail = () => hd().outgoing.enabled && hd().outgoing.host && EMAIL_RE.test(hd().mailbox.address);
+  const smtpOptions = () => transport.options();
+  const canEmail = () => transport.canSend() && EMAIL_RE.test(hd().mailbox.address);
 
   async function emailRequester(t, text, { auto = false, subjectPrefix = 'Re: ' } = {}) {
     if (!canEmail() || !t.requester.email) return { status: 'not_sent', reason: !t.requester.email ? 'The requester has no email address.' : 'Outgoing email is not set up.' };
@@ -857,6 +858,6 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
 
   // For tests: run the poller now, trust self-signed test certificates. `mailer`: the outgoing mail
   // setup, which the Projects digest sends through (from the helpdesk address).
-  const mailer = { canEmail: () => Boolean(canEmail()), smtpOptions, address: () => hd().mailbox.address };
-  return { pollOnce, ingest, autoClose, mailer, setTlsForTests: (o) => ((smtpTls = o), (imapTls = o)) };
+  const mailer = { canEmail: () => Boolean(canEmail()), smtpOptions, address: () => hd().mailbox.address, transport };
+  return { pollOnce, ingest, autoClose, mailer, transport, setTlsForTests: (o) => ((smtpTls = o), (imapTls = o)) };
 }

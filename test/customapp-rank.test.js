@@ -79,3 +79,32 @@ describe('US-018: Recommendation engine', () => {
     assert.ok((await c.as.lead('GET', `${e.base}/recommend?guestIds=${e.guest('E1').id}`)).mine.length, 'the Super Administrator may use every table');
   });
 });
+
+describe('US-021: Group arrivals', () => {
+  test('GIVEN a group of 6 and no table with 6 free seats WHEN recommend() runs and assign is sent with and without allowSplit THEN only tables with at least 6 free are ranked, split suggestions give the largest partitions that fit, and the split needs allowSplit true', async () => {
+    const { splitSuggestions } = await import('../shared/customapp/seating.js');
+    const tables = [T('a', 1), T('b', 2), T('c', 3), T('d', 4, 'employee')];
+    const guests = [...at('a', 'bank', 6), ...at('b', 'retail', 5, 'reserved'), ...at('c', 'tech', 8)]; // free: 4, 5, 2 (and an employee table)
+    const six = Array.from({ length: 6 }, () => guest('bank'));
+    assert.deepEqual(recommend(six, ev(), tables, guests), [], 'no table has 6 free chairs (reservations count)');
+    assert.deepEqual(recommend(six.slice(0, 4), ev(), tables, guests).map((r) => r.number), [1, 2], 'a group of 4: tables with 4 or more free');
+    const parts = splitSuggestions(six, ev(), tables, guests);
+    assert.deepEqual(parts.map((p) => [p.number, p.size]), [[2, 5], [1, 1]], 'the largest part first (table 2 takes 5), then the rest');
+    assert.equal(splitSuggestions(Array.from({ length: 12 }, () => guest('bank')), ev(), tables, guests), null, 'more than every free chair: no split either');
+    // Through commit(): the split needs allowSplit: true; without it nothing is seated.
+    const c = await company();
+    const e = await eventWith(c, { room: { rows: 1, cols: 5, chairsPerTable: 3, stageSide: 'right' }, rows: ['G1', 'G2', 'G3', 'G4'].map((r, i) => [r, `N${i}`, `Group${i}`, 'Acme', 'Banking', `${r}@example.com`, `0917 000 000${i}`, 'regular', 'sam', '', '']) });
+    for (const r of ['G1', 'G2', 'G3', 'G4']) await e.cmd('sam', { type: 'checkIn', guestId: e.guest(r).id });
+    const ids = ['G1', 'G2', 'G3', 'G4'].map((r) => e.guest(r).id);
+    const rec = await c.as.sam('GET', `${e.base}/recommend?guestIds=${ids.join(',')}`);
+    assert.equal(rec.none, true, 'no table of 3 chairs takes 4');
+    assert.deepEqual(rec.group.split.map((p) => [p.number, p.size]), [[3, 3], [4, 1]], 'Sam\'s tables 3 and 4, the largest part first');
+    const placements = [[3, 1], [3, 2], [3, 3], [4, 1]].map(([n, s], i) => ({ guestId: ids[i], tableId: e.tables[n], seatNo: s }));
+    const noSplit = await e.cmd('sam', { type: 'assign', placements });
+    assert.equal(noSplit.status, 400, 'a split without the Split group confirm');
+    assert.ok(ids.every((id) => !c.db.data.caGuests.find((g) => g.id === id).seat), 'nothing seated');
+    const ok = await e.cmd('sam', { type: 'assign', placements, allowSplit: true });
+    assert.ok(ok.ok && ok.split === true, JSON.stringify(ok));
+    assert.deepEqual(ids.map((id) => c.db.data.caTables.find((t) => t.id === c.db.data.caGuests.find((g) => g.id === id).seat.tableId).number), [3, 3, 3, 4]);
+  });
+});

@@ -39,7 +39,14 @@ export function pollFor(flags, kind = 'staff', rand = Math.random) {
   return Math.round(base * (1 + POLL_JITTER * rand()));
 }
 // The flags on a guest record for the Super Administrator to look at.
-export const GUEST_FLAGS = Object.freeze({ reverified_other_device: 'Verified again from another device' });
+export const GUEST_FLAGS = Object.freeze({ reverified_other_device: 'Verified again from another device', referred_group: 'Sent to the Super Administrator to seat with their group' });
+
+// Email to a guest (Tier 2, US-023): a guest's notify.state, tracked apart from their check-in and
+// seat (a failed email never changes either). none: nothing sent yet; not_applicable: no address.
+export const NOTIFY = Object.freeze(['none', 'not_applicable', 'queued', 'sending', 'sent', 'failed']);
+export const NOTIFY_LABELS = Object.freeze({ none: 'No email yet', not_applicable: 'No email address', queued: 'Email waiting to go', sending: 'Email sending', sent: 'Email sent', failed: 'Email failed' });
+export const OUTBOX_KINDS = Object.freeze(['assignment', 'update', 'resend']);
+export const OUTBOX_STATES = Object.freeze(['queued', 'sending', 'sent', 'failed']);
 
 // Every kind of change recorded in caChanges (the history, the sync cursor and the idempotency
 // store). A closed set, so a later push transport can reuse the records as they are.
@@ -49,6 +56,10 @@ export const CHANGE_TYPES = Object.freeze([
   'checkIn', 'undoCheckIn', 'selfCheckIn', 'assign', 'transfer', 'swap', 'unseat', 'reserve', 'release',
   // Tier 1 (0.72): delegation, the guest page's status tokens and the QR presence key.
   'delegateGuests', 'delegateTables', 'revokeTokens', 'setQrKey',
+  // Tier 2 (0.73): walk-ins and substitutes for the Super Administrator to decide, a group sent to
+  // the Super Administrator, and a manual email resend (paper reconciliation reuses the commands
+  // above, with via: 'reconcile').
+  'createUnlisted', 'approve', 'reject', 'substitute', 'refer', 'notify',
 ]);
 
 // The hard limit per table (spec s.1): a table's capacity is 1 to this, whatever an event says.

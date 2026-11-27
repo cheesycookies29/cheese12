@@ -293,4 +293,159 @@ describe('US-002: Restore carve-out keeps live event data', async () => {
   });
 });
 
+describe('US-022: Unlisted guests and substitutes (API)', () => {
+  test('GIVEN an approval and a substitution WHEN the guest\'s history is read THEN it lists each approval and change with actor and time from caChanges', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    const w = await e.cmd('sam', { type: 'createUnlisted', guest: { first: 'Lorna', last: 'Bautista', company: 'Northbay Bank' }, note: 'At the desk' });
+    await e.cmd('lead', { type: 'approve', guestId: w.guestId, classification: 'regular', ownerUserId: c.ids.sam, note: 'Host confirmed' });
+    const hist = (await c.as.lead('GET', `${e.base}/guests/${w.guestId}`)).history;
+    assert.deepEqual(hist.map((h) => [h.type, h.by]), [['approve', 'Lead'], ['createUnlisted', 'Sam']], 'newest first, each with who');
+    assert.ok(hist.every((h) => /^\d{4}-\d{2}-\d{2}T/.test(h.at)), 'and when');
+    assert.equal(hist[0].reason, 'Host confirmed');
+    assert.ok(hist[0].diff.some((d) => d.f === 'approval' && d.to === 'approved'));
+    // A substitute for a preferred guest with a reserved seat: recorded by staff, approved by the
+    // Super Administrator; both guests' histories show both steps, from caChanges.
+    const s = await e.cmd('tess', { type: 'substitute', originalId: e.guest('P2').id, newGuest: { first: 'Juan', last: 'Reyes' }, note: 'Jose is unwell' });
+    await e.cmd('lead', { type: 'approve', guestId: s.guestId });
+    const orig = (await c.as.lead('GET', `${e.base}/guests/${e.guest('P2').id}`)).history;
+    assert.deepEqual(orig.slice(0, 2).map((h) => [h.type, h.by]), [['approve', 'Lead'], ['substitute', 'Tess']]);
+    const sheet = await c.as.lead('GET', `${e.base}/guests/${s.guestId}`);
+    assert.equal(sheet.substitute.line, 'Seat 1-2: Juan Reyes replaces Jose Reyes');
+    const changes = c.db.data.caChanges.filter((x) => x.guestIds.includes(s.guestId));
+    assert.deepEqual(changes.map((x) => [x.type, x.actorId]), [['substitute', c.ids.tess], ['approve', c.ids.lead]]);
+    const audit = auditLines(c).map((a) => a.action);
+    for (const a of ['customapp.walkin', 'customapp.approve', 'customapp.substitute']) assert.ok(audit.includes(a), a);
+  });
+});
+
+describe('US-024: Event control dashboard', () => {
+  test('GIVEN a fixture event WHEN the dashboard data is requested THEN Invited, Checked in, Not yet arrived, Waiting for table, Needs approval and Seats left match a recount from the source', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('P1').id });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('R1').id });
+    await e.cmd('tess', { type: 'checkIn', guestId: e.guest('R2').id });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('R1').id, tableId: e.tables[3], seatNo: 1 });
+    await e.cmd('sam', { type: 'createUnlisted', guest: { last: 'Walkin' }, note: 'x' });
+    const w2 = await e.cmd('sam', { type: 'createUnlisted', guest: { last: 'Approved' }, note: 'x' });
+    await e.cmd('lead', { type: 'approve', guestId: w2.guestId, classification: 'regular' });
+    const board = (await c.as.lead('GET', `${e.base}/changes?tab=control`)).board;
+    const ev = await c.as.lead('GET', e.base);
+    // The recount, straight from the data file.
+    const gs = c.db.data.caGuests.filter((g) => g.eventId === e.id && g.active !== false);
+    const listed = gs.filter((g) => g.classification !== 'unlisted');
+    const here = gs.filter((g) => g.arrival.state === 'checked_in');
+    const cap = c.db.data.caTables.filter((t) => t.eventId === e.id && t.active).reduce((n, t) => n + t.capacity, 0);
+    const want = { invited: listed.length, checkedIn: here.length, notArrived: listed.filter((g) => g.arrival.state === 'expected').length, waiting: here.filter((g) => !g.seat).length, needsApproval: gs.filter((g) => g.approval?.state === 'pending').length, seatsLeft: cap - gs.filter((g) => g.seat).length };
+    for (const counts of [board.counts, ev.counts]) for (const [k, v] of Object.entries(want)) assert.equal(counts[k], v, k);
+    assert.deepEqual([want.invited, want.checkedIn, want.notArrived, want.waiting, want.needsApproval], [6, 4, 3, 2, 1]);
+    assert.equal((await c.as.sam('GET', `${e.base}/changes?tab=control`)).code, 'needs_super_admin', 'Event control\'s board is the Super Administrator\'s');
+  });
+
+  test('GIVEN a walk-in, a substitute, a No seat in scope referral, a released reservation whose guest arrived, a capped surname and a failure-rate alarm WHEN the exceptions inbox is read THEN each appears', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    await e.cmd('sam', { type: 'createUnlisted', guest: { first: 'Lorna', last: 'Bautista' }, note: 'Walk-in' });
+    await e.cmd('tess', { type: 'substitute', originalId: e.guest('P2').id, newGuest: { first: 'Juan', last: 'Reyes' }, note: 'Unwell' });
+    // Sam owns the employee E1 but no employee table: no seat in his scope.
+    await e.cmd('lead', { type: 'guest.update', guestId: e.guest('E1').id, ownerUserId: c.ids.sam });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('E1').id });
+    // A preferred guest whose reservation was released, who then arrives.
+    await e.cmd('lead', { type: 'release', guestId: e.guest('P1').id, reason: 'No-show' });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('P1').id });
+    // A capped surname and the failure alarm, as the guest page's gate keeps them.
+    const gate = c.handle.customapp.gate;
+    const ev = c.db.data.caEvents.find((x) => x.id === e.id);
+    for (let i = 0; i < 8; i++) gate.addWrong(ev.id, 'delacruz', `l:${1000 + i}`);
+    for (let i = 0; i < 31; i++) gate.refer(ev, 'no_match', {}, 'zzz');
+    const items = (await c.as.lead('GET', `${e.base}/exceptions`)).items;
+    const kinds = items.map((i) => i.kind);
+    for (const k of ['walkin', 'substitute', 'no_seat_in_scope', 'released_arrived', 'capped', 'alarm']) assert.ok(kinds.includes(k), `${k} in ${kinds}`);
+    assert.equal(kinds[0], 'alarm', 'the alarm on top');
+    assert.equal(items.find((i) => i.kind === 'substitute').title, 'Seat 1-2: Juan Reyes replaces Jose Reyes');
+    assert.deepEqual(items.find((i) => i.kind === 'capped').guestIds, [e.guest('R2').id], 'the guests with that surname');
+    assert.deepEqual(items.find((i) => i.kind === 'no_seat_in_scope').guestIds, [e.guest('E1').id]);
+    assert.deepEqual(items.find((i) => i.kind === 'released_arrived').guestIds, [e.guest('P1').id]);
+    // The same inbox is on Event control's board, and only the Super Administrator's.
+    assert.deepEqual((await c.as.lead('GET', e.base)).exceptions.map((i) => i.kind), kinds);
+    assert.equal((await c.as.sam('GET', `${e.base}/exceptions`)).code, 'needs_super_admin');
+  });
+
+  test('GIVEN a running event WHEN the health strip is read THEN it shows seq, save p95, outbox depth, the age of the newest export, the 429 count and the self-check result, and a violation raises the banner', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    let ev = await c.as.lead('GET', e.base);
+    await c.as.lead('PATCH', e.base, { rev: ev.rev, status: 'live' });
+    await e.cmd('sam', { type: 'checkIn', guestId: e.guest('R1').id });
+    await e.cmd('sam', { type: 'assign', guestId: e.guest('R1').id, tableId: e.tables[3], seatNo: 1 });
+    const { safety, note429 } = c.handle.customapp;
+    safety.writeCopies();
+    safety.selfCheck();
+    note429(`/api/customapp/events/${e.id}/changes`);
+    note429(`/api/public/event/${c.db.data.caEvents.find((x) => x.id === e.id).code}/verify`);
+    const h = (await c.as.lead('GET', `${e.base}/changes?tab=control`)).board.health;
+    ev = await c.as.lead('GET', e.base);
+    assert.equal(h.seq, ev.seq);
+    assert.ok(typeof h.saveP95Ms === 'number' && h.saveP95Ms >= 0 && h.saves > 0, 'save p95 from the real saves');
+    assert.deepEqual(h.outbox, { queued: 1, sending: 0, sent: 0, failed: 0 }, 'the seat email waits (email is paused)');
+    assert.ok(h.copy.at && h.copy.seq === ev.seq, 'the newest 5-minute copy');
+    assert.equal(h.tooMany, 2, '429s on this event in the last 15 minutes');
+    assert.deepEqual(h.check.violations, []);
+    // A violation (forced by hand: never possible through commit()) raises the banner.
+    c.db.data.caGuests.find((g) => g.id === e.guest('R1').id).seat = { tableId: e.tables[3], seatNo: 11, status: 'confirmed' };
+    safety.selfCheck();
+    const bad = (await c.as.lead('GET', e.base)).health;
+    assert.deepEqual(bad.check.violations.map((v) => v.rule), ['I3']);
+  });
+});
+
+describe('US-025: Offline pack and paper reconciliation (API)', () => {
+  test('GIVEN paper entries including one that would overbook a table WHEN Reconcile paper seating replays them THEN each goes through commit() with via reconcile, occurredAt and an opId, and the overbooking is refused and listed as a recovery card', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    await e.cmd('lead', { type: 'table.update', tableId: e.tables[3], capacity: 2 });
+    // Working on paper: the event is read only; the Super Administrator still enters the sheets.
+    await e.cmd('lead', { type: 'setFlag', flag: 'readOnly', value: true });
+    const text = ['# Sam\'s sheet', '19:05, R1, 3, 1', '19:06, R3, 3, 2', '19:07, R2, 3, 1', '19:08, E1', 'nonsense line'].join('\n');
+    assert.equal((await c.as.sam('POST', `${e.base}/reconcile`, { text })).code, 'needs_super_admin');
+    const n0 = c.db.data.caChanges.length;
+    const r = await c.as.lead('POST', `${e.base}/reconcile`, { text });
+    assert.equal(r.lines, 5);
+    assert.deepEqual(r.cards.map((x) => [x.line, x.code]), [[4, 'table_full'], [6, 'unknown_guest']], 'the overbooking is a recovery card, not applied (and a line that names nobody too)');
+    assert.equal(r.applied, 6, 'R1 and R3 in and seated, R2 checked in, E1 checked in');
+    assert.equal(e.guest('R2').seat, null, 'R2 was not put on the full table');
+    assert.equal(c.db.data.caTables.filter((t) => t.id === e.tables[3]).length, 1);
+    assert.equal(c.db.data.caGuests.filter((g) => g.seat?.tableId === e.tables[3]).length, 2, 'never over the table\'s 2 chairs');
+    const made = c.db.data.caChanges.slice(n0);
+    assert.equal(made.length, 6);
+    for (const ch of made) {
+      assert.equal(ch.via, 'reconcile');
+      assert.match(ch.opId, /^paper:[0-9a-f]{24}:(in|seat)$/);
+      assert.match(ch.occurredAt, /^2026-12-09T11:0[5-8]:00\.000Z$/, 'the time on the paper (Manila), as UTC');
+    }
+    assert.equal(e.guest('R1').arrival.via, 'reconcile');
+    assert.equal(e.guest('R1').arrival.at, '2026-12-09T11:05:00.000Z');
+    assert.deepEqual((await c.as.lead('GET', `${e.base}/invariants`)).violations, []);
+  });
+
+  test('GIVEN a paper sheet already reconciled WHEN it is entered again THEN no duplicate check-in or seat is created', async () => {
+    const c = await company();
+    const e = await eventWith(c, { rows: ROWS });
+    const text = '19:05, R1, 3, 1\n19:06, R3, 3, 2\n19:08, E1';
+    const first = await c.as.lead('POST', `${e.base}/reconcile`, { text });
+    assert.deepEqual([first.applied, first.already, first.cards.length], [5, 0, 0]);
+    const data = JSON.stringify(c.db.data.caGuests);
+    const n = c.db.data.caChanges.length;
+    const again = await c.as.lead('POST', `${e.base}/reconcile`, { text });
+    assert.deepEqual([again.applied, again.cards.length], [0, 0], 'nothing new');
+    assert.equal(again.already, 3);
+    assert.equal(c.db.data.caChanges.length, n, 'no change recorded');
+    assert.equal(JSON.stringify(c.db.data.caGuests), data, 'no duplicate check-in or seat');
+    // The same entries as a list (opIds from the line): still nothing new.
+    const list = await c.as.lead('POST', `${e.base}/reconcile`, { entries: [{ time: '19:05', ref: 'R1', table: 3, seat: 1 }] });
+    assert.deepEqual([list.applied, list.already], [0, 1]);
+  });
+});
+
 after(() => {});

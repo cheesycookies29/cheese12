@@ -9,6 +9,12 @@ order: 2
 
 ## November 2026
 
+### CUSTOM APP: groups, walk-ins and substitutes, seat emails, the exceptions inbox and the offline pack (0.73)
+- **Seat a group together**: tick the guests who arrived together in **My queue** or **Find guest**, then **Seat together**; only tables with room for all of them are offered, and splitting them needs its own confirm. Guests of different staff members go to the Super Administrator. See [Seat a group together](custom-app-events#seat-a-group-together).
+- **Add walk-in** and **Record substitute**: someone not on the list, or here instead of an invitee, goes to the Super Administrator, who approves (a substitute takes the invitee's seat in the same change) or does not admit them. See [Add a walk-in or record a substitute](custom-app-events#add-a-walk-in-or-record-a-substitute).
+- **Seat emails** from the event's own address, sent after the seat is saved; a failed email never changes the seat, and **Resend** tries again. Email starts paused. See [Seat emails](custom-app-events#seat-emails).
+- **Event control** now has the **Exceptions** inbox, *Needs approval* in the counts, a fuller health strip, **One by one…** moves, swapping seats on the room plan, moving a table's guests, the **Offline pack** to print and **Reconcile paper seating**. The printable seating plan draws the room as the room plan does, in black and white with table and chair numbers. See [Event control](custom-app-events#event-control-super-administrator) and [If the system is down](custom-app-events#if-the-system-is-down).
+
 ### CUSTOM APP: the guest page, My queue, recommendations and the room plan (0.72)
 - Guests check themselves in on their phone: the reception QR opens the event's **guest page**, where they type their surname and the last 4 digits of their mobile (or their email) and then see their table and seat as soon as staff choose it. Anything the page cannot match gives a code to show at the desk; type it in **Find guest** to see what they typed and why, and **Clear cap and check in** in one tap. See [The guest page](custom-app-events#the-guest-page).
 - Event staff land on **My queue**: their guests waiting for a table, oldest first with how long they have waited, kept up to date by itself. The guest sheet now recommends up to three tables, best first, with why (*Same industry: Banking, 3 of 6 seated*). See [Work from My queue](custom-app-events#work-from-my-queue).

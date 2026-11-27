@@ -56,3 +56,40 @@ const FACING = { right: 0, bottom: 90, left: 180, top: 270 };
 export function chairAngle(room, n) {
   return (FACING[room.stageSide] + ((n - 1) * 360) / room.chairsPerTable) % 360;
 }
+
+// Where the room is drawn (the room plan on screen and the printed plan use the same drawing, so a
+// chair has the same place on paper as on the screen): { w, h, rows, cols, pos: Map(tableId → [x, y]),
+// stage, booth } in drawing units. Tables without a place (added by hand) go in a row below the room.
+export const ROOM_DRAW = Object.freeze({ colW: 160, rowH: 124, tableR: 30, chairD: 47, chairR: 9.5, zone: 110, edge: 24 });
+export function roomGeometry(room, tables) {
+  const G = ROOM_DRAW;
+  const rows = room?.rows || Math.max(1, ...tables.map((t) => (t.row ?? 0) + 1));
+  const cols = room?.cols || Math.max(1, ...tables.map((t) => (t.col ?? 0) + 1));
+  const sides = new Set([room?.stageSide || 'right', room?.boothSide || 'left']);
+  const m = { left: sides.has('left') ? G.zone : G.edge, right: sides.has('right') ? G.zone : G.edge, top: sides.has('top') ? G.zone : G.edge, bottom: sides.has('bottom') ? G.zone : G.edge };
+  const w = m.left + cols * G.colW + m.right;
+  const h = m.top + rows * G.rowH + m.bottom;
+  let extra = 0;
+  const pos = new Map();
+  for (const t of tables) {
+    if (t.row != null && t.col != null) pos.set(t.id, [m.left + G.colW / 2 + t.col * G.colW, m.top + G.rowH / 2 + t.row * G.rowH]);
+  }
+  const loose = tables.filter((t) => !pos.has(t.id));
+  loose.forEach((t, i) => pos.set(t.id, [m.left + G.colW / 2 + (i % cols) * G.colW, h + G.rowH / 2 + Math.floor(i / cols) * G.rowH]));
+  if (loose.length) extra = Math.ceil(loose.length / cols) * G.rowH;
+  const zone = (side, kind) => {
+    const long = kind === 'stage';
+    if (side === 'left' || side === 'right') {
+      const zh = long ? h - 60 : Math.min(180, h - 60);
+      return { x: side === 'left' ? 14 : w - m.right + 26, y: (h - zh) / 2, w: long ? 70 : 72, h: zh, rot: side === 'left' ? -90 : 90 };
+    }
+    const zw = long ? w - 60 : Math.min(200, w - 60);
+    return { x: (w - zw) / 2, y: side === 'top' ? 14 : h - m.bottom + 26, w: zw, h: long ? 70 : 72, rot: 0 };
+  };
+  return { w, h: h + extra, rows, cols, pos, stage: zone(room?.stageSide || 'right', 'stage'), booth: zone(room?.boothSide || 'left', 'booth') };
+}
+// Where chair n of a table drawn at (x, y) is.
+export function chairPoint(room, capacity, n, x, y) {
+  const a = (chairAngle(room || { stageSide: 'right', chairsPerTable: capacity }, n) * Math.PI) / 180;
+  return [x + ROOM_DRAW.chairD * Math.cos(a), y + ROOM_DRAW.chairD * Math.sin(a)];
+}

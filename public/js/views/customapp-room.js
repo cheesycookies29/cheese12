@@ -19,43 +19,16 @@
 import { api } from '../api.js';
 import { html, mount, toast, modal, confirmDialog } from '../ui.js';
 import { icon } from '../icons.js';
-import { chairAngle } from '/shared/customapp/room.js';
+import { chairAngle, roomGeometry, ROOM_DRAW as G } from '/shared/customapp/room.js';
 import { fmtManila } from '/shared/customapp/time.js';
 import { livePoll } from './customapp-live.js';
 
 const opId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const G = { colW: 160, rowH: 124, tableR: 30, chairD: 47, chairR: 9.5, zone: 110, edge: 24 };
 let uid = 0;
 
-// Where everything is drawn, from the room: { w, h, pos(table) → [x, y], zones }.
-function geometry(room, tables) {
-  const rows = room?.rows || Math.max(1, ...tables.map((t) => (t.row ?? 0) + 1));
-  const cols = room?.cols || Math.max(1, ...tables.map((t) => (t.col ?? 0) + 1));
-  const sides = new Set([room?.stageSide || 'right', room?.boothSide || 'left']);
-  const m = { left: sides.has('left') ? G.zone : G.edge, right: sides.has('right') ? G.zone : G.edge, top: sides.has('top') ? G.zone : G.edge, bottom: sides.has('bottom') ? G.zone : G.edge };
-  const w = m.left + cols * G.colW + m.right;
-  const h = m.top + rows * G.rowH + m.bottom;
-  // Tables without a place (added by hand) go in a row of their own below the room.
-  let extra = 0;
-  const pos = new Map();
-  for (const t of tables) {
-    if (t.row != null && t.col != null) pos.set(t.id, [m.left + G.colW / 2 + t.col * G.colW, m.top + G.rowH / 2 + t.row * G.rowH]);
-  }
-  const loose = tables.filter((t) => !pos.has(t.id));
-  loose.forEach((t, i) => pos.set(t.id, [m.left + G.colW / 2 + (i % cols) * G.colW, h + G.rowH / 2 + Math.floor(i / cols) * G.rowH]));
-  if (loose.length) extra = Math.ceil(loose.length / cols) * G.rowH;
-  const zone = (side, kind) => {
-    const long = kind === 'stage';
-    if (side === 'left' || side === 'right') {
-      const zh = long ? h - 60 : Math.min(180, h - 60);
-      return { x: side === 'left' ? 14 : w - m.right + 26, y: (h - zh) / 2, w: long ? 70 : 72, h: zh, rot: side === 'left' ? -90 : 90 };
-    }
-    const zw = long ? w - 60 : Math.min(200, w - 60);
-    return { x: (w - zw) / 2, y: side === 'top' ? 14 : h - m.bottom + 26, w: zw, h: long ? 70 : 72, rot: 0 };
-  };
-  return { w, h: h + extra, rows, cols, pos, stage: zone(room?.stageSide || 'right', 'stage'), booth: zone(room?.boothSide || 'left', 'booth') };
-}
+// Where everything is drawn: the same geometry as the printed plan (shared/customapp/room.js).
+const geometry = roomGeometry;
 
 const STATE_TEXT = { reserved: 'reserved, not arrived', confirmed: 'seated' };
 const chairLabel = (c) => (c.taken ? `Chair ${c.seatNo}: ${c.name}${c.company ? `, ${c.company}` : ''} (${STATE_TEXT[c.status]})` : `Chair ${c.seatNo}: open`);
@@ -462,6 +435,11 @@ export function mountRoomPlan(el, eventId, { onChange = () => {} } = {}) {
       if (!ok) return html`<div class="ca-confirm"><span>Table ${t.number} is a ${t.classLabel.toLowerCase()} table; ${g.name} is a ${g.classLabel.toLowerCase()} guest.</span></div>`;
       return html`<div class="ca-confirm"><span>Seat <strong>${g.name}</strong> at table ${t.number}, chair ${c.seatNo}?</span><div class="actions"><button type="button" class="btn primary ca-48" data-act="seat" ${busy}>Seat here</button><button type="button" class="btn ca-48" data-act="cancel">Cancel</button></div></div>`;
     }
+    // Moving a guest onto a seated guest's chair: the two swap seats (one command, both or neither).
+    if (st.moving && st.moving.guestId !== c.guestId) {
+      if (!(c.mine && t.mine) || c.status === 'reserved') return html`<div class="ca-confirm"><span>${c.status === 'reserved' ? `Chair ${c.seatNo} is reserved for ${c.name}.` : `${c.name} is not yours to move.`} Choose another chair.</span><div class="actions"><button type="button" class="btn ca-48" data-act="cancel">Cancel</button></div></div>`;
+      return html`<div class="ca-confirm"><span>Swap seats? <strong>${st.moving.name}</strong> takes chair ${c.seatNo} at table ${t.number}, and <strong>${c.name}</strong> takes ${st.moving.name}'s chair.</span><div class="actions"><button type="button" class="btn primary ca-48" data-act="swap" ${busy}>Swap seats</button><button type="button" class="btn ca-48" data-act="cancel">Cancel</button></div></div>`;
+    }
     const sa = st.data.role === 'super';
     const can = c.mine && t.mine;
     return html`<div class="ca-confirm"><span><strong>${c.name}</strong>${c.company ? `, ${c.company}` : ''}: chair ${c.seatNo}. ${c.status === 'reserved' ? 'Reserved before the event; not arrived yet.' : 'Seated.'}</span>
@@ -489,10 +467,11 @@ export function mountRoomPlan(el, eventId, { onChange = () => {} } = {}) {
     });
     act('seat', () => send({ type: 'assign', guestId: g.guestId, tableId: t.id, seatNo: c.seatNo, expect: { [g.guestId]: g.rev, [t.id]: t.rev } }, `${g.name}: table ${t.number}, chair ${c.seatNo}.`, { name: g.name }));
     act('move-here', () => send({ type: 'transfer', guestId: st.moving.guestId, tableId: t.id, seatNo: c.seatNo, expect: { [st.moving.guestId]: st.moving.rev } }, `${st.moving.name} moved to table ${t.number}, chair ${c.seatNo}.`, { name: st.moving.name }));
+    act('swap', () => send({ type: 'swap', guestIds: [st.moving.guestId, c.guestId], expect: { [st.moving.guestId]: st.moving.rev, [c.guestId]: c.rev }, reason: 'Swapped on the room plan' }, `${st.moving.name} and ${c.name} swapped seats.`, { name: st.moving.name }));
     act('arrive', () => send({ type: 'checkIn', guestId: c.guestId }, `${c.name} has arrived: table ${t.number}, chair ${c.seatNo}.`, { name: c.name }));
     act('move', () => {
       st.moving = { guestId: c.guestId, name: c.name, rev: c.rev };
-      st.notice = `Choose the new chair for ${c.name} on the plan.`;
+      st.notice = `Choose the new chair for ${c.name} on the plan: an open chair to move them, or a seated guest's chair to swap.`;
       st.chair = null;
       render();
     });

@@ -54,6 +54,7 @@ export const REASONS = Object.freeze({
   not_listed: 'No guest on the list has this surname.',
   desk_only: 'This guest is marked desk only (checked in here).',
   unlisted: 'This guest is unlisted and waits for the Super Administrator\'s approval.',
+  substituted: 'A substitute took this invitee\'s place (approved by the Super Administrator). Refer them to the Super Administrator.',
   not_saved: 'The check-in could not be saved at that moment. Check the guest in here.',
 });
 
@@ -137,8 +138,19 @@ export function createPublicGate({ now = () => Date.now(), limits = { hit() {} }
     return { data: { state: 'referred', referral: code, message: 'Please see the registration desk and show this code.' }, headers: NO_STORE };
   }
 
+  // The surnames whose guest page is paused now (the Super Administrator's exceptions inbox).
+  function cappedOf(eventId) {
+    const out = [];
+    for (const k of [...caps.m.keys()]) {
+      if (!k.startsWith(`${eventId}|`)) continue;
+      const s = k.slice(eventId.length + 1);
+      if (isCapped(eventId, s)) out.push({ surnameKey: s, values: capOf(eventId, s).values.size, at: new Date(capOf(eventId, s).at).toISOString() });
+    }
+    return out;
+  }
+
   return {
-    referrals, caps, isCapped, alarmOf, refer, capOf,
+    referrals, caps, isCapped, alarmOf, refer, capOf, cappedOf,
     // What the guest typed, as staff may see it: the surname, the digits masked but the last two.
     typedOf(body) {
       const last4 = typeof body?.last4 === 'string' ? body.last4.slice(0, 8) : '';
@@ -174,6 +186,9 @@ function statusOf(ev, g, tables) {
     title: g.name?.title ? `${g.name.title} ${g.name.last}` : '', firstName: g.name?.first || '',
     table: state === 'seated' ? t?.number ?? null : null, seat: state === 'seated' ? g.seat.seatNo ?? null : null,
     checkedInAt: here ? g.arrival.at : null,
+    // The "we have emailed this to you" line, only while email is on (if email is cut, the page says
+    // "Screenshot this screen" instead, and staff screens hide their email parts).
+    emailed: state === 'seated' && !ev.flags?.emailPaused && Boolean(g.email) && ['queued', 'sending', 'sent'].includes(g.notify?.state),
   };
 }
 
@@ -262,6 +277,7 @@ export function registerPublicRoutes(route, db, { ctx, gate, limits = { hit() {}
     const g = hits[0];
     if (g.deskOnly) return gate.refer(ev, 'desk_only', typed, surnameKey);
     if (g.classification === 'unlisted' && g.approval?.state !== 'approved') return gate.refer(ev, 'unlisted', typed, surnameKey);
+    if (g.substitutedBy) return gate.refer(ev, 'substituted', typed, surnameKey);
     const token = randomBytes(32).toString('base64url');
     try {
       commit(ctx, ev.id, { synthetic: 'self' }, { type: 'selfCheckIn', guestId: g.id, tokenHash: tokenHashOf(token) });

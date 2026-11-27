@@ -102,7 +102,24 @@ export function addDemoEvent(db, { lead, staff, now = new Date() }) {
     g.arrival = { state: 'checked_in', at: at(20 - k), by: lead.id, via: 'desk' };
     g.seat = { tableId: tables[21].id, seatNo: k + 1, status: 'confirmed', at: at(18 - k), by: lead.id };
   });
+  // A walk-in and a substitute for a preferred guest who has not arrived, both waiting for the Super
+  // Administrator (Event control's exceptions inbox, Tier 2).
+  const extra = (n, first, last, company, approval, more = {}) => {
+    const g = {
+      id: randomUUID(), eventId: ev.id, ref: `DEMO-${approval.kind === 'substitute' ? 'S' : 'W'}${String(n).padStart(3, '0')}`, externalKey: null,
+      name: { first, last, display: `${first} ${last}` }, designation: 'Guest', company, industryId: ind.get('Banking') || null, industryText: '', email: '', mobile: '',
+      classification: 'unlisted', tags: [], rsvp: '', ownerUserId: null, arrival: { state: 'expected', at: null, by: null, via: null }, approval, seat: null,
+      statusTokens: [], flags: [], notify: { state: 'none' }, deskOnly: true, altSurnames: [], active: true, rev: 0, demo: true, ...more,
+    };
+    g.lookup = lookupOf(g);
+    return g;
+  };
+  guests.push(extra(1, 'Lorna', 'Bautista', 'Northbay Bank (demo)', { state: 'pending', kind: 'walkin', requestedBy: staff?.id || lead.id, requestedAt: at(6), note: 'Says she is with Northbay Bank; not on the list' }));
+  const absent = pref[20];
+  guests.push(extra(1, 'Rafael', absent.name.last, absent.company, { state: 'pending', kind: 'substitute', requestedBy: staff?.id || lead.id, requestedAt: at(4), note: `Here instead of ${absent.name.first}, who is unwell` }, { substituteFor: absent.id, ownerUserId: absent.ownerUserId || null, industryId: absent.industryId }));
   db.data.caGuests = [...(db.data.caGuests || []), ...guests];
+  // Email stays paused in the demo; the event's own sender is set, as it would be for a real one.
+  ev.settings = { ...ev.settings, emailFrom: 'gala.events@example.com', replyTo: 'gala.events@example.com' };
   ev.seq = 1;
   marks.clear();
   return ev;

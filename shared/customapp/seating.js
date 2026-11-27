@@ -62,7 +62,7 @@ export function firstFreeSeat(table, guests) {
 // Administrator has turned mixed tables on (spec s.8). An unlisted guest sits by the class the
 // Super Administrator approved them as (Tier 2); until then, nowhere.
 export function classOK(tableClass, guest, mixedTables = false) {
-  const cls = guest.classification === 'unlisted' ? guest.approval?.classification : guest.classification;
+  const cls = seatClassOf(guest);
   if (!cls || cls === 'unlisted') return false;
   if (tableClass === 'mixed') return Boolean(mixedTables);
   return tableClass === cls;
@@ -131,13 +131,40 @@ export function recommend(group, event, tables, guests) {
   return out.sort((a, b) => a.tier - b.tier || Number(b.fits) - Number(a.fits) || (b.same + b.related) - (a.same + a.related) || a.left - b.left || a.number - b.number);
 }
 
+// When no table can take a whole group (US-021): the largest parts that fit, fewest tables first.
+// Each part is a table every member may sit at (type and tags) with free chairs; the table with the
+// most free chairs takes as many as it can, then the next, until everyone has a place. Nothing that
+// fits: null. Advisory, like recommend(): the split is sent as assign with allowSplit: true, and
+// commit() checks every placement again.
+export function splitSuggestions(group, event, tables, guests) {
+  const list = (Array.isArray(group) ? group : [group]).filter(Boolean);
+  if (list.length < 2) return null;
+  const ids = new Set(list.map((g) => g.id));
+  const others = guests.filter((g) => !ids.has(g.id));
+  const open = tables
+    .filter((t) => list.every((g) => !whyNot(t, [g], event, others)))
+    .map((t) => ({ t, free: tableCounts(t, others).free }))
+    .filter((x) => x.free > 0)
+    .sort((a, b) => b.free - a.free || a.t.number - b.t.number);
+  const parts = [];
+  let left = list.length;
+  for (const { t, free } of open) {
+    if (left <= 0) break;
+    const size = Math.min(free, left);
+    parts.push({ tableId: t.id, number: t.number, size, free, ownerUserId: t.ownerUserId || null });
+    left -= size;
+  }
+  return left > 0 ? null : parts;
+}
+
 // Tables a guest could be seated at, best first, with their counts: the "options" a refusal carries.
 export function optionsFor(guest, event, tables, guests) {
   return recommend([guest], event, tables, guests).map(({ tableId, number, claims, confirmed, reserved, free, ownerUserId, tier, reasons }) => ({ tableId, number, claims, confirmed, reserved, free, ownerUserId, tier, reasons }));
 }
 
 // Whether a seat number must be chosen for this guest (spec s.22: always for preferred guests).
+export const seatClassOf = (guest) => (guest?.classification === 'unlisted' ? guest.approval?.classification || null : guest?.classification || null);
 export function seatNoRequired(event, guest) {
-  if (guest.classification === 'preferred') return true;
+  if (seatClassOf(guest) === 'preferred') return true;
   return (event?.settings?.seatNumbers || 'preferred') === 'all';
 }

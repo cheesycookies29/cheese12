@@ -1,7 +1,7 @@
 ---
 id: custom-app-events
 title: Running an event in CUSTOM APP
-summary: For event staff, the event's Super Administrator and administrators: My queue, the guest page guests check in on, the room plan, finding and checking in a guest (also by the code the guest page gives), seating at a table and chair with recommended tables, Event control (switches, health, moving a staffer's guests, the reception QR, exports, the printed plan, handing over the Super Administrator), Setup (the room, tables, staff, the guest list import and its check), and what to do on the night if something fails.
+summary: For event staff, the event's Super Administrator and administrators: My queue, the guest page guests check in on, the room plan, finding and checking in a guest (also by the code the guest page gives), seating at a table and chair with recommended tables, seating a group together, walk-ins and substitutes, seat emails, Event control (the exceptions inbox, health, staff and their queues, switches, the reception QR, exports, the printed plan and the offline pack, reconciling paper seating, handing over the Super Administrator), Setup (the room, tables, staff, the guest list import and its check), and what to do on the night if something fails.
 roles: eventstaff, admin
 apps: customapp
 order: 45
@@ -19,7 +19,7 @@ order: 45
 
 The screens are made for a phone first: everything works at 390 pixels wide, buttons are large, and every count and badge says in words what its colour shows.
 
-To try it with the demo data (**Admin panel → Demo data**), sign in as `eventlead.demo` (the Super Administrator of the demo event, *Demo Gala*) or `event.demo` (a staff member who owns tables 4 to 12), password `demo1234`.
+To try it with the demo data (**Admin panel → Demo data**), sign in as `eventlead.demo` (the Super Administrator of the demo event, *Demo Gala*) or `event.demo` (a staff member who owns tables 4 to 12), password `demo1234`. The demo has a walk-in and a substitute waiting for the Super Administrator, and its email is paused.
 
 ## Walkthrough
 
@@ -52,15 +52,23 @@ To try it with the demo data (**Admin panel → Demo data**), sign in as `eventl
 
    ![Tables](custom-app-events-tables.jpg)
 
-8. **Event control** has the counts (invited, checked in, not yet arrived, waiting for a table, seated and reserved, seats left), the health of the event, the room plan, who has how many guests waiting, the switches, the reception QR sheet, the exports and the printable seating plan.
+8. A group arriving together: in **My queue** (or **Find guest**), tick the guests, then tap **Seat together (3)**. Only tables with room for all of them are offered, best first; tap one, then **Seat together at Table 5**.
+
+   ![Three guests ticked in My queue, with the tables that fit them together](custom-app-events-group.jpg)
+
+9. **Event control** (`eventlead.demo`) has the counts (*Invited · Checked in · Not yet arrived · Waiting for table · Needs approval · Seats left*), the health of the event, the **Exceptions** inbox, the room plan, who has how many guests waiting, the switches, the reception QR sheet, the exports, the printable seating plan, the offline pack and **Reconcile paper seating**. It updates by itself, like My queue.
 
    ![Event control](custom-app-events-control.jpg)
 
-9. The guest's side: the **guest page** on their phone. After they check in it says *You're checked in. We're choosing your table*, and as soon as staff seat them it shows their table in large type, and their seat.
+   **Exceptions** lists everything that needs the Super Administrator: here the demo's walk-in and a substitute, shown as one seat changing hands (*Seat 3-5: Rafael Garcia replaces Maria Garcia*), each with **Approve…** and **Do not admit…**. Approving the substitute gives them the invitee's seat, or releases it.
+
+   ![Approving a substitute from the exceptions inbox](custom-app-events-inbox.jpg)
+
+10. The guest's side: the **guest page** on their phone. After they check in it says *You're checked in. We're choosing your table*, and as soon as staff seat them it shows their table in large type, and their seat.
 
    ![The guest page on a phone, with the table](custom-app-events-guest.jpg)
 
-10. **Setup** is where the Super Administrator imports the guest list, clears the import check, and sets up the event, its room, tables, industries and staff.
+11. **Setup** is where the Super Administrator imports the guest list, clears the import check, and sets up the event, its room, tables, industries and staff.
 
    ![Setup: the guest list and the import check](custom-app-events-setup.jpg)
 
@@ -73,6 +81,42 @@ To try it with the demo data (**Admin panel → Demo data**), sign in as `eventl
 3. Otherwise, the sheet shows up to three **Recommended** tables of yours, best first, each with why: *Same industry: Banking, 3 of 6 seated*, *Related: Insurance*, *4 seats left*. Guests meet people from their own or a related industry, and gaps are filled before new tables are started. **Other eligible tables** (folded) are your other tables the guest may sit at; **Not yours** lists other people's tables, to see, not to use.
 4. Tap a table. The first free chair is chosen; tap another chair if the guest wants it.
 5. Tap **Seat at Table N, seat M**. CORE checks the table, the chair and your authority at that moment, then saves it, and the sheet shows the seat. The recommendation is advice: any eligible table of yours is accepted.
+
+### Seat a group together
+
+When guests arrive together (colleagues from one company, a family), seat them at one table:
+
+1. In **My queue**, tick each of them under **Waiting for table** (or, in **Find guest**, tick the guests who are waiting for a table). A bar appears: *3 guests selected*.
+2. Tap **Seat together (3)**. CORE offers only tables with 3 free chairs or more, best first, with why (*Same industry: Banking*, *4 seats left*).
+3. Tap a table, then **Seat together at Table 5**. All of them are seated in one change, each at the next free chair, or none of them is: if the table filled up meanwhile, the sheet says so and shows the tables that still fit.
+
+If no table has room for all of them, the sheet says *No table has 3 free chairs together* and shows a split instead, the largest parts first (*Table 5: 2 guests · Table 6: 1 guest*). **Split group…** asks you to confirm, because they will not all sit together; nothing is split without it.
+
+Guests of different staff members cannot be seated together by one of them: the sheet shows **Send group to Super Administrator**. The group then appears in the Super Administrator's **Exceptions** as *Seat together (3)*, and they seat it. Each guest keeps their own check-in and seat: moving one later moves only that guest.
+
+### Add a walk-in or record a substitute
+
+Nobody is admitted who is not on the list until the Super Administrator says so.
+
+- **Add walk-in** (under **Find guest**, and on **My queue**): someone who is not on the list. Type their name, company and, if they have one, their email; add a note (*Says she is with Northbay Bank*). Tap **Send for approval**. They are not checked in yet, and cannot be seated.
+- **Record substitute** (on the guest's sheet, for a guest who has not arrived): someone here instead of the invitee. Type the substitute's name and a note (*Pedro is unwell; his son Juan comes instead*), then **Send for approval**. Until it is approved, nothing changes: the invitee keeps their seat.
+
+The Super Administrator sees both in **Event control → Exceptions** (a substitute as one seat changing hands: *Seat 3-4: Juan Reyes replaces Pedro Reyes*) and decides:
+
+- **Approve…** a walk-in: choose the class they sit as (*Regular*, *Preferred* or *Employee*), their industry and an owner. They are checked in at once and wait for a table like anyone else.
+- **Approve…** a substitute: the invitee's seat is given to the substitute in the same change (or **released**, if you choose so, and the substitute waits for a table). The invitee and the substitute never both hold a seat, and the invitee cannot check in afterwards.
+- **Do not admit…**: with a reason.
+
+Every step is in the guest's **History** with who did it and when, and in the audit log. As the Super Administrator, **Record substitute** approves it at once.
+
+### Seat emails
+
+When a guest with an email address is seated, CORE emails them their table and chair, and emails them again if it changes. The email goes from the event's own address (**Setup → Event → Email from**), never from the IT Service Desk's mailbox, through CORE's outgoing email (set up under **IT Service Desk → Settings → Outgoing email**).
+
+- Email is **paused** for a new event. The Super Administrator turns it on under **Event control → Switches** (*Email paused: Off*), once the From address is set.
+- The email is sent after the seat is saved, one at a time. A failed email never changes the seat or the check-in: the guest's sheet says *Seat email failed* and the seat is safe. **Resend** on the sheet (the guest's owner or the Super Administrator) sends it again; a failure also shows in **Exceptions** with **Resend**.
+- A guest without an email address is simply told their table (their sheet says *No email address*).
+- While email is paused, the guest page says *Screenshot this screen to show the usher* instead of *We have emailed your table to you*, and the sheet says to tell the guest their table.
 
 ### Use the room plan
 
@@ -128,7 +172,7 @@ Codes are kept for 3 hours, and until CORE restarts; without the code, search by
 2. For your own guests, the sheet shows their mobile and email masked (*•••• 4417*), enough to confirm who they are without reading the number out. For others' guests you see their name, company, industry and table.
 3. Anyone on the staff can **Check in** any guest. Seating is for the guest's owner (or the Super Administrator).
 
-If the guest is not on the list, do not add them yourself: walk-ins and substitutes go to the Super Administrator.
+If the guest is not on the list, use **Add walk-in**; if they are here instead of an invitee, open the invitee and use **Record substitute** (see **Add a walk-in or record a substitute**). Both go to the Super Administrator to approve.
 
 ### The guest page
 
@@ -143,9 +187,31 @@ Each event has its own guest page, */event/* and the event's code (shown on **Ev
 
 ### Event control (Super Administrator)
 
-**Health** shows the change number, the age of the newest **5-minute copy** of the event (written on the server every 5 minutes while the event is live, the last 24 kept) and the **seating rules** check (run every minute while live; a problem shows in red here and in the Security monitor). A banner appears when the guest page has had more than 30 failed checks in 5 minutes: nobody is locked out, but guests with a code will come to the desk.
+Event control updates by itself, like My queue: the bar at the top says how old it is.
 
-**Staff and their queues** shows each staff member's waiting guests and longest wait. **Move to…** gives all of one person's guests and tables to someone else at once (for example someone who is absent): their seats and check-ins stay as they are, and from that moment only the new owner (and you) can seat them. To move one guest, open their sheet and change **Owner**; to move one table, use **Setup → Room and tables → Edit**.
+The **counts**: *Invited* (the guest list), *Checked in*, *Not yet arrived*, *Waiting for table*, *Needs approval* (walk-ins and substitutes to decide) and *Seats left* (with how many are seated and reserved).
+
+**Health** shows the change number, the **save time** (how long the last saves took, the 95th percentile: act if it is above 250 ms), the **email outbox** (how many seat emails wait or failed), the age of the newest **5-minute copy** of the event (written on the server every 5 minutes while the event is live, the last 24 kept), **too many requests** (how often the event's screens or the guest page were slowed down in the last 15 minutes) and the **seating rules** check (run every minute while live). A problem with the rules shows as a red banner here and in the Security monitor: call the on-call developer. A banner also appears when the guest page has had more than 30 failed checks in 5 minutes: nobody is locked out, but guests with a code will come to the desk.
+
+**Exceptions** is your inbox, oldest first:
+
+| It says | What to do |
+|---|---|
+| *Walk-in: …* | **Approve…** (class, industry, owner) or **Do not admit…** |
+| *Seat 3-4: Juan Reyes replaces Pedro Reyes* (a substitute) | **Approve…** (give them the seat, or release it) or **Do not admit…** |
+| *No seat in scope: …* | The guest's owner has no table that can take them. **Open** the guest and seat them yourself, or give the guest (or a table) to someone else |
+| *No eligible seat left for …* | Every table of their type is full. Open a table, change one, or seat them as another class |
+| *… arrived after their reservation was released* | **Open** and seat them |
+| *Seat together (3): …* | A group sent by staff whose guests have different owners. **Seat together** |
+| *Guest page paused for the surname …* | Too many different wrong numbers for one surname. **Clear**, or clear it at the desk |
+| *Seat email to … failed* | The seat is safe. Tell the guest, or **Resend** |
+| *… failed guest page checks in 5 minutes* | Nobody is locked out; guests with a code are helped at the desk |
+
+The **room plan** on Event control works as on **Room plan**, for every table: choose a seated chair, then **Move** and an open chair to **transfer** the guest (*Move here*), or a seated guest's chair to **swap** them (*Swap seats*), **Back to waiting**, or, for a reserved chair, **Release reservation** (the confirm names the guest, the table and the chair). Every change shows on every device within a few seconds.
+
+**Staff and their queues** shows each staff member's waiting guests, the longest wait, and when they last did anything. **All to…** gives all of one person's guests and tables to someone else at once (for example someone who is absent): their seats and check-ins stay as they are, and from that moment only the new owner (and you) can seat them. **One by one…** lists their waiting guests and their tables, each with its own **Move to…**.
+
+**Tables: take out of use, or move their guests** (folded): a table with guests cannot be taken out of use (the button is greyed); **Move guests…** moves all of them to another table in one change, keeping their chair numbers where they are free, and can take the emptied table out of use at once.
 
 **Switches** take effect on the next request, with no restart, and each change is in the audit log. Each asks you to confirm and says what it does:
 
@@ -157,7 +223,9 @@ Each event has its own guest page, */event/* and the event's code (shown on **Ev
 
 **Reception QR sheet** prints the QR code of the guest page for the easel at reception, with *If this page doesn't open, please go to the registration desk.*
 
-**Exports**: **Event export (JSON)** is the event's recovery copy (the format *customapp.event/1*, with its change number and a fingerprint); **Guests (CSV)** and **Seating (CSV)** open in Excel; **Printable seating plan** opens a page that prints cleanly, with the room (tables where they stand, table 1 nearest the stage) and every table's chairs 1 to 10, stamped *As of* the time it was made. Every download is in the audit log. **Seating rules check** checks every rule at once (no table over its chairs, no chair or guest counted twice, exactly one Super Administrator).
+**Exports**: **Event export (JSON)** is the event's recovery copy (the format *customapp.event/1*, with its change number and a fingerprint); **Guests (CSV)** and **Seating (CSV)** open in Excel; **Printable seating plan** opens a page that prints cleanly: the room drawn as on the room plan, in black and white (the stage and tech booth, every table where it stands with its number, and its chairs with their numbers: a white chair is open, a hatched one reserved, a black one seated), then every table's chairs 1 to 10, stamped *As of* the time it was made. **Offline pack (print)** is what the desk works from if CORE cannot be reached (see **If the system is down**). Every download is in the audit log. **Seating rules check** checks every rule at once (no table over its chairs, no chair or guest counted twice, exactly one Super Administrator).
+
+![The offline pack: the room, then an A–Z list and a sheet per table and per staff member](custom-app-events-pack.jpg)
 
 **Hand over the Super Administrator** (administrators): choose the new Super Administrator, give the reason, enter your password. The current one loses every power at that moment; there is never more than one.
 
@@ -182,15 +250,25 @@ Importing the list again updates guests by their *Ref*. Once the event is live, 
 
 ### If the system is down
 
-Keep calm: the paper plan and the export are the fallback, and nothing is lost by stopping.
+Keep calm: the paper pack and the export are the fallback, and nothing is lost by stopping.
+
+**Before the doors**, the Super Administrator prints the **offline pack** (**Event control → Offline pack (print)**): the room drawn as on screen, an A–Z list of every guest with their table and chair, a sheet for each table (its chairs and who holds them) and a sheet for each staff member (their guests and tables). Every printed page says *as of* the time it was printed, so nobody works from an older sheet without knowing. Print it again closer to the doors if much has changed. Add `?standby=` and the standby address to the pack's address to print it on the desk card.
 
 1. If CORE restarts, everyone is signed out: sign in again and you are back on your page.
-2. If it stays down, work from the **printed seating plan** and the guest list on paper: each staff member seats only at their own tables, and writes down each check-in and seat with the time.
-3. When CORE is back, the Super Administrator turns on **Read only**, enters the paper sheets, then turns it off again.
+2. If it stays down, work from the **offline pack**: each staff member seats only at their own tables (their own sheet), and writes down each arrival and seat with the time, on the line of the guest.
+3. When CORE is back, the Super Administrator turns on **Read only** (nobody else changes anything meanwhile), opens **Event control → Reconcile paper seating** and types one line per paper entry: **time, ref, table, chair** (for example `19:05, DEMO-0054, 5, 3`; just the time and the ref for a check-in only). **Enter paper entries**.
+4. Each line goes through the same rules as on screen. CORE says how many changes it entered and how many were already in. A line it cannot enter (the table is full, the chair was taken online, the guest was seated elsewhere online, the ref does not exist) comes back as a **card** saying why: nothing of it is entered, so paper can never overbook a table. Seat those guests on screen.
+5. Entering the same sheet twice changes nothing the second time. Turn **Read only** off.
+
+**The cards** (print them from here):
+
+> **Easel card (under the QR code):** If this page doesn't open, please go to the registration desk.
+
+> **Staff desk card:** Standby address: (written in by the on-call developer). If the app restarts you'll be signed out. Sign in again and you'll land back on your queue. If CORE cannot be reached, use the offline pack: seat only at your own tables, and write each arrival and seat with the time.
 
 On the day (for the Super Administrator and the on-call developer):
 
-- **Three hours before:** the deploy freeze is on; a fresh off-server backup is confirmed in the Security monitor; the standby is topped up; a test guest is checked in, seated and checked out again; the newest event export is under 5 minutes old and on the laptop; the seating plan is printed (*As of* stamped); staff devices are signed in, on the 4G hotspot, charged.
+- **Three hours before:** the deploy freeze is on; a fresh off-server backup is confirmed in the Security monitor; the standby is topped up; a test guest is checked in, seated (and their seat email arrives at the test address) and checked out again; the newest event export is under 5 minutes old and on the laptop; the offline pack is printed (every page stamped *as of*); staff devices are signed in, on the 4G hotspot, charged.
 - **Doors:** turn on **Self check-in open**.
 - **Act on any of these:** errors on event pages above 1% for 2 minutes; 2 failed uptime checks in a row; saving slower than 250 ms; a guest waiting for a table more than 3 minutes; more than 5 failed emails; the seating rules check not clean; under 1 GB of free disk.
 - **Step down, one step at a time** (each can be undone, none needs a deploy): a slower refresh interval; **Email paused**; self check-in closed (the desk checks everyone in); paper by table owner with **Read only** on; the standby, then the paper and the newest export entered as commands.
@@ -203,11 +281,11 @@ On the day (for the Super Administrator and the on-call developer):
 | Screen | What it is for |
 |---|---|
 | **Events** | The events you are part of, with their counts; **New event** for administrators |
-| **My queue** | Where Event staff start: your guests waiting for a table (oldest first, with how long), those seated, and Find guest; it updates by itself |
+| **My queue** | Where Event staff start: your guests waiting for a table (oldest first, with how long; tick several to **Seat together**), those seated, Find guest and **Add walk-in**; it updates by itself |
 | **Room plan** | The room with every table and chair; choose a waiting guest to see their best tables, then a chair, then **Seat here** |
-| **Find guest** | Search by name, company or ref, filter by who is waiting, not arrived, seated or reserved; tap a guest to check them in and seat them |
+| **Find guest** | Search by name, company or ref, filter by who is waiting, not arrived, seated or reserved; tap a guest to check them in, seat them or record a substitute; **Add walk-in** |
 | **Tables** | Every table with its type, owner and meter of chairs; tap one for its chairs and who sits on them |
-| **Event control** | The counts, health, the room plan, staff and their queues (**Move to…**), the switches and the reception QR, the exports and the printable seating plan, the seating rules check, handing over the Super Administrator |
+| **Event control** | The counts, health, the **Exceptions** inbox (walk-ins, substitutes, groups, guests with no seat, failed emails), the room plan (move, swap, release), staff and their queues (**All to…**, **One by one…**), tables out of use, the switches and the reception QR, the exports, the printable seating plan and the offline pack, **Reconcile paper seating**, the seating rules check, handing over the Super Administrator |
 | **Guest page** (*/event/…*) | Guests check themselves in on their phone and see their table; no account |
 | **Setup** | The guest list import and the import check, the event's details and window, the room and tables, industries and staff (the Super Administrator's) |
 
@@ -236,3 +314,12 @@ Only while the window is open, and only with the colleague's surname and mobile 
 
 **Why is a table ringed with a number on the plan?**
 It is one of the three best tables for the guest you chose: same industry first, then a related industry, then any table with room, filling gaps before starting empty tables. You may choose any other eligible table.
+
+**A guest's seat email failed. Is their seat still theirs?**
+Yes. The seat and the check-in are saved before any email is sent, and nothing that happens to an email changes them. Tell the guest their table (or show them the guest page), and **Resend** when you can.
+
+**Can someone seat a walk-in before the Super Administrator approves them?**
+No. A walk-in or a substitute is not checked in, and no table takes them, until the Super Administrator approves; the guest page sends them to the desk.
+
+**Can paper seating overbook a table?**
+No. The Super Administrator enters the paper sheets through the same rules as the screens; a line that would put an eleventh guest at a table (or a second guest on a chair) is not entered and comes back as a card to resolve.

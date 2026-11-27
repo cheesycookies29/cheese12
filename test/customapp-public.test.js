@@ -315,7 +315,7 @@ describe('US-015: Guest status page and status token', () => {
     const t = (await verify({ surname: 'Dela Cruz', last4: '4417' })).body.token;
     await verify({ surname: 'Reyes', last4: '0004' });
     const r = await status(t);
-    assert.deepEqual(Object.keys(r.body).sort(), ['checkedInAt', 'firstName', 'pollMs', 'seat', 'seq', 'state', 'table', 'title']);
+    assert.deepEqual(Object.keys(r.body).sort(), ['checkedInAt', 'emailed', 'firstName', 'pollMs', 'seat', 'seq', 'state', 'table', 'title']);
     assert.equal(r.body.firstName, 'Ana');
     assert.doesNotMatch(JSON.stringify(r.body), /Juan|Reyes|4417|example\.com/, 'no other guest, no contact details');
     const q = await pub(c, 'GET', `/api/public/event/${code}/status?t=${t}&token=${t}`);

@@ -11,12 +11,14 @@ export const newMessageId = (email) => `<${randomUUID()}@${String(email).split('
 
 const b64 = (s) => wrap(Buffer.from(s.replace(/\r?\n/g, '\r\n'), 'utf8').toString('base64'));
 
-// { from: {name,email}, to: [{name,email}], subject, text, html?, messageId, inReplyTo, references: [], auto }
+// { from: {name,email}, to: [{name,email}], replyTo?: {name,email}, subject, text, html?, messageId, inReplyTo, references: [], auto }
 export function composeMessage(m) {
   const boundary = m.html ? `core-${randomUUID()}` : null;
   const headers = [
     `From: ${address(m.from)}`,
     `To: ${m.to.map(address).join(', ')}`,
+    // Replies go here instead of From (an event's own reply address).
+    ...(m.replyTo?.email ? [`Reply-To: ${address(m.replyTo)}`] : []),
     `Subject: ${encodeWord(m.subject.replace(/[\r\n]+/g, ' '))}`,
     `Date: ${new Date().toUTCString().replace('GMT', '+0000')}`,
     `Message-ID: ${m.messageId}`,

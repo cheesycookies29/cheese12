@@ -43,7 +43,14 @@ function randomCommand(rand, db) {
     () => ({ type: 'undoCheckIn', guestId: g() }),
     () => ({ type: 'assign', guestId: g(), tableId: t(), seatNo: seat() }),
     () => ({ type: 'assign', guestId: g(), tableId: t(), seatNo: seat() }),
-    () => ({ type: 'assign', placements: [{ guestId: g(), tableId: t(), seatNo: seat() }, { guestId: g(), tableId: t(), seatNo: seat() }] }),
+    () => ({ type: 'assign', placements: [{ guestId: g(), tableId: t(), seatNo: seat() }, { guestId: g(), tableId: t(), seatNo: seat() }], allowSplit: rand() < 0.5 }),
+    // Tier 2: walk-ins, substitutes and their approval, groups sent to the Super Administrator, resend.
+    () => ({ type: 'createUnlisted', guest: { first: 'Walk', last: `In${Math.floor(rand() * 99)}` } }),
+    () => ({ type: 'substitute', originalId: g(), newGuest: { first: 'Sub', last: `Stitute${Math.floor(rand() * 99)}` }, seat: rand() < 0.3 ? 'release' : 'transfer' }),
+    () => ({ type: 'approve', guestId: g(), classification: pick(['preferred', 'regular', 'employee']), seat: rand() < 0.3 ? 'release' : 'transfer' }),
+    () => ({ type: 'reject', guestId: g(), note: 'Not on the list' }),
+    () => ({ type: 'refer', guestIds: [g(), g()] }),
+    () => ({ type: 'notify', guestId: g() }),
     () => ({ type: 'transfer', guestId: g(), tableId: t(), seatNo: seat() }),
     () => ({ type: 'swap', guestIds: [g(), g()] }),
     () => ({ type: 'unseat', guestId: g(), reason: 'fuzz' }),
@@ -95,7 +102,8 @@ test('GIVEN 200 seeds WHEN random sequences of assign, check-in, release, transf
       for (const g of db.data.caGuests) {
         if (g.seat) assert.ok(SEAT_STATUSES.includes(g.seat.status) && !('expiresAt' in g.seat), `${where}: ${g.ref} holds ${JSON.stringify(g.seat)}`);
         // A seat is cleared only by a release or an unseat, never by time.
-        if (seatsBefore.get(g.id) && !g.seat) assert.ok(['release', 'unseat'].includes(db.data.caChanges.at(-1)?.type), `${where}: ${g.ref} lost a seat`);
+        // (A substitute's approval hands the invitee's seat over in the same change, or releases it.)
+        if (seatsBefore.get(g.id) && !g.seat) assert.ok(['release', 'unseat', 'substitute', 'approve'].includes(db.data.caChanges.at(-1)?.type), `${where}: ${g.ref} lost a seat`);
       }
     }
   }

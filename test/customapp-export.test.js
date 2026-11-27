@@ -5,7 +5,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fixture, company, eventWith } from './support/customapp-kit.js';
-import { exportEvent, exportHash, exportCsv, planHtml, EXPORT_FORMAT } from '../server/customapp/events/io.js';
+import { exportEvent, exportHash, exportCsv, planHtml, packHtml, roomSvg, EXPORT_FORMAT } from '../server/customapp/events/io.js';
 
 const GOLDEN = new URL('./support/customapp-export-golden.json', import.meta.url);
 const NOW = '2026-12-09T12:34:00.000Z';
@@ -64,7 +64,12 @@ describe('US-012: Export JSON v1, CSV and printable plan', () => {
     assert.match(html, /<td class="n">4<\/td><td>Maria Santos<\/td>/);
     assert.match(html, /@media print/);
     assert.doesNotMatch(html, /<script/i);
-    assert.ok(html.indexOf('<td><b>2</b>') < html.indexOf('<td><b>1</b>'), 'the room grid: table 1 nearest the stage on the right');
+    // The room as drawn on the room plan (the same geometry), in black and white with table and
+    // chair numbers: table 1 nearest the stage on the right.
+    const cx = (n) => Number(html.match(new RegExp(`<g class="t" data-n="${n}"><circle cx="([\\d.]+)"`))[1]);
+    assert.match(html, /<svg class="roomsvg"/);
+    assert.ok(cx(1) > cx(2) || (exp.tables.length < 2), 'table 1 nearest the stage on the right');
+    assert.match(html, />STAGE<\/text>/);
     // Through the API, the files carry the same seq as the JSON.
     const c = await company();
     const e = await eventWith(c, { rows: [['A1', 'Ana', 'Cruz', 'Acme', '', 'ana@example.com', '0917 000 1111', 'regular', '', '', '']] });
@@ -129,5 +134,48 @@ describe('US-020: Safety nets: 5-minute export copies and the 60 s invariant sel
     const v = (await c.as.lead('GET', `${e.base}/invariants`)).violations;
     assert.deepEqual(v.map((x) => x.rule), ['I3']);
     assert.equal((await c.as.sam('GET', `${e.base}/invariants`)).code, 'needs_super_admin');
+  });
+});
+
+describe('US-025: Offline pack and paper reconciliation', () => {
+  test('GIVEN an export v1 WHEN the print pack is generated THEN it has an A–Z list, per-table sheets and per-staffer sheets covering every claim, each page stamped as of HH:MM', async () => {
+    const exp = exportEvent(sample(), { now: NOW });
+    const html = packHtml(exp, { names: { 'u-sam': 'Sam Staff' } });
+    const sheets = [...html.matchAll(/<section class="sheet[^"]*" data-sheet="([^"]+)">([\s\S]*?)<\/section>/g)].map((m) => ({ id: m[1], body: m[2] }));
+    assert.deepEqual(sheets.map((x) => x.id), ['room', 'az', 'table-1', 'table-2', 'staff-u-sam', 'staff-none', 'cards']);
+    // Every sheet's heading row (repeated on every printed page of it) says "as of" the time.
+    for (const sh of sheets) assert.match(sh.body, /<thead><tr class="st"><th[^>]*>Test Gala · [^<]* · <strong>as of 8:34\sPM<\/strong> · seq 7<\/th><\/tr>/, sh.id);
+    assert.match(html, /thead\s*\.st|thead \.st/, 'the heading row is styled to repeat');
+    // A–Z: every guest, surname first, in order.
+    const az = sheets.find((x) => x.id === 'az').body;
+    assert.ok(az.indexOf('Cruz, Ana') < az.indexOf('Reyes, Jose') && az.indexOf('Reyes, Jose') < az.indexOf('Santos, Maria'));
+    // Every claim (reserved and confirmed) is on the A–Z list, its table's sheet and its owner's sheet.
+    const claims = exp.guests.filter((g) => g.seat);
+    assert.equal(claims.length, 2);
+    for (const g of claims) {
+      const t = exp.tables.find((x) => x.id === g.seat.tableId);
+      assert.match(sheets.find((x) => x.id === `table-${t.number}`).body, new RegExp(`<td class="n">${g.seat.seatNo}</td><td>${g.name.display}</td>`), g.ref);
+      assert.ok(az.includes(`${g.name.last}, ${g.name.first}`), g.ref);
+      assert.ok(sheets.find((x) => x.id === `staff-${g.ownerUserId || 'none'}`).body.includes(`${g.name.last}, ${g.name.first}`), `${g.ref} on their owner's sheet`);
+    }
+    assert.match(sheets.find((x) => x.id === 'table-1').body, /<td>Reserved<\/td>/, 'a reservation is on the sheet as a claim');
+    // The room, as drawn on the room plan, in black and white with table and chair numbers.
+    assert.ok(html.includes(roomSvg(exp)));
+    assert.match(roomSvg(exp), /<circle class="c confirmed"[^>]*fill="#000"/);
+    assert.match(roomSvg(exp), /<circle class="c reserved"[^>]*fill="url\(#hatch\)"/);
+    assert.equal((roomSvg(exp).match(/<circle class="c/g) || []).length, 20, 'every chair of both tables');
+    // The cards, as the guide prints them.
+    assert.match(html, /If this page doesn't open, please go to the registration desk\./);
+    assert.match(html, /If the app restarts you'll be signed out\. Sign in again and you'll land back on your queue\./);
+    assert.doesNotMatch(html, /<script/i);
+    // Through the API: the Super Administrator only, from the same export (same seq).
+    const c = await company();
+    const e = await eventWith(c, { rows: [['A1', 'Ana', 'Cruz', 'Acme', '', 'ana@example.com', '0917 000 1111', 'regular', 'sam', '', '']] });
+    const json = await c.as.lead('GET', `${e.base}/export.json`);
+    const pack = await c.as.lead('GET', `${e.base}/pack.html?standby=https://standby.example`);
+    assert.match(pack.toString(), new RegExp(`seq ${json.seq}<`));
+    assert.match(pack.toString(), /Standby address: https:\/\/standby\.example/);
+    assert.match(pack.headers['Content-Security-Policy'], /default-src 'none'/);
+    assert.equal((await c.as.sam('GET', `${e.base}/pack.html`)).code, 'needs_super_admin');
   });
 });

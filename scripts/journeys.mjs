@@ -7,7 +7,8 @@
 //   4. Feedback written in the visual editor, answered by an administrator
 //   5. Every page in every role's menu at phone width: no page wider than the screen, no errors
 //   CUSTOM APP (0.72): the guest page in each state, the presence key, the event night on four
-//   devices, the seating sheet, the room plan, and the import check blocking self check-in
+//   devices, the seating sheet, the room plan, and the import check blocking self check-in;
+//   (0.73) groups, walk-ins and substitutes, email cut, and Event control
 // Needs Playwright (the CI job installs it; never part of CORE itself). Exit code 1 on a failure;
 // screenshots of failures go to journeys-output/.
 import { spawn } from 'node:child_process';
@@ -829,6 +830,243 @@ await journey('Import check blocks Open registration', async (pages) => {
   await p.goto(`${BASE}/#/customapp/control?e=${C.id}`);
   await p.waitForSelector('[data-flag="registrationOpen"]');
   if (await p.isDisabled('[data-flag="registrationOpen"]')) throw new Error('Self check-in stays blocked after the acknowledgement.');
+});
+
+// ----- CUSTOM APP (0.73, Tier 2): groups, walk-ins and substitutes, email cut, Event control -----
+const evRow = (ref, first, last, owner, extra = {}) => [ref, first, last, extra.company || 'Isla Savings', extra.industry || 'Banking', extra.email ?? `${ref.toLowerCase()}@example.com`, extra.mobile || `0917 66${String(ref.charCodeAt(0)).padStart(2, '0')} ${String(1000 + Number(ref.slice(1) || 0))}`, extra.cls || 'regular', owner];
+const guestOf = async (E, ref) => (await lead('GET', `${E.base}/guests?limit=300`)).guests.find((x) => x.externalKey === ref || x.ref === ref);
+// Choose a table on the room plan (scrolled to the middle of the screen, clear of the sticky bars).
+async function pickTable(page, tableId) {
+  const n = page.locator(`[data-plan] [data-table="${tableId}"] .ca-t-num`);
+  await n.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+  await n.click();
+  await page.waitForFunction((id) => document.querySelector(`[data-plan] [data-table="${id}"]`)?.classList.contains('sel'), tableId, { timeout: 4000 });
+}
+
+await journey('Event groups: Seat together, Split group, Send group to Super Administrator', async (pages) => {
+  const G = await journeyEvent('Group Gala', [
+    ...['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7'].map((r, i) => evRow(r, `Ana${i}`, `Grupo${i}`, 'event.demo')),
+    evRow('M1', 'Mara', 'Otro', 'maria.staff'),
+  ]);
+  for (const r of ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'M1']) await G.cmd(lead, { type: 'checkIn', guestId: G.g(r).id });
+  // Event Demo Staff's tables: 3 and 4 hold 2, table 5 holds 10.
+  for (const n of [3, 4]) await G.cmd(lead, { type: 'table.update', tableId: G.t(n).id, capacity: 2 });
+  const p = await signIn('event.demo', DEMO_PW, PHONE);
+  pages.push(p);
+  await p.goto(`${BASE}/#/customapp/queue?e=${G.id}`);
+  await p.waitForSelector('[data-pick]');
+  for (const r of ['A1', 'A2', 'A3']) await p.check(`[data-pick="${G.g(r).id}"]`);
+  await p.waitForSelector('[data-groupbar]:not([hidden])');
+  if (!/3 guests selected/.test(await textOf(p, '[data-groupbar]'))) throw new Error(`Group bar: ${await textOf(p, '[data-groupbar]')}`);
+  await p.click('[data-seat-group]');
+  await p.waitForSelector('.ca-group-body [data-gt]');
+  // Only tables with room for all three: table 5 (3 and 4 hold 2).
+  const offered = await p.$$eval('.ca-group-body [data-gt] .ca-tno', (els) => els.map((e) => e.textContent.trim()));
+  if (offered.join() !== 'Table 5') throw new Error(`Offered for a group of 3: ${offered}`);
+  if (!(await textOf(p, '.ca-group-body')).includes('Tables with 3 free chairs together')) throw new Error('The group sheet does not say why these tables.');
+  await p.click('.ca-group-body [data-gt]');
+  await p.click('[data-seat-together]');
+  await p.waitForTimeout(900);
+  await noErrorToast(p, 'Seat together');
+  const seated = await Promise.all(['A1', 'A2', 'A3'].map((r) => guestOf(G, r)));
+  if (!seated.every((g) => g.seat?.number === 5)) throw new Error(`Not seated together: ${JSON.stringify(seated.map((g) => g.seat))}`);
+  // Now table 5 holds 4 (one free), 3 and 4 hold 2 each: a group of three cannot sit together.
+  await G.cmd(lead, { type: 'table.update', tableId: G.t(5).id, capacity: 4 });
+  await go(p, `/customapp/queue?e=${G.id}`);
+  await p.waitForSelector(`[data-pick="${G.g('A4').id}"]`);
+  for (const r of ['A4', 'A5', 'A6']) await p.check(`[data-pick="${G.g(r).id}"]`);
+  await p.click('[data-seat-group]');
+  await p.waitForSelector('[data-split]');
+  if (await p.locator('.ca-group-body [data-gt]').count()) throw new Error('A table that cannot take all three was offered.');
+  const splitText = await textOf(p, '.ca-split');
+  if (!/Table 3: 2 guests · Table 4: 1 guest/.test(splitText)) throw new Error(`Split suggestion: ${splitText}`);
+  await p.click('[data-split]');
+  await p.waitForSelector('.modal-backdrop:last-child .modal');
+  const confirm = await textOf(p, '.modal-backdrop:last-child .modal');
+  if (!/Split group/.test(confirm) || !/will not all sit together/.test(confirm)) throw new Error(`Split confirm: ${confirm}`);
+  await p.click('.modal-backdrop:last-child button[type=submit]');
+  await p.waitForTimeout(1000);
+  await noErrorToast(p, 'Split group');
+  const split = await Promise.all(['A4', 'A5', 'A6'].map((r) => guestOf(G, r)));
+  if (split.map((g) => g.seat?.number).join() !== '3,3,4') throw new Error(`Split: ${split.map((g) => g.seat?.number)}`);
+  // A group with guests of two owners: only the Super Administrator seats it.
+  await go(p, `/customapp/find?e=${G.id}&status=waiting`);
+  await p.waitForSelector(`[data-pick="${G.g('M1').id}"]`);
+  await p.check(`[data-pick="${G.g('A7').id}"]`);
+  await p.check(`[data-pick="${G.g('M1').id}"]`);
+  await p.click('[data-seat-group]');
+  await p.waitForSelector('[data-send-super]');
+  if (await p.locator('.ca-group-body [data-gt]').count()) throw new Error('A mixed-owner group was offered tables.');
+  await p.click('[data-send-super]');
+  await p.waitForTimeout(800);
+  await noErrorToast(p, 'Send group to Super Administrator');
+  const inbox = (await lead('GET', `${G.base}/exceptions`)).items;
+  if (!inbox.some((i) => i.kind === 'group' && i.guestIds.length === 2)) throw new Error('The group is not in the Super Administrator\'s inbox.');
+  if (await p.evaluate(() => document.documentElement.scrollWidth) > 391) throw new Error('Wider than the phone.');
+});
+
+await journey('Event walk-in and substitute reach the Super Administrator\'s inbox', async (pages) => {
+  const W = await journeyEvent('Walk-in Gala', [evRow('P1', 'Pedro', 'Reyes', 'event.demo', { cls: 'preferred' })]);
+  await W.cmd(lead, { type: 'reserve', guestId: W.g('P1').id, tableId: W.t(1).id, seatNo: 4, reason: 'Preferred' });
+  const p = await signIn('event.demo', DEMO_PW, PHONE);
+  pages.push(p);
+  await p.goto(`${BASE}/#/customapp/find?e=${W.id}`);
+  await p.waitForSelector('[data-walkin]');
+  await p.click('[data-walkin]');
+  await p.fill('.modal input[name=first]', 'Lena');
+  await p.fill('.modal input[name=last]', 'Walker');
+  await p.fill('.modal input[name=company]', 'Northbay Bank');
+  await p.fill('.modal input[name=note]', 'Says she was invited by Mr. Reyes');
+  await submitModal(p, 'Add walk-in');
+  // Record substitute on the invitee's sheet.
+  await p.fill('#ca-q', 'Reyes');
+  await p.waitForSelector(`[data-guest="${W.g('P1').id}"]`);
+  await p.click(`[data-guest="${W.g('P1').id}"]`);
+  await p.waitForSelector('[data-substitute]');
+  await p.click('[data-substitute]');
+  await p.fill('.modal-backdrop:last-child input[name=first]', 'Juan');
+  await p.fill('.modal-backdrop:last-child input[name=last]', 'Reyes');
+  await p.fill('.modal-backdrop:last-child input[name=note]', 'Pedro is unwell');
+  await p.click('.modal-backdrop:last-child button[type=submit]');
+  await p.waitForTimeout(800);
+  await noErrorToast(p, 'Record substitute');
+  // The Super Administrator's inbox has both; the substitute is one seat changing hands.
+  const d = await signIn('eventlead.demo');
+  pages.push(d);
+  await d.goto(`${BASE}/#/customapp/control?e=${W.id}`);
+  await d.waitForSelector('.ca-inbox-item');
+  const inbox = await textOf(d, '[data-inbox]');
+  for (const s of ['Walk-in: Lena Walker, Northbay Bank', 'Seat 1-4: Juan Reyes replaces Pedro Reyes']) if (!inbox.includes(s)) throw new Error(`Inbox lacks "${s}": ${inbox.slice(0, 300)}`);
+  if (!/Needs approval\s*2/.test(await textOf(d, '[data-counts]'))) throw new Error(`Counts: ${await textOf(d, '[data-counts]')}`);
+  // Approve the substitute from the inbox: the seat changes hands.
+  await d.click('.ca-k-substitute [data-ia="approve"]');
+  await submitModal(d, 'Approve substitute');
+  const juan = (await lead('GET', `${W.base}/guests?q=Juan&limit=5`)).guests.find((g) => g.displayName === 'Juan Reyes');
+  if (!(juan?.seat?.number === 1 && juan.seat.seatNo === 4)) throw new Error(`Juan's seat: ${JSON.stringify(juan?.seat)}`);
+  if ((await guestOf(W, 'P1')).seat) throw new Error('Pedro still holds a seat.');
+  await d.waitForFunction(() => !document.querySelector('.ca-k-substitute'), null, { timeout: 6000 });
+});
+
+await journey('Event email cut: Screenshot this screen, and no email parts for staff', async (pages) => {
+  const E = await journeyEvent('Mail Gala', [evRow('E1', 'Elena', 'Correo', 'event.demo')]);
+  const ph = await guestPhone();
+  pages.push(ph);
+  await ph.goto(`${BASE}/event/${E.code}`);
+  await typeVerify(ph, 'Correo', '1001');
+  await E.cmd(staffA, { type: 'assign', guestId: E.g('E1').id, tableId: E.t(3).id, seatNo: 2 });
+  await ph.waitForSelector('#table-no', { timeout: 15000 });
+  const line = (await textOf(ph, '#mail-line')).trim();
+  if (line !== 'Screenshot this screen to show the usher.') throw new Error(`Guest page with email paused: "${line}"`);
+  if (/emailed/i.test(await textOf(ph, '#box'))) throw new Error('The guest page mentions email while email is cut.');
+  const s = await signIn('event.demo', DEMO_PW, PHONE);
+  pages.push(s);
+  await s.goto(`${BASE}/#/customapp/find?e=${E.id}&guest=${E.g('E1').id}`);
+  await s.waitForSelector('.ca-sheet [data-email-line]');
+  if (await s.locator('.ca-sheet [data-resend]').count()) throw new Error('Resend is shown while email is cut.');
+  if (!/Email is paused: tell Elena their table/.test(await textOf(s, '.ca-sheet [data-email-line]'))) throw new Error(`Sheet: ${await textOf(s, '.ca-sheet [data-email-line]')}`);
+  // Email on again (with the event's own address): the staff email parts are back.
+  const ev = await lead('GET', E.base);
+  await lead('PATCH', E.base, { rev: ev.rev, settings: { emailFrom: 'mail.gala@example.com' } });
+  await E.cmd(lead, { type: 'setFlag', flag: 'emailPaused', value: false });
+  await s.reload();
+  await s.waitForSelector('.ca-sheet [data-email-line]');
+  if (/Email is paused/.test(await textOf(s, '.ca-sheet [data-email-line]'))) throw new Error('The sheet still says email is paused.');
+});
+
+await journey('Event control: tables, workload moves, confirms, transfer, swap and release on every device', async (pages) => {
+  const C = await journeyEvent('Control Gala', [
+    evRow('P1', 'Pia', 'Santos', 'event.demo', { cls: 'preferred' }),
+    ...['S1', 'S2', 'S3', 'S4'].map((r, i) => evRow(r, `Sam${i}`, `Seated${i}`, 'event.demo')),
+    ...['Q1', 'Q2'].map((r, i) => evRow(r, `Wait${i}`, `Queue${i}`, 'event.demo')),
+  ]);
+  await C.cmd(lead, { type: 'reserve', guestId: C.g('P1').id, tableId: C.t(1).id, seatNo: 4, reason: 'Preferred' });
+  await C.cmd(lead, { type: 'table.update', tableId: C.t(3).id, capacity: 2 });
+  for (const [i, r] of ['S1', 'S2', 'S3', 'S4'].entries()) {
+    await C.cmd(lead, { type: 'checkIn', guestId: C.g(r).id });
+    await C.cmd(lead, { type: 'assign', guestId: C.g(r).id, tableId: C.t(i < 2 ? 3 : 4).id, seatNo: (i % 2) + 1 });
+  }
+  for (const r of ['Q1', 'Q2']) await C.cmd(lead, { type: 'checkIn', guestId: C.g(r).id });
+  const d = await signIn('eventlead.demo');
+  pages.push(d);
+  await d.goto(`${BASE}/#/customapp/control?e=${C.id}`);
+  await d.waitForSelector('[data-plan] .ca-tbl');
+  await d.waitForSelector('.ca-work');
+  // Every table on the plan with its number and count; a full table is dimmed and says FULL.
+  if ((await d.locator('[data-plan] .ca-tbl').count()) !== 25) throw new Error('Not 25 tables on the plan.');
+  if (!(await d.locator(`[data-plan] .ca-tbl.full[data-table="${C.t(3).id}"] .ca-t-count`).textContent()).includes('FULL')) throw new Error('Table 3 does not say FULL.');
+  await d.click('.ca-tables-card summary');
+  const t3row = d.locator('.ca-tables-card tr', { hasText: /^3/ }).first();
+  const rowText = await t3row.textContent();
+  if (!/Regular/.test(rowText) || !/2 of 2/.test(rowText) || !/Demo Event Staff|Event Staff/.test(rowText)) throw new Error(`Table 3's row: ${rowText}`);
+  // Removing a table that has guests is disabled, with Move guests….
+  if (!(await d.isDisabled(`[data-off="${C.t(3).id}"]`)) || !(await d.locator(`[data-move-guests="${C.t(3).id}"]`).count())) throw new Error('Table 3 with guests can be taken out of use, or has no Move guests….');
+  // The workload: staffer, waiting, longest wait, last active; One by one moves a guest and a table.
+  const head = await textOf(d, '.ca-work thead');
+  for (const h of ['Staff', 'Waiting', 'Longest wait', 'Last active']) if (!head.includes(h)) throw new Error(`Workload lacks "${h}".`);
+  await d.click(`[data-one-by-one="${aId}"]`);
+  await d.waitForSelector(`.modal [data-mg="${C.g('Q1').id}"]`);
+  await d.selectOption(`.modal [data-mg="${C.g('Q1').id}"]`, mariaId);
+  await d.waitForTimeout(700);
+  await d.selectOption(`.modal [data-mt="${C.t(5).id}"]`, mariaId);
+  await d.waitForTimeout(700);
+  await noErrorToast(d, 'One by one');
+  await d.click('.modal [data-close] >> nth=0');
+  if ((await guestOf(C, 'Q1')).ownerUserId !== mariaId) throw new Error('Q1 was not moved to Maria.');
+  if ((await lead('GET', C.base)).tables.find((t) => t.number === 5).ownerUserId !== mariaId) throw new Error('Table 5 was not moved to Maria.');
+  // A switch's confirm names its effect.
+  await d.click('[data-flag="registrationOpen"]');
+  await d.waitForSelector('.modal-backdrop:last-child .modal');
+  const flagText = await textOf(d, '.modal-backdrop:last-child .modal');
+  if (!flagText.includes('Turn off self check-in? Guests will be sent to the desk.')) throw new Error(`Flag confirm: ${flagText}`);
+  await d.click('.modal-backdrop:last-child [data-close] >> nth=0');
+  // A second device: Event Demo Staff's room plan.
+  const s = await signIn('event.demo');
+  pages.push(s);
+  await s.goto(`${BASE}/#/customapp/room?e=${C.id}`);
+  await s.waitForSelector('[data-plan] .ca-tbl');
+  const countOn = (page, n) => page.$eval(`[data-plan] [data-table="${C.t(n).id}"] .ca-t-count`, (e) => e.textContent);
+  // Transfer from Event control: S3 (table 4, chair 1) to table 6, chair 2; the other device shows it.
+  await pickTable(d, C.t(4).id);
+  await d.waitForSelector('.ca-dial');
+  await d.click('.ca-dial [data-dchair="1"]');
+  await d.click('[data-act="move"]');
+  await pickTable(d, C.t(6).id);
+  await d.waitForSelector('.ca-tview-head');
+  await d.click('.ca-dial [data-dchair="2"]');
+  await d.click('[data-act="move-here"]');
+  await d.waitForTimeout(900);
+  await noErrorToast(d, 'Transfer');
+  if ((await guestOf(C, 'S3')).seat?.number !== 6) throw new Error('S3 was not moved to table 6.');
+  await s.waitForFunction(([sel]) => document.querySelector(sel)?.textContent === '1/10', [`[data-plan] [data-table="${C.t(6).id}"] .ca-t-count`], { timeout: 8000 });
+  if ((await countOn(s, 4)) !== '1/10') throw new Error(`Table 4 on the other device: ${await countOn(s, 4)}`);
+  // Swap: S1 (table 3, chair 1) and S4 (table 4, chair 2).
+  await pickTable(d, C.t(3).id);
+  await d.waitForSelector('.ca-dial');
+  await d.click('.ca-dial [data-dchair="1"]');
+  await d.click('[data-act="move"]');
+  await pickTable(d, C.t(4).id);
+  await d.waitForFunction(() => /Table 4/.test(document.querySelector('.ca-tview-head')?.textContent || ''));
+  await d.click('.ca-dial [data-dchair="2"]');
+  await d.click('[data-act="swap"]');
+  await d.waitForTimeout(900);
+  await noErrorToast(d, 'Swap');
+  const [s1, s4] = [await guestOf(C, 'S1'), await guestOf(C, 'S4')];
+  if (!(s1.seat.number === 4 && s1.seat.seatNo === 2 && s4.seat.number === 3 && s4.seat.seatNo === 1)) throw new Error(`Swap: ${JSON.stringify([s1.seat, s4.seat])}`);
+  // Release: the confirm names the guest, the table and the chair; every device sees the chair free.
+  await pickTable(d, C.t(1).id);
+  await d.waitForSelector('.ca-dial');
+  await d.click('.ca-dial [data-dchair="4"]');
+  await d.click('[data-act="release"]');
+  await d.waitForSelector('.modal-backdrop:last-child input[name=reason]');
+  const rel = await textOf(d, '.modal-backdrop:last-child .modal');
+  if (!/Release table 1, chair 4, reserved for Pia Santos/.test(rel)) throw new Error(`Release confirm: ${rel}`);
+  await d.fill('.modal-backdrop:last-child input[name=reason]', 'No-show');
+  await d.click('.modal-backdrop:last-child button[type=submit]');
+  await d.waitForTimeout(900);
+  await noErrorToast(d, 'Release');
+  await s.waitForFunction(([sel]) => document.querySelector(sel)?.textContent === '0/10', [`[data-plan] [data-table="${C.t(1).id}"] .ca-t-count`], { timeout: 8000 });
+  // The counts on Event control follow on their next poll.
+  await d.waitForFunction(() => /Seats left\s*\d+ of \d+/.test(document.querySelector('[data-counts]')?.textContent || ''), null, { timeout: 5000 });
 });
 
 // 6. Every page in every role's menu at phone width

@@ -318,3 +318,116 @@ describe('US-018: Recommendation engine', () => {
     clean(db);
   });
 });
+
+describe('US-021: Group arrivals', () => {
+  test('GIVEN a group of 4 and a table with 3 free seats WHEN assign places all 4 there THEN nothing is committed, and with 4 free seats all 4 are committed in one commit', () => {
+    const guests = [...['A', 'B', 'C', 'D'].map((ref) => ({ ref, arrived: true, owner: 'sam' })), ...Array.from({ length: 7 }, (_, i) => ({ ref: `X${i}`, arrived: true, seat: [1, i + 1] }))];
+    const db = fixture({ tables: [{ n: 1, owner: 'sam' }, { n: 2, owner: 'sam' }], guests });
+    const { sam, g } = run(db);
+    const group = (table) => ['A', 'B', 'C', 'D'].map((ref, i) => ({ guestId: `g-${ref}`, tableId: table, seatNo: table === 't1' ? Math.min(8 + i, 10) : i + 1 }));
+    const seq0 = db.data.caChanges.length;
+    assert.equal(codeOf(() => sam({ type: 'assign', placements: group('t1') })), 'table_full', 'the fourth does not fit');
+    assert.deepEqual(['A', 'B', 'C', 'D'].map((r) => g(r).seat), [null, null, null, null], 'none of the four is seated');
+    assert.equal(db.data.caChanges.length, seq0, 'nothing committed');
+    const r = sam({ type: 'assign', placements: group('t2') });
+    assert.equal(db.data.caChanges.length, seq0 + 1, 'one commit');
+    assert.equal(db.data.caChanges.at(-1).guestIds.length, 4);
+    assert.ok(r.groupId && ['A', 'B', 'C', 'D'].every((x) => g(x).groupId === r.groupId && g(x).seat.tableId === 't2'));
+    clean(db);
+  });
+  test('GIVEN a seated group WHEN one member is transferred THEN only that member\'s check-in and seat change', () => {
+    const db = fixture({ tables: [{ n: 1, owner: 'sam' }, { n: 2, owner: 'sam' }], guests: ['A', 'B', 'C'].map((ref) => ({ ref, arrived: true, owner: 'sam' })) });
+    const { sam, g } = run(db);
+    sam({ type: 'assign', placements: ['A', 'B', 'C'].map((ref, i) => ({ guestId: `g-${ref}`, tableId: 't1', seatNo: i + 1 })) });
+    const before = Object.fromEntries(['A', 'B', 'C'].map((r) => [r, JSON.stringify({ arrival: g(r).arrival, seat: g(r).seat })]));
+    sam({ type: 'transfer', guestId: 'g-B', tableId: 't2', seatNo: 5 });
+    assert.deepEqual([g('B').seat.tableId, g('B').seat.seatNo], ['t2', 5]);
+    assert.equal(JSON.stringify({ arrival: g('A').arrival, seat: g('A').seat }), before.A, 'A unchanged');
+    assert.equal(JSON.stringify({ arrival: g('C').arrival, seat: g('C').seat }), before.C, 'C unchanged');
+    assert.deepEqual(g('B').arrival, JSON.parse(before.B).arrival, 'B keeps their own check-in');
+    // Each member is undone on their own too.
+    sam({ type: 'unseat', guestId: 'g-A', reason: 'Wants to sit elsewhere' });
+    assert.equal(g('A').seat, null);
+    assert.equal(g('C').seat.tableId, 't1');
+    clean(db);
+  });
+});
+
+describe('US-022: Unlisted guests and substitutes', () => {
+  test('GIVEN a staffer WHEN createUnlisted records a walk-in and then assign is tried before approval THEN the guest is in the Super Administrator\'s inbox and the assign is refused', async () => {
+    const { superQueue, exceptionsOf } = await import('../server/customapp/events/board.js');
+    const db = fixture({ tables: [{ n: 1, owner: 'sam' }], guests: [] });
+    const { sam, lead } = run(db);
+    const r = sam({ type: 'createUnlisted', guest: { first: 'Lorna', last: 'Bautista', company: 'Northbay Bank' }, note: 'Says she is invited' });
+    const w = db.data.caGuests.find((x) => x.id === r.guestId);
+    assert.deepEqual([w.classification, w.approval.state, w.arrival.state, w.seat], ['unlisted', 'pending', 'expected', null], 'not admitted, not seated');
+    const state = { event: db.data.caEvents[0], tables: db.data.caTables, guests: db.data.caGuests };
+    assert.deepEqual(superQueue(state).map((x) => [x.guest.id, x.why.join()]), [[w.id, 'unlisted']]);
+    assert.deepEqual(exceptionsOf(state).map((i) => [i.kind, i.guestIds[0]]), [['walkin', w.id]]);
+    assert.equal(codeOf(() => sam({ type: 'checkIn', guestId: w.id })), 'needs_super_admin', 'a walk-in is not checked in by staff');
+    assert.equal(codeOf(() => lead({ type: 'assign', guestId: w.id, tableId: 't1', seatNo: 1 })), 'not_eligible', 'not even the Super Administrator seats them before approval');
+    clean(db);
+  });
+  test('GIVEN an unlisted guest WHEN a staffer and the Super Administrator each approve or reject THEN only the Super Administrator can, and approval records identity, classification, industry, by, at and note', () => {
+    const db = fixture({ tables: [{ n: 1, owner: 'sam' }], guests: [] });
+    db.data.caEvents[0].industries = [{ id: 'bank', name: 'Banking', related: [] }];
+    const { sam, lead, ctx } = run(db);
+    const a = sam({ type: 'createUnlisted', guest: { first: 'Lorna', last: 'Bautista', company: 'Northbay Bank' }, note: 'Walk-in' }).guestId;
+    const b = sam({ type: 'createUnlisted', guest: { first: 'Nobody', last: 'Known' }, note: 'Walk-in' }).guestId;
+    assert.equal(codeOf(() => sam({ type: 'approve', guestId: a, classification: 'regular' })), 'needs_super_admin');
+    assert.equal(codeOf(() => sam({ type: 'reject', guestId: b, note: 'No' })), 'needs_super_admin');
+    lead({ type: 'approve', guestId: a, classification: 'regular', industryId: 'bank', ownerUserId: USERS.sam.id, note: 'Confirmed with the host' });
+    const g = db.data.caGuests.find((x) => x.id === a);
+    assert.equal(g.approval.state, 'approved');
+    assert.equal(g.approval.by, USERS.lead.id);
+    assert.equal(g.approval.at, ctx.now());
+    assert.equal(g.approval.note, 'Confirmed with the host');
+    assert.equal(g.approval.classification, 'regular');
+    assert.equal(g.approval.industryId, 'bank');
+    assert.deepEqual(g.approval.identity, { name: 'Lorna Bautista', company: 'Northbay Bank' });
+    assert.equal(g.arrival.state, 'checked_in', 'approved: admitted at the desk');
+    sam({ type: 'assign', guestId: a, tableId: 't1', seatNo: 1 });
+    assert.equal(g.seat == null, true, 'the old record object is not changed in place');
+    assert.equal(db.data.caGuests.find((x) => x.id === a).seat.status, 'confirmed', 'then seated by their owner');
+    assert.equal(codeOf(() => lead({ type: 'reject', guestId: b })), 'http400', 'a reason is required');
+    lead({ type: 'reject', guestId: b, note: 'Not known to the host' });
+    const r = db.data.caGuests.find((x) => x.id === b);
+    assert.deepEqual([r.approval.state, r.approval.by, r.approval.note, r.arrival.state], ['rejected', USERS.lead.id, 'Not known to the host', 'cancelled']);
+    assert.equal(codeOf(() => lead({ type: 'approve', guestId: b, classification: 'regular' })), 'stale', 'decided once');
+    clean(db);
+  });
+  test('GIVEN Pedro Reyes seated at 3-4 WHEN substitute {originalId, newGuest} records Juan Reyes THEN the seat moves to Juan in one commit, substituteFor and substitutedBy link them and they never both hold a seat', async () => {
+    const { substituteLine } = await import('../server/customapp/events/board.js');
+    const db = fixture({ tables: [{ n: 1 }, { n: 2 }, { n: 3, cls: 'preferred', owner: 'sam' }], guests: [{ ref: 'P', first: 'Pedro', last: 'Reyes', cls: 'preferred', owner: 'sam', seat: [3, 4, 'reserved'] }] });
+    const { sam, lead, g } = run(db);
+    // A staffer records it: nothing changes hands until the Super Administrator approves.
+    const r = sam({ type: 'substitute', originalId: 'g-P', newGuest: { first: 'Juan', last: 'Reyes' }, note: 'Pedro is unwell' });
+    const juan = () => db.data.caGuests.find((x) => x.id === r.guestId);
+    const state = () => ({ event: db.data.caEvents[0], tables: db.data.caTables, guests: db.data.caGuests });
+    assert.equal(substituteLine(state(), juan(), g('P')), 'Seat 3-4: Juan Reyes replaces Pedro Reyes');
+    assert.deepEqual([juan().approval.state, juan().seat, g('P').seat.seatNo], ['pending', null, 4]);
+    assert.equal(codeOf(() => sam({ type: 'substitute', originalId: 'g-P', newGuest: { last: 'Other' } })), 'guest_moved', 'one substitute waiting at a time');
+    const n = db.data.caChanges.length;
+    lead({ type: 'approve', guestId: juan().id, note: 'OK' });
+    assert.equal(db.data.caChanges.length, n + 1, 'one commit');
+    assert.deepEqual([juan().seat.tableId, juan().seat.seatNo, juan().seat.status], ['t3', 4, 'confirmed'], 'Juan has seat 3-4, here and confirmed');
+    assert.equal(g('P').seat, null, 'Pedro no longer holds it');
+    assert.equal(juan().substituteFor, 'g-P');
+    assert.equal(g('P').substitutedBy, juan().id);
+    assert.equal(juan().approval.classification, 'preferred', 'the invitee\'s class');
+    assert.equal(codeOf(() => sam({ type: 'checkIn', guestId: 'g-P' })), 'guest_moved', 'Pedro cannot take it back by checking in');
+    clean(db);
+    // The Super Administrator records it already approved, and may release the seat instead.
+    const db2 = fixture({ tables: [{ n: 1, cls: 'preferred' }], guests: [{ ref: 'Q', first: 'Rosa', last: 'Lim', cls: 'preferred', seat: [1, 2, 'reserved'] }] });
+    const two = run(db2);
+    const s2 = two.lead({ type: 'substitute', originalId: 'g-Q', newGuest: { first: 'Ana', last: 'Lim' }, seat: 'release', note: 'Seat goes back' });
+    const ana = db2.data.caGuests.find((x) => x.id === s2.guestId);
+    assert.deepEqual([ana.approval.state, ana.seat, ana.arrival.state], ['approved', null, 'checked_in']);
+    assert.equal(two.g('Q').seat, null);
+    assert.equal(two.g('Q').released.seatNo, 2, 'released, with a record');
+    assert.deepEqual(checkInvariants({ event: db2.data.caEvents[0], tables: db2.data.caTables, guests: db2.data.caGuests }), []);
+    // An invitee who is already here cannot be substituted.
+    const db3 = fixture({ tables: [{ n: 1 }], guests: [{ ref: 'H', arrived: true }] });
+    assert.equal(codeOf(() => run(db3).lead({ type: 'substitute', originalId: 'g-H', newGuest: { last: 'X' } })), 'already_checked_in');
+  });
+});

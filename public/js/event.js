@@ -55,7 +55,7 @@ function render(st, { focus = true, at = Date.now() } = {}) {
   const name = st.title || st.firstName || '';
   if (st.state === 'seated') {
     store.del(`${STORE}:pending`);
-    show(`<h1 tabindex="-1">Welcome${name ? `, ${esc(name)}` : ''}.</h1><p>Your seat is</p><span class="big" id="table-no">Table ${esc(st.table)}</span>${st.seat ? `<p class="seat">Seat ${esc(st.seat)}</p>` : ''}<p class="ok">Screenshot this screen to show the usher.</p>`, { focus });
+    show(`<h1 tabindex="-1">Welcome${name ? `, ${esc(name)}` : ''}.</h1><p>Your seat is</p><span class="big" id="table-no">Table ${esc(st.table)}</span>${st.seat ? `<p class="seat">Seat ${esc(st.seat)}</p>` : ''}${st.emailed ? '<p class="ok" id="mail-line">We have emailed your table to you as well.</p>' : '<p class="ok" id="mail-line">Screenshot this screen to show the usher.</p>'}`, { focus });
   } else if (st.state === 'pending') {
     if (!pendingSince) {
       pendingSince = Date.now();

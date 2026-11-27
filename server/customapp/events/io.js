@@ -10,7 +10,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { parseCsv } from '../../../shared/csv.js';
 import { readZip, parseXml, kid, kids, textOf, dropPrefixes } from '../../pdf/office-core.js';
-import { tableCounts } from '../../../shared/customapp/seating.js';
+import { tableCounts, seatClassOf } from '../../../shared/customapp/seating.js';
+import { roomGeometry, chairPoint, ROOM_DRAW } from '../../../shared/customapp/room.js';
 import { CLASS_LABELS, SEAT_LABELS } from '../../../shared/customapp/statuses.js';
 import { fmtManila } from '../../../shared/customapp/time.js';
 import { bad, cleanText, canonSurname, last4, lookupOf } from './model.js';
@@ -300,25 +301,74 @@ export function exportCsv(exp, kind = 'guests', { names = {} } = {}) {
 
 // ----- The printable seating plan, from the export -----
 // One page of HTML that prints cleanly (black on white, a table per block, never split across
-// pages), stamped with the time it was made: the room grid with table numbers where they stand,
-// then every table with its chairs 1 to N.
+// pages), stamped with the time it was made: the room drawn as on the room plan (the same geometry,
+// shared/customapp/room.js: the stage and tech booth where they are, every table where it stands,
+// numbered from the stage, and its chairs 1 to N clockwise from the one facing the stage), in black
+// and white: an open chair is a white circle with its number, a reserved chair is hatched, a seated
+// guest's chair is black with a white number. Then every table with its chairs.
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+export function roomSvg(exp) {
+  const room = exp.event.room;
+  const tables = exp.tables.filter((t) => t.active !== false);
+  if (!tables.length) return '';
+  const G = ROOM_DRAW;
+  const geo = roomGeometry(room, tables);
+  const at = new Map();
+  for (const g of exp.guests) if (g.seat?.tableId && g.seat.seatNo) at.set(`${g.seat.tableId}:${g.seat.seatNo}`, g.seat.status);
+  const zone = (z, label) => {
+    const cx = z.x + z.w / 2;
+    const cy = z.y + z.h / 2;
+    return `<rect x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}" rx="9" fill="#fff" stroke="#000" stroke-width="2"/><text x="${cx}" y="${cy + 6}" text-anchor="middle" font-size="18" font-weight="700" letter-spacing="3"${z.rot ? ` transform="rotate(${z.rot} ${cx} ${cy})"` : ''}>${label}</text>`;
+  };
+  let out = `<svg class="roomsvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${geo.w} ${geo.h}" role="img" aria-label="Room plan: ${tables.length} tables${room ? `, stage on the ${room.stageSide}` : ''}" font-family="Arial, Helvetica, sans-serif">`;
+  out += '<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#fff"/><rect width="2" height="5" fill="#000"/></pattern></defs>';
+  if (room) out += zone(geo.booth, 'TECH BOOTH') + zone(geo.stage, 'STAGE');
+  for (const t of tables) {
+    const [x, y] = geo.pos.get(t.id);
+    const c = tableCounts(t, exp.guests);
+    out += `<g class="t" data-n="${t.number}"><circle cx="${x}" cy="${y}" r="${G.tableR}" fill="#fff" stroke="#000" stroke-width="${t.classification === 'preferred' ? 4 : 2}"${t.classification === 'employee' ? ' stroke-dasharray="6 4"' : ''}/>`;
+    out += `<text x="${x}" y="${y + 2}" text-anchor="middle" font-size="22" font-weight="700">${t.number}</text><text x="${x}" y="${y + 18}" text-anchor="middle" font-size="10">${c.free < 1 ? 'FULL' : `${c.claims}/${t.capacity}`}</text>`;
+    for (let n = 1; n <= t.capacity; n++) {
+      const [cx, cy] = chairPoint(room, t.capacity, n, x, y).map((v) => v.toFixed(1));
+      const st = at.get(`${t.id}:${n}`);
+      out += `<circle class="c${st ? ` ${st}` : ''}" cx="${cx}" cy="${cy}" r="${G.chairR + 1.5}" fill="${st === 'confirmed' ? '#000' : st === 'reserved' ? 'url(#hatch)' : '#fff'}" stroke="#000" stroke-width="1.4"/>`;
+      out += `<text x="${cx}" y="${(Number(cy) + 3.6).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700"${st === 'confirmed' ? ' fill="#fff"' : st === 'reserved' ? ' fill="#000" stroke="#fff" stroke-width="2.5" paint-order="stroke"' : ''}>${n}</text>`;
+    }
+    out += '</g>';
+  }
+  return `${out}</svg>`;
+}
+const LEGEND = '<p class="legend"><span class="k open"></span> Open chair <span class="k res"></span> Reserved (not arrived) <span class="k seat"></span> Seated · a thick table edge is a preferred table, a dashed one an employee table · chair 1 faces the stage, chairs run clockwise</p>';
+
+const STYLE = `body{font:13px/1.35 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#000;background:#fff;margin:16px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:16px 0 6px}h3{font-size:14px;margin:0 0 4px}h3 span{font-weight:normal;font-size:12px}
+.stamp{font-size:12px;margin:2px 0 12px}.small,.sides,.legend{font-size:11px;margin:4px 0}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #000;padding:2px 6px;text-align:left;vertical-align:top}th{background:#eee}
+td.n{width:3em;text-align:center}td.box{width:4.5em}
+.roomsvg{width:100%;height:auto;max-height:180mm;display:block}
+.k{display:inline-block;width:10px;height:10px;border:1px solid #000;border-radius:50%;vertical-align:-1px;margin-left:8px}.k.res{background:repeating-linear-gradient(45deg,#000 0 1px,#fff 1px 3px)}.k.seat{background:#000}
+.tables{columns:2 340px;column-gap:16px}.tbl{break-inside:avoid;margin:0 0 12px}
+.sheet{break-before:page}.sheet:first-of-type{break-before:auto}thead .st th{background:#fff;border:0;border-bottom:2px solid #000;font-weight:normal;font-size:11px;padding:0 0 4px}
+.card{border:2px solid #000;padding:12px 16px;margin:12px 0;break-inside:avoid}.card p{font-size:16px;margin:6px 0}
+@page room{size:A4 landscape;margin:10mm}.roompage{page:room}
+@media print{body{margin:0}@page{margin:12mm}.tables{columns:2}a{color:#000}}`;
+
 export function planHtml(exp, { names = {}, now = exp.exportedAt } = {}) {
   const ev = exp.event;
   const room = ev.room;
   const stamp = fmtManila(now);
   const guestsAt = (t) => exp.guests.filter((g) => g.seat?.tableId === t.id);
   let grid = '';
-  if (room) {
-    const cells = new Map(exp.tables.filter((t) => t.row != null).map((t) => [`${t.row}:${t.col}`, t]));
-    const side = (s) => (room.stageSide === s ? 'Stage' : room.boothSide === s ? 'Tech booth' : '');
-    const rowsHtml = Array.from({ length: room.rows }, (_, r) => `<tr>${Array.from({ length: room.cols }, (__, c) => {
-      const t = cells.get(`${r}:${c}`);
-      return `<td>${t ? `<b>${t.number}</b><small>${tableCounts(t, exp.guests).claims}/${t.capacity}</small>` : ''}</td>`;
-    }).join('')}</tr>`).join('');
-    grid = `<section class="room"><h2>Room</h2><p class="sides">${['top', 'left', 'right', 'bottom'].filter(side).map((s) => `${side(s)}: ${s}`).join(' · ')}</p><table class="grid">${rowsHtml}</table><p class="small">Tables are numbered from the stage; chair 1 faces the stage and chairs run clockwise.</p></section>`;
+  if (room || exp.tables.length) {
+    const side = (s) => (room?.stageSide === s ? 'Stage' : room?.boothSide === s ? 'Tech booth' : '');
+    grid = `<section class="room roompage"><h2>Room</h2>${room ? `<p class="sides">${['top', 'left', 'right', 'bottom'].filter(side).map((s) => `${side(s)}: ${s}`).join(' · ')}</p>` : ''}${roomSvg(exp)}${LEGEND}<p class="small">Tables are numbered from the stage; chair 1 faces the stage and chairs run clockwise. The same drawing as the room plan on screen.</p></section>`;
   }
-  const blocks = exp.tables.filter((t) => t.active !== false).map((t) => {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(ev.name)}: seating plan</title><style>
+${STYLE}
+</style></head><body><h1>${esc(ev.name)}: seating plan</h1><p class="stamp">As of ${esc(stamp)} · seq ${exp.seq} · ${exp.guests.filter((g) => g.seat).length} seats claimed of ${exp.tables.filter((t) => t.active !== false).reduce((n, t) => n + t.capacity, 0)}</p>${grid}<section><h2>Tables</h2><div class="tables">${tableBlocks(exp, names, guestsAt)}</div></section></body></html>`;
+}
+function tableBlocks(exp, names, guestsAt) {
+  return exp.tables.filter((t) => t.active !== false).map((t) => {
     const at = guestsAt(t);
     const c = tableCounts(t, exp.guests);
     const bySeat = new Map(at.filter((g) => g.seat.seatNo).map((g) => [g.seat.seatNo, g]));
@@ -328,13 +378,54 @@ export function planHtml(exp, { names = {}, now = exp.exportedAt } = {}) {
     }).join('') + at.filter((g) => !g.seat.seatNo).map((g) => `<tr><td class="n">–</td><td>${esc(g.name?.display)}</td><td>${esc(g.company)}</td><td>${esc(SEAT_LABELS[g.seat.status] || g.seat.status)}</td></tr>`).join('');
     return `<section class="tbl"><h3>Table ${t.number} <span>${esc(CLASS_LABELS[t.classification])}${t.ownerUserId ? ` · ${esc(names[t.ownerUserId] || '')}` : ''} · ${c.confirmed} seated · ${c.reserved} reserved · ${c.free} free</span></h3><table><thead><tr><th>Seat</th><th>Guest</th><th>Company</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   }).join('');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(ev.name)}: seating plan</title><style>
-body{font:13px/1.35 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#000;background:#fff;margin:16px}
-h1{font-size:20px;margin:0}h2{font-size:15px;margin:16px 0 6px}h3{font-size:14px;margin:0 0 4px}h3 span{font-weight:normal;font-size:12px}
-.stamp{font-size:12px;margin:2px 0 12px}.small,.sides{font-size:11px;margin:4px 0}
-table{border-collapse:collapse;width:100%}th,td{border:1px solid #000;padding:2px 6px;text-align:left;vertical-align:top}th{background:#eee}
-td.n{width:3em;text-align:center}.grid td{width:3.5em;height:2.6em;text-align:center}.grid b{display:block;font-size:15px}.grid small{font-size:10px}
-.tables{columns:2 340px;column-gap:16px}.tbl{break-inside:avoid;margin:0 0 12px}
-@media print{body{margin:0}@page{margin:12mm}.tables{columns:2}a{color:#000}}
-</style></head><body><h1>${esc(ev.name)}: seating plan</h1><p class="stamp">As of ${esc(stamp)} · seq ${exp.seq} · ${exp.guests.filter((g) => g.seat).length} seats claimed of ${exp.tables.filter((t) => t.active !== false).reduce((n, t) => n + t.capacity, 0)}</p>${grid}<section><h2>Tables</h2><div class="tables">${blocks}</div></section></body></html>`;
+}
+
+// ----- The offline pack (US-025): what the desk works from if CORE cannot be reached -----
+// From the same export v1: the room drawing, an A–Z list of every guest with their seat, one sheet
+// per table and one per staff member (their guests and tables), and the desk and easel cards. Every
+// printed page carries "as of HH:MM" (each sheet is a table whose heading row repeats on every
+// page), so nobody works from an older sheet without knowing. Staff write each check-in and seat
+// on their own sheet with the time; the Super Administrator enters them afterwards (Reconcile paper
+// seating), through the same commands, so paper can never overbook a table.
+export function packHtml(exp, { names = {}, now = exp.exportedAt, standby = '' } = {}) {
+  const ev = exp.event;
+  const asOf = `as of ${fmtManila(now, { date: false })}`;
+  const tables = new Map(exp.tables.map((t) => [t.id, t]));
+  const active = exp.guests.filter((g) => g.active !== false && !(g.classification === 'unlisted' && g.approval?.state !== 'approved'));
+  const ownerName = (id) => (id ? names[id] || 'Former staff' : 'No owner (Super Administrator)');
+  const status = (g) => (g.seat ? SEAT_LABELS[g.seat.status] || g.seat.status : g.arrival?.state === 'checked_in' ? 'Waiting for a table' : g.arrival?.state === 'cancelled' ? 'Not coming' : 'Not arrived');
+  const seatOf = (g) => (g.seat ? [tables.get(g.seat.tableId)?.number ?? '', g.seat.seatNo ?? ''] : ['', '']);
+  const cls = (g) => esc(CLASS_LABELS[seatClassOf(g)] || CLASS_LABELS[g.classification] || '');
+  const head = (title, cols) => `<thead><tr class="st"><th colspan="${cols.length}">${esc(ev.name)} · ${esc(title)} · <strong>${esc(asOf)}</strong> · seq ${exp.seq}</th></tr><tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr></thead>`;
+  const byName = (a, b) => String(a.name?.last || '').localeCompare(String(b.name?.last || '')) || String(a.name?.first || '').localeCompare(String(b.name?.first || ''));
+  const guestRow = (g) => {
+    const [tn, sn] = seatOf(g);
+    return `<tr><td>${esc(g.name?.last)}, ${esc(g.name?.first)}</td><td>${esc(g.company)}</td><td>${cls(g)}</td><td>${esc(ownerName(g.ownerUserId))}</td><td class="n">${tn}</td><td class="n">${sn}</td><td>${esc(status(g))}</td><td class="box"></td><td class="box"></td></tr>`;
+  };
+  const COLS = ['Guest', 'Company', 'Class', 'Owner', 'Table', 'Seat', 'Status', 'Arrived (time)', 'Seated at'];
+  const az = `<section class="sheet" data-sheet="az"><table>${head('A–Z guest list', COLS)}<tbody>${[...active].sort(byName).map(guestRow).join('')}</tbody></table></section>`;
+  const perTable = exp.tables.filter((t) => t.active !== false).map((t) => {
+    const at = exp.guests.filter((g) => g.seat?.tableId === t.id);
+    const c = tableCounts(t, exp.guests);
+    const bySeat = new Map(at.filter((g) => g.seat.seatNo).map((g) => [g.seat.seatNo, g]));
+    const rows = Array.from({ length: t.capacity }, (_, i) => {
+      const g = bySeat.get(i + 1);
+      return `<tr><td class="n">${i + 1}</td><td>${g ? esc(g.name?.display) : ''}</td><td>${g ? esc(g.company) : ''}</td><td>${g ? esc(SEAT_LABELS[g.seat.status] || g.seat.status) : 'Free'}</td><td class="box"></td></tr>`;
+    }).join('') + at.filter((g) => !g.seat.seatNo).map((g) => `<tr><td class="n">–</td><td>${esc(g.name?.display)}</td><td>${esc(g.company)}</td><td>${esc(SEAT_LABELS[g.seat.status] || g.seat.status)}</td><td class="box"></td></tr>`).join('');
+    return `<section class="sheet" data-sheet="table-${t.number}"><table>${head(`Table ${t.number} · ${CLASS_LABELS[t.classification]} · ${ownerName(t.ownerUserId)} · ${c.confirmed} seated, ${c.reserved} reserved, ${c.free} free`, ['Chair', 'Guest', 'Company', 'Status', 'Written in (name, time)'])}<tbody>${rows}</tbody></table></section>`;
+  }).join('');
+  const owners = [...new Set([...(ev.staff || []).filter((s) => s.active !== false).map((s) => s.userId), ...exp.guests.map((g) => g.ownerUserId || null), ...exp.tables.map((t) => t.ownerUserId || null)])];
+  const perStaff = owners.map((uid) => {
+    const mine = active.filter((g) => (g.ownerUserId || null) === uid).sort(byName);
+    const tbls = exp.tables.filter((t) => (t.ownerUserId || null) === uid && t.active !== false).map((t) => `${t.number} (${tableCounts(t, exp.guests).free} free)`);
+    if (!mine.length && !tbls.length) return '';
+    return `<section class="sheet" data-sheet="staff-${esc(uid || 'none')}"><table>${head(`${ownerName(uid)} · tables ${tbls.join(', ') || 'none'}`, COLS)}<tbody>${mine.map(guestRow).join('') || `<tr><td colspan="${COLS.length}">No guests.</td></tr>`}</tbody></table><p class="small">Seat only at your own tables. Write each arrival and seat with the time; the Super Administrator enters them when CORE is back.</p></section>`;
+  }).join('');
+  const room = `<section class="sheet roompage" data-sheet="room"><table>${head('Room', [''])}<tbody><tr><td style="border:0;padding:0">${roomSvg(exp)}${LEGEND}</td></tr></tbody></table></section>`;
+  const cards = `<section class="sheet" data-sheet="cards"><table>${head('Cards', [''])}<tbody><tr><td style="border:0;padding:0">
+    <div class="card"><p><strong>Easel card (under the QR code)</strong></p><p>If this page doesn't open, please go to the registration desk.</p></div>
+    <div class="card"><p><strong>Staff desk card</strong></p><p>Standby address: ${standby ? esc(standby) : '________________________________'}</p><p>If the app restarts you'll be signed out. Sign in again and you'll land back on your queue.</p><p>If CORE cannot be reached: use this pack. Seat only at your own tables, and write each arrival and seat with the time.</p></div></td></tr></tbody></table></section>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(ev.name)}: offline pack</title><style>
+${STYLE}
+</style></head><body><h1>${esc(ev.name)}: offline pack</h1><p class="stamp">Printed ${esc(asOf)} (${esc(fmtManila(now))}) · seq ${exp.seq} · ${active.length} guests · ${exp.guests.filter((g) => g.seat).length} seats claimed</p>${room}${az}${perTable}${perStaff}${cards}</body></html>`;
 }
