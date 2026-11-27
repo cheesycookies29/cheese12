@@ -589,7 +589,9 @@ What users see: on each system's **Forms & downloads** page, the current version
 5. Under **Who may see and download it**, tick the account types. Tick **Public** for a form people need before they have an account, such as a blank application form.
 6. Choose **Keep as a draft** (only the people who keep forms see it) or **Publish now**, then choose **Upload**.
 
-ATLAS checks the file by what is inside it, not its name. It refuses programs, scripts, web pages, Office files with macros and password-protected files, and says why. The file is stored encrypted, outside the data file. A draft is published later with **More → Publish**.
+ATLAS checks the file by what is inside it, not its name. It refuses programs, scripts, web pages, Office files with macros (Excel 4.0 macro sheets too), password-protected or encrypted files (PDFs too), PDFs with JavaScript or actions that run when they are opened, and ZIP files or Office files that carry a program or script, or an archive it cannot look into (it looks into ZIP files inside ZIP files, 3 levels deep). A file it cannot check whole is refused too (*could not be checked*): open it, save it again (or print it to a new PDF) and upload that copy. Each refusal says why, and is in the audit log. The file is stored encrypted, outside the data file. A draft is published later with **More → Publish**.
+
+**Restore** checks the earlier version as a new upload, against today's file types and size limit: a version of a kind no longer ticked, or larger than the limit now, says *Version N cannot be restored* and why. Too many uploads at once answer *Wait for them to finish*: up to 3 files at a time per person.
 
 ### Upload a new version of a form
 

@@ -132,6 +132,20 @@ test('type sniffing: the type comes from the bytes; a renamed program, macros an
   assert.equal((await s.docsOf(carla, job)).count, 3, 'nothing refused was kept');
 });
 
+test('the file checks shared with Documents: encrypted PDFs, PDF scripts, a web page before %PDF-, Office files carrying programs, macro parts under other names', async () => {
+  const s = await school();
+  const job = await s.opening();
+  const carla = await s.signUp('Carla Mendiola');
+  const pdf = (body) => Buffer.from(`%PDF-1.7\n${body}\ntrailer<</Root 1 0 R>>\n%%EOF\n`, 'latin1');
+  const word = (extra) => storedZip([{ name: '[Content_Types].xml', data: '<Types><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>' }, { name: 'word/document.xml', data: '<w:document/>' }, ...extra]);
+  await assert.rejects(s.upload(carla, job, 'diploma', 'diploma.pdf', pdf('trailer<</Encrypt 1 0 R>>')), /The PDF is encrypted/);
+  await assert.rejects(s.upload(carla, job, 'diploma', 'diploma.pdf', pdf('1 0 obj<</OpenAction<</S/JavaScript/JS(app.alert(1))>>>>endobj')), /JavaScript or actions that run by themselves/);
+  await assert.rejects(s.upload(carla, job, 'diploma', 'diploma.pdf', Buffer.from('<html><script>alert(1)</script></html>\n%PDF-1.4\n%%EOF')), /never accepted|files only/);
+  await assert.rejects(s.upload(carla, job, 'diploma', 'diploma.docx', word([{ name: 'word/embeddings/setup.exe', data: 'MZ' }])), /setup\.exe/);
+  await assert.rejects(s.upload(carla, job, 'diploma', 'diploma.docx', word([{ name: 'word/vbaData.bin', data: 'x' }])), /contains macros/);
+  assert.equal((await s.docsOf(carla, job)).count, 0, 'nothing refused was kept');
+});
+
 test('the size cap (2 MB by default) and its message; the count cap (15 by default)', async () => {
   const s = await school();
   const job = await s.opening();
@@ -246,6 +260,9 @@ test('who may open the files: the applicant, HR, the opening\'s assessors (read-
   assert.match(own.headers['Content-Disposition'], /^attachment; filename="PDS Carla.pdf"/);
   assert.equal(own.headers['X-Content-Type-Options'], 'nosniff');
   assert.match(own.headers['Content-Security-Policy'], /sandbox/);
+  // The shared download rules: the name fully encoded, and a place held among the downloads that run at once.
+  assert.match(own.headers['Content-Disposition'], /filename\*=UTF-8''PDS%20Carla\.pdf$/);
+  assert.equal(typeof own.release, 'function');
   assert.equal(own.type, 'application/pdf');
   // Another applicant: 404, through either opening; and never HR's route.
   await assert.rejects(bea.get(`/api/hris/jobs/${job.id}/documents/files/${file.id}`), status(404));

@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Uploaded files are checked more strictly
+- Document circulation, ATLAS Documents and applicants' documents now also refuse encrypted PDFs, PDFs with JavaScript or actions that run when they are opened, Excel 4.0 macro sheets, Office files that carry a program or script, ZIP files that hold programs, scripts or archives that cannot be looked into (ZIP files inside ZIP files are checked, 3 levels deep), password-protected Word and Excel 97–2003 files, and any file that could not be checked whole; the message says why and what to do (usually: print or save it as a new copy and upload that). Restoring an earlier version of a form checks it against today's file types and size limit. See [the administrator's guide](admin#upload-a-form), [the applicant's guide](applicant#questions) and [the Documents guide](documents#questions).
+
 ### Tighter checks on appointments, selection boards and sign-up
 - **Confirm the appointment** needs the right to manage sign-in accounts to make someone from outside an employee, and its **Account type** list has only the types you may give; without that right ATLAS says so, and someone who has it confirms. A selection board member cannot apply for that opening, and an HR member of a board sees an applicant's result on the comparative list and the opening only after submitting their own rating. An employee's work experience is verified by HR at their own campus. Signing up to apply with an email that already has an account gives one message, whatever the account, and **Register account** shows *Registration received* either way, without making a second account. See [the HR guide](hr#confirm-the-appointment), [the assessor's guide](assessor), [the applicant's guide](applicant#questions) and [Getting started](getting-started#register-as-a-new-student).
 

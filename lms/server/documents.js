@@ -20,7 +20,7 @@ import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { HttpError } from './util.js';
 import { userCan, ROLES } from '../shared/roles.js';
-import { checkFile, FAMILIES, FAMILY, BLOCKED_EXTS, BLOCKED_LABEL, isInline } from './dms/types.js';
+import { checkFile, contentDisposition, FAMILIES, FAMILY, BLOCKED_EXTS, BLOCKED_LABEL, isInline } from './dms/types.js';
 import { createBlobStore, BlobError } from './dms/blobs.js';
 import { accessTo, atLeast, chain, RANK } from './dms/access.js';
 import { cleanSettings, CLASSIFICATIONS, CLASS_IDS, LEVELS, LINK_MODES, MAX_UPLOAD_MB, DEFAULT_SETTINGS } from './dms/policy.js';
@@ -44,16 +44,17 @@ const text = (v, max) => (v == null || typeof v === 'object' ? '' : String(v)).r
 const longText = (v, max) => (typeof v === 'string' ? v.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, max) : '');
 // The engine's messages name CORE; in ATLAS they name ATLAS.
 const atlas = (s) => String(s).replace(/\bCORE\b/g, 'ATLAS').replace('web pages and svg, and office files', 'web pages and SVG, and Office files');
-const disposition = (kind, name) => `${kind}; filename="${String(name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 // A stored file as a response. Every file is sandboxed, except a PDF shown in the browser (Chrome's
 // PDF viewer does not open in a sandboxed response; as server/files.js), which still may load nothing.
-function fileResponse(v, data, inline) {
+// release: gives back the download's place (server/download-gate.js) once the answer is sent.
+function fileResponse(v, data, inline, release) {
   const sandbox = !(inline && v.ext === 'pdf');
   return {
     raw: data,
     type: v.mime,
+    release,
     headers: {
-      'Content-Disposition': disposition(inline ? 'inline' : 'attachment', v.name),
+      'Content-Disposition': contentDisposition(inline ? 'inline' : 'attachment', v.name),
       'Content-Security-Policy': `${sandbox ? 'sandbox; ' : ''}default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'`,
       'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen', 'Cache-Control': 'private, no-store', 'Cross-Origin-Resource-Policy': 'same-origin',
     },
@@ -64,12 +65,13 @@ const isGuardian = (u) => u?.role === 'guardian';
 
 // options:
 //   secrets: { derive(label) } (server/secrets.js); limits: the rate limiter (server/ratelimit.js)
+//   downloads: the cap on downloads running at once (server/download-gate.js)
 //   dir: where the encrypted files live (default: data/documents beside db.json; a temporary folder
 //        when the database is in memory, as in tests)
 //   extractText(buffer, ext): the words of a file for search (server/documents-text.js)
 //   clock: () => milliseconds
 // notify(userIds, entry, opts): the bell (server/notifications.js), for a share and Documents' own notices.
-export function registerDocuments(route, db, { secrets, limits = null, dir = null, extractText = defaultExtract, clock = () => Date.now(), notify = null } = {}) {
+export function registerDocuments(route, db, { secrets, limits = null, downloads = null, dir = null, extractText = defaultExtract, clock = () => Date.now(), notify = null } = {}) {
   const docDir = dir || (db.dir ? path.join(db.dir, 'documents') : path.join(os.tmpdir(), `atlas-documents-${randomUUID()}`));
   const blobs = createBlobStore(docDir, secrets.derive('documents.master-key'));
   const cookieKey = secrets.derive('documents.link-cookie');
@@ -689,11 +691,22 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     if (!a.open) throw new HttpError(403, 'Restricted documents are opened and downloaded only by the people who manage them.');
     const inline = query.inline === '1' && isInline(v.ext);
     if (!inline && !a.download) throw new HttpError(403, d.classification === 'restricted' ? 'Restricted documents are downloaded only by the people who manage them.' : 'You can view this document but not download it.');
-    const data = readBlob(v);
+    const out = sendVersion(v, inline, { user: u, ip });
     event(inline ? 'view' : 'download', { doc: d, by: u.id, ip, note: `Version ${v.no}` });
     db.save();
-    return fileResponse(v, data, inline);
+    return out;
   });
+  // A version as a response, holding a place among the downloads that run at once (each holds the
+  // whole file in memory until it is sent).
+  function sendVersion(v, inline, who) {
+    const release = downloads ? downloads.enter(who, v.size) : () => {};
+    try {
+      return fileResponse(v, readBlob(v), inline, release);
+    } catch (err) {
+      release();
+      throw err;
+    }
+  }
   function readBlob(v) {
     try {
       return blobs.get(v.blobId, v.sha256);
@@ -994,10 +1007,10 @@ export function registerDocuments(route, db, { secrets, limits = null, dir = nul
     // it keeps honest people to viewing, it does not stop a copy being kept.
     if (l.mode === 'view' && !inline) throw new HttpError(403, 'This link lets you view the document, not download it.');
     if (l.mode === 'download' && l.maxDownloads && linkUses(l) >= l.maxDownloads) throw new HttpError(404, UNAVAILABLE);
-    const data = readBlob(v);
+    const out = sendVersion(v, inline, { ip });
     touch(l, inline ? 'views' : 'downloads', ip, `${d.number} ${d.title}, version ${v.no}`);
     db.save();
-    return fileResponse(v, data, inline);
+    return out;
   });
   // Upload links: files from outside go into the folder as "received, not reviewed", owned by the
   // person who made the link, with every check an upload from inside gets.

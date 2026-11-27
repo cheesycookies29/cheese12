@@ -7,6 +7,9 @@ import { HttpError } from './util.js';
 // The visitor's address. Behind Caddy (or any proxy on this computer) every connection comes from
 // 127.0.0.1, and the proxy puts the visitor's address last in X-Forwarded-For; the header is only
 // believed from a proxy on this computer, so someone on the internet cannot make up an address.
+// That holds only while the proxy sets the header itself, replacing what the visitor sent (as the
+// shipped Caddy settings do: deploy/aws/Caddyfile, cloudflare-apply.sh), and while ATLAS listens on
+// this computer only (HOST=127.0.0.1). Any other program here that forwards requests must do the same.
 export function clientIp(req) {
   const peer = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
   const fromProxy = peer === '127.0.0.1' || peer === '::1';

@@ -20,6 +20,7 @@ export function setup({ today = TODAY, clock = null, options = {}, db = memoryDb
       const cookie = Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
       const res = await api({ method, headers: { cookie }, ...(ip ? { socket: { remoteAddress: ip } } : {}) }, new URL(`http://localhost${path}`), body);
       const { data, headers } = res;
+      res.release?.(); // a download's place among those running at once: the answer is "sent" (as server.js does when it closes)
       for (const set of [headers['Set-Cookie'] || []].flat()) {
         const [pair] = set.split(';');
         const [k, v] = pair.split('=');

@@ -17,6 +17,7 @@ Visitors ──HTTPS──▶ Caddy (automatic certificate) ──▶ Lancaster 
 - **Backups:** a copy of the data every night (30 days kept) and a snapshot of the whole disk every day (7 kept).
 - **Updates:** every 10 minutes the server checks GitHub. A new version is installed only if its tests pass on the server, and if it does not start the previous version is put back.
 - **No SSH port.** If you ever need a console on the server, open it from the AWS website (Session Manager).
+- **Visitors' addresses come from Caddy.** ATLAS listens on this server only and believes the `X-Forwarded-For` header from a program on the same server, to apply its limits per visitor. Caddy replaces that header with the visitor's real address (the Cloudflare set-up below takes it from `CF-Connecting-IP`, only from Cloudflare's addresses). If you put another proxy in front of ATLAS, or run anything else on the server that forwards requests to port 3100, it must overwrite `X-Forwarded-For` the same way, never pass on what the visitor sent.
 - **A setup code** that you choose protects the first administrator account, so nobody else can claim the new site.
 
 It takes about 20 minutes, most of it waiting.

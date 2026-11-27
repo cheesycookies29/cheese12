@@ -76,6 +76,7 @@ import { addFinanceDemo, removeFinanceDemo } from './finance-demo.js';
 import { notify, registerNotificationRoutes, restoreNotifications, addNotificationsDemo, removeNotificationsDemo, fmtDay } from './notifications.js';
 import { registerDocuments } from './documents.js';
 import { registerForms } from './forms.js';
+import { createDownloadGate } from './download-gate.js';
 import { FORMS_TOOL } from '../shared/forms.js';
 import { createSecrets } from './secrets.js';
 import { registerRecruitmentRoutes } from './recruitment.js';
@@ -139,10 +140,15 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   // (four times as many, as a whole school may share one address). RATE_LIMITS=off switches them off.
   // School networks (Sign-in and passwords): a campus shares one or two addresses, so the limits
   // counted per address are multiplied there (`<rule>@school`); everywhere else they are unchanged.
-  const SCHOOL_SCALED = ['signin', 'signinFail', 'address', 'apply', 'sso'];
+  // The public forms too: a campus's signed-out visitors fetch them from one address.
+  const SCHOOL_SCALED = ['signin', 'signinFail', 'address', 'apply', 'sso', 'publicForms'];
   const onSchoolNetwork = networkMatcher();
   const atSchool = (ip) => onSchoolNetwork(security().schoolNetworks, ip);
   const byAddress = (name, ip) => (SCHOOL_SCALED.includes(name) && atSchool(ip) ? `${name}@school` : name);
+  const schoolFactor = () => Math.min(100, Math.max(1, Number(security().schoolNetworkFactor) || 20));
+  // Downloads of stored files at once (server/download-gate.js): per person, per address (more on a
+  // school network) and in all.
+  const downloads = createDownloadGate({ scaleFor: (ip) => (atSchool(ip) ? schoolFactor() : 1) });
   const limits = createRateLimiter(() => {
     if (rateLimits === 'off') return {};
     const perMinute = Number(security().requestsPerMinute) || 300;
@@ -167,7 +173,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
       publicForms: { limit: 60, windowMs: MIN }, // Document circulation: the public Forms page and its downloads, per address
     };
     // From a school network: the same rules, multiplied (a campus is many people at one address).
-    const factor = Math.min(100, Math.max(1, Number(security().schoolNetworkFactor) || 20));
+    const factor = schoolFactor();
     for (const name of SCHOOL_SCALED) rules[`${name}@school`] = { ...rules[name], limit: rules[name].limit * factor };
     return rules;
   });
@@ -251,6 +257,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
     audit: (e) => audit.record(e),
     auditLog: audit, // entries() and verify(), for Control
     secrets, // the server key's derived keys (server/secrets.js): applicants' documents are encrypted with one
+    downloads, // downloads of stored files at once (server/download-gate.js)
     applicantFilesDir,
     // The bell (server/notifications.js): tells accounts about an event, at the server's time.
     notify: (userIds, entry, opts = {}) => notify(db.data, userIds, entry, { at: clock().toISOString(), nowMs: clock().getTime(), ...opts }),
@@ -805,7 +812,7 @@ export function createApi(db, { clock = () => new Date(), setupCode = process.en
   }, { duringPasswordChange: true });
   route('POST', '/api/docs/auth/change-password', 'documents', (a) => changePassword(ROLES[a.user.role].side, a), { duringPasswordChange: true, limit: 'password' });
   route('POST', '/api/docs/auth/campus', 'documents', ({ user, body }) => switchCampus(user, body));
-  const documents = registerDocuments(route, db, { secrets, limits, dir: documentsDir, clock: () => clock().getTime(), notify: (ids, entry, opts) => ctx.notify(ids, entry, opts) });
+  const documents = registerDocuments(route, db, { secrets, limits, downloads, dir: documentsDir, clock: () => clock().getTime(), notify: (ids, entry, opts) => ctx.notify(ids, entry, opts) });
   // ----- Document circulation: every module's downloadable forms (server/forms.js) -----
   const forms = registerForms(route, ctx, { secrets, dir: formsDir, clock, audit: (e) => audit.record(e) });
   ctx.forms = forms;

@@ -33,7 +33,7 @@ import { randomUUID } from 'node:crypto';
 import { HttpError, text } from './util.js';
 import { t } from './validate.js';
 import { createBlobStore, BlobError } from './dms/blobs.js';
-import { checkFile, cleanName, extOf, BLOCKED_EXTS, FAMILIES } from './dms/types.js';
+import { checkFile, cleanName, extOf, contentDisposition, BLOCKED_EXTS, FAMILIES } from './dms/types.js';
 import { openingAccepts, DECIDED } from '../shared/recruitment.js';
 import {
   mergeApplicantDocs, DEFAULT_APPLICANT_DOCS, UPLOAD_TYPES, TYPE_OF_EXT, POLICY_LIMITS, MB, sizeMessage, countMessage, typeMessage, typesInWords,
@@ -50,7 +50,6 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
 // The Documents families the policy's types are checked under (the policy then narrows to its exts).
 const FAMILIES_FOR = { pdf: ['pdf'], word: ['word', 'legacy'], excel: ['excel', 'legacy'], image: ['image'] };
 
-const disposition = (name) => `attachment; filename="${String(name).replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 const atlas = (s) => String(s).replace(/\bCORE\b/g, 'ATLAS').replace(/ An administrator can allow them in Document control\./, '');
 
 export function registerApplicantDocs(route, ctx, h) {
@@ -291,25 +290,29 @@ export function registerApplicantDocs(route, ctx, h) {
   route('GET', '/api/hris/jobs/:id/documents', 'hris', ({ params, user }) => myView(openingForSeeker(user, params.id), user), { applicants: true, audit: false });
 
   // ----- Downloads: signed in, as an attachment, never inline -----
-  function fileReply(d) {
+  // Each download holds a place among the downloads that run at once (server/download-gate.js),
+  // given back when the answer has been sent.
+  function fileReply(d, who) {
+    const release = ctx.downloads ? ctx.downloads.enter(who, d.size || 0) : () => {};
     let buf;
     try {
       buf = blobs.get(d.blobId, d.sha256);
     } catch (err) {
+      release();
       if (err instanceof BlobError) fail(err.code === 'missing' ? 'The file is missing from the store. It may not have been included when data was restored.' : 'The stored file is damaged and cannot be opened.', 410);
       throw err;
     }
     return {
-      raw: buf, type: d.mime,
+      raw: buf, type: d.mime, release,
       headers: {
-        'Content-Disposition': disposition(d.name), 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen',
+        'Content-Disposition': contentDisposition('attachment', d.name), 'X-Content-Type-Options': 'nosniff', 'X-Download-Options': 'noopen',
         'Content-Security-Policy': "sandbox; default-src 'none'", 'Cache-Control': 'private, no-store', 'Cross-Origin-Resource-Policy': 'same-origin',
       },
     };
   }
-  route('GET', '/api/hris/jobs/:id/documents/files/:fileId', 'hris', ({ params, user }) => {
+  route('GET', '/api/hris/jobs/:id/documents/files/:fileId', 'hris', ({ params, user, ip }) => {
     const o = openingForSeeker(user, params.id);
-    return fileReply(filesFor(o.id, user.id).find((x) => x.id === params.fileId) || fail('File not found.', 404));
+    return fileReply(filesFor(o.id, user.id).find((x) => x.id === params.fileId) || fail('File not found.', 404), { user, ip });
   }, { applicants: true, audit: false });
   // HR and the opening's assessors: only files of someone who has applied.
   function forReader(user, d) {
@@ -324,7 +327,7 @@ export function registerApplicantDocs(route, ctx, h) {
     const { o, a, hr } = forReader(user, d);
     const req = requirementsOf(o).find((r) => r.id === d.reqId);
     ctx.audit({ kind: 'document', system: 'people', action: hr ? 'Downloaded a document of a job application' : 'Downloaded a document of a job application (assessor)', actor: user, target: { id: a.id, name: `${nameOf(a)} · ${o.title}` }, ip, agent, detail: `${req?.name || 'Document'}: ${d.name}` });
-    return fileReply(d);
+    return fileReply(d, { user, ip });
   }, { audit: false });
 
   // ----- HR and assessors: an application's documents; HR's review -----
