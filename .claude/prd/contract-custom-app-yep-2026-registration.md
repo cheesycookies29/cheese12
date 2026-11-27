@@ -1,0 +1,1 @@
+../council/sessions/custom-app-yep-2026-registration-20261127-0748/acceptance-contract.md
