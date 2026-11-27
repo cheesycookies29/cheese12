@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!-- Council live session page template (F11).
+     Filled by render-session.py, never by an LLM: every {{PLACEHOLDER}} is
+     substituted programmatically. A copy of this file is placed in each
+     session dir at setup so upgrades never break an in-flight session.
+     Pure HTML asset: exempt from skill prose token budgets by design
+     (governance hooks scope ^skills/.*\.md$). -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+(function () {
+  var KEY = "council-live-view:" + location.pathname;
+  function keyFor(d) {
+    var card = d.closest(".card");
+    var title = card ? card.querySelector(".card-title") : null;
+    var section = d.closest("section");
+    var summary = d.querySelector("summary");
+    return [
+      section ? section.id : "",
+      title ? title.textContent : "",
+      summary ? summary.textContent : ""
+    ].join("|");
+  }
+  try {
+    var saved = JSON.parse(sessionStorage.getItem(KEY) || "null");
+    if (saved) {
+      addEventListener("DOMContentLoaded", function () {
+        var open = saved.open || [];
+        document.querySelectorAll("details").forEach(function (d) {
+          if (open.indexOf(keyFor(d)) !== -1) d.open = true;
+        });
+        scrollTo(0, saved.y || 0);
+      });
+    }
+  } catch (e) {}
+  setTimeout(function () {
+    try {
+      var open = [];
+      document.querySelectorAll("details").forEach(function (d) {
+        if (d.open) open.push(keyFor(d));
+      });
+      sessionStorage.setItem(KEY, JSON.stringify({ open: open, y: scrollY }));
+    } catch (e) {}
+    location.reload();
+  }, 10000);
+})();
+</script>
+<title>Council Live: YEP 2026 Registration &amp; Table Assignment as the CORE module </title>
+<style>
+  :root {
+    --bg: #101218; --panel: #171a22; --panel-2: #1c202a;
+    --line: rgba(232,230,225,0.09); --text: #e8e6e1; --muted: #9ba0ab;
+    --faint: #6b7078; --gate: #e5b95c;
+    --ok: #34d399;
+    --serif-display: "Fraunces", Georgia, serif;
+    --serif-body: "Newsreader", Georgia, serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f4ef; --panel: #ffffff; --panel-2: #efece5;
+      --line: rgba(24,26,34,0.12); --text: #1c1e26; --muted: #5b6068;
+      --faint: #8a8f98;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  body { background: var(--bg); color: var(--text); font-family: var(--serif-body); font-size: 16.5px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 32px; }
+  header { padding: 56px 0 0; }
+  .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
+  .kicker .sep { color: var(--faint); }
+  h1 { font-family: var(--serif-display); font-weight: 500; font-size: clamp(30px,4.5vw,50px); line-height: 1.08; letter-spacing: -0.015em; margin: 20px 0 10px; max-width: 24ch; }
+  .spectrum { height: 3px; margin: 28px 0 0; background: linear-gradient(90deg, #60a5fa 0%, #60a5fa 14%, #4ade80 14%, #4ade80 29%, #f87171 29%, #f87171 43%, #facc15 43%, #facc15 57%, #22d3ee 57%, #22d3ee 71%, #fb923c 71%, #fb923c 86%, #c084fc 86%, #c084fc 100%); }
+  .bench { display: flex; flex-wrap: wrap; gap: 10px 22px; padding: 16px 0 0; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+  .bench span { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+  .tracker { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 30px 0 0; font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .tracker li { padding: 6px 14px; border: 1px solid var(--line); border-radius: 99px; color: var(--faint); }
+  .tracker li.t-done { color: var(--ok); border-color: rgba(52,211,153,0.4); }
+  .tracker li.t-active { color: var(--gate); border-color: rgba(229,185,92,0.5); }
+  section { padding: 56px 0 0; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  h2 { font-family: var(--serif-display); font-weight: 500; font-size: 28px; letter-spacing: -0.01em; }
+  h3 { font-family: var(--mono); font-size: 12px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 26px 0 12px; }
+  .badge { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; padding: 3px 10px; border-radius: 99px; display: inline-block; }
+  .b-pending { color: var(--faint); border: 1px solid var(--line); }
+  .b-active { color: var(--gate); border: 1px solid rgba(229,185,92,0.5); }
+  .b-done { color: var(--ok); border: 1px solid rgba(52,211,153,0.4); }
+  .muted { color: var(--faint); font-style: italic; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px 14px; }
+  .card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card-title { font-family: var(--serif-display); font-size: 17px; font-weight: 500; flex: 1; }
+  details { margin-top: 10px; }
+  summary { font-family: var(--mono); font-size: 12px; color: var(--muted); cursor: pointer; }
+  .card-body { padding: 12px 2px 2px; font-size: 14.5px; }
+  .card-body h3, .card-body h4, .card-body h5, .card-body h6 { margin: 14px 0 6px; }
+  .card-body p, .card-body ul, .card-body ol { margin: 8px 0; }
+  .card-body ul, .card-body ol { padding-left: 20px; }
+  .prose { max-width: 76ch; font-size: 15px; }
+  .prose p, .prose ul, .prose ol { margin: 10px 0; }
+  .prose ul, .prose ol { padding-left: 22px; }
+  .prose h3, .prose h4, .prose h5, .prose h6 { margin: 20px 0 8px; }
+  pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+  code { font-family: var(--mono); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th { font-family: var(--mono); font-size: 11.5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .tbl-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 12px 0; }
+  .pair { display: inline-flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 6px 14px; margin: 0 8px 8px 0; font-size: 14px; }
+  .pair .vs { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .footer-note { margin: 72px 0 56px; border-top: 1px solid var(--line); padding-top: 20px; font-family: var(--mono); font-size: 12.5px; color: var(--faint); line-height: 1.7; }
+  .footer-note b { color: var(--muted); font-weight: 500; }
+  a { color: var(--gate); }
+  @media (max-width: 820px) { body { font-size: 15.5px; } .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div class="kicker">
+    <span>Council Live Session</span><span class="sep">/</span>
+    <span>custom-app-yep-2026-registration-20261127-0748</span><span class="sep">/</span>
+    <span>2026-11-27</span><span class="sep">/</span>
+    <span>standard &middot; balanced &middot; workflow</span>
+  </div>
+  <h1>YEP 2026 Registration &amp; Table Assignment as the CORE module CUSTOM APP (analysis)</h1>
+  <div class="spectrum" role="presentation"></div>
+  <div class="bench" aria-label="Council bench"><span><i class="dot" style="background:#60a5fa"></i>Architect</span><span><i class="dot" style="background:#4ade80"></i>Advocate</span><span><i class="dot" style="background:#f87171"></i>Skeptic</span><span><i class="dot" style="background:#facc15"></i>Strategist</span><span><i class="dot" style="background:#22d3ee"></i>Scout</span><span><i class="dot" style="background:#fb923c"></i>Operator</span><span><i class="dot" style="background:#c084fc"></i>Craftsman</span></div>
+  <ol class="tracker" aria-label="Phase tracker"><li class="t-done">Interview</li><li class="t-done">Assembly</li><li class="t-active">Deliberation</li><li>Verdict</li><li>Planning</li></ol>
+</header>
+
+<section class="wrap" id="interview"><div class="sec-head"><h2>Interview</h2><span class="badge b-done">Complete</span></div><div class="prose"><h4>Round 1</h4>
+<p><strong>Q (Strategist):</strong> What is CUSTOM APP in CORE: a one-off YEP module or a reusable area for client apps? <strong>A:</strong> Reusable area, YEP first. A CUSTOM APP module that can hold client apps; YEP registration is the first, built as a reusable event-registration engine (event, guests, tables) with YEP 2026 as its first event.</p>
+<p><strong>Q (Architect/Guardian):</strong> Staff sign-in: CORE accounts with event roles, or separate event-only logins? <strong>A:</strong> CORE accounts + event roles. Personnel get CORE accounts (possibly a limited &quot;Event staff&quot; account type that only opens CUSTOM APP); the Super Administrator is one designated account per event. Reuse CORE sign-in, 2-step, sessions and audit.</p>
+<p><strong>Q (Skeptic):</strong> What does a guest type on the common QR page to identify themselves? <strong>A:</strong> Name + last 4 digits of mobile (or email). One exact match checks them in; anything else goes to staff-assisted search. Nothing listed publicly.</p>
+<p><strong>Q (Operator):</strong> Where does the event run on 9 December? <strong>A:</strong> The current CORE production server on EC2 (same domain, guest page e.g. /event/&lt;code&gt;); freeze deploys on event day; load-test beforehand.</p></div><details><summary>Interview summary</summary><div class="card-body prose"><h3>Interview Summary: YEP 2026 Registration &amp; Table Assignment as CORE &quot;CUSTOM APP&quot;</h3>
+<h4>Core Intent</h4>
+<p>Build, inside CORE, a reusable &quot;CUSTOM APP&quot; module whose first app is the Legati Group YEP 2026 registration and table-assignment system (spec: spec.txt), ready and acceptance-tested before 9 December 2026 (12 days from today). This session is analysis only: how it will be built, with patterns from the n8n repository.</p>
+<h4>Key Decisions Made</h4>
+<ul><li>CUSTOM APP is a reusable area for client-specific apps; YEP registration is the first app, built as a reusable event engine (events, guests, tables, delegation) with YEP 2026 as its first event.</li><li>Staff are CORE user accounts with event roles; possibly a limited &quot;Event staff&quot; account type that opens only CUSTOM APP. Exactly one Super Administrator per event, designated among CORE accounts; reuse CORE sign-in, 2-step, sessions, audit.</li><li>Guests self-verify on a common QR page with surname + last 4 digits of mobile (or email); single exact match only; else staff-assisted search. The master list is never exposed publicly.</li><li>Runs on the current CORE production (EC2, same domain); deploy freeze on event day; load test beforehand.</li></ul>
+<h4>Open Questions for Deliberation</h4>
+<ul><li>Concurrency: CORE uses a single-process JSON-file DB (db.data/db.save). How to guarantee &quot;last seat: only one succeeds&quot;, atomic transfers/swaps, stale-write rejection, and permission changes taking effect immediately? (Node single thread may make a synchronous check-and-assign atomic; is that enough? versions/ETags per guest/table?)</li><li>Live sync to many devices: SSE vs polling; what n8n does (push via SSE/WebSocket); CORE has no push today.</li><li>Guest-facing public page: CSP, rate limits, enumeration resistance, status retrieval token after check-in, registration activation toggle.</li><li>Data model: events, guests (stable id), tables (classification, capacity 10, owner), seats, reservations, holds, delegations, approvals/substitutions, notifications, change history.</li><li>Recommendation engine: industry categories and relationships, group fit, eligibility by classification/table type, exclusions.</li><li>Email: CORE&#x27;s existing mail/outbox (helpdesk SMTP) reuse; delivery status tracking and resend.</li><li>Offline contingency: printable seating plan and guest list, pre-partitioned ranges, reconciliation.</li><li>MVP vs optional within 12 days; acceptance-test scenarios automated (multi-device, concurrency).</li><li>&quot;Reusable&quot; without over-engineering: what is generic vs YEP-specific.</li><li>Patterns to borrow from n8n: Form Trigger (public forms), webhook auth, queue mode/concurrency control, push (SSE/WS), credentials and email nodes, execution locking.</li></ul>
+<h4>Perspective Relevance Scores</h4>
+<div class="tbl-wrap"><table><thead><tr><th>Perspective</th><th>Score (0-5)</th><th>Rationale</th></tr></thead><tbody><tr><td>Architect</td><td>5</td><td>New module, data model, concurrency on a JSON-file DB, live sync, reusable app area</td></tr><tr><td>Advocate</td><td>5</td><td>Guest phone flow without accounts, staff queues under pressure, assisted check-in</td></tr><tr><td>Skeptic</td><td>5</td><td>Public QR page, identity verification, enumeration, scope enforcement, race conditions</td></tr><tr><td>Strategist</td><td>4</td><td>12-day deadline; core vs optional; reusable vs one-off balance</td></tr><tr><td>Scout</td><td>4</td><td>n8n repository patterns; precedent event check-in/seating systems</td></tr><tr><td>Operator</td><td>4</td><td>Event-day on shared production, deploy freeze, backups, offline contingency, monitoring</td></tr><tr><td>Craftsman</td><td>4</td><td>12 acceptance scenarios incl. simultaneous devices; journeys in CI</td></tr><tr><td>Tuner</td><td>3</td><td>~300 guests, bursts at arrival, live updates fan-out</td></tr><tr><td>Guardian</td><td>3</td><td>Guest PII (mobile, email), audit trail, data retention after event</td></tr><tr><td>Prover</td><td>2</td><td>Capacity/no-double-allocation invariants</td></tr><tr><td>Others</td><td>0-1</td><td>Not relevant (no AI, IoT, crypto, kernel, native mobile, growth)</td></tr></tbody></table></div></div></details></section>
+<section class="wrap" id="assembly"><div class="sec-head"><h2>Assembly</h2><span class="badge b-done">Complete</span></div><div class="tbl-wrap"><table><thead><tr><th>Agent</th><th>Score</th><th>Rationale</th><th>Loaded skills</th></tr></thead><tbody><tr><td><i class="dot" style="background:#60a5fa"></i> Architect</td><td>10</td><td>data model, concurrency, live sync, reusable app area</td><td>codebase-context, schema-design</td></tr><tr><td><i class="dot" style="background:#4ade80"></i> Advocate</td><td>9</td><td>guest flow, staff queues</td><td>journey-mapping</td></tr><tr><td><i class="dot" style="background:#f87171"></i> Skeptic</td><td>9</td><td>public page, identity, scope, races</td><td>threat-model, edge-case-enumeration</td></tr><tr><td><i class="dot" style="background:#facc15"></i> Strategist</td><td>8</td><td>12-day MVP</td><td>mvp-scoping</td></tr><tr><td><i class="dot" style="background:#22d3ee"></i> Scout</td><td>7</td><td>n8n patterns, precedent</td><td>competitive-analysis</td></tr><tr><td><i class="dot" style="background:#fb923c"></i> Operator</td><td>7</td><td>event-day ops, offline plan</td><td>deployment-plan</td></tr><tr><td><i class="dot" style="background:#c084fc"></i> Craftsman</td><td>7</td><td>acceptance scenarios</td><td>testing-strategy</td></tr></tbody></table></div><p class="muted">Estimated cost: ~250-450K tokens</p></section>
+<section class="wrap" id="deliberation"><div class="sec-head"><h2>Deliberation</h2><span class="badge b-active">In progress</span></div><h3>Round 1: Position</h3><div class="cards"><div class="card"><div class="card-head"><i class="dot" style="background:#60a5fa"></i><span class="card-title">Architect</span><span class="badge b-pending">Pending</span></div></div><div class="card"><div class="card-head"><i class="dot" style="background:#4ade80"></i><span class="card-title">Advocate</span><span class="badge b-pending">Pending</span></div></div><div class="card"><div class="card-head"><i class="dot" style="background:#f87171"></i><span class="card-title">Skeptic</span><span class="badge b-pending">Pending</span></div></div><div class="card"><div class="card-head"><i class="dot" style="background:#facc15"></i><span class="card-title">Strategist</span><span class="badge b-pending">Pending</span></div></div><div class="card"><div class="card-head"><i class="dot" style="background:#22d3ee"></i><span class="card-title">Scout</span><span class="badge b-pending">Pending</span></div></div><div class="card"><div class="card-head"><i class="dot" style="background:#fb923c"></i><span class="card-title">Operator</span><span class="badge b-pending">Pending</span></div></div><div class="card"><div class="card-head"><i class="dot" style="background:#c084fc"></i><span class="card-title">Craftsman</span><span class="badge b-pending">Pending</span></div></div></div></section>
+<section class="wrap" id="verdict"><div class="sec-head"><h2>Verdict</h2><span class="badge b-pending">Pending</span></div><p class="muted">Synthesis has not produced a design yet.</p></section>
+<section class="wrap" id="planning"><div class="sec-head"><h2>Planning</h2><span class="badge b-pending">Pending</span></div><p class="muted">Planning has not produced a PRD yet.</p></section>
+
+<div class="wrap footer-note">
+  <b>Live window:</b> this page regenerates from the session directory as agents write; markdown files remain the artifacts of record.<br>
+  <b>Approvals:</b> all decisions happen in the Claude Code session, never here.
+</div>
+
+</body>
+</html>

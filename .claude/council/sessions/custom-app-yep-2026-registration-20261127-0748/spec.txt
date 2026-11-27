@@ -1,0 +1,391 @@
+LEGATI GROUP / YEAR-END PARTY 2026                                                         DEVELOPER BRIEF • 27 NOV 2026
+
+
+01 / SCOPE AND DATA
+
+Registration & table assignment
+Functional requirements and specifications for a mobile-friendly, web-based system that verifies guests,
+recommends appropriate seating and gives designated personnel real-time control.
+
+
+  Event date                                    Working capacity                         Hard limit
+
+  9 December 2026                               300 attendees (planning assumption)      10 persons per table
+
+
+1. Objective and core business rules
+   Facilitate efficient arrival and check-in without requiring guests to install an app or create an account.
+   Support networking by recommending tables based on industry or sector affinity, rather than filling tables
+   sequentially.
+   Allow designated registration personnel to choose the table and, where applicable, the individual seat.
+   Enforce the 10-person capacity at all times, including reservations and simultaneous assignments.
+   Provide exactly one Super Administrator with authority over all guests and tables; other personnel have
+   exclusive, delegated scopes.
+
+2. Master guest list
+Import existing Excel or CSV guest records; allow authorized users to add, edit and update records. Use a
+stable unique guest identifier to prevent duplicate registrations and assignments.
+
+Required data: name, designation, company or organization, industry/sector, email (if available), mobile
+number (if available), guest classification, RSVP status, designated registration personnel, table and seat (if
+applicable), reservation status, registration status, check-in timestamp and notification status.
+
+3. Attendee classifications
+
+  Classification                      Assignment rule
+
+  Preferred guests                    Retrieve preassigned table and seat on arrival.
+
+  Regular guests                      Recommend industry-compatible eligible tables; personnel confirm selection.
+
+  Employees                           Assign on arrival to eligible employee tables; personnel confirm selection.
+
+  Unlisted attendees                  Authorized approval and classification before seating; route to Super Administrator.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                                      1
+LEGATI GROUP / YEAR-END PARTY 2026                                                        DEVELOPER BRIEF • 27 NOV 2026
+
+
+02 / GUEST EXPERIENCE
+
+Registration workflow
+Separate arrival verification, seating confirmation and notification so staff can identify guests waiting for a table.
+
+
+4. QR registration and identity verification
+   Display a common QR code at reception that opens a mobile-friendly registration page. Allow administrators
+   to activate/deactivate registration.
+   Verify the attendee against the master list using a suitable identifier; provide staff-assisted partial-name
+   search for discrepancies. Do not expose the master guest list publicly.
+   Provide assisted check-in for guests without smartphones, data access or a usable email address.
+   Prevent repeat check-ins and duplicate seat allocations. If identity cannot be verified, refer the guest for
+   approval rather than automatically admitting them.
+
+5. Processing and routing
+
+  Route                             Workflow
+
+  Preferred / express               Verify identity → check in → retrieve reserved table and seat → display and notify. If
+                                    reservation was released, route for reassignment.
+
+  Regular / employee                Verify identity → check in → route to designated personnel queue → review
+                                    recommended tables → confirm seating → display and notify.
+
+  Unlisted / exception              Flag for assistance → Super Administrator approves or rejects → record identity,
+                                    classification and industry where applicable → delegate or assign → notify.
+
+  No designated personnel           Route to Super Administrator queue for direct handling or delegation.
+
+
+6. Notifications
+   Show a pending-assignment status until seating is confirmed; refresh the guest-facing screen automatically.
+   Immediately display the confirmed table number and seat number, where applicable. Automatically email the
+   assignment when an email address is available.
+   Allow updated notifications to be sent after changes, and allow staff to communicate assignments verbally.
+   Track email success/failure separately; support resending without invalidating check-in or seating.
+
+7. Exceptions and substitutions
+Allow authorized staff to record representatives/substitutes with a link to the original invitee, transfer or release
+the original reservation as approved, and prevent both records from consuming the same seat. Maintain an
+approval and change history.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                                      2
+LEGATI GROUP / YEAR-END PARTY 2026                                              DEVELOPER BRIEF • 27 NOV 2026
+
+
+03 / ASSIGNMENT ENGINE
+
+Seating recommendations
+Recommendations are advisory; authorized personnel make the final selection. Availability and permissions are
+mandatory constraints.
+
+
+8. Table setup and capacity
+   Configure table numbers, classifications and assigned personnel. Support preferred, regular, employee and
+   mixed-classification tables if enabled by the Super Administrator.
+   Count all confirmed assignments and active reservations toward the 10-person limit, even if the attendee has
+   not arrived. Temporary holds, if implemented, must also block competing assignments.
+   Never require one table to be filled before opening another. Hide or disable full tables for new assignments.
+   If no eligible seat remains, alert personnel and refer to the Super Administrator; do not exceed the hard limit.
+
+9. Industry-based ranking and selection
+   Recommend multiple eligible tables, prioritized by same industry, related/complementary industry, sufficient
+   capacity and other eligible tables when there is no match.
+   Allow the Super Administrator to define industry categories and relationships. Optional seating tags or
+   exclusions can account for cross-industry networking or sensitive pairings.
+   Show recommended and other eligible tables, current assigned/reserved counts, remaining seats, assigned
+   guest names, companies and industries, and reserved/available seat numbers as applicable.
+   Permit personnel to choose a different eligible table or available seat regardless of the recommendation
+   ranking. Limit write access to delegated tables.
+
+10. Groups and preferred guests
+   Allow staff to select multiple arriving guests and recommend tables with sufficient capacity for the entire
+   group. If unavailable, present alternatives; split only with staff confirmation. Each member retains an
+   individual registration and assignment.
+   Keep existing preferred assignments unless an authorized change is approved. Groups spanning personnel
+   scopes must be handled by the Super Administrator or formally delegated.
+   Preferred no-show seats remain reserved until manually released by the Super Administrator or authorized
+   delegate. No automatic expiry of preferred reservations. A late arrival after release must be referred for
+   reassignment.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                            3
+LEGATI GROUP / YEAR-END PARTY 2026                                                         DEVELOPER BRIEF • 27 NOV 2026
+
+
+04 / PERMISSIONS
+
+Exclusive responsibility model
+Every guest and table has at most one designated registration personnel owner at a time. Only the Super
+Administrator has unrestricted assignment authority.
+
+
+11. Role-based access
+
+  Role                                    Authority
+
+  Attendee                                Register and view own status and seating assignment only.
+
+  Designated registration                 Process only delegated guests; allocate seats only at delegated tables; view own
+  personnel                               live queue and recommendations; perform authorized corrections within scope.
+
+  Super Administrator (one                Access all guests and tables; delegate, reassign and revoke responsibilities;
+  account)                                approve unlisted guests; resolve conflicts; perform cross-scope transfers; configure
+                                          seating and permissions.
+
+
+12. Exclusive guest and table delegation
+   The Super Administrator assigns specific guests and specific tables to individual personnel before or during
+   the event. A guest or table cannot be delegated to more than one person simultaneously.
+   Route verified guests to their designated personnel in real time. Personnel see incoming registrations and
+   pending assignments in their own queue.
+   Limit recommendations and final selection to delegated eligible tables. A cross-scope assignment requires
+   the Super Administrator to act directly or formally reallocate responsibility.
+   If a personnel member is overloaded, absent, has no available seats, or experiences device failure, the
+   Super Administrator can redistribute pending guests or tables without disturbing confirmed assignments.
+   Permission changes take effect immediately; reject stale or unauthorized writes at the server, not just in the
+   interface.
+
+13. Accountability and visibility
+   Keep an audit trail of approvals, manual overrides, responsibility changes, releases, transfers and
+   corrections, with actor and timestamp.
+   Recommended: staff may view overall table availability in read-only form to identify alternatives, but may not
+   allocate seats outside their scope; restrict personal information to what is necessary.
+   Provide secure recovery for the single Super Administrator account without creating a second unrestricted
+   active account.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                                          4
+LEGATI GROUP / YEAR-END PARTY 2026                                             DEVELOPER BRIEF • 27 NOV 2026
+
+
+05 / ADMINISTRATION
+
+Dashboard and controls
+Real-time operational visibility and safe changes are essential throughout guest arrival and the event.
+
+
+14. Dashboard
+   Display total invited, RSVP-confirmed, checked-in, not-yet-arrived and approved unlisted guests; show
+   check-ins by classification.
+   Show pending verification/override, pending table assignment, assigned versus reserved seats, remaining
+   capacity, full/available tables and industries represented at each table.
+   Show personnel ownership, queue status and workload. Super Administrator sees all; personnel see their
+   delegated records and permitted read-only summary.
+   Prefer a visual table occupancy layout; make counts and reservations clear even without a floor-plan graphic.
+
+15. Authorized administrative actions
+   Add, deactivate, renumber or reclassify tables; prevent removal of a table with active assignments unless
+   those assignments are safely relocated.
+   Manage guest records, classifications, industry groups, ownership and reservations. Manually check in
+   guests, correct erroneous check-ins and process group arrivals.
+   Transfer guests between tables, swap assignments, release no-show reservations, and select a
+   non-recommended eligible table. Cross-scope actions require Super Administrator authority.
+   Approve unlisted attendees, record substitutions, resend notifications and search/filter by name,
+   organization, industry, classification, registration status or table.
+   Export guest, registration and seating records to Excel or CSV. Reflect changes immediately across affected
+   devices. Confirm destructive changes and support safe correction/reversal subject to current capacity.
+
+16. Transaction safeguards
+   Revalidate permissions, reservation/seat status and table capacity immediately before confirmation. Use
+   atomic database transactions or equivalent concurrency control.
+   If simultaneous requests target the last seat, only one succeeds. Refresh available options for the other.
+   Prevent conflicting updates to the same guest, including Super Administrator actions.
+   Transfers and swaps must validate all affected seats atomically; do not release a valid existing assignment
+   until the replacement is secured. Optional short-lived seat holds may reduce conflicts.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                          5
+LEGATI GROUP / YEAR-END PARTY 2026                                                           DEVELOPER BRIEF • 27 NOV 2026
+
+
+06 / OPERATIONS
+
+Reliability and rollout
+Prioritize a dependable workflow over elaborate features. Confirm the final seating plan and staffing before
+production deployment.
+
+
+17. Technical and operational requirements
+   Mobile and desktop browser compatibility; multi-device simultaneous operation; live synchronization; secure
+   transport and storage; role enforcement and audit logs.
+   Back up guest and seating records; provide recovery procedures. Test real-world peak load, including
+   multiple staff and guest devices registering at once.
+   Maintain an offline contingency guest list and seating plan. If connectivity fails, use a coordinated single
+   allocation authority or pre-partitioned offline seating ranges; reconcile before resuming online assignments.
+   Keep distinct statuses for RSVP, arrival/check-in, reservation/assignment and notification. A preferred
+   assignment may exist before arrival; RSVP confirmation is not a prerequisite to authorized check-in.
+
+18. Forecast operational risks and enhancements
+
+  Risk                                     Mitigation / decision
+
+  Arrival bottleneck                       Express preferred flow; live queues; simple recommendations; test staffing and
+                                           processing times under peak demand.
+
+  Fragmented seating / large               Show table vacancies and group-fit options; avoid unnecessary splitting.
+  groups
+
+  Guest movement / physical                Ushers report changes; number actual chairs if specific seat numbers are used.
+  seating                                  Otherwise communicate table only.
+
+  Capacity imbalance                       Super Administrator may reclassify employee or other eligible tables and
+                                           redistribute scopes.
+
+  Privacy / early QR sharing               Use appropriate identity verification, limited public data, and registration activation
+                                           controls.
+
+  Power, connectivity or staff             Test device/network backup, account recovery, delegated coverage and offline
+  failure                                  procedure.
+
+
+19. Proposed implementation priorities
+Core: QR verification, express and assisted flows, exclusive delegation, industry recommendations, group
+assignment, 10-person enforcement, exceptions, live dashboard, email, changes, audit and contingency.
+Optional: graphical ballroom layout, advanced affinity/exclusion rules, seat visualization, SMS, printed slips and
+detailed analytics.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                                              6
+LEGATI GROUP / YEAR-END PARTY 2026                                                           DEVELOPER BRIEF • 27 NOV 2026
+
+
+07 / VALIDATION
+
+Acceptance testing
+The developer should demonstrate these scenarios using sample data and multiple simultaneous devices
+before deployment.
+
+
+  Scenario                                   Expected result
+
+  Preferred guest / no-show                  Existing assignment retrieved; reserved seat stays blocked until manual release;
+                                             late arrival after release is referred.
+
+  Regular guest / no match                   Multiple eligible industry-ranked tables; other eligible tables shown if no industry
+                                             match.
+
+  Employee / group arrivals                  Eligible employee tables; group-fit recommendations; alternatives if group cannot
+                                             fit.
+
+  Manual alternative / all tables full       Allowed within authority and capacity; no allocation if no eligible seat remains.
+
+  Unlisted / substitute                      Approval, classification and audit recorded; original reservation handled without
+                                             double allocation.
+
+  Duplicate / simultaneous check-in          Only one registration and allocation for each guest.
+
+  Last available seat                        Only one concurrent assignment succeeds; other request refreshes or escalates.
+
+  Unauthorized cross-scope action            Rejected; Super Administrator can act or delegate. No duplicate guest/table
+                                             ownership.
+
+  Ownership reallocation / staff             New owner receives pending queue; old owner loses write access; confirmed
+  absent                                     assignments remain intact.
+
+  Transfer / swap / release                  All affected capacity counts update correctly; no overbooking or lost assignment.
+
+  Email failure / no email                   Confirmed assignment remains valid; display or staff notification works; retry
+                                             available.
+
+  Connectivity / recovery                    Offline procedure tested; records reconciled without duplicate allocations.
+
+
+20. Expected deliverables
+Guest-facing registration webpage and QR code; master database and import/export; staff interface and live
+queues; Super Administrator dashboard and delegation controls; recommendation and group assignment
+engine; capacity safeguards; notifications; audit records; documented testing, deployment, recovery and
+event-day support; brief operator guide.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                                             7
+LEGATI GROUP / YEAR-END PARTY 2026                                                        DEVELOPER BRIEF • 27 NOV 2026
+
+
+08 / DECISIONS
+
+Implementation assumptions
+The following items distinguish planning assumptions and proposed enhancements from the business rules
+expressly confirmed in the discussion.
+
+
+21. Confirmed business rules
+   Preferred guests have preassigned tables and seats; regular guests and employees receive assignments on
+   arrival.
+   Industry affinity should guide recommendations; no sequential table-filling requirement. The designated
+   person selects a suitable table/seat.
+   Group arrivals are supported; preferred no-show reservations are released manually.
+   Unlisted guests may be accepted through an authorized override. Every table has a hard limit of 10.
+   Personnel have designated guests and tables, without overlapping delegation; one Super Administrator may
+   assign across all tables.
+   Email seating assignments automatically where possible, with QR-based registration preferred; allow
+   changes as needed.
+
+22. Decisions to finalize with ICD and developer
+
+  Item                                    Proposed default / question
+
+  Guest identity and QR                   Common reception QR; agree on a secondary identifier or assisted verification and
+                                          secure status retrieval.
+
+  Seating eligibility                     Dedicated employee tables with configurable mixed tables; confirm which tables
+                                          permit regular guests alongside preferred guests.
+
+  Unlisted / no-show authority            Super Administrator approves unlisted guests; confirm whether reservation release
+                                          may be delegated within scope.
+
+  Seat numbers                            Mandatory for preferred guests; optional for others unless physical seats are
+                                          numbered.
+
+  Industry categories                     ICD supplies industry classifications and related-sector mappings; decide whether
+                                          optional affinity/exclusion tags are needed.
+
+  Final capacity and staffing             300 is a working assumption, not a confirmed count. Reconcile external guests,
+                                          employees and actual venue table inventory; test peak processing time and staff
+                                          coverage.
+
+
+Technology stack and hosting are left to the developer. The specification defines required behavior, not a prescribed
+implementation. Optional enhancements should not delay the core event-day workflow.
+
+
+
+
+Functional requirements and specifications | Consolidated working draft                                                       8
+
