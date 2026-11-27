@@ -47,6 +47,8 @@ import { portfolioView, portfolioMilestonesView, projectOverviewView, boardView,
 import { automationsView } from './views/pm-automations.js';
 import { myFilesView, folderView, sharedDocsView, recentDocsView, receivedDocsView, trashDocsView, searchDocsView, documentView, receivedCount } from './views/documents.js';
 import { documentControlView } from './views/admin/documents.js';
+import { formsView, formsAdminView } from './views/forms.js';
+import { managedModules } from '/shared/forms.js';
 
 // [path, view, permission needed, module]
 const routes = [
@@ -137,6 +139,11 @@ const routes = [
   ['/documents/doc/:id', documentView, 'auth', 'documents'],
   // Tools (0.64)
   ['/tools/pdf', pdfStudioView, 'auth', 'pdf'],
+  // Document circulation (0.70): a module's Forms & downloads, and the screen of those who keep its
+  // forms. Shown inside the module that is open, like your own pages.
+  ['/forms/:module', formsView, 'auth', 'user'],
+  ['/circulation', formsAdminView, 'forms', 'user'],
+  ['/circulation/:module', formsAdminView, 'forms', 'user'],
   // Admin panel ('system'): its own sidebar. Each page needs its own permission; 'panel' = any of them.
   ['/admin/dashboard', adminDashboardView, 'panel', 'system'],
   ['/admin/users', usersView, 'users.manage', 'system'],
@@ -148,6 +155,7 @@ const routes = [
   ['/admin/security', securityView, 'users.manage', 'system'],
   ['/admin/guides', guidesAdminView, 'guides.edit', 'system'],
   ['/admin/documents', documentControlView, 'docs.manage', 'system'],
+  ['/admin/circulation', formsAdminView, 'forms.manage', 'system'],
   ['/admin/audit', auditView, 'audit.view', 'system'],
   ['/admin/monitor', monitorView, 'security.monitor', 'system'],
   ['/admin/devlog', devlogView, 'devlog.view', 'system'],
@@ -180,6 +188,8 @@ const NAV = {
     { href: '/payroll', label: 'Payroll', icon: 'wallet', permission: 'payroll.view' },
     { href: '/payroll-setup', label: 'Payroll Setup', icon: 'settings', permission: 'payroll.config' },
     { href: '/holidays', label: 'Holidays', icon: 'flag', permission: 'holidays.manage' },
+    { href: '/forms/hr', label: 'Forms & downloads', icon: 'download', permission: 'auth' },
+    { href: '/circulation/hr', label: 'Document circulation', icon: 'folder', permission: 'forms:hr' },
     { heading: 'My account', permission: 'self' },
     { href: '/me', label: 'My Home', icon: 'home', permission: 'self', exact: true },
     { href: '/me/attendance', label: 'My Attendance', icon: 'calendar', permission: 'self' },
@@ -195,6 +205,8 @@ const NAV = {
     { href: '/assets/allocations', label: 'Allocations', icon: 'userPlus', permission: 'assets.view' },
     { href: '/assets/activity', label: 'Activity log', icon: 'activity', permission: 'assets.view' },
     { href: '/assets/replication', label: 'Data replication', icon: 'database', permission: 'assets.view', soon: 'replication' },
+    { href: '/forms/assets', label: 'Forms & downloads', icon: 'download', permission: 'auth' },
+    { href: '/circulation/assets', label: 'Document circulation', icon: 'folder', permission: 'forms:assets' },
     { heading: 'My account', permission: 'self' },
     { href: '/assets/mine', label: 'My Assets', icon: 'laptop', permission: 'self' },
   ],
@@ -203,6 +215,8 @@ const NAV = {
     { href: '/helpdesk/tickets', label: 'Tickets', icon: 'ticket', permission: 'helpdesk.agent', badge: 'helpdesk' },
     { href: '/helpdesk/new', label: 'Log a ticket', icon: 'plus', permission: 'helpdesk.agent' },
     { href: '/helpdesk/settings', label: 'Service desk settings', icon: 'settings', permission: 'helpdesk.manage' },
+    { href: '/forms/helpdesk', label: 'Forms & downloads', icon: 'download', permission: 'auth' },
+    { href: '/circulation/helpdesk', label: 'Document circulation', icon: 'folder', permission: 'forms:helpdesk' },
     { heading: 'My account', permission: 'auth' },
     { href: '/helpdesk/mine', label: 'My tickets', icon: 'inbox', permission: 'auth' },
   ],
@@ -216,12 +230,16 @@ const NAV = {
     { href: '/crm/contracts', label: 'Contracts', icon: 'file', permission: 'crm.view' },
     { href: '/crm/activities', label: 'Activities', icon: 'calendar', permission: 'crm.view', badge: 'crmTasks' },
     { href: '/crm/settings', label: 'Sales setup', icon: 'settings', permission: 'crm.manage' },
+    { href: '/forms/crm', label: 'Forms & downloads', icon: 'download', permission: 'crm.view' },
+    { href: '/circulation/crm', label: 'Document circulation', icon: 'folder', permission: 'forms:crm' },
   ],
   projects: [
     { href: '/projects', label: 'Overview', icon: 'dashboard', permission: 'projects', also: ['/projects/milestones'] },
     { href: '/projects/my-work', label: 'My work', icon: 'task', permission: 'projects', badge: 'pmWork' },
     { href: '/projects/timesheet', label: 'Timesheet', icon: 'clock', permission: 'timesheet' },
     { href: '/projects/settings', label: 'Projects setup', icon: 'settings', permission: 'pm.manage' },
+    { href: '/forms/projects', label: 'Forms & downloads', icon: 'download', permission: 'projects' },
+    { href: '/circulation/projects', label: 'Document circulation', icon: 'folder', permission: 'forms:projects' },
     // The projects this person starred (0.51), filled in once the menu is drawn.
     { favorites: true, permission: 'projects' },
   ],
@@ -247,6 +265,7 @@ const NAV = {
     { href: '/admin/security', label: 'Sign-in & security', icon: 'shield', permission: 'users.manage' },
     { href: '/admin/guides', label: 'Help & guides', icon: 'help', permission: 'guides.edit' },
     { href: '/admin/documents', label: 'Document control', icon: 'folder', permission: 'docs.manage' },
+    { href: '/admin/circulation', label: 'Document circulation', icon: 'download', permission: 'forms.manage' },
     { heading: 'Records' },
     { href: '/admin/monitor', label: 'Security monitor', icon: 'eye', permission: 'security.monitor' },
     { href: '/admin/audit', label: 'Audit log', icon: 'activity', permission: 'audit.view' },
@@ -287,6 +306,11 @@ function allowed(permission) {
   if (permission === 'projects') return can('pm.view') || Boolean(ctx.user.inProjects);
   // The weekly Timesheet: members of a project that tracks time, and those who manage one.
   if (permission === 'timesheet') return Boolean(ctx.user.timesheet);
+  // Document circulation (0.70): 'forms' = keeps the forms of any module; 'forms:hr' = of that one.
+  if (permission === 'forms' || permission.startsWith('forms:')) {
+    const kept = managedModules(ctx.user.role, can);
+    return permission === 'forms' ? kept.length > 0 : kept.includes(permission.slice(6));
+  }
   return can(permission);
 }
 

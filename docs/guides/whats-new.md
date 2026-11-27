@@ -9,6 +9,10 @@ order: 2
 
 ## November 2026
 
+### Document circulation: every downloadable form in one place (0.70)
+- The company's downloadable forms (a leave application, a clearance, an equipment request, a quotation template) are now kept in **Document circulation**, with their form code, every earlier version and who uploaded each one. Each module has **Forms & downloads** in its side menu with the latest version of its forms, and the company-wide ones are at the bottom of the **CORE home**. See [Get a form](getting-started#get-a-form).
+- Administrators keep every module's forms in **Admin panel → Document circulation**; by default the HR Manager, IT Asset Manager, Sales Manager and Project Manager keep their own module's, from **Document circulation** in its side menu. See [Keep the company's forms](admin#keep-the-company-s-forms-document-circulation).
+
 ### The side menu folds smoothly (0.69.1)
 - On a computer or tablet, the **menu** button now folds the side menu to its icons, and opens it again, with a short, smooth movement instead of a jump; the words fade as it goes. If your computer is set to reduce motion, it changes at once as before. See [Open a module](getting-started#open-a-module).
 

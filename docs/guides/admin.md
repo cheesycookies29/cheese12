@@ -408,6 +408,19 @@ An HR Manager can, for example, be given the **Audit log**, or a trusted manager
 
 Setting these up is described in CORE's README file and in the server set-up instructions that come with it.
 
+### Keep the company's forms (Document circulation)
+
+**Admin panel → Document circulation** keeps every downloadable form and file the company gives its people, in one place: the company-wide forms on the CORE home and those of Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management (Document Management keeps its own files and is not part of it).
+
+- The cards at the top count each module's published, draft and retired forms; click one to see only that module. Filter by category, status and account type, or search titles, form codes, file names and uploaders.
+- Each row shows the **current version** (who uploaded it, when, and their note), its size, and **Versions**: the earlier ones, newest first; choose one to download it.
+- **Upload a form**: the file, its title, module, category, form code / revision, description, who may see it (everyone who opens the module, or some account types), and draft or published. **New version** on a row uploads the next version; **More** has Edit details, Download current version, Restore a version, Publish, Retire, Bring back and, for a draft that was never published, Delete draft.
+- **Settings**: the largest file (1 to 100 MB; 20 by default) and the kinds of file accepted. Programs, scripts, web pages, Office files with macros and password-protected files are always refused, whatever is ticked, and CORE reads each file to tell what it really is.
+- Who keeps which forms is on **Roles & permissions**, under **Document circulation**: by default the HR Manager keeps Human Resource Management's forms, the IT Asset Manager IT Asset Management's and IT Service Desk's, the Sales Manager Sales & CRM's and the Project Manager Project Management's; they find **Document circulation** in their module's side menu and see only their modules. Administrators (and anyone given *forms.manage*) keep every module's forms and the settings.
+- People see only published forms for their account type, of the modules they open, on **Forms & downloads**; never earlier versions. The files are stored encrypted with Document Management's files, so the backups keep them too. Every upload, change, publish, retire, restore, delete, refused file and download of an earlier version is in the **Audit log**, under Document circulation.
+
+![Document circulation in the Admin panel](admin-document-circulation.jpg)
+
 ## Screens at a glance
 
 | Screen (Admin panel) | What it is for |

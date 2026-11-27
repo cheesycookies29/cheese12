@@ -15,6 +15,7 @@ export const AUDIT_AREAS = {
   crm: 'Sales & CRM',
   projects: 'Projects',
   documents: 'Documents',
+  forms: 'Document circulation',
   feedback: 'Feedback',
   monitor: 'Security monitor',
   system: 'System',
@@ -93,6 +94,16 @@ export const AUDIT_ACTIONS = {
   'system.change': 'Changed system data',
   'system.guide': 'Changed a Help guide',
   // Document Management (0.67).
+  'forms.upload': 'Uploaded a new form',
+  'forms.version': 'Uploaded a new version of a form',
+  'forms.restore': 'Restored an earlier version of a form',
+  'forms.change': 'Changed the details of a form',
+  'forms.publish': 'Published a form',
+  'forms.retire': 'Retired a form',
+  'forms.delete': 'Deleted a draft form',
+  'forms.download-version': 'Downloaded a version of a form (manager)',
+  'forms.refused': 'A form upload was refused',
+  'forms.settings': 'Changed the Document circulation settings',
   'documents.upload': 'Uploaded a document',
   'documents.version': 'Added a version of a document',
   'documents.view': 'Viewed a document',
@@ -129,6 +140,7 @@ export function areaOfPath(pathname) {
   if (/^\/api\/crm/.test(pathname)) return 'crm';
   if (/^\/api\/pm\//.test(pathname)) return 'projects';
   if (/^\/api\/(docs|public\/share)\//.test(pathname)) return 'documents';
+  if (/^\/api\/forms(\/|$)/.test(pathname)) return 'forms';
   if (/^\/api\/(time-entries|clock-locations|location-settings)/.test(pathname)) return 'attendance';
   if (/^\/api\/(payroll|employees\/[^/]+\/ytd)/.test(pathname)) return 'payroll';
   return 'system';

@@ -28,6 +28,19 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.70.0-alpha',
+    date: '2026-11-27',
+    title: 'Document circulation: every downloadable form in one place',
+    modules: ['system', 'hr', 'assets', 'crm', 'projects'],
+    notes: 'After Lancaster ATLAS\'s Document circulation, made for the ERP: for the people with a CORE account (no signed-out forms), its modules, account types and audit log. server/forms.js, shared/forms.js, public/js/views/forms.js.',
+    changes: [
+      ['new', 'system', 'Admin panel → Document circulation, and Document circulation in each module\'s side menu for the people who keep its forms: upload and keep every downloadable form of the CORE home (company-wide), Human Resource Management, IT Asset Management, IT Service Desk, Sales & CRM and Project Management. A form has a title, module, category, form code / revision, description, who may see it (everyone who opens the module, or some account types) and a status (draft, published, retired). Each upload is a version with who uploaded it, when and a note; restore makes an earlier one current again as a new version; retire hides a form and keeps it; only a never-published draft can be deleted.'],
+      ['new', 'system', 'Forms & downloads in every module\'s side menu, and on the CORE home for company-wide forms: the current published version of the forms for the person\'s account type, of the modules they open, by category, with search. Downloads are attachments, never sniffed.'],
+      ['new', 'system', 'Who keeps which forms: forms.manage (every module and the settings) and forms.home / forms.hr / forms.assets / forms.helpdesk / forms.crm / forms.projects on Roles & permissions; by default the HR Manager keeps HR\'s, the IT Asset Manager IT assets\' and the Service Desk\'s, the Sales Manager Sales & CRM\'s, the Project Manager Projects\'. A manager sees only their modules; anything else answers 404.'],
+      ['new', 'system', 'Files checked from their bytes (Document Management\'s types: programs, scripts, web pages, Office files with macros and password-protected files always refused), sent in 4 MB pieces, and stored encrypted in Document Management\'s store, so the hourly off-server copy, the nightly copy and the restore steps keep them (Documents\' integrity check counts them as in use). Settings: largest file 1-100 MB (20), file kinds. Everything in the audit log under Document circulation. Demo forms in every module, one with three versions.'],
+    ],
+  },
+  {
     version: '0.69.2-alpha',
     date: '2026-11-26',
     title: 'Style sheet fix before the smooth side menu went out',

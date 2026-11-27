@@ -198,6 +198,22 @@ The pipeline needs 2 to 10 open stages, and a stage that still has deals cannot 
 
 An account that still has deals, bids or contracts cannot be deleted; delete or move those first. Sales Officers do not see **Delete**.
 
+### Get a form (Forms & downloads)
+
+**Forms & downloads** in the side menu lists the forms Sales & CRM gives you, by category, always the latest version: click **Download**, fill it in, and hand it in where its description says. Only published forms for your account type show here.
+
+### Keep Sales & CRM's forms (Document circulation)
+
+Sales Managers keep the forms Sales & CRM gives its people to download (a quotation template, a client onboarding checklist). Open **Document circulation** in the side menu:
+
+1. Click **Upload a form**, choose the file (PDF, Word, Excel, PowerPoint, OpenDocument, a picture or a ZIP), and give it a title, a category and, if your company numbers its forms, its **form code / revision** (for example *HR-F-012 Rev. 3*).
+2. Choose **who may see and download it**: everyone who opens the module, or only some account types.
+3. **Keep as a draft** to check it first, or **Publish now**. A published form shows at once on **Forms & downloads**.
+4. When the form changes, click **New version** on its row and upload the new file with a short note (*Signatories updated*). People always get the latest; the earlier versions stay under **Versions** (choose one to download it), with who uploaded each and when. **More → Restore a version** makes an earlier one current again, as a new version.
+5. **More → Retire** hides a form people should no longer use; it is kept with its versions and **Bring back** publishes it again. Only a draft that was never published can be deleted.
+
+Every upload, change and download of an earlier version is in the audit log.
+
 ## Screens at a glance
 
 | Screen | What it is for |

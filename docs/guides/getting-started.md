@@ -269,6 +269,12 @@ Use it for a bug, a wrong figure, a missing feature or a confusing screen.
 
 Choose your name at the top right, then **Sign out**. You are also signed out after a while without using CORE (8 hours unless your administrator changed it), after the longest session your administrator allows (24 hours unless changed), or when CORE is restarted.
 
+### Get a form
+
+The company's downloadable forms are kept in one place, **Document circulation**, and each module shows its own on **Forms & downloads** in its side menu (for example a leave application in Human Resource Management, an equipment request in IT Asset Management). The company-wide forms (a clearance, a company ID request) are under **Forms & downloads** at the bottom of the **CORE home**. You always get the latest version, and only the forms for your account type in the modules you open.
+
+![Forms & downloads in Human Resource Management](forms-downloads.jpg)
+
 ## Screens at a glance
 
 | Screen | What it is for |

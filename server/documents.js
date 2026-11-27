@@ -885,7 +885,8 @@ export function registerDocuments(route, db, { secrets, audit, limits, extractTe
     noAudit();
     const problems = [];
     let checked = 0;
-    const known = new Set([D.docIndexBlob].filter(Boolean));
+    // Document circulation's form files (server/forms.js) are kept in the same store: not unused.
+    const known = new Set([D.docIndexBlob, ...(db.data.forms || []).flatMap((f) => (f.versions || []).map((v) => v.blobId))].filter(Boolean));
     for (const d of D.documents) {
       for (const v of d.versions) {
         known.add(v.blobId);

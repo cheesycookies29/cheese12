@@ -8,6 +8,7 @@ import { roleOverrides } from '/shared/roles.js';
 import { unseenCount } from './devlog.js';
 import { html, mount, toast } from '../ui.js';
 import { icon } from '../icons.js';
+import { homeForms } from './forms.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -227,6 +228,8 @@ export async function launcherView(el) {
       <div class="sys-compact">${tools.map(toolMini)}</div>
     </section>` : ''}
 
+    <section class="hub-wrap forms-section" id="forms-section" aria-labelledby="forms-heading" hidden></section>
+
     ${panelAccess()
       ? html`<section class="hub-wrap">
           <div class="card-head"><h2>${icon('settings')} Administration</h2><span class="muted small">Applies to every module</span></div>
@@ -244,6 +247,8 @@ export async function launcherView(el) {
       <span>© ${new Date().getFullYear()} ${ctx.settings.companyName}</span>
     </div></footer>`);
   const refresh = modulesCarousel(el.querySelector('#sys-carousel'));
+  // Company-wide forms (Document circulation, 0.70), once they load; hidden when there are none.
+  homeForms(el.querySelector('#forms-section'));
 
   // Pin or unpin: saved on the account (so it follows you to other devices), then the row is
   // redrawn in its new order with the focus kept on the same star.

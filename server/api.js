@@ -11,6 +11,8 @@ import { registerHelpdeskRoutes, migrateHelpdesk, keepHelpdeskConfig, linkTicket
 import { registerCrmRoutes, migrateCrm, keepCrmConfig } from './crm.js';
 import { registerPdfStudio } from './tools-pdf.js';
 import { registerDocuments } from './documents.js';
+import { registerForms } from './forms.js';
+import { docToPdf } from './pdf/layout.js';
 import { documentText } from './documents-text.js';
 import { registerProjectRoutes, migratePm, keepPmConfig, isProjectMember, removeUserFromProjects, timesheetAccess } from './projects.js';
 import { registerNotificationRoutes, migrateNotifications, notify, forgetUser, accountOfEmployee, fmtRange } from './notifications.js';
@@ -1337,6 +1339,8 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   route('GET', '/api/admin/demo', 'data.manage', () => ({ loaded: hasDemo(db), counts: demoCounts(db) }));
   route('POST', '/api/admin/demo', 'data.manage', () => {
     const counts = addDemo(db, { summarize, demoAccounts, removeFile: (a) => files.remove(a) });
+    // Demo forms in Document circulation: small generated PDFs, marked demo.
+    forms.addDemo((title, lines) => docToPdf({ title, blocks: [{ type: 'heading', level: 1, runs: [{ text: title }] }, ...lines.map((t) => ({ type: 'paragraph', runs: [{ text: t }] }))] }, { size: 'a4' }).pdf);
     // The demo tickets belong to the demo people's accounts.
     linkTicketOwners(db, (t) => t.demo);
     syncLedger(db);
@@ -1346,6 +1350,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   });
   route('DELETE', '/api/admin/demo', 'data.manage', () => {
     const removed = removeDemo(db, { summarize, removeFile: (a) => files.remove(a) });
+    forms.removeDemo();
     db.save();
     audit.record('data.demo-remove', { label: 'Demo data' });
     return { ok: true, removed };
@@ -1363,6 +1368,12 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   const docs = registerDocuments(route, db, {
     secrets, audit, limits, extractText: documentText,
     departmentOf: (u) => (u.employeeId && db.data.employees.find((e) => e.id === u.employeeId)?.department) || '',
+  });
+  // ----- Document circulation: every module's downloadable forms (server/forms.js, 0.70) -----
+  // The files are kept in Document Management's encrypted store, so its backups keep them too.
+  const forms = registerForms(route, db, {
+    blobs: docs.blobs, audit,
+    opensModule: (u, id) => Boolean(moduleAccess(u, { modules: db.data.modules, inProjects: isProjectMember(db, u), isApprover: isApprover(db, u) }).find((m) => m.id === id)?.home),
   });
   // ----- Notifications: the bell in the top bar (server/notifications.js) -----
   registerNotificationRoutes(route, db, { pm: projects.notifications });
@@ -1457,6 +1468,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock } = 
   handle.helpdesk = helpdesk;
   handle.pdfStudio = handlePdf;
   handle.documents = docs;
+  handle.forms = forms;
   handle.monitor = monitor;
   handle.projects = projects;
   // Whether the request carries a live session (server.js allows large uploads only then).

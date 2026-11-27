@@ -10,7 +10,7 @@ export const ROLES = {
   hr: {
     label: 'HR Manager',
     description: 'Manages employees, attendance, leave and the time clock; approves leave and remote work; adjusts payroll setup and the holiday calendar. Can view payroll and IT assets.',
-    permissions: ['dashboard', 'employees.view', 'employees.edit', 'employees.sensitive', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'assets.view', 'self'],
+    permissions: ['dashboard', 'employees.view', 'employees.edit', 'employees.sensitive', 'attendance.view', 'attendance.edit', 'attendance.location', 'clock.kiosk', 'payroll.view', 'payroll.config', 'holidays.manage', 'leave.manage', 'leave.approve', 'assets.view', 'forms.hr', 'self'],
   },
   hrstaff: {
     label: 'HR Staff',
@@ -25,7 +25,7 @@ export const ROLES = {
   it: {
     label: 'IT Asset Manager',
     description: 'Manages IT assets and consumable inventory: registers, assigns, returns and retires equipment; receives and issues stock; handles equipment problem reports and IT Service Desk tickets.',
-    permissions: ['assets.view', 'assets.edit', 'helpdesk.agent', 'self'],
+    permissions: ['assets.view', 'assets.edit', 'helpdesk.agent', 'forms.assets', 'forms.helpdesk', 'self'],
   },
   support: {
     label: 'Helpdesk Agent',
@@ -40,12 +40,12 @@ export const ROLES = {
   salesmgr: {
     label: 'Sales Manager',
     description: 'Everything a Sales Officer does, plus deleting CRM records and the sales setup: pipeline stages, lead sources, lost reasons and the bid document checklist. Opens Project Management and the projects they are added to, to follow the delivery of what was sold.',
-    permissions: ['crm.view', 'crm.edit', 'crm.manage', 'pm.view', 'self'],
+    permissions: ['crm.view', 'crm.edit', 'crm.manage', 'pm.view', 'forms.crm', 'self'],
   },
   pm: {
     label: 'Project Manager',
     description: 'Runs Project Management: starts projects and manages the ones they are a manager of (members, milestones, tasks, time); sees only the projects they are on; deletes the projects they manage and changes the Projects setup. Can view employee records.',
-    permissions: ['pm.view', 'pm.edit', 'pm.manage', 'employees.view', 'self'],
+    permissions: ['pm.view', 'pm.edit', 'pm.manage', 'employees.view', 'forms.projects', 'self'],
   },
   employee: {
     label: 'Employee',
@@ -93,6 +93,13 @@ export const PERMISSION_LABELS = [
   ['pm.edit', 'Projects: create projects (and start them from templates); they manage the projects they start'],
   ['pm.manage', 'Projects: delete the projects they manage and change the Projects setup'],
   ['docs.manage', 'Documents: Document control (accepted file types, sharing and retention rules), every document and folder, legal holds'],
+  ['forms.manage', 'Document circulation: the downloadable forms of every module and the CORE home, and its settings'],
+  ['forms.home', 'Document circulation: the company-wide forms on the CORE home'],
+  ['forms.hr', 'Document circulation: the forms of Human Resource Management'],
+  ['forms.assets', 'Document circulation: the forms of IT Asset Management'],
+  ['forms.helpdesk', 'Document circulation: the forms of IT Service Desk'],
+  ['forms.crm', 'Document circulation: the forms of Sales & CRM'],
+  ['forms.projects', 'Document circulation: the forms of Project Management'],
   ['feedback.view', 'Read feedback sent by users'],
   ['feedback.manage', 'Reply to feedback, change its status or delete it'],
   ['self', 'Own attendance, payslips, profile, requests and assigned equipment; report equipment problems'],
@@ -106,6 +113,7 @@ export const PERMISSION_GROUPS = [
   { id: 'crm', label: 'Sales & CRM', permissions: ['crm.view', 'crm.edit', 'crm.manage'] },
   { id: 'projects', label: 'Project Management', permissions: ['pm.view', 'pm.edit', 'pm.manage'] },
   { id: 'documents', label: 'Document Management', permissions: ['docs.manage'] },
+  { id: 'forms', label: 'Document circulation (downloadable forms)', permissions: ['forms.manage', 'forms.home', 'forms.hr', 'forms.assets', 'forms.helpdesk', 'forms.crm', 'forms.projects'] },
   { id: 'admin', label: 'Admin panel', permissions: ['settings.edit', 'settings.center', 'modules.config', 'audit.view', 'security.monitor', 'devlog.view', 'devlog.edit', 'feedback.view', 'feedback.manage', 'guides.edit', 'users.manage', 'roles.manage', 'data.manage'] },
 ];
 const KNOWN = new Set(PERMISSION_LABELS.map(([p]) => p));

@@ -180,6 +180,10 @@ The ticket opens with its number, for example *HD-000003*. IT's replies appear o
 
 If you work the service desk, your sidebar also has **Log a ticket**, for a call or walk-in on someone else's behalf. See [the service desk guide](service-desk).
 
+### Get a form
+
+The forms the company gives you to download (a leave application, a clearance, an equipment request) are on **Forms & downloads** in each module's side menu, and the company-wide ones at the bottom of the **CORE home**. They are always the latest version: click **Download**, fill it in, and hand it in where its description says.
+
 ## Screens at a glance
 
 | Screen | What it is for |

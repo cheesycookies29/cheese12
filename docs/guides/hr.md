@@ -222,6 +222,22 @@ Choose the **Type** carefully. A *Regular holiday* is paid even when not worked 
 
 HR Managers can change **Payroll Setup**: pay rules, **Work days per year**, the holiday, rest-day and night premiums, the holiday rules, contribution rates and tax tables. It is shared with the Payroll Officer; see [Payroll Setup in the payroll guide](payroll#change-payroll-setup). Click **Save payroll setup**. Draft runs change when recomputed; finalized runs never change.
 
+### Get a form (Forms & downloads)
+
+**Forms & downloads** in the side menu lists the forms Human Resource Management gives you, by category, always the latest version: click **Download**, fill it in, and hand it in where its description says. Only published forms for your account type show here.
+
+### Keep Human Resource Management's forms (Document circulation)
+
+HR Managers keep the forms Human Resource Management gives its people to download (a leave application, an overtime authorization, a clearance). Open **Document circulation** in the side menu:
+
+1. Click **Upload a form**, choose the file (PDF, Word, Excel, PowerPoint, OpenDocument, a picture or a ZIP), and give it a title, a category and, if your company numbers its forms, its **form code / revision** (for example *HR-F-012 Rev. 3*).
+2. Choose **who may see and download it**: everyone who opens the module, or only some account types.
+3. **Keep as a draft** to check it first, or **Publish now**. A published form shows at once on **Forms & downloads**.
+4. When the form changes, click **New version** on its row and upload the new file with a short note (*Signatories updated*). People always get the latest; the earlier versions stay under **Versions** (choose one to download it), with who uploaded each and when. **More → Restore a version** makes an earlier one current again, as a new version.
+5. **More → Retire** hides a form people should no longer use; it is kept with its versions and **Bring back** publishes it again. Only a draft that was never published can be deleted.
+
+Every upload, change and download of an earlier version is in the audit log.
+
 ## Screens at a glance
 
 | Screen | What it is for |
