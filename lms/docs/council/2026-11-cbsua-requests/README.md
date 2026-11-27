@@ -213,3 +213,12 @@ Whenever a change reaches end users, the owner asked for an updated workbook:
 3. Rebuild: `python3 lms/scripts/cbsua-requests-workbook.py <CBSUA's original .xlsx> <out.xlsx>`, and send the workbook to the owner.
 
 The workbook carries the requesters' names from CBSUA's original file, so it is never committed (the repository is public).
+
+## CBSUA form templates
+
+Many requests depend on forms that are CBSUA's own (PDS, appointment papers, payslip, ORS/BURS and DV, cash reports,
+procurement forms, TOR and certifications, and more). The workbook lists them on the sheet **CBSUA form templates**
+(tags CBSUA-T-01 to CBSUA-T-48), each with the items it answers, whether ATLAS prints it or users download it blank,
+and the Document circulation module and category to tag it under. Each template is uploaded in ATLAS → System →
+Document circulation, with its tag in **Form code / revision**, once the office sends it. The list is kept in
+`FORM_TEMPLATES` in `lms/scripts/cbsua-requests-workbook.py`.

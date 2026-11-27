@@ -91,6 +91,7 @@ def plan(tab, iid, status, full=''):
     return 'Configuration / build', ''
 
 CHANGES = [
+    ('2026-11-27', 'All (owner request): CBSUA form templates', "New sheet 'CBSUA form templates' and a 'CBSUA form template (tag)' column: the forms specific to CBSUA that the requests depend on (CBSUA-T-01 to CBSUA-T-48), what each is for, the items it answers, and where it will be tagged and uploaded in ATLAS Document circulation once the office sends its template."),
     ('2026-11-26', 'HRIS PL-053', 'Due dates and alerts: renewal, probation evaluation, step increment and retirement dates from the appointment data; rules with lead days and recipients (HR settings -> Alerts and due dates); Due dates page with mark done, snooze, CSV and print; bell alerts once per lead day; HR dashboard card. PL-053 Has.'),
     ('2026-11-26', 'All (owner request): Document circulation', 'Document circulation: one place to upload and keep every downloadable form of every module except Documents (Admin panel or any system -> System -> Document circulation, and Tools beside PDF Studio). Each upload is a new version kept encrypted with who uploaded it and when; a Versions dropdown downloads earlier ones; restore, retire. Per-module managers (registrar: Academic and Learn; HR Manager: People; Chief Accountant: Finance). Users get the current version under Forms & downloads in each system; public forms on the sign-in page.'),
     ('2026-11-26', 'HRIS PL-023, PL-025 (also PL-017, PL-032)', 'Work experience entries (employee, HR, applicant) with HR verification, CSV import and a printable Work Experience Sheet. Appoint a Selected applicant: appointment form, Panunumpa sa Katungkulan, Oath of Office (English) and Certificate of Assumption from editable wording; numbered issues, reprint, cancel and reissue; confirm makes the person an employee (same sign-in), fills the plantilla item and counts the opening; date of assumption issues the certificate. PL-023 and PL-025 Has; PL-017 and PL-032 Partly.'),
@@ -108,6 +109,50 @@ BRAND_NOTE = 'Update 2026-11-26: the whole app can now lead with the school (Adm
 UPDATES = {('UIS', 'PL-16'): BRAND_NOTE + ' Several logos on one document still wait for document templates.',
            ('UIS', 'PL-37'): BRAND_NOTE, ('UIS', 'PL-49'): BRAND_NOTE,
            ('HRIS', 'PL-026'): BRAND_NOTE + ' Letterhead lines still wait for document templates.'}
+
+# CBSUA's own forms: templates to collect and tag in Document circulation (owner's request, 2026-11-27).
+# (tag, form, tab, items, kind, Document circulation module, suggested category, office that provides it)
+FORM_TEMPLATES = [
+    ('CBSUA-T-01', 'Personal Data Sheet (CSC Form 212, current revision)', 'HRIS', ['PL-017', 'PL-030', 'PL-031'], 'Both: ATLAS prints it; the blank form is also offered for download', 'People', 'Personnel records', 'HR office'),
+    ('CBSUA-T-02', 'Work Experience Sheet', 'HRIS', ['PL-023'], 'Both: ATLAS prints it; the blank form is also offered for download', 'People', 'Personnel records', 'HR office'),
+    ('CBSUA-T-03', 'Appointment form (CSC)', 'HRIS', ['PL-025'], "ATLAS prints it: layout to match CBSUA's template", 'People', 'Appointment', 'HR office'),
+    ('CBSUA-T-04', 'Panunumpa sa Katungkulan / Oath of Office', 'HRIS', ['PL-025'], "ATLAS prints it: layout to match CBSUA's template", 'People', 'Appointment', 'HR office'),
+    ('CBSUA-T-05', 'Certificate of Assumption to Duty', 'HRIS', ['PL-025'], "ATLAS prints it: layout to match CBSUA's template", 'People', 'Appointment', 'HR office'),
+    ('CBSUA-T-06', 'Certificate (employment / service) with the updated header', 'HRIS', ['PL-024', 'PL-026'], "ATLAS prints it: layout to match CBSUA's template", 'People', 'Certificates', 'HR office'),
+    ('CBSUA-T-07', 'Plantilla of Personnel (PSIPOP)', 'HRIS', ['PL-014'], "ATLAS prints it: layout to match CBSUA's template", 'People', 'Plantilla', 'HR office'),
+    ('CBSUA-T-08', 'Job vacancy publication (CSC format)', 'HRIS', ['PL-027'], "ATLAS prints it: layout to match CBSUA's template", 'People', 'Recruitment', 'HR office'),
+    ('CBSUA-T-09', 'Statement of Assets, Liabilities and Net Worth (SALN, current version)', 'HRIS', ['PL-035'], 'Blank form: upload as is for users to download', 'People', 'Personnel records', 'HR office'),
+    ('CBSUA-T-10', 'Application for Leave (CSC Form 6) with the updated header', 'HRIS', ['PL-036'], 'Both: ATLAS prints it; the blank form is also offered for download', 'People', 'Leave', 'HR office'),
+    ('CBSUA-T-11', 'MERF (request for missing time entries)', 'HRIS', ['PL-040', 'PL-041'], 'Blank form: upload as is for users to download', 'People', 'Attendance', 'HR office'),
+    ('CBSUA-T-12', 'Work-from-home monitoring form (targets and accomplishments)', 'HRIS', ['PL-044'], 'Blank form: upload as is for users to download', 'People', 'Attendance', 'HR office'),
+    ('CBSUA-T-13', 'Individual Performance Commitment and Review (IPCR), legal landscape', 'HRIS', ['PL-001', 'PL-056'], 'Blank form: upload as is for users to download', 'People', 'Performance', 'HR office / PMT'),
+    ('CBSUA-T-14', 'Individual Development Plan (IDP)', 'HRIS', ['PL-054'], 'Blank form: upload as is for users to download', 'People', 'Learning and development', 'HR office'),
+    ('CBSUA-T-15', 'Payslip (CBSUA format with signatories)', 'HRIS', ['PL-008', 'PL-050', 'PL-051'], "ATLAS prints it: layout to match CBSUA's template", 'People', 'Payroll', 'HR office / Accounting'),
+    ('CBSUA-T-16', 'Clearance', 'HRIS', ['PL-060'], 'Blank form: upload as is for users to download', 'People', 'Separation', 'HR office'),
+    ('CBSUA-T-20', 'Obligation Request and Status (ORS) / Budget Utilization Request and Status (BURS)', 'FMIS', ['PL-10', 'PL-15', 'PL-99'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Budget', 'Budget office'),
+    ('CBSUA-T-21', 'Disbursement Voucher (DV)', 'FMIS', ['PL-06', 'PL-100', 'PL-101'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Disbursement', 'Accounting office'),
+    ('CBSUA-T-22', 'Request for Check Cancellation and Notice of Check Cancellation', 'FMIS', ['PL-34', 'PL-35'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Cash', 'Cashier'),
+    ('CBSUA-T-23', 'Report of Checks Issued', 'FMIS', ['PL-36', 'PL-37', 'PL-38'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Cash', 'Cashier'),
+    ('CBSUA-T-24', 'Report of ADA Issued, ADA / LDDAP-ADA', 'FMIS', ['PL-39', 'PL-40', 'PL-41', 'PL-56'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Cash', 'Cashier'),
+    ('CBSUA-T-25', 'Monthly Report of Accountability for Accountable Forms (RAAF)', 'FMIS', ['PL-44', 'PL-45', 'PL-46'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Cash', 'Cashier'),
+    ('CBSUA-T-26', 'Advice of Checks Issued and Cancelled (ACIC)', 'FMIS', ['PL-49'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Cash', 'Cashier'),
+    ('CBSUA-T-27', 'Monthly Report of Disbursement (Fund 101 / GAA)', 'FMIS', ['PL-54'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Reports', 'Accounting office'),
+    ('CBSUA-T-28', 'Authority to Debit / Credit Account', 'FMIS', ['PL-57'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Cash', 'Cashier'),
+    ('CBSUA-T-29', "Financial statements and trial balance (the office's existing formats)", 'FMIS', ['PL-95'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Reports', 'Accounting office'),
+    ('CBSUA-T-30', 'Budget reports: FRA and BFARs (FAR No. 1, 1-A, 2, 2-A)', 'FMIS', ['PL-13', 'PL-14'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Budget', 'Budget office'),
+    ('CBSUA-T-31', 'Alphalist of Taxes Withheld', 'FMIS', ['PL-105'], "ATLAS prints it: layout to match CBSUA's template", 'Finance', 'Tax', 'Accounting office'),
+    ('CBSUA-T-32', 'Procurement forms: PPMP, PR, RFQ, Abstract of Quotations, BAC Resolution, PO / JO, NOD, IAR', 'FMIS', ['PL-05', 'PL-23', 'PL-29', 'PL-30', 'PL-114', 'PL-115'], 'Both: ATLAS prints it; the blank form is also offered for download', 'Finance', 'Procurement', 'BAC secretariat / Supply office'),
+    ('CBSUA-T-33', 'Property Return Slip (semi-expendable and equipment)', 'FMIS', ['PL-112'], 'Both: ATLAS prints it; the blank form is also offered for download', 'Finance', 'Property', 'Supply office'),
+    ('CBSUA-T-40', 'Transcript of Records: regular, transferee, graduate school, shifted, old records', 'UIS', ['PL-02', 'PL-03', 'PL-15', 'PL-18', 'PL-24', 'PL-53', 'PL-60'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Records', 'Registrar'),
+    ('CBSUA-T-41', 'Certificate of Grades (chosen term)', 'UIS', ['PL-32', 'PL-43'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Certifications', 'Registrar'),
+    ('CBSUA-T-42', 'Certification of Enrollment (chosen term)', 'UIS', ['PL-34', 'PL-45'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Certifications', 'Registrar'),
+    ('CBSUA-T-43', 'GWA certification', 'UIS', ['PL-31', 'PL-42'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Certifications', 'Registrar'),
+    ('CBSUA-T-44', 'Honorable dismissal / transfer credential and other certifications', 'UIS', ['PL-31', 'PL-56', 'PL-37', 'PL-50'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Certifications', 'Registrar'),
+    ('CBSUA-T-45', 'Form 137 (laboratory high school)', 'UIS', ['PL-33', 'PL-44'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Records', 'Registrar (laboratory high school)'),
+    ('CBSUA-T-46', 'Certificate of Registration (COR) with free-tuition lines', 'UIS', ['PL-39'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Enrollment', 'Registrar'),
+    ('CBSUA-T-47', 'Enrollment masterlist report', 'UIS', ['PL-25', 'PL-36', 'PL-46'], "ATLAS prints it: layout to match CBSUA's template", 'Academic', 'Reports', 'Registrar'),
+    ('CBSUA-T-48', 'Class record', 'LMS', ['PL-12'], "ATLAS prints it: layout to match CBSUA's template", 'Learn', 'Grades', 'Registrar / faculty'),
+]
 
 # How to use each update, step by step (from the Help guides). Shown in the "How to use it" column.
 BRANDING_FLOW = ('Administrator (Admin panel):\n1. Settings & branding -> Branding -> Brand: choose "Our school, powered by ATLAS".\n2. Type the school short name (e.g. CBSUA).\n3. Upload logo: the school seal (square, transparent background).\n4. Colours: School colour and Accent (e.g. green #126131, gold #EDE344); check the Preview.\n5. Save settings: the top bar, sign-in pages, system names and icons now show the school.\nHelp: Administrator guide -> "Lead with your school\'s name and seal".')
@@ -166,7 +211,7 @@ for ws in wb_in.worksheets:
         p, note = plan(tab, str(iid).strip(), status, m['status'])
         upd = UPDATES.get((tab, str(iid).strip()))
         if upd: note = (note + ' ' if note else '') + upd
-        records.append(dict(howto=HOW_TO.get((tab, str(iid).strip()), ''), tab=tab, id=str(iid).strip(), module=module or '', user=user or '', cat=cat or '', desc=str(desc or '').strip(), prio=prio or '',
+        records.append(dict(forms='\n'.join(f'{f[0]} {f[1]}' for f in FORM_TEMPLATES if f[2] == tab and str(iid).strip() in f[3]), howto=HOW_TO.get((tab, str(iid).strip()), ''), tab=tab, id=str(iid).strip(), module=module or '', user=user or '', cat=cat or '', desc=str(desc or '').strip(), prio=prio or '',
                             status=status, status_full=m['status'], where=m['where'], meet=m['meet'], effort=m['effort'], plan=p, note=note, area=m['area']))
 
 # ---------- styles ----------
@@ -255,7 +300,7 @@ ws.sheet_view.showGridLines = False
 # ---------- item sheets ----------
 COLS = [('Tab', 11), ('Item ID', 10), ('Module / topic', 22), ('Requested by', 20), ('Original request', 48), ('Priority', 10),
         ('ATLAS area', 20), ('ATLAS covers it?', 14), ('Where in ATLAS today', 48), ('What is needed', 52), ('Effort', 8), ('Council note', 44), ('Council plan', 20), ('How to use it (updates)', 60),
-        ('CBSUA comments', 30), ('LTDC response / target', 30)]
+        ('CBSUA form template (tag)', 30), ('CBSUA comments', 30), ('LTDC response / target', 30)]
 
 def item_sheet(name, recs):
     ws = wb.create_sheet(name)
@@ -265,13 +310,14 @@ def item_sheet(name, recs):
     # Column order in the sheet: Tab, ID, Module, User, Request, Priority, Area, Status, Where, Meet, Effort, Note, Plan, comments...
     for i, x in enumerate(recs, 2):
         module = ' / '.join(v for v in (str(x['module']), str(x['cat'])) if v and v not in ('None',))
-        vals = [x['tab'], x['id'], module, x['user'], x['desc'], x['prio'], x['area'], x['status'], x['where'], x['meet'], x['effort'], x['note'], x['plan'], x['howto'], '', '']
+        vals = [x['tab'], x['id'], module, x['user'], x['desc'], x['prio'], x['area'], x['status'], x['where'], x['meet'], x['effort'], x['note'], x['plan'], x['howto'], x['forms'], '', '']
         for j, v in enumerate(vals, 1):
             c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
         for j in (2, 6, 8, 11): ws.cell(i, j).alignment = CENTER
         s = ws.cell(i, 8); s.fill = PatternFill('solid', fgColor=STATUS_FILL.get(x['status'], 'FFFFFF')); s.font = Font(bold=True)
         p = ws.cell(i, 13); p.fill = PatternFill('solid', fgColor=PLAN_FILL.get(x['plan'], 'FFFFFF'))
         if x['howto']: ws.cell(i, 14).fill = PatternFill('solid', fgColor='E2EFDA')
+        if x['forms']: ws.cell(i, 15).fill = PatternFill('solid', fgColor='FCE4D6')
     ws.freeze_panes = 'C2'
     last = len(recs) + 1
     tname = re.sub(r'[^A-Za-z]', '', name) or 'Items'
@@ -325,6 +371,7 @@ ws.freeze_panes = 'A2'
 # Raised while building (newest first), then those in the council's maps. Answers are filled in by hand.
 BUILD_QUESTIONS = [
     # (area, item, ask whom, question)
+    ('All', 'CBSUA form templates', 'Each office', "Please send each form on the 'CBSUA form templates' sheet as used today: the blank template (Word/Excel or PDF) and one filled sample, with its form code and revision, and say which may be downloaded by the public."),
     ('HRIS', 'PL-053', 'HR office', 'Probation: is the evaluation due 6 months from the assumption or the effective date? Is there also a 3-month evaluation?'),
     ('HRIS', 'PL-053', 'HR office', 'Step increments: 3 years from the last step or the last appointment? Do promotions and transfers restart the count? Do leave without pay or an unsatisfactory rating move the date?'),
     ('HRIS', 'PL-053', 'HR office', 'Renewal: are 60, 30 and 7 days the right lead times, and which statuses are renewed? Do coterminous appointments carry an end date?'),
@@ -465,6 +512,28 @@ for tab_, iid_, desc_, status_, flow_ in EXTRA_HOWTO:
         c = ws.cell(r, j, v); c.alignment = WRAP; c.border = BORDER
     r += 1
 ws.freeze_panes = 'C2'
+
+ws = wb.create_sheet('CBSUA form templates')
+ws['A1'] = "CBSUA's own forms: templates to collect, then tag in ATLAS Document circulation"
+ws['A1'].font = TITLE
+ws['A2'] = ("Forms specific to CBSUA that the end-user requests depend on. For each: get the office's current template (blank and one filled sample), "
+            "then upload it in ATLAS -> System -> Document circulation under the module shown, with the tag in Form code / revision and the category shown "
+            "(not Public unless the office says so). 'ATLAS prints it' means the template is the layout ATLAS's printout must match; 'Blank form' means users download it as is.")
+ws['A2'].font = SUB; ws.merge_cells('A2:L2'); ws['A2'].alignment = WRAP; ws.row_dimensions[2].height = 48
+fh = [('Tag', 13), ('Form', 44), ('Tab', 8), ('Items', 22), ('ATLAS covers the items?', 22), ('Kind', 30), ('Document circulation module', 16), ('Suggested category', 18), ('Office that provides it', 20), ('Template received (date)', 14), ('Tagged in ATLAS (date)', 14), ('Notes', 30)]
+for j, (h, w) in enumerate(fh, 1):
+    c = ws.cell(4, j, h); c.font = HEAD; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER
+    ws.column_dimensions[get_column_letter(j)].width = w
+byid = {(x['tab'], x['id']): x for x in records}
+for i, (tag, form, tab, items, kind, mod, cat, office) in enumerate(FORM_TEMPLATES, 5):
+    sts = ', '.join(f"{it} {byid[(tab, it)]['status']}" for it in items if (tab, it) in byid)
+    for j, v in enumerate([tag, form, tab, ', '.join(items), sts, kind, mod, cat, office, '', '', ''], 1):
+        c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
+    ws.cell(i, 1).font = Font(bold=True)
+    ws.cell(i, 6).fill = PatternFill('solid', fgColor={'A': 'FFF2CC', 'B': 'E2EFDA'}.get(kind[0], 'DDEBF7'))
+ws.freeze_panes = 'C5'
+missing = [(t, it) for f in FORM_TEMPLATES for t, it in [(f[2], i) for i in f[3]] if (t, it) not in byid]
+if missing: print('FORM TAG NO ITEM', missing)
 ws = wb.create_sheet('Change log')
 for j, (h, w) in enumerate([('Date', 12), ('Items', 26), ('What changed for end users', 110)], 1):
     c = ws.cell(1, j, h); c.font = HEAD; c.fill = HEAD_FILL; c.alignment = CENTER; c.border = BORDER
@@ -473,7 +542,7 @@ for i, row in enumerate(CHANGES, 2):
     for j, v in enumerate(row, 1):
         c = ws.cell(i, j, v); c.alignment = WRAP; c.border = BORDER
 ws.freeze_panes = 'A2'
-order = ['Summary', 'Change log', 'How to use the updates', 'All items', 'HRIS', 'FMIS', 'LMS', 'UIS', 'Cross-System', 'Declined & decisions', 'ATLAS issues found', 'Questions for CBSUA', 'Open decisions (LTDC)']
+order = ['Summary', 'Change log', 'How to use the updates', 'CBSUA form templates', 'All items', 'HRIS', 'FMIS', 'LMS', 'UIS', 'Cross-System', 'Declined & decisions', 'ATLAS issues found', 'Questions for CBSUA', 'Open decisions (LTDC)']
 wb._sheets = [wb[n] for n in order]
 wb.active = 0
 for w in wb.worksheets:
