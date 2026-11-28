@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+# Event-day switches for the LTDC ERP server in one command (0.74.3, for YEP 2026; runbook:
+# deploy/aws/EVENT-DAY.md). Installed by remote-deploy.sh as /usr/local/sbin/ltdc-erp-event, so it
+# must be on the server BEFORE the deploy freeze starts (a frozen server takes no deploys).
+#
+#   sudo ltdc-erp-event status                     what is on now: freeze, backup schedule, last
+#                                                  off-server copy, rollback release, free disk
+#   sudo ltdc-erp-event backups-every-15           off-server backup every 15 minutes (5, 20, 35, 50
+#                                                  past), then one copy now
+#   sudo ltdc-erp-event backups-hourly             back to the normal hourly copy (5 past)
+#   sudo ltdc-erp-event freeze <until> <reason>    stop deploys until a time, e.g.
+#                                                  freeze 2026-12-10T09:00:00+08:00 "YEP 2026"
+#   sudo ltdc-erp-event unfreeze                   deploys allowed again
+#   sudo ltdc-erp-event close-out                  unfreeze + backups-hourly, and the steps left
+#
+# Each command can be run again safely and says what it did. The deploy itself never runs it.
+# Tests only: LTDC_APP (the app folder), LTDC_SYSTEMD (the systemd unit folder), LTDC_PREV (the kept
+# release) and LTDC_HEALTH_URL; with LTDC_APP set it also runs without root.
+set -uo pipefail
+
+APP="${LTDC_APP:-/opt/ltdc-erp}"
+SYSTEMD="${LTDC_SYSTEMD:-/etc/systemd/system}"
+PREV="${LTDC_PREV:-/opt/ltdc-erp-prev}"
+HEALTH="${LTDC_HEALTH_URL:-http://127.0.0.1:3000/api/public/health}"
+FREEZE="$APP/data/DEPLOY_FREEZE"
+DROPIN_DIR="$SYSTEMD/ltdc-erp-offsite.timer.d"
+DROPIN="$DROPIN_DIR/event.conf"
+OFFSITE_STATUS="$APP/data/backups/offsite.json"
+
+say() { printf '%s\n' "$*"; }
+usage() {
+  sed -n '6,15p' "$0" | sed 's/^# \{0,1\}//'
+}
+need_root() {
+  if [ "$(id -u)" != 0 ] && [ -z "${LTDC_APP:-}" ]; then
+    say "Run it with sudo: sudo ltdc-erp-event $*"
+    exit 1
+  fi
+}
+
+# The last off-server copy, from data/backups/offsite.json (written by scripts/offsite-backup.js).
+last_backup() {
+  if [ ! -f "$OFFSITE_STATUS" ]; then
+    say "Last off-server backup: none recorded on this server yet ($OFFSITE_STATUS is missing)."
+    return 1
+  fi
+  node -e '
+    const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+    const when = (iso) => (iso ? new Date(iso).toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }) + " Manila time" : "unknown");
+    if (s.ok) console.log(`Last off-server backup: OK at ${when(s.at)}, to s3://${s.bucket || "?"}/${s.prefix}/ (${s.ms ?? "?"} ms).`);
+    else console.log(`Last off-server backup: FAILED at ${when(s.at)}: ${s.error}${s.lastOk ? ` The last good one was at ${when(s.lastOk.at)} (${s.lastOk.prefix}/).` : " No good copy is recorded."}`);
+    process.exit(s.ok ? 0 : 1);
+  ' "$OFFSITE_STATUS"
+}
+
+freeze_state() {
+  if [ ! -f "$FREEZE" ]; then
+    say "Deploy freeze: OFF (no $FREEZE). Deploys go through."
+    return
+  fi
+  local until reason
+  until="$(head -n 1 "$FREEZE" | tr -d '[:space:]')"
+  reason="$(sed -n 2p "$FREEZE" | tr -cd '[:print:]' | cut -c1-120)"
+  # The same rule as the guard in remote-deploy.sh: no end time, or an end time not yet passed.
+  if [ -z "$until" ] || [ "$(date -u +%s)" -lt "$(date -u -d "$until" +%s 2>/dev/null || echo 9999999999)" ]; then
+    say "Deploy freeze: ON until ${until:-it is removed} (${reason:-no reason given}). A deploy stops with exit 3 and changes nothing."
+  else
+    say "Deploy freeze: ENDED at $until (${reason:-no reason given}); the file is still there but deploys go through. Remove it with: sudo ltdc-erp-event unfreeze"
+  fi
+}
+
+reload_timer() {
+  systemctl daemon-reload || { say "systemctl daemon-reload failed (see above)."; return 1; }
+  systemctl restart ltdc-erp-offsite.timer || { say "Could not restart ltdc-erp-offsite.timer (see above)."; return 1; }
+}
+
+cmd_status() {
+  say "LTDC ERP event-day status, $(date '+%Y-%m-%d %H:%M %Z')"
+  say ""
+  freeze_state
+  if [ -f "$DROPIN" ]; then
+    say "Off-server backup schedule: EVERY 15 MINUTES (5, 20, 35 and 50 past; $DROPIN)."
+  else
+    say "Off-server backup schedule: hourly (5 past), the normal schedule."
+  fi
+  systemctl list-timers ltdc-erp-offsite.timer --all --no-pager 2>/dev/null || say "(systemctl list-timers is not available here.)"
+  last_backup
+  if [ -f "$PREV/server.js" ]; then
+    local back now
+    back="$(sed -n 's/.*"commit":"\([^"]*\)".*/\1/p' "$PREV/build.json" 2>/dev/null || true)"
+    now="$(sed -n 's/.*"commit":"\([^"]*\)".*/\1/p' "$APP/build.json" 2>/dev/null || true)"
+    say "Rollback: ready. Running ${now:0:7}; 'sudo ltdc-erp-rollback' goes back to ${back:0:7} in about a minute."
+  else
+    say "Rollback: NOT available ($PREV has no release). The next deploy keeps one."
+  fi
+  local free_kb
+  free_kb="$(df -Pk "$APP/data" 2>/dev/null | awk 'NR==2 {print $4}')"
+  if [ -n "$free_kb" ]; then
+    if [ "$free_kb" -lt 1048576 ]; then
+      say "Free disk: $((free_kb / 1024)) MB. UNDER 1 GB: act now (runbook: 'If something breaks')."
+    else
+      say "Free disk: $((free_kb / 1024 / 1024)) GB."
+    fi
+  fi
+  if curl -fs -m 3 -o /dev/null "$HEALTH" 2>/dev/null; then
+    say "CORE: answering ($HEALTH)."
+  else
+    say "CORE: NOT answering at $HEALTH. Check: sudo systemctl status ltdc-erp"
+  fi
+  return 0
+}
+
+cmd_backups_every_15() {
+  need_root backups-every-15
+  install -d -m 755 "$DROPIN_DIR"
+  local tmp
+  tmp="$(mktemp)"
+  # OnCalendar= on its own first clears the hourly time from the unit; without it systemd would run
+  # both schedules. Persistent=true stays from the unit.
+  cat > "$tmp" <<'EOF'
+# Event day (sudo ltdc-erp-event backups-every-15): the off-server backup every 15 minutes, at 5, 20,
+# 35 and 50 past. Removed by: sudo ltdc-erp-event backups-hourly (or close-out).
+[Timer]
+OnCalendar=
+OnCalendar=*:05/15
+EOF
+  if [ -f "$DROPIN" ] && cmp -s "$tmp" "$DROPIN"; then
+    say "The 15-minute schedule was already in place ($DROPIN)."
+    chmod 644 "$DROPIN"
+  else
+    install -m 644 "$tmp" "$DROPIN"
+    say "Wrote $DROPIN: off-server backup every 15 minutes (5, 20, 35 and 50 past)."
+  fi
+  rm -f "$tmp"
+  reload_timer || return 1
+  say "Reloaded systemd and restarted the backup timer. Its next runs:"
+  systemctl list-timers ltdc-erp-offsite.timer --all --no-pager || true
+  say ""
+  say "Taking one off-server backup now (this takes up to a minute)..."
+  if systemctl start ltdc-erp-offsite.service; then
+    last_backup && say "Done: backups now run every 15 minutes." && return 0
+  fi
+  last_backup || true
+  say "The 15-minute schedule IS set, but the backup just now did not succeed: see above and"
+  say "Admin panel > Security monitor > Software status, then run: sudo systemctl start ltdc-erp-offsite.service"
+  return 1
+}
+
+cmd_backups_hourly() {
+  need_root backups-hourly
+  if [ ! -f "$DROPIN" ]; then
+    say "Off-server backups were already on the normal hourly schedule (no $DROPIN)."
+    return 0
+  fi
+  rm -f "$DROPIN"
+  rmdir "$DROPIN_DIR" 2>/dev/null || true
+  say "Removed $DROPIN."
+  reload_timer || return 1
+  say "Off-server backups are back to every hour at 5 past. Next run:"
+  systemctl list-timers ltdc-erp-offsite.timer --all --no-pager || true
+}
+
+cmd_freeze() {
+  need_root freeze
+  local when="${1:-}" reason="${2:-}"
+  if [ -z "$when" ] || [ -z "$reason" ]; then
+    say 'Usage: sudo ltdc-erp-event freeze <until> "<reason>"   e.g. freeze 2026-12-10T09:00:00+08:00 "YEP 2026"'
+    return 2
+  fi
+  local secs until
+  if ! secs="$(date -u -d "$when" +%s 2>/dev/null)"; then
+    say "\"$when\" is not a date and time. Write it like 2026-12-10T09:00:00+08:00 (Manila time). Nothing was changed."
+    return 2
+  fi
+  if [ "$secs" -le "$(date -u +%s)" ]; then
+    say "$when has already passed, so it would freeze nothing. Nothing was changed."
+    return 2
+  fi
+  until="$(date -u -d "@$secs" +%Y-%m-%dT%H:%M:%SZ)"
+  reason="$(printf '%s' "$reason" | tr -cd '[:print:]' | cut -c1-120)"
+  if [ ! -d "$APP/data" ]; then
+    say "$APP/data is not there: is LTDC ERP installed here? Nothing was changed."
+    return 1
+  fi
+  local tmp
+  tmp="$(mktemp "$APP/data/.DEPLOY_FREEZE.XXXXXX")"
+  # The format remote-deploy.sh's guard reads: the end time (UTC, ISO 8601) on the first line, the
+  # reason on the second. Owned like the data folder and readable by the app.
+  printf '%s\n%s\n' "$until" "$reason" > "$tmp"
+  chown --reference="$APP/data" "$tmp" 2>/dev/null || true
+  chmod 640 "$tmp"
+  mv -f "$tmp" "$FREEZE"
+  say "Deploys are frozen until $until ($(date -d "@$secs" '+%Y-%m-%d %H:%M %Z') here): $reason."
+  say "A push still runs the tests on GitHub; its deploy job fails with exit 3 and the server is not touched."
+  say "To lift it: sudo ltdc-erp-event unfreeze"
+}
+
+cmd_unfreeze() {
+  need_root unfreeze
+  if [ -f "$FREEZE" ]; then
+    rm -f "$FREEZE"
+    say "Removed $FREEZE: deploys go through again."
+  else
+    say "There was no deploy freeze ($FREEZE is not there): deploys already go through."
+  fi
+}
+
+cmd_close_out() {
+  need_root close-out
+  say "Close-out: lifting the freeze and putting the hourly backup back."
+  cmd_unfreeze
+  cmd_backups_hourly
+  local rc=$?
+  cat <<'EOF'
+
+Done on this server. Still to do by hand (deploy/aws/EVENT-DAY.md, "10 Dec: close-out"):
+  1. Resize the instance back to its usual type, if it was resized for the event (EC2 console:
+     stop, Actions > Instance settings > Change instance type, start; the Elastic IP stays).
+  2. Snapshot the staging server's disk, then terminate staging (it was the warm standby).
+  3. Hand the final event export (JSON and CSV) to the client, as agreed, and note the date.
+  4. Start the clock for deleting the guest data on the retention date: the event's records in CORE,
+     the nightly copies and the 5-minute event copies on the server (data/backups), and the
+     off-server copies (S3 deletes them after 30 days).
+  5. Write the retro and record the close-out in the dev log.
+EOF
+  return "$rc"
+}
+
+case "${1:-}" in
+  status) cmd_status ;;
+  backups-every-15) cmd_backups_every_15 ;;
+  backups-hourly) cmd_backups_hourly ;;
+  freeze) shift; cmd_freeze "$@" ;;
+  unfreeze) cmd_unfreeze ;;
+  close-out) cmd_close_out ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 2 ;;
+esac

@@ -11,9 +11,9 @@ APP="${LTDC_APP:-/opt/ltdc-erp}" # LTDC_APP: tests only
 
 # Deploy freeze (0.71, for events such as YEP 2026): while $APP/data/DEPLOY_FREEZE exists and its
 # end time has not passed, nothing is installed or restarted. The file holds the end time (ISO 8601,
-# first line) and the reason (second line); CORE writes it from Event control, or an operator with
-# `sudo bash -c 'printf "2026-12-10T01:00:00Z\nYEP 2026" > /opt/ltdc-erp/data/DEPLOY_FREEZE'`.
-# To deploy during a freeze anyway, an operator removes the file first (sudo rm ...DEPLOY_FREEZE).
+# first line) and the reason (second line); an operator writes it with
+# `sudo ltdc-erp-event freeze 2026-12-10T09:00:00+08:00 "YEP 2026"` (0.74.3, deploy/aws/EVENT-DAY.md).
+# To deploy during a freeze anyway, an operator removes it first (sudo ltdc-erp-event unfreeze).
 # This runs before anything else, so a frozen deploy changes nothing on the server.
 FREEZE="$APP/data/DEPLOY_FREEZE"
 if [ -f "$FREEZE" ]; then
@@ -49,6 +49,10 @@ systemctl enable --now ltdc-erp-offsite.timer ltdc-erp-restore-check.timer >/dev
 
 # One command back to the release before this one (0.71): sudo ltdc-erp-rollback.
 install -m 755 "$SRC/deploy/aws/ltdc-erp-rollback" /usr/local/sbin/ltdc-erp-rollback
+# Event-day switches (0.74.3): sudo ltdc-erp-event status | backups-every-15 | backups-hourly | freeze |
+# unfreeze | close-out (deploy/aws/EVENT-DAY.md). Only installed here, never run by a deploy; it must be
+# on the server before a freeze, as a frozen server takes no deploys.
+install -m 755 "$SRC/deploy/aws/ltdc-erp-event" /usr/local/sbin/ltdc-erp-event
 
 # The web addresses (0.73.1): Caddy's sites and the app's ALLOWED_HOSTS, from deploy/aws/site-address.
 # Before update.sh, so the app's restart picks up a new address. A problem here never stops the deploy:

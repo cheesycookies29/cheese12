@@ -115,7 +115,11 @@ export function s3Client({ bucket, region, creds, owner = null, endpoint = '', f
 const pad = (n) => String(n).padStart(2, '0');
 // hourly/2026-11-18/09: the hour's folder in the server's time zone (Asia/Manila on the server).
 export const hourPrefix = (d = new Date()) => `hourly/${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}/${pad(d.getHours())}`;
-export const PREFIX_RE = /^hourly\/\d{4}-\d{2}-\d{2}\/\d{2}$/;
+// hourly/2026-12-09/19/20: a further copy in the same hour, in a folder for its minute (0.74.3). On an
+// event day the copy runs every 15 minutes (deploy/aws/ltdc-erp-event backups-every-15); the hour's
+// first copy keeps the hour's folder, the others go in minute folders under it.
+export const minutePrefix = (d = new Date()) => `${hourPrefix(d)}/${pad(d.getMinutes())}`;
+export const PREFIX_RE = /^hourly\/\d{4}-\d{2}-\d{2}\/\d{2}(\/\d{2})?$/;
 
 function writeStatus(file, status) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -169,7 +173,9 @@ export async function runOffsiteBackup({ dataDir, now = new Date(), credentials 
     const key = manifestKey(dataDir);
     const s3 = await clientFor({ client, credentials });
     status.bucket = s3.bucket;
-    const prefix = hourPrefix(now);
+    // The hour's folder, or, when the hour already has its copy (every 15 minutes on an event day),
+    // a folder for this minute under it. Nothing is ever replaced: each upload is conditional.
+    let prefix = hourPrefix(now);
     const files = [];
     // The audit log's sealed head first, then the log: a line added in between leaves the log longer
     // than the head says, which the chain check accepts; the other order would look like a cut.
@@ -178,8 +184,12 @@ export async function runOffsiteBackup({ dataDir, now = new Date(), credentials 
       if (!fs.existsSync(file)) continue;
       // The data file is replaced in one step when saved, so this read is one whole version of it.
       const body = fs.readFileSync(file);
-      const put = await s3.put(`${prefix}/${name}`, body, type);
-      if (put.existed && name === 'db.json') throw Object.assign(new Error(`This hour (${prefix}) is already copied; the next copy is at 5 past the next hour.`), { already: true });
+      let put = await s3.put(`${prefix}/${name}`, body, type);
+      if (put.existed && name === 'db.json' && prefix === hourPrefix(now)) {
+        prefix = minutePrefix(now);
+        put = await s3.put(`${prefix}/${name}`, body, type);
+      }
+      if (put.existed && name === 'db.json') throw Object.assign(new Error(`This hour (${hourPrefix(now)}) and this minute (${prefix}) are already copied; the next copy is at the next scheduled time.`), { already: true });
       files.push({ name, bytes: body.length, sha256: sha256(body) });
     }
     if (!files.some((u) => u.name === 'db.json')) throw new Error(`No data file in ${dataDir}.`);
@@ -246,9 +256,10 @@ export async function runOffsiteBackup({ dataDir, now = new Date(), credentials 
 
 // Fetch one hour's copy into a folder after checking it: the manifest's seal (needs the server key
 // in dataDir), then each file's size and SHA-256; attached files too unless attachments is false.
-// For a restore (deploy/aws/RESTORE.md) and the nightly restore check. prefix: e.g. hourly/2026-11-18/09.
+// For a restore (deploy/aws/RESTORE.md) and the nightly restore check. prefix: e.g. hourly/2026-11-18/09
+// (or hourly/2026-12-09/19/20, a copy taken every 15 minutes on an event day).
 export async function fetchOffsiteCopy({ prefix, dest, dataDir, attachments = true, client = null, credentials = instanceCredentials }) {
-  if (!PREFIX_RE.test(prefix || '')) throw new Error('Give the hour to restore, e.g. hourly/2026-11-18/09 (S3 console → the bucket → hourly → the day → the hour).');
+  if (!PREFIX_RE.test(prefix || '')) throw new Error('Give the hour to restore, e.g. hourly/2026-11-18/09, or a minute folder in it, e.g. hourly/2026-12-09/19/20 (S3 console → the bucket → hourly → the day → the hour).');
   const key = manifestKey(dataDir);
   const s3 = await clientFor({ client, credentials });
   let manifest;

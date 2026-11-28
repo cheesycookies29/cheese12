@@ -221,9 +221,13 @@ test('C3-2: an hour is never overwritten, and its manifest is sealed with a key 
   const before = Buffer.from(b.s3.objects.get(`${b.bucket}/${b.prefix}/db.json`));
   b.db.data.employees.push({ id: 'x' });
   b.db.save?.();
+  // (0.74.3: a second copy in the hour goes into the minute's folder; the same minute again is refused.)
   const again = await runOffsiteBackup({ dataDir: b.dir, now: b.now, client: b.s3.client() });
-  assert.equal(again.ok, false);
+  assert.equal(again.prefix, `${b.prefix}/05`);
+  const third = await runOffsiteBackup({ dataDir: b.dir, now: b.now, client: b.s3.client() });
+  assert.equal(third.ok, false);
   assert.deepEqual(b.s3.objects.get(`${b.bucket}/${b.prefix}/db.json`), before);
+  assert.deepEqual(b.s3.objects.get(`${b.bucket}/${b.prefix}/05/db.json`), fs.readFileSync(path.join(b.dir, 'db.json')));
   // The seal: made with this server's key, checked in constant time; another key or a change fails.
   const m = JSON.parse(b.s3.objects.get(`${b.bucket}/${b.prefix}/manifest.json`));
   const key = manifestKey(b.dir);

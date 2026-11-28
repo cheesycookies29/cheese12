@@ -42,6 +42,7 @@ import { APP_VERSION } from '../shared/devlog.js';
 import { buildInfo } from './build.js';
 import { createMonitor } from './monitor.js';
 import { registerMonitorRoutes } from './monitor-panel.js';
+import { createPerf } from './perf.js';
 import { syncDevlog, registerDevlogRoutes } from './devlog.js';
 import { registerCustomApp } from './customapp/index.js';
 import { CA_COLLECTIONS } from './customapp/events/model.js';
@@ -542,6 +543,9 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock, eve
   // the process, in buckets of fixed size (server/monitor.js).
   let handlePdf = null;
   const monitor = createMonitor(db.dir, { sessions: () => sessions.active() });
+  // db.save() times and the event loop's delay, for the event load tests (server/perf.js, 0.74.3).
+  const perf = createPerf();
+  db.onSaved = perf.recordSave;
   const audit = createAudit(db.dir, {
     onRecord: (entry) => monitor.audit(entry),
     key: () => secrets.derive('core-audit-chain-v1'),
@@ -1421,6 +1425,9 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock, eve
   const admin = registerAdminRoutes(route, db, { invoke, audit, sessionCount: (id) => sessions.list(id).length, openEvents: customapp.openEvents });
   // Admin panel → Security monitor, the health check and the metrics export (0.34).
   registerMonitorRoutes(route, { db, monitor, audit, sec, rateLimits, routes, sessions: () => sessions.active() });
+  // The load test's server side (scripts/event-load.mjs, 0.74.3): save() p95 and event-loop delay p99
+  // since a moment (?since=ms). A read for the Security monitor's permission; never audited.
+  route('GET', '/api/admin/perf', 'security.monitor', ({ query }) => perf.snapshot({ since: Number(query.since) || 0 }));
   // ----- Audit log (Administrators) -----
   route('GET', '/api/audit', 'audit.view', ({ query }) => ({ ...audit.list(query), users: users().map((u) => ({ id: u.id, name: u.name })) }));
   route('GET', '/api/audit/verify', 'audit.view', () => audit.verify());
@@ -1524,6 +1531,7 @@ export function createApi(db, { rateLimits = false, digestMail, digestClock, eve
   handle.documents = docs;
   handle.forms = forms;
   handle.monitor = monitor;
+  handle.perf = perf;
   // CUSTOM APP's guest-page gate and safety nets (tests read them).
   handle.customapp = customapp;
   handle.projects = projects;

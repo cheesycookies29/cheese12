@@ -122,11 +122,22 @@ test('the hourly copy: data file, audit log and head, attached files once; failu
   assert.match(manifest.mac, /^[0-9a-f]{64}$/);
   assert.deepEqual(manifest.files.map((f) => f.name), ['db.json', 'audit-head.json', 'audit-log.jsonl']);
   assert.deepEqual(Object.keys(manifest.attachments), ['cert-1.pdf']);
-  // The same hour again: nothing is replaced.
-  const again = await runOffsiteBackup({ dataDir: dir, now, client: s3.client() });
-  assert.equal(again.ok, false);
-  assert.match(again.error, /already copied/);
-  assert.equal(again.lastOk.prefix, prefix);
+  // The same hour again (every 15 minutes on an event day, 0.74.3): the hour's copy is not replaced;
+  // this one goes into a folder for its minute, with its own sealed manifest, and can be fetched.
+  const quarter = new Date(2026, 10, 18, 9, 20);
+  const again = await runOffsiteBackup({ dataDir: dir, now: quarter, client: s3.client() });
+  assert.equal(again.ok, true, again.error);
+  assert.equal(again.prefix, 'hourly/2026-11-18/09/20');
+  assert.deepEqual(s3.objects.get(`${bucket}/${prefix}/db.json`), fs.readFileSync(path.join(dir, 'db.json')), 'the hour\'s copy is untouched');
+  assert.equal(JSON.parse(s3.objects.get(`${bucket}/hourly/2026-11-18/09/20/manifest.json`)).prefix, 'hourly/2026-11-18/09/20');
+  assert.equal(again.lastOk.prefix, 'hourly/2026-11-18/09/20');
+  const back = fs.mkdtempSync(path.join(os.tmpdir(), 'core-quarter-'));
+  assert.deepEqual((await fetchOffsiteCopy({ prefix: 'hourly/2026-11-18/09/20', dest: back, dataDir: dir, attachments: false, client: s3.client() })).files, ['db.json', 'audit-head.json', 'audit-log.jsonl']);
+  // The same minute again: nothing is replaced, and the last good copy is still known.
+  const twice = await runOffsiteBackup({ dataDir: dir, now: quarter, client: s3.client() });
+  assert.equal(twice.ok, false);
+  assert.match(twice.error, /already copied/);
+  assert.equal(twice.lastOk.prefix, 'hourly/2026-11-18/09/20');
   // An attached file goes once.
   const second = await runOffsiteBackup({ dataDir: dir, now: new Date(2026, 10, 18, 10, 5), client: s3.client() });
   assert.equal(second.attachments.new, 0);

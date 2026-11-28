@@ -7,7 +7,7 @@ this page where you can reach it without the server (it is also in the repositor
 
 | Copy | Where | How often | Kept |
 |---|---|---|---|
-| Off-server copy (0.38) | S3 bucket `ltdc-erp-backups-<account id>`, folder `hourly/<day>/<hour>/` | Every hour, at 5 past | 30 days; never overwritten |
+| Off-server copy (0.38) | S3 bucket `ltdc-erp-backups-<account id>`, folder `hourly/<day>/<hour>/` | Every hour, at 5 past. On an event day every 15 minutes (`sudo ltdc-erp-event backups-every-15`, EVENT-DAY.md): the hour's later copies are in minute folders inside it, `hourly/<day>/<hour>/<minute>/` | 30 days; never overwritten |
 | Attached files | the same bucket, folder `attachments/` | Every hour, new files only | Until removed by hand (a file deleted in CORE is no longer listed with later hours, so it does not come back on a restore; remove it from the bucket in the S3 console when it must be erased) |
 | Documents (0.67) | the same bucket, folder `documents/` | Every hour, new files only | As attached files. They are encrypted with keys made from the server key: without `secret.key` they cannot be read, even from the bucket |
 | Nightly copy | `/opt/ltdc-erp/data/backups/db-<date>.json` on the server | 2:15 AM | 30 days |
@@ -54,7 +54,8 @@ Everything after the hour you go back to is lost, so pick the latest hour before
 tell people what will be redone.
 
 1. In the AWS console, open **S3 → `ltdc-erp-backups-…` → hourly → the day**, and note the hour
-   folder to go back to, for example `hourly/2026-11-18/09`.
+   folder to go back to, for example `hourly/2026-11-18/09` (or a minute folder inside it, such as
+   `hourly/2026-12-09/19/20`, when copies were taken every 15 minutes).
 2. Connect to the server (EC2.md, step 12, or **Systems Manager → Session Manager → Start session**)
    and fetch that hour into a folder:
 

@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { performance } from 'node:perf_hooks';
 import { keepPrivate } from './util.js';
 import { DEFAULT_SETTINGS, DEFAULT_RATES, premiumsOf } from '../shared/calc.js';
 import { DEFAULT_LEAVE_TYPES } from '../shared/leave.js';
@@ -129,11 +130,15 @@ export function openDb(file) {
       data = { ...emptyData(), ...next, settings: mergeSettings(next.settings) };
       db.save();
     },
+    // Told how long each save took, in milliseconds (server/perf.js, for the event load tests).
+    onSaved: null,
     save() {
+      const t0 = performance.now();
       const tmp = `${file}.tmp`;
       fs.writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
       keepPrivate(tmp); // a temp file left by an older build keeps its old mode otherwise
       fs.renameSync(tmp, file);
+      if (db.onSaved) db.onSaved(performance.now() - t0);
     },
   };
   if (!fs.existsSync(file)) db.save();

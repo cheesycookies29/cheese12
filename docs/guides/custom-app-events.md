@@ -331,7 +331,7 @@ Keep calm: the paper pack and the export are the fallback, and nothing is lost b
 
 > **Staff desk card:** Standby address: (written in by the on-call developer). If the app restarts you'll be signed out. Sign in again and you'll land back on your queue. If CORE cannot be reached, use the offline pack: seat only at your own tables, and write each arrival and seat with the time.
 
-On the day (for the Super Administrator and the on-call developer):
+On the day (for the Super Administrator and the on-call developer; the on-call developer's printed runbook, with every server command, the load tests, the deploy freeze and the close-out, is `deploy/aws/EVENT-DAY.md` in CORE's repository):
 
 - **Three hours before:** the deploy freeze is on; a fresh off-server backup is confirmed in the Security monitor; the standby is topped up; a test guest is checked in, seated (and their seat email arrives at the test address) and checked out again; the newest event export is under 5 minutes old and on the laptop; the offline pack is printed (every page stamped *as of*); staff devices are signed in, on the 4G hotspot, charged.
 - **Doors:** turn on **Self check-in open**.
