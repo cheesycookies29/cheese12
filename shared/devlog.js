@@ -29,6 +29,17 @@ export const CHANGE_TYPES = { new: 'Added', improved: 'Changed', fixed: 'Fixed' 
 
 export const DEVLOG = [
   {
+    version: '0.74.1-alpha',
+    date: '2026-11-28',
+    title: 'Event emails have their own switch on the outgoing mail server',
+    modules: ['customapp', 'system'],
+    notes: 'With Amazon SES set up for ltdc-core.com, turning outgoing email on for the event also sent the helpdesk\'s mail (from mroca@lancastertechdev.com, a Google Workspace domain with DMARC p=quarantine, strict alignment) through SES, where it failed DMARC and landed in spam. The one switch is now two. server/mail/transport.js canSendEvents().',
+    changes: [
+      ['improved', 'customapp', 'Sending email has "Use for CUSTOM APP event emails" (outgoing.events) beside "Send replies by email" (outgoing.enabled): the event outbox, the invitation sends, the test send and Event control\'s canEmail use transport.canSendEvents(); the helpdesk, its acknowledgements and the Projects digest keep canSend(). Settings saved before 0.74.1 have no events switch and follow the helpdesk\'s; a save that does not mention it keeps it. The badge says On, Replies only, Events only or Off. The restore check\'s copy turns both off.'],
+      ['improved', 'system', 'Guides: Set up email with Amazon SES (which switch, and why a helpdesk address on another domain stays off), the Service Desk\'s sending set-up, and the events guide.'],
+    ],
+  },
+  {
     version: '0.74.0-alpha',
     date: '2026-11-27',
     title: 'CUSTOM APP: invitations by email with a QR code, seat on Yes, and check-in by the invitation',

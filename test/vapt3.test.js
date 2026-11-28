@@ -288,7 +288,7 @@ test('C3-8: the copy the restore check starts never sends mail or reads the mail
   const later = new Date(2026, 10, 19, 10, 5);
   assert.equal((await runOffsiteBackup({ dataDir: b.dir, now: later, client: b.s3.client() })).ok, true);
   const src = fs.readFileSync(path.join(ROOT, 'server', 'restore-check.js'), 'utf8');
-  for (const s of ['mailbox.enabled = false', 'outgoing.enabled = false', 'digest.enabled = false']) assert.ok(src.includes(s), s);
+  for (const s of ['mailbox.enabled = false', 'outgoing.enabled = false', 'outgoing.events = false', 'digest.enabled = false']) assert.ok(src.includes(s), s);
   const r = await runRestoreCheck({ dataDir: b.dir, client: b.s3.client() });
   assert.equal(r.ok, true, r.error);
   assert.equal(r.source, 's3');

@@ -6,7 +6,13 @@
 // It is only the connection: each sender chooses its own From. The helpdesk sends from its mailbox
 // address; an event sends from its own address (never the helpdesk mailbox, so guests' replies do
 // not become tickets).
-//   canSend()        outgoing email is turned on and has a host
+//   canSend()        the helpdesk may send (replies, acknowledgements, the Projects digest): its
+//                    switch, "Send replies by email", is on and there is a host
+//   canSendEvents()  CUSTOM APP's events may send (0.74.1): their own switch, "Use for CUSTOM APP event
+//                    emails", is on and there is a host. The two are separate because each sender
+//                    uses its own From: an SMTP service set up for the events' domain (Amazon SES for
+//                    ltdc-core.com) would put helpdesk mail from another domain in spam (DMARC).
+//                    Settings saved before 0.74.1 have no events switch: it follows the helpdesk's.
 //   options()        what server/mail/smtp.js sendMail() takes: { host, port, secure, starttls, user, password, tlsOptions }
 //   mailboxAddress() the helpdesk's own address (which other senders must not use as From)
 export function mailTransport(db, { secrets, tls = () => undefined } = {}) {
@@ -19,6 +25,10 @@ export function mailTransport(db, { secrets, tls = () => undefined } = {}) {
   };
   return {
     canSend: () => Boolean(hd().outgoing?.enabled && hd().outgoing?.host),
+    canSendEvents: () => {
+      const o = hd().outgoing || {};
+      return Boolean((o.events ?? o.enabled) && o.host);
+    },
     options() {
       const o = hd().outgoing || {};
       return { host: o.host, port: o.port, secure: o.security === 'tls', starttls: o.security === 'starttls', ...login(), tlsOptions: tls() };

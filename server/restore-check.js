@@ -71,7 +71,7 @@ export async function runRestoreCheck({ dataDir, now = new Date(), credentials =
     {
       const d0 = JSON.parse(copy.files['db.json'].toString('utf8'));
       if (d0.helpdesk?.mailbox) d0.helpdesk.mailbox.enabled = false;
-      if (d0.helpdesk?.outgoing) d0.helpdesk.outgoing.enabled = false;
+      if (d0.helpdesk?.outgoing) { d0.helpdesk.outgoing.enabled = false; d0.helpdesk.outgoing.events = false; }
       if (d0.pm?.digest) d0.pm.digest.enabled = false;
       fs.writeFileSync(path.join(tmp, 'db.json'), JSON.stringify(d0), { mode: 0o600 });
     }

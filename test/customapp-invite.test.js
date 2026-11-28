@@ -418,7 +418,7 @@ describe('Invitations through CORE', () => {
     const db = fixture({ tables: [{ n: 3 }], guests: [{ ref: 'A' }], settings: { emailFrom: 'events@ltdc-core.com', autoSeatOnConfirm: true }, flags: { emailPaused: false } });
     db.data.caEvents[0].status = 'live';
     const sent = [];
-    const ob = createOutbox(db, { transport: { canSend: () => true, options: () => ({}), mailboxAddress: () => 'helpdesk@company.com' }, send: async (o, m) => sent.push(m), saveEveryMs: 10 });
+    const ob = createOutbox(db, { transport: { canSend: () => true, canSendEvents: () => true, options: () => ({}), mailboxAddress: () => 'helpdesk@company.com' }, send: async (o, m) => sent.push(m), saveEveryMs: 10 });
     const ctx = createCommitContext(db, { now: () => '2026-12-01T03:00:00.000Z', afterCommit: ob.afterCommit });
     const issue = (n) => ({ guestId: 'g-A', hash: inviteHashOf(tok(n)), sealed: ob.vault.seal(tok(n)) });
     commitAs(ctx, 'ev1', USERS.lead, { type: 'invite', issues: [issue(1)], base: 'https://ltdc-core.com' });
@@ -438,7 +438,7 @@ describe('Invitations through CORE', () => {
     assert.equal(parseMessage(sent[1].raw).attachments.length, 0);
     commitAs(ctx, 'ev1', { synthetic: 'rsvp' }, { type: 'rsvp', guestId: 'g-A', answer: 'no', inviteHash: inviteHashOf(tok(2)) });
     // A Yes, then the reply email fails: the seat stays.
-    const failing = createOutbox(db, { transport: { canSend: () => true, options: () => ({}), mailboxAddress: () => '' }, send: async () => { throw new Error('Sending failed: 554 rejected'); }, saveEveryMs: 10 });
+    const failing = createOutbox(db, { transport: { canSend: () => true, canSendEvents: () => true, options: () => ({}), mailboxAddress: () => '' }, send: async () => { throw new Error('Sending failed: 554 rejected'); }, saveEveryMs: 10 });
     const ctx2 = createCommitContext(db, { now: () => '2026-12-01T04:00:00.000Z', afterCommit: failing.afterCommit });
     commitAs(ctx2, 'ev1', { synthetic: 'rsvp' }, { type: 'rsvp', guestId: 'g-A', answer: 'yes', inviteHash: inviteHashOf(tok(2)) });
     await failing.drain();

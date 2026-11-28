@@ -759,12 +759,12 @@ export function registerHelpdeskRoutes(route, db, { files, secrets, linkedEmploy
   route('PUT', '/api/helpdesk/settings/outgoing', 'helpdesk.manage', ({ body }) => {
     const o = hd().outgoing;
     const next = {
-      ...o, enabled: Boolean(body.enabled), host: host(body.host, 'Outgoing mail'), port: port(body.port ?? 587, 'Outgoing mail'), security: security(body.security),
+      ...o, enabled: Boolean(body.enabled), events: body.events === undefined ? o.events : Boolean(body.events), host: host(body.host, 'Outgoing mail'), port: port(body.port ?? 587, 'Outgoing mail'), security: security(body.security),
       sameLogin: body.sameLogin !== false, user: str(body.user, 200),
     };
     if (body.password) next.passwordSealed = secrets.seal(String(body.password));
     if (body.clearPassword) next.passwordSealed = null;
-    if (next.enabled && !next.host) throw new HttpError(400, 'Enter the outgoing mail (SMTP) server.');
+    if ((next.enabled || next.events) && !next.host) throw new HttpError(400, 'Enter the outgoing mail (SMTP) server.');
     if (next.enabled && !EMAIL_RE.test(hd().mailbox.address)) throw new HttpError(400, 'Set the helpdesk email address first; replies are sent from it.');
     hd().outgoing = next;
     db.save();

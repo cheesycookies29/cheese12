@@ -129,7 +129,7 @@ Each guest gets their own invitation by email: a button and the address of their
 
 Before the first invitation:
 
-1. Outgoing email is set up for CORE under **IT Service Desk → Settings → Sending email** (with Amazon SES: see [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses)).
+1. Outgoing email is set up for CORE under **IT Service Desk → Settings → Sending email**, with **Use for CUSTOM APP event emails** ticked (with Amazon SES: see [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses)). It is separate from the helpdesk's **Send replies by email**.
 2. **Setup → Event**: **Email from** is the event's own address on the domain set up for email (for example *events@ltdc-core.com*), never the IT Service Desk's mailbox, and **Status** is *Live* (the links answer only while the event is live).
 3. **Event control → Invitations → Invitation settings…**: the **Subject**, the **Opening text**, the **Time**, **Venue** and **Dress code** shown with the date, **Reply by** (Manila time), and **Seat on Yes** (on unless you turn it off). Leave **Public address for the links** empty to use the address you are using CORE on (*https://ltdc-core.com*); the links then point there.
 4. **Preview** shows the email as a guest gets it. **Send a test…** sends one now, from the event's address, to any address you type: try a Gmail, an Outlook and a Yahoo address, and check it arrives in the inbox with the QR code showing. The test's link does not work.

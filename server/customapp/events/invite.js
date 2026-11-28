@@ -196,7 +196,7 @@ export function registerInviteRoutes(route, db, { ctx, gate, limits = { hit() {}
     const domain = from.split('@')[1] || '';
     if (from && host && domain && !(host === domain || host.endsWith(`.${domain}`) || domain.endsWith(`.${host}`))) add('other_domain', 'warn', `The From address (${from}) is not on the site's domain (${host}). Send from an address on the domain you verified for email, or mail may go to spam.`);
     if (!host || /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1)/.test(host) || /^http:/.test(linkBase)) add('local_link', 'warn', `The links would point to ${linkBase || 'nowhere'}, which guests cannot open. Open CORE at its public address (https://…) to send, or set the public address below.`);
-    if (!outbox?.transport?.canSend()) add('no_transport', ev.flags?.emailPaused ? 'warn' : 'block', 'Outgoing email is not set up (IT Service Desk → Settings → Sending email). Invitations can be queued while email is paused, and go when it is set up and turned on.');
+    if (!outbox?.transport?.canSendEvents()) add('no_transport', ev.flags?.emailPaused ? 'warn' : 'block', 'Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for CUSTOM APP event emails). Invitations can be queued while email is paused, and go when it is set up and turned on.');
     if (ev.flags?.emailPaused) add('paused', 'info', 'Email is paused (Event control → Switches): invitations wait in the outbox until you turn it on.');
     if (!seatsOnYes(ev)) add('no_auto_seat', 'info', 'Seat on Yes is off: guests who say Yes wait in the exceptions inbox for you to reserve their seat.');
     return out;
@@ -213,7 +213,7 @@ export function registerInviteRoutes(route, db, { ctx, gate, limits = { hit() {}
       settings: { ...(ev.settings?.invitation || {}), autoSeatOnConfirm: seatsOnYes(ev) }, venue: ev.venue || '', date: ev.date || '',
       from: ev.settings?.emailFrom || '', replyTo: ev.settings?.replyTo || '', linkBase, origin: origin || '', rsvpClosesAt: rsvpClosesAt(ev),
       warnings: warningsOf(ev, linkBase), counts: invitationCounts(state), outbox: outbox ? outbox.depth(ev.id, 'invitation') : null,
-      emailPaused: Boolean(ev.flags?.emailPaused), canEmail: Boolean(outbox?.transport?.canSend()), rev: ev.rev || 0,
+      emailPaused: Boolean(ev.flags?.emailPaused), canEmail: Boolean(outbox?.transport?.canSendEvents()), rev: ev.rev || 0,
       guests: list.map((g) => ({
         id: g.id, ref: g.ref, name: g.name?.display || '', company: g.company || '', classification: g.classification, hasEmail: Boolean(g.email), email: maskEmail(g.email),
         rsvpStatus: rsvpStatusOf(g), rsvpLabel: RSVP_LABELS[rsvpStatusOf(g)], listRsvp: g.rsvpReply ? '' : g.rsvp || '', rsvpAt: g.rsvpReply?.at || null,
@@ -271,7 +271,7 @@ export function registerInviteRoutes(route, db, { ctx, gate, limits = { hit() {}
     const from = String(ev.settings?.emailFrom || '').toLowerCase();
     if (!EMAIL_RE.test(from)) throw bad('Set the event\'s From address first (Setup → Event → Email from).');
     if (from === helpdeskAddress()) throw bad('The From address is the IT Service Desk mailbox. Use the event\'s own address.');
-    if (!outbox?.transport?.canSend()) throw bad('Outgoing email is not set up (IT Service Desk → Settings → Sending email).');
+    if (!outbox?.transport?.canSendEvents()) throw bad('Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for CUSTOM APP event emails).');
     limits.hit('sensitive', user.id, 'Too many test emails. Wait a minute.');
     const msg = invitationMessage(ev, { id: 'test', name: { first: user.name, last: '', display: user.name }, email: to });
     const link = inviteLink(linkBaseOf(ev, origin), ev.code, 'TEST-LINK-FROM-EVENT-CONTROL-does-not-answer');

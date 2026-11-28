@@ -189,7 +189,7 @@ export function createOutbox(db, { transport, send = smtpSend, now = () => Date.
   async function sendOne(m) {
     const ev = eventOf(m.eventId);
     const from = String(ev?.settings?.emailFrom || '').toLowerCase();
-    if (!transport?.canSend()) return fail(m, 'Outgoing email is not set up (IT Service Desk → Settings → Sending email).');
+    if (!transport?.canSendEvents()) return fail(m, 'Outgoing email is not set up for events (IT Service Desk → Settings → Sending email → Use for CUSTOM APP event emails).');
     if (!EMAIL_RE.test(from)) return fail(m, 'The event has no From address (Setup → Event → Email from).');
     if (from === transport.mailboxAddress()) return fail(m, 'The event\'s From address is the IT Service Desk mailbox; use the event\'s own address.');
     const attempts = (m.attempts || 0) + 1;

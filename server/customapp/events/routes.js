@@ -63,7 +63,7 @@ export function registerEventRoutes(route, db, { ctx, audit, requirePassword = (
   // the 429s in the last 15 minutes and the 60 s rules check (a violation shows a banner).
   const healthOf = (ev) => ({
     seq: ev.seq || 0, saveP95Ms: saveP95(ctx), saves: ctx.saveMs?.length || 0, outbox: outbox ? outbox.depth(ev.id) : null,
-    emailPaused: Boolean(ev.flags?.emailPaused), canEmail: Boolean(outbox?.transport?.canSend()), tooMany: count429(ev.id),
+    emailPaused: Boolean(ev.flags?.emailPaused), canEmail: Boolean(outbox?.transport?.canSendEvents()), tooMany: count429(ev.id),
     ...(safety ? safety.health(ev.id) : { copy: null, check: null }),
   });
 

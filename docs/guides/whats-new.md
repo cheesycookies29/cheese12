@@ -9,6 +9,9 @@ order: 2
 
 ## November 2026
 
+### Event emails have their own switch (0.74.1)
+- **IT Service Desk → Settings → Sending email** has two switches: **Send replies by email** for the helpdesk and the Projects digest, and **Use for CUSTOM APP event emails** for invitations and seat emails. Event invitations can go through Amazon SES from the event's own domain without the helpdesk's mail (from another domain) going through it and landing in spam. Settings saved before keep working as they did until changed. See [Set up email with Amazon SES](admin#set-up-email-with-amazon-ses).
+
 ### CUSTOM APP: invitations by email, seat on Yes, and check-in by the invitation (0.74)
 - **Invitations**: from **Event control → Invitations**, every guest with an email address gets their own invitation, with a personal link as a button, as an address and as a QR code, from the event's own address. **Preview**, **Send a test…** to any address, **Send invitations**, and **Send again** (a new link) for one guest. Counts of waiting, sent, failed and opened invitations and the answers; guests without an email address are listed. See [Send the invitations](custom-app-events#send-the-invitations-super-administrator).
 - **Seat on Yes**: on their link the guest answers **Yes, I will attend** or **No, I can't attend**, and can change it until replies close. On Yes their seat is reserved at once (the best table for them, its lowest open chair), shown on the page and emailed with the table, the seat and the QR code. Preferred guests keep their reserved seats; a reservation is never released by CORE except the one a guest's own Yes made. Guests who said Yes with no seat left, or No while holding a reservation, are in **Exceptions**. **Find guest** filters by the answer, and the guest sheet has **Reserve a seat…**, **Record Yes** and **Record No**. See [The guest's answer, and seat on Yes](custom-app-events#the-guest-s-answer-and-seat-on-yes).

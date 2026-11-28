@@ -16,7 +16,7 @@ import { mailTransport } from '../server/mail/transport.js';
 const ROOT = new URL('..', import.meta.url);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // A transport that can send (as if Outgoing email were set up), and a send() that records.
-const okTransport = (mailbox = 'helpdesk@company.com') => ({ canSend: () => true, options: () => ({ host: 'mail.test', port: 25 }), mailboxAddress: () => mailbox });
+const okTransport = (mailbox = 'helpdesk@company.com') => ({ canSend: () => true, canSendEvents: () => true, options: () => ({ host: 'mail.test', port: 25 }), mailboxAddress: () => mailbox });
 function recorder(fail = () => null) {
   const sent = [];
   const send = async (opts, mail) => {
@@ -59,6 +59,43 @@ describe('US-023: Email outbox', () => {
     db.data.helpdesk.outgoing.enabled = false;
     assert.equal(t.canSend(), false);
     assert.equal(c.handle.customapp.outbox.transport.canSend(), false, 'no outgoing email set up in a new CORE');
+    assert.equal(c.handle.customapp.outbox.transport.canSendEvents(), false);
+  });
+
+  test('0.74.1: event emails and helpdesk replies have separate switches on the same server', async () => {
+    const db = { data: { helpdesk: { mailbox: { address: 'mroca@lancastertechdev.com' }, outgoing: { enabled: true, host: 'email-smtp.ap-southeast-1.amazonaws.com', port: 587, security: 'starttls' } } } };
+    const t = mailTransport(db, { secrets: { open: () => '' } });
+    // Settings saved before 0.74.1 (no events switch): events follow the helpdesk, as they did.
+    assert.equal(t.canSendEvents(), true);
+    db.data.helpdesk.outgoing.enabled = false;
+    assert.equal(t.canSendEvents(), false);
+    // Events only: invitations go, helpdesk mail (another domain, which would land in spam) does not.
+    db.data.helpdesk.outgoing.events = true;
+    assert.equal(t.canSendEvents(), true);
+    assert.equal(t.canSend(), false);
+    // Replies only.
+    Object.assign(db.data.helpdesk.outgoing, { enabled: true, events: false });
+    assert.equal(t.canSend(), true);
+    assert.equal(t.canSendEvents(), false);
+    // No server: neither.
+    Object.assign(db.data.helpdesk.outgoing, { events: true, host: '' });
+    assert.equal(t.canSend(), false);
+    assert.equal(t.canSendEvents(), false);
+
+    // Through the settings page: events on, replies off, and no helpdesk address needed for that.
+    const c = await company();
+    const admin = c.admin;
+    const r = await admin('PUT', '/api/helpdesk/settings/outgoing', { enabled: false, events: true, host: 'email-smtp.ap-southeast-1.amazonaws.com', port: 587, security: 'starttls', sameLogin: false, user: 'AKIAEXAMPLE', password: 'pw' });
+    assert.equal(r.outgoing.events, true);
+    assert.equal(r.outgoing.enabled, false);
+    assert.equal(c.handle.customapp.outbox.transport.canSendEvents(), true);
+    assert.equal(c.handle.customapp.outbox.transport.canSend(), false);
+    // A save that does not mention events (an older page) leaves the switch as it is.
+    const r2 = await admin('PUT', '/api/helpdesk/settings/outgoing', { enabled: false, host: 'email-smtp.ap-southeast-1.amazonaws.com', port: 587, security: 'starttls', sameLogin: false, user: 'AKIAEXAMPLE' });
+    assert.equal(r2.outgoing.events, true);
+    const refused = await admin('PUT', '/api/helpdesk/settings/outgoing', { enabled: false, events: true, host: '', port: 587, security: 'starttls' });
+    assert.equal(refused.status, 400);
+    assert.match(refused.error, /Enter the outgoing mail/);
   });
 
   test('GIVEN a seat confirmed or changed for guests with and without an address WHEN afterCommit runs THEN an assignment or update message is queued after the save with a body from the seat snapshot, and the guest with no address is marked not applicable', () => {

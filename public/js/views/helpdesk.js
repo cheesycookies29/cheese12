@@ -507,9 +507,10 @@ export async function helpdeskSettingsView(el) {
 
   function outgoingTab() {
     const o = s.outgoing;
+    const ev = o.events ?? o.enabled;
     return html`<section class="card">
-      <div class="card-head"><h2>Sending email</h2>${o.enabled ? badge('On', 'green') : badge('Off', 'gray')}</div>
-      <p class="muted">Used for agents' replies and the acknowledgement sent when a ticket arrives by email. Without it, replies appear only in the user's portal.</p>
+      <div class="card-head"><h2>Sending email</h2>${o.enabled && ev ? badge('On', 'green') : o.enabled ? badge('Replies only', 'green') : ev ? badge('Events only', 'green') : badge('Off', 'gray')}</div>
+      <p class="muted">CORE's outgoing mail server. Turn it on for the helpdesk (agents' replies, the acknowledgement when a ticket arrives by email, the Projects digest, all from the helpdesk address) and for CUSTOM APP events (invitations and seat emails, each from the event's own address) separately: the server must be allowed to send for each address's domain, or that mail lands in spam.</p>
       <form id="outgoing" class="grid two" novalidate>
         <label class="field"><span>Outgoing mail server (SMTP)</span><input name="host" value="${o.host}" placeholder="smtp.gmail.com" /></label>
         <div class="grid two"><label class="field"><span>Port</span><input name="port" type="number" value="${o.port}" /></label><label class="field"><span>Security</span>${secField('security', o.security)}</label></div>
@@ -517,6 +518,7 @@ export async function helpdeskSettingsView(el) {
         <label class="field own"><span>Sign-in name</span><input name="user" value="${o.user}" autocomplete="off" /></label>
         <label class="field own"><span>Password</span>${pw(o)}</label>
         <label class="field check span-2"><input type="checkbox" name="enabled" ${o.enabled ? 'checked' : ''} /> <span>Send replies by email from ${s.mailbox.address || 'the helpdesk address'}</span></label>
+        <label class="field check span-2"><input type="checkbox" name="events" ${ev ? 'checked' : ''} /> <span>Use for CUSTOM APP event emails (invitations and seats, from each event's own address)</span></label>
         <p class="form-error span-2" hidden></p>
         <div class="actions span-2"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" id="test-out">Send a test email</button></div>
       </form>
@@ -673,7 +675,7 @@ export async function helpdeskSettingsView(el) {
       sync();
       const presetFor = Object.values(PRESETS).find((p) => p.imap?.[0] === s.mailbox.host);
       if (presetFor && !out.host.value) [out.host.value, out.port.value, out.security.value] = presetFor.smtp;
-      saveForm(out, '/api/helpdesk/settings/outgoing', (f) => ({ ...Object.fromEntries(new FormData(f)), enabled: f.enabled.checked, sameLogin: f.sameLogin.checked }));
+      saveForm(out, '/api/helpdesk/settings/outgoing', (f) => ({ ...Object.fromEntries(new FormData(f)), enabled: f.enabled.checked, events: f.events.checked, sameLogin: f.sameLogin.checked }));
       el.querySelector('#test-out').addEventListener('click', () => modal({
         title: 'Send a test email',
         submitLabel: 'Send',
